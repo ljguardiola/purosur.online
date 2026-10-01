@@ -14,7 +14,7 @@ export const priceProductSchema = z.object({
   categoryName: z.string(),
   saleUnit: z.enum(SALE_UNITS),
   currentPrice: priceRowSchema.nullable(),
-  daysSinceReview: z.int().nonnegative().nullable(),
+  secondsSinceReview: z.int().nonnegative().nullable(),
   pending: z.boolean(),
 });
 

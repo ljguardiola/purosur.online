@@ -20,6 +20,7 @@ export interface BranchRegisterSummary {
   id: string;
   name: string;
   pendingCode: PendingEnrollmentCode | null;
+  pointOfSaleNumber: number | null;
 }
 
 function pendingCodeOf(
@@ -45,5 +46,6 @@ export async function listBranchRegisters(
     id: register.id,
     name: register.name,
     pendingCode: pendingCodeOf(register.enrollmentCode, now),
+    pointOfSaleNumber: register.pointOfSaleNumber,
   }));
 }

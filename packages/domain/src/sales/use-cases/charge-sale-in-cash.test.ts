@@ -7,7 +7,6 @@ import {
 } from "../../fiscal/test-support/fictional-tax-identities.js";
 import { type CashMovement, expectedCash, MAX_CASH_AMOUNT_CENTS } from "../../register/index.js";
 import type { SaleWithLines } from "../model/sale.js";
-import type { SaleLineRemoval } from "../model/sale-line-removal.js";
 import { chargeSaleInCash } from "./charge-sale-in-cash.js";
 import {
   FakeSaleLedger,
@@ -69,27 +68,6 @@ const OPEN_SALE: SaleWithLines = {
 
 const OPEN_LINE = OPEN_SALE.lines[0] as SaleWithLines["lines"][number];
 
-const LOWERED: SaleLineRemoval = {
-  id: "removal-1",
-  saleId: "sale-1",
-  saleLineId: "line-1",
-  productId: "yerba",
-  qtyRemoved: 1,
-  amountRemoved: 2500,
-  actorId: "cashier",
-  occurredAt: new Date("2026-09-30T12:10:00.000Z"),
-};
-const REMOVED: SaleLineRemoval = {
-  id: "removal-2",
-  saleId: "sale-1",
-  saleLineId: "line-9",
-  productId: "azucar",
-  qtyRemoved: 2,
-  amountRemoved: 2400,
-  actorId: "cashier",
-  occurredAt: new Date("2026-09-30T12:20:00.000Z"),
-};
-
 const ISSUER = {
   legalName: FICTIONAL_LEGAL_NAME,
   grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
@@ -121,8 +99,11 @@ const DISCOUNTED_SALE: SaleWithLines = {
   ],
 };
 
+const THRESHOLD = { id: "threshold-1", amount: 10_000_000, validFrom: "2026-01-01" };
+
 function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
   return new FakeSaleLedger({
+    thresholds: [THRESHOLD],
     accesses: { cashier: CASHIER },
     identity: IDENTITY,
     session: SESSION,
@@ -353,41 +334,9 @@ describe("chargeSaleInCash", () => {
               occurred_at: NOW.toISOString(),
             },
           ],
-          removals: [],
         },
       },
     ]);
-  });
-
-  it("carries the quantity lowered and the line removed during the sale in the event", () => {
-    const store = ledger({
-      removals: [LOWERED, REMOVED, { ...LOWERED, id: "removal-x", saleId: "sale-0" }],
-    });
-
-    charge(store, 10000);
-
-    expect(store.state.outbox[0]?.payload).toMatchObject({
-      removals: [
-        {
-          id: "removal-1",
-          sale_line_id: "line-1",
-          product_id: "yerba",
-          qty_removed: 1,
-          amount_removed: 2500,
-          actor_id: "cashier",
-          occurred_at: "2026-09-30T12:10:00.000Z",
-        },
-        {
-          id: "removal-2",
-          sale_line_id: "line-9",
-          product_id: "azucar",
-          qty_removed: 2,
-          amount_removed: 2400,
-          actor_id: "cashier",
-          occurred_at: "2026-09-30T12:20:00.000Z",
-        },
-      ],
-    });
   });
 
   it("lists only the sale movement in the event when the tendered amount is exact", () => {
@@ -538,6 +487,42 @@ describe("chargeSaleInCash", () => {
 
     expect(charge(store, 0)).toEqual({ kind: "zero_total" });
     expect(store.state).toEqual(before);
+  });
+
+  it("refuses a sale whose total reaches the threshold in effect, writing nothing", () => {
+    const store = ledger({ thresholds: [{ ...THRESHOLD, amount: TOTAL }] });
+    const before = structuredClone(store.state);
+
+    expect(charge(store, TOTAL)).toEqual({
+      kind: "reaches_buyer_identification_threshold",
+      threshold: TOTAL,
+    });
+    expect(store.state).toEqual(before);
+  });
+
+  it("charges a sale whose total is one cent under the threshold in effect", () => {
+    const store = ledger({ thresholds: [{ ...THRESHOLD, amount: TOTAL + 1 }] });
+
+    expect(charge(store, TOTAL)).toEqual(expect.objectContaining({ kind: "completed" }));
+  });
+
+  it("refuses when no threshold is in effect, writing nothing", () => {
+    const store = ledger({ thresholds: [] });
+    const before = structuredClone(store.state);
+
+    expect(charge(store, TOTAL)).toEqual({ kind: "no_buyer_identification_threshold" });
+    expect(store.state).toEqual(before);
+  });
+
+  it("reads the threshold at the clock's Argentine day", () => {
+    const store = ledger({
+      thresholds: [
+        { id: "old", amount: 1, validFrom: "2026-01-01" },
+        { id: "new", amount: 10_000_000, validFrom: "2026-09-30" },
+      ],
+    });
+
+    expect(charge(store, TOTAL)).toEqual(expect.objectContaining({ kind: "completed" }));
   });
 
   it("refuses when the session has no open sale", () => {

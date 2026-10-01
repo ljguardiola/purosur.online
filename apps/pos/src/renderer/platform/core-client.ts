@@ -51,6 +51,7 @@ export interface CoreClient {
   redeemPinCode(typedCode: string, newPin: string): Promise<PinCodeRedemptionOutcome>;
   signInUsers(): Promise<SignInUser[]>;
   authorizers(permission: AuthorizablePermissionKey): Promise<SignInUser[]>;
+  lockedClosers(): Promise<SignInUser[]>;
   signIn(userId: string, pin: string): Promise<SignInOutcome>;
   signInLookup(email: string): Promise<SignInLookupOutcome>;
   requestFirstPinCode(userId: string): Promise<FirstPinCodeRequestOutcome>;
@@ -75,11 +76,7 @@ export interface CoreClient {
   cashCharge(saleId: string, tendered: number): Promise<CashChargeAnswer>;
   chargeSaleInCash(saleId: string, tendered: number): Promise<ChargeSaleInCashOutcome>;
   chargeSaleByTransfer(saleId: string): Promise<ChargeSaleByTransferOutcome>;
-  closeCashSession(
-    sessionId: string,
-    countedCash: number,
-    authorization?: Authorization,
-  ): Promise<CloseCashSessionOutcome>;
+  closeCashSession(sessionId: string, countedCash: number): Promise<CloseCashSessionOutcome>;
   closeLockedCashSession(
     sessionId: string,
     countedCash: number,
@@ -215,6 +212,14 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           throw new Error("the core could not read the people who can authorize");
         }
         return answer.type === "authorizers" ? answer.users : undefined;
+      });
+    },
+    lockedClosers() {
+      return ask({ type: "locked-closers-request", request_id: deps.newRequestId() }, (answer) => {
+        if (answer.type === "locked-closers-unavailable") {
+          throw new Error("the core could not read the people who may close a locked register");
+        }
+        return answer.type === "locked-closers" ? answer.users : undefined;
       });
     },
     signIn(userId, pin) {
@@ -373,14 +378,13 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         (answer) => (answer.type === "charge-sale-by-transfer-result" ? answer.outcome : undefined),
       );
     },
-    closeCashSession(sessionId, countedCash, authorization) {
+    closeCashSession(sessionId, countedCash) {
       return ask(
         {
           type: "close-cash-session",
           request_id: deps.newRequestId(),
           session_id: sessionId,
           counted_cash: countedCash,
-          ...(authorization === undefined ? {} : { authorization }),
         },
         (answer) => (answer.type === "close-cash-session-result" ? answer.outcome : undefined),
       );

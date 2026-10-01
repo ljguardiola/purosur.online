@@ -114,6 +114,17 @@ function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number]
       };
     case "register":
       return { change_seq, entity: change.entity, entity_id, row: change.row };
+    case "register_point_of_sale":
+      return {
+        change_seq,
+        entity: change.entity,
+        entity_id,
+        row: {
+          point_of_sale_number: change.row.pointOfSaleNumber,
+          fiscal_address_id: change.row.fiscalAddressId,
+          version: change.row.version,
+        },
+      };
     case "discount":
       return {
         change_seq,

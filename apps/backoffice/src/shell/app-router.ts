@@ -16,7 +16,7 @@ import {
   productsListRoute,
   tagsListRoute,
 } from "../catalog/routes";
-import { fiscalConfigurationRoute } from "../fiscal/routes";
+import { fiscalConfigurationRoute, pointsOfSaleRoute } from "../fiscal/routes";
 import { helpArticleRoute, helpCategoryRoute, helpHomeRoute } from "../help/routes";
 import { discountsListRoute, pricesListRoute } from "../pricing/routes";
 import { registersListRoute } from "../register/routes";
@@ -58,7 +58,7 @@ const routeTree = rootRoute.addChildren([
       discountsListRoute,
     ]),
     stockAreaRoute.addChildren([stockBalancesRoute, stockCountsRoute, stockMovementsRoute]),
-    cashAndFiscalAreaRoute.addChildren([fiscalConfigurationRoute]),
+    cashAndFiscalAreaRoute.addChildren([pointsOfSaleRoute, fiscalConfigurationRoute]),
     settingsAreaRoute.addChildren([
       myAccountRoute,
       usersListRoute,

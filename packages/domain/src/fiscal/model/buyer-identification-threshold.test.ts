@@ -1,5 +1,7 @@
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
+  chargeRefusal,
   isBuyerIdentificationThresholdAmount,
   latestThreshold,
   startsAfterLatestThreshold,
@@ -92,5 +94,72 @@ describe("latestThreshold", () => {
 
   it("answers the threshold that starts last, whatever the order of the list", () => {
     expect(latestThreshold([second, third, first])).toEqual(third);
+  });
+});
+
+describe("chargeRefusal", () => {
+  const thresholds = [first, second, third];
+  const noon = (day: string) => new Date(`${day}T15:00:00.000Z`);
+  const reaches = (threshold: number) => ({
+    kind: "reaches_buyer_identification_threshold",
+    threshold,
+  });
+
+  it("lets an amount below the threshold in effect be charged", () => {
+    expect(chargeRefusal(1_999_999, thresholds, noon("2026-07-01"))).toBeUndefined();
+  });
+
+  it("refuses an amount equal to the threshold in effect, naming it", () => {
+    expect(chargeRefusal(2_000_000, thresholds, noon("2026-07-01"))).toEqual(reaches(2_000_000));
+  });
+
+  it("refuses an amount above the threshold in effect, naming it", () => {
+    expect(chargeRefusal(2_000_001, thresholds, noon("2026-07-01"))).toEqual(reaches(2_000_000));
+  });
+
+  it("applies a threshold on the Argentine day it starts", () => {
+    expect(chargeRefusal(1_500_000, thresholds, noon("2026-06-01"))).toBeUndefined();
+    expect(chargeRefusal(1_500_000, thresholds, noon("2026-05-31"))).toEqual(reaches(1_000_000));
+  });
+
+  it("reads the Argentine day, not the UTC one, late at night UTC", () => {
+    const stillMay = new Date("2026-06-01T02:59:59.000Z");
+    const alreadyJune = new Date("2026-06-01T03:00:00.000Z");
+
+    expect(chargeRefusal(1_500_000, thresholds, stillMay)).toEqual(reaches(1_000_000));
+    expect(chargeRefusal(1_500_000, thresholds, alreadyJune)).toBeUndefined();
+  });
+
+  it("ignores a threshold that has not started", () => {
+    expect(chargeRefusal(2_500_000, thresholds, noon("2026-08-31"))).toEqual(reaches(2_000_000));
+    expect(chargeRefusal(2_500_000, thresholds, noon("2026-09-01"))).toBeUndefined();
+  });
+
+  it("refuses every amount when there are no thresholds", () => {
+    expect(chargeRefusal(1, [], noon("2026-07-01"))).toEqual({
+      kind: "no_buyer_identification_threshold",
+    });
+  });
+
+  it("refuses every amount when every threshold is still in the future", () => {
+    expect(chargeRefusal(1, thresholds, noon("2025-12-31"))).toEqual({
+      kind: "no_buyer_identification_threshold",
+    });
+  });
+
+  it("refuses exactly the amounts that reach the threshold in effect", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 10_000_000 }),
+        fc.integer({ min: 0, max: 20_000_000 }),
+        (limit, amount) => {
+          const only = [{ id: "t", amount: limit, validFrom: "2026-01-01" }];
+
+          expect(chargeRefusal(amount, only, noon("2026-07-01"))).toEqual(
+            amount >= limit ? reaches(limit) : undefined,
+          );
+        },
+      ),
+    );
   });
 });

@@ -80,9 +80,16 @@ import { registerTagsListRoute } from "./catalog/tags-list-route.js";
 import { registerBuyerIdentificationThresholdRecordRoute } from "./fiscal/buyer-identification-threshold-record-route.js";
 import type { BuyerIdentificationThresholdsRouteOptions } from "./fiscal/buyer-identification-thresholds-list-route.js";
 import { registerBuyerIdentificationThresholdsListRoute } from "./fiscal/buyer-identification-thresholds-list-route.js";
+import { registerFiscalAddressCreationRoute } from "./fiscal/fiscal-address-creation-route.js";
+import { registerFiscalAddressEditRoute } from "./fiscal/fiscal-address-edit-route.js";
+import type { FiscalAddressesRouteOptions } from "./fiscal/fiscal-addresses-list-route.js";
+import { registerFiscalAddressesListRoute } from "./fiscal/fiscal-addresses-list-route.js";
 import { registerIssuerIdentificationEditRoute } from "./fiscal/issuer-identification-edit-route.js";
 import type { IssuerIdentificationRouteOptions } from "./fiscal/issuer-identification-read-route.js";
 import { registerIssuerIdentificationReadRoute } from "./fiscal/issuer-identification-read-route.js";
+import { registerRegisterPointOfSaleConfigurationRoute } from "./fiscal/register-point-of-sale-configuration-route.js";
+import type { RegistersPointsOfSaleRouteOptions } from "./fiscal/registers-points-of-sale-list-route.js";
+import { registerRegistersPointsOfSaleListRoute } from "./fiscal/registers-points-of-sale-list-route.js";
 import { registerEdgeOriginGuard } from "./platform/edge-origin-guard.js";
 import { registerHealthRoute } from "./platform/health-route.js";
 import { registerDiscountCreationRoute } from "./pricing/discount-creation-route.js";
@@ -112,6 +119,7 @@ import { registerStockMovementsRoutes } from "./stock/stock-movements-route.js";
 import { registerStockProductsRoute } from "./stock/stock-products-route.js";
 import type { StockRouteOptions } from "./stock/stock-route-options.js";
 import { registerChangesRoute } from "./sync/changes-route.js";
+import { registerEventsRoute } from "./sync/events-route.js";
 
 export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = PostgresJsQueryResultHKT> {
   version: string;
@@ -127,6 +135,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   branchSettings?: BranchSettingsRouteOptions<TQueryResult>;
   issuerIdentification?: IssuerIdentificationRouteOptions<TQueryResult>;
   buyerIdentificationThresholds?: BuyerIdentificationThresholdsRouteOptions<TQueryResult>;
+  fiscalAddresses?: FiscalAddressesRouteOptions<TQueryResult>;
   categories?: CategoriesRouteOptions<TQueryResult>;
   brands?: BrandsRouteOptions<TQueryResult>;
   tags?: TagsRouteOptions<TQueryResult>;
@@ -135,6 +144,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   prices?: PricesRouteOptions<TQueryResult>;
   discounts?: DiscountsRouteOptions<TQueryResult>;
   registers?: RegistersRouteOptions<TQueryResult>;
+  registersPointsOfSale?: RegistersPointsOfSaleRouteOptions<TQueryResult>;
   stock?: StockRouteOptions<TQueryResult>;
   devices?: DeviceTokensOptions<TQueryResult>;
   firstPinCodes?: FirstPinCodeRouteOptions<TQueryResult>;
@@ -175,6 +185,7 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     branchSettings: backoffice,
     issuerIdentification: { ...backoffice, authorizedCuit: wiring.authorizedCuit },
     buyerIdentificationThresholds: backoffice,
+    fiscalAddresses: backoffice,
     categories: backoffice,
     brands: backoffice,
     tags: backoffice,
@@ -183,6 +194,7 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     prices: backoffice,
     discounts: backoffice,
     registers: backoffice,
+    registersPointsOfSale: backoffice,
     stock: backoffice,
     devices,
     firstPinCodes: devices,
@@ -329,6 +341,12 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerBuyerIdentificationThresholdRecordRoute(api, options.buyerIdentificationThresholds);
       }
 
+      if (options.fiscalAddresses) {
+        registerFiscalAddressesListRoute(api, options.fiscalAddresses);
+        registerFiscalAddressCreationRoute(api, options.fiscalAddresses);
+        registerFiscalAddressEditRoute(api, options.fiscalAddresses);
+      }
+
       if (options.categories) {
         registerCategoriesListRoute(api, options.categories);
         registerCategoryCreationRoute(api, options.categories);
@@ -394,9 +412,15 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerRegisterEnrollmentCodeRoute(api, options.registers);
       }
 
+      if (options.registersPointsOfSale) {
+        registerRegistersPointsOfSaleListRoute(api, options.registersPointsOfSale);
+        registerRegisterPointOfSaleConfigurationRoute(api, options.registersPointsOfSale);
+      }
+
       if (options.devices) {
         registerDeviceEnrollmentRoute(api, options.devices);
         registerChangesRoute(api, options.devices);
+        registerEventsRoute(api, options.devices);
         registerPinCodeRedemptionRoute(api, options.devices);
         registerSignInLookupRoute(api, options.devices);
         registerDeviceTokenRotationRoute(api, options.devices);

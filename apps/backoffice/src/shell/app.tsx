@@ -60,6 +60,10 @@ import {
   defaultFiscalConfigurationScreenServices,
   type FiscalConfigurationScreenServices,
 } from "../fiscal/fiscal-configuration-services";
+import {
+  defaultPointsOfSaleScreenServices,
+  type PointsOfSaleScreenServices,
+} from "../fiscal/points-of-sale-services";
 import type { BackofficeHelpCatalog } from "../help/help-catalog";
 import { createQueryClient } from "../platform/query-client";
 import {
@@ -120,6 +124,7 @@ export type AppServices = {
   stockCountsScreen: StockCountsScreenServices;
   stockMovementsScreen: StockMovementsScreenServices;
   fiscalConfigurationScreen: FiscalConfigurationScreenServices;
+  pointsOfSaleScreen: PointsOfSaleScreenServices;
   accountFooter: AccountFooterServices;
   screenFailure: ScreenFailureServices;
   alertsOverviewScreen: AlertsOverviewScreenServices;
@@ -148,6 +153,7 @@ const defaultAppServices: AppServices = {
   stockCountsScreen: defaultStockCountsScreenServices,
   stockMovementsScreen: defaultStockMovementsScreenServices,
   fiscalConfigurationScreen: defaultFiscalConfigurationScreenServices,
+  pointsOfSaleScreen: defaultPointsOfSaleScreenServices,
   accountFooter: defaultAccountFooterServices,
   screenFailure: defaultScreenFailureServices,
   alertsOverviewScreen: defaultAlertsOverviewScreenServices,

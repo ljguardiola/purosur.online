@@ -18,6 +18,12 @@ function envelope(code: string, details: unknown[] = []): CloudResponse {
 }
 
 const OPENER_PERSON = { user_id: USER_ID, first_name: "Ada", permission_keys: ["sell_and_charge"] };
+const OPEN_CASH_SESSION = {
+  id: "s1",
+  opened_at: "2026-05-01T09:00:00.000Z",
+  opened_by: OPENER_PERSON,
+  locked: false,
+};
 
 function depsAnswering(
   response: CloudResponse,
@@ -28,6 +34,7 @@ function depsAnswering(
   }: { enrolled?: boolean; canApply?: boolean; opener?: string } = {},
 ) {
   const signedIn: string[] = [];
+  const cashSessionReads: string[] = [];
   const posted: { path: string; bearerToken: string; body: unknown }[] = [];
   const applied: { pepper: string; redemption: PinCodeRedemption }[] = [];
   const reported: unknown[] = [];
@@ -45,13 +52,19 @@ function depsAnswering(
     reportLocalFailure: (error) => {
       reported.push(error);
     },
-    cashSessionOpener: () => opener,
-    signInRedeemed: (userId) => {
-      signedIn.push(userId);
-      return OPENER_PERSON;
+    openCashSession: () => (opener === undefined ? undefined : { openedBy: opener }),
+    redeemedPerson: () => OPENER_PERSON,
+    signedInPerson: {
+      set: (userId) => {
+        signedIn.push(userId);
+      },
+    },
+    cashSession: (personId) => {
+      cashSessionReads.push(personId);
+      return OPEN_CASH_SESSION;
     },
   };
-  return { deps, posted, applied, reported, signedIn };
+  return { deps, posted, applied, reported, signedIn, cashSessionReads };
 }
 
 describe("redeemPinCode", () => {
@@ -85,9 +98,34 @@ describe("redeemPinCode", () => {
     expect(await redeemPinCode(deps, TYPED_CODE, "482915")).toEqual({
       kind: "resumed",
       person: OPENER_PERSON,
+      cash_session: OPEN_CASH_SESSION,
     });
     expect(applied).toHaveLength(1);
     expect(signedIn).toEqual([USER_ID]);
+  });
+
+  it("answers the open cash session as the opener sees it once signed in", async () => {
+    const { deps, cashSessionReads } = depsAnswering(
+      { kind: "ok", body: REDEEMED_BODY },
+      { opener: USER_ID },
+    );
+
+    await redeemPinCode(deps, TYPED_CODE, "482915");
+
+    expect(cashSessionReads).toEqual([USER_ID]);
+  });
+
+  it("fails without signing the opener in when the open cash session cannot be read", async () => {
+    const { deps, signedIn } = depsAnswering(
+      { kind: "ok", body: REDEEMED_BODY },
+      { opener: USER_ID },
+    );
+    deps.cashSession = () => {
+      throw new Error("the register database is unavailable");
+    };
+
+    await expect(redeemPinCode(deps, TYPED_CODE, "482915")).rejects.toThrow();
+    expect(signedIn).toEqual([]);
   });
 
   it("refuses a code redeemed for anyone but the opener while a session is open, signing nobody in", async () => {
@@ -102,11 +140,29 @@ describe("redeemPinCode", () => {
     expect(signedIn).toEqual([]);
   });
 
-  it("is only redeemed when the opener cannot be signed in", async () => {
-    const { deps } = depsAnswering({ kind: "ok", body: REDEEMED_BODY }, { opener: USER_ID });
-    deps.signInRedeemed = () => undefined;
+  it("is only redeemed, signing nobody in, when the opener cannot be signed in", async () => {
+    const { deps, signedIn } = depsAnswering(
+      { kind: "ok", body: REDEEMED_BODY },
+      { opener: USER_ID },
+    );
+    deps.redeemedPerson = () => undefined;
 
     expect(await redeemPinCode(deps, TYPED_CODE, "482915")).toEqual({ kind: "redeemed" });
+    expect(signedIn).toEqual([]);
+  });
+
+  it("is redeemed, signing nobody in, when the opener cannot be signed in, whatever reading the open cash session does", async () => {
+    const { deps, signedIn } = depsAnswering(
+      { kind: "ok", body: REDEEMED_BODY },
+      { opener: USER_ID },
+    );
+    deps.redeemedPerson = () => undefined;
+    deps.cashSession = () => {
+      throw new Error("the register database is unavailable");
+    };
+
+    expect(await redeemPinCode(deps, TYPED_CODE, "482915")).toEqual({ kind: "redeemed" });
+    expect(signedIn).toEqual([]);
   });
 
   it("signs nobody in when no session is open", async () => {

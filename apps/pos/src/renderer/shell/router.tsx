@@ -71,18 +71,15 @@ export interface RouterContext {
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
   signInUsers: () => Promise<SignInUser[]>;
   authorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
+  lockedClosers: () => Promise<SignInUser[]>;
   signIn: (userId: string, pin: string) => Promise<SignInOutcome>;
   registerName: () => Promise<string | null>;
   signOut: () => void;
-  openCashSession: (
-    person: SignedInPerson,
-    openingFloat: number,
-  ) => Promise<OpenCashSessionOutcome>;
+  openCashSession: (openingFloat: number) => Promise<OpenCashSessionOutcome>;
   closeCashSession: (
     person: SignedInPerson,
     sessionId: string,
     countedCash: number,
-    authorization: Authorization | undefined,
     leaving: boolean,
   ) => Promise<CloseCashSessionOutcome>;
   closeLockedCashSession: (
@@ -228,7 +225,7 @@ const signedInRoute = createRoute({
         registerName={registerName}
         entries={ACTION_ENTRIES}
         signOut={signOut}
-        openCashSession={(openingFloat) => openCashSession(person, openingFloat)}
+        openCashSession={openCashSession}
       />
     );
   },
@@ -354,11 +351,11 @@ const cashCountRoute = createRoute({
   path: "/cash-count",
   validateSearch: (search: { leaving?: unknown }) => ({ leaving: search.leaving === true }),
   beforeLoad: ({ context }) => {
-    const { id, openedAt, openedBy, person } = requireOpenSession(context);
-    return { id, openedAt, openedBy, person };
+    const { id, openedAt, person } = requireOpenSession(context);
+    return { id, openedAt, person };
   },
   component: function CashCountRoute() {
-    const { id, openedAt, openedBy, person, signOut, cashBalance, authorizers, closeCashSession } =
+    const { id, openedAt, person, signOut, cashBalance, closeCashSession } =
       cashCountRoute.useRouteContext();
     const registerName = useRegisterName();
     const { leaving } = cashCountRoute.useSearch();
@@ -366,15 +363,11 @@ const cashCountRoute = createRoute({
       <CashCountScreen
         sessionId={id}
         person={person}
-        openedBy={openedBy}
         registerName={registerName}
         openedAt={openedAt}
         lock={signOut}
         loadCashBalance={cashBalance}
-        loadAuthorizers={authorizers}
-        closeCashSession={(countedCash, authorization) =>
-          closeCashSession(person, id, countedCash, authorization, leaving)
-        }
+        closeCashSession={(countedCash) => closeCashSession(person, id, countedCash, leaving)}
       />
     );
   },
@@ -415,7 +408,7 @@ const lockedCloseRoute = createRoute({
       openedBy,
       cashBalance,
       sessionOpenSale,
-      authorizers,
+      lockedClosers,
       identifyLockedCloser,
       closeLockedCashSession,
       cancelLockedSale,
@@ -429,7 +422,7 @@ const lockedCloseRoute = createRoute({
         openedAt={openedAt}
         loadCashBalance={cashBalance}
         loadOpenSale={sessionOpenSale}
-        loadAuthorizers={authorizers}
+        loadClosers={lockedClosers}
         identifyLockedCloser={identifyLockedCloser}
         closeLockedCashSession={(countedCash, closer) =>
           closeLockedCashSession(id, countedCash, closer)
@@ -554,6 +547,7 @@ export function createAppRouter(
     | "cashMovementKinds"
     | "recordCashMovement"
     | "authorizers"
+    | "lockedClosers"
     | "redeemPinCode"
     | "signInLookup"
     | "requestFirstPinCode"

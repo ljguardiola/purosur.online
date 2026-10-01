@@ -236,12 +236,24 @@ describe("authorizing with another person's PIN", () => {
       const attempt = { ...built.store, signInRecord: () => record() };
 
       await signIn(
-        { ...built, store: attempt, signedInPerson, cashSessionOpener: () => undefined },
+        {
+          ...built,
+          store: attempt,
+          signedInPerson,
+          openCashSession: () => undefined,
+          cashSession: () => null,
+        },
         "u2",
         "9999",
       );
       await signIn(
-        { ...built, store: attempt, signedInPerson, cashSessionOpener: () => undefined },
+        {
+          ...built,
+          store: attempt,
+          signedInPerson,
+          openCashSession: () => undefined,
+          cashSession: () => null,
+        },
         "u2",
         "9999",
       );
@@ -261,7 +273,7 @@ describe("authorizing with another person's PIN", () => {
 
       expect(
         await signIn(
-          { ...built, signedInPerson, cashSessionOpener: () => undefined },
+          { ...built, signedInPerson, openCashSession: () => undefined, cashSession: () => null },
           "u2",
           "9999",
         ),

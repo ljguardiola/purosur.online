@@ -72,11 +72,7 @@ export interface RendererRequestDeps {
   removeSaleLine: ((lineId: string) => Promise<RemoveSaleLineOutcome>) | undefined;
   cancelSale: (() => Promise<CancelSaleOutcome>) | undefined;
   closeCashSession:
-    | ((
-        sessionId: string,
-        countedCash: number,
-        authorization: Authorization | undefined,
-      ) => Promise<CloseCashSessionOutcome>)
+    | ((sessionId: string, countedCash: number) => Promise<CloseCashSessionOutcome>)
     | undefined;
   closeLockedCashSession:
     | ((
@@ -92,6 +88,7 @@ export interface RendererRequestDeps {
   cashBalance: (() => CashBalance | null) | undefined;
   sessionOpenSale: (() => SessionOpenSale | null) | undefined;
   authorizers: ((permission: AuthorizablePermissionKey) => SignInUser[]) | undefined;
+  lockedClosers: (() => SignInUser[]) | undefined;
   signOut: () => void;
   reportFailure: (context: string, error: unknown) => void;
 }
@@ -184,17 +181,21 @@ async function attemptCloseCashSession(
   deps: RendererRequestDeps,
   sessionId: string,
   countedCash: number,
-  authorization: Authorization | undefined,
 ): Promise<CloseCashSessionOutcome> {
   try {
-    return (
-      (await deps.closeCashSession?.(sessionId, countedCash, authorization)) ?? {
-        kind: "unavailable",
-      }
-    );
+    return (await deps.closeCashSession?.(sessionId, countedCash)) ?? { kind: "unavailable" };
   } catch (error) {
     deps.reportFailure("closing a cash session", error);
     return { kind: "unavailable" };
+  }
+}
+
+function readLockedClosers(deps: RendererRequestDeps): SignInUser[] | undefined {
+  try {
+    return deps.lockedClosers?.();
+  } catch (error) {
+    deps.reportFailure("reading the people who may close a locked register", error);
+    return undefined;
   }
 }
 
@@ -577,12 +578,7 @@ export async function answerRendererRequest(
       return {
         type: "close-cash-session-result",
         request_id: message.request_id,
-        outcome: await attemptCloseCashSession(
-          deps,
-          message.session_id,
-          message.counted_cash,
-          message.authorization,
-        ),
+        outcome: await attemptCloseCashSession(deps, message.session_id, message.counted_cash),
       };
     case "close-locked-cash-session":
       return {
@@ -624,6 +620,12 @@ export async function answerRendererRequest(
       return users === undefined
         ? { type: "authorizers-unavailable", request_id: message.request_id }
         : { type: "authorizers", request_id: message.request_id, users };
+    }
+    case "locked-closers-request": {
+      const users = readLockedClosers(deps);
+      return users === undefined
+        ? { type: "locked-closers-unavailable", request_id: message.request_id }
+        : { type: "locked-closers", request_id: message.request_id, users };
     }
     case "sign-out":
       deps.signOut();

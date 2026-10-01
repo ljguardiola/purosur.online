@@ -10,3 +10,10 @@ export const fiscalConfigurationRoute = createRoute({
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeCashArea),
   component: lazyScreen(() => import("./fiscal-configuration-page"), "FiscalConfigurationPage"),
 });
+
+export const pointsOfSaleRoute = createRoute({
+  getParentRoute: () => cashAndFiscalAreaRoute,
+  path: "points-of-sale",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeCashArea),
+  component: lazyScreen(() => import("./points-of-sale-page"), "PointsOfSalePage"),
+});

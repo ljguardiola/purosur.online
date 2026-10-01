@@ -3,9 +3,7 @@ import type { CashMovement } from "../../register/index.js";
 import type { OutboxEventDraft } from "../../sync/index.js";
 import type { PaymentTransaction } from "../model/payment.js";
 import type { LinePromotion, SaleWithLines } from "../model/sale.js";
-import type { SaleLineRemoval } from "../model/sale-line-removal.js";
 import { paymentRecord } from "./payment-record.js";
-import { removalRecord } from "./removal-record.js";
 import type { IdGenerator, SaleLedgerTransaction } from "./sale-ledger.js";
 
 export type SaleCashMovement = CashMovement & { ref: { type: string; id: string } };
@@ -26,16 +24,7 @@ export function completeSale(
 ): void {
   tx.recordCompletedSale(sale.id);
   tx.appendOutboxEvent(
-    saleCompletedEvent(
-      ids.next(),
-      sale,
-      total,
-      payment,
-      movements,
-      tx.saleLineRemovals(sale.id),
-      actorId,
-      completedAt,
-    ),
+    saleCompletedEvent(ids.next(), sale, total, payment, movements, actorId, completedAt),
   );
   const gate = preEmissionGate({
     total,
@@ -81,7 +70,6 @@ function saleCompletedEvent(
   total: number,
   payment: PaymentTransaction,
   movements: readonly SaleCashMovement[],
-  removals: readonly SaleLineRemoval[],
   actorId: string,
   completedAt: Date,
 ): OutboxEventDraft {
@@ -123,7 +111,6 @@ function saleCompletedEvent(
         actor_id: movement.actorId,
         occurred_at: movement.occurredAt.toISOString(),
       })),
-      removals: removals.map(removalRecord),
     },
     occurred_at: completedAtIso,
     actor_id: actorId,

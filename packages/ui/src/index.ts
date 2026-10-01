@@ -13,6 +13,8 @@ export { Table } from "./components/data-display/table/table";
 export type { TableCellTextProps } from "./components/data-display/table/table-cell-text";
 export { TableCellText } from "./components/data-display/table/table-cell-text";
 export { actionsColumn, dataColumn } from "./components/data-display/table/table-columns";
+export type { TablePaginationProps } from "./components/data-display/table/table-pagination";
+export { TablePagination } from "./components/data-display/table/table-pagination";
 export type {
   TableAction,
   TableActions,
@@ -128,7 +130,15 @@ export type { Icon } from "./components/shared/icon";
 export type { LoadStatus } from "./components/shared/load-status";
 export type { NoticeTone, Tone } from "./components/shared/tone";
 export type { Locale, PluralForms } from "./messages/formatters";
-export { formatCents, formatDate, formatNumber, plural } from "./messages/formatters";
+export {
+  formatCents,
+  formatDate,
+  formatNumber,
+  formatPointOfSaleNumber,
+  formatTimeAgo,
+  parsePointOfSaleNumber,
+  plural,
+} from "./messages/formatters";
 export type {
   Category,
   CategoryRecord,

@@ -4,9 +4,7 @@ import { removeSaleLine } from "./remove-sale-line.js";
 import {
   FakeSaleLedger,
   type FakeSaleLedgerState,
-  type FakeSaleLedgerWrite,
   FixedClock,
-  SequentialIds,
 } from "./test-support/fake-sale-ledger.js";
 
 const NOW = new Date("2026-09-30T12:34:56.789Z");
@@ -46,8 +44,11 @@ const OPEN_SALE: SaleWithLines = {
   lines: [YERBA_LINE, AZUCAR_LINE],
 };
 
+const THRESHOLD = { id: "threshold-1", amount: 10_000_000, validFrom: "2026-01-01" };
+
 function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
   return new FakeSaleLedger({
+    thresholds: [THRESHOLD],
     accesses: { cashier: CASHIER },
     session: SESSION,
     sales: [OPEN_SALE],
@@ -56,32 +57,18 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
 }
 
 function remove(store: FakeSaleLedger, lineId: string, actorId = "cashier") {
-  return removeSaleLine(
-    { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds() },
-    { actorId, lineId },
-  );
+  return removeSaleLine({ ledger: store, clock: new FixedClock(NOW) }, { actorId, lineId });
 }
 
 describe("removeSaleLine", () => {
-  it("takes the line out of the sale and records its full quantity and total as removed", () => {
+  it("takes the line out of the sale and leaves no trace of it", () => {
     const store = ledger();
+    const before = structuredClone(store.state);
 
     const outcome = remove(store, "line-1");
 
     expect(outcome).toEqual({ kind: "removed", sale: { ...OPEN_SALE, lines: [AZUCAR_LINE] } });
-    expect(store.state.sales[0]?.lines).toEqual([AZUCAR_LINE]);
-    expect(store.state.removals).toEqual([
-      {
-        id: "id-1",
-        saleId: "sale-1",
-        saleLineId: "line-1",
-        productId: "yerba",
-        qtyRemoved: 3,
-        amountRemoved: 6750,
-        actorId: "cashier",
-        occurredAt: NOW,
-      },
-    ]);
+    expect(store.state).toEqual({ ...before, sales: [{ ...OPEN_SALE, lines: [AZUCAR_LINE] }] });
     expect(store.transactions).toBe(1);
   });
 
@@ -103,7 +90,7 @@ describe("removeSaleLine", () => {
   });
 
   it("refuses when there is no open sale, changing nothing", () => {
-    const store = ledger({ sales: [{ ...OPEN_SALE, state: "CANCELLED" }] });
+    const store = ledger({ sales: [{ ...OPEN_SALE, state: "COMPLETED" }] });
     const before = structuredClone(store.state);
 
     expect(remove(store, "line-1")).toEqual({ kind: "no_open_sale" });
@@ -130,15 +117,38 @@ describe("removeSaleLine", () => {
     expect(store.state).toEqual(before);
   });
 
-  it.each<FakeSaleLedgerWrite>(["recordLineRemoval", "deleteSaleLine"])(
-    "leaves the sale untouched when %s fails",
-    (write) => {
-      const store = ledger();
-      const before = structuredClone(store.state);
-      store.failOn = write;
+  it("leaves the sale untouched when deleting the line fails", () => {
+    const store = ledger();
+    const before = structuredClone(store.state);
+    store.failOn = "deleteSaleLine";
 
-      expect(() => remove(store, "line-1")).toThrow(` failed`);
-      expect(store.state).toEqual(before);
-    },
-  );
+    expect(() => remove(store, "line-1")).toThrow("deleteSaleLine failed");
+    expect(store.state).toEqual(before);
+  });
+});
+
+describe("remove-sale-line charge refusal", () => {
+  it("tells that the sale reaches the threshold when removing a line brings it to the threshold", () => {
+    const store = ledger({ thresholds: [{ ...THRESHOLD, amount: 1200 }] });
+
+    expect(remove(store, "line-1")).toEqual(
+      expect.objectContaining({
+        chargeRefusal: { kind: "reaches_buyer_identification_threshold", threshold: 1200 },
+      }),
+    );
+  });
+
+  it("tells nothing is refused when removing a line leaves the sale under the threshold", () => {
+    const store = ledger({ thresholds: [{ ...THRESHOLD, amount: 1201 }] });
+
+    expect(remove(store, "line-1")).toHaveProperty("chargeRefusal", undefined);
+  });
+
+  it("tells that no threshold is in effect when there is none", () => {
+    const store = ledger({ thresholds: [] });
+
+    expect(remove(store, "line-1")).toEqual(
+      expect.objectContaining({ chargeRefusal: { kind: "no_buyer_identification_threshold" } }),
+    );
+  });
 });

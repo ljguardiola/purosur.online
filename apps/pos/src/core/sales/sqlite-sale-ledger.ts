@@ -1,4 +1,5 @@
 import {
+  type BuyerIdentificationThreshold,
   type DiscountBenefit,
   type DiscountTargetKind,
   discountsTargeting,
@@ -8,7 +9,6 @@ import {
   priceInEffectAt,
   type Sale,
   type SaleLine,
-  type SaleLineRemoval,
   type SaleUnit,
   type SaleWithLines,
 } from "@purosur/domain";
@@ -51,17 +51,6 @@ interface LineRow {
   promotion_id: string | null;
   discount_amount: number;
   line_total: number;
-}
-
-interface RemovalRow {
-  id: string;
-  sale_id: string;
-  sale_line_id: string;
-  product_id: string;
-  qty_removed: number;
-  amount_removed: number;
-  actor_id: string;
-  occurred_at: string;
 }
 
 interface BenefitColumns {
@@ -134,16 +123,15 @@ export class SqliteSaleLedger implements SaleLedger {
       activeProductByBarcode: (code) => this.activeProductByBarcode(code),
       activeProductById: (productId) => this.activeProductById(productId),
       searchableProducts: () => this.searchableProducts(),
+      buyerIdentificationThresholds: () => this.buyerIdentificationThresholds(),
       priceAt: (productId, moment) => this.priceAt(productId, moment),
       promotionsTargeting: (productId) => this.promotionsTargeting(productId),
       recordOpenedSale: (sale) => this.recordOpenedSale(sale),
       recordSaleLine: (saleId, line) => this.recordSaleLine(saleId, line),
       recordLineQuantity: (line) => this.recordLineQuantity(line),
-      recordLineRemoval: (removal) => this.recordLineRemoval(removal),
       deleteSaleLine: (lineId) => this.deleteSaleLine(lineId),
-      saleLineRemovals: (saleId) => this.saleLineRemovals(saleId),
       salePayments: (saleId) => readSalePayments(this.database, saleId),
-      markSaleCancelled: (saleId) => this.markSaleCancelled(saleId),
+      discardOpenSale: (saleId) => this.discardOpenSale(saleId),
       recordPayment: (payment) => this.recordPayment(payment),
       recordCashMovement: (movement) => insertCashMovement(this.database, movement),
       recordCompletedSale: (saleId) => this.recordCompletedSale(saleId),
@@ -277,6 +265,15 @@ export class SqliteSaleLedger implements SaleLedger {
         saleUnit: row.sale_unit as SaleUnit,
         timesSoldHere: row.times_sold_here,
       }));
+  }
+
+  private buyerIdentificationThresholds(): BuyerIdentificationThreshold[] {
+    return this.database
+      .prepare<[], { id: string; amount: number; valid_from: string }>(
+        "SELECT id, amount, valid_from FROM buyer_identification_thresholds ORDER BY valid_from",
+      )
+      .all()
+      .map((row) => ({ id: row.id, amount: row.amount, validFrom: row.valid_from }));
   }
 
   private priceAt(
@@ -414,55 +411,19 @@ export class SqliteSaleLedger implements SaleLedger {
       });
   }
 
-  private recordLineRemoval(removal: SaleLineRemoval): void {
-    this.database
-      .prepare(
-        `INSERT INTO sale_line_removals (
-           id, sale_id, sale_line_id, product_id, qty_removed, amount_removed, actor_id, occurred_at
-         ) VALUES (
-           @id, @sale_id, @sale_line_id, @product_id, @qty_removed, @amount_removed, @actor_id,
-           @occurred_at
-         )`,
-      )
-      .run({
-        id: removal.id,
-        sale_id: removal.saleId,
-        sale_line_id: removal.saleLineId,
-        product_id: removal.productId,
-        qty_removed: removal.qtyRemoved,
-        amount_removed: removal.amountRemoved,
-        actor_id: removal.actorId,
-        occurred_at: removal.occurredAt.toISOString(),
-      });
-  }
-
   private deleteSaleLine(lineId: string): void {
     this.database.prepare("DELETE FROM sale_line_promotions WHERE line_id = ?").run(lineId);
     this.database.prepare("DELETE FROM sale_lines WHERE id = ?").run(lineId);
   }
 
-  private saleLineRemovals(saleId: string): SaleLineRemoval[] {
-    return this.database
-      .prepare<[string], RemovalRow>(
-        `SELECT id, sale_id, sale_line_id, product_id, qty_removed, amount_removed, actor_id,
-                occurred_at
-         FROM sale_line_removals WHERE sale_id = ? ORDER BY rowid`,
+  private discardOpenSale(saleId: string): void {
+    this.database
+      .prepare(
+        "DELETE FROM sale_line_promotions WHERE line_id IN (SELECT id FROM sale_lines WHERE sale_id = ?)",
       )
-      .all(saleId)
-      .map((row) => ({
-        id: row.id,
-        saleId: row.sale_id,
-        saleLineId: row.sale_line_id,
-        productId: row.product_id,
-        qtyRemoved: row.qty_removed,
-        amountRemoved: row.amount_removed,
-        actorId: row.actor_id,
-        occurredAt: new Date(row.occurred_at),
-      }));
-  }
-
-  private markSaleCancelled(saleId: string): void {
-    this.database.prepare("UPDATE sales SET state = 'CANCELLED' WHERE id = ?").run(saleId);
+      .run(saleId);
+    this.database.prepare("DELETE FROM sale_lines WHERE sale_id = ?").run(saleId);
+    this.database.prepare("DELETE FROM sales WHERE id = ?").run(saleId);
   }
 
   private recordPayment(payment: PaymentTransaction): void {

@@ -32,8 +32,18 @@ const ALFAJOR = {
   promotion: null,
   line_total: 150_000,
 };
-const SALE_OF_ONE_LINE: OpenSale = { id: "sale-1", lines: [YERBA], total: 476_000 };
-const SALE_OF_TWO_LINES: OpenSale = { id: "sale-1", lines: [YERBA, ALFAJOR], total: 626_000 };
+const SALE_OF_ONE_LINE: OpenSale = {
+  id: "sale-1",
+  lines: [YERBA],
+  total: 476_000,
+  charge_refusal: null,
+};
+const SALE_OF_TWO_LINES: OpenSale = {
+  id: "sale-1",
+  lines: [YERBA, ALFAJOR],
+  total: 626_000,
+  charge_refusal: null,
+};
 const COMPLETED: ChargeSaleInCashOutcome = {
   kind: "completed",
   sale_id: "sale-1",
@@ -165,7 +175,7 @@ describe("ChargeScreen", () => {
 
   it.each<[string, CurrentSaleAnswer]>([
     ["there is no sale", null],
-    ["the sale has no lines", { id: "sale-1", lines: [], total: 0 }],
+    ["the sale has no lines", { id: "sale-1", lines: [], total: 0, charge_refusal: null }],
     ["the person may not sell", "not_permitted"],
   ])("goes back to the sale when %s", async (_, answer) => {
     const { screen } = await renderScreen({ currentSale: async () => answer });
@@ -231,6 +241,18 @@ describe("ChargeScreen", () => {
       .not.toBeInTheDocument();
   });
 
+  it.each([
+    { kind: "reaches_buyer_identification_threshold", threshold: 476_000 },
+    { kind: "no_buyer_identification_threshold" },
+  ] as const)("offers no way to pay a sale the core refuses to charge: %j", async (refusal) => {
+    const { screen } = await renderScreen({
+      currentSale: async () => ({ ...SALE_OF_ONE_LINE, charge_refusal: refusal }),
+    });
+
+    await expect.poll(() => screen.router.state.location.pathname).toBe("/session");
+    await expect.element(screen.getByText("Elegí el medio de pago")).not.toBeInTheDocument();
+  });
+
   it("starts a new sale from Nueva venta by going back to the sale screen", async () => {
     const { screen } = await renderScreen();
 
@@ -250,6 +272,17 @@ describe("ChargeScreen", () => {
       await expect.poll(() => screen.router.state.location.pathname).toBe("/session");
     },
   );
+
+  it.each([
+    { kind: "reaches_buyer_identification_threshold", threshold: 476_000 },
+    { kind: "no_buyer_identification_threshold" },
+  ] as const)("goes back to the sale when the core answers %j", async (outcome) => {
+    const { screen } = await renderScreen({ chargeSaleInCash: async () => outcome });
+
+    await chargeInCash(screen, "5.000,00");
+
+    await expect.poll(() => screen.router.state.location.pathname).toBe("/session");
+  });
 
   it.each([["not_signed_in"], ["no_open_session"]] as const)(
     "reports an invalid session when the core answers %s",

@@ -38,11 +38,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const codeRequests: string[] = [];
   const openings: number[] = [];
   const cashMovementRequests: CashMovementRequest[] = [];
-  const closings: {
-    sessionId: string;
-    countedCash: number;
-    authorization: { user_id: string; pin: string } | undefined;
-  }[] = [];
+  const closings: { sessionId: string; countedCash: number }[] = [];
   const authorizerLookups: string[] = [];
   const scans: string[] = [];
   const charges: { saleId: string; tendered: number }[] = [];
@@ -176,9 +172,8 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       closeCashSession: async (
         sessionId: string,
         countedCash: number,
-        authorization: { user_id: string; pin: string } | undefined,
       ): Promise<CloseCashSessionOutcome> => {
-        closings.push({ sessionId, countedCash, authorization });
+        closings.push({ sessionId, countedCash });
         return { kind: "no_open_session" };
       },
       closeLockedCashSession: async (): Promise<CloseLockedCashSessionOutcome> => ({
@@ -191,6 +186,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         kind: "not_locked",
       }),
       cashBalance: (): CashBalance | null => null,
+      lockedClosers: () => [{ id: "u2", first_name: "Grace" }],
       sessionOpenSale: (): SessionOpenSale | null => null,
       authorizers: (permission: AuthorizablePermissionKey) => {
         authorizerLookups.push(permission);
@@ -328,6 +324,47 @@ describe("answerRendererRequest", () => {
     });
   });
 
+  it("answers with the people who may close a locked register", async () => {
+    expect(
+      await answerRendererRequest(deps(true).deps, {
+        type: "locked-closers-request",
+        request_id: "r13",
+      }),
+    ).toEqual({
+      type: "locked-closers",
+      request_id: "r13",
+      users: [{ id: "u2", first_name: "Grace" }],
+    });
+  });
+
+  it("answers that the locked register's closers cannot be read when reading them fails, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      lockedClosers: () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "locked-closers-request",
+        request_id: "r14",
+      }),
+    ).toEqual({ type: "locked-closers-unavailable", request_id: "r14" });
+    expect(failing.failures).toEqual([
+      { context: "reading the people who may close a locked register", error },
+    ]);
+  });
+
+  it("answers that the locked register's closers cannot be read when the register has no database", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { lockedClosers: undefined }).deps, {
+        type: "locked-closers-request",
+        request_id: "r18",
+      }),
+    ).toEqual({ type: "locked-closers-unavailable", request_id: "r18" });
+  });
+
   it("answers that the authorizers cannot be read when reading them fails, and reports why", async () => {
     const error = new Error("database is locked");
     const failing = deps(true, {
@@ -437,7 +474,12 @@ describe("answerRendererRequest", () => {
   it("opens a cash session with the float as sent and answers the outcome", async () => {
     const opened: OpenCashSessionOutcome = {
       kind: "opened",
-      session: { id: "s1", opened_at: "2026-09-30T12:00:00.000Z", opening_float: 5000 },
+      cash_session: {
+        id: "s1",
+        opened_at: "2026-09-30T12:00:00.000Z",
+        opened_by: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+        locked: false,
+      },
     };
     const { deps: withOpening, openings } = deps(true, { openCashSession: async () => opened });
     const answer = await answerRendererRequest(withOpening, {
@@ -504,6 +546,7 @@ describe("answerRendererRequest", () => {
       id: "s1",
       opened_at: "2026-09-30T12:00:00.000Z",
       opened_by: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+      locked: false,
     };
 
     expect(
@@ -1001,6 +1044,7 @@ describe("answerRendererRequest", () => {
         },
       ],
       total: 1500,
+      charge_refusal: null,
     };
     const { deps: withSale, saleLookups } = deps(true, { currentSale: async () => sale });
     const recording = deps(true);
@@ -1196,12 +1240,11 @@ describe("answerRendererRequest", () => {
     expect(failing.failures).toEqual([{ context: "reading what a tendered amount needs", error }]);
   });
 
-  it("closes a cash session with the session, the count and the authorization as sent, and answers the outcome", async () => {
+  it("closes a cash session with the session and the count as sent, and answers the outcome", async () => {
     const closed: CloseCashSessionOutcome = {
       kind: "closed",
       session: { id: "s1", expected_cash: 5000, counted_cash: 4800, difference: -200 },
     };
-    const authorization = { user_id: "u2", pin: "1234" };
     const closing = deps(true);
     const { deps: withClosing } = deps(true, { closeCashSession: async () => closed });
 
@@ -1216,7 +1259,6 @@ describe("answerRendererRequest", () => {
       request_id: "r21",
       session_id: "s1",
       counted_cash: 4800,
-      authorization,
     });
 
     expect(answer).toEqual({
@@ -1224,7 +1266,7 @@ describe("answerRendererRequest", () => {
       request_id: "r20",
       outcome: closed,
     });
-    expect(closing.closings).toEqual([{ sessionId: "s1", countedCash: 4800, authorization }]);
+    expect(closing.closings).toEqual([{ sessionId: "s1", countedCash: 4800 }]);
   });
 
   it("answers that closing a cash session is unavailable when it fails, and reports why", async () => {

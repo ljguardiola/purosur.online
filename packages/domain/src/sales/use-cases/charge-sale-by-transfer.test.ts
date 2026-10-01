@@ -5,7 +5,6 @@ import {
   FICTIONAL_LEGAL_NAME,
 } from "../../fiscal/test-support/fictional-tax-identities.js";
 import type { SaleWithLines } from "../model/sale.js";
-import type { SaleLineRemoval } from "../model/sale-line-removal.js";
 import { chargeSaleByTransfer } from "./charge-sale-by-transfer.js";
 import {
   FakeSaleLedger,
@@ -56,16 +55,6 @@ const OPEN_SALE: SaleWithLines = {
   ],
 };
 const OPEN_LINE = OPEN_SALE.lines[0] as SaleWithLines["lines"][number];
-const REMOVAL: SaleLineRemoval = {
-  id: "removal-1",
-  saleId: "sale-1",
-  saleLineId: "line-9",
-  productId: "azucar",
-  qtyRemoved: 2,
-  amountRemoved: 2400,
-  actorId: "cashier",
-  occurredAt: new Date("2026-09-30T12:20:00.000Z"),
-};
 const ISSUER = {
   legalName: FICTIONAL_LEGAL_NAME,
   grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
@@ -74,6 +63,7 @@ const ISSUER = {
   taxStatus: "Condicion de prueba",
   version: 2,
 };
+const THRESHOLD = { id: "threshold-1", amount: 10_000_000, validFrom: "2026-01-01" };
 const BUYER_TAX_STATUSES = [{ code: 90, description: "Consumidor Final", invoiceClass: "A/M/C" }];
 
 function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
@@ -83,6 +73,7 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
     session: SESSION,
     sales: [OPEN_SALE],
     issuerIdentifications: [ISSUER],
+    thresholds: [THRESHOLD],
     buyerTaxStatusSets: [{ paramsVersion: 1, options: BUYER_TAX_STATUSES }],
     ...state,
   });
@@ -142,7 +133,7 @@ describe("chargeSaleByTransfer", () => {
   });
 
   it("appends the sale_completed event with the transfer and no cash movements", () => {
-    const store = ledger({ removals: [REMOVAL] });
+    const store = ledger();
 
     charge(store);
 
@@ -205,17 +196,6 @@ describe("chargeSaleByTransfer", () => {
             },
           ],
           cash_movements: [],
-          removals: [
-            {
-              id: "removal-1",
-              sale_line_id: "line-9",
-              product_id: "azucar",
-              qty_removed: 2,
-              amount_removed: 2400,
-              actor_id: "cashier",
-              occurred_at: REMOVAL.occurredAt.toISOString(),
-            },
-          ],
         },
       },
     ]);
@@ -278,6 +258,51 @@ describe("chargeSaleByTransfer", () => {
 
     expect(charge(store)).toEqual({ kind: "zero_total" });
     expect(store.state).toEqual(before);
+  });
+
+  it("refuses a sale whose total reaches the threshold in effect, writing nothing and evaluating no gate", () => {
+    const store = ledger({ thresholds: [{ ...THRESHOLD, amount: TOTAL }] });
+    const before = structuredClone(store.state);
+
+    expect(charge(store)).toEqual({
+      kind: "reaches_buyer_identification_threshold",
+      threshold: TOTAL,
+    });
+    expect(store.state).toEqual(before);
+  });
+
+  it("charges a sale whose total is one cent under the threshold in effect", () => {
+    const store = ledger({ thresholds: [{ ...THRESHOLD, amount: TOTAL + 1 }] });
+
+    expect(charge(store)).toMatchObject({ kind: "completed" });
+  });
+
+  it("refuses when no threshold is in effect, writing nothing", () => {
+    const store = ledger({ thresholds: [] });
+    const before = structuredClone(store.state);
+
+    expect(charge(store)).toEqual({ kind: "no_buyer_identification_threshold" });
+    expect(store.state).toEqual(before);
+  });
+
+  it("reads the threshold at the clock's Argentine day", () => {
+    const store = ledger({
+      thresholds: [
+        { ...THRESHOLD, id: "old", amount: TOTAL, validFrom: "2026-01-01" },
+        { ...THRESHOLD, id: "new", amount: TOTAL + 1, validFrom: "2026-09-30" },
+      ],
+    });
+
+    expect(charge(store)).toMatchObject({ kind: "completed" });
+  });
+
+  it("reports a zero total before looking for a threshold", () => {
+    const store = ledger({
+      thresholds: [],
+      sales: [{ ...OPEN_SALE, lines: [{ ...OPEN_LINE, discountAmount: 5000, lineTotal: 0 }] }],
+    });
+
+    expect(charge(store)).toEqual({ kind: "zero_total" });
   });
 
   it("refuses when the session has no open sale", () => {

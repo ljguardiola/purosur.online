@@ -10,3 +10,5 @@ export type { IssuerIdentificationBody } from "./issuer-identification.js";
 export { issuerIdentificationSchema } from "./issuer-identification.js";
 export { loadedVersionSchema } from "./loaded-version.js";
 export { netContentSchema } from "./net-content.js";
+export { pointOfSaleNumberSchema } from "./point-of-sale-number.js";
+export { requiredTextSchema } from "./required-text.js";

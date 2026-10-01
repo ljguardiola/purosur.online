@@ -7,7 +7,12 @@ import { CashOpeningPanel } from "./cash-opening-panel";
 
 const OPENED: OpenCashSessionOutcome = {
   kind: "opened",
-  session: { id: "s1", opened_at: "2026-09-30T12:02:00.000Z", opening_float: 2_000_050 },
+  cash_session: {
+    id: "s1",
+    opened_at: "2026-09-30T12:02:00.000Z",
+    opened_by: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+    locked: false,
+  },
 };
 const REQUIRED_MESSAGE = "Ingresá el fondo inicial.";
 const INVALID_MESSAGE = "Ingresá un importe válido, por ejemplo 20.000,00.";

@@ -18,6 +18,15 @@ export function formatCents(cents: number): string {
   return `$ ${formatNumber(cents / 100, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+export function formatPointOfSaleNumber(number: number): string {
+  return String(number).padStart(5, "0");
+}
+
+export function parsePointOfSaleNumber(text: string): number {
+  const digits = text.trim();
+  return /^\d+$/.test(digits) ? Number(digits) : Number.NaN;
+}
+
 export function formatDate(value: Date | number, options?: Intl.DateTimeFormatOptions): string {
   return new Intl.DateTimeFormat(LOCALE, options).format(value);
 }
@@ -31,4 +40,28 @@ export function formatMonthName(month: number): string {
 
 export function formatMonthAndYear(year: number, month: number): string {
   return `${formatMonthName(month)} ${formatNumber(year, { useGrouping: false })}`;
+}
+
+const relativeTime = new Intl.RelativeTimeFormat(LOCALE, { numeric: "always" });
+
+const SECONDS_PER_MINUTE = 60;
+const SECONDS_PER_HOUR = 60 * SECONDS_PER_MINUTE;
+const SECONDS_PER_DAY = 24 * SECONDS_PER_HOUR;
+const DAYS_PER_MONTH = 30;
+
+export function formatTimeAgo(seconds: number): string {
+  const days = Math.floor(seconds / SECONDS_PER_DAY);
+  if (days >= DAYS_PER_MONTH) {
+    return relativeTime.format(-Math.floor(days / DAYS_PER_MONTH), "month");
+  }
+  if (days >= 1) {
+    return relativeTime.format(-days, "day");
+  }
+  if (seconds >= SECONDS_PER_HOUR) {
+    return relativeTime.format(-Math.floor(seconds / SECONDS_PER_HOUR), "hour");
+  }
+  if (seconds >= SECONDS_PER_MINUTE) {
+    return relativeTime.format(-Math.floor(seconds / SECONDS_PER_MINUTE), "minute");
+  }
+  return "hace un momento";
 }

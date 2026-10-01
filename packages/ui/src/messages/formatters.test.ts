@@ -5,6 +5,9 @@ import {
   formatMonthAndYear,
   formatMonthName,
   formatNumber,
+  formatPointOfSaleNumber,
+  formatTimeAgo,
+  parsePointOfSaleNumber,
   plural,
 } from "./formatters";
 
@@ -68,5 +71,60 @@ describe("formatMonthAndYear", () => {
 
   it("writes a year of five digits without a thousands separator", () => {
     expect(formatMonthAndYear(10000, 1)).toBe("Enero 10000");
+  });
+});
+
+describe("formatPointOfSaleNumber", () => {
+  it("pads the number with zeros to the five digits the tax authority prints", () => {
+    expect(formatPointOfSaleNumber(7)).toBe("00007");
+    expect(formatPointOfSaleNumber(1234)).toBe("01234");
+  });
+
+  it("keeps a number that already has five digits as it is", () => {
+    expect(formatPointOfSaleNumber(99999)).toBe("99999");
+  });
+});
+
+describe("parsePointOfSaleNumber", () => {
+  it.each([
+    ["3", 3],
+    [" 12 ", 12],
+    ["00003", 3],
+    ["99999", 99999],
+  ])("reads the bare identifier %j as %d", (typed, expected) => {
+    expect(parsePointOfSaleNumber(typed)).toBe(expected);
+  });
+
+  it.each(["1.234", "12.345", "1e1", "0x1F", "+7", "12.0", "1,5", "-3", ""])(
+    "refuses %j, which is not made of digits only",
+    (typed) => {
+      expect(parsePointOfSaleNumber(typed)).toBeNaN();
+    },
+  );
+});
+
+describe("formatTimeAgo", () => {
+  const MINUTE = 60;
+  const HOUR = 60 * MINUTE;
+  const DAY = 24 * HOUR;
+
+  it.each([
+    [0, "hace un momento"],
+    [1, "hace un momento"],
+    [59, "hace un momento"],
+    [MINUTE, "hace 1 minuto"],
+    [5 * MINUTE, "hace 5 minutos"],
+    [HOUR - 1, "hace 59 minutos"],
+    [HOUR, "hace 1 hora"],
+    [3 * HOUR, "hace 3 horas"],
+    [DAY - 1, "hace 23 horas"],
+    [DAY, "hace 1 día"],
+    [2 * DAY, "hace 2 días"],
+    [30 * DAY - 1, "hace 29 días"],
+    [30 * DAY, "hace 1 mes"],
+    [59 * DAY, "hace 1 mes"],
+    [64 * DAY, "hace 2 meses"],
+  ])("writes %i seconds as %s", (seconds, text) => {
+    expect(formatTimeAgo(seconds)).toBe(text);
   });
 });

@@ -8,6 +8,7 @@ import {
   type AuthorizablePermissionKey,
   holdsPermission,
   isAuthorizablePermissionKey,
+  isLockedToAnother,
   type PermissionKey,
 } from "@purosur/domain";
 import { authorize } from "./authorize";
@@ -18,7 +19,7 @@ import type { SignInStore } from "./sqlite-sign-in-store";
 export type GuardedAction =
   | { permission: AuthorizablePermissionKey; authorization?: Authorization | undefined }
   | { permission: Exclude<PermissionKey, AuthorizablePermissionKey>; authorization?: undefined }
-  | { closesOwnCashSession: true; authorization?: undefined };
+  | { closesCashSession: { openedBy: string }; authorization?: undefined };
 
 type GuardedOutcome<Result> =
   | { kind: "performed"; authorized_by: AuthorizedBy | null; result: Result }
@@ -47,6 +48,7 @@ export interface ActionGate {
   runWhileLocked<Result>(
     permission: AuthorizablePermissionKey,
     authorization: Authorization,
+    openSession: { openedBy: string } | undefined,
     perform: (person: AuthorizedBy) => Promise<Result>,
   ): Promise<LockedOutcome<Result>>;
 }
@@ -59,7 +61,10 @@ export function createActionGate(deps: ActionGateDeps): ActionGate {
         return { kind: "not_signed_in" };
       }
       if (!("permission" in action)) {
-        if (action.closesOwnCashSession !== true || action.authorization !== undefined) {
+        if (
+          action.closesCashSession === undefined ||
+          isLockedToAnother(action.closesCashSession, signedInUserId)
+        ) {
           return { kind: "lacks_permission" };
         }
         return {
@@ -98,7 +103,7 @@ export function createActionGate(deps: ActionGateDeps): ActionGate {
         result: await perform({ signedInUserId, authorizedBy: outcome.by }),
       };
     },
-    async runWhileLocked(permission, authorization, perform) {
+    async runWhileLocked(permission, authorization, openSession, perform) {
       if (deps.signedInPerson.userId() !== undefined) {
         return { kind: "not_locked" };
       }
@@ -108,6 +113,9 @@ export function createActionGate(deps: ActionGateDeps): ActionGate {
       }
       if (deps.signedInPerson.userId() !== undefined) {
         return { kind: "not_locked" };
+      }
+      if (openSession !== undefined && !isLockedToAnother(openSession, outcome.by.user_id)) {
+        return { kind: "lacks_permission" };
       }
       return { kind: "performed", result: await perform(outcome.by) };
     },

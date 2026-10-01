@@ -1,7 +1,9 @@
+import type { ChargeRefusal } from "../../fiscal/index.js";
+import type { CashMovement } from "../../register/index.js";
 import { cashCharge } from "../model/cash-charge.js";
 import type { PaymentTransaction } from "../model/payment.js";
 import type { SaleWithLines } from "../model/sale.js";
-import { chargeableSale, isChargeRefusal } from "./chargeable-sale.js";
+import { chargeableSale, isSaleRefusal } from "./chargeable-sale.js";
 import { completeSale, type SaleCashMovement } from "./complete-sale.js";
 import type { Clock, IdGenerator, SaleLedger } from "./sale-ledger.js";
 
@@ -23,6 +25,7 @@ export type ChargeSaleInCashOutcome =
   | { kind: "no_open_sale" }
   | { kind: "empty_sale" }
   | { kind: "zero_total" }
+  | ChargeRefusal
   | { kind: "invalid_amount" }
   | { kind: "insufficient_cash"; amountDue: number }
   | { kind: "completed"; saleId: string; total: number; tendered: number; change: number };
@@ -32,8 +35,9 @@ export function chargeSaleInCash(
   { actorId, saleId, tendered }: ChargeSaleInCashInput,
 ): ChargeSaleInCashOutcome {
   return ledger.transaction<ChargeSaleInCashOutcome>((tx) => {
-    const chargeable = chargeableSale(tx, actorId, saleId);
-    if (isChargeRefusal(chargeable)) {
+    const completedAt = clock.now();
+    const chargeable = chargeableSale(tx, actorId, saleId, completedAt);
+    if (isSaleRefusal(chargeable)) {
       return chargeable;
     }
     const { session, sale, total } = chargeable;
@@ -45,7 +49,6 @@ export function chargeSaleInCash(
       return { kind: "insufficient_cash", amountDue: charge.amountDue };
     }
 
-    const completedAt = clock.now();
     const payment: PaymentTransaction = {
       id: ids.next(),
       saleId: sale.id,

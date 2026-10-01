@@ -1,5 +1,6 @@
+import type { ChargeRefusal } from "../../fiscal/index.js";
 import type { PaymentTransaction } from "../model/payment.js";
-import { chargeableSale, isChargeRefusal } from "./chargeable-sale.js";
+import { chargeableSale, isSaleRefusal } from "./chargeable-sale.js";
 import { completeSale } from "./complete-sale.js";
 import type { Clock, IdGenerator, SaleLedger } from "./sale-ledger.js";
 
@@ -20,6 +21,7 @@ export type ChargeSaleByTransferOutcome =
   | { kind: "no_open_sale" }
   | { kind: "empty_sale" }
   | { kind: "zero_total" }
+  | ChargeRefusal
   | { kind: "completed"; saleId: string; total: number };
 
 export function chargeSaleByTransfer(
@@ -27,13 +29,13 @@ export function chargeSaleByTransfer(
   { actorId, saleId }: ChargeSaleByTransferInput,
 ): ChargeSaleByTransferOutcome {
   return ledger.transaction<ChargeSaleByTransferOutcome>((tx) => {
-    const chargeable = chargeableSale(tx, actorId, saleId);
-    if (isChargeRefusal(chargeable)) {
+    const completedAt = clock.now();
+    const chargeable = chargeableSale(tx, actorId, saleId, completedAt);
+    if (isSaleRefusal(chargeable)) {
       return chargeable;
     }
     const { sale, total } = chargeable;
 
-    const completedAt = clock.now();
     const payment: PaymentTransaction = {
       id: ids.next(),
       saleId: sale.id,

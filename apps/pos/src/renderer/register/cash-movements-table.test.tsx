@@ -38,6 +38,19 @@ function rowsOf(screen: Awaited<ReturnType<typeof renderTable>>) {
   );
 }
 
+function movementsEveryMinute(count: number) {
+  return Array.from({ length: count }, (_, index) =>
+    movement({
+      id: `m${index}`,
+      occurred_at: new Date(Date.UTC(2026, 8, 30, 12, index)).toISOString(),
+    }),
+  );
+}
+
+function timesOf(screen: Awaited<ReturnType<typeof renderTable>>) {
+  return rowsOf(screen).map((row) => row.slice(0, 5));
+}
+
 describe("CashMovementsTable", () => {
   it.each<[CashMovementType, string | null, string, string, string]>([
     ["OPENING", null, "Apertura de sesión", "Fondo inicial", "+ $ 5.000,00"],
@@ -185,6 +198,60 @@ describe("CashMovementsTable", () => {
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
     expect(onRetry).toHaveBeenCalledOnce();
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("lists the newest 25 movements and counts all of them", async () => {
+    const screen = await renderTable(movementsEveryMinute(30));
+
+    const times = timesOf(screen);
+    expect(times).toHaveLength(25);
+    expect(times[0]).toBe("09:29");
+    expect(times[24]).toBe("09:05");
+    await expect.element(screen.getByText("30 movimientos")).toBeVisible();
+  });
+
+  it("shows the remaining movements on the next page", async () => {
+    const screen = await renderTable(movementsEveryMinute(30));
+
+    await userEvent.click(screen.getByRole("button", { name: "Página 2" }));
+
+    expect(timesOf(screen)).toEqual(["09:04", "09:03", "09:02", "09:01", "09:00"]);
+    await expect.element(screen.getByText("30 movimientos")).toBeVisible();
+  });
+
+  it("goes back to the first page when a type is chosen", async () => {
+    const screen = await renderTable([
+      ...movementsEveryMinute(30),
+      movement({ id: "x", type: "CASH_OUT", reason: "Flete" }),
+    ]);
+    await userEvent.click(screen.getByRole("button", { name: "Página 2" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Tipo: Todos" }));
+    await userEvent.click(screen.getByRole("option", { name: "Ingreso de efectivo" }));
+
+    expect(timesOf(screen)[0]).toBe("09:29");
+    expect(rowsOf(screen)).toHaveLength(25);
+  });
+
+  it("shows no pager and no count once no movement is of the chosen type", async () => {
+    const screen = await renderTable(movementsEveryMinute(30));
+    await expect
+      .element(screen.getByRole("navigation", { name: "Páginas de movimientos" }))
+      .toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "Tipo: Todos" }));
+    await userEvent.click(screen.getByRole("option", { name: "Gasto" }));
+
+    await expect
+      .element(screen.getByRole("navigation", { name: "Páginas de movimientos" }))
+      .not.toBeInTheDocument();
+    await expect.element(screen.getByText("0 movimientos")).not.toBeInTheDocument();
+  });
+
+  it("has no accessibility violations with the pager", async () => {
+    const screen = await renderTable(movementsEveryMinute(30));
+
     await expectNoAccessibilityViolations(screen.container);
   });
 

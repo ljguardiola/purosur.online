@@ -2,6 +2,7 @@ import {
   actionsColumn,
   Button,
   dataColumn,
+  formatPointOfSaleNumber,
   plural,
   Table,
   TableCellText,
@@ -163,10 +164,15 @@ export function RegistersListScreen({ onSessionEnded, services }: RegistersListS
     }),
     dataColumn({
       id: "pointsOfSale",
-      header: "Puntos de venta",
-      render: (_item: RegisterSummary) => (
-        <span className="text-text-subtle text-detail">Sin configurar</span>
-      ),
+      header: "Punto de venta",
+      render: (item: RegisterSummary) =>
+        item.pointOfSaleNumber === null ? (
+          <span className="text-text-subtle text-detail">Sin configurar</span>
+        ) : (
+          <span className="text-text text-detail">
+            {formatPointOfSaleNumber(item.pointOfSaleNumber)}
+          </span>
+        ),
     }),
     dataColumn({
       id: "status",

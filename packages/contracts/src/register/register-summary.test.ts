@@ -9,8 +9,18 @@ const pendingCode = {
   seconds_since_issued: 0,
   seconds_until_expiry: 900,
 };
-const withoutCode = { id: "register-1", name: "Caja 1", pending_code: null };
-const withCode = { id: "register-2", name: "Caja 2", pending_code: pendingCode };
+const withoutCode = {
+  id: "register-1",
+  name: "Caja 1",
+  pending_code: null,
+  point_of_sale_number: null,
+};
+const withCode = {
+  id: "register-2",
+  name: "Caja 2",
+  pending_code: pendingCode,
+  point_of_sale_number: 3,
+};
 
 describe("registerSummarySchema", () => {
   it("accepts a register with no pending code and one with a pending code", () => {
@@ -37,7 +47,7 @@ describe("registerSummarySchema", () => {
     expect(parsed.data).toEqual(withCode);
   });
 
-  it.each(["id", "name", "pending_code"])("requires %s", (field) => {
+  it.each(["id", "name", "pending_code", "point_of_sale_number"])("requires %s", (field) => {
     const { [field as keyof typeof withCode]: _omitted, ...rest } = withCode;
 
     expect(registerSummarySchema.safeParse(rest).success).toBe(false);
@@ -60,6 +70,10 @@ describe("registerSummarySchema", () => {
     ["name", 1],
     ["name", null],
     ["pending_code", undefined],
+    ["point_of_sale_number", undefined],
+    ["point_of_sale_number", 0],
+    ["point_of_sale_number", 1.5],
+    ["point_of_sale_number", "3"],
     ["pending_code", "2026-09-25T12:15:00.000Z"],
     ["pending_code", { ...pendingCode, seconds_since_issued: "0" }],
     ["pending_code", { ...pendingCode, seconds_since_issued: null }],

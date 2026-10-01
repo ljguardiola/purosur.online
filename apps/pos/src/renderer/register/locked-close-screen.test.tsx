@@ -6,7 +6,6 @@ import type {
   IdentifyLockedCloserOutcome,
   SessionOpenSale,
 } from "@purosur/contracts";
-import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { SignedInPerson } from "../access/signed-in-person";
@@ -56,7 +55,7 @@ async function renderScreen(
       openedAt="2026-09-30T12:02:00.000Z"
       loadCashBalance={loadCashBalance}
       loadOpenSale={options.loadOpenSale ?? (async () => null)}
-      loadAuthorizers={async () => [{ id: "u3", first_name: "Sofía" }]}
+      loadClosers={async () => [{ id: "u3", first_name: "Sofía" }]}
       identifyLockedCloser={options.identify ?? (async () => IDENTIFIED)}
       closeLockedCashSession={close}
       cancelLockedSale={options.cancelSale ?? (async () => ({ kind: "cancelled" }))}
@@ -83,9 +82,7 @@ async function closeWith(screen: Screen, typed: string) {
 
 describe("LockedCloseScreen", () => {
   it("reads the people who can close once, however many times the screen renders", async () => {
-    const loadAuthorizers = vi.fn(async (_permission: AuthorizablePermissionKey) => [
-      { id: "u3", first_name: "Sofía" },
-    ]);
+    const loadClosers = vi.fn(async () => [{ id: "u3", first_name: "Sofía" }]);
     const element = () => (
       <LockedCloseScreen
         sessionId="s1"
@@ -94,7 +91,7 @@ describe("LockedCloseScreen", () => {
         openedAt="2026-09-30T12:02:00.000Z"
         loadCashBalance={async () => BALANCE}
         loadOpenSale={async () => null}
-        loadAuthorizers={(permission) => loadAuthorizers(permission)}
+        loadClosers={loadClosers}
         identifyLockedCloser={async () => IDENTIFIED}
         closeLockedCashSession={async () => ({ kind: "unavailable" })}
         cancelLockedSale={async () => ({ kind: "unavailable" })}
@@ -106,7 +103,7 @@ describe("LockedCloseScreen", () => {
     await screen.rerender(element());
 
     await expect.element(screen.getByText("Sofía", { exact: true })).toBeVisible();
-    expect(loadAuthorizers).toHaveBeenCalledOnce();
+    expect(loadClosers).toHaveBeenCalledOnce();
   });
 
   it("reads no cash figure until the person who closes is identified", async () => {

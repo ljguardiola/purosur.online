@@ -41,11 +41,17 @@ export const ALFAJOR = {
   promotion: null,
   line_total: 150_000,
 };
-export const SALE_OF_YERBA: OpenSale = { id: "sale-1", lines: [YERBA], total: 476_000 };
+export const SALE_OF_YERBA: OpenSale = {
+  id: "sale-1",
+  lines: [YERBA],
+  total: 476_000,
+  charge_refusal: null,
+};
 export const SALE_OF_YERBA_AND_ALFAJOR: OpenSale = {
   id: "sale-1",
   lines: [YERBA, ALFAJOR],
   total: 626_000,
+  charge_refusal: null,
 };
 
 export type Overrides = Partial<SaleScreenProps> & { registerName?: string | null };

@@ -197,10 +197,19 @@ function promotionIdsTargeting(productId: string): string[] {
     .map((promotion) => promotion.id);
 }
 
+function saveThreshold(id: string, amount: number, validFrom: string): void {
+  database
+    .prepare(
+      "INSERT INTO buyer_identification_thresholds (id, amount, valid_from) VALUES (?, ?, ?)",
+    )
+    .run(id, amount, validFrom);
+}
+
 function readySeller(): void {
   addCashier();
   enrol();
   openSession();
+  saveThreshold("threshold-1", 100_000_000, "2026-01-01");
 }
 
 beforeEach(() => {
@@ -368,7 +377,7 @@ describe("the sale being built", () => {
     scan("222");
     scan("111");
 
-    const outcome = currentSale({ ledger }, { actorId: "u1" });
+    const outcome = currentSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" });
 
     expect(outcome.kind === "open" && outcome.sale.lines.map((line) => line.productId)).toEqual([
       "p3",
@@ -409,7 +418,9 @@ describe("the sale being built", () => {
     scan("111");
     database.prepare("UPDATE sales SET state = 'COMPLETED'").run();
 
-    expect(currentSale({ ledger }, { actorId: "u1" })).toEqual({ kind: "no_sale" });
+    expect(currentSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" })).toEqual({
+      kind: "no_sale",
+    });
   });
 
   it("leaves nothing behind when a write fails midway", () => {
@@ -462,7 +473,7 @@ describe("the sale after the register restarts", () => {
       database = openLocalDatabase(path, LOCAL_MIGRATIONS);
       ledger = new SqliteSaleLedger(database, new SqliteSignInStore(database), CHAIN_KEY);
 
-      expect(currentSale({ ledger }, { actorId: "u1" })).toMatchObject({
+      expect(currentSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" })).toMatchObject({
         kind: "open",
         sale: {
           lines: [
@@ -496,6 +507,27 @@ describe("the installation's revocation", () => {
       .run();
 
     expect(ledger.transaction((tx) => tx.installationRevoked())).toBe(true);
+  });
+});
+
+describe("the buyer-identification thresholds", () => {
+  it("are none until the register receives one", () => {
+    expect(ledger.transaction((tx) => tx.buyerIdentificationThresholds())).toEqual([]);
+  });
+
+  it("are every one the register holds, past and scheduled", () => {
+    saveThreshold("t2", 12_000_000, "2026-10-15");
+    saveThreshold("t1", 10_000_000, "2026-01-01");
+
+    const thresholds = ledger.transaction((tx) => tx.buyerIdentificationThresholds());
+
+    expect(thresholds).toHaveLength(2);
+    expect(thresholds).toEqual(
+      expect.arrayContaining([
+        { id: "t1", amount: 10_000_000, validFrom: "2026-01-01" },
+        { id: "t2", amount: 12_000_000, validFrom: "2026-10-15" },
+      ]),
+    );
   });
 });
 
@@ -644,7 +676,7 @@ describe("charging an open sale in cash", () => {
         clock: { now: () => NOW },
         ids,
       },
-      { sessionId: "session-1", closerId: "u1", authorizedBy: null, countedCash: 3000 },
+      { sessionId: "session-1", closerId: "u1", countedCash: 3000 },
     );
 
     expect(closed).toMatchObject({ kind: "closed" });
@@ -723,6 +755,19 @@ function addSale(id: string, state: string, productIds: string[], registerId = "
   });
 }
 
+function rowsPerTable(): Record<string, number> {
+  const tables = database
+    .prepare<[], { name: string }>("SELECT name FROM sqlite_master WHERE type = 'table'")
+    .all();
+  return Object.fromEntries(
+    tables.map(({ name }) => [
+      name,
+      (database.prepare(`SELECT count(*) AS total FROM "${name}"`).get() as { total: number })
+        .total,
+    ]),
+  );
+}
+
 function searchable() {
   return ledger.transaction((tx) => tx.searchableProducts());
 }
@@ -756,7 +801,6 @@ describe("the products a name search looks through", () => {
 
   it.each([
     ["an open sale", "OPEN", "register-1"],
-    ["a cancelled sale", "CANCELLED", "register-1"],
     ["a voided sale", "VOIDED", "register-1"],
     ["a completed sale of another register", "COMPLETED", "register-2"],
   ])("do not count %s", (_case, state, registerId) => {
@@ -914,7 +958,7 @@ describe("a line's promotions", () => {
   it("are frozen with the line and read back after the sale is reopened", () => {
     scan("111");
 
-    const outcome = currentSale({ ledger }, { actorId: "u1" });
+    const outcome = currentSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" });
 
     expect(outcome.kind === "open" && outcome.sale.lines[0]).toMatchObject({
       promotions: [
@@ -933,7 +977,7 @@ describe("a line's promotions", () => {
     addDiscount("late", { kind: "PRODUCT", id: "p1" }, { kind: "PERCENT_OFF", percent: 50 });
 
     scan("111");
-    const outcome = currentSale({ ledger }, { actorId: "u1" });
+    const outcome = currentSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" });
 
     expect(
       outcome.kind === "open" && outcome.sale.lines[0]?.promotions.map((promotion) => promotion.id),
@@ -990,10 +1034,11 @@ describe("the lines of the sale being changed", () => {
     ).id;
   }
 
-  it("keeps the new quantity and total and records what a lowered quantity took away", () => {
+  it("keeps the new quantity and total of a lowered line and nothing about the units taken out", () => {
     scan("111");
     scan("111");
     scan("111");
+    const before = rowsPerTable();
 
     changeLineQuantity(sellerPorts(), {
       actorId: "u1",
@@ -1005,23 +1050,7 @@ describe("the lines of the sale being changed", () => {
     expect(database.prepare("SELECT quantity, line_total FROM sale_lines").all()).toEqual([
       { quantity: 1, line_total: 900 },
     ]);
-    expect(
-      database
-        .prepare(
-          `SELECT sale_id, product_id, qty_removed, amount_removed, actor_id, occurred_at
-           FROM sale_line_removals`,
-        )
-        .all(),
-    ).toEqual([
-      {
-        sale_id: "id-1",
-        product_id: "p1",
-        qty_removed: 2,
-        amount_removed: 1800,
-        actor_id: "u1",
-        occurred_at: "2026-09-30T12:00:00.000Z",
-      },
-    ]);
+    expect(rowsPerTable()).toEqual(before);
   });
 
   it("refuses a lowering computed before a scan raised the line, keeping the scanned unit", () => {
@@ -1041,159 +1070,53 @@ describe("the lines of the sale being changed", () => {
     expect(database.prepare("SELECT quantity, line_total FROM sale_lines").all()).toEqual([
       { quantity: 3, line_total: 2700 },
     ]);
-    expect(database.prepare("SELECT count(*) AS total FROM sale_line_removals").get()).toEqual({
-      total: 0,
-    });
   });
 
-  it("lowers a quantity whose line total rises, storing a negative removed amount", () => {
-    addDiscount(
-      "three-for-one",
-      { kind: "PRODUCT", id: "p1" },
-      { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 1 },
-    );
-    scan("111");
-    scan("111");
-    scan("111");
-
-    changeLineQuantity(sellerPorts(), {
-      actorId: "u1",
-      lineId: lineIdOf("p1"),
-      quantity: 2,
-      expectedQuantity: 3,
-    });
-
-    expect(database.prepare("SELECT quantity, line_total FROM sale_lines").all()).toEqual([
-      { quantity: 2, line_total: 1800 },
-    ]);
-    expect(
-      database.prepare("SELECT qty_removed, amount_removed FROM sale_line_removals").all(),
-    ).toEqual([{ qty_removed: 1, amount_removed: -800 }]);
-  });
-
-  it("records nothing when the quantity is raised", () => {
-    scan("111");
-
-    changeLineQuantity(sellerPorts(), {
-      actorId: "u1",
-      lineId: lineIdOf("p1"),
-      quantity: 4,
-      expectedQuantity: 1,
-    });
-
-    expect(database.prepare("SELECT count(*) AS total FROM sale_line_removals").get()).toEqual({
-      total: 0,
-    });
-  });
-
-  it("deletes a removed line with its frozen promotions and records the whole line as removed", () => {
+  it("deletes a removed line with its frozen promotions and keeps nothing about it", () => {
     scan("111");
     scan("111");
     scan("222");
-    const removedLine = lineIdOf("p1");
+    const before = rowsPerTable();
 
-    removeSaleLine(sellerPorts(), { actorId: "u1", lineId: removedLine });
+    removeSaleLine(sellerPorts(), { actorId: "u1", lineId: lineIdOf("p1") });
 
     expect(database.prepare("SELECT product_id FROM sale_lines").all()).toEqual([
       { product_id: "p2" },
     ]);
-    expect(database.prepare("SELECT count(*) AS total FROM sale_line_promotions").get()).toEqual({
-      total: 0,
+    expect(rowsPerTable()).toEqual({
+      ...before,
+      sale_lines: 1,
+      sale_line_promotions: 0,
     });
-    expect(
-      database
-        .prepare(
-          "SELECT sale_line_id, product_id, qty_removed, amount_removed FROM sale_line_removals",
-        )
-        .all(),
-    ).toEqual([
-      { sale_line_id: removedLine, product_id: "p1", qty_removed: 2, amount_removed: 1800 },
-    ]);
   });
 
-  it("keeps the removal of a line that no longer exists", () => {
+  it("cancels the sale by deleting it with its lines and their promotions, appending no event", () => {
+    const before = rowsPerTable();
     scan("111");
+    scan("222");
 
-    removeSaleLine(sellerPorts(), { actorId: "u1", lineId: lineIdOf("p1") });
+    const outcome = cancelSale({ ledger }, { actorId: "u1", from: "sale" });
 
-    expect(database.prepare("SELECT count(*) AS total FROM sale_line_removals").get()).toEqual({
+    expect(outcome).toEqual({ kind: "cancelled" });
+    expect(rowsPerTable()).toEqual(before);
+  });
+
+  it("keeps the completed sales of the session when cancelling the open one", () => {
+    scan("111");
+    chargeSaleInCash(sellerPorts(), { actorId: "u1", saleId: "id-1", tendered: 5000 });
+    scan("222");
+
+    cancelSale({ ledger }, { actorId: "u1", from: "sale" });
+
+    expect(database.prepare("SELECT id, state FROM sales").all()).toEqual([
+      { id: "id-1", state: "COMPLETED" },
+    ]);
+    expect(database.prepare("SELECT product_id FROM sale_lines").all()).toEqual([
+      { product_id: "p1" },
+    ]);
+    expect(database.prepare("SELECT count(*) AS total FROM sale_line_promotions").get()).toEqual({
       total: 1,
     });
-  });
-
-  it("is refused by the database for a removal that takes nothing away", () => {
-    scan("111");
-
-    expect(() =>
-      ledger.transaction((tx) =>
-        tx.recordLineRemoval({
-          id: "r1",
-          saleId: "id-1",
-          saleLineId: "l",
-          productId: "p1",
-          qtyRemoved: 0,
-          amountRemoved: 0,
-          actorId: "u1",
-          occurredAt: NOW,
-        }),
-      ),
-    ).toThrow(/CHECK/);
-  });
-
-  it("reads back the removals of a sale in the order they were made", () => {
-    scan("111");
-    scan("111");
-    scan("222");
-    changeLineQuantity(sellerPorts(), {
-      actorId: "u1",
-      lineId: lineIdOf("p1"),
-      quantity: 1,
-      expectedQuantity: 2,
-    });
-    removeSaleLine(sellerPorts(), { actorId: "u1", lineId: lineIdOf("p2") });
-
-    const removals = ledger.transaction((tx) => tx.saleLineRemovals("id-1"));
-
-    expect(removals.map((removal) => [removal.productId, removal.qtyRemoved])).toEqual([
-      ["p1", 1],
-      ["p2", 1],
-    ]);
-  });
-
-  it("cancels the sale and chains one sale_cancelled event with its lines and removals", () => {
-    scan("111");
-    scan("222");
-    removeSaleLine(sellerPorts(), { actorId: "u1", lineId: lineIdOf("p2") });
-
-    const outcome = cancelSale(sellerPorts(), { actorId: "u1", from: "sale" });
-
-    expect(outcome.kind).toBe("cancelled");
-    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "CANCELLED" }]);
-    const events = database
-      .prepare(
-        `SELECT event_type, aggregate_id, device_seq, chain_hmac, actor_id, payload FROM outbox`,
-      )
-      .all() as {
-      event_type: string;
-      aggregate_id: string;
-      device_seq: number;
-      chain_hmac: string;
-      actor_id: string;
-      payload: string;
-    }[];
-    expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({
-      event_type: "sale_cancelled",
-      aggregate_id: "id-1",
-      device_seq: 1,
-      actor_id: "u1",
-    });
-    expect(events[0]?.chain_hmac).toBeTruthy();
-    const payload = JSON.parse(events[0]?.payload ?? "");
-    expect(payload.lines.map((line: { product_id: string }) => line.product_id)).toEqual(["p1"]);
-    expect(payload.removals.map((removal: { product_id: string }) => removal.product_id)).toEqual([
-      "p2",
-    ]);
   });
 
   it("reads back the payments it records for a sale", () => {
@@ -1252,20 +1175,19 @@ describe("the lines of the sale being changed", () => {
     expect(ledger.transaction((tx) => tx.salePayments("id-1"))).toEqual([transfer]);
   });
 
-  it("chains the removals of a sale charged in cash in its sale_completed event", () => {
+  it("chains only the final lines of a sale charged in cash in its sale_completed event", () => {
     scan("111");
     scan("111");
     scan("111");
     scan("222");
     const lowered = lineIdOf("p1");
-    const removed = lineIdOf("p2");
     changeLineQuantity(sellerPorts(), {
       actorId: "u1",
       lineId: lowered,
       quantity: 2,
       expectedQuantity: 3,
     });
-    removeSaleLine(sellerPorts(), { actorId: "u1", lineId: removed });
+    removeSaleLine(sellerPorts(), { actorId: "u1", lineId: lineIdOf("p2") });
 
     const outcome = chargeSaleInCash(sellerPorts(), {
       actorId: "u1",
@@ -1279,48 +1201,32 @@ describe("the lines of the sale being changed", () => {
       payload: string;
     };
     expect(event.event_type).toBe("sale_completed");
+    const payload = JSON.parse(event.payload);
     expect(
-      JSON.parse(event.payload).removals.map(
-        (removal: { sale_line_id: string; qty_removed: number }) => [
-          removal.sale_line_id,
-          removal.qty_removed,
-        ],
-      ),
-    ).toEqual([
-      [lowered, 1],
-      [removed, 1],
-    ]);
+      payload.lines.map((line: { id: string; quantity: number }) => [line.id, line.quantity]),
+    ).toEqual([[lowered, 2]]);
+    expect(payload).not.toHaveProperty("removals");
   });
 
   it("lets the next scan start a new open sale once the previous one is cancelled", () => {
     scan("111");
-    cancelSale(sellerPorts(), { actorId: "u1", from: "sale" });
+    cancelSale({ ledger }, { actorId: "u1", from: "sale" });
 
     scan("111");
 
-    expect(database.prepare("SELECT state FROM sales ORDER BY occurred_at, id").all()).toHaveLength(
-      2,
-    );
-    expect(
-      database.prepare("SELECT count(*) AS total FROM sales WHERE state = 'OPEN'").get(),
-    ).toEqual({ total: 1 });
+    expect(database.prepare("SELECT id, state FROM sales").all()).toEqual([
+      { id: "id-3", state: "OPEN" },
+    ]);
   });
 
-  it("leaves the sale open and the outbox empty when the event cannot be appended", () => {
-    scan("111");
-    database.prepare("DELETE FROM sync_state").run();
-
-    expect(() => cancelSale(sellerPorts(), { actorId: "u1", from: "sale" })).toThrow();
-    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
-  });
-
-  it("refuses to append an event when the register has no outbox key", () => {
+  it("cancels the open sale even when the register has no outbox key", () => {
     const keyless = new SqliteSaleLedger(database, new SqliteSignInStore(database));
+    const before = rowsPerTable();
     scan("111");
 
-    expect(() =>
-      cancelSale({ ...sellerPorts(), ledger: keyless }, { actorId: "u1", from: "sale" }),
-    ).toThrow(/outbox/);
-    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+    expect(cancelSale({ ledger: keyless }, { actorId: "u1", from: "sale" })).toEqual({
+      kind: "cancelled",
+    });
+    expect(rowsPerTable()).toEqual(before);
   });
 });

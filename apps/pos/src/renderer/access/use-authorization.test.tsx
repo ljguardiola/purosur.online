@@ -19,7 +19,7 @@ function Probe({
   loadAuthorizers = async () => [],
 }: {
   person?: SignedInPerson;
-  decision?: { applies: boolean } | { required: boolean } | Record<string, never>;
+  decision?: { required: boolean } | Record<string, never>;
   loadAuthorizers?: () => Promise<[]>;
 }) {
   const authorization = useAuthorization({
@@ -36,12 +36,6 @@ describe("useAuthorization", () => {
     const screen = await render(<Probe />);
 
     await expect.element(screen.getByText("required", { exact: true })).toBeVisible();
-  });
-
-  it("requires nothing of a person who lacks the permission when it does not apply", async () => {
-    const screen = await render(<Probe decision={{ applies: false }} />);
-
-    await expect.element(screen.getByText("not required")).toBeVisible();
   });
 
   it("requires an authorizer from a person who holds the permission when the caller says one is required", async () => {
@@ -64,10 +58,10 @@ describe("useAuthorization", () => {
     await expect.element(screen.getByText("not required")).toBeVisible();
   });
 
-  it("does not load authorizers when it does not apply", async () => {
+  it("does not load authorizers when none is required", async () => {
     const loadAuthorizers = vi.fn(async (): Promise<[]> => []);
 
-    await render(<Probe decision={{ applies: false }} loadAuthorizers={loadAuthorizers} />);
+    await render(<Probe decision={{ required: false }} loadAuthorizers={loadAuthorizers} />);
 
     expect(loadAuthorizers).not.toHaveBeenCalled();
   });

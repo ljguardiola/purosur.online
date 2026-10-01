@@ -1,6 +1,8 @@
+import type { ChargeRefusal } from "../../fiscal/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { withQuantity } from "../model/sale-line.js";
-import type { Clock, IdGenerator, SaleLedger } from "./sale-ledger.js";
+import { saleChargeRefusal } from "./sale-charge-refusal.js";
+import type { Clock, SaleLedger } from "./sale-ledger.js";
 import { isRefusal, sellingSession } from "./selling-session.js";
 
 export interface ChangeLineQuantityInput {
@@ -13,7 +15,6 @@ export interface ChangeLineQuantityInput {
 export interface ChangeLineQuantityPorts {
   ledger: SaleLedger;
   clock: Clock;
-  ids: IdGenerator;
 }
 
 export type ChangeLineQuantityOutcome =
@@ -23,10 +24,10 @@ export type ChangeLineQuantityOutcome =
   | { kind: "invalid_quantity" }
   | { kind: "unknown_line" }
   | { kind: "stale_quantity" }
-  | { kind: "changed"; sale: SaleWithLines };
+  | { kind: "changed"; sale: SaleWithLines; chargeRefusal: ChargeRefusal | undefined };
 
 export function changeLineQuantity(
-  { ledger, clock, ids }: ChangeLineQuantityPorts,
+  { ledger, clock }: ChangeLineQuantityPorts,
   { actorId, lineId, quantity, expectedQuantity }: ChangeLineQuantityInput,
 ): ChangeLineQuantityOutcome {
   return ledger.transaction<ChangeLineQuantityOutcome>((tx) => {
@@ -53,21 +54,11 @@ export function changeLineQuantity(
     if (quantity !== line.quantity) {
       tx.recordLineQuantity(updated);
     }
-    if (quantity < line.quantity) {
-      tx.recordLineRemoval({
-        id: ids.next(),
-        saleId: sale.id,
-        saleLineId: line.id,
-        productId: line.productId,
-        qtyRemoved: line.quantity - quantity,
-        amountRemoved: line.lineTotal - updated.lineTotal,
-        actorId,
-        occurredAt: clock.now(),
-      });
-    }
+    const changed = { ...sale, lines: sale.lines.map((each) => (each === line ? updated : each)) };
     return {
       kind: "changed",
-      sale: { ...sale, lines: sale.lines.map((each) => (each === line ? updated : each)) },
+      sale: changed,
+      chargeRefusal: saleChargeRefusal(tx, changed, clock.now()),
     };
   });
 }

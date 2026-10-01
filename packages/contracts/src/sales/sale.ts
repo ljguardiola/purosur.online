@@ -40,10 +40,19 @@ const saleLineSchema = z.object({
   line_total: cents,
 });
 
+const reachesThresholdRefusal = z.object({
+  kind: z.literal("reaches_buyer_identification_threshold"),
+  threshold: z.int().positive(),
+});
+const noThresholdRefusal = z.object({ kind: z.literal("no_buyer_identification_threshold") });
+
 export const saleSchema = z.object({
   id: z.string(),
   lines: z.array(saleLineSchema),
   total: cents,
+  charge_refusal: z
+    .discriminatedUnion("kind", [reachesThresholdRefusal, noThresholdRefusal])
+    .nullable(),
 });
 export type OpenSale = z.infer<typeof saleSchema>;
 export type CurrentSaleAnswer = OpenSale | null | "not_permitted";
@@ -161,6 +170,8 @@ export const chargeSaleInCashOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("invalid_amount") }),
   z.object({ kind: z.literal("empty_sale") }),
   z.object({ kind: z.literal("zero_total") }),
+  reachesThresholdRefusal,
+  noThresholdRefusal,
   z.object({ kind: z.literal("no_open_sale") }),
   z.object({ kind: z.literal("not_permitted") }),
   z.object({ kind: z.literal("not_signed_in") }),

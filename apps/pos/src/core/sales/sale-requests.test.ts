@@ -69,6 +69,14 @@ function addPerson(id: string, roleId: string): void {
     .run(id, roleId);
 }
 
+function saveThreshold(amount: number, validFrom = "2026-01-01"): void {
+  database
+    .prepare(
+      "INSERT INTO buyer_identification_thresholds (id, amount, valid_from) VALUES (?, ?, ?)",
+    )
+    .run(`threshold-starting-${validFrom}`, amount, validFrom);
+}
+
 function addFiscalConfiguration(): void {
   database
     .prepare(
@@ -109,6 +117,7 @@ function seed(): void {
     .prepare("INSERT INTO own_register (id, name, version) VALUES ('register-1', 'Caja 1', 1)")
     .run();
   database.prepare("UPDATE sync_state SET device_id = 'device-1'").run();
+  saveThreshold(100_000_000);
   database
     .prepare(
       `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
@@ -175,6 +184,7 @@ describe("scanning a product on the register", () => {
           },
         ],
         total: 3000,
+        charge_refusal: null,
       },
     });
   });
@@ -336,6 +346,7 @@ describe("adding a searched product on the register", () => {
           },
         ],
         total: 1500,
+        charge_refusal: null,
       },
     });
   });
@@ -426,6 +437,27 @@ describe("the sale in progress", () => {
         },
       ],
       total: 3000,
+      charge_refusal: null,
+    });
+  });
+
+  it("is refused for charging when the total reaches the threshold in effect", async () => {
+    saveThreshold(3000, "2026-09-30");
+    await scanProductFor(deps(), "111");
+    await scanProductFor(deps(), "111");
+
+    expect(await currentSaleFor(deps())).toMatchObject({
+      total: 3000,
+      charge_refusal: { kind: "reaches_buyer_identification_threshold", threshold: 3000 },
+    });
+  });
+
+  it("is refused for charging when the register holds no threshold", async () => {
+    database.prepare("DELETE FROM buyer_identification_thresholds").run();
+    await scanProductFor(deps(), "111");
+
+    expect(await currentSaleFor(deps())).toMatchObject({
+      charge_refusal: { kind: "no_buyer_identification_threshold" },
     });
   });
 });
@@ -453,16 +485,6 @@ describe("changing the quantity of a line", () => {
 
     expect(await changeLineQuantityFor(deps(), lineId, 1, 5)).toEqual({ kind: "stale_quantity" });
     expect(database.prepare("SELECT quantity FROM sale_lines").all()).toEqual([{ quantity: 2 }]);
-  });
-
-  it("keeps what a lowered quantity took away", async () => {
-    const lineId = await sellTwoYerbas();
-
-    await changeLineQuantityFor(deps(), lineId, 1, 2);
-
-    expect(database.prepare("SELECT qty_removed FROM sale_line_removals").all()).toEqual([
-      { qty_removed: 1 },
-    ]);
   });
 
   it.each([
@@ -510,16 +532,13 @@ describe("changing the quantity of a line", () => {
 });
 
 describe("removing a line", () => {
-  it("answers the sale without the line and keeps the removal", async () => {
+  it("answers the sale without the line", async () => {
     const lineId = await sellTwoYerbas();
 
     expect(await removeSaleLineFor(deps(), lineId)).toEqual({
       kind: "removed",
-      sale: { id: "id-1", lines: [], total: 0 },
+      sale: { id: "id-1", lines: [], total: 0, charge_refusal: null },
     });
-    expect(
-      database.prepare("SELECT qty_removed, amount_removed FROM sale_line_removals").all(),
-    ).toEqual([{ qty_removed: 2, amount_removed: 3000 }]);
   });
 
   it("answers the domain's refusal of a line the sale does not have", async () => {
@@ -556,25 +575,13 @@ describe("removing a line", () => {
 });
 
 describe("cancelling the sale", () => {
-  it("cancels it and emits one chained sale_cancelled event", async () => {
+  it("cancels it, leaving neither the sale nor an event behind", async () => {
     await sellTwoYerbas();
 
     expect(await cancelSaleFor(deps())).toEqual({ kind: "cancelled" });
 
-    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "CANCELLED" }]);
-    const events = database
-      .prepare(
-        "SELECT device_seq, chain_hmac, payload FROM outbox WHERE event_type = 'sale_cancelled'",
-      )
-      .all() as { device_seq: number; chain_hmac: string; payload: string }[];
-    expect(events).toHaveLength(1);
-    expect(events[0]?.device_seq).toBe(1);
-    expect(events[0]?.chain_hmac).toBeTruthy();
-    expect(JSON.parse(events[0]?.payload ?? "")).toMatchObject({
-      id: "id-1",
-      lines: [{ product_id: "p1", quantity: 2 }],
-      removals: [],
-    });
+    expect(database.prepare("SELECT id FROM sales").all()).toEqual([]);
+    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([]);
   });
 
   it("lets the next scan start a new sale", async () => {
@@ -617,12 +624,13 @@ describe("cancelling the sale", () => {
     expect(await cancelSaleFor(deps())).toEqual({ kind: "no_open_session" });
   });
 
-  it("answers unavailable, leaving the sale open, when the register has no outbox key yet", async () => {
+  it("cancels it even when the register has no outbox key yet", async () => {
     await sellTwoYerbas();
 
     expect(await cancelSaleFor(deps({ readOutboxChainKey: async () => undefined }))).toEqual({
-      kind: "unavailable",
+      kind: "cancelled",
     });
+    expect(database.prepare("SELECT id FROM sales").all()).toEqual([]);
   });
 });
 
@@ -651,6 +659,39 @@ describe("charging the sale in progress in cash", () => {
     expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([
       { event_type: "sale_completed" },
     ]);
+  });
+
+  it("answers the sale as refused when what it adds reaches the threshold", async () => {
+    saveThreshold(3000, "2026-09-30");
+    await scanProductFor(deps(), "111");
+
+    expect(await scanProductFor(deps(), "111")).toMatchObject({
+      kind: "added",
+      sale: {
+        charge_refusal: { kind: "reaches_buyer_identification_threshold", threshold: 3000 },
+      },
+    });
+  });
+
+  it("refuses to charge a sale that reaches the threshold, leaving it open", async () => {
+    saveThreshold(3000, "2026-09-30");
+    const saleId = await sellTwo();
+
+    expect(await chargeSaleInCashFor(deps(), { saleId, tendered: 5000 })).toEqual({
+      kind: "reaches_buyer_identification_threshold",
+      threshold: 3000,
+    });
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+  });
+
+  it("refuses to charge any sale while the register holds no threshold", async () => {
+    database.prepare("DELETE FROM buyer_identification_thresholds").run();
+    const saleId = await sellTwo();
+
+    expect(await chargeSaleInCashFor(deps(), { saleId, tendered: 5000 })).toEqual({
+      kind: "no_buyer_identification_threshold",
+    });
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
   });
 
   it("composes the factura C of the completed sale from the register's fiscal configuration", async () => {
@@ -1017,16 +1058,14 @@ describe("cancelling the open sale of a locked register", () => {
     return database.prepare("SELECT state FROM sales").all();
   }
 
-  it("cancels the sale as the person whose PIN holds the permission and emits the cancellation in their name", async () => {
+  it("cancels the sale for the person whose PIN holds the permission, leaving neither the sale nor an event behind", async () => {
     addCloser(["close_anothers_register_session"]);
     await lockedWithOpenSale();
 
     expect(await cancelLockedSaleFor(lockedDeps(), CLOSER)).toEqual({ kind: "cancelled" });
 
-    expect(saleStates()).toEqual([{ state: "CANCELLED" }]);
-    expect(
-      database.prepare("SELECT actor_id FROM outbox WHERE event_type = 'sale_cancelled'").all(),
-    ).toEqual([{ actor_id: "u9" }]);
+    expect(saleStates()).toEqual([]);
+    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([]);
   });
 
   it("leaves nobody signed in", async () => {
@@ -1041,6 +1080,15 @@ describe("cancelling the open sale of a locked register", () => {
   it("refuses a person without the permission, leaving the sale open", async () => {
     addCloser(["sell_and_charge"]);
     await lockedWithOpenSale();
+
+    expect(await cancelLockedSaleFor(lockedDeps(), CLOSER)).toEqual({ kind: "lacks_permission" });
+    expect(saleStates()).toEqual([{ state: "OPEN" }]);
+  });
+
+  it("refuses the person who opened the session, leaving the sale open", async () => {
+    addCloser(["close_anothers_register_session"]);
+    await lockedWithOpenSale();
+    database.prepare("UPDATE cash_sessions SET opened_by = 'u9'").run();
 
     expect(await cancelLockedSaleFor(lockedDeps(), CLOSER)).toEqual({ kind: "lacks_permission" });
     expect(saleStates()).toEqual([{ state: "OPEN" }]);
@@ -1095,13 +1143,13 @@ describe("cancelling the open sale of a locked register", () => {
     expect(saleStates()).toEqual([{ state: "OPEN" }]);
   });
 
-  it("answers unavailable, leaving the sale open, when the register has no outbox key yet", async () => {
+  it("cancels the sale even when the register has no outbox key yet", async () => {
     addCloser(["close_anothers_register_session"]);
     await lockedWithOpenSale();
 
     expect(
       await cancelLockedSaleFor(lockedDeps({ readOutboxChainKey: async () => undefined }), CLOSER),
-    ).toEqual({ kind: "unavailable" });
-    expect(saleStates()).toEqual([{ state: "OPEN" }]);
+    ).toEqual({ kind: "cancelled" });
+    expect(saleStates()).toEqual([]);
   });
 });

@@ -13,6 +13,8 @@ import {
   firstPinCodeSchema,
   pinCodeRedemptionBodySchema,
   pinCodeRedemptionSchema,
+  pushEventsRequestSchema,
+  pushEventsResponseSchema,
   type SyncChange,
   signInLookupBodySchema,
   signInLookupSchema,
@@ -159,6 +161,18 @@ export async function startStandInCloud(
     return false;
   }
 
+  async function answerEventPush(
+    request: IncomingMessage,
+    response: ServerResponse,
+  ): Promise<void> {
+    if (!hasDeviceToken(request, response, "an event push")) {
+      return;
+    }
+    const { events } = pushEventsRequestSchema.parse(await jsonBody(request));
+    const ackSeq = Math.max(...events.map((event) => event.device_seq));
+    send(response, 200, pushEventsResponseSchema.parse({ status: "ok", ack_seq: ackSeq }));
+  }
+
   async function answerFirstPinCode(
     request: IncomingMessage,
     response: ServerResponse,
@@ -210,6 +224,8 @@ export async function startStandInCloud(
       await answerFirstPinCode(request, response);
     } else if (route === "POST /api/pin-code-redemptions") {
       await answerPinCodeRedemption(request, response);
+    } else if (route === "POST /api/events") {
+      await answerEventPush(request, response);
     } else if (route === "GET /api/changes") {
       pageAfter(url, request, response);
     } else {

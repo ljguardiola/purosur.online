@@ -81,7 +81,8 @@ export function ChargeScreen({
     answer === undefined ||
     answer === null ||
     answer === "not_permitted" ||
-    answer.lines.length === 0
+    answer.lines.length === 0 ||
+    answer.charge_refusal !== null
       ? undefined
       : answer;
   const nothingToCharge =

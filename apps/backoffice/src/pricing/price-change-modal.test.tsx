@@ -15,7 +15,7 @@ const withoutPrice: PriceProduct = {
   categoryName: "Almacén",
   saleUnit: "UNIT",
   currentPrice: null,
-  daysSinceReview: null,
+  secondsSinceReview: null,
   pending: true,
 };
 
@@ -30,7 +30,7 @@ const rice: PriceProduct = {
     unitPrice: 750000,
     validFrom: new Date(NOW().getTime() - 40 * DAY_MS).toISOString(),
   },
-  daysSinceReview: 40,
+  secondsSinceReview: 3_456_000,
   pending: true,
 };
 
@@ -383,31 +383,18 @@ test("a modal save that finds no open session ends the session", async () => {
 });
 
 test.each([
-  { daysSinceReview: 0, pending: false, eyebrow: "Revisado hoy" },
-  { daysSinceReview: 1, pending: false, eyebrow: "Revisado hace 1 día" },
-  { daysSinceReview: 30, pending: true, eyebrow: "Sin revisar hace 30 días" },
+  { secondsSinceReview: 300, pending: false, eyebrow: "Revisado hace 5 minutos" },
+  { secondsSinceReview: 86_400, pending: false, eyebrow: "Revisado hace 1 día" },
+  { secondsSinceReview: 30 * 86_400, pending: true, eyebrow: "Sin revisar hace 1 mes" },
 ])(
   "the modal states the review age the cloud reports: $eyebrow",
-  async ({ daysSinceReview, pending, eyebrow }) => {
-    const product: PriceProduct = { ...rice, daysSinceReview, pending };
+  async ({ secondsSinceReview, pending, eyebrow }) => {
+    const product: PriceProduct = { ...rice, secondsSinceReview, pending };
     const screen = await renderModal(createProps({ target: product }));
 
     await expect.element(screen.getByRole("dialog").getByText(eyebrow)).toBeVisible();
   },
 );
-
-test("the modal shows a price the cloud reports as reviewed today as reviewed today", async () => {
-  const product: PriceProduct = {
-    ...rice,
-    daysSinceReview: 0,
-    pending: false,
-  };
-  const screen = await renderModal(createProps({ target: product }));
-  const dialog = screen.getByRole("dialog");
-
-  await expect.element(dialog.getByText("Revisado hoy")).toBeVisible();
-  expect(dialog.getByText("Sin revisar", { exact: false }).query()).toBeNull();
-});
 
 test("a save rejected for the price it expected is treated as a changed price and offers the reload", async () => {
   const props = createProps();

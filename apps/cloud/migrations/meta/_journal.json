@@ -358,6 +358,27 @@
       "when": 1790812564260,
       "tag": "0050_fiscal_configuration",
       "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1790848658210,
+      "tag": "0051_inbox_and_push_report",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1790865858323,
+      "tag": "0052_seed_buyer_identification_threshold",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1790868188842,
+      "tag": "0053_fiscal_addresses_and_points_of_sale",
+      "breakpoints": true
     }
   ]
 }

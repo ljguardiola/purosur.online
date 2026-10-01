@@ -107,22 +107,31 @@ export {
 export type {
   BuyerIdentificationThreshold,
   BuyerTaxStatusOption,
+  ChargeRefusal,
   FacturaC,
   IssuerIdentificationInEffect,
   PreEmissionGateFailureReason,
   PreEmissionGateOutcome,
 } from "./fiscal/index.js";
 export {
+  chargeRefusal,
+  FISCAL_ADDRESS_NAME_MAX_LENGTH,
+  FISCAL_ADDRESS_STREET_ADDRESS_MAX_LENGTH,
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
   isBuyerIdentificationThresholdAmount,
+  isFiscalAddressNameTooLong,
+  isFiscalAddressStreetAddressTooLong,
   isIssuerIdentificationActivityStartDate,
   isIssuerIdentificationGrossIncomeRegistrationTooLong,
   isIssuerIdentificationLegalNameTooLong,
+  isPointOfSaleNumber,
+  isSameFiscalAddressName,
   isValidBuyerTaxStatusSet,
   latestBuyerTaxStatusSet,
   latestIssuerIdentification,
   latestThreshold,
+  POINT_OF_SALE_NUMBER_MAX,
   thresholdInEffectOn,
   thresholdScheduledAfter,
 } from "./fiscal/index.js";
@@ -190,6 +199,7 @@ export {
   INSTALLATION_REPORT_MAX_LENGTH,
   isDeviceTokenRotationDue,
   isInstallationReportTooLong,
+  isLockedToAnother,
   isRegisterNameTooLong,
   isValidCashAmount,
   isValidCashMovementAmount,
@@ -206,7 +216,6 @@ export type {
   PaymentTransaction,
   Sale,
   SaleLine,
-  SaleLineRemoval,
   SaleState,
   SaleWithLines,
   SoldProduct,
@@ -239,6 +248,8 @@ export type {
   OutboxEventDraft,
   PulledChange,
   PullPage,
+  PushedEvent,
+  RegisterTelemetry,
 } from "./sync/index.js";
 export {
   canonicalOutboxEvent,
@@ -247,4 +258,5 @@ export {
   isPageAfter,
   isPullCursor,
   PULL_PAGE_MAX_CHANGES,
+  PUSH_BATCH_MAX_EVENTS,
 } from "./sync/index.js";

@@ -245,7 +245,7 @@ describe("the open sale", () => {
 
   it("is none while the session only has sales that are over", () => {
     addSale("sale-1", "COMPLETED", [1500]);
-    addSale("sale-2", "CANCELLED", [700]);
+    addSale("sale-2", "VOIDED", [700]);
 
     expect(ledger.transaction((tx) => tx.openSale())).toBeUndefined();
   });
@@ -278,7 +278,7 @@ describe("the open sale", () => {
     function close() {
       return closeCashSession(
         { ledger, clock: { now: () => OPENED_AT }, ids: { next: () => "id-1" } },
-        { sessionId: "session-1", closerId: "u1", authorizedBy: null, countedCash: 5000 },
+        { sessionId: "session-1", closerId: "u1", countedCash: 5000 },
       );
     }
 

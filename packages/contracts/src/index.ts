@@ -113,8 +113,25 @@ export {
 } from "./fiscal/buyer-identification-threshold.js";
 export type { BuyerIdentificationThresholdRecordBody } from "./fiscal/buyer-identification-threshold-record.js";
 export { buyerIdentificationThresholdRecordBodySchema } from "./fiscal/buyer-identification-threshold-record.js";
+export type { FiscalAddressBody } from "./fiscal/fiscal-address.js";
+export { fiscalAddressListSchema, fiscalAddressSchema } from "./fiscal/fiscal-address.js";
+export type { FiscalAddressCreationBody } from "./fiscal/fiscal-address-creation.js";
+export { fiscalAddressCreationBodySchema } from "./fiscal/fiscal-address-creation.js";
+export type { FiscalAddressEditBody } from "./fiscal/fiscal-address-edit.js";
+export { fiscalAddressEditBodySchema } from "./fiscal/fiscal-address-edit.js";
 export type { IssuerIdentificationEditBody } from "./fiscal/issuer-identification-edit.js";
 export { issuerIdentificationEditBodySchema } from "./fiscal/issuer-identification-edit.js";
+export type { PointOfSaleConfigurationBody } from "./fiscal/point-of-sale-configuration.js";
+export { pointOfSaleConfigurationBodySchema } from "./fiscal/point-of-sale-configuration.js";
+export type {
+  RegisterPointOfSaleBody,
+  RegisterPointOfSaleOverviewBody,
+} from "./fiscal/register-point-of-sale.js";
+export {
+  registerPointOfSaleOverviewListSchema,
+  registerPointOfSaleOverviewSchema,
+  registerPointOfSaleSchema,
+} from "./fiscal/register-point-of-sale.js";
 export type { DiscountCreationBody } from "./pricing/discount-creation.js";
 export { discountCreationBodySchema } from "./pricing/discount-creation.js";
 export type { DiscountEditBody } from "./pricing/discount-edit.js";
@@ -265,3 +282,9 @@ export type { StockCountResult, StockMovementResult } from "./stock/stock-result
 export { stockCountResultSchema, stockMovementResultSchema } from "./stock/stock-results.js";
 export type { ChangesPage, ChangesQuery, SyncChange } from "./sync/changes.js";
 export { changesPageSchema, changesQuerySchema } from "./sync/changes.js";
+export type { PushEventsRequest, PushEventsResponse } from "./sync/events.js";
+export {
+  PUSH_EVENTS_REQUEST_MAX_BYTES,
+  pushEventsRequestSchema,
+  pushEventsResponseSchema,
+} from "./sync/events.js";

@@ -20,14 +20,21 @@ const SALE_OF_THREE_YERBAS: OpenSale = {
   id: "sale-1",
   lines: [{ ...YERBA, quantity: 3, line_total: 714_000 }],
   total: 714_000,
+  charge_refusal: null,
 };
 const SALE_OF_ONE_YERBA: OpenSale = {
   id: "sale-1",
   lines: [{ ...YERBA, quantity: 1, line_total: 238_000 }],
   total: 238_000,
+  charge_refusal: null,
 };
-const SALE_OF_ALFAJOR: OpenSale = { id: "sale-1", lines: [ALFAJOR], total: 150_000 };
-const EMPTY_SALE: OpenSale = { id: "sale-1", lines: [], total: 0 };
+const SALE_OF_ALFAJOR: OpenSale = {
+  id: "sale-1",
+  lines: [ALFAJOR],
+  total: 150_000,
+  charge_refusal: null,
+};
+const EMPTY_SALE: OpenSale = { id: "sale-1", lines: [], total: 0, charge_refusal: null };
 
 const RAISE_YERBA = "Subir la cantidad de Yerba mate 1 kg";
 const LOWER_YERBA = "Bajar la cantidad de Yerba mate 1 kg";

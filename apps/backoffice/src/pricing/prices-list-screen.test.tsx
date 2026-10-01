@@ -55,7 +55,7 @@ test("shows a no-price product with a Sin precio badge and Nunca, and a priced p
   await expect.element(screen.getByText("Sin precio")).toBeVisible();
   await expect.element(screen.getByText("Nunca")).toBeVisible();
   await expect.element(screen.getByText("$ 7.500,00 / kg")).toBeVisible();
-  await expect.element(screen.getByText("Hace 40 días")).toBeVisible();
+  await expect.element(screen.getByText("hace 1 mes")).toBeVisible();
 });
 
 test("offers no confirm-without-change action for a product with no price", async () => {
@@ -645,12 +645,36 @@ test("the screen with the price modal open has no accessibility violations", asy
   await expectNoAccessibilityViolations(document.body);
 });
 
-test("shows a price the cloud reports as reviewed today as reviewed today, not pending", async () => {
+test("shows how long ago each price was reviewed in minutes, hours and days", async () => {
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
     value: {
-      products: [{ ...rice, daysSinceReview: 0, pending: false }],
+      products: [
+        { ...rice, secondsSinceReview: 5 * 60, pending: false },
+        { ...yerbaMate, secondsSinceReview: 3 * 3600, pending: false },
+        { ...rice, id: "product-4", name: "Sal", secondsSinceReview: 2 * 86_400, pending: false },
+      ],
+      pendingCount: 0,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    },
+  });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("hace 5 minutos")).toBeVisible();
+  await expect.element(screen.getByText("hace 3 horas")).toBeVisible();
+  await expect.element(screen.getByText("hace 2 días")).toBeVisible();
+});
+
+test("shows the review age in the modal in the same words, and none of the pending wording when not pending", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: {
+      products: [{ ...rice, secondsSinceReview: 5 * 60, pending: false }],
       pendingCount: 0,
       activeProductCount: 1,
       reviewWindowDays: 30,
@@ -659,32 +683,11 @@ test("shows a price the cloud reports as reviewed today as reviewed today, not p
   });
 
   const screen = await renderScreen(services);
-
-  await expect.element(screen.getByText("Hoy", { exact: true })).toBeVisible();
-  expect(screen.getByRole("button", { name: /^Revisar/ }).query()).toBeNull();
   await userEvent.click(screen.getByRole("button", { name: "Cambiar el precio de Arroz" }));
   const dialog = screen.getByRole("dialog");
-  await expect.element(dialog.getByText("Revisado hoy")).toBeVisible();
+
+  await expect.element(dialog.getByText("Revisado hace 5 minutos")).toBeVisible();
   expect(dialog.getByText("Sin revisar", { exact: false }).query()).toBeNull();
-});
-
-test("shows the review age the cloud reports for each product", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchPrices).mockResolvedValue({
-    kind: "ok",
-    value: {
-      products: [rice, { ...yerbaMate, daysSinceReview: 1, pending: false }],
-      pendingCount: 1,
-      activeProductCount: 2,
-      reviewWindowDays: 30,
-      categories: [],
-    },
-  });
-
-  const screen = await renderScreen(services);
-
-  await expect.element(screen.getByText("Hace 40 días")).toBeVisible();
-  await expect.element(screen.getByText("Hace 1 día", { exact: true })).toBeVisible();
 });
 
 test("a first load that throws ends in the load error and offers to retry", async () => {
