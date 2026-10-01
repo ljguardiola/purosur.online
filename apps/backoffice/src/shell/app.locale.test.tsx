@@ -17,8 +17,8 @@ test("announces the design system's screen-reader texts in Spanish whatever the 
     value: [
       {
         id: "user-1",
-        firstName: "Lucas Guardiola",
-        email: "lucas@example.com",
+        firstName: "Marta Quiroga",
+        email: "marta.quiroga@example.com",
         version: 1,
         role: { id: "00000000-0000-4000-8000-000000000001", isAdministrator: true, name: null },
         passkeyCount: 2,
