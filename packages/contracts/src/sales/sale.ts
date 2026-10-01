@@ -6,8 +6,6 @@ import {
 } from "@purosur/domain";
 import { z } from "zod";
 
-export { SEARCH_RESULT_LIMIT };
-
 const cents = z.int().nonnegative();
 
 const linePromotionSchema = z.discriminatedUnion("kind", [

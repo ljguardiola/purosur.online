@@ -168,7 +168,7 @@ describe("ProductSearchResults", () => {
     });
 
     await expect
-      .element(screen.getByText(/Se muestran los primeros 7 resultados y hay más/))
+      .element(screen.getByText(/Se muestran los primeros 7 resultados y hay más/).first())
       .toBeVisible();
   });
 
