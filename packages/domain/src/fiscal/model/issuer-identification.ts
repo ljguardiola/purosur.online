@@ -29,9 +29,5 @@ export function isIssuerIdentificationActivityStartDate(value: string, today: Da
 export function latestIssuerIdentification<TVersion extends { version: number }>(
   versions: readonly TVersion[],
 ): TVersion | undefined {
-  return versions.reduce<TVersion | undefined>(
-    (latest, candidate) =>
-      latest === undefined || candidate.version > latest.version ? candidate : latest,
-    undefined,
-  );
+  return [...versions].sort((a, b) => b.version - a.version)[0];
 }

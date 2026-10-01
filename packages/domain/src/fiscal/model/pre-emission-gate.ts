@@ -10,7 +10,7 @@ export interface IssuerIdentificationInEffect {
   version: number;
 }
 
-export interface FacturaCIssuer {
+interface FacturaCIssuer {
   legalName: string;
   cuit: string;
   taxStatus: string;

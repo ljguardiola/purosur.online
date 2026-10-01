@@ -31,9 +31,5 @@ export function isSameBuyerTaxStatusSet(
 export function latestBuyerTaxStatusSet<TSet extends { paramsVersion: number }>(
   sets: readonly TSet[],
 ): TSet | undefined {
-  return sets.reduce<TSet | undefined>(
-    (latest, candidate) =>
-      latest === undefined || candidate.paramsVersion > latest.paramsVersion ? candidate : latest,
-    undefined,
-  );
+  return [...sets].sort((a, b) => b.paramsVersion - a.paramsVersion)[0];
 }
