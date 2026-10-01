@@ -1,6 +1,7 @@
 import { expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { expectNoAccessibilityViolations } from "../../../test/axe";
 import { dataColumn } from "./table-columns";
 import { TablePagination } from "./table-pagination";
 import { useTableModel } from "./use-table-model";
@@ -64,10 +65,31 @@ test("asks the screen for the page that is chosen", async () => {
   expect(onPageChange).toHaveBeenCalledExactlyOnceWith(3);
 });
 
-test("renders nothing when every row fits in one page, or there are none", async () => {
+test.each([0, 1, 25])("renders nothing when %s rows fit in one page", async (count) => {
   const { container } = await render(
-    <PagedPagination count={0} page={1} onPageChange={() => {}} />,
+    <PagedPagination count={count} page={1} onPageChange={() => {}} />,
   );
 
   expect(container.querySelector("nav")).toBeNull();
+});
+
+function UnpagedPagination({ count }: { count: number }) {
+  const table = useTableModel({
+    items: products(count),
+    id: (item) => item.id,
+    columns,
+  });
+  return <TablePagination table={table} label="Páginas de productos" />;
+}
+
+test("renders nothing for a table built without paging", async () => {
+  const { container } = await render(<UnpagedPagination count={60} />);
+
+  expect(container.querySelector("nav")).toBeNull();
+});
+
+test("has no accessibility violations", async () => {
+  const screen = await render(<PagedPagination count={60} page={2} onPageChange={() => {}} />);
+
+  await expectNoAccessibilityViolations(screen.container);
 });

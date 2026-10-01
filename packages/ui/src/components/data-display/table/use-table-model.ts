@@ -115,6 +115,7 @@ export function useTableModel<T extends RowData>({
       paging?.onPageChange(functionalUpdate(updater, pagination).pageIndex + 1);
     },
     manualPagination: paging === undefined,
+    ...(paging === undefined ? { pageCount: 1 } : {}),
     autoResetPageIndex: false,
     state: {
       sorting,

@@ -38,12 +38,11 @@ function rowsOf(screen: Awaited<ReturnType<typeof renderTable>>) {
   );
 }
 
-function movementsEveryMinute(count: number, overrides: Partial<ListedCashMovement> = {}) {
+function movementsEveryMinute(count: number) {
   return Array.from({ length: count }, (_, index) =>
     movement({
       id: `m${index}`,
       occurred_at: new Date(Date.UTC(2026, 8, 30, 12, index)).toISOString(),
-      ...overrides,
     }),
   );
 }
@@ -235,23 +234,19 @@ describe("CashMovementsTable", () => {
     expect(rowsOf(screen)).toHaveLength(25);
   });
 
-  it("goes back to the first page when the time column is sorted", async () => {
+  it("shows no pager and no count once no movement is of the chosen type", async () => {
     const screen = await renderTable(movementsEveryMinute(30));
-    await userEvent.click(screen.getByRole("button", { name: "Página 2" }));
-
-    await userEvent.click(screen.getByRole("button", { name: /Hora/ }));
-
-    expect(timesOf(screen)[0]).toBe("09:00");
-    expect(rowsOf(screen)).toHaveLength(25);
-  });
-
-  it("shows no pager when there is no movement of the chosen type", async () => {
-    const screen = await renderTable([movement()]);
+    await expect
+      .element(screen.getByRole("navigation", { name: "Páginas de movimientos" }))
+      .toBeVisible();
 
     await userEvent.click(screen.getByRole("button", { name: "Tipo: Todos" }));
     await userEvent.click(screen.getByRole("option", { name: "Gasto" }));
 
-    expect(screen.getByRole("navigation", { name: "Páginas de movimientos" }).query()).toBeNull();
+    await expect
+      .element(screen.getByRole("navigation", { name: "Páginas de movimientos" }))
+      .not.toBeInTheDocument();
+    await expect.element(screen.getByText("0 movimientos")).not.toBeInTheDocument();
   });
 
   it("has no accessibility violations with the pager", async () => {

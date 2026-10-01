@@ -23,8 +23,6 @@ function requestedPageIndex<TFeatures extends TableFeatures, T extends RowData>(
   return atoms.pagination?.get()?.pageIndex ?? 0;
 }
 
-// TanStack slices at the requested page; this one slices at the page that exists, so a page past
-// the last never yields an empty page.
 export function createClampedPaginatedRowModel<
   TFeatures extends TableFeatures,
   T extends RowData = RowData,
