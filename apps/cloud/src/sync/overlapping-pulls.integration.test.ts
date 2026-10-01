@@ -117,7 +117,7 @@ describe("two pulls of the same device overlapping, on a real Postgres", () => {
       row: {
         address: "Av. Belgrano 1450",
         version: 2,
-        hours: [{ dayOfWeek: 1, position: 0, opensAt: "09:00:00", closesAt: "13:00:00" }],
+        hours: [{ dayOfWeek: 1, position: 0, opensAt: "09:00", closesAt: "13:00" }],
       },
     });
   });
