@@ -104,7 +104,14 @@ export {
   SALE_UNITS,
   TAG_NAME_MAX_LENGTH,
 } from "./catalog/index.js";
-export type { BuyerIdentificationThreshold, BuyerTaxStatusOption } from "./fiscal/index.js";
+export type {
+  BuyerIdentificationThreshold,
+  BuyerTaxStatusOption,
+  FacturaC,
+  IssuerIdentificationInEffect,
+  PreEmissionGateFailureReason,
+  PreEmissionGateOutcome,
+} from "./fiscal/index.js";
 export {
   FISCAL_ADDRESS_NAME_MAX_LENGTH,
   FISCAL_ADDRESS_STREET_ADDRESS_MAX_LENGTH,
@@ -119,6 +126,8 @@ export {
   isPointOfSaleNumber,
   isSameFiscalAddressName,
   isValidBuyerTaxStatusSet,
+  latestBuyerTaxStatusSet,
+  latestIssuerIdentification,
   latestThreshold,
   POINT_OF_SALE_NUMBER_MAX,
   thresholdInEffectOn,

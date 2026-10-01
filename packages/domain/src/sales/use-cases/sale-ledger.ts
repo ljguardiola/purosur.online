@@ -1,5 +1,10 @@
 import type { RoleAccess } from "../../access/index.js";
 import type { SaleUnit } from "../../catalog/index.js";
+import type {
+  BuyerTaxStatusOption,
+  IssuerIdentificationInEffect,
+  PreEmissionGateOutcome,
+} from "../../fiscal/index.js";
 import type { DiscountRecurrence } from "../../pricing/index.js";
 import type { CashMovement } from "../../register/index.js";
 import type { OutboxEventDraft } from "../../sync/index.js";
@@ -35,6 +40,12 @@ export interface SellableProduct {
 
 export interface CandidatePromotion extends LinePromotion, DiscountRecurrence {}
 
+export interface RecordedPreEmissionGate {
+  saleId: string;
+  evaluatedAt: Date;
+  outcome: PreEmissionGateOutcome;
+}
+
 export interface SaleLedger {
   transaction<TOutcome>(work: (tx: SaleLedgerTransaction) => TOutcome): TOutcome;
 }
@@ -62,4 +73,7 @@ export interface SaleLedgerTransaction {
   recordCashMovement(movement: CashMovement): void;
   recordCompletedSale(saleId: string): void;
   appendOutboxEvent(draft: OutboxEventDraft): void;
+  issuerIdentificationInEffect(): IssuerIdentificationInEffect | undefined;
+  buyerTaxStatusSetInEffect(): readonly BuyerTaxStatusOption[] | undefined;
+  recordPreEmissionGate(recorded: RecordedPreEmissionGate): void;
 }
