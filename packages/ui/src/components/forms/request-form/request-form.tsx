@@ -198,6 +198,7 @@ export function useRequestForm<
   return {
     form,
     submit,
+    clearFieldError,
     submitting: tanStackSubmitting || unsettled > 0,
     values: currentValues,
     dirty: !evaluate(currentValues, loaded),

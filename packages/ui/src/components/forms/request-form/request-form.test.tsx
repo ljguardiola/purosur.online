@@ -34,7 +34,7 @@ type SubmitHandler = (
 ) => Promise<void>;
 
 function Probe({ onSubmit }: { onSubmit: SubmitHandler }) {
-  const { form, submit, submitting, reset, values } = useRequestForm({
+  const { form, submit, submitting, reset, values, clearFieldError } = useRequestForm({
     defaultValues: { name: "", amountText: "" } satisfies Values,
     request: {
       schema: requestSchema,
@@ -60,6 +60,9 @@ function Probe({ onSubmit }: { onSubmit: SubmitHandler }) {
       </button>
       <button type="button" onClick={() => reset()}>
         Vaciar
+      </button>
+      <button type="button" onClick={() => clearFieldError("name")}>
+        Olvidar
       </button>
       <p>{`Escrito: ${values.name}`}</p>
     </>
@@ -221,6 +224,26 @@ test("an error from the cloud clears as soon as its field changes", async () => 
   await userEvent.fill(screen.getByRole("textbox", { name: "Nombre" }), "Ana B");
 
   await expect.element(screen.getByText("Ya existe.")).not.toBeInTheDocument();
+});
+
+test("an error from the cloud clears when the form is told to clear its field, with the value untouched", async () => {
+  const screen = await render(
+    <Probe
+      onSubmit={(_request, submission) => {
+        submission.showFieldError("name", "Ya existe.");
+        return Promise.resolve();
+      }}
+    />,
+  );
+  await userEvent.fill(screen.getByRole("textbox", { name: "Nombre" }), "Ana");
+  await userEvent.fill(screen.getByRole("textbox", { name: "Monto" }), "12");
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+  await expect.element(screen.getByText("Ya existe.")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Olvidar" }));
+
+  await expect.element(screen.getByText("Ya existe.")).not.toBeInTheDocument();
+  await expect.element(screen.getByText("Escrito: Ana")).toBeVisible();
 });
 
 test("an error from the cloud on a field that is left unchanged never blocks the next submit", async () => {

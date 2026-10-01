@@ -104,7 +104,7 @@ function MovementModal({
   const [refusedExpectedCash, setRefusedExpectedCash] = useState<number>();
   const expectedCash = refusedExpectedCash ?? givenExpectedCash;
   const [notice, setNotice] = useState<string>();
-  const { form, submit, submitting, values } = useRequestForm({
+  const { form, submit, submitting, values, clearFieldError } = useRequestForm({
     defaultValues: EMPTY_CASH_MOVEMENT_FORM,
     request: { schema: recordCashMovementFormRequestSchema, from: cashMovementRequestFrom },
     fields: { kind: null, amount: "amount", reason: "reason" },
@@ -168,7 +168,7 @@ function MovementModal({
 
   function forgetKindOutcome() {
     setNotice(undefined);
-    form.setFieldValue("amount", form.state.values.amount);
+    clearFieldError("amount");
   }
 
   function handleSubmit() {
