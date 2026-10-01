@@ -1,5 +1,7 @@
+import type { ChargeRefusal } from "../../fiscal/index.js";
 import type { SaleWithLines } from "../model/sale.js";
-import type { SaleLedger } from "./sale-ledger.js";
+import { saleChargeRefusal } from "./sale-charge-refusal.js";
+import type { Clock, SaleLedger } from "./sale-ledger.js";
 import { isRefusal, sellingSession } from "./selling-session.js";
 
 export interface CurrentSaleInput {
@@ -8,16 +10,17 @@ export interface CurrentSaleInput {
 
 export interface CurrentSalePorts {
   ledger: SaleLedger;
+  clock: Clock;
 }
 
 export type CurrentSaleOutcome =
   | { kind: "not_permitted" }
   | { kind: "no_open_session" }
   | { kind: "no_sale" }
-  | { kind: "open"; sale: SaleWithLines };
+  | { kind: "open"; sale: SaleWithLines; chargeRefusal: ChargeRefusal | undefined };
 
 export function currentSale(
-  { ledger }: CurrentSalePorts,
+  { ledger, clock }: CurrentSalePorts,
   { actorId }: CurrentSaleInput,
 ): CurrentSaleOutcome {
   return ledger.transaction<CurrentSaleOutcome>((tx) => {
@@ -26,6 +29,9 @@ export function currentSale(
       return session;
     }
     const sale = tx.openSale(session.id);
-    return sale ? { kind: "open", sale } : { kind: "no_sale" };
+    if (!sale) {
+      return { kind: "no_sale" };
+    }
+    return { kind: "open", sale, chargeRefusal: saleChargeRefusal(tx, sale, clock.now()) };
   });
 }

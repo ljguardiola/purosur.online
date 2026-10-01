@@ -6,6 +6,7 @@ import {
   formatMonthName,
   formatNumber,
   formatPointOfSaleNumber,
+  formatTimeAgo,
   parsePointOfSaleNumber,
   plural,
 } from "./formatters";
@@ -100,4 +101,30 @@ describe("parsePointOfSaleNumber", () => {
       expect(parsePointOfSaleNumber(typed)).toBeNaN();
     },
   );
+});
+
+describe("formatTimeAgo", () => {
+  const MINUTE = 60;
+  const HOUR = 60 * MINUTE;
+  const DAY = 24 * HOUR;
+
+  it.each([
+    [0, "hace un momento"],
+    [1, "hace un momento"],
+    [59, "hace un momento"],
+    [MINUTE, "hace 1 minuto"],
+    [5 * MINUTE, "hace 5 minutos"],
+    [HOUR - 1, "hace 59 minutos"],
+    [HOUR, "hace 1 hora"],
+    [3 * HOUR, "hace 3 horas"],
+    [DAY - 1, "hace 23 horas"],
+    [DAY, "hace 1 día"],
+    [2 * DAY, "hace 2 días"],
+    [30 * DAY - 1, "hace 29 días"],
+    [30 * DAY, "hace 1 mes"],
+    [59 * DAY, "hace 1 mes"],
+    [64 * DAY, "hace 2 meses"],
+  ])("writes %i seconds as %s", (seconds, text) => {
+    expect(formatTimeAgo(seconds)).toBe(text);
+  });
 });

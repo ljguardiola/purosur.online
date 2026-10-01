@@ -24,7 +24,7 @@ describe("priceReviewAt", () => {
   it("is pending when the product was never reviewed, with no age", () => {
     expect(priceReviewAt(null, NOW, windowDays)).toEqual({
       pending: true,
-      daysSinceReview: null,
+      secondsSinceReview: null,
     });
   });
 
@@ -35,18 +35,19 @@ describe("priceReviewAt", () => {
 
   it.each([
     ["at this very moment", 0, 0],
-    ["23 hours 59 minutes ago", 24 * HOUR_MS - 60_000, 0],
-    ["24 hours ago", 24 * HOUR_MS, 1],
-    ["47 hours ago", 47 * HOUR_MS, 1],
-    ["48 hours ago", 48 * HOUR_MS, 2],
-  ])("counts whole 24-hour periods: reviewed %s is %i days old", (_label, ago, days) => {
-    expect(priceReviewAt(reviewedAgo(ago), NOW, windowDays).daysSinceReview).toBe(days);
+    ["999 ms ago", 999, 0],
+    ["1 second ago", 1000, 1],
+    ["1999 ms ago", 1999, 1],
+    ["5 minutes ago", 5 * 60_000, 300],
+    ["24 hours ago", 24 * HOUR_MS, 86_400],
+  ])("counts whole seconds: reviewed %s is %i seconds old", (_label, ago, seconds) => {
+    expect(priceReviewAt(reviewedAgo(ago), NOW, windowDays).secondsSinceReview).toBe(seconds);
   });
 
-  it("reads a review a few milliseconds in the future as today and not pending", () => {
+  it("reads a review a few milliseconds in the future as zero seconds and not pending", () => {
     expect(priceReviewAt(new Date(NOW.getTime() + 5), NOW, windowDays)).toEqual({
       pending: false,
-      daysSinceReview: 0,
+      secondsSinceReview: 0,
     });
   });
 
@@ -62,11 +63,11 @@ describe("priceReviewAt", () => {
     );
   });
 
-  it("never reports a negative age and counts whole periods for any review", () => {
+  it("never reports a negative age and counts whole seconds for any review", () => {
     fc.assert(
       fc.property(fc.integer({ min: -DAY_MS, max: 400 * DAY_MS }), (ago) => {
-        expect(priceReviewAt(reviewedAgo(ago), NOW, windowDays).daysSinceReview).toBe(
-          Math.max(0, Math.floor(ago / DAY_MS)),
+        expect(priceReviewAt(reviewedAgo(ago), NOW, windowDays).secondsSinceReview).toBe(
+          Math.max(0, Math.floor(ago / 1000)),
         );
       }),
     );

@@ -1,6 +1,6 @@
 {
-  "id": "2763e85a-25c9-4fde-8142-be042135092d",
-  "prevId": "5f3a1ec5-14e9-4f44-92db-90fb31e0d0d4",
+  "id": "af2cbadb-675c-4b19-85ab-91435d2d47f3",
+  "prevId": "2763e85a-25c9-4fde-8142-be042135092d",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1311,6 +1311,68 @@
       },
       "isRLSEnabled": false
     },
+    "public.fiscal_addresses": {
+      "name": "fiscal_addresses",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "street_address": {
+          "name": "street_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "fiscal_addresses_name_lower_key": {
+          "name": "fiscal_addresses_name_lower_key",
+          "columns": [
+            {
+              "expression": "lower(\"name\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.inbox": {
       "name": "inbox",
       "schema": "",
@@ -1824,6 +1886,74 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.point_of_sale_claims": {
+      "name": "point_of_sale_claims",
+      "schema": "",
+      "columns": {
+        "point_of_sale_number": {
+          "name": "point_of_sale_number",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "register_id": {
+          "name": "register_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "claimed_at": {
+          "name": "claimed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "claimed_by": {
+          "name": "claimed_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "point_of_sale_claims_register_id_registers_id_fk": {
+          "name": "point_of_sale_claims_register_id_registers_id_fk",
+          "tableFrom": "point_of_sale_claims",
+          "tableTo": "registers",
+          "columnsFrom": ["register_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "point_of_sale_claims_claimed_by_users_id_fk": {
+          "name": "point_of_sale_claims_claimed_by_users_id_fk",
+          "tableFrom": "point_of_sale_claims",
+          "tableTo": "users",
+          "columnsFrom": ["claimed_by"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "point_of_sale_claims_number_register_key": {
+          "name": "point_of_sale_claims_number_register_key",
+          "nullsNotDistinct": false,
+          "columns": ["point_of_sale_number", "register_id"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "point_of_sale_claims_number_in_range": {
+          "name": "point_of_sale_claims_number_in_range",
+          "value": "\"point_of_sale_claims\".\"point_of_sale_number\" between 1 and 99999"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.price_lists": {
@@ -2999,6 +3129,71 @@
           "tableTo": "registers",
           "columnsFrom": ["register_id"],
           "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.register_points_of_sale": {
+      "name": "register_points_of_sale",
+      "schema": "",
+      "columns": {
+        "register_id": {
+          "name": "register_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "point_of_sale_number": {
+          "name": "point_of_sale_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fiscal_address_id": {
+          "name": "fiscal_address_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "register_points_of_sale_register_id_registers_id_fk": {
+          "name": "register_points_of_sale_register_id_registers_id_fk",
+          "tableFrom": "register_points_of_sale",
+          "tableTo": "registers",
+          "columnsFrom": ["register_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "register_points_of_sale_fiscal_address_id_fiscal_addresses_id_fk": {
+          "name": "register_points_of_sale_fiscal_address_id_fiscal_addresses_id_fk",
+          "tableFrom": "register_points_of_sale",
+          "tableTo": "fiscal_addresses",
+          "columnsFrom": ["fiscal_address_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "register_points_of_sale_claim_fk": {
+          "name": "register_points_of_sale_claim_fk",
+          "tableFrom": "register_points_of_sale",
+          "tableTo": "point_of_sale_claims",
+          "columnsFrom": ["point_of_sale_number", "register_id"],
+          "columnsTo": ["point_of_sale_number", "register_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }

@@ -32,6 +32,13 @@ async function databaseBeforeMigration() {
   return { folder, client };
 }
 
+async function seedThresholdEntry(): Promise<JournalEntry> {
+  return findMigrationEntry(
+    "_seed_buyer_identification_threshold",
+    "test setup: no buyer-identification threshold seed migration in the journal",
+  );
+}
+
 describe("the fiscal configuration migration applied over a database that already holds data", {
   timeout: 30_000,
 }, () => {
@@ -92,5 +99,45 @@ describe("the fiscal configuration migration applied over a database that alread
     );
     const { rows: sets } = await client.query("select id from buyer_tax_status_sets");
     expect([thresholds, sets]).toEqual([[], []]);
+  });
+});
+
+describe("the buyer-identification threshold seed migration applied over a database that already holds data", {
+  timeout: 30_000,
+}, () => {
+  async function databaseBeforeSeed() {
+    const folder = await mkdtemp(join(tmpdir(), "threshold-seed-migration-"));
+    onTestFinished(() => rm(folder, { recursive: true, force: true }));
+    await migrationsFolderBefore(folder, await seedThresholdEntry());
+    const client = await migrateFreshDatabase(folder, inject("testDatabaseClusterDumpPath"));
+    onTestFinished(() => client.close());
+    return { folder, client };
+  }
+
+  it("leaves a threshold of 10,000,000 pesos in effect since long before any sale, set by no one", async () => {
+    const { folder, client } = await databaseBeforeSeed();
+
+    await addMigrationEntry(folder, await seedThresholdEntry());
+    await migrate(drizzle(client), { migrationsFolder: folder });
+
+    const { rows } = await client.query(
+      "select amount::text as amount, valid_from::text as valid_from, recorded_by from buyer_identification_thresholds",
+    );
+    expect(rows).toEqual([{ amount: "1000000000", valid_from: "2000-01-01", recorded_by: null }]);
+  });
+
+  it("logs the seeded threshold once, so a register pulling from the first cursor receives it", async () => {
+    const { folder, client } = await databaseBeforeSeed();
+
+    await addMigrationEntry(folder, await seedThresholdEntry());
+    await migrate(drizzle(client), { migrationsFolder: folder });
+
+    const { rows: logged } = await client.query(
+      `select c.version, c.op
+       from changes c
+       join buyer_identification_thresholds t on t.id = c.entity_id
+       where c.entity = 'buyer_identification_threshold'`,
+    );
+    expect(logged).toEqual([{ version: 1, op: "insert" }]);
   });
 });

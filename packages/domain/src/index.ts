@@ -107,12 +107,14 @@ export {
 export type {
   BuyerIdentificationThreshold,
   BuyerTaxStatusOption,
+  ChargeRefusal,
   FacturaC,
   IssuerIdentificationInEffect,
   PreEmissionGateFailureReason,
   PreEmissionGateOutcome,
 } from "./fiscal/index.js";
 export {
+  chargeRefusal,
   FISCAL_ADDRESS_NAME_MAX_LENGTH,
   FISCAL_ADDRESS_STREET_ADDRESS_MAX_LENGTH,
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,

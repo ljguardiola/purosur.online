@@ -135,6 +135,7 @@ export {
   formatDate,
   formatNumber,
   formatPointOfSaleNumber,
+  formatTimeAgo,
   parsePointOfSaleNumber,
   plural,
 } from "./messages/formatters";

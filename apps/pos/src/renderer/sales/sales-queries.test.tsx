@@ -32,6 +32,7 @@ const SALE: OpenSale = {
     },
   ],
   total: 238_000,
+  charge_refusal: null,
 };
 
 function CurrentSaleProbe({

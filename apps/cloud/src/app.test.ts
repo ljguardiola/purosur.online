@@ -112,7 +112,7 @@ describe("GET /api/changes", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(changesPageSchema.parse(response.json()).changes).toHaveLength(3);
+    expect(changesPageSchema.parse(response.json()).changes).toHaveLength(4);
   });
 });
 

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buyerIdentificationThresholds, users } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { removeSeededThreshold } from "../test-support/remove-seeded-threshold.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleBuyerIdentificationThresholdReader } from "./drizzle-buyer-identification-threshold-reader.js";
 
@@ -18,6 +19,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDatabase.clear();
+  await removeSeededThreshold(testDatabase.db);
 });
 
 async function insertActor(): Promise<string> {

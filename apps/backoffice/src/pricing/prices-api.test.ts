@@ -24,7 +24,7 @@ const rice: PriceProduct = {
   categoryName: "Almacén",
   saleUnit: "KG",
   currentPrice: { id: "price-1", unitPrice: 750000, validFrom: "2026-01-01T12:00:00.000Z" },
-  daysSinceReview: 40,
+  secondsSinceReview: 3_456_000,
   pending: true,
 };
 
@@ -114,7 +114,7 @@ test("fetchPrices returns failed on a body without its categories", async () => 
 test("fetchPrices returns failed on a product whose shape does not match", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(200, {
-      products: [{ ...rice, daysSinceReview: "yesterday" }],
+      products: [{ ...rice, secondsSinceReview: "yesterday" }],
       pendingCount: 1,
       activeProductCount: 3,
       reviewWindowDays: 30,

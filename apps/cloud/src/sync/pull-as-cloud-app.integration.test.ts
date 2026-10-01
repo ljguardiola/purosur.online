@@ -151,6 +151,7 @@ describe("a pull run as the role the deployed cloud connects with", () => {
     expect(page.changes.map((change) => change.entity).sort()).toEqual([
       "branch_settings",
       "buyer_identification_threshold",
+      "buyer_identification_threshold",
       "buyer_tax_status_set",
       "category",
       "issuer_identification",
