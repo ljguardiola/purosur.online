@@ -172,6 +172,18 @@ describe("editRole", () => {
     expect(store.operationOrder).not.toContain("rewriteRole");
   });
 
+  it("rewrites the role when one permission is swapped for another", async () => {
+    const { store, edit } = fixture({ permissions: ["sell_and_charge", "view_sales_history"] });
+
+    const outcome = await edit({ permissionKeys: ["sell_and_charge", "reprint_receipt"] });
+
+    expect(outcome).toMatchObject({
+      kind: "applied",
+      role: { version: 4, permissionKeys: ["sell_and_charge", "reprint_receipt"] },
+    });
+    expect(store.operationOrder).toContain("rewriteRole");
+  });
+
   it("takes the role's lock before checking the name and writes only afterwards", async () => {
     const { store, edit } = fixture();
 

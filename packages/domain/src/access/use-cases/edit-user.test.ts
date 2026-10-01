@@ -254,6 +254,14 @@ describe("editUser", () => {
     expect(outcome).toMatchObject({ kind: "applied", user: { roleId: "role-cashier" } });
   });
 
+  it("lets a user who is not an administrator change role while the branch has a single administrator", async () => {
+    const { edit } = fixture({ others: [administrator({ id: "u-2" })] });
+
+    const outcome = await edit({ roleId: "role-manager" });
+
+    expect(outcome).toMatchObject({ kind: "applied", user: { roleId: "role-manager" } });
+  });
+
   it("does not count a deactivated administrator or another branch's administrator", async () => {
     const { edit } = fixture({
       target: { id: "u-1", roleIsAdministrator: true },
