@@ -1,6 +1,7 @@
 import { functionalUpdate, type Row, type RowData, useTable } from "@tanstack/react-table";
 import { itemTree } from "../../../ordering/item-tree";
 import { tableModelFeatures } from "./table-features";
+import { clampedPageIndex, PAGE_SIZE } from "./table-paging";
 import type {
   TableColumn,
   TableColumns,
@@ -17,7 +18,10 @@ type TableModelCommonOptions<T extends RowData> = {
   search?: TableModelSearch<T>;
   filter?: (item: T) => boolean;
   parentId?: (item: T) => string | null;
+  paging?: TablePaging;
 };
+
+type TablePaging = { page: number; onPageChange: (page: number) => void };
 
 type TableModelSortOptions<C extends readonly { id: string; enableSorting: boolean }[]> = [
   TableSortableColumnId<C>,
@@ -76,6 +80,7 @@ export function useTableModel<T extends RowData>({
   search,
   filter,
   parentId,
+  paging,
   sort,
   onSortChange,
 }: TableModelCommonOptions<T> & {
@@ -88,7 +93,7 @@ export function useTableModel<T extends RowData>({
     sort === undefined ? [] : [{ id: sort.column, desc: sort.direction === "descending" }];
   const searchColumnId = columns.find((column) => column.meta?.actionCount === undefined)?.id;
 
-  return useTable({
+  const table = useTable({
     features: tableModelFeatures,
     columns,
     data: tree === undefined ? items : tree.roots,
@@ -102,8 +107,21 @@ export function useTableModel<T extends RowData>({
       const next = functionalUpdate(updater, sorting)[0];
       if (next !== undefined) {
         onSortChange?.({ column: next.id, direction: next.desc ? "descending" : "ascending" });
+        paging?.onPageChange(1);
       }
     },
-    state: { sorting, globalFilter: rowFilterOf(search, filter), expanded: true },
+    manualPagination: paging === undefined,
+    autoResetPageIndex: false,
+    state: {
+      sorting,
+      globalFilter: rowFilterOf(search, filter),
+      expanded: true,
+      pagination: { pageIndex: Math.max((paging?.page ?? 1) - 1, 0), pageSize: PAGE_SIZE },
+    },
   });
+  const pageIndex = clampedPageIndex(table.state.pagination.pageIndex, table.getRowCount());
+  return {
+    ...table,
+    state: { ...table.state, pagination: { ...table.state.pagination, pageIndex } },
+  };
 }

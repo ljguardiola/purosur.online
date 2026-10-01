@@ -272,6 +272,107 @@ describe("sorting", () => {
   });
 });
 
+describe("paging", () => {
+  const manyFruits = Array.from({ length: 60 }, (_, index) =>
+    fruit(String(index + 1), `Fruta ${String(index + 1).padStart(2, "0")}`, [], index),
+  );
+
+  async function paged(
+    page: number,
+    options: { items?: readonly Fruit[]; filter?: (item: Fruit) => boolean } = {},
+  ) {
+    const onPageChange = vi.fn();
+    const onSortChange = vi.fn();
+    const { result } = await renderHook(() =>
+      useTableModel({
+        items: manyFruits,
+        id: byId,
+        columns: sortableColumns,
+        sort: ascending("name"),
+        onSortChange,
+        paging: { page, onPageChange },
+        ...options,
+      }),
+    );
+    return { table: result.current, onPageChange, onSortChange };
+  }
+
+  it("shows every row when no paging is given", async () => {
+    expect(await shown({ items: manyFruits })).toHaveLength(60);
+  });
+
+  it("shows only the rows of the page, 25 to a page", async () => {
+    const { table } = await paged(2);
+
+    const names = table.getRowModel().rows.map((row) => row.original.name);
+
+    expect(names).toHaveLength(25);
+    expect(names[0]).toBe("Fruta 26");
+    expect(names[24]).toBe("Fruta 50");
+  });
+
+  it("shows the rest on the last page", async () => {
+    const { table } = await paged(3);
+
+    expect(table.getRowModel().rows.map((row) => row.original.name)).toEqual(
+      manyFruits.slice(50).map((item) => item.name),
+    );
+  });
+
+  it("counts every matching row and the pages they make", async () => {
+    const { table } = await paged(1);
+
+    expect(table.getRowCount()).toBe(60);
+    expect(table.getPageCount()).toBe(3);
+    expect(table.state.pagination.pageIndex + 1).toBe(1);
+  });
+
+  it("pages the rows the filter leaves", async () => {
+    const { table } = await paged(2, { filter: (item) => item.weight < 30 });
+
+    expect(table.getRowCount()).toBe(30);
+    expect(table.getPageCount()).toBe(2);
+    expect(table.getRowModel().rows).toHaveLength(5);
+  });
+
+  it("shows the last page when the page is past it", async () => {
+    const { table } = await paged(9);
+
+    expect(table.state.pagination.pageIndex + 1).toBe(3);
+    expect(table.getRowModel().rows).toHaveLength(10);
+  });
+
+  it("shows the first page when the page is before it", async () => {
+    const { table } = await paged(0);
+
+    expect(table.state.pagination.pageIndex + 1).toBe(1);
+    expect(table.getRowModel().rows).toHaveLength(25);
+  });
+
+  it("shows page 1 and no rows when there are no rows", async () => {
+    const { table } = await paged(4, { items: [] });
+
+    expect(table.state.pagination.pageIndex + 1).toBe(1);
+    expect(table.getRowCount()).toBe(0);
+    expect(table.getRowModel().rows).toEqual([]);
+  });
+
+  it("asks for page 1 when the sort changes", async () => {
+    const { table, onPageChange, onSortChange } = await paged(2);
+
+    table.getColumn("weight")?.toggleSorting();
+
+    expect(onSortChange).toHaveBeenCalledExactlyOnceWith(descending("weight"));
+    expect(onPageChange).toHaveBeenCalledExactlyOnceWith(1);
+  });
+
+  it("never asks for a page on its own", async () => {
+    const { onPageChange } = await paged(2);
+
+    expect(onPageChange).not.toHaveBeenCalled();
+  });
+});
+
 describe("a tree of items", () => {
   type Node = { id: string; name: string; parentId: string | null };
   const node = (id: string, name: string, parentId: string | null = null): Node => ({
@@ -297,6 +398,28 @@ describe("a tree of items", () => {
     node("dairy", "Lácteos"),
     node("milk", "Leches", "dairy"),
   ];
+
+  it("pages every row of the tree, each child counting as a row beside its parent", async () => {
+    const roots = Array.from({ length: 20 }, (_, index) =>
+      node(`root-${index}`, `Raíz ${String(index).padStart(2, "0")}`),
+    );
+    const items = [...roots, ...roots.map((root) => node(`${root.id}-child`, "Hija", root.id))];
+    const { result } = await renderHook(() =>
+      useTableModel({
+        items,
+        id: byId,
+        parentId,
+        columns: nodeColumns,
+        sort: { column: "node", direction: "ascending" },
+        onSortChange: () => {},
+        paging: { page: 2, onPageChange: () => {} },
+      }),
+    );
+
+    expect(result.current.getRowCount()).toBe(40);
+    expect(result.current.getPageCount()).toBe(2);
+    expect(result.current.getRowModel().rows).toHaveLength(15);
+  });
 
   async function nodes(
     items: Node[],
