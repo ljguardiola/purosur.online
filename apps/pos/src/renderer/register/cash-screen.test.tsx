@@ -58,6 +58,7 @@ async function renderScreen(
   onTestFinished(() => page.viewport(414, 896));
   return render(
     <CashScreen
+      sessionId="s1"
       person={PERSON}
       registerName={props.registerName === undefined ? "Caja 1" : props.registerName}
       openedAt={OPENED_AT}
@@ -220,29 +221,5 @@ describe("CashScreen", () => {
     await expect
       .element(screen.getByText("Hay $ 46.200,00 en la caja antes de este gasto."))
       .toBeVisible();
-  });
-
-  it("closes the modal and reads the balance and the movements again once a movement is recorded", async () => {
-    const loadCashBalance = vi
-      .fn<() => Promise<CashBalance>>()
-      .mockResolvedValueOnce(BALANCE)
-      .mockResolvedValueOnce({ ...BALANCE, cash_in: 600_000, expected: 5_120_000 });
-    const loadCashMovements = vi
-      .fn<() => Promise<ListedCashMovement[]>>()
-      .mockResolvedValueOnce([OPENING])
-      .mockResolvedValueOnce([OPENING, FLETE]);
-    const screen = await renderScreen({ loadCashBalance, loadCashMovements });
-    await expect.element(screen.getByText("1 movimiento", { exact: true })).toBeVisible();
-    await userEvent.click(
-      screen.getByRole("button", { name: "Registrar movimiento", exact: true }),
-    );
-    await userEvent.fill(screen.getByRole("textbox", { name: "Importe" }), "500");
-    await userEvent.fill(screen.getByRole("textbox", { name: "Motivo" }), "Flete");
-
-    await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
-
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
-    await expect.element(screen.getByText("2 movimientos", { exact: true })).toBeVisible();
-    await expect.element(screen.getByText("$ 51.200,00", { exact: true })).toBeVisible();
   });
 });

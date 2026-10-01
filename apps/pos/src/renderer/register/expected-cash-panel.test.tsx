@@ -3,7 +3,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import type { CashBalanceState } from "./expected-cash-panel";
+import type { CoreData } from "../platform/use-core-query";
 import { ExpectedCashPanel } from "./expected-cash-panel";
 
 const BALANCE: CashBalance = {
@@ -17,21 +17,19 @@ const BALANCE: CashBalance = {
   expected: 4_620_000,
 };
 
+function loaded(balance: CashBalance): CoreData<CashBalance> {
+  return { status: "loaded", value: balance, refreshing: false };
+}
+
 async function renderPanel(
-  props: {
-    balance?: CashBalanceState;
-    eyebrow?: string;
-    onRetry?: () => void;
-    actions?: string;
-  } = {},
+  props: { balance?: CoreData<CashBalance>; eyebrow?: string; actions?: string } = {},
 ) {
   await page.viewport(1280, 720);
   onTestFinished(() => page.viewport(414, 896));
   return render(
     <ExpectedCashPanel
       eyebrow={props.eyebrow ?? "EFECTIVO ESPERADO AHORA"}
-      balance={props.balance ?? { status: "loaded", balance: BALANCE }}
-      onRetry={props.onRetry ?? vi.fn()}
+      balance={props.balance ?? loaded(BALANCE)}
     >
       {props.actions === undefined ? null : <button type="button">{props.actions}</button>}
     </ExpectedCashPanel>,
@@ -77,7 +75,7 @@ describe("ExpectedCashPanel", () => {
 
   it("shows Devoluciones as an outflow once there are refunds", async () => {
     const screen = await renderPanel({
-      balance: { status: "loaded", balance: { ...BALANCE, refunds: 120_000 } },
+      balance: loaded({ ...BALANCE, refunds: 120_000 }),
     });
 
     expect(rowOf(screen, "Devoluciones")).toBe("Devoluciones− $ 1.200,00");
@@ -85,7 +83,7 @@ describe("ExpectedCashPanel", () => {
 
   it("shows a zero cash line as positive when it is an inflow", async () => {
     const screen = await renderPanel({
-      balance: { status: "loaded", balance: { ...BALANCE, cash_sales: 0, cash_in: 0 } },
+      balance: loaded({ ...BALANCE, cash_sales: 0, cash_in: 0 }),
     });
 
     expect(rowOf(screen, "Ventas en efectivo")).toBe("Ventas en efectivo+ $ 0,00");
@@ -102,7 +100,7 @@ describe("ExpectedCashPanel", () => {
 
   it("says the balance could not be read and offers Reintentar", async () => {
     const onRetry = vi.fn();
-    const screen = await renderPanel({ balance: { status: "failed" }, onRetry });
+    const screen = await renderPanel({ balance: { status: "failed", retry: onRetry } });
 
     await expect.element(screen.getByText("No se pudo leer el efectivo esperado")).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
@@ -122,7 +120,10 @@ describe("ExpectedCashPanel", () => {
     await expect.element(loading.getByRole("button", { name: "Volver" })).toBeVisible();
     await loading.unmount();
 
-    const failed = await renderPanel({ balance: { status: "failed" }, actions: "Volver" });
+    const failed = await renderPanel({
+      balance: { status: "failed", retry: vi.fn() },
+      actions: "Volver",
+    });
     await expect.element(failed.getByRole("button", { name: "Volver" })).toBeVisible();
   });
 });

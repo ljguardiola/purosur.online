@@ -9,7 +9,7 @@ import { SessionEyebrow } from "../shell/session-eyebrow";
 import { countedCashFrom, differenceNotice, INVALID_COUNTED_CASH_MESSAGE } from "./cash-amounts";
 import { CashCountStrip } from "./cash-count-strip";
 import { ExpectedCashPanel } from "./expected-cash-panel";
-import { useCashBalance } from "./use-cash-balance";
+import { useCashBalanceQuery } from "./register-queries";
 
 const FAILED = "No se pudo cerrar la caja. Probá de nuevo.";
 
@@ -19,6 +19,7 @@ export type RefusedClose = Extract<
 >;
 
 export type LockedCashCountProps = {
+  sessionId: string;
   opener: SignedInPerson;
   closerName: string;
   registerName: string | null;
@@ -29,6 +30,7 @@ export type LockedCashCountProps = {
 };
 
 export function LockedCashCount({
+  sessionId,
   opener,
   closerName,
   registerName,
@@ -38,7 +40,7 @@ export function LockedCashCount({
   onRefused,
 }: LockedCashCountProps) {
   const navigate = useNavigate();
-  const balance = useCashBalance(loadCashBalance);
+  const balance = useCashBalanceQuery(sessionId, loadCashBalance);
   const field = useRef<HTMLDivElement>(null);
   const [typed, setTyped] = useState("");
   const [fieldMessage, setFieldMessage] = useState<string>();
@@ -50,7 +52,7 @@ export function LockedCashCount({
     field.current?.querySelector("input")?.focus();
   }, []);
 
-  const expected = balance.state.status === "loaded" ? balance.state.balance.expected : undefined;
+  const expected = balance.status === "loaded" ? balance.value.expected : undefined;
   const typedCash = typed.trim() === "" ? undefined : countedCashFrom(typed);
   const counted = typedCash !== undefined && "cents" in typedCash ? typedCash.cents : undefined;
   const warning =
@@ -142,17 +144,13 @@ export function LockedCashCount({
           {failed ? <InlineNotice tone="error" icon={<TriangleAlert />} title={FAILED} /> : null}
         </section>
       </main>
-      <ExpectedCashPanel
-        eyebrow="EFECTIVO ESPERADO"
-        balance={balance.state}
-        onRetry={balance.retry}
-      >
+      <ExpectedCashPanel eyebrow="EFECTIVO ESPERADO" balance={balance}>
         <Button
           type="submit"
           size="large"
           fullWidth
           icon={<Lock />}
-          dataStatus={balance.state.status}
+          dataStatus={balance.status}
           disabled={submitting}
         >
           Cerrar caja
