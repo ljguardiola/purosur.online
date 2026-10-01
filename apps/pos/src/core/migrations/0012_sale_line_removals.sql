@@ -4,7 +4,7 @@ CREATE TABLE sale_line_removals (
   sale_line_id TEXT NOT NULL,
   product_id TEXT NOT NULL,
   qty_removed INTEGER NOT NULL CHECK (qty_removed > 0),
-  amount_removed INTEGER NOT NULL CHECK (amount_removed >= 0),
+  amount_removed INTEGER NOT NULL,
   actor_id TEXT NOT NULL,
   occurred_at TEXT NOT NULL
 );

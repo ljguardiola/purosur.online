@@ -136,6 +136,34 @@ describe("changeLineQuantity", () => {
     ]);
   });
 
+  it("records a negative removed amount when lowering drops a promotion that charged less", () => {
+    const threeForOne = {
+      id: "three-for-one",
+      benefit: { kind: "BUY_N_PAY_M" as const, buyQty: 3, payQty: 1 },
+    };
+    const promoted = {
+      ...YERBA_LINE,
+      promotions: [threeForOne],
+      promotionId: "three-for-one",
+      discountAmount: 5000,
+      lineTotal: 2500,
+    };
+    const store = ledger({ sales: [{ ...OPEN_SALE, lines: [promoted] }] });
+
+    change(store, "line-1", 2);
+
+    expect(storedLine(store, "line-1")).toEqual({
+      ...promoted,
+      quantity: 2,
+      promotionId: null,
+      discountAmount: 0,
+      lineTotal: 5000,
+    });
+    expect(store.state.removals).toEqual([
+      expect.objectContaining({ qtyRemoved: 1, amountRemoved: -2500 }),
+    ]);
+  });
+
   it("picks the promotion again when raising, exactly as scanning another unit does", () => {
     const tenPercent = {
       ...YERBA_LINE,

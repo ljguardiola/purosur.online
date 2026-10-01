@@ -810,6 +810,26 @@ describe("the lines of the sale being changed", () => {
     ]);
   });
 
+  it("lowers a quantity whose line total rises, storing a negative removed amount", () => {
+    addDiscount(
+      "three-for-one",
+      { kind: "PRODUCT", id: "p1" },
+      { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 1 },
+    );
+    scan("111");
+    scan("111");
+    scan("111");
+
+    changeLineQuantity(sellerPorts(), { actorId: "u1", lineId: lineIdOf("p1"), quantity: 2 });
+
+    expect(database.prepare("SELECT quantity, line_total FROM sale_lines").all()).toEqual([
+      { quantity: 2, line_total: 1800 },
+    ]);
+    expect(
+      database.prepare("SELECT qty_removed, amount_removed FROM sale_line_removals").all(),
+    ).toEqual([{ qty_removed: 1, amount_removed: -800 }]);
+  });
+
   it("records nothing when the quantity is raised", () => {
     scan("111");
 
