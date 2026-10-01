@@ -21,6 +21,7 @@ const isDomainSpecifier = (node) =>
 function unwrapped(expression) {
   return ts.isParenthesizedExpression(expression) ||
     ts.isAsExpression(expression) ||
+    ts.isTypeAssertionExpression(expression) ||
     ts.isSatisfiesExpression(expression) ||
     ts.isNonNullExpression(expression)
     ? unwrapped(expression.expression)

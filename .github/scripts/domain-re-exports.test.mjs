@@ -38,6 +38,7 @@ test("finds a domain value bound to an exported constant with a function type, a
     "export const check: (value: string) => boolean = isValid;",
     "export const check = isValid as (value: string) => boolean;",
     "export const check = isValid satisfies (value: string) => boolean;",
+    "export const check = <(value: string) => boolean>isValid;",
     "export const a = 1, check = isValid;",
     "export const check: (value: string, other: number) => boolean = isValid, b = 1;",
   ]) {
