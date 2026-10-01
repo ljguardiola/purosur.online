@@ -3,7 +3,6 @@ import ts from "typescript";
 
 export const CONTRACTS_DOMAIN_VALUE_RE_EXPORT_ALLOWLIST = [
   "packages/contracts/src/access/pin-code-redemption.ts#PIN_MIN_DIGITS",
-  "packages/contracts/src/register/core-messages.ts#ARGENTINA_TIME_ZONE",
 ];
 
 const DOMAIN_RE_EXPORT =

@@ -186,7 +186,6 @@ export type {
   SignInUser,
 } from "./register/core-messages.js";
 export {
-  ARGENTINA_TIME_ZONE,
   cashMovementTypeSchema,
   chargeSaleInCashMessageSchema,
   closeCashSessionMessageSchema,

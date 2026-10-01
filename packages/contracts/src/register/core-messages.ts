@@ -1,5 +1,4 @@
 import {
-  ARGENTINA_TIME_ZONE,
   type AuthorizablePermissionKey,
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_TYPES,
@@ -28,8 +27,6 @@ import {
 } from "../sales/sale.js";
 
 const requestId = z.string();
-
-export { ARGENTINA_TIME_ZONE };
 
 const rendererPingMessageSchema = z.object({
   type: z.literal("ping"),

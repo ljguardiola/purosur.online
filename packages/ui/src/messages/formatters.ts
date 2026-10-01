@@ -31,6 +31,17 @@ export function formatDate(value: Date | number, options?: Intl.DateTimeFormatOp
   return new Intl.DateTimeFormat(LOCALE, options).format(value);
 }
 
+const DISPLAY_TIME_ZONE = "America/Argentina/Buenos_Aires";
+
+export function formatClockTime(instant: string): string {
+  return formatDate(new Date(instant), {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone: DISPLAY_TIME_ZONE,
+  });
+}
+
 export function formatMonthName(month: number): string {
   const name = new Intl.DateTimeFormat(LOCALE, { month: "long", timeZone: "UTC" }).format(
     Date.UTC(2000, month - 1, 1),
