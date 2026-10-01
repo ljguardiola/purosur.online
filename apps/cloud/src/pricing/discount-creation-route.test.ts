@@ -136,6 +136,7 @@ describe("POST /discounts", () => {
       weekdays: [2, 4],
       active: true,
       version: 1,
+      status: "scheduled",
     });
     expect(await storedDiscounts()).toHaveLength(1);
   });
