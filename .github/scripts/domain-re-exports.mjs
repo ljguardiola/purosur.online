@@ -1,4 +1,5 @@
 import { globSync, readFileSync } from "node:fs";
+import ts from "typescript";
 
 export const CONTRACTS_DOMAIN_VALUE_RE_EXPORT_ALLOWLIST = [
   "packages/contracts/src/access/pin-code-redemption.ts#PIN_MIN_DIGITS",
@@ -11,49 +12,70 @@ export const CONTRACTS_DOMAIN_VALUE_RE_EXPORT_ALLOWLIST = [
   "packages/contracts/src/sales/sale.ts#SEARCH_RESULT_LIMIT",
 ];
 
-const DOMAIN_VALUE_IMPORT =
-  /import\s+(?!type\b)\{([^}]*)\}\s*from\s*["']@purosur\/domain(?:\/[^"']*)?["']/g;
-const LOCAL_EXPORT = /export\s+(?!type\b)\{([^}]*)\}(?!\s*from\b)/g;
-const LOCAL_CONSTANT_EXPORT = /export\s+(?:const|let|var)\s+[\w$]+([^;]*);/g;
-const DECLARATOR_SEPARATOR = /,(?=\s*[A-Za-z_$][\w$]*\s*[:=])/;
-const INITIALIZER = /(?<![=<>!])=(?![=>])([\s\S]*)/;
-const BARE_IDENTIFIER = /^([A-Za-z_$][\w$]*)(?:\s+(?:as|satisfies)\s[\s\S]*)?$/;
 const DOMAIN_RE_EXPORT =
-  /export\s+(type\s+)?(?:\*(?:\s+as\s+([\w$]+))?|\{([^}]*)\})\s*from\s*["']@purosur\/domain(?:\/[^"']*)?["']/g;
+  /export\s+(?:type\s+)?(?:\*(?:\s+as\s+[\w$]+)?|\{[^}]*\})\s*from\s*["']@purosur\/domain(?:\/[^"']*)?["']/g;
 
-function valueMembers(list) {
-  return list
-    .split(",")
-    .map((member) => member.trim())
-    .filter((member) => member !== "" && !/^type\s/.test(member));
+const isDomainSpecifier = (node) =>
+  node !== undefined && /^@purosur\/domain(?:\/|$)/.test(node.text);
+
+function unwrapped(expression) {
+  return ts.isParenthesizedExpression(expression) ||
+    ts.isAsExpression(expression) ||
+    ts.isSatisfiesExpression(expression) ||
+    ts.isNonNullExpression(expression)
+    ? unwrapped(expression.expression)
+    : expression;
 }
 
-const importedName = (member) => member.split(/\s+as\s+/).at(-1);
-const exportedLocalName = (member) => member.split(/\s+as\s+/)[0];
+function domainValueImports(statements) {
+  return new Set(
+    statements
+      .filter(
+        (statement) =>
+          ts.isImportDeclaration(statement) &&
+          isDomainSpecifier(statement.moduleSpecifier) &&
+          !statement.importClause?.isTypeOnly,
+      )
+      .flatMap(({ importClause }) => {
+        const bindings = importClause?.namedBindings;
+        if (bindings === undefined || !ts.isNamedImports(bindings)) return [];
+        return bindings.elements
+          .filter((element) => !element.isTypeOnly)
+          .map((element) => element.name.text);
+      }),
+  );
+}
+
+function exportedNames(statement) {
+  if (ts.isVariableStatement(statement)) {
+    const isExported = statement.modifiers?.some(
+      (modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword,
+    );
+    if (!isExported) return [];
+    return statement.declarationList.declarations
+      .map((declaration) => declaration.initializer && unwrapped(declaration.initializer))
+      .filter((initializer) => initializer !== undefined && ts.isIdentifier(initializer))
+      .map((initializer) => ({ name: initializer.text, local: true }));
+  }
+  if (!ts.isExportDeclaration(statement) || statement.isTypeOnly) return [];
+  const fromDomain = isDomainSpecifier(statement.moduleSpecifier);
+  if (statement.moduleSpecifier !== undefined && !fromDomain) return [];
+  const clause = statement.exportClause;
+  if (clause === undefined) return [{ name: "*", local: false }];
+  if (ts.isNamespaceExport(clause)) return [{ name: clause.name.text, local: false }];
+  return clause.elements
+    .filter((element) => !element.isTypeOnly)
+    .map((element) => ({ name: (element.propertyName ?? element.name).text, local: !fromDomain }));
+}
 
 export function findDomainValueReExports(source) {
-  const imported = new Set(
-    [...source.matchAll(DOMAIN_VALUE_IMPORT)].flatMap((match) =>
-      valueMembers(match[1]).map(importedName),
-    ),
-  );
-  const exported = [
-    ...[...source.matchAll(LOCAL_EXPORT)].flatMap((match) =>
-      valueMembers(match[1]).map(exportedLocalName),
-    ),
-    ...[...source.matchAll(LOCAL_CONSTANT_EXPORT)].flatMap(([, declaration]) =>
-      declaration.split(DECLARATOR_SEPARATOR).flatMap((declarator) => {
-        const initializer = declarator.match(INITIALIZER)?.[1].trim();
-        return initializer?.match(BARE_IDENTIFIER)?.[1] ?? [];
-      }),
-    ),
-  ].filter((name) => imported.has(name));
-  const reExported = [...source.matchAll(DOMAIN_RE_EXPORT)]
-    .filter(([, typeOnly]) => typeOnly === undefined)
-    .flatMap(([, , namespace, members]) =>
-      members === undefined ? [namespace ?? "*"] : valueMembers(members).map(exportedLocalName),
-    );
-  return [...new Set([...exported, ...reExported])];
+  const { statements } = ts.createSourceFile("source.ts", source, ts.ScriptTarget.Latest);
+  const imported = domainValueImports(statements);
+  const names = statements
+    .flatMap(exportedNames)
+    .filter(({ name, local }) => !local || imported.has(name))
+    .map(({ name }) => name);
+  return [...new Set(names)];
 }
 
 export function hasDomainReExport(source) {

@@ -47,6 +47,25 @@ test("finds a domain value bound to an exported constant with a function type, a
   }
 });
 
+test("finds a domain value bound after a destructuring declarator or under an object type", () => {
+  const source = [
+    'import { isValid, LIMIT } from "@purosur/domain";',
+    "export const { a } = obj, check = isValid;",
+    "export const ALIAS: { min: number; max: number } = LIMIT;",
+  ].join("\n");
+
+  assert.deepEqual(findDomainValueReExports(source).toSorted(), ["LIMIT", "isValid"]);
+});
+
+test("ignores a domain value bound to a local variable inside an exported function", () => {
+  const source = [
+    'import { LIMIT } from "@purosur/domain";',
+    "export const sum = (xs) => { let total = 0, max = LIMIT; return total + max; };",
+  ].join("\n");
+
+  assert.deepEqual(findDomainValueReExports(source), []);
+});
+
 test("ignores an exported constant that builds on a domain value across lines", () => {
   const source = [
     'import { domainValue } from "@purosur/domain";',
