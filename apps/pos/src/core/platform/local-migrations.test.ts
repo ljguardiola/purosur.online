@@ -403,15 +403,50 @@ describe("the register's local migrations", () => {
     }
   });
 
+  it("add the removals of sale lines over the open sales a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(0, 13);
+      expect(previous.at(-1)?.name).toBe("0012_payment_transactions");
+      expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
+        "0013_sale_line_removals",
+      ]);
+      const before = openLocalDatabase(path, previous);
+      before
+        .prepare(
+          `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+           VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN')`,
+        )
+        .run();
+      before
+        .prepare(
+          `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+           VALUES ('a', 'r1', 'device-a', 's1', 'u1', 'OPEN', '2026-09-30T12:00:00.000Z')`,
+        )
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+
+      expect(after.prepare("SELECT id, state FROM sales").all()).toEqual([
+        { id: "a", state: "OPEN" },
+      ]);
+      expect(after.prepare("SELECT count(*) AS total FROM sale_line_removals").get()).toEqual({
+        total: 0,
+      });
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
   it("find the lines of a product without reading every line, keeping the sales a register already holds", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
       const path = join(folder, "register.sqlite");
       const previous = LOCAL_MIGRATIONS.slice(0, 11);
       expect(previous.at(-1)?.name).toBe("0010_sale_line_promotions");
-      expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
-        "0011_sale_lines_by_product",
-      ]);
+      expect(LOCAL_MIGRATIONS.at(previous.length)?.name).toBe("0011_sale_lines_by_product");
       const before = openLocalDatabase(path, previous);
       before
         .prepare(
@@ -455,6 +490,122 @@ describe("the register's local migrations", () => {
     } finally {
       rmSync(folder, { recursive: true, force: true });
     }
+  });
+
+  it("add payment transactions over the open sale and cash movements a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(0, 12);
+      expect(previous.at(-1)?.name).toBe("0011_sale_lines_by_product");
+      expect(LOCAL_MIGRATIONS.slice(previous.length)[0]?.name).toBe("0012_payment_transactions");
+      const before = openLocalDatabase(path, previous);
+      before
+        .prepare(
+          `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+           VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 500, 'OPEN')`,
+        )
+        .run();
+      before
+        .prepare(
+          `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+           VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'OPEN', '2026-09-30T12:05:00.000Z')`,
+        )
+        .run();
+      before
+        .prepare(
+          `INSERT INTO cash_movements (id, session_id, type, amount, actor_id, occurred_at)
+           VALUES ('m1', 's1', 'OPENING', 500, 'u1', '2026-09-30T12:00:00.000Z')`,
+        )
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+
+      expect(after.prepare("SELECT id, state FROM sales").all()).toEqual([
+        { id: "sale-1", state: "OPEN" },
+      ]);
+      expect(after.prepare("SELECT id, type, amount FROM cash_movements").all()).toEqual([
+        { id: "m1", type: "OPENING", amount: 500 },
+      ]);
+      expect(after.prepare("SELECT count(*) AS total FROM payment_transactions").get()).toEqual({
+        total: 0,
+      });
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  describe("hold payment transactions that", () => {
+    function withOpenSale() {
+      const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
+      database
+        .prepare(
+          `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+           VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN')`,
+        )
+        .run();
+      database
+        .prepare(
+          `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+           VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'OPEN', '2026-09-30T12:05:00.000Z')`,
+        )
+        .run();
+      return database;
+    }
+
+    function insertPayment(
+      database: ReturnType<typeof openLocalDatabase>,
+      overrides: Record<string, string | number | null> = {},
+    ) {
+      database
+        .prepare(
+          `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, state, occurred_at)
+           VALUES (@id, @sale_id, @kind, @method, @provider, @amount, @tendered, @state, @occurred_at)`,
+        )
+        .run({
+          id: "pay-1",
+          sale_id: "sale-1",
+          kind: "SALE",
+          method: "CASH",
+          provider: "NONE",
+          amount: 1500,
+          tendered: 2000,
+          state: "APPROVED",
+          occurred_at: "2026-09-30T12:06:00.000Z",
+          ...overrides,
+        });
+    }
+
+    it("keep the amount applied and, for cash, the amount tendered", () => {
+      const database = withOpenSale();
+
+      insertPayment(database);
+
+      expect(database.prepare("SELECT amount, tendered FROM payment_transactions").all()).toEqual([
+        { amount: 1500, tendered: 2000 },
+      ]);
+      database.close();
+    });
+
+    it("belong to a known sale and hold a known kind, method and state", () => {
+      const database = withOpenSale();
+
+      expect(() => insertPayment(database, { sale_id: "missing" })).toThrow(/FOREIGN KEY/);
+      expect(() => insertPayment(database, { kind: "REFUND" })).toThrow(/CHECK/);
+      expect(() => insertPayment(database, { method: "CARD" })).toThrow(/CHECK/);
+      expect(() => insertPayment(database, { state: "PENDING" })).toThrow(/CHECK/);
+      database.close();
+    });
+
+    it("hold a positive amount and a tendered amount that covers it", () => {
+      const database = withOpenSale();
+
+      expect(() => insertPayment(database, { amount: 0 })).toThrow(/CHECK/);
+      expect(() => insertPayment(database, { amount: 1500, tendered: 1000 })).toThrow(/CHECK/);
+      database.close();
+    });
   });
 
   describe("hold sales that", () => {

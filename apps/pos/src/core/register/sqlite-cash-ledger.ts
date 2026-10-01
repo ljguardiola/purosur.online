@@ -141,6 +141,29 @@ function readOpenSaleTotal(database: LocalDatabase): number | undefined {
     .get()?.total;
 }
 
+export function insertCashMovement(database: LocalDatabase, movement: CashMovement): void {
+  database
+    .prepare(
+      `INSERT INTO cash_movements (
+         id, session_id, type, amount, reason, ref_type, ref_id, actor_id, authorized_by, occurred_at
+       ) VALUES (
+         @id, @session_id, @type, @amount, @reason, @ref_type, @ref_id, @actor_id, @authorized_by, @occurred_at
+       )`,
+    )
+    .run({
+      id: movement.id,
+      session_id: movement.sessionId,
+      type: movement.type,
+      amount: movement.amount,
+      reason: movement.reason ?? null,
+      ref_type: movement.ref?.type ?? null,
+      ref_id: movement.ref?.id ?? null,
+      actor_id: movement.actorId,
+      authorized_by: movement.authorizedBy ?? null,
+      occurred_at: movement.occurredAt.toISOString(),
+    });
+}
+
 export class SqliteCashLedger implements CashLedger {
   private readonly database: LocalDatabase;
   private readonly people: Pick<SignInStore, "activePerson">;
@@ -169,7 +192,7 @@ export class SqliteCashLedger implements CashLedger {
       registerIdentity: () => this.registerIdentity(),
       recordOpenedSession: (session) => this.recordOpenedSession(session),
       recordClosedSession: (session) => this.recordClosedSession(session),
-      recordCashMovement: (movement) => this.recordCashMovement(movement),
+      recordCashMovement: (movement) => insertCashMovement(this.database, movement),
       appendOutboxEvent: (draft) => appendOutboxEvent(this.database, this.outboxChainKey, draft),
     };
   }
@@ -219,29 +242,6 @@ export class SqliteCashLedger implements CashLedger {
         expected_cash: session.expectedCash,
         counted_cash: session.countedCash,
         difference: session.difference,
-      });
-  }
-
-  private recordCashMovement(movement: CashMovement): void {
-    this.database
-      .prepare(
-        `INSERT INTO cash_movements (
-           id, session_id, type, amount, reason, ref_type, ref_id, actor_id, authorized_by, occurred_at
-         ) VALUES (
-           @id, @session_id, @type, @amount, @reason, @ref_type, @ref_id, @actor_id, @authorized_by, @occurred_at
-         )`,
-      )
-      .run({
-        id: movement.id,
-        session_id: movement.sessionId,
-        type: movement.type,
-        amount: movement.amount,
-        reason: movement.reason ?? null,
-        ref_type: movement.ref?.type ?? null,
-        ref_id: movement.ref?.id ?? null,
-        actor_id: movement.actorId,
-        authorized_by: movement.authorizedBy ?? null,
-        occurred_at: movement.occurredAt.toISOString(),
       });
   }
 }

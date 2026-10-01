@@ -1304,6 +1304,43 @@ describe("sale requests", () => {
   });
 });
 
+describe("charge sale in cash request", () => {
+  const message = {
+    type: "charge-sale-in-cash",
+    request_id: REQUEST_ID,
+    sale_id: "s1",
+    tendered: 5000,
+  };
+
+  it("accepts a charge of a sale with the amount tendered in cents", () => {
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("does not take who is charging from the renderer", () => {
+    expect(rendererToCoreMessageSchema.parse({ ...message, user_id: "u9" })).toEqual(message);
+  });
+
+  it.each([0, -100, MAX_CASH_AMOUNT_CENTS + 1])(
+    "leaves the amount %s for the core to refuse as invalid",
+    (tendered) => {
+      expect(rendererToCoreMessageSchema.parse({ ...message, tendered })).toEqual({
+        ...message,
+        tendered,
+      });
+    },
+  );
+
+  it.each([
+    ["request id", { ...message, request_id: undefined }],
+    ["sale id", { ...message, sale_id: undefined }],
+    ["tendered amount", { ...message, tendered: undefined }],
+    ["whole number of cents", { ...message, tendered: 12.5 }],
+    ["number", { ...message, tendered: "5000" }],
+  ])("rejects a charge without a valid %s", (_case, value) => {
+    expect(rendererToCoreMessageSchema.safeParse(value).success).toBe(false);
+  });
+});
+
 describe("sale answers", () => {
   const sale = {
     id: "s1",
@@ -1415,5 +1452,150 @@ describe("sale answers", () => {
     expect(coreToRendererMessageSchema.safeParse({ type: "sale-not-permitted" }).success).toBe(
       false,
     );
+  });
+});
+
+describe("sale line requests", () => {
+  it("accepts a change of a line's quantity", () => {
+    const message = {
+      type: "change-line-quantity",
+      request_id: REQUEST_ID,
+      line_id: "l1",
+      quantity: 3,
+      expected_quantity: 4,
+    };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { line_id: "l1", quantity: 3 },
+    { line_id: "l1", expected_quantity: 3 },
+    { quantity: 3, expected_quantity: 3 },
+    { line_id: "l1", quantity: 0, expected_quantity: 3 },
+    { line_id: "l1", quantity: -1, expected_quantity: 3 },
+    { line_id: "l1", quantity: 1.5, expected_quantity: 3 },
+    { line_id: 7, quantity: 1, expected_quantity: 3 },
+    { line_id: "l1", quantity: 1, expected_quantity: 0 },
+    { line_id: "l1", quantity: 1, expected_quantity: -1 },
+    { line_id: "l1", quantity: 1, expected_quantity: 1.5 },
+    { line_id: "l1", quantity: 1, expected_quantity: "3" },
+  ])("rejects a quantity change that is not well formed: %j", (fields) => {
+    expect(
+      rendererToCoreMessageSchema.safeParse({
+        type: "change-line-quantity",
+        request_id: REQUEST_ID,
+        ...fields,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a quantity change missing its request id", () => {
+    expect(
+      rendererToCoreMessageSchema.safeParse({
+        type: "change-line-quantity",
+        line_id: "l1",
+        quantity: 1,
+        expected_quantity: 2,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts the removal of a line", () => {
+    const message = { type: "remove-sale-line", request_id: REQUEST_ID, line_id: "l1" };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { type: "remove-sale-line", request_id: REQUEST_ID },
+    { type: "remove-sale-line", line_id: "l1" },
+  ])("rejects a removal that is not well formed: %j", (message) => {
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("accepts the cancellation of the sale", () => {
+    const message = { type: "cancel-sale", request_id: REQUEST_ID };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a cancellation missing its request id", () => {
+    expect(rendererToCoreMessageSchema.safeParse({ type: "cancel-sale" }).success).toBe(false);
+  });
+
+  it("does not take who is selling from any of them", () => {
+    const cancel = { type: "cancel-sale", request_id: REQUEST_ID };
+
+    expect(rendererToCoreMessageSchema.parse({ ...cancel, user_id: "u9" })).toEqual(cancel);
+  });
+});
+
+describe("sale line answers", () => {
+  const sale = { id: "s1", lines: [], total: 0 };
+
+  it.each([
+    ["change-line-quantity-result", { kind: "changed", sale }],
+    ["change-line-quantity-result", { kind: "unknown_line" }],
+    ["change-line-quantity-result", { kind: "stale_quantity" }],
+    ["remove-sale-line-result", { kind: "removed", sale }],
+    ["remove-sale-line-result", { kind: "no_open_sale" }],
+    ["cancel-sale-result", { kind: "cancelled" }],
+    ["cancel-sale-result", { kind: "unavailable" }],
+  ])("accepts %s with the outcome %j", (type, outcome) => {
+    const message = { type, request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each(["change-line-quantity-result", "remove-sale-line-result", "cancel-sale-result"])(
+    "rejects %s with an outcome it does not know",
+    (type) => {
+      expect(
+        coreToRendererMessageSchema.safeParse({
+          type,
+          request_id: REQUEST_ID,
+          outcome: { kind: "somewhere_else" },
+        }).success,
+      ).toBe(false);
+    },
+  );
+
+  it.each(["change-line-quantity-result", "remove-sale-line-result", "cancel-sale-result"])(
+    "rejects %s without its request id",
+    (type) => {
+      expect(
+        coreToRendererMessageSchema.safeParse({ type, outcome: { kind: "unavailable" } }).success,
+      ).toBe(false);
+    },
+  );
+});
+
+describe("charge sale in cash answer", () => {
+  it.each([
+    { kind: "completed", sale_id: "s1", total: 3000, tendered: 5000, change: 2000 },
+    { kind: "insufficient_cash", amount_due: 3000 },
+    { kind: "not_signed_in" },
+    { kind: "unavailable" },
+  ])("accepts the result $kind", (outcome) => {
+    const message = { type: "charge-sale-in-cash-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a result it does not know", () => {
+    const message = {
+      type: "charge-sale-in-cash-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "somewhere_else" },
+    };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("rejects a result without its request id", () => {
+    const message = { type: "charge-sale-in-cash-result", outcome: { kind: "empty_sale" } };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 });

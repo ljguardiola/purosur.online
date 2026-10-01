@@ -285,6 +285,41 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to charge a sale in cash and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const outcome = client.chargeSaleInCash("sale-1", 500_000);
+    port.answer({
+      type: "charge-sale-in-cash-result",
+      request_id: "request-1",
+      outcome: {
+        kind: "completed",
+        sale_id: "sale-1",
+        total: 476_000,
+        tendered: 500_000,
+        change: 24_000,
+      },
+    });
+
+    expect(await outcome).toEqual({
+      kind: "completed",
+      sale_id: "sale-1",
+      total: 476_000,
+      tendered: 500_000,
+      change: 24_000,
+    });
+    expect(port.posted).toEqual([
+      {
+        type: "charge-sale-in-cash",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        tendered: 500_000,
+      },
+    ]);
+  });
+
   it("asks the core to record a cash movement without an authorization", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
@@ -373,6 +408,64 @@ describe("createCoreClient", () => {
       ]);
     },
   );
+
+  it("asks the core to change a line's quantity and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const changed = client.changeLineQuantity("line-1", 3, 4);
+    port.answer({
+      type: "change-line-quantity-result",
+      request_id: "request-1",
+      outcome: { kind: "unknown_line" },
+    });
+
+    expect(await changed).toEqual({ kind: "unknown_line" });
+    expect(port.posted).toEqual([
+      {
+        type: "change-line-quantity",
+        request_id: "request-1",
+        line_id: "line-1",
+        quantity: 3,
+        expected_quantity: 4,
+      },
+    ]);
+  });
+
+  it("asks the core to remove a line and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const removed = client.removeSaleLine("line-1");
+    port.answer({
+      type: "remove-sale-line-result",
+      request_id: "request-1",
+      outcome: { kind: "no_open_sale" },
+    });
+
+    expect(await removed).toEqual({ kind: "no_open_sale" });
+    expect(port.posted).toEqual([
+      { type: "remove-sale-line", request_id: "request-1", line_id: "line-1" },
+    ]);
+  });
+
+  it("asks the core to cancel the sale and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const cancelled = client.cancelSale();
+    port.answer({
+      type: "cancel-sale-result",
+      request_id: "request-1",
+      outcome: { kind: "cancelled" },
+    });
+
+    expect(await cancelled).toEqual({ kind: "cancelled" });
+    expect(port.posted).toEqual([{ type: "cancel-sale", request_id: "request-1" }]);
+  });
 
   it.each([
     { kind: "results", products: [], more: true },

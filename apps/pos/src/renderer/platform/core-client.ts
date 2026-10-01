@@ -1,7 +1,10 @@
 import type {
   AddProductOutcome,
   Authorization,
+  CancelSaleOutcome,
   CashBalance,
+  ChangeLineQuantityOutcome,
+  ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   CoreToRendererMessage,
@@ -15,6 +18,7 @@ import type {
   PinCodeRedemptionOutcome,
   RecordCashMovementOutcome,
   RecordCashMovementRequest,
+  RemoveSaleLineOutcome,
   RendererToCoreMessage,
   ScanProductOutcome,
   SearchProductsOutcome,
@@ -55,6 +59,14 @@ export interface CoreClient {
   searchProducts(query: string): Promise<SearchProductsOutcome>;
   addProduct(productId: string): Promise<AddProductOutcome>;
   currentSale(): Promise<CurrentSaleAnswer>;
+  changeLineQuantity(
+    lineId: string,
+    quantity: number,
+    expectedQuantity: number,
+  ): Promise<ChangeLineQuantityOutcome>;
+  removeSaleLine(lineId: string): Promise<RemoveSaleLineOutcome>;
+  cancelSale(): Promise<CancelSaleOutcome>;
+  chargeSaleInCash(saleId: string, tendered: number): Promise<ChargeSaleInCashOutcome>;
   closeCashSession(
     sessionId: string,
     countedCash: number,
@@ -269,6 +281,29 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         answer.type === "scan-product-result" ? answer.outcome : undefined,
       );
     },
+    changeLineQuantity(lineId, quantity, expectedQuantity) {
+      return ask(
+        {
+          type: "change-line-quantity",
+          request_id: deps.newRequestId(),
+          line_id: lineId,
+          quantity,
+          expected_quantity: expectedQuantity,
+        },
+        (answer) => (answer.type === "change-line-quantity-result" ? answer.outcome : undefined),
+      );
+    },
+    removeSaleLine(lineId) {
+      return ask(
+        { type: "remove-sale-line", request_id: deps.newRequestId(), line_id: lineId },
+        (answer) => (answer.type === "remove-sale-line-result" ? answer.outcome : undefined),
+      );
+    },
+    cancelSale() {
+      return ask({ type: "cancel-sale", request_id: deps.newRequestId() }, (answer) =>
+        answer.type === "cancel-sale-result" ? answer.outcome : undefined,
+      );
+    },
     searchProducts(query) {
       return ask({ type: "search-products", request_id: deps.newRequestId(), query }, (answer) =>
         answer.type === "search-products-result" ? answer.outcome : undefined,
@@ -290,6 +325,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         }
         return answer.type === "sale" ? answer.sale : undefined;
       });
+    },
+    chargeSaleInCash(saleId, tendered) {
+      return ask(
+        { type: "charge-sale-in-cash", request_id: deps.newRequestId(), sale_id: saleId, tendered },
+        (answer) => (answer.type === "charge-sale-in-cash-result" ? answer.outcome : undefined),
+      );
     },
     closeCashSession(sessionId, countedCash, authorization) {
       return ask(

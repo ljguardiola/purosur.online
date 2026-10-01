@@ -4,6 +4,7 @@ import {
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_REASON_MAX_LENGTH,
   CASH_MOVEMENT_TYPES,
+  cashCharge,
   cashMovementPermission,
   cashMovementReason,
   isAuthorizablePermissionKey,
@@ -21,6 +22,11 @@ import {
 import { pinAttemptRefusalSchema } from "../access/pin-attempt-refusal.js";
 import {
   addProductOutcomeSchema,
+  cancelSaleOutcomeSchema,
+  changeLineQuantityOutcomeSchema,
+  chargeSaleInCashOutcomeSchema,
+  removeSaleLineOutcomeSchema,
+  saleLineQuantitySchema,
   saleSchema,
   scannedCodeSchema,
   scanProductOutcomeSchema,
@@ -41,6 +47,7 @@ export {
   ARGENTINA_TIME_ZONE,
   CASH_MOVEMENT_REASON_MAX_LENGTH,
   CASH_MOVEMENT_TYPES,
+  cashCharge,
   cashMovementPermission,
   cashMovementReason,
   parseAmountCents,
@@ -172,6 +179,25 @@ const scanProductMessageSchema = z.object({
   code: scannedCodeSchema,
 });
 
+const changeLineQuantityMessageSchema = z.object({
+  type: z.literal("change-line-quantity"),
+  request_id: requestId,
+  line_id: z.string(),
+  quantity: saleLineQuantitySchema,
+  expected_quantity: saleLineQuantitySchema,
+});
+
+const removeSaleLineMessageSchema = z.object({
+  type: z.literal("remove-sale-line"),
+  request_id: requestId,
+  line_id: z.string(),
+});
+
+const cancelSaleMessageSchema = z.object({
+  type: z.literal("cancel-sale"),
+  request_id: requestId,
+});
+
 const searchProductsMessageSchema = z.object({
   type: z.literal("search-products"),
   request_id: requestId,
@@ -187,6 +213,13 @@ const addProductMessageSchema = z.object({
 const saleRequestMessageSchema = z.object({
   type: z.literal("sale-request"),
   request_id: requestId,
+});
+
+const chargeSaleInCashMessageSchema = z.object({
+  type: z.literal("charge-sale-in-cash"),
+  request_id: requestId,
+  sale_id: z.string(),
+  tendered: z.int(),
 });
 
 const signOutMessageSchema = z.object({
@@ -215,9 +248,13 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   cashBalanceRequestMessageSchema,
   authorizersRequestMessageSchema,
   scanProductMessageSchema,
+  changeLineQuantityMessageSchema,
+  removeSaleLineMessageSchema,
+  cancelSaleMessageSchema,
   searchProductsMessageSchema,
   addProductMessageSchema,
   saleRequestMessageSchema,
+  chargeSaleInCashMessageSchema,
   signOutMessageSchema,
 ]);
 export type RendererToCoreMessage = z.infer<typeof rendererToCoreMessageSchema>;
@@ -471,6 +508,21 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     outcome: scanProductOutcomeSchema,
   }),
   z.object({
+    type: z.literal("change-line-quantity-result"),
+    request_id: requestId,
+    outcome: changeLineQuantityOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("remove-sale-line-result"),
+    request_id: requestId,
+    outcome: removeSaleLineOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("cancel-sale-result"),
+    request_id: requestId,
+    outcome: cancelSaleOutcomeSchema,
+  }),
+  z.object({
     type: z.literal("search-products-result"),
     request_id: requestId,
     outcome: searchProductsOutcomeSchema,
@@ -479,6 +531,11 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("add-product-result"),
     request_id: requestId,
     outcome: addProductOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("charge-sale-in-cash-result"),
+    request_id: requestId,
+    outcome: chargeSaleInCashOutcomeSchema,
   }),
   z.object({ type: z.literal("sale"), request_id: requestId, sale: saleSchema.nullable() }),
   z.object({ type: z.literal("sale-unavailable"), request_id: requestId }),

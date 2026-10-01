@@ -1,7 +1,10 @@
 import type {
   AddProductOutcome,
   Authorization,
+  CancelSaleOutcome,
   CashBalance,
+  ChangeLineQuantityOutcome,
+  ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   CoreToRendererMessage,
@@ -14,6 +17,7 @@ import type {
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   RecordCashMovementOutcome,
+  RemoveSaleLineOutcome,
   RendererToCoreMessage,
   ScanProductOutcome,
   SearchProductsOutcome,
@@ -22,6 +26,7 @@ import type {
   SignInUser,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
+import type { ChargeSaleInCashRequest } from "../sales/sale-requests";
 import type { CashMovementRequest } from "./cash-movement-requests";
 
 export interface RendererRequestDeps {
@@ -41,9 +46,21 @@ export interface RendererRequestDeps {
     | undefined;
   cashMovements: (() => ListedCashMovement[] | null) | undefined;
   scanProduct: ((code: string) => Promise<ScanProductOutcome>) | undefined;
+  chargeSaleInCash:
+    | ((request: ChargeSaleInCashRequest) => Promise<ChargeSaleInCashOutcome>)
+    | undefined;
   searchProducts: ((query: string) => Promise<SearchProductsOutcome>) | undefined;
   addProduct: ((productId: string) => Promise<AddProductOutcome>) | undefined;
   currentSale: (() => Promise<CurrentSaleAnswer>) | undefined;
+  changeLineQuantity:
+    | ((
+        lineId: string,
+        quantity: number,
+        expectedQuantity: number,
+      ) => Promise<ChangeLineQuantityOutcome>)
+    | undefined;
+  removeSaleLine: ((lineId: string) => Promise<RemoveSaleLineOutcome>) | undefined;
+  cancelSale: (() => Promise<CancelSaleOutcome>) | undefined;
   closeCashSession:
     | ((
         sessionId: string,
@@ -250,6 +267,31 @@ async function attemptScanProduct(
   }
 }
 
+async function attemptSaleChange<TOutcome extends { kind: string }>(
+  deps: RendererRequestDeps,
+  context: string,
+  change: (() => Promise<TOutcome>) | undefined,
+): Promise<TOutcome | { kind: "unavailable" }> {
+  try {
+    return (await change?.()) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure(context, error);
+    return { kind: "unavailable" };
+  }
+}
+
+async function attemptChargeSaleInCash(
+  deps: RendererRequestDeps,
+  request: ChargeSaleInCashRequest,
+): Promise<ChargeSaleInCashOutcome> {
+  try {
+    return (await deps.chargeSaleInCash?.(request)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("charging a sale in cash", error);
+    return { kind: "unavailable" };
+  }
+}
+
 async function attemptSearchProducts(
   deps: RendererRequestDeps,
   query: string,
@@ -376,6 +418,47 @@ export async function answerRendererRequest(
         type: "scan-product-result",
         request_id: message.request_id,
         outcome: await attemptScanProduct(deps, message.code),
+      };
+    case "change-line-quantity": {
+      const { changeLineQuantity } = deps;
+      return {
+        type: "change-line-quantity-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "changing a line's quantity",
+          changeLineQuantity &&
+            (() =>
+              changeLineQuantity(message.line_id, message.quantity, message.expected_quantity)),
+        ),
+      };
+    }
+    case "remove-sale-line": {
+      const { removeSaleLine } = deps;
+      return {
+        type: "remove-sale-line-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "removing a sale line",
+          removeSaleLine && (() => removeSaleLine(message.line_id)),
+        ),
+      };
+    }
+    case "cancel-sale":
+      return {
+        type: "cancel-sale-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(deps, "cancelling the sale", deps.cancelSale),
+      };
+    case "charge-sale-in-cash":
+      return {
+        type: "charge-sale-in-cash-result",
+        request_id: message.request_id,
+        outcome: await attemptChargeSaleInCash(deps, {
+          saleId: message.sale_id,
+          tendered: message.tendered,
+        }),
       };
     case "search-products":
       return {

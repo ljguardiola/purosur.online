@@ -1,19 +1,24 @@
 import type {
   AddProductOutcome,
+  CancelSaleOutcome,
+  ChangeLineQuantityOutcome,
   CurrentSaleAnswer,
   FoundProduct,
   OpenSale,
+  RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
 } from "@purosur/contracts";
 import { scannedCodeSchema, searchQuerySchema } from "@purosur/contracts";
 import { EmptyState, LoadFailure, LoadingPlaceholder, SearchField } from "@purosur/ui";
+import { useNavigate } from "@tanstack/react-router";
 import { ScanBarcode, TriangleAlert } from "lucide-react";
 import type { FormEvent, KeyboardEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import type { SignedInPerson } from "../access/signed-in-person";
 import { OpenSessionRail } from "../shell/open-session-rail";
 import { SessionEyebrow } from "../shell/session-eyebrow";
+import { CancelSaleModal } from "./cancel-sale-modal";
 import { changedLineId } from "./changed-line";
 import { PaymentPanel } from "./payment-panel";
 import type { SearchResults } from "./product-search-results";
@@ -37,8 +42,22 @@ export type SaleScreenProps = {
   scanProduct: (code: string) => Promise<ScanProductOutcome>;
   searchProducts: (query: string) => Promise<SearchProductsOutcome>;
   addProduct: (productId: string) => Promise<AddProductOutcome>;
+  changeLineQuantity: (
+    lineId: string,
+    quantity: number,
+    expectedQuantity: number,
+  ) => Promise<ChangeLineQuantityOutcome>;
+  removeSaleLine: (lineId: string) => Promise<RemoveSaleLineOutcome>;
+  cancelSale: () => Promise<CancelSaleOutcome>;
   onSessionInvalid: () => void;
 };
+
+type SaleEditOutcome = ChangeLineQuantityOutcome | RemoveSaleLineOutcome | CancelSaleOutcome;
+
+type SaleEditFailure = Extract<
+  ScanProblem,
+  { kind: "change_failed" | "remove_failed" | "cancel_failed" }
+>;
 
 const LETTER = /\p{L}/u;
 
@@ -61,8 +80,12 @@ export function SaleScreen({
   scanProduct,
   searchProducts,
   addProduct,
+  changeLineQuantity,
+  removeSaleLine,
+  cancelSale,
   onSessionInvalid,
 }: SaleScreenProps) {
+  const navigate = useNavigate();
   const field = useRef<HTMLFormElement>(null);
   const [view, setView] = useState<SaleView>({ status: "loading" });
   const [code, setCode] = useState("");
@@ -70,11 +93,15 @@ export function SaleScreen({
   const [search, setSearch] = useState<SearchResults>();
   const [activeIndex, setActiveIndex] = useState(0);
   const [dismissed, setDismissed] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const editInFlight = useRef(false);
+  const confirmingCancelNow = useRef(false);
   const listboxId = useId();
 
   useEffect(() => {
     function refocusWhenFocusIsLost(event: FocusEvent) {
-      if (event.relatedTarget === null) {
+      if (event.relatedTarget === null && !confirmingCancelNow.current) {
         focusScanField(field.current);
       }
     }
@@ -217,6 +244,57 @@ export function SaleScreen({
     take(submitted, outcome, { kind: "add_failed" });
   }
 
+  function askToCancel(asking: boolean) {
+    confirmingCancelNow.current = asking;
+    setConfirmingCancel(asking);
+  }
+
+  async function edit(request: () => Promise<SaleEditOutcome>, failure: SaleEditFailure) {
+    if (editInFlight.current) {
+      return;
+    }
+    editInFlight.current = true;
+    setEditing(true);
+    const outcome = await request().catch((): SaleEditOutcome => ({ kind: "unavailable" }));
+    editInFlight.current = false;
+    setEditing(false);
+    switch (outcome.kind) {
+      case "changed":
+      case "removed":
+        setProblem(undefined);
+        setView({ status: "ready", sale: outcome.sale, changedLineId: undefined });
+        break;
+      case "cancelled":
+        setProblem(undefined);
+        setView({ status: "ready", sale: null, changedLineId: undefined });
+        break;
+      case "not_signed_in":
+      case "no_open_session":
+        onSessionInvalid();
+        break;
+      case "not_permitted":
+        setProblem(outcome);
+        break;
+      case "unknown_line":
+      case "stale_quantity":
+      case "no_open_sale":
+        setView({ status: "loading" });
+        break;
+      case "invalid_quantity":
+      case "unavailable":
+        setProblem(failure);
+        break;
+    }
+    askToCancel(false);
+    focusScanField(field.current);
+  }
+
+  useEffect(() => {
+    if (!confirmingCancel) {
+      focusScanField(field.current);
+    }
+  }, [confirmingCancel]);
+
   const found = search?.query === code.trim() && !dismissed ? search : undefined;
   const choosing = found !== undefined && found.products.length > 0;
   const chosen = choosing ? found.products[activeIndex] : undefined;
@@ -307,10 +385,36 @@ export function SaleScreen({
           />
         ) : null}
         {view.status === "ready" ? (
-          <SaleLines lines={sale?.lines ?? []} changedLineId={view.changedLineId} />
+          <SaleLines
+            lines={sale?.lines ?? []}
+            changedLineId={view.changedLineId}
+            actions={{
+              busy: editing,
+              onChangeQuantity: (line, quantity) =>
+                void edit(() => changeLineQuantity(line.id, quantity, line.quantity), {
+                  kind: "change_failed",
+                }),
+              onRemove: (line) =>
+                void edit(() => removeSaleLine(line.id), { kind: "remove_failed" }),
+            }}
+          />
         ) : null}
       </main>
-      <PaymentPanel lineCount={sale?.lines.length ?? 0} total={sale?.total ?? 0} />
+      <PaymentPanel
+        lineCount={sale?.lines.length ?? 0}
+        total={sale?.total ?? 0}
+        canCancel={sale !== null && !editing}
+        onCharge={() => void navigate({ to: "/charge" })}
+        onCancel={() => askToCancel(true)}
+      />
+      <CancelSaleModal
+        open={confirmingCancel}
+        lineCount={sale?.lines.length ?? 0}
+        total={sale?.total ?? 0}
+        busy={editing}
+        onClose={() => askToCancel(false)}
+        onCancelSale={() => void edit(cancelSale, { kind: "cancel_failed" })}
+      />
     </div>
   );
 }

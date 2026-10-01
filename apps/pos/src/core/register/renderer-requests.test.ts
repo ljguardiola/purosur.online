@@ -1,6 +1,9 @@
 import type {
   AddProductOutcome,
+  CancelSaleOutcome,
   CashBalance,
+  ChangeLineQuantityOutcome,
+  ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   FirstPinCodeRequestOutcome,
@@ -10,6 +13,7 @@ import type {
   OpenCashSessionOutcome,
   OpenSale,
   RecordCashMovementOutcome,
+  RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
   SignInLookupOutcome,
@@ -36,9 +40,11 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   }[] = [];
   const authorizerLookups: string[] = [];
   const scans: string[] = [];
+  const charges: { saleId: string; tendered: number }[] = [];
   const searches: string[] = [];
   const additions: string[] = [];
   const saleLookups: string[] = [];
+  const saleChanges: string[] = [];
   const signOuts: string[] = [];
   const failures: { context: string; error: unknown }[] = [];
   return {
@@ -53,9 +59,11 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
     closings,
     authorizerLookups,
     scans,
+    charges,
     searches,
     additions,
     saleLookups,
+    saleChanges,
     signOuts,
     failures,
     deps: {
@@ -101,6 +109,29 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       scanProduct: async (code: string): Promise<ScanProductOutcome> => {
         scans.push(code);
         return { kind: "unknown_code" };
+      },
+      changeLineQuantity: async (
+        lineId: string,
+        quantity: number,
+        expectedQuantity: number,
+      ): Promise<ChangeLineQuantityOutcome> => {
+        saleChanges.push(["change", lineId, quantity, expectedQuantity].join(" "));
+        return { kind: "unknown_line" };
+      },
+      removeSaleLine: async (lineId: string): Promise<RemoveSaleLineOutcome> => {
+        saleChanges.push(["remove", lineId].join(" "));
+        return { kind: "unknown_line" };
+      },
+      cancelSale: async (): Promise<CancelSaleOutcome> => {
+        saleChanges.push("cancel");
+        return { kind: "no_open_sale" };
+      },
+      chargeSaleInCash: async (request: {
+        saleId: string;
+        tendered: number;
+      }): Promise<ChargeSaleInCashOutcome> => {
+        charges.push(request);
+        return { kind: "no_open_sale" };
       },
       searchProducts: async (query: string): Promise<SearchProductsOutcome> => {
         searches.push(query);
@@ -681,6 +712,74 @@ describe("answerRendererRequest", () => {
     ).toEqual({
       type: "scan-product-result",
       request_id: "r21",
+      outcome: { kind: "unavailable" },
+    });
+  });
+
+  it("charges the sale in cash and answers the outcome", async () => {
+    const outcome: ChargeSaleInCashOutcome = {
+      kind: "completed",
+      sale_id: "s1",
+      total: 3000,
+      tendered: 5000,
+      change: 2000,
+    };
+    const { deps: withCharge, charges } = deps(true, { chargeSaleInCash: async () => outcome });
+    const answer = await answerRendererRequest(withCharge, {
+      type: "charge-sale-in-cash",
+      request_id: "r30",
+      sale_id: "s1",
+      tendered: 5000,
+    });
+    const recording = deps(true);
+    await answerRendererRequest(recording.deps, {
+      type: "charge-sale-in-cash",
+      request_id: "r31",
+      sale_id: "s2",
+      tendered: 1234,
+    });
+
+    expect(answer).toEqual({ type: "charge-sale-in-cash-result", request_id: "r30", outcome });
+    expect(charges).toEqual([]);
+    expect(recording.charges).toEqual([{ saleId: "s2", tendered: 1234 }]);
+  });
+
+  it("answers that charging is unavailable when it fails, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      chargeSaleInCash: async () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "charge-sale-in-cash",
+        request_id: "r32",
+        sale_id: "s1",
+        tendered: 100,
+      }),
+    ).toEqual({
+      type: "charge-sale-in-cash-result",
+      request_id: "r32",
+      outcome: { kind: "unavailable" },
+    });
+    expect(failing.failures).toEqual([{ context: "charging a sale in cash", error }]);
+  });
+
+  it("answers that charging is unavailable when the register has no database", async () => {
+    const withoutDatabase = deps(true, { chargeSaleInCash: undefined });
+
+    expect(
+      await answerRendererRequest(withoutDatabase.deps, {
+        type: "charge-sale-in-cash",
+        request_id: "r33",
+        sale_id: "s1",
+        tendered: 100,
+      }),
+    ).toEqual({
+      type: "charge-sale-in-cash-result",
+      request_id: "r33",
       outcome: { kind: "unavailable" },
     });
   });
@@ -1292,5 +1391,84 @@ describe("answerRendererRequest", () => {
       request_id: "r21",
       outcome: { kind: "unavailable" },
     });
+  });
+  describe("changing the sale in progress", () => {
+    const requests = [
+      [
+        "change-line-quantity",
+        { type: "change-line-quantity", line_id: "l1", quantity: 2, expected_quantity: 3 } as const,
+        "changeLineQuantity",
+        "changing a line's quantity",
+        "change l1 2 3",
+        "change-line-quantity-result",
+      ],
+      [
+        "remove-sale-line",
+        { type: "remove-sale-line", line_id: "l1" } as const,
+        "removeSaleLine",
+        "removing a sale line",
+        "remove l1",
+        "remove-sale-line-result",
+      ],
+      [
+        "cancel-sale",
+        { type: "cancel-sale" } as const,
+        "cancelSale",
+        "cancelling the sale",
+        "cancel",
+        "cancel-sale-result",
+      ],
+    ] as const;
+
+    it.each(requests)(
+      "asks the register to handle %s and answers its outcome",
+      async (_type, request, key, _context, recorded, resultType) => {
+        const outcome = { kind: "not_signed_in" } as const;
+        const recording = deps(true);
+        const answering = deps(true, { [key]: async () => outcome });
+
+        expect(
+          await answerRendererRequest(answering.deps, { ...request, request_id: "r50" }),
+        ).toEqual({
+          type: resultType,
+          request_id: "r50",
+          outcome,
+        });
+        await answerRendererRequest(recording.deps, { ...request, request_id: "r51" });
+        expect(recording.saleChanges).toEqual([recorded]);
+      },
+    );
+
+    it.each(requests)(
+      "answers that %s is unavailable when it fails, and reports why",
+      async (_type, request, key, context, _recorded, resultType) => {
+        const error = new Error("database is locked");
+        const failing = deps(true, {
+          [key]: async () => {
+            throw error;
+          },
+        });
+
+        expect(
+          await answerRendererRequest(failing.deps, { ...request, request_id: "r52" }),
+        ).toEqual({
+          type: resultType,
+          request_id: "r52",
+          outcome: { kind: "unavailable" },
+        });
+        expect(failing.failures).toEqual([{ context, error }]);
+      },
+    );
+
+    it.each(requests)(
+      "answers that %s is unavailable when the register has no database",
+      async (_type, request, key, _context, _recorded, resultType) => {
+        const withoutDatabase = deps(true, { [key]: undefined });
+
+        expect(
+          await answerRendererRequest(withoutDatabase.deps, { ...request, request_id: "r53" }),
+        ).toEqual({ type: resultType, request_id: "r53", outcome: { kind: "unavailable" } });
+      },
+    );
   });
 });

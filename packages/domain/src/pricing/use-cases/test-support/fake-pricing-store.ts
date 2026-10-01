@@ -1,3 +1,4 @@
+import { newestPrice } from "../../model/current-price.js";
 import type {
   Clock,
   CurrentPrice,
@@ -70,9 +71,11 @@ class FakePricingStoreTransaction implements PricingStoreTransaction {
 
   async currentPrice(productId: string, priceListId: string): Promise<CurrentPrice | undefined> {
     this.store.operationOrder.push("currentPrice");
-    const [newest] = this.state.prices
-      .filter((row) => row.productId === productId && row.priceListId === priceListId)
-      .sort((a, b) => b.validFrom.getTime() - a.validFrom.getTime() || b.id.localeCompare(a.id));
+    const newest = newestPrice(
+      this.state.prices.filter(
+        (row) => row.productId === productId && row.priceListId === priceListId,
+      ),
+    );
     return newest && { id: newest.id, unitPrice: newest.unitPrice, validFrom: newest.validFrom };
   }
 

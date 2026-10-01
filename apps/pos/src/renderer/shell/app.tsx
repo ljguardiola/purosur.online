@@ -215,8 +215,13 @@ export function App({ core }: { core: CoreClient }) {
     firstSignIn,
     currentSale: () => core.currentSale(),
     scanProduct: (code: string) => core.scanProduct(code),
+    chargeSaleInCash: (saleId: string, tendered: number) => core.chargeSaleInCash(saleId, tendered),
     searchProducts: (query: string) => core.searchProducts(query),
     addProduct: (productId: string) => core.addProduct(productId),
+    changeLineQuantity: (lineId: string, quantity: number, expectedQuantity: number) =>
+      core.changeLineQuantity(lineId, quantity, expectedQuantity),
+    removeSaleLine: (lineId: string) => core.removeSaleLine(lineId),
+    cancelSale: () => core.cancelSale(),
     // A replaced core connection fails this request; the core coming back up asks again.
     refreshCashSession: () => core.cashSession().then(refreshCashSession, () => {}),
   };

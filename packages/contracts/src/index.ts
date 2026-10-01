@@ -163,6 +163,7 @@ export {
   ARGENTINA_TIME_ZONE,
   CASH_MOVEMENT_REASON_MAX_LENGTH,
   CASH_MOVEMENT_TYPES,
+  cashCharge,
   cashMovementAmountSchema,
   cashMovementPermission,
   cashMovementReason,
@@ -192,13 +193,21 @@ export type { RegisterSummaryBody } from "./register/register-summary.js";
 export { registerListSchema, registerSummarySchema } from "./register/register-summary.js";
 export type {
   AddProductOutcome,
+  CancelSaleOutcome,
+  ChangeLineQuantityOutcome,
+  ChargeSaleInCashOutcome,
   CurrentSaleAnswer,
   FoundProduct,
   OpenSale,
+  RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
 } from "./sales/sale.js";
-export { SEARCH_RESULT_LIMIT, scannedCodeSchema, searchQuerySchema } from "./sales/sale.js";
+export {
+  SEARCH_RESULT_LIMIT,
+  scannedCodeSchema,
+  searchQuerySchema,
+} from "./sales/sale.js";
 export type { BranchSettingsBody, ErrorReportingConfiguration } from "./shared/index.js";
 export {
   branchSettingsSchema,
