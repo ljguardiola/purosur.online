@@ -23,10 +23,8 @@ import {
   removeSaleLineOutcomeSchema,
   saleLineQuantitySchema,
   saleSchema,
-  scannedCodeSchema,
   scanProductOutcomeSchema,
   searchProductsOutcomeSchema,
-  searchQuerySchema,
 } from "../sales/sale.js";
 
 const requestId = z.string();
@@ -176,7 +174,7 @@ const lockedClosersRequestMessageSchema = z.object({
 const scanProductMessageSchema = z.object({
   type: z.literal("scan-product"),
   request_id: requestId,
-  code: scannedCodeSchema,
+  code: z.string().min(1),
 });
 
 const changeLineQuantityMessageSchema = z.object({
@@ -201,7 +199,7 @@ const cancelSaleMessageSchema = z.object({
 const searchProductsMessageSchema = z.object({
   type: z.literal("search-products"),
   request_id: requestId,
-  query: searchQuerySchema,
+  query: z.string(),
 });
 
 const addProductMessageSchema = z.object({

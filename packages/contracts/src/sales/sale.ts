@@ -1,6 +1,4 @@
 import {
-  isBarcodeTooLong,
-  isProductNameTooLong,
   isValidDiscountBuyNPayM,
   isValidDiscountPercent,
   SALE_UNITS,
@@ -9,13 +7,6 @@ import {
 import { z } from "zod";
 
 export { SEARCH_RESULT_LIMIT };
-
-export const scannedCodeSchema = z
-  .string()
-  .min(1)
-  .refine((code) => !isBarcodeTooLong(code));
-
-export const searchQuerySchema = z.string().refine((query) => !isProductNameTooLong(query));
 
 const cents = z.int().nonnegative();
 

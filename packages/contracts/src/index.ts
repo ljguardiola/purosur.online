@@ -230,11 +230,7 @@ export type {
   ScanProductOutcome,
   SearchProductsOutcome,
 } from "./sales/sale.js";
-export {
-  SEARCH_RESULT_LIMIT,
-  scannedCodeSchema,
-  searchQuerySchema,
-} from "./sales/sale.js";
+export { SEARCH_RESULT_LIMIT } from "./sales/sale.js";
 export type {
   BranchSettingsBody,
   ErrorReportingConfiguration,
