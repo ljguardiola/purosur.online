@@ -11,10 +11,26 @@ export function prepareRegisterPageWrites(database: LocalDatabase) {
   const removeRegister = database.prepare(
     "UPDATE own_register SET removed = 1, version = @version WHERE id = @id AND version < @version",
   );
+  const savePointOfSale = database.prepare(
+    `INSERT INTO register_point_of_sale (register_id, point_of_sale_number, fiscal_address_id, version)
+     VALUES (@register_id, @point_of_sale_number, @fiscal_address_id, @version)
+     ON CONFLICT (register_id) DO UPDATE SET
+       point_of_sale_number = excluded.point_of_sale_number,
+       fiscal_address_id = excluded.fiscal_address_id,
+       version = excluded.version
+     WHERE excluded.version > register_point_of_sale.version`,
+  );
 
   return {
     save({ entity_id, row }: Extract<SyncChange, { entity: "register" }>): void {
       saveRegister.run({ id: entity_id, name: row.name, version: row.version });
+    },
+
+    pointOfSale({
+      entity_id,
+      row,
+    }: Extract<SyncChange, { entity: "register_point_of_sale" }>): void {
+      savePointOfSale.run({ register_id: entity_id, ...row });
     },
 
     removal({ entity_id, version }: RemovalOf<"register">): void {
