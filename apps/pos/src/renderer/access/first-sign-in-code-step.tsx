@@ -1,6 +1,7 @@
 import type {
   FirstPinCodeRequestOutcome,
   PinCodeRedemptionOutcome,
+  PinPolicy,
   SignInOutcome,
   SignInUser,
 } from "@purosur/contracts";
@@ -15,6 +16,7 @@ import { useFirstPinCodeRequest } from "./use-first-pin-code-request";
 
 export type FirstSignInCodeStepProps = {
   person: SignInUser;
+  loadPinPolicy: () => Promise<PinPolicy>;
   redeem: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
   signIn: (userId: string, pin: string) => Promise<SignInOutcome>;
   requestCode: (userId: string) => Promise<FirstPinCodeRequestOutcome>;
@@ -22,6 +24,7 @@ export type FirstSignInCodeStepProps = {
 
 export function FirstSignInCodeStep({
   person,
+  loadPinPolicy,
   redeem,
   signIn,
   requestCode,
@@ -74,6 +77,7 @@ export function FirstSignInCodeStep({
       description="Te mandamos un código por correo. Vale 15 minutos."
     >
       <PinCodeRedemptionForm
+        loadPinPolicy={loadPinPolicy}
         redeem={redeem}
         onRedeemed={signInWith}
         submitLabel="Guardar y entrar"

@@ -1,14 +1,22 @@
-import type { PinCodeRedemptionOutcome } from "@purosur/contracts";
-import { PIN_MIN_DIGITS } from "@purosur/contracts";
-import { Button, fieldErrorMessage, InlineNotice, TextField, useRequestForm } from "@purosur/ui";
+import type { PinCodeRedemptionOutcome, PinPolicy } from "@purosur/contracts";
+import {
+  Button,
+  fieldErrorMessage,
+  InlineNotice,
+  LoadFailure,
+  LoadingPlaceholder,
+  TextField,
+  useRequestForm,
+} from "@purosur/ui";
 import { Check, Lock, ShieldX, TriangleAlert, WifiOff } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
 import { useId, useState } from "react";
 import { retryAfterText } from "../shell/retry-after-text";
+import { usePinPolicyQuery } from "./access-queries";
 import {
   CODE_MESSAGE,
   EMPTY_PIN_REDEMPTION_FORM,
-  PIN_MESSAGE,
+  pinMessage,
   pinRedemptionRequestFrom,
   pinRedemptionRequestSchema,
   REPEAT_MESSAGE,
@@ -79,6 +87,7 @@ const CODE_OUTCOMES = new Set<PinCodeRedemptionOutcome["kind"]>([
 ]);
 
 export type PinCodeRedemptionFormProps = {
+  loadPinPolicy: () => Promise<PinPolicy>;
   redeem: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
   onRedeemed: (newPin: string) => void | Promise<void>;
   submitLabel: string;
@@ -86,25 +95,27 @@ export type PinCodeRedemptionFormProps = {
   children?: ReactNode;
 };
 
-export function PinCodeRedemptionForm({
+type PinCodeRedemptionFieldsProps = Omit<PinCodeRedemptionFormProps, "loadPinPolicy"> & {
+  minDigits: number;
+};
+
+function PinCodeRedemptionFields({
   redeem,
   onRedeemed,
   submitLabel,
   newCodeAskedIn,
+  minDigits,
   children,
-}: PinCodeRedemptionFormProps) {
+}: PinCodeRedemptionFieldsProps) {
   const [outcome, setOutcome] = useState<PinCodeRedemptionOutcome>();
   const noticeId = useId();
   const { form, submit, submitting, reset } = useRequestForm({
     defaultValues: EMPTY_PIN_REDEMPTION_FORM,
     request: { schema: pinRedemptionRequestSchema, from: pinRedemptionRequestFrom },
     fields: { reset_code: "code", new_pin: "newPin", repeat: "repeat" },
-    messages: { code: CODE_MESSAGE, newPin: PIN_MESSAGE, repeat: REPEAT_MESSAGE },
-    onSubmit: async ({ new_pin }, { parsed, values, showFieldError }) => {
-      if (parsed === undefined) {
-        return;
-      }
-      const answered = await redeem(parsed.reset_code, new_pin).catch(
+    messages: { code: CODE_MESSAGE, newPin: pinMessage(minDigits), repeat: REPEAT_MESSAGE },
+    onSubmit: async ({ reset_code, new_pin }, { values, showWireFieldError }) => {
+      const answered = await redeem(reset_code, new_pin).catch(
         (): PinCodeRedemptionOutcome => ({ kind: "unavailable" }),
       );
       setOutcome(answered);
@@ -120,7 +131,10 @@ export function PinCodeRedemptionForm({
           reset();
           break;
         case "pin_rejected":
-          showFieldError("newPin", PIN_MESSAGE);
+          showWireFieldError("new_pin");
+          break;
+        case "invalid_input":
+          answered.fields.forEach(showWireFieldError);
           break;
         default:
           break;
@@ -164,7 +178,7 @@ export function PinCodeRedemptionForm({
             kind="plain-text"
             type="password"
             inputMode="numeric"
-            label={`PIN nuevo, de al menos ${PIN_MIN_DIGITS} dígitos`}
+            label={`PIN nuevo, de al menos ${minDigits} dígitos`}
           />
         )}
       </form.AppField>
@@ -193,5 +207,27 @@ export function PinCodeRedemptionForm({
       </Button>
       {children}
     </form>
+  );
+}
+
+export function PinCodeRedemptionForm({ loadPinPolicy, ...props }: PinCodeRedemptionFormProps) {
+  const policy = usePinPolicyQuery(loadPinPolicy);
+  if (policy.status === "loaded") {
+    return <PinCodeRedemptionFields {...props} minDigits={policy.value.min_digits} />;
+  }
+  return (
+    <div className="flex flex-col gap-4">
+      {policy.status === "failed" ? (
+        <LoadFailure
+          icon={<TriangleAlert />}
+          title="No se pudieron cargar las reglas del PIN"
+          description="Volvé a intentarlo en unos segundos."
+          onRetry={policy.retry}
+        />
+      ) : (
+        <LoadingPlaceholder variant="form" fields={3} />
+      )}
+      {props.children}
+    </div>
   );
 }

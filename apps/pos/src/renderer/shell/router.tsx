@@ -451,8 +451,8 @@ const pinCodeRedemptionRoute = createRoute({
   path: "/pin-code-redemption",
   beforeLoad: ({ context }) => requireRoute(["/sign-in", "/locked"], context),
   component: function PinCodeRedemptionRoute() {
-    const { redeemPinCode } = pinCodeRedemptionRoute.useRouteContext();
-    return <PinCodeRedemptionScreen redeem={redeemPinCode} />;
+    const { redeemPinCode, pinPolicy } = pinCodeRedemptionRoute.useRouteContext();
+    return <PinCodeRedemptionScreen loadPinPolicy={pinPolicy} redeem={redeemPinCode} />;
   },
 });
 
@@ -461,13 +461,14 @@ const firstSignInRoute = createRoute({
   path: "/first-sign-in",
   beforeLoad: ({ context }) => requireRoute("/sign-in", context),
   component: function FirstSignInRoute() {
-    const { signInLookup, firstSignIn, requestFirstPinCode, redeemPinCode } =
+    const { signInLookup, firstSignIn, requestFirstPinCode, redeemPinCode, pinPolicy } =
       firstSignInRoute.useRouteContext();
     return (
       <FirstSignInScreen
         lookup={signInLookup}
         signIn={firstSignIn}
         requestCode={requestFirstPinCode}
+        loadPinPolicy={pinPolicy}
         redeem={redeemPinCode}
       />
     );

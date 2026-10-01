@@ -101,7 +101,7 @@ describe("PinCodeRedemptionScreen", () => {
       .toBeVisible();
   });
 
-  it("empties the form once the code is spent for someone else, so it cannot be sent again", async () => {
+  it("empties the form once the code is spent for someone else, so the spent code is not sent again", async () => {
     const calls: string[] = [];
     const redeem = async (typedCode: string): Promise<PinCodeRedemptionOutcome> => {
       calls.push(typedCode);
@@ -118,7 +118,7 @@ describe("PinCodeRedemptionScreen", () => {
     await expect.element(code(screen)).toHaveValue("");
     await expect.element(screen.getByLabelText(PIN_LABEL)).toHaveValue("");
     await expect.element(screen.getByLabelText(REPEAT_LABEL)).toHaveValue("");
-    expect(calls).toHaveLength(1);
+    expect(calls).toEqual(["k7qm 2xpa 3dtr 4hwn", ""]);
   });
 
   it("replaces the form with the success message and a way back to the start once redeemed", async () => {

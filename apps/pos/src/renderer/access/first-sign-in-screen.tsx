@@ -1,6 +1,7 @@
 import type {
   FirstPinCodeRequestOutcome,
   PinCodeRedemptionOutcome,
+  PinPolicy,
   SignInOutcome,
 } from "@purosur/contracts";
 import { useState } from "react";
@@ -15,10 +16,17 @@ export type FirstSignInScreenProps = {
   lookup: FirstSignInEmailStepProps["lookup"];
   signIn: (userId: string, pin: string) => Promise<SignInOutcome>;
   requestCode: (userId: string) => Promise<FirstPinCodeRequestOutcome>;
+  loadPinPolicy: () => Promise<PinPolicy>;
   redeem: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
 };
 
-export function FirstSignInScreen({ lookup, signIn, requestCode, redeem }: FirstSignInScreenProps) {
+export function FirstSignInScreen({
+  lookup,
+  signIn,
+  requestCode,
+  loadPinPolicy,
+  redeem,
+}: FirstSignInScreenProps) {
   const [found, setFound] = useState<FoundPerson>();
 
   return (
@@ -26,7 +34,13 @@ export function FirstSignInScreen({ lookup, signIn, requestCode, redeem }: First
       {found === undefined ? (
         <FirstSignInEmailStep lookup={lookup} onFound={setFound} />
       ) : (
-        <FoundPersonStep person={found} signIn={signIn} requestCode={requestCode} redeem={redeem} />
+        <FoundPersonStep
+          person={found}
+          signIn={signIn}
+          requestCode={requestCode}
+          loadPinPolicy={loadPinPolicy}
+          redeem={redeem}
+        />
       )}
     </BrandPanelScreen>
   );
@@ -36,6 +50,7 @@ function FoundPersonStep({
   person,
   signIn,
   requestCode,
+  loadPinPolicy,
   redeem,
 }: { person: FoundPerson } & Omit<FirstSignInScreenProps, "lookup">) {
   const [codeSent, setCodeSent] = useState(false);
@@ -46,6 +61,7 @@ function FoundPersonStep({
   return codeSent ? (
     <FirstSignInCodeStep
       person={person.user}
+      loadPinPolicy={loadPinPolicy}
       redeem={redeem}
       signIn={signIn}
       requestCode={requestCode}
