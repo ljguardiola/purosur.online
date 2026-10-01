@@ -97,9 +97,8 @@ reports each id `fixed` or `not fixed` with the reason.
 
 There is no round limit.
 
-The review is clean when every row is `refuted`, `filed as #<n>`,
-`accepted`, or `fixed in <sha>` with a re-review after that fix that confirmed
-no new in-scope finding.
+The review is clean when no row is `open` or `stopped` and every fix commit
+has been re-reviewed.
 
 ## 7. Result
 
