@@ -26,7 +26,6 @@ export { evaluatePreEmissionGate } from "./evaluate-pre-emission-gate.js";
 export type {
   Clock,
   CompletedSale,
-  FiscalAuthorizationReader,
   FiscalGateLedger,
   FiscalGateLedgerTransaction,
   IdGenerator,
@@ -40,8 +39,6 @@ export type {
   IssuerIdentificationStoreTransaction,
   NewIssuerIdentificationVersion,
 } from "./issuer-identification-store.js";
-export type { ReadFiscalAuthorizationPorts } from "./read-fiscal-authorization.js";
-export { readFiscalAuthorization } from "./read-fiscal-authorization.js";
 export type {
   RecordAuthorizedCuitInput,
   RecordAuthorizedCuitOutcome,

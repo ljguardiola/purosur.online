@@ -10,7 +10,6 @@ import {
 } from "@purosur/domain";
 import type {
   CompletedSale,
-  FiscalAuthorizationReader,
   FiscalGateLedger,
   FiscalGateLedgerTransaction,
   RecordedPreEmissionGate,
@@ -52,7 +51,7 @@ function toOutcome(row: OutcomeRow): PreEmissionGateOutcome {
     : { kind: "failed", reason: row.failure_reason as PreEmissionGateFailureReason };
 }
 
-export class SqliteFiscalGateLedger implements FiscalGateLedger, FiscalAuthorizationReader {
+export class SqliteFiscalGateLedger implements FiscalGateLedger {
   private readonly database: LocalDatabase;
   private readonly outboxChainKey: string | undefined;
 
@@ -65,17 +64,7 @@ export class SqliteFiscalGateLedger implements FiscalGateLedger, FiscalAuthoriza
     return this.database.transaction(() => work(this.transactionScope()))();
   }
 
-  latestPreEmissionGateOutcome(): PreEmissionGateOutcome | undefined {
-    const row = this.database
-      .prepare<[], OutcomeRow>(
-        `SELECT sale_id, evaluated_at, outcome, failure_reason, document
-         FROM pre_emission_gate_outcomes ORDER BY rowid DESC LIMIT 1`,
-      )
-      .get();
-    return row === undefined ? undefined : toOutcome(row);
-  }
-
-  private transactionScope(): FiscalGateLedgerTransaction {
+  transactionScope(): FiscalGateLedgerTransaction {
     return {
       completedSale: (saleId) => this.completedSale(saleId),
       recordedPreEmissionGate: (saleId) => this.recordedPreEmissionGate(saleId),

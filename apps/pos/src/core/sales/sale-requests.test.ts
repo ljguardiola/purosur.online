@@ -686,12 +686,14 @@ describe("charging the sale in progress in cash", () => {
     ]);
   });
 
-  it("evaluates no gate for a sale that was not completed", async () => {
+  it("completes nothing when the pre-emission gate of the sale cannot be recorded", async () => {
     const saleId = await sellTwo();
+    database.exec("DROP TABLE pre_emission_gate_outcomes");
 
-    await chargeSaleInCashFor(deps(), { saleId, tendered: 1000 });
+    await expect(chargeSaleInCashFor(deps(), { saleId, tendered: 5000 })).rejects.toThrow();
 
-    expect(database.prepare("SELECT sale_id FROM pre_emission_gate_outcomes").all()).toEqual([]);
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([]);
   });
 
   it("answers how much is still due when the cash does not cover the sale", async () => {

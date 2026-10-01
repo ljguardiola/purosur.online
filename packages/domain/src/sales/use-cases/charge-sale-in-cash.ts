@@ -1,3 +1,4 @@
+import { evaluatePreEmissionGateOfSale } from "../../fiscal/index.js";
 import type { CashMovement } from "../../register/index.js";
 import type { OutboxEventDraft } from "../../sync/index.js";
 import { cashCharge } from "../model/cash-charge.js";
@@ -100,6 +101,12 @@ export function chargeSaleInCash(
         actorId,
         completedAt,
       ),
+    );
+    evaluatePreEmissionGateOfSale(
+      tx.preEmissionGate(),
+      { id: sale.id, registerId: sale.registerId, actorId: sale.actorId, total },
+      completedAt,
+      ids,
     );
     return { kind: "completed", saleId: sale.id, total, tendered, change: charge.change };
   });

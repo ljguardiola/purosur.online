@@ -499,6 +499,18 @@ describe("charging an open sale in cash", () => {
     readySeller();
     addProduct("111");
     addPrice("p1", "2026-09-01T00:00:00.000Z", 1500);
+    database
+      .prepare(
+        `INSERT INTO issuer_identification_versions (
+           version, legal_name, gross_income_registration, activity_start_date, authorized_cuit, tax_status
+         ) VALUES (1, 'Comercio de Prueba', '901-000000-0', '2020-01-15', '20000000000', 'Condicion de prueba')`,
+      )
+      .run();
+    database
+      .prepare(
+        "INSERT INTO buyer_tax_status_sets (params_version, set_id, options) VALUES (1, 'set-1', ?)",
+      )
+      .run(JSON.stringify([{ code: 90, description: "Consumidor Final", invoice_class: "A/M/C" }]));
   });
 
   function sellTwo(): string {

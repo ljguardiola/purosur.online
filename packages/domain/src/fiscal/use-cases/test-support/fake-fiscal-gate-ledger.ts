@@ -2,14 +2,10 @@ import type { OutboxEventDraft } from "../../../sync/index.js";
 import type { BuyerTaxStatusOption } from "../../model/buyer-tax-status-set.js";
 import { latestBuyerTaxStatusSet } from "../../model/buyer-tax-status-set.js";
 import { latestIssuerIdentification } from "../../model/issuer-identification.js";
-import type {
-  IssuerIdentificationInEffect,
-  PreEmissionGateOutcome,
-} from "../../model/pre-emission-gate.js";
+import type { IssuerIdentificationInEffect } from "../../model/pre-emission-gate.js";
 import type {
   Clock,
   CompletedSale,
-  FiscalAuthorizationReader,
   FiscalGateLedger,
   FiscalGateLedgerTransaction,
   IdGenerator,
@@ -26,7 +22,7 @@ export interface FakeFiscalGateLedgerState {
 
 export type FakeFiscalGateLedgerWrite = "recordPreEmissionGate" | "appendOutboxEvent";
 
-export class FakeFiscalGateLedger implements FiscalGateLedger, FiscalAuthorizationReader {
+export class FakeFiscalGateLedger implements FiscalGateLedger {
   state: FakeFiscalGateLedgerState;
   transactions = 0;
   failOn: FakeFiscalGateLedgerWrite | undefined;
@@ -40,10 +36,6 @@ export class FakeFiscalGateLedger implements FiscalGateLedger, FiscalAuthorizati
       outbox: [],
       ...state,
     };
-  }
-
-  latestPreEmissionGateOutcome(): PreEmissionGateOutcome | undefined {
-    return this.state.recorded.at(-1)?.outcome;
   }
 
   transaction<TOutcome>(work: (tx: FiscalGateLedgerTransaction) => TOutcome): TOutcome {

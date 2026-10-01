@@ -242,30 +242,6 @@ describe("the recorded pre-emission gate outcomes", () => {
     expect(() => insert("FAILED", null, null)).toThrow(/CHECK/);
     expect(() => insert("FAILED", "legal_name_missing", "{}")).toThrow(/CHECK/);
   });
-
-  it("answer the outcome of the latest evaluation as the one in force", () => {
-    expect(ledger.latestPreEmissionGateOutcome()).toBeUndefined();
-
-    ledger.transaction((tx) =>
-      tx.recordPreEmissionGate({
-        saleId: "sale-2",
-        evaluatedAt: NOW,
-        outcome: { kind: "failed", reason: "legal_name_missing" },
-      }),
-    );
-    ledger.transaction((tx) =>
-      tx.recordPreEmissionGate({
-        saleId: "sale-1",
-        evaluatedAt: NOW,
-        outcome: { kind: "passed", document: DOCUMENT },
-      }),
-    );
-
-    expect(ledger.latestPreEmissionGateOutcome()).toEqual({
-      kind: "passed",
-      document: DOCUMENT,
-    });
-  });
 });
 
 describe("evaluating the gate on the register's database", () => {
@@ -292,10 +268,6 @@ describe("evaluating the gate on the register's database", () => {
     expect(outboxEvents()).toEqual([
       { event_type: "fiscal_gate_failed", aggregate_id: "sale-1", device_seq: 1 },
     ]);
-    expect(ledger.latestPreEmissionGateOutcome()).toEqual({
-      kind: "failed",
-      reason: "issuer_identification_missing",
-    });
   });
 
   it("answers what was composed then when asked again after the configuration changed", () => {
