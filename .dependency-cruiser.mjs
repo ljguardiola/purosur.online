@@ -321,7 +321,7 @@ export default {
       comment:
         "A file in a backoffice or register renderer concept folder never imports a " +
         "file of another concept's folder; what several concepts share lives in " +
-        "platform/ or shell/ (the backoffice's help/ is imported by every concept too).",
+        "platform/ or shell/, and the backoffice's help/ is not a concept either.",
       severity: "error",
       from: {
         path: [
@@ -355,6 +355,17 @@ export default {
         path: "^packages/contracts/src/[^/]+/",
         pathNot: ["^packages/contracts/src/$1/", "^packages/contracts/src/shared/"],
       },
+    },
+    {
+      name: "contracts-concept-not-root",
+      comment:
+        "A file inside a packages/contracts concept folder or shared/ must not import " +
+        "a file at the root of packages/contracts/src (its index.ts included); a root " +
+        "file can re-export another concept's shapes and so bypass " +
+        "contracts-no-cross-concept-imports.",
+      severity: "error",
+      from: { path: "^packages/contracts/src/[^/]+/" },
+      to: { path: "^packages/contracts/src/[^/]+$" },
     },
     {
       name: "persistence-only-in-adapters",

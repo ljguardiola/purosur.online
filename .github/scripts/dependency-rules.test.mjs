@@ -1246,6 +1246,26 @@ test("contracts-no-cross-concept-imports flags a concept importing another conce
   assert.equal(violationsFor(controlReport, "contracts-no-cross-concept-imports").length, 0);
 });
 
+test("contracts-concept-not-root flags a concept or shared importing a contracts root file and allows the root importing a concept", async (t) => {
+  const root = await makeFixture(t, {
+    "packages/contracts/src/sales/sale.ts": importEach(["../index", "../bridge", "./line"]),
+    "packages/contracts/src/sales/line.ts": "export const line = {};\n",
+    "packages/contracts/src/shared/index.ts": importEach(["../index"]),
+    "packages/contracts/src/bridge.ts": importEach(["./pricing/price-list"]),
+    "packages/contracts/src/pricing/price-list.ts": "export const priceList = {};\n",
+    "packages/contracts/src/index.ts": importEach(["./pricing/price-list"]),
+  });
+
+  const report = await cruiseFixture(root, ["packages"]);
+  const violations = violationsFor(report, "contracts-concept-not-root");
+
+  assert.deepEqual(violations.map((violation) => [violation.from, violation.to]).toSorted(), [
+    ["packages/contracts/src/sales/sale.ts", "packages/contracts/src/bridge.ts"],
+    ["packages/contracts/src/sales/sale.ts", "packages/contracts/src/index.ts"],
+    ["packages/contracts/src/shared/index.ts", "packages/contracts/src/index.ts"],
+  ]);
+});
+
 function withoutAllowlist(ruleName) {
   const rule = config.forbidden.find((candidate) => candidate.name === ruleName);
   const { pathNot: _allowlisted, ...from } = rule.from;
