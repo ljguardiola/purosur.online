@@ -893,7 +893,7 @@ describe("App", () => {
   });
 
   it("keeps asking for the cash session while the core stays up, until it can read it", async () => {
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
     const answers: ("unavailable" | null)[] = ["unavailable", "unavailable", null];
     const { core, cashSessionAsks } = coreAnswering(true, { kind: "enrolled" }, ADA_SIGNED_IN, {
       cashSession: async () => answers.shift() ?? null,
@@ -916,7 +916,7 @@ describe("App", () => {
   });
 
   it("shows the open cash session locked once a failed read of it succeeds while the core stays up", async () => {
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
     const answers: (OpenCashSession | "unavailable")[] = ["unavailable", GRACE_SESSION];
     const { core } = coreAnswering(true, { kind: "enrolled" }, ADA_SIGNED_IN, {
       cashSession: async () => answers.shift() ?? GRACE_SESSION,
@@ -931,7 +931,7 @@ describe("App", () => {
   });
 
   it("does not ask for the cash session again while it could read it", async () => {
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
     const { core, cashSessionAsks } = coreAnswering(true);
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
@@ -1100,6 +1100,7 @@ describe("App", () => {
         cashSession?: CoreClient["cashSession"];
         cashBalance?: CoreClient["cashBalance"];
         cashMovements?: CoreClient["cashMovements"];
+        openOutcome?: OpenCashSessionOutcome;
       } = {},
     ) {
       await page.viewport(1280, 720);
@@ -1153,6 +1154,43 @@ describe("App", () => {
 
       await expect.element(screen.getByText("$ 50.000,00", { exact: true })).toBeVisible();
       expect(cashMovements).toHaveBeenCalledTimes(2);
+    });
+
+    it("starts the cash screen of a new session from loading, not from the balance of the one before", async () => {
+      const cashBalance = vi
+        .fn<CoreClient["cashBalance"]>()
+        .mockResolvedValueOnce(BALANCE)
+        .mockImplementation(() => new Promise(() => {}));
+      const { screen } = await resumeGracesSession({
+        cashBalance,
+        closeCashSession: async () => ({
+          kind: "closed",
+          session: {
+            id: "s1",
+            expected_cash: 4_620_000,
+            counted_cash: 4_580_000,
+            difference: -40_000,
+          },
+        }),
+        openOutcome: {
+          kind: "opened",
+          session: { id: "s2", opened_at: "2026-09-30T15:00:00.000Z", opening_float: 10_000 },
+        },
+      });
+      await startClosing(screen);
+      await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
+      await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
+      await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
+      await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "100");
+      await userEvent.click(screen.getByRole("button", { name: "Abrir la caja" }));
+      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+
+      await userEvent.click(screen.getByRole("link", { name: "Caja" }));
+
+      await expect.element(screen.getByText("EFECTIVO ESPERADO AHORA")).toBeVisible();
+      await expect
+        .element(screen.getByText("$ 46.200,00", { exact: true }))
+        .not.toBeInTheDocument();
     });
 
     it("lands on the no-session screen, still signed in, once the session is closed", async () => {

@@ -38,6 +38,7 @@ import { CashCountScreen } from "../register/cash-count-screen";
 import { CashScreen } from "../register/cash-screen";
 import { EnrollmentScreen } from "../register/enrollment-screen";
 import { LockedCloseScreen } from "../register/locked-close-screen";
+import { useRegisterNameQuery } from "../register/register-queries";
 import { SaleScreen } from "../sales/sale-screen";
 import { ACTION_ENTRIES } from "./action-entries";
 import { BrandPanelScreen } from "./brand-panel-screen";
@@ -173,10 +174,14 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
   component: Outlet,
 });
 
+function useRegisterName() {
+  const { registerName } = rootRoute.useRouteContext();
+  return useRegisterNameQuery(registerName);
+}
+
 const sessionEyebrowRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: "session-eyebrow",
-  loader: ({ context }) => context.registerName().catch(() => null),
   component: Outlet,
 });
 
@@ -186,7 +191,7 @@ const signedInRoute = createRoute({
   beforeLoad: ({ context }) => ({ person: requireSignedInPerson(context) }),
   component: function SignedInRoute() {
     const { person, signOut, openCashSession } = signedInRoute.useRouteContext();
-    const registerName = sessionEyebrowRoute.useLoaderData();
+    const registerName = useRegisterName();
     return (
       <NoSessionScreen
         person={person}
@@ -217,7 +222,7 @@ const openSessionRoute = createRoute({
       addProduct,
       refreshCashSession,
     } = openSessionRoute.useRouteContext();
-    const registerName = sessionEyebrowRoute.useLoaderData();
+    const registerName = useRegisterName();
     return (
       <SaleScreen
         person={person}
@@ -251,7 +256,7 @@ const cashRoute = createRoute({
       authorizers,
       recordCashMovement,
     } = cashRoute.useRouteContext();
-    const registerName = sessionEyebrowRoute.useLoaderData();
+    const registerName = useRegisterName();
     return (
       <CashScreen
         person={person}
@@ -278,7 +283,7 @@ const cashCountRoute = createRoute({
   component: function CashCountRoute() {
     const { id, openedAt, openedBy, person, signOut, cashBalance, authorizers, closeCashSession } =
       cashCountRoute.useRouteContext();
-    const registerName = sessionEyebrowRoute.useLoaderData();
+    const registerName = useRegisterName();
     const { leaving } = cashCountRoute.useSearch();
     return (
       <CashCountScreen
@@ -306,7 +311,7 @@ const lockedRoute = createRoute({
   },
   component: function LockedRoute() {
     const { openedAt, openedBy, signIn } = lockedRoute.useRouteContext();
-    const registerName = sessionEyebrowRoute.useLoaderData();
+    const registerName = useRegisterName();
     return (
       <LockedRegisterScreen
         opener={openedBy}
@@ -335,7 +340,7 @@ const lockedCloseRoute = createRoute({
       identifyLockedCloser,
       closeLockedCashSession,
     } = lockedCloseRoute.useRouteContext();
-    const registerName = sessionEyebrowRoute.useLoaderData();
+    const registerName = useRegisterName();
     return (
       <LockedCloseScreen
         opener={openedBy}
@@ -358,7 +363,7 @@ const signInRoute = createRoute({
   beforeLoad: ({ context }) => requireRoute("/sign-in", context),
   component: function SignInRoute() {
     const { signInUsers, signIn } = signInRoute.useRouteContext();
-    const registerName = sessionEyebrowRoute.useLoaderData();
+    const registerName = useRegisterName();
     return <SignInScreen loadUsers={signInUsers} signIn={signIn} registerName={registerName} />;
   },
 });

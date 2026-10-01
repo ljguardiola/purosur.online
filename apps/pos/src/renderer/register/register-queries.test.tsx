@@ -1,11 +1,19 @@
-import type { CashBalance, ListedCashMovement } from "@purosur/contracts";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { describe, expect, it, vi } from "vitest";
+import type { CashBalance, ListedCashMovement, OpenCashSession } from "@purosur/contracts";
+import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { createQueryClient } from "../platform/query-client";
 import type { CoreData } from "../platform/use-core-query";
-import { useCashBalanceQuery, useCashMovementsQuery, useRefreshCash } from "./register-queries";
+import type { CashSessionState } from "../shell/cash-session-state";
+import {
+  registerKeys,
+  useCashBalanceQuery,
+  useCashMovementsQuery,
+  useCashSessionQuery,
+  useRefreshCash,
+  useRegisterNameQuery,
+} from "./register-queries";
 
 const BALANCE: CashBalance = {
   opening_float: 2_000_000,
@@ -106,5 +114,156 @@ describe("cash queries", () => {
 
     await expect.element(screen.getByText("balance 2500000")).toBeVisible();
     await expect.element(screen.getByText("movements 2")).toBeVisible();
+  });
+});
+
+const GRACE_SESSION: OpenCashSession = {
+  id: "s1",
+  opened_at: "2026-09-30T12:02:00.000Z",
+  opened_by: { user_id: "u2", first_name: "Grace", permission_keys: ["sell_and_charge"] },
+};
+
+type CashSessionRead = () => Promise<OpenCashSession | null | "unavailable">;
+
+function CashSessionProbe({
+  read,
+  enabled = true,
+  seen,
+}: {
+  read: CashSessionRead;
+  enabled?: boolean;
+  seen: CashSessionState[];
+}) {
+  const queryClient = useQueryClient();
+  const state = useCashSessionQuery({ read, enabled });
+  seen.push(state);
+  return (
+    <>
+      <p>{state.status}</p>
+      <button
+        type="button"
+        onClick={() => void queryClient.invalidateQueries({ queryKey: registerKeys.cashSession })}
+      >
+        reread
+      </button>
+    </>
+  );
+}
+
+function renderCashSession(read: CashSessionRead, enabled = true) {
+  const seen: CashSessionState[] = [];
+  const screen = render(
+    <QueryClientProvider client={createQueryClient()}>
+      <CashSessionProbe read={read} enabled={enabled} seen={seen} />
+    </QueryClientProvider>,
+  );
+  return { screen, seen };
+}
+
+describe("cash session query", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("is unknown until the core answers, then tells whether a session is open", async () => {
+    const { screen, seen } = renderCashSession(async () => GRACE_SESSION);
+
+    await expect.element((await screen).getByText("open")).toBeVisible();
+    expect(seen[0]).toEqual({ status: "unknown" });
+    expect(seen.at(-1)).toEqual({
+      status: "open",
+      id: "s1",
+      openedAt: "2026-09-30T12:02:00.000Z",
+      openedBy: GRACE_SESSION.opened_by,
+    });
+  });
+
+  it("says there is no session when the core finds none", async () => {
+    const { screen } = renderCashSession(async () => null);
+
+    await expect.element((await screen).getByText("none")).toBeVisible();
+  });
+
+  it("says the core is unavailable when it cannot read the session", async () => {
+    const { screen } = renderCashSession(async () => "unavailable");
+
+    await expect.element((await screen).getByText("unavailable")).toBeVisible();
+  });
+
+  it("stays unknown while the read is rejected", async () => {
+    const read = vi.fn<CashSessionRead>(() => Promise.reject(new Error("connection replaced")));
+    const { screen } = renderCashSession(read);
+
+    await expect.poll(() => read.mock.calls.length).toBe(1);
+    await expect.element((await screen).getByText("unknown")).toBeVisible();
+  });
+
+  it("does not read while disabled", async () => {
+    const read = vi.fn<CashSessionRead>(async () => null);
+    const { screen } = renderCashSession(read, false);
+
+    await expect.element((await screen).getByText("unknown")).toBeVisible();
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it("keeps the same session object when it is read again and nothing changed", async () => {
+    const read = vi.fn<CashSessionRead>(async () => structuredClone(GRACE_SESSION));
+    const { screen, seen } = renderCashSession(read);
+    await expect.element((await screen).getByText("open")).toBeVisible();
+    const first = seen.at(-1);
+
+    await userEvent.click((await screen).getByRole("button", { name: "reread" }));
+    await expect.poll(() => read.mock.calls.length).toBe(2);
+
+    expect(seen.at(-1)).toBe(first);
+  });
+
+  it("reads again every five seconds while the core cannot read it, and stops once it can", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const answers: ("unavailable" | null)[] = ["unavailable", "unavailable", null];
+    const read = vi.fn<CashSessionRead>(async () => answers.shift() ?? null);
+    const { screen } = renderCashSession(read);
+    await expect.element((await screen).getByText("unavailable")).toBeVisible();
+
+    await vi.advanceTimersByTimeAsync(5000);
+    await expect.poll(() => read.mock.calls.length).toBe(2);
+    await vi.advanceTimersByTimeAsync(5000);
+    await expect.element((await screen).getByText("none")).toBeVisible();
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(read).toHaveBeenCalledTimes(3);
+  });
+});
+
+function RegisterNameProbe({ read }: { read: () => Promise<string | null> }) {
+  return <p>{["name", String(useRegisterNameQuery(read))].join(" ")}</p>;
+}
+
+function renderRegisterName(read: () => Promise<string | null>) {
+  return render(
+    <QueryClientProvider client={createQueryClient()}>
+      <RegisterNameProbe read={read} />
+    </QueryClientProvider>,
+  );
+}
+
+describe("register name query", () => {
+  it("gives the name the core knows", async () => {
+    const screen = await renderRegisterName(async () => "Caja 1");
+
+    await expect.element(screen.getByText("name Caja 1")).toBeVisible();
+  });
+
+  it("gives no name while the core has none, while it reads, or when reading fails", async () => {
+    const none = await renderRegisterName(async () => null);
+    await expect.element(none.getByText("name null")).toBeVisible();
+    await none.unmount();
+
+    const reading = await renderRegisterName(() => new Promise(() => {}));
+    await expect.element(reading.getByText("name null")).toBeVisible();
+    await reading.unmount();
+
+    const failing = await renderRegisterName(() => Promise.reject(new Error("replaced")));
+    await expect.element(failing.getByText("name null")).toBeVisible();
   });
 });
