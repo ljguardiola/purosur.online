@@ -75,6 +75,7 @@ export default defineConfig({
         node: 1000,
         "railway-iac": 1000,
         "backoffice-build": 1000,
+        "register-build": 1000,
         "served-backoffice": 1000,
         "cloud-integration": 5000,
         browser: 2000,
@@ -102,6 +103,13 @@ export default defineConfig({
         test: {
           name: "backoffice-build",
           include: ["apps/backoffice/*.test.ts"],
+          environment: "node",
+        },
+      },
+      {
+        test: {
+          name: "register-build",
+          include: ["apps/pos/*.test.ts"],
           environment: "node",
         },
       },

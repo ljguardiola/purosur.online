@@ -26,7 +26,7 @@
     },
     "apps/pos": {
       "vitest": {
-        "entry": ["src/**/*.test.{ts,tsx}"]
+        "entry": ["src/**/*.test.{ts,tsx}", "*.test.ts"]
       },
       "includeEntryExports": true
     },
