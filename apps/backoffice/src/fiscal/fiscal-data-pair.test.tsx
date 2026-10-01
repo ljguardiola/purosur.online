@@ -1,3 +1,4 @@
+import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { expect, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { DataPair, FixedPair } from "./fiscal-data-pair";
@@ -16,8 +17,8 @@ test("a data pair without a value says Sin cargar", async () => {
 });
 
 test("a fixed pair shows its label and its value", async () => {
-  const screen = await render(<FixedPair label="CUIT" value="20-00000000-1" />);
+  const screen = await render(<FixedPair label="CUIT" value={FICTIONAL_CUIT} />);
 
   await expect.element(screen.getByText("CUIT")).toBeVisible();
-  await expect.element(screen.getByText("20-00000000-1")).toBeVisible();
+  await expect.element(screen.getByText(FICTIONAL_CUIT)).toBeVisible();
 });

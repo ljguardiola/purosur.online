@@ -1,3 +1,4 @@
+import { FICTIONAL_CUIT, FICTIONAL_LEGAL_NAME } from "@purosur/domain/fiscal/test-support";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -7,10 +8,10 @@ import type { IssuerIdentification } from "./issuer-identification-api";
 import { IssuerIdentificationSection } from "./issuer-identification-section";
 
 const complete: IssuerIdentification = {
-  legalName: "Comercio de Prueba",
+  legalName: FICTIONAL_LEGAL_NAME,
   grossIncomeRegistration: "0000000-00",
   activityStartDate: "2019-03-01",
-  authorizedCuit: "20-00000000-1",
+  authorizedCuit: FICTIONAL_CUIT,
   taxStatus: "Responsable Monotributo",
   version: 1,
 };
@@ -40,8 +41,8 @@ test("shows every value of a complete issuer identification, and what prints it"
   await expect
     .element(screen.getByRole("heading", { name: "Identificación del emisor", level: 2 }))
     .toBeVisible();
-  await expect.element(screen.getByText("Comercio de Prueba")).toBeVisible();
-  await expect.element(screen.getByText("20-00000000-1")).toBeVisible();
+  await expect.element(screen.getByText(FICTIONAL_LEGAL_NAME)).toBeVisible();
+  await expect.element(screen.getByText(FICTIONAL_CUIT)).toBeVisible();
   await expect.element(screen.getByText("Responsable Monotributo")).toBeVisible();
   await expect.element(screen.getByText("0000000-00")).toBeVisible();
   await expect.element(screen.getByText("01/03/2019")).toBeVisible();
@@ -66,7 +67,7 @@ test("shows the incomplete notice and Sin cargar for each missing value", async 
     )
     .toBeVisible();
   expect(screen.getByText("Sin cargar").elements().length).toBe(3);
-  await expect.element(screen.getByText("20-00000000-1")).toBeVisible();
+  await expect.element(screen.getByText(FICTIONAL_CUIT)).toBeVisible();
   await expect.element(screen.getByText("Responsable Monotributo")).toBeVisible();
 });
 
@@ -118,7 +119,7 @@ test("keeps Editar available while loaded data refreshes", async () => {
 
 test("has no accessibility violations once loaded", async () => {
   const screen = await render(sectionFor(loaded(incomplete)));
-  await expect.element(screen.getByText("20-00000000-1")).toBeVisible();
+  await expect.element(screen.getByText(FICTIONAL_CUIT)).toBeVisible();
 
   await expectNoAccessibilityViolations(document.body);
 });

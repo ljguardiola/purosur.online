@@ -1,3 +1,4 @@
+import { FICTIONAL_CUIT, FICTIONAL_LEGAL_NAME } from "@purosur/domain/fiscal/test-support";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
@@ -35,10 +36,10 @@ function grantAuthorization(services: EditIssuerIdentificationModalServices) {
 }
 
 const complete: IssuerIdentification = {
-  legalName: "Comercio de Prueba",
+  legalName: FICTIONAL_LEGAL_NAME,
   grossIncomeRegistration: "0000000-00",
   activityStartDate: "2019-03-01",
-  authorizedCuit: "20-00000000-1",
+  authorizedCuit: FICTIONAL_CUIT,
   taxStatus: "Responsable Monotributo",
   version: 1,
 };
@@ -47,7 +48,7 @@ const incomplete: IssuerIdentification = {
   legalName: null,
   grossIncomeRegistration: null,
   activityStartDate: null,
-  authorizedCuit: "20-00000000-1",
+  authorizedCuit: FICTIONAL_CUIT,
   taxStatus: "Responsable Monotributo",
   version: 1,
 };
@@ -183,7 +184,7 @@ test("shows CUIT and tax status as plain text, not inputs, with the fields prefi
     .toBeVisible();
   await expect
     .element(dialog.getByRole("textbox", { name: /^Razón social/ }))
-    .toHaveValue("Comercio de Prueba");
+    .toHaveValue(FICTIONAL_LEGAL_NAME);
   await expect
     .element(dialog.getByRole("textbox", { name: /^Ingresos Brutos/ }))
     .toHaveValue("0000000-00");
@@ -193,7 +194,7 @@ test("shows CUIT and tax status as plain text, not inputs, with the fields prefi
   expect(dateGroup.textContent).toContain("2019");
   expect(dialog.getByRole("textbox", { name: "CUIT" }).query()).toBeNull();
   expect(dialog.getByRole("textbox", { name: "Condición frente al IVA" }).query()).toBeNull();
-  await expect.element(dialog.getByText("20-00000000-1")).toBeVisible();
+  await expect.element(dialog.getByText(FICTIONAL_CUIT)).toBeVisible();
   await expect.element(dialog.getByText("Responsable Monotributo")).toBeVisible();
 });
 

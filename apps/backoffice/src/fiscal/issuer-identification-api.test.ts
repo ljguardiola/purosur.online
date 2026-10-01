@@ -1,3 +1,8 @@
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
   fetchIssuerIdentification,
@@ -18,26 +23,26 @@ afterEach(() => {
 });
 
 const wireRow = {
-  legal_name: "María Laura Fernández",
-  gross_income_registration: "1284531-06",
+  legal_name: FICTIONAL_LEGAL_NAME,
+  gross_income_registration: FICTIONAL_GROSS_INCOME_REGISTRATION,
   activity_start_date: "2019-03-01",
-  authorized_cuit: "27-28453196-0",
+  authorized_cuit: FICTIONAL_CUIT,
   tax_status: "Responsable Monotributo",
   version: 1,
 };
 
 const issuerIdentification: IssuerIdentification = {
-  legalName: "María Laura Fernández",
-  grossIncomeRegistration: "1284531-06",
+  legalName: FICTIONAL_LEGAL_NAME,
+  grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
   activityStartDate: "2019-03-01",
-  authorizedCuit: "27-28453196-0",
+  authorizedCuit: FICTIONAL_CUIT,
   taxStatus: "Responsable Monotributo",
   version: 1,
 };
 
 const saveInput = {
-  legal_name: "María Laura Fernández",
-  gross_income_registration: "1284531-06",
+  legal_name: FICTIONAL_LEGAL_NAME,
+  gross_income_registration: FICTIONAL_GROSS_INCOME_REGISTRATION,
   activity_start_date: "2019-03-01",
   version: 1,
 };
@@ -137,8 +142,8 @@ test("saveIssuerIdentification PUTs the three editable fields and the version, n
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      legal_name: "María Laura Fernández",
-      gross_income_registration: "1284531-06",
+      legal_name: FICTIONAL_LEGAL_NAME,
+      gross_income_registration: FICTIONAL_GROSS_INCOME_REGISTRATION,
       activity_start_date: "2019-03-01",
       version: 1,
     }),

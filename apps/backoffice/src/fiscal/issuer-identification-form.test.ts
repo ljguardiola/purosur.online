@@ -1,5 +1,6 @@
 import { parseDate } from "@internationalized/date";
 import { issuerIdentificationEditBodySchema } from "@purosur/contracts";
+import { FICTIONAL_CUIT, FICTIONAL_LEGAL_NAME } from "@purosur/domain/fiscal/test-support";
 import { expect, test } from "vitest";
 import type { IssuerIdentification } from "./issuer-identification-api";
 import {
@@ -13,10 +14,10 @@ import {
 } from "./issuer-identification-form";
 
 const complete: IssuerIdentification = {
-  legalName: "Comercio de Prueba",
+  legalName: FICTIONAL_LEGAL_NAME,
   grossIncomeRegistration: "0000000-00",
   activityStartDate: "2019-03-01",
-  authorizedCuit: "20-00000000-1",
+  authorizedCuit: FICTIONAL_CUIT,
   taxStatus: "Responsable Monotributo",
   version: 3,
 };
@@ -25,7 +26,7 @@ const lateOnSeptember30InArgentina = new Date("2026-10-01T02:00:00Z");
 
 test("fills the form with the identification's values and version", () => {
   expect(issuerIdentificationFormValuesFrom(complete)).toEqual({
-    legalName: "Comercio de Prueba",
+    legalName: FICTIONAL_LEGAL_NAME,
     grossIncomeRegistration: "0000000-00",
     activityStartDate: parseDate("2019-03-01"),
     version: 3,
@@ -45,14 +46,14 @@ test("fills the form empty for each value an incomplete identification lacks", (
 
 test("builds the request from the trimmed values, the chosen day and the version", () => {
   const request = issuerIdentificationRequestFrom({
-    legalName: "  Comercio de Prueba ",
+    legalName: `  ${FICTIONAL_LEGAL_NAME} `,
     grossIncomeRegistration: " 0000000-00 ",
     activityStartDate: parseDate("2019-03-01"),
     version: 3,
   });
 
   expect(request).toEqual({
-    legal_name: "Comercio de Prueba",
+    legal_name: FICTIONAL_LEGAL_NAME,
     gross_income_registration: "0000000-00",
     activity_start_date: "2019-03-01",
     version: 3,
@@ -76,7 +77,7 @@ test("a request without a day is refused by the contract on the activity start d
 test.each([
   { legalName: " ", reason: "Ingresá la razón social." },
   { legalName: "a".repeat(201), reason: "Ingresá como mucho 200 caracteres." },
-  { legalName: "Comercio de Prueba", reason: "Revisá la razón social." },
+  { legalName: FICTIONAL_LEGAL_NAME, reason: "Revisá la razón social." },
 ])("a legal name of $legalName.length characters gets: $reason", ({ legalName, reason }) => {
   expect(legalNameMessage({ ...EMPTY_ISSUER_IDENTIFICATION_FORM, legalName })).toBe(reason);
 });

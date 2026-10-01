@@ -1,4 +1,5 @@
 import type { SyncChange } from "@purosur/contracts";
+import { FICTIONAL_LEGAL_NAME } from "@purosur/domain/fiscal/test-support";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
@@ -12,7 +13,7 @@ type IssuerRow = Extract<SyncChange, { entity: "issuer_identification" }>["row"]
 
 function issuerRow(overrides: Partial<IssuerRow> = {}): IssuerRow {
   return {
-    legal_name: "Comercio de Prueba",
+    legal_name: FICTIONAL_LEGAL_NAME,
     gross_income_registration: "901-000000-0",
     activity_start_date: "2020-03-01",
     authorized_cuit: "20000000001",
@@ -67,7 +68,7 @@ describe("the register's local copy of the issuer identification versions", () =
     expect(savedVersions()).toEqual([
       {
         version: 3,
-        legal_name: "Comercio de Prueba",
+        legal_name: FICTIONAL_LEGAL_NAME,
         gross_income_registration: "901-000000-0",
         activity_start_date: "2020-03-01",
         authorized_cuit: "20000000001",
@@ -99,7 +100,7 @@ describe("the register's local copy of the issuer identification versions", () =
     await save(issuerChange(2, issuerRow({ legal_name: "Comercio Nuevo", version: 2 })));
 
     expect(savedVersions()).toEqual([
-      expect.objectContaining({ version: 1, legal_name: "Comercio de Prueba" }),
+      expect.objectContaining({ version: 1, legal_name: FICTIONAL_LEGAL_NAME }),
       expect.objectContaining({ version: 2, legal_name: "Comercio Nuevo" }),
     ]);
   });
@@ -110,7 +111,7 @@ describe("the register's local copy of the issuer identification versions", () =
     await save(issuerChange(2, issuerRow({ legal_name: "Otro nombre" })));
 
     expect(savedVersions()).toEqual([
-      expect.objectContaining({ version: 1, legal_name: "Comercio de Prueba" }),
+      expect.objectContaining({ version: 1, legal_name: FICTIONAL_LEGAL_NAME }),
     ]);
   });
 
@@ -120,7 +121,7 @@ describe("the register's local copy of the issuer identification versions", () =
     await save(issuerChange(2, issuerRow()));
 
     expect(savedVersions()).toEqual([
-      expect.objectContaining({ version: 1, legal_name: "Comercio de Prueba" }),
+      expect.objectContaining({ version: 1, legal_name: FICTIONAL_LEGAL_NAME }),
       expect.objectContaining({ version: 2, legal_name: "Comercio Nuevo" }),
     ]);
   });

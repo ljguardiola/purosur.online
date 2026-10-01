@@ -1,3 +1,4 @@
+import { FICTIONAL_CUIT, FICTIONAL_LEGAL_NAME } from "@purosur/domain/fiscal/test-support";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   type IssuerIdentificationBody,
@@ -5,10 +6,10 @@ import {
 } from "./issuer-identification.js";
 
 const complete = {
-  legal_name: "Comercio de Prueba",
+  legal_name: FICTIONAL_LEGAL_NAME,
   gross_income_registration: "0000000-00",
   activity_start_date: "2019-03-01",
-  authorized_cuit: "20-00000000-1",
+  authorized_cuit: FICTIONAL_CUIT,
   tax_status: "Responsable Monotributo",
   version: 1,
 };

@@ -1,4 +1,9 @@
 import { randomUUID } from "node:crypto";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import { editIssuerIdentification } from "@purosur/domain/fiscal/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -35,10 +40,10 @@ afterAll(async () => {
 function editInput(actorId: string, overrides: Record<string, unknown> = {}) {
   return {
     actorId,
-    legalName: "Comercio de Prueba",
-    grossIncomeRegistration: "CM 901-123456-3",
+    legalName: FICTIONAL_LEGAL_NAME,
+    grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
     activityStartDate: "2020-01-15",
-    authorizedCuit: "20-00000000-1",
+    authorizedCuit: FICTIONAL_CUIT,
     version: 1,
     ...overrides,
   };

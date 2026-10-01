@@ -1,0 +1,4 @@
+export const FICTIONAL_CUIT = "20-00000000-1";
+export const ANOTHER_FICTIONAL_CUIT = "23-00000000-0";
+export const FICTIONAL_LEGAL_NAME = "Comercio de Prueba";
+export const FICTIONAL_GROSS_INCOME_REGISTRATION = "CM 000-000000-0";
