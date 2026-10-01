@@ -15,7 +15,7 @@ import { LockedCloseScreen } from "./locked-close-screen";
 const GRACE: SignedInPerson = {
   user_id: "u2",
   first_name: "Grace",
-  permission_keys: ["sell_and_charge"],
+  abilities: ["open_cash_session"],
 };
 const BALANCE: CashBalance = {
   opening_float: 2_000_000,

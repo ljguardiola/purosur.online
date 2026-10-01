@@ -1,4 +1,5 @@
 import { changesPageSchema, cloudErrorSchema } from "@purosur/contracts";
+import { createRole, createUser, deactivateUser } from "@purosur/domain/access/use-cases";
 import { editBranchSettings } from "@purosur/domain/branch/use-cases";
 import {
   createCategory,
@@ -13,10 +14,9 @@ import { createRegister } from "@purosur/domain/register/use-cases";
 import { eq, inArray, sql } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { createRole } from "../access/role-creation-route.js";
+import { DrizzleRoleStore } from "../access/drizzle-role-store.js";
+import { DrizzleUserStore } from "../access/drizzle-user-store.js";
 import { registerRouteAccess } from "../access/route-access.js";
-import { createUser } from "../access/user-creation-route.js";
-import { deactivateUser } from "../access/user-deactivation-route.js";
 import { DrizzleBranchSettingsStore } from "../branch/drizzle-branch-settings-store.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { insertProductWithTags } from "../catalog/test-support/catalog-route-fixtures.js";
@@ -761,7 +761,10 @@ describe("GET /changes carrying the users and the roles", () => {
   const NOW_FOR_ALERTS = { now: () => NOW };
 
   async function newRole(name: string, permissionKeys: string[]): Promise<string> {
-    const outcome = await createRole(db, { name, permissionKeys, actorId: await anActor() });
+    const outcome = await createRole(
+      { store: new DrizzleRoleStore(db) },
+      { name, permissionKeys, actorId: await anActor() },
+    );
     if (outcome.kind !== "created") {
       throw new Error(`test setup: creating the role ended as ${outcome.kind}`);
     }
@@ -770,20 +773,20 @@ describe("GET /changes carrying the users and the roles", () => {
 
   async function newUser(firstName: string, email: string, roleId: string): Promise<string> {
     const outcome = await createUser(
-      db,
+      { store: new DrizzleUserStore(db), clock: NOW_FOR_ALERTS },
       {
         firstName,
         email,
         roleId,
         locationId: await seededLocationId(db),
         actorId: await anActor(),
+        actorMayReactivateUsers: false,
       },
-      NOW_FOR_ALERTS,
     );
     if (outcome.kind !== "created") {
       throw new Error(`test setup: creating the user ended as ${outcome.kind}`);
     }
-    return outcome.id;
+    return outcome.user.id;
   }
 
   async function anActor(): Promise<string> {
@@ -944,7 +947,10 @@ describe("GET /changes carrying the users and the roles", () => {
     const { deviceToken } = await insertEnrolledInstallation(db);
     const cashierRoleId = await newRole("Cajera", []);
     const graceId = await newUser("Grace", "grace@example.com", cashierRoleId);
-    await deactivateUser(db, { id: graceId, actorId: await anActor(), at: NOW });
+    await deactivateUser(
+      { store: new DrizzleUserStore(db) },
+      { id: graceId, actorId: await anActor(), at: NOW },
+    );
 
     const page = await pullPage(SEEDED_CHANGES, deviceToken);
 

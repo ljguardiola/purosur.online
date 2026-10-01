@@ -1,4 +1,5 @@
-import { encodePinHash, PERMISSION_KEYS } from "@purosur/domain";
+import type { OpenCashSession } from "@purosur/contracts";
+import { encodePinHash, REGISTER_ABILITIES } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { hashPin } from "./pin-hash";
 import { derivePinVerifier } from "./pin-verifier";
@@ -22,10 +23,10 @@ function record(overrides: Partial<SignInRecord> = {}): SignInRecord {
 
 const NOW = new Date("2026-05-01T10:00:00.000Z");
 
-const OPEN_CASH_SESSION = {
+const OPEN_CASH_SESSION: OpenCashSession = {
   id: "s1",
   opened_at: "2026-05-01T09:00:00.000Z",
-  opened_by: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+  opened_by: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
   locked: false,
 };
 
@@ -105,7 +106,7 @@ describe("signing in", () => {
       person: {
         user_id: "u1",
         first_name: "Ada",
-        permission_keys: ["sell_and_charge", "adjust_stock"],
+        abilities: ["open_cash_session"],
       },
       cash_session: null,
     });
@@ -190,14 +191,14 @@ describe("signing in", () => {
     });
   });
 
-  it("signs in an Administrator with every permission of the catalog", async () => {
+  it("signs in an Administrator with every register ability", async () => {
     const stored = record({ access: { isAdministrator: true, permissionKeys: [] } });
 
     const outcome = await signIn(deps({ record: stored }).built, "u1", "1234");
 
     expect(outcome.kind).toBe("signed_in");
-    expect(outcome.kind === "signed_in" && outcome.person.permission_keys).toEqual([
-      ...PERMISSION_KEYS,
+    expect(outcome.kind === "signed_in" && outcome.person.abilities).toEqual([
+      ...REGISTER_ABILITIES,
     ]);
   });
 
@@ -574,7 +575,7 @@ describe("signing in for the first time on a register", () => {
       person: {
         user_id: "u1",
         first_name: "Ada",
-        permission_keys: ["sell_and_charge", "adjust_stock"],
+        abilities: ["open_cash_session"],
       },
       cash_session: null,
     });

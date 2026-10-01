@@ -1,5 +1,5 @@
-import { encodePinHash } from "@purosur/domain";
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { encodePinHash, type RegisterOperation } from "@purosur/domain";
+import { describe, expect, it } from "vitest";
 import { authorize } from "./authorize";
 import type { PinCheckDeps } from "./pin-check";
 import { derivePinVerifier } from "./pin-verifier";
@@ -21,6 +21,8 @@ function record(overrides: Partial<SignInRecord> = {}): SignInRecord {
   };
 }
 
+const CASH_IN: RegisterOperation = { kind: "record_cash_movement", movement: "CASH_IN" };
+const WITHDRAWAL: RegisterOperation = { kind: "record_cash_movement", movement: "WITHDRAWAL" };
 const NOW = new Date("2026-05-01T10:00:00.000Z");
 
 function failuresAt(consecutiveFailures: number, secondsAgo = 3600): PinSignInFailures {
@@ -67,29 +69,32 @@ function deps(
 
 describe("authorizing with another person's PIN", () => {
   it("authorizes a person who enters their right PIN and holds the permission", async () => {
-    expect(await authorize(deps().built, { user_id: "u2", pin: "1234" }, "record_cash_in")).toEqual(
-      { kind: "authorized", by: { user_id: "u2", first_name: "Grace" } },
-    );
+    expect(await authorize(deps().built, { user_id: "u2", pin: "1234" }, CASH_IN)).toEqual({
+      kind: "authorized",
+      by: { user_id: "u2", first_name: "Grace" },
+    });
   });
 
   it("authorizes an Administrator for any permission", async () => {
     const admin = record({ access: { isAdministrator: true, permissionKeys: [] } });
 
     expect(
-      (await authorize(deps(admin).built, { user_id: "u2", pin: "1234" }, "void_sale")).kind,
+      (await authorize(deps(admin).built, { user_id: "u2", pin: "1234" }, WITHDRAWAL)).kind,
     ).toBe("authorized");
   });
 
   it("refuses a wrong PIN and tells how many attempts are left", async () => {
-    expect(await authorize(deps().built, { user_id: "u2", pin: "9999" }, "record_cash_in")).toEqual(
-      { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 },
-    );
+    expect(await authorize(deps().built, { user_id: "u2", pin: "9999" }, CASH_IN)).toEqual({
+      kind: "wrong_pin",
+      retry_after_seconds: 0,
+      attempts_left: 7,
+    });
   });
 
   it("refuses an unknown person as it refuses a wrong PIN, without hashing", async () => {
     const { built, hashed } = deps();
 
-    expect(await authorize(built, { user_id: "nobody", pin: "1234" }, "record_cash_in")).toEqual({
+    expect(await authorize(built, { user_id: "nobody", pin: "1234" }, CASH_IN)).toEqual({
       kind: "wrong_pin",
       retry_after_seconds: 0,
       attempts_left: 7,
@@ -98,7 +103,7 @@ describe("authorizing with another person's PIN", () => {
   });
 
   it("refuses a right PIN whose person lacks the permission", async () => {
-    expect(await authorize(deps().built, { user_id: "u2", pin: "1234" }, "void_sale")).toEqual({
+    expect(await authorize(deps().built, { user_id: "u2", pin: "1234" }, WITHDRAWAL)).toEqual({
       kind: "lacks_permission",
     });
   });
@@ -106,7 +111,7 @@ describe("authorizing with another person's PIN", () => {
   it("tells a missing permission before it checks the PIN, without hashing", async () => {
     const { built, hashed } = deps();
 
-    expect(await authorize(built, { user_id: "u2", pin: "9999" }, "void_sale")).toEqual({
+    expect(await authorize(built, { user_id: "u2", pin: "9999" }, WITHDRAWAL)).toEqual({
       kind: "lacks_permission",
     });
     expect(hashed).toEqual([]);
@@ -115,7 +120,7 @@ describe("authorizing with another person's PIN", () => {
   it("refuses a person whose salt cannot be read as it refuses a wrong PIN, without hashing", async () => {
     const { built, hashed } = deps(record({ salt: "not-a-salt" }));
 
-    expect(await authorize(built, { user_id: "u2", pin: "1234" }, "void_sale")).toEqual({
+    expect(await authorize(built, { user_id: "u2", pin: "1234" }, WITHDRAWAL)).toEqual({
       kind: "wrong_pin",
       retry_after_seconds: 0,
       attempts_left: 7,
@@ -126,7 +131,7 @@ describe("authorizing with another person's PIN", () => {
   it("is unavailable when the register has no pepper", async () => {
     const { built } = deps(record(), { readPepper: async () => undefined });
 
-    expect(await authorize(built, { user_id: "u2", pin: "1234" }, "record_cash_in")).toEqual({
+    expect(await authorize(built, { user_id: "u2", pin: "1234" }, CASH_IN)).toEqual({
       kind: "unavailable",
     });
   });
@@ -134,7 +139,7 @@ describe("authorizing with another person's PIN", () => {
   it("leaves the failures alone when the person lacks the permission", async () => {
     const { built, failures } = deps(record(), {}, { u2: failuresAt(2) });
 
-    await authorize(built, { user_id: "u2", pin: "9999" }, "void_sale");
+    await authorize(built, { user_id: "u2", pin: "9999" }, WITHDRAWAL);
 
     expect(failures.get("u2")).toEqual(failuresAt(2));
   });
@@ -142,7 +147,7 @@ describe("authorizing with another person's PIN", () => {
   it("counts nothing for a person who cannot be found", async () => {
     const { built, failures } = deps();
 
-    await authorize(built, { user_id: "nobody", pin: "9999" }, "record_cash_in");
+    await authorize(built, { user_id: "nobody", pin: "9999" }, CASH_IN);
 
     expect(failures.size).toBe(0);
   });
@@ -150,21 +155,59 @@ describe("authorizing with another person's PIN", () => {
   it("is unavailable, counting nothing, when the register has no pepper", async () => {
     const { built, failures } = deps(record(), { readPepper: async () => undefined });
 
-    await authorize(built, { user_id: "u2", pin: "9999" }, "record_cash_in");
+    await authorize(built, { user_id: "u2", pin: "9999" }, CASH_IN);
 
     expect(failures.size).toBe(0);
   });
 
-  it("cannot be asked for a permission the person must hold personally", () => {
-    expectTypeOf<"sell_and_charge">().not.toExtend<Parameters<typeof authorize>[2]>();
-    expectTypeOf<"record_cash_in">().toExtend<Parameters<typeof authorize>[2]>();
+  it("refuses an operation nobody else can authorize, without checking the PIN", async () => {
+    const { built, hashed, failures } = deps();
+
+    expect(await authorize(built, { user_id: "u2", pin: "1234" }, { kind: "sell" })).toEqual({
+      kind: "lacks_permission",
+    });
+    expect(hashed).toEqual([]);
+    expect(failures.size).toBe(0);
+  });
+
+  it("refuses the person who opened the session when closing a locked register, though they hold the permission, without checking the PIN", async () => {
+    const closer = record({
+      access: { isAdministrator: false, permissionKeys: ["close_anothers_register_session"] },
+    });
+    const { built, hashed, failures } = deps(closer);
+
+    expect(
+      await authorize(
+        built,
+        { user_id: "u2", pin: "9999" },
+        { kind: "close_locked_register", session: { openedBy: "u2" } },
+      ),
+    ).toEqual({ kind: "lacks_permission" });
+    expect(hashed).toEqual([]);
+    expect(failures.size).toBe(0);
+  });
+
+  it("authorizes another person who holds the permission when closing a locked register", async () => {
+    const closer = record({
+      access: { isAdministrator: false, permissionKeys: ["close_anothers_register_session"] },
+    });
+
+    expect(
+      (
+        await authorize(
+          deps(closer).built,
+          { user_id: "u2", pin: "1234" },
+          { kind: "close_locked_register", session: { openedBy: "u1" } },
+        )
+      ).kind,
+    ).toBe("authorized");
   });
 
   describe("after wrong PINs", () => {
     it("counts a wrong PIN against the person whose PIN was entered", async () => {
       const { built, failures } = deps();
 
-      await authorize(built, { user_id: "u2", pin: "9999" }, "record_cash_in");
+      await authorize(built, { user_id: "u2", pin: "9999" }, CASH_IN);
 
       expect(failures.get("u2")).toEqual({ consecutiveFailures: 1, lastFailedAt: NOW });
     });
@@ -172,7 +215,7 @@ describe("authorizing with another person's PIN", () => {
     it("makes the person wait from the third wrong PIN", async () => {
       const { built } = deps(record(), {}, { u2: failuresAt(2) });
 
-      expect(await authorize(built, { user_id: "u2", pin: "9999" }, "record_cash_in")).toEqual({
+      expect(await authorize(built, { user_id: "u2", pin: "9999" }, CASH_IN)).toEqual({
         kind: "wrong_pin",
         retry_after_seconds: 1,
         attempts_left: 5,
@@ -182,7 +225,7 @@ describe("authorizing with another person's PIN", () => {
     it("locks the person out with the eighth wrong PIN", async () => {
       const { built } = deps(record(), {}, { u2: failuresAt(7) });
 
-      expect(await authorize(built, { user_id: "u2", pin: "9999" }, "record_cash_in")).toEqual({
+      expect(await authorize(built, { user_id: "u2", pin: "9999" }, CASH_IN)).toEqual({
         kind: "locked",
         consecutive_failures: 8,
       });
@@ -192,7 +235,7 @@ describe("authorizing with another person's PIN", () => {
       const waiting = failuresAt(4, 1);
       const { built, hashed, failures } = deps(record(), {}, { u2: waiting });
 
-      expect(await authorize(built, { user_id: "u2", pin: "1234" }, "record_cash_in")).toEqual({
+      expect(await authorize(built, { user_id: "u2", pin: "1234" }, CASH_IN)).toEqual({
         kind: "rate_limited",
         retry_after_seconds: 1,
         attempts_left: 4,
@@ -204,7 +247,7 @@ describe("authorizing with another person's PIN", () => {
     it("checks the PIN again once the wait is over", async () => {
       const { built } = deps(record(), {}, { u2: failuresAt(4, 4) });
 
-      expect((await authorize(built, { user_id: "u2", pin: "1234" }, "record_cash_in")).kind).toBe(
+      expect((await authorize(built, { user_id: "u2", pin: "1234" }, CASH_IN)).kind).toBe(
         "authorized",
       );
     });
@@ -213,7 +256,7 @@ describe("authorizing with another person's PIN", () => {
       const locked = failuresAt(8);
       const { built, hashed, failures } = deps(record(), {}, { u2: locked });
 
-      expect(await authorize(built, { user_id: "u2", pin: "1234" }, "record_cash_in")).toEqual({
+      expect(await authorize(built, { user_id: "u2", pin: "1234" }, CASH_IN)).toEqual({
         kind: "locked",
         consecutive_failures: 8,
       });
@@ -224,7 +267,7 @@ describe("authorizing with another person's PIN", () => {
     it("clears the failures of a person who enters the right PIN", async () => {
       const { built, failures } = deps(record(), {}, { u2: failuresAt(2), u3: failuresAt(2) });
 
-      await authorize(built, { user_id: "u2", pin: "1234" }, "record_cash_in");
+      await authorize(built, { user_id: "u2", pin: "1234" }, CASH_IN);
 
       expect([...failures.keys()]).toEqual(["u3"]);
     });
@@ -258,7 +301,7 @@ describe("authorizing with another person's PIN", () => {
         "9999",
       );
 
-      expect(await authorize(built, { user_id: "u2", pin: "9999" }, "record_cash_in")).toEqual({
+      expect(await authorize(built, { user_id: "u2", pin: "9999" }, CASH_IN)).toEqual({
         kind: "wrong_pin",
         retry_after_seconds: 1,
         attempts_left: 5,
@@ -268,8 +311,8 @@ describe("authorizing with another person's PIN", () => {
     it("adds up with the wrong PINs entered to authorize when the person signs in", async () => {
       const { built } = deps();
 
-      await authorize(built, { user_id: "u2", pin: "9999" }, "record_cash_in");
-      await authorize(built, { user_id: "u2", pin: "9999" }, "record_cash_in");
+      await authorize(built, { user_id: "u2", pin: "9999" }, CASH_IN);
+      await authorize(built, { user_id: "u2", pin: "9999" }, CASH_IN);
 
       expect(
         await signIn(

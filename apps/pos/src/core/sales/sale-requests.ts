@@ -96,7 +96,7 @@ export async function scanProductFor(
   { database, gate, now, ids }: SaleRequestDeps,
   code: string,
 ): Promise<ScanProductOutcome> {
-  const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
+  const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
     addScannedProduct(
       { ledger: saleLedger(database), clock: { now }, ids },
       { actorId: signedInUserId, code },
@@ -120,7 +120,7 @@ export async function addSearchedProductFor(
   { database, gate, now, ids }: SaleRequestDeps,
   productId: string,
 ): Promise<AddProductOutcome> {
-  const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
+  const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
     addSearchedProduct(
       { ledger: saleLedger(database), clock: { now }, ids },
       { actorId: signedInUserId, productId },
@@ -144,7 +144,7 @@ export async function searchProductsFor(
   { database, gate, now }: Pick<SaleRequestDeps, "database" | "gate" | "now">,
   query: string,
 ): Promise<SearchProductsOutcome> {
-  const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
+  const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
     searchProductsByName(
       { ledger: saleLedger(database), clock: { now } },
       { actorId: signedInUserId, query },
@@ -188,7 +188,7 @@ export async function currentSaleFor({
   gate,
   now,
 }: Pick<SaleRequestDeps, "database" | "gate" | "now">): Promise<CurrentSaleAnswer> {
-  const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
+  const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
     currentSale({ ledger: saleLedger(database), clock: { now } }, { actorId: signedInUserId }),
   );
   if (guarded.kind === "not_signed_in") {
@@ -218,7 +218,7 @@ export async function changeLineQuantityFor(
   quantity: number,
   expectedQuantity: number,
 ): Promise<ChangeLineQuantityOutcome> {
-  const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
+  const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
     changeLineQuantity(
       { ledger: saleLedger(database), clock: { now } },
       { actorId: signedInUserId, lineId, quantity, expectedQuantity },
@@ -237,7 +237,7 @@ export async function removeSaleLineFor(
   { database, gate, now }: Pick<SaleRequestDeps, "database" | "gate" | "now">,
   lineId: string,
 ): Promise<RemoveSaleLineOutcome> {
-  const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
+  const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
     removeSaleLine(
       { ledger: saleLedger(database), clock: { now } },
       { actorId: signedInUserId, lineId },
@@ -256,7 +256,7 @@ export async function cancelSaleFor({
   database,
   gate,
 }: Pick<SaleRequestDeps, "database" | "gate">): Promise<CancelSaleOutcome> {
-  const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
+  const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
     cancelSale({ ledger: saleLedger(database) }, { actorId: signedInUserId, from: "sale" }),
   );
   if (guarded.kind !== "performed") {
@@ -270,9 +270,8 @@ export async function cancelLockedSaleFor(
   closer: Authorization,
 ): Promise<CancelLockedSaleOutcome> {
   const guarded = await gate.runWhileLocked(
-    "close_anothers_register_session",
+    { kind: "close_locked_register", session: readOpenSession(database) },
     closer,
-    readOpenSession(database),
     async (person) =>
       cancelSale(
         { ledger: saleLedger(database) },
@@ -293,7 +292,7 @@ export async function chargeSaleInCashFor(
   if (outboxChainKey === undefined) {
     return { kind: "unavailable" };
   }
-  const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
+  const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
     chargeSaleInCash(
       { ledger: saleLedger(database, outboxChainKey), clock: { now }, ids },
       { actorId: signedInUserId, saleId, tendered },
@@ -329,7 +328,7 @@ export async function chargeSaleByTransferFor(
   if (outboxChainKey === undefined) {
     return { kind: "unavailable" };
   }
-  const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
+  const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
     chargeSaleByTransfer(
       { ledger: saleLedger(database, outboxChainKey), clock: { now }, ids },
       { actorId: signedInUserId, saleId },

@@ -85,9 +85,13 @@ export class SqliteSignInStore implements SignInStore {
   }
 
   authorizers(permission: AuthorizablePermissionKey): SignInUser[] {
+    return this.authorizersWhere(({ access }) => holdsPermission(access, permission));
+  }
+
+  authorizersWhere(mayAuthorize: (person: { id: string; access: RoleAccess }) => boolean) {
     return this.signableUsers().filter((user) => {
       const record = this.signInRecord(user.id);
-      return record !== undefined && holdsPermission(record.access, permission);
+      return record !== undefined && mayAuthorize({ id: user.id, access: record.access });
     });
   }
 

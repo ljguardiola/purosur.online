@@ -38,3 +38,15 @@ export {
   REGISTER_NAME_MAX_LENGTH,
   registerNameLength,
 } from "./model/register-name.js";
+export type {
+  RegisterAbility,
+  RegisterActor,
+  RegisterOperation,
+  RegisterOperationAccess,
+} from "./model/register-operation.js";
+export {
+  mayAuthorize,
+  REGISTER_ABILITIES,
+  registerAbilities,
+  registerOperationAccess,
+} from "./model/register-operation.js";

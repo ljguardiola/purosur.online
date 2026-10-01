@@ -1,29 +1,27 @@
-import type {
-  Authorization,
-  AuthorizationRefusal,
-  AuthorizedBy,
-  GuardedActionRefusal,
-} from "@purosur/contracts";
-import {
-  type AuthorizablePermissionKey,
-  holdsPermission,
-  isAuthorizablePermissionKey,
-  isLockedToAnother,
-  type PermissionKey,
-} from "@purosur/domain";
+import type { Authorization, AuthorizationRefusal, AuthorizedBy } from "@purosur/contracts";
+import { type RegisterOperation, registerOperationAccess } from "@purosur/domain";
 import { authorize } from "./authorize";
 import type { PinCheckDeps } from "./pin-check";
 import type { SignedInPerson } from "./signed-in-person";
 import type { SignInStore } from "./sqlite-sign-in-store";
 
-export type GuardedAction =
-  | { permission: AuthorizablePermissionKey; authorization?: Authorization | undefined }
-  | { permission: Exclude<PermissionKey, AuthorizablePermissionKey>; authorization?: undefined }
-  | { closesCashSession: { openedBy: string }; authorization?: undefined };
+type OperationOf<Kind extends RegisterOperation["kind"]> = Extract<
+  RegisterOperation,
+  { kind: Kind }
+>;
 
-type GuardedOutcome<Result> =
+type SignedInOperation = OperationOf<"open_cash_session" | "sell" | "close_cash_session">;
+type CashMovementOperation = OperationOf<"record_cash_movement">;
+type LockedRegisterOperation = OperationOf<"close_locked_register">;
+
+type SignedInRefusal = { kind: "not_signed_in" } | { kind: "lacks_permission" };
+
+type SignedInOutcome<Result> = { kind: "performed"; result: Result } | SignedInRefusal;
+
+type AuthorizedOutcome<Result> =
   | { kind: "performed"; authorized_by: AuthorizedBy | null; result: Result }
-  | GuardedActionRefusal;
+  | SignedInRefusal
+  | AuthorizationRefusal;
 
 type LockedOutcome<Result> =
   | { kind: "performed"; result: Result }
@@ -35,62 +33,76 @@ export interface ActionGateDeps extends PinCheckDeps {
   signedInPerson: Pick<SignedInPerson, "userId">;
 }
 
-export interface GuardedActor {
+export interface SignedInActor {
   signedInUserId: string;
+}
+
+export interface AuthorizedActor extends SignedInActor {
   authorizedBy: AuthorizedBy | null;
 }
 
 export interface ActionGate {
   run<Result>(
-    action: GuardedAction,
-    perform: (actor: GuardedActor) => Promise<Result>,
-  ): Promise<GuardedOutcome<Result>>;
+    operation: SignedInOperation,
+    perform: (actor: SignedInActor) => Promise<Result>,
+  ): Promise<SignedInOutcome<Result>>;
+  runAuthorized<Result>(
+    operation: CashMovementOperation,
+    authorization: Authorization | undefined,
+    perform: (actor: AuthorizedActor) => Promise<Result>,
+  ): Promise<AuthorizedOutcome<Result>>;
   runWhileLocked<Result>(
-    permission: AuthorizablePermissionKey,
+    operation: LockedRegisterOperation,
     authorization: Authorization,
-    openSession: { openedBy: string } | undefined,
     perform: (person: AuthorizedBy) => Promise<Result>,
   ): Promise<LockedOutcome<Result>>;
 }
 
 export function createActionGate(deps: ActionGateDeps): ActionGate {
+  function answerFor(operation: RegisterOperation) {
+    const signedInUserId = deps.signedInPerson.userId();
+    if (signedInUserId === undefined) {
+      return { kind: "not_signed_in" } as const;
+    }
+    const access = deps.store.activePerson(signedInUserId)?.access;
+    const answer = registerOperationAccess(operation, { id: signedInUserId, access });
+    if (answer.kind === "no_access") {
+      return { kind: "not_signed_in" } as const;
+    }
+    return { kind: "answered", signedInUserId, answer } as const;
+  }
+
   return {
-    async run(action, perform) {
-      const signedInUserId = deps.signedInPerson.userId();
-      if (signedInUserId === undefined) {
-        return { kind: "not_signed_in" };
+    async run(operation, perform) {
+      const answered = answerFor(operation);
+      if (answered.kind === "not_signed_in") {
+        return answered;
       }
-      if (!("permission" in action)) {
-        if (
-          action.closesCashSession === undefined ||
-          isLockedToAnother(action.closesCashSession, signedInUserId)
-        ) {
-          return { kind: "lacks_permission" };
-        }
-        return {
-          kind: "performed",
-          authorized_by: null,
-          result: await perform({ signedInUserId, authorizedBy: null }),
-        };
-      }
-      const access = deps.store.activePerson(signedInUserId)?.access;
-      if (access === undefined) {
-        return { kind: "not_signed_in" };
-      }
-      if (action.authorization === undefined) {
-        if (!holdsPermission(access, action.permission)) {
-          return { kind: "lacks_permission" };
-        }
-        return {
-          kind: "performed",
-          authorized_by: null,
-          result: await perform({ signedInUserId, authorizedBy: null }),
-        };
-      }
-      if (!isAuthorizablePermissionKey(action.permission)) {
+      if (answered.answer.kind !== "permitted") {
         return { kind: "lacks_permission" };
       }
-      const outcome = await authorize(deps, action.authorization, action.permission);
+      return {
+        kind: "performed",
+        result: await perform({ signedInUserId: answered.signedInUserId }),
+      };
+    },
+    async runAuthorized(operation, authorization, perform) {
+      const answered = answerFor(operation);
+      if (answered.kind === "not_signed_in") {
+        return answered;
+      }
+      const { signedInUserId, answer } = answered;
+      if (answer.kind === "permitted") {
+        return {
+          kind: "performed",
+          authorized_by: null,
+          result: await perform({ signedInUserId, authorizedBy: null }),
+        };
+      }
+      if (answer.kind === "refused" || authorization === undefined) {
+        return { kind: "lacks_permission" };
+      }
+      const outcome = await authorize(deps, authorization, operation);
       if (outcome.kind !== "authorized") {
         return outcome;
       }
@@ -103,19 +115,19 @@ export function createActionGate(deps: ActionGateDeps): ActionGate {
         result: await perform({ signedInUserId, authorizedBy: outcome.by }),
       };
     },
-    async runWhileLocked(permission, authorization, openSession, perform) {
+    async runWhileLocked(operation, authorization, perform) {
       if (deps.signedInPerson.userId() !== undefined) {
         return { kind: "not_locked" };
       }
-      const outcome = await authorize(deps, authorization, permission);
+      if (registerOperationAccess(operation, undefined).kind !== "needs_authorization") {
+        return { kind: "lacks_permission" };
+      }
+      const outcome = await authorize(deps, authorization, operation);
       if (outcome.kind !== "authorized") {
         return outcome;
       }
       if (deps.signedInPerson.userId() !== undefined) {
         return { kind: "not_locked" };
-      }
-      if (openSession !== undefined && !isLockedToAnother(openSession, outcome.by.user_id)) {
-        return { kind: "lacks_permission" };
       }
       return { kind: "performed", result: await perform(outcome.by) };
     },

@@ -1,5 +1,4 @@
-import { holdsARegisterPermission } from "@purosur/domain";
-import { heldPermissionKeys } from "./held-permission-keys";
+import { holdsARegisterPermission, registerAbilities } from "@purosur/domain";
 import type { SignInStore } from "./sqlite-sign-in-store";
 
 export function redeemedPerson(store: Pick<SignInStore, "signInRecord">, userId: string) {
@@ -10,6 +9,6 @@ export function redeemedPerson(store: Pick<SignInStore, "signInRecord">, userId:
   return {
     user_id: userId,
     first_name: record.firstName,
-    permission_keys: heldPermissionKeys(record.access),
+    abilities: registerAbilities(record.access),
   };
 }
