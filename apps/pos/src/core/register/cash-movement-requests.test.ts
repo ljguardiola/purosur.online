@@ -24,7 +24,9 @@ let database: LocalDatabase;
 let signedInPerson: SignedInPerson;
 let idCount: number;
 
-function deps(overrides: Partial<CashSessionRequestDeps> = {}): CashSessionRequestDeps {
+function deps(
+  overrides: Partial<CashSessionRequestDeps> = {},
+): CashSessionRequestDeps & { signedInPerson: SignedInPerson } {
   return {
     database,
     gate: createActionGate({

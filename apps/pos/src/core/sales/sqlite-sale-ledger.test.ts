@@ -1,6 +1,11 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import { closeCashSession } from "@purosur/domain/register/use-cases";
 import {
   addScannedProduct,
@@ -499,6 +504,18 @@ describe("charging an open sale in cash", () => {
     readySeller();
     addProduct("111");
     addPrice("p1", "2026-09-01T00:00:00.000Z", 1500);
+    database
+      .prepare(
+        `INSERT INTO issuer_identification_versions (
+           version, legal_name, gross_income_registration, activity_start_date, authorized_cuit, tax_status
+         ) VALUES (1, ?, ?, '2020-01-15', ?, 'Condicion de prueba')`,
+      )
+      .run(FICTIONAL_LEGAL_NAME, FICTIONAL_GROSS_INCOME_REGISTRATION, FICTIONAL_CUIT);
+    database
+      .prepare(
+        "INSERT INTO buyer_tax_status_sets (params_version, set_id, options) VALUES (1, 'set-1', ?)",
+      )
+      .run(JSON.stringify([{ code: 90, description: "Consumidor Final", invoice_class: "A/M/C" }]));
   });
 
   function sellTwo(): string {
@@ -627,7 +644,7 @@ describe("charging an open sale in cash", () => {
         clock: { now: () => NOW },
         ids,
       },
-      { sessionId: "session-1", closerId: "u1", authorizedBy: null, countedCash: 3000 },
+      { sessionId: "session-1", closerId: "u1", countedCash: 3000 },
     );
 
     expect(closed).toMatchObject({ kind: "closed" });

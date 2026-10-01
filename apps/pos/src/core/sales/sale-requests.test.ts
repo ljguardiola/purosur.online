@@ -1,4 +1,9 @@
 import { encodePinHash } from "@purosur/domain";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createActionGate } from "../access/action-gate";
 import { derivePinVerifier } from "../access/pin-verifier";
@@ -61,6 +66,21 @@ function addPerson(id: string, roleId: string): void {
       "INSERT INTO users (id, first_name, role_id, salt, active, version) VALUES (?, 'Ana', ?, 's', 1, 1)",
     )
     .run(id, roleId);
+}
+
+function addFiscalConfiguration(): void {
+  database
+    .prepare(
+      `INSERT INTO issuer_identification_versions (
+         version, legal_name, gross_income_registration, activity_start_date, authorized_cuit, tax_status
+       ) VALUES (1, ?, ?, '2020-01-15', ?, 'Condicion de prueba')`,
+    )
+    .run(FICTIONAL_LEGAL_NAME, FICTIONAL_GROSS_INCOME_REGISTRATION, FICTIONAL_CUIT);
+  database
+    .prepare(
+      "INSERT INTO buyer_tax_status_sets (params_version, set_id, options) VALUES (1, 'set-1', ?)",
+    )
+    .run(JSON.stringify([{ code: 90, description: "Consumidor Final", invoice_class: "A/M/C" }]));
 }
 
 function seed(): void {
@@ -616,6 +636,7 @@ describe("charging the sale in progress in cash", () => {
   }
 
   it("completes the sale and answers what was charged and the change", async () => {
+    addFiscalConfiguration();
     const saleId = await sellTwo();
 
     expect(await chargeSaleInCashFor(deps(), { saleId, tendered: 5000 })).toEqual({
@@ -629,6 +650,55 @@ describe("charging the sale in progress in cash", () => {
     expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([
       { event_type: "sale_completed" },
     ]);
+  });
+
+  it("composes the factura C of the completed sale from the register's fiscal configuration", async () => {
+    addFiscalConfiguration();
+    const saleId = await sellTwo();
+
+    await chargeSaleInCashFor(deps(), { saleId, tendered: 5000 });
+
+    expect(
+      database.prepare("SELECT sale_id, outcome, document FROM pre_emission_gate_outcomes").all(),
+    ).toEqual([
+      {
+        sale_id: saleId,
+        outcome: "PASSED",
+        document: expect.stringContaining('"netAmount":3000,"vatAmount":0'),
+      },
+    ]);
+    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([
+      { event_type: "sale_completed" },
+    ]);
+  });
+
+  it("completes the sale and answers as usual when the pre-emission gate fails, queuing the failure", async () => {
+    const saleId = await sellTwo();
+
+    expect(await chargeSaleInCashFor(deps(), { saleId, tendered: 5000 })).toEqual({
+      kind: "completed",
+      sale_id: saleId,
+      total: 3000,
+      tendered: 5000,
+      change: 2000,
+    });
+    expect(
+      database.prepare("SELECT outcome, failure_reason FROM pre_emission_gate_outcomes").all(),
+    ).toEqual([{ outcome: "FAILED", failure_reason: "issuer_identification_missing" }]);
+    expect(database.prepare("SELECT event_type FROM outbox ORDER BY device_seq").all()).toEqual([
+      { event_type: "sale_completed" },
+      { event_type: "fiscal_gate_failed" },
+    ]);
+  });
+
+  it("completes nothing when the pre-emission gate of the sale cannot be recorded", async () => {
+    const saleId = await sellTwo();
+    database.exec("DROP TABLE pre_emission_gate_outcomes");
+
+    await expect(chargeSaleInCashFor(deps(), { saleId, tendered: 5000 })).rejects.toThrow();
+
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([]);
   });
 
   it("answers how much is still due when the cash does not cover the sale", async () => {
@@ -836,6 +906,15 @@ describe("cancelling the open sale of a locked register", () => {
   it("refuses a person without the permission, leaving the sale open", async () => {
     addCloser(["sell_and_charge"]);
     await lockedWithOpenSale();
+
+    expect(await cancelLockedSaleFor(lockedDeps(), CLOSER)).toEqual({ kind: "lacks_permission" });
+    expect(saleStates()).toEqual([{ state: "OPEN" }]);
+  });
+
+  it("refuses the person who opened the session, leaving the sale open", async () => {
+    addCloser(["close_anothers_register_session"]);
+    await lockedWithOpenSale();
+    database.prepare("UPDATE cash_sessions SET opened_by = 'u9'").run();
 
     expect(await cancelLockedSaleFor(lockedDeps(), CLOSER)).toEqual({ kind: "lacks_permission" });
     expect(saleStates()).toEqual([{ state: "OPEN" }]);

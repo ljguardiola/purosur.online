@@ -1,18 +1,10 @@
-import type {
-  Authorization,
-  CashBalance,
-  CloseCashSessionOutcome,
-  SignInUser,
-} from "@purosur/contracts";
-import type { AuthorizablePermissionKey } from "@purosur/domain";
+import type { CashBalance, CloseCashSessionOutcome } from "@purosur/contracts";
 import { Button, InlineNotice, useRequestForm } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Lock, TriangleAlert, UserX } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
-import { AuthorizationSection } from "../access/authorization-section";
 import type { SignedInPerson } from "../access/signed-in-person";
-import { useAuthorization } from "../access/use-authorization";
 import { OpenSessionRail } from "../shell/open-session-rail";
 import { SessionEyebrow } from "../shell/session-eyebrow";
 import { differenceNotice } from "./cash-amounts";
@@ -40,37 +32,24 @@ const FAILED: Notice = { title: "No se pudo cerrar la caja. Probá de nuevo.", i
 export type CashCountScreenProps = {
   sessionId: string;
   person: SignedInPerson;
-  openedBy: SignedInPerson;
   registerName: string | null;
   openedAt: string;
   lock: () => void;
   loadCashBalance: () => Promise<CashBalance | null | "unavailable">;
-  loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
-  closeCashSession: (
-    countedCash: number,
-    authorization?: Authorization,
-  ) => Promise<CloseCashSessionOutcome>;
+  closeCashSession: (countedCash: number) => Promise<CloseCashSessionOutcome>;
 };
 
 export function CashCountScreen({
   sessionId,
   person,
-  openedBy,
   registerName,
   openedAt,
   lock,
   loadCashBalance,
-  loadAuthorizers,
   closeCashSession,
 }: CashCountScreenProps) {
   const navigate = useNavigate();
   const balance = useCashBalanceQuery(sessionId, loadCashBalance);
-  const authorization = useAuthorization({
-    person,
-    permission: "close_anothers_register_session",
-    loadAuthorizers,
-    applies: openedBy.user_id !== person.user_id,
-  });
   const field = useRef<HTMLDivElement>(null);
   const [notice, setNotice] = useState<Notice>();
   const [openSaleTotal, setOpenSaleTotal] = useState<number>();
@@ -80,15 +59,11 @@ export function CashCountScreen({
     fields: { counted_cash: "countedCash" },
     messages: { countedCash: countedCashMessage },
     onSubmit: async (request, { showFieldError }) => {
-      if (!authorization.ready) {
-        return;
-      }
-      const outcome = await closeCashSession(request.counted_cash, authorization.value).catch(
+      const outcome = await closeCashSession(request.counted_cash).catch(
         (): CloseCashSessionOutcome => ({ kind: "unavailable" }),
       );
       switch (outcome.kind) {
         case "closed":
-          authorization.performed();
           break;
         case "invalid_counted_cash":
           showFieldError("countedCash", INVALID_COUNTED_CASH_MESSAGE);
@@ -96,16 +71,12 @@ export function CashCountScreen({
         case "open_sale":
           setOpenSaleTotal(outcome.total);
           break;
+        case "lacks_permission":
+          setNotice(NOT_PERMITTED);
+          break;
         case "wrong_pin":
         case "rate_limited":
         case "locked":
-        case "lacks_permission":
-          if (authorization.required) {
-            authorization.refuse(outcome);
-          } else {
-            setNotice(outcome.kind === "lacks_permission" ? NOT_PERMITTED : FAILED);
-          }
-          break;
         case "unavailable":
         case "not_signed_in":
           setNotice(FAILED);
@@ -182,18 +153,6 @@ export function CashCountScreen({
             {warning === undefined ? null : (
               <InlineNotice tone="warning" icon={<TriangleAlert />} title={warning} />
             )}
-            {authorization.required ? (
-              <div className="flex flex-col gap-3">
-                <p className="text-detail text-text-subtle">
-                  {`La sesión es de ${openedBy.first_name}: cerrarla pide el PIN de alguien con permiso para cerrar la sesión de otra persona.`}
-                </p>
-                <AuthorizationSection
-                  authorization={authorization}
-                  action="cerrar la sesión de otra persona"
-                  disabled={submitting}
-                />
-              </div>
-            ) : null}
             {notice === undefined ? null : (
               <InlineNotice
                 tone="error"
@@ -210,7 +169,7 @@ export function CashCountScreen({
             fullWidth
             icon={<Lock />}
             dataStatus={balance.status}
-            disabled={submitting || !authorization.ready}
+            disabled={submitting}
           >
             Cerrar caja
           </Button>

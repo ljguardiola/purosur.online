@@ -59,7 +59,6 @@ function ledger(state: Partial<FakeCashLedgerState> = {}): FakeCashLedger {
 interface Overrides {
   sessionId?: string;
   closerId?: string;
-  authorizedBy?: string | null;
   countedCash?: number;
 }
 
@@ -69,7 +68,6 @@ function close(store: FakeCashLedger, overrides: Overrides = {}) {
     {
       sessionId: "session-1",
       closerId: "cashier",
-      authorizedBy: null,
       countedCash: 10_000,
       ...overrides,
     },
@@ -166,20 +164,16 @@ describe("closeCashSession", () => {
     });
   });
 
-  it("records who authorized the closing when someone else's session is closed", () => {
+  it("records the closer as who closed the session", () => {
     const store = ledger();
 
-    close(store, { closerId: "manager", authorizedBy: "boss" });
+    close(store, { closerId: "manager" });
 
-    expect(store.state.movements.at(-1)).toMatchObject({
-      type: "CLOSING",
-      actorId: "manager",
-      authorizedBy: "boss",
-    });
+    expect(store.state.movements.at(-1)).toMatchObject({ type: "CLOSING", actorId: "manager" });
     expect(sessionAfter(store)).toMatchObject({ closedBy: "manager" });
   });
 
-  it("records no authorizer when none was needed", () => {
+  it("records no authorizer on the closing movement", () => {
     const store = ledger();
 
     close(store);

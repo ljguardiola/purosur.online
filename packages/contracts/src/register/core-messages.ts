@@ -138,7 +138,6 @@ export const closeCashSessionMessageSchema = z.object({
   request_id: requestId,
   session_id: z.string(),
   counted_cash: countedCashSchema,
-  authorization: authorizationSchema.optional(),
 });
 
 export const closeLockedCashSessionMessageSchema = z.object({
@@ -175,6 +174,11 @@ const authorizersRequestMessageSchema = z.object({
   type: z.literal("authorizers"),
   request_id: requestId,
   permission: z.custom<AuthorizablePermissionKey>(isAuthorizablePermissionKey),
+});
+
+const lockedClosersRequestMessageSchema = z.object({
+  type: z.literal("locked-closers-request"),
+  request_id: requestId,
 });
 
 const scanProductMessageSchema = z.object({
@@ -261,6 +265,7 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   cashBalanceRequestMessageSchema,
   sessionOpenSaleRequestMessageSchema,
   authorizersRequestMessageSchema,
+  lockedClosersRequestMessageSchema,
   scanProductMessageSchema,
   changeLineQuantityMessageSchema,
   removeSaleLineMessageSchema,
@@ -291,9 +296,21 @@ const signedInPersonSchema = z.object({
   permission_keys: z.array(z.string()),
 });
 
+const openCashSessionSchema = z.object({
+  id: z.string(),
+  opened_at: z.string(),
+  opened_by: signedInPersonSchema,
+  locked: z.boolean(),
+});
+export type OpenCashSession = z.infer<typeof openCashSessionSchema>;
+
 const pinCodeRedemptionOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("redeemed") }),
-  z.object({ kind: z.literal("resumed"), person: signedInPersonSchema }),
+  z.object({
+    kind: z.literal("resumed"),
+    person: signedInPersonSchema,
+    cash_session: openCashSessionSchema.nullable(),
+  }),
   z.object({ kind: z.literal("cash_session_opened_by_another") }),
   z.object({ kind: z.literal("code_invalid") }),
   z.object({ kind: z.literal("code_expired") }),
@@ -306,7 +323,11 @@ const pinCodeRedemptionOutcomeSchema = z.discriminatedUnion("kind", [
 export type PinCodeRedemptionOutcome = z.infer<typeof pinCodeRedemptionOutcomeSchema>;
 
 const signInOutcomeSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("signed_in"), person: signedInPersonSchema }),
+  z.object({
+    kind: z.literal("signed_in"),
+    person: signedInPersonSchema,
+    cash_session: openCashSessionSchema.nullable(),
+  }),
   ...pinAttemptRefusalSchema.options,
   z.object({ kind: z.literal("no_register_permission") }),
   z.object({ kind: z.literal("cash_session_opened_by_another") }),
@@ -315,10 +336,7 @@ const signInOutcomeSchema = z.discriminatedUnion("kind", [
 export type SignInOutcome = z.infer<typeof signInOutcomeSchema>;
 
 const openCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
-  z.object({
-    kind: z.literal("opened"),
-    session: z.object({ id: z.string(), opened_at: z.string(), opening_float: z.number() }),
-  }),
+  z.object({ kind: z.literal("opened"), cash_session: openCashSessionSchema.nullable() }),
   z.object({ kind: z.literal("not_signed_in") }),
   z.object({ kind: z.literal("not_permitted") }),
   z.object({ kind: z.literal("already_open") }),
@@ -386,13 +404,6 @@ export type CashBalance = z.infer<typeof cashBalanceSchema>;
 
 const sessionOpenSaleSchema = z.object({ total: z.number(), cancellable: z.boolean() });
 export type SessionOpenSale = z.infer<typeof sessionOpenSaleSchema>;
-
-const openCashSessionSchema = z.object({
-  id: z.string(),
-  opened_at: z.string(),
-  opened_by: signedInPersonSchema,
-});
-export type OpenCashSession = z.infer<typeof openCashSessionSchema>;
 
 const recordCashMovementOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("recorded"), authorized_by: authorizedBySchema.nullable() }),
@@ -558,6 +569,12 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     users: z.array(signInUserSchema),
   }),
   z.object({ type: z.literal("authorizers-unavailable"), request_id: requestId }),
+  z.object({
+    type: z.literal("locked-closers"),
+    request_id: requestId,
+    users: z.array(signInUserSchema),
+  }),
+  z.object({ type: z.literal("locked-closers-unavailable"), request_id: requestId }),
   z.object({
     type: z.literal("scan-product-result"),
     request_id: requestId,

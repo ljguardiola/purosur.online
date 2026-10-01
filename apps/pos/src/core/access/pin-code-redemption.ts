@@ -1,13 +1,16 @@
 import {
   type CloudError,
+  type OpenCashSession,
   type PinCodeRedemption,
   type PinCodeRedemptionOutcome,
   pinCodeRedemptionBodySchema,
   pinCodeRedemptionSchema,
   retryAfterSecondsOf,
 } from "@purosur/contracts";
+import { isLockedToAnother } from "@purosur/domain";
 import type { DeviceCredentials } from "../../shared/device-credentials-messages";
 import type { CloudResponse } from "../platform/cloud-client";
+import type { SignedInPerson } from "./signed-in-person";
 
 export interface PinCodeRedemptionDeps {
   readCredentials: () => Promise<DeviceCredentials | undefined>;
@@ -16,10 +19,12 @@ export interface PinCodeRedemptionDeps {
     | undefined;
   applyRedeemedPin: ((pepper: string, redemption: PinCodeRedemption) => void) | undefined;
   reportLocalFailure: (error: unknown) => void;
-  cashSessionOpener: () => string | undefined;
-  signInRedeemed: (
+  openCashSession: () => { openedBy: string } | undefined;
+  redeemedPerson: (
     userId: string,
   ) => Extract<PinCodeRedemptionOutcome, { kind: "resumed" }>["person"] | undefined;
+  signedInPerson: Pick<SignedInPerson, "set">;
+  cashSession: (signedInPersonId: string) => OpenCashSession | null;
 }
 
 function refusalOutcome(error: CloudError): PinCodeRedemptionOutcome {
@@ -84,13 +89,18 @@ export async function redeemPinCode(
   } catch (error) {
     deps.reportLocalFailure(error);
   }
-  const opener = deps.cashSessionOpener();
-  if (opener === undefined) {
+  const openSession = deps.openCashSession();
+  if (openSession === undefined) {
     return { kind: "redeemed" };
   }
-  if (opener !== redemption.data.user_id) {
+  if (isLockedToAnother(openSession, redemption.data.user_id)) {
     return { kind: "cash_session_opened_by_another" };
   }
-  const person = deps.signInRedeemed(opener);
-  return person === undefined ? { kind: "redeemed" } : { kind: "resumed", person };
+  const person = deps.redeemedPerson(openSession.openedBy);
+  if (person === undefined) {
+    return { kind: "redeemed" };
+  }
+  const cashSession = deps.cashSession(openSession.openedBy);
+  deps.signedInPerson.set(openSession.openedBy);
+  return { kind: "resumed", person, cash_session: cashSession };
 }

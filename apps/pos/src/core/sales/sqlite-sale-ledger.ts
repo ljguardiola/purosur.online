@@ -22,6 +22,11 @@ import type {
   SellingSession,
 } from "@purosur/domain/sales/use-cases";
 import type { SignInStore } from "../access/sqlite-sign-in-store";
+import {
+  insertPreEmissionGateOutcome,
+  readBuyerTaxStatusSetInEffect,
+  readIssuerIdentificationInEffect,
+} from "../fiscal/sqlite-pre-emission-gate";
 import type { LocalDatabase } from "../platform/local-database";
 import { insertCashMovement } from "../register/sqlite-cash-ledger";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
@@ -143,6 +148,9 @@ export class SqliteSaleLedger implements SaleLedger {
       recordCashMovement: (movement) => insertCashMovement(this.database, movement),
       recordCompletedSale: (saleId) => this.recordCompletedSale(saleId),
       appendOutboxEvent: (draft) => this.appendOutboxEvent(draft),
+      issuerIdentificationInEffect: () => readIssuerIdentificationInEffect(this.database),
+      buyerTaxStatusSetInEffect: () => readBuyerTaxStatusSetInEffect(this.database),
+      recordPreEmissionGate: (recorded) => insertPreEmissionGateOutcome(this.database, recorded),
     };
   }
 
