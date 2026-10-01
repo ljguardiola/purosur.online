@@ -9,8 +9,8 @@ export interface BranchRegisterPointOfSale extends RegisterPointOfSale {
   registerName: string;
 }
 
-export interface BranchRegisterPointsOfSale {
-  branchRegisterPointsOfSale(locationId: string): Promise<BranchRegisterPointOfSale[]>;
+export interface RegisterPointOfSaleReader {
+  listBranchRegisterPointsOfSale(locationId: string): Promise<BranchRegisterPointOfSale[]>;
 }
 
 export interface PointOfSaleClaim {

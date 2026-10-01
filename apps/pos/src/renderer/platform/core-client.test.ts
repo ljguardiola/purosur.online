@@ -260,7 +260,7 @@ describe("createCoreClient", () => {
     {
       id: "s1",
       opened_at: "2026-09-30T12:02:00.000Z",
-      opened_by: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+      opened_by: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
       locked: false,
     },
   ])("asks the core for the open cash session and resolves with it: %j", async (session) => {
@@ -351,6 +351,24 @@ describe("createCoreClient", () => {
         sale_id: "sale-1",
         tendered: 500_000,
       },
+    ]);
+  });
+
+  it("asks the core to charge a sale by transfer and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const outcome = client.chargeSaleByTransfer("sale-1");
+    port.answer({
+      type: "charge-sale-by-transfer-result",
+      request_id: "request-1",
+      outcome: { kind: "completed", sale_id: "sale-1", total: 476_000 },
+    });
+
+    expect(await outcome).toEqual({ kind: "completed", sale_id: "sale-1", total: 476_000 });
+    expect(port.posted).toEqual([
+      { type: "charge-sale-by-transfer", request_id: "request-1", sale_id: "sale-1" },
     ]);
   });
 

@@ -18,15 +18,22 @@ export type GuardedCashInOutcome =
 
 export type GuardedCashInFormProps = {
   person: SignedInPerson;
+  required: boolean;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   submit: (authorization: Authorization | undefined) => Promise<GuardedCashInOutcome>;
 };
 
-export function GuardedCashInForm({ person, loadAuthorizers, submit }: GuardedCashInFormProps) {
+export function GuardedCashInForm({
+  person,
+  required,
+  loadAuthorizers,
+  submit,
+}: GuardedCashInFormProps) {
   const authorization = useAuthorization({
     person,
     permission: "record_cash_in",
     loadAuthorizers,
+    required,
   });
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState<AuthorizedBy | null | undefined>();

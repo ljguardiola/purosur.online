@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { createRole } from "@purosur/domain/access/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -9,7 +10,7 @@ import {
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { createRole } from "./role-creation-route.js";
+import { DrizzleRoleStore } from "./drizzle-role-store.js";
 
 // PGlite runs every query over one connection, so it can never race two creations for the same
 // name; this runs them over a real postgres-js pool against a real Postgres instead.
@@ -46,12 +47,18 @@ describe("creating two roles with the same name concurrently on a real Postgres 
     const name = `Cajera ${suffix}`;
 
     const [first, second] = await Promise.all([
-      createRole(db, { name, permissionKeys: ["sell_and_charge"], actorId: administratorId }),
-      createRole(db, {
-        name: name.toUpperCase(),
-        permissionKeys: ["sell_and_charge"],
-        actorId: administratorId,
-      }),
+      createRole(
+        { store: new DrizzleRoleStore(db) },
+        { name, permissionKeys: ["sell_and_charge"], actorId: administratorId },
+      ),
+      createRole(
+        { store: new DrizzleRoleStore(db) },
+        {
+          name: name.toUpperCase(),
+          permissionKeys: ["sell_and_charge"],
+          actorId: administratorId,
+        },
+      ),
     ]);
 
     const outcomes = [first, second];

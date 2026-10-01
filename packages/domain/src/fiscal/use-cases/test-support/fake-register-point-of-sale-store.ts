@@ -1,9 +1,9 @@
 import type {
   BranchRegisterPointOfSale,
-  BranchRegisterPointsOfSale,
   LockBranchRegisterResult,
   PointOfSaleClaim,
   RegisterPointOfSale,
+  RegisterPointOfSaleReader,
   RegisterPointOfSaleRecord,
   RegisterPointOfSaleStore,
   RegisterPointOfSaleStoreTransaction,
@@ -108,7 +108,7 @@ class FakeRegisterPointOfSaleStoreTransaction implements RegisterPointOfSaleStor
 }
 
 export class FakeRegisterPointOfSaleStore
-  implements RegisterPointOfSaleStore, BranchRegisterPointsOfSale
+  implements RegisterPointOfSaleStore, RegisterPointOfSaleReader
 {
   private state: FakeRegisterPointOfSaleState = {
     registers: [],
@@ -142,7 +142,7 @@ export class FakeRegisterPointOfSaleStore
     return structuredClone(this.state);
   }
 
-  async branchRegisterPointsOfSale(locationId: string): Promise<BranchRegisterPointOfSale[]> {
+  async listBranchRegisterPointsOfSale(locationId: string): Promise<BranchRegisterPointOfSale[]> {
     return this.state.registers
       .filter((register) => register.locationId === locationId)
       .map((register) => {

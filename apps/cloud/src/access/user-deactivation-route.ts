@@ -1,10 +1,9 @@
-import { and, eq, isNull } from "drizzle-orm";
-import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { deactivateUser, findDeactivatableUser } from "@purosur/domain/access/use-cases";
+import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { auditLog, roles, sessions, userRoles, users } from "../platform/db/schema.js";
-import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
-import { findBranchUser } from "./branch-users.js";
+import { drizzleBranchUsers } from "./drizzle-branch-users.js";
+import { DrizzleUserStore } from "./drizzle-user-store.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import {
   openSessionOf,
@@ -14,76 +13,10 @@ import {
 } from "./route-access.js";
 import type { UsersRouteOptions } from "./users-list-route.js";
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 const USER_NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no user with that id belongs to this branch",
 } as const;
-
-export interface DeactivateUserInput {
-  id: string;
-  actorId: string;
-  at: Date;
-}
-
-export type DeactivateUserOutcome = { kind: "not_found" } | { kind: "deactivated" };
-
-export async function deactivateUser<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  input: DeactivateUserInput,
-  pending?: PendingChanges,
-): Promise<DeactivateUserOutcome> {
-  return withPendingChanges<TQueryResult, DeactivateUserOutcome>(
-    db,
-    pending,
-    async (tx, changes) => {
-      const [current] = await tx
-        .select({ active: users.active, version: users.version, locationId: users.locationId })
-        .from(users)
-        .where(eq(users.id, input.id))
-        .for("no key update");
-      if (!current?.active) {
-        return { kind: "not_found" };
-      }
-      const [currentRole] = await tx
-        .select({ isAdministrator: roles.isAdministrator })
-        .from(userRoles)
-        .innerJoin(roles, eq(roles.id, userRoles.roleId))
-        .where(eq(userRoles.userId, input.id));
-      if (currentRole?.isAdministrator) {
-        return { kind: "not_found" };
-      }
-
-      await tx
-        .update(users)
-        .set({ active: false, version: current.version + 1 })
-        .where(eq(users.id, input.id));
-      changes.note({
-        entity: "user",
-        entityId: input.id,
-        version: current.version + 1,
-        op: "update",
-        locationId: current.locationId,
-      });
-
-      await tx
-        .update(sessions)
-        .set({ revokedAt: input.at })
-        .where(and(eq(sessions.userId, input.id), isNull(sessions.revokedAt)));
-
-      await tx.insert(auditLog).values({
-        entity: "user",
-        entityId: input.id,
-        actorId: input.actorId,
-        previousValue: { active: true },
-        newValue: { active: false },
-      });
-
-      return { kind: "deactivated" };
-    },
-  );
-}
 
 export function registerUserDeactivationRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
@@ -92,17 +25,6 @@ export function registerUserDeactivationRoutes<TQueryResult extends PgQueryResul
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
-
-  async function findTarget(locationId: string, actorId: string, targetId: string) {
-    if (!UUID_PATTERN.test(targetId)) {
-      return undefined;
-    }
-    const row = await findBranchUser(options.db, locationId, targetId);
-    if (!row || row.roleIsAdministrator || row.id === actorId) {
-      return undefined;
-    }
-    return row;
-  }
 
   app.put<{ Params: { id: string } }>(
     "/users/:id/deactivation",
@@ -114,10 +36,13 @@ export function registerUserDeactivationRoutes<TQueryResult extends PgQueryResul
       const attemptedAt = now();
       const openSession = openSessionOf(request);
 
-      const target = await findTarget(
-        openSession.locationId,
-        openSession.userId,
-        request.params.id,
+      const target = await findDeactivatableUser(
+        { users: drizzleBranchUsers(options.db) },
+        {
+          locationId: openSession.locationId,
+          userId: request.params.id,
+          actorId: openSession.userId,
+        },
       );
       if (!target) {
         await reply.code(404).send(USER_NOT_FOUND_RESPONSE);
@@ -128,11 +53,10 @@ export function registerUserDeactivationRoutes<TQueryResult extends PgQueryResul
         return;
       }
 
-      const outcome = await deactivateUser(options.db, {
-        id: target.id,
-        actorId: openSession.userId,
-        at: attemptedAt,
-      });
+      const outcome = await deactivateUser(
+        { store: new DrizzleUserStore(options.db) },
+        { id: target.id, actorId: openSession.userId, at: attemptedAt },
+      );
 
       if (outcome.kind === "not_found") {
         await reply.code(404).send(USER_NOT_FOUND_RESPONSE);

@@ -3,7 +3,6 @@ import {
   authorizationRefusalSchema,
   authorizationSchema,
   authorizedBySchema,
-  guardedActionRefusalSchema,
 } from "./authorization.js";
 
 describe("authorizationSchema", () => {
@@ -65,30 +64,5 @@ describe("authorizationRefusalSchema", () => {
 
   it("refuses a kind it does not know", () => {
     expect(authorizationRefusalSchema.safeParse({ kind: "authorized" }).success).toBe(false);
-  });
-});
-
-describe("guardedActionRefusalSchema", () => {
-  it.each([
-    { kind: "not_signed_in" },
-    { kind: "lacks_permission" },
-    { kind: "unavailable" },
-    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 },
-    { kind: "rate_limited", retry_after_seconds: 4, attempts_left: 5 },
-    { kind: "locked", consecutive_failures: 8 },
-  ])("accepts a refusal of kind $kind", (refusal) => {
-    expect(guardedActionRefusalSchema.parse(refusal)).toEqual(refusal);
-  });
-
-  it("refuses a counted refusal without its counts", () => {
-    expect(guardedActionRefusalSchema.safeParse({ kind: "wrong_pin" }).success).toBe(false);
-  });
-
-  it("refuses a kind it does not know", () => {
-    expect(guardedActionRefusalSchema.safeParse({ kind: "authorized" }).success).toBe(false);
-  });
-
-  it("is the only refusal that can say nobody is signed in", () => {
-    expect(authorizationRefusalSchema.safeParse({ kind: "not_signed_in" }).success).toBe(false);
   });
 });

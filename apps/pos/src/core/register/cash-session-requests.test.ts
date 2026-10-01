@@ -1,4 +1,4 @@
-import { encodePinHash, PERMISSION_KEYS } from "@purosur/domain";
+import { encodePinHash, REGISTER_ABILITIES } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createActionGate } from "../access/action-gate";
 import { derivePinVerifier } from "../access/pin-verifier";
@@ -102,7 +102,7 @@ describe("opening a cash session on the register", () => {
       cash_session: {
         id: "id-1",
         opened_at: "2026-09-30T12:00:00.000Z",
-        opened_by: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+        opened_by: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
         locked: false,
       },
     });
@@ -126,7 +126,7 @@ describe("opening a cash session on the register", () => {
       cash_session: {
         id: "id-1",
         opened_at: "2026-09-30T12:00:00.000Z",
-        opened_by: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+        opened_by: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
         locked: false,
       },
     });
@@ -215,7 +215,7 @@ describe("the open cash session", () => {
     expect(currentCashSession(database, signedInPerson.userId())).toEqual({
       id: "id-1",
       opened_at: "2026-09-30T12:00:00.000Z",
-      opened_by: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+      opened_by: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
       locked: false,
     });
   });
@@ -235,15 +235,15 @@ describe("the open cash session", () => {
     expect(currentCashSession(database, signedInPerson.userId())?.locked).toBe(true);
   });
 
-  it("gives an Administrator opener every permission", async () => {
+  it("gives an Administrator opener every register ability", async () => {
     addRole("admin", { isAdministrator: true });
     addPerson("u3", "admin", "Carla");
     signedInPerson.set("u3");
     await openCashSessionFor(deps(), 0);
 
-    expect(
-      currentCashSession(database, signedInPerson.userId())?.opened_by.permission_keys,
-    ).toEqual([...PERMISSION_KEYS]);
+    expect(currentCashSession(database, signedInPerson.userId())?.opened_by.abilities).toEqual([
+      ...REGISTER_ABILITIES,
+    ]);
   });
 
   it.each([
@@ -258,27 +258,25 @@ describe("the open cash session", () => {
     expect(currentCashSession(database, signedInPerson.userId())?.opened_by).toEqual({
       user_id: "u1",
       first_name: "Ada",
-      permission_keys: ["sell_and_charge"],
+      abilities: ["open_cash_session"],
     });
   });
 
-  it("names its opener with the permissions the opener's role holds now", async () => {
+  it("names its opener with the abilities the opener's role holds now", async () => {
     await openCashSessionFor(deps(), 5000);
     database.prepare("UPDATE roles SET removed = 1").run();
 
-    expect(
-      currentCashSession(database, signedInPerson.userId())?.opened_by.permission_keys,
-    ).toEqual([]);
+    expect(currentCashSession(database, signedInPerson.userId())?.opened_by.abilities).toEqual([]);
   });
 
-  it("is still the open session when the opener's row is gone, with no name and no permissions", async () => {
+  it("is still the open session when the opener's row is gone, with no name and no abilities", async () => {
     await openCashSessionFor(deps(), 5000);
     database.prepare("DELETE FROM users").run();
 
     expect(currentCashSession(database, signedInPerson.userId())?.opened_by).toEqual({
       user_id: "u1",
       first_name: "",
-      permission_keys: [],
+      abilities: [],
     });
   });
 });
@@ -592,6 +590,7 @@ describe("identifying who closes a locked register", () => {
 
   it("refuses a person without the permission", async () => {
     addAuthorizer("u9", ["sell_and_charge"]);
+    await openAs("u1", 5000);
     signedInPerson.clear();
 
     expect(await identifyLockedCloserFor(deps(), CLOSER)).toEqual({ kind: "lacks_permission" });
@@ -599,6 +598,7 @@ describe("identifying who closes a locked register", () => {
 
   it("refuses a wrong PIN", async () => {
     addAuthorizer("u9", ["close_anothers_register_session"]);
+    await openAs("u1", 5000);
     signedInPerson.clear();
 
     const outcome = await identifyLockedCloserFor(deps(), { user_id: "u9", pin: "0000" });

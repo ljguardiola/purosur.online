@@ -124,7 +124,7 @@ describe("searchProductsByName", () => {
       sales: [
         sale("sold-here", "yerba", "COMPLETED"),
         sale("still-open", "queso", "OPEN"),
-        sale("cancelled", "queso", "CANCELLED"),
+        sale("voided", "queso", "VOIDED"),
         sale("other-register", "queso", "COMPLETED", "register-2"),
       ],
     });

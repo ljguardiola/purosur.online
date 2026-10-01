@@ -32,14 +32,14 @@ const OPENED: OpenCashSessionOutcome = {
   cash_session: {
     id: "s1",
     opened_at: "2026-09-30T12:02:00.000Z",
-    opened_by: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+    opened_by: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
     locked: false,
   },
 };
 const GRACE_SESSION: OpenCashSession = {
   id: "s1",
   opened_at: "2026-09-30T12:02:00.000Z",
-  opened_by: { user_id: "u2", first_name: "Grace", permission_keys: ["sell_and_charge"] },
+  opened_by: { user_id: "u2", first_name: "Grace", abilities: ["open_cash_session"] },
   locked: false,
 };
 const GRACE_SESSION_LOCKED: OpenCashSession = { ...GRACE_SESSION, locked: true };
@@ -55,19 +55,19 @@ const BALANCE: CashBalance = {
 };
 const ADA_SELLS: SignInOutcome = {
   kind: "signed_in",
-  person: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+  person: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
   cash_session: null,
 };
 
 const GRACE_SIGNED_IN: SignInOutcome = {
   kind: "signed_in",
-  person: { user_id: "u2", first_name: "Grace", permission_keys: ["sell_and_charge"] },
+  person: { user_id: "u2", first_name: "Grace", abilities: ["open_cash_session"] },
   cash_session: GRACE_SESSION,
 };
 
 const ADA_SIGNED_IN: SignInOutcome = {
   kind: "signed_in",
-  person: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+  person: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
   cash_session: null,
 };
 
@@ -101,6 +101,7 @@ function coreAnswering(
     scanProduct?: (code: string) => Promise<ScanProductOutcome>;
     cashCharge?: CoreClient["cashCharge"];
     chargeSaleInCash?: CoreClient["chargeSaleInCash"];
+    chargeSaleByTransfer?: CoreClient["chargeSaleByTransfer"];
     searchProducts?: CoreClient["searchProducts"];
     addProduct?: CoreClient["addProduct"];
   } = {},
@@ -218,6 +219,11 @@ function coreAnswering(
       return sales.chargeSaleInCash === undefined
         ? { kind: "unavailable" }
         : sales.chargeSaleInCash(saleId, tendered);
+    },
+    async chargeSaleByTransfer(saleId) {
+      return sales.chargeSaleByTransfer === undefined
+        ? { kind: "unavailable" }
+        : sales.chargeSaleByTransfer(saleId);
     },
     async closeCashSession(sessionId, countedCash) {
       closed.push([sessionId, countedCash]);
@@ -840,7 +846,7 @@ describe("App", () => {
     it("resumes the session when the opener redeemed the code", async () => {
       const screen = await redeemFromLocked({
         kind: "resumed",
-        person: { user_id: "u2", first_name: "Grace", permission_keys: ["sell_and_charge"] },
+        person: { user_id: "u2", first_name: "Grace", abilities: ["open_cash_session"] },
         cash_session: GRACE_SESSION,
       });
 
@@ -853,7 +859,7 @@ describe("App", () => {
       const screen = await redeemFromLocked(
         {
           kind: "resumed",
-          person: { user_id: "u2", first_name: "Grace", permission_keys: ["sell_and_charge"] },
+          person: { user_id: "u2", first_name: "Grace", abilities: ["open_cash_session"] },
           cash_session: GRACE_SESSION,
         },
         async () => {
@@ -1017,6 +1023,104 @@ describe("App", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
     await expect.element(screen.getByRole("heading", { name: "Entregá el vuelto" })).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "Nueva venta" }));
+
+    await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    await expect.poll(() => reads).toBe(3);
+    await expect.element(screen.getByText("Yerba mate 1 kg")).not.toBeInTheDocument();
+  });
+
+  it("charges the sale in progress by transfer through the core", async () => {
+    const charges: string[] = [];
+    const { core } = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      GRACE_SIGNED_IN,
+      { cashSession: async () => GRACE_SESSION },
+      {
+        currentSale: async () => ({
+          id: "sale-1",
+          lines: [
+            {
+              id: "line-1",
+              product_id: "p1",
+              product_name: "Yerba mate 1 kg",
+              quantity: 1,
+              list_unit_price: 238_000,
+              discount_amount: 0,
+              promotion: null,
+              line_total: 238_000,
+            },
+          ],
+          total: 238_000,
+          charge_refusal: null,
+        }),
+        chargeSaleByTransfer: async (saleId) => {
+          charges.push(saleId);
+          return { kind: "completed", sale_id: saleId, total: 238_000 };
+        },
+      },
+    );
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await resumeLockedRegister(screen);
+
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+    await userEvent.click(screen.getByText("Transferencia", { exact: true }));
+    await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
+
+    await expect
+      .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }))
+      .toBeVisible();
+    expect(charges).toEqual(["sale-1"]);
+  });
+
+  it("shows no line of the sale that was just charged by transfer when a new sale starts", async () => {
+    const yerba = {
+      id: "line-1",
+      product_id: "p1",
+      product_name: "Yerba mate 1 kg",
+      quantity: 1,
+      list_unit_price: 238_000,
+      discount_amount: 0,
+      promotion: null,
+      line_total: 238_000,
+    };
+    let reads = 0;
+    const { core } = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      GRACE_SIGNED_IN,
+      { cashSession: async () => GRACE_SESSION },
+      {
+        currentSale: () => {
+          reads += 1;
+          return reads <= 2
+            ? Promise.resolve({
+                id: "sale-1",
+                lines: [yerba],
+                total: 238_000,
+                charge_refusal: null,
+              })
+            : new Promise(() => {});
+        },
+        chargeSaleByTransfer: async (saleId) => ({
+          kind: "completed",
+          sale_id: saleId,
+          total: 238_000,
+        }),
+      },
+    );
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await resumeLockedRegister(screen);
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+    await userEvent.click(screen.getByText("Transferencia", { exact: true }));
+    await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
+    await expect
+      .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }))
+      .toBeVisible();
 
     await userEvent.click(screen.getByRole("button", { name: "Nueva venta" }));
 
@@ -1802,7 +1906,7 @@ describe("App", () => {
   describe("recording cash movements", () => {
     const MOVER_SESSION: OpenCashSession = {
       ...GRACE_SESSION,
-      opened_by: { ...GRACE_SESSION.opened_by, permission_keys: ["record_cash_in"] },
+      opened_by: { ...GRACE_SESSION.opened_by, abilities: [] },
     };
     const OPENING: ListedCashMovement = {
       id: "m1",
@@ -1831,7 +1935,7 @@ describe("App", () => {
         { kind: "enrolled" },
         {
           kind: "signed_in",
-          person: { user_id: "u2", first_name: "Grace", permission_keys: ["record_cash_in"] },
+          person: { user_id: "u2", first_name: "Grace", abilities: [] },
           cash_session: MOVER_SESSION,
         },
         {

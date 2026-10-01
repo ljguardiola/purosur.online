@@ -20,7 +20,7 @@ const REQUEST_ID = "7d1c1e1e-5b1a-4a53-9c1c-3a7c6f0b2d10";
 const OPEN_CASH_SESSION = {
   id: "s1",
   opened_at: "2026-09-30T12:00:00.000Z",
-  opened_by: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+  opened_by: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
   locked: false,
 };
 
@@ -370,12 +370,12 @@ describe("coreToRendererMessageSchema", () => {
     { kind: "redeemed" },
     {
       kind: "resumed",
-      person: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+      person: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
       cash_session: OPEN_CASH_SESSION,
     },
     {
       kind: "resumed",
-      person: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+      person: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
       cash_session: null,
     },
     { kind: "cash_session_opened_by_another" },
@@ -396,7 +396,7 @@ describe("coreToRendererMessageSchema", () => {
     { kind: "resumed", cash_session: OPEN_CASH_SESSION },
     {
       kind: "resumed",
-      person: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+      person: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
     },
   ])(
     "rejects a resumed PIN code redemption without the person or the cash session: %j",
@@ -514,13 +514,13 @@ describe("sign-in answers", () => {
       person: {
         user_id: "u1",
         first_name: "Ada",
-        permission_keys: ["sell_and_charge", "void_sale"],
+        abilities: ["open_cash_session", "view_sales_history"],
       },
       cash_session: OPEN_CASH_SESSION,
     },
     {
       kind: "signed_in",
-      person: { user_id: "u1", first_name: "Ada", permission_keys: [] },
+      person: { user_id: "u1", first_name: "Ada", abilities: [] },
       cash_session: null,
     },
     { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 },
@@ -559,7 +559,7 @@ describe("sign-in answers", () => {
       request_id: REQUEST_ID,
       outcome: {
         kind: "signed_in",
-        person: { user_id: "u1", first_name: "Ada", permission_keys: [], role_name: "Cajera" },
+        person: { user_id: "u1", first_name: "Ada", abilities: [], role_name: "Cajera" },
         cash_session: null,
       },
     };
@@ -570,8 +570,18 @@ describe("sign-in answers", () => {
   it.each([
     { kind: "signed_in" },
     { kind: "signed_in", person: { first_name: "Ada" }, cash_session: null },
-    { kind: "signed_in", person: { first_name: "Ada", permission_keys: [] }, cash_session: null },
-    { kind: "signed_in", person: { user_id: "u1", first_name: "Ada", permission_keys: [] } },
+    { kind: "signed_in", person: { first_name: "Ada", abilities: [] }, cash_session: null },
+    { kind: "signed_in", person: { user_id: "u1", first_name: "Ada", abilities: [] } },
+    {
+      kind: "signed_in",
+      person: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+      cash_session: null,
+    },
+    {
+      kind: "signed_in",
+      person: { user_id: "u1", first_name: "Ada", abilities: ["sell_and_charge"] },
+      cash_session: null,
+    },
     { kind: "x" },
     { kind: "wrong_pin" },
     { kind: "wrong_pin", retry_after_seconds: 0 },
@@ -744,7 +754,6 @@ describe("closing a cash session answers", () => {
     { kind: "not_signed_in" },
     { kind: "lacks_permission" },
     { kind: "unavailable" },
-    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
   ])("accepts the close result $kind", (outcome) => {
     const message = { type: "close-cash-session-result", request_id: REQUEST_ID, outcome };
 
@@ -758,6 +767,9 @@ describe("closing a cash session answers", () => {
     { kind: "open_sale", total: 4500 },
     { kind: "open_sale", total: 4500, cancellable: "yes" },
     { kind: "x" },
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
+    { kind: "rate_limited", retry_after_seconds: 4, attempts_left: 5 },
+    { kind: "locked", consecutive_failures: 8 },
   ])("rejects a close result it does not know: %j", (outcome) => {
     const message = { type: "close-cash-session-result", request_id: REQUEST_ID, outcome };
 
@@ -1075,7 +1087,7 @@ describe("cash session answers", () => {
       session: {
         id: "s1",
         opened_at: "2026-09-30T12:00:00.000Z",
-        opened_by: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+        opened_by: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
         locked: false,
       },
     };
@@ -1106,29 +1118,29 @@ describe("cash session answers", () => {
     { id: "s1", opened_at: "2026-09-30T12:00:00.000Z", locked: false },
     {
       id: "s1",
-      opened_by: { user_id: "u1", first_name: "Ada", permission_keys: [] },
+      opened_by: { user_id: "u1", first_name: "Ada", abilities: [] },
       locked: false,
     },
     {
       opened_at: "2026-09-30T12:00:00.000Z",
-      opened_by: { user_id: "u1", first_name: "Ada", permission_keys: [] },
-      locked: false,
-    },
-    {
-      id: "s1",
-      opened_at: "2026-09-30T12:00:00.000Z",
-      opened_by: { first_name: "Ada", permission_keys: [] },
+      opened_by: { user_id: "u1", first_name: "Ada", abilities: [] },
       locked: false,
     },
     {
       id: "s1",
       opened_at: "2026-09-30T12:00:00.000Z",
-      opened_by: { user_id: "u1", first_name: "Ada", permission_keys: [] },
+      opened_by: { first_name: "Ada", abilities: [] },
+      locked: false,
     },
     {
       id: "s1",
       opened_at: "2026-09-30T12:00:00.000Z",
-      opened_by: { user_id: "u1", first_name: "Ada", permission_keys: [] },
+      opened_by: { user_id: "u1", first_name: "Ada", abilities: [] },
+    },
+    {
+      id: "s1",
+      opened_at: "2026-09-30T12:00:00.000Z",
+      opened_by: { user_id: "u1", first_name: "Ada", abilities: [] },
       locked: "yes",
     },
   ])("rejects an open cash session it does not know: %j", (session) => {
@@ -1785,6 +1797,57 @@ describe("charge sale in cash answer", () => {
 
   it("rejects a result without its request id", () => {
     const message = { type: "charge-sale-in-cash-result", outcome: { kind: "empty_sale" } };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+});
+
+describe("charge sale by transfer request", () => {
+  const message = { type: "charge-sale-by-transfer", request_id: REQUEST_ID, sale_id: "s1" };
+
+  it("accepts a charge of a sale", () => {
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("does not take who is charging or an amount from the renderer", () => {
+    expect(
+      rendererToCoreMessageSchema.parse({ ...message, user_id: "u9", tendered: 5000, amount: 1 }),
+    ).toEqual(message);
+  });
+
+  it.each([
+    ["request id", { ...message, request_id: undefined }],
+    ["sale id", { ...message, sale_id: undefined }],
+    ["sale id as text", { ...message, sale_id: 7 }],
+  ])("rejects a charge without a valid %s", (_case, value) => {
+    expect(rendererToCoreMessageSchema.safeParse(value).success).toBe(false);
+  });
+});
+
+describe("charge sale by transfer answer", () => {
+  it.each([
+    { kind: "completed", sale_id: "s1", total: 3000 },
+    { kind: "empty_sale" },
+    { kind: "not_signed_in" },
+    { kind: "unavailable" },
+  ])("accepts the result $kind", (outcome) => {
+    const message = { type: "charge-sale-by-transfer-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a result it does not know", () => {
+    const message = {
+      type: "charge-sale-by-transfer-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "insufficient_cash", amount_due: 3000 },
+    };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("rejects a result without its request id", () => {
+    const message = { type: "charge-sale-by-transfer-result", outcome: { kind: "empty_sale" } };
 
     expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });

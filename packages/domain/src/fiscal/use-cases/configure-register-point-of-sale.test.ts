@@ -280,7 +280,7 @@ describe("the points of sale of a branch's registers", () => {
     const store = storeWithRegisters();
     await configure(store);
 
-    const overview = await store.branchRegisterPointsOfSale(BRANCH);
+    const overview = await store.listBranchRegisterPointsOfSale(BRANCH);
 
     expect(overview).toEqual([
       {

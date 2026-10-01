@@ -1,5 +1,7 @@
 import type {
   Authorization,
+  ChargeSaleByTransferOutcome,
+  ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   OpenCashSession,
@@ -201,9 +203,10 @@ function Register({ core }: { core: CoreClient }) {
     return balance;
   }
 
-  async function chargeSaleInCash(saleId: string, tendered: number) {
-    const outcome = await core.chargeSaleInCash(saleId, tendered);
-    if (outcome.kind === "completed") {
+  async function refreshAfterCharge(
+    kind: (ChargeSaleInCashOutcome | ChargeSaleByTransferOutcome)["kind"],
+  ) {
+    if (kind === "completed") {
       if (cashSession.status === "open" && person !== undefined) {
         await setQueryAnswer(
           queryClient,
@@ -213,13 +216,24 @@ function Register({ core }: { core: CoreClient }) {
       }
       void queryClient.invalidateQueries({ queryKey: cashKey });
     } else if (
-      outcome.kind === "empty_sale" ||
-      outcome.kind === "zero_total" ||
-      outcome.kind === "no_open_sale" ||
-      outcome.kind === "not_permitted"
+      kind === "empty_sale" ||
+      kind === "zero_total" ||
+      kind === "no_open_sale" ||
+      kind === "not_permitted"
     ) {
       void queryClient.invalidateQueries({ queryKey: salesKeys.currentSaleRoot });
     }
+  }
+
+  async function chargeSaleInCash(saleId: string, tendered: number) {
+    const outcome = await core.chargeSaleInCash(saleId, tendered);
+    await refreshAfterCharge(outcome.kind);
+    return outcome;
+  }
+
+  async function chargeSaleByTransfer(saleId: string) {
+    const outcome = await core.chargeSaleByTransfer(saleId);
+    await refreshAfterCharge(outcome.kind);
     return outcome;
   }
 
@@ -277,6 +291,7 @@ function Register({ core }: { core: CoreClient }) {
     scanProduct: (code: string) => core.scanProduct(code),
     cashCharge: (saleId: string, tendered: number) => core.cashCharge(saleId, tendered),
     chargeSaleInCash,
+    chargeSaleByTransfer,
     searchProducts: (query: string) => core.searchProducts(query),
     addProduct: (productId: string) => core.addProduct(productId),
     changeLineQuantity: (lineId: string, quantity: number, expectedQuantity: number) =>

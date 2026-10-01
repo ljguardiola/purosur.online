@@ -2,7 +2,7 @@ import type { RegisteredRouter } from "@tanstack/react-router";
 import { describe, expectTypeOf, it } from "vitest";
 import type { ActionEntry } from "./action-entries";
 
-type Permission = ActionEntry["permission"];
+type Ability = ActionEntry["ability"];
 type Destination = ActionEntry["to"];
 
 describe("the no-session menu's action entries", () => {
@@ -11,17 +11,18 @@ describe("the no-session menu's action entries", () => {
     "reprint_receipt",
     "correct_register_clock",
     "record_initial_inventory",
-  ] as const)("accepts %s as the permission of an entry", (key) => {
-    expectTypeOf(key).toExtend<Permission>();
+  ] as const)("accepts %s as the ability of an entry", (key) => {
+    expectTypeOf(key).toExtend<Ability>();
   });
 
-  it("refuses the permissions that sell, collect, void, return or move cash", () => {
-    expectTypeOf<"sell_and_charge">().not.toExtend<Permission>();
-    expectTypeOf<"void_sale">().not.toExtend<Permission>();
-    expectTypeOf<"process_return">().not.toExtend<Permission>();
-    expectTypeOf<"record_cash_in">().not.toExtend<Permission>();
-    expectTypeOf<"record_cash_expense">().not.toExtend<Permission>();
-    expectTypeOf<"withdraw_cash">().not.toExtend<Permission>();
+  it("refuses the names that sell, collect, void, return or move cash", () => {
+    expectTypeOf<"open_cash_session">().not.toExtend<Ability>();
+    expectTypeOf<"sell_and_charge">().not.toExtend<Ability>();
+    expectTypeOf<"void_sale">().not.toExtend<Ability>();
+    expectTypeOf<"process_return">().not.toExtend<Ability>();
+    expectTypeOf<"record_cash_in">().not.toExtend<Ability>();
+    expectTypeOf<"record_cash_expense">().not.toExtend<Ability>();
+    expectTypeOf<"withdraw_cash">().not.toExtend<Ability>();
   });
 
   it("opens a route the register declares", () => {

@@ -132,7 +132,7 @@ describe("cash queries", () => {
 const GRACE_SESSION: OpenCashSession = {
   id: "s1",
   opened_at: "2026-09-30T12:02:00.000Z",
-  opened_by: { user_id: "u2", first_name: "Grace", permission_keys: ["sell_and_charge"] },
+  opened_by: { user_id: "u2", first_name: "Grace", abilities: ["open_cash_session"] },
   locked: false,
 };
 

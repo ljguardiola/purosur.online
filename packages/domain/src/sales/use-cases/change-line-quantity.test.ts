@@ -4,9 +4,7 @@ import { changeLineQuantity } from "./change-line-quantity.js";
 import {
   FakeSaleLedger,
   type FakeSaleLedgerState,
-  type FakeSaleLedgerWrite,
   FixedClock,
-  SequentialIds,
 } from "./test-support/fake-sale-ledger.js";
 
 const NOW = new Date("2026-09-30T12:34:56.789Z");
@@ -73,13 +71,13 @@ function change(
   expectedQuantity = storedLine(store, lineId)?.quantity ?? 1,
 ) {
   return changeLineQuantity(
-    { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds() },
+    { ledger: store, clock: new FixedClock(NOW) },
     { actorId, lineId, quantity, expectedQuantity },
   );
 }
 
 describe("changeLineQuantity", () => {
-  it("raises a line's quantity and recomputes its total, recording no removal", () => {
+  it("raises a line's quantity and recomputes its total", () => {
     const store = ledger();
 
     const outcome = change(store, "line-1", 5);
@@ -92,12 +90,12 @@ describe("changeLineQuantity", () => {
         lines: [{ ...YERBA_LINE, quantity: 5, lineTotal: 12500 }, AZUCAR_LINE],
       },
     });
-    expect(store.state.removals).toEqual([]);
     expect(store.state.outbox).toEqual([]);
   });
 
-  it("lowers a line's quantity and records what left the sale in the same transaction", () => {
+  it("lowers a line's quantity and leaves no trace of the units taken out", () => {
     const store = ledger();
+    const before = structuredClone(store.state);
 
     const outcome = change(store, "line-1", 1);
 
@@ -106,22 +104,16 @@ describe("changeLineQuantity", () => {
       kind: "changed",
       sale: { ...OPEN_SALE, lines: [{ ...YERBA_LINE, quantity: 1, lineTotal: 2500 }, AZUCAR_LINE] },
     });
-    expect(store.state.removals).toEqual([
-      {
-        id: "id-1",
-        saleId: "sale-1",
-        saleLineId: "line-1",
-        productId: "yerba",
-        qtyRemoved: 2,
-        amountRemoved: 5000,
-        actorId: "cashier",
-        occurredAt: NOW,
-      },
-    ]);
+    expect(store.state).toEqual({
+      ...before,
+      sales: [
+        { ...OPEN_SALE, lines: [{ ...YERBA_LINE, quantity: 1, lineTotal: 2500 }, AZUCAR_LINE] },
+      ],
+    });
     expect(store.transactions).toBe(1);
   });
 
-  it("picks the promotion again when lowering, charging the removed amount against the promoted totals", () => {
+  it("picks the promotion again when lowering", () => {
     const promoted = {
       ...YERBA_LINE,
       promotions: [TEN_PERCENT, THREE_FOR_TWO],
@@ -140,12 +132,9 @@ describe("changeLineQuantity", () => {
       discountAmount: 500,
       lineTotal: 4500,
     });
-    expect(store.state.removals).toEqual([
-      expect.objectContaining({ qtyRemoved: 1, amountRemoved: 500 }),
-    ]);
   });
 
-  it("records a negative removed amount when lowering drops a promotion that charged less", () => {
+  it("drops a promotion the lowered quantity no longer reaches", () => {
     const threeForOne = {
       id: "three-for-one",
       benefit: { kind: "BUY_N_PAY_M" as const, buyQty: 3, payQty: 1 },
@@ -168,9 +157,6 @@ describe("changeLineQuantity", () => {
       discountAmount: 0,
       lineTotal: 5000,
     });
-    expect(store.state.removals).toEqual([
-      expect.objectContaining({ qtyRemoved: 1, amountRemoved: -2500 }),
-    ]);
   });
 
   it("picks the promotion again when raising, exactly as scanning another unit does", () => {
@@ -195,7 +181,7 @@ describe("changeLineQuantity", () => {
     });
   });
 
-  it("changes nothing and records no removal when the quantity is the same", () => {
+  it("changes nothing when the quantity is the same", () => {
     const store = ledger();
     const before = structuredClone(store.state);
 
@@ -229,7 +215,6 @@ describe("changeLineQuantity", () => {
 
     expect(outcome).toEqual({ kind: "stale_quantity" });
     expect(storedLine(store, "line-1")).toEqual(YERBA_LINE);
-    expect(store.state.removals).toEqual([]);
     expect(store.state).toEqual(before);
   });
 
@@ -334,17 +319,14 @@ describe("changeLineQuantity", () => {
     expect(change(ledger(), "line-9", 0)).toEqual({ kind: "invalid_quantity" });
   });
 
-  it.each<FakeSaleLedgerWrite>(["recordLineQuantity", "recordLineRemoval"])(
-    "leaves the quantity and the removals untouched when %s fails",
-    (write) => {
-      const store = ledger();
-      const before = structuredClone(store.state);
-      store.failOn = write;
+  it("leaves the quantity untouched when recording it fails", () => {
+    const store = ledger();
+    const before = structuredClone(store.state);
+    store.failOn = "recordLineQuantity";
 
-      expect(() => change(store, "line-1", 1)).toThrow(` failed`);
-      expect(store.state).toEqual(before);
-    },
-  );
+    expect(() => change(store, "line-1", 1)).toThrow("recordLineQuantity failed");
+    expect(store.state).toEqual(before);
+  });
 });
 
 describe("change-line-quantity charge refusal", () => {

@@ -1,11 +1,11 @@
 import { userPinCodeSchema } from "@purosur/contracts";
 import { mayEmitPinCodeFor } from "@purosur/domain";
-import { emitUserPinCode } from "@purosur/domain/access/use-cases";
+import { emitUserPinCode, findBranchUser } from "@purosur/domain/access/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
-import { findBranchUser } from "./branch-users.js";
+import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 import { DrizzlePinCodeStore } from "./drizzle-pin-code-store.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import { generatePinCode } from "./pin-code-generator.js";
@@ -42,9 +42,10 @@ export function registerUserPinCodeRoutes<TQueryResult extends PgQueryResultHKT>
       const actor = { id: openSession.userId, isAdministrator: openSession.isAdministrator };
 
       const target = UUID_PATTERN.test(request.params.id)
-        ? await findBranchUser(options.db, openSession.locationId, request.params.id, {
-            activeScope: "any",
-          })
+        ? await findBranchUser(
+            { users: drizzleBranchUsers(options.db) },
+            { locationId: openSession.locationId, userId: request.params.id, activeScope: "any" },
+          )
         : undefined;
       if (
         !target ||

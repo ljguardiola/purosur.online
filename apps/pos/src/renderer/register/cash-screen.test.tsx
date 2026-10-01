@@ -6,13 +6,14 @@ import type {
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import type { SignedInPerson } from "../access/signed-in-person";
 import { render } from "../shell/test-support/render-with-router";
 import { CashScreen } from "./cash-screen";
 
-const PERSON = {
+const PERSON: SignedInPerson = {
   user_id: "u1",
   first_name: "Ada",
-  permission_keys: ["sell_and_charge", "record_cash_in"],
+  abilities: ["open_cash_session"],
 };
 // 12:02 UTC is 09:02 in Argentina.
 const OPENED_AT = "2026-09-30T12:02:00.000Z";

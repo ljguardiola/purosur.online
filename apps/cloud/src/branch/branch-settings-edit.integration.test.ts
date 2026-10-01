@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { editBranchSettings } from "@purosur/domain/branch/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -9,7 +10,7 @@ import {
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { editBranchSettings } from "./branch-settings-edit-route.js";
+import { DrizzleBranchSettingsStore } from "./drizzle-branch-settings-store.js";
 
 // PGlite runs every query over one connection, so it can never race two saves for the same
 // location; this runs them over a real postgres-js pool against a real Postgres instead.
@@ -65,17 +66,17 @@ describe("two saves racing on the same branch's settings version, on a real Post
 
     const [first, second] = await Promise.all([
       editBranchSettings(
-        db,
+        { store: new DrizzleBranchSettingsStore(db) },
         editInput(locationId, actorId, { address: "Calle de Prueba 1 - Primera edición" }),
       ),
       editBranchSettings(
-        db,
+        { store: new DrizzleBranchSettingsStore(db) },
         editInput(locationId, actorId, { address: "Calle de Prueba 1 - Segunda edición" }),
       ),
     ]);
 
     const outcomes = [first, second];
-    expect(outcomes.filter((outcome) => outcome.kind === "applied")).toHaveLength(1);
+    expect(outcomes.filter((outcome) => outcome.kind === "edited")).toHaveLength(1);
     expect(outcomes.filter((outcome) => outcome.kind === "stale_version")).toHaveLength(1);
 
     const [row] = await db
@@ -84,11 +85,11 @@ describe("two saves racing on the same branch's settings version, on a real Post
       .where(eq(branchSettings.locationId, locationId));
     expect(row).toMatchObject({ version: 2 });
 
-    const winner = outcomes.find((outcome) => outcome.kind === "applied");
-    if (winner?.kind !== "applied") {
+    const winner = outcomes.find((outcome) => outcome.kind === "edited");
+    if (winner?.kind !== "edited") {
       throw new Error("test setup: expected one save to have won the race");
     }
-    expect(row?.address).toBe(winner.row.address);
+    expect(row?.address).toBe(winner.settings.address);
 
     const audited = await db.select().from(auditLog).where(eq(auditLog.entityId, locationId));
     expect(audited.filter((entry) => entry.entity === "branch_settings")).toHaveLength(1);

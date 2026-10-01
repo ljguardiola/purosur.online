@@ -74,9 +74,6 @@ export function CashCountScreen({
         case "lacks_permission":
           setNotice(NOT_PERMITTED);
           break;
-        case "wrong_pin":
-        case "rate_limited":
-        case "locked":
         case "unavailable":
         case "not_signed_in":
           setNotice(FAILED);
