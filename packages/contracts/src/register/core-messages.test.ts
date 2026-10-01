@@ -1304,6 +1304,43 @@ describe("sale requests", () => {
   });
 });
 
+describe("charge sale in cash request", () => {
+  const message = {
+    type: "charge-sale-in-cash",
+    request_id: REQUEST_ID,
+    sale_id: "s1",
+    tendered: 5000,
+  };
+
+  it("accepts a charge of a sale with the amount tendered in cents", () => {
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("does not take who is charging from the renderer", () => {
+    expect(rendererToCoreMessageSchema.parse({ ...message, user_id: "u9" })).toEqual(message);
+  });
+
+  it.each([0, -100, MAX_CASH_AMOUNT_CENTS + 1])(
+    "leaves the amount %s for the core to refuse as invalid",
+    (tendered) => {
+      expect(rendererToCoreMessageSchema.parse({ ...message, tendered })).toEqual({
+        ...message,
+        tendered,
+      });
+    },
+  );
+
+  it.each([
+    ["request id", { ...message, request_id: undefined }],
+    ["sale id", { ...message, sale_id: undefined }],
+    ["tendered amount", { ...message, tendered: undefined }],
+    ["whole number of cents", { ...message, tendered: 12.5 }],
+    ["number", { ...message, tendered: "5000" }],
+  ])("rejects a charge without a valid %s", (_case, value) => {
+    expect(rendererToCoreMessageSchema.safeParse(value).success).toBe(false);
+  });
+});
+
 describe("sale answers", () => {
   const sale = {
     id: "s1",
@@ -1415,5 +1452,34 @@ describe("sale answers", () => {
     expect(coreToRendererMessageSchema.safeParse({ type: "sale-not-permitted" }).success).toBe(
       false,
     );
+  });
+});
+
+describe("charge sale in cash answer", () => {
+  it.each([
+    { kind: "completed", sale_id: "s1", total: 3000, tendered: 5000, change: 2000 },
+    { kind: "insufficient_cash", amount_due: 3000 },
+    { kind: "not_signed_in" },
+    { kind: "unavailable" },
+  ])("accepts the result $kind", (outcome) => {
+    const message = { type: "charge-sale-in-cash-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a result it does not know", () => {
+    const message = {
+      type: "charge-sale-in-cash-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "somewhere_else" },
+    };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("rejects a result without its request id", () => {
+    const message = { type: "charge-sale-in-cash-result", outcome: { kind: "empty_sale" } };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 });

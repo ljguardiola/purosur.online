@@ -1,0 +1,222 @@
+import type { ChargeSaleInCashOutcome, CurrentSaleAnswer, OpenSale } from "@purosur/contracts";
+import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
+import { render } from "../shell/test-support/render-with-router";
+import { ChargeScreen } from "./charge-screen";
+
+const PERSON = { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] };
+const YERBA = {
+  id: "line-1",
+  product_id: "p1",
+  product_name: "Yerba mate 1 kg",
+  quantity: 2,
+  list_unit_price: 238_000,
+  discount_amount: 0,
+  promotion: null,
+  line_total: 476_000,
+};
+const ALFAJOR = {
+  id: "line-2",
+  product_id: "p2",
+  product_name: "Alfajor triple",
+  quantity: 1,
+  list_unit_price: 150_000,
+  discount_amount: 0,
+  promotion: null,
+  line_total: 150_000,
+};
+const SALE_OF_ONE_LINE: OpenSale = { id: "sale-1", lines: [YERBA], total: 476_000 };
+const SALE_OF_TWO_LINES: OpenSale = { id: "sale-1", lines: [YERBA, ALFAJOR], total: 626_000 };
+const COMPLETED: ChargeSaleInCashOutcome = {
+  kind: "completed",
+  sale_id: "sale-1",
+  total: 476_000,
+  tendered: 500_000,
+  change: 24_000,
+};
+
+type Overrides = {
+  currentSale?: () => Promise<CurrentSaleAnswer>;
+  chargeSaleInCash?: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
+};
+
+async function renderScreen(overrides: Overrides = {}) {
+  await page.viewport(1280, 1000);
+  onTestFinished(() => page.viewport(414, 896));
+  const currentSale = vi.fn(overrides.currentSale ?? (async () => SALE_OF_ONE_LINE));
+  const chargeSaleInCash = vi.fn(overrides.chargeSaleInCash ?? (async () => COMPLETED));
+  const onSessionInvalid = vi.fn();
+  const screen = await render(
+    <ChargeScreen
+      person={PERSON}
+      registerName="Caja 1"
+      lock={() => {}}
+      currentSale={currentSale}
+      chargeSaleInCash={chargeSaleInCash}
+      onSessionInvalid={onSessionInvalid}
+    />,
+  );
+  return { screen, currentSale, chargeSaleInCash, onSessionInvalid };
+}
+
+type Screen = Awaited<ReturnType<typeof renderScreen>>["screen"];
+
+async function chooseCash(screen: Screen) {
+  await userEvent.click(screen.getByText("Efectivo", { exact: true }));
+}
+
+async function chargeInCash(screen: Screen, tendered: string) {
+  await chooseCash(screen);
+  await userEvent.fill(
+    screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
+    tendered,
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
+}
+
+describe("ChargeScreen", () => {
+  it("offers cash as the way to pay, for the sale in progress", async () => {
+    const { screen } = await renderScreen({ currentSale: async () => SALE_OF_TWO_LINES });
+
+    await expect.element(screen.getByText("COBRO · VENTA DE 2 LÍNEAS")).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
+      .toBeVisible();
+    await expect.element(screen.getByRole("radio", { name: "Efectivo" })).toBeVisible();
+    await expect.element(screen.getByText("Cargás lo entregado y ves el vuelto")).toBeVisible();
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("says one line in the singular", async () => {
+    const { screen } = await renderScreen();
+
+    await expect.element(screen.getByText("COBRO · VENTA DE 1 LÍNEA")).toBeVisible();
+  });
+
+  it("shows the total still to be charged in the payment panel", async () => {
+    const { screen } = await renderScreen({ currentSale: async () => SALE_OF_TWO_LINES });
+
+    const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
+    await expect.element(panel.getByText("$ 6.260,00").first()).toBeVisible();
+    await expect.element(panel.getByText("$ 0,00")).toBeVisible();
+  });
+
+  it("marks Venta as the current screen of the menu", async () => {
+    const { screen } = await renderScreen();
+
+    await expect
+      .element(screen.getByRole("navigation", { name: "Menú de la caja" }).getByText("Venta"))
+      .toBeVisible();
+    await expect.element(screen.getByText("Ada")).toBeVisible();
+  });
+
+  it("goes back to the sale from Volver a la venta", async () => {
+    const { screen } = await renderScreen();
+
+    await userEvent.click(screen.getByRole("button", { name: "Volver a la venta" }));
+
+    await expect.poll(() => screen.router.state.location.pathname).toBe("/session");
+  });
+
+  it.each<[string, CurrentSaleAnswer]>([
+    ["there is no sale", null],
+    ["the sale has no lines", { id: "sale-1", lines: [], total: 0 }],
+    ["the person may not sell", "not_permitted"],
+  ])("goes back to the sale when %s", async (_, answer) => {
+    const { screen } = await renderScreen({ currentSale: async () => answer });
+
+    await expect.poll(() => screen.router.state.location.pathname).toBe("/session");
+  });
+
+  it("says the sale could not be loaded and reads it again on retry", async () => {
+    const answers = [
+      () => Promise.reject(new Error("the core could not read the sale in progress")),
+      () => Promise.resolve(SALE_OF_ONE_LINE),
+    ];
+    const { screen, currentSale } = await renderScreen({
+      currentSale: () => {
+        const answer = answers.shift();
+        if (answer === undefined) {
+          throw new Error("no answer left");
+        }
+        return answer();
+      },
+    });
+
+    await expect.element(screen.getByText("No se pudo cargar la venta")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+    await expect.element(screen.getByRole("radio", { name: "Efectivo" })).toBeVisible();
+    expect(currentSale).toHaveBeenCalledTimes(2);
+  });
+
+  it("opens the cash charge when Efectivo is chosen, and returns to the methods from Cambiar de medio", async () => {
+    const { screen } = await renderScreen();
+
+    await chooseCash(screen);
+    await expect.element(screen.getByText("COBRO EN EFECTIVO")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
+
+    await expect.element(screen.getByText("COBRO EN EFECTIVO")).not.toBeInTheDocument();
+    await expect.element(screen.getByRole("radio", { name: "Efectivo" })).toBeVisible();
+  });
+
+  it("charges the sale in cash and shows it as completed with the change", async () => {
+    const { screen, chargeSaleInCash } = await renderScreen();
+
+    await chargeInCash(screen, "5.000,00");
+
+    await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Entregá el vuelto" })).toBeVisible();
+    expect(chargeSaleInCash).toHaveBeenCalledExactlyOnceWith("sale-1", 500_000);
+  });
+
+  it("shows the sale as paid behind the completed sale, with no way back to it", async () => {
+    const { screen } = await renderScreen();
+
+    await chargeInCash(screen, "5.000,00");
+
+    const panel = screen.getByRole("complementary", {
+      name: "Panel de cobro",
+      includeHidden: true,
+    });
+    await expect.element(panel.getByText("Saldo pendiente")).toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: "Volver a la venta", includeHidden: true }))
+      .not.toBeInTheDocument();
+  });
+
+  it("starts a new sale from Nueva venta by going back to the sale screen", async () => {
+    const { screen } = await renderScreen();
+
+    await chargeInCash(screen, "5.000,00");
+    await userEvent.click(screen.getByRole("button", { name: "Nueva venta" }));
+
+    await expect.poll(() => screen.router.state.location.pathname).toBe("/session");
+  });
+
+  it.each([["empty_sale"], ["zero_total"], ["no_open_sale"], ["not_permitted"]] as const)(
+    "goes back to the sale when the core answers %s",
+    async (kind) => {
+      const { screen } = await renderScreen({ chargeSaleInCash: async () => ({ kind }) });
+
+      await chargeInCash(screen, "5.000,00");
+
+      await expect.poll(() => screen.router.state.location.pathname).toBe("/session");
+    },
+  );
+
+  it.each([["not_signed_in"], ["no_open_session"]] as const)(
+    "reports an invalid session when the core answers %s",
+    async (kind) => {
+      const { screen, onSessionInvalid } = await renderScreen({
+        chargeSaleInCash: async () => ({ kind }),
+      });
+
+      await chargeInCash(screen, "5.000,00");
+
+      await expect.poll(() => onSessionInvalid.mock.calls.length).toBe(1);
+    },
+  );
+});

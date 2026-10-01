@@ -13,6 +13,12 @@ export type {
 } from "./add-searched-product.js";
 export { addSearchedProduct } from "./add-searched-product.js";
 export type {
+  ChargeSaleInCashInput,
+  ChargeSaleInCashOutcome,
+  ChargeSaleInCashPorts,
+} from "./charge-sale-in-cash.js";
+export { chargeSaleInCash } from "./charge-sale-in-cash.js";
+export type {
   CurrentSaleInput,
   CurrentSaleOutcome,
   CurrentSalePorts,

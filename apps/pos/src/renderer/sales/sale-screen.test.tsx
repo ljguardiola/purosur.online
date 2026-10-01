@@ -247,6 +247,48 @@ describe("SaleScreen", () => {
         .toBeVisible();
     });
 
+    it("keeps Cobrar disabled while the sale has no lines", async () => {
+      const { screen } = await renderScreen();
+
+      await expect.element(screen.getByText("La venta está vacía")).toBeVisible();
+      await expect.element(screen.getByRole("button", { name: "Cobrar" })).toBeDisabled();
+    });
+
+    it("keeps Cobrar disabled, and says why, while the sale's total is zero", async () => {
+      const { screen } = await renderScreen({
+        currentSale: async () => ({
+          id: "sale-1",
+          lines: [{ ...YERBA, discount_amount: 476_000, line_total: 0 }],
+          total: 0,
+        }),
+      });
+
+      await expect
+        .element(
+          screen.getByText("El total es $ 0,00: quitá el producto o cancelá la venta.").first(),
+        )
+        .toBeVisible();
+      await expect.element(screen.getByRole("button", { name: "Cobrar" })).toBeDisabled();
+    });
+
+    it("enables Cobrar once a product is scanned into the sale", async () => {
+      const { screen, field } = await renderScreen({
+        scanProduct: async () => ({ kind: "added", sale: SALE_OF_YERBA }),
+      });
+
+      await scan(field, "7790001");
+
+      await expect.element(screen.getByRole("button", { name: "Cobrar" })).toBeEnabled();
+    });
+
+    it("goes to the charge screen from Cobrar", async () => {
+      const { screen } = await renderScreen({ currentSale: async () => SALE_OF_YERBA });
+
+      await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+
+      await expect.poll(() => screen.router.state.location.pathname).toBe("/charge");
+    });
+
     it("offers to try again when it cannot be read, and shows the sale once it can", async () => {
       const currentSale = vi
         .fn<SaleScreenProps["currentSale"]>()
