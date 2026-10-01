@@ -11,7 +11,6 @@ import {
   useCashBalanceQuery,
   useCashMovementsQuery,
   useCashSessionQuery,
-  useRefreshCash,
   useRegisterNameQuery,
 } from "./register-queries";
 
@@ -48,14 +47,10 @@ type Reads = {
 function Probe({ balance, movements, sessionId = "s1" }: Reads & { sessionId?: string }) {
   const balanceData = useCashBalanceQuery(sessionId, balance);
   const movementsData = useCashMovementsQuery(sessionId, movements);
-  const refreshCash = useRefreshCash();
   return (
     <>
       <p>{["balance", describeData(balanceData, (value) => String(value.expected))].join(" ")}</p>
       <p>{["movements", describeData(movementsData, (value) => String(value.length))].join(" ")}</p>
-      <button type="button" onClick={refreshCash}>
-        refresh
-      </button>
     </>
   );
 }
@@ -120,24 +115,6 @@ describe("cash queries", () => {
     await expect.poll(() => balance.mock.calls.length).toBe(1);
     await expect.element(screen.getByText("balance loading")).toBeVisible();
     await expect.element(screen.getByText("movements loading")).toBeVisible();
-  });
-
-  it("read both again when the cash is refreshed", async () => {
-    const balance = vi
-      .fn<Reads["balance"]>()
-      .mockResolvedValueOnce(BALANCE)
-      .mockResolvedValueOnce({ ...BALANCE, expected: 2_500_000 });
-    const movements = vi
-      .fn<Reads["movements"]>()
-      .mockResolvedValueOnce([OPENING])
-      .mockResolvedValueOnce([OPENING, { ...OPENING, id: "m2" }]);
-    const screen = await renderProbe({ balance, movements });
-    await expect.element(screen.getByText("balance 2000000")).toBeVisible();
-
-    await userEvent.click(screen.getByRole("button", { name: "refresh" }));
-
-    await expect.element(screen.getByText("balance 2500000")).toBeVisible();
-    await expect.element(screen.getByText("movements 2")).toBeVisible();
   });
 });
 

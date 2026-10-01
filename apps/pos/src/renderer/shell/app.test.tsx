@@ -1548,6 +1548,7 @@ describe("App", () => {
     async function openCashScreen(
       cashDrawer: {
         cashSession?: CoreClient["cashSession"];
+        cashBalance?: CoreClient["cashBalance"];
         cashMovements?: CoreClient["cashMovements"];
         recordCashMovement?: CoreClient["recordCashMovement"];
       } = {},
@@ -1597,7 +1598,11 @@ describe("App", () => {
       await expect.element(screen.getByText("1 movimiento", { exact: true })).toBeVisible();
     });
 
-    it("records a movement through the core and reads the movements again", async () => {
+    it("records a movement through the core and reads the balance and the movements again", async () => {
+      const cashBalance = vi
+        .fn<CoreClient["cashBalance"]>()
+        .mockResolvedValueOnce(BALANCE)
+        .mockResolvedValueOnce({ ...BALANCE, cash_in: 600_000, expected: 5_120_000 });
       const cashMovements = vi
         .fn<CoreClient["cashMovements"]>()
         .mockResolvedValueOnce([OPENING])
@@ -1606,6 +1611,7 @@ describe("App", () => {
           { ...OPENING, id: "m2", type: "CASH_IN", reason: "Cambio", amount: 50_000 },
         ]);
       const { screen, recorded } = await openCashScreen({
+        cashBalance,
         cashMovements,
         recordCashMovement: async () => ({ kind: "recorded", authorized_by: null }),
       });
@@ -1613,6 +1619,7 @@ describe("App", () => {
       await recordCashIn(screen);
 
       await expect.element(screen.getByText("2 movimientos", { exact: true })).toBeVisible();
+      await expect.element(screen.getByText("$ 51.200,00", { exact: true })).toBeVisible();
       expect(recorded).toEqual([{ kind: "CASH_IN", amount: 50_000, reason: "Cambio" }]);
     });
 

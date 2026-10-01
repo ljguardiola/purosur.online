@@ -9,9 +9,9 @@ import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { accessKey } from "../access/access-queries";
 import type { SignedInPerson } from "../access/signed-in-person";
 import type { CashMovementInput, CoreClient } from "../platform/core-client";
-import { accessKey } from "../access/access-queries";
 import { createQueryClient } from "../platform/query-client";
 import { cancelReads, setQueryAnswer } from "../platform/set-query-answer";
 import { useCoreStatus } from "../platform/use-core-status";
@@ -226,6 +226,9 @@ function Register({ core }: { core: CoreClient }) {
 
   async function recordCashMovement(input: CashMovementInput) {
     const outcome = await core.recordCashMovement(input);
+    if (outcome.kind === "recorded") {
+      void queryClient.invalidateQueries({ queryKey: cashKey });
+    }
     if (outcome.kind === "no_open_session") {
       await refreshCashSession();
     }

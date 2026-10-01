@@ -16,7 +16,7 @@ import { SessionEyebrow } from "../shell/session-eyebrow";
 import { CashMovementsTable } from "./cash-movements-table";
 import { ExpectedCashPanel } from "./expected-cash-panel";
 import { RecordCashMovementModal } from "./record-cash-movement-modal";
-import { useCashBalanceQuery, useCashMovementsQuery, useRefreshCash } from "./register-queries";
+import { useCashBalanceQuery, useCashMovementsQuery } from "./register-queries";
 
 export type CashScreenProps = {
   sessionId: string;
@@ -44,7 +44,6 @@ export function CashScreen({
   const navigate = useNavigate();
   const balance = useCashBalanceQuery(sessionId, loadCashBalance);
   const movements = useCashMovementsQuery(sessionId, loadCashMovements);
-  const refreshCash = useRefreshCash();
   const [recording, setRecording] = useState(false);
 
   return (
@@ -93,7 +92,6 @@ export function CashScreen({
         onClose={() => setRecording(false)}
         onRecorded={() => {
           setRecording(false);
-          refreshCash();
         }}
       />
     </div>

@@ -1,5 +1,5 @@
 import type { CashBalance, ListedCashMovement, OpenCashSession } from "@purosur/contracts";
-import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { CoreData } from "../platform/use-core-query";
 import { useCoreQuery } from "../platform/use-core-query";
 import type { CashSessionState } from "../shell/cash-session-state";
@@ -80,9 +80,4 @@ export function useCashMovementsQuery(
   return onlyWithOpenSession(
     useCoreQuery({ queryKey: registerKeys.cashMovements(sessionId), read }),
   );
-}
-
-export function useRefreshCash(): () => void {
-  const queryClient = useQueryClient();
-  return () => void queryClient.invalidateQueries({ queryKey: cashKey });
 }
