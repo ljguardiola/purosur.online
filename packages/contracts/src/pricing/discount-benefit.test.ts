@@ -4,7 +4,11 @@ import {
   DISCOUNT_PERCENT_MAX,
   DISCOUNT_PERCENT_MIN,
   DISCOUNT_QTY_MAX,
+  isValidDiscountBuyQty,
+  isValidDiscountPayQty,
+  isValidDiscountPercent,
 } from "@purosur/domain";
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   discountBuyQtySchema,
@@ -12,40 +16,42 @@ import {
   discountPercentSchema,
 } from "./discount-benefit.js";
 
+const anyNumber = fc.oneof(
+  fc.integer(),
+  fc.double({ noNaN: false }),
+  fc.constantFrom(
+    DISCOUNT_PERCENT_MIN - 1,
+    DISCOUNT_PERCENT_MAX + 1,
+    DISCOUNT_BUY_QTY_MIN - 1,
+    DISCOUNT_PAY_QTY_MIN - 1,
+    DISCOUNT_QTY_MAX,
+    DISCOUNT_QTY_MAX + 1,
+  ),
+);
+
 describe("the benefit field schemas", () => {
-  it("declare the range of a percentage", () => {
-    expect([discountPercentSchema.minValue, discountPercentSchema.maxValue]).toEqual([
-      DISCOUNT_PERCENT_MIN,
-      DISCOUNT_PERCENT_MAX,
-    ]);
+  it("declare the range of a percentage in their metadata", () => {
+    expect(discountPercentSchema.meta()).toMatchObject({
+      minValue: DISCOUNT_PERCENT_MIN,
+      maxValue: DISCOUNT_PERCENT_MAX,
+    });
   });
 
-  it("declare the range of the quantity to take", () => {
-    expect([discountBuyQtySchema.minValue, discountBuyQtySchema.maxValue]).toEqual([
-      DISCOUNT_BUY_QTY_MIN,
-      DISCOUNT_QTY_MAX,
-    ]);
+  it("declare the smallest quantity to take in their metadata", () => {
+    expect(discountBuyQtySchema.meta()).toMatchObject({ minValue: DISCOUNT_BUY_QTY_MIN });
   });
 
-  it("declare the range of the quantity to pay for", () => {
-    expect([discountPayQtySchema.minValue, discountPayQtySchema.maxValue]).toEqual([
-      DISCOUNT_PAY_QTY_MIN,
-      DISCOUNT_QTY_MAX,
-    ]);
+  it("declare the smallest quantity to pay for in their metadata", () => {
+    expect(discountPayQtySchema.meta()).toMatchObject({ minValue: DISCOUNT_PAY_QTY_MIN });
   });
 
   it.each([
-    [discountPercentSchema, DISCOUNT_PERCENT_MIN - 1],
-    [discountPercentSchema, DISCOUNT_PERCENT_MAX + 1],
-    [discountPercentSchema, 1.5],
-    [discountBuyQtySchema, DISCOUNT_BUY_QTY_MIN - 1],
-    [discountBuyQtySchema, DISCOUNT_QTY_MAX + 1],
-    [discountBuyQtySchema, 2.5],
-    [discountPayQtySchema, DISCOUNT_PAY_QTY_MIN - 1],
-    [discountPayQtySchema, DISCOUNT_QTY_MAX + 1],
-    [discountPayQtySchema, 1.5],
-    [discountPayQtySchema, Number.NaN],
-  ])("refuse a value outside the range or not whole", (schema, value) => {
-    expect(schema.safeParse(value).success).toBe(false);
+    ["percent", discountPercentSchema, isValidDiscountPercent],
+    ["buyQty", discountBuyQtySchema, isValidDiscountBuyQty],
+    ["payQty", discountPayQtySchema, isValidDiscountPayQty],
+  ])("accept a %s exactly when the domain does", (_field, schema, isValid) => {
+    fc.assert(
+      fc.property(anyNumber, (value) => schema.safeParse(value).success === isValid(value)),
+    );
   });
 });
