@@ -394,6 +394,7 @@ describe("coreToRendererMessageSchema", () => {
     { kind: "rate_limited", retry_after_seconds: 600 },
     { kind: "unreachable" },
     { kind: "unavailable" },
+    { kind: "invalid_input", fields: ["reset_code", "new_pin"] },
   ])("accepts the PIN code redemption result $kind", (outcome) => {
     const message = { type: "pin-code-redemption-result", request_id: REQUEST_ID, outcome };
 
@@ -414,6 +415,16 @@ describe("coreToRendererMessageSchema", () => {
       expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
     },
   );
+
+  it("rejects a PIN code redemption refusal naming a field the redemption does not have", () => {
+    const message = {
+      type: "pin-code-redemption-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "invalid_input", fields: ["repeat"] },
+    };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
 
   it("rejects a PIN code redemption rate limit without when to retry", () => {
     const message = {

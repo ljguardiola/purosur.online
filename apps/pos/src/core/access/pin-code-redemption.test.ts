@@ -243,11 +243,22 @@ describe("redeemPinCode", () => {
     },
   );
 
-  it("answers code_invalid without asking the cloud when the code is malformed", async () => {
-    const { deps, posted } = depsAnswering({ kind: "ok", body: REDEEMED_BODY });
+  it.each([
+    ["a malformed code", "too short", "482915", ["reset_code"]],
+    ["an unacceptable PIN", TYPED_CODE, "1234", ["new_pin"]],
+    ["a PIN with something other than digits", TYPED_CODE, "48291a", ["new_pin"]],
+    [
+      "both a malformed code and an unacceptable PIN",
+      "too short",
+      "1234",
+      ["reset_code", "new_pin"],
+    ],
+  ])("names the fields without asking the cloud for %s", async (_name, code, pin, fields) => {
+    const { deps, posted, applied } = depsAnswering({ kind: "ok", body: REDEEMED_BODY });
 
-    expect(await redeemPinCode(deps, "too short", "482915")).toEqual({ kind: "code_invalid" });
+    expect(await redeemPinCode(deps, code, pin)).toEqual({ kind: "invalid_input", fields });
     expect(posted).toEqual([]);
+    expect(applied).toEqual([]);
   });
 
   it("answers unavailable without asking the cloud when no cloud is configured", async () => {
