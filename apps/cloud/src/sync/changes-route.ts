@@ -11,6 +11,7 @@ import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { PUBLIC_ACCESS } from "../access/route-access.js";
 import { toBranchSettingsWire } from "../branch/branch-settings-read-route.js";
+import { toIssuerIdentificationWire } from "../fiscal/issuer-identification-read-route.js";
 import { registerInstallations, registers } from "../platform/db/schema.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
@@ -22,15 +23,21 @@ import {
 import { DrizzleChangeLog } from "./drizzle-change-log.js";
 import type { PulledCloudChange } from "./pulled-changes.js";
 
-export type ChangesRouteOptions<TQueryResult extends PgQueryResultHKT> =
-  DeviceTokensOptions<TQueryResult>;
+export interface ChangesRouteOptions<TQueryResult extends PgQueryResultHKT>
+  extends DeviceTokensOptions<TQueryResult> {
+  // From deployment configuration (ARCA_CERTIFICATE); never stored in the database.
+  authorizedCuit: string;
+}
 
 const DEVICE_TOKEN_REJECTED = cloudError(
   "device_token_rejected",
   "the device token is not recognized",
 );
 
-function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number] {
+function toChangeWire(
+  change: PulledCloudChange,
+  authorizedCuit: string,
+): ChangesPage["changes"][number] {
   const { changeSeq: change_seq, entityId: entity_id } = change;
   switch (change.entity) {
     case "branch_settings":
@@ -129,6 +136,34 @@ function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number]
           version: change.row.version,
         },
       };
+    case "issuer_identification":
+      return {
+        change_seq,
+        entity: change.entity,
+        entity_id,
+        row: toIssuerIdentificationWire(change.row, authorizedCuit),
+      };
+    case "buyer_identification_threshold":
+      return {
+        change_seq,
+        entity: change.entity,
+        entity_id,
+        row: { amount: change.row.amount, valid_from: change.row.validFrom },
+      };
+    case "buyer_tax_status_set":
+      return {
+        change_seq,
+        entity: change.entity,
+        entity_id,
+        row: {
+          params_version: change.row.paramsVersion,
+          options: change.row.options.map(({ code, description, invoiceClass }) => ({
+            code,
+            description,
+            invoice_class: invoiceClass,
+          })),
+        },
+      };
     case "removal":
       return {
         change_seq,
@@ -140,9 +175,9 @@ function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number]
   }
 }
 
-function toChangesPageWire(page: PullPage<PulledCloudChange>): ChangesPage {
+function toChangesPageWire(page: PullPage<PulledCloudChange>, authorizedCuit: string): ChangesPage {
   return {
-    changes: page.changes.map(toChangeWire),
+    changes: page.changes.map((change) => toChangeWire(change, authorizedCuit)),
     cursor: page.cursor,
     has_more: page.hasMore,
   };
@@ -193,7 +228,9 @@ export function registerChangesRoute<TQueryResult extends PgQueryResultHKT>(
         registerId: installation.registerId,
         since: query.since,
       });
-      await reply.code(200).send(changesPageSchema.parse(toChangesPageWire(page)));
+      await reply
+        .code(200)
+        .send(changesPageSchema.parse(toChangesPageWire(page, options.authorizedCuit)));
     });
   });
 }

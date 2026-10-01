@@ -351,6 +351,13 @@
       "when": 1790799143608,
       "tag": "0049_first_pin_codes",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1790812564260,
+      "tag": "0050_fiscal_configuration",
+      "breakpoints": true
     }
   ]
 }

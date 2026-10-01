@@ -14,8 +14,10 @@ import {
   auditLog,
   ISSUER_IDENTIFICATION_SINGLETON_ID,
   issuerIdentification,
+  issuerIdentificationVersions,
 } from "../platform/db/schema.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
+import { withPendingChanges } from "../sync/change-log.js";
 import type {
   IssuerIdentificationRouteOptions,
   IssuerIdentificationRow,
@@ -43,56 +45,72 @@ export async function editIssuerIdentification<TQueryResult extends PgQueryResul
   db: PgDatabase<TQueryResult>,
   input: EditIssuerIdentificationInput,
 ): Promise<EditIssuerIdentificationOutcome> {
-  return db.transaction<EditIssuerIdentificationOutcome>(async (tx) => {
-    // Locks the row so a concurrent save waits instead of racing: the version check and any write
-    // below run against a value that can't change out from under this transaction.
-    const [current] = await tx
-      .select({
-        legalName: issuerIdentification.legalName,
-        grossIncomeRegistration: issuerIdentification.grossIncomeRegistration,
-        activityStartDate: issuerIdentification.activityStartDate,
-        version: issuerIdentification.version,
-      })
-      .from(issuerIdentification)
-      .where(eq(issuerIdentification.id, ISSUER_IDENTIFICATION_SINGLETON_ID))
-      .for("update");
-    if (!current) {
-      throw new Error("issuer identification row missing: the seeding migration never ran");
-    }
-    if (current.version !== input.version) {
-      return { kind: "stale_version" };
-    }
+  return withPendingChanges<TQueryResult, EditIssuerIdentificationOutcome>(
+    db,
+    undefined,
+    async (tx, pending) => {
+      // Locks the row so a concurrent save waits instead of racing: the version check and any write
+      // below run against a value that can't change out from under this transaction.
+      const [current] = await tx
+        .select({
+          legalName: issuerIdentification.legalName,
+          grossIncomeRegistration: issuerIdentification.grossIncomeRegistration,
+          activityStartDate: issuerIdentification.activityStartDate,
+          version: issuerIdentification.version,
+        })
+        .from(issuerIdentification)
+        .where(eq(issuerIdentification.id, ISSUER_IDENTIFICATION_SINGLETON_ID))
+        .for("update");
+      if (!current) {
+        throw new Error("issuer identification row missing: the seeding migration never ran");
+      }
+      if (current.version !== input.version) {
+        return { kind: "stale_version" };
+      }
 
-    const next: Omit<IssuerIdentificationRow, "version"> = {
-      legalName: input.legalName,
-      grossIncomeRegistration: input.grossIncomeRegistration,
-      activityStartDate: input.activityStartDate,
-    };
-    const unchanged =
-      current.legalName === next.legalName &&
-      current.grossIncomeRegistration === next.grossIncomeRegistration &&
-      current.activityStartDate === next.activityStartDate;
+      const next: Omit<IssuerIdentificationRow, "version"> = {
+        legalName: input.legalName,
+        grossIncomeRegistration: input.grossIncomeRegistration,
+        activityStartDate: input.activityStartDate,
+      };
+      const unchanged =
+        current.legalName === next.legalName &&
+        current.grossIncomeRegistration === next.grossIncomeRegistration &&
+        current.activityStartDate === next.activityStartDate;
 
-    if (unchanged) {
-      return { kind: "applied", row: current };
-    }
+      if (unchanged) {
+        return { kind: "applied", row: current };
+      }
 
-    const nextVersion = current.version + 1;
-    await tx
-      .update(issuerIdentification)
-      .set({ ...next, version: nextVersion })
-      .where(eq(issuerIdentification.id, ISSUER_IDENTIFICATION_SINGLETON_ID));
+      const nextVersion = current.version + 1;
+      await tx
+        .update(issuerIdentification)
+        .set({ ...next, version: nextVersion })
+        .where(eq(issuerIdentification.id, ISSUER_IDENTIFICATION_SINGLETON_ID));
 
-    await tx.insert(auditLog).values({
-      entity: "issuer_identification",
-      entityId: ISSUER_IDENTIFICATION_SINGLETON_ID,
-      actorId: input.actorId,
-      previousValue: toIssuerIdentificationWireForAudit(current),
-      newValue: toIssuerIdentificationWireForAudit({ ...next, version: nextVersion }),
-    });
+      await tx.insert(issuerIdentificationVersions).values({
+        version: nextVersion,
+        ...next,
+        recordedBy: input.actorId,
+      });
+      pending.note({
+        entity: "issuer_identification",
+        entityId: ISSUER_IDENTIFICATION_SINGLETON_ID,
+        version: nextVersion,
+        op: "update",
+      });
 
-    return { kind: "applied", row: { ...next, version: nextVersion } };
-  });
+      await tx.insert(auditLog).values({
+        entity: "issuer_identification",
+        entityId: ISSUER_IDENTIFICATION_SINGLETON_ID,
+        actorId: input.actorId,
+        previousValue: toIssuerIdentificationWireForAudit(current),
+        newValue: toIssuerIdentificationWireForAudit({ ...next, version: nextVersion }),
+      });
+
+      return { kind: "applied", row: { ...next, version: nextVersion } };
+    },
+  );
 }
 
 function toIssuerIdentificationWireForAudit(row: IssuerIdentificationRow) {

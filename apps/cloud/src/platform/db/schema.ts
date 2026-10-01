@@ -107,6 +107,54 @@ export const users = pgTable(
   (table) => [uniqueIndex("users_email_key").on(table.email)],
 );
 
+// Append-only like prices: one row per version of the issuer identification, so a reprint can show
+// what was printed at the time. `recorded_by` is null for the version the migration kept from the
+// row that existed before versions were stored.
+export const issuerIdentificationVersions = pgTable("issuer_identification_versions", {
+  version: integer("version").primaryKey(),
+  legalName: text("legal_name"),
+  grossIncomeRegistration: text("gross_income_registration"),
+  activityStartDate: date("activity_start_date", { mode: "string" }),
+  recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+  recordedBy: uuid("recorded_by").references(() => users.id),
+});
+
+// Append-only like prices. `amount` is in cents and outgrows a 32-bit integer.
+export const buyerIdentificationThresholds = pgTable(
+  "buyer_identification_thresholds",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    amount: bigint("amount", { mode: "number" }).notNull(),
+    validFrom: date("valid_from", { mode: "string" }).notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+    recordedBy: uuid("recorded_by")
+      .notNull()
+      .references(() => users.id),
+  },
+  (table) => [
+    uniqueIndex("buyer_identification_thresholds_valid_from_key").on(table.validFrom),
+    check("buyer_identification_thresholds_amount_positive", sql`${table.amount} > 0`),
+  ],
+);
+
+// Append-only like prices. A set is read and written whole, never searched by option, so its
+// options stay in one document instead of a child table.
+export const buyerTaxStatusSets = pgTable(
+  "buyer_tax_status_sets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    paramsVersion: integer("params_version").notNull(),
+    options: jsonb("options")
+      .$type<{ code: number; description: string; invoiceClass: string }[]>()
+      .notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("buyer_tax_status_sets_params_version_key").on(table.paramsVersion),
+    check("buyer_tax_status_sets_params_version_positive", sql`${table.paramsVersion} > 0`),
+  ],
+);
+
 export const roles = pgTable(
   "roles",
   {

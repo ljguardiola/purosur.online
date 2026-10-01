@@ -93,14 +93,15 @@ describe("GET /api/health", () => {
 });
 
 describe("GET /api/changes", () => {
-  it("pulls the enrolled installation's branch changes when the device routes are wired", async () => {
+  it("pulls the enrolled installation's branch changes when the changes route is wired", async () => {
     const { deviceToken } = await insertEnrolledInstallation(testDatabase.db);
     const app = buildApp({
       version: "abc1234",
-      devices: {
+      changes: {
         db: testDatabase.db,
         rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
         keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+        authorizedCuit: "20-00000000-1",
       },
     });
 
@@ -111,7 +112,7 @@ describe("GET /api/changes", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(changesPageSchema.parse(response.json()).changes).toHaveLength(3);
+    expect(changesPageSchema.parse(response.json()).changes).toHaveLength(4);
   });
 });
 
@@ -1474,6 +1475,36 @@ describe("wiring the issuer identification routes", () => {
   });
 });
 
+describe("wiring the buyer-identification threshold routes", () => {
+  it.each([
+    ["GET", "does not register", false],
+    ["POST", "does not register", false],
+    ["GET", "registers", true],
+    ["POST", "registers", true],
+  ])(
+    "%s /api/buyer-identification-thresholds: %s it according to the buyerIdentificationThresholds option",
+    async (method, _verb, wired) => {
+      const app = buildApp({
+        version: "abc1234",
+        ...(wired && {
+          buyerIdentificationThresholds: {
+            db: testDatabase.db,
+            backofficeOrigin: "https://staging.purosur.online",
+          },
+        }),
+      });
+
+      const response = await app.inject({
+        method: method as "GET" | "POST",
+        url: "/api/buyer-identification-thresholds",
+        headers: { origin: "https://staging.purosur.online" },
+      });
+
+      expect(response.statusCode).toBe(wired ? 401 : 404);
+    },
+  );
+});
+
 describe("wiring the passkeys routes", () => {
   it("does not register GET /api/account/passkeys when no passkeys option is given", async () => {
     const app = buildApp({ version: "abc1234" });
@@ -1687,6 +1718,16 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/buyer-identification-thresholds",
+        access: permissionAccess("change_fiscal_configuration"),
+      },
+      {
+        method: "POST",
+        url: "/api/buyer-identification-thresholds",
+        access: permissionAccess("change_fiscal_configuration"),
+      },
+      {
+        method: "GET",
         url: "/api/categories",
         access: permissionAccess("manage_products_and_categories"),
       },
@@ -1890,10 +1931,10 @@ describe("the route access inventory", () => {
       },
       { method: "GET", url: "/api/health", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/devices", access: PUBLIC_ACCESS },
-      { method: "GET", url: "/api/changes", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/pin-code-redemptions", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/sign-in-lookups", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/devices/current/tokens", access: PUBLIC_ACCESS },
+      { method: "GET", url: "/api/changes", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/first-pin-codes", access: PUBLIC_ACCESS },
       { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },
       { method: "GET", url: "/*", access: PUBLIC_ACCESS },

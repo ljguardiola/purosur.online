@@ -633,6 +633,10 @@ describe("startServer", () => {
         backofficeOrigin: fakeRecovery.backofficeOrigin,
         authorizedCuit: "20-12345678-6",
       },
+      buyerIdentificationThresholds: {
+        db: fakeRecovery.db,
+        backofficeOrigin: fakeRecovery.backofficeOrigin,
+      },
       categories: {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,
@@ -673,6 +677,12 @@ describe("startServer", () => {
         db: fakeRecovery.db,
         rotationKey: ROTATION_KEY_BYTES,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
+      },
+      changes: {
+        db: fakeRecovery.db,
+        rotationKey: ROTATION_KEY_BYTES,
+        keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
+        authorizedCuit: "20-12345678-6",
       },
       firstPinCodes: {
         db: fakeRecovery.db,
