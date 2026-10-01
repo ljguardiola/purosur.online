@@ -1,5 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
-import type { PinMatching } from "@purosur/domain/access/use-cases";
+import type { PinCheckPorts, PinMatching, PinSignInStore } from "@purosur/domain/access/use-cases";
 import { derivePinVerifier } from "./pin-verifier";
 
 export interface PinCredential {
@@ -35,4 +35,13 @@ export function createPinMatching({
       };
     },
   };
+}
+
+export interface PinCheckDeps extends PinMatchingDeps {
+  store: PinSignInStore<PinCredential>;
+  now: () => Date;
+}
+
+export function pinCheckPorts(deps: PinCheckDeps): PinCheckPorts<PinCredential> {
+  return { store: deps.store, matching: createPinMatching(deps), clock: { now: deps.now } };
 }

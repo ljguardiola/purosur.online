@@ -1,11 +1,11 @@
 import type { SignInUser } from "@purosur/contracts";
-import {
-  type AuthorizablePermissionKey,
-  decodePinSalt,
-  holdsPermission,
-  type RoleAccess,
-} from "@purosur/domain";
-import type { PinHolder, SignablePerson } from "@purosur/domain/access/use-cases";
+import { decodePinSalt, type RoleAccess } from "@purosur/domain";
+import type {
+  PinHolder,
+  PinSignInFailures,
+  PinSignInStore,
+  SignablePerson,
+} from "@purosur/domain/access/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 import type { PinCredential } from "./pin-matching";
 
@@ -21,24 +21,13 @@ export interface ActivePerson {
   access: RoleAccess;
 }
 
-export interface PinSignInFailures {
-  consecutiveFailures: number;
-  lastFailedAt: Date;
-}
-
-export interface SignInStore {
+export interface SignInStore extends PinSignInStore<PinCredential> {
   signableUsers(): SignInUser[];
   remember(userId: string): void;
   firstNameOf(userId: string): string | undefined;
-  authorizers(permission: AuthorizablePermissionKey): SignInUser[];
   signInRecord(userId: string): SignInRecord | undefined;
-  pinHolder(userId: string): PinHolder<PinCredential> | undefined;
   signablePeople(): SignablePerson[];
   activePerson(userId: string): ActivePerson | undefined;
-  pinSignInFailures(userId: string): PinSignInFailures | undefined;
-  recordPinSignInFailure(userId: string, at: Date): PinSignInFailures;
-  withdrawPinSignInFailure(userId: string): void;
-  clearPinSignInFailures(userId: string): void;
   replacePinVerifier(userId: string, verifier: string | undefined): void;
 }
 
@@ -92,17 +81,6 @@ export class SqliteSignInStore implements SignInStore {
         "SELECT first_name FROM users WHERE id = ? AND active = 1 AND removed = 0",
       )
       .get(userId)?.first_name;
-  }
-
-  authorizers(permission: AuthorizablePermissionKey): SignInUser[] {
-    return this.authorizersWhere(({ access }) => holdsPermission(access, permission));
-  }
-
-  authorizersWhere(mayAuthorize: (person: { id: string; access: RoleAccess }) => boolean) {
-    return this.signableUsers().filter((user) => {
-      const record = this.signInRecord(user.id);
-      return record !== undefined && mayAuthorize({ id: user.id, access: record.access });
-    });
   }
 
   signablePeople(): SignablePerson[] {

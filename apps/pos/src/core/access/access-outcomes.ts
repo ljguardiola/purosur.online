@@ -5,6 +5,7 @@ import type {
   PinAttemptRefusal,
   SignInOutcome,
 } from "@purosur/contracts";
+import { PIN_SIGN_IN_LOCKOUT_FAILURES } from "@purosur/domain";
 import type {
   AuthorizeRegisterOperationOutcome,
   PinRefusal,
@@ -16,7 +17,7 @@ export type AuthorizeOutcome = { kind: "authorized"; by: AuthorizedBy } | Author
 function pinRefusalAnswer(refusal: PinRefusal): PinAttemptRefusal {
   switch (refusal.kind) {
     case "locked":
-      return { kind: "locked", consecutive_failures: refusal.consecutiveFailures };
+      return { kind: "locked", consecutive_failures: PIN_SIGN_IN_LOCKOUT_FAILURES };
     case "rate_limited":
     case "wrong_pin":
       return {
