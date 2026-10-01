@@ -229,6 +229,37 @@ describe("the cloud_app role runMigrations creates", () => {
     await expectPermissionDenied(cloudApp`truncate issuer_identification_versions`);
   });
 
+  it("appends point-of-sale claims but never rewrites, removes or truncates them", async () => {
+    const [location] = await cloudApp<{ id: string }[]>`select id from locations limit 1`;
+    if (!location) {
+      throw new Error("test setup: reading the seeded location returned no row");
+    }
+    const [user] = await cloudApp<{ id: string }[]>`
+      insert into users (first_name, email, location_id)
+      values ('Cloud App Role Test', ${`cloud-app-role-test-${randomUUID()}@example.com`}, ${location.id})
+      returning id
+    `;
+    const [register] = await cloudApp<{ id: string }[]>`
+      insert into registers (location_id, name)
+      values (${location.id}, ${`Caja ${randomUUID()}`}) returning id
+    `;
+    if (!user || !register) {
+      throw new Error("test setup: seeding the user or the register returned no row");
+    }
+    await cloudApp`
+      insert into point_of_sale_claims (point_of_sale_number, register_id, claimed_by)
+      values (900, ${register.id}, ${user.id})
+    `;
+
+    await expectPermissionDenied(
+      cloudApp`update point_of_sale_claims set register_id = register_id where point_of_sale_number = 900`,
+    );
+    await expectPermissionDenied(
+      cloudApp`delete from point_of_sale_claims where point_of_sale_number = 900`,
+    );
+    await expectPermissionDenied(cloudApp`truncate point_of_sale_claims`);
+  });
+
   async function insertCountedMovement(): Promise<{ movementId: string }> {
     const { priceId } = await insertPricedRow();
     const [product] = await cloudApp<{ productId: string }[]>`

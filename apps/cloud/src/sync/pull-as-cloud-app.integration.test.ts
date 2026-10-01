@@ -1,9 +1,11 @@
 import { createCategory, createProduct, createTag } from "@purosur/domain/catalog/use-cases";
 import {
+  createFiscalAddress,
   recordAuthorizedCuit,
   recordBuyerIdentificationThreshold,
 } from "@purosur/domain/fiscal/use-cases";
 import { setPrice } from "@purosur/domain/pricing/use-cases";
+import { configureRegisterPointOfSale } from "@purosur/domain/register/use-cases";
 import { pullChanges } from "@purosur/domain/sync/use-cases";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -12,9 +14,11 @@ import { createRole } from "../access/role-creation-route.js";
 import { createUser } from "../access/user-creation-route.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { DrizzleBuyerIdentificationThresholdStore } from "../fiscal/drizzle-buyer-identification-threshold-store.js";
+import { DrizzleFiscalAddressStore } from "../fiscal/drizzle-fiscal-address-store.js";
 import { DrizzleIssuerIdentificationStore } from "../fiscal/drizzle-issuer-identification-store.js";
 import { buyerTaxStatusSets, users } from "../platform/db/schema.js";
 import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
+import { DrizzleBranchRegisterStore } from "../register/drizzle-branch-register-store.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import {
   createIntegrationDatabase,
@@ -41,7 +45,7 @@ afterAll(async () => {
 });
 
 describe("a pull run as the role the deployed cloud connects with", () => {
-  it("gives a page holding every kind of catalog, price, user, role and fiscal configuration change", async () => {
+  it("gives a page holding every kind of catalog, price, user, role, fiscal configuration and point-of-sale change", async () => {
     const { deviceId, locationId, registerId } = await insertEnrolledInstallation(db);
     const store = new DrizzleCatalogStore(db);
     const category = await createCategory(store, { name: "Almacén", parentId: null });
@@ -118,6 +122,24 @@ describe("a pull run as the role the deployed cloud connects with", () => {
       version: 1,
       op: "insert",
     });
+    const fiscalAddress = await createFiscalAddress(
+      { store: new DrizzleFiscalAddressStore(db) },
+      { name: "Deposito Central", streetAddress: "Calle Ficticia 123, CABA", actorId: actor.id },
+    );
+    if (fiscalAddress.kind !== "created") {
+      throw new Error("test setup: the fiscal address was not created");
+    }
+    const pointOfSale = await configureRegisterPointOfSale(new DrizzleBranchRegisterStore(db), {
+      locationId,
+      registerId,
+      pointOfSaleNumber: 7,
+      fiscalAddressId: fiscalAddress.fiscalAddress.id,
+      version: 0,
+      actorId: actor.id,
+    });
+    if (pointOfSale.kind !== "configured") {
+      throw new Error("test setup: the point of sale was not configured");
+    }
     const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => new Date() } };
 
     const page = await pullChanges(ports, { deviceId, locationId, registerId, since: 0 });
@@ -131,6 +153,7 @@ describe("a pull run as the role the deployed cloud connects with", () => {
       "price",
       "price_list",
       "product",
+      "register_point_of_sale",
       "role",
       "role",
       "tag",
