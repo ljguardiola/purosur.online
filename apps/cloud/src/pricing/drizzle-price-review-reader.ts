@@ -130,19 +130,19 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
       latestReviewRows.map((row) => [row.productId, row.reviewedAt]),
     );
 
-    const withReview: PriceUnderReview[] = productRows.map((row) => {
-      const lastReviewedAt = lastReviewedAtByProductId.get(row.id) ?? null;
-      return {
-        id: row.id,
-        name: row.name,
-        categoryId: row.categoryId,
-        categoryName: row.categoryName,
-        saleUnit: row.saleUnit as SaleUnit,
-        currentPrice: currentPriceByProductId.get(row.id) ?? null,
-        lastReviewedAt,
-        ...priceReviewAt(lastReviewedAt, query.now, settings.unreviewedPriceAlertDays),
-      };
-    });
+    const withReview: PriceUnderReview[] = productRows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      categoryId: row.categoryId,
+      categoryName: row.categoryName,
+      saleUnit: row.saleUnit as SaleUnit,
+      currentPrice: currentPriceByProductId.get(row.id) ?? null,
+      ...priceReviewAt(
+        lastReviewedAtByProductId.get(row.id) ?? null,
+        query.now,
+        settings.unreviewedPriceAlertDays,
+      ),
+    }));
 
     const pendingCountAcrossFullCatalog = withReview.filter((row) => row.pending).length;
 
@@ -161,8 +161,8 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
 
     const sorted = [...filtered].sort((a, b) => {
       if (query.review === "pending") {
-        const aTime = a.lastReviewedAt?.getTime() ?? Number.NEGATIVE_INFINITY;
-        const bTime = b.lastReviewedAt?.getTime() ?? Number.NEGATIVE_INFINITY;
+        const aTime = lastReviewedAtByProductId.get(a.id)?.getTime() ?? Number.NEGATIVE_INFINITY;
+        const bTime = lastReviewedAtByProductId.get(b.id)?.getTime() ?? Number.NEGATIVE_INFINITY;
         if (aTime !== bTime) {
           return aTime - bTime;
         }

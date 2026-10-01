@@ -19,7 +19,6 @@ export interface PriceUnderReview extends PriceReview {
   categoryName: string;
   saleUnit: SaleUnit;
   currentPrice: CurrentPrice | null;
-  lastReviewedAt: Date | null;
 }
 
 export interface PriceReviewCategory {
