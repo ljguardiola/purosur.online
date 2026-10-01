@@ -1,21 +1,21 @@
-export type PullResult = { kind: "succeeded" } | { kind: "failed"; retryAfterMs?: number };
+export type SyncResult = { kind: "succeeded" } | { kind: "failed"; retryAfterMs?: number };
 
-export interface PullScheduleDeps {
-  pullOnce: () => Promise<PullResult>;
+export interface SyncScheduleDeps {
+  syncOnce: () => Promise<SyncResult>;
   intervalMs: number;
   failureBackoff: { baseMs: number; maxMs: number };
   random: () => number;
   scheduleNext: (run: () => void, delayMs: number) => () => void;
   onFailure: (error: unknown) => void;
-  afterEachPull: () => void;
+  afterEachSync: () => void;
 }
 
-export interface PullSchedule {
+export interface SyncSchedule {
   start(): void;
-  pullNow(): void;
+  syncNow(): void;
 }
 
-export function createPullSchedule(deps: PullScheduleDeps): PullSchedule {
+export function createSyncSchedule(deps: SyncScheduleDeps): SyncSchedule {
   let running = false;
   let askedWhileRunning = false;
   let waitingForCloud = false;
@@ -28,16 +28,16 @@ export function createPullSchedule(deps: PullScheduleDeps): PullSchedule {
     return ceiling / 2 + (deps.random() * ceiling) / 2;
   }
 
-  async function runOnce(): Promise<PullResult> {
+  async function runOnce(): Promise<SyncResult> {
     try {
-      return await deps.pullOnce();
+      return await deps.syncOnce();
     } catch (error) {
       deps.onFailure(error);
       return { kind: "failed" };
     }
   }
 
-  async function pull(): Promise<void> {
+  async function sync(): Promise<void> {
     cancelNext?.();
     cancelNext = undefined;
     if (running) {
@@ -48,7 +48,7 @@ export function createPullSchedule(deps: PullScheduleDeps): PullSchedule {
     waitingForCloud = false;
     const result = await runOnce();
     running = false;
-    deps.afterEachPull();
+    deps.afterEachSync();
 
     let delayMs = deps.intervalMs;
     if (result.kind === "succeeded") {
@@ -61,18 +61,18 @@ export function createPullSchedule(deps: PullScheduleDeps): PullSchedule {
     if (askedWhileRunning) {
       askedWhileRunning = false;
       if (!waitingForCloud) {
-        await pull();
+        await sync();
         return;
       }
     }
-    cancelNext = deps.scheduleNext(() => void pull(), delayMs);
+    cancelNext = deps.scheduleNext(() => void sync(), delayMs);
   }
 
   return {
-    start: () => void pull(),
-    pullNow: () => {
+    start: () => void sync(),
+    syncNow: () => {
       if (!waitingForCloud) {
-        void pull();
+        void sync();
       }
     },
   };
