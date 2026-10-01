@@ -693,10 +693,10 @@ describe("discountFormValues", () => {
     expect(discountFormValues(yerbaOff).weekdays).toEqual([]);
   });
 
-  test("marks the weekdays of a promotion in week order", () => {
+  test("takes the weekdays as the cloud sent them", () => {
     expect(discountFormValues({ ...almacenTuesdays, weekdays: [5, 2] }).weekdays).toEqual([
-      "2",
       "5",
+      "2",
     ]);
   });
 });

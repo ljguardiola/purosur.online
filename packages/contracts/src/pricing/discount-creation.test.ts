@@ -7,7 +7,7 @@ import {
   DISCOUNT_QTY_MAX,
 } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
-import { discountCreationBodySchema } from "./discount-creation.js";
+import { discountCreationBodySchema, discountNameSchema } from "./discount-creation.js";
 
 const ID = "3f2b8c1e-5a4d-4e6f-9b7a-1c2d3e4f5a6b";
 
@@ -326,5 +326,22 @@ describe("discountCreationBodySchema", () => {
         ]);
       },
     );
+  });
+});
+
+describe("discountNameSchema", () => {
+  it("declares the longest name it accepts, counted in characters", () => {
+    expect(discountNameSchema.meta()?.maxLength).toBe(DISCOUNT_NAME_MAX_LENGTH);
+  });
+
+  it("flags a name that is too long with a custom issue and an empty one with a too-small issue", () => {
+    const codes = (name: string) => {
+      const result = discountNameSchema.safeParse(name);
+      return result.success ? [] : result.error.issues.map((issue) => issue.code);
+    };
+
+    expect(codes("x".repeat(DISCOUNT_NAME_MAX_LENGTH + 1))).toEqual(["custom"]);
+    expect(codes("  ")).toEqual(["too_small"]);
+    expect(codes("Verano")).toEqual([]);
   });
 });
