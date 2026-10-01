@@ -134,7 +134,9 @@ export {
   formatCents,
   formatDate,
   formatNumber,
+  formatPointOfSaleNumber,
   formatTimeAgo,
+  parsePointOfSaleNumber,
   plural,
 } from "./messages/formatters";
 export type {

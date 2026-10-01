@@ -17,6 +17,7 @@ import {
   changes,
   deviceState,
   discounts,
+  fiscalAddresses,
   inbox,
   issuerIdentification,
   issuerIdentificationVersions,
@@ -24,6 +25,7 @@ import {
   passkeyChallenges,
   passkeys,
   pinCodeRedemptionAttempts,
+  pointOfSaleClaims,
   priceLists,
   priceReviews,
   prices,
@@ -37,6 +39,7 @@ import {
   registerEnrollmentAttempts,
   registerEnrollmentCodes,
   registerInstallations,
+  registerPointsOfSale,
   registerSnapshotKeys,
   registers,
   rolePermissions,
@@ -234,6 +237,22 @@ describe("buildTestDatabase", () => {
     if (!register) {
       throw new Error("seeding registers returned no row");
     }
+    const [fiscalAddress] = await db
+      .insert(fiscalAddresses)
+      .values({ name: "Casa central", streetAddress: "Calle Ficticia 123" })
+      .returning({ id: fiscalAddresses.id });
+    if (!fiscalAddress) {
+      throw new Error("seeding fiscal addresses returned no row");
+    }
+    await db
+      .insert(pointOfSaleClaims)
+      .values({ pointOfSaleNumber: 3, registerId: register.id, claimedBy: user.id });
+    await db.insert(registerPointsOfSale).values({
+      registerId: register.id,
+      pointOfSaleNumber: 3,
+      fiscalAddressId: fiscalAddress.id,
+      version: 1,
+    });
     await db.insert(registerEnrollmentCodes).values({
       registerId: register.id,
       codeLookup: "ABCD",

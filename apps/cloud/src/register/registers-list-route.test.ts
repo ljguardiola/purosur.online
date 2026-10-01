@@ -4,8 +4,11 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../access/session-id.js";
 import {
+  fiscalAddresses,
   locations,
+  pointOfSaleClaims,
   registerEnrollmentCodes,
+  registerPointsOfSale,
   registers,
   rolePermissions,
   roles,
@@ -171,9 +174,38 @@ describe("GET /registers", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual([
-      { id: expect.any(String), name: "Caja 1", pending_code: null },
-      { id: expect.any(String), name: "Caja 2", pending_code: null },
+      { id: expect.any(String), name: "Caja 1", pending_code: null, point_of_sale_number: null },
+      { id: expect.any(String), name: "Caja 2", pending_code: null, point_of_sale_number: null },
     ]);
+  });
+
+  it("lists the point of sale number a register was configured with", async () => {
+    const locationId = await seededLocationId(db);
+    const registerId = await insertRegister(locationId, "Caja 1");
+    const [fiscalAddress] = await db
+      .insert(fiscalAddresses)
+      .values({ name: "Deposito Central", streetAddress: "Calle Ficticia 123, CABA" })
+      .returning({ id: fiscalAddresses.id });
+    if (!fiscalAddress) {
+      throw new Error("test setup: seeding the fiscal address returned no row");
+    }
+    const userId = await insertUserWithPermission(locationId);
+    await db.insert(pointOfSaleClaims).values({
+      pointOfSaleNumber: 3,
+      registerId,
+      claimedBy: userId,
+    });
+    await db.insert(registerPointsOfSale).values({
+      registerId,
+      pointOfSaleNumber: 3,
+      fiscalAddressId: fiscalAddress.id,
+      version: 1,
+    });
+    const rawSessionId = await insertSession(userId);
+
+    const response = await getRegisters(rawSessionId);
+
+    expect(response.json()).toMatchObject([{ id: registerId, point_of_sale_number: 3 }]);
   });
 
   it("lists an unexpired, unredeemed pending code's seconds since issued and until expiry", async () => {
@@ -199,6 +231,7 @@ describe("GET /registers", () => {
         id: registerId,
         name: "Caja 1",
         pending_code: { seconds_since_issued: 60, seconds_until_expiry: 840 },
+        point_of_sale_number: null,
       },
     ]);
   });

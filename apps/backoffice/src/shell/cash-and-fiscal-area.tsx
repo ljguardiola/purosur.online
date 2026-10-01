@@ -1,5 +1,5 @@
-import { createRoute, Outlet } from "@tanstack/react-router";
-import { SlidersHorizontal } from "lucide-react";
+import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
+import { Receipt, SlidersHorizontal } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
 import { signedInRoute } from "./signed-in-route";
 
@@ -10,6 +10,9 @@ export const cashAndFiscalAreaRoute = createRoute({
 });
 
 function CashAndFiscalArea() {
+  const matchRoute = useMatchRoute();
+  const pointsOfSaleShown = Boolean(matchRoute({ to: "/points-of-sale" }));
+  const fiscalSettingsShown = Boolean(matchRoute({ to: "/fiscal-settings" }));
   return (
     <AreaLayout
       area="cash-and-fiscal"
@@ -24,10 +27,18 @@ function CashAndFiscalArea() {
           <ul className="flex flex-col gap-1">
             <li>
               <SectionLink
+                to="/points-of-sale"
+                label="Puntos de venta"
+                icon={<Receipt />}
+                active={pointsOfSaleShown}
+              />
+            </li>
+            <li>
+              <SectionLink
                 to="/fiscal-settings"
                 label="Configuración fiscal"
                 icon={<SlidersHorizontal />}
-                active
+                active={fiscalSettingsShown}
               />
             </li>
           </ul>
