@@ -154,6 +154,7 @@ export const SCREEN_CROSS_CONCEPT_IMPORT_ALLOWLIST = [
   "apps/pos/src/renderer/register/locked-close-screen.tsx",
   "apps/pos/src/renderer/register/locked-closer-identification.tsx",
   "apps/pos/src/renderer/register/record-cash-movement-modal.tsx",
+  "apps/pos/src/renderer/sales/charge-screen.tsx",
   "apps/pos/src/renderer/sales/sale-screen.tsx",
 ];
 

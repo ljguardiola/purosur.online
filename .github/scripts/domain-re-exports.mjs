@@ -6,6 +6,7 @@ export const CONTRACTS_DOMAIN_VALUE_RE_EXPORT_ALLOWLIST = [
   "packages/contracts/src/register/core-messages.ts#ARGENTINA_TIME_ZONE",
   "packages/contracts/src/register/core-messages.ts#CASH_MOVEMENT_REASON_MAX_LENGTH",
   "packages/contracts/src/register/core-messages.ts#CASH_MOVEMENT_TYPES",
+  "packages/contracts/src/register/core-messages.ts#cashCharge",
   "packages/contracts/src/register/core-messages.ts#cashMovementPermission",
   "packages/contracts/src/register/core-messages.ts#cashMovementReason",
   "packages/contracts/src/register/core-messages.ts#parseAmountCents",
