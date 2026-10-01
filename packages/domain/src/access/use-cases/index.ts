@@ -41,6 +41,12 @@ export type {
   EmitUserPinCodeOutcome,
 } from "./emit-user-pin-code.js";
 export { emitUserPinCode } from "./emit-user-pin-code.js";
+export type {
+  EndExpiredSessionInput,
+  EndExpiredSessionOutcome,
+  EndExpiredSessionPorts,
+} from "./end-expired-session.js";
+export { endExpiredSession } from "./end-expired-session.js";
 export type { FindBranchUserInput } from "./find-branch-user.js";
 export { findBranchUser } from "./find-branch-user.js";
 export type {
@@ -50,6 +56,12 @@ export type {
 export { findDeactivatableUser } from "./find-deactivatable-user.js";
 export type { EditableRole, FindEditableRoleInput } from "./find-editable-role.js";
 export { findEditableRole } from "./find-editable-role.js";
+export type {
+  FindOpenSessionInput,
+  FindOpenSessionOutcome,
+  FindOpenSessionPorts,
+} from "./find-open-session.js";
+export { findOpenSession } from "./find-open-session.js";
 export type {
   FirstPinCodeEmission,
   FirstPinCodeEmissionPorts,
@@ -96,6 +108,12 @@ export type {
 } from "./reactivate-user.js";
 export { reactivateUser } from "./reactivate-user.js";
 export type {
+  RecordSessionActivityInput,
+  RecordSessionActivityOutcome,
+  RecordSessionActivityPorts,
+} from "./record-session-activity.js";
+export { recordSessionActivity } from "./record-session-activity.js";
+export type {
   RedeemPinCodeInput,
   RedeemPinCodeOutcome,
 } from "./redeem-pin-code.js";
@@ -114,6 +132,8 @@ export type {
   StoredRoleRevision,
 } from "./role-store.js";
 export { RoleNameConflict } from "./role-store.js";
+export type { SessionStore } from "./session-store.js";
+export type { OpenSession, Sessions, StoredSession } from "./sessions.js";
 export type {
   SignInCandidate,
   SignInLookupPorts,
