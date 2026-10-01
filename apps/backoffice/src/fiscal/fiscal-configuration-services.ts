@@ -1,13 +1,10 @@
 import { startAuthentication } from "@simplewebauthn/browser";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "../access/session-api";
+import type { EditIssuerIdentificationModalServices } from "./edit-issuer-identification-modal";
 import { fetchIssuerIdentification, saveIssuerIdentification } from "./issuer-identification-api";
 
-export type FiscalConfigurationScreenServices = {
+export type FiscalConfigurationScreenServices = EditIssuerIdentificationModalServices & {
   fetchIssuerIdentification: typeof fetchIssuerIdentification;
-  saveIssuerIdentification: typeof saveIssuerIdentification;
-  fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
-  authorizeSession: typeof authorizeSession;
-  startAuthentication: typeof startAuthentication;
 };
 
 export const defaultFiscalConfigurationScreenServices: FiscalConfigurationScreenServices = {
