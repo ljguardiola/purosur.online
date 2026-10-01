@@ -32,7 +32,6 @@ function deps(overrides: Partial<CashSessionRequestDeps> = {}): CashSessionReque
   let count = 0;
   return {
     database,
-    signedInPerson,
     gate: createActionGate({
       store: new SqliteSignInStore(database),
       signedInPerson,
@@ -96,10 +95,15 @@ function openedSessions(): unknown[] {
 }
 
 describe("opening a cash session on the register", () => {
-  it("opens it for the person signed in on the register and answers its id, when it was opened and its float", async () => {
+  it("opens it for the person signed in on the register and answers the cash session as it stands for them", async () => {
     expect(await openCashSessionFor(deps(), 5000)).toEqual({
       kind: "opened",
-      session: { id: "id-1", opened_at: "2026-09-30T12:00:00.000Z", opening_float: 5000 },
+      cash_session: {
+        id: "id-1",
+        opened_at: "2026-09-30T12:00:00.000Z",
+        opened_by: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+        locked: false,
+      },
     });
     expect(openedSessions()).toEqual([{ id: "id-1", opened_by: "u1" }]);
   });
@@ -275,10 +279,10 @@ async function openAs(userId: string, openingFloat: number): Promise<string> {
   } else {
     signedInPerson.set(previous);
   }
-  if (outcome.kind !== "opened") {
+  if (outcome.kind !== "opened" || outcome.cash_session === null) {
     throw new Error("the session was not opened");
   }
-  return outcome.session.id;
+  return outcome.cash_session.id;
 }
 
 function closeRequest(sessionId: string, countedCash: number) {

@@ -17,6 +17,13 @@ import {
 
 const REQUEST_ID = "7d1c1e1e-5b1a-4a53-9c1c-3a7c6f0b2d10";
 
+const OPEN_CASH_SESSION = {
+  id: "s1",
+  opened_at: "2026-09-30T12:00:00.000Z",
+  opened_by: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+  locked: false,
+};
+
 describe("rendererToCoreMessageSchema", () => {
   it("accepts a ping", () => {
     expect(rendererToCoreMessageSchema.safeParse({ type: "ping" }).success).toBe(true);
@@ -364,6 +371,12 @@ describe("coreToRendererMessageSchema", () => {
     {
       kind: "resumed",
       person: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+      cash_session: OPEN_CASH_SESSION,
+    },
+    {
+      kind: "resumed",
+      person: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+      cash_session: null,
     },
     { kind: "cash_session_opened_by_another" },
     { kind: "code_invalid" },
@@ -379,15 +392,20 @@ describe("coreToRendererMessageSchema", () => {
     expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
-  it("rejects a resumed PIN code redemption without the person", () => {
-    const message = {
-      type: "pin-code-redemption-result",
-      request_id: REQUEST_ID,
-      outcome: { kind: "resumed" },
-    };
+  it.each([
+    { kind: "resumed", cash_session: OPEN_CASH_SESSION },
+    {
+      kind: "resumed",
+      person: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+    },
+  ])(
+    "rejects a resumed PIN code redemption without the person or the cash session: %j",
+    (outcome) => {
+      const message = { type: "pin-code-redemption-result", request_id: REQUEST_ID, outcome };
 
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
-  });
+      expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+    },
+  );
 
   it("rejects a PIN code redemption rate limit without when to retry", () => {
     const message = {
@@ -498,8 +516,13 @@ describe("sign-in answers", () => {
         first_name: "Ada",
         permission_keys: ["sell_and_charge", "void_sale"],
       },
+      cash_session: OPEN_CASH_SESSION,
     },
-    { kind: "signed_in", person: { user_id: "u1", first_name: "Ada", permission_keys: [] } },
+    {
+      kind: "signed_in",
+      person: { user_id: "u1", first_name: "Ada", permission_keys: [] },
+      cash_session: null,
+    },
     { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 },
     { kind: "wrong_pin", retry_after_seconds: 30, attempts_left: 1 },
     { kind: "rate_limited", retry_after_seconds: 4, attempts_left: 5 },
@@ -537,6 +560,7 @@ describe("sign-in answers", () => {
       outcome: {
         kind: "signed_in",
         person: { user_id: "u1", first_name: "Ada", permission_keys: [], role_name: "Cajera" },
+        cash_session: null,
       },
     };
 
@@ -545,8 +569,9 @@ describe("sign-in answers", () => {
 
   it.each([
     { kind: "signed_in" },
-    { kind: "signed_in", person: { first_name: "Ada" } },
-    { kind: "signed_in", person: { first_name: "Ada", permission_keys: [] } },
+    { kind: "signed_in", person: { first_name: "Ada" }, cash_session: null },
+    { kind: "signed_in", person: { first_name: "Ada", permission_keys: [] }, cash_session: null },
+    { kind: "signed_in", person: { user_id: "u1", first_name: "Ada", permission_keys: [] } },
     { kind: "x" },
     { kind: "wrong_pin" },
     { kind: "wrong_pin", retry_after_seconds: 0 },
@@ -1008,18 +1033,18 @@ describe("cancelling the open sale of a locked register", () => {
 });
 
 describe("cash session answers", () => {
-  it("accepts the session that was opened", () => {
-    const message = {
-      type: "open-cash-session-result",
-      request_id: REQUEST_ID,
-      outcome: {
-        kind: "opened",
-        session: { id: "s1", opened_at: "2026-09-30T12:00:00.000Z", opening_float: 150000 },
-      },
-    };
+  it.each([OPEN_CASH_SESSION, null])(
+    "accepts the cash session as the core sees it once opened: %j",
+    (cashSession) => {
+      const message = {
+        type: "open-cash-session-result",
+        request_id: REQUEST_ID,
+        outcome: { kind: "opened", cash_session: cashSession },
+      };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
+      expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    },
+  );
 
   it.each([
     { kind: "not_signed_in" },
@@ -1035,9 +1060,7 @@ describe("cash session answers", () => {
 
   it.each([
     { kind: "opened" },
-    { kind: "opened", session: { id: "s1", opened_at: "2026-09-30T12:00:00.000Z" } },
-    { kind: "opened", session: { id: "s1", opening_float: 0 } },
-    { kind: "opened", session: { opened_at: "2026-09-30T12:00:00.000Z", opening_float: 0 } },
+    { kind: "opened", cash_session: { ...OPEN_CASH_SESSION, locked: undefined } },
     { kind: "x" },
   ])("rejects an open result it does not know: %j", (outcome) => {
     const message = { type: "open-cash-session-result", request_id: REQUEST_ID, outcome };

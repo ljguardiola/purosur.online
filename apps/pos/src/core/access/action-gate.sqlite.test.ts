@@ -70,6 +70,7 @@ async function signInAs(userId: string) {
       store,
       signedInPerson,
       openCashSession: () => readOpenSession(database),
+      cashSession: () => null,
       readPepper: async () => PEPPER,
       hashPin: async () => PIN_HASH,
       now: () => new Date("2026-05-01T10:00:00.000Z"),

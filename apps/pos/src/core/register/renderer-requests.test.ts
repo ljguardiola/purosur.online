@@ -465,7 +465,12 @@ describe("answerRendererRequest", () => {
   it("opens a cash session with the float as sent and answers the outcome", async () => {
     const opened: OpenCashSessionOutcome = {
       kind: "opened",
-      session: { id: "s1", opened_at: "2026-09-30T12:00:00.000Z", opening_float: 5000 },
+      cash_session: {
+        id: "s1",
+        opened_at: "2026-09-30T12:00:00.000Z",
+        opened_by: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+        locked: false,
+      },
     };
     const { deps: withOpening, openings } = deps(true, { openCashSession: async () => opened });
     const answer = await answerRendererRequest(withOpening, {

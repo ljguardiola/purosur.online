@@ -13,6 +13,7 @@ const ADA = { id: "u1", first_name: "Ada" };
 const SIGNED_IN: SignInOutcome = {
   kind: "signed_in",
   person: { user_id: "u1", first_name: "Ada", permission_keys: [] },
+  cash_session: null,
 };
 const PIN_LABEL = "PIN nuevo, de al menos 6 dígitos";
 const REPEAT_LABEL = "Repetí el PIN nuevo";

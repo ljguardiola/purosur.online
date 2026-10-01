@@ -4,6 +4,7 @@ import type {
   OpenCashSession,
   RecordableCashMovementKinds,
   SessionOpenSale,
+  SignInUser,
 } from "@purosur/contracts";
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { setQueryAnswer } from "../platform/set-query-answer";
@@ -16,10 +17,13 @@ const registerKey = ["register"] as const;
 
 export const cashKey = [...registerKey, "cash"] as const;
 
+export const lockedClosersKey = [...registerKey, "locked-closers"] as const;
+
 export const registerKeys = {
   enrollment: [...registerKey, "enrollment"] as const,
   cashSession: [...registerKey, "cash-session"] as const,
   registerName: [...registerKey, "register-name"] as const,
+  lockedClosers: (sessionId: string) => [...lockedClosersKey, sessionId] as const,
   cashBalance: (sessionId: string) => [...cashKey, sessionId, "balance"] as const,
   cashMovements: (sessionId: string) => [...cashKey, sessionId, "movements"] as const,
   openSale: (sessionId: string) => [...cashKey, sessionId, "open-sale"] as const,
@@ -77,6 +81,13 @@ export function registerNameQueryOptions(read: () => Promise<string | null>) {
 export function useRegisterNameQuery(read: () => Promise<string | null>): string | null {
   const name = useCoreQuery({ queryKey: registerKeys.registerName, read, staleTime: Infinity });
   return name.status === "loaded" ? name.value : null;
+}
+
+export function useLockedClosersQuery(
+  sessionId: string,
+  read: () => Promise<SignInUser[]>,
+): CoreData<SignInUser[]> {
+  return useCoreQuery({ queryKey: registerKeys.lockedClosers(sessionId), read });
 }
 
 export function useCashBalanceQuery(

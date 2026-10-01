@@ -20,7 +20,6 @@ import {
 } from "@purosur/domain/register/use-cases";
 import type { ActionGate } from "../access/action-gate";
 import { heldPermissionKeys } from "../access/held-permission-keys";
-import type { SignedInPerson } from "../access/signed-in-person";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
 import {
@@ -33,7 +32,6 @@ import {
 export interface CashSessionRequestDeps {
   database: LocalDatabase;
   gate: ActionGate;
-  signedInPerson: Pick<SignedInPerson, "userId">;
   readOutboxChainKey: () => Promise<string | undefined>;
   now: Clock["now"];
   ids: IdGenerator;
@@ -47,30 +45,26 @@ export async function openCashSessionFor(
   if (outboxChainKey === undefined) {
     return { kind: "unavailable" };
   }
-  const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
-    openCashSession(
-      {
-        ledger: new SqliteCashLedger(database, new SqliteSignInStore(database), outboxChainKey),
-        clock: { now },
-        ids,
-      },
-      { openerId: signedInUserId, openingFloat },
-    ),
+  const guarded = await gate.run(
+    { permission: "sell_and_charge" },
+    async ({ signedInUserId }): Promise<OpenCashSessionOutcome> => {
+      const outcome = openCashSession(
+        {
+          ledger: new SqliteCashLedger(database, new SqliteSignInStore(database), outboxChainKey),
+          clock: { now },
+          ids,
+        },
+        { openerId: signedInUserId, openingFloat },
+      );
+      return outcome.kind === "opened"
+        ? { kind: "opened", cash_session: currentCashSession(database, signedInUserId) }
+        : { kind: outcome.kind };
+    },
   );
   if (guarded.kind !== "performed") {
     return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
   }
-  const outcome = guarded.result;
-  return outcome.kind === "opened"
-    ? {
-        kind: "opened",
-        session: {
-          id: outcome.session.id,
-          opened_at: outcome.session.openedAt.toISOString(),
-          opening_float: outcome.session.openingFloat,
-        },
-      }
-    : { kind: outcome.kind };
+  return guarded.result;
 }
 
 export interface CloseCashSessionRequest {
@@ -100,7 +94,6 @@ export async function closeCashSessionFor(
       {
         sessionId,
         closerId: actor.signedInUserId,
-        authorizedBy: actor.authorizedBy?.user_id ?? null,
         countedCash,
       },
     ),
@@ -137,7 +130,7 @@ export async function closeLockedCashSessionFor(
           clock: { now },
           ids,
         },
-        { sessionId, closerId: person.user_id, authorizedBy: null, countedCash },
+        { sessionId, closerId: person.user_id, countedCash },
       ),
   );
   return guarded.kind === "performed" ? closingAnswer(guarded.result) : guarded;

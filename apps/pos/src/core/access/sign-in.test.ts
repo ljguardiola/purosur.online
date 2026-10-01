@@ -22,6 +22,13 @@ function record(overrides: Partial<SignInRecord> = {}): SignInRecord {
 
 const NOW = new Date("2026-05-01T10:00:00.000Z");
 
+const OPEN_CASH_SESSION = {
+  id: "s1",
+  opened_at: "2026-05-01T09:00:00.000Z",
+  opened_by: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+  locked: false,
+};
+
 function failuresAt(consecutiveFailures: number, secondsAgo = 3600): PinSignInFailures {
   return {
     consecutiveFailures,
@@ -85,6 +92,7 @@ function deps(options: Options = {}) {
     },
     now: () => NOW,
     openCashSession: () => undefined,
+    cashSession: () => null,
     ...rest,
   };
   return { built, hashed, failures, signedIn, remembered };
@@ -99,6 +107,7 @@ describe("signing in", () => {
         first_name: "Ada",
         permission_keys: ["sell_and_charge", "adjust_stock"],
       },
+      cash_session: null,
     });
   });
 
@@ -270,6 +279,26 @@ describe("signing in while a cash session is open", () => {
 
     expect((await signIn(built, "u1", "1234")).kind).toBe("signed_in");
     expect(signedIn.userId()).toBe("u1");
+  });
+
+  it("answers the open cash session as it stands once the opener is signed in", async () => {
+    const readWhileSignedIn: (string | undefined)[] = [];
+    const { built, signedIn } = deps({ openCashSession: () => ({ openedBy: "u1" }) });
+
+    const outcome = await signIn(
+      {
+        ...built,
+        cashSession: () => {
+          readWhileSignedIn.push(signedIn.userId());
+          return OPEN_CASH_SESSION;
+        },
+      },
+      "u1",
+      "1234",
+    );
+
+    expect(outcome).toMatchObject({ kind: "signed_in", cash_session: OPEN_CASH_SESSION });
+    expect(readWhileSignedIn).toEqual(["u1"]);
   });
 
   it("refuses an attempt whose PIN was checked while another person opened a cash session, leaving nobody signed in", async () => {
@@ -527,6 +556,7 @@ describe("signing in for the first time on a register", () => {
         first_name: "Ada",
         permission_keys: ["sell_and_charge", "adjust_stock"],
       },
+      cash_session: null,
     });
     expect(remembered).toEqual(["u1"]);
   });

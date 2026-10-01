@@ -296,9 +296,21 @@ const signedInPersonSchema = z.object({
   permission_keys: z.array(z.string()),
 });
 
+const openCashSessionSchema = z.object({
+  id: z.string(),
+  opened_at: z.string(),
+  opened_by: signedInPersonSchema,
+  locked: z.boolean(),
+});
+export type OpenCashSession = z.infer<typeof openCashSessionSchema>;
+
 const pinCodeRedemptionOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("redeemed") }),
-  z.object({ kind: z.literal("resumed"), person: signedInPersonSchema }),
+  z.object({
+    kind: z.literal("resumed"),
+    person: signedInPersonSchema,
+    cash_session: openCashSessionSchema.nullable(),
+  }),
   z.object({ kind: z.literal("cash_session_opened_by_another") }),
   z.object({ kind: z.literal("code_invalid") }),
   z.object({ kind: z.literal("code_expired") }),
@@ -311,7 +323,11 @@ const pinCodeRedemptionOutcomeSchema = z.discriminatedUnion("kind", [
 export type PinCodeRedemptionOutcome = z.infer<typeof pinCodeRedemptionOutcomeSchema>;
 
 const signInOutcomeSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("signed_in"), person: signedInPersonSchema }),
+  z.object({
+    kind: z.literal("signed_in"),
+    person: signedInPersonSchema,
+    cash_session: openCashSessionSchema.nullable(),
+  }),
   ...pinAttemptRefusalSchema.options,
   z.object({ kind: z.literal("no_register_permission") }),
   z.object({ kind: z.literal("cash_session_opened_by_another") }),
@@ -320,10 +336,7 @@ const signInOutcomeSchema = z.discriminatedUnion("kind", [
 export type SignInOutcome = z.infer<typeof signInOutcomeSchema>;
 
 const openCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
-  z.object({
-    kind: z.literal("opened"),
-    session: z.object({ id: z.string(), opened_at: z.string(), opening_float: z.number() }),
-  }),
+  z.object({ kind: z.literal("opened"), cash_session: openCashSessionSchema.nullable() }),
   z.object({ kind: z.literal("not_signed_in") }),
   z.object({ kind: z.literal("not_permitted") }),
   z.object({ kind: z.literal("already_open") }),
@@ -391,14 +404,6 @@ export type CashBalance = z.infer<typeof cashBalanceSchema>;
 
 const sessionOpenSaleSchema = z.object({ total: z.number(), cancellable: z.boolean() });
 export type SessionOpenSale = z.infer<typeof sessionOpenSaleSchema>;
-
-const openCashSessionSchema = z.object({
-  id: z.string(),
-  opened_at: z.string(),
-  opened_by: signedInPersonSchema,
-  locked: z.boolean(),
-});
-export type OpenCashSession = z.infer<typeof openCashSessionSchema>;
 
 const recordCashMovementOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("recorded"), authorized_by: authorizedBySchema.nullable() }),

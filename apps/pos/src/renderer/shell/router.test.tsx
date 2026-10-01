@@ -117,12 +117,12 @@ function contextWith(
     signInUsers: async () => [{ id: "u1", first_name: "Ada" }],
     authorizers: async () => [{ id: "u2", first_name: "Grace" }],
     lockedClosers: async () => [],
-    signIn: async () => ({ kind: "signed_in", person: PERSON }),
+    signIn: async () => ({ kind: "signed_in", person: PERSON, cash_session: null }),
     signOut,
     redeemPinCode: async () => ({ kind: "redeemed" }),
     signInLookup: async () => ({ kind: "not_found" }),
     requestFirstPinCode: async () => ({ kind: "sent" }),
-    firstSignIn: async () => ({ kind: "signed_in", person: PERSON }),
+    firstSignIn: async () => ({ kind: "signed_in", person: PERSON, cash_session: null }),
     currentSale: async () => null,
     cashCharge: async () => ({ kind: "invalid_amount" }),
     chargeSaleInCash: async () => ({ kind: "unavailable" }),
@@ -1195,7 +1195,7 @@ describe("the register's router", () => {
         },
         firstSignIn: async (userId, pin) => {
           calls.push(`sign-in ${userId}/${pin}`);
-          return { kind: "signed_in", person: PERSON };
+          return { kind: "signed_in", person: PERSON, cash_session: null };
         },
       },
       "/first-sign-in",
@@ -1227,7 +1227,7 @@ describe("the register's router", () => {
         },
         firstSignIn: async (userId, pin) => {
           calls.push(`sign-in ${userId}/${pin}`);
-          return { kind: "signed_in", person: PERSON };
+          return { kind: "signed_in", person: PERSON, cash_session: null };
         },
       },
       "/first-sign-in",

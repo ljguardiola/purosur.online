@@ -10,7 +10,6 @@ const accessKeys = {
   signInUsers: [...accessKey, "sign-in-users"] as const,
   authorizers: (permission: AuthorizablePermissionKey) =>
     [...accessKey, "authorizers", permission] as const,
-  lockedClosers: [...accessKey, "locked-closers"] as const,
 };
 
 export function useSignInUsersQuery(read: () => Promise<SignInUser[]>): CoreData<SignInUser[]> {
@@ -27,10 +26,6 @@ export function useAuthorizersQuery({
   enabled: boolean;
 }): CoreData<SignInUser[]> {
   return useCoreQuery({ queryKey: accessKeys.authorizers(permission), read, enabled });
-}
-
-export function useLockedClosersQuery(read: () => Promise<SignInUser[]>): CoreData<SignInUser[]> {
-  return useCoreQuery({ queryKey: accessKeys.lockedClosers, read });
 }
 
 export function useResetAuthorizers(permission: AuthorizablePermissionKey): () => void {

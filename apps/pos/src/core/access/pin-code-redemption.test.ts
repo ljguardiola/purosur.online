@@ -18,6 +18,12 @@ function envelope(code: string, details: unknown[] = []): CloudResponse {
 }
 
 const OPENER_PERSON = { user_id: USER_ID, first_name: "Ada", permission_keys: ["sell_and_charge"] };
+const OPEN_CASH_SESSION = {
+  id: "s1",
+  opened_at: "2026-05-01T09:00:00.000Z",
+  opened_by: OPENER_PERSON,
+  locked: false,
+};
 
 function depsAnswering(
   response: CloudResponse,
@@ -28,6 +34,7 @@ function depsAnswering(
   }: { enrolled?: boolean; canApply?: boolean; opener?: string } = {},
 ) {
   const signedIn: string[] = [];
+  const cashSessionReads: string[][] = [];
   const posted: { path: string; bearerToken: string; body: unknown }[] = [];
   const applied: { pepper: string; redemption: PinCodeRedemption }[] = [];
   const reported: unknown[] = [];
@@ -50,8 +57,12 @@ function depsAnswering(
       signedIn.push(userId);
       return OPENER_PERSON;
     },
+    cashSession: () => {
+      cashSessionReads.push([...signedIn]);
+      return OPEN_CASH_SESSION;
+    },
   };
-  return { deps, posted, applied, reported, signedIn };
+  return { deps, posted, applied, reported, signedIn, cashSessionReads };
 }
 
 describe("redeemPinCode", () => {
@@ -85,9 +96,21 @@ describe("redeemPinCode", () => {
     expect(await redeemPinCode(deps, TYPED_CODE, "482915")).toEqual({
       kind: "resumed",
       person: OPENER_PERSON,
+      cash_session: OPEN_CASH_SESSION,
     });
     expect(applied).toHaveLength(1);
     expect(signedIn).toEqual([USER_ID]);
+  });
+
+  it("answers the open cash session as it stands once the opener is signed in", async () => {
+    const { deps, cashSessionReads } = depsAnswering(
+      { kind: "ok", body: REDEEMED_BODY },
+      { opener: USER_ID },
+    );
+
+    await redeemPinCode(deps, TYPED_CODE, "482915");
+
+    expect(cashSessionReads).toEqual([[USER_ID]]);
   });
 
   it("refuses a code redeemed for anyone but the opener while a session is open, signing nobody in", async () => {

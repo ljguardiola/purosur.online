@@ -4,6 +4,7 @@ import type {
   OpenCashSession,
   RecordableCashMovementKinds,
   SessionOpenSale,
+  SignInUser,
 } from "@purosur/contracts";
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -18,6 +19,7 @@ import {
   useCashMovementKindsQuery,
   useCashMovementsQuery,
   useCashSessionQuery,
+  useLockedClosersQuery,
   useRegisterNameQuery,
   useSessionOpenSaleQuery,
   useSetSessionOpenSale,
@@ -386,5 +388,38 @@ describe("open sale query", () => {
     );
 
     await expect.element(screen.getByText("sale failed")).toBeVisible();
+  });
+});
+
+function ClosersProbe({
+  read,
+  sessionId = "s1",
+}: {
+  read: () => Promise<SignInUser[]>;
+  sessionId?: string;
+}) {
+  const closers = useLockedClosersQuery(sessionId, read);
+  return (
+    <p>{describeData(closers, (value) => value.map((closer) => closer.first_name).join(","))}</p>
+  );
+}
+
+describe("locked register closers query", () => {
+  it("never shows who may close another session", async () => {
+    const queryClient = createQueryClient();
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <ClosersProbe read={async () => [{ id: "u2", first_name: "Grace" }]} />
+      </QueryClientProvider>,
+    );
+    await expect.element(screen.getByText("Grace")).toBeVisible();
+
+    await screen.rerender(
+      <QueryClientProvider client={queryClient}>
+        <ClosersProbe read={() => new Promise(() => {})} sessionId="s2" />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("loading")).toBeVisible();
   });
 });

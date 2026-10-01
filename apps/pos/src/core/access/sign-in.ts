@@ -1,4 +1,4 @@
-import type { SignInOutcome } from "@purosur/contracts";
+import type { OpenCashSession, SignInOutcome } from "@purosur/contracts";
 import {
   holdsARegisterPermission,
   isLockedToAnother,
@@ -12,6 +12,7 @@ import type { SignInStore } from "./sqlite-sign-in-store";
 export interface SignInDeps extends PinCheckDeps {
   signedInPerson: Pick<SignedInPerson, "set" | "clear">;
   openCashSession: () => { openedBy: string } | undefined;
+  cashSession: () => OpenCashSession | null;
 }
 
 export interface FirstSignInDeps extends SignInDeps {
@@ -64,5 +65,6 @@ async function signInThen(
       first_name: record.firstName,
       permission_keys: heldPermissionKeys(record.access),
     },
+    cash_session: deps.cashSession(),
   };
 }

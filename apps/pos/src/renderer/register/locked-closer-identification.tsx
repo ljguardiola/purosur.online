@@ -7,7 +7,6 @@ import type {
 import { EmptyState, InlineNotice, LoadFailure, LoadingPlaceholder } from "@purosur/ui";
 import { ArrowLeft, Lock, ShieldX, TriangleAlert, UsersRound, UserX } from "lucide-react";
 import { useId, useState } from "react";
-import { useLockedClosersQuery } from "../access/access-queries";
 import { PinAttemptControls } from "../access/pin-attempt-controls";
 import { waitDescription } from "../access/pin-attempt-text";
 import type { PinNotice } from "../access/pin-refusal";
@@ -17,6 +16,7 @@ import { UserPicker } from "../access/user-picker";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
 import { ScreenLink } from "../shell/screen-link";
 import { SessionEyebrow } from "../shell/session-eyebrow";
+import { useLockedClosersQuery } from "./register-queries";
 
 export type IdentifiedCloser = { authorization: Authorization; first_name: string };
 
@@ -26,6 +26,7 @@ export type ReturnedCloser = {
 };
 
 export type LockedCloserIdentificationProps = {
+  sessionId: string;
   registerName: string | null;
   openedAt: string;
   loadClosers: () => Promise<SignInUser[]>;
@@ -74,6 +75,7 @@ function returnedNotice({ refusal, firstName }: ReturnedCloser): PinNotice {
 }
 
 function IdentificationPanel({
+  sessionId,
   registerName,
   openedAt,
   loadClosers,
@@ -82,7 +84,7 @@ function IdentificationPanel({
   onIdentified,
 }: LockedCloserIdentificationProps) {
   const headingId = useId();
-  const closers = useLockedClosersQuery(loadClosers);
+  const closers = useLockedClosersQuery(sessionId, loadClosers);
   const [chosen, setChosen] = useState<SignInUser | null>(null);
   const attempt = usePinAttempt(
     chosen === null

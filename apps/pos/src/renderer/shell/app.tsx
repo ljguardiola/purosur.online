@@ -2,6 +2,7 @@ import type {
   Authorization,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
+  OpenCashSession,
   OpenCashSessionOutcome,
   SignInOutcome,
 } from "@purosur/contracts";
@@ -18,12 +19,14 @@ import { useCoreStatus } from "../platform/use-core-status";
 import {
   cashKey,
   cashSessionQueryOptions,
+  lockedClosersKey,
   registerKeys,
   useCashSessionQuery,
   useEnrollmentQuery,
 } from "../register/register-queries";
 import { salesKeys } from "../sales/sales-queries";
 import type { CashSessionState } from "./cash-session-state";
+import { cashSessionStateOf } from "./cash-session-state";
 import type { Enrollment } from "./router";
 import { createAppRouter, isSessionScreen, routeFor } from "./router";
 
@@ -63,6 +66,11 @@ function Register({ core }: { core: CoreClient }) {
     queryClient.setQueryData(registerKeys.cashSession, state);
   }
 
+  async function takeCashSession(session: OpenCashSession | null) {
+    await cancelCashSessionReads();
+    setCashSession(cashSessionStateOf(session));
+  }
+
   function refreshCashSession() {
     return queryClient.invalidateQueries({ queryKey: registerKeys.cashSession });
   }
@@ -82,8 +90,9 @@ function Register({ core }: { core: CoreClient }) {
   async function takeSignedInPerson(outcome: SignInOutcome) {
     if (outcome.kind === "signed_in") {
       setPerson(outcome.person);
+      await takeCashSession(outcome.cash_session);
     }
-    if (outcome.kind === "signed_in" || outcome.kind === "cash_session_opened_by_another") {
+    if (outcome.kind === "cash_session_opened_by_another") {
       await refreshCashSession();
     }
     return outcome;
@@ -108,8 +117,7 @@ function Register({ core }: { core: CoreClient }) {
       setPerson(undefined);
     }
     if (outcome.kind === "opened") {
-      await cancelCashSessionReads();
-      await refreshCashSession();
+      await takeCashSession(outcome.cash_session);
     }
     if (outcome.kind === "already_open") {
       return readCashSession().then(
@@ -216,7 +224,7 @@ function Register({ core }: { core: CoreClient }) {
     const outcome = await core.redeemPinCode(typedCode, newPin);
     if (outcome.kind === "resumed") {
       setPerson(outcome.person);
-      await refreshCashSession();
+      await takeCashSession(outcome.cash_session);
     }
     return outcome;
   }
@@ -295,6 +303,7 @@ function Register({ core }: { core: CoreClient }) {
       core.onPulled(() => {
         void queryClient.invalidateQueries({ queryKey: accessKey });
         void queryClient.invalidateQueries({ queryKey: registerKeys.registerName });
+        void queryClient.invalidateQueries({ queryKey: lockedClosersKey });
       }),
     [core, queryClient],
   );

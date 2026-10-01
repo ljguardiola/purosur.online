@@ -27,6 +27,7 @@ async function renderStep(
     }));
   const screen = await render(
     <LockedCloserIdentification
+      sessionId="s1"
       registerName="Caja 1"
       openedAt={OPENED_AT}
       loadClosers={options.loadClosers ?? (async () => CLOSERS)}

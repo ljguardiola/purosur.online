@@ -1,5 +1,6 @@
 import {
   type CloudError,
+  type OpenCashSession,
   type PinCodeRedemption,
   type PinCodeRedemptionOutcome,
   pinCodeRedemptionBodySchema,
@@ -21,6 +22,7 @@ export interface PinCodeRedemptionDeps {
   signInRedeemed: (
     userId: string,
   ) => Extract<PinCodeRedemptionOutcome, { kind: "resumed" }>["person"] | undefined;
+  cashSession: () => OpenCashSession | null;
 }
 
 function refusalOutcome(error: CloudError): PinCodeRedemptionOutcome {
@@ -93,5 +95,7 @@ export async function redeemPinCode(
     return { kind: "cash_session_opened_by_another" };
   }
   const person = deps.signInRedeemed(openSession.openedBy);
-  return person === undefined ? { kind: "redeemed" } : { kind: "resumed", person };
+  return person === undefined
+    ? { kind: "redeemed" }
+    : { kind: "resumed", person, cash_session: deps.cashSession() };
 }

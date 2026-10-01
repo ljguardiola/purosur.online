@@ -247,6 +247,10 @@ const rendererRequestDeps: RendererRequestDeps = {
           signInStore === undefined
             ? undefined
             : signInRedeemedPerson({ store: signInStore, signedInPerson }, userId),
+        cashSession: () =>
+          localDatabase === undefined
+            ? null
+            : currentCashSession(localDatabase, signedInPerson.userId()),
       },
       typedCode,
       newPin,
@@ -264,6 +268,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               store: signInStore,
               signedInPerson,
               openCashSession: () => readOpenSession(localDatabase),
+              cashSession: () => currentCashSession(localDatabase, signedInPerson.userId()),
               readPepper,
               hashPin,
               now: () => new Date(),
@@ -280,6 +285,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               store: signInStore,
               signedInPerson,
               openCashSession: () => readOpenSession(localDatabase),
+              cashSession: () => currentCashSession(localDatabase, signedInPerson.userId()),
               readPepper,
               hashPin,
               now: () => new Date(),
@@ -324,7 +330,6 @@ const rendererRequestDeps: RendererRequestDeps = {
             {
               database: localDatabase,
               gate: actionGate,
-              signedInPerson,
               readOutboxChainKey: async () =>
                 (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
               now: () => new Date(),
@@ -340,7 +345,6 @@ const rendererRequestDeps: RendererRequestDeps = {
             {
               database: localDatabase,
               gate: actionGate,
-              signedInPerson,
               readOutboxChainKey: async () =>
                 (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
               now: () => new Date(),
@@ -356,7 +360,6 @@ const rendererRequestDeps: RendererRequestDeps = {
             {
               database: localDatabase,
               gate: actionGate,
-              signedInPerson,
               readOutboxChainKey: async () =>
                 (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
               now: () => new Date(),
