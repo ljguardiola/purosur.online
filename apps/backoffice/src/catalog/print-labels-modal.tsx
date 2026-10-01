@@ -1,9 +1,5 @@
 import type { ProductSummary } from "@purosur/contracts";
-import {
-  isInternalBarcode,
-  LABELS_MAX_COUNT_PER_PRODUCT,
-  LABELS_MAX_TOTAL_COUNT,
-} from "@purosur/domain";
+import { LABELS_MAX_COUNT_PER_PRODUCT, LABELS_MAX_TOTAL_COUNT } from "@purosur/domain";
 import {
   Button,
   EmptyState,
@@ -24,13 +20,9 @@ import type { printLabels } from "./products-api";
 type LabelableProduct = { product: ProductSummary; code: string };
 
 function labelableProducts(products: ProductSummary[]): LabelableProduct[] {
-  const labelable = products.flatMap((product) => {
-    if (!product.active) {
-      return [];
-    }
-    const code = product.barcodes.find(isInternalBarcode);
-    return code ? [{ product, code }] : [];
-  });
+  const labelable = products.flatMap((product) =>
+    product.labelCode === null ? [] : [{ product, code: product.labelCode }],
+  );
   return sortedItems(labelable, {
     order: textOrder((labelableProduct) => labelableProduct.product.name),
     direction: "ascending",
