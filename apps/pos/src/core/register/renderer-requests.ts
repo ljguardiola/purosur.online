@@ -6,6 +6,7 @@ import type {
   CashBalance,
   CashChargeAnswer,
   ChangeLineQuantityOutcome,
+  ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
@@ -30,7 +31,7 @@ import type {
   SignInUser,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
-import type { ChargeSaleInCashRequest } from "../sales/sale-requests";
+import type { ChargeSaleByTransferRequest, ChargeSaleInCashRequest } from "../sales/sale-requests";
 import type { CashMovementRequest } from "./cash-movement-requests";
 
 export interface RendererRequestDeps {
@@ -53,6 +54,9 @@ export interface RendererRequestDeps {
   scanProduct: ((code: string) => Promise<ScanProductOutcome>) | undefined;
   chargeSaleInCash:
     | ((request: ChargeSaleInCashRequest) => Promise<ChargeSaleInCashOutcome>)
+    | undefined;
+  chargeSaleByTransfer:
+    | ((request: ChargeSaleByTransferRequest) => Promise<ChargeSaleByTransferOutcome>)
     | undefined;
   searchProducts: ((query: string) => Promise<SearchProductsOutcome>) | undefined;
   addProduct: ((productId: string) => Promise<AddProductOutcome>) | undefined;
@@ -333,6 +337,18 @@ async function attemptChargeSaleInCash(
   }
 }
 
+async function attemptChargeSaleByTransfer(
+  deps: RendererRequestDeps,
+  request: ChargeSaleByTransferRequest,
+): Promise<ChargeSaleByTransferOutcome> {
+  try {
+    return (await deps.chargeSaleByTransfer?.(request)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("charging a sale by transfer", error);
+    return { kind: "unavailable" };
+  }
+}
+
 async function attemptSearchProducts(
   deps: RendererRequestDeps,
   query: string,
@@ -518,6 +534,12 @@ export async function answerRendererRequest(
           saleId: message.sale_id,
           tendered: message.tendered,
         }),
+      };
+    case "charge-sale-by-transfer":
+      return {
+        type: "charge-sale-by-transfer-result",
+        request_id: message.request_id,
+        outcome: await attemptChargeSaleByTransfer(deps, { saleId: message.sale_id }),
       };
     case "search-products":
       return {

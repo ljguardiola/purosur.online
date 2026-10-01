@@ -58,6 +58,7 @@ function buildFailingRouter(shouldThrow: () => boolean) {
       currentSale: async () => null,
       cashCharge: async () => ({ kind: "invalid_amount" }),
       chargeSaleInCash: async () => ({ kind: "unavailable" }),
+      chargeSaleByTransfer: async () => ({ kind: "unavailable" }),
       scanProduct: async () => ({ kind: "unavailable" }),
       searchProducts: async () => ({ kind: "unavailable" }),
       addProduct: async () => ({ kind: "unavailable" }),

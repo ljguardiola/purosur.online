@@ -5,6 +5,7 @@ import type {
   CashBalance,
   CashChargeAnswer,
   ChangeLineQuantityOutcome,
+  ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
@@ -41,6 +42,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const authorizerLookups: string[] = [];
   const scans: string[] = [];
   const charges: { saleId: string; tendered: number }[] = [];
+  const transferCharges: { saleId: string }[] = [];
   const searches: string[] = [];
   const additions: string[] = [];
   const kindLookups: string[] = [];
@@ -62,6 +64,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
     authorizerLookups,
     scans,
     charges,
+    transferCharges,
     searches,
     additions,
     kindLookups,
@@ -139,6 +142,12 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         tendered: number;
       }): Promise<ChargeSaleInCashOutcome> => {
         charges.push(request);
+        return { kind: "no_open_sale" };
+      },
+      chargeSaleByTransfer: async (request: {
+        saleId: string;
+      }): Promise<ChargeSaleByTransferOutcome> => {
+        transferCharges.push(request);
         return { kind: "no_open_sale" };
       },
       searchProducts: async (query: string): Promise<SearchProductsOutcome> => {
@@ -846,6 +855,71 @@ describe("answerRendererRequest", () => {
     ).toEqual({
       type: "charge-sale-in-cash-result",
       request_id: "r33",
+      outcome: { kind: "unavailable" },
+    });
+  });
+
+  it("charges the sale by transfer and answers the outcome", async () => {
+    const outcome: ChargeSaleByTransferOutcome = {
+      kind: "completed",
+      sale_id: "s1",
+      total: 3000,
+    };
+    const { deps: withCharge, transferCharges } = deps(true, {
+      chargeSaleByTransfer: async () => outcome,
+    });
+    const answer = await answerRendererRequest(withCharge, {
+      type: "charge-sale-by-transfer",
+      request_id: "r34",
+      sale_id: "s1",
+    });
+    const recording = deps(true);
+    await answerRendererRequest(recording.deps, {
+      type: "charge-sale-by-transfer",
+      request_id: "r35",
+      sale_id: "s2",
+    });
+
+    expect(answer).toEqual({ type: "charge-sale-by-transfer-result", request_id: "r34", outcome });
+    expect(transferCharges).toEqual([]);
+    expect(recording.transferCharges).toEqual([{ saleId: "s2" }]);
+    expect(recording.charges).toEqual([]);
+  });
+
+  it("answers that charging by transfer is unavailable when it fails, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      chargeSaleByTransfer: async () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "charge-sale-by-transfer",
+        request_id: "r36",
+        sale_id: "s1",
+      }),
+    ).toEqual({
+      type: "charge-sale-by-transfer-result",
+      request_id: "r36",
+      outcome: { kind: "unavailable" },
+    });
+    expect(failing.failures).toEqual([{ context: "charging a sale by transfer", error }]);
+  });
+
+  it("answers that charging by transfer is unavailable when the register has no database", async () => {
+    const withoutDatabase = deps(true, { chargeSaleByTransfer: undefined });
+
+    expect(
+      await answerRendererRequest(withoutDatabase.deps, {
+        type: "charge-sale-by-transfer",
+        request_id: "r37",
+        sale_id: "s1",
+      }),
+    ).toEqual({
+      type: "charge-sale-by-transfer-result",
+      request_id: "r37",
       outcome: { kind: "unavailable" },
     });
   });

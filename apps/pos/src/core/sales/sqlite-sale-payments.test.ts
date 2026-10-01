@@ -4,6 +4,7 @@ import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { readSalePayments } from "./sqlite-sale-payments";
 
 const OCCURRED_AT = new Date("2026-09-30T12:00:00.000Z");
+const CONFIRMED_AT = new Date("2026-09-30T12:01:00.000Z");
 
 let database: LocalDatabase;
 
@@ -29,6 +30,14 @@ function addPayment(id: string, saleId: string, amount: number, tendered: number
       "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, state, occurred_at) VALUES (?, ?, 'SALE', 'CASH', 'NONE', ?, ?, 'APPROVED', ?)",
     )
     .run(id, saleId, amount, tendered, OCCURRED_AT.toISOString());
+}
+
+function addTransfer(id: string, saleId: string, amount: number): void {
+  database
+    .prepare(
+      "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state, occurred_at) VALUES (?, ?, 'SALE', 'TRANSFER', 'NONE', ?, NULL, 'u2', ?, 'APPROVED', ?)",
+    )
+    .run(id, saleId, amount, CONFIRMED_AT.toISOString(), OCCURRED_AT.toISOString());
 }
 
 beforeEach(() => {
@@ -70,6 +79,26 @@ describe("the payments of a sale", () => {
 
     const [payment] = readSalePayments(database, "sale-1");
 
+    expect(payment).not.toHaveProperty("tendered");
+  });
+
+  it("read back a transfer with who confirmed it and when, and nothing tendered", () => {
+    addTransfer("payment-1", "sale-1", 1500);
+
+    const [payment] = readSalePayments(database, "sale-1");
+
+    expect(payment).toEqual({
+      id: "payment-1",
+      saleId: "sale-1",
+      kind: "SALE",
+      method: "TRANSFER",
+      provider: "NONE",
+      amount: 1500,
+      authorizedBy: "u2",
+      confirmedAt: CONFIRMED_AT,
+      state: "APPROVED",
+      occurredAt: OCCURRED_AT,
+    });
     expect(payment).not.toHaveProperty("tendered");
   });
 
