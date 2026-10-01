@@ -135,8 +135,8 @@ describe("signing in", () => {
     expect(remembered).toEqual([]);
   });
 
-  it("fails, signing nobody in, when the open cash session cannot be read", async () => {
-    const { built, signedIn } = deps({
+  it("fails, signing nobody in and remembering nobody, when the open cash session cannot be read", async () => {
+    const { built, signedIn, remembered } = deps({
       openCashSession: () => ({ openedBy: "u1" }),
       cashSession: () => {
         throw new Error("the register database is unavailable");
@@ -145,6 +145,7 @@ describe("signing in", () => {
 
     await expect(signIn(built, "u1", "1234")).rejects.toThrow();
     expect(signedIn.userId()).toBeUndefined();
+    expect(remembered).toEqual([]);
   });
 });
 
@@ -160,6 +161,19 @@ describe("signing in for the first time on a register", () => {
     const { built, remembered } = deps();
 
     expect((await firstSignIn(built, "u1", "9999")).kind).toBe("wrong_pin");
+    expect(remembered).toEqual([]);
+  });
+
+  it("fails, signing nobody in and remembering nobody, when the open cash session cannot be read", async () => {
+    const { built, signedIn, remembered } = deps({
+      openCashSession: () => ({ openedBy: "u1" }),
+      cashSession: () => {
+        throw new Error("the register database is unavailable");
+      },
+    });
+
+    await expect(firstSignIn(built, "u1", "1234")).rejects.toThrow();
+    expect(signedIn.userId()).toBeUndefined();
     expect(remembered).toEqual([]);
   });
 

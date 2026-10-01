@@ -26,19 +26,15 @@ async function signInRemembering(
   pin: string,
   remember: boolean,
 ): Promise<SignInOutcome> {
-  const outcome = await signInAtRegister(
-    {
-      ...pinCheckPorts(deps),
-      signedInPerson: deps.signedInPerson,
-      register: { openSession: deps.openCashSession },
-      rememberedPeople: { remember: (rememberedId) => deps.store.remember(rememberedId) },
-    },
-    { userId, pin, remember },
+  return signInAnswer(
+    await signInAtRegister(
+      {
+        ...pinCheckPorts(deps),
+        signedInPerson: deps.signedInPerson,
+        register: { openSession: deps.openCashSession, sessionToResume: deps.cashSession },
+        rememberedPeople: { remember: (rememberedId) => deps.store.remember(rememberedId) },
+      },
+      { userId, pin, remember },
+    ),
   );
-  try {
-    return signInAnswer(outcome, deps.cashSession);
-  } catch (error) {
-    deps.signedInPerson.clear();
-    throw error;
-  }
 }

@@ -5,7 +5,6 @@ import type {
   PinAttemptRefusal,
   SignInOutcome,
 } from "@purosur/contracts";
-import { PIN_SIGN_IN_LOCKOUT_FAILURES } from "@purosur/domain";
 import type {
   AuthorizeRegisterOperationOutcome,
   PinRefusal,
@@ -17,7 +16,7 @@ export type AuthorizeOutcome = { kind: "authorized"; by: AuthorizedBy } | Author
 function pinRefusalAnswer(refusal: PinRefusal): PinAttemptRefusal {
   switch (refusal.kind) {
     case "locked":
-      return { kind: "locked", consecutive_failures: PIN_SIGN_IN_LOCKOUT_FAILURES };
+      return { kind: "locked", consecutive_failures: refusal.consecutiveFailures };
     case "rate_limited":
     case "wrong_pin":
       return {
@@ -29,8 +28,7 @@ function pinRefusalAnswer(refusal: PinRefusal): PinAttemptRefusal {
 }
 
 export function signInAnswer(
-  outcome: SignInAtRegisterOutcome,
-  cashSessionOf: (userId: string) => OpenCashSession | null,
+  outcome: SignInAtRegisterOutcome<OpenCashSession | null>,
 ): SignInOutcome {
   switch (outcome.kind) {
     case "signed_in":
@@ -41,7 +39,7 @@ export function signInAnswer(
           first_name: outcome.person.firstName,
           abilities: outcome.person.abilities,
         },
-        cash_session: cashSessionOf(outcome.person.userId),
+        cash_session: outcome.resumedSession,
       };
     case "no_register_permission":
     case "cash_session_opened_by_another":
