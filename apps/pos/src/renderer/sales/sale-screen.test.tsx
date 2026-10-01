@@ -3,6 +3,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { SaleScreenProps } from "./sale-screen";
+import { salesKeys } from "./sales-queries";
 import {
   ALFAJOR,
   deferred,
@@ -84,8 +85,11 @@ describe("SaleScreen", () => {
     await scan(field, "7790001");
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
     read.resolve(null);
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await expect.poll(() => screen.queryClient.isFetching()).toBe(0);
 
+    expect(screen.queryClient.getQueryData(salesKeys.currentSale("s1", "u1"))).toEqual(
+      SALE_OF_YERBA,
+    );
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
     await expect.element(screen.getByText("1 línea")).toBeVisible();
   });

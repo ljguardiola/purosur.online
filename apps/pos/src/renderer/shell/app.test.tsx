@@ -79,7 +79,6 @@ function coreAnswering(
     cashBalance?: CoreClient["cashBalance"];
     redeemOutcome?: PinCodeRedemptionOutcome;
     cashMovements?: CoreClient["cashMovements"];
-    signInUsers?: CoreClient["signInUsers"];
     recordCashMovement?: CoreClient["recordCashMovement"];
   } = {},
   sales: {
@@ -117,9 +116,7 @@ function coreAnswering(
     },
     async signInUsers() {
       usersLoads += 1;
-      return cashDrawer.signInUsers === undefined
-        ? [{ id: "u1", first_name: "Ada" }]
-        : cashDrawer.signInUsers();
+      return [{ id: "u1", first_name: "Ada" }];
     },
     async authorizers(permission) {
       return cashDrawer.authorizers === undefined ? [] : cashDrawer.authorizers(permission);
@@ -296,27 +293,6 @@ describe("App", () => {
     await expect.element(screen.getByRole("radio", { name: "Ada" })).toBeChecked();
     await expect.element(screen.getByLabelText("PIN")).toHaveValue("12");
     await expect.poll(usersLoads).toBe(2);
-  });
-
-  it("keeps the chosen person and the typed PIN when a pull's read of the users fails", async () => {
-    const signInUsers = vi
-      .fn<CoreClient["signInUsers"]>()
-      .mockResolvedValueOnce([{ id: "u1", first_name: "Ada" }])
-      .mockRejectedValue(new Error("the core connection was replaced"));
-    const { core, finishPull } = coreAnswering(true, { kind: "enrolled" }, ADA_SIGNED_IN, {
-      signInUsers,
-    });
-    const screen = await render(<App core={core} />);
-    postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
-    await userEvent.type(screen.getByLabelText("PIN"), "12");
-
-    finishPull(null);
-
-    await expect.poll(() => signInUsers.mock.calls.length).toBe(2);
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    await expect.element(screen.getByRole("radio", { name: "Ada" })).toBeChecked();
-    await expect.element(screen.getByLabelText("PIN")).toHaveValue("12");
   });
 
   it("replaces the whole screen with the core-down notice once the core reports it is down", async () => {
@@ -1281,7 +1257,6 @@ describe("App", () => {
       finishPull("Caja 1");
 
       await expect.element(screen.getByText(/Caja 1 · Sesión abierta/)).toBeVisible();
-      await new Promise((resolve) => setTimeout(resolve, 100));
       expect(cashBalance).toHaveBeenCalledTimes(1);
       expect(cashMovements).toHaveBeenCalledTimes(1);
     });

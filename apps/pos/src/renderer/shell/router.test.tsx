@@ -891,16 +891,27 @@ describe("the register's router", () => {
   });
 
   it("shows the register's name from the first render of a session screen", async () => {
+    let resolveName: (name: string | null) => void = () => {};
+    const name = {
+      promise: new Promise<string | null>((resolve) => {
+        resolveName = resolve;
+      }),
+      resolve: (value: string | null) => resolveName(value),
+    };
     const router = createRegisterRouter(
       routeTree,
       {
         ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION),
-        registerName: () => new Promise((resolve) => setTimeout(() => resolve("Caja 1"), 100)),
+        registerName: () => name.promise,
       },
       "/session",
     );
 
     const screen = await render(<RouterProvider router={router} />);
+    await expect
+      .element(screen.getByRole("heading", { name: "Venta en curso" }))
+      .not.toBeInTheDocument();
+    name.resolve("Caja 1");
 
     await expect.element(screen.getByRole("heading", { name: "Venta en curso" })).toBeVisible();
     expect(screen.container.textContent).toContain("Caja 1 · Sesión abierta 09:02");

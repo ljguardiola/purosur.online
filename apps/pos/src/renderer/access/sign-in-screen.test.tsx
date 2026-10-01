@@ -1,8 +1,9 @@
 import type { SignInOutcome, SignInUser } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
+import { accessKey } from "./access-queries";
 import { SignInScreen } from "./sign-in-screen";
 
 const USERS: SignInUser[] = [
@@ -56,6 +57,35 @@ async function enter(screen: Screen, firstName: string, pin: string) {
 }
 
 describe("SignInScreen", () => {
+  it("keeps the chosen person and the typed PIN when a later read of the users fails", async () => {
+    const loadUsers = vi
+      .fn<() => Promise<SignInUser[]>>()
+      .mockResolvedValueOnce(USERS)
+      .mockRejectedValue(new Error("the core connection was replaced"));
+    const screen = await render(
+      <SignInScreen
+        loadUsers={loadUsers}
+        signIn={answering(SIGNED_IN).signIn}
+        registerName={null}
+      />,
+    );
+    await choose(screen, "Ada");
+    await userEvent.type(screen.getByLabelText("PIN"), "12");
+
+    void screen.queryClient.invalidateQueries({ queryKey: accessKey });
+    await expect
+      .poll(
+        () => screen.queryClient.getQueryCache().findAll({ queryKey: accessKey })[0]?.state.status,
+      )
+      .toBe("error");
+
+    await expect.element(screen.getByRole("radio", { name: "Ada" })).toBeChecked();
+    await expect.element(screen.getByLabelText("PIN")).toHaveValue("12");
+    await expect
+      .element(screen.getByText("No se pudieron cargar los usuarios"))
+      .not.toBeInTheDocument();
+  });
+
   it("asks who opens the register, offering every user by first name", async () => {
     const screen = await renderScreen();
 

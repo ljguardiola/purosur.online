@@ -1,5 +1,5 @@
-import { QueryClientProvider } from "@tanstack/react-query";
-import { describe, expect, it, vi } from "vitest";
+import { focusManager, onlineManager, QueryClientProvider } from "@tanstack/react-query";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { createQueryClient } from "./query-client";
@@ -59,10 +59,17 @@ describe("useCoreQuery", () => {
 
   it("does not read again by itself after a failure", async () => {
     const read = vi.fn<() => Promise<string | "unavailable">>(async () => "unavailable");
-    const { screen } = renderProbe(read);
+    const { screen, queryClient } = renderProbe(read);
     await expect.element((await screen).getByText("failed")).toBeVisible();
 
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    onTestFinished(() => {
+      focusManager.setFocused(undefined);
+      onlineManager.setOnline(true);
+    });
+    focusManager.setFocused(true);
+    onlineManager.setOnline(false);
+    onlineManager.setOnline(true);
+    await queryClient.resumePausedMutations();
 
     expect(read).toHaveBeenCalledOnce();
   });

@@ -43,5 +43,5 @@ export async function render(ui: ReactNode, options: ComponentRenderOptions = {}
       </QueryClientProvider>
     ),
   });
-  return Object.assign(screen, { router });
+  return Object.assign(screen, { router, queryClient });
 }
