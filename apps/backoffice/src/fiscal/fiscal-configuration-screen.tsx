@@ -35,10 +35,12 @@ export function FiscalConfigurationScreen({
   const reload = useReloadIssuerIdentification({ fetchIssuerIdentification });
   const thresholds = useBuyerIdentificationThresholdsQuery({
     fetchBuyerIdentificationThresholds,
+    now: clock,
     onSessionEnded,
   });
   const reloadThresholds = useReloadBuyerIdentificationThresholds({
     fetchBuyerIdentificationThresholds,
+    now: clock,
   });
   const [editing, setEditing] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -70,7 +72,6 @@ export function FiscalConfigurationScreen({
         <BuyerIdentificationThresholdSection
           data={thresholds}
           onRecord={() => setRecording(true)}
-          now={clock}
         />
         <EditIssuerIdentificationModal
           target={editing ? issuerIdentification : null}

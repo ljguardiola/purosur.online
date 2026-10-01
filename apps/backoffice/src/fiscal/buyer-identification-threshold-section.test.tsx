@@ -5,6 +5,7 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { CloudData } from "../platform/use-cloud-query";
 import { BuyerIdentificationThresholdSection } from "./buyer-identification-threshold-section";
+import type { BuyerIdentificationThresholdsOnDay } from "./fiscal-queries";
 
 const inEffect: BuyerIdentificationThreshold = {
   id: "threshold-1",
@@ -18,25 +19,22 @@ const scheduled: BuyerIdentificationThreshold = {
   validFrom: "2026-12-01",
 };
 
-const aDayOfOctober = () => new Date("2026-10-15T12:00:00-03:00");
+const aDayOfOctober = "2026-10-15";
 
 function loaded(
   thresholds: BuyerIdentificationThreshold[],
-): CloudData<BuyerIdentificationThreshold[]> {
-  return { status: "loaded", value: thresholds, refreshing: false };
+  today = aDayOfOctober,
+): CloudData<BuyerIdentificationThresholdsOnDay> {
+  return { status: "loaded", value: { thresholds, today }, refreshing: false };
 }
 
 function sectionFor(
-  data: CloudData<BuyerIdentificationThreshold[]>,
-  options: { onRecord?: () => void; now?: () => Date } = {},
+  data: CloudData<BuyerIdentificationThresholdsOnDay>,
+  options: { onRecord?: () => void } = {},
 ) {
   return (
     <main>
-      <BuyerIdentificationThresholdSection
-        data={data}
-        onRecord={options.onRecord ?? (() => {})}
-        now={options.now ?? aDayOfOctober}
-      />
+      <BuyerIdentificationThresholdSection data={data} onRecord={options.onRecord ?? (() => {})} />
     </main>
   );
 }
@@ -88,27 +86,11 @@ test("shows Sin cargar for what is in effect while the only threshold starts lat
   await expect.element(screen.getByText("$ 15.000.000,00")).toBeVisible();
 });
 
-test("counts today as Argentina's day, not the UTC one", async () => {
-  const eveningBeforeDecemberInArgentina = () => new Date("2026-12-01T01:00:00Z");
-  const screen = await render(
-    sectionFor(loaded([scheduled, inEffect]), { now: eveningBeforeDecemberInArgentina }),
-  );
-
-  await expect.element(screen.getByText("Próximo")).toBeVisible();
-  await expect.element(screen.getByText("$ 15.000.000,00")).toBeVisible();
-});
-
-test("reads the day again when the thresholds change", async () => {
-  let current = new Date("2026-10-15T12:00:00-03:00");
-  const screen = await render(sectionFor(loaded([scheduled, inEffect]), { now: () => current }));
+test("moves the split between in effect and next when the loaded day moves past the next start", async () => {
+  const screen = await render(sectionFor(loaded([scheduled, inEffect])));
   await expect.element(screen.getByText("Próximo")).toBeVisible();
 
-  current = new Date("2026-12-02T12:00:00-03:00");
-  await screen.rerender(
-    sectionFor(loaded([scheduled, inEffect, { ...inEffect, id: "other" }]), {
-      now: () => current,
-    }),
-  );
+  await screen.rerender(sectionFor(loaded([scheduled, inEffect], "2026-12-01")));
 
   await expect.element(screen.getByText("Próximo")).not.toBeInTheDocument();
   await expect.element(screen.getByText("$ 15.000.000,00")).toBeVisible();
@@ -152,7 +134,14 @@ test("shows the rate-limited notice with the time to wait", async () => {
 test("keeps the action available while loaded data refreshes", async () => {
   const onRecord = vi.fn();
   const screen = await render(
-    sectionFor({ status: "loaded", value: [inEffect], refreshing: true }, { onRecord }),
+    sectionFor(
+      {
+        status: "loaded",
+        value: { thresholds: [inEffect], today: aDayOfOctober },
+        refreshing: true,
+      },
+      { onRecord },
+    ),
   );
 
   await userEvent.click(screen.getByRole("button", { name: "Cargar un umbral nuevo" }));

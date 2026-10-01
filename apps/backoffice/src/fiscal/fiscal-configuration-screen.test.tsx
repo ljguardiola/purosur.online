@@ -544,6 +544,30 @@ test("counts the threshold in effect from the screen's clock", async () => {
   await expect.element(screen.getByText("Próximo")).toBeVisible();
 });
 
+test("a reload counts the threshold in effect from the clock's day at that read, even when the thresholds are the same", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+  vi.mocked(services.fetchBuyerIdentificationThresholds).mockResolvedValue({
+    kind: "ok",
+    value: [{ id: "threshold-2", amount: 1_500_000_000, validFrom: "2026-12-01" }, inEffect],
+  });
+  let current = new Date("2026-10-15T12:00:00-03:00");
+  const screen = await renderScreen(
+    services,
+    () => {},
+    () => current,
+  );
+  await expect.element(screen.getByText("Próximo")).toBeVisible();
+  await expect.element(screen.getByText("$ 10.000.000,00")).toBeVisible();
+
+  current = new Date("2026-12-02T12:00:00-03:00");
+  refreshFiscal(screen);
+
+  await expect.element(screen.getByText("Próximo")).not.toBeInTheDocument();
+  await expect.element(screen.getByText("$ 15.000.000,00")).toBeVisible();
+  expect(screen.getByText("$ 10.000.000,00").query()).toBeNull();
+});
+
 test("a threshold that fails to load leaves the issuer identification on screen, and each section retries on its own", async () => {
   const services = createServices();
   vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });

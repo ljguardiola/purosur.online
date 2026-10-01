@@ -1,43 +1,24 @@
-import {
-  argentinaCalendarDay,
-  type BuyerIdentificationThreshold,
-  thresholdInEffectOn,
-  thresholdScheduledAfter,
-} from "@purosur/domain";
+import { thresholdInEffectOn, thresholdScheduledAfter } from "@purosur/domain";
 import { Button, formatCents, LoadFailure, LoadingPlaceholder } from "@purosur/ui";
 import { Plus } from "lucide-react";
-import { useEffect, useEffectEvent, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import type { CloudData } from "../platform/use-cloud-query";
 import { formatDisplayDate } from "./display-date";
 import { DataPair } from "./fiscal-data-pair";
+import type { BuyerIdentificationThresholdsOnDay } from "./fiscal-queries";
 
 type BuyerIdentificationThresholdSectionProps = {
-  data: CloudData<BuyerIdentificationThreshold[]>;
+  data: CloudData<BuyerIdentificationThresholdsOnDay>;
   onRecord: () => void;
-  now: () => Date;
 };
-
-function useToday(now: () => Date, thresholds: BuyerIdentificationThreshold[] | null): string {
-  const [today, setToday] = useState(() => argentinaCalendarDay(now()));
-  const readToday = useEffectEvent((_thresholds: BuyerIdentificationThreshold[] | null) =>
-    setToday(argentinaCalendarDay(now())),
-  );
-
-  useEffect(() => readToday(thresholds), [thresholds]);
-
-  return today;
-}
 
 export function BuyerIdentificationThresholdSection({
   data,
   onRecord,
-  now,
 }: BuyerIdentificationThresholdSectionProps) {
-  const thresholds = data.status === "loaded" ? data.value : null;
-  const today = useToday(now, thresholds);
-  const inEffect = thresholds && thresholdInEffectOn(thresholds, today);
-  const scheduled = thresholds && thresholdScheduledAfter(thresholds, today);
+  const loaded = data.status === "loaded" ? data.value : null;
+  const inEffect = loaded && thresholdInEffectOn(loaded.thresholds, loaded.today);
+  const scheduled = loaded && thresholdScheduledAfter(loaded.thresholds, loaded.today);
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
@@ -59,7 +40,7 @@ export function BuyerIdentificationThresholdSection({
       {data.status === "failed" && (
         <LoadFailure {...cloudLoadFailure(data, "el umbral de identificación del comprador")} />
       )}
-      {thresholds !== null && (
+      {loaded !== null && (
         <>
           <div className="flex gap-8">
             <DataPair label="Vigente" value={inEffect ? formatCents(inEffect.amount) : null} />
