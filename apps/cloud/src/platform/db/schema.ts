@@ -1,4 +1,4 @@
-import { ALERT_AUDIENCES, ALERT_LEVELS } from "@purosur/domain";
+import { ALERT_AUDIENCES, ALERT_LEVELS, POINT_OF_SALE_NUMBER_MAX } from "@purosur/domain";
 import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
@@ -549,6 +549,67 @@ export const registerEnrollmentCodes = pgTable(
     failedAttempts: integer("failed_attempts").notNull().default(0),
   },
   (table) => [index("register_enrollment_codes_code_lookup_idx").on(table.codeLookup)],
+);
+
+export const fiscalAddresses = pgTable(
+  "fiscal_addresses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    streetAddress: text("street_address").notNull(),
+    version: integer("version").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("fiscal_addresses_name_lower_key").on(sql`lower(${table.name})`)],
+);
+
+// Append-only: a number once claimed by a register stays that register's, even after the register
+// is given another one.
+export const pointOfSaleClaims = pgTable(
+  "point_of_sale_claims",
+  {
+    pointOfSaleNumber: integer("point_of_sale_number").primaryKey(),
+    registerId: uuid("register_id")
+      .notNull()
+      .references(() => registers.id),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }).notNull().defaultNow(),
+    claimedBy: uuid("claimed_by")
+      .notNull()
+      .references(() => users.id),
+  },
+  (table) => [
+    check(
+      "point_of_sale_claims_number_in_range",
+      sql`${table.pointOfSaleNumber} between 1 and ${sql.raw(String(POINT_OF_SALE_NUMBER_MAX))}`,
+    ),
+    unique("point_of_sale_claims_number_register_key").on(
+      table.pointOfSaleNumber,
+      table.registerId,
+    ),
+  ],
+);
+
+// The composite foreign key makes the database itself refuse a register using a number another
+// register claimed.
+export const registerPointsOfSale = pgTable(
+  "register_points_of_sale",
+  {
+    registerId: uuid("register_id")
+      .primaryKey()
+      .references(() => registers.id),
+    pointOfSaleNumber: integer("point_of_sale_number").notNull(),
+    fiscalAddressId: uuid("fiscal_address_id")
+      .notNull()
+      .references(() => fiscalAddresses.id),
+    version: integer("version").notNull(),
+  },
+  (table) => [
+    foreignKey({
+      name: "register_points_of_sale_claim_fk",
+      columns: [table.pointOfSaleNumber, table.registerId],
+      foreignColumns: [pointOfSaleClaims.pointOfSaleNumber, pointOfSaleClaims.registerId],
+    }),
+  ],
 );
 
 export const registerInstallations = pgTable(

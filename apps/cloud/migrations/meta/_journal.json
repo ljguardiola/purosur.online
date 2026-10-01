@@ -358,6 +358,13 @@
       "when": 1790812564260,
       "tag": "0050_fiscal_configuration",
       "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1790848815204,
+      "tag": "0051_fiscal_addresses_and_points_of_sale",
+      "breakpoints": true
     }
   ]
 }
