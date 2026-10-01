@@ -7,7 +7,7 @@ import type {
 } from "../fiscal-address-store.js";
 import { FiscalAddressNameConflict } from "../fiscal-address-store.js";
 
-export interface FakeFiscalAddressRow extends FiscalAddress {
+interface FakeFiscalAddressRow extends FiscalAddress {
   recordedBy: string | null;
 }
 

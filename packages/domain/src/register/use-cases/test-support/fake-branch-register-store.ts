@@ -31,7 +31,7 @@ export interface FakeRegisterEnrollmentCode extends RegisterEnrollmentCode {
   codeHash: string;
 }
 
-export interface FakeRegisterPointOfSale extends Omit<RegisterPointOfSaleRecord, "actorId"> {
+interface FakeRegisterPointOfSale extends Omit<RegisterPointOfSaleRecord, "actorId"> {
   recordedBy: string | null;
 }
 
