@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { encodePinHash } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
@@ -227,6 +228,91 @@ describe("a user's sign-in record", () => {
   });
 });
 
+describe("a person who holds a PIN", () => {
+  const SALT_BYTES = new Uint8Array(16).fill(1);
+  const SALT = encodePinHash(SALT_BYTES);
+
+  it("holds the first name, the access of the role and the credential to match the PIN against", () => {
+    addUser({ id: "u1", firstName: "Ada", salt: SALT, verifier: "the-verifier" });
+    grant("cashier", "sell_and_charge");
+
+    expect(store.pinHolder("u1")).toEqual({
+      firstName: "Ada",
+      access: { isAdministrator: false, permissionKeys: ["sell_and_charge"] },
+      credential: { salt: SALT_BYTES, verifier: "the-verifier" },
+    });
+  });
+
+  it("is not found for a user whose salt cannot be read as a salt", () => {
+    addUser({ id: "u1", salt: "not-a-salt" });
+
+    expect(store.pinHolder("u1")).toBeUndefined();
+  });
+
+  it("is not found for a user the register does not know", () => {
+    expect(store.pinHolder("nobody")).toBeUndefined();
+  });
+
+  it.each([
+    ["without a PIN", { verifier: null }],
+    ["deactivated", { active: false }],
+    ["removed", { removed: true }],
+    ["without a salt", { salt: null }],
+  ])("is not found for a user who is %s", (_case, seed) => {
+    addUser({ id: "u1", salt: SALT, ...seed });
+
+    expect(store.pinHolder("u1")).toBeUndefined();
+  });
+});
+
+describe("the signable people", () => {
+  it("lists each person who can sign in with their first name and the access of their role", () => {
+    addRole("admin", { isAdministrator: true });
+    grant("cashier", "record_cash_in");
+    addUser({ id: "u1", firstName: "Ada", roleId: "cashier" });
+    addUser({ id: "u2", firstName: "Bruno", roleId: "admin" });
+
+    expect(store.signablePeople()).toEqual(
+      expect.arrayContaining([
+        {
+          id: "u1",
+          firstName: "Ada",
+          access: { isAdministrator: false, permissionKeys: ["record_cash_in"] },
+        },
+        { id: "u2", firstName: "Bruno", access: { isAdministrator: true, permissionKeys: [] } },
+      ]),
+    );
+    expect(store.signablePeople()).toHaveLength(2);
+  });
+
+  it("leaves out a person the register does not remember", () => {
+    addUser({ id: "u1", remembered: false });
+
+    expect(store.signablePeople()).toEqual([]);
+  });
+
+  it("gives a person whose role was removed no access at all", () => {
+    addRole("gone", { isAdministrator: true, removed: true });
+    addUser({ id: "u1", roleId: "gone" });
+
+    expect(store.signablePeople()[0]?.access).toEqual({
+      isAdministrator: false,
+      permissionKeys: [],
+    });
+  });
+
+  it.each([
+    ["without a PIN", { verifier: null }],
+    ["deactivated", { active: false }],
+    ["removed", { removed: true }],
+    ["without a salt", { salt: null }],
+  ])("leaves out a person who is %s", (_case, seed) => {
+    addUser({ id: "u1", ...seed });
+
+    expect(store.signablePeople()).toEqual([]);
+  });
+});
+
 describe("an active person", () => {
   it("holds the first name and the active permissions of the role", () => {
     addUser({ id: "u1", firstName: "Ada" });
@@ -294,74 +380,6 @@ describe("any person", () => {
 
   it("is not found for a person the register does not know", () => {
     expect(store.anyPerson("nobody")).toBeUndefined();
-  });
-});
-
-describe("the users who can authorize a permission", () => {
-  it("lists the signable users whose role grants it, by id and first name", () => {
-    grant("cashier", "record_cash_in");
-    addRole("supervisor");
-    grant("supervisor", "record_cash_in");
-    addRole("stocker");
-    grant("stocker", "adjust_stock");
-    addUser({ id: "u1", firstName: "Ada", roleId: "cashier" });
-    addUser({ id: "u2", firstName: "Bruno", roleId: "supervisor" });
-    addUser({ id: "u3", firstName: "Carla", roleId: "stocker" });
-
-    expect(store.authorizers("record_cash_in")).toEqual(
-      expect.arrayContaining([
-        { id: "u1", first_name: "Ada" },
-        { id: "u2", first_name: "Bruno" },
-      ]),
-    );
-    expect(store.authorizers("record_cash_in")).toHaveLength(2);
-  });
-
-  it("lists an Administrator for any permission", () => {
-    addRole("admin", { isAdministrator: true });
-    addUser({ id: "u1", firstName: "Ada", roleId: "admin" });
-
-    expect(store.authorizers("void_sale")).toEqual([{ id: "u1", first_name: "Ada" }]);
-  });
-
-  it("leaves out a user the register does not remember", () => {
-    grant("cashier", "record_cash_in");
-    addUser({ id: "u1", remembered: false });
-
-    expect(store.authorizers("record_cash_in")).toEqual([]);
-  });
-
-  it("leaves out a role whose grant of the permission was withdrawn", () => {
-    grant("cashier", "record_cash_in", false);
-    addUser({ id: "u1" });
-
-    expect(store.authorizers("record_cash_in")).toEqual([]);
-  });
-
-  it("leaves out a user whose role was removed", () => {
-    addRole("gone", { isAdministrator: true, removed: true });
-    grant("gone", "record_cash_in");
-    addUser({ id: "u1", roleId: "gone" });
-
-    expect(store.authorizers("record_cash_in")).toEqual([]);
-  });
-
-  it("leaves out a user whose role was never pulled", () => {
-    addUser({ id: "u1", roleId: "unknown-role" });
-
-    expect(store.authorizers("record_cash_in")).toEqual([]);
-  });
-
-  it.each([
-    ["without a PIN", { verifier: null }],
-    ["deactivated", { active: false }],
-    ["removed", { removed: true }],
-    ["without a salt", { salt: null }],
-  ])("leaves out a user who is %s", (_case, seed) => {
-    grant("cashier", "record_cash_in");
-    addUser({ id: "u1", ...seed });
-
-    expect(store.authorizers("record_cash_in")).toEqual([]);
   });
 });
 
@@ -481,5 +499,54 @@ describe("a user's PIN sign-in failures", () => {
     } finally {
       rmSync(folder, { recursive: true, force: true });
     }
+  });
+});
+
+describe("saving a person's PIN verifier", () => {
+  const AT = new Date("2026-05-01T10:00:00.000Z");
+
+  function storedVerifier(userId: string): string | undefined {
+    return database
+      .prepare<[string], { verifier: string }>(
+        "SELECT verifier FROM pin_verifiers WHERE user_id = ?",
+      )
+      .get(userId)?.verifier;
+  }
+
+  it("reports a verifier that stays the same as unchanged", () => {
+    addUser({ id: "u1", verifier: "the-verifier" });
+
+    expect(store.savePinCredential("u1", "the-verifier")).toBe(false);
+    expect(storedVerifier("u1")).toBe("the-verifier");
+  });
+
+  it("reports a different verifier as changed, keeping the new one", () => {
+    addUser({ id: "u1", verifier: "the-verifier" });
+
+    expect(store.savePinCredential("u1", "another-verifier")).toBe(true);
+    expect(storedVerifier("u1")).toBe("another-verifier");
+  });
+
+  it("reports a verifier saved for a person who had none as changed", () => {
+    addUser({ id: "u1", verifier: null });
+
+    expect(store.savePinCredential("u1", "the-verifier")).toBe(true);
+    expect(storedVerifier("u1")).toBe("the-verifier");
+  });
+
+  it("removes the verifier of a person whose PIN is removed", () => {
+    addUser({ id: "u1", verifier: "the-verifier" });
+
+    expect(store.savePinCredential("u1", undefined)).toBe(true);
+    expect(storedVerifier("u1")).toBeUndefined();
+  });
+
+  it("leaves the failures of the person alone", () => {
+    addUser({ id: "u1", verifier: "the-verifier" });
+    store.recordPinSignInFailure("u1", AT);
+
+    store.savePinCredential("u1", "another-verifier");
+
+    expect(store.pinSignInFailures("u1")?.consecutiveFailures).toBe(1);
   });
 });

@@ -1,10 +1,17 @@
 export type {
+  AuthorizeRegisterOperationInput,
+  AuthorizeRegisterOperationOutcome,
+} from "./authorize-register-operation.js";
+export { authorizeRegisterOperation } from "./authorize-register-operation.js";
+export type {
   BranchUser,
   BranchUserActiveScope,
   BranchUserFacts,
   BranchUsers,
   EmailHolder,
 } from "./branch-users.js";
+export type { CheckPinInput, CheckPinOutcome, PinRefusal } from "./check-pin.js";
+export { checkPin } from "./check-pin.js";
 export type { CreateRoleInput, CreateRoleOutcome, CreateRolePorts } from "./create-role.js";
 export { createRole } from "./create-role.js";
 export type {
@@ -58,6 +65,12 @@ export type {
   FirstPinCodeTarget,
   QueuedFirstPinCodeEmail,
 } from "./first-pin-code-store.js";
+export type {
+  ListAuthorizersInput,
+  ListAuthorizersPorts,
+  SignablePerson,
+} from "./list-authorizers.js";
+export { listAuthorizers } from "./list-authorizers.js";
 export type { ListBranchUsersInput } from "./list-branch-users.js";
 export { listBranchUsers } from "./list-branch-users.js";
 export type { RoleSummary } from "./list-roles.js";
@@ -90,6 +103,14 @@ export type {
   PinCodeTarget,
 } from "./pin-code-store.js";
 export type {
+  PinCheckPorts,
+  PinHolder,
+  PinMatcher,
+  PinMatching,
+  PinSignInFailures,
+  PinSignInStore,
+} from "./pin-sign-in-store.js";
+export type {
   ReactivateUserInput,
   ReactivateUserOutcome,
   ReactivateUserPorts,
@@ -100,6 +121,12 @@ export type {
   RedeemPinCodeOutcome,
 } from "./redeem-pin-code.js";
 export { redeemPinCode } from "./redeem-pin-code.js";
+export type {
+  PinReplacementPorts,
+  PinReplacementStore,
+  ReplacePinInput,
+} from "./replace-pin.js";
+export { replacePin } from "./replace-pin.js";
 export type { RoleDirectory, RoleHolder, RoleListing, StoredRole } from "./role-directory.js";
 export type {
   LockedRole,
@@ -114,6 +141,12 @@ export type {
   StoredRoleRevision,
 } from "./role-store.js";
 export { RoleNameConflict } from "./role-store.js";
+export type {
+  SignInAtRegisterInput,
+  SignInAtRegisterOutcome,
+  SignInAtRegisterPorts,
+} from "./sign-in-at-register.js";
+export { signInAtRegister } from "./sign-in-at-register.js";
 export type {
   SignInCandidate,
   SignInLookupPorts,
