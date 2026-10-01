@@ -20,7 +20,16 @@ describe("listDiscountTargets", () => {
   it("offers nothing when there is nothing to target", async () => {
     const targets = await listDiscountTargets({ targets: fakeDiscountTargetReader({}) });
 
-    expect(targets).toEqual({ products: [], categories: [], tags: [] });
+    expect(targets).toMatchObject({ products: [], categories: [], tags: [] });
+  });
+
+  it("says which target kinds each benefit applies to", async () => {
+    const targets = await listDiscountTargets({ targets: fakeDiscountTargetReader({}) });
+
+    expect(targets.targetKindsByBenefit).toEqual({
+      PERCENT_OFF: ["PRODUCT", "CATEGORY", "TAG"],
+      BUY_N_PAY_M: ["PRODUCT"],
+    });
   });
 
   it("offers an active product with what identifies it, in the order it was read", async () => {

@@ -27,6 +27,10 @@ const targets = {
     { id: "category-2", name: "Yerbas", parentId: "category-1", benefitKinds: ["PERCENT_OFF"] },
   ],
   tags: [{ id: "tag-1", name: "Sin TACC", benefitKinds: ["PERCENT_OFF"] }],
+  targetKindsByBenefit: {
+    PERCENT_OFF: ["PRODUCT", "CATEGORY", "TAG"],
+    BUY_N_PAY_M: ["PRODUCT"],
+  },
 };
 
 function withoutKey(key: string) {
@@ -40,7 +44,12 @@ describe("discountTargetsSchema", () => {
 
   it("accepts nothing to choose from", () => {
     expect(
-      discountTargetsSchema.safeParse({ products: [], categories: [], tags: [] }).success,
+      discountTargetsSchema.safeParse({
+        products: [],
+        categories: [],
+        tags: [],
+        targetKindsByBenefit: { PERCENT_OFF: [], BUY_N_PAY_M: [] },
+      }).success,
     ).toBe(true);
   });
 
@@ -64,6 +73,7 @@ describe("discountTargetsSchema", () => {
           { id: "category-1", name: "Almacén", parentId: null, benefitKinds: [], version: 1 },
         ],
         tags: [{ id: "tag-1", name: "Sin TACC", benefitKinds: [], productCount: 4 }],
+        targetKindsByBenefit: { PERCENT_OFF: [], BUY_N_PAY_M: [] },
       }).data,
     ).toEqual({
       products: [
@@ -79,6 +89,7 @@ describe("discountTargetsSchema", () => {
       ],
       categories: [{ id: "category-1", name: "Almacén", parentId: null, benefitKinds: [] }],
       tags: [{ id: "tag-1", name: "Sin TACC", benefitKinds: [] }],
+      targetKindsByBenefit: { PERCENT_OFF: [], BUY_N_PAY_M: [] },
     });
   });
 
@@ -86,6 +97,15 @@ describe("discountTargetsSchema", () => {
     ["missing products", { ...targets, products: undefined }],
     ["missing categories", { ...targets, categories: undefined }],
     ["missing tags", { ...targets, tags: undefined }],
+    ["missing target kinds by benefit", { ...targets, targetKindsByBenefit: undefined }],
+    [
+      "target kinds missing a benefit",
+      { ...targets, targetKindsByBenefit: { PERCENT_OFF: ["PRODUCT"] } },
+    ],
+    [
+      "an unknown target kind",
+      { ...targets, targetKindsByBenefit: { PERCENT_OFF: ["BRAND"], BUY_N_PAY_M: [] } },
+    ],
     ["a product without its name", { ...targets, products: [withoutKey("name")] }],
     ["a product without its id", { ...targets, products: [withoutKey("id")] }],
     ["a product without its sale unit", { ...targets, products: [withoutKey("saleUnit")] }],

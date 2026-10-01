@@ -192,4 +192,8 @@ export const discountTargets: DiscountTargets = {
   products: [yerbaProduct, almondsProduct],
   categories: [almacenCategory, yerbasCategory],
   tags: [sinTaccTag, veganoTag],
+  targetKindsByBenefit: {
+    PERCENT_OFF: ["PRODUCT", "CATEGORY", "TAG"],
+    BUY_N_PAY_M: ["PRODUCT"],
+  },
 };

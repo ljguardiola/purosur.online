@@ -1,4 +1,4 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { notifyManager, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -30,6 +30,7 @@ function describeData(data: CloudData<string>): string {
 type ProbeProps = {
   queryKey?: readonly string[];
   gcTime?: number;
+  refetchInterval?: number;
   keepPreviousData?: boolean;
   read: () => Promise<CloudReadOutcome<string>>;
   onSessionEnded?: () => void;
@@ -39,6 +40,7 @@ type ProbeProps = {
 function Probe({
   queryKey = ["probe"],
   gcTime,
+  refetchInterval,
   keepPreviousData,
   read,
   onSessionEnded = () => {},
@@ -51,6 +53,7 @@ function Probe({
     onSessionEnded,
     onForbidden,
     ...(gcTime === undefined ? {} : { gcTime }),
+    ...(refetchInterval === undefined ? {} : { refetchInterval }),
   });
   const client = useQueryClient();
   return (
@@ -587,4 +590,24 @@ test("a read through the cache that asks for no keeping leaves nothing cached on
 
   expect(outcome).toEqual(ok("one"));
   await vi.waitFor(() => expect(client.getQueryData(["probe"])).toBeUndefined());
+});
+
+test("reads again at the interval it is given", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+  notifyManager.setScheduler(queueMicrotask);
+  try {
+    const read = vi.fn<() => Promise<CloudReadOutcome<string>>>().mockResolvedValueOnce(ok("one"));
+    read.mockResolvedValue(ok("two"));
+    const screen = await render(<Probe read={read} refetchInterval={5_000} />);
+    await expect.element(screen.getByText("loaded:one")).toBeVisible();
+
+    await vi.advanceTimersByTimeAsync(4_999);
+    expect(read).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+
+    await expect.element(screen.getByText("loaded:two")).toBeVisible();
+  } finally {
+    notifyManager.setScheduler((callback) => setTimeout(callback, 0));
+    vi.useRealTimers();
+  }
 });

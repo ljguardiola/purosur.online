@@ -1,4 +1,5 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { notifyManager } from "@tanstack/react-query";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { discountsListFilters } from "./routes";
@@ -98,6 +99,33 @@ test("shows each promotion in the status the cloud sends for it", async () => {
   await expect
     .poll(() => rowCells(screen).map((cells) => cells.at(-1)))
     .toEqual(["Desactivada", "Terminada", "Vigente", "Programada"]);
+});
+
+test("reads the list again every minute so a promotion shows the status the cloud sends now", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+  notifyManager.setScheduler(queueMicrotask);
+  try {
+    const services = createServices();
+    vi.mocked(services.fetchDiscounts)
+      .mockResolvedValueOnce({
+        kind: "ok",
+        value: discountList([{ ...yerbaOff, status: "current" }]),
+      })
+      .mockResolvedValue({ kind: "ok", value: discountList([{ ...yerbaOff, status: "ended" }]) });
+    const screen = await renderScreen(services, {
+      filters: discountsListFilters.parse({ status: "all" }),
+    });
+    await expect.poll(() => rowCells(screen).map((cells) => cells.at(-1))).toEqual(["Vigente"]);
+
+    await vi.advanceTimersByTimeAsync(59_000);
+    expect(services.fetchDiscounts).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    await expect.poll(() => rowCells(screen).map((cells) => cells.at(-1))).toEqual(["Terminada"]);
+  } finally {
+    notifyManager.setScheduler((callback) => setTimeout(callback, 0));
+    vi.useRealTimers();
+  }
 });
 
 test("filters by the status the cloud sends, whatever the promotion's dates say", async () => {

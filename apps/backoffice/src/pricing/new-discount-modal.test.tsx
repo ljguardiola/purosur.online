@@ -440,6 +440,34 @@ test("choosing buy-N-pay-M shows the product with the quantities to buy and to p
   expect(dialog.getByRole("textbox", { name: /^Descuento/ }).query()).toBeNull();
 });
 
+test("offers the choice of what a promotion applies to wherever the cloud allows more than one target kind", async () => {
+  const { dialog } = await renderModal(createServices(), {
+    targets: {
+      ...discountTargets,
+      targetKindsByBenefit: { PERCENT_OFF: ["PRODUCT", "TAG"], BUY_N_PAY_M: ["PRODUCT", "TAG"] },
+    },
+  });
+
+  await chooseBuyNPayM(dialog);
+
+  await expect.element(dialog.getByText("Se aplica sobre")).toBeVisible();
+  await expect.element(dialog.getByText("Producto y grupo")).toBeVisible();
+  await expect.element(dialog.getByRole("textbox", { name: /^Lleve/ })).toBeVisible();
+  expect(dialog.getByRole("textbox", { name: /^Descuento/ }).query()).toBeNull();
+});
+
+test("does not offer the choice of what a percentage applies to when the cloud allows one target kind", async () => {
+  const { dialog } = await renderModal(createServices(), {
+    targets: {
+      ...discountTargets,
+      targetKindsByBenefit: { PERCENT_OFF: ["PRODUCT"], BUY_N_PAY_M: ["PRODUCT"] },
+    },
+  });
+
+  expect(dialog.getByText("Se aplica sobre").query()).toBeNull();
+  await expect.element(dialog.getByRole("textbox", { name: /^Descuento/ })).toBeVisible();
+});
+
 test("offers a buy-N-pay-M promotion only the products sold by the unit", async () => {
   const { dialog } = await renderModal(createServices());
   await chooseBuyNPayM(dialog);

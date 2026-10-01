@@ -19,6 +19,7 @@ import {
   EMPTY_DISCOUNT_FORM,
   eligibleTargets,
   keptTarget,
+  offersTargetKindChoice,
   productSoldByWeightMessage,
   soldByWeightHelp,
   targetForKind,
@@ -28,6 +29,7 @@ import {
   WEEKDAY_OPTIONS,
 } from "./discount-form";
 import {
+  almacenCategory,
   almacenTuesdays,
   almondsProduct,
   discountTargets,
@@ -540,7 +542,11 @@ describe("what a target accepts", () => {
 
 describe("eligibleTargets", () => {
   test("offers a percentage promotion every target it is given", () => {
-    expect(eligibleTargets("PERCENT_OFF", discountTargets)).toEqual(discountTargets);
+    expect(eligibleTargets("PERCENT_OFF", discountTargets)).toEqual({
+      products: discountTargets.products,
+      categories: discountTargets.categories,
+      tags: discountTargets.tags,
+    });
   });
 
   test("offers a buy-N-pay-M promotion only the products sold by the unit", () => {
@@ -653,6 +659,62 @@ describe("targetForKind", () => {
     expect(
       targetForKind({ ...threeForTwo, targetId: yerbaProduct.id }, "PERCENT_OFF", discountTargets),
     ).toEqual({ targetKind: "PRODUCT", targetId: yerbaProduct.id });
+  });
+});
+
+describe("targetForKind with the target kinds the cloud allows", () => {
+  const anyKind = {
+    ...discountTargets,
+    categories: [{ ...almacenCategory, benefitKinds: ["PERCENT_OFF", "BUY_N_PAY_M"] }],
+    targetKindsByBenefit: {
+      PERCENT_OFF: ["PRODUCT", "CATEGORY", "TAG"],
+      BUY_N_PAY_M: ["PRODUCT", "CATEGORY"],
+    },
+  } satisfies DiscountTargets;
+  const category = { ...filled, targetKind: "CATEGORY", targetId: almacenCategory.id } as const;
+  const tag = { ...filled, targetKind: "TAG", targetId: "tag-1" } as const;
+
+  test("keeps a kind the benefit is allowed on, with its target", () => {
+    expect(targetForKind(category, "BUY_N_PAY_M", anyKind)).toEqual({
+      targetKind: "CATEGORY",
+      targetId: almacenCategory.id,
+    });
+  });
+
+  test("turns a kind the benefit is not allowed on into the first allowed one, unchosen", () => {
+    expect(targetForKind(tag, "BUY_N_PAY_M", anyKind)).toEqual({
+      targetKind: "PRODUCT",
+      targetId: null,
+    });
+  });
+
+  test("keeps a kind when switching to a benefit that restricts nothing", () => {
+    expect(targetForKind(category, "PERCENT_OFF", anyKind)).toEqual({
+      targetKind: "CATEGORY",
+      targetId: almacenCategory.id,
+    });
+  });
+});
+
+describe("offersTargetKindChoice", () => {
+  test("is true for a benefit the cloud allows on more than one target kind", () => {
+    expect(offersTargetKindChoice("PERCENT_OFF", discountTargets)).toBe(true);
+  });
+
+  test("is false for a benefit the cloud allows on one target kind only", () => {
+    expect(offersTargetKindChoice("BUY_N_PAY_M", discountTargets)).toBe(false);
+  });
+
+  test("follows the cloud when it allows a benefit on more kinds", () => {
+    const targets = {
+      ...discountTargets,
+      targetKindsByBenefit: {
+        ...discountTargets.targetKindsByBenefit,
+        BUY_N_PAY_M: ["PRODUCT", "TAG"],
+      },
+    } satisfies DiscountTargets;
+
+    expect(offersTargetKindChoice("BUY_N_PAY_M", targets)).toBe(true);
   });
 });
 
