@@ -11,7 +11,7 @@ import type {
   ScanProductOutcome,
   SignInOutcome,
 } from "@purosur/contracts";
-import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { expectNoAccessibilityViolations, switchBrowserLanguage } from "@purosur/ui/test";
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
@@ -1606,6 +1606,7 @@ describe("App", () => {
         cashMovements?: CoreClient["cashMovements"];
         cashMovementKinds?: CoreClient["cashMovementKinds"];
         recordCashMovement?: CoreClient["recordCashMovement"];
+        authorizers?: CoreClient["authorizers"];
       } = {},
     ) {
       await page.viewport(1280, 720);
@@ -1681,6 +1682,25 @@ describe("App", () => {
       await expect.element(screen.getByText("2 movimientos", { exact: true })).toBeVisible();
       await expect.element(screen.getByText("$ 51.200,00", { exact: true })).toBeVisible();
       expect(recorded).toEqual([{ kind: "CASH_IN", amount: 50_000, reason: "Cambio" }]);
+    });
+
+    it("announces the design system's screen-reader texts in Spanish whatever the operating system's language", async () => {
+      const { screen } = await openCashScreen({
+        authorizers: async () => [{ id: "u3", first_name: "Sofía" }],
+      });
+      await userEvent.click(
+        screen.getByRole("button", { name: "Registrar movimiento", exact: true }),
+      );
+      await userEvent.click(
+        screen.getByRole("radiogroup", { name: "Tipo de movimiento" }).getByText("Gasto"),
+      );
+
+      switchBrowserLanguage("de-DE");
+      await userEvent.click(screen.getByRole("button", { name: /Persona que autoriza/ }));
+
+      await expect
+        .element(screen.getByRole("button", { name: "Descartar" }).first())
+        .toBeInTheDocument();
     });
 
     it("leaves the cash screen when the core says there is no open session", async () => {
