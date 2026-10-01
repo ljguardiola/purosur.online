@@ -16,7 +16,8 @@ sequences the operational steps; it never restates those rules.
    `CONTRIBUTING.md`) — do not open a PR against the parent.
 2. Copy `.github/pull_request_template.md` and fill every section for real:
    `Closes #<N>` under Issue, the approach under How, decisions (or "None.")
-   under Technical decisions, what was tested under How it was tested, and
+   under Technical decisions, what was tested under How it was tested (citing
+   the `review-gate` result line and the `pnpm verify` result), and
    check the Delivery impact boxes that apply. Save the filled body to a file
    (do not hand an empty template to `--body`).
 3. Run the same local check the PreToolUse hook and CI use, before creating

@@ -12,8 +12,8 @@ and you never edit, run, or delegate anything.
 ## Input
 
 The prompt gives you the review folder (with `issue.md`, `change.patch` and
-`ledger.md`), `BASE`, `TARGET`, and whether this is the first round or a
-re-review.
+`ledger.md`), `BASE`, `TARGET`, the round, and for a re-review the delta
+file.
 
 ## How to review
 
@@ -29,14 +29,15 @@ re-review.
    the delta does not resolve, and any defect the delta introduced. Do not
    review the rest of the change again.
 4. Every finding cites the written rule it breaks, quoted, or the issue's
-   definition-of-done item, or is a correctness finding with its input and
-   wrong outcome. A preference no written rule states is not a finding.
+   definition-of-done item, or is a correctness finding: an input and the
+   wrong outcome it gets, or code the change left without a reader. A
+   preference no written rule states is not a finding. The kinds are defined
+   in the checklist.
 5. Report what the code is, not how sure you are: no severity labels. A
    behavioral claim is a hypothesis the verifier will try to prove by running
    the code, so state the exact input and the outcome you expect.
-6. Gaps the code already had outside the change are out of scope unless the
-   change made them worse; report them with `kind: scope` only when the change
-   touches them.
+6. A gap the code already had is reported only when the change made it worse;
+   the verifier decides whether a finding is inside the issue's scope.
 
 ## Output
 

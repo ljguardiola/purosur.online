@@ -17,19 +17,24 @@ and the verifier's proof.
 
 1. Read `CONTRIBUTING.md` and `CLAUDE.md`, then each finding's ledger row and
    proof.
-2. A behavioral fix follows the TDD order in `CONTRIBUTING.md` ("Code style"):
-   first a test that fails for the reason the finding states, run and seen
-   failing, then the smallest change that makes it pass. A fix that is not
-   behavioral (a comment, copy, a file's place) needs no new test, but the
-   tests of every file it touches still run.
+2. Every fix that changes what the code does or shows, copy included,
+   follows the TDD order in `CONTRIBUTING.md` ("Code style"): first the test
+   written or changed so it fails for the reason the finding states, run and
+   seen failing, then the smallest change that makes it pass. Only removing a
+   comment or moving a file needs no new test; the tests of every file it
+   touches still run.
 3. Follow every rule in `CONTRIBUTING.md` in the code you write, including
    the comment rule: the fix adds no comment that restates the code or records
    why it was fixed.
 4. Run the focused tests of every file you touched:
    `mise exec node@$(cat .node-version) -- pnpm vitest run <test files>`.
-   Never run the whole suite.
-5. When a fix would need a change outside the finding's location, or reveals
-   another problem, do not make it: report it under the finding.
+   Never run the whole suite. When you touched `packages/domain` or
+   `packages/contracts`, also run
+   `mise exec node@$(cat .node-version) -- pnpm mutation --mutate <each touched source file>`
+   and leave no surviving mutant in them.
+5. A fix may change whatever the finding needs, inside the issue's scope. A
+   fix you cannot make, or another problem a fix reveals, is reported under
+   the finding, not made.
 
 ## Output
 

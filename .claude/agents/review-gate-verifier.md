@@ -33,9 +33,13 @@ ledger ids to verify.
    - After each proof, restore with `git checkout -- <path>` (and delete any
      scratch file), and check `git status` is clean before the next finding.
    - A claim the run disproves is `REFUTED`, however reasonable it read.
-4. Scope: a confirmed finding is `in-scope` when it sits inside the problem
-   `issue.md` states, or the change itself introduced it; a gap the code
-   already had elsewhere is `out-of-scope`.
+4. Kind: settle each confirmed finding's kind with the definitions in
+   `.claude/skills/review-gate/references/checklist.md`, whatever the
+   reviewer labelled it; a deliberate replacement of a stack library is a
+   `decision` even when reported as `rule`.
+5. Scope: a confirmed finding is `in-scope` when it sits inside the problem
+   `issue.md` states, or the change introduced it or made it worse; a gap the
+   code already had and the change did not worsen is `out-of-scope`.
 
 ## Output
 

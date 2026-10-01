@@ -6,20 +6,20 @@ description: Run the repository's own pre-PR review of an issue branch - two bli
 The rules a change is reviewed against are the ones written in the
 repository: `CONTRIBUTING.md`, `CLAUDE.md`, the skills under `.claude/skills/`
 and the issue the branch closes. This skill sequences the review; it never
-restates those rules. Where in `CONTRIBUTING.md` each area lives is mapped in
-[references/checklist.md](references/checklist.md); the reviewer, verifier
-and fixer reports are shaped as in
-[references/formats.md](references/formats.md).
+restates those rules. Which sections each area of the review reads is mapped
+in [references/checklist.md](references/checklist.md); the reports and the
+ledger are shaped as in [references/formats.md](references/formats.md).
 
-The parent session runs every step below. The agents never launch other
-agents, and only the fixer edits files.
+The parent session runs every step below; the agents never launch other
+agents. Only the fixer changes the code; the verifier's temporary edits are
+undone before it answers.
 
 ## 1. Freeze the target
 
 1. Every change of the issue is committed and `git status` is clean.
 2. `BASE` is `git merge-base origin/main HEAD`; `TARGET` is `git rev-parse HEAD`.
-3. The review folder is `$(git rev-parse --git-path review-gate)`, outside the
-   tracked tree. Write into it:
+3. The review folder is `$(git rev-parse --path-format=absolute --git-path review-gate)`,
+   outside the tracked tree. Write into it:
    - `issue.md`: `gh issue view <N> --json title,body,labels`;
    - `change.patch`: `git diff BASE TARGET`;
    - `ledger.md`: the findings ledger, empty at first.
@@ -28,9 +28,8 @@ agents, and only the fixer edits files.
 ## 2. Review
 
 Launch `review-gate-reviewer` twice in parallel, as reviewer A and reviewer B,
-with the same prompt: the review folder, `BASE`, `TARGET`, and whether this
-is the first round or a re-review. Neither sees the other's result. Wait for
-both.
+with the same prompt: the review folder, `BASE`, `TARGET`, the round, and for
+a re-review the delta file. Neither sees the other's result. Wait for both.
 
 - First round: the whole change, against every area of the checklist.
 - Re-review: only the fix delta (`git diff <previous TARGET> <new TARGET>`,
@@ -41,51 +40,52 @@ both.
 ## 3. Merge the ledger
 
 Merge both results into `ledger.md`: one row per distinct finding, an id
-`R<round>-<n>`, which reviewer raised it (`A`, `B` or `A+B`), and the
-reviewer's kind and rule reference. A finding raised by one reviewer only is
-as valid as one raised by both. Severity labels never decide anything.
+`R<round>-<n>`, which reviewer raised it (`A`, `B` or `A+B`), and its kind
+and rule reference. A finding raised by one reviewer only is as valid as one
+raised by both.
 
 ## 4. Verify
 
-Launch `review-gate-verifier` once with the review folder and the ledger
-rows of this round. It returns, per id, `CONFIRMED` or `REFUTED` with its
-evidence, and `in-scope` or `out-of-scope` against the issue. Copy its
-verdicts into the ledger.
+Launch `review-gate-verifier` once with the review folder and the ids of this
+round. It returns, per id, `CONFIRMED` or `REFUTED` with its proof, the kind
+it settles on, and `in-scope` or `out-of-scope`. Copy its verdicts into the
+ledger.
 
 ## 5. Decide
 
 | Verdict | Action |
 |---|---|
-| A confirmed finding of kind `decision` (the change replaces or drops a library of the confirmed stack, or deliberately contradicts a written rule) | Stop the review. Report it to the coordinator; nothing is fixed and the review does not approve it. |
-| Confirmed, in scope | Fix it, whatever its label. |
-| Confirmed, out of scope | Report it to the coordinator as a proposed new issue: title, what and why, evidence. Not fixed here. |
-| Refuted | Record the evidence that refutes it. Not fixed. |
+| Confirmed, kind `decision` | Stop the review: report it to the coordinator with its evidence. Nothing is fixed and the review does not approve it. |
+| Confirmed, in scope, any other kind | Fix it, whatever its label. |
+| Confirmed, out of scope | File it as a new issue following "Issues" in `CONTRIBUTING.md`, and report its number to the coordinator. Not fixed here. |
+| Refuted | Record the proof that refutes it. Not fixed. |
 
 The coordinator is whoever assigned the issue: the coordinating session, or
-the owner when no session coordinates.
+the owner when no session coordinates. When the coordinator approves a
+`decision`, the change itself updates the written rule it contradicted, and
+the review starts again from step 1 over the whole change.
 
 ## 6. Fix
 
-When at least one confirmed in-scope finding is open, launch
-`review-gate-fixer` with the review folder and those ledger ids. It fixes
-them in the TDD order in `CONTRIBUTING.md`, runs the focused tests of the
-files it touched, and reports per id. Then commit the fixes in one commit
+Launch `review-gate-fixer` with the review folder and every confirmed
+in-scope id whose status is `open`. It reports each id `fixed` or `not fixed`
+with the reason. Commit what it fixed in one commit
 (`<type>: address review-gate round <n> findings`, with the issue's commit
-type) and go back to step 2 as a re-review with that commit as the new
-`TARGET`.
+type), mark those rows `fixed in <sha>`, and go back to step 2 as a
+re-review with that commit as the new `TARGET`. A row the fixer could not fix
+stays `open` and goes to the next fixer launch, which takes a different
+approach and says why the previous one failed.
 
-There is no round limit: rounds repeat until a re-review leaves no confirmed
-in-scope finding. When a re-review confirms again a finding a fix claimed to
-close, the next fix takes a different approach and says why the previous one
-failed.
+There is no round limit. The review is clean only when no confirmed in-scope
+row is `open` and the last re-review confirmed no new finding.
 
 ## 7. Result
 
 End with exactly one line, which the pull request's "How it was tested" cites:
 
 ```
-REVIEW-GATE: CLEAN — <rounds> rounds, <fixed> fixed, <refuted> refuted, <reported> reported out of scope (TARGET <sha>)
+REVIEW-GATE: CLEAN — <rounds> rounds, <fixed> fixed, <refuted> refuted, <filed> filed as new issues (TARGET <sha>)
 REVIEW-GATE: STOPPED — <ledger id>: <the decision that needs the coordinator>
 ```
 
-Then report the out-of-scope findings and any stop to the coordinator.
+Then report the new issues and any stop to the coordinator.
