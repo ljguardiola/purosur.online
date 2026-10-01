@@ -13,41 +13,38 @@ const rice: PriceProduct = {
     unitPrice: 750000,
     validFrom: "2026-08-16T12:00:00.000Z",
   },
-  daysSinceReview: 40,
+  secondsSinceReview: 3_456_000,
   pending: true,
 };
 
 test.each([
-  { daysSinceReview: null, text: "Nunca" },
-  { daysSinceReview: 0, text: "Hoy" },
-  { daysSinceReview: 1, text: "Hace 1 día" },
-  { daysSinceReview: 2, text: "Hace 2 días" },
-  { daysSinceReview: 40, text: "Hace 40 días" },
+  { secondsSinceReview: null, text: "Nunca" },
+  { secondsSinceReview: 0, text: "hace 0 segundos" },
+  { secondsSinceReview: 300, text: "hace 5 minutos" },
+  { secondsSinceReview: 3 * 3600, text: "hace 3 horas" },
+  { secondsSinceReview: 2 * 86_400, text: "hace 2 días" },
+  { secondsSinceReview: 40 * 86_400, text: "hace 1 mes" },
 ])(
-  "the review cell reads $text for an age of $daysSinceReview days",
-  ({ daysSinceReview, text }) => {
-    expect(reviewedCellText(daysSinceReview)).toBe(text);
+  "the review cell reads $text for an age of $secondsSinceReview seconds",
+  ({ secondsSinceReview, text }) => {
+    expect(reviewedCellText(secondsSinceReview)).toBe(text);
   },
 );
 
 test.each([
-  { daysSinceReview: 0, pending: false, eyebrow: "Revisado hoy" },
-  { daysSinceReview: 1, pending: false, eyebrow: "Revisado hace 1 día" },
-  { daysSinceReview: 30, pending: false, eyebrow: "Revisado hace 30 días" },
-  { daysSinceReview: 1, pending: true, eyebrow: "Sin revisar hace 1 día" },
-  { daysSinceReview: 31, pending: true, eyebrow: "Sin revisar hace 31 días" },
+  { secondsSinceReview: 0, pending: false, eyebrow: "Revisado hace 0 segundos" },
+  { secondsSinceReview: 86_400, pending: false, eyebrow: "Revisado hace 1 día" },
+  { secondsSinceReview: 3 * 3600, pending: false, eyebrow: "Revisado hace 3 horas" },
+  { secondsSinceReview: 300, pending: true, eyebrow: "Sin revisar hace 5 minutos" },
+  { secondsSinceReview: 31 * 86_400, pending: true, eyebrow: "Sin revisar hace 1 mes" },
 ])(
-  "the modal reads $eyebrow for an age of $daysSinceReview days when pending is $pending",
-  ({ daysSinceReview, pending, eyebrow }) => {
-    expect(modalEyebrow({ ...rice, daysSinceReview, pending })).toBe(eyebrow);
+  "the modal reads $eyebrow for an age of $secondsSinceReview seconds when pending is $pending",
+  ({ secondsSinceReview, pending, eyebrow }) => {
+    expect(modalEyebrow({ ...rice, secondsSinceReview, pending })).toBe(eyebrow);
   },
 );
 
-test("a price reviewed today is announced as reviewed today even when the cloud marks it pending", () => {
-  expect(modalEyebrow({ ...rice, daysSinceReview: 0, pending: true })).toBe("Revisado hoy");
-});
-
 test("a product with no price, or never reviewed, has no review age in the modal", () => {
   expect(modalEyebrow({ ...rice, currentPrice: null })).toBe("Sin precio");
-  expect(modalEyebrow({ ...rice, daysSinceReview: null })).toBe("Sin precio");
+  expect(modalEyebrow({ ...rice, secondsSinceReview: null })).toBe("Sin precio");
 });

@@ -405,7 +405,7 @@ export function PricesListScreen({
     dataColumn({
       id: "reviewed",
       header: "Revisado",
-      render: (item: PriceProduct) => reviewedCellText(item.daysSinceReview),
+      render: (item: PriceProduct) => reviewedCellText(item.secondsSinceReview),
     }),
     dataColumn({
       id: "actions",

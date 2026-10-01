@@ -225,7 +225,7 @@ describe("GET /prices", () => {
           categoryName: "Almacén",
           saleUnit: "UNIT",
           currentPrice: { id: priceId, unitPrice: 500, validFrom: reviewedAt.toISOString() },
-          daysSinceReview: 3,
+          secondsSinceReview: 3 * 86_400,
           pending: false,
         },
       ],
@@ -287,7 +287,7 @@ describe("GET /prices", () => {
     ]);
   });
 
-  it("shows a price reviewed 23 hours earlier as reviewed today and not pending, across Argentine midnight", async () => {
+  it("shows a price reviewed 23 hours earlier as 23 hours old and not pending, across Argentine midnight", async () => {
     currentNow = new Date("2026-01-05T01:30:00.000Z");
     const reviewedAt = new Date("2026-01-04T02:30:00.000Z");
     const userId = await insertUserWithPermission();
@@ -305,6 +305,8 @@ describe("GET /prices", () => {
 
     const response = await listPricesRequest(rawSessionId);
 
-    expect(response.json().products).toMatchObject([{ daysSinceReview: 0, pending: false }]);
+    expect(response.json().products).toMatchObject([
+      { secondsSinceReview: 23 * 3600, pending: false },
+    ]);
   });
 });
