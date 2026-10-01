@@ -1,10 +1,9 @@
 import { type RoleSummaryWire, roleSummarySchema } from "@purosur/contracts";
-import { PERMISSION_KEYS } from "@purosur/domain";
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { listRoles, type RoleSummary } from "@purosur/domain/access/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { rolePermissions, roles, userRoles, users } from "../platform/db/schema.js";
 import { sameOriginGuard } from "./backoffice-origin.js";
+import { drizzleRoleDirectory } from "./drizzle-role-directory.js";
 import { ADMINISTRATOR_ACCESS, registerRouteAccess, routeSessionSource } from "./route-access.js";
 
 export interface RolesRouteOptions<TQueryResult extends PgQueryResultHKT> {
@@ -13,15 +12,7 @@ export interface RolesRouteOptions<TQueryResult extends PgQueryResultHKT> {
   now?: () => Date;
 }
 
-export interface RoleSummaryRow {
-  id: string;
-  name: string | null;
-  isAdministrator: boolean;
-  permissionKeys: string[];
-  userCount: number;
-}
-
-export function toRoleSummaryWire(row: RoleSummaryRow): RoleSummaryWire {
+export function toRoleSummaryWire(row: RoleSummary): RoleSummaryWire {
   return roleSummarySchema.parse({
     id: row.id,
     name: row.name,
@@ -29,45 +20,6 @@ export function toRoleSummaryWire(row: RoleSummaryRow): RoleSummaryWire {
     permissions: row.permissionKeys,
     user_count: row.userCount,
   });
-}
-
-async function listRoles<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-): Promise<RoleSummaryRow[]> {
-  const roleRows = await db
-    .select({ id: roles.id, name: roles.name, isAdministrator: roles.isAdministrator })
-    .from(roles)
-    .orderBy(desc(roles.isAdministrator), asc(roles.name));
-
-  const permissionRows = await db
-    .select({ roleId: rolePermissions.roleId, permissionKey: rolePermissions.permissionKey })
-    .from(rolePermissions);
-  const storedKeysByRole = new Map<string, Set<string>>();
-  for (const row of permissionRows) {
-    const current = storedKeysByRole.get(row.roleId) ?? new Set<string>();
-    current.add(row.permissionKey);
-    storedKeysByRole.set(row.roleId, current);
-  }
-  const catalogOrderedKeys = (roleId: string): string[] => {
-    const stored = storedKeysByRole.get(roleId);
-    return stored ? PERMISSION_KEYS.filter((key) => stored.has(key)) : [];
-  };
-
-  const userCountRows = await db
-    .select({ roleId: userRoles.roleId, count: sql<number>`count(*)::int` })
-    .from(userRoles)
-    .innerJoin(users, eq(users.id, userRoles.userId))
-    .where(eq(users.active, true))
-    .groupBy(userRoles.roleId);
-  const userCountByRole = new Map(userCountRows.map((row) => [row.roleId, row.count]));
-
-  return roleRows.map((role) => ({
-    id: role.id,
-    name: role.name,
-    isAdministrator: role.isAdministrator,
-    permissionKeys: role.isAdministrator ? [...PERMISSION_KEYS] : catalogOrderedKeys(role.id),
-    userCount: userCountByRole.get(role.id) ?? 0,
-  }));
 }
 
 export function registerRolesListRoute<TQueryResult extends PgQueryResultHKT>(
@@ -85,7 +37,7 @@ export function registerRolesListRoute<TQueryResult extends PgQueryResultHKT>(
       config: { access: ADMINISTRATOR_ACCESS, sessionSource },
     },
     async (_request, reply) => {
-      const rows = await listRoles(options.db);
+      const rows = await listRoles({ roles: drizzleRoleDirectory(options.db) });
       await reply.code(200).send(rows.map(toRoleSummaryWire));
     },
   );

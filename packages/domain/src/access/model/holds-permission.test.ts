@@ -2,6 +2,7 @@ import fc from "fast-check";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   type AuthorizablePermissionKey,
+  heldPermissionKeys,
   holdsPermission,
   isAuthorizablePermissionKey,
 } from "./holds-permission.js";
@@ -49,6 +50,37 @@ describe("holdsPermission", () => {
         expect(holdsPermission({ isAdministrator: false, permissionKeys: [] }, key)).toBe(false);
       }),
     );
+  });
+});
+
+describe("heldPermissionKeys", () => {
+  it("gives the Administrator role every permission in catalog order, whatever is stored", () => {
+    fc.assert(
+      fc.property(fc.array(permissionKey), (stored) => {
+        expect(heldPermissionKeys({ isAdministrator: true, permissionKeys: stored })).toEqual([
+          ...PERMISSION_KEYS,
+        ]);
+      }),
+    );
+  });
+
+  it("gives another role its stored permissions once each, in catalog order", () => {
+    fc.assert(
+      fc.property(fc.array(permissionKey), (stored) => {
+        expect(heldPermissionKeys({ isAdministrator: false, permissionKeys: stored })).toEqual(
+          PERMISSION_KEYS.filter((key) => stored.includes(key)),
+        );
+      }),
+    );
+  });
+
+  it("leaves out a stored key that is not a permission", () => {
+    expect(
+      heldPermissionKeys({
+        isAdministrator: false,
+        permissionKeys: ["void_sale", "open_the_safe", "sell_and_charge"],
+      }),
+    ).toEqual(["sell_and_charge", "void_sale"]);
   });
 });
 

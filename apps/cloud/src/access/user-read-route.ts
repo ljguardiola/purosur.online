@@ -1,7 +1,9 @@
+import { findBranchUser } from "@purosur/domain/access/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "./backoffice-origin.js";
-import { canReactivateUsers, findBranchUser, toBranchUserWire } from "./branch-users.js";
+import { canReactivateUsers, toBranchUserWire } from "./branch-users.js";
+import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 import {
   openSessionOf,
   permissionAccess,
@@ -45,9 +47,14 @@ export function registerUserReadRoute<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      const row = await findBranchUser(options.db, openSession.locationId, targetId, {
-        activeScope: includesInactive ? "any" : "active",
-      });
+      const row = await findBranchUser(
+        { users: drizzleBranchUsers(options.db) },
+        {
+          locationId: openSession.locationId,
+          userId: targetId,
+          activeScope: includesInactive ? "any" : "active",
+        },
+      );
       if (!row) {
         await reply.code(404).send(NOT_FOUND_RESPONSE);
         return;
