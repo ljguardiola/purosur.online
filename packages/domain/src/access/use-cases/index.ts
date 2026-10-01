@@ -65,6 +65,12 @@ export type {
   FirstPinCodeTarget,
   QueuedFirstPinCodeEmail,
 } from "./first-pin-code-store.js";
+export type {
+  ListAuthorizersInput,
+  ListAuthorizersPorts,
+  SignablePerson,
+} from "./list-authorizers.js";
+export { listAuthorizers } from "./list-authorizers.js";
 export type { ListBranchUsersInput } from "./list-branch-users.js";
 export { listBranchUsers } from "./list-branch-users.js";
 export type { RoleSummary } from "./list-roles.js";
