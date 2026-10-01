@@ -168,13 +168,13 @@ export const DISCOUNT_MESSAGES = {
     return "Revisá el nombre de la promoción.";
   },
   percent: () =>
-    `Ingresá un porcentaje entero entre ${schemaLimit(discountPercentSchema.minValue)} y ${schemaLimit(discountPercentSchema.maxValue)}.`,
+    `Ingresá un porcentaje entero entre ${schemaLimit(discountPercentSchema.meta()?.["minValue"])} y ${schemaLimit(discountPercentSchema.meta()?.["maxValue"])}.`,
   buyQty: () =>
-    `Ingresá una cantidad entera de ${schemaLimit(discountBuyQtySchema.minValue)} o más.`,
+    `Ingresá una cantidad entera de ${schemaLimit(discountBuyQtySchema.meta()?.["minValue"])} o más.`,
   payQty: ({ payQty }: DiscountFormValues) =>
     discountPayQtySchema.safeParse(wholeNumberFrom(payQty)).success
       ? "Ingresá menos unidades que en Lleve."
-      : `Ingresá una cantidad entera de ${schemaLimit(discountPayQtySchema.minValue)} o más.`,
+      : `Ingresá una cantidad entera de ${schemaLimit(discountPayQtySchema.meta()?.["minValue"])} o más.`,
   targetId: ({ targetKind, targetId }: DiscountFormValues) =>
     targetId === null ? `${TARGET_PLACEHOLDERS[targetKind]}.` : TARGET_REVIEW_MESSAGES[targetKind],
   validFrom: ({ validFrom }: DiscountFormValues) =>
