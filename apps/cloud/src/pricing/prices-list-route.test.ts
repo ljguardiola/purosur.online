@@ -112,15 +112,19 @@ async function insertProduct(name: string, categoryId: string): Promise<string> 
   return product.id;
 }
 
+const GREATER_PRICE_ID = "00000000-0000-4000-8000-000000000002";
+const LESSER_PRICE_ID = "00000000-0000-4000-8000-000000000001";
+
 async function insertPrice(
   productId: string,
   priceListId: string,
   unitPrice: number,
   validFrom: Date,
+  id?: string,
 ): Promise<string> {
   const [price] = await db
     .insert(prices)
-    .values({ productId, priceListId, unitPrice, validFrom })
+    .values({ ...(id !== undefined ? { id } : {}), productId, priceListId, unitPrice, validFrom })
     .returning({ id: prices.id });
   if (!price) {
     throw new Error("test setup: seeding the price returned no row");
@@ -561,6 +565,30 @@ describe("GET /prices", () => {
       },
     ]);
   });
+
+  it.each([
+    ["greater", [GREATER_PRICE_ID, LESSER_PRICE_ID]],
+    ["lesser", [LESSER_PRICE_ID, GREATER_PRICE_ID]],
+  ])(
+    "shows the price with the greater id when two share a product's newest start, the %s id inserted first",
+    async (_case, insertionOrder) => {
+      const userId = await insertUserWithPermission();
+      const rawSessionId = await insertSession(userId);
+      const categoryId = await insertCategory("Almacén");
+      const priceListId = await seededPriceListId(db);
+      const productId = await insertProduct("Arroz", categoryId);
+      const start = new Date(NOON.getTime() - DAY_MS);
+      for (const id of insertionOrder) {
+        await insertPrice(productId, priceListId, id === GREATER_PRICE_ID ? 800 : 500, start, id);
+      }
+
+      const response = await listPricesRequest(rawSessionId, { review: "all" });
+
+      expect(response.json().products).toMatchObject([
+        { currentPrice: { id: GREATER_PRICE_ID, unitPrice: 800, validFrom: start.toISOString() } },
+      ]);
+    },
+  );
 
   it("shows a product's newest price even when it starts later than the request's own clock", async () => {
     const userId = await insertUserWithPermission();

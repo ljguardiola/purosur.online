@@ -1,5 +1,5 @@
 import { priceListSchema } from "@purosur/contracts";
-import type { SaleUnit } from "@purosur/domain";
+import { newestPrice, type SaleUnit } from "@purosur/domain";
 import { desc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -18,7 +18,6 @@ import {
   products,
 } from "../platform/db/schema.js";
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
-import { NEWEST_PRICE_FIRST } from "./current-price.js";
 
 export interface PricesRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
@@ -131,16 +130,15 @@ export async function listPrices<TQueryResult extends PgQueryResultHKT>(
     .innerJoin(categories, eq(products.categoryId, categories.id))
     .where(eq(products.active, true));
 
-  const latestPriceRows = await db
-    .selectDistinctOn([prices.productId], {
+  const priceRows = await db
+    .select({
       productId: prices.productId,
       id: prices.id,
       unitPrice: prices.unitPrice,
       validFrom: prices.validFrom,
     })
     .from(prices)
-    .where(eq(prices.priceListId, input.priceListId))
-    .orderBy(prices.productId, ...NEWEST_PRICE_FIRST);
+    .where(eq(prices.priceListId, input.priceListId));
 
   const latestReviewRows = await db
     .selectDistinctOn([priceReviews.productId], {
@@ -151,12 +149,21 @@ export async function listPrices<TQueryResult extends PgQueryResultHKT>(
     .where(eq(priceReviews.priceListId, input.priceListId))
     .orderBy(priceReviews.productId, desc(priceReviews.reviewedAt));
 
-  const currentPriceByProductId = new Map<string, CurrentPriceRow>(
-    latestPriceRows.map((row) => [
-      row.productId,
-      { id: row.id, unitPrice: row.unitPrice, validFrom: row.validFrom },
-    ]),
-  );
+  const pricesByProductId = new Map<string, typeof priceRows>();
+  for (const row of priceRows) {
+    pricesByProductId.set(row.productId, [...(pricesByProductId.get(row.productId) ?? []), row]);
+  }
+  const currentPriceByProductId = new Map<string, CurrentPriceRow>();
+  for (const [productId, productPrices] of pricesByProductId) {
+    const current = newestPrice(productPrices);
+    if (current) {
+      currentPriceByProductId.set(productId, {
+        id: current.id,
+        unitPrice: current.unitPrice,
+        validFrom: current.validFrom,
+      });
+    }
+  }
   const lastReviewedAtByProductId = new Map<string, Date>(
     latestReviewRows.map((row) => [row.productId, row.reviewedAt]),
   );

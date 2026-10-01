@@ -1,3 +1,4 @@
+import { newestPrice } from "@purosur/domain";
 import type {
   CurrentPrice,
   LockActiveProductResult,
@@ -13,7 +14,6 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { auditLog, priceReviews, prices, products } from "../platform/db/schema.js";
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
-import { NEWEST_PRICE_FIRST } from "./current-price.js";
 import { PRICE_VERSION } from "./price-version.js";
 
 class DrizzlePricingStoreTransaction<TQueryResult extends PgQueryResultHKT>
@@ -40,13 +40,11 @@ class DrizzlePricingStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   async currentPrice(productId: string, priceListId: string): Promise<CurrentPrice | undefined> {
-    const [current] = await this.tx
+    const candidates = await this.tx
       .select({ id: prices.id, unitPrice: prices.unitPrice, validFrom: prices.validFrom })
       .from(prices)
-      .where(and(eq(prices.productId, productId), eq(prices.priceListId, priceListId)))
-      .orderBy(...NEWEST_PRICE_FIRST)
-      .limit(1);
-    return current;
+      .where(and(eq(prices.productId, productId), eq(prices.priceListId, priceListId)));
+    return newestPrice(candidates);
   }
 
   async latestReviewedAt(productId: string, priceListId: string): Promise<Date | undefined> {
