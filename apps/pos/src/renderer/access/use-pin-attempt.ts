@@ -1,14 +1,16 @@
-import type { SignInOutcome } from "@purosur/contracts";
+import type { IdentifyLockedCloserOutcome, SignInOutcome } from "@purosur/contracts";
 import type { FormEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useCountdown } from "../platform/use-countdown";
 import type { Refusal } from "./pin-refusal";
 import { noticeFor } from "./pin-refusal";
 
+export type PinAttemptOutcome = SignInOutcome | IdentifyLockedCloserOutcome;
+
 export type PinTarget = {
   id: string;
   firstName: string;
-  signIn: (pin: string) => Promise<SignInOutcome>;
+  attempt: (pin: string) => Promise<PinAttemptOutcome>;
 };
 
 export function usePinAttempt(target: PinTarget | null) {
@@ -63,10 +65,12 @@ export function usePinAttempt(target: PinTarget | null) {
     }
     setRefusal(undefined);
     setSubmitting(true);
-    const outcome = await target.signIn(pin).catch((): SignInOutcome => ({ kind: "unavailable" }));
+    const outcome = await target
+      .attempt(pin)
+      .catch((): PinAttemptOutcome => ({ kind: "unavailable" }));
     setSubmitting(false);
-    if (outcome.kind === "unavailable") {
-      setRefusal(outcome);
+    if (outcome.kind === "unavailable" || outcome.kind === "not_locked") {
+      setRefusal({ kind: "unavailable" });
       return;
     }
     setPin("");
@@ -76,7 +80,9 @@ export function usePinAttempt(target: PinTarget | null) {
         firstName: target.firstName,
         consecutiveFailures: outcome.consecutive_failures,
       });
-    } else if (outcome.kind !== "signed_in") {
+    } else if (outcome.kind === "lacks_permission") {
+      setRefusal({ kind: "lacks_permission", firstName: target.firstName });
+    } else if (outcome.kind !== "signed_in" && outcome.kind !== "identified") {
       setRefusal(outcome);
     }
     if (

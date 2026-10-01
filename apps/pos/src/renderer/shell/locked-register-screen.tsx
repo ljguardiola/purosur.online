@@ -1,5 +1,5 @@
 import type { SignInOutcome } from "@purosur/contracts";
-import { KeyRound } from "lucide-react";
+import { KeyRound, UserLock } from "lucide-react";
 import { useId } from "react";
 import { ResumePinForm } from "../access/resume-pin-form";
 import { SignInLockout } from "../access/sign-in-lockout";
@@ -26,7 +26,7 @@ export function LockedRegisterScreen({
   const attempt = usePinAttempt({
     id: opener.user_id,
     firstName: opener.first_name,
-    signIn: (pin) => signIn(opener.user_id, pin),
+    attempt: (pin) => signIn(opener.user_id, pin),
   });
   const { refusal, heading, reset } = attempt;
 
@@ -61,6 +61,11 @@ export function LockedRegisterScreen({
               to="/pin-code-redemption"
               icon={<KeyRound />}
               label="Tengo un código para cambiar el PIN"
+            />
+            <ScreenLink
+              to="/locked-close"
+              icon={<UserLock />}
+              label="Otra persona cierra la caja"
             />
           </>
         )}
