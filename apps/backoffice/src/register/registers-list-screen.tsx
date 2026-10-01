@@ -62,15 +62,21 @@ export function RegistersListScreen({ onSessionEnded, services }: RegistersListS
       services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
     });
   const latestEmission = useRef(0);
-  const [ticksSinceRead, setTicksSinceRead] = useState(0);
+  const registers = data.status === "loaded" ? data.value : NO_REGISTERS;
+  const [countdown, setCountdown] = useState({ read: registers, ticks: 0 });
+  const ticksSinceRead = countdown.read === registers ? countdown.ticks : 0;
 
   useEffect(() => {
     const intervalId = window.setInterval(
-      () => setTicksSinceRead((ticks) => ticks + 1),
+      () =>
+        setCountdown((counted) => ({
+          read: registers,
+          ticks: counted.read === registers ? counted.ticks + 1 : 1,
+        })),
       COUNTDOWN_TICK_SECONDS * 1000,
     );
     return () => window.clearInterval(intervalId);
-  }, []);
+  }, [registers]);
 
   // Guards a second Enter/Space activation before the first request settles (the modal backdrop
   // blocks other rows).
@@ -123,13 +129,6 @@ export function RegistersListScreen({ onSessionEnded, services }: RegistersListS
     latestEmission.current += 1;
     setEmission({ kind: "closed" });
     void refreshRegisters();
-  }
-
-  const registers = data.status === "loaded" ? data.value : NO_REGISTERS;
-  const [countedRead, setCountedRead] = useState(registers);
-  if (countedRead !== registers) {
-    setCountedRead(registers);
-    setTicksSinceRead(0);
   }
 
   const columns = [

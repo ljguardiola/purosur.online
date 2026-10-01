@@ -1,5 +1,5 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { StrictMode } from "react";
+import { act, StrictMode } from "react";
 import { expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
@@ -129,6 +129,46 @@ test("restarts the countdown from the cloud's new answer once the list is read a
     vi.useRealTimers();
   }
 });
+
+test.each([
+  {
+    answer: { secondsSinceIssued: 870, secondsUntilExpiry: 30 },
+    shownUntilTick: "Vence en 1 minuto",
+    shownAfterTick: "—",
+  },
+  {
+    answer: { secondsSinceIssued: 30, secondsUntilExpiry: 870 },
+    shownUntilTick: "Código emitido recién",
+    shownAfterTick: "Código emitido hace 1 minuto",
+  },
+])(
+  "counts the 30 seconds of each tick from the cloud's latest answer, showing $shownUntilTick until then",
+  async ({ answer, shownUntilTick, shownAfterTick }) => {
+    const services = createServices();
+    vi.mocked(services.fetchRegisters)
+      .mockResolvedValueOnce({ kind: "ok", value: [register2] })
+      .mockResolvedValueOnce({ kind: "ok", value: [{ ...register2, pendingCode: answer }] });
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    try {
+      const screen = await renderScreen(services);
+      await expect.element(screen.getByText("Vence en 11 minutos")).toBeVisible();
+      vi.advanceTimersByTime(29_000);
+      await userEvent.click(screen.getByRole("button", { name: "Refrescar" }));
+      await expect.element(screen.getByText(shownUntilTick)).toBeVisible();
+
+      await act(async () => {
+        vi.advanceTimersByTime(1_000);
+      });
+      expect(screen.getByText(shownAfterTick).query()).toBeNull();
+      await expect.element(screen.getByText(shownUntilTick)).toBeVisible();
+
+      vi.advanceTimersByTime(29_000);
+      await expect.element(screen.getByText(shownAfterTick)).toBeVisible();
+    } finally {
+      vi.useRealTimers();
+    }
+  },
+);
 
 test("shows an empty state when there are no registers yet", async () => {
   const services = createServices();
