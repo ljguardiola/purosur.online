@@ -170,13 +170,12 @@ describe("voiding outstanding tokens", () => {
 
     await store().transaction((tx) => tx.voidOutstandingRecoveryTokens(userId, ISSUED_AT));
 
-    const byHash = Object.fromEntries(
-      (await db.select().from(recoveryTokens)).map((row) => [row.tokenHash, row]),
-    );
-    expect(byHash.outstanding).toMatchObject({ usedAt: null, voidedAt: ISSUED_AT });
-    expect(byHash.used).toMatchObject({ usedAt, voidedAt: null });
-    expect(byHash.voided).toMatchObject({ usedAt: null, voidedAt });
-    expect(byHash.other).toMatchObject({ voidedAt: null });
+    const rows = await db.select().from(recoveryTokens);
+    const tokenHashed = (hash: string) => rows.find((row) => row.tokenHash === hash);
+    expect(tokenHashed("outstanding")).toMatchObject({ usedAt: null, voidedAt: ISSUED_AT });
+    expect(tokenHashed("used")).toMatchObject({ usedAt, voidedAt: null });
+    expect(tokenHashed("voided")).toMatchObject({ usedAt: null, voidedAt });
+    expect(tokenHashed("other")).toMatchObject({ voidedAt: null });
   });
 });
 
