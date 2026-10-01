@@ -13,6 +13,7 @@ const honey = {
   tagIds: [],
   netContent: null,
   active: true,
+  labelCode: null,
   version: 1,
 };
 const almonds = {
@@ -31,6 +32,13 @@ describe("productSummarySchema", () => {
   it("accepts a product without net content and one with it", () => {
     expect(productSummarySchema.safeParse(honey).data).toEqual(honey);
     expect(productSummarySchema.safeParse(almonds).data).toEqual(almonds);
+  });
+
+  it("accepts the code a product's label carries", () => {
+    expect(productSummarySchema.safeParse({ ...honey, labelCode: "2000000000015" }).data).toEqual({
+      ...honey,
+      labelCode: "2000000000015",
+    });
   });
 
   it("strips keys it does not define, also inside the net content", () => {
@@ -64,6 +72,7 @@ describe("productSummarySchema", () => {
     "tagIds",
     "netContent",
     "active",
+    "labelCode",
     "version",
   ])("requires %s", (field) => {
     const { [field as keyof typeof honey]: _omitted, ...rest } = honey;
@@ -98,6 +107,8 @@ describe("productSummarySchema", () => {
     ["netContent", { quantity: 1, unit: null }],
     ["active", "true"],
     ["active", null],
+    ["labelCode", 2000000000015],
+    ["labelCode", undefined],
     ["version", "1"],
     ["version", 1.5],
     ["version", null],

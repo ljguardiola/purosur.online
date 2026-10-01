@@ -185,6 +185,13 @@ describe("labelSheetBodySchema", () => {
     ).toEqual({ field: "labels", message: TOTAL_MESSAGE });
   });
 
+  it("declares the per-product and total label limits for the screens to read", () => {
+    expect(labelSheetBodySchema.shape.labels.meta()).toEqual({
+      maxCountPerProduct: LABELS_MAX_COUNT_PER_PRODUCT,
+      maxTotalCount: LABELS_MAX_TOTAL_COUNT,
+    });
+  });
+
   it("types a request as a list of product ids and counts", () => {
     expectTypeOf<LabelSheetBody>().toEqualTypeOf<{
       labels: { productId: string; count: number }[];
