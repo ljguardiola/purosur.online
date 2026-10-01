@@ -13,8 +13,23 @@ export type {
   LockDiscountResult,
   LockTargetResult,
 } from "./discount-store.js";
+export type {
+  CategoryTargetCandidate,
+  DiscountTargetCandidates,
+  DiscountTargetReader,
+  ProductTargetCandidate,
+  TagTargetCandidate,
+} from "./discount-target-reader.js";
 export type { EditDiscountInput, EditDiscountOutcome } from "./edit-discount.js";
 export { editDiscount } from "./edit-discount.js";
+export type {
+  ListDiscountTargetsPorts,
+  ListedCategoryTarget,
+  ListedDiscountTargets,
+  ListedProductTarget,
+  ListedTagTarget,
+} from "./list-discount-targets.js";
+export { listDiscountTargets } from "./list-discount-targets.js";
 export type {
   PriceReviewCategory,
   PriceReviewFilter,
