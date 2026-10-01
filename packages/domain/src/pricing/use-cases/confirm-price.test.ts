@@ -8,6 +8,8 @@ const LATER = new Date("2026-01-09T09:00:00.000Z");
 
 function storeWithProduct(active = true): FakePricingStore {
   const store = new FakePricingStore();
+  store.seedBranch({ locationId: "location-1", priceListId: "list-1" });
+  store.seedBranch({ locationId: "location-2", priceListId: "list-2" });
   store.seedProduct({ id: "decoy", active: true });
   store.seedProduct({ id: "product-1", active });
   return store;
@@ -47,10 +49,11 @@ function confirm(
   expectedCurrentPriceId = "price-current",
   now = NOON,
   productId = "product-1",
+  locationId = "location-1",
 ) {
   return confirmPrice(
     { store, clock: new FixedClock(now) },
-    { productId, priceListId: "list-1", expectedCurrentPriceId, actorId: "actor-1" },
+    { productId, locationId, expectedCurrentPriceId, actorId: "actor-1" },
   );
 }
 
@@ -74,13 +77,17 @@ describe("confirmPrice", () => {
     expect(store.operationOrder).toEqual(["lockActiveProduct"]);
   });
 
-  it("locks the product before it reads the current price", async () => {
+  it("locks the product before it resolves the branch's price list and reads the current price", async () => {
     const store = storeWithProduct();
     seedPrice(store);
 
     await confirm(store);
 
-    expect(store.operationOrder.slice(0, 2)).toEqual(["lockActiveProduct", "currentPrice"]);
+    expect(store.operationOrder.slice(0, 3)).toEqual([
+      "lockActiveProduct",
+      "branchPriceList",
+      "currentPrice",
+    ]);
   });
 
   it("reads before it writes, in the order of the rule", async () => {
@@ -91,11 +98,33 @@ describe("confirmPrice", () => {
 
     expect(store.operationOrder).toEqual([
       "lockActiveProduct",
+      "branchPriceList",
       "currentPrice",
       "latestReviewedAt",
       "recordPriceReview",
       "recordPriceConfirmation",
     ]);
+  });
+
+  it("records the review on the price list of the branch it is made for", async () => {
+    const store = storeWithProduct();
+    seedPrice(store, { priceListId: "list-2" });
+
+    const outcome = await confirm(store, "price-current", NOON, "product-1", "location-2");
+
+    expect(outcome).toMatchObject({ kind: "confirmed" });
+    expect(store.snapshot().reviews.map((row) => row.priceListId)).toEqual(["list-2"]);
+  });
+
+  it("refuses a branch with no price list, writing nothing", async () => {
+    const store = storeWithProduct();
+    seedPrice(store);
+    const before = store.snapshot();
+
+    await expect(confirm(store, "price-current", NOON, "product-1", "location-9")).rejects.toThrow(
+      "branch location-9 has no price list",
+    );
+    expect(store.snapshot()).toEqual(before);
   });
 
   it("runs entirely inside one transaction", async () => {

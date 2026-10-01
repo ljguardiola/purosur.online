@@ -49,7 +49,6 @@ export type PricesListScreenProps = {
   onFiltersChange: (filters: PricesListFilters) => void;
   onSessionEnded: () => void;
   services: PricesListScreenServices;
-  now?: () => Date;
 };
 
 const NO_PRODUCTS: PriceProduct[] = [];
@@ -94,7 +93,6 @@ export function PricesListScreen({
   onFiltersChange,
   onSessionEnded,
   services,
-  now,
 }: PricesListScreenProps) {
   const sendToMyAccount = useSendToMyAccount();
   const {
@@ -102,7 +100,6 @@ export function PricesListScreen({
     setPrice: setPriceService,
     confirmPrice: confirmPriceService,
   } = services;
-  const clock = now ?? (() => new Date());
 
   const [search, setSearch] = useState(filters.search);
   const [debouncedSearch, setDebouncedSearch] = useState(filters.search.trim());
@@ -149,11 +146,10 @@ export function PricesListScreen({
       ...(debouncedSearch ? { search: debouncedSearch } : {}),
     },
     fetchPrices: fetchPricesService,
-    now: clock,
     onSessionEnded,
   });
-  const readReviewQueue = useReadReviewQueue({ fetchPrices: fetchPricesService, now: clock });
-  const reloadPrice = useReloadPrice({ fetchPrices: fetchPricesService, now: clock });
+  const readReviewQueue = useReadReviewQueue({ fetchPrices: fetchPricesService });
+  const reloadPrice = useReloadPrice({ fetchPrices: fetchPricesService });
   const refreshPrices = useRefreshPrices();
 
   const loaded = data.status === "loaded" ? data.value : undefined;
@@ -180,7 +176,6 @@ export function PricesListScreen({
   const pendingCount = loaded?.pendingCount ?? 0;
   const activeProductCount = loaded?.activeProductCount ?? 0;
   const reviewWindowDays = loaded?.reviewWindowDays ?? 30;
-  const readAt = loaded?.readAt;
 
   const shownData =
     data.status === "failed"
@@ -410,8 +405,7 @@ export function PricesListScreen({
     dataColumn({
       id: "reviewed",
       header: "Revisado",
-      render: (item: PriceProduct) =>
-        readAt ? reviewedCellText(item.lastReviewedAt, readAt) : null,
+      render: (item: PriceProduct) => reviewedCellText(item.daysSinceReview),
     }),
     dataColumn({
       id: "actions",
@@ -536,7 +530,6 @@ export function PricesListScreen({
       <PriceChangeModal
         target={modal?.target ?? null}
         previousProductNotice={modal?.previousProductNotice ?? null}
-        now={clock}
         onClose={handleModalClose}
         onSessionEnded={onSessionEnded}
         onSaved={handleModalSaved}

@@ -10,10 +10,15 @@ const priced = {
   categoryName: "Almacén",
   saleUnit: "KG",
   currentPrice: { id: "price-1", unitPrice: 750000, validFrom: at },
-  lastReviewedAt: at,
+  daysSinceReview: 0,
   pending: false,
 };
-const unpriced = { ...priced, id: "product-2", currentPrice: null, lastReviewedAt: null };
+const unpriced = {
+  ...priced,
+  id: "product-2",
+  currentPrice: null,
+  daysSinceReview: null,
+};
 const almacen = { id: "category-1", name: "Almacén" };
 const list = {
   products: [priced, unpriced],
@@ -46,6 +51,15 @@ describe("priceProductSchema", () => {
   it("accepts a product with a price and one without", () => {
     expect(priceProductSchema.safeParse(priced).data).toEqual(priced);
     expect(priceProductSchema.safeParse(unpriced).data).toEqual(unpriced);
+  });
+
+  it("accepts a review age of any whole number of days, or none", () => {
+    expect(priceProductSchema.safeParse({ ...priced, daysSinceReview: 41 }).data).toMatchObject({
+      daysSinceReview: 41,
+    });
+    expect(priceProductSchema.safeParse({ ...priced, daysSinceReview: null }).data).toMatchObject({
+      daysSinceReview: null,
+    });
   });
 
   it("accepts a sale unit of each kind", () => {
@@ -84,10 +98,10 @@ describe("priceProductSchema", () => {
     ["saleUnit", "kg"],
     ["currentPrice", undefined],
     ["currentPrice", "price-1"],
-    ["lastReviewedAt", undefined],
-    ["lastReviewedAt", 1758801600000],
-    ["lastReviewedAt", "yesterday"],
-    ["lastReviewedAt", "2026-09-25"],
+    ["daysSinceReview", undefined],
+    ["daysSinceReview", "3"],
+    ["daysSinceReview", 1.5],
+    ["daysSinceReview", -1],
     ["pending", "true"],
     ["pending", null],
   ])("refuses %s as %j", (field, value) => {

@@ -1,5 +1,8 @@
 import { type RegisterSummaryBody, registerListSchema } from "@purosur/contracts";
-import { and, asc, eq, gt, isNull } from "drizzle-orm";
+import {
+  type BranchRegisterSummary,
+  listBranchRegisters,
+} from "@purosur/domain/register/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
@@ -9,7 +12,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { registerEnrollmentCodes, registers } from "../platform/db/schema.js";
+import { DrizzleBranchRegisterStore } from "./drizzle-branch-register-store.js";
 
 export interface RegistersRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
@@ -17,62 +20,17 @@ export interface RegistersRouteOptions<TQueryResult extends PgQueryResultHKT> {
   now?: () => Date;
 }
 
-interface RegisterPendingCode {
-  issuedAt: Date;
-  expiresAt: Date;
-}
-
-interface RegisterRow {
-  id: string;
-  name: string;
-  pendingCode: RegisterPendingCode | null;
-}
-
-function toRegisterWire(row: RegisterRow): RegisterSummaryBody {
+function toRegisterWire(register: BranchRegisterSummary): RegisterSummaryBody {
   return {
-    id: row.id,
-    name: row.name,
-    pending_code: row.pendingCode
+    id: register.id,
+    name: register.name,
+    pending_code: register.pendingCode
       ? {
-          issued_at: row.pendingCode.issuedAt.toISOString(),
-          expires_at: row.pendingCode.expiresAt.toISOString(),
+          seconds_since_issued: register.pendingCode.secondsSinceIssued,
+          seconds_until_expiry: register.pendingCode.secondsUntilExpiry,
         }
       : null,
   };
-}
-
-async function listBranchRegisters<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  locationId: string,
-  now: Date,
-): Promise<RegisterRow[]> {
-  const rows = await db
-    .select({
-      id: registers.id,
-      name: registers.name,
-      pendingCodeIssuedAt: registerEnrollmentCodes.issuedAt,
-      pendingCodeExpiresAt: registerEnrollmentCodes.expiresAt,
-    })
-    .from(registers)
-    .leftJoin(
-      registerEnrollmentCodes,
-      and(
-        eq(registerEnrollmentCodes.registerId, registers.id),
-        gt(registerEnrollmentCodes.expiresAt, now),
-        isNull(registerEnrollmentCodes.redeemedAt),
-      ),
-    )
-    .where(eq(registers.locationId, locationId))
-    .orderBy(asc(registers.name));
-
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    pendingCode:
-      row.pendingCodeIssuedAt && row.pendingCodeExpiresAt
-        ? { issuedAt: row.pendingCodeIssuedAt, expiresAt: row.pendingCodeExpiresAt }
-        : null,
-  }));
 }
 
 export function registerRegistersListRoute<TQueryResult extends PgQueryResultHKT>(
@@ -82,6 +40,7 @@ export function registerRegistersListRoute<TQueryResult extends PgQueryResultHKT
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
+  const registers = new DrizzleBranchRegisterStore(options.db);
 
   app.get(
     "/registers",
@@ -92,8 +51,11 @@ export function registerRegistersListRoute<TQueryResult extends PgQueryResultHKT
     async (request, reply) => {
       const openSession = openSessionOf(request);
 
-      const rows = await listBranchRegisters(options.db, openSession.locationId, now());
-      await reply.code(200).send(registerListSchema.parse(rows.map(toRegisterWire)));
+      const listed = await listBranchRegisters(
+        { registers, clock: { now } },
+        { locationId: openSession.locationId },
+      );
+      await reply.code(200).send(registerListSchema.parse(listed.map(toRegisterWire)));
     },
   );
 }
