@@ -11,6 +11,11 @@ import type {
   PricingStoreTransaction,
 } from "../pricing-store.js";
 
+export interface FakeBranchRow {
+  locationId: string;
+  priceListId: string;
+}
+
 export interface FakeProductRow {
   id: string;
   active: boolean;
@@ -25,6 +30,7 @@ export interface FakePriceRow {
 }
 
 export interface FakePriceState {
+  branches: FakeBranchRow[];
   products: FakeProductRow[];
   prices: FakePriceRow[];
   reviews: NewPriceReview[];
@@ -41,6 +47,7 @@ type WriteOperation =
 
 function cloneState(state: FakePriceState): FakePriceState {
   return {
+    branches: state.branches.map((row) => ({ ...row })),
     products: state.products.map((row) => ({ ...row })),
     prices: state.prices.map((row) => ({ ...row, validFrom: new Date(row.validFrom) })),
     reviews: state.reviews.map((row) => ({ ...row, reviewedAt: new Date(row.reviewedAt) })),
@@ -67,6 +74,15 @@ class FakePricingStoreTransaction implements PricingStoreTransaction {
     this.store.operationOrder.push("lockActiveProduct");
     const product = this.state.products.find((row) => row.id === productId);
     return product?.active ? { kind: "locked" } : { kind: "not_found" };
+  }
+
+  async branchPriceList(locationId: string): Promise<string> {
+    this.store.operationOrder.push("branchPriceList");
+    const branch = this.state.branches.find((row) => row.locationId === locationId);
+    if (!branch) {
+      throw new Error(`branch ${locationId} has no price list`);
+    }
+    return branch.priceListId;
   }
 
   async currentPrice(productId: string, priceListId: string): Promise<CurrentPrice | undefined> {
@@ -120,6 +136,7 @@ class FakePricingStoreTransaction implements PricingStoreTransaction {
 
 export class FakePricingStore implements PricingStore {
   private state: FakePriceState = {
+    branches: [],
     products: [],
     prices: [],
     reviews: [],
@@ -131,6 +148,10 @@ export class FakePricingStore implements PricingStore {
   failingWrites = new Set<WriteOperation>();
   operationOrder: string[] = [];
   transactionCount = 0;
+
+  seedBranch(branch: FakeBranchRow): void {
+    this.state.branches.push({ ...branch });
+  }
 
   seedProduct(product: FakeProductRow): void {
     this.state.products.push({ ...product });

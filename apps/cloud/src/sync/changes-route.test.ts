@@ -115,6 +115,15 @@ async function pullPage(since: number, deviceToken: string) {
   return changesPageSchema.parse(response.json());
 }
 
+async function insertLocationOnPriceList(priceListId: string): Promise<string> {
+  const [location] = await db.insert(locations).values({}).returning({ id: locations.id });
+  if (!location) {
+    throw new Error("test setup: seeding the location returned no row");
+  }
+  await db.insert(branchSettings).values({ locationId: location.id, priceListId });
+  return location.id;
+}
+
 async function insertOtherBranch(): Promise<string> {
   const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
   if (!otherLocation) {
@@ -397,12 +406,12 @@ describe("GET /changes carrying the catalog and the prices", () => {
     return outcome.product;
   }
 
-  async function newPrice(productId: string, priceListId: string, unitPrice: number) {
+  async function newPrice(productId: string, locationId: string, unitPrice: number) {
     const outcome = await setPrice(
       { store: new DrizzlePricingStore(db), clock: { now: () => AT } },
       {
         productId,
-        priceListId,
+        locationId,
         unitPrice,
         expectedCurrentPriceId: null,
         actorId: await anActor(),
@@ -448,13 +457,13 @@ describe("GET /changes carrying the catalog and the prices", () => {
   }
 
   it("gives the categories, the products with their barcodes in order, and the branch's price list's prices, each with its version", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken, locationId } = await insertEnrolledInstallation(db);
     const priceListId = await seededPriceListId(db);
     const parentId = await newCategory("Almacén");
     const leafId = await newCategory("Secos", parentId);
     const tagId = await newTag("Sin TACC");
     const product = await newProduct(leafId, ["7790001000011", "7790001000028"], "Arroz", [tagId]);
-    const price = await newPrice(product.id, priceListId, 125050);
+    const price = await newPrice(product.id, locationId, 125050);
 
     const page = await pullSinceSeeded(deviceToken);
 
@@ -584,11 +593,12 @@ describe("GET /changes carrying the catalog and the prices", () => {
   });
 
   it("gives the branch's own price list but neither another list nor its prices", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken, locationId } = await insertEnrolledInstallation(db);
     const otherPriceListId = await insertOtherPriceList();
+    const otherLocationId = await insertLocationOnPriceList(otherPriceListId);
     const product = await newProduct(await newCategory("Almacén"), ["7790001000011"]);
-    const branchPrice = await newPrice(product.id, await seededPriceListId(db), 1000);
-    await newPrice(product.id, otherPriceListId, 900);
+    const branchPrice = await newPrice(product.id, locationId, 1000);
+    await newPrice(product.id, otherLocationId, 900);
 
     const page = await pullSinceSeeded(deviceToken);
 
@@ -598,12 +608,12 @@ describe("GET /changes carrying the catalog and the prices", () => {
   });
 
   it("gives a removal in place of a row that no longer exists, at the version of its latest change", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken, locationId } = await insertEnrolledInstallation(db);
     const priceListId = await seededPriceListId(db);
     const categoryId = await newCategory("Almacén");
     const emptyCategoryId = await newCategory("Vacía");
     const product = await newProduct(categoryId, ["7790001000011"]);
-    const price = await newPrice(product.id, priceListId, 1000);
+    const price = await newPrice(product.id, locationId, 1000);
     await db.execute(sql`alter table products disable trigger products_reject_deletion`);
     await db.delete(priceReviews).where(eq(priceReviews.priceId, price.id));
     await db.delete(prices).where(eq(prices.id, price.id));

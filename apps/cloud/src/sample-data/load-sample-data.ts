@@ -20,7 +20,6 @@ import { editBranchSettings } from "../branch/branch-settings-edit-route.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { allocateInternalBarcode } from "../catalog/internal-barcode-route.js";
 import { branchSettings, locations, roles, userRoles, users } from "../platform/db/schema.js";
-import { branchPriceListId } from "../pricing/branch-price-list.js";
 import { DrizzleDiscountStore } from "../pricing/drizzle-discount-store.js";
 import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
 import { createRegister } from "../register/register-creation-route.js";
@@ -185,7 +184,6 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         }
       }
 
-      const priceListId = await branchPriceListId(tx, location.id);
       const recentMoment = deps.now();
       const overdueReviewMoment = new Date(recentMoment.getTime() - OVERDUE_PRICE_REVIEW_AGE_MS);
 
@@ -261,7 +259,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
               if (plan.pricePlan === "current") {
                 const setOutcome = await setPrice(pricingPortsAt(recentMoment), {
                   productId: product.product.id,
-                  priceListId,
+                  locationId: location.id,
                   unitPrice: plan.unitPriceCents,
                   expectedCurrentPriceId: null,
                   actorId,
@@ -269,7 +267,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
                 const applied = expectOutcome(setOutcome, "applied", `pricing "${plan.name}"`);
                 const confirmOutcome = await confirmPrice(pricingPortsAt(recentMoment), {
                   productId: product.product.id,
-                  priceListId,
+                  locationId: location.id,
                   expectedCurrentPriceId: applied.price.id,
                   actorId,
                 });
@@ -281,7 +279,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
               } else {
                 const setOutcome = await setPrice(pricingPortsAt(overdueReviewMoment), {
                   productId: product.product.id,
-                  priceListId,
+                  locationId: location.id,
                   unitPrice: plan.unitPriceCents,
                   expectedCurrentPriceId: null,
                   actorId,

@@ -3,7 +3,7 @@ import type { PricingPorts } from "./pricing-store.js";
 
 export interface ConfirmPriceInput {
   productId: string;
-  priceListId: string;
+  locationId: string;
   expectedCurrentPriceId: string;
   actorId: string;
 }
@@ -26,7 +26,8 @@ export async function confirmPrice(
       return { kind: "not_found" };
     }
 
-    const current = await tx.currentPrice(input.productId, input.priceListId);
+    const priceListId = await tx.branchPriceList(input.locationId);
+    const current = await tx.currentPrice(input.productId, priceListId);
     if (!current) {
       return { kind: "no_price_to_confirm" };
     }
@@ -35,12 +36,12 @@ export async function confirmPrice(
     }
 
     const moment = momentAfter(clock.now(), [
-      await tx.latestReviewedAt(input.productId, input.priceListId),
+      await tx.latestReviewedAt(input.productId, priceListId),
     ]);
 
     await tx.recordPriceReview({
       productId: input.productId,
-      priceListId: input.priceListId,
+      priceListId,
       reviewedAt: moment,
       actorId: input.actorId,
       priceId: current.id,

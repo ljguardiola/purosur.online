@@ -14,7 +14,6 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
-import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { DrizzleChangeLog } from "./drizzle-change-log.js";
 
 // PGlite has no roles, so only a real Postgres connected as the role the deployed cloud uses shows
@@ -82,7 +81,7 @@ describe("a pull run as the role the deployed cloud connects with", () => {
       { store: new DrizzlePricingStore(db), clock: { now: () => new Date() } },
       {
         productId: product.product.id,
-        priceListId: await seededPriceListId(db),
+        locationId,
         unitPrice: 1000,
         expectedCurrentPriceId: null,
         actorId: actor.id,

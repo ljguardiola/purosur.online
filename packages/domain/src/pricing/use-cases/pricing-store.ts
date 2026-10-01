@@ -51,6 +51,7 @@ export interface PricingStore {
 
 export interface PricingStoreTransaction {
   lockActiveProduct(productId: string): Promise<LockActiveProductResult>;
+  branchPriceList(locationId: string): Promise<string>;
   currentPrice(productId: string, priceListId: string): Promise<CurrentPrice | undefined>;
   latestReviewedAt(productId: string, priceListId: string): Promise<Date | undefined>;
   recordPrice(price: NewPrice): Promise<CurrentPrice>;

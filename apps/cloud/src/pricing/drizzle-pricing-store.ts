@@ -11,7 +11,7 @@ import type {
 } from "@purosur/domain/pricing/use-cases";
 import { and, desc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { auditLog, priceReviews, prices, products } from "../platform/db/schema.js";
+import { auditLog, branchSettings, priceReviews, prices, products } from "../platform/db/schema.js";
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import { PRICE_VERSION } from "./price-version.js";
@@ -37,6 +37,17 @@ class DrizzlePricingStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .where(and(eq(products.id, productId), eq(products.active, true)))
       .for("update");
     return product ? { kind: "locked" } : { kind: "not_found" };
+  }
+
+  async branchPriceList(locationId: string): Promise<string> {
+    const [settings] = await this.tx
+      .select({ priceListId: branchSettings.priceListId })
+      .from(branchSettings)
+      .where(eq(branchSettings.locationId, locationId));
+    if (!settings) {
+      throw new Error(`branch settings missing for location ${locationId}`);
+    }
+    return settings.priceListId;
   }
 
   async currentPrice(productId: string, priceListId: string): Promise<CurrentPrice | undefined> {
