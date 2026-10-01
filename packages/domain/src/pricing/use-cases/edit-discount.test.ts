@@ -153,7 +153,7 @@ describe("editDiscount", () => {
     expect(store.snapshot().discounts[0]?.target).toEqual({ kind: "CATEGORY", id: "category-1" });
     expect(store.operationOrder).toEqual([
       "lockDiscount",
-      "lockAssignableTarget",
+      "lockTarget",
       "updateDiscount",
     ]);
   });
@@ -168,7 +168,7 @@ describe("editDiscount", () => {
     );
 
     expect(outcome.kind).toBe("applied");
-    expect(store.operationOrder).toContain("lockAssignableTarget");
+    expect(store.operationOrder).toContain("lockTarget");
   });
 
   it("checks the target when only its id changed", async () => {
@@ -192,7 +192,7 @@ describe("editDiscount", () => {
 
     expect(outcome).toEqual({ kind: "target_not_found" });
     expect(store.snapshot().discounts).toEqual([stored]);
-    expect(store.operationOrder).toEqual(["lockDiscount", "lockAssignableTarget"]);
+    expect(store.operationOrder).toEqual(["lockDiscount", "lockTarget"]);
   });
 
   describe("buy-N-pay-M", () => {
@@ -205,7 +205,7 @@ describe("editDiscount", () => {
       expect(store.snapshot().discounts[0]?.benefit).toEqual(buyThreePayTwo);
       expect(store.operationOrder).toEqual([
         "lockDiscount",
-        "lockAssignableTarget",
+        "lockTarget",
         "updateDiscount",
       ]);
     });
@@ -217,7 +217,7 @@ describe("editDiscount", () => {
 
       expect(outcome).toEqual({ kind: "target_not_sold_by_unit" });
       expect(store.snapshot().discounts).toEqual([stored]);
-      expect(store.operationOrder).toEqual(["lockDiscount", "lockAssignableTarget"]);
+      expect(store.operationOrder).toEqual(["lockDiscount", "lockTarget"]);
     });
 
     it("refuses moving a buy-N-pay-M discount to a product sold by weight", async () => {
