@@ -1,18 +1,20 @@
 import { type BrandSummary, brandEditBodySchema } from "@purosur/contracts";
 import {
+  actionsColumn,
   Button,
+  dataColumn,
   formatNumber,
   InlineNotice,
+  type ItemOrder,
   ListFilter,
   Modal,
   plural,
   SearchField,
   StatusIndicator,
   Table,
-  type TableItemOrder,
   type TableSort,
-  tableRows,
   textOrder,
+  useTableModel,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
 import {
@@ -67,7 +69,7 @@ const BRAND_STATUS_EMPTY_TITLE = {
 
 const brandNameOrder = textOrder((brand: BrandSummary) => brand.name);
 
-const productCountOrder: TableItemOrder<BrandSummary> = (a, b) =>
+const productCountOrder: ItemOrder<BrandSummary> = (a, b) =>
   a.productCount - b.productCount || brandNameOrder(a, b);
 
 function showsStatus(brand: BrandSummary, status: BrandStatusFilter): boolean {
@@ -521,13 +523,6 @@ export function BrandsListScreen({
   }, [data.status]);
 
   const brands = data.status === "loaded" ? data.value : NO_BRANDS;
-  const { rows, matchCount } = tableRows({
-    items: brands,
-    id: (brand) => brand.id,
-    search: { text: search, in: (brand) => [brand.name] },
-    filter: (brand) => showsStatus(brand, statusFilter),
-    sort: { by: sort, orders: { brand: brandNameOrder, products: productCountOrder } },
-  });
 
   const statusFilterOptions = [
     { value: "active" as const, label: "Activas" },
@@ -536,22 +531,20 @@ export function BrandsListScreen({
   ] as const;
 
   const columns = [
-    {
-      key: "brand",
+    dataColumn({
+      id: "brand",
       header: "Marca",
-      sortable: true,
-      defaultDirection: "ascending",
+      sort: { order: brandNameOrder, firstDirection: "ascending" },
       render: (item: BrandSummary) => item.name,
-    },
-    {
-      key: "products",
+    }),
+    dataColumn({
+      id: "products",
       header: "Productos",
-      sortable: true,
-      defaultDirection: "descending",
+      sort: { order: productCountOrder, firstDirection: "descending" },
       render: (item: BrandSummary) => formatNumber(item.productCount),
-    },
-    {
-      key: "status",
+    }),
+    dataColumn({
+      id: "status",
       header: "Estado",
       render: (item: BrandSummary) =>
         item.active ? (
@@ -559,10 +552,9 @@ export function BrandsListScreen({
         ) : (
           <StatusIndicator tone="neutral">Inactiva</StatusIndicator>
         ),
-    },
-    {
-      key: "actions",
-      kind: "actions",
+    }),
+    actionsColumn({
+      id: "actions",
       header: "Acciones",
       actions: [
         (item: BrandSummary) => ({
@@ -583,10 +575,19 @@ export function BrandsListScreen({
                 onPress: () => setActivationTarget({ brand: item, change: "reactivate" }),
               },
       ],
-    },
+    }),
   ] as const;
 
-  const matchedBrands = rows.map((row) => row.item);
+  const table = useTableModel({
+    items: brands,
+    id: (brand) => brand.id,
+    search: { text: search, in: (brand) => [brand.name] },
+    filter: (brand) => showsStatus(brand, statusFilter),
+    columns,
+    sort,
+    onSortChange: setSort,
+  });
+  const matchedBrands = table.getRowModel().rows.map((row) => row.original);
 
   return (
     <>
@@ -622,11 +623,8 @@ export function BrandsListScreen({
         </div>
         <Table
           aria-label="Marcas"
-          columns={columns}
-          sort={sort}
-          onSortChange={setSort}
+          table={table}
           {...cloudTableState(data, "las marcas")}
-          rows={rows}
           empty={
             brands.length === 0
               ? {
@@ -650,7 +648,7 @@ export function BrandsListScreen({
                   }
           }
           footer={
-            matchCount === 0 ? undefined : (
+            matchedBrands.length === 0 ? undefined : (
               <p className="text-text-subtle text-detail">{brandsFooterText(matchedBrands)}</p>
             )
           }

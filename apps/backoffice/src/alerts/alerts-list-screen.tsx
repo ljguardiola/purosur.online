@@ -1,6 +1,8 @@
 import type { AlertListPage, AlertSummary } from "@purosur/contracts";
 import { ALERT_KINDS, type AlertKind, type AlertLevel } from "@purosur/domain";
 import {
+  actionsColumn,
+  dataColumn,
   ListFilter,
   Pagination,
   plural,
@@ -8,7 +10,7 @@ import {
   StatusIndicator,
   Table,
   TableCellText,
-  tableRows,
+  useTableModel,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
 import { Bell, Eye, Search } from "lucide-react";
@@ -151,37 +153,36 @@ export function AlertsListScreen({
   const isFiltered = searchQuery.length > 0 || levelFilter !== "all" || statusFilter !== "open";
 
   const columns = [
-    {
-      key: "level",
+    dataColumn({
+      id: "level",
       header: "Nivel",
       render: (item: AlertSummary) => (
         <StatusIndicator tone={ALERT_LEVEL_TONE[item.level]}>
           {levelLabel(item.level)}
         </StatusIndicator>
       ),
-    },
-    {
-      key: "alert",
+    }),
+    dataColumn({
+      id: "alert",
       header: "Alerta",
       render: (item: AlertSummary) => (
         <TableCellText description={listKindDescription(item.kind)}>
           {alertKindLabel(item.kind)}
         </TableCellText>
       ),
-    },
-    {
-      key: "scope",
+    }),
+    dataColumn({
+      id: "scope",
       header: "Alcance",
       render: (item: AlertSummary) => item.scopeDisplay ?? "—",
-    },
-    {
-      key: "openedAt",
+    }),
+    dataColumn({
+      id: "openedAt",
       header: "Abierta",
       render: (item: AlertSummary) => alertDateTime(new Date(item.openedAt)),
-    },
-    {
-      key: "actions",
-      kind: "actions",
+    }),
+    actionsColumn({
+      id: "actions",
       header: "Acciones de la alerta",
       actions: [
         (item: AlertSummary) => ({
@@ -190,8 +191,14 @@ export function AlertsListScreen({
           onPress: () => setSelectedAlertId(item.id),
         }),
       ],
-    },
+    }),
   ] as const;
+
+  const table = useTableModel({
+    items: alerts,
+    id: (alert) => alert.id,
+    columns,
+  });
 
   return (
     <>
@@ -237,9 +244,8 @@ export function AlertsListScreen({
         </div>
         <Table
           aria-label="Alertas"
-          columns={columns}
+          table={table}
           {...cloudTableState(data, "las alertas")}
-          rows={tableRows({ items: alerts, id: (alert) => alert.id }).rows}
           empty={
             isFiltered
               ? {
