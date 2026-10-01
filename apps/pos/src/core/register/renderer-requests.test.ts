@@ -1,14 +1,18 @@
 import type {
+  AddProductOutcome,
   CashBalance,
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
+  CloseLockedCashSessionOutcome,
   FirstPinCodeRequestOutcome,
+  IdentifyLockedCloserOutcome,
   ListedCashMovement,
   OpenCashSession,
   OpenCashSessionOutcome,
   OpenSale,
   RecordCashMovementOutcome,
   ScanProductOutcome,
+  SearchProductsOutcome,
   SignInLookupOutcome,
   SignInOutcome,
 } from "@purosur/contracts";
@@ -34,6 +38,8 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const authorizerLookups: string[] = [];
   const scans: string[] = [];
   const charges: { saleId: string; tendered: number }[] = [];
+  const searches: string[] = [];
+  const additions: string[] = [];
   const saleLookups: string[] = [];
   const signOuts: string[] = [];
   const failures: { context: string; error: unknown }[] = [];
@@ -50,6 +56,8 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
     authorizerLookups,
     scans,
     charges,
+    searches,
+    additions,
     saleLookups,
     signOuts,
     failures,
@@ -104,6 +112,14 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         charges.push(request);
         return { kind: "no_open_sale" };
       },
+      searchProducts: async (query: string): Promise<SearchProductsOutcome> => {
+        searches.push(query);
+        return { kind: "results", products: [], more: false };
+      },
+      addProduct: async (productId: string): Promise<AddProductOutcome> => {
+        additions.push(productId);
+        return { kind: "product_unavailable" };
+      },
       currentSale: async (): Promise<OpenSale | null> => {
         saleLookups.push("read");
         return null;
@@ -116,6 +132,12 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         closings.push({ sessionId, countedCash, authorization });
         return { kind: "no_open_session" };
       },
+      closeLockedCashSession: async (): Promise<CloseLockedCashSessionOutcome> => ({
+        kind: "no_open_session",
+      }),
+      identifyLockedCloser: async (): Promise<IdentifyLockedCloserOutcome> => ({
+        kind: "not_locked",
+      }),
       cashBalance: (): CashBalance | null => null,
       authorizers: (permission: AuthorizablePermissionKey) => {
         authorizerLookups.push(permission);
@@ -741,6 +763,110 @@ describe("answerRendererRequest", () => {
     });
   });
 
+  it("searches the products by the query and answers the outcome", async () => {
+    const outcome: SearchProductsOutcome = { kind: "no_open_session" };
+    const { deps: withSearch, searches } = deps(true, { searchProducts: async () => outcome });
+    const recording = deps(true);
+
+    expect(
+      await answerRendererRequest(withSearch, {
+        type: "search-products",
+        request_id: "r30",
+        query: "yer",
+      }),
+    ).toEqual({ type: "search-products-result", request_id: "r30", outcome });
+    expect(searches).toEqual([]);
+    await answerRendererRequest(recording.deps, {
+      type: "search-products",
+      request_id: "r31",
+      query: "té",
+    });
+    expect(recording.searches).toEqual(["té"]);
+  });
+
+  it("answers that searching is unavailable when it fails or is not possible, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      searchProducts: async () => {
+        throw error;
+      },
+    });
+    const withoutDatabase = deps(true, { searchProducts: undefined });
+    const unavailable = {
+      type: "search-products-result",
+      request_id: "r32",
+      outcome: { kind: "unavailable" },
+    };
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "search-products",
+        request_id: "r32",
+        query: "a",
+      }),
+    ).toEqual(unavailable);
+    expect(failing.failures).toEqual([{ context: "searching products by name", error }]);
+    expect(
+      await answerRendererRequest(withoutDatabase.deps, {
+        type: "search-products",
+        request_id: "r32",
+        query: "a",
+      }),
+    ).toEqual(unavailable);
+  });
+
+  it("adds the searched product by its id and answers the outcome", async () => {
+    const outcome: AddProductOutcome = { kind: "no_price", product_name: "Yerba" };
+    const { deps: withAdd, additions } = deps(true, { addProduct: async () => outcome });
+    const recording = deps(true);
+
+    expect(
+      await answerRendererRequest(withAdd, {
+        type: "add-product",
+        request_id: "r33",
+        product_id: "p1",
+      }),
+    ).toEqual({ type: "add-product-result", request_id: "r33", outcome });
+    expect(additions).toEqual([]);
+    await answerRendererRequest(recording.deps, {
+      type: "add-product",
+      request_id: "r34",
+      product_id: "p7",
+    });
+    expect(recording.additions).toEqual(["p7"]);
+  });
+
+  it("answers that adding a product is unavailable when it fails or is not possible, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      addProduct: async () => {
+        throw error;
+      },
+    });
+    const withoutDatabase = deps(true, { addProduct: undefined });
+    const unavailable = {
+      type: "add-product-result",
+      request_id: "r35",
+      outcome: { kind: "unavailable" },
+    };
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "add-product",
+        request_id: "r35",
+        product_id: "p1",
+      }),
+    ).toEqual(unavailable);
+    expect(failing.failures).toEqual([{ context: "adding a searched product", error }]);
+    expect(
+      await answerRendererRequest(withoutDatabase.deps, {
+        type: "add-product",
+        request_id: "r35",
+        product_id: "p1",
+      }),
+    ).toEqual(unavailable);
+  });
+
   it("answers the sale in progress", async () => {
     const sale: OpenSale = {
       id: "s1",
@@ -884,6 +1010,144 @@ describe("answerRendererRequest", () => {
     ).toEqual({
       type: "close-cash-session-result",
       request_id: "r23",
+      outcome: { kind: "unavailable" },
+    });
+  });
+
+  it("closes a locked register's cash session with the session, the count and the closer as sent, and answers the outcome", async () => {
+    const closed: CloseLockedCashSessionOutcome = {
+      kind: "closed",
+      session: { id: "s1", expected_cash: 5000, counted_cash: 4800, difference: -200 },
+    };
+    const closer = { user_id: "u2", pin: "1234" };
+    const received: unknown[] = [];
+    const { deps: withClosing } = deps(true, {
+      closeLockedCashSession: async (sessionId, countedCash, sentCloser) => {
+        received.push({ sessionId, countedCash, closer: sentCloser });
+        return closed;
+      },
+    });
+
+    const answer = await answerRendererRequest(withClosing, {
+      type: "close-locked-cash-session",
+      request_id: "r24",
+      session_id: "s1",
+      counted_cash: 4800,
+      closer,
+    });
+
+    expect(answer).toEqual({
+      type: "close-locked-cash-session-result",
+      request_id: "r24",
+      outcome: closed,
+    });
+    expect(received).toEqual([{ sessionId: "s1", countedCash: 4800, closer }]);
+  });
+
+  it("answers that closing a locked register's cash session is unavailable when it fails, and reports why", async () => {
+    const error = new Error("disk full");
+    const failing = deps(true, {
+      closeLockedCashSession: async () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "close-locked-cash-session",
+        request_id: "r25",
+        session_id: "s1",
+        counted_cash: 0,
+        closer: { user_id: "u2", pin: "1234" },
+      }),
+    ).toEqual({
+      type: "close-locked-cash-session-result",
+      request_id: "r25",
+      outcome: { kind: "unavailable" },
+    });
+    expect(failing.failures).toEqual([
+      { context: "closing a locked register's cash session", error },
+    ]);
+  });
+
+  it("answers that closing a locked register's cash session is unavailable when the register has no database", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { closeLockedCashSession: undefined }).deps, {
+        type: "close-locked-cash-session",
+        request_id: "r26",
+        session_id: "s1",
+        counted_cash: 0,
+        closer: { user_id: "u2", pin: "1234" },
+      }),
+    ).toEqual({
+      type: "close-locked-cash-session-result",
+      request_id: "r26",
+      outcome: { kind: "unavailable" },
+    });
+  });
+
+  it("identifies who closes a locked register with the closer as sent, and answers the outcome", async () => {
+    const identified: IdentifyLockedCloserOutcome = {
+      kind: "identified",
+      person: { user_id: "u2", first_name: "Grace" },
+    };
+    const closer = { user_id: "u2", pin: "1234" };
+    const received: unknown[] = [];
+    const { deps: identifying } = deps(true, {
+      identifyLockedCloser: async (sentCloser) => {
+        received.push(sentCloser);
+        return identified;
+      },
+    });
+
+    const answer = await answerRendererRequest(identifying, {
+      type: "identify-locked-closer",
+      request_id: "r27",
+      closer,
+    });
+
+    expect(answer).toEqual({
+      type: "identify-locked-closer-result",
+      request_id: "r27",
+      outcome: identified,
+    });
+    expect(received).toEqual([closer]);
+  });
+
+  it("answers that identifying who closes a locked register is unavailable when it fails, and reports why", async () => {
+    const error = new Error("disk full");
+    const failing = deps(true, {
+      identifyLockedCloser: async () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "identify-locked-closer",
+        request_id: "r28",
+        closer: { user_id: "u2", pin: "1234" },
+      }),
+    ).toEqual({
+      type: "identify-locked-closer-result",
+      request_id: "r28",
+      outcome: { kind: "unavailable" },
+    });
+    expect(failing.failures).toEqual([
+      { context: "identifying who closes a locked register", error },
+    ]);
+  });
+
+  it("answers that identifying who closes a locked register is unavailable when the register has no database", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { identifyLockedCloser: undefined }).deps, {
+        type: "identify-locked-closer",
+        request_id: "r29",
+        closer: { user_id: "u2", pin: "1234" },
+      }),
+    ).toEqual({
+      type: "identify-locked-closer-result",
+      request_id: "r29",
       outcome: { kind: "unavailable" },
     });
   });

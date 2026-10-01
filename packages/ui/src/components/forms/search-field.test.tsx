@@ -427,3 +427,40 @@ test("fills a chip with the action-subtle fill behind the register icon, colored
 test("does not name its size as a variant of its own", () => {
   expectTypeOf<SearchFieldProps>().not.toHaveProperty("variant");
 });
+
+test("is announced as a combobox that controls its list of suggestions once it is given one", async () => {
+  const screen = await render(
+    <SearchFieldHarness
+      size="register"
+      placeholder="Scan or type the product name"
+      label="Product"
+      icon={<Search />}
+      combobox={{ expanded: true, listboxId: "suggestions", activeOptionId: "suggestion-2" }}
+    />,
+  );
+
+  const combobox = screen.getByRole("combobox", { name: "Product" });
+  await expect.element(combobox).toHaveAttribute("aria-expanded", "true");
+  await expect.element(combobox).toHaveAttribute("aria-controls", "suggestions");
+  await expect.element(combobox).toHaveAttribute("aria-activedescendant", "suggestion-2");
+  await expect.element(combobox).toHaveAttribute("aria-autocomplete", "list");
+  expect(screen.getByRole("searchbox").query()).toBeNull();
+});
+
+test("points at no list and no option while its suggestions are closed", async () => {
+  const screen = await render(
+    <SearchFieldHarness
+      size="register"
+      placeholder="Scan or type the product name"
+      label="Product"
+      icon={<Search />}
+      combobox={{ expanded: false, listboxId: "suggestions", activeOptionId: "suggestion-2" }}
+    />,
+  );
+
+  const combobox = screen.getByRole("combobox", { name: "Product" });
+  await expect.element(combobox).toHaveAttribute("aria-expanded", "false");
+  await expect.element(combobox).not.toHaveAttribute("aria-controls");
+  await expect.element(combobox).not.toHaveAttribute("aria-activedescendant");
+  await expectNoAccessibilityViolations(screen.container);
+});

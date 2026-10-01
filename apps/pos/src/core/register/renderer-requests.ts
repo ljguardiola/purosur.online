@@ -1,12 +1,15 @@
 import type {
+  AddProductOutcome,
   Authorization,
   CashBalance,
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
+  CloseLockedCashSessionOutcome,
   CoreToRendererMessage,
   CurrentSaleAnswer,
   EnrollmentOutcome,
   FirstPinCodeRequestOutcome,
+  IdentifyLockedCloserOutcome,
   ListedCashMovement,
   OpenCashSession,
   OpenCashSessionOutcome,
@@ -14,6 +17,7 @@ import type {
   RecordCashMovementOutcome,
   RendererToCoreMessage,
   ScanProductOutcome,
+  SearchProductsOutcome,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
@@ -42,6 +46,8 @@ export interface RendererRequestDeps {
   chargeSaleInCash:
     | ((request: ChargeSaleInCashRequest) => Promise<ChargeSaleInCashOutcome>)
     | undefined;
+  searchProducts: ((query: string) => Promise<SearchProductsOutcome>) | undefined;
+  addProduct: ((productId: string) => Promise<AddProductOutcome>) | undefined;
   currentSale: (() => Promise<CurrentSaleAnswer>) | undefined;
   closeCashSession:
     | ((
@@ -49,6 +55,16 @@ export interface RendererRequestDeps {
         countedCash: number,
         authorization: Authorization | undefined,
       ) => Promise<CloseCashSessionOutcome>)
+    | undefined;
+  closeLockedCashSession:
+    | ((
+        sessionId: string,
+        countedCash: number,
+        closer: Authorization,
+      ) => Promise<CloseLockedCashSessionOutcome>)
+    | undefined;
+  identifyLockedCloser:
+    | ((closer: Authorization) => Promise<IdentifyLockedCloserOutcome>)
     | undefined;
   cashBalance: (() => CashBalance | null) | undefined;
   authorizers: ((permission: AuthorizablePermissionKey) => SignInUser[]) | undefined;
@@ -158,6 +174,36 @@ async function attemptCloseCashSession(
   }
 }
 
+async function attemptCloseLockedCashSession(
+  deps: RendererRequestDeps,
+  sessionId: string,
+  countedCash: number,
+  closer: Authorization,
+): Promise<CloseLockedCashSessionOutcome> {
+  try {
+    return (
+      (await deps.closeLockedCashSession?.(sessionId, countedCash, closer)) ?? {
+        kind: "unavailable",
+      }
+    );
+  } catch (error) {
+    deps.reportFailure("closing a locked register's cash session", error);
+    return { kind: "unavailable" };
+  }
+}
+
+async function attemptIdentifyLockedCloser(
+  deps: RendererRequestDeps,
+  closer: Authorization,
+): Promise<IdentifyLockedCloserOutcome> {
+  try {
+    return (await deps.identifyLockedCloser?.(closer)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("identifying who closes a locked register", error);
+    return { kind: "unavailable" };
+  }
+}
+
 function readCashBalance(deps: RendererRequestDeps): CashBalance | null | undefined {
   try {
     return deps.cashBalance?.();
@@ -217,6 +263,30 @@ async function attemptChargeSaleInCash(
     return (await deps.chargeSaleInCash?.(request)) ?? { kind: "unavailable" };
   } catch (error) {
     deps.reportFailure("charging a sale in cash", error);
+    return { kind: "unavailable" };
+  }
+}
+
+async function attemptSearchProducts(
+  deps: RendererRequestDeps,
+  query: string,
+): Promise<SearchProductsOutcome> {
+  try {
+    return (await deps.searchProducts?.(query)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("searching products by name", error);
+    return { kind: "unavailable" };
+  }
+}
+
+async function attemptAddProduct(
+  deps: RendererRequestDeps,
+  productId: string,
+): Promise<AddProductOutcome> {
+  try {
+    return (await deps.addProduct?.(productId)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("adding a searched product", error);
     return { kind: "unavailable" };
   }
 }
@@ -333,6 +403,18 @@ export async function answerRendererRequest(
           tendered: message.tendered,
         }),
       };
+    case "search-products":
+      return {
+        type: "search-products-result",
+        request_id: message.request_id,
+        outcome: await attemptSearchProducts(deps, message.query),
+      };
+    case "add-product":
+      return {
+        type: "add-product-result",
+        request_id: message.request_id,
+        outcome: await attemptAddProduct(deps, message.product_id),
+      };
     case "sale-request": {
       const sale = await readCurrentSale(deps);
       if (sale === "not_permitted") {
@@ -352,6 +434,23 @@ export async function answerRendererRequest(
           message.counted_cash,
           message.authorization,
         ),
+      };
+    case "close-locked-cash-session":
+      return {
+        type: "close-locked-cash-session-result",
+        request_id: message.request_id,
+        outcome: await attemptCloseLockedCashSession(
+          deps,
+          message.session_id,
+          message.counted_cash,
+          message.closer,
+        ),
+      };
+    case "identify-locked-closer":
+      return {
+        type: "identify-locked-closer-result",
+        request_id: message.request_id,
+        outcome: await attemptIdentifyLockedCloser(deps, message.closer),
       };
     case "cash-balance-request": {
       const balance = readCashBalance(deps);

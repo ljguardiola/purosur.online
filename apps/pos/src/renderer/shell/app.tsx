@@ -1,6 +1,7 @@
 import type {
   Authorization,
   CloseCashSessionOutcome,
+  CloseLockedCashSessionOutcome,
   OpenCashSession,
   OpenCashSessionOutcome,
   SignInOutcome,
@@ -139,6 +140,29 @@ export function App({ core }: { core: CoreClient }) {
     return outcome satisfies CloseCashSessionOutcome;
   }
 
+  async function closeLockedCashSession(
+    sessionId: string,
+    countedCash: number,
+    closer: Authorization,
+  ) {
+    const outcome = await core.closeLockedCashSession(sessionId, countedCash, closer);
+    if (outcome.kind === "closed") {
+      setCashSession({ status: "none" });
+    }
+    if (outcome.kind === "no_open_session" || outcome.kind === "not_locked") {
+      await core.cashSession().then(refreshCashSession, () => {});
+    }
+    return outcome satisfies CloseLockedCashSessionOutcome;
+  }
+
+  async function identifyLockedCloser(closer: Authorization) {
+    const outcome = await core.identifyLockedCloser(closer);
+    if (outcome.kind === "not_locked") {
+      await core.cashSession().then(refreshCashSession, () => {});
+    }
+    return outcome;
+  }
+
   async function cashBalance() {
     const balance = await core.cashBalance();
     if (balance === null) {
@@ -180,6 +204,8 @@ export function App({ core }: { core: CoreClient }) {
     signOut,
     openCashSession,
     closeCashSession,
+    closeLockedCashSession,
+    identifyLockedCloser,
     cashBalance,
     cashMovements,
     recordCashMovement,
@@ -190,6 +216,8 @@ export function App({ core }: { core: CoreClient }) {
     currentSale: () => core.currentSale(),
     scanProduct: (code: string) => core.scanProduct(code),
     chargeSaleInCash: (saleId: string, tendered: number) => core.chargeSaleInCash(saleId, tendered),
+    searchProducts: (query: string) => core.searchProducts(query),
+    addProduct: (productId: string) => core.addProduct(productId),
     // A replaced core connection fails this request; the core coming back up asks again.
     refreshCashSession: () => core.cashSession().then(refreshCashSession, () => {}),
   };

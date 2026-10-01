@@ -43,7 +43,9 @@ import {
   cashBalanceFor,
   cashSessionOpener,
   closeCashSessionFor,
+  closeLockedCashSessionFor,
   currentCashSession,
+  identifyLockedCloserFor,
   openCashSessionFor,
 } from "./register/cash-session-requests";
 import { rotateDeviceToken } from "./register/device-token-rotation";
@@ -52,7 +54,13 @@ import { enroll, generatePepper, installationReportFrom } from "./register/enrol
 import { answerRendererRequest, type RendererRequestDeps } from "./register/renderer-requests";
 import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
-import { chargeSaleInCashFor, currentSaleFor, scanProductFor } from "./sales/sale-requests";
+import {
+  addSearchedProductFor,
+  chargeSaleInCashFor,
+  currentSaleFor,
+  scanProductFor,
+  searchProductsFor,
+} from "./sales/sale-requests";
 import { pullFromCloud, pullResultOf } from "./sync/pull-from-cloud";
 import { createPullSchedule } from "./sync/pull-schedule";
 import { SqliteLocalReplica } from "./sync/sqlite-local-replica";
@@ -328,6 +336,26 @@ const rendererRequestDeps: RendererRequestDeps = {
             },
             { sessionId, countedCash, authorization },
           ),
+  closeLockedCashSession:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (sessionId, countedCash, closer) =>
+          closeLockedCashSessionFor(
+            {
+              database: localDatabase,
+              gate: actionGate,
+              signedInPerson,
+              readOutboxChainKey: async () =>
+                (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+              now: () => new Date(),
+              ids: uuidV7Ids,
+            },
+            { sessionId, countedCash, closer },
+          ),
+  identifyLockedCloser:
+    actionGate === undefined
+      ? undefined
+      : (closer) => identifyLockedCloserFor({ gate: actionGate }, closer),
   cashBalance: localDatabase === undefined ? undefined : () => cashBalanceFor(localDatabase),
   cashSession: localDatabase === undefined ? undefined : () => currentCashSession(localDatabase),
   recordCashMovement:
@@ -369,6 +397,22 @@ const rendererRequestDeps: RendererRequestDeps = {
               ids: uuidV7Ids,
             },
             request,
+          ),
+  searchProducts:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (query) =>
+          searchProductsFor(
+            { database: localDatabase, gate: actionGate, now: () => new Date() },
+            query,
+          ),
+  addProduct:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (productId) =>
+          addSearchedProductFor(
+            { database: localDatabase, gate: actionGate, now: () => new Date(), ids: uuidV7Ids },
+            productId,
           ),
   currentSale:
     localDatabase === undefined || actionGate === undefined

@@ -1,12 +1,15 @@
 import type {
+  AddProductOutcome,
   Authorization,
   CashBalance,
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
+  CloseLockedCashSessionOutcome,
   CoreToRendererMessage,
   CurrentSaleAnswer,
   EnrollmentOutcome,
   FirstPinCodeRequestOutcome,
+  IdentifyLockedCloserOutcome,
   ListedCashMovement,
   OpenCashSession,
   OpenCashSessionOutcome,
@@ -15,6 +18,7 @@ import type {
   RecordCashMovementRequest,
   RendererToCoreMessage,
   ScanProductOutcome,
+  SearchProductsOutcome,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
@@ -49,6 +53,8 @@ export interface CoreClient {
   recordCashMovement(input: CashMovementInput): Promise<RecordCashMovementOutcome>;
   cashMovements(): Promise<ListedCashMovement[] | null | "unavailable">;
   scanProduct(code: string): Promise<ScanProductOutcome>;
+  searchProducts(query: string): Promise<SearchProductsOutcome>;
+  addProduct(productId: string): Promise<AddProductOutcome>;
   currentSale(): Promise<CurrentSaleAnswer>;
   chargeSaleInCash(saleId: string, tendered: number): Promise<ChargeSaleInCashOutcome>;
   closeCashSession(
@@ -56,6 +62,12 @@ export interface CoreClient {
     countedCash: number,
     authorization?: Authorization,
   ): Promise<CloseCashSessionOutcome>;
+  closeLockedCashSession(
+    sessionId: string,
+    countedCash: number,
+    closer: Authorization,
+  ): Promise<CloseLockedCashSessionOutcome>;
+  identifyLockedCloser(closer: Authorization): Promise<IdentifyLockedCloserOutcome>;
   cashBalance(): Promise<CashBalance | null | "unavailable">;
   onPulled(listener: () => void): () => void;
 }
@@ -259,6 +271,17 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         answer.type === "scan-product-result" ? answer.outcome : undefined,
       );
     },
+    searchProducts(query) {
+      return ask({ type: "search-products", request_id: deps.newRequestId(), query }, (answer) =>
+        answer.type === "search-products-result" ? answer.outcome : undefined,
+      );
+    },
+    addProduct(productId) {
+      return ask(
+        { type: "add-product", request_id: deps.newRequestId(), product_id: productId },
+        (answer) => (answer.type === "add-product-result" ? answer.outcome : undefined),
+      );
+    },
     currentSale() {
       return ask({ type: "sale-request", request_id: deps.newRequestId() }, (answer) => {
         if (answer.type === "sale-unavailable") {
@@ -286,6 +309,25 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           ...(authorization === undefined ? {} : { authorization }),
         },
         (answer) => (answer.type === "close-cash-session-result" ? answer.outcome : undefined),
+      );
+    },
+    closeLockedCashSession(sessionId, countedCash, closer) {
+      return ask(
+        {
+          type: "close-locked-cash-session",
+          request_id: deps.newRequestId(),
+          session_id: sessionId,
+          counted_cash: countedCash,
+          closer,
+        },
+        (answer) =>
+          answer.type === "close-locked-cash-session-result" ? answer.outcome : undefined,
+      );
+    },
+    identifyLockedCloser(closer) {
+      return ask(
+        { type: "identify-locked-closer", request_id: deps.newRequestId(), closer },
+        (answer) => (answer.type === "identify-locked-closer-result" ? answer.outcome : undefined),
       );
     },
     cashBalance() {

@@ -769,6 +769,130 @@ describe("closing a cash session answers", () => {
   });
 });
 
+describe("identifying who closes a locked register", () => {
+  const identify = {
+    type: "identify-locked-closer",
+    request_id: REQUEST_ID,
+    closer: { user_id: "u2", pin: "1234" },
+  };
+
+  it("accepts a request to identify the closer by their PIN", () => {
+    expect(rendererToCoreMessageSchema.parse(identify)).toEqual(identify);
+  });
+
+  it.each(["request_id", "closer"])("rejects a request missing its %s", (field) => {
+    const message = Object.fromEntries(Object.entries(identify).filter(([key]) => key !== field));
+
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("accepts the person identified by their id and first name", () => {
+    const message = {
+      type: "identify-locked-closer-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "identified", person: { user_id: "u2", first_name: "Grace" } },
+    };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "not_locked" },
+    { kind: "lacks_permission" },
+    { kind: "unavailable" },
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
+    { kind: "locked", consecutive_failures: 8 },
+  ])("accepts the identification result $kind", (outcome) => {
+    const message = { type: "identify-locked-closer-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "identified" },
+    { kind: "identified", person: { user_id: "u2" } },
+    { kind: "not_signed_in" },
+  ])("rejects an identification result it does not know: %j", (outcome) => {
+    const message = { type: "identify-locked-closer-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+});
+
+describe("closing a locked register's cash session", () => {
+  const close = {
+    type: "close-locked-cash-session",
+    request_id: REQUEST_ID,
+    session_id: "s1",
+    counted_cash: 152500,
+    closer: { user_id: "u2", pin: "1234" },
+  };
+
+  it("accepts a request to close the session with the cash counted and the closer's PIN", () => {
+    expect(rendererToCoreMessageSchema.parse(close)).toEqual(close);
+  });
+
+  it.each([-1, 1.5, MAX_CASH_AMOUNT_CENTS + 1, "100", null])(
+    "rejects a counted cash of %j",
+    (counted_cash) => {
+      expect(rendererToCoreMessageSchema.safeParse({ ...close, counted_cash }).success).toBe(false);
+    },
+  );
+
+  it.each(["request_id", "session_id", "counted_cash", "closer"])(
+    "rejects a request missing its %s",
+    (field) => {
+      const message = Object.fromEntries(Object.entries(close).filter(([key]) => key !== field));
+
+      expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+    },
+  );
+
+  it("rejects a closer without a PIN", () => {
+    const message = { ...close, closer: { user_id: "u2" } };
+
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("accepts the session that was closed with its expected cash, counted cash and difference", () => {
+    const message = {
+      type: "close-locked-cash-session-result",
+      request_id: REQUEST_ID,
+      outcome: {
+        kind: "closed",
+        session: { id: "s1", expected_cash: 150000, counted_cash: 149000, difference: -1000 },
+      },
+    };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "invalid_counted_cash" },
+    { kind: "no_open_session" },
+    { kind: "open_sale", total: 4500 },
+    { kind: "not_locked" },
+    { kind: "lacks_permission" },
+    { kind: "unavailable" },
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
+    { kind: "rate_limited", retry_after_seconds: 1, attempts_left: 2 },
+  ])("accepts the close result $kind", (outcome) => {
+    const message = { type: "close-locked-cash-session-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "not_signed_in" },
+    { kind: "closed", session: { id: "s1", expected_cash: 0, counted_cash: 0 } },
+    { kind: "open_sale" },
+  ])("rejects a close result it does not know: %j", (outcome) => {
+    const message = { type: "close-locked-cash-session-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+});
+
 describe("cash session answers", () => {
   it("accepts the session that was opened", () => {
     const message = {
@@ -1128,6 +1252,41 @@ describe("sale requests", () => {
     expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
   });
 
+  it("accepts a search of the products by name", () => {
+    const message = { type: "search-products", request_id: REQUEST_ID, query: "té ver" };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { type: "search-products", query: "a" },
+    { type: "search-products", request_id: REQUEST_ID },
+    { type: "search-products", request_id: REQUEST_ID, query: "x".repeat(101) },
+  ])("rejects a search that is not well formed: %j", (message) => {
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("accepts adding a product by its id", () => {
+    const message = { type: "add-product", request_id: REQUEST_ID, product_id: "p1" };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("does not take who is selling from the search or the addition", () => {
+    const search = { type: "search-products", request_id: REQUEST_ID, query: "a" };
+    const add = { type: "add-product", request_id: REQUEST_ID, product_id: "p1" };
+
+    expect(rendererToCoreMessageSchema.parse({ ...search, user_id: "u9" })).toEqual(search);
+    expect(rendererToCoreMessageSchema.parse({ ...add, user_id: "u9" })).toEqual(add);
+  });
+
+  it.each([
+    { type: "add-product", product_id: "p1" },
+    { type: "add-product", request_id: REQUEST_ID },
+  ])("rejects an addition that is not well formed: %j", (message) => {
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
   it("accepts a request for the sale in progress", () => {
     const message = { type: "sale-request", request_id: REQUEST_ID };
 
@@ -1220,6 +1379,45 @@ describe("sale answers", () => {
     };
 
     expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it.each([
+    { kind: "results", products: [], more: false },
+    { kind: "no_open_session" },
+    { kind: "unavailable" },
+  ])("accepts the search result $kind", (outcome) => {
+    const message = { type: "search-products-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "product_unavailable" },
+    { kind: "no_price", product_name: "Yerba" },
+    { kind: "not_signed_in" },
+  ])("accepts the add-product result $kind", (outcome) => {
+    const message = { type: "add-product-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects search and add-product results it does not know", () => {
+    const outcome = { kind: "somewhere_else" };
+
+    expect(
+      coreToRendererMessageSchema.safeParse({
+        type: "search-products-result",
+        request_id: REQUEST_ID,
+        outcome,
+      }).success,
+    ).toBe(false);
+    expect(
+      coreToRendererMessageSchema.safeParse({
+        type: "add-product-result",
+        request_id: REQUEST_ID,
+        outcome,
+      }).success,
+    ).toBe(false);
   });
 
   it.each([sale, null])("accepts the sale in progress %j", (value) => {

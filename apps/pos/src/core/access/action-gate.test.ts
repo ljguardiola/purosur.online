@@ -1,4 +1,4 @@
-import type { Authorization } from "@purosur/contracts";
+import type { Authorization, AuthorizedBy } from "@purosur/contracts";
 import { encodePinHash, type RoleAccess } from "@purosur/domain";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
@@ -418,5 +418,102 @@ describe("running a guarded action with another person's authorization", () => {
 
     expect(await outcome).toEqual({ kind: "unavailable" });
     expect(performed).toEqual([]);
+  });
+});
+
+describe("running an action on a locked register with a person's own PIN", () => {
+  function lockedCashIn(sandbox: ActionGateDeps, authorization: Authorization) {
+    const performed: AuthorizedBy[] = [];
+    const outcome = createActionGate(sandbox).runWhileLocked(
+      "record_cash_in",
+      authorization,
+      async (person) => {
+        performed.push(person);
+        return "done while locked";
+      },
+    );
+    return { outcome, performed };
+  }
+
+  const RIGHT_PIN = { user_id: "u2", pin: "1234" };
+
+  it("runs the action as the person whose PIN holds its permission, without signing them in", async () => {
+    const sandbox = deps({ signedInAs: null });
+    const { outcome, performed } = lockedCashIn(sandbox, RIGHT_PIN);
+
+    expect(await outcome).toEqual({ kind: "performed", result: "done while locked" });
+    expect(performed).toEqual([{ user_id: "u2", first_name: "Grace" }]);
+    expect(sandbox.signedInPerson.userId()).toBeUndefined();
+  });
+
+  it("refuses while someone is signed in, without checking the PIN", async () => {
+    const hashed: string[] = [];
+    const { outcome, performed } = lockedCashIn(
+      deps({
+        overrides: {
+          hashPin: async (pin) => {
+            hashed.push(pin);
+            return PIN_HASH;
+          },
+        },
+      }),
+      RIGHT_PIN,
+    );
+
+    expect(await outcome).toEqual({ kind: "not_locked" });
+    expect(performed).toEqual([]);
+    expect(hashed).toEqual([]);
+  });
+
+  it("does not run the action when someone signs in while the PIN is checked", async () => {
+    const holder = createSignedInPerson();
+    const { outcome, performed } = lockedCashIn(
+      deps({
+        signedInAs: null,
+        overrides: {
+          signedInPerson: holder,
+          hashPin: async () => {
+            holder.set("u1");
+            return PIN_HASH;
+          },
+        },
+      }),
+      RIGHT_PIN,
+    );
+
+    expect(await outcome).toEqual({ kind: "not_locked" });
+    expect(performed).toEqual([]);
+  });
+
+  it("refuses a person who lacks the permission", async () => {
+    const base = deps({ signedInAs: null });
+    const lacking = {
+      ...base,
+      store: { ...base.store, signInRecord: () => record(["sell_and_charge"]) },
+    };
+    const { outcome, performed } = lockedCashIn(lacking, RIGHT_PIN);
+
+    expect(await outcome).toEqual({ kind: "lacks_permission" });
+    expect(performed).toEqual([]);
+  });
+
+  it("refuses a wrong PIN and counts the failure", async () => {
+    const base = deps({ signedInAs: null });
+    const counted: string[] = [];
+    const counting: ActionGateDeps = {
+      ...base,
+      store: {
+        ...base.store,
+        recordPinSignInFailure: (userId, at) => {
+          counted.push(userId);
+          return base.store.recordPinSignInFailure(userId, at);
+        },
+      },
+    };
+    const { outcome, performed } = lockedCashIn(counting, { user_id: "u2", pin: "9999" });
+
+    expect(await outcome).toEqual({ kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 });
+    expect(performed).toEqual([]);
+    expect(counted).toEqual(["u2"]);
   });
 });

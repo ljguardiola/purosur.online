@@ -21,10 +21,13 @@ import {
 } from "../access/authorization.js";
 import { pinAttemptRefusalSchema } from "../access/pin-attempt-refusal.js";
 import {
+  addProductOutcomeSchema,
   chargeSaleInCashOutcomeSchema,
   saleSchema,
   scannedCodeSchema,
   scanProductOutcomeSchema,
+  searchProductsOutcomeSchema,
+  searchQuerySchema,
 } from "../sales/sale.js";
 
 const requestId = z.string();
@@ -141,6 +144,20 @@ const closeCashSessionMessageSchema = z.object({
   authorization: authorizationSchema.optional(),
 });
 
+const closeLockedCashSessionMessageSchema = z.object({
+  type: z.literal("close-locked-cash-session"),
+  request_id: requestId,
+  session_id: z.string(),
+  counted_cash: countedCashSchema,
+  closer: authorizationSchema,
+});
+
+const identifyLockedCloserMessageSchema = z.object({
+  type: z.literal("identify-locked-closer"),
+  request_id: requestId,
+  closer: authorizationSchema,
+});
+
 const cashBalanceRequestMessageSchema = z.object({
   type: z.literal("cash-balance-request"),
   request_id: requestId,
@@ -156,6 +173,18 @@ const scanProductMessageSchema = z.object({
   type: z.literal("scan-product"),
   request_id: requestId,
   code: scannedCodeSchema,
+});
+
+const searchProductsMessageSchema = z.object({
+  type: z.literal("search-products"),
+  request_id: requestId,
+  query: searchQuerySchema,
+});
+
+const addProductMessageSchema = z.object({
+  type: z.literal("add-product"),
+  request_id: requestId,
+  product_id: z.string(),
 });
 
 const saleRequestMessageSchema = z.object({
@@ -191,9 +220,13 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   recordCashMovementMessageSchema,
   cashMovementsRequestMessageSchema,
   closeCashSessionMessageSchema,
+  closeLockedCashSessionMessageSchema,
+  identifyLockedCloserMessageSchema,
   cashBalanceRequestMessageSchema,
   authorizersRequestMessageSchema,
   scanProductMessageSchema,
+  searchProductsMessageSchema,
+  addProductMessageSchema,
   saleRequestMessageSchema,
   chargeSaleInCashMessageSchema,
   signOutMessageSchema,
@@ -253,7 +286,7 @@ const openCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type OpenCashSessionOutcome = z.infer<typeof openCashSessionOutcomeSchema>;
 
-const closeCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
+const cashSessionClosingOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("closed"),
     session: z.object({
@@ -266,9 +299,27 @@ const closeCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("invalid_counted_cash") }),
   z.object({ kind: z.literal("no_open_session") }),
   z.object({ kind: z.literal("open_sale"), total: z.number() }),
+]);
+
+const closeCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
+  ...cashSessionClosingOutcomeSchema.options,
   ...guardedActionRefusalSchema.options,
 ]);
 export type CloseCashSessionOutcome = z.infer<typeof closeCashSessionOutcomeSchema>;
+
+const closeLockedCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
+  ...cashSessionClosingOutcomeSchema.options,
+  ...authorizationRefusalSchema.options,
+  z.object({ kind: z.literal("not_locked") }),
+]);
+export type CloseLockedCashSessionOutcome = z.infer<typeof closeLockedCashSessionOutcomeSchema>;
+
+const identifyLockedCloserOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("identified"), person: authorizedBySchema }),
+  ...authorizationRefusalSchema.options,
+  z.object({ kind: z.literal("not_locked") }),
+]);
+export type IdentifyLockedCloserOutcome = z.infer<typeof identifyLockedCloserOutcomeSchema>;
 
 const cashBalanceSchema = z.object({
   opening_float: z.number(),
@@ -387,6 +438,16 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     outcome: closeCashSessionOutcomeSchema,
   }),
   z.object({
+    type: z.literal("close-locked-cash-session-result"),
+    request_id: requestId,
+    outcome: closeLockedCashSessionOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("identify-locked-closer-result"),
+    request_id: requestId,
+    outcome: identifyLockedCloserOutcomeSchema,
+  }),
+  z.object({
     type: z.literal("cash-balance"),
     request_id: requestId,
     balance: cashBalanceSchema.nullable(),
@@ -419,6 +480,16 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("scan-product-result"),
     request_id: requestId,
     outcome: scanProductOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("search-products-result"),
+    request_id: requestId,
+    outcome: searchProductsOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("add-product-result"),
+    request_id: requestId,
+    outcome: addProductOutcomeSchema,
   }),
   z.object({
     type: z.literal("charge-sale-in-cash-result"),

@@ -16,7 +16,7 @@ export function FirstSignInPinStep({ person, signIn }: FirstSignInPinStepProps) 
   const attempt = usePinAttempt({
     id: person.id,
     firstName: person.first_name,
-    signIn: (pin) => signIn(person.id, pin),
+    attempt: (pin) => signIn(person.id, pin),
   });
   const navigate = useNavigate();
 

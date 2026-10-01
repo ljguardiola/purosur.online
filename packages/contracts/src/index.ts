@@ -141,10 +141,12 @@ export {
 export type {
   CashBalance,
   CloseCashSessionOutcome,
+  CloseLockedCashSessionOutcome,
   CoreStatusMessage,
   CoreToRendererMessage,
   EnrollmentOutcome,
   FirstPinCodeRequestOutcome,
+  IdentifyLockedCloserOutcome,
   ListedCashMovement,
   MainToCoreMessage,
   OpenCashSession,
@@ -190,12 +192,15 @@ export { registerEnrollmentCodeSchema } from "./register/register-enrollment-cod
 export type { RegisterSummaryBody } from "./register/register-summary.js";
 export { registerListSchema, registerSummarySchema } from "./register/register-summary.js";
 export type {
+  AddProductOutcome,
   ChargeSaleInCashOutcome,
   CurrentSaleAnswer,
+  FoundProduct,
   OpenSale,
   ScanProductOutcome,
+  SearchProductsOutcome,
 } from "./sales/sale.js";
-export { scannedCodeSchema } from "./sales/sale.js";
+export { SEARCH_RESULT_LIMIT, scannedCodeSchema, searchQuerySchema } from "./sales/sale.js";
 export type { BranchSettingsBody, ErrorReportingConfiguration } from "./shared/index.js";
 export {
   branchSettingsSchema,

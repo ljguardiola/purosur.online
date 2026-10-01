@@ -1,4 +1,9 @@
-import type { Authorization, AuthorizedBy, GuardedActionRefusal } from "@purosur/contracts";
+import type {
+  Authorization,
+  AuthorizationRefusal,
+  AuthorizedBy,
+  GuardedActionRefusal,
+} from "@purosur/contracts";
 import {
   type AuthorizablePermissionKey,
   holdsPermission,
@@ -19,6 +24,11 @@ type GuardedOutcome<Result> =
   | { kind: "performed"; authorized_by: AuthorizedBy | null; result: Result }
   | GuardedActionRefusal;
 
+type LockedOutcome<Result> =
+  | { kind: "performed"; result: Result }
+  | AuthorizationRefusal
+  | { kind: "not_locked" };
+
 export interface ActionGateDeps extends PinCheckDeps {
   store: PinCheckDeps["store"] & Pick<SignInStore, "activePerson">;
   signedInPerson: Pick<SignedInPerson, "userId">;
@@ -34,6 +44,11 @@ export interface ActionGate {
     action: GuardedAction,
     perform: (actor: GuardedActor) => Promise<Result>,
   ): Promise<GuardedOutcome<Result>>;
+  runWhileLocked<Result>(
+    permission: AuthorizablePermissionKey,
+    authorization: Authorization,
+    perform: (person: AuthorizedBy) => Promise<Result>,
+  ): Promise<LockedOutcome<Result>>;
 }
 
 export function createActionGate(deps: ActionGateDeps): ActionGate {
@@ -82,6 +97,19 @@ export function createActionGate(deps: ActionGateDeps): ActionGate {
         authorized_by: outcome.by,
         result: await perform({ signedInUserId, authorizedBy: outcome.by }),
       };
+    },
+    async runWhileLocked(permission, authorization, perform) {
+      if (deps.signedInPerson.userId() !== undefined) {
+        return { kind: "not_locked" };
+      }
+      const outcome = await authorize(deps, authorization, permission);
+      if (outcome.kind !== "authorized") {
+        return outcome;
+      }
+      if (deps.signedInPerson.userId() !== undefined) {
+        return { kind: "not_locked" };
+      }
+      return { kind: "performed", result: await perform(outcome.by) };
     },
   };
 }
