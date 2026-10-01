@@ -10,8 +10,6 @@ import {
   routeSessionSource,
 } from "../access/route-access.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
-import { findActiveProductById } from "./active-product.js";
-import { branchPriceListId } from "./branch-price-list.js";
 import { DrizzlePricingStore } from "./drizzle-pricing-store.js";
 import type { PricesRouteOptions } from "./prices-list-route.js";
 
@@ -42,23 +40,16 @@ export function registerPriceSetRoute<TQueryResult extends PgQueryResultHKT>(
       config: { access: permissionAccess("manage_prices_and_review"), sessionSource },
     },
     async (request, reply) => {
-      const target = await findActiveProductById(options.db, request.params.productId);
-      if (!target) {
-        await reply.code(404).send(NOT_FOUND_RESPONSE);
-        return;
-      }
-
       const body = await readValidatedBody(reply, priceSetBodySchema, request.body);
       if (!body) {
         return;
       }
 
       const openSession = openSessionOf(request);
-      const priceListId = await branchPriceListId(options.db, openSession.locationId);
 
       const outcome = await setPrice(ports, {
-        productId: target.id,
-        priceListId,
+        productId: request.params.productId,
+        locationId: openSession.locationId,
         unitPrice: body.unitPrice,
         expectedCurrentPriceId: body.expectedCurrentPriceId,
         actorId: openSession.userId,

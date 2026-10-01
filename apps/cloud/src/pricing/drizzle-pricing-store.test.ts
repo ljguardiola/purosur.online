@@ -14,8 +14,8 @@ import {
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
+import { DrizzlePriceReviewReader } from "./drizzle-price-review-reader.js";
 import { DrizzlePricingStore } from "./drizzle-pricing-store.js";
-import { listPrices } from "./prices-list-route.js";
 
 const MOMENT = new Date("2026-01-05T12:00:00.000Z");
 const EARLIER = new Date("2026-01-01T09:00:00.000Z");
@@ -83,6 +83,13 @@ function pricingPortsAt(moment: Date) {
   return { store: new DrizzlePricingStore(db), clock: { now: () => moment } };
 }
 
+async function latestReviewOf(productId: string): Promise<Date | undefined> {
+  const priceListId = await seededPriceListId(db);
+  return new DrizzlePricingStore(db).transaction((tx) =>
+    tx.latestReviewedAt(productId, priceListId),
+  );
+}
+
 async function auditRows() {
   return db
     .select({
@@ -139,6 +146,24 @@ describe("DrizzlePricingStore", () => {
     const locked = await store.transaction((tx) => tx.lockActiveProduct(productId));
 
     expect(locked).toEqual(expected);
+  });
+
+  it("answers the price list of a branch", async () => {
+    const store = new DrizzlePricingStore(db);
+
+    const locationId = await seededLocationId(db);
+
+    const priceList = await store.transaction((tx) => tx.branchPriceList(locationId));
+
+    expect(priceList).toBe(await seededPriceListId(db));
+  });
+
+  it("refuses a branch with no settings", async () => {
+    const store = new DrizzlePricingStore(db);
+
+    await expect(
+      store.transaction((tx) => tx.branchPriceList("00000000-0000-4000-8000-0000000000aa")),
+    ).rejects.toThrow("branch settings missing for location 00000000-0000-4000-8000-0000000000aa");
   });
 
   it("reads the current price from the requested price list only", async () => {
@@ -236,14 +261,13 @@ describe("DrizzlePricingStore", () => {
 
 describe("price changes committed by callers whose clocks disagree", () => {
   it("makes current a change from an earlier clock made over the price it saw", async () => {
-    const priceListId = await seededPriceListId(db);
     const actorId = await insertUser();
     const productId = await insertProduct();
     const laterMoment = new Date("2026-01-05T12:00:05.000Z");
 
     const first = await setPrice(pricingPortsAt(laterMoment), {
       productId,
-      priceListId,
+      locationId: await seededLocationId(db),
       unitPrice: 1000,
       expectedCurrentPriceId: null,
       actorId,
@@ -253,7 +277,7 @@ describe("price changes committed by callers whose clocks disagree", () => {
     }
     const earlierClock = await setPrice(pricingPortsAt(MOMENT), {
       productId,
-      priceListId,
+      locationId: await seededLocationId(db),
       unitPrice: 2000,
       expectedCurrentPriceId: first.price.id,
       actorId,
@@ -264,29 +288,27 @@ describe("price changes committed by callers whose clocks disagree", () => {
     expect(earlierClock.price.validFrom.getTime()).toBeGreaterThan(laterMoment.getTime());
     expect(earlierClock.lastReviewedAt).toEqual(earlierClock.price.validFrom);
 
-    const listed = await listPrices(db, {
-      priceListId,
+    const listed = await new DrizzlePriceReviewReader(db).pricesUnderReview({
+      locationId: await seededLocationId(db),
       now: MOMENT,
-      unreviewedPriceAlertDays: 30,
       review: "all",
     });
     expect(listed.products.find((product) => product.id === productId)).toMatchObject({
       currentPrice: { id: earlierClock.price.id, unitPrice: 2000 },
-      lastReviewedAt: earlierClock.lastReviewedAt,
     });
+    expect(await latestReviewOf(productId)).toEqual(earlierClock.lastReviewedAt);
   });
 });
 
 describe("confirmations committed by callers whose clocks disagree", () => {
   it("records a confirmation from an earlier clock as the product's most recent review", async () => {
-    const priceListId = await seededPriceListId(db);
     const actorId = await insertUser();
     const productId = await insertProduct();
     const laterMoment = new Date("2026-01-05T12:00:05.000Z");
 
     const first = await setPrice(pricingPortsAt(laterMoment), {
       productId,
-      priceListId,
+      locationId: await seededLocationId(db),
       unitPrice: 1000,
       expectedCurrentPriceId: null,
       actorId,
@@ -297,7 +319,7 @@ describe("confirmations committed by callers whose clocks disagree", () => {
 
     const confirmation = await confirmPrice(pricingPortsAt(MOMENT), {
       productId,
-      priceListId,
+      locationId: await seededLocationId(db),
       expectedCurrentPriceId: first.price.id,
       actorId,
     });
@@ -305,16 +327,7 @@ describe("confirmations committed by callers whose clocks disagree", () => {
       throw new Error(`expected the confirmation to apply, got ${confirmation.kind}`);
     }
     expect(confirmation.lastReviewedAt.getTime()).toBeGreaterThan(laterMoment.getTime());
-
-    const listed = await listPrices(db, {
-      priceListId,
-      now: laterMoment,
-      unreviewedPriceAlertDays: 30,
-      review: "all",
-    });
-    expect(listed.products.find((product) => product.id === productId)).toMatchObject({
-      lastReviewedAt: confirmation.lastReviewedAt,
-    });
+    expect(await latestReviewOf(productId)).toEqual(confirmation.lastReviewedAt);
   });
 });
 
@@ -339,7 +352,7 @@ describe("the price changes a pull hands to the registers", () => {
 
     const first = await setPrice(pricingPortsAt(MOMENT), {
       productId,
-      priceListId,
+      locationId: await seededLocationId(db),
       unitPrice: 1000,
       expectedCurrentPriceId: null,
       actorId,
@@ -349,7 +362,7 @@ describe("the price changes a pull hands to the registers", () => {
     }
     const second = await setPrice(pricingPortsAt(LATER), {
       productId,
-      priceListId,
+      locationId: await seededLocationId(db),
       unitPrice: 1200,
       expectedCurrentPriceId: first.price.id,
       actorId,
@@ -365,12 +378,11 @@ describe("the price changes a pull hands to the registers", () => {
   });
 
   it("logs nothing when the price is refused or only confirmed", async () => {
-    const priceListId = await seededPriceListId(db);
     const actorId = await insertUser();
     const productId = await insertProduct();
     const first = await setPrice(pricingPortsAt(MOMENT), {
       productId,
-      priceListId,
+      locationId: await seededLocationId(db),
       unitPrice: 1000,
       expectedCurrentPriceId: null,
       actorId,
@@ -381,21 +393,21 @@ describe("the price changes a pull hands to the registers", () => {
 
     const unchanged = await setPrice(pricingPortsAt(LATER), {
       productId,
-      priceListId,
+      locationId: await seededLocationId(db),
       unitPrice: 1000,
       expectedCurrentPriceId: first.price.id,
       actorId,
     });
     const stale = await setPrice(pricingPortsAt(LATER), {
       productId,
-      priceListId,
+      locationId: await seededLocationId(db),
       unitPrice: 1500,
       expectedCurrentPriceId: null,
       actorId,
     });
     const confirmed = await confirmPrice(pricingPortsAt(LATER), {
       productId,
-      priceListId,
+      locationId: await seededLocationId(db),
       expectedCurrentPriceId: first.price.id,
       actorId,
     });

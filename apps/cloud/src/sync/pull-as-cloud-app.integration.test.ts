@@ -1,4 +1,5 @@
 import { createCategory, createProduct, createTag } from "@purosur/domain/catalog/use-cases";
+import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import {
   recordAuthorizedCuit,
   recordBuyerIdentificationThreshold,
@@ -20,7 +21,6 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
-import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { logChange } from "./change-log.js";
 import { DrizzleChangeLog } from "./drizzle-change-log.js";
 
@@ -89,7 +89,7 @@ describe("a pull run as the role the deployed cloud connects with", () => {
       { store: new DrizzlePricingStore(db), clock: { now: () => new Date() } },
       {
         productId: product.product.id,
-        priceListId: await seededPriceListId(db),
+        locationId,
         unitPrice: 1000,
         expectedCurrentPriceId: null,
         actorId: actor.id,
@@ -97,7 +97,7 @@ describe("a pull run as the role the deployed cloud connects with", () => {
     );
     await recordAuthorizedCuit(
       { store: new DrizzleIssuerIdentificationStore(db) },
-      { authorizedCuit: "20-00000000-1" },
+      { authorizedCuit: FICTIONAL_CUIT },
     );
     await recordBuyerIdentificationThreshold(
       { store: new DrizzleBuyerIdentificationThresholdStore(db) },

@@ -1,12 +1,18 @@
 import { describe, expect, it } from "vitest";
+import {
+  ANOTHER_FICTIONAL_CUIT,
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "../test-support/fictional-tax-identities.js";
 import { editIssuerIdentification } from "./edit-issuer-identification.js";
 import { FakeIssuerIdentificationStore } from "./test-support/fake-issuer-identification-store.js";
 
 const saved = {
-  legalName: "Comercio de Prueba",
-  grossIncomeRegistration: "CM 000-000000-0",
+  legalName: FICTIONAL_LEGAL_NAME,
+  grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
   activityStartDate: "2020-01-15",
-  authorizedCuit: "20-00000000-1",
+  authorizedCuit: FICTIONAL_CUIT,
   version: 3,
 };
 
@@ -15,9 +21,9 @@ function edit(store: FakeIssuerIdentificationStore, overrides: Record<string, un
     { store },
     {
       legalName: "Comercio de Prueba Nuevo",
-      grossIncomeRegistration: "CM 000-000000-0",
+      grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
       activityStartDate: "2020-01-15",
-      authorizedCuit: "20-00000000-1",
+      authorizedCuit: FICTIONAL_CUIT,
       version: 3,
       actorId: "actor-1",
       ...overrides,
@@ -33,9 +39,9 @@ describe("editIssuerIdentification", () => {
 
     const next = {
       legalName: "Comercio de Prueba Nuevo",
-      grossIncomeRegistration: "CM 000-000000-0",
+      grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
       activityStartDate: "2020-01-15",
-      authorizedCuit: "20-00000000-1",
+      authorizedCuit: FICTIONAL_CUIT,
       version: 4,
     };
     expect(outcome).toEqual({ kind: "edited", identification: next });
@@ -60,7 +66,7 @@ describe("editIssuerIdentification", () => {
     const store = new FakeIssuerIdentificationStore(saved);
     const before = store.snapshot();
 
-    const outcome = await edit(store, { legalName: "Comercio de Prueba" });
+    const outcome = await edit(store, { legalName: FICTIONAL_LEGAL_NAME });
 
     expect(outcome).toEqual({ kind: "unchanged", identification: saved });
     expect(store.snapshot()).toEqual(before);
@@ -71,11 +77,11 @@ describe("editIssuerIdentification", () => {
     ["the legal name", { legalName: "Otro Comercio de Prueba" }],
     ["the gross-income registration", { grossIncomeRegistration: "CM 000-000000-1" }],
     ["the activity start date", { activityStartDate: "2020-01-16" }],
-    ["the CUIT", { authorizedCuit: "20-11111111-2" }],
+    ["the CUIT", { authorizedCuit: ANOTHER_FICTIONAL_CUIT }],
   ])("records a new version when only %s differs", async (_case, change) => {
     const store = new FakeIssuerIdentificationStore(saved);
 
-    const outcome = await edit(store, { legalName: "Comercio de Prueba", ...change });
+    const outcome = await edit(store, { legalName: FICTIONAL_LEGAL_NAME, ...change });
 
     expect(outcome).toEqual({
       kind: "edited",
@@ -86,7 +92,7 @@ describe("editIssuerIdentification", () => {
   it("records the first edit of an identification kept without a CUIT", async () => {
     const store = new FakeIssuerIdentificationStore({ ...saved, authorizedCuit: null });
 
-    const outcome = await edit(store, { legalName: "Comercio de Prueba" });
+    const outcome = await edit(store, { legalName: FICTIONAL_LEGAL_NAME });
 
     expect(outcome).toEqual({ kind: "edited", identification: { ...saved, version: 4 } });
   });

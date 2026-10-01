@@ -7,6 +7,7 @@ import type {
   SignInOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
+import { LocaleProvider } from "@purosur/ui";
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -34,9 +35,11 @@ export function App({ core }: { core: CoreClient }) {
   const [queryClient] = useState(createQueryClient);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <Register core={core} />
-    </QueryClientProvider>
+    <LocaleProvider>
+      <QueryClientProvider client={queryClient}>
+        <Register core={core} />
+      </QueryClientProvider>
+    </LocaleProvider>
   );
 }
 

@@ -8,7 +8,7 @@ import {
   useRequestForm,
 } from "@purosur/ui";
 import { Check, Pencil, RotateCcw, ShieldX, TriangleAlert } from "lucide-react";
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useState } from "react";
 import type { ProductSaleUnit } from "../catalog/products-api";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
@@ -50,7 +50,6 @@ export type ScreenNotice = {
 export type PriceChangeModalProps = {
   target: PriceProduct | null;
   previousProductNotice: ScreenNotice | null;
-  now: () => Date;
   onClose: () => void;
   onSessionEnded: () => void;
   onSaved: (product: PriceProduct, outcome: PriceModalOutcome) => void;
@@ -63,7 +62,6 @@ export type PriceChangeModalProps = {
 export function PriceChangeModal({
   target,
   previousProductNotice,
-  now,
   onClose,
   onSessionEnded,
   onSaved,
@@ -75,7 +73,6 @@ export function PriceChangeModal({
   const sendToMyAccount = useSendToMyAccount();
   const open = target !== null;
   const [current, setCurrent] = useState<PriceProduct | null>(null);
-  const [shownAt, setShownAt] = useState<Date | null>(null);
   const [title, setTitle] = useState("");
   const [notice, setNotice] = useState<ModalNotice | null>(null);
   const [previousNotice, setPreviousNotice] = useState<ScreenNotice | null>(null);
@@ -117,12 +114,9 @@ export function PriceChangeModal({
     setWorking(true);
   }
 
-  const readNow = useEffectEvent(now);
-
   useEffect(() => {
     if (target) {
       setCurrent(target);
-      setShownAt(readNow());
       setTitle(target.name);
       reset({ amount: "", expectedCurrentPriceId: target.currentPrice?.id ?? null });
       setNotice(null);
@@ -233,7 +227,6 @@ export function PriceChangeModal({
         amount: form.state.values.amount,
         expectedCurrentPriceId: outcome.product.currentPrice?.id ?? null,
       });
-      setShownAt(now());
       setNotice(null);
       return;
     }
@@ -274,7 +267,7 @@ export function PriceChangeModal({
       width="standard"
       tone="info"
       icon={<Pencil />}
-      context={current && shownAt ? modalEyebrow(current, shownAt) : ""}
+      context={current ? modalEyebrow(current) : ""}
       title={title}
       closable={!busy}
       footer={

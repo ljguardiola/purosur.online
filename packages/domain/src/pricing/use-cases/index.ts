@@ -15,6 +15,14 @@ export type {
 export type { EditDiscountInput, EditDiscountOutcome } from "./edit-discount.js";
 export { editDiscount } from "./edit-discount.js";
 export type {
+  PriceReviewCategory,
+  PriceReviewFilter,
+  PriceReviewReader,
+  PricesUnderReview,
+  PricesUnderReviewQuery,
+  PriceUnderReview,
+} from "./price-review-reader.js";
+export type {
   Clock,
   CurrentPrice,
   LockActiveProductResult,

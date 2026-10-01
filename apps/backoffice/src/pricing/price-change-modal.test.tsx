@@ -15,7 +15,7 @@ const withoutPrice: PriceProduct = {
   categoryName: "Almacén",
   saleUnit: "UNIT",
   currentPrice: null,
-  lastReviewedAt: null,
+  daysSinceReview: null,
   pending: true,
 };
 
@@ -30,7 +30,7 @@ const rice: PriceProduct = {
     unitPrice: 750000,
     validFrom: new Date(NOW().getTime() - 40 * DAY_MS).toISOString(),
   },
-  lastReviewedAt: new Date(NOW().getTime() - 40 * DAY_MS).toISOString(),
+  daysSinceReview: 40,
   pending: true,
 };
 
@@ -38,7 +38,6 @@ function createProps(overrides: Partial<PriceChangeModalProps> = {}): PriceChang
   return {
     target: rice,
     previousProductNotice: null,
-    now: NOW,
     onClose: vi.fn(),
     onSessionEnded: vi.fn(),
     onSaved: vi.fn(),
@@ -383,28 +382,31 @@ test("a modal save that finds no open session ends the session", async () => {
   await expect.poll(() => vi.mocked(props.onSessionEnded).mock.calls.length).toBe(1);
 });
 
-test("the modal's review age counts against the time the modal was opened", async () => {
-  let current = new Date(2026, 8, 25, 12, 0);
-  const now = () => current;
+test.each([
+  { daysSinceReview: 0, pending: false, eyebrow: "Revisado hoy" },
+  { daysSinceReview: 1, pending: false, eyebrow: "Revisado hace 1 día" },
+  { daysSinceReview: 30, pending: true, eyebrow: "Sin revisar hace 30 días" },
+])(
+  "the modal states the review age the cloud reports: $eyebrow",
+  async ({ daysSinceReview, pending, eyebrow }) => {
+    const product: PriceProduct = { ...rice, daysSinceReview, pending };
+    const screen = await renderModal(createProps({ target: product }));
+
+    await expect.element(screen.getByRole("dialog").getByText(eyebrow)).toBeVisible();
+  },
+);
+
+test("the modal shows a price the cloud reports as reviewed today as reviewed today", async () => {
   const product: PriceProduct = {
     ...rice,
-    lastReviewedAt: new Date(2026, 8, 25, 9, 0).toISOString(),
+    daysSinceReview: 0,
     pending: false,
   };
-  const props = createProps({ target: product, now });
-  const screen = await renderModal(props);
+  const screen = await renderModal(createProps({ target: product }));
   const dialog = screen.getByRole("dialog");
+
   await expect.element(dialog.getByText("Revisado hoy")).toBeVisible();
-
-  current = new Date(2026, 8, 26, 12, 0);
-  await screen.rerender(modalElement({ ...props, now: () => current }));
-  expect(dialog.getByText("Revisado hoy").query()).not.toBeNull();
-
-  await screen.rerender(modalElement({ ...props, target: null }));
-  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await screen.rerender(modalElement(props));
-
-  await expect.element(screen.getByRole("dialog").getByText("Revisado hace 1 día")).toBeVisible();
+  expect(dialog.getByText("Sin revisar", { exact: false }).query()).toBeNull();
 });
 
 test("a save rejected for the price it expected is treated as a changed price and offers the reload", async () => {

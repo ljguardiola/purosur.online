@@ -1,3 +1,8 @@
+import {
+  FICTIONAL_CERTIFICATE_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import { asc, eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -22,7 +27,7 @@ import { registerIssuerIdentificationEditRoute } from "./issuer-identification-e
 import { registerIssuerIdentificationReadRoute } from "./issuer-identification-read-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
-const TEST_AUTHORIZED_CUIT = "20-12345678-6";
+const TEST_AUTHORIZED_CUIT = FICTIONAL_CERTIFICATE_CUIT;
 const NOON = new Date("2026-01-05T12:00:00.000Z");
 
 let testDatabase: TestDatabase;
@@ -121,8 +126,8 @@ function cookieHeader(rawSessionId: string): Record<string, string> {
 
 function validBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    legal_name: "Comercio de Prueba",
-    gross_income_registration: "CM 901-123456-3",
+    legal_name: FICTIONAL_LEGAL_NAME,
+    gross_income_registration: FICTIONAL_GROSS_INCOME_REGISTRATION,
     activity_start_date: "2020-01-15",
     version: 1,
     ...overrides,
@@ -230,8 +235,8 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
-      legal_name: "Comercio de Prueba",
-      gross_income_registration: "CM 901-123456-3",
+      legal_name: FICTIONAL_LEGAL_NAME,
+      gross_income_registration: FICTIONAL_GROSS_INCOME_REGISTRATION,
       activity_start_date: "2020-01-15",
       authorized_cuit: TEST_AUTHORIZED_CUIT,
       tax_status: "Responsable Monotributo",
@@ -241,7 +246,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
       .select()
       .from(issuerIdentification)
       .where(eq(issuerIdentification.id, ISSUER_IDENTIFICATION_SINGLETON_ID));
-    expect(row).toMatchObject({ legalName: "Comercio de Prueba", version: 2 });
+    expect(row).toMatchObject({ legalName: FICTIONAL_LEGAL_NAME, version: 2 });
   });
 
   it("makes the change visible to a subsequent GET", async () => {
@@ -257,7 +262,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
 
     const getResponse = await getIssuerIdentification(rawSessionId);
 
-    expect(getResponse.json()).toMatchObject({ legal_name: "Comercio de Prueba", version: 2 });
+    expect(getResponse.json()).toMatchObject({ legal_name: FICTIONAL_LEGAL_NAME, version: 2 });
   });
 
   it("audits the actor and the previous/new values in the same transaction", async () => {
@@ -287,8 +292,8 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
         version: 1,
       },
       newValue: {
-        legal_name: "Comercio de Prueba",
-        gross_income_registration: "CM 901-123456-3",
+        legal_name: FICTIONAL_LEGAL_NAME,
+        gross_income_registration: FICTIONAL_GROSS_INCOME_REGISTRATION,
         activity_start_date: "2020-01-15",
         version: 2,
       },
@@ -343,8 +348,8 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
       },
       {
         version: 2,
-        legalName: "Comercio de Prueba",
-        grossIncomeRegistration: "CM 901-123456-3",
+        legalName: FICTIONAL_LEGAL_NAME,
+        grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
         activityStartDate: "2020-01-15",
         authorizedCuit: TEST_AUTHORIZED_CUIT,
         recordedBy: administratorId,
@@ -352,7 +357,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
       {
         version: 3,
         legalName: "Comercio de Prueba Nuevo",
-        grossIncomeRegistration: "CM 901-123456-3",
+        grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
         activityStartDate: "2020-01-15",
         authorizedCuit: TEST_AUTHORIZED_CUIT,
         recordedBy: administratorId,
@@ -399,7 +404,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
     const response = await putIssuerIdentification(validBody({ version: 2 }), rawSessionId);
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ legal_name: "Comercio de Prueba", version: 2 });
+    expect(response.json()).toMatchObject({ legal_name: FICTIONAL_LEGAL_NAME, version: 2 });
     const [row] = await db
       .select()
       .from(issuerIdentification)

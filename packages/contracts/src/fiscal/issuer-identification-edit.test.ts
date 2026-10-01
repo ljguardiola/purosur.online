@@ -2,6 +2,10 @@ import {
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
 } from "@purosur/domain";
+import {
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import { describe, expect, it } from "vitest";
 import { issuerIdentificationEditBodySchema } from "./issuer-identification-edit.js";
 
@@ -10,8 +14,8 @@ const schema = issuerIdentificationEditBodySchema(TODAY);
 
 function validBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    legal_name: "Puro Sur SRL",
-    gross_income_registration: "CM 901-123456-3",
+    legal_name: FICTIONAL_LEGAL_NAME,
+    gross_income_registration: FICTIONAL_GROSS_INCOME_REGISTRATION,
     activity_start_date: "2020-01-15",
     version: 1,
     ...overrides,
@@ -51,8 +55,8 @@ describe("issuerIdentificationEditBodySchema", () => {
     expect(schema.safeParse(validBody())).toMatchObject({
       success: true,
       data: {
-        legal_name: "Puro Sur SRL",
-        gross_income_registration: "CM 901-123456-3",
+        legal_name: FICTIONAL_LEGAL_NAME,
+        gross_income_registration: FICTIONAL_GROSS_INCOME_REGISTRATION,
         activity_start_date: "2020-01-15",
         version: 1,
       },
@@ -61,12 +65,15 @@ describe("issuerIdentificationEditBodySchema", () => {
 
   it("trims surrounding whitespace from the text fields", () => {
     const result = schema.safeParse(
-      validBody({ legal_name: "  Puro Sur SRL  ", gross_income_registration: "  CM 901  " }),
+      validBody({
+        legal_name: `  ${FICTIONAL_LEGAL_NAME}  `,
+        gross_income_registration: "  CM 901  ",
+      }),
     );
 
     expect(result).toMatchObject({
       success: true,
-      data: { legal_name: "Puro Sur SRL", gross_income_registration: "CM 901" },
+      data: { legal_name: FICTIONAL_LEGAL_NAME, gross_income_registration: "CM 901" },
     });
   });
 
@@ -176,7 +183,9 @@ describe("issuerIdentificationEditBodySchema", () => {
     const body = validBody({ version: 0, activity_start_date: "nope", legal_name: "" });
 
     expect(firstFailingField(body)).toBe("legal_name");
-    expect(firstFailingField({ ...body, legal_name: "Puro Sur SRL" })).toBe("activity_start_date");
+    expect(firstFailingField({ ...body, legal_name: FICTIONAL_LEGAL_NAME })).toBe(
+      "activity_start_date",
+    );
   });
 
   it("drops authorized_cuit and tax_status when a client sends them", () => {

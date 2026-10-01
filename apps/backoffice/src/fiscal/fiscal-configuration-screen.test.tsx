@@ -1,3 +1,8 @@
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useIsFetching, useQueryClient } from "@tanstack/react-query";
@@ -67,10 +72,10 @@ function refreshFiscal(screen: Awaited<ReturnType<typeof renderScreen>>) {
 }
 
 const complete: IssuerIdentification = {
-  legalName: "Comercio de Prueba",
-  grossIncomeRegistration: "0000000-00",
+  legalName: FICTIONAL_LEGAL_NAME,
+  grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
   activityStartDate: "2019-03-01",
-  authorizedCuit: "20-00000000-1",
+  authorizedCuit: FICTIONAL_CUIT,
   taxStatus: "Responsable Monotributo",
   version: 1,
 };
@@ -106,7 +111,7 @@ test("shows the breadcrumb, heading, and the issuer identification it reads", as
   await expect
     .element(screen.getByRole("heading", { name: "Identificación del emisor", level: 2 }))
     .toBeVisible();
-  await expect.element(screen.getByText("Comercio de Prueba")).toBeVisible();
+  await expect.element(screen.getByText(FICTIONAL_LEGAL_NAME)).toBeVisible();
 });
 
 test("shows a load failure, and Reintentar goes back to the placeholder before loading again", async () => {
@@ -126,7 +131,7 @@ test("shows a load failure, and Reintentar goes back to the placeholder before l
     .not.toBeInTheDocument();
   await expect.element(screen.getByText("Cargando…")).toHaveTextContent("Cargando…");
   retry.resolve({ kind: "ok", value: complete });
-  await expect.element(screen.getByText("Comercio de Prueba")).toBeVisible();
+  await expect.element(screen.getByText(FICTIONAL_LEGAL_NAME)).toBeVisible();
 });
 
 test("sends to Mi cuenta when the load comes back forbidden", async () => {
@@ -154,7 +159,7 @@ test("Editar opens the issuer identification modal with the loaded values", asyn
   const services = createServices();
   vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Comercio de Prueba")).toBeVisible();
+  await expect.element(screen.getByText(FICTIONAL_LEGAL_NAME)).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Editar" }));
 
@@ -164,7 +169,7 @@ test("Editar opens the issuer identification modal with the loaded values", asyn
     .toBeVisible();
   await expect
     .element(dialog.getByRole("textbox", { name: /^Razón social/ }))
-    .toHaveValue("Comercio de Prueba");
+    .toHaveValue(FICTIONAL_LEGAL_NAME);
 });
 
 test("saves the edit directly, without the authorization modal, when the session already has one, and shows what the read after it returns", async () => {
@@ -189,7 +194,7 @@ test("saves the edit directly, without the authorization modal, when the session
   await expect.poll(() => vi.mocked(services.saveIssuerIdentification).mock.calls.length).toBe(1);
   expect(services.saveIssuerIdentification).toHaveBeenCalledWith({
     legal_name: "Nueva Razón Social SRL",
-    gross_income_registration: "0000000-00",
+    gross_income_registration: FICTIONAL_GROSS_INCOME_REGISTRATION,
     activity_start_date: "2019-03-01",
     version: 1,
   });
@@ -233,7 +238,7 @@ test("shows a load failure instead of the data when reading the issuer identific
 
   await expect.element(screen.getByText("No pudimos abrir la configuración fiscal")).toBeVisible();
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  expect(screen.getByText("Comercio de Prueba").query()).toBeNull();
+  expect(screen.getByText(FICTIONAL_LEGAL_NAME).query()).toBeNull();
 });
 
 test("a second save sends the version the read after the first save returned", async () => {
@@ -299,7 +304,7 @@ test("keeps the modal closed once Reintentar loads the data a failed Recargar co
 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
-  await expect.element(screen.getByText("Comercio de Prueba")).toBeVisible();
+  await expect.element(screen.getByText(FICTIONAL_LEGAL_NAME)).toBeVisible();
   expect(screen.getByRole("dialog").query()).toBeNull();
 });
 
@@ -345,7 +350,7 @@ test("keeps what Recargar brought on the screen after Cancelar, so reopening sav
   await expect.poll(() => vi.mocked(services.saveIssuerIdentification).mock.calls.length).toBe(2);
   expect(services.saveIssuerIdentification).toHaveBeenLastCalledWith({
     legal_name: "Recargado SRL",
-    gross_income_registration: "0000000-00",
+    gross_income_registration: FICTIONAL_GROSS_INCOME_REGISTRATION,
     activity_start_date: "2019-03-01",
     version: 5,
   });
@@ -375,7 +380,7 @@ test("keeps every value of the form, edited or not, when a refresh lands with di
   await expect.element(legalName).toHaveValue("Editada SRL");
   await expect
     .element(dialog.getByRole("textbox", { name: /^Ingresos Brutos/ }))
-    .toHaveValue("0000000-00");
+    .toHaveValue(FICTIONAL_GROSS_INCOME_REGISTRATION);
 });
 
 test("shows the refreshed data in the modal over values the person has not edited", async () => {
@@ -459,7 +464,7 @@ test("a threshold that fails to load leaves the issuer identification on screen,
   await expect
     .element(screen.getByText("No pudimos abrir el umbral de identificación del comprador"))
     .toBeVisible();
-  await expect.element(screen.getByText("Comercio de Prueba")).toBeVisible();
+  await expect.element(screen.getByText(FICTIONAL_LEGAL_NAME)).toBeVisible();
   await expect
     .element(screen.getByRole("button", { name: "Cargar un umbral nuevo" }))
     .toBeDisabled();
@@ -505,7 +510,7 @@ test("Cargar un umbral nuevo opens its own modal, and Editar opens the issuer on
   const services = createServices();
   vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Comercio de Prueba")).toBeVisible();
+  await expect.element(screen.getByText(FICTIONAL_LEGAL_NAME)).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Cargar un umbral nuevo" }));
 

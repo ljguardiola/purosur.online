@@ -122,6 +122,7 @@ Each level's tests own what only that level can prove:
 - Technical decisions belong in the pull request that introduces them, under "Technical decisions", not in code comments.
 - No comment switches off a check: no `@ts-expect-error`, `@ts-ignore` or `biome-ignore`, tests included. A test that proves a type is refused uses Vitest's `expectTypeOf(...).not.toExtend<...>()`.
 - Sample data, fixtures and test data are fictional: no real person, business, tax id (CUIT), certificate or credential, in code, tests, issues or pull requests.
+- A tax identity (CUIT, legal name, Ingresos Brutos registration) in a test, fixture or sample data is one of those in `packages/domain/src/fiscal/test-support/fictional-tax-identities.ts`, imported as `@purosur/domain/fiscal/test-support`; no other may be used. `pnpm verify` rejects a tracked file holding a CUIT with a valid check digit that is not one of them.
 
 ## User-facing text
 

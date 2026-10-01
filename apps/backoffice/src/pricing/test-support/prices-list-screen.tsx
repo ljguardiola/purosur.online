@@ -7,7 +7,7 @@ import { PricesListScreen } from "../prices-list-screen";
 import type { PricesListScreenServices } from "../prices-list-services";
 import { type PricesListFilters, pricesListFilters } from "../routes";
 
-export const NOW = () => new Date("2026-09-25T12:00:00.000Z");
+const NOW = () => new Date("2026-09-25T12:00:00.000Z");
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function createServices(
@@ -30,7 +30,7 @@ export const withoutPrice: PriceProduct = {
   categoryName: "Almacén",
   saleUnit: "UNIT",
   currentPrice: null,
-  lastReviewedAt: null,
+  daysSinceReview: null,
   pending: true,
 };
 
@@ -45,7 +45,7 @@ export const rice: PriceProduct = {
     unitPrice: 750000,
     validFrom: new Date(NOW().getTime() - 40 * DAY_MS).toISOString(),
   },
-  lastReviewedAt: new Date(NOW().getTime() - 40 * DAY_MS).toISOString(),
+  daysSinceReview: 40,
   pending: true,
 };
 
@@ -63,7 +63,6 @@ export const yerbaMate: PriceProduct = {
 export function screenElement(
   services: PricesListScreenServices,
   onSessionEnded: () => void = () => {},
-  now: () => Date = NOW,
   {
     filters = pricesListFilters.parse({}),
     onFiltersChange = () => {},
@@ -78,7 +77,6 @@ export function screenElement(
         <PricesListScreen
           services={services}
           onSessionEnded={onSessionEnded}
-          now={now}
           filters={filters}
           onFiltersChange={onFiltersChange}
         />
