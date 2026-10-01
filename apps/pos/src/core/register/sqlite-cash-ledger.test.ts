@@ -211,6 +211,14 @@ describe("the movements of a session", () => {
   });
 });
 
+function addPayment(saleId: string, amount: number): void {
+  database
+    .prepare(
+      "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at) VALUES (?, ?, 'SALE', 'CASH', 'NONE', ?, 'APPROVED', ?)",
+    )
+    .run(["payment", saleId, amount].join("-"), saleId, amount, OPENED_AT.toISOString());
+}
+
 function addSale(id: string, state: string, lineTotals: number[], sessionId = "session-1"): void {
   database
     .prepare(
@@ -232,21 +240,38 @@ describe("the open sale", () => {
   });
 
   it("is none while the session has no sale", () => {
-    expect(ledger.transaction((tx) => tx.openSaleTotal())).toBeUndefined();
+    expect(ledger.transaction((tx) => tx.openSale())).toBeUndefined();
   });
 
   it("is none while the session only has sales that are over", () => {
     addSale("sale-1", "COMPLETED", [1500]);
     addSale("sale-2", "CANCELLED", [700]);
 
-    expect(ledger.transaction((tx) => tx.openSaleTotal())).toBeUndefined();
+    expect(ledger.transaction((tx) => tx.openSale())).toBeUndefined();
   });
 
   it("totals the lines of the sale in progress", () => {
     addSale("sale-1", "COMPLETED", [999]);
     addSale("sale-2", "OPEN", [1500, 250]);
 
-    expect(ledger.transaction((tx) => tx.openSaleTotal())).toBe(1750);
+    expect(ledger.transaction((tx) => tx.openSale())).toEqual({ total: 1750, payments: [] });
+  });
+
+  it("totals zero for a sale in progress whose lines were all removed", () => {
+    addSale("sale-1", "OPEN", []);
+
+    expect(ledger.transaction((tx) => tx.openSale())).toEqual({ total: 0, payments: [] });
+  });
+
+  it("carries the payments of the sale in progress and none of another sale", () => {
+    addSale("sale-1", "COMPLETED", [999]);
+    addSale("sale-2", "OPEN", [1500]);
+    addPayment("sale-1", 999);
+    addPayment("sale-2", 1000);
+
+    const openSale = ledger.transaction((tx) => tx.openSale());
+
+    expect(openSale?.payments.map((payment) => payment.id)).toEqual(["payment-sale-2-1000"]);
   });
 
   describe("when closing the session", () => {
@@ -261,10 +286,18 @@ describe("the open sale", () => {
       deviceId("device-1");
       addSale("sale-1", "OPEN", [1500, 250]);
 
-      expect(close()).toEqual({ kind: "open_sale", total: 1750 });
+      expect(close()).toEqual({ kind: "open_sale", total: 1750, cancellable: true });
       expect(database.prepare("SELECT state FROM cash_sessions").all()).toEqual([
         { state: "OPEN" },
       ]);
+    });
+
+    it("tells that a sale in progress with an approved payment cannot be cancelled", () => {
+      deviceId("device-1");
+      addSale("sale-1", "OPEN", [1500]);
+      addPayment("sale-1", 1000);
+
+      expect(close()).toEqual({ kind: "open_sale", total: 1500, cancellable: false });
     });
 
     it("closes when the sales are over", () => {

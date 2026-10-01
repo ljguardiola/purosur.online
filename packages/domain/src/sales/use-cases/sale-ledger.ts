@@ -56,6 +56,7 @@ export interface SaleLedgerTransaction {
   recordLineRemoval(removal: SaleLineRemoval): void;
   deleteSaleLine(lineId: string): void;
   saleLineRemovals(saleId: string): SaleLineRemoval[];
+  salePayments(saleId: string): PaymentTransaction[];
   markSaleCancelled(saleId: string): void;
   recordPayment(payment: PaymentTransaction): void;
   recordCashMovement(movement: CashMovement): void;

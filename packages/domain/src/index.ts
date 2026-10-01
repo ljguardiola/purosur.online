@@ -203,7 +203,12 @@ export type {
   SaleWithLines,
   SoldProduct,
 } from "./sales/index.js";
-export { cashCharge, SEARCH_RESULT_LIMIT, saleTotal } from "./sales/index.js";
+export {
+  cancellableWithoutAuthorization,
+  cashCharge,
+  SEARCH_RESULT_LIMIT,
+  saleTotal,
+} from "./sales/index.js";
 export { ARGENTINA_TIME_ZONE, argentinaCalendarDay } from "./shared/index.js";
 export type { AdjustmentReason, LossReason, StockDirection } from "./stock/index.js";
 export {

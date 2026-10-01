@@ -3,6 +3,7 @@ import type {
   ListedCashMovement,
   OpenCashSession,
   RecordableCashMovementKinds,
+  SessionOpenSale,
 } from "@purosur/contracts";
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -18,6 +19,8 @@ import {
   useCashMovementsQuery,
   useCashSessionQuery,
   useRegisterNameQuery,
+  useSessionOpenSaleQuery,
+  useSetSessionOpenSale,
 } from "./register-queries";
 
 const BALANCE: CashBalance = {
@@ -337,5 +340,49 @@ describe("cash movement kinds query", () => {
 
     await expect.poll(() => read.mock.calls.length).toBe(1);
     await expect.element(screen.getByText("loading")).toBeVisible();
+  });
+});
+
+type OpenSaleRead = () => Promise<SessionOpenSale | null | "unavailable">;
+
+function OpenSaleProbe({ read, answer }: { read: OpenSaleRead; answer: SessionOpenSale | null }) {
+  const sale = useSessionOpenSaleQuery("s1", read);
+  const setOpenSale = useSetSessionOpenSale("s1");
+  return (
+    <>
+      <p>{["sale", describeData(sale, (value) => JSON.stringify(value))].join(" ")}</p>
+      <button type="button" onClick={() => void setOpenSale(answer)}>
+        answer
+      </button>
+    </>
+  );
+}
+
+describe("open sale query", () => {
+  it("holds the open sale the core answers, then the answer set in its place without reading again", async () => {
+    const read = vi.fn<OpenSaleRead>(async () => ({ total: 3_434_000, cancellable: true }));
+    const screen = await render(
+      <QueryClientProvider client={createQueryClient()}>
+        <OpenSaleProbe read={read} answer={null} />
+      </QueryClientProvider>,
+    );
+    await expect
+      .element(screen.getByText('sale {"total":3434000,"cancellable":true}'))
+      .toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "answer" }));
+
+    await expect.element(screen.getByText("sale null")).toBeVisible();
+    expect(read).toHaveBeenCalledOnce();
+  });
+
+  it("fails when the core cannot answer", async () => {
+    const screen = await render(
+      <QueryClientProvider client={createQueryClient()}>
+        <OpenSaleProbe read={async () => "unavailable"} answer={null} />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("sale failed")).toBeVisible();
   });
 });

@@ -1,8 +1,10 @@
 import type {
   Authorization,
+  CancelLockedSaleOutcome,
   CashBalance,
   CloseLockedCashSessionOutcome,
   IdentifyLockedCloserOutcome,
+  SessionOpenSale,
   SignInUser,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
@@ -22,12 +24,14 @@ export type LockedCloseScreenProps = {
   registerName: string | null;
   openedAt: string;
   loadCashBalance: () => Promise<CashBalance | null | "unavailable">;
+  loadOpenSale: () => Promise<SessionOpenSale | null | "unavailable">;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   identifyLockedCloser: (closer: Authorization) => Promise<IdentifyLockedCloserOutcome>;
   closeLockedCashSession: (
     countedCash: number,
     closer: Authorization,
   ) => Promise<CloseLockedCashSessionOutcome>;
+  cancelLockedSale: (closer: Authorization) => Promise<CancelLockedSaleOutcome>;
 };
 
 export function LockedCloseScreen({
@@ -36,9 +40,11 @@ export function LockedCloseScreen({
   registerName,
   openedAt,
   loadCashBalance,
+  loadOpenSale,
   loadAuthorizers,
   identifyLockedCloser,
   closeLockedCashSession,
+  cancelLockedSale,
 }: LockedCloseScreenProps) {
   const [step, setStep] = useState<Step>({ kind: "identifying", returned: undefined });
 
@@ -52,7 +58,9 @@ export function LockedCloseScreen({
         registerName={registerName}
         openedAt={openedAt}
         loadCashBalance={loadCashBalance}
+        loadOpenSale={loadOpenSale}
         close={(countedCash) => closeLockedCashSession(countedCash, closer.authorization)}
+        cancelSale={() => cancelLockedSale(closer.authorization)}
         onRefused={(refusal) =>
           setStep({
             kind: "identifying",

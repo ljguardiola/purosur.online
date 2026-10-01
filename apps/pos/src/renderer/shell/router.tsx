@@ -1,6 +1,7 @@
 import type {
   AddProductOutcome,
   Authorization,
+  CancelLockedSaleOutcome,
   CancelSaleOutcome,
   CashBalance,
   CashChargeAnswer,
@@ -21,6 +22,7 @@ import type {
   RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
+  SessionOpenSale,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
@@ -87,8 +89,10 @@ export interface RouterContext {
     countedCash: number,
     closer: Authorization,
   ) => Promise<CloseLockedCashSessionOutcome>;
+  cancelLockedSale: (closer: Authorization) => Promise<CancelLockedSaleOutcome>;
   identifyLockedCloser: (closer: Authorization) => Promise<IdentifyLockedCloserOutcome>;
   cashBalance: () => Promise<CashBalance | null | "unavailable">;
+  sessionOpenSale: () => Promise<SessionOpenSale | null | "unavailable">;
   cashMovements: () => Promise<ListedCashMovement[] | null | "unavailable">;
   cashMovementKinds: () => Promise<RecordableCashMovementKinds | null | "unavailable">;
   recordCashMovement: (input: CashMovementInput) => Promise<RecordCashMovementOutcome>;
@@ -399,9 +403,11 @@ const lockedCloseRoute = createRoute({
       openedAt,
       openedBy,
       cashBalance,
+      sessionOpenSale,
       authorizers,
       identifyLockedCloser,
       closeLockedCashSession,
+      cancelLockedSale,
     } = lockedCloseRoute.useRouteContext();
     const registerName = useRegisterName();
     return (
@@ -411,11 +417,13 @@ const lockedCloseRoute = createRoute({
         registerName={registerName}
         openedAt={openedAt}
         loadCashBalance={cashBalance}
+        loadOpenSale={sessionOpenSale}
         loadAuthorizers={authorizers}
         identifyLockedCloser={identifyLockedCloser}
         closeLockedCashSession={(countedCash, closer) =>
           closeLockedCashSession(id, countedCash, closer)
         }
+        cancelLockedSale={cancelLockedSale}
       />
     );
   },
@@ -527,8 +535,10 @@ export function createAppRouter(
     | "openCashSession"
     | "closeCashSession"
     | "closeLockedCashSession"
+    | "cancelLockedSale"
     | "identifyLockedCloser"
     | "cashBalance"
+    | "sessionOpenSale"
     | "cashMovements"
     | "cashMovementKinds"
     | "recordCashMovement"

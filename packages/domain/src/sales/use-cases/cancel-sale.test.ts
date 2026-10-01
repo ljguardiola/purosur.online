@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
+import type { PaymentTransaction } from "../model/payment.js";
 import type { SaleWithLines } from "../model/sale.js";
 import type { SaleLineRemoval } from "../model/sale-line-removal.js";
 import { cancelSale } from "./cancel-sale.js";
@@ -35,6 +36,16 @@ const OPEN_SALE: SaleWithLines = {
   occurredAt: new Date("2026-09-30T12:00:00.000Z"),
   lines: [YERBA_LINE],
 };
+const APPROVED_PAYMENT: PaymentTransaction = {
+  id: "payment-1",
+  saleId: "sale-1",
+  kind: "SALE",
+  method: "CASH",
+  provider: "NONE",
+  amount: 6750,
+  state: "APPROVED",
+  occurredAt: new Date("2026-09-30T12:20:00.000Z"),
+};
 const REMOVAL: SaleLineRemoval = {
   id: "removal-1",
   saleId: "sale-1",
@@ -58,7 +69,14 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
 function cancel(store: FakeSaleLedger, actorId = "cashier") {
   return cancelSale(
     { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds() },
-    { actorId },
+    { actorId, from: "sale" },
+  );
+}
+
+function cancelFromLockedRegister(store: FakeSaleLedger, actorId = "closer") {
+  return cancelSale(
+    { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds() },
+    { actorId, from: "locked_register" },
   );
 }
 
@@ -199,6 +217,20 @@ describe("cancelSale", () => {
     expect(store.state).toEqual(before);
   });
 
+  it("refuses a sale with an approved payment, changing nothing", () => {
+    const store = ledger({ payments: [APPROVED_PAYMENT] });
+    const before = structuredClone(store.state);
+
+    expect(cancel(store)).toEqual({ kind: "has_approved_payment" });
+    expect(store.state).toEqual(before);
+  });
+
+  it("ignores the payments of another sale", () => {
+    const store = ledger({ payments: [{ ...APPROVED_PAYMENT, saleId: "sale-0" }] });
+
+    expect(cancel(store).kind).toBe("cancelled");
+  });
+
   it.each<FakeSaleLedgerWrite>(["markSaleCancelled", "appendOutboxEvent"])(
     "leaves the sale open when %s fails",
     (write) => {
@@ -207,6 +239,74 @@ describe("cancelSale", () => {
       store.failOn = write;
 
       expect(() => cancel(store)).toThrow(` failed`);
+      expect(store.state).toEqual(before);
+    },
+  );
+});
+
+describe("cancelSale from the locked register", () => {
+  it("never answers that the person is not permitted, as nobody's permission is checked here", () => {
+    const outcome = cancelFromLockedRegister(ledger());
+
+    expectTypeOf<Extract<typeof outcome, { kind: "not_permitted" }>>().toBeNever();
+  });
+
+  it("cancels the open sale for a person who did not open the session and cannot sell", () => {
+    const store = ledger({ accesses: {} });
+
+    const outcome = cancelFromLockedRegister(store);
+
+    expect(outcome).toEqual({ kind: "cancelled", sale: { ...OPEN_SALE, state: "CANCELLED" } });
+    expect(store.state.sales[0]?.state).toBe("CANCELLED");
+  });
+
+  it("names the closer as the actor of the cancellation and keeps the seller in the payload", () => {
+    const store = ledger();
+
+    cancelFromLockedRegister(store);
+
+    expect(store.state.outbox).toEqual([
+      expect.objectContaining({
+        event_type: "sale_cancelled",
+        aggregate_id: "sale-1",
+        actor_id: "closer",
+        payload: expect.objectContaining({ actor_id: "cashier", state: "CANCELLED" }),
+      }),
+    ]);
+  });
+
+  it("refuses without an open cash session", () => {
+    const store = ledger({ session: undefined });
+    const before = structuredClone(store.state);
+
+    expect(cancelFromLockedRegister(store)).toEqual({ kind: "no_open_session" });
+    expect(store.state).toEqual(before);
+  });
+
+  it("refuses when the session has no open sale", () => {
+    const store = ledger({ sales: [{ ...OPEN_SALE, state: "COMPLETED" }] });
+    const before = structuredClone(store.state);
+
+    expect(cancelFromLockedRegister(store)).toEqual({ kind: "no_open_sale" });
+    expect(store.state).toEqual(before);
+  });
+
+  it("refuses a sale with an approved payment, changing nothing", () => {
+    const store = ledger({ payments: [APPROVED_PAYMENT] });
+    const before = structuredClone(store.state);
+
+    expect(cancelFromLockedRegister(store)).toEqual({ kind: "has_approved_payment" });
+    expect(store.state).toEqual(before);
+  });
+
+  it.each<FakeSaleLedgerWrite>(["markSaleCancelled", "appendOutboxEvent"])(
+    "leaves the sale open when %s fails",
+    (write) => {
+      const store = ledger();
+      const before = structuredClone(store.state);
+      store.failOn = write;
+
+      expect(() => cancelFromLockedRegister(store)).toThrow(` failed`);
       expect(store.state).toEqual(before);
     },
   );
