@@ -28,9 +28,7 @@ export interface RejectedAttemptFlushStoreTransaction {
   lockFlush(): Promise<void>;
   // Removes the windows that closed at or before `closedBefore`, oldest first, at most `limit`.
   takeClosedWindows(closedBefore: Date, limit: number): Promise<RejectedAttemptWindow[]>;
-  // Maps each destination address hash to the account holding that address; unknown hashes are absent.
   accountsByDestinationHash(keyHashes: string[]): Promise<Map<string, string>>;
-  // Maps each token hash to the account the token belongs to; unknown hashes are absent.
   accountsByTokenHash(keyHashes: string[]): Promise<Map<string, string>>;
   // Removes every other closed token-kind window that belongs to one of the accounts' tokens.
   takeClosedTokenWindowsOf(

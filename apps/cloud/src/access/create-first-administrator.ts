@@ -7,8 +7,6 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { DrizzleFirstAdministratorStore } from "./drizzle-first-administrator-store.js";
 
 export {
-  type CreateFirstAdministratorInput,
-  type CreateFirstAdministratorResult,
   FirstAdministratorAlreadyBootstrappedError,
   InvalidFirstAdministratorInputError,
 } from "@purosur/domain/access/use-cases";
