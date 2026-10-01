@@ -1,8 +1,9 @@
 import { PUSH_EVENTS_REQUEST_MAX_BYTES } from "@purosur/contracts";
-import type { OutboxEventDraft } from "@purosur/domain";
+import type { OutboxEventDraft, PushedEvent } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { CloudEventInbox } from "./cloud-event-inbox";
 import { SqliteLocalOutbox } from "./sqlite-local-outbox";
 import { appendOutboxEvent } from "./sqlite-outbox";
 
@@ -26,6 +27,25 @@ function draft(number: number, payloadBytes?: number): OutboxEventDraft {
     occurred_at: "2026-09-30T12:00:00.000Z",
     actor_id: "u1",
   };
+}
+
+async function requestBytesFor(events: readonly PushedEvent[]): Promise<number> {
+  let bytes = 0;
+  const inbox = new CloudEventInbox({
+    post: async (_path, _token, body) => {
+      bytes = Buffer.byteLength(JSON.stringify(body));
+      return { kind: "ok", body: { status: "ok", ack_seq: 0 } };
+    },
+    deviceToken: "token",
+    appVersion: "1".repeat(128),
+    readTelemetry: async () => ({
+      wal_size_bytes: Number.MAX_SAFE_INTEGER,
+      disk_free_bytes: Number.MAX_SAFE_INTEGER,
+      disk_free_ratio: 0.12345678901234566,
+    }),
+  });
+  await inbox.push(events);
+  return bytes;
 }
 
 function appendEvents(count: number): void {
@@ -88,6 +108,27 @@ describe("the events waiting to be pushed", () => {
 
     expect(first.map((event) => event.device_seq)).toEqual([1, 2, 3]);
     expect(second.map((event) => event.device_seq)).toEqual([4, 5]);
+  });
+
+  it("never hands over a batch whose request would go over the limit", async () => {
+    const probe = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
+    probe.prepare("UPDATE sync_state SET device_id = ?").run("device-a");
+    appendOutboxEvent(probe, CHAIN_KEY, draft(1, 0));
+    const [emptyEvent] = await new SqliteLocalOutbox(probe, () => ACKNOWLEDGED_AT).unacknowledged(
+      1,
+    );
+    probe.close();
+    const emptyEventBytes = Buffer.byteLength(JSON.stringify(emptyEvent));
+    const eventsArrayBytes = PUSH_EVENTS_REQUEST_MAX_BYTES - 10;
+    const fillerPerEvent = Math.floor((eventsArrayBytes - 4) / 3) - emptyEventBytes;
+    for (let number = 1; number <= 3; number += 1) {
+      appendOutboxEvent(database, CHAIN_KEY, draft(number, fillerPerEvent));
+    }
+
+    const events = await outbox.unacknowledged(200);
+
+    expect(events.length).toBeGreaterThan(0);
+    expect(await requestBytesFor(events)).toBeLessThanOrEqual(PUSH_EVENTS_REQUEST_MAX_BYTES);
   });
 
   it("hands over the first event alone when it is over the request limit by itself", async () => {
