@@ -1,4 +1,8 @@
 import { createCategory, createProduct, createTag } from "@purosur/domain/catalog/use-cases";
+import {
+  recordAuthorizedCuit,
+  recordBuyerIdentificationThreshold,
+} from "@purosur/domain/fiscal/use-cases";
 import { setPrice } from "@purosur/domain/pricing/use-cases";
 import { pullChanges } from "@purosur/domain/sync/use-cases";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -7,13 +11,16 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createRole } from "../access/role-creation-route.js";
 import { createUser } from "../access/user-creation-route.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
-import { users } from "../platform/db/schema.js";
+import { DrizzleBuyerIdentificationThresholdStore } from "../fiscal/drizzle-buyer-identification-threshold-store.js";
+import { DrizzleIssuerIdentificationStore } from "../fiscal/drizzle-issuer-identification-store.js";
+import { buyerTaxStatusSets, users } from "../platform/db/schema.js";
 import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
+import { logChange } from "./change-log.js";
 import { DrizzleChangeLog } from "./drizzle-change-log.js";
 
 // PGlite has no roles, so only a real Postgres connected as the role the deployed cloud uses shows
@@ -34,7 +41,7 @@ afterAll(async () => {
 });
 
 describe("a pull run as the role the deployed cloud connects with", () => {
-  it("gives a page holding every kind of catalog, price, user and role change", async () => {
+  it("gives a page holding every kind of catalog, price, user, role and fiscal configuration change", async () => {
     const { deviceId, locationId, registerId } = await insertEnrolledInstallation(db);
     const store = new DrizzleCatalogStore(db);
     const category = await createCategory(store, { name: "Almacén", parentId: null });
@@ -87,13 +94,40 @@ describe("a pull run as the role the deployed cloud connects with", () => {
         actorId: actor.id,
       },
     );
+    await recordAuthorizedCuit(
+      { store: new DrizzleIssuerIdentificationStore(db) },
+      { authorizedCuit: "20-00000000-1" },
+    );
+    await recordBuyerIdentificationThreshold(
+      { store: new DrizzleBuyerIdentificationThresholdStore(db) },
+      { amount: 1_000_000, validFrom: "2026-10-01", actorId: actor.id },
+    );
+    const [taxStatusSet] = await db
+      .insert(buyerTaxStatusSets)
+      .values({
+        paramsVersion: 1,
+        options: [{ code: 901, description: "Condicion de prueba A", invoiceClass: "A" }],
+      })
+      .returning({ id: buyerTaxStatusSets.id });
+    if (!taxStatusSet) {
+      throw new Error("test setup: the tax-status set was not created");
+    }
+    await logChange(db, {
+      entity: "buyer_tax_status_set",
+      entityId: taxStatusSet.id,
+      version: 1,
+      op: "insert",
+    });
     const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => new Date() } };
 
     const page = await pullChanges(ports, { deviceId, locationId, registerId, since: 0 });
 
     expect(page.changes.map((change) => change.entity).sort()).toEqual([
       "branch_settings",
+      "buyer_identification_threshold",
+      "buyer_tax_status_set",
       "category",
+      "issuer_identification",
       "price",
       "price_list",
       "product",

@@ -51,6 +51,7 @@ import {
   currentCashSession,
   identifyLockedCloserFor,
   openCashSessionFor,
+  sessionOpenSaleFor,
 } from "./register/cash-session-requests";
 import { rotateDeviceToken } from "./register/device-token-rotation";
 import { startDeviceTokenRotationSchedule } from "./register/device-token-rotation-schedule";
@@ -60,6 +61,7 @@ import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
 import {
   addSearchedProductFor,
+  cancelLockedSaleFor,
   cancelSaleFor,
   cashChargeFor,
   changeLineQuantityFor,
@@ -360,11 +362,28 @@ const rendererRequestDeps: RendererRequestDeps = {
             },
             { sessionId, countedCash, closer },
           ),
+  cancelLockedSale:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (closer) =>
+          cancelLockedSaleFor(
+            {
+              database: localDatabase,
+              gate: actionGate,
+              readOutboxChainKey: async () =>
+                (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+              now: () => new Date(),
+              ids: uuidV7Ids,
+            },
+            closer,
+          ),
   identifyLockedCloser:
     actionGate === undefined
       ? undefined
       : (closer) => identifyLockedCloserFor({ gate: actionGate }, closer),
   cashBalance: localDatabase === undefined ? undefined : () => cashBalanceFor(localDatabase),
+  sessionOpenSale:
+    localDatabase === undefined ? undefined : () => sessionOpenSaleFor(localDatabase),
   cashSession: localDatabase === undefined ? undefined : () => currentCashSession(localDatabase),
   recordCashMovement:
     localDatabase === undefined || actionGate === undefined

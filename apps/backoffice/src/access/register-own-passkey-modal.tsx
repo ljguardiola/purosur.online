@@ -7,15 +7,18 @@ import type {
 } from "@simplewebauthn/browser";
 import { KeyRound, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useAuthorization } from "../platform/authorization-modal";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useAuthorization } from "./authorization-modal";
+import type {
+  authorizeSession,
+  fetchSessionAuthorizationOptions,
+} from "../platform/session-authorization-api";
 import type {
   fetchPasskeyRegistrationChallenge,
   RegisterPasskeyOutcome,
   registerPasskey,
 } from "./passkey-api";
 import { passkeyNameMessage } from "./passkey-name-message";
-import type { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
 import type { signalUnknownCredential } from "./signal-unknown-credential";
 
 const PASSKEY_NAME_REQUEST = passkeyRegistrationBodySchema.pick({ passkey_name: true });

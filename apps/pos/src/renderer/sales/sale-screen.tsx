@@ -248,6 +248,7 @@ export function SaleScreen({
         onSessionInvalid();
         break;
       case "not_permitted":
+      case "has_approved_payment":
         setProblem(outcome);
         break;
       case "unknown_line":

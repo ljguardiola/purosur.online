@@ -15,3 +15,7 @@ export interface PaymentTransaction {
   state: PaymentState;
   occurredAt: Date;
 }
+
+export function cancellableWithoutAuthorization(payments: readonly { state: string }[]): boolean {
+  return !payments.some((payment) => payment.state === "APPROVED");
+}

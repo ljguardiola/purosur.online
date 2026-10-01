@@ -26,9 +26,9 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { useSendToMyAccount } from "../access/send-to-my-account";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { formatCentsWithUnit } from "./money";

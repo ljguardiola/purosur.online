@@ -62,6 +62,24 @@ export interface RegisterRow {
 
 export type DiscountRow = DiscountFields;
 
+export interface IssuerIdentificationVersionRow {
+  legalName: string | null;
+  grossIncomeRegistration: string | null;
+  activityStartDate: string | null;
+  authorizedCuit: string;
+  version: number;
+}
+
+export interface BuyerIdentificationThresholdRow {
+  amount: number;
+  validFrom: string;
+}
+
+export interface BuyerTaxStatusSetRow {
+  paramsVersion: number;
+  options: { code: number; description: string; invoiceClass: string }[];
+}
+
 export type RemovedEntity =
   | "category"
   | "product"
@@ -83,5 +101,8 @@ export type PulledCloudChange = { changeSeq: number; entityId: string } & (
   | { entity: "role"; row: RoleRow }
   | { entity: "register"; row: RegisterRow }
   | { entity: "discount"; row: DiscountRow }
+  | { entity: "issuer_identification"; row: IssuerIdentificationVersionRow }
+  | { entity: "buyer_identification_threshold"; row: BuyerIdentificationThresholdRow }
+  | { entity: "buyer_tax_status_set"; row: BuyerTaxStatusSetRow }
   | { entity: "removal"; removedEntity: RemovedEntity; version: number }
 );

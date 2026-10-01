@@ -220,7 +220,7 @@ describe("CashCountScreen", () => {
 
   it("stops the count with the open sale's total and a way to reach it", async () => {
     const { screen } = await renderScreen({
-      closeCashSession: async () => ({ kind: "open_sale", total: 3_434_000 }),
+      closeCashSession: async () => ({ kind: "open_sale", total: 3_434_000, cancellable: true }),
     });
 
     await count(screen, "45.800,00");

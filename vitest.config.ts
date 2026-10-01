@@ -75,6 +75,7 @@ export default defineConfig({
         node: 1000,
         "railway-iac": 1000,
         "backoffice-build": 1000,
+        "served-backoffice": 1000,
         "cloud-integration": 5000,
         browser: 2000,
         "catalog-visual": 4000,
@@ -102,6 +103,14 @@ export default defineConfig({
           name: "backoffice-build",
           include: ["apps/backoffice/*.test.ts"],
           environment: "node",
+        },
+      },
+      {
+        test: {
+          name: "served-backoffice",
+          include: ["apps/cloud/*.test.ts"],
+          environment: "node",
+          globalSetup: [r("./vitest.global-setup.playwright-server.ts")],
         },
       },
       {

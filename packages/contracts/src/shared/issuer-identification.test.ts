@@ -5,10 +5,10 @@ import {
 } from "./issuer-identification.js";
 
 const complete = {
-  legal_name: "María Laura Fernández",
-  gross_income_registration: "1284531-06",
+  legal_name: "Comercio de Prueba",
+  gross_income_registration: "0000000-00",
   activity_start_date: "2019-03-01",
-  authorized_cuit: "27-28453196-0",
+  authorized_cuit: "20-00000000-1",
   tax_status: "Responsable Monotributo",
   version: 1,
 };
@@ -48,7 +48,7 @@ describe("issuerIdentificationSchema", () => {
     ["legal_name", 1],
     ["gross_income_registration", 1],
     ["activity_start_date", 20190301],
-    ["authorized_cuit", 27284531960],
+    ["authorized_cuit", 20000000001],
     ["authorized_cuit", null],
     ["tax_status", 1],
     ["tax_status", null],

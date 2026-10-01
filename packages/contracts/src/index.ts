@@ -103,8 +103,16 @@ export type { TagEditBody } from "./catalog/tag-edit.js";
 export { tagEditBodySchema } from "./catalog/tag-edit.js";
 export type { TagList, TagSummary } from "./catalog/tag-summary.js";
 export { tagListSchema, tagSummarySchema } from "./catalog/tag-summary.js";
-export type { IssuerIdentificationBody } from "./fiscal/issuer-identification.js";
-export { issuerIdentificationSchema } from "./fiscal/issuer-identification.js";
+export type {
+  BuyerIdentificationThresholdBody,
+  BuyerIdentificationThresholdOverviewBody,
+} from "./fiscal/buyer-identification-threshold.js";
+export {
+  buyerIdentificationThresholdOverviewSchema,
+  buyerIdentificationThresholdSchema,
+} from "./fiscal/buyer-identification-threshold.js";
+export type { BuyerIdentificationThresholdRecordBody } from "./fiscal/buyer-identification-threshold-record.js";
+export { buyerIdentificationThresholdRecordBodySchema } from "./fiscal/buyer-identification-threshold-record.js";
 export type { IssuerIdentificationEditBody } from "./fiscal/issuer-identification-edit.js";
 export { issuerIdentificationEditBodySchema } from "./fiscal/issuer-identification-edit.js";
 export type { DiscountCreationBody } from "./pricing/discount-creation.js";
@@ -139,6 +147,7 @@ export {
   retryAfterSecondsOf,
 } from "./register/cloud-error.js";
 export type {
+  CancelLockedSaleOutcome,
   CashBalance,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
@@ -156,6 +165,7 @@ export type {
   RecordCashMovementOutcome,
   RecordCashMovementRequest,
   RendererToCoreMessage,
+  SessionOpenSale,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
@@ -209,9 +219,14 @@ export {
   scannedCodeSchema,
   searchQuerySchema,
 } from "./sales/sale.js";
-export type { BranchSettingsBody, ErrorReportingConfiguration } from "./shared/index.js";
+export type {
+  BranchSettingsBody,
+  ErrorReportingConfiguration,
+  IssuerIdentificationBody,
+} from "./shared/index.js";
 export {
   branchSettingsSchema,
+  issuerIdentificationSchema,
   scrubErrorReport,
   scrubErrorReportBreadcrumb,
   scrubErrorReportLog,

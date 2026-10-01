@@ -1,0 +1,76 @@
+import { execFile } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
+import type { FastifyInstance } from "fastify";
+import { type Browser, chromium } from "playwright";
+import { afterAll, beforeAll, expect, test } from "vitest";
+import { EDGE_ORIGIN_SECRET_HEADER } from "./src/platform/edge-origin-guard.js";
+import { buildTestApp, TEST_EDGE_ORIGIN_SECRET } from "./src/test-support/build-test-app.js";
+
+const BACKOFFICE_ROOT = fileURLToPath(new URL("../backoffice/", import.meta.url));
+const VITE_BIN = join(
+  dirname(createRequire(`${BACKOFFICE_ROOT}package.json`).resolve("vite/package.json")),
+  "bin/vite.js",
+);
+
+let staticDir: string;
+let app: FastifyInstance;
+let origin: string;
+let browser: Browser;
+
+// Vitest runs with NODE_ENV=test, which Vite would carry into the bundle and so build React's and
+// react-aria's development code instead of what ships.
+async function buildBackoffice(outDir: string): Promise<void> {
+  await promisify(execFile)(
+    process.execPath,
+    [VITE_BIN, "build", "--outDir", outDir, "--emptyOutDir", "--logLevel", "error"],
+    { cwd: BACKOFFICE_ROOT, env: { ...process.env, NODE_ENV: "production" } },
+  );
+}
+
+beforeAll(async () => {
+  staticDir = mkdtempSync(join(tmpdir(), "purosur-served-backoffice-"));
+  await buildBackoffice(staticDir);
+  app = buildTestApp({ version: "abc1234", staticDir });
+  origin = await app.listen({ host: "127.0.0.1", port: 0 });
+  browser = await chromium.connect(process.env["PLAYWRIGHT_SERVER_WS_ENDPOINT"] ?? "", {
+    exposeNetwork: "<loopback>",
+  });
+}, 120_000);
+
+afterAll(async () => {
+  await browser?.close();
+  await app?.close();
+  rmSync(staticDir, { recursive: true, force: true });
+});
+
+test("the built backoffice runs under the cloud's content security policy without a violation", async () => {
+  const context = await browser.newContext({
+    extraHTTPHeaders: { [EDGE_ORIGIN_SECRET_HEADER]: TEST_EDGE_ORIGIN_SECRET },
+  });
+  const page = await context.newPage();
+  await page.addInitScript(() => {
+    const violations: string[] = [];
+    Object.assign(window, { contentSecurityPolicyViolations: violations });
+    document.addEventListener("securitypolicyviolation", (event) => {
+      violations.push(
+        `${event.effectiveDirective} blocked ${event.blockedURI} in ${event.sourceFile}`,
+      );
+    });
+  });
+
+  await page.goto(new URL("/sign-in", origin).href);
+  await page.getByRole("button", { name: "Ingresar con passkey" }).click();
+
+  const violations = await page.evaluate(
+    () =>
+      (window as unknown as { contentSecurityPolicyViolations: string[] })
+        .contentSecurityPolicyViolations,
+  );
+  await context.close();
+  expect(violations).toEqual([]);
+});
