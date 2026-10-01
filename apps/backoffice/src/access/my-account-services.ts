@@ -1,4 +1,8 @@
 import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
+import {
+  authorizeSession,
+  fetchSessionAuthorizationOptions,
+} from "../platform/session-authorization-api";
 import type { EmitUserPinCodeModalServices } from "./emit-user-pin-code-modal";
 import {
   fetchPasskeyRegistrationChallenge,
@@ -8,7 +12,6 @@ import {
 } from "./passkey-api";
 import type { RegisterOwnPasskeyModalServices } from "./register-own-passkey-modal";
 import type { RemoveOwnPasskeyModalServices } from "./remove-own-passkey-modal";
-import { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
 import { signalUnknownCredential } from "./signal-unknown-credential";
 import { emitUserPinCode } from "./users-api";
 

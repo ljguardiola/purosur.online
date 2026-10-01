@@ -75,16 +75,20 @@ function coreAnswering(
     openOutcome?: OpenCashSessionOutcome;
     closeCashSession?: CoreClient["closeCashSession"];
     closeLockedCashSession?: CoreClient["closeLockedCashSession"];
+    cancelLockedSale?: CoreClient["cancelLockedSale"];
     identifyLockedCloser?: CoreClient["identifyLockedCloser"];
     authorizers?: CoreClient["authorizers"];
     cashBalance?: CoreClient["cashBalance"];
+    sessionOpenSale?: CoreClient["sessionOpenSale"];
     redeemOutcome?: PinCodeRedemptionOutcome;
     cashMovements?: CoreClient["cashMovements"];
+    cashMovementKinds?: CoreClient["cashMovementKinds"];
     recordCashMovement?: CoreClient["recordCashMovement"];
   } = {},
   sales: {
     currentSale?: () => Promise<OpenSale | null>;
     scanProduct?: (code: string) => Promise<ScanProductOutcome>;
+    cashCharge?: CoreClient["cashCharge"];
     chargeSaleInCash?: CoreClient["chargeSaleInCash"];
     searchProducts?: CoreClient["searchProducts"];
     addProduct?: CoreClient["addProduct"];
@@ -95,6 +99,7 @@ function coreAnswering(
   const opened: number[] = [];
   const closed: [string, number, Authorization | undefined][] = [];
   const closedLocked: [string, number, Authorization][] = [];
+  const cancelledLocked: Authorization[] = [];
   const recorded: Parameters<CoreClient["recordCashMovement"]>[0][] = [];
   const asked: string[] = [];
   let usersLoads = 0;
@@ -152,6 +157,11 @@ function coreAnswering(
         ? { kind: "no_open_session" }
         : cashDrawer.recordCashMovement(input);
     },
+    async cashMovementKinds() {
+      return cashDrawer.cashMovementKinds === undefined
+        ? "unavailable"
+        : cashDrawer.cashMovementKinds();
+    },
     async cashMovements() {
       return cashDrawer.cashMovements === undefined ? [] : cashDrawer.cashMovements();
     },
@@ -180,6 +190,11 @@ function coreAnswering(
     async scanProduct(code) {
       return sales.scanProduct === undefined ? { kind: "unknown_code" } : sales.scanProduct(code);
     },
+    async cashCharge(saleId, tendered) {
+      return sales.cashCharge === undefined
+        ? { kind: "invalid_amount" }
+        : sales.cashCharge(saleId, tendered);
+    },
     async chargeSaleInCash(saleId, tendered) {
       return sales.chargeSaleInCash === undefined
         ? { kind: "unavailable" }
@@ -197,10 +212,19 @@ function coreAnswering(
         ? { kind: "unavailable" }
         : cashDrawer.closeLockedCashSession(sessionId, countedCash, closer);
     },
+    async cancelLockedSale(closer) {
+      cancelledLocked.push(closer);
+      return cashDrawer.cancelLockedSale === undefined
+        ? { kind: "unavailable" }
+        : cashDrawer.cancelLockedSale(closer);
+    },
     async identifyLockedCloser(closer) {
       return cashDrawer.identifyLockedCloser === undefined
         ? { kind: "identified", person: { user_id: closer.user_id, first_name: "Sofía" } }
         : cashDrawer.identifyLockedCloser(closer);
+    },
+    async sessionOpenSale() {
+      return cashDrawer.sessionOpenSale === undefined ? null : cashDrawer.sessionOpenSale();
     },
     async cashBalance() {
       return cashDrawer.cashBalance === undefined ? null : cashDrawer.cashBalance();
@@ -225,6 +249,7 @@ function coreAnswering(
     opened,
     closed,
     closedLocked,
+    cancelledLocked,
     recorded,
     finishPull,
     usersLoads: () => usersLoads,
@@ -807,6 +832,7 @@ describe("App", () => {
           ],
           total: 238_000,
         }),
+        cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 12_000 }),
         chargeSaleInCash: async (saleId, tendered) => {
           charges.push([saleId, tendered]);
           return { kind: "completed", sale_id: saleId, total: 238_000, tendered, change: 12_000 };
@@ -853,6 +879,7 @@ describe("App", () => {
             ? Promise.resolve({ id: "sale-1", lines: [yerba], total: 238_000 })
             : new Promise(() => {});
         },
+        cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 12_000 }),
         chargeSaleInCash: async (saleId, tendered) => ({
           kind: "completed",
           sale_id: saleId,
@@ -1436,7 +1463,7 @@ describe("App", () => {
 
     it("stays signed in on the cash count when the close from Salir is refused", async () => {
       const { screen, asked } = await resumeGracesSession({
-        closeCashSession: async () => ({ kind: "open_sale", total: 3_434_000 }),
+        closeCashSession: async () => ({ kind: "open_sale", total: 3_434_000, cancellable: true }),
       });
       await userEvent.click(screen.getByRole("button", { name: "Salir" }));
       await userEvent.click(
@@ -1454,7 +1481,7 @@ describe("App", () => {
 
     it("stays on the cash count and offers the sale when it is still open", async () => {
       const { screen } = await resumeGracesSession({
-        closeCashSession: async () => ({ kind: "open_sale", total: 3_434_000 }),
+        closeCashSession: async () => ({ kind: "open_sale", total: 3_434_000, cancellable: true }),
       });
       await startClosing(screen);
 
@@ -1489,6 +1516,8 @@ describe("App", () => {
       cashDrawer: {
         identifyLockedCloser?: CoreClient["identifyLockedCloser"];
         closeLockedCashSession?: CoreClient["closeLockedCashSession"];
+        cancelLockedSale?: CoreClient["cancelLockedSale"];
+        sessionOpenSale?: CoreClient["sessionOpenSale"];
         cashSession?: CoreClient["cashSession"];
       } = {},
     ) {
@@ -1555,6 +1584,49 @@ describe("App", () => {
       },
     );
 
+    describe("cancelling its open sale", () => {
+      async function cancelFromLocked(cashDrawer: Parameters<typeof identifyFromLocked>[0]) {
+        const identified = await identifyFromLocked({
+          sessionOpenSale: async () => ({ total: 3_434_000, cancellable: true }),
+          ...cashDrawer,
+        });
+        await userEvent.click(identified.screen.getByRole("button", { name: "Cancelar la venta" }));
+        await userEvent.click(
+          identified.screen.getByRole("dialog").getByRole("button", { name: "Cancelar la venta" }),
+        );
+        return identified;
+      }
+
+      it("cancels it with the PIN of the person who closes, staying on the cash count", async () => {
+        const { screen, cancelledLocked } = await cancelFromLocked({
+          cancelLockedSale: async () => ({ kind: "cancelled" }),
+        });
+
+        await expect.poll(() => cancelledLocked).toEqual([{ user_id: "u3", pin: "1234" }]);
+        await expect
+          .element(screen.getByText("Hay una venta abierta de $ 34.340,00"))
+          .not.toBeInTheDocument();
+        await expect.element(screen.getByRole("heading", { name: "Cerrar caja" })).toBeVisible();
+      });
+
+      it.each(["no_open_session", "not_locked"] as const)(
+        "reads the cash session again when the cancellation answers %s",
+        async (kind) => {
+          let asks = 0;
+          const { screen } = await cancelFromLocked({
+            cancelLockedSale: async () => ({ kind }),
+            cashSession: async () => {
+              asks += 1;
+              return asks === 1 ? GRACE_SESSION : null;
+            },
+          });
+
+          await expect.poll(() => asks).toBe(2);
+          await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+        },
+      );
+    });
+
     it("reads the cash session again when identifying answers that the register is not locked", async () => {
       let asks = 0;
       const { screen } = await identifyFromLocked({
@@ -1590,6 +1662,7 @@ describe("App", () => {
         cashSession?: CoreClient["cashSession"];
         cashBalance?: CoreClient["cashBalance"];
         cashMovements?: CoreClient["cashMovements"];
+        cashMovementKinds?: CoreClient["cashMovementKinds"];
         recordCashMovement?: CoreClient["recordCashMovement"];
       } = {},
     ) {
@@ -1606,6 +1679,11 @@ describe("App", () => {
           cashSession: async () => MOVER_SESSION,
           cashBalance: async () => BALANCE,
           cashMovements: async () => [OPENING],
+          cashMovementKinds: async () => ({
+            CASH_IN: { permission: "record_cash_in", authorization_required: false },
+            CASH_OUT: { permission: "record_cash_expense", authorization_required: true },
+            WITHDRAWAL: { permission: "withdraw_cash", authorization_required: true },
+          }),
           ...cashDrawer,
         },
       );

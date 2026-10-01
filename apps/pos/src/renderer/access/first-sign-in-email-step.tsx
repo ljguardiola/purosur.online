@@ -1,11 +1,17 @@
 import type { SignInLookupOutcome } from "@purosur/contracts";
 import type { Icon } from "@purosur/ui";
-import { Button, InlineNotice, TextField } from "@purosur/ui";
+import { Button, InlineNotice, useRequestForm } from "@purosur/ui";
 import { ArrowLeft, ArrowRight, RefreshCw, ShieldX, TriangleAlert, WifiOff } from "lucide-react";
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { retryAfterText } from "../shell/retry-after-text";
 import { ScreenLink } from "../shell/screen-link";
+import {
+  EMPTY_FIRST_SIGN_IN_EMAIL_FORM,
+  INVALID_EMAIL_MESSAGE,
+  signInLookupRequestFrom,
+  signInLookupRequestSchema,
+} from "./first-sign-in-email-form";
 import { FirstSignInPanel } from "./first-sign-in-panel";
 
 export type FoundPerson = Extract<SignInLookupOutcome, { kind: "has_pin" | "no_pin" }>;
@@ -14,7 +20,6 @@ type Refused = Exclude<SignInLookupOutcome, FoundPerson>;
 
 type Notice = { icon: Icon; title: string; description: string };
 
-const INVALID_EMAIL_MESSAGE = "Escribí un correo válido.";
 const NOT_FOUND_MESSAGE = "No hay nadie con ese correo en esta sucursal.";
 
 function noticeFor(refused: Refused): Notice | undefined {
@@ -49,65 +54,59 @@ function noticeFor(refused: Refused): Notice | undefined {
   }
 }
 
-function fieldMessageFor(refused: Refused | undefined): string | undefined {
-  switch (refused?.kind) {
-    case "invalid_email":
-      return INVALID_EMAIL_MESSAGE;
-    case "not_found":
-      return NOT_FOUND_MESSAGE;
-    default:
-      return undefined;
-  }
-}
-
 export type FirstSignInEmailStepProps = {
   lookup: (email: string) => Promise<SignInLookupOutcome>;
   onFound: (person: FoundPerson) => void;
 };
 
 export function FirstSignInEmailStep({ lookup, onFound }: FirstSignInEmailStepProps) {
-  const [email, setEmail] = useState("");
-  const [submitting, setSubmitting] = useState(false);
   const [refused, setRefused] = useState<Refused>();
+  const { form, submit, submitting } = useRequestForm({
+    defaultValues: EMPTY_FIRST_SIGN_IN_EMAIL_FORM,
+    request: { schema: signInLookupRequestSchema, from: signInLookupRequestFrom },
+    fields: { email: "email" },
+    messages: { email: INVALID_EMAIL_MESSAGE },
+    onSubmit: async ({ email }, { showFieldError }) => {
+      const outcome = await lookup(email).catch(
+        (): SignInLookupOutcome => ({ kind: "unavailable" }),
+      );
+      switch (outcome.kind) {
+        case "has_pin":
+        case "no_pin":
+          onFound(outcome);
+          break;
+        case "invalid_email":
+          showFieldError("email", INVALID_EMAIL_MESSAGE);
+          break;
+        case "not_found":
+          showFieldError("email", NOT_FOUND_MESSAGE);
+          break;
+        default:
+          setRefused(outcome);
+      }
+    },
+  });
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting) {
       return;
     }
     setRefused(undefined);
-    setSubmitting(true);
-    const outcome = await lookup(email).catch((): SignInLookupOutcome => ({ kind: "unavailable" }));
-    setSubmitting(false);
-    if (outcome.kind === "has_pin" || outcome.kind === "no_pin") {
-      onFound(outcome);
-    } else {
-      setRefused(outcome);
-    }
-  }
-
-  function type(value: string) {
-    setEmail(value);
-    setRefused(undefined);
+    void submit();
   }
 
   const notice = refused === undefined ? undefined : noticeFor(refused);
-  const fieldMessage = fieldMessageFor(refused);
 
   return (
     <FirstSignInPanel
       title="Ingresar por primera vez"
       description="Escribí tu correo. Hace falta internet."
     >
-      <form className="flex flex-col gap-4" noValidate onSubmit={submit}>
-        <TextField
-          kind="plain-text"
-          label="Correo"
-          value={email}
-          onChange={type}
-          disabled={submitting}
-          {...(fieldMessage === undefined ? {} : { errorMessage: fieldMessage })}
-        />
+      <form className="flex flex-col gap-4" noValidate onSubmit={handleSubmit}>
+        <form.AppField name="email" listeners={{ onChange: () => setRefused(undefined) }}>
+          {(email) => <email.TextField kind="plain-text" label="Correo" disabled={submitting} />}
+        </form.AppField>
         {notice === undefined ? null : (
           <InlineNotice
             tone="error"

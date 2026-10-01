@@ -1,12 +1,16 @@
+import { encodePinHash } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createActionGate } from "../access/action-gate";
+import { derivePinVerifier } from "../access/pin-verifier";
 import { createSignedInPerson, type SignedInPerson } from "../access/signed-in-person";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import {
   addSearchedProductFor,
+  cancelLockedSaleFor,
   cancelSaleFor,
+  cashChargeFor,
   changeLineQuantityFor,
   chargeSaleInCashFor,
   currentSaleFor,
@@ -17,6 +21,11 @@ import {
 } from "./sale-requests";
 
 const NOW = new Date("2026-09-30T12:00:00.000Z");
+
+const PEPPER = Buffer.alloc(32, 7).toString("base64url");
+const PIN_HASH = "argon2id$v=19$m=65536,t=3,p=4$c2FsdA$aGFzaC1vZi10aGUtcGlu";
+const CLOSER_PIN = "1234";
+const CLOSER = { user_id: "u9", pin: CLOSER_PIN };
 
 const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
 
@@ -693,5 +702,201 @@ describe("charging the sale in progress in cash", () => {
       }),
     ).toEqual({ kind: "unavailable" });
     expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+  });
+});
+
+describe("what a sale in progress needs when an amount is tendered", () => {
+  async function sellTwo(): Promise<string> {
+    await scanProductFor(deps(), "111");
+    const outcome = await scanProductFor(deps(), "111");
+    if (outcome.kind !== "added") {
+      throw new Error("test setup: the product was not added");
+    }
+    return outcome.sale.id;
+  }
+
+  it.each([
+    [5000, { kind: "covered", applied: 3000, change: 2000 }],
+    [3000, { kind: "covered", applied: 3000, change: 0 }],
+    [1000, { kind: "insufficient", amountDue: 3000 }],
+    [0, { kind: "invalid_amount" }],
+  ] as const)(
+    "answers the domain's charge of %i against the total of the sale",
+    async (tendered, charge) => {
+      const saleId = await sellTwo();
+
+      expect(await cashChargeFor(deps(), { saleId, tendered })).toEqual(charge);
+    },
+  );
+
+  it("charges nothing and changes nothing", async () => {
+    const saleId = await sellTwo();
+
+    await cashChargeFor(deps(), { saleId, tendered: 5000 });
+
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([]);
+  });
+
+  it("is none for a sale that is not the one in progress", async () => {
+    await sellTwo();
+
+    expect(await cashChargeFor(deps(), { saleId: "other-sale", tendered: 5000 })).toBeNull();
+  });
+
+  it("is none when no session is open", async () => {
+    const saleId = await sellTwo();
+    database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
+
+    expect(await cashChargeFor(deps(), { saleId, tendered: 5000 })).toBeNull();
+  });
+
+  it("is none when nobody is signed in", async () => {
+    const saleId = await sellTwo();
+    signedInPerson.clear();
+
+    expect(await cashChargeFor(deps(), { saleId, tendered: 5000 })).toBeNull();
+  });
+
+  it("answers not permitted to a signed-in person without the permission to sell", async () => {
+    const saleId = await sellTwo();
+    addPerson("u2", "guest");
+    signedInPerson.set("u2");
+
+    expect(await cashChargeFor(deps(), { saleId, tendered: 5000 })).toBe("not_permitted");
+  });
+});
+
+describe("cancelling the open sale of a locked register", () => {
+  function lockedDeps(overrides: Partial<OutboxSaleRequestDeps> = {}): OutboxSaleRequestDeps {
+    return deps({
+      gate: createActionGate({
+        store: new SqliteSignInStore(database),
+        signedInPerson,
+        readPepper: async () => PEPPER,
+        hashPin: async (pin) => (pin === CLOSER_PIN ? PIN_HASH : "hash-of-another-pin"),
+        now: () => NOW,
+      }),
+      ...overrides,
+    });
+  }
+
+  function addCloser(permissions: string[]): void {
+    database
+      .prepare(
+        "INSERT INTO roles (id, name, is_administrator, version) VALUES ('closer', 'Encargada', 0, 1)",
+      )
+      .run();
+    for (const key of permissions) {
+      database
+        .prepare(
+          "INSERT INTO role_permissions (role_id, permission_key, active) VALUES ('closer', ?, 1)",
+        )
+        .run(key);
+    }
+    addPerson("u9", "closer");
+    database
+      .prepare("UPDATE users SET salt = ? WHERE id = 'u9'")
+      .run(encodePinHash(new Uint8Array(16).fill(1)));
+    database
+      .prepare("INSERT INTO pin_verifiers (user_id, verifier) VALUES ('u9', ?)")
+      .run(derivePinVerifier(PEPPER, PIN_HASH));
+  }
+
+  async function lockedWithOpenSale(): Promise<void> {
+    await sellTwoYerbas();
+    signedInPerson.clear();
+  }
+
+  function saleStates(): unknown[] {
+    return database.prepare("SELECT state FROM sales").all();
+  }
+
+  it("cancels the sale as the person whose PIN holds the permission and emits the cancellation in their name", async () => {
+    addCloser(["close_anothers_register_session"]);
+    await lockedWithOpenSale();
+
+    expect(await cancelLockedSaleFor(lockedDeps(), CLOSER)).toEqual({ kind: "cancelled" });
+
+    expect(saleStates()).toEqual([{ state: "CANCELLED" }]);
+    expect(
+      database.prepare("SELECT actor_id FROM outbox WHERE event_type = 'sale_cancelled'").all(),
+    ).toEqual([{ actor_id: "u9" }]);
+  });
+
+  it("leaves nobody signed in", async () => {
+    addCloser(["close_anothers_register_session"]);
+    await lockedWithOpenSale();
+
+    await cancelLockedSaleFor(lockedDeps(), CLOSER);
+
+    expect(signedInPerson.userId()).toBeUndefined();
+  });
+
+  it("refuses a person without the permission, leaving the sale open", async () => {
+    addCloser(["sell_and_charge"]);
+    await lockedWithOpenSale();
+
+    expect(await cancelLockedSaleFor(lockedDeps(), CLOSER)).toEqual({ kind: "lacks_permission" });
+    expect(saleStates()).toEqual([{ state: "OPEN" }]);
+  });
+
+  it("refuses a wrong PIN, leaving the sale open", async () => {
+    addCloser(["close_anothers_register_session"]);
+    await lockedWithOpenSale();
+
+    const outcome = await cancelLockedSaleFor(lockedDeps(), { user_id: "u9", pin: "0000" });
+
+    expect(outcome.kind).toBe("wrong_pin");
+    expect(saleStates()).toEqual([{ state: "OPEN" }]);
+  });
+
+  it("refuses while someone is signed in, leaving the sale open", async () => {
+    addCloser(["close_anothers_register_session"]);
+    await sellTwoYerbas();
+
+    expect(await cancelLockedSaleFor(lockedDeps(), CLOSER)).toEqual({ kind: "not_locked" });
+    expect(saleStates()).toEqual([{ state: "OPEN" }]);
+  });
+
+  it("answers that there is no sale to cancel", async () => {
+    addCloser(["close_anothers_register_session"]);
+    signedInPerson.clear();
+
+    expect(await cancelLockedSaleFor(lockedDeps(), CLOSER)).toEqual({ kind: "no_open_sale" });
+  });
+
+  it("answers that no session is open", async () => {
+    addCloser(["close_anothers_register_session"]);
+    await lockedWithOpenSale();
+    database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
+
+    expect(await cancelLockedSaleFor(lockedDeps(), CLOSER)).toEqual({ kind: "no_open_session" });
+  });
+
+  it("refuses a sale that has an approved payment, leaving it open", async () => {
+    addCloser(["close_anothers_register_session"]);
+    await lockedWithOpenSale();
+    database
+      .prepare(
+        `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, state, occurred_at)
+         VALUES ('payment-1', 'id-1', 'SALE', 'CASH', 'NONE', 3000, NULL, 'APPROVED', '2026-09-30T12:00:00.000Z')`,
+      )
+      .run();
+
+    expect(await cancelLockedSaleFor(lockedDeps(), CLOSER)).toEqual({
+      kind: "has_approved_payment",
+    });
+    expect(saleStates()).toEqual([{ state: "OPEN" }]);
+  });
+
+  it("answers unavailable, leaving the sale open, when the register has no outbox key yet", async () => {
+    addCloser(["close_anothers_register_session"]);
+    await lockedWithOpenSale();
+
+    expect(
+      await cancelLockedSaleFor(lockedDeps({ readOutboxChainKey: async () => undefined }), CLOSER),
+    ).toEqual({ kind: "unavailable" });
+    expect(saleStates()).toEqual([{ state: "OPEN" }]);
   });
 });

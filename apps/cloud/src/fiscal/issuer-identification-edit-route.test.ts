@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { PASSKEY_AUTHORIZATION_WINDOW_MS } from "../access/passkey-authorization-guard.js";
@@ -6,8 +6,10 @@ import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../access/session-id.js";
 import {
   auditLog,
+  changes,
   ISSUER_IDENTIFICATION_SINGLETON_ID,
   issuerIdentification,
+  issuerIdentificationVersions,
   rolePermissions,
   roles,
   sessions,
@@ -119,7 +121,7 @@ function cookieHeader(rawSessionId: string): Record<string, string> {
 
 function validBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    legal_name: "Puro Sur SRL",
+    legal_name: "Comercio de Prueba",
     gross_income_registration: "CM 901-123456-3",
     activity_start_date: "2020-01-15",
     version: 1,
@@ -228,7 +230,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
-      legal_name: "Puro Sur SRL",
+      legal_name: "Comercio de Prueba",
       gross_income_registration: "CM 901-123456-3",
       activity_start_date: "2020-01-15",
       authorized_cuit: TEST_AUTHORIZED_CUIT,
@@ -239,7 +241,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
       .select()
       .from(issuerIdentification)
       .where(eq(issuerIdentification.id, ISSUER_IDENTIFICATION_SINGLETON_ID));
-    expect(row).toMatchObject({ legalName: "Puro Sur SRL", version: 2 });
+    expect(row).toMatchObject({ legalName: "Comercio de Prueba", version: 2 });
   });
 
   it("makes the change visible to a subsequent GET", async () => {
@@ -255,7 +257,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
 
     const getResponse = await getIssuerIdentification(rawSessionId);
 
-    expect(getResponse.json()).toMatchObject({ legal_name: "Puro Sur SRL", version: 2 });
+    expect(getResponse.json()).toMatchObject({ legal_name: "Comercio de Prueba", version: 2 });
   });
 
   it("audits the actor and the previous/new values in the same transaction", async () => {
@@ -285,12 +287,102 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
         version: 1,
       },
       newValue: {
-        legal_name: "Puro Sur SRL",
+        legal_name: "Comercio de Prueba",
         gross_income_registration: "CM 901-123456-3",
         activity_start_date: "2020-01-15",
         version: 2,
       },
     });
+  });
+
+  it("keeps every saved version, the one it replaced included, with the CUIT it was saved under and who saved it", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+
+    await putIssuerIdentification(validBody(), rawSessionId);
+    await putIssuerIdentification(
+      validBody({ legal_name: "Comercio de Prueba Nuevo", version: 2 }),
+      rawSessionId,
+    );
+
+    const versions = await db
+      .select()
+      .from(issuerIdentificationVersions)
+      .orderBy(asc(issuerIdentificationVersions.version));
+    expect(
+      versions.map(
+        ({
+          version,
+          legalName,
+          grossIncomeRegistration,
+          activityStartDate,
+          authorizedCuit,
+          recordedBy,
+        }) => ({
+          version,
+          legalName,
+          grossIncomeRegistration,
+          activityStartDate,
+          authorizedCuit,
+          recordedBy,
+        }),
+      ),
+    ).toEqual([
+      {
+        version: 1,
+        legalName: null,
+        grossIncomeRegistration: null,
+        activityStartDate: null,
+        authorizedCuit: null,
+        recordedBy: null,
+      },
+      {
+        version: 2,
+        legalName: "Comercio de Prueba",
+        grossIncomeRegistration: "CM 901-123456-3",
+        activityStartDate: "2020-01-15",
+        authorizedCuit: TEST_AUTHORIZED_CUIT,
+        recordedBy: administratorId,
+      },
+      {
+        version: 3,
+        legalName: "Comercio de Prueba Nuevo",
+        grossIncomeRegistration: "CM 901-123456-3",
+        activityStartDate: "2020-01-15",
+        authorizedCuit: TEST_AUTHORIZED_CUIT,
+        recordedBy: administratorId,
+      },
+    ]);
+  });
+
+  it("logs each saved version for the registers, at the identification's own id", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+    const loggedBefore = await db.select().from(changes);
+
+    await putIssuerIdentification(validBody(), rawSessionId);
+
+    const logged = (await db.select().from(changes).orderBy(asc(changes.changeSeq))).slice(
+      loggedBefore.length,
+    );
+    expect(logged).toMatchObject([
+      {
+        entity: "issuer_identification",
+        entityId: ISSUER_IDENTIFICATION_SINGLETON_ID,
+        version: 2,
+        op: "update",
+      },
+    ]);
   });
 
   it("treats an unchanged save as a no-op: 200, version unchanged, no audit row", async () => {
@@ -307,7 +399,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
     const response = await putIssuerIdentification(validBody({ version: 2 }), rawSessionId);
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ legal_name: "Puro Sur SRL", version: 2 });
+    expect(response.json()).toMatchObject({ legal_name: "Comercio de Prueba", version: 2 });
     const [row] = await db
       .select()
       .from(issuerIdentification)
@@ -318,6 +410,10 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
       .from(auditLog)
       .where(eq(auditLog.entityId, ISSUER_IDENTIFICATION_SINGLETON_ID));
     expect(audited).toHaveLength(1);
+    expect(await db.select().from(issuerIdentificationVersions)).toHaveLength(2);
+    expect(
+      await db.select().from(changes).where(eq(changes.entity, "issuer_identification")),
+    ).toHaveLength(1);
   });
 
   it("rejects an activity_start_date after the route clock's day with 400 validation_failed on that field, changing nothing", async () => {

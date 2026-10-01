@@ -23,6 +23,7 @@ export type {
   CashLedger,
   CashLedgerTransaction,
   IdGenerator,
+  OpenSale,
   RegisterIdentity,
 } from "./cash-ledger.js";
 export type {

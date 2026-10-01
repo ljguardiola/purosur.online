@@ -104,12 +104,18 @@ export {
   SALE_UNITS,
   TAG_NAME_MAX_LENGTH,
 } from "./catalog/index.js";
+export type { BuyerIdentificationThreshold, BuyerTaxStatusOption } from "./fiscal/index.js";
 export {
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
+  isBuyerIdentificationThresholdAmount,
   isIssuerIdentificationActivityStartDate,
   isIssuerIdentificationGrossIncomeRegistrationTooLong,
   isIssuerIdentificationLegalNameTooLong,
+  isValidBuyerTaxStatusSet,
+  latestThreshold,
+  thresholdInEffectOn,
+  thresholdScheduledAfter,
 } from "./fiscal/index.js";
 export type {
   CategoryLink,
@@ -167,7 +173,6 @@ export {
   CASH_MOVEMENT_TYPES,
   cashBreakdown,
   cashMovementPermission,
-  cashMovementReason,
   ENROLLMENT_CODE_LENGTH,
   enrollmentAttemptWindowStart,
   expectedCash,
@@ -196,14 +201,13 @@ export type {
   SaleWithLines,
   SoldProduct,
 } from "./sales/index.js";
-export { cashCharge, SEARCH_RESULT_LIMIT, saleTotal } from "./sales/index.js";
-export type { EsArNumberDigits } from "./shared/index.js";
 export {
-  ARGENTINA_TIME_ZONE,
-  argentinaCalendarDay,
-  parseAmountCents,
-  parseEsArNumber,
-} from "./shared/index.js";
+  cancellableWithoutAuthorization,
+  cashCharge,
+  SEARCH_RESULT_LIMIT,
+  saleTotal,
+} from "./sales/index.js";
+export { ARGENTINA_TIME_ZONE, argentinaCalendarDay } from "./shared/index.js";
 export type { AdjustmentReason, LossReason, StockDirection } from "./stock/index.js";
 export {
   ADJUSTMENT_REASONS,

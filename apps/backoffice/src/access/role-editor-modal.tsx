@@ -13,15 +13,20 @@ import {
   type LoadStatus,
   Modal,
   plural,
+  useRequestForm,
 } from "@purosur/ui";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { Check, RotateCcw, Shield, ShieldOff, ShieldX, TriangleAlert, X } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { useCloudForm } from "../platform/cloud-form";
+import { useAuthorization } from "../platform/authorization-modal";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
+import {
+  authorizeSession,
+  fetchSessionAuthorizationOptions,
+} from "../platform/session-authorization-api";
 import { useRefreshAccess, useReloadRole, useRoleQuery } from "./access-queries";
-import { useAuthorization } from "./authorization-modal";
 import { ConfirmRoleSaveModal } from "./confirm-role-save-modal";
 import { roleDisplayName } from "./role-display";
 import { RoleEditorForm } from "./role-editor-form";
@@ -36,8 +41,6 @@ import {
   type RoleDetail,
   type RoleSummary,
 } from "./roles-api";
-import { useSendToMyAccount } from "./send-to-my-account";
-import { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
 
 export type RoleEditorRequest =
   | { kind: "new" }
@@ -218,7 +221,7 @@ function RoleEditorSession({
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
-  const { form, submit, submitting, reset, values } = useCloudForm({
+  const { form, submit, submitting, reset, values } = useRequestForm({
     defaultValues: { name: seededName(seed), permissions: seededPermissions(seed) },
     request: {
       schema: stored ? roleEditBodySchema : roleCreationBodySchema,

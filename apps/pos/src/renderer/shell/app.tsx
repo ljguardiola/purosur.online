@@ -176,6 +176,14 @@ function Register({ core }: { core: CoreClient }) {
     return outcome satisfies CloseLockedCashSessionOutcome;
   }
 
+  async function cancelLockedSale(closer: Authorization) {
+    const outcome = await core.cancelLockedSale(closer);
+    if (outcome.kind === "no_open_session" || outcome.kind === "not_locked") {
+      await refreshCashSession();
+    }
+    return outcome;
+  }
+
   async function identifyLockedCloser(closer: Authorization) {
     const outcome = await core.identifyLockedCloser(closer);
     if (outcome.kind === "not_locked") {
@@ -251,9 +259,12 @@ function Register({ core }: { core: CoreClient }) {
     openCashSession,
     closeCashSession,
     closeLockedCashSession,
+    cancelLockedSale,
     identifyLockedCloser,
     cashBalance,
+    sessionOpenSale: () => core.sessionOpenSale(),
     cashMovements,
+    cashMovementKinds: () => core.cashMovementKinds(),
     recordCashMovement,
     redeemPinCode,
     signInLookup: (email: string) => core.signInLookup(email),
@@ -261,6 +272,7 @@ function Register({ core }: { core: CoreClient }) {
     firstSignIn,
     currentSale: () => core.currentSale(),
     scanProduct: (code: string) => core.scanProduct(code),
+    cashCharge: (saleId: string, tendered: number) => core.cashCharge(saleId, tendered),
     chargeSaleInCash,
     searchProducts: (query: string) => core.searchProducts(query),
     addProduct: (productId: string) => core.addProduct(productId),

@@ -178,6 +178,57 @@ describe("the cloud_app role runMigrations creates", () => {
     await expectPermissionDenied(cloudApp`delete from price_reviews where id = ${review.id}`);
   });
 
+  it("appends fiscal configuration versions but never rewrites, removes or truncates them", async () => {
+    const [location] = await cloudApp<{ id: string }[]>`select id from locations limit 1`;
+    if (!location) {
+      throw new Error("test setup: reading the seeded location returned no row");
+    }
+    const [user] = await cloudApp<{ id: string }[]>`
+      insert into users (first_name, email, location_id)
+      values ('Cloud App Role Test', ${`cloud-app-role-test-${randomUUID()}@example.com`}, ${location.id})
+      returning id
+    `;
+    if (!user) {
+      throw new Error("test setup: seeding the user returned no row");
+    }
+    const [threshold] = await cloudApp<{ id: string }[]>`
+      insert into buyer_identification_thresholds (amount, valid_from, recorded_by)
+      values (1000000, '2026-10-01', ${user.id}) returning id
+    `;
+    const [taxStatusSet] = await cloudApp<{ id: string }[]>`
+      insert into buyer_tax_status_sets (params_version, options)
+      values (1, '[]'::jsonb) returning id
+    `;
+    const [issuerVersion] = await cloudApp<{ version: number }[]>`
+      insert into issuer_identification_versions (version) values (900) returning version
+    `;
+    if (!threshold || !taxStatusSet || !issuerVersion) {
+      throw new Error("test setup: appending the fiscal configuration rows returned no row");
+    }
+
+    await expectPermissionDenied(
+      cloudApp`update buyer_identification_thresholds set amount = 1 where id = ${threshold.id}`,
+    );
+    await expectPermissionDenied(
+      cloudApp`delete from buyer_identification_thresholds where id = ${threshold.id}`,
+    );
+    await expectPermissionDenied(cloudApp`truncate buyer_identification_thresholds`);
+    await expectPermissionDenied(
+      cloudApp`update buyer_tax_status_sets set params_version = 2 where id = ${taxStatusSet.id}`,
+    );
+    await expectPermissionDenied(
+      cloudApp`delete from buyer_tax_status_sets where id = ${taxStatusSet.id}`,
+    );
+    await expectPermissionDenied(cloudApp`truncate buyer_tax_status_sets`);
+    await expectPermissionDenied(
+      cloudApp`update issuer_identification_versions set legal_name = 'x' where version = ${issuerVersion.version}`,
+    );
+    await expectPermissionDenied(
+      cloudApp`delete from issuer_identification_versions where version = ${issuerVersion.version}`,
+    );
+    await expectPermissionDenied(cloudApp`truncate issuer_identification_versions`);
+  });
+
   async function insertCountedMovement(): Promise<{ movementId: string }> {
     const { priceId } = await insertPricedRow();
     const [product] = await cloudApp<{ productId: string }[]>`

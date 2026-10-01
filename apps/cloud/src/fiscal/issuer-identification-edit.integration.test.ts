@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { editIssuerIdentification } from "@purosur/domain/fiscal/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -14,10 +15,8 @@ import {
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { editIssuerIdentification } from "./issuer-identification-edit-route.js";
+import { DrizzleIssuerIdentificationStore } from "./drizzle-issuer-identification-store.js";
 
-// PGlite runs every query over one connection, so it can never race two saves; this uses a real
-// multi-connection postgres-js pool against real Postgres instead.
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;
@@ -36,9 +35,10 @@ afterAll(async () => {
 function editInput(actorId: string, overrides: Record<string, unknown> = {}) {
   return {
     actorId,
-    legalName: "Puro Sur SRL",
+    legalName: "Comercio de Prueba",
     grossIncomeRegistration: "CM 901-123456-3",
     activityStartDate: "2020-01-15",
+    authorizedCuit: "20-00000000-1",
     version: 1,
     ...overrides,
   };
@@ -57,13 +57,20 @@ describe("two saves racing on the same issuer identification version, on a real 
     }
     const actorId = actor.id;
 
+    const ports = { store: new DrizzleIssuerIdentificationStore(db) };
     const [first, second] = await Promise.all([
-      editIssuerIdentification(db, editInput(actorId, { legalName: "Puro Sur - Primera edición" })),
-      editIssuerIdentification(db, editInput(actorId, { legalName: "Puro Sur - Segunda edición" })),
+      editIssuerIdentification(
+        ports,
+        editInput(actorId, { legalName: "Comercio de Prueba - Primera edición" }),
+      ),
+      editIssuerIdentification(
+        ports,
+        editInput(actorId, { legalName: "Comercio de Prueba - Segunda edición" }),
+      ),
     ]);
 
     const outcomes = [first, second];
-    expect(outcomes.filter((outcome) => outcome.kind === "applied")).toHaveLength(1);
+    expect(outcomes.filter((outcome) => outcome.kind === "edited")).toHaveLength(1);
     expect(outcomes.filter((outcome) => outcome.kind === "stale_version")).toHaveLength(1);
 
     const [row] = await db
@@ -72,11 +79,11 @@ describe("two saves racing on the same issuer identification version, on a real 
       .where(eq(issuerIdentification.id, ISSUER_IDENTIFICATION_SINGLETON_ID));
     expect(row).toMatchObject({ version: 2 });
 
-    const winner = outcomes.find((outcome) => outcome.kind === "applied");
-    if (winner?.kind !== "applied") {
+    const winner = outcomes.find((outcome) => outcome.kind === "edited");
+    if (winner?.kind !== "edited") {
       throw new Error("test setup: expected one save to have won the race");
     }
-    expect(row?.legalName).toBe(winner.row.legalName);
+    expect(row?.legalName).toBe(winner.identification.legalName);
 
     const audited = await db
       .select()

@@ -1,3 +1,4 @@
+import { cancellableWithoutAuthorization } from "../../sales/index.js";
 import { isValidCashAmount } from "../model/cash-amount.js";
 import type { ClosedCashSession } from "../model/cash-session.js";
 import { expectedCash } from "../model/expected-cash.js";
@@ -20,7 +21,7 @@ export interface CloseCashSessionPorts {
 export type CloseCashSessionOutcome =
   | { kind: "invalid_counted_cash" }
   | { kind: "no_open_session" }
-  | { kind: "open_sale"; total: number }
+  | { kind: "open_sale"; total: number; cancellable: boolean }
   | { kind: "closed"; session: ClosedCashSession };
 
 export function closeCashSession(
@@ -36,9 +37,13 @@ export function closeCashSession(
     if (!open || open.id !== sessionId) {
       return { kind: "no_open_session" };
     }
-    const openSaleTotal = tx.openSaleTotal();
-    if (openSaleTotal !== undefined) {
-      return { kind: "open_sale", total: openSaleTotal };
+    const openSale = tx.openSale();
+    if (openSale) {
+      return {
+        kind: "open_sale",
+        total: openSale.total,
+        cancellable: cancellableWithoutAuthorization(openSale.payments),
+      };
     }
 
     const closedAt = clock.now();

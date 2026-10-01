@@ -1,8 +1,10 @@
 import type {
   Authorization,
+  CancelLockedSaleOutcome,
   CashBalance,
   CloseLockedCashSessionOutcome,
   IdentifyLockedCloserOutcome,
+  SessionOpenSale,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
@@ -32,9 +34,15 @@ const IDENTIFIED: IdentifyLockedCloserOutcome = {
 };
 
 type Close = (countedCash: number, closer: Authorization) => Promise<CloseLockedCashSessionOutcome>;
+type CancelSale = (closer: Authorization) => Promise<CancelLockedSaleOutcome>;
 
 async function renderScreen(
-  options: { identify?: () => Promise<IdentifyLockedCloserOutcome>; close?: Close } = {},
+  options: {
+    identify?: () => Promise<IdentifyLockedCloserOutcome>;
+    close?: Close;
+    cancelSale?: CancelSale;
+    loadOpenSale?: () => Promise<SessionOpenSale | null | "unavailable">;
+  } = {},
 ) {
   await page.viewport(1280, 720);
   onTestFinished(() => page.viewport(414, 896));
@@ -47,9 +55,11 @@ async function renderScreen(
       registerName="Caja 1"
       openedAt="2026-09-30T12:02:00.000Z"
       loadCashBalance={loadCashBalance}
+      loadOpenSale={options.loadOpenSale ?? (async () => null)}
       loadAuthorizers={async () => [{ id: "u3", first_name: "Sofía" }]}
       identifyLockedCloser={options.identify ?? (async () => IDENTIFIED)}
       closeLockedCashSession={close}
+      cancelLockedSale={options.cancelSale ?? (async () => ({ kind: "cancelled" }))}
     />,
   );
   return { screen, loadCashBalance, close };
@@ -83,9 +93,11 @@ describe("LockedCloseScreen", () => {
         registerName="Caja 1"
         openedAt="2026-09-30T12:02:00.000Z"
         loadCashBalance={async () => BALANCE}
+        loadOpenSale={async () => null}
         loadAuthorizers={(permission) => loadAuthorizers(permission)}
         identifyLockedCloser={async () => IDENTIFIED}
         closeLockedCashSession={async () => ({ kind: "unavailable" })}
+        cancelLockedSale={async () => ({ kind: "unavailable" })}
       />
     );
     const screen = await render(element());
@@ -142,5 +154,20 @@ describe("LockedCloseScreen", () => {
       .toBeVisible();
     await expect.element(screen.getByText("Sofía no puede cerrar la caja")).toBeVisible();
     await expect.element(screen.getByText("$ 46.200,00", { exact: true })).not.toBeInTheDocument();
+  });
+
+  it("shows the open sale once the person who closes is identified and cancels it with their PIN", async () => {
+    const cancelSale = vi.fn<CancelSale>(async () => ({ kind: "cancelled" }));
+    const { screen } = await renderScreen({
+      loadOpenSale: async () => ({ total: 3_434_000, cancellable: true }),
+      cancelSale,
+    });
+    await identifySofia(screen);
+    await expect.element(screen.getByText("Hay una venta abierta de $ 34.340,00")).toBeVisible();
+    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+
+    await screen.getByRole("dialog").getByRole("button", { name: "Cancelar la venta" }).click();
+
+    await expect.poll(() => cancelSale.mock.calls).toEqual([[{ user_id: "u3", pin: "1234" }]]);
   });
 });

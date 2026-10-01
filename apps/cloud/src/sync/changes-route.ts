@@ -11,6 +11,7 @@ import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { PUBLIC_ACCESS } from "../access/route-access.js";
 import { toBranchSettingsWire } from "../branch/branch-settings-read-route.js";
+import { toIssuerIdentificationWire } from "../fiscal/issuer-identification-read-route.js";
 import { registerInstallations, registers } from "../platform/db/schema.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
@@ -127,6 +128,34 @@ function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number]
           weekdays: change.row.weekdays,
           active: change.row.active,
           version: change.row.version,
+        },
+      };
+    case "issuer_identification":
+      return {
+        change_seq,
+        entity: change.entity,
+        entity_id,
+        row: toIssuerIdentificationWire(change.row),
+      };
+    case "buyer_identification_threshold":
+      return {
+        change_seq,
+        entity: change.entity,
+        entity_id,
+        row: { amount: change.row.amount, valid_from: change.row.validFrom },
+      };
+    case "buyer_tax_status_set":
+      return {
+        change_seq,
+        entity: change.entity,
+        entity_id,
+        row: {
+          params_version: change.row.paramsVersion,
+          options: change.row.options.map(({ code, description, invoiceClass }) => ({
+            code,
+            description,
+            invoice_class: invoiceClass,
+          })),
         },
       };
     case "removal":

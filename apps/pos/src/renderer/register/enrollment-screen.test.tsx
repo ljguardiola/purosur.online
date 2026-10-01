@@ -212,6 +212,23 @@ describe("EnrollmentScreen", () => {
     expect(codes).toEqual([]);
   });
 
+  it("keeps asking for the whole code while what is typed is still incomplete, and stops once it is whole", async () => {
+    const screen = await render(
+      <EnrollmentScreen enroll={answering({ kind: "enrolled" }).enroll} />,
+    );
+    await submitCode(screen, "P4NX 7KWE");
+    const field = screen.getByRole("textbox", { name: "Código de alta" });
+    const message = screen.getByText("Escribí los 16 caracteres del código de alta.");
+    await expect.element(message).toBeVisible();
+
+    await userEvent.type(field, " 2QRT");
+    await expect.element(message).toBeVisible();
+
+    await userEvent.type(field, " 6MZD");
+    await expect.element(message).not.toBeInTheDocument();
+    await expect.element(field).not.toHaveAttribute("aria-invalid", "true");
+  });
+
   it("clears the outcome of the last attempt when the code is redeemed again", async () => {
     const outcomes: EnrollmentOutcome[] = [{ kind: "unreachable" }, { kind: "code_rejected" }];
     const screen = await render(

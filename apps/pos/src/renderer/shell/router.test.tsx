@@ -104,9 +104,12 @@ function contextWith(
     openCashSession: async () => ({ kind: "unavailable" }),
     closeCashSession: async () => ({ kind: "unavailable" }),
     closeLockedCashSession: async () => ({ kind: "unavailable" }),
+    cancelLockedSale: async () => ({ kind: "unavailable" }),
     identifyLockedCloser: async () => ({ kind: "unavailable" }),
     cashBalance: async () => "unavailable",
+    sessionOpenSale: async () => "unavailable",
     cashMovements: async () => "unavailable",
+    cashMovementKinds: async () => "unavailable",
     recordCashMovement: async () => ({ kind: "unavailable" }),
     enroll: async () => ({ kind: "enrolled" }),
     registerName: async () => null,
@@ -119,6 +122,7 @@ function contextWith(
     requestFirstPinCode: async () => ({ kind: "sent" }),
     firstSignIn: async () => ({ kind: "signed_in", person: PERSON }),
     currentSale: async () => null,
+    cashCharge: async () => ({ kind: "invalid_amount" }),
     chargeSaleInCash: async () => ({ kind: "unavailable" }),
     scanProduct: async () => ({ kind: "unknown_code" }),
     searchProducts: async () => ({ kind: "results", products: [], more: false }),
@@ -656,6 +660,7 @@ describe("the register's router", () => {
           ],
           total: 238_000,
         }),
+        cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 0 }),
         chargeSaleInCash: async (saleId, tendered) => {
           charges.push([saleId, tendered]);
           return { kind: "completed", sale_id: saleId, total: 238_000, tendered, change: 0 };
@@ -698,6 +703,7 @@ describe("the register's router", () => {
           ],
           total: 238_000,
         }),
+        cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 0 }),
         chargeSaleInCash: async () => ({ kind: "no_open_session" }),
         refreshCashSession: refreshed,
       },
@@ -784,6 +790,11 @@ describe("the register's router", () => {
         ),
         cashBalance: async () => BALANCE,
         cashMovements: async () => [],
+        cashMovementKinds: async () => ({
+          CASH_IN: { permission: "record_cash_in", authorization_required: false },
+          CASH_OUT: { permission: "record_cash_expense", authorization_required: true },
+          WITHDRAWAL: { permission: "withdraw_cash", authorization_required: true },
+        }),
         recordCashMovement: async (input) => {
           recorded.push([input.kind, input.reason]);
           return { kind: "unavailable" };
@@ -1094,6 +1105,39 @@ describe("the register's router", () => {
 
     expect(identified).toEqual([{ user_id: "u3", pin: "1234" }]);
     await expect.poll(() => closed).toEqual([["s1", 4_580_000, { user_id: "u3", pin: "1234" }]]);
+  });
+
+  it("shows the locked register's open sale read through the router context and cancels it with the closer's PIN", async () => {
+    const cancelled: unknown[] = [];
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", null, undefined, OPEN_SESSION),
+        authorizers: async () => [{ id: "u3", first_name: "Sofía" }],
+        cashBalance: async () => BALANCE,
+        identifyLockedCloser: async () => ({
+          kind: "identified",
+          person: { user_id: "u3", first_name: "Sofía" },
+        }),
+        sessionOpenSale: async () => ({ total: 3_434_000, cancellable: true }),
+        cancelLockedSale: async (closer) => {
+          cancelled.push(closer);
+          return { kind: "cancelled" };
+        },
+      },
+      "/locked-close",
+    );
+    const screen = await render(<RouterProvider router={router} />);
+    await userEvent.click(screen.getByText("Sofía", { exact: true }));
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cancelar la venta" }));
+
+    await userEvent.click(
+      screen.getByRole("dialog").getByRole("button", { name: "Cancelar la venta" }),
+    );
+
+    await expect.poll(() => cancelled).toEqual([{ user_id: "u3", pin: "1234" }]);
   });
 
   it("reaches the PIN code redemption screen from the locked register once the opener is locked out", async () => {

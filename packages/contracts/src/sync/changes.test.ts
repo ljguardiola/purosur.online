@@ -68,6 +68,25 @@ const roleRow = {
 
 const registerRow = { name: "Caja 1", version: 1 };
 
+const issuerIdentificationRow = {
+  legal_name: "Comercio de Prueba",
+  gross_income_registration: "CM 000-000000-0",
+  activity_start_date: "2020-01-15",
+  authorized_cuit: "20000000001",
+  tax_status: "Responsable Monotributo",
+  version: 2,
+};
+
+const thresholdRow = { amount: 1_000_000, valid_from: "2026-10-01" };
+
+const taxStatusSetRow = {
+  params_version: 3,
+  options: [
+    { code: 901, description: "Condicion de prueba A", invoice_class: "A" },
+    { code: 902, description: "Condicion de prueba B", invoice_class: "B" },
+  ],
+};
+
 const discountRow = {
   name: "Martes de infusiones",
   benefit: { kind: "PERCENT_OFF", percent: 10 },
@@ -177,6 +196,18 @@ describe("changesPageSchema", () => {
     ["the removal of a role", removal(1, "role", 4)],
     ["a register", change(1, "register", registerRow)],
     ["the removal of a register", removal(1, "register", 2)],
+    ["an issuer identification", change(1, "issuer_identification", issuerIdentificationRow)],
+    [
+      "an issuer identification that is not loaded yet",
+      change(1, "issuer_identification", {
+        ...issuerIdentificationRow,
+        legal_name: null,
+        gross_income_registration: null,
+        activity_start_date: null,
+      }),
+    ],
+    ["a buyer-identification threshold", change(1, "buyer_identification_threshold", thresholdRow)],
+    ["a set of buyer tax statuses", change(1, "buyer_tax_status_set", taxStatusSetRow)],
     ["a discount", change(1, "discount", discountRow)],
     ["a discount that applies every day", change(1, "discount", { ...discountRow, weekdays: [] })],
     [
@@ -240,6 +271,16 @@ describe("changesPageSchema", () => {
     const page = pageOf(change(1, "discount", { ...discountRow, location_id: ENTITY_ID }));
 
     expect(changesPageSchema.parse(page).changes[0]).toEqual(change(1, "discount", discountRow));
+  });
+
+  it.each([
+    ["an issuer identification", "issuer_identification", issuerIdentificationRow],
+    ["a buyer-identification threshold", "buyer_identification_threshold", thresholdRow],
+    ["a set of buyer tax statuses", "buyer_tax_status_set", taxStatusSetRow],
+  ])("keeps nothing of %s but the fields a register may hold", (_case, entity, row) => {
+    const page = pageOf(change(1, entity, { ...row, location_id: ENTITY_ID }));
+
+    expect(changesPageSchema.parse(page).changes[0]).toEqual(change(1, entity, row));
   });
 
   it("accepts an empty last page", () => {
@@ -326,6 +367,74 @@ describe("changesPageSchema", () => {
     ],
     ["a tag without its active flag", pageOf(change(1, "tag", { ...tagRow, active: undefined }))],
     ["a tag without its name", pageOf(change(1, "tag", { ...tagRow, name: undefined }))],
+    [
+      "an issuer identification without its CUIT",
+      pageOf(
+        change(1, "issuer_identification", {
+          ...issuerIdentificationRow,
+          authorized_cuit: undefined,
+        }),
+      ),
+    ],
+    [
+      "an issuer identification without its version",
+      pageOf(
+        change(1, "issuer_identification", { ...issuerIdentificationRow, version: undefined }),
+      ),
+    ],
+    [
+      "a threshold of zero",
+      pageOf(change(1, "buyer_identification_threshold", { ...thresholdRow, amount: 0 })),
+    ],
+    [
+      "a threshold with a fractional amount",
+      pageOf(change(1, "buyer_identification_threshold", { ...thresholdRow, amount: 1.5 })),
+    ],
+    [
+      "a threshold whose start is not a calendar day",
+      pageOf(
+        change(1, "buyer_identification_threshold", { ...thresholdRow, valid_from: "2026-02-30" }),
+      ),
+    ],
+    [
+      "a tax-status set without its version",
+      pageOf(change(1, "buyer_tax_status_set", { ...taxStatusSetRow, params_version: undefined })),
+    ],
+    [
+      "a tax-status set of version zero",
+      pageOf(change(1, "buyer_tax_status_set", { ...taxStatusSetRow, params_version: 0 })),
+    ],
+    [
+      "an empty tax-status set",
+      pageOf(change(1, "buyer_tax_status_set", { ...taxStatusSetRow, options: [] })),
+    ],
+    [
+      "a tax-status set repeating a code",
+      pageOf(
+        change(1, "buyer_tax_status_set", {
+          ...taxStatusSetRow,
+          options: [taxStatusSetRow.options[0], taxStatusSetRow.options[0]],
+        }),
+      ),
+    ],
+    [
+      "a tax-status option without its invoice class",
+      pageOf(
+        change(1, "buyer_tax_status_set", {
+          ...taxStatusSetRow,
+          options: [{ code: 901, description: "Condicion de prueba A" }],
+        }),
+      ),
+    ],
+    [
+      "a tax-status option whose code is not an integer",
+      pageOf(
+        change(1, "buyer_tax_status_set", {
+          ...taxStatusSetRow,
+          options: [{ code: 9.5, description: "Condicion de prueba A", invoice_class: "A" }],
+        }),
+      ),
+    ],
     [
       "a discount of a benefit kind it does not know",
       pageOf(

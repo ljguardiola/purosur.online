@@ -194,6 +194,19 @@ describe("CashCountScreen", () => {
     expect(closeCashSession).not.toHaveBeenCalled();
   });
 
+  it("keeps the message while the edited count is still invalid and clears it once it is valid", async () => {
+    const { screen } = await renderScreen();
+    await count(screen, "abc");
+    await submit(screen);
+    await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
+
+    await count(screen, "abd");
+    await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
+
+    await count(screen, "45.800,00");
+    await expect.element(screen.getByText(INVALID_MESSAGE)).not.toBeInTheDocument();
+  });
+
   it("asks for a valid amount when the core refuses the counted cash", async () => {
     const { screen } = await renderScreen({
       closeCashSession: async () => ({ kind: "invalid_counted_cash" }),
@@ -207,7 +220,7 @@ describe("CashCountScreen", () => {
 
   it("stops the count with the open sale's total and a way to reach it", async () => {
     const { screen } = await renderScreen({
-      closeCashSession: async () => ({ kind: "open_sale", total: 3_434_000 }),
+      closeCashSession: async () => ({ kind: "open_sale", total: 3_434_000, cancellable: true }),
     });
 
     await count(screen, "45.800,00");

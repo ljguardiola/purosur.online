@@ -1,8 +1,10 @@
 import type {
   AddProductOutcome,
   Authorization,
+  CancelLockedSaleOutcome,
   CancelSaleOutcome,
   CashBalance,
+  CashChargeAnswer,
   ChangeLineQuantityOutcome,
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
@@ -16,11 +18,13 @@ import type {
   OpenCashSession,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
+  RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RemoveSaleLineOutcome,
   RendererToCoreMessage,
   ScanProductOutcome,
   SearchProductsOutcome,
+  SessionOpenSale,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
@@ -45,6 +49,7 @@ export interface RendererRequestDeps {
     | ((request: CashMovementRequest) => Promise<RecordCashMovementOutcome>)
     | undefined;
   cashMovements: (() => ListedCashMovement[] | null) | undefined;
+  cashMovementKinds: (() => RecordableCashMovementKinds | null) | undefined;
   scanProduct: ((code: string) => Promise<ScanProductOutcome>) | undefined;
   chargeSaleInCash:
     | ((request: ChargeSaleInCashRequest) => Promise<ChargeSaleInCashOutcome>)
@@ -52,6 +57,7 @@ export interface RendererRequestDeps {
   searchProducts: ((query: string) => Promise<SearchProductsOutcome>) | undefined;
   addProduct: ((productId: string) => Promise<AddProductOutcome>) | undefined;
   currentSale: (() => Promise<CurrentSaleAnswer>) | undefined;
+  cashCharge: ((request: ChargeSaleInCashRequest) => Promise<CashChargeAnswer>) | undefined;
   changeLineQuantity:
     | ((
         lineId: string,
@@ -75,10 +81,12 @@ export interface RendererRequestDeps {
         closer: Authorization,
       ) => Promise<CloseLockedCashSessionOutcome>)
     | undefined;
+  cancelLockedSale: ((closer: Authorization) => Promise<CancelLockedSaleOutcome>) | undefined;
   identifyLockedCloser:
     | ((closer: Authorization) => Promise<IdentifyLockedCloserOutcome>)
     | undefined;
   cashBalance: (() => CashBalance | null) | undefined;
+  sessionOpenSale: (() => SessionOpenSale | null) | undefined;
   authorizers: ((permission: AuthorizablePermissionKey) => SignInUser[]) | undefined;
   signOut: () => void;
   reportFailure: (context: string, error: unknown) => void;
@@ -204,6 +212,18 @@ async function attemptCloseLockedCashSession(
   }
 }
 
+async function attemptCancelLockedSale(
+  deps: RendererRequestDeps,
+  closer: Authorization,
+): Promise<CancelLockedSaleOutcome> {
+  try {
+    return (await deps.cancelLockedSale?.(closer)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("cancelling the open sale of a locked register", error);
+    return { kind: "unavailable" };
+  }
+}
+
 async function attemptIdentifyLockedCloser(
   deps: RendererRequestDeps,
   closer: Authorization,
@@ -221,6 +241,15 @@ function readCashBalance(deps: RendererRequestDeps): CashBalance | null | undefi
     return deps.cashBalance?.();
   } catch (error) {
     deps.reportFailure("reading the cash balance", error);
+    return undefined;
+  }
+}
+
+function readSessionOpenSale(deps: RendererRequestDeps): SessionOpenSale | null | undefined {
+  try {
+    return deps.sessionOpenSale?.();
+  } catch (error) {
+    deps.reportFailure("reading the open sale", error);
     return undefined;
   }
 }
@@ -251,6 +280,17 @@ function readCashMovements(deps: RendererRequestDeps): ListedCashMovement[] | nu
     return deps.cashMovements?.();
   } catch (error) {
     deps.reportFailure("reading the cash movements", error);
+    return undefined;
+  }
+}
+
+function readCashMovementKinds(
+  deps: RendererRequestDeps,
+): RecordableCashMovementKinds | null | undefined {
+  try {
+    return deps.cashMovementKinds?.();
+  } catch (error) {
+    deps.reportFailure("reading the cash movements the person can record", error);
     return undefined;
   }
 }
@@ -321,6 +361,18 @@ async function readCurrentSale(deps: RendererRequestDeps): Promise<CurrentSaleAn
     return await deps.currentSale?.();
   } catch (error) {
     deps.reportFailure("reading the sale in progress", error);
+    return undefined;
+  }
+}
+
+async function readCashCharge(
+  deps: RendererRequestDeps,
+  request: ChargeSaleInCashRequest,
+): Promise<CashChargeAnswer | undefined> {
+  try {
+    return await deps.cashCharge?.(request);
+  } catch (error) {
+    deps.reportFailure("reading what a tendered amount needs", error);
     return undefined;
   }
 }
@@ -413,6 +465,12 @@ export async function answerRendererRequest(
         ? { type: "cash-movements-unavailable", request_id: message.request_id }
         : { type: "cash-movements", request_id: message.request_id, movements };
     }
+    case "cash-movement-kinds-request": {
+      const kinds = readCashMovementKinds(deps);
+      return kinds === undefined
+        ? { type: "cash-movement-kinds-unavailable", request_id: message.request_id }
+        : { type: "cash-movement-kinds", request_id: message.request_id, kinds };
+    }
     case "scan-product":
       return {
         type: "scan-product-result",
@@ -481,6 +539,18 @@ export async function answerRendererRequest(
         ? { type: "sale-unavailable", request_id: message.request_id }
         : { type: "sale", request_id: message.request_id, sale };
     }
+    case "cash-charge-request": {
+      const charge = await readCashCharge(deps, {
+        saleId: message.sale_id,
+        tendered: message.tendered,
+      });
+      if (charge === "not_permitted") {
+        return { type: "cash-charge-not-permitted", request_id: message.request_id };
+      }
+      return charge === undefined
+        ? { type: "cash-charge-unavailable", request_id: message.request_id }
+        : { type: "cash-charge", request_id: message.request_id, charge };
+    }
     case "close-cash-session":
       return {
         type: "close-cash-session-result",
@@ -503,6 +573,12 @@ export async function answerRendererRequest(
           message.closer,
         ),
       };
+    case "cancel-locked-sale":
+      return {
+        type: "cancel-locked-sale-result",
+        request_id: message.request_id,
+        outcome: await attemptCancelLockedSale(deps, message.closer),
+      };
     case "identify-locked-closer":
       return {
         type: "identify-locked-closer-result",
@@ -514,6 +590,12 @@ export async function answerRendererRequest(
       return balance === undefined
         ? { type: "cash-balance-unavailable", request_id: message.request_id }
         : { type: "cash-balance", request_id: message.request_id, balance };
+    }
+    case "session-open-sale-request": {
+      const sale = readSessionOpenSale(deps);
+      return sale === undefined
+        ? { type: "session-open-sale-unavailable", request_id: message.request_id }
+        : { type: "session-open-sale", request_id: message.request_id, sale };
     }
     case "authorizers": {
       const users = readAuthorizers(deps, message.permission);

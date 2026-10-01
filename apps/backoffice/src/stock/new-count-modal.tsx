@@ -9,17 +9,18 @@ import {
   LoadFailure,
   LoadingPlaceholder,
   Modal,
+  type RequestSubmission,
+  SharedFieldError,
   SummaryRowGroup,
   TextField,
+  useFieldContext,
+  useRequestForm,
 } from "@purosur/ui";
 import { Check, ClipboardCheck, Package, ShieldX, TriangleAlert } from "lucide-react";
 import { useState } from "react";
-import { useSendToMyAccount } from "../access/send-to-my-account";
-import { type CloudSubmission, useCloudForm } from "../platform/cloud-form";
-import { useFieldContext } from "../platform/cloud-form-context";
-import { SharedFieldError } from "../platform/cloud-form-fields";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { type CountMoment, type CountStart, countOccurredAt } from "./count-moment";
 import type { RegisterCountOutcome } from "./stock-api";
 import type { StockCountsScreenServices } from "./stock-counts-services";
@@ -145,7 +146,7 @@ export function NewCountModal({
   const productOf = (productId: string | null) =>
     listed.find((product) => product.id === productId);
 
-  const { form, submit, submitting, values } = useCloudForm({
+  const { form, submit, submitting, values } = useRequestForm({
     defaultValues: {
       productId: null,
       moment: { day: startMoment.day, time: startMoment.time },
@@ -186,7 +187,7 @@ export function NewCountModal({
   function handleOutcome(
     product: StockProduct,
     outcome: RegisterCountOutcome,
-    { showFieldError, showWireFieldError }: CloudSubmission<CountFormValues>,
+    { showFieldError, showWireFieldError }: RequestSubmission<CountFormValues>,
   ) {
     if (outcome.kind === "ok") {
       onRegistered(product, outcome.value);

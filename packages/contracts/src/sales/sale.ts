@@ -48,6 +48,14 @@ export const saleSchema = z.object({
 export type OpenSale = z.infer<typeof saleSchema>;
 export type CurrentSaleAnswer = OpenSale | null | "not_permitted";
 
+export const cashChargeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("invalid_amount") }),
+  z.object({ kind: z.literal("insufficient"), amountDue: z.number() }),
+  z.object({ kind: z.literal("covered"), applied: z.number(), change: z.number() }),
+]);
+export type CashCharge = z.infer<typeof cashChargeSchema>;
+export type CashChargeAnswer = CashCharge | null | "not_permitted";
+
 const addedOutcome = z.object({ kind: z.literal("added"), sale: saleSchema });
 const noPriceOutcome = z.object({ kind: z.literal("no_price"), product_name: z.string() });
 const soldByWeightOutcome = z.object({
@@ -101,6 +109,7 @@ export type RemoveSaleLineOutcome = z.infer<typeof removeSaleLineOutcomeSchema>;
 
 export const cancelSaleOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("cancelled") }),
+  z.object({ kind: z.literal("has_approved_payment") }),
   ...saleRefusalSchemas,
 ]);
 export type CancelSaleOutcome = z.infer<typeof cancelSaleOutcomeSchema>;

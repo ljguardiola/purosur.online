@@ -1,4 +1,10 @@
-import type { CashBalance, ListedCashMovement, OpenCashSession } from "@purosur/contracts";
+import type {
+  CashBalance,
+  ListedCashMovement,
+  OpenCashSession,
+  RecordableCashMovementKinds,
+  SessionOpenSale,
+} from "@purosur/contracts";
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -9,9 +15,12 @@ import type { CashSessionState } from "../shell/cash-session-state";
 import {
   registerKeys,
   useCashBalanceQuery,
+  useCashMovementKindsQuery,
   useCashMovementsQuery,
   useCashSessionQuery,
   useRegisterNameQuery,
+  useSessionOpenSaleQuery,
+  useSetSessionOpenSale,
 } from "./register-queries";
 
 const BALANCE: CashBalance = {
@@ -266,5 +275,114 @@ describe("register name query", () => {
 
     const failing = await renderRegisterName(() => Promise.reject(new Error("replaced")));
     await expect.element(failing.getByText("name null")).toBeVisible();
+  });
+});
+
+const KINDS: RecordableCashMovementKinds = {
+  CASH_IN: { permission: "record_cash_in", authorization_required: false },
+  CASH_OUT: { permission: "record_cash_expense", authorization_required: true },
+  WITHDRAWAL: { permission: "withdraw_cash", authorization_required: true },
+};
+
+type KindsRead = () => Promise<RecordableCashMovementKinds | null | "unavailable">;
+
+function KindsProbe({ read, userId = "u1" }: { read: KindsRead; userId?: string }) {
+  const kinds = useCashMovementKindsQuery(userId, read);
+  return <p>{describeData(kinds, (value) => value.WITHDRAWAL.permission)}</p>;
+}
+
+describe("cash movement kinds query", () => {
+  it("holds the kinds the core answers", async () => {
+    const screen = await render(
+      <QueryClientProvider client={createQueryClient()}>
+        <KindsProbe read={async () => KINDS} />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("withdraw_cash")).toBeVisible();
+  });
+
+  it("never shows what was answered for another person", async () => {
+    const queryClient = createQueryClient();
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <KindsProbe read={async () => KINDS} />
+      </QueryClientProvider>,
+    );
+    await expect.element(screen.getByText("withdraw_cash")).toBeVisible();
+
+    await screen.rerender(
+      <QueryClientProvider client={queryClient}>
+        <KindsProbe read={() => new Promise(() => {})} userId="u2" />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("loading")).toBeVisible();
+  });
+
+  it("fails when the core cannot answer", async () => {
+    const screen = await render(
+      <QueryClientProvider client={createQueryClient()}>
+        <KindsProbe read={async () => "unavailable"} />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("failed")).toBeVisible();
+  });
+
+  it("neither fails nor shows data while nobody is signed in", async () => {
+    const read = vi.fn<KindsRead>(async () => null);
+    const screen = await render(
+      <QueryClientProvider client={createQueryClient()}>
+        <KindsProbe read={read} />
+      </QueryClientProvider>,
+    );
+
+    await expect.poll(() => read.mock.calls.length).toBe(1);
+    await expect.element(screen.getByText("loading")).toBeVisible();
+  });
+});
+
+type OpenSaleRead = () => Promise<SessionOpenSale | null | "unavailable">;
+
+function OpenSaleProbe({ read, answer }: { read: OpenSaleRead; answer: SessionOpenSale | null }) {
+  const sale = useSessionOpenSaleQuery("s1", read);
+  const setOpenSale = useSetSessionOpenSale("s1");
+  return (
+    <>
+      <p>{["sale", describeData(sale, (value) => JSON.stringify(value))].join(" ")}</p>
+      <button type="button" onClick={() => void setOpenSale(answer)}>
+        answer
+      </button>
+    </>
+  );
+}
+
+describe("open sale query", () => {
+  it("holds the open sale the core answers, then the answer set in its place without reading again", async () => {
+    const read = vi.fn<OpenSaleRead>(async () => ({ total: 3_434_000, cancellable: true }));
+    const screen = await render(
+      <QueryClientProvider client={createQueryClient()}>
+        <OpenSaleProbe read={read} answer={null} />
+      </QueryClientProvider>,
+    );
+    await expect
+      .element(screen.getByText('sale {"total":3434000,"cancellable":true}'))
+      .toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "answer" }));
+
+    await expect.element(screen.getByText("sale null")).toBeVisible();
+    expect(read).toHaveBeenCalledOnce();
+  });
+
+  it("fails when the core cannot answer", async () => {
+    const screen = await render(
+      <QueryClientProvider client={createQueryClient()}>
+        <OpenSaleProbe read={async () => "unavailable"} answer={null} />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("sale failed")).toBeVisible();
   });
 });

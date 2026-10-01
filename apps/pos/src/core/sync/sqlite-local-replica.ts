@@ -5,6 +5,7 @@ import type { LocalDatabase } from "../platform/local-database";
 import { prepareAccessPageWrites } from "./access-page-writes";
 import { prepareCatalogPageWrites } from "./catalog-page-writes";
 import { prepareDiscountPageWrites } from "./discount-page-writes";
+import { prepareFiscalPageWrites } from "./fiscal-page-writes";
 import type { RegisterPulledChange } from "./pulled-change";
 import { prepareRegisterPageWrites } from "./register-page-writes";
 
@@ -86,6 +87,7 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
     const access = prepareAccessPageWrites(this.database, this.pepper);
     const register = prepareRegisterPageWrites(this.database);
     const discount = prepareDiscountPageWrites(this.database);
+    const fiscal = prepareFiscalPageWrites(this.database);
     const saveBranchSettings = this.database.prepare(
       `INSERT INTO branch_settings (
          location_id, address, whatsapp_number, instagram_handle, weekly_hours,
@@ -154,6 +156,15 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
             break;
           case "discount":
             discount.save(change);
+            break;
+          case "issuer_identification":
+            fiscal.issuerIdentification(change);
+            break;
+          case "buyer_identification_threshold":
+            fiscal.buyerIdentificationThreshold(change);
+            break;
+          case "buyer_tax_status_set":
+            fiscal.buyerTaxStatusSet(change);
             break;
           case "removal": {
             const { removed_entity } = change;

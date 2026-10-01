@@ -1,7 +1,7 @@
 import type { AlertDetail, AlertListPage, AlertsOverview } from "@purosur/contracts";
 import { useQueryClient } from "@tanstack/react-query";
-import { useSendToMyAccount } from "../access/send-to-my-account";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useCloudQuery } from "../platform/use-cloud-query";
 import type { AlertListQuery, fetchAlert, fetchAlerts, fetchAlertsOverview } from "./alerts-api";
 

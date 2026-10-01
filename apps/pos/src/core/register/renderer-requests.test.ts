@@ -1,7 +1,9 @@
 import type {
   AddProductOutcome,
+  CancelLockedSaleOutcome,
   CancelSaleOutcome,
   CashBalance,
+  CashChargeAnswer,
   ChangeLineQuantityOutcome,
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
@@ -12,10 +14,12 @@ import type {
   OpenCashSession,
   OpenCashSessionOutcome,
   OpenSale,
+  RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
+  SessionOpenSale,
   SignInLookupOutcome,
   SignInOutcome,
 } from "@purosur/contracts";
@@ -43,7 +47,9 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const charges: { saleId: string; tendered: number }[] = [];
   const searches: string[] = [];
   const additions: string[] = [];
+  const kindLookups: string[] = [];
   const saleLookups: string[] = [];
+  const chargeReads: { saleId: string; tendered: number }[] = [];
   const saleChanges: string[] = [];
   const signOuts: string[] = [];
   const failures: { context: string; error: unknown }[] = [];
@@ -62,7 +68,9 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
     charges,
     searches,
     additions,
+    kindLookups,
     saleLookups,
+    chargeReads,
     saleChanges,
     signOuts,
     failures,
@@ -106,6 +114,10 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         return { kind: "no_open_session" };
       },
       cashMovements: (): ListedCashMovement[] | null => null,
+      cashMovementKinds: (): RecordableCashMovementKinds | null => {
+        kindLookups.push("read");
+        return null;
+      },
       scanProduct: async (code: string): Promise<ScanProductOutcome> => {
         scans.push(code);
         return { kind: "unknown_code" };
@@ -145,6 +157,13 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         saleLookups.push("read");
         return null;
       },
+      cashCharge: async (request: {
+        saleId: string;
+        tendered: number;
+      }): Promise<CashChargeAnswer> => {
+        chargeReads.push(request);
+        return null;
+      },
       closeCashSession: async (
         sessionId: string,
         countedCash: number,
@@ -156,10 +175,14 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       closeLockedCashSession: async (): Promise<CloseLockedCashSessionOutcome> => ({
         kind: "no_open_session",
       }),
+      cancelLockedSale: async (): Promise<CancelLockedSaleOutcome> => ({
+        kind: "no_open_sale",
+      }),
       identifyLockedCloser: async (): Promise<IdentifyLockedCloserOutcome> => ({
         kind: "not_locked",
       }),
       cashBalance: (): CashBalance | null => null,
+      sessionOpenSale: (): SessionOpenSale | null => null,
       authorizers: (permission: AuthorizablePermissionKey) => {
         authorizerLookups.push(permission);
         return [{ id: "u2", first_name: "Grace" }];
@@ -966,6 +989,139 @@ describe("answerRendererRequest", () => {
     expect(failing.failures).toEqual([{ context: "reading the sale in progress", error }]);
   });
 
+  it("reads the cash movement kinds the person can record, and answers them", async () => {
+    const kinds: RecordableCashMovementKinds = {
+      CASH_IN: { permission: "record_cash_in", authorization_required: false },
+      CASH_OUT: { permission: "record_cash_expense", authorization_required: true },
+      WITHDRAWAL: { permission: "withdraw_cash", authorization_required: true },
+    };
+    const reading = deps(true);
+    const { deps: withKinds } = deps(true, { cashMovementKinds: () => kinds });
+
+    expect(
+      await answerRendererRequest(withKinds, {
+        type: "cash-movement-kinds-request",
+        request_id: "r50",
+      }),
+    ).toEqual({ type: "cash-movement-kinds", request_id: "r50", kinds });
+    await answerRendererRequest(reading.deps, {
+      type: "cash-movement-kinds-request",
+      request_id: "r51",
+    });
+    expect(reading.kindLookups).toEqual(["read"]);
+  });
+
+  it("answers no kinds when nobody is signed in", async () => {
+    expect(
+      await answerRendererRequest(deps(true).deps, {
+        type: "cash-movement-kinds-request",
+        request_id: "r52",
+      }),
+    ).toEqual({ type: "cash-movement-kinds", request_id: "r52", kinds: null });
+  });
+
+  it("answers that the kinds cannot be read when the register has no database", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { cashMovementKinds: undefined }).deps, {
+        type: "cash-movement-kinds-request",
+        request_id: "r53",
+      }),
+    ).toEqual({ type: "cash-movement-kinds-unavailable", request_id: "r53" });
+  });
+
+  it("answers that the kinds cannot be read when reading them fails, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      cashMovementKinds: () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "cash-movement-kinds-request",
+        request_id: "r54",
+      }),
+    ).toEqual({ type: "cash-movement-kinds-unavailable", request_id: "r54" });
+    expect(failing.failures).toEqual([
+      { context: "reading the cash movements the person can record", error },
+    ]);
+  });
+
+  it("reads what a tendered amount needs for the sale as sent, and answers the charge", async () => {
+    const charge = { kind: "covered", applied: 3000, change: 2000 } as const;
+    const reading = deps(true);
+    const { deps: withCharge } = deps(true, { cashCharge: async () => charge });
+
+    expect(
+      await answerRendererRequest(withCharge, {
+        type: "cash-charge-request",
+        request_id: "r40",
+        sale_id: "s1",
+        tendered: 5000,
+      }),
+    ).toEqual({ type: "cash-charge", request_id: "r40", charge });
+    await answerRendererRequest(reading.deps, {
+      type: "cash-charge-request",
+      request_id: "r41",
+      sale_id: "s1",
+      tendered: 5000,
+    });
+    expect(reading.chargeReads).toEqual([{ saleId: "s1", tendered: 5000 }]);
+  });
+
+  it("answers no charge when there is no such sale in progress", async () => {
+    expect(
+      await answerRendererRequest(deps(true).deps, {
+        type: "cash-charge-request",
+        request_id: "r42",
+        sale_id: "s1",
+        tendered: 5000,
+      }),
+    ).toEqual({ type: "cash-charge", request_id: "r42", charge: null });
+  });
+
+  it("answers that the person signed in may not sell when asked for a charge", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { cashCharge: async () => "not_permitted" }).deps, {
+        type: "cash-charge-request",
+        request_id: "r43",
+        sale_id: "s1",
+        tendered: 5000,
+      }),
+    ).toEqual({ type: "cash-charge-not-permitted", request_id: "r43" });
+  });
+
+  it("answers that the charge cannot be read when the register has no database", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { cashCharge: undefined }).deps, {
+        type: "cash-charge-request",
+        request_id: "r44",
+        sale_id: "s1",
+        tendered: 5000,
+      }),
+    ).toEqual({ type: "cash-charge-unavailable", request_id: "r44" });
+  });
+
+  it("answers that the charge cannot be read when reading it fails, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      cashCharge: async () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "cash-charge-request",
+        request_id: "r45",
+        sale_id: "s1",
+        tendered: 5000,
+      }),
+    ).toEqual({ type: "cash-charge-unavailable", request_id: "r45" });
+    expect(failing.failures).toEqual([{ context: "reading what a tendered amount needs", error }]);
+  });
+
   it("closes a cash session with the session, the count and the authorization as sent, and answers the outcome", async () => {
     const closed: CloseCashSessionOutcome = {
       kind: "closed",
@@ -1107,6 +1263,68 @@ describe("answerRendererRequest", () => {
     });
   });
 
+  it("cancels the open sale of a locked register with the closer as sent, and answers the outcome", async () => {
+    const closer = { user_id: "u2", pin: "1234" };
+    const received: unknown[] = [];
+    const { deps: withCancelling } = deps(true, {
+      cancelLockedSale: async (sentCloser) => {
+        received.push(sentCloser);
+        return { kind: "cancelled" };
+      },
+    });
+
+    const answer = await answerRendererRequest(withCancelling, {
+      type: "cancel-locked-sale",
+      request_id: "r27",
+      closer,
+    });
+
+    expect(answer).toEqual({
+      type: "cancel-locked-sale-result",
+      request_id: "r27",
+      outcome: { kind: "cancelled" },
+    });
+    expect(received).toEqual([closer]);
+  });
+
+  it("answers that cancelling the open sale of a locked register is unavailable when it fails, and reports why", async () => {
+    const error = new Error("disk full");
+    const failing = deps(true, {
+      cancelLockedSale: async () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "cancel-locked-sale",
+        request_id: "r28",
+        closer: { user_id: "u2", pin: "1234" },
+      }),
+    ).toEqual({
+      type: "cancel-locked-sale-result",
+      request_id: "r28",
+      outcome: { kind: "unavailable" },
+    });
+    expect(failing.failures).toEqual([
+      { context: "cancelling the open sale of a locked register", error },
+    ]);
+  });
+
+  it("answers that cancelling the open sale of a locked register is unavailable when the register has no database", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { cancelLockedSale: undefined }).deps, {
+        type: "cancel-locked-sale",
+        request_id: "r29",
+        closer: { user_id: "u2", pin: "1234" },
+      }),
+    ).toEqual({
+      type: "cancel-locked-sale-result",
+      request_id: "r29",
+      outcome: { kind: "unavailable" },
+    });
+  });
+
   it("identifies who closes a locked register with the closer as sent, and answers the outcome", async () => {
     const identified: IdentifyLockedCloserOutcome = {
       kind: "identified",
@@ -1226,6 +1444,43 @@ describe("answerRendererRequest", () => {
       }),
     ).toEqual({ type: "cash-balance-unavailable", request_id: "r27" });
     expect(failing.failures).toEqual([{ context: "reading the cash balance", error }]);
+  });
+
+  it("answers the open sale of the session", async () => {
+    const sale: SessionOpenSale = { total: 3_434_000, cancellable: true };
+
+    expect(
+      await answerRendererRequest(deps(true, { sessionOpenSale: () => sale }).deps, {
+        type: "session-open-sale-request",
+        request_id: "r30",
+      }),
+    ).toEqual({ type: "session-open-sale", request_id: "r30", sale });
+  });
+
+  it("answers that the open sale cannot be read when the register has no database", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { sessionOpenSale: undefined }).deps, {
+        type: "session-open-sale-request",
+        request_id: "r31",
+      }),
+    ).toEqual({ type: "session-open-sale-unavailable", request_id: "r31" });
+  });
+
+  it("answers that the open sale cannot be read when reading it fails, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      sessionOpenSale: () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "session-open-sale-request",
+        request_id: "r32",
+      }),
+    ).toEqual({ type: "session-open-sale-unavailable", request_id: "r32" });
+    expect(failing.failures).toEqual([{ context: "reading the open sale", error }]);
   });
 
   it("answers nothing to a ping", async () => {

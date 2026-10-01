@@ -12,3 +12,12 @@ test("invalidating the fiscal key marks the issuer identification stale and leav
   expect(client.getQueryState(fiscalKeys.issuerIdentification)?.isInvalidated).toBe(true);
   expect(client.getQueryState(["catalog", "categories"])?.isInvalidated).toBe(false);
 });
+
+test("invalidating the fiscal key marks the buyer-identification thresholds stale too", async () => {
+  const client = new QueryClient();
+  client.setQueryData(fiscalKeys.buyerIdentificationThresholds, []);
+
+  await client.invalidateQueries({ queryKey: fiscalKey, refetchType: "none" });
+
+  expect(client.getQueryState(fiscalKeys.buyerIdentificationThresholds)?.isInvalidated).toBe(true);
+});

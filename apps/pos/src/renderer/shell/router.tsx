@@ -1,8 +1,10 @@
 import type {
   AddProductOutcome,
   Authorization,
+  CancelLockedSaleOutcome,
   CancelSaleOutcome,
   CashBalance,
+  CashChargeAnswer,
   ChangeLineQuantityOutcome,
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
@@ -15,10 +17,12 @@ import type {
   ListedCashMovement,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
+  RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
+  SessionOpenSale,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
@@ -85,9 +89,12 @@ export interface RouterContext {
     countedCash: number,
     closer: Authorization,
   ) => Promise<CloseLockedCashSessionOutcome>;
+  cancelLockedSale: (closer: Authorization) => Promise<CancelLockedSaleOutcome>;
   identifyLockedCloser: (closer: Authorization) => Promise<IdentifyLockedCloserOutcome>;
   cashBalance: () => Promise<CashBalance | null | "unavailable">;
+  sessionOpenSale: () => Promise<SessionOpenSale | null | "unavailable">;
   cashMovements: () => Promise<ListedCashMovement[] | null | "unavailable">;
+  cashMovementKinds: () => Promise<RecordableCashMovementKinds | null | "unavailable">;
   recordCashMovement: (input: CashMovementInput) => Promise<RecordCashMovementOutcome>;
   redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
   signInLookup: (email: string) => Promise<SignInLookupOutcome>;
@@ -95,6 +102,7 @@ export interface RouterContext {
   firstSignIn: (userId: string, pin: string) => Promise<SignInOutcome>;
   currentSale: () => Promise<CurrentSaleAnswer>;
   scanProduct: (code: string) => Promise<ScanProductOutcome>;
+  cashCharge: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   searchProducts: (query: string) => Promise<SearchProductsOutcome>;
   addProduct: (productId: string) => Promise<AddProductOutcome>;
@@ -275,7 +283,7 @@ const chargeRoute = createRoute({
     return { id, person };
   },
   component: function ChargeRoute() {
-    const { id, person, signOut, currentSale, chargeSaleInCash, refreshCashSession } =
+    const { id, person, signOut, currentSale, cashCharge, chargeSaleInCash, refreshCashSession } =
       chargeRoute.useRouteContext();
     const registerName = useRegisterName();
     return (
@@ -285,6 +293,7 @@ const chargeRoute = createRoute({
         registerName={registerName}
         lock={signOut}
         currentSale={currentSale}
+        cashCharge={cashCharge}
         chargeSaleInCash={chargeSaleInCash}
         onSessionInvalid={() => void refreshCashSession()}
       />
@@ -307,6 +316,7 @@ const cashRoute = createRoute({
       signOut,
       cashBalance,
       cashMovements,
+      cashMovementKinds,
       authorizers,
       recordCashMovement,
     } = cashRoute.useRouteContext();
@@ -320,6 +330,7 @@ const cashRoute = createRoute({
         lock={signOut}
         loadCashBalance={cashBalance}
         loadCashMovements={cashMovements}
+        loadCashMovementKinds={cashMovementKinds}
         loadAuthorizers={authorizers}
         recordCashMovement={recordCashMovement}
       />
@@ -392,9 +403,11 @@ const lockedCloseRoute = createRoute({
       openedAt,
       openedBy,
       cashBalance,
+      sessionOpenSale,
       authorizers,
       identifyLockedCloser,
       closeLockedCashSession,
+      cancelLockedSale,
     } = lockedCloseRoute.useRouteContext();
     const registerName = useRegisterName();
     return (
@@ -404,11 +417,13 @@ const lockedCloseRoute = createRoute({
         registerName={registerName}
         openedAt={openedAt}
         loadCashBalance={cashBalance}
+        loadOpenSale={sessionOpenSale}
         loadAuthorizers={authorizers}
         identifyLockedCloser={identifyLockedCloser}
         closeLockedCashSession={(countedCash, closer) =>
           closeLockedCashSession(id, countedCash, closer)
         }
+        cancelLockedSale={cancelLockedSale}
       />
     );
   },
@@ -520,9 +535,12 @@ export function createAppRouter(
     | "openCashSession"
     | "closeCashSession"
     | "closeLockedCashSession"
+    | "cancelLockedSale"
     | "identifyLockedCloser"
     | "cashBalance"
+    | "sessionOpenSale"
     | "cashMovements"
+    | "cashMovementKinds"
     | "recordCashMovement"
     | "authorizers"
     | "redeemPinCode"
@@ -531,6 +549,7 @@ export function createAppRouter(
     | "firstSignIn"
     | "currentSale"
     | "scanProduct"
+    | "cashCharge"
     | "chargeSaleInCash"
     | "searchProducts"
     | "addProduct"

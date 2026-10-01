@@ -34,6 +34,12 @@ function clientWithSequentialIds() {
   return createCoreClient({ newRequestId: () => `request-${++next}` });
 }
 
+const KINDS = {
+  CASH_IN: { permission: "record_cash_in", authorization_required: false },
+  CASH_OUT: { permission: "record_cash_expense", authorization_required: true },
+  WITHDRAWAL: { permission: "withdraw_cash", authorization_required: true },
+} as const;
+
 describe("createCoreClient", () => {
   it("asks the core whether this installation is enrolled and resolves with its answer", async () => {
     const client = clientWithSequentialIds();
@@ -564,6 +570,78 @@ describe("createCoreClient", () => {
     expect(await asked).toBe("not_permitted");
   });
 
+  it.each([
+    [{ kind: "covered", applied: 3000, change: 2000 }],
+    [{ kind: "insufficient", amountDue: 3000 }],
+    [{ kind: "invalid_amount" }],
+    [null],
+  ])(
+    "asks the core what the sale needs for a tendered amount and resolves with %j",
+    async (charge) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const asked = client.cashCharge("s1", 5000);
+      port.answer({ type: "cash-charge", request_id: "request-1", charge });
+
+      expect(await asked).toEqual(charge);
+      expect(port.posted).toEqual([
+        { type: "cash-charge-request", request_id: "request-1", sale_id: "s1", tendered: 5000 },
+      ]);
+    },
+  );
+
+  it("rejects when the core cannot say what the sale needs", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.cashCharge("s1", 5000);
+    port.answer({ type: "cash-charge-unavailable", request_id: "request-1" });
+
+    await expect(asked).rejects.toThrow();
+  });
+
+  it("resolves that the person signed in may not sell when the core says so for a charge", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.cashCharge("s1", 5000);
+    port.answer({ type: "cash-charge-not-permitted", request_id: "request-1" });
+
+    expect(await asked).toBe("not_permitted");
+  });
+
+  it.each([[KINDS], [null]])(
+    "asks the core which cash movements can be recorded and resolves with %j",
+    async (kinds) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const asked = client.cashMovementKinds();
+      port.answer({ type: "cash-movement-kinds", request_id: "request-1", kinds });
+
+      expect(await asked).toEqual(kinds);
+      expect(port.posted).toEqual([
+        { type: "cash-movement-kinds-request", request_id: "request-1" },
+      ]);
+    },
+  );
+
+  it("resolves unavailable when the core cannot say which cash movements can be recorded", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.cashMovementKinds();
+    port.answer({ type: "cash-movement-kinds-unavailable", request_id: "request-1" });
+
+    expect(await asked).toBe("unavailable");
+  });
+
   it("asks the core to close a session with the cash counted and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
@@ -627,6 +705,23 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to cancel the open sale of a locked register by the closer's PIN and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const closer = { user_id: "u2", pin: "1234" };
+
+    const outcome = client.cancelLockedSale(closer);
+    port.answer({
+      type: "cancel-locked-sale-result",
+      request_id: "request-1",
+      outcome: { kind: "cancelled" },
+    });
+
+    expect(await outcome).toEqual({ kind: "cancelled" });
+    expect(port.posted).toEqual([{ type: "cancel-locked-sale", request_id: "request-1", closer }]);
+  });
+
   it("sends the authorization when closing a session with one", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
@@ -683,6 +778,32 @@ describe("createCoreClient", () => {
 
     const asked = client.cashBalance();
     port.answer({ type: "cash-balance-unavailable", request_id: "request-1" });
+
+    expect(await asked).toBe("unavailable");
+  });
+
+  it.each([null, { total: 3_434_000, cancellable: true }])(
+    "asks the core for the open sale of the session and resolves with it: %j",
+    async (sale) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const asked = client.sessionOpenSale();
+      port.answer({ type: "session-open-sale", request_id: "request-1", sale });
+
+      expect(await asked).toEqual(sale);
+      expect(port.posted).toEqual([{ type: "session-open-sale-request", request_id: "request-1" }]);
+    },
+  );
+
+  it("resolves that the open sale is unavailable when the core cannot read it", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.sessionOpenSale();
+    port.answer({ type: "session-open-sale-unavailable", request_id: "request-1" });
 
     expect(await asked).toBe("unavailable");
   });

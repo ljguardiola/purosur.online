@@ -1,10 +1,9 @@
 import { type CategorySummary, categoryCreationBodySchema } from "@purosur/contracts";
-import { Button, InlineNotice, Modal } from "@purosur/ui";
+import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, ShieldX, Tags, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useSendToMyAccount } from "../access/send-to-my-account";
-import { useCloudForm } from "../platform/cloud-form";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type { createCategory } from "./categories-api";
 import {
   CATEGORY_FIELDS,
@@ -39,7 +38,7 @@ export function NewCategoryModal({
   const [notice, setNotice] = useState<
     { kind: "attemptFailed" } | { kind: "rateLimited"; retryAfterSeconds: number } | null
   >(null);
-  const { form, submit, submitting, reset } = useCloudForm({
+  const { form, submit, submitting, reset } = useRequestForm({
     defaultValues: EMPTY_CATEGORY_FORM,
     request: { schema: categoryCreationBodySchema, from: categoryRequestFrom },
     fields: CATEGORY_FIELDS,

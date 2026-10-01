@@ -140,6 +140,8 @@ export class FakeSaleLedger implements SaleLedger {
       },
       saleLineRemovals: (saleId) =>
         structuredClone(working.removals.filter((removal) => removal.saleId === saleId)),
+      salePayments: (saleId) =>
+        structuredClone(working.payments.filter((payment) => payment.saleId === saleId)),
       markSaleCancelled: (saleId) => {
         this.failIfAsked("markSaleCancelled");
         const sale = working.sales.find((stored) => stored.id === saleId);

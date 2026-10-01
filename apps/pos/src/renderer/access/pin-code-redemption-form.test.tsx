@@ -299,6 +299,32 @@ describe("PinCodeRedemptionForm", () => {
     expect(calls).toEqual([]);
   });
 
+  it("keeps the code message while the code is still wrong, and drops it once it is whole", async () => {
+    const screen = await renderForm(answering({ kind: "redeemed" }).redeem);
+    await fillAndSave(screen, { typedCode: "K7QM 2XPA" });
+    const message = screen.getByText("Revisá el código: son 16 letras y números.");
+    await expect.element(message).toBeVisible();
+
+    await userEvent.type(code(screen), " 3DTR");
+    await expect.element(message).toBeVisible();
+
+    await userEvent.type(code(screen), " 4HWN");
+    await expect.element(message).not.toBeInTheDocument();
+  });
+
+  it("keeps the mismatch message until the repeat matches the PIN", async () => {
+    const screen = await renderForm(answering({ kind: "redeemed" }).redeem);
+    await fillAndSave(screen, { repeat: "482916" });
+    const message = screen.getByText("Los dos PIN no coinciden.");
+    await expect.element(message).toBeVisible();
+
+    await userEvent.fill(screen.getByLabelText(REPEAT_LABEL), "48291");
+    await expect.element(message).toBeVisible();
+
+    await userEvent.fill(screen.getByLabelText(REPEAT_LABEL), NEW_PIN);
+    await expect.element(message).not.toBeInTheDocument();
+  });
+
   it("clears the outcome of the last attempt when it is sent again", async () => {
     const outcomes: PinCodeRedemptionOutcome[] = [
       { kind: "unreachable" },
