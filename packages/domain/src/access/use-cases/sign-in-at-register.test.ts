@@ -5,7 +5,10 @@ import { type SignInAtRegisterPorts, signInAtRegister } from "./sign-in-at-regis
 import { pinCheckFixture } from "./test-support/fake-pin-sign-in-store.js";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z");
-const SELLER = { isAdministrator: false, permissionKeys: ["sell_and_charge", "view_sales_history"] };
+const SELLER = {
+  isAdministrator: false,
+  permissionKeys: ["sell_and_charge", "view_sales_history"],
+};
 
 function fixture(options: { openedBy?: string; access?: typeof SELLER } = {}) {
   const created = pinCheckFixture(NOW);

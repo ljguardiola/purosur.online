@@ -136,6 +136,12 @@ export type {
 } from "./role-store.js";
 export { RoleNameConflict } from "./role-store.js";
 export type {
+  SignInAtRegisterInput,
+  SignInAtRegisterOutcome,
+  SignInAtRegisterPorts,
+} from "./sign-in-at-register.js";
+export { signInAtRegister } from "./sign-in-at-register.js";
+export type {
   SignInCandidate,
   SignInLookupPorts,
   SignInLookupStore,
