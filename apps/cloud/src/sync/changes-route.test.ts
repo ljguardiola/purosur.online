@@ -1,4 +1,5 @@
 import { changesPageSchema, cloudErrorSchema } from "@purosur/contracts";
+import { editBranchSettings } from "@purosur/domain/branch/use-cases";
 import {
   createCategory,
   createProduct,
@@ -16,7 +17,7 @@ import { createRole } from "../access/role-creation-route.js";
 import { registerRouteAccess } from "../access/route-access.js";
 import { createUser } from "../access/user-creation-route.js";
 import { deactivateUser } from "../access/user-deactivation-route.js";
-import { editBranchSettings } from "../branch/branch-settings-edit-route.js";
+import { DrizzleBranchSettingsStore } from "../branch/drizzle-branch-settings-store.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { insertProductWithTags } from "../catalog/test-support/catalog-route-fixtures.js";
 import {
@@ -267,7 +268,7 @@ describe("GET /changes", () => {
     expect(first.cursor).toBe(4);
 
     await editBranchSettings(
-      db,
+      { store: new DrizzleBranchSettingsStore(db) },
       settingsEdit(locationId, await insertActor(locationId), 1, "Av. Belgrano 1450"),
     );
     const next = await pullPage(first.cursor, deviceToken);
