@@ -1,4 +1,5 @@
 import {
+  type BuyerIdentificationThreshold,
   type DiscountBenefit,
   type DiscountTargetKind,
   discountsTargeting,
@@ -134,6 +135,7 @@ export class SqliteSaleLedger implements SaleLedger {
       activeProductByBarcode: (code) => this.activeProductByBarcode(code),
       activeProductById: (productId) => this.activeProductById(productId),
       searchableProducts: () => this.searchableProducts(),
+      buyerIdentificationThresholds: () => this.buyerIdentificationThresholds(),
       priceAt: (productId, moment) => this.priceAt(productId, moment),
       promotionsTargeting: (productId) => this.promotionsTargeting(productId),
       recordOpenedSale: (sale) => this.recordOpenedSale(sale),
@@ -277,6 +279,15 @@ export class SqliteSaleLedger implements SaleLedger {
         saleUnit: row.sale_unit as SaleUnit,
         timesSoldHere: row.times_sold_here,
       }));
+  }
+
+  private buyerIdentificationThresholds(): BuyerIdentificationThreshold[] {
+    return this.database
+      .prepare<[], { id: string; amount: number; valid_from: string }>(
+        "SELECT id, amount, valid_from FROM buyer_identification_thresholds ORDER BY valid_from",
+      )
+      .all()
+      .map((row) => ({ id: row.id, amount: row.amount, validFrom: row.valid_from }));
   }
 
   private priceAt(

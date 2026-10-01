@@ -1,18 +1,39 @@
+import type { OpenSale } from "@purosur/contracts";
 import { Button, formatCents, InlineNotice, plural, SummaryRowGroup } from "@purosur/ui";
-import { Banknote, TriangleAlert, X } from "lucide-react";
+import { Banknote, Lock, OctagonAlert, TriangleAlert, X } from "lucide-react";
+import type { ReactNode } from "react";
 import { Eyebrow } from "../shell/eyebrow";
 
 export type PaymentPanelProps = {
   lineCount: number;
   total: number;
+  chargeRefusal: OpenSale["charge_refusal"];
   canCancel: boolean;
   onCharge: () => void;
   onCancel: () => void;
 };
 
+function refusalNotice(refusal: NonNullable<OpenSale["charge_refusal"]>): ReactNode {
+  const { title, description } =
+    refusal.kind === "reaches_buyer_identification_threshold"
+      ? {
+          title: "Llegaste al tope de venta",
+          description: `El total no puede ser igual o mayor a ${formatCents(refusal.threshold)}. Quitá productos o bajá cantidades para poder cobrar.`,
+        }
+      : {
+          title: "Falta el tope de venta",
+          description:
+            "La caja todavía no recibió el tope de venta sin identificar al comprador. Esperá a que se sincronice para poder cobrar.",
+        };
+  return (
+    <InlineNotice tone="error" icon={<OctagonAlert />} title={title} description={description} />
+  );
+}
+
 export function PaymentPanel({
   lineCount,
   total,
+  chargeRefusal,
   canCancel,
   onCharge,
   onCancel,
@@ -27,15 +48,22 @@ export function PaymentPanel({
       <Eyebrow text="Total a cobrar" />
       <p className="text-display text-text-accent">{formatCents(total)}</p>
       <SummaryRowGroup rows={[{ label: `${lineCount} ${lines}`, value: formatCents(total) }]} />
-      <Button
-        size="sale"
-        fullWidth
-        icon={<Banknote />}
-        disabled={lineCount === 0 || isZeroTotal}
-        onPress={onCharge}
-      >
-        Cobrar
-      </Button>
+      {chargeRefusal === null ? null : refusalNotice(chargeRefusal)}
+      {chargeRefusal === null ? (
+        <Button
+          size="sale"
+          fullWidth
+          icon={<Banknote />}
+          disabled={lineCount === 0 || isZeroTotal}
+          onPress={onCharge}
+        >
+          Cobrar
+        </Button>
+      ) : (
+        <Button size="sale" fullWidth icon={<Lock />} disabled onPress={onCharge}>
+          Cobro no habilitado
+        </Button>
+      )}
       {isZeroTotal ? (
         <InlineNotice
           tone="warning"

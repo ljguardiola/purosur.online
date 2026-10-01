@@ -1,7 +1,9 @@
+import type { ChargeRefusal } from "../../fiscal/index.js";
 import { discountAppliesOn } from "../../pricing/index.js";
 import { argentinaCalendarDay } from "../../shared/index.js";
 import type { LinePromotion, Sale, SaleWithLines } from "../model/sale.js";
 import { addUnitToLine, newSaleLine } from "../model/sale-line.js";
+import { saleChargeRefusal } from "./sale-charge-refusal.js";
 import type {
   Clock,
   IdGenerator,
@@ -19,7 +21,7 @@ export type AddProductToSaleOutcome =
   | { kind: "product_not_found" }
   | { kind: "sold_by_weight"; productName: string }
   | { kind: "no_price"; productName: string }
-  | { kind: "added"; sale: SaleWithLines };
+  | { kind: "added"; sale: SaleWithLines; chargeRefusal: ChargeRefusal | undefined };
 
 export interface AddProductToSaleRequest {
   actorId: string;
@@ -57,13 +59,10 @@ export function addProductToSale(
   if (existing && line) {
     const updated = addUnitToLine(line);
     tx.recordLineQuantity(updated);
-    return {
-      kind: "added",
-      sale: {
-        ...existing,
-        lines: existing.lines.map((each) => (each === line ? updated : each)),
-      },
-    };
+    return added(tx, clock.now(), {
+      ...existing,
+      lines: existing.lines.map((each) => (each === line ? updated : each)),
+    });
   }
   const moment = clock.now();
   const price = tx.priceAt(product.id, moment);
@@ -74,9 +73,22 @@ export function addProductToSale(
   const sale = isOpenSale(target)
     ? target
     : startSale(tx, ids.next(), target, session.id, actorId, moment);
-  const added = newSaleLine(ids.next(), product, price, validPromotions(tx, product.id, moment));
-  tx.recordSaleLine(sale.id, added);
-  return { kind: "added", sale: { ...sale, lines: [...sale.lines, added] } };
+  const addedLine = newSaleLine(
+    ids.next(),
+    product,
+    price,
+    validPromotions(tx, product.id, moment),
+  );
+  tx.recordSaleLine(sale.id, addedLine);
+  return added(tx, moment, { ...sale, lines: [...sale.lines, addedLine] });
+}
+
+function added(
+  tx: SaleLedgerTransaction,
+  moment: Date,
+  sale: SaleWithLines,
+): AddProductToSaleOutcome {
+  return { kind: "added", sale, chargeRefusal: saleChargeRefusal(tx, sale, moment) };
 }
 
 function validPromotions(

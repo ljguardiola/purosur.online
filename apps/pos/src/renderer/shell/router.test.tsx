@@ -661,6 +661,7 @@ describe("the register's router", () => {
             },
           ],
           total: 238_000,
+          charge_refusal: null,
         }),
         cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 0 }),
         chargeSaleInCash: async (saleId, tendered) => {
@@ -704,6 +705,7 @@ describe("the register's router", () => {
             },
           ],
           total: 238_000,
+          charge_refusal: null,
         }),
         cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 0 }),
         chargeSaleInCash: async () => ({ kind: "no_open_session" }),

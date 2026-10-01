@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
+  buyerIdentificationThresholdChange,
   categoryChange,
   discountChange,
   priceChange,
@@ -44,6 +45,11 @@ describe("scanning products into a sale on the register", () => {
           barcodes: [ALFAJOR_CODE],
         }),
         priceListChange({ id: "price-list-1", name: "Mostrador" }),
+        buyerIdentificationThresholdChange({
+          id: "threshold-1",
+          amountCents: 1_000_000_000,
+          validFrom: "2026-01-01",
+        }),
         priceChange({
           id: "price-yerba",
           productId: "product-yerba",

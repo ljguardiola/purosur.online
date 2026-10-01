@@ -135,6 +135,18 @@ export function priceChange(price: {
   };
 }
 
+export function buyerIdentificationThresholdChange(threshold: {
+  id: string;
+  amountCents: number;
+  validFrom: string;
+}): CloudChange {
+  return {
+    entity: "buyer_identification_threshold",
+    entity_id: threshold.id,
+    row: { amount: threshold.amountCents, valid_from: threshold.validFrom },
+  };
+}
+
 type DiscountRow = Extract<SyncChange, { entity: "discount" }>["row"];
 
 export function discountChange(discount: {

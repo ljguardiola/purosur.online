@@ -12,7 +12,13 @@ import type {
   ScanProductOutcome,
   SearchProductsOutcome,
 } from "@purosur/contracts";
-import { cashCharge, type SaleLine, type SaleWithLines, saleTotal } from "@purosur/domain";
+import {
+  type ChargeRefusal,
+  cashCharge,
+  type SaleLine,
+  type SaleWithLines,
+  saleTotal,
+} from "@purosur/domain";
 import {
   type AddScannedProductOutcome,
   addScannedProduct,
@@ -62,7 +68,7 @@ function appliedPromotion(line: SaleLine): OpenSale["lines"][number]["promotion"
     : { kind: benefit.kind, buy_qty: benefit.buyQty, pay_qty: benefit.payQty };
 }
 
-function toOpenSale(sale: SaleWithLines): OpenSale {
+function toOpenSale(sale: SaleWithLines, refusal: ChargeRefusal | undefined): OpenSale {
   return {
     id: sale.id,
     lines: sale.lines.map((line) => ({
@@ -76,6 +82,7 @@ function toOpenSale(sale: SaleWithLines): OpenSale {
       line_total: line.lineTotal,
     })),
     total: saleTotal(sale.lines),
+    charge_refusal: refusal ?? null,
   };
 }
 
@@ -166,16 +173,17 @@ function toDetailOutcome(
   outcome: SaleDetailOutcome,
 ): Extract<ScanProductOutcome, { kind: SaleDetailOutcome["kind"] }> {
   return outcome.kind === "added"
-    ? { kind: "added", sale: toOpenSale(outcome.sale) }
+    ? { kind: "added", sale: toOpenSale(outcome.sale, outcome.chargeRefusal) }
     : { kind: outcome.kind, product_name: outcome.productName };
 }
 
 export async function currentSaleFor({
   database,
   gate,
-}: Pick<SaleRequestDeps, "database" | "gate">): Promise<CurrentSaleAnswer> {
+  now,
+}: Pick<SaleRequestDeps, "database" | "gate" | "now">): Promise<CurrentSaleAnswer> {
   const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
-    currentSale({ ledger: saleLedger(database) }, { actorId: signedInUserId }),
+    currentSale({ ledger: saleLedger(database), clock: { now } }, { actorId: signedInUserId }),
   );
   if (guarded.kind === "not_signed_in") {
     return null;
@@ -183,11 +191,12 @@ export async function currentSaleFor({
   if (guarded.kind !== "performed" || guarded.result.kind === "not_permitted") {
     return "not_permitted";
   }
-  return guarded.result.kind === "open" ? toOpenSale(guarded.result.sale) : null;
+  const outcome = guarded.result;
+  return outcome.kind === "open" ? toOpenSale(outcome.sale, outcome.chargeRefusal) : null;
 }
 
 export async function cashChargeFor(
-  deps: Pick<SaleRequestDeps, "database" | "gate">,
+  deps: Pick<SaleRequestDeps, "database" | "gate" | "now">,
   { saleId, tendered }: ChargeSaleInCashRequest,
 ): Promise<CashChargeAnswer> {
   const sale = await currentSaleFor(deps);
@@ -214,7 +223,7 @@ export async function changeLineQuantityFor(
   }
   const outcome = guarded.result;
   return outcome.kind === "changed"
-    ? { kind: "changed", sale: toOpenSale(outcome.sale) }
+    ? { kind: "changed", sale: toOpenSale(outcome.sale, outcome.chargeRefusal) }
     : { kind: outcome.kind };
 }
 
@@ -233,7 +242,7 @@ export async function removeSaleLineFor(
   }
   const outcome = guarded.result;
   return outcome.kind === "removed"
-    ? { kind: "removed", sale: toOpenSale(outcome.sale) }
+    ? { kind: "removed", sale: toOpenSale(outcome.sale, outcome.chargeRefusal) }
     : { kind: outcome.kind };
 }
 
@@ -313,6 +322,8 @@ export async function chargeSaleInCashFor(
       };
     case "insufficient_cash":
       return { kind: "insufficient_cash", amount_due: outcome.amountDue };
+    case "reaches_buyer_identification_threshold":
+      return { kind: outcome.kind, threshold: outcome.threshold };
     default:
       return { kind: outcome.kind };
   }

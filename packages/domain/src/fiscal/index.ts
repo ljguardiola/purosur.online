@@ -1,5 +1,9 @@
-export type { BuyerIdentificationThreshold } from "./model/buyer-identification-threshold.js";
+export type {
+  BuyerIdentificationThreshold,
+  ChargeRefusal,
+} from "./model/buyer-identification-threshold.js";
 export {
+  chargeRefusal,
   isBuyerIdentificationThresholdAmount,
   latestThreshold,
   thresholdInEffectOn,

@@ -16,7 +16,12 @@ function line(id: string, quantity: number) {
 }
 
 function sale(...lines: ReturnType<typeof line>[]): OpenSale {
-  return { id: "sale-1", lines, total: lines.reduce((sum, item) => sum + item.line_total, 0) };
+  return {
+    id: "sale-1",
+    lines,
+    total: lines.reduce((sum, item) => sum + item.line_total, 0),
+    charge_refusal: null,
+  };
 }
 
 describe("changedLineId", () => {

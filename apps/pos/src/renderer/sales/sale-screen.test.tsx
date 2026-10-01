@@ -221,7 +221,12 @@ describe("SaleScreen", () => {
         line_total: 428_400,
       };
       const { screen } = await renderScreen({
-        currentSale: async () => ({ id: "sale-1", lines: [promoted, ALFAJOR], total: 578_400 }),
+        currentSale: async () => ({
+          id: "sale-1",
+          lines: [promoted, ALFAJOR],
+          total: 578_400,
+          charge_refusal: null,
+        }),
       });
 
       const lines = screen.getByRole("list").getByRole("listitem");
@@ -243,7 +248,12 @@ describe("SaleScreen", () => {
         line_total: 300_000,
       };
       const { screen } = await renderScreen({
-        currentSale: async () => ({ id: "sale-1", lines: [promoted], total: 300_000 }),
+        currentSale: async () => ({
+          id: "sale-1",
+          lines: [promoted],
+          total: 300_000,
+          charge_refusal: null,
+        }),
       });
 
       await expect.element(screen.getByText("Lleve 3, pague 2")).toBeVisible();
@@ -280,6 +290,7 @@ describe("SaleScreen", () => {
           id: "sale-1",
           lines: [{ ...YERBA, discount_amount: 476_000, line_total: 0 }],
           total: 0,
+          charge_refusal: null,
         }),
       });
 
@@ -289,6 +300,61 @@ describe("SaleScreen", () => {
         )
         .toBeVisible();
       await expect.element(screen.getByRole("button", { name: "Cobrar" })).toBeDisabled();
+    });
+
+    it("replaces Cobrar by a disabled Cobro no habilitado, and says the total reached the threshold", async () => {
+      const { screen } = await renderScreen({
+        currentSale: async () => ({
+          ...SALE_OF_YERBA,
+          charge_refusal: { kind: "reaches_buyer_identification_threshold", threshold: 476_000 },
+        }),
+      });
+
+      const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
+      await expect.element(panel.getByText("Llegaste al tope de venta")).toBeVisible();
+      await expect
+        .element(
+          panel.getByText(
+            "El total no puede ser igual o mayor a $ 4.760,00. Quitá productos o bajá cantidades para poder cobrar.",
+          ),
+        )
+        .toBeVisible();
+      await expect
+        .element(screen.getByRole("button", { name: "Cobro no habilitado" }))
+        .toBeDisabled();
+      await expect.element(screen.getByRole("button", { name: "Cobrar" })).not.toBeInTheDocument();
+      await expectNoAccessibilityViolations(screen.container);
+    });
+
+    it("says the register has no threshold yet and keeps Cobrar disabled", async () => {
+      const { screen } = await renderScreen({
+        currentSale: async () => ({
+          ...SALE_OF_YERBA,
+          charge_refusal: { kind: "no_buyer_identification_threshold" },
+        }),
+      });
+
+      const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
+      await expect.element(panel.getByText("Falta el tope de venta")).toBeVisible();
+      await expect
+        .element(
+          panel.getByText(
+            "La caja todavía no recibió el tope de venta sin identificar al comprador. Esperá a que se sincronice para poder cobrar.",
+          ),
+        )
+        .toBeVisible();
+      await expect
+        .element(screen.getByRole("button", { name: "Cobro no habilitado" }))
+        .toBeDisabled();
+      await expectNoAccessibilityViolations(screen.container);
+    });
+
+    it("shows no notice and keeps Cobrar when the core does not refuse the charge", async () => {
+      const { screen } = await renderScreen({ currentSale: async () => SALE_OF_YERBA });
+
+      await expect.element(screen.getByRole("button", { name: "Cobrar" })).toBeEnabled();
+      await expect.element(screen.getByText("Llegaste al tope de venta")).not.toBeInTheDocument();
+      await expect.element(screen.getByText("Falta el tope de venta")).not.toBeInTheDocument();
     });
 
     it("enables Cobrar once a product is scanned into the sale", async () => {
@@ -413,6 +479,7 @@ describe("SaleScreen", () => {
         id: "sale-1",
         lines: [YERBA, { ...ALFAJOR, quantity: 2, line_total: 300_000 }],
         total: 776_000,
+        charge_refusal: null,
       };
       const scanProduct = vi.fn(
         async (): Promise<ScanProductOutcome> => ({ kind: "added", sale: again }),
