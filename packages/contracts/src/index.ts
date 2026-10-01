@@ -175,6 +175,7 @@ export {
   openCashSessionRequestSchema,
   openingFloatSchema,
   parseAmountCents,
+  recordCashMovementFormRequestSchema,
   rendererToCoreMessageSchema,
 } from "./register/core-messages.js";
 export type { DeviceEnrollment, DeviceEnrollmentBody } from "./register/device-enrollment.js";

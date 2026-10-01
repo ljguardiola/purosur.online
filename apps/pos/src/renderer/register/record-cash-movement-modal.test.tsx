@@ -269,6 +269,28 @@ describe("RecordCashMovementModal", () => {
     await expect.element(screen.getByText("Ingresá el importe.")).not.toBeInTheDocument();
   });
 
+  it("keeps a field's message while its edited value is still invalid and clears it once it is valid", async () => {
+    const { screen } = await renderModal();
+    await fill(screen, "abc", "");
+    await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
+    const amount = screen.getByRole("textbox", { name: "Importe" });
+    const reason = screen.getByRole("textbox", { name: "Motivo" });
+    const invalidAmount = screen.getByText("Ingresá un importe válido, por ejemplo 5.000,00.");
+    const invalidReason = screen.getByText("Escribí el motivo (hasta 200 caracteres).");
+    await expect.element(invalidAmount).toBeVisible();
+    await expect.element(invalidReason).toBeVisible();
+
+    await userEvent.fill(amount, "abd");
+    await userEvent.fill(reason, " ");
+    await expect.element(invalidAmount).toBeVisible();
+    await expect.element(invalidReason).toBeVisible();
+
+    await userEvent.fill(amount, "100");
+    await userEvent.fill(reason, "Cambio");
+    await expect.element(invalidAmount).not.toBeInTheDocument();
+    await expect.element(invalidReason).not.toBeInTheDocument();
+  });
+
   it("says when there is no open session to record into", async () => {
     const { screen, onRecorded } = await renderModal({ outcome: { kind: "no_open_session" } });
     await fill(screen, "100", "Cambio");
