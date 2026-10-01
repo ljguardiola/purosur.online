@@ -1,4 +1,4 @@
-import { DISCOUNT_BENEFIT_KINDS, SALE_UNITS } from "@purosur/domain";
+import { DISCOUNT_BENEFIT_KINDS, DISCOUNT_TARGET_KINDS, SALE_UNITS } from "@purosur/domain";
 import { z } from "zod";
 import { netContentSchema } from "../shared/index.js";
 
@@ -19,6 +19,10 @@ export const discountTargetsSchema = z.object({
   ),
   categories: z.array(targetSchema.extend({ parentId: z.string().nullable() })),
   tags: z.array(targetSchema),
+  targetKindsByBenefit: z.record(
+    z.enum(DISCOUNT_BENEFIT_KINDS),
+    z.array(z.enum(DISCOUNT_TARGET_KINDS)),
+  ),
 });
 
 export type DiscountTargets = z.output<typeof discountTargetsSchema>;

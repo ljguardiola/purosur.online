@@ -8,7 +8,6 @@ export {
   DISCOUNT_BUY_QTY_MIN,
   DISCOUNT_PAY_QTY_MIN,
   DISCOUNT_QTY_MAX,
-  isBuyNPayMSaleUnit,
   isValidDiscountBuyNPayM,
   isValidDiscountBuyQty,
   isValidDiscountPayQty,
@@ -24,7 +23,7 @@ export {
   isValidDiscountPercent,
 } from "./model/discount-percent.js";
 export type { DiscountSchedule, DiscountStatus } from "./model/discount-status.js";
-export { DISCOUNT_STATUSES, discountStatus, isDiscountLive } from "./model/discount-status.js";
+export { DISCOUNT_STATUSES, isDiscountLive } from "./model/discount-status.js";
 export type { DiscountTarget, DiscountTargetKind } from "./model/discount-target.js";
 export { DISCOUNT_TARGET_KINDS } from "./model/discount-target.js";
 export { isTargetKindAllowedFor } from "./model/discount-target-eligibility.js";
@@ -39,7 +38,6 @@ export type { IsoWeekday } from "./model/discount-weekdays.js";
 export {
   isoWeekdayOf,
   isValidDiscountWeekdays,
-  normalizeDiscountWeekdays,
 } from "./model/discount-weekdays.js";
 export type { SoldQuantity } from "./model/discounted-amount.js";
 export { discountedAmount, lineAmount } from "./model/discounted-amount.js";

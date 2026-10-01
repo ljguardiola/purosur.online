@@ -53,7 +53,12 @@ type DiscountKindFilter = DiscountsListFilters["kind"];
 type DiscountSortColumn = DiscountsListFilters["sortBy"];
 
 const NO_DISCOUNTS: DiscountSummary[] = [];
-const NO_TARGETS: DiscountTargets = { products: [], categories: [], tags: [] };
+const NO_TARGETS: DiscountTargets = {
+  products: [],
+  categories: [],
+  tags: [],
+  targetKindsByBenefit: { PERCENT_OFF: [], BUY_N_PAY_M: [] },
+};
 
 type ScreenNotice = { id: number; title: string; description: string };
 

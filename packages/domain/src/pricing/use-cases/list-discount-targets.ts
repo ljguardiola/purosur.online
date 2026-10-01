@@ -1,7 +1,9 @@
 import { DISCOUNT_BENEFIT_KINDS, type DiscountBenefit } from "../model/discount-benefit.js";
+import { DISCOUNT_TARGET_KINDS, type DiscountTargetKind } from "../model/discount-target.js";
 import {
   type AssignableTargetCandidate,
   isAssignableTarget,
+  isTargetKindAllowedFor,
   targetAcceptsBenefit,
 } from "../model/discount-target-eligibility.js";
 import type {
@@ -27,10 +29,17 @@ export interface ListedDiscountTargets {
   products: ListedProductTarget[];
   categories: ListedCategoryTarget[];
   tags: ListedTagTarget[];
+  targetKindsByBenefit: Record<DiscountBenefit["kind"], DiscountTargetKind[]>;
 }
 
 function acceptedBenefitKinds(candidate: AssignableTargetCandidate): DiscountBenefit["kind"][] {
   return DISCOUNT_BENEFIT_KINDS.filter((kind) => targetAcceptsBenefit(candidate, kind));
+}
+
+function allowedTargetKinds(benefitKind: DiscountBenefit["kind"]): DiscountTargetKind[] {
+  return DISCOUNT_TARGET_KINDS.filter((targetKind) =>
+    isTargetKindAllowedFor(benefitKind, targetKind),
+  );
 }
 
 export async function listDiscountTargets({
@@ -54,5 +63,9 @@ export async function listDiscountTargets({
         ? [{ ...tag, benefitKinds: acceptedBenefitKinds(candidate) }]
         : [];
     }),
+    targetKindsByBenefit: {
+      PERCENT_OFF: allowedTargetKinds("PERCENT_OFF"),
+      BUY_N_PAY_M: allowedTargetKinds("BUY_N_PAY_M"),
+    },
   };
 }

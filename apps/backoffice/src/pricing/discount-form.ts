@@ -21,8 +21,8 @@ import { Package, Percent } from "lucide-react";
 import { createElement } from "react";
 import { categoriesInTreeOrder, categoryPathLabels } from "../catalog/category-path";
 import { formatNetContent } from "../catalog/net-content";
-import { schemaLimit } from "../platform/schema-limit";
 import { DISCOUNT_KIND_LABELS, DISCOUNT_TARGET_KIND_LABELS } from "./discount-texts";
+import { schemaLimit } from "./schema-limit";
 
 export type DiscountFormValues = {
   name: string;
@@ -227,6 +227,8 @@ type KeptTarget = CurrentTarget & { status: string };
 
 const nameOrder = textOrder((named: { name: string }) => named.name);
 
+type TargetLists = Omit<DiscountTargets, "targetKindsByBenefit">;
+
 type ProductTarget = DiscountTargets["products"][number];
 
 function productOption(product: ProductTarget): ComboBoxOption<string> {
@@ -244,10 +246,7 @@ function productOption(product: ProductTarget): ComboBoxOption<string> {
   };
 }
 
-function offeredTargets(
-  kind: DiscountTargetKind,
-  sources: DiscountTargets,
-): ComboBoxOption<string>[] {
+function offeredTargets(kind: DiscountTargetKind, sources: TargetLists): ComboBoxOption<string>[] {
   if (kind === "CATEGORY") {
     const labels = categoryPathLabels([...sources.categories]);
     return categoriesInTreeOrder([...sources.categories]).map((category) => ({
@@ -268,8 +267,8 @@ function offeredTargets(
 
 export function eligibleTargets(
   benefitKind: DiscountBenefit["kind"],
-  sources: DiscountTargets,
-): DiscountTargets {
+  sources: TargetLists,
+): TargetLists {
   return {
     products: sources.products.filter((product) => product.benefitKinds.includes(benefitKind)),
     categories: sources.categories.filter((category) =>
@@ -279,10 +278,7 @@ export function eligibleTargets(
   };
 }
 
-function listedTargets(
-  kind: DiscountTargetKind,
-  sources: DiscountTargets,
-): readonly { id: string }[] {
+function listedTargets(kind: DiscountTargetKind, sources: TargetLists): readonly { id: string }[] {
   if (kind === "PRODUCT") {
     return sources.products;
   }
@@ -324,24 +320,35 @@ export function soldByWeightHelp(
     : undefined;
 }
 
+export function offersTargetKindChoice(
+  benefitKind: DiscountBenefit["kind"],
+  sources: DiscountTargets,
+): boolean {
+  return sources.targetKindsByBenefit[benefitKind].length > 1;
+}
+
 export function targetForKind(
   values: DiscountFormValues,
   benefitKind: DiscountBenefit["kind"],
   sources: DiscountTargets,
 ): Pick<DiscountFormValues, "targetKind" | "targetId"> {
   const { targetKind, targetId } = values;
-  if (benefitKind === "PERCENT_OFF") {
+  const allowed = sources.targetKindsByBenefit[benefitKind];
+  if (DISCOUNT_TARGET_KIND_OPTIONS.every(({ value }) => allowed.includes(value))) {
     return { targetKind, targetId };
   }
+  const kind = allowed.includes(targetKind) ? targetKind : (allowed[0] ?? targetKind);
   const eligible =
-    targetKind === "PRODUCT" &&
-    eligibleTargets(benefitKind, sources).products.some((product) => product.id === targetId);
-  return { targetKind: "PRODUCT", targetId: eligible ? targetId : null };
+    kind === targetKind &&
+    listedTargets(kind, eligibleTargets(benefitKind, sources)).some(
+      (target) => target.id === targetId,
+    );
+  return { targetKind: kind, targetId: eligible ? targetId : null };
 }
 
 export function targetOptions(
   kind: DiscountTargetKind,
-  sources: DiscountTargets,
+  sources: TargetLists,
   current?: KeptTarget,
 ): Options<ComboBoxOption<string>> | undefined {
   const offered = offeredTargets(kind, sources);

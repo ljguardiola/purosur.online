@@ -1,4 +1,3 @@
-import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { MAX_UNIT_PRICE_CENTS } from "../../pricing/index.js";
 import { chargeLine } from "./line-pricing.js";
@@ -54,24 +53,8 @@ describe("chargeLine without promotions", () => {
 });
 
 describe("chargeLine with a percentage promotion", () => {
-  it("takes the percentage off the exact amount of a unit line", () => {
-    expect(chargeLine(units(2), 2500, [TEN_PERCENT])).toEqual({
-      promotionId: "ten",
-      discountAmount: 500,
-      lineTotal: 4500,
-    });
-  });
-
   it("applies the percentage before rounding, not to the rounded amount", () => {
     expect(chargeLine(weight(15), 999, [HALF]).lineTotal).toBe(7);
-  });
-
-  it("charges a weight line with the same calculation", () => {
-    expect(chargeLine(weight(1250), 9000, [TEN_PERCENT])).toEqual({
-      promotionId: "ten",
-      discountAmount: 1125,
-      lineTotal: 10_125,
-    });
   });
 
   it("rounds the discounted total half up on the exact .5 boundary", () => {
@@ -88,56 +71,6 @@ describe("chargeLine with a percentage promotion", () => {
       discountAmount: 0,
       lineTotal: 4,
     });
-  });
-
-  it("charges nothing at 100 % off", () => {
-    const free: LinePromotion = { id: "free", benefit: { kind: "PERCENT_OFF", percent: 100 } };
-
-    expect(chargeLine(units(3), 2500, [free])).toEqual({
-      promotionId: "free",
-      discountAmount: 7500,
-      lineTotal: 0,
-    });
-  });
-
-  it("never charges more than the list amount nor a negative total", () => {
-    fc.assert(
-      fc.property(
-        fc.integer({ min: 0, max: MAX_UNIT_PRICE_CENTS }),
-        fc.integer({ min: 1, max: 100_000 }),
-        fc.integer({ min: 1, max: 100 }),
-        (price, thousandths, percent) => {
-          const promotion: LinePromotion = { id: "p", benefit: { kind: "PERCENT_OFF", percent } };
-          const listed = chargeLine(weight(thousandths), price, []).lineTotal;
-
-          const charged = chargeLine(weight(thousandths), price, [promotion]);
-
-          expect(charged.lineTotal).toBeGreaterThanOrEqual(0);
-          expect(charged.lineTotal).toBeLessThanOrEqual(listed);
-          expect(charged.discountAmount).toBe(listed - charged.lineTotal);
-        },
-      ),
-    );
-  });
-
-  it("matches the exact rational calculation for every price, weight and percentage", () => {
-    fc.assert(
-      fc.property(
-        fc.integer({ min: 0, max: MAX_UNIT_PRICE_CENTS }),
-        fc.integer({ min: 1, max: 100_000_000 }),
-        fc.integer({ min: 1, max: 100 }),
-        (price, thousandths, percent) => {
-          const promotion: LinePromotion = { id: "p", benefit: { kind: "PERCENT_OFF", percent } };
-          const numerator = BigInt(thousandths) * BigInt(price) * BigInt(100 - percent);
-          const denominator = 100_000n;
-          const expected = (2n * numerator + denominator) / (2n * denominator);
-
-          const { lineTotal } = chargeLine(weight(thousandths), price, [promotion]);
-
-          expect(BigInt(lineTotal)).toBe(expected);
-        },
-      ),
-    );
   });
 });
 

@@ -57,10 +57,12 @@ export function useCloudQuery<T>({
   keepPreviousData: keepsPreviousData = false,
   read,
   gcTime,
+  refetchInterval,
   onSessionEnded,
   onForbidden,
 }: CloudQuery<T> & {
   keepPreviousData?: boolean | undefined;
+  refetchInterval?: number;
   onSessionEnded: () => void;
   onForbidden: () => void;
 }): CloudData<T> {
@@ -70,6 +72,7 @@ export function useCloudQuery<T>({
     queryKey,
     queryFn: cloudQueryFn(read),
     ...(gcTime === undefined ? {} : { gcTime }),
+    ...(refetchInterval === undefined ? {} : { refetchInterval }),
     ...(keepsPreviousData ? { placeholderData: keepPreviousData } : {}),
   });
   const [lastLoaded, setLastLoaded] = useState<{ value: T } | undefined>(undefined);

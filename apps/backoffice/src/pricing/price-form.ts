@@ -1,6 +1,6 @@
 import { type PriceSetBody, priceSetBodySchema } from "@purosur/contracts";
 import { formatCents, parseAmountCents } from "@purosur/ui";
-import { schemaLimit } from "../platform/schema-limit";
+import { schemaLimit } from "./schema-limit";
 
 const UNIT_PRICE_SCHEMA = priceSetBodySchema.shape.unitPrice;
 const AMOUNT_REQUIRED = "Ingresá el precio nuevo.";

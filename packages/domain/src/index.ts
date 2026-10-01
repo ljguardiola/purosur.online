@@ -163,9 +163,7 @@ export {
   DISCOUNT_TARGET_KINDS,
   discountAppliesOn,
   discountNameLength,
-  discountStatus,
   discountsTargeting,
-  isBuyNPayMSaleUnit,
   isCalendarDay,
   isDiscountNameTooLong,
   isDiscountWindowOrdered,
@@ -178,7 +176,6 @@ export {
   isValidDiscountWeekdays,
   MAX_UNIT_PRICE_CENTS,
   newestPrice,
-  normalizeDiscountWeekdays,
   priceInEffectAt,
   priceReviewAt,
 } from "./pricing/index.js";

@@ -32,11 +32,11 @@ describe("DrizzleDiscountTargetReader", () => {
   });
 
   it("reads every product by name, active or not, with its sale unit, brand and net content", async () => {
-    const playadito = await insertBrand(db, { name: "Playadito" });
+    const aurora = await insertBrand(db, { name: "Aurora" });
     const yerba = await insertProductWithTags(db, {
       name: "Yerba mate",
       tagIds: [],
-      brandId: playadito.id,
+      brandId: aurora.id,
       netContent: { quantity: 0.5, unit: "KG" },
     });
     const almonds = await insertProductWithTags(db, {
@@ -76,7 +76,7 @@ describe("DrizzleDiscountTargetReader", () => {
         name: "Yerba mate",
         active: true,
         saleUnit: "UNIT",
-        brandName: "Playadito",
+        brandName: "Aurora",
         netContent: { quantity: 0.5, unit: "KG" },
         barcodes: [],
       },
