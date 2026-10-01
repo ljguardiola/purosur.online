@@ -1,9 +1,8 @@
 import { userEditBodySchema } from "@purosur/contracts";
-import { Button, InlineNotice, Modal, TextField } from "@purosur/ui";
+import { Button, InlineNotice, Modal, TextField, useRequestForm } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { Check, RotateCcw, ShieldX, TriangleAlert, UserPen, X } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
-import { useCloudForm } from "../platform/cloud-form";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import type { UserRead } from "./access-queries";
@@ -59,7 +58,7 @@ export function EditUserModal({
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
-  const { form, submit, submitting, reset } = useCloudForm({
+  const { form, submit, submitting, reset } = useRequestForm({
     defaultValues: { email: user.email, roleId: user.role.id, version: user.version },
     request: {
       schema: userEditBodySchema,

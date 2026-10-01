@@ -164,16 +164,19 @@ export {
   CASH_MOVEMENT_REASON_MAX_LENGTH,
   CASH_MOVEMENT_TYPES,
   cashCharge,
-  cashMovementAmountSchema,
   cashMovementPermission,
   cashMovementReason,
+  chargeSaleInCashMessageSchema,
+  closeCashSessionMessageSchema,
+  closeLockedCashSessionMessageSchema,
   coreStatusMessageSchema,
   coreToRendererMessageSchema,
-  countedCashSchema,
   mainToCoreMessageSchema,
-  openingFloatSchema,
+  openCashSessionMessageSchema,
   parseAmountCents,
+  recordCashMovementMessageSchema,
   rendererToCoreMessageSchema,
+  signInLookupMessageSchema,
 } from "./register/core-messages.js";
 export type { DeviceEnrollment, DeviceEnrollmentBody } from "./register/device-enrollment.js";
 export {

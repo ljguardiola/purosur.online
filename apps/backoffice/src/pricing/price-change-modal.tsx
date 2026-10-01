@@ -1,10 +1,16 @@
 import { type PriceProduct, priceSetBodySchema } from "@purosur/contracts";
-import { Button, InlineNotice, Modal, NotificationCard } from "@purosur/ui";
+import {
+  Button,
+  InlineNotice,
+  Modal,
+  NotificationCard,
+  type RequestSubmission,
+  useRequestForm,
+} from "@purosur/ui";
 import { Check, Pencil, RotateCcw, ShieldX, TriangleAlert } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import type { ProductSaleUnit } from "../catalog/products-api";
-import { type CloudSubmission, useCloudForm } from "../platform/cloud-form";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { formatCentsWithUnit } from "./money";
 import {
@@ -74,7 +80,7 @@ export function PriceChangeModal({
   const [notice, setNotice] = useState<ModalNotice | null>(null);
   const [previousNotice, setPreviousNotice] = useState<ScreenNotice | null>(null);
   const [working, setWorking] = useState(false);
-  const { form, submit, submitting, reset } = useCloudForm({
+  const { form, submit, submitting, reset } = useRequestForm({
     defaultValues: EMPTY_PRICE_FORM,
     request: { schema: priceSetBodySchema, from: priceRequestFrom },
     fields: { unitPrice: "amount", expectedCurrentPriceId: null },
@@ -129,7 +135,7 @@ export function PriceChangeModal({
     product: PriceProduct,
     unitPrice: number,
     outcome: SetPriceOutcome,
-    { showFieldError, showWireFieldError }: CloudSubmission<PriceFormValues>,
+    { showFieldError, showWireFieldError }: RequestSubmission<PriceFormValues>,
   ) {
     if (outcome.kind === "ok") {
       onSaved(product, { kind: "saved", unitPrice });

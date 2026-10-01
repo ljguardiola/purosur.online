@@ -1,8 +1,14 @@
 import type { TagSummary } from "@purosur/contracts";
-import { ChipListField, type Option, plural, sortedItems, textOrder } from "@purosur/ui";
+import {
+  ChipListField,
+  fieldErrorMessage,
+  type Option,
+  plural,
+  sortedItems,
+  textOrder,
+  useFieldContext,
+} from "@purosur/ui";
 import { useState } from "react";
-import { useFieldContext } from "../platform/cloud-form-context";
-import { fieldErrorMessage } from "../platform/cloud-form-fields";
 import { useMarkCatalogStale, useRefreshCatalog } from "./catalog-queries";
 
 const INACTIVE_TAG_STATUS = "Inactivo";

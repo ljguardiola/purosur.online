@@ -4,12 +4,17 @@ import {
   productCreationBodySchema,
   type TagSummary,
 } from "@purosur/contracts";
-import { Button, FieldGroup, InlineNotice, Modal } from "@purosur/ui";
+import {
+  Button,
+  FieldGroup,
+  InlineNotice,
+  Modal,
+  SharedFieldError,
+  useRequestForm,
+} from "@purosur/ui";
 import { Check, PackagePlus, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSendToMyAccount } from "../access/send-to-my-account";
-import { useCloudForm } from "../platform/cloud-form";
-import { SharedFieldError } from "../platform/cloud-form-fields";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import {
   BarcodeChips,
@@ -80,7 +85,7 @@ export function NewProductModal({
     | { kind: "rateLimited"; retryAfterSeconds: number; raisedByGenerate?: true }
     | null
   >(null);
-  const { form, submit, submitting, values, reset } = useCloudForm({
+  const { form, submit, submitting, values, reset } = useRequestForm({
     defaultValues: EMPTY_PRODUCT_FORM,
     request: { schema: productCreationBodySchema, from: productRequestFrom },
     fields: PRODUCT_FIELDS,
