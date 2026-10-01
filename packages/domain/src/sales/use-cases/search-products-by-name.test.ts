@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { PRODUCT_NAME_MAX_LENGTH } from "../../catalog/index.js";
 import type { SaleState } from "../model/sale.js";
 import { searchProductsByName } from "./search-products-by-name.js";
 import {
@@ -59,6 +60,28 @@ describe("searchProductsByName", () => {
       ],
       more: false,
     });
+  });
+
+  it("answers a query longer than any product name with no results without reaching storage", () => {
+    const store = ledger();
+
+    expect(search(store, "y".repeat(PRODUCT_NAME_MAX_LENGTH + 1))).toEqual({
+      kind: "results",
+      products: [],
+      more: false,
+    });
+    expect(store.transactions).toBe(0);
+  });
+
+  it("searches a query as long as the longest product name", () => {
+    const store = ledger();
+
+    expect(search(store, "y".repeat(PRODUCT_NAME_MAX_LENGTH))).toEqual({
+      kind: "results",
+      products: [],
+      more: false,
+    });
+    expect(store.transactions).toBe(1);
   });
 
   it("shows the price valid at the clock's moment, or none when the product has none yet", () => {
