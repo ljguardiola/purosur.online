@@ -6,6 +6,7 @@ import {
   isIssuerIdentificationActivityStartDate,
   isIssuerIdentificationGrossIncomeRegistrationTooLong,
   isIssuerIdentificationLegalNameTooLong,
+  latestIssuerIdentification,
 } from "./issuer-identification.js";
 
 const fullUnicodeCodePoint = fc
@@ -153,5 +154,17 @@ describe("isIssuerIdentificationActivityStartDate", () => {
     expect(isIssuerIdentificationActivityStartDate("2026-09-25", lateEveningInArgentina)).toBe(
       true,
     );
+  });
+});
+
+describe("latestIssuerIdentification", () => {
+  it("answers the version with the highest number, whatever the order", () => {
+    const [first, second, third] = [{ version: 1 }, { version: 2 }, { version: 3 }];
+    expect(latestIssuerIdentification([second, third, first])).toBe(third);
+    expect(latestIssuerIdentification([third, first])).toBe(third);
+  });
+
+  it("answers nothing when no version was delivered", () => {
+    expect(latestIssuerIdentification([])).toBeUndefined();
   });
 });
