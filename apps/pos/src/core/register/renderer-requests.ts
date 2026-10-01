@@ -1,6 +1,7 @@
 import type {
   AddProductOutcome,
   Authorization,
+  CancelLockedSaleOutcome,
   CancelSaleOutcome,
   CashBalance,
   CashChargeAnswer,
@@ -23,6 +24,7 @@ import type {
   RendererToCoreMessage,
   ScanProductOutcome,
   SearchProductsOutcome,
+  SessionOpenSale,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
@@ -79,10 +81,12 @@ export interface RendererRequestDeps {
         closer: Authorization,
       ) => Promise<CloseLockedCashSessionOutcome>)
     | undefined;
+  cancelLockedSale: ((closer: Authorization) => Promise<CancelLockedSaleOutcome>) | undefined;
   identifyLockedCloser:
     | ((closer: Authorization) => Promise<IdentifyLockedCloserOutcome>)
     | undefined;
   cashBalance: (() => CashBalance | null) | undefined;
+  sessionOpenSale: (() => SessionOpenSale | null) | undefined;
   authorizers: ((permission: AuthorizablePermissionKey) => SignInUser[]) | undefined;
   signOut: () => void;
   reportFailure: (context: string, error: unknown) => void;
@@ -208,6 +212,18 @@ async function attemptCloseLockedCashSession(
   }
 }
 
+async function attemptCancelLockedSale(
+  deps: RendererRequestDeps,
+  closer: Authorization,
+): Promise<CancelLockedSaleOutcome> {
+  try {
+    return (await deps.cancelLockedSale?.(closer)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("cancelling the open sale of a locked register", error);
+    return { kind: "unavailable" };
+  }
+}
+
 async function attemptIdentifyLockedCloser(
   deps: RendererRequestDeps,
   closer: Authorization,
@@ -225,6 +241,15 @@ function readCashBalance(deps: RendererRequestDeps): CashBalance | null | undefi
     return deps.cashBalance?.();
   } catch (error) {
     deps.reportFailure("reading the cash balance", error);
+    return undefined;
+  }
+}
+
+function readSessionOpenSale(deps: RendererRequestDeps): SessionOpenSale | null | undefined {
+  try {
+    return deps.sessionOpenSale?.();
+  } catch (error) {
+    deps.reportFailure("reading the open sale", error);
     return undefined;
   }
 }
@@ -548,6 +573,12 @@ export async function answerRendererRequest(
           message.closer,
         ),
       };
+    case "cancel-locked-sale":
+      return {
+        type: "cancel-locked-sale-result",
+        request_id: message.request_id,
+        outcome: await attemptCancelLockedSale(deps, message.closer),
+      };
     case "identify-locked-closer":
       return {
         type: "identify-locked-closer-result",
@@ -559,6 +590,12 @@ export async function answerRendererRequest(
       return balance === undefined
         ? { type: "cash-balance-unavailable", request_id: message.request_id }
         : { type: "cash-balance", request_id: message.request_id, balance };
+    }
+    case "session-open-sale-request": {
+      const sale = readSessionOpenSale(deps);
+      return sale === undefined
+        ? { type: "session-open-sale-unavailable", request_id: message.request_id }
+        : { type: "session-open-sale", request_id: message.request_id, sale };
     }
     case "authorizers": {
       const users = readAuthorizers(deps, message.permission);

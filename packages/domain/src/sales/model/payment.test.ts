@@ -1,0 +1,33 @@
+import { describe, expect, it } from "vitest";
+import { cancellableWithoutAuthorization, type PaymentTransaction } from "./payment.js";
+
+const APPROVED: PaymentTransaction = {
+  id: "payment-1",
+  saleId: "sale-1",
+  kind: "SALE",
+  method: "CASH",
+  provider: "NONE",
+  amount: 2500,
+  state: "APPROVED",
+  occurredAt: new Date("2026-09-30T12:00:00.000Z"),
+};
+
+describe("cancellableWithoutAuthorization", () => {
+  it("allows cancelling a sale that has no payment", () => {
+    expect(cancellableWithoutAuthorization([])).toBe(true);
+  });
+
+  it("refuses cancelling a sale with an approved payment", () => {
+    expect(cancellableWithoutAuthorization([APPROVED])).toBe(false);
+  });
+
+  it("allows cancelling a sale whose payments are not approved", () => {
+    expect(cancellableWithoutAuthorization([{ state: "DECLINED" }])).toBe(true);
+  });
+
+  it("refuses when any of several payments is approved", () => {
+    expect(cancellableWithoutAuthorization([APPROVED, { ...APPROVED, id: "payment-2" }])).toBe(
+      false,
+    );
+  });
+});

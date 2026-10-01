@@ -1,6 +1,7 @@
 import type {
   AddProductOutcome,
   Authorization,
+  CancelLockedSaleOutcome,
   CancelSaleOutcome,
   CashBalance,
   CashChargeAnswer,
@@ -24,6 +25,7 @@ import type {
   RendererToCoreMessage,
   ScanProductOutcome,
   SearchProductsOutcome,
+  SessionOpenSale,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
@@ -81,8 +83,10 @@ export interface CoreClient {
     countedCash: number,
     closer: Authorization,
   ): Promise<CloseLockedCashSessionOutcome>;
+  cancelLockedSale(closer: Authorization): Promise<CancelLockedSaleOutcome>;
   identifyLockedCloser(closer: Authorization): Promise<IdentifyLockedCloserOutcome>;
   cashBalance(): Promise<CashBalance | null | "unavailable">;
+  sessionOpenSale(): Promise<SessionOpenSale | null | "unavailable">;
   onPulled(listener: () => void): () => void;
 }
 
@@ -386,6 +390,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           answer.type === "close-locked-cash-session-result" ? answer.outcome : undefined,
       );
     },
+    cancelLockedSale(closer) {
+      return ask(
+        { type: "cancel-locked-sale", request_id: deps.newRequestId(), closer },
+        (answer) => (answer.type === "cancel-locked-sale-result" ? answer.outcome : undefined),
+      );
+    },
     identifyLockedCloser(closer) {
       return ask(
         { type: "identify-locked-closer", request_id: deps.newRequestId(), closer },
@@ -400,6 +410,17 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
             return "unavailable";
           }
           return answer.type === "cash-balance" ? answer.balance : undefined;
+        },
+      );
+    },
+    sessionOpenSale() {
+      return ask(
+        { type: "session-open-sale-request", request_id: deps.newRequestId() },
+        (answer): SessionOpenSale | null | "unavailable" | undefined => {
+          if (answer.type === "session-open-sale-unavailable") {
+            return "unavailable";
+          }
+          return answer.type === "session-open-sale" ? answer.sale : undefined;
         },
       );
     },
