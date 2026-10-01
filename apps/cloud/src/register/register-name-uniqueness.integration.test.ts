@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { createRegister } from "@purosur/domain/register/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -10,7 +11,7 @@ import {
 } from "../test-support/integration-database.js";
 import { waitForLockWaiters } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { createRegister } from "./register-creation-route.js";
+import { DrizzleBranchRegisterStore } from "./drizzle-branch-register-store.js";
 
 // PGlite can't race two creations for the same name; this runs them on a real postgres-js pool,
 // whose driver reports the violated index as `constraint_name` rather than PGlite's `constraint`.
@@ -55,8 +56,12 @@ describe("creating two registers with the same name in the same branch concurren
       await holder`begin`;
       await holder`lock table registers in share mode`;
       creations = [
-        createRegister(db, { locationId, name, actorId: actor.id }),
-        createRegister(db, { locationId, name: name.toUpperCase(), actorId: actor.id }),
+        createRegister(new DrizzleBranchRegisterStore(db), { locationId, name, actorId: actor.id }),
+        createRegister(new DrizzleBranchRegisterStore(db), {
+          locationId,
+          name: name.toUpperCase(),
+          actorId: actor.id,
+        }),
       ];
       await waitForLockWaiters(adminSql, 2);
     } finally {

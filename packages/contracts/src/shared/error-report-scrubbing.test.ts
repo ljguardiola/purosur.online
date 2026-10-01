@@ -1,3 +1,4 @@
+import { ANOTHER_FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { describe, expect, it } from "vitest";
 import {
   scrubErrorReport,
@@ -153,7 +154,7 @@ describe("scrubErrorReport", () => {
         sessionId: "s2",
         backoffice_session_id: "s3",
         cuit: "20-12345678-9",
-        issuerCuit: "30-12345678-1",
+        issuerCuit: ANOTHER_FICTIONAL_CUIT,
         customer_dni: "12345678",
         Dni: "87654321",
       },

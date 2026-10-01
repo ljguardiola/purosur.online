@@ -1,3 +1,7 @@
+import {
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import { describe, expect, it } from "vitest";
 import { changesPageSchema, changesQuerySchema } from "./changes.js";
 
@@ -69,8 +73,8 @@ const roleRow = {
 const registerRow = { name: "Caja 1", version: 1 };
 
 const issuerIdentificationRow = {
-  legal_name: "Comercio de Prueba",
-  gross_income_registration: "CM 000-000000-0",
+  legal_name: FICTIONAL_LEGAL_NAME,
+  gross_income_registration: FICTIONAL_GROSS_INCOME_REGISTRATION,
   activity_start_date: "2020-01-15",
   authorized_cuit: "20000000001",
   tax_status: "Responsable Monotributo",

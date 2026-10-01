@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { enrollInstallation } from "@purosur/domain/register/use-cases";
+import { emitEnrollmentCode, enrollInstallation } from "@purosur/domain/register/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -22,11 +22,14 @@ import {
 } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { issueDeviceToken } from "./device-token.js";
+import { DrizzleBranchRegisterStore } from "./drizzle-branch-register-store.js";
 import { DrizzleRegisterStore } from "./drizzle-register-store.js";
 import { generateInstallationKey } from "./installation-key.js";
 import { installationKeyCipher } from "./installation-key-cipher.js";
-import { registerEnrollmentCodeMatches } from "./register-enrollment-code.js";
-import { emitRegisterEnrollmentCode } from "./register-enrollment-code-route.js";
+import {
+  registerEnrollmentCodeMatches,
+  secretEnrollmentCodes,
+} from "./register-enrollment-code.js";
 
 // PGlite runs every query over one connection, so it can never race two redemptions of the same
 // code; this runs them over a real multi-connection postgres-js pool instead.
@@ -91,12 +94,13 @@ describe("emitting a new code while the current one is being redeemed, on a real
   it("lets both finish instead of deadlocking on the register row", async () => {
     await db.delete(registerEnrollmentCodes);
     const registerId = await insertRegisterWithCode();
+    const locationId = await seededLocationId(db);
     const [actor] = await db
       .insert(users)
       .values({
         firstName: "Ada Lovelace",
         email: `ada-${randomUUID()}@example.com`,
-        locationId: await seededLocationId(db),
+        locationId,
       })
       .returning({ id: users.id });
     if (!actor) {
@@ -114,11 +118,14 @@ describe("emitting a new code while the current one is being redeemed, on a real
       await holder`lock table register_installations in share mode`;
       enrollment = enroll("PRIMERA");
       await waitForLockWaiters(adminSql, 1);
-      emission = emitRegisterEnrollmentCode(db, {
-        registerId,
-        actorId: actor.id,
-        now: new Date(),
-      });
+      emission = emitEnrollmentCode(
+        {
+          store: new DrizzleBranchRegisterStore(db),
+          clock: { now: () => new Date() },
+          codes: secretEnrollmentCodes,
+        },
+        { locationId, registerId, actorId: actor.id },
+      );
       await waitForLockWaiters(adminSql, 2);
     } finally {
       await holder`rollback`;
@@ -126,7 +133,7 @@ describe("emitting a new code while the current one is being redeemed, on a real
     }
 
     await expect(enrollment).resolves.toMatchObject({ kind: "enrolled", registerId });
-    await expect(emission).resolves.toMatchObject({ code: expect.any(String) });
+    await expect(emission).resolves.toMatchObject({ kind: "emitted", code: expect.any(String) });
   });
 });
 

@@ -25,10 +25,8 @@ export const register1: RegisterSummary = { id: "register-1", name: "Caja 1", pe
 export const register2: RegisterSummary = {
   id: "register-2",
   name: "Caja 2",
-  pendingCode: { issuedAt: "2026-09-25T11:56:00.000Z", expiresAt: "2026-09-25T12:11:00.000Z" },
+  pendingCode: { secondsSinceIssued: 240, secondsUntilExpiry: 660 },
 };
-
-export const NOW = () => new Date("2026-09-25T12:00:00.000Z");
 
 const authorizationOptions = { challenge: "session-auth" } as never;
 const assertion = { id: "existing-cred" } as never;
@@ -61,7 +59,7 @@ export function renderScreen(
 ) {
   return render(
     <main>
-      <RegistersListScreen services={services} onSessionEnded={onSessionEnded} now={NOW} />
+      <RegistersListScreen services={services} onSessionEnded={onSessionEnded} />
       <FetchesInFlight />
       <RefreshRegisters />
     </main>,

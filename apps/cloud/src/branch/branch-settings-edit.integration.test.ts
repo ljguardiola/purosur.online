@@ -66,11 +66,11 @@ describe("two saves racing on the same branch's settings version, on a real Post
     const [first, second] = await Promise.all([
       editBranchSettings(
         db,
-        editInput(locationId, actorId, { address: "Puro Sur - Primera edición" }),
+        editInput(locationId, actorId, { address: "Calle de Prueba 1 - Primera edición" }),
       ),
       editBranchSettings(
         db,
-        editInput(locationId, actorId, { address: "Puro Sur - Segunda edición" }),
+        editInput(locationId, actorId, { address: "Calle de Prueba 1 - Segunda edición" }),
       ),
     ]);
 
