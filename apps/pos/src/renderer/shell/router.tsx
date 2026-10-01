@@ -1,6 +1,7 @@
 import type {
   AddProductOutcome,
   Authorization,
+  CancelLockedSaleOutcome,
   CancelSaleOutcome,
   CashBalance,
   ChangeLineQuantityOutcome,
@@ -82,6 +83,7 @@ export interface RouterContext {
     countedCash: number,
     closer: Authorization,
   ) => Promise<CloseLockedCashSessionOutcome>;
+  cancelLockedSale: (closer: Authorization) => Promise<CancelLockedSaleOutcome>;
   identifyLockedCloser: (closer: Authorization) => Promise<IdentifyLockedCloserOutcome>;
   cashBalance: () => Promise<CashBalance | null | "unavailable">;
   cashMovements: () => Promise<ListedCashMovement[] | null | "unavailable">;
@@ -377,6 +379,7 @@ const lockedCloseRoute = createRoute({
       authorizers,
       identifyLockedCloser,
       closeLockedCashSession,
+      cancelLockedSale,
     } = lockedCloseRoute.useRouteContext();
     const registerName = sessionEyebrowRoute.useLoaderData();
     return (
@@ -390,6 +393,7 @@ const lockedCloseRoute = createRoute({
         closeLockedCashSession={(countedCash, closer) =>
           closeLockedCashSession(id, countedCash, closer)
         }
+        cancelLockedSale={cancelLockedSale}
       />
     );
   },
@@ -500,6 +504,7 @@ export function createAppRouter(
     | "openCashSession"
     | "closeCashSession"
     | "closeLockedCashSession"
+    | "cancelLockedSale"
     | "identifyLockedCloser"
     | "cashBalance"
     | "cashMovements"

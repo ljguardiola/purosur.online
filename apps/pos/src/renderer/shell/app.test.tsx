@@ -2,6 +2,7 @@ import type {
   Authorization,
   CashBalance,
   CloseCashSessionOutcome,
+  CloseLockedCashSessionOutcome,
   EnrollmentOutcome,
   ListedCashMovement,
   OpenCashSession,
@@ -74,6 +75,7 @@ function coreAnswering(
     openOutcome?: OpenCashSessionOutcome;
     closeCashSession?: CoreClient["closeCashSession"];
     closeLockedCashSession?: CoreClient["closeLockedCashSession"];
+    cancelLockedSale?: CoreClient["cancelLockedSale"];
     identifyLockedCloser?: CoreClient["identifyLockedCloser"];
     authorizers?: CoreClient["authorizers"];
     cashBalance?: CoreClient["cashBalance"];
@@ -94,6 +96,7 @@ function coreAnswering(
   const opened: number[] = [];
   const closed: [string, number, Authorization | undefined][] = [];
   const closedLocked: [string, number, Authorization][] = [];
+  const cancelledLocked: Authorization[] = [];
   const recorded: Parameters<CoreClient["recordCashMovement"]>[0][] = [];
   const asked: string[] = [];
   let usersLoads = 0;
@@ -196,6 +199,12 @@ function coreAnswering(
         ? { kind: "unavailable" }
         : cashDrawer.closeLockedCashSession(sessionId, countedCash, closer);
     },
+    async cancelLockedSale(closer) {
+      cancelledLocked.push(closer);
+      return cashDrawer.cancelLockedSale === undefined
+        ? { kind: "unavailable" }
+        : cashDrawer.cancelLockedSale(closer);
+    },
     async identifyLockedCloser(closer) {
       return cashDrawer.identifyLockedCloser === undefined
         ? { kind: "identified", person: { user_id: closer.user_id, first_name: "Sofía" } }
@@ -224,6 +233,7 @@ function coreAnswering(
     opened,
     closed,
     closedLocked,
+    cancelledLocked,
     recorded,
     finishPull,
     usersLoads: () => usersLoads,
@@ -1271,7 +1281,7 @@ describe("App", () => {
 
     it("stays signed in on the cash count when the close from Salir is refused", async () => {
       const { screen, asked } = await resumeGracesSession({
-        closeCashSession: async () => ({ kind: "open_sale", total: 3_434_000 }),
+        closeCashSession: async () => ({ kind: "open_sale", total: 3_434_000, cancellable: true }),
       });
       await userEvent.click(screen.getByRole("button", { name: "Salir" }));
       await userEvent.click(
@@ -1289,7 +1299,7 @@ describe("App", () => {
 
     it("stays on the cash count and offers the sale when it is still open", async () => {
       const { screen } = await resumeGracesSession({
-        closeCashSession: async () => ({ kind: "open_sale", total: 3_434_000 }),
+        closeCashSession: async () => ({ kind: "open_sale", total: 3_434_000, cancellable: true }),
       });
       await startClosing(screen);
 
@@ -1324,6 +1334,7 @@ describe("App", () => {
       cashDrawer: {
         identifyLockedCloser?: CoreClient["identifyLockedCloser"];
         closeLockedCashSession?: CoreClient["closeLockedCashSession"];
+        cancelLockedSale?: CoreClient["cancelLockedSale"];
         cashSession?: CoreClient["cashSession"];
       } = {},
     ) {
@@ -1389,6 +1400,55 @@ describe("App", () => {
         await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
       },
     );
+
+    describe("cancelling its open sale", () => {
+      const OPEN_SALE: CloseLockedCashSessionOutcome = {
+        kind: "open_sale",
+        total: 3_434_000,
+        cancellable: true,
+      };
+
+      async function cancelFromLocked(cashDrawer: Parameters<typeof identifyFromLocked>[0]) {
+        const closed = await closeFromLocked({
+          closeLockedCashSession: async () => OPEN_SALE,
+          ...cashDrawer,
+        });
+        await userEvent.click(closed.screen.getByRole("button", { name: "Cancelar la venta" }));
+        await userEvent.click(
+          closed.screen.getByRole("dialog").getByRole("button", { name: "Cancelar la venta" }),
+        );
+        return closed;
+      }
+
+      it("cancels it with the PIN of the person who closes, staying on the cash count", async () => {
+        const { screen, cancelledLocked } = await cancelFromLocked({
+          cancelLockedSale: async () => ({ kind: "cancelled" }),
+        });
+
+        await expect.poll(() => cancelledLocked).toEqual([{ user_id: "u3", pin: "1234" }]);
+        await expect
+          .element(screen.getByText("Hay una venta abierta de $ 34.340,00"))
+          .not.toBeInTheDocument();
+        await expect.element(screen.getByRole("heading", { name: "Cerrar caja" })).toBeVisible();
+      });
+
+      it.each(["no_open_session", "not_locked"] as const)(
+        "reads the cash session again when the cancellation answers %s",
+        async (kind) => {
+          let asks = 0;
+          const { screen } = await cancelFromLocked({
+            cancelLockedSale: async () => ({ kind }),
+            cashSession: async () => {
+              asks += 1;
+              return asks === 1 ? GRACE_SESSION : null;
+            },
+          });
+
+          await expect.poll(() => asks).toBe(2);
+          await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+        },
+      );
+    });
 
     it("reads the cash session again when identifying answers that the register is not locked", async () => {
       let asks = 0;

@@ -1,5 +1,6 @@
 import type {
   Authorization,
+  CancelLockedSaleOutcome,
   CashBalance,
   CloseLockedCashSessionOutcome,
   IdentifyLockedCloserOutcome,
@@ -31,9 +32,14 @@ const IDENTIFIED: IdentifyLockedCloserOutcome = {
 };
 
 type Close = (countedCash: number, closer: Authorization) => Promise<CloseLockedCashSessionOutcome>;
+type CancelSale = (closer: Authorization) => Promise<CancelLockedSaleOutcome>;
 
 async function renderScreen(
-  options: { identify?: () => Promise<IdentifyLockedCloserOutcome>; close?: Close } = {},
+  options: {
+    identify?: () => Promise<IdentifyLockedCloserOutcome>;
+    close?: Close;
+    cancelSale?: CancelSale;
+  } = {},
 ) {
   await page.viewport(1280, 720);
   onTestFinished(() => page.viewport(414, 896));
@@ -48,6 +54,7 @@ async function renderScreen(
       loadAuthorizers={async () => [{ id: "u3", first_name: "Sofía" }]}
       identifyLockedCloser={options.identify ?? (async () => IDENTIFIED)}
       closeLockedCashSession={close}
+      cancelLockedSale={options.cancelSale ?? (async () => ({ kind: "cancelled" }))}
     />,
   );
   return { screen, loadCashBalance, close };
@@ -115,5 +122,20 @@ describe("LockedCloseScreen", () => {
       .toBeVisible();
     await expect.element(screen.getByText("Sofía no puede cerrar la caja")).toBeVisible();
     await expect.element(screen.getByText("$ 46.200,00", { exact: true })).not.toBeInTheDocument();
+  });
+
+  it("cancels the open sale with the PIN of the person who closes", async () => {
+    const cancelSale = vi.fn<CancelSale>(async () => ({ kind: "cancelled" }));
+    const { screen } = await renderScreen({
+      close: async () => ({ kind: "open_sale", total: 3_434_000, cancellable: true }),
+      cancelSale,
+    });
+    await identifySofia(screen);
+    await closeWith(screen, "45.800,00");
+    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+
+    await screen.getByRole("dialog").getByRole("button", { name: "Cancelar la venta" }).click();
+
+    await expect.poll(() => cancelSale.mock.calls).toEqual([[{ user_id: "u3", pin: "1234" }]]);
   });
 });

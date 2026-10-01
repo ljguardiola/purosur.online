@@ -1,17 +1,23 @@
-import type { CashBalance, CloseLockedCashSessionOutcome } from "@purosur/contracts";
+import type {
+  CancelLockedSaleOutcome,
+  CashBalance,
+  CloseLockedCashSessionOutcome,
+} from "@purosur/contracts";
 import { Button, formatCents, InlineNotice, TextField } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Lock, ShoppingBasket, TriangleAlert } from "lucide-react";
+import { ArrowLeft, Lock, ShoppingBasket, TriangleAlert, X } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { SignedInPerson } from "../access/signed-in-person";
 import { SessionEyebrow } from "../shell/session-eyebrow";
+import { CancelLockedSaleModal } from "./cancel-locked-sale-modal";
 import { countedCashFrom, differenceNotice, INVALID_COUNTED_CASH_MESSAGE } from "./cash-amounts";
 import { CashCountStrip } from "./cash-count-strip";
 import { ExpectedCashPanel } from "./expected-cash-panel";
 import { useCashBalance } from "./use-cash-balance";
 
-const FAILED = "No se pudo cerrar la caja. Probá de nuevo.";
+const CLOSE_FAILED = "No se pudo cerrar la caja. Probá de nuevo.";
+const CANCEL_FAILED = "No se pudo cancelar la venta. Probá de nuevo.";
 
 export type RefusedClose = Extract<
   CloseLockedCashSessionOutcome,
@@ -25,6 +31,7 @@ export type LockedCashCountProps = {
   openedAt: string;
   loadCashBalance: () => Promise<CashBalance | null | "unavailable">;
   close: (countedCash: number) => Promise<CloseLockedCashSessionOutcome>;
+  cancelSale: () => Promise<CancelLockedSaleOutcome>;
   onRefused: (refusal: RefusedClose) => void;
 };
 
@@ -35,6 +42,7 @@ export function LockedCashCount({
   openedAt,
   loadCashBalance,
   close,
+  cancelSale,
   onRefused,
 }: LockedCashCountProps) {
   const navigate = useNavigate();
@@ -42,9 +50,10 @@ export function LockedCashCount({
   const field = useRef<HTMLDivElement>(null);
   const [typed, setTyped] = useState("");
   const [fieldMessage, setFieldMessage] = useState<string>();
-  const [failed, setFailed] = useState(false);
-  const [openSaleTotal, setOpenSaleTotal] = useState<number>();
-  const [submitting, setSubmitting] = useState(false);
+  const [failure, setFailure] = useState<string>();
+  const [openSale, setOpenSale] = useState<{ total: number; cancellable: boolean }>();
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     field.current?.querySelector("input")?.focus();
@@ -61,28 +70,28 @@ export function LockedCashCount({
   function type(value: string) {
     setTyped(value);
     setFieldMessage(undefined);
-    setFailed(false);
-    setOpenSaleTotal(undefined);
+    setFailure(undefined);
+    setOpenSale(undefined);
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (submitting) {
+    if (busy) {
       return;
     }
-    setFailed(false);
-    setOpenSaleTotal(undefined);
+    setFailure(undefined);
+    setOpenSale(undefined);
     const countedCash = countedCashFrom(typed);
     if ("message" in countedCash) {
       setFieldMessage(countedCash.message);
       return;
     }
     setFieldMessage(undefined);
-    setSubmitting(true);
+    setBusy(true);
     const outcome = await close(countedCash.cents).catch(
       (): CloseLockedCashSessionOutcome => ({ kind: "unavailable" }),
     );
-    setSubmitting(false);
+    setBusy(false);
     switch (outcome.kind) {
       case "closed":
       case "no_open_session":
@@ -91,10 +100,35 @@ export function LockedCashCount({
         setFieldMessage(INVALID_COUNTED_CASH_MESSAGE);
         break;
       case "open_sale":
-        setOpenSaleTotal(outcome.total);
+        setOpenSale({ total: outcome.total, cancellable: outcome.cancellable });
         break;
       case "unavailable":
-        setFailed(true);
+        setFailure(CLOSE_FAILED);
+        break;
+      default:
+        onRefused(outcome);
+    }
+  }
+
+  async function cancelOpenSale() {
+    setBusy(true);
+    const outcome = await cancelSale().catch(
+      (): CancelLockedSaleOutcome => ({ kind: "unavailable" }),
+    );
+    setBusy(false);
+    setConfirmingCancel(false);
+    switch (outcome.kind) {
+      case "cancelled":
+      case "no_open_sale":
+        setOpenSale(undefined);
+        break;
+      case "has_approved_payment":
+        setOpenSale((current) => current && { ...current, cancellable: false });
+        break;
+      case "no_open_session":
+        break;
+      case "unavailable":
+        setFailure(CANCEL_FAILED);
         break;
       default:
         onRefused(outcome);
@@ -111,13 +145,29 @@ export function LockedCashCount({
             {`Cierra ${closerName}. La sesión es de ${opener.first_name}.`}
           </p>
         </div>
-        {openSaleTotal === undefined ? null : (
-          <InlineNotice
-            tone="error"
-            icon={<ShoppingBasket />}
-            title={`Hay una venta abierta de ${formatCents(openSaleTotal)}`}
-            description={`${opener.first_name} tiene que retomar la caja para terminarla o cancelarla.`}
-          />
+        {openSale === undefined ? null : (
+          <div className="flex flex-col items-start gap-3">
+            <InlineNotice
+              tone="error"
+              icon={<ShoppingBasket />}
+              title={`Hay una venta abierta de ${formatCents(openSale.total)}`}
+              description={
+                openSale.cancellable
+                  ? "Cancelala para cerrar la caja."
+                  : `${opener.first_name} tiene que retomar la caja para terminarla o cancelarla.`
+              }
+            />
+            {openSale.cancellable ? (
+              <Button
+                variant="secondary"
+                icon={<X />}
+                disabled={busy}
+                onPress={() => setConfirmingCancel(true)}
+              >
+                Cancelar la venta
+              </Button>
+            ) : null}
+          </div>
         )}
         <section className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-6">
           <p className="text-body text-text-subtle">
@@ -131,7 +181,7 @@ export function LockedCashCount({
               inputMode="numeric"
               value={typed}
               onChange={type}
-              disabled={submitting}
+              disabled={busy}
               errorMessage={fieldMessage}
             />
           </div>
@@ -139,7 +189,9 @@ export function LockedCashCount({
           {warning === undefined ? null : (
             <InlineNotice tone="warning" icon={<TriangleAlert />} title={warning} />
           )}
-          {failed ? <InlineNotice tone="error" icon={<TriangleAlert />} title={FAILED} /> : null}
+          {failure === undefined ? null : (
+            <InlineNotice tone="error" icon={<TriangleAlert />} title={failure} />
+          )}
         </section>
       </main>
       <ExpectedCashPanel
@@ -153,7 +205,7 @@ export function LockedCashCount({
           fullWidth
           icon={<Lock />}
           dataStatus={balance.state.status}
-          disabled={submitting}
+          disabled={busy}
         >
           Cerrar caja
         </Button>
@@ -162,12 +214,21 @@ export function LockedCashCount({
           size="large"
           fullWidth
           icon={<ArrowLeft />}
-          disabled={submitting}
+          disabled={busy}
           onPress={() => void navigate({ to: "/locked" })}
         >
           Volver
         </Button>
       </ExpectedCashPanel>
+      {openSale === undefined ? null : (
+        <CancelLockedSaleModal
+          open={confirmingCancel}
+          total={openSale.total}
+          busy={busy}
+          onClose={() => setConfirmingCancel(false)}
+          onCancelSale={() => void cancelOpenSale()}
+        />
+      )}
     </form>
   );
 }

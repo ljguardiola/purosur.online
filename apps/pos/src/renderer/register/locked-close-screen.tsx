@@ -1,5 +1,6 @@
 import type {
   Authorization,
+  CancelLockedSaleOutcome,
   CashBalance,
   CloseLockedCashSessionOutcome,
   IdentifyLockedCloserOutcome,
@@ -27,6 +28,7 @@ export type LockedCloseScreenProps = {
     countedCash: number,
     closer: Authorization,
   ) => Promise<CloseLockedCashSessionOutcome>;
+  cancelLockedSale: (closer: Authorization) => Promise<CancelLockedSaleOutcome>;
 };
 
 export function LockedCloseScreen({
@@ -37,6 +39,7 @@ export function LockedCloseScreen({
   loadAuthorizers,
   identifyLockedCloser,
   closeLockedCashSession,
+  cancelLockedSale,
 }: LockedCloseScreenProps) {
   const [step, setStep] = useState<Step>({ kind: "identifying", returned: undefined });
 
@@ -50,6 +53,7 @@ export function LockedCloseScreen({
         openedAt={openedAt}
         loadCashBalance={loadCashBalance}
         close={(countedCash) => closeLockedCashSession(countedCash, closer.authorization)}
+        cancelSale={() => cancelLockedSale(closer.authorization)}
         onRefused={(refusal) =>
           setStep({
             kind: "identifying",

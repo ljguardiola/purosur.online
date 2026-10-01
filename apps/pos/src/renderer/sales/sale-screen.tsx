@@ -281,6 +281,7 @@ export function SaleScreen({
         setView({ status: "loading" });
         break;
       case "invalid_quantity":
+      case "has_approved_payment":
       case "unavailable":
         setProblem(failure);
         break;

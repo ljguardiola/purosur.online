@@ -627,6 +627,23 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to cancel the open sale of a locked register by the closer's PIN and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const closer = { user_id: "u2", pin: "1234" };
+
+    const outcome = client.cancelLockedSale(closer);
+    port.answer({
+      type: "cancel-locked-sale-result",
+      request_id: "request-1",
+      outcome: { kind: "cancelled" },
+    });
+
+    expect(await outcome).toEqual({ kind: "cancelled" });
+    expect(port.posted).toEqual([{ type: "cancel-locked-sale", request_id: "request-1", closer }]);
+  });
+
   it("sends the authorization when closing a session with one", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

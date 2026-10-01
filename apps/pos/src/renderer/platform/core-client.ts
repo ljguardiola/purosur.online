@@ -1,6 +1,7 @@
 import type {
   AddProductOutcome,
   Authorization,
+  CancelLockedSaleOutcome,
   CancelSaleOutcome,
   CashBalance,
   ChangeLineQuantityOutcome,
@@ -77,6 +78,7 @@ export interface CoreClient {
     countedCash: number,
     closer: Authorization,
   ): Promise<CloseLockedCashSessionOutcome>;
+  cancelLockedSale(closer: Authorization): Promise<CancelLockedSaleOutcome>;
   identifyLockedCloser(closer: Authorization): Promise<IdentifyLockedCloserOutcome>;
   cashBalance(): Promise<CashBalance | null | "unavailable">;
   onPulled(listener: () => void): () => void;
@@ -355,6 +357,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         },
         (answer) =>
           answer.type === "close-locked-cash-session-result" ? answer.outcome : undefined,
+      );
+    },
+    cancelLockedSale(closer) {
+      return ask(
+        { type: "cancel-locked-sale", request_id: deps.newRequestId(), closer },
+        (answer) => (answer.type === "cancel-locked-sale-result" ? answer.outcome : undefined),
       );
     },
     identifyLockedCloser(closer) {
