@@ -1,9 +1,4 @@
-import type {
-  Authorization,
-  CashBalance,
-  CloseCashSessionOutcome,
-  SignInUser,
-} from "@purosur/contracts";
+import type { CashBalance, CloseCashSessionOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
@@ -14,11 +9,6 @@ import { CashCountScreen } from "./cash-count-screen";
 const ADA: SignedInPerson = {
   user_id: "u1",
   first_name: "Ada",
-  permission_keys: ["sell_and_charge"],
-};
-const GRACE: SignedInPerson = {
-  user_id: "u2",
-  first_name: "Grace",
   permission_keys: ["sell_and_charge"],
 };
 const OPENED_AT = "2026-09-30T12:02:00.000Z";
@@ -44,17 +34,12 @@ const REQUIRED_MESSAGE = "Ingresá el efectivo contado.";
 const INVALID_MESSAGE = "Ingresá un importe válido, por ejemplo 31.500,00.";
 const FAILED_NOTICE = "No se pudo cerrar la caja. Probá de nuevo.";
 
-type CloseCashSession = (
-  countedCash: number,
-  authorization?: Authorization,
-) => Promise<CloseCashSessionOutcome>;
+type CloseCashSession = (countedCash: number) => Promise<CloseCashSessionOutcome>;
 
 async function renderScreen(
   props: {
     person?: SignedInPerson;
-    openedBy?: SignedInPerson;
     loadCashBalance?: () => Promise<CashBalance | null | "unavailable">;
-    loadAuthorizers?: () => Promise<SignInUser[]>;
     closeCashSession?: CloseCashSession;
   } = {},
 ) {
@@ -65,12 +50,10 @@ async function renderScreen(
     <CashCountScreen
       sessionId="s1"
       person={props.person ?? ADA}
-      openedBy={props.openedBy ?? ADA}
       registerName="Caja 1"
       openedAt={OPENED_AT}
       lock={() => {}}
       loadCashBalance={props.loadCashBalance ?? (async () => BALANCE)}
-      loadAuthorizers={props.loadAuthorizers ?? (async () => [])}
       closeCashSession={closeCashSession}
     />,
   );
@@ -170,9 +153,7 @@ describe("CashCountScreen", () => {
     await count(screen, "45.800,00");
     await submit(screen);
 
-    await expect
-      .poll(() => vi.mocked(closeCashSession).mock.calls)
-      .toEqual([[4_580_000, undefined]]);
+    await expect.poll(() => vi.mocked(closeCashSession).mock.calls).toEqual([[4_580_000]]);
   });
 
   it("asks for the counted cash when none was typed, without closing", async () => {
@@ -300,12 +281,10 @@ describe("CashCountScreen", () => {
       <CashCountScreen
         sessionId="s1"
         person={ADA}
-        openedBy={ADA}
         registerName={null}
         openedAt={OPENED_AT}
         lock={() => {}}
         loadCashBalance={() => new Promise(() => {})}
-        loadAuthorizers={async () => []}
         closeCashSession={async () => CLOSED}
       />,
     );
@@ -321,92 +300,5 @@ describe("CashCountScreen", () => {
 
     expect(screen.router.state.location.pathname).toBe("/cash");
     expect(closeCashSession).not.toHaveBeenCalled();
-  });
-
-  it("asks for nobody's PIN when the person closes their own session", async () => {
-    const { screen } = await renderScreen();
-
-    await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).not.toBeInTheDocument();
-  });
-
-  it("asks for nobody's PIN when the person may close another person's session", async () => {
-    const { screen } = await renderScreen({
-      person: {
-        ...ADA,
-        permission_keys: ["sell_and_charge", "close_anothers_register_session"],
-      },
-      openedBy: GRACE,
-    });
-
-    await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).not.toBeInTheDocument();
-  });
-
-  describe("another person's session", () => {
-    async function renderAnothers(closeCashSession?: CloseCashSession) {
-      return renderScreen({
-        person: ADA,
-        openedBy: GRACE,
-        loadAuthorizers: async () => [{ id: "u3", first_name: "Sofía" }],
-        ...(closeCashSession === undefined ? {} : { closeCashSession }),
-      });
-    }
-
-    it("asks someone with permission to authorize, saying whose session it is", async () => {
-      const { screen } = await renderAnothers();
-
-      await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).toBeVisible();
-      await expect
-        .element(
-          screen.getByText(
-            "La sesión es de Grace: cerrarla pide el PIN de alguien con permiso para cerrar la sesión de otra persona.",
-          ),
-        )
-        .toBeVisible();
-      await expectNoAccessibilityViolations(screen.container);
-    });
-
-    it("keeps Cerrar caja disabled until someone is chosen and types a PIN", async () => {
-      const { screen } = await renderAnothers();
-      await count(screen, "45.800,00");
-
-      await expect.element(screen.getByRole("button", { name: "Cerrar caja" })).toBeDisabled();
-
-      await userEvent.click(screen.getByRole("button", { name: /Persona que autoriza/ }));
-      await userEvent.click(screen.getByRole("option", { name: "Sofía" }));
-      await userEvent.type(screen.getByLabelText("PIN"), "1234");
-
-      await expect.element(screen.getByRole("button", { name: "Cerrar caja" })).toBeEnabled();
-    });
-
-    it("closes the session with the authorizer the person chose", async () => {
-      const closeCashSession = vi.fn<CloseCashSession>(async () => CLOSED);
-      const { screen } = await renderAnothers(closeCashSession);
-      await count(screen, "45.800,00");
-      await userEvent.click(screen.getByRole("button", { name: /Persona que autoriza/ }));
-      await userEvent.click(screen.getByRole("option", { name: "Sofía" }));
-      await userEvent.type(screen.getByLabelText("PIN"), "1234");
-
-      await submit(screen);
-
-      await expect
-        .poll(() => closeCashSession.mock.calls)
-        .toEqual([[4_580_000, { user_id: "u3", pin: "1234" }]]);
-    });
-
-    it("shows a refused PIN in the authorization section", async () => {
-      const { screen } = await renderAnothers(async () => ({
-        kind: "wrong_pin",
-        retry_after_seconds: 0,
-        attempts_left: 4,
-      }));
-      await count(screen, "45.800,00");
-      await userEvent.click(screen.getByRole("button", { name: /Persona que autoriza/ }));
-      await userEvent.click(screen.getByRole("option", { name: "Sofía" }));
-      await userEvent.type(screen.getByLabelText("PIN"), "1234");
-
-      await submit(screen);
-
-      await expect.element(screen.getByText("PIN incorrecto")).toBeVisible();
-    });
   });
 });

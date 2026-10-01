@@ -7,15 +7,13 @@ import type {
 import { EmptyState, InlineNotice, LoadFailure, LoadingPlaceholder } from "@purosur/ui";
 import { ArrowLeft, Lock, ShieldX, TriangleAlert, UsersRound, UserX } from "lucide-react";
 import { useId, useState } from "react";
-import { useAuthorizersQuery } from "../access/access-queries";
+import { useLockedClosersQuery } from "../access/access-queries";
 import { PinAttemptControls } from "../access/pin-attempt-controls";
 import { waitDescription } from "../access/pin-attempt-text";
 import type { PinNotice } from "../access/pin-refusal";
 import { SignInLockout } from "../access/sign-in-lockout";
-import type { SignedInPerson } from "../access/signed-in-person";
 import { usePinAttempt } from "../access/use-pin-attempt";
 import { UserPicker } from "../access/user-picker";
-import type { CoreData } from "../platform/use-core-query";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
 import { ScreenLink } from "../shell/screen-link";
 import { SessionEyebrow } from "../shell/session-eyebrow";
@@ -28,7 +26,6 @@ export type ReturnedCloser = {
 };
 
 export type LockedCloserIdentificationProps = {
-  opener: SignedInPerson;
   registerName: string | null;
   openedAt: string;
   loadClosers: () => Promise<SignInUser[]>;
@@ -77,7 +74,6 @@ function returnedNotice({ refusal, firstName }: ReturnedCloser): PinNotice {
 }
 
 function IdentificationPanel({
-  opener,
   registerName,
   openedAt,
   loadClosers,
@@ -86,15 +82,7 @@ function IdentificationPanel({
   onIdentified,
 }: LockedCloserIdentificationProps) {
   const headingId = useId();
-  const authorizers = useAuthorizersQuery({
-    permission: "close_anothers_register_session",
-    read: loadClosers,
-    enabled: true,
-  });
-  const closers: CoreData<SignInUser[]> =
-    authorizers.status === "loaded"
-      ? { ...authorizers, value: authorizers.value.filter((user) => user.id !== opener.user_id) }
-      : authorizers;
+  const closers = useLockedClosersQuery(loadClosers);
   const [chosen, setChosen] = useState<SignInUser | null>(null);
   const attempt = usePinAttempt(
     chosen === null

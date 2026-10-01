@@ -53,11 +53,7 @@ function Register({ core }: { core: CoreClient }) {
     read: () => core.cashSession(),
     enabled: enrollment === "enrolled",
   });
-  // Only the person who opened the open session can be in: anyone else leaves the register locked.
-  const person =
-    cashSession.status === "open" && signedInPerson?.user_id !== cashSession.openedBy.user_id
-      ? undefined
-      : signedInPerson;
+  const person = cashSession.status === "open" && cashSession.locked ? undefined : signedInPerson;
 
   function cancelCashSessionReads() {
     return cancelReads(queryClient, registerKeys.cashSession);
@@ -87,7 +83,7 @@ function Register({ core }: { core: CoreClient }) {
     if (outcome.kind === "signed_in") {
       setPerson(outcome.person);
     }
-    if (outcome.kind === "cash_session_opened_by_another") {
+    if (outcome.kind === "signed_in" || outcome.kind === "cash_session_opened_by_another") {
       await refreshCashSession();
     }
     return outcome;
@@ -106,24 +102,19 @@ function Register({ core }: { core: CoreClient }) {
     setPerson(undefined);
   }
 
-  async function openCashSession(opener: SignedInPerson, openingFloat: number) {
+  async function openCashSession(openingFloat: number) {
     const outcome = await core.openCashSession(openingFloat);
     if (outcome.kind === "not_signed_in") {
       setPerson(undefined);
     }
     if (outcome.kind === "opened") {
       await cancelCashSessionReads();
-      setCashSession({
-        status: "open",
-        id: outcome.session.id,
-        openedAt: outcome.session.opened_at,
-        openedBy: opener,
-      });
+      await refreshCashSession();
     }
     if (outcome.kind === "already_open") {
       return readCashSession().then(
         (session): OpenCashSessionOutcome => {
-          if (session.status === "open" && session.openedBy.user_id !== opener.user_id) {
+          if (session.status === "open" && session.locked) {
             signOut();
           }
           return outcome;
@@ -138,10 +129,9 @@ function Register({ core }: { core: CoreClient }) {
     closer: SignedInPerson,
     sessionId: string,
     countedCash: number,
-    authorization: Authorization | undefined,
     leaving: boolean,
   ) {
-    const outcome = await core.closeCashSession(sessionId, countedCash, authorization);
+    const outcome = await core.closeCashSession(sessionId, countedCash);
     if (outcome.kind === "not_signed_in") {
       setPerson(undefined);
     }
@@ -226,6 +216,7 @@ function Register({ core }: { core: CoreClient }) {
     const outcome = await core.redeemPinCode(typedCode, newPin);
     if (outcome.kind === "resumed") {
       setPerson(outcome.person);
+      await refreshCashSession();
     }
     return outcome;
   }
@@ -254,6 +245,7 @@ function Register({ core }: { core: CoreClient }) {
     registerName: () => core.registerName(),
     signInUsers: () => core.signInUsers(),
     authorizers: (permission: AuthorizablePermissionKey) => core.authorizers(permission),
+    lockedClosers: () => core.lockedClosers(),
     signIn,
     signOut,
     openCashSession,

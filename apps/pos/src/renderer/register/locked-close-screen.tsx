@@ -7,7 +7,6 @@ import type {
   SessionOpenSale,
   SignInUser,
 } from "@purosur/contracts";
-import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { useState } from "react";
 import type { SignedInPerson } from "../access/signed-in-person";
 import { LockedCashCount } from "./locked-cash-count";
@@ -25,7 +24,7 @@ export type LockedCloseScreenProps = {
   openedAt: string;
   loadCashBalance: () => Promise<CashBalance | null | "unavailable">;
   loadOpenSale: () => Promise<SessionOpenSale | null | "unavailable">;
-  loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
+  loadClosers: () => Promise<SignInUser[]>;
   identifyLockedCloser: (closer: Authorization) => Promise<IdentifyLockedCloserOutcome>;
   closeLockedCashSession: (
     countedCash: number,
@@ -41,7 +40,7 @@ export function LockedCloseScreen({
   openedAt,
   loadCashBalance,
   loadOpenSale,
-  loadAuthorizers,
+  loadClosers,
   identifyLockedCloser,
   closeLockedCashSession,
   cancelLockedSale,
@@ -73,10 +72,9 @@ export function LockedCloseScreen({
 
   return (
     <LockedCloserIdentification
-      opener={opener}
       registerName={registerName}
       openedAt={openedAt}
-      loadClosers={() => loadAuthorizers("close_anothers_register_session")}
+      loadClosers={loadClosers}
       identify={identifyLockedCloser}
       returned={step.returned}
       onIdentified={(closer) => setStep({ kind: "counting", closer })}

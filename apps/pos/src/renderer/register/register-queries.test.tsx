@@ -186,6 +186,7 @@ describe("cash session query", () => {
       id: "s1",
       openedAt: "2026-09-30T12:02:00.000Z",
       openedBy: GRACE_SESSION.opened_by,
+      locked: false,
     });
   });
 
