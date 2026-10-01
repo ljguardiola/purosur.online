@@ -138,5 +138,7 @@ export type {
   HelpCatalog,
 } from "./messages/help";
 export { defineHelp } from "./messages/help";
+export type { LocaleProviderProps } from "./messages/locale-provider";
+export { LocaleProvider } from "./messages/locale-provider";
 export type { ItemOrder, ItemsSort } from "./ordering/item-ordering";
 export { sortedItems, textOrder } from "./ordering/item-ordering";
