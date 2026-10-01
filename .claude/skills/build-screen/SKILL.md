@@ -132,4 +132,5 @@ For each state and each action's outcome, first write the screen's test
 (`<screen>-screen.test.tsx` beside it) showing how the screen presents it,
 then the code that makes it pass. The test covers the screen's presentation
 and its wiring to the cloud and to its modals, not the behavior its other
-files' tests or `packages/ui` own. Finish with the `check` skill.
+files' tests or `packages/ui` own. Finish as "Working on an issue" in
+`CONTRIBUTING.md` says, from its step 2.
