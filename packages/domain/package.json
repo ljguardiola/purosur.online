@@ -16,6 +16,11 @@
       "types": "./dist/access/use-cases/index.d.ts",
       "default": "./dist/access/use-cases/index.js"
     },
+    "./alerts/use-cases": {
+      "@purosur/source": "./src/alerts/use-cases/index.ts",
+      "types": "./dist/alerts/use-cases/index.d.ts",
+      "default": "./dist/alerts/use-cases/index.js"
+    },
     "./catalog/use-cases": {
       "@purosur/source": "./src/catalog/use-cases/index.ts",
       "types": "./dist/catalog/use-cases/index.d.ts",

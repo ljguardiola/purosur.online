@@ -6,3 +6,40 @@ export {
   isAlertKind,
   isAlertLevel,
 } from "./model/alert-catalog.js";
+export type {
+  AccessIncreasedDetail,
+  AlertDetails,
+  AlertRoleSummary,
+  EmailChangedDetail,
+  OpenAlertInput,
+  PasskeyChangedDetail,
+  RecoveryRequestedDetail,
+  RegisterEnrolledDetail,
+  SignInLockoutDetail,
+} from "./model/alert-details.js";
+export {
+  ESCALATED_LEVEL,
+  escalatesAt,
+  isDueForEscalation,
+} from "./model/alert-escalation.js";
+export type { AlertKindPolicy, AlertScopeKind } from "./model/alert-kind-policy.js";
+export {
+  ALERT_ESCALATION_DELAY_MS,
+  alertKindPolicy,
+  alertKindsWithScope,
+} from "./model/alert-kind-policy.js";
+export { ALERTS_PAGE_SIZE } from "./model/alert-list-page.js";
+export { showsAlertScope } from "./model/alert-scope-visibility.js";
+export type {
+  AlertAudienceAccess,
+  AlertSight,
+  AlertViewer,
+  VisibleAlertSight,
+} from "./model/alert-visibility.js";
+export {
+  alertLocationId,
+  alertSightOf,
+  canSeeAlert,
+  canSeeAnyAlerts,
+} from "./model/alert-visibility.js";
+export { isOpenAlert } from "./model/open-alert-state.js";
