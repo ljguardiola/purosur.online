@@ -33,6 +33,28 @@ test("finds a domain value bound to an exported constant", () => {
   assert.deepEqual(findDomainValueReExports(source), ["LIMIT"]);
 });
 
+test("finds a domain value bound to an exported constant with a function type or a cast", () => {
+  for (const binding of [
+    "export const check: (value: string) => boolean = isValid;",
+    "export const check = isValid as (value: string) => boolean;",
+    "export const check = isValid satisfies (value: string) => boolean;",
+  ]) {
+    const source = ['import { isValid } from "@purosur/domain";', binding].join("\n");
+
+    assert.deepEqual(findDomainValueReExports(source), ["isValid"], binding);
+  }
+});
+
+test("ignores an exported constant that builds on a domain value across lines", () => {
+  const source = [
+    'import { domainValue } from "@purosur/domain";',
+    "export const x = domainValue",
+    "  .extend({ a: 1 });",
+  ].join("\n");
+
+  assert.deepEqual(findDomainValueReExports(source), []);
+});
+
 test("finds a named and a star re-export from domain beside an import from the same specifier", () => {
   const source = [
     'import { isValid } from "@purosur/domain";',
