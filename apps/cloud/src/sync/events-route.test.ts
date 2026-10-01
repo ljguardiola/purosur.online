@@ -1,5 +1,6 @@
 import {
   cloudErrorSchema,
+  PUSH_EVENTS_REQUEST_MAX_BYTES,
   type PushEventsRequest,
   pushEventsResponseSchema,
 } from "@purosur/contracts";
@@ -112,6 +113,44 @@ describe("POST /events", () => {
     expect(pushEventsResponseSchema.parse(response.json())).toEqual({
       status: "ok",
       ack_seq: 200,
+    });
+  });
+
+  describe("the request size limit", () => {
+    function bodyOfBytes(totalBytes: number): string {
+      const empty = JSON.stringify({
+        ...body(1),
+        events: [{ ...event(1), payload: { filler: "" } }],
+      });
+      const filler = "x".repeat(totalBytes - Buffer.byteLength(empty));
+      return JSON.stringify({ ...body(1), events: [{ ...event(1), payload: { filler } }] });
+    }
+
+    function pushRaw(rawBody: string, deviceToken: string) {
+      return app.inject({
+        method: "POST",
+        url: "/events",
+        payload: rawBody,
+        headers: { authorization: `Bearer ${deviceToken}`, "content-type": "application/json" },
+      });
+    }
+
+    it("accepts a request of exactly the contract's limit", async () => {
+      const { deviceToken } = await insertEnrolledInstallation(db);
+      const rawBody = bodyOfBytes(PUSH_EVENTS_REQUEST_MAX_BYTES);
+      expect(Buffer.byteLength(rawBody)).toBe(PUSH_EVENTS_REQUEST_MAX_BYTES);
+
+      const response = await pushRaw(rawBody, deviceToken);
+
+      expect(response.statusCode).toBe(200);
+    });
+
+    it("refuses a request one byte over the contract's limit", async () => {
+      const { deviceToken } = await insertEnrolledInstallation(db);
+
+      const response = await pushRaw(bodyOfBytes(PUSH_EVENTS_REQUEST_MAX_BYTES + 1), deviceToken);
+
+      expect(response.statusCode).toBe(400);
     });
   });
 

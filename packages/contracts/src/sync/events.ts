@@ -31,6 +31,8 @@ const registerTelemetrySchema = z.object({
   disk_free_ratio: z.number().min(0).max(1),
 });
 
+export const PUSH_EVENTS_REQUEST_MAX_BYTES = 16_777_216;
+
 export const pushEventsRequestSchema = z.object({
   app_version: z.string().min(1),
   telemetry: registerTelemetrySchema,

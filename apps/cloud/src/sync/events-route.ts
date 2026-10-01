@@ -1,6 +1,7 @@
 import {
   cloudError,
   cloudErrorStatus,
+  PUSH_EVENTS_REQUEST_MAX_BYTES,
   type PushEventsResponse,
   pushEventsRequestSchema,
   pushEventsResponseSchema,
@@ -28,8 +29,6 @@ const DEVICE_TOKEN_REJECTED = cloudError(
   "device_token_rejected",
   "the device token is not recognized",
 );
-
-const PUSH_BODY_LIMIT_BYTES = 16 * 1024 * 1024;
 
 const REVOKED = cloudError("revoked", "this installation was revoked");
 
@@ -64,7 +63,7 @@ export function registerEventsRoute<TQueryResult extends PgQueryResultHKT>(
 
     scope.post(
       "/events",
-      { bodyLimit: PUSH_BODY_LIMIT_BYTES, config: { access: PUBLIC_ACCESS } },
+      { bodyLimit: PUSH_EVENTS_REQUEST_MAX_BYTES, config: { access: PUBLIC_ACCESS } },
       async (request, reply) => {
         const authentication = await authenticateDevice(tokenPorts, request.headers.authorization);
         if (authentication.kind !== "installation") {

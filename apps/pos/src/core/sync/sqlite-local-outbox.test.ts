@@ -1,3 +1,4 @@
+import { PUSH_EVENTS_REQUEST_MAX_BYTES } from "@purosur/contracts";
 import type { OutboxEventDraft } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
@@ -11,14 +12,17 @@ const ACKNOWLEDGED_AT = new Date("2026-10-01T09:30:00.000Z");
 let database: LocalDatabase;
 let outbox: SqliteLocalOutbox;
 
-function draft(number: number): OutboxEventDraft {
+function draft(number: number, payloadBytes?: number): OutboxEventDraft {
   return {
     event_id: `018f0000-0000-7000-8000-${String(number).padStart(12, "0")}`,
     aggregate_type: "CashSession",
     aggregate_id: "session-1",
     event_type: "cash_session_opened",
     schema_version: 1,
-    payload: { opening_float: 5000, opened_by: "u1", note: null, tags: ["a", { b: true }] },
+    payload:
+      payloadBytes === undefined
+        ? { opening_float: 5000, opened_by: "u1", note: null, tags: ["a", { b: true }] }
+        : { filler: "x".repeat(payloadBytes) },
     occurred_at: "2026-09-30T12:00:00.000Z",
     actor_id: "u1",
   };
@@ -70,6 +74,27 @@ describe("the events waiting to be pushed", () => {
     appendEvents(3);
 
     expect((await outbox.unacknowledged(2)).map((event) => event.device_seq)).toEqual([1, 2]);
+  });
+
+  it("hands over a shorter batch when the events would not fit one request, the rest next", async () => {
+    const eventBytes = Math.floor(PUSH_EVENTS_REQUEST_MAX_BYTES / 3.5);
+    for (let number = 1; number <= 5; number += 1) {
+      appendOutboxEvent(database, CHAIN_KEY, draft(number, eventBytes));
+    }
+
+    const first = await outbox.unacknowledged(200);
+    await outbox.acknowledgeThrough(3);
+    const second = await outbox.unacknowledged(200);
+
+    expect(first.map((event) => event.device_seq)).toEqual([1, 2, 3]);
+    expect(second.map((event) => event.device_seq)).toEqual([4, 5]);
+  });
+
+  it("hands over the first event alone when it is over the request limit by itself", async () => {
+    appendOutboxEvent(database, CHAIN_KEY, draft(1, PUSH_EVENTS_REQUEST_MAX_BYTES));
+    appendOutboxEvent(database, CHAIN_KEY, draft(2));
+
+    expect((await outbox.unacknowledged(200)).map((event) => event.device_seq)).toEqual([1]);
   });
 
   it("leaves out the events already acknowledged", async () => {

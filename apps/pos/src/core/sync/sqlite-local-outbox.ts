@@ -1,3 +1,4 @@
+import { PUSH_EVENTS_REQUEST_MAX_BYTES } from "@purosur/contracts";
 import type { PushedEvent } from "@purosur/domain";
 import type { LocalOutbox } from "@purosur/domain/sync/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
@@ -6,7 +7,19 @@ interface OutboxRow extends Omit<PushedEvent, "payload"> {
   payload: string;
 }
 
+const REQUEST_ENVELOPE_MARGIN_BYTES = 4096;
+const EVENTS_BYTE_BUDGET = PUSH_EVENTS_REQUEST_MAX_BYTES - REQUEST_ENVELOPE_MARGIN_BYTES;
+
 const CURRENT_INSTALLATION = "device_id = (SELECT device_id FROM sync_state)";
+
+function withinByteBudget(events: PushedEvent[]): PushedEvent[] {
+  let bytes = 0;
+  const firstOver = events.findIndex((event) => {
+    bytes += Buffer.byteLength(JSON.stringify(event)) + 1;
+    return bytes > EVENTS_BYTE_BUDGET;
+  });
+  return firstOver === -1 ? events : events.slice(0, Math.max(firstOver, 1));
+}
 
 export class SqliteLocalOutbox implements LocalOutbox {
   private readonly database: LocalDatabase;
@@ -18,7 +31,7 @@ export class SqliteLocalOutbox implements LocalOutbox {
   }
 
   async unacknowledged(limit: number): Promise<PushedEvent[]> {
-    return this.database
+    const events = this.database
       .prepare<[number], OutboxRow>(
         `SELECT event_id, device_seq, aggregate_type, aggregate_id, event_type, schema_version,
                 payload, occurred_at, actor_id, chain_hmac
@@ -28,7 +41,8 @@ export class SqliteLocalOutbox implements LocalOutbox {
           LIMIT ?`,
       )
       .all(limit)
-      .map((row) => ({ ...row, payload: JSON.parse(row.payload) }));
+      .map((row): PushedEvent => ({ ...row, payload: JSON.parse(row.payload) }));
+    return withinByteBudget(events);
   }
 
   async acknowledgeThrough(deviceSeq: number): Promise<void> {
