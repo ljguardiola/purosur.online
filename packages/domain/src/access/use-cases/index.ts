@@ -8,12 +8,31 @@ export type {
 export type { CreateRoleInput, CreateRoleOutcome, CreateRolePorts } from "./create-role.js";
 export { createRole } from "./create-role.js";
 export type {
+  CreatedUserRole,
+  CreateUserInput,
+  CreateUserOutcome,
+  CreateUserPorts,
+} from "./create-user.js";
+export { createUser } from "./create-user.js";
+export type {
+  DeactivateUserInput,
+  DeactivateUserOutcome,
+  DeactivateUserPorts,
+} from "./deactivate-user.js";
+export { deactivateUser } from "./deactivate-user.js";
+export type {
   EditedRole,
   EditRoleInput,
   EditRoleOutcome,
   EditRolePorts,
 } from "./edit-role.js";
 export { editRole } from "./edit-role.js";
+export type {
+  EditUserInput,
+  EditUserOutcome,
+  EditUserPorts,
+} from "./edit-user.js";
+export { editUser } from "./edit-user.js";
 export type {
   EmitFirstPinCodeInput,
   EmitFirstPinCodeOutcome,
@@ -26,6 +45,11 @@ export type {
 export { emitUserPinCode } from "./emit-user-pin-code.js";
 export type { FindBranchUserInput } from "./find-branch-user.js";
 export { findBranchUser } from "./find-branch-user.js";
+export type {
+  FindDeactivatableUserInput,
+  FindDeactivatableUserPorts,
+} from "./find-deactivatable-user.js";
+export { findDeactivatableUser } from "./find-deactivatable-user.js";
 export type { EditableRole, FindEditableRoleInput } from "./find-editable-role.js";
 export { findEditableRole } from "./find-editable-role.js";
 export type { FindEmailHolderInput } from "./find-email-holder.js";
@@ -72,6 +96,12 @@ export type {
   PinCodeTarget,
 } from "./pin-code-store.js";
 export type {
+  ReactivateUserInput,
+  ReactivateUserOutcome,
+  ReactivateUserPorts,
+} from "./reactivate-user.js";
+export { reactivateUser } from "./reactivate-user.js";
+export type {
   RedeemPinCodeInput,
   RedeemPinCodeOutcome,
 } from "./redeem-pin-code.js";
@@ -96,3 +126,16 @@ export type {
   SignInLookupStore,
   SignInLookupStoreTransaction,
 } from "./sign-in-lookup-store.js";
+export type {
+  AssignableRole,
+  LockedUser,
+  NewUser,
+  RoleWithPermissions,
+  StoredUserRevision,
+  UserAlert,
+  UserChange,
+  UserRewrite,
+  UserStore,
+  UserStoreTransaction,
+} from "./user-store.js";
+export { UserEmailConflict } from "./user-store.js";

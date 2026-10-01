@@ -14,10 +14,19 @@ function inScope(user: BranchUserFacts, scope: BranchUserActiveScope): boolean {
 }
 
 export class FakeBranchUsers implements BranchUsers {
-  private readonly users: FakeBranchUser[] = [];
+  private readonly seeded: FakeBranchUser[] = [];
+  private readonly source: () => FakeBranchUser[];
+
+  constructor(source?: () => FakeBranchUser[]) {
+    this.source = source ?? (() => this.seeded);
+  }
+
+  private get users(): FakeBranchUser[] {
+    return this.source();
+  }
 
   seedUser(user: FakeBranchUser): void {
-    this.users.push(user);
+    this.seeded.push(user);
   }
 
   async branchUsers(
