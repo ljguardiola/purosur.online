@@ -113,6 +113,7 @@ describe("current sale query", () => {
     await userEvent.click(screen.getByRole("button", { name: "take" }));
 
     await expect.element(screen.getByText("sale-1")).toBeVisible();
+    expect(read).toHaveBeenCalledOnce();
   });
 });
 

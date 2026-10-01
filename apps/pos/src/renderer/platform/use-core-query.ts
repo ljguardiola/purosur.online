@@ -10,11 +10,13 @@ type CoreQuery<T> = {
   queryKey: QueryKey;
   read: () => Promise<T | "unavailable">;
   enabled?: boolean;
+  staleTime?: number | undefined;
 };
 
-export function coreQueryOptions<T>({ queryKey, read }: CoreQuery<T>) {
+export function coreQueryOptions<T>({ queryKey, read, staleTime }: CoreQuery<T>) {
   return queryOptions({
     queryKey,
+    ...(staleTime === undefined ? {} : { staleTime }),
     queryFn: async (): Promise<T> => {
       const answer = await read();
       if (answer === "unavailable") {
@@ -25,8 +27,13 @@ export function coreQueryOptions<T>({ queryKey, read }: CoreQuery<T>) {
   });
 }
 
-export function useCoreQuery<T>({ queryKey, read, enabled = true }: CoreQuery<T>): CoreData<T> {
-  const query = useQuery({ ...coreQueryOptions({ queryKey, read }), enabled });
+export function useCoreQuery<T>({
+  queryKey,
+  read,
+  enabled = true,
+  staleTime,
+}: CoreQuery<T>): CoreData<T> {
+  const query = useQuery({ ...coreQueryOptions({ queryKey, read, staleTime }), enabled });
   if (query.data !== undefined) {
     return { status: "loaded", value: query.data, refreshing: query.isFetching };
   }

@@ -917,6 +917,20 @@ describe("the register's router", () => {
     expect(screen.container.textContent).toContain("Caja 1 · Sesión abierta 09:02");
   });
 
+  it("reads the register's name once on the first visit to a session screen", async () => {
+    const registerName = vi.fn(async () => "Caja 1");
+    const router = createRegisterRouter(
+      routeTree,
+      { ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION), registerName },
+      "/session",
+    );
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screen.getByText("Caja 1 · Sesión abierta 09:02")).toBeVisible();
+    expect(registerName).toHaveBeenCalledOnce();
+  });
+
   it("opens the cash session for the person through the router context", async () => {
     const opened: [string, number][] = [];
     const router = createRegisterRouter(

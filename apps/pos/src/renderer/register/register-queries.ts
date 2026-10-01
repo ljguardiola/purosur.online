@@ -62,11 +62,11 @@ export function useCashSessionQuery({
 }
 
 export function registerNameQueryOptions(read: () => Promise<string | null>) {
-  return coreQueryOptions({ queryKey: registerKeys.registerName, read });
+  return coreQueryOptions({ queryKey: registerKeys.registerName, read, staleTime: Infinity });
 }
 
 export function useRegisterNameQuery(read: () => Promise<string | null>): string | null {
-  const name = useCoreQuery({ queryKey: registerKeys.registerName, read });
+  const name = useCoreQuery({ queryKey: registerKeys.registerName, read, staleTime: Infinity });
   return name.status === "loaded" ? name.value : null;
 }
 

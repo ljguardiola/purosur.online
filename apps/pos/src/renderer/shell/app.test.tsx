@@ -12,6 +12,7 @@ import type {
   SignInOutcome,
 } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { QueryClient } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -1206,14 +1207,21 @@ describe("App", () => {
         cashMovements?: CoreClient["cashMovements"];
         openOutcome?: OpenCashSessionOutcome;
       } = {},
+      sales: { scanProduct?: CoreClient["scanProduct"] } = {},
     ) {
       await page.viewport(1280, 720);
       onTestFinished(() => page.viewport(414, 896));
-      const fake = coreAnswering(true, { kind: "enrolled" }, GRACE_SIGNED_IN, {
-        cashSession: async () => GRACE_SESSION,
-        cashBalance: async () => BALANCE,
-        ...cashDrawer,
-      });
+      const fake = coreAnswering(
+        true,
+        { kind: "enrolled" },
+        GRACE_SIGNED_IN,
+        {
+          cashSession: async () => GRACE_SESSION,
+          cashBalance: async () => BALANCE,
+          ...cashDrawer,
+        },
+        sales,
+      );
       const screen = await render(<App core={fake.core} />);
       postCoreStatus("up");
       await userEvent.type(screen.getByLabelText("PIN"), "1234");
@@ -1259,6 +1267,54 @@ describe("App", () => {
       await expect.element(screen.getByText(/Caja 1 · Sesión abierta/)).toBeVisible();
       expect(cashBalance).toHaveBeenCalledTimes(1);
       expect(cashMovements).toHaveBeenCalledTimes(1);
+    });
+
+    it("lands on the no-session screen when an older read of the cash session answers after the session is closed", async () => {
+      const clients: QueryClient[] = [];
+      const mount = QueryClient.prototype.mount;
+      const spy = vi.spyOn(QueryClient.prototype, "mount").mockImplementation(function (
+        this: QueryClient,
+      ) {
+        clients.push(this);
+        return mount.call(this);
+      });
+      onTestFinished(() => spy.mockRestore());
+      let answerLate: (session: OpenCashSession) => void = () => {};
+      let reads = 0;
+      const { screen } = await resumeGracesSession(
+        {
+          cashSession: () => {
+            reads += 1;
+            return reads === 1
+              ? Promise.resolve(GRACE_SESSION)
+              : new Promise((resolve) => {
+                  answerLate = resolve;
+                });
+          },
+          closeCashSession: async () => ({
+            kind: "closed",
+            session: {
+              id: "s1",
+              expected_cash: 4_620_000,
+              counted_cash: 4_580_000,
+              difference: -40_000,
+            },
+          }),
+        },
+        { scanProduct: async () => ({ kind: "no_open_session" }) },
+      );
+      await screen.getByRole("combobox", { name: "Producto" }).fill("7790001");
+      await userEvent.keyboard("{Enter}");
+      await expect.poll(() => reads).toBe(2);
+      await startClosing(screen);
+      await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
+      await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
+
+      answerLate(GRACE_SESSION);
+      await expect.poll(() => clients.every((client) => client.isFetching() === 0)).toBe(true);
+
+      expect(clients[0]?.getQueryData(["register", "cash-session"])).toEqual({ status: "none" });
+      await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
     });
 
     it("starts the cash screen of a new session from loading, not from the balance of the one before", async () => {
