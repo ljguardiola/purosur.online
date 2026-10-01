@@ -26,41 +26,29 @@ const REFUSALS = [
 ] as const;
 
 describe("answering a sign-in", () => {
-  it("answers who signed in, with their abilities and the cash session they see", () => {
-    const readFor: string[] = [];
-
+  it("answers who signed in, with their abilities and the cash session they resume", () => {
     expect(
-      signInAnswer(
-        {
-          kind: "signed_in",
-          person: { userId: "u1", firstName: "Ada", abilities: ["open_cash_session"] },
-        },
-        (userId) => {
-          readFor.push(userId);
-          return OPEN_CASH_SESSION;
-        },
-      ),
+      signInAnswer({
+        kind: "signed_in",
+        person: { userId: "u1", firstName: "Ada", abilities: ["open_cash_session"] },
+        resumedSession: OPEN_CASH_SESSION,
+      }),
     ).toEqual({
       kind: "signed_in",
       person: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
       cash_session: OPEN_CASH_SESSION,
     });
-    expect(readFor).toEqual(["u1"]);
   });
 
   it.each(REFUSALS)("answers the refusal %j in the shape of the contract", (refusal, answer) => {
-    expect(signInAnswer(refusal, () => null)).toEqual(answer);
+    expect(signInAnswer(refusal)).toEqual(answer);
   });
 
   it.each([
     { kind: "no_register_permission" },
     { kind: "cash_session_opened_by_another" },
-  ] as const)("answers %j as it is, reading no cash session", (outcome) => {
-    expect(
-      signInAnswer(outcome, () => {
-        throw new Error("no cash session to read");
-      }),
-    ).toEqual(outcome);
+  ] as const)("answers %j as it is", (outcome) => {
+    expect(signInAnswer(outcome)).toEqual(outcome);
   });
 });
 
