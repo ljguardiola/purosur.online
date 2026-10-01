@@ -1,5 +1,10 @@
-import { CASH_MOVEMENT_REASON_MAX_LENGTH, MAX_CASH_AMOUNT_CENTS } from "@purosur/domain";
-import { describe, expect, it } from "vitest";
+import {
+  CASH_MOVEMENT_REASON_MAX_LENGTH,
+  type cashCharge,
+  MAX_CASH_AMOUNT_CENTS,
+} from "@purosur/domain";
+import { describe, expect, expectTypeOf, it } from "vitest";
+import type { CashCharge } from "../sales/sale.js";
 import {
   cashMovementAmountSchema,
   coreStatusMessageSchema,
@@ -1597,5 +1602,68 @@ describe("charge sale in cash answer", () => {
     const message = { type: "charge-sale-in-cash-result", outcome: { kind: "empty_sale" } };
 
     expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+});
+
+describe("cash charge request", () => {
+  const message = {
+    type: "cash-charge-request",
+    request_id: REQUEST_ID,
+    sale_id: "s1",
+    tendered: 5000,
+  };
+
+  it("accepts a request for what a sale needs when an amount in cents is tendered", () => {
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    ["without its request id", { ...message, request_id: undefined }],
+    ["without the sale", { ...message, sale_id: undefined }],
+    ["with an amount that is not whole cents", { ...message, tendered: 50.5 }],
+  ])("rejects a request %s", (_case, invalid) => {
+    expect(rendererToCoreMessageSchema.safeParse(invalid).success).toBe(false);
+  });
+
+  it("does not take who is selling from the request", () => {
+    expect(rendererToCoreMessageSchema.parse({ ...message, user_id: "u9" })).toEqual(message);
+  });
+});
+
+describe("cash charge answers", () => {
+  it.each([
+    [{ kind: "invalid_amount" }],
+    [{ kind: "insufficient", amountDue: 3000 }],
+    [{ kind: "covered", applied: 3000, change: 2000 }],
+    [null],
+  ])("accepts the answer %j", (charge) => {
+    const message = { type: "cash-charge", request_id: REQUEST_ID, charge };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    [{ kind: "covered", applied: 3000 }],
+    [{ kind: "insufficient", amountDue: "3000" }],
+    [{ kind: "unknown" }],
+  ])("rejects the answer %j", (charge) => {
+    expect(
+      coreToRendererMessageSchema.safeParse({ type: "cash-charge", request_id: REQUEST_ID, charge })
+        .success,
+    ).toBe(false);
+  });
+
+  it.each(["cash-charge-unavailable", "cash-charge-not-permitted"])(
+    "accepts %s and rejects it without its request id",
+    (type) => {
+      const message = { type, request_id: REQUEST_ID };
+
+      expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+      expect(coreToRendererMessageSchema.safeParse({ type }).success).toBe(false);
+    },
+  );
+
+  it("describes a charge as the domain does", () => {
+    expectTypeOf<CashCharge>().toEqualTypeOf<ReturnType<typeof cashCharge>>();
   });
 });

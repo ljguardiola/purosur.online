@@ -1,4 +1,9 @@
-import type { ChargeSaleInCashOutcome, CurrentSaleAnswer, OpenSale } from "@purosur/contracts";
+import type {
+  CashChargeAnswer,
+  ChargeSaleInCashOutcome,
+  CurrentSaleAnswer,
+  OpenSale,
+} from "@purosur/contracts";
 import { LoadFailure, LoadingPlaceholder, OptionCardGroup, plural } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { Banknote, TriangleAlert } from "lucide-react";
@@ -32,6 +37,7 @@ export type ChargeScreenProps = {
   registerName: string | null;
   lock: () => void;
   currentSale: () => Promise<CurrentSaleAnswer>;
+  cashCharge: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   onSessionInvalid: () => void;
 };
@@ -42,6 +48,7 @@ export function ChargeScreen({
   registerName,
   lock,
   currentSale,
+  cashCharge,
   chargeSaleInCash,
   onSessionInvalid,
 }: ChargeScreenProps) {
@@ -116,7 +123,9 @@ export function ChargeScreen({
       )}
       {sale !== undefined && step.name === "cash" ? (
         <CashChargeModal
+          saleId={sale.id}
           total={sale.total}
+          readCharge={(tendered) => cashCharge(sale.id, tendered)}
           charge={(tendered) => chargeSaleInCash(sale.id, tendered)}
           onChooseAnotherMethod={() => setStep({ name: "methods" })}
           onCompleted={(charge) => setStep({ name: "completed", charge, sale })}

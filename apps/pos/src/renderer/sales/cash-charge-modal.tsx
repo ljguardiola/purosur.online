@@ -1,9 +1,9 @@
-import type { ChargeSaleInCashOutcome } from "@purosur/contracts";
-import { cashCharge } from "@purosur/contracts";
+import type { CashChargeAnswer, ChargeSaleInCashOutcome } from "@purosur/contracts";
 import {
   Button,
   formatCents,
   InlineNotice,
+  LoadFailure,
   Modal,
   parseAmountCents,
   SummaryRowGroup,
@@ -12,6 +12,7 @@ import {
 import { ArrowLeft, Banknote, Check, TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Eyebrow } from "../shell/eyebrow";
+import { useCashChargeQuery } from "./sales-queries";
 
 const INVALID_AMOUNT_MESSAGE = "Ingresá un importe válido, por ejemplo 5.000,00.";
 const FAILED_MESSAGE = "No se pudo cobrar la venta. Probá de nuevo.";
@@ -23,7 +24,9 @@ function coverMessage(amount: number): string {
 export type CompletedCharge = Extract<ChargeSaleInCashOutcome, { kind: "completed" }>;
 
 export type CashChargeModalProps = {
+  saleId: string;
   total: number;
+  readCharge: (tendered: number) => Promise<CashChargeAnswer>;
   charge: (tendered: number) => Promise<ChargeSaleInCashOutcome>;
   onChooseAnotherMethod: () => void;
   onCompleted: (charge: CompletedCharge) => void;
@@ -32,7 +35,9 @@ export type CashChargeModalProps = {
 };
 
 export function CashChargeModal({
+  saleId,
   total,
+  readCharge,
   charge,
   onChooseAnotherMethod,
   onCompleted,
@@ -51,12 +56,28 @@ export function CashChargeModal({
 
   const isBlank = typed.trim() === "";
   const tendered = isBlank ? undefined : parseAmountCents(typed);
-  const result =
-    tendered === undefined ? { kind: "invalid_amount" as const } : cashCharge(total, tendered);
+  const answer = useCashChargeQuery({ saleId, tendered, read: readCharge });
+  const loaded = answer.status === "loaded" ? answer : undefined;
+  const answered =
+    loaded === undefined || loaded.value === null || loaded.value === "not_permitted"
+      ? undefined
+      : loaded.value;
+  const saleUnavailable = loaded !== undefined && answered === undefined;
   const fieldMessage =
-    refusal ?? (!isBlank && result.kind === "invalid_amount" ? INVALID_AMOUNT_MESSAGE : undefined);
+    refusal ??
+    (!isBlank && (tendered === undefined || answered?.kind === "invalid_amount")
+      ? INVALID_AMOUNT_MESSAGE
+      : undefined);
   const covered =
-    tendered !== undefined && result.kind === "covered" ? { tendered, ...result } : undefined;
+    tendered !== undefined && answered?.kind === "covered" && !loaded?.refreshing
+      ? { tendered, ...answered }
+      : undefined;
+
+  useEffect(() => {
+    if (saleUnavailable) {
+      onSaleUnavailable();
+    }
+  }, [saleUnavailable, onSaleUnavailable]);
 
   function type(value: string) {
     setTyped(value);
@@ -158,6 +179,14 @@ export function CashChargeModal({
           description={coverMessage(total)}
           errorMessage={fieldMessage}
         />
+        {answer.status === "failed" ? (
+          <LoadFailure
+            icon={<TriangleAlert />}
+            title="No se pudo calcular el vuelto"
+            description="Volvé a intentarlo en unos segundos."
+            onRetry={answer.retry}
+          />
+        ) : null}
         {covered === undefined ? null : (
           <div className="flex flex-col gap-1 rounded-lg bg-surface-subtle p-4">
             <Eyebrow text="VUELTO A ENTREGAR" />

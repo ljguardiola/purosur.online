@@ -3,6 +3,7 @@ import type {
   Authorization,
   CancelSaleOutcome,
   CashBalance,
+  CashChargeAnswer,
   ChangeLineQuantityOutcome,
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
@@ -95,6 +96,7 @@ export interface RouterContext {
   firstSignIn: (userId: string, pin: string) => Promise<SignInOutcome>;
   currentSale: () => Promise<CurrentSaleAnswer>;
   scanProduct: (code: string) => Promise<ScanProductOutcome>;
+  cashCharge: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   searchProducts: (query: string) => Promise<SearchProductsOutcome>;
   addProduct: (productId: string) => Promise<AddProductOutcome>;
@@ -275,7 +277,7 @@ const chargeRoute = createRoute({
     return { id, person };
   },
   component: function ChargeRoute() {
-    const { id, person, signOut, currentSale, chargeSaleInCash, refreshCashSession } =
+    const { id, person, signOut, currentSale, cashCharge, chargeSaleInCash, refreshCashSession } =
       chargeRoute.useRouteContext();
     const registerName = useRegisterName();
     return (
@@ -285,6 +287,7 @@ const chargeRoute = createRoute({
         registerName={registerName}
         lock={signOut}
         currentSale={currentSale}
+        cashCharge={cashCharge}
         chargeSaleInCash={chargeSaleInCash}
         onSessionInvalid={() => void refreshCashSession()}
       />
@@ -531,6 +534,7 @@ export function createAppRouter(
     | "firstSignIn"
     | "currentSale"
     | "scanProduct"
+    | "cashCharge"
     | "chargeSaleInCash"
     | "searchProducts"
     | "addProduct"

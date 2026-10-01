@@ -2,6 +2,7 @@ import type {
   AddProductOutcome,
   CancelSaleOutcome,
   CashBalance,
+  CashChargeAnswer,
   ChangeLineQuantityOutcome,
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
@@ -44,6 +45,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const searches: string[] = [];
   const additions: string[] = [];
   const saleLookups: string[] = [];
+  const chargeReads: { saleId: string; tendered: number }[] = [];
   const saleChanges: string[] = [];
   const signOuts: string[] = [];
   const failures: { context: string; error: unknown }[] = [];
@@ -63,6 +65,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
     searches,
     additions,
     saleLookups,
+    chargeReads,
     saleChanges,
     signOuts,
     failures,
@@ -143,6 +146,13 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       },
       currentSale: async (): Promise<OpenSale | null> => {
         saleLookups.push("read");
+        return null;
+      },
+      cashCharge: async (request: {
+        saleId: string;
+        tendered: number;
+      }): Promise<CashChargeAnswer> => {
+        chargeReads.push(request);
         return null;
       },
       closeCashSession: async (
@@ -964,6 +974,80 @@ describe("answerRendererRequest", () => {
       }),
     ).toEqual({ type: "sale-unavailable", request_id: "r26" });
     expect(failing.failures).toEqual([{ context: "reading the sale in progress", error }]);
+  });
+
+  it("reads what a tendered amount needs for the sale as sent, and answers the charge", async () => {
+    const charge = { kind: "covered", applied: 3000, change: 2000 } as const;
+    const reading = deps(true);
+    const { deps: withCharge } = deps(true, { cashCharge: async () => charge });
+
+    expect(
+      await answerRendererRequest(withCharge, {
+        type: "cash-charge-request",
+        request_id: "r40",
+        sale_id: "s1",
+        tendered: 5000,
+      }),
+    ).toEqual({ type: "cash-charge", request_id: "r40", charge });
+    await answerRendererRequest(reading.deps, {
+      type: "cash-charge-request",
+      request_id: "r41",
+      sale_id: "s1",
+      tendered: 5000,
+    });
+    expect(reading.chargeReads).toEqual([{ saleId: "s1", tendered: 5000 }]);
+  });
+
+  it("answers no charge when there is no such sale in progress", async () => {
+    expect(
+      await answerRendererRequest(deps(true).deps, {
+        type: "cash-charge-request",
+        request_id: "r42",
+        sale_id: "s1",
+        tendered: 5000,
+      }),
+    ).toEqual({ type: "cash-charge", request_id: "r42", charge: null });
+  });
+
+  it("answers that the person signed in may not sell when asked for a charge", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { cashCharge: async () => "not_permitted" }).deps, {
+        type: "cash-charge-request",
+        request_id: "r43",
+        sale_id: "s1",
+        tendered: 5000,
+      }),
+    ).toEqual({ type: "cash-charge-not-permitted", request_id: "r43" });
+  });
+
+  it("answers that the charge cannot be read when the register has no database", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { cashCharge: undefined }).deps, {
+        type: "cash-charge-request",
+        request_id: "r44",
+        sale_id: "s1",
+        tendered: 5000,
+      }),
+    ).toEqual({ type: "cash-charge-unavailable", request_id: "r44" });
+  });
+
+  it("answers that the charge cannot be read when reading it fails, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      cashCharge: async () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "cash-charge-request",
+        request_id: "r45",
+        sale_id: "s1",
+        tendered: 5000,
+      }),
+    ).toEqual({ type: "cash-charge-unavailable", request_id: "r45" });
+    expect(failing.failures).toEqual([{ context: "reading what a tendered amount needs", error }]);
   });
 
   it("closes a cash session with the session, the count and the authorization as sent, and answers the outcome", async () => {

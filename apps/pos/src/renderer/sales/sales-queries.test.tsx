@@ -1,10 +1,16 @@
-import type { CurrentSaleAnswer, OpenSale, SearchProductsOutcome } from "@purosur/contracts";
+import type {
+  CashChargeAnswer,
+  CurrentSaleAnswer,
+  OpenSale,
+  SearchProductsOutcome,
+} from "@purosur/contracts";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { createQueryClient } from "../platform/query-client";
 import {
+  useCashChargeQuery,
   useCurrentSaleQuery,
   useResetCurrentSale,
   useSearchProducts,
@@ -192,5 +198,80 @@ describe("product search", () => {
     await userEvent.click(screen.getByRole("button", { name: "search" }));
 
     await expect.poll(() => document.title).toBe("unavailable");
+  });
+});
+
+function CashChargeProbe({
+  read,
+  saleId = "sale-1",
+  tendered,
+}: {
+  read: (tendered: number) => Promise<CashChargeAnswer>;
+  saleId?: string;
+  tendered: number | undefined;
+}) {
+  const charge = useCashChargeQuery({ saleId, tendered, read });
+  return <p>{charge.status === "loaded" ? JSON.stringify(charge.value) : charge.status}</p>;
+}
+
+describe("cash charge query", () => {
+  it.each<[string, CashChargeAnswer]>([
+    ["what the sale needs", { kind: "covered", applied: 476_000, change: 24_000 }],
+    ["no sale in progress", null],
+    ["a refusal to sell", "not_permitted"],
+  ])("holds %s as an answer, not a failure", async (_name, answer) => {
+    const screen = await renderWithClient(
+      <CashChargeProbe read={async () => answer} tendered={500_000} />,
+    );
+
+    await expect.element(screen.getByText(JSON.stringify(answer))).toBeVisible();
+  });
+
+  it("asks the core with the tendered amount", async () => {
+    const read = vi.fn<(tendered: number) => Promise<CashChargeAnswer>>(async () => null);
+    const screen = await renderWithClient(<CashChargeProbe read={read} tendered={500_005} />);
+
+    await expect.element(screen.getByText("null")).toBeVisible();
+    expect(read).toHaveBeenCalledExactlyOnceWith(500_005);
+  });
+
+  it("does not ask while there is no amount tendered", async () => {
+    const read = vi.fn<(tendered: number) => Promise<CashChargeAnswer>>(async () => null);
+    const screen = await renderWithClient(<CashChargeProbe read={read} tendered={undefined} />);
+
+    await expect.element(screen.getByText("loading")).toBeVisible();
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["another amount", "sale-1", 400_000],
+    ["another sale", "sale-2", 500_000],
+  ])("never shows the answer given for %s", async (_what, saleId, tendered) => {
+    const queryClient = createQueryClient();
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <CashChargeProbe read={async () => "not_permitted"} tendered={500_000} />
+      </QueryClientProvider>,
+    );
+    await expect.element(screen.getByText('"not_permitted"')).toBeVisible();
+
+    await screen.rerender(
+      <QueryClientProvider client={queryClient}>
+        <CashChargeProbe read={() => new Promise(() => {})} saleId={saleId} tendered={tendered} />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("loading")).toBeVisible();
+  });
+
+  it("fails when the core cannot answer", async () => {
+    const screen = await renderWithClient(
+      <CashChargeProbe
+        read={() => Promise.reject(new Error("the connection was replaced"))}
+        tendered={500_000}
+      />,
+    );
+
+    await expect.element(screen.getByText("failed")).toBeVisible();
   });
 });

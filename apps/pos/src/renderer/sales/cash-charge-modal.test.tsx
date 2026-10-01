@@ -1,8 +1,8 @@
-import type { ChargeSaleInCashOutcome } from "@purosur/contracts";
+import type { CashChargeAnswer, ChargeSaleInCashOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
+import { render } from "../shell/test-support/render-with-router";
 import { CashChargeModal } from "./cash-charge-modal";
 
 const TOTAL = 476_000;
@@ -15,22 +15,54 @@ const COMPLETED: ChargeSaleInCashOutcome = {
   change: 24_000,
 };
 
-type Charge = (tendered: number) => Promise<ChargeSaleInCashOutcome>;
+const INVALID_AMOUNT: CashChargeAnswer = { kind: "invalid_amount" };
+const CORE_ANSWERS = new Map<number, CashChargeAnswer>([
+  [0, INVALID_AMOUNT],
+  [3_000_000_000, INVALID_AMOUNT],
+  [400_000, { kind: "insufficient", amountDue: TOTAL }],
+  [476_000, { kind: "covered", applied: TOTAL, change: 0 }],
+  [500_000, { kind: "covered", applied: TOTAL, change: 24_000 }],
+  [500_005, { kind: "covered", applied: TOTAL, change: 24_005 }],
+]);
 
-async function renderModal(charge: Charge = async () => COMPLETED) {
+type Charge = (tendered: number) => Promise<ChargeSaleInCashOutcome>;
+type ReadCharge = (tendered: number) => Promise<CashChargeAnswer>;
+
+async function answerLikeTheCore(tendered: number): Promise<CashChargeAnswer> {
+  const answer = CORE_ANSWERS.get(tendered);
+  if (answer === undefined) {
+    throw new Error(`test setup: the core has no answer for ${tendered}`);
+  }
+  return answer;
+}
+
+async function renderModal(
+  charge: Charge = async () => COMPLETED,
+  readCharge: ReadCharge = answerLikeTheCore,
+) {
   await page.viewport(1280, 1000);
   onTestFinished(() => page.viewport(414, 896));
   const chargeSale = vi.fn(charge);
+  const readCashCharge = vi.fn(readCharge);
   const callbacks = {
     onChooseAnotherMethod: vi.fn(),
     onCompleted: vi.fn(),
     onSaleUnavailable: vi.fn(),
     onSessionInvalid: vi.fn(),
   };
-  const screen = await render(<CashChargeModal total={TOTAL} charge={chargeSale} {...callbacks} />);
+  const screen = await render(
+    <CashChargeModal
+      saleId="sale-1"
+      total={TOTAL}
+      readCharge={readCashCharge}
+      charge={chargeSale}
+      {...callbacks}
+    />,
+  );
   return {
     screen,
     chargeSale,
+    readCashCharge,
     callbacks,
     field: screen.getByRole("textbox", { name: AMOUNT_FIELD }),
     complete: screen.getByRole("button", { name: "Completar venta" }),
@@ -123,6 +155,70 @@ describe("CashChargeModal", () => {
         .toBeVisible();
       await expect.element(complete).toBeDisabled();
       await expect.element(screen.getByText("VUELTO A ENTREGAR")).not.toBeInTheDocument();
+    },
+  );
+
+  it("asks the core about the exact cents typed", async () => {
+    const { field, readCashCharge, screen } = await renderModal();
+
+    await userEvent.fill(field, "5.000,05");
+
+    await expect.element(screen.getByText("VUELTO A ENTREGAR")).toBeVisible();
+    expect(readCashCharge).toHaveBeenCalledExactlyOnceWith(500_005);
+  });
+
+  it("does not ask the core while nothing, or something that is not an amount, is typed", async () => {
+    const { field, readCashCharge, screen } = await renderModal();
+
+    await userEvent.fill(field, "5.000,001");
+
+    await expect
+      .element(screen.getByText("Ingresá un importe válido, por ejemplo 5.000,00."))
+      .toBeVisible();
+    expect(readCashCharge).not.toHaveBeenCalled();
+  });
+
+  it("keeps Completar venta disabled and shows no change until the core answers", async () => {
+    const answer = deferred<CashChargeAnswer>();
+    const { screen, field, complete } = await renderModal(undefined, () => answer.promise);
+
+    await userEvent.fill(field, "5.000,00");
+
+    await expect.element(complete).toBeDisabled();
+    await expect.element(screen.getByText("VUELTO A ENTREGAR")).not.toBeInTheDocument();
+    answer.resolve({ kind: "covered", applied: TOTAL, change: 24_000 });
+    await expect.element(complete).toBeEnabled();
+  });
+
+  it("says the change could not be worked out when the core cannot answer, and asks again on retry", async () => {
+    const answers: (CashChargeAnswer | Error)[] = [
+      new Error("the core connection was replaced"),
+      { kind: "covered", applied: TOTAL, change: 24_000 },
+    ];
+    const { screen, field, complete } = await renderModal(undefined, async () => {
+      const answer = answers.shift();
+      if (answer === undefined || answer instanceof Error) {
+        throw answer ?? new Error("no answer left");
+      }
+      return answer;
+    });
+
+    await userEvent.fill(field, "5.000,00");
+
+    await expect.element(screen.getByText("No se pudo calcular el vuelto")).toBeVisible();
+    await expect.element(complete).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+    await expect.element(complete).toBeEnabled();
+  });
+
+  it.each([[null], ["not_permitted"]] as const)(
+    "leaves the charge for the sale screen when the core answers %s for the amount",
+    async (answer) => {
+      const { field, callbacks } = await renderModal(undefined, async () => answer);
+
+      await userEvent.fill(field, "5.000,00");
+
+      await expect.poll(() => callbacks.onSaleUnavailable.mock.calls.length).toBeGreaterThan(0);
     },
   );
 

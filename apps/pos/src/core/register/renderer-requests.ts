@@ -3,6 +3,7 @@ import type {
   Authorization,
   CancelSaleOutcome,
   CashBalance,
+  CashChargeAnswer,
   ChangeLineQuantityOutcome,
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
@@ -52,6 +53,7 @@ export interface RendererRequestDeps {
   searchProducts: ((query: string) => Promise<SearchProductsOutcome>) | undefined;
   addProduct: ((productId: string) => Promise<AddProductOutcome>) | undefined;
   currentSale: (() => Promise<CurrentSaleAnswer>) | undefined;
+  cashCharge: ((request: ChargeSaleInCashRequest) => Promise<CashChargeAnswer>) | undefined;
   changeLineQuantity:
     | ((
         lineId: string,
@@ -325,6 +327,18 @@ async function readCurrentSale(deps: RendererRequestDeps): Promise<CurrentSaleAn
   }
 }
 
+async function readCashCharge(
+  deps: RendererRequestDeps,
+  request: ChargeSaleInCashRequest,
+): Promise<CashChargeAnswer | undefined> {
+  try {
+    return await deps.cashCharge?.(request);
+  } catch (error) {
+    deps.reportFailure("reading what a tendered amount needs", error);
+    return undefined;
+  }
+}
+
 export async function answerRendererRequest(
   deps: RendererRequestDeps,
   message: RendererToCoreMessage,
@@ -480,6 +494,18 @@ export async function answerRendererRequest(
       return sale === undefined
         ? { type: "sale-unavailable", request_id: message.request_id }
         : { type: "sale", request_id: message.request_id, sale };
+    }
+    case "cash-charge-request": {
+      const charge = await readCashCharge(deps, {
+        saleId: message.sale_id,
+        tendered: message.tendered,
+      });
+      if (charge === "not_permitted") {
+        return { type: "cash-charge-not-permitted", request_id: message.request_id };
+      }
+      return charge === undefined
+        ? { type: "cash-charge-unavailable", request_id: message.request_id }
+        : { type: "cash-charge", request_id: message.request_id, charge };
     }
     case "close-cash-session":
       return {

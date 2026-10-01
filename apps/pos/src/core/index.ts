@@ -57,6 +57,7 @@ import { createRendererConnection } from "./renderer-connection";
 import {
   addSearchedProductFor,
   cancelSaleFor,
+  cashChargeFor,
   changeLineQuantityFor,
   chargeSaleInCashFor,
   currentSaleFor,
@@ -451,6 +452,10 @@ const rendererRequestDeps: RendererRequestDeps = {
     localDatabase === undefined || actionGate === undefined
       ? undefined
       : () => currentSaleFor({ database: localDatabase, gate: actionGate }),
+  cashCharge:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (request) => cashChargeFor({ database: localDatabase, gate: actionGate }, request),
   reportFailure,
 };
 

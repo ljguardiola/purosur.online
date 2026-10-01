@@ -564,6 +564,50 @@ describe("createCoreClient", () => {
     expect(await asked).toBe("not_permitted");
   });
 
+  it.each([
+    [{ kind: "covered", applied: 3000, change: 2000 }],
+    [{ kind: "insufficient", amountDue: 3000 }],
+    [{ kind: "invalid_amount" }],
+    [null],
+  ])(
+    "asks the core what the sale needs for a tendered amount and resolves with %j",
+    async (charge) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const asked = client.cashCharge("s1", 5000);
+      port.answer({ type: "cash-charge", request_id: "request-1", charge });
+
+      expect(await asked).toEqual(charge);
+      expect(port.posted).toEqual([
+        { type: "cash-charge-request", request_id: "request-1", sale_id: "s1", tendered: 5000 },
+      ]);
+    },
+  );
+
+  it("rejects when the core cannot say what the sale needs", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.cashCharge("s1", 5000);
+    port.answer({ type: "cash-charge-unavailable", request_id: "request-1" });
+
+    await expect(asked).rejects.toThrow();
+  });
+
+  it("resolves that the person signed in may not sell when the core says so for a charge", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.cashCharge("s1", 5000);
+    port.answer({ type: "cash-charge-not-permitted", request_id: "request-1" });
+
+    expect(await asked).toBe("not_permitted");
+  });
+
   it("asks the core to close a session with the cash counted and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

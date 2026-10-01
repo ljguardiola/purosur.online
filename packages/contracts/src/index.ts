@@ -163,7 +163,6 @@ export {
   ARGENTINA_TIME_ZONE,
   CASH_MOVEMENT_REASON_MAX_LENGTH,
   CASH_MOVEMENT_TYPES,
-  cashCharge,
   cashMovementAmountSchema,
   cashMovementPermission,
   cashMovementReason,
@@ -193,6 +192,8 @@ export { registerListSchema, registerSummarySchema } from "./register/register-s
 export type {
   AddProductOutcome,
   CancelSaleOutcome,
+  CashCharge,
+  CashChargeAnswer,
   ChangeLineQuantityOutcome,
   ChargeSaleInCashOutcome,
   CurrentSaleAnswer,

@@ -3,6 +3,7 @@ import type {
   Authorization,
   CancelSaleOutcome,
   CashBalance,
+  CashChargeAnswer,
   ChangeLineQuantityOutcome,
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
@@ -66,6 +67,7 @@ export interface CoreClient {
   ): Promise<ChangeLineQuantityOutcome>;
   removeSaleLine(lineId: string): Promise<RemoveSaleLineOutcome>;
   cancelSale(): Promise<CancelSaleOutcome>;
+  cashCharge(saleId: string, tendered: number): Promise<CashChargeAnswer>;
   chargeSaleInCash(saleId: string, tendered: number): Promise<ChargeSaleInCashOutcome>;
   closeCashSession(
     sessionId: string,
@@ -325,6 +327,20 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         }
         return answer.type === "sale" ? answer.sale : undefined;
       });
+    },
+    cashCharge(saleId, tendered) {
+      return ask(
+        { type: "cash-charge-request", request_id: deps.newRequestId(), sale_id: saleId, tendered },
+        (answer) => {
+          if (answer.type === "cash-charge-unavailable") {
+            throw new Error("the core could not say what the sale needs");
+          }
+          if (answer.type === "cash-charge-not-permitted") {
+            return "not_permitted";
+          }
+          return answer.type === "cash-charge" ? answer.charge : undefined;
+        },
+      );
     },
     chargeSaleInCash(saleId, tendered) {
       return ask(

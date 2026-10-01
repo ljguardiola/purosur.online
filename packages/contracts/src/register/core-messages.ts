@@ -4,7 +4,6 @@ import {
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_REASON_MAX_LENGTH,
   CASH_MOVEMENT_TYPES,
-  cashCharge,
   cashMovementPermission,
   cashMovementReason,
   isAuthorizablePermissionKey,
@@ -22,6 +21,7 @@ import { pinAttemptRefusalSchema } from "../access/pin-attempt-refusal.js";
 import {
   addProductOutcomeSchema,
   cancelSaleOutcomeSchema,
+  cashChargeSchema,
   changeLineQuantityOutcomeSchema,
   chargeSaleInCashOutcomeSchema,
   removeSaleLineOutcomeSchema,
@@ -46,7 +46,6 @@ export {
   ARGENTINA_TIME_ZONE,
   CASH_MOVEMENT_REASON_MAX_LENGTH,
   CASH_MOVEMENT_TYPES,
-  cashCharge,
   cashMovementPermission,
   cashMovementReason,
 };
@@ -220,6 +219,13 @@ const chargeSaleInCashMessageSchema = z.object({
   tendered: z.int(),
 });
 
+const cashChargeRequestMessageSchema = z.object({
+  type: z.literal("cash-charge-request"),
+  request_id: requestId,
+  sale_id: z.string(),
+  tendered: z.int(),
+});
+
 const signOutMessageSchema = z.object({
   type: z.literal("sign-out"),
   request_id: requestId,
@@ -253,6 +259,7 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   addProductMessageSchema,
   saleRequestMessageSchema,
   chargeSaleInCashMessageSchema,
+  cashChargeRequestMessageSchema,
   signOutMessageSchema,
 ]);
 export type RendererToCoreMessage = z.infer<typeof rendererToCoreMessageSchema>;
@@ -538,6 +545,13 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("sale"), request_id: requestId, sale: saleSchema.nullable() }),
   z.object({ type: z.literal("sale-unavailable"), request_id: requestId }),
   z.object({ type: z.literal("sale-not-permitted"), request_id: requestId }),
+  z.object({
+    type: z.literal("cash-charge"),
+    request_id: requestId,
+    charge: cashChargeSchema.nullable(),
+  }),
+  z.object({ type: z.literal("cash-charge-unavailable"), request_id: requestId }),
+  z.object({ type: z.literal("cash-charge-not-permitted"), request_id: requestId }),
   z.object({ type: z.literal("signed-out"), request_id: requestId }),
   z.object({ type: z.literal("pulled") }),
 ]);

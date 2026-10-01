@@ -7,6 +7,7 @@ import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import {
   addSearchedProductFor,
   cancelSaleFor,
+  cashChargeFor,
   changeLineQuantityFor,
   chargeSaleInCashFor,
   currentSaleFor,
@@ -693,5 +694,67 @@ describe("charging the sale in progress in cash", () => {
       }),
     ).toEqual({ kind: "unavailable" });
     expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+  });
+});
+
+describe("what a sale in progress needs when an amount is tendered", () => {
+  async function sellTwo(): Promise<string> {
+    await scanProductFor(deps(), "111");
+    const outcome = await scanProductFor(deps(), "111");
+    if (outcome.kind !== "added") {
+      throw new Error("test setup: the product was not added");
+    }
+    return outcome.sale.id;
+  }
+
+  it.each([
+    [5000, { kind: "covered", applied: 3000, change: 2000 }],
+    [3000, { kind: "covered", applied: 3000, change: 0 }],
+    [1000, { kind: "insufficient", amountDue: 3000 }],
+    [0, { kind: "invalid_amount" }],
+  ] as const)(
+    "answers the domain's charge of %i against the total of the sale",
+    async (tendered, charge) => {
+      const saleId = await sellTwo();
+
+      expect(await cashChargeFor(deps(), { saleId, tendered })).toEqual(charge);
+    },
+  );
+
+  it("charges nothing and changes nothing", async () => {
+    const saleId = await sellTwo();
+
+    await cashChargeFor(deps(), { saleId, tendered: 5000 });
+
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([]);
+  });
+
+  it("is none for a sale that is not the one in progress", async () => {
+    await sellTwo();
+
+    expect(await cashChargeFor(deps(), { saleId: "other-sale", tendered: 5000 })).toBeNull();
+  });
+
+  it("is none when no session is open", async () => {
+    const saleId = await sellTwo();
+    database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
+
+    expect(await cashChargeFor(deps(), { saleId, tendered: 5000 })).toBeNull();
+  });
+
+  it("is none when nobody is signed in", async () => {
+    const saleId = await sellTwo();
+    signedInPerson.clear();
+
+    expect(await cashChargeFor(deps(), { saleId, tendered: 5000 })).toBeNull();
+  });
+
+  it("answers not permitted to a signed-in person without the permission to sell", async () => {
+    const saleId = await sellTwo();
+    addPerson("u2", "guest");
+    signedInPerson.set("u2");
+
+    expect(await cashChargeFor(deps(), { saleId, tendered: 5000 })).toBe("not_permitted");
   });
 });

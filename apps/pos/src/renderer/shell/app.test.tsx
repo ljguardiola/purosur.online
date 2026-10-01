@@ -85,6 +85,7 @@ function coreAnswering(
   sales: {
     currentSale?: () => Promise<OpenSale | null>;
     scanProduct?: (code: string) => Promise<ScanProductOutcome>;
+    cashCharge?: CoreClient["cashCharge"];
     chargeSaleInCash?: CoreClient["chargeSaleInCash"];
     searchProducts?: CoreClient["searchProducts"];
     addProduct?: CoreClient["addProduct"];
@@ -179,6 +180,11 @@ function coreAnswering(
     },
     async scanProduct(code) {
       return sales.scanProduct === undefined ? { kind: "unknown_code" } : sales.scanProduct(code);
+    },
+    async cashCharge(saleId, tendered) {
+      return sales.cashCharge === undefined
+        ? { kind: "invalid_amount" }
+        : sales.cashCharge(saleId, tendered);
     },
     async chargeSaleInCash(saleId, tendered) {
       return sales.chargeSaleInCash === undefined
@@ -807,6 +813,7 @@ describe("App", () => {
           ],
           total: 238_000,
         }),
+        cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 12_000 }),
         chargeSaleInCash: async (saleId, tendered) => {
           charges.push([saleId, tendered]);
           return { kind: "completed", sale_id: saleId, total: 238_000, tendered, change: 12_000 };
@@ -853,6 +860,7 @@ describe("App", () => {
             ? Promise.resolve({ id: "sale-1", lines: [yerba], total: 238_000 })
             : new Promise(() => {});
         },
+        cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 12_000 }),
         chargeSaleInCash: async (saleId, tendered) => ({
           kind: "completed",
           sale_id: saleId,
