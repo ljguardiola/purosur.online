@@ -66,6 +66,7 @@ export interface IssuerIdentificationVersionRow {
   legalName: string | null;
   grossIncomeRegistration: string | null;
   activityStartDate: string | null;
+  authorizedCuit: string;
   version: number;
 }
 

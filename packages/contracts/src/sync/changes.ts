@@ -10,10 +10,9 @@ import {
   SALE_UNITS,
 } from "@purosur/domain";
 import { z } from "zod";
-import { issuerIdentificationSchema } from "../fiscal/issuer-identification.js";
 import { discountBenefitSchema } from "../pricing/discount-benefit.js";
 import { discountTargetSchema } from "../pricing/discount-target.js";
-import { branchSettingsSchema } from "../shared/index.js";
+import { branchSettingsSchema, issuerIdentificationSchema } from "../shared/index.js";
 
 const SINCE_MESSAGE = "since must be the cursor of the last page already pulled, 0 the first time";
 

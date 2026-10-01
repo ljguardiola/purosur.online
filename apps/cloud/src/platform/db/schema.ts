@@ -108,13 +108,15 @@ export const users = pgTable(
 );
 
 // Append-only like prices: one row per version of the issuer identification, so a reprint can show
-// what was printed at the time. `recorded_by` is null for the version the migration kept from the
-// row that existed before versions were stored.
+// what was printed at the time. The version the migration kept from the row that existed before
+// versions were stored has neither `authorized_cuit` nor `recorded_by`; a version recorded when the
+// cloud starts under another certificate's CUIT has no `recorded_by`.
 export const issuerIdentificationVersions = pgTable("issuer_identification_versions", {
   version: integer("version").primaryKey(),
   legalName: text("legal_name"),
   grossIncomeRegistration: text("gross_income_registration"),
   activityStartDate: date("activity_start_date", { mode: "string" }),
+  authorizedCuit: text("authorized_cuit"),
   recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
   recordedBy: uuid("recorded_by").references(() => users.id),
 });

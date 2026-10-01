@@ -20,6 +20,7 @@ CREATE TABLE "issuer_identification_versions" (
 	"legal_name" text,
 	"gross_income_registration" text,
 	"activity_start_date" date,
+	"authorized_cuit" text,
 	"recorded_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"recorded_by" uuid
 );
@@ -36,6 +37,3 @@ REVOKE UPDATE, DELETE, TRUNCATE ON "issuer_identification_versions" FROM cloud_a
 --> statement-breakpoint
 INSERT INTO "issuer_identification_versions" ("version", "legal_name", "gross_income_registration", "activity_start_date")
 SELECT "version", "legal_name", "gross_income_registration", "activity_start_date" FROM "issuer_identification";
---> statement-breakpoint
-INSERT INTO "changes" ("entity", "entity_id", "version", "op")
-SELECT 'issuer_identification', "id", "version", 'insert' FROM "issuer_identification";

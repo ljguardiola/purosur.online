@@ -295,7 +295,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
     });
   });
 
-  it("keeps every saved version, the one it replaced included, with who saved it", async () => {
+  it("keeps every saved version, the one it replaced included, with the CUIT it was saved under and who saved it", async () => {
     const administratorId = await insertUser({
       firstName: "Ada Lovelace",
       email: "ada@example.com",
@@ -316,11 +316,19 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
       .orderBy(asc(issuerIdentificationVersions.version));
     expect(
       versions.map(
-        ({ version, legalName, grossIncomeRegistration, activityStartDate, recordedBy }) => ({
+        ({
           version,
           legalName,
           grossIncomeRegistration,
           activityStartDate,
+          authorizedCuit,
+          recordedBy,
+        }) => ({
+          version,
+          legalName,
+          grossIncomeRegistration,
+          activityStartDate,
+          authorizedCuit,
           recordedBy,
         }),
       ),
@@ -330,6 +338,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
         legalName: null,
         grossIncomeRegistration: null,
         activityStartDate: null,
+        authorizedCuit: null,
         recordedBy: null,
       },
       {
@@ -337,6 +346,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
         legalName: "Comercio de Prueba",
         grossIncomeRegistration: "CM 901-123456-3",
         activityStartDate: "2020-01-15",
+        authorizedCuit: TEST_AUTHORIZED_CUIT,
         recordedBy: administratorId,
       },
       {
@@ -344,6 +354,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
         legalName: "Comercio de Prueba Nuevo",
         grossIncomeRegistration: "CM 901-123456-3",
         activityStartDate: "2020-01-15",
+        authorizedCuit: TEST_AUTHORIZED_CUIT,
         recordedBy: administratorId,
       },
     ]);
@@ -402,7 +413,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
     expect(await db.select().from(issuerIdentificationVersions)).toHaveLength(2);
     expect(
       await db.select().from(changes).where(eq(changes.entity, "issuer_identification")),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
   });
 
   it("rejects an activity_start_date after the route clock's day with 400 validation_failed on that field, changing nothing", async () => {

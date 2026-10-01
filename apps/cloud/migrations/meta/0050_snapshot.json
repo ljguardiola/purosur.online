@@ -1359,6 +1359,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "authorized_cuit": {
+          "name": "authorized_cuit",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "recorded_at": {
           "name": "recorded_at",
           "type": "timestamp with time zone",

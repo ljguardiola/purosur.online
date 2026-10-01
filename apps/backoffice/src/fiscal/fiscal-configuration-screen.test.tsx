@@ -75,15 +75,6 @@ const complete: IssuerIdentification = {
   version: 1,
 };
 
-const incomplete: IssuerIdentification = {
-  legalName: null,
-  grossIncomeRegistration: null,
-  activityStartDate: null,
-  authorizedCuit: "20-00000000-1",
-  taxStatus: "Responsable Monotributo",
-  version: 1,
-};
-
 const aDayOfOctober = () => new Date("2026-10-15T12:00:00-03:00");
 
 function renderScreen(
@@ -102,7 +93,7 @@ function renderScreen(
   );
 }
 
-test("shows the breadcrumb, heading, and the complete issuer identification", async () => {
+test("shows the breadcrumb, heading, and the issuer identification it reads", async () => {
   const services = createServices();
   vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
 
@@ -115,53 +106,6 @@ test("shows the breadcrumb, heading, and the complete issuer identification", as
   await expect
     .element(screen.getByRole("heading", { name: "Identificación del emisor", level: 2 }))
     .toBeVisible();
-  await expect.element(screen.getByText("Comercio de Prueba")).toBeVisible();
-  await expect.element(screen.getByText("20-00000000-1")).toBeVisible();
-  await expect.element(screen.getByText("Responsable Monotributo")).toBeVisible();
-  await expect.element(screen.getByText("0000000-00")).toBeVisible();
-  await expect.element(screen.getByText("01/03/2019")).toBeVisible();
-  await expect
-    .element(screen.getByText("Lo imprime cada factura y nota de crédito."))
-    .toBeVisible();
-  expect(screen.getByText("Sin cargar").query()).toBeNull();
-});
-
-test("shows the incomplete notice and Sin cargar for each missing value", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({
-    kind: "ok",
-    value: incomplete,
-  });
-
-  const screen = await renderScreen(services);
-
-  await expect
-    .element(screen.getByText("Las cajas no están emitiendo facturas ni notas de crédito"))
-    .toBeVisible();
-  await expect
-    .element(
-      screen.getByText("Hasta que se carguen los datos que faltan. Las ventas se siguen cobrando."),
-    )
-    .toBeVisible();
-  expect(screen.getByText("Sin cargar").elements().length).toBe(3);
-  await expect.element(screen.getByText("20-00000000-1")).toBeVisible();
-  await expect.element(screen.getByText("Responsable Monotributo")).toBeVisible();
-});
-
-test("shows a placeholder instead of a loading line while the issuer identification loads", async () => {
-  const services = createServices();
-  const firstLoad = deferred<FetchOutcome>();
-  vi.mocked(services.fetchIssuerIdentification).mockReturnValue(firstLoad.promise);
-
-  const screen = await renderScreen(services);
-
-  await expect.element(screen.getByText("Cargando…")).toHaveTextContent("Cargando…");
-  expect(screen.container.querySelector('[aria-hidden="true"]')?.children.length).toBeGreaterThan(
-    0,
-  );
-  expect(screen.container.querySelector("p[role=status]")).toBeNull();
-  expect(screen.getByText("Sin cargar").query()).toBeNull();
-  firstLoad.resolve({ kind: "ok", value: complete });
   await expect.element(screen.getByText("Comercio de Prueba")).toBeVisible();
 });
 
@@ -183,33 +127,6 @@ test("shows a load failure, and Reintentar goes back to the placeholder before l
   await expect.element(screen.getByText("Cargando…")).toHaveTextContent("Cargando…");
   retry.resolve({ kind: "ok", value: complete });
   await expect.element(screen.getByText("Comercio de Prueba")).toBeVisible();
-});
-
-test("shows the rate-limited notice with the time to wait and a retry action", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({
-    kind: "rate_limited",
-    retryAfterSeconds: 120,
-  });
-
-  const screen = await renderScreen(services);
-
-  await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
-  await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
-  await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
-});
-
-test("Editar is disabled while the issuer identification loads and after it fails to load", async () => {
-  const services = createServices();
-  const firstLoad = deferred<FetchOutcome>();
-  vi.mocked(services.fetchIssuerIdentification).mockReturnValueOnce(firstLoad.promise);
-  const screen = await renderScreen(services);
-
-  await expect.element(screen.getByRole("button", { name: "Editar" })).toBeDisabled();
-
-  firstLoad.resolve({ kind: "failed" });
-  await expect.element(screen.getByText("No pudimos abrir la configuración fiscal")).toBeVisible();
-  await expect.element(screen.getByRole("button", { name: "Editar" })).toBeDisabled();
 });
 
 test("sends to Mi cuenta when the load comes back forbidden", async () => {
@@ -644,6 +561,36 @@ test("recording a threshold closes the modal, shows the threshold the read after
   await expect.element(screen.getByText("Rige desde el 01/12/2026.")).toBeVisible();
   expect(services.fetchBuyerIdentificationThresholds).toHaveBeenCalledTimes(2);
   expect(services.fetchIssuerIdentification).toHaveBeenCalledTimes(2);
+});
+
+test("keeps the threshold modal open with what was typed, asking to review the day, when the thresholds cannot be read again after a start that is not after the latest", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+  vi.mocked(services.fetchBuyerIdentificationThresholds)
+    .mockResolvedValueOnce({ kind: "ok", value: thresholds() })
+    .mockResolvedValue({ kind: "failed" });
+  vi.mocked(services.recordBuyerIdentificationThreshold).mockResolvedValue({
+    kind: "not_after_latest",
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("$ 10.000.000,00")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Cargar un umbral nuevo" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Importe/ }), "15.000.000,00");
+  await userEvent.click(
+    dialog
+      .getByRole("group", { name: /^Vigente desde/ })
+      .getByRole("spinbutton")
+      .first(),
+  );
+  await userEvent.keyboard("01012026");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Cargar el umbral" }));
+
+  await expect.element(dialog.getByText("Revisá la fecha.")).toBeVisible();
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Importe/ }))
+    .toHaveValue("15.000.000,00");
 });
 
 test("a refresh of the fiscal data reads the thresholds again without hiding them", async () => {

@@ -47,9 +47,6 @@ export function FiscalConfigurationScreen({
   if (editing && data.status === "failed") {
     setEditing(false);
   }
-  if (recording && thresholds.status === "failed") {
-    setRecording(false);
-  }
 
   const issuerIdentification = data.status === "loaded" ? data.value : null;
 

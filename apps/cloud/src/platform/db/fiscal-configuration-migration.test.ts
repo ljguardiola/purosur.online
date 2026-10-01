@@ -12,8 +12,6 @@ import {
   migrationsFolderBefore,
 } from "./test-support/migration-journal-test-helpers.js";
 
-const ISSUER_IDENTIFICATION_ID = "00000000-0000-0000-0000-000000000001";
-
 async function fiscalConfigurationEntry(): Promise<JournalEntry> {
   return findMigrationEntry(
     "_fiscal_configuration",
@@ -33,7 +31,7 @@ async function databaseBeforeMigration() {
 describe("the fiscal configuration migration applied over a database that already holds data", {
   timeout: 30_000,
 }, () => {
-  it("keeps the issuer identification it finds as its first version and logs it, so a register pulling from the start receives it", async () => {
+  it("keeps the issuer identification it finds as its first version, under no CUIT and not logged for the registers", async () => {
     const { folder, client } = await databaseBeforeMigration();
     await client.query(
       `update issuer_identification
@@ -47,7 +45,7 @@ describe("the fiscal configuration migration applied over a database that alread
 
     const { rows: versions } = await client.query(
       `select version, legal_name, gross_income_registration, activity_start_date::text as activity_start_date,
-              recorded_by
+              authorized_cuit, recorded_by
        from issuer_identification_versions`,
     );
     expect(versions).toEqual([
@@ -56,21 +54,12 @@ describe("the fiscal configuration migration applied over a database that alread
         legal_name: "Comercio de Prueba",
         gross_income_registration: "CM 000-000000-0",
         activity_start_date: "2020-01-15",
+        authorized_cuit: null,
         recorded_by: null,
       },
     ]);
-    const { rows: logged } = await client.query(
-      `select entity, entity_id, version, op from changes order by change_seq offset $1`,
-      [before.length],
-    );
-    expect(logged).toEqual([
-      {
-        entity: "issuer_identification",
-        entity_id: ISSUER_IDENTIFICATION_ID,
-        version: 4,
-        op: "insert",
-      },
-    ]);
+    const { rows: after } = await client.query("select entity from changes");
+    expect(after).toHaveLength(before.length);
   });
 
   it("keeps an identification that was never filled in as a first version with nothing in it", async () => {

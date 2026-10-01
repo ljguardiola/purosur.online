@@ -112,9 +112,8 @@ export {
   isIssuerIdentificationActivityStartDate,
   isIssuerIdentificationGrossIncomeRegistrationTooLong,
   isIssuerIdentificationLegalNameTooLong,
-  isSameBuyerTaxStatusSet,
   isValidBuyerTaxStatusSet,
-  startsAfterLatestThreshold,
+  latestThreshold,
   thresholdInEffectOn,
   thresholdScheduledAfter,
 } from "./fiscal/index.js";

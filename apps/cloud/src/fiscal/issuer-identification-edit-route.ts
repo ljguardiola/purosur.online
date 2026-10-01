@@ -1,6 +1,6 @@
 import { issuerIdentificationEditBodySchema, issuerIdentificationSchema } from "@purosur/contracts";
-import { eq } from "drizzle-orm";
-import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { editIssuerIdentification } from "@purosur/domain/fiscal/use-cases";
+import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
 import { requirePasskeyAuthorization } from "../access/passkey-authorization-guard.js";
@@ -10,123 +10,24 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import {
-  auditLog,
-  ISSUER_IDENTIFICATION_SINGLETON_ID,
-  issuerIdentification,
-  issuerIdentificationVersions,
-} from "../platform/db/schema.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
-import { withPendingChanges } from "../sync/change-log.js";
-import type {
-  IssuerIdentificationRouteOptions,
-  IssuerIdentificationRow,
+import { DrizzleIssuerIdentificationStore } from "./drizzle-issuer-identification-store.js";
+import {
+  type IssuerIdentificationRouteOptions,
+  toIssuerIdentificationWire,
 } from "./issuer-identification-read-route.js";
-import { toIssuerIdentificationWire } from "./issuer-identification-read-route.js";
 
 const STALE_VERSION_RESPONSE = {
   code: "stale_version",
   message: "the issuer identification was changed since it was loaded",
 } as const;
 
-export interface EditIssuerIdentificationInput {
-  legalName: string;
-  grossIncomeRegistration: string;
-  activityStartDate: string;
-  version: number;
-  actorId: string;
-}
-
-export type EditIssuerIdentificationOutcome =
-  | { kind: "stale_version" }
-  | { kind: "applied"; row: IssuerIdentificationRow };
-
-export async function editIssuerIdentification<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  input: EditIssuerIdentificationInput,
-): Promise<EditIssuerIdentificationOutcome> {
-  return withPendingChanges<TQueryResult, EditIssuerIdentificationOutcome>(
-    db,
-    undefined,
-    async (tx, pending) => {
-      // Locks the row so a concurrent save waits instead of racing: the version check and any write
-      // below run against a value that can't change out from under this transaction.
-      const [current] = await tx
-        .select({
-          legalName: issuerIdentification.legalName,
-          grossIncomeRegistration: issuerIdentification.grossIncomeRegistration,
-          activityStartDate: issuerIdentification.activityStartDate,
-          version: issuerIdentification.version,
-        })
-        .from(issuerIdentification)
-        .where(eq(issuerIdentification.id, ISSUER_IDENTIFICATION_SINGLETON_ID))
-        .for("update");
-      if (!current) {
-        throw new Error("issuer identification row missing: the seeding migration never ran");
-      }
-      if (current.version !== input.version) {
-        return { kind: "stale_version" };
-      }
-
-      const next: Omit<IssuerIdentificationRow, "version"> = {
-        legalName: input.legalName,
-        grossIncomeRegistration: input.grossIncomeRegistration,
-        activityStartDate: input.activityStartDate,
-      };
-      const unchanged =
-        current.legalName === next.legalName &&
-        current.grossIncomeRegistration === next.grossIncomeRegistration &&
-        current.activityStartDate === next.activityStartDate;
-
-      if (unchanged) {
-        return { kind: "applied", row: current };
-      }
-
-      const nextVersion = current.version + 1;
-      await tx
-        .update(issuerIdentification)
-        .set({ ...next, version: nextVersion })
-        .where(eq(issuerIdentification.id, ISSUER_IDENTIFICATION_SINGLETON_ID));
-
-      await tx.insert(issuerIdentificationVersions).values({
-        version: nextVersion,
-        ...next,
-        recordedBy: input.actorId,
-      });
-      pending.note({
-        entity: "issuer_identification",
-        entityId: ISSUER_IDENTIFICATION_SINGLETON_ID,
-        version: nextVersion,
-        op: "update",
-      });
-
-      await tx.insert(auditLog).values({
-        entity: "issuer_identification",
-        entityId: ISSUER_IDENTIFICATION_SINGLETON_ID,
-        actorId: input.actorId,
-        previousValue: toIssuerIdentificationWireForAudit(current),
-        newValue: toIssuerIdentificationWireForAudit({ ...next, version: nextVersion }),
-      });
-
-      return { kind: "applied", row: { ...next, version: nextVersion } };
-    },
-  );
-}
-
-function toIssuerIdentificationWireForAudit(row: IssuerIdentificationRow) {
-  return {
-    legal_name: row.legalName,
-    gross_income_registration: row.grossIncomeRegistration,
-    activity_start_date: row.activityStartDate,
-    version: row.version,
-  };
-}
-
 export function registerIssuerIdentificationEditRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: IssuerIdentificationRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
+  const ports = { store: new DrizzleIssuerIdentificationStore(options.db) };
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
@@ -153,10 +54,11 @@ export function registerIssuerIdentificationEditRoute<TQueryResult extends PgQue
         return;
       }
 
-      const outcome = await editIssuerIdentification(options.db, {
+      const outcome = await editIssuerIdentification(ports, {
         legalName: parsedBody.legal_name,
         grossIncomeRegistration: parsedBody.gross_income_registration,
         activityStartDate: parsedBody.activity_start_date,
+        authorizedCuit: options.authorizedCuit,
         version: parsedBody.version,
         actorId: openSession.userId,
       });
@@ -168,11 +70,7 @@ export function registerIssuerIdentificationEditRoute<TQueryResult extends PgQue
 
       await reply
         .code(200)
-        .send(
-          issuerIdentificationSchema.parse(
-            toIssuerIdentificationWire(outcome.row, options.authorizedCuit),
-          ),
-        );
+        .send(issuerIdentificationSchema.parse(toIssuerIdentificationWire(outcome.identification)));
     },
   );
 }

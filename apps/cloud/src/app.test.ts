@@ -93,15 +93,14 @@ describe("GET /api/health", () => {
 });
 
 describe("GET /api/changes", () => {
-  it("pulls the enrolled installation's branch changes when the changes route is wired", async () => {
+  it("pulls the enrolled installation's branch changes when the device routes are wired", async () => {
     const { deviceToken } = await insertEnrolledInstallation(testDatabase.db);
     const app = buildApp({
       version: "abc1234",
-      changes: {
+      devices: {
         db: testDatabase.db,
         rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
         keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
-        authorizedCuit: "20-00000000-1",
       },
     });
 
@@ -112,7 +111,7 @@ describe("GET /api/changes", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(changesPageSchema.parse(response.json()).changes).toHaveLength(4);
+    expect(changesPageSchema.parse(response.json()).changes).toHaveLength(3);
   });
 });
 
@@ -1931,10 +1930,10 @@ describe("the route access inventory", () => {
       },
       { method: "GET", url: "/api/health", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/devices", access: PUBLIC_ACCESS },
+      { method: "GET", url: "/api/changes", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/pin-code-redemptions", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/sign-in-lookups", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/devices/current/tokens", access: PUBLIC_ACCESS },
-      { method: "GET", url: "/api/changes", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/first-pin-codes", access: PUBLIC_ACCESS },
       { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },
       { method: "GET", url: "/*", access: PUBLIC_ACCESS },

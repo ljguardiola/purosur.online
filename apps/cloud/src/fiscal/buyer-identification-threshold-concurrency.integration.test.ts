@@ -15,9 +15,6 @@ import {
   DrizzleBuyerIdentificationThresholdStore,
 } from "./drizzle-buyer-identification-threshold-store.js";
 
-// PGlite serializes all transactions on one connection, so only a real Postgres pool can
-// interleave two recordings; an empty table has no row to lock, so the test holds the store's own
-// lock and waits for both recordings to queue behind it.
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;

@@ -35,3 +35,11 @@ export function thresholdScheduledAfter(
     scheduled.every((other) => other.validFrom >= threshold.validFrom),
   );
 }
+
+export function latestThreshold(
+  thresholds: readonly BuyerIdentificationThreshold[],
+): BuyerIdentificationThreshold | undefined {
+  return thresholds.find((threshold) =>
+    thresholds.every((other) => other.validFrom <= threshold.validFrom),
+  );
+}

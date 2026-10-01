@@ -1,10 +1,14 @@
-import { changesPageSchema } from "@purosur/contracts";
-import { recordBuyerIdentificationThreshold } from "@purosur/domain/fiscal/use-cases";
+import { type ChangesPage, changesPageSchema } from "@purosur/contracts";
+import {
+  editIssuerIdentification,
+  recordAuthorizedCuit,
+  recordBuyerIdentificationThreshold,
+} from "@purosur/domain/fiscal/use-cases";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { registerRouteAccess } from "../access/route-access.js";
 import { DrizzleBuyerIdentificationThresholdStore } from "../fiscal/drizzle-buyer-identification-threshold-store.js";
-import { editIssuerIdentification } from "../fiscal/issuer-identification-edit-route.js";
+import { DrizzleIssuerIdentificationStore } from "../fiscal/drizzle-issuer-identification-store.js";
 import {
   branchSettings,
   buyerTaxStatusSets,
@@ -23,7 +27,8 @@ import { registerChangesRoute } from "./changes-route.js";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z");
 const AUTHORIZED_CUIT = "20-00000000-1";
-const SEEDED_CHANGES = 4;
+const NEXT_AUTHORIZED_CUIT = "20-11111111-2";
+const SEEDED_CHANGES = 3;
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -46,7 +51,6 @@ beforeEach(async () => {
     db,
     rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
     keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
-    authorizedCuit: AUTHORIZED_CUIT,
     now: () => NOW,
   });
 });
@@ -126,53 +130,102 @@ async function insertTaxStatusSet(
   return set.id;
 }
 
+function issuerPorts() {
+  return { store: new DrizzleIssuerIdentificationStore(db) };
+}
+
+async function startUnder(authorizedCuit: string) {
+  const outcome = await recordAuthorizedCuit(issuerPorts(), { authorizedCuit });
+  if (outcome.kind !== "recorded") {
+    throw new Error(`test setup: recording the CUIT ended as ${outcome.kind}`);
+  }
+}
+
 async function editIssuer(actorId: string, version: number, legalName: string) {
-  const outcome = await editIssuerIdentification(db, {
+  const outcome = await editIssuerIdentification(issuerPorts(), {
     legalName,
     grossIncomeRegistration: "CM 000-000000-0",
     activityStartDate: "2020-01-15",
+    authorizedCuit: AUTHORIZED_CUIT,
     version,
     actorId,
   });
-  if (outcome.kind !== "applied") {
+  if (outcome.kind !== "edited") {
     throw new Error(`test setup: editing the issuer identification ended as ${outcome.kind}`);
   }
 }
 
+function issuerRows(page: ChangesPage) {
+  return page.changes.flatMap((change) =>
+    change.entity === "issuer_identification" ? [change.row] : [],
+  );
+}
+
 describe("GET /changes carrying the fiscal configuration", () => {
-  it("gives a register the issuer identification the cloud held when versions began, with the certificate's CUIT and the tax status", async () => {
+  it("gives a register the issuer identification under the CUIT the cloud started with, and nothing of the version kept from before", async () => {
     const { deviceToken } = await insertEnrolledInstallation(db);
+    await startUnder(AUTHORIZED_CUIT);
 
     const page = await pullFrom(0, deviceToken);
 
-    expect(withoutSeq(page)).toContainEqual({
-      entity: "issuer_identification",
-      entity_id: "00000000-0000-0000-0000-000000000001",
-      row: {
+    expect(issuerRows(page)).toEqual([
+      {
         legal_name: null,
         gross_income_registration: null,
         activity_start_date: null,
         authorized_cuit: AUTHORIZED_CUIT,
         tax_status: "Responsable Monotributo",
-        version: 1,
+        version: 2,
       },
-    });
+    ]);
   });
 
   it("gives every version of the issuer identification as it was saved, even when several were saved between two pulls", async () => {
     const { deviceToken } = await insertEnrolledInstallation(db);
     const actorId = await insertActor();
-    await editIssuer(actorId, 1, "Comercio de Prueba");
-    await editIssuer(actorId, 2, "Comercio de Prueba Nuevo");
+    await startUnder(AUTHORIZED_CUIT);
+    await editIssuer(actorId, 2, "Comercio de Prueba");
+    await editIssuer(actorId, 3, "Comercio de Prueba Nuevo");
 
     const page = await pullAfterSeed(deviceToken);
 
     expect(withoutSeq(page)).toMatchObject([
-      { entity: "issuer_identification", row: { legal_name: "Comercio de Prueba", version: 2 } },
+      { entity: "issuer_identification", row: { legal_name: null, version: 2 } },
+      { entity: "issuer_identification", row: { legal_name: "Comercio de Prueba", version: 3 } },
       {
         entity: "issuer_identification",
-        row: { legal_name: "Comercio de Prueba Nuevo", version: 3 },
+        row: { legal_name: "Comercio de Prueba Nuevo", version: 4 },
       },
+    ]);
+  });
+
+  it("gives a new version under the new CUIT on the pull after the cloud starts with another certificate, the earlier versions keeping theirs", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(db);
+    await startUnder(AUTHORIZED_CUIT);
+    await editIssuer(await insertActor(), 2, "Comercio de Prueba");
+    const first = await pullFrom(0, deviceToken);
+
+    await startUnder(NEXT_AUTHORIZED_CUIT);
+
+    expect(issuerRows(await pullFrom(first.cursor, deviceToken))).toEqual([
+      {
+        legal_name: "Comercio de Prueba",
+        gross_income_registration: "CM 000-000000-0",
+        activity_start_date: "2020-01-15",
+        authorized_cuit: NEXT_AUTHORIZED_CUIT,
+        tax_status: "Responsable Monotributo",
+        version: 4,
+      },
+    ]);
+    expect(
+      issuerRows(await pullFrom(0, deviceToken)).map(({ version, authorized_cuit }) => ({
+        version,
+        authorized_cuit,
+      })),
+    ).toEqual([
+      { version: 2, authorized_cuit: AUTHORIZED_CUIT },
+      { version: 3, authorized_cuit: AUTHORIZED_CUIT },
+      { version: 4, authorized_cuit: NEXT_AUTHORIZED_CUIT },
     ]);
   });
 

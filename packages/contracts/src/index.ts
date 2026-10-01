@@ -113,8 +113,6 @@ export {
 } from "./fiscal/buyer-identification-threshold.js";
 export type { BuyerIdentificationThresholdRecordBody } from "./fiscal/buyer-identification-threshold-record.js";
 export { buyerIdentificationThresholdRecordBodySchema } from "./fiscal/buyer-identification-threshold-record.js";
-export type { IssuerIdentificationBody } from "./fiscal/issuer-identification.js";
-export { issuerIdentificationSchema } from "./fiscal/issuer-identification.js";
 export type { IssuerIdentificationEditBody } from "./fiscal/issuer-identification-edit.js";
 export { issuerIdentificationEditBodySchema } from "./fiscal/issuer-identification-edit.js";
 export type { DiscountCreationBody } from "./pricing/discount-creation.js";
@@ -218,9 +216,14 @@ export {
   scannedCodeSchema,
   searchQuerySchema,
 } from "./sales/sale.js";
-export type { BranchSettingsBody, ErrorReportingConfiguration } from "./shared/index.js";
+export type {
+  BranchSettingsBody,
+  ErrorReportingConfiguration,
+  IssuerIdentificationBody,
+} from "./shared/index.js";
 export {
   branchSettingsSchema,
+  issuerIdentificationSchema,
   scrubErrorReport,
   scrubErrorReportBreadcrumb,
   scrubErrorReportLog,

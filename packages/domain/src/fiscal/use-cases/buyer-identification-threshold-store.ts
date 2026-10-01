@@ -23,6 +23,14 @@ export interface BuyerIdentificationThresholdStoreTransaction {
   ): Promise<BuyerIdentificationThreshold>;
 }
 
+export interface BuyerIdentificationThresholdOverview {
+  inEffect: BuyerIdentificationThreshold | undefined;
+  scheduled: BuyerIdentificationThreshold | undefined;
+  latest: BuyerIdentificationThreshold | undefined;
+}
+
 export interface BuyerIdentificationThresholdReader {
-  listBuyerIdentificationThresholds(): Promise<BuyerIdentificationThreshold[]>;
+  readBuyerIdentificationThresholdOverview(
+    day: string,
+  ): Promise<BuyerIdentificationThresholdOverview>;
 }

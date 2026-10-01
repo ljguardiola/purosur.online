@@ -288,11 +288,16 @@ export async function readIssuerIdentificationVersions<TQueryResult extends PgQu
       legalName: issuerIdentificationVersions.legalName,
       grossIncomeRegistration: issuerIdentificationVersions.grossIncomeRegistration,
       activityStartDate: issuerIdentificationVersions.activityStartDate,
+      authorizedCuit: issuerIdentificationVersions.authorizedCuit,
     })
     .from(issuerIdentificationVersions)
     .where(inArray(issuerIdentificationVersions.version, [...versions]))
     .orderBy(asc(issuerIdentificationVersions.version));
-  return new Map(rows.map((row) => [row.version, row]));
+  return new Map(
+    rows.flatMap(({ authorizedCuit, ...row }) =>
+      authorizedCuit === null ? [] : [[row.version, { ...row, authorizedCuit }]],
+    ),
+  );
 }
 
 export async function readBuyerIdentificationThresholds<TQueryResult extends PgQueryResultHKT>(

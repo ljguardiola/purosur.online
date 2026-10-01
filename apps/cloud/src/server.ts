@@ -2,6 +2,7 @@ import { X509Certificate } from "node:crypto";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { recordAuthorizedCuit } from "@purosur/domain/fiscal/use-cases";
 import * as Sentry from "@sentry/node";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type { FastifyInstance } from "fastify";
@@ -24,6 +25,7 @@ import {
   databaseRouteOptions,
 } from "./app.js";
 import { parseCuit } from "./fiscal/cuit.js";
+import { DrizzleIssuerIdentificationStore } from "./fiscal/drizzle-issuer-identification-store.js";
 import { runShutdownSteps } from "./platform/run-shutdown-steps.js";
 import { initSentry } from "./platform/sentry.js";
 
@@ -330,6 +332,20 @@ export interface StartServerDeps {
   initSentry?: typeof initSentry;
   buildApp?: (options: BuildAppOptions) => FastifyInstance;
   setUpRecovery?: (recoveryEnv: RecoveryEnv) => Promise<RecoveryInfrastructure>;
+  recordAuthorizedCuit?: (
+    db: RecoveryInfrastructure["db"],
+    authorizedCuit: string,
+  ) => Promise<unknown>;
+}
+
+function recordAuthorizedCuitInDatabase(
+  db: RecoveryInfrastructure["db"],
+  authorizedCuit: string,
+): Promise<unknown> {
+  return recordAuthorizedCuit(
+    { store: new DrizzleIssuerIdentificationStore(db) },
+    { authorizedCuit },
+  );
 }
 
 export async function startServer(
@@ -339,6 +355,7 @@ export async function startServer(
   const doInitSentry = deps.initSentry ?? initSentry;
   const doBuildApp = deps.buildApp ?? buildApp;
   const doSetUpRecovery = deps.setUpRecovery ?? setUpRecovery;
+  const doRecordAuthorizedCuit = deps.recordAuthorizedCuit ?? recordAuthorizedCuitInDatabase;
 
   const version = resolveVersion(env);
   doInitSentry({ dsn: env.SENTRY_DSN, environment: env.SENTRY_ENVIRONMENT, release: version });
@@ -373,6 +390,7 @@ export async function startServer(
   });
   if (database) {
     app.addHook("onClose", () => database.recovery.close());
+    await doRecordAuthorizedCuit(database.recovery.db, database.authorizedCuit);
   }
   await app.listen({ port: resolvePort(env), host: "0.0.0.0" });
   return app;

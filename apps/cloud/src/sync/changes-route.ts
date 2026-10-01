@@ -23,21 +23,15 @@ import {
 import { DrizzleChangeLog } from "./drizzle-change-log.js";
 import type { PulledCloudChange } from "./pulled-changes.js";
 
-export interface ChangesRouteOptions<TQueryResult extends PgQueryResultHKT>
-  extends DeviceTokensOptions<TQueryResult> {
-  // From deployment configuration (ARCA_CERTIFICATE); never stored in the database.
-  authorizedCuit: string;
-}
+export type ChangesRouteOptions<TQueryResult extends PgQueryResultHKT> =
+  DeviceTokensOptions<TQueryResult>;
 
 const DEVICE_TOKEN_REJECTED = cloudError(
   "device_token_rejected",
   "the device token is not recognized",
 );
 
-function toChangeWire(
-  change: PulledCloudChange,
-  authorizedCuit: string,
-): ChangesPage["changes"][number] {
+function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number] {
   const { changeSeq: change_seq, entityId: entity_id } = change;
   switch (change.entity) {
     case "branch_settings":
@@ -141,7 +135,7 @@ function toChangeWire(
         change_seq,
         entity: change.entity,
         entity_id,
-        row: toIssuerIdentificationWire(change.row, authorizedCuit),
+        row: toIssuerIdentificationWire(change.row),
       };
     case "buyer_identification_threshold":
       return {
@@ -175,9 +169,9 @@ function toChangeWire(
   }
 }
 
-function toChangesPageWire(page: PullPage<PulledCloudChange>, authorizedCuit: string): ChangesPage {
+function toChangesPageWire(page: PullPage<PulledCloudChange>): ChangesPage {
   return {
-    changes: page.changes.map((change) => toChangeWire(change, authorizedCuit)),
+    changes: page.changes.map(toChangeWire),
     cursor: page.cursor,
     has_more: page.hasMore,
   };
@@ -228,9 +222,7 @@ export function registerChangesRoute<TQueryResult extends PgQueryResultHKT>(
         registerId: installation.registerId,
         since: query.since,
       });
-      await reply
-        .code(200)
-        .send(changesPageSchema.parse(toChangesPageWire(page, options.authorizedCuit)));
+      await reply.code(200).send(changesPageSchema.parse(toChangesPageWire(page)));
     });
   });
 }

@@ -1,9 +1,5 @@
 import type { CalendarDate } from "@internationalized/date";
-import {
-  type BuyerIdentificationThresholdRecordBody,
-  buyerIdentificationThresholdRecordBodySchema,
-  parseAmountCents,
-} from "@purosur/contracts";
+import { type BuyerIdentificationThresholdRecordBody, parseAmountCents } from "@purosur/contracts";
 import { formatDisplayDate } from "./display-date";
 
 export type ThresholdFormValues = { amount: string; validFrom: CalendarDate | null };
@@ -28,9 +24,7 @@ export function amountMessage({ amount }: ThresholdFormValues): string {
   if (cents === undefined) {
     return "Escribí el importe con coma para los decimales, por ejemplo 7.500,50.";
   }
-  return buyerIdentificationThresholdRecordBodySchema.shape.amount.safeParse(cents).success
-    ? "Revisá el importe."
-    : "Ingresá un importe mayor a cero.";
+  return cents > 0 ? "Revisá el importe." : "Ingresá un importe mayor a cero.";
 }
 
 export function validFromMessage({ validFrom }: ThresholdFormValues): string {

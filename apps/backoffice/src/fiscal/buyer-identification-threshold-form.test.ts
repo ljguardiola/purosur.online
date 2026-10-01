@@ -50,6 +50,12 @@ test("an amount the cloud refuses with a valid shape asks to review it", () => {
   expect(amountMessage({ ...EMPTY_THRESHOLD_FORM, amount: "100" })).toBe("Revisá el importe.");
 });
 
+test("an amount above zero the contract refuses asks to review it, never for one above zero", () => {
+  expect(amountMessage({ ...EMPTY_THRESHOLD_FORM, amount: "999.999.999.999.999,00" })).toBe(
+    "Revisá el importe.",
+  );
+});
+
 test("asks to choose the day when none was chosen, and to review it otherwise", () => {
   expect(validFromMessage(EMPTY_THRESHOLD_FORM)).toBe("Elegí desde cuándo rige el umbral.");
   expect(validFromMessage({ ...EMPTY_THRESHOLD_FORM, validFrom: parseDate("2026-10-01") })).toBe(

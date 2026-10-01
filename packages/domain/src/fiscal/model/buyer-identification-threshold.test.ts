@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   isBuyerIdentificationThresholdAmount,
+  latestThreshold,
   startsAfterLatestThreshold,
   thresholdInEffectOn,
   thresholdScheduledAfter,
@@ -81,5 +82,15 @@ describe("thresholdScheduledAfter", () => {
 
   it("answers the next one to start when several are scheduled, whatever the order of the list", () => {
     expect(thresholdScheduledAfter([third, second, first], "2026-03-01")).toEqual(second);
+  });
+});
+
+describe("latestThreshold", () => {
+  it("answers nothing when no threshold exists", () => {
+    expect(latestThreshold([])).toBeUndefined();
+  });
+
+  it("answers the threshold that starts last, whatever the order of the list", () => {
+    expect(latestThreshold([second, third, first])).toEqual(third);
   });
 });

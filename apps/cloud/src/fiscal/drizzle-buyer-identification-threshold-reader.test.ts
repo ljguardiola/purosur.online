@@ -36,27 +36,32 @@ async function insertActor(): Promise<string> {
 }
 
 describe("DrizzleBuyerIdentificationThresholdReader", () => {
-  it("answers no thresholds while none was recorded", async () => {
+  it("answers nothing in effect, nothing scheduled and no latest while none was recorded", async () => {
     const reader = new DrizzleBuyerIdentificationThresholdReader(db);
 
-    expect(await reader.listBuyerIdentificationThresholds()).toEqual([]);
+    expect(await reader.readBuyerIdentificationThresholdOverview("2026-07-01")).toEqual({
+      inEffect: undefined,
+      scheduled: undefined,
+      latest: undefined,
+    });
   });
 
-  it("answers every threshold, the one that starts last first", async () => {
+  it("answers the threshold in effect on the day, the next one scheduled and the one that starts last", async () => {
     const actorId = await insertActor();
     await db.insert(buyerIdentificationThresholds).values([
       { amount: 2_000_000, validFrom: "2026-06-01", recordedBy: actorId },
       { amount: 3_500_000_000, validFrom: "2026-10-01", recordedBy: actorId },
       { amount: 1_000_000, validFrom: "2026-01-01", recordedBy: actorId },
+      { amount: 3_000_000, validFrom: "2026-08-01", recordedBy: actorId },
     ]);
     const reader = new DrizzleBuyerIdentificationThresholdReader(db);
 
-    const thresholds = await reader.listBuyerIdentificationThresholds();
+    const overview = await reader.readBuyerIdentificationThresholdOverview("2026-07-01");
 
-    expect(thresholds.map(({ amount, validFrom }) => [amount, validFrom])).toEqual([
-      [3_500_000_000, "2026-10-01"],
-      [2_000_000, "2026-06-01"],
-      [1_000_000, "2026-01-01"],
-    ]);
+    expect(overview).toEqual({
+      inEffect: { id: expect.any(String), amount: 2_000_000, validFrom: "2026-06-01" },
+      scheduled: { id: expect.any(String), amount: 3_000_000, validFrom: "2026-08-01" },
+      latest: { id: expect.any(String), amount: 3_500_000_000, validFrom: "2026-10-01" },
+    });
   });
 });

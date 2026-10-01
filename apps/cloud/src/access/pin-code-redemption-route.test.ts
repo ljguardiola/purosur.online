@@ -53,7 +53,7 @@ beforeEach(async () => {
     now: () => NOW,
   };
   registerPinCodeRedemptionRoute(app, devices);
-  registerChangesRoute(app, { ...devices, authorizedCuit: "20-00000000-1" });
+  registerChangesRoute(app, devices);
 });
 
 afterEach(async () => {

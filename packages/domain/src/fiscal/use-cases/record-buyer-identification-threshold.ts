@@ -19,7 +19,6 @@ export async function recordBuyerIdentificationThreshold(
   input: RecordBuyerIdentificationThresholdInput,
 ): Promise<RecordBuyerIdentificationThresholdOutcome> {
   return store.transaction<RecordBuyerIdentificationThresholdOutcome>(async (tx) => {
-    // Locks the latest threshold so two concurrent recordings can't both start after the same one.
     const latest = await tx.lockLatestBuyerIdentificationThreshold();
     if (latest && !startsAfterLatestThreshold(input.validFrom, latest)) {
       return { kind: "not_after_latest", latestValidFrom: latest.validFrom };

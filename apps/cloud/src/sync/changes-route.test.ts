@@ -54,8 +54,6 @@ import { registerChangesRoute } from "./changes-route.js";
 import { DrizzleChangeLog } from "./drizzle-change-log.js";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z");
-const AUTHORIZED_CUIT = "20-00000000-1";
-const SEEDED_CHANGES = 4;
 
 const DEFAULT_SETTINGS_ROW = {
   address: "",
@@ -95,7 +93,6 @@ beforeEach(async () => {
     db,
     rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
     keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
-    authorizedCuit: AUTHORIZED_CUIT,
     now: () => NOW,
   });
 });
@@ -204,21 +201,8 @@ describe("GET /changes", () => {
           entity_id: await administratorRoleId(),
           row: { name: null, is_administrator: true, permission_keys: [], version: 1 },
         },
-        {
-          change_seq: 4,
-          entity: "issuer_identification",
-          entity_id: "00000000-0000-0000-0000-000000000001",
-          row: {
-            legal_name: null,
-            gross_income_registration: null,
-            activity_start_date: null,
-            authorized_cuit: AUTHORIZED_CUIT,
-            tax_status: "Responsable Monotributo",
-            version: 1,
-          },
-        },
       ],
-      cursor: SEEDED_CHANGES,
+      cursor: 3,
       has_more: false,
     });
   });
@@ -238,24 +222,19 @@ describe("GET /changes", () => {
       locationId,
       await seededPriceListId(db),
       await administratorRoleId(),
-      "00000000-0000-0000-0000-000000000001",
     ]);
   });
 
   it("gives nothing and keeps the cursor once the register has every change", async () => {
     const { deviceToken } = await insertEnrolledInstallation(db);
 
-    expect(await pullPage(SEEDED_CHANGES, deviceToken)).toEqual({
-      changes: [],
-      cursor: SEEDED_CHANGES,
-      has_more: false,
-    });
+    expect(await pullPage(3, deviceToken)).toEqual({ changes: [], cursor: 3, has_more: false });
   });
 
   it("reaches a register only on its next pull after a backoffice edit, with the edited row and its new version", async () => {
     const { deviceToken, locationId } = await insertEnrolledInstallation(db);
     const first = await pullPage(0, deviceToken);
-    expect(first.cursor).toBe(SEEDED_CHANGES);
+    expect(first.cursor).toBe(3);
 
     await editBranchSettings(
       db,
@@ -265,7 +244,7 @@ describe("GET /changes", () => {
 
     expect(next.changes).toEqual([
       {
-        change_seq: SEEDED_CHANGES + 1,
+        change_seq: 4,
         entity: "branch_settings",
         entity_id: locationId,
         row: {
@@ -276,7 +255,7 @@ describe("GET /changes", () => {
         },
       },
     ]);
-    expect(next).toMatchObject({ cursor: SEEDED_CHANGES + 1, has_more: false });
+    expect(next).toMatchObject({ cursor: 4, has_more: false });
   });
 
   it("pages more than 500 changes through, 500 at a time, until none is left", async () => {
@@ -295,19 +274,19 @@ describe("GET /changes", () => {
 
     expect(first.changes).toHaveLength(500);
     expect(first).toMatchObject({ cursor: 500, has_more: true });
-    expect(second.changes).toHaveLength(104);
+    expect(second.changes).toHaveLength(103);
     expect(second.changes[0]?.change_seq).toBe(501);
-    expect(second).toMatchObject({ cursor: 604, has_more: false });
+    expect(second).toMatchObject({ cursor: 603, has_more: false });
   });
 
   it("records the cursor each device last asked from and when", async () => {
     const { deviceId, deviceToken } = await insertEnrolledInstallation(db);
 
     await pullPage(0, deviceToken);
-    await pullPage(SEEDED_CHANGES, deviceToken);
+    await pullPage(3, deviceToken);
 
     expect(await db.select().from(deviceState).where(eq(deviceState.deviceId, deviceId))).toEqual([
-      { deviceId, lastPullSince: SEEDED_CHANGES, lastPulledAt: NOW },
+      { deviceId, lastPullSince: 3, lastPulledAt: NOW },
     ]);
   });
 
@@ -362,7 +341,6 @@ describe("GET /changes", () => {
       db: broken.db,
       rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
       keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
-      authorizedCuit: AUTHORIZED_CUIT,
     });
 
     const response = await failing.inject({
@@ -466,7 +444,7 @@ describe("GET /changes carrying the catalog and the prices", () => {
   }
 
   async function pullSinceSeeded(deviceToken: string) {
-    return pullPage(SEEDED_CHANGES, deviceToken);
+    return pullPage(3, deviceToken);
   }
 
   it("gives the categories, the products with their barcodes in order, and the branch's price list's prices, each with its version", async () => {
@@ -482,25 +460,25 @@ describe("GET /changes carrying the catalog and the prices", () => {
 
     expect(page.changes).toEqual([
       {
-        change_seq: 5,
+        change_seq: 4,
         entity: "category",
         entity_id: parentId,
         row: { name: "Almacén", parent_id: null, version: 1 },
       },
       {
-        change_seq: 6,
+        change_seq: 5,
         entity: "category",
         entity_id: leafId,
         row: { name: "Secos", parent_id: parentId, version: 1 },
       },
       {
-        change_seq: 7,
+        change_seq: 6,
         entity: "tag",
         entity_id: tagId,
         row: { name: "Sin TACC", active: true, version: 1 },
       },
       {
-        change_seq: 8,
+        change_seq: 7,
         entity: "product",
         entity_id: product.id,
         row: {
@@ -519,7 +497,7 @@ describe("GET /changes carrying the catalog and the prices", () => {
         },
       },
       {
-        change_seq: 9,
+        change_seq: 8,
         entity: "price",
         entity_id: price.id,
         row: {
@@ -531,7 +509,7 @@ describe("GET /changes carrying the catalog and the prices", () => {
         },
       },
     ]);
-    expect(page).toMatchObject({ cursor: 9, has_more: false });
+    expect(page).toMatchObject({ cursor: 8, has_more: false });
   });
 
   it("gives a deactivated tag marked inactive, at its version, and a removed tag as a removal", async () => {
@@ -548,19 +526,19 @@ describe("GET /changes carrying the catalog and the prices", () => {
 
     expect(page.changes).toEqual([
       {
-        change_seq: 5,
+        change_seq: 4,
         entity: "tag",
         entity_id: deactivatedId,
         row: { name: "Vegano", active: false, version: 2 },
       },
-      { change_seq: 6, entity: "removal", entity_id: removedId, removed_entity: "tag", version: 2 },
+      { change_seq: 5, entity: "removal", entity_id: removedId, removed_entity: "tag", version: 2 },
       {
-        change_seq: 7,
+        change_seq: 6,
         entity: "tag",
         entity_id: deactivatedId,
         row: { name: "Vegano", active: false, version: 2 },
       },
-      { change_seq: 8, entity: "removal", entity_id: removedId, removed_entity: "tag", version: 2 },
+      { change_seq: 7, entity: "removal", entity_id: removedId, removed_entity: "tag", version: 2 },
     ]);
   });
 
@@ -587,7 +565,7 @@ describe("GET /changes carrying the catalog and the prices", () => {
     const page = await pullSinceSeeded(deviceToken);
 
     const productChanges = page.changes.filter((change) => change.entity === "product");
-    expect(productChanges.map((change) => change.change_seq)).toEqual([6, 7, 8]);
+    expect(productChanges.map((change) => change.change_seq)).toEqual([5, 6, 7]);
     for (const change of productChanges) {
       expect(change).toMatchObject({
         entity_id: product.id,
@@ -642,23 +620,30 @@ describe("GET /changes carrying the catalog and the prices", () => {
 
     expect(page.changes).toEqual([
       {
-        change_seq: 5,
+        change_seq: 4,
         entity: "category",
         entity_id: categoryId,
         row: { name: "Almacén", parent_id: null, version: 1 },
       },
       {
-        change_seq: 6,
+        change_seq: 5,
         entity: "removal",
         entity_id: emptyCategoryId,
         removed_entity: "category",
         version: 2,
       },
       {
-        change_seq: 7,
+        change_seq: 6,
         entity: "removal",
         entity_id: product.id,
         removed_entity: "product",
+        version: 2,
+      },
+      {
+        change_seq: 7,
+        entity: "removal",
+        entity_id: price.id,
+        removed_entity: "price",
         version: 2,
       },
       {
@@ -671,19 +656,12 @@ describe("GET /changes carrying the catalog and the prices", () => {
       {
         change_seq: 9,
         entity: "removal",
-        entity_id: price.id,
-        removed_entity: "price",
-        version: 2,
-      },
-      {
-        change_seq: 10,
-        entity: "removal",
         entity_id: product.id,
         removed_entity: "product",
         version: 2,
       },
       {
-        change_seq: 11,
+        change_seq: 10,
         entity: "removal",
         entity_id: emptyCategoryId,
         removed_entity: "category",
@@ -705,7 +683,7 @@ describe("GET /changes carrying the catalog and the prices", () => {
 
     expect(await pullSinceSeeded(deviceToken)).toEqual({
       changes: [],
-      cursor: SEEDED_CHANGES,
+      cursor: 3,
       has_more: false,
     });
   });
@@ -725,13 +703,13 @@ describe("GET /changes carrying the catalog and the prices", () => {
       })),
     );
 
-    const first = await pullPage(SEEDED_CHANGES, deviceToken);
+    const first = await pullPage(3, deviceToken);
     const second = await pullPage(first.cursor, deviceToken);
 
     expect(first.changes).toHaveLength(500);
-    expect(first).toMatchObject({ cursor: 504, has_more: true });
+    expect(first).toMatchObject({ cursor: 503, has_more: true });
     expect(second.changes).toHaveLength(100);
-    expect(second).toMatchObject({ cursor: 604, has_more: false });
+    expect(second).toMatchObject({ cursor: 603, has_more: false });
     expect(
       new Set([...first.changes, ...second.changes].map((change) => change.entity_id)),
     ).toEqual(new Set(inserted.map(({ id }) => id)));
@@ -740,6 +718,7 @@ describe("GET /changes carrying the catalog and the prices", () => {
 });
 
 describe("GET /changes carrying the users and the roles", () => {
+  const SEEDED_CHANGES = 3;
   const NOW_FOR_ALERTS = { now: () => NOW };
 
   async function newRole(name: string, permissionKeys: string[]): Promise<string> {
@@ -821,12 +800,14 @@ describe("GET /changes carrying the users and the roles", () => {
 
     const page = await pullPage(2, deviceToken);
 
-    expect(page.changes).toContainEqual({
-      change_seq: 3,
-      entity: "role",
-      entity_id: administratorRole?.id,
-      row: { name: null, is_administrator: true, permission_keys: [], version: 1 },
-    });
+    expect(page.changes).toEqual([
+      {
+        change_seq: 3,
+        entity: "role",
+        entity_id: administratorRole?.id,
+        row: { name: null, is_administrator: true, permission_keys: [], version: 1 },
+      },
+    ]);
   });
 
   it("gives the branch's users with their role, salt and PIN hash and the roles with their permissions, never a user's email", async () => {
@@ -999,6 +980,8 @@ describe("GET /changes carrying the users and the roles", () => {
 });
 
 describe("GET /changes carrying the discounts", () => {
+  const SEEDED_CHANGES = 3;
+
   async function newTag(name: string): Promise<string> {
     const outcome = await createTag(new DrizzleCatalogStore(db), { name });
     if (outcome.kind !== "created") {
@@ -1152,6 +1135,8 @@ describe("GET /changes carrying the discounts", () => {
 });
 
 describe("GET /changes carrying the register's own row", () => {
+  const SEEDED_CHANGES = 3;
+
   async function newRegister(name: string): Promise<string> {
     const [actor] = await db.select({ id: users.id }).from(users).limit(1);
     const outcome = await createRegister(db, {
@@ -1210,6 +1195,8 @@ describe("GET /changes carrying the register's own row", () => {
 });
 
 describe("the change log read for a register whose row is gone", () => {
+  const SEEDED_CHANGES = 3;
+
   it("gives a removal at the version of its latest change", async () => {
     const { registerId, locationId } = await insertEnrolledInstallation(db);
     await logChange(db, { entity: "register", entityId: registerId, version: 1, op: "insert" });

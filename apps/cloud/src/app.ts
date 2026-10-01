@@ -111,7 +111,6 @@ import { registerStockCountsRoutes } from "./stock/stock-counts-route.js";
 import { registerStockMovementsRoutes } from "./stock/stock-movements-route.js";
 import { registerStockProductsRoute } from "./stock/stock-products-route.js";
 import type { StockRouteOptions } from "./stock/stock-route-options.js";
-import type { ChangesRouteOptions } from "./sync/changes-route.js";
 import { registerChangesRoute } from "./sync/changes-route.js";
 
 export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = PostgresJsQueryResultHKT> {
@@ -138,7 +137,6 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   registers?: RegistersRouteOptions<TQueryResult>;
   stock?: StockRouteOptions<TQueryResult>;
   devices?: DeviceTokensOptions<TQueryResult>;
-  changes?: ChangesRouteOptions<TQueryResult>;
   firstPinCodes?: FirstPinCodeRouteOptions<TQueryResult>;
 }
 
@@ -187,7 +185,6 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     registers: backoffice,
     stock: backoffice,
     devices,
-    changes: { ...devices, authorizedCuit: wiring.authorizedCuit },
     firstPinCodes: devices,
   };
 }
@@ -399,13 +396,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
       if (options.devices) {
         registerDeviceEnrollmentRoute(api, options.devices);
+        registerChangesRoute(api, options.devices);
         registerPinCodeRedemptionRoute(api, options.devices);
         registerSignInLookupRoute(api, options.devices);
         registerDeviceTokenRotationRoute(api, options.devices);
-      }
-
-      if (options.changes) {
-        registerChangesRoute(api, options.changes);
       }
 
       if (options.firstPinCodes) {

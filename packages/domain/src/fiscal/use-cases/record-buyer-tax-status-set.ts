@@ -23,7 +23,6 @@ export async function recordBuyerTaxStatusSet(
   }
 
   return store.transaction<RecordBuyerTaxStatusSetOutcome>(async (tx) => {
-    // Locks the current set so two concurrent recordings can't both take the same next version.
     const current = await tx.lockCurrentBuyerTaxStatusSet();
     if (current && isSameBuyerTaxStatusSet(current.options, input.options)) {
       return { kind: "unchanged", paramsVersion: current.paramsVersion };

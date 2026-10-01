@@ -1,5 +1,8 @@
 import { createCategory, createProduct, createTag } from "@purosur/domain/catalog/use-cases";
-import { recordBuyerIdentificationThreshold } from "@purosur/domain/fiscal/use-cases";
+import {
+  recordAuthorizedCuit,
+  recordBuyerIdentificationThreshold,
+} from "@purosur/domain/fiscal/use-cases";
 import { setPrice } from "@purosur/domain/pricing/use-cases";
 import { pullChanges } from "@purosur/domain/sync/use-cases";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -9,6 +12,7 @@ import { createRole } from "../access/role-creation-route.js";
 import { createUser } from "../access/user-creation-route.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { DrizzleBuyerIdentificationThresholdStore } from "../fiscal/drizzle-buyer-identification-threshold-store.js";
+import { DrizzleIssuerIdentificationStore } from "../fiscal/drizzle-issuer-identification-store.js";
 import { buyerTaxStatusSets, users } from "../platform/db/schema.js";
 import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
@@ -90,6 +94,10 @@ describe("a pull run as the role the deployed cloud connects with", () => {
         expectedCurrentPriceId: null,
         actorId: actor.id,
       },
+    );
+    await recordAuthorizedCuit(
+      { store: new DrizzleIssuerIdentificationStore(db) },
+      { authorizedCuit: "20-00000000-1" },
     );
     await recordBuyerIdentificationThreshold(
       { store: new DrizzleBuyerIdentificationThresholdStore(db) },
