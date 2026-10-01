@@ -366,11 +366,12 @@ const rendererRequestDeps: RendererRequestDeps = {
   changeLineQuantity:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (lineId, quantity) =>
+      : (lineId, quantity, expectedQuantity) =>
           changeLineQuantityFor(
             { database: localDatabase, gate: actionGate, now: () => new Date(), ids: uuidV7Ids },
             lineId,
             quantity,
+            expectedQuantity,
           ),
   removeSaleLine:
     localDatabase === undefined || actionGate === undefined

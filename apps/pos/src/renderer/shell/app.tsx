@@ -191,8 +191,8 @@ export function App({ core }: { core: CoreClient }) {
     scanProduct: (code: string) => core.scanProduct(code),
     searchProducts: (query: string) => core.searchProducts(query),
     addProduct: (productId: string) => core.addProduct(productId),
-    changeLineQuantity: (lineId: string, quantity: number) =>
-      core.changeLineQuantity(lineId, quantity),
+    changeLineQuantity: (lineId: string, quantity: number, expectedQuantity: number) =>
+      core.changeLineQuantity(lineId, quantity, expectedQuantity),
     removeSaleLine: (lineId: string) => core.removeSaleLine(lineId),
     cancelSale: () => core.cancelSale(),
     // A replaced core connection fails this request; the core coming back up asks again.

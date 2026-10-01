@@ -58,15 +58,21 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
   });
 }
 
-function change(store: FakeSaleLedger, lineId: string, quantity: number, actorId = "cashier") {
-  return changeLineQuantity(
-    { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds() },
-    { actorId, lineId, quantity },
-  );
-}
-
 function storedLine(store: FakeSaleLedger, lineId: string) {
   return store.state.sales[0]?.lines.find((line) => line.id === lineId);
+}
+
+function change(
+  store: FakeSaleLedger,
+  lineId: string,
+  quantity: number,
+  actorId = "cashier",
+  expectedQuantity = storedLine(store, lineId)?.quantity ?? 1,
+) {
+  return changeLineQuantity(
+    { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds() },
+    { actorId, lineId, quantity, expectedQuantity },
+  );
 }
 
 describe("changeLineQuantity", () => {
@@ -201,6 +207,39 @@ describe("changeLineQuantity", () => {
     store.failOn = "recordLineQuantity";
 
     expect(change(store, "line-1", 3)).toEqual(expect.objectContaining({ kind: "changed" }));
+  });
+
+  it("applies the change when the line still has the quantity the screen showed", () => {
+    const store = ledger();
+
+    const outcome = change(store, "line-1", 1, "cashier", 3);
+
+    expect(outcome).toEqual(expect.objectContaining({ kind: "changed" }));
+    expect(storedLine(store, "line-1")).toEqual({ ...YERBA_LINE, quantity: 1, lineTotal: 2500 });
+  });
+
+  it("refuses a change computed from a quantity the line no longer has, writing nothing", () => {
+    const store = ledger();
+    const before = structuredClone(store.state);
+
+    const outcome = change(store, "line-1", 1, "cashier", 2);
+
+    expect(outcome).toEqual({ kind: "stale_quantity" });
+    expect(storedLine(store, "line-1")).toEqual(YERBA_LINE);
+    expect(store.state.removals).toEqual([]);
+    expect(store.state).toEqual(before);
+  });
+
+  it("refuses a raise computed from a stale quantity too", () => {
+    const store = ledger();
+    const before = structuredClone(store.state);
+
+    expect(change(store, "line-1", 4, "cashier", 2)).toEqual({ kind: "stale_quantity" });
+    expect(store.state).toEqual(before);
+  });
+
+  it("checks the line exists before comparing the shown quantity", () => {
+    expect(change(ledger(), "line-9", 2, "cashier", 7)).toEqual({ kind: "unknown_line" });
   });
 
   it("leaves the other lines as they were", () => {

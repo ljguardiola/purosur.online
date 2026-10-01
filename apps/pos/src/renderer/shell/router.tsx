@@ -83,7 +83,11 @@ export interface RouterContext {
   scanProduct: (code: string) => Promise<ScanProductOutcome>;
   searchProducts: (query: string) => Promise<SearchProductsOutcome>;
   addProduct: (productId: string) => Promise<AddProductOutcome>;
-  changeLineQuantity: (lineId: string, quantity: number) => Promise<ChangeLineQuantityOutcome>;
+  changeLineQuantity: (
+    lineId: string,
+    quantity: number,
+    expectedQuantity: number,
+  ) => Promise<ChangeLineQuantityOutcome>;
   removeSaleLine: (lineId: string) => Promise<RemoveSaleLineOutcome>;
   cancelSale: () => Promise<CancelSaleOutcome>;
   refreshCashSession: () => Promise<void>;

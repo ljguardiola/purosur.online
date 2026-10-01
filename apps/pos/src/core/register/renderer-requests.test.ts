@@ -108,8 +108,9 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       changeLineQuantity: async (
         lineId: string,
         quantity: number,
+        expectedQuantity: number,
       ): Promise<ChangeLineQuantityOutcome> => {
-        saleChanges.push(["change", lineId, quantity].join(" "));
+        saleChanges.push(["change", lineId, quantity, expectedQuantity].join(" "));
         return { kind: "unknown_line" };
       },
       removeSaleLine: async (lineId: string): Promise<RemoveSaleLineOutcome> => {
@@ -1171,10 +1172,10 @@ describe("answerRendererRequest", () => {
     const requests = [
       [
         "change-line-quantity",
-        { type: "change-line-quantity", line_id: "l1", quantity: 2 } as const,
+        { type: "change-line-quantity", line_id: "l1", quantity: 2, expected_quantity: 3 } as const,
         "changeLineQuantity",
         "changing a line's quantity",
-        "change l1 2",
+        "change l1 2 3",
         "change-line-quantity-result",
       ],
       [

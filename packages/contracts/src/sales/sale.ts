@@ -86,6 +86,7 @@ export const saleLineQuantitySchema = z.int().positive();
 export const changeLineQuantityOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("changed"), sale: saleSchema }),
   z.object({ kind: z.literal("unknown_line") }),
+  z.object({ kind: z.literal("stale_quantity") }),
   z.object({ kind: z.literal("invalid_quantity") }),
   ...saleRefusalSchemas,
 ]);

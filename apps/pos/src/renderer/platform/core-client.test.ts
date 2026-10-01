@@ -379,7 +379,7 @@ describe("createCoreClient", () => {
     const port = new FakePort();
     client.connect(port);
 
-    const changed = client.changeLineQuantity("line-1", 3);
+    const changed = client.changeLineQuantity("line-1", 3, 4);
     port.answer({
       type: "change-line-quantity-result",
       request_id: "request-1",
@@ -388,7 +388,13 @@ describe("createCoreClient", () => {
 
     expect(await changed).toEqual({ kind: "unknown_line" });
     expect(port.posted).toEqual([
-      { type: "change-line-quantity", request_id: "request-1", line_id: "line-1", quantity: 3 },
+      {
+        type: "change-line-quantity",
+        request_id: "request-1",
+        line_id: "line-1",
+        quantity: 3,
+        expected_quantity: 4,
+      },
     ]);
   });
 

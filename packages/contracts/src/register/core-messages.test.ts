@@ -1301,18 +1301,24 @@ describe("sale line requests", () => {
       request_id: REQUEST_ID,
       line_id: "l1",
       quantity: 3,
+      expected_quantity: 4,
     };
 
     expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
   it.each([
-    { line_id: "l1" },
-    { quantity: 3 },
-    { line_id: "l1", quantity: 0 },
-    { line_id: "l1", quantity: -1 },
-    { line_id: "l1", quantity: 1.5 },
-    { line_id: 7, quantity: 1 },
+    { line_id: "l1", quantity: 3 },
+    { line_id: "l1", expected_quantity: 3 },
+    { quantity: 3, expected_quantity: 3 },
+    { line_id: "l1", quantity: 0, expected_quantity: 3 },
+    { line_id: "l1", quantity: -1, expected_quantity: 3 },
+    { line_id: "l1", quantity: 1.5, expected_quantity: 3 },
+    { line_id: 7, quantity: 1, expected_quantity: 3 },
+    { line_id: "l1", quantity: 1, expected_quantity: 0 },
+    { line_id: "l1", quantity: 1, expected_quantity: -1 },
+    { line_id: "l1", quantity: 1, expected_quantity: 1.5 },
+    { line_id: "l1", quantity: 1, expected_quantity: "3" },
   ])("rejects a quantity change that is not well formed: %j", (fields) => {
     expect(
       rendererToCoreMessageSchema.safeParse({
@@ -1329,6 +1335,7 @@ describe("sale line requests", () => {
         type: "change-line-quantity",
         line_id: "l1",
         quantity: 1,
+        expected_quantity: 2,
       }).success,
     ).toBe(false);
   });
@@ -1369,6 +1376,7 @@ describe("sale line answers", () => {
   it.each([
     ["change-line-quantity-result", { kind: "changed", sale }],
     ["change-line-quantity-result", { kind: "unknown_line" }],
+    ["change-line-quantity-result", { kind: "stale_quantity" }],
     ["remove-sale-line-result", { kind: "removed", sale }],
     ["remove-sale-line-result", { kind: "no_open_sale" }],
     ["cancel-sale-result", { kind: "cancelled" }],

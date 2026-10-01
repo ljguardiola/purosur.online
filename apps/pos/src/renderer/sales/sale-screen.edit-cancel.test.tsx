@@ -49,7 +49,7 @@ describe("SaleScreen editing the lines", () => {
     await screen.getByRole("button", { name: RAISE_YERBA }).click();
 
     await expect.element(screen.getByText("3", { exact: true })).toBeVisible();
-    expect(changeLineQuantity).toHaveBeenCalledExactlyOnceWith("line-1", 3);
+    expect(changeLineQuantity).toHaveBeenCalledExactlyOnceWith("line-1", 3, 2);
   });
 
   it("lowers a quantity by one", async () => {
@@ -67,7 +67,7 @@ describe("SaleScreen editing the lines", () => {
     await screen.getByRole("button", { name: LOWER_YERBA }).click();
 
     await expect.element(screen.getByText("1", { exact: true })).toBeVisible();
-    expect(changeLineQuantity).toHaveBeenCalledExactlyOnceWith("line-1", 1);
+    expect(changeLineQuantity).toHaveBeenCalledExactlyOnceWith("line-1", 1, 2);
   });
 
   it("does not offer to lower a quantity of one", async () => {
@@ -159,6 +159,25 @@ describe("SaleScreen editing the lines", () => {
     await screen.getByRole("button", { name: REMOVE_YERBA }).click();
 
     await expect.element(screen.getByText("No tenés el permiso de vender y cobrar")).toBeVisible();
+  });
+
+  it("reads the sale again, with no notice, when the line changed since the screen showed it", async () => {
+    const currentSale = vi
+      .fn<SaleScreenProps["currentSale"]>()
+      .mockResolvedValueOnce(SALE_OF_YERBA)
+      .mockResolvedValueOnce(SALE_OF_THREE_YERBAS);
+    const { screen } = await renderScreen({
+      currentSale,
+      changeLineQuantity: async () => ({ kind: "stale_quantity" }),
+    });
+
+    await screen.getByRole("button", { name: LOWER_YERBA }).click();
+
+    await expect.element(screen.getByText("3", { exact: true })).toBeVisible();
+    expect(currentSale).toHaveBeenCalledTimes(2);
+    await expect
+      .element(screen.getByText("No se pudo cambiar la cantidad"))
+      .not.toBeInTheDocument();
   });
 
   it.each([

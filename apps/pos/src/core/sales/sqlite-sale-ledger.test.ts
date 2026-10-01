@@ -786,6 +786,7 @@ describe("the lines of the sale being changed", () => {
       actorId: "u1",
       lineId: lineIdOf("p1"),
       quantity: 1,
+      expectedQuantity: 3,
     });
 
     expect(database.prepare("SELECT quantity, line_total FROM sale_lines").all()).toEqual([
@@ -810,6 +811,28 @@ describe("the lines of the sale being changed", () => {
     ]);
   });
 
+  it("refuses a lowering computed before a scan raised the line, keeping the scanned unit", () => {
+    scan("111");
+    scan("111");
+    const lineId = lineIdOf("p1");
+    scan("111");
+
+    const outcome = changeLineQuantity(sellerPorts(), {
+      actorId: "u1",
+      lineId,
+      quantity: 1,
+      expectedQuantity: 2,
+    });
+
+    expect(outcome).toEqual({ kind: "stale_quantity" });
+    expect(database.prepare("SELECT quantity, line_total FROM sale_lines").all()).toEqual([
+      { quantity: 3, line_total: 2700 },
+    ]);
+    expect(database.prepare("SELECT count(*) AS total FROM sale_line_removals").get()).toEqual({
+      total: 0,
+    });
+  });
+
   it("lowers a quantity whose line total rises, storing a negative removed amount", () => {
     addDiscount(
       "three-for-one",
@@ -820,7 +843,12 @@ describe("the lines of the sale being changed", () => {
     scan("111");
     scan("111");
 
-    changeLineQuantity(sellerPorts(), { actorId: "u1", lineId: lineIdOf("p1"), quantity: 2 });
+    changeLineQuantity(sellerPorts(), {
+      actorId: "u1",
+      lineId: lineIdOf("p1"),
+      quantity: 2,
+      expectedQuantity: 3,
+    });
 
     expect(database.prepare("SELECT quantity, line_total FROM sale_lines").all()).toEqual([
       { quantity: 2, line_total: 1800 },
@@ -833,7 +861,12 @@ describe("the lines of the sale being changed", () => {
   it("records nothing when the quantity is raised", () => {
     scan("111");
 
-    changeLineQuantity(sellerPorts(), { actorId: "u1", lineId: lineIdOf("p1"), quantity: 4 });
+    changeLineQuantity(sellerPorts(), {
+      actorId: "u1",
+      lineId: lineIdOf("p1"),
+      quantity: 4,
+      expectedQuantity: 1,
+    });
 
     expect(database.prepare("SELECT count(*) AS total FROM sale_line_removals").get()).toEqual({
       total: 0,
@@ -898,7 +931,12 @@ describe("the lines of the sale being changed", () => {
     scan("111");
     scan("111");
     scan("222");
-    changeLineQuantity(sellerPorts(), { actorId: "u1", lineId: lineIdOf("p1"), quantity: 1 });
+    changeLineQuantity(sellerPorts(), {
+      actorId: "u1",
+      lineId: lineIdOf("p1"),
+      quantity: 1,
+      expectedQuantity: 2,
+    });
     removeSaleLine(sellerPorts(), { actorId: "u1", lineId: lineIdOf("p2") });
 
     const removals = ledger.transaction((tx) => tx.saleLineRemovals("id-1"));

@@ -179,11 +179,12 @@ export async function changeLineQuantityFor(
   { database, gate, now, ids }: SaleRequestDeps,
   lineId: string,
   quantity: number,
+  expectedQuantity: number,
 ): Promise<ChangeLineQuantityOutcome> {
   const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
     changeLineQuantity(
       { ledger: saleLedger(database), clock: { now }, ids },
-      { actorId: signedInUserId, lineId, quantity },
+      { actorId: signedInUserId, lineId, quantity, expectedQuantity },
     ),
   );
   if (guarded.kind !== "performed") {

@@ -46,7 +46,11 @@ export interface RendererRequestDeps {
   addProduct: ((productId: string) => Promise<AddProductOutcome>) | undefined;
   currentSale: (() => Promise<CurrentSaleAnswer>) | undefined;
   changeLineQuantity:
-    | ((lineId: string, quantity: number) => Promise<ChangeLineQuantityOutcome>)
+    | ((
+        lineId: string,
+        quantity: number,
+        expectedQuantity: number,
+      ) => Promise<ChangeLineQuantityOutcome>)
     | undefined;
   removeSaleLine: ((lineId: string) => Promise<RemoveSaleLineOutcome>) | undefined;
   cancelSale: (() => Promise<CancelSaleOutcome>) | undefined;
@@ -364,7 +368,9 @@ export async function answerRendererRequest(
         outcome: await attemptSaleChange(
           deps,
           "changing a line's quantity",
-          changeLineQuantity && (() => changeLineQuantity(message.line_id, message.quantity)),
+          changeLineQuantity &&
+            (() =>
+              changeLineQuantity(message.line_id, message.quantity, message.expected_quantity)),
         ),
       };
     }

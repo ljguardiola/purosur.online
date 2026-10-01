@@ -7,6 +7,7 @@ export interface ChangeLineQuantityInput {
   actorId: string;
   lineId: string;
   quantity: number;
+  expectedQuantity: number;
 }
 
 export interface ChangeLineQuantityPorts {
@@ -21,11 +22,12 @@ export type ChangeLineQuantityOutcome =
   | { kind: "no_open_sale" }
   | { kind: "invalid_quantity" }
   | { kind: "unknown_line" }
+  | { kind: "stale_quantity" }
   | { kind: "changed"; sale: SaleWithLines };
 
 export function changeLineQuantity(
   { ledger, clock, ids }: ChangeLineQuantityPorts,
-  { actorId, lineId, quantity }: ChangeLineQuantityInput,
+  { actorId, lineId, quantity, expectedQuantity }: ChangeLineQuantityInput,
 ): ChangeLineQuantityOutcome {
   return ledger.transaction<ChangeLineQuantityOutcome>((tx) => {
     const session = sellingSession(tx, actorId);
@@ -42,6 +44,9 @@ export function changeLineQuantity(
     const line = sale.lines.find((candidate) => candidate.id === lineId);
     if (!line) {
       return { kind: "unknown_line" };
+    }
+    if (line.quantity !== expectedQuantity) {
+      return { kind: "stale_quantity" };
     }
 
     const updated = withQuantity(line, quantity);

@@ -147,6 +147,7 @@ describe("changeLineQuantityOutcomeSchema", () => {
   it.each([
     { kind: "changed", sale },
     { kind: "unknown_line" },
+    { kind: "stale_quantity" },
     { kind: "invalid_quantity" },
     ...refusals,
   ])("accepts the outcome $kind", (outcome) => {

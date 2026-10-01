@@ -167,6 +167,7 @@ const changeLineQuantityMessageSchema = z.object({
   request_id: requestId,
   line_id: z.string(),
   quantity: saleLineQuantitySchema,
+  expected_quantity: saleLineQuantitySchema,
 });
 
 const removeSaleLineMessageSchema = z.object({

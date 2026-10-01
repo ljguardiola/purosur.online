@@ -409,7 +409,7 @@ describe("changing the quantity of a line", () => {
   it("answers the sale with the new quantity and total", async () => {
     const lineId = await sellTwoYerbas();
 
-    const outcome = await changeLineQuantityFor(deps(), lineId, 1);
+    const outcome = await changeLineQuantityFor(deps(), lineId, 1, 2);
 
     expect(outcome).toMatchObject({
       kind: "changed",
@@ -417,10 +417,17 @@ describe("changing the quantity of a line", () => {
     });
   });
 
+  it("answers that the line changed, writing nothing, when the screen showed another quantity", async () => {
+    const lineId = await sellTwoYerbas();
+
+    expect(await changeLineQuantityFor(deps(), lineId, 1, 5)).toEqual({ kind: "stale_quantity" });
+    expect(database.prepare("SELECT quantity FROM sale_lines").all()).toEqual([{ quantity: 2 }]);
+  });
+
   it("keeps what a lowered quantity took away", async () => {
     const lineId = await sellTwoYerbas();
 
-    await changeLineQuantityFor(deps(), lineId, 1);
+    await changeLineQuantityFor(deps(), lineId, 1, 2);
 
     expect(database.prepare("SELECT qty_removed FROM sale_line_removals").all()).toEqual([
       { qty_removed: 1 },
@@ -433,18 +440,18 @@ describe("changing the quantity of a line", () => {
   ])("answers the domain's refusal of %s", async (_case, lineId, quantity, expected) => {
     await sellTwoYerbas();
 
-    expect(await changeLineQuantityFor(deps(), lineId, quantity)).toEqual(expected);
+    expect(await changeLineQuantityFor(deps(), lineId, quantity, 2)).toEqual(expected);
   });
 
   it("answers that there is no sale to change", async () => {
-    expect(await changeLineQuantityFor(deps(), "id-2", 1)).toEqual({ kind: "no_open_sale" });
+    expect(await changeLineQuantityFor(deps(), "id-2", 1, 2)).toEqual({ kind: "no_open_sale" });
   });
 
   it("answers not signed in when nobody is signed in", async () => {
     const lineId = await sellTwoYerbas();
     signedInPerson.clear();
 
-    expect(await changeLineQuantityFor(deps(), lineId, 1)).toEqual({ kind: "not_signed_in" });
+    expect(await changeLineQuantityFor(deps(), lineId, 1, 2)).toEqual({ kind: "not_signed_in" });
   });
 
   it("answers not permitted to a person who sells but did not open the session", async () => {
@@ -452,7 +459,7 @@ describe("changing the quantity of a line", () => {
     addPerson("u3", "cashier");
     signedInPerson.set("u3");
 
-    expect(await changeLineQuantityFor(deps(), lineId, 1)).toEqual({ kind: "not_permitted" });
+    expect(await changeLineQuantityFor(deps(), lineId, 1, 2)).toEqual({ kind: "not_permitted" });
   });
 
   it("answers not permitted to a person without the permission to sell", async () => {
@@ -460,14 +467,14 @@ describe("changing the quantity of a line", () => {
     addPerson("u2", "guest");
     signedInPerson.set("u2");
 
-    expect(await changeLineQuantityFor(deps(), lineId, 1)).toEqual({ kind: "not_permitted" });
+    expect(await changeLineQuantityFor(deps(), lineId, 1, 2)).toEqual({ kind: "not_permitted" });
   });
 
   it("answers that no session is open", async () => {
     const lineId = await sellTwoYerbas();
     database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
 
-    expect(await changeLineQuantityFor(deps(), lineId, 1)).toEqual({ kind: "no_open_session" });
+    expect(await changeLineQuantityFor(deps(), lineId, 1, 2)).toEqual({ kind: "no_open_session" });
   });
 });
 

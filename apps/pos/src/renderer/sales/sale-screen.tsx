@@ -41,7 +41,11 @@ export type SaleScreenProps = {
   scanProduct: (code: string) => Promise<ScanProductOutcome>;
   searchProducts: (query: string) => Promise<SearchProductsOutcome>;
   addProduct: (productId: string) => Promise<AddProductOutcome>;
-  changeLineQuantity: (lineId: string, quantity: number) => Promise<ChangeLineQuantityOutcome>;
+  changeLineQuantity: (
+    lineId: string,
+    quantity: number,
+    expectedQuantity: number,
+  ) => Promise<ChangeLineQuantityOutcome>;
   removeSaleLine: (lineId: string) => Promise<RemoveSaleLineOutcome>;
   cancelSale: () => Promise<CancelSaleOutcome>;
   onSessionInvalid: () => void;
@@ -270,6 +274,7 @@ export function SaleScreen({
         setProblem(outcome);
         break;
       case "unknown_line":
+      case "stale_quantity":
       case "no_open_sale":
         setView({ status: "loading" });
         break;
@@ -384,7 +389,7 @@ export function SaleScreen({
             actions={{
               busy: editing,
               onChangeQuantity: (line, quantity) =>
-                void edit(() => changeLineQuantity(line.id, quantity), {
+                void edit(() => changeLineQuantity(line.id, quantity, line.quantity), {
                   kind: "change_failed",
                 }),
               onRemove: (line) =>

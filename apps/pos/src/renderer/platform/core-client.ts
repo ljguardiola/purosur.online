@@ -56,7 +56,11 @@ export interface CoreClient {
   searchProducts(query: string): Promise<SearchProductsOutcome>;
   addProduct(productId: string): Promise<AddProductOutcome>;
   currentSale(): Promise<CurrentSaleAnswer>;
-  changeLineQuantity(lineId: string, quantity: number): Promise<ChangeLineQuantityOutcome>;
+  changeLineQuantity(
+    lineId: string,
+    quantity: number,
+    expectedQuantity: number,
+  ): Promise<ChangeLineQuantityOutcome>;
   removeSaleLine(lineId: string): Promise<RemoveSaleLineOutcome>;
   cancelSale(): Promise<CancelSaleOutcome>;
   closeCashSession(
@@ -267,13 +271,14 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         answer.type === "scan-product-result" ? answer.outcome : undefined,
       );
     },
-    changeLineQuantity(lineId, quantity) {
+    changeLineQuantity(lineId, quantity, expectedQuantity) {
       return ask(
         {
           type: "change-line-quantity",
           request_id: deps.newRequestId(),
           line_id: lineId,
           quantity,
+          expected_quantity: expectedQuantity,
         },
         (answer) => (answer.type === "change-line-quantity-result" ? answer.outcome : undefined),
       );
