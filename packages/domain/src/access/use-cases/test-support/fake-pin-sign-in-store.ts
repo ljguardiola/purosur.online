@@ -8,7 +8,7 @@ import type {
 } from "../pin-sign-in-store.js";
 import { FixedClock } from "./fake-pin-code-store.js";
 
-export class FakePinSignInStore implements PinSignInStore<string> {
+class FakePinSignInStore implements PinSignInStore<string> {
   readonly holders = new Map<string, PinHolder<string>>();
   readonly failures = new Map<string, PinSignInFailures>();
 
@@ -57,7 +57,7 @@ export class FakePinSignInStore implements PinSignInStore<string> {
   }
 }
 
-export class FakePinMatching implements PinMatching<string> {
+class FakePinMatching implements PinMatching<string> {
   unavailable = false;
   failure: Error | undefined;
   readonly matched: { pin: string; credential: string }[] = [];

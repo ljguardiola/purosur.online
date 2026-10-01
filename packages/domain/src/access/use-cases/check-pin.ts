@@ -14,7 +14,7 @@ export interface CheckPinInput<Credential> {
 }
 
 export type PinRefusal =
-  | { kind: "locked"; consecutiveFailures: number }
+  | { kind: "locked"; consecutiveFailures: typeof PIN_SIGN_IN_LOCKOUT_FAILURES }
   | { kind: "rate_limited"; retryAfterSeconds: number; attemptsLeft: number }
   | { kind: "wrong_pin"; retryAfterSeconds: number; attemptsLeft: number };
 
