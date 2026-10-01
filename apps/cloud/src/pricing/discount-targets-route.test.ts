@@ -135,6 +135,7 @@ describe("GET /discount-targets", () => {
           brandName: null,
           netContent: null,
           barcodes: [],
+          benefitKinds: ["PERCENT_OFF"],
         },
         {
           id: yerba.id,
@@ -143,18 +144,34 @@ describe("GET /discount-targets", () => {
           brandName: null,
           netContent: null,
           barcodes: [],
+          benefitKinds: ["PERCENT_OFF", "BUY_N_PAY_M"],
         },
       ],
       categories: [
-        { id: almacen, name: "Almacén", parentId: null },
-        { id: expect.any(String), name: "Categoría de Aceite de oliva", parentId: null },
-        { id: expect.any(String), name: "Categoría de Almendras", parentId: null },
-        { id: expect.any(String), name: "Categoría de Yerba mate", parentId: null },
-        { id: jams, name: "Mermeladas", parentId: almacen },
+        { id: almacen, name: "Almacén", parentId: null, benefitKinds: ["PERCENT_OFF"] },
+        {
+          id: expect.any(String),
+          name: "Categoría de Aceite de oliva",
+          parentId: null,
+          benefitKinds: ["PERCENT_OFF"],
+        },
+        {
+          id: expect.any(String),
+          name: "Categoría de Almendras",
+          parentId: null,
+          benefitKinds: ["PERCENT_OFF"],
+        },
+        {
+          id: expect.any(String),
+          name: "Categoría de Yerba mate",
+          parentId: null,
+          benefitKinds: ["PERCENT_OFF"],
+        },
+        { id: jams, name: "Mermeladas", parentId: almacen, benefitKinds: ["PERCENT_OFF"] },
       ],
       tags: [
-        { id: sinTacc.id, name: "Sin TACC" },
-        { id: vegano.id, name: "Vegano" },
+        { id: sinTacc.id, name: "Sin TACC", benefitKinds: ["PERCENT_OFF"] },
+        { id: vegano.id, name: "Vegano", benefitKinds: ["PERCENT_OFF"] },
       ],
     });
   });
@@ -191,6 +208,7 @@ describe("GET /discount-targets", () => {
       brandName: "Playadito",
       netContent: { quantity: 1, unit: "KG" },
       barcodes: ["7790002", "7790001"],
+      benefitKinds: ["PERCENT_OFF", "BUY_N_PAY_M"],
     });
     expect(listed).toContainEqual({
       id: half.id,
@@ -199,6 +217,7 @@ describe("GET /discount-targets", () => {
       brandName: "Marca retirada",
       netContent: { quantity: 0.5, unit: "KG" },
       barcodes: ["7790003"],
+      benefitKinds: ["PERCENT_OFF", "BUY_N_PAY_M"],
     });
   });
 
