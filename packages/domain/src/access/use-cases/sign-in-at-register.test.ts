@@ -10,7 +10,9 @@ const SELLER = {
   permissionKeys: ["sell_and_charge", "view_sales_history"],
 };
 
-function fixture(options: { openedBy?: string; access?: typeof SELLER } = {}) {
+function fixture(
+  options: { openedBy?: string; access?: typeof SELLER; resumeFails?: boolean } = {},
+) {
   const created = pinCheckFixture(NOW);
   created.store.seedHolder("person-1", {
     firstName: "Ana",
@@ -19,13 +21,22 @@ function fixture(options: { openedBy?: string; access?: typeof SELLER } = {}) {
   });
   const calls: string[] = [];
   let openSession = options.openedBy === undefined ? undefined : { openedBy: options.openedBy };
-  const ports: SignInAtRegisterPorts<string> = {
+  const ports: SignInAtRegisterPorts<string, string> = {
     ...created.ports,
     signedInPerson: {
       clear: () => calls.push("clear"),
       set: (userId) => calls.push(`set ${userId}`),
     },
-    register: { openSession: () => openSession },
+    register: {
+      openSession: () => openSession,
+      sessionToResume: (userId) => {
+        calls.push(`resume ${userId}`);
+        if (options.resumeFails) {
+          throw new Error("the session cannot be read");
+        }
+        return `session of ${userId}`;
+      },
+    },
     rememberedPeople: { remember: (userId) => calls.push(`remember ${userId}`) },
   };
   return {
@@ -53,8 +64,9 @@ describe("signInAtRegister", () => {
         firstName: "Ana",
         abilities: registerAbilities(SELLER),
       },
+      resumedSession: "session of person-1",
     });
-    expect(created.calls).toEqual(["clear", "set person-1"]);
+    expect(created.calls).toEqual(["clear", "resume person-1", "set person-1"]);
   });
 
   it("signs in the person who opened the register's cash session", async () => {
@@ -147,8 +159,8 @@ describe("signInAtRegister", () => {
     await signIn(asked, "123456", true);
     await signIn(notAsked, "123456", false);
 
-    expect(asked.calls).toEqual(["clear", "remember person-1", "set person-1"]);
-    expect(notAsked.calls).toEqual(["clear", "set person-1"]);
+    expect(asked.calls).toEqual(["clear", "resume person-1", "remember person-1", "set person-1"]);
+    expect(notAsked.calls).toEqual(["clear", "resume person-1", "set person-1"]);
   });
 
   it("does not remember a person whose sign-in is refused", async () => {
@@ -157,5 +169,25 @@ describe("signInAtRegister", () => {
     await signIn(created, "000000", true);
 
     expect(created.calls).toEqual(["clear"]);
+  });
+
+  it("reads the session the person resumes only after the last look at the cash session", async () => {
+    const created = fixture();
+    created.matching.hold();
+
+    const pending = signIn(created, "123456");
+    await Promise.resolve();
+    created.openSessionBy("person-2");
+    created.matching.release();
+    await pending;
+
+    expect(created.calls).not.toContain("resume person-1");
+  });
+
+  it("remembers and signs in nobody when the session the person resumes cannot be read", async () => {
+    const created = fixture({ resumeFails: true });
+
+    await expect(signIn(created, "123456", true)).rejects.toThrow("the session cannot be read");
+    expect(created.calls).toEqual(["clear", "resume person-1"]);
   });
 });
