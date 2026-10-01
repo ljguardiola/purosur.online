@@ -102,11 +102,9 @@ class FakeUserStoreTransaction implements UserStoreTransaction {
     return this.users.activeAdministratorCount(locationId);
   }
 
-  async insertUser(user: NewUser): Promise<StoredUserRevision | undefined> {
+  async insertUser(user: NewUser): Promise<StoredUserRevision> {
     this.beforeWrite("insertUser");
-    if (this.emailHeldByAnother(user.email)) {
-      return undefined;
-    }
+    this.guardEmail(user.email);
     this.state.createdUsers += 1;
     const created = { id: `new-user-${this.state.createdUsers}`, version: 1 };
     this.state.users.push({
@@ -203,7 +201,7 @@ class FakeUserStoreTransaction implements UserStoreTransaction {
     });
   }
 
-  private guardEmail(email: string, exceptUserId: string): void {
+  private guardEmail(email: string, exceptUserId?: string): void {
     if (this.emailHeldByAnother(email, exceptUserId)) {
       throw new UserEmailConflict();
     }

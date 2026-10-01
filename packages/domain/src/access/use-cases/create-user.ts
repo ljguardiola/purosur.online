@@ -2,7 +2,7 @@ import { isReactivationOffered } from "../model/email-holder-disclosure.js";
 import { isLastActiveAdministrator } from "../model/last-active-administrator.js";
 import type { BranchUser } from "./branch-users.js";
 import type { Clock } from "./pin-code-store.js";
-import type { UserStore } from "./user-store.js";
+import { type StoredUserRevision, UserEmailConflict, type UserStore } from "./user-store.js";
 
 export interface CreateUserPorts {
   store: UserStore;
@@ -34,12 +34,17 @@ export function createUser(
       return { kind: "unknown_role" };
     }
 
-    const inserted = await tx.insertUser({
-      firstName: input.firstName,
-      email: input.email,
-      locationId: input.locationId,
-    });
-    if (!inserted) {
+    let inserted: StoredUserRevision;
+    try {
+      inserted = await tx.insertUser({
+        firstName: input.firstName,
+        email: input.email,
+        locationId: input.locationId,
+      });
+    } catch (error) {
+      if (!(error instanceof UserEmailConflict)) {
+        throw error;
+      }
       const holder = await tx.users.emailHolder(input.email);
       if (
         holder &&

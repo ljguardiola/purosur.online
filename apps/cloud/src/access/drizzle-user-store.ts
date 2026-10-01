@@ -160,14 +160,14 @@ class DrizzleUserStoreTransaction<TQueryResult extends PgQueryResultHKT>
     return this.users.activeAdministratorCount(locationId);
   }
 
-  async insertUser(user: NewUser): Promise<StoredUserRevision | undefined> {
+  async insertUser(user: NewUser): Promise<StoredUserRevision> {
     const [inserted] = await this.tx
       .insert(users)
       .values({ firstName: user.firstName, email: user.email, locationId: user.locationId })
       .onConflictDoNothing({ target: users.email })
       .returning({ id: users.id, version: users.version });
     if (!inserted) {
-      return undefined;
+      throw new UserEmailConflict();
     }
     this.pending.note({
       entity: "user",
