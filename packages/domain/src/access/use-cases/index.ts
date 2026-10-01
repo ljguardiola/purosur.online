@@ -70,6 +70,12 @@ export type {
   FirstPinCodeTarget,
   QueuedFirstPinCodeEmail,
 } from "./first-pin-code-store.js";
+export type {
+  IssueRecoveryTokenInput,
+  IssueRecoveryTokenOutcome,
+  IssueRecoveryTokenPorts,
+} from "./issue-recovery-token.js";
+export { issueRecoveryToken } from "./issue-recovery-token.js";
 export type { ListBranchUsersInput } from "./list-branch-users.js";
 export { listBranchUsers } from "./list-branch-users.js";
 export type { RoleSummary } from "./list-roles.js";
@@ -113,6 +119,16 @@ export type {
   RecordSessionActivityPorts,
 } from "./record-session-activity.js";
 export { recordSessionActivity } from "./record-session-activity.js";
+export type {
+  IssuedRecoveryToken,
+  NewRecoveryToken,
+  RecoveryAccount,
+  RecoveryRequestedAlert,
+  RecoveryRequestKey,
+  RecoveryTokenStore,
+  RecoveryTokenStoreTransaction,
+  RejectedRecoveryRequest,
+} from "./recovery-token-store.js";
 export type {
   RedeemPinCodeInput,
   RedeemPinCodeOutcome,
