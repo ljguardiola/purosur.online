@@ -1,4 +1,9 @@
-import type { ChargeSaleInCashOutcome, CurrentSaleAnswer, OpenSale } from "@purosur/contracts";
+import type {
+  CashChargeAnswer,
+  ChargeSaleInCashOutcome,
+  CurrentSaleAnswer,
+  OpenSale,
+} from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
@@ -36,8 +41,11 @@ const COMPLETED: ChargeSaleInCashOutcome = {
   change: 24_000,
 };
 
+const COVERED: CashChargeAnswer = { kind: "covered", applied: 476_000, change: 24_000 };
+
 type Overrides = {
   currentSale?: () => Promise<CurrentSaleAnswer>;
+  cashCharge?: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
   chargeSaleInCash?: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
 };
 
@@ -45,6 +53,7 @@ async function renderScreen(overrides: Overrides = {}) {
   await page.viewport(1280, 1000);
   onTestFinished(() => page.viewport(414, 896));
   const currentSale = vi.fn(overrides.currentSale ?? (async () => SALE_OF_ONE_LINE));
+  const cashCharge = vi.fn(overrides.cashCharge ?? (async () => COVERED));
   const chargeSaleInCash = vi.fn(overrides.chargeSaleInCash ?? (async () => COMPLETED));
   const onSessionInvalid = vi.fn();
   const screen = await render(
@@ -54,11 +63,12 @@ async function renderScreen(overrides: Overrides = {}) {
       registerName="Caja 1"
       lock={() => {}}
       currentSale={currentSale}
+      cashCharge={cashCharge}
       chargeSaleInCash={chargeSaleInCash}
       onSessionInvalid={onSessionInvalid}
     />,
   );
-  return { screen, currentSale, chargeSaleInCash, onSessionInvalid };
+  return { screen, currentSale, cashCharge, chargeSaleInCash, onSessionInvalid };
 }
 
 type Screen = Awaited<ReturnType<typeof renderScreen>>["screen"];

@@ -65,6 +65,11 @@ async function renderScreen(
       lock={() => {}}
       loadCashBalance={props.loadCashBalance ?? (async () => BALANCE)}
       loadCashMovements={props.loadCashMovements ?? (async () => [OPENING, FLETE])}
+      loadCashMovementKinds={async () => ({
+        CASH_IN: { permission: "record_cash_in", authorization_required: false },
+        CASH_OUT: { permission: "record_cash_expense", authorization_required: false },
+        WITHDRAWAL: { permission: "withdraw_cash", authorization_required: false },
+      })}
       loadAuthorizers={async () => []}
       recordCashMovement={
         props.recordCashMovement ?? (async () => ({ kind: "recorded", authorized_by: null }))

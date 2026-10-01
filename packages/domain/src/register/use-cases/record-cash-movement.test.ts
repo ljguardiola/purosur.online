@@ -227,14 +227,20 @@ describe("recordCashMovement", () => {
     ["an empty reason", ""],
     ["a reason of only spaces", "   "],
     ["a reason longer than allowed", "a".repeat(CASH_MOVEMENT_REASON_MAX_LENGTH + 1)],
-  ])("refuses %s without opening a transaction", (_name, reason) => {
-    const store = ledger();
-    const before = structuredClone(store.state);
+  ])(
+    "refuses %s, saying the longest reason allowed, without opening a transaction",
+    (_name, reason) => {
+      const store = ledger();
+      const before = structuredClone(store.state);
 
-    expect(record(store, { reason })).toEqual({ kind: "invalid_reason" });
-    expect(store.transactions).toBe(0);
-    nothingRecorded(store, before);
-  });
+      expect(record(store, { reason })).toEqual({
+        kind: "invalid_reason",
+        maxLength: CASH_MOVEMENT_REASON_MAX_LENGTH,
+      });
+      expect(store.transactions).toBe(0);
+      nothingRecorded(store, before);
+    },
+  );
 
   it("checks the amount before the reason", () => {
     expect(record(ledger(), { amount: 0, reason: "" })).toEqual({ kind: "invalid_amount" });

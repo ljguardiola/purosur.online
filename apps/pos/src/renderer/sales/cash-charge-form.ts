@@ -1,4 +1,5 @@
-import { chargeSaleInCashMessageSchema, parseAmountCents } from "@purosur/contracts";
+import { chargeSaleInCashMessageSchema } from "@purosur/contracts";
+import { parseAmountCents } from "@purosur/ui";
 
 export const chargeSaleInCashRequestSchema = chargeSaleInCashMessageSchema.pick({ tendered: true });
 

@@ -1,6 +1,7 @@
 import type {
   CashBalance,
   ListedCashMovement,
+  RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   SignInUser,
 } from "@purosur/contracts";
@@ -26,6 +27,7 @@ export type CashScreenProps = {
   lock: () => void;
   loadCashBalance: () => Promise<CashBalance | null | "unavailable">;
   loadCashMovements: () => Promise<ListedCashMovement[] | null | "unavailable">;
+  loadCashMovementKinds: () => Promise<RecordableCashMovementKinds | null | "unavailable">;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   recordCashMovement: (input: CashMovementInput) => Promise<RecordCashMovementOutcome>;
 };
@@ -38,6 +40,7 @@ export function CashScreen({
   lock,
   loadCashBalance,
   loadCashMovements,
+  loadCashMovementKinds,
   loadAuthorizers,
   recordCashMovement,
 }: CashScreenProps) {
@@ -87,6 +90,7 @@ export function CashScreen({
         registerName={registerName}
         openedAt={openedAt}
         {...(balance.status === "loaded" ? { expectedCash: balance.value.expected } : {})}
+        loadKinds={loadCashMovementKinds}
         loadAuthorizers={loadAuthorizers}
         recordCashMovement={recordCashMovement}
         onClose={() => setRecording(false)}

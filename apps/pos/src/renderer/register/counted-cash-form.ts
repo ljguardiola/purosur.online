@@ -1,8 +1,8 @@
 import {
   closeCashSessionMessageSchema,
   closeLockedCashSessionMessageSchema,
-  parseAmountCents,
 } from "@purosur/contracts";
+import { parseAmountCents } from "@purosur/ui";
 
 export const countedCashRequestSchema = closeCashSessionMessageSchema.pick({ counted_cash: true });
 export const lockedCountedCashRequestSchema = closeLockedCashSessionMessageSchema.pick({

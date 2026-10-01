@@ -1,4 +1,5 @@
-import { openCashSessionMessageSchema, parseAmountCents } from "@purosur/contracts";
+import { openCashSessionMessageSchema } from "@purosur/contracts";
+import { parseAmountCents } from "@purosur/ui";
 
 const REQUIRED_MESSAGE = "Ingresá el fondo inicial.";
 export const openCashSessionRequestSchema = openCashSessionMessageSchema.omit({

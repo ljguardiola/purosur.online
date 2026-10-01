@@ -38,7 +38,11 @@ import {
 import { type LocalDatabase, openLocalDatabase } from "./platform/local-database";
 import { LOCAL_MIGRATIONS } from "./platform/local-migrations";
 import { createMainRequests } from "./platform/main-requests";
-import { currentCashMovements, recordCashMovementFor } from "./register/cash-movement-requests";
+import {
+  cashMovementKindsFor,
+  currentCashMovements,
+  recordCashMovementFor,
+} from "./register/cash-movement-requests";
 import {
   cashBalanceFor,
   cashSessionOpener,
@@ -57,6 +61,7 @@ import { createRendererConnection } from "./renderer-connection";
 import {
   addSearchedProductFor,
   cancelSaleFor,
+  cashChargeFor,
   changeLineQuantityFor,
   chargeSaleInCashFor,
   currentSaleFor,
@@ -378,6 +383,10 @@ const rendererRequestDeps: RendererRequestDeps = {
           ),
   cashMovements:
     localDatabase === undefined ? undefined : () => currentCashMovements(localDatabase),
+  cashMovementKinds:
+    localDatabase === undefined
+      ? undefined
+      : () => cashMovementKindsFor({ database: localDatabase, signedInPerson }),
   scanProduct:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -451,6 +460,10 @@ const rendererRequestDeps: RendererRequestDeps = {
     localDatabase === undefined || actionGate === undefined
       ? undefined
       : () => currentSaleFor({ database: localDatabase, gate: actionGate }),
+  cashCharge:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (request) => cashChargeFor({ database: localDatabase, gate: actionGate }, request),
   reportFailure,
 };
 

@@ -1,5 +1,10 @@
-import { CASH_MOVEMENT_REASON_MAX_LENGTH, MAX_CASH_AMOUNT_CENTS } from "@purosur/domain";
-import { describe, expect, it } from "vitest";
+import {
+  CASH_MOVEMENT_REASON_MAX_LENGTH,
+  type cashCharge,
+  MAX_CASH_AMOUNT_CENTS,
+} from "@purosur/domain";
+import { describe, expect, expectTypeOf, it } from "vitest";
+import type { CashCharge } from "../sales/sale.js";
 import {
   cashMovementAmountSchema,
   coreStatusMessageSchema,
@@ -255,19 +260,16 @@ describe("cash movement requests", () => {
     },
   );
 
-  it.each(["Flete", " Flete ", "a".repeat(CASH_MOVEMENT_REASON_MAX_LENGTH)])(
-    "accepts the reason %j",
+  it.each(["Flete", " Flete ", "", "   ", "a".repeat(CASH_MOVEMENT_REASON_MAX_LENGTH + 1)])(
+    "carries the reason %j as typed, for the core to judge",
     (reason) => {
       expect(rendererToCoreMessageSchema.safeParse({ ...movement, reason }).success).toBe(true);
     },
   );
 
-  it.each(["", "   ", "a".repeat(CASH_MOVEMENT_REASON_MAX_LENGTH + 1), 1, null])(
-    "rejects the reason %j",
-    (reason) => {
-      expect(rendererToCoreMessageSchema.safeParse({ ...movement, reason }).success).toBe(false);
-    },
-  );
+  it.each([1, null])("rejects the reason %j", (reason) => {
+    expect(rendererToCoreMessageSchema.safeParse({ ...movement, reason }).success).toBe(false);
+  });
 
   it.each(["request_id", "kind", "amount", "reason"])(
     "rejects a cash movement without its %s",
@@ -1016,7 +1018,7 @@ describe("cash movement answers", () => {
 
   it.each([
     { kind: "invalid_amount" },
-    { kind: "invalid_reason" },
+    { kind: "invalid_reason", max_length: 200 },
     { kind: "no_open_session" },
     { kind: "not_signed_in" },
     { kind: "lacks_permission" },
@@ -1035,6 +1037,8 @@ describe("cash movement answers", () => {
     { kind: "x" },
     { kind: "wrong_pin" },
     { kind: "not_permitted" },
+    { kind: "invalid_reason" },
+    { kind: "invalid_reason", max_length: "200" },
     { kind: "exceeds_expected_cash" },
     { kind: "exceeds_expected_cash", expected: "42" },
   ])("rejects a refusal it does not know: %j", (outcome) => {
@@ -1597,5 +1601,133 @@ describe("charge sale in cash answer", () => {
     const message = { type: "charge-sale-in-cash-result", outcome: { kind: "empty_sale" } };
 
     expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+});
+
+describe("cash charge request", () => {
+  const message = {
+    type: "cash-charge-request",
+    request_id: REQUEST_ID,
+    sale_id: "s1",
+    tendered: 5000,
+  };
+
+  it("accepts a request for what a sale needs when an amount in cents is tendered", () => {
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    ["without its request id", { ...message, request_id: undefined }],
+    ["without the sale", { ...message, sale_id: undefined }],
+    ["with an amount that is not whole cents", { ...message, tendered: 50.5 }],
+  ])("rejects a request %s", (_case, invalid) => {
+    expect(rendererToCoreMessageSchema.safeParse(invalid).success).toBe(false);
+  });
+
+  it("does not take who is selling from the request", () => {
+    expect(rendererToCoreMessageSchema.parse({ ...message, user_id: "u9" })).toEqual(message);
+  });
+});
+
+describe("cash charge answers", () => {
+  it.each([
+    [{ kind: "invalid_amount" }],
+    [{ kind: "insufficient", amountDue: 3000 }],
+    [{ kind: "covered", applied: 3000, change: 2000 }],
+    [null],
+  ])("accepts the answer %j", (charge) => {
+    const message = { type: "cash-charge", request_id: REQUEST_ID, charge };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    [{ kind: "covered", applied: 3000 }],
+    [{ kind: "insufficient", amountDue: "3000" }],
+    [{ kind: "unknown" }],
+  ])("rejects the answer %j", (charge) => {
+    expect(
+      coreToRendererMessageSchema.safeParse({ type: "cash-charge", request_id: REQUEST_ID, charge })
+        .success,
+    ).toBe(false);
+  });
+
+  it.each(["cash-charge-unavailable", "cash-charge-not-permitted"])(
+    "accepts %s and rejects it without its request id",
+    (type) => {
+      const message = { type, request_id: REQUEST_ID };
+
+      expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+      expect(coreToRendererMessageSchema.safeParse({ type }).success).toBe(false);
+    },
+  );
+
+  it("describes a charge as the domain does", () => {
+    expectTypeOf<CashCharge>().toEqualTypeOf<ReturnType<typeof cashCharge>>();
+  });
+});
+
+describe("cash movement kinds request", () => {
+  it("accepts a request for the cash movements the person signed in can record", () => {
+    const message = { type: "cash-movement-kinds-request", request_id: REQUEST_ID };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("does not take who is signed in from the request", () => {
+    const message = { type: "cash-movement-kinds-request", request_id: REQUEST_ID };
+
+    expect(rendererToCoreMessageSchema.parse({ ...message, user_id: "u9" })).toEqual(message);
+  });
+
+  it("rejects a request missing its request id", () => {
+    expect(
+      rendererToCoreMessageSchema.safeParse({ type: "cash-movement-kinds-request" }).success,
+    ).toBe(false);
+  });
+});
+
+describe("cash movement kinds answers", () => {
+  const kinds = {
+    CASH_IN: { permission: "record_cash_in", authorization_required: false },
+    CASH_OUT: { permission: "record_cash_expense", authorization_required: true },
+    WITHDRAWAL: { permission: "withdraw_cash", authorization_required: true },
+  };
+
+  it.each([[kinds], [null]])("accepts the answer %j", (answered) => {
+    const message = { type: "cash-movement-kinds", request_id: REQUEST_ID, kinds: answered };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    ["a kind left out", { CASH_IN: kinds.CASH_IN, CASH_OUT: kinds.CASH_OUT }],
+    ["a kind that is not a cash movement kind", { ...kinds, OPENING: kinds.CASH_IN }],
+    [
+      "a permission that cannot be authorized",
+      { ...kinds, CASH_IN: { ...kinds.CASH_IN, permission: "sell_and_charge" } },
+    ],
+    ["an unknown permission", { ...kinds, CASH_IN: { ...kinds.CASH_IN, permission: "fly" } }],
+    [
+      "no say on whether an authorizer is needed",
+      { ...kinds, CASH_IN: { permission: "record_cash_in" } },
+    ],
+  ])("rejects %s", (_case, answered) => {
+    expect(
+      coreToRendererMessageSchema.safeParse({
+        type: "cash-movement-kinds",
+        request_id: REQUEST_ID,
+        kinds: answered,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts that the kinds cannot be read, and rejects it without its request id", () => {
+    const message = { type: "cash-movement-kinds-unavailable", request_id: REQUEST_ID };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(
+      coreToRendererMessageSchema.safeParse({ type: "cash-movement-kinds-unavailable" }).success,
+    ).toBe(false);
   });
 });

@@ -1,4 +1,4 @@
-import { encodePinHash } from "@purosur/domain";
+import { CASH_MOVEMENT_REASON_MAX_LENGTH, encodePinHash } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createActionGate } from "../access/action-gate";
 import { derivePinVerifier } from "../access/pin-verifier";
@@ -8,6 +8,7 @@ import { type LocalDatabase, openLocalDatabase } from "../platform/local-databas
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import {
   type CashMovementRequest,
+  cashMovementKindsFor,
   currentCashMovements,
   recordCashMovementFor,
 } from "./cash-movement-requests";
@@ -224,10 +225,14 @@ describe("recording a cash movement", () => {
   });
 
   it.each([
-    ["an amount that is not positive", { amount: 0 }, "invalid_amount"],
-    ["a reason that is blank", { reason: "  " }, "invalid_reason"],
-  ] as const)("answers the domain's refusal of %s", async (_case, overrides, kind) => {
-    expect(await recordCashMovementFor(deps(), request(overrides))).toEqual({ kind });
+    ["an amount that is not positive", { amount: 0 }, { kind: "invalid_amount" }],
+    [
+      "a reason that is blank",
+      { reason: "  " },
+      { kind: "invalid_reason", max_length: CASH_MOVEMENT_REASON_MAX_LENGTH },
+    ],
+  ] as const)("answers the domain's refusal of %s", async (_case, overrides, outcome) => {
+    expect(await recordCashMovementFor(deps(), request(overrides))).toEqual(outcome);
     expect(movementRows()).toEqual([]);
   });
 
@@ -289,5 +294,47 @@ describe("the open session's cash movements", () => {
       .run(NOW.toISOString());
 
     expect(currentCashMovements(database)).toBeNull();
+  });
+});
+
+describe("the cash movements the person signed in can record", () => {
+  it("names the permission each kind needs and asks for no authorizer when it is held", () => {
+    signedInPerson.set("u2");
+
+    expect(cashMovementKindsFor(deps())).toEqual({
+      CASH_IN: { permission: "record_cash_in", authorization_required: false },
+      CASH_OUT: { permission: "record_cash_expense", authorization_required: false },
+      WITHDRAWAL: { permission: "withdraw_cash", authorization_required: false },
+    });
+  });
+
+  it("asks for an authorizer for each kind whose permission is not held", () => {
+    expect(cashMovementKindsFor(deps())).toEqual({
+      CASH_IN: { permission: "record_cash_in", authorization_required: false },
+      CASH_OUT: { permission: "record_cash_expense", authorization_required: true },
+      WITHDRAWAL: { permission: "withdraw_cash", authorization_required: true },
+    });
+  });
+
+  it("asks for no authorizer from an administrator", () => {
+    database.prepare("UPDATE roles SET is_administrator = 1 WHERE id = 'clerk'").run();
+
+    expect(cashMovementKindsFor(deps())).toEqual({
+      CASH_IN: { permission: "record_cash_in", authorization_required: false },
+      CASH_OUT: { permission: "record_cash_expense", authorization_required: false },
+      WITHDRAWAL: { permission: "withdraw_cash", authorization_required: false },
+    });
+  });
+
+  it("is none when nobody is signed in", () => {
+    signedInPerson.clear();
+
+    expect(cashMovementKindsFor(deps())).toBeNull();
+  });
+
+  it("is none when the person signed in is no longer active", () => {
+    database.prepare("UPDATE users SET active = 0 WHERE id = 'u1'").run();
+
+    expect(cashMovementKindsFor(deps())).toBeNull();
   });
 });
