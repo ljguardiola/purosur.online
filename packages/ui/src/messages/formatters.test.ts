@@ -78,9 +78,9 @@ describe("formatTimeAgo", () => {
   const DAY = 24 * HOUR;
 
   it.each([
-    [0, "hace 0 minutos"],
-    [1, "hace 0 minutos"],
-    [59, "hace 0 minutos"],
+    [0, "hace un momento"],
+    [1, "hace un momento"],
+    [59, "hace un momento"],
     [MINUTE, "hace 1 minuto"],
     [5 * MINUTE, "hace 5 minutos"],
     [HOUR - 1, "hace 59 minutos"],
