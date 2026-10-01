@@ -8,7 +8,6 @@ export const PERSISTENCE_IN_HANDLERS_ALLOWLIST = [
   "apps/cloud/src/access/passkeys-registration-route.ts",
   "apps/cloud/src/access/passkeys-removal-route.ts",
   "apps/cloud/src/access/pin-code-redemption-route.ts",
-  "apps/cloud/src/access/recovery-redemption-route.ts",
   "apps/cloud/src/access/session-authenticate-route.ts",
   "apps/cloud/src/access/session-authorization-route.ts",
   "apps/cloud/src/access/session-sign-out-route.ts",
