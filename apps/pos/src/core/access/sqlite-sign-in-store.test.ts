@@ -569,3 +569,65 @@ describe("a user's PIN sign-in failures", () => {
     }
   });
 });
+
+describe("replacing a person's PIN verifier", () => {
+  const AT = new Date("2026-05-01T10:00:00.000Z");
+
+  function storedVerifier(userId: string): string | undefined {
+    return database
+      .prepare<[string], { verifier: string }>(
+        "SELECT verifier FROM pin_verifiers WHERE user_id = ?",
+      )
+      .get(userId)?.verifier;
+  }
+
+  it("keeps the failures of a person whose verifier stays the same", () => {
+    addUser({ id: "u1", verifier: "the-verifier" });
+    store.recordPinSignInFailure("u1", AT);
+
+    store.replacePinVerifier("u1", "the-verifier");
+
+    expect(store.pinSignInFailures("u1")?.consecutiveFailures).toBe(1);
+    expect(storedVerifier("u1")).toBe("the-verifier");
+  });
+
+  it("clears the failures of a person whose verifier changes, keeping the new verifier", () => {
+    addUser({ id: "u1", verifier: "the-verifier" });
+    store.recordPinSignInFailure("u1", AT);
+
+    store.replacePinVerifier("u1", "another-verifier");
+
+    expect(store.pinSignInFailures("u1")).toBeUndefined();
+    expect(storedVerifier("u1")).toBe("another-verifier");
+  });
+
+  it("clears the failures of a person who had no verifier before", () => {
+    addUser({ id: "u1", verifier: null });
+    store.recordPinSignInFailure("u1", AT);
+
+    store.replacePinVerifier("u1", "the-verifier");
+
+    expect(store.pinSignInFailures("u1")).toBeUndefined();
+    expect(storedVerifier("u1")).toBe("the-verifier");
+  });
+
+  it("removes the verifier of a person whose PIN is removed, clearing their failures", () => {
+    addUser({ id: "u1", verifier: "the-verifier" });
+    store.recordPinSignInFailure("u1", AT);
+
+    store.replacePinVerifier("u1", undefined);
+
+    expect(store.pinSignInFailures("u1")).toBeUndefined();
+    expect(storedVerifier("u1")).toBeUndefined();
+  });
+
+  it("leaves the failures of another person alone", () => {
+    addUser({ id: "u1", verifier: "the-verifier" });
+    addUser({ id: "u2", verifier: "the-verifier" });
+    store.recordPinSignInFailure("u2", AT);
+
+    store.replacePinVerifier("u1", "another-verifier");
+
+    expect(store.pinSignInFailures("u2")?.consecutiveFailures).toBe(1);
+  });
+});
