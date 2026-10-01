@@ -1,4 +1,6 @@
-import { countedCashRequestSchema, parseAmountCents } from "@purosur/contracts";
+import { closeCashSessionMessageSchema, parseAmountCents } from "@purosur/contracts";
+
+export const countedCashRequestSchema = closeCashSessionMessageSchema.pick({ counted_cash: true });
 
 const REQUIRED_MESSAGE = "Ingresá el efectivo contado.";
 export const INVALID_COUNTED_CASH_MESSAGE = "Ingresá un importe válido, por ejemplo 31.500,00.";

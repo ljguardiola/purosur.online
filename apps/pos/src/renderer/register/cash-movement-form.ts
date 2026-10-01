@@ -2,8 +2,15 @@ import {
   CASH_MOVEMENT_REASON_MAX_LENGTH,
   cashMovementReason,
   parseAmountCents,
+  recordCashMovementMessageSchema,
 } from "@purosur/contracts";
 import type { CashMovementKind } from "@purosur/domain";
+
+export const recordCashMovementFormRequestSchema = recordCashMovementMessageSchema.omit({
+  type: true,
+  request_id: true,
+  authorization: true,
+});
 
 const REQUIRED_AMOUNT_MESSAGE = "Ingresá el importe.";
 export const INVALID_AMOUNT_MESSAGE = "Ingresá un importe válido, por ejemplo 5.000,00.";

@@ -1,5 +1,5 @@
 import type { RecordCashMovementOutcome, SignInUser } from "@purosur/contracts";
-import { cashMovementPermission, recordCashMovementFormRequestSchema } from "@purosur/contracts";
+import { cashMovementPermission } from "@purosur/contracts";
 import type { AuthorizablePermissionKey, CashMovementKind } from "@purosur/domain";
 import {
   Button,
@@ -22,6 +22,7 @@ import {
   EMPTY_CASH_MOVEMENT_FORM,
   INVALID_AMOUNT_MESSAGE,
   INVALID_REASON_MESSAGE,
+  recordCashMovementFormRequestSchema,
 } from "./cash-movement-form";
 import { CASH_MOVEMENT_ICONS } from "./cash-movement-icons";
 

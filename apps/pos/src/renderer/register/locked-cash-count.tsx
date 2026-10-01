@@ -1,5 +1,4 @@
 import type { CashBalance, CloseLockedCashSessionOutcome } from "@purosur/contracts";
-import { countedCashRequestSchema } from "@purosur/contracts";
 import { Button, formatCents, InlineNotice, useRequestForm } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Lock, ShoppingBasket, TriangleAlert } from "lucide-react";
@@ -13,6 +12,7 @@ import {
   countedCashMessage,
   countedCashOf,
   countedCashRequestFrom,
+  countedCashRequestSchema,
   EMPTY_COUNTED_CASH_FORM,
   INVALID_COUNTED_CASH_MESSAGE,
 } from "./counted-cash-form";

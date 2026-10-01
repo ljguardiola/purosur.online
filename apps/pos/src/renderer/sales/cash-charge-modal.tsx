@@ -1,5 +1,5 @@
 import type { ChargeSaleInCashOutcome } from "@purosur/contracts";
-import { cashCharge, chargeSaleInCashRequestSchema, parseAmountCents } from "@purosur/contracts";
+import { cashCharge, parseAmountCents } from "@purosur/contracts";
 import {
   Button,
   fieldErrorMessage,
@@ -15,6 +15,7 @@ import { useEffect, useRef, useState } from "react";
 import { Eyebrow } from "../shell/eyebrow";
 import {
   cashChargeRequestFrom,
+  chargeSaleInCashRequestSchema,
   EMPTY_CASH_CHARGE_FORM,
   INVALID_AMOUNT_MESSAGE,
 } from "./cash-charge-form";

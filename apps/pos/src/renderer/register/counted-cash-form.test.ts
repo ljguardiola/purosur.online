@@ -1,9 +1,9 @@
-import { countedCashRequestSchema } from "@purosur/contracts";
 import { expect, test } from "vitest";
 import {
   countedCashMessage,
   countedCashOf,
   countedCashRequestFrom,
+  countedCashRequestSchema,
   EMPTY_COUNTED_CASH_FORM,
   INVALID_COUNTED_CASH_MESSAGE,
 } from "./counted-cash-form";

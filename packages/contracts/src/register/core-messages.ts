@@ -111,7 +111,7 @@ const firstSignInMessageSchema = z.object({
   pin: z.string(),
 });
 
-const openCashSessionMessageSchema = z.object({
+export const openCashSessionMessageSchema = z.object({
   type: z.literal("open-cash-session"),
   request_id: requestId,
   opening_float: openingFloatSchema,
@@ -122,7 +122,7 @@ const cashSessionRequestMessageSchema = z.object({
   request_id: requestId,
 });
 
-const recordCashMovementMessageSchema = z.object({
+export const recordCashMovementMessageSchema = z.object({
   type: z.literal("record-cash-movement"),
   request_id: requestId,
   kind: z.enum(CASH_MOVEMENT_KINDS),
@@ -140,7 +140,7 @@ const cashMovementsRequestMessageSchema = z.object({
   request_id: requestId,
 });
 
-const closeCashSessionMessageSchema = z.object({
+export const closeCashSessionMessageSchema = z.object({
   type: z.literal("close-cash-session"),
   request_id: requestId,
   session_id: z.string(),
@@ -215,7 +215,7 @@ const saleRequestMessageSchema = z.object({
   request_id: requestId,
 });
 
-const chargeSaleInCashMessageSchema = z.object({
+export const chargeSaleInCashMessageSchema = z.object({
   type: z.literal("charge-sale-in-cash"),
   request_id: requestId,
   sale_id: z.string(),
@@ -258,18 +258,6 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   signOutMessageSchema,
 ]);
 export type RendererToCoreMessage = z.infer<typeof rendererToCoreMessageSchema>;
-
-export const openCashSessionRequestSchema = openCashSessionMessageSchema.omit({
-  type: true,
-  request_id: true,
-});
-export const countedCashRequestSchema = closeCashSessionMessageSchema.pick({ counted_cash: true });
-export const chargeSaleInCashRequestSchema = chargeSaleInCashMessageSchema.pick({ tendered: true });
-export const recordCashMovementFormRequestSchema = recordCashMovementMessageSchema.omit({
-  type: true,
-  request_id: true,
-  authorization: true,
-});
 
 const enrollmentOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("enrolled") }),

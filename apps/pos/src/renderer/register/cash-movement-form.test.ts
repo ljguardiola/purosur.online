@@ -1,10 +1,10 @@
-import { recordCashMovementFormRequestSchema } from "@purosur/contracts";
 import { expect, test } from "vitest";
 import {
   amountMessage,
   cashMovementRequestFrom,
   EMPTY_CASH_MOVEMENT_FORM,
   INVALID_AMOUNT_MESSAGE,
+  recordCashMovementFormRequestSchema,
 } from "./cash-movement-form";
 
 test("a movement is requested with its amount in cents and its reason trimmed", () => {

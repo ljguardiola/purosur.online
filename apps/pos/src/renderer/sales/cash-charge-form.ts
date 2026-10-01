@@ -1,4 +1,6 @@
-import { parseAmountCents } from "@purosur/contracts";
+import { chargeSaleInCashMessageSchema, parseAmountCents } from "@purosur/contracts";
+
+export const chargeSaleInCashRequestSchema = chargeSaleInCashMessageSchema.pick({ tendered: true });
 
 export const INVALID_AMOUNT_MESSAGE = "Ingresá un importe válido, por ejemplo 5.000,00.";
 

@@ -4,7 +4,6 @@ import type {
   CloseCashSessionOutcome,
   SignInUser,
 } from "@purosur/contracts";
-import { countedCashRequestSchema } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { Button, InlineNotice, useRequestForm } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
@@ -22,6 +21,7 @@ import {
   countedCashMessage,
   countedCashOf,
   countedCashRequestFrom,
+  countedCashRequestSchema,
   EMPTY_COUNTED_CASH_FORM,
   INVALID_COUNTED_CASH_MESSAGE,
 } from "./counted-cash-form";

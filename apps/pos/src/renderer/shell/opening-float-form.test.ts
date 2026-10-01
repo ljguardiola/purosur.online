@@ -1,8 +1,8 @@
-import { openCashSessionRequestSchema } from "@purosur/contracts";
 import { expect, test } from "vitest";
 import {
   EMPTY_OPENING_FLOAT_FORM,
   INVALID_OPENING_FLOAT_MESSAGE,
+  openCashSessionRequestSchema,
   openingFloatMessage,
   openingFloatRequestFrom,
 } from "./opening-float-form";

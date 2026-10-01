@@ -1,5 +1,4 @@
 import type { OpenCashSessionOutcome } from "@purosur/contracts";
-import { openCashSessionRequestSchema } from "@purosur/contracts";
 import { Button, InlineNotice, useRequestForm } from "@purosur/ui";
 import { LockOpen, TriangleAlert, UserX, X } from "lucide-react";
 import type { FormEvent } from "react";
@@ -7,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   EMPTY_OPENING_FLOAT_FORM,
   INVALID_OPENING_FLOAT_MESSAGE,
+  openCashSessionRequestSchema,
   openingFloatMessage,
   openingFloatRequestFrom,
 } from "./opening-float-form";
