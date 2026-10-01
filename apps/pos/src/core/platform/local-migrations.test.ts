@@ -319,10 +319,6 @@ describe("the register's local migrations", () => {
       const path = join(folder, "register.sqlite");
       const previous = LOCAL_MIGRATIONS.slice(0, 9);
       expect(previous.at(-1)?.name).toBe("0008_buy_n_pay_m_discounts");
-      expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
-        "0009_sales",
-        "0010_sale_line_promotions",
-      ]);
       const before = openLocalDatabase(path, previous);
       before
         .prepare("UPDATE sync_state SET pull_cursor = 15, device_id = 'device-a' WHERE id = 1")
@@ -372,6 +368,7 @@ describe("the register's local migrations", () => {
       expect(previous.at(-1)?.name).toBe("0009_sales");
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0010_sale_line_promotions",
+        "0011_fiscal_configuration",
       ]);
       const before = openLocalDatabase(path, previous);
       before
@@ -402,6 +399,48 @@ describe("the register's local migrations", () => {
       expect(after.prepare("SELECT count(*) AS total FROM sale_line_promotions").get()).toEqual({
         total: 0,
       });
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("add the fiscal configuration over the sales and pull cursor a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(0, 11);
+      expect(previous.at(-1)?.name).toBe("0010_sale_line_promotions");
+      expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
+        "0011_fiscal_configuration",
+      ]);
+      const before = openLocalDatabase(path, previous);
+      before
+        .prepare("UPDATE sync_state SET pull_cursor = 16, device_id = 'device-a' WHERE id = 1")
+        .run();
+      before
+        .prepare(
+          `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+           VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN')`,
+        )
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+
+      expect(after.prepare("SELECT pull_cursor, device_id FROM sync_state").all()).toEqual([
+        { pull_cursor: 16, device_id: "device-a" },
+      ]);
+      expect(after.prepare("SELECT id, state FROM cash_sessions").all()).toEqual([
+        { id: "s1", state: "OPEN" },
+      ]);
+      for (const table of [
+        "issuer_identification_versions",
+        "buyer_identification_thresholds",
+        "buyer_tax_status_sets",
+      ]) {
+        expect(after.prepare(`SELECT count(*) AS total FROM ${table}`).get()).toEqual({ total: 0 });
+      }
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });
