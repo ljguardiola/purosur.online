@@ -1,12 +1,14 @@
 import type { CashBalance, ListedCashMovement } from "@purosur/contracts";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { createRootRouteWithContext, createRoute, RouterProvider } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Component } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
+import { render as renderInPage } from "vitest-browser-react";
 import type { SignedInPerson } from "../access/signed-in-person";
 import { GuardedCashInForm } from "../access/test-support/guarded-cash-in-form";
+import { createQueryClient } from "../platform/query-client";
 import type { CashSessionState } from "./cash-session-state";
 import type { CoreStatus, Enrollment, RouterContext } from "./router";
 import { createRegisterRouter, isSessionScreen, routeFor, routeTree } from "./router";
@@ -130,6 +132,15 @@ function routerAt(
 }
 
 const screenFailure = new Error("screen failed to render");
+
+function render(ui: ReactNode) {
+  const queryClient = createQueryClient();
+  return renderInPage(ui, {
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    ),
+  });
+}
 
 class OuterErrorBoundary extends Component<
   { children: ReactNode; onCatch: (error: unknown) => void },

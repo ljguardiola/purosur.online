@@ -4,7 +4,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import type { CashMovementsState } from "./cash-movements-table";
+import type { CoreData } from "../platform/use-core-query";
 import { CashMovementsTable } from "./cash-movements-table";
 
 const ADA = { user_id: "u1", first_name: "Ada" };
@@ -23,13 +23,13 @@ function movement(overrides: Partial<ListedCashMovement> = {}): ListedCashMoveme
   };
 }
 
-async function renderState(state: CashMovementsState, onRetry: () => void = () => {}) {
+async function renderState(state: CoreData<ListedCashMovement[]>) {
   await page.viewport(1280, 720);
-  return render(<CashMovementsTable state={state} onRetry={onRetry} />);
+  return render(<CashMovementsTable state={state} />);
 }
 
 function renderTable(movements: ListedCashMovement[]) {
-  return renderState({ status: "loaded", movements });
+  return renderState({ status: "loaded", value: movements, refreshing: false });
 }
 
 function rowsOf(screen: Awaited<ReturnType<typeof renderTable>>) {
@@ -169,7 +169,7 @@ describe("CashMovementsTable", () => {
   });
 
   it("keeps the movements it shows while they are read again", async () => {
-    const screen = await renderState({ status: "refreshing", movements: [movement()] });
+    const screen = await renderState({ status: "loaded", value: [movement()], refreshing: true });
 
     await expect
       .element(screen.getByRole("table", { name: "Movimientos de la sesión" }))
@@ -179,7 +179,7 @@ describe("CashMovementsTable", () => {
 
   it("says the movements could not be read and offers Reintentar", async () => {
     const onRetry = vi.fn();
-    const screen = await renderState({ status: "failed" }, onRetry);
+    const screen = await renderState({ status: "failed", retry: onRetry });
 
     await expect.element(screen.getByText("No se pudieron leer los movimientos")).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));

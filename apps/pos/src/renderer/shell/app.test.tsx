@@ -1098,6 +1098,8 @@ describe("App", () => {
       cashDrawer: {
         closeCashSession?: CoreClient["closeCashSession"];
         cashSession?: CoreClient["cashSession"];
+        cashBalance?: CoreClient["cashBalance"];
+        cashMovements?: CoreClient["cashMovements"];
       } = {},
     ) {
       await page.viewport(1280, 720);
@@ -1135,6 +1137,22 @@ describe("App", () => {
       await expect
         .element(screen.getByRole("heading", { name: SESSION_TITLE }))
         .not.toBeInTheDocument();
+    });
+
+    it("reads the balance and the movements again when a pull happens while the cash screen is shown", async () => {
+      const cashBalance = vi
+        .fn<CoreClient["cashBalance"]>()
+        .mockResolvedValueOnce(BALANCE)
+        .mockResolvedValue({ ...BALANCE, expected: 5_000_000 });
+      const cashMovements = vi.fn<CoreClient["cashMovements"]>().mockResolvedValue([]);
+      const { screen, finishPull } = await resumeGracesSession({ cashBalance, cashMovements });
+      await userEvent.click(screen.getByRole("link", { name: "Caja" }));
+      await expect.element(screen.getByText("$ 46.200,00", { exact: true })).toBeVisible();
+
+      finishPull(null);
+
+      await expect.element(screen.getByText("$ 50.000,00", { exact: true })).toBeVisible();
+      expect(cashMovements).toHaveBeenCalledTimes(2);
     });
 
     it("lands on the no-session screen, still signed in, once the session is closed", async () => {

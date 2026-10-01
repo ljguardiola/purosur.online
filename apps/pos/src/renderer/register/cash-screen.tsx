@@ -16,8 +16,7 @@ import { SessionEyebrow } from "../shell/session-eyebrow";
 import { CashMovementsTable } from "./cash-movements-table";
 import { ExpectedCashPanel } from "./expected-cash-panel";
 import { RecordCashMovementModal } from "./record-cash-movement-modal";
-import { useCashBalance } from "./use-cash-balance";
-import { useCashMovements } from "./use-cash-movements";
+import { useCashBalanceQuery, useCashMovementsQuery, useRefreshCash } from "./register-queries";
 
 export type CashScreenProps = {
   person: SignedInPerson;
@@ -41,8 +40,9 @@ export function CashScreen({
   recordCashMovement,
 }: CashScreenProps) {
   const navigate = useNavigate();
-  const balance = useCashBalance(loadCashBalance);
-  const movements = useCashMovements(loadCashMovements);
+  const balance = useCashBalanceQuery(loadCashBalance);
+  const movements = useCashMovementsQuery(loadCashMovements);
+  const refreshCash = useRefreshCash();
   const [recording, setRecording] = useState(false);
 
   return (
@@ -58,13 +58,9 @@ export function CashScreen({
           <SessionEyebrow registerName={registerName} openedAt={openedAt} />
           <h1 className="text-display text-text-accent">Movimientos de efectivo</h1>
         </div>
-        <CashMovementsTable state={movements.state} onRetry={movements.retry} />
+        <CashMovementsTable state={movements} />
       </main>
-      <ExpectedCashPanel
-        eyebrow="EFECTIVO ESPERADO AHORA"
-        balance={balance.state}
-        onRetry={balance.retry}
-      >
+      <ExpectedCashPanel eyebrow="EFECTIVO ESPERADO AHORA" balance={balance}>
         <Button
           variant="primary"
           size="large"
@@ -89,16 +85,13 @@ export function CashScreen({
         person={person}
         registerName={registerName}
         openedAt={openedAt}
-        {...(balance.state.status === "loaded"
-          ? { expectedCash: balance.state.balance.expected }
-          : {})}
+        {...(balance.status === "loaded" ? { expectedCash: balance.value.expected } : {})}
         loadAuthorizers={loadAuthorizers}
         recordCashMovement={recordCashMovement}
         onClose={() => setRecording(false)}
         onRecorded={() => {
           setRecording(false);
-          balance.refresh();
-          movements.refresh();
+          refreshCash();
         }}
       />
     </div>
