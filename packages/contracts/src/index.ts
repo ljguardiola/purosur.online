@@ -139,6 +139,7 @@ export {
   retryAfterSecondsOf,
 } from "./register/cloud-error.js";
 export type {
+  CancelLockedSaleOutcome,
   CashBalance,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,

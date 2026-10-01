@@ -183,9 +183,12 @@ describe("removeSaleLineOutcomeSchema", () => {
 });
 
 describe("cancelSaleOutcomeSchema", () => {
-  it.each([{ kind: "cancelled" }, ...refusals])("accepts the outcome $kind", (outcome) => {
-    expect(cancelSaleOutcomeSchema.parse(outcome)).toEqual(outcome);
-  });
+  it.each([{ kind: "cancelled" }, { kind: "has_approved_payment" }, ...refusals])(
+    "accepts the outcome $kind",
+    (outcome) => {
+      expect(cancelSaleOutcomeSchema.parse(outcome)).toEqual(outcome);
+    },
+  );
 
   it.each([{ kind: "unknown_line" }, { kind: "somewhere_else" }, {}])(
     "rejects the outcome %j",

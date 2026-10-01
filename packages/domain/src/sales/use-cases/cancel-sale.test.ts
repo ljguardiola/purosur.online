@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import type { PaymentTransaction } from "../model/payment.js";
 import type { SaleWithLines } from "../model/sale.js";
 import type { SaleLineRemoval } from "../model/sale-line-removal.js";
@@ -245,6 +245,12 @@ describe("cancelSale", () => {
 });
 
 describe("cancelSale from the locked register", () => {
+  it("never answers that the person is not permitted, as nobody's permission is checked here", () => {
+    const outcome = cancelFromLockedRegister(ledger());
+
+    expectTypeOf<Extract<typeof outcome, { kind: "not_permitted" }>>().toBeNever();
+  });
+
   it("cancels the open sale for a person who did not open the session and cannot sell", () => {
     const store = ledger({ accesses: {} });
 

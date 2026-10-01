@@ -4,10 +4,12 @@ import type {
   CashMovementType,
   ClosedCashSession,
   OpenedCashSession,
+  PaymentTransaction,
 } from "@purosur/domain";
 import type {
   CashLedger,
   CashLedgerTransaction,
+  OpenSale,
   RegisterIdentity,
 } from "@purosur/domain/register/use-cases";
 import type { SignInStore } from "../access/sqlite-sign-in-store";
@@ -130,15 +132,48 @@ export function readSessionMovements(database: LocalDatabase, sessionId: string)
     .map(movementOf);
 }
 
-function readOpenSaleTotal(database: LocalDatabase): number | undefined {
+interface PaymentRow {
+  id: string;
+  sale_id: string;
+  kind: PaymentTransaction["kind"];
+  method: PaymentTransaction["method"];
+  provider: PaymentTransaction["provider"];
+  amount: number;
+  tendered: number | null;
+  state: PaymentTransaction["state"];
+  occurred_at: string;
+}
+
+export function readSalePayments(database: LocalDatabase, saleId: string): PaymentTransaction[] {
   return database
-    .prepare<[], { total: number }>(
-      `SELECT sum(sale_lines.line_total) AS total
+    .prepare<[string], PaymentRow>(
+      `SELECT id, sale_id, kind, method, provider, amount, tendered, state, occurred_at
+       FROM payment_transactions WHERE sale_id = ? ORDER BY rowid`,
+    )
+    .all(saleId)
+    .map((row) => ({
+      id: row.id,
+      saleId: row.sale_id,
+      kind: row.kind,
+      method: row.method,
+      provider: row.provider,
+      amount: row.amount,
+      ...(row.tendered === null ? {} : { tendered: row.tendered }),
+      state: row.state,
+      occurredAt: new Date(row.occurred_at),
+    }));
+}
+
+function readOpenSale(database: LocalDatabase): OpenSale | undefined {
+  const row = database
+    .prepare<[], { id: string; total: number }>(
+      `SELECT sales.id AS id, sum(sale_lines.line_total) AS total
        FROM sales JOIN sale_lines ON sale_lines.sale_id = sales.id
        WHERE sales.state = 'OPEN'
        GROUP BY sales.id`,
     )
-    .get()?.total;
+    .get();
+  return row && { total: row.total, payments: readSalePayments(database, row.id) };
 }
 
 export function insertCashMovement(database: LocalDatabase, movement: CashMovement): void {
@@ -187,7 +222,7 @@ export class SqliteCashLedger implements CashLedger {
     return {
       openerAccess: (userId) => this.people.activePerson(userId)?.access,
       openSession: () => readOpenSession(this.database),
-      openSaleTotal: () => readOpenSaleTotal(this.database),
+      openSale: () => readOpenSale(this.database),
       sessionMovements: (sessionId) => readSessionMovements(this.database, sessionId),
       registerIdentity: () => this.registerIdentity(),
       recordOpenedSession: (session) => this.recordOpenedSession(session),

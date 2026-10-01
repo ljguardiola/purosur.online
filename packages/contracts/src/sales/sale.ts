@@ -101,6 +101,7 @@ export type RemoveSaleLineOutcome = z.infer<typeof removeSaleLineOutcomeSchema>;
 
 export const cancelSaleOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("cancelled") }),
+  z.object({ kind: z.literal("has_approved_payment") }),
   ...saleRefusalSchemas,
 ]);
 export type CancelSaleOutcome = z.infer<typeof cancelSaleOutcomeSchema>;

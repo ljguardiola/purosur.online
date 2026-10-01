@@ -11,6 +11,10 @@ export interface CancelSaleInput {
   from: "sale" | "locked_register";
 }
 
+interface CancelSaleFromLockedRegisterInput extends CancelSaleInput {
+  from: "locked_register";
+}
+
 export interface CancelSalePorts {
   ledger: SaleLedger;
   clock: Clock;
@@ -24,6 +28,13 @@ export type CancelSaleOutcome =
   | { kind: "has_approved_payment" }
   | { kind: "cancelled"; sale: SaleWithLines };
 
+export type CancelLockedSaleOutcome = Exclude<CancelSaleOutcome, { kind: "not_permitted" }>;
+
+export function cancelSale(
+  ports: CancelSalePorts,
+  input: CancelSaleFromLockedRegisterInput,
+): CancelLockedSaleOutcome;
+export function cancelSale(ports: CancelSalePorts, input: CancelSaleInput): CancelSaleOutcome;
 export function cancelSale(
   { ledger, clock, ids }: CancelSalePorts,
   { actorId, from }: CancelSaleInput,

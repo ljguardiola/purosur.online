@@ -56,6 +56,7 @@ import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
 import {
   addSearchedProductFor,
+  cancelLockedSaleFor,
   cancelSaleFor,
   changeLineQuantityFor,
   chargeSaleInCashFor,
@@ -354,6 +355,21 @@ const rendererRequestDeps: RendererRequestDeps = {
               ids: uuidV7Ids,
             },
             { sessionId, countedCash, closer },
+          ),
+  cancelLockedSale:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (closer) =>
+          cancelLockedSaleFor(
+            {
+              database: localDatabase,
+              gate: actionGate,
+              readOutboxChainKey: async () =>
+                (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+              now: () => new Date(),
+              ids: uuidV7Ids,
+            },
+            closer,
           ),
   identifyLockedCloser:
     actionGate === undefined

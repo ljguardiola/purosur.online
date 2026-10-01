@@ -1148,7 +1148,7 @@ describe("the lines of the sale being changed", () => {
     scan("222");
     removeSaleLine(sellerPorts(), { actorId: "u1", lineId: lineIdOf("p2") });
 
-    const outcome = cancelSale(sellerPorts(), { actorId: "u1" });
+    const outcome = cancelSale(sellerPorts(), { actorId: "u1", from: "sale" });
 
     expect(outcome.kind).toBe("cancelled");
     expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "CANCELLED" }]);
@@ -1177,6 +1177,46 @@ describe("the lines of the sale being changed", () => {
     expect(payload.removals.map((removal: { product_id: string }) => removal.product_id)).toEqual([
       "p2",
     ]);
+  });
+
+  it("reads back the payment of a sale with what was tendered", () => {
+    scan("111");
+    const payment = {
+      id: "payment-1",
+      saleId: "id-1",
+      kind: "SALE" as const,
+      method: "CASH" as const,
+      provider: "NONE" as const,
+      amount: 1500,
+      tendered: 2000,
+      state: "APPROVED" as const,
+      occurredAt: NOW,
+    };
+    ledger.transaction((tx) => tx.recordPayment(payment));
+
+    expect(ledger.transaction((tx) => tx.salePayments("id-1"))).toEqual([payment]);
+  });
+
+  it("refuses to cancel a sale with an approved payment, leaving it open", () => {
+    scan("111");
+    ledger.transaction((tx) =>
+      tx.recordPayment({
+        id: "payment-1",
+        saleId: "id-1",
+        kind: "SALE",
+        method: "CASH",
+        provider: "NONE",
+        amount: 1500,
+        state: "APPROVED",
+        occurredAt: NOW,
+      }),
+    );
+
+    expect(cancelSale(sellerPorts(), { actorId: "u1", from: "sale" })).toEqual({
+      kind: "has_approved_payment",
+    });
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+    expect(database.prepare("SELECT count(*) AS total FROM outbox").get()).toEqual({ total: 0 });
   });
 
   it("chains the removals of a sale charged in cash in its sale_completed event", () => {
@@ -1221,7 +1261,7 @@ describe("the lines of the sale being changed", () => {
 
   it("lets the next scan start a new open sale once the previous one is cancelled", () => {
     scan("111");
-    cancelSale(sellerPorts(), { actorId: "u1" });
+    cancelSale(sellerPorts(), { actorId: "u1", from: "sale" });
 
     scan("111");
 
@@ -1237,7 +1277,7 @@ describe("the lines of the sale being changed", () => {
     scan("111");
     database.prepare("DELETE FROM sync_state").run();
 
-    expect(() => cancelSale(sellerPorts(), { actorId: "u1" })).toThrow();
+    expect(() => cancelSale(sellerPorts(), { actorId: "u1", from: "sale" })).toThrow();
     expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
   });
 
@@ -1245,9 +1285,9 @@ describe("the lines of the sale being changed", () => {
     const keyless = new SqliteSaleLedger(database, new SqliteSignInStore(database));
     scan("111");
 
-    expect(() => cancelSale({ ...sellerPorts(), ledger: keyless }, { actorId: "u1" })).toThrow(
-      /outbox/,
-    );
+    expect(() =>
+      cancelSale({ ...sellerPorts(), ledger: keyless }, { actorId: "u1", from: "sale" }),
+    ).toThrow(/outbox/);
     expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
   });
 });

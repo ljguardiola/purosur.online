@@ -23,7 +23,7 @@ import type {
 } from "@purosur/domain/sales/use-cases";
 import type { SignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
-import { insertCashMovement } from "../register/sqlite-cash-ledger";
+import { insertCashMovement, readSalePayments } from "../register/sqlite-cash-ledger";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 
 interface SaleRow {
@@ -136,6 +136,7 @@ export class SqliteSaleLedger implements SaleLedger {
       recordLineRemoval: (removal) => this.recordLineRemoval(removal),
       deleteSaleLine: (lineId) => this.deleteSaleLine(lineId),
       saleLineRemovals: (saleId) => this.saleLineRemovals(saleId),
+      salePayments: (saleId) => readSalePayments(this.database, saleId),
       markSaleCancelled: (saleId) => this.markSaleCancelled(saleId),
       recordPayment: (payment) => this.recordPayment(payment),
       recordCashMovement: (movement) => insertCashMovement(this.database, movement),

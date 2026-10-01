@@ -1,6 +1,7 @@
 import type {
   AddProductOutcome,
   Authorization,
+  CancelLockedSaleOutcome,
   CancelSaleOutcome,
   CashBalance,
   ChangeLineQuantityOutcome,
@@ -75,6 +76,7 @@ export interface RendererRequestDeps {
         closer: Authorization,
       ) => Promise<CloseLockedCashSessionOutcome>)
     | undefined;
+  cancelLockedSale: ((closer: Authorization) => Promise<CancelLockedSaleOutcome>) | undefined;
   identifyLockedCloser:
     | ((closer: Authorization) => Promise<IdentifyLockedCloserOutcome>)
     | undefined;
@@ -200,6 +202,18 @@ async function attemptCloseLockedCashSession(
     );
   } catch (error) {
     deps.reportFailure("closing a locked register's cash session", error);
+    return { kind: "unavailable" };
+  }
+}
+
+async function attemptCancelLockedSale(
+  deps: RendererRequestDeps,
+  closer: Authorization,
+): Promise<CancelLockedSaleOutcome> {
+  try {
+    return (await deps.cancelLockedSale?.(closer)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("cancelling the open sale of a locked register", error);
     return { kind: "unavailable" };
   }
 }
@@ -502,6 +516,12 @@ export async function answerRendererRequest(
           message.counted_cash,
           message.closer,
         ),
+      };
+    case "cancel-locked-sale":
+      return {
+        type: "cancel-locked-sale-result",
+        request_id: message.request_id,
+        outcome: await attemptCancelLockedSale(deps, message.closer),
       };
     case "identify-locked-closer":
       return {

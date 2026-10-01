@@ -1,5 +1,7 @@
 import type {
   AddProductOutcome,
+  Authorization,
+  CancelLockedSaleOutcome,
   CancelSaleOutcome,
   ChangeLineQuantityOutcome,
   ChargeSaleInCashOutcome,
@@ -236,11 +238,34 @@ export async function cancelSaleFor({
   const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
     cancelSale(
       { ledger: saleLedger(database, outboxChainKey), clock: { now }, ids },
-      { actorId: signedInUserId },
+      { actorId: signedInUserId, from: "sale" },
     ),
   );
   if (guarded.kind !== "performed") {
     return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
+  }
+  return { kind: guarded.result.kind };
+}
+
+export async function cancelLockedSaleFor(
+  { database, gate, now, ids, readOutboxChainKey }: OutboxSaleRequestDeps,
+  closer: Authorization,
+): Promise<CancelLockedSaleOutcome> {
+  const outboxChainKey = await readOutboxChainKey();
+  if (outboxChainKey === undefined) {
+    return { kind: "unavailable" };
+  }
+  const guarded = await gate.runWhileLocked(
+    "close_anothers_register_session",
+    closer,
+    async (person) =>
+      cancelSale(
+        { ledger: saleLedger(database, outboxChainKey), clock: { now }, ids },
+        { actorId: person.user_id, from: "locked_register" },
+      ),
+  );
+  if (guarded.kind !== "performed") {
+    return guarded;
   }
   return { kind: guarded.result.kind };
 }
