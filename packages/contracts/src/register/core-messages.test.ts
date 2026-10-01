@@ -215,14 +215,11 @@ describe("cash session requests", () => {
     },
   );
 
-  it.each([1.5, Number.NaN, "100", null])(
-    "rejects an opening float of %j",
-    (opening_float) => {
-      const message = { type: "open-cash-session", request_id: REQUEST_ID, opening_float };
+  it.each([1.5, Number.NaN, "100", null])("rejects an opening float of %j", (opening_float) => {
+    const message = { type: "open-cash-session", request_id: REQUEST_ID, opening_float };
 
-      expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
-    },
-  );
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
 
   it.each([
     { type: "open-cash-session", opening_float: 0 },
@@ -285,12 +282,9 @@ describe("cash movement requests", () => {
     },
   );
 
-  it.each([1.5, Number.NaN, "100", null])(
-    "rejects an amount of %j",
-    (amount) => {
-      expect(rendererToCoreMessageSchema.safeParse({ ...movement, amount }).success).toBe(false);
-    },
-  );
+  it.each([1.5, Number.NaN, "100", null])("rejects an amount of %j", (amount) => {
+    expect(rendererToCoreMessageSchema.safeParse({ ...movement, amount }).success).toBe(false);
+  });
 
   it.each(["Flete", " Flete ", "", "   ", "a".repeat(CASH_MOVEMENT_REASON_MAX_LENGTH + 1)])(
     "carries the reason %j as typed, for the core to judge",

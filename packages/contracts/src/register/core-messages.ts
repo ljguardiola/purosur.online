@@ -4,8 +4,6 @@ import {
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_TYPES,
   isAuthorizablePermissionKey,
-  isValidCashAmount,
-  isValidCashMovementAmount,
   REGISTER_ABILITIES,
 } from "@purosur/domain";
 import { z } from "zod";
@@ -32,13 +30,6 @@ import {
 } from "../sales/sale.js";
 
 const requestId = z.string();
-
-const cashAmountSchema = z.number().refine(isValidCashAmount);
-
-export const openingFloatSchema = cashAmountSchema;
-export const countedCashSchema = cashAmountSchema;
-
-export const cashMovementAmountSchema = z.number().refine(isValidCashMovementAmount);
 
 export { ARGENTINA_TIME_ZONE };
 
@@ -103,7 +94,7 @@ const firstSignInMessageSchema = z.object({
 export const openCashSessionMessageSchema = z.object({
   type: z.literal("open-cash-session"),
   request_id: requestId,
-  opening_float: openingFloatSchema,
+  opening_float: z.int(),
 });
 
 const cashSessionRequestMessageSchema = z.object({
@@ -115,7 +106,7 @@ export const recordCashMovementMessageSchema = z.object({
   type: z.literal("record-cash-movement"),
   request_id: requestId,
   kind: z.enum(CASH_MOVEMENT_KINDS),
-  amount: cashMovementAmountSchema,
+  amount: z.int(),
   reason: z.string(),
   authorization: authorizationSchema.optional(),
 });
@@ -138,14 +129,14 @@ export const closeCashSessionMessageSchema = z.object({
   type: z.literal("close-cash-session"),
   request_id: requestId,
   session_id: z.string(),
-  counted_cash: countedCashSchema,
+  counted_cash: z.int(),
 });
 
 export const closeLockedCashSessionMessageSchema = z.object({
   type: z.literal("close-locked-cash-session"),
   request_id: requestId,
   session_id: z.string(),
-  counted_cash: countedCashSchema,
+  counted_cash: z.int(),
   closer: authorizationSchema,
 });
 
