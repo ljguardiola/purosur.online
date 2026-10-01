@@ -1,6 +1,6 @@
 import type { OpenCashSessionOutcome } from "@purosur/contracts";
-import { openingFloatSchema, parseAmountCents } from "@purosur/contracts";
-import { Button, InlineNotice, TextField } from "@purosur/ui";
+import { openingFloatSchema } from "@purosur/contracts";
+import { Button, InlineNotice, parseAmountCents, TextField } from "@purosur/ui";
 import { LockOpen, TriangleAlert, UserX, X } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";

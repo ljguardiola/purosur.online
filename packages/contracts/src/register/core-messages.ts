@@ -10,7 +10,6 @@ import {
   isAuthorizablePermissionKey,
   isValidCashAmount,
   isValidCashMovementAmount,
-  parseAmountCents,
 } from "@purosur/domain";
 import { z } from "zod";
 import {
@@ -50,7 +49,6 @@ export {
   cashCharge,
   cashMovementPermission,
   cashMovementReason,
-  parseAmountCents,
 };
 
 const rendererPingMessageSchema = z.object({

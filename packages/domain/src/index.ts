@@ -199,13 +199,7 @@ export type {
   SoldProduct,
 } from "./sales/index.js";
 export { cashCharge, SEARCH_RESULT_LIMIT, saleTotal } from "./sales/index.js";
-export type { EsArNumberDigits } from "./shared/index.js";
-export {
-  ARGENTINA_TIME_ZONE,
-  argentinaCalendarDay,
-  parseAmountCents,
-  parseEsArNumber,
-} from "./shared/index.js";
+export { ARGENTINA_TIME_ZONE, argentinaCalendarDay } from "./shared/index.js";
 export type { AdjustmentReason, LossReason, StockDirection } from "./stock/index.js";
 export {
   ADJUSTMENT_REASONS,

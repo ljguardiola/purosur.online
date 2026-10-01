@@ -172,7 +172,6 @@ export {
   countedCashSchema,
   mainToCoreMessageSchema,
   openingFloatSchema,
-  parseAmountCents,
   rendererToCoreMessageSchema,
 } from "./register/core-messages.js";
 export type { DeviceEnrollment, DeviceEnrollmentBody } from "./register/device-enrollment.js";

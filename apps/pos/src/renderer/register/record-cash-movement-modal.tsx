@@ -4,10 +4,17 @@ import {
   cashMovementAmountSchema,
   cashMovementPermission,
   cashMovementReason,
-  parseAmountCents,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey, CashMovementKind } from "@purosur/domain";
-import { Button, formatCents, InlineNotice, Modal, OptionCardGroup, TextField } from "@purosur/ui";
+import {
+  Button,
+  formatCents,
+  InlineNotice,
+  Modal,
+  OptionCardGroup,
+  parseAmountCents,
+  TextField,
+} from "@purosur/ui";
 import { TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
 import { AuthorizationSection } from "../access/authorization-section";

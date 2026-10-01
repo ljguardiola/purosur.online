@@ -9,7 +9,6 @@ export const CONTRACTS_DOMAIN_VALUE_RE_EXPORT_ALLOWLIST = [
   "packages/contracts/src/register/core-messages.ts#cashCharge",
   "packages/contracts/src/register/core-messages.ts#cashMovementPermission",
   "packages/contracts/src/register/core-messages.ts#cashMovementReason",
-  "packages/contracts/src/register/core-messages.ts#parseAmountCents",
   "packages/contracts/src/sales/sale.ts#SEARCH_RESULT_LIMIT",
 ];
 
