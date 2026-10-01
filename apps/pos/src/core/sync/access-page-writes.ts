@@ -1,5 +1,6 @@
 import type { SyncChange } from "@purosur/contracts";
 import { derivePinVerifier } from "../access/pin-verifier";
+import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
 import type { RemovalOf } from "./pulled-change";
 
@@ -25,13 +26,7 @@ export function prepareAccessPageWrites(database: LocalDatabase, pepper: string 
      WHERE excluded.version > users.version
         OR (excluded.version = users.version AND users.removed = 1)`,
   );
-  const saveVerifier = database.prepare(
-    `INSERT INTO pin_verifiers (user_id, verifier) VALUES (@user_id, @verifier)
-     ON CONFLICT (user_id) DO UPDATE SET verifier = excluded.verifier`,
-  );
-  const readVerifier = database.prepare<[string], { verifier: string }>(
-    "SELECT verifier FROM pin_verifiers WHERE user_id = ?",
-  );
+  const signInStore = new SqliteSignInStore(database);
   const deleteVerifier = database.prepare("DELETE FROM pin_verifiers WHERE user_id = ?");
   const clearFailures = database.prepare("DELETE FROM pin_sign_in_failures WHERE user_id = ?");
   const saveRole = database.prepare(
@@ -78,16 +73,10 @@ export function prepareAccessPageWrites(database: LocalDatabase, pepper: string 
       if (saved.changes === 0) {
         return;
       }
-      if (row.pin_hash === null) {
-        deleteVerifier.run(entity_id);
-        clearFailures.run(entity_id);
-        return;
-      }
-      const verifier = derivePinVerifier(pepper, row.pin_hash);
-      if (readVerifier.get(entity_id)?.verifier !== verifier) {
-        clearFailures.run(entity_id);
-      }
-      saveVerifier.run({ user_id: entity_id, verifier });
+      signInStore.replacePinVerifier(
+        entity_id,
+        row.pin_hash === null ? undefined : derivePinVerifier(pepper, row.pin_hash),
+      );
     },
 
     role({ entity_id, row }: ChangeOf<"role">): void {

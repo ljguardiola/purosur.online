@@ -17,13 +17,8 @@ export function applyRedeemedPin(
     if (saved.changes === 0) {
       return;
     }
-    database
-      .prepare(
-        `INSERT INTO pin_verifiers (user_id, verifier) VALUES (@user_id, @verifier)
-         ON CONFLICT (user_id) DO UPDATE SET verifier = excluded.verifier`,
-      )
-      .run({ user_id, verifier: derivePinVerifier(pepper, pin_hash) });
-    database.prepare("DELETE FROM pin_sign_in_failures WHERE user_id = ?").run(user_id);
-    new SqliteSignInStore(database).remember(user_id);
+    const store = new SqliteSignInStore(database);
+    store.replacePinVerifier(user_id, derivePinVerifier(pepper, pin_hash));
+    store.remember(user_id);
   })();
 }
