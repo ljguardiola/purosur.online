@@ -1,5 +1,5 @@
 import type { RoleAccess } from "./access-increase.js";
-import { PERMISSION_CATALOG, type PermissionKey } from "./permission-catalog.js";
+import { PERMISSION_CATALOG, PERMISSION_KEYS, type PermissionKey } from "./permission-catalog.js";
 
 export type AuthorizablePermissionKey = Extract<
   (typeof PERMISSION_CATALOG)[number],
@@ -8,6 +8,10 @@ export type AuthorizablePermissionKey = Extract<
 
 export function holdsPermission(access: RoleAccess, key: PermissionKey): boolean {
   return access.isAdministrator || access.permissionKeys.includes(key);
+}
+
+export function heldPermissionKeys(access: RoleAccess): PermissionKey[] {
+  return PERMISSION_KEYS.filter((key) => holdsPermission(access, key));
 }
 
 const AUTHORIZABLE_PERMISSION_KEYS: ReadonlySet<unknown> = new Set(

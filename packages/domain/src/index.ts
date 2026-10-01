@@ -13,6 +13,7 @@ export {
   decodePinSalt,
   encodePinHash,
   grantedPermissionKeys,
+  heldPermissionKeys,
   holdsARegisterPermission,
   holdsBothAlertViewPermissions,
   holdsPermission,

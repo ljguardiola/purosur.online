@@ -1,4 +1,4 @@
-import { PERMISSION_KEYS, type PermissionKey } from "@purosur/domain";
+import { heldPermissionKeys, type PermissionKey } from "@purosur/domain";
 import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyReply, FastifyRequest } from "fastify";
@@ -90,10 +90,10 @@ async function lookUpSession<TQueryResult extends PgQueryResultHKT>(
   }
 
   const isAdministrator = session.isAdministrator ?? false;
-  const granted = new Set(session.grantedPermissionKeys);
-  const permissionKeys: PermissionKey[] = isAdministrator
-    ? [...PERMISSION_KEYS]
-    : PERMISSION_KEYS.filter((key) => granted.has(key));
+  const permissionKeys = heldPermissionKeys({
+    isAdministrator,
+    permissionKeys: session.grantedPermissionKeys,
+  });
 
   return {
     state: "open",

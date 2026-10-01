@@ -1,10 +1,11 @@
+import { findBranchUser } from "@purosur/domain/access/use-cases";
 import { and, eq, isNull } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { openAlert } from "../alerts/open-alert.js";
 import { auditLog, passkeys, sessions } from "../platform/db/schema.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
-import { findBranchUser } from "./branch-users.js";
+import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import {
   ADMINISTRATOR_ACCESS,
@@ -43,7 +44,10 @@ export function registerUserPasskeyRemovalRoutes<TQueryResult extends PgQueryRes
     if (!UUID_PATTERN.test(targetId)) {
       return undefined;
     }
-    return findBranchUser(options.db, locationId, targetId);
+    return findBranchUser(
+      { users: drizzleBranchUsers(options.db) },
+      { locationId, userId: targetId },
+    );
   }
 
   app.delete<{ Params: { id: string; passkeyId: string } }>(
