@@ -72,9 +72,11 @@ class FakeBranchRegisterStoreTransaction implements BranchRegisterStoreTransacti
     this.state.registerCreations.push({ ...creation });
   }
 
-  async lockRegister(registerId: string): Promise<LockRegisterResult> {
-    this.store.operationOrder.push("lockRegister");
-    return this.state.registers.some((register) => register.id === registerId)
+  async lockBranchRegister(locationId: string, registerId: string): Promise<LockRegisterResult> {
+    this.store.operationOrder.push("lockBranchRegister");
+    return this.state.registers.some(
+      (register) => register.id === registerId && register.locationId === locationId,
+    )
       ? { kind: "locked" }
       : { kind: "not_found" };
   }
@@ -148,6 +150,12 @@ export class FakeBranchRegisterStore implements BranchRegisterStore, BranchRegis
             : null,
         };
       });
+  }
+
+  async hasRegister(locationId: string, registerId: string): Promise<boolean> {
+    return this.state.registers.some(
+      (register) => register.id === registerId && register.locationId === locationId,
+    );
   }
 
   async transaction<TOutcome>(

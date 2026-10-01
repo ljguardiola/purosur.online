@@ -6,8 +6,6 @@ import type { fetchRegisterCoverage, fetchRegisters, RegisterSummary } from "./r
 
 export const registerKey = ["register"] as const;
 
-const PENDING_CODE_REFRESH_MS = 30_000;
-
 export const registerKeys = {
   registers: [...registerKey, "registers"] as const,
   coverage: [...registerKey, "coverage"] as const,
@@ -21,10 +19,6 @@ export function useRegistersQuery(params: {
   return useCloudQuery<RegisterSummary[]>({
     queryKey: registerKeys.registers,
     read: params.fetchRegisters,
-    refetchInterval: (registers) =>
-      registers?.some((register) => register.pendingCode !== null)
-        ? PENDING_CODE_REFRESH_MS
-        : false,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

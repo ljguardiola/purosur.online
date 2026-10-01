@@ -14,6 +14,7 @@ export interface BranchRegister {
 
 export interface BranchRegisters {
   branchRegisters(locationId: string): Promise<BranchRegister[]>;
+  hasRegister(locationId: string, registerId: string): Promise<boolean>;
 }
 
 export interface IssuedEnrollmentCode {
@@ -68,7 +69,7 @@ export interface BranchRegisterStoreTransaction {
   registerNameTaken(locationId: string, name: string): Promise<boolean>;
   recordRegister(register: NewRegister): Promise<{ id: string }>;
   recordRegisterCreation(creation: RegisterCreation): Promise<void>;
-  lockRegister(registerId: string): Promise<LockRegisterResult>;
+  lockBranchRegister(locationId: string, registerId: string): Promise<LockRegisterResult>;
   lockEnrollmentCode(registerId: string): Promise<EnrollmentCodeState | undefined>;
   recordEnrollmentCode(code: NewEnrollmentCode): Promise<void>;
   recordEnrollmentCodeEmission(emission: EnrollmentCodeEmission): Promise<void>;

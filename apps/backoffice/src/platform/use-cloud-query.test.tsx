@@ -31,7 +31,6 @@ type ProbeProps = {
   queryKey?: readonly string[];
   gcTime?: number;
   keepPreviousData?: boolean;
-  refetchInterval?: (value: string | undefined) => number | false;
   read: () => Promise<CloudReadOutcome<string>>;
   onSessionEnded?: () => void;
   onForbidden?: () => void;
@@ -41,7 +40,6 @@ function Probe({
   queryKey = ["probe"],
   gcTime,
   keepPreviousData,
-  refetchInterval,
   read,
   onSessionEnded = () => {},
   onForbidden = () => {},
@@ -53,7 +51,6 @@ function Probe({
     onSessionEnded,
     onForbidden,
     ...(gcTime === undefined ? {} : { gcTime }),
-    ...(refetchInterval === undefined ? {} : { refetchInterval }),
   });
   const client = useQueryClient();
   return (
@@ -590,63 +587,4 @@ test("a read through the cache that asks for no keeping leaves nothing cached on
 
   expect(outcome).toEqual(ok("one"));
   await vi.waitFor(() => expect(client.getQueryData(["probe"])).toBeUndefined());
-});
-
-test("reads again after the interval the value shown asks for", async () => {
-  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
-  try {
-    const read = vi
-      .fn<() => Promise<CloudReadOutcome<string>>>()
-      .mockResolvedValueOnce(ok("one"))
-      .mockResolvedValueOnce(ok("two"));
-    const screen = await render(
-      <Probe read={read} refetchInterval={(value) => (value === "one" ? 30_000 : false)} />,
-    );
-    await expect.element(screen.getByText("loaded:one")).toBeVisible();
-
-    vi.advanceTimersByTime(30_000);
-
-    await expect.element(screen.getByText("loaded:two")).toBeVisible();
-  } finally {
-    vi.useRealTimers();
-  }
-});
-
-test("stops reading again once the value shown asks for no interval", async () => {
-  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
-  try {
-    const read = vi
-      .fn<() => Promise<CloudReadOutcome<string>>>()
-      .mockResolvedValueOnce(ok("one"))
-      .mockResolvedValueOnce(ok("two"));
-    const screen = await render(
-      <Probe read={read} refetchInterval={(value) => (value === "one" ? 30_000 : false)} />,
-    );
-    await expect.element(screen.getByText("loaded:one")).toBeVisible();
-    vi.advanceTimersByTime(30_000);
-    await expect.element(screen.getByText("loaded:two")).toBeVisible();
-
-    vi.advanceTimersByTime(60_000);
-
-    await expect.element(screen.getByText("loaded:two")).toBeVisible();
-    expect(read).toHaveBeenCalledTimes(2);
-  } finally {
-    vi.useRealTimers();
-  }
-});
-
-test("never reads again on its own unless asked for an interval", async () => {
-  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
-  try {
-    const read = vi.fn<() => Promise<CloudReadOutcome<string>>>().mockResolvedValue(ok("one"));
-    const screen = await render(<Probe read={read} />);
-    await expect.element(screen.getByText("loaded:one")).toBeVisible();
-
-    vi.advanceTimersByTime(60_000);
-
-    await expect.element(screen.getByText("loaded:one")).toBeVisible();
-    expect(read).toHaveBeenCalledTimes(1);
-  } finally {
-    vi.useRealTimers();
-  }
 });

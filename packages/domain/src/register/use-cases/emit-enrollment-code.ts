@@ -13,6 +13,7 @@ export interface EmitEnrollmentCodePorts {
 }
 
 export interface EmitEnrollmentCodeInput {
+  locationId: string;
   registerId: string;
   actorId: string;
 }
@@ -28,9 +29,7 @@ export async function emitEnrollmentCode(
   return store.transaction<EmitEnrollmentCodeOutcome>(async (tx) => {
     const now = clock.now();
 
-    // A register always exists, unlike its code before the first emission, so locking the register
-    // first is what serializes two emissions for the same register.
-    const register = await tx.lockRegister(input.registerId);
+    const register = await tx.lockBranchRegister(input.locationId, input.registerId);
     if (register.kind === "not_found") {
       return { kind: "register_not_found" };
     }

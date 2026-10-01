@@ -9,7 +9,7 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { KeySquare, Laptop, Plus } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuthorization } from "../access/authorization-modal";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import { cloudTableState } from "../platform/cloud-table-state";
@@ -17,7 +17,11 @@ import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { type EmissionState, EnrollmentCodeModal } from "./enrollment-code-modal";
 import { NewRegisterModal } from "./new-register-modal";
-import { pendingCodeExpiryText, pendingCodeIssuedText } from "./pending-code-text";
+import {
+  pendingCodeAfter,
+  pendingCodeExpiryText,
+  pendingCodeIssuedText,
+} from "./pending-code-text";
 import { RegisterCoverageNotice } from "./register-coverage-notice";
 import {
   useRefreshRegisters,
@@ -33,6 +37,8 @@ export type RegistersListScreenProps = {
 };
 
 const NO_REGISTERS: RegisterSummary[] = [];
+
+const COUNTDOWN_TICK_SECONDS = 30;
 
 export function RegistersListScreen({ onSessionEnded, services }: RegistersListScreenProps) {
   const sendToMyAccount = useSendToMyAccount();
@@ -56,6 +62,15 @@ export function RegistersListScreen({ onSessionEnded, services }: RegistersListS
       services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
     });
   const latestEmission = useRef(0);
+  const [ticksSinceRead, setTicksSinceRead] = useState(0);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(
+      () => setTicksSinceRead((ticks) => ticks + 1),
+      COUNTDOWN_TICK_SECONDS * 1000,
+    );
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   // Guards a second Enter/Space activation before the first request settles (the modal backdrop
   // blocks other rows).
@@ -111,6 +126,11 @@ export function RegistersListScreen({ onSessionEnded, services }: RegistersListS
   }
 
   const registers = data.status === "loaded" ? data.value : NO_REGISTERS;
+  const [countedRead, setCountedRead] = useState(registers);
+  if (countedRead !== registers) {
+    setCountedRead(registers);
+    setTicksSinceRead(0);
+  }
 
   const columns = [
     dataColumn({
@@ -124,16 +144,19 @@ export function RegistersListScreen({ onSessionEnded, services }: RegistersListS
       id: "installation",
       header: "Instalación",
       render: (item: RegisterSummary) => {
-        if (!item.pendingCode) {
+        const pendingCode =
+          item.pendingCode &&
+          pendingCodeAfter(item.pendingCode, ticksSinceRead * COUNTDOWN_TICK_SECONDS);
+        if (!pendingCode) {
           return <span className="text-text-subtle text-detail">—</span>;
         }
         return (
           <div className="flex flex-col gap-1">
             <span className="text-text text-detail">
-              {pendingCodeIssuedText(item.pendingCode.secondsSinceIssued)}
+              {pendingCodeIssuedText(pendingCode.secondsSinceIssued)}
             </span>
             <span className="text-detail text-warning-strong">
-              {pendingCodeExpiryText(item.pendingCode.secondsUntilExpiry)}
+              {pendingCodeExpiryText(pendingCode.secondsUntilExpiry)}
             </span>
           </div>
         );

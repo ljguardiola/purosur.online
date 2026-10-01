@@ -33,10 +33,10 @@ function previousCode(
   };
 }
 
-function emitForCaja1(store: FakeBranchRegisterStore) {
+function emitForCaja1(store: FakeBranchRegisterStore, locationId = "branch-1") {
   return emitEnrollmentCode(
     { store, clock: new FixedClock(NOW), codes: new SequentialEnrollmentCodes() },
-    { registerId: "register-1", actorId: ACTOR },
+    { locationId, registerId: "register-1", actorId: ACTOR },
   );
 }
 
@@ -118,13 +118,26 @@ describe("emitEnrollmentCode", () => {
     expect(state.codeEmissions).toEqual([]);
   });
 
+  it("refuses a register of another branch, writing nothing", async () => {
+    const store = storeWithCaja1();
+    const replaced = previousCode();
+    store.seedCode(replaced);
+
+    const outcome = await emitForCaja1(store, "branch-2");
+
+    expect(outcome).toEqual({ kind: "register_not_found" });
+    const state = store.snapshot();
+    expect(state.codes).toEqual([replaced]);
+    expect(state.codeEmissions).toEqual([]);
+  });
+
   it("locks the register before its current code, and both before writing, in one transaction", async () => {
     const store = storeWithCaja1();
 
     await emitForCaja1(store);
 
     expect(store.operationOrder).toEqual([
-      "lockRegister",
+      "lockBranchRegister",
       "lockEnrollmentCode",
       "recordEnrollmentCode",
       "recordEnrollmentCodeEmission",

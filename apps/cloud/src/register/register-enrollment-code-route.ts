@@ -38,7 +38,7 @@ export function registerRegisterEnrollmentCodeRoute<TQueryResult extends PgQuery
       const attemptedAt = now();
       const openSession = openSessionOf(request);
 
-      if (!(await store.belongsToBranch(openSession.locationId, request.params.id))) {
+      if (!(await store.hasRegister(openSession.locationId, request.params.id))) {
         await reply.code(404).send(REGISTER_NOT_FOUND_RESPONSE);
         return;
       }
@@ -49,7 +49,11 @@ export function registerRegisterEnrollmentCodeRoute<TQueryResult extends PgQuery
 
       const outcome = await emitEnrollmentCode(
         { store, clock: { now: () => attemptedAt }, codes: secretEnrollmentCodes },
-        { registerId: request.params.id, actorId: openSession.userId },
+        {
+          locationId: openSession.locationId,
+          registerId: request.params.id,
+          actorId: openSession.userId,
+        },
       );
 
       if (outcome.kind === "register_not_found") {

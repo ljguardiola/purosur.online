@@ -122,6 +122,35 @@ async function insertRegister(locationId: string, name: string): Promise<string>
   return register.id;
 }
 
+function withChangeAfterRegisterCheck(change: () => Promise<unknown>): TestDatabase["db"] {
+  let registerChecked = false;
+  let changed = false;
+  return new Proxy(db, {
+    get(target, property) {
+      const value = Reflect.get(target, property);
+      if (property === "select") {
+        return function (this: unknown, ...args: unknown[]) {
+          const [fields] = args;
+          if (typeof fields === "object" && fields !== null && "id" in fields) {
+            registerChecked ||= fields.id === registers.id;
+          }
+          return Reflect.apply(value, this, args);
+        };
+      }
+      if (property === "transaction") {
+        return async function (this: unknown, ...args: unknown[]) {
+          if (registerChecked && !changed) {
+            changed = true;
+            await change();
+          }
+          return Reflect.apply(value, this, args);
+        };
+      }
+      return value;
+    },
+  });
+}
+
 function cookieHeader(rawSessionId: string): Record<string, string> {
   return { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` };
 }
@@ -228,6 +257,28 @@ describe("POST /registers/:id/device-codes", () => {
     const rawSessionId = await insertSession(userId);
 
     const response = await emitCode(otherRegisterId, rawSessionId);
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "not_found" });
+    expect(await db.select().from(registerEnrollmentCodes)).toHaveLength(0);
+  });
+
+  it("returns 404 not_found for a register removed after its check and before the emission, changing nothing", async () => {
+    const locationId = await seededLocationId(db);
+    const registerId = await insertRegister(locationId, "Caja 1");
+    const userId = await insertUserWithPermission(locationId);
+    const rawSessionId = await insertSession(userId);
+    await app.close();
+    app = Fastify();
+    registerRegisterEnrollmentCodeRoute(app, {
+      db: withChangeAfterRegisterCheck(() =>
+        db.delete(registers).where(eq(registers.id, registerId)),
+      ),
+      backofficeOrigin: BACKOFFICE_ORIGIN,
+      now: () => NOON,
+    });
+
+    const response = await emitCode(registerId, rawSessionId);
 
     expect(response.statusCode).toBe(404);
     expect(response.json()).toMatchObject({ code: "not_found" });

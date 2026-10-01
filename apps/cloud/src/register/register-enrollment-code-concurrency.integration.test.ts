@@ -29,14 +29,14 @@ beforeAll(async () => {
   db = drizzle(sql);
 }, 60_000);
 
-function emitAt(registerId: string, actorId: string, now: Date) {
+function emitAt(locationId: string, registerId: string, actorId: string, now: Date) {
   return emitEnrollmentCode(
     {
       store: new DrizzleBranchRegisterStore(db),
       clock: { now: () => now },
       codes: secretEnrollmentCodes,
     },
-    { registerId, actorId },
+    { locationId, registerId, actorId },
   );
 }
 
@@ -73,8 +73,8 @@ describe("emitting two enrollment codes for a register with no code yet concurre
       await holder`begin`;
       await holder`lock table register_enrollment_codes in share mode`;
       emissions = [
-        emitAt(register.id, actor.id, firstNow),
-        emitAt(register.id, actor.id, secondNow),
+        emitAt(locationId, register.id, actor.id, firstNow),
+        emitAt(locationId, register.id, actor.id, secondNow),
       ];
       await waitForLockWaiters(adminSql, 2);
     } finally {

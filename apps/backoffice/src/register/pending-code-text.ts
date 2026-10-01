@@ -14,3 +14,13 @@ export function pendingCodeIssuedText(secondsSinceIssued: number): string {
 export function pendingCodeExpiryText(secondsUntilExpiry: number): string {
   return `Vence en ${minutes(Math.ceil(secondsUntilExpiry / 60))}`;
 }
+
+export function pendingCodeAfter(
+  pendingCode: { secondsSinceIssued: number; secondsUntilExpiry: number },
+  secondsPassed: number,
+): { secondsSinceIssued: number; secondsUntilExpiry: number } | null {
+  const secondsUntilExpiry = pendingCode.secondsUntilExpiry - secondsPassed;
+  return secondsUntilExpiry > 0
+    ? { secondsSinceIssued: pendingCode.secondsSinceIssued + secondsPassed, secondsUntilExpiry }
+    : null;
+}

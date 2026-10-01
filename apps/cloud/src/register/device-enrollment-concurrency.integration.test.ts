@@ -94,12 +94,13 @@ describe("emitting a new code while the current one is being redeemed, on a real
   it("lets both finish instead of deadlocking on the register row", async () => {
     await db.delete(registerEnrollmentCodes);
     const registerId = await insertRegisterWithCode();
+    const locationId = await seededLocationId(db);
     const [actor] = await db
       .insert(users)
       .values({
         firstName: "Ada Lovelace",
         email: `ada-${randomUUID()}@example.com`,
-        locationId: await seededLocationId(db),
+        locationId,
       })
       .returning({ id: users.id });
     if (!actor) {
@@ -123,7 +124,7 @@ describe("emitting a new code while the current one is being redeemed, on a real
           clock: { now: () => new Date() },
           codes: secretEnrollmentCodes,
         },
-        { registerId, actorId: actor.id },
+        { locationId, registerId, actorId: actor.id },
       );
       await waitForLockWaiters(adminSql, 2);
     } finally {

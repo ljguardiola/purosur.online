@@ -85,14 +85,14 @@ class DrizzleBranchRegisterStoreTransaction<TQueryResult extends PgQueryResultHK
 
   // NO KEY UPDATE leaves the foreign-key check of an enrollment redeeming this register's code free
   // to proceed, instead of deadlocking.
-  async lockRegister(registerId: string): Promise<LockRegisterResult> {
+  async lockBranchRegister(locationId: string, registerId: string): Promise<LockRegisterResult> {
     if (!UUID_PATTERN.test(registerId)) {
       return { kind: "not_found" };
     }
     const [register] = await this.tx
       .select({ id: registers.id })
       .from(registers)
-      .where(eq(registers.id, registerId))
+      .where(and(eq(registers.id, registerId), eq(registers.locationId, locationId)))
       .for("no key update");
     return register ? { kind: "locked" } : { kind: "not_found" };
   }
@@ -183,7 +183,7 @@ export class DrizzleBranchRegisterStore<TQueryResult extends PgQueryResultHKT>
     }));
   }
 
-  async belongsToBranch(locationId: string, registerId: string): Promise<boolean> {
+  async hasRegister(locationId: string, registerId: string): Promise<boolean> {
     if (!UUID_PATTERN.test(registerId)) {
       return false;
     }
