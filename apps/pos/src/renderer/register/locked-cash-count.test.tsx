@@ -15,7 +15,7 @@ import { LockedCashCount } from "./locked-cash-count";
 const GRACE: SignedInPerson = {
   user_id: "u2",
   first_name: "Grace",
-  permission_keys: ["sell_and_charge"],
+  abilities: ["open_cash_session"],
 };
 const OPENED_AT = "2026-09-30T12:02:00.000Z";
 const BALANCE: CashBalance = {

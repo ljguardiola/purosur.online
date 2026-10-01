@@ -1,16 +1,11 @@
-import type { PermissionKey } from "@purosur/domain";
+import type { RegisterAbility } from "@purosur/domain";
 import type { RegisteredRouter } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
-
-type NoSessionPermission = Extract<
-  PermissionKey,
-  "view_sales_history" | "reprint_receipt" | "correct_register_clock" | "record_initial_inventory"
->;
 
 export type ActionEntry = {
   label: string;
   icon: LucideIcon;
-  permission: NoSessionPermission;
+  ability: Exclude<RegisterAbility, "open_cash_session">;
   to: keyof RegisteredRouter["routesByPath"];
 };
 
@@ -18,7 +13,7 @@ export const ACTION_ENTRIES: readonly ActionEntry[] = [];
 
 export function entriesFor(
   entries: readonly ActionEntry[],
-  permissionKeys: readonly string[],
+  abilities: readonly RegisterAbility[],
 ): ActionEntry[] {
-  return entries.filter((entry) => permissionKeys.includes(entry.permission));
+  return entries.filter((entry) => abilities.includes(entry.ability));
 }

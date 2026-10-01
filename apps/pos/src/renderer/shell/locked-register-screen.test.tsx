@@ -6,7 +6,7 @@ import type { SignedInPerson } from "../access/signed-in-person";
 import { LockedRegisterScreen } from "./locked-register-screen";
 import { render } from "./test-support/render-with-router";
 
-const OPENER: SignedInPerson = { user_id: "u1", first_name: "Ada", permission_keys: [] };
+const OPENER: SignedInPerson = { user_id: "u1", first_name: "Ada", abilities: [] };
 const OPENED_AT = "2026-09-30T12:02:00.000Z";
 
 function answering(outcome: SignInOutcome) {

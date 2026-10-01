@@ -3,26 +3,27 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { History } from "lucide-react";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import type { SignedInPerson } from "../access/signed-in-person";
 import type { ActionEntry } from "./action-entries";
 import { NoSessionScreen } from "./no-session-screen";
 import { render } from "./test-support/render-with-router";
 
-const PERSON = {
+const PERSON: SignedInPerson = {
   user_id: "u1",
   first_name: "Ada",
-  permission_keys: ["view_sales_history", "void_sale"],
+  abilities: ["view_sales_history"],
 };
 
 const HISTORY: ActionEntry = {
   label: "Historial",
   icon: History,
-  permission: "view_sales_history",
+  ability: "view_sales_history",
   to: "/sign-in",
 };
 const REPRINT: ActionEntry = {
   label: "Reimprimir",
   icon: History,
-  permission: "reprint_receipt",
+  ability: "reprint_receipt",
   to: "/sign-in",
 };
 
@@ -135,7 +136,7 @@ describe("NoSessionScreen", () => {
     );
     const screen = await render(
       <NoSessionScreen
-        person={{ ...PERSON, permission_keys: ["sell_and_charge"] }}
+        person={{ ...PERSON, abilities: ["open_cash_session"] }}
         registerName={null}
         entries={[]}
         signOut={vi.fn()}

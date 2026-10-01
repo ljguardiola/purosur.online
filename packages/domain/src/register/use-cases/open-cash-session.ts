@@ -1,6 +1,6 @@
-import { holdsPermission } from "../../access/index.js";
 import { isValidCashAmount } from "../model/cash-amount.js";
 import type { OpenedCashSession } from "../model/cash-session.js";
+import { registerOperationAccess } from "../model/register-operation.js";
 import type { CashLedger, IdGenerator } from "./cash-ledger.js";
 import type { Clock } from "./register-store.js";
 
@@ -31,8 +31,8 @@ export function openCashSession(
   }
 
   return ledger.transaction<OpenCashSessionOutcome>((tx) => {
-    const access = tx.openerAccess(openerId);
-    if (!access || !holdsPermission(access, "sell_and_charge")) {
+    const opener = { id: openerId, access: tx.openerAccess(openerId) };
+    if (registerOperationAccess({ kind: "open_cash_session" }, opener).kind !== "permitted") {
       return { kind: "not_permitted" };
     }
     if (tx.openSession()) {
