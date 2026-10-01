@@ -1,12 +1,18 @@
 import { describe, expect, it } from "vitest";
+import {
+  ANOTHER_FICTIONAL_CUIT,
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "../test-support/fictional-tax-identities.js";
 import { recordAuthorizedCuit } from "./record-authorized-cuit.js";
 import { FakeIssuerIdentificationStore } from "./test-support/fake-issuer-identification-store.js";
 
 const saved = {
-  legalName: "Comercio de Prueba",
-  grossIncomeRegistration: "CM 000-000000-0",
+  legalName: FICTIONAL_LEGAL_NAME,
+  grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
   activityStartDate: "2020-01-15",
-  authorizedCuit: "20-00000000-1",
+  authorizedCuit: FICTIONAL_CUIT,
   version: 3,
 };
 
@@ -15,7 +21,7 @@ describe("recordAuthorizedCuit", () => {
     const store = new FakeIssuerIdentificationStore(saved);
     const before = store.snapshot();
 
-    const outcome = await recordAuthorizedCuit({ store }, { authorizedCuit: "20-00000000-1" });
+    const outcome = await recordAuthorizedCuit({ store }, { authorizedCuit: FICTIONAL_CUIT });
 
     expect(outcome).toEqual({ kind: "unchanged" });
     expect(store.snapshot()).toEqual(before);
@@ -23,7 +29,7 @@ describe("recordAuthorizedCuit", () => {
   });
 
   it.each([
-    ["another CUIT", "20-00000000-1"],
+    ["another CUIT", FICTIONAL_CUIT],
     ["no CUIT", null],
   ])(
     "records a new version keeping every other value when the identification is under %s",
@@ -31,9 +37,12 @@ describe("recordAuthorizedCuit", () => {
       const previous = { ...saved, authorizedCuit: previousCuit };
       const store = new FakeIssuerIdentificationStore(previous);
 
-      const outcome = await recordAuthorizedCuit({ store }, { authorizedCuit: "20-11111111-2" });
+      const outcome = await recordAuthorizedCuit(
+        { store },
+        { authorizedCuit: ANOTHER_FICTIONAL_CUIT },
+      );
 
-      const next = { ...saved, authorizedCuit: "20-11111111-2", version: 4 };
+      const next = { ...saved, authorizedCuit: ANOTHER_FICTIONAL_CUIT, version: 4 };
       expect(outcome).toEqual({ kind: "recorded", version: 4 });
       expect(store.snapshot()).toEqual({
         current: next,
@@ -45,7 +54,7 @@ describe("recordAuthorizedCuit", () => {
   it("reads the current identification before it records, in one transaction", async () => {
     const store = new FakeIssuerIdentificationStore(saved);
 
-    await recordAuthorizedCuit({ store }, { authorizedCuit: "20-11111111-2" });
+    await recordAuthorizedCuit({ store }, { authorizedCuit: ANOTHER_FICTIONAL_CUIT });
 
     expect(store.operationOrder).toEqual([
       "lockCurrentIssuerIdentification",

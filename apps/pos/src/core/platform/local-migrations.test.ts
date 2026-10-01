@@ -412,6 +412,7 @@ describe("the register's local migrations", () => {
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0013_sale_line_removals",
         "0014_fiscal_configuration",
+        "0015_pre_emission_gate_outcomes",
       ]);
       const before = openLocalDatabase(path, previous);
       before
@@ -779,6 +780,7 @@ describe("the register's local migrations", () => {
       expect(previous.at(-1)?.name).toBe("0013_sale_line_removals");
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0014_fiscal_configuration",
+        "0015_pre_emission_gate_outcomes",
       ]);
       const before = openLocalDatabase(path, previous);
       before
@@ -807,6 +809,44 @@ describe("the register's local migrations", () => {
       ]) {
         expect(after.prepare(`SELECT count(*) AS total FROM ${table}`).get()).toEqual({ total: 0 });
       }
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("add the pre-emission gate outcomes over the completed sales a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(0, 15);
+      expect(previous.at(-1)?.name).toBe("0014_fiscal_configuration");
+      expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
+        "0015_pre_emission_gate_outcomes",
+      ]);
+      const before = openLocalDatabase(path, previous);
+      before
+        .prepare(
+          `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+           VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN')`,
+        )
+        .run();
+      before
+        .prepare(
+          `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+           VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-09-30T12:05:00.000Z')`,
+        )
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+
+      expect(after.prepare("SELECT id, state FROM sales").all()).toEqual([
+        { id: "sale-1", state: "COMPLETED" },
+      ]);
+      expect(
+        after.prepare("SELECT count(*) AS total FROM pre_emission_gate_outcomes").get(),
+      ).toEqual({ total: 0 });
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });

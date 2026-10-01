@@ -1,3 +1,8 @@
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -181,10 +186,10 @@ test.each(["/help", "/users", "/products", "/fiscal-settings"])(
     vi.mocked(services.fiscalConfigurationScreen.fetchIssuerIdentification).mockResolvedValue({
       kind: "ok",
       value: {
-        legalName: "María Laura Fernández",
-        grossIncomeRegistration: "1284531-06",
+        legalName: FICTIONAL_LEGAL_NAME,
+        grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
         activityStartDate: "2019-03-01",
-        authorizedCuit: "27-28453196-0",
+        authorizedCuit: FICTIONAL_CUIT,
         taxStatus: "Responsable Monotributo",
         version: 1,
       },

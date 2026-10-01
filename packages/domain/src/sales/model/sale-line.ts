@@ -50,6 +50,6 @@ function priced(
   return { ...line, quantity, promotionId, discountAmount, lineTotal };
 }
 
-export function saleTotal(lines: readonly SaleLine[]): number {
+export function saleTotal(lines: readonly Pick<SaleLine, "lineTotal">[]): number {
   return lines.reduce((total, line) => total + line.lineTotal, 0);
 }
