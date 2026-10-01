@@ -225,7 +225,7 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
 
     const { categoryIdsByDepth, productIds: sampleProductIds } = await findSampleCatalogRows(tx);
 
-    // A closed source-address alert has its scope replaced by its hash (alert-close-route.ts), so
+    // A closed source-address alert has its scope replaced by its hash when it is closed, so
     // both forms are matched here to still find one after it's been closed.
     const sampleLockoutScopes = [
       SAMPLE_LOCKOUT_SOURCE_ADDRESSES.keptOpen,

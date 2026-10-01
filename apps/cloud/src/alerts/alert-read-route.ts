@@ -1,7 +1,6 @@
 import { type AlertDetail, alertDetailSchema } from "@purosur/contracts";
-import type { AlertAudience, AlertLevel } from "@purosur/domain";
-import { and, asc, eq } from "drizzle-orm";
-import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import type { AlertDelivery, AlertDetailView } from "@purosur/domain/alerts/use-cases";
+import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
 import { FORBIDDEN_RESPONSE } from "../access/forbidden-response.js";
@@ -11,54 +10,15 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { alertDeliveries, alerts, roles, userRoles, users } from "../platform/db/schema.js";
-import {
-  holdsOnlySourceAddressHash,
-  loadScopeDisplayNames,
-  scopeDisplay,
-  wireScope,
-} from "./alert-scope-display.js";
-import {
-  type AlertViewerAccess,
-  canSeeAnyAlerts,
-  visibleAlertsCondition,
-} from "./alert-visibility.js";
+import { visibleSightOf } from "./alert-route-sight.js";
+import { holdsOnlySourceAddressHash, scopeDisplay, wireScope } from "./alert-scope-wire.js";
 import type { AlertsRouteOptions } from "./alerts-list-route.js";
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { DrizzleAlertReader } from "./drizzle-alert-reader.js";
 
 export const ALERT_NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no alert with that id",
 } as const;
-
-export interface AlertDetailRow {
-  id: string;
-  kind: string;
-  scope: string;
-  level: AlertLevel;
-  audience: AlertAudience;
-  locationId: string | null;
-  detail: Record<string, unknown>;
-  openedAt: Date;
-  escalateAt: Date | null;
-  escalatedAt: Date | null;
-  resolvedAt: Date | null;
-  resolvedBy: string | null;
-}
-
-export interface AlertDeliveryRow {
-  id: string;
-  channel: string;
-  status: string;
-  error: string | null;
-  createdAt: Date;
-  recipientId: string;
-  recipientFirstName: string;
-  recipientRoleId: string;
-  recipientRoleName: string | null;
-  recipientRoleIsAdministrator: boolean;
-}
 
 function detailWithActorName(
   detail: Record<string, unknown>,
@@ -72,7 +32,7 @@ function detailWithActorName(
   return actorName === undefined ? detail : { ...detail, actorName };
 }
 
-function toAlertDelivery(row: AlertDeliveryRow): AlertDetail["deliveries"][number] {
+function toAlertDelivery(row: AlertDelivery): AlertDetail["deliveries"][number] {
   return {
     channel: row.channel,
     status: row.status,
@@ -90,7 +50,7 @@ function toAlertDelivery(row: AlertDeliveryRow): AlertDetail["deliveries"][numbe
   };
 }
 
-function detailWithoutSourceAddressHash(alert: AlertDetailRow): Record<string, unknown> {
+function detailWithoutSourceAddressHash(alert: AlertDetailView): Record<string, unknown> {
   if (!holdsOnlySourceAddressHash(alert)) {
     return alert.detail;
   }
@@ -99,8 +59,8 @@ function detailWithoutSourceAddressHash(alert: AlertDetailRow): Record<string, u
 }
 
 export function toAlertDetailBody(
-  alert: AlertDetailRow,
-  deliveries: AlertDeliveryRow[],
+  alert: AlertDetailView,
+  deliveries: AlertDelivery[],
   namesById: ReadonlyMap<string, string>,
 ): AlertDetail {
   return alertDetailSchema.parse({
@@ -116,59 +76,6 @@ export function toAlertDetailBody(
     resolvedAt: alert.resolvedAt?.toISOString() ?? null,
     deliveries: deliveries.map(toAlertDelivery),
   });
-}
-
-export async function findAlertById<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  id: string,
-  access: AlertViewerAccess,
-): Promise<AlertDetailRow | undefined> {
-  if (!UUID_PATTERN.test(id)) {
-    return undefined;
-  }
-  const [row] = await db
-    .select({
-      id: alerts.id,
-      kind: alerts.kind,
-      scope: alerts.scope,
-      level: alerts.level,
-      audience: alerts.audience,
-      locationId: alerts.locationId,
-      detail: alerts.detail,
-      openedAt: alerts.openedAt,
-      escalateAt: alerts.escalateAt,
-      escalatedAt: alerts.escalatedAt,
-      resolvedAt: alerts.resolvedAt,
-      resolvedBy: alerts.resolvedBy,
-    })
-    .from(alerts)
-    .where(and(eq(alerts.id, id), visibleAlertsCondition(access)));
-  return row;
-}
-
-export async function listAlertDeliveries<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  alertId: string,
-): Promise<AlertDeliveryRow[]> {
-  return db
-    .select({
-      id: alertDeliveries.id,
-      channel: alertDeliveries.channel,
-      status: alertDeliveries.status,
-      error: alertDeliveries.error,
-      createdAt: alertDeliveries.createdAt,
-      recipientId: users.id,
-      recipientFirstName: users.firstName,
-      recipientRoleId: roles.id,
-      recipientRoleName: roles.name,
-      recipientRoleIsAdministrator: roles.isAdministrator,
-    })
-    .from(alertDeliveries)
-    .innerJoin(users, eq(users.id, alertDeliveries.recipientUserId))
-    .innerJoin(userRoles, eq(userRoles.userId, users.id))
-    .innerJoin(roles, eq(roles.id, userRoles.roleId))
-    .where(eq(alertDeliveries.alertId, alertId))
-    .orderBy(asc(alertDeliveries.createdAt), asc(alertDeliveries.id));
 }
 
 export function registerAlertReadRoute<TQueryResult extends PgQueryResultHKT>(
@@ -187,25 +94,27 @@ export function registerAlertReadRoute<TQueryResult extends PgQueryResultHKT>(
     },
     async (request, reply) => {
       const openSession = openSessionOf(request);
-      if (!canSeeAnyAlerts(openSession)) {
+      const sight = visibleSightOf(openSession);
+      if (!sight) {
         await reply.code(403).send(FORBIDDEN_RESPONSE);
         return;
       }
 
-      const alert = await findAlertById(options.db, request.params.id, openSession);
+      const reader = new DrizzleAlertReader(options.db);
+      const alert = await reader.findVisibleAlert(sight, request.params.id);
       if (!alert) {
         await reply.code(404).send(ALERT_NOT_FOUND_RESPONSE);
         return;
       }
 
-      const deliveries = await listAlertDeliveries(options.db, alert.id);
-      const namesById = await loadScopeDisplayNames(options.db, idsToResolve(alert));
+      const deliveries = await reader.deliveriesOf(alert.id);
+      const namesById = await reader.displayNames(idsToResolve(alert));
       await reply.code(200).send(toAlertDetailBody(alert, deliveries, namesById));
     },
   );
 }
 
-export function idsToResolve(alert: Pick<AlertDetailRow, "scope" | "detail">): string[] {
+export function idsToResolve(alert: Pick<AlertDetailView, "scope" | "detail">): string[] {
   const actorId = alert.detail["actorId"];
   return typeof actorId === "string" ? [alert.scope, actorId] : [alert.scope];
 }

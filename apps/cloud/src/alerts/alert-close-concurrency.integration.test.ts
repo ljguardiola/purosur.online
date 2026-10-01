@@ -1,7 +1,9 @@
+import { closeAlert } from "@purosur/domain/alerts/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { hashSourceAddress } from "../access/sign-in-lockout.js";
 import { alerts, auditLog, roles, users } from "../platform/db/schema.js";
 import {
   createIntegrationDatabase,
@@ -9,7 +11,7 @@ import {
 } from "../test-support/integration-database.js";
 import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { closeAlert } from "./alert-close-route.js";
+import { DrizzleAlertStore } from "./drizzle-alert-store.js";
 
 // PGlite serves every query on one connection, so these races need a real Postgres.
 const NOON = new Date("2026-01-05T12:00:00.000Z");
@@ -28,6 +30,14 @@ afterAll(async () => {
   await sql.end({ timeout: 1 });
   await integrationDb.close();
 });
+
+function closingPorts(now: () => Date) {
+  return {
+    store: new DrizzleAlertStore(db),
+    clock: { now },
+    hasher: { hash: hashSourceAddress },
+  };
+}
 
 async function insertActor(name: string): Promise<string> {
   const locationId = await seededLocationId(db);
@@ -79,12 +89,18 @@ describe("closing the same alert from two actors at once on a real Postgres", ()
     const [firstOutcome, secondOutcome] = await runQueuedBehindHeldLock(
       sql,
       (holder) => holder`select id from alerts where id = ${alertId} for update`,
-      () => closeAlert(db, { id: alertId, actorId: firstActorId }, { now: () => NOON }),
       () =>
         closeAlert(
-          db,
-          { id: alertId, actorId: secondActorId },
-          { now: () => new Date(NOON.getTime() + 1_000) },
+          closingPorts(() => NOON),
+          { alertId, closedBy: firstActorId },
+        ),
+      () =>
+        closeAlert(
+          closingPorts(() => new Date(NOON.getTime() + 1_000)),
+          {
+            alertId,
+            closedBy: secondActorId,
+          },
         ),
     );
 

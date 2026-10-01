@@ -22,6 +22,7 @@ import { openAlert } from "./open-alert.js";
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const SOURCE_ADDRESS = "203.0.113.5";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
+const BLOCKED_UNTIL = "2026-01-05T12:15:00.000Z";
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -233,7 +234,7 @@ describe("PUT /alerts/:id/closure", () => {
         {
           kind: "backoffice_sign_in_lockout",
           scope: SOURCE_ADDRESS,
-          detail: { sourceAddress: SOURCE_ADDRESS, failureCount: 6 },
+          detail: { sourceAddress: SOURCE_ADDRESS, failureCount: 6, blockedUntil: BLOCKED_UNTIL },
         },
         { now: () => NOON },
       ),
@@ -253,7 +254,11 @@ describe("PUT /alerts/:id/closure", () => {
     const [row] = await db.select().from(alerts).where(eq(alerts.id, opened.alertId));
     expect(row).toMatchObject({
       scope: hashSourceAddress(SOURCE_ADDRESS),
-      detail: { sourceAddress: hashSourceAddress(SOURCE_ADDRESS), failureCount: 6 },
+      detail: {
+        sourceAddress: hashSourceAddress(SOURCE_ADDRESS),
+        failureCount: 6,
+        blockedUntil: BLOCKED_UNTIL,
+      },
     });
   });
 
@@ -264,7 +269,7 @@ describe("PUT /alerts/:id/closure", () => {
     const lockout = {
       kind: "backoffice_sign_in_lockout",
       scope: SOURCE_ADDRESS,
-      detail: { sourceAddress: SOURCE_ADDRESS, failureCount: 6 },
+      detail: { sourceAddress: SOURCE_ADDRESS, failureCount: 6, blockedUntil: BLOCKED_UNTIL },
     } as const;
     const first = await db.transaction((tx) => openAlert(tx, lockout, { now: () => NOON }));
     const duplicate = await db.transaction((tx) => openAlert(tx, lockout, { now: () => NOON }));

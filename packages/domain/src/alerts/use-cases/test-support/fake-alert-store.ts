@@ -25,7 +25,7 @@ export interface FakeAlertViewer extends AlertRecipientCandidate {
   active: boolean;
 }
 
-export interface FakeAlertDelivery {
+interface FakeAlertDelivery {
   alertId: string;
   recipientUserId: string;
 }

@@ -1,4 +1,5 @@
 import { argentinaCalendarDay } from "@purosur/domain";
+import { closeAlert, escalateOverdueAlerts } from "@purosur/domain/alerts/use-cases";
 import {
   createCategory,
   createProduct,
@@ -11,11 +12,14 @@ import { createRegister } from "@purosur/domain/register/use-cases";
 import { and, eq, like, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { createRole } from "../access/role-creation-route.js";
-import { SIGN_IN_BLOCK_DURATION_MS, SIGN_IN_FAILURE_LIMIT } from "../access/sign-in-lockout.js";
+import {
+  hashSourceAddress,
+  SIGN_IN_BLOCK_DURATION_MS,
+  SIGN_IN_FAILURE_LIMIT,
+} from "../access/sign-in-lockout.js";
 import { createUser } from "../access/user-creation-route.js";
 import { deactivateUser } from "../access/user-deactivation-route.js";
-import { closeAlert } from "../alerts/alert-close-route.js";
-import { escalateOverdueAlerts } from "../alerts/alert-escalation.js";
+import { DrizzleAlertStore } from "../alerts/drizzle-alert-store.js";
 import { openAlert } from "../alerts/open-alert.js";
 import { editBranchSettings } from "../branch/branch-settings-edit-route.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
@@ -46,6 +50,7 @@ const SAMPLE_DATA_ADVISORY_LOCK_KEY = 875_320;
 
 const OVERDUE_PRICE_REVIEW_AGE_MS = 60 * 24 * 60 * 60 * 1000;
 const ESCALATION_ELIGIBLE_ALERT_AGE_MS = 25 * 60 * 60 * 1000;
+const RECOVERY_LINK_LIFETIME_MS = 15 * 60 * 1000;
 
 class SampleDataCollisionError extends Error {}
 
@@ -382,9 +387,22 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
       );
       expectOutcome(warningOpenOutcome, "opened", "the open warning alert");
 
+      const openingPorts = { store: new DrizzleAlertStore(tx), clock: { now: deps.now } };
+      const closingPorts = { ...openingPorts, hasher: { hash: hashSourceAddress } };
+      const recoveryRequestedAt = deps.now();
       const warningToCloseOutcome = await openAlert(
         tx,
-        { kind: "backoffice_recovery_requested", scope: recoveryRequestedTargetId, detail: {} },
+        {
+          kind: "backoffice_recovery_requested",
+          scope: recoveryRequestedTargetId,
+          detail: {
+            requestedAt: recoveryRequestedAt.toISOString(),
+            issuedAt: recoveryRequestedAt.toISOString(),
+            expiresAt: new Date(
+              recoveryRequestedAt.getTime() + RECOVERY_LINK_LIFETIME_MS,
+            ).toISOString(),
+          },
+        },
         { now: deps.now },
       );
       const warningToClose = expectOutcome(
@@ -392,11 +410,10 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         "opened",
         "the warning alert to close",
       );
-      const closedWarningOutcome = await closeAlert(
-        tx,
-        { id: warningToClose.alertId, actorId },
-        { now: deps.now },
-      );
+      const closedWarningOutcome = await closeAlert(closingPorts, {
+        alertId: warningToClose.alertId,
+        closedBy: actorId,
+      });
       expectOutcome(closedWarningOutcome, "closed", "closing the warning alert");
 
       const escalationEligibleMoment = new Date(
@@ -433,17 +450,16 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         "opened",
         "the critical alert to close",
       );
-      const escalatedCount = await escalateOverdueAlerts(tx, { now: deps.now });
+      const escalatedCount = await escalateOverdueAlerts(openingPorts);
       if (escalatedCount < 2) {
         throw new Error(
           `sample-data: expected at least 2 alerts to escalate to critical, only ${escalatedCount} did`,
         );
       }
-      const closedCriticalOutcome = await closeAlert(
-        tx,
-        { id: toCloseLockout.alertId, actorId },
-        { now: deps.now },
-      );
+      const closedCriticalOutcome = await closeAlert(closingPorts, {
+        alertId: toCloseLockout.alertId,
+        closedBy: actorId,
+      });
       expectOutcome(closedCriticalOutcome, "closed", "closing the critical alert");
       await pending.log(tx);
 

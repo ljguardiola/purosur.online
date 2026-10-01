@@ -1,9 +1,9 @@
 import { EventEmitter } from "node:events";
 import type { Pool } from "pg";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ALERT_ESCALATION_TASK_IDENTIFIER } from "../alerts/alert-escalation-task.js";
 import type { AccessEmailSender } from "./recovery-email-sender.js";
 import {
-  ALERT_ESCALATION_TASK_IDENTIFIER,
   FIRST_PIN_CODE_EMAIL_TASK_IDENTIFIER,
   RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER,
   RECOVERY_REQUEST_TASK_IDENTIFIER,
