@@ -795,6 +795,7 @@ describe("App", () => {
               },
             ],
             total: 238_000,
+            charge_refusal: null,
           };
         },
       },
@@ -831,6 +832,7 @@ describe("App", () => {
             },
           ],
           total: 238_000,
+          charge_refusal: null,
         }),
         cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 12_000 }),
         chargeSaleInCash: async (saleId, tendered) => {
@@ -876,7 +878,12 @@ describe("App", () => {
         currentSale: () => {
           reads += 1;
           return reads <= 2
-            ? Promise.resolve({ id: "sale-1", lines: [yerba], total: 238_000 })
+            ? Promise.resolve({
+                id: "sale-1",
+                lines: [yerba],
+                total: 238_000,
+                charge_refusal: null,
+              })
             : new Promise(() => {});
         },
         cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 12_000 }),
