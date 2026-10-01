@@ -355,6 +355,19 @@ describe("CashChargeModal", () => {
       .toBeVisible();
   });
 
+  it.each([
+    { kind: "reaches_buyer_identification_threshold", threshold: 476_000 },
+    { kind: "no_buyer_identification_threshold" },
+  ] as const)("leaves the charge for the sale screen when the core answers %j", async (outcome) => {
+    const { field, complete, callbacks } = await renderModal(async () => outcome);
+
+    await userEvent.fill(field, "5.000,00");
+    await userEvent.click(complete);
+
+    await expect.poll(() => callbacks.onSaleUnavailable.mock.calls.length).toBe(1);
+    expect(callbacks.onCompleted).not.toHaveBeenCalled();
+  });
+
   it.each([["empty_sale"], ["zero_total"], ["no_open_sale"], ["not_permitted"]] as const)(
     "leaves the charge for the sale screen when the core answers %s",
     async (kind) => {

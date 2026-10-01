@@ -1,6 +1,7 @@
 import type { RoleAccess } from "../../access/index.js";
 import type { SaleUnit } from "../../catalog/index.js";
 import type {
+  BuyerIdentificationThreshold,
   BuyerTaxStatusOption,
   IssuerIdentificationInEffect,
   PreEmissionGateOutcome,
@@ -59,6 +60,7 @@ export interface SaleLedgerTransaction {
   activeProductByBarcode(code: string): SellableProduct | undefined;
   activeProductById(productId: string): SellableProduct | undefined;
   searchableProducts(): SearchableProduct[];
+  buyerIdentificationThresholds(): BuyerIdentificationThreshold[];
   priceAt(productId: string, moment: Date): ListPrice | undefined;
   promotionsTargeting(productId: string): CandidatePromotion[];
   recordOpenedSale(sale: Sale): void;

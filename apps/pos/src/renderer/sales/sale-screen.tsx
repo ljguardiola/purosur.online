@@ -380,6 +380,7 @@ export function SaleScreen({
       <PaymentPanel
         lineCount={sale?.lines.length ?? 0}
         total={sale?.total ?? 0}
+        chargeRefusal={sale?.charge_refusal ?? null}
         canCancel={sale !== null && !editing}
         onCharge={() => void navigate({ to: "/charge" })}
         onCancel={() => askToCancel(true)}

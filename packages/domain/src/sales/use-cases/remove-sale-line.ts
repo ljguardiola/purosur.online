@@ -1,4 +1,6 @@
+import type { ChargeRefusal } from "../../fiscal/index.js";
 import type { SaleWithLines } from "../model/sale.js";
+import { saleChargeRefusal } from "./sale-charge-refusal.js";
 import type { Clock, IdGenerator, SaleLedger } from "./sale-ledger.js";
 import { isRefusal, sellingSession } from "./selling-session.js";
 
@@ -18,7 +20,7 @@ export type RemoveSaleLineOutcome =
   | { kind: "no_open_session" }
   | { kind: "no_open_sale" }
   | { kind: "unknown_line" }
-  | { kind: "removed"; sale: SaleWithLines };
+  | { kind: "removed"; sale: SaleWithLines; chargeRefusal: ChargeRefusal | undefined };
 
 export function removeSaleLine(
   { ledger, clock, ids }: RemoveSaleLinePorts,
@@ -49,9 +51,11 @@ export function removeSaleLine(
       occurredAt: clock.now(),
     });
     tx.deleteSaleLine(line.id);
+    const remaining = { ...sale, lines: sale.lines.filter((each) => each !== line) };
     return {
       kind: "removed",
-      sale: { ...sale, lines: sale.lines.filter((each) => each !== line) },
+      sale: remaining,
+      chargeRefusal: saleChargeRefusal(tx, remaining, clock.now()),
     };
   });
 }

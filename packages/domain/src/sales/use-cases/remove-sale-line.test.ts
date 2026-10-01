@@ -46,8 +46,11 @@ const OPEN_SALE: SaleWithLines = {
   lines: [YERBA_LINE, AZUCAR_LINE],
 };
 
+const THRESHOLD = { id: "threshold-1", amount: 10_000_000, validFrom: "2026-01-01" };
+
 function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
   return new FakeSaleLedger({
+    thresholds: [THRESHOLD],
     accesses: { cashier: CASHIER },
     session: SESSION,
     sales: [OPEN_SALE],
@@ -141,4 +144,30 @@ describe("removeSaleLine", () => {
       expect(store.state).toEqual(before);
     },
   );
+});
+
+describe("remove-sale-line charge refusal", () => {
+  it("tells that the sale reaches the threshold when removing a line brings it to the threshold", () => {
+    const store = ledger({ thresholds: [{ ...THRESHOLD, amount: 1200 }] });
+
+    expect(remove(store, "line-1")).toEqual(
+      expect.objectContaining({
+        chargeRefusal: { kind: "reaches_buyer_identification_threshold", threshold: 1200 },
+      }),
+    );
+  });
+
+  it("tells nothing is refused when removing a line leaves the sale under the threshold", () => {
+    const store = ledger({ thresholds: [{ ...THRESHOLD, amount: 1201 }] });
+
+    expect(remove(store, "line-1")).toHaveProperty("chargeRefusal", undefined);
+  });
+
+  it("tells that no threshold is in effect when there is none", () => {
+    const store = ledger({ thresholds: [] });
+
+    expect(remove(store, "line-1")).toEqual(
+      expect.objectContaining({ chargeRefusal: { kind: "no_buyer_identification_threshold" } }),
+    );
+  });
 });

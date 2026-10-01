@@ -560,6 +560,24 @@ describe("createCoreClient", () => {
         },
       ],
       total: 4_760,
+      charge_refusal: null,
+    },
+    {
+      id: "sale-2",
+      lines: [
+        {
+          id: "line-2",
+          product_id: "p2",
+          product_name: "Aceite de oliva",
+          quantity: 1,
+          list_unit_price: 1_000_000_000,
+          discount_amount: 0,
+          promotion: null,
+          line_total: 1_000_000_000,
+        },
+      ],
+      total: 1_000_000_000,
+      charge_refusal: { kind: "reaches_buyer_identification_threshold", threshold: 1_000_000_000 },
     },
   ])(
     "asks the core for the sale in progress of the person and resolves with it: %j",

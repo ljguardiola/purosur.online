@@ -23,7 +23,7 @@ const line = {
   promotion: null,
   line_total: 3000,
 };
-const sale = { id: "s1", lines: [line], total: 3000 };
+const sale = { id: "s1", lines: [line], total: 3000, charge_refusal: null };
 
 describe("scannedCodeSchema", () => {
   it.each(["7791234567890", "A", "x".repeat(BARCODE_MAX_LENGTH), "😀".repeat(BARCODE_MAX_LENGTH)])(
@@ -107,6 +107,37 @@ describe("saleSchema", () => {
 
   it.each([-1, 1.5])("rejects a total of %s", (total) => {
     expect(saleSchema.safeParse({ ...sale, total }).success).toBe(false);
+  });
+
+  it.each([
+    { kind: "reaches_buyer_identification_threshold", threshold: 10_000_000 },
+    { kind: "no_buyer_identification_threshold" },
+  ])("accepts a sale that cannot be charged: %j", (chargeRefusal) => {
+    const refused = { ...sale, charge_refusal: chargeRefusal };
+
+    expect(saleSchema.parse(refused)).toEqual(refused);
+  });
+
+  it.each([
+    ["a missing refusal", { ...sale, charge_refusal: undefined }],
+    ["a refusal it does not know", { ...sale, charge_refusal: { kind: "somewhere_else" } }],
+    [
+      "a threshold refusal without its threshold",
+      { ...sale, charge_refusal: { kind: "reaches_buyer_identification_threshold" } },
+    ],
+    [
+      "a fractional threshold",
+      {
+        ...sale,
+        charge_refusal: { kind: "reaches_buyer_identification_threshold", threshold: 1.5 },
+      },
+    ],
+    [
+      "a threshold of zero",
+      { ...sale, charge_refusal: { kind: "reaches_buyer_identification_threshold", threshold: 0 } },
+    ],
+  ])("rejects a sale with %s", (_case, value) => {
+    expect(saleSchema.safeParse(value).success).toBe(false);
   });
 });
 
@@ -206,6 +237,8 @@ describe("chargeSaleInCashOutcomeSchema", () => {
     { kind: "invalid_amount" },
     { kind: "empty_sale" },
     { kind: "zero_total" },
+    { kind: "reaches_buyer_identification_threshold", threshold: 10_000_000 },
+    { kind: "no_buyer_identification_threshold" },
     { kind: "no_open_sale" },
     { kind: "not_permitted" },
     { kind: "not_signed_in" },
@@ -226,6 +259,9 @@ describe("chargeSaleInCashOutcomeSchema", () => {
     { kind: "insufficient_cash" },
     { kind: "insufficient_cash", amount_due: -1 },
     { kind: "insufficient_cash", amount_due: 1.5 },
+    { kind: "reaches_buyer_identification_threshold" },
+    { kind: "reaches_buyer_identification_threshold", threshold: 0 },
+    { kind: "reaches_buyer_identification_threshold", threshold: 1.5 },
     { kind: "somewhere_else" },
     {},
   ])("rejects the outcome %j", (outcome) => {

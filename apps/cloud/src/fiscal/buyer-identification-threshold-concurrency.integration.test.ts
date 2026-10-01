@@ -50,7 +50,7 @@ function holdAdvisoryLock(key: string) {
     holder`select pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
 }
 
-describe("two thresholds recorded at once on an empty table, on a real Postgres", () => {
+describe("two thresholds recorded at once on top of the installed one, on a real Postgres", () => {
   it("records exactly one of them and refuses the other as not starting after it", async () => {
     const actorId = await insertActor();
     const record = () =>
@@ -67,6 +67,6 @@ describe("two thresholds recorded at once on an empty table, on a real Postgres"
     );
 
     expect(outcomes.map(({ kind }) => kind)).toEqual(["recorded", "not_after_latest"]);
-    expect(await db.select().from(buyerIdentificationThresholds)).toHaveLength(1);
+    expect(await db.select().from(buyerIdentificationThresholds)).toHaveLength(2);
   });
 });
