@@ -1,3 +1,4 @@
+import "@purosur/ui/content-security-policy";
 import {
   scrubErrorReport,
   scrubErrorReportBreadcrumb,
