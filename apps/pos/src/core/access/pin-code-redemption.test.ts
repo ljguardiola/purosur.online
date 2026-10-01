@@ -34,7 +34,7 @@ function depsAnswering(
   }: { enrolled?: boolean; canApply?: boolean; opener?: string } = {},
 ) {
   const signedIn: string[] = [];
-  const cashSessionReads: string[][] = [];
+  const cashSessionReads: string[] = [];
   const posted: { path: string; bearerToken: string; body: unknown }[] = [];
   const applied: { pepper: string; redemption: PinCodeRedemption }[] = [];
   const reported: unknown[] = [];
@@ -57,8 +57,8 @@ function depsAnswering(
       signedIn.push(userId);
       return OPENER_PERSON;
     },
-    cashSession: () => {
-      cashSessionReads.push([...signedIn]);
+    cashSession: (personId) => {
+      cashSessionReads.push(personId);
       return OPEN_CASH_SESSION;
     },
   };
@@ -102,7 +102,7 @@ describe("redeemPinCode", () => {
     expect(signedIn).toEqual([USER_ID]);
   });
 
-  it("answers the open cash session as it stands once the opener is signed in", async () => {
+  it("answers the open cash session as the opener sees it once signed in", async () => {
     const { deps, cashSessionReads } = depsAnswering(
       { kind: "ok", body: REDEEMED_BODY },
       { opener: USER_ID },
@@ -110,7 +110,20 @@ describe("redeemPinCode", () => {
 
     await redeemPinCode(deps, TYPED_CODE, "482915");
 
-    expect(cashSessionReads).toEqual([[USER_ID]]);
+    expect(cashSessionReads).toEqual([USER_ID]);
+  });
+
+  it("fails without signing the opener in when the open cash session cannot be read", async () => {
+    const { deps, signedIn } = depsAnswering(
+      { kind: "ok", body: REDEEMED_BODY },
+      { opener: USER_ID },
+    );
+    deps.cashSession = () => {
+      throw new Error("the register database is unavailable");
+    };
+
+    await expect(redeemPinCode(deps, TYPED_CODE, "482915")).rejects.toThrow();
+    expect(signedIn).toEqual([]);
   });
 
   it("refuses a code redeemed for anyone but the opener while a session is open, signing nobody in", async () => {

@@ -22,7 +22,7 @@ export interface PinCodeRedemptionDeps {
   signInRedeemed: (
     userId: string,
   ) => Extract<PinCodeRedemptionOutcome, { kind: "resumed" }>["person"] | undefined;
-  cashSession: () => OpenCashSession | null;
+  cashSession: (signedInPersonId: string) => OpenCashSession | null;
 }
 
 function refusalOutcome(error: CloudError): PinCodeRedemptionOutcome {
@@ -94,8 +94,9 @@ export async function redeemPinCode(
   if (isLockedToAnother(openSession, redemption.data.user_id)) {
     return { kind: "cash_session_opened_by_another" };
   }
+  const cashSession = deps.cashSession(openSession.openedBy);
   const person = deps.signInRedeemed(openSession.openedBy);
   return person === undefined
     ? { kind: "redeemed" }
-    : { kind: "resumed", person, cash_session: deps.cashSession() };
+    : { kind: "resumed", person, cash_session: cashSession };
 }

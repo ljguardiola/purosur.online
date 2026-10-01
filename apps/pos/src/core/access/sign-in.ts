@@ -12,7 +12,7 @@ import type { SignInStore } from "./sqlite-sign-in-store";
 export interface SignInDeps extends PinCheckDeps {
   signedInPerson: Pick<SignedInPerson, "set" | "clear">;
   openCashSession: () => { openedBy: string } | undefined;
-  cashSession: () => OpenCashSession | null;
+  cashSession: (signedInPersonId: string) => OpenCashSession | null;
 }
 
 export interface FirstSignInDeps extends SignInDeps {
@@ -56,6 +56,7 @@ async function signInThen(
   if (isLockedToAnother(deps.openCashSession(), userId)) {
     return { kind: "cash_session_opened_by_another" };
   }
+  const cashSession = deps.cashSession(userId);
   beforeSigningIn();
   deps.signedInPerson.set(userId);
   return {
@@ -65,6 +66,6 @@ async function signInThen(
       first_name: record.firstName,
       permission_keys: heldPermissionKeys(record.access),
     },
-    cash_session: deps.cashSession(),
+    cash_session: cashSession,
   };
 }

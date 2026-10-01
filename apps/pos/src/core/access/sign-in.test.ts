@@ -281,15 +281,15 @@ describe("signing in while a cash session is open", () => {
     expect(signedIn.userId()).toBe("u1");
   });
 
-  it("answers the open cash session as it stands once the opener is signed in", async () => {
-    const readWhileSignedIn: (string | undefined)[] = [];
-    const { built, signedIn } = deps({ openCashSession: () => ({ openedBy: "u1" }) });
+  it("answers the open cash session as the opener sees it once signed in", async () => {
+    const readFor: string[] = [];
+    const { built } = deps({ openCashSession: () => ({ openedBy: "u1" }) });
 
     const outcome = await signIn(
       {
         ...built,
-        cashSession: () => {
-          readWhileSignedIn.push(signedIn.userId());
+        cashSession: (personId) => {
+          readFor.push(personId);
           return OPEN_CASH_SESSION;
         },
       },
@@ -298,8 +298,28 @@ describe("signing in while a cash session is open", () => {
     );
 
     expect(outcome).toMatchObject({ kind: "signed_in", cash_session: OPEN_CASH_SESSION });
-    expect(readWhileSignedIn).toEqual(["u1"]);
+    expect(readFor).toEqual(["u1"]);
   });
+
+  it.each([
+    ["a sign-in", signIn],
+    ["a first sign-in", firstSignIn],
+  ])(
+    "fails %s whose open cash session cannot be read, signing nobody in and remembering nobody",
+    async (_case, signInWith) => {
+      const { built, signedIn, remembered } = deps({ openCashSession: () => ({ openedBy: "u1" }) });
+      const failing: FirstSignInDeps = {
+        ...built,
+        cashSession: () => {
+          throw new Error("the register database is unavailable");
+        },
+      };
+
+      await expect(signInWith(failing, "u1", "1234")).rejects.toThrow();
+      expect(signedIn.userId()).toBeUndefined();
+      expect(remembered).toEqual([]);
+    },
+  );
 
   it("refuses an attempt whose PIN was checked while another person opened a cash session, leaving nobody signed in", async () => {
     let opener: string | undefined;

@@ -247,10 +247,8 @@ const rendererRequestDeps: RendererRequestDeps = {
           signInStore === undefined
             ? undefined
             : signInRedeemedPerson({ store: signInStore, signedInPerson }, userId),
-        cashSession: () =>
-          localDatabase === undefined
-            ? null
-            : currentCashSession(localDatabase, signedInPerson.userId()),
+        cashSession: (signedInPersonId) =>
+          localDatabase === undefined ? null : currentCashSession(localDatabase, signedInPersonId),
       },
       typedCode,
       newPin,
@@ -268,7 +266,8 @@ const rendererRequestDeps: RendererRequestDeps = {
               store: signInStore,
               signedInPerson,
               openCashSession: () => readOpenSession(localDatabase),
-              cashSession: () => currentCashSession(localDatabase, signedInPerson.userId()),
+              cashSession: (signedInPersonId) =>
+                currentCashSession(localDatabase, signedInPersonId),
               readPepper,
               hashPin,
               now: () => new Date(),
@@ -285,7 +284,8 @@ const rendererRequestDeps: RendererRequestDeps = {
               store: signInStore,
               signedInPerson,
               openCashSession: () => readOpenSession(localDatabase),
-              cashSession: () => currentCashSession(localDatabase, signedInPerson.userId()),
+              cashSession: (signedInPersonId) =>
+                currentCashSession(localDatabase, signedInPersonId),
               readPepper,
               hashPin,
               now: () => new Date(),

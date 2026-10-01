@@ -1,5 +1,5 @@
 import { encodePinHash, PERMISSION_KEYS } from "@purosur/domain";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createActionGate } from "../access/action-gate";
 import { derivePinVerifier } from "../access/pin-verifier";
 import { createSignedInPerson, type SignedInPerson } from "../access/signed-in-person";
@@ -87,6 +87,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   database.close();
 });
 
@@ -106,6 +107,29 @@ describe("opening a cash session on the register", () => {
       },
     });
     expect(openedSessions()).toEqual([{ id: "id-1", opened_by: "u1" }]);
+  });
+
+  it("answers opened once the session is opened, though its opener can no longer be read", async () => {
+    const readPerson = SqliteSignInStore.prototype.anyPerson;
+    vi.spyOn(SqliteSignInStore.prototype, "anyPerson").mockImplementation(function (
+      this: SqliteSignInStore,
+      userId,
+    ) {
+      if (openedSessions().length > 0) {
+        throw new Error("the register database is unavailable");
+      }
+      return readPerson.call(this, userId);
+    });
+
+    expect(await openCashSessionFor(deps(), 5000)).toEqual({
+      kind: "opened",
+      cash_session: {
+        id: "id-1",
+        opened_at: "2026-09-30T12:00:00.000Z",
+        opened_by: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+        locked: false,
+      },
+    });
   });
 
   it("answers unavailable without touching the database when the register holds no outbox chain key", async () => {

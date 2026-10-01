@@ -10,7 +10,12 @@ import type {
   SessionOpenSale,
   SignInUser,
 } from "@purosur/contracts";
-import { cancellableWithoutAuthorization, cashBreakdown, isLockedToAnother } from "@purosur/domain";
+import {
+  cancellableWithoutAuthorization,
+  cashBreakdown,
+  isLockedToAnother,
+  type OpenedCashSession,
+} from "@purosur/domain";
 import {
   type CloseCashSessionOutcome as CashSessionClosing,
   type Clock,
@@ -20,7 +25,7 @@ import {
 } from "@purosur/domain/register/use-cases";
 import type { ActionGate } from "../access/action-gate";
 import { heldPermissionKeys } from "../access/held-permission-keys";
-import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
+import { type ActivePerson, SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
 import {
   readOpenSale,
@@ -48,16 +53,21 @@ export async function openCashSessionFor(
   const guarded = await gate.run(
     { permission: "sell_and_charge" },
     async ({ signedInUserId }): Promise<OpenCashSessionOutcome> => {
+      const people = new SqliteSignInStore(database);
+      const opener = people.anyPerson(signedInUserId);
       const outcome = openCashSession(
         {
-          ledger: new SqliteCashLedger(database, new SqliteSignInStore(database), outboxChainKey),
+          ledger: new SqliteCashLedger(database, people, outboxChainKey),
           clock: { now },
           ids,
         },
         { openerId: signedInUserId, openingFloat },
       );
       return outcome.kind === "opened"
-        ? { kind: "opened", cash_session: currentCashSession(database, signedInUserId) }
+        ? {
+            kind: "opened",
+            cash_session: cashSessionAnswer(outcome.session, opener, signedInUserId),
+          }
         : { kind: outcome.kind };
     },
   );
@@ -206,7 +216,19 @@ export function currentCashSession(
   if (session === undefined) {
     return null;
   }
-  const opener = new SqliteSignInStore(database).anyPerson(session.openedBy) ?? {
+  return cashSessionAnswer(
+    session,
+    new SqliteSignInStore(database).anyPerson(session.openedBy),
+    signedInPersonId,
+  );
+}
+
+function cashSessionAnswer(
+  session: Pick<OpenedCashSession, "id" | "openedAt" | "openedBy">,
+  openerRecord: ActivePerson | undefined,
+  signedInPersonId: string | undefined,
+): OpenCashSession {
+  const opener = openerRecord ?? {
     firstName: "",
     access: { isAdministrator: false, permissionKeys: [] },
   };
