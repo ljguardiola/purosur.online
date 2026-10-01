@@ -51,7 +51,7 @@ describe("TransferChargeModal", () => {
     await expect
       .element(screen.getByRole("heading", { name: "Esperando el ingreso en la cuenta" }))
       .toBeVisible();
-    await expect.element(screen.getByText("Esperando la acreditación")).toBeVisible();
+    await expect.element(screen.getByText("Esperando la acreditación")).not.toBeInTheDocument();
     await expect.element(screen.getByText("Total de la venta")).toBeVisible();
     await expect.element(screen.getByText("Pagado")).toBeVisible();
     await expect.element(screen.getByText("$ 0,00")).toBeVisible();

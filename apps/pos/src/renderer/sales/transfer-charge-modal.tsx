@@ -1,12 +1,5 @@
 import type { ChargeSaleByTransferOutcome } from "@purosur/contracts";
-import {
-  Button,
-  formatCents,
-  InlineNotice,
-  Modal,
-  StatusIndicator,
-  SummaryRowGroup,
-} from "@purosur/ui";
+import { Button, formatCents, InlineNotice, Modal, SummaryRowGroup } from "@purosur/ui";
 import { ArrowLeft, Check, Landmark, TriangleAlert } from "lucide-react";
 import { useRef, useState } from "react";
 
@@ -119,11 +112,6 @@ export function TransferChargeModal({
           title="No confirmes con la pantalla del cliente"
           description="Una captura falsa o una transferencia programada se ven igual que una real. Confirmá solo al ver el ingreso en el dispositivo del mostrador."
         />
-        <div>
-          <StatusIndicator tone="info" busy>
-            Esperando la acreditación
-          </StatusIndicator>
-        </div>
         {notice === undefined ? null : (
           <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />
         )}

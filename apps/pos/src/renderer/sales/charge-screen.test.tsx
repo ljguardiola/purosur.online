@@ -268,10 +268,14 @@ describe("ChargeScreen", () => {
     const { screen, chargeSaleByTransfer } = await renderScreen();
 
     await chooseTransfer(screen);
-    await expect.element(screen.getByText("Esperando la acreditación")).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: "Esperando el ingreso en la cuenta" }))
+      .toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "No llegó: cambiar de medio" }));
 
-    await expect.element(screen.getByText("Esperando la acreditación")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("heading", { name: "Esperando el ingreso en la cuenta" }))
+      .not.toBeInTheDocument();
     await expect.element(screen.getByRole("radio", { name: "Transferencia" })).toBeVisible();
     expect(chargeSaleByTransfer).not.toHaveBeenCalled();
   });
