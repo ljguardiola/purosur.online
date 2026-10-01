@@ -176,16 +176,17 @@ test("a search that matches a subcategory shows it together with its parent cate
   expect(names[2]).toContain("Almacén › Untables › Mermeladas");
 });
 
-test("keeps each subcategory under its category in both directions while a search is active", async () => {
+test("keeps each subcategory under its category, siblings in the chosen direction, while a search is active", async () => {
+  const sweets: CategorySummary = { ...jams, id: "category-5", name: "Dulces" };
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({
     kind: "ok",
-    value: [groceries, drinks, spreads, jams],
+    value: [groceries, drinks, spreads, jams, sweets],
   });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("4 categorías")).toBeVisible();
+  await expect.element(screen.getByText("5 categorías")).toBeVisible();
   await userEvent.fill(screen.getByPlaceholder("Buscar una categoría"), "untables");
-  await expect.element(screen.getByText("3 categorías")).toBeVisible();
+  await expect.element(screen.getByText("4 categorías")).toBeVisible();
 
   function rowNames(): string[] {
     return screen
@@ -198,6 +199,7 @@ test("keeps each subcategory under its category in both directions while a searc
   expect(rowNames()).toEqual([
     expect.stringMatching(/^Almacén$/),
     expect.stringMatching(/^Almacén › Untables$/),
+    expect.stringMatching(/^Almacén › Untables › Dulces$/),
     expect.stringMatching(/^Almacén › Untables › Mermeladas$/),
   ]);
 
@@ -209,6 +211,7 @@ test("keeps each subcategory under its category in both directions while a searc
       expect.stringMatching(/^Almacén$/),
       expect.stringMatching(/^Almacén › Untables$/),
       expect.stringMatching(/^Almacén › Untables › Mermeladas$/),
+      expect.stringMatching(/^Almacén › Untables › Dulces$/),
     ]);
 });
 
