@@ -41,6 +41,7 @@ async function renderScreen(
         requests.push(userId);
         return requested;
       }}
+      loadPinPolicy={async () => ({ min_digits: 6 })}
       redeem={async (code, pin) => {
         redemptions.push({ code, pin });
         return redeemed;

@@ -1162,6 +1162,21 @@ describe("the register's router", () => {
     await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
   });
 
+  it("asks for the PIN digits the context's policy names on the PIN redemption screen", async () => {
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", null),
+        pinPolicy: async () => ({ min_digits: 8 }),
+      },
+      "/pin-code-redemption",
+    );
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screen.getByLabelText("PIN nuevo, de al menos 8 dígitos")).toBeVisible();
+  });
+
   it("renders the first sign-in screen while enrolled and nobody is signed in", async () => {
     const router = routerAt("/first-sign-in", "up", "enrolled", null);
 
