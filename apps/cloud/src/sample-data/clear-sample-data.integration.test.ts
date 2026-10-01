@@ -201,18 +201,6 @@ function pricingPorts(db: PostgresJsDatabase<Record<string, never>>) {
   return { store: new DrizzlePricingStore(db), clock: { now: () => NOW } };
 }
 
-async function branchPriceListIdOf(
-  db: PostgresJsDatabase<Record<string, never>>,
-  locationId: string,
-): Promise<string> {
-  const [row] = await db
-    .select({ priceListId: branchSettings.priceListId })
-    .from(branchSettings)
-    .where(eq(branchSettings.locationId, locationId));
-  if (!row) throw new Error("test setup: no price list seeded");
-  return row.priceListId;
-}
-
 describe("clearSampleData", () => {
   it("is a no-op when nothing was loaded", async () => {
     const db = await freshOwnerDatabase();
@@ -280,15 +268,9 @@ describe("clearSampleData", () => {
       },
     );
     if (realDiscountOutcome.kind !== "created") throw new Error("test setup: real discount failed");
-    const priceListRow = await db.execute<{ price_list_id: string }>(
-      sql`select price_list_id from branch_settings where location_id = ${bootstrapAdmin.locationId}`,
-    );
-    const realPriceListId = (priceListRow as unknown as { price_list_id: string }[])[0]
-      ?.price_list_id;
-    if (!realPriceListId) throw new Error("test setup: no price list seeded");
     const realPriceOutcome = await setPrice(pricingPorts(db), {
       productId: realProductOutcome.product.id,
-      priceListId: realPriceListId,
+      locationId: bootstrapAdmin.locationId,
       unitPrice: 1000,
       expectedCurrentPriceId: null,
       actorId: bootstrapAdmin.id,
@@ -729,10 +711,9 @@ describe("clearSampleData", () => {
       netContent: null,
     });
     if (realProduct.kind !== "created") throw new Error("test setup: real product collided");
-    const priceListId = await branchPriceListIdOf(db, bootstrapAdmin.locationId);
     const realPrice = await setPrice(pricingPorts(db), {
       productId: realProduct.product.id,
-      priceListId,
+      locationId: bootstrapAdmin.locationId,
       unitPrice: 150_000,
       expectedCurrentPriceId: null,
       actorId: bootstrapAdmin.id,
@@ -741,7 +722,7 @@ describe("clearSampleData", () => {
     expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
     const review = await confirmPrice(pricingPorts(db), {
       productId: realProduct.product.id,
-      priceListId,
+      locationId: bootstrapAdmin.locationId,
       expectedCurrentPriceId: realPrice.price.id,
       actorId: await userIdByEmail(db, SAMPLE_ADMINISTRATOR.email),
     });

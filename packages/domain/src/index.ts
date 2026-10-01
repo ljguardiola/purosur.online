@@ -156,6 +156,7 @@ export {
   newestPrice,
   normalizeDiscountWeekdays,
   priceInEffectAt,
+  priceReviewAt,
 } from "./pricing/index.js";
 export type {
   CashBreakdown,

@@ -8,6 +8,8 @@ const LATER = new Date("2026-01-09T09:00:00.000Z");
 
 function storeWithProduct(active = true): FakePricingStore {
   const store = new FakePricingStore();
+  store.seedBranch({ locationId: "location-1", priceListId: "list-1" });
+  store.seedBranch({ locationId: "location-2", priceListId: "list-2" });
   store.seedProduct({ id: "decoy", active: true });
   store.seedProduct({ id: "product-1", active });
   return store;
@@ -34,13 +36,14 @@ function change(
     unitPrice?: number;
     expectedCurrentPriceId?: string | null;
     now?: Date;
+    locationId?: string;
   } = {},
 ) {
   return setPrice(
     { store, clock: new FixedClock(overrides.now ?? NOON) },
     {
       productId: overrides.productId ?? "product-1",
-      priceListId: "list-1",
+      locationId: overrides.locationId ?? "location-1",
       unitPrice: overrides.unitPrice ?? 1500,
       expectedCurrentPriceId:
         overrides.expectedCurrentPriceId === undefined ? null : overrides.expectedCurrentPriceId,
@@ -66,12 +69,16 @@ describe("setPrice", () => {
     expect(store.operationOrder).toEqual(["lockActiveProduct"]);
   });
 
-  it("locks the product before it reads the current price", async () => {
+  it("locks the product before it resolves the branch's price list and reads the current price", async () => {
     const store = storeWithProduct();
 
     await change(store);
 
-    expect(store.operationOrder.slice(0, 2)).toEqual(["lockActiveProduct", "currentPrice"]);
+    expect(store.operationOrder.slice(0, 3)).toEqual([
+      "lockActiveProduct",
+      "branchPriceList",
+      "currentPrice",
+    ]);
   });
 
   it("reads before it writes, in the order of the rule", async () => {
@@ -81,12 +88,42 @@ describe("setPrice", () => {
 
     expect(store.operationOrder).toEqual([
       "lockActiveProduct",
+      "branchPriceList",
       "currentPrice",
       "latestReviewedAt",
       "recordPrice",
       "recordPriceReview",
       "recordPriceChange",
     ]);
+  });
+
+  it("records the price and its review on the price list of the branch it is made for", async () => {
+    const store = storeWithProduct();
+
+    await change(store, { locationId: "location-2" });
+
+    const after = store.snapshot();
+    expect(after.prices.map((row) => row.priceListId)).toEqual(["list-2"]);
+    expect(after.reviews.map((row) => row.priceListId)).toEqual(["list-2"]);
+  });
+
+  it("compares the price against the current one of the branch's own price list", async () => {
+    const store = storeWithProduct();
+    seedPrice(store, { id: "price-list-2", priceListId: "list-2" });
+
+    const outcome = await change(store, { locationId: "location-1" });
+
+    expect(outcome).toMatchObject({ kind: "applied" });
+  });
+
+  it("refuses a branch with no price list, writing nothing", async () => {
+    const store = storeWithProduct();
+    const before = store.snapshot();
+
+    await expect(change(store, { locationId: "location-9" })).rejects.toThrow(
+      "branch location-9 has no price list",
+    );
+    expect(store.snapshot()).toEqual(before);
   });
 
   it("records each change against the id the store gave its new price", async () => {
