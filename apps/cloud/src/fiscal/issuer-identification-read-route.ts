@@ -1,6 +1,5 @@
 import { type IssuerIdentificationBody, issuerIdentificationSchema } from "@purosur/contracts";
 import type { AuthorizedIssuerIdentification } from "@purosur/domain/fiscal/use-cases";
-import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
@@ -9,7 +8,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { ISSUER_IDENTIFICATION_SINGLETON_ID, issuerIdentification } from "../platform/db/schema.js";
+import { DrizzleIssuerIdentificationReader } from "./drizzle-issuer-identification-reader.js";
 
 const ISSUER_IDENTIFICATION_TAX_STATUS = "Responsable Monotributo";
 
@@ -19,13 +18,6 @@ export interface IssuerIdentificationRouteOptions<TQueryResult extends PgQueryRe
   // From deployment configuration (ARCA_CERTIFICATE); never accepted from a client.
   authorizedCuit: string;
   now?: () => Date;
-}
-
-interface IssuerIdentificationRow {
-  legalName: string | null;
-  grossIncomeRegistration: string | null;
-  activityStartDate: string | null;
-  version: number;
 }
 
 export function toIssuerIdentificationWire(
@@ -41,24 +33,6 @@ export function toIssuerIdentificationWire(
   };
 }
 
-async function findIssuerIdentification<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-): Promise<IssuerIdentificationRow> {
-  const [row] = await db
-    .select({
-      legalName: issuerIdentification.legalName,
-      grossIncomeRegistration: issuerIdentification.grossIncomeRegistration,
-      activityStartDate: issuerIdentification.activityStartDate,
-      version: issuerIdentification.version,
-    })
-    .from(issuerIdentification)
-    .where(eq(issuerIdentification.id, ISSUER_IDENTIFICATION_SINGLETON_ID));
-  if (!row) {
-    throw new Error("issuer identification row missing: the seeding migration never ran");
-  }
-  return row;
-}
-
 export function registerIssuerIdentificationReadRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: IssuerIdentificationRouteOptions<TQueryResult>,
@@ -66,6 +40,7 @@ export function registerIssuerIdentificationReadRoute<TQueryResult extends PgQue
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
+  const reader = new DrizzleIssuerIdentificationReader(options.db);
 
   app.get(
     "/fiscal-settings/issuer-identification",
@@ -74,14 +49,15 @@ export function registerIssuerIdentificationReadRoute<TQueryResult extends PgQue
       config: { access: permissionAccess("change_fiscal_configuration"), sessionSource },
     },
     async (_request, reply) => {
-      const row = await findIssuerIdentification(options.db);
-      await reply
-        .code(200)
-        .send(
-          issuerIdentificationSchema.parse(
-            toIssuerIdentificationWire({ ...row, authorizedCuit: options.authorizedCuit }),
-          ),
-        );
+      const identification = await reader.currentIssuerIdentification();
+      await reply.code(200).send(
+        issuerIdentificationSchema.parse(
+          toIssuerIdentificationWire({
+            ...identification,
+            authorizedCuit: options.authorizedCuit,
+          }),
+        ),
+      );
     },
   );
 }

@@ -44,8 +44,10 @@ export type {
 export { FiscalAddressNameConflict } from "./fiscal-address-store.js";
 export type {
   AuthorizedIssuerIdentification,
+  EditableIssuerIdentification,
   IssuerIdentification,
   IssuerIdentificationPorts,
+  IssuerIdentificationReader,
   IssuerIdentificationStore,
   IssuerIdentificationStoreTransaction,
   NewIssuerIdentificationVersion,

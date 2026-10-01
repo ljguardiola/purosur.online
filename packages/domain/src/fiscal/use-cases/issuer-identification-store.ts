@@ -10,6 +10,12 @@ export interface AuthorizedIssuerIdentification extends IssuerIdentification {
   authorizedCuit: string;
 }
 
+export type EditableIssuerIdentification = Omit<IssuerIdentification, "authorizedCuit">;
+
+export interface IssuerIdentificationReader {
+  currentIssuerIdentification(): Promise<EditableIssuerIdentification>;
+}
+
 export interface NewIssuerIdentificationVersion extends AuthorizedIssuerIdentification {
   recordedBy: string | null;
 }
