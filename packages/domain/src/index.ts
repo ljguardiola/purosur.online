@@ -152,6 +152,7 @@ export type {
   TargetedProduct,
 } from "./pricing/index.js";
 export {
+  DISCOUNT_BENEFIT_KINDS,
   DISCOUNT_BUY_QTY_MIN,
   DISCOUNT_NAME_MAX_LENGTH,
   DISCOUNT_PAY_QTY_MIN,
