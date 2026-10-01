@@ -50,3 +50,13 @@ test("opening a screen downloads the design system components it renders, not th
   expect(modules).toContain(`${UI_COMPONENTS}forms/button.tsx`);
   expect(modules).not.toContain(`${UI_COMPONENTS}forms/date-field.tsx`);
 });
+
+test("the build carries the design system's screen-reader texts only in Spanish", () => {
+  const translations = [...chunks.values()]
+    .flatMap((chunk) => chunk.moduleIds)
+    .flatMap(
+      (moduleId) => moduleId.match(/[\\/]intl[\\/].+[\\/]([a-z]{2}-[A-Z]{2})\.m?js$/)?.[1] ?? [],
+    );
+
+  expect(new Set(translations)).toEqual(new Set(["es-ES"]));
+});
