@@ -264,6 +264,7 @@ export const openCashSessionRequestSchema = openCashSessionMessageSchema.omit({
   request_id: true,
 });
 export const countedCashRequestSchema = closeCashSessionMessageSchema.pick({ counted_cash: true });
+export const chargeSaleInCashRequestSchema = chargeSaleInCashMessageSchema.pick({ tendered: true });
 export const recordCashMovementFormRequestSchema = recordCashMovementMessageSchema.omit({
   type: true,
   request_id: true,

@@ -167,6 +167,7 @@ export {
   cashMovementAmountSchema,
   cashMovementPermission,
   cashMovementReason,
+  chargeSaleInCashRequestSchema,
   coreStatusMessageSchema,
   coreToRendererMessageSchema,
   countedCashRequestSchema,
