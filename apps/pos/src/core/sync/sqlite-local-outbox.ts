@@ -15,7 +15,7 @@ const CURRENT_INSTALLATION = "device_id = (SELECT device_id FROM sync_state)";
 function withinByteBudget(events: PushedEvent[]): PushedEvent[] {
   let bytes = 0;
   const firstOver = events.findIndex((event) => {
-    bytes += Buffer.byteLength(JSON.stringify(event)) + 1;
+    bytes += Buffer.byteLength(JSON.stringify(event));
     return bytes > EVENTS_BYTE_BUDGET;
   });
   return firstOver === -1 ? events : events.slice(0, Math.max(firstOver, 1));

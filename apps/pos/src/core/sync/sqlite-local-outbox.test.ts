@@ -1,5 +1,5 @@
 import { PUSH_EVENTS_REQUEST_MAX_BYTES } from "@purosur/contracts";
-import type { OutboxEventDraft, PushedEvent } from "@purosur/domain";
+import { type OutboxEventDraft, PUSH_BATCH_MAX_EVENTS, type PushedEvent } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
@@ -110,24 +110,29 @@ describe("the events waiting to be pushed", () => {
     expect(second.map((event) => event.device_seq)).toEqual([4, 5]);
   });
 
-  it("never hands over a batch whose request would go over the limit", async () => {
+  it("cuts a full batch whose request would be one byte over the limit", async () => {
     const probe = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
     probe.prepare("UPDATE sync_state SET device_id = ?").run("device-a");
-    appendOutboxEvent(probe, CHAIN_KEY, draft(1, 0));
-    const [emptyEvent] = await new SqliteLocalOutbox(probe, () => ACKNOWLEDGED_AT).unacknowledged(
-      1,
+    for (let number = 1; number <= PUSH_BATCH_MAX_EVENTS; number += 1) {
+      appendOutboxEvent(probe, CHAIN_KEY, draft(number, 0));
+    }
+    const emptyEvents = await new SqliteLocalOutbox(probe, () => ACKNOWLEDGED_AT).unacknowledged(
+      PUSH_BATCH_MAX_EVENTS,
     );
     probe.close();
-    const emptyEventBytes = Buffer.byteLength(JSON.stringify(emptyEvent));
-    const eventsArrayBytes = PUSH_EVENTS_REQUEST_MAX_BYTES - 10;
-    const fillerPerEvent = Math.floor((eventsArrayBytes - 4) / 3) - emptyEventBytes;
-    for (let number = 1; number <= 3; number += 1) {
-      appendOutboxEvent(database, CHAIN_KEY, draft(number, fillerPerEvent));
+    const emptyBatchRequestBytes = await requestBytesFor(emptyEvents);
+    const fillerBytes = PUSH_EVENTS_REQUEST_MAX_BYTES + 1 - emptyBatchRequestBytes;
+    const fillerPerEvent = Math.floor(fillerBytes / PUSH_BATCH_MAX_EVENTS);
+    for (let number = 1; number <= PUSH_BATCH_MAX_EVENTS; number += 1) {
+      const extra =
+        number === PUSH_BATCH_MAX_EVENTS ? fillerBytes - fillerPerEvent * PUSH_BATCH_MAX_EVENTS : 0;
+      appendOutboxEvent(database, CHAIN_KEY, draft(number, fillerPerEvent + extra));
     }
 
-    const events = await outbox.unacknowledged(200);
+    const events = await outbox.unacknowledged(PUSH_BATCH_MAX_EVENTS);
 
     expect(events.length).toBeGreaterThan(0);
+    expect(events.length).toBeLessThan(PUSH_BATCH_MAX_EVENTS);
     expect(await requestBytesFor(events)).toBeLessThanOrEqual(PUSH_EVENTS_REQUEST_MAX_BYTES);
   });
 
