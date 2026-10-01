@@ -34,16 +34,12 @@ describe("isValidLabelCount", () => {
     );
   });
 
-  it.each([
-    0,
-    -1,
-    LABELS_MAX_COUNT_PER_PRODUCT + 1,
-    1.5,
-    Number.NaN,
-    Number.POSITIVE_INFINITY,
-  ])("refuses %s labels of one product", (count) => {
-    expect(isValidLabelCount(count)).toBe(false);
-  });
+  it.each([0, -1, LABELS_MAX_COUNT_PER_PRODUCT + 1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
+    "refuses %s labels of one product",
+    (count) => {
+      expect(isValidLabelCount(count)).toBe(false);
+    },
+  );
 });
 
 describe("labelRequestProblem", () => {
@@ -101,9 +97,9 @@ describe("productLabelCode", () => {
   });
 
   it("gives the first internal barcode of a product with more than one", () => {
-    expect(
-      productLabelCode({ active: true, barcodes: [OTHER_INTERNAL_CODE, INTERNAL_CODE] }),
-    ).toBe(OTHER_INTERNAL_CODE);
+    expect(productLabelCode({ active: true, barcodes: [OTHER_INTERNAL_CODE, INTERNAL_CODE] })).toBe(
+      OTHER_INTERNAL_CODE,
+    );
   });
 
   it("gives nothing for an active product without an internal barcode", () => {
