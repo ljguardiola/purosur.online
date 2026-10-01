@@ -12,6 +12,7 @@ import {
   users,
 } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { removeSeededThreshold } from "../test-support/remove-seeded-threshold.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerBuyerIdentificationThresholdsListRoute } from "./buyer-identification-thresholds-list-route.js";
 
@@ -34,6 +35,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDatabase.clear();
+  await removeSeededThreshold(testDatabase.db);
   clock = NOON;
   app = Fastify();
   registerBuyerIdentificationThresholdsListRoute(app, {

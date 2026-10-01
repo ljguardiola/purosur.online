@@ -130,9 +130,7 @@ export const buyerIdentificationThresholds = pgTable(
     amount: bigint("amount", { mode: "number" }).notNull(),
     validFrom: date("valid_from", { mode: "string" }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
-    recordedBy: uuid("recorded_by")
-      .notNull()
-      .references(() => users.id),
+    recordedBy: uuid("recorded_by").references(() => users.id),
   },
   (table) => [
     uniqueIndex("buyer_identification_thresholds_valid_from_key").on(table.validFrom),
