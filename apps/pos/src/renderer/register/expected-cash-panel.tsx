@@ -2,17 +2,12 @@ import type { CashBalance } from "@purosur/contracts";
 import { formatCents, LoadFailure, LoadingPlaceholder } from "@purosur/ui";
 import { TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
+import type { CoreData } from "../platform/use-core-query";
 import { signedAmount } from "./cash-amounts";
-
-export type CashBalanceState =
-  | { status: "loading" }
-  | { status: "failed" }
-  | { status: "loaded"; balance: CashBalance };
 
 export type ExpectedCashPanelProps = {
   eyebrow: string;
-  balance: CashBalanceState;
-  onRetry: () => void;
+  balance: CoreData<CashBalance>;
   children?: ReactNode;
 };
 
@@ -48,7 +43,7 @@ function Balance({ balance }: { balance: CashBalance }) {
   );
 }
 
-export function ExpectedCashPanel({ eyebrow, balance, onRetry, children }: ExpectedCashPanelProps) {
+export function ExpectedCashPanel({ eyebrow, balance, children }: ExpectedCashPanelProps) {
   return (
     <aside className="flex h-full w-98 shrink-0 flex-col gap-4 border-l border-border bg-surface p-6">
       <p className="text-caption font-bold text-text-eyebrow tracking-sm">{eyebrow}</p>
@@ -58,10 +53,10 @@ export function ExpectedCashPanel({ eyebrow, balance, onRetry, children }: Expec
           icon={<TriangleAlert />}
           title="No se pudo leer el efectivo esperado"
           description="Volvé a intentarlo en unos segundos."
-          onRetry={onRetry}
+          onRetry={balance.retry}
         />
       ) : null}
-      {balance.status === "loaded" ? <Balance balance={balance.balance} /> : null}
+      {balance.status === "loaded" ? <Balance balance={balance.value} /> : null}
       <div className="flex-1" />
       {children}
     </aside>

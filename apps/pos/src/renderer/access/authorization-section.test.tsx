@@ -3,7 +3,7 @@ import { PERMISSION_KEYS } from "@purosur/domain";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
+import { render } from "../shell/test-support/render-with-router";
 import type { SignedInPerson } from "./signed-in-person";
 import type { GuardedCashInOutcome } from "./test-support/guarded-cash-in-form";
 import { GuardedCashInForm } from "./test-support/guarded-cash-in-form";
@@ -398,6 +398,25 @@ describe("an action guarded by another person's PIN", () => {
       await expect.element(screen.getByRole("option", { name: "Grace" })).toBeVisible();
       await expect.element(screen.getByRole("option", { name: "Sofía" })).not.toBeInTheDocument();
       expect(loads).toBe(2);
+    });
+
+    it("goes back to loading, without the refused person, until the authorizers are read again", async () => {
+      let loads = 0;
+      const loadAuthorizers = () => {
+        loads += 1;
+        return loads === 1 ? Promise.resolve(AUTHORIZERS) : new Promise<SignInUser[]>(() => {});
+      };
+      const screen = await renderForm({
+        loadAuthorizers,
+        submit: recording({ kind: "lacks_permission" }).submit,
+      });
+
+      await authorizeAs(screen, "Sofía", "1234");
+
+      await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
+      await expect
+        .element(screen.getByRole("button", { name: /Persona que autoriza/ }))
+        .not.toBeInTheDocument();
     });
 
     it("says the PIN could not be checked when the register cannot verify it", async () => {

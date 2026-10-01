@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render } from "vitest-browser-react";
+import { render } from "../shell/test-support/render-with-router";
 import type { SignedInPerson } from "./signed-in-person";
 import { useAuthorization } from "./use-authorization";
 

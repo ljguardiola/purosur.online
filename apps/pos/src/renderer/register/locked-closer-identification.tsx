@@ -6,7 +6,8 @@ import type {
 } from "@purosur/contracts";
 import { EmptyState, InlineNotice, LoadFailure, LoadingPlaceholder } from "@purosur/ui";
 import { ArrowLeft, Lock, ShieldX, TriangleAlert, UsersRound, UserX } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
+import { useAuthorizersQuery } from "../access/access-queries";
 import { PinAttemptControls } from "../access/pin-attempt-controls";
 import { waitDescription } from "../access/pin-attempt-text";
 import type { PinNotice } from "../access/pin-refusal";
@@ -14,14 +15,10 @@ import { SignInLockout } from "../access/sign-in-lockout";
 import type { SignedInPerson } from "../access/signed-in-person";
 import { usePinAttempt } from "../access/use-pin-attempt";
 import { UserPicker } from "../access/user-picker";
+import type { CoreData } from "../platform/use-core-query";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
 import { ScreenLink } from "../shell/screen-link";
 import { SessionEyebrow } from "../shell/session-eyebrow";
-
-type LoadedClosers =
-  | { status: "loading" }
-  | { status: "failed" }
-  | { status: "loaded"; users: SignInUser[] };
 
 export type IdentifiedCloser = { authorization: Authorization; first_name: string };
 
@@ -87,10 +84,17 @@ function IdentificationPanel({
   identify,
   returned,
   onIdentified,
-  onRetryLoading,
-}: LockedCloserIdentificationProps & { onRetryLoading: () => void }) {
+}: LockedCloserIdentificationProps) {
   const headingId = useId();
-  const [loaded, setLoaded] = useState<LoadedClosers>({ status: "loading" });
+  const authorizers = useAuthorizersQuery({
+    permission: "close_anothers_register_session",
+    read: loadClosers,
+    enabled: true,
+  });
+  const closers: CoreData<SignInUser[]> =
+    authorizers.status === "loaded"
+      ? { ...authorizers, value: authorizers.value.filter((user) => user.id !== opener.user_id) }
+      : authorizers;
   const [chosen, setChosen] = useState<SignInUser | null>(null);
   const attempt = usePinAttempt(
     chosen === null
@@ -118,28 +122,6 @@ function IdentificationPanel({
   } else if (returnedShown && returned !== undefined) {
     notice = returnedNotice(returned);
   }
-
-  useEffect(() => {
-    let current = true;
-    loadClosers().then(
-      (users) => {
-        if (current) {
-          setLoaded({
-            status: "loaded",
-            users: users.filter((user) => user.id !== opener.user_id),
-          });
-        }
-      },
-      () => {
-        if (current) {
-          setLoaded({ status: "failed" });
-        }
-      },
-    );
-    return () => {
-      current = false;
-    };
-  }, [loadClosers, opener.user_id]);
 
   function reset(user: SignInUser | null) {
     if (user !== null) {
@@ -179,28 +161,28 @@ function IdentificationPanel({
           description={notice.description}
         />
       )}
-      {!locked && loaded.status === "loading" ? (
+      {!locked && closers.status === "loading" ? (
         <LoadingPlaceholder variant="list" items={3} />
       ) : null}
-      {!locked && loaded.status === "failed" ? (
+      {!locked && closers.status === "failed" ? (
         <LoadFailure
           icon={<TriangleAlert />}
           title="No se pudieron cargar las personas con permiso"
           description="Volvé a intentarlo en unos segundos."
-          onRetry={onRetryLoading}
+          onRetry={closers.retry}
         />
       ) : null}
-      {!locked && loaded.status === "loaded" && loaded.users.length === 0 ? (
+      {!locked && closers.status === "loaded" && closers.value.length === 0 ? (
         <EmptyState
           variant="blank"
           icon={<UsersRound />}
           title="Nadie en esta caja tiene permiso para cerrar la sesión de otra persona."
         />
       ) : null}
-      {!locked && loaded.status === "loaded" && loaded.users.length > 0 ? (
+      {!locked && closers.status === "loaded" && closers.value.length > 0 ? (
         <form className="flex flex-col gap-4" noValidate onSubmit={attempt.submit}>
           <UserPicker
-            users={loaded.users}
+            users={closers.value}
             value={chosen?.id ?? null}
             onChange={reset}
             labelledBy={headingId}
@@ -220,15 +202,9 @@ function IdentificationPanel({
 }
 
 export function LockedCloserIdentification(props: LockedCloserIdentificationProps) {
-  const [loading, setLoading] = useState(0);
-
   return (
     <BrandPanelScreen>
-      <IdentificationPanel
-        key={loading}
-        {...props}
-        onRetryLoading={() => setLoading(loading + 1)}
-      />
+      <IdentificationPanel {...props} />
     </BrandPanelScreen>
   );
 }

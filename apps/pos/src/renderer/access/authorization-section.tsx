@@ -90,7 +90,7 @@ export function AuthorizationSection({
   const { authorizers } = authorization;
   const options =
     authorizers.status === "loaded"
-      ? sortedItems(authorizers.users, {
+      ? sortedItems(authorizers.value, {
           order: textOrder((user: SignInUser) => user.first_name),
           direction: "ascending",
         }).map((user) => ({ value: user.id, label: user.first_name }))
@@ -111,7 +111,7 @@ export function AuthorizationSection({
           icon={<TriangleAlert />}
           title="No se pudieron cargar las personas con permiso"
           description="Volvé a intentarlo en unos segundos."
-          onRetry={authorization.retryLoading}
+          onRetry={authorizers.retry}
         />
       ) : null}
       {authorizers.status === "loaded" && firstOption === undefined ? (

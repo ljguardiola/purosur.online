@@ -63,6 +63,7 @@ async function renderScreen(
   const closeCashSession = props.closeCashSession ?? vi.fn<CloseCashSession>(async () => CLOSED);
   const screen = await render(
     <CashCountScreen
+      sessionId="s1"
       person={props.person ?? ADA}
       openedBy={props.openedBy ?? ADA}
       registerName="Caja 1"
@@ -284,6 +285,7 @@ describe("CashCountScreen", () => {
     onTestFinished(() => page.viewport(414, 896));
     const screen = await render(
       <CashCountScreen
+        sessionId="s1"
         person={ADA}
         openedBy={ADA}
         registerName={null}

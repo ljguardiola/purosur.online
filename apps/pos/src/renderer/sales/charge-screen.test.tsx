@@ -49,6 +49,7 @@ async function renderScreen(overrides: Overrides = {}) {
   const onSessionInvalid = vi.fn();
   const screen = await render(
     <ChargeScreen
+      sessionId="s1"
       person={PERSON}
       registerName="Caja 1"
       lock={() => {}}
