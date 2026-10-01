@@ -5,6 +5,7 @@ import type {
   CashLedger,
   CashLedgerTransaction,
   IdGenerator,
+  OpenSale,
   RegisterIdentity,
 } from "../cash-ledger.js";
 
@@ -13,7 +14,7 @@ export interface FakeCashLedgerState {
   identity: RegisterIdentity | undefined;
   sessions: CashSession[];
   movements: CashMovement[];
-  openSaleTotal: number | undefined;
+  openSale: OpenSale | undefined;
   outbox: OutboxEventDraft[];
 }
 
@@ -34,7 +35,7 @@ export class FakeCashLedger implements CashLedger {
       identity: undefined,
       sessions: [],
       movements: [],
-      openSaleTotal: undefined,
+      openSale: undefined,
       outbox: [],
       ...state,
     };
@@ -47,7 +48,7 @@ export class FakeCashLedger implements CashLedger {
       openerAccess: (userId) => working.accesses[userId],
       openSession: () =>
         working.sessions.find((session): session is OpenedCashSession => session.state === "OPEN"),
-      openSaleTotal: () => working.openSaleTotal,
+      openSale: () => working.openSale,
       sessionMovements: (sessionId) =>
         working.movements.filter((movement) => movement.sessionId === sessionId),
       registerIdentity: () => working.identity,

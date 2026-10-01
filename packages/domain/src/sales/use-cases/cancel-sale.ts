@@ -1,4 +1,5 @@
 import type { JsonValue } from "../../sync/index.js";
+import { cancellableWithoutAuthorization } from "../model/payment.js";
 import type { SaleLine, SaleWithLines } from "../model/sale.js";
 import type { SaleLineRemoval } from "../model/sale-line-removal.js";
 import { removalRecord } from "./removal-record.js";
@@ -7,6 +8,7 @@ import { isRefusal, sellingSession } from "./selling-session.js";
 
 export interface CancelSaleInput {
   actorId: string;
+  from: "sale" | "locked_register";
 }
 
 export interface CancelSalePorts {
@@ -19,20 +21,27 @@ export type CancelSaleOutcome =
   | { kind: "not_permitted" }
   | { kind: "no_open_session" }
   | { kind: "no_open_sale" }
+  | { kind: "has_approved_payment" }
   | { kind: "cancelled"; sale: SaleWithLines };
 
 export function cancelSale(
   { ledger, clock, ids }: CancelSalePorts,
-  { actorId }: CancelSaleInput,
+  { actorId, from }: CancelSaleInput,
 ): CancelSaleOutcome {
   return ledger.transaction<CancelSaleOutcome>((tx) => {
-    const session = sellingSession(tx, actorId);
+    const session = from === "sale" ? sellingSession(tx, actorId) : tx.openSession();
+    if (!session) {
+      return { kind: "no_open_session" };
+    }
     if (isRefusal(session)) {
       return session;
     }
     const sale = tx.openSale(session.id);
     if (!sale) {
       return { kind: "no_open_sale" };
+    }
+    if (!cancellableWithoutAuthorization(tx.salePayments(sale.id))) {
+      return { kind: "has_approved_payment" };
     }
 
     const cancelled: SaleWithLines = { ...sale, state: "CANCELLED" };
