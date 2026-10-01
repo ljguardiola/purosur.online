@@ -590,6 +590,7 @@ describe("identifying who closes a locked register", () => {
 
   it("refuses a person without the permission", async () => {
     addAuthorizer("u9", ["sell_and_charge"]);
+    await openAs("u1", 5000);
     signedInPerson.clear();
 
     expect(await identifyLockedCloserFor(deps(), CLOSER)).toEqual({ kind: "lacks_permission" });
