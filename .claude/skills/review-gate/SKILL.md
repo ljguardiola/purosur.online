@@ -49,65 +49,72 @@ keeps that row's id instead of adding one.
 ## 4. Verify
 
 Launch `review-gate-verifier` once with the review folder and the ids of this
-round, including the rows a re-review says are not resolved. A row it
-confirms unresolved is reopened, and its fix counts as a failed attempt; a
-row it finds resolved keeps its verdict and status. It returns, per id, `CONFIRMED` or `REFUTED` with its proof, the kind
-it settles on, and `in-scope` or `out-of-scope`. Copy its verdicts into the
-ledger.
+round, including the rows a re-review says are not resolved. It returns, per
+id, `CONFIRMED` or `REFUTED` with its proof, the kind it settles on, and
+`in-scope` or `out-of-scope`. Record each verdict and its proof in the ledger.
 
-## 5. Decide
+## 5. Classify
 
-| Verdict | Action |
+Every row has a status and a count of failed fix attempts. Apply each verdict
+of this round:
+
+| Verdict | Status |
 |---|---|
-| Confirmed, kind `decision` | Mark it `stopped` and stop the review: report it to the coordinator with its evidence. Nothing is fixed and the review does not approve it. |
-| Confirmed, in scope, any other kind | Mark it `open`: it is fixed in step 6, whatever its label. |
-| Confirmed, out of scope | File it as a new issue following "Issues" in `CONTRIBUTING.md`, and report its number to the coordinator. Not fixed here. |
-| Refuted | Record the proof that refutes it. Not fixed. |
+| New finding, refuted | `refuted` |
+| New finding, confirmed, kind `decision` | `stopped` |
+| New finding, confirmed, out of scope | file it as a new issue following "Issues" in `CONTRIBUTING.md`; `filed as #<n>` |
+| New finding, confirmed, in scope, any other kind | `open`, whatever its label |
+| Reopen claim on a `fixed in <sha>` row, refuted | unchanged |
+| Reopen claim on a `fixed in <sha>` row, confirmed | `open`, one more failed attempt |
 
-The coordinator is whoever assigned the issue: the coordinating session, or
-the owner when no session coordinates. Once the coordinator answers a
-`stopped` row, record the answer in the ledger and resume:
-
-- an approved `decision`: the row goes to the fixer `open`, to update the
-  written rule it contradicted in the same change;
-- a rejected `decision`: the row goes to the fixer `open`, to undo it;
-- a row no fix could close: the row goes to the fixer `open` when the answer
-  says how to fix it, is filed as a new issue (`filed as #<n>`) when the
-  answer moves it out of the issue, or is marked `accepted` when the answer
-  keeps the code as it is.
-
-Then continue at step 6 with the rows that are `open`. When none is, go to
-step 2 to re-review any fix commit not re-reviewed yet, or else to step 7.
+Then every `open` row with two failed attempts becomes `stopped`.
 
 ## 6. Fix
 
-Launch `review-gate-fixer` with the review folder and every confirmed
-in-scope id whose status is `open`, with the previous fixer report of any id
-it already tried and the coordinator's answer of any id that had one. It
-reports each id `fixed` or `not fixed` with the reason.
+While a row is `open`, launch `review-gate-fixer` with the review folder and
+every `open` id, with the previous fixer report of any id it already tried
+and the coordinator's answer of any id that had one. It reports each id
+`fixed` or `not fixed` with the reason.
 
-- When it fixed at least one: commit them in one commit
+- Each `not fixed` row keeps `open` and counts one more failed attempt; with
+  two it becomes `stopped`.
+- When it fixed at least one row: commit them in one commit
   (`<type>: address review-gate round <n> findings`, with the issue's commit
-  type), mark those rows `fixed in <sha>`, and go back to step 2 as a
-  re-review with that commit as the new `TARGET`.
-- A row reported `not fixed`, or reopened by a re-review, stays `open` with
-  the reason in the ledger and goes to the next fixer launch, which takes a
-  different approach. A row two failed attempts could not close is marked
-  `stopped` instead of going to the fixer again, and stops the review: report
-  it to the coordinator.
+  type), mark those rows `fixed in <sha>`, and go to step 2 as a re-review
+  with that commit as the new `TARGET`, whatever else is `open` or `stopped`.
+- When it fixed none and a row is still `open`, launch the fixer again; the
+  next launch takes a different approach.
 
-There is no round limit.
-
-The review is clean when no row is `open` or `stopped` and every fix commit
-has been re-reviewed.
+There is no round limit. Step 7 is reached only when no row is `open` and
+every fix commit has been re-reviewed.
 
 ## 7. Result
 
-End with exactly one line, which the pull request's "How it was tested" cites:
+When a row is `stopped`, end with
+
+```
+REVIEW-GATE: STOPPED — <each stopped id>: <the decision, or the finding no fix could close>
+```
+
+and report every stopped row to the coordinator: whoever assigned the issue,
+the coordinating session or the owner when no session coordinates. Record
+each answer in the ledger and set the row's status from it:
+
+- an approved `decision`: `open`, to update the written rule it contradicted
+  in the same change;
+- a rejected `decision`: `open`, to undo it;
+- a row no fix could close: `open` when the answer says how to fix it, with
+  its failed attempts reset; `filed as #<n>` when the answer moves it out of
+  the issue; `accepted` when the answer keeps the code as it is.
+
+Then go to step 6.
+
+When no row is `stopped`, every row is `refuted`, `filed as #<n>`, `accepted`
+or `fixed in <sha>`, and the review ends with the line the pull request's
+"How it was tested" cites:
 
 ```
 REVIEW-GATE: CLEAN — <rounds> rounds, <fixed> fixed, <refuted> refuted, <filed> filed as new issues, <accepted> accepted (TARGET <sha>)
-REVIEW-GATE: STOPPED — <ledger id>: <the decision, or the finding no fix could close>
 ```
 
-Then report the new issues and any stop to the coordinator.
+Report the new issues to the coordinator.

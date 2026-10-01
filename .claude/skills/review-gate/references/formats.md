@@ -33,9 +33,9 @@ copy). The kinds are defined in `checklist.md`. A clean result is
 ```markdown
 ## Round <n> — TARGET <sha>
 
-| Id | Raised by | Kind | Location | Claim | Verdict | Scope | Evidence | Status |
-|---|---|---|---|---|---|---|---|---|
-| R1-1 | A+B | rule | path:line | ... | CONFIRMED | in-scope | ... | fixed in <sha> |
+| Id | Raised by | Kind | Location | Claim | Verdict | Scope | Evidence | Failed attempts | Status |
+|---|---|---|---|---|---|---|---|---|---|
+| R1-1 | A+B | rule | path:line | ... | CONFIRMED | in-scope | ... | 0 | fixed in <sha> |
 ```
 
 `Status` is `open` (with the reason of each `not fixed` attempt),
