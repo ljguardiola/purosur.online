@@ -178,6 +178,7 @@ export {
   parseAmountCents,
   recordCashMovementMessageSchema,
   rendererToCoreMessageSchema,
+  signInLookupMessageSchema,
 } from "./register/core-messages.js";
 export type { DeviceEnrollment, DeviceEnrollmentBody } from "./register/device-enrollment.js";
 export {

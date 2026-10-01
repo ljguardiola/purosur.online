@@ -92,7 +92,7 @@ const signInMessageSchema = z.object({
   pin: z.string(),
 });
 
-const signInLookupMessageSchema = z.object({
+export const signInLookupMessageSchema = z.object({
   type: z.literal("sign-in-lookup"),
   request_id: requestId,
   email: z.string(),
