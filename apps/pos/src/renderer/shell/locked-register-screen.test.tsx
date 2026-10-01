@@ -77,6 +77,7 @@ describe("LockedRegisterScreen", () => {
     const { signIn, attempts } = answering({
       kind: "signed_in",
       person: OPENER,
+      cash_session: null,
     });
     const screen = await renderScreen(signIn);
 
