@@ -22,15 +22,12 @@ export function addScannedProduct(
   { ledger, clock, ids }: AddScannedProductPorts,
   { actorId, code }: AddScannedProductInput,
 ): AddScannedProductOutcome {
-  if (isBarcodeTooLong(code)) {
-    return { kind: "unknown_code" };
-  }
   const outcome = ledger.transaction((tx) =>
     addProductToSale(tx, {
       actorId,
       clock,
       ids,
-      findProduct: () => tx.activeProductByBarcode(code),
+      findProduct: () => (isBarcodeTooLong(code) ? undefined : tx.activeProductByBarcode(code)),
     }),
   );
   return outcome.kind === "product_not_found" ? { kind: "unknown_code" } : outcome;

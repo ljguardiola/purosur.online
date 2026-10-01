@@ -30,13 +30,13 @@ export function searchProductsByName(
   { ledger, clock }: SearchProductsByNamePorts,
   { actorId, query }: SearchProductsByNameInput,
 ): SearchProductsByNameOutcome {
-  if (isProductNameTooLong(query)) {
-    return { kind: "results", products: [], more: false };
-  }
   return ledger.transaction<SearchProductsByNameOutcome>((tx) => {
     const session = sellingSession(tx, actorId);
     if (isRefusal(session)) {
       return session;
+    }
+    if (isProductNameTooLong(query)) {
+      return { kind: "results", products: [], more: false };
     }
     const moment = clock.now();
     const { hits, more } = rankProductSearch(tx.searchableProducts(), query);

@@ -76,11 +76,14 @@ describe("searchProductsByName", () => {
   it.each([
     ["has no open cash session", { session: undefined }, "no_open_session"],
     ["is not permitted to sell", { accesses: {} }, "not_permitted"],
-  ])("refuses a too-long query with the session refusal when the actor %s", (_name, state, kind) => {
-    const store = ledger(state);
+  ])(
+    "refuses a too-long query with the session refusal when the actor %s",
+    (_name, state, kind) => {
+      const store = ledger(state);
 
-    expect(search(store, "y".repeat(PRODUCT_NAME_MAX_LENGTH + 1))).toEqual({ kind });
-  });
+      expect(search(store, "y".repeat(PRODUCT_NAME_MAX_LENGTH + 1))).toEqual({ kind });
+    },
+  );
 
   it("searches a query as long as the longest product name", () => {
     const store = ledger();
