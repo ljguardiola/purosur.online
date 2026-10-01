@@ -18,7 +18,6 @@ import { openAlert } from "../alerts/open-alert.js";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import {
   auditLog,
-  recoveryTokens,
   rolePermissions,
   roles,
   sessions,
@@ -28,6 +27,7 @@ import {
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import { drizzleBranchUsers } from "./drizzle-branch-users.js";
+import { voidOutstandingRecoveryTokens } from "./void-outstanding-recovery-tokens.js";
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
@@ -212,17 +212,8 @@ class DrizzleUserStoreTransaction<TQueryResult extends PgQueryResultHKT>
     });
   }
 
-  async voidOutstandingRecoveryTokens(userId: string, at: Date): Promise<void> {
-    await this.tx
-      .update(recoveryTokens)
-      .set({ voidedAt: at })
-      .where(
-        and(
-          eq(recoveryTokens.userId, userId),
-          isNull(recoveryTokens.usedAt),
-          isNull(recoveryTokens.voidedAt),
-        ),
-      );
+  voidOutstandingRecoveryTokens(userId: string, at: Date): Promise<void> {
+    return voidOutstandingRecoveryTokens(this.tx, userId, at);
   }
 
   async revokeSessions(userId: string, at: Date): Promise<void> {
