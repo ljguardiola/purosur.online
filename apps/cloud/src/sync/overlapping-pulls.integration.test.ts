@@ -39,9 +39,9 @@ afterAll(async () => {
 
 describe("two pulls of the same device overlapping, on a real Postgres", () => {
   it("answers the later one once the earlier one commits, instead of failing it", async () => {
-    const { deviceId, locationId, registerId } = await insertEnrolledInstallation(db);
+    const { deviceId } = await insertEnrolledInstallation(db);
     const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => new Date() } };
-    await pullChanges(ports, { deviceId, locationId, registerId, since: 0 });
+    await pullChanges(ports, { deviceId, since: 0 });
 
     let markEarlierRecorded = () => {};
     const earlierIsRecorded = new Promise<void>((resolve) => {
@@ -61,7 +61,7 @@ describe("two pulls of the same device overlapping, on a real Postgres", () => {
     });
     await earlierIsRecorded;
 
-    const later = pullChanges(ports, { deviceId, locationId, registerId, since: 4 });
+    const later = pullChanges(ports, { deviceId, since: 4 });
     try {
       await waitForLockWaiters(sql, 1);
     } finally {
@@ -73,7 +73,7 @@ describe("two pulls of the same device overlapping, on a real Postgres", () => {
   });
 
   it("waits for a save of the branch's settings under way, then gives its settings with its hours", async () => {
-    const { deviceId, locationId, registerId } = await insertEnrolledInstallation(db, {
+    const { deviceId, locationId } = await insertEnrolledInstallation(db, {
       registerName: "Caja 2",
     });
     const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => new Date() } };
@@ -104,7 +104,7 @@ describe("two pulls of the same device overlapping, on a real Postgres", () => {
     });
     await saveIsUnderWay;
 
-    const pull = pullChanges(ports, { deviceId, locationId, registerId, since: 0 });
+    const pull = pullChanges(ports, { deviceId, since: 0 });
     try {
       await waitForLockWaiters(sql, 1);
     } finally {
@@ -123,7 +123,7 @@ describe("two pulls of the same device overlapping, on a real Postgres", () => {
   });
 
   it("waits for a product edit under way, then gives the product edited, with its new barcodes", async () => {
-    const { deviceId, locationId, registerId } = await insertEnrolledInstallation(db, {
+    const { deviceId } = await insertEnrolledInstallation(db, {
       registerName: "Caja 3",
     });
     const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => new Date() } };
@@ -170,7 +170,7 @@ describe("two pulls of the same device overlapping, on a real Postgres", () => {
     });
     await editIsUnderWay;
 
-    const pull = pullChanges(ports, { deviceId, locationId, registerId, since: 0 });
+    const pull = pullChanges(ports, { deviceId, since: 0 });
     try {
       await waitForLockWaiters(sql, 1);
     } finally {
@@ -192,7 +192,7 @@ describe("two pulls of the same device overlapping, on a real Postgres", () => {
   });
 
   it("gives a category a writer holds locked as it was, without waiting for the writer", async () => {
-    const { deviceId, locationId, registerId } = await insertEnrolledInstallation(db, {
+    const { deviceId } = await insertEnrolledInstallation(db, {
       registerName: "Caja 4",
     });
     const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => new Date() } };
@@ -212,7 +212,7 @@ describe("two pulls of the same device overlapping, on a real Postgres", () => {
       await holder`select id from categories where id = ${categoryId} for update`;
       await holder`update categories set name = 'Bebidas y jugos', version = 2 where id = ${categoryId}`;
 
-      page = await pullChanges(ports, { deviceId, locationId, registerId, since: 0 });
+      page = await pullChanges(ports, { deviceId, since: 0 });
     } finally {
       await holder`rollback`;
       holder.release();

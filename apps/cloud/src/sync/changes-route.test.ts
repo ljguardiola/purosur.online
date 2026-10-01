@@ -1,4 +1,5 @@
 import { changesPageSchema, cloudErrorSchema } from "@purosur/contracts";
+import { pullAudienceOf } from "@purosur/domain";
 import { createRole, createUser, deactivateUser } from "@purosur/domain/access/use-cases";
 import { editBranchSettings } from "@purosur/domain/branch/use-cases";
 import {
@@ -1256,7 +1257,11 @@ describe("the change log read for a register whose row is gone", () => {
     await logChange(db, { entity: "register", entityId: registerId, version: 2, op: "delete" });
 
     const pulled = await new DrizzleChangeLog(db).transaction((tx) =>
-      tx.changesAfter({ locationId, registerId }, SEEDED_CHANGES, 500),
+      tx.changesAfter(
+        pullAudienceOf({ registerId, locationId, priceListId: null }),
+        SEEDED_CHANGES,
+        500,
+      ),
     );
 
     expect(pulled.map(({ changeSeq, ...change }) => change)).toEqual([

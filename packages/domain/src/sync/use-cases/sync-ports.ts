@@ -1,7 +1,13 @@
+import type {
+  PullAudience,
+  PulledEntity,
+  PullingRegister,
+  PullReach,
+} from "../model/pull-audience.js";
 import type { PulledChange, PullPage } from "../model/pull-page.js";
 import type { PushedEvent, RegisterTelemetry } from "../model/push-batch.js";
 
-export type { PulledChange, PullPage };
+export type { PullAudience, PulledChange, PulledEntity, PullingRegister, PullPage, PullReach };
 
 export interface Clock {
   now(): Date;
@@ -13,13 +19,9 @@ export interface ChangeLog<TChange extends PulledChange> {
   ): Promise<TOutcome>;
 }
 
-export interface PullAudience {
-  locationId: string;
-  registerId: string;
-}
-
 export interface ChangeLogTransaction<TChange extends PulledChange> {
   recordObservedPull(deviceId: string, since: number, at: Date): Promise<void>;
+  pullingRegister(deviceId: string): Promise<PullingRegister>;
   changesAfter(audience: PullAudience, since: number, limit: number): Promise<TChange[]>;
 }
 
