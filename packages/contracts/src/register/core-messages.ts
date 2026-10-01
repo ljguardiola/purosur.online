@@ -314,6 +314,10 @@ const pinCodeRedemptionOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("rate_limited"), retry_after_seconds: z.int().nonnegative() }),
   z.object({ kind: z.literal("unreachable") }),
   z.object({ kind: z.literal("unavailable") }),
+  z.object({
+    kind: z.literal("invalid_input"),
+    fields: z.array(z.enum(["reset_code", "new_pin"])),
+  }),
 ]);
 export type PinCodeRedemptionOutcome = z.infer<typeof pinCodeRedemptionOutcomeSchema>;
 

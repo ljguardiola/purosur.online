@@ -24,6 +24,7 @@ function noticeFor(outcome: PinCodeRedemptionOutcome, newCodeAskedIn: NewCodePla
     case "redeemed":
     case "resumed":
     case "pin_rejected":
+    case "invalid_input":
       return undefined;
     case "cash_session_opened_by_another":
       return {
