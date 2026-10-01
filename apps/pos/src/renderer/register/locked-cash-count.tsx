@@ -19,6 +19,7 @@ export type RefusedClose = Extract<
 >;
 
 export type LockedCashCountProps = {
+  sessionId: string;
   opener: SignedInPerson;
   closerName: string;
   registerName: string | null;
@@ -29,6 +30,7 @@ export type LockedCashCountProps = {
 };
 
 export function LockedCashCount({
+  sessionId,
   opener,
   closerName,
   registerName,
@@ -38,7 +40,7 @@ export function LockedCashCount({
   onRefused,
 }: LockedCashCountProps) {
   const navigate = useNavigate();
-  const balance = useCashBalanceQuery(loadCashBalance);
+  const balance = useCashBalanceQuery(sessionId, loadCashBalance);
   const field = useRef<HTMLDivElement>(null);
   const [typed, setTyped] = useState("");
   const [fieldMessage, setFieldMessage] = useState<string>();

@@ -243,11 +243,12 @@ const cashRoute = createRoute({
   getParentRoute: () => sessionEyebrowRoute,
   path: "/cash",
   beforeLoad: ({ context }) => {
-    const { openedAt, person } = requireOpenSession(context);
-    return { openedAt, person };
+    const { id, openedAt, person } = requireOpenSession(context);
+    return { id, openedAt, person };
   },
   component: function CashRoute() {
     const {
+      id,
       openedAt,
       person,
       signOut,
@@ -259,6 +260,7 @@ const cashRoute = createRoute({
     const registerName = useRegisterName();
     return (
       <CashScreen
+        sessionId={id}
         person={person}
         registerName={registerName}
         openedAt={openedAt}
@@ -287,6 +289,7 @@ const cashCountRoute = createRoute({
     const { leaving } = cashCountRoute.useSearch();
     return (
       <CashCountScreen
+        sessionId={id}
         person={person}
         openedBy={openedBy}
         registerName={registerName}
@@ -343,6 +346,7 @@ const lockedCloseRoute = createRoute({
     const registerName = useRegisterName();
     return (
       <LockedCloseScreen
+        sessionId={id}
         opener={openedBy}
         registerName={registerName}
         openedAt={openedAt}

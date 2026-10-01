@@ -8,13 +8,12 @@ import type {
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { SignedInPerson } from "../access/signed-in-person";
 import type { CashMovementInput, CoreClient } from "../platform/core-client";
 import { createQueryClient } from "../platform/query-client";
 import { useCoreStatus } from "../platform/use-core-status";
 import {
-  cashKey,
   cashSessionQueryOptions,
   registerKeys,
   useCashSessionQuery,
@@ -245,15 +244,6 @@ function Register({ core }: { core: CoreClient }) {
       void queryClient.resetQueries({ queryKey: registerKeys.cashSession });
     }
   }, [enrollment, queryClient]);
-
-  const openSessionId = cashSession.status === "open" ? cashSession.id : undefined;
-  const shownSessionId = useRef(openSessionId);
-  useEffect(() => {
-    if (shownSessionId.current !== openSessionId) {
-      shownSessionId.current = openSessionId;
-      void queryClient.resetQueries({ queryKey: cashKey });
-    }
-  }, [openSessionId, queryClient]);
 
   useEffect(() => core.onPulled(() => void queryClient.invalidateQueries()), [core, queryClient]);
 

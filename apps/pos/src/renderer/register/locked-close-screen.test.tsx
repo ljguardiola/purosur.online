@@ -42,6 +42,7 @@ async function renderScreen(
   const close = options.close ?? vi.fn<Close>(async () => ({ kind: "unavailable" }));
   const screen = await render(
     <LockedCloseScreen
+      sessionId="s1"
       opener={GRACE}
       registerName="Caja 1"
       openedAt="2026-09-30T12:02:00.000Z"
@@ -77,6 +78,7 @@ describe("LockedCloseScreen", () => {
     ]);
     const element = () => (
       <LockedCloseScreen
+        sessionId="s1"
         opener={GRACE}
         registerName="Caja 1"
         openedAt="2026-09-30T12:02:00.000Z"

@@ -19,6 +19,7 @@ import { RecordCashMovementModal } from "./record-cash-movement-modal";
 import { useCashBalanceQuery, useCashMovementsQuery, useRefreshCash } from "./register-queries";
 
 export type CashScreenProps = {
+  sessionId: string;
   person: SignedInPerson;
   registerName: string | null;
   openedAt: string;
@@ -30,6 +31,7 @@ export type CashScreenProps = {
 };
 
 export function CashScreen({
+  sessionId,
   person,
   registerName,
   openedAt,
@@ -40,8 +42,8 @@ export function CashScreen({
   recordCashMovement,
 }: CashScreenProps) {
   const navigate = useNavigate();
-  const balance = useCashBalanceQuery(loadCashBalance);
-  const movements = useCashMovementsQuery(loadCashMovements);
+  const balance = useCashBalanceQuery(sessionId, loadCashBalance);
+  const movements = useCashMovementsQuery(sessionId, loadCashMovements);
   const refreshCash = useRefreshCash();
   const [recording, setRecording] = useState(false);
 

@@ -58,6 +58,7 @@ async function renderScreen(
   onTestFinished(() => page.viewport(414, 896));
   return render(
     <CashScreen
+      sessionId="s1"
       person={PERSON}
       registerName={props.registerName === undefined ? "Caja 1" : props.registerName}
       openedAt={OPENED_AT}

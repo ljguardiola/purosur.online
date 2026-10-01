@@ -45,9 +45,9 @@ type Reads = {
   movements: () => Promise<ListedCashMovement[] | null | "unavailable">;
 };
 
-function Probe({ balance, movements }: Reads) {
-  const balanceData = useCashBalanceQuery(balance);
-  const movementsData = useCashMovementsQuery(movements);
+function Probe({ balance, movements, sessionId = "s1" }: Reads & { sessionId?: string }) {
+  const balanceData = useCashBalanceQuery(sessionId, balance);
+  const movementsData = useCashMovementsQuery(sessionId, movements);
   const refreshCash = useRefreshCash();
   return (
     <>
@@ -69,6 +69,30 @@ function renderProbe(reads: Reads) {
 }
 
 describe("cash queries", () => {
+  it("never show what was read for another session", async () => {
+    const queryClient = createQueryClient();
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <Probe balance={async () => BALANCE} movements={async () => [OPENING]} sessionId="s1" />
+      </QueryClientProvider>,
+    );
+    await expect.element(screen.getByText("balance 2000000")).toBeVisible();
+    await expect.element(screen.getByText("movements 1")).toBeVisible();
+
+    await screen.rerender(
+      <QueryClientProvider client={queryClient}>
+        <Probe
+          balance={() => new Promise(() => {})}
+          movements={() => new Promise(() => {})}
+          sessionId="s2"
+        />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("balance loading")).toBeVisible();
+    await expect.element(screen.getByText("movements loading")).toBeVisible();
+  });
+
   it("hold the balance and the movements the core answers", async () => {
     const screen = await renderProbe({
       balance: async () => BALANCE,

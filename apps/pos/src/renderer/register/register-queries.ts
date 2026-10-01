@@ -7,14 +7,14 @@ import { cashSessionStateOf } from "../shell/cash-session-state";
 
 const registerKey = ["register"] as const;
 
-export const cashKey = [...registerKey, "cash"] as const;
+const cashKey = [...registerKey, "cash"] as const;
 
 export const registerKeys = {
   enrollment: [...registerKey, "enrollment"] as const,
   cashSession: [...registerKey, "cash-session"] as const,
   registerName: [...registerKey, "register-name"] as const,
-  cashBalance: [...cashKey, "balance"] as const,
-  cashMovements: [...cashKey, "movements"] as const,
+  cashBalance: (sessionId: string) => [...cashKey, sessionId, "balance"] as const,
+  cashMovements: (sessionId: string) => [...cashKey, sessionId, "movements"] as const,
 };
 
 const CASH_SESSION_REREAD_MS = 5000;
@@ -67,15 +67,19 @@ export function useRegisterNameQuery(read: () => Promise<string | null>): string
 }
 
 export function useCashBalanceQuery(
+  sessionId: string,
   read: () => Promise<CashBalance | null | "unavailable">,
 ): CoreData<CashBalance> {
-  return onlyWithOpenSession(useCoreQuery({ queryKey: registerKeys.cashBalance, read }));
+  return onlyWithOpenSession(useCoreQuery({ queryKey: registerKeys.cashBalance(sessionId), read }));
 }
 
 export function useCashMovementsQuery(
+  sessionId: string,
   read: () => Promise<ListedCashMovement[] | null | "unavailable">,
 ): CoreData<ListedCashMovement[]> {
-  return onlyWithOpenSession(useCoreQuery({ queryKey: registerKeys.cashMovements, read }));
+  return onlyWithOpenSession(
+    useCoreQuery({ queryKey: registerKeys.cashMovements(sessionId), read }),
+  );
 }
 
 export function useRefreshCash(): () => void {

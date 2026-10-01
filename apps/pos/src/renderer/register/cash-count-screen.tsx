@@ -30,6 +30,7 @@ const NOT_PERMITTED: Notice = {
 const FAILED: Notice = { title: "No se pudo cerrar la caja. Probá de nuevo.", icon: "failure" };
 
 export type CashCountScreenProps = {
+  sessionId: string;
   person: SignedInPerson;
   openedBy: SignedInPerson;
   registerName: string | null;
@@ -44,6 +45,7 @@ export type CashCountScreenProps = {
 };
 
 export function CashCountScreen({
+  sessionId,
   person,
   openedBy,
   registerName,
@@ -54,7 +56,7 @@ export function CashCountScreen({
   closeCashSession,
 }: CashCountScreenProps) {
   const navigate = useNavigate();
-  const balance = useCashBalanceQuery(loadCashBalance);
+  const balance = useCashBalanceQuery(sessionId, loadCashBalance);
   const authorization = useAuthorization({
     person,
     permission: "close_anothers_register_session",
