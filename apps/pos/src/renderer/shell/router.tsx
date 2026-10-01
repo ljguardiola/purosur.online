@@ -1,7 +1,9 @@
 import type {
   AddProductOutcome,
   Authorization,
+  CancelSaleOutcome,
   CashBalance,
+  ChangeLineQuantityOutcome,
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
@@ -14,6 +16,7 @@ import type {
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   RecordCashMovementOutcome,
+  RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
   SignInLookupOutcome,
@@ -92,6 +95,13 @@ export interface RouterContext {
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   searchProducts: (query: string) => Promise<SearchProductsOutcome>;
   addProduct: (productId: string) => Promise<AddProductOutcome>;
+  changeLineQuantity: (
+    lineId: string,
+    quantity: number,
+    expectedQuantity: number,
+  ) => Promise<ChangeLineQuantityOutcome>;
+  removeSaleLine: (lineId: string) => Promise<RemoveSaleLineOutcome>;
+  cancelSale: () => Promise<CancelSaleOutcome>;
   refreshCashSession: () => Promise<void>;
 }
 
@@ -218,6 +228,9 @@ const openSessionRoute = createRoute({
       scanProduct,
       searchProducts,
       addProduct,
+      changeLineQuantity,
+      removeSaleLine,
+      cancelSale,
       refreshCashSession,
     } = openSessionRoute.useRouteContext();
     const registerName = sessionEyebrowRoute.useLoaderData();
@@ -231,6 +244,9 @@ const openSessionRoute = createRoute({
         scanProduct={scanProduct}
         searchProducts={searchProducts}
         addProduct={addProduct}
+        changeLineQuantity={changeLineQuantity}
+        removeSaleLine={removeSaleLine}
+        cancelSale={cancelSale}
         onSessionInvalid={() => void refreshCashSession()}
       />
     );
@@ -498,6 +514,9 @@ export function createAppRouter(
     | "chargeSaleInCash"
     | "searchProducts"
     | "addProduct"
+    | "changeLineQuantity"
+    | "removeSaleLine"
+    | "cancelSale"
     | "refreshCashSession"
   >,
 ) {

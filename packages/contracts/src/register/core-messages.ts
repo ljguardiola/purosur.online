@@ -22,7 +22,11 @@ import {
 import { pinAttemptRefusalSchema } from "../access/pin-attempt-refusal.js";
 import {
   addProductOutcomeSchema,
+  cancelSaleOutcomeSchema,
+  changeLineQuantityOutcomeSchema,
   chargeSaleInCashOutcomeSchema,
+  removeSaleLineOutcomeSchema,
+  saleLineQuantitySchema,
   saleSchema,
   scannedCodeSchema,
   scanProductOutcomeSchema,
@@ -175,6 +179,25 @@ const scanProductMessageSchema = z.object({
   code: scannedCodeSchema,
 });
 
+const changeLineQuantityMessageSchema = z.object({
+  type: z.literal("change-line-quantity"),
+  request_id: requestId,
+  line_id: z.string(),
+  quantity: saleLineQuantitySchema,
+  expected_quantity: saleLineQuantitySchema,
+});
+
+const removeSaleLineMessageSchema = z.object({
+  type: z.literal("remove-sale-line"),
+  request_id: requestId,
+  line_id: z.string(),
+});
+
+const cancelSaleMessageSchema = z.object({
+  type: z.literal("cancel-sale"),
+  request_id: requestId,
+});
+
 const searchProductsMessageSchema = z.object({
   type: z.literal("search-products"),
   request_id: requestId,
@@ -225,6 +248,9 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   cashBalanceRequestMessageSchema,
   authorizersRequestMessageSchema,
   scanProductMessageSchema,
+  changeLineQuantityMessageSchema,
+  removeSaleLineMessageSchema,
+  cancelSaleMessageSchema,
   searchProductsMessageSchema,
   addProductMessageSchema,
   saleRequestMessageSchema,
@@ -480,6 +506,21 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("scan-product-result"),
     request_id: requestId,
     outcome: scanProductOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("change-line-quantity-result"),
+    request_id: requestId,
+    outcome: changeLineQuantityOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("remove-sale-line-result"),
+    request_id: requestId,
+    outcome: removeSaleLineOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("cancel-sale-result"),
+    request_id: requestId,
+    outcome: cancelSaleOutcomeSchema,
   }),
   z.object({
     type: z.literal("search-products-result"),

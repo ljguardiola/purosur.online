@@ -4,6 +4,8 @@ import { cashCharge } from "../model/cash-charge.js";
 import type { PaymentTransaction } from "../model/payment.js";
 import type { LinePromotion, SaleWithLines } from "../model/sale.js";
 import { saleTotal } from "../model/sale-line.js";
+import type { SaleLineRemoval } from "../model/sale-line-removal.js";
+import { removalRecord } from "./removal-record.js";
 import type { Clock, IdGenerator, SaleLedger } from "./sale-ledger.js";
 import { isRefusal, sellingSession } from "./selling-session.js";
 
@@ -88,7 +90,16 @@ export function chargeSaleInCash(
     }
     tx.recordCompletedSale(sale.id);
     tx.appendOutboxEvent(
-      saleCompletedEvent(ids.next(), sale, total, payment, movements, actorId, completedAt),
+      saleCompletedEvent(
+        ids.next(),
+        sale,
+        total,
+        payment,
+        movements,
+        tx.saleLineRemovals(sale.id),
+        actorId,
+        completedAt,
+      ),
     );
     return { kind: "completed", saleId: sale.id, total, tendered, change: charge.change };
   });
@@ -141,6 +152,7 @@ function saleCompletedEvent(
   total: number,
   payment: PaymentTransaction,
   movements: readonly SaleCashMovement[],
+  removals: readonly SaleLineRemoval[],
   actorId: string,
   completedAt: Date,
 ): OutboxEventDraft {
@@ -193,6 +205,7 @@ function saleCompletedEvent(
         actor_id: movement.actorId,
         occurred_at: movement.occurredAt.toISOString(),
       })),
+      removals: removals.map(removalRecord),
     },
     occurred_at: completedAtIso,
     actor_id: actorId,

@@ -114,6 +114,9 @@ function contextWith(
     scanProduct: async () => ({ kind: "unknown_code" }),
     searchProducts: async () => ({ kind: "results", products: [], more: false }),
     addProduct: async () => ({ kind: "product_unavailable" }),
+    changeLineQuantity: async () => ({ kind: "unavailable" }),
+    removeSaleLine: async () => ({ kind: "unavailable" }),
+    cancelSale: async () => ({ kind: "unavailable" }),
     refreshCashSession: async () => {},
   };
 }

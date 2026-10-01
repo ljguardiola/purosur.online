@@ -1,7 +1,9 @@
 import type {
   AddProductOutcome,
   Authorization,
+  CancelSaleOutcome,
   CashBalance,
+  ChangeLineQuantityOutcome,
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
@@ -15,6 +17,7 @@ import type {
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   RecordCashMovementOutcome,
+  RemoveSaleLineOutcome,
   RendererToCoreMessage,
   ScanProductOutcome,
   SearchProductsOutcome,
@@ -49,6 +52,15 @@ export interface RendererRequestDeps {
   searchProducts: ((query: string) => Promise<SearchProductsOutcome>) | undefined;
   addProduct: ((productId: string) => Promise<AddProductOutcome>) | undefined;
   currentSale: (() => Promise<CurrentSaleAnswer>) | undefined;
+  changeLineQuantity:
+    | ((
+        lineId: string,
+        quantity: number,
+        expectedQuantity: number,
+      ) => Promise<ChangeLineQuantityOutcome>)
+    | undefined;
+  removeSaleLine: ((lineId: string) => Promise<RemoveSaleLineOutcome>) | undefined;
+  cancelSale: (() => Promise<CancelSaleOutcome>) | undefined;
   closeCashSession:
     | ((
         sessionId: string,
@@ -255,6 +267,19 @@ async function attemptScanProduct(
   }
 }
 
+async function attemptSaleChange<TOutcome extends { kind: string }>(
+  deps: RendererRequestDeps,
+  context: string,
+  change: (() => Promise<TOutcome>) | undefined,
+): Promise<TOutcome | { kind: "unavailable" }> {
+  try {
+    return (await change?.()) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure(context, error);
+    return { kind: "unavailable" };
+  }
+}
+
 async function attemptChargeSaleInCash(
   deps: RendererRequestDeps,
   request: ChargeSaleInCashRequest,
@@ -393,6 +418,38 @@ export async function answerRendererRequest(
         type: "scan-product-result",
         request_id: message.request_id,
         outcome: await attemptScanProduct(deps, message.code),
+      };
+    case "change-line-quantity": {
+      const { changeLineQuantity } = deps;
+      return {
+        type: "change-line-quantity-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "changing a line's quantity",
+          changeLineQuantity &&
+            (() =>
+              changeLineQuantity(message.line_id, message.quantity, message.expected_quantity)),
+        ),
+      };
+    }
+    case "remove-sale-line": {
+      const { removeSaleLine } = deps;
+      return {
+        type: "remove-sale-line-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "removing a sale line",
+          removeSaleLine && (() => removeSaleLine(message.line_id)),
+        ),
+      };
+    }
+    case "cancel-sale":
+      return {
+        type: "cancel-sale-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(deps, "cancelling the sale", deps.cancelSale),
       };
     case "charge-sale-in-cash":
       return {

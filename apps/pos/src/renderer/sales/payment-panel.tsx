@@ -1,14 +1,22 @@
 import { Button, formatCents, InlineNotice, plural, SummaryRowGroup } from "@purosur/ui";
-import { Banknote, TriangleAlert } from "lucide-react";
+import { Banknote, TriangleAlert, X } from "lucide-react";
 import { Eyebrow } from "../shell/eyebrow";
 
 export type PaymentPanelProps = {
   lineCount: number;
   total: number;
+  canCancel: boolean;
   onCharge: () => void;
+  onCancel: () => void;
 };
 
-export function PaymentPanel({ lineCount, total, onCharge }: PaymentPanelProps) {
+export function PaymentPanel({
+  lineCount,
+  total,
+  canCancel,
+  onCharge,
+  onCancel,
+}: PaymentPanelProps) {
   const lines = plural(lineCount, { one: "línea", other: "líneas" });
   const isZeroTotal = lineCount > 0 && total === 0;
   return (
@@ -35,6 +43,18 @@ export function PaymentPanel({ lineCount, total, onCharge }: PaymentPanelProps) 
           title="El total es $ 0,00: quitá el producto o cancelá la venta."
         />
       ) : null}
+      <div className="mt-auto flex flex-col">
+        <Button
+          variant="secondary"
+          destructive
+          fullWidth
+          icon={<X />}
+          disabled={!canCancel}
+          onPress={onCancel}
+        >
+          Cancelar venta
+        </Button>
+      </div>
     </aside>
   );
 }

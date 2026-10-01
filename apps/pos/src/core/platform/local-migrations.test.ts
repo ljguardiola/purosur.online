@@ -403,6 +403,43 @@ describe("the register's local migrations", () => {
     }
   });
 
+  it("add the removals of sale lines over the open sales a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(0, 13);
+      expect(previous.at(-1)?.name).toBe("0012_payment_transactions");
+      expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
+        "0013_sale_line_removals",
+      ]);
+      const before = openLocalDatabase(path, previous);
+      before
+        .prepare(
+          `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+           VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN')`,
+        )
+        .run();
+      before
+        .prepare(
+          `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+           VALUES ('a', 'r1', 'device-a', 's1', 'u1', 'OPEN', '2026-09-30T12:00:00.000Z')`,
+        )
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+
+      expect(after.prepare("SELECT id, state FROM sales").all()).toEqual([
+        { id: "a", state: "OPEN" },
+      ]);
+      expect(after.prepare("SELECT count(*) AS total FROM sale_line_removals").get()).toEqual({
+        total: 0,
+      });
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
   it("find the lines of a product without reading every line, keeping the sales a register already holds", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
