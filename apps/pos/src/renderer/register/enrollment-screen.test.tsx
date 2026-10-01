@@ -200,21 +200,27 @@ describe("EnrollmentScreen", () => {
     ["empty", ""],
     ["too short", "P4NX 7KWE 2QRT"],
     ["made of characters no code has", "P4NX 7KWE 2QRT 6MZ1"],
-  ])("asks for the whole code without redeeming one that is %s", async (_case, code) => {
-    const { enroll, codes } = answering({ kind: "enrolled" });
-    const screen = await render(<EnrollmentScreen enroll={enroll} />);
+  ])(
+    "sends a code that is %s to the core and asks for the whole code on the field when it refuses it",
+    async (_case, code) => {
+      const { enroll, codes } = answering({ kind: "invalid_input", fields: ["code"] });
+      const screen = await render(<EnrollmentScreen enroll={enroll} />);
 
-    await submitCode(screen, code);
+      await submitCode(screen, code);
 
-    await expect
-      .element(screen.getByText("Escribí los 16 caracteres del código de alta."))
-      .toBeVisible();
-    expect(codes).toEqual([]);
-  });
+      await expect
+        .element(screen.getByText("Escribí los 16 caracteres del código de alta."))
+        .toBeVisible();
+      await expect
+        .element(screen.getByRole("textbox", { name: "Código de alta" }))
+        .toHaveAttribute("aria-invalid", "true");
+      expect(codes).toEqual([code]);
+    },
+  );
 
-  it("keeps asking for the whole code while what is typed is still incomplete, and stops once it is whole", async () => {
+  it("stops asking for the whole code once the person types again", async () => {
     const screen = await render(
-      <EnrollmentScreen enroll={answering({ kind: "enrolled" }).enroll} />,
+      <EnrollmentScreen enroll={answering({ kind: "invalid_input", fields: ["code"] }).enroll} />,
     );
     await submitCode(screen, "P4NX 7KWE");
     const field = screen.getByRole("textbox", { name: "Código de alta" });
@@ -222,9 +228,7 @@ describe("EnrollmentScreen", () => {
     await expect.element(message).toBeVisible();
 
     await userEvent.type(field, " 2QRT");
-    await expect.element(message).toBeVisible();
 
-    await userEvent.type(field, " 6MZD");
     await expect.element(message).not.toBeInTheDocument();
     await expect.element(field).not.toHaveAttribute("aria-invalid", "true");
   });

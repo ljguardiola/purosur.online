@@ -129,12 +129,15 @@ describe("enroll", () => {
     expect(await enroll(deps, TYPED_CODE)).toEqual({ kind: "unreachable" });
   });
 
-  it("refuses a code that can't be one without asking the cloud", async () => {
-    const { deps, posted } = depsAnswering({ kind: "ok", body: ENROLLED_BODY });
+  it.each(["", "P4NX 7KWE", "P4NX 7KWE 2QRT 6MZ1"])(
+    "refuses the typed code '%s', which can't be one, naming the field without asking the cloud",
+    async (typed) => {
+      const { deps, posted } = depsAnswering({ kind: "ok", body: ENROLLED_BODY });
 
-    expect(await enroll(deps, "P4NX 7KWE")).toEqual({ kind: "code_rejected" });
-    expect(posted).toEqual([]);
-  });
+      expect(await enroll(deps, typed)).toEqual({ kind: "invalid_input", fields: ["code"] });
+      expect(posted).toEqual([]);
+    },
+  );
 
   it("answers unavailable without asking when the machine reports nothing to send", async () => {
     const { deps, posted } = depsAnswering({ kind: "ok", body: ENROLLED_BODY });

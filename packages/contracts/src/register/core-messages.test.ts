@@ -367,6 +367,7 @@ describe("coreToRendererMessageSchema", () => {
     { kind: "unavailable" },
     { kind: "storage_unavailable" },
     { kind: "not_stored" },
+    { kind: "invalid_input", fields: ["code"] },
   ])("accepts the enrollment result $kind", (outcome) => {
     const message = { type: "enrollment-result", request_id: REQUEST_ID, outcome };
 
@@ -445,6 +446,16 @@ describe("coreToRendererMessageSchema", () => {
       type: "enrollment-result",
       request_id: REQUEST_ID,
       outcome: { kind: "rate_limited" },
+    };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("rejects an enrollment refusal naming a field the enrollment does not have", () => {
+    const message = {
+      type: "enrollment-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "invalid_input", fields: ["hostname"] },
     };
 
     expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
