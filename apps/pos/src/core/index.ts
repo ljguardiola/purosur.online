@@ -478,11 +478,15 @@ const rendererRequestDeps: RendererRequestDeps = {
   currentSale:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : () => currentSaleFor({ database: localDatabase, gate: actionGate }),
+      : () => currentSaleFor({ database: localDatabase, gate: actionGate, now: () => new Date() }),
   cashCharge:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (request) => cashChargeFor({ database: localDatabase, gate: actionGate }, request),
+      : (request) =>
+          cashChargeFor(
+            { database: localDatabase, gate: actionGate, now: () => new Date() },
+            request,
+          ),
   reportFailure,
 };
 

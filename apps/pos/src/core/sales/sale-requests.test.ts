@@ -63,6 +63,14 @@ function addPerson(id: string, roleId: string): void {
     .run(id, roleId);
 }
 
+function saveThreshold(amount: number, validFrom = "2026-01-01"): void {
+  database
+    .prepare(
+      "INSERT INTO buyer_identification_thresholds (id, amount, valid_from) VALUES (?, ?, ?)",
+    )
+    .run(`threshold-starting-${validFrom}`, amount, validFrom);
+}
+
 function seed(): void {
   database
     .prepare(
@@ -88,6 +96,7 @@ function seed(): void {
     .prepare("INSERT INTO own_register (id, name, version) VALUES ('register-1', 'Caja 1', 1)")
     .run();
   database.prepare("UPDATE sync_state SET device_id = 'device-1'").run();
+  saveThreshold(100_000_000);
   database
     .prepare(
       `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
@@ -154,6 +163,7 @@ describe("scanning a product on the register", () => {
           },
         ],
         total: 3000,
+        charge_refusal: null,
       },
     });
   });
@@ -315,6 +325,7 @@ describe("adding a searched product on the register", () => {
           },
         ],
         total: 1500,
+        charge_refusal: null,
       },
     });
   });
@@ -405,6 +416,27 @@ describe("the sale in progress", () => {
         },
       ],
       total: 3000,
+      charge_refusal: null,
+    });
+  });
+
+  it("is refused for charging when the total reaches the threshold in effect", async () => {
+    saveThreshold(3000, "2026-09-30");
+    await scanProductFor(deps(), "111");
+    await scanProductFor(deps(), "111");
+
+    expect(await currentSaleFor(deps())).toMatchObject({
+      total: 3000,
+      charge_refusal: { kind: "reaches_buyer_identification_threshold", threshold: 3000 },
+    });
+  });
+
+  it("is refused for charging when the register holds no threshold", async () => {
+    database.prepare("DELETE FROM buyer_identification_thresholds").run();
+    await scanProductFor(deps(), "111");
+
+    expect(await currentSaleFor(deps())).toMatchObject({
+      charge_refusal: { kind: "no_buyer_identification_threshold" },
     });
   });
 });
@@ -494,7 +526,7 @@ describe("removing a line", () => {
 
     expect(await removeSaleLineFor(deps(), lineId)).toEqual({
       kind: "removed",
-      sale: { id: "id-1", lines: [], total: 0 },
+      sale: { id: "id-1", lines: [], total: 0, charge_refusal: null },
     });
     expect(
       database.prepare("SELECT qty_removed, amount_removed FROM sale_line_removals").all(),
@@ -629,6 +661,39 @@ describe("charging the sale in progress in cash", () => {
     expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([
       { event_type: "sale_completed" },
     ]);
+  });
+
+  it("answers the sale as refused when what it adds reaches the threshold", async () => {
+    saveThreshold(3000, "2026-09-30");
+    await scanProductFor(deps(), "111");
+
+    expect(await scanProductFor(deps(), "111")).toMatchObject({
+      kind: "added",
+      sale: {
+        charge_refusal: { kind: "reaches_buyer_identification_threshold", threshold: 3000 },
+      },
+    });
+  });
+
+  it("refuses to charge a sale that reaches the threshold, leaving it open", async () => {
+    saveThreshold(3000, "2026-09-30");
+    const saleId = await sellTwo();
+
+    expect(await chargeSaleInCashFor(deps(), { saleId, tendered: 5000 })).toEqual({
+      kind: "reaches_buyer_identification_threshold",
+      threshold: 3000,
+    });
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+  });
+
+  it("refuses to charge any sale while the register holds no threshold", async () => {
+    database.prepare("DELETE FROM buyer_identification_thresholds").run();
+    const saleId = await sellTwo();
+
+    expect(await chargeSaleInCashFor(deps(), { saleId, tendered: 5000 })).toEqual({
+      kind: "no_buyer_identification_threshold",
+    });
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
   });
 
   it("answers how much is still due when the cash does not cover the sale", async () => {

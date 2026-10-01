@@ -192,10 +192,19 @@ function promotionIdsTargeting(productId: string): string[] {
     .map((promotion) => promotion.id);
 }
 
+function saveThreshold(id: string, amount: number, validFrom: string): void {
+  database
+    .prepare(
+      "INSERT INTO buyer_identification_thresholds (id, amount, valid_from) VALUES (?, ?, ?)",
+    )
+    .run(id, amount, validFrom);
+}
+
 function readySeller(): void {
   addCashier();
   enrol();
   openSession();
+  saveThreshold("threshold-1", 100_000_000, "2026-01-01");
 }
 
 beforeEach(() => {
@@ -363,7 +372,7 @@ describe("the sale being built", () => {
     scan("222");
     scan("111");
 
-    const outcome = currentSale({ ledger }, { actorId: "u1" });
+    const outcome = currentSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" });
 
     expect(outcome.kind === "open" && outcome.sale.lines.map((line) => line.productId)).toEqual([
       "p3",
@@ -404,7 +413,9 @@ describe("the sale being built", () => {
     scan("111");
     database.prepare("UPDATE sales SET state = 'COMPLETED'").run();
 
-    expect(currentSale({ ledger }, { actorId: "u1" })).toEqual({ kind: "no_sale" });
+    expect(currentSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" })).toEqual({
+      kind: "no_sale",
+    });
   });
 
   it("leaves nothing behind when a write fails midway", () => {
@@ -457,7 +468,7 @@ describe("the sale after the register restarts", () => {
       database = openLocalDatabase(path, LOCAL_MIGRATIONS);
       ledger = new SqliteSaleLedger(database, new SqliteSignInStore(database), CHAIN_KEY);
 
-      expect(currentSale({ ledger }, { actorId: "u1" })).toMatchObject({
+      expect(currentSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" })).toMatchObject({
         kind: "open",
         sale: {
           lines: [
@@ -491,6 +502,27 @@ describe("the installation's revocation", () => {
       .run();
 
     expect(ledger.transaction((tx) => tx.installationRevoked())).toBe(true);
+  });
+});
+
+describe("the buyer-identification thresholds", () => {
+  it("are none until the register receives one", () => {
+    expect(ledger.transaction((tx) => tx.buyerIdentificationThresholds())).toEqual([]);
+  });
+
+  it("are every one the register holds, past and scheduled", () => {
+    saveThreshold("t2", 12_000_000, "2026-10-15");
+    saveThreshold("t1", 10_000_000, "2026-01-01");
+
+    const thresholds = ledger.transaction((tx) => tx.buyerIdentificationThresholds());
+
+    expect(thresholds).toHaveLength(2);
+    expect(thresholds).toEqual(
+      expect.arrayContaining([
+        { id: "t1", amount: 10_000_000, validFrom: "2026-01-01" },
+        { id: "t2", amount: 12_000_000, validFrom: "2026-10-15" },
+      ]),
+    );
   });
 });
 
@@ -897,7 +929,7 @@ describe("a line's promotions", () => {
   it("are frozen with the line and read back after the sale is reopened", () => {
     scan("111");
 
-    const outcome = currentSale({ ledger }, { actorId: "u1" });
+    const outcome = currentSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" });
 
     expect(outcome.kind === "open" && outcome.sale.lines[0]).toMatchObject({
       promotions: [
@@ -916,7 +948,7 @@ describe("a line's promotions", () => {
     addDiscount("late", { kind: "PRODUCT", id: "p1" }, { kind: "PERCENT_OFF", percent: 50 });
 
     scan("111");
-    const outcome = currentSale({ ledger }, { actorId: "u1" });
+    const outcome = currentSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" });
 
     expect(
       outcome.kind === "open" && outcome.sale.lines[0]?.promotions.map((promotion) => promotion.id),

@@ -1460,6 +1460,7 @@ describe("sale answers", () => {
       },
     ],
     total: 1500,
+    charge_refusal: null,
   };
 
   it.each([
@@ -1635,7 +1636,7 @@ describe("sale line requests", () => {
 });
 
 describe("sale line answers", () => {
-  const sale = { id: "s1", lines: [], total: 0 };
+  const sale = { id: "s1", lines: [], total: 0, charge_refusal: null };
 
   it.each([
     ["change-line-quantity-result", { kind: "changed", sale }],
@@ -1678,6 +1679,8 @@ describe("charge sale in cash answer", () => {
   it.each([
     { kind: "completed", sale_id: "s1", total: 3000, tendered: 5000, change: 2000 },
     { kind: "insufficient_cash", amount_due: 3000 },
+    { kind: "reaches_buyer_identification_threshold", threshold: 10_000_000 },
+    { kind: "no_buyer_identification_threshold" },
     { kind: "not_signed_in" },
     { kind: "unavailable" },
   ])("accepts the result $kind", (outcome) => {

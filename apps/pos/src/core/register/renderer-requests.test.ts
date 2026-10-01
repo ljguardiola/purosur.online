@@ -927,6 +927,7 @@ describe("answerRendererRequest", () => {
         },
       ],
       total: 1500,
+      charge_refusal: null,
     };
     const { deps: withSale, saleLookups } = deps(true, { currentSale: async () => sale });
     const recording = deps(true);
