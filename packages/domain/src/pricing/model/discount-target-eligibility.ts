@@ -23,11 +23,8 @@ export function targetAcceptsBenefit(
   candidate: AssignableTargetCandidate,
   benefitKind: DiscountBenefit["kind"],
 ): boolean {
-  if (!isTargetKindAllowedFor(benefitKind, candidate.kind)) {
-    return false;
+  if (candidate.kind !== "PRODUCT") {
+    return isTargetKindAllowedFor(benefitKind, candidate.kind);
   }
-  return (
-    benefitKind !== "BUY_N_PAY_M" ||
-    (candidate.kind === "PRODUCT" && isBuyNPayMSaleUnit(candidate.saleUnit))
-  );
+  return benefitKind !== "BUY_N_PAY_M" || isBuyNPayMSaleUnit(candidate.saleUnit);
 }
