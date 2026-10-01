@@ -40,12 +40,13 @@ const OPENER: SignedInPerson = {
   permission_keys: ["sell_and_charge"],
 };
 const NO_SESSION: CashSessionState = { status: "none" };
-const OPEN_SESSION: CashSessionState = {
+const OPEN_SESSION = {
   status: "open",
   id: "s1",
   openedAt: "2026-09-30T12:02:00.000Z",
   openedBy: OPENER,
-};
+  locked: false,
+} satisfies CashSessionState;
 const BALANCE: CashBalance = {
   opening_float: 2_000_000,
   cash_sales: 3_500_000,
@@ -115,12 +116,13 @@ function contextWith(
     registerName: async () => null,
     signInUsers: async () => [{ id: "u1", first_name: "Ada" }],
     authorizers: async () => [{ id: "u2", first_name: "Grace" }],
-    signIn: async () => ({ kind: "signed_in", person: PERSON }),
+    lockedClosers: async () => [],
+    signIn: async () => ({ kind: "signed_in", person: PERSON, cash_session: null }),
     signOut,
     redeemPinCode: async () => ({ kind: "redeemed" }),
     signInLookup: async () => ({ kind: "not_found" }),
     requestFirstPinCode: async () => ({ kind: "sent" }),
-    firstSignIn: async () => ({ kind: "signed_in", person: PERSON }),
+    firstSignIn: async () => ({ kind: "signed_in", person: PERSON, cash_session: null }),
     currentSale: async () => null,
     cashCharge: async () => ({ kind: "invalid_amount" }),
     chargeSaleInCash: async () => ({ kind: "unavailable" }),
@@ -852,13 +854,7 @@ describe("the register's router", () => {
       {
         ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION),
         cashBalance: async () => BALANCE,
-        closeCashSession: async (
-          _person,
-          _sessionId,
-          _countedCash,
-          _authorization,
-          leavingAfter,
-        ) => {
+        closeCashSession: async (_person, _sessionId, _countedCash, leavingAfter) => {
           closed.push(leavingAfter);
           return { kind: "unavailable" };
         },
@@ -874,21 +870,6 @@ describe("the register's router", () => {
     await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
 
     await expect.poll(() => closed).toEqual([leaving]);
-  });
-
-  it("asks for an authorizer when the signed-in person is not the one who opened the session", async () => {
-    const router = createRegisterRouter(
-      routeTree,
-      {
-        ...contextWith("up", "enrolled", PERSON, undefined, OPEN_SESSION),
-        cashBalance: async () => BALANCE,
-      },
-      "/cash-count",
-    );
-
-    const screen = await render(<RouterProvider router={router} />);
-
-    await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).toBeVisible();
   });
 
   it("names the register in the open-session screen's eyebrow", async () => {
@@ -947,14 +928,14 @@ describe("the register's router", () => {
     expect(registerName).toHaveBeenCalledOnce();
   });
 
-  it("opens the cash session for the person through the router context", async () => {
-    const opened: [string, number][] = [];
+  it("opens the cash session through the router context", async () => {
+    const opened: number[] = [];
     const router = createRegisterRouter(
       routeTree,
       {
         ...contextWith("up", "enrolled", { ...PERSON, permission_keys: ["sell_and_charge"] }),
-        openCashSession: async (person, openingFloat) => {
-          opened.push([person.user_id, openingFloat]);
+        openCashSession: async (openingFloat) => {
+          opened.push(openingFloat);
           return { kind: "unavailable" };
         },
       },
@@ -966,7 +947,7 @@ describe("the register's router", () => {
     await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "100");
     await userEvent.click(screen.getByRole("button", { name: "Abrir la caja" }));
 
-    await expect.poll(() => opened).toEqual([["u1", 10_000]]);
+    await expect.poll(() => opened).toEqual([10_000]);
   });
 
   it("signs the person out through the router context once leaving is confirmed", async () => {
@@ -1081,7 +1062,7 @@ describe("the register's router", () => {
       routeTree,
       {
         ...contextWith("up", "enrolled", null, undefined, OPEN_SESSION),
-        authorizers: async () => [{ id: "u3", first_name: "Sofía" }],
+        lockedClosers: async () => [{ id: "u3", first_name: "Sofía" }],
         cashBalance: async () => BALANCE,
         identifyLockedCloser: async (closer) => {
           identified.push(closer);
@@ -1115,7 +1096,7 @@ describe("the register's router", () => {
       routeTree,
       {
         ...contextWith("up", "enrolled", null, undefined, OPEN_SESSION),
-        authorizers: async () => [{ id: "u3", first_name: "Sofía" }],
+        lockedClosers: async () => [{ id: "u3", first_name: "Sofía" }],
         cashBalance: async () => BALANCE,
         identifyLockedCloser: async () => ({
           kind: "identified",
@@ -1216,7 +1197,7 @@ describe("the register's router", () => {
         },
         firstSignIn: async (userId, pin) => {
           calls.push(`sign-in ${userId}/${pin}`);
-          return { kind: "signed_in", person: PERSON };
+          return { kind: "signed_in", person: PERSON, cash_session: null };
         },
       },
       "/first-sign-in",
@@ -1248,7 +1229,7 @@ describe("the register's router", () => {
         },
         firstSignIn: async (userId, pin) => {
           calls.push(`sign-in ${userId}/${pin}`);
-          return { kind: "signed_in", person: PERSON };
+          return { kind: "signed_in", person: PERSON, cash_session: null };
         },
       },
       "/first-sign-in",

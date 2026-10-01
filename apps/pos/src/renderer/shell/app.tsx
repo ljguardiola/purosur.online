@@ -2,6 +2,7 @@ import type {
   Authorization,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
+  OpenCashSession,
   OpenCashSessionOutcome,
   SignInOutcome,
 } from "@purosur/contracts";
@@ -19,12 +20,14 @@ import { useCoreStatus } from "../platform/use-core-status";
 import {
   cashKey,
   cashSessionQueryOptions,
+  lockedClosersKey,
   registerKeys,
   useCashSessionQuery,
   useEnrollmentQuery,
 } from "../register/register-queries";
 import { salesKeys } from "../sales/sales-queries";
 import type { CashSessionState } from "./cash-session-state";
+import { cashSessionStateOf } from "./cash-session-state";
 import type { Enrollment } from "./router";
 import { createAppRouter, isSessionScreen, routeFor } from "./router";
 
@@ -56,11 +59,7 @@ function Register({ core }: { core: CoreClient }) {
     read: () => core.cashSession(),
     enabled: enrollment === "enrolled",
   });
-  // Only the person who opened the open session can be in: anyone else leaves the register locked.
-  const person =
-    cashSession.status === "open" && signedInPerson?.user_id !== cashSession.openedBy.user_id
-      ? undefined
-      : signedInPerson;
+  const person = cashSession.status === "open" && cashSession.locked ? undefined : signedInPerson;
 
   function cancelCashSessionReads() {
     return cancelReads(queryClient, registerKeys.cashSession);
@@ -68,6 +67,11 @@ function Register({ core }: { core: CoreClient }) {
 
   function setCashSession(state: CashSessionState) {
     queryClient.setQueryData(registerKeys.cashSession, state);
+  }
+
+  async function takeCashSession(session: OpenCashSession | null) {
+    await cancelCashSessionReads();
+    setCashSession(cashSessionStateOf(session));
   }
 
   function refreshCashSession() {
@@ -89,6 +93,7 @@ function Register({ core }: { core: CoreClient }) {
   async function takeSignedInPerson(outcome: SignInOutcome) {
     if (outcome.kind === "signed_in") {
       setPerson(outcome.person);
+      await takeCashSession(outcome.cash_session);
     }
     if (outcome.kind === "cash_session_opened_by_another") {
       await refreshCashSession();
@@ -109,24 +114,18 @@ function Register({ core }: { core: CoreClient }) {
     setPerson(undefined);
   }
 
-  async function openCashSession(opener: SignedInPerson, openingFloat: number) {
+  async function openCashSession(openingFloat: number) {
     const outcome = await core.openCashSession(openingFloat);
     if (outcome.kind === "not_signed_in") {
       setPerson(undefined);
     }
     if (outcome.kind === "opened") {
-      await cancelCashSessionReads();
-      setCashSession({
-        status: "open",
-        id: outcome.session.id,
-        openedAt: outcome.session.opened_at,
-        openedBy: opener,
-      });
+      await takeCashSession(outcome.cash_session);
     }
     if (outcome.kind === "already_open") {
       return readCashSession().then(
         (session): OpenCashSessionOutcome => {
-          if (session.status === "open" && session.openedBy.user_id !== opener.user_id) {
+          if (session.status === "open" && session.locked) {
             signOut();
           }
           return outcome;
@@ -141,10 +140,9 @@ function Register({ core }: { core: CoreClient }) {
     closer: SignedInPerson,
     sessionId: string,
     countedCash: number,
-    authorization: Authorization | undefined,
     leaving: boolean,
   ) {
-    const outcome = await core.closeCashSession(sessionId, countedCash, authorization);
+    const outcome = await core.closeCashSession(sessionId, countedCash);
     if (outcome.kind === "not_signed_in") {
       setPerson(undefined);
     }
@@ -229,6 +227,7 @@ function Register({ core }: { core: CoreClient }) {
     const outcome = await core.redeemPinCode(typedCode, newPin);
     if (outcome.kind === "resumed") {
       setPerson(outcome.person);
+      await takeCashSession(outcome.cash_session);
     }
     return outcome;
   }
@@ -257,6 +256,7 @@ function Register({ core }: { core: CoreClient }) {
     registerName: () => core.registerName(),
     signInUsers: () => core.signInUsers(),
     authorizers: (permission: AuthorizablePermissionKey) => core.authorizers(permission),
+    lockedClosers: () => core.lockedClosers(),
     signIn,
     signOut,
     openCashSession,
@@ -306,6 +306,7 @@ function Register({ core }: { core: CoreClient }) {
       core.onPulled(() => {
         void queryClient.invalidateQueries({ queryKey: accessKey });
         void queryClient.invalidateQueries({ queryKey: registerKeys.registerName });
+        void queryClient.invalidateQueries({ queryKey: lockedClosersKey });
       }),
     [core, queryClient],
   );

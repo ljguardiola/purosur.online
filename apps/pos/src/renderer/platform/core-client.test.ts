@@ -122,6 +122,33 @@ describe("createCoreClient", () => {
     await expect(people).rejects.toThrow();
   });
 
+  it("asks the core who may close a locked register and resolves with the people it answers", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const people = client.lockedClosers();
+    port.answer({
+      type: "locked-closers",
+      request_id: "request-1",
+      users: [{ id: "u2", first_name: "Grace" }],
+    });
+
+    expect(await people).toEqual([{ id: "u2", first_name: "Grace" }]);
+    expect(port.posted).toEqual([{ type: "locked-closers-request", request_id: "request-1" }]);
+  });
+
+  it("fails the request for who may close a locked register when the core cannot read them", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const people = client.lockedClosers();
+    port.answer({ type: "locked-closers-unavailable", request_id: "request-1" });
+
+    await expect(people).rejects.toThrow();
+  });
+
   it("asks the core to sign in the chosen user with the PIN as typed and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
@@ -234,6 +261,7 @@ describe("createCoreClient", () => {
       id: "s1",
       opened_at: "2026-09-30T12:02:00.000Z",
       opened_by: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+      locked: false,
     },
   ])("asks the core for the open cash session and resolves with it: %j", async (session) => {
     const client = clientWithSequentialIds();
@@ -738,31 +766,6 @@ describe("createCoreClient", () => {
 
     expect(await outcome).toEqual({ kind: "cancelled" });
     expect(port.posted).toEqual([{ type: "cancel-locked-sale", request_id: "request-1", closer }]);
-  });
-
-  it("sends the authorization when closing a session with one", async () => {
-    const client = clientWithSequentialIds();
-    const port = new FakePort();
-    client.connect(port);
-    const authorization = { user_id: "u2", pin: "1234" };
-
-    const outcome = client.closeCashSession("s1", 0, authorization);
-    port.answer({
-      type: "close-cash-session-result",
-      request_id: "request-1",
-      outcome: { kind: "lacks_permission" },
-    });
-
-    expect(await outcome).toEqual({ kind: "lacks_permission" });
-    expect(port.posted).toEqual([
-      {
-        type: "close-cash-session",
-        request_id: "request-1",
-        session_id: "s1",
-        counted_cash: 0,
-        authorization,
-      },
-    ]);
   });
 
   it.each([

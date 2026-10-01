@@ -2,21 +2,12 @@ import type { Authorization, IdentifyLockedCloserOutcome, SignInUser } from "@pu
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import type { SignedInPerson } from "../access/signed-in-person";
 import { render } from "../shell/test-support/render-with-router";
 import type { IdentifiedCloser, ReturnedCloser } from "./locked-closer-identification";
 import { LockedCloserIdentification } from "./locked-closer-identification";
 
-const GRACE: SignedInPerson = {
-  user_id: "u2",
-  first_name: "Grace",
-  permission_keys: ["sell_and_charge", "close_anothers_register_session"],
-};
 const OPENED_AT = "2026-09-30T12:02:00.000Z";
-const CLOSERS: SignInUser[] = [
-  { id: "u3", first_name: "Sofía" },
-  { id: "u2", first_name: "Grace" },
-];
+const CLOSERS: SignInUser[] = [{ id: "u3", first_name: "Sofía" }];
 
 type Identify = (closer: Authorization) => Promise<IdentifyLockedCloserOutcome>;
 
@@ -36,7 +27,7 @@ async function renderStep(
     }));
   const screen = await render(
     <LockedCloserIdentification
-      opener={GRACE}
+      sessionId="s1"
       registerName="Caja 1"
       openedAt={OPENED_AT}
       loadClosers={options.loadClosers ?? (async () => CLOSERS)}
@@ -57,7 +48,7 @@ async function identifyAs(screen: Screen, firstName: string, pin: string) {
 }
 
 describe("LockedCloserIdentification", () => {
-  it("asks who closes the register among the people with permission, leaving out its opener", async () => {
+  it("asks who closes the register among the people the core says may", async () => {
     const { screen } = await renderStep();
 
     await expect
@@ -216,9 +207,9 @@ describe("LockedCloserIdentification", () => {
     await expect.element(screen.getByRole("radio", { name: "Sofía" })).toBeVisible();
   });
 
-  it("says nobody else can close the register when only its opener holds the permission", async () => {
+  it("says nobody can close the register when the core answers nobody", async () => {
     const { screen } = await renderStep({
-      loadClosers: async () => [{ id: "u2", first_name: "Grace" }],
+      loadClosers: async () => [],
     });
 
     await expect

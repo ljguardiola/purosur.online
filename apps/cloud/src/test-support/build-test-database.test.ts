@@ -17,6 +17,7 @@ import {
   changes,
   deviceState,
   discounts,
+  inbox,
   issuerIdentification,
   issuerIdentificationVersions,
   locations,
@@ -259,6 +260,20 @@ describe("buildTestDatabase", () => {
       deviceId: installation.id,
       lastPullSince: 0,
       lastPulledAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
+    await db.insert(inbox).values({
+      eventId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e0f",
+      deviceId: installation.id,
+      deviceSeq: 1,
+      aggregateType: "cash_session",
+      aggregateId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e10",
+      eventType: "cash_session_opened",
+      schemaVersion: 1,
+      payload: {},
+      occurredAt: new Date("2026-01-05T12:00:00.000Z"),
+      actorId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e11",
+      chainHmac: "chain-hmac",
+      receivedAt: new Date("2026-01-05T12:00:00.000Z"),
     });
     await db.insert(changes).values({
       entity: "branch_settings",

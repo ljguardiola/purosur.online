@@ -35,6 +35,7 @@ import {
 import type { ActionGate } from "../access/action-gate";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
+import { readOpenSession } from "../register/sqlite-cash-ledger";
 import { SqliteSaleLedger } from "./sqlite-sale-ledger";
 
 export interface SaleRequestDeps {
@@ -279,6 +280,7 @@ export async function cancelLockedSaleFor(
   const guarded = await gate.runWhileLocked(
     "close_anothers_register_session",
     closer,
+    readOpenSession(database),
     async (person) =>
       cancelSale(
         { ledger: saleLedger(database, outboxChainKey), clock: { now }, ids },

@@ -17,6 +17,13 @@ import {
 
 const REQUEST_ID = "7d1c1e1e-5b1a-4a53-9c1c-3a7c6f0b2d10";
 
+const OPEN_CASH_SESSION = {
+  id: "s1",
+  opened_at: "2026-09-30T12:00:00.000Z",
+  opened_by: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+  locked: false,
+};
+
 describe("rendererToCoreMessageSchema", () => {
   it("accepts a ping", () => {
     expect(rendererToCoreMessageSchema.safeParse({ type: "ping" }).success).toBe(true);
@@ -135,6 +142,18 @@ describe("rendererToCoreMessageSchema", () => {
     { type: "authorizers", request_id: REQUEST_ID, permission: "open_the_safe" },
   ])("rejects a request for authorizers it cannot answer: %j", (message) => {
     expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("accepts a request for the people who may close a locked register", () => {
+    const message = { type: "locked-closers-request", request_id: REQUEST_ID };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a request for the people who may close a locked register without its request id", () => {
+    expect(rendererToCoreMessageSchema.safeParse({ type: "locked-closers-request" }).success).toBe(
+      false,
+    );
   });
 
   it("accepts a request to sign out", () => {
@@ -352,6 +371,12 @@ describe("coreToRendererMessageSchema", () => {
     {
       kind: "resumed",
       person: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+      cash_session: OPEN_CASH_SESSION,
+    },
+    {
+      kind: "resumed",
+      person: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+      cash_session: null,
     },
     { kind: "cash_session_opened_by_another" },
     { kind: "code_invalid" },
@@ -367,15 +392,20 @@ describe("coreToRendererMessageSchema", () => {
     expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
-  it("rejects a resumed PIN code redemption without the person", () => {
-    const message = {
-      type: "pin-code-redemption-result",
-      request_id: REQUEST_ID,
-      outcome: { kind: "resumed" },
-    };
+  it.each([
+    { kind: "resumed", cash_session: OPEN_CASH_SESSION },
+    {
+      kind: "resumed",
+      person: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+    },
+  ])(
+    "rejects a resumed PIN code redemption without the person or the cash session: %j",
+    (outcome) => {
+      const message = { type: "pin-code-redemption-result", request_id: REQUEST_ID, outcome };
 
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
-  });
+      expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+    },
+  );
 
   it("rejects a PIN code redemption rate limit without when to retry", () => {
     const message = {
@@ -486,8 +516,13 @@ describe("sign-in answers", () => {
         first_name: "Ada",
         permission_keys: ["sell_and_charge", "void_sale"],
       },
+      cash_session: OPEN_CASH_SESSION,
     },
-    { kind: "signed_in", person: { user_id: "u1", first_name: "Ada", permission_keys: [] } },
+    {
+      kind: "signed_in",
+      person: { user_id: "u1", first_name: "Ada", permission_keys: [] },
+      cash_session: null,
+    },
     { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 },
     { kind: "wrong_pin", retry_after_seconds: 30, attempts_left: 1 },
     { kind: "rate_limited", retry_after_seconds: 4, attempts_left: 5 },
@@ -525,6 +560,7 @@ describe("sign-in answers", () => {
       outcome: {
         kind: "signed_in",
         person: { user_id: "u1", first_name: "Ada", permission_keys: [], role_name: "Cajera" },
+        cash_session: null,
       },
     };
 
@@ -533,8 +569,9 @@ describe("sign-in answers", () => {
 
   it.each([
     { kind: "signed_in" },
-    { kind: "signed_in", person: { first_name: "Ada" } },
-    { kind: "signed_in", person: { first_name: "Ada", permission_keys: [] } },
+    { kind: "signed_in", person: { first_name: "Ada" }, cash_session: null },
+    { kind: "signed_in", person: { first_name: "Ada", permission_keys: [] }, cash_session: null },
+    { kind: "signed_in", person: { user_id: "u1", first_name: "Ada", permission_keys: [] } },
     { kind: "x" },
     { kind: "wrong_pin" },
     { kind: "wrong_pin", retry_after_seconds: 0 },
@@ -639,14 +676,15 @@ describe("closing a cash session requests", () => {
     expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
-  it("accepts a request to close a session with someone's authorization", () => {
-    const message = {
-      ...close,
-      counted_cash: 0,
-      authorization: { user_id: "u2", pin: "1234" },
-    };
+  it("drops an authorization sent with a request to close a session", () => {
+    const message = { ...close, counted_cash: 0 };
 
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+    expect(
+      rendererToCoreMessageSchema.parse({
+        ...message,
+        authorization: { user_id: "u2", pin: "1234" },
+      }),
+    ).toEqual(message);
   });
 
   it("drops a closer sent with a request to close a session", () => {
@@ -995,18 +1033,18 @@ describe("cancelling the open sale of a locked register", () => {
 });
 
 describe("cash session answers", () => {
-  it("accepts the session that was opened", () => {
-    const message = {
-      type: "open-cash-session-result",
-      request_id: REQUEST_ID,
-      outcome: {
-        kind: "opened",
-        session: { id: "s1", opened_at: "2026-09-30T12:00:00.000Z", opening_float: 150000 },
-      },
-    };
+  it.each([OPEN_CASH_SESSION, null])(
+    "accepts the cash session as the core sees it once opened: %j",
+    (cashSession) => {
+      const message = {
+        type: "open-cash-session-result",
+        request_id: REQUEST_ID,
+        outcome: { kind: "opened", cash_session: cashSession },
+      };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
+      expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    },
+  );
 
   it.each([
     { kind: "not_signed_in" },
@@ -1022,9 +1060,7 @@ describe("cash session answers", () => {
 
   it.each([
     { kind: "opened" },
-    { kind: "opened", session: { id: "s1", opened_at: "2026-09-30T12:00:00.000Z" } },
-    { kind: "opened", session: { id: "s1", opening_float: 0 } },
-    { kind: "opened", session: { opened_at: "2026-09-30T12:00:00.000Z", opening_float: 0 } },
+    { kind: "opened", cash_session: { ...OPEN_CASH_SESSION, locked: undefined } },
     { kind: "x" },
   ])("rejects an open result it does not know: %j", (outcome) => {
     const message = { type: "open-cash-session-result", request_id: REQUEST_ID, outcome };
@@ -1040,6 +1076,7 @@ describe("cash session answers", () => {
         id: "s1",
         opened_at: "2026-09-30T12:00:00.000Z",
         opened_by: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+        locked: false,
       },
     };
 
@@ -1066,16 +1103,33 @@ describe("cash session answers", () => {
 
   it.each([
     undefined,
-    { id: "s1", opened_at: "2026-09-30T12:00:00.000Z" },
-    { id: "s1", opened_by: { user_id: "u1", first_name: "Ada", permission_keys: [] } },
+    { id: "s1", opened_at: "2026-09-30T12:00:00.000Z", locked: false },
     {
+      id: "s1",
+      opened_by: { user_id: "u1", first_name: "Ada", permission_keys: [] },
+      locked: false,
+    },
+    {
+      opened_at: "2026-09-30T12:00:00.000Z",
+      opened_by: { user_id: "u1", first_name: "Ada", permission_keys: [] },
+      locked: false,
+    },
+    {
+      id: "s1",
+      opened_at: "2026-09-30T12:00:00.000Z",
+      opened_by: { first_name: "Ada", permission_keys: [] },
+      locked: false,
+    },
+    {
+      id: "s1",
       opened_at: "2026-09-30T12:00:00.000Z",
       opened_by: { user_id: "u1", first_name: "Ada", permission_keys: [] },
     },
     {
       id: "s1",
       opened_at: "2026-09-30T12:00:00.000Z",
-      opened_by: { first_name: "Ada", permission_keys: [] },
+      opened_by: { user_id: "u1", first_name: "Ada", permission_keys: [] },
+      locked: "yes",
     },
   ])("rejects an open cash session it does not know: %j", (session) => {
     const message = { type: "cash-session", request_id: REQUEST_ID, session };
@@ -1264,6 +1318,36 @@ describe("authorizers answers", () => {
 
   it("rejects a listed authorizer without its first name", () => {
     const message = { type: "authorizers", request_id: REQUEST_ID, users: [{ id: "u2" }] };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+});
+
+describe("locked register closers answers", () => {
+  it("accepts the people who may close a locked register, by id and first name", () => {
+    const message = {
+      type: "locked-closers",
+      request_id: REQUEST_ID,
+      users: [{ id: "u2", first_name: "Grace" }],
+    };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts that nobody may close a locked register", () => {
+    const message = { type: "locked-closers", request_id: REQUEST_ID, users: [] };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts that the locked register's closers cannot be read", () => {
+    const message = { type: "locked-closers-unavailable", request_id: REQUEST_ID };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a listed closer without its first name", () => {
+    const message = { type: "locked-closers", request_id: REQUEST_ID, users: [{ id: "u2" }] };
 
     expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
