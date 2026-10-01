@@ -14,6 +14,7 @@ import {
   Table,
   type TableSort,
   textOrder,
+  useRequestForm,
   useTableModel,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
@@ -31,10 +32,9 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
-import { useSendToMyAccount } from "../access/send-to-my-account";
-import { useCloudForm } from "../platform/cloud-form";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { brandNameMessage } from "./brand-name";
@@ -132,7 +132,7 @@ function EditBrandModal({
   const [loaded, setLoaded] = useState<BrandSummary | null>(null);
   const [notice, setNotice] = useState<EditNotice | null>(null);
   const [reloading, setReloading] = useState(false);
-  const { form, submit, submitting, reset } = useCloudForm({
+  const { form, submit, submitting, reset } = useRequestForm({
     defaultValues: { name: "", version: 1 },
     request: {
       schema: brandEditBodySchema,

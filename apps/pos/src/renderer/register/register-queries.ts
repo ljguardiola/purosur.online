@@ -2,6 +2,7 @@ import type {
   CashBalance,
   ListedCashMovement,
   OpenCashSession,
+  RecordableCashMovementKinds,
   SessionOpenSale,
 } from "@purosur/contracts";
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -22,13 +23,14 @@ export const registerKeys = {
   cashBalance: (sessionId: string) => [...cashKey, sessionId, "balance"] as const,
   cashMovements: (sessionId: string) => [...cashKey, sessionId, "movements"] as const,
   openSale: (sessionId: string) => [...cashKey, sessionId, "open-sale"] as const,
+  cashMovementKinds: (userId: string) => [...registerKey, "cash-movement-kinds", userId] as const,
 };
 
 const CASH_SESSION_REREAD_MS = 5000;
 
 const UNKNOWN_SESSION: CashSessionState = { status: "unknown" };
 
-function onlyWithOpenSession<T>(data: CoreData<T | null>): CoreData<T> {
+function answeredOrLoading<T>(data: CoreData<T | null>): CoreData<T> {
   if (data.status !== "loaded") {
     return data;
   }
@@ -81,15 +83,22 @@ export function useCashBalanceQuery(
   sessionId: string,
   read: () => Promise<CashBalance | null | "unavailable">,
 ): CoreData<CashBalance> {
-  return onlyWithOpenSession(useCoreQuery({ queryKey: registerKeys.cashBalance(sessionId), read }));
+  return answeredOrLoading(useCoreQuery({ queryKey: registerKeys.cashBalance(sessionId), read }));
 }
 
 export function useCashMovementsQuery(
   sessionId: string,
   read: () => Promise<ListedCashMovement[] | null | "unavailable">,
 ): CoreData<ListedCashMovement[]> {
-  return onlyWithOpenSession(
-    useCoreQuery({ queryKey: registerKeys.cashMovements(sessionId), read }),
+  return answeredOrLoading(useCoreQuery({ queryKey: registerKeys.cashMovements(sessionId), read }));
+}
+
+export function useCashMovementKindsQuery(
+  userId: string,
+  read: () => Promise<RecordableCashMovementKinds | null | "unavailable">,
+): CoreData<RecordableCashMovementKinds> {
+  return answeredOrLoading(
+    useCoreQuery({ queryKey: registerKeys.cashMovementKinds(userId), read }),
   );
 }
 

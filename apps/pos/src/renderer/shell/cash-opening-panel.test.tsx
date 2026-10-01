@@ -118,6 +118,18 @@ describe("CashOpeningPanel", () => {
     },
   );
 
+  it("keeps the message while the edited float is still invalid and clears it once it is valid", async () => {
+    const { screen } = await renderPanel();
+    await submitFloat(screen, "abc");
+    await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
+
+    await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "abd");
+    await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
+
+    await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "100");
+    await expect.element(screen.getByText(INVALID_MESSAGE)).not.toBeInTheDocument();
+  });
+
   it("sends the float in cents when the button is pressed", async () => {
     const { screen, open } = await renderPanel();
 

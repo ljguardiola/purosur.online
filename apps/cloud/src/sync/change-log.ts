@@ -12,7 +12,10 @@ type PulledEntity =
   | "user"
   | "role"
   | "register"
-  | "discount";
+  | "discount"
+  | "issuer_identification"
+  | "buyer_identification_threshold"
+  | "buyer_tax_status_set";
 
 interface LoggedChangeFields {
   entityId: string;

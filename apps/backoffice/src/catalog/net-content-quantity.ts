@@ -1,9 +1,5 @@
-import {
-  NET_CONTENT_QUANTITY_MAX,
-  NET_CONTENT_QUANTITY_MAX_DECIMALS,
-  parseEsArNumber,
-} from "@purosur/domain";
-import { formatNumber } from "@purosur/ui";
+import { NET_CONTENT_QUANTITY_MAX, NET_CONTENT_QUANTITY_MAX_DECIMALS } from "@purosur/domain";
+import { formatNumber, parseEsArNumber } from "@purosur/ui";
 
 export function parseNetContentQuantity(value: string): number | undefined {
   const digits = parseEsArNumber(value, NET_CONTENT_QUANTITY_MAX_DECIMALS);

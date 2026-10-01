@@ -2,6 +2,7 @@ import type {
   CashBalance,
   ListedCashMovement,
   OpenCashSession,
+  RecordableCashMovementKinds,
   SessionOpenSale,
 } from "@purosur/contracts";
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
@@ -14,6 +15,7 @@ import type { CashSessionState } from "../shell/cash-session-state";
 import {
   registerKeys,
   useCashBalanceQuery,
+  useCashMovementKindsQuery,
   useCashMovementsQuery,
   useCashSessionQuery,
   useRegisterNameQuery,
@@ -273,6 +275,71 @@ describe("register name query", () => {
 
     const failing = await renderRegisterName(() => Promise.reject(new Error("replaced")));
     await expect.element(failing.getByText("name null")).toBeVisible();
+  });
+});
+
+const KINDS: RecordableCashMovementKinds = {
+  CASH_IN: { permission: "record_cash_in", authorization_required: false },
+  CASH_OUT: { permission: "record_cash_expense", authorization_required: true },
+  WITHDRAWAL: { permission: "withdraw_cash", authorization_required: true },
+};
+
+type KindsRead = () => Promise<RecordableCashMovementKinds | null | "unavailable">;
+
+function KindsProbe({ read, userId = "u1" }: { read: KindsRead; userId?: string }) {
+  const kinds = useCashMovementKindsQuery(userId, read);
+  return <p>{describeData(kinds, (value) => value.WITHDRAWAL.permission)}</p>;
+}
+
+describe("cash movement kinds query", () => {
+  it("holds the kinds the core answers", async () => {
+    const screen = await render(
+      <QueryClientProvider client={createQueryClient()}>
+        <KindsProbe read={async () => KINDS} />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("withdraw_cash")).toBeVisible();
+  });
+
+  it("never shows what was answered for another person", async () => {
+    const queryClient = createQueryClient();
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <KindsProbe read={async () => KINDS} />
+      </QueryClientProvider>,
+    );
+    await expect.element(screen.getByText("withdraw_cash")).toBeVisible();
+
+    await screen.rerender(
+      <QueryClientProvider client={queryClient}>
+        <KindsProbe read={() => new Promise(() => {})} userId="u2" />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("loading")).toBeVisible();
+  });
+
+  it("fails when the core cannot answer", async () => {
+    const screen = await render(
+      <QueryClientProvider client={createQueryClient()}>
+        <KindsProbe read={async () => "unavailable"} />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("failed")).toBeVisible();
+  });
+
+  it("neither fails nor shows data while nobody is signed in", async () => {
+    const read = vi.fn<KindsRead>(async () => null);
+    const screen = await render(
+      <QueryClientProvider client={createQueryClient()}>
+        <KindsProbe read={read} />
+      </QueryClientProvider>,
+    );
+
+    await expect.poll(() => read.mock.calls.length).toBe(1);
+    await expect.element(screen.getByText("loading")).toBeVisible();
   });
 });
 

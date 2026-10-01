@@ -1,13 +1,19 @@
-import type { RecordCashMovementOutcome, SignInUser } from "@purosur/contracts";
-import {
-  CASH_MOVEMENT_REASON_MAX_LENGTH,
-  cashMovementAmountSchema,
-  cashMovementPermission,
-  cashMovementReason,
-  parseAmountCents,
+import type {
+  RecordableCashMovementKinds,
+  RecordCashMovementOutcome,
+  SignInUser,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey, CashMovementKind } from "@purosur/domain";
-import { Button, formatCents, InlineNotice, Modal, OptionCardGroup, TextField } from "@purosur/ui";
+import {
+  Button,
+  formatCents,
+  InlineNotice,
+  LoadFailure,
+  LoadingPlaceholder,
+  Modal,
+  OptionCardGroup,
+  useRequestForm,
+} from "@purosur/ui";
 import { TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
 import { AuthorizationSection } from "../access/authorization-section";
@@ -15,13 +21,22 @@ import type { SignedInPerson } from "../access/signed-in-person";
 import { useAuthorization } from "../access/use-authorization";
 import { formatClockTime } from "../platform/clock-time";
 import type { CashMovementInput } from "../platform/core-client";
+import {
+  amountMessage,
+  cashMovementRequestFrom,
+  EMPTY_CASH_MOVEMENT_FORM,
+  INVALID_AMOUNT_MESSAGE,
+  recordCashMovementFormRequestSchema,
+} from "./cash-movement-form";
 import { CASH_MOVEMENT_ICONS } from "./cash-movement-icons";
+import { useCashMovementKindsQuery } from "./register-queries";
 
-const REQUIRED_AMOUNT_MESSAGE = "Ingresá el importe.";
-const INVALID_AMOUNT_MESSAGE = "Ingresá un importe válido, por ejemplo 5.000,00.";
-const INVALID_REASON_MESSAGE = `Escribí el motivo (hasta ${CASH_MOVEMENT_REASON_MAX_LENGTH} caracteres).`;
 const NO_OPEN_SESSION_MESSAGE = "No hay una caja abierta.";
 const FAILED_MESSAGE = "No se pudo registrar el movimiento. Probá de nuevo.";
+
+function invalidReasonMessage(maxLength: number): string {
+  return `Escribí el motivo (hasta ${maxLength} caracteres).`;
+}
 
 type KindPresentation = {
   submit: string;
@@ -68,14 +83,6 @@ const KIND_OPTIONS = [
   },
 ] as const;
 
-function amountFrom(typed: string): { cents: number } | { message: string } {
-  if (typed.trim() === "") {
-    return { message: REQUIRED_AMOUNT_MESSAGE };
-  }
-  const amount = cashMovementAmountSchema.safeParse(parseAmountCents(typed));
-  return amount.success ? { cents: amount.data } : { message: INVALID_AMOUNT_MESSAGE };
-}
-
 function eyebrowText(registerName: string | null, openedAt: string): string {
   const session = `Sesión de las ${formatClockTime(openedAt)}`;
   return registerName === null ? session : `${registerName} · ${session}`;
@@ -87,6 +94,7 @@ export type RecordCashMovementModalProps = {
   registerName: string | null;
   openedAt: string;
   expectedCash?: number;
+  loadKinds: () => Promise<RecordableCashMovementKinds | null | "unavailable">;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   recordCashMovement: (input: CashMovementInput) => Promise<RecordCashMovementOutcome>;
   onClose: () => void;
@@ -94,6 +102,7 @@ export type RecordCashMovementModalProps = {
 };
 
 function MovementModal({
+  kinds,
   person,
   registerName,
   openedAt,
@@ -102,92 +111,87 @@ function MovementModal({
   recordCashMovement,
   onClose,
   onRecorded,
-}: Omit<RecordCashMovementModalProps, "open">) {
+}: Omit<RecordCashMovementModalProps, "open" | "loadKinds"> & {
+  kinds: RecordableCashMovementKinds;
+}) {
   const [refusedExpectedCash, setRefusedExpectedCash] = useState<number>();
   const expectedCash = refusedExpectedCash ?? givenExpectedCash;
-  const [kind, setKind] = useState<CashMovementKind>("CASH_IN");
-  const [typedAmount, setTypedAmount] = useState("");
-  const [typedReason, setTypedReason] = useState("");
-  const [amountMessage, setAmountMessage] = useState<string>();
-  const [reasonMessage, setReasonMessage] = useState<string>();
   const [notice, setNotice] = useState<string>();
-  const [submitting, setSubmitting] = useState(false);
+  const { form, submit, submitting, values, clearFieldError } = useRequestForm({
+    defaultValues: EMPTY_CASH_MOVEMENT_FORM,
+    request: { schema: recordCashMovementFormRequestSchema, from: cashMovementRequestFrom },
+    fields: { kind: null, amount: "amount", reason: null },
+    messages: { amount: amountMessage },
+    onSubmit: async (request, { showFieldError }) => {
+      const outcome = await recordCashMovement({
+        ...request,
+        authorization: authorization.ready ? authorization.value : undefined,
+      }).catch((): "failed" => "failed");
+      if (outcome === "failed") {
+        setNotice(FAILED_MESSAGE);
+        return;
+      }
+      switch (outcome.kind) {
+        case "recorded":
+          authorization.performed();
+          onRecorded();
+          break;
+        case "invalid_amount":
+          showFieldError("amount", INVALID_AMOUNT_MESSAGE);
+          break;
+        case "exceeds_expected_cash":
+          setRefusedExpectedCash(outcome.expected);
+          showFieldError(
+            "amount",
+            `No hay tanto efectivo en la caja: se esperan ${formatCents(outcome.expected)}.`,
+          );
+          break;
+        case "invalid_reason":
+          showFieldError("reason", invalidReasonMessage(outcome.max_length));
+          break;
+        case "no_open_session":
+          setNotice(NO_OPEN_SESSION_MESSAGE);
+          break;
+        case "wrong_pin":
+        case "rate_limited":
+        case "locked":
+        case "lacks_permission":
+          if (authorization.required) {
+            authorization.refuse(outcome);
+          } else if (outcome.kind === "lacks_permission") {
+            setNotice(`Ya no tenés permiso para ${presentation.authorizing}.`);
+          } else {
+            setNotice(FAILED_MESSAGE);
+          }
+          break;
+        case "unavailable":
+        case "not_signed_in":
+          setNotice(FAILED_MESSAGE);
+          break;
+      }
+    },
+  });
+  const { kind } = values;
   const authorization = useAuthorization({
     person,
-    permission: cashMovementPermission(kind),
+    permission: kinds[kind].permission,
+    required: kinds[kind].authorization_required,
     loadAuthorizers,
   });
   const presentation = PRESENTATION[kind];
 
-  function chooseKind(next: CashMovementKind) {
-    if (!submitting) {
-      setKind(next);
-      setNotice(undefined);
-      setAmountMessage(undefined);
-    }
+  function forgetKindOutcome() {
+    setNotice(undefined);
+    clearFieldError("amount");
   }
 
-  async function submit() {
+  function handleSubmit() {
     if (submitting || !authorization.ready) {
       return;
     }
     setNotice(undefined);
-    const amount = amountFrom(typedAmount);
-    const reason = cashMovementReason(typedReason);
-    setAmountMessage("message" in amount ? amount.message : undefined);
-    setReasonMessage(reason === undefined ? INVALID_REASON_MESSAGE : undefined);
-    if ("message" in amount || reason === undefined) {
-      return;
-    }
-    setSubmitting(true);
-    const outcome = await recordCashMovement({
-      kind,
-      amount: amount.cents,
-      reason,
-      authorization: authorization.value,
-    }).catch((): "failed" => "failed");
-    setSubmitting(false);
-    if (outcome === "failed") {
-      setNotice(FAILED_MESSAGE);
-      return;
-    }
-    switch (outcome.kind) {
-      case "recorded":
-        authorization.performed();
-        onRecorded();
-        break;
-      case "invalid_amount":
-        setAmountMessage(INVALID_AMOUNT_MESSAGE);
-        break;
-      case "exceeds_expected_cash":
-        setRefusedExpectedCash(outcome.expected);
-        setAmountMessage(
-          `No hay tanto efectivo en la caja: se esperan ${formatCents(outcome.expected)}.`,
-        );
-        break;
-      case "invalid_reason":
-        setReasonMessage(INVALID_REASON_MESSAGE);
-        break;
-      case "no_open_session":
-        setNotice(NO_OPEN_SESSION_MESSAGE);
-        break;
-      case "wrong_pin":
-      case "rate_limited":
-      case "locked":
-      case "lacks_permission":
-        if (authorization.required) {
-          authorization.refuse(outcome);
-        } else if (outcome.kind === "lacks_permission") {
-          setNotice(`Ya no tenés permiso para ${presentation.authorizing}.`);
-        } else {
-          setNotice(FAILED_MESSAGE);
-        }
-        break;
-      case "unavailable":
-      case "not_signed_in":
-        setNotice(FAILED_MESSAGE);
-        break;
-    }
+    clearFieldError("reason");
+    void submit();
   }
 
   return (
@@ -220,7 +224,7 @@ function MovementModal({
             fullWidth
             icon={CASH_MOVEMENT_ICONS[kind]}
             disabled={submitting || !authorization.ready}
-            onPress={submit}
+            onPress={handleSubmit}
           >
             {presentation.submit}
           </Button>
@@ -232,44 +236,40 @@ function MovementModal({
           <p aria-hidden="true" className="text-caption font-bold text-text-eyebrow tracking-sm">
             Tipo de movimiento
           </p>
-          <OptionCardGroup
-            label="Tipo de movimiento"
-            options={KIND_OPTIONS}
-            value={kind}
-            onChange={chooseKind}
-          />
+          <form.AppField name="kind" listeners={{ onChange: forgetKindOutcome }}>
+            {(field) => (
+              <OptionCardGroup
+                label="Tipo de movimiento"
+                options={KIND_OPTIONS}
+                value={field.state.value}
+                onChange={(next) => {
+                  if (!submitting) {
+                    field.handleChange(next);
+                  }
+                }}
+              />
+            )}
+          </form.AppField>
         </div>
-        <TextField
-          kind="amount"
-          prefix="$"
-          label="Importe"
-          inputMode="numeric"
-          value={typedAmount}
-          onChange={(value) => {
-            setTypedAmount(value);
-            setAmountMessage(undefined);
-            setNotice(undefined);
-          }}
-          disabled={submitting}
-          errorMessage={amountMessage}
-          {...(expectedCash === undefined || presentation.cashBefore === undefined
-            ? {}
-            : {
-                description: `Hay ${formatCents(expectedCash)} en la caja antes de ${presentation.cashBefore}.`,
-              })}
-        />
-        <TextField
-          kind="plain-text"
-          label="Motivo"
-          value={typedReason}
-          onChange={(value) => {
-            setTypedReason(value);
-            setReasonMessage(undefined);
-            setNotice(undefined);
-          }}
-          disabled={submitting}
-          errorMessage={reasonMessage}
-        />
+        <form.AppField name="amount" listeners={{ onChange: () => setNotice(undefined) }}>
+          {(field) => (
+            <field.TextField
+              kind="amount"
+              prefix="$"
+              label="Importe"
+              inputMode="numeric"
+              disabled={submitting}
+              {...(expectedCash === undefined || presentation.cashBefore === undefined
+                ? {}
+                : {
+                    description: `Hay ${formatCents(expectedCash)} en la caja antes de ${presentation.cashBefore}.`,
+                  })}
+            />
+          )}
+        </form.AppField>
+        <form.AppField name="reason" listeners={{ onChange: () => setNotice(undefined) }}>
+          {(field) => <field.TextField kind="plain-text" label="Motivo" disabled={submitting} />}
+        </form.AppField>
         <AuthorizationSection
           authorization={authorization}
           action={presentation.authorizing}
@@ -283,6 +283,47 @@ function MovementModal({
   );
 }
 
+function MovementModalWhenKindsAreKnown({
+  loadKinds,
+  ...props
+}: Omit<RecordCashMovementModalProps, "open">) {
+  const kinds = useCashMovementKindsQuery(props.person.user_id, loadKinds);
+  if (kinds.status === "loaded") {
+    return <MovementModal {...props} kinds={kinds.value} />;
+  }
+  return (
+    <Modal
+      open
+      onOpenChange={(next) => {
+        if (!next) {
+          props.onClose();
+        }
+      }}
+      width="standard"
+      tone="info"
+      icon={CASH_MOVEMENT_ICONS.CASH_IN}
+      context={eyebrowText(props.registerName, props.openedAt)}
+      title="Registrar un movimiento"
+      footer={
+        <Button variant="secondary" size="large" icon={<X />} onPress={props.onClose}>
+          Cancelar
+        </Button>
+      }
+    >
+      {kinds.status === "failed" ? (
+        <LoadFailure
+          icon={<TriangleAlert />}
+          title="No se pudieron cargar los movimientos que podés registrar"
+          description="Volvé a intentarlo en unos segundos."
+          onRetry={kinds.retry}
+        />
+      ) : (
+        <LoadingPlaceholder variant="form" fields={3} />
+      )}
+    </Modal>
+  );
+}
+
 export function RecordCashMovementModal({ open, ...props }: RecordCashMovementModalProps) {
-  return open ? <MovementModal {...props} /> : null;
+  return open ? <MovementModalWhenKindsAreKnown {...props} /> : null;
 }

@@ -1,15 +1,15 @@
 import { Button, type LoadStatus } from "@purosur/ui";
 import { KeyRound } from "lucide-react";
 import { useRef, useState } from "react";
+import { useAuthorization } from "../platform/authorization-modal";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useRefreshAccess } from "./access-queries";
-import { useAuthorization } from "./authorization-modal";
 import {
   type EmissionState,
   EmitUserPinCodeModal,
   type EmitUserPinCodeModalServices,
 } from "./emit-user-pin-code-modal";
 import { pinCodeValidity } from "./pin-code-validity";
-import { useSendToMyAccount } from "./send-to-my-account";
 import type { EmitUserPinCodeOutcome } from "./users-api";
 
 type UserPinSectionProps = {

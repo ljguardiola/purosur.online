@@ -1,14 +1,18 @@
 import type { PinCodeRedemptionOutcome } from "@purosur/contracts";
-import { newPinSchema, PIN_MIN_DIGITS, pinCodeRedemptionBodySchema } from "@purosur/contracts";
-import { Button, InlineNotice, TextField } from "@purosur/ui";
+import { PIN_MIN_DIGITS } from "@purosur/contracts";
+import { Button, fieldErrorMessage, InlineNotice, TextField, useRequestForm } from "@purosur/ui";
 import { Check, Lock, ShieldX, TriangleAlert, WifiOff } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
 import { useId, useState } from "react";
 import { retryAfterText } from "../shell/retry-after-text";
-
-const CODE_MESSAGE = "Revisá el código: son 16 letras y números.";
-const PIN_MESSAGE = `El PIN tiene que tener al menos ${PIN_MIN_DIGITS} dígitos, solo números.`;
-const REPEAT_MESSAGE = "Los dos PIN no coinciden.";
+import {
+  CODE_MESSAGE,
+  EMPTY_PIN_REDEMPTION_FORM,
+  PIN_MESSAGE,
+  pinRedemptionRequestFrom,
+  pinRedemptionRequestSchema,
+  REPEAT_MESSAGE,
+} from "./pin-redemption-form";
 
 const NEW_CODE_PLACE = { backoffice: " en el backoffice", register: "" } as const;
 
@@ -88,85 +92,91 @@ export function PinCodeRedemptionForm({
   newCodeAskedIn,
   children,
 }: PinCodeRedemptionFormProps) {
-  const [code, setCode] = useState("");
-  const [newPin, setNewPin] = useState("");
-  const [repeat, setRepeat] = useState("");
-  const [problems, setProblems] = useState({ code: false, pin: false, repeat: false });
-  const [submitting, setSubmitting] = useState(false);
   const [outcome, setOutcome] = useState<PinCodeRedemptionOutcome>();
   const noticeId = useId();
+  const { form, submit, submitting, reset } = useRequestForm({
+    defaultValues: EMPTY_PIN_REDEMPTION_FORM,
+    request: { schema: pinRedemptionRequestSchema, from: pinRedemptionRequestFrom },
+    fields: { reset_code: "code", new_pin: "newPin", repeat: "repeat" },
+    messages: { code: CODE_MESSAGE, newPin: PIN_MESSAGE, repeat: REPEAT_MESSAGE },
+    onSubmit: async ({ new_pin }, { parsed, values, showFieldError }) => {
+      if (parsed === undefined) {
+        return;
+      }
+      const answered = await redeem(parsed.reset_code, new_pin).catch(
+        (): PinCodeRedemptionOutcome => ({ kind: "unavailable" }),
+      );
+      setOutcome(answered);
+      switch (answered.kind) {
+        case "redeemed":
+          reset({ ...values, newPin: "", repeat: "" });
+          await onRedeemed(new_pin);
+          break;
+        case "resumed":
+          reset({ ...values, newPin: "", repeat: "" });
+          break;
+        case "cash_session_opened_by_another":
+          reset();
+          break;
+        case "pin_rejected":
+          showFieldError("newPin", PIN_MESSAGE);
+          break;
+        default:
+          break;
+      }
+    },
+  });
 
   const notice = outcome === undefined ? undefined : noticeFor(outcome, newCodeAskedIn);
   const codeRejected = outcome !== undefined && CODE_OUTCOMES.has(outcome.kind);
-  const pinRejected = outcome?.kind === "pin_rejected";
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting) {
       return;
     }
     setOutcome(undefined);
-    const typedCode = pinCodeRedemptionBodySchema.shape.reset_code.safeParse(code);
-    const found = {
-      code: !typedCode.success,
-      pin: !newPinSchema.safeParse(newPin).success,
-      repeat: repeat !== newPin,
-    };
-    setProblems(found);
-    if (!typedCode.success || found.pin || found.repeat) {
-      return;
-    }
-    setSubmitting(true);
-    const answered = await redeem(typedCode.data, newPin).catch(
-      (): PinCodeRedemptionOutcome => ({ kind: "unavailable" }),
-    );
-    setOutcome(answered);
-    if (answered.kind === "redeemed") {
-      setNewPin("");
-      setRepeat("");
-      await onRedeemed(newPin);
-    }
-    if (answered.kind === "resumed") {
-      setNewPin("");
-      setRepeat("");
-    }
-    if (answered.kind === "cash_session_opened_by_another") {
-      setCode("");
-      setNewPin("");
-      setRepeat("");
-    }
-    setSubmitting(false);
+    void submit();
   }
 
-  const codeError = problems.code
-    ? { errorMessage: CODE_MESSAGE }
-    : codeRejected
-      ? { errorMessageId: noticeId }
-      : {};
-  const pinError = problems.pin || pinRejected ? { errorMessage: PIN_MESSAGE } : {};
-  const repeatError = problems.repeat ? { errorMessage: REPEAT_MESSAGE } : {};
-
   return (
-    <form className="flex flex-col gap-4" noValidate onSubmit={submit}>
-      <TextField kind="plain-text" label="Código" value={code} onChange={setCode} {...codeError} />
-      <TextField
-        kind="plain-text"
-        type="password"
-        inputMode="numeric"
-        label={`PIN nuevo, de al menos ${PIN_MIN_DIGITS} dígitos`}
-        value={newPin}
-        onChange={setNewPin}
-        {...pinError}
-      />
-      <TextField
-        kind="plain-text"
-        type="password"
-        inputMode="numeric"
-        label="Repetí el PIN nuevo"
-        value={repeat}
-        onChange={setRepeat}
-        {...repeatError}
-      />
+    <form className="flex flex-col gap-4" noValidate onSubmit={handleSubmit}>
+      <form.AppField name="code">
+        {(code) => {
+          const message = fieldErrorMessage(code.state.meta.errors);
+          return (
+            <TextField
+              kind="plain-text"
+              label="Código"
+              value={code.state.value}
+              onChange={code.handleChange}
+              {...(message === undefined && codeRejected
+                ? { errorMessageId: noticeId }
+                : { errorMessage: message })}
+            />
+          );
+        }}
+      </form.AppField>
+      <form.AppField name="newPin">
+        {(newPin) => (
+          <newPin.TextField
+            kind="plain-text"
+            type="password"
+            inputMode="numeric"
+            label={`PIN nuevo, de al menos ${PIN_MIN_DIGITS} dígitos`}
+          />
+        )}
+      </form.AppField>
+      <form.AppField name="repeat">
+        {(repeat) => (
+          <repeat.TextField
+            kind="plain-text"
+            type="password"
+            inputMode="numeric"
+            label="Repetí el PIN nuevo"
+          />
+        )}
+      </form.AppField>
       {notice === undefined ? null : (
         <div id={noticeId}>
           <InlineNotice

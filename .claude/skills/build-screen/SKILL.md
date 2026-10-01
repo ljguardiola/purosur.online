@@ -66,10 +66,9 @@ piece serves each one.
 For the outcome of each action, these are the pieces the design system
 offers:
 
-- A field the action refuses: the form's bound field from `useCloudForm`
-  (`apps/backoffice/src/platform/cloud-form.tsx`), which passes the
-  field's `errorMessage`; `SharedFieldError`
-  (`platform/cloud-form-fields.tsx`) for one message shared by several
+- A field the action refuses: the form's bound field from `packages/ui`'s
+  `useRequestForm`, which passes the field's `errorMessage`;
+  `SharedFieldError` from `packages/ui` for one message shared by several
   inputs through `errorMessageId`
   (`packages/ui/src/components/forms/field-error.ts`). The rules for forms
   are in "Backoffice screens" in `CONTRIBUTING.md`.

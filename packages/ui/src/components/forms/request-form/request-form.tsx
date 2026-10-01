@@ -7,7 +7,7 @@ import {
   useStore,
 } from "@tanstack/react-form";
 import { useState } from "react";
-import { fieldContext, formContext } from "./cloud-form-context";
+import { fieldContext, formContext } from "./request-form-context";
 import {
   BoundComboBox,
   BoundDateField,
@@ -18,7 +18,7 @@ import {
   BoundTextField,
   BoundToggle,
   BoundToggleChipGroup,
-} from "./cloud-form-fields";
+} from "./request-form-fields";
 
 const { useAppForm } = createFormHook({
   fieldContext,
@@ -41,14 +41,14 @@ type Message<Values> = string | ((values: Values) => string);
 
 type FieldDeclaration<Values, Field> = Field | null | ((values: Values) => Field);
 
-export type CloudSubmission<Values, Parsed = unknown> = {
+export type RequestSubmission<Values, Parsed = unknown> = {
   values: Values;
   parsed: Parsed | undefined;
   showWireFieldError: (wireField: string) => boolean;
   showFieldError: (field: keyof Values & string, message: string) => void;
 };
 
-type CloudFormOptions<
+type RequestFormOptions<
   Values extends Record<string, unknown>,
   Request extends Record<string, unknown>,
   Parsed,
@@ -63,7 +63,7 @@ type CloudFormOptions<
     Record<string, FieldDeclaration<Values, Field>>
   >;
   messages: Record<Field, Message<Values>>;
-  onSubmit: (request: Request, submission: CloudSubmission<Values, Parsed>) => Promise<void>;
+  onSubmit: (request: Request, submission: RequestSubmission<Values, Parsed>) => Promise<void>;
 };
 
 const NOTHING_STARTED: { started: Promise<void> | undefined } = { started: undefined };
@@ -80,12 +80,12 @@ function issueWireFields(issue: StandardSchemaV1Issue): string[] {
   return keys.map((_, index) => keys.slice(0, keys.length - index).join("."));
 }
 
-export function useCloudForm<
+export function useRequestForm<
   Values extends Record<string, unknown>,
   Request extends Record<string, unknown>,
   Parsed,
   Field extends keyof Values & string,
->(options: CloudFormOptions<Values, Request, Parsed, Field>) {
+>(options: RequestFormOptions<Values, Request, Parsed, Field>) {
   const { request, fields, messages } = options;
   const wireFields: Record<string, FieldDeclaration<Values, Field> | undefined> = fields;
   const fieldOf = (wireField: string, values: Values): Field | undefined => {
@@ -198,6 +198,7 @@ export function useCloudForm<
   return {
     form,
     submit,
+    clearFieldError,
     submitting: tanStackSubmitting || unsettled > 0,
     values: currentValues,
     dirty: !evaluate(currentValues, loaded),

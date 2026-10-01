@@ -77,6 +77,9 @@ import { registerTagEditRoute } from "./catalog/tag-edit-route.js";
 import { registerTagReactivationRoute } from "./catalog/tag-reactivation-route.js";
 import type { TagsRouteOptions } from "./catalog/tags-list-route.js";
 import { registerTagsListRoute } from "./catalog/tags-list-route.js";
+import { registerBuyerIdentificationThresholdRecordRoute } from "./fiscal/buyer-identification-threshold-record-route.js";
+import type { BuyerIdentificationThresholdsRouteOptions } from "./fiscal/buyer-identification-thresholds-list-route.js";
+import { registerBuyerIdentificationThresholdsListRoute } from "./fiscal/buyer-identification-thresholds-list-route.js";
 import { registerIssuerIdentificationEditRoute } from "./fiscal/issuer-identification-edit-route.js";
 import type { IssuerIdentificationRouteOptions } from "./fiscal/issuer-identification-read-route.js";
 import { registerIssuerIdentificationReadRoute } from "./fiscal/issuer-identification-read-route.js";
@@ -123,6 +126,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   roles?: RolesRouteOptions<TQueryResult>;
   branchSettings?: BranchSettingsRouteOptions<TQueryResult>;
   issuerIdentification?: IssuerIdentificationRouteOptions<TQueryResult>;
+  buyerIdentificationThresholds?: BuyerIdentificationThresholdsRouteOptions<TQueryResult>;
   categories?: CategoriesRouteOptions<TQueryResult>;
   brands?: BrandsRouteOptions<TQueryResult>;
   tags?: TagsRouteOptions<TQueryResult>;
@@ -170,6 +174,7 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     roles: backoffice,
     branchSettings: backoffice,
     issuerIdentification: { ...backoffice, authorizedCuit: wiring.authorizedCuit },
+    buyerIdentificationThresholds: backoffice,
     categories: backoffice,
     brands: backoffice,
     tags: backoffice,
@@ -317,6 +322,11 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
       if (options.issuerIdentification) {
         registerIssuerIdentificationReadRoute(api, options.issuerIdentification);
         registerIssuerIdentificationEditRoute(api, options.issuerIdentification);
+      }
+
+      if (options.buyerIdentificationThresholds) {
+        registerBuyerIdentificationThresholdsListRoute(api, options.buyerIdentificationThresholds);
+        registerBuyerIdentificationThresholdRecordRoute(api, options.buyerIdentificationThresholds);
       }
 
       if (options.categories) {

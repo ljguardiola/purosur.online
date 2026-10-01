@@ -1,10 +1,9 @@
 import { type TagSummary, tagEditBodySchema } from "@purosur/contracts";
-import { Button, InlineNotice, Modal } from "@purosur/ui";
+import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, Pencil, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useSendToMyAccount } from "../access/send-to-my-account";
-import { useCloudForm } from "../platform/cloud-form";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type { TagReload } from "./catalog-queries";
 import {
   EMPTY_TAG_EDIT_FORM,
@@ -49,7 +48,7 @@ export function EditTagModal({
   const [loaded, setLoaded] = useState<TagSummary | null>(null);
   const [notice, setNotice] = useState<EditNotice | null>(null);
   const [reloading, setReloading] = useState(false);
-  const { form, submit, submitting, reset } = useCloudForm({
+  const { form, submit, submitting, reset } = useRequestForm({
     defaultValues: EMPTY_TAG_EDIT_FORM,
     request: { schema: tagEditBodySchema, from: tagEditRequestFrom },
     fields: TAG_EDIT_FIELDS,

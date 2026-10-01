@@ -1,4 +1,5 @@
 import {
+  CASH_MOVEMENT_REASON_MAX_LENGTH,
   type CashMovementKind,
   cashMovementReason,
   isValidCashMovementAmount,
@@ -24,7 +25,7 @@ export interface RecordCashMovementPorts {
 
 export type RecordCashMovementOutcome =
   | { kind: "invalid_amount" }
-  | { kind: "invalid_reason" }
+  | { kind: "invalid_reason"; maxLength: number }
   | { kind: "no_open_session" }
   | { kind: "exceeds_expected_cash"; expected: number }
   | { kind: "recorded"; movement: CashMovement };
@@ -38,7 +39,7 @@ export function recordCashMovement(
   }
   const reason = cashMovementReason(input.reason);
   if (reason === undefined) {
-    return { kind: "invalid_reason" };
+    return { kind: "invalid_reason", maxLength: CASH_MOVEMENT_REASON_MAX_LENGTH };
   }
 
   return ledger.transaction<RecordCashMovementOutcome>((tx) => {

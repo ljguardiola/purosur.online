@@ -21,6 +21,11 @@
       "types": "./dist/catalog/use-cases/index.d.ts",
       "default": "./dist/catalog/use-cases/index.js"
     },
+    "./fiscal/use-cases": {
+      "@purosur/source": "./src/fiscal/use-cases/index.ts",
+      "types": "./dist/fiscal/use-cases/index.d.ts",
+      "default": "./dist/fiscal/use-cases/index.js"
+    },
     "./pricing/use-cases": {
       "@purosur/source": "./src/pricing/use-cases/index.ts",
       "types": "./dist/pricing/use-cases/index.d.ts",

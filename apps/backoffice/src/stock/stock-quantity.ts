@@ -1,5 +1,5 @@
-import { parseEsArNumber, type SaleUnit, STOCK_QUANTITY_PER_UNIT } from "@purosur/domain";
-import { formatNumber } from "@purosur/ui";
+import { type SaleUnit, STOCK_QUANTITY_PER_UNIT } from "@purosur/domain";
+import { formatNumber, parseEsArNumber } from "@purosur/ui";
 
 const KG_DECIMALS = 3;
 const MINUS = "−";

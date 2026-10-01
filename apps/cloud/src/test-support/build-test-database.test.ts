@@ -11,11 +11,14 @@ import {
   branchHours,
   branchSettings,
   brands,
+  buyerIdentificationThresholds,
+  buyerTaxStatusSets,
   categories,
   changes,
   deviceState,
   discounts,
   issuerIdentification,
+  issuerIdentificationVersions,
   locations,
   passkeyChallenges,
   passkeys,
@@ -395,6 +398,14 @@ describe("buildTestDatabase", () => {
     // issuer_identification is a true singleton: its row count can never grow, so its "seeded
     // before clear()" is a content change instead.
     await db.update(issuerIdentification).set({ legalName: "Temporary legal name" });
+    await db
+      .insert(buyerIdentificationThresholds)
+      .values({ amount: 1_000_000, validFrom: "2026-10-01", recordedBy: user.id });
+    await db.insert(buyerTaxStatusSets).values({
+      paramsVersion: 1,
+      options: [{ code: 901, description: "Condicion de prueba A", invoiceClass: "A" }],
+    });
+    await db.insert(issuerIdentificationVersions).values({ version: 2 });
 
     const afterSeeding = await countsByTable(client);
     for (const [tablename, count] of afterSeeding) {

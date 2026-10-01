@@ -3,6 +3,7 @@ import type {
   Authorization,
   CancelLockedSaleOutcome,
   CancelSaleOutcome,
+  CashChargeAnswer,
   ChangeLineQuantityOutcome,
   ChargeSaleInCashOutcome,
   CurrentSaleAnswer,
@@ -11,7 +12,7 @@ import type {
   ScanProductOutcome,
   SearchProductsOutcome,
 } from "@purosur/contracts";
-import { type SaleLine, type SaleWithLines, saleTotal } from "@purosur/domain";
+import { cashCharge, type SaleLine, type SaleWithLines, saleTotal } from "@purosur/domain";
 import {
   type AddScannedProductOutcome,
   addScannedProduct,
@@ -182,6 +183,17 @@ export async function currentSaleFor({
     return "not_permitted";
   }
   return guarded.result.kind === "open" ? toOpenSale(guarded.result.sale) : null;
+}
+
+export async function cashChargeFor(
+  deps: Pick<SaleRequestDeps, "database" | "gate">,
+  { saleId, tendered }: ChargeSaleInCashRequest,
+): Promise<CashChargeAnswer> {
+  const sale = await currentSaleFor(deps);
+  if (sale === "not_permitted") {
+    return sale;
+  }
+  return sale === null || sale.id !== saleId ? null : cashCharge(sale.total, tendered);
 }
 
 export async function changeLineQuantityFor(

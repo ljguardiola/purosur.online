@@ -1474,6 +1474,36 @@ describe("wiring the issuer identification routes", () => {
   });
 });
 
+describe("wiring the buyer-identification threshold routes", () => {
+  it.each([
+    ["GET", "does not register", false],
+    ["POST", "does not register", false],
+    ["GET", "registers", true],
+    ["POST", "registers", true],
+  ])(
+    "%s /api/buyer-identification-thresholds: %s it according to the buyerIdentificationThresholds option",
+    async (method, _verb, wired) => {
+      const app = buildApp({
+        version: "abc1234",
+        ...(wired && {
+          buyerIdentificationThresholds: {
+            db: testDatabase.db,
+            backofficeOrigin: "https://staging.purosur.online",
+          },
+        }),
+      });
+
+      const response = await app.inject({
+        method: method as "GET" | "POST",
+        url: "/api/buyer-identification-thresholds",
+        headers: { origin: "https://staging.purosur.online" },
+      });
+
+      expect(response.statusCode).toBe(wired ? 401 : 404);
+    },
+  );
+});
+
 describe("wiring the passkeys routes", () => {
   it("does not register GET /api/account/passkeys when no passkeys option is given", async () => {
     const app = buildApp({ version: "abc1234" });
@@ -1683,6 +1713,16 @@ describe("the route access inventory", () => {
       {
         method: "PUT",
         url: "/api/fiscal-settings/issuer-identification",
+        access: permissionAccess("change_fiscal_configuration"),
+      },
+      {
+        method: "GET",
+        url: "/api/buyer-identification-thresholds",
+        access: permissionAccess("change_fiscal_configuration"),
+      },
+      {
+        method: "POST",
+        url: "/api/buyer-identification-thresholds",
         access: permissionAccess("change_fiscal_configuration"),
       },
       {

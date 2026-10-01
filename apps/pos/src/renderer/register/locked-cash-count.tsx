@@ -10,7 +10,7 @@ import {
   InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
-  TextField,
+  useRequestForm,
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Lock, ShoppingBasket, TriangleAlert, X } from "lucide-react";
@@ -19,8 +19,16 @@ import { useEffect, useRef, useState } from "react";
 import type { SignedInPerson } from "../access/signed-in-person";
 import { SessionEyebrow } from "../shell/session-eyebrow";
 import { CancelLockedSaleModal } from "./cancel-locked-sale-modal";
-import { countedCashFrom, differenceNotice, INVALID_COUNTED_CASH_MESSAGE } from "./cash-amounts";
+import { differenceNotice } from "./cash-amounts";
 import { CashCountStrip } from "./cash-count-strip";
+import {
+  countedCashMessage,
+  countedCashOf,
+  countedCashRequestFrom,
+  EMPTY_COUNTED_CASH_FORM,
+  INVALID_COUNTED_CASH_MESSAGE,
+  lockedCountedCashRequestSchema,
+} from "./counted-cash-form";
 import { ExpectedCashPanel } from "./expected-cash-panel";
 import {
   useCashBalanceQuery,
@@ -66,11 +74,37 @@ export function LockedCashCount({
   const openSaleData = useSessionOpenSaleQuery(sessionId, loadOpenSale);
   const setOpenSale = useSetSessionOpenSale(sessionId);
   const field = useRef<HTMLDivElement>(null);
-  const [typed, setTyped] = useState("");
-  const [fieldMessage, setFieldMessage] = useState<string>();
   const [failure, setFailure] = useState<string>();
   const [confirmingCancel, setConfirmingCancel] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const { form, submit, submitting, values } = useRequestForm({
+    defaultValues: EMPTY_COUNTED_CASH_FORM,
+    request: { schema: lockedCountedCashRequestSchema, from: countedCashRequestFrom },
+    fields: { counted_cash: "countedCash" },
+    messages: { countedCash: countedCashMessage },
+    onSubmit: async (request, { showFieldError }) => {
+      const outcome = await close(request.counted_cash).catch(
+        (): CloseLockedCashSessionOutcome => ({ kind: "unavailable" }),
+      );
+      switch (outcome.kind) {
+        case "closed":
+        case "no_open_session":
+          break;
+        case "invalid_counted_cash":
+          showFieldError("countedCash", INVALID_COUNTED_CASH_MESSAGE);
+          break;
+        case "open_sale":
+          await setOpenSale({ total: outcome.total, cancellable: outcome.cancellable });
+          break;
+        case "unavailable":
+          setFailure(CLOSE_FAILED);
+          break;
+        default:
+          onRefused(outcome);
+      }
+    },
+  });
+  const busy = submitting || cancelling;
 
   useEffect(() => {
     field.current?.querySelector("input")?.focus();
@@ -78,61 +112,32 @@ export function LockedCashCount({
 
   const openSale = openSaleData.status === "loaded" ? openSaleData.value : null;
   const expected = balance.status === "loaded" ? balance.value.expected : undefined;
-  const typedCash = typed.trim() === "" ? undefined : countedCashFrom(typed);
-  const counted = typedCash !== undefined && "cents" in typedCash ? typedCash.cents : undefined;
+  const counted = countedCashOf(lockedCountedCashRequestSchema, values);
   const warning =
     expected === undefined || counted === undefined
       ? undefined
       : differenceNotice(counted - expected);
 
-  function type(value: string) {
-    setTyped(value);
-    setFieldMessage(undefined);
+  function clearOutcome() {
     setFailure(undefined);
   }
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy) {
       return;
     }
-    setFailure(undefined);
-    const countedCash = countedCashFrom(typed);
-    if ("message" in countedCash) {
-      setFieldMessage(countedCash.message);
-      return;
-    }
-    setFieldMessage(undefined);
-    setBusy(true);
-    const outcome = await close(countedCash.cents).catch(
-      (): CloseLockedCashSessionOutcome => ({ kind: "unavailable" }),
-    );
-    setBusy(false);
-    switch (outcome.kind) {
-      case "closed":
-      case "no_open_session":
-        break;
-      case "invalid_counted_cash":
-        setFieldMessage(INVALID_COUNTED_CASH_MESSAGE);
-        break;
-      case "open_sale":
-        await setOpenSale({ total: outcome.total, cancellable: outcome.cancellable });
-        break;
-      case "unavailable":
-        setFailure(CLOSE_FAILED);
-        break;
-      default:
-        onRefused(outcome);
-    }
+    clearOutcome();
+    void submit();
   }
 
   async function cancelOpenSale() {
-    setFailure(undefined);
-    setBusy(true);
+    clearOutcome();
+    setCancelling(true);
     const outcome = await cancelSale().catch(
       (): CancelLockedSaleOutcome => ({ kind: "unavailable" }),
     );
-    setBusy(false);
+    setCancelling(false);
     setConfirmingCancel(false);
     switch (outcome.kind) {
       case "cancelled":
@@ -153,7 +158,7 @@ export function LockedCashCount({
   }
 
   return (
-    <form className="flex h-screen w-screen bg-surface" noValidate onSubmit={submit}>
+    <form className="flex h-screen w-screen bg-surface" noValidate onSubmit={handleSubmit}>
       <main className="flex flex-1 flex-col gap-4 p-8">
         <div className="flex flex-col gap-1.5">
           <SessionEyebrow registerName={registerName} openedAt={openedAt} />
@@ -200,16 +205,17 @@ export function LockedCashCount({
             Contá el efectivo que hay en la caja y cargá el total.
           </p>
           <div ref={field}>
-            <TextField
-              kind="counted-cash"
-              prefix="$"
-              label="Efectivo contado"
-              inputMode="numeric"
-              value={typed}
-              onChange={type}
-              disabled={busy}
-              errorMessage={fieldMessage}
-            />
+            <form.AppField name="countedCash" listeners={{ onChange: clearOutcome }}>
+              {(countedCash) => (
+                <countedCash.TextField
+                  kind="counted-cash"
+                  prefix="$"
+                  label="Efectivo contado"
+                  inputMode="numeric"
+                  disabled={busy}
+                />
+              )}
+            </form.AppField>
           </div>
           <CashCountStrip expected={expected} counted={counted} />
           {warning === undefined ? null : (

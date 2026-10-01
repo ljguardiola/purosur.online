@@ -82,11 +82,13 @@ function coreAnswering(
     sessionOpenSale?: CoreClient["sessionOpenSale"];
     redeemOutcome?: PinCodeRedemptionOutcome;
     cashMovements?: CoreClient["cashMovements"];
+    cashMovementKinds?: CoreClient["cashMovementKinds"];
     recordCashMovement?: CoreClient["recordCashMovement"];
   } = {},
   sales: {
     currentSale?: () => Promise<OpenSale | null>;
     scanProduct?: (code: string) => Promise<ScanProductOutcome>;
+    cashCharge?: CoreClient["cashCharge"];
     chargeSaleInCash?: CoreClient["chargeSaleInCash"];
     searchProducts?: CoreClient["searchProducts"];
     addProduct?: CoreClient["addProduct"];
@@ -155,6 +157,11 @@ function coreAnswering(
         ? { kind: "no_open_session" }
         : cashDrawer.recordCashMovement(input);
     },
+    async cashMovementKinds() {
+      return cashDrawer.cashMovementKinds === undefined
+        ? "unavailable"
+        : cashDrawer.cashMovementKinds();
+    },
     async cashMovements() {
       return cashDrawer.cashMovements === undefined ? [] : cashDrawer.cashMovements();
     },
@@ -182,6 +189,11 @@ function coreAnswering(
     },
     async scanProduct(code) {
       return sales.scanProduct === undefined ? { kind: "unknown_code" } : sales.scanProduct(code);
+    },
+    async cashCharge(saleId, tendered) {
+      return sales.cashCharge === undefined
+        ? { kind: "invalid_amount" }
+        : sales.cashCharge(saleId, tendered);
     },
     async chargeSaleInCash(saleId, tendered) {
       return sales.chargeSaleInCash === undefined
@@ -820,6 +832,7 @@ describe("App", () => {
           ],
           total: 238_000,
         }),
+        cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 12_000 }),
         chargeSaleInCash: async (saleId, tendered) => {
           charges.push([saleId, tendered]);
           return { kind: "completed", sale_id: saleId, total: 238_000, tendered, change: 12_000 };
@@ -866,6 +879,7 @@ describe("App", () => {
             ? Promise.resolve({ id: "sale-1", lines: [yerba], total: 238_000 })
             : new Promise(() => {});
         },
+        cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 12_000 }),
         chargeSaleInCash: async (saleId, tendered) => ({
           kind: "completed",
           sale_id: saleId,
@@ -1648,6 +1662,7 @@ describe("App", () => {
         cashSession?: CoreClient["cashSession"];
         cashBalance?: CoreClient["cashBalance"];
         cashMovements?: CoreClient["cashMovements"];
+        cashMovementKinds?: CoreClient["cashMovementKinds"];
         recordCashMovement?: CoreClient["recordCashMovement"];
       } = {},
     ) {
@@ -1664,6 +1679,11 @@ describe("App", () => {
           cashSession: async () => MOVER_SESSION,
           cashBalance: async () => BALANCE,
           cashMovements: async () => [OPENING],
+          cashMovementKinds: async () => ({
+            CASH_IN: { permission: "record_cash_in", authorization_required: false },
+            CASH_OUT: { permission: "record_cash_expense", authorization_required: true },
+            WITHDRAWAL: { permission: "withdraw_cash", authorization_required: true },
+          }),
           ...cashDrawer,
         },
       );

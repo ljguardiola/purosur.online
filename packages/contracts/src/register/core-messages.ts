@@ -2,15 +2,10 @@ import {
   ARGENTINA_TIME_ZONE,
   type AuthorizablePermissionKey,
   CASH_MOVEMENT_KINDS,
-  CASH_MOVEMENT_REASON_MAX_LENGTH,
   CASH_MOVEMENT_TYPES,
-  cashCharge,
-  cashMovementPermission,
-  cashMovementReason,
   isAuthorizablePermissionKey,
   isValidCashAmount,
   isValidCashMovementAmount,
-  parseAmountCents,
 } from "@purosur/domain";
 import { z } from "zod";
 import {
@@ -23,6 +18,7 @@ import { pinAttemptRefusalSchema } from "../access/pin-attempt-refusal.js";
 import {
   addProductOutcomeSchema,
   cancelSaleOutcomeSchema,
+  cashChargeSchema,
   changeLineQuantityOutcomeSchema,
   chargeSaleInCashOutcomeSchema,
   removeSaleLineOutcomeSchema,
@@ -43,15 +39,7 @@ export const countedCashSchema = cashAmountSchema;
 
 export const cashMovementAmountSchema = z.number().refine(isValidCashMovementAmount);
 
-export {
-  ARGENTINA_TIME_ZONE,
-  CASH_MOVEMENT_REASON_MAX_LENGTH,
-  CASH_MOVEMENT_TYPES,
-  cashCharge,
-  cashMovementPermission,
-  cashMovementReason,
-  parseAmountCents,
-};
+export { ARGENTINA_TIME_ZONE };
 
 const rendererPingMessageSchema = z.object({
   type: z.literal("ping"),
@@ -92,7 +80,7 @@ const signInMessageSchema = z.object({
   pin: z.string(),
 });
 
-const signInLookupMessageSchema = z.object({
+export const signInLookupMessageSchema = z.object({
   type: z.literal("sign-in-lookup"),
   request_id: requestId,
   email: z.string(),
@@ -111,7 +99,7 @@ const firstSignInMessageSchema = z.object({
   pin: z.string(),
 });
 
-const openCashSessionMessageSchema = z.object({
+export const openCashSessionMessageSchema = z.object({
   type: z.literal("open-cash-session"),
   request_id: requestId,
   opening_float: openingFloatSchema,
@@ -122,12 +110,12 @@ const cashSessionRequestMessageSchema = z.object({
   request_id: requestId,
 });
 
-const recordCashMovementMessageSchema = z.object({
+export const recordCashMovementMessageSchema = z.object({
   type: z.literal("record-cash-movement"),
   request_id: requestId,
   kind: z.enum(CASH_MOVEMENT_KINDS),
   amount: cashMovementAmountSchema,
-  reason: z.string().refine((reason) => cashMovementReason(reason) !== undefined),
+  reason: z.string(),
   authorization: authorizationSchema.optional(),
 });
 export type RecordCashMovementRequest = Omit<
@@ -140,7 +128,12 @@ const cashMovementsRequestMessageSchema = z.object({
   request_id: requestId,
 });
 
-const closeCashSessionMessageSchema = z.object({
+const cashMovementKindsRequestMessageSchema = z.object({
+  type: z.literal("cash-movement-kinds-request"),
+  request_id: requestId,
+});
+
+export const closeCashSessionMessageSchema = z.object({
   type: z.literal("close-cash-session"),
   request_id: requestId,
   session_id: z.string(),
@@ -148,7 +141,7 @@ const closeCashSessionMessageSchema = z.object({
   authorization: authorizationSchema.optional(),
 });
 
-const closeLockedCashSessionMessageSchema = z.object({
+export const closeLockedCashSessionMessageSchema = z.object({
   type: z.literal("close-locked-cash-session"),
   request_id: requestId,
   session_id: z.string(),
@@ -226,8 +219,15 @@ const saleRequestMessageSchema = z.object({
   request_id: requestId,
 });
 
-const chargeSaleInCashMessageSchema = z.object({
+export const chargeSaleInCashMessageSchema = z.object({
   type: z.literal("charge-sale-in-cash"),
+  request_id: requestId,
+  sale_id: z.string(),
+  tendered: z.int(),
+});
+
+const cashChargeRequestMessageSchema = z.object({
+  type: z.literal("cash-charge-request"),
   request_id: requestId,
   sale_id: z.string(),
   tendered: z.int(),
@@ -253,6 +253,7 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   cashSessionRequestMessageSchema,
   recordCashMovementMessageSchema,
   cashMovementsRequestMessageSchema,
+  cashMovementKindsRequestMessageSchema,
   closeCashSessionMessageSchema,
   closeLockedCashSessionMessageSchema,
   cancelLockedSaleMessageSchema,
@@ -268,6 +269,7 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   addProductMessageSchema,
   saleRequestMessageSchema,
   chargeSaleInCashMessageSchema,
+  cashChargeRequestMessageSchema,
   signOutMessageSchema,
 ]);
 export type RendererToCoreMessage = z.infer<typeof rendererToCoreMessageSchema>;
@@ -395,7 +397,7 @@ export type OpenCashSession = z.infer<typeof openCashSessionSchema>;
 const recordCashMovementOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("recorded"), authorized_by: authorizedBySchema.nullable() }),
   z.object({ kind: z.literal("invalid_amount") }),
-  z.object({ kind: z.literal("invalid_reason") }),
+  z.object({ kind: z.literal("invalid_reason"), max_length: z.number() }),
   z.object({ kind: z.literal("no_open_session") }),
   z.object({ kind: z.literal("not_signed_in") }),
   z.object({ kind: z.literal("exceeds_expected_cash"), expected: z.number() }),
@@ -405,9 +407,11 @@ export type RecordCashMovementOutcome = z.infer<typeof recordCashMovementOutcome
 
 const cashMovementPersonSchema = z.object({ user_id: z.string(), first_name: z.string() });
 
+export const cashMovementTypeSchema = z.enum(CASH_MOVEMENT_TYPES);
+
 const listedCashMovementSchema = z.object({
   id: z.string(),
-  type: z.enum(CASH_MOVEMENT_TYPES),
+  type: cashMovementTypeSchema,
   amount: z.number(),
   reason: z.string().nullable(),
   occurred_at: z.string(),
@@ -415,6 +419,15 @@ const listedCashMovementSchema = z.object({
   authorized_by: cashMovementPersonSchema.nullable(),
 });
 export type ListedCashMovement = z.infer<typeof listedCashMovementSchema>;
+
+const recordableCashMovementKindsSchema = z.record(
+  z.enum(CASH_MOVEMENT_KINDS),
+  z.object({
+    permission: z.custom<AuthorizablePermissionKey>(isAuthorizablePermissionKey),
+    authorization_required: z.boolean(),
+  }),
+);
+export type RecordableCashMovementKinds = z.infer<typeof recordableCashMovementKindsSchema>;
 
 const signInUserSchema = z.object({ id: z.string(), first_name: z.string() });
 export type SignInUser = z.infer<typeof signInUserSchema>;
@@ -534,6 +547,12 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("cash-movements-unavailable"), request_id: requestId }),
   z.object({
+    type: z.literal("cash-movement-kinds"),
+    request_id: requestId,
+    kinds: recordableCashMovementKindsSchema.nullable(),
+  }),
+  z.object({ type: z.literal("cash-movement-kinds-unavailable"), request_id: requestId }),
+  z.object({
     type: z.literal("authorizers"),
     request_id: requestId,
     users: z.array(signInUserSchema),
@@ -577,6 +596,13 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("sale"), request_id: requestId, sale: saleSchema.nullable() }),
   z.object({ type: z.literal("sale-unavailable"), request_id: requestId }),
   z.object({ type: z.literal("sale-not-permitted"), request_id: requestId }),
+  z.object({
+    type: z.literal("cash-charge"),
+    request_id: requestId,
+    charge: cashChargeSchema.nullable(),
+  }),
+  z.object({ type: z.literal("cash-charge-unavailable"), request_id: requestId }),
+  z.object({ type: z.literal("cash-charge-not-permitted"), request_id: requestId }),
   z.object({ type: z.literal("signed-out"), request_id: requestId }),
   z.object({ type: z.literal("pulled") }),
 ]);

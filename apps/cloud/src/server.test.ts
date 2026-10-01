@@ -590,7 +590,12 @@ describe("startServer", () => {
       INSTALLATION_KEYS_ENCRYPTION_KEY: KEYS_ENCRYPTION_KEY,
     };
 
-    await startServer(env, { initSentry: vi.fn(), buildApp, setUpRecovery });
+    await startServer(env, {
+      initSentry: vi.fn(),
+      buildApp,
+      setUpRecovery,
+      recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+    });
 
     expect(setUpRecovery).toHaveBeenCalledWith({
       databaseUrl: "postgres://user:pass@db/purosur",
@@ -632,6 +637,10 @@ describe("startServer", () => {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,
         authorizedCuit: "20-12345678-6",
+      },
+      buyerIdentificationThresholds: {
+        db: fakeRecovery.db,
+        backofficeOrigin: fakeRecovery.backofficeOrigin,
       },
       categories: {
         db: fakeRecovery.db,
@@ -691,6 +700,66 @@ describe("startServer", () => {
   });
 });
 
+describe("startServer recording the certificate's CUIT", () => {
+  const env = {
+    DATABASE_URL: "postgres://user:pass@db/purosur",
+    RESEND_API_KEY: "re_test_key",
+    RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+    RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+    BACKOFFICE_ORIGIN: "https://staging.purosur.online",
+    EDGE_ORIGIN_SECRET: "edge-secret",
+    ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
+    DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
+    INSTALLATION_KEYS_ENCRYPTION_KEY: KEYS_ENCRYPTION_KEY,
+  };
+
+  it("records the certificate's CUIT for the issuer identification before it starts listening", async () => {
+    const steps: string[] = [];
+    const fakeApp = {
+      listen: vi.fn(async () => {
+        steps.push("listen");
+      }),
+      addHook: vi.fn(),
+    } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+    const db = { marker: "fake-db" };
+    const setUpRecovery = vi.fn().mockResolvedValue({
+      db,
+      jobQueue: { enqueueRecoveryRequest: vi.fn() },
+      backofficeOrigin: "https://staging.purosur.online",
+      worker: { stop: vi.fn() },
+      close: vi.fn(),
+    });
+    const recordAuthorizedCuit = vi.fn(async () => {
+      steps.push("recordAuthorizedCuit");
+    });
+
+    await startServer(env, {
+      initSentry: vi.fn(),
+      buildApp: vi.fn().mockReturnValue(fakeApp),
+      setUpRecovery,
+      recordAuthorizedCuit,
+    });
+
+    expect(recordAuthorizedCuit).toHaveBeenCalledWith(db, "20-12345678-6");
+    expect(steps).toEqual(["recordAuthorizedCuit", "listen"]);
+  });
+
+  it("records no CUIT when no database is configured", async () => {
+    const recordAuthorizedCuit = vi.fn();
+    const fakeApp = {
+      listen: vi.fn().mockResolvedValue(undefined),
+      addHook: vi.fn(),
+    } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+
+    await startServer(
+      { EDGE_ORIGIN_SECRET: "edge-secret" },
+      { initSentry: vi.fn(), buildApp: vi.fn().mockReturnValue(fakeApp), recordAuthorizedCuit },
+    );
+
+    expect(recordAuthorizedCuit).not.toHaveBeenCalled();
+  });
+});
+
 describe("startServer with the real app", () => {
   const dirs: string[] = [];
 
@@ -732,7 +801,12 @@ describe("startServer with the real app", () => {
         INSTALLATION_KEYS_ENCRYPTION_KEY: KEYS_ENCRYPTION_KEY,
         BACKOFFICE_STATIC_DIR: staticDir,
       },
-      { initSentry: vi.fn(), buildApp: buildAppWithoutListening, setUpRecovery },
+      {
+        initSentry: vi.fn(),
+        buildApp: buildAppWithoutListening,
+        setUpRecovery,
+        recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      },
     );
 
     try {
