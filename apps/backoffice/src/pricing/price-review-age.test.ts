@@ -19,7 +19,7 @@ const rice: PriceProduct = {
 
 test.each([
   { secondsSinceReview: null, text: "Nunca" },
-  { secondsSinceReview: 0, text: "hace 0 segundos" },
+  { secondsSinceReview: 0, text: "hace 0 minutos" },
   { secondsSinceReview: 300, text: "hace 5 minutos" },
   { secondsSinceReview: 3 * 3600, text: "hace 3 horas" },
   { secondsSinceReview: 2 * 86_400, text: "hace 2 días" },
@@ -32,7 +32,7 @@ test.each([
 );
 
 test.each([
-  { secondsSinceReview: 0, pending: false, eyebrow: "Revisado hace 0 segundos" },
+  { secondsSinceReview: 0, pending: false, eyebrow: "Revisado hace 0 minutos" },
   { secondsSinceReview: 86_400, pending: false, eyebrow: "Revisado hace 1 día" },
   { secondsSinceReview: 3 * 3600, pending: false, eyebrow: "Revisado hace 3 horas" },
   { secondsSinceReview: 300, pending: true, eyebrow: "Sin revisar hace 5 minutos" },

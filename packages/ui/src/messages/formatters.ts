@@ -51,8 +51,5 @@ export function formatTimeAgo(seconds: number): string {
   if (seconds >= SECONDS_PER_HOUR) {
     return relativeTime.format(-Math.floor(seconds / SECONDS_PER_HOUR), "hour");
   }
-  if (seconds >= SECONDS_PER_MINUTE) {
-    return relativeTime.format(-Math.floor(seconds / SECONDS_PER_MINUTE), "minute");
-  }
-  return relativeTime.format(-seconds, "second");
+  return relativeTime.format(-Math.floor(seconds / SECONDS_PER_MINUTE), "minute");
 }
