@@ -1437,9 +1437,20 @@ describe("sale requests", () => {
     { type: "scan-product", code: "1" },
     { type: "scan-product", request_id: REQUEST_ID },
     { type: "scan-product", request_id: REQUEST_ID, code: "" },
-    { type: "scan-product", request_id: REQUEST_ID, code: "x".repeat(65) },
   ])("rejects a scan that is not well formed: %j", (message) => {
     expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("leaves a code longer than any barcode to the core", () => {
+    const message = { type: "scan-product", request_id: REQUEST_ID, code: "7".repeat(65) };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("leaves a search longer than any product name to the core", () => {
+    const message = { type: "search-products", request_id: REQUEST_ID, query: "x".repeat(101) };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
   it("accepts a search of the products by name", () => {
@@ -1451,7 +1462,6 @@ describe("sale requests", () => {
   it.each([
     { type: "search-products", query: "a" },
     { type: "search-products", request_id: REQUEST_ID },
-    { type: "search-products", request_id: REQUEST_ID, query: "x".repeat(101) },
   ])("rejects a search that is not well formed: %j", (message) => {
     expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
   });
