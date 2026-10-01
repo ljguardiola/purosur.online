@@ -1,5 +1,10 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "../../fiscal/test-support/fictional-tax-identities.js";
 import { type CashMovement, expectedCash, MAX_CASH_AMOUNT_CENTS } from "../../register/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import type { SaleLineRemoval } from "../model/sale-line-removal.js";
@@ -62,6 +67,8 @@ const OPEN_SALE: SaleWithLines = {
   ],
 };
 
+const OPEN_LINE = OPEN_SALE.lines[0] as SaleWithLines["lines"][number];
+
 const LOWERED: SaleLineRemoval = {
   id: "removal-1",
   saleId: "sale-1",
@@ -82,6 +89,16 @@ const REMOVED: SaleLineRemoval = {
   actorId: "cashier",
   occurredAt: new Date("2026-09-30T12:20:00.000Z"),
 };
+
+const ISSUER = {
+  legalName: FICTIONAL_LEGAL_NAME,
+  grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+  activityStartDate: "2020-01-15",
+  authorizedCuit: FICTIONAL_CUIT,
+  taxStatus: "Condicion de prueba",
+  version: 2,
+};
+const BUYER_TAX_STATUSES = [{ code: 90, description: "Consumidor Final", invoiceClass: "A/M/C" }];
 
 const DISCOUNTED_SALE: SaleWithLines = {
   ...OPEN_SALE,
@@ -114,6 +131,8 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
     session: SESSION,
     sales: [OPEN_SALE],
     movements: [OPENING],
+    issuerIdentifications: [ISSUER],
+    buyerTaxStatusSets: [{ paramsVersion: 1, options: BUYER_TAX_STATUSES }],
     ...state,
   });
 }
@@ -383,6 +402,73 @@ describe("chargeSaleInCash", () => {
     });
   });
 
+  it("records the pre-emission gate outcome of the sale it completed, in the same transaction", () => {
+    const store = ledger();
+
+    charge(store, 10000);
+
+    expect(store.transactions).toBe(1);
+    expect(store.state.preEmissionGates).toEqual([
+      {
+        saleId: "sale-1",
+        evaluatedAt: NOW,
+        outcome: {
+          kind: "passed",
+          document: {
+            invoiceClass: "C",
+            total: TOTAL,
+            netAmount: TOTAL,
+            vatAmount: 0,
+            issuer: {
+              legalName: FICTIONAL_LEGAL_NAME,
+              cuit: FICTIONAL_CUIT,
+              taxStatus: "Condicion de prueba",
+              grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+              activityStartDate: "2020-01-15",
+              version: 2,
+            },
+            buyerTaxStatusCode: 90,
+          },
+        },
+      },
+    ]);
+    expect(store.state.outbox.map((event) => event.event_type)).toEqual(["sale_completed"]);
+  });
+
+  it("completes the sale when the gate fails and appends fiscal_gate_failed after sale_completed", () => {
+    const store = ledger({ issuerIdentifications: [] });
+
+    const outcome = charge(store, 10000);
+
+    expect(outcome).toMatchObject({ kind: "completed", saleId: "sale-1" });
+    expect(store.state.sales[0]?.state).toBe("COMPLETED");
+    expect(store.state.preEmissionGates).toEqual([
+      {
+        saleId: "sale-1",
+        evaluatedAt: NOW,
+        outcome: { kind: "failed", reason: "issuer_identification_missing" },
+      },
+    ]);
+    expect(store.state.outbox).toMatchObject([
+      { event_type: "sale_completed" },
+      {
+        event_id: "id-5",
+        aggregate_type: "Sale",
+        aggregate_id: "sale-1",
+        event_type: "fiscal_gate_failed",
+        schema_version: 1,
+        occurred_at: NOW.toISOString(),
+        actor_id: "cashier",
+        payload: {
+          sale_id: "sale-1",
+          register_id: "register-1",
+          reason: "issuer_identification_missing",
+          evaluated_at: NOW.toISOString(),
+        },
+      },
+    ]);
+  });
+
   it("is no longer the open sale once completed", () => {
     const store = ledger();
 
@@ -519,11 +605,39 @@ describe("chargeSaleInCash", () => {
     expect(charge(store, TOTAL)).toEqual({ kind: "no_open_session" });
   });
 
+  it.each<{ name: string; state: Partial<FakeSaleLedgerState>; tendered: number; saleId?: string }>(
+    [
+      { name: "not permitted", state: { accesses: {} }, tendered: TOTAL },
+      { name: "no open session", state: { session: undefined }, tendered: TOTAL },
+      { name: "no open sale", state: { sales: [] }, tendered: TOTAL },
+      { name: "another sale", state: {}, tendered: TOTAL, saleId: "sale-2" },
+      { name: "empty sale", state: { sales: [{ ...OPEN_SALE, lines: [] }] }, tendered: TOTAL },
+      {
+        name: "zero total",
+        state: {
+          sales: [{ ...OPEN_SALE, lines: [{ ...OPEN_LINE, discountAmount: 5000, lineTotal: 0 }] }],
+        },
+        tendered: TOTAL,
+      },
+      { name: "invalid amount", state: {}, tendered: 0 },
+      { name: "insufficient cash", state: {}, tendered: TOTAL - 1 },
+    ],
+  )("evaluates no gate when the charge is refused: $name", ({ state, tendered, saleId }) => {
+    const store = ledger({ issuerIdentifications: [], ...state });
+
+    const outcome = charge(store, tendered, saleId);
+
+    expect(outcome.kind).not.toBe("completed");
+    expect(store.state.preEmissionGates).toEqual([]);
+    expect(store.state.outbox).toEqual([]);
+  });
+
   it.each<FakeSaleLedgerWrite>([
     "recordPayment",
     "recordCashMovement",
     "recordCompletedSale",
     "appendOutboxEvent",
+    "recordPreEmissionGate",
   ])("leaves nothing behind when %s fails", (write) => {
     const store = ledger();
     const before = structuredClone(store.state);

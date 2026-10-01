@@ -1,5 +1,11 @@
 import type { RoleAccess } from "../../../access/index.js";
-import type { BuyerIdentificationThreshold } from "../../../fiscal/index.js";
+import {
+  type BuyerIdentificationThreshold,
+  type BuyerTaxStatusOption,
+  type IssuerIdentificationInEffect,
+  latestBuyerTaxStatusSet,
+  latestIssuerIdentification,
+} from "../../../fiscal/index.js";
 import { priceInEffectAt } from "../../../pricing/index.js";
 import type { CashMovement } from "../../../register/index.js";
 import type { OutboxEventDraft } from "../../../sync/index.js";
@@ -11,6 +17,7 @@ import type {
   CandidatePromotion,
   Clock,
   IdGenerator,
+  RecordedPreEmissionGate,
   RegisterIdentity,
   SaleLedger,
   SaleLedgerTransaction,
@@ -39,6 +46,9 @@ export interface FakeSaleLedgerState {
   payments: PaymentTransaction[];
   movements: CashMovement[];
   outbox: OutboxEventDraft[];
+  issuerIdentifications: IssuerIdentificationInEffect[];
+  buyerTaxStatusSets: { paramsVersion: number; options: BuyerTaxStatusOption[] }[];
+  preEmissionGates: RecordedPreEmissionGate[];
 }
 
 export type FakeSaleLedgerWrite =
@@ -51,6 +61,7 @@ export type FakeSaleLedgerWrite =
   | "recordPayment"
   | "recordCashMovement"
   | "recordCompletedSale"
+  | "recordPreEmissionGate"
   | "appendOutboxEvent";
 
 export class FakeSaleLedger implements SaleLedger {
@@ -75,6 +86,9 @@ export class FakeSaleLedger implements SaleLedger {
       payments: [],
       movements: [],
       outbox: [],
+      issuerIdentifications: [],
+      buyerTaxStatusSets: [],
+      preEmissionGates: [],
       ...state,
     };
   }
@@ -172,6 +186,12 @@ export class FakeSaleLedger implements SaleLedger {
       appendOutboxEvent: (draft) => {
         this.failIfAsked("appendOutboxEvent");
         working.outbox.push(draft);
+      },
+      issuerIdentificationInEffect: () => latestIssuerIdentification(working.issuerIdentifications),
+      buyerTaxStatusSetInEffect: () => latestBuyerTaxStatusSet(working.buyerTaxStatusSets)?.options,
+      recordPreEmissionGate: (recorded) => {
+        this.failIfAsked("recordPreEmissionGate");
+        working.preEmissionGates.push(recorded);
       },
     });
     this.state = working;

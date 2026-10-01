@@ -1,6 +1,10 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import {
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { describe, expect, inject, it, onTestFinished } from "vitest";
@@ -35,8 +39,9 @@ describe("the fiscal configuration migration applied over a database that alread
     const { folder, client } = await databaseBeforeMigration();
     await client.query(
       `update issuer_identification
-       set legal_name = 'Comercio de Prueba', gross_income_registration = 'CM 000-000000-0',
+       set legal_name = $1, gross_income_registration = $2,
            activity_start_date = '2020-01-15', version = 4`,
+      [FICTIONAL_LEGAL_NAME, FICTIONAL_GROSS_INCOME_REGISTRATION],
     );
     const { rows: before } = await client.query("select entity from changes");
 
@@ -51,8 +56,8 @@ describe("the fiscal configuration migration applied over a database that alread
     expect(versions).toEqual([
       {
         version: 4,
-        legal_name: "Comercio de Prueba",
-        gross_income_registration: "CM 000-000000-0",
+        legal_name: FICTIONAL_LEGAL_NAME,
+        gross_income_registration: FICTIONAL_GROSS_INCOME_REGISTRATION,
         activity_start_date: "2020-01-15",
         authorized_cuit: null,
         recorded_by: null,

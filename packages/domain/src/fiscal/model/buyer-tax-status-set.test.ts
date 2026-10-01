@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { isSameBuyerTaxStatusSet, isValidBuyerTaxStatusSet } from "./buyer-tax-status-set.js";
+import {
+  isSameBuyerTaxStatusSet,
+  isValidBuyerTaxStatusSet,
+  latestBuyerTaxStatusSet,
+} from "./buyer-tax-status-set.js";
 
 const a = { code: 901, description: "Condicion de prueba A", invoiceClass: "A" };
 const b = { code: 902, description: "Condicion de prueba B", invoiceClass: "B, C" };
@@ -35,5 +39,21 @@ describe("isSameBuyerTaxStatusSet", () => {
 
   it("does not hold when the same options are repeated a different number of times", () => {
     expect(isSameBuyerTaxStatusSet([a, a, b], [a, b, b])).toBe(false);
+  });
+});
+
+describe("latestBuyerTaxStatusSet", () => {
+  it("answers the set with the highest params version, whatever the order", () => {
+    const [first, second, third] = [
+      { paramsVersion: 1 },
+      { paramsVersion: 2 },
+      { paramsVersion: 3 },
+    ];
+    expect(latestBuyerTaxStatusSet([second, third, first])).toBe(third);
+    expect(latestBuyerTaxStatusSet([third, first])).toBe(third);
+  });
+
+  it("answers nothing when no set was delivered", () => {
+    expect(latestBuyerTaxStatusSet([])).toBeUndefined();
   });
 });

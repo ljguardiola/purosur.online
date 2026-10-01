@@ -1,3 +1,8 @@
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
@@ -35,10 +40,10 @@ function grantAuthorization(services: EditIssuerIdentificationModalServices) {
 }
 
 const complete: IssuerIdentification = {
-  legalName: "Comercio de Prueba",
-  grossIncomeRegistration: "0000000-00",
+  legalName: FICTIONAL_LEGAL_NAME,
+  grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
   activityStartDate: "2019-03-01",
-  authorizedCuit: "20-00000000-1",
+  authorizedCuit: FICTIONAL_CUIT,
   taxStatus: "Responsable Monotributo",
   version: 1,
 };
@@ -47,7 +52,7 @@ const incomplete: IssuerIdentification = {
   legalName: null,
   grossIncomeRegistration: null,
   activityStartDate: null,
-  authorizedCuit: "20-00000000-1",
+  authorizedCuit: FICTIONAL_CUIT,
   taxStatus: "Responsable Monotributo",
   version: 1,
 };
@@ -115,7 +120,10 @@ async function fillIncompleteForm(dialog: Locator, typedDate: string) {
     dialog.getByRole("textbox", { name: /^Razón social/ }),
     "Comercio de Prueba Nuevo",
   );
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Ingresos Brutos/ }), "0000000-00");
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: /^Ingresos Brutos/ }),
+    FICTIONAL_GROSS_INCOME_REGISTRATION,
+  );
   await typeActivityStartDate(dialog, typedDate);
 }
 
@@ -183,17 +191,17 @@ test("shows CUIT and tax status as plain text, not inputs, with the fields prefi
     .toBeVisible();
   await expect
     .element(dialog.getByRole("textbox", { name: /^Razón social/ }))
-    .toHaveValue("Comercio de Prueba");
+    .toHaveValue(FICTIONAL_LEGAL_NAME);
   await expect
     .element(dialog.getByRole("textbox", { name: /^Ingresos Brutos/ }))
-    .toHaveValue("0000000-00");
+    .toHaveValue(FICTIONAL_GROSS_INCOME_REGISTRATION);
   const dateGroup = dialog.getByRole("group", { name: /^Inicio de actividades/ }).element();
   expect(dateGroup.textContent).toContain("1");
   expect(dateGroup.textContent).toContain("3");
   expect(dateGroup.textContent).toContain("2019");
   expect(dialog.getByRole("textbox", { name: "CUIT" }).query()).toBeNull();
   expect(dialog.getByRole("textbox", { name: "Condición frente al IVA" }).query()).toBeNull();
-  await expect.element(dialog.getByText("20-00000000-1")).toBeVisible();
+  await expect.element(dialog.getByText(FICTIONAL_CUIT)).toBeVisible();
   await expect.element(dialog.getByText("Responsable Monotributo")).toBeVisible();
 });
 
@@ -327,7 +335,7 @@ test("saves the edit directly, without the authorization modal, when the session
   await expect.poll(() => onSaved.mock.calls.length).toBe(1);
   expect(services.saveIssuerIdentification).toHaveBeenCalledWith({
     legal_name: "Nueva Razón Social SRL",
-    gross_income_registration: "0000000-00",
+    gross_income_registration: FICTIONAL_GROSS_INCOME_REGISTRATION,
     activity_start_date: "2019-03-01",
     version: 1,
   });
@@ -481,7 +489,7 @@ test("shows a stale_version notice, and Recargar reads the data again so the sec
   await expect.poll(() => vi.mocked(services.saveIssuerIdentification).mock.calls.length).toBe(2);
   expect(services.saveIssuerIdentification).toHaveBeenLastCalledWith({
     legal_name: "Recargado SRL",
-    gross_income_registration: "0000000-00",
+    gross_income_registration: FICTIONAL_GROSS_INCOME_REGISTRATION,
     activity_start_date: "2019-03-01",
     version: 5,
   });
@@ -499,7 +507,7 @@ test("keeps every value of the form, edited or not, when the data changes under 
   await expect.element(legalName).toHaveValue("Editada SRL");
   await expect
     .element(dialog.getByRole("textbox", { name: /^Ingresos Brutos/ }))
-    .toHaveValue("0000000-00");
+    .toHaveValue(FICTIONAL_GROSS_INCOME_REGISTRATION);
 });
 
 test("shows the data that changed in the form over values the person has not edited", async () => {
