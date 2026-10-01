@@ -13,6 +13,7 @@ export const productSummarySchema = z.object({
   tagIds: z.array(z.string()),
   netContent: netContentSchema.nullable(),
   active: z.boolean(),
+  labelCode: z.string().nullable(),
   version: z.int(),
 });
 

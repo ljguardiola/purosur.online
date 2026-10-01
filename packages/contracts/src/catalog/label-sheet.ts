@@ -1,4 +1,10 @@
-import { LABELS_MAX_COUNT_PER_PRODUCT, LABELS_MAX_TOTAL_COUNT } from "@purosur/domain";
+import {
+  isValidLabelCount,
+  LABELS_MAX_COUNT_PER_PRODUCT,
+  LABELS_MAX_TOTAL_COUNT,
+  type LabelRequestEntry,
+  labelRequestProblem,
+} from "@purosur/domain";
 import { z } from "zod";
 
 const LIST_MESSAGE = "labels must be a non-empty list of { productId, count }";
@@ -8,12 +14,7 @@ const TOTAL_MESSAGE = `the total label count must be at most ${LABELS_MAX_TOTAL_
 
 const productIdSchema = z.guid();
 
-interface LabelEntry {
-  productId: string;
-  count: number;
-}
-
-function readEntry(entry: unknown): LabelEntry | undefined {
+function readEntry(entry: unknown): LabelRequestEntry | undefined {
   if (typeof entry !== "object" || entry === null) {
     return undefined;
   }
@@ -21,42 +22,48 @@ function readEntry(entry: unknown): LabelEntry | undefined {
   if (typeof productId !== "string" || !productIdSchema.safeParse(productId).success) {
     return undefined;
   }
-  if (
-    typeof count !== "number" ||
-    !Number.isInteger(count) ||
-    count < 1 ||
-    count > LABELS_MAX_COUNT_PER_PRODUCT
-  ) {
+  if (typeof count !== "number" || !isValidLabelCount(count)) {
     return undefined;
   }
   return { productId: productId.toLowerCase(), count };
 }
 
+function readEntriesUntilInvalid(entries: unknown[]): LabelRequestEntry[] {
+  const readEntries: LabelRequestEntry[] = [];
+  for (const rawEntry of entries) {
+    const entry = readEntry(rawEntry);
+    if (!entry) {
+      break;
+    }
+    readEntries.push(entry);
+  }
+  return readEntries;
+}
+
 export const labelSheetBodySchema = z.object({
   labels: z
-    .array(z.custom<LabelEntry>(), { error: LIST_MESSAGE })
+    .array(z.custom<LabelRequestEntry>(), { error: LIST_MESSAGE })
     .min(1, LIST_MESSAGE)
     .transform((entries, context) => {
-      const readEntries = new Map<string, LabelEntry>();
-      let total = 0;
-      for (const rawEntry of entries) {
-        const entry = readEntry(rawEntry);
-        if (!entry) {
-          context.issues.push({ code: "custom", message: ENTRY_MESSAGE, input: entries });
-          return z.NEVER;
-        }
-        if (readEntries.has(entry.productId)) {
-          context.issues.push({ code: "custom", message: REPEATED_MESSAGE, input: entries });
-          return z.NEVER;
-        }
-        readEntries.set(entry.productId, entry);
-        total += entry.count;
-      }
-      if (total > LABELS_MAX_TOTAL_COUNT) {
-        context.issues.push({ code: "custom", message: TOTAL_MESSAGE, input: entries });
+      const readEntries = readEntriesUntilInvalid(entries);
+      const problem = labelRequestProblem(readEntries);
+      const message =
+        problem === "repeated_product"
+          ? REPEATED_MESSAGE
+          : readEntries.length < entries.length
+            ? ENTRY_MESSAGE
+            : problem === "too_many_labels"
+              ? TOTAL_MESSAGE
+              : undefined;
+      if (message) {
+        context.issues.push({ code: "custom", message, input: entries });
         return z.NEVER;
       }
-      return [...readEntries.values()];
+      return readEntries;
+    })
+    .meta({
+      maxCountPerProduct: LABELS_MAX_COUNT_PER_PRODUCT,
+      maxTotalCount: LABELS_MAX_TOTAL_COUNT,
     }),
 });
 

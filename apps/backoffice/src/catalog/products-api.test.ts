@@ -35,6 +35,7 @@ const honey: ProductSummary = {
   tagIds: [],
   netContent: null,
   active: true,
+  labelCode: null,
   version: 1,
 };
 
