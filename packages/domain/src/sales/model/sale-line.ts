@@ -31,7 +31,11 @@ export function newSaleLine(
 }
 
 export function addUnitToLine(line: SaleLine): SaleLine {
-  return priced(line, line.quantity + 1);
+  return withQuantity(line, line.quantity + 1);
+}
+
+export function withQuantity(line: SaleLine, quantity: number): SaleLine {
+  return priced(line, quantity);
 }
 
 function priced(

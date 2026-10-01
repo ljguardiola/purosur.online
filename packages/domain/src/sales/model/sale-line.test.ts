@@ -2,7 +2,7 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { MAX_UNIT_PRICE_CENTS } from "../../pricing/index.js";
 import type { LinePromotion } from "./sale.js";
-import { addUnitToLine, newSaleLine, saleTotal } from "./sale-line.js";
+import { addUnitToLine, newSaleLine, saleTotal, withQuantity } from "./sale-line.js";
 
 const PRODUCT = { id: "product-1", name: "Yerba 1 kg" };
 const PRICE = { priceListId: "list-1", unitPrice: 2500 };
@@ -138,6 +138,45 @@ describe("addUnitToLine", () => {
 
     expect(line.quantity).toBe(1);
     expect(line.lineTotal).toBe(2500);
+  });
+});
+
+describe("withQuantity", () => {
+  it("sets the quantity and recomputes the total from the frozen price", () => {
+    const line = newSaleLine("line-1", PRODUCT, PRICE, []);
+
+    expect(withQuantity(line, 4)).toEqual({ ...line, quantity: 4, lineTotal: 10000 });
+  });
+
+  it("picks the promotion again when the quantity goes down: buy 3 pay 2 at 3 units, 10 % at 2", () => {
+    const three = withQuantity(
+      newSaleLine("line-1", PRODUCT, PRICE, [TEN_PERCENT, THREE_FOR_TWO]),
+      3,
+    );
+    const two = withQuantity(three, 2);
+
+    expect(three).toEqual(
+      expect.objectContaining({ promotionId: "three-for-two", lineTotal: 5000 }),
+    );
+    expect(two).toEqual(
+      expect.objectContaining({ promotionId: "ten", discountAmount: 500, lineTotal: 4500 }),
+    );
+  });
+
+  it("drops a promotion the smaller quantity no longer earns", () => {
+    const three = withQuantity(newSaleLine("line-1", PRODUCT, PRICE, [THREE_FOR_TWO]), 3);
+
+    expect(withQuantity(three, 2)).toEqual(
+      expect.objectContaining({ promotionId: null, discountAmount: 0, lineTotal: 5000 }),
+    );
+  });
+
+  it("does not modify the line it was given", () => {
+    const line = newSaleLine("line-1", PRODUCT, PRICE, []);
+
+    withQuantity(line, 7);
+
+    expect(line.quantity).toBe(1);
   });
 });
 

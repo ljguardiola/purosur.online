@@ -1,9 +1,11 @@
 import type { RoleAccess } from "../../../access/index.js";
+import { priceInEffectAt } from "../../../pricing/index.js";
 import type { CashMovement } from "../../../register/index.js";
 import type { OutboxEventDraft } from "../../../sync/index.js";
 import type { PaymentTransaction } from "../../model/payment.js";
 import type { SaleWithLines } from "../../model/sale.js";
 import type { ListPrice } from "../../model/sale-line.js";
+import type { SaleLineRemoval } from "../../model/sale-line-removal.js";
 import type {
   CandidatePromotion,
   Clock,
@@ -16,6 +18,7 @@ import type {
 } from "../sale-ledger.js";
 
 interface FakePrice extends ListPrice {
+  id: string;
   productId: string;
   validFrom: Date;
 }
@@ -30,6 +33,7 @@ export interface FakeSaleLedgerState {
   prices: FakePrice[];
   promotionsByProduct: Record<string, CandidatePromotion[]>;
   sales: SaleWithLines[];
+  removals: SaleLineRemoval[];
   payments: PaymentTransaction[];
   movements: CashMovement[];
   outbox: OutboxEventDraft[];
@@ -39,6 +43,9 @@ export type FakeSaleLedgerWrite =
   | "recordOpenedSale"
   | "recordSaleLine"
   | "recordLineQuantity"
+  | "recordLineRemoval"
+  | "deleteSaleLine"
+  | "markSaleCancelled"
   | "recordPayment"
   | "recordCashMovement"
   | "recordCompletedSale"
@@ -61,6 +68,7 @@ export class FakeSaleLedger implements SaleLedger {
       prices: [],
       promotionsByProduct: {},
       sales: [],
+      removals: [],
       payments: [],
       movements: [],
       outbox: [],
@@ -120,6 +128,25 @@ export class FakeSaleLedger implements SaleLedger {
           );
         }
       },
+      recordLineRemoval: (removal) => {
+        this.failIfAsked("recordLineRemoval");
+        working.removals.push(removal);
+      },
+      deleteSaleLine: (lineId) => {
+        this.failIfAsked("deleteSaleLine");
+        for (const sale of working.sales) {
+          sale.lines = sale.lines.filter((stored) => stored.id !== lineId);
+        }
+      },
+      saleLineRemovals: (saleId) =>
+        structuredClone(working.removals.filter((removal) => removal.saleId === saleId)),
+      markSaleCancelled: (saleId) => {
+        this.failIfAsked("markSaleCancelled");
+        const sale = working.sales.find((stored) => stored.id === saleId);
+        if (sale) {
+          sale.state = "CANCELLED";
+        }
+      },
       recordPayment: (payment) => {
         this.failIfAsked("recordPayment");
         working.payments.push(payment);
@@ -166,11 +193,11 @@ function latestPriceAt(
   productId: string,
   moment: Date,
 ): ListPrice | undefined {
-  const valid = prices
-    .filter((price) => price.productId === productId && price.validFrom <= moment)
-    .sort((a, b) => b.validFrom.getTime() - a.validFrom.getTime());
-  const latest = valid[0];
-  return latest && { priceListId: latest.priceListId, unitPrice: latest.unitPrice };
+  const inEffect = priceInEffectAt(
+    prices.filter((price) => price.productId === productId),
+    moment,
+  );
+  return inEffect && { priceListId: inEffect.priceListId, unitPrice: inEffect.unitPrice };
 }
 
 export class SequentialIds implements IdGenerator {
