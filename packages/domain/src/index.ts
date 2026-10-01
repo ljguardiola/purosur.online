@@ -106,14 +106,21 @@ export {
 } from "./catalog/index.js";
 export type { BuyerIdentificationThreshold, BuyerTaxStatusOption } from "./fiscal/index.js";
 export {
+  FISCAL_ADDRESS_NAME_MAX_LENGTH,
+  FISCAL_ADDRESS_STREET_ADDRESS_MAX_LENGTH,
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
   isBuyerIdentificationThresholdAmount,
+  isFiscalAddressNameTooLong,
+  isFiscalAddressStreetAddressTooLong,
   isIssuerIdentificationActivityStartDate,
   isIssuerIdentificationGrossIncomeRegistrationTooLong,
   isIssuerIdentificationLegalNameTooLong,
+  isPointOfSaleNumber,
+  isSameFiscalAddressName,
   isValidBuyerTaxStatusSet,
   latestThreshold,
+  POINT_OF_SALE_NUMBER_MAX,
   thresholdInEffectOn,
   thresholdScheduledAfter,
 } from "./fiscal/index.js";

@@ -13,10 +13,30 @@ export type {
   BuyerTaxStatusStoreTransaction,
 } from "./buyer-tax-status-store.js";
 export type {
+  CreateFiscalAddressInput,
+  CreateFiscalAddressOutcome,
+} from "./create-fiscal-address.js";
+export { createFiscalAddress } from "./create-fiscal-address.js";
+export type {
+  EditFiscalAddressInput,
+  EditFiscalAddressOutcome,
+} from "./edit-fiscal-address.js";
+export { editFiscalAddress } from "./edit-fiscal-address.js";
+export type {
   EditIssuerIdentificationInput,
   EditIssuerIdentificationOutcome,
 } from "./edit-issuer-identification.js";
 export { editIssuerIdentification } from "./edit-issuer-identification.js";
+export type {
+  FiscalAddress,
+  FiscalAddressChange,
+  FiscalAddressPorts,
+  FiscalAddressReader,
+  FiscalAddressStore,
+  FiscalAddressStoreTransaction,
+  NewFiscalAddress,
+} from "./fiscal-address-store.js";
+export { FiscalAddressNameConflict } from "./fiscal-address-store.js";
 export type {
   AuthorizedIssuerIdentification,
   IssuerIdentification,
