@@ -39,6 +39,7 @@ export interface SignInStore {
   recordPinSignInFailure(userId: string, at: Date): PinSignInFailures;
   withdrawPinSignInFailure(userId: string): void;
   clearPinSignInFailures(userId: string): void;
+  replacePinVerifier(userId: string, verifier: string | undefined): void;
 }
 
 interface FailuresRow {
@@ -227,5 +228,26 @@ export class SqliteSignInStore implements SignInStore {
 
   clearPinSignInFailures(userId: string): void {
     this.database.prepare("DELETE FROM pin_sign_in_failures WHERE user_id = ?").run(userId);
+  }
+
+  replacePinVerifier(userId: string, verifier: string | undefined): void {
+    const current = this.database
+      .prepare<[string], { verifier: string }>(
+        "SELECT verifier FROM pin_verifiers WHERE user_id = ?",
+      )
+      .get(userId)?.verifier;
+    if (verifier === undefined) {
+      this.database.prepare("DELETE FROM pin_verifiers WHERE user_id = ?").run(userId);
+    } else {
+      this.database
+        .prepare(
+          `INSERT INTO pin_verifiers (user_id, verifier) VALUES (@user_id, @verifier)
+           ON CONFLICT (user_id) DO UPDATE SET verifier = excluded.verifier`,
+        )
+        .run({ user_id: userId, verifier });
+    }
+    if (verifier === undefined || current !== verifier) {
+      this.clearPinSignInFailures(userId);
+    }
   }
 }
