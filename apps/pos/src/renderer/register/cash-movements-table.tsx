@@ -2,7 +2,15 @@ import type { ListedCashMovement } from "@purosur/contracts";
 import { CASH_MOVEMENT_TYPES } from "@purosur/contracts";
 import type { CashMovementType } from "@purosur/domain";
 import type { TableLoadingState } from "@purosur/ui";
-import { formatCents, ListFilter, plural, Table, TableCellText, tableRows } from "@purosur/ui";
+import {
+  dataColumn,
+  formatCents,
+  ListFilter,
+  plural,
+  Table,
+  TableCellText,
+  useTableModel,
+} from "@purosur/ui";
 import { Receipt, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { formatClockTime } from "../platform/clock-time";
@@ -87,16 +95,19 @@ function amountText(movement: ListedCashMovement): string {
   return sign === "" ? formatCents(movement.amount) : signedAmount(sign, movement.amount);
 }
 
+function timeOrder(a: ListedCashMovement, b: ListedCashMovement): number {
+  return Date.parse(a.occurred_at) - Date.parse(b.occurred_at);
+}
+
 const columns = [
-  {
-    key: "time",
+  dataColumn({
+    id: "time",
     header: "Hora",
-    sortable: true,
-    defaultDirection: "descending",
+    sort: { order: timeOrder, firstDirection: "descending" },
     render: (movement: ListedCashMovement) => formatClockTime(movement.occurred_at),
-  },
-  {
-    key: "movement",
+  }),
+  dataColumn({
+    id: "movement",
     header: "Movimiento",
     render: (movement: ListedCashMovement) => {
       const presentation = PRESENTATION[movement.type];
@@ -114,9 +125,9 @@ const columns = [
         </span>
       );
     },
-  },
-  {
-    key: "person",
+  }),
+  dataColumn({
+    id: "person",
     header: "Quién",
     render: (movement: ListedCashMovement) => (
       <TableCellText
@@ -127,13 +138,13 @@ const columns = [
         {movement.actor.first_name}
       </TableCellText>
     ),
-  },
-  {
-    key: "amount",
+  }),
+  dataColumn({
+    id: "amount",
     header: "Importe",
     align: "end",
     render: amountText,
-  },
+  }),
 ] as const;
 
 export type CashMovementsTableProps = {
@@ -155,17 +166,15 @@ export function CashMovementsTable({ state }: CashMovementsTableProps) {
     direction: "descending",
   });
 
-  const { rows, matchCount } = tableRows({
+  const table = useTableModel({
     items: movements,
     id: (movement) => movement.id,
     filter: (movement) => typeFilter === "ALL" || movement.type === typeFilter,
-    sort: {
-      by: sort,
-      orders: {
-        time: (a, b) => Date.parse(a.occurred_at) - Date.parse(b.occurred_at),
-      },
-    },
+    columns,
+    sort,
+    onSortChange: setSort,
   });
+  const matchCount = table.getRowModel().rows.length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -179,8 +188,7 @@ export function CashMovementsTable({ state }: CashMovementsTableProps) {
       </div>
       <Table
         aria-label="Movimientos de la sesión"
-        columns={columns}
-        rows={rows}
+        table={table}
         {...(state.status === "failed"
           ? {
               failure: {
@@ -191,8 +199,6 @@ export function CashMovementsTable({ state }: CashMovementsTableProps) {
               },
             }
           : { loading: loadingOf(state) })}
-        sort={sort}
-        onSortChange={setSort}
         empty={{
           icon: <Receipt />,
           title: "No hay movimientos de este tipo",

@@ -1,4 +1,13 @@
-import { Button, plural, Table, TableCellText, Tag, tableRows } from "@purosur/ui";
+import {
+  actionsColumn,
+  Button,
+  dataColumn,
+  plural,
+  Table,
+  TableCellText,
+  Tag,
+  useTableModel,
+} from "@purosur/ui";
 import { KeySquare, Laptop, Plus } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useAuthorization } from "../access/authorization-modal";
@@ -125,15 +134,15 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
   const registers = data.status === "loaded" ? data.value : NO_REGISTERS;
 
   const columns = [
-    {
-      key: "register",
+    dataColumn({
+      id: "register",
       header: "Caja",
       render: (item: RegisterSummary) => (
         <TableCellText description="Sin instalación">{item.name}</TableCellText>
       ),
-    },
-    {
-      key: "installation",
+    }),
+    dataColumn({
+      id: "installation",
       header: "Instalación",
       render: (item: RegisterSummary) => {
         const now = currentTime;
@@ -157,20 +166,21 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
           </div>
         );
       },
-    },
-    {
-      key: "pointsOfSale",
+    }),
+    dataColumn({
+      id: "pointsOfSale",
       header: "Puntos de venta",
-      render: () => <span className="text-text-subtle text-detail">Sin configurar</span>,
-    },
-    {
-      key: "status",
+      render: (_item: RegisterSummary) => (
+        <span className="text-text-subtle text-detail">Sin configurar</span>
+      ),
+    }),
+    dataColumn({
+      id: "status",
       header: "Estado",
-      render: () => <Tag tone="info">Esperando alta</Tag>,
-    },
-    {
-      key: "actions",
-      kind: "actions",
+      render: (_item: RegisterSummary) => <Tag tone="info">Esperando alta</Tag>,
+    }),
+    actionsColumn({
+      id: "actions",
       header: "Acciones",
       actions: [
         (item: RegisterSummary) => ({
@@ -179,8 +189,14 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
           onPress: () => void handleEmitClick(item),
         }),
       ],
-    },
+    }),
   ] as const;
+
+  const table = useTableModel({
+    items: registers,
+    id: (register) => register.id,
+    columns,
+  });
 
   return (
     <>
@@ -200,9 +216,8 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
       >
         <Table
           aria-label="Cajas registradoras"
-          columns={columns}
+          table={table}
           {...cloudTableState(data, "las cajas registradoras")}
-          rows={tableRows({ items: registers, id: (register) => register.id }).rows}
           empty={{
             icon: <Laptop />,
             title: "Todavía no hay cajas registradoras",

@@ -1,3 +1,5 @@
+export type { DatedPrice } from "./model/current-price.js";
+export { newestPrice, priceInEffectAt } from "./model/current-price.js";
 export type { DiscountRecurrence } from "./model/discount-applies.js";
 export { discountAppliesOn } from "./model/discount-applies.js";
 export type { DiscountBenefit } from "./model/discount-benefit.js";
@@ -24,6 +26,12 @@ export type { DiscountSchedule, DiscountStatus } from "./model/discount-status.j
 export { discountStatus, isDiscountLive } from "./model/discount-status.js";
 export type { DiscountTarget, DiscountTargetKind } from "./model/discount-target.js";
 export { DISCOUNT_TARGET_KINDS } from "./model/discount-target.js";
+export type {
+  CategoryLink,
+  ProductTagLink,
+  TargetedProduct,
+} from "./model/discount-targeting.js";
+export { discountsTargeting } from "./model/discount-targeting.js";
 export { isCalendarDay, isDiscountWindowOrdered } from "./model/discount-validity.js";
 export type { IsoWeekday } from "./model/discount-weekdays.js";
 export {

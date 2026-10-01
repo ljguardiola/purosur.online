@@ -1,6 +1,7 @@
 import type { StockCount, StockCountResult, StockProduct } from "@purosur/contracts";
 import {
   Button,
+  dataColumn,
   FloatingNotification,
   ListFilter,
   plural,
@@ -8,7 +9,7 @@ import {
   Table,
   TableCellText,
   Tag,
-  tableRows,
+  useTableModel,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
 import { Check, ClipboardCheck, Plus, Search } from "lucide-react";
@@ -58,40 +59,40 @@ function differenceCell(count: StockCount) {
 }
 
 const columns = [
-  {
-    key: "date",
+  dataColumn({
+    id: "date",
     header: "Fecha",
     render: (count: StockCount) => (
       <TableCellText description={formatStockTime(count.occurredAt)}>
         {formatStockDay(count.occurredAt)}
       </TableCellText>
     ),
-  },
-  {
-    key: "product",
+  }),
+  dataColumn({
+    id: "product",
     header: "Producto",
     render: (count: StockCount) => (
       <TableCellText description={count.categoryName}>{count.productName}</TableCellText>
     ),
-  },
-  {
-    key: "expected",
+  }),
+  dataColumn({
+    id: "expected",
     header: "Saldo esperado",
-    align: "end" as const,
+    align: "end",
     render: (count: StockCount) => formatStockQuantity(count.expected, count.saleUnit),
-  },
-  {
-    key: "counted",
+  }),
+  dataColumn({
+    id: "counted",
     header: "Contado",
-    align: "end" as const,
+    align: "end",
     render: (count: StockCount) => formatStockQuantity(count.counted, count.saleUnit),
-  },
-  {
-    key: "difference",
+  }),
+  dataColumn({
+    id: "difference",
     header: "Diferencia",
-    align: "end" as const,
+    align: "end",
     render: differenceCell,
-  },
+  }),
 ] as const;
 
 function registeredNotice(product: StockProduct, result: StockCountResult, showsBalance: boolean) {
@@ -163,12 +164,14 @@ export function StockCountsScreen({
     }
   }, [listIsFresh, categoryIsOffered]);
 
-  const { rows, matchCount } = tableRows({
+  const table = useTableModel({
     items: counts,
     id: (count) => count.id,
     search: { text: search, in: (count) => [count.productName] },
     filter: (count) => category === "ALL" || count.categoryId === category,
+    columns,
   });
+  const matchCount = table.getRowModel().rows.length;
 
   // A fresh id for each notice, so a screen reader announces a notice with the same text again.
   function showNotice(shown: Omit<ScreenNotice, "id">) {
@@ -228,9 +231,8 @@ export function StockCountsScreen({
         </div>
         <Table
           aria-label="Recuentos"
-          columns={columns}
+          table={table}
           {...cloudTableState(data, "los recuentos")}
-          rows={rows}
           empty={
             counts.length === 0
               ? {

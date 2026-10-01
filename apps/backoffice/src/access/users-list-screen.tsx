@@ -1,6 +1,8 @@
 import { userCreationBodySchema } from "@purosur/contracts";
 import {
+  actionsColumn,
   Button,
+  dataColumn,
   InlineNotice,
   ListFilter,
   Modal,
@@ -8,7 +10,7 @@ import {
   Table,
   TableCellText,
   Tag,
-  tableRows,
+  useTableModel,
 } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { deepEqual, useNavigate } from "@tanstack/react-router";
@@ -334,30 +336,21 @@ function UsersListView({
     }
   }, [stateFilter, filters]);
 
-  const { rows, matchCount } = tableRows({
-    items: users,
-    id: (user) => user.id,
-    filter: (user) =>
-      !showsState ||
-      stateFilter === "all" ||
-      (stateFilter === "active" ? user.active !== false : user.active === false),
-  });
-
   const baseColumns = [
-    {
-      key: "user",
+    dataColumn({
+      id: "user",
       header: "Usuario",
       render: (item: BranchUser) => (
         <TableCellText description={item.email}>{item.firstName}</TableCellText>
       ),
-    },
-    {
-      key: "role",
+    }),
+    dataColumn({
+      id: "role",
       header: "Rol",
       render: (item: BranchUser) => roleDisplayName(item.role),
-    },
-    {
-      key: "passkeys",
+    }),
+    dataColumn({
+      id: "passkeys",
       header: "Passkeys",
       render: (item: BranchUser) =>
         item.passkeyCount === 0
@@ -366,17 +359,16 @@ function UsersListView({
               one: "1 registrada",
               other: `${item.passkeyCount} registradas`,
             }),
-    },
+    }),
   ] as const;
-  const stateColumn = {
-    key: "state",
+  const stateColumn = dataColumn({
+    id: "state",
     header: "Estado",
     render: (item: BranchUser) =>
       item.active === false ? <Tag tone="neutral">Inactivo</Tag> : null,
-  } as const;
-  const actionsColumn = {
-    key: "actions",
-    kind: "actions",
+  });
+  const rowActionsColumn = actionsColumn({
+    id: "actions",
     header: "Acciones",
     actions: [
       (item: BranchUser) => ({
@@ -387,10 +379,21 @@ function UsersListView({
         onPress: () => navigate({ to: "/users/$userId", params: { userId: item.id } }),
       }),
     ],
-  } as const;
+  });
   const columns = showsState
-    ? ([...baseColumns, stateColumn, actionsColumn] as const)
-    : ([...baseColumns, actionsColumn] as const);
+    ? ([...baseColumns, stateColumn, rowActionsColumn] as const)
+    : ([...baseColumns, rowActionsColumn] as const);
+
+  const table = useTableModel({
+    items: users,
+    id: (user) => user.id,
+    filter: (user) =>
+      !showsState ||
+      stateFilter === "all" ||
+      (stateFilter === "active" ? user.active !== false : user.active === false),
+    columns,
+  });
+  const matchCount = table.getRowModel().rows.length;
 
   return (
     <>
@@ -427,9 +430,8 @@ function UsersListView({
         )}
         <Table
           aria-label="Usuarios"
-          columns={columns}
+          table={table}
           {...cloudTableState(data, "los usuarios")}
-          rows={rows}
           empty={
             users.length === 0
               ? {
