@@ -147,7 +147,7 @@ export function buyerIdentificationThresholdChange(threshold: {
   };
 }
 
-type DiscountRow =Extract<SyncChange, { entity: "discount" }>["row"];
+type DiscountRow = Extract<SyncChange, { entity: "discount" }>["row"];
 
 export function discountChange(discount: {
   id: string;
