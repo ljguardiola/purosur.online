@@ -1,4 +1,8 @@
-import { FICTIONAL_CUIT, FICTIONAL_LEGAL_NAME } from "@purosur/domain/fiscal/test-support";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   type IssuerIdentificationBody,
@@ -7,7 +11,7 @@ import {
 
 const complete = {
   legal_name: FICTIONAL_LEGAL_NAME,
-  gross_income_registration: "0000000-00",
+  gross_income_registration: FICTIONAL_GROSS_INCOME_REGISTRATION,
   activity_start_date: "2019-03-01",
   authorized_cuit: FICTIONAL_CUIT,
   tax_status: "Responsable Monotributo",

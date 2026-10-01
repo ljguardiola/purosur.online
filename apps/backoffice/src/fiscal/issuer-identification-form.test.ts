@@ -1,6 +1,10 @@
 import { parseDate } from "@internationalized/date";
 import { issuerIdentificationEditBodySchema } from "@purosur/contracts";
-import { FICTIONAL_CUIT, FICTIONAL_LEGAL_NAME } from "@purosur/domain/fiscal/test-support";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import { expect, test } from "vitest";
 import type { IssuerIdentification } from "./issuer-identification-api";
 import {
@@ -15,7 +19,7 @@ import {
 
 const complete: IssuerIdentification = {
   legalName: FICTIONAL_LEGAL_NAME,
-  grossIncomeRegistration: "0000000-00",
+  grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
   activityStartDate: "2019-03-01",
   authorizedCuit: FICTIONAL_CUIT,
   taxStatus: "Responsable Monotributo",
@@ -27,7 +31,7 @@ const lateOnSeptember30InArgentina = new Date("2026-10-01T02:00:00Z");
 test("fills the form with the identification's values and version", () => {
   expect(issuerIdentificationFormValuesFrom(complete)).toEqual({
     legalName: FICTIONAL_LEGAL_NAME,
-    grossIncomeRegistration: "0000000-00",
+    grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
     activityStartDate: parseDate("2019-03-01"),
     version: 3,
   });
@@ -47,14 +51,14 @@ test("fills the form empty for each value an incomplete identification lacks", (
 test("builds the request from the trimmed values, the chosen day and the version", () => {
   const request = issuerIdentificationRequestFrom({
     legalName: `  ${FICTIONAL_LEGAL_NAME} `,
-    grossIncomeRegistration: " 0000000-00 ",
+    grossIncomeRegistration: ` ${FICTIONAL_GROSS_INCOME_REGISTRATION} `,
     activityStartDate: parseDate("2019-03-01"),
     version: 3,
   });
 
   expect(request).toEqual({
     legal_name: FICTIONAL_LEGAL_NAME,
-    gross_income_registration: "0000000-00",
+    gross_income_registration: FICTIONAL_GROSS_INCOME_REGISTRATION,
     activity_start_date: "2019-03-01",
     version: 3,
   });
@@ -85,7 +89,10 @@ test.each([
 test.each([
   { grossIncomeRegistration: " ", reason: "Ingresá el número de Ingresos Brutos." },
   { grossIncomeRegistration: "1".repeat(101), reason: "Ingresá como mucho 100 caracteres." },
-  { grossIncomeRegistration: "0000000-00", reason: "Revisá el número de Ingresos Brutos." },
+  {
+    grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+    reason: "Revisá el número de Ingresos Brutos.",
+  },
 ])(
   "an Ingresos Brutos registration of $grossIncomeRegistration.length characters gets: $reason",
   ({ grossIncomeRegistration, reason }) => {

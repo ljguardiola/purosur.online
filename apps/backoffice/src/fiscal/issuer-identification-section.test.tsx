@@ -1,4 +1,8 @@
-import { FICTIONAL_CUIT, FICTIONAL_LEGAL_NAME } from "@purosur/domain/fiscal/test-support";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -9,7 +13,7 @@ import { IssuerIdentificationSection } from "./issuer-identification-section";
 
 const complete: IssuerIdentification = {
   legalName: FICTIONAL_LEGAL_NAME,
-  grossIncomeRegistration: "0000000-00",
+  grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
   activityStartDate: "2019-03-01",
   authorizedCuit: FICTIONAL_CUIT,
   taxStatus: "Responsable Monotributo",
@@ -44,7 +48,7 @@ test("shows every value of a complete issuer identification, and what prints it"
   await expect.element(screen.getByText(FICTIONAL_LEGAL_NAME)).toBeVisible();
   await expect.element(screen.getByText(FICTIONAL_CUIT)).toBeVisible();
   await expect.element(screen.getByText("Responsable Monotributo")).toBeVisible();
-  await expect.element(screen.getByText("0000000-00")).toBeVisible();
+  await expect.element(screen.getByText(FICTIONAL_GROSS_INCOME_REGISTRATION)).toBeVisible();
   await expect.element(screen.getByText("01/03/2019")).toBeVisible();
   await expect
     .element(screen.getByText("Lo imprime cada factura y nota de crédito."))

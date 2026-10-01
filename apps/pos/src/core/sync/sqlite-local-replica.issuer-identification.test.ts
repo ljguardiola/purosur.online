@@ -1,5 +1,8 @@
 import type { SyncChange } from "@purosur/contracts";
-import { FICTIONAL_LEGAL_NAME } from "@purosur/domain/fiscal/test-support";
+import {
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
@@ -14,7 +17,7 @@ type IssuerRow = Extract<SyncChange, { entity: "issuer_identification" }>["row"]
 function issuerRow(overrides: Partial<IssuerRow> = {}): IssuerRow {
   return {
     legal_name: FICTIONAL_LEGAL_NAME,
-    gross_income_registration: "901-000000-0",
+    gross_income_registration: FICTIONAL_GROSS_INCOME_REGISTRATION,
     activity_start_date: "2020-03-01",
     authorized_cuit: "20000000001",
     tax_status: "Responsable Monotributo",
@@ -69,7 +72,7 @@ describe("the register's local copy of the issuer identification versions", () =
       {
         version: 3,
         legal_name: FICTIONAL_LEGAL_NAME,
-        gross_income_registration: "901-000000-0",
+        gross_income_registration: FICTIONAL_GROSS_INCOME_REGISTRATION,
         activity_start_date: "2020-03-01",
         authorized_cuit: "20000000001",
         tax_status: "Responsable Monotributo",

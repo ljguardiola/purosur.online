@@ -1,13 +1,18 @@
-import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+} from "@purosur/domain/fiscal/test-support";
 import { expect, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { DataPair, FixedPair } from "./fiscal-data-pair";
 
 test("a data pair shows its label and its value", async () => {
-  const screen = await render(<DataPair label="Ingresos Brutos" value="0000000-00" />);
+  const screen = await render(
+    <DataPair label="Ingresos Brutos" value={FICTIONAL_GROSS_INCOME_REGISTRATION} />,
+  );
 
   await expect.element(screen.getByText("Ingresos Brutos")).toBeVisible();
-  await expect.element(screen.getByText("0000000-00")).toBeVisible();
+  await expect.element(screen.getByText(FICTIONAL_GROSS_INCOME_REGISTRATION)).toBeVisible();
 });
 
 test("a data pair without a value says Sin cargar", async () => {

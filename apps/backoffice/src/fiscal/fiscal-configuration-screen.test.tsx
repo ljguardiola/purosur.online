@@ -1,4 +1,8 @@
-import { FICTIONAL_CUIT, FICTIONAL_LEGAL_NAME } from "@purosur/domain/fiscal/test-support";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useIsFetching, useQueryClient } from "@tanstack/react-query";
@@ -69,7 +73,7 @@ function refreshFiscal(screen: Awaited<ReturnType<typeof renderScreen>>) {
 
 const complete: IssuerIdentification = {
   legalName: FICTIONAL_LEGAL_NAME,
-  grossIncomeRegistration: "0000000-00",
+  grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
   activityStartDate: "2019-03-01",
   authorizedCuit: FICTIONAL_CUIT,
   taxStatus: "Responsable Monotributo",
@@ -190,7 +194,7 @@ test("saves the edit directly, without the authorization modal, when the session
   await expect.poll(() => vi.mocked(services.saveIssuerIdentification).mock.calls.length).toBe(1);
   expect(services.saveIssuerIdentification).toHaveBeenCalledWith({
     legal_name: "Nueva Razón Social SRL",
-    gross_income_registration: "0000000-00",
+    gross_income_registration: FICTIONAL_GROSS_INCOME_REGISTRATION,
     activity_start_date: "2019-03-01",
     version: 1,
   });
@@ -346,7 +350,7 @@ test("keeps what Recargar brought on the screen after Cancelar, so reopening sav
   await expect.poll(() => vi.mocked(services.saveIssuerIdentification).mock.calls.length).toBe(2);
   expect(services.saveIssuerIdentification).toHaveBeenLastCalledWith({
     legal_name: "Recargado SRL",
-    gross_income_registration: "0000000-00",
+    gross_income_registration: FICTIONAL_GROSS_INCOME_REGISTRATION,
     activity_start_date: "2019-03-01",
     version: 5,
   });
@@ -376,7 +380,7 @@ test("keeps every value of the form, edited or not, when a refresh lands with di
   await expect.element(legalName).toHaveValue("Editada SRL");
   await expect
     .element(dialog.getByRole("textbox", { name: /^Ingresos Brutos/ }))
-    .toHaveValue("0000000-00");
+    .toHaveValue(FICTIONAL_GROSS_INCOME_REGISTRATION);
 });
 
 test("shows the refreshed data in the modal over values the person has not edited", async () => {
