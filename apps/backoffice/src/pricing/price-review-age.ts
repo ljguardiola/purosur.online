@@ -1,35 +1,16 @@
 import type { PriceProduct } from "@purosur/contracts";
-import { plural } from "@purosur/ui";
+import { formatTimeAgo, plural } from "@purosur/ui";
 
-export function reviewedCellText(daysSinceReview: number | null): string {
-  if (daysSinceReview === null) {
-    return "Nunca";
-  }
-  return daysSinceReview === 0
-    ? "Hoy"
-    : plural(daysSinceReview, {
-        one: "Hace 1 día",
-        other: `Hace ${daysSinceReview} días`,
-      });
-}
-
-function eyebrowOverdue(days: number): string {
-  return plural(days, { one: "Sin revisar hace 1 día", other: `Sin revisar hace ${days} días` });
-}
-
-function eyebrowRecent(days: number): string {
-  return plural(days, { one: "Revisado hace 1 día", other: `Revisado hace ${days} días` });
+export function reviewedCellText(secondsSinceReview: number | null): string {
+  return secondsSinceReview === null ? "Nunca" : formatTimeAgo(secondsSinceReview);
 }
 
 export function modalEyebrow(product: PriceProduct): string {
-  const days = product.daysSinceReview;
-  if (!product.currentPrice || days === null) {
+  const seconds = product.secondsSinceReview;
+  if (!product.currentPrice || seconds === null) {
     return "Sin precio";
   }
-  if (days === 0) {
-    return "Revisado hoy";
-  }
-  return product.pending ? eyebrowOverdue(days) : eyebrowRecent(days);
+  return `${product.pending ? "Sin revisar" : "Revisado"} ${formatTimeAgo(seconds)}`;
 }
 
 export function emptyPendingDetail(params: { days: number }): string {

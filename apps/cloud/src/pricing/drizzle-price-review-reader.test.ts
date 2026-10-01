@@ -246,7 +246,7 @@ describe("DrizzlePriceReviewReader", () => {
     expect(result.products[0]).toMatchObject({
       currentPrice: null,
       pending: true,
-      daysSinceReview: null,
+      secondsSinceReview: null,
     });
   });
 
@@ -305,9 +305,9 @@ describe("DrizzlePriceReviewReader", () => {
 
     const all = await pricesUnderReview({ review: "all" });
     expect(
-      all.products.map((product) => [product.id, product.pending, product.daysSinceReview]),
+      all.products.map((product) => [product.id, product.pending, product.secondsSinceReview]),
     ).toEqual([
-      [overdueId, true, 10],
+      [overdueId, true, 10 * 86_400],
       [recentId, false, 0],
     ]);
     expect(ids(await pricesUnderReview({ review: "pending" }))).toEqual([overdueId]);
@@ -417,12 +417,12 @@ describe("DrizzlePriceReviewReader", () => {
       {
         id: riceId,
         currentPrice: { id: newestPriceId, unitPrice: 800, validFrom: newest },
-        daysSinceReview: 10,
+        secondsSinceReview: 10 * 86_400,
       },
       {
         id: noodlesId,
         currentPrice: { id: noodlesPriceId, unitPrice: 200, validFrom: oldest },
-        daysSinceReview: 90,
+        secondsSinceReview: 90 * 86_400,
       },
     ]);
   });
@@ -475,7 +475,7 @@ describe("DrizzlePriceReviewReader", () => {
     await insertReview(productId, otherPriceList.id, otherListPriceId, userId, NOON);
 
     expect((await pricesUnderReview()).products).toMatchObject([
-      { currentPrice: null, pending: true, daysSinceReview: null },
+      { currentPrice: null, pending: true, secondsSinceReview: null },
     ]);
   });
 });
