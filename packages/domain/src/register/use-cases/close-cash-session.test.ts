@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { PaymentTransaction } from "../../sales/index.js";
 import { MAX_CASH_AMOUNT_CENTS } from "../model/cash-amount.js";
 import type { CashMovement, CashSession, OpenedCashSession } from "../model/cash-session.js";
 import { closeCashSession } from "./close-cash-session.js";
@@ -19,6 +20,17 @@ const OPEN_SESSION: OpenedCashSession = {
   openedAt: new Date("2026-09-30T08:00:00.000Z"),
   openingFloat: 10_000,
   state: "OPEN",
+};
+
+const APPROVED_PAYMENT: PaymentTransaction = {
+  id: "payment-1",
+  saleId: "sale-1",
+  kind: "SALE",
+  method: "CASH",
+  provider: "NONE",
+  amount: 1_000,
+  state: "APPROVED",
+  occurredAt: new Date("2026-09-30T19:00:00.000Z"),
 };
 
 function movement(
@@ -240,19 +252,29 @@ describe("closeCashSession", () => {
   });
 
   it("refuses while a sale is open, telling its total, and records nothing", () => {
-    const store = ledger({ openSaleTotal: 4_250 });
+    const store = ledger({ openSale: { total: 4_250, payments: [] } });
     const before = structuredClone(store.state);
 
-    expect(close(store)).toEqual({ kind: "open_sale", total: 4_250 });
+    expect(close(store)).toEqual({ kind: "open_sale", total: 4_250, cancellable: true });
     expect(store.state).toEqual(before);
   });
 
   it("refuses an open sale even when its total is zero", () => {
-    expect(close(ledger({ openSaleTotal: 0 }))).toEqual({ kind: "open_sale", total: 0 });
+    expect(close(ledger({ openSale: { total: 0, payments: [] } }))).toEqual({
+      kind: "open_sale",
+      total: 0,
+      cancellable: true,
+    });
+  });
+
+  it("tells that an open sale with an approved payment cannot be cancelled", () => {
+    const store = ledger({ openSale: { total: 4_250, payments: [APPROVED_PAYMENT] } });
+
+    expect(close(store)).toEqual({ kind: "open_sale", total: 4_250, cancellable: false });
   });
 
   it("checks the session before the open sale", () => {
-    const store = ledger({ sessions: [], openSaleTotal: 100 });
+    const store = ledger({ sessions: [], openSale: { total: 100, payments: [] } });
 
     expect(close(store)).toEqual({ kind: "no_open_session" });
   });

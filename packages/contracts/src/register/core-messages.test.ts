@@ -714,7 +714,8 @@ describe("closing a cash session answers", () => {
   it.each([
     { kind: "invalid_counted_cash" },
     { kind: "no_open_session" },
-    { kind: "open_sale", total: 4500 },
+    { kind: "open_sale", total: 4500, cancellable: true },
+    { kind: "open_sale", total: 4500, cancellable: false },
     { kind: "not_signed_in" },
     { kind: "lacks_permission" },
     { kind: "unavailable" },
@@ -729,6 +730,8 @@ describe("closing a cash session answers", () => {
     { kind: "closed" },
     { kind: "closed", session: { id: "s1", expected_cash: 0, counted_cash: 0 } },
     { kind: "open_sale" },
+    { kind: "open_sale", total: 4500 },
+    { kind: "open_sale", total: 4500, cancellable: "yes" },
     { kind: "x" },
   ])("rejects a close result it does not know: %j", (outcome) => {
     const message = { type: "close-cash-session-result", request_id: REQUEST_ID, outcome };
@@ -780,6 +783,50 @@ describe("closing a cash session answers", () => {
   it("rejects that the cash balance cannot be read without its request id", () => {
     expect(
       coreToRendererMessageSchema.safeParse({ type: "cash-balance-unavailable" }).success,
+    ).toBe(false);
+  });
+});
+
+describe("the open sale of the cash session", () => {
+  it("accepts a request for the open sale", () => {
+    const message = { type: "session-open-sale-request", request_id: REQUEST_ID };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a request for the open sale without its request id", () => {
+    expect(
+      rendererToCoreMessageSchema.safeParse({ type: "session-open-sale-request" }).success,
+    ).toBe(false);
+  });
+
+  it.each([{ total: 3_434_000, cancellable: true }, { total: 0, cancellable: false }, null])(
+    "accepts the open sale answered: %j",
+    (sale) => {
+      const message = { type: "session-open-sale", request_id: REQUEST_ID, sale };
+
+      expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    },
+  );
+
+  it.each([{ total: 4500 }, { cancellable: true }, { total: 4500, cancellable: "yes" }])(
+    "rejects an open sale it does not know: %j",
+    (sale) => {
+      const message = { type: "session-open-sale", request_id: REQUEST_ID, sale };
+
+      expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+    },
+  );
+
+  it("accepts that the open sale cannot be read", () => {
+    const message = { type: "session-open-sale-unavailable", request_id: REQUEST_ID };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects that the open sale cannot be read without its request id", () => {
+    expect(
+      coreToRendererMessageSchema.safeParse({ type: "session-open-sale-unavailable" }).success,
     ).toBe(false);
   });
 });
@@ -885,7 +932,8 @@ describe("closing a locked register's cash session", () => {
   it.each([
     { kind: "invalid_counted_cash" },
     { kind: "no_open_session" },
-    { kind: "open_sale", total: 4500 },
+    { kind: "open_sale", total: 4500, cancellable: true },
+    { kind: "open_sale", total: 4500, cancellable: false },
     { kind: "not_locked" },
     { kind: "lacks_permission" },
     { kind: "unavailable" },
@@ -901,11 +949,62 @@ describe("closing a locked register's cash session", () => {
     { kind: "not_signed_in" },
     { kind: "closed", session: { id: "s1", expected_cash: 0, counted_cash: 0 } },
     { kind: "open_sale" },
+    { kind: "open_sale", total: 4500 },
+    { kind: "open_sale", total: 4500, cancellable: "yes" },
   ])("rejects a close result it does not know: %j", (outcome) => {
     const message = { type: "close-locked-cash-session-result", request_id: REQUEST_ID, outcome };
 
     expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
+});
+
+describe("cancelling the open sale of a locked register", () => {
+  const cancel = {
+    type: "cancel-locked-sale",
+    request_id: REQUEST_ID,
+    closer: { user_id: "u2", pin: "1234" },
+  };
+
+  it("accepts a request carrying the closer's PIN", () => {
+    expect(rendererToCoreMessageSchema.parse(cancel)).toEqual(cancel);
+  });
+
+  it.each(["request_id", "closer"])("rejects a request missing its %s", (field) => {
+    const message = Object.fromEntries(Object.entries(cancel).filter(([key]) => key !== field));
+
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("rejects a closer without a PIN", () => {
+    const message = { ...cancel, closer: { user_id: "u2" } };
+
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it.each([
+    { kind: "cancelled" },
+    { kind: "has_approved_payment" },
+    { kind: "no_open_sale" },
+    { kind: "no_open_session" },
+    { kind: "not_locked" },
+    { kind: "lacks_permission" },
+    { kind: "unavailable" },
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
+    { kind: "rate_limited", retry_after_seconds: 1, attempts_left: 2 },
+  ])("accepts the result $kind", (outcome) => {
+    const message = { type: "cancel-locked-sale-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([{ kind: "not_signed_in" }, { kind: "closed" }, { kind: "x" }])(
+    "rejects a result it does not know: %j",
+    (outcome) => {
+      const message = { type: "cancel-locked-sale-result", request_id: REQUEST_ID, outcome };
+
+      expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+    },
+  );
 });
 
 describe("cash session answers", () => {

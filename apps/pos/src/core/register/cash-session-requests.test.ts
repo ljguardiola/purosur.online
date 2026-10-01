@@ -15,6 +15,7 @@ import {
   identifyLockedCloserFor,
   lockedClosersFor,
   openCashSessionFor,
+  sessionOpenSaleFor,
 } from "./cash-session-requests";
 import { SqliteCashLedger } from "./sqlite-cash-ledger";
 
@@ -659,5 +660,47 @@ describe("the cash balance of the open session", () => {
       withdrawals: 1000,
       expected: 6700,
     });
+  });
+});
+
+describe("the open sale of the session", () => {
+  function addOpenSale(sessionId: string, lineTotal: number): void {
+    database
+      .prepare(
+        "INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at) VALUES ('sale-1', 'register-1', 'device-1', ?, 'u1', 'OPEN', ?)",
+      )
+      .run(sessionId, NOW.toISOString());
+    database
+      .prepare(
+        "INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total) VALUES ('line-1', 'sale-1', 1, 'p1', 'Yerba', 1, ?, 'pl-1', ?)",
+      )
+      .run(lineTotal, lineTotal);
+  }
+
+  function addApprovedPayment(): void {
+    database
+      .prepare(
+        "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at) VALUES ('payment-1', 'sale-1', 'SALE', 'CASH', 'NONE', 1000, 'APPROVED', ?)",
+      )
+      .run(NOW.toISOString());
+  }
+
+  it("is none while no sale is open", async () => {
+    await openAs("u1", 5000);
+
+    expect(sessionOpenSaleFor(database)).toBeNull();
+  });
+
+  it("tells its total and that it can be cancelled while it has no approved payment", async () => {
+    addOpenSale(await openAs("u1", 5000), 3500);
+
+    expect(sessionOpenSaleFor(database)).toEqual({ total: 3500, cancellable: true });
+  });
+
+  it("tells that it cannot be cancelled once it has an approved payment", async () => {
+    addOpenSale(await openAs("u1", 5000), 3500);
+    addApprovedPayment();
+
+    expect(sessionOpenSaleFor(database)).toEqual({ total: 3500, cancellable: false });
   });
 });

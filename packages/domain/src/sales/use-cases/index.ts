@@ -13,6 +13,7 @@ export type {
 } from "./add-searched-product.js";
 export { addSearchedProduct } from "./add-searched-product.js";
 export type {
+  CancelLockedSaleOutcome,
   CancelSaleInput,
   CancelSaleOutcome,
   CancelSalePorts,

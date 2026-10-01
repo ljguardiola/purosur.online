@@ -705,6 +705,23 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to cancel the open sale of a locked register by the closer's PIN and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const closer = { user_id: "u2", pin: "1234" };
+
+    const outcome = client.cancelLockedSale(closer);
+    port.answer({
+      type: "cancel-locked-sale-result",
+      request_id: "request-1",
+      outcome: { kind: "cancelled" },
+    });
+
+    expect(await outcome).toEqual({ kind: "cancelled" });
+    expect(port.posted).toEqual([{ type: "cancel-locked-sale", request_id: "request-1", closer }]);
+  });
+
   it("sends the authorization when closing a session with one", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
@@ -761,6 +778,32 @@ describe("createCoreClient", () => {
 
     const asked = client.cashBalance();
     port.answer({ type: "cash-balance-unavailable", request_id: "request-1" });
+
+    expect(await asked).toBe("unavailable");
+  });
+
+  it.each([null, { total: 3_434_000, cancellable: true }])(
+    "asks the core for the open sale of the session and resolves with it: %j",
+    async (sale) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const asked = client.sessionOpenSale();
+      port.answer({ type: "session-open-sale", request_id: "request-1", sale });
+
+      expect(await asked).toEqual(sale);
+      expect(port.posted).toEqual([{ type: "session-open-sale-request", request_id: "request-1" }]);
+    },
+  );
+
+  it("resolves that the open sale is unavailable when the core cannot read it", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.sessionOpenSale();
+    port.answer({ type: "session-open-sale-unavailable", request_id: "request-1" });
 
     expect(await asked).toBe("unavailable");
   });

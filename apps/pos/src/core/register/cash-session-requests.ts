@@ -8,8 +8,9 @@ import type {
   OpenCashSession,
   OpenCashSessionOutcome,
   SignInUser,
+  SessionOpenSale,
 } from "@purosur/contracts";
-import { cashBreakdown, isLockedToAnother } from "@purosur/domain";
+import { cancellableWithoutAuthorization, cashBreakdown, isLockedToAnother } from "@purosur/domain";
 import {
   type CloseCashSessionOutcome as CashSessionClosing,
   type Clock,
@@ -22,7 +23,12 @@ import { heldPermissionKeys } from "../access/held-permission-keys";
 import type { SignedInPerson } from "../access/signed-in-person";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
-import { readOpenSession, readSessionMovements, SqliteCashLedger } from "./sqlite-cash-ledger";
+import {
+  readOpenSale,
+  readOpenSession,
+  readSessionMovements,
+  SqliteCashLedger,
+} from "./sqlite-cash-ledger";
 
 export interface CashSessionRequestDeps {
   database: LocalDatabase;
@@ -204,6 +210,13 @@ export function cashBalanceFor(database: LocalDatabase): CashBalance | null {
     withdrawals: balance.withdrawals,
     expected: balance.expected,
   };
+}
+
+export function sessionOpenSaleFor(database: LocalDatabase): SessionOpenSale | null {
+  const sale = readOpenSale(database);
+  return sale === undefined
+    ? null
+    : { total: sale.total, cancellable: cancellableWithoutAuthorization(sale.payments) };
 }
 
 export function currentCashSession(

@@ -148,6 +148,12 @@ export const closeLockedCashSessionMessageSchema = z.object({
   closer: authorizationSchema,
 });
 
+const cancelLockedSaleMessageSchema = z.object({
+  type: z.literal("cancel-locked-sale"),
+  request_id: requestId,
+  closer: authorizationSchema,
+});
+
 const identifyLockedCloserMessageSchema = z.object({
   type: z.literal("identify-locked-closer"),
   request_id: requestId,
@@ -156,6 +162,11 @@ const identifyLockedCloserMessageSchema = z.object({
 
 const cashBalanceRequestMessageSchema = z.object({
   type: z.literal("cash-balance-request"),
+  request_id: requestId,
+});
+
+const sessionOpenSaleRequestMessageSchema = z.object({
+  type: z.literal("session-open-sale-request"),
   request_id: requestId,
 });
 
@@ -249,8 +260,10 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   cashMovementKindsRequestMessageSchema,
   closeCashSessionMessageSchema,
   closeLockedCashSessionMessageSchema,
+  cancelLockedSaleMessageSchema,
   identifyLockedCloserMessageSchema,
   cashBalanceRequestMessageSchema,
+  sessionOpenSaleRequestMessageSchema,
   authorizersRequestMessageSchema,
   lockedClosersRequestMessageSchema,
   scanProductMessageSchema,
@@ -331,7 +344,7 @@ const cashSessionClosingOutcomeSchema = z.discriminatedUnion("kind", [
   }),
   z.object({ kind: z.literal("invalid_counted_cash") }),
   z.object({ kind: z.literal("no_open_session") }),
-  z.object({ kind: z.literal("open_sale"), total: z.number() }),
+  z.object({ kind: z.literal("open_sale"), total: z.number(), cancellable: z.boolean() }),
 ]);
 
 const closeCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
@@ -346,6 +359,16 @@ const closeLockedCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("not_locked") }),
 ]);
 export type CloseLockedCashSessionOutcome = z.infer<typeof closeLockedCashSessionOutcomeSchema>;
+
+const cancelLockedSaleOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("cancelled") }),
+  z.object({ kind: z.literal("has_approved_payment") }),
+  z.object({ kind: z.literal("no_open_sale") }),
+  z.object({ kind: z.literal("no_open_session") }),
+  ...authorizationRefusalSchema.options,
+  z.object({ kind: z.literal("not_locked") }),
+]);
+export type CancelLockedSaleOutcome = z.infer<typeof cancelLockedSaleOutcomeSchema>;
 
 const identifyLockedCloserOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("identified"), person: authorizedBySchema }),
@@ -365,6 +388,9 @@ const cashBalanceSchema = z.object({
   expected: z.number(),
 });
 export type CashBalance = z.infer<typeof cashBalanceSchema>;
+
+const sessionOpenSaleSchema = z.object({ total: z.number(), cancellable: z.boolean() });
+export type SessionOpenSale = z.infer<typeof sessionOpenSaleSchema>;
 
 const openCashSessionSchema = z.object({
   id: z.string(),
@@ -488,6 +514,11 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     outcome: closeLockedCashSessionOutcomeSchema,
   }),
   z.object({
+    type: z.literal("cancel-locked-sale-result"),
+    request_id: requestId,
+    outcome: cancelLockedSaleOutcomeSchema,
+  }),
+  z.object({
     type: z.literal("identify-locked-closer-result"),
     request_id: requestId,
     outcome: identifyLockedCloserOutcomeSchema,
@@ -498,6 +529,12 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     balance: cashBalanceSchema.nullable(),
   }),
   z.object({ type: z.literal("cash-balance-unavailable"), request_id: requestId }),
+  z.object({
+    type: z.literal("session-open-sale"),
+    request_id: requestId,
+    sale: sessionOpenSaleSchema.nullable(),
+  }),
+  z.object({ type: z.literal("session-open-sale-unavailable"), request_id: requestId }),
   z.object({
     type: z.literal("cash-session"),
     request_id: requestId,

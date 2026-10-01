@@ -1,3 +1,4 @@
+import "@purosur/ui/content-security-policy";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "@purosur/ui/tokens.css";

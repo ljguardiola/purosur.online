@@ -8,10 +8,12 @@ import type {
 import type {
   CashLedger,
   CashLedgerTransaction,
+  OpenSale,
   RegisterIdentity,
 } from "@purosur/domain/register/use-cases";
 import type { SignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
+import { readSalePayments } from "../sales/sqlite-sale-payments";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 
 interface SessionRow {
@@ -130,15 +132,16 @@ export function readSessionMovements(database: LocalDatabase, sessionId: string)
     .map(movementOf);
 }
 
-function readOpenSaleTotal(database: LocalDatabase): number | undefined {
-  return database
-    .prepare<[], { total: number }>(
-      `SELECT sum(sale_lines.line_total) AS total
-       FROM sales JOIN sale_lines ON sale_lines.sale_id = sales.id
+export function readOpenSale(database: LocalDatabase): OpenSale | undefined {
+  const row = database
+    .prepare<[], { id: string; total: number }>(
+      `SELECT sales.id AS id, coalesce(sum(sale_lines.line_total), 0) AS total
+       FROM sales LEFT JOIN sale_lines ON sale_lines.sale_id = sales.id
        WHERE sales.state = 'OPEN'
        GROUP BY sales.id`,
     )
-    .get()?.total;
+    .get();
+  return row && { total: row.total, payments: readSalePayments(database, row.id) };
 }
 
 export function insertCashMovement(database: LocalDatabase, movement: CashMovement): void {
@@ -187,7 +190,7 @@ export class SqliteCashLedger implements CashLedger {
     return {
       openerAccess: (userId) => this.people.activePerson(userId)?.access,
       openSession: () => readOpenSession(this.database),
-      openSaleTotal: () => readOpenSaleTotal(this.database),
+      openSale: () => readOpenSale(this.database),
       sessionMovements: (sessionId) => readSessionMovements(this.database, sessionId),
       registerIdentity: () => this.registerIdentity(),
       recordOpenedSession: (session) => this.recordOpenedSession(session),
