@@ -286,7 +286,7 @@ describe("App", () => {
     await expect.element(screen.getByText("Caja 1 · Sin sesión abierta")).toBeVisible();
     await expect.element(screen.getByRole("radio", { name: "Ada" })).toBeChecked();
     await expect.element(screen.getByLabelText("PIN")).toHaveValue("12");
-    expect(usersLoads()).toBe(1);
+    await expect.poll(usersLoads).toBe(2);
   });
 
   it("replaces the whole screen with the core-down notice once the core reports it is down", async () => {

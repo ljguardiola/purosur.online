@@ -2,19 +2,15 @@ import type { SignInOutcome, SignInUser } from "@purosur/contracts";
 import { EmptyState, LoadFailure, LoadingPlaceholder } from "@purosur/ui";
 import { KeyRound, TriangleAlert, UserPlus, UsersRound } from "lucide-react";
 import type { Ref } from "react";
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
 import { ScreenLink } from "../shell/screen-link";
 import { SessionEyebrow } from "../shell/session-eyebrow";
+import { useSignInUsersQuery } from "./access-queries";
 import { PinAttemptControls } from "./pin-attempt-controls";
 import { SignInLockout } from "./sign-in-lockout";
 import { usePinAttempt } from "./use-pin-attempt";
 import { UserPicker } from "./user-picker";
-
-type LoadedUsers =
-  | { status: "loading" }
-  | { status: "failed" }
-  | { status: "loaded"; users: SignInUser[] };
 
 export type SignInScreenProps = {
   loadUsers: () => Promise<SignInUser[]>;
@@ -43,14 +39,9 @@ function SignInHeading({
   );
 }
 
-function SignInPanel({
-  loadUsers,
-  signIn,
-  registerName,
-  onRetryLoading,
-}: SignInScreenProps & { onRetryLoading: () => void }) {
+function SignInPanel({ loadUsers, signIn, registerName }: SignInScreenProps) {
   const headingId = useId();
-  const [loaded, setLoaded] = useState<LoadedUsers>({ status: "loading" });
+  const users = useSignInUsersQuery(loadUsers);
   const [chosen, setChosen] = useState<SignInUser | null>(null);
   const attempt = usePinAttempt(
     chosen === null
@@ -58,25 +49,6 @@ function SignInPanel({
       : { id: chosen.id, firstName: chosen.first_name, attempt: (pin) => signIn(chosen.id, pin) },
   );
   const { refusal, locked, submitting } = attempt;
-
-  useEffect(() => {
-    let current = true;
-    loadUsers().then(
-      (users) => {
-        if (current) {
-          setLoaded({ status: "loaded", users });
-        }
-      },
-      () => {
-        if (current) {
-          setLoaded({ status: "failed" });
-        }
-      },
-    );
-    return () => {
-      current = false;
-    };
-  }, [loadUsers]);
 
   function reset(user: SignInUser | null) {
     setChosen(user);
@@ -100,28 +72,28 @@ function SignInPanel({
           onBack={() => reset(null)}
         />
       ) : null}
-      {!locked && loaded.status === "loading" ? (
+      {!locked && users.status === "loading" ? (
         <LoadingPlaceholder variant="list" items={3} />
       ) : null}
-      {!locked && loaded.status === "failed" ? (
+      {!locked && users.status === "failed" ? (
         <LoadFailure
           icon={<TriangleAlert />}
           title="No se pudieron cargar los usuarios"
           description="Volvé a intentarlo en unos segundos."
-          onRetry={onRetryLoading}
+          onRetry={users.retry}
         />
       ) : null}
-      {!locked && loaded.status === "loaded" && loaded.users.length === 0 ? (
+      {!locked && users.status === "loaded" && users.value.length === 0 ? (
         <EmptyState
           variant="blank"
           icon={<UsersRound />}
           title="Todavía nadie ingresó en esta caja."
         />
       ) : null}
-      {!locked && loaded.status === "loaded" && loaded.users.length > 0 ? (
+      {!locked && users.status === "loaded" && users.value.length > 0 ? (
         <form className="flex flex-col gap-4" noValidate onSubmit={attempt.submit}>
           <UserPicker
-            users={loaded.users}
+            users={users.value}
             value={chosen?.id ?? null}
             onChange={reset}
             labelledBy={headingId}
@@ -149,11 +121,9 @@ function SignInPanel({
 }
 
 export function SignInScreen(props: SignInScreenProps) {
-  const [attempt, setAttempt] = useState(0);
-
   return (
     <BrandPanelScreen>
-      <SignInPanel key={attempt} {...props} onRetryLoading={() => setAttempt(attempt + 1)} />
+      <SignInPanel {...props} />
     </BrandPanelScreen>
   );
 }

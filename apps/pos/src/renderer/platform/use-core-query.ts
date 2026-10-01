@@ -9,6 +9,7 @@ export type CoreData<T> =
 type CoreQuery<T> = {
   queryKey: QueryKey;
   read: () => Promise<T | "unavailable">;
+  enabled?: boolean;
 };
 
 function coreQueryFn<T>(read: () => Promise<T | "unavailable">): () => Promise<T> {
@@ -21,8 +22,8 @@ function coreQueryFn<T>(read: () => Promise<T | "unavailable">): () => Promise<T
   };
 }
 
-export function useCoreQuery<T>({ queryKey, read }: CoreQuery<T>): CoreData<T> {
-  const query = useQuery({ queryKey, queryFn: coreQueryFn(read) });
+export function useCoreQuery<T>({ queryKey, read, enabled = true }: CoreQuery<T>): CoreData<T> {
+  const query = useQuery({ queryKey, queryFn: coreQueryFn(read), enabled });
   if (query.isError && !query.isFetching) {
     return { status: "failed", retry: () => void query.refetch() };
   }

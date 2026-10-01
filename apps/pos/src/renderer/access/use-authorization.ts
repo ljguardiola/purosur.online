@@ -1,14 +1,11 @@
 import type { Authorization, AuthorizationRefusal, SignInUser } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import type { RefObject } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import type { CoreData } from "../platform/use-core-query";
 import { useCountdown } from "../platform/use-countdown";
+import { useAuthorizersQuery, useRefreshAuthorizers } from "./access-queries";
 import type { SignedInPerson } from "./signed-in-person";
-
-type LoadedAuthorizers =
-  | { status: "loading" }
-  | { status: "failed" }
-  | { status: "loaded"; users: SignInUser[] };
 
 export type ShownRefusal =
   | Exclude<AuthorizationRefusal, { kind: "lacks_permission" | "locked" }>
@@ -29,8 +26,7 @@ export type AuthorizationState = {
   value: Authorization | undefined;
   refuse: (refusal: AuthorizationRefusal) => void;
   performed: () => void;
-  authorizers: LoadedAuthorizers;
-  retryLoading: () => void;
+  authorizers: CoreData<SignInUser[]>;
   chosen: string | null;
   choose: (userId: string) => void;
   pin: string;
@@ -48,7 +44,12 @@ export function useAuthorization({
 }: UseAuthorizationInput): AuthorizationState {
   const required = applies && !person.permission_keys.includes(permission);
   const pinInput = useRef<HTMLInputElement>(null);
-  const [authorizers, setAuthorizers] = useState<LoadedAuthorizers>({ status: "loading" });
+  const authorizers = useAuthorizersQuery({
+    permission,
+    read: () => loadAuthorizers(permission),
+    enabled: required,
+  });
+  const refreshAuthorizers = useRefreshAuthorizers(permission);
   const [chosen, setChosen] = useState<string | null>(null);
   const [pin, setPin] = useState("");
   const [refusal, setRefusal] = useState<ShownRefusal>();
@@ -58,34 +59,11 @@ export function useAuthorization({
 
   if (authorizersFor !== permission) {
     setAuthorizersFor(permission);
-    setAuthorizers({ status: "loading" });
     setChosen(null);
     setPin("");
     setRefusal(undefined);
     setWait(undefined);
   }
-
-  useEffect(() => {
-    if (!required || authorizers.status !== "loading") {
-      return;
-    }
-    let current = true;
-    loadAuthorizers(permission).then(
-      (users) => {
-        if (current) {
-          setAuthorizers({ status: "loaded", users });
-        }
-      },
-      () => {
-        if (current) {
-          setAuthorizers({ status: "failed" });
-        }
-      },
-    );
-    return () => {
-      current = false;
-    };
-  }, [required, permission, loadAuthorizers, authorizers.status]);
 
   const ready = !required || (chosen !== null && pin !== "");
 
@@ -98,7 +76,7 @@ export function useAuthorization({
       if (refused.kind === "lacks_permission" || refused.kind === "locked") {
         const refusedUser =
           authorizers.status === "loaded"
-            ? authorizers.users.find((user) => user.id === chosen)
+            ? authorizers.value.find((user) => user.id === chosen)
             : undefined;
         setRefusal(
           refused.kind === "locked"
@@ -113,7 +91,7 @@ export function useAuthorization({
         setPin("");
         setWait(undefined);
         if (refused.kind === "lacks_permission") {
-          setAuthorizers({ status: "loading" });
+          refreshAuthorizers();
         }
         return;
       }
@@ -131,9 +109,6 @@ export function useAuthorization({
       setRefusal(undefined);
     },
     authorizers,
-    retryLoading() {
-      setAuthorizers({ status: "loading" });
-    },
     chosen,
     choose(userId) {
       setChosen(userId);

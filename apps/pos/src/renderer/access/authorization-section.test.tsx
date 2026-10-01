@@ -3,7 +3,7 @@ import { PERMISSION_KEYS } from "@purosur/domain";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
+import { render } from "../shell/test-support/render-with-router";
 import type { SignedInPerson } from "./signed-in-person";
 import type { GuardedCashInOutcome } from "./test-support/guarded-cash-in-form";
 import { GuardedCashInForm } from "./test-support/guarded-cash-in-form";

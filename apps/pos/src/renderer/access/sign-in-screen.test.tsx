@@ -364,6 +364,7 @@ describe("SignInScreen", () => {
   it("offers changing the PIN with a code after the button that signs in", async () => {
     const screen = await renderScreen();
 
+    await expect.element(screen.getByRole("button", { name: "Entrar" })).toBeVisible();
     const button = screen.getByRole("button", { name: "Entrar" }).element();
     const link = screen
       .getByRole("link", { name: "Tengo un código para cambiar el PIN" })
