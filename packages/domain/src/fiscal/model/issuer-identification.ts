@@ -25,3 +25,13 @@ export function isIssuerIdentificationActivityStartDate(value: string, today: Da
     value <= argentinaCalendarDay(today)
   );
 }
+
+export function latestIssuerIdentification<TVersion extends { version: number }>(
+  versions: readonly TVersion[],
+): TVersion | undefined {
+  return versions.reduce<TVersion | undefined>(
+    (latest, candidate) =>
+      latest === undefined || candidate.version > latest.version ? candidate : latest,
+    undefined,
+  );
+}

@@ -27,3 +27,13 @@ export function isSameBuyerTaxStatusSet(
     leftCanonical.every((option, index) => option === rightCanonical[index])
   );
 }
+
+export function latestBuyerTaxStatusSet<TSet extends { paramsVersion: number }>(
+  sets: readonly TSet[],
+): TSet | undefined {
+  return sets.reduce<TSet | undefined>(
+    (latest, candidate) =>
+      latest === undefined || candidate.paramsVersion > latest.paramsVersion ? candidate : latest,
+    undefined,
+  );
+}
