@@ -351,18 +351,27 @@ describe("addScannedProduct", () => {
     nothingRecorded(store, before);
   });
 
-  it("answers a code longer than any barcode as unknown without reaching storage", () => {
+  it("answers a code longer than any barcode as unknown without looking it up", () => {
     const store = ledger();
 
     expect(scan(store, "7".repeat(BARCODE_MAX_LENGTH + 1))).toEqual({ kind: "unknown_code" });
-    expect(store.transactions).toBe(0);
+    expect(store.barcodeLookups).toBe(0);
+  });
+
+  it.each([
+    ["has no open cash session", { session: undefined }, "no_open_session"],
+    ["is not permitted to sell", { accesses: {} }, "not_permitted"],
+  ])("refuses a too-long code with the session refusal when the actor %s", (_name, state, kind) => {
+    const store = ledger(state);
+
+    expect(scan(store, "7".repeat(BARCODE_MAX_LENGTH + 1))).toEqual({ kind });
   });
 
   it("looks up a code as long as the longest barcode", () => {
     const store = ledger();
 
     expect(scan(store, "7".repeat(BARCODE_MAX_LENGTH))).toEqual({ kind: "unknown_code" });
-    expect(store.transactions).toBe(1);
+    expect(store.barcodeLookups).toBe(1);
   });
 
   it("refuses a product without a valid price, naming it and changing nothing", () => {

@@ -65,6 +65,8 @@ export class FakeSaleLedger implements SaleLedger {
   state: FakeSaleLedgerState;
   transactions = 0;
   promotionReads = 0;
+  barcodeLookups = 0;
+  searchableReads = 0;
   failOn: FakeSaleLedgerWrite | undefined;
 
   constructor(state: Partial<FakeSaleLedgerState> = {}) {
@@ -103,15 +105,19 @@ export class FakeSaleLedger implements SaleLedger {
       },
       installationRevoked: () => working.revoked,
       registerIdentity: () => working.identity,
-      activeProductByBarcode: (code) =>
-        working.products.find((product) => product.id === working.barcodes[code]),
+      activeProductByBarcode: (code) => {
+        this.barcodeLookups += 1;
+        return working.products.find((product) => product.id === working.barcodes[code]);
+      },
       activeProductById: (productId) =>
         working.products.find((product) => product.id === productId),
-      searchableProducts: () =>
-        working.products.map((product) => ({
+      searchableProducts: () => {
+        this.searchableReads += 1;
+        return working.products.map((product) => ({
           ...product,
           timesSoldHere: completedSalesContaining(working, product.id),
-        })),
+        }));
+      },
       buyerIdentificationThresholds: () => structuredClone(working.thresholds),
       priceAt: (productId, moment) => latestPriceAt(working.prices, productId, moment),
       promotionsTargeting: (productId) => {
