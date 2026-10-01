@@ -121,7 +121,7 @@ export function CashCountScreen({
   }, []);
 
   const expected = balance.status === "loaded" ? balance.value.expected : undefined;
-  const counted = countedCashOf(values);
+  const counted = countedCashOf(countedCashRequestSchema, values);
   const warning =
     expected === undefined || counted === undefined
       ? undefined

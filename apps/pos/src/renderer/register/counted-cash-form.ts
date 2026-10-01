@@ -1,6 +1,17 @@
-import { closeCashSessionMessageSchema, parseAmountCents } from "@purosur/contracts";
+import {
+  closeCashSessionMessageSchema,
+  closeLockedCashSessionMessageSchema,
+  parseAmountCents,
+} from "@purosur/contracts";
 
 export const countedCashRequestSchema = closeCashSessionMessageSchema.pick({ counted_cash: true });
+export const lockedCountedCashRequestSchema = closeLockedCashSessionMessageSchema.pick({
+  counted_cash: true,
+});
+
+type CountedCashRequestSchema =
+  | typeof countedCashRequestSchema
+  | typeof lockedCountedCashRequestSchema;
 
 const REQUIRED_MESSAGE = "Ingresá el efectivo contado.";
 export const INVALID_COUNTED_CASH_MESSAGE = "Ingresá un importe válido, por ejemplo 31.500,00.";
@@ -19,7 +30,10 @@ export function countedCashMessage({ countedCash }: CountedCashFormValues): stri
   return countedCash.trim() === "" ? REQUIRED_MESSAGE : INVALID_COUNTED_CASH_MESSAGE;
 }
 
-export function countedCashOf(values: CountedCashFormValues): number | undefined {
-  const request = countedCashRequestSchema.safeParse(countedCashRequestFrom(values));
+export function countedCashOf(
+  schema: CountedCashRequestSchema,
+  values: CountedCashFormValues,
+): number | undefined {
+  const request = schema.safeParse(countedCashRequestFrom(values));
   return request.success ? request.data.counted_cash : undefined;
 }

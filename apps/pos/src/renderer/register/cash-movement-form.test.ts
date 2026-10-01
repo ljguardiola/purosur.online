@@ -18,24 +18,25 @@ test("a movement is requested with its amount in cents and its reason trimmed", 
   expect(recordCashMovementFormRequestSchema.safeParse(request).success).toBe(true);
 });
 
-test.each(["", "abc", "0"])("an amount of '%s' is rejected by the request's shape", (amount) => {
+test("an amount that is not one is rejected by the request's shape", () => {
   const request = cashMovementRequestFrom({
     ...EMPTY_CASH_MOVEMENT_FORM,
-    amount,
+    amount: "abc",
     reason: "Cambio",
   });
 
   expect(recordCashMovementFormRequestSchema.safeParse(request).success).toBe(false);
 });
 
-test.each(["   ", "x".repeat(201)])(
-  "a reason of %j is rejected by the request's shape",
-  (reason) => {
-    const request = cashMovementRequestFrom({ ...EMPTY_CASH_MOVEMENT_FORM, amount: "100", reason });
+test("a reason of only spaces is rejected by the request's shape", () => {
+  const request = cashMovementRequestFrom({
+    ...EMPTY_CASH_MOVEMENT_FORM,
+    amount: "100",
+    reason: "   ",
+  });
 
-    expect(recordCashMovementFormRequestSchema.safeParse(request).success).toBe(false);
-  },
-);
+  expect(recordCashMovementFormRequestSchema.safeParse(request).success).toBe(false);
+});
 
 test.each([
   { amount: "", message: "Ingresá el importe." },

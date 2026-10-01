@@ -12,14 +12,14 @@ test("a typed count is read as cents", () => {
   const values = { countedCash: "31.500,50" };
 
   expect(countedCashRequestFrom(values)).toEqual({ counted_cash: 3_150_050 });
-  expect(countedCashOf(values)).toBe(3_150_050);
+  expect(countedCashOf(countedCashRequestSchema, values)).toBe(3_150_050);
 });
 
 test.each(["", "  ", "abc", "-5"])("a typed count of '%s' is not a count", (typed) => {
   const values = { countedCash: typed };
 
   expect(countedCashRequestSchema.safeParse(countedCashRequestFrom(values)).success).toBe(false);
-  expect(countedCashOf(values)).toBeUndefined();
+  expect(countedCashOf(countedCashRequestSchema, values)).toBeUndefined();
 });
 
 test.each([

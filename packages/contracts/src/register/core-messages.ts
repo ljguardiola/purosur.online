@@ -148,7 +148,7 @@ export const closeCashSessionMessageSchema = z.object({
   authorization: authorizationSchema.optional(),
 });
 
-const closeLockedCashSessionMessageSchema = z.object({
+export const closeLockedCashSessionMessageSchema = z.object({
   type: z.literal("close-locked-cash-session"),
   request_id: requestId,
   session_id: z.string(),

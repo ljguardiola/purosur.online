@@ -12,9 +12,9 @@ import {
   countedCashMessage,
   countedCashOf,
   countedCashRequestFrom,
-  countedCashRequestSchema,
   EMPTY_COUNTED_CASH_FORM,
   INVALID_COUNTED_CASH_MESSAGE,
+  lockedCountedCashRequestSchema,
 } from "./counted-cash-form";
 import { ExpectedCashPanel } from "./expected-cash-panel";
 import { useCashBalanceQuery } from "./register-queries";
@@ -54,7 +54,7 @@ export function LockedCashCount({
   const [openSaleTotal, setOpenSaleTotal] = useState<number>();
   const { form, submit, submitting, values } = useRequestForm({
     defaultValues: EMPTY_COUNTED_CASH_FORM,
-    request: { schema: countedCashRequestSchema, from: countedCashRequestFrom },
+    request: { schema: lockedCountedCashRequestSchema, from: countedCashRequestFrom },
     fields: { counted_cash: "countedCash" },
     messages: { countedCash: countedCashMessage },
     onSubmit: async (request, { showFieldError }) => {
@@ -85,7 +85,7 @@ export function LockedCashCount({
   }, []);
 
   const expected = balance.status === "loaded" ? balance.value.expected : undefined;
-  const counted = countedCashOf(values);
+  const counted = countedCashOf(lockedCountedCashRequestSchema, values);
   const warning =
     expected === undefined || counted === undefined
       ? undefined

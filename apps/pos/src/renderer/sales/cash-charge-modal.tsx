@@ -87,14 +87,20 @@ export function CashChargeModal({
     content.current?.querySelector("input")?.focus();
   }, []);
 
-  const isBlank = values.tendered.trim() === "";
-  const tendered = isBlank ? undefined : parseAmountCents(values.tendered);
-  const result =
-    tendered === undefined ? { kind: "invalid_amount" as const } : cashCharge(total, tendered);
-  const typedMessage =
-    !isBlank && result.kind === "invalid_amount" ? INVALID_AMOUNT_MESSAGE : undefined;
+  const tendered = parseAmountCents(values.tendered);
+  const result = tendered === undefined ? undefined : cashCharge(total, tendered);
   const covered =
-    tendered !== undefined && result.kind === "covered" ? { tendered, ...result } : undefined;
+    tendered !== undefined && result?.kind === "covered" ? { tendered, ...result } : undefined;
+
+  function tenderedMessage(typed: string): string | undefined {
+    if (typed.trim() === "") {
+      return undefined;
+    }
+    const typedCents = parseAmountCents(typed);
+    return typedCents === undefined || cashCharge(total, typedCents).kind === "invalid_amount"
+      ? INVALID_AMOUNT_MESSAGE
+      : undefined;
+  }
 
   function handleSubmit() {
     if (submitting || covered === undefined) {
@@ -151,7 +157,11 @@ export function CashChargeModal({
             { label: "A cobrar ahora", value: formatCents(total) },
           ]}
         />
-        <form.AppField name="tendered" listeners={{ onChange: () => setNotice(undefined) }}>
+        <form.AppField
+          name="tendered"
+          validators={{ onChange: ({ value }) => tenderedMessage(value) }}
+          listeners={{ onChange: () => setNotice(undefined) }}
+        >
           {(field) => (
             <TextField
               kind="amount"
@@ -162,7 +172,7 @@ export function CashChargeModal({
               onChange={field.handleChange}
               disabled={submitting}
               description={coverMessage(total)}
-              errorMessage={fieldErrorMessage(field.state.meta.errors) ?? typedMessage}
+              errorMessage={fieldErrorMessage(field.state.meta.errors)}
             />
           )}
         </form.AppField>

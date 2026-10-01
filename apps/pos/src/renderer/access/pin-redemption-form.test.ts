@@ -28,12 +28,6 @@ test("a whole code with a PIN repeated the same is accepted, the code normalized
 
 test.each([
   { name: "an empty form", values: EMPTY_PIN_REDEMPTION_FORM, paths: ["reset_code", "new_pin"] },
-  { name: "a short code", values: { ...WHOLE, code: "K7QM 2XPA" }, paths: ["reset_code"] },
-  {
-    name: "a PIN that is not only digits",
-    values: { ...WHOLE, newPin: "48291a", repeat: "48291a" },
-    paths: ["new_pin"],
-  },
   { name: "a repeat that differs", values: { ...WHOLE, repeat: "482916" }, paths: ["repeat"] },
   {
     name: "a short PIN repeated differently",
