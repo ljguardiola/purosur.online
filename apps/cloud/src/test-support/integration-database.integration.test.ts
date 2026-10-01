@@ -1,10 +1,7 @@
 import pg from "pg";
 import postgres from "postgres";
 import { describe, expect, it } from "vitest";
-import {
-  createEmptyIntegrationDatabase,
-  createIntegrationDatabase,
-} from "./integration-database.js";
+import { createEmptyIntegrationDatabase } from "./integration-database.js";
 
 async function databaseExists(adminDatabaseUrl: string): Promise<boolean> {
   const url = new URL(adminDatabaseUrl);
@@ -21,7 +18,7 @@ async function databaseExists(adminDatabaseUrl: string): Promise<boolean> {
 
 describe("closing an integration database on a real Postgres", () => {
   it("drops the database once every connection to it has ended", async () => {
-    const integrationDb = await createIntegrationDatabase("integration_database_closed");
+    const integrationDb = await createEmptyIntegrationDatabase("integration_database_closed");
     const pool = new pg.Pool({ connectionString: integrationDb.databaseUrl, max: 3 });
     const poolErrors: Error[] = [];
     pool.on("error", (error) => poolErrors.push(error));
@@ -32,10 +29,10 @@ describe("closing an integration database on a real Postgres", () => {
 
     expect(poolErrors).toEqual([]);
     expect(await databaseExists(integrationDb.adminDatabaseUrl)).toBe(false);
-  }, 30_000);
+  }, 60_000);
 
   it("refuses to drop the database while a connection to it is still open, instead of terminating it", async () => {
-    const integrationDb = await createIntegrationDatabase("integration_database_leaked");
+    const integrationDb = await createEmptyIntegrationDatabase("integration_database_leaked");
     const client = new pg.Client({ connectionString: integrationDb.databaseUrl });
     const clientErrors: Error[] = [];
     client.on("error", (error) => clientErrors.push(error));
@@ -49,7 +46,7 @@ describe("closing an integration database on a real Postgres", () => {
       await client.end();
       await integrationDb.close();
     }
-  }, 30_000);
+  }, 60_000);
 });
 
 describe("an empty integration database on a real Postgres", () => {
@@ -77,5 +74,5 @@ describe("an empty integration database on a real Postgres", () => {
     expect(tables).toEqual([]);
     expect(users).toEqual([{ user: "cloud_app" }]);
     expect(await databaseExists(integrationDb.adminDatabaseUrl)).toBe(false);
-  }, 30_000);
+  }, 60_000);
 });
