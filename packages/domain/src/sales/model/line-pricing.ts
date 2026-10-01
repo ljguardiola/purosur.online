@@ -1,10 +1,7 @@
-import type { Fraction } from "./rounding.js";
-import { roundHalfUp } from "./rounding.js";
+import type { SoldQuantity } from "../../pricing/index.js";
+import { discountedAmount, lineAmount } from "../../pricing/index.js";
+import { roundHalfUp } from "../../shared/index.js";
 import type { LinePromotion } from "./sale.js";
-
-export type LineQuantity =
-  | { saleUnit: "UNIT"; units: number }
-  | { saleUnit: "KG"; thousandths: number };
 
 export interface LineCharge {
   promotionId: string | null;
@@ -12,22 +9,15 @@ export interface LineCharge {
   lineTotal: number;
 }
 
-export function lineAmount(quantity: LineQuantity, unitPrice: number): Fraction {
-  return quantity.saleUnit === "UNIT"
-    ? { numerator: BigInt(quantity.units) * BigInt(unitPrice), denominator: 1n }
-    : { numerator: BigInt(quantity.thousandths) * BigInt(unitPrice), denominator: 1000n };
-}
-
 export function chargeLine(
-  quantity: LineQuantity,
+  quantity: SoldQuantity,
   unitPrice: number,
   promotions: readonly LinePromotion[],
 ): LineCharge {
-  const amount = lineAmount(quantity, unitPrice);
-  const listTotal = roundHalfUp(amount);
+  const listTotal = roundHalfUp(lineAmount(quantity, unitPrice));
   let best: LineCharge = { promotionId: null, discountAmount: 0, lineTotal: listTotal };
   for (const promotion of inIdentifierOrder(promotions)) {
-    const lineTotal = roundHalfUp(promotedAmount(quantity, unitPrice, amount, promotion));
+    const lineTotal = roundHalfUp(discountedAmount(quantity, unitPrice, promotion.benefit));
     const discountAmount = listTotal - lineTotal;
     if (discountAmount > best.discountAmount) {
       best = { promotionId: promotion.id, discountAmount, lineTotal };
@@ -39,25 +29,4 @@ export function chargeLine(
 function inIdentifierOrder(promotions: readonly LinePromotion[]): LinePromotion[] {
   const ids = promotions.map(({ id }) => id).sort();
   return [...promotions].sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
-}
-
-function promotedAmount(
-  quantity: LineQuantity,
-  unitPrice: number,
-  amount: Fraction,
-  { benefit }: LinePromotion,
-): Fraction {
-  if (benefit.kind === "PERCENT_OFF") {
-    return {
-      numerator: amount.numerator * BigInt(100 - benefit.percent),
-      denominator: amount.denominator * 100n,
-    };
-  }
-  if (quantity.saleUnit === "KG") {
-    return amount;
-  }
-  const buy = BigInt(benefit.buyQty);
-  const units = BigInt(quantity.units);
-  const chargedUnits = (units / buy) * BigInt(benefit.payQty) + (units % buy);
-  return { numerator: chargedUnits * BigInt(unitPrice), denominator: 1n };
 }
