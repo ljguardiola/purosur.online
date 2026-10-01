@@ -9,6 +9,7 @@ import {
   plural,
   Table,
   TableCellText,
+  TablePagination,
   useTableModel,
 } from "@purosur/ui";
 import { Receipt, TriangleAlert } from "lucide-react";
@@ -163,6 +164,7 @@ function loadingOf(state: Exclude<CoreData<unknown>, { status: "failed" }>): Tab
 export function CashMovementsTable({ state }: CashMovementsTableProps) {
   const movements = state.status === "loaded" ? state.value : [];
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
+  const [page, setPage] = useState(1);
   const [sort, setSort] = useState<{ column: "time"; direction: "ascending" | "descending" }>({
     column: "time",
     direction: "descending",
@@ -175,8 +177,14 @@ export function CashMovementsTable({ state }: CashMovementsTableProps) {
     columns,
     sort,
     onSortChange: setSort,
+    paging: { page, onPageChange: setPage },
   });
-  const matchCount = table.getRowModel().rows.length;
+  const matchCount = table.getRowCount();
+
+  function chooseTypeFilter(next: TypeFilter) {
+    setTypeFilter(next);
+    setPage(1);
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -185,7 +193,7 @@ export function CashMovementsTable({ state }: CashMovementsTableProps) {
           label="Tipo:"
           options={TYPE_FILTER_OPTIONS}
           value={typeFilter}
-          onChange={setTypeFilter}
+          onChange={chooseTypeFilter}
         />
       </div>
       <Table
@@ -208,12 +216,15 @@ export function CashMovementsTable({ state }: CashMovementsTableProps) {
         }}
         footer={
           matchCount === 0 ? undefined : (
-            <p className="text-text-subtle text-detail">
-              {plural(matchCount, {
-                one: "1 movimiento",
-                other: `${matchCount} movimientos`,
-              })}
-            </p>
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-text-subtle text-detail">
+                {plural(matchCount, {
+                  one: "1 movimiento",
+                  other: `${matchCount} movimientos`,
+                })}
+              </p>
+              <TablePagination table={table} label="Páginas de movimientos" />
+            </div>
           )
         }
       />

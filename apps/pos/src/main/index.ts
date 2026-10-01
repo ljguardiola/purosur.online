@@ -163,6 +163,7 @@ function startRegister(settings: ChannelSettings): void {
 
     const coreArguments = coreArgumentsFor({
       ...settings,
+      appVersion: app.getVersion(),
       localDataFolder: localDataFolderFor({
         platform: process.platform,
         localAppData: process.env["LOCALAPPDATA"],

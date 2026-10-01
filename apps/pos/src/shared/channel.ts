@@ -149,9 +149,11 @@ export function serializeChannelFile(file: ChannelFile): string {
 const SENTRY_ENVIRONMENT_ARGUMENT = "--sentry-environment=";
 const CLOUD_URL_ARGUMENT = "--cloud-url=";
 const LOCAL_DATA_FOLDER_ARGUMENT = "--local-data-folder=";
+const APP_VERSION_ARGUMENT = "--app-version=";
 
 export interface CoreArguments extends Pick<ChannelFile, "channel" | "cloudUrl"> {
   readonly localDataFolder?: string;
+  readonly appVersion?: string;
 }
 
 export function coreArgumentsFor(settings: CoreArguments): string[] {
@@ -161,12 +163,19 @@ export function coreArgumentsFor(settings: CoreArguments): string[] {
     ...(settings.localDataFolder === undefined
       ? []
       : [`${LOCAL_DATA_FOLDER_ARGUMENT}${settings.localDataFolder}`]),
+    ...(settings.appVersion === undefined ? [] : [`${APP_VERSION_ARGUMENT}${settings.appVersion}`]),
   ];
 }
 
 export function localDataFolderFromCoreArguments(argv: readonly string[]): string | undefined {
   const argument = argv.find((value) => value.startsWith(LOCAL_DATA_FOLDER_ARGUMENT));
   const value = argument?.slice(LOCAL_DATA_FOLDER_ARGUMENT.length);
+  return value === "" ? undefined : value;
+}
+
+export function appVersionFromCoreArguments(argv: readonly string[]): string | undefined {
+  const argument = argv.find((value) => value.startsWith(APP_VERSION_ARGUMENT));
+  const value = argument?.slice(APP_VERSION_ARGUMENT.length);
   return value === "" ? undefined : value;
 }
 

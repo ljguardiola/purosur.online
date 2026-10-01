@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  appVersionFromCoreArguments,
   CHANNEL_DATA_FOLDERS,
   cloudUrlFromCoreArguments,
   coreArgumentsFor,
@@ -290,5 +291,27 @@ describe("localDataFolderFromCoreArguments", () => {
       ]),
     ).toBeUndefined();
     expect(localDataFolderFromCoreArguments(["--local-data-folder="])).toBeUndefined();
+  });
+});
+
+describe("appVersionFromCoreArguments", () => {
+  it("finds the version main handed the core", () => {
+    const argv = [
+      "/path/to/core.js",
+      ...coreArgumentsFor({ channel: "staging", appVersion: "1.4.2" }),
+    ];
+
+    expect(appVersionFromCoreArguments(argv)).toBe("1.4.2");
+    expect(sentryEnvironmentFromCoreArguments(argv)).toBe("staging");
+  });
+
+  it("finds no version when main handed none, or an empty one", () => {
+    expect(
+      appVersionFromCoreArguments([
+        "/path/to/core.js",
+        ...coreArgumentsFor({ channel: "staging" }),
+      ]),
+    ).toBeUndefined();
+    expect(appVersionFromCoreArguments(["--app-version="])).toBeUndefined();
   });
 });
