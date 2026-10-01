@@ -1,17 +1,9 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import type { PaymentTransaction } from "../model/payment.js";
 import type { SaleWithLines } from "../model/sale.js";
-import type { SaleLineRemoval } from "../model/sale-line-removal.js";
 import { cancelSale } from "./cancel-sale.js";
-import {
-  FakeSaleLedger,
-  type FakeSaleLedgerState,
-  type FakeSaleLedgerWrite,
-  FixedClock,
-  SequentialIds,
-} from "./test-support/fake-sale-ledger.js";
+import { FakeSaleLedger, type FakeSaleLedgerState } from "./test-support/fake-sale-ledger.js";
 
-const NOW = new Date("2026-09-30T12:34:56.789Z");
 const CASHIER = { isAdministrator: false, permissionKeys: ["sell_and_charge"] };
 const SESSION = { id: "session-1", openedBy: "cashier" };
 const YERBA_LINE = {
@@ -46,15 +38,11 @@ const APPROVED_PAYMENT: PaymentTransaction = {
   state: "APPROVED",
   occurredAt: new Date("2026-09-30T12:20:00.000Z"),
 };
-const REMOVAL: SaleLineRemoval = {
-  id: "removal-1",
-  saleId: "sale-1",
-  saleLineId: "line-9",
-  productId: "azucar",
-  qtyRemoved: 2,
-  amountRemoved: 2400,
-  actorId: "cashier",
-  occurredAt: new Date("2026-09-30T12:10:00.000Z"),
+const COMPLETED_SALE: SaleWithLines = {
+  ...OPEN_SALE,
+  id: "sale-0",
+  state: "COMPLETED",
+  lines: [{ ...YERBA_LINE, id: "line-0" }],
 };
 
 function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
@@ -67,118 +55,45 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
 }
 
 function cancel(store: FakeSaleLedger, actorId = "cashier") {
-  return cancelSale(
-    { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds() },
-    { actorId, from: "sale" },
-  );
+  return cancelSale({ ledger: store }, { actorId, from: "sale" });
 }
 
 function cancelFromLockedRegister(store: FakeSaleLedger, actorId = "closer") {
-  return cancelSale(
-    { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds() },
-    { actorId, from: "locked_register" },
-  );
+  return cancelSale({ ledger: store }, { actorId, from: "locked_register" });
 }
 
 describe("cancelSale", () => {
-  it("moves the open sale to cancelled and returns it", () => {
+  it("discards the open sale with its lines and records nothing about it", () => {
     const store = ledger();
+    const before = structuredClone(store.state);
 
     const outcome = cancel(store);
 
-    expect(outcome).toEqual({ kind: "cancelled", sale: { ...OPEN_SALE, state: "CANCELLED" } });
-    expect(store.state.sales[0]?.state).toBe("CANCELLED");
+    expect(outcome).toEqual({ kind: "cancelled" });
+    expect(store.state).toEqual({ ...before, sales: [] });
     expect(store.transactions).toBe(1);
   });
 
-  it("announces the cancellation with the sale header, the lines it held and its removals", () => {
-    const store = ledger({
-      removals: [REMOVAL, { ...REMOVAL, id: "removal-x", saleId: "sale-0" }],
-    });
+  it("keeps the sales already completed", () => {
+    const store = ledger({ sales: [COMPLETED_SALE, OPEN_SALE] });
 
     cancel(store);
 
-    expect(store.state.outbox).toEqual([
-      {
-        event_id: "id-1",
-        aggregate_type: "Sale",
-        aggregate_id: "sale-1",
-        event_type: "sale_cancelled",
-        schema_version: 1,
-        occurred_at: "2026-09-30T12:34:56.789Z",
-        actor_id: "cashier",
-        payload: {
-          id: "sale-1",
-          register_id: "register-1",
-          device_id: "device-1",
-          session_id: "session-1",
-          actor_id: "cashier",
-          state: "CANCELLED",
-          occurred_at: "2026-09-30T12:00:00.000Z",
-          lines: [
-            {
-              id: "line-1",
-              product_id: "yerba",
-              product_name: "Yerba 1 kg",
-              quantity: 3,
-              list_unit_price: 2500,
-              price_list_id: "list-1",
-              promotion_id: "ten",
-              discount_amount: 750,
-              line_total: 6750,
-            },
-          ],
-          removals: [
-            {
-              id: "removal-1",
-              sale_line_id: "line-9",
-              product_id: "azucar",
-              qty_removed: 2,
-              amount_removed: 2400,
-              actor_id: "cashier",
-              occurred_at: "2026-09-30T12:10:00.000Z",
-            },
-          ],
-        },
-      },
-    ]);
+    expect(store.state.sales).toEqual([COMPLETED_SALE]);
   });
 
-  it("announces a line without promotion with a null promotion", () => {
-    const line = { ...YERBA_LINE, promotions: [], promotionId: null, discountAmount: 0 };
-    const store = ledger({ sales: [{ ...OPEN_SALE, lines: [line] }] });
-
-    cancel(store);
-
-    expect(store.state.outbox[0]?.payload).toEqual(
-      expect.objectContaining({
-        lines: [expect.objectContaining({ promotion_id: null, discount_amount: 0 })],
-      }),
-    );
-  });
-
-  it("cancels a sale that has no lines", () => {
+  it("discards a sale that has no lines", () => {
     const store = ledger({ sales: [{ ...OPEN_SALE, lines: [] }] });
 
-    expect(cancel(store)).toEqual({
-      kind: "cancelled",
-      sale: { ...OPEN_SALE, lines: [], state: "CANCELLED" },
-    });
-    expect(store.state.outbox[0]?.payload).toEqual(
-      expect.objectContaining({ lines: [], removals: [] }),
-    );
+    expect(cancel(store)).toEqual({ kind: "cancelled" });
+    expect(store.state.sales).toEqual([]);
   });
 
-  it("names the actor who cancelled, even when another actor opened the sale", () => {
-    const store = ledger({
-      accesses: { cashier: CASHIER },
-      sales: [{ ...OPEN_SALE, actorId: "former" }],
-    });
+  it("discards the open sale even when another actor opened it", () => {
+    const store = ledger({ sales: [{ ...OPEN_SALE, actorId: "former" }] });
 
-    cancel(store);
-
-    expect(store.state.outbox[0]?.actor_id).toBe("cashier");
-    expect(store.state.outbox[0]?.payload).toEqual(expect.objectContaining({ actor_id: "former" }));
+    expect(cancel(store)).toEqual({ kind: "cancelled" });
+    expect(store.state.sales).toEqual([]);
   });
 
   it("refuses when there is no open sale, changing nothing", () => {
@@ -231,17 +146,14 @@ describe("cancelSale", () => {
     expect(cancel(store).kind).toBe("cancelled");
   });
 
-  it.each<FakeSaleLedgerWrite>(["markSaleCancelled", "appendOutboxEvent"])(
-    "leaves the sale open when %s fails",
-    (write) => {
-      const store = ledger();
-      const before = structuredClone(store.state);
-      store.failOn = write;
+  it("leaves the sale open when discarding it fails", () => {
+    const store = ledger();
+    const before = structuredClone(store.state);
+    store.failOn = "discardOpenSale";
 
-      expect(() => cancel(store)).toThrow(` failed`);
-      expect(store.state).toEqual(before);
-    },
-  );
+    expect(() => cancel(store)).toThrow("discardOpenSale failed");
+    expect(store.state).toEqual(before);
+  });
 });
 
 describe("cancelSale from the locked register", () => {
@@ -251,28 +163,14 @@ describe("cancelSale from the locked register", () => {
     expectTypeOf<Extract<typeof outcome, { kind: "not_permitted" }>>().toBeNever();
   });
 
-  it("cancels the open sale for a person who did not open the session and cannot sell", () => {
+  it("discards the open sale for a person who did not open the session and cannot sell", () => {
     const store = ledger({ accesses: {} });
+    const before = structuredClone(store.state);
 
     const outcome = cancelFromLockedRegister(store);
 
-    expect(outcome).toEqual({ kind: "cancelled", sale: { ...OPEN_SALE, state: "CANCELLED" } });
-    expect(store.state.sales[0]?.state).toBe("CANCELLED");
-  });
-
-  it("names the closer as the actor of the cancellation and keeps the seller in the payload", () => {
-    const store = ledger();
-
-    cancelFromLockedRegister(store);
-
-    expect(store.state.outbox).toEqual([
-      expect.objectContaining({
-        event_type: "sale_cancelled",
-        aggregate_id: "sale-1",
-        actor_id: "closer",
-        payload: expect.objectContaining({ actor_id: "cashier", state: "CANCELLED" }),
-      }),
-    ]);
+    expect(outcome).toEqual({ kind: "cancelled" });
+    expect(store.state).toEqual({ ...before, sales: [] });
   });
 
   it("refuses without an open cash session", () => {
@@ -299,15 +197,12 @@ describe("cancelSale from the locked register", () => {
     expect(store.state).toEqual(before);
   });
 
-  it.each<FakeSaleLedgerWrite>(["markSaleCancelled", "appendOutboxEvent"])(
-    "leaves the sale open when %s fails",
-    (write) => {
-      const store = ledger();
-      const before = structuredClone(store.state);
-      store.failOn = write;
+  it("leaves the sale open when discarding it fails", () => {
+    const store = ledger();
+    const before = structuredClone(store.state);
+    store.failOn = "discardOpenSale";
 
-      expect(() => cancelFromLockedRegister(store)).toThrow(` failed`);
-      expect(store.state).toEqual(before);
-    },
-  );
+    expect(() => cancelFromLockedRegister(store)).toThrow("discardOpenSale failed");
+    expect(store.state).toEqual(before);
+  });
 });

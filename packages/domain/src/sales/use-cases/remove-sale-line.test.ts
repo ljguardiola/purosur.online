@@ -4,9 +4,7 @@ import { removeSaleLine } from "./remove-sale-line.js";
 import {
   FakeSaleLedger,
   type FakeSaleLedgerState,
-  type FakeSaleLedgerWrite,
   FixedClock,
-  SequentialIds,
 } from "./test-support/fake-sale-ledger.js";
 
 const NOW = new Date("2026-09-30T12:34:56.789Z");
@@ -59,32 +57,18 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
 }
 
 function remove(store: FakeSaleLedger, lineId: string, actorId = "cashier") {
-  return removeSaleLine(
-    { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds() },
-    { actorId, lineId },
-  );
+  return removeSaleLine({ ledger: store, clock: new FixedClock(NOW) }, { actorId, lineId });
 }
 
 describe("removeSaleLine", () => {
-  it("takes the line out of the sale and records its full quantity and total as removed", () => {
+  it("takes the line out of the sale and leaves no trace of it", () => {
     const store = ledger();
+    const before = structuredClone(store.state);
 
     const outcome = remove(store, "line-1");
 
     expect(outcome).toEqual({ kind: "removed", sale: { ...OPEN_SALE, lines: [AZUCAR_LINE] } });
-    expect(store.state.sales[0]?.lines).toEqual([AZUCAR_LINE]);
-    expect(store.state.removals).toEqual([
-      {
-        id: "id-1",
-        saleId: "sale-1",
-        saleLineId: "line-1",
-        productId: "yerba",
-        qtyRemoved: 3,
-        amountRemoved: 6750,
-        actorId: "cashier",
-        occurredAt: NOW,
-      },
-    ]);
+    expect(store.state).toEqual({ ...before, sales: [{ ...OPEN_SALE, lines: [AZUCAR_LINE] }] });
     expect(store.transactions).toBe(1);
   });
 
@@ -106,7 +90,7 @@ describe("removeSaleLine", () => {
   });
 
   it("refuses when there is no open sale, changing nothing", () => {
-    const store = ledger({ sales: [{ ...OPEN_SALE, state: "CANCELLED" }] });
+    const store = ledger({ sales: [{ ...OPEN_SALE, state: "COMPLETED" }] });
     const before = structuredClone(store.state);
 
     expect(remove(store, "line-1")).toEqual({ kind: "no_open_sale" });
@@ -133,17 +117,14 @@ describe("removeSaleLine", () => {
     expect(store.state).toEqual(before);
   });
 
-  it.each<FakeSaleLedgerWrite>(["recordLineRemoval", "deleteSaleLine"])(
-    "leaves the sale untouched when %s fails",
-    (write) => {
-      const store = ledger();
-      const before = structuredClone(store.state);
-      store.failOn = write;
+  it("leaves the sale untouched when deleting the line fails", () => {
+    const store = ledger();
+    const before = structuredClone(store.state);
+    store.failOn = "deleteSaleLine";
 
-      expect(() => remove(store, "line-1")).toThrow(` failed`);
-      expect(store.state).toEqual(before);
-    },
-  );
+    expect(() => remove(store, "line-1")).toThrow("deleteSaleLine failed");
+    expect(store.state).toEqual(before);
+  });
 });
 
 describe("remove-sale-line charge refusal", () => {
