@@ -128,7 +128,13 @@ export type { Icon } from "./components/shared/icon";
 export type { LoadStatus } from "./components/shared/load-status";
 export type { NoticeTone, Tone } from "./components/shared/tone";
 export type { Locale, PluralForms } from "./messages/formatters";
-export { formatCents, formatDate, formatNumber, plural } from "./messages/formatters";
+export {
+  formatCents,
+  formatDate,
+  formatNumber,
+  formatPointOfSaleNumber,
+  plural,
+} from "./messages/formatters";
 export type {
   Category,
   CategoryRecord,
