@@ -13,7 +13,6 @@ import {
   DISCOUNT_PERCENT_MIN,
   type DiscountBenefit,
   type DiscountTargetKind,
-  isBuyNPayMSaleUnit,
   isDiscountNameTooLong,
   isValidDiscountPayQty,
   normalizeDiscountWeekdays,
@@ -271,13 +270,12 @@ export function eligibleTargets(
   benefitKind: DiscountBenefit["kind"],
   sources: DiscountTargets,
 ): DiscountTargets {
-  if (benefitKind === "PERCENT_OFF") {
-    return sources;
-  }
   return {
-    products: sources.products.filter((product) => isBuyNPayMSaleUnit(product.saleUnit)),
-    categories: [],
-    tags: [],
+    products: sources.products.filter((product) => product.benefitKinds.includes(benefitKind)),
+    categories: sources.categories.filter((category) =>
+      category.benefitKinds.includes(benefitKind),
+    ),
+    tags: sources.tags.filter((tag) => tag.benefitKinds.includes(benefitKind)),
   };
 }
 
@@ -311,7 +309,7 @@ export function keptTarget(
 
 function isSoldByWeightProduct(sources: DiscountTargets, productId: string | null): boolean {
   return sources.products.some(
-    (product) => product.id === productId && !isBuyNPayMSaleUnit(product.saleUnit),
+    (product) => product.id === productId && !product.benefitKinds.includes("BUY_N_PAY_M"),
   );
 }
 
