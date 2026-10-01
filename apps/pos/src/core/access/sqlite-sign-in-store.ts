@@ -2,6 +2,7 @@ import type { SignInUser } from "@purosur/contracts";
 import { decodePinSalt, type RoleAccess } from "@purosur/domain";
 import type {
   PinHolder,
+  PinReplacementStore,
   PinSignInFailures,
   PinSignInStore,
   SignablePerson,
@@ -21,14 +22,13 @@ export interface ActivePerson {
   access: RoleAccess;
 }
 
-export interface SignInStore extends PinSignInStore<PinCredential> {
+export interface SignInStore extends PinSignInStore<PinCredential>, PinReplacementStore<string> {
   signableUsers(): SignInUser[];
   remember(userId: string): void;
   firstNameOf(userId: string): string | undefined;
   signInRecord(userId: string): SignInRecord | undefined;
   signablePeople(): SignablePerson[];
   activePerson(userId: string): ActivePerson | undefined;
-  replacePinVerifier(userId: string, verifier: string | undefined): void;
 }
 
 interface FailuresRow {
@@ -208,7 +208,7 @@ export class SqliteSignInStore implements SignInStore {
     this.database.prepare("DELETE FROM pin_sign_in_failures WHERE user_id = ?").run(userId);
   }
 
-  replacePinVerifier(userId: string, verifier: string | undefined): void {
+  savePinCredential(userId: string, verifier: string | undefined): boolean {
     const current = this.database
       .prepare<[string], { verifier: string }>(
         "SELECT verifier FROM pin_verifiers WHERE user_id = ?",
@@ -224,8 +224,6 @@ export class SqliteSignInStore implements SignInStore {
         )
         .run({ user_id: userId, verifier });
     }
-    if (verifier === undefined || current !== verifier) {
-      this.clearPinSignInFailures(userId);
-    }
+    return current !== verifier;
   }
 }

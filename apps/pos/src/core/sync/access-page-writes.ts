@@ -1,4 +1,5 @@
 import type { SyncChange } from "@purosur/contracts";
+import { replacePin } from "@purosur/domain/access/use-cases";
 import { derivePinVerifier } from "../access/pin-verifier";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
@@ -73,9 +74,12 @@ export function prepareAccessPageWrites(database: LocalDatabase, pepper: string 
       if (saved.changes === 0) {
         return;
       }
-      signInStore.replacePinVerifier(
-        entity_id,
-        row.pin_hash === null ? undefined : derivePinVerifier(pepper, row.pin_hash),
+      replacePin(
+        { store: signInStore },
+        {
+          userId: entity_id,
+          credential: row.pin_hash === null ? undefined : derivePinVerifier(pepper, row.pin_hash),
+        },
       );
     },
 

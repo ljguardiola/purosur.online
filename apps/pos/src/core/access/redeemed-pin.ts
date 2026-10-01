@@ -1,4 +1,5 @@
 import type { PinCodeRedemption } from "@purosur/contracts";
+import { replacePin } from "@purosur/domain/access/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 import { derivePinVerifier } from "./pin-verifier";
 import { SqliteSignInStore } from "./sqlite-sign-in-store";
@@ -18,7 +19,7 @@ export function applyRedeemedPin(
       return;
     }
     const store = new SqliteSignInStore(database);
-    store.replacePinVerifier(user_id, derivePinVerifier(pepper, pin_hash));
+    replacePin({ store }, { userId: user_id, credential: derivePinVerifier(pepper, pin_hash) });
     store.remember(user_id);
   })();
 }

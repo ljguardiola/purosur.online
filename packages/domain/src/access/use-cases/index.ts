@@ -121,6 +121,12 @@ export type {
   RedeemPinCodeOutcome,
 } from "./redeem-pin-code.js";
 export { redeemPinCode } from "./redeem-pin-code.js";
+export type {
+  PinReplacementPorts,
+  PinReplacementStore,
+  ReplacePinInput,
+} from "./replace-pin.js";
+export { replacePin } from "./replace-pin.js";
 export type { RoleDirectory, RoleHolder, RoleListing, StoredRole } from "./role-directory.js";
 export type {
   LockedRole,
