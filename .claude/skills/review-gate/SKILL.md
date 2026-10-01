@@ -107,7 +107,9 @@ each answer in the ledger and set the row's status from it:
 - a rejected `decision`: `open`, to undo it;
 - a row no fix could close: `open` when the answer says how to fix it, with
   its failed attempts reset; `filed as #<n>` when the answer moves it out of
-  the issue.
+  the issue; `fixed in <sha>` when the answer names a later fix commit that
+  already closed it, provided that commit has been re-reviewed and a test or
+  proof in it covers the row's input.
 
 Then go to step 6.
 
