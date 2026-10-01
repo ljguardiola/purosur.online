@@ -66,7 +66,7 @@ export function createActionGate(deps: ActionGateDeps): ActionGate {
     }
     const access = deps.store.activePerson(signedInUserId)?.access;
     const answer = registerOperationAccess(operation, { id: signedInUserId, access });
-    if (answer.kind !== "permitted" && access === undefined) {
+    if (answer.kind === "no_access") {
       return { kind: "not_signed_in" } as const;
     }
     return { kind: "answered", signedInUserId, answer } as const;

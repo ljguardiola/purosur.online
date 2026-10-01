@@ -160,9 +160,6 @@ export async function identifyLockedCloserFor(
 
 export function lockedClosersFor(database: LocalDatabase): SignInUser[] {
   const open = readOpenSession(database);
-  if (open === undefined) {
-    return [];
-  }
   return new SqliteSignInStore(database).authorizersWhere((person) =>
     mayAuthorize({ kind: "close_locked_register", session: open }, person),
   );

@@ -24,16 +24,14 @@ export interface RegisterActor {
 export type RegisterOperationAccess =
   | { kind: "permitted" }
   | { kind: "needs_authorization"; permission: AuthorizablePermissionKey }
-  | { kind: "refused" };
+  | { kind: "refused" }
+  | { kind: "no_access" };
 
 const SELLING_PERMISSION = "sell_and_charge";
 
 const PERMITTED = { kind: "permitted" } as const;
 const REFUSED = { kind: "refused" } as const;
-
-function holds(access: RoleAccess | undefined, key: PermissionKey): boolean {
-  return access !== undefined && holdsPermission(access, key);
-}
+const NO_ACCESS = { kind: "no_access" } as const;
 
 export function registerOperationAccess(
   operation: RegisterOperation,
@@ -48,17 +46,24 @@ export function registerOperationAccess(
     return REFUSED;
   }
   switch (operation.kind) {
+    case "close_cash_session":
+      return isLockedToAnother(operation.session, actor.id) ? REFUSED : PERMITTED;
     case "open_cash_session":
     case "sell":
-      return holds(actor.access, SELLING_PERMISSION) ? PERMITTED : REFUSED;
+      return actor.access === undefined
+        ? NO_ACCESS
+        : holdsPermission(actor.access, SELLING_PERMISSION)
+          ? PERMITTED
+          : REFUSED;
     case "record_cash_movement": {
+      if (actor.access === undefined) {
+        return NO_ACCESS;
+      }
       const permission = cashMovementPermission(operation.movement);
-      return holds(actor.access, permission)
+      return holdsPermission(actor.access, permission)
         ? PERMITTED
         : { kind: "needs_authorization", permission };
     }
-    case "close_cash_session":
-      return isLockedToAnother(operation.session, actor.id) ? REFUSED : PERMITTED;
   }
 }
 
@@ -72,7 +77,7 @@ export function mayAuthorize(
     case "close_locked_register":
       return (
         holdsPermission(authorizer.access, "close_anothers_register_session") &&
-        (operation.session === undefined || isLockedToAnother(operation.session, authorizer.id))
+        isLockedToAnother(operation.session, authorizer.id)
       );
     default:
       return false;

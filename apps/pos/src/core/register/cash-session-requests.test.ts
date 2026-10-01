@@ -597,6 +597,7 @@ describe("identifying who closes a locked register", () => {
 
   it("refuses a wrong PIN", async () => {
     addAuthorizer("u9", ["close_anothers_register_session"]);
+    await openAs("u1", 5000);
     signedInPerson.clear();
 
     const outcome = await identifyLockedCloserFor(deps(), { user_id: "u9", pin: "0000" });

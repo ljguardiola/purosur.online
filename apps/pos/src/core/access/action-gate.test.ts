@@ -141,6 +141,16 @@ describe("running an operation for the signed-in person", () => {
     expect(performed).toEqual([]);
   });
 
+  it("refuses a signed-in person with no access who did not open the session closing it", async () => {
+    const { outcome, performed } = sell(deps({ accessOf: {} }), {
+      kind: "close_cash_session",
+      session: { openedBy: "u2" },
+    });
+
+    expect(await outcome).toEqual({ kind: "lacks_permission" });
+    expect(performed).toEqual([]);
+  });
+
   it("takes only operations the signed-in person performs on their own", () => {
     expectTypeOf<{ kind: "sell" }>().toExtend<RunnableOperation>();
     expectTypeOf<{ kind: "open_cash_session" }>().toExtend<RunnableOperation>();
@@ -479,11 +489,25 @@ describe("running an operation on a locked register with a person's own PIN", ()
     expect(hashed).toEqual([]);
   });
 
-  it("runs the action when no session is open", async () => {
-    const { outcome, performed } = lockedClose(deps({ signedInAs: null }), RIGHT_PIN, null);
+  it("refuses when no session is open, without checking the PIN", async () => {
+    const hashed: string[] = [];
+    const { outcome, performed } = lockedClose(
+      deps({
+        signedInAs: null,
+        overrides: {
+          hashPin: async (pin) => {
+            hashed.push(pin);
+            return PIN_HASH;
+          },
+        },
+      }),
+      RIGHT_PIN,
+      null,
+    );
 
-    expect((await outcome).kind).toBe("performed");
-    expect(performed).toEqual([{ user_id: "u2", first_name: "Grace" }]);
+    expect(await outcome).toEqual({ kind: "lacks_permission" });
+    expect(performed).toEqual([]);
+    expect(hashed).toEqual([]);
   });
 
   it("refuses while someone is signed in, without checking the PIN", async () => {

@@ -38,9 +38,9 @@ describe("registerOperationAccess", () => {
         ).toEqual({ kind: "refused" });
       });
 
-      it("refuses a person with no access", () => {
+      it("answers that a person with no access has none", () => {
         expect(registerOperationAccess(operation, { id: "ana", access: undefined })).toEqual({
-          kind: "refused",
+          kind: "no_access",
         });
       });
 
@@ -76,10 +76,9 @@ describe("registerOperationAccess", () => {
       });
     });
 
-    it("asks another person's authorization from a person with no access", () => {
+    it("answers that a person with no access has none", () => {
       expect(registerOperationAccess(operation, { id: "ana", access: undefined })).toEqual({
-        kind: "needs_authorization",
-        permission,
+        kind: "no_access",
       });
     });
 
@@ -100,6 +99,12 @@ describe("registerOperationAccess", () => {
     it("permits its opener who no longer has any access", () => {
       expect(registerOperationAccess(operation, { id: "ana", access: undefined })).toEqual({
         kind: "permitted",
+      });
+    });
+
+    it("refuses anyone else with no access", () => {
+      expect(registerOperationAccess(operation, { id: "bruno", access: undefined })).toEqual({
+        kind: "refused",
       });
     });
 
@@ -169,7 +174,7 @@ describe("mayAuthorize", () => {
       );
     });
 
-    it("accepts a person who may close another's session when no session is open", () => {
+    it("accepts nobody when no session is open", () => {
       expect(
         mayAuthorize(
           { kind: "close_locked_register", session: undefined },
@@ -178,7 +183,7 @@ describe("mayAuthorize", () => {
             access: CLOSER,
           },
         ),
-      ).toBe(true);
+      ).toBe(false);
     });
   });
 
