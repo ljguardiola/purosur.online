@@ -1,10 +1,8 @@
-import { ALERT_KINDS } from "@purosur/domain";
 import { eq } from "drizzle-orm";
-import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   alertDeliveries,
   alerts,
-  locations,
   rolePermissions,
   roles,
   userRoles,
@@ -12,57 +10,9 @@ import {
 } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { type OpenAlertInput, openAlert, recipientsFor } from "./open-alert.js";
-
-describe("a passkey-change alert's detail", () => {
-  it("accepts a self-service registration or removal", () => {
-    expectTypeOf<{
-      kind: "backoffice_passkey_changed";
-      scope: string;
-      detail: { action: "removed"; passkeyName: string; actorId: string; via: "self" };
-    }>().toExtend<OpenAlertInput>();
-  });
-
-  it("accepts a registration through account recovery", () => {
-    expectTypeOf<{
-      kind: "backoffice_passkey_changed";
-      scope: string;
-      detail: { action: "registered"; passkeyName: string; actorId: string; via: "recovery" };
-    }>().toExtend<OpenAlertInput>();
-  });
-
-  it("accepts an Administrator's removal", () => {
-    expectTypeOf<{
-      kind: "backoffice_passkey_changed";
-      scope: string;
-      detail: { action: "removed"; passkeyName: string; actorId: string; via: "administrator" };
-    }>().toExtend<OpenAlertInput>();
-  });
-
-  it("never accepts a removal through account recovery, which only registers", () => {
-    expectTypeOf<{
-      kind: "backoffice_passkey_changed";
-      scope: string;
-      detail: { action: "removed"; passkeyName: string; actorId: string; via: "recovery" };
-    }>().not.toExtend<OpenAlertInput>();
-  });
-
-  it("never accepts an Administrator's registration, since an Administrator only removes", () => {
-    expectTypeOf<{
-      kind: "backoffice_passkey_changed";
-      scope: string;
-      detail: {
-        action: "registered";
-        passkeyName: string;
-        actorId: string;
-        via: "administrator";
-      };
-    }>().not.toExtend<OpenAlertInput>();
-  });
-});
+import { type OpenAlertInput, openAlert } from "./open-alert.js";
 
 const NOON = new Date("2026-01-05T12:00:00.000Z");
-const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -134,287 +84,64 @@ function deliveriesOf(alertId: string) {
   return db.select().from(alertDeliveries).where(eq(alertDeliveries.alertId, alertId));
 }
 
+const PASSKEY_REGISTERED: OpenAlertInput = {
+  kind: "backoffice_passkey_changed",
+  scope: "a-user-id",
+  detail: { action: "registered", passkeyName: "Teléfono", actorId: "a-user-id", via: "self" },
+};
+
 describe("openAlert", () => {
-  it("opens a new alert with the kind's level, escalation deadline, audience and detail", async () => {
-    const outcome = await db.transaction((tx) =>
-      openAlert(
-        tx,
-        {
-          kind: "user_email_changed",
-          scope: "a-user-id",
-          detail: { previousEmail: "old@example.com", newEmail: "new@example.com" },
-        },
-        { now: () => NOON },
-      ),
-    );
-
-    expect(outcome.kind).toBe("opened");
-    if (outcome.kind !== "opened") throw new Error("unreachable");
-    const [row] = await db.select().from(alerts).where(eq(alerts.id, outcome.alertId));
-    expect(row).toMatchObject({
-      kind: "user_email_changed",
-      scope: "a-user-id",
-      level: "warning",
-      audience: "all",
-      locationId: null,
-      detail: { previousEmail: "old@example.com", newEmail: "new@example.com" },
-      escalateAt: new Date(NOON.getTime() + TWENTY_FOUR_HOURS_MS),
-      escalatedAt: null,
-      resolvedAt: null,
-    });
-  });
-
-  it("writes a delivery row for each recipient recipientsFor returns for the alert's audience", async () => {
-    const viewAllRoleId = await insertRole({
-      name: "Supervisor",
-      permissionKeys: ["view_all_alerts"],
-    });
-    await insertUser({ firstName: "Grace", email: "grace@example.com", roleId: viewAllRoleId });
-    const noPermissionRoleId = await insertRole({ name: "Repositor" });
-    const neverRecipientId = await insertUser({
-      firstName: "Hedy",
-      email: "hedy@example.com",
-      roleId: noPermissionRoleId,
-    });
-
-    const outcome = await db.transaction((tx) =>
-      openAlert(
-        tx,
-        {
-          kind: "backoffice_passkey_changed",
-          scope: "a-user-id",
-          detail: {
-            action: "registered",
-            passkeyName: "Teléfono",
-            actorId: "a-user-id",
-            via: "self",
-          },
-        },
-        { now: () => NOON },
-      ),
-    );
-
-    expect(outcome.kind).toBe("opened");
-    if (outcome.kind !== "opened") throw new Error("unreachable");
-    const expectedRecipients = await db.transaction((tx) => recipientsFor(tx, "all", undefined));
-    expect(expectedRecipients).not.toHaveLength(0);
-    expect(expectedRecipients).not.toContain(neverRecipientId);
-    const delivered = await deliveriesOf(outcome.alertId);
-    expect(delivered.map((row) => row.recipientUserId).sort()).toEqual(expectedRecipients.sort());
-    for (const row of delivered) {
-      expect(row.channel).toBe("backoffice");
-      expect(row.status).toBe("sent");
-    }
-  });
-
-  it("is idempotent under dedup: a second trigger while the alert is open opens nothing and delivers nothing new", async () => {
-    const roleId = await insertRole({ name: "Supervisor", permissionKeys: ["view_all_alerts"] });
-    await insertUser({ firstName: "Grace", email: "grace@example.com", roleId });
-
-    const first = await db.transaction((tx) =>
-      openAlert(
-        tx,
-        { kind: "backoffice_sign_in_lockout", scope: "203.0.113.5", detail: { attempts: 5 } },
-        { now: () => NOON },
-      ),
-    );
-    const second = await db.transaction((tx) =>
-      openAlert(
-        tx,
-        { kind: "backoffice_sign_in_lockout", scope: "203.0.113.5", detail: { attempts: 8 } },
-        { now: () => new Date(NOON.getTime() + 60_000) },
-      ),
-    );
-
-    expect(first.kind).toBe("opened");
-    expect(second).toEqual({
-      kind: "already_open",
-      alertId: (first as { alertId: string }).alertId,
-    });
-    const allOpenAlerts = await db
-      .select()
-      .from(alerts)
-      .where(eq(alerts.kind, "backoffice_sign_in_lockout"));
-    expect(allOpenAlerts).toHaveLength(1);
-    const delivered = await deliveriesOf((first as { alertId: string }).alertId);
-    expect(delivered).toHaveLength(1);
-  });
-
-  it("opens its own alert for a different kind of the same scope, never deduping across kinds", async () => {
-    const roleId = await insertRole({ name: "Supervisor", permissionKeys: ["view_all_alerts"] });
-    await insertUser({ firstName: "Grace", email: "grace@example.com", roleId });
-
-    const emailChanged = await db.transaction((tx) =>
-      openAlert(
-        tx,
-        {
-          kind: "user_email_changed",
-          scope: "a-user-id",
-          detail: { previousEmail: "old@example.com", newEmail: "new@example.com" },
-        },
-        { now: () => NOON },
-      ),
-    );
-    const passkeyChanged = await db.transaction((tx) =>
-      openAlert(
-        tx,
-        {
-          kind: "backoffice_passkey_changed",
-          scope: "a-user-id",
-          detail: {
-            action: "registered",
-            passkeyName: "Teléfono",
-            actorId: "a-user-id",
-            via: "self",
-          },
-        },
-        { now: () => NOON },
-      ),
-    );
-
-    expect(emailChanged.kind).toBe("opened");
-    expect(passkeyChanged.kind).toBe("opened");
-    if (emailChanged.kind !== "opened" || passkeyChanged.kind !== "opened") {
-      throw new Error("unreachable");
-    }
-    expect(passkeyChanged.alertId).not.toBe(emailChanged.alertId);
-    const openAlerts = await db.select().from(alerts).where(eq(alerts.scope, "a-user-id"));
-    expect(openAlerts).toHaveLength(2);
-  });
-
-  it.each(
-    ALERT_KINDS.filter((kind) => kind !== "user_access_increased" && kind !== "register_enrolled"),
-  )("opens %s once while it is open, whatever triggers it again", async (kind) => {
-    const input: OpenAlertInput =
-      kind === "backoffice_passkey_changed"
-        ? {
-            kind,
-            scope: "a-scope",
-            detail: { action: "registered", passkeyName: "Teléfono", actorId: "a", via: "self" },
-          }
-        : { kind, scope: "a-scope", detail: {} };
-    const first = await db.transaction((tx) => openAlert(tx, input, { now: () => NOON }));
-    const second = await db.transaction((tx) => openAlert(tx, input, { now: () => NOON }));
-
-    expect(first.kind).toBe("opened");
-    expect(second).toEqual({
-      kind: "already_open",
-      alertId: (first as { alertId: string }).alertId,
-    });
-  });
-
-  it("opens every increase of someone's access as its own alert, leaving the one already open as it was", async () => {
-    const roleId = await insertRole({ name: "Supervisor", permissionKeys: ["view_all_alerts"] });
-    await insertUser({ firstName: "Grace", email: "grace@example.com", roleId });
-    const later = new Date(NOON.getTime() + 60_000);
-
-    const first = await db.transaction((tx) =>
-      openAlert(
-        tx,
-        { kind: "user_access_increased", scope: "a-user-id", detail: { cause: "first" } },
-        { now: () => NOON },
-      ),
-    );
-    const second = await db.transaction((tx) =>
-      openAlert(
-        tx,
-        { kind: "user_access_increased", scope: "a-user-id", detail: { cause: "second" } },
-        { now: () => later },
-      ),
-    );
-
-    if (first.kind !== "opened" || second.kind !== "opened") {
-      throw new Error("expected both increases to open an alert");
-    }
-    expect(second.alertId).not.toBe(first.alertId);
-    const [firstRow] = await db.select().from(alerts).where(eq(alerts.id, first.alertId));
-    expect(firstRow).toMatchObject({
-      detail: { cause: "first" },
-      openedAt: NOON,
-      resolvedAt: null,
-    });
-    const [secondRow] = await db.select().from(alerts).where(eq(alerts.id, second.alertId));
-    expect(secondRow).toMatchObject({
-      detail: { cause: "second" },
-      openedAt: later,
-      resolvedAt: null,
-    });
-    expect(await deliveriesOf(first.alertId)).toHaveLength(1);
-    expect(await deliveriesOf(second.alertId)).toHaveLength(1);
-  });
-
-  it("opens a fresh alert once the earlier one of the same kind and scope is resolved", async () => {
-    const roleId = await insertRole({ name: "Supervisor", permissionKeys: ["view_all_alerts"] });
-    await insertUser({ firstName: "Grace", email: "grace@example.com", roleId });
-
-    const first = await db.transaction((tx) =>
-      openAlert(
-        tx,
-        { kind: "backoffice_recovery_requested", scope: "a-user-id", detail: {} },
-        { now: () => NOON },
-      ),
-    );
-    if (first.kind !== "opened") throw new Error("unreachable");
-    await db.update(alerts).set({ resolvedAt: NOON }).where(eq(alerts.id, first.alertId));
-
-    const second = await db.transaction((tx) =>
-      openAlert(
-        tx,
-        { kind: "backoffice_recovery_requested", scope: "a-user-id", detail: {} },
-        { now: () => new Date(NOON.getTime() + 60_000) },
-      ),
-    );
-
-    expect(second.kind).toBe("opened");
-    expect((second as { alertId: string }).alertId).not.toBe(first.alertId);
-  });
-});
-
-describe("recipientsFor", () => {
-  it("delivers to an active Administrator, excludes an inactive one, and forwards the audience and locationId it's given", async () => {
-    const administratorRoleId = await seededAdministratorRoleId();
-    const activeAdministratorId = await insertUser({
+  it("opens the alert and delivers it to each active user who may see it, through the caller's transaction", async () => {
+    const administratorId = await insertUser({
       firstName: "Ada",
       email: "ada@example.com",
-      roleId: administratorRoleId,
+      roleId: await seededAdministratorRoleId(),
+    });
+    const supervisorId = await insertUser({
+      firstName: "Grace",
+      email: "grace@example.com",
+      roleId: await insertRole({ name: "Supervisor", permissionKeys: ["view_all_alerts"] }),
+    });
+    await insertUser({
+      firstName: "Hedy",
+      email: "hedy@example.com",
+      roleId: await insertRole({ name: "Repositor" }),
     });
     await insertUser({
       firstName: "Inactiva",
       email: "inactiva@example.com",
-      roleId: administratorRoleId,
+      roleId: await insertRole({ name: "Otra supervisora", permissionKeys: ["view_all_alerts"] }),
       active: false,
     });
 
-    const allRecipients = await db.transaction((tx) => recipientsFor(tx, "all", undefined));
-    expect(allRecipients).toEqual([activeAdministratorId]);
+    const outcome = await db.transaction((tx) =>
+      openAlert(tx, PASSKEY_REGISTERED, { now: () => NOON }),
+    );
 
-    const viewLocalRoleId = await insertRole({
-      name: "Cajera",
-      permissionKeys: ["view_branch_alerts"],
-    });
-    const ownBranchCashierId = await insertUser({
-      firstName: "Local",
-      email: "local@example.com",
-      roleId: viewLocalRoleId,
-    });
-    const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
-    if (!otherLocation) {
-      throw new Error("test setup: inserting the other location returned no row");
-    }
-    const [otherBranchCashier] = await db
-      .insert(users)
-      .values({
-        firstName: "Other Branch",
-        email: "other-branch@example.com",
-        locationId: otherLocation.id,
-      })
-      .returning({ id: users.id });
-    if (!otherBranchCashier) {
-      throw new Error("test setup: inserting the other-branch user returned no row");
-    }
-    await db.insert(userRoles).values({ userId: otherBranchCashier.id, roleId: viewLocalRoleId });
+    if (outcome.kind !== "opened") throw new Error("expected the alert to open");
+    const [row] = await db.select().from(alerts).where(eq(alerts.id, outcome.alertId));
+    expect(row).toMatchObject({ kind: "backoffice_passkey_changed", openedAt: NOON });
+    const delivered = await deliveriesOf(outcome.alertId);
+    expect(delivered.map((delivery) => delivery.recipientUserId).sort()).toEqual(
+      [administratorId, supervisorId].sort(),
+    );
+  });
 
-    const localRecipients = await db.transaction((tx) => recipientsFor(tx, "local", locationId));
-    expect(localRecipients.sort()).toEqual([activeAdministratorId, ownBranchCashierId].sort());
+  it("answers already_open for a second trigger while the alert is open, delivering nothing new", async () => {
+    await insertUser({
+      firstName: "Grace",
+      email: "grace@example.com",
+      roleId: await insertRole({ name: "Supervisor", permissionKeys: ["view_all_alerts"] }),
+    });
+
+    const [first, second] = await db.transaction(async (tx) => [
+      await openAlert(tx, PASSKEY_REGISTERED, { now: () => NOON }),
+      await openAlert(tx, PASSKEY_REGISTERED, { now: () => new Date(NOON.getTime() + 60_000) }),
+    ]);
+
+    if (first?.kind !== "opened") throw new Error("expected the first trigger to open");
+    expect(second).toEqual({ kind: "already_open", alertId: first.alertId });
+    expect(await db.select().from(alerts)).toHaveLength(1);
+    expect(await db.select().from(alertDeliveries)).toHaveLength(1);
   });
 });

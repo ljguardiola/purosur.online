@@ -26,7 +26,7 @@ export interface ProcessRecoveryRequestJobResult {
 
 const TOKEN_ENTROPY_BITS = 160;
 const TOKEN_BYTES = TOKEN_ENTROPY_BITS / 8;
-const TOKEN_LIFETIME_MS = 15 * 60 * 1000;
+export const TOKEN_LIFETIME_MS = 15 * 60 * 1000;
 
 function generateRawToken(): string {
   return randomBytes(TOKEN_BYTES).toString("base64url");

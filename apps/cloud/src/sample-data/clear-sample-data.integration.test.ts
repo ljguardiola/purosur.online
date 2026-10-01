@@ -53,6 +53,11 @@ import {
 } from "./sample-catalog.js";
 
 const NOW = new Date("2026-04-01T09:00:00.000Z");
+const RECOVERY_REQUESTED_DETAIL = {
+  requestedAt: NOW.toISOString(),
+  issuedAt: NOW.toISOString(),
+  expiresAt: new Date(NOW.getTime() + 15 * 60 * 1000).toISOString(),
+};
 
 let integrationDb: IntegrationDatabase | undefined;
 let connection: ReturnType<typeof postgres> | undefined;
@@ -300,7 +305,11 @@ describe("clearSampleData", () => {
     const realAlertOutcome = await db.transaction((tx) =>
       openAlert(
         tx,
-        { kind: "backoffice_recovery_requested", scope: realUserOutcome.user.id, detail: {} },
+        {
+          kind: "backoffice_recovery_requested",
+          scope: realUserOutcome.user.id,
+          detail: RECOVERY_REQUESTED_DETAIL,
+        },
         { now: () => NOW },
       ),
     );
@@ -428,7 +437,11 @@ describe("clearSampleData", () => {
     const realAlert = await db.transaction((tx) =>
       openAlert(
         tx,
-        { kind: "backoffice_recovery_requested", scope: bootstrapAdmin.id, detail: {} },
+        {
+          kind: "backoffice_recovery_requested",
+          scope: bootstrapAdmin.id,
+          detail: RECOVERY_REQUESTED_DETAIL,
+        },
         { now: () => NOW },
       ),
     );

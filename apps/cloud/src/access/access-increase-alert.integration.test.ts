@@ -223,10 +223,15 @@ describe("assigning a role while that role's edit writes rows naming the person,
 describe("two increases of the same person's access at once, on a real Postgres", () => {
   it("opens both alerts without either waiting for the other", async () => {
     const userId = await insertUser(await insertRole(["sell_and_charge"]));
-    const increase = (cause: string) => ({
+    const increase = (roleName: string) => ({
       kind: "user_access_increased" as const,
       scope: userId,
-      detail: { cause },
+      detail: {
+        cause: "role_permissions_added" as const,
+        roleName,
+        addedPermissionKeys: ["view_all_alerts"],
+        actorId: userId,
+      },
     });
 
     let release: () => void = () => {};
@@ -255,7 +260,10 @@ describe("two increases of the same person's access at once, on a real Postgres"
 
     expect((await first).kind).toBe("opened");
     const alertsForUser = await accessIncreasedAlertsFor(userId);
-    expect(alertsForUser.map((alert) => alert.detail["cause"]).sort()).toEqual(["first", "second"]);
+    expect(alertsForUser.map((alert) => alert.detail["roleName"]).sort()).toEqual([
+      "first",
+      "second",
+    ]);
   });
 });
 

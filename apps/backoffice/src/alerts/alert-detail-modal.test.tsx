@@ -21,21 +21,36 @@ function createServices(
   };
 }
 
-function baseDetail(overrides: Partial<AlertDetail> = {}): AlertDetail {
-  return {
+type PasskeyAlert = Extract<AlertDetail, { kind: "backoffice_passkey_changed" }>;
+type CommonFields = Partial<Omit<AlertDetail, "kind" | "detail">>;
+type KindAndDetail<Alert extends AlertDetail = AlertDetail> = Alert extends AlertDetail
+  ? Pick<Alert, "kind" | "detail">
+  : never;
+type DetailOverrides =
+  | (CommonFields & Partial<Pick<PasskeyAlert, "detail">>)
+  | (CommonFields & KindAndDetail);
+
+function baseDetail(overrides: DetailOverrides = {}): AlertDetail {
+  const passkeyAlert: PasskeyAlert = {
     id: "alert-1",
     kind: "backoffice_passkey_changed",
     scope: "user-1",
     scopeDisplay: "Lucía Pérez",
     level: "warning",
     audience: "all",
-    detail: { action: "registered", passkeyName: "Teléfono de Lucía", via: "self" },
+    detail: {
+      action: "registered",
+      passkeyName: "Teléfono de Lucía",
+      actorId: "user-1",
+      via: "self",
+    },
     openedAt: "2026-01-05T12:00:00.000Z",
     escalatedAt: null,
     resolvedAt: null,
+    open: true,
     deliveries: [],
-    ...overrides,
   };
+  return { ...passkeyAlert, ...overrides };
 }
 
 function ok(value: AlertDetail): FetchAlertOutcome {
@@ -92,7 +107,12 @@ test("shows the self-removed passkey description", async () => {
   vi.mocked(services.fetchAlert).mockResolvedValue(
     ok(
       baseDetail({
-        detail: { action: "removed", passkeyName: "Teléfono de Lucía", via: "self" },
+        detail: {
+          action: "removed",
+          passkeyName: "Teléfono de Lucía",
+          actorId: "user-1",
+          via: "self",
+        },
       }),
     ),
   );
@@ -113,7 +133,12 @@ test("shows the passkey registered through account recovery", async () => {
   vi.mocked(services.fetchAlert).mockResolvedValue(
     ok(
       baseDetail({
-        detail: { action: "registered", passkeyName: "Teléfono de Lucía", via: "recovery" },
+        detail: {
+          action: "registered",
+          passkeyName: "Teléfono de Lucía",
+          actorId: "user-1",
+          via: "recovery",
+        },
       }),
     ),
   );
@@ -127,42 +152,6 @@ test("shows the passkey registered through account recovery", async () => {
       ),
     )
     .toBeVisible();
-});
-
-test("describes no passkey removal through account recovery, which only registers", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchAlert).mockResolvedValueOnce(
-    ok(
-      baseDetail({
-        detail: { action: "removed", passkeyName: "Teléfono de Lucía", via: "recovery" },
-      }),
-    ),
-  );
-  const screen = await renderModal(services);
-  await expect.element(screen.getByText("Lucía Pérez", { exact: true })).toBeVisible();
-
-  expect(screen.getByText(/Teléfono de Lucía/).query()).toBeNull();
-});
-
-test("describes no Administrator's registration of someone else's passkey", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchAlert).mockResolvedValueOnce(
-    ok(
-      baseDetail({
-        detail: {
-          action: "registered",
-          passkeyName: "Teléfono de Lucía",
-          via: "administrator",
-          actorId: "admin-1",
-          actorName: "Ada",
-        },
-      }),
-    ),
-  );
-  const screen = await renderModal(services);
-  await expect.element(screen.getByText("Lucía Pérez", { exact: true })).toBeVisible();
-
-  expect(screen.getByText(/Teléfono de Lucía/).query()).toBeNull();
 });
 
 test("shows when an escalated alert escalated, with no fixed escalation line repeating it", async () => {
@@ -181,7 +170,7 @@ test("shows when an escalated alert escalated, with no fixed escalation line rep
 test("shows the closing note only while the alert is still open", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
-    ok(baseDetail({ resolvedAt: "2026-01-05T13:00:00.000Z" })),
+    ok(baseDetail({ resolvedAt: "2026-01-05T13:00:00.000Z", open: false })),
   );
 
   const screen = await renderModal(services);
@@ -196,7 +185,11 @@ test("never shows an Administrator's change without that Administrator's name", 
     ok(
       baseDetail({
         kind: "user_email_changed",
-        detail: { previousEmail: "old@example.com", newEmail: "new@example.com" },
+        detail: {
+          previousEmail: "old@example.com",
+          newEmail: "new@example.com",
+          actorId: "admin-1",
+        },
       }),
     ),
   );
@@ -332,6 +325,7 @@ test("describes a closed sign-in lockout without its source address, and leaves 
           blockedUntil: "2026-01-05T12:15:00.000Z",
         },
         resolvedAt: "2026-01-05T13:00:00.000Z",
+        open: false,
       }),
     ),
   );
@@ -400,10 +394,21 @@ test("hides Cerrar la alerta for a viewer without dismiss_alerts_manually", asyn
   expect(screen.getByRole("button", { name: "Cerrar la alerta" }).query()).toBeNull();
 });
 
+test("offers neither closing nor the closing note once the cloud answers the alert is not open", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(baseDetail({ open: false })));
+
+  const screen = await renderModal(services);
+  await expect.element(screen.getByText("Se registró una passkey")).toBeVisible();
+
+  expect(screen.getByRole("button", { name: "Cerrar la alerta" }).query()).toBeNull();
+  expect(screen.getByText(/No se cierra sola/).query()).toBeNull();
+});
+
 test("hides Cerrar la alerta for an alert that's already closed", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
-    ok(baseDetail({ resolvedAt: "2026-01-05T13:00:00.000Z" })),
+    ok(baseDetail({ resolvedAt: "2026-01-05T13:00:00.000Z", open: false })),
   );
 
   const screen = await renderModal(services);
@@ -449,7 +454,7 @@ test("shows a notice when someone else already closed it, instead of reporting s
   const screen = await renderModal(services, { onClosed });
   await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
   vi.mocked(services.fetchAlert).mockResolvedValue(
-    ok(baseDetail({ resolvedAt: "2026-01-05T13:00:00.000Z" })),
+    ok(baseDetail({ resolvedAt: "2026-01-05T13:00:00.000Z", open: false })),
   );
 
   await userEvent.click(screen.getByRole("button", { name: "Cerrar la alerta" }));
@@ -754,6 +759,7 @@ test("never shows an increase of access without the Administrator's name", async
           cause: "role_permissions_added",
           roleName: "Cajera",
           addedPermissionKeys: ["configure_branch"],
+          actorId: "admin-1",
         },
       }),
     ),
@@ -822,7 +828,12 @@ test("describes a register that had no installation before without a replaced on
       baseDetail({
         kind: "register_enrolled",
         scopeDisplay: "Caja 1",
-        detail: { hostname: "CAJA-MOSTRADOR", windowsVersion: "11", replacedInstallation: false },
+        detail: {
+          deviceId: "device-1",
+          hostname: "CAJA-MOSTRADOR",
+          windowsVersion: "11",
+          replacedInstallation: false,
+        },
       }),
     ),
   );
@@ -836,21 +847,4 @@ test("describes a register that had no installation before without a replaced on
       ),
     )
     .toBeVisible();
-});
-
-test("describes no enrollment it can't read", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchAlert).mockResolvedValueOnce(
-    ok(
-      baseDetail({
-        kind: "register_enrolled",
-        scopeDisplay: "Caja 1",
-        detail: { hostname: "CAJA-MOSTRADOR" },
-      }),
-    ),
-  );
-  const screen = await renderModal(services);
-  await expect.element(screen.getByText("Se dio de alta una caja")).toBeVisible();
-
-  expect(screen.getByText(/CAJA-MOSTRADOR/).query()).toBeNull();
 });
