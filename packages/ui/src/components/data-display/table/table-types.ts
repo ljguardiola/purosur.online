@@ -23,6 +23,8 @@ export type TableColumn<
   Sortable extends boolean = boolean,
 > = ColumnDef<TableModelFeatures, T> & { id: Id; enableSorting: Sortable };
 
+export type TableColumns<T extends RowData> = readonly [TableColumn<T>, ...TableColumn<T>[]];
+
 export type TableModel<T extends RowData> = ReactTable<TableModelFeatures, T>;
 
 // A column whose enableSorting is a plain boolean still counts, so a widely annotated columns

@@ -12,7 +12,7 @@ import { Button } from "../../forms/button";
 import { Table } from "./table";
 import { TableCellText } from "./table-cell-text";
 import { actionsColumn, dataColumn } from "./table-columns";
-import type { TableColumn, TableProps, TableSort } from "./table-types";
+import type { TableColumn, TableColumns, TableProps, TableSort } from "./table-types";
 import { useTableModel } from "./use-table-model";
 
 type Product = { id: string; name: string; sku?: string; stock: string };
@@ -44,7 +44,7 @@ function TestTable<T extends RowData & { id: string }>({
   onSortChange = () => {},
   ...tableProps
 }: DistributiveOmit<TableProps<T>, "table"> & {
-  columns: readonly TableColumn<T>[];
+  columns: TableColumns<T>;
   items: readonly T[];
   sort?: TableSort;
   onSortChange?: (sort: TableSort) => void;

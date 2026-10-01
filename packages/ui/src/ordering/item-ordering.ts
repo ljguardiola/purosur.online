@@ -1,3 +1,5 @@
+import { itemTree } from "./item-tree";
+
 export type ItemOrder<T> = (a: T, b: T) => number;
 
 export type ItemsSort<T> = {
@@ -18,40 +20,16 @@ function inTreeOrder<T>(
   id: (item: T) => string,
   parentId: ItemParent<T>,
 ): T[] {
-  const ids = new Set(items.map(id));
-  const roots: T[] = [];
-  const childrenByParent = new Map<string, T[]>();
-  for (const item of items) {
-    const parent = parentId(item);
-    const siblings = parent === null ? undefined : childrenByParent.get(parent);
-    if (siblings !== undefined) {
-      siblings.push(item);
-    } else if (parent !== null && ids.has(parent)) {
-      childrenByParent.set(parent, [item]);
-    } else {
-      roots.push(item);
-    }
-  }
-
+  const tree = itemTree(items, id, parentId);
   const ordered: T[] = [];
-  const visited = new Set<string>();
   function walk(item: T): void {
-    if (visited.has(id(item))) {
-      return;
-    }
-    visited.add(id(item));
     ordered.push(item);
-    for (const child of (childrenByParent.get(id(item)) ?? []).sort(order)) {
+    for (const child of [...tree.childrenOf(item)].sort(order)) {
       walk(child);
     }
   }
-
-  for (const root of roots.sort(order)) {
+  for (const root of [...tree.roots].sort(order)) {
     walk(root);
-  }
-  const itemsInCycles = items.filter((item) => !visited.has(id(item)));
-  for (const item of itemsInCycles.sort(order)) {
-    walk(item);
   }
   return ordered;
 }

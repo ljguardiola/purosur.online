@@ -8,7 +8,7 @@ import {
 import { Button } from "../../forms/button";
 import { Table } from "./table";
 import { actionsColumn, dataColumn } from "./table-columns";
-import type { TableColumn, TableProps, TableSort } from "./table-types";
+import type { TableColumns, TableProps, TableSort } from "./table-types";
 import { useTableModel } from "./use-table-model";
 
 type Product = { id: string; name: string; sku: string; stock: string };
@@ -33,7 +33,7 @@ function ProductsTable({
   onSortChange,
   ...tableProps
 }: DistributiveOmit<TableProps<Product>, "table"> & {
-  columns: readonly TableColumn<Product>[];
+  columns: TableColumns<Product>;
   items?: readonly Product[];
   sort?: TableSort;
   onSortChange?: (sort: TableSort) => void;

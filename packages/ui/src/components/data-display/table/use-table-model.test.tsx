@@ -1,8 +1,8 @@
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import { renderHook } from "vitest-browser-react";
-import { textOrder } from "../../../ordering/item-ordering";
+import { sortedItems, textOrder } from "../../../ordering/item-ordering";
 import { dataColumn } from "./table-columns";
-import type { TableSort } from "./table-types";
+import type { TableColumn, TableColumns, TableSort } from "./table-types";
 import { type TableModelOptions, useTableModel } from "./use-table-model";
 
 type Fruit = { id: string; name: string; codes: string[]; weight: number };
@@ -376,6 +376,29 @@ describe("a tree of items", () => {
     ).toEqual(["Bucle A", "Bucle B", "Huérfana", "Raíz"]);
   });
 
+  it("lists the items in the order sortedItems gives the same tree, in either direction", async () => {
+    const withCycle = [
+      ...tree,
+      node("root", "Raíz"),
+      node("orphan", "Huérfana", "gone"),
+      node("loop-a", "Bucle A", "loop-b"),
+      node("loop-b", "Bucle B", "loop-a"),
+    ];
+
+    for (const items of [tree, withCycle]) {
+      for (const direction of ["ascending", "descending"] as const) {
+        expect(await nodes(items, direction)).toEqual(
+          sortedItems(items, {
+            order: textOrder((item: Node) => item.name),
+            direction,
+            id: byId,
+            parentId,
+          }).map((item) => item.name),
+        );
+      }
+    }
+  });
+
   it("shows a matching child together with its parents, each still in its place in the tree", async () => {
     expect(await nodes(tree, "ascending", { text: "tint", in: (item) => [item.name] })).toEqual([
       "Bebidas",
@@ -436,6 +459,39 @@ describe("what it accepts", () => {
         onSortChange: (sort: TableSort<"name" | "weight">) => void;
       }
     >().not.toExtend<SortableOptions>();
+  });
+
+  it("does not accept an empty list of columns", () => {
+    expectTypeOf<readonly []>().not.toExtend<TableColumns<Fruit>>();
+    expectTypeOf<readonly TableColumn<Fruit>[]>().not.toExtend<TableColumns<Fruit>>();
+    expectTypeOf<typeof plainColumns>().toExtend<TableColumns<Fruit>>();
+  });
+
+  it("does not accept a non-literal boolean enableSorting, alone or beside a sortable column", () => {
+    type Column<Sortable extends boolean> = TableColumn<Fruit, "name", Sortable>;
+    type Options<C extends TableColumns<Fruit>> = Omit<TableModelOptions<Fruit, C>, "columns">;
+
+    expectTypeOf<Column<boolean>>().not.toExtend<Column<false>>();
+    expectTypeOf<Column<true>>().toExtend<Column<boolean>>();
+    expectTypeOf<Options<[Column<boolean>]>["sort"]>().toEqualTypeOf<TableSort<"name">>();
+    expectTypeOf<Options<[Column<boolean>]>["onSortChange"]>().toEqualTypeOf<
+      (sort: TableSort<"name">) => void
+    >();
+  });
+
+  it("falls to the safe side for a widely annotated columns array: a required handler and string ids", () => {
+    const wide: readonly [TableColumn<Fruit>, ...TableColumn<Fruit>[]] = [nameColumn, originColumn];
+    type Wide = TableModelOptions<Fruit, typeof wide>;
+
+    expectTypeOf<Wide["sort"]>().toEqualTypeOf<TableSort<string>>();
+    expectTypeOf<Base & { columns: typeof wide }>().not.toExtend<Wide>();
+    expectTypeOf<
+      Base & {
+        columns: typeof wide;
+        sort: TableSort<string>;
+        onSortChange: (sort: TableSort<string>) => void;
+      }
+    >().toExtend<Wide>();
   });
 
   it("types the sort's column as exactly the ids of the sortable columns", () => {

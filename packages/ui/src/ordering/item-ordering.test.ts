@@ -112,7 +112,7 @@ describe("sortedItems", () => {
         treeSort("ascending"),
       );
 
-      expect(names(sorted)).toEqual(["Huérfana", "Raíz", "Bucle A", "Bucle B"]);
+      expect(names(sorted)).toEqual(["Bucle A", "Bucle B", "Huérfana", "Raíz"]);
     });
   });
 });

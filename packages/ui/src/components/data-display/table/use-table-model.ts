@@ -1,7 +1,13 @@
 import { functionalUpdate, type Row, type RowData, useTable } from "@tanstack/react-table";
-import { itemTree } from "./item-tree";
+import { itemTree } from "../../../ordering/item-tree";
 import { tableModelFeatures } from "./table-features";
-import type { TableColumn, TableModel, TableSort, TableSortableColumnId } from "./table-types";
+import type {
+  TableColumn,
+  TableColumns,
+  TableModel,
+  TableSort,
+  TableSortableColumnId,
+} from "./table-types";
 
 type TableModelSearch<T> = { text: string; in: (item: T) => readonly string[] };
 
@@ -24,7 +30,7 @@ type TableModelSortOptions<C extends readonly { id: string; enableSorting: boole
 
 export type TableModelOptions<
   T extends RowData,
-  C extends readonly TableColumn<T>[],
+  C extends TableColumns<T>,
 > = TableModelCommonOptions<T> & {
   columns: C;
 } & TableModelSortOptions<C>;
@@ -60,7 +66,7 @@ function passesRowFilter<T extends RowData>(
   return matchesSearch && (filter === undefined || filter(item));
 }
 
-export function useTableModel<T extends RowData, const C extends readonly TableColumn<T>[]>(
+export function useTableModel<T extends RowData, const C extends TableColumns<T>>(
   options: TableModelOptions<T, C>,
 ): TableModel<T>;
 export function useTableModel<T extends RowData>({
