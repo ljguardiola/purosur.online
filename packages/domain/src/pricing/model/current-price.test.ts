@@ -26,6 +26,13 @@ describe("newestPrice", () => {
     expect(newestPrice([greater, lesser])).toBe(greater);
   });
 
+  it("keeps the first copy when the same price is offered twice", () => {
+    const first = { id: "a", validFrom: LATER };
+    const second = { id: "a", validFrom: LATER };
+
+    expect(newestPrice([first, second])).toBe(first);
+  });
+
   it("is the same price whatever order the candidates arrive in", () => {
     const candidate = fc.record({
       id: fc.constantFrom("a", "b", "c", "d"),

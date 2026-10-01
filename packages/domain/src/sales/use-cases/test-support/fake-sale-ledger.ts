@@ -18,6 +18,7 @@ import type {
 } from "../sale-ledger.js";
 
 interface FakePrice extends ListPrice {
+  id: string;
   productId: string;
   validFrom: Date;
 }
@@ -192,10 +193,10 @@ function latestPriceAt(
   productId: string,
   moment: Date,
 ): ListPrice | undefined {
-  const candidates = prices
-    .filter((price) => price.productId === productId)
-    .map((price, index) => ({ ...price, id: String(index) }));
-  const inEffect = priceInEffectAt(candidates, moment);
+  const inEffect = priceInEffectAt(
+    prices.filter((price) => price.productId === productId),
+    moment,
+  );
   return inEffect && { priceListId: inEffect.priceListId, unitPrice: inEffect.unitPrice };
 }
 

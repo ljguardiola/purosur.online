@@ -37,8 +37,20 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
     session: SESSION,
     products: [YERBA, QUESO, FIDEOS],
     prices: [
-      { productId: "yerba", priceListId: "list-1", unitPrice: 2500, validFrom: LONG_AGO },
-      { productId: "queso", priceListId: "list-1", unitPrice: 9000, validFrom: LONG_AGO },
+      {
+        id: "price-1",
+        productId: "yerba",
+        priceListId: "list-1",
+        unitPrice: 2500,
+        validFrom: LONG_AGO,
+      },
+      {
+        id: "price-2",
+        productId: "queso",
+        priceListId: "list-1",
+        unitPrice: 9000,
+        validFrom: LONG_AGO,
+      },
     ],
     ...state,
   });

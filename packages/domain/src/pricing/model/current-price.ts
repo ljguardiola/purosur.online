@@ -25,6 +25,7 @@ export function priceInEffectAt<TPrice extends DatedPrice>(
 }
 
 function isNewer(candidate: DatedPrice, than: DatedPrice): boolean {
-  const difference = candidate.validFrom.getTime() - than.validFrom.getTime();
-  return difference === 0 ? candidate.id > than.id : difference > 0;
+  const starts = candidate.validFrom.getTime();
+  const thanStarts = than.validFrom.getTime();
+  return starts > thanStarts || (starts === thanStarts && candidate.id > than.id);
 }
