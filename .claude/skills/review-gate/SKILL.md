@@ -60,7 +60,7 @@ ledger.
 | Verdict | Action |
 |---|---|
 | Confirmed, kind `decision` | Mark it `stopped` and stop the review: report it to the coordinator with its evidence. Nothing is fixed and the review does not approve it. |
-| Confirmed, in scope, any other kind | Fix it, whatever its label. |
+| Confirmed, in scope, any other kind | Mark it `open`: it is fixed in step 6, whatever its label. |
 | Confirmed, out of scope | File it as a new issue following "Issues" in `CONTRIBUTING.md`, and report its number to the coordinator. Not fixed here. |
 | Refuted | Record the proof that refutes it. Not fixed. |
 
@@ -76,8 +76,8 @@ the owner when no session coordinates. Once the coordinator answers a
   answer moves it out of the issue, or is marked `accepted` when the answer
   keeps the code as it is.
 
-Then continue at step 6 with the rows that are `open`; when none is, go to
-step 7.
+Then continue at step 6 with the rows that are `open`. When none is, go to
+step 2 to re-review any fix commit not re-reviewed yet, or else to step 7.
 
 ## 6. Fix
 
@@ -93,7 +93,8 @@ reports each id `fixed` or `not fixed` with the reason.
 - A row reported `not fixed`, or reopened by a re-review, stays `open` with
   the reason in the ledger and goes to the next fixer launch, which takes a
   different approach. A row two failed attempts could not close is marked
-  `stopped` and stops the review: report it to the coordinator.
+  `stopped` instead of going to the fixer again, and stops the review: report
+  it to the coordinator.
 
 There is no round limit.
 
