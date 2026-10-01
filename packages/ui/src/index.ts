@@ -13,12 +13,10 @@ export { Table } from "./components/data-display/table/table";
 export type { TableCellTextProps } from "./components/data-display/table/table-cell-text";
 export { TableCellText } from "./components/data-display/table/table-cell-text";
 export type {
-  TableItemOrder,
-  TableItemsSort,
   TableRows,
   TableRowsOptions,
 } from "./components/data-display/table/table-rows";
-export { sortedItems, tableRows, textOrder } from "./components/data-display/table/table-rows";
+export { tableRows } from "./components/data-display/table/table-rows";
 export type {
   TableAction,
   TableColumn,
@@ -134,3 +132,5 @@ export type {
   HelpCatalog,
 } from "./messages/help";
 export { defineHelp } from "./messages/help";
+export type { ItemOrder, ItemsSort } from "./ordering/item-ordering";
+export { sortedItems, textOrder } from "./ordering/item-ordering";

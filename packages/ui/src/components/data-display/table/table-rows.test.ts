@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { sortedItems, tableRows, textOrder } from "./table-rows";
+import { textOrder } from "../../../ordering/item-ordering";
+import { tableRows } from "./table-rows";
 
 type Fruit = { id: string; name: string; codes: string[] };
 
@@ -320,39 +321,5 @@ describe("tableRows", () => {
 
       expect(names(rows)).toEqual(["Vinos", "Blancos", "Tintos", "Lácteos"]);
     });
-  });
-});
-
-describe("textOrder", () => {
-  it("orders texts the way they sort in Argentine Spanish", () => {
-    const order = textOrder((text: string) => text);
-
-    expect(["ñandú", "nuez", "Oliva", "árbol", "banana"].sort(order)).toEqual([
-      "árbol",
-      "banana",
-      "nuez",
-      "ñandú",
-      "Oliva",
-    ]);
-  });
-});
-
-describe("sortedItems", () => {
-  it("orders items outside a table the same way a table orders its rows", () => {
-    const items = [
-      { id: "b", name: "Bebidas", parentId: null },
-      { id: "w", name: "Vinos", parentId: "b" },
-      { id: "a", name: "Aguas", parentId: "b" },
-      { id: "d", name: "Almacén", parentId: null },
-    ];
-
-    const sorted = sortedItems(items, {
-      order: textOrder((item) => item.name),
-      direction: "ascending",
-      id: byId,
-      parentId: (item) => item.parentId,
-    });
-
-    expect(sorted.map((item) => item.name)).toEqual(["Almacén", "Bebidas", "Aguas", "Vinos"]);
   });
 });

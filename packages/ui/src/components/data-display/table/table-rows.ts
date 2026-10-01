@@ -1,11 +1,5 @@
-import type { TableRow, TableSort, TableSortDirection } from "./table-types";
-
-export type TableItemOrder<T> = (a: T, b: T) => number;
-
-export type TableItemsSort<T> = {
-  order: TableItemOrder<T>;
-  direction: TableSortDirection;
-} & ({ id?: never; parentId?: never } | { id: (item: T) => string; parentId: TableItemParent<T> });
+import { type ItemOrder, sortedItems } from "../../../ordering/item-ordering";
+import type { TableRow, TableSort } from "./table-types";
 
 type TableItemParent<T> = (item: T) => string | null;
 
@@ -16,7 +10,7 @@ export type TableRowsOptions<T, K extends string> = {
   filter?: (item: T) => boolean;
   sort?: {
     by: TableSort<K>;
-    orders: Record<K, TableItemOrder<T>>;
+    orders: Record<K, ItemOrder<T>>;
     parentId?: TableItemParent<T>;
   };
   page?: { number: number; size: number };
@@ -28,64 +22,6 @@ export type TableRows<T> = {
   page: number;
   pageCount: number;
 };
-
-export function textOrder<T>(text: (item: T) => string): TableItemOrder<T> {
-  const collator = new Intl.Collator("es-AR");
-  return (a, b) => collator.compare(text(a), text(b));
-}
-
-function inTreeOrder<T>(
-  items: readonly T[],
-  order: TableItemOrder<T>,
-  id: (item: T) => string,
-  parentId: TableItemParent<T>,
-): T[] {
-  const ids = new Set(items.map(id));
-  const roots: T[] = [];
-  const childrenByParent = new Map<string, T[]>();
-  for (const item of items) {
-    const parent = parentId(item);
-    const siblings = parent === null ? undefined : childrenByParent.get(parent);
-    if (siblings !== undefined) {
-      siblings.push(item);
-    } else if (parent !== null && ids.has(parent)) {
-      childrenByParent.set(parent, [item]);
-    } else {
-      roots.push(item);
-    }
-  }
-
-  const ordered: T[] = [];
-  const visited = new Set<string>();
-  function walk(item: T): void {
-    if (visited.has(id(item))) {
-      return;
-    }
-    visited.add(id(item));
-    ordered.push(item);
-    for (const child of (childrenByParent.get(id(item)) ?? []).sort(order)) {
-      walk(child);
-    }
-  }
-
-  for (const root of roots.sort(order)) {
-    walk(root);
-  }
-  const itemsInCycles = items.filter((item) => !visited.has(id(item)));
-  for (const item of itemsInCycles.sort(order)) {
-    walk(item);
-  }
-  return ordered;
-}
-
-export function sortedItems<T>(items: readonly T[], sort: TableItemsSort<T>): T[] {
-  const order: TableItemOrder<T> =
-    sort.direction === "ascending" ? sort.order : (a, b) => sort.order(b, a);
-  if (sort.id === undefined) {
-    return [...items].sort(order);
-  }
-  return inTreeOrder(items, order, sort.id, sort.parentId);
-}
 
 function searchMatcher<T>(search: TableRowsOptions<T, string>["search"]): (item: T) => boolean {
   const query = search?.text.trim().toLowerCase() ?? "";
