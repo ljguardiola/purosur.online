@@ -79,6 +79,7 @@ test("shows recién for a code issued less than a minute ago", async () => {
     id: "register-3",
     name: "Caja 3",
     pendingCode: { secondsSinceIssued: 20, secondsUntilExpiry: 880 },
+    pointOfSaleNumber: null,
   };
   vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [justIssued] });
 
@@ -662,7 +663,10 @@ test("keeps the current rows visible while the list refreshes after creating a r
 
   pendingRefresh.resolve({
     kind: "ok",
-    value: [register1, { id: "register-3", name: "Caja 3", pendingCode: null }],
+    value: [
+      register1,
+      { id: "register-3", name: "Caja 3", pendingCode: null, pointOfSaleNumber: null },
+    ],
   });
 
   await expect.element(screen.getByText("2 cajas")).toBeVisible();
@@ -689,7 +693,7 @@ test("shows loading placeholders, not an empty table, while the list refreshes f
 
   pendingRefresh.resolve({
     kind: "ok",
-    value: [{ id: "register-3", name: "Caja 3", pendingCode: null }],
+    value: [{ id: "register-3", name: "Caja 3", pendingCode: null, pointOfSaleNumber: null }],
   });
 
   await expect.element(screen.getByText("Caja 3")).toBeVisible();
