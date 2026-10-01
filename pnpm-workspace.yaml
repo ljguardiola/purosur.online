@@ -29,3 +29,13 @@ patchedDependencies:
   # test inside a describe block is skipped), and a test file that fails to import now reports no
   # tests at all (the runner takes that as a passing run). Remove once the runner handles both.
   "@stryker-mutator/vitest-runner@10.0.0": patches/@stryker-mutator__vitest-runner@10.0.0.patch
+
+packageExtensions:
+  # unplugin types its Vite plugins against whichever vite it can reach without declaring it, so
+  # the register (Vite 7) would get them typed against the root's Vite 8.
+  unplugin@2:
+    peerDependencies:
+      vite: "*"
+    peerDependenciesMeta:
+      vite:
+        optional: true
