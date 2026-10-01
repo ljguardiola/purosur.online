@@ -13,7 +13,7 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerChangesRoute } from "./changes-route.js";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z");
-const SEEDED_CHANGES = 3;
+const SEEDED_CHANGES = 4;
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
