@@ -33,6 +33,11 @@ describe("isValidCuit", () => {
     expect(isValidCuit(`  `)).toBe(false);
   });
 
+  it("rejects a valid CUIT surrounded by other characters", () => {
+    expect(isValidCuit(`x${FICTIONAL_CUIT}`)).toBe(false);
+    expect(isValidCuit(`${FICTIONAL_CUIT}x`)).toBe(false);
+  });
+
   it("rejects a value containing non-digit characters", () => {
     expect(isValidCuit("20-1234567X-6")).toBe(false);
   });

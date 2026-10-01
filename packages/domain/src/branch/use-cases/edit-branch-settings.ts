@@ -57,7 +57,6 @@ function isSameHours(current: BranchDayHoursRange[], next: BranchDayHoursRange[]
       return (
         other !== undefined &&
         range.dayOfWeek === other.dayOfWeek &&
-        range.position === other.position &&
         range.opensAt === other.opensAt &&
         range.closesAt === other.closesAt
       );
