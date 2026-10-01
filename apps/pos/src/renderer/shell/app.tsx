@@ -268,7 +268,7 @@ function Register({ core }: { core: CoreClient }) {
     refreshCashSession,
   };
 
-  const [router] = useState(() => createAppRouter(services));
+  const [router] = useState(() => createAppRouter(queryClient, services));
 
   useEffect(() => {
     if (coreStatus !== "up") {
@@ -302,7 +302,7 @@ function Register({ core }: { core: CoreClient }) {
   return (
     <RouterProvider
       router={router}
-      context={{ coreStatus, enrollment, person, cashSession, ...services }}
+      context={{ queryClient, coreStatus, enrollment, person, cashSession, ...services }}
     />
   );
 }

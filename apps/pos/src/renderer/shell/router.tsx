@@ -21,6 +21,7 @@ import type {
   SignInUser,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
+import type { QueryClient } from "@tanstack/react-query";
 import type { AnyRoute } from "@tanstack/react-router";
 import {
   createMemoryHistory,
@@ -39,7 +40,7 @@ import { CashCountScreen } from "../register/cash-count-screen";
 import { CashScreen } from "../register/cash-screen";
 import { EnrollmentScreen } from "../register/enrollment-screen";
 import { LockedCloseScreen } from "../register/locked-close-screen";
-import { useRegisterNameQuery } from "../register/register-queries";
+import { registerNameQueryOptions, useRegisterNameQuery } from "../register/register-queries";
 import { ChargeScreen } from "../sales/charge-screen";
 import { SaleScreen } from "../sales/sale-screen";
 import { ACTION_ENTRIES } from "./action-entries";
@@ -54,6 +55,7 @@ export type CoreStatus = CoreStatusMessage["status"];
 export type Enrollment = "unknown" | "enrolled" | "not_enrolled";
 
 export interface RouterContext {
+  queryClient: QueryClient;
   coreStatus: CoreStatus;
   enrollment: Enrollment;
   person: SignedInPerson | undefined;
@@ -185,6 +187,11 @@ function useRegisterName() {
 const sessionEyebrowRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: "session-eyebrow",
+  loader: async ({ context }) => {
+    await context.queryClient
+      .ensureQueryData(registerNameQueryOptions(context.registerName))
+      .catch(() => null);
+  },
   component: Outlet,
 });
 
@@ -486,6 +493,7 @@ export function createRegisterRouter<TRouteTree extends AnyRoute>(
 }
 
 export function createAppRouter(
+  queryClient: QueryClient,
   services: Pick<
     RouterContext,
     | "enroll"
@@ -516,6 +524,7 @@ export function createAppRouter(
   return createRegisterRouter(
     routeTree,
     {
+      queryClient,
       coreStatus: "starting",
       enrollment: "unknown",
       person: undefined,

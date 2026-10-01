@@ -5,6 +5,7 @@ import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { createQueryClient } from "../platform/query-client";
 import { RenderFailureRecovery } from "./render-failure-recovery";
 import type { RouterContext } from "./router";
 import { createRegisterRouter } from "./router";
@@ -28,6 +29,7 @@ function buildFailingRouter(shouldThrow: () => boolean) {
   return createRegisterRouter(
     rootRoute.addChildren([failingRoute]),
     {
+      queryClient: createQueryClient(),
       coreStatus: "up",
       enrollment: "enrolled",
       person: undefined,

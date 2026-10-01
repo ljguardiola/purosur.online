@@ -82,6 +82,12 @@ const screenFor: Record<
   "/first-sign-in": (screen) => screen.getByRole("heading", { name: FIRST_SIGN_IN_TITLE }),
 };
 
+let queryClient = createQueryClient();
+
+beforeEach(() => {
+  queryClient = createQueryClient();
+});
+
 function contextWith(
   coreStatus: CoreStatus,
   enrollment: Enrollment = "enrolled",
@@ -90,6 +96,7 @@ function contextWith(
   cashSession: CashSessionState = NO_SESSION,
 ): RouterContext {
   return {
+    queryClient,
     coreStatus,
     enrollment,
     person: person ?? undefined,
@@ -137,7 +144,6 @@ function routerAt(
 const screenFailure = new Error("screen failed to render");
 
 function render(ui: ReactNode) {
-  const queryClient = createQueryClient();
   return renderInPage(ui, {
     wrapper: ({ children }) => (
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
@@ -882,6 +888,22 @@ describe("the register's router", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await expect.element(screen.getByText("Caja 1 · Sesión abierta 09:02")).toBeVisible();
+  });
+
+  it("shows the register's name from the first render of a session screen", async () => {
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION),
+        registerName: () => new Promise((resolve) => setTimeout(() => resolve("Caja 1"), 100)),
+      },
+      "/session",
+    );
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screen.getByRole("heading", { name: "Venta en curso" })).toBeVisible();
+    expect(screen.container.textContent).toContain("Caja 1 · Sesión abierta 09:02");
   });
 
   it("opens the cash session for the person through the router context", async () => {

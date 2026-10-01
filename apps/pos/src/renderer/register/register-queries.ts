@@ -1,7 +1,7 @@
 import type { CashBalance, ListedCashMovement, OpenCashSession } from "@purosur/contracts";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { CoreData } from "../platform/use-core-query";
-import { useCoreQuery } from "../platform/use-core-query";
+import { coreQueryOptions, useCoreQuery } from "../platform/use-core-query";
 import type { CashSessionState } from "../shell/cash-session-state";
 import { cashSessionStateOf } from "../shell/cash-session-state";
 
@@ -59,6 +59,10 @@ export function useCashSessionQuery({
 }): CashSessionState {
   const query = useQuery({ ...cashSessionQueryOptions(read), enabled });
   return enabled ? (query.data ?? UNKNOWN_SESSION) : UNKNOWN_SESSION;
+}
+
+export function registerNameQueryOptions(read: () => Promise<string | null>) {
+  return coreQueryOptions({ queryKey: registerKeys.registerName, read });
 }
 
 export function useRegisterNameQuery(read: () => Promise<string | null>): string | null {
