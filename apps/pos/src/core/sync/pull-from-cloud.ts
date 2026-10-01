@@ -4,9 +4,10 @@ import {
   type LocalReplica,
 } from "@purosur/domain/sync/use-cases";
 import type { DeviceCredentials } from "../../shared/device-credentials-messages";
-import { CloudPullFeed, type GetFromCloud, type PullFailure } from "./cloud-pull-feed";
-import type { PullResult } from "./pull-schedule";
+import { type CloudFailure, retryAfterMsOf } from "./cloud-failure";
+import { CloudPullFeed, type GetFromCloud } from "./cloud-pull-feed";
 import type { RegisterPulledChange } from "./pulled-change";
+import type { SyncResult } from "./sync-schedule";
 
 interface RegisterReplica extends LocalReplica<RegisterPulledChange> {
   adoptDevice(device: { deviceId: string; pepper: string }): void;
@@ -22,7 +23,7 @@ export type PullAttempt =
   | { kind: "not_enrolled" }
   | { kind: "no_cloud" }
   | { kind: "no_local_database" }
-  | CatchUpOutcome<PullFailure>;
+  | CatchUpOutcome<CloudFailure>;
 
 export async function pullFromCloud(deps: PullFromCloudDeps): Promise<PullAttempt> {
   if (deps.getFromCloud === undefined) {
@@ -42,15 +43,13 @@ export async function pullFromCloud(deps: PullFromCloudDeps): Promise<PullAttemp
   });
 }
 
-export function pullResultOf(attempt: PullAttempt): PullResult {
+export function pullResultOf(attempt: PullAttempt): SyncResult {
   if (attempt.kind === "page_out_of_order") {
     return { kind: "failed" };
   }
   if (attempt.kind !== "failed") {
     return { kind: "succeeded" };
   }
-  if (attempt.failure.kind === "refused" && attempt.failure.retryAfterSeconds !== undefined) {
-    return { kind: "failed", retryAfterMs: attempt.failure.retryAfterSeconds * 1000 };
-  }
-  return { kind: "failed" };
+  const retryAfterMs = retryAfterMsOf(attempt.failure);
+  return retryAfterMs === undefined ? { kind: "failed" } : { kind: "failed", retryAfterMs };
 }

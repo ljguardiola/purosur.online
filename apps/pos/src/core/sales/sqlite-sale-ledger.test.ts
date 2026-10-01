@@ -644,7 +644,7 @@ describe("charging an open sale in cash", () => {
         clock: { now: () => NOW },
         ids,
       },
-      { sessionId: "session-1", closerId: "u1", authorizedBy: null, countedCash: 3000 },
+      { sessionId: "session-1", closerId: "u1", countedCash: 3000 },
     );
 
     expect(closed).toMatchObject({ kind: "closed" });

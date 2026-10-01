@@ -197,6 +197,7 @@ export {
   INSTALLATION_REPORT_MAX_LENGTH,
   isDeviceTokenRotationDue,
   isInstallationReportTooLong,
+  isLockedToAnother,
   isRegisterNameTooLong,
   isValidCashAmount,
   isValidCashMovementAmount,
@@ -246,6 +247,8 @@ export type {
   OutboxEventDraft,
   PulledChange,
   PullPage,
+  PushedEvent,
+  RegisterTelemetry,
 } from "./sync/index.js";
 export {
   canonicalOutboxEvent,
@@ -254,4 +257,5 @@ export {
   isPageAfter,
   isPullCursor,
   PULL_PAGE_MAX_CHANGES,
+  PUSH_BATCH_MAX_EVENTS,
 } from "./sync/index.js";

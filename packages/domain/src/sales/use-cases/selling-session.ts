@@ -1,4 +1,5 @@
 import { holdsPermission } from "../../access/index.js";
+import { isLockedToAnother } from "../../register/index.js";
 import type { SaleLedgerTransaction, SellingSession } from "./sale-ledger.js";
 
 export type SellingSessionRefusal = { kind: "not_permitted" } | { kind: "no_open_session" };
@@ -15,7 +16,7 @@ export function sellingSession(
   if (!session) {
     return { kind: "no_open_session" };
   }
-  if (session.openedBy !== actorId) {
+  if (isLockedToAnother(session, actorId)) {
     return { kind: "not_permitted" };
   }
   return session;

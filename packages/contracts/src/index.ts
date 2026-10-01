@@ -281,3 +281,9 @@ export type { StockCountResult, StockMovementResult } from "./stock/stock-result
 export { stockCountResultSchema, stockMovementResultSchema } from "./stock/stock-results.js";
 export type { ChangesPage, ChangesQuery, SyncChange } from "./sync/changes.js";
 export { changesPageSchema, changesQuerySchema } from "./sync/changes.js";
+export type { PushEventsRequest, PushEventsResponse } from "./sync/events.js";
+export {
+  PUSH_EVENTS_REQUEST_MAX_BYTES,
+  pushEventsRequestSchema,
+  pushEventsResponseSchema,
+} from "./sync/events.js";

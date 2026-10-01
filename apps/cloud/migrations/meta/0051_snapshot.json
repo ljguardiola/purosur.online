@@ -1,5 +1,5 @@
 {
-  "id": "dd184431-b04a-4a6f-afca-6f4afb60656a",
+  "id": "5f3a1ec5-14e9-4f44-92db-90fb31e0d0d4",
   "prevId": "89a41905-f05a-4977-9c53-d28f059fb5dc",
   "version": "7",
   "dialect": "postgresql",
@@ -1042,13 +1042,43 @@
           "name": "last_pull_since",
           "type": "bigint",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "last_pulled_at": {
           "name": "last_pulled_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
+        },
+        "app_version": {
+          "name": "app_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_pushed_at": {
+          "name": "last_pushed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "wal_size_bytes": {
+          "name": "wal_size_bytes",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "disk_free_bytes": {
+          "name": "disk_free_bytes",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "disk_free_ratio": {
+          "name": "disk_free_ratio",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -1281,66 +1311,110 @@
       },
       "isRLSEnabled": false
     },
-    "public.fiscal_addresses": {
-      "name": "fiscal_addresses",
+    "public.inbox": {
+      "name": "inbox",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
+        "event_id": {
+          "name": "event_id",
           "type": "uuid",
           "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
-        "name": {
-          "name": "name",
+        "device_id": {
+          "name": "device_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "device_seq": {
+          "name": "device_seq",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "aggregate_type": {
+          "name": "aggregate_type",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "street_address": {
-          "name": "street_address",
+        "aggregate_id": {
+          "name": "aggregate_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "version": {
-          "name": "version",
+        "event_type": {
+          "name": "event_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "schema_version": {
+          "name": "schema_version",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "default": 1
+          "notNull": true
         },
-        "created_at": {
-          "name": "created_at",
+        "payload": {
+          "name": "payload",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "occurred_at": {
+          "name": "occurred_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "chain_hmac": {
+          "name": "chain_hmac",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "received_at": {
+          "name": "received_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
         }
       },
-      "indexes": {
-        "fiscal_addresses_name_lower_key": {
-          "name": "fiscal_addresses_name_lower_key",
-          "columns": [
-            {
-              "expression": "lower(\"name\")",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+      "indexes": {},
+      "foreignKeys": {
+        "inbox_device_id_register_installations_id_fk": {
+          "name": "inbox_device_id_register_installations_id_fk",
+          "tableFrom": "inbox",
+          "tableTo": "register_installations",
+          "columnsFrom": ["device_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
-      "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "inbox_device_id_device_seq_key": {
+          "name": "inbox_device_id_device_seq_key",
+          "nullsNotDistinct": false,
+          "columns": ["device_id", "device_seq"]
+        }
+      },
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "inbox_device_seq_positive": {
+          "name": "inbox_device_seq_positive",
+          "value": "\"inbox\".\"device_seq\" > 0"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.issuer_identification": {
@@ -1750,74 +1824,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.point_of_sale_claims": {
-      "name": "point_of_sale_claims",
-      "schema": "",
-      "columns": {
-        "point_of_sale_number": {
-          "name": "point_of_sale_number",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "register_id": {
-          "name": "register_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "claimed_at": {
-          "name": "claimed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "claimed_by": {
-          "name": "claimed_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "point_of_sale_claims_register_id_registers_id_fk": {
-          "name": "point_of_sale_claims_register_id_registers_id_fk",
-          "tableFrom": "point_of_sale_claims",
-          "tableTo": "registers",
-          "columnsFrom": ["register_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "point_of_sale_claims_claimed_by_users_id_fk": {
-          "name": "point_of_sale_claims_claimed_by_users_id_fk",
-          "tableFrom": "point_of_sale_claims",
-          "tableTo": "users",
-          "columnsFrom": ["claimed_by"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "point_of_sale_claims_number_register_key": {
-          "name": "point_of_sale_claims_number_register_key",
-          "nullsNotDistinct": false,
-          "columns": ["point_of_sale_number", "register_id"]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "point_of_sale_claims_number_in_range": {
-          "name": "point_of_sale_claims_number_in_range",
-          "value": "\"point_of_sale_claims\".\"point_of_sale_number\" between 1 and 99999"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.price_lists": {
@@ -2993,71 +2999,6 @@
           "tableTo": "registers",
           "columnsFrom": ["register_id"],
           "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.register_points_of_sale": {
-      "name": "register_points_of_sale",
-      "schema": "",
-      "columns": {
-        "register_id": {
-          "name": "register_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "point_of_sale_number": {
-          "name": "point_of_sale_number",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "fiscal_address_id": {
-          "name": "fiscal_address_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "register_points_of_sale_register_id_registers_id_fk": {
-          "name": "register_points_of_sale_register_id_registers_id_fk",
-          "tableFrom": "register_points_of_sale",
-          "tableTo": "registers",
-          "columnsFrom": ["register_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "register_points_of_sale_fiscal_address_id_fiscal_addresses_id_fk": {
-          "name": "register_points_of_sale_fiscal_address_id_fiscal_addresses_id_fk",
-          "tableFrom": "register_points_of_sale",
-          "tableTo": "fiscal_addresses",
-          "columnsFrom": ["fiscal_address_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "register_points_of_sale_claim_fk": {
-          "name": "register_points_of_sale_claim_fk",
-          "tableFrom": "register_points_of_sale",
-          "tableTo": "point_of_sale_claims",
-          "columnsFrom": ["point_of_sale_number", "register_id"],
-          "columnsTo": ["point_of_sale_number", "register_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }

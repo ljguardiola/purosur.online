@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { CircleAlert, Package, Pencil, SearchX, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { expect, within } from "storybook/test";
+import { plural } from "../../../messages/formatters";
 import {
   playHoverSetsDataHovered,
   playTabReachesFocusVisible,
@@ -8,6 +10,7 @@ import {
 import { Button } from "../../forms/button";
 import { Table } from "./table";
 import { actionsColumn, dataColumn } from "./table-columns";
+import { TablePagination } from "./table-pagination";
 import type { TableColumns, TableProps, TableSort } from "./table-types";
 import { useTableModel } from "./use-table-model";
 
@@ -370,4 +373,43 @@ export const WithFooter: Story = {
       footer={<p className="p-4 text-detail text-text-subtle">3 productos</p>}
     />
   ),
+};
+
+const manyProducts: Product[] = Array.from({ length: 60 }, (_, index) => ({
+  id: String(index + 1),
+  name: `Producto ${index + 1}`,
+  sku: `SKU-${String(index + 1).padStart(3, "0")}`,
+  stock: String(index % 12),
+}));
+
+function PagedProductsTable({ initialPage }: { initialPage: number }) {
+  const [page, setPage] = useState(initialPage);
+  const [currentSort, setCurrentSort] = useState<TableSort<"name">>(sort);
+  const table = useTableModel({
+    items: manyProducts,
+    id: (item) => item.id,
+    columns: baseColumns,
+    sort: currentSort,
+    onSortChange: setCurrentSort,
+    paging: { page, onPageChange: setPage },
+  });
+  const rowCount = table.getRowCount();
+  return (
+    <Table
+      table={table}
+      aria-label="Productos"
+      footer={
+        <div className="flex items-center justify-between gap-4">
+          <p className="text-text-subtle text-detail">
+            {plural(rowCount, { one: "1 producto", other: `${rowCount} productos` })}
+          </p>
+          <TablePagination table={table} label="Páginas de productos" />
+        </div>
+      }
+    />
+  );
+}
+
+export const Paged: Story = {
+  render: () => <PagedProductsTable initialPage={3} />,
 };

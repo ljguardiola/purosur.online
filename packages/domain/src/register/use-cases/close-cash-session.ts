@@ -8,7 +8,6 @@ import type { Clock } from "./register-store.js";
 export interface CloseCashSessionInput {
   sessionId: string;
   closerId: string;
-  authorizedBy: string | null;
   countedCash: number;
 }
 
@@ -26,7 +25,7 @@ export type CloseCashSessionOutcome =
 
 export function closeCashSession(
   { ledger, clock, ids }: CloseCashSessionPorts,
-  { sessionId, closerId, authorizedBy, countedCash }: CloseCashSessionInput,
+  { sessionId, closerId, countedCash }: CloseCashSessionInput,
 ): CloseCashSessionOutcome {
   if (!isValidCashAmount(countedCash)) {
     return { kind: "invalid_counted_cash" };
@@ -69,7 +68,6 @@ export function closeCashSession(
       amount: countedCash,
       actorId: closerId,
       occurredAt: closedAt,
-      ...(authorizedBy === null ? {} : { authorizedBy }),
     });
     tx.recordClosedSession(closed);
     const closedAtIso = closedAt.toISOString();

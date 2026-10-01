@@ -20,7 +20,7 @@ import { readOpenSessionMovements, SqliteCashLedger } from "./sqlite-cash-ledger
 export type CashMovementRequest = RecordCashMovementRequest;
 
 export async function recordCashMovementFor(
-  { database, gate, readOutboxChainKey, now, ids }: Omit<CashSessionRequestDeps, "signedInPerson">,
+  { database, gate, readOutboxChainKey, now, ids }: CashSessionRequestDeps,
   { kind, amount, reason, authorization }: CashMovementRequest,
 ): Promise<RecordCashMovementOutcome> {
   const outboxChainKey = await readOutboxChainKey();

@@ -13,6 +13,7 @@ import {
 import * as Sentry from "@sentry/electron/utility";
 import { net } from "electron";
 import {
+  appVersionFromCoreArguments,
   cloudUrlFromCoreArguments,
   localDataFolderFromCoreArguments,
   sentryEnvironmentFromCoreArguments,
@@ -22,8 +23,8 @@ import { createActionGate } from "./access/action-gate";
 import { requestFirstPinCode } from "./access/first-pin-code-request";
 import { redeemPinCode } from "./access/pin-code-redemption";
 import { hashPin } from "./access/pin-hash";
+import { redeemedPerson } from "./access/redeemed-person";
 import { applyRedeemedPin } from "./access/redeemed-pin";
-import { signInRedeemedPerson } from "./access/redeemed-sign-in";
 import { firstSignIn, signIn } from "./access/sign-in";
 import { lookUpSignIn } from "./access/sign-in-lookup";
 import { createSignedInPerson } from "./access/signed-in-person";
@@ -45,11 +46,11 @@ import {
 } from "./register/cash-movement-requests";
 import {
   cashBalanceFor,
-  cashSessionOpener,
   closeCashSessionFor,
   closeLockedCashSessionFor,
   currentCashSession,
   identifyLockedCloserFor,
+  lockedClosersFor,
   openCashSessionFor,
   sessionOpenSaleFor,
 } from "./register/cash-session-requests";
@@ -57,6 +58,7 @@ import { rotateDeviceToken } from "./register/device-token-rotation";
 import { startDeviceTokenRotationSchedule } from "./register/device-token-rotation-schedule";
 import { enroll, generatePepper, installationReportFrom } from "./register/enrollment";
 import { answerRendererRequest, type RendererRequestDeps } from "./register/renderer-requests";
+import { readOpenSession } from "./register/sqlite-cash-ledger";
 import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
 import {
@@ -72,8 +74,12 @@ import {
   searchProductsFor,
 } from "./sales/sale-requests";
 import { pullFromCloud, pullResultOf } from "./sync/pull-from-cloud";
-import { createPullSchedule } from "./sync/pull-schedule";
+import { pushResultOf, pushToCloud, pushWarningOf } from "./sync/push-to-cloud";
+import { SqliteLocalOutbox } from "./sync/sqlite-local-outbox";
 import { SqliteLocalReplica } from "./sync/sqlite-local-replica";
+import { nodeStorageFileSystem, storageTelemetryReader } from "./sync/storage-telemetry";
+import { runSyncCycle } from "./sync/sync-cycle";
+import { createSyncSchedule } from "./sync/sync-schedule";
 
 // No DSN here: @sentry/electron's utility SDK hands every envelope to main, which owns the
 // destination and replaces the environment on events, but forwards logs untouched.
@@ -119,8 +125,8 @@ const cloudClient: CloudClientDeps | undefined =
     : { cloudUrl, fetch: (input, init) => net.fetch(input, init), sleep };
 
 const LOCAL_DATABASE_FILE = "register.sqlite";
-const PULL_INTERVAL_MS = 30_000;
-const PULL_FAILURE_BACKOFF = { baseMs: 2000, maxMs: 60_000 };
+const SYNC_INTERVAL_MS = 30_000;
+const SYNC_FAILURE_BACKOFF = { baseMs: 2000, maxMs: 60_000 };
 const PULLED_NOTICE: CoreToRendererMessage = { type: "pulled" };
 
 function openLocalDatabaseFile(): LocalDatabase | undefined {
@@ -148,6 +154,8 @@ function openLocalDatabaseFile(): LocalDatabase | undefined {
 
 const localDatabase = openLocalDatabaseFile();
 const replica = localDatabase === undefined ? undefined : new SqliteLocalReplica(localDatabase);
+const localOutbox =
+  localDatabase === undefined ? undefined : new SqliteLocalOutbox(localDatabase, () => new Date());
 const signInStore = localDatabase === undefined ? undefined : new SqliteSignInStore(localDatabase);
 const signedInPerson = createSignedInPerson();
 const readPepper = async () => (await mainRequests.readCredentials())?.pepper;
@@ -168,36 +176,62 @@ function reportFailure(context: string, error: unknown): void {
 }
 
 // An unreachable cloud is how a register without internet looks, so only an unexpected stop is
-// reported; the next pull resumes from the cursor already saved either way.
-const pullSchedule = createPullSchedule({
-  pullOnce: async () => {
-    const attempt = await pullFromCloud({
-      readCredentials: () => mainRequests.readCredentials(),
-      replica,
-      getFromCloud:
-        cloudClient === undefined
-          ? undefined
-          : (path, headers) => getFromCloud(cloudClient, path, headers),
-    });
-    if (
-      attempt.kind === "page_out_of_order" ||
-      (attempt.kind === "failed" && attempt.failure.kind !== "unreachable")
-    ) {
-      console.warn("core: the pull stopped before catching up", attempt);
-    }
-    return pullResultOf(attempt);
-  },
-  intervalMs: PULL_INTERVAL_MS,
-  failureBackoff: PULL_FAILURE_BACKOFF,
+// reported; the next cycle resumes from the cursor and the outbox already saved either way.
+const syncSchedule = createSyncSchedule({
+  syncOnce: () =>
+    runSyncCycle({
+      push: async () => {
+        const attempt = await pushToCloud({
+          readCredentials: () => mainRequests.readCredentials(),
+          outbox: localOutbox,
+          adoptDevice: (device) => replica?.adoptDevice(device),
+          post:
+            cloudClient === undefined
+              ? undefined
+              : (path, bearerToken, body) =>
+                  postToCloudWithBearer(cloudClient, path, bearerToken, body),
+          appVersion: appVersionFromCoreArguments(process.argv),
+          readTelemetry:
+            localDatabase === undefined
+              ? undefined
+              : storageTelemetryReader(localDatabase.name, nodeStorageFileSystem),
+        });
+        const warning = pushWarningOf(attempt);
+        if (warning !== undefined) {
+          console.warn(warning, attempt);
+        }
+        return pushResultOf(attempt);
+      },
+      pull: async () => {
+        const attempt = await pullFromCloud({
+          readCredentials: () => mainRequests.readCredentials(),
+          replica,
+          getFromCloud:
+            cloudClient === undefined
+              ? undefined
+              : (path, headers) => getFromCloud(cloudClient, path, headers),
+        });
+        if (
+          attempt.kind === "page_out_of_order" ||
+          (attempt.kind === "failed" && attempt.failure.kind !== "unreachable")
+        ) {
+          console.warn("core: the pull stopped before catching up", attempt);
+        }
+        return pullResultOf(attempt);
+      },
+      onPushFailure: (error) => reportFailure("the push", error),
+    }),
+  intervalMs: SYNC_INTERVAL_MS,
+  failureBackoff: SYNC_FAILURE_BACKOFF,
   random: Math.random,
   scheduleNext: (run, delayMs) => {
     const timer = setTimeout(run, delayMs);
     return () => clearTimeout(timer);
   },
   onFailure: (error) => {
-    console.error("core: the pull failed", error);
+    console.error("core: the sync failed", error);
   },
-  afterEachPull: () => rendererConnection.tell(PULLED_NOTICE),
+  afterEachSync: () => rendererConnection.tell(PULLED_NOTICE),
 });
 
 const rendererRequestDeps: RendererRequestDeps = {
@@ -219,7 +253,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       typedCode,
     );
     if (outcome.kind === "enrolled") {
-      pullSchedule.pullNow();
+      syncSchedule.syncNow();
     }
     return outcome;
   },
@@ -240,12 +274,13 @@ const rendererRequestDeps: RendererRequestDeps = {
           console.error("core: the redeemed PIN could not be kept locally", error);
           Sentry.captureException(error);
         },
-        cashSessionOpener: () =>
-          localDatabase === undefined ? undefined : cashSessionOpener(localDatabase),
-        signInRedeemed: (userId) =>
-          signInStore === undefined
-            ? undefined
-            : signInRedeemedPerson({ store: signInStore, signedInPerson }, userId),
+        openCashSession: () =>
+          localDatabase === undefined ? undefined : readOpenSession(localDatabase),
+        redeemedPerson: (userId) =>
+          signInStore === undefined ? undefined : redeemedPerson(signInStore, userId),
+        signedInPerson,
+        cashSession: (signedInPersonId) =>
+          localDatabase === undefined ? null : currentCashSession(localDatabase, signedInPersonId),
       },
       typedCode,
       newPin,
@@ -253,6 +288,7 @@ const rendererRequestDeps: RendererRequestDeps = {
   signInUsers: signInStore === undefined ? undefined : () => signInStore.signableUsers(),
   authorizers:
     signInStore === undefined ? undefined : (permission) => signInStore.authorizers(permission),
+  lockedClosers: localDatabase === undefined ? undefined : () => lockedClosersFor(localDatabase),
   signIn:
     localDatabase === undefined || signInStore === undefined
       ? undefined
@@ -261,7 +297,9 @@ const rendererRequestDeps: RendererRequestDeps = {
             {
               store: signInStore,
               signedInPerson,
-              cashSessionOpener: () => cashSessionOpener(localDatabase),
+              openCashSession: () => readOpenSession(localDatabase),
+              cashSession: (signedInPersonId) =>
+                currentCashSession(localDatabase, signedInPersonId),
               readPepper,
               hashPin,
               now: () => new Date(),
@@ -277,7 +315,9 @@ const rendererRequestDeps: RendererRequestDeps = {
             {
               store: signInStore,
               signedInPerson,
-              cashSessionOpener: () => cashSessionOpener(localDatabase),
+              openCashSession: () => readOpenSession(localDatabase),
+              cashSession: (signedInPersonId) =>
+                currentCashSession(localDatabase, signedInPersonId),
               readPepper,
               hashPin,
               now: () => new Date(),
@@ -322,7 +362,6 @@ const rendererRequestDeps: RendererRequestDeps = {
             {
               database: localDatabase,
               gate: actionGate,
-              signedInPerson,
               readOutboxChainKey: async () =>
                 (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
               now: () => new Date(),
@@ -333,18 +372,17 @@ const rendererRequestDeps: RendererRequestDeps = {
   closeCashSession:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (sessionId, countedCash, authorization) =>
+      : (sessionId, countedCash) =>
           closeCashSessionFor(
             {
               database: localDatabase,
               gate: actionGate,
-              signedInPerson,
               readOutboxChainKey: async () =>
                 (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
               now: () => new Date(),
               ids: uuidV7Ids,
             },
-            { sessionId, countedCash, authorization },
+            { sessionId, countedCash },
           ),
   closeLockedCashSession:
     localDatabase === undefined || actionGate === undefined
@@ -354,7 +392,6 @@ const rendererRequestDeps: RendererRequestDeps = {
             {
               database: localDatabase,
               gate: actionGate,
-              signedInPerson,
               readOutboxChainKey: async () =>
                 (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
               now: () => new Date(),
@@ -378,13 +415,16 @@ const rendererRequestDeps: RendererRequestDeps = {
             closer,
           ),
   identifyLockedCloser:
-    actionGate === undefined
+    localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (closer) => identifyLockedCloserFor({ gate: actionGate }, closer),
+      : (closer) => identifyLockedCloserFor({ database: localDatabase, gate: actionGate }, closer),
   cashBalance: localDatabase === undefined ? undefined : () => cashBalanceFor(localDatabase),
   sessionOpenSale:
     localDatabase === undefined ? undefined : () => sessionOpenSaleFor(localDatabase),
-  cashSession: localDatabase === undefined ? undefined : () => currentCashSession(localDatabase),
+  cashSession:
+    localDatabase === undefined
+      ? undefined
+      : () => currentCashSession(localDatabase, signedInPerson.userId()),
   recordCashMovement:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -530,4 +570,4 @@ process.parentPort.on("message", (event) => {
 });
 
 process.parentPort.postMessage(CORE_READY_MESSAGE);
-pullSchedule.start();
+syncSchedule.start();

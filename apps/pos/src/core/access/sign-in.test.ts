@@ -22,6 +22,13 @@ function record(overrides: Partial<SignInRecord> = {}): SignInRecord {
 
 const NOW = new Date("2026-05-01T10:00:00.000Z");
 
+const OPEN_CASH_SESSION = {
+  id: "s1",
+  opened_at: "2026-05-01T09:00:00.000Z",
+  opened_by: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+  locked: false,
+};
+
 function failuresAt(consecutiveFailures: number, secondsAgo = 3600): PinSignInFailures {
   return {
     consecutiveFailures,
@@ -84,7 +91,8 @@ function deps(options: Options = {}) {
       return pin === "1234" ? PIN_HASH : "hash-of-another-pin";
     },
     now: () => NOW,
-    cashSessionOpener: () => undefined,
+    openCashSession: () => undefined,
+    cashSession: () => null,
     ...rest,
   };
   return { built, hashed, failures, signedIn, remembered };
@@ -99,6 +107,7 @@ describe("signing in", () => {
         first_name: "Ada",
         permission_keys: ["sell_and_charge", "adjust_stock"],
       },
+      cash_session: null,
     });
   });
 
@@ -254,7 +263,9 @@ describe("who is signed in after signing in", () => {
 
 describe("signing in while a cash session is open", () => {
   it("refuses anyone but the opener, checking no PIN and leaving nobody signed in", async () => {
-    const { built, signedIn, hashed, failures } = deps({ cashSessionOpener: () => "u2" });
+    const { built, signedIn, hashed, failures } = deps({
+      openCashSession: () => ({ openedBy: "u2" }),
+    });
     signedIn.set("u2");
 
     expect(await signIn(built, "u1", "9999")).toEqual({ kind: "cash_session_opened_by_another" });
@@ -264,15 +275,57 @@ describe("signing in while a cash session is open", () => {
   });
 
   it("signs the opener in", async () => {
-    const { built, signedIn } = deps({ cashSessionOpener: () => "u1" });
+    const { built, signedIn } = deps({ openCashSession: () => ({ openedBy: "u1" }) });
 
     expect((await signIn(built, "u1", "1234")).kind).toBe("signed_in");
     expect(signedIn.userId()).toBe("u1");
   });
 
+  it("answers the open cash session as the opener sees it once signed in", async () => {
+    const readFor: string[] = [];
+    const { built } = deps({ openCashSession: () => ({ openedBy: "u1" }) });
+
+    const outcome = await signIn(
+      {
+        ...built,
+        cashSession: (personId) => {
+          readFor.push(personId);
+          return OPEN_CASH_SESSION;
+        },
+      },
+      "u1",
+      "1234",
+    );
+
+    expect(outcome).toMatchObject({ kind: "signed_in", cash_session: OPEN_CASH_SESSION });
+    expect(readFor).toEqual(["u1"]);
+  });
+
+  it.each([
+    ["a sign-in", signIn],
+    ["a first sign-in", firstSignIn],
+  ])(
+    "fails %s whose open cash session cannot be read, signing nobody in and remembering nobody",
+    async (_case, signInWith) => {
+      const { built, signedIn, remembered } = deps({ openCashSession: () => ({ openedBy: "u1" }) });
+      const failing: FirstSignInDeps = {
+        ...built,
+        cashSession: () => {
+          throw new Error("the register database is unavailable");
+        },
+      };
+
+      await expect(signInWith(failing, "u1", "1234")).rejects.toThrow();
+      expect(signedIn.userId()).toBeUndefined();
+      expect(remembered).toEqual([]);
+    },
+  );
+
   it("refuses an attempt whose PIN was checked while another person opened a cash session, leaving nobody signed in", async () => {
     let opener: string | undefined;
-    const { built, signedIn, remembered } = deps({ cashSessionOpener: () => opener });
+    const { built, signedIn, remembered } = deps({
+      openCashSession: () => (opener === undefined ? undefined : { openedBy: opener }),
+    });
 
     const outcome = await firstSignIn(
       {
@@ -292,7 +345,7 @@ describe("signing in while a cash session is open", () => {
   });
 
   it("refuses a first sign-in by anyone but the opener, remembering nobody", async () => {
-    const { built, signedIn, remembered } = deps({ cashSessionOpener: () => "u2" });
+    const { built, signedIn, remembered } = deps({ openCashSession: () => ({ openedBy: "u2" }) });
     signedIn.set("u2");
 
     expect(await firstSignIn(built, "u1", "1234")).toEqual({
@@ -523,6 +576,7 @@ describe("signing in for the first time on a register", () => {
         first_name: "Ada",
         permission_keys: ["sell_and_charge", "adjust_stock"],
       },
+      cash_session: null,
     });
     expect(remembered).toEqual(["u1"]);
   });
