@@ -83,6 +83,13 @@ function pricingPortsAt(moment: Date) {
   return { store: new DrizzlePricingStore(db), clock: { now: () => moment } };
 }
 
+async function latestReviewOf(productId: string): Promise<Date | undefined> {
+  const priceListId = await seededPriceListId(db);
+  return new DrizzlePricingStore(db).transaction((tx) =>
+    tx.latestReviewedAt(productId, priceListId),
+  );
+}
+
 async function auditRows() {
   return db
     .select({
@@ -288,8 +295,8 @@ describe("price changes committed by callers whose clocks disagree", () => {
     });
     expect(listed.products.find((product) => product.id === productId)).toMatchObject({
       currentPrice: { id: earlierClock.price.id, unitPrice: 2000 },
-      lastReviewedAt: earlierClock.lastReviewedAt,
     });
+    expect(await latestReviewOf(productId)).toEqual(earlierClock.lastReviewedAt);
   });
 });
 
@@ -320,15 +327,7 @@ describe("confirmations committed by callers whose clocks disagree", () => {
       throw new Error(`expected the confirmation to apply, got ${confirmation.kind}`);
     }
     expect(confirmation.lastReviewedAt.getTime()).toBeGreaterThan(laterMoment.getTime());
-
-    const listed = await new DrizzlePriceReviewReader(db).pricesUnderReview({
-      locationId: await seededLocationId(db),
-      now: laterMoment,
-      review: "all",
-    });
-    expect(listed.products.find((product) => product.id === productId)).toMatchObject({
-      lastReviewedAt: confirmation.lastReviewedAt,
-    });
+    expect(await latestReviewOf(productId)).toEqual(confirmation.lastReviewedAt);
   });
 });
 
