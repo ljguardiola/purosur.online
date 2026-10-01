@@ -9,7 +9,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { DrizzleRegisterPointOfSaleStore } from "./drizzle-register-point-of-sale-store.js";
+import { DrizzleRegisterPointOfSaleReader } from "./drizzle-register-point-of-sale-reader.js";
 
 export interface RegistersPointsOfSaleRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
@@ -34,7 +34,7 @@ export function registerRegistersPointsOfSaleListRoute<TQueryResult extends PgQu
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
-  const pointsOfSale = new DrizzleRegisterPointOfSaleStore(options.db);
+  const reader = new DrizzleRegisterPointOfSaleReader(options.db);
 
   app.get(
     "/registers/points-of-sale",
@@ -43,9 +43,7 @@ export function registerRegistersPointsOfSaleListRoute<TQueryResult extends PgQu
       config: { access: permissionAccess("change_fiscal_configuration"), sessionSource },
     },
     async (request, reply) => {
-      const listed = await pointsOfSale.branchRegisterPointsOfSale(
-        openSessionOf(request).locationId,
-      );
+      const listed = await reader.listBranchRegisterPointsOfSale(openSessionOf(request).locationId);
       await reply
         .code(200)
         .send(registerPointOfSaleOverviewListSchema.parse(listed.map(toOverviewWire)));
