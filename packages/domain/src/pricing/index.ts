@@ -3,6 +3,7 @@ export { newestPrice, priceInEffectAt } from "./model/current-price.js";
 export type { DiscountRecurrence } from "./model/discount-applies.js";
 export { discountAppliesOn } from "./model/discount-applies.js";
 export type { DiscountBenefit } from "./model/discount-benefit.js";
+export { DISCOUNT_BENEFIT_KINDS } from "./model/discount-benefit.js";
 export {
   DISCOUNT_BUY_QTY_MIN,
   DISCOUNT_PAY_QTY_MIN,
