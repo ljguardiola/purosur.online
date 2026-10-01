@@ -1,12 +1,13 @@
 import type { SaleUnit } from "../../../catalog/index.js";
 import type { DiscountTarget, DiscountTargetKind } from "../../model/discount-target.js";
+import type { AssignableTargetCandidate } from "../../model/discount-target-eligibility.js";
 import type {
   DiscountFields,
   DiscountStore,
   DiscountStoreTransaction,
-  LockAssignableTargetResult,
   LockDiscountedProductResult,
   LockDiscountResult,
+  LockTargetResult,
 } from "../discount-store.js";
 
 export interface FakeTargetRow {
@@ -46,6 +47,17 @@ function cloneState(state: FakeDiscountState): FakeDiscountState {
   };
 }
 
+function candidateOf(row: FakeTargetRow): AssignableTargetCandidate {
+  switch (row.kind) {
+    case "PRODUCT":
+      return { kind: "PRODUCT", active: row.active, saleUnit: row.saleUnit ?? "UNIT" };
+    case "TAG":
+      return { kind: "TAG", active: row.active };
+    case "CATEGORY":
+      return { kind: "CATEGORY" };
+  }
+}
+
 class FakeDiscountStoreTransaction implements DiscountStoreTransaction {
   private readonly state: FakeDiscountState;
   private readonly store: FakeDiscountStore;
@@ -55,19 +67,15 @@ class FakeDiscountStoreTransaction implements DiscountStoreTransaction {
     this.store = store;
   }
 
-  async lockAssignableTarget(target: DiscountTarget): Promise<LockAssignableTargetResult> {
-    this.store.operationOrder.push("lockAssignableTarget");
+  async lockTarget(target: DiscountTarget): Promise<LockTargetResult> {
+    this.store.operationOrder.push("lockTarget");
     const row = this.state.targets.find(
       (candidate) => candidate.kind === target.kind && candidate.id === target.id,
     );
-    if (row === undefined || (row.kind !== "CATEGORY" && !row.active)) {
+    if (row === undefined) {
       return { kind: "not_found" };
     }
-    return {
-      kind: "locked",
-      name: row.name ?? row.id,
-      saleUnit: row.kind === "PRODUCT" ? (row.saleUnit ?? "UNIT") : null,
-    };
+    return { kind: "locked", name: row.name ?? row.id, target: candidateOf(row) };
   }
 
   async insertDiscount(discount: DiscountFields): Promise<{ id: string }> {

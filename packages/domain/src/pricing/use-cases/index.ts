@@ -1,3 +1,4 @@
+export type { AssignableTargetCandidate } from "../model/discount-target-eligibility.js";
 export type { ConfirmPriceInput, ConfirmPriceOutcome } from "./confirm-price.js";
 export { confirmPrice } from "./confirm-price.js";
 export type { CreateDiscountInput, CreateDiscountOutcome } from "./create-discount.js";
@@ -8,9 +9,9 @@ export type {
   DiscountStore,
   DiscountStoreTransaction,
   EditDiscountPorts,
-  LockAssignableTargetResult,
   LockDiscountedProductResult,
   LockDiscountResult,
+  LockTargetResult,
 } from "./discount-store.js";
 export type { EditDiscountInput, EditDiscountOutcome } from "./edit-discount.js";
 export { editDiscount } from "./edit-discount.js";

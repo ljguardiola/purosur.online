@@ -151,11 +151,7 @@ describe("editDiscount", () => {
 
     expect(outcome).toEqual({ kind: "applied", version: 4 });
     expect(store.snapshot().discounts[0]?.target).toEqual({ kind: "CATEGORY", id: "category-1" });
-    expect(store.operationOrder).toEqual([
-      "lockDiscount",
-      "lockTarget",
-      "updateDiscount",
-    ]);
+    expect(store.operationOrder).toEqual(["lockDiscount", "lockTarget", "updateDiscount"]);
   });
 
   it("checks the target when only its kind changed", async () => {
@@ -203,11 +199,7 @@ describe("editDiscount", () => {
 
       expect(outcome).toEqual({ kind: "applied", version: 4 });
       expect(store.snapshot().discounts[0]?.benefit).toEqual(buyThreePayTwo);
-      expect(store.operationOrder).toEqual([
-        "lockDiscount",
-        "lockTarget",
-        "updateDiscount",
-      ]);
+      expect(store.operationOrder).toEqual(["lockDiscount", "lockTarget", "updateDiscount"]);
     });
 
     it("refuses switching to buy-N-pay-M on a product sold by weight, writing nothing", async () => {
