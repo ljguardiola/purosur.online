@@ -1,8 +1,7 @@
 import { productCreationBodySchema } from "@purosur/contracts";
-import { FieldSizeProvider } from "@purosur/ui";
+import { FieldSizeProvider, useRequestForm } from "@purosur/ui";
 import { afterEach, expect, test, vi } from "vitest";
 import { type Locator, userEvent } from "vitest/browser";
-import { useCloudForm } from "../platform/cloud-form";
 import { render } from "../shell/test-support/render-with-router";
 import {
   BarcodeChips,
@@ -22,7 +21,7 @@ type HarnessProps = {
 
 // Stands in for a product modal: the product form with only its barcodes field shown, and a submit.
 function Harness({ initialCodes, generateInternalBarcode, onSessionEnded }: HarnessProps) {
-  const { form, submit, values } = useCloudForm({
+  const { form, submit, values } = useRequestForm({
     defaultValues: { ...EMPTY_PRODUCT_FORM, barcodes: { codes: initialCodes, scan: "" } },
     request: { schema: productCreationBodySchema, from: productRequestFrom },
     fields: {

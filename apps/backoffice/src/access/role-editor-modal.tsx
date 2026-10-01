@@ -13,11 +13,11 @@ import {
   type LoadStatus,
   Modal,
   plural,
+  useRequestForm,
 } from "@purosur/ui";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { Check, RotateCcw, Shield, ShieldOff, ShieldX, TriangleAlert, X } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { useCloudForm } from "../platform/cloud-form";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useRefreshAccess, useReloadRole, useRoleQuery } from "./access-queries";
@@ -218,7 +218,7 @@ function RoleEditorSession({
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
-  const { form, submit, submitting, reset, values } = useCloudForm({
+  const { form, submit, submitting, reset, values } = useRequestForm({
     defaultValues: { name: seededName(seed), permissions: seededPermissions(seed) },
     request: {
       schema: stored ? roleEditBodySchema : roleCreationBodySchema,

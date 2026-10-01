@@ -3,12 +3,17 @@ import {
   type DiscountTargets,
   discountCreationBodySchema,
 } from "@purosur/contracts";
-import { Button, FieldGroup, InlineNotice, Modal } from "@purosur/ui";
+import {
+  Button,
+  FieldGroup,
+  InlineNotice,
+  Modal,
+  SharedFieldError,
+  useRequestForm,
+} from "@purosur/ui";
 import { Check, Info, Percent, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSendToMyAccount } from "../access/send-to-my-account";
-import { useCloudForm } from "../platform/cloud-form";
-import { SharedFieldError } from "../platform/cloud-form-fields";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import {
   DISCOUNT_FIELDS,
@@ -54,7 +59,7 @@ export function NewDiscountModal({
   const { createDiscount } = services;
   const sendToMyAccount = useSendToMyAccount();
   const [notice, setNotice] = useState<Notice | null>(null);
-  const { form, submit, submitting, values, reset } = useCloudForm({
+  const { form, submit, submitting, values, reset } = useRequestForm({
     defaultValues: EMPTY_DISCOUNT_FORM,
     request: { schema: discountCreationBodySchema, from: discountRequestFrom },
     fields: DISCOUNT_FIELDS,

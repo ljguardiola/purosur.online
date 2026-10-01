@@ -1,8 +1,7 @@
 import { recoveryRedemptionBodySchema } from "@purosur/contracts";
-import { Button, InlineNotice, LoadFailure, LoadingPlaceholder } from "@purosur/ui";
+import { Button, InlineNotice, LoadFailure, LoadingPlaceholder, useRequestForm } from "@purosur/ui";
 import { ArrowLeft, KeyRound, ShieldCheck, ShieldX, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useCloudForm } from "../platform/cloud-form";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./access-layout";
@@ -126,7 +125,7 @@ function RegistrationOfToken({
   const readOptionsAgain = useReloadRegistrationOptions({ fetchRegistrationOptions });
   const [attemptFailed, setAttemptFailed] = useState(false);
   const [result, setResult] = useState<RedeemResult | null>(null);
-  const { form, submit, submitting } = useCloudForm({
+  const { form, submit, submitting } = useRequestForm({
     defaultValues: { name: "" },
     request: {
       schema: PASSKEY_NAME_REQUEST,

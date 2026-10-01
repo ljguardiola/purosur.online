@@ -1,12 +1,11 @@
 import { registerCreationBodySchema } from "@purosur/contracts";
-import { Button, InlineNotice, Modal } from "@purosur/ui";
+import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { Check, Laptop, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuthorization } from "../access/authorization-modal";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import type { authorizeSession, fetchSessionAuthorizationOptions } from "../access/session-api";
-import { useCloudForm } from "../platform/cloud-form";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { registerNameMessage } from "./register-name-message";
 import type { CreateRegisterOutcome, createRegister } from "./registers-api";
@@ -48,7 +47,7 @@ export function NewRegisterModal({
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
-  const { form, submit, submitting, reset } = useCloudForm({
+  const { form, submit, submitting, reset } = useRequestForm({
     defaultValues: { name: "" },
     request: { schema: registerCreationBodySchema, from: ({ name }) => ({ name }) },
     fields: { name: "name" },

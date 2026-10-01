@@ -1,11 +1,11 @@
 import type { CalendarDate } from "@internationalized/date";
-import { TextField } from "@purosur/ui";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { z } from "zod";
-import { render } from "../shell/test-support/render-with-router";
-import { type CloudSubmission, useCloudForm } from "./cloud-form";
-import { SharedFieldError } from "./cloud-form-fields";
+import { TextField } from "../text-field";
+import { type RequestSubmission, useRequestForm } from "./request-form";
+import { SharedFieldError } from "./request-form-fields";
 
 const requestSchema = z.object({
   name: z.string().trim().min(1, "empty").max(5, "long"),
@@ -30,11 +30,11 @@ function deferred() {
 
 type SubmitHandler = (
   request: z.input<typeof requestSchema>,
-  submission: CloudSubmission<Values>,
+  submission: RequestSubmission<Values>,
 ) => Promise<void>;
 
 function Probe({ onSubmit }: { onSubmit: SubmitHandler }) {
-  const { form, submit, submitting, reset, values } = useCloudForm({
+  const { form, submit, submitting, reset, values } = useRequestForm({
     defaultValues: { name: "", amountText: "" } satisfies Values,
     request: {
       schema: requestSchema,
@@ -286,7 +286,7 @@ test("a failed onSubmit that showed a field error before its first await rejects
   const failed = vi.fn<(error: unknown) => void>();
   const failure = new Error("sin conexión");
   function FailingProbe() {
-    const { form, submit, submitting } = useCloudForm({
+    const { form, submit, submitting } = useRequestForm({
       defaultValues: { name: "Ana" },
       request: { schema: z.object({ name: z.string() }), from: (values) => values },
       fields: { name: "name" },
@@ -320,11 +320,11 @@ test("a failed onSubmit that showed a field error before its first await rejects
 
 test("a schema issue outside every declared field still submits the request, with nothing parsed", async () => {
   const onSubmit = vi.fn<
-    (request: { name: string }, submission: CloudSubmission<{ name: string }>) => Promise<void>
+    (request: { name: string }, submission: RequestSubmission<{ name: string }>) => Promise<void>
   >(() => Promise.resolve());
   const rootSchema = z.object({ name: z.string() }).refine(() => false, "always refused");
   function RootProbe() {
-    const { form, submit } = useCloudForm({
+    const { form, submit } = useRequestForm({
       defaultValues: { name: "Ana" },
       request: { schema: rootSchema, from: (values) => values },
       fields: { name: "name" },
@@ -357,7 +357,7 @@ test("refuses a request schema that can only validate asynchronously", async () 
   const refused = vi.fn<(error: unknown) => void>();
   const asyncSchema = z.object({ name: z.string() }).refine(async () => true);
   function AsyncProbe() {
-    const { form, submit } = useCloudForm({
+    const { form, submit } = useRequestForm({
       defaultValues: { name: "Ana" },
       request: { schema: asyncSchema, from: (values) => values },
       fields: { name: "name" },
@@ -407,9 +407,9 @@ function VersionedProbe({
   onSubmit,
 }: {
   version: number;
-  onSubmit: (submission: CloudSubmission<VersionedValues>) => Promise<void>;
+  onSubmit: (submission: RequestSubmission<VersionedValues>) => Promise<void>;
 }) {
-  const { form, submit, reset } = useCloudForm({
+  const { form, submit, reset } = useRequestForm({
     defaultValues: { name: "Ana", version } satisfies VersionedValues,
     request: {
       schema: z.object({ name: z.string().min(1), version: z.number().int().min(1) }),
@@ -454,7 +454,7 @@ test("a request key declared as belonging to no field is reported as unknown by 
 });
 
 test("a schema issue on a key that belongs to no field still submits the request, with nothing parsed", async () => {
-  const submitted = vi.fn<(submission: CloudSubmission<VersionedValues>) => Promise<void>>(() =>
+  const submitted = vi.fn<(submission: RequestSubmission<VersionedValues>) => Promise<void>>(() =>
     Promise.resolve(),
   );
   const screen = await render(<VersionedProbe version={0} onSubmit={submitted} />);
@@ -467,7 +467,7 @@ test("a schema issue on a key that belongs to no field still submits the request
 });
 
 test("a field's own issue still holds the request back alongside an issue outside every field", async () => {
-  const submitted = vi.fn<(submission: CloudSubmission<VersionedValues>) => Promise<void>>(() =>
+  const submitted = vi.fn<(submission: RequestSubmission<VersionedValues>) => Promise<void>>(() =>
     Promise.resolve(),
   );
   const screen = await render(<VersionedProbe version={0} onSubmit={submitted} />);
@@ -505,7 +505,7 @@ const ROLE_OPTIONS = [
 ] as const;
 
 function SelectProbe({ onSubmit }: { onSubmit: (role: string) => Promise<void> }) {
-  const { form, submit } = useCloudForm({
+  const { form, submit } = useRequestForm({
     defaultValues: { role: "" },
     request: {
       schema: z.object({ role: z.string().min(1) }),
@@ -551,7 +551,7 @@ test("a select submits the option that was chosen", async () => {
 });
 
 function ComboBoxProbe({ onSubmit }: { onSubmit: (role: string) => Promise<void> }) {
-  const { form, submit } = useCloudForm({
+  const { form, submit } = useRequestForm({
     defaultValues: { role: null as string | null },
     request: {
       schema: z.object({ role: z.string().min(1) }),
@@ -599,7 +599,7 @@ test("a combo box submits the option that was chosen", async () => {
 });
 
 function DirtyProbe() {
-  const { form, dirty, reset } = useCloudForm({
+  const { form, dirty, reset } = useRequestForm({
     defaultValues: { name: "Ana" },
     request: { schema: z.object({ name: z.string() }), from: (values) => values },
     fields: { name: "name" },
@@ -656,7 +656,7 @@ test("a reset without values goes back to the values the form started with", asy
 });
 
 function DateProbe({ onSubmit }: { onSubmit: (date: string) => Promise<void> }) {
-  const { form, submit } = useCloudForm({
+  const { form, submit } = useRequestForm({
     defaultValues: { day: null as CalendarDate | null },
     request: {
       schema: z.object({ day: z.string().min(1) }),
@@ -707,7 +707,7 @@ test("a date field submits the date that was typed", async () => {
 });
 
 function PairProbe() {
-  const { form, submit } = useCloudForm({
+  const { form, submit } = useRequestForm({
     defaultValues: { opens: "" },
     request: { schema: z.object({ opens: z.string().min(1) }), from: (values) => values },
     fields: { opens: "opens" },
@@ -792,7 +792,7 @@ const contentSchema = z.object({
 });
 
 function QuantityProbe({ onSubmit }: { onSubmit: (content: unknown) => Promise<void> }) {
-  const { form, submit } = useCloudForm({
+  const { form, submit } = useRequestForm({
     defaultValues: { content: { quantity: "", unit: "G" as ContentUnit } },
     request: {
       schema: contentSchema,
@@ -856,7 +856,7 @@ function cardLabel(screen: Awaited<ReturnType<typeof render>>, title: string): H
 }
 
 function CardProbe({ onSubmit }: { onSubmit: (saleUnit: string | null) => Promise<void> }) {
-  const { form, submit } = useCloudForm({
+  const { form, submit } = useRequestForm({
     defaultValues: { saleUnit: null as "UNIT" | "KG" | null },
     request: {
       schema: z.object({ saleUnit: z.enum(["UNIT", "KG"]) }),
@@ -903,7 +903,7 @@ test("a submit hands onSubmit what the schema read, so the request needs no cast
   const parsedSeen = vi.fn<(parsed: unknown) => void>();
   const schema = z.object({ name: z.string().trim().min(1) });
   function ParsedProbe() {
-    const { form, submit } = useCloudForm({
+    const { form, submit } = useRequestForm({
       defaultValues: { name: "" },
       request: { schema, from: ({ name }) => ({ name }) },
       fields: { name: "name" },
@@ -934,7 +934,7 @@ test("a submit hands onSubmit what the schema read, so the request needs no cast
 });
 
 function NullableSelectProbe() {
-  const { form, submit } = useCloudForm({
+  const { form, submit } = useRequestForm({
     defaultValues: { role: null as string | null },
     request: {
       schema: z.object({ role: z.string().min(1) }),
@@ -976,7 +976,7 @@ test("a schema issue on a key the request type does not declare shows on the fie
       context.addIssue({ code: "custom", path: ["contentQuantity"], message: "refused" }),
     );
   function ExtraKeyProbe() {
-    const { form, submit } = useCloudForm({
+    const { form, submit } = useRequestForm({
       defaultValues: { content: "1" },
       request: { schema, from: ({ content }) => ({ content: Number(content) }) },
       fields: { content: "content", contentQuantity: "content" },
@@ -1006,7 +1006,7 @@ test("a nested schema issue shows on the field declared for its dotted path, or 
     deal: z.object({ buy: z.number().min(2), pay: z.number().min(1) }),
   });
   function NestedKeyProbe() {
-    const { form, submit } = useCloudForm({
+    const { form, submit } = useRequestForm({
       defaultValues: { buy: "", pay: "" },
       request: {
         schema,
@@ -1047,7 +1047,7 @@ test("a nested schema issue shows on the field declared for its dotted path, or 
 test("a declared field that is not shown does not hold back a valid submit", async () => {
   const onSubmit = vi.fn(() => Promise.resolve());
   function HiddenFieldProbe() {
-    const { form, submit } = useCloudForm({
+    const { form, submit } = useRequestForm({
       defaultValues: { name: "", hidden: "" },
       request: { schema: z.object({ name: z.string() }), from: ({ name }) => ({ name }) },
       fields: { name: "name", other: "hidden" },
@@ -1074,7 +1074,7 @@ test("a declared field that is not shown does not hold back a valid submit", asy
 
 test("a key can be declared for the field the values at that moment name", async () => {
   function ChosenFieldProbe() {
-    const { form, submit } = useCloudForm({
+    const { form, submit } = useRequestForm({
       defaultValues: { shape: "", percent: "5", fixed: "7" },
       request: {
         schema: z.object({ amount: z.number() }),
@@ -1118,7 +1118,7 @@ const DIRECTION_OPTIONS = [
 ] as const;
 
 function SegmentProbe({ onSubmit }: { onSubmit: (direction: string) => Promise<void> }) {
-  const { form, submit } = useCloudForm({
+  const { form, submit } = useRequestForm({
     defaultValues: { direction: "add" as "add" | "subtract" },
     request: {
       schema: z.object({ direction: z.enum(["add", "subtract"]) }),
@@ -1158,7 +1158,7 @@ const DAY_CHIPS = [
 ] as const;
 
 function ChipsProbe({ onSubmit }: { onSubmit: (days: string[]) => Promise<void> }) {
-  const { form, submit } = useCloudForm({
+  const { form, submit } = useRequestForm({
     defaultValues: { days: [] as string[] },
     request: {
       schema: z.object({ days: z.array(z.string()).min(1) }),
@@ -1203,7 +1203,7 @@ test("a toggle chip group submits the chips that were chosen, in the order of it
 });
 
 function ToggleProbe({ onSubmit }: { onSubmit: (active: boolean) => Promise<void> }) {
-  const { form, submit } = useCloudForm({
+  const { form, submit } = useRequestForm({
     defaultValues: { active: false },
     request: { schema: z.object({ active: z.boolean() }), from: ({ active }) => ({ active }) },
     fields: { active: "active" },
