@@ -192,17 +192,27 @@ describe("LockedCashCount", () => {
     await expect.element(screen.getByRole("button", { name: "Cancelar la venta" })).toBeVisible();
   });
 
-  it("says the open sale could not be read and reads it again on Reintentar", async () => {
+  it("shows a placeholder in the count while the open sale is read", async () => {
+    const { screen } = await renderStep({ loadOpenSale: () => new Promise(() => {}) });
+
+    await expect.element(screen.getByRole("main").getByText("Cargando…")).toBeInTheDocument();
+  });
+
+  it("says the open sale could not be read and reads it again on Reintentar, starting from its placeholder", async () => {
+    const reread = deferred<SessionOpenSale | null | "unavailable">();
     const loadOpenSale = vi
       .fn<LoadOpenSale>()
       .mockResolvedValueOnce("unavailable")
-      .mockResolvedValueOnce(CANCELLABLE_SALE);
+      .mockReturnValueOnce(reread.promise);
     const { screen } = await renderStep({ loadOpenSale });
     await expect.element(screen.getByText("No se pudo leer la venta abierta")).toBeVisible();
 
     await screen.getByRole("button", { name: "Reintentar" }).click();
 
+    await expect.element(screen.getByRole("main").getByText("Cargando…")).toBeInTheDocument();
+    reread.resolve(CANCELLABLE_SALE);
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
+    await expect.element(screen.getByRole("main").getByText("Cargando…")).not.toBeInTheDocument();
   });
 
   it("asks for confirmation before cancelling the open sale", async () => {

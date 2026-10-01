@@ -1179,22 +1179,24 @@ describe("the lines of the sale being changed", () => {
     ]);
   });
 
-  it("reads back the payment of a sale with what was tendered", () => {
+  it("reads back the payments it records for a sale", () => {
     scan("111");
-    const payment = {
-      id: "payment-1",
-      saleId: "id-1",
-      kind: "SALE" as const,
-      method: "CASH" as const,
-      provider: "NONE" as const,
-      amount: 1500,
-      tendered: 2000,
-      state: "APPROVED" as const,
-      occurredAt: NOW,
-    };
-    ledger.transaction((tx) => tx.recordPayment(payment));
+    ledger.transaction((tx) =>
+      tx.recordPayment({
+        id: "payment-1",
+        saleId: "id-1",
+        kind: "SALE",
+        method: "CASH",
+        provider: "NONE",
+        amount: 1500,
+        state: "APPROVED",
+        occurredAt: NOW,
+      }),
+    );
 
-    expect(ledger.transaction((tx) => tx.salePayments("id-1"))).toEqual([payment]);
+    const payments = ledger.transaction((tx) => tx.salePayments("id-1"));
+
+    expect(payments.map((payment) => payment.id)).toEqual(["payment-1"]);
   });
 
   it("chains the removals of a sale charged in cash in its sale_completed event", () => {

@@ -4,7 +4,14 @@ import type {
   CloseLockedCashSessionOutcome,
   SessionOpenSale,
 } from "@purosur/contracts";
-import { Button, formatCents, InlineNotice, LoadFailure, TextField } from "@purosur/ui";
+import {
+  Button,
+  formatCents,
+  InlineNotice,
+  LoadFailure,
+  LoadingPlaceholder,
+  TextField,
+} from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Lock, ShoppingBasket, TriangleAlert, X } from "lucide-react";
 import type { FormEvent } from "react";
@@ -155,6 +162,7 @@ export function LockedCashCount({
             {`Cierra ${closerName}. La sesión es de ${opener.first_name}.`}
           </p>
         </div>
+        {openSaleData.status === "loading" ? <LoadingPlaceholder variant="card" lines={1} /> : null}
         {openSaleData.status === "failed" ? (
           <LoadFailure
             icon={<TriangleAlert />}
