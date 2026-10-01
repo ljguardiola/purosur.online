@@ -37,7 +37,6 @@ export const PERSISTENCE_IN_HANDLERS_ALLOWLIST = [
   "apps/cloud/src/stock/stock-counts-route.ts",
   "apps/cloud/src/stock/stock-movements-route.ts",
   "apps/cloud/src/stock/stock-products-route.ts",
-  "apps/cloud/src/sync/changes-route.ts",
 ];
 
 export const SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST = [

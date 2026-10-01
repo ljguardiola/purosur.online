@@ -312,4 +312,5 @@ export {
   isPullCursor,
   PULL_PAGE_MAX_CHANGES,
   PUSH_BATCH_MAX_EVENTS,
+  pullAudienceOf,
 } from "./sync/index.js";

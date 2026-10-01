@@ -1,22 +1,7 @@
+import type { PulledEntity } from "@purosur/domain/sync/use-cases";
 import { sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { changes } from "../platform/db/schema.js";
-
-type PulledEntity =
-  | "branch_settings"
-  | "category"
-  | "product"
-  | "tag"
-  | "price_list"
-  | "price"
-  | "user"
-  | "role"
-  | "register"
-  | "register_point_of_sale"
-  | "discount"
-  | "issuer_identification"
-  | "buyer_identification_threshold"
-  | "buyer_tax_status_set";
 
 interface LoggedChangeFields {
   entityId: string;

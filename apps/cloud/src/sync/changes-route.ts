@@ -6,13 +6,11 @@ import {
   cloudErrorStatus,
 } from "@purosur/contracts";
 import { type PullPage, pullChanges } from "@purosur/domain/sync/use-cases";
-import { eq } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { PUBLIC_ACCESS } from "../access/route-access.js";
 import { toBranchSettingsWire } from "../branch/branch-settings-wire.js";
 import { toIssuerIdentificationWire } from "../fiscal/issuer-identification-read-route.js";
-import { registerInstallations, registers } from "../platform/db/schema.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
 import { authenticateDevice } from "../register/device-authentication.js";
@@ -217,20 +215,8 @@ export function registerChangesRoute<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      const { deviceId } = authentication.installation;
-      const [installation] = await options.db
-        .select({ registerId: registers.id, locationId: registers.locationId })
-        .from(registerInstallations)
-        .innerJoin(registers, eq(registers.id, registerInstallations.registerId))
-        .where(eq(registerInstallations.id, deviceId));
-      if (!installation) {
-        throw new Error("an authenticated installation has no register");
-      }
-
       const page = await pullChanges(ports, {
-        deviceId,
-        locationId: installation.locationId,
-        registerId: installation.registerId,
+        deviceId: authentication.installation.deviceId,
         since: query.since,
       });
       await reply.code(200).send(changesPageSchema.parse(toChangesPageWire(page)));
