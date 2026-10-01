@@ -1,3 +1,4 @@
+import { type ChargeRefusal, chargeRefusal } from "../../fiscal/index.js";
 import type { CashMovement } from "../../register/index.js";
 import type { OutboxEventDraft } from "../../sync/index.js";
 import { cashCharge } from "../model/cash-charge.js";
@@ -29,6 +30,7 @@ export type ChargeSaleInCashOutcome =
   | { kind: "no_open_sale" }
   | { kind: "empty_sale" }
   | { kind: "zero_total" }
+  | ChargeRefusal
   | { kind: "invalid_amount" }
   | { kind: "insufficient_cash"; amountDue: number }
   | { kind: "completed"; saleId: string; total: number; tendered: number; change: number };
@@ -54,6 +56,11 @@ export function chargeSaleInCash(
     if (total === 0) {
       return { kind: "zero_total" };
     }
+    const completedAt = clock.now();
+    const refusal = chargeRefusal(total, tx.buyerIdentificationThresholds(), completedAt);
+    if (refusal) {
+      return refusal;
+    }
     const charge = cashCharge(total, tendered);
     if (charge.kind === "invalid_amount") {
       return charge;
@@ -62,7 +69,6 @@ export function chargeSaleInCash(
       return { kind: "insufficient_cash", amountDue: charge.amountDue };
     }
 
-    const completedAt = clock.now();
     const payment: PaymentTransaction = {
       id: ids.next(),
       saleId: sale.id,

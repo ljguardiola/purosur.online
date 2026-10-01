@@ -42,8 +42,11 @@ const THREE_FOR_TWO: CandidatePromotion = {
   benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
 };
 
+const THRESHOLD = { id: "threshold-1", amount: 10_000_000, validFrom: "2026-01-01" };
+
 function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
   return new FakeSaleLedger({
+    thresholds: [THRESHOLD],
     accesses: { cashier: CASHIER },
     identity: IDENTITY,
     session: SESSION,
@@ -580,5 +583,31 @@ describe("addScannedProduct", () => {
         { id: "three-for-two", benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 } },
       ]);
     });
+  });
+});
+
+describe("add-scanned-product charge refusal", () => {
+  it("tells that the sale reaches the threshold when adding a scanned product brings it to the threshold", () => {
+    const store = ledger({ thresholds: [{ ...THRESHOLD, amount: 2500 }] });
+
+    expect(scan(store)).toEqual(
+      expect.objectContaining({
+        chargeRefusal: { kind: "reaches_buyer_identification_threshold", threshold: 2500 },
+      }),
+    );
+  });
+
+  it("tells nothing is refused when adding a scanned product leaves the sale under the threshold", () => {
+    const store = ledger({ thresholds: [{ ...THRESHOLD, amount: 2501 }] });
+
+    expect(scan(store)).toHaveProperty("chargeRefusal", undefined);
+  });
+
+  it("tells that no threshold is in effect when there is none", () => {
+    const store = ledger({ thresholds: [] });
+
+    expect(scan(store)).toEqual(
+      expect.objectContaining({ chargeRefusal: { kind: "no_buyer_identification_threshold" } }),
+    );
   });
 });

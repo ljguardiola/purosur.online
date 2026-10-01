@@ -1,5 +1,6 @@
 import type { RoleAccess } from "../../access/index.js";
 import type { SaleUnit } from "../../catalog/index.js";
+import type { BuyerIdentificationThreshold } from "../../fiscal/index.js";
 import type { DiscountRecurrence } from "../../pricing/index.js";
 import type { CashMovement } from "../../register/index.js";
 import type { OutboxEventDraft } from "../../sync/index.js";
@@ -48,6 +49,7 @@ export interface SaleLedgerTransaction {
   activeProductByBarcode(code: string): SellableProduct | undefined;
   activeProductById(productId: string): SellableProduct | undefined;
   searchableProducts(): SearchableProduct[];
+  buyerIdentificationThresholds(): BuyerIdentificationThreshold[];
   priceAt(productId: string, moment: Date): ListPrice | undefined;
   promotionsTargeting(productId: string): CandidatePromotion[];
   recordOpenedSale(sale: Sale): void;

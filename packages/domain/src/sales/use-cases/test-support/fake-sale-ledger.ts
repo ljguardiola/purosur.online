@@ -1,4 +1,5 @@
 import type { RoleAccess } from "../../../access/index.js";
+import type { BuyerIdentificationThreshold } from "../../../fiscal/index.js";
 import { priceInEffectAt } from "../../../pricing/index.js";
 import type { CashMovement } from "../../../register/index.js";
 import type { OutboxEventDraft } from "../../../sync/index.js";
@@ -31,6 +32,7 @@ export interface FakeSaleLedgerState {
   products: SellableProduct[];
   barcodes: Record<string, string>;
   prices: FakePrice[];
+  thresholds: BuyerIdentificationThreshold[];
   promotionsByProduct: Record<string, CandidatePromotion[]>;
   sales: SaleWithLines[];
   removals: SaleLineRemoval[];
@@ -66,6 +68,7 @@ export class FakeSaleLedger implements SaleLedger {
       products: [],
       barcodes: {},
       prices: [],
+      thresholds: [],
       promotionsByProduct: {},
       sales: [],
       removals: [],
@@ -99,6 +102,7 @@ export class FakeSaleLedger implements SaleLedger {
           ...product,
           timesSoldHere: completedSalesContaining(working, product.id),
         })),
+      buyerIdentificationThresholds: () => structuredClone(working.thresholds),
       priceAt: (productId, moment) => latestPriceAt(working.prices, productId, moment),
       promotionsTargeting: (productId) => {
         this.promotionReads += 1;

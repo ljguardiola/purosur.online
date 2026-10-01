@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { SaleWithLines } from "../model/sale.js";
 import { currentSale } from "./current-sale.js";
-import { FakeSaleLedger, type FakeSaleLedgerState } from "./test-support/fake-sale-ledger.js";
+import {
+  FakeSaleLedger,
+  type FakeSaleLedgerState,
+  FixedClock,
+} from "./test-support/fake-sale-ledger.js";
 
+const NOW = new Date("2026-09-30T12:34:56.789Z");
 const CASHIER = { isAdministrator: false, permissionKeys: ["sell_and_charge"] };
 const SESSION = { id: "session-1", openedBy: "cashier" };
 const SALE: SaleWithLines = {
@@ -29,8 +34,11 @@ const SALE: SaleWithLines = {
   ],
 };
 
+const THRESHOLD = { id: "threshold-1", amount: 10_000_000, validFrom: "2026-01-01" };
+
 function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
   return new FakeSaleLedger({
+    thresholds: [THRESHOLD],
     accesses: { cashier: CASHIER },
     session: SESSION,
     sales: [SALE],
@@ -39,7 +47,7 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
 }
 
 function read(store: FakeSaleLedger, actorId = "cashier") {
-  return currentSale({ ledger: store }, { actorId });
+  return currentSale({ ledger: store, clock: new FixedClock(NOW) }, { actorId });
 }
 
 describe("currentSale", () => {
@@ -86,5 +94,31 @@ describe("currentSale", () => {
     read(store);
 
     expect(store.state).toEqual(before);
+  });
+});
+
+describe("current-sale charge refusal", () => {
+  it("tells that the sale reaches the threshold when reading the current sale brings it to the threshold", () => {
+    const store = ledger({ thresholds: [{ ...THRESHOLD, amount: 5000 }] });
+
+    expect(read(store)).toEqual(
+      expect.objectContaining({
+        chargeRefusal: { kind: "reaches_buyer_identification_threshold", threshold: 5000 },
+      }),
+    );
+  });
+
+  it("tells nothing is refused when reading the current sale leaves the sale under the threshold", () => {
+    const store = ledger({ thresholds: [{ ...THRESHOLD, amount: 5001 }] });
+
+    expect(read(store)).toHaveProperty("chargeRefusal", undefined);
+  });
+
+  it("tells that no threshold is in effect when there is none", () => {
+    const store = ledger({ thresholds: [] });
+
+    expect(read(store)).toEqual(
+      expect.objectContaining({ chargeRefusal: { kind: "no_buyer_identification_threshold" } }),
+    );
   });
 });

@@ -1,5 +1,7 @@
+import type { ChargeRefusal } from "../../fiscal/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { withQuantity } from "../model/sale-line.js";
+import { saleChargeRefusal } from "./sale-charge-refusal.js";
 import type { Clock, IdGenerator, SaleLedger } from "./sale-ledger.js";
 import { isRefusal, sellingSession } from "./selling-session.js";
 
@@ -23,7 +25,7 @@ export type ChangeLineQuantityOutcome =
   | { kind: "invalid_quantity" }
   | { kind: "unknown_line" }
   | { kind: "stale_quantity" }
-  | { kind: "changed"; sale: SaleWithLines };
+  | { kind: "changed"; sale: SaleWithLines; chargeRefusal: ChargeRefusal | undefined };
 
 export function changeLineQuantity(
   { ledger, clock, ids }: ChangeLineQuantityPorts,
@@ -65,9 +67,11 @@ export function changeLineQuantity(
         occurredAt: clock.now(),
       });
     }
+    const changed = { ...sale, lines: sale.lines.map((each) => (each === line ? updated : each)) };
     return {
       kind: "changed",
-      sale: { ...sale, lines: sale.lines.map((each) => (each === line ? updated : each)) },
+      sale: changed,
+      chargeRefusal: saleChargeRefusal(tx, changed, clock.now()),
     };
   });
 }

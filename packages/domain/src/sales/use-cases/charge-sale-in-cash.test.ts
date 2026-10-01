@@ -104,8 +104,11 @@ const DISCOUNTED_SALE: SaleWithLines = {
   ],
 };
 
+const THRESHOLD = { id: "threshold-1", amount: 10_000_000, validFrom: "2026-01-01" };
+
 function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
   return new FakeSaleLedger({
+    thresholds: [THRESHOLD],
     accesses: { cashier: CASHIER },
     identity: IDENTITY,
     session: SESSION,
@@ -450,6 +453,42 @@ describe("chargeSaleInCash", () => {
 
     expect(charge(store, 0)).toEqual({ kind: "zero_total" });
     expect(store.state).toEqual(before);
+  });
+
+  it("refuses a sale whose total reaches the threshold in effect, writing nothing", () => {
+    const store = ledger({ thresholds: [{ ...THRESHOLD, amount: TOTAL }] });
+    const before = structuredClone(store.state);
+
+    expect(charge(store, TOTAL)).toEqual({
+      kind: "reaches_buyer_identification_threshold",
+      threshold: TOTAL,
+    });
+    expect(store.state).toEqual(before);
+  });
+
+  it("charges a sale whose total is one cent under the threshold in effect", () => {
+    const store = ledger({ thresholds: [{ ...THRESHOLD, amount: TOTAL + 1 }] });
+
+    expect(charge(store, TOTAL)).toEqual(expect.objectContaining({ kind: "completed" }));
+  });
+
+  it("refuses when no threshold is in effect, writing nothing", () => {
+    const store = ledger({ thresholds: [] });
+    const before = structuredClone(store.state);
+
+    expect(charge(store, TOTAL)).toEqual({ kind: "no_buyer_identification_threshold" });
+    expect(store.state).toEqual(before);
+  });
+
+  it("reads the threshold at the clock's Argentine day", () => {
+    const store = ledger({
+      thresholds: [
+        { id: "old", amount: 1, validFrom: "2026-01-01" },
+        { id: "new", amount: 10_000_000, validFrom: "2026-09-30" },
+      ],
+    });
+
+    expect(charge(store, TOTAL)).toEqual(expect.objectContaining({ kind: "completed" }));
   });
 
   it("refuses when the session has no open sale", () => {
