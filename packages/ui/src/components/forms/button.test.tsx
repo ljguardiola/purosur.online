@@ -235,6 +235,11 @@ test("shows the hand cursor when enabled and the arrow cursor when disabled", as
   expect(disabled.cursor).toBe("default");
 });
 
+test("lets a touch screen pan and pinch-zoom over it, but not double-tap to zoom", async () => {
+  // Chromium reports `pan-x pan-y pinch-zoom` by its equivalent keyword.
+  expect((await buttonStyle("Pay")).touchAction).toBe("manipulation");
+});
+
 test("keeps the primary variant's base text readable against its background", async () => {
   const primary = await buttonStyle("Primary");
 

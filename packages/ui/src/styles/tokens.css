@@ -323,6 +323,12 @@
     cursor: pointer;
   }
 
+  /* Not `manipulation`, its equivalent: in Safari that keyword stops pointercancel from firing when
+     a press turns into a scroll. */
+  [data-react-aria-pressable] {
+    touch-action: pan-x pan-y pinch-zoom;
+  }
+
   button:disabled,
   :is(button, [role="button"])[aria-disabled="true"],
   :is(button, [role="button"])[data-disabled] {
