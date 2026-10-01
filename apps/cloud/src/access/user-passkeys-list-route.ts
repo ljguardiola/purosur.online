@@ -1,10 +1,12 @@
 import { passkeyListSchema } from "@purosur/contracts";
+import { findBranchUser } from "@purosur/domain/access/use-cases";
 import { asc, eq } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { passkeys } from "../platform/db/schema.js";
 import { sameOriginGuard } from "./backoffice-origin.js";
-import { canReactivateUsers, findBranchUser } from "./branch-users.js";
+import { canReactivateUsers } from "./branch-users.js";
+import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 import {
   ADMINISTRATOR_ACCESS,
   openSessionOf,
@@ -43,9 +45,14 @@ export function registerUserPasskeysListRoute<TQueryResult extends PgQueryResult
         return;
       }
 
-      const target = await findBranchUser(options.db, openSession.locationId, targetId, {
-        activeScope: canReactivateUsers(openSession) ? "any" : "active",
-      });
+      const target = await findBranchUser(
+        { users: drizzleBranchUsers(options.db) },
+        {
+          locationId: openSession.locationId,
+          userId: targetId,
+          activeScope: canReactivateUsers(openSession) ? "any" : "active",
+        },
+      );
       if (!target) {
         await reply.code(404).send(NOT_FOUND_RESPONSE);
         return;

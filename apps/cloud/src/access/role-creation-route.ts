@@ -1,4 +1,5 @@
 import { roleCreationBodySchema } from "@purosur/contracts";
+import type { RoleSummary } from "@purosur/domain/access/use-cases";
 import { sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -7,7 +8,7 @@ import { readValidatedBody } from "../platform/request-body-schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
-import type { RoleSummaryRow, RolesRouteOptions } from "./roles-list-route.js";
+import type { RolesRouteOptions } from "./roles-list-route.js";
 import { toRoleSummaryWire } from "./roles-list-route.js";
 import {
   ADMINISTRATOR_ACCESS,
@@ -50,7 +51,7 @@ export interface CreateRoleInput {
   actorId: string;
 }
 
-export type CreateRoleOutcome = { kind: "name_taken" } | { kind: "created"; role: RoleSummaryRow };
+export type CreateRoleOutcome = { kind: "name_taken" } | { kind: "created"; role: RoleSummary };
 
 // The case-insensitive check runs inside the transaction; the database's own unique index
 // (roles_name_lower_key) is the backstop for a name that lands concurrently.

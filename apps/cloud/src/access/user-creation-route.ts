@@ -1,4 +1,5 @@
 import { userCreationBodySchema } from "@purosur/contracts";
+import { findEmailHolder } from "@purosur/domain/access/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -8,6 +9,7 @@ import { readValidatedBody } from "../platform/request-body-schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { canReactivateUsers, toBranchUserWire } from "./branch-users.js";
+import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import {
   ADMINISTRATOR_ACCESS,
@@ -180,16 +182,10 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
       if (outcome.kind === "email_taken") {
         // Naming the conflicting user is branch-scoped even though the email conflict is not, so
         // another branch's user is never revealed.
-        const [conflicting] = await options.db
-          .select({
-            id: users.id,
-            firstName: users.firstName,
-            active: users.active,
-            locationId: users.locationId,
-          })
-          .from(users)
-          .where(eq(users.email, parsedBody.email))
-          .limit(1);
+        const conflicting = await findEmailHolder(
+          { users: drizzleBranchUsers(options.db) },
+          { email: parsedBody.email },
+        );
         if (
           conflicting &&
           !conflicting.active &&

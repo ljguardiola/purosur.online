@@ -1,5 +1,10 @@
 import { roleEditBodySchema } from "@purosur/contracts";
 import { grantedPermissionKeys, increasesAccess, PERMISSION_KEYS } from "@purosur/domain";
+import {
+  findEditableRole,
+  listRoleHolders,
+  type RoleHolder,
+} from "@purosur/domain/access/use-cases";
 import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -8,18 +13,14 @@ import { auditLog, rolePermissions, roles } from "../platform/db/schema.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { withPendingChanges } from "../sync/change-log.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
+import { drizzleRoleDirectory } from "./drizzle-role-directory.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import {
   isRoleNameUniqueViolation,
   ROLE_NAME_TAKEN_RESPONSE,
   RoleNameTaken,
 } from "./role-creation-route.js";
-import {
-  type AssignedUser,
-  findEditableRole,
-  listRoleUsers,
-  toRoleDetailWire,
-} from "./role-read-route.js";
+import { toRoleDetailWire } from "./role-read-route.js";
 import type { RolesRouteOptions } from "./roles-list-route.js";
 import {
   ADMINISTRATOR_ACCESS,
@@ -53,7 +54,7 @@ interface EditedRole {
   permissionKeys: string[];
   userCount: number;
   version: number;
-  assignedUsers: AssignedUser[];
+  assignedUsers: RoleHolder[];
 }
 
 export interface EditRoleDeps {
@@ -162,7 +163,10 @@ export async function editRole<TQueryResult extends PgQueryResultHKT>(
           currentPermissionKeys,
           nextPermissionKeys,
         );
-        for (const holder of await listRoleUsers(tx, input.id)) {
+        for (const holder of await listRoleHolders(
+          { roles: drizzleRoleDirectory(tx) },
+          { roleId: input.id },
+        )) {
           await openAlert(
             tx,
             {
@@ -203,7 +207,10 @@ export async function editRole<TQueryResult extends PgQueryResultHKT>(
   if (outcome.kind !== "applied") {
     return outcome;
   }
-  const assignedUsers = await listRoleUsers(db, input.id);
+  const assignedUsers = await listRoleHolders(
+    { roles: drizzleRoleDirectory(db) },
+    { roleId: input.id },
+  );
   return {
     kind: "applied",
     role: { ...outcome.role, userCount: assignedUsers.length, assignedUsers },
@@ -228,7 +235,10 @@ export function registerRoleEditRoutes<TQueryResult extends PgQueryResultHKT>(
       const attemptedAt = now();
       const openSession = openSessionOf(request);
 
-      const target = await findEditableRole(options.db, request.params.id);
+      const target = await findEditableRole(
+        { roles: drizzleRoleDirectory(options.db) },
+        { roleId: request.params.id },
+      );
       if (!target) {
         await reply.code(404).send(NOT_FOUND_RESPONSE);
         return;

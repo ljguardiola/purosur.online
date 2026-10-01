@@ -1,10 +1,11 @@
+import { findBranchUser } from "@purosur/domain/access/use-cases";
 import { and, eq, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { auditLog, roles, sessions, userRoles, users } from "../platform/db/schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
-import { findBranchUser } from "./branch-users.js";
+import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import {
   openSessionOf,
@@ -97,7 +98,10 @@ export function registerUserDeactivationRoutes<TQueryResult extends PgQueryResul
     if (!UUID_PATTERN.test(targetId)) {
       return undefined;
     }
-    const row = await findBranchUser(options.db, locationId, targetId);
+    const row = await findBranchUser(
+      { users: drizzleBranchUsers(options.db) },
+      { locationId, userId: targetId },
+    );
     if (!row || row.roleIsAdministrator || row.id === actorId) {
       return undefined;
     }

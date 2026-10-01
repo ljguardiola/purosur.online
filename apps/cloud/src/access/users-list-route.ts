@@ -1,7 +1,9 @@
+import { listBranchUsers } from "@purosur/domain/access/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "./backoffice-origin.js";
-import { canReactivateUsers, listBranchUsers, toBranchUserWire } from "./branch-users.js";
+import { canReactivateUsers, toBranchUserWire } from "./branch-users.js";
+import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 import {
   openSessionOf,
   permissionAccess,
@@ -36,9 +38,13 @@ export function registerUsersListRoute<TQueryResult extends PgQueryResultHKT>(
       const openSession = openSessionOf(request);
       const includesInactive = canReactivateUsers(openSession);
 
-      const rows = await listBranchUsers(options.db, openSession.locationId, {
-        activeScope: includesInactive ? "any" : "active",
-      });
+      const rows = await listBranchUsers(
+        { users: drizzleBranchUsers(options.db) },
+        {
+          locationId: openSession.locationId,
+          activeScope: includesInactive ? "any" : "active",
+        },
+      );
       await reply
         .code(200)
         .send(rows.map((row) => toBranchUserWire(row, { includeActive: includesInactive })));

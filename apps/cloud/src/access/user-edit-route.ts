@@ -1,5 +1,6 @@
 import { userEditBodySchema } from "@purosur/contracts";
 import { increasesAccess } from "@purosur/domain";
+import { type BranchUser, findBranchUser } from "@purosur/domain/access/use-cases";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -15,7 +16,8 @@ import {
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { withPendingChanges } from "../sync/change-log.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
-import { type BranchUserRow, findBranchUser, toBranchUserWire } from "./branch-users.js";
+import { toBranchUserWire } from "./branch-users.js";
+import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import {
   ADMINISTRATOR_ACCESS,
@@ -110,7 +112,7 @@ type EditOutcome =
   | { kind: "stale_version" }
   | { kind: "email_taken" }
   | { kind: "last_administrator" }
-  | { kind: "applied"; user: BranchUserRow };
+  | { kind: "applied"; user: BranchUser };
 
 export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
@@ -124,7 +126,10 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
     if (!UUID_PATTERN.test(targetId)) {
       return undefined;
     }
-    return findBranchUser(options.db, locationId, targetId);
+    return findBranchUser(
+      { users: drizzleBranchUsers(options.db) },
+      { locationId, userId: targetId },
+    );
   }
 
   app.put<{ Params: { id: string } }>(
@@ -319,7 +324,10 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
 
           // Read under the locks this transaction still holds, so a deactivation waiting on this
           // user's row can't commit before this read runs.
-          const edited = await findBranchUser(tx, openSession.locationId, target.id);
+          const edited = await findBranchUser(
+            { users: drizzleBranchUsers(tx) },
+            { locationId: openSession.locationId, userId: target.id },
+          );
           if (!edited) {
             // Deactivation bumps `version` too, so the match above already ruled this out; roll back
             // rather than answer for an edit that did not apply.

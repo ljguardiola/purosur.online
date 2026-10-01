@@ -1,10 +1,11 @@
+import { findBranchUser } from "@purosur/domain/access/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { auditLog, users } from "../platform/db/schema.js";
 import { withPendingChanges } from "../sync/change-log.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
-import { findBranchUser } from "./branch-users.js";
+import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import {
   openSessionOf,
@@ -36,7 +37,10 @@ export function registerUserReactivationRoutes<TQueryResult extends PgQueryResul
     if (!UUID_PATTERN.test(targetId)) {
       return undefined;
     }
-    return findBranchUser(options.db, locationId, targetId, { activeScope: "inactive" });
+    return findBranchUser(
+      { users: drizzleBranchUsers(options.db) },
+      { locationId, userId: targetId, activeScope: "inactive" },
+    );
   }
 
   app.delete<{ Params: { id: string } }>(
