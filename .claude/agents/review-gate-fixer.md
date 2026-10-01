@@ -31,7 +31,9 @@ coordinator's answer of any id that had one, which the fix follows.
    the comment rule: the fix adds no comment that restates the code or records
    why it was fixed.
 4. Run the focused tests of every file you touched:
-   `mise exec node@$(cat .node-version) -- pnpm vitest run <test files>`.
+   `mise exec node@$(cat .node-version) -- pnpm vitest run <test files>`, or
+   `mise exec node@$(cat .node-version) -- node --test <test files>` for the
+   tests under `.github/scripts/`.
    Never run the whole suite. When you touched `packages/domain` or
    `packages/contracts`, also run
    `mise exec node@$(cat .node-version) -- pnpm mutation --mutate <each touched source file>`

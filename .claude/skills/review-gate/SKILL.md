@@ -20,7 +20,9 @@ undone before it answers.
 2. `BASE` is `git merge-base origin/main HEAD`; `TARGET` is `git rev-parse HEAD`.
 3. The review folder is `$(git rev-parse --path-format=absolute --git-path review-gate)`,
    outside the tracked tree. Write into it:
-   - `issue.md`: `gh issue view <N> --json title,body,labels`;
+   - `issue.md`: `gh issue view <N> --json title,body,labels`. The issue is
+     the review's only source of scope: when whoever assigned it widened or
+     narrowed the work, its definition of done is updated on GitHub first;
    - `change.patch`: `git diff BASE TARGET`;
    - `ledger.md`: the findings ledger, created empty on the first run and
      kept across every later round and resumed run.
@@ -105,16 +107,16 @@ each answer in the ledger and set the row's status from it:
 - a rejected `decision`: `open`, to undo it;
 - a row no fix could close: `open` when the answer says how to fix it, with
   its failed attempts reset; `filed as #<n>` when the answer moves it out of
-  the issue; `accepted` when the answer keeps the code as it is.
+  the issue.
 
 Then go to step 6.
 
-When no row is `stopped`, every row is `refuted`, `filed as #<n>`, `accepted`
-or `fixed in <sha>`, and the review ends with the line the pull request's
+When no row is `stopped`, every row is `refuted`, `filed as #<n>` or
+`fixed in <sha>`, and the review ends with the line the pull request's
 "How it was tested" cites:
 
 ```
-REVIEW-GATE: CLEAN — <rounds> rounds, <fixed> fixed, <refuted> refuted, <filed> filed as new issues, <accepted> accepted (TARGET <sha>)
+REVIEW-GATE: CLEAN — <rounds> rounds, <fixed> fixed, <refuted> refuted, <filed> filed as new issues (TARGET <sha>)
 ```
 
 Report the new issues to the coordinator.

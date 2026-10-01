@@ -29,7 +29,9 @@ ledger ids to verify.
      that input in a scratch test file beside the code, run it, then delete
      the file.
    - Run focused tests only, never the whole suite:
-     `mise exec node@$(cat .node-version) -- pnpm vitest run <test file>`.
+     `mise exec node@$(cat .node-version) -- pnpm vitest run <test file>`,
+     or `mise exec node@$(cat .node-version) -- node --test <test file>` for
+     a test under `.github/scripts/`.
    - After each proof, restore with `git checkout -- <path>` (and delete any
      scratch file), and check `git status` is clean before the next finding.
    - A claim the run disproves is `REFUTED`, however reasonable it read.
