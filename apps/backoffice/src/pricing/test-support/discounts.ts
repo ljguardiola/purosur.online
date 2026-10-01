@@ -126,6 +126,7 @@ export const yerbaProduct: ProductTarget = {
   brandName: "Playadito",
   netContent: { quantity: 1, unit: "KG" },
   barcodes: ["7790001000101"],
+  benefitKinds: ["PERCENT_OFF", "BUY_N_PAY_M"],
 };
 
 export const almondsProduct: ProductTarget = {
@@ -135,6 +136,7 @@ export const almondsProduct: ProductTarget = {
   brandName: null,
   netContent: null,
   barcodes: [],
+  benefitKinds: ["PERCENT_OFF"],
 };
 
 export const retiredProduct: ProductTarget = {
@@ -144,33 +146,39 @@ export const retiredProduct: ProductTarget = {
   brandName: "La Virginia",
   netContent: { quantity: 500, unit: "G" },
   barcodes: ["7790001000105"],
+  benefitKinds: ["PERCENT_OFF", "BUY_N_PAY_M"],
 };
 
 export const almacenCategory: DiscountTargets["categories"][number] = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000201",
   name: "Almacén",
   parentId: null,
+  benefitKinds: ["PERCENT_OFF"],
 };
 
 export const yerbasCategory: DiscountTargets["categories"][number] = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000202",
   name: "Yerbas",
   parentId: "7a1f3c1e-4f6a-4d0e-9d6e-000000000201",
+  benefitKinds: ["PERCENT_OFF"],
 };
 
 const sinTaccTag: TagTarget = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000301",
   name: "Sin TACC",
+  benefitKinds: ["PERCENT_OFF"],
 };
 
 export const veganoTag: TagTarget = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000302",
   name: "Vegano",
+  benefitKinds: ["PERCENT_OFF"],
 };
 
 export const retiredTag: TagTarget = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000303",
   name: "Sin colorantes",
+  benefitKinds: ["PERCENT_OFF"],
 };
 
 export const discountTargets: DiscountTargets = {

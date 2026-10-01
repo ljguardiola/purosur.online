@@ -317,6 +317,8 @@ describe("option lists", () => {
   });
 });
 
+type ProductTarget = DiscountTargets["products"][number];
+
 describe("targetOptions", () => {
   const nothing = { products: [], categories: [], tags: [] };
   const honey = {
@@ -326,6 +328,7 @@ describe("targetOptions", () => {
     brandName: null,
     netContent: null,
     barcodes: [],
+    benefitKinds: ["PERCENT_OFF", "BUY_N_PAY_M"],
   } satisfies DiscountTargets["products"][number];
   const rice = {
     id: "product-3",
@@ -334,10 +337,23 @@ describe("targetOptions", () => {
     brandName: null,
     netContent: null,
     barcodes: [],
+    benefitKinds: ["PERCENT_OFF", "BUY_N_PAY_M"],
   } satisfies DiscountTargets["products"][number];
-  const sinTacc = { id: "tag-1", name: "Sin TACC" };
-  const vegano = { id: "tag-2", name: "Vegano" };
-  const organico = { id: "tag-4", name: "Orgánico" };
+  const sinTacc = {
+    id: "tag-1",
+    name: "Sin TACC",
+    benefitKinds: ["PERCENT_OFF"],
+  } satisfies DiscountTargets["tags"][number];
+  const vegano = {
+    id: "tag-2",
+    name: "Vegano",
+    benefitKinds: ["PERCENT_OFF"],
+  } satisfies DiscountTargets["tags"][number];
+  const organico = {
+    id: "tag-4",
+    name: "Orgánico",
+    benefitKinds: ["PERCENT_OFF"],
+  } satisfies DiscountTargets["tags"][number];
 
   test("offers every product it is given, by name", () => {
     const options = targetOptions("PRODUCT", { ...nothing, products: [honey, rice] });
@@ -356,6 +372,7 @@ describe("targetOptions", () => {
       brandName: "Playadito",
       netContent: { quantity: 1, unit: "KG" },
       barcodes: ["7790001", "7790002"],
+      benefitKinds: ["PERCENT_OFF", "BUY_N_PAY_M"],
     } satisfies DiscountTargets["products"][number];
 
     const options = targetOptions("PRODUCT", { ...nothing, products: [yerba] });
@@ -398,7 +415,10 @@ describe("targetOptions", () => {
   test("offers every category with its path, parents before their children", () => {
     const options = targetOptions("CATEGORY", {
       ...nothing,
-      categories: [jams, drinks, spreads, groceries],
+      categories: [jams, drinks, spreads, groceries].map((category) => ({
+        ...category,
+        benefitKinds: ["PERCENT_OFF" as const],
+      })),
     });
 
     expect(options?.map((option) => option.label)).toEqual([
@@ -480,6 +500,41 @@ describe("targetOptions", () => {
     expect(options).toEqual([
       { value: "product-1", label: "Miel pura de abeja 1 kg", searchKeywords: [] },
     ]);
+  });
+});
+
+describe("what a target accepts", () => {
+  const percentOffOnly = { ...yerbaProduct, benefitKinds: ["PERCENT_OFF"] } satisfies ProductTarget;
+  const targets = { ...discountTargets, products: [percentOffOnly] };
+
+  test("offers a buy-N-pay-M promotion no product that does not accept it", () => {
+    expect(eligibleTargets("BUY_N_PAY_M", targets).products).toEqual([]);
+  });
+
+  test("marks a product that does not accept buy-N-pay-M as sold by weight", () => {
+    expect(
+      keptTarget(targets, {
+        benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+        target: { kind: "PRODUCT", id: percentOffOnly.id, name: percentOffOnly.name },
+      }),
+    ).toEqual({
+      kind: "PRODUCT",
+      id: percentOffOnly.id,
+      name: percentOffOnly.name,
+      status: "Por peso",
+    });
+  });
+
+  test("says a product that does not accept buy-N-pay-M is sold by weight", () => {
+    expect(soldByWeightHelp({ ...threeForTwo, targetId: percentOffOnly.id }, targets)).toBe(
+      "Este producto se vende por peso: Lleve N, pague M no se le aplica.",
+    );
+  });
+
+  test("clears a product that does not accept buy-N-pay-M when switching to it", () => {
+    expect(
+      targetForKind({ ...filled, targetId: percentOffOnly.id }, "BUY_N_PAY_M", targets),
+    ).toEqual({ targetKind: "PRODUCT", targetId: null });
   });
 });
 
