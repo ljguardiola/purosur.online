@@ -1,22 +1,15 @@
 import { type CalendarDate, parseDate } from "@internationalized/date";
-import type {
-  DiscountCreationBody,
-  DiscountEditBody,
-  DiscountSummary,
-  DiscountTargets,
-} from "@purosur/contracts";
 import {
-  DISCOUNT_BUY_QTY_MIN,
-  DISCOUNT_NAME_MAX_LENGTH,
-  DISCOUNT_PAY_QTY_MIN,
-  DISCOUNT_PERCENT_MAX,
-  DISCOUNT_PERCENT_MIN,
-  type DiscountBenefit,
-  type DiscountTargetKind,
-  isDiscountNameTooLong,
-  isValidDiscountPayQty,
-  normalizeDiscountWeekdays,
-} from "@purosur/domain";
+  type DiscountCreationBody,
+  type DiscountEditBody,
+  type DiscountSummary,
+  type DiscountTargets,
+  discountBuyQtySchema,
+  discountNameSchema,
+  discountPayQtySchema,
+  discountPercentSchema,
+} from "@purosur/contracts";
+import type { DiscountBenefit, DiscountTargetKind } from "@purosur/domain";
 import {
   type ComboBoxOption,
   type Option,
@@ -28,6 +21,7 @@ import { Package, Percent } from "lucide-react";
 import { createElement } from "react";
 import { categoriesInTreeOrder, categoryPathLabels } from "../catalog/category-path";
 import { formatNetContent } from "../catalog/net-content";
+import { schemaLimit } from "../platform/schema-limit";
 import { DISCOUNT_KIND_LABELS, DISCOUNT_TARGET_KIND_LABELS } from "./discount-texts";
 
 export type DiscountFormValues = {
@@ -101,7 +95,7 @@ export function discountFormValues(discount: DiscountSummary): DiscountEditFormV
     payQty: discount.benefit.kind === "BUY_N_PAY_M" ? String(discount.benefit.payQty) : "",
     validFrom: parseDate(discount.validFrom),
     validTo: parseDate(discount.validTo),
-    weekdays: normalizeDiscountWeekdays(discount.weekdays).map(String),
+    weekdays: discount.weekdays.map(String),
     active: discount.active,
     version: discount.version,
   };
@@ -157,24 +151,30 @@ export function targetUnavailableMessage(kind: DiscountTargetKind): string {
   return TARGET_UNAVAILABLE_MESSAGES[kind];
 }
 
+function nameIsTooLong(name: string): boolean {
+  const result = discountNameSchema.safeParse(name);
+  return !result.success && result.error.issues.some((issue) => issue.code === "custom");
+}
+
 export const DISCOUNT_MESSAGES = {
   name: ({ name }: DiscountFormValues) => {
     const trimmed = name.trim();
     if (trimmed === "") {
       return "Ingresá el nombre de la promoción.";
     }
-    if (isDiscountNameTooLong(trimmed)) {
-      return `El nombre puede tener hasta ${DISCOUNT_NAME_MAX_LENGTH} caracteres.`;
+    if (nameIsTooLong(trimmed)) {
+      return `El nombre puede tener hasta ${schemaLimit(discountNameSchema.meta()?.maxLength)} caracteres.`;
     }
     return "Revisá el nombre de la promoción.";
   },
   percent: () =>
-    `Ingresá un porcentaje entero entre ${DISCOUNT_PERCENT_MIN} y ${DISCOUNT_PERCENT_MAX}.`,
-  buyQty: () => `Ingresá una cantidad entera de ${DISCOUNT_BUY_QTY_MIN} o más.`,
+    `Ingresá un porcentaje entero entre ${schemaLimit(discountPercentSchema.minValue)} y ${schemaLimit(discountPercentSchema.maxValue)}.`,
+  buyQty: () =>
+    `Ingresá una cantidad entera de ${schemaLimit(discountBuyQtySchema.minValue)} o más.`,
   payQty: ({ payQty }: DiscountFormValues) =>
-    isValidDiscountPayQty(wholeNumberFrom(payQty))
+    discountPayQtySchema.safeParse(wholeNumberFrom(payQty)).success
       ? "Ingresá menos unidades que en Lleve."
-      : `Ingresá una cantidad entera de ${DISCOUNT_PAY_QTY_MIN} o más.`,
+      : `Ingresá una cantidad entera de ${schemaLimit(discountPayQtySchema.minValue)} o más.`,
   targetId: ({ targetKind, targetId }: DiscountFormValues) =>
     targetId === null ? `${TARGET_PLACEHOLDERS[targetKind]}.` : TARGET_REVIEW_MESSAGES[targetKind],
   validFrom: ({ validFrom }: DiscountFormValues) =>

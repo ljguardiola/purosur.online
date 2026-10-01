@@ -18,16 +18,21 @@ function calendarDaySchema(field: "validFrom" | "validTo") {
   return z.string({ error: message }).refine(isCalendarDay, message);
 }
 
+// A max-length check would count UTF-16 units, not characters, so the limit is declared in the
+// metadata for the screens to read.
+export const discountNameSchema = z
+  .string({ error: NAME_EMPTY_MESSAGE })
+  .trim()
+  .min(1, NAME_EMPTY_MESSAGE)
+  .refine(
+    (name) => !isDiscountNameTooLong(name),
+    `name must be at most ${DISCOUNT_NAME_MAX_LENGTH} characters`,
+  )
+  .meta({ maxLength: DISCOUNT_NAME_MAX_LENGTH });
+
 export const discountCreationBodySchema = z
   .object({
-    name: z
-      .string({ error: NAME_EMPTY_MESSAGE })
-      .trim()
-      .min(1, NAME_EMPTY_MESSAGE)
-      .refine(
-        (name) => !isDiscountNameTooLong(name),
-        `name must be at most ${DISCOUNT_NAME_MAX_LENGTH} characters`,
-      ),
+    name: discountNameSchema,
     benefit: discountBenefitSchema,
     target: discountTargetSchema,
     validFrom: calendarDaySchema("validFrom"),
