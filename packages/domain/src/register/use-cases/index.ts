@@ -5,8 +5,6 @@ export type {
 export { authenticateInstallation } from "./authenticate-installation.js";
 export type {
   BranchRegister,
-  BranchRegisterPointOfSale,
-  BranchRegisterPointsOfSale,
   BranchRegisterStore,
   BranchRegisterStoreTransaction,
   BranchRegisters,
@@ -17,13 +15,10 @@ export type {
   LockRegisterResult,
   NewEnrollmentCode,
   NewRegister,
-  PointOfSaleClaim,
   RegisterCreation,
   RegisterEnrollmentCode,
-  RegisterPointOfSale,
-  RegisterPointOfSaleRecord,
 } from "./branch-register-store.js";
-export { PointOfSaleClaimConflict, RegisterNameConflict } from "./branch-register-store.js";
+export { RegisterNameConflict } from "./branch-register-store.js";
 export type {
   CashLedger,
   CashLedgerTransaction,
@@ -37,11 +32,6 @@ export type {
   CloseCashSessionPorts,
 } from "./close-cash-session.js";
 export { closeCashSession } from "./close-cash-session.js";
-export type {
-  ConfigureRegisterPointOfSaleInput,
-  ConfigureRegisterPointOfSaleOutcome,
-} from "./configure-register-point-of-sale.js";
-export { configureRegisterPointOfSale } from "./configure-register-point-of-sale.js";
 export type { CreateRegisterInput, CreateRegisterOutcome } from "./create-register.js";
 export { createRegister } from "./create-register.js";
 export type {

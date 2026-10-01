@@ -1247,19 +1247,11 @@ describe("wiring the registers routes", () => {
     });
 
     const coverage = await app.inject({ method: "GET", url: "/api/registers/coverage" });
-    const pointsOfSale = await app.inject({ method: "GET", url: "/api/registers/points-of-sale" });
-    const configurePointOfSale = await app.inject({
-      method: "PUT",
-      url: "/api/registers/00000000-0000-0000-0000-000000000000/point-of-sale",
-      headers: { origin: "https://staging.purosur.online" },
-    });
 
     expect(list.statusCode).toBe(404);
     expect(create.statusCode).toBe(404);
     expect(emitCode.statusCode).toBe(404);
     expect(coverage.statusCode).toBe(404);
-    expect(pointsOfSale.statusCode).toBe(404);
-    expect(configurePointOfSale.statusCode).toBe(404);
   });
 
   it("registers the registers routes when a registers option is given", async () => {
@@ -1281,19 +1273,35 @@ describe("wiring the registers routes", () => {
     });
 
     const coverage = await app.inject({ method: "GET", url: "/api/registers/coverage" });
-    const pointsOfSale = await app.inject({ method: "GET", url: "/api/registers/points-of-sale" });
-    const configurePointOfSale = await app.inject({
-      method: "PUT",
-      url: "/api/registers/00000000-0000-0000-0000-000000000000/point-of-sale",
-      headers: { origin: "https://staging.purosur.online" },
-    });
 
     expect(list.statusCode).toBe(401);
     expect(create.statusCode).toBe(401);
     expect(emitCode.statusCode).toBe(401);
     expect(coverage.statusCode).toBe(401);
-    expect(pointsOfSale.statusCode).toBe(401);
-    expect(configurePointOfSale.statusCode).toBe(401);
+  });
+});
+
+describe("wiring the register point of sale routes", () => {
+  it.each([
+    ["GET", "/api/registers/points-of-sale"],
+    ["PUT", "/api/registers/00000000-0000-0000-0000-000000000000/point-of-sale"],
+  ])("%s %s: answers according to the registersPointsOfSale option", async (method, url) => {
+    const unwired = buildApp({ version: "abc1234" });
+    const wired = buildApp({
+      version: "abc1234",
+      registersPointsOfSale: {
+        db: testDatabase.db,
+        backofficeOrigin: "https://staging.purosur.online",
+      },
+    });
+    const request = {
+      method: method as "GET" | "PUT",
+      url,
+      headers: { origin: "https://staging.purosur.online" },
+    };
+
+    expect((await unwired.inject(request)).statusCode).toBe(404);
+    expect((await wired.inject(request)).statusCode).toBe(401);
   });
 });
 

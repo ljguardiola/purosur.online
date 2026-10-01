@@ -1,9 +1,9 @@
-import { mayRegisterClaimPointOfSale } from "../../fiscal/index.js";
+import { mayRegisterClaimPointOfSale } from "../model/point-of-sale.js";
 import {
-  type BranchRegisterStore,
   PointOfSaleClaimConflict,
   type RegisterPointOfSale,
-} from "./branch-register-store.js";
+  type RegisterPointOfSaleStore,
+} from "./register-point-of-sale-store.js";
 
 export interface ConfigureRegisterPointOfSaleInput {
   locationId: string;
@@ -23,7 +23,7 @@ export type ConfigureRegisterPointOfSaleOutcome =
   | { kind: "configured"; setup: RegisterPointOfSale };
 
 export async function configureRegisterPointOfSale(
-  store: BranchRegisterStore,
+  store: RegisterPointOfSaleStore,
   input: ConfigureRegisterPointOfSaleInput,
 ): Promise<ConfigureRegisterPointOfSaleOutcome> {
   try {

@@ -27,7 +27,6 @@ export {
 } from "./model/issuer-identification.js";
 export {
   isPointOfSaleNumber,
-  mayRegisterClaimPointOfSale,
   POINT_OF_SALE_NUMBER_MAX,
 } from "./model/point-of-sale.js";
 export type {

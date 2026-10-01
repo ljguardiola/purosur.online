@@ -1,10 +1,10 @@
 import { type ChangesPage, changesPageSchema } from "@purosur/contracts";
-import { configureRegisterPointOfSale } from "@purosur/domain/register/use-cases";
+import { configureRegisterPointOfSale } from "@purosur/domain/fiscal/use-cases";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { registerRouteAccess } from "../access/route-access.js";
+import { DrizzleRegisterPointOfSaleStore } from "../fiscal/drizzle-register-point-of-sale-store.js";
 import { fiscalAddresses, locations, registers, users } from "../platform/db/schema.js";
-import { DrizzleBranchRegisterStore } from "../register/drizzle-branch-register-store.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
@@ -96,7 +96,10 @@ async function configure(input: {
   version: number;
   actorId: string;
 }) {
-  const outcome = await configureRegisterPointOfSale(new DrizzleBranchRegisterStore(db), input);
+  const outcome = await configureRegisterPointOfSale(
+    new DrizzleRegisterPointOfSaleStore(db),
+    input,
+  );
   if (outcome.kind !== "configured") {
     throw new Error(`test setup: configuring ended as ${outcome.kind}`);
   }

@@ -1,6 +1,6 @@
 import { registerPointOfSaleOverviewListSchema } from "@purosur/contracts";
-import type { BranchRegisterPointOfSale } from "@purosur/domain/register/use-cases";
-import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
+import type { BranchRegisterPointOfSale } from "@purosur/domain/fiscal/use-cases";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
 import {
@@ -9,8 +9,13 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { DrizzleBranchRegisterStore } from "./drizzle-branch-register-store.js";
-import type { RegistersRouteOptions } from "./registers-list-route.js";
+import { DrizzleRegisterPointOfSaleStore } from "./drizzle-register-point-of-sale-store.js";
+
+export interface RegistersPointsOfSaleRouteOptions<TQueryResult extends PgQueryResultHKT> {
+  db: PgDatabase<TQueryResult>;
+  backofficeOrigin: string;
+  now?: () => Date;
+}
 
 function toOverviewWire(setup: BranchRegisterPointOfSale) {
   return {
@@ -24,12 +29,12 @@ function toOverviewWire(setup: BranchRegisterPointOfSale) {
 
 export function registerRegistersPointsOfSaleListRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
-  options: RegistersRouteOptions<TQueryResult>,
+  options: RegistersPointsOfSaleRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
-  const pointsOfSale = new DrizzleBranchRegisterStore(options.db);
+  const pointsOfSale = new DrizzleRegisterPointOfSaleStore(options.db);
 
   app.get(
     "/registers/points-of-sale",

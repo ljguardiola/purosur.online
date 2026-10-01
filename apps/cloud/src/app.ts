@@ -87,6 +87,9 @@ import { registerFiscalAddressesListRoute } from "./fiscal/fiscal-addresses-list
 import { registerIssuerIdentificationEditRoute } from "./fiscal/issuer-identification-edit-route.js";
 import type { IssuerIdentificationRouteOptions } from "./fiscal/issuer-identification-read-route.js";
 import { registerIssuerIdentificationReadRoute } from "./fiscal/issuer-identification-read-route.js";
+import { registerRegisterPointOfSaleConfigurationRoute } from "./fiscal/register-point-of-sale-configuration-route.js";
+import type { RegistersPointsOfSaleRouteOptions } from "./fiscal/registers-points-of-sale-list-route.js";
+import { registerRegistersPointsOfSaleListRoute } from "./fiscal/registers-points-of-sale-list-route.js";
 import { registerEdgeOriginGuard } from "./platform/edge-origin-guard.js";
 import { registerHealthRoute } from "./platform/health-route.js";
 import { registerDiscountCreationRoute } from "./pricing/discount-creation-route.js";
@@ -108,10 +111,8 @@ import {
 import { registerRegisterCoverageRoute } from "./register/register-coverage-route.js";
 import { registerRegisterCreationRoute } from "./register/register-creation-route.js";
 import { registerRegisterEnrollmentCodeRoute } from "./register/register-enrollment-code-route.js";
-import { registerRegisterPointOfSaleConfigurationRoute } from "./register/register-point-of-sale-configuration-route.js";
 import type { RegistersRouteOptions } from "./register/registers-list-route.js";
 import { registerRegistersListRoute } from "./register/registers-list-route.js";
-import { registerRegistersPointsOfSaleListRoute } from "./register/registers-points-of-sale-list-route.js";
 import { registerStockBalancesRoute } from "./stock/stock-balances-route.js";
 import { registerStockCountsRoutes } from "./stock/stock-counts-route.js";
 import { registerStockMovementsRoutes } from "./stock/stock-movements-route.js";
@@ -142,6 +143,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   prices?: PricesRouteOptions<TQueryResult>;
   discounts?: DiscountsRouteOptions<TQueryResult>;
   registers?: RegistersRouteOptions<TQueryResult>;
+  registersPointsOfSale?: RegistersPointsOfSaleRouteOptions<TQueryResult>;
   stock?: StockRouteOptions<TQueryResult>;
   devices?: DeviceTokensOptions<TQueryResult>;
   firstPinCodes?: FirstPinCodeRouteOptions<TQueryResult>;
@@ -191,6 +193,7 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     prices: backoffice,
     discounts: backoffice,
     registers: backoffice,
+    registersPointsOfSale: backoffice,
     stock: backoffice,
     devices,
     firstPinCodes: devices,
@@ -406,8 +409,11 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerRegisterCreationRoute(api, options.registers);
         registerRegisterCoverageRoute(api, options.registers);
         registerRegisterEnrollmentCodeRoute(api, options.registers);
-        registerRegistersPointsOfSaleListRoute(api, options.registers);
-        registerRegisterPointOfSaleConfigurationRoute(api, options.registers);
+      }
+
+      if (options.registersPointsOfSale) {
+        registerRegistersPointsOfSaleListRoute(api, options.registersPointsOfSale);
+        registerRegisterPointOfSaleConfigurationRoute(api, options.registersPointsOfSale);
       }
 
       if (options.devices) {

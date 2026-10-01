@@ -1,7 +1,5 @@
 import {
   type BranchRegister,
-  type BranchRegisterPointOfSale,
-  type BranchRegisterPointsOfSale,
   type BranchRegisterStore,
   type BranchRegisterStoreTransaction,
   type BranchRegisters,
@@ -10,20 +8,14 @@ import {
   type LockRegisterResult,
   type NewEnrollmentCode,
   type NewRegister,
-  type PointOfSaleClaim,
-  PointOfSaleClaimConflict,
   type RegisterCreation,
   RegisterNameConflict,
-  type RegisterPointOfSale,
-  type RegisterPointOfSaleRecord,
 } from "@purosur/domain/register/use-cases";
 import { and, asc, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import {
   auditLog,
-  fiscalAddresses,
-  pointOfSaleClaims,
   registerEnrollmentCodes,
   registerPointsOfSale,
   registers,
@@ -33,20 +25,6 @@ import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 
 const UNIQUE_VIOLATION = "23505";
 const REGISTER_NAME_UNIQUE_INDEX = "registers_location_id_name_lower_key";
-const POINT_OF_SALE_CLAIM_PRIMARY_KEY = "point_of_sale_claims_pkey";
-const NEVER_CONFIGURED = 0;
-
-function pointOfSaleAuditValueOf(setup: {
-  pointOfSaleNumber: number;
-  fiscalAddressId: string;
-  version: number;
-}) {
-  return {
-    point_of_sale_number: setup.pointOfSaleNumber,
-    fiscal_address_id: setup.fiscalAddressId,
-    version: setup.version,
-  };
-}
 
 class DrizzleBranchRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements BranchRegisterStoreTransaction
@@ -124,92 +102,6 @@ class DrizzleBranchRegisterStoreTransaction<TQueryResult extends PgQueryResultHK
     return register ? { kind: "locked" } : { kind: "not_found" };
   }
 
-  async lockRegisterPointOfSale(registerId: string): Promise<RegisterPointOfSale> {
-    const [current] = await this.tx
-      .select({
-        pointOfSaleNumber: registerPointsOfSale.pointOfSaleNumber,
-        fiscalAddressId: registerPointsOfSale.fiscalAddressId,
-        version: registerPointsOfSale.version,
-      })
-      .from(registerPointsOfSale)
-      .where(eq(registerPointsOfSale.registerId, registerId))
-      .for("update");
-    return current ?? { pointOfSaleNumber: null, fiscalAddressId: null, version: NEVER_CONFIGURED };
-  }
-
-  async fiscalAddressExists(fiscalAddressId: string): Promise<boolean> {
-    if (!UUID_PATTERN.test(fiscalAddressId)) {
-      return false;
-    }
-    const [existing] = await this.tx
-      .select({ id: fiscalAddresses.id })
-      .from(fiscalAddresses)
-      .where(eq(fiscalAddresses.id, fiscalAddressId))
-      .limit(1);
-    return existing !== undefined;
-  }
-
-  // Claims are append-only, so cloud_app holds no UPDATE on them and cannot lock the row; a claim
-  // that a concurrent register inserts first surfaces as a PointOfSaleClaimConflict from
-  // claimPointOfSale.
-  async lockPointOfSaleClaim(pointOfSaleNumber: number): Promise<string | undefined> {
-    const [claim] = await this.tx
-      .select({ registerId: pointOfSaleClaims.registerId })
-      .from(pointOfSaleClaims)
-      .where(eq(pointOfSaleClaims.pointOfSaleNumber, pointOfSaleNumber));
-    return claim?.registerId;
-  }
-
-  async claimPointOfSale(claim: PointOfSaleClaim): Promise<void> {
-    try {
-      await this.tx.insert(pointOfSaleClaims).values({
-        pointOfSaleNumber: claim.pointOfSaleNumber,
-        registerId: claim.registerId,
-        claimedBy: claim.actorId,
-      });
-    } catch (error) {
-      if (
-        postgresErrorChain(error).some(
-          (link) =>
-            link.code === UNIQUE_VIOLATION && link.constraint === POINT_OF_SALE_CLAIM_PRIMARY_KEY,
-        )
-      ) {
-        throw new PointOfSaleClaimConflict();
-      }
-      throw error;
-    }
-  }
-
-  async recordRegisterPointOfSale(record: RegisterPointOfSaleRecord): Promise<void> {
-    const { registerId, pointOfSaleNumber, fiscalAddressId, version, actorId } = record;
-    const [previous] = await this.tx
-      .select({
-        pointOfSaleNumber: registerPointsOfSale.pointOfSaleNumber,
-        fiscalAddressId: registerPointsOfSale.fiscalAddressId,
-        version: registerPointsOfSale.version,
-      })
-      .from(registerPointsOfSale)
-      .where(eq(registerPointsOfSale.registerId, registerId));
-    const fields = { pointOfSaleNumber, fiscalAddressId, version };
-    await this.tx
-      .insert(registerPointsOfSale)
-      .values({ registerId, ...fields })
-      .onConflictDoUpdate({ target: registerPointsOfSale.registerId, set: fields });
-    await this.tx.insert(auditLog).values({
-      entity: "register_point_of_sale",
-      entityId: registerId,
-      actorId,
-      previousValue: previous ? pointOfSaleAuditValueOf(previous) : null,
-      newValue: pointOfSaleAuditValueOf(fields),
-    });
-    this.pending.note({
-      entity: "register_point_of_sale",
-      entityId: registerId,
-      version,
-      op: previous ? "update" : "insert",
-    });
-  }
-
   async lockEnrollmentCode(registerId: string): Promise<EnrollmentCodeState | undefined> {
     const [code] = await this.tx
       .select({
@@ -254,7 +146,7 @@ class DrizzleBranchRegisterStoreTransaction<TQueryResult extends PgQueryResultHK
 }
 
 export class DrizzleBranchRegisterStore<TQueryResult extends PgQueryResultHKT>
-  implements BranchRegisterStore, BranchRegisters, BranchRegisterPointsOfSale
+  implements BranchRegisterStore, BranchRegisters
 {
   private readonly db: PgDatabase<TQueryResult>;
   private readonly pending: PendingChanges | undefined;
@@ -299,22 +191,6 @@ export class DrizzleBranchRegisterStore<TQueryResult extends PgQueryResultHKT>
         pointOfSaleNumber,
       }),
     );
-  }
-
-  async branchRegisterPointsOfSale(locationId: string): Promise<BranchRegisterPointOfSale[]> {
-    const rows = await this.db
-      .select({
-        registerId: registers.id,
-        registerName: registers.name,
-        pointOfSaleNumber: registerPointsOfSale.pointOfSaleNumber,
-        fiscalAddressId: registerPointsOfSale.fiscalAddressId,
-        version: registerPointsOfSale.version,
-      })
-      .from(registers)
-      .leftJoin(registerPointsOfSale, eq(registerPointsOfSale.registerId, registers.id))
-      .where(eq(registers.locationId, locationId))
-      .orderBy(asc(registers.name));
-    return rows.map(({ version, ...row }) => ({ ...row, version: version ?? NEVER_CONFIGURED }));
   }
 
   async hasRegister(locationId: string, registerId: string): Promise<boolean> {

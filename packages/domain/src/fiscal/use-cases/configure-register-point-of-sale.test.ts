@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { configureRegisterPointOfSale } from "./configure-register-point-of-sale.js";
-import { FakeBranchRegisterStore } from "./test-support/fake-branch-register-store.js";
+import { FakeRegisterPointOfSaleStore } from "./test-support/fake-register-point-of-sale-store.js";
 
 const BRANCH = "branch-1";
 const ACTOR = "user-1";
 
-function storeWithRegisters(): FakeBranchRegisterStore {
-  const store = new FakeBranchRegisterStore();
+function storeWithRegisters(): FakeRegisterPointOfSaleStore {
+  const store = new FakeRegisterPointOfSaleStore();
   store.seedRegister({ id: "register-1", locationId: BRANCH, name: "Caja 1" });
   store.seedRegister({ id: "register-2", locationId: BRANCH, name: "Caja 2" });
   store.seedRegister({ id: "register-3", locationId: "branch-2", name: "Caja 1" });
@@ -15,7 +15,7 @@ function storeWithRegisters(): FakeBranchRegisterStore {
   return store;
 }
 
-function configure(store: FakeBranchRegisterStore, overrides: Record<string, unknown> = {}) {
+function configure(store: FakeRegisterPointOfSaleStore, overrides: Record<string, unknown> = {}) {
   return configureRegisterPointOfSale(store, {
     locationId: BRANCH,
     registerId: "register-1",

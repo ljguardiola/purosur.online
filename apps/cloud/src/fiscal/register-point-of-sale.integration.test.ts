@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { configureRegisterPointOfSale } from "@purosur/domain/register/use-cases";
+import { configureRegisterPointOfSale } from "@purosur/domain/fiscal/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -17,7 +17,7 @@ import {
 } from "../test-support/integration-database.js";
 import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { DrizzleBranchRegisterStore } from "./drizzle-branch-register-store.js";
+import { DrizzleRegisterPointOfSaleStore } from "./drizzle-register-point-of-sale-store.js";
 
 const FOREIGN_KEY_VIOLATION = "23503";
 
@@ -73,7 +73,7 @@ describe("two registers configured at once with the same point-of-sale number on
     const { locationId, actorId, fiscalAddressId, firstRegisterId, secondRegisterId } =
       await seedTwoRegisters();
     const configure = (registerId: string) => () =>
-      configureRegisterPointOfSale(new DrizzleBranchRegisterStore(db), {
+      configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db), {
         locationId,
         registerId,
         pointOfSaleNumber: 42,

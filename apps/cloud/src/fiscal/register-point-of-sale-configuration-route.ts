@@ -1,5 +1,5 @@
 import { pointOfSaleConfigurationBodySchema, registerPointOfSaleSchema } from "@purosur/contracts";
-import { configureRegisterPointOfSale } from "@purosur/domain/register/use-cases";
+import { configureRegisterPointOfSale } from "@purosur/domain/fiscal/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
@@ -11,8 +11,8 @@ import {
   routeSessionSource,
 } from "../access/route-access.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
-import { DrizzleBranchRegisterStore } from "./drizzle-branch-register-store.js";
-import type { RegistersRouteOptions } from "./registers-list-route.js";
+import { DrizzleRegisterPointOfSaleStore } from "./drizzle-register-point-of-sale-store.js";
+import type { RegistersPointsOfSaleRouteOptions } from "./registers-points-of-sale-list-route.js";
 
 const REGISTER_NOT_FOUND_RESPONSE = {
   code: "not_found",
@@ -38,11 +38,11 @@ const FISCAL_ADDRESS_NOT_FOUND_RESPONSE = {
 
 export function registerRegisterPointOfSaleConfigurationRoute<
   TQueryResult extends PgQueryResultHKT,
->(app: FastifyInstance, options: RegistersRouteOptions<TQueryResult>): void {
+>(app: FastifyInstance, options: RegistersPointsOfSaleRouteOptions<TQueryResult>): void {
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
-  const store = new DrizzleBranchRegisterStore(options.db);
+  const store = new DrizzleRegisterPointOfSaleStore(options.db);
 
   app.put<{ Params: { id: string } }>(
     "/registers/:id/point-of-sale",

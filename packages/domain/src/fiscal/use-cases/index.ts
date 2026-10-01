@@ -13,6 +13,11 @@ export type {
   BuyerTaxStatusStoreTransaction,
 } from "./buyer-tax-status-store.js";
 export type {
+  ConfigureRegisterPointOfSaleInput,
+  ConfigureRegisterPointOfSaleOutcome,
+} from "./configure-register-point-of-sale.js";
+export { configureRegisterPointOfSale } from "./configure-register-point-of-sale.js";
+export type {
   CreateFiscalAddressInput,
   CreateFiscalAddressOutcome,
 } from "./create-fiscal-address.js";
@@ -60,3 +65,14 @@ export type {
   RecordBuyerTaxStatusSetOutcome,
 } from "./record-buyer-tax-status-set.js";
 export { recordBuyerTaxStatusSet } from "./record-buyer-tax-status-set.js";
+export type {
+  BranchRegisterPointOfSale,
+  BranchRegisterPointsOfSale,
+  LockBranchRegisterResult,
+  PointOfSaleClaim,
+  RegisterPointOfSale,
+  RegisterPointOfSaleRecord,
+  RegisterPointOfSaleStore,
+  RegisterPointOfSaleStoreTransaction,
+} from "./register-point-of-sale-store.js";
+export { PointOfSaleClaimConflict } from "./register-point-of-sale-store.js";

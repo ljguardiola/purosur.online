@@ -144,12 +144,12 @@ describe("listBranchRegisters", () => {
   });
 
   it("reports the point of sale number a register was configured with", async () => {
-    const store = storeWithCaja1();
-    store.seedRegisterPointOfSale({
-      registerId: "register-1",
+    const store = new FakeBranchRegisterStore();
+    store.seedRegister({
+      id: "register-1",
+      locationId: BRANCH,
+      name: "Caja 1",
       pointOfSaleNumber: 3,
-      fiscalAddressId: "fiscal-address-1",
-      version: 1,
     });
 
     const [caja1] = await listCaja1(store);
