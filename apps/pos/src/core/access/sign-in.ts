@@ -3,8 +3,8 @@ import {
   holdsARegisterPermission,
   isLockedToAnother,
   pinSignInAttemptsLeft,
+  registerAbilities,
 } from "@purosur/domain";
-import { heldPermissionKeys } from "./held-permission-keys";
 import { checkCountedPin, type PinCheckDeps, signableRecord } from "./pin-check";
 import type { SignedInPerson } from "./signed-in-person";
 import type { SignInStore } from "./sqlite-sign-in-store";
@@ -64,7 +64,7 @@ async function signInThen(
     person: {
       user_id: userId,
       first_name: record.firstName,
-      permission_keys: heldPermissionKeys(record.access),
+      abilities: registerAbilities(record.access),
     },
     cash_session: cashSession,
   };

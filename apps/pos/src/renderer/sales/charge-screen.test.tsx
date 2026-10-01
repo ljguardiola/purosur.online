@@ -8,9 +8,14 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
+import type { ChargeScreenProps } from "./charge-screen";
 import { ChargeScreen } from "./charge-screen";
 
-const PERSON = { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] };
+const PERSON: ChargeScreenProps["person"] = {
+  user_id: "u1",
+  first_name: "Ada",
+  abilities: ["open_cash_session"],
+};
 const YERBA = {
   id: "line-1",
   product_id: "p1",

@@ -1,5 +1,4 @@
 import type { Authorization, SignInUser } from "@purosur/contracts";
-import { PERMISSION_KEYS } from "@purosur/domain";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -8,15 +7,10 @@ import type { SignedInPerson } from "./signed-in-person";
 import type { GuardedCashInOutcome } from "./test-support/guarded-cash-in-form";
 import { GuardedCashInForm } from "./test-support/guarded-cash-in-form";
 
-const TOMAS_WITHOUT_PERMISSION: SignedInPerson = {
+const TOMAS: SignedInPerson = {
   user_id: "u1",
   first_name: "Tomás",
-  permission_keys: ["sell_and_charge"],
-};
-const TOMAS_WITH_PERMISSION: SignedInPerson = {
-  user_id: "u1",
-  first_name: "Tomás",
-  permission_keys: ["sell_and_charge", "record_cash_in"],
+  abilities: ["open_cash_session"],
 };
 const AUTHORIZERS: SignInUser[] = [
   { id: "u3", first_name: "Sofía" },
@@ -54,13 +48,14 @@ function loading(users: SignInUser[] = AUTHORIZERS) {
 }
 
 async function renderForm(options: {
-  person?: SignedInPerson;
+  required?: boolean;
   loadAuthorizers?: (permission: string) => Promise<SignInUser[]>;
   submit?: ReturnType<typeof recording>["submit"];
 }) {
   return render(
     <GuardedCashInForm
-      person={options.person ?? TOMAS_WITHOUT_PERMISSION}
+      person={TOMAS}
+      required={options.required ?? true}
       loadAuthorizers={options.loadAuthorizers ?? loading().loadAuthorizers}
       submit={options.submit ?? recording({ kind: "performed", authorized_by: null }).submit}
     />,
@@ -84,12 +79,12 @@ function waitingNotice(seconds: number): string {
 }
 
 describe("an action guarded by another person's PIN", () => {
-  describe("when the signed-in person holds the permission", () => {
+  describe("when no authorization is required", () => {
     it("shows no authorization and sends none", async () => {
       const { loadAuthorizers, requested } = loading();
       const { submit, submissions } = recording({ kind: "performed", authorized_by: null });
       const screen = await renderForm({
-        person: TOMAS_WITH_PERMISSION,
+        required: false,
         loadAuthorizers,
         submit,
       });
@@ -104,22 +99,9 @@ describe("an action guarded by another person's PIN", () => {
       expect(submissions).toEqual([undefined]);
       expect(requested).toEqual([]);
     });
-
-    it("also holds it as an Administrator, who has every permission", async () => {
-      const administrator: SignedInPerson = {
-        user_id: "u1",
-        first_name: "Tomás",
-        permission_keys: [...PERMISSION_KEYS],
-      };
-      const screen = await renderForm({ person: administrator });
-
-      await expect
-        .element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO"))
-        .not.toBeInTheDocument();
-    });
   });
 
-  describe("when the signed-in person lacks the permission", () => {
+  describe("when an authorization is required", () => {
     it("asks for someone with the permission and says who lacks it", async () => {
       const { loadAuthorizers, requested } = loading();
       const screen = await renderForm({ loadAuthorizers });

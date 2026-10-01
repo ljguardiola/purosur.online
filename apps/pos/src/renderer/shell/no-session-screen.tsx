@@ -29,7 +29,7 @@ export function NoSessionScreen({
     <div className="flex h-screen w-screen bg-surface">
       <NavigationRail
         firstName={person.first_name}
-        entries={entriesFor(entries, person.permission_keys)}
+        entries={entriesFor(entries, person.abilities)}
         onSignOut={() => setLeaving(true)}
       />
       <main className="flex flex-1 flex-col gap-1.5 p-8">
@@ -38,7 +38,7 @@ export function NoSessionScreen({
       </main>
       <CashOpeningPanel
         firstName={person.first_name}
-        canOpen={person.permission_keys.includes("sell_and_charge")}
+        canOpen={person.abilities.includes("open_cash_session")}
         open={openCashSession}
       />
       <SignOutModal

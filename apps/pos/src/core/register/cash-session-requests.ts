@@ -3,7 +3,6 @@ import type {
   CashBalance,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
-  GuardedActionRefusal,
   IdentifyLockedCloserOutcome,
   OpenCashSession,
   OpenCashSessionOutcome,
@@ -14,7 +13,9 @@ import {
   cancellableWithoutAuthorization,
   cashBreakdown,
   isLockedToAnother,
+  mayAuthorize,
   type OpenedCashSession,
+  registerAbilities,
 } from "@purosur/domain";
 import {
   type CloseCashSessionOutcome as CashSessionClosing,
@@ -24,7 +25,6 @@ import {
   openCashSession,
 } from "@purosur/domain/register/use-cases";
 import type { ActionGate } from "../access/action-gate";
-import { heldPermissionKeys } from "../access/held-permission-keys";
 import { type ActivePerson, SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
 import {
@@ -51,7 +51,7 @@ export async function openCashSessionFor(
     return { kind: "unavailable" };
   }
   const guarded = await gate.run(
-    { permission: "sell_and_charge" },
+    { kind: "open_cash_session" },
     async ({ signedInUserId }): Promise<OpenCashSessionOutcome> => {
       const people = new SqliteSignInStore(database);
       const opener = people.anyPerson(signedInUserId);
@@ -94,7 +94,7 @@ export async function closeCashSessionFor(
   if (open === undefined) {
     return { kind: "no_open_session" };
   }
-  const guarded = await gate.run({ closesCashSession: open }, async (actor) =>
+  const guarded = await gate.run({ kind: "close_cash_session", session: open }, async (actor) =>
     closeCashSession(
       {
         ledger: new SqliteCashLedger(database, new SqliteSignInStore(database), outboxChainKey),
@@ -130,9 +130,8 @@ export async function closeLockedCashSessionFor(
     return { kind: "no_open_session" };
   }
   const guarded = await gate.runWhileLocked(
-    "close_anothers_register_session",
+    { kind: "close_locked_register", session: open },
     closer,
-    open,
     async (person) =>
       closeCashSession(
         {
@@ -152,9 +151,8 @@ export async function identifyLockedCloserFor(
 ): Promise<IdentifyLockedCloserOutcome> {
   const open = readOpenSession(database);
   const guarded = await gate.runWhileLocked(
-    "close_anothers_register_session",
+    { kind: "close_locked_register", session: open },
     closer,
-    open,
     async (person) => person,
   );
   return guarded.kind === "performed" ? { kind: "identified", person: guarded.result } : guarded;
@@ -162,14 +160,17 @@ export async function identifyLockedCloserFor(
 
 export function lockedClosersFor(database: LocalDatabase): SignInUser[] {
   const open = readOpenSession(database);
-  return new SqliteSignInStore(database)
-    .authorizers("close_anothers_register_session")
-    .filter((user) => isLockedToAnother(open, user.id));
+  if (open === undefined) {
+    return [];
+  }
+  return new SqliteSignInStore(database).authorizersWhere((person) =>
+    mayAuthorize({ kind: "close_locked_register", session: open }, person),
+  );
 }
 
 function closingAnswer(
   outcome: CashSessionClosing,
-): Exclude<CloseCashSessionOutcome, { kind: GuardedActionRefusal["kind"] }> {
+): Extract<CloseCashSessionOutcome, { kind: CashSessionClosing["kind"] }> {
   return outcome.kind === "closed"
     ? {
         kind: "closed",
@@ -238,7 +239,7 @@ function cashSessionAnswer(
     opened_by: {
       user_id: session.openedBy,
       first_name: opener.firstName,
-      permission_keys: heldPermissionKeys(opener.access),
+      abilities: registerAbilities(opener.access),
     },
     locked: isLockedToAnother(session, signedInPersonId),
   };

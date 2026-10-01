@@ -32,14 +32,14 @@ const OPENED: OpenCashSessionOutcome = {
   cash_session: {
     id: "s1",
     opened_at: "2026-09-30T12:02:00.000Z",
-    opened_by: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+    opened_by: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
     locked: false,
   },
 };
 const GRACE_SESSION: OpenCashSession = {
   id: "s1",
   opened_at: "2026-09-30T12:02:00.000Z",
-  opened_by: { user_id: "u2", first_name: "Grace", permission_keys: ["sell_and_charge"] },
+  opened_by: { user_id: "u2", first_name: "Grace", abilities: ["open_cash_session"] },
   locked: false,
 };
 const GRACE_SESSION_LOCKED: OpenCashSession = { ...GRACE_SESSION, locked: true };
@@ -55,19 +55,19 @@ const BALANCE: CashBalance = {
 };
 const ADA_SELLS: SignInOutcome = {
   kind: "signed_in",
-  person: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+  person: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
   cash_session: null,
 };
 
 const GRACE_SIGNED_IN: SignInOutcome = {
   kind: "signed_in",
-  person: { user_id: "u2", first_name: "Grace", permission_keys: ["sell_and_charge"] },
+  person: { user_id: "u2", first_name: "Grace", abilities: ["open_cash_session"] },
   cash_session: GRACE_SESSION,
 };
 
 const ADA_SIGNED_IN: SignInOutcome = {
   kind: "signed_in",
-  person: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+  person: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
   cash_session: null,
 };
 
@@ -840,7 +840,7 @@ describe("App", () => {
     it("resumes the session when the opener redeemed the code", async () => {
       const screen = await redeemFromLocked({
         kind: "resumed",
-        person: { user_id: "u2", first_name: "Grace", permission_keys: ["sell_and_charge"] },
+        person: { user_id: "u2", first_name: "Grace", abilities: ["open_cash_session"] },
         cash_session: GRACE_SESSION,
       });
 
@@ -853,7 +853,7 @@ describe("App", () => {
       const screen = await redeemFromLocked(
         {
           kind: "resumed",
-          person: { user_id: "u2", first_name: "Grace", permission_keys: ["sell_and_charge"] },
+          person: { user_id: "u2", first_name: "Grace", abilities: ["open_cash_session"] },
           cash_session: GRACE_SESSION,
         },
         async () => {
@@ -1802,7 +1802,7 @@ describe("App", () => {
   describe("recording cash movements", () => {
     const MOVER_SESSION: OpenCashSession = {
       ...GRACE_SESSION,
-      opened_by: { ...GRACE_SESSION.opened_by, permission_keys: ["record_cash_in"] },
+      opened_by: { ...GRACE_SESSION.opened_by, abilities: [] },
     };
     const OPENING: ListedCashMovement = {
       id: "m1",
@@ -1831,7 +1831,7 @@ describe("App", () => {
         { kind: "enrolled" },
         {
           kind: "signed_in",
-          person: { user_id: "u2", first_name: "Grace", permission_keys: ["record_cash_in"] },
+          person: { user_id: "u2", first_name: "Grace", abilities: [] },
           cash_session: MOVER_SESSION,
         },
         {

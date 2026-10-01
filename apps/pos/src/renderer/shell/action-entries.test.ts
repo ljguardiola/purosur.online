@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import type { ActionEntry } from "./action-entries";
 import { entriesFor } from "./action-entries";
 
-function entry(label: string, permission: ActionEntry["permission"]): ActionEntry {
-  return { label, icon: House, permission, to: "/sign-in" };
+function entry(label: string, ability: ActionEntry["ability"]): ActionEntry {
+  return { label, icon: House, ability, to: "/sign-in" };
 }
 
 const HISTORY = entry("Historial", "view_sales_history");
@@ -12,7 +12,7 @@ const REPRINT = entry("Reimprimir", "reprint_receipt");
 const HELP = entry("Reloj", "correct_register_clock");
 
 describe("entriesFor", () => {
-  it("keeps only the entries whose permission the person holds", () => {
+  it("keeps only the entries whose ability the person has", () => {
     expect(entriesFor([HISTORY, REPRINT, HELP], ["reprint_receipt"])).toEqual([REPRINT]);
   });
 
@@ -22,7 +22,7 @@ describe("entriesFor", () => {
     ).toEqual([HISTORY, HELP]);
   });
 
-  it("offers nothing to a person who holds none of the permissions", () => {
+  it("offers nothing to a person who has none of the abilities", () => {
     expect(entriesFor([HISTORY, REPRINT], [])).toEqual([]);
   });
 

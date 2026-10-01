@@ -12,15 +12,7 @@ import type { CashMovementInput } from "../platform/core-client";
 import { render } from "../shell/test-support/render-with-router";
 import { RecordCashMovementModal } from "./record-cash-movement-modal";
 
-const ALL_PERMISSIONS: SignedInPerson = {
-  user_id: "u1",
-  first_name: "Ada",
-  permission_keys: ["record_cash_in", "record_cash_expense", "withdraw_cash"],
-};
-const WITHOUT_WITHDRAWALS: SignedInPerson = {
-  ...ALL_PERMISSIONS,
-  permission_keys: ["record_cash_in", "record_cash_expense"],
-};
+const ADA: SignedInPerson = { user_id: "u1", first_name: "Ada", abilities: [] };
 const AUTHORIZERS: SignInUser[] = [
   { id: "u3", first_name: "Sofía" },
   { id: "u2", first_name: "Grace" },
@@ -46,7 +38,6 @@ function kindsLacking(lacking: CashMovementKind[]): RecordableCashMovementKinds 
 
 type Props = {
   open?: boolean;
-  person?: SignedInPerson;
   lacking?: CashMovementKind[];
   loadKinds?: () => Promise<RecordableCashMovementKinds | null | "unavailable">;
   registerName?: string | null;
@@ -72,7 +63,7 @@ async function renderModal(props: Props = {}) {
   const screen = await render(
     <RecordCashMovementModal
       open={props.open ?? true}
-      person={props.person ?? ALL_PERMISSIONS}
+      person={ADA}
       registerName={props.registerName === undefined ? "Caja 1" : props.registerName}
       openedAt="2026-09-30T15:05:00.000Z"
       {...(props.expectedCash === undefined ? {} : { expectedCash: props.expectedCash })}
@@ -427,8 +418,8 @@ describe("RecordCashMovementModal", () => {
     expect(recordCashMovement).not.toHaveBeenCalled();
   });
 
-  it("asks no authorizer when the core says none is needed, whatever the person's permission keys say", async () => {
-    const { screen, requested } = await renderModal({ person: WITHOUT_WITHDRAWALS, lacking: [] });
+  it("asks no authorizer when the core says none is needed", async () => {
+    const { screen, requested } = await renderModal({ lacking: [] });
 
     await choose(screen, "Retiro");
 
@@ -437,9 +428,8 @@ describe("RecordCashMovementModal", () => {
     expect(requested).toEqual([]);
   });
 
-  it("asks for an authorizer when the core says one is needed, whatever the person's permission keys say", async () => {
+  it("asks for an authorizer when the core says one is needed", async () => {
     const { screen, requested } = await renderModal({
-      person: ALL_PERMISSIONS,
       lacking: ["WITHDRAWAL"],
     });
 
@@ -507,7 +497,6 @@ describe("RecordCashMovementModal", () => {
   describe("when the signed-in person lacks the kind's permission", () => {
     it("asks for someone with that permission only for the kind that needs it", async () => {
       const { screen, requested } = await renderModal({
-        person: WITHOUT_WITHDRAWALS,
         lacking: ["WITHDRAWAL"],
       });
       await expect
@@ -524,9 +513,7 @@ describe("RecordCashMovementModal", () => {
     });
 
     it("asks again for the new kind's permission after the kind changes", async () => {
-      const lacksBoth: SignedInPerson = { ...ALL_PERMISSIONS, permission_keys: ["record_cash_in"] };
       const { screen, requested } = await renderModal({
-        person: lacksBoth,
         lacking: ["CASH_OUT", "WITHDRAWAL"],
       });
       await choose(screen, "Gasto");
@@ -541,7 +528,6 @@ describe("RecordCashMovementModal", () => {
 
     it("asks for the authorizers of the permission the core names for the kind", async () => {
       const { screen, requested } = await renderModal({
-        person: WITHOUT_WITHDRAWALS,
         loadKinds: async () => ({
           ...kindsLacking([]),
           WITHDRAWAL: {
@@ -559,7 +545,6 @@ describe("RecordCashMovementModal", () => {
 
     it("keeps the button disabled until someone authorizes, then sends who and their PIN", async () => {
       const { screen, recordCashMovement } = await renderModal({
-        person: WITHOUT_WITHDRAWALS,
         lacking: ["WITHDRAWAL"],
       });
       await choose(screen, "Retiro");
@@ -579,7 +564,6 @@ describe("RecordCashMovementModal", () => {
 
     it("shows the PIN refusal and stays open", async () => {
       const { screen, onRecorded } = await renderModal({
-        person: WITHOUT_WITHDRAWALS,
         lacking: ["WITHDRAWAL"],
         outcome: { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 6 },
       });
@@ -595,7 +579,6 @@ describe("RecordCashMovementModal", () => {
 
     it("says the movement was not recorded when the core is unavailable, not that the PIN failed", async () => {
       const { screen, onRecorded } = await renderModal({
-        person: WITHOUT_WITHDRAWALS,
         lacking: ["WITHDRAWAL"],
         outcome: { kind: "unavailable" },
       });
@@ -614,7 +597,6 @@ describe("RecordCashMovementModal", () => {
 
     it("says the authorizer cannot authorize the movement when the core refuses their permission", async () => {
       const { screen, onRecorded } = await renderModal({
-        person: WITHOUT_WITHDRAWALS,
         lacking: ["WITHDRAWAL"],
         outcome: { kind: "lacks_permission" },
       });

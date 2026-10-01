@@ -13,7 +13,11 @@ import { render } from "../../shell/test-support/render-with-router";
 import type { SaleScreenProps } from "../sale-screen";
 import { SaleScreen } from "../sale-screen";
 
-const PERSON = { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] };
+const PERSON: SaleScreenProps["person"] = {
+  user_id: "u1",
+  first_name: "Ada",
+  abilities: ["open_cash_session"],
+};
 // 12:02 UTC is 09:02 in Argentina.
 const OPENED_AT = "2026-09-30T12:02:00.000Z";
 const FIELD_NAME = "Producto";

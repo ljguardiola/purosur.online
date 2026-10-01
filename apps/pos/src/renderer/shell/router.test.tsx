@@ -33,11 +33,11 @@ const CORE_DOWN_TITLE = "Esperá un momento";
 const SIGNED_IN_TITLE = "¿Qué querés hacer?";
 const SIGN_IN_TITLE = "¿Quién abre la caja?";
 const SESSION_TITLE = "Venta en curso";
-const PERSON: SignedInPerson = { user_id: "u1", first_name: "Ada", permission_keys: [] };
+const PERSON: SignedInPerson = { user_id: "u1", first_name: "Ada", abilities: [] };
 const OPENER: SignedInPerson = {
   user_id: "u2",
   first_name: "Grace",
-  permission_keys: ["sell_and_charge"],
+  abilities: ["open_cash_session"],
 };
 const NO_SESSION: CashSessionState = { status: "none" };
 const OPEN_SESSION = {
@@ -785,13 +785,7 @@ describe("the register's router", () => {
     const router = createRegisterRouter(
       routeTree,
       {
-        ...contextWith(
-          "up",
-          "enrolled",
-          { ...OPENER, permission_keys: ["record_cash_in"] },
-          undefined,
-          { ...OPEN_SESSION, openedBy: { ...OPENER, permission_keys: ["record_cash_in"] } },
-        ),
+        ...contextWith("up", "enrolled", OPENER, undefined, { ...OPEN_SESSION, openedBy: OPENER }),
         cashBalance: async () => BALANCE,
         cashMovements: async () => [],
         cashMovementKinds: async () => ({
@@ -933,7 +927,7 @@ describe("the register's router", () => {
     const router = createRegisterRouter(
       routeTree,
       {
-        ...contextWith("up", "enrolled", { ...PERSON, permission_keys: ["sell_and_charge"] }),
+        ...contextWith("up", "enrolled", { ...PERSON, abilities: ["open_cash_session"] }),
         openCashSession: async (openingFloat) => {
           opened.push(openingFloat);
           return { kind: "unavailable" };
@@ -1281,7 +1275,8 @@ describe("the register's router", () => {
       const { authorizers } = rootRoute.useRouteContext();
       return (
         <GuardedCashInForm
-          person={{ user_id: "u1", first_name: "Tomás", permission_keys: [] }}
+          person={{ user_id: "u1", first_name: "Tomás", abilities: [] }}
+          required
           loadAuthorizers={authorizers}
           submit={async () => ({ kind: "performed", authorized_by: null })}
         />
