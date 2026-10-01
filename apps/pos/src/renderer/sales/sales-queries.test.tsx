@@ -4,7 +4,12 @@ import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { createQueryClient } from "../platform/query-client";
-import { useCurrentSaleQuery, useSearchProducts, useTakeSale } from "./sales-queries";
+import {
+  useCurrentSaleQuery,
+  useResetCurrentSale,
+  useSearchProducts,
+  useTakeSale,
+} from "./sales-queries";
 
 const SALE: OpenSale = {
   id: "sale-1",
@@ -34,6 +39,7 @@ function CurrentSaleProbe({
 }) {
   const current = useCurrentSaleQuery({ sessionId, userId, read });
   const takeSale = useTakeSale(sessionId, userId);
+  const resetCurrentSale = useResetCurrentSale(sessionId, userId);
   let text: string = current.status;
   if (current.status === "loaded") {
     text =
@@ -46,6 +52,12 @@ function CurrentSaleProbe({
       <p>{text}</p>
       <button type="button" onClick={() => takeSale(SALE)}>
         take
+      </button>
+      <button type="button" onClick={() => takeSale(null)}>
+        take none
+      </button>
+      <button type="button" onClick={() => void resetCurrentSale()}>
+        reset
       </button>
     </>
   );
@@ -114,6 +126,38 @@ describe("current sale query", () => {
 
     await expect.element(screen.getByText("sale-1")).toBeVisible();
     expect(read).toHaveBeenCalledOnce();
+  });
+
+  it("shows no sale when the register took none from an outcome", async () => {
+    const read = vi.fn<() => Promise<CurrentSaleAnswer>>(async () => SALE);
+    const screen = await renderWithClient(<CurrentSaleProbe read={read} />);
+    await expect.element(screen.getByText("sale-1")).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "take none" }));
+
+    await expect.element(screen.getByText("null")).toBeVisible();
+    expect(read).toHaveBeenCalledOnce();
+  });
+
+  it("goes back to loading until the sale is read again when it is reset", async () => {
+    let answer: (sale: CurrentSaleAnswer) => void = () => {};
+    const read = vi
+      .fn<() => Promise<CurrentSaleAnswer>>()
+      .mockResolvedValueOnce(SALE)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            answer = resolve;
+          }),
+      );
+    const screen = await renderWithClient(<CurrentSaleProbe read={read} />);
+    await expect.element(screen.getByText("sale-1")).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "reset" }));
+    await expect.element(screen.getByText("loading")).toBeVisible();
+    answer(null);
+
+    await expect.element(screen.getByText("null")).toBeVisible();
   });
 });
 
