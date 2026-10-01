@@ -1,19 +1,7 @@
-import { countedCashSchema } from "@purosur/contracts";
-import { formatCents, parseAmountCents } from "@purosur/ui";
-
-const REQUIRED_MESSAGE = "Ingresá el efectivo contado.";
-export const INVALID_COUNTED_CASH_MESSAGE = "Ingresá un importe válido, por ejemplo 31.500,00.";
+import { formatCents } from "@purosur/ui";
 
 export function signedAmount(sign: "+" | "−", cents: number): string {
   return `${sign} ${formatCents(cents)}`;
-}
-
-export function countedCashFrom(typed: string): { cents: number } | { message: string } {
-  if (typed.trim() === "") {
-    return { message: REQUIRED_MESSAGE };
-  }
-  const counted = countedCashSchema.safeParse(parseAmountCents(typed));
-  return counted.success ? { cents: counted.data } : { message: INVALID_COUNTED_CASH_MESSAGE };
 }
 
 export function differenceText(difference: number): string {

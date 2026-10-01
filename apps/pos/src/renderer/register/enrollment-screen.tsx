@@ -1,16 +1,19 @@
 import type { EnrollmentOutcome } from "@purosur/contracts";
-import { deviceEnrollmentBodySchema } from "@purosur/contracts";
 import type { Icon } from "@purosur/ui";
-import { Button, InlineNotice, TextField } from "@purosur/ui";
+import { Button, fieldErrorMessage, InlineNotice, TextField, useRequestForm } from "@purosur/ui";
 import { ShieldX, TriangleAlert, WifiOff } from "lucide-react";
 import type { FormEvent } from "react";
 import { useId, useState } from "react";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
 import { retryAfterText } from "../shell/retry-after-text";
+import {
+  EMPTY_ENROLLMENT_FORM,
+  enrollmentRequestFrom,
+  enrollmentRequestSchema,
+  INCOMPLETE_CODE_MESSAGE,
+} from "./enrollment-form";
 
 type Notice = { icon: Icon; title: string; description: string };
-
-const INCOMPLETE_CODE_MESSAGE = "Escribí los 16 caracteres del código de alta.";
 
 const UNAVAILABLE_NOTICE: Notice = {
   icon: <TriangleAlert />,
@@ -64,30 +67,28 @@ export type EnrollmentScreenProps = {
 };
 
 export function EnrollmentScreen({ enroll }: EnrollmentScreenProps) {
-  const [code, setCode] = useState("");
-  const [incomplete, setIncomplete] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [outcome, setOutcome] = useState<EnrollmentOutcome>();
   const noticeId = useId();
+  const { form, submit, submitting } = useRequestForm({
+    defaultValues: EMPTY_ENROLLMENT_FORM,
+    request: { schema: enrollmentRequestSchema, from: enrollmentRequestFrom },
+    fields: { code: "code" },
+    messages: { code: INCOMPLETE_CODE_MESSAGE },
+    onSubmit: async ({ code }) => {
+      setOutcome(await enroll(code).catch((): EnrollmentOutcome => ({ kind: "unavailable" })));
+    },
+  });
 
   const notice = outcome === undefined ? undefined : noticeFor(outcome);
   const codeRejected = outcome?.kind === "code_rejected";
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting) {
       return;
     }
     setOutcome(undefined);
-    if (!deviceEnrollmentBodySchema.shape.code.safeParse(code).success) {
-      setIncomplete(true);
-      return;
-    }
-    setIncomplete(false);
-    setSubmitting(true);
-    const answered = await enroll(code).catch((): EnrollmentOutcome => ({ kind: "unavailable" }));
-    setOutcome(answered);
-    setSubmitting(false);
+    void submit();
   }
 
   return (
@@ -103,24 +104,23 @@ export function EnrollmentScreen({ enroll }: EnrollmentScreenProps) {
             15 minutos y hace falta internet.
           </p>
         </div>
-        <form className="flex flex-col gap-4" noValidate onSubmit={submit}>
-          {codeRejected ? (
-            <TextField
-              kind="plain-text"
-              label="Código de alta"
-              value={code}
-              onChange={setCode}
-              errorMessageId={noticeId}
-            />
-          ) : (
-            <TextField
-              kind="plain-text"
-              label="Código de alta"
-              value={code}
-              onChange={setCode}
-              errorMessage={incomplete ? INCOMPLETE_CODE_MESSAGE : undefined}
-            />
-          )}
+        <form className="flex flex-col gap-4" noValidate onSubmit={handleSubmit}>
+          <form.AppField name="code">
+            {(code) => {
+              const message = fieldErrorMessage(code.state.meta.errors);
+              return (
+                <TextField
+                  kind="plain-text"
+                  label="Código de alta"
+                  value={code.state.value}
+                  onChange={code.handleChange}
+                  {...(message === undefined && codeRejected
+                    ? { errorMessageId: noticeId }
+                    : { errorMessage: message })}
+                />
+              );
+            }}
+          </form.AppField>
           {notice === undefined ? null : (
             <div id={noticeId}>
               <InlineNotice

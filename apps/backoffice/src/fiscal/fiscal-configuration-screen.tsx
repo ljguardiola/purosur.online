@@ -15,6 +15,7 @@ import {
   LoadFailure,
   LoadingPlaceholder,
   Modal,
+  useRequestForm,
 } from "@purosur/ui";
 import {
   Check,
@@ -29,7 +30,6 @@ import {
 import { useEffect, useEffectEvent, useState } from "react";
 import { useAuthorization } from "../access/authorization-modal";
 import { useSendToMyAccount } from "../access/send-to-my-account";
-import { useCloudForm } from "../platform/cloud-form";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { ScreenLayout } from "../shell/screen-layout";
@@ -186,7 +186,7 @@ function EditIssuerIdentificationModal({
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
-  const { form, submit, submitting, dirty, reset } = useCloudForm({
+  const { form, submit, submitting, dirty, reset } = useRequestForm({
     defaultValues: EMPTY_MODAL_VALUES,
     request: {
       schema: issuerIdentificationEditBodySchema(openedAt),

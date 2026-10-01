@@ -299,6 +299,21 @@ describe("RecordCashMovementModal", () => {
     await expect.element(screen.getByText("Ingresá el importe.")).not.toBeInTheDocument();
   });
 
+  it("keeps the amount's message while its edited value is still invalid and clears it once it is valid", async () => {
+    const { screen } = await renderModal();
+    await fill(screen, "abc", "Cambio");
+    await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
+    const amount = screen.getByRole("textbox", { name: "Importe" });
+    const invalidAmount = screen.getByText("Ingresá un importe válido, por ejemplo 5.000,00.");
+    await expect.element(invalidAmount).toBeVisible();
+
+    await userEvent.fill(amount, "abd");
+    await expect.element(invalidAmount).toBeVisible();
+
+    await userEvent.fill(amount, "100");
+    await expect.element(invalidAmount).not.toBeInTheDocument();
+  });
+
   it("says when there is no open session to record into", async () => {
     const { screen, onRecorded } = await renderModal({ outcome: { kind: "no_open_session" } });
     await fill(screen, "100", "Cambio");

@@ -107,6 +107,18 @@ describe("LockedCashCount", () => {
     expect(close).not.toHaveBeenCalled();
   });
 
+  it("keeps the message while the edited count is still invalid and clears it once it is valid", async () => {
+    const { screen } = await renderStep();
+    await closeWith(screen, "abc");
+    await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
+
+    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "abd");
+    await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
+
+    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
+    await expect.element(screen.getByText(INVALID_MESSAGE)).not.toBeInTheDocument();
+  });
+
   it("asks for a valid amount when the core refuses the counted cash", async () => {
     const { screen } = await renderStep(async () => ({ kind: "invalid_counted_cash" }));
 

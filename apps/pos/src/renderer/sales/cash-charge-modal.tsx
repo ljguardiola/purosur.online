@@ -1,6 +1,7 @@
 import type { CashChargeAnswer, ChargeSaleInCashOutcome } from "@purosur/contracts";
 import {
   Button,
+  fieldErrorMessage,
   formatCents,
   InlineNotice,
   LoadFailure,
@@ -9,13 +10,19 @@ import {
   parseAmountCents,
   SummaryRowGroup,
   TextField,
+  useRequestForm,
 } from "@purosur/ui";
 import { ArrowLeft, Banknote, Check, TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Eyebrow } from "../shell/eyebrow";
+import {
+  cashChargeRequestFrom,
+  chargeSaleInCashRequestSchema,
+  EMPTY_CASH_CHARGE_FORM,
+  INVALID_AMOUNT_MESSAGE,
+} from "./cash-charge-form";
 import { useCashChargeQuery } from "./sales-queries";
 
-const INVALID_AMOUNT_MESSAGE = "Ingresá un importe válido, por ejemplo 5.000,00.";
 const FAILED_MESSAGE = "No se pudo cobrar la venta. Probá de nuevo.";
 
 function coverMessage(amount: number): string {
@@ -46,17 +53,49 @@ export function CashChargeModal({
   onSessionInvalid,
 }: CashChargeModalProps) {
   const content = useRef<HTMLDivElement>(null);
-  const [typed, setTyped] = useState("");
-  const [refusal, setRefusal] = useState<string>();
   const [notice, setNotice] = useState<string>();
-  const [submitting, setSubmitting] = useState(false);
+  const { form, submit, submitting, values } = useRequestForm({
+    defaultValues: EMPTY_CASH_CHARGE_FORM,
+    request: { schema: chargeSaleInCashRequestSchema, from: cashChargeRequestFrom },
+    fields: { tendered: "tendered" },
+    messages: { tendered: INVALID_AMOUNT_MESSAGE },
+    onSubmit: async (request, { showFieldError }) => {
+      const outcome = await charge(request.tendered).catch(
+        (): ChargeSaleInCashOutcome => ({ kind: "unavailable" }),
+      );
+      switch (outcome.kind) {
+        case "completed":
+          onCompleted(outcome);
+          break;
+        case "insufficient_cash":
+          showFieldError("tendered", coverMessage(outcome.amount_due));
+          break;
+        case "invalid_amount":
+          showFieldError("tendered", INVALID_AMOUNT_MESSAGE);
+          break;
+        case "empty_sale":
+        case "zero_total":
+        case "no_open_sale":
+        case "not_permitted":
+          onSaleUnavailable();
+          break;
+        case "not_signed_in":
+        case "no_open_session":
+          onSessionInvalid();
+          break;
+        case "unavailable":
+          setNotice(FAILED_MESSAGE);
+          break;
+      }
+    },
+  });
 
   useEffect(() => {
     content.current?.querySelector("input")?.focus();
   }, []);
 
-  const isBlank = typed.trim() === "";
-  const tendered = isBlank ? undefined : parseAmountCents(typed);
+  const isBlank = values.tendered.trim() === "";
+  const tendered = isBlank ? undefined : parseAmountCents(values.tendered);
   const answer = useCashChargeQuery({ saleId, total, tendered, read: readCharge });
   const loaded = answer.status === "loaded" ? answer : undefined;
   const answered =
@@ -64,11 +103,10 @@ export function CashChargeModal({
       ? undefined
       : loaded.value;
   const saleUnavailable = loaded !== undefined && answered === undefined;
-  const fieldMessage =
-    refusal ??
-    (!isBlank && (tendered === undefined || answered?.kind === "invalid_amount")
+  const answeredMessage =
+    tendered !== undefined && answered?.kind === "invalid_amount"
       ? INVALID_AMOUNT_MESSAGE
-      : undefined);
+      : undefined;
   const covered =
     tendered !== undefined && answered?.kind === "covered" && !loaded?.refreshing
       ? { tendered, ...answered }
@@ -80,46 +118,18 @@ export function CashChargeModal({
     }
   }, [saleUnavailable, onSaleUnavailable]);
 
-  function type(value: string) {
-    setTyped(value);
-    setRefusal(undefined);
-    setNotice(undefined);
+  function tenderedMessage(typed: string): string | undefined {
+    return typed.trim() !== "" && parseAmountCents(typed) === undefined
+      ? INVALID_AMOUNT_MESSAGE
+      : undefined;
   }
 
-  async function submit() {
+  function handleSubmit() {
     if (submitting || covered === undefined) {
       return;
     }
     setNotice(undefined);
-    setSubmitting(true);
-    const outcome = await charge(covered.tendered).catch(
-      (): ChargeSaleInCashOutcome => ({ kind: "unavailable" }),
-    );
-    setSubmitting(false);
-    switch (outcome.kind) {
-      case "completed":
-        onCompleted(outcome);
-        break;
-      case "insufficient_cash":
-        setRefusal(coverMessage(outcome.amount_due));
-        break;
-      case "invalid_amount":
-        setRefusal(INVALID_AMOUNT_MESSAGE);
-        break;
-      case "empty_sale":
-      case "zero_total":
-      case "no_open_sale":
-      case "not_permitted":
-        onSaleUnavailable();
-        break;
-      case "not_signed_in":
-      case "no_open_session":
-        onSessionInvalid();
-        break;
-      case "unavailable":
-        setNotice(FAILED_MESSAGE);
-        break;
-    }
+    void submit();
   }
 
   return (
@@ -154,7 +164,7 @@ export function CashChargeModal({
             icon={<Check />}
             dataStatus={submitting ? "loading" : answer.status}
             disabled={covered === undefined}
-            onPress={() => void submit()}
+            onPress={handleSubmit}
           >
             Completar venta
           </Button>
@@ -169,17 +179,25 @@ export function CashChargeModal({
             { label: "A cobrar ahora", value: formatCents(total) },
           ]}
         />
-        <TextField
-          kind="amount"
-          prefix="$"
-          label="Importe entregado por el cliente"
-          inputMode="numeric"
-          value={typed}
-          onChange={type}
-          disabled={submitting}
-          description={coverMessage(total)}
-          errorMessage={fieldMessage}
-        />
+        <form.AppField
+          name="tendered"
+          validators={{ onChange: ({ value }) => tenderedMessage(value) }}
+          listeners={{ onChange: () => setNotice(undefined) }}
+        >
+          {(field) => (
+            <TextField
+              kind="amount"
+              prefix="$"
+              label="Importe entregado por el cliente"
+              inputMode="numeric"
+              value={field.state.value}
+              onChange={field.handleChange}
+              disabled={submitting}
+              description={coverMessage(total)}
+              errorMessage={fieldErrorMessage(field.state.meta.errors) ?? answeredMessage}
+            />
+          )}
+        </form.AppField>
         {tendered !== undefined && answer.status === "loading" ? (
           <LoadingPlaceholder variant="card" lines={2} />
         ) : null}

@@ -1,9 +1,8 @@
 import { branchSettingsEditBodySchema } from "@purosur/contracts";
-import { Button, InlineNotice, LoadFailure, LoadingPlaceholder } from "@purosur/ui";
+import { Button, InlineNotice, LoadFailure, LoadingPlaceholder, useRequestForm } from "@purosur/ui";
 import { Check, RotateCcw, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSendToMyAccount } from "../access/send-to-my-account";
-import { useCloudForm } from "../platform/cloud-form";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
@@ -36,7 +35,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
   const [notice, setNotice] = useState<FormNotice | null>(null);
   const [reloading, setReloading] = useState(false);
   const [reseedOnNextLoad, setReseedOnNextLoad] = useState(false);
-  const { form, submit, submitting, dirty, reset } = useCloudForm({
+  const { form, submit, submitting, dirty, reset } = useRequestForm({
     defaultValues: EMPTY_VALUES,
     request: { schema: branchSettingsEditBodySchema, from: requestFrom },
     fields: REQUEST_FIELDS,

@@ -1,9 +1,8 @@
 import { type CategorySummary, categoryEditBodySchema } from "@purosur/contracts";
-import { Button, InlineNotice, Modal } from "@purosur/ui";
+import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, RotateCcw, ShieldX, Tags, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSendToMyAccount } from "../access/send-to-my-account";
-import { useCloudForm } from "../platform/cloud-form";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import type { CategoryReload } from "./catalog-queries";
 import type { editCategory } from "./categories-api";
@@ -51,7 +50,7 @@ export function EditCategoryModal({
   const [title, setTitle] = useState("");
   const [notice, setNotice] = useState<EditNotice | null>(null);
   const [reloading, setReloading] = useState(false);
-  const { form, submit, submitting, reset } = useCloudForm({
+  const { form, submit, submitting, reset } = useRequestForm({
     defaultValues: { ...EMPTY_CATEGORY_FORM, version: 1 },
     request: { schema: categoryEditBodySchema, from: categoryEditRequestFrom },
     fields: CATEGORY_EDIT_FIELDS,

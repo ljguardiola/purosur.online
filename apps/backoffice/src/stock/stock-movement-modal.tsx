@@ -13,11 +13,11 @@ import {
   LoadingPlaceholder,
   Modal,
   OptionCardGroup,
+  useRequestForm,
 } from "@purosur/ui";
 import { ArrowDownUp, Check, Info, Minus, Package, PackageX, Plus } from "lucide-react";
 import { useState } from "react";
 import { useSendToMyAccount } from "../access/send-to-my-account";
-import { useCloudForm } from "../platform/cloud-form";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import type { RecordMovementOutcome } from "./stock-api";
 import { StockBalanceChange } from "./stock-balance-change";
@@ -138,7 +138,7 @@ export function StockMovementModal({
     }
   }
 
-  const loss = useCloudForm({
+  const loss = useRequestForm({
     defaultValues: { productId: null, quantity: "", reason: null } as LossValues,
     request: {
       schema: stockLossBodySchema,
@@ -166,7 +166,7 @@ export function StockMovementModal({
     },
   });
 
-  const adjustment = useCloudForm({
+  const adjustment = useRequestForm({
     defaultValues: {
       productId: null,
       quantity: "",

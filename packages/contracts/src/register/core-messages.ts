@@ -80,7 +80,7 @@ const signInMessageSchema = z.object({
   pin: z.string(),
 });
 
-const signInLookupMessageSchema = z.object({
+export const signInLookupMessageSchema = z.object({
   type: z.literal("sign-in-lookup"),
   request_id: requestId,
   email: z.string(),
@@ -99,7 +99,7 @@ const firstSignInMessageSchema = z.object({
   pin: z.string(),
 });
 
-const openCashSessionMessageSchema = z.object({
+export const openCashSessionMessageSchema = z.object({
   type: z.literal("open-cash-session"),
   request_id: requestId,
   opening_float: openingFloatSchema,
@@ -110,7 +110,7 @@ const cashSessionRequestMessageSchema = z.object({
   request_id: requestId,
 });
 
-const recordCashMovementMessageSchema = z.object({
+export const recordCashMovementMessageSchema = z.object({
   type: z.literal("record-cash-movement"),
   request_id: requestId,
   kind: z.enum(CASH_MOVEMENT_KINDS),
@@ -133,7 +133,7 @@ const cashMovementKindsRequestMessageSchema = z.object({
   request_id: requestId,
 });
 
-const closeCashSessionMessageSchema = z.object({
+export const closeCashSessionMessageSchema = z.object({
   type: z.literal("close-cash-session"),
   request_id: requestId,
   session_id: z.string(),
@@ -141,7 +141,7 @@ const closeCashSessionMessageSchema = z.object({
   authorization: authorizationSchema.optional(),
 });
 
-const closeLockedCashSessionMessageSchema = z.object({
+export const closeLockedCashSessionMessageSchema = z.object({
   type: z.literal("close-locked-cash-session"),
   request_id: requestId,
   session_id: z.string(),
@@ -208,7 +208,7 @@ const saleRequestMessageSchema = z.object({
   request_id: requestId,
 });
 
-const chargeSaleInCashMessageSchema = z.object({
+export const chargeSaleInCashMessageSchema = z.object({
   type: z.literal("charge-sale-in-cash"),
   request_id: requestId,
   sale_id: z.string(),

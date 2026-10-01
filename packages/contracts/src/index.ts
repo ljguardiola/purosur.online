@@ -162,14 +162,17 @@ export type {
 } from "./register/core-messages.js";
 export {
   ARGENTINA_TIME_ZONE,
-  cashMovementAmountSchema,
   cashMovementTypeSchema,
+  chargeSaleInCashMessageSchema,
+  closeCashSessionMessageSchema,
+  closeLockedCashSessionMessageSchema,
   coreStatusMessageSchema,
   coreToRendererMessageSchema,
-  countedCashSchema,
   mainToCoreMessageSchema,
-  openingFloatSchema,
+  openCashSessionMessageSchema,
+  recordCashMovementMessageSchema,
   rendererToCoreMessageSchema,
+  signInLookupMessageSchema,
 } from "./register/core-messages.js";
 export type { DeviceEnrollment, DeviceEnrollmentBody } from "./register/device-enrollment.js";
 export {
