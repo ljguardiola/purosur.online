@@ -1,4 +1,5 @@
 import type { RoleAccess } from "../../../access/index.js";
+import { priceInEffectAt } from "../../../pricing/index.js";
 import type { CashMovement } from "../../../register/index.js";
 import type { OutboxEventDraft } from "../../../sync/index.js";
 import type { PaymentTransaction } from "../../model/payment.js";
@@ -17,6 +18,7 @@ import type {
 } from "../sale-ledger.js";
 
 interface FakePrice extends ListPrice {
+  id: string;
   productId: string;
   validFrom: Date;
 }
@@ -191,11 +193,11 @@ function latestPriceAt(
   productId: string,
   moment: Date,
 ): ListPrice | undefined {
-  const valid = prices
-    .filter((price) => price.productId === productId && price.validFrom <= moment)
-    .sort((a, b) => b.validFrom.getTime() - a.validFrom.getTime());
-  const latest = valid[0];
-  return latest && { priceListId: latest.priceListId, unitPrice: latest.unitPrice };
+  const inEffect = priceInEffectAt(
+    prices.filter((price) => price.productId === productId),
+    moment,
+  );
+  return inEffect && { priceListId: inEffect.priceListId, unitPrice: inEffect.unitPrice };
 }
 
 export class SequentialIds implements IdGenerator {

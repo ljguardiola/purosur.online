@@ -112,6 +112,8 @@ export {
   isIssuerIdentificationLegalNameTooLong,
 } from "./fiscal/index.js";
 export type {
+  CategoryLink,
+  DatedPrice,
   DiscountBenefit,
   DiscountRecurrence,
   DiscountSchedule,
@@ -119,6 +121,8 @@ export type {
   DiscountTarget,
   DiscountTargetKind,
   IsoWeekday,
+  ProductTagLink,
+  TargetedProduct,
 } from "./pricing/index.js";
 export {
   DISCOUNT_BUY_QTY_MIN,
@@ -131,6 +135,7 @@ export {
   discountAppliesOn,
   discountNameLength,
   discountStatus,
+  discountsTargeting,
   isBuyNPayMSaleUnit,
   isCalendarDay,
   isDiscountNameTooLong,
@@ -142,7 +147,9 @@ export {
   isValidDiscountPercent,
   isValidDiscountWeekdays,
   MAX_UNIT_PRICE_CENTS,
+  newestPrice,
   normalizeDiscountWeekdays,
+  priceInEffectAt,
 } from "./pricing/index.js";
 export type {
   CashBreakdown,

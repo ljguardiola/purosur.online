@@ -49,7 +49,15 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
     session: SESSION,
     products: [YERBA, QUESO],
     barcodes: { "7790001": "yerba", "7790002": "queso" },
-    prices: [{ productId: "yerba", priceListId: "list-1", unitPrice: 2500, validFrom: LONG_AGO }],
+    prices: [
+      {
+        id: "price-1",
+        productId: "yerba",
+        priceListId: "list-1",
+        unitPrice: 2500,
+        validFrom: LONG_AGO,
+      },
+    ],
     ...state,
   });
 }
@@ -112,8 +120,20 @@ describe("addScannedProduct", () => {
       products: [YERBA, { id: "fideos", name: "Fideos", saleUnit: "UNIT" }],
       barcodes: { "7790001": "yerba", "7790003": "fideos" },
       prices: [
-        { productId: "yerba", priceListId: "list-1", unitPrice: 2500, validFrom: LONG_AGO },
-        { productId: "fideos", priceListId: "list-1", unitPrice: 900, validFrom: LONG_AGO },
+        {
+          id: "price-2",
+          productId: "yerba",
+          priceListId: "list-1",
+          unitPrice: 2500,
+          validFrom: LONG_AGO,
+        },
+        {
+          id: "price-3",
+          productId: "fideos",
+          priceListId: "list-1",
+          unitPrice: 900,
+          validFrom: LONG_AGO,
+        },
       ],
     });
 
@@ -145,8 +165,20 @@ describe("addScannedProduct", () => {
       products: [YERBA, { id: "fideos", name: "Fideos", saleUnit: "UNIT" }],
       barcodes: { "7790001": "yerba", "7790003": "fideos" },
       prices: [
-        { productId: "yerba", priceListId: "list-1", unitPrice: 2500, validFrom: LONG_AGO },
-        { productId: "fideos", priceListId: "list-1", unitPrice: 900, validFrom: LONG_AGO },
+        {
+          id: "price-4",
+          productId: "yerba",
+          priceListId: "list-1",
+          unitPrice: 2500,
+          validFrom: LONG_AGO,
+        },
+        {
+          id: "price-5",
+          productId: "fideos",
+          priceListId: "list-1",
+          unitPrice: 900,
+          validFrom: LONG_AGO,
+        },
       ],
     });
     scan(store);
@@ -165,6 +197,7 @@ describe("addScannedProduct", () => {
     const store = ledger();
     scan(store);
     store.state.prices.push({
+      id: "price-6",
       productId: "yerba",
       priceListId: "list-2",
       unitPrice: 3000,
@@ -193,14 +226,22 @@ describe("addScannedProduct", () => {
   it("uses the latest price already valid at the clock's moment", () => {
     const store = ledger({
       prices: [
-        { productId: "yerba", priceListId: "list-1", unitPrice: 2500, validFrom: LONG_AGO },
         {
+          id: "price-7",
+          productId: "yerba",
+          priceListId: "list-1",
+          unitPrice: 2500,
+          validFrom: LONG_AGO,
+        },
+        {
+          id: "price-8",
           productId: "yerba",
           priceListId: "list-2",
           unitPrice: 2800,
           validFrom: new Date("2026-09-01T00:00:00.000Z"),
         },
         {
+          id: "price-9",
           productId: "yerba",
           priceListId: "list-3",
           unitPrice: 9999,
@@ -310,6 +351,7 @@ describe("addScannedProduct", () => {
     const store = ledger({
       prices: [
         {
+          id: "price-10",
           productId: "yerba",
           priceListId: "list-1",
           unitPrice: 2500,
@@ -325,7 +367,15 @@ describe("addScannedProduct", () => {
 
   it("refuses a product sold by weight, naming it and changing nothing", () => {
     const store = ledger({
-      prices: [{ productId: "queso", priceListId: "list-1", unitPrice: 9000, validFrom: LONG_AGO }],
+      prices: [
+        {
+          id: "price-11",
+          productId: "queso",
+          priceListId: "list-1",
+          unitPrice: 9000,
+          validFrom: LONG_AGO,
+        },
+      ],
     });
     const before = structuredClone(store.state);
 
@@ -371,7 +421,15 @@ describe("addScannedProduct", () => {
 
   it("asks for the price at the clock's moment", () => {
     const store = ledger({
-      prices: [{ productId: "yerba", priceListId: "list-1", unitPrice: 2500, validFrom: NOW }],
+      prices: [
+        {
+          id: "price-12",
+          productId: "yerba",
+          priceListId: "list-1",
+          unitPrice: 2500,
+          validFrom: NOW,
+        },
+      ],
     });
 
     expect(scan(store).kind).toBe("added");

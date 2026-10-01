@@ -21,8 +21,20 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
     session: SESSION,
     products: [YERBA, QUESO],
     prices: [
-      { productId: "yerba", priceListId: "list-1", unitPrice: 2500, validFrom: LONG_AGO },
-      { productId: "queso", priceListId: "list-1", unitPrice: 9000, validFrom: LONG_AGO },
+      {
+        id: "price-1",
+        productId: "yerba",
+        priceListId: "list-1",
+        unitPrice: 2500,
+        validFrom: LONG_AGO,
+      },
+      {
+        id: "price-2",
+        productId: "queso",
+        priceListId: "list-1",
+        unitPrice: 9000,
+        validFrom: LONG_AGO,
+      },
     ],
     ...state,
   });
@@ -52,14 +64,22 @@ describe("searchProductsByName", () => {
   it("shows the price valid at the clock's moment, or none when the product has none yet", () => {
     const store = ledger({
       prices: [
-        { productId: "yerba", priceListId: "list-1", unitPrice: 2500, validFrom: LONG_AGO },
         {
+          id: "price-3",
+          productId: "yerba",
+          priceListId: "list-1",
+          unitPrice: 2500,
+          validFrom: LONG_AGO,
+        },
+        {
+          id: "price-4",
           productId: "yerba",
           priceListId: "list-2",
           unitPrice: 2800,
           validFrom: new Date("2026-09-01T00:00:00.000Z"),
         },
         {
+          id: "price-5",
           productId: "queso",
           priceListId: "list-1",
           unitPrice: 9000,
