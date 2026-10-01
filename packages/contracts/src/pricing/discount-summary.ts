@@ -1,3 +1,4 @@
+import { DISCOUNT_STATUSES } from "@purosur/domain";
 import { z } from "zod";
 import { discountBenefitSchema } from "./discount-benefit.js";
 import { discountTargetSchema } from "./discount-target.js";
@@ -12,6 +13,7 @@ export const discountSummarySchema = z.object({
   weekdays: z.array(z.int()),
   active: z.boolean(),
   version: z.int(),
+  status: z.enum(DISCOUNT_STATUSES),
 });
 
 export const discountListSchema = z.object({
