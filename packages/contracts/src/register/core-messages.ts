@@ -263,6 +263,7 @@ export const openCashSessionRequestSchema = openCashSessionMessageSchema.omit({
   type: true,
   request_id: true,
 });
+export const countedCashRequestSchema = closeCashSessionMessageSchema.pick({ counted_cash: true });
 
 const enrollmentOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("enrolled") }),

@@ -169,6 +169,7 @@ export {
   cashMovementReason,
   coreStatusMessageSchema,
   coreToRendererMessageSchema,
+  countedCashRequestSchema,
   countedCashSchema,
   mainToCoreMessageSchema,
   openCashSessionRequestSchema,
