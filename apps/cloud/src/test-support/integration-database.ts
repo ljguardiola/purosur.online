@@ -29,21 +29,16 @@ function asCloudApp(databaseUrl: string): string {
   return url.toString();
 }
 
-// Clones the already-migrated template database so each test file gets its own database instead
-// of migrating, and racing, one on the shared cluster.
-export async function createIntegrationDatabase(namePrefix: string): Promise<IntegrationDatabase> {
+async function createDatabase(
+  namePrefix: string,
+  createStatement: (databaseName: string) => string,
+): Promise<IntegrationDatabase> {
   const adminUrl = inject("recoveryPostgresAdminUrl");
-  const template = inject("cloudIntegrationTemplateDatabase");
-  if (template === undefined) {
-    throw new Error(
-      "the cloud integration template database could not be migrated; see the global setup's warning",
-    );
-  }
   const databaseName = `${namePrefix}_${randomUUID().replaceAll("-", "")}`;
 
   const admin = postgres(adminUrl, { max: 1 });
   try {
-    await admin.unsafe(`CREATE DATABASE "${databaseName}" TEMPLATE "${template}"`);
+    await admin.unsafe(createStatement(databaseName));
   } finally {
     await admin.end({ timeout: 1 });
   }
@@ -62,6 +57,27 @@ export async function createIntegrationDatabase(namePrefix: string): Promise<Int
       }
     },
   };
+}
+
+// Clones the already-migrated template database so each test file gets its own database instead
+// of migrating, and racing, one on the shared cluster.
+export async function createIntegrationDatabase(namePrefix: string): Promise<IntegrationDatabase> {
+  const template = inject("cloudIntegrationTemplateDatabase");
+  if (template === undefined) {
+    throw new Error(
+      "the cloud integration template database could not be migrated; see the global setup's warning",
+    );
+  }
+  return createDatabase(
+    namePrefix,
+    (databaseName) => `CREATE DATABASE "${databaseName}" TEMPLATE "${template}"`,
+  );
+}
+
+export async function createEmptyIntegrationDatabase(
+  namePrefix: string,
+): Promise<IntegrationDatabase> {
+  return createDatabase(namePrefix, (databaseName) => `CREATE DATABASE "${databaseName}"`);
 }
 
 // runMigrations ends by writing cloud_app's password to the cluster-wide pg_authid catalog, so
