@@ -1,4 +1,4 @@
-import type { AlertKind } from "../model/alert-catalog.js";
+import type { AlertKind, AlertLevel } from "../model/alert-catalog.js";
 import { alertKindPolicy } from "../model/alert-kind-policy.js";
 import { isOpenAlert } from "../model/open-alert-state.js";
 import type { AlertClosingPorts, LockedAlert } from "./alert-store.js";
@@ -11,6 +11,8 @@ export interface CloseAlertInput {
 export interface ClosedAlert {
   alertId: string;
   kind: AlertKind;
+  level: AlertLevel;
+  escalatedAt: Date | null;
   scope: string;
   detail: Record<string, unknown>;
   closedAt: Date;
@@ -43,6 +45,8 @@ export async function closeAlert(
       alert: {
         alertId: input.alertId,
         kind: alert.kind,
+        level: alert.level,
+        escalatedAt: alert.escalatedAt,
         ...kept,
         closedAt,
         closedBy: input.closedBy,

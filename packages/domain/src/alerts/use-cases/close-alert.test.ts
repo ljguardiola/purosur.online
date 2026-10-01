@@ -29,9 +29,17 @@ describe("closeAlert", () => {
     expect(store.snapshot().alerts[0]).toMatchObject({ resolvedAt, resolvedBy: "someone-else" });
   });
 
-  it("closes an open alert, recording when and by whom, and keeps its scope and detail", async () => {
+  it("closes an open alert, recording when and by whom, and answers it as locked, with its scope and detail kept", async () => {
     const store = new FakeAlertStore();
-    store.seedAlert(seededAlert({ id: "alert-9", detail: { actorId: "user-1" } }));
+    const escalatedAt = new Date("2026-10-01T09:05:00.000Z");
+    store.seedAlert(
+      seededAlert({
+        id: "alert-9",
+        detail: { actorId: "user-1" },
+        level: "critical",
+        escalatedAt,
+      }),
+    );
 
     const outcome = await close(store, "alert-9");
 
@@ -40,6 +48,8 @@ describe("closeAlert", () => {
       alert: {
         alertId: "alert-9",
         kind: "backoffice_passkey_changed",
+        level: "critical",
+        escalatedAt,
         scope: "user-1",
         detail: { actorId: "user-1" },
         closedAt: NOW,

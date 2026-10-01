@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { alertLocationId, alertSightOf, canSeeAlert, canSeeAnyAlerts } from "./alert-visibility.js";
+import { alertLocationId, alertSightOf, canSeeAlert } from "./alert-visibility.js";
 
 const HERE = "location-here";
 const ELSEWHERE = "location-elsewhere";
@@ -39,18 +39,6 @@ describe("alertSightOf", () => {
   });
 });
 
-describe("canSeeAnyAlerts", () => {
-  it.each([
-    [{ isAdministrator: true, permissionKeys: [] }, true],
-    [{ isAdministrator: false, permissionKeys: ["view_all_alerts"] }, true],
-    [{ isAdministrator: false, permissionKeys: ["view_branch_alerts"] }, true],
-    [{ isAdministrator: false, permissionKeys: ["sell_and_charge"] }, false],
-    [{ isAdministrator: false, permissionKeys: [] }, false],
-  ])("%j sees any alerts: %s", (access, expected) => {
-    expect(canSeeAnyAlerts(access)).toBe(expected);
-  });
-});
-
 describe("canSeeAlert", () => {
   const localHere = { audience: "local", locationId: HERE } as const;
   const localElsewhere = { audience: "local", locationId: ELSEWHERE } as const;
@@ -83,10 +71,12 @@ describe("canSeeAlert", () => {
     expect(canSeeAlert(access, everyone)).toBe(false);
   });
 
-  it("agrees with the sight derived for the same viewer", () => {
-    const alert = localHere;
-    const access = viewer({ permissionKeys: ["view_branch_alerts"] });
-    expect(canSeeAlert(access, alert)).toBe(canSeeAnyAlerts(access));
+  it("shows a view_branch_alerts holder the local alerts of the location their sight names", () => {
+    const access = { ...viewer({ permissionKeys: ["view_branch_alerts"] }), locationId: ELSEWHERE };
+
+    expect(alertSightOf(access)).toEqual({ kind: "local", locationId: ELSEWHERE });
+    expect(canSeeAlert(access, localElsewhere)).toBe(true);
+    expect(canSeeAlert(access, localHere)).toBe(false);
   });
 });
 

@@ -11,6 +11,7 @@ import { confirmPrice, createDiscount, setPrice } from "@purosur/domain/pricing/
 import { createRegister } from "@purosur/domain/register/use-cases";
 import { and, eq, like, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { TOKEN_LIFETIME_MS } from "../access/process-recovery-request-job.js";
 import { createRole } from "../access/role-creation-route.js";
 import {
   hashSourceAddress,
@@ -50,7 +51,6 @@ const SAMPLE_DATA_ADVISORY_LOCK_KEY = 875_320;
 
 const OVERDUE_PRICE_REVIEW_AGE_MS = 60 * 24 * 60 * 60 * 1000;
 const ESCALATION_ELIGIBLE_ALERT_AGE_MS = 25 * 60 * 60 * 1000;
-const RECOVERY_LINK_LIFETIME_MS = 15 * 60 * 1000;
 
 class SampleDataCollisionError extends Error {}
 
@@ -398,9 +398,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
           detail: {
             requestedAt: recoveryRequestedAt.toISOString(),
             issuedAt: recoveryRequestedAt.toISOString(),
-            expiresAt: new Date(
-              recoveryRequestedAt.getTime() + RECOVERY_LINK_LIFETIME_MS,
-            ).toISOString(),
+            expiresAt: new Date(recoveryRequestedAt.getTime() + TOKEN_LIFETIME_MS).toISOString(),
           },
         },
         { now: deps.now },

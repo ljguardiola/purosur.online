@@ -1,4 +1,5 @@
 import { type AlertDetail, alertDetailSchema } from "@purosur/contracts";
+import { isOpenAlert } from "@purosur/domain";
 import type { AlertDelivery, AlertDetailView } from "@purosur/domain/alerts/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -74,6 +75,7 @@ export function toAlertDetailBody(
     openedAt: alert.openedAt.toISOString(),
     escalatedAt: alert.escalatedAt?.toISOString() ?? null,
     resolvedAt: alert.resolvedAt?.toISOString() ?? null,
+    open: isOpenAlert(alert),
     deliveries: deliveries.map(toAlertDelivery),
   });
 }

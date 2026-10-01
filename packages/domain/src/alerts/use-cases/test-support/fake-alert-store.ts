@@ -46,10 +46,12 @@ export type AlertWriteOperation =
 class FakeAlertStoreTransaction implements AlertStoreTransaction {
   private readonly state: FakeAlertState;
   private readonly store: FakeAlertStore;
+  private readonly operations: string[];
 
-  constructor(state: FakeAlertState, store: FakeAlertStore) {
+  constructor(state: FakeAlertState, store: FakeAlertStore, operations: string[]) {
     this.state = state;
     this.store = store;
+    this.operations = operations;
   }
 
   async insertAlert(alert: NewAlert): Promise<string> {
@@ -79,14 +81,14 @@ class FakeAlertStoreTransaction implements AlertStoreTransaction {
   }
 
   async findOpenAlertId(kind: AlertKind, scope: string): Promise<string | undefined> {
-    this.store.operationOrder.push("findOpenAlertId");
+    this.record("findOpenAlertId");
     return this.state.alerts.find(
       (row) => row.kind === kind && row.scope === scope && row.resolvedAt === null,
     )?.id;
   }
 
   async listActiveAlertViewers(): Promise<AlertRecipientCandidate[]> {
-    this.store.operationOrder.push("listActiveAlertViewers");
+    this.record("listActiveAlertViewers");
     return this.state.viewers
       .filter((viewer) => viewer.active)
       .map(({ active: _active, ...viewer }) => structuredClone(viewer));
@@ -103,7 +105,7 @@ class FakeAlertStoreTransaction implements AlertStoreTransaction {
   }
 
   async lockAlert(alertId: string): Promise<LockedAlert | undefined> {
-    this.store.operationOrder.push("lockAlert");
+    this.record("lockAlert");
     const alert = this.state.alerts.find((row) => row.id === alertId);
     return alert && structuredClone(alert);
   }
@@ -118,7 +120,7 @@ class FakeAlertStoreTransaction implements AlertStoreTransaction {
   }
 
   async lockOpenAlerts(): Promise<LockedOpenAlert[]> {
-    this.store.operationOrder.push("lockOpenAlerts");
+    this.record("lockOpenAlerts");
     return this.state.alerts
       .filter((row) => row.resolvedAt === null)
       .map((row) => ({
@@ -146,8 +148,13 @@ class FakeAlertStoreTransaction implements AlertStoreTransaction {
     return alert;
   }
 
-  private beforeWrite(operation: AlertWriteOperation): void {
+  private record(operation: string): void {
     this.store.operationOrder.push(operation);
+    this.operations.push(operation);
+  }
+
+  private beforeWrite(operation: AlertWriteOperation): void {
+    this.record(operation);
     if (this.store.failingWrites.has(operation)) {
       throw new Error(`${operation} failed`);
     }
@@ -160,6 +167,7 @@ export class FakeAlertStore implements AlertStore {
   failingWrites = new Set<AlertWriteOperation>();
   loseDedupRace = false;
   operationOrder: string[] = [];
+  operationsByTransaction: string[][] = [];
 
   seedViewer(viewer: FakeAlertViewer): void {
     this.state.viewers.push(structuredClone(viewer));
@@ -183,8 +191,10 @@ export class FakeAlertStore implements AlertStore {
     work: (tx: AlertStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     const before = structuredClone(this.state);
+    const operations: string[] = [];
+    this.operationsByTransaction.push(operations);
     try {
-      return await work(new FakeAlertStoreTransaction(this.state, this));
+      return await work(new FakeAlertStoreTransaction(this.state, this, operations));
     } catch (error) {
       this.state = before;
       throw error;

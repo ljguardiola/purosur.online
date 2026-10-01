@@ -126,14 +126,14 @@ describe("openAlert", () => {
     expect(store.snapshot().deliveries).toHaveLength(2);
   });
 
-  it("looks for the open alert in a new transaction after the first one lost the race", async () => {
+  it("looks for the open alert in the same transaction whose insert lost the race", async () => {
     const store = storeWithViewers();
     await open(store, PASSKEY_CHANGED);
-    store.operationOrder = [];
+    store.operationsByTransaction = [];
 
     await open(store, PASSKEY_CHANGED);
 
-    expect(store.operationOrder).toEqual(["insertAlert", "findOpenAlertId"]);
+    expect(store.operationsByTransaction).toEqual([["insertAlert", "findOpenAlertId"]]);
   });
 
   it("opens a second alert for the same scope when it is a different kind", async () => {

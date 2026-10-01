@@ -100,6 +100,7 @@ const alertBase = {
   openedAt: z.string(),
   escalatedAt: z.string().nullable(),
   resolvedAt: z.string().nullable(),
+  open: z.boolean(),
   deliveries: z.array(alertDeliverySchema),
 };
 

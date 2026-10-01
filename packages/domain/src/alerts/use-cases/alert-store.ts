@@ -40,6 +40,8 @@ export interface AlertRecipientCandidate extends AlertViewer {
 
 export interface LockedAlert {
   kind: AlertKind;
+  level: AlertLevel;
+  escalatedAt: Date | null;
   scope: string;
   detail: Record<string, unknown>;
   resolvedAt: Date | null;

@@ -14,12 +14,6 @@ export type VisibleAlertSight = { kind: "all" } | { kind: "local"; locationId: s
 
 export type AlertSight = VisibleAlertSight | { kind: "none" };
 
-export function canSeeAnyAlerts(access: AlertAudienceAccess): boolean {
-  return (
-    holdsPermission(access, "view_all_alerts") || holdsPermission(access, "view_branch_alerts")
-  );
-}
-
 export function alertSightOf(viewer: AlertViewer): AlertSight {
   if (holdsPermission(viewer, "view_all_alerts")) {
     return { kind: "all" };

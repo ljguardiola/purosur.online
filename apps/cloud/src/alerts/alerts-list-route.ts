@@ -1,5 +1,5 @@
 import { type AlertSummary, alertListPageSchema } from "@purosur/contracts";
-import { ALERTS_PAGE_SIZE, isAlertKind, isAlertLevel } from "@purosur/domain";
+import { isAlertKind, isAlertLevel } from "@purosur/domain";
 import type {
   AlertSearch,
   AlertSummary as AlertSummaryRow,
@@ -16,7 +16,7 @@ import {
 } from "../access/route-access.js";
 import { visibleSightOf } from "./alert-route-sight.js";
 import { scopeDisplay, wireScope } from "./alert-scope-wire.js";
-import { DrizzleAlertReader } from "./drizzle-alert-reader.js";
+import { ALERTS_PAGE_SIZE, DrizzleAlertReader } from "./drizzle-alert-reader.js";
 
 export interface AlertsRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;

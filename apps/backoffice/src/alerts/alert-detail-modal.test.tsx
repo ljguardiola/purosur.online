@@ -47,6 +47,7 @@ function baseDetail(overrides: DetailOverrides = {}): AlertDetail {
     openedAt: "2026-01-05T12:00:00.000Z",
     escalatedAt: null,
     resolvedAt: null,
+    open: true,
     deliveries: [],
   };
   return { ...passkeyAlert, ...overrides };
@@ -169,7 +170,7 @@ test("shows when an escalated alert escalated, with no fixed escalation line rep
 test("shows the closing note only while the alert is still open", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
-    ok(baseDetail({ resolvedAt: "2026-01-05T13:00:00.000Z" })),
+    ok(baseDetail({ resolvedAt: "2026-01-05T13:00:00.000Z", open: false })),
   );
 
   const screen = await renderModal(services);
@@ -324,6 +325,7 @@ test("describes a closed sign-in lockout without its source address, and leaves 
           blockedUntil: "2026-01-05T12:15:00.000Z",
         },
         resolvedAt: "2026-01-05T13:00:00.000Z",
+        open: false,
       }),
     ),
   );
@@ -392,10 +394,21 @@ test("hides Cerrar la alerta for a viewer without dismiss_alerts_manually", asyn
   expect(screen.getByRole("button", { name: "Cerrar la alerta" }).query()).toBeNull();
 });
 
+test("offers neither closing nor the closing note once the cloud answers the alert is not open", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(baseDetail({ open: false })));
+
+  const screen = await renderModal(services);
+  await expect.element(screen.getByText("Se registró una passkey")).toBeVisible();
+
+  expect(screen.getByRole("button", { name: "Cerrar la alerta" }).query()).toBeNull();
+  expect(screen.getByText(/No se cierra sola/).query()).toBeNull();
+});
+
 test("hides Cerrar la alerta for an alert that's already closed", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
-    ok(baseDetail({ resolvedAt: "2026-01-05T13:00:00.000Z" })),
+    ok(baseDetail({ resolvedAt: "2026-01-05T13:00:00.000Z", open: false })),
   );
 
   const screen = await renderModal(services);
@@ -441,7 +454,7 @@ test("shows a notice when someone else already closed it, instead of reporting s
   const screen = await renderModal(services, { onClosed });
   await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
   vi.mocked(services.fetchAlert).mockResolvedValue(
-    ok(baseDetail({ resolvedAt: "2026-01-05T13:00:00.000Z" })),
+    ok(baseDetail({ resolvedAt: "2026-01-05T13:00:00.000Z", open: false })),
   );
 
   await userEvent.click(screen.getByRole("button", { name: "Cerrar la alerta" }));

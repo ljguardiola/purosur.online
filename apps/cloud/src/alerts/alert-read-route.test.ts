@@ -194,6 +194,7 @@ describe("GET /alerts/:id", () => {
       id: alertId,
       kind: "user_email_changed",
       detail: { previousEmail: "old@example.com" },
+      open: true,
     });
     expect(body.deliveries).toEqual([
       {
@@ -275,7 +276,11 @@ describe("GET /alerts/:id", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.body).not.toContain(hashedAddress);
-    expect(response.json()).toMatchObject({ scope: null, detail: { failureCount: 6 } });
+    expect(response.json()).toMatchObject({
+      scope: null,
+      detail: { failureCount: 6 },
+      open: false,
+    });
     expect(response.json()).not.toHaveProperty("detail.sourceAddress");
   });
 

@@ -141,6 +141,59 @@ function closeAlertRequest(
   });
 }
 
+// Runs `change` once, after the route's unlocked read of the alert (the select fetching
+// `resolvedBy`) and before its next transaction, which is the one that closes it.
+function withChangeBeforeClosing(change: () => Promise<unknown>): TestDatabase["db"] {
+  let alertRead = false;
+  let changed = false;
+  return new Proxy(db, {
+    get(target, property) {
+      const value = Reflect.get(target, property);
+      if (property === "select") {
+        return function (this: unknown, ...args: unknown[]) {
+          const [fields] = args;
+          if (typeof fields === "object" && fields !== null && "resolvedBy" in fields) {
+            alertRead = true;
+          }
+          return Reflect.apply(value, this, args);
+        };
+      }
+      if (property === "transaction") {
+        return async function (this: unknown, ...args: unknown[]) {
+          if (alertRead && !changed) {
+            changed = true;
+            await change();
+          }
+          return Reflect.apply(value, this, args);
+        };
+      }
+      return value;
+    },
+  });
+}
+
+async function closeWithChangeBeforeClosing(
+  rawSessionId: string,
+  id: string,
+  change: () => Promise<unknown>,
+) {
+  const racedApp = Fastify();
+  registerAlertCloseRoute(racedApp, {
+    db: withChangeBeforeClosing(change),
+    backofficeOrigin: BACKOFFICE_ORIGIN,
+    now: () => NOON,
+  });
+  try {
+    return await racedApp.inject({
+      method: "PUT",
+      url: `/alerts/${id}/closure`,
+      headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
+    });
+  } finally {
+    await racedApp.close();
+  }
+}
+
 describe("PUT /alerts/:id/closure", () => {
   it("no longer answers POST /alerts/:id/close", async () => {
     const roleId = await insertRole("closer", ["dismiss_alerts_manually", "view_all_alerts"]);
@@ -285,6 +338,40 @@ describe("PUT /alerts/:id/closure", () => {
     expect(second.kind).toBe("opened");
     const [row] = await db.select().from(alerts).where(eq(alerts.id, second.alertId));
     expect(row?.scope).toBe(SOURCE_ADDRESS);
+  });
+
+  it("answers the alert as it stood under its lock, with an escalation that landed after the first read", async () => {
+    const roleId = await insertRole("closer", ["dismiss_alerts_manually", "view_all_alerts"]);
+    const userId = await insertUserWithRole("Grace", roleId);
+    const rawSessionId = await insertSession(userId);
+    const alertId = await insertAlert({ audience: "all" });
+    const escalatedAt = new Date(NOON.getTime() - 60_000);
+
+    const response = await closeWithChangeBeforeClosing(rawSessionId, alertId, () =>
+      db.update(alerts).set({ level: "critical", escalatedAt }).where(eq(alerts.id, alertId)),
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      level: "critical",
+      escalatedAt: escalatedAt.toISOString(),
+      resolvedAt: NOON.toISOString(),
+      open: false,
+    });
+  });
+
+  it("returns 404 when the alert is gone by the time it is locked", async () => {
+    const roleId = await insertRole("closer", ["dismiss_alerts_manually", "view_all_alerts"]);
+    const userId = await insertUserWithRole("Grace", roleId);
+    const rawSessionId = await insertSession(userId);
+    const alertId = await insertAlert({ audience: "all" });
+
+    const response = await closeWithChangeBeforeClosing(rawSessionId, alertId, () =>
+      db.delete(alerts).where(eq(alerts.id, alertId)),
+    );
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "not_found" });
   });
 
   it("refuses to close an alert that was already closed", async () => {

@@ -370,6 +370,7 @@ const passkeyDetail: AlertDetail = {
   openedAt: "2026-01-05T12:00:00.000Z",
   escalatedAt: null,
   resolvedAt: null,
+  open: true,
   deliveries: [],
 };
 
@@ -529,7 +530,7 @@ test("never shows an alert the person just closed as still open when it is opene
   await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeDisabled();
   reread.resolve({
     kind: "ok",
-    value: { ...passkeyDetail, resolvedAt: "2026-01-06T09:00:00.000Z" },
+    value: { ...passkeyDetail, resolvedAt: "2026-01-06T09:00:00.000Z", open: false },
   });
   await expect
     .element(screen.getByRole("button", { name: "Cerrar la alerta" }))

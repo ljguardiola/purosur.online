@@ -291,7 +291,7 @@ function OpenAlertDetailModal({
 
   const alert =
     data.status === "loaded" && data.value.kind === "found" ? data.value.alert : undefined;
-  const isKnownClosed = alert !== undefined && alert.resolvedAt !== null;
+  const isKnownClosed = alert !== undefined && !alert.open;
   const isKnownMissing = data.status === "loaded" && alert === undefined;
   const offersClose = canCloseAlertsManually(access) && !isKnownClosed && !isKnownMissing;
 
@@ -413,11 +413,11 @@ function OpenAlertDetailModal({
                 ))}
               </div>
             </div>
-            {alert.resolvedAt === null && (
+            {alert.open ? (
               <p className="text-text-subtle text-detail">
                 No se cierra sola: se cierra a mano después de revisarla.
               </p>
-            )}
+            ) : null}
           </>
         ) : null}
       </div>

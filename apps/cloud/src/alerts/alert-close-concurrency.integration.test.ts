@@ -1,4 +1,4 @@
-import { closeAlert } from "@purosur/domain/alerts/use-cases";
+import { closeAlert, escalateOverdueAlerts } from "@purosur/domain/alerts/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -9,7 +9,10 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
-import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock.js";
+import {
+  runQueuedBehindHeldLock,
+  waitForLockWaiters,
+} from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleAlertStore } from "./drizzle-alert-store.js";
 
@@ -116,5 +119,60 @@ describe("closing the same alert from two actors at once on a real Postgres", ()
       previousValue: { resolvedAt: null },
       newValue: { resolvedAt: NOON.toISOString() },
     });
+  }, 30_000);
+});
+
+async function insertOverdueAlert(): Promise<string> {
+  const [row] = await db
+    .insert(alerts)
+    .values({
+      kind: "user_email_changed",
+      scope: "user-overdue",
+      level: "warning",
+      audience: "all",
+      detail: {},
+      openedAt: new Date(NOON.getTime() - 25 * 60 * 60 * 1000),
+      escalateAt: new Date(NOON.getTime() - 60 * 60 * 1000),
+    })
+    .returning({ id: alerts.id });
+  if (!row) {
+    throw new Error("test setup: inserting the alert returned no row");
+  }
+  return row.id;
+}
+
+async function escalateWhileClosureCommits(alertId: string): Promise<number> {
+  const holder = await sql.reserve();
+  let escalation: Promise<number> | undefined;
+  let committed = false;
+  try {
+    await holder`begin`;
+    await holder`update alerts set resolved_at = ${NOON.toISOString()} where id = ${alertId}`;
+    escalation = escalateOverdueAlerts({
+      store: new DrizzleAlertStore(db),
+      clock: { now: () => NOON },
+    });
+    escalation.catch(() => {});
+    await waitForLockWaiters(sql, 1);
+    await holder`commit`;
+    committed = true;
+  } finally {
+    if (!committed) {
+      await holder`rollback`;
+    }
+    holder.release();
+  }
+  return escalation;
+}
+
+describe("escalating an overdue alert while its closure commits on a real Postgres", () => {
+  it("leaves the alert closed and unescalated once the escalation gets past the closure's lock", async () => {
+    const alertId = await insertOverdueAlert();
+
+    const escalatedCount = await escalateWhileClosureCommits(alertId);
+
+    expect(escalatedCount).toBe(0);
+    const [row] = await db.select().from(alerts).where(eq(alerts.id, alertId));
+    expect(row).toMatchObject({ resolvedAt: NOON, level: "warning", escalatedAt: null });
   }, 30_000);
 });

@@ -63,8 +63,16 @@ export function registerAlertCloseRoute<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      const { scope, detail, closedAt, closedBy } = outcome.alert;
-      const closed = { ...alert, scope, detail, resolvedAt: closedAt, resolvedBy: closedBy };
+      const { level, escalatedAt, scope, detail, closedAt, closedBy } = outcome.alert;
+      const closed = {
+        ...alert,
+        level,
+        escalatedAt,
+        scope,
+        detail,
+        resolvedAt: closedAt,
+        resolvedBy: closedBy,
+      };
       const deliveries = await reader.deliveriesOf(alert.id);
       const namesById = await reader.displayNames(idsToResolve(closed));
       await reply.code(200).send(toAlertDetailBody(closed, deliveries, namesById));

@@ -49,10 +49,13 @@ class DrizzleAlertStoreTransaction<TQueryResult extends PgQueryResultHKT>
 
   async insertAlert(alert: NewAlert): Promise<string> {
     try {
-      const [row] = await this.tx
-        .insert(alerts)
-        .values({ ...alert, detail: { ...alert.detail } })
-        .returning({ id: alerts.id });
+      // A savepoint, so a lost dedup race leaves the rest of the transaction usable.
+      const [row] = await this.tx.transaction((savepoint) =>
+        savepoint
+          .insert(alerts)
+          .values({ ...alert, detail: { ...alert.detail } })
+          .returning({ id: alerts.id }),
+      );
       if (!row) {
         throw new Error("inserting the alert returned no row");
       }
@@ -132,6 +135,8 @@ class DrizzleAlertStoreTransaction<TQueryResult extends PgQueryResultHKT>
     const [row] = await this.tx
       .select({
         kind: alerts.kind,
+        level: alerts.level,
+        escalatedAt: alerts.escalatedAt,
         scope: alerts.scope,
         detail: alerts.detail,
         resolvedAt: alerts.resolvedAt,

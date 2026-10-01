@@ -1,13 +1,9 @@
 import { EventEmitter } from "node:events";
-import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { Runner, RunnerOptions } from "graphile-worker";
 import { run } from "graphile-worker";
 import pg, { type Pool, type PoolClient } from "pg";
-import {
-  ALERT_ESCALATION_CRONTAB_LINE,
-  ALERT_ESCALATION_TASK_IDENTIFIER,
-  escalateAlertsTask,
-} from "../alerts/alert-escalation-task.js";
+import { type BackgroundJobs, databaseOfClient } from "../platform/background-jobs.js";
 import { runShutdownSteps } from "../platform/run-shutdown-steps.js";
 import { reportPoolErrors } from "./pool-connection-error-handler.js";
 import {
@@ -22,11 +18,7 @@ export const RECOVERY_REQUEST_TASK_IDENTIFIER = "recovery-request";
 export const RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER = "recovery-rejected-attempt-flush";
 export const FIRST_PIN_CODE_EMAIL_TASK_IDENTIFIER = "first-pin-code-email";
 
-// graphile-worker 0.18's RunnerOptions takes this crontab string in place of a crontab file.
-const CRONTAB = [
-  `*/5 * * * * ${RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER}`,
-  ALERT_ESCALATION_CRONTAB_LINE,
-].join("\n");
+const RECOVERY_REJECTED_ATTEMPT_FLUSH_CRONTAB_LINE = `*/5 * * * * ${RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER}`;
 
 // Jobs for the same account still serialize on their own advisory lock, so a slow job never
 // blocks jobs for other accounts.
@@ -34,10 +26,6 @@ const WORKER_CONCURRENCY = 2;
 
 export interface RecoveryWorkerHandle {
   stop(): Promise<void>;
-}
-
-function createDatabase(client: PoolClient): NodePgDatabase<Record<string, never>> {
-  return drizzle(client);
 }
 
 const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -61,6 +49,7 @@ export interface StartRecoveryWorkerOptions {
   backofficeOrigin: string;
   emailSender: AccessEmailSender;
   now?: () => Date;
+  jobs?: readonly BackgroundJobs[];
 }
 
 export interface StartRecoveryWorkerDeps {
@@ -68,7 +57,6 @@ export interface StartRecoveryWorkerDeps {
   createDatabase?: (client: PoolClient) => NodePgDatabase<Record<string, never>>;
   processJob?: typeof processRecoveryRequestJob;
   flush?: typeof flushClosedRecoveryRejectedAttemptWindows;
-  escalate?: typeof escalateAlertsTask;
   findPinCode?: typeof findPinCodeByCode;
   /**
    * Owned here, not by graphile-worker's pool: it removes error handlers and calls `pgPool.end()`
@@ -82,14 +70,14 @@ export async function startRecoveryWorker(
   deps: StartRecoveryWorkerDeps = {},
 ): Promise<RecoveryWorkerHandle> {
   const doRun = deps.runWorker ?? run;
-  const doCreateDatabase = deps.createDatabase ?? createDatabase;
+  const doCreateDatabase = deps.createDatabase ?? databaseOfClient;
   const doProcessJob = deps.processJob ?? processRecoveryRequestJob;
   const doFlush = deps.flush ?? flushClosedRecoveryRejectedAttemptWindows;
-  const doEscalate = deps.escalate ?? escalateAlertsTask;
   const doFindPinCode = deps.findPinCode ?? findPinCodeByCode;
   const doCreatePool =
     deps.createPool ?? ((connectionString: string) => new pg.Pool({ connectionString }));
   const now = options.now ?? (() => new Date());
+  const jobs = options.jobs ?? [];
 
   const pool = doCreatePool(options.databaseUrl);
   reportPoolErrors(pool, "recovery worker");
@@ -105,9 +93,14 @@ export async function startRecoveryWorker(
   const runner = await doRun({
     pgPool: pool as Pool,
     concurrency: WORKER_CONCURRENCY,
-    crontab: CRONTAB,
+    // graphile-worker 0.18's RunnerOptions takes this crontab string in place of a crontab file.
+    crontab: [
+      RECOVERY_REJECTED_ATTEMPT_FLUSH_CRONTAB_LINE,
+      ...jobs.flatMap((job) => job.crontab),
+    ].join("\n"),
     events,
     taskList: {
+      ...Object.assign({}, ...jobs.map((job) => job.taskList)),
       [RECOVERY_REQUEST_TASK_IDENTIFIER]: async (payload, helpers) => {
         if (!isRecoveryRequestJobPayload(payload)) {
           throw new Error(`${RECOVERY_REQUEST_TASK_IDENTIFIER}: malformed job payload`);
@@ -131,9 +124,6 @@ export async function startRecoveryWorker(
         }),
       [RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER]: async (_payload, helpers) => {
         await helpers.withPgClient((client) => doFlush(doCreateDatabase(client), { now }));
-      },
-      [ALERT_ESCALATION_TASK_IDENTIFIER]: async (_payload, helpers) => {
-        await helpers.withPgClient((client) => doEscalate(doCreateDatabase(client), { now }));
       },
     },
   });

@@ -28,7 +28,6 @@ export {
   alertKindPolicy,
   alertKindsWithScope,
 } from "./model/alert-kind-policy.js";
-export { ALERTS_PAGE_SIZE } from "./model/alert-list-page.js";
 export { showsAlertScope } from "./model/alert-scope-visibility.js";
 export type {
   AlertAudienceAccess,
@@ -40,6 +39,5 @@ export {
   alertLocationId,
   alertSightOf,
   canSeeAlert,
-  canSeeAnyAlerts,
 } from "./model/alert-visibility.js";
 export { isOpenAlert } from "./model/open-alert-state.js";

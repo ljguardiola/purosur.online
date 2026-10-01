@@ -29,6 +29,7 @@ const emailChange = {
   openedAt: "2026-05-04T13:10:00.000Z",
   escalatedAt: null,
   resolvedAt: null,
+  open: true,
   deliveries: [delivery],
 };
 
@@ -47,6 +48,7 @@ describe("alertDetailSchema", () => {
       scope: null,
       scopeDisplay: null,
       resolvedAt: "2026-05-04T15:10:00.000Z",
+      open: false,
       escalatedAt: "2026-05-04T14:10:00.000Z",
       deliveries: [
         { ...delivery, status: "failed", error: "sin conexión" },
@@ -106,6 +108,8 @@ describe("alertDetailSchema", () => {
     ["openedAt", 1],
     ["escalatedAt", undefined],
     ["resolvedAt", undefined],
+    ["open", "true"],
+    ["open", null],
     ["deliveries", null],
     ["deliveries", {}],
   ])("refuses %s as %j", (field, value) => {

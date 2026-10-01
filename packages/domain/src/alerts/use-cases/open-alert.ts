@@ -2,7 +2,12 @@ import type { OpenAlertInput } from "../model/alert-details.js";
 import { escalatesAt } from "../model/alert-escalation.js";
 import { alertKindPolicy } from "../model/alert-kind-policy.js";
 import { alertLocationId, canSeeAlert } from "../model/alert-visibility.js";
-import { AlertAlreadyOpenError, type AlertOpeningPorts, type NewAlert } from "./alert-store.js";
+import {
+  AlertAlreadyOpenError,
+  type AlertOpeningPorts,
+  type AlertStoreTransaction,
+  type NewAlert,
+} from "./alert-store.js";
 
 export type OpenAlertOutcome =
   | { kind: "opened"; alertId: string }
@@ -26,32 +31,34 @@ export async function openAlert(
     deduplicates: policy.deduplicates,
   };
 
-  try {
-    return await store.transaction(async (tx) => {
-      const alertId = await tx.insertAlert(alert);
-      const viewers = await tx.listActiveAlertViewers();
-      const recipients = viewers.filter((viewer) => canSeeAlert(viewer, alert));
-      if (recipients.length > 0) {
-        await tx.recordBackofficeDeliveries(
-          alertId,
-          recipients.map((recipient) => recipient.userId),
-        );
+  return store.transaction(async (tx) => {
+    let alertId: string;
+    try {
+      alertId = await tx.insertAlert(alert);
+    } catch (error) {
+      if (error instanceof AlertAlreadyOpenError) {
+        return { kind: "already_open", alertId: await openAlertId(tx, input) };
       }
-      return { kind: "opened", alertId };
-    });
-  } catch (error) {
-    if (!(error instanceof AlertAlreadyOpenError)) {
       throw error;
     }
-  }
-
-  return store.transaction(async (tx) => {
-    const alertId = await tx.findOpenAlertId(input.kind, input.scope);
-    if (alertId === undefined) {
-      throw new Error(
-        `openAlert: dedup violation for ${input.kind}/${input.scope} but no open alert found`,
+    const viewers = await tx.listActiveAlertViewers();
+    const recipients = viewers.filter((viewer) => canSeeAlert(viewer, alert));
+    if (recipients.length > 0) {
+      await tx.recordBackofficeDeliveries(
+        alertId,
+        recipients.map((recipient) => recipient.userId),
       );
     }
-    return { kind: "already_open", alertId };
+    return { kind: "opened", alertId };
   });
+}
+
+async function openAlertId(tx: AlertStoreTransaction, input: OpenAlertInput): Promise<string> {
+  const alertId = await tx.findOpenAlertId(input.kind, input.scope);
+  if (alertId === undefined) {
+    throw new Error(
+      `openAlert: dedup violation for ${input.kind}/${input.scope} but no open alert found`,
+    );
+  }
+  return alertId;
 }

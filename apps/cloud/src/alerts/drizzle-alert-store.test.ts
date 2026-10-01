@@ -163,6 +163,18 @@ describe("DrizzleAlertStore insertAlert", () => {
     ).rejects.not.toBeInstanceOf(AlertAlreadyOpenError);
   });
 
+  it("keeps its own transaction usable after a refused duplicate, so it can still find the open alert", async () => {
+    const store = new DrizzleAlertStore(db);
+    const first = await store.transaction((tx) => tx.insertAlert(newAlert()));
+
+    const found = await store.transaction(async (tx) => {
+      await expect(tx.insertAlert(newAlert())).rejects.toBeInstanceOf(AlertAlreadyOpenError);
+      return tx.findOpenAlertId("user_email_changed", "user-1");
+    });
+
+    expect(found).toBe(first);
+  });
+
   it("keeps the caller's transaction usable after a refused duplicate, so its other writes commit", async () => {
     await new DrizzleAlertStore(db).transaction((tx) => tx.insertAlert(newAlert()));
 
@@ -274,14 +286,20 @@ describe("DrizzleAlertStore recordBackofficeDeliveries", () => {
 });
 
 describe("DrizzleAlertStore lockAlert", () => {
-  it("answers the alert's kind, scope, detail and resolution", async () => {
+  it("answers the alert's kind, level, escalation, scope, detail and resolution", async () => {
     const store = new DrizzleAlertStore(db);
     const alertId = await store.transaction((tx) => tx.insertAlert(newAlert()));
+    await db
+      .update(alerts)
+      .set({ level: "critical", escalatedAt: NOON })
+      .where(eq(alerts.id, alertId));
 
     const locked = await store.transaction((tx) => tx.lockAlert(alertId));
 
     expect(locked).toEqual({
       kind: "user_email_changed",
+      level: "critical",
+      escalatedAt: NOON,
       scope: "user-1",
       detail: { previousEmail: "a@example.com", newEmail: "b@example.com", actorId: "actor-1" },
       resolvedAt: null,

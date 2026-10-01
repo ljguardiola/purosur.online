@@ -1,9 +1,4 @@
-import {
-  ALERTS_PAGE_SIZE,
-  type AlertKind,
-  alertKindsWithScope,
-  type VisibleAlertSight,
-} from "@purosur/domain";
+import { type AlertKind, alertKindsWithScope, type VisibleAlertSight } from "@purosur/domain";
 import type {
   AlertDelivery,
   AlertDetailView,
@@ -27,6 +22,8 @@ import {
 } from "../platform/db/schema.js";
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { closedAlertCondition, openAlertCondition } from "./open-alert-condition.js";
+
+export const ALERTS_PAGE_SIZE = 25;
 
 function sightCondition(sight: VisibleAlertSight): SQL | undefined {
   if (sight.kind === "all") {
