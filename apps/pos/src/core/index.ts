@@ -65,6 +65,7 @@ import {
   cancelSaleFor,
   cashChargeFor,
   changeLineQuantityFor,
+  chargeSaleByTransferFor,
   chargeSaleInCashFor,
   currentSaleFor,
   removeSaleLineFor,
@@ -449,6 +450,21 @@ const rendererRequestDeps: RendererRequestDeps = {
       ? undefined
       : (request) =>
           chargeSaleInCashFor(
+            {
+              database: localDatabase,
+              gate: actionGate,
+              readOutboxChainKey: async () =>
+                (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+              now: () => new Date(),
+              ids: uuidV7Ids,
+            },
+            request,
+          ),
+  chargeSaleByTransfer:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (request) =>
+          chargeSaleByTransferFor(
             {
               database: localDatabase,
               gate: actionGate,

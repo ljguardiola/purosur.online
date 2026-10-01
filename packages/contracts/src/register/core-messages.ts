@@ -20,6 +20,7 @@ import {
   cancelSaleOutcomeSchema,
   cashChargeSchema,
   changeLineQuantityOutcomeSchema,
+  chargeSaleByTransferOutcomeSchema,
   chargeSaleInCashOutcomeSchema,
   removeSaleLineOutcomeSchema,
   saleLineQuantitySchema,
@@ -226,6 +227,12 @@ export const chargeSaleInCashMessageSchema = z.object({
   tendered: z.int(),
 });
 
+const chargeSaleByTransferMessageSchema = z.object({
+  type: z.literal("charge-sale-by-transfer"),
+  request_id: requestId,
+  sale_id: z.string(),
+});
+
 const cashChargeRequestMessageSchema = z.object({
   type: z.literal("cash-charge-request"),
   request_id: requestId,
@@ -269,6 +276,7 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   addProductMessageSchema,
   saleRequestMessageSchema,
   chargeSaleInCashMessageSchema,
+  chargeSaleByTransferMessageSchema,
   cashChargeRequestMessageSchema,
   signOutMessageSchema,
 ]);
@@ -592,6 +600,11 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("charge-sale-in-cash-result"),
     request_id: requestId,
     outcome: chargeSaleInCashOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("charge-sale-by-transfer-result"),
+    request_id: requestId,
+    outcome: chargeSaleByTransferOutcomeSchema,
   }),
   z.object({ type: z.literal("sale"), request_id: requestId, sale: saleSchema.nullable() }),
   z.object({ type: z.literal("sale-unavailable"), request_id: requestId }),

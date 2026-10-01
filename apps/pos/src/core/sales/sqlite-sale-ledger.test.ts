@@ -1216,6 +1216,42 @@ describe("the lines of the sale being changed", () => {
     expect(payments.map((payment) => payment.id)).toEqual(["payment-1"]);
   });
 
+  it("stores a transfer with who confirmed it and when, and reads it back", () => {
+    scan("111");
+    const confirmedAt = new Date("2026-10-01T12:34:56.000Z");
+    const transfer = {
+      id: "payment-1",
+      saleId: "id-1",
+      kind: "SALE",
+      method: "TRANSFER",
+      provider: "NONE",
+      amount: 1500,
+      state: "APPROVED",
+      occurredAt: NOW,
+      authorizedBy: "u1",
+      confirmedAt,
+    } as const;
+
+    ledger.transaction((tx) => tx.recordPayment(transfer));
+
+    expect(
+      database
+        .prepare(
+          "SELECT method, amount, tendered, authorized_by, confirmed_at FROM payment_transactions",
+        )
+        .all(),
+    ).toEqual([
+      {
+        method: "TRANSFER",
+        amount: 1500,
+        tendered: null,
+        authorized_by: "u1",
+        confirmed_at: confirmedAt.toISOString(),
+      },
+    ]);
+    expect(ledger.transaction((tx) => tx.salePayments("id-1"))).toEqual([transfer]);
+  });
+
   it("chains the removals of a sale charged in cash in its sale_completed event", () => {
     scan("111");
     scan("111");

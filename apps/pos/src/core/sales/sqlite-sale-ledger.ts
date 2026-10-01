@@ -468,8 +468,13 @@ export class SqliteSaleLedger implements SaleLedger {
   private recordPayment(payment: PaymentTransaction): void {
     this.database
       .prepare(
-        `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, state, occurred_at)
-         VALUES (@id, @sale_id, @kind, @method, @provider, @amount, @tendered, @state, @occurred_at)`,
+        `INSERT INTO payment_transactions (
+           id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state,
+           occurred_at
+         ) VALUES (
+           @id, @sale_id, @kind, @method, @provider, @amount, @tendered, @authorized_by,
+           @confirmed_at, @state, @occurred_at
+         )`,
       )
       .run({
         id: payment.id,
@@ -479,6 +484,8 @@ export class SqliteSaleLedger implements SaleLedger {
         provider: payment.provider,
         amount: payment.amount,
         tendered: payment.tendered ?? null,
+        authorized_by: payment.method === "TRANSFER" ? payment.authorizedBy : null,
+        confirmed_at: payment.method === "TRANSFER" ? payment.confirmedAt.toISOString() : null,
         state: payment.state,
         occurred_at: payment.occurredAt.toISOString(),
       });

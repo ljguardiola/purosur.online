@@ -17,6 +17,7 @@ import {
   cancelSaleFor,
   cashChargeFor,
   changeLineQuantityFor,
+  chargeSaleByTransferFor,
   chargeSaleInCashFor,
   currentSaleFor,
   type OutboxSaleRequestDeps,
@@ -769,6 +770,140 @@ describe("charging the sale in progress in cash", () => {
       await chargeSaleInCashFor(deps({ readOutboxChainKey: async () => undefined }), {
         saleId,
         tendered: 3000,
+      }),
+    ).toEqual({ kind: "unavailable" });
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+  });
+});
+
+describe("charging the sale in progress by transfer", () => {
+  async function sellTwo(): Promise<string> {
+    await scanProductFor(deps(), "111");
+    const outcome = await scanProductFor(deps(), "111");
+    if (outcome.kind !== "added") {
+      throw new Error("test setup: the product was not added");
+    }
+    return outcome.sale.id;
+  }
+
+  it("completes the sale and answers what was charged", async () => {
+    addFiscalConfiguration();
+    const saleId = await sellTwo();
+
+    expect(await chargeSaleByTransferFor(deps(), { saleId })).toEqual({
+      kind: "completed",
+      sale_id: saleId,
+      total: 3000,
+    });
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "COMPLETED" }]);
+    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([
+      { event_type: "sale_completed" },
+    ]);
+  });
+
+  it("records one approved transfer for the whole total, confirmed by the signed-in person", async () => {
+    const saleId = await sellTwo();
+
+    await chargeSaleByTransferFor(deps(), { saleId });
+
+    expect(
+      database
+        .prepare(
+          "SELECT sale_id, method, amount, tendered, authorized_by, confirmed_at, state FROM payment_transactions",
+        )
+        .all(),
+    ).toEqual([
+      {
+        sale_id: saleId,
+        method: "TRANSFER",
+        amount: 3000,
+        tendered: null,
+        authorized_by: "u1",
+        confirmed_at: NOW.toISOString(),
+        state: "APPROVED",
+      },
+    ]);
+  });
+
+  it("composes the factura C of the completed sale like a cash charge does", async () => {
+    addFiscalConfiguration();
+    const saleId = await sellTwo();
+
+    await chargeSaleByTransferFor(deps(), { saleId });
+
+    expect(
+      database.prepare("SELECT sale_id, outcome FROM pre_emission_gate_outcomes").all(),
+    ).toEqual([{ sale_id: saleId, outcome: "PASSED" }]);
+  });
+
+  it("completes nothing when the pre-emission gate of the sale cannot be recorded", async () => {
+    const saleId = await sellTwo();
+    database.exec("DROP TABLE pre_emission_gate_outcomes");
+
+    await expect(chargeSaleByTransferFor(deps(), { saleId })).rejects.toThrow();
+
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+    expect(database.prepare("SELECT count(*) AS total FROM payment_transactions").get()).toEqual({
+      total: 0,
+    });
+  });
+
+  it("answers the domain's refusal of a sale that is not the one in progress", async () => {
+    await sellTwo();
+
+    expect(await chargeSaleByTransferFor(deps(), { saleId: "other-sale" })).toEqual({
+      kind: "no_open_sale",
+    });
+  });
+
+  it("answers the domain's refusal of a sale whose total is zero", async () => {
+    const saleId = await sellTwo();
+    database.prepare("UPDATE sale_lines SET line_total = 0").run();
+
+    expect(await chargeSaleByTransferFor(deps(), { saleId })).toEqual({ kind: "zero_total" });
+  });
+
+  it("answers the domain's refusal of a sale without lines", async () => {
+    const saleId = await sellTwo();
+    database.exec("DELETE FROM sale_line_promotions; DELETE FROM sale_lines");
+
+    expect(await chargeSaleByTransferFor(deps(), { saleId })).toEqual({ kind: "empty_sale" });
+  });
+
+  it("answers that no session is open", async () => {
+    const saleId = await sellTwo();
+    database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
+
+    expect(await chargeSaleByTransferFor(deps(), { saleId })).toEqual({
+      kind: "no_open_session",
+    });
+  });
+
+  it("answers not signed in when nobody is signed in", async () => {
+    const saleId = await sellTwo();
+    signedInPerson.clear();
+
+    expect(await chargeSaleByTransferFor(deps(), { saleId })).toEqual({ kind: "not_signed_in" });
+  });
+
+  it("answers not permitted to a signed-in person without the permission to sell", async () => {
+    const saleId = await sellTwo();
+    addPerson("u2", "guest");
+    signedInPerson.set("u2");
+
+    expect(await chargeSaleByTransferFor(deps(), { saleId })).toEqual({ kind: "not_permitted" });
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+    expect(database.prepare("SELECT count(*) AS total FROM payment_transactions").get()).toEqual({
+      total: 0,
+    });
+  });
+
+  it("answers unavailable, charging nothing, when the register holds no outbox chain key", async () => {
+    const saleId = await sellTwo();
+
+    expect(
+      await chargeSaleByTransferFor(deps({ readOutboxChainKey: async () => undefined }), {
+        saleId,
       }),
     ).toEqual({ kind: "unavailable" });
     expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
