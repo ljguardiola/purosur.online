@@ -5,7 +5,7 @@ import {
   PRODUCT_NAME_MAX_LENGTH,
   type SaleUnit,
 } from "@purosur/domain";
-import type { BranchHoursRange } from "../branch/branch-settings-read-route.js";
+import type { BranchHoursRange } from "@purosur/domain/branch/use-cases";
 
 // RFC 2606 reserves the "example" top-level domain for documentation and sample data, so no real
 // mailbox can ever collide with it.

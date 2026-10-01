@@ -1,0 +1,1 @@
+export const NEVER_CONFIGURED_VERSION = 0;

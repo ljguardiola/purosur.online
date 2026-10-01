@@ -1,5 +1,7 @@
 import { argentinaCalendarDay, codePointLength } from "../../shared/index.js";
 
+export const ISSUER_TAX_STATUS = "Responsable Monotributo";
+
 export const ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH = 200;
 
 // Ingresos Brutos registration format varies by province, so this is a generous bound rather

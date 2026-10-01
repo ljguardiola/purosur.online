@@ -1,6 +1,4 @@
 import {
-  type BranchRegisterPointOfSale,
-  type BranchRegisterPointsOfSale,
   type LockBranchRegisterResult,
   type PointOfSaleClaim,
   PointOfSaleClaimConflict,
@@ -9,7 +7,7 @@ import {
   type RegisterPointOfSaleStore,
   type RegisterPointOfSaleStoreTransaction,
 } from "@purosur/domain/fiscal/use-cases";
-import { and, asc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import {
@@ -21,10 +19,10 @@ import {
 } from "../platform/db/schema.js";
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
+import { NEVER_CONFIGURED_VERSION } from "./register-point-of-sale-version.js";
 
 const UNIQUE_VIOLATION = "23505";
 const POINT_OF_SALE_CLAIM_PRIMARY_KEY = "point_of_sale_claims_pkey";
-const NEVER_CONFIGURED = 0;
 
 function pointOfSaleAuditValueOf(setup: {
   pointOfSaleNumber: number;
@@ -76,7 +74,13 @@ class DrizzleRegisterPointOfSaleStoreTransaction<TQueryResult extends PgQueryRes
       .from(registerPointsOfSale)
       .where(eq(registerPointsOfSale.registerId, registerId))
       .for("update");
-    return current ?? { pointOfSaleNumber: null, fiscalAddressId: null, version: NEVER_CONFIGURED };
+    return (
+      current ?? {
+        pointOfSaleNumber: null,
+        fiscalAddressId: null,
+        version: NEVER_CONFIGURED_VERSION,
+      }
+    );
   }
 
   async fiscalAddressExists(fiscalAddressId: string): Promise<boolean> {
@@ -154,7 +158,7 @@ class DrizzleRegisterPointOfSaleStoreTransaction<TQueryResult extends PgQueryRes
 }
 
 export class DrizzleRegisterPointOfSaleStore<TQueryResult extends PgQueryResultHKT>
-  implements RegisterPointOfSaleStore, BranchRegisterPointsOfSale
+  implements RegisterPointOfSaleStore
 {
   private readonly db: PgDatabase<TQueryResult>;
   private readonly pending: PendingChanges | undefined;
@@ -170,21 +174,5 @@ export class DrizzleRegisterPointOfSaleStore<TQueryResult extends PgQueryResultH
     return withPendingChanges(this.db, this.pending, (tx, pending) =>
       work(new DrizzleRegisterPointOfSaleStoreTransaction(tx, pending)),
     );
-  }
-
-  async branchRegisterPointsOfSale(locationId: string): Promise<BranchRegisterPointOfSale[]> {
-    const rows = await this.db
-      .select({
-        registerId: registers.id,
-        registerName: registers.name,
-        pointOfSaleNumber: registerPointsOfSale.pointOfSaleNumber,
-        fiscalAddressId: registerPointsOfSale.fiscalAddressId,
-        version: registerPointsOfSale.version,
-      })
-      .from(registers)
-      .leftJoin(registerPointsOfSale, eq(registerPointsOfSale.registerId, registers.id))
-      .where(eq(registers.locationId, locationId))
-      .orderBy(asc(registers.name));
-    return rows.map(({ version, ...row }) => ({ ...row, version: version ?? NEVER_CONFIGURED }));
   }
 }

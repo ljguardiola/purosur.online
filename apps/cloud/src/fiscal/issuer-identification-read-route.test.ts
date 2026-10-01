@@ -235,7 +235,6 @@ describe("GET /fiscal-settings/issuer-identification", () => {
   });
 
   it("returns the saved identification once it has been set", async () => {
-    // Only one row ever exists, so no `where` clause is needed to target it.
     await db.update(issuerIdentification).set({
       legalName: FICTIONAL_LEGAL_NAME,
       grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
@@ -243,8 +242,8 @@ describe("GET /fiscal-settings/issuer-identification", () => {
       version: 2,
     });
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
-      email: "ada@example.com",
+      firstName: "Marta Quiroga",
+      email: "marta@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
     });

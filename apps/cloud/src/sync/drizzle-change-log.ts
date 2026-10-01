@@ -1,7 +1,7 @@
 import type { ChangeLog, ChangeLogTransaction, PullAudience } from "@purosur/domain/sync/use-cases";
 import { and, asc, eq, gt, inArray, max, or } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { readBranchSettings } from "../branch/branch-settings-read-route.js";
+import { readBranchSettings } from "../branch/drizzle-branch-settings-reader.js";
 import { branchSettings, changes, deviceState } from "../platform/db/schema.js";
 import type { PulledCloudChange, RemovedEntity } from "./pulled-changes.js";
 import {

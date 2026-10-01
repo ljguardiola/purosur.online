@@ -1,4 +1,8 @@
-import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import {
+  drizzle,
+  type PostgresJsDatabase,
+  type PostgresJsQueryResultHKT,
+} from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -7,7 +11,7 @@ import {
 } from "../test-support/integration-database.js";
 import { waitForLockWaiters } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { findBranchSettings } from "./branch-settings-read-route.js";
+import { DrizzleBranchSettingsReader } from "./drizzle-branch-settings-reader.js";
 
 // A second real-Postgres connection commits a save mid-read; PGlite's single connection can't
 // produce that interleaving.
@@ -15,6 +19,7 @@ let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let adminSql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;
+let reader: DrizzleBranchSettingsReader<PostgresJsQueryResultHKT>;
 
 beforeAll(async () => {
   integrationDb = await createIntegrationDatabase("branch_settings_read");
@@ -22,6 +27,7 @@ beforeAll(async () => {
   // Only the schema's owner may LOCK TABLE; the read itself still runs as `cloud_app`.
   adminSql = postgres(integrationDb.adminDatabaseUrl, { max: 2 });
   db = drizzle(sql);
+  reader = new DrizzleBranchSettingsReader(db);
 }, 60_000);
 
 afterAll(async () => {
@@ -33,16 +39,16 @@ afterAll(async () => {
 describe("reading a branch's settings while a save commits, on a real Postgres through postgres-js", () => {
   it("answers the version and the hours from the same moment, never one from before the save and the other from after it", async () => {
     const locationId = await seededLocationId(db);
-    expect(await findBranchSettings(db, locationId)).toMatchObject({ version: 1, hours: [] });
+    expect(await reader.currentBranchSettings(locationId)).toMatchObject({ version: 1, hours: [] });
 
     // Holding branch_hours' lock stalls the read between its settings and hours statements, so the
     // save below commits exactly in that gap.
     const writer = await adminSql.reserve();
-    let read: ReturnType<typeof findBranchSettings> | undefined;
+    let read: ReturnType<typeof reader.currentBranchSettings> | undefined;
     try {
       await writer`begin`;
       await writer`lock table branch_hours in access exclusive mode`;
-      read = findBranchSettings(db, locationId);
+      read = reader.currentBranchSettings(locationId);
       await waitForLockWaiters(adminSql, 1);
       await writer`update branch_settings set version = version + 1 where location_id = ${locationId}`;
       await writer`
@@ -57,9 +63,9 @@ describe("reading a branch's settings while a save commits, on a real Postgres t
     }
 
     expect(await read).toMatchObject({ version: 1, hours: [] });
-    expect(await findBranchSettings(db, locationId)).toMatchObject({
+    expect(await reader.currentBranchSettings(locationId)).toMatchObject({
       version: 2,
-      hours: [{ dayOfWeek: 1, position: 0, opensAt: "09:00:00", closesAt: "13:00:00" }],
+      hours: [{ dayOfWeek: 1, position: 0, opensAt: "09:00", closesAt: "13:00" }],
     });
   });
 });

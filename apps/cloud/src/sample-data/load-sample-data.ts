@@ -1,5 +1,6 @@
 import { argentinaCalendarDay } from "@purosur/domain";
 import { createRole, createUser, deactivateUser } from "@purosur/domain/access/use-cases";
+import { editBranchSettings } from "@purosur/domain/branch/use-cases";
 import {
   createCategory,
   createProduct,
@@ -17,7 +18,7 @@ import { SIGN_IN_BLOCK_DURATION_MS, SIGN_IN_FAILURE_LIMIT } from "../access/sign
 import { closeAlert } from "../alerts/alert-close-route.js";
 import { escalateOverdueAlerts } from "../alerts/alert-escalation.js";
 import { openAlert } from "../alerts/open-alert.js";
-import { editBranchSettings } from "../branch/branch-settings-edit-route.js";
+import { DrizzleBranchSettingsStore } from "../branch/drizzle-branch-settings-store.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { allocateInternalBarcode } from "../catalog/internal-barcode-route.js";
 import { branchSettings, locations, roles, userRoles, users } from "../platform/db/schema.js";
@@ -342,16 +343,15 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
           throw new Error("sample-data: no branch settings are seeded for the location");
         }
         const settingsOutcome = await editBranchSettings(
-          tx,
+          { store: new DrizzleBranchSettingsStore(tx, pending) },
           {
             ...SAMPLE_BRANCH_SETTINGS,
             locationId: location.id,
             actorId,
             version: currentBranchSettings.version,
           },
-          pending,
         );
-        expectOutcome(settingsOutcome, "applied", "the branch settings");
+        expectOutcome(settingsOutcome, "edited", "the branch settings");
       }
 
       const emailChangedTargetId = sampleUserIdsInOrder[0];
