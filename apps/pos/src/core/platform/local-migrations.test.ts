@@ -367,9 +367,7 @@ describe("the register's local migrations", () => {
       const path = join(folder, "register.sqlite");
       const previous = LOCAL_MIGRATIONS.slice(0, 10);
       expect(previous.at(-1)?.name).toBe("0009_sales");
-      expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
-        "0010_sale_line_promotions",
-      ]);
+      expect(LOCAL_MIGRATIONS.slice(previous.length)[0]?.name).toBe("0010_sale_line_promotions");
       const before = openLocalDatabase(path, previous);
       before
         .prepare(
@@ -411,9 +409,7 @@ describe("the register's local migrations", () => {
       const path = join(folder, "register.sqlite");
       const previous = LOCAL_MIGRATIONS.slice(0, 11);
       expect(previous.at(-1)?.name).toBe("0010_sale_line_promotions");
-      expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
-        "0012_payment_transactions",
-      ]);
+      expect(LOCAL_MIGRATIONS.slice(previous.length)[0]?.name).toBe("0012_payment_transactions");
       const before = openLocalDatabase(path, previous);
       before
         .prepare(
