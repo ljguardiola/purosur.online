@@ -1,4 +1,9 @@
 export type {
+  AuthorizeRegisterOperationInput,
+  AuthorizeRegisterOperationOutcome,
+} from "./authorize-register-operation.js";
+export { authorizeRegisterOperation } from "./authorize-register-operation.js";
+export type {
   BranchUser,
   BranchUserActiveScope,
   BranchUserFacts,
