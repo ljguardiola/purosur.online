@@ -15,6 +15,7 @@ export const priceProductSchema = z.object({
   saleUnit: z.enum(SALE_UNITS),
   currentPrice: priceRowSchema.nullable(),
   lastReviewedAt: z.iso.datetime().nullable(),
+  daysSinceReview: z.int().nonnegative().nullable(),
   pending: z.boolean(),
 });
 

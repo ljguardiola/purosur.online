@@ -1,16 +1,12 @@
-import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { render } from "../shell/test-support/render-with-router";
-import { PricesListScreen } from "./prices-list-screen";
 import type { PricesListScreenServices } from "./prices-list-services";
 import { pricesListFilters } from "./routes";
 import {
   createServices,
   deferred,
   expectRowActionsDisabled,
-  NOW,
   openRicePriceModal,
   renderScreen,
   rice,
@@ -487,7 +483,7 @@ test.each([
       },
     });
 
-    const screen = await renderScreen(services, undefined, undefined, {
+    const screen = await renderScreen(services, undefined, {
       filters: pricesListFilters.parse({ search }),
     });
 
@@ -552,7 +548,7 @@ test.each([
       },
     });
 
-    const screen = await renderScreen(services, undefined, undefined, {
+    const screen = await renderScreen(services, undefined, {
       filters: pricesListFilters.parse({ review: "all", ...filters }),
     });
 
@@ -649,85 +645,48 @@ test("the screen with the price modal open has no accessibility violations", asy
   await expectNoAccessibilityViolations(document.body);
 });
 
-test("the review age counts against the time the list was last loaded", async () => {
+test("shows a price reviewed 23 hours ago across Argentine midnight as reviewed today, not pending", async () => {
   const services = createServices();
-  let current = new Date(2026, 8, 25, 12, 0);
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
     value: {
-      products: [{ ...rice, lastReviewedAt: new Date(2026, 8, 25, 9, 0).toISOString() }],
-      pendingCount: 1,
-      activeProductCount: 3,
+      products: [
+        { ...rice, lastReviewedAt: "2026-01-04T02:30:00.000Z", daysSinceReview: 0, pending: false },
+      ],
+      pendingCount: 0,
+      activeProductCount: 1,
       reviewWindowDays: 30,
       categories: [],
     },
   });
-  vi.mocked(services.confirmPrice).mockResolvedValue({ kind: "ok" });
-  const screen = await renderScreen(
-    services,
-    () => {},
-    () => current,
-  );
+
+  const screen = await renderScreen(services);
+
   await expect.element(screen.getByText("Hoy", { exact: true })).toBeVisible();
+  expect(screen.getByRole("button", { name: /^Revisar/ }).query()).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Cambiar el precio de Arroz" }));
+  const dialog = screen.getByRole("dialog");
+  await expect.element(dialog.getByText("Revisado hoy")).toBeVisible();
+  expect(dialog.getByText("Sin revisar", { exact: false }).query()).toBeNull();
+});
 
-  current = new Date(2026, 8, 26, 12, 0);
-  await userEvent.click(
-    screen.getByRole("button", { name: "Confirmar el precio de Arroz sin cambios" }),
-  );
+test("shows the review age the cloud reports for each product", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: {
+      products: [rice, { ...yerbaMate, daysSinceReview: 1, pending: false }],
+      pendingCount: 1,
+      activeProductCount: 2,
+      reviewWindowDays: 30,
+      categories: [],
+    },
+  });
 
-  await expect.poll(() => vi.mocked(services.fetchPrices).mock.calls.length).toBe(2);
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Hace 40 días")).toBeVisible();
   await expect.element(screen.getByText("Hace 1 día", { exact: true })).toBeVisible();
-});
-
-test("the review age counts against the time the list was loaded, not the time a re-render draws it", async () => {
-  const services = createServices();
-  let current = new Date(2026, 8, 25, 12, 0);
-  const filters = pricesListFilters.parse({});
-  const onSessionEnded = () => {};
-  const onFiltersChange = () => {};
-  vi.mocked(services.fetchPrices).mockResolvedValue({
-    kind: "ok",
-    value: {
-      products: [{ ...rice, lastReviewedAt: new Date(2026, 8, 25, 9, 0).toISOString() }],
-      pendingCount: 1,
-      activeProductCount: 3,
-      reviewWindowDays: 30,
-      categories: [],
-    },
-  });
-  const screenFor = (now: () => Date) => (
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <PricesListScreen
-          services={services}
-          onSessionEnded={onSessionEnded}
-          now={now}
-          filters={filters}
-          onFiltersChange={onFiltersChange}
-        />
-      </main>
-    </FieldSizeProvider>
-  );
-  const screen = await render(screenFor(() => current));
-  await expect.element(screen.getByText("Hoy", { exact: true })).toBeVisible();
-
-  current = new Date(2026, 8, 26, 12, 0);
-  await screen.rerender(screenFor(() => current));
-
-  expect(screen.getByText("Hoy", { exact: true }).query()).not.toBeNull();
-  expect(services.fetchPrices).toHaveBeenCalledTimes(1);
-});
-
-test("drawing the screen before the list arrives does not read the clock", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchPrices).mockReturnValue(new Promise(() => {}));
-  const now = vi.fn(NOW);
-
-  const screen = await renderScreen(services, undefined, now);
-  await expect.element(screen.getByRole("heading", { name: "Precios", level: 1 })).toBeVisible();
-  await screen.commitScheduledUpdates();
-
-  expect(now).not.toHaveBeenCalled();
 });
 
 test("a first load that throws ends in the load error and offers to retry", async () => {

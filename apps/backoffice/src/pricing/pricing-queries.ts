@@ -25,32 +25,16 @@ export const discountsKey = [...pricesKey, "discounts"] as const;
 
 export const discountTargetsKey = [...discountsKey, "targets"] as const;
 
-export type PricesRead = PriceList & { readAt: Date };
-
-function readPrices(params: {
-  fetchPrices: typeof fetchPrices;
-  now: () => Date;
-  input: FetchPricesInput;
-}): () => Promise<CloudReadOutcome<PricesRead>> {
-  return async () => {
-    const outcome = await params.fetchPrices(params.input);
-    return outcome.kind === "ok"
-      ? { kind: "ok", value: { ...outcome.value, readAt: params.now() } }
-      : outcome;
-  };
-}
-
 export function usePricesQuery(params: {
   input: FetchPricesInput;
   fetchPrices: typeof fetchPrices;
-  now: () => Date;
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
-  return useCloudQuery<PricesRead>({
+  return useCloudQuery<PriceList>({
     queryKey: pricesKeys.list(params.input),
     keepPreviousData: true,
-    read: readPrices(params),
+    read: () => params.fetchPrices(params.input),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
@@ -58,13 +42,12 @@ export function usePricesQuery(params: {
 
 export function useReadReviewQueue(params: {
   fetchPrices: typeof fetchPrices;
-  now: () => Date;
-}): () => Promise<CloudReadOutcome<PricesRead>> {
+}): () => Promise<CloudReadOutcome<PriceList>> {
   const client = useQueryClient();
   return () =>
     fetchCloudQuery(client, {
       queryKey: pricesKeys.reviewQueue,
-      read: readPrices({ ...params, input: { review: "pending" } }),
+      read: () => params.fetchPrices({ review: "pending" }),
     });
 }
 
@@ -75,14 +58,13 @@ export type PriceReload =
 
 export function useReloadPrice(params: {
   fetchPrices: typeof fetchPrices;
-  now: () => Date;
 }): (id: string) => Promise<PriceReload> {
   const client = useQueryClient();
   return async (id) => {
     void client.invalidateQueries({ queryKey: pricesKey });
     const listed = await fetchCloudQuery(client, {
       queryKey: pricesKeys.reload,
-      read: readPrices({ ...params, input: { review: "all" } }),
+      read: () => params.fetchPrices({ review: "all" }),
     });
     if (listed.kind !== "ok") {
       return listed;

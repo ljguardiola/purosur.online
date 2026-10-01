@@ -50,7 +50,6 @@ export const PERSISTENCE_IN_HANDLERS_ALLOWLIST = [
   "apps/cloud/src/pricing/discount-edit-route.ts",
   "apps/cloud/src/pricing/discount-targets-route.ts",
   "apps/cloud/src/pricing/discounts-list-route.ts",
-  "apps/cloud/src/pricing/prices-list-route.ts",
   "apps/cloud/src/register/register-coverage-route.ts",
   "apps/cloud/src/register/register-creation-route.ts",
   "apps/cloud/src/register/register-enrollment-code-route.ts",

@@ -14,8 +14,8 @@ import {
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
+import { DrizzlePriceReviewReader } from "./drizzle-price-review-reader.js";
 import { DrizzlePricingStore } from "./drizzle-pricing-store.js";
-import { listPrices } from "./prices-list-route.js";
 
 const MOMENT = new Date("2026-01-05T12:00:00.000Z");
 const EARLIER = new Date("2026-01-01T09:00:00.000Z");
@@ -264,10 +264,9 @@ describe("price changes committed by callers whose clocks disagree", () => {
     expect(earlierClock.price.validFrom.getTime()).toBeGreaterThan(laterMoment.getTime());
     expect(earlierClock.lastReviewedAt).toEqual(earlierClock.price.validFrom);
 
-    const listed = await listPrices(db, {
-      priceListId,
+    const listed = await new DrizzlePriceReviewReader(db).pricesUnderReview({
+      locationId: await seededLocationId(db),
       now: MOMENT,
-      unreviewedPriceAlertDays: 30,
       review: "all",
     });
     expect(listed.products.find((product) => product.id === productId)).toMatchObject({
@@ -306,10 +305,9 @@ describe("confirmations committed by callers whose clocks disagree", () => {
     }
     expect(confirmation.lastReviewedAt.getTime()).toBeGreaterThan(laterMoment.getTime());
 
-    const listed = await listPrices(db, {
-      priceListId,
+    const listed = await new DrizzlePriceReviewReader(db).pricesUnderReview({
+      locationId: await seededLocationId(db),
       now: laterMoment,
-      unreviewedPriceAlertDays: 30,
       review: "all",
     });
     expect(listed.products.find((product) => product.id === productId)).toMatchObject({
