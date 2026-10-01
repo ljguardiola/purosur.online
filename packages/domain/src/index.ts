@@ -182,6 +182,7 @@ export {
   INSTALLATION_REPORT_MAX_LENGTH,
   isDeviceTokenRotationDue,
   isInstallationReportTooLong,
+  isLockedToAnother,
   isRegisterNameTooLong,
   isValidCashAmount,
   isValidCashMovementAmount,
