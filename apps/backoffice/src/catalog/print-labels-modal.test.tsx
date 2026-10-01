@@ -12,11 +12,13 @@ const honeyWithInternalBarcode: ProductSummary = {
   ...honey,
   id: "product-20",
   barcodes: ["2000000000015"],
+  labelCode: "2000000000015",
 };
 const almondsWithInternalBarcode: ProductSummary = {
   ...almonds,
   id: "product-21",
   barcodes: ["2000000000022"],
+  labelCode: "2000000000022",
 };
 const withoutInternalBarcode: ProductSummary = {
   ...honey,
@@ -166,6 +168,24 @@ test("lists only products with an internal barcode", async () => {
   expect(dialog.getByText("Producto sin código interno").query()).toBeNull();
 });
 
+test("lists each product by the label code the cloud sends, not by its barcodes", async () => {
+  const services = createServices();
+  const withoutLabelCode: ProductSummary = {
+    ...almondsWithInternalBarcode,
+    name: "Producto sin etiqueta",
+    labelCode: null,
+  };
+  const screen = await renderModal(services, {
+    products: [{ ...honeyWithInternalBarcode, labelCode: "2000000000039" }, withoutLabelCode],
+  });
+
+  const dialog = await openPrintLabelsModal(screen);
+
+  await expect.element(dialog.getByText("2000000000039")).toBeVisible();
+  expect(dialog.getByText("2000000000015").query()).toBeNull();
+  expect(dialog.getByText("Producto sin etiqueta").query()).toBeNull();
+});
+
 test("lists the products alphabetically by name", async () => {
   const services = createServices();
   const screen = await renderModal(services, {
@@ -189,7 +209,11 @@ test("lists the products alphabetically by name", async () => {
 
 test("does not list an inactive product, even with an internal barcode", async () => {
   const services = createServices();
-  const inactiveAlmonds: ProductSummary = { ...almondsWithInternalBarcode, active: false };
+  const inactiveAlmonds: ProductSummary = {
+    ...almondsWithInternalBarcode,
+    active: false,
+    labelCode: null,
+  };
   const screen = await renderModal(services, {
     products: [honeyWithInternalBarcode, inactiveAlmonds],
   });
@@ -217,7 +241,11 @@ test("shows only the empty state when no product has an internal barcode", async
 
 test("an inactive product's internal code isn't offered, and the empty state asks for an active one", async () => {
   const services = createServices();
-  const inactiveAlmonds: ProductSummary = { ...almondsWithInternalBarcode, active: false };
+  const inactiveAlmonds: ProductSummary = {
+    ...almondsWithInternalBarcode,
+    active: false,
+    labelCode: null,
+  };
   const screen = await renderModal(services, {
     products: [inactiveAlmonds, withoutInternalBarcode],
   });
@@ -531,6 +559,7 @@ test("caps the sheet at 2400 labels in total, disabling a row's + once the total
     id: "product-23",
     name: "Nueces mariposa",
     barcodes: ["2912345678906"],
+    labelCode: "2912345678906",
   };
   const services = createServices();
   const screen = await renderModal(services, {

@@ -14,6 +14,7 @@ const honeyWithInternalBarcode: ProductSummary = {
   ...honey,
   id: "product-20",
   barcodes: ["2000000000015"],
+  labelCode: "2000000000015",
 };
 async function openPrintLabelsModal(screen: Screen) {
   await userEvent.click(screen.getByRole("button", { name: "Imprimir etiquetas" }));
