@@ -6,12 +6,9 @@ import {
 import { describe, expect, expectTypeOf, it } from "vitest";
 import type { CashCharge } from "../sales/sale.js";
 import {
-  cashMovementAmountSchema,
   coreStatusMessageSchema,
   coreToRendererMessageSchema,
-  countedCashSchema,
   mainToCoreMessageSchema,
-  openingFloatSchema,
   rendererToCoreMessageSchema,
 } from "./core-messages.js";
 
@@ -209,7 +206,16 @@ describe("cash session requests", () => {
     expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(true);
   });
 
-  it.each([-1, 1.5, MAX_CASH_AMOUNT_CENTS + 1, "100", null])(
+  it.each([-1, MAX_CASH_AMOUNT_CENTS + 1, 2_147_483_648])(
+    "leaves an out-of-range opening float of %i to the core",
+    (opening_float) => {
+      const message = { type: "open-cash-session", request_id: REQUEST_ID, opening_float };
+
+      expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(true);
+    },
+  );
+
+  it.each([1.5, Number.NaN, "100", null])(
     "rejects an opening float of %j",
     (opening_float) => {
       const message = { type: "open-cash-session", request_id: REQUEST_ID, opening_float };
@@ -272,7 +278,14 @@ describe("cash movement requests", () => {
     expect(rendererToCoreMessageSchema.safeParse({ ...movement, amount }).success).toBe(true);
   });
 
-  it.each([0, -1, 1.5, MAX_CASH_AMOUNT_CENTS + 1, "100", null])(
+  it.each([0, -1, MAX_CASH_AMOUNT_CENTS + 1, 2_147_483_648])(
+    "leaves an out-of-range amount of %i to the core",
+    (amount) => {
+      expect(rendererToCoreMessageSchema.safeParse({ ...movement, amount }).success).toBe(true);
+    },
+  );
+
+  it.each([1.5, Number.NaN, "100", null])(
     "rejects an amount of %j",
     (amount) => {
       expect(rendererToCoreMessageSchema.safeParse({ ...movement, amount }).success).toBe(false);
@@ -703,13 +716,16 @@ describe("closing a cash session requests", () => {
     expect(rendererToCoreMessageSchema.parse({ ...message, closed_by: "u9" })).toEqual(message);
   });
 
-  it.each([-1, 1.5, MAX_CASH_AMOUNT_CENTS + 1, "100", null])(
-    "rejects a counted cash of %j",
+  it.each([-1, MAX_CASH_AMOUNT_CENTS + 1, 2_147_483_648])(
+    "leaves an out-of-range counted cash of %i to the core",
     (counted_cash) => {
-      expect(rendererToCoreMessageSchema.safeParse({ ...close, counted_cash }).success).toBe(false);
-      expect(countedCashSchema.safeParse(counted_cash).success).toBe(false);
+      expect(rendererToCoreMessageSchema.safeParse({ ...close, counted_cash }).success).toBe(true);
     },
   );
+
+  it.each([1.5, Number.NaN, "100", null])("rejects a counted cash of %j", (counted_cash) => {
+    expect(rendererToCoreMessageSchema.safeParse({ ...close, counted_cash }).success).toBe(false);
+  });
 
   it.each([
     { type: "close-cash-session", session_id: "s1", counted_cash: 0 },
@@ -931,12 +947,16 @@ describe("closing a locked register's cash session", () => {
     expect(rendererToCoreMessageSchema.parse(close)).toEqual(close);
   });
 
-  it.each([-1, 1.5, MAX_CASH_AMOUNT_CENTS + 1, "100", null])(
-    "rejects a counted cash of %j",
+  it.each([-1, MAX_CASH_AMOUNT_CENTS + 1, 2_147_483_648])(
+    "leaves an out-of-range counted cash of %i to the core",
     (counted_cash) => {
-      expect(rendererToCoreMessageSchema.safeParse({ ...close, counted_cash }).success).toBe(false);
+      expect(rendererToCoreMessageSchema.safeParse({ ...close, counted_cash }).success).toBe(true);
     },
   );
+
+  it.each([1.5, Number.NaN, "100", null])("rejects a counted cash of %j", (counted_cash) => {
+    expect(rendererToCoreMessageSchema.safeParse({ ...close, counted_cash }).success).toBe(false);
+  });
 
   it.each(["request_id", "session_id", "counted_cash", "closer"])(
     "rejects a request missing its %s",
@@ -1404,29 +1424,6 @@ describe("coreStatusMessageSchema", () => {
     expect(coreStatusMessageSchema.safeParse({ type: "ping", status: "up" }).success).toBe(false);
     expect(coreStatusMessageSchema.safeParse({ status: "up" }).success).toBe(false);
   });
-});
-
-describe("openingFloatSchema", () => {
-  it.each([0, 1, MAX_CASH_AMOUNT_CENTS])("accepts %i cents", (cents) => {
-    expect(openingFloatSchema.safeParse(cents).success).toBe(true);
-  });
-
-  it.each([-1, 0.5, MAX_CASH_AMOUNT_CENTS + 1, Number.NaN, "100", null])("rejects %j", (value) => {
-    expect(openingFloatSchema.safeParse(value).success).toBe(false);
-  });
-});
-
-describe("cashMovementAmountSchema", () => {
-  it.each([1, 500_000, MAX_CASH_AMOUNT_CENTS])("accepts %i cents", (cents) => {
-    expect(cashMovementAmountSchema.safeParse(cents).success).toBe(true);
-  });
-
-  it.each([0, -1, 0.5, MAX_CASH_AMOUNT_CENTS + 1, Number.NaN, "100", null])(
-    "rejects %j",
-    (value) => {
-      expect(cashMovementAmountSchema.safeParse(value).success).toBe(false);
-    },
-  );
 });
 
 describe("sale requests", () => {
