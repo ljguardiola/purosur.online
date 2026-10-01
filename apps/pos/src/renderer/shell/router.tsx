@@ -6,6 +6,7 @@ import type {
   CashBalance,
   CashChargeAnswer,
   ChangeLineQuantityOutcome,
+  ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
@@ -104,6 +105,7 @@ export interface RouterContext {
   scanProduct: (code: string) => Promise<ScanProductOutcome>;
   cashCharge: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
+  chargeSaleByTransfer: (saleId: string) => Promise<ChargeSaleByTransferOutcome>;
   searchProducts: (query: string) => Promise<SearchProductsOutcome>;
   addProduct: (productId: string) => Promise<AddProductOutcome>;
   changeLineQuantity: (
@@ -283,8 +285,16 @@ const chargeRoute = createRoute({
     return { id, person };
   },
   component: function ChargeRoute() {
-    const { id, person, signOut, currentSale, cashCharge, chargeSaleInCash, refreshCashSession } =
-      chargeRoute.useRouteContext();
+    const {
+      id,
+      person,
+      signOut,
+      currentSale,
+      cashCharge,
+      chargeSaleInCash,
+      chargeSaleByTransfer,
+      refreshCashSession,
+    } = chargeRoute.useRouteContext();
     const registerName = useRegisterName();
     return (
       <ChargeScreen
@@ -295,6 +305,7 @@ const chargeRoute = createRoute({
         currentSale={currentSale}
         cashCharge={cashCharge}
         chargeSaleInCash={chargeSaleInCash}
+        chargeSaleByTransfer={chargeSaleByTransfer}
         onSessionInvalid={() => void refreshCashSession()}
       />
     );
@@ -551,6 +562,7 @@ export function createAppRouter(
     | "scanProduct"
     | "cashCharge"
     | "chargeSaleInCash"
+    | "chargeSaleByTransfer"
     | "searchProducts"
     | "addProduct"
     | "changeLineQuantity"

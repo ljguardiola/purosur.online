@@ -326,6 +326,24 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to charge a sale by transfer and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const outcome = client.chargeSaleByTransfer("sale-1");
+    port.answer({
+      type: "charge-sale-by-transfer-result",
+      request_id: "request-1",
+      outcome: { kind: "completed", sale_id: "sale-1", total: 476_000 },
+    });
+
+    expect(await outcome).toEqual({ kind: "completed", sale_id: "sale-1", total: 476_000 });
+    expect(port.posted).toEqual([
+      { type: "charge-sale-by-transfer", request_id: "request-1", sale_id: "sale-1" },
+    ]);
+  });
+
   it("asks the core to record a cash movement without an authorization", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

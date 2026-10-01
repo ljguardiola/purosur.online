@@ -1,12 +1,13 @@
 import type {
   CashChargeAnswer,
+  ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   CurrentSaleAnswer,
   OpenSale,
 } from "@purosur/contracts";
 import { LoadFailure, LoadingPlaceholder, OptionCardGroup, plural } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
-import { Banknote, TriangleAlert } from "lucide-react";
+import { Banknote, Landmark, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { SignedInPerson } from "../access/signed-in-person";
 import { Eyebrow } from "../shell/eyebrow";
@@ -16,11 +17,18 @@ import { CashChargeModal } from "./cash-charge-modal";
 import { ChargePaymentPanel } from "./charge-payment-panel";
 import { SaleCompletedModal } from "./sale-completed-modal";
 import { useCurrentSaleQuery } from "./sales-queries";
+import type { CompletedTransfer } from "./transfer-charge-modal";
+import { TransferChargeModal } from "./transfer-charge-modal";
 
 type Step =
   | { name: "methods" }
   | { name: "cash" }
-  | { name: "completed"; charge: CompletedCharge; sale: OpenSale };
+  | { name: "transfer" }
+  | { name: "completed"; payment: CompletedPayment; sale: OpenSale };
+
+type CompletedPayment =
+  | { method: "CASH"; charge: CompletedCharge }
+  | { method: "TRANSFER"; charge: CompletedTransfer };
 
 const METHODS = [
   {
@@ -28,6 +36,12 @@ const METHODS = [
     label: "Efectivo",
     description: "Cargás lo entregado y ves el vuelto",
     icon: <Banknote />,
+  },
+  {
+    value: "TRANSFER",
+    label: "Transferencia",
+    description: "Confirmás al ver el ingreso en la cuenta del negocio",
+    icon: <Landmark />,
   },
 ] as const;
 
@@ -39,6 +53,7 @@ export type ChargeScreenProps = {
   currentSale: () => Promise<CurrentSaleAnswer>;
   cashCharge: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
+  chargeSaleByTransfer: (saleId: string) => Promise<ChargeSaleByTransferOutcome>;
   onSessionInvalid: () => void;
 };
 
@@ -50,6 +65,7 @@ export function ChargeScreen({
   currentSale,
   cashCharge,
   chargeSaleInCash,
+  chargeSaleByTransfer,
   onSessionInvalid,
 }: ChargeScreenProps) {
   const navigate = useNavigate();
@@ -109,7 +125,9 @@ export function ChargeScreen({
               label="Medio de pago"
               options={METHODS}
               value={null}
-              onChange={() => setStep({ name: "cash" })}
+              onChange={(method) =>
+                setStep(method === "CASH" ? { name: "cash" } : { name: "transfer" })
+              }
             />
           </>
         )}
@@ -117,7 +135,7 @@ export function ChargeScreen({
       {sale === undefined ? null : (
         <ChargePaymentPanel
           total={sale.total}
-          paid={step.name === "completed" ? step.charge.total : 0}
+          paid={step.name === "completed" ? step.payment.charge.total : 0}
           {...(step.name === "completed" ? {} : { onBackToSale: backToSale })}
         />
       )}
@@ -128,16 +146,37 @@ export function ChargeScreen({
           readCharge={(tendered) => cashCharge(sale.id, tendered)}
           charge={(tendered) => chargeSaleInCash(sale.id, tendered)}
           onChooseAnotherMethod={() => setStep({ name: "methods" })}
-          onCompleted={(charge) => setStep({ name: "completed", charge, sale })}
+          onCompleted={(charge) =>
+            setStep({ name: "completed", payment: { method: "CASH", charge }, sale })
+          }
           onSaleUnavailable={backToSale}
           onSessionInvalid={onSessionInvalid}
         />
       ) : null}
-      {step.name === "completed" ? (
+      {sale !== undefined && step.name === "transfer" ? (
+        <TransferChargeModal
+          total={sale.total}
+          charge={() => chargeSaleByTransfer(sale.id)}
+          onChooseAnotherMethod={() => setStep({ name: "methods" })}
+          onCompleted={(charge) =>
+            setStep({ name: "completed", payment: { method: "TRANSFER", charge }, sale })
+          }
+          onSaleUnavailable={backToSale}
+          onSessionInvalid={onSessionInvalid}
+        />
+      ) : null}
+      {step.name === "completed" && step.payment.method === "CASH" ? (
         <SaleCompletedModal
-          total={step.charge.total}
-          tendered={step.charge.tendered}
-          change={step.charge.change}
+          total={step.payment.charge.total}
+          tendered={step.payment.charge.tendered}
+          change={step.payment.charge.change}
+          onNewSale={backToSale}
+        />
+      ) : null}
+      {step.name === "completed" && step.payment.method === "TRANSFER" ? (
+        <SaleCompletedModal
+          total={step.payment.charge.total}
+          method="TRANSFER"
           onNewSale={backToSale}
         />
       ) : null}

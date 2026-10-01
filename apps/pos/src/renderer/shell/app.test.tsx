@@ -90,6 +90,7 @@ function coreAnswering(
     scanProduct?: (code: string) => Promise<ScanProductOutcome>;
     cashCharge?: CoreClient["cashCharge"];
     chargeSaleInCash?: CoreClient["chargeSaleInCash"];
+    chargeSaleByTransfer?: CoreClient["chargeSaleByTransfer"];
     searchProducts?: CoreClient["searchProducts"];
     addProduct?: CoreClient["addProduct"];
   } = {},
@@ -199,6 +200,11 @@ function coreAnswering(
       return sales.chargeSaleInCash === undefined
         ? { kind: "unavailable" }
         : sales.chargeSaleInCash(saleId, tendered);
+    },
+    async chargeSaleByTransfer(saleId) {
+      return sales.chargeSaleByTransfer === undefined
+        ? { kind: "unavailable" }
+        : sales.chargeSaleByTransfer(saleId);
     },
     async closeCashSession(sessionId, countedCash, authorization) {
       closed.push([sessionId, countedCash, authorization]);
@@ -900,6 +906,98 @@ describe("App", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
     await expect.element(screen.getByRole("heading", { name: "Entregá el vuelto" })).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "Nueva venta" }));
+
+    await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    await expect.poll(() => reads).toBe(3);
+    await expect.element(screen.getByText("Yerba mate 1 kg")).not.toBeInTheDocument();
+  });
+
+  it("charges the sale in progress by transfer through the core", async () => {
+    const charges: string[] = [];
+    const { core } = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      GRACE_SIGNED_IN,
+      { cashSession: async () => GRACE_SESSION },
+      {
+        currentSale: async () => ({
+          id: "sale-1",
+          lines: [
+            {
+              id: "line-1",
+              product_id: "p1",
+              product_name: "Yerba mate 1 kg",
+              quantity: 1,
+              list_unit_price: 238_000,
+              discount_amount: 0,
+              promotion: null,
+              line_total: 238_000,
+            },
+          ],
+          total: 238_000,
+        }),
+        chargeSaleByTransfer: async (saleId) => {
+          charges.push(saleId);
+          return { kind: "completed", sale_id: saleId, total: 238_000 };
+        },
+      },
+    );
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await resumeLockedRegister(screen);
+
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+    await userEvent.click(screen.getByText("Transferencia", { exact: true }));
+    await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
+
+    await expect
+      .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }))
+      .toBeVisible();
+    expect(charges).toEqual(["sale-1"]);
+  });
+
+  it("shows no line of the sale that was just charged by transfer when a new sale starts", async () => {
+    const yerba = {
+      id: "line-1",
+      product_id: "p1",
+      product_name: "Yerba mate 1 kg",
+      quantity: 1,
+      list_unit_price: 238_000,
+      discount_amount: 0,
+      promotion: null,
+      line_total: 238_000,
+    };
+    let reads = 0;
+    const { core } = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      GRACE_SIGNED_IN,
+      { cashSession: async () => GRACE_SESSION },
+      {
+        currentSale: () => {
+          reads += 1;
+          return reads <= 2
+            ? Promise.resolve({ id: "sale-1", lines: [yerba], total: 238_000 })
+            : new Promise(() => {});
+        },
+        chargeSaleByTransfer: async (saleId) => ({
+          kind: "completed",
+          sale_id: saleId,
+          total: 238_000,
+        }),
+      },
+    );
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await resumeLockedRegister(screen);
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+    await userEvent.click(screen.getByText("Transferencia", { exact: true }));
+    await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
+    await expect
+      .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }))
+      .toBeVisible();
 
     await userEvent.click(screen.getByRole("button", { name: "Nueva venta" }));
 

@@ -1,5 +1,6 @@
 import type {
   CashChargeAnswer,
+  ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   CurrentSaleAnswer,
   OpenSale,
@@ -41,12 +42,19 @@ const COMPLETED: ChargeSaleInCashOutcome = {
   change: 24_000,
 };
 
+const TRANSFER_COMPLETED: ChargeSaleByTransferOutcome = {
+  kind: "completed",
+  sale_id: "sale-1",
+  total: 476_000,
+};
+
 const COVERED: CashChargeAnswer = { kind: "covered", applied: 476_000, change: 24_000 };
 
 type Overrides = {
   currentSale?: () => Promise<CurrentSaleAnswer>;
   cashCharge?: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
   chargeSaleInCash?: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
+  chargeSaleByTransfer?: (saleId: string) => Promise<ChargeSaleByTransferOutcome>;
 };
 
 async function renderScreen(overrides: Overrides = {}) {
@@ -55,6 +63,9 @@ async function renderScreen(overrides: Overrides = {}) {
   const currentSale = vi.fn(overrides.currentSale ?? (async () => SALE_OF_ONE_LINE));
   const cashCharge = vi.fn(overrides.cashCharge ?? (async () => COVERED));
   const chargeSaleInCash = vi.fn(overrides.chargeSaleInCash ?? (async () => COMPLETED));
+  const chargeSaleByTransfer = vi.fn(
+    overrides.chargeSaleByTransfer ?? (async () => TRANSFER_COMPLETED),
+  );
   const onSessionInvalid = vi.fn();
   const screen = await render(
     <ChargeScreen
@@ -65,16 +76,28 @@ async function renderScreen(overrides: Overrides = {}) {
       currentSale={currentSale}
       cashCharge={cashCharge}
       chargeSaleInCash={chargeSaleInCash}
+      chargeSaleByTransfer={chargeSaleByTransfer}
       onSessionInvalid={onSessionInvalid}
     />,
   );
-  return { screen, currentSale, cashCharge, chargeSaleInCash, onSessionInvalid };
+  return {
+    screen,
+    currentSale,
+    cashCharge,
+    chargeSaleInCash,
+    chargeSaleByTransfer,
+    onSessionInvalid,
+  };
 }
 
 type Screen = Awaited<ReturnType<typeof renderScreen>>["screen"];
 
 async function chooseCash(screen: Screen) {
   await userEvent.click(screen.getByText("Efectivo", { exact: true }));
+}
+
+async function chooseTransfer(screen: Screen) {
+  await userEvent.click(screen.getByText("Transferencia", { exact: true }));
 }
 
 async function chargeInCash(screen: Screen, tendered: string) {
@@ -87,6 +110,16 @@ async function chargeInCash(screen: Screen, tendered: string) {
 }
 
 describe("ChargeScreen", () => {
+  it("offers transfer as a way to pay, next to cash", async () => {
+    const { screen } = await renderScreen();
+
+    await expect.element(screen.getByRole("radio", { name: "Transferencia" })).toBeVisible();
+    await expect
+      .element(screen.getByText("Confirmás al ver el ingreso en la cuenta del negocio"))
+      .toBeVisible();
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
   it("offers cash as the way to pay, for the sale in progress", async () => {
     const { screen } = await renderScreen({ currentSale: async () => SALE_OF_TWO_LINES });
 
@@ -226,6 +259,67 @@ describe("ChargeScreen", () => {
       });
 
       await chargeInCash(screen, "5.000,00");
+
+      await expect.poll(() => onSessionInvalid.mock.calls.length).toBe(1);
+    },
+  );
+
+  it("waits for the transfer without charging when Transferencia is chosen, and returns to the methods from No llegó", async () => {
+    const { screen, chargeSaleByTransfer } = await renderScreen();
+
+    await chooseTransfer(screen);
+    await expect.element(screen.getByText("Esperando la acreditación")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "No llegó: cambiar de medio" }));
+
+    await expect.element(screen.getByText("Esperando la acreditación")).not.toBeInTheDocument();
+    await expect.element(screen.getByRole("radio", { name: "Transferencia" })).toBeVisible();
+    expect(chargeSaleByTransfer).not.toHaveBeenCalled();
+  });
+
+  it("charges the sale by transfer from Vi el ingreso and shows it as completed with no change", async () => {
+    const { screen, chargeSaleByTransfer } = await renderScreen();
+
+    await chooseTransfer(screen);
+    await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
+
+    await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }))
+      .toBeVisible();
+    expect(chargeSaleByTransfer).toHaveBeenCalledExactlyOnceWith("sale-1");
+  });
+
+  it("starts a new sale after a transfer by going back to the sale screen", async () => {
+    const { screen } = await renderScreen();
+
+    await chooseTransfer(screen);
+    await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
+    await userEvent.click(screen.getByRole("button", { name: "Nueva venta" }));
+
+    await expect.poll(() => screen.router.state.location.pathname).toBe("/session");
+  });
+
+  it.each([["empty_sale"], ["zero_total"], ["no_open_sale"], ["not_permitted"]] as const)(
+    "goes back to the sale when the core answers %s to a transfer",
+    async (kind) => {
+      const { screen } = await renderScreen({ chargeSaleByTransfer: async () => ({ kind }) });
+
+      await chooseTransfer(screen);
+      await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
+
+      await expect.poll(() => screen.router.state.location.pathname).toBe("/session");
+    },
+  );
+
+  it.each([["not_signed_in"], ["no_open_session"]] as const)(
+    "reports an invalid session when the core answers %s to a transfer",
+    async (kind) => {
+      const { screen, onSessionInvalid } = await renderScreen({
+        chargeSaleByTransfer: async () => ({ kind }),
+      });
+
+      await chooseTransfer(screen);
+      await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
 
       await expect.poll(() => onSessionInvalid.mock.calls.length).toBe(1);
     },
