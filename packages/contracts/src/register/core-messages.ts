@@ -48,7 +48,12 @@ export const enrollMessageSchema = z.object({
   code: z.string(),
 });
 
-const redeemPinCodeMessageSchema = z.object({
+const pinPolicyRequestMessageSchema = z.object({
+  type: z.literal("pin-policy-request"),
+  request_id: requestId,
+});
+
+export const redeemPinCodeMessageSchema = z.object({
   type: z.literal("redeem-pin-code"),
   request_id: requestId,
   reset_code: z.string(),
@@ -240,6 +245,7 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   enrollmentStatusRequestMessageSchema,
   registerNameRequestMessageSchema,
   enrollMessageSchema,
+  pinPolicyRequestMessageSchema,
   redeemPinCodeMessageSchema,
   signInUsersRequestMessageSchema,
   signInMessageSchema,
@@ -466,6 +472,9 @@ const firstPinCodeRequestOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type FirstPinCodeRequestOutcome = z.infer<typeof firstPinCodeRequestOutcomeSchema>;
 
+const pinPolicySchema = z.object({ min_digits: z.int().positive() });
+export type PinPolicy = z.infer<typeof pinPolicySchema>;
+
 export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("enrollment-status"), request_id: requestId, enrolled: z.boolean() }),
   z.object({
@@ -478,6 +487,7 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     request_id: requestId,
     outcome: enrollmentOutcomeSchema,
   }),
+  z.object({ type: z.literal("pin-policy"), request_id: requestId, ...pinPolicySchema.shape }),
   z.object({
     type: z.literal("pin-code-redemption-result"),
     request_id: requestId,

@@ -176,6 +176,7 @@ export type {
   OpenCashSession,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
+  PinPolicy,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RecordCashMovementRequest,
@@ -196,6 +197,7 @@ export {
   mainToCoreMessageSchema,
   openCashSessionMessageSchema,
   recordCashMovementMessageSchema,
+  redeemPinCodeMessageSchema,
   rendererToCoreMessageSchema,
   signInLookupMessageSchema,
 } from "./register/core-messages.js";

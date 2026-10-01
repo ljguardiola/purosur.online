@@ -19,6 +19,7 @@ import type {
   OpenCashSession,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
+  PinPolicy,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RecordCashMovementRequest,
@@ -49,6 +50,7 @@ export interface CoreClient {
   registerName(): Promise<string | null>;
   enroll(typedCode: string): Promise<EnrollmentOutcome>;
   redeemPinCode(typedCode: string, newPin: string): Promise<PinCodeRedemptionOutcome>;
+  pinPolicy(): Promise<PinPolicy>;
   signInUsers(): Promise<SignInUser[]>;
   authorizers(permission: AuthorizablePermissionKey): Promise<SignInUser[]>;
   lockedClosers(): Promise<SignInUser[]>;
@@ -185,6 +187,11 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
     enroll(typedCode) {
       return ask({ type: "enroll", request_id: deps.newRequestId(), code: typedCode }, (answer) =>
         answer.type === "enrollment-result" ? answer.outcome : undefined,
+      );
+    },
+    pinPolicy() {
+      return ask({ type: "pin-policy-request", request_id: deps.newRequestId() }, (answer) =>
+        answer.type === "pin-policy" ? { min_digits: answer.min_digits } : undefined,
       );
     },
     redeemPinCode(typedCode, newPin) {

@@ -1,4 +1,4 @@
-import type { SignInUser } from "@purosur/contracts";
+import type { PinPolicy, SignInUser } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CoreData } from "../platform/use-core-query";
@@ -8,12 +8,17 @@ export const accessKey = ["access"] as const;
 
 const accessKeys = {
   signInUsers: [...accessKey, "sign-in-users"] as const,
+  pinPolicy: [...accessKey, "pin-policy"] as const,
   authorizers: (permission: AuthorizablePermissionKey) =>
     [...accessKey, "authorizers", permission] as const,
 };
 
 export function useSignInUsersQuery(read: () => Promise<SignInUser[]>): CoreData<SignInUser[]> {
   return useCoreQuery({ queryKey: accessKeys.signInUsers, read });
+}
+
+export function usePinPolicyQuery(read: () => Promise<PinPolicy>): CoreData<PinPolicy> {
+  return useCoreQuery({ queryKey: accessKeys.pinPolicy, read, staleTime: Infinity });
 }
 
 export function useAuthorizersQuery({

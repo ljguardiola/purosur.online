@@ -120,6 +120,7 @@ function contextWith(
     signIn: async () => ({ kind: "signed_in", person: PERSON, cash_session: null }),
     signOut,
     redeemPinCode: async () => ({ kind: "redeemed" }),
+    pinPolicy: async () => ({ min_digits: 6 }),
     signInLookup: async () => ({ kind: "not_found" }),
     requestFirstPinCode: async () => ({ kind: "sent" }),
     firstSignIn: async () => ({ kind: "signed_in", person: PERSON, cash_session: null }),

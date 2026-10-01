@@ -130,6 +130,9 @@ function coreAnswering(
     async enroll() {
       return outcome;
     },
+    async pinPolicy() {
+      return { min_digits: 6 };
+    },
     async redeemPinCode() {
       return cashDrawer.redeemOutcome ?? { kind: "redeemed" };
     },

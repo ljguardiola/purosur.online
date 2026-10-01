@@ -52,6 +52,7 @@ function buildFailingRouter(shouldThrow: () => boolean) {
       signOut: () => {},
       openCashSession: async () => ({ kind: "unavailable" }),
       redeemPinCode: async () => ({ kind: "redeemed" }),
+      pinPolicy: async () => ({ min_digits: 6 }),
       signInLookup: async () => ({ kind: "unavailable" }),
       requestFirstPinCode: async () => ({ kind: "unavailable" }),
       firstSignIn: async () => ({ kind: "unavailable" }),

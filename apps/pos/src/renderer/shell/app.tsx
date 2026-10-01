@@ -284,6 +284,7 @@ function Register({ core }: { core: CoreClient }) {
     cashMovementKinds: () => core.cashMovementKinds(),
     recordCashMovement,
     redeemPinCode,
+    pinPolicy: () => core.pinPolicy(),
     signInLookup: (email: string) => core.signInLookup(email),
     requestFirstPinCode: (userId: string) => core.requestFirstPinCode(userId),
     firstSignIn,

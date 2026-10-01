@@ -18,6 +18,7 @@ import type {
   ListedCashMovement,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
+  PinPolicy,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RemoveSaleLineOutcome,
@@ -95,6 +96,7 @@ export interface RouterContext {
   cashMovementKinds: () => Promise<RecordableCashMovementKinds | null | "unavailable">;
   recordCashMovement: (input: CashMovementInput) => Promise<RecordCashMovementOutcome>;
   redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
+  pinPolicy: () => Promise<PinPolicy>;
   signInLookup: (email: string) => Promise<SignInLookupOutcome>;
   requestFirstPinCode: (userId: string) => Promise<FirstPinCodeRequestOutcome>;
   firstSignIn: (userId: string, pin: string) => Promise<SignInOutcome>;
@@ -549,6 +551,7 @@ export function createAppRouter(
     | "authorizers"
     | "lockedClosers"
     | "redeemPinCode"
+    | "pinPolicy"
     | "signInLookup"
     | "requestFirstPinCode"
     | "firstSignIn"

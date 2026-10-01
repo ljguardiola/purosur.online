@@ -30,7 +30,7 @@ import type {
   SignInOutcome,
   SignInUser,
 } from "@purosur/contracts";
-import type { AuthorizablePermissionKey } from "@purosur/domain";
+import { type AuthorizablePermissionKey, PIN_MIN_DIGITS } from "@purosur/domain";
 import type { ChargeSaleByTransferRequest, ChargeSaleInCashRequest } from "../sales/sale-requests";
 import type { CashMovementRequest } from "./cash-movement-requests";
 
@@ -417,6 +417,8 @@ export async function answerRendererRequest(
         request_id: message.request_id,
         outcome: await deps.enroll(message.code),
       };
+    case "pin-policy-request":
+      return { type: "pin-policy", request_id: message.request_id, min_digits: PIN_MIN_DIGITS };
     case "redeem-pin-code":
       return {
         type: "pin-code-redemption-result",
