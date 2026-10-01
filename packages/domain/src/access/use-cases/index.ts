@@ -5,6 +5,8 @@ export type {
   BranchUsers,
   EmailHolder,
 } from "./branch-users.js";
+export type { CheckPinInput, CheckPinOutcome, PinRefusal } from "./check-pin.js";
+export { checkPin } from "./check-pin.js";
 export type { CreateRoleInput, CreateRoleOutcome, CreateRolePorts } from "./create-role.js";
 export { createRole } from "./create-role.js";
 export type {
@@ -89,6 +91,14 @@ export type {
   PinCodeStoreTransaction,
   PinCodeTarget,
 } from "./pin-code-store.js";
+export type {
+  PinCheckPorts,
+  PinHolder,
+  PinMatcher,
+  PinMatching,
+  PinSignInFailures,
+  PinSignInStore,
+} from "./pin-sign-in-store.js";
 export type {
   ReactivateUserInput,
   ReactivateUserOutcome,
