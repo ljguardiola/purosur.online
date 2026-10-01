@@ -170,7 +170,7 @@ The backoffice, the register's renderer and `packages/ui` follow the Rules of Re
 
 ## Testing
 
-Every rule is verified once, at the lowest level that can really prove it. Higher levels only verify that the pieces are wired together: a route test shows that the route reaches its validator and its guard, not every case the validator rejects; a screen test shows how the screen presents an outcome, not the rule that produced it. A rule is also defined once, in the package that owns it, and every other level that applies it imports it instead of keeping its own copy; a screen applies none and asks the core or the cloud instead (see "Structure").
+Every rule is verified once, at the lowest level that can really prove it. Higher levels only verify that the pieces are wired together: a route test shows that the route reaches its validator and its guard, not every case the validator rejects; a screen test shows how the screen presents an outcome, not the rule that produced it. A rule is also defined once, in the package that owns it, and every other level that applies it imports it instead of keeping its own copy. A screen reaches a rule only through the `packages/contracts` shape it validates a form with, and asks the core or the cloud for every business decision (see "Structure").
 
 Each risk has one kind of test that owns it:
 

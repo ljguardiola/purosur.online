@@ -26,8 +26,8 @@ file.
    `inspected`, not skipped silently.
 3. Re-review: read only `ledger.md` and the `delta-<round>.patch` the prompt
    names, plus the files the delta touches. Report a finding marked fixed that
-   the delta does not resolve, and any defect the delta introduced. Do not
-   review the rest of the change again.
+   the delta does not resolve, citing its ledger id, and any defect the delta
+   introduced. Do not review the rest of the change again.
 4. Every finding cites the written rule it breaks, quoted, or the issue's
    definition-of-done item, or is a correctness finding: an input and the
    wrong outcome it gets, or code the change left without a reader. A

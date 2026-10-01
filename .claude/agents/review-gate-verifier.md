@@ -38,8 +38,9 @@ ledger ids to verify.
    reviewer labelled it; a deliberate replacement of a stack library is a
    `decision` even when reported as `rule`.
 5. Scope: a confirmed finding is `in-scope` when it sits inside the problem
-   `issue.md` states, or the change introduced it or made it worse; a gap the
-   code already had and the change did not worsen is `out-of-scope`.
+   `issue.md` states, whether or not the code already had it, or when the
+   change introduced it or made it worse. Any other gap the code already had
+   is `out-of-scope`.
 
 ## Output
 

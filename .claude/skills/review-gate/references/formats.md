@@ -40,7 +40,8 @@ copy). The kinds are defined in `checklist.md`. A clean result is
 
 `Status` is `open` (with the reason of each `not fixed` attempt),
 `fixed in <sha>`, `refuted`, `filed as #<n>` (out of scope) or `stopped` (a
-`decision` waiting for the coordinator, or a row two fixes could not close).
+`decision` waiting for the coordinator, or a row two failed attempts could
+not close).
 
 ## Verifier verdict
 
