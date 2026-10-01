@@ -140,21 +140,29 @@ describe("redeemPinCode", () => {
     expect(signedIn).toEqual([]);
   });
 
-  it("is only redeemed when the opener cannot be signed in", async () => {
-    const { deps } = depsAnswering({ kind: "ok", body: REDEEMED_BODY }, { opener: USER_ID });
+  it("is only redeemed, signing nobody in, when the opener cannot be signed in", async () => {
+    const { deps, signedIn } = depsAnswering(
+      { kind: "ok", body: REDEEMED_BODY },
+      { opener: USER_ID },
+    );
     deps.redeemedPerson = () => undefined;
 
     expect(await redeemPinCode(deps, TYPED_CODE, "482915")).toEqual({ kind: "redeemed" });
+    expect(signedIn).toEqual([]);
   });
 
-  it("is redeemed when the opener cannot be signed in, whatever reading the open cash session does", async () => {
-    const { deps } = depsAnswering({ kind: "ok", body: REDEEMED_BODY }, { opener: USER_ID });
+  it("is redeemed, signing nobody in, when the opener cannot be signed in, whatever reading the open cash session does", async () => {
+    const { deps, signedIn } = depsAnswering(
+      { kind: "ok", body: REDEEMED_BODY },
+      { opener: USER_ID },
+    );
     deps.redeemedPerson = () => undefined;
     deps.cashSession = () => {
       throw new Error("the register database is unavailable");
     };
 
     expect(await redeemPinCode(deps, TYPED_CODE, "482915")).toEqual({ kind: "redeemed" });
+    expect(signedIn).toEqual([]);
   });
 
   it("signs nobody in when no session is open", async () => {
