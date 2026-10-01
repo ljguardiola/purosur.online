@@ -128,6 +128,7 @@ export {
   isPointOfSaleNumber,
   isSameFiscalAddressName,
   isValidBuyerTaxStatusSet,
+  isValidCuit,
   latestBuyerTaxStatusSet,
   latestIssuerIdentification,
   latestThreshold,
