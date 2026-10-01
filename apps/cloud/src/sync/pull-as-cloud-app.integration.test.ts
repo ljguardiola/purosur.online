@@ -10,7 +10,6 @@ import { pullChanges } from "@purosur/domain/sync/use-cases";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { drizzleBranchUsers } from "../access/drizzle-branch-users.js";
 import { DrizzleRoleStore } from "../access/drizzle-role-store.js";
 import { DrizzleUserStore } from "../access/drizzle-user-store.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
@@ -82,7 +81,6 @@ describe("a pull run as the role the deployed cloud connects with", () => {
     await createUser(
       {
         store: new DrizzleUserStore(db),
-        users: drizzleBranchUsers(db),
         clock: { now: () => new Date() },
       },
       {

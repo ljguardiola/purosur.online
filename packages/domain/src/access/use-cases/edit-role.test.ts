@@ -44,7 +44,7 @@ function fixture({ name = "Cajero", permissions = ["sell_and_charge"], holders =
     id?: string;
   }) =>
     editRole(
-      { store, roles: store, clock },
+      { store, clock },
       {
         id: change.id ?? "r-1",
         name: change.name ?? name,
@@ -159,14 +159,25 @@ describe("editRole", () => {
   });
 
   it("writes nothing when neither the name nor the permissions change", async () => {
-    const { store, edit } = fixture({ permissions: ["view_sales_history", "sell_and_charge"] });
+    const { store, edit } = fixture({
+      permissions: ["view_sales_history", "sell_and_charge"],
+      holders: [{ id: "u-2", name: "Ana", active: true }],
+    });
     const before = store.snapshot();
 
     const outcome = await edit({ permissionKeys: ["sell_and_charge", "view_sales_history"] });
 
-    expect(outcome).toMatchObject({
+    expect(outcome).toEqual({
       kind: "applied",
-      role: { version: 3, permissionKeys: ["sell_and_charge", "view_sales_history"] },
+      role: {
+        id: "r-1",
+        name: "Cajero",
+        isAdministrator: false,
+        permissionKeys: ["sell_and_charge", "view_sales_history"],
+        userCount: 1,
+        version: 3,
+        assignedUsers: [{ id: "u-2", name: "Ana" }],
+      },
     });
     expect(store.snapshot()).toEqual(before);
     expect(store.operationOrder).not.toContain("rewriteRole");
@@ -184,17 +195,19 @@ describe("editRole", () => {
     expect(store.operationOrder).toContain("rewriteRole");
   });
 
-  it("takes the role's lock before checking the name and writes only afterwards", async () => {
+  it("takes the role's lock before checking the name, writes only afterwards and reads the holders last", async () => {
     const { store, edit } = fixture();
 
     await edit({ name: "Cajera" });
 
-    expect(store.operationOrder.slice(0, 3)).toEqual([
+    expect(store.operationOrder).toEqual([
       "lockRole",
       "roleNameTaken",
       "storedPermissionKeys",
+      "rewriteRole",
+      "recordRoleChange",
+      "activeRoleHolders",
     ]);
-    expect(store.operationOrder.slice(3)).toEqual(["rewriteRole", "recordRoleChange"]);
   });
 
   it("rolls the rewrite back when recording the change fails", async () => {

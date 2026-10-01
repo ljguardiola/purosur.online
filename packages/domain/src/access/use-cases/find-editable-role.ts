@@ -1,6 +1,9 @@
-import { isRoleEditable } from "../model/role-editability.js";
-import { permissionKeysInCatalogOrder } from "./list-roles.js";
-import type { RoleDirectory } from "./role-directory.js";
+import {
+  type EditableRoleDetail,
+  editableRoleDetail,
+  isRoleEditable,
+} from "../model/role-editability.js";
+import type { RoleDirectory, RoleHolder } from "./role-directory.js";
 
 export interface FindEditableRolePorts {
   roles: RoleDirectory;
@@ -10,12 +13,7 @@ export interface FindEditableRoleInput {
   roleId: string;
 }
 
-export interface EditableRole {
-  id: string;
-  name: string | null;
-  version: number;
-  permissionKeys: string[];
-}
+export type EditableRole = EditableRoleDetail<RoleHolder>;
 
 export async function findEditableRole(
   { roles }: FindEditableRolePorts,
@@ -25,10 +23,5 @@ export async function findEditableRole(
   if (!role || !isRoleEditable(role)) {
     return undefined;
   }
-  return {
-    id: role.id,
-    name: role.name,
-    version: role.version,
-    permissionKeys: permissionKeysInCatalogOrder(role.storedPermissionKeys),
-  };
+  return editableRoleDetail(role, await roles.activeRoleHolders(role.id));
 }

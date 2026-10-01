@@ -1,4 +1,4 @@
-import type { RoleDirectory, RoleHolder, RoleListing, StoredRole } from "../role-directory.js";
+import type { RoleHolder } from "../role-directory.js";
 import {
   type LockRoleResult,
   type NewRole,
@@ -111,7 +111,7 @@ class FakeRoleStoreTransaction implements RoleStoreTransaction {
   }
 }
 
-export class FakeRoleStore implements RoleStore, RoleDirectory {
+export class FakeRoleStore implements RoleStore {
   private state: FakeRoleStoreState = { roles: [], changes: [], alerts: [], createdRoles: 0 };
 
   failingWrites = new Set<WriteOperation>();
@@ -142,23 +142,5 @@ export class FakeRoleStore implements RoleStore, RoleDirectory {
       this.state = before;
       throw error;
     }
-  }
-
-  async roles(): Promise<RoleListing[]> {
-    return this.state.roles.map((role) => ({
-      id: role.id,
-      name: role.name,
-      isAdministrator: role.isAdministrator,
-      storedPermissionKeys: role.storedPermissionKeys,
-      activeHolderCount: this.holdersOf(this.state, role.id).length,
-    }));
-  }
-
-  async role(roleId: string): Promise<StoredRole | undefined> {
-    return this.state.roles.find((role) => role.id === roleId);
-  }
-
-  async activeRoleHolders(roleId: string): Promise<RoleHolder[]> {
-    return this.holdersOf(this.state, roleId);
   }
 }

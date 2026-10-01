@@ -45,8 +45,10 @@ export function registerRoleEditRoutes<TQueryResult extends PgQueryResultHKT>(
       const attemptedAt = now();
       const openSession = openSessionOf(request);
 
-      const roles = drizzleRoleDirectory(options.db);
-      const target = await findEditableRole({ roles }, { roleId: request.params.id });
+      const target = await findEditableRole(
+        { roles: drizzleRoleDirectory(options.db) },
+        { roleId: request.params.id },
+      );
       if (!target) {
         await reply.code(404).send(NOT_FOUND_RESPONSE);
         return;
@@ -62,7 +64,7 @@ export function registerRoleEditRoutes<TQueryResult extends PgQueryResultHKT>(
       }
 
       const outcome = await editRole(
-        { store: new DrizzleRoleStore(options.db), roles, clock: { now } },
+        { store: new DrizzleRoleStore(options.db), clock: { now } },
         {
           id: target.id,
           name: parsedBody.name,

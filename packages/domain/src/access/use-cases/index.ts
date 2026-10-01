@@ -8,7 +8,6 @@ export type {
 export type { CreateRoleInput, CreateRoleOutcome, CreateRolePorts } from "./create-role.js";
 export { createRole } from "./create-role.js";
 export type {
-  CreatedUserRole,
   CreateUserInput,
   CreateUserOutcome,
   CreateUserPorts,
@@ -21,7 +20,6 @@ export type {
 } from "./deactivate-user.js";
 export { deactivateUser } from "./deactivate-user.js";
 export type {
-  EditedRole,
   EditRoleInput,
   EditRoleOutcome,
   EditRolePorts,
@@ -52,8 +50,6 @@ export type {
 export { findDeactivatableUser } from "./find-deactivatable-user.js";
 export type { EditableRole, FindEditableRoleInput } from "./find-editable-role.js";
 export { findEditableRole } from "./find-editable-role.js";
-export type { FindEmailHolderInput } from "./find-email-holder.js";
-export { findEmailHolder } from "./find-email-holder.js";
 export type {
   FirstPinCodeEmission,
   FirstPinCodeEmissionPorts,
@@ -64,8 +60,6 @@ export type {
 } from "./first-pin-code-store.js";
 export type { ListBranchUsersInput } from "./list-branch-users.js";
 export { listBranchUsers } from "./list-branch-users.js";
-export type { ListRoleHoldersInput } from "./list-role-holders.js";
-export { listRoleHolders } from "./list-role-holders.js";
 export type { RoleSummary } from "./list-roles.js";
 export { listRoles } from "./list-roles.js";
 export type {

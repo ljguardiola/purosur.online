@@ -7,7 +7,6 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterEach, describe, expect, it } from "vitest";
-import { drizzleBranchUsers } from "../access/drizzle-branch-users.js";
 import { DrizzleRoleStore } from "../access/drizzle-role-store.js";
 import { DrizzleUserStore } from "../access/drizzle-user-store.js";
 import { openAlert } from "../alerts/open-alert.js";
@@ -232,7 +231,6 @@ describe("clearSampleData", () => {
     const realUserOutcome = await createUser(
       {
         store: new DrizzleUserStore(db),
-        users: drizzleBranchUsers(db),
         clock: { now: () => new Date() },
       },
       {
@@ -298,7 +296,7 @@ describe("clearSampleData", () => {
     const realAlertOutcome = await db.transaction((tx) =>
       openAlert(
         tx,
-        { kind: "backoffice_recovery_requested", scope: realUserOutcome.id, detail: {} },
+        { kind: "backoffice_recovery_requested", scope: realUserOutcome.user.id, detail: {} },
         { now: () => NOW },
       ),
     );

@@ -85,6 +85,9 @@ describe("inserting a user", () => {
     const inserted = await store().transaction((tx) =>
       tx.insertUser({ firstName: "Marta", email: "marta@example.com", locationId }),
     );
+    if (!inserted) {
+      throw new Error("the insert answered no revision");
+    }
 
     expect(inserted.version).toBe(1);
     const [stored] = await db.select().from(users).where(eq(users.id, inserted.id));
@@ -94,12 +97,14 @@ describe("inserting a user", () => {
     ]);
   });
 
-  it("raises the email conflict, and logs nothing, when another user holds the email", async () => {
-    const attempt = store().transaction((tx) =>
-      tx.insertUser({ firstName: "Otra", email: "ada@example.com", locationId }),
-    );
+  it("inserts nothing, logs nothing and leaves the transaction usable when another user holds the email", async () => {
+    const { inserted, holder } = await store().transaction(async (tx) => ({
+      inserted: await tx.insertUser({ firstName: "Otra", email: "ada@example.com", locationId }),
+      holder: await tx.users.emailHolder("ada@example.com"),
+    }));
 
-    await expect(attempt).rejects.toBeInstanceOf(UserEmailConflict);
+    expect(inserted).toBeUndefined();
+    expect(holder).toMatchObject({ id: actorId, firstName: "Ada" });
     expect(await db.select().from(users)).toHaveLength(1);
     expect(await db.select().from(changes).where(eq(changes.entity, "user"))).toEqual([]);
   });

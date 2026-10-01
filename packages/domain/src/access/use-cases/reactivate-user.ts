@@ -16,7 +16,6 @@ export function reactivateUser(
   input: ReactivateUserInput,
 ): Promise<ReactivateUserOutcome> {
   return store.transaction<ReactivateUserOutcome>(async (tx) => {
-    // Reads `active` under the lock, so a second reactivation of the same user finds them active.
     const locked = await tx.lockUser(input.id);
     if (!locked || locked.active) {
       return { kind: "not_found" };

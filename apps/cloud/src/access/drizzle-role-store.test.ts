@@ -13,7 +13,6 @@ import {
 import { PendingChanges } from "../sync/change-log.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { drizzleRoleDirectory } from "./drizzle-role-directory.js";
 import { DrizzleRoleStore } from "./drizzle-role-store.js";
 
 let testDatabase: TestDatabase;
@@ -52,15 +51,12 @@ const create = (name: string, permissionKeys: string[] = ["sell_and_charge"]) =>
   createRole({ store: new DrizzleRoleStore(db) }, { name, permissionKeys, actorId });
 
 const edit = (input: { id: string; name: string; permissionKeys: string[]; version: number }) =>
-  editRole(
-    { store: new DrizzleRoleStore(db), roles: drizzleRoleDirectory(db), clock },
-    { ...input, actorId },
-  );
+  editRole({ store: new DrizzleRoleStore(db), clock }, { ...input, actorId });
 
 async function createdRole(name: string, permissionKeys?: string[]) {
   const outcome = await create(name, permissionKeys);
   if (outcome.kind !== "created") {
-    throw new Error(`test setup: creating the role ended as `);
+    throw new Error(`test setup: creating the role ended as ${outcome.kind}`);
   }
   return outcome.role;
 }
@@ -117,7 +113,7 @@ describe("creating a role", () => {
     ).toHaveLength(1);
   });
 
-  it("answers name_taken when the unique index refuses a name that slipped past the check", async () => {
+  it("raises the role-name conflict when the unique index refuses a name that slipped past the check", async () => {
     const store = new DrizzleRoleStore(db);
     await createdRole("Depósito");
 

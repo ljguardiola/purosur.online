@@ -5,7 +5,6 @@ import type { FastifyInstance } from "fastify";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { canReactivateUsers, toBranchUserWire } from "./branch-users.js";
-import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 import { DrizzleUserStore } from "./drizzle-user-store.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import {
@@ -63,11 +62,7 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
       }
 
       const outcome = await createUser(
-        {
-          store: new DrizzleUserStore(options.db),
-          users: drizzleBranchUsers(options.db),
-          clock: { now },
-        },
+        { store: new DrizzleUserStore(options.db), clock: { now } },
         {
           firstName: parsedBody.first_name,
           email: parsedBody.email,
@@ -97,20 +92,7 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
         return;
       }
 
-      await reply.code(201).send(
-        toBranchUserWire({
-          id: outcome.id,
-          firstName: parsedBody.first_name,
-          email: parsedBody.email,
-          version: 1,
-          active: true,
-          roleId: outcome.role.id,
-          roleName: outcome.role.name,
-          roleIsAdministrator: outcome.role.isAdministrator,
-          passkeyCount: 0,
-          isLastActiveAdministrator: false,
-        }),
-      );
+      await reply.code(201).send(toBranchUserWire(outcome.user));
     },
   );
 }

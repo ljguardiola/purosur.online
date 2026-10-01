@@ -4,7 +4,7 @@ import { findEditableRole } from "./find-editable-role.js";
 import { FakeRoleDirectory } from "./test-support/fake-role-directory.js";
 
 describe("findEditableRole", () => {
-  it("finds a role with its version and permissions in catalog order", async () => {
+  it("finds a role with its version, its permissions in catalog order and its active holders", async () => {
     const roles = new FakeRoleDirectory();
     const [first, second] = PERMISSION_KEYS;
     if (!first || !second) {
@@ -16,7 +16,10 @@ describe("findEditableRole", () => {
       isAdministrator: false,
       version: 4,
       storedPermissionKeys: [second, first],
-      holders: [],
+      holders: [
+        { id: "u-1", name: "Ana", active: true },
+        { id: "u-2", name: "Beto", active: false },
+      ],
     });
 
     const found = await findEditableRole({ roles }, { roleId: "r-1" });
@@ -24,8 +27,11 @@ describe("findEditableRole", () => {
     expect(found).toEqual({
       id: "r-1",
       name: "Cajero",
-      version: 4,
+      isAdministrator: false,
       permissionKeys: [first, second],
+      userCount: 1,
+      version: 4,
+      assignedUsers: [{ id: "u-1", name: "Ana" }],
     });
   });
 

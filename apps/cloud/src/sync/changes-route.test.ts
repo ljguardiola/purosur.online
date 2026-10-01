@@ -13,7 +13,6 @@ import { createRegister } from "@purosur/domain/register/use-cases";
 import { eq, inArray, sql } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { drizzleBranchUsers } from "../access/drizzle-branch-users.js";
 import { DrizzleRoleStore } from "../access/drizzle-role-store.js";
 import { DrizzleUserStore } from "../access/drizzle-user-store.js";
 import { registerRouteAccess } from "../access/route-access.js";
@@ -773,7 +772,7 @@ describe("GET /changes carrying the users and the roles", () => {
 
   async function newUser(firstName: string, email: string, roleId: string): Promise<string> {
     const outcome = await createUser(
-      { store: new DrizzleUserStore(db), users: drizzleBranchUsers(db), clock: NOW_FOR_ALERTS },
+      { store: new DrizzleUserStore(db), clock: NOW_FOR_ALERTS },
       {
         firstName,
         email,
@@ -786,7 +785,7 @@ describe("GET /changes carrying the users and the roles", () => {
     if (outcome.kind !== "created") {
       throw new Error(`test setup: creating the user ended as ${outcome.kind}`);
     }
-    return outcome.id;
+    return outcome.user.id;
   }
 
   async function anActor(): Promise<string> {

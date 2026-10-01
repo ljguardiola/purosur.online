@@ -1,13 +1,16 @@
 import { grantedPermissionKeys, increasesAccess } from "../model/access-increase.js";
-import { isRoleEditable } from "../model/role-editability.js";
-import { permissionKeysInCatalogOrder } from "./list-roles.js";
+import { heldPermissionKeys } from "../model/holds-permission.js";
+import {
+  type EditableRoleDetail,
+  editableRoleDetail,
+  isRoleEditable,
+} from "../model/role-editability.js";
 import type { Clock } from "./pin-code-store.js";
-import type { RoleDirectory, RoleHolder } from "./role-directory.js";
+import type { RoleHolder } from "./role-directory.js";
 import { RoleNameConflict, type RoleStore } from "./role-store.js";
 
 export interface EditRolePorts {
   store: RoleStore;
-  roles: RoleDirectory;
   clock: Clock;
 }
 
@@ -19,32 +22,17 @@ export interface EditRoleInput {
   actorId: string;
 }
 
-export interface EditedRole {
-  id: string;
-  name: string;
-  isAdministrator: false;
-  permissionKeys: string[];
-  userCount: number;
-  version: number;
-  assignedUsers: RoleHolder[];
-}
-
 export type EditRoleOutcome =
   | { kind: "stale_version" }
   | { kind: "name_taken" }
-  | { kind: "applied"; role: EditedRole };
-
-type EditedState = { kind: "edited"; permissionKeys: string[]; version: number };
+  | { kind: "applied"; role: EditableRoleDetail<RoleHolder> };
 
 export async function editRole(
-  { store, roles, clock }: EditRolePorts,
+  { store, clock }: EditRolePorts,
   input: EditRoleInput,
 ): Promise<EditRoleOutcome> {
-  let result: EditedState | EditRoleOutcome;
   try {
-    result = await store.transaction<EditedState | EditRoleOutcome>(async (tx) => {
-      // Locking the role row makes a concurrent edit of the same role wait instead of racing the
-      // version check.
+    return await store.transaction<EditRoleOutcome>(async (tx) => {
       const locked = await tx.lockRole(input.id);
       if (
         locked.kind === "not_found" ||
@@ -60,16 +48,33 @@ export async function editRole(
       }
 
       const currentPermissionKeys = await tx.storedPermissionKeys(input.id);
-      const currentInCatalogOrder = permissionKeysInCatalogOrder(currentPermissionKeys);
-      const nextPermissionKeys = permissionKeysInCatalogOrder(input.permissionKeys);
       const currentSet = new Set(currentPermissionKeys);
       const nextSet = new Set(input.permissionKeys);
       const samePermissions =
         currentSet.size === nextSet.size && [...currentSet].every((key) => nextSet.has(key));
       if (currentName === input.name && samePermissions) {
-        return { kind: "edited", permissionKeys: currentInCatalogOrder, version };
+        return {
+          kind: "applied",
+          role: editableRoleDetail(
+            {
+              id: input.id,
+              name: input.name,
+              version,
+              storedPermissionKeys: currentPermissionKeys,
+            },
+            await tx.activeRoleHolders(input.id),
+          ),
+        };
       }
 
+      const before = { isAdministrator: false, permissionKeys: currentPermissionKeys };
+      const after = {
+        isAdministrator: false,
+        permissionKeys: heldPermissionKeys({
+          isAdministrator: false,
+          permissionKeys: input.permissionKeys,
+        }),
+      };
       const nextVersion = version + 1;
       await tx.rewriteRole(input.id, {
         name: input.name,
@@ -79,18 +84,17 @@ export async function editRole(
       await tx.recordRoleChange({
         roleId: input.id,
         actorId: input.actorId,
-        previous: { name: currentName, permissionKeys: currentInCatalogOrder },
-        next: { name: input.name, permissionKeys: nextPermissionKeys },
+        previous: { name: currentName, permissionKeys: heldPermissionKeys(before) },
+        next: { name: input.name, permissionKeys: after.permissionKeys },
       });
 
-      const before = { isAdministrator: false, permissionKeys: currentPermissionKeys };
-      const after = { isAdministrator: false, permissionKeys: nextPermissionKeys };
+      const holders = await tx.activeRoleHolders(input.id);
       if (increasesAccess(before, after)) {
         const addedPermissionKeys = grantedPermissionKeys(
           currentPermissionKeys,
-          nextPermissionKeys,
+          after.permissionKeys,
         );
-        for (const holder of await tx.activeRoleHolders(input.id)) {
+        for (const holder of holders) {
           await tx.openAccessIncreasedAlert({
             holderId: holder.id,
             roleName: input.name,
@@ -101,7 +105,18 @@ export async function editRole(
         }
       }
 
-      return { kind: "edited", permissionKeys: nextPermissionKeys, version: nextVersion };
+      return {
+        kind: "applied",
+        role: editableRoleDetail(
+          {
+            id: input.id,
+            name: input.name,
+            version: nextVersion,
+            storedPermissionKeys: input.permissionKeys,
+          },
+          holders,
+        ),
+      };
     });
   } catch (error) {
     if (!(error instanceof RoleNameConflict)) {
@@ -109,21 +124,4 @@ export async function editRole(
     }
     return { kind: "name_taken" };
   }
-
-  if (result.kind !== "edited") {
-    return result;
-  }
-  const assignedUsers = await roles.activeRoleHolders(input.id);
-  return {
-    kind: "applied",
-    role: {
-      id: input.id,
-      name: input.name,
-      isAdministrator: false,
-      permissionKeys: result.permissionKeys,
-      userCount: assignedUsers.length,
-      version: result.version,
-      assignedUsers,
-    },
-  };
 }

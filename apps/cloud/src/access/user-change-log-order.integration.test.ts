@@ -11,7 +11,6 @@ import {
 } from "../test-support/integration-database.js";
 import { waitForLockWaiters } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { drizzleRoleDirectory } from "./drizzle-role-directory.js";
 import { DrizzleRoleStore } from "./drizzle-role-store.js";
 import { DrizzleUserStore } from "./drizzle-user-store.js";
 
@@ -109,7 +108,6 @@ describe("changing a user or a role while another writer holds the change log, o
         editRole(
           {
             store: new DrizzleRoleStore(db),
-            roles: drizzleRoleDirectory(db),
             clock: { now: () => new Date() },
           },
           {

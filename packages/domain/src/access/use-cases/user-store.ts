@@ -81,8 +81,8 @@ export interface UserStoreTransaction {
   // Weaker than `lockUser`: it does not block the writes that only reference the user.
   lockUserForDeactivation(userId: string): Promise<LockedUser | undefined>;
   activeAdministratorCount(locationId: string): Promise<number>;
-  // Raises `UserEmailConflict` when another user holds the email.
-  insertUser(user: NewUser): Promise<StoredUserRevision>;
+  // Inserts nothing and answers no revision when another user holds the email.
+  insertUser(user: NewUser): Promise<StoredUserRevision | undefined>;
   assignRole(userId: string, roleId: string): Promise<void>;
   reassignRole(userId: string, roleId: string): Promise<void>;
   // Raises `UserEmailConflict` when another user holds the email.

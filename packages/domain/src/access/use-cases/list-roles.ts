@@ -1,4 +1,4 @@
-import { PERMISSION_KEYS } from "../model/permission-catalog.js";
+import { heldPermissionKeys } from "../model/holds-permission.js";
 import type { RoleDirectory } from "./role-directory.js";
 
 export interface ListRolesPorts {
@@ -13,20 +13,16 @@ export interface RoleSummary {
   userCount: number;
 }
 
-export function permissionKeysInCatalogOrder(storedPermissionKeys: string[]): string[] {
-  const stored = new Set(storedPermissionKeys);
-  return PERMISSION_KEYS.filter((key) => stored.has(key));
-}
-
 export async function listRoles({ roles }: ListRolesPorts): Promise<RoleSummary[]> {
   const listings = await roles.roles();
   return listings.map((role) => ({
     id: role.id,
     name: role.name,
     isAdministrator: role.isAdministrator,
-    permissionKeys: role.isAdministrator
-      ? [...PERMISSION_KEYS]
-      : permissionKeysInCatalogOrder(role.storedPermissionKeys),
+    permissionKeys: heldPermissionKeys({
+      isAdministrator: role.isAdministrator,
+      permissionKeys: role.storedPermissionKeys,
+    }),
     userCount: role.activeHolderCount,
   }));
 }

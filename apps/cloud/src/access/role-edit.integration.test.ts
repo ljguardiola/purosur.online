@@ -10,7 +10,6 @@ import {
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { drizzleRoleDirectory } from "./drizzle-role-directory.js";
 import { DrizzleRoleStore } from "./drizzle-role-store.js";
 
 // PGlite runs every query over one connection, so it can never race two edits for the same role or
@@ -65,7 +64,6 @@ describe("two edits racing on the same role's version, on a real Postgres throug
       editRole(
         {
           store: new DrizzleRoleStore(db),
-          roles: drizzleRoleDirectory(db),
           clock: { now: () => new Date() },
         },
         {
@@ -79,7 +77,6 @@ describe("two edits racing on the same role's version, on a real Postgres throug
       editRole(
         {
           store: new DrizzleRoleStore(db),
-          roles: drizzleRoleDirectory(db),
           clock: { now: () => new Date() },
         },
         {
@@ -122,7 +119,6 @@ describe("two edits racing to rename different roles to the same name, on a real
       editRole(
         {
           store: new DrizzleRoleStore(db),
-          roles: drizzleRoleDirectory(db),
           clock: { now: () => new Date() },
         },
         {
@@ -136,7 +132,6 @@ describe("two edits racing to rename different roles to the same name, on a real
       editRole(
         {
           store: new DrizzleRoleStore(db),
-          roles: drizzleRoleDirectory(db),
           clock: { now: () => new Date() },
         },
         {

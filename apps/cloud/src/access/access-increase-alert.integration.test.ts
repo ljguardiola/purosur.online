@@ -21,8 +21,6 @@ import {
 } from "../test-support/integration-database.js";
 import { waitForLockWaiters } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { drizzleBranchUsers } from "./drizzle-branch-users.js";
-import { drizzleRoleDirectory } from "./drizzle-role-directory.js";
 import { DrizzleRoleStore } from "./drizzle-role-store.js";
 import { DrizzleUserStore } from "./drizzle-user-store.js";
 import { SESSION_COOKIE_NAME } from "./session-cookie.js";
@@ -170,7 +168,6 @@ describe("assigning a role while that role's permissions change, on a real Postg
       edit = editRole(
         {
           store: new DrizzleRoleStore(db),
-          roles: drizzleRoleDirectory(db),
           clock: { now: () => new Date() },
         },
         {
@@ -313,7 +310,6 @@ describe("an alert for increased access that fails to open, on a real Postgres",
       createUser(
         {
           store: new DrizzleUserStore(db),
-          users: drizzleBranchUsers(db),
           clock: { now: () => new Date() },
         },
         {
@@ -343,7 +339,6 @@ describe("an alert for increased access that fails to open, on a real Postgres",
       editRole(
         {
           store: new DrizzleRoleStore(db),
-          roles: drizzleRoleDirectory(db),
           clock: { now: () => new Date() },
         },
         {

@@ -37,23 +37,17 @@ export async function editUser(
         return { kind: "unknown_role" };
       }
 
-      // Locks the single Administrator role row before counting its active holders, so two
-      // concurrent role changes serialize on it instead of both reading "not the last one".
       const administratorRole = await tx.lockAdministratorRole();
       if (!administratorRole) {
         return { kind: "stale_version" };
       }
 
-      // Every role change holds the Administrator role lock taken above, so this read can't change
-      // before the user row is locked below.
       const currentRole = await tx.roleOfUser(input.id);
       if (!currentRole) {
         return { kind: "stale_version" };
       }
 
       const roleChanged = currentRole.id !== requestedRole.id;
-      // Taken before the user row lock: a role edit holding one of these roles writes rows that
-      // reference users, which would wait on a user row this transaction already locked.
       const roleAccessChange = roleChanged
         ? {
             previousRole: await tx.lockRoleForAssignment(currentRole.id),
@@ -127,15 +121,11 @@ export async function editUser(
         }
       }
 
-      // Read under the locks this transaction still holds, so a deactivation waiting on this user's
-      // row can't commit before this read runs.
       const edited = await findBranchUser(
         { users: tx.users },
         { locationId: input.locationId, userId: input.id },
       );
       if (!edited) {
-        // Deactivation bumps `version` too, so the match above already ruled this out; roll back
-        // rather than answer for an edit that did not apply.
         throw new Error("edited user is no longer an active user of this branch");
       }
       return { kind: "applied", user: edited };

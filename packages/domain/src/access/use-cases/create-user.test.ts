@@ -17,7 +17,7 @@ function fixture() {
   store.seedRole({ id: "role-admin", name: null, isAdministrator: true, permissionKeys: [] });
   const create = (overrides: Partial<Parameters<typeof createUser>[1]> = {}) =>
     createUser(
-      { store, users: store.users, clock },
+      { store, clock },
       {
         firstName: "Marta",
         email: "marta@example.test",
@@ -32,15 +32,25 @@ function fixture() {
 }
 
 describe("createUser", () => {
-  it("stores an active user with the role and answers with the new id and the role", async () => {
+  it("stores an active user with the role and answers with the created user", async () => {
     const { store, create } = fixture();
 
     const outcome = await create();
 
     expect(outcome).toEqual({
       kind: "created",
-      id: "new-user-1",
-      role: { id: "role-cashier", name: "Cajero", isAdministrator: false },
+      user: {
+        id: "new-user-1",
+        firstName: "Marta",
+        email: "marta@example.test",
+        version: 1,
+        active: true,
+        roleId: "role-cashier",
+        roleName: "Cajero",
+        roleIsAdministrator: false,
+        passkeyCount: 0,
+        isLastActiveAdministrator: false,
+      },
     });
     expect(store.snapshot().users).toEqual([
       {
@@ -93,6 +103,31 @@ describe("createUser", () => {
     expect(store.snapshot().alerts).toEqual([
       { kind: "created_as_administrator", userId: "new-user-1", actorId: "actor-1", openedAt: NOW },
     ]);
+  });
+
+  it("answers an administrator created in a branch with no other active one as its last active administrator", async () => {
+    const { store, create } = fixture();
+    store.seedUser(administrator({ id: "u-1", active: false }));
+    store.seedUser(administrator({ id: "u-2", locationId: "branch-2" }));
+
+    const outcome = await create({ roleId: "role-admin" });
+
+    expect(outcome).toMatchObject({
+      kind: "created",
+      user: { roleIsAdministrator: true, isLastActiveAdministrator: true },
+    });
+  });
+
+  it("answers an administrator created beside another active one as not the last", async () => {
+    const { store, create } = fixture();
+    store.seedUser(administrator({ id: "u-1" }));
+
+    const outcome = await create({ roleId: "role-admin" });
+
+    expect(outcome).toMatchObject({
+      kind: "created",
+      user: { roleIsAdministrator: true, isLastActiveAdministrator: false },
+    });
   });
 
   it("refuses a role that does not exist and writes nothing", async () => {
@@ -171,7 +206,7 @@ describe("createUser", () => {
     expect(outcome).toEqual({ kind: "email_taken" });
   });
 
-  it("looks the role up, inserts the user, then assigns the role, audits and alerts", async () => {
+  it("looks the role up, inserts the user, assigns the role, audits, alerts, then counts administrators", async () => {
     const { store, create } = fixture();
 
     await create({ roleId: "role-admin" });
@@ -182,6 +217,7 @@ describe("createUser", () => {
       "assignRole",
       "recordUserChange",
       "openUserAlert",
+      "activeAdministratorCount",
     ]);
   });
 

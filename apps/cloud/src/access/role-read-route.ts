@@ -1,7 +1,6 @@
 import { type RoleDetailWire, roleDetailSchema } from "@purosur/contracts";
 import {
   findEditableRole,
-  listRoleHolders,
   type RoleHolder,
   type RoleSummary,
 } from "@purosur/domain/access/use-cases";
@@ -47,22 +46,16 @@ export function registerRoleReadRoute<TQueryResult extends PgQueryResultHKT>(
     },
     async (request, reply) => {
       const targetId = (request.params as { id: string }).id;
-      const roles = drizzleRoleDirectory(options.db);
-      const role = await findEditableRole({ roles }, { roleId: targetId });
+      const role = await findEditableRole(
+        { roles: drizzleRoleDirectory(options.db) },
+        { roleId: targetId },
+      );
       if (!role) {
         await reply.code(404).send(NOT_FOUND_RESPONSE);
         return;
       }
 
-      const assignedUsers = await listRoleHolders({ roles }, { roleId: role.id });
-      await reply.code(200).send(
-        toRoleDetailWire({
-          ...role,
-          isAdministrator: false,
-          userCount: assignedUsers.length,
-          assignedUsers,
-        }),
-      );
+      await reply.code(200).send(toRoleDetailWire(role));
     },
   );
 }

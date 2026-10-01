@@ -22,7 +22,6 @@ export function deactivateUser(
     if (!locked?.active) {
       return { kind: "not_found" };
     }
-    // A promotion that committed after the caller looked the user up is seen here, under the lock.
     const role = await tx.roleOfUser(input.id);
     if (
       !role ||
