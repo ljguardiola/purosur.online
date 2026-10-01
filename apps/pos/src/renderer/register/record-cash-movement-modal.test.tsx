@@ -1,4 +1,9 @@
-import type { RecordCashMovementOutcome, SignInUser } from "@purosur/contracts";
+import type {
+  RecordableCashMovementKinds,
+  RecordCashMovementOutcome,
+  SignInUser,
+} from "@purosur/contracts";
+import type { AuthorizablePermissionKey, CashMovementKind } from "@purosur/domain";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
@@ -21,10 +26,29 @@ const AUTHORIZERS: SignInUser[] = [
   { id: "u2", first_name: "Grace" },
 ];
 const RECORDED: RecordCashMovementOutcome = { kind: "recorded", authorized_by: null };
+const PERMISSION_OF_KIND: Record<CashMovementKind, AuthorizablePermissionKey> = {
+  CASH_IN: "record_cash_in",
+  CASH_OUT: "record_cash_expense",
+  WITHDRAWAL: "withdraw_cash",
+};
+
+function kindsLacking(lacking: CashMovementKind[]): RecordableCashMovementKinds {
+  const needed = (kind: CashMovementKind) => ({
+    permission: PERMISSION_OF_KIND[kind],
+    authorization_required: lacking.includes(kind),
+  });
+  return {
+    CASH_IN: needed("CASH_IN"),
+    CASH_OUT: needed("CASH_OUT"),
+    WITHDRAWAL: needed("WITHDRAWAL"),
+  };
+}
 
 type Props = {
   open?: boolean;
   person?: SignedInPerson;
+  lacking?: CashMovementKind[];
+  loadKinds?: () => Promise<RecordableCashMovementKinds | null | "unavailable">;
   registerName?: string | null;
   expectedCash?: number;
   outcome?: RecordCashMovementOutcome | Promise<RecordCashMovementOutcome>;
@@ -38,6 +62,7 @@ async function renderModal(props: Props = {}) {
     props.recordCashMovement ?? (async () => await (props.outcome ?? RECORDED)),
   );
   const requested: string[] = [];
+  const loadKinds = vi.fn(props.loadKinds ?? (async () => kindsLacking(props.lacking ?? [])));
   const loadAuthorizers = async (permission: string) => {
     requested.push(permission);
     return AUTHORIZERS;
@@ -51,13 +76,14 @@ async function renderModal(props: Props = {}) {
       registerName={props.registerName === undefined ? "Caja 1" : props.registerName}
       openedAt="2026-09-30T15:05:00.000Z"
       {...(props.expectedCash === undefined ? {} : { expectedCash: props.expectedCash })}
+      loadKinds={loadKinds}
       loadAuthorizers={loadAuthorizers}
       recordCashMovement={recordCashMovement}
       onClose={onClose}
       onRecorded={onRecorded}
     />,
   );
-  return { screen, recordCashMovement, requested, onClose, onRecorded };
+  return { screen, recordCashMovement, requested, loadKinds, onClose, onRecorded };
 }
 
 type Screen = Awaited<ReturnType<typeof renderModal>>["screen"];
@@ -147,7 +173,7 @@ describe("RecordCashMovementModal", () => {
     await expect.element(screen.getByText(/en la caja antes de/)).not.toBeInTheDocument();
   });
 
-  it("records the typed amount and the trimmed reason, then reports it", async () => {
+  it("records the typed amount and the reason as typed, then reports it", async () => {
     const { screen, recordCashMovement, onRecorded } = await renderModal();
     await choose(screen, "Gasto");
     await fill(screen, "5.000,50", "  Flete  ");
@@ -157,7 +183,7 @@ describe("RecordCashMovementModal", () => {
     expect(recordCashMovement).toHaveBeenCalledExactlyOnceWith({
       kind: "CASH_OUT",
       amount: 500_050,
-      reason: "Flete",
+      reason: "  Flete  ",
       authorization: undefined,
     });
     expect(onRecorded).toHaveBeenCalledOnce();
@@ -177,24 +203,28 @@ describe("RecordCashMovementModal", () => {
     expect(recordCashMovement).not.toHaveBeenCalled();
   });
 
-  it.each([["   "], ["x".repeat(201)]])(
-    "refuses the reason %j before recording anything",
-    async (reason) => {
-      const { screen, recordCashMovement } = await renderModal();
-      await fill(screen, "100", reason);
+  it("leaves judging a blank reason to the core", async () => {
+    const { screen, recordCashMovement } = await renderModal({
+      outcome: { kind: "invalid_reason", max_length: 200 },
+    });
+    await fill(screen, "100", "   ");
 
-      await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
+    await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
 
-      await expect
-        .element(screen.getByText("Escribí el motivo (hasta 200 caracteres)."))
-        .toBeVisible();
-      expect(recordCashMovement).not.toHaveBeenCalled();
-    },
-  );
+    await expect
+      .element(screen.getByText("Escribí el motivo (hasta 200 caracteres)."))
+      .toBeVisible();
+    expect(recordCashMovement).toHaveBeenCalledExactlyOnceWith({
+      kind: "CASH_IN",
+      amount: 10_000,
+      reason: "   ",
+      authorization: undefined,
+    });
+  });
 
   it.each([
     [{ kind: "invalid_amount" }, "Ingresá un importe válido, por ejemplo 5.000,00."],
-    [{ kind: "invalid_reason" }, "Escribí el motivo (hasta 200 caracteres)."],
+    [{ kind: "invalid_reason", max_length: 150 }, "Escribí el motivo (hasta 150 caracteres)."],
   ] as const)("shows the core's refusal %j beside its field", async (outcome, message) => {
     const { screen, onRecorded } = await renderModal({ outcome });
     await fill(screen, "100", "Cambio");
@@ -269,26 +299,19 @@ describe("RecordCashMovementModal", () => {
     await expect.element(screen.getByText("Ingresá el importe.")).not.toBeInTheDocument();
   });
 
-  it("keeps a field's message while its edited value is still invalid and clears it once it is valid", async () => {
+  it("keeps the amount's message while its edited value is still invalid and clears it once it is valid", async () => {
     const { screen } = await renderModal();
-    await fill(screen, "abc", "");
+    await fill(screen, "abc", "Cambio");
     await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
     const amount = screen.getByRole("textbox", { name: "Importe" });
-    const reason = screen.getByRole("textbox", { name: "Motivo" });
     const invalidAmount = screen.getByText("Ingresá un importe válido, por ejemplo 5.000,00.");
-    const invalidReason = screen.getByText("Escribí el motivo (hasta 200 caracteres).");
     await expect.element(invalidAmount).toBeVisible();
-    await expect.element(invalidReason).toBeVisible();
 
     await userEvent.fill(amount, "abd");
-    await userEvent.fill(reason, " ");
     await expect.element(invalidAmount).toBeVisible();
-    await expect.element(invalidReason).toBeVisible();
 
     await userEvent.fill(amount, "100");
-    await userEvent.fill(reason, "Cambio");
     await expect.element(invalidAmount).not.toBeInTheDocument();
-    await expect.element(invalidReason).not.toBeInTheDocument();
   });
 
   it("says when there is no open session to record into", async () => {
@@ -404,9 +427,89 @@ describe("RecordCashMovementModal", () => {
     expect(recordCashMovement).not.toHaveBeenCalled();
   });
 
+  it("asks no authorizer when the core says none is needed, whatever the person's permission keys say", async () => {
+    const { screen, requested } = await renderModal({ person: WITHOUT_WITHDRAWALS, lacking: [] });
+
+    await choose(screen, "Retiro");
+
+    await expect.element(screen.getByRole("button", { name: "Registrar retiro" })).toBeVisible();
+    await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).not.toBeInTheDocument();
+    expect(requested).toEqual([]);
+  });
+
+  it("asks for an authorizer when the core says one is needed, whatever the person's permission keys say", async () => {
+    const { screen, requested } = await renderModal({
+      person: ALL_PERMISSIONS,
+      lacking: ["WITHDRAWAL"],
+    });
+
+    await choose(screen, "Retiro");
+
+    await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Registrar retiro" })).toBeDisabled();
+    expect(requested).toEqual(["withdraw_cash"]);
+  });
+
+  it("asks the core which movements can be recorded, once, when it opens", async () => {
+    const { screen, loadKinds } = await renderModal();
+
+    await expect.element(screen.getByRole("radio", { name: "Ingreso" })).toBeVisible();
+    expect(loadKinds).toHaveBeenCalledOnce();
+  });
+
+  it("offers no movement to record until the core answers, and lets the cashier cancel", async () => {
+    let answer: (kinds: RecordableCashMovementKinds) => void = () => {};
+    const { screen, onClose } = await renderModal({
+      loadKinds: () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    });
+
+    await expect
+      .element(screen.getByRole("dialog", { name: "Registrar un movimiento" }))
+      .toBeVisible();
+    await expect.element(screen.getByRole("radio", { name: "Ingreso" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(onClose).toHaveBeenCalledOnce();
+    answer(kindsLacking([]));
+    await expect.element(screen.getByRole("radio", { name: "Ingreso" })).toBeVisible();
+  });
+
+  it.each([
+    ["is unavailable", async () => "unavailable" as const],
+    ["fails", () => Promise.reject(new Error("the core connection was replaced"))],
+  ])(
+    "says what can be recorded could not be loaded when the core %s, and asks again on retry",
+    async (_case, failing) => {
+      const answers = [failing, async () => kindsLacking([])];
+      const { screen, loadKinds } = await renderModal({
+        loadKinds: () => {
+          const next = answers.shift();
+          if (next === undefined) {
+            throw new Error("no answer left");
+          }
+          return next();
+        },
+      });
+
+      await expect
+        .element(screen.getByText("No se pudieron cargar los movimientos que podés registrar"))
+        .toBeVisible();
+      await expect.element(screen.getByRole("radio", { name: "Ingreso" })).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+      await expect.element(screen.getByRole("radio", { name: "Ingreso" })).toBeVisible();
+      expect(loadKinds).toHaveBeenCalledTimes(2);
+    },
+  );
+
   describe("when the signed-in person lacks the kind's permission", () => {
     it("asks for someone with that permission only for the kind that needs it", async () => {
-      const { screen, requested } = await renderModal({ person: WITHOUT_WITHDRAWALS });
+      const { screen, requested } = await renderModal({
+        person: WITHOUT_WITHDRAWALS,
+        lacking: ["WITHDRAWAL"],
+      });
       await expect
         .element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO"))
         .not.toBeInTheDocument();
@@ -422,7 +525,10 @@ describe("RecordCashMovementModal", () => {
 
     it("asks again for the new kind's permission after the kind changes", async () => {
       const lacksBoth: SignedInPerson = { ...ALL_PERMISSIONS, permission_keys: ["record_cash_in"] };
-      const { screen, requested } = await renderModal({ person: lacksBoth });
+      const { screen, requested } = await renderModal({
+        person: lacksBoth,
+        lacking: ["CASH_OUT", "WITHDRAWAL"],
+      });
       await choose(screen, "Gasto");
       await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).toBeVisible();
       await authorizeAs(screen, "Sofía", "1234");
@@ -433,8 +539,29 @@ describe("RecordCashMovementModal", () => {
       expect(requested).toEqual(["record_cash_expense", "withdraw_cash"]);
     });
 
+    it("asks for the authorizers of the permission the core names for the kind", async () => {
+      const { screen, requested } = await renderModal({
+        person: WITHOUT_WITHDRAWALS,
+        loadKinds: async () => ({
+          ...kindsLacking([]),
+          WITHDRAWAL: {
+            permission: "close_anothers_register_session",
+            authorization_required: true,
+          },
+        }),
+      });
+
+      await choose(screen, "Retiro");
+
+      await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).toBeVisible();
+      expect(requested).toEqual(["close_anothers_register_session"]);
+    });
+
     it("keeps the button disabled until someone authorizes, then sends who and their PIN", async () => {
-      const { screen, recordCashMovement } = await renderModal({ person: WITHOUT_WITHDRAWALS });
+      const { screen, recordCashMovement } = await renderModal({
+        person: WITHOUT_WITHDRAWALS,
+        lacking: ["WITHDRAWAL"],
+      });
       await choose(screen, "Retiro");
       await fill(screen, "100", "Fin de turno");
       await expect.element(screen.getByRole("button", { name: "Registrar retiro" })).toBeDisabled();
@@ -453,6 +580,7 @@ describe("RecordCashMovementModal", () => {
     it("shows the PIN refusal and stays open", async () => {
       const { screen, onRecorded } = await renderModal({
         person: WITHOUT_WITHDRAWALS,
+        lacking: ["WITHDRAWAL"],
         outcome: { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 6 },
       });
       await choose(screen, "Retiro");
@@ -468,6 +596,7 @@ describe("RecordCashMovementModal", () => {
     it("says the movement was not recorded when the core is unavailable, not that the PIN failed", async () => {
       const { screen, onRecorded } = await renderModal({
         person: WITHOUT_WITHDRAWALS,
+        lacking: ["WITHDRAWAL"],
         outcome: { kind: "unavailable" },
       });
       await choose(screen, "Retiro");
@@ -486,6 +615,7 @@ describe("RecordCashMovementModal", () => {
     it("says the authorizer cannot authorize the movement when the core refuses their permission", async () => {
       const { screen, onRecorded } = await renderModal({
         person: WITHOUT_WITHDRAWALS,
+        lacking: ["WITHDRAWAL"],
         outcome: { kind: "lacks_permission" },
       });
       await choose(screen, "Retiro");

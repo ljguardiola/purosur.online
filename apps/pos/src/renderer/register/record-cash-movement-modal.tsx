@@ -1,10 +1,15 @@
-import type { RecordCashMovementOutcome, SignInUser } from "@purosur/contracts";
-import { cashMovementPermission } from "@purosur/contracts";
+import type {
+  RecordableCashMovementKinds,
+  RecordCashMovementOutcome,
+  SignInUser,
+} from "@purosur/contracts";
 import type { AuthorizablePermissionKey, CashMovementKind } from "@purosur/domain";
 import {
   Button,
   formatCents,
   InlineNotice,
+  LoadFailure,
+  LoadingPlaceholder,
   Modal,
   OptionCardGroup,
   useRequestForm,
@@ -21,13 +26,17 @@ import {
   cashMovementRequestFrom,
   EMPTY_CASH_MOVEMENT_FORM,
   INVALID_AMOUNT_MESSAGE,
-  INVALID_REASON_MESSAGE,
   recordCashMovementFormRequestSchema,
 } from "./cash-movement-form";
 import { CASH_MOVEMENT_ICONS } from "./cash-movement-icons";
+import { useCashMovementKindsQuery } from "./register-queries";
 
 const NO_OPEN_SESSION_MESSAGE = "No hay una caja abierta.";
 const FAILED_MESSAGE = "No se pudo registrar el movimiento. Probá de nuevo.";
+
+function invalidReasonMessage(maxLength: number): string {
+  return `Escribí el motivo (hasta ${maxLength} caracteres).`;
+}
 
 type KindPresentation = {
   submit: string;
@@ -85,6 +94,7 @@ export type RecordCashMovementModalProps = {
   registerName: string | null;
   openedAt: string;
   expectedCash?: number;
+  loadKinds: () => Promise<RecordableCashMovementKinds | null | "unavailable">;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   recordCashMovement: (input: CashMovementInput) => Promise<RecordCashMovementOutcome>;
   onClose: () => void;
@@ -92,6 +102,7 @@ export type RecordCashMovementModalProps = {
 };
 
 function MovementModal({
+  kinds,
   person,
   registerName,
   openedAt,
@@ -100,15 +111,17 @@ function MovementModal({
   recordCashMovement,
   onClose,
   onRecorded,
-}: Omit<RecordCashMovementModalProps, "open">) {
+}: Omit<RecordCashMovementModalProps, "open" | "loadKinds"> & {
+  kinds: RecordableCashMovementKinds;
+}) {
   const [refusedExpectedCash, setRefusedExpectedCash] = useState<number>();
   const expectedCash = refusedExpectedCash ?? givenExpectedCash;
   const [notice, setNotice] = useState<string>();
   const { form, submit, submitting, values, clearFieldError } = useRequestForm({
     defaultValues: EMPTY_CASH_MOVEMENT_FORM,
     request: { schema: recordCashMovementFormRequestSchema, from: cashMovementRequestFrom },
-    fields: { kind: null, amount: "amount", reason: "reason" },
-    messages: { amount: amountMessage, reason: INVALID_REASON_MESSAGE },
+    fields: { kind: null, amount: "amount", reason: null },
+    messages: { amount: amountMessage },
     onSubmit: async (request, { showFieldError }) => {
       const outcome = await recordCashMovement({
         ...request,
@@ -134,7 +147,7 @@ function MovementModal({
           );
           break;
         case "invalid_reason":
-          showFieldError("reason", INVALID_REASON_MESSAGE);
+          showFieldError("reason", invalidReasonMessage(outcome.max_length));
           break;
         case "no_open_session":
           setNotice(NO_OPEN_SESSION_MESSAGE);
@@ -161,7 +174,8 @@ function MovementModal({
   const { kind } = values;
   const authorization = useAuthorization({
     person,
-    permission: cashMovementPermission(kind),
+    permission: kinds[kind].permission,
+    required: kinds[kind].authorization_required,
     loadAuthorizers,
   });
   const presentation = PRESENTATION[kind];
@@ -176,6 +190,7 @@ function MovementModal({
       return;
     }
     setNotice(undefined);
+    clearFieldError("reason");
     void submit();
   }
 
@@ -268,6 +283,47 @@ function MovementModal({
   );
 }
 
+function MovementModalWhenKindsAreKnown({
+  loadKinds,
+  ...props
+}: Omit<RecordCashMovementModalProps, "open">) {
+  const kinds = useCashMovementKindsQuery(props.person.user_id, loadKinds);
+  if (kinds.status === "loaded") {
+    return <MovementModal {...props} kinds={kinds.value} />;
+  }
+  return (
+    <Modal
+      open
+      onOpenChange={(next) => {
+        if (!next) {
+          props.onClose();
+        }
+      }}
+      width="standard"
+      tone="info"
+      icon={CASH_MOVEMENT_ICONS.CASH_IN}
+      context={eyebrowText(props.registerName, props.openedAt)}
+      title="Registrar un movimiento"
+      footer={
+        <Button variant="secondary" size="large" icon={<X />} onPress={props.onClose}>
+          Cancelar
+        </Button>
+      }
+    >
+      {kinds.status === "failed" ? (
+        <LoadFailure
+          icon={<TriangleAlert />}
+          title="No se pudieron cargar los movimientos que podés registrar"
+          description="Volvé a intentarlo en unos segundos."
+          onRetry={kinds.retry}
+        />
+      ) : (
+        <LoadingPlaceholder variant="form" fields={3} />
+      )}
+    </Modal>
+  );
+}
+
 export function RecordCashMovementModal({ open, ...props }: RecordCashMovementModalProps) {
-  return open ? <MovementModal {...props} /> : null;
+  return open ? <MovementModalWhenKindsAreKnown {...props} /> : null;
 }

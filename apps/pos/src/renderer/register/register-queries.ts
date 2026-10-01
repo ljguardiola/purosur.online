@@ -1,4 +1,9 @@
-import type { CashBalance, ListedCashMovement, OpenCashSession } from "@purosur/contracts";
+import type {
+  CashBalance,
+  ListedCashMovement,
+  OpenCashSession,
+  RecordableCashMovementKinds,
+} from "@purosur/contracts";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { CoreData } from "../platform/use-core-query";
 import { coreQueryOptions, useCoreQuery } from "../platform/use-core-query";
@@ -15,13 +20,14 @@ export const registerKeys = {
   registerName: [...registerKey, "register-name"] as const,
   cashBalance: (sessionId: string) => [...cashKey, sessionId, "balance"] as const,
   cashMovements: (sessionId: string) => [...cashKey, sessionId, "movements"] as const,
+  cashMovementKinds: (userId: string) => [...registerKey, "cash-movement-kinds", userId] as const,
 };
 
 const CASH_SESSION_REREAD_MS = 5000;
 
 const UNKNOWN_SESSION: CashSessionState = { status: "unknown" };
 
-function onlyWithOpenSession<T>(data: CoreData<T | null>): CoreData<T> {
+function answeredOrLoading<T>(data: CoreData<T | null>): CoreData<T> {
   if (data.status !== "loaded") {
     return data;
   }
@@ -74,14 +80,21 @@ export function useCashBalanceQuery(
   sessionId: string,
   read: () => Promise<CashBalance | null | "unavailable">,
 ): CoreData<CashBalance> {
-  return onlyWithOpenSession(useCoreQuery({ queryKey: registerKeys.cashBalance(sessionId), read }));
+  return answeredOrLoading(useCoreQuery({ queryKey: registerKeys.cashBalance(sessionId), read }));
 }
 
 export function useCashMovementsQuery(
   sessionId: string,
   read: () => Promise<ListedCashMovement[] | null | "unavailable">,
 ): CoreData<ListedCashMovement[]> {
-  return onlyWithOpenSession(
-    useCoreQuery({ queryKey: registerKeys.cashMovements(sessionId), read }),
+  return answeredOrLoading(useCoreQuery({ queryKey: registerKeys.cashMovements(sessionId), read }));
+}
+
+export function useCashMovementKindsQuery(
+  userId: string,
+  read: () => Promise<RecordableCashMovementKinds | null | "unavailable">,
+): CoreData<RecordableCashMovementKinds> {
+  return answeredOrLoading(
+    useCoreQuery({ queryKey: registerKeys.cashMovementKinds(userId), read }),
   );
 }

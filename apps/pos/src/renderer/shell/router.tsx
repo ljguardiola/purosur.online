@@ -3,6 +3,7 @@ import type {
   Authorization,
   CancelSaleOutcome,
   CashBalance,
+  CashChargeAnswer,
   ChangeLineQuantityOutcome,
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
@@ -15,6 +16,7 @@ import type {
   ListedCashMovement,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
+  RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RemoveSaleLineOutcome,
   ScanProductOutcome,
@@ -88,6 +90,7 @@ export interface RouterContext {
   identifyLockedCloser: (closer: Authorization) => Promise<IdentifyLockedCloserOutcome>;
   cashBalance: () => Promise<CashBalance | null | "unavailable">;
   cashMovements: () => Promise<ListedCashMovement[] | null | "unavailable">;
+  cashMovementKinds: () => Promise<RecordableCashMovementKinds | null | "unavailable">;
   recordCashMovement: (input: CashMovementInput) => Promise<RecordCashMovementOutcome>;
   redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
   signInLookup: (email: string) => Promise<SignInLookupOutcome>;
@@ -95,6 +98,7 @@ export interface RouterContext {
   firstSignIn: (userId: string, pin: string) => Promise<SignInOutcome>;
   currentSale: () => Promise<CurrentSaleAnswer>;
   scanProduct: (code: string) => Promise<ScanProductOutcome>;
+  cashCharge: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   searchProducts: (query: string) => Promise<SearchProductsOutcome>;
   addProduct: (productId: string) => Promise<AddProductOutcome>;
@@ -275,7 +279,7 @@ const chargeRoute = createRoute({
     return { id, person };
   },
   component: function ChargeRoute() {
-    const { id, person, signOut, currentSale, chargeSaleInCash, refreshCashSession } =
+    const { id, person, signOut, currentSale, cashCharge, chargeSaleInCash, refreshCashSession } =
       chargeRoute.useRouteContext();
     const registerName = useRegisterName();
     return (
@@ -285,6 +289,7 @@ const chargeRoute = createRoute({
         registerName={registerName}
         lock={signOut}
         currentSale={currentSale}
+        cashCharge={cashCharge}
         chargeSaleInCash={chargeSaleInCash}
         onSessionInvalid={() => void refreshCashSession()}
       />
@@ -307,6 +312,7 @@ const cashRoute = createRoute({
       signOut,
       cashBalance,
       cashMovements,
+      cashMovementKinds,
       authorizers,
       recordCashMovement,
     } = cashRoute.useRouteContext();
@@ -320,6 +326,7 @@ const cashRoute = createRoute({
         lock={signOut}
         loadCashBalance={cashBalance}
         loadCashMovements={cashMovements}
+        loadCashMovementKinds={cashMovementKinds}
         loadAuthorizers={authorizers}
         recordCashMovement={recordCashMovement}
       />
@@ -523,6 +530,7 @@ export function createAppRouter(
     | "identifyLockedCloser"
     | "cashBalance"
     | "cashMovements"
+    | "cashMovementKinds"
     | "recordCashMovement"
     | "authorizers"
     | "redeemPinCode"
@@ -531,6 +539,7 @@ export function createAppRouter(
     | "firstSignIn"
     | "currentSale"
     | "scanProduct"
+    | "cashCharge"
     | "chargeSaleInCash"
     | "searchProducts"
     | "addProduct"

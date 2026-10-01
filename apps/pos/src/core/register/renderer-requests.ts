@@ -3,6 +3,7 @@ import type {
   Authorization,
   CancelSaleOutcome,
   CashBalance,
+  CashChargeAnswer,
   ChangeLineQuantityOutcome,
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
@@ -16,6 +17,7 @@ import type {
   OpenCashSession,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
+  RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RemoveSaleLineOutcome,
   RendererToCoreMessage,
@@ -45,6 +47,7 @@ export interface RendererRequestDeps {
     | ((request: CashMovementRequest) => Promise<RecordCashMovementOutcome>)
     | undefined;
   cashMovements: (() => ListedCashMovement[] | null) | undefined;
+  cashMovementKinds: (() => RecordableCashMovementKinds | null) | undefined;
   scanProduct: ((code: string) => Promise<ScanProductOutcome>) | undefined;
   chargeSaleInCash:
     | ((request: ChargeSaleInCashRequest) => Promise<ChargeSaleInCashOutcome>)
@@ -52,6 +55,7 @@ export interface RendererRequestDeps {
   searchProducts: ((query: string) => Promise<SearchProductsOutcome>) | undefined;
   addProduct: ((productId: string) => Promise<AddProductOutcome>) | undefined;
   currentSale: (() => Promise<CurrentSaleAnswer>) | undefined;
+  cashCharge: ((request: ChargeSaleInCashRequest) => Promise<CashChargeAnswer>) | undefined;
   changeLineQuantity:
     | ((
         lineId: string,
@@ -255,6 +259,17 @@ function readCashMovements(deps: RendererRequestDeps): ListedCashMovement[] | nu
   }
 }
 
+function readCashMovementKinds(
+  deps: RendererRequestDeps,
+): RecordableCashMovementKinds | null | undefined {
+  try {
+    return deps.cashMovementKinds?.();
+  } catch (error) {
+    deps.reportFailure("reading the cash movements the person can record", error);
+    return undefined;
+  }
+}
+
 async function attemptScanProduct(
   deps: RendererRequestDeps,
   code: string,
@@ -321,6 +336,18 @@ async function readCurrentSale(deps: RendererRequestDeps): Promise<CurrentSaleAn
     return await deps.currentSale?.();
   } catch (error) {
     deps.reportFailure("reading the sale in progress", error);
+    return undefined;
+  }
+}
+
+async function readCashCharge(
+  deps: RendererRequestDeps,
+  request: ChargeSaleInCashRequest,
+): Promise<CashChargeAnswer | undefined> {
+  try {
+    return await deps.cashCharge?.(request);
+  } catch (error) {
+    deps.reportFailure("reading what a tendered amount needs", error);
     return undefined;
   }
 }
@@ -413,6 +440,12 @@ export async function answerRendererRequest(
         ? { type: "cash-movements-unavailable", request_id: message.request_id }
         : { type: "cash-movements", request_id: message.request_id, movements };
     }
+    case "cash-movement-kinds-request": {
+      const kinds = readCashMovementKinds(deps);
+      return kinds === undefined
+        ? { type: "cash-movement-kinds-unavailable", request_id: message.request_id }
+        : { type: "cash-movement-kinds", request_id: message.request_id, kinds };
+    }
     case "scan-product":
       return {
         type: "scan-product-result",
@@ -480,6 +513,18 @@ export async function answerRendererRequest(
       return sale === undefined
         ? { type: "sale-unavailable", request_id: message.request_id }
         : { type: "sale", request_id: message.request_id, sale };
+    }
+    case "cash-charge-request": {
+      const charge = await readCashCharge(deps, {
+        saleId: message.sale_id,
+        tendered: message.tendered,
+      });
+      if (charge === "not_permitted") {
+        return { type: "cash-charge-not-permitted", request_id: message.request_id };
+      }
+      return charge === undefined
+        ? { type: "cash-charge-unavailable", request_id: message.request_id }
+        : { type: "cash-charge", request_id: message.request_id, charge };
     }
     case "close-cash-session":
       return {

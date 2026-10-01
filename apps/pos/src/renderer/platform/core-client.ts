@@ -3,6 +3,7 @@ import type {
   Authorization,
   CancelSaleOutcome,
   CashBalance,
+  CashChargeAnswer,
   ChangeLineQuantityOutcome,
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
@@ -16,6 +17,7 @@ import type {
   OpenCashSession,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
+  RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RecordCashMovementRequest,
   RemoveSaleLineOutcome,
@@ -55,6 +57,7 @@ export interface CoreClient {
   cashSession(): Promise<OpenCashSession | null | "unavailable">;
   recordCashMovement(input: CashMovementInput): Promise<RecordCashMovementOutcome>;
   cashMovements(): Promise<ListedCashMovement[] | null | "unavailable">;
+  cashMovementKinds(): Promise<RecordableCashMovementKinds | null | "unavailable">;
   scanProduct(code: string): Promise<ScanProductOutcome>;
   searchProducts(query: string): Promise<SearchProductsOutcome>;
   addProduct(productId: string): Promise<AddProductOutcome>;
@@ -66,6 +69,7 @@ export interface CoreClient {
   ): Promise<ChangeLineQuantityOutcome>;
   removeSaleLine(lineId: string): Promise<RemoveSaleLineOutcome>;
   cancelSale(): Promise<CancelSaleOutcome>;
+  cashCharge(saleId: string, tendered: number): Promise<CashChargeAnswer>;
   chargeSaleInCash(saleId: string, tendered: number): Promise<ChargeSaleInCashOutcome>;
   closeCashSession(
     sessionId: string,
@@ -276,6 +280,17 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         },
       );
     },
+    cashMovementKinds() {
+      return ask(
+        { type: "cash-movement-kinds-request", request_id: deps.newRequestId() },
+        (answer): RecordableCashMovementKinds | null | "unavailable" | undefined => {
+          if (answer.type === "cash-movement-kinds-unavailable") {
+            return "unavailable";
+          }
+          return answer.type === "cash-movement-kinds" ? answer.kinds : undefined;
+        },
+      );
+    },
     scanProduct(code) {
       return ask({ type: "scan-product", request_id: deps.newRequestId(), code }, (answer) =>
         answer.type === "scan-product-result" ? answer.outcome : undefined,
@@ -325,6 +340,20 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         }
         return answer.type === "sale" ? answer.sale : undefined;
       });
+    },
+    cashCharge(saleId, tendered) {
+      return ask(
+        { type: "cash-charge-request", request_id: deps.newRequestId(), sale_id: saleId, tendered },
+        (answer) => {
+          if (answer.type === "cash-charge-unavailable") {
+            throw new Error("the core could not say what the sale needs");
+          }
+          if (answer.type === "cash-charge-not-permitted") {
+            return "not_permitted";
+          }
+          return answer.type === "cash-charge" ? answer.charge : undefined;
+        },
+      );
     },
     chargeSaleInCash(saleId, tendered) {
       return ask(
