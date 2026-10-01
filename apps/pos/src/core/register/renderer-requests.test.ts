@@ -24,7 +24,7 @@ import type {
   SignInLookupOutcome,
   SignInOutcome,
 } from "@purosur/contracts";
-import type { AuthorizablePermissionKey } from "@purosur/domain";
+import { type AuthorizablePermissionKey, PIN_MIN_DIGITS } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import type { CashMovementRequest } from "./cash-movement-requests";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
@@ -223,6 +223,15 @@ describe("answerRendererRequest", () => {
     });
 
     expect(answer).toEqual({ type: "register-name", request_id: "r3", name: "Caja 1" });
+  });
+
+  it("answers the fewest digits a PIN may have", async () => {
+    const answer = await answerRendererRequest(deps(true).deps, {
+      type: "pin-policy-request",
+      request_id: "r5",
+    });
+
+    expect(answer).toEqual({ type: "pin-policy", request_id: "r5", min_digits: PIN_MIN_DIGITS });
   });
 
   it("answers no name while the register holds none", async () => {

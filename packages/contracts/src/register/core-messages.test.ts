@@ -38,6 +38,12 @@ describe("rendererToCoreMessageSchema", () => {
     expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
+  it("accepts a request for the PIN policy", () => {
+    const message = { type: "pin-policy-request", request_id: REQUEST_ID };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
   it("accepts an enrollment with the code as typed", () => {
     const message = { type: "enroll", request_id: REQUEST_ID, code: "p4nx 7kwe 2qrt 6mzd" };
 
@@ -344,6 +350,25 @@ describe("coreToRendererMessageSchema", () => {
 
     expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
   });
+
+  it("accepts the PIN policy with its minimum digits", () => {
+    const message = { type: "pin-policy", request_id: REQUEST_ID, min_digits: 6 };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([0, 6.5, "6", undefined])(
+    "rejects a PIN policy whose minimum digits are %j",
+    (minDigits) => {
+      expect(
+        coreToRendererMessageSchema.safeParse({
+          type: "pin-policy",
+          request_id: REQUEST_ID,
+          min_digits: minDigits,
+        }).success,
+      ).toBe(false);
+    },
+  );
 
   it("rejects a register name that is not text or null", () => {
     expect(

@@ -6,7 +6,12 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { createQueryClient } from "../platform/query-client";
 import type { CoreData } from "../platform/use-core-query";
-import { useAuthorizersQuery, useResetAuthorizers, useSignInUsersQuery } from "./access-queries";
+import {
+  useAuthorizersQuery,
+  usePinPolicyQuery,
+  useResetAuthorizers,
+  useSignInUsersQuery,
+} from "./access-queries";
 
 const ADA: SignInUser = { id: "u1", first_name: "Ada" };
 const GRACE: SignInUser = { id: "u2", first_name: "Grace" };
@@ -44,7 +49,28 @@ function AuthorizersProbe({ permission, read, enabled = true }: AuthorizersProbe
   );
 }
 
+function PinPolicyProbe({ read }: { read: () => Promise<{ min_digits: number }> }) {
+  const policy = usePinPolicyQuery(read);
+  return <p>{policy.status === "loaded" ? `${policy.value.min_digits} digits` : policy.status}</p>;
+}
+
 describe("access queries", () => {
+  it("hold the PIN policy", async () => {
+    const screen = await renderWithClient(
+      <PinPolicyProbe read={async () => ({ min_digits: 6 })} />,
+    );
+
+    await expect.element(screen.getByText("6 digits")).toBeVisible();
+  });
+
+  it("fail when the PIN policy cannot be read", async () => {
+    const screen = await renderWithClient(
+      <PinPolicyProbe read={() => Promise.reject(new Error("the connection was replaced"))} />,
+    );
+
+    await expect.element(screen.getByText("failed")).toBeVisible();
+  });
+
   it("hold the people who can sign in", async () => {
     const screen = await renderWithClient(<UsersProbe read={async () => [ADA, GRACE]} />);
 

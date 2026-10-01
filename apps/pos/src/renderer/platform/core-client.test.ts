@@ -66,6 +66,18 @@ describe("createCoreClient", () => {
     expect(port.posted).toEqual([{ type: "register-name-request", request_id: "request-1" }]);
   });
 
+  it("asks the core for the PIN policy and resolves with it", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.pinPolicy();
+    port.answer({ type: "pin-policy", request_id: "request-1", min_digits: 6 });
+
+    expect(await asked).toEqual({ min_digits: 6 });
+    expect(port.posted).toEqual([{ type: "pin-policy-request", request_id: "request-1" }]);
+  });
+
   it("asks the core for the users who can sign in and resolves with them", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
