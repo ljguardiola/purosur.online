@@ -1,5 +1,5 @@
 import {
-  FICTIONAL_CUIT,
+  FICTIONAL_CERTIFICATE_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
@@ -27,7 +27,7 @@ import { registerIssuerIdentificationEditRoute } from "./issuer-identification-e
 import { registerIssuerIdentificationReadRoute } from "./issuer-identification-read-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
-const TEST_AUTHORIZED_CUIT = FICTIONAL_CUIT;
+const TEST_AUTHORIZED_CUIT = FICTIONAL_CERTIFICATE_CUIT;
 const NOON = new Date("2026-01-05T12:00:00.000Z");
 
 let testDatabase: TestDatabase;

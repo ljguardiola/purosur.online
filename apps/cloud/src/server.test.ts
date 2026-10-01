@@ -2,7 +2,7 @@ import { EventEmitter } from "node:events";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
+import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support";
 import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type BuildAppOptions, buildApp as buildRealApp } from "./app.js";
@@ -109,20 +109,20 @@ describe("requireInstallationKeysEncryptionKey", () => {
 describe("requireAuthorizedCuit", () => {
   it("returns the CUIT carried in the certificate's serialNumber, normalized to NN-NNNNNNNN-N", () => {
     expect(requireAuthorizedCuit({ ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE })).toBe(
-      FICTIONAL_CUIT,
+      FICTIONAL_CERTIFICATE_CUIT,
     );
   });
 
   it("accepts the same certificate delivered as a single line with literal \\n sequences", () => {
     expect(requireAuthorizedCuit({ ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE_SINGLE_LINE })).toBe(
-      FICTIONAL_CUIT,
+      FICTIONAL_CERTIFICATE_CUIT,
     );
   });
 
   it("finds the serialNumber inside a multi-valued subject RDN", () => {
     expect(
       requireAuthorizedCuit({ ARCA_CERTIFICATE: ARCA_CERTIFICATE_WITH_MULTI_VALUED_SUBJECT }),
-    ).toBe(FICTIONAL_CUIT);
+    ).toBe(FICTIONAL_CERTIFICATE_CUIT);
   });
 
   it("throws when ARCA_CERTIFICATE is not set", () => {
@@ -637,7 +637,7 @@ describe("startServer", () => {
       issuerIdentification: {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,
-        authorizedCuit: FICTIONAL_CUIT,
+        authorizedCuit: FICTIONAL_CERTIFICATE_CUIT,
       },
       buyerIdentificationThresholds: {
         db: fakeRecovery.db,
@@ -741,7 +741,7 @@ describe("startServer recording the certificate's CUIT", () => {
       recordAuthorizedCuit,
     });
 
-    expect(recordAuthorizedCuit).toHaveBeenCalledWith(db, FICTIONAL_CUIT);
+    expect(recordAuthorizedCuit).toHaveBeenCalledWith(db, FICTIONAL_CERTIFICATE_CUIT);
     expect(steps).toEqual(["recordAuthorizedCuit", "listen"]);
   });
 

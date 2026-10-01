@@ -13,22 +13,22 @@ import {
 const repoRoot = join(dirname(new URL(import.meta.url).pathname), "../..");
 
 test("finds a check-digit-valid CUIT, hyphenated or not, with the line it is on", () => {
-  const source = ['const a = "27-28453196-0";', "", 'const b = "CUIT 20123456786";'].join("\n");
+  const source = ['const a = "20-00000000-1";', "", 'const b = "CUIT 20123456786";'].join("\n");
 
   assert.deepEqual(findCuitsOutside(source, new Set()), [
-    { line: 1, cuit: "27-28453196-0" },
+    { line: 1, cuit: "20-00000000-1" },
     { line: 3, cuit: "20123456786" },
   ]);
 });
 
 test("finds a CUIT glued to a word, as in an identifier or a log line", () => {
-  assert.deepEqual(findCuitsOutside('"cuit_27284531960"', new Set()), [
-    { line: 1, cuit: "27284531960" },
+  assert.deepEqual(findCuitsOutside('"cuit_20000000001"', new Set()), [
+    { line: 1, cuit: "20000000001" },
   ]);
 });
 
 test("ignores a CUIT whose check digit is wrong, and the prefix no check digit makes valid", () => {
-  assert.deepEqual(findCuitsOutside('"27-28453196-1" "20-00026758-0"', new Set()), []);
+  assert.deepEqual(findCuitsOutside('"20-00000000-2" "20-00026758-0"', new Set()), []);
 });
 
 test("ignores eleven digits that do not start with a taxpayer-type prefix", () => {
@@ -38,7 +38,7 @@ test("ignores eleven digits that do not start with a taxpayer-type prefix", () =
 test("ignores a CUIT-shaped run inside a longer number", () => {
   assert.deepEqual(
     findCuitsOutside(
-      '"127284531960" "272845319601" "1-27-28453196-0" "27-28453196-0-1"',
+      '"120000000001" "200000000011" "1-20-00000000-1" "20-00000000-1-1"',
       new Set(),
     ),
     [],
@@ -61,11 +61,11 @@ test("reads the fictional set from every CUIT written in the shared module", () 
 });
 
 test("reports each file and line holding a CUIT outside the fictional set", () => {
-  const files = { "a.test.ts": 'x("20-00000000-1");\ny("27-28453196-0");', "b.ts": "z();" };
+  const files = { "a.test.ts": 'x("20-00000000-1");\ny("23-00000000-0");', "b.ts": "z();" };
 
   assert.deepEqual(
     checkFiles(Object.keys(files), (path) => files[path], new Set(["20000000001"])),
-    ["a.test.ts:2 holds CUIT 27-28453196-0, which is not one of the shared fictional ones"],
+    ["a.test.ts:2 holds CUIT 23-00000000-0, which is not one of the shared fictional ones"],
   );
 });
 

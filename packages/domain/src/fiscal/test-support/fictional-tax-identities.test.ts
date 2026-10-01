@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ANOTHER_FICTIONAL_CUIT,
+  FICTIONAL_CERTIFICATE_CUIT,
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
   FICTIONAL_LEGAL_NAME,
@@ -16,22 +17,35 @@ function checkDigitOf(firstTenDigits: string): number {
   return (11 - (sum % 11)) % 11;
 }
 
+describe.each([FICTIONAL_CUIT, ANOTHER_FICTIONAL_CUIT, FICTIONAL_CERTIFICATE_CUIT])(
+  "the fictional CUIT %s",
+  (cuit) => {
+    const [prefix, body, checkDigit] = cuit.split("-");
+
+    it("has the NN-NNNNNNNN-N shape with a valid check digit, so CUIT validation accepts it", () => {
+      expect(cuit).toMatch(/^\d{2}-\d{8}-\d$/);
+      expect(Number(checkDigit)).toBe(checkDigitOf(`${prefix}${body}`));
+    });
+  },
+);
+
 describe.each([FICTIONAL_CUIT, ANOTHER_FICTIONAL_CUIT])("the fictional CUIT %s", (cuit) => {
-  const [prefix, body, checkDigit] = cuit.split("-");
-
-  it("has the NN-NNNNNNNN-N shape with a valid check digit, so CUIT validation accepts it", () => {
-    expect(cuit).toMatch(/^\d{2}-\d{8}-\d$/);
-    expect(Number(checkDigit)).toBe(checkDigitOf(`${prefix}${body}`));
-  });
-
   it("has an all-zero number, which no taxpayer is issued", () => {
-    expect(body).toBe("00000000");
+    expect(cuit.split("-")[1]).toBe("00000000");
+  });
+});
+
+describe("the CUIT the self-signed test certificate carries", () => {
+  it("has the sequential placeholder number 12345678", () => {
+    expect(FICTIONAL_CERTIFICATE_CUIT.split("-")[1]).toBe("12345678");
   });
 });
 
 describe("the fictional tax identities", () => {
-  it("are two different CUITs", () => {
-    expect(FICTIONAL_CUIT).not.toBe(ANOTHER_FICTIONAL_CUIT);
+  it("are different CUITs", () => {
+    expect(new Set([FICTIONAL_CUIT, ANOTHER_FICTIONAL_CUIT, FICTIONAL_CERTIFICATE_CUIT]).size).toBe(
+      3,
+    );
   });
 
   it("name a legal name that reads as a test placeholder", () => {
