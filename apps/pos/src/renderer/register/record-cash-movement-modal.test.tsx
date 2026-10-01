@@ -2,9 +2,9 @@ import type { RecordCashMovementOutcome, SignInUser } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import type { SignedInPerson } from "../access/signed-in-person";
 import type { CashMovementInput } from "../platform/core-client";
+import { render } from "../shell/test-support/render-with-router";
 import { RecordCashMovementModal } from "./record-cash-movement-modal";
 
 const ALL_PERMISSIONS: SignedInPerson = {

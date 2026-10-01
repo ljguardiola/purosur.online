@@ -6,7 +6,13 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { cruise } from "dependency-cruiser";
 import extractTSConfig from "dependency-cruiser/config-utl/extract-ts-config";
-import config, { CLOUD_ONLY_CONCEPTS } from "../../.dependency-cruiser.mjs";
+import config, {
+  CLOUD_ONLY_CONCEPTS,
+  CONTRACTS_CROSS_CONCEPT_IMPORT_ALLOWLIST,
+  PERSISTENCE_IN_HANDLERS_ALLOWLIST,
+  SCREEN_CROSS_CONCEPT_IMPORT_ALLOWLIST,
+  SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST,
+} from "../../.dependency-cruiser.mjs";
 
 async function writeFixtureFile(root, relativePath, content) {
   const filePath = join(root, relativePath);
@@ -41,7 +47,7 @@ async function makeFixture(t, files) {
   return root;
 }
 
-async function cruiseFixture(root, dirs) {
+async function cruiseFixture(root, dirs, forbidden = config.forbidden) {
   const tsConfigFileName = join(root, config.options.tsConfig.fileName);
   const result = await cruise(
     dirs,
@@ -51,7 +57,7 @@ async function cruiseFixture(root, dirs) {
       baseDir: root,
       outputType: "json",
       validate: true,
-      ruleSet: { forbidden: config.forbidden },
+      ruleSet: { forbidden },
     },
     undefined,
     { tsConfig: extractTSConfig(tsConfigFileName) },
@@ -509,7 +515,7 @@ test("no-concept-cycles flags a cycle crossing concepts and allows one contained
   assert.equal(violationsFor(controlReport, "no-concept-cycles").length, 0);
 });
 
-test("renderer-types-only-from-domain flags a value import from domain and allows a type-only one", async (t) => {
+test("screens-types-only-from-domain flags a value import from domain and allows a type-only one", async (t) => {
   const root = await makeFixture(t, {
     "apps/pos/src/renderer/view.ts": [
       'import { Order } from "../../../../packages/domain/src/sales/index";',
@@ -522,7 +528,7 @@ test("renderer-types-only-from-domain flags a value import from domain and allow
   });
 
   const report = await cruiseFixture(root, ["apps", "packages"]);
-  const violations = violationsFor(report, "renderer-types-only-from-domain");
+  const violations = violationsFor(report, "screens-types-only-from-domain");
 
   assert.equal(violations.length, 1);
   assert.equal(violations[0].to, "packages/domain/src/sales/index.ts");
@@ -543,10 +549,10 @@ test("renderer-types-only-from-domain flags a value import from domain and allow
     ].join("\n"),
   );
   const controlReport = await cruiseFixture(root, ["apps", "packages"]);
-  assert.equal(violationsFor(controlReport, "renderer-types-only-from-domain").length, 0);
+  assert.equal(violationsFor(controlReport, "screens-types-only-from-domain").length, 0);
 });
 
-test("renderer-no-domain-re-exports flags every re-export from domain, even an empty or type-only one, and allows a type import", async (t) => {
+test("screens-no-domain-re-exports flags every re-export from domain, even an empty or type-only one, and allows a type import", async (t) => {
   const root = await makeFixture(t, {
     "apps/pos/src/renderer/empty.ts":
       'export {} from "../../../../packages/domain/src/sales/index";\n',
@@ -562,7 +568,7 @@ test("renderer-no-domain-re-exports flags every re-export from domain, even an e
   });
 
   const report = await cruiseFixture(root, ["apps", "packages"]);
-  const sources = violationsFor(report, "renderer-no-domain-re-exports").map(
+  const sources = violationsFor(report, "screens-no-domain-re-exports").map(
     (violation) => violation.from,
   );
 
@@ -981,4 +987,374 @@ test("cloud-server-never-migrates flags the cloud server reaching the migrate en
   );
   const controlReport = await cruiseFixture(root, ["apps"]);
   assert.equal(violationsFor(controlReport, "cloud-server-never-migrates").length, 0);
+});
+
+test("screens-types-only-from-domain flags a backoffice value import from domain and allows a type-only one", async (t) => {
+  const root = await makeFixture(t, {
+    "apps/backoffice/src/catalog/screen.ts": [
+      'import { Order } from "../../../../packages/domain/src/sales/index";',
+      "export const screen = Order;",
+    ].join("\n"),
+    "packages/domain/src/sales/index.ts": "export const Order = { id: 1 };\n",
+  });
+
+  const report = await cruiseFixture(root, ["apps", "packages"]);
+  const violations = violationsFor(report, "screens-types-only-from-domain");
+
+  assert.equal(violations.length, 1);
+  assert.equal(violations[0].from, "apps/backoffice/src/catalog/screen.ts");
+
+  await writeFixtureFile(
+    root,
+    "apps/backoffice/src/catalog/screen.ts",
+    [
+      'import type { Order } from "../../../../packages/domain/src/sales/index";',
+      "export type Screen = Order;",
+    ].join("\n"),
+  );
+  const controlReport = await cruiseFixture(root, ["apps", "packages"]);
+  assert.equal(violationsFor(controlReport, "screens-types-only-from-domain").length, 0);
+});
+
+test("screens-no-domain-re-exports flags every backoffice re-export from domain and allows a type import", async (t) => {
+  const root = await makeFixture(t, {
+    "apps/backoffice/src/catalog/empty.ts":
+      'export {} from "../../../../packages/domain/src/sales/index";\n',
+    "apps/backoffice/src/catalog/typed.ts":
+      'export type { Order } from "../../../../packages/domain/src/sales/index";\n',
+    "apps/backoffice/src/catalog/view.ts": [
+      'import type { Order } from "../../../../packages/domain/src/sales/index";',
+      "export type View = Order;",
+    ].join("\n"),
+    "packages/domain/src/sales/index.ts": "export type Order = { id: number };\n",
+  });
+
+  const report = await cruiseFixture(root, ["apps", "packages"]);
+  const sources = violationsFor(report, "screens-no-domain-re-exports").map(
+    (violation) => violation.from,
+  );
+
+  assert.deepEqual(sources.toSorted(), [
+    "apps/backoffice/src/catalog/empty.ts",
+    "apps/backoffice/src/catalog/typed.ts",
+  ]);
+});
+
+test("contracts-no-domain-value-re-exports flags named and star re-exports of domain and allows a type-only re-export and an import", async (t) => {
+  const root = await makeFixture(t, {
+    "packages/contracts/src/named.ts": 'export { Order } from "../../domain/src/sales/index";\n',
+    "packages/contracts/src/star.ts": 'export * from "../../domain/src/sales/index";\n',
+    "packages/contracts/src/typed.ts":
+      'export type { Order } from "../../domain/src/sales/index";\n',
+    "packages/contracts/src/shape.ts": [
+      'import { Order } from "../../domain/src/sales/index";',
+      "export const shape = Order;",
+    ].join("\n"),
+    "packages/domain/src/sales/index.ts": "export const Order = { id: 1 };\n",
+  });
+
+  const report = await cruiseFixture(root, ["packages"]);
+  const sources = violationsFor(report, "contracts-no-domain-value-re-exports").map(
+    (violation) => violation.from,
+  );
+
+  assert.deepEqual(sources.toSorted(), [
+    "packages/contracts/src/named.ts",
+    "packages/contracts/src/star.ts",
+  ]);
+});
+
+const DATABASE_SPECIFIERS = ["drizzle-orm", "drizzle-orm/pg-core", "better-sqlite3"];
+
+test("persistence-only-in-adapters flags a cloud route importing the database and allows an adapter and a route calling one", async (t) => {
+  const root = await makeFixture(t, {
+    "apps/cloud/src/catalog/list-route.ts": importEach([
+      ...DATABASE_SPECIFIERS,
+      "../platform/db/schema",
+      "../platform/db/connection",
+    ]),
+    "apps/cloud/src/platform/db/schema.ts": "export const products = {};\n",
+    "apps/cloud/src/platform/db/connection.ts": "export const connection = {};\n",
+    "apps/cloud/src/catalog/drizzle-catalog-store.ts": importEach([
+      "drizzle-orm",
+      "../platform/db/schema",
+    ]),
+  });
+
+  const report = await cruiseFixture(root, ["apps"]);
+  const violations = violationsFor(report, "persistence-only-in-adapters");
+
+  assert.deepEqual(
+    new Set(violations.map((violation) => violation.from)),
+    new Set(["apps/cloud/src/catalog/list-route.ts"]),
+  );
+  assert.deepEqual(
+    violations.map((violation) => violation.to).toSorted(),
+    [
+      ...DATABASE_SPECIFIERS,
+      "apps/cloud/src/platform/db/connection.ts",
+      "apps/cloud/src/platform/db/schema.ts",
+    ].toSorted(),
+  );
+
+  await writeFixtureFile(
+    root,
+    "apps/cloud/src/catalog/list-route.ts",
+    importEach(["./drizzle-catalog-store"]),
+  );
+  const controlReport = await cruiseFixture(root, ["apps"]);
+  assert.equal(violationsFor(controlReport, "persistence-only-in-adapters").length, 0);
+});
+
+test("persistence-only-in-adapters flags a register request handler importing the database and allows an adapter and a handler calling one", async (t) => {
+  const root = await makeFixture(t, {
+    "apps/pos/src/core/register/sale-requests.ts": importEach([
+      ...DATABASE_SPECIFIERS,
+      "../platform/local-database",
+    ]),
+    "apps/pos/src/core/platform/local-database.ts": "export const database = {};\n",
+    "apps/pos/src/core/register/sqlite-sale-store.ts": importEach([
+      "better-sqlite3",
+      "../platform/local-database",
+    ]),
+  });
+
+  const report = await cruiseFixture(root, ["apps"]);
+  const violations = violationsFor(report, "persistence-only-in-adapters");
+
+  assert.deepEqual(
+    violations.map((violation) => violation.to).toSorted(),
+    [...DATABASE_SPECIFIERS, "apps/pos/src/core/platform/local-database.ts"].toSorted(),
+  );
+
+  await writeFixtureFile(
+    root,
+    "apps/pos/src/core/register/sale-requests.ts",
+    importEach(["./sqlite-sale-store"]),
+  );
+  const controlReport = await cruiseFixture(root, ["apps"]);
+  assert.equal(violationsFor(controlReport, "persistence-only-in-adapters").length, 0);
+});
+
+test("screens-no-cross-concept-imports flags a backoffice concept importing another concept and allows its own folder, shell, platform and help", async (t) => {
+  const root = await makeFixture(t, {
+    "apps/backoffice/src/catalog/products-screen.tsx": importEach([
+      "../pricing/money",
+      "../pricing/prices/price-form",
+      "./brand-name",
+      "./forms/product-form",
+      "../shell/layout",
+      "../platform/http",
+      "../help/manual",
+    ]),
+    "apps/backoffice/src/pricing/money.ts": "export const money = {};\n",
+    "apps/backoffice/src/pricing/prices/price-form.ts": "export const priceForm = {};\n",
+    "apps/backoffice/src/catalog/brand-name.ts": "export const brandName = {};\n",
+    "apps/backoffice/src/catalog/forms/product-form.ts": "export const productForm = {};\n",
+    "apps/backoffice/src/shell/layout.ts": importEach(["../catalog/brand-name"]),
+    "apps/backoffice/src/platform/http.ts": importEach(["../pricing/money"]),
+    "apps/backoffice/src/help/manual.ts": importEach(["../stock/count-moment"]),
+    "apps/backoffice/src/stock/count-moment.ts": "export const countMoment = {};\n",
+    "apps/backoffice/src/main.tsx": importEach(["./catalog/brand-name", "./pricing/money"]),
+  });
+
+  const report = await cruiseFixture(root, ["apps"]);
+  const violations = violationsFor(report, "screens-no-cross-concept-imports");
+
+  assert.deepEqual(violations.map((violation) => [violation.from, violation.to]).toSorted(), [
+    ["apps/backoffice/src/catalog/products-screen.tsx", "apps/backoffice/src/pricing/money.ts"],
+    [
+      "apps/backoffice/src/catalog/products-screen.tsx",
+      "apps/backoffice/src/pricing/prices/price-form.ts",
+    ],
+  ]);
+
+  await writeFixtureFile(
+    root,
+    "apps/backoffice/src/catalog/products-screen.tsx",
+    importEach(["./brand-name", "../platform/http"]),
+  );
+  const controlReport = await cruiseFixture(root, ["apps"]);
+  assert.equal(violationsFor(controlReport, "screens-no-cross-concept-imports").length, 0);
+});
+
+test("screens-no-cross-concept-imports flags a register renderer concept importing another concept and allows its own folder, shell and platform", async (t) => {
+  const root = await makeFixture(t, {
+    "apps/pos/src/renderer/sales/checkout-screen.tsx": importEach([
+      "../register/session",
+      "./cart",
+      "../shell/layout",
+      "../platform/core-client",
+    ]),
+    "apps/pos/src/renderer/register/session.ts": "export const session = {};\n",
+    "apps/pos/src/renderer/sales/cart.ts": "export const cart = {};\n",
+    "apps/pos/src/renderer/shell/layout.ts": importEach(["../sales/cart"]),
+    "apps/pos/src/renderer/platform/core-client.ts": importEach(["../register/session"]),
+    "apps/pos/src/renderer/main.tsx": importEach(["./sales/cart", "./register/session"]),
+    "apps/pos/src/core/sales/sale-requests.ts": importEach(["../register/session"]),
+    "apps/pos/src/core/register/session.ts": "export const session = {};\n",
+  });
+
+  const report = await cruiseFixture(root, ["apps"]);
+  const violations = violationsFor(report, "screens-no-cross-concept-imports");
+
+  assert.deepEqual(
+    violations.map((violation) => [violation.from, violation.to]),
+    [
+      [
+        "apps/pos/src/renderer/sales/checkout-screen.tsx",
+        "apps/pos/src/renderer/register/session.ts",
+      ],
+    ],
+  );
+});
+
+test("contracts-no-cross-concept-imports flags a concept importing another concept and allows its own folder and shared", async (t) => {
+  const root = await makeFixture(t, {
+    "packages/contracts/src/catalog/product.ts": importEach([
+      "../pricing/price",
+      "../pricing/prices/price-line",
+      "./brand",
+      "./brands/brand-line",
+      "../shared/index",
+    ]),
+    "packages/contracts/src/pricing/price.ts": "export const price = {};\n",
+    "packages/contracts/src/pricing/prices/price-line.ts": "export const priceLine = {};\n",
+    "packages/contracts/src/catalog/brand.ts": "export const brand = {};\n",
+    "packages/contracts/src/catalog/brands/brand-line.ts": "export const brandLine = {};\n",
+    "packages/contracts/src/shared/index.ts": importEach(["../catalog/brand"]),
+    "packages/contracts/src/index.ts": importEach(["./catalog/product", "./pricing/price"]),
+  });
+
+  const report = await cruiseFixture(root, ["packages"]);
+  const violations = violationsFor(report, "contracts-no-cross-concept-imports");
+
+  assert.deepEqual(violations.map((violation) => [violation.from, violation.to]).toSorted(), [
+    ["packages/contracts/src/catalog/product.ts", "packages/contracts/src/pricing/price.ts"],
+    [
+      "packages/contracts/src/catalog/product.ts",
+      "packages/contracts/src/pricing/prices/price-line.ts",
+    ],
+  ]);
+
+  await writeFixtureFile(
+    root,
+    "packages/contracts/src/catalog/product.ts",
+    importEach(["./brand", "../shared/index"]),
+  );
+  const controlReport = await cruiseFixture(root, ["packages"]);
+  assert.equal(violationsFor(controlReport, "contracts-no-cross-concept-imports").length, 0);
+});
+
+test("contracts-concept-not-root flags a concept or shared importing a contracts root file and allows the root importing a concept", async (t) => {
+  const root = await makeFixture(t, {
+    "packages/contracts/src/sales/sale.ts": importEach(["../index", "../bridge", "./line"]),
+    "packages/contracts/src/sales/line.ts": "export const line = {};\n",
+    "packages/contracts/src/shared/index.ts": importEach(["../index"]),
+    "packages/contracts/src/bridge.ts": importEach(["./pricing/price-list"]),
+    "packages/contracts/src/pricing/price-list.ts": "export const priceList = {};\n",
+    "packages/contracts/src/index.ts": importEach(["./pricing/price-list"]),
+  });
+
+  const report = await cruiseFixture(root, ["packages"]);
+  const violations = violationsFor(report, "contracts-concept-not-root");
+
+  assert.deepEqual(violations.map((violation) => [violation.from, violation.to]).toSorted(), [
+    ["packages/contracts/src/sales/sale.ts", "packages/contracts/src/bridge.ts"],
+    ["packages/contracts/src/sales/sale.ts", "packages/contracts/src/index.ts"],
+    ["packages/contracts/src/shared/index.ts", "packages/contracts/src/index.ts"],
+  ]);
+});
+
+function withoutAllowlist(ruleName) {
+  const rule = config.forbidden.find((candidate) => candidate.name === ruleName);
+  const { pathNot: _allowlisted, ...from } = rule.from;
+  return { ...rule, from };
+}
+
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../..");
+
+const ALLOWLISTED_RULES = [
+  ["persistence-only-in-adapters", PERSISTENCE_IN_HANDLERS_ALLOWLIST],
+  ["screens-types-only-from-domain", SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST],
+  ["screens-no-cross-concept-imports", SCREEN_CROSS_CONCEPT_IMPORT_ALLOWLIST],
+  ["contracts-no-cross-concept-imports", CONTRACTS_CROSS_CONCEPT_IMPORT_ALLOWLIST],
+];
+
+test("every allowlist is sorted and lists only existing files", async () => {
+  for (const [ruleName, allowlist] of ALLOWLISTED_RULES) {
+    assert.deepEqual(allowlist, allowlist.toSorted(), ruleName);
+    for (const file of allowlist) {
+      await stat(join(repoRoot, file));
+    }
+  }
+});
+
+test("every allowlisted file still breaks the rule it is excluded from", async () => {
+  const report = await cruiseFixture(
+    repoRoot,
+    ["packages", "apps"],
+    ALLOWLISTED_RULES.map(([ruleName]) => withoutAllowlist(ruleName)),
+  );
+
+  for (const [ruleName, allowlist] of ALLOWLISTED_RULES) {
+    const violators = new Set(violationsFor(report, ruleName).map((violation) => violation.from));
+    assert.deepEqual([...violators].toSorted(), allowlist, ruleName);
+  }
+});
+
+test("persistence-only-in-adapters allows type-only database imports and flags value imports", async (t) => {
+  const root = await makeFixture(t, {
+    "apps/cloud/src/catalog/typed-route.ts": [
+      'import type { SQL } from "drizzle-orm";',
+      'import type { products } from "../platform/db/schema";',
+      "export type Wiring = [SQL, typeof products];",
+    ].join("\n"),
+    "apps/cloud/src/catalog/valued-route.ts": [
+      'import { eq } from "drizzle-orm";',
+      'import { products } from "../platform/db/schema";',
+      "export const query = [eq, products];",
+    ].join("\n"),
+    "apps/cloud/src/platform/db/schema.ts": "export const products = {};\n",
+    "apps/pos/src/core/sales/typed-requests.ts": [
+      'import type { LocalDatabase } from "../platform/local-database";',
+      "export type Wiring = LocalDatabase;",
+    ].join("\n"),
+    "apps/pos/src/core/sales/valued-requests.ts": [
+      'import { openLocalDatabase } from "../platform/local-database";',
+      "export const open = openLocalDatabase;",
+    ].join("\n"),
+    "apps/pos/src/core/platform/local-database.ts": [
+      "export type LocalDatabase = object;",
+      "export function openLocalDatabase() {}",
+    ].join("\n"),
+  });
+  await installPnpmPackage(root, "drizzle-orm");
+
+  const report = await cruiseFixture(root, ["apps"]);
+  const sources = violationsFor(report, "persistence-only-in-adapters").map(
+    (violation) => violation.from,
+  );
+
+  assert.deepEqual(
+    new Set(sources),
+    new Set([
+      "apps/cloud/src/catalog/valued-route.ts",
+      "apps/pos/src/core/sales/valued-requests.ts",
+    ]),
+  );
+});
+
+test("persistence-only-in-adapters flags a cloud route importing a Postgres driver", async (t) => {
+  const drivers = ["postgres", "pg", "@electric-sql/pglite"];
+  const root = await makeFixture(t, {
+    "apps/cloud/src/catalog/driver-route.ts": importEach(drivers),
+  });
+
+  const report = await cruiseFixture(root, ["apps"]);
+  const targets = violationsFor(report, "persistence-only-in-adapters").map(
+    (violation) => violation.to,
+  );
+
+  assert.deepEqual(targets.toSorted(), drivers.toSorted());
 });

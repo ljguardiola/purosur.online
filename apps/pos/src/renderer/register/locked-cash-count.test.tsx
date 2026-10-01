@@ -54,6 +54,7 @@ async function renderStep(close?: Close, cancelSale?: CancelSale) {
   const refused: RefusedClose[] = [];
   const screen = await render(
     <LockedCashCount
+      sessionId="s1"
       opener={GRACE}
       closerName="Sofía"
       registerName="Caja 1"

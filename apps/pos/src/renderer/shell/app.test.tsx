@@ -13,6 +13,7 @@ import type {
   SignInOutcome,
 } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { QueryClient } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -311,7 +312,7 @@ describe("App", () => {
     await expect.element(screen.getByText("Caja 1 · Sin sesión abierta")).toBeVisible();
     await expect.element(screen.getByRole("radio", { name: "Ada" })).toBeChecked();
     await expect.element(screen.getByLabelText("PIN")).toHaveValue("12");
-    expect(usersLoads()).toBe(1);
+    await expect.poll(usersLoads).toBe(2);
   });
 
   it("replaces the whole screen with the core-down notice once the core reports it is down", async () => {
@@ -838,6 +839,58 @@ describe("App", () => {
     expect(charges).toEqual([["sale-1", 250_000]]);
   });
 
+  it("shows no line of the sale that was just charged when a new sale starts", async () => {
+    const yerba = {
+      id: "line-1",
+      product_id: "p1",
+      product_name: "Yerba mate 1 kg",
+      quantity: 1,
+      list_unit_price: 238_000,
+      discount_amount: 0,
+      promotion: null,
+      line_total: 238_000,
+    };
+    let reads = 0;
+    const { core } = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      GRACE_SIGNED_IN,
+      { cashSession: async () => GRACE_SESSION },
+      {
+        currentSale: () => {
+          reads += 1;
+          return reads <= 2
+            ? Promise.resolve({ id: "sale-1", lines: [yerba], total: 238_000 })
+            : new Promise(() => {});
+        },
+        chargeSaleInCash: async (saleId, tendered) => ({
+          kind: "completed",
+          sale_id: saleId,
+          total: 238_000,
+          tendered,
+          change: 12_000,
+        }),
+      },
+    );
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await resumeLockedRegister(screen);
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+    await userEvent.click(screen.getByText("Efectivo", { exact: true }));
+    await userEvent.fill(
+      screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
+      "2.500,00",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
+    await expect.element(screen.getByRole("heading", { name: "Entregá el vuelto" })).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "Nueva venta" }));
+
+    await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    await expect.poll(() => reads).toBe(3);
+    await expect.element(screen.getByText("Yerba mate 1 kg")).not.toBeInTheDocument();
+  });
+
   it("goes back to the no-session screen, still signed in, when a scan finds that the cash session is no longer open", async () => {
     const sessions: (OpenCashSession | null)[] = [GRACE_SESSION, null];
     const { core } = coreAnswering(
@@ -964,7 +1017,7 @@ describe("App", () => {
   });
 
   it("keeps asking for the cash session while the core stays up, until it can read it", async () => {
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
     const answers: ("unavailable" | null)[] = ["unavailable", "unavailable", null];
     const { core, cashSessionAsks } = coreAnswering(true, { kind: "enrolled" }, ADA_SIGNED_IN, {
       cashSession: async () => answers.shift() ?? null,
@@ -987,7 +1040,7 @@ describe("App", () => {
   });
 
   it("shows the open cash session locked once a failed read of it succeeds while the core stays up", async () => {
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
     const answers: (OpenCashSession | "unavailable")[] = ["unavailable", GRACE_SESSION];
     const { core } = coreAnswering(true, { kind: "enrolled" }, ADA_SIGNED_IN, {
       cashSession: async () => answers.shift() ?? GRACE_SESSION,
@@ -1002,7 +1055,7 @@ describe("App", () => {
   });
 
   it("does not ask for the cash session again while it could read it", async () => {
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
     const { core, cashSessionAsks } = coreAnswering(true);
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
@@ -1169,15 +1222,25 @@ describe("App", () => {
       cashDrawer: {
         closeCashSession?: CoreClient["closeCashSession"];
         cashSession?: CoreClient["cashSession"];
+        cashBalance?: CoreClient["cashBalance"];
+        cashMovements?: CoreClient["cashMovements"];
+        openOutcome?: OpenCashSessionOutcome;
       } = {},
+      sales: { scanProduct?: CoreClient["scanProduct"] } = {},
     ) {
       await page.viewport(1280, 720);
       onTestFinished(() => page.viewport(414, 896));
-      const fake = coreAnswering(true, { kind: "enrolled" }, GRACE_SIGNED_IN, {
-        cashSession: async () => GRACE_SESSION,
-        cashBalance: async () => BALANCE,
-        ...cashDrawer,
-      });
+      const fake = coreAnswering(
+        true,
+        { kind: "enrolled" },
+        GRACE_SIGNED_IN,
+        {
+          cashSession: async () => GRACE_SESSION,
+          cashBalance: async () => BALANCE,
+          ...cashDrawer,
+        },
+        sales,
+      );
       const screen = await render(<App core={fake.core} />);
       postCoreStatus("up");
       await userEvent.type(screen.getByLabelText("PIN"), "1234");
@@ -1205,6 +1268,108 @@ describe("App", () => {
       await expect.element(screen.getByText("$ 46.200,00", { exact: true })).toBeVisible();
       await expect
         .element(screen.getByRole("heading", { name: SESSION_TITLE }))
+        .not.toBeInTheDocument();
+    });
+
+    it("reads only what a pull can change when a pull happens while the cash screen is shown", async () => {
+      const cashBalance = vi
+        .fn<CoreClient["cashBalance"]>()
+        .mockResolvedValueOnce(BALANCE)
+        .mockResolvedValue({ ...BALANCE, expected: 5_000_000 });
+      const cashMovements = vi.fn<CoreClient["cashMovements"]>().mockResolvedValue([]);
+      const { screen, finishPull } = await resumeGracesSession({ cashBalance, cashMovements });
+      await userEvent.click(screen.getByRole("link", { name: "Caja" }));
+      await expect.element(screen.getByText("$ 46.200,00", { exact: true })).toBeVisible();
+
+      finishPull("Caja 1");
+
+      await expect.element(screen.getByText(/Caja 1 · Sesión abierta/)).toBeVisible();
+      expect(cashBalance).toHaveBeenCalledTimes(1);
+      expect(cashMovements).toHaveBeenCalledTimes(1);
+    });
+
+    it("lands on the no-session screen when an older read of the cash session answers after the session is closed", async () => {
+      const clients: QueryClient[] = [];
+      const mount = QueryClient.prototype.mount;
+      const spy = vi.spyOn(QueryClient.prototype, "mount").mockImplementation(function (
+        this: QueryClient,
+      ) {
+        clients.push(this);
+        return mount.call(this);
+      });
+      onTestFinished(() => spy.mockRestore());
+      let answerLate: (session: OpenCashSession) => void = () => {};
+      let reads = 0;
+      const { screen } = await resumeGracesSession(
+        {
+          cashSession: () => {
+            reads += 1;
+            return reads === 1
+              ? Promise.resolve(GRACE_SESSION)
+              : new Promise((resolve) => {
+                  answerLate = resolve;
+                });
+          },
+          closeCashSession: async () => ({
+            kind: "closed",
+            session: {
+              id: "s1",
+              expected_cash: 4_620_000,
+              counted_cash: 4_580_000,
+              difference: -40_000,
+            },
+          }),
+        },
+        { scanProduct: async () => ({ kind: "no_open_session" }) },
+      );
+      await screen.getByRole("combobox", { name: "Producto" }).fill("7790001");
+      await userEvent.keyboard("{Enter}");
+      await expect.poll(() => reads).toBe(2);
+      await startClosing(screen);
+      await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
+      await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
+
+      answerLate(GRACE_SESSION);
+      await expect.poll(() => clients.every((client) => client.isFetching() === 0)).toBe(true);
+
+      expect(clients[0]?.getQueryData(["register", "cash-session"])).toEqual({ status: "none" });
+      await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
+    });
+
+    it("starts the cash screen of a new session from loading, not from the balance of the one before", async () => {
+      const cashBalance = vi
+        .fn<CoreClient["cashBalance"]>()
+        .mockResolvedValueOnce(BALANCE)
+        .mockImplementation(() => new Promise(() => {}));
+      const { screen } = await resumeGracesSession({
+        cashBalance,
+        closeCashSession: async () => ({
+          kind: "closed",
+          session: {
+            id: "s1",
+            expected_cash: 4_620_000,
+            counted_cash: 4_580_000,
+            difference: -40_000,
+          },
+        }),
+        openOutcome: {
+          kind: "opened",
+          session: { id: "s2", opened_at: "2026-09-30T15:00:00.000Z", opening_float: 10_000 },
+        },
+      });
+      await startClosing(screen);
+      await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
+      await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
+      await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
+      await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "100");
+      await userEvent.click(screen.getByRole("button", { name: "Abrir la caja" }));
+      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+
+      await userEvent.click(screen.getByRole("link", { name: "Caja" }));
+
+      await expect.element(screen.getByText("EFECTIVO ESPERADO AHORA")).toBeVisible();
+      await expect
+        .element(screen.getByText("$ 46.200,00", { exact: true }))
         .not.toBeInTheDocument();
     });
 
@@ -1483,6 +1648,7 @@ describe("App", () => {
     async function openCashScreen(
       cashDrawer: {
         cashSession?: CoreClient["cashSession"];
+        cashBalance?: CoreClient["cashBalance"];
         cashMovements?: CoreClient["cashMovements"];
         recordCashMovement?: CoreClient["recordCashMovement"];
       } = {},
@@ -1532,7 +1698,11 @@ describe("App", () => {
       await expect.element(screen.getByText("1 movimiento", { exact: true })).toBeVisible();
     });
 
-    it("records a movement through the core and reads the movements again", async () => {
+    it("records a movement through the core and reads the balance and the movements again", async () => {
+      const cashBalance = vi
+        .fn<CoreClient["cashBalance"]>()
+        .mockResolvedValueOnce(BALANCE)
+        .mockResolvedValueOnce({ ...BALANCE, cash_in: 600_000, expected: 5_120_000 });
       const cashMovements = vi
         .fn<CoreClient["cashMovements"]>()
         .mockResolvedValueOnce([OPENING])
@@ -1541,6 +1711,7 @@ describe("App", () => {
           { ...OPENING, id: "m2", type: "CASH_IN", reason: "Cambio", amount: 50_000 },
         ]);
       const { screen, recorded } = await openCashScreen({
+        cashBalance,
         cashMovements,
         recordCashMovement: async () => ({ kind: "recorded", authorized_by: null }),
       });
@@ -1548,6 +1719,7 @@ describe("App", () => {
       await recordCashIn(screen);
 
       await expect.element(screen.getByText("2 movimientos", { exact: true })).toBeVisible();
+      await expect.element(screen.getByText("$ 51.200,00", { exact: true })).toBeVisible();
       expect(recorded).toEqual([{ kind: "CASH_IN", amount: 50_000, reason: "Cambio" }]);
     });
 

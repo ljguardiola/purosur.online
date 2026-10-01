@@ -5,6 +5,7 @@ import type {
   CloseLockedCashSessionOutcome,
   IdentifyLockedCloserOutcome,
 } from "@purosur/contracts";
+import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { SignedInPerson } from "../access/signed-in-person";
@@ -47,6 +48,7 @@ async function renderScreen(
   const close = options.close ?? vi.fn<Close>(async () => ({ kind: "unavailable" }));
   const screen = await render(
     <LockedCloseScreen
+      sessionId="s1"
       opener={GRACE}
       registerName="Caja 1"
       openedAt="2026-09-30T12:02:00.000Z"
@@ -77,6 +79,32 @@ async function closeWith(screen: Screen, typed: string) {
 }
 
 describe("LockedCloseScreen", () => {
+  it("reads the people who can close once, however many times the screen renders", async () => {
+    const loadAuthorizers = vi.fn(async (_permission: AuthorizablePermissionKey) => [
+      { id: "u3", first_name: "Sofía" },
+    ]);
+    const element = () => (
+      <LockedCloseScreen
+        sessionId="s1"
+        opener={GRACE}
+        registerName="Caja 1"
+        openedAt="2026-09-30T12:02:00.000Z"
+        loadCashBalance={async () => BALANCE}
+        loadAuthorizers={(permission) => loadAuthorizers(permission)}
+        identifyLockedCloser={async () => IDENTIFIED}
+        closeLockedCashSession={async () => ({ kind: "unavailable" })}
+        cancelLockedSale={async () => ({ kind: "unavailable" })}
+      />
+    );
+    const screen = await render(element());
+    await expect.element(screen.getByText("Sofía", { exact: true })).toBeVisible();
+
+    await screen.rerender(element());
+
+    await expect.element(screen.getByText("Sofía", { exact: true })).toBeVisible();
+    expect(loadAuthorizers).toHaveBeenCalledOnce();
+  });
+
   it("reads no cash figure until the person who closes is identified", async () => {
     const { screen, loadCashBalance } = await renderScreen();
 

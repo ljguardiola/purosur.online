@@ -1,12 +1,14 @@
 import type { CashBalance, ListedCashMovement } from "@purosur/contracts";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { createRootRouteWithContext, createRoute, RouterProvider } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Component } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
+import { render as renderInPage } from "vitest-browser-react";
 import type { SignedInPerson } from "../access/signed-in-person";
 import { GuardedCashInForm } from "../access/test-support/guarded-cash-in-form";
+import { createQueryClient } from "../platform/query-client";
 import type { CashSessionState } from "./cash-session-state";
 import type { CoreStatus, Enrollment, RouterContext } from "./router";
 import { createRegisterRouter, isSessionScreen, routeFor, routeTree } from "./router";
@@ -80,6 +82,12 @@ const screenFor: Record<
   "/first-sign-in": (screen) => screen.getByRole("heading", { name: FIRST_SIGN_IN_TITLE }),
 };
 
+let queryClient = createQueryClient();
+
+beforeEach(() => {
+  queryClient = createQueryClient();
+});
+
 function contextWith(
   coreStatus: CoreStatus,
   enrollment: Enrollment = "enrolled",
@@ -88,6 +96,7 @@ function contextWith(
   cashSession: CashSessionState = NO_SESSION,
 ): RouterContext {
   return {
+    queryClient,
     coreStatus,
     enrollment,
     person: person ?? undefined,
@@ -137,6 +146,14 @@ function routerAt(
 }
 
 const screenFailure = new Error("screen failed to render");
+
+function render(ui: ReactNode) {
+  return renderInPage(ui, {
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    ),
+  });
+}
 
 class OuterErrorBoundary extends Component<
   { children: ReactNode; onCatch: (error: unknown) => void },
@@ -875,6 +892,47 @@ describe("the register's router", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await expect.element(screen.getByText("Caja 1 · Sesión abierta 09:02")).toBeVisible();
+  });
+
+  it("shows the register's name from the first render of a session screen", async () => {
+    let resolveName: (name: string | null) => void = () => {};
+    const name = {
+      promise: new Promise<string | null>((resolve) => {
+        resolveName = resolve;
+      }),
+      resolve: (value: string | null) => resolveName(value),
+    };
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION),
+        registerName: () => name.promise,
+      },
+      "/session",
+    );
+
+    const screen = await render(<RouterProvider router={router} />);
+    await expect
+      .element(screen.getByRole("heading", { name: "Venta en curso" }))
+      .not.toBeInTheDocument();
+    name.resolve("Caja 1");
+
+    await expect.element(screen.getByRole("heading", { name: "Venta en curso" })).toBeVisible();
+    expect(screen.container.textContent).toContain("Caja 1 · Sesión abierta 09:02");
+  });
+
+  it("reads the register's name once on the first visit to a session screen", async () => {
+    const registerName = vi.fn(async () => "Caja 1");
+    const router = createRegisterRouter(
+      routeTree,
+      { ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION), registerName },
+      "/session",
+    );
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screen.getByText("Caja 1 · Sesión abierta 09:02")).toBeVisible();
+    expect(registerName).toHaveBeenCalledOnce();
   });
 
   it("opens the cash session for the person through the router context", async () => {

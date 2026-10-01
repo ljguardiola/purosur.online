@@ -1,31 +1,31 @@
+import type { RowData } from "@tanstack/react-table";
 import { headerColumnWidthStyle } from "./table-actions";
+import { columnActionCount, columnAlign, columnTitle } from "./table-column";
 import { SortableColumnHeader } from "./table-sort-header";
 import { alignClassName, cellHorizontalPaddingClassName } from "./table-styles";
-import type { TableColumn, TableSort } from "./table-types";
+import type { TableModel, TableSortDirection } from "./table-types";
 
-export function TableHeaderRow<T>({
-  columns,
-  sort,
-  onSortChange,
-}: {
-  columns: readonly TableColumn<T>[];
-  sort: TableSort | undefined;
-  onSortChange: ((sort: TableSort) => void) | undefined;
-}) {
+const SORT_DIRECTIONS = { asc: "ascending", desc: "descending" } as const;
+
+export function TableHeaderRow<T extends RowData>({ table }: { table: TableModel<T> }) {
+  const headers = table.getLeafHeaders();
   return (
     <tr className="h-control-xl bg-surface-subtle">
-      {columns.map((column, index) => {
-        const actionsColumn = column.kind === "actions";
-        const sortable = !actionsColumn && column.sortable === true && onSortChange !== undefined;
-        const sorted = sortable && sort?.column === column.key;
+      {headers.map(({ id, column }, index) => {
+        const actionCount = columnActionCount(column);
+        const sortable = column.getCanSort();
+        const sorted = column.getIsSorted();
+        const direction: TableSortDirection | undefined = sorted
+          ? SORT_DIRECTIONS[sorted]
+          : undefined;
         const first = index === 0;
-        const last = index === columns.length - 1;
+        const last = index === headers.length - 1;
         return (
           <th
-            key={column.key}
+            key={id}
             scope="col"
-            aria-sort={sortable ? (sorted ? sort?.direction : "none") : undefined}
-            style={headerColumnWidthStyle(column, first, last)}
+            aria-sort={sortable ? (direction ?? "none") : undefined}
+            style={headerColumnWidthStyle(actionCount, first, last)}
             className={[
               // A cell's explicit height is a floor, not a cap, so h-full on a sortable
               // header's button always has an actual, resolved height to track.
@@ -34,21 +34,22 @@ export function TableHeaderRow<T>({
               // lives on the button instead.
               sortable ? "" : cellHorizontalPaddingClassName(first, last),
               "text-caption font-bold uppercase",
-              alignClassName(actionsColumn ? "start" : column.align),
+              alignClassName(actionCount === undefined ? columnAlign(column) : "start"),
             ].join(" ")}
           >
-            {actionsColumn ? (
-              <span className="sr-only">{column.header}</span>
+            {actionCount !== undefined ? (
+              <span className="sr-only">{columnTitle(column)}</span>
             ) : sortable ? (
               <SortableColumnHeader
-                column={column}
-                sort={sort}
-                onSortChange={onSortChange}
+                title={columnTitle(column)}
+                align={columnAlign(column)}
+                direction={direction}
+                onPress={() => column.toggleSorting()}
                 first={first}
                 last={last}
               />
             ) : (
-              <span className="text-text-subtle">{column.header}</span>
+              <span className="text-text-subtle">{columnTitle(column)}</span>
             )}
           </th>
         );

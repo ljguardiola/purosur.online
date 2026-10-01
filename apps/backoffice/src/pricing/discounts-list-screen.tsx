@@ -1,16 +1,18 @@
 import type { DiscountSummary, DiscountTargets } from "@purosur/contracts";
 import { argentinaCalendarDay, type DiscountStatus, discountStatus } from "@purosur/domain";
 import {
+  actionsColumn,
   Button,
+  dataColumn,
   FloatingNotification,
+  type ItemOrder,
   ListFilter,
   SearchField,
   StatusIndicator,
   Table,
-  type TableItemOrder,
   type TableSort,
-  tableRows,
   textOrder,
+  useTableModel,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
 import { BadgePercent, Check, Pencil, Plus, Search, SearchX } from "lucide-react";
@@ -102,13 +104,13 @@ function benefitSortKey(benefit: DiscountSummary["benefit"]): readonly [number, 
     : [rank, benefit.buyQty, benefit.payQty];
 }
 
-const benefitOrder: TableItemOrder<DiscountSummary> = (a, b) => {
+const benefitOrder: ItemOrder<DiscountSummary> = (a, b) => {
   const [rankA, firstA, secondA] = benefitSortKey(a.benefit);
   const [rankB, firstB, secondB] = benefitSortKey(b.benefit);
   return rankA - rankB || firstA - firstB || secondA - secondB || nameOrder(a, b);
 };
 
-const validityOrder: TableItemOrder<DiscountSummary> = (a, b) =>
+const validityOrder: ItemOrder<DiscountSummary> = (a, b) =>
   a.validFrom.localeCompare(b.validFrom) || a.validTo.localeCompare(b.validTo) || nameOrder(a, b);
 
 function showsStatus(status: DiscountStatus, statusFilter: DiscountStatusFilter): boolean {
@@ -186,71 +188,48 @@ export function DiscountsListScreen({
   const [{ discounts }, targets] =
     data.status === "loaded" ? data.value : [{ discounts: NO_DISCOUNTS }, NO_TARGETS];
   const statusOf = (discount: DiscountSummary) => discountStatus(discount, today);
-  const statusOrder: TableItemOrder<DiscountSummary> = (a, b) =>
+  const statusOrder: ItemOrder<DiscountSummary> = (a, b) =>
     STATUS_RANK[statusOf(a)] - STATUS_RANK[statusOf(b)] || nameOrder(a, b);
-  const { rows, matchCount } = tableRows({
-    items: discounts,
-    id: (discount) => discount.id,
-    search: { text: search, in: (discount) => [discount.name, discount.target.name] },
-    filter: (discount) =>
-      (kindFilter === "ALL" || discount.benefit.kind === kindFilter) &&
-      showsStatus(statusOf(discount), statusFilter),
-    sort: {
-      by: sort,
-      orders: {
-        promotion: nameOrder,
-        benefit: benefitOrder,
-        validity: validityOrder,
-        status: statusOrder,
-      },
-    },
-  });
-
   const columns = [
-    {
-      key: "promotion",
+    dataColumn({
+      id: "promotion",
       header: "Promoción",
-      sortable: true,
-      defaultDirection: "ascending",
+      sort: { order: nameOrder, firstDirection: "ascending" },
       render: (item: DiscountSummary) => (
         <div className="flex flex-col">
           <span>{item.name}</span>
           <span className="text-text-subtle text-detail">{discountTargetLine(item.target)}</span>
         </div>
       ),
-    },
-    {
-      key: "benefit",
+    }),
+    dataColumn({
+      id: "benefit",
       header: "Beneficio",
-      sortable: true,
-      defaultDirection: "ascending",
+      sort: { order: benefitOrder, firstDirection: "ascending" },
       render: (item: DiscountSummary) => discountBenefitText(item.benefit),
-    },
-    {
-      key: "validity",
+    }),
+    dataColumn({
+      id: "validity",
       header: "Vigencia",
-      sortable: true,
-      defaultDirection: "ascending",
+      sort: { order: validityOrder, firstDirection: "ascending" },
       render: (item: DiscountSummary) => discountValidityText(item.validFrom, item.validTo),
-    },
-    {
-      key: "days",
+    }),
+    dataColumn({
+      id: "days",
       header: "Días",
       render: (item: DiscountSummary) => <DiscountWeekdays weekdays={item.weekdays} />,
-    },
-    {
-      key: "status",
+    }),
+    dataColumn({
+      id: "status",
       header: "Estado",
-      sortable: true,
-      defaultDirection: "ascending",
+      sort: { order: statusOrder, firstDirection: "ascending" },
       render: (item: DiscountSummary) => {
         const { label, tone } = DISCOUNT_STATUS_PRESENTATION[statusOf(item)];
         return <StatusIndicator tone={tone}>{label}</StatusIndicator>;
       },
-    },
-    {
-      key: "actions",
-      kind: "actions",
+    }),
+    actionsColumn({
+      id: "actions",
       header: "Acciones",
       actions: [
         (item: DiscountSummary) => ({
@@ -259,10 +238,23 @@ export function DiscountsListScreen({
           onPress: () => setEditTarget(item),
         }),
       ],
-    },
+    }),
   ] as const;
 
-  const matched = rows.map((row) => row.item);
+  const table = useTableModel({
+    items: discounts,
+    id: (discount) => discount.id,
+    search: { text: search, in: (discount) => [discount.name, discount.target.name] },
+    filter: (discount) =>
+      (kindFilter === "ALL" || discount.benefit.kind === kindFilter) &&
+      showsStatus(statusOf(discount), statusFilter),
+    columns,
+    sort,
+    onSortChange: setSort,
+  });
+  const matchCount = table.getRowModel().rows.length;
+
+  const matched = table.getRowModel().rows.map((row) => row.original);
   const currentCount = matched.filter((discount) => statusOf(discount) === "current").length;
 
   function showNotice(shown: Omit<ScreenNotice, "id">) {
@@ -315,11 +307,8 @@ export function DiscountsListScreen({
         </div>
         <Table
           aria-label="Promociones"
-          columns={columns}
-          sort={sort}
-          onSortChange={setSort}
+          table={table}
           {...cloudTableState(data, "las promociones")}
-          rows={rows}
           empty={
             discounts.length === 0
               ? {
