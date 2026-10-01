@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import type { SignedInPerson } from "../access/signed-in-person";
 import type { CashMovementInput, CoreClient } from "../platform/core-client";
 import { createQueryClient } from "../platform/query-client";
+import { cancelReads, setQueryAnswer } from "../platform/set-query-answer";
 import { useCoreStatus } from "../platform/use-core-status";
 import {
   cashKey,
@@ -57,6 +58,10 @@ function Register({ core }: { core: CoreClient }) {
       ? undefined
       : signedInPerson;
 
+  function cancelCashSessionReads() {
+    return cancelReads(queryClient, registerKeys.cashSession);
+  }
+
   function setCashSession(state: CashSessionState) {
     queryClient.setQueryData(registerKeys.cashSession, state);
   }
@@ -72,7 +77,7 @@ function Register({ core }: { core: CoreClient }) {
   async function enroll(typedCode: string) {
     const outcome = await core.enroll(typedCode);
     if (outcome.kind === "enrolled") {
-      queryClient.setQueryData(registerKeys.enrollment, true);
+      await setQueryAnswer(queryClient, registerKeys.enrollment, true);
     }
     return outcome;
   }
@@ -106,6 +111,7 @@ function Register({ core }: { core: CoreClient }) {
       setPerson(undefined);
     }
     if (outcome.kind === "opened") {
+      await cancelCashSessionReads();
       setCashSession({
         status: "open",
         id: outcome.session.id,
@@ -139,6 +145,7 @@ function Register({ core }: { core: CoreClient }) {
       setPerson(undefined);
     }
     if (outcome.kind === "closed") {
+      await cancelCashSessionReads();
       if (leaving) {
         signOut();
       } else {
@@ -159,6 +166,7 @@ function Register({ core }: { core: CoreClient }) {
   ) {
     const outcome = await core.closeLockedCashSession(sessionId, countedCash, closer);
     if (outcome.kind === "closed") {
+      await cancelCashSessionReads();
       setCashSession({ status: "none" });
     }
     if (outcome.kind === "no_open_session" || outcome.kind === "not_locked") {
@@ -186,7 +194,7 @@ function Register({ core }: { core: CoreClient }) {
   async function chargeSaleInCash(saleId: string, tendered: number) {
     const outcome = await core.chargeSaleInCash(saleId, tendered);
     if (outcome.kind === "completed") {
-      queryClient.setQueryData(salesKeys.currentSale, null);
+      await setQueryAnswer(queryClient, salesKeys.currentSale, null);
       void queryClient.invalidateQueries({ queryKey: cashKey });
     } else if (
       outcome.kind === "empty_sale" ||

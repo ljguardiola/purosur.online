@@ -1,5 +1,6 @@
 import type { CurrentSaleAnswer, OpenSale, SearchProductsOutcome } from "@purosur/contracts";
 import { useQueryClient } from "@tanstack/react-query";
+import { setQueryAnswer } from "../platform/set-query-answer";
 import type { CoreData } from "../platform/use-core-query";
 import { useCoreQuery } from "../platform/use-core-query";
 
@@ -16,11 +17,11 @@ export function useCurrentSaleQuery(
   return useCoreQuery({ queryKey: salesKeys.currentSale, read });
 }
 
-export function useTakeSale(): (sale: OpenSale) => OpenSale | null {
+export function useTakeSale(): (sale: OpenSale) => Promise<OpenSale | null> {
   const queryClient = useQueryClient();
-  return (sale) => {
+  return async (sale) => {
     const previous = queryClient.getQueryData<CurrentSaleAnswer>(salesKeys.currentSale);
-    queryClient.setQueryData(salesKeys.currentSale, sale);
+    await setQueryAnswer(queryClient, salesKeys.currentSale, sale);
     return previous === undefined || previous === "not_permitted" ? null : previous;
   };
 }

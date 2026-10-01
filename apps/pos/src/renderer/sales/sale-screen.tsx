@@ -131,7 +131,7 @@ export function SaleScreen({
     selectScanField(field.current);
   }
 
-  function take(
+  async function take(
     submitted: string,
     outcome: ScanProductOutcome | AddProductOutcome,
     failure: { kind: "scan_failed" } | { kind: "add_failed" },
@@ -139,7 +139,7 @@ export function SaleScreen({
     switch (outcome.kind) {
       case "added":
         setProblem(undefined);
-        setChanged(changedLineId(takeSale(outcome.sale), outcome.sale));
+        setChanged(changedLineId(await takeSale(outcome.sale), outcome.sale));
         setCode((typed) => (typed.trim() === submitted ? "" : typed));
         break;
       case "not_signed_in":
@@ -173,7 +173,7 @@ export function SaleScreen({
     const outcome = await scanProduct(submitted).catch(
       (): ScanProductOutcome => ({ kind: "unavailable" }),
     );
-    take(submitted, outcome, { kind: "scan_failed" });
+    await take(submitted, outcome, { kind: "scan_failed" });
   }
 
   async function add(product: FoundProduct) {
@@ -181,7 +181,7 @@ export function SaleScreen({
     const outcome = await addProduct(product.product_id).catch(
       (): AddProductOutcome => ({ kind: "unavailable" }),
     );
-    take(submitted, outcome, { kind: "add_failed" });
+    await take(submitted, outcome, { kind: "add_failed" });
   }
 
   const found = results?.query === code.trim() && !dismissed ? results : undefined;

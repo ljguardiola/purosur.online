@@ -74,6 +74,22 @@ describe("SaleScreen", () => {
     await expect.element(screen.getByRole("combobox")).toBeVisible();
   });
 
+  it("keeps a scanned line when an older read of the sale answers after the scan", async () => {
+    const read = deferred<OpenSale | null>();
+    const { screen, field } = await renderScreen({
+      currentSale: () => read.promise,
+      scanProduct: async () => ({ kind: "added", sale: SALE_OF_YERBA }),
+    });
+
+    await scan(field, "7790001");
+    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+    read.resolve(null);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+    await expect.element(screen.getByText("1 línea")).toBeVisible();
+  });
+
   describe("keeping the scan field ready", () => {
     it.each([
       [
