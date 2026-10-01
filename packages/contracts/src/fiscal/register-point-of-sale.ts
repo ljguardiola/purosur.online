@@ -1,7 +1,5 @@
-import { isPointOfSaleNumber } from "@purosur/domain";
 import { z } from "zod";
-
-export const pointOfSaleNumberSchema = z.int().refine(isPointOfSaleNumber);
+import { pointOfSaleNumberSchema } from "../shared/index.js";
 
 export const registerPointOfSaleSchema = z.object({
   register_id: z.string(),

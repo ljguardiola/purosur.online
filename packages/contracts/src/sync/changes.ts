@@ -2,7 +2,6 @@ import {
   isBuyerIdentificationThresholdAmount,
   isCalendarDay,
   isNetContentUnit,
-  isPointOfSaleNumber,
   isPullCursor,
   isValidBuyerTaxStatusSet,
   isValidDiscountWeekdays,
@@ -13,7 +12,11 @@ import {
 import { z } from "zod";
 import { discountBenefitSchema } from "../pricing/discount-benefit.js";
 import { discountTargetSchema } from "../pricing/discount-target.js";
-import { branchSettingsSchema, issuerIdentificationSchema } from "../shared/index.js";
+import {
+  branchSettingsSchema,
+  issuerIdentificationSchema,
+  pointOfSaleNumberSchema,
+} from "../shared/index.js";
 
 const SINCE_MESSAGE = "since must be the cursor of the last page already pulled, 0 the first time";
 
@@ -147,7 +150,7 @@ const registerPointOfSaleChangeSchema = z.object({
   ...pulledChangeShape,
   entity: z.literal("register_point_of_sale"),
   row: z.object({
-    point_of_sale_number: z.int().refine(isPointOfSaleNumber),
+    point_of_sale_number: pointOfSaleNumberSchema,
     fiscal_address_id: z.string(),
     version: z.int().positive(),
   }),

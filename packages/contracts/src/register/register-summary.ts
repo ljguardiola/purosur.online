@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { pointOfSaleNumberSchema } from "../fiscal/register-point-of-sale.js";
+import { pointOfSaleNumberSchema } from "../shared/index.js";
 
 export const registerSummarySchema = z.object({
   id: z.string(),
