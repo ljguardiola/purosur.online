@@ -109,4 +109,35 @@ describe("useCoreQuery", () => {
 
     await expect.element((await screen).getByText("loaded second")).toBeVisible();
   });
+
+  it("keeps showing what it holds when a refresh of it fails", async () => {
+    const read = vi
+      .fn<() => Promise<string | "unavailable">>()
+      .mockResolvedValueOnce("first")
+      .mockResolvedValueOnce("unavailable");
+    const { screen, queryClient } = renderProbe(read);
+    await expect.element((await screen).getByText("loaded first")).toBeVisible();
+
+    void queryClient.invalidateQueries({ queryKey: ["probe"] });
+    await expect.poll(() => queryClient.getQueryState(["probe"])?.status).toBe("error");
+
+    await expect.element((await screen).getByText("loaded first")).toBeVisible();
+    await expect.element((await screen).getByText("failed")).not.toBeInTheDocument();
+  });
+
+  it("holds the new answer when a refresh that failed is read again", async () => {
+    const read = vi
+      .fn<() => Promise<string | "unavailable">>()
+      .mockResolvedValueOnce("first")
+      .mockResolvedValueOnce("unavailable")
+      .mockResolvedValueOnce("second");
+    const { screen, queryClient } = renderProbe(read);
+    await expect.element((await screen).getByText("loaded first")).toBeVisible();
+    void queryClient.invalidateQueries({ queryKey: ["probe"] });
+    await expect.poll(() => queryClient.getQueryState(["probe"])?.status).toBe("error");
+
+    void queryClient.invalidateQueries({ queryKey: ["probe"] });
+
+    await expect.element((await screen).getByText("loaded second")).toBeVisible();
+  });
 });
