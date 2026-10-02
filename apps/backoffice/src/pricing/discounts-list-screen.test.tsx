@@ -1,7 +1,9 @@
+import type { DiscountList } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { notifyManager } from "@tanstack/react-query";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { discountsListFilters } from "./routes";
 import {
   almacenTuesdays,
@@ -122,6 +124,61 @@ test("reads the list again every minute so a promotion shows the status the clou
     await vi.advanceTimersByTimeAsync(1_000);
 
     await expect.poll(() => rowCells(screen).map((cells) => cells.at(-1))).toEqual(["Terminada"]);
+  } finally {
+    notifyManager.setScheduler((callback) => setTimeout(callback, 0));
+    vi.useRealTimers();
+  }
+});
+
+test("a periodic read that fails keeps the list and the open edit dialog as they are", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+  notifyManager.setScheduler(queueMicrotask);
+  try {
+    const services = createServices();
+    vi.mocked(services.fetchDiscounts)
+      .mockResolvedValueOnce({ kind: "ok", value: discountList([yerbaOff]) })
+      .mockResolvedValue({ kind: "failed" });
+    const screen = await renderScreen(services);
+    await expect.element(screen.getByRole("table", { name: "Promociones" })).toBeVisible();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Editar la promoción Yerba de septiembre" }),
+    );
+    await expect.element(screen.getByRole("dialog")).toBeVisible();
+
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(services.fetchDiscounts).toHaveBeenCalledTimes(2);
+    await expect.element(screen.getByRole("dialog")).toBeVisible();
+    expect(screen.getByText("No pudimos abrir las promociones").query()).toBeNull();
+    await expect.element(screen.getByRole("table", { name: "Promociones" })).toBeVisible();
+  } finally {
+    notifyManager.setScheduler((callback) => setTimeout(callback, 0));
+    vi.useRealTimers();
+  }
+});
+
+test("a periodic read does not show the table as updating while it runs", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+  notifyManager.setScheduler(queueMicrotask);
+  try {
+    const services = createServices();
+    const tick = deferred<CloudReadOutcome<DiscountList>>();
+    vi.mocked(services.fetchDiscounts)
+      .mockResolvedValueOnce({ kind: "ok", value: discountList([yerbaOff]) })
+      .mockReturnValue(tick.promise);
+    const screen = await renderScreen(services, {
+      filters: discountsListFilters.parse({ status: "all" }),
+    });
+    const table = screen.getByRole("table", { name: "Promociones" });
+    await expect.element(table).toBeVisible();
+
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(services.fetchDiscounts).toHaveBeenCalledTimes(2);
+    await expect.element(table).not.toHaveAttribute("aria-busy", "true");
+    tick.resolve({ kind: "ok", value: discountList([{ ...yerbaOff, status: "ended" }]) });
+    await expect.poll(() => rowCells(screen).map((cells) => cells.at(-1))).toEqual(["Terminada"]);
+    await expect.element(table).not.toHaveAttribute("aria-busy", "true");
   } finally {
     notifyManager.setScheduler((callback) => setTimeout(callback, 0));
     vi.useRealTimers();

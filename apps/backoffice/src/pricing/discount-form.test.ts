@@ -23,6 +23,7 @@ import {
   productSoldByWeightMessage,
   soldByWeightHelp,
   targetForKind,
+  targetKindOptions,
   targetOptions,
   targetPlaceholder,
   targetUnavailableMessage,
@@ -715,6 +716,31 @@ describe("offersTargetKindChoice", () => {
     } satisfies DiscountTargets;
 
     expect(offersTargetKindChoice("BUY_N_PAY_M", targets)).toBe(true);
+  });
+});
+
+describe("targetKindOptions", () => {
+  test("offers every kind the cloud allows the benefit on, in the control's order", () => {
+    expect(targetKindOptions("PERCENT_OFF", discountTargets)).toEqual([
+      { value: "PRODUCT", label: "Producto" },
+      { value: "CATEGORY", label: "Categoría" },
+      { value: "TAG", label: "Distintivo" },
+    ]);
+  });
+
+  test("offers only the kinds the cloud allows the benefit on", () => {
+    const targets = {
+      ...discountTargets,
+      targetKindsByBenefit: { PERCENT_OFF: ["TAG", "PRODUCT"], BUY_N_PAY_M: ["PRODUCT"] },
+    } satisfies DiscountTargets;
+
+    expect(targetKindOptions("PERCENT_OFF", targets)).toEqual([
+      { value: "PRODUCT", label: "Producto" },
+      { value: "TAG", label: "Distintivo" },
+    ]);
+    expect(targetKindOptions("BUY_N_PAY_M", targets)).toEqual([
+      { value: "PRODUCT", label: "Producto" },
+    ]);
   });
 });
 

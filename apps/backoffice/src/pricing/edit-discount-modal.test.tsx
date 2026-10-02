@@ -329,6 +329,19 @@ test("changing what it applies to clears the target until another one is chosen"
   });
 });
 
+test("offers only the target kinds the cloud allows for the promotion", async () => {
+  const { dialog } = await renderModal(createServices(), {
+    targets: {
+      ...discountTargets,
+      targetKindsByBenefit: { PERCENT_OFF: ["PRODUCT", "TAG"], BUY_N_PAY_M: ["PRODUCT"] },
+    },
+  });
+
+  await expect.element(dialog.getByRole("radio", { name: "Producto" })).toBeVisible();
+  await expect.element(dialog.getByRole("radio", { name: "Distintivo" })).toBeVisible();
+  expect(dialog.getByRole("radio", { name: "Categoría" }).query()).toBeNull();
+});
+
 test("does not offer the choice of what a percentage applies to when the cloud allows one target kind", async () => {
   const { dialog } = await renderModal(createServices(), {
     targets: {

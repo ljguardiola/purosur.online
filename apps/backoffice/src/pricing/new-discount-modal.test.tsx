@@ -456,6 +456,19 @@ test("offers the choice of what a promotion applies to wherever the cloud allows
   expect(dialog.getByRole("textbox", { name: /^Descuento/ }).query()).toBeNull();
 });
 
+test("offers only the target kinds the cloud allows for the chosen promotion", async () => {
+  const { dialog } = await renderModal(createServices(), {
+    targets: {
+      ...discountTargets,
+      targetKindsByBenefit: { PERCENT_OFF: ["PRODUCT", "TAG"], BUY_N_PAY_M: ["PRODUCT"] },
+    },
+  });
+
+  await expect.element(dialog.getByRole("radio", { name: "Producto" })).toBeVisible();
+  await expect.element(dialog.getByRole("radio", { name: "Distintivo" })).toBeVisible();
+  expect(dialog.getByRole("radio", { name: "Categoría" }).query()).toBeNull();
+});
+
 test("does not offer the choice of what a percentage applies to when the cloud allows one target kind", async () => {
   const { dialog } = await renderModal(createServices(), {
     targets: {
