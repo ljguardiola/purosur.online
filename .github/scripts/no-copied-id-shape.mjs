@@ -260,7 +260,6 @@ function isMemberName(node) {
   return (
     (ts.isPropertyAccessExpression(parent) && parent.name === node) ||
     (ts.isQualifiedName(parent) && parent.right === node) ||
-    (ts.isElementAccessExpression(parent) && parent.argumentExpression === node) ||
     isDestructuredKey(node)
   );
 }
@@ -281,25 +280,59 @@ function symbolNamedAt(node, checker) {
   return checker.getSymbolAtLocation(node);
 }
 
+function isZodIdFormatSymbol(symbol, checker) {
+  const target =
+    symbol !== undefined && symbol.flags & ts.SymbolFlags.Alias
+      ? checker.getAliasedSymbol(symbol)
+      : symbol;
+  return (
+    target !== undefined &&
+    ZOD_ID_FORMAT_NAME.test(target.name) &&
+    (target.declarations ?? []).some(isZodDeclaration)
+  );
+}
+
 function isZodIdFormat(node, checker) {
   if (isMemberName(node) && !ZOD_ID_FORMAT_NAME.test(node.text)) return false;
-  let symbol = symbolNamedAt(node, checker);
-  if (symbol !== undefined && symbol.flags & ts.SymbolFlags.Alias) {
-    symbol = checker.getAliasedSymbol(symbol);
+  return isZodIdFormatSymbol(symbolNamedAt(node, checker), checker);
+}
+
+function computedKey(node) {
+  if (ts.isElementAccessExpression(node)) {
+    return { key: node.argumentExpression, receiver: node.expression };
   }
-  return (
-    symbol !== undefined &&
-    ZOD_ID_FORMAT_NAME.test(symbol.name) &&
-    (symbol.declarations ?? []).some(isZodDeclaration)
+  if (
+    ts.isComputedPropertyName(node) &&
+    ts.isBindingElement(node.parent) &&
+    ts.isObjectBindingPattern(node.parent.parent)
+  ) {
+    return { key: node.expression, receiver: node.parent.parent };
+  }
+  return undefined;
+}
+
+function namesOfKeyType(type, checker) {
+  const constraint = checker.getBaseConstraintOfType(type) ?? type;
+  const types = constraint.isUnion() ? constraint.types : [constraint];
+  return types.filter((each) => each.isStringLiteral()).map((each) => each.value);
+}
+
+function picksZodIdFormat(node, checker) {
+  const picked = computedKey(node);
+  if (picked === undefined) return false;
+  const receiver = checker.getTypeAtLocation(picked.receiver);
+  return namesOfKeyType(checker.getTypeAtLocation(picked.key), checker).some((name) =>
+    isZodIdFormatSymbol(checker.getPropertyOfType(receiver, name), checker),
   );
 }
 
 function zodIdFormatsIn(nodes, checker) {
-  return nodes.filter(
-    (node) =>
-      (ts.isIdentifier(node) || (ts.isStringLiteral(node) && isMemberName(node))) &&
-      isZodIdFormat(node, checker),
-  );
+  return nodes.flatMap((node) => {
+    if (picksZodIdFormat(node, checker)) return [computedKey(node).key];
+    const named = ts.isIdentifier(node) || (ts.isStringLiteral(node) && isDestructuredKey(node));
+    if (named && isZodIdFormat(node, checker)) return [node];
+    return [];
+  });
 }
 
 function compilerOptionsOf(root) {
