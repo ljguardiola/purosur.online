@@ -63,9 +63,21 @@ describe("removeOwnPasskey", () => {
 
       expect(outcome).toEqual({ kind: "authorization_required" });
       expect(store.current).toEqual(before);
-      expect(store.operationOrder).toEqual(["findRemovablePasskey"]);
+      expect(store.operationOrder).toEqual([]);
     },
   );
+
+  it("requires an authorization before looking for the passkey, even one that does not exist", async () => {
+    const store = storeWithPasskey();
+
+    const outcome = await removeOwnPasskey(
+      { store },
+      { ...INPUT, passkeyId: "p-9", passkeyAuthorizedAt: null },
+    );
+
+    expect(outcome).toEqual({ kind: "authorization_required" });
+    expect(store.operationOrder).toEqual([]);
+  });
 
   it.each(["deletePasskey", "recordOwnPasskeyRemoved", "openPasskeyRemovedAlert"] as const)(
     "keeps the passkey when %s fails",

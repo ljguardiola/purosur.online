@@ -551,5 +551,21 @@ describe("DELETE /users/:id/passkeys/:passkeyId", () => {
       const rows = await db.select().from(passkeys).where(eq(passkeys.userId, targetId));
       expect(rows).toHaveLength(2);
     });
+
+    it("returns 401 authorization_required for a well-formed passkey id that does not exist when the session's passkey authorization is stale, deleting nothing", async () => {
+      const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
+      const rawSessionId = await insertSession(administratorId, authorizedAt);
+
+      const response = await removePasskey(
+        targetId,
+        "00000000-0000-0000-0000-000000000000",
+        rawSessionId,
+      );
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json()).toMatchObject({ code: "authorization_required" });
+      const rows = await db.select().from(passkeys).where(eq(passkeys.userId, targetId));
+      expect(rows).toHaveLength(2);
+    });
   });
 });

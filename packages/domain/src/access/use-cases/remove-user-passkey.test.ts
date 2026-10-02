@@ -1,13 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { removeUserPasskey } from "./remove-user-passkey.js";
-import { BRANCH, user } from "./test-support/branch-user-fixtures.js";
-import { FakeBranchUsers } from "./test-support/fake-branch-users.js";
 import { FakePasskeyRemovalStore } from "./test-support/fake-passkey-removal-store.js";
 
 const AT = new Date("2026-10-01T12:00:00.000Z");
 const AUTHORIZED_AT = new Date("2026-10-01T11:58:00.000Z");
 const INPUT = {
-  locationId: BRANCH,
   administratorId: "admin-1",
   targetUserId: "u-1",
   passkeyId: "p-1",
@@ -15,25 +12,19 @@ const INPUT = {
   at: AT,
 };
 
-function fixtures() {
-  const users = new FakeBranchUsers();
-  users.seedUser(user({ id: "u-1" }));
-  users.seedUser(user({ id: "u-2" }));
-  users.seedUser(user({ id: "admin-1" }));
-  users.seedUser(user({ id: "u-3", locationId: "branch-2" }));
-  users.seedUser(user({ id: "u-4", active: false }));
+function storeWithPasskey() {
   const store = new FakePasskeyRemovalStore();
   store.seedPasskey({ id: "p-1", userId: "u-1", name: "Llave" });
   store.seedSession({ id: "s-1", userId: "u-1", revokedAt: null });
   store.seedSession({ id: "s-2", userId: "u-2", revokedAt: null });
-  return { users, store };
+  return store;
 }
 
 describe("removeUserPasskey", () => {
   it("removes the passkey, ends every session of its user, audits it and tells the user", async () => {
-    const { users, store } = fixtures();
+    const store = storeWithPasskey();
 
-    const outcome = await removeUserPasskey({ users, store }, INPUT);
+    const outcome = await removeUserPasskey({ store }, INPUT);
 
     expect(outcome).toEqual({ kind: "removed" });
     expect(store.current.passkeys).toEqual([]);
@@ -56,9 +47,9 @@ describe("removeUserPasskey", () => {
   });
 
   it("takes the passkey's lock before touching anything else", async () => {
-    const { users, store } = fixtures();
+    const store = storeWithPasskey();
 
-    await removeUserPasskey({ users, store }, INPUT);
+    await removeUserPasskey({ store }, INPUT);
 
     expect(store.operationOrder).toEqual([
       "findRemovablePasskey",
@@ -70,39 +61,14 @@ describe("removeUserPasskey", () => {
   });
 
   it("finds no passkey of another user and does nothing else", async () => {
-    const { users, store } = fixtures();
+    const store = storeWithPasskey();
     const before = store.snapshot();
 
-    const outcome = await removeUserPasskey({ users, store }, { ...INPUT, targetUserId: "u-2" });
+    const outcome = await removeUserPasskey({ store }, { ...INPUT, targetUserId: "u-2" });
 
     expect(outcome).toEqual({ kind: "passkey_not_found" });
     expect(store.current).toEqual(before);
     expect(store.operationOrder).toEqual(["findRemovablePasskey"]);
-  });
-
-  it.each([
-    ["another branch", "u-3"],
-    ["a deactivated user", "u-4"],
-    ["nobody", "u-9"],
-  ])("finds no user for %s and opens no transaction", async (_name, targetUserId) => {
-    const { users, store } = fixtures();
-
-    const outcome = await removeUserPasskey({ users, store }, { ...INPUT, targetUserId });
-
-    expect(outcome).toEqual({ kind: "user_not_found" });
-    expect(store.operationOrder).toEqual([]);
-  });
-
-  it("refuses the administrator's own account and opens no transaction", async () => {
-    const { users, store } = fixtures();
-
-    const outcome = await removeUserPasskey(
-      { users, store },
-      { ...INPUT, targetUserId: "admin-1" },
-    );
-
-    expect(outcome).toEqual({ kind: "own_account" });
-    expect(store.operationOrder).toEqual([]);
   });
 
   it.each([
@@ -111,16 +77,28 @@ describe("removeUserPasskey", () => {
   ])(
     "requires an authorization and changes nothing when the session was %s",
     async (_name, passkeyAuthorizedAt) => {
-      const { users, store } = fixtures();
+      const store = storeWithPasskey();
       const before = store.snapshot();
 
-      const outcome = await removeUserPasskey({ users, store }, { ...INPUT, passkeyAuthorizedAt });
+      const outcome = await removeUserPasskey({ store }, { ...INPUT, passkeyAuthorizedAt });
 
       expect(outcome).toEqual({ kind: "authorization_required" });
       expect(store.current).toEqual(before);
-      expect(store.operationOrder).toEqual(["findRemovablePasskey"]);
+      expect(store.operationOrder).toEqual([]);
     },
   );
+
+  it("requires an authorization before looking for the passkey, even one that does not exist", async () => {
+    const store = storeWithPasskey();
+
+    const outcome = await removeUserPasskey(
+      { store },
+      { ...INPUT, passkeyId: "p-9", passkeyAuthorizedAt: null },
+    );
+
+    expect(outcome).toEqual({ kind: "authorization_required" });
+    expect(store.operationOrder).toEqual([]);
+  });
 
   it.each([
     "deletePasskey",
@@ -128,11 +106,11 @@ describe("removeUserPasskey", () => {
     "recordUserPasskeyRemoved",
     "openPasskeyRemovedAlert",
   ] as const)("leaves the passkey and the sessions untouched when %s fails", async (failing) => {
-    const { users, store } = fixtures();
+    const store = storeWithPasskey();
     const before = store.snapshot();
     store.failingWrites.add(failing);
 
-    await expect(removeUserPasskey({ users, store }, INPUT)).rejects.toThrow(`${failing} failed`);
+    await expect(removeUserPasskey({ store }, INPUT)).rejects.toThrow(`${failing} failed`);
 
     expect(store.current).toEqual(before);
   });
