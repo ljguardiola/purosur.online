@@ -10,7 +10,6 @@ import config, {
   CLOUD_ONLY_CONCEPTS,
   CONTRACTS_CROSS_CONCEPT_IMPORT_ALLOWLIST,
   PERSISTENCE_IN_HANDLERS_ALLOWLIST,
-  SCREEN_CROSS_CONCEPT_IMPORT_ALLOWLIST,
   SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST,
 } from "../../.dependency-cruiser.mjs";
 
@@ -1277,7 +1276,6 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const ALLOWLISTED_RULES = [
   ["persistence-only-in-adapters", PERSISTENCE_IN_HANDLERS_ALLOWLIST],
   ["screens-types-only-from-domain", SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST],
-  ["screens-no-cross-concept-imports", SCREEN_CROSS_CONCEPT_IMPORT_ALLOWLIST],
   ["contracts-no-cross-concept-imports", CONTRACTS_CROSS_CONCEPT_IMPORT_ALLOWLIST],
 ];
 

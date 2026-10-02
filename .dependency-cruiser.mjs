@@ -32,8 +32,6 @@ export const SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST = [
   "apps/backoffice/src/stock/stock-quantity.ts",
 ];
 
-export const SCREEN_CROSS_CONCEPT_IMPORT_ALLOWLIST = [];
-
 export const CONTRACTS_CROSS_CONCEPT_IMPORT_ALLOWLIST = [
   "packages/contracts/src/register/core-messages.ts",
   "packages/contracts/src/sync/changes.ts",
@@ -205,7 +203,6 @@ export default {
           "^apps/backoffice/src/(?!(?:shell|platform|help)/)([^/]+)/",
           "^apps/pos/src/renderer/(?!(?:shell|platform)/)([^/]+)/",
         ],
-        pathNot: exactPaths(SCREEN_CROSS_CONCEPT_IMPORT_ALLOWLIST),
       },
       to: {
         path: ["^apps/backoffice/src/[^/]+/", "^apps/pos/src/renderer/[^/]+/"],
