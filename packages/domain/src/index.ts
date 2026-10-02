@@ -243,6 +243,7 @@ export {
   CASH_MOVEMENT_REASON_MAX_LENGTH,
   CASH_MOVEMENT_TYPES,
   cashBreakdown,
+  cashCountDifference,
   cashMovementDirection,
   cashMovementPermission,
   ENROLLMENT_CODE_LENGTH,
@@ -270,6 +271,7 @@ export {
 export type {
   LinePromotion,
   ListPrice,
+  OpenSaleSummary,
   PaymentTransaction,
   Sale,
   SaleLine,
@@ -280,6 +282,7 @@ export type {
 export {
   cancellableWithoutAuthorization,
   cashCharge,
+  openSaleSummary,
   SEARCH_RESULT_LIMIT,
   saleTotal,
 } from "./sales/index.js";
