@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { CircleAlert, ShieldX } from "lucide-react";
+import { CircleAlert, ShieldX, TriangleAlert } from "lucide-react";
 import { LoadFailure } from "./load-failure";
 
 const meta: Meta<typeof LoadFailure> = {
@@ -25,5 +25,24 @@ export const RateLimited: Story = {
     icon: <ShieldX />,
     title: "Demasiadas solicitudes",
     description: "Probá de nuevo en 30 segundos.",
+  },
+};
+
+export const TitleOnly: Story = {
+  args: { icon: <CircleAlert />, title: "No pudimos abrir los productos" },
+};
+
+export const Screen: Story = {
+  decorators: [
+    (Story) => (
+      <div className="w-112">
+        <Story />
+      </div>
+    ),
+  ],
+  args: {
+    variant: "screen",
+    icon: <TriangleAlert />,
+    title: "No se pudo mostrar la pantalla",
   },
 };

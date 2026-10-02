@@ -1,5 +1,5 @@
 import type { HelpArticle, HelpBlock } from "@purosur/ui";
-import { SearchField } from "@purosur/ui";
+import { Eyebrow, SearchField } from "@purosur/ui";
 import { Link, useRouter } from "@tanstack/react-router";
 import { ChevronRight, Info, Search } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -86,11 +86,7 @@ function ArticleList({ articles }: { articles: readonly ArticleEntry[] }) {
 function Block({ block, help }: { block: HelpBlock<string>; help: BackofficeHelpCatalog }) {
   switch (block.kind) {
     case "heading":
-      return (
-        <h2 className="font-bold text-text-eyebrow text-caption uppercase tracking-sm">
-          {block.text}
-        </h2>
-      );
+      return <Eyebrow text={block.text} headingLevel={2} />;
     case "paragraph":
       return <p className="text-body text-text">{block.text}</p>;
     case "steps":
@@ -139,9 +135,7 @@ function RelatedPanel({
       aria-label="También te puede servir"
       className="flex w-75 shrink-0 flex-col gap-2 self-start"
     >
-      <h2 className="font-bold text-text-eyebrow text-caption uppercase tracking-sm">
-        También te puede servir
-      </h2>
+      <Eyebrow text="También te puede servir" headingLevel={2} />
       <ul className="flex flex-col gap-2">
         {keyed(related, ([id]) => id).map(([key, [id, article]]) => (
           <li key={key}>

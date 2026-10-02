@@ -43,9 +43,11 @@ never restates those rules. Every step below follows the TDD order in
   or while the register is locked, `NavigationRail`
   (`navigation-rail.tsx`) for a signed-in screen and `OpenSessionRail`
   (`open-session-rail.tsx`) for one reached while a cash session is open.
-  The line above a title is `Eyebrow` (`eyebrow.tsx`), or `SessionEyebrow`
-  (`session-eyebrow.tsx`) when it names the register and its session, and a
-  link to another screen is `ScreenLink` (`screen-link.tsx`). The register
+  A screen's title block is `packages/ui`'s `ScreenHeader` (eyebrow, title
+  and description), whose eyebrow is `sessionEyebrow(...)`
+  (`session-eyebrow.ts`) when it names the register and its session; any
+  other line in eyebrow style is `packages/ui`'s `Eyebrow`. A link to another
+  screen is `ScreenLink` (`screen-link.tsx`). The register
   already shows `CoreDownNotice` (`core-down-notice.tsx`) while the core is
   down and `RenderFailureRecovery` (`render-failure-recovery.tsx`) when a
   screen fails to render; a screen never builds its own.
@@ -65,8 +67,9 @@ from `cloudTableState` (`platform/cloud-table-state.tsx`). A register
 section reads the core through `useCoreQuery`
 (`apps/pos/src/renderer/platform/use-core-query.ts`), wrapped in its
 concept's `<concept>-queries.ts` (such as `register/register-queries.ts`),
-which keys every query of that concept under one root key named after its
-concept folder (`["register", …]`), and renders from the `CoreData` status it returns. In both apps a table's
+and renders from the `CoreData` status it returns. In both apps a concept's
+`<concept>-queries.ts` keys every query of that concept under one root key
+named after its concept folder (`["catalog", …]`, `["register", …]`). In both apps a table's
 columns come from `dataColumn` and `actionsColumn`, and its rows from
 `useTableModel`
 (`packages/ui/src/components/data-display/table/use-table-model.ts`), which
@@ -105,6 +108,10 @@ offers:
   places it and decides how long it stays; the screen passes what to show
   and an `onDismiss` that clears it, and adds no placement or timer of its
   own.
+- A notice that carries an action: `HighlightedNotice`'s `actions`. A message
+  announced in a region that stays mounted while nothing is shown, such as a
+  scan's refusal: `ElevatedNotice`. A failure that fills a whole screen:
+  `LoadFailure`'s `variant="screen"`.
 - A question before an action goes ahead: `Modal` with
   `width="confirmation"`.
 - A label read beside an amount, such as a breakdown of a total:

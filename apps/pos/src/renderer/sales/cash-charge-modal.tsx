@@ -1,6 +1,7 @@
 import type { CashChargeAnswer, ChargeSaleInCashOutcome } from "@purosur/contracts";
 import {
   Button,
+  Eyebrow,
   fieldErrorMessage,
   formatCents,
   InlineNotice,
@@ -14,7 +15,6 @@ import {
 } from "@purosur/ui";
 import { ArrowLeft, Banknote, Check, TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Eyebrow } from "../shell/eyebrow";
 import {
   cashChargeRequestFrom,
   chargeSaleInCashRequestSchema,

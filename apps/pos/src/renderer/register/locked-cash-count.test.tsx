@@ -264,6 +264,25 @@ describe("LockedCashCount", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
+  it("keeps the cancel button inside the open sale's notice, below its title", async () => {
+    const { screen } = await withOpenSale();
+
+    const title = screen.getByText(OPEN_SALE_NOTICE).element();
+    let notice = title.parentElement;
+    while (notice !== null && getComputedStyle(notice).backgroundColor === "rgba(0, 0, 0, 0)") {
+      notice = notice.parentElement;
+    }
+    const button = screen.getByRole("button", { name: "Cancelar la venta" }).element();
+
+    const noticeBox = (notice as HTMLElement).getBoundingClientRect();
+    const buttonBox = button.getBoundingClientRect();
+    expect(buttonBox.top).toBeGreaterThanOrEqual(title.getBoundingClientRect().bottom);
+    expect(buttonBox.top).toBeGreaterThanOrEqual(noticeBox.top);
+    expect(buttonBox.bottom).toBeLessThanOrEqual(noticeBox.bottom);
+    expect(buttonBox.left).toBeGreaterThanOrEqual(noticeBox.left);
+    expect(buttonBox.right).toBeLessThanOrEqual(noticeBox.right);
+  });
+
   it("keeps the open sale while the count is typed", async () => {
     const { screen } = await withOpenSale();
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();

@@ -1,9 +1,10 @@
 import type { OpenCashSessionOutcome } from "@purosur/contracts";
+import { ScreenHeader } from "@purosur/ui";
 import { useState } from "react";
 import type { ActionEntry } from "../shell/action-entries";
 import { entriesFor } from "../shell/action-entries";
 import { NavigationRail } from "../shell/navigation-rail";
-import { SessionEyebrow } from "../shell/session-eyebrow";
+import { sessionEyebrow } from "../shell/session-eyebrow";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { CashOpeningPanel } from "./cash-opening-panel";
 import { SignOutModal } from "./sign-out-modal";
@@ -32,9 +33,8 @@ export function NoSessionScreen({
         entries={entriesFor(entries, person.abilities)}
         onSignOut={() => setLeaving(true)}
       />
-      <main className="flex flex-1 flex-col gap-1.5 p-8">
-        <SessionEyebrow registerName={registerName} />
-        <h1 className="text-display text-text-accent">¿Qué querés hacer?</h1>
+      <main className="flex flex-1 flex-col p-8">
+        <ScreenHeader eyebrow={sessionEyebrow(registerName)} title="¿Qué querés hacer?" />
       </main>
       <CashOpeningPanel
         firstName={person.first_name}

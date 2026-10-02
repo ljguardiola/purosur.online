@@ -8,16 +8,18 @@ import type {
 import {
   Button,
   formatCents,
+  HighlightedNotice,
   InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
+  ScreenHeader,
   useRequestForm,
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Lock, ShoppingBasket, TriangleAlert, X } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
-import { SessionEyebrow } from "../shell/session-eyebrow";
+import { sessionEyebrow } from "../shell/session-eyebrow";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { CancelLockedSaleModal } from "./cancel-locked-sale-modal";
 import { differenceNotice } from "./cash-amounts";
@@ -162,13 +164,11 @@ export function LockedCashCount({
   return (
     <form className="flex h-screen w-screen bg-surface" noValidate onSubmit={handleSubmit}>
       <main className="flex flex-1 flex-col gap-4 p-8">
-        <div className="flex flex-col gap-1.5">
-          <SessionEyebrow registerName={registerName} openedAt={openedAt} />
-          <h1 className="text-display text-text-accent">Cerrar caja</h1>
-          <p className="text-body text-text-subtle">
-            {`Cierra ${closerName}. La sesión es de ${opener.first_name}.`}
-          </p>
-        </div>
+        <ScreenHeader
+          eyebrow={sessionEyebrow(registerName, openedAt)}
+          title="Cerrar caja"
+          description={`Cierra ${closerName}. La sesión es de ${opener.first_name}.`}
+        />
         {openSaleData.status === "loading" ? <LoadingPlaceholder variant="card" lines={1} /> : null}
         {openSaleData.status === "failed" ? (
           <LoadFailure
@@ -179,28 +179,28 @@ export function LockedCashCount({
           />
         ) : null}
         {openSale === null ? null : (
-          <div className="flex flex-col items-start gap-3">
-            <InlineNotice
-              tone="error"
-              icon={<ShoppingBasket />}
-              title={`Hay una venta abierta de ${formatCents(openSale.total)}`}
-              description={
-                openSale.cancellable
-                  ? "Cancelala para cerrar la caja."
-                  : `${opener.first_name} tiene que retomar la caja para terminarla o cancelarla.`
-              }
-            />
-            {openSale.cancellable ? (
-              <Button
-                variant="secondary"
-                icon={<X />}
-                disabled={busy}
-                onPress={() => setConfirmingCancel(true)}
-              >
-                Cancelar la venta
-              </Button>
-            ) : null}
-          </div>
+          <HighlightedNotice
+            tone="error"
+            icon={<ShoppingBasket />}
+            title={`Hay una venta abierta de ${formatCents(openSale.total)}`}
+            description={
+              openSale.cancellable
+                ? "Cancelala para cerrar la caja."
+                : `${opener.first_name} tiene que retomar la caja para terminarla o cancelarla.`
+            }
+            actions={
+              openSale.cancellable ? (
+                <Button
+                  variant="secondary"
+                  icon={<X />}
+                  disabled={busy}
+                  onPress={() => setConfirmingCancel(true)}
+                >
+                  Cancelar la venta
+                </Button>
+              ) : undefined
+            }
+          />
         )}
         <section className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-6">
           <p className="text-body text-text-subtle">

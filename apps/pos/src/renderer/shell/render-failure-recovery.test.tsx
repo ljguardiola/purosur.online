@@ -1,5 +1,7 @@
+import { InlineNotice } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { createRootRouteWithContext, createRoute, RouterProvider } from "@tanstack/react-router";
+import { TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -9,6 +11,7 @@ import { createQueryClient } from "../platform/query-client";
 import { RenderFailureRecovery } from "./render-failure-recovery";
 import type { RouterContext } from "./router";
 import { createRegisterRouter } from "./router";
+import { surfaceBehind } from "./test-support/surface-behind";
 
 const NOTICE_TITLE = "No se pudo mostrar la pantalla";
 const RETRY_LABEL = "Reintentar";
@@ -114,10 +117,29 @@ describe("RenderFailureRecovery", () => {
       </RenderFailureRecovery>,
     );
 
-    await expect.element(screen.getByText(NOTICE_TITLE)).toBeVisible();
+    await expect.element(screen.getByText(NOTICE_TITLE).first()).toBeVisible();
     await expect.element(screen.getByRole("button", { name: RETRY_LABEL })).toBeVisible();
     expect(reportFailure).toHaveBeenCalledTimes(3);
 
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("announces the failure as an alert on the error-tone surface, with Reintentar as a button", async () => {
+    const screen = await render(
+      <RenderFailureRecovery reportFailure={vi.fn()}>
+        <ScreenThatAlwaysThrows />
+      </RenderFailureRecovery>,
+    );
+
+    const alert = screen.getByRole("alert");
+    await expect.poll(() => alert.element().textContent).toContain(NOTICE_TITLE);
+    const reference = await render(
+      <InlineNotice tone="error" icon={<TriangleAlert />} title="Reference" />,
+    );
+    expect(surfaceBehind(screen.getByText(NOTICE_TITLE).first().element())).toBe(
+      surfaceBehind(reference.container.querySelector("p") as HTMLElement),
+    );
+    await expect.element(screen.getByRole("button", { name: RETRY_LABEL })).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
   });
 
@@ -134,7 +156,7 @@ describe("RenderFailureRecovery", () => {
       </RenderFailureRecovery>,
     );
 
-    await expect.element(screen.getByText(NOTICE_TITLE)).toBeVisible();
+    await expect.element(screen.getByText(NOTICE_TITLE).first()).toBeVisible();
     expect(reportFailure).toHaveBeenCalledTimes(3);
 
     await userEvent.click(screen.getByRole("button", { name: RETRY_LABEL }));
@@ -152,13 +174,13 @@ describe("RenderFailureRecovery", () => {
       </RenderFailureRecovery>,
     );
 
-    await expect.element(screen.getByText(NOTICE_TITLE)).toBeVisible();
+    await expect.element(screen.getByText(NOTICE_TITLE).first()).toBeVisible();
     expect(reportFailure).toHaveBeenCalledTimes(3);
 
     await userEvent.click(screen.getByRole("button", { name: RETRY_LABEL }));
 
     await expect.poll(() => reportFailure.mock.calls.length).toBe(6);
-    await expect.element(screen.getByText(NOTICE_TITLE)).toBeVisible();
+    await expect.element(screen.getByText(NOTICE_TITLE).first()).toBeVisible();
   });
 
   it("shows the notice when the restarted screen throws again in the same render", async () => {
@@ -170,7 +192,7 @@ describe("RenderFailureRecovery", () => {
       </RenderFailureRecovery>,
     );
 
-    await expect.element(screen.getByText(NOTICE_TITLE)).toBeVisible();
+    await expect.element(screen.getByText(NOTICE_TITLE).first()).toBeVisible();
     expect(reportFailure).toHaveBeenCalledTimes(3);
   });
 
@@ -187,7 +209,7 @@ describe("RenderFailureRecovery", () => {
         </RenderFailureRecovery>,
       );
 
-      await expect.element(screen.getByText(NOTICE_TITLE)).toBeVisible();
+      await expect.element(screen.getByText(NOTICE_TITLE).first()).toBeVisible();
       expect(onWindowError).not.toHaveBeenCalled();
     } finally {
       window.removeEventListener("error", onWindowError);

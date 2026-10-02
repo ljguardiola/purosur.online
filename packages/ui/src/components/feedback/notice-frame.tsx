@@ -11,6 +11,7 @@ export type NoticeFrameProps = {
   iconBadgeClassName?: string;
   announcement: ReadonlyArray<string | undefined>;
   trailing?: ReactNode;
+  actions?: ReactNode;
   children: ReactNode;
 };
 
@@ -22,6 +23,7 @@ export function NoticeFrame({
   iconBadgeClassName,
   announcement,
   trailing,
+  actions,
   children,
 }: NoticeFrameProps) {
   return (
@@ -37,9 +39,18 @@ export function NoticeFrame({
       )}
       {/* Hidden from assistive technology so its text isn't announced twice: the live region
           below is its only accessible copy. */}
-      <div aria-hidden="true" className="flex flex-col gap-1">
-        {children}
-      </div>
+      {actions ? (
+        <div className="flex flex-col gap-3">
+          <div aria-hidden="true" className="flex flex-col gap-1">
+            {children}
+          </div>
+          <div className="flex flex-wrap items-center gap-3">{actions}</div>
+        </div>
+      ) : (
+        <div aria-hidden="true" className="flex flex-col gap-1">
+          {children}
+        </div>
+      )}
       {trailing}
       <NoticeLiveRegion
         assertiveness={tone === "error" ? "assertive" : "polite"}

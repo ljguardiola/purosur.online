@@ -26,7 +26,7 @@ export function Tag({
 }: TagProps & TagDomProps) {
   return (
     <span ref={ref} className={[tagClassName, tagToneClassName[tone]].join(" ")} {...rest}>
-      {variant === "status" ? <span aria-hidden="true" className={tagDotClassName[tone]} /> : null}
+      {variant === "status" ? <span aria-hidden="true" className={tagDotClassName(tone)} /> : null}
       {icon ? (
         <span aria-hidden="true" className={iconSlotClassName["2xs"]}>
           {icon}

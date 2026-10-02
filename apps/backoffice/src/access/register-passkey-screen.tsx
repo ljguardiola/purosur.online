@@ -1,10 +1,17 @@
 import { recoveryRedemptionBodySchema } from "@purosur/contracts";
-import { Button, InlineNotice, LoadFailure, LoadingPlaceholder, useRequestForm } from "@purosur/ui";
+import {
+  Button,
+  InlineNotice,
+  LoadFailure,
+  LoadingPlaceholder,
+  ScreenHeader,
+  useRequestForm,
+} from "@purosur/ui";
 import { ArrowLeft, KeyRound, ShieldCheck, ShieldX, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { AccessFooterLink, AccessHeader, AccessLayout } from "./access-layout";
+import { AccessFooterLink, AccessLayout } from "./access-layout";
 import { useRegistrationOptionsQuery, useReloadRegistrationOptions } from "./access-queries";
 import { passkeyNameMessage } from "./passkey-name-message";
 import type { RedeemRecoveryOutcome } from "./recovery-api";
@@ -88,7 +95,7 @@ function readToken(): string | null {
 function TokenStateNotice({ state }: { state: TokenState }) {
   return (
     <AccessLayout>
-      <AccessHeader heading="Registrá una passkey nueva" />
+      <ScreenHeader focusableTitle title="Registrá una passkey nueva" />
       <TokenErrorNotice {...TOKEN_STATE_COPY[state]} offerNewLink />
     </AccessLayout>
   );
@@ -196,7 +203,7 @@ function RegistrationOfToken({
   if (result?.kind === "registered") {
     return (
       <AccessLayout>
-        <AccessHeader heading="Registraste la passkey" />
+        <ScreenHeader focusableTitle title="Registraste la passkey" />
         <InlineNotice
           tone="info"
           icon={<ShieldCheck />}
@@ -211,7 +218,7 @@ function RegistrationOfToken({
   if (result?.kind === "rate_limited") {
     return (
       <AccessLayout>
-        <AccessHeader heading="Registrá una passkey nueva" />
+        <ScreenHeader focusableTitle title="Registrá una passkey nueva" />
         <InlineNotice
           tone="error"
           icon={<ShieldX />}
@@ -229,7 +236,7 @@ function RegistrationOfToken({
   if (data.status === "loading") {
     return (
       <AccessLayout>
-        <AccessHeader heading="Registrá una passkey nueva" />
+        <ScreenHeader focusableTitle title="Registrá una passkey nueva" />
         <LoadingPlaceholder variant="form" fields={1} />
       </AccessLayout>
     );
@@ -238,7 +245,7 @@ function RegistrationOfToken({
   if (data.status === "failed") {
     return (
       <AccessLayout>
-        <AccessHeader heading="Registrá una passkey nueva" />
+        <ScreenHeader focusableTitle title="Registrá una passkey nueva" />
         <LoadFailure {...cloudLoadFailure(data, "el registro")} />
       </AccessLayout>
     );
@@ -251,9 +258,10 @@ function RegistrationOfToken({
   const { displayName } = data.value;
   return (
     <AccessLayout>
-      <AccessHeader
+      <ScreenHeader
+        focusableTitle
         eyebrow={displayName}
-        heading="Registrá una passkey nueva"
+        title="Registrá una passkey nueva"
         description="Con ella vas a ingresar de ahora en adelante."
       />
       {attemptFailed ? (

@@ -32,6 +32,8 @@ export type { TableModelOptions } from "./components/data-display/table/use-tabl
 export { useTableModel } from "./components/data-display/table/use-table-model";
 export type { TagProps } from "./components/data-display/tag";
 export { Tag } from "./components/data-display/tag";
+export type { ElevatedNoticeProps } from "./components/feedback/elevated-notice";
+export { ElevatedNotice } from "./components/feedback/elevated-notice";
 export type { EmptyStateProps, EmptyStateVariant } from "./components/feedback/empty-state";
 export { EmptyState } from "./components/feedback/empty-state";
 export type { FloatingNotificationProps } from "./components/feedback/floating-notification";
@@ -40,7 +42,7 @@ export type { HighlightedNoticeProps } from "./components/feedback/highlighted-n
 export { HighlightedNotice } from "./components/feedback/highlighted-notice";
 export type { InlineNoticeProps } from "./components/feedback/inline-notice";
 export { InlineNotice } from "./components/feedback/inline-notice";
-export type { LoadFailureProps } from "./components/feedback/load-failure";
+export type { LoadFailureProps, LoadFailureVariant } from "./components/feedback/load-failure";
 export { LoadFailure } from "./components/feedback/load-failure";
 export type { LoadingPlaceholderProps } from "./components/feedback/loading-placeholder";
 export { LoadingPlaceholder } from "./components/feedback/loading-placeholder";
@@ -109,10 +111,14 @@ export type {
   ToggleChipOption,
 } from "./components/forms/toggle-chip-group";
 export { ToggleChipGroup } from "./components/forms/toggle-chip-group";
+export type { EyebrowProps } from "./components/layout/eyebrow";
+export { Eyebrow } from "./components/layout/eyebrow";
 export type { PuroSurIsotypeProps } from "./components/layout/puro-sur-isotype";
 export { PuroSurIsotype } from "./components/layout/puro-sur-isotype";
 export type { PuroSurLogoProps } from "./components/layout/puro-sur-logo";
 export { PuroSurLogo } from "./components/layout/puro-sur-logo";
+export type { ScreenHeaderProps } from "./components/layout/screen-header";
+export { ScreenHeader } from "./components/layout/screen-header";
 export type { AreaNavButtonProps } from "./components/navigation/area-nav-button";
 export { AreaNavButton } from "./components/navigation/area-nav-button";
 export type { AreaNavItemProps } from "./components/navigation/area-nav-item";

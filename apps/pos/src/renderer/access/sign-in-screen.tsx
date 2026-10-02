@@ -1,7 +1,6 @@
 import type { SignInOutcome, SignInUser } from "@purosur/contracts";
-import { EmptyState, LoadFailure, LoadingPlaceholder } from "@purosur/ui";
+import { EmptyState, LoadFailure, LoadingPlaceholder, ScreenHeader } from "@purosur/ui";
 import { KeyRound, TriangleAlert, UserPlus, UsersRound } from "lucide-react";
-import type { Ref } from "react";
 import { useId, useState } from "react";
 import { PinAttemptControls } from "../platform/pin-attempt-controls";
 import { SignInLockout } from "../platform/sign-in-lockout";
@@ -9,7 +8,7 @@ import { usePinAttempt } from "../platform/use-pin-attempt";
 import { UserPicker } from "../platform/user-picker";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
 import { ScreenLink } from "../shell/screen-link";
-import { SessionEyebrow } from "../shell/session-eyebrow";
+import { sessionEyebrow } from "../shell/session-eyebrow";
 import { useSignInUsersQuery } from "./access-queries";
 
 export type SignInScreenProps = {
@@ -17,27 +16,6 @@ export type SignInScreenProps = {
   signIn: (userId: string, pin: string) => Promise<SignInOutcome>;
   registerName: string | null;
 };
-
-function SignInHeading({
-  id,
-  headingRef,
-  children,
-}: {
-  id: string;
-  headingRef: Ref<HTMLHeadingElement>;
-  children: string;
-}) {
-  return (
-    <h1
-      id={id}
-      ref={headingRef}
-      tabIndex={-1}
-      className="text-display text-text-accent outline-none"
-    >
-      {children}
-    </h1>
-  );
-}
 
 function SignInPanel({ loadUsers, signIn, registerName }: SignInScreenProps) {
   const headingId = useId();
@@ -57,14 +35,16 @@ function SignInPanel({ loadUsers, signIn, registerName }: SignInScreenProps) {
 
   return (
     <main className="flex w-full max-w-110 flex-col gap-6">
-      <div className="flex flex-col gap-1.5">
-        <SessionEyebrow registerName={registerName} />
-        <SignInHeading id={headingId} headingRef={attempt.heading}>
-          {refusal?.kind === "locked"
+      <ScreenHeader
+        eyebrow={sessionEyebrow(registerName)}
+        titleId={headingId}
+        titleRef={attempt.heading}
+        title={
+          refusal?.kind === "locked"
             ? `${refusal.firstName} está bloqueado`
-            : "¿Quién abre la caja?"}
-        </SignInHeading>
-      </div>
+            : "¿Quién abre la caja?"
+        }
+      />
       {refusal?.kind === "locked" ? (
         <SignInLockout
           consecutiveFailures={refusal.consecutiveFailures}

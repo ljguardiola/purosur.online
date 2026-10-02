@@ -1,4 +1,5 @@
 import type { AddProductOutcome, ScanProductOutcome } from "@purosur/contracts";
+import { ElevatedNotice } from "@purosur/ui";
 import type { LucideIcon } from "lucide-react";
 import { Ban, Lock, PackageX, Scale, ScanBarcode, Tag, TriangleAlert } from "lucide-react";
 
@@ -108,19 +109,17 @@ export function messageFor(problem: ScanProblem): Message {
   }
 }
 
-// The live region stays mounted while empty: one that arrives already holding its text is not
-// announced.
 export function ScanProblemMessage({ problem }: { problem: ScanProblem | undefined }) {
   const message = problem === undefined ? undefined : messageFor(problem);
   return (
-    <div role="status" className="absolute inset-x-0 top-full z-overlay mt-2">
-      {message === undefined ? null : (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-surface p-6 text-center shadow-lg">
-          <message.icon aria-hidden="true" className="size-icon-3xl text-text-subtle" />
-          <p className="text-heading text-text">{message.title}</p>
-          <p className="text-body text-text-subtle">{message.help}</p>
-        </div>
-      )}
+    <div className="absolute inset-x-0 top-full z-overlay mt-2">
+      <ElevatedNotice
+        notice={
+          message === undefined
+            ? undefined
+            : { icon: <message.icon />, title: message.title, description: message.help }
+        }
+      />
     </div>
   );
 }
