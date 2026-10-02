@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Check, Info as InfoIcon } from "lucide-react";
+import { Check, Info as InfoIcon, ShoppingBasket, X } from "lucide-react";
+import { Button } from "../forms/button";
 import { HighlightedNotice } from "./highlighted-notice";
 
 const meta: Meta<typeof HighlightedNotice> = {
@@ -33,4 +34,18 @@ export const Warning: Story = {
 
 export const ErrorTone: Story = {
   args: { tone: "error", title: "Venta bloqueada", description: "Tarjeta rechazada." },
+};
+
+export const WithAction: Story = {
+  args: {
+    tone: "error",
+    icon: <ShoppingBasket />,
+    title: "Hay una venta abierta de $ 12.500",
+    description: "Cancelala para cerrar la caja.",
+    actions: (
+      <Button variant="secondary" icon={<X />}>
+        Cancelar la venta
+      </Button>
+    ),
+  },
 };
