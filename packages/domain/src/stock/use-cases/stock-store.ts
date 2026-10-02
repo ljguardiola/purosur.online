@@ -1,4 +1,5 @@
 import type { SaleUnit } from "../../catalog/index.js";
+import type { StockMovementKind } from "../model/stock-movement-kind.js";
 import type { AdjustmentReason, LossReason } from "../model/stock-movement-reason.js";
 
 export interface Clock {
@@ -23,8 +24,6 @@ export interface CoveringCount {
   movementId: string;
   occurredAt: Date;
 }
-
-export type StockMovementKind = "loss" | "adjustment" | "count";
 
 export interface NewStockMovement extends ProductStockKey {
   kind: StockMovementKind;

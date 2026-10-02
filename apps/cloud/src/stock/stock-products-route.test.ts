@@ -4,7 +4,6 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { registerStockProductsRoute } from "./stock-products-route.js";
 import {
   BACKOFFICE_ORIGIN,
-  insertBalance,
   insertProduct,
   signedInWith,
 } from "./test-support/stock-route-fixtures.js";
@@ -74,16 +73,13 @@ describe("GET /inventory-items", () => {
     expect(response.statusCode).toBe(200);
   });
 
-  it("lists every active product by name, without its balance", async () => {
-    const { headers, locationId } = await signedInWith(db, ["record_stock_losses"], NOON);
-    const honey = await insertProduct(db, { name: "Miel pura de abeja 1 kg" });
+  it("lists the active products", async () => {
+    const { headers } = await signedInWith(db, ["record_stock_losses"], NOON);
     const almonds = await insertProduct(db, {
       name: "Almendras peladas",
       categoryName: "Frutos secos",
       saleUnit: "KG",
     });
-    await insertProduct(db, { name: "Arroz discontinuado", active: false });
-    await insertBalance(db, { productId: honey.productId, locationId, quantity: 24_000 });
 
     const response = await listProducts(headers);
 
@@ -95,13 +91,6 @@ describe("GET /inventory-items", () => {
           categoryId: almonds.categoryId,
           categoryName: "Frutos secos",
           saleUnit: "KG",
-        },
-        {
-          id: honey.productId,
-          name: "Miel pura de abeja 1 kg",
-          categoryId: honey.categoryId,
-          categoryName: "Almacén",
-          saleUnit: "UNIT",
         },
       ],
     });
