@@ -17,6 +17,8 @@ export interface PasskeyRemovalRouteOptions<TQueryResult extends PgQueryResultHK
   now?: () => Date;
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no passkey with that id belongs to this account",
@@ -41,6 +43,10 @@ export function registerPasskeyRemovalRoutes<TQueryResult extends PgQueryResultH
       const openSession = openSessionOf(request);
 
       const targetId = (request.params as { id: string }).id;
+      if (!UUID_PATTERN.test(targetId)) {
+        await reply.code(404).send(NOT_FOUND_RESPONSE);
+        return;
+      }
 
       const outcome = await removeOwnPasskey(
         { store: new DrizzlePasskeyRemovalStore(options.db) },

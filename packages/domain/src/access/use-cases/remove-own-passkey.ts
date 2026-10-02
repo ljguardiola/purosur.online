@@ -21,15 +21,13 @@ export function removeOwnPasskey(
   { store }: RemoveOwnPasskeyPorts,
   input: RemoveOwnPasskeyInput,
 ): Promise<RemoveOwnPasskeyOutcome> {
+  if (!hasValidPasskeyAuthorization({ passkeyAuthorizedAt: input.passkeyAuthorizedAt }, input.at)) {
+    return Promise.resolve({ kind: "authorization_required" });
+  }
   return store.transaction<RemoveOwnPasskeyOutcome>(async (tx) => {
     const removable = await tx.findRemovablePasskey(input.userId, input.passkeyId);
     if (!removable) {
       return { kind: "not_found" };
-    }
-    if (
-      !hasValidPasskeyAuthorization({ passkeyAuthorizedAt: input.passkeyAuthorizedAt }, input.at)
-    ) {
-      return { kind: "authorization_required" };
     }
     await tx.deletePasskey(removable.id);
     await tx.recordOwnPasskeyRemoved(input.userId, removable);
