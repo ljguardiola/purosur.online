@@ -15,14 +15,14 @@ test("invalidating the stock key marks every stock read stale", async () => {
   for (const key of keys) {
     client.setQueryData(key, []);
   }
-  client.setQueryData(["prices"], []);
+  client.setQueryData(["pricing"], []);
 
   await client.invalidateQueries({ queryKey: stockKey, refetchType: "none" });
 
   for (const key of keys) {
     expect(client.getQueryState(key)?.isInvalidated).toBe(true);
   }
-  expect(client.getQueryState(["prices"])?.isInvalidated).toBe(false);
+  expect(client.getQueryState(["pricing"])?.isInvalidated).toBe(false);
 });
 
 test("each period, product and moment has its own key", () => {

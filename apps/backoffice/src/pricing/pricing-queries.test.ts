@@ -1,8 +1,8 @@
 import { QueryClient } from "@tanstack/react-query";
 import { expect, test } from "vitest";
-import { discountsKey, discountTargetsKey, pricesKey, pricesKeys } from "./pricing-queries";
+import { discountsKey, discountTargetsKey, pricesKeys, pricingKey } from "./pricing-queries";
 
-test("invalidating the prices key marks every prices list stale, whatever its filters", async () => {
+test("invalidating the pricing key marks every prices list stale, whatever its filters", async () => {
   const client = new QueryClient();
   const keys = [
     pricesKeys.list({ review: "pending" }),
@@ -14,12 +14,27 @@ test("invalidating the prices key marks every prices list stale, whatever its fi
   }
   client.setQueryData(["other"], []);
 
-  await client.invalidateQueries({ queryKey: pricesKey, refetchType: "none" });
+  await client.invalidateQueries({ queryKey: pricingKey, refetchType: "none" });
 
   for (const key of keys) {
     expect(client.getQueryState(key)?.isInvalidated).toBe(true);
   }
   expect(client.getQueryState(["other"])?.isInvalidated).toBe(false);
+});
+
+test("every pricing query is keyed under the pricing concept's root key", () => {
+  const keys = [
+    pricesKeys.list({ review: "all", categoryId: "category-1", search: "arroz" }),
+    pricesKeys.reviewQueue,
+    pricesKeys.reload,
+    discountsKey,
+    discountTargetsKey,
+  ];
+
+  expect(pricingKey).toEqual(["pricing"]);
+  for (const key of keys) {
+    expect(key.slice(0, pricingKey.length)).toEqual(pricingKey);
+  }
 });
 
 test("each combination of filters has its own key, so one combination's late answer cannot land in another's list", () => {
@@ -42,11 +57,11 @@ test("the same filters always have the same key", () => {
   );
 });
 
-test("invalidating the prices key also marks the promotions list stale", async () => {
+test("invalidating the pricing key also marks the promotions list stale", async () => {
   const client = new QueryClient();
   client.setQueryData(discountsKey, { discounts: [] });
 
-  await client.invalidateQueries({ queryKey: pricesKey, refetchType: "none" });
+  await client.invalidateQueries({ queryKey: pricingKey, refetchType: "none" });
 
   expect(client.getQueryState(discountsKey)?.isInvalidated).toBe(true);
 });

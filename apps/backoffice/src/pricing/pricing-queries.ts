@@ -12,16 +12,16 @@ import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchDiscounts, fetchDiscountTargets } from "./discounts-api";
 import type { FetchPricesInput, fetchPrices } from "./prices-api";
 
-export const pricesKey = ["prices"] as const;
+export const pricingKey = ["pricing"] as const;
 
 export const pricesKeys = {
   list: ({ review, categoryId, search }: FetchPricesInput) =>
-    [...pricesKey, "list", review, categoryId ?? null, search ?? null] as const,
-  reviewQueue: [...pricesKey, "review-queue"] as const,
-  reload: [...pricesKey, "reload"] as const,
+    [...pricingKey, "list", review, categoryId ?? null, search ?? null] as const,
+  reviewQueue: [...pricingKey, "review-queue"] as const,
+  reload: [...pricingKey, "reload"] as const,
 };
 
-export const discountsKey = [...pricesKey, "discounts"] as const;
+export const discountsKey = [...pricingKey, "discounts"] as const;
 
 const DISCOUNT_STATUS_REFRESH_MS = 60_000;
 
@@ -63,7 +63,7 @@ export function useReloadPrice(params: {
 }): (id: string) => Promise<PriceReload> {
   const client = useQueryClient();
   return async (id) => {
-    void client.invalidateQueries({ queryKey: pricesKey });
+    void client.invalidateQueries({ queryKey: pricingKey });
     const listed = await fetchCloudQuery(client, {
       queryKey: pricesKeys.reload,
       read: () => params.fetchPrices({ review: "all" }),
@@ -78,7 +78,7 @@ export function useReloadPrice(params: {
 
 export function useRefreshPrices(): () => Promise<void> {
   const client = useQueryClient();
-  return () => client.invalidateQueries({ queryKey: pricesKey });
+  return () => client.invalidateQueries({ queryKey: pricingKey });
 }
 
 export function useDiscountsQuery(params: {
@@ -110,7 +110,7 @@ export function useDiscountTargetsQuery(params: {
 
 export function useRefreshDiscounts(): () => Promise<void> {
   const client = useQueryClient();
-  return () => client.invalidateQueries({ queryKey: pricesKey });
+  return () => client.invalidateQueries({ queryKey: pricingKey });
 }
 
 export type DiscountReload =
@@ -123,7 +123,7 @@ export function useReloadDiscount(params: {
 }): (id: string) => Promise<DiscountReload> {
   const client = useQueryClient();
   return async (id) => {
-    void client.invalidateQueries({ queryKey: pricesKey });
+    void client.invalidateQueries({ queryKey: pricingKey });
     const listed = await fetchCloudQuery(client, {
       queryKey: discountsKey,
       read: params.fetchDiscounts,
