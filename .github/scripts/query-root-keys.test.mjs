@@ -457,9 +457,8 @@ for (const { reach, line, files } of UNCALLED_UNDER_ANOTHER_NAME) {
 
 const BUNDLER_GLOBALS = [
   "interface ImportMeta {",
-  "  glob(patterns: string | string[], options?: { eager?: boolean }): Record<string, unknown>;",
+  "  glob(patterns: string | string[], options?: object): Record<string, unknown>;",
   "}",
-  "declare function require(path: string): unknown;",
 ].join("\n");
 
 const EACH_EXPORT =
@@ -471,17 +470,6 @@ const REACHED_THROUGH_ITS_MODULE_OBJECT = [
     files: {
       "src/sales/invalidate.ts": INVALIDATE,
       "src/sales/refresh.ts": [
-        'import * as keys from "./invalidate";',
-        EACH_EXPORT,
-        "refreshAll(keys);",
-      ].join("\n"),
-    },
-  },
-  {
-    reach: "a namespace import in a file the check leaves out",
-    files: {
-      "src/sales/invalidate.ts": INVALIDATE,
-      "src/sales/refresh.test.ts": [
         'import * as keys from "./invalidate";',
         EACH_EXPORT,
         "refreshAll(keys);",
@@ -534,16 +522,6 @@ const REACHED_THROUGH_ITS_MODULE_OBJECT = [
     },
   },
   {
-    reach: "a dynamic import of a path the check cannot read",
-    files: {
-      "src/sales/invalidate.ts": INVALIDATE,
-      "src/sales/refresh.ts": [
-        EACH_EXPORT,
-        "export const refreshLater = async (path: string) => refreshAll(await import(path));",
-      ].join("\n"),
-    },
-  },
-  {
     reach: "a barrel's re-export by name",
     files: {
       "src/sales/invalidate.ts": INVALIDATE,
@@ -564,27 +542,6 @@ const REACHED_THROUGH_ITS_MODULE_OBJECT = [
         'import * as keys from "./index";',
         EACH_EXPORT,
         "refreshAll(keys);",
-      ].join("\n"),
-    },
-  },
-  {
-    reach: "a require call",
-    files: {
-      "src/env.d.ts": BUNDLER_GLOBALS,
-      "src/sales/invalidate.ts": INVALIDATE,
-      "src/sales/refresh.ts": [EACH_EXPORT, 'refreshAll(require("./invalidate") as object);'].join(
-        "\n",
-      ),
-    },
-  },
-  {
-    reach: "a require call of a path the check cannot read",
-    files: {
-      "src/env.d.ts": BUNDLER_GLOBALS,
-      "src/sales/invalidate.ts": INVALIDATE,
-      "src/sales/refresh.ts": [
-        EACH_EXPORT,
-        "export const refreshFrom = (path: string) => refreshAll(require(path) as object);",
       ].join("\n"),
     },
   },
@@ -622,29 +579,6 @@ const REACHED_THROUGH_ITS_MODULE_OBJECT = [
     },
   },
   {
-    reach: "a require held in another name",
-    files: {
-      "src/env.d.ts": BUNDLER_GLOBALS,
-      "src/sales/invalidate.ts": INVALIDATE,
-      "src/sales/refresh.ts": [
-        EACH_EXPORT,
-        "const load = require;\nexport const refreshFrom = (path: string) => refreshAll(load(path) as object);",
-      ].join("\n"),
-    },
-  },
-  {
-    reach: "a require handed on in a shorthand property",
-    files: {
-      "src/env.d.ts": BUNDLER_GLOBALS,
-      "src/sales/invalidate.ts": INVALIDATE,
-      "src/sales/refresh.ts": [
-        EACH_EXPORT,
-        "const loaders = { require };",
-        "export const refreshFrom = (path: string) => refreshAll(loaders.require(path) as object);",
-      ].join("\n"),
-    },
-  },
-  {
     reach: "import.meta held in another name",
     files: {
       "src/env.d.ts": BUNDLER_GLOBALS,
@@ -674,6 +608,62 @@ const REACHED_THROUGH_ITS_MODULE_OBJECT = [
       "src/sales/refresh.ts": [
         EACH_EXPORT,
         'refreshAll(import.meta["glob"]("./inval*.ts", { eager: true }));',
+      ].join("\n"),
+    },
+  },
+  {
+    reach: "a glob import from another base folder",
+    files: {
+      "src/env.d.ts": BUNDLER_GLOBALS,
+      "src/sales/invalidate.ts": INVALIDATE,
+      "src/shell/refresh.ts": [
+        EACH_EXPORT,
+        'refreshAll(import.meta.glob("./*.ts", { base: "../sales", eager: true }));',
+      ].join("\n"),
+    },
+  },
+  {
+    reach: "a glob import matching names in any case",
+    files: {
+      "src/env.d.ts": BUNDLER_GLOBALS,
+      "src/sales/invalidate.ts": INVALIDATE,
+      "src/sales/refresh.ts": [
+        EACH_EXPORT,
+        'refreshAll(import.meta.glob("./INVALIDATE.ts", { caseSensitive: false, eager: true }));',
+      ].join("\n"),
+    },
+  },
+  {
+    reach: "a glob import of options spread from another object",
+    files: {
+      "src/env.d.ts": BUNDLER_GLOBALS,
+      "src/sales/invalidate.ts": INVALIDATE,
+      "src/shell/refresh.ts": [
+        EACH_EXPORT,
+        "const options = { eager: true };",
+        'refreshAll(import.meta.glob("./missing.ts", { ...options }));',
+      ].join("\n"),
+    },
+  },
+  {
+    reach: "a glob import of an option the check cannot read",
+    files: {
+      "src/env.d.ts": BUNDLER_GLOBALS,
+      "src/sales/invalidate.ts": INVALIDATE,
+      "src/shell/refresh.ts": [
+        EACH_EXPORT,
+        'export const refreshFrom = (query: string) => refreshAll(import.meta.glob("./missing.ts", { query }));',
+      ].join("\n"),
+    },
+  },
+  {
+    reach: "a glob import of an option value the check cannot read",
+    files: {
+      "src/env.d.ts": BUNDLER_GLOBALS,
+      "src/sales/invalidate.ts": INVALIDATE,
+      "src/shell/refresh.ts": [
+        EACH_EXPORT,
+        'export const refreshFrom = (eager: boolean) => refreshAll(import.meta.glob("./missing.ts", { eager: eager }));',
       ].join("\n"),
     },
   },
@@ -750,7 +740,7 @@ for (const { reach, files } of CALLED_UNDER_ANOTHER_NAME) {
   });
 }
 
-test("follows a key into a function whose module no dynamic import, require call or glob import loads", (t) => {
+test("follows a key into a function whose module no dynamic import or glob import loads", (t) => {
   const problems = problemsIn(t, {
     "src/env.d.ts": BUNDLER_GLOBALS,
     "src/sales/invalidate.ts": INVALIDATE,
@@ -758,8 +748,9 @@ test("follows a key into a function whose module no dynamic import, require call
     "src/sales/refresh.ts": [
       'import { invalidate } from "./invalidate";',
       'export const refreshTicket = () => invalidate(["ticket"]);',
-      'export const others = import.meta.glob(["./other-*.ts", "../migrations/*.sql"], { eager: true });',
-      'export const otherLater = () => [import("./other-keys"), require("./other-keys")];',
+      'export const others = import.meta.glob(["./other-*.ts", "../migrations/*.sql"], { eager: true, import: "default", query: "?url" });',
+      'export const otherLoaders = [import.meta.glob("./other-*.ts"), import.meta.glob("./other-*.ts", { eager: false })];',
+      'export const otherLater = () => import("./other-keys");',
       "export const here = import.meta.url;",
       "export const flags = { require: false };",
       "export function Refresher() { return new.target; }",
@@ -769,6 +760,121 @@ test("follows a key into a function whose module no dynamic import, require call
   assert.deepEqual(problems, [
     'src/sales/refresh.ts:2 roots a query key at "ticket", but the concept folder holding it is "sales"',
   ]);
+});
+
+const MENTIONED_WITHOUT_ITS_MODULE_OBJECT = [
+  {
+    mention: "a type-only import of its module",
+    line: 'export type Keys = typeof import("./invalidate");',
+  },
+  {
+    mention: "a side-effect import of its module",
+    line: 'import "./invalidate";',
+  },
+  {
+    mention: "a test file's namespace import and mock of its module",
+    files: {
+      "src/sales/refresh.test.ts": [
+        'import { vi } from "vitest";',
+        'import * as keys from "./invalidate";',
+        'vi.mock("./invalidate", async (importOriginal) => importOriginal<typeof import("./invalidate")>());',
+        "Object.values(keys);",
+      ].join("\n"),
+    },
+  },
+];
+
+for (const { mention, files, line } of MENTIONED_WITHOUT_ITS_MODULE_OBJECT) {
+  test(`follows a key into a function whose module is mentioned only through ${mention}`, (t) => {
+    const problems = problemsIn(t, {
+      "src/sales/invalidate.ts": INVALIDATE,
+      "src/sales/refresh.ts": [
+        'import { invalidate } from "./invalidate";',
+        'export const refreshTicket = () => invalidate(["ticket"]);',
+        ...(line === undefined ? [] : [line]),
+      ].join("\n"),
+      ...files,
+    });
+
+    assert.deepEqual(problems, [
+      'src/sales/refresh.ts:2 roots a query key at "ticket", but the concept folder holding it is "sales"',
+    ]);
+  });
+}
+
+const RUNTIME_MODULE_LOADING = [
+  { loading: "a require call", source: 'export const load = () => require("./other");' },
+  { loading: "a require held in another name", source: "export const load = require;" },
+  {
+    loading: "a require handed on in a shorthand property",
+    source: "export const loaders = { require };",
+  },
+  { loading: "a module's require", source: 'export const load = () => module.require("./other");' },
+  {
+    loading: "the global require",
+    source: 'export const load = () => globalThis.require("./other");',
+  },
+  {
+    loading: "the global require read through a string-literal access",
+    source: 'export const load = () => globalThis["require"]("./other");',
+  },
+  {
+    loading: "createRequire",
+    source: "export const load = (make: Function) => make(createRequire);",
+  },
+  {
+    loading: "a static import of node:module",
+    source: 'export { builtinModules } from "node:module";',
+  },
+  {
+    loading: "a static import of module",
+    source: 'import * as modules from "module";\nexport { modules };',
+  },
+  {
+    loading: "an import assignment of node:module",
+    source: 'import modules = require("node:module");',
+  },
+  {
+    loading: "a dynamic import of node:module",
+    source: 'export const load = () => import("node:module");',
+  },
+  {
+    loading: "a dynamic import of a path the check cannot read",
+    source: "export const load = (path: string) => import(path);",
+  },
+];
+
+for (const { loading, source } of RUNTIME_MODULE_LOADING) {
+  test(`refuses runtime module loading through ${loading}, naming the file and line`, (t) => {
+    const problems = problemsIn(t, { "src/sales/load.ts": `// loads\n${source}` });
+
+    assert.deepEqual(problems, [
+      "src/sales/load.ts:2 loads a module at run time, which the query key check cannot follow",
+    ]);
+  });
+}
+
+test("refuses runtime module loading in a test file", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/load.test.ts": 'export const load = () => require("./other");',
+  });
+
+  assert.deepEqual(problems, [
+    "src/sales/load.test.ts:1 loads a module at run time, which the query key check cannot follow",
+  ]);
+});
+
+test("accepts a dynamic import of a literal path, a property named require and the word module", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/other.ts": "export const other = 1;",
+    "src/sales/load.ts": [
+      'export const load = () => [import("./other"), import(`./other`)];',
+      "export const flags = { require: false };",
+      'export const kind = "module";',
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, []);
 });
 
 test("follows a key into a function whose type is also read", (t) => {
