@@ -1,4 +1,13 @@
 import { holdsPermission, type PermissionKey, type RoleAccess } from "../../access/index.js";
+import {
+  ADJUSTMENT_REASONS,
+  type AdjustmentReason,
+  adjustmentDirections,
+  LOSS_DIRECTION,
+  LOSS_REASONS,
+  type LossReason,
+  type StockDirection,
+} from "./stock-movement-reason.js";
 
 export const MANUAL_STOCK_MOVEMENT_KINDS = ["loss", "adjustment"] as const;
 
@@ -19,4 +28,20 @@ export function visibleManualStockMovementKinds(access: RoleAccess): ManualStock
   return MANUAL_STOCK_MOVEMENT_KINDS.filter((kind) =>
     holdsPermission(access, manualStockMovementPermission(kind)),
   );
+}
+
+type ManualStockMovementReason =
+  | { kind: "loss"; reason: LossReason; directions: readonly StockDirection[] }
+  | { kind: "adjustment"; reason: AdjustmentReason; directions: readonly StockDirection[] };
+
+export function manualStockMovementReasons(
+  kind: ManualStockMovementKind,
+): ManualStockMovementReason[] {
+  return kind === "loss"
+    ? LOSS_REASONS.map((reason) => ({ kind, reason, directions: [LOSS_DIRECTION] }))
+    : ADJUSTMENT_REASONS.map((reason) => ({
+        kind,
+        reason,
+        directions: adjustmentDirections(reason),
+      }));
 }

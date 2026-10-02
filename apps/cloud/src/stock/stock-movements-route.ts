@@ -2,11 +2,13 @@ import {
   stockAdjustmentBodySchema,
   stockLossBodySchema,
   stockMovementListSchema,
+  stockMovementReasonListSchema,
   stockMovementResultSchema,
 } from "@purosur/contracts";
 import {
   MANUAL_STOCK_MOVEMENT_KINDS,
   manualStockMovementPermission,
+  manualStockMovementReasons,
   visibleManualStockMovementKinds,
 } from "@purosur/domain";
 import {
@@ -78,16 +80,13 @@ export function registerStockMovementsRoutes<TQueryResult extends PgQueryResultH
   const preHandler = sameOriginGuard(options.backofficeOrigin);
   const lossAccess = permissionAccess(manualStockMovementPermission("loss"));
   const adjustmentAccess = permissionAccess(manualStockMovementPermission("adjustment"));
+  const anyKindAccess = permissionAccess(
+    MANUAL_STOCK_MOVEMENT_KINDS.map(manualStockMovementPermission),
+  );
 
   app.get<{ Querystring: { days?: string } }>(
     "/inventory-movements",
-    {
-      preHandler,
-      config: {
-        access: permissionAccess(MANUAL_STOCK_MOVEMENT_KINDS.map(manualStockMovementPermission)),
-        sessionSource,
-      },
-    },
+    { preHandler, config: { access: anyKindAccess, sessionSource } },
     async (request, reply) => {
       const openSession = openSessionOf(request);
       const movements = await reader.movements({
@@ -101,6 +100,20 @@ export function registerStockMovementsRoutes<TQueryResult extends PgQueryResultH
             ...movement,
             occurredAt: movement.occurredAt.toISOString(),
           })),
+        }),
+      );
+    },
+  );
+
+  app.get(
+    "/inventory-movement-reasons",
+    { preHandler, config: { access: anyKindAccess, sessionSource } },
+    async (request, reply) => {
+      await reply.code(200).send(
+        stockMovementReasonListSchema.parse({
+          reasons: visibleManualStockMovementKinds(openSessionOf(request)).flatMap(
+            manualStockMovementReasons,
+          ),
         }),
       );
     },

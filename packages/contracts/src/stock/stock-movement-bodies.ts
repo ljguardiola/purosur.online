@@ -1,13 +1,9 @@
 import {
   ADJUSTMENT_REASONS,
-  type AdjustmentReason,
   adjustmentDirections,
   LOSS_REASONS,
-  lossDelta,
   MAX_STOCK_QUANTITY,
   STOCK_DIRECTIONS,
-  type StockDirection,
-  signedDelta,
 } from "@purosur/domain";
 import { z } from "zod";
 
@@ -31,41 +27,19 @@ export const stockLossBodySchema = z.object({
 
 export type StockLossBody = z.input<typeof stockLossBodySchema>;
 
-const direction = z.enum(STOCK_DIRECTIONS, { error: "direction must be add or subtract" });
-
-export const stockAdjustmentDirectionsSchema = z.object(
-  Object.fromEntries(
-    ADJUSTMENT_REASONS.map((reason) => [reason, z.enum(adjustmentDirections(reason))]),
-  ) as Record<AdjustmentReason, z.ZodEnum<{ [Direction in StockDirection]: Direction }>>,
-);
-
 export const stockAdjustmentBodySchema = z
   .object({
     productId,
     reason: z.enum(ADJUSTMENT_REASONS, { error: "reason must be one of the adjustment reasons" }),
-    direction,
+    direction: z.enum(STOCK_DIRECTIONS, { error: "direction must be add or subtract" }),
     quantity,
   })
-  .refine(
-    (body) => stockAdjustmentDirectionsSchema.shape[body.reason].options.includes(body.direction),
-    {
-      path: ["direction"],
-      error: "this reason only subtracts",
-    },
-  );
+  .refine((body) => adjustmentDirections(body.reason).includes(body.direction), {
+    path: ["direction"],
+    error: "this reason only subtracts",
+  });
 
 export type StockAdjustmentBody = z.input<typeof stockAdjustmentBodySchema>;
-
-export const stockMovementChangeSchema = z
-  .discriminatedUnion("kind", [
-    z.object({ kind: z.literal("loss"), quantity: z.number() }),
-    z.object({ kind: z.literal("adjustment"), direction, quantity: z.number() }),
-  ])
-  .transform((movement) =>
-    movement.kind === "loss"
-      ? lossDelta(movement.quantity)
-      : signedDelta(movement.direction, movement.quantity),
-  );
 
 export const stockCountBodySchema = z.object({
   productId,

@@ -1,8 +1,8 @@
 import {
   type StockMovement,
+  type StockMovementReasonList,
   type StockProduct,
   stockAdjustmentBodySchema,
-  stockAdjustmentDirectionsSchema,
   stockLossBodySchema,
   stockMovementListSchema,
 } from "@purosur/contracts";
@@ -68,8 +68,15 @@ export const ADJUSTMENT_REASON_OPTIONS = REASONS_OF_KIND.adjustment.map((reason)
 export const PRODUCT_REQUIRED = "Elegí el producto.";
 export const REASON_REQUIRED = "Elegí el motivo.";
 
-export function soleDirection(reason: AdjustmentReason | null): StockDirection | undefined {
-  const [only, ...others] =
-    reason === null ? [] : stockAdjustmentDirectionsSchema.shape[reason].options;
+export function soleDirection(
+  reasons: StockMovementReasonList["reasons"],
+  kind: MovementKind,
+  reason: StockMovement["reason"] | null,
+): StockDirection | undefined {
+  const [only, ...others] = new Set(
+    reasons
+      .filter((listed) => listed.kind === kind && (reason === null || listed.reason === reason))
+      .flatMap((listed) => listed.directions),
+  );
   return others.length === 0 ? only : undefined;
 }

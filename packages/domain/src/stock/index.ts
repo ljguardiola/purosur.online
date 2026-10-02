@@ -6,6 +6,7 @@ export type {
 export {
   MANUAL_STOCK_MOVEMENT_KINDS,
   manualStockMovementPermission,
+  manualStockMovementReasons,
   visibleManualStockMovementKinds,
 } from "./model/stock-movement-kind.js";
 export type {

@@ -1,4 +1,4 @@
-import { type SaleUnit, STOCK_QUANTITY_PER_UNIT } from "@purosur/domain";
+import { type SaleUnit, STOCK_QUANTITY_PER_UNIT, type StockDirection } from "@purosur/domain";
 import { formatNumber, parseEsArNumber } from "@purosur/ui";
 
 const KG_DECIMALS = 3;
@@ -18,6 +18,10 @@ export function formatStockQuantity(quantity: number, saleUnit: SaleUnit): strin
 
 export function formatStockChange(delta: number, saleUnit: SaleUnit): string {
   return delta > 0 ? `+ ${formatMagnitude(delta, saleUnit)}` : formatStockQuantity(delta, saleUnit);
+}
+
+export function directedQuantity(direction: StockDirection, quantity: number): number {
+  return direction === "add" ? quantity : -quantity;
 }
 
 export function parseStockQuantity(value: string, saleUnit: SaleUnit): number | undefined {

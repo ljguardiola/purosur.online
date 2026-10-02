@@ -315,6 +315,7 @@ export {
   MANUAL_STOCK_MOVEMENT_KINDS,
   MAX_STOCK_QUANTITY,
   manualStockMovementPermission,
+  manualStockMovementReasons,
   STOCK_DIRECTIONS,
   STOCK_QUANTITY_PER_UNIT,
   signedDelta,
