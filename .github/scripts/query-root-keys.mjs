@@ -165,7 +165,9 @@ function checkerTools(checker) {
   };
 }
 
-function isCalledThrough(reference) {
+const HANDED_ON_BY_NAME = {};
+
+function callThrough(reference) {
   const parent = reference.parent;
   if (
     ts.isImportSpecifier(parent) ||
@@ -173,7 +175,7 @@ function isCalledThrough(reference) {
     ts.isExportSpecifier(parent) ||
     ts.isExportAssignment(parent)
   ) {
-    return true;
+    return HANDED_ON_BY_NAME;
   }
   const callee =
     (ts.isPropertyAccessExpression(parent) && parent.name === reference) ||
@@ -181,13 +183,12 @@ function isCalledThrough(reference) {
       ? parent
       : reference;
   const user = callee.parent;
-  if (ts.isCallOrNewExpression(user)) return user.expression === callee;
-  return (
-    (ts.isJsxOpeningElement(user) ||
-      ts.isJsxSelfClosingElement(user) ||
-      ts.isJsxClosingElement(user)) &&
+  if (ts.isCallOrNewExpression(user)) return user.expression === callee ? user : undefined;
+  if (ts.isJsxClosingElement(user)) return user.tagName === callee ? HANDED_ON_BY_NAME : undefined;
+  return (ts.isJsxOpeningElement(user) || ts.isJsxSelfClosingElement(user)) &&
     user.tagName === callee
-  );
+    ? user
+    : undefined;
 }
 
 function nameOfFunction(fn) {
@@ -206,12 +207,50 @@ function nameOfFunction(fn) {
     : undefined;
 }
 
+function assignmentPatternTyping(literal) {
+  let node = literal;
+  let typing = "typed";
+  for (;;) {
+    const parent = node.parent;
+    if (ts.isBinaryExpression(parent) && parent.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
+      return parent.left === node ? typing : undefined;
+    }
+    if (ts.isForOfStatement(parent)) return typing;
+    if (ts.isSpreadElement(parent)) typing = "untyped";
+    else if (
+      !(ts.isPropertyAssignment(parent) && parent.initializer === node) &&
+      !ts.isObjectLiteralExpression(parent) &&
+      !ts.isArrayLiteralExpression(parent)
+    ) {
+      return undefined;
+    }
+    node = parent;
+  }
+}
+
 function isMemberName(reference) {
   const parent = reference.parent;
   return (
     (ts.isClassElement(parent) || ts.isTypeElement(parent) || ts.isPropertyAssignment(parent)) &&
     parent.name === reference
   );
+}
+
+function propertyNameText(name) {
+  return ts.isIdentifier(name) || ts.isStringLiteralLike(name) || ts.isNumericLiteral(name)
+    ? name.text
+    : undefined;
+}
+
+function propertyValue(property) {
+  if (ts.isPropertyAssignment(property)) return property.initializer;
+  if (ts.isShorthandPropertyAssignment(property)) return property.name;
+  if (ts.isJsxAttribute(property) && property.initializer !== undefined) {
+    return ts.isJsxExpression(property.initializer)
+      ? (property.initializer.expression ?? property)
+      : property.initializer;
+  }
+  return property;
 }
 
 function isTypePosition(reference) {
@@ -243,35 +282,136 @@ function rootTracer(service, checker, tools, checkedFiles) {
   const PASSED_THROUGH = { kind: "passed-through" };
   const checkedFileNamed = new Map(checkedFiles.map((file) => [file.fileName, file]));
 
-  const callersChecked = new Map();
-  const callersAreChecked = (fn) => {
-    if (!callersChecked.has(fn)) {
+  let assignmentPatterns;
+  const assignmentPatternsInCheckedFiles = () => {
+    if (assignmentPatterns === undefined) {
+      assignmentPatterns = [];
+      const visit = (node) => {
+        const typing = ts.isObjectLiteralExpression(node)
+          ? assignmentPatternTyping(node)
+          : undefined;
+        if (typing !== undefined) assignmentPatterns.push({ pattern: node, typing });
+        ts.forEachChild(node, visit);
+      };
+      for (const sourceFile of checkedFiles) visit(sourceFile);
+    }
+    return assignmentPatterns;
+  };
+
+  const isDestructuredByAssignment = (name, referenced) => {
+    const referenceAtSpan = new Set(
+      referenced.flatMap(({ references }) =>
+        references.map(({ fileName, textSpan }) => `${fileName}:${textSpan.start}`),
+      ),
+    );
+    const isReferenced = (property) =>
+      checker
+        .getRootSymbols(property)
+        .some((root) =>
+          (root.declarations ?? []).some(
+            (declaration) =>
+              declaration.name !== undefined &&
+              referenceAtSpan.has(
+                `${declaration.getSourceFile().fileName}:${declaration.name.getStart()}`,
+              ),
+          ),
+        );
+    return assignmentPatternsInCheckedFiles().some(({ pattern, typing }) => {
+      if (
+        !pattern.properties.some(
+          (each) => each.name !== undefined && propertyNameText(each.name) === name.text,
+        )
+      ) {
+        return false;
+      }
+      if (typing === "untyped") return true;
+      const property = checker.getTypeOfAssignmentPattern(pattern).getProperty(name.text);
+      return property !== undefined && isReferenced(property);
+    });
+  };
+
+  const callsOf = new Map();
+  const checkedCallsOf = (fn) => {
+    if (!callsOf.has(fn)) {
       const name = nameOfFunction(fn);
       const referenced =
         name && ts.isIdentifier(name)
           ? service.findReferences(name.getSourceFile().fileName, name.getStart())
           : undefined;
-      callersChecked.set(
-        fn,
-        referenced?.every(({ references }) =>
-          references.every(({ fileName, textSpan }) => {
-            const sourceFile = checkedFileNamed.get(fileName);
-            if (sourceFile === undefined) return true;
-            const found = referenceAt(sourceFile, textSpan.start);
-            if (found === undefined) return false;
-            const { node: reference, inJsDoc } = found;
-            return (
-              inJsDoc ||
-              reference === name ||
-              isMemberName(reference) ||
-              isTypePosition(reference) ||
-              isCalledThrough(reference)
-            );
-          }),
-        ) ?? false,
+      const calls = [];
+      const checked = referenced?.every(({ references }) =>
+        references.every(({ fileName, textSpan }) => {
+          const sourceFile = checkedFileNamed.get(fileName);
+          if (sourceFile === undefined) return true;
+          const found = referenceAt(sourceFile, textSpan.start);
+          if (found === undefined) return false;
+          const { node: reference, inJsDoc } = found;
+          if (
+            inJsDoc ||
+            reference === name ||
+            isMemberName(reference) ||
+            isTypePosition(reference)
+          ) {
+            return true;
+          }
+          const call = callThrough(reference);
+          if (call !== undefined && call !== HANDED_ON_BY_NAME) calls.push(call);
+          return call !== undefined;
+        }),
       );
+      callsOf.set(fn, checked && !isDestructuredByAssignment(name, referenced) ? calls : undefined);
     }
-    return callersChecked.get(fn);
+    return callsOf.get(fn);
+  };
+
+  const fed = [];
+  const fedNodes = new Set();
+  const feed = (position, outcomes) => {
+    if (fedNodes.has(position)) return;
+    fedNodes.add(position);
+    fed.push({ position, outcomes });
+  };
+
+  const feedFromProperties = (declaration, argument) => {
+    const node = unwrapped(argument);
+    if (!ts.isObjectLiteralExpression(node) && !ts.isJsxAttributes(node)) {
+      feed(argument, [UNREADABLE]);
+      return;
+    }
+    const name = propertyNameText(declaration.propertyName ?? declaration.name);
+    for (const property of node.properties) {
+      const propertyName =
+        property.name === undefined ? undefined : propertyNameText(property.name);
+      if (propertyName === undefined) feed(property, [UNREADABLE]);
+      else if (propertyName === name) feed(propertyValue(property));
+    }
+  };
+
+  const fedDeclarations = new Set();
+  const feedArguments = (declaration, parameter, calls) => {
+    if (fedDeclarations.has(declaration)) return;
+    fedDeclarations.add(declaration);
+    const index = parameter.parent.parameters
+      .filter((each) => !(ts.isIdentifier(each.name) && each.name.text === "this"))
+      .indexOf(parameter);
+    for (const call of calls) {
+      const passed = ts.isCallOrNewExpression(call) ? (call.arguments ?? []) : [call.attributes];
+      const spread = passed.slice(0, index + 1).find(ts.isSpreadElement);
+      const argument = spread ?? passed[index];
+      if (argument === undefined) continue;
+      if (spread !== undefined || declaration === parameter) {
+        feed(argument, parameter.dotDotDotToken ? [UNREADABLE] : undefined);
+      } else {
+        feedFromProperties(declaration, argument);
+      }
+    }
+  };
+
+  const passesThrough = (declaration, parameter) => {
+    const calls = checkedCallsOf(parameter.parent);
+    if (calls === undefined) return false;
+    feedArguments(declaration, parameter, calls);
+    return true;
   };
 
   const traceDeclaration = (declaration, seen) => {
@@ -288,7 +428,7 @@ function rootTracer(service, checker, tools, checkedFiles) {
       return traceDeclaration(value?.valueDeclaration, next);
     }
     if (ts.isParameter(declaration)) {
-      return tools.declaresQueryKey(declaration) && callersAreChecked(declaration.parent)
+      return tools.declaresQueryKey(declaration) && passesThrough(declaration, declaration)
         ? [PASSED_THROUGH]
         : [UNREADABLE];
     }
@@ -296,7 +436,7 @@ function rootTracer(service, checker, tools, checkedFiles) {
       const parameter = declaration.parent.parent;
       return ts.isParameter(parameter) &&
         tools.bindingElementDeclaresQueryKey(declaration) &&
-        callersAreChecked(parameter.parent)
+        passesThrough(declaration, parameter)
         ? [PASSED_THROUGH]
         : [UNREADABLE];
     }
@@ -348,7 +488,7 @@ function rootTracer(service, checker, tools, checkedFiles) {
     return [UNREADABLE];
   };
 
-  return trace;
+  return { trace, fed };
 }
 
 function lineOf(node) {
@@ -372,7 +512,7 @@ export function findQueryRootKeyProblems(
         !relative(root, sourceFile.fileName).startsWith("..") &&
         !TEST_FILE.test(sourceFile.fileName),
     );
-  const trace = rootTracer(service, checker, tools, checkedFiles);
+  const { trace, fed } = rootTracer(service, checker, tools, checkedFiles);
   const fromCwd = (fileName) => relative(cwd, fileName).split(sep).join("/");
   const conceptFolderOf = (fileName) => {
     const path = relative(root, fileName);
@@ -420,6 +560,10 @@ export function findQueryRootKeyProblems(
       ts.forEachChild(node, visit);
     };
     visit(sourceFile);
+  }
+  for (let index = 0; index < fed.length; index++) {
+    const { position, outcomes } = fed[index];
+    report(position, outcomes ?? trace(position));
   }
   return [...problems].sort((a, b) => a.localeCompare(b, "en", { numeric: true }));
 }
