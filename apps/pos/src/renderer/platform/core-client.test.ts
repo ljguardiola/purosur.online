@@ -838,13 +838,13 @@ describe("createCoreClient", () => {
   it.each([
     null,
     {
-      opening_float: 5000,
-      cash_sales: 0,
-      change_given: 0,
-      refunds: 0,
-      cash_in: 0,
-      expenses: 0,
-      withdrawals: 0,
+      opening_float: { amount: 5000, direction: "in" },
+      cash_sales: { amount: 0, direction: "in" },
+      change_given: { amount: 0, direction: "out" },
+      refunds: { amount: 0, direction: "out" },
+      cash_in: { amount: 0, direction: "in" },
+      expenses: { amount: 0, direction: "out" },
+      withdrawals: { amount: 0, direction: "out" },
       expected: 5000,
     },
   ])("asks the core for the cash balance and resolves with it: %j", async (balance) => {
@@ -866,6 +866,34 @@ describe("createCoreClient", () => {
 
     const asked = client.cashBalance();
     port.answer({ type: "cash-balance-unavailable", request_id: "request-1" });
+
+    expect(await asked).toBe("unavailable");
+  });
+
+  it.each([null, { difference: -800 }])(
+    "asks the core to preview the counted cash and resolves with its difference: %j",
+    async (preview) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const asked = client.cashCountPreview(4_200);
+      port.answer({ type: "cash-count-preview", request_id: "request-1", preview });
+
+      expect(await asked).toEqual(preview);
+      expect(port.posted).toEqual([
+        { type: "cash-count-preview-request", request_id: "request-1", counted_cash: 4_200 },
+      ]);
+    },
+  );
+
+  it("resolves that the count preview is unavailable when the core cannot read it", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.cashCountPreview(4_200);
+    port.answer({ type: "cash-count-preview-unavailable", request_id: "request-1" });
 
     expect(await asked).toBe("unavailable");
   });

@@ -7,13 +7,13 @@ import type { CoreData } from "../platform/use-core-query";
 import { ExpectedCashPanel } from "./expected-cash-panel";
 
 const BALANCE: CashBalance = {
-  opening_float: 2_000_000,
-  cash_sales: 3_500_000,
-  change_given: 930_000,
-  refunds: 0,
-  cash_in: 100_000,
-  expenses: 50_000,
-  withdrawals: 0,
+  opening_float: { amount: 2_000_000, direction: "in" },
+  cash_sales: { amount: 3_500_000, direction: "in" },
+  change_given: { amount: 930_000, direction: "out" },
+  refunds: { amount: 0, direction: "out" },
+  cash_in: { amount: 100_000, direction: "in" },
+  expenses: { amount: 50_000, direction: "out" },
+  withdrawals: { amount: 0, direction: "out" },
   expected: 4_620_000,
 };
 
@@ -75,7 +75,7 @@ describe("ExpectedCashPanel", () => {
 
   it("shows Devoluciones as an outflow once there are refunds", async () => {
     const screen = await renderPanel({
-      balance: loaded({ ...BALANCE, refunds: 120_000 }),
+      balance: loaded({ ...BALANCE, refunds: { amount: 120_000, direction: "out" } }),
     });
 
     expect(rowOf(screen, "Devoluciones")).toBe("Devoluciones− $ 1.200,00");
@@ -83,11 +83,30 @@ describe("ExpectedCashPanel", () => {
 
   it("shows a zero cash line as positive when it is an inflow", async () => {
     const screen = await renderPanel({
-      balance: loaded({ ...BALANCE, cash_sales: 0, cash_in: 0 }),
+      balance: loaded({
+        ...BALANCE,
+        cash_sales: { amount: 0, direction: "in" },
+        cash_in: { amount: 0, direction: "in" },
+      }),
     });
 
     expect(rowOf(screen, "Ventas en efectivo")).toBe("Ventas en efectivo+ $ 0,00");
     expect(rowOf(screen, "Ingresos")).toBe("Ingresos+ $ 0,00");
+  });
+
+  it("signs each line by the direction the core gives it", async () => {
+    const screen = await renderPanel({
+      balance: loaded({
+        ...BALANCE,
+        cash_sales: { amount: 3_500_000, direction: "out" },
+        expenses: { amount: 50_000, direction: "in" },
+        withdrawals: { amount: 70_000, direction: "none" },
+      }),
+    });
+
+    expect(rowOf(screen, "Ventas en efectivo")).toBe("Ventas en efectivo− $ 35.000,00");
+    expect(rowOf(screen, "Gastos")).toBe("Gastos+ $ 500,00");
+    expect(rowOf(screen, "Retiros")).toBe("Retiros$ 700,00");
   });
 
   it("shows no amounts while the balance loads", async () => {
