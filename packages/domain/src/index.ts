@@ -318,7 +318,6 @@ export {
   manualStockMovementReasons,
   STOCK_DIRECTIONS,
   STOCK_QUANTITY_PER_UNIT,
-  signedDelta,
   visibleManualStockMovementKinds,
 } from "./stock/index.js";
 export type {

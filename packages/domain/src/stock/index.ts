@@ -20,7 +20,6 @@ export {
   LOSS_REASONS,
   lossDelta,
   STOCK_DIRECTIONS,
-  signedDelta,
 } from "./model/stock-movement-reason.js";
 export {
   isCountedQuantity,

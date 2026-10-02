@@ -1,3 +1,4 @@
+import { manualStockMovementReasons } from "@purosur/domain";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { stockBalances, stockMovements } from "../platform/db/schema.js";
@@ -399,19 +400,13 @@ describe("GET /inventory-movement-reasons", () => {
     expect(response.statusCode).toBe(403);
   });
 
-  it("answers each reason of the kinds the user may see with the directions it allows", async () => {
+  it("answers only the reasons of the kinds the user may see", async () => {
     const { headers } = await signedInWith(db, ["adjust_stock"], NOW);
 
     const response = await listMovementReasons(headers);
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({
-      reasons: [
-        { kind: "adjustment", reason: "purchase_correction", directions: ["add", "subtract"] },
-        { kind: "adjustment", reason: "supplier_return", directions: ["subtract"] },
-        { kind: "adjustment", reason: "batch_correction", directions: ["add", "subtract"] },
-      ],
-    });
+    expect(response.json()).toEqual({ reasons: manualStockMovementReasons("adjustment") });
   });
 
   it("answers an Administrator the reasons of both kinds, losses first", async () => {
