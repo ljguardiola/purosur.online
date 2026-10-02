@@ -1,4 +1,4 @@
-export type RateLimitOutcome =
+type RateLimitOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
