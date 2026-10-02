@@ -126,22 +126,24 @@ export function useRequestForm<
     return Object.keys(failures).length > 0 ? failures : undefined;
   };
 
-  const checked = useRef({ asked: 0, refused: [] as readonly string[] });
+  const checked = useRef({ live: false, asked: 0, refused: [] as readonly string[] });
 
   async function askCheck(
     checkRequest: (request: Request) => Promise<readonly string[]>,
     body: Request,
-  ): Promise<{ refusedWireFields: readonly string[]; latest: boolean }> {
-    checked.current.asked += 1;
-    const asked = checked.current.asked;
+  ): Promise<{ refusedWireFields: readonly string[]; latest: boolean; afterReset: boolean }> {
+    const round = checked.current;
+    round.asked += 1;
+    const asked = round.asked;
     const refusedWireFields = validate(body).issues
       ? []
       : await checkRequest(body).catch((): readonly string[] => []);
-    const latest = asked === checked.current.asked;
+    const afterReset = round !== checked.current;
+    const latest = !afterReset && asked === round.asked;
     if (latest) {
-      checked.current.refused = refusedWireFields;
+      round.refused = refusedWireFields;
     }
-    return { refusedWireFields, latest };
+    return { refusedWireFields, latest, afterReset };
   }
 
   async function recheck(checkRequest: (request: Request) => Promise<readonly string[]>) {
@@ -168,7 +170,7 @@ export function useRequestForm<
     listeners: {
       onChange: ({ fieldApi }) => {
         clearFieldError(fieldApi.name);
-        if (check !== undefined && checked.current.asked > 0) {
+        if (check !== undefined && checked.current.live) {
           void recheck(check);
         }
       },
@@ -203,6 +205,7 @@ export function useRequestForm<
   const [unsettled, setUnsettled] = useState(0);
 
   async function submit() {
+    checked.current.live = true;
     for (const field of Object.keys(messages) as Field[]) {
       if (form.getFieldMeta(field) !== undefined) {
         clearFieldError(field);
@@ -217,9 +220,12 @@ export function useRequestForm<
     }
     if (check !== undefined) {
       setUnsettled((count) => count + 1);
-      const { refusedWireFields } = await askCheck(check, body).finally(() =>
+      const { refusedWireFields, afterReset } = await askCheck(check, body).finally(() =>
         setUnsettled((count) => count - 1),
       );
+      if (afterReset) {
+        return;
+      }
       if (failuresOf(values, [], refusedWireFields)) {
         await form.handleSubmit(NOTHING_STARTED);
         return;
@@ -242,6 +248,7 @@ export function useRequestForm<
   const [loaded, setLoaded] = useState(defaultValues);
   const [reset] = useState(() => (values?: Values) => {
     setLoaded(values ?? defaultValues);
+    checked.current = { live: false, asked: 0, refused: [] };
     form.reset(values, { keepDefaultValues: true });
   });
   const currentValues = useStore(form.store, (state) => state.values);
