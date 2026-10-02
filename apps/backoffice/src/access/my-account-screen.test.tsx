@@ -6,6 +6,11 @@ import type { BackofficeAccess } from "./backoffice-access";
 import { MyAccountScreen } from "./my-account-screen";
 import type { MyAccountScreenServices } from "./my-account-services";
 import type { Passkey } from "./passkey-api";
+import {
+  ADMINISTRATOR_ACCESS,
+  accessWith,
+  NO_CAPABILITIES_ACCESS,
+} from "./test-support/backoffice-access";
 
 function createServices(overrides: Partial<MyAccountScreenServices> = {}): MyAccountScreenServices {
   return {
@@ -49,13 +54,10 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-const NON_ADMINISTRATOR: BackofficeAccess = { isAdministrator: false, permissions: [] };
-const ADMINISTRATOR: BackofficeAccess = { isAdministrator: true, permissions: [] };
-
 function renderScreen(
   services: MyAccountScreenServices,
   onSessionEnded: () => void = () => {},
-  access: BackofficeAccess = NON_ADMINISTRATOR,
+  access: BackofficeAccess = NO_CAPABILITIES_ACCESS,
 ) {
   return render(
     <main>
@@ -335,7 +337,7 @@ test("dates each passkey's last use against the time the list was last refreshed
       <MyAccountScreen
         displayName="Lucía Pérez"
         userId="user-1"
-        access={NON_ADMINISTRATOR}
+        access={NO_CAPABILITIES_ACCESS}
         onSessionEnded={() => {}}
         now={() => current}
         services={services}
@@ -367,7 +369,7 @@ test("dates each passkey's last use against the time the list was loaded, not th
       <MyAccountScreen
         displayName="Lucía Pérez"
         userId="user-1"
-        access={NON_ADMINISTRATOR}
+        access={NO_CAPABILITIES_ACCESS}
         onSessionEnded={onSessionEnded}
         now={now}
         services={services}
@@ -460,7 +462,7 @@ test("offers an Administrator to reset their own PIN, and emits the code for the
     kind: "ok",
     value: { code: "K7QM2XPA7DTR4HWN", expiresAt: "2026-09-30T12:15:00.000Z" },
   });
-  const screen = await renderScreen(services, () => {}, ADMINISTRATOR);
+  const screen = await renderScreen(services, () => {}, ADMINISTRATOR_ACCESS);
 
   await expect.element(screen.getByRole("heading", { name: "PIN de la caja" })).toBeVisible();
   await userEvent.click(screen.getByRole("button", { name: "Reiniciar el PIN" }));
@@ -474,10 +476,7 @@ test("offers no PIN reset to someone who is not an Administrator, even holding r
   const services = createServices();
   vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
 
-  const screen = await renderScreen(services, () => {}, {
-    isAdministrator: false,
-    permissions: ["reset_user_pin"],
-  });
+  const screen = await renderScreen(services, () => {}, accessWith("users_area", "reset_user_pin"));
 
   await expect.element(screen.getByText("Notebook del local")).toBeVisible();
   expect(screen.getByRole("heading", { name: "PIN de la caja" }).query()).toBeNull();

@@ -29,7 +29,7 @@ test("never preloads the code of a screen the person is refused", async () => {
       userId: "user-1",
       displayName: "Lucas Guardiola",
       isAdministrator: false,
-      permissions: [],
+      capabilities: [],
       expiresAt: new Date(Date.now() + 60_000).toISOString(),
     },
     help: defineHelp("es-AR", { categories: {}, articles: {} }),

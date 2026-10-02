@@ -11,6 +11,7 @@ import {
   canResetUserPin,
   canSeeAlertsArea,
   canSeeBranchArea,
+  canSeeCashArea,
   canSeeCatalogArea,
   canSeePricesArea,
   canSeeRegistersArea,
@@ -20,303 +21,66 @@ import {
   canSeeStockMovements,
   canSeeUsersArea,
 } from "./backoffice-access";
+import {
+  ADMINISTRATOR_ACCESS,
+  accessWith,
+  NO_CAPABILITIES_ACCESS,
+} from "./test-support/backoffice-access";
 
-test("canSeeUsersArea is true for an Administrator", () => {
-  expect(canSeeUsersArea({ isAdministrator: true, permissions: [] })).toBe(true);
-});
-
-test("canSeeUsersArea is true for a non-Administrator holding deactivate_users", () => {
-  expect(canSeeUsersArea({ isAdministrator: false, permissions: ["deactivate_users"] })).toBe(true);
-});
-
-test("canSeeUsersArea is true for a non-Administrator holding only reactivate_users", () => {
-  expect(canSeeUsersArea({ isAdministrator: false, permissions: ["reactivate_users"] })).toBe(true);
-});
-
-test("canSeeUsersArea is false for a non-Administrator without deactivate_users or reactivate_users", () => {
+test.each([
+  ["canSeeUsersArea", "users_area", canSeeUsersArea],
+  ["canSeeBranchArea", "branch_area", canSeeBranchArea],
+  ["canManageProductsAndCategories", "products_and_categories", canManageProductsAndCategories],
+  ["canSeePricesArea", "prices_area", canSeePricesArea],
+  ["canManagePromotions", "promotions", canManagePromotions],
+  ["canSeeCatalogArea", "catalog_area", canSeeCatalogArea],
+  ["canSeeCashArea", "cash_area", canSeeCashArea],
+  ["canSeeAlertsArea", "alerts_area", canSeeAlertsArea],
+  ["canCloseAlertsManually", "close_alerts_manually", canCloseAlertsManually],
+  ["canSeeRegistersArea", "registers_area", canSeeRegistersArea],
+  ["canSeeStockBalances", "stock_balances", canSeeStockBalances],
+  ["canPerformStockCounts", "stock_counts", canPerformStockCounts],
+  ["canRecordStockLosses", "stock_losses", canRecordStockLosses],
+  ["canAdjustStock", "stock_adjustments", canAdjustStock],
+  ["canSeeStockMovements", "stock_movements", canSeeStockMovements],
+  ["canSeeStockArea", "stock_area", canSeeStockArea],
+  ["canReactivateUser", "reactivate_users", canReactivateUser],
+] as const)("%s holds exactly when the %s capability is granted", (_name, capability, can) => {
+  expect(can(ADMINISTRATOR_ACCESS)).toBe(true);
+  expect(can(accessWith(capability))).toBe(true);
+  expect(can(NO_CAPABILITIES_ACCESS)).toBe(false);
   expect(
-    canSeeUsersArea({ isAdministrator: false, permissions: ["view_reports", "void_sale"] }),
+    can(accessWith(...ADMINISTRATOR_ACCESS.capabilities.filter((c) => c !== capability))),
   ).toBe(false);
 });
 
-test("canReactivateUser is true for an Administrator", () => {
-  expect(canReactivateUser({ isAdministrator: true, permissions: [] })).toBe(true);
+test("canSeeRolesArea holds for an Administrator only, whatever capabilities a role is granted", () => {
+  expect(canSeeRolesArea(ADMINISTRATOR_ACCESS)).toBe(true);
+  expect(canSeeRolesArea(accessWith(...ADMINISTRATOR_ACCESS.capabilities))).toBe(false);
 });
 
-test("canReactivateUser is true for a non-Administrator holding reactivate_users", () => {
-  expect(canReactivateUser({ isAdministrator: false, permissions: ["reactivate_users"] })).toBe(
-    true,
-  );
-});
+test("canDeactivateUser needs the deactivate_users capability and a non-Administrator target", () => {
+  const target = { isAdministrator: false };
 
-test("canReactivateUser is false for a non-Administrator without reactivate_users", () => {
-  expect(canReactivateUser({ isAdministrator: false, permissions: ["deactivate_users"] })).toBe(
-    false,
-  );
-});
-
-test("canDeactivateUser is true for an Administrator, against a non-Administrator target", () => {
-  expect(
-    canDeactivateUser({ isAdministrator: true, permissions: [] }, { isAdministrator: false }),
-  ).toBe(true);
-});
-
-test("canDeactivateUser is true for a non-Administrator holding deactivate_users, against a non-Administrator target", () => {
-  expect(
-    canDeactivateUser(
-      { isAdministrator: false, permissions: ["deactivate_users"] },
-      { isAdministrator: false },
-    ),
-  ).toBe(true);
-});
-
-test("canDeactivateUser is false for a non-Administrator without deactivate_users", () => {
-  expect(
-    canDeactivateUser({ isAdministrator: false, permissions: [] }, { isAdministrator: false }),
-  ).toBe(false);
+  expect(canDeactivateUser(ADMINISTRATOR_ACCESS, target)).toBe(true);
+  expect(canDeactivateUser(accessWith("deactivate_users"), target)).toBe(true);
+  expect(canDeactivateUser(NO_CAPABILITIES_ACCESS, target)).toBe(false);
+  expect(canDeactivateUser(accessWith("reactivate_users", "users_area"), target)).toBe(false);
 });
 
 test("canDeactivateUser is false against an Administrator target, even for an Administrator viewer", () => {
-  expect(
-    canDeactivateUser({ isAdministrator: true, permissions: [] }, { isAdministrator: true }),
-  ).toBe(false);
+  expect(canDeactivateUser(ADMINISTRATOR_ACCESS, { isAdministrator: true })).toBe(false);
 });
 
-test("canSeeRolesArea is true for an Administrator", () => {
-  expect(canSeeRolesArea({ isAdministrator: true, permissions: [] })).toBe(true);
-});
-
-test("canSeeRolesArea is false for a non-Administrator, however many permissions their role holds", () => {
-  expect(canSeeRolesArea({ isAdministrator: false, permissions: ["view_reports"] })).toBe(false);
-});
-
-test("canSeeBranchArea is true for an Administrator", () => {
-  expect(canSeeBranchArea({ isAdministrator: true, permissions: [] })).toBe(true);
-});
-
-test("canSeeBranchArea is true for a non-Administrator holding configure_branch", () => {
-  expect(canSeeBranchArea({ isAdministrator: false, permissions: ["configure_branch"] })).toBe(
-    true,
-  );
-});
-
-test("canSeeBranchArea is false for a non-Administrator without configure_branch", () => {
-  expect(canSeeBranchArea({ isAdministrator: false, permissions: ["view_reports"] })).toBe(false);
-});
-
-test("canSeeCatalogArea is true for an Administrator", () => {
-  expect(canSeeCatalogArea({ isAdministrator: true, permissions: [] })).toBe(true);
-});
-
-test("canSeeCatalogArea is true for a non-Administrator holding manage_products_and_categories", () => {
-  expect(
-    canSeeCatalogArea({
-      isAdministrator: false,
-      permissions: ["manage_products_and_categories"],
-    }),
-  ).toBe(true);
-});
-
-test("canSeeCatalogArea is false for a non-Administrator without manage_products_and_categories", () => {
-  expect(canSeeCatalogArea({ isAdministrator: false, permissions: ["view_reports"] })).toBe(false);
-});
-
-test("canSeeCatalogArea is true for a non-Administrator holding only manage_prices_and_review", () => {
-  expect(
-    canSeeCatalogArea({ isAdministrator: false, permissions: ["manage_prices_and_review"] }),
-  ).toBe(true);
-});
-
-test("canSeeCatalogArea is true for a non-Administrator holding only manage_promotions", () => {
-  expect(canSeeCatalogArea({ isAdministrator: false, permissions: ["manage_promotions"] })).toBe(
-    true,
-  );
-});
-
-test("canManagePromotions is true for an Administrator", () => {
-  expect(canManagePromotions({ isAdministrator: true, permissions: [] })).toBe(true);
-});
-
-test("canManagePromotions is true for a non-Administrator holding manage_promotions", () => {
-  expect(canManagePromotions({ isAdministrator: false, permissions: ["manage_promotions"] })).toBe(
-    true,
-  );
-});
-
-test("canManagePromotions is false for a non-Administrator holding only the other catalog permissions", () => {
-  expect(
-    canManagePromotions({
-      isAdministrator: false,
-      permissions: ["manage_products_and_categories", "manage_prices_and_review"],
-    }),
-  ).toBe(false);
-});
-
-test("the other catalog permissions do not unlock the promotions permission's screens", () => {
-  expect(
-    canManageProductsAndCategories({ isAdministrator: false, permissions: ["manage_promotions"] }),
-  ).toBe(false);
-  expect(canSeePricesArea({ isAdministrator: false, permissions: ["manage_promotions"] })).toBe(
-    false,
-  );
-});
-
-test("canManageProductsAndCategories is true for an Administrator", () => {
-  expect(canManageProductsAndCategories({ isAdministrator: true, permissions: [] })).toBe(true);
-});
-
-test("canManageProductsAndCategories is true for a non-Administrator holding manage_products_and_categories", () => {
-  expect(
-    canManageProductsAndCategories({
-      isAdministrator: false,
-      permissions: ["manage_products_and_categories"],
-    }),
-  ).toBe(true);
-});
-
-test("canManageProductsAndCategories is false for a non-Administrator holding only manage_prices_and_review", () => {
-  expect(
-    canManageProductsAndCategories({
-      isAdministrator: false,
-      permissions: ["manage_prices_and_review"],
-    }),
-  ).toBe(false);
-});
-
-test("canSeePricesArea is true for an Administrator", () => {
-  expect(canSeePricesArea({ isAdministrator: true, permissions: [] })).toBe(true);
-});
-
-test("canSeePricesArea is true for a non-Administrator holding manage_prices_and_review", () => {
-  expect(
-    canSeePricesArea({ isAdministrator: false, permissions: ["manage_prices_and_review"] }),
-  ).toBe(true);
-});
-
-test("canSeePricesArea is false for a non-Administrator holding only manage_products_and_categories", () => {
-  expect(
-    canSeePricesArea({
-      isAdministrator: false,
-      permissions: ["manage_products_and_categories"],
-    }),
-  ).toBe(false);
-});
-
-test("canSeeAlertsArea is true for an Administrator", () => {
-  expect(canSeeAlertsArea({ isAdministrator: true, permissions: [] })).toBe(true);
-});
-
-test("canSeeAlertsArea is true for a non-Administrator holding view_branch_alerts", () => {
-  expect(canSeeAlertsArea({ isAdministrator: false, permissions: ["view_branch_alerts"] })).toBe(
-    true,
-  );
-});
-
-test("canSeeAlertsArea is true for a non-Administrator holding view_all_alerts", () => {
-  expect(canSeeAlertsArea({ isAdministrator: false, permissions: ["view_all_alerts"] })).toBe(true);
-});
-
-test("canSeeAlertsArea is false for a non-Administrator holding neither alert-view permission", () => {
-  expect(
-    canSeeAlertsArea({ isAdministrator: false, permissions: ["dismiss_alerts_manually"] }),
-  ).toBe(false);
-});
-
-test("canCloseAlertsManually is true for an Administrator", () => {
-  expect(canCloseAlertsManually({ isAdministrator: true, permissions: [] })).toBe(true);
-});
-
-test("canCloseAlertsManually is true for a non-Administrator holding dismiss_alerts_manually", () => {
-  expect(
-    canCloseAlertsManually({ isAdministrator: false, permissions: ["dismiss_alerts_manually"] }),
-  ).toBe(true);
-});
-
-test("canCloseAlertsManually is false for a non-Administrator without dismiss_alerts_manually", () => {
-  expect(canCloseAlertsManually({ isAdministrator: false, permissions: ["view_all_alerts"] })).toBe(
-    false,
-  );
-});
-
-test("canSeeRegistersArea is true for an Administrator", () => {
-  expect(canSeeRegistersArea({ isAdministrator: true, permissions: [] })).toBe(true);
-});
-
-test("canSeeRegistersArea is true for a non-Administrator holding enroll_register_devices", () => {
-  expect(
-    canSeeRegistersArea({ isAdministrator: false, permissions: ["enroll_register_devices"] }),
-  ).toBe(true);
-});
-
-test("canSeeRegistersArea is false for a non-Administrator without enroll_register_devices", () => {
-  expect(canSeeRegistersArea({ isAdministrator: false, permissions: ["view_reports"] })).toBe(
-    false,
-  );
-});
-
-test.each([
-  ["canSeeStockBalances", canSeeStockBalances, "view_stock_balances"],
-  ["canPerformStockCounts", canPerformStockCounts, "perform_stock_counts"],
-  ["canRecordStockLosses", canRecordStockLosses, "record_stock_losses"],
-  ["canAdjustStock", canAdjustStock, "adjust_stock"],
-] as const)(
-  "%s holds for an Administrator and for %s's own permission only",
-  (_name, can, permission) => {
-    expect(can({ isAdministrator: true, permissions: [] })).toBe(true);
-    expect(can({ isAdministrator: false, permissions: [permission] })).toBe(true);
-    const others = [
-      "view_stock_balances",
-      "perform_stock_counts",
-      "record_stock_losses",
-      "adjust_stock",
-    ].filter((key) => key !== permission);
-    expect(can({ isAdministrator: false, permissions: others })).toBe(false);
-  },
-);
-
-test.each([
-  ["record_stock_losses", true],
-  ["adjust_stock", true],
-  ["view_stock_balances", false],
-  ["perform_stock_counts", false],
-])("canSeeStockMovements with only %s is %s", (permission, expected) => {
-  expect(canSeeStockMovements({ isAdministrator: false, permissions: [permission] })).toBe(
-    expected,
-  );
-});
-
-test.each(["view_stock_balances", "perform_stock_counts", "record_stock_losses", "adjust_stock"])(
-  "canSeeStockArea is true for a non-Administrator holding only %s",
-  (permission) => {
-    expect(canSeeStockArea({ isAdministrator: false, permissions: [permission] })).toBe(true);
-  },
-);
-
-test("canSeeStockArea is false for a non-Administrator without a stock permission", () => {
-  expect(
-    canSeeStockArea({ isAdministrator: false, permissions: ["record_initial_inventory"] }),
-  ).toBe(false);
-});
-
-test("canSeeStockArea is true for an Administrator", () => {
-  expect(canSeeStockArea({ isAdministrator: true, permissions: [] })).toBe(true);
-});
-
-test("canSeeUsersArea is true for a non-Administrator holding only reset_user_pin", () => {
-  expect(canSeeUsersArea({ isAdministrator: false, permissions: ["reset_user_pin"] })).toBe(true);
-});
-
-const holder = { isAdministrator: false, permissions: ["reset_user_pin"] };
+const holder = accessWith("reset_user_pin");
 const cashier = { id: "user-2", isAdministrator: false };
 
-test("canResetUserPin is true for a holder of reset_user_pin against another non-Administrator", () => {
+test("canResetUserPin is true for a holder of the reset_user_pin capability against another non-Administrator", () => {
   expect(canResetUserPin(holder, "user-1", cashier)).toBe(true);
 });
 
-test("canResetUserPin is false without reset_user_pin", () => {
-  expect(canResetUserPin({ isAdministrator: false, permissions: [] }, "user-1", cashier)).toBe(
-    false,
-  );
+test("canResetUserPin is false without the reset_user_pin capability", () => {
+  expect(canResetUserPin(accessWith("users_area"), "user-1", cashier)).toBe(false);
 });
 
 test("canResetUserPin is false for a holder against an Administrator", () => {
@@ -328,13 +92,12 @@ test("canResetUserPin is false for a holder against themselves, whatever the id'
 });
 
 test("canResetUserPin is true for an Administrator against another Administrator and against themselves", () => {
-  const administrator = { isAdministrator: true, permissions: [] };
-  expect(canResetUserPin(administrator, "user-1", { id: "user-2", isAdministrator: true })).toBe(
-    true,
-  );
-  expect(canResetUserPin(administrator, "user-1", { id: "user-1", isAdministrator: true })).toBe(
-    true,
-  );
+  expect(
+    canResetUserPin(ADMINISTRATOR_ACCESS, "user-1", { id: "user-2", isAdministrator: true }),
+  ).toBe(true);
+  expect(
+    canResetUserPin(ADMINISTRATOR_ACCESS, "user-1", { id: "user-1", isAdministrator: true }),
+  ).toBe(true);
 });
 
 test("canResetUserPin is false against an inactive user", () => {

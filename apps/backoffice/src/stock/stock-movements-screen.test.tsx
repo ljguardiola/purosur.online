@@ -2,6 +2,8 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import type { BackofficeAccess } from "../access/backoffice-access";
+import { accessWith } from "../access/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import { type StockMovementsFilters, stockMovementsFilters } from "./routes";
 import { StockMovementsScreen } from "./stock-movements-screen";
@@ -15,12 +17,13 @@ import {
   withoutBalance,
 } from "./test-support/stock-fixtures";
 
-type Access = { isAdministrator: boolean; permissions: string[] };
-
-const BOTH: Access = {
-  isAdministrator: false,
-  permissions: ["record_stock_losses", "adjust_stock", "view_stock_balances"],
-};
+const BOTH = accessWith(
+  "stock_losses",
+  "stock_adjustments",
+  "stock_balances",
+  "stock_movements",
+  "stock_area",
+);
 
 function createServices(movements = [honeyLoss, almondsAdjustment]): StockMovementsScreenServices {
   return {
@@ -46,7 +49,7 @@ function renderScreen(
     onFiltersChange = () => {},
     onSessionEnded = () => {},
   }: {
-    access?: Access;
+    access?: BackofficeAccess;
     filters?: StockMovementsFilters;
     onFiltersChange?: (filters: StockMovementsFilters) => void;
     onSessionEnded?: () => void;
@@ -103,7 +106,7 @@ test("filters by the reason the URL names and reads the period it names", async 
 
 test("offers only the reasons of the kinds the user may register", async () => {
   const screen = await renderScreen(createServices([honeyLoss]), {
-    access: { isAdministrator: false, permissions: ["record_stock_losses"] },
+    access: accessWith("stock_losses", "stock_movements", "stock_area"),
   });
   await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
 
@@ -175,7 +178,7 @@ test("registers a loss for a user who may not view balances, showing no balance"
     value: { balance: 23_000, superseded: false },
   });
   const screen = await renderScreen(services, {
-    access: { isAdministrator: false, permissions: ["record_stock_losses"] },
+    access: accessWith("stock_losses", "stock_movements", "stock_area"),
   });
   const dialog = await openModal(screen, "Cargar pérdida");
   await chooseProduct(screen, "Miel pura de abeja 1 kg");
@@ -334,11 +337,19 @@ test("offers no direction for stock returned to a supplier, which always subtrac
 });
 
 test.each([
-  [["record_stock_losses"], "Cargar pérdida", "Registrar la pérdida"],
-  [["adjust_stock"], "Cargar ajuste", "Registrar el ajuste"],
-])("offers a user holding only %j only what it allows", async (permissions, button, submit) => {
+  [
+    accessWith("stock_losses", "stock_movements", "stock_area"),
+    "Cargar pérdida",
+    "Registrar la pérdida",
+  ],
+  [
+    accessWith("stock_adjustments", "stock_movements", "stock_area"),
+    "Cargar ajuste",
+    "Registrar el ajuste",
+  ],
+])("offers a user holding only %j only what it allows", async (access, button, submit) => {
   const screen = await renderScreen(createServices(), {
-    access: { isAdministrator: false, permissions },
+    access,
   });
   const dialog = await openModal(screen, button);
 
@@ -384,19 +395,16 @@ test.each([
 });
 
 test.each([
-  ["count", ["record_stock_losses", "adjust_stock"]],
-  ["theft", ["adjust_stock"]],
-])(
-  "falls back to every reason for the reason %s it does not offer",
-  async (reason, permissions) => {
-    const onFiltersChange = vi.fn();
-    const screen = await renderScreen(createServices(), {
-      access: { isAdministrator: false, permissions },
-      filters: stockMovementsFilters.parse({ reason }),
-      onFiltersChange,
-    });
+  ["count", accessWith("stock_losses", "stock_movements", "stock_area", "stock_adjustments")],
+  ["theft", accessWith("stock_adjustments", "stock_movements", "stock_area")],
+])("falls back to every reason for the reason %s it does not offer", async (reason, access) => {
+  const onFiltersChange = vi.fn();
+  const screen = await renderScreen(createServices(), {
+    access,
+    filters: stockMovementsFilters.parse({ reason }),
+    onFiltersChange,
+  });
 
-    await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
-    await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toMatchObject({ reason: "ALL" });
-  },
-);
+  await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+  await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toMatchObject({ reason: "ALL" });
+});

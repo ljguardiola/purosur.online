@@ -29,9 +29,10 @@ const sessionBody = {
   expires_at: "2026-09-23T12:30:00.000Z",
   is_administrator: false,
   permissions: ["void_sale", "sell_and_charge"],
+  capabilities: ["stock_area", "branch_area"],
 };
 
-test("fetchSession returns the signed-in user's identity, permissions and deadline on 200", async () => {
+test("fetchSession returns the signed-in user's identity, capabilities and deadline on 200", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, sessionBody));
 
   const outcome = await fetchSession();
@@ -42,19 +43,19 @@ test("fetchSession returns the signed-in user's identity, permissions and deadli
     displayName: "Lucas Guardiola",
     isAdministrator: false,
     expiresAt: "2026-09-23T12:30:00.000Z",
-    permissions: ["void_sale", "sell_and_charge"],
+    capabilities: ["stock_area", "branch_area"],
   });
   expect(fetch).toHaveBeenCalledWith("/api/sessions/current");
 });
 
 test("fetchSession reports isAdministrator true for an Administrator session", async () => {
   vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(200, { ...sessionBody, is_administrator: true, permissions: [] }),
+    jsonResponse(200, { ...sessionBody, is_administrator: true, capabilities: ["users_area"] }),
   );
 
   const outcome = await fetchSession();
 
-  expect(outcome).toMatchObject({ isAdministrator: true, permissions: [] });
+  expect(outcome).toMatchObject({ isAdministrator: true, capabilities: ["users_area"] });
 });
 
 test("fetchSession reports unauthenticated on 401", async () => {
@@ -74,7 +75,8 @@ test("fetchSession reports failed on any other status or a network failure", asy
 test.each([
   ["a body with no user", { ...sessionBody, user_id: undefined }],
   ["a body with no deadline", { ...sessionBody, expires_at: undefined }],
-  ["a body with no permissions", { ...sessionBody, permissions: undefined }],
+  ["a body with no capabilities", { ...sessionBody, capabilities: undefined }],
+  ["a body with an unknown capability", { ...sessionBody, capabilities: ["fly_the_moon"] }],
   ["an administrator flag that is not a boolean", { ...sessionBody, is_administrator: "no" }],
   ["a body that is not an object", "session"],
 ])("fetchSession reports failed on %s", async (_, body) => {
