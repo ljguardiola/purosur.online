@@ -348,6 +348,90 @@ test("follows a key into a function called under another local name", (t) => {
   ]);
 });
 
+test("follows a key into a function its documentation mentions by name", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/invalidate.ts": INVALIDATE,
+    "src/sales/refresh.ts": [
+      'import { invalidate } from "./invalidate";',
+      "/**",
+      " * Refreshes the ticket through {@link invalidate}.",
+      " * @see invalidate",
+      " */",
+      'export const refreshTicket = () => invalidate(["ticket"]);',
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/sales/refresh.ts:6 roots a query key at "ticket", but the concept folder holding it is "sales"',
+  ]);
+});
+
+test("follows a key into a method of an object typed with an interface that declares it", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/sales-keys.ts": [
+      IMPORTS,
+      "const client = new QueryClient();",
+      "interface SalesKeys {",
+      "  invalidate(key: QueryKey): void;",
+      "}",
+      "export const salesKeys: SalesKeys = {",
+      "  invalidate(key: QueryKey) {",
+      "    client.invalidateQueries({ queryKey: key });",
+      "  },",
+      "};",
+      'export const refreshTicket = () => salesKeys.invalidate(["ticket"]);',
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/sales/sales-keys.ts:11 roots a query key at "ticket", but the concept folder holding it is "sales"',
+  ]);
+});
+
+test("follows a key into a method called or typed through a string-literal access", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/invalidate.ts": SALES_KEYS,
+    "src/sales/refresh.ts": [
+      'import { salesKeys } from "./invalidate";',
+      'export type Invalidate = (typeof salesKeys)["invalidate"];',
+      'export const refreshTicket = () => salesKeys["invalidate"](["ticket"]);',
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/sales/refresh.ts:3 roots a query key at "ticket", but the concept folder holding it is "sales"',
+  ]);
+});
+
+test("refuses a query key read from the parameter of a method handed on uncalled through a string-literal access", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/invalidate.ts": SALES_KEYS,
+    "src/sales/refresh.ts": [
+      'import { salesKeys } from "./invalidate";',
+      'export const refreshAll = () => [["ticket"]].forEach(salesKeys["invalidate"]);',
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    "src/sales/invalidate.ts:5 uses a query key whose root the check cannot read",
+  ]);
+});
+
+test("refuses a query key read from the parameter of a function handed on uncalled in a class's extends clause", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/invalidate.ts": INVALIDATE,
+    "src/sales/refresh.ts": [
+      'import { invalidate } from "./invalidate";',
+      "declare function refreshing(refresh: unknown): new () => object;",
+      "export class Refresher extends refreshing(invalidate) {}",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    "src/sales/invalidate.ts:4 uses a query key whose root the check cannot read",
+  ]);
+});
+
 test("refuses a key whose root the check cannot read, naming where it is used", (t) => {
   const problems = problemsIn(t, {
     "src/catalog/catalog-queries.ts": [
