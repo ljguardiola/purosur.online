@@ -17,11 +17,6 @@ export const SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST = [
   "apps/backoffice/src/shell/backoffice-access.ts",
 ];
 
-export const CONTRACTS_CROSS_CONCEPT_IMPORT_ALLOWLIST = [
-  "packages/contracts/src/register/core-messages.ts",
-  "packages/contracts/src/sync/changes.ts",
-];
-
 function exactPaths(paths) {
   return paths.map((path) => `^${path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`);
 }
@@ -208,7 +203,6 @@ export default {
       severity: "error",
       from: {
         path: "^packages/contracts/src/(?!shared/)([^/]+)/",
-        pathNot: exactPaths(CONTRACTS_CROSS_CONCEPT_IMPORT_ALLOWLIST),
       },
       to: {
         path: "^packages/contracts/src/[^/]+/",

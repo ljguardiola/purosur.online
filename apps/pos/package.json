@@ -41,7 +41,8 @@
     "react-dom": "^19.3.0",
     "uuid": "^14.0.2",
     "vite": "^7.3.6",
-    "vitest-browser-react": "^2.3.0"
+    "vitest-browser-react": "^2.3.0",
+    "zod": "^4.6.5"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3"

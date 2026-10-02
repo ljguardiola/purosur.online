@@ -1,4 +1,6 @@
 import type {
+  AccessCoreToRendererMessage,
+  AccessRendererToCoreMessage,
   AddProductOutcome,
   Authorization,
   CancelLockedSaleOutcome,
@@ -11,7 +13,6 @@ import type {
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
-  CoreToRendererMessage,
   CurrentSaleAnswer,
   EnrollmentOutcome,
   FirstPinCodeRequestOutcome,
@@ -24,17 +25,45 @@ import type {
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RecordCashMovementRequest,
+  RegisterCoreToRendererMessage,
+  RegisterRendererToCoreMessage,
   RemoveSaleLineOutcome,
-  RendererToCoreMessage,
+  SalesCoreToRendererMessage,
+  SalesRendererToCoreMessage,
   ScanProductOutcome,
   SearchProductsOutcome,
   SessionOpenSale,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
+  SyncCoreToRendererMessage,
 } from "@purosur/contracts";
-import { coreToRendererMessageSchema } from "@purosur/contracts";
+import {
+  accessCoreToRendererMessageSchema,
+  registerCoreToRendererMessageSchema,
+  salesCoreToRendererMessageSchema,
+  syncCoreToRendererMessageSchema,
+} from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
+import { z } from "zod";
+
+const coreToRendererMessageSchema = z.discriminatedUnion("type", [
+  accessCoreToRendererMessageSchema,
+  registerCoreToRendererMessageSchema,
+  salesCoreToRendererMessageSchema,
+  syncCoreToRendererMessageSchema,
+]);
+
+type CoreToRendererMessage =
+  | AccessCoreToRendererMessage
+  | RegisterCoreToRendererMessage
+  | SalesCoreToRendererMessage
+  | SyncCoreToRendererMessage;
+
+type RendererToCoreMessage =
+  | AccessRendererToCoreMessage
+  | RegisterRendererToCoreMessage
+  | SalesRendererToCoreMessage;
 
 export interface CorePort {
   postMessage(message: unknown): void;

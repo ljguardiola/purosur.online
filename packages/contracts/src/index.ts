@@ -1,5 +1,19 @@
 export type { BranchUserWire } from "./access/branch-user.js";
 export { branchUserListSchema, branchUserSchema } from "./access/branch-user.js";
+export type {
+  AccessCoreToRendererMessage,
+  AccessRendererToCoreMessage,
+  FirstPinCodeRequestOutcome,
+  PinCodeRedemptionOutcome,
+  SignInLookupOutcome,
+  SignInOutcome,
+} from "./access/core-messages.js";
+export {
+  accessCoreToRendererMessageSchema,
+  accessRendererToCoreMessageSchema,
+  redeemPinCodeMessageSchema,
+  signInLookupMessageSchema,
+} from "./access/core-messages.js";
 export type { FirstPinCodeBody, FirstPinCodeWire } from "./access/first-pin-code.js";
 export { firstPinCodeBodySchema, firstPinCodeSchema } from "./access/first-pin-code.js";
 export type { OpenSessionWire } from "./access/open-session.js";
@@ -149,42 +163,30 @@ export {
   retryAfterSecondsOf,
 } from "./register/cloud-error.js";
 export type {
-  CancelLockedSaleOutcome,
   CashBalance,
   CashCountPreview,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
-  CoreStatusMessage,
-  CoreToRendererMessage,
   EnrollmentOutcome,
-  FirstPinCodeRequestOutcome,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
-  MainToCoreMessage,
   OpenCashSessionOutcome,
-  PinCodeRedemptionOutcome,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RecordCashMovementRequest,
-  RendererToCoreMessage,
+  RegisterCoreToRendererMessage,
+  RegisterRendererToCoreMessage,
   SessionOpenSale,
-  SignInLookupOutcome,
-  SignInOutcome,
 } from "./register/core-messages.js";
 export {
   cashMovementTypeSchema,
-  chargeSaleInCashMessageSchema,
   closeCashSessionMessageSchema,
   closeLockedCashSessionMessageSchema,
-  coreStatusMessageSchema,
-  coreToRendererMessageSchema,
   enrollMessageSchema,
-  mainToCoreMessageSchema,
   openCashSessionMessageSchema,
   recordCashMovementMessageSchema,
-  redeemPinCodeMessageSchema,
-  rendererToCoreMessageSchema,
-  signInLookupMessageSchema,
+  registerCoreToRendererMessageSchema,
+  registerRendererToCoreMessageSchema,
 } from "./register/core-messages.js";
 export type { DeviceEnrollment, DeviceEnrollmentBody } from "./register/device-enrollment.js";
 export {
@@ -196,12 +198,24 @@ export { deviceTokenRotationSchema } from "./register/device-token-rotation.js";
 export type { HealthCheck } from "./register/health-check.js";
 export { healthCheckSchema } from "./register/health-check.js";
 export type { InstallationKeysBody } from "./register/installation-keys.js";
+export type { CoreStatusMessage, MainToCoreMessage } from "./register/main-messages.js";
+export { coreStatusMessageSchema, mainToCoreMessageSchema } from "./register/main-messages.js";
 export type { RegisterCreationBody } from "./register/register-creation.js";
 export { registerCreationBodySchema } from "./register/register-creation.js";
 export type { RegisterEnrollmentCodeBody } from "./register/register-enrollment-code.js";
 export { registerEnrollmentCodeSchema } from "./register/register-enrollment-code.js";
 export type { RegisterSummaryBody } from "./register/register-summary.js";
 export { registerListSchema, registerSummarySchema } from "./register/register-summary.js";
+export type {
+  CancelLockedSaleOutcome,
+  SalesCoreToRendererMessage,
+  SalesRendererToCoreMessage,
+} from "./sales/core-messages.js";
+export {
+  chargeSaleInCashMessageSchema,
+  salesCoreToRendererMessageSchema,
+  salesRendererToCoreMessageSchema,
+} from "./sales/core-messages.js";
 export type {
   AddProductOutcome,
   CancelSaleOutcome,
@@ -283,6 +297,8 @@ export type { StockCountResult, StockMovementResult } from "./stock/stock-result
 export { stockCountResultSchema, stockMovementResultSchema } from "./stock/stock-results.js";
 export type { ChangesPage, ChangesQuery, SyncChange } from "./sync/changes.js";
 export { changesPageSchema, changesQuerySchema } from "./sync/changes.js";
+export type { SyncCoreToRendererMessage } from "./sync/core-messages.js";
+export { syncCoreToRendererMessageSchema } from "./sync/core-messages.js";
 export type { PushEventsRequest, PushEventsResponse } from "./sync/events.js";
 export {
   PUSH_EVENTS_REQUEST_MAX_BYTES,

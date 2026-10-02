@@ -3,9 +3,7 @@ import { hostname, release, version } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import {
-  type CoreToRendererMessage,
   mainToCoreMessageSchema,
-  rendererToCoreMessageSchema,
   scrubErrorReport,
   scrubErrorReportBreadcrumb,
   scrubErrorReportLog,
@@ -69,6 +67,7 @@ import { answerRendererRequest, type RendererRequestDeps } from "./register/rend
 import { readOpenSession } from "./register/sqlite-cash-ledger";
 import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
+import { type CoreToRendererMessage, rendererToCoreMessageSchema } from "./renderer-messages";
 import {
   addSearchedProductFor,
   cancelLockedSaleFor,
