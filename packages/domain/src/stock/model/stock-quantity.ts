@@ -10,13 +10,21 @@ export const STOCK_QUANTITY_PER_UNIT = 10 ** STOCK_QUANTITY_DECIMALS;
 // balance is built from stay far inside the integers a JavaScript number holds exactly.
 export const MAX_STOCK_QUANTITY = 2_147_483_647;
 
+export function mayBeCountedQuantity(quantity: number): boolean {
+  return Number.isInteger(quantity) && quantity >= 0 && quantity <= MAX_STOCK_QUANTITY;
+}
+
+export function mayBeMovementQuantity(quantity: number): boolean {
+  return quantity > 0 && mayBeCountedQuantity(quantity);
+}
+
 export function isCountedQuantity(saleUnit: SaleUnit, quantity: number): boolean {
-  if (!Number.isInteger(quantity) || quantity < 0 || quantity > MAX_STOCK_QUANTITY) {
-    return false;
-  }
-  return saleUnit === "KG" || quantity % STOCK_QUANTITY_PER_UNIT === 0;
+  return (
+    mayBeCountedQuantity(quantity) &&
+    (saleUnit === "KG" || quantity % STOCK_QUANTITY_PER_UNIT === 0)
+  );
 }
 
 export function isMovementQuantity(saleUnit: SaleUnit, quantity: number): boolean {
-  return quantity > 0 && isCountedQuantity(saleUnit, quantity);
+  return mayBeMovementQuantity(quantity) && isCountedQuantity(saleUnit, quantity);
 }
