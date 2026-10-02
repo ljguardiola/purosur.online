@@ -237,7 +237,12 @@ test("the create action stays available while the tags load, and after they fail
 
 test("the create action opens the new tag modal, and the created tag is listed", async () => {
   const services = createServices();
-  const nuevo: TagSummary = { ...organico, id: "7a600000-0000-4000-8000-000000000009", name: "Sin conservantes", productCount: 0 };
+  const nuevo: TagSummary = {
+    ...organico,
+    id: "7a600000-0000-4000-8000-000000000009",
+    name: "Sin conservantes",
+    productCount: 0,
+  };
   vi.mocked(services.fetchTags)
     .mockResolvedValueOnce({ kind: "ok", value: tagList([sinTacc]) })
     .mockResolvedValueOnce({ kind: "ok", value: tagList([sinTacc, nuevo]) });
@@ -281,7 +286,10 @@ test("the edit action opens the tag's edit modal, and the saved rename is listed
   });
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
-  expect(services.editTag).toHaveBeenCalledWith("7a600000-0000-4000-8000-000000000001", { name: "Sin gluten", version: 1 });
+  expect(services.editTag).toHaveBeenCalledWith("7a600000-0000-4000-8000-000000000001", {
+    name: "Sin gluten",
+    version: 1,
+  });
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.element(screen.getByText("Sin gluten")).toBeVisible();
 });

@@ -177,7 +177,11 @@ test("a search that matches a subcategory shows it together with its parent cate
 });
 
 test("keeps each subcategory under its category, siblings in the chosen direction, while a search is active", async () => {
-  const sweets: CategorySummary = { ...jams, id: "ca7e0000-0000-4000-8000-000000000005", name: "Dulces" };
+  const sweets: CategorySummary = {
+    ...jams,
+    id: "ca7e0000-0000-4000-8000-000000000005",
+    name: "Dulces",
+  };
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({
     kind: "ok",
@@ -425,7 +429,11 @@ test("the row action opens the edit modal preselecting the category's current pa
 
 test("moves a category to a new parent and shows its updated path in the list", async () => {
   const services = createServices();
-  const moved: CategorySummary = { ...drinks, parentId: "ca7e0000-0000-4000-8000-000000000001", version: 4 };
+  const moved: CategorySummary = {
+    ...drinks,
+    parentId: "ca7e0000-0000-4000-8000-000000000001",
+    version: 4,
+  };
   vi.mocked(services.fetchCategories)
     .mockResolvedValueOnce({ kind: "ok", value: [groceries, drinks] })
     .mockResolvedValueOnce({ kind: "ok", value: [groceries, moved] });

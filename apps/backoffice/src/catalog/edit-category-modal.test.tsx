@@ -205,7 +205,11 @@ test("shows a not-found notice when the category no longer exists", async () => 
 
 test("a stale-version reload discards the typed name and saves again over the refreshed version and parent", async () => {
   const edit = vi.fn<typeof editCategory>().mockResolvedValue({ kind: "stale_version" });
-  const freshened: CategorySummary = { ...drinks, parentId: "ca7e0000-0000-4000-8000-000000000001", version: 4 };
+  const freshened: CategorySummary = {
+    ...drinks,
+    parentId: "ca7e0000-0000-4000-8000-000000000001",
+    version: 4,
+  };
   const reload = vi
     .fn<(id: string) => Promise<CategoryReload>>()
     .mockResolvedValue({ kind: "found", category: freshened });

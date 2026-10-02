@@ -77,7 +77,12 @@ test("the category filter narrows the list", async () => {
   expect(screen.getByText("Miel pura de abeja 1 kg").query()).toBeNull();
 });
 
-const drinks: CategorySummary = { id: "ca7e0000-0000-4000-8000-000000000004", name: "Bebidas", version: 1, parentId: null };
+const drinks: CategorySummary = {
+  id: "ca7e0000-0000-4000-8000-000000000004",
+  name: "Bebidas",
+  version: 1,
+  parentId: null,
+};
 const otherGroceries: CategorySummary = {
   id: "ca7e0000-0000-4000-8000-000000000005",
   name: "Otros",

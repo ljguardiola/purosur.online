@@ -664,7 +664,11 @@ test("removing the deactivated tag drops the help line and the tag, which is not
 test("a tag chosen is appended after the product's own, and every tag just created too, before the tags are read again", async () => {
   const services = createServices();
   const miel: ProductSummary = { ...honey, tagIds: [sinTacc.id] };
-  const kosher: TagSummary = { ...organico, id: "7a600000-0000-4000-8000-000000000009", name: "Kosher" };
+  const kosher: TagSummary = {
+    ...organico,
+    id: "7a600000-0000-4000-8000-000000000009",
+    name: "Kosher",
+  };
   vi.mocked(services.createTag)
     .mockResolvedValueOnce({ kind: "ok", tag: organico })
     .mockResolvedValueOnce({ kind: "ok", tag: kosher });

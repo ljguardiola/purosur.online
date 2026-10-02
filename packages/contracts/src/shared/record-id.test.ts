@@ -46,7 +46,9 @@ describe("recordIdSchema", () => {
         ),
         (id, index, change) => {
           const groups = id.split("-");
-          const changed = groups.toSpliced(index, 1, change(groups[index] ?? "")).join("-");
+          const changed = groups
+            .map((group, position) => (position === index ? change(group) : group))
+            .join("-");
           expect(recordIdSchema().safeParse(changed).success).toBe(false);
         },
       ),
