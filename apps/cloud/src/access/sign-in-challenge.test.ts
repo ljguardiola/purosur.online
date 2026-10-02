@@ -1,11 +1,6 @@
-import { CHALLENGE_TTL_MS } from "@purosur/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
-import {
-  DrizzleSignInChallenges,
-  pruneExpiredSignInChallenges,
-  storeSignInChallenge,
-} from "./sign-in-challenge.js";
+import { DrizzleSignInChallenges } from "./sign-in-challenge.js";
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -33,7 +28,7 @@ async function challengeRows() {
 
 describe("DrizzleSignInChallenges", () => {
   it("takes a stored challenge and answers when it was issued", async () => {
-    await storeSignInChallenge(db, { challenge: "abc123", now: NOON });
+    await new DrizzleSignInChallenges(db).storeChallenge("abc123", NOON);
 
     const taken = await new DrizzleSignInChallenges(db).takeChallenge("abc123");
 
@@ -41,7 +36,7 @@ describe("DrizzleSignInChallenges", () => {
   });
 
   it("deletes the row once taken, so a challenge is taken only once", async () => {
-    await storeSignInChallenge(db, { challenge: "abc123", now: NOON });
+    await new DrizzleSignInChallenges(db).storeChallenge("abc123", NOON);
     await new DrizzleSignInChallenges(db).takeChallenge("abc123");
 
     const again = await new DrizzleSignInChallenges(db).takeChallenge("abc123");
@@ -57,17 +52,16 @@ describe("DrizzleSignInChallenges", () => {
   });
 });
 
-describe("pruneExpiredSignInChallenges", () => {
-  it("removes challenges that aged out without being consumed", async () => {
-    await storeSignInChallenge(db, { challenge: "stale", now: NOON });
-    await storeSignInChallenge(db, {
-      challenge: "fresh",
-      now: new Date(NOON.getTime() + CHALLENGE_TTL_MS + 1),
-    });
+describe("DrizzleSignInChallenges.discardChallengesIssuedAtOrBefore", () => {
+  it("removes the challenges issued at or before the cutoff and keeps the later ones", async () => {
+    const challenges = new DrizzleSignInChallenges(db);
+    await challenges.storeChallenge("before", new Date(NOON.getTime() - 1));
+    await challenges.storeChallenge("at", NOON);
+    await challenges.storeChallenge("after", new Date(NOON.getTime() + 1));
 
-    await pruneExpiredSignInChallenges(db, new Date(NOON.getTime() + CHALLENGE_TTL_MS + 1));
+    await challenges.discardChallengesIssuedAtOrBefore(NOON);
 
     const rows = (await challengeRows()).rows as { challenge: string }[];
-    expect(rows.map((row) => row.challenge)).toEqual(["fresh"]);
+    expect(rows.map((row) => row.challenge)).toEqual(["after"]);
   });
 });
