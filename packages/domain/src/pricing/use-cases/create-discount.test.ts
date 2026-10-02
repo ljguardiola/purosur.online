@@ -79,7 +79,7 @@ describe("createDiscount", () => {
 
     expect(outcome).toEqual({ kind: "target_not_found" });
     expect(store.snapshot().discounts).toEqual([]);
-    expect(store.operationOrder).toEqual(["lockAssignableTarget"]);
+    expect(store.operationOrder).toEqual(["lockTarget"]);
   });
 
   it("refuses a target of another kind that has the same id", async () => {
@@ -122,7 +122,7 @@ describe("createDiscount", () => {
 
     expect(outcome).toEqual({ kind: "target_not_sold_by_unit" });
     expect(store.snapshot().discounts).toEqual([]);
-    expect(store.operationOrder).toEqual(["lockAssignableTarget"]);
+    expect(store.operationOrder).toEqual(["lockTarget"]);
   });
 
   it.each(["CATEGORY", "TAG"] as const)(
@@ -160,7 +160,7 @@ describe("createDiscount", () => {
 
     await createDiscount({ store }, input);
 
-    expect(store.operationOrder).toEqual(["lockAssignableTarget", "insertDiscount"]);
+    expect(store.operationOrder).toEqual(["lockTarget", "insertDiscount"]);
   });
 
   it("leaves nothing behind when the insert fails", async () => {

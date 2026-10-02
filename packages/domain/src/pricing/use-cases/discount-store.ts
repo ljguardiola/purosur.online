@@ -1,6 +1,7 @@
 import type { SaleUnit } from "../../catalog/index.js";
 import type { DiscountBenefit } from "../model/discount-benefit.js";
 import type { DiscountTarget } from "../model/discount-target.js";
+import type { AssignableTargetCandidate } from "../model/discount-target-eligibility.js";
 
 import type { Clock } from "./pricing-store.js";
 
@@ -23,9 +24,9 @@ export interface DiscountFields {
   version: number;
 }
 
-export type LockAssignableTargetResult =
+export type LockTargetResult =
   | { kind: "not_found" }
-  | { kind: "locked"; name: string; saleUnit: SaleUnit | null };
+  | { kind: "locked"; name: string; target: AssignableTargetCandidate };
 
 export type LockDiscountedProductResult =
   | { kind: "not_found" }
@@ -42,7 +43,7 @@ export interface DiscountStore {
 }
 
 export interface DiscountStoreTransaction {
-  lockAssignableTarget(target: DiscountTarget): Promise<LockAssignableTargetResult>;
+  lockTarget(target: DiscountTarget): Promise<LockTargetResult>;
   insertDiscount(discount: DiscountFields): Promise<{ id: string }>;
   lockDiscount(id: string): Promise<LockDiscountResult>;
   lockDiscountedProduct(productId: string): Promise<LockDiscountedProductResult>;

@@ -19,15 +19,18 @@ import {
   EMPTY_DISCOUNT_FORM,
   eligibleTargets,
   keptTarget,
+  offersTargetKindChoice,
   productSoldByWeightMessage,
   soldByWeightHelp,
   targetForKind,
+  targetKindOptions,
   targetOptions,
   targetPlaceholder,
   targetUnavailableMessage,
   WEEKDAY_OPTIONS,
 } from "./discount-form";
 import {
+  almacenCategory,
   almacenTuesdays,
   almondsProduct,
   discountTargets,
@@ -317,6 +320,8 @@ describe("option lists", () => {
   });
 });
 
+type ProductTarget = DiscountTargets["products"][number];
+
 describe("targetOptions", () => {
   const nothing = { products: [], categories: [], tags: [] };
   const honey = {
@@ -326,6 +331,7 @@ describe("targetOptions", () => {
     brandName: null,
     netContent: null,
     barcodes: [],
+    benefitKinds: ["PERCENT_OFF", "BUY_N_PAY_M"],
   } satisfies DiscountTargets["products"][number];
   const rice = {
     id: "product-3",
@@ -334,10 +340,23 @@ describe("targetOptions", () => {
     brandName: null,
     netContent: null,
     barcodes: [],
+    benefitKinds: ["PERCENT_OFF", "BUY_N_PAY_M"],
   } satisfies DiscountTargets["products"][number];
-  const sinTacc = { id: "tag-1", name: "Sin TACC" };
-  const vegano = { id: "tag-2", name: "Vegano" };
-  const organico = { id: "tag-4", name: "Orgánico" };
+  const sinTacc = {
+    id: "tag-1",
+    name: "Sin TACC",
+    benefitKinds: ["PERCENT_OFF"],
+  } satisfies DiscountTargets["tags"][number];
+  const vegano = {
+    id: "tag-2",
+    name: "Vegano",
+    benefitKinds: ["PERCENT_OFF"],
+  } satisfies DiscountTargets["tags"][number];
+  const organico = {
+    id: "tag-4",
+    name: "Orgánico",
+    benefitKinds: ["PERCENT_OFF"],
+  } satisfies DiscountTargets["tags"][number];
 
   test("offers every product it is given, by name", () => {
     const options = targetOptions("PRODUCT", { ...nothing, products: [honey, rice] });
@@ -356,6 +375,7 @@ describe("targetOptions", () => {
       brandName: "Playadito",
       netContent: { quantity: 1, unit: "KG" },
       barcodes: ["7790001", "7790002"],
+      benefitKinds: ["PERCENT_OFF", "BUY_N_PAY_M"],
     } satisfies DiscountTargets["products"][number];
 
     const options = targetOptions("PRODUCT", { ...nothing, products: [yerba] });
@@ -398,7 +418,10 @@ describe("targetOptions", () => {
   test("offers every category with its path, parents before their children", () => {
     const options = targetOptions("CATEGORY", {
       ...nothing,
-      categories: [jams, drinks, spreads, groceries],
+      categories: [jams, drinks, spreads, groceries].map((category) => ({
+        ...category,
+        benefitKinds: ["PERCENT_OFF" as const],
+      })),
     });
 
     expect(options?.map((option) => option.label)).toEqual([
@@ -483,9 +506,48 @@ describe("targetOptions", () => {
   });
 });
 
+describe("what a target accepts", () => {
+  const percentOffOnly = { ...yerbaProduct, benefitKinds: ["PERCENT_OFF"] } satisfies ProductTarget;
+  const targets = { ...discountTargets, products: [percentOffOnly] };
+
+  test("offers a buy-N-pay-M promotion no product that does not accept it", () => {
+    expect(eligibleTargets("BUY_N_PAY_M", targets).products).toEqual([]);
+  });
+
+  test("marks a product that does not accept buy-N-pay-M as sold by weight", () => {
+    expect(
+      keptTarget(targets, {
+        benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+        target: { kind: "PRODUCT", id: percentOffOnly.id, name: percentOffOnly.name },
+      }),
+    ).toEqual({
+      kind: "PRODUCT",
+      id: percentOffOnly.id,
+      name: percentOffOnly.name,
+      status: "Por peso",
+    });
+  });
+
+  test("says a product that does not accept buy-N-pay-M is sold by weight", () => {
+    expect(soldByWeightHelp({ ...threeForTwo, targetId: percentOffOnly.id }, targets)).toBe(
+      "Este producto se vende por peso: Lleve N, pague M no se le aplica.",
+    );
+  });
+
+  test("clears a product that does not accept buy-N-pay-M when switching to it", () => {
+    expect(
+      targetForKind({ ...filled, targetId: percentOffOnly.id }, "BUY_N_PAY_M", targets),
+    ).toEqual({ targetKind: "PRODUCT", targetId: null });
+  });
+});
+
 describe("eligibleTargets", () => {
   test("offers a percentage promotion every target it is given", () => {
-    expect(eligibleTargets("PERCENT_OFF", discountTargets)).toEqual(discountTargets);
+    expect(eligibleTargets("PERCENT_OFF", discountTargets)).toEqual({
+      products: discountTargets.products,
+      categories: discountTargets.categories,
+      tags: discountTargets.tags,
+    });
   });
 
   test("offers a buy-N-pay-M promotion only the products sold by the unit", () => {
@@ -601,6 +663,87 @@ describe("targetForKind", () => {
   });
 });
 
+describe("targetForKind with the target kinds the cloud allows", () => {
+  const anyKind = {
+    ...discountTargets,
+    categories: [{ ...almacenCategory, benefitKinds: ["PERCENT_OFF", "BUY_N_PAY_M"] }],
+    targetKindsByBenefit: {
+      PERCENT_OFF: ["PRODUCT", "CATEGORY", "TAG"],
+      BUY_N_PAY_M: ["PRODUCT", "CATEGORY"],
+    },
+  } satisfies DiscountTargets;
+  const category = { ...filled, targetKind: "CATEGORY", targetId: almacenCategory.id } as const;
+  const tag = { ...filled, targetKind: "TAG", targetId: "tag-1" } as const;
+
+  test("keeps a kind the benefit is allowed on, with its target", () => {
+    expect(targetForKind(category, "BUY_N_PAY_M", anyKind)).toEqual({
+      targetKind: "CATEGORY",
+      targetId: almacenCategory.id,
+    });
+  });
+
+  test("turns a kind the benefit is not allowed on into the first allowed one, unchosen", () => {
+    expect(targetForKind(tag, "BUY_N_PAY_M", anyKind)).toEqual({
+      targetKind: "PRODUCT",
+      targetId: null,
+    });
+  });
+
+  test("keeps a kind when switching to a benefit that restricts nothing", () => {
+    expect(targetForKind(category, "PERCENT_OFF", anyKind)).toEqual({
+      targetKind: "CATEGORY",
+      targetId: almacenCategory.id,
+    });
+  });
+});
+
+describe("offersTargetKindChoice", () => {
+  test("is true for a benefit the cloud allows on more than one target kind", () => {
+    expect(offersTargetKindChoice("PERCENT_OFF", discountTargets)).toBe(true);
+  });
+
+  test("is false for a benefit the cloud allows on one target kind only", () => {
+    expect(offersTargetKindChoice("BUY_N_PAY_M", discountTargets)).toBe(false);
+  });
+
+  test("follows the cloud when it allows a benefit on more kinds", () => {
+    const targets = {
+      ...discountTargets,
+      targetKindsByBenefit: {
+        ...discountTargets.targetKindsByBenefit,
+        BUY_N_PAY_M: ["PRODUCT", "TAG"],
+      },
+    } satisfies DiscountTargets;
+
+    expect(offersTargetKindChoice("BUY_N_PAY_M", targets)).toBe(true);
+  });
+});
+
+describe("targetKindOptions", () => {
+  test("offers every kind the cloud allows the benefit on, in the control's order", () => {
+    expect(targetKindOptions("PERCENT_OFF", discountTargets)).toEqual([
+      { value: "PRODUCT", label: "Producto" },
+      { value: "CATEGORY", label: "Categoría" },
+      { value: "TAG", label: "Distintivo" },
+    ]);
+  });
+
+  test("offers only the kinds the cloud allows the benefit on", () => {
+    const targets = {
+      ...discountTargets,
+      targetKindsByBenefit: { PERCENT_OFF: ["TAG", "PRODUCT"], BUY_N_PAY_M: ["PRODUCT"] },
+    } satisfies DiscountTargets;
+
+    expect(targetKindOptions("PERCENT_OFF", targets)).toEqual([
+      { value: "PRODUCT", label: "Producto" },
+      { value: "TAG", label: "Distintivo" },
+    ]);
+    expect(targetKindOptions("BUY_N_PAY_M", targets)).toEqual([
+      { value: "PRODUCT", label: "Producto" },
+    ]);
+  });
+});
+
 describe("discountFormValues", () => {
   test("fills the form from a promotion, weekdays as the chips' values", () => {
     expect(discountFormValues(sinTaccWinter)).toEqual({
@@ -638,10 +781,10 @@ describe("discountFormValues", () => {
     expect(discountFormValues(yerbaOff).weekdays).toEqual([]);
   });
 
-  test("marks the weekdays of a promotion in week order", () => {
+  test("takes the weekdays as the cloud sent them", () => {
     expect(discountFormValues({ ...almacenTuesdays, weekdays: [5, 2] }).weekdays).toEqual([
-      "2",
       "5",
+      "2",
     ]);
   });
 });

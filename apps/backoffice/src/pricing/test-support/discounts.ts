@@ -14,6 +14,7 @@ export const yerbaOff: DiscountSummary = {
   weekdays: [],
   active: true,
   version: 1,
+  status: "current",
 };
 
 export const almacenTuesdays: DiscountSummary = {
@@ -30,6 +31,7 @@ export const almacenTuesdays: DiscountSummary = {
   weekdays: [2],
   active: true,
   version: 3,
+  status: "scheduled",
 };
 
 export const sinTaccWinter: DiscountSummary = {
@@ -46,6 +48,7 @@ export const sinTaccWinter: DiscountSummary = {
   weekdays: [1, 3, 5],
   active: true,
   version: 2,
+  status: "scheduled",
 };
 
 export const endedPromotion: DiscountSummary = {
@@ -62,6 +65,7 @@ export const endedPromotion: DiscountSummary = {
   weekdays: [],
   active: true,
   version: 1,
+  status: "ended",
 };
 
 export const switchedOffPromotion: DiscountSummary = {
@@ -78,6 +82,7 @@ export const switchedOffPromotion: DiscountSummary = {
   weekdays: [],
   active: false,
   version: 4,
+  status: "deactivated",
 };
 
 export const yerbaThreeForTwo: DiscountSummary = {
@@ -94,6 +99,7 @@ export const yerbaThreeForTwo: DiscountSummary = {
   weekdays: [],
   active: true,
   version: 2,
+  status: "current",
 };
 
 export const almondsThreeForTwo: DiscountSummary = {
@@ -110,6 +116,7 @@ export const almondsThreeForTwo: DiscountSummary = {
   weekdays: [],
   active: false,
   version: 3,
+  status: "deactivated",
 };
 
 export function discountList(discounts: DiscountSummary[]): DiscountList {
@@ -126,6 +133,7 @@ export const yerbaProduct: ProductTarget = {
   brandName: "Playadito",
   netContent: { quantity: 1, unit: "KG" },
   barcodes: ["7790001000101"],
+  benefitKinds: ["PERCENT_OFF", "BUY_N_PAY_M"],
 };
 
 export const almondsProduct: ProductTarget = {
@@ -135,6 +143,7 @@ export const almondsProduct: ProductTarget = {
   brandName: null,
   netContent: null,
   barcodes: [],
+  benefitKinds: ["PERCENT_OFF"],
 };
 
 export const retiredProduct: ProductTarget = {
@@ -144,37 +153,47 @@ export const retiredProduct: ProductTarget = {
   brandName: "La Virginia",
   netContent: { quantity: 500, unit: "G" },
   barcodes: ["7790001000105"],
+  benefitKinds: ["PERCENT_OFF", "BUY_N_PAY_M"],
 };
 
 export const almacenCategory: DiscountTargets["categories"][number] = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000201",
   name: "Almacén",
   parentId: null,
+  benefitKinds: ["PERCENT_OFF"],
 };
 
 export const yerbasCategory: DiscountTargets["categories"][number] = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000202",
   name: "Yerbas",
   parentId: "7a1f3c1e-4f6a-4d0e-9d6e-000000000201",
+  benefitKinds: ["PERCENT_OFF"],
 };
 
 const sinTaccTag: TagTarget = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000301",
   name: "Sin TACC",
+  benefitKinds: ["PERCENT_OFF"],
 };
 
 export const veganoTag: TagTarget = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000302",
   name: "Vegano",
+  benefitKinds: ["PERCENT_OFF"],
 };
 
 export const retiredTag: TagTarget = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000303",
   name: "Sin colorantes",
+  benefitKinds: ["PERCENT_OFF"],
 };
 
 export const discountTargets: DiscountTargets = {
   products: [yerbaProduct, almondsProduct],
   categories: [almacenCategory, yerbasCategory],
   tags: [sinTaccTag, veganoTag],
+  targetKindsByBenefit: {
+    PERCENT_OFF: ["PRODUCT", "CATEGORY", "TAG"],
+    BUY_N_PAY_M: ["PRODUCT"],
+  },
 };

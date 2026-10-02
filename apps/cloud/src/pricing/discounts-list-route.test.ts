@@ -128,6 +128,7 @@ describe("GET /discounts", () => {
           weekdays: [2],
           active: true,
           version: 1,
+          status: "scheduled",
         },
         {
           id: onTag.id,
@@ -139,6 +140,7 @@ describe("GET /discounts", () => {
           weekdays: [],
           active: false,
           version: 3,
+          status: "deactivated",
         },
         {
           id: onProduct.id,
@@ -150,6 +152,7 @@ describe("GET /discounts", () => {
           weekdays: [],
           active: true,
           version: 1,
+          status: "scheduled",
         },
       ],
     });
@@ -181,9 +184,34 @@ describe("GET /discounts", () => {
           weekdays: [],
           active: true,
           version: 1,
+          status: "scheduled",
         },
       ],
     });
+  });
+
+  it("gives each discount its status on the clock's day", async () => {
+    const category = await insertCategory(db, "Infusiones");
+    await insertDiscount(db, {
+      name: "A running",
+      categoryId: category,
+      validFrom: "2026-01-05",
+      validTo: "2026-01-05",
+    });
+    await insertDiscount(db, {
+      name: "B over",
+      categoryId: category,
+      validFrom: "2025-12-01",
+      validTo: "2026-01-04",
+    });
+    const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
+
+    const response = await getDiscounts(rawSessionId);
+
+    expect(response.json().discounts.map(({ status }: { status: string }) => status)).toEqual([
+      "current",
+      "ended",
+    ]);
   });
 
   it("lists discounts for an Administrator even without the explicit permission", async () => {

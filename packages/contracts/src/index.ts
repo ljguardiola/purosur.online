@@ -130,8 +130,13 @@ export {
   registerPointOfSaleOverviewSchema,
   registerPointOfSaleSchema,
 } from "./fiscal/register-point-of-sale.js";
+export {
+  discountBuyQtySchema,
+  discountPayQtySchema,
+  discountPercentSchema,
+} from "./pricing/discount-benefit.js";
 export type { DiscountCreationBody } from "./pricing/discount-creation.js";
-export { discountCreationBodySchema } from "./pricing/discount-creation.js";
+export { discountCreationBodySchema, discountNameSchema } from "./pricing/discount-creation.js";
 export type { DiscountEditBody } from "./pricing/discount-edit.js";
 export { discountEditBodySchema } from "./pricing/discount-edit.js";
 export type { DiscountList, DiscountSummary } from "./pricing/discount-summary.js";

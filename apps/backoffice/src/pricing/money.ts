@@ -1,8 +1,5 @@
-import { MAX_UNIT_PRICE_CENTS } from "@purosur/domain";
 import { formatCents } from "@purosur/ui";
 import type { ProductSaleUnit } from "../catalog/products-api";
-
-export { MAX_UNIT_PRICE_CENTS };
 
 const UNIT_SUFFIX = { UNIT: "", KG: "/ kg" } satisfies Record<ProductSaleUnit, string>;
 

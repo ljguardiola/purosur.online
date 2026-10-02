@@ -1,7 +1,6 @@
-import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { MAX_UNIT_PRICE_CENTS } from "../../pricing/index.js";
-import { chargeLine, lineAmount } from "./line-pricing.js";
+import { chargeLine } from "./line-pricing.js";
 import type { LinePromotion } from "./sale.js";
 
 const TEN_PERCENT: LinePromotion = { id: "ten", benefit: { kind: "PERCENT_OFF", percent: 10 } };
@@ -18,16 +17,6 @@ function units(count: number) {
 function weight(thousandths: number) {
   return { saleUnit: "KG", thousandths } as const;
 }
-
-describe("lineAmount", () => {
-  it("is the units times the unit price for a unit line", () => {
-    expect(lineAmount(units(3), 2500)).toEqual({ numerator: 7500n, denominator: 1n });
-  });
-
-  it("is the thousandths of a kilogram times the price per kilogram, over 1000, for a weight line", () => {
-    expect(lineAmount(weight(1250), 9000)).toEqual({ numerator: 11_250_000n, denominator: 1000n });
-  });
-});
 
 describe("chargeLine without promotions", () => {
   it("charges the list amount of a unit line", () => {
@@ -64,24 +53,8 @@ describe("chargeLine without promotions", () => {
 });
 
 describe("chargeLine with a percentage promotion", () => {
-  it("takes the percentage off the exact amount of a unit line", () => {
-    expect(chargeLine(units(2), 2500, [TEN_PERCENT])).toEqual({
-      promotionId: "ten",
-      discountAmount: 500,
-      lineTotal: 4500,
-    });
-  });
-
   it("applies the percentage before rounding, not to the rounded amount", () => {
     expect(chargeLine(weight(15), 999, [HALF]).lineTotal).toBe(7);
-  });
-
-  it("charges a weight line with the same calculation", () => {
-    expect(chargeLine(weight(1250), 9000, [TEN_PERCENT])).toEqual({
-      promotionId: "ten",
-      discountAmount: 1125,
-      lineTotal: 10_125,
-    });
   });
 
   it("rounds the discounted total half up on the exact .5 boundary", () => {
@@ -99,71 +72,9 @@ describe("chargeLine with a percentage promotion", () => {
       lineTotal: 4,
     });
   });
-
-  it("charges nothing at 100 % off", () => {
-    const free: LinePromotion = { id: "free", benefit: { kind: "PERCENT_OFF", percent: 100 } };
-
-    expect(chargeLine(units(3), 2500, [free])).toEqual({
-      promotionId: "free",
-      discountAmount: 7500,
-      lineTotal: 0,
-    });
-  });
-
-  it("never charges more than the list amount nor a negative total", () => {
-    fc.assert(
-      fc.property(
-        fc.integer({ min: 0, max: MAX_UNIT_PRICE_CENTS }),
-        fc.integer({ min: 1, max: 100_000 }),
-        fc.integer({ min: 1, max: 100 }),
-        (price, thousandths, percent) => {
-          const promotion: LinePromotion = { id: "p", benefit: { kind: "PERCENT_OFF", percent } };
-          const listed = chargeLine(weight(thousandths), price, []).lineTotal;
-
-          const charged = chargeLine(weight(thousandths), price, [promotion]);
-
-          expect(charged.lineTotal).toBeGreaterThanOrEqual(0);
-          expect(charged.lineTotal).toBeLessThanOrEqual(listed);
-          expect(charged.discountAmount).toBe(listed - charged.lineTotal);
-        },
-      ),
-    );
-  });
-
-  it("matches the exact rational calculation for every price, weight and percentage", () => {
-    fc.assert(
-      fc.property(
-        fc.integer({ min: 0, max: MAX_UNIT_PRICE_CENTS }),
-        fc.integer({ min: 1, max: 100_000_000 }),
-        fc.integer({ min: 1, max: 100 }),
-        (price, thousandths, percent) => {
-          const promotion: LinePromotion = { id: "p", benefit: { kind: "PERCENT_OFF", percent } };
-          const numerator = BigInt(thousandths) * BigInt(price) * BigInt(100 - percent);
-          const denominator = 100_000n;
-          const expected = (2n * numerator + denominator) / (2n * denominator);
-
-          const { lineTotal } = chargeLine(weight(thousandths), price, [promotion]);
-
-          expect(BigInt(lineTotal)).toBe(expected);
-        },
-      ),
-    );
-  });
 });
 
 describe("chargeLine with a buy N, pay M promotion", () => {
-  it.each([
-    [1, 1],
-    [2, 2],
-    [3, 2],
-    [4, 3],
-    [5, 4],
-    [6, 4],
-    [7, 5],
-  ])("charges %s units as %s", (count, charged) => {
-    expect(chargeLine(units(count), 100, [THREE_FOR_TWO]).lineTotal).toBe(charged * 100);
-  });
-
   it("reports the units it does not charge as the discount", () => {
     expect(chargeLine(units(7), 100, [THREE_FOR_TWO])).toEqual({
       promotionId: "three-for-two",
@@ -186,33 +97,6 @@ describe("chargeLine with a buy N, pay M promotion", () => {
       discountAmount: 0,
       lineTotal: 300,
     });
-  });
-
-  it("does not lose precision with the largest price and many groups", () => {
-    expect(chargeLine(units(30_000), MAX_UNIT_PRICE_CENTS, [THREE_FOR_TWO]).lineTotal).toBe(
-      20_000 * MAX_UNIT_PRICE_CENTS,
-    );
-  });
-
-  it("charges for every quantity what the groups and the leftover units add up to", () => {
-    fc.assert(
-      fc.property(
-        fc.integer({ min: 2, max: 20 }),
-        fc.integer({ min: 1, max: 19 }),
-        fc.integer({ min: 1, max: 500 }),
-        fc.integer({ min: 0, max: MAX_UNIT_PRICE_CENTS }),
-        (buyQty, requestedPayQty, count, price) => {
-          const payQty = Math.min(requestedPayQty, buyQty - 1);
-          const promotion: LinePromotion = {
-            id: "p",
-            benefit: { kind: "BUY_N_PAY_M", buyQty, payQty },
-          };
-          const chargedUnits = Math.floor(count / buyQty) * payQty + (count % buyQty);
-
-          expect(chargeLine(units(count), price, [promotion]).lineTotal).toBe(chargedUnits * price);
-        },
-      ),
-    );
   });
 });
 

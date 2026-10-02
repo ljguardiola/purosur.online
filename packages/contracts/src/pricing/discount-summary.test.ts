@@ -11,6 +11,7 @@ const summary = {
   weekdays: [6, 7],
   active: true,
   version: 2,
+  status: "current",
 };
 
 describe("discountSummarySchema", () => {
@@ -25,6 +26,13 @@ describe("discountSummarySchema", () => {
       target: { kind: "PRODUCT", id: "product-1", name: "Alfajor" },
     };
     expect(discountSummarySchema.safeParse(buyNPayM).data).toEqual(buyNPayM);
+  });
+
+  it.each(["current", "scheduled", "ended", "deactivated"])("accepts the %s status", (status) => {
+    expect(discountSummarySchema.safeParse({ ...summary, status }).data).toEqual({
+      ...summary,
+      status,
+    });
   });
 
   it.each(["PRODUCT", "CATEGORY", "TAG"])("accepts a %s target", (kind) => {
@@ -49,6 +57,8 @@ describe("discountSummarySchema", () => {
     ["a missing validFrom", { ...summary, validFrom: undefined }],
     ["a missing validTo", { ...summary, validTo: undefined }],
     ["a missing id", { ...summary, id: undefined }],
+    ["a missing status", { ...summary, status: undefined }],
+    ["an unknown status", { ...summary, status: "expired" }],
   ])("rejects %s", (_, body) => {
     expect(discountSummarySchema.safeParse(body).success).toBe(false);
   });
