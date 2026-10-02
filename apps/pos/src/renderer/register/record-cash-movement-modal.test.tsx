@@ -133,10 +133,11 @@ describe("RecordCashMovementModal", () => {
 
   it("heads the kinds of movement with the design system's eyebrow, left to the group to announce", async () => {
     const { screen } = await renderModal();
-    const kindsEyebrow = screen
+    const kindsEyebrowLocator = screen
       .getByRole("dialog")
-      .getByText("Tipo de movimiento", { exact: true })
-      .element();
+      .getByText("Tipo de movimiento", { exact: true });
+    await expect.element(kindsEyebrowLocator).toBeInTheDocument();
+    const kindsEyebrow = kindsEyebrowLocator.element();
     const reference = await render(<Eyebrow text="Tipo de movimiento" />);
     const eyebrow = reference.container.querySelector("p") as HTMLElement;
 
