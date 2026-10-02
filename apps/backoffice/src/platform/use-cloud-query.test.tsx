@@ -671,3 +671,88 @@ test("a read at the interval that finds the session ended or the access refused 
     vi.useRealTimers();
   }
 });
+
+async function withIntervalTimers(run: () => Promise<void>) {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+  notifyManager.setScheduler(queueMicrotask);
+  try {
+    await run();
+  } finally {
+    notifyManager.setScheduler((callback) => setTimeout(callback, 0));
+    vi.useRealTimers();
+  }
+}
+
+test("a read at the interval that answers after a newer read landed never replaces it", async () => {
+  await withIntervalTimers(async () => {
+    const periodic = deferred<CloudReadOutcome<string>>();
+    const read = vi
+      .fn<() => Promise<CloudReadOutcome<string>>>()
+      .mockResolvedValueOnce(ok("one"))
+      .mockReturnValueOnce(periodic.promise)
+      .mockResolvedValueOnce(ok("saved"));
+    const screen = await render(<Probe read={read} refetchInterval={5_000} />);
+    await expect.element(screen.getByText("loaded:one")).toBeVisible();
+    await vi.advanceTimersByTimeAsync(5_000);
+    await userEvent.click(screen.getByRole("button", { name: "refresh" }));
+    await expect.element(screen.getByText("loaded:saved")).toBeVisible();
+
+    periodic.resolve(ok("stale"));
+    await vi.advanceTimersByTimeAsync(0);
+
+    await expect.element(screen.getByText("loaded:saved")).toBeVisible();
+    await expect.element(screen.getByText("loaded:stale")).not.toBeInTheDocument();
+  });
+});
+
+test("a read at the interval that answers while a newer read is still running never replaces the value shown", async () => {
+  await withIntervalTimers(async () => {
+    const periodic = deferred<CloudReadOutcome<string>>();
+    const newer = deferred<CloudReadOutcome<string>>();
+    const read = vi
+      .fn<() => Promise<CloudReadOutcome<string>>>()
+      .mockResolvedValueOnce(ok("one"))
+      .mockReturnValueOnce(periodic.promise)
+      .mockReturnValueOnce(newer.promise);
+    const screen = await render(<Probe read={read} refetchInterval={5_000} />);
+    await expect.element(screen.getByText("loaded:one")).toBeVisible();
+    await vi.advanceTimersByTimeAsync(5_000);
+    await userEvent.click(screen.getByRole("button", { name: "refresh" }));
+    await expect.element(screen.getByText("loaded:one:refreshing")).toBeVisible();
+
+    periodic.resolve(ok("stale"));
+    await vi.advanceTimersByTimeAsync(0);
+
+    await expect.element(screen.getByText("loaded:one:refreshing")).toBeVisible();
+    newer.resolve(ok("saved"));
+    await expect.element(screen.getByText("loaded:saved")).toBeVisible();
+  });
+});
+
+test("a read at the interval that answers after a read through the cache landed never replaces it", async () => {
+  await withIntervalTimers(async () => {
+    const periodic = deferred<CloudReadOutcome<string>>();
+    const read = vi
+      .fn<() => Promise<CloudReadOutcome<string>>>()
+      .mockResolvedValueOnce(ok("one"))
+      .mockReturnValueOnce(periodic.promise);
+    const screen = await render(
+      <OpenedAfterACachedRead
+        cachedRead={() => Promise.resolve(ok("reloaded"))}
+        read={read}
+        refetchInterval={5_000}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "open" }));
+    await expect.element(screen.getByText("loaded:one")).toBeVisible();
+    await vi.advanceTimersByTimeAsync(5_000);
+    await userEvent.click(screen.getByRole("button", { name: "read through the cache" }));
+    await expect.element(screen.getByText("loaded:reloaded")).toBeVisible();
+
+    periodic.resolve(ok("stale"));
+    await vi.advanceTimersByTimeAsync(0);
+
+    await expect.element(screen.getByText("loaded:reloaded")).toBeVisible();
+    await expect.element(screen.getByText("loaded:stale")).not.toBeInTheDocument();
+  });
+});
