@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { useId, type ComponentProps } from "react";
+import { type ComponentProps, useId } from "react";
 import { within } from "storybook/test";
 import {
   playHoverSetsDataHovered,
