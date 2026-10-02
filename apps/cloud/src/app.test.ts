@@ -1954,17 +1954,17 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/inventory-movements",
-        access: permissionAccess(["record_stock_losses", "adjust_stock"]),
+        access: capabilityAccess("stock_movements"),
       },
       {
         method: "POST",
         url: "/api/inventory-losses",
-        access: permissionAccess("record_stock_losses"),
+        access: capabilityAccess("stock_losses"),
       },
       {
         method: "POST",
         url: "/api/inventory-adjustments",
-        access: permissionAccess("adjust_stock"),
+        access: capabilityAccess("stock_adjustments"),
       },
       {
         method: "GET",
