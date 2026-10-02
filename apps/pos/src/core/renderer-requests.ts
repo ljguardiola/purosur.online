@@ -31,9 +31,9 @@ import type {
   SignInUser,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
-import type { CoreToRendererMessage, RendererToCoreMessage } from "../renderer-messages";
-import type { ChargeSaleByTransferRequest, ChargeSaleInCashRequest } from "../sales/sale-requests";
-import type { CashMovementRequest } from "./cash-movement-requests";
+import type { CashMovementRequest } from "./register/cash-movement-requests";
+import type { CoreToRendererMessage, RendererToCoreMessage } from "./renderer-messages";
+import type { ChargeSaleByTransferRequest, ChargeSaleInCashRequest } from "./sales/sale-requests";
 
 export interface RendererRequestDeps {
   credentialsPresent: () => Promise<boolean>;

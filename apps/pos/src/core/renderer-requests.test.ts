@@ -27,7 +27,7 @@ import type {
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
-import type { CashMovementRequest } from "./cash-movement-requests";
+import type { CashMovementRequest } from "./register/cash-movement-requests";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
 
 function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {

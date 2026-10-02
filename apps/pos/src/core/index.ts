@@ -63,11 +63,11 @@ import {
   generatePepper,
   installationReportFrom,
 } from "./register/enrollment";
-import { answerRendererRequest, type RendererRequestDeps } from "./register/renderer-requests";
 import { readOpenSession } from "./register/sqlite-cash-ledger";
 import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
 import { type CoreToRendererMessage, rendererToCoreMessageSchema } from "./renderer-messages";
+import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
 import {
   addSearchedProductFor,
   cancelLockedSaleFor,
