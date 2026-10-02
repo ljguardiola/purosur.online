@@ -10,7 +10,7 @@ export interface FakeHeldPasskey extends RemovedPasskey {
   userId: string;
 }
 
-export interface FakeRemovalAudit {
+interface FakeRemovalAudit {
   actorId: string;
   userId: string | null;
   passkey: RemovedPasskey;

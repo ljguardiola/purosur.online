@@ -150,6 +150,11 @@ export type { ListBranchUsersInput } from "./list-branch-users.js";
 export { listBranchUsers } from "./list-branch-users.js";
 export type { ListOwnPasskeysInput, ListOwnPasskeysPorts } from "./list-own-passkeys.js";
 export { listOwnPasskeys } from "./list-own-passkeys.js";
+export type {
+  ListPasskeyCredentialsInput,
+  ListPasskeyCredentialsPorts,
+} from "./list-passkey-credentials.js";
+export { listPasskeyCredentials } from "./list-passkey-credentials.js";
 export type { RoleSummary } from "./list-roles.js";
 export { listRoles } from "./list-roles.js";
 export type {
@@ -163,6 +168,12 @@ export type {
   LookUpSignInOutcome,
 } from "./look-up-sign-in.js";
 export { lookUpSignIn } from "./look-up-sign-in.js";
+export type {
+  AddedPasskey,
+  PasskeyRegistrationAlert,
+  PasskeyRegistrationStore,
+  PasskeyRegistrationStoreTransaction,
+} from "./passkey-registration-store.js";
 export type {
   PasskeyRemovalAlert,
   PasskeyRemovalStore,
@@ -254,6 +265,12 @@ export type {
   RedeemRecoveryTokenPorts,
 } from "./redeem-recovery-token.js";
 export { redeemRecoveryToken } from "./redeem-recovery-token.js";
+export type {
+  RegisterPasskeyInput,
+  RegisterPasskeyOutcome,
+  RegisterPasskeyPorts,
+} from "./register-passkey.js";
+export { registerPasskey } from "./register-passkey.js";
 export type {
   FlushedRejectedAttempts,
   RejectedAttemptFlushStore,

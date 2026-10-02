@@ -1,4 +1,8 @@
-import type { PasskeySummary, Passkeys } from "@purosur/domain/access/use-cases";
+import type {
+  PasskeySummary,
+  Passkeys,
+  RegisteredCredential,
+} from "@purosur/domain/access/use-cases";
 import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { passkeys } from "../platform/db/schema.js";
@@ -21,6 +25,13 @@ class DrizzlePasskeys<TQueryResult extends PgQueryResultHKT> implements Passkeys
       .from(passkeys)
       .where(eq(passkeys.userId, userId))
       .orderBy(asc(passkeys.createdAt));
+  }
+
+  registeredCredentials(userId: string): Promise<RegisteredCredential[]> {
+    return this.db
+      .select({ credentialId: passkeys.credentialId, transports: passkeys.transports })
+      .from(passkeys)
+      .where(eq(passkeys.userId, userId));
   }
 }
 

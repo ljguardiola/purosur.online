@@ -14,7 +14,7 @@ export interface FakeHeldPasskey extends RecoveredPasskey {
   id: string;
 }
 
-export interface FakeRegistrationAudit {
+interface FakeRegistrationAudit {
   userId: string;
   passkeyId: string;
   details: RecoveredPasskey;

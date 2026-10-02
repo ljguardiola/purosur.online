@@ -1,3 +1,5 @@
+import type { RegisteredCredential } from "./recovery-redemption-store.js";
+
 export interface PasskeySummary {
   id: string;
   name: string;
@@ -8,4 +10,5 @@ export interface PasskeySummary {
 export interface Passkeys {
   // Ordered by creation.
   passkeySummaries(userId: string): Promise<PasskeySummary[]>;
+  registeredCredentials(userId: string): Promise<RegisteredCredential[]>;
 }
