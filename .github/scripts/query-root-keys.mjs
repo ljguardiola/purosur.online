@@ -509,23 +509,40 @@ function isDynamicImport(node) {
   return ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword;
 }
 
-function runtimeLoaderTester(program, checker, resolved) {
-  const isOwnDeclaration = (declaration) =>
-    !(declaration.flags & ts.NodeFlags.Ambient) &&
-    !program.isSourceFileFromExternalLibrary(declaration.getSourceFile());
-  const symbolNamedBy = (identifier) => {
-    const parent = identifier.parent;
-    if (ts.isShorthandPropertyAssignment(parent)) {
-      return checker.getShorthandAssignmentValueSymbol(parent);
+function isDestructuringPattern(node) {
+  if (!ts.isObjectLiteralExpression(node) && !ts.isArrayLiteralExpression(node)) return false;
+  const parent = node.parent;
+  if (ts.isBinaryExpression(parent)) return parent.operatorToken.kind === ts.SyntaxKind.EqualsToken;
+  if (ts.isForOfStatement(parent)) return parent.initializer === node;
+  return isDestructuringPattern(ts.isPropertyAssignment(parent) ? parent.parent : parent);
+}
+
+function runtimeLoaderTester(program, checker) {
+  const isAmbient = (declaration) =>
+    declaration.flags & ts.NodeFlags.Ambient ||
+    program.isSourceFileFromExternalLibrary(declaration.getSourceFile());
+  const isCallable = (type) =>
+    type.getCallSignatures().length > 0 || type.getConstructSignatures().length > 0;
+  const mayLoad = (type) =>
+    type === undefined ||
+    type.flags & ts.TypeFlags.Any ||
+    (type.isUnionOrIntersection()
+      ? type.types.some(mayLoad)
+      : isCallable(type) && (type.getSymbol()?.declarations ?? []).some(isAmbient));
+  const typesNamedBy = (node) => {
+    const parent = node.parent;
+    if (ts.isElementAccessExpression(parent)) return [checker.getTypeAtLocation(parent)];
+    if (ts.isBindingElement(parent)) return [checker.getTypeAtLocation(parent.name)];
+    if (parent.name !== node || !isDestructuringPattern(parent.parent)) {
+      return [checker.getTypeAtLocation(node)];
     }
-    if (ts.isBindingElement(parent) && parent.propertyName === undefined) {
-      return checker.getTypeAtLocation(parent.parent).getProperty(identifier.text);
-    }
-    return resolved(checker.getSymbolAtLocation(identifier));
+    const read = checker.getPropertySymbolOfDestructuringAssignment(node);
+    const readType = read && checker.getTypeOfSymbol(read);
+    return ts.isShorthandPropertyAssignment(parent)
+      ? [readType, checker.getTypeAtLocation(node)]
+      : [readType];
   };
-  return (identifier) =>
-    RUNTIME_LOADERS.has(identifier.text) &&
-    !(symbolNamedBy(identifier)?.declarations ?? []).some(isOwnDeclaration);
+  return (node) => RUNTIME_LOADERS.has(node.text) && typesNamedBy(node).some(mayLoad);
 }
 
 function loadsAtRunTime(node, isRuntimeLoader) {
@@ -536,7 +553,7 @@ function loadsAtRunTime(node, isRuntimeLoader) {
     return path === undefined || !ts.isStringLiteralLike(path);
   }
   if (!ts.isStringLiteralLike(node)) return false;
-  if (ts.isElementAccessExpression(parent)) return RUNTIME_LOADERS.has(node.text);
+  if (ts.isElementAccessExpression(parent)) return isRuntimeLoader(node);
   return (
     NODE_MODULE.has(node.text) &&
     (ts.isImportDeclaration(parent) ||
@@ -610,7 +627,7 @@ export function findQueryRootKeyProblems(
   for (const { fileName, line } of runtimeModuleLoadingIn(
     root,
     program,
-    runtimeLoaderTester(program, checker, tools.resolved),
+    runtimeLoaderTester(program, checker),
   )) {
     problems.add(
       `${fromCwd(fileName)}:${line} loads a module at run time, which the query key check cannot follow`,
