@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
+import { build } from "vite";
 import {
   findBudgetViolations,
   gzipSizeOf,
@@ -24,7 +26,7 @@ const INDEX_HTML = [
   "</html>",
 ].join("\n");
 
-const compressibleText = (seed) => `${seed}:${"abcdefgh".repeat(400)}`;
+const compressibleText = (seed) => `"${seed}:${"abcdefgh".repeat(400)}";`;
 
 async function withDist(files, run) {
   const root = await mkdtemp(join(tmpdir(), "download budget "));
@@ -103,6 +105,67 @@ test("measureDownload reports a referenced file that the build did not produce",
 
   await withDist(withoutScript, async ({ dist }) => {
     assert.deepEqual(measureDownload(dist).missing, ["assets/index-abc.js"]);
+  });
+});
+
+const indexHtmlLoading = (script) =>
+  `<!doctype html><html><head><script type="module" src="/assets/${script}"></script></head><body></body></html>`;
+
+test("measureDownload measures the same build whose minifier chose other names and whose content hashes changed", async () => {
+  const built = {
+    "index.html": indexHtmlLoading("index-AAAAAAAA.js"),
+    "assets/index-AAAAAAAA.js":
+      'import{b as t}from"./initial-BBBBBBBB.js";const e=()=>import("./lazy-CCCCCCCC.js");t(1,e);',
+    "assets/initial-BBBBBBBB.js":
+      "function e(e){return e+1}function t(e,t){return{e,t}}export{e as a,t as b};",
+    "assets/lazy-CCCCCCCC.js":
+      'import{a as e,b as t}from"./initial-BBBBBBBB.js";const n=e(1);console.log(t(n,{n}));',
+  };
+  const renamed = {
+    "index.html": indexHtmlLoading("index-DDDDDDDD.js"),
+    "assets/index-DDDDDDDD.js":
+      'import{a as t}from"./initial-EEEEEEEE.js";const e=()=>import("./lazy-FFFFFFFF.js");t(1,e);',
+    "assets/initial-EEEEEEEE.js":
+      "function e(e){return e+1}function t(e,t){return{e,t}}export{t as a,e as c};",
+    "assets/lazy-FFFFFFFF.js":
+      'import{a as n,c}from"./initial-EEEEEEEE.js";const t=c(1);console.log(n(t,{n:t}));',
+  };
+
+  await withDist(built, async ({ dist: builtDist }) => {
+    await withDist(renamed, async ({ dist: renamedDist }) => {
+      assert.deepEqual(measureDownload(renamedDist), measureDownload(builtDist));
+    });
+  });
+});
+
+test("runCli exits 1 when real code grows past the budget while shorter names shrink the files", async () => {
+  const lazyModule = (statements) => ({
+    "index.html": indexHtmlLoading("index-AAAAAAAA.js"),
+    "assets/index-AAAAAAAA.js": `${statements.join(";")};`,
+  });
+  const built = lazyModule([
+    "function formatAmountInPesos(amountInCents){return amountInCents/100}",
+    "function describeRegisterState(registerState){return registerState.isOpen}",
+    "console.log(formatAmountInPesos(1),describeRegisterState({isOpen:true}))",
+  ]);
+  const grown = lazyModule([
+    "function e(t){return t/100}",
+    "function n(t){return t.isOpen}",
+    "console.log(e(1),n({isOpen:true}))",
+    "console.log(e(2),n({isOpen:false}))",
+  ]);
+
+  await withDist(built, async ({ dist: builtDist, budgetPath }) => {
+    const { entry, total } = measureDownload(builtDist);
+    await writeFile(budgetPath, JSON.stringify({ entry, total }));
+    await withDist(grown, async ({ dist: grownDist }) => {
+      const { lines, log, logError } = recordingLogs();
+
+      const exitCode = runCli({ distDir: grownDist, budgetPath, log, logError });
+
+      assert.equal(exitCode, 1);
+      assert.match(lines.err.join("\n"), /total is \d+ bytes/);
+    });
   });
 });
 
@@ -244,4 +307,71 @@ test("runCli exits 1 when there is no build to measure", async () => {
     assert.equal(exitCode, 1);
     assert.match(lines.err.join("\n"), /index\.html/);
   });
+});
+
+const BACKOFFICE_DIR = fileURLToPath(new URL("../../apps/backoffice/", import.meta.url));
+
+async function buildBackoffice(outDir, plugins) {
+  await build({
+    root: BACKOFFICE_DIR,
+    configFile: join(BACKOFFICE_DIR, "vite.config.ts"),
+    logLevel: "silent",
+    plugins,
+    build: { outDir, emptyOutDir: true },
+  });
+}
+
+function appendingTo(pathEnding, addition) {
+  return {
+    name: `append-to-${pathEnding}`,
+    enforce: "pre",
+    transform(code, id) {
+      return id.endsWith(pathEnding) ? `${code}\n${addition}\n` : undefined;
+    },
+  };
+}
+
+async function fileContentsUnder(dir) {
+  const contents = new Map();
+  for (const entry of await readdir(dir, { recursive: true, withFileTypes: true })) {
+    if (entry.isFile()) {
+      contents.set(entry.name, await readFile(join(entry.parentPath, entry.name), "utf8"));
+    }
+  }
+  return contents;
+}
+
+test("one more export of the backoffice's initial chunk moves the measure by no more than the code it adds", async () => {
+  const exported = 'export const addedExport = "added export";';
+  const used = 'import { addedExport } from "@purosur/ui";\nconsole.debug(addedExport);';
+  const root = await mkdtemp(join(tmpdir(), "download budget build "));
+  try {
+    const builtDist = join(root, "built");
+    const grownDist = join(root, "grown");
+    await buildBackoffice(builtDist, []);
+    await buildBackoffice(grownDist, [
+      appendingTo("packages/ui/src/index.ts", exported),
+      appendingTo("apps/backoffice/src/main.tsx", used),
+    ]);
+
+    const builtFileNames = new Set((await fileContentsUnder(builtDist)).keys());
+    const renamedFiles = [...(await fileContentsUnder(grownDist)).keys()].filter(
+      (fileName) => !builtFileNames.has(fileName),
+    );
+    assert.ok(
+      renamedFiles.length > 2,
+      `only ${renamedFiles.join(", ")} changed, so the build renamed nothing in the lazy chunks`,
+    );
+
+    const built = measureDownload(builtDist);
+    const grown = measureDownload(grownDist);
+    const addedBytes = Buffer.byteLength(exported) + Buffer.byteLength(used);
+    assert.ok(grown.total > built.total, `the total went from ${built.total} to ${grown.total}`);
+    assert.ok(
+      grown.total - built.total <= addedBytes,
+      `the total grew ${grown.total - built.total} bytes for ${addedBytes} bytes of added code`,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
