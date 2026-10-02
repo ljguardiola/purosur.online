@@ -1,3 +1,8 @@
+import {
+  RECOVERY_DESTINATION_ADDRESS_LIMIT,
+  RECOVERY_RATE_LIMIT_WINDOW_MS,
+  RECOVERY_SOURCE_ADDRESS_LIMIT,
+} from "@purosur/domain";
 import { drizzle } from "drizzle-orm/pglite";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -132,43 +137,45 @@ describe("POST /account-recoveries", () => {
     expect(jobQueue.requests).toEqual([]);
   });
 
-  it("rate-limits the 6th request per hour for the same destination address and enqueues no job", async () => {
-    for (let i = 0; i < 5; i++) {
+  it("rate-limits a request over the destination address's limit in the window and enqueues no job", async () => {
+    for (let i = 0; i < RECOVERY_DESTINATION_ADDRESS_LIMIT; i++) {
       const response = await post({ email: "ada@example.com" }, { "x-real-ip": `203.0.113.${i}` });
       expect(response.statusCode).toBe(200);
     }
 
-    const sixth = await post({ email: "ada@example.com" }, { "x-real-ip": "203.0.113.99" });
+    const overTheLimit = await post({ email: "ada@example.com" }, { "x-real-ip": "203.0.113.99" });
 
-    expect(sixth.statusCode).toBe(429);
-    expect(sixth.json()).toMatchObject({ code: "rate_limited" });
-    expect(sixth.headers["retry-after"]).toBeDefined();
-    expect(jobQueue.requests).toHaveLength(5);
+    expect(overTheLimit.statusCode).toBe(429);
+    expect(overTheLimit.json()).toMatchObject({ code: "rate_limited" });
+    expect(overTheLimit.headers["retry-after"]).toBeDefined();
+    expect(jobQueue.requests).toHaveLength(RECOVERY_DESTINATION_ADDRESS_LIMIT);
   });
 
   it("sends Retry-After as the seconds left until the limit frees a slot", async () => {
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < RECOVERY_DESTINATION_ADDRESS_LIMIT; i++) {
       await post({ email: "ada@example.com" }, { "x-real-ip": `203.0.113.${i}` });
     }
     currentTime = new Date("2026-01-05T12:45:00.000Z");
 
-    const sixth = await post({ email: "ada@example.com" }, { "x-real-ip": "203.0.113.99" });
+    const overTheLimit = await post({ email: "ada@example.com" }, { "x-real-ip": "203.0.113.99" });
 
-    expect(sixth.statusCode).toBe(429);
-    expect(sixth.headers["retry-after"]).toBe(String(15 * 60));
+    expect(overTheLimit.statusCode).toBe(429);
+    expect(overTheLimit.headers["retry-after"]).toBe(
+      String((RECOVERY_RATE_LIMIT_WINDOW_MS - 45 * 60 * 1000) / 1000),
+    );
   });
 
-  it("rate-limits the 11th request per hour from the same source address and enqueues no job", async () => {
-    for (let i = 0; i < 10; i++) {
+  it("rate-limits a request over the source address's limit in the window and enqueues no job", async () => {
+    for (let i = 0; i < RECOVERY_SOURCE_ADDRESS_LIMIT; i++) {
       const response = await post({ email: `user${i}@example.com` });
       expect(response.statusCode).toBe(200);
     }
 
-    const eleventh = await post({ email: "one-too-many@example.com" });
+    const overTheLimit = await post({ email: "one-too-many@example.com" });
 
-    expect(eleventh.statusCode).toBe(429);
-    expect(eleventh.json()).toMatchObject({ code: "rate_limited" });
-    expect(jobQueue.requests).toHaveLength(10);
+    expect(overTheLimit.statusCode).toBe(429);
+    expect(overTheLimit.json()).toMatchObject({ code: "rate_limited" });
+    expect(jobQueue.requests).toHaveLength(RECOVERY_SOURCE_ADDRESS_LIMIT);
   });
 
   it("carries the time of the request in the job", async () => {
@@ -195,7 +202,7 @@ describe("POST /account-recoveries", () => {
         email: "ada@example.com",
         locationId: await seededLocationId(db),
       });
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < RECOVERY_DESTINATION_ADDRESS_LIMIT; i++) {
         await post({ email: "ada@example.com" }, { "x-real-ip": `203.0.113.${i}` });
       }
       const queries: string[] = [];
@@ -218,7 +225,7 @@ describe("POST /account-recoveries", () => {
       expect(rejected.statusCode).toBe(429);
       expect(queries.length).toBeGreaterThan(0);
       expect(queries.filter((query) => query.includes('"users"'))).toEqual([]);
-      expect(jobQueue.requests).toHaveLength(5);
+      expect(jobQueue.requests).toHaveLength(RECOVERY_DESTINATION_ADDRESS_LIMIT);
       const rows = await accumulatorRows();
       expect(rows).toHaveLength(1);
       expect(rows[0]).toMatchObject({
@@ -231,7 +238,7 @@ describe("POST /account-recoveries", () => {
     });
 
     it("does the identical accumulator work for an unregistered address, enqueuing no job either", async () => {
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < RECOVERY_SOURCE_ADDRESS_LIMIT; i++) {
         await post({ email: `flood${i}@example.com` });
       }
 
@@ -248,7 +255,7 @@ describe("POST /account-recoveries", () => {
     });
 
     it("accumulates count and last_at across repeated rejections in the same hour window", async () => {
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < RECOVERY_DESTINATION_ADDRESS_LIMIT; i++) {
         await post({ email: "ada@example.com" }, { "x-real-ip": `203.0.113.${i}` });
       }
       await post({ email: "ada@example.com" }, { "x-real-ip": "203.0.113.90" });
@@ -267,7 +274,7 @@ describe("POST /account-recoveries", () => {
 
   describe("bookkeeping failures never block the 429 response", () => {
     it("still answers 429 with Retry-After when recording the rejected attempt fails", async () => {
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < RECOVERY_DESTINATION_ADDRESS_LIMIT; i++) {
         await post({ email: "ada@example.com" }, { "x-real-ip": `203.0.113.${i}` });
       }
       const reportError = vi.fn();

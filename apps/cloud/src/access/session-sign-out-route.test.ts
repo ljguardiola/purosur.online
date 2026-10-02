@@ -1,4 +1,8 @@
-import { BACKOFFICE_SOURCE_ADDRESS_REQUEST_LIMIT, SESSION_IDLE_TIMEOUT_MS } from "@purosur/domain";
+import {
+  BACKOFFICE_REQUEST_WINDOW_MS,
+  BACKOFFICE_SOURCE_ADDRESS_REQUEST_LIMIT,
+  SESSION_IDLE_TIMEOUT_MS,
+} from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -190,7 +194,7 @@ describe("DELETE /sessions/current", () => {
 
     expect(response.statusCode).toBe(429);
     expect(response.json()).toMatchObject({ code: "rate_limited" });
-    expect(response.headers["retry-after"]).toBe("3600");
+    expect(response.headers["retry-after"]).toBe(String(BACKOFFICE_REQUEST_WINDOW_MS / 1000));
     const [row] = await db
       .select()
       .from(sessions)
@@ -205,7 +209,7 @@ describe("DELETE /sessions/current", () => {
     const response = await deleteCurrentSession(rawSessionId);
 
     expect(response.statusCode).toBe(429);
-    expect(response.headers["retry-after"]).toBe("3600");
+    expect(response.headers["retry-after"]).toBe(String(BACKOFFICE_REQUEST_WINDOW_MS / 1000));
   });
 
   it("answers a sign-out with no open session as before, uncounted, while its source address is over its limit", async () => {

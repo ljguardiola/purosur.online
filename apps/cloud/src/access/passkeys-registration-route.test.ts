@@ -1,4 +1,5 @@
 import {
+  BACKOFFICE_REQUEST_WINDOW_MS,
   CHALLENGE_TTL_MS,
   PASSKEY_AUTHORIZATION_WINDOW_MS,
   RECOVERY_TOKEN_LIFETIME_MS,
@@ -220,7 +221,7 @@ describe("POST /account/passkey-challenges", () => {
 
     expect(response.statusCode).toBe(429);
     expect(response.json()).toMatchObject({ code: "rate_limited" });
-    expect(response.headers["retry-after"]).toBe("3600");
+    expect(response.headers["retry-after"]).toBe(String(BACKOFFICE_REQUEST_WINDOW_MS / 1000));
     const [session] = await db
       .select({ id: sessions.id })
       .from(sessions)
@@ -370,7 +371,7 @@ describe("POST /account/passkeys", () => {
 
     expect(response.statusCode).toBe(429);
     expect(response.json()).toMatchObject({ code: "rate_limited" });
-    expect(response.headers["retry-after"]).toBe("3600");
+    expect(response.headers["retry-after"]).toBe(String(BACKOFFICE_REQUEST_WINDOW_MS / 1000));
     expect((await db.select().from(passkeys)).length).toBe(beforeCount);
   });
 

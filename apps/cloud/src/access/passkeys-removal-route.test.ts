@@ -1,4 +1,8 @@
-import { PASSKEY_AUTHORIZATION_WINDOW_MS, RECOVERY_TOKEN_LIFETIME_MS } from "@purosur/domain";
+import {
+  BACKOFFICE_REQUEST_WINDOW_MS,
+  PASSKEY_AUTHORIZATION_WINDOW_MS,
+  RECOVERY_TOKEN_LIFETIME_MS,
+} from "@purosur/domain";
 import { and, eq, isNull } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import {
@@ -223,7 +227,7 @@ describe("DELETE /account/passkeys/:id", () => {
 
     expect(response.statusCode).toBe(429);
     expect(response.json()).toMatchObject({ code: "rate_limited" });
-    expect(response.headers["retry-after"]).toBe("3600");
+    expect(response.headers["retry-after"]).toBe(String(BACKOFFICE_REQUEST_WINDOW_MS / 1000));
     const [stillThere] = await db.select().from(passkeys).where(eq(passkeys.id, target.id));
     expect(stillThere).toBeDefined();
   });
