@@ -221,13 +221,12 @@ function referenceAt(sourceFile, position) {
   return found;
 }
 
-function isNamedModuleMention(literal) {
+function exposesNoModuleObject(literal) {
   const parent = literal.parent;
+  if (ts.isLiteralTypeNode(parent) && ts.isImportTypeNode(parent.parent)) return true;
   if (ts.isImportDeclaration(parent)) {
     const bindings = parent.importClause?.namedBindings;
-    return (
-      parent.importClause !== undefined && (bindings === undefined || ts.isNamedImports(bindings))
-    );
+    return bindings === undefined || ts.isNamedImports(bindings);
   }
   return (
     ts.isExportDeclaration(parent) &&
@@ -246,24 +245,37 @@ function globPatternsOf(argument) {
     : undefined;
 }
 
-function modulesLoadedBy(call, programFiles) {
-  const callee = call.expression;
-  const [argument] = call.arguments;
-  if (
-    callee.kind === ts.SyntaxKind.ImportKeyword ||
-    (ts.isIdentifier(callee) && callee.text === "require")
-  ) {
-    return argument !== undefined && ts.isStringLiteralLike(argument) ? [] : [EVERY_MODULE];
-  }
-  if (
-    !ts.isPropertyAccessExpression(callee) ||
-    !ts.isMetaProperty(callee.expression) ||
-    callee.name.text !== "glob"
-  ) {
-    return [];
-  }
+const GLOB_OPTIONS_KEEPING_ITS_FILES = new Set(["eager", "import", "query"]);
+
+function keepsItsFiles(options) {
+  return (
+    options === undefined ||
+    (ts.isObjectLiteralExpression(options) &&
+      options.properties.every(
+        (property) =>
+          ts.isPropertyAssignment(property) &&
+          GLOB_OPTIONS_KEEPING_ITS_FILES.has(propertyNameText(property.name)) &&
+          (ts.isStringLiteralLike(property.initializer) ||
+            property.initializer.kind === ts.SyntaxKind.TrueKeyword ||
+            property.initializer.kind === ts.SyntaxKind.FalseKeyword),
+      ))
+  );
+}
+
+function modulesGlobbedBy(meta, programFiles) {
+  if (meta.keywordToken !== ts.SyntaxKind.ImportKeyword) return [];
+  const member = meta.parent;
+  if (!ts.isPropertyAccessExpression(member)) return [EVERY_MODULE];
+  if (member.name.text !== "glob") return [];
+  const call = member.parent;
+  if (!ts.isCallExpression(call) || call.expression !== member) return [EVERY_MODULE];
+  const [argument, options] = call.arguments;
   const patterns = globPatternsOf(argument);
-  if (patterns === undefined || patterns.some((pattern) => !/^\.\.?\//.test(pattern))) {
+  if (
+    patterns === undefined ||
+    patterns.some((pattern) => !/^\.\.?\//.test(pattern)) ||
+    !keepsItsFiles(options)
+  ) {
     return [EVERY_MODULE];
   }
   const from = dirname(call.getSourceFile().fileName);
@@ -272,23 +284,7 @@ function modulesLoadedBy(call, programFiles) {
   );
 }
 
-function isDirectCallee(node) {
-  return ts.isCallExpression(node.parent) && node.parent.expression === node;
-}
-
-function isLoaderUsedOtherwise(node) {
-  if (ts.isIdentifier(node) && node.text === "require") {
-    const namesItsParent =
-      node.parent.name === node && !ts.isShorthandPropertyAssignment(node.parent);
-    return !namesItsParent && !isDirectCallee(node);
-  }
-  if (!ts.isMetaProperty(node) || node.keywordToken !== ts.SyntaxKind.ImportKeyword) return false;
-  const member = node.parent;
-  if (!ts.isPropertyAccessExpression(member)) return true;
-  return member.name.text === "glob" && !isDirectCallee(member);
-}
-
-function moduleReachTester(program, checker, resolved) {
+function moduleReachTester(program, checker, resolved, checkedFiles) {
   let reached;
   const options = program.getCompilerOptions();
   const resolutionCache = ts.createModuleResolutionCache(
@@ -318,17 +314,16 @@ function moduleReachTester(program, checker, resolved) {
       pending.push(module);
     };
     const visit = (node) => {
-      if (ts.isStringLiteralLike(node) && !isNamedModuleMention(node)) {
+      if (ts.isStringLiteralLike(node) && !exposesNoModuleObject(node)) {
         const module = moduleMentioned(node);
         if (module !== undefined) reach(module);
       }
-      if (ts.isCallExpression(node)) {
-        for (const module of modulesLoadedBy(node, programFiles)) reach(module);
+      if (ts.isMetaProperty(node)) {
+        for (const module of modulesGlobbedBy(node, programFiles)) reach(module);
       }
-      if (isLoaderUsedOtherwise(node)) reach(EVERY_MODULE);
       ts.forEachChild(node, visit);
     };
-    for (const programFile of programFiles) visit(programFile);
+    for (const checkedFile of checkedFiles) visit(checkedFile);
     while (pending.length > 0) {
       const module = pending.pop();
       const symbol = module === EVERY_MODULE ? undefined : checker.getSymbolAtLocation(module);
@@ -506,6 +501,54 @@ function rootTracer(service, checker, tools, checkedFiles, isModuleReachedAsObje
   return { trace, fed };
 }
 
+const RUNTIME_LOADERS = new Set(["require", "createRequire"]);
+const NODE_MODULE = new Set(["module", "node:module"]);
+const SOURCE_EXTENSIONS = [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"];
+
+function isDynamicImport(node) {
+  return ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword;
+}
+
+function loadsAtRunTime(node) {
+  const parent = node.parent;
+  if (ts.isIdentifier(node)) {
+    return (
+      RUNTIME_LOADERS.has(node.text) && !(ts.isPropertyAssignment(parent) && parent.name === node)
+    );
+  }
+  if (isDynamicImport(node)) {
+    const [path] = node.arguments;
+    return path === undefined || !ts.isStringLiteralLike(path);
+  }
+  if (!ts.isStringLiteralLike(node)) return false;
+  if (ts.isElementAccessExpression(parent)) return RUNTIME_LOADERS.has(node.text);
+  return (
+    NODE_MODULE.has(node.text) &&
+    (ts.isImportDeclaration(parent) ||
+      ts.isExportDeclaration(parent) ||
+      ts.isExternalModuleReference(parent) ||
+      isDynamicImport(parent))
+  );
+}
+
+function runtimeModuleLoadingIn(root) {
+  const lines = [];
+  for (const fileName of ts.sys.readDirectory(root, SOURCE_EXTENSIONS)) {
+    const sourceFile = ts.createSourceFile(
+      fileName,
+      ts.sys.readFile(fileName),
+      ts.ScriptTarget.Latest,
+      true,
+    );
+    const visit = (node) => {
+      if (loadsAtRunTime(node)) lines.push({ fileName, line: lineOf(node) });
+      ts.forEachChild(node, visit);
+    };
+    visit(sourceFile);
+  }
+  return lines;
+}
+
 function lineOf(node) {
   const sourceFile = node.getSourceFile();
   return sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
@@ -532,7 +575,7 @@ export function findQueryRootKeyProblems(
     checker,
     tools,
     checkedFiles,
-    moduleReachTester(program, checker, tools.resolved),
+    moduleReachTester(program, checker, tools.resolved, checkedFiles),
   );
   const fromCwd = (fileName) => relative(cwd, fileName).split(sep).join("/");
   const conceptFolderOf = (fileName) => {
@@ -551,6 +594,11 @@ export function findQueryRootKeyProblems(
         `${fromCwd(join(root, folder))} is listed as holding no concept, but there is no such folder`,
       );
     }
+  }
+  for (const { fileName, line } of runtimeModuleLoadingIn(root)) {
+    problems.add(
+      `${fromCwd(fileName)}:${line} loads a module at run time, which the query key check cannot follow`,
+    );
   }
   const report = (position, outcomes) => {
     for (const outcome of outcomes) {
