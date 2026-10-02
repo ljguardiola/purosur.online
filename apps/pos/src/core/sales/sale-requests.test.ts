@@ -1,4 +1,4 @@
-import { encodePinHash } from "@purosur/domain";
+import { encodePinHash } from "@purosur/contracts";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,

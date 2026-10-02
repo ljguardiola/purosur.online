@@ -1,4 +1,5 @@
-import { CASH_MOVEMENT_REASON_MAX_LENGTH, encodePinHash } from "@purosur/domain";
+import { encodePinHash } from "@purosur/contracts";
+import { CASH_MOVEMENT_REASON_MAX_LENGTH } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createActionGate } from "../access/action-gate";
 import { derivePinVerifier } from "../access/pin-verifier";

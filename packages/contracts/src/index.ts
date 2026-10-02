@@ -243,7 +243,10 @@ export type {
 } from "./shared/index.js";
 export {
   branchSettingsSchema,
+  decodePinSalt,
+  encodePinHash,
   issuerIdentificationSchema,
+  PIN_HASH_SCHEME,
   scrubErrorReport,
   scrubErrorReportBreadcrumb,
   scrubErrorReportLog,
