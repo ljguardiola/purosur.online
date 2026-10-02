@@ -1,4 +1,8 @@
-import { PASSKEY_AUTHORIZATION_WINDOW_MS, RECOVERY_TOKEN_LIFETIME_MS } from "@purosur/domain";
+import {
+  CHALLENGE_TTL_MS,
+  PASSKEY_AUTHORIZATION_WINDOW_MS,
+  RECOVERY_TOKEN_LIFETIME_MS,
+} from "@purosur/domain";
 import { and, eq, isNull } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import {
@@ -18,7 +22,6 @@ import {
 } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { PASSKEY_CHALLENGE_TTL_MS } from "./passkey-challenge.js";
 import { registerPasskeyRegistrationRoutes } from "./passkeys-registration-route.js";
 import { registerRecoveryRedemptionRoutes } from "./recovery-redemption-route.js";
 import { hashRecoveryToken } from "./recovery-token-hash.js";
@@ -279,7 +282,7 @@ describe("POST /account/passkey-challenges", () => {
       sessionId: staleSession.id,
       kind: "registration",
       registrationChallenge: "stale-challenge",
-      createdAt: new Date(NOON.getTime() - PASSKEY_CHALLENGE_TTL_MS),
+      createdAt: new Date(NOON.getTime() - CHALLENGE_TTL_MS),
     });
     const rawSessionId = await insertSession(userId);
 
@@ -520,7 +523,7 @@ describe("POST /account/passkeys", () => {
       BACKOFFICE_ORIGIN,
       options.passkey_registration_options,
     );
-    currentTime = new Date(NOON.getTime() + PASSKEY_CHALLENGE_TTL_MS);
+    currentTime = new Date(NOON.getTime() + CHALLENGE_TTL_MS);
 
     const response = await postJson(
       "/account/passkeys",

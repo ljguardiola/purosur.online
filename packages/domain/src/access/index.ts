@@ -1,5 +1,6 @@
 export type { RoleAccess } from "./model/access-increase.js";
 export { grantedPermissionKeys, increasesAccess } from "./model/access-increase.js";
+export { CHALLENGE_TTL_MS, challengeExpiryWindowStart } from "./model/challenge-lifetime.js";
 export { isEmailAddress } from "./model/email-address.js";
 export type { AuthorizablePermissionKey } from "./model/holds-permission.js";
 export {

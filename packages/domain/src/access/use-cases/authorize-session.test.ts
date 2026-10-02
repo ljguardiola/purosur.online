@@ -117,15 +117,20 @@ describe("authorizeSession", () => {
     expect(ports.store.current).toEqual(before);
   });
 
-  it("does not authorize the session when the passkey was removed in the meantime", async () => {
+  it("still authorizes the session when the passkey was removed in the meantime", async () => {
     const ports = setup({ seedPasskeyRow: false });
-    const before = ports.store.snapshot();
 
     const outcome = await authorizeSession(ports, INPUT);
 
-    expect(outcome).toEqual({ kind: "not_verified" });
-    expect(ports.store.operationOrder).toEqual(["recordPasskeyUse"]);
-    expect(ports.store.current).toEqual(before);
+    expect(outcome).toEqual({ kind: "authorized" });
+    expect(ports.store.operationOrder).toEqual(["recordPasskeyUse", "authorizeSession"]);
+    expect(ports.store.current).toEqual({
+      passkeys: [],
+      sessions: [
+        { id: "s-1", passkeyAuthorizedAt: AT },
+        { id: "s-2", passkeyAuthorizedAt: null },
+      ],
+    });
   });
 
   it.each(["recordPasskeyUse", "authorizeSession"] as const)(

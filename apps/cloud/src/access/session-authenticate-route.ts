@@ -1,5 +1,12 @@
 import { sessionAuthenticationBodySchema } from "@purosur/contracts";
-import { recordSignInLockout, signInWithPasskey } from "@purosur/domain/access/use-cases";
+import {
+  admitSignInAttempt,
+  confirmRejectedSignInAttempt,
+  consumeSignInChallenge,
+  recordSignInLockout,
+  signInWithPasskey,
+  type TrippedSignInLockout,
+} from "@purosur/domain/access/use-cases";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply } from "fastify";
@@ -12,13 +19,8 @@ import { resolveSourceAddress } from "./recovery-source-address.js";
 import { PUBLIC_ACCESS, registerRouteAccess } from "./route-access.js";
 import { readSessionCookie, serializeSessionCookie } from "./session-cookie.js";
 import { generateSessionId, hashSessionId } from "./session-id.js";
-import { consumeSignInChallenge } from "./sign-in-challenge.js";
-import {
-  admitSignInAttempt,
-  confirmRejectedSignInAttempt,
-  hashSourceAddress,
-  type TrippedSignInLockout,
-} from "./sign-in-lockout.js";
+import { DrizzleSignInChallenges } from "./sign-in-challenge.js";
+import { DrizzleSignInLockoutStore } from "./sign-in-lockout.js";
 import { webAuthnAssertionVerifier } from "./webauthn-assertion-verifier.js";
 import { resolveWebAuthnConfig } from "./webauthn-config.js";
 
@@ -103,10 +105,10 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
     response: SessionAuthenticationRejection = AUTHENTICATION_FAILED_RESPONSE,
   ): Promise<void> {
     try {
-      const confirmed = await doConfirmRejectedSignInAttempt(options.db, {
-        sourceAddress,
-        now: attemptedAt,
-      });
+      const confirmed = await doConfirmRejectedSignInAttempt(
+        { store: new DrizzleSignInLockoutStore(options.db) },
+        { sourceAddress, at: attemptedAt },
+      );
       if (confirmed.trippedLockout) {
         await auditLockout(sourceAddress, confirmed.trippedLockout);
       }
@@ -124,7 +126,7 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
         { log: new DrizzleSignInLockoutLog(options.db) },
         {
           lockoutId: lockout.id,
-          sourceAddressHash: hashSourceAddress(sourceAddress),
+          sourceAddress,
           failureCount: lockout.failureCount,
           blockedUntil: lockout.blockedUntil,
         },
@@ -155,7 +157,10 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
 
     const sourceAddress = resolveSourceAddress(request);
     const attemptedAt = now();
-    const admission = await admitSignInAttempt(options.db, { sourceAddress, now: attemptedAt });
+    const admission = await admitSignInAttempt(
+      { store: new DrizzleSignInLockoutStore(options.db) },
+      { sourceAddress, at: attemptedAt },
+    );
     if (!admission.admitted) {
       if (admission.trippedLockout) {
         await auditLockout(sourceAddress, admission.trippedLockout);
@@ -171,10 +176,10 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
     }
 
     // Spent before the credential lookup, so it can't be replayed against a second credential id guess.
-    const challengeIsLive = await consumeSignInChallenge(options.db, {
-      challenge,
-      now: attemptedAt,
-    });
+    const consumedChallenge = await consumeSignInChallenge(
+      { challenges: new DrizzleSignInChallenges(options.db) },
+      { challenge, at: attemptedAt },
+    );
 
     const previousRawSessionId = readSessionCookie(request.headers.cookie);
     const rawSessionId = generateSessionId();
@@ -183,7 +188,7 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
         accounts: drizzleAccounts(options.db),
         verifier: webAuthnAssertionVerifier({
           assertion,
-          expectedChallenge: () => challengeIsLive,
+          expectedChallenge: () => consumedChallenge.kind === "redeemed",
           config: webAuthnConfig,
         }),
         store: new DrizzlePasskeySignInStore(options.db),

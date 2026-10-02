@@ -7,9 +7,8 @@ import type {
 } from "@purosur/domain/access/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { sessions } from "../platform/db/schema.js";
+import { sessions, signInFailures } from "../platform/db/schema.js";
 import { recordPasskeyUse } from "./passkey-use-records.js";
-import { discardSignInAttempt } from "./sign-in-lockout.js";
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
@@ -45,8 +44,8 @@ class DrizzlePasskeySignInStoreTransaction<TQueryResult extends PgQueryResultHKT
     });
   }
 
-  discardSignInAttempt(attemptId: string): Promise<void> {
-    return discardSignInAttempt(this.tx, attemptId);
+  async discardSignInAttempt(attemptId: string): Promise<void> {
+    await this.tx.delete(signInFailures).where(eq(signInFailures.id, attemptId));
   }
 }
 

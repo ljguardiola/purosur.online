@@ -4,7 +4,9 @@ import {
   passkeySummarySchema,
 } from "@purosur/contracts";
 import {
+  consumePendingPasskeyChallenge,
   findAccountProfile,
+  issuePendingPasskeyChallenge,
   listPasskeyCredentials,
   registerPasskey,
 } from "@purosur/domain/access/use-cases";
@@ -17,13 +19,9 @@ import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { drizzleAccounts } from "./drizzle-accounts.js";
 import { DrizzlePasskeyRegistrationStore } from "./drizzle-passkey-registration-store.js";
 import { drizzlePasskeys } from "./drizzle-passkeys.js";
+import { DrizzlePendingPasskeyChallengeStore } from "./drizzle-pending-passkey-challenge-store.js";
 import { UNAUTHENTICATED_RESPONSE } from "./open-session.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
-import {
-  consumePendingPasskeyChallenge,
-  pruneExpiredPasskeyChallenges,
-  storePendingPasskeyChallenge,
-} from "./passkey-challenge.js";
 import { deriveUserHandle } from "./recovery-user-handle.js";
 import {
   OPEN_SESSION_ACCESS,
@@ -95,13 +93,15 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
         })),
       });
 
-      await pruneExpiredPasskeyChallenges(options.db, issuedAt);
-      await storePendingPasskeyChallenge(options.db, {
-        sessionId: openSession.sessionId,
-        kind: "registration",
-        registrationChallenge: registrationOptions.challenge,
-        now: issuedAt,
-      });
+      await issuePendingPasskeyChallenge(
+        { store: new DrizzlePendingPasskeyChallengeStore(options.db) },
+        {
+          sessionId: openSession.sessionId,
+          kind: "registration",
+          challenge: registrationOptions.challenge,
+          at: issuedAt,
+        },
+      );
 
       await reply.code(200).send(
         passkeyRegistrationChallengeSchema.parse({
@@ -127,19 +127,18 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
       }
       const { passkey_name: passkeyName } = body;
 
-      const pending = await consumePendingPasskeyChallenge(options.db, {
-        sessionId: openSession.sessionId,
-        kind: "registration",
-        now: attemptedAt,
-      });
-      if (!pending?.registrationChallenge) {
+      const pending = await consumePendingPasskeyChallenge(
+        { store: new DrizzlePendingPasskeyChallengeStore(options.db) },
+        { sessionId: openSession.sessionId, kind: "registration", at: attemptedAt },
+      );
+      if (pending.kind !== "consumed") {
         await reply.code(400).send(REGISTRATION_FAILED_RESPONSE);
         return;
       }
 
       const verification = await verifyRegistrationResponse({
         response: body.passkey_registration as RegistrationResponseJSON,
-        expectedChallenge: pending.registrationChallenge,
+        expectedChallenge: pending.challenge,
         expectedOrigin: webAuthnConfig.expectedOrigin,
         expectedRPID: webAuthnConfig.rpID,
         requireUserVerification: true,

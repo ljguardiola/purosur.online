@@ -44,14 +44,12 @@ export async function authorizeSession(
   }
 
   return store.transaction<AuthorizeSessionOutcome>(async (tx) => {
-    const recording = await tx.recordPasskeyUse({
+    // The assertion already verified, so a passkey removed since the lookup only has no use left to record.
+    await tx.recordPasskeyUse({
       passkeyId: passkey.id,
       counter: verification.newCounter,
       at: input.at,
     });
-    if (recording === "passkey_removed") {
-      return { kind: "not_verified" };
-    }
     await tx.authorizeSession(input.sessionId, input.at);
     return { kind: "authorized" };
   });

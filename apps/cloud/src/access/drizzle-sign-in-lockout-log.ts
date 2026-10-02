@@ -1,6 +1,7 @@
 import type { SignInLockoutLog, TrippedLockout } from "@purosur/domain/access/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { auditLog } from "../platform/db/schema.js";
+import { hashSourceAddress } from "./sign-in-lockout.js";
 
 export class DrizzleSignInLockoutLog<TQueryResult extends PgQueryResultHKT>
   implements SignInLockoutLog
@@ -18,7 +19,7 @@ export class DrizzleSignInLockoutLog<TQueryResult extends PgQueryResultHKT>
       actorId: null,
       previousValue: null,
       newValue: {
-        sourceAddressHash: lockout.sourceAddressHash,
+        sourceAddressHash: hashSourceAddress(lockout.sourceAddress),
         failureCount: lockout.failureCount,
         blockedUntil: lockout.blockedUntil.toISOString(),
       },

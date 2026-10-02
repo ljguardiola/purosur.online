@@ -5,6 +5,12 @@ export type {
   StoredSignInPasskey,
 } from "./accounts.js";
 export type {
+  AdmitSignInAttemptPorts,
+  SignInAttemptAdmission,
+  SignInAttemptInput,
+} from "./admit-sign-in-attempt.js";
+export { admitSignInAttempt } from "./admit-sign-in-attempt.js";
+export type {
   AuthorizeRegisterOperationInput,
   AuthorizeRegisterOperationOutcome,
 } from "./authorize-register-operation.js";
@@ -24,6 +30,23 @@ export type {
 } from "./branch-users.js";
 export type { CheckPinInput, CheckPinOutcome, PinRefusal } from "./check-pin.js";
 export { checkPin } from "./check-pin.js";
+export type {
+  ConfirmedSignInRejection,
+  ConfirmRejectedSignInAttemptPorts,
+} from "./confirm-rejected-sign-in-attempt.js";
+export { confirmRejectedSignInAttempt } from "./confirm-rejected-sign-in-attempt.js";
+export type {
+  ConsumePendingPasskeyChallengeInput,
+  ConsumePendingPasskeyChallengeOutcome,
+  ConsumePendingPasskeyChallengePorts,
+} from "./consume-pending-passkey-challenge.js";
+export { consumePendingPasskeyChallenge } from "./consume-pending-passkey-challenge.js";
+export type {
+  ConsumeSignInChallengeInput,
+  ConsumeSignInChallengeOutcome,
+  ConsumeSignInChallengePorts,
+} from "./consume-sign-in-challenge.js";
+export { consumeSignInChallenge } from "./consume-sign-in-challenge.js";
 export type {
   CreateFirstAdministratorInput,
   CreateFirstAdministratorPorts,
@@ -141,6 +164,12 @@ export type {
 } from "./flush-rejected-attempts.js";
 export { flushRejectedAttempts } from "./flush-rejected-attempts.js";
 export type {
+  IssuePendingPasskeyChallengeInput,
+  IssuePendingPasskeyChallengeOutcome,
+  IssuePendingPasskeyChallengePorts,
+} from "./issue-pending-passkey-challenge.js";
+export { issuePendingPasskeyChallenge } from "./issue-pending-passkey-challenge.js";
+export type {
   IssueRecoveryTokenInput,
   IssueRecoveryTokenOutcome,
   IssueRecoveryTokenPorts,
@@ -203,6 +232,13 @@ export type {
 } from "./passkey-use-recorder.js";
 export type { PasskeySummary, Passkeys } from "./passkeys.js";
 export type {
+  PendingPasskeyChallenge,
+  PendingPasskeyChallengeKind,
+  PendingPasskeyChallengeSlot,
+  PendingPasskeyChallengeStore,
+  PendingPasskeyChallengeStoreTransaction,
+} from "./pending-passkey-challenge-store.js";
+export type {
   HashedPin,
   LockedPinCode,
   PinCodeHolder,
@@ -251,7 +287,10 @@ export type {
   RecordSessionActivityPorts,
 } from "./record-session-activity.js";
 export { recordSessionActivity } from "./record-session-activity.js";
-export type { RecordSignInLockoutPorts } from "./record-sign-in-lockout.js";
+export type {
+  RecordSignInLockoutOutcome,
+  RecordSignInLockoutPorts,
+} from "./record-sign-in-lockout.js";
 export { recordSignInLockout } from "./record-sign-in-lockout.js";
 export type {
   RecoveredPasskey,
@@ -345,7 +384,14 @@ export type {
   SignInAtRegisterPorts,
 } from "./sign-in-at-register.js";
 export { signInAtRegister } from "./sign-in-at-register.js";
+export type { SignInChallenges } from "./sign-in-challenges.js";
 export type { SignInLockoutLog, TrippedLockout } from "./sign-in-lockout-log.js";
+export type {
+  SignInLockoutAlert,
+  SignInLockoutStore,
+  SignInLockoutStoreTransaction,
+  SourceAddressBlock,
+} from "./sign-in-lockout-store.js";
 export type {
   SignInCandidate,
   SignInLookupPorts,
@@ -360,6 +406,7 @@ export type {
 export { signInWithPasskey } from "./sign-in-with-passkey.js";
 export type { SignOutInput, SignOutOutcome, SignOutPorts } from "./sign-out.js";
 export { signOut } from "./sign-out.js";
+export type { TrippedSignInLockout } from "./trip-sign-in-lockout.js";
 export type {
   AssignableRole,
   LockedUser,

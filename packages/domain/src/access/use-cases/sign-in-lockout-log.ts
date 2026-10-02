@@ -1,6 +1,6 @@
 export interface TrippedLockout {
   lockoutId: string;
-  sourceAddressHash: string;
+  sourceAddress: string;
   failureCount: number;
   blockedUntil: Date;
 }

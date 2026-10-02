@@ -8,6 +8,7 @@ import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
 import { auditLog, passkeys } from "../platform/db/schema.js";
+import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { revokeSessions } from "./revoke-sessions.js";
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
@@ -24,6 +25,9 @@ class DrizzlePasskeyRemovalStoreTransaction<TQueryResult extends PgQueryResultHK
   }
 
   async deletePasskey(userId: string, passkeyId: string): Promise<RemovedPasskey | undefined> {
+    if (!UUID_PATTERN.test(passkeyId)) {
+      return undefined;
+    }
     const [removed] = await this.tx
       .delete(passkeys)
       .where(and(eq(passkeys.id, passkeyId), eq(passkeys.userId, userId)))

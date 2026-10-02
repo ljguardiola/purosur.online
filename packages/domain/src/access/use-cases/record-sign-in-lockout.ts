@@ -4,9 +4,12 @@ export interface RecordSignInLockoutPorts {
   log: SignInLockoutLog;
 }
 
-export function recordSignInLockout(
+export type RecordSignInLockoutOutcome = { kind: "recorded" };
+
+export async function recordSignInLockout(
   { log }: RecordSignInLockoutPorts,
   lockout: TrippedLockout,
-): Promise<void> {
-  return log.recordLockout(lockout);
+): Promise<RecordSignInLockoutOutcome> {
+  await log.recordLockout(lockout);
+  return { kind: "recorded" };
 }

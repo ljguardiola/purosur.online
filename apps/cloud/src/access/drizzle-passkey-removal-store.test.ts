@@ -99,6 +99,15 @@ describe("DrizzlePasskeyRemovalStore", () => {
     expect(await db.select().from(passkeys)).toHaveLength(1);
   });
 
+  it("answers nothing for a malformed passkey id and deletes nothing", async () => {
+    const removed = await removalStore().transaction((tx) =>
+      tx.deletePasskey(userId, "not-a-uuid"),
+    );
+
+    expect(removed).toBeUndefined();
+    expect(await db.select().from(passkeys)).toHaveLength(1);
+  });
+
   it("revokes only the open sessions of the user", async () => {
     await removalStore().transaction((tx) => tx.revokeSessions(userId, AT));
 

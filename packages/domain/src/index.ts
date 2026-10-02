@@ -10,6 +10,8 @@ export type {
 } from "./access/index.js";
 export {
   ALERT_VIEW_PERMISSION_KEYS,
+  CHALLENGE_TTL_MS,
+  challengeExpiryWindowStart,
   decodePinSalt,
   encodePinHash,
   grantedPermissionKeys,

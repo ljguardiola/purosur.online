@@ -2,19 +2,20 @@ import {
   sessionAuthorizationBodySchema,
   sessionAuthorizationOptionsSchema,
 } from "@purosur/contracts";
-import { authorizeSession, listPasskeyCredentials } from "@purosur/domain/access/use-cases";
+import {
+  authorizeSession,
+  consumePendingPasskeyChallenge,
+  issuePendingPasskeyChallenge,
+  listPasskeyCredentials,
+} from "@purosur/domain/access/use-cases";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
 import { generateAuthenticationOptions } from "@simplewebauthn/server";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { drizzlePasskeys } from "./drizzle-passkeys.js";
+import { DrizzlePendingPasskeyChallengeStore } from "./drizzle-pending-passkey-challenge-store.js";
 import { DrizzleSessionAuthorizationStore } from "./drizzle-session-authorization-store.js";
-import {
-  consumePendingPasskeyChallenge,
-  pruneExpiredPasskeyChallenges,
-  storePendingPasskeyChallenge,
-} from "./passkey-challenge.js";
 import {
   OPEN_SESSION_ACCESS,
   openSessionOf,
@@ -71,13 +72,15 @@ export function registerSessionAuthorizationRoutes<TQueryResult extends PgQueryR
         timeout: AUTHENTICATION_TIMEOUT_MS,
       });
 
-      await pruneExpiredPasskeyChallenges(options.db, issuedAt);
-      await storePendingPasskeyChallenge(options.db, {
-        sessionId: openSession.sessionId,
-        kind: "session_authorization",
-        reauthenticationChallenge: authorizationOptions.challenge,
-        now: issuedAt,
-      });
+      await issuePendingPasskeyChallenge(
+        { store: new DrizzlePendingPasskeyChallengeStore(options.db) },
+        {
+          sessionId: openSession.sessionId,
+          kind: "session_authorization",
+          challenge: authorizationOptions.challenge,
+          at: issuedAt,
+        },
+      );
 
       await reply
         .code(200)
@@ -104,12 +107,11 @@ export function registerSessionAuthorizationRoutes<TQueryResult extends PgQueryR
       }
       const assertion = body.data.authorization as AuthenticationResponseJSON;
 
-      const pending = await consumePendingPasskeyChallenge(options.db, {
-        sessionId: openSession.sessionId,
-        kind: "session_authorization",
-        now: attemptedAt,
-      });
-      if (!pending?.reauthenticationChallenge) {
+      const pending = await consumePendingPasskeyChallenge(
+        { store: new DrizzlePendingPasskeyChallengeStore(options.db) },
+        { sessionId: openSession.sessionId, kind: "session_authorization", at: attemptedAt },
+      );
+      if (pending.kind !== "consumed") {
         await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
         return;
       }
@@ -119,7 +121,7 @@ export function registerSessionAuthorizationRoutes<TQueryResult extends PgQueryR
           passkeys: drizzlePasskeys(options.db),
           verifier: webAuthnAssertionVerifier({
             assertion,
-            expectedChallenge: pending.reauthenticationChallenge,
+            expectedChallenge: pending.challenge,
             config: webAuthnConfig,
           }),
           store: new DrizzleSessionAuthorizationStore(options.db),

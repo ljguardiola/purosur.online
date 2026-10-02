@@ -65,7 +65,12 @@ describe("webAuthnAssertionVerifier", () => {
       config: CONFIG,
     }).verify(passkey);
 
-    expect(verification).toEqual({ verified: true, newCounter: expect.any(Number) });
+    const signedCounter = Buffer.from(
+      assertion.response.authenticatorData,
+      "base64url",
+    ).readUInt32BE(33);
+    expect(signedCounter).toBeGreaterThan(passkey.counter);
+    expect(verification).toEqual({ verified: true, newCounter: signedCounter });
   });
 
   it("accepts the challenge when the expectation says it is live", async () => {
