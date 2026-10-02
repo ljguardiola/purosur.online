@@ -1,8 +1,8 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { signOut } from "@purosur/domain/access/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { sessions } from "../platform/db/schema.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
+import { drizzleSessionStore } from "./drizzle-session-store.js";
 import {
   registerRouteAccess,
   routeSessionSource,
@@ -35,12 +35,10 @@ export function registerSessionSignOutRoute<TQueryResult extends PgQueryResultHK
     async (request, reply) => {
       const rawSessionId = sessionCookieOf(request);
 
-      await options.db
-        .update(sessions)
-        .set({ revokedAt: now() })
-        .where(
-          and(eq(sessions.sessionIdHash, hashSessionId(rawSessionId)), isNull(sessions.revokedAt)),
-        );
+      await signOut(
+        { store: drizzleSessionStore(options.db) },
+        { sessionKey: hashSessionId(rawSessionId), at: now() },
+      );
 
       await reply.header("Set-Cookie", clearSessionCookie()).code(200).send();
     },

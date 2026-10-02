@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
-import {
-  hasReachedSignInFailureLimit,
-  isSignInBlockLive,
-  signInBlockedUntil,
-  signInLockoutWindowStart,
-} from "@purosur/domain";
+import type {
+  SignInLockoutAlert,
+  SignInLockoutStore,
+  SignInLockoutStoreTransaction,
+  SourceAddressBlock,
+} from "@purosur/domain/access/use-cases";
 import { and, eq, gt, inArray, lte, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
@@ -12,175 +12,118 @@ import { signInFailures, signInLockouts } from "../platform/db/schema.js";
 
 const PRUNE_BATCH_SIZE = 100;
 
-export interface SignInAttemptInput {
-  sourceAddress: string;
-  now: Date;
-}
-
-export interface TrippedSignInLockout {
-  id: string;
-  blockedUntil: Date;
-  failureCount: number;
-}
-
-export type SignInAttemptAdmission =
-  | { admitted: true; attemptId: string }
-  | {
-      admitted: false;
-      blockedUntil: Date;
-      trippedLockout: TrippedSignInLockout | null;
-    };
-
-export interface ConfirmedSignInRejection {
-  trippedLockout: TrippedSignInLockout | null;
-}
+type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
+  Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
+>[0];
 
 /** The lockout tables key by the raw address, but a permanent audit row never stores it in the clear. */
 export function hashSourceAddress(sourceAddress: string): string {
   return createHash("sha256").update(sourceAddress).digest("hex");
 }
 
-async function pruneExpiredFailures<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  windowStart: Date,
-): Promise<void> {
-  const expired = db
-    .select({ id: signInFailures.id })
-    .from(signInFailures)
-    .where(lte(signInFailures.attemptedAt, windowStart))
-    .limit(PRUNE_BATCH_SIZE)
-    .for("update", { skipLocked: true });
-  await db.delete(signInFailures).where(inArray(signInFailures.id, expired));
-}
+class DrizzleSignInLockoutStoreTransaction<TQueryResult extends PgQueryResultHKT>
+  implements SignInLockoutStoreTransaction
+{
+  private readonly tx: Transaction<TQueryResult>;
 
-type LockedTransaction = Parameters<Parameters<PgDatabase<PgQueryResultHKT>["transaction"]>[0]>[0];
-
-function lockSourceAddress(tx: LockedTransaction, sourceAddress: string) {
-  return tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${sourceAddress}, 0))`);
-}
-
-function selectLiveLockout(tx: LockedTransaction, sourceAddress: string) {
-  return tx
-    .select({ blockedUntil: signInLockouts.blockedUntil })
-    .from(signInLockouts)
-    .where(eq(signInLockouts.sourceAddress, sourceAddress))
-    .limit(1);
-}
-
-function countAttemptsInWindow(tx: LockedTransaction, sourceAddress: string, windowStart: Date) {
-  return tx
-    .select({ id: signInFailures.id })
-    .from(signInFailures)
-    .where(
-      and(
-        eq(signInFailures.sourceAddress, sourceAddress),
-        gt(signInFailures.attemptedAt, windowStart),
-      ),
-    );
-}
-
-async function tripLockout(
-  tx: LockedTransaction,
-  sourceAddress: string,
-  now: Date,
-  failureCount: number,
-): Promise<TrippedSignInLockout> {
-  const blockedUntil = signInBlockedUntil(now);
-  const [blocked] = await tx
-    .insert(signInLockouts)
-    .values({ sourceAddress, blockedUntil })
-    .onConflictDoUpdate({ target: signInLockouts.sourceAddress, set: { blockedUntil } })
-    .returning({ id: signInLockouts.id });
-  if (!blocked) {
-    throw new Error("sign-in lockout upsert returned no row");
+  constructor(tx: Transaction<TQueryResult>) {
+    this.tx = tx;
   }
-  await tx.delete(signInFailures).where(eq(signInFailures.sourceAddress, sourceAddress));
 
-  await openAlert(
-    tx,
-    {
-      kind: "backoffice_sign_in_lockout",
-      scope: sourceAddress,
-      detail: { sourceAddress, failureCount, blockedUntil: blockedUntil.toISOString() },
-    },
-    { now: () => now },
-  );
+  async lockSourceAddress(sourceAddress: string): Promise<void> {
+    await this.tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${sourceAddress}, 0))`);
+  }
 
-  return { id: blocked.id, blockedUntil, failureCount };
-}
+  async findBlockedUntil(sourceAddress: string): Promise<Date | undefined> {
+    const [lockout] = await this.tx
+      .select({ blockedUntil: signInLockouts.blockedUntil })
+      .from(signInLockouts)
+      .where(eq(signInLockouts.sourceAddress, sourceAddress))
+      .limit(1);
+    return lockout?.blockedUntil;
+  }
 
-/** Recording the attempt inside the same locked transaction as the check is what makes the limit bind under concurrency. */
-export async function admitSignInAttempt<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  input: SignInAttemptInput,
-): Promise<SignInAttemptAdmission> {
-  const windowStart = signInLockoutWindowStart(input.now);
-  await pruneExpiredFailures(db, windowStart);
+  async countFailuresInWindow(sourceAddress: string, windowStart: Date): Promise<number> {
+    const counted = await this.tx
+      .select({ id: signInFailures.id })
+      .from(signInFailures)
+      .where(
+        and(
+          eq(signInFailures.sourceAddress, sourceAddress),
+          gt(signInFailures.attemptedAt, windowStart),
+        ),
+      );
+    return counted.length;
+  }
 
-  return db.transaction(async (tx) => {
-    await lockSourceAddress(tx, input.sourceAddress);
-
-    const [lockout] = await selectLiveLockout(tx, input.sourceAddress);
-    if (lockout && isSignInBlockLive(lockout.blockedUntil, input.now)) {
-      return {
-        admitted: false,
-        blockedUntil: lockout.blockedUntil,
-        trippedLockout: null,
-      } as const;
-    }
-
-    // Reaching the limit with no block live means that many attempts are in flight, unsettled: refusing here caps the burst.
-    const counted = await countAttemptsInWindow(tx, input.sourceAddress, windowStart);
-    if (hasReachedSignInFailureLimit(counted.length)) {
-      const tripped = await tripLockout(tx, input.sourceAddress, input.now, counted.length);
-      return {
-        admitted: false,
-        blockedUntil: tripped.blockedUntil,
-        trippedLockout: tripped,
-      } as const;
-    }
-
-    const [attempt] = await tx
+  async recordFailure(sourceAddress: string, at: Date): Promise<string> {
+    const [attempt] = await this.tx
       .insert(signInFailures)
-      .values({ sourceAddress: input.sourceAddress, attemptedAt: input.now })
+      .values({ sourceAddress, attemptedAt: at })
       .returning({ id: signInFailures.id });
     if (!attempt) {
       throw new Error("sign-in attempt insert returned no row");
     }
+    return attempt.id;
+  }
 
-    return { admitted: true, attemptId: attempt.id } as const;
-  });
+  async blockSourceAddress(block: SourceAddressBlock): Promise<{ id: string }> {
+    const [blocked] = await this.tx
+      .insert(signInLockouts)
+      .values(block)
+      .onConflictDoUpdate({
+        target: signInLockouts.sourceAddress,
+        set: { blockedUntil: block.blockedUntil },
+      })
+      .returning({ id: signInLockouts.id });
+    if (!blocked) {
+      throw new Error("sign-in lockout upsert returned no row");
+    }
+    await this.tx
+      .delete(signInFailures)
+      .where(eq(signInFailures.sourceAddress, block.sourceAddress));
+    return blocked;
+  }
+
+  async openLockoutAlert(alert: SignInLockoutAlert): Promise<void> {
+    await openAlert(
+      this.tx,
+      {
+        kind: "backoffice_sign_in_lockout",
+        scope: alert.sourceAddress,
+        detail: {
+          sourceAddress: alert.sourceAddress,
+          failureCount: alert.failureCount,
+          blockedUntil: alert.blockedUntil.toISOString(),
+        },
+      },
+      { now: () => alert.openedAt },
+    );
+  }
 }
 
-/** Blocks the address on the attempt that *reaches* the limit, so that attempt still gets the uniform rejection it earned. */
-export async function confirmRejectedSignInAttempt<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  input: SignInAttemptInput,
-): Promise<ConfirmedSignInRejection> {
-  const windowStart = signInLockoutWindowStart(input.now);
+export class DrizzleSignInLockoutStore<TQueryResult extends PgQueryResultHKT>
+  implements SignInLockoutStore
+{
+  private readonly db: PgDatabase<TQueryResult>;
 
-  return db.transaction(async (tx) => {
-    await lockSourceAddress(tx, input.sourceAddress);
+  constructor(db: PgDatabase<TQueryResult>) {
+    this.db = db;
+  }
 
-    const [lockout] = await selectLiveLockout(tx, input.sourceAddress);
-    if (lockout && isSignInBlockLive(lockout.blockedUntil, input.now)) {
-      return { trippedLockout: null };
-    }
+  async pruneFailuresOutsideWindow(windowStart: Date): Promise<void> {
+    const expired = this.db
+      .select({ id: signInFailures.id })
+      .from(signInFailures)
+      .where(lte(signInFailures.attemptedAt, windowStart))
+      .limit(PRUNE_BATCH_SIZE)
+      .for("update", { skipLocked: true });
+    await this.db.delete(signInFailures).where(inArray(signInFailures.id, expired));
+  }
 
-    const counted = await countAttemptsInWindow(tx, input.sourceAddress, windowStart);
-    if (!hasReachedSignInFailureLimit(counted.length)) {
-      return { trippedLockout: null };
-    }
-
-    return {
-      trippedLockout: await tripLockout(tx, input.sourceAddress, input.now, counted.length),
-    };
-  });
-}
-
-export async function discardSignInAttempt<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  attemptId: string,
-): Promise<void> {
-  await db.delete(signInFailures).where(eq(signInFailures.id, attemptId));
+  transaction<TOutcome>(
+    work: (tx: SignInLockoutStoreTransaction) => Promise<TOutcome>,
+  ): Promise<TOutcome> {
+    return this.db.transaction((tx) => work(new DrizzleSignInLockoutStoreTransaction(tx)));
+  }
 }

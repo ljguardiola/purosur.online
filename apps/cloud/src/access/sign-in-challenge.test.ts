@@ -1,8 +1,8 @@
+import { CHALLENGE_TTL_MS } from "@purosur/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import {
-  CHALLENGE_TTL_MS,
-  consumeSignInChallenge,
+  DrizzleSignInChallenges,
   pruneExpiredSignInChallenges,
   storeSignInChallenge,
 } from "./sign-in-challenge.js";
@@ -31,47 +31,29 @@ async function challengeRows() {
   return client.query("select challenge from sign_in_challenges");
 }
 
-describe("consumeSignInChallenge", () => {
-  it("accepts a challenge that was stored and is still fresh", async () => {
+describe("DrizzleSignInChallenges", () => {
+  it("takes a stored challenge and answers when it was issued", async () => {
     await storeSignInChallenge(db, { challenge: "abc123", now: NOON });
 
-    const result = await consumeSignInChallenge(db, { challenge: "abc123", now: NOON });
+    const taken = await new DrizzleSignInChallenges(db).takeChallenge("abc123");
 
-    expect(result).toBe(true);
+    expect(taken).toEqual({ issuedAt: NOON });
   });
 
-  it("consumes the challenge so it cannot be reused", async () => {
+  it("deletes the row once taken, so a challenge is taken only once", async () => {
     await storeSignInChallenge(db, { challenge: "abc123", now: NOON });
-    await consumeSignInChallenge(db, { challenge: "abc123", now: NOON });
+    await new DrizzleSignInChallenges(db).takeChallenge("abc123");
 
-    const result = await consumeSignInChallenge(db, { challenge: "abc123", now: NOON });
+    const again = await new DrizzleSignInChallenges(db).takeChallenge("abc123");
 
-    expect(result).toBe(false);
-  });
-
-  it("deletes the row once consumed, whether or not it was accepted", async () => {
-    await storeSignInChallenge(db, { challenge: "abc123", now: NOON });
-
-    await consumeSignInChallenge(db, { challenge: "abc123", now: NOON });
-
+    expect(again).toBeUndefined();
     expect((await challengeRows()).rows).toEqual([]);
   });
 
-  it("rejects a challenge that was never stored", async () => {
-    const result = await consumeSignInChallenge(db, { challenge: "never-issued", now: NOON });
+  it("takes nothing for a challenge that was never stored", async () => {
+    const taken = await new DrizzleSignInChallenges(db).takeChallenge("never-issued");
 
-    expect(result).toBe(false);
-  });
-
-  it("rejects a challenge once it has aged past its lifetime", async () => {
-    await storeSignInChallenge(db, { challenge: "abc123", now: NOON });
-
-    const result = await consumeSignInChallenge(db, {
-      challenge: "abc123",
-      now: new Date(NOON.getTime() + CHALLENGE_TTL_MS + 1),
-    });
-
-    expect(result).toBe(false);
+    expect(taken).toBeUndefined();
   });
 });
 

@@ -62,6 +62,18 @@ describe("drizzleSessionStore", () => {
     ]);
   });
 
+  it("keeps the first revocation of a session that is already ended", async () => {
+    const store = drizzleSessionStore(db);
+    await store.endSession("hash-1", AT);
+
+    await store.endSession("hash-1", new Date("2026-10-01T18:00:00.000Z"));
+
+    expect(await storedSessions()).toEqual([
+      { hash: "hash-1", lastSeenAt: CREATED_AT, revokedAt: AT },
+      { hash: "hash-2", lastSeenAt: CREATED_AT, revokedAt: null },
+    ]);
+  });
+
   it("records activity only on the session of the given key", async () => {
     await drizzleSessionStore(db).recordSessionActivity("hash-2", AT);
 
