@@ -86,27 +86,47 @@ describe("mainToCoreMessageSchema", () => {
   });
 
   it.each([
-    ["without a device token", { device_id: "a4b1", pepper: "cGVwcGVy" }],
-    ["whose token arrival isn't a string", { ...CREDENTIALS, token_received_at: 1 }],
     [
       "whose outbox-chain key isn't a well-formed installation key",
-      { ...CREDENTIALS, keys: { ...CREDENTIALS.keys, outbox_chain_key: "b3V0Ym94" } },
+      { ...CREDENTIALS.keys, outbox_chain_key: "b3V0Ym94" },
     ],
     [
       "with two snapshot keys under the same version",
       {
-        ...CREDENTIALS,
-        keys: {
-          ...CREDENTIALS.keys,
-          snapshot_key_versions: [
-            { version: 1, key: KEY_A },
-            { version: 1, key: KEY_B },
-          ],
-        },
+        ...CREDENTIALS.keys,
+        snapshot_key_versions: [
+          { version: 1, key: KEY_A },
+          { version: 1, key: KEY_B },
+        ],
       },
     ],
-  ])("rejects a read answer with credentials %s", (_case, credentials) => {
-    expect(mainToCoreMessageSchema.safeParse(readAnswerWith(credentials)).success).toBe(false);
+    ["that aren't an object", "keys"],
+  ])("reads credentials with installation keys %s as credentials without keys", (_case, keys) => {
+    const { keys: _unreadable, ...withoutKeys } = CREDENTIALS;
+
+    expect(mainToCoreMessageSchema.parse(readAnswerWith({ ...CREDENTIALS, keys }))).toStrictEqual(
+      readAnswerWith(withoutKeys),
+    );
+  });
+
+  it.each([
+    ["without a device token", { device_id: "a4b1", pepper: "cGVwcGVy" }],
+    ["whose token arrival isn't a string", { ...CREDENTIALS, token_received_at: 1 }],
+    ["that aren't an object", "credentials"],
+  ])("reads a read answer with credentials %s as no credentials", (_case, credentials) => {
+    expect(mainToCoreMessageSchema.parse(readAnswerWith(credentials))).toStrictEqual({
+      type: "device-credentials-read",
+      request_id: "r4",
+    });
+  });
+
+  it("rejects a read answer without its id", () => {
+    expect(
+      mainToCoreMessageSchema.safeParse({
+        type: "device-credentials-read",
+        credentials: CREDENTIALS,
+      }).success,
+    ).toBe(false);
   });
 
   it.each([

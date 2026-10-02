@@ -57,6 +57,15 @@ test("finds a type whose name is also exported as a value", (t) => {
   assert.deepEqual(contractsValueExports(entry, ["Shape"]), { values: ["Shape"], missing: [] });
 });
 
+test("finds a type re-exported as a type whose name the entry also exports as a value", (t) => {
+  const entry = withEntry(t, {
+    "index.ts": ['export type { Shape } from "./other.js";', "export const Shape = 1;"].join("\n"),
+    "other.ts": "export interface Shape { a: string }\n",
+  });
+
+  assert.deepEqual(contractsValueExports(entry, ["Shape"]), { values: ["Shape"], missing: [] });
+});
+
 test("finds a name the entry doesn't export", (t) => {
   const entry = withEntry(t, { "index.ts": "export type Known = string;\n" });
 
