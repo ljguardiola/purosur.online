@@ -65,8 +65,6 @@ export interface CoreReadyMessage {
   type: "core-ready";
 }
 
-export type CoreToMainMessage = CoreReadyMessage | DeviceCredentialsRequest;
-
 export const coreStatusMessageSchema = z.object({
   type: z.literal("core-status"),
   status: z.enum(["starting", "down", "up"]),

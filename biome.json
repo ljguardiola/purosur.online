@@ -148,11 +148,17 @@
               "options": {
                 "paths": {
                   "@purosur/contracts": {
-                    "message": "The register's main process may only import the error report scrubbers from packages/contracts.",
+                    "message": "The register's main process may only import the error report scrubbers and the types of the messages it exchanges with the core from packages/contracts.",
                     "allowImportNames": [
                       "scrubErrorReport",
                       "scrubErrorReportBreadcrumb",
-                      "scrubErrorReportLog"
+                      "scrubErrorReportLog",
+                      "CoreReadyMessage",
+                      "CoreStatusMessage",
+                      "CredentialsReplacement",
+                      "DeviceCredentials",
+                      "DeviceCredentialsAnswer",
+                      "DeviceCredentialsRequest"
                     ]
                   }
                 }

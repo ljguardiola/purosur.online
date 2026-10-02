@@ -3,6 +3,7 @@ import { hostname, release, version } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import {
+  type CoreReadyMessage,
   mainToCoreMessageSchema,
   scrubErrorReport,
   scrubErrorReportBreadcrumb,
@@ -16,7 +17,6 @@ import {
   localDataFolderFromCoreArguments,
   sentryEnvironmentFromCoreArguments,
 } from "../shared/channel";
-import { CORE_READY_MESSAGE } from "../shared/core-readiness";
 import { createActionGate } from "./access/action-gate";
 import { authorizersOf } from "./access/authorizers";
 import { requestFirstPinCode } from "./access/first-pin-code-request";
@@ -580,5 +580,5 @@ process.parentPort.on("message", (event) => {
   gateFromMain(event.data, (message) => mainRequests.receive(message));
 });
 
-process.parentPort.postMessage(CORE_READY_MESSAGE);
+process.parentPort.postMessage({ type: "core-ready" } satisfies CoreReadyMessage);
 syncSchedule.start();

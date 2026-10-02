@@ -1,45 +1,9 @@
-// Main keeps the device credentials but may not depend on packages/contracts, so the messages it
-// exchanges with the core about them are read here, with no library, like the core's ready message.
+import type { DeviceCredentials, DeviceCredentialsRequest } from "@purosur/contracts";
 
-interface VersionedInstallationKey {
-  version: number;
-  key: string;
-}
+// Main may import only types from packages/contracts, so it reads the core's requests and its own
+// credentials file with no library.
 
-export interface InstallationKeys {
-  snapshot_key_versions: VersionedInstallationKey[];
-  contingency_ticket_key: VersionedInstallationKey;
-  outbox_chain_key: string;
-}
-
-export interface DeviceCredentials {
-  device_id: string;
-  device_token: string;
-  pepper: string;
-  token_received_at?: string;
-  keys?: InstallationKeys;
-}
-
-export type CredentialsReplacement = "replaced" | "superseded" | "not_stored";
-
-export type DeviceCredentialsRequest =
-  | { type: "store-device-credentials"; request_id: string; credentials: DeviceCredentials }
-  | {
-      type: "replace-device-credentials";
-      request_id: string;
-      expected_device_token: string;
-      credentials: DeviceCredentials;
-    }
-  | { type: "device-credentials-request"; request_id: string }
-  | { type: "device-credentials-read-request"; request_id: string }
-  | { type: "device-credentials-storable-request"; request_id: string };
-
-export type DeviceCredentialsAnswer =
-  | { type: "device-credentials-stored"; request_id: string; stored: boolean }
-  | { type: "device-credentials-presence"; request_id: string; present: boolean }
-  | { type: "device-credentials-replaced"; request_id: string; outcome: CredentialsReplacement }
-  | { type: "device-credentials-read"; request_id: string; credentials?: DeviceCredentials }
-  | { type: "device-credentials-storable"; request_id: string; storable: boolean };
+type InstallationKeys = NonNullable<DeviceCredentials["keys"]>;
 
 type Fields = Record<string, unknown>;
 
@@ -47,7 +11,7 @@ function fieldsOf(value: unknown): Fields | undefined {
   return typeof value === "object" && value !== null ? (value as Fields) : undefined;
 }
 
-function readVersionedKey(value: unknown): VersionedInstallationKey | undefined {
+function readVersionedKey(value: unknown): InstallationKeys["contingency_ticket_key"] | undefined {
   const { version, key } = fieldsOf(value) ?? {};
   return typeof version === "number" && typeof key === "string" ? { version, key } : undefined;
 }
@@ -128,40 +92,6 @@ export function readDeviceCredentialsRequest(
       expected_device_token: expectedDeviceToken,
       credentials,
     };
-  }
-  return undefined;
-}
-
-export function readDeviceCredentialsAnswer(message: unknown): DeviceCredentialsAnswer | undefined {
-  const fields = fieldsOf(message);
-  const requestId = fields?.["request_id"];
-  if (typeof requestId !== "string") {
-    return undefined;
-  }
-  const stored = fields?.["stored"];
-  if (fields?.["type"] === "device-credentials-stored" && typeof stored === "boolean") {
-    return { type: "device-credentials-stored", request_id: requestId, stored };
-  }
-  const present = fields?.["present"];
-  if (fields?.["type"] === "device-credentials-presence" && typeof present === "boolean") {
-    return { type: "device-credentials-presence", request_id: requestId, present };
-  }
-  const outcome = fields?.["outcome"];
-  if (
-    fields?.["type"] === "device-credentials-replaced" &&
-    (outcome === "replaced" || outcome === "superseded" || outcome === "not_stored")
-  ) {
-    return { type: "device-credentials-replaced", request_id: requestId, outcome };
-  }
-  if (fields?.["type"] === "device-credentials-read") {
-    const credentials = readDeviceCredentials(fields["credentials"]);
-    return credentials === undefined
-      ? { type: "device-credentials-read", request_id: requestId }
-      : { type: "device-credentials-read", request_id: requestId, credentials };
-  }
-  const storable = fields?.["storable"];
-  if (fields?.["type"] === "device-credentials-storable" && typeof storable === "boolean") {
-    return { type: "device-credentials-storable", request_id: requestId, storable };
   }
   return undefined;
 }

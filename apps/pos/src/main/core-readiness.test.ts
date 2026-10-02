@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { CORE_READY_MESSAGE, isCoreReadyMessage } from "./core-readiness";
+import { isCoreReadyMessage } from "./core-readiness";
+
+const CORE_READY_MESSAGE = { type: "core-ready" };
 
 describe("isCoreReadyMessage", () => {
   it("recognizes the message the core sends once it is ready", () => {

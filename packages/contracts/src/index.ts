@@ -202,7 +202,6 @@ export type {
   CoreReadyMessage,
   CoreStatusMessage,
   CoreStatusRequest,
-  CoreToMainMessage,
   CredentialsReplacement,
   DeviceCredentials,
   DeviceCredentialsAnswer,
