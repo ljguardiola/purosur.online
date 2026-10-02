@@ -300,8 +300,14 @@ test("runCli exits 0 and prints the measured sizes against the budget when withi
 
     assert.equal(exitCode, 0);
     assert.equal(lines.err.length, 0);
-    assert.match(lines.out.join("\n"), /entry: \d+ \/ 10000 bytes gzip/);
-    assert.match(lines.out.join("\n"), /total: \d+ \/ 20000 bytes gzip/);
+    assert.match(
+      lines.out.join("\n"),
+      /entry: \d+ \/ 10000 bytes gzip, with the bundler's names and content hashes left out/,
+    );
+    assert.match(
+      lines.out.join("\n"),
+      /total: \d+ \/ 20000 bytes gzip, with the bundler's names and content hashes left out/,
+    );
   });
 });
 
