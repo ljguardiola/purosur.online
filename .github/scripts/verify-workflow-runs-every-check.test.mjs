@@ -163,7 +163,7 @@ function workflow({
 }
 
 const VERIFY_STATIC_SCRIPT =
-  "tsc --noEmit && tsc --noEmit -p apps/backoffice && tsc --noEmit -p apps/pos && tsc --noEmit -p apps/cloud/tsconfig.test.json && pnpm --filter @purosur/cloud build && pnpm --filter @purosur/backoffice build && node .github/scripts/backoffice-download-budget.mjs && pnpm --filter @purosur/pos build && biome ci . --error-on-warnings && pnpm depcruise && knip && node .github/scripts/react-compiler-check.mjs && node --test .github/scripts/*.test.mjs .github/scripts/test-support/*.test.mjs";
+  "tsc --noEmit && tsc --noEmit -p apps/backoffice && tsc --noEmit -p apps/pos && tsc --noEmit -p apps/cloud/tsconfig.test.json && pnpm --filter @purosur/cloud build && pnpm --filter @purosur/backoffice build && node .github/scripts/backoffice-download-budget.mjs && pnpm --filter @purosur/pos build && biome ci . --error-on-warnings && pnpm depcruise && knip && node .github/scripts/react-compiler-check.mjs && node --test .github/scripts/*.test.mjs .github/scripts/test-support/*.test.mjs .claude/hooks/*.test.mjs";
 
 function packageJson({
   verify = "pnpm verify:static && pnpm verify:tests && pnpm verify:visual",
@@ -776,7 +776,7 @@ for (const dropped of [
   "pnpm depcruise",
   "knip",
   "node .github/scripts/react-compiler-check.mjs",
-  "node --test .github/scripts/*.test.mjs .github/scripts/test-support/*.test.mjs",
+  "node --test .github/scripts/*.test.mjs .github/scripts/test-support/*.test.mjs .claude/hooks/*.test.mjs",
 ]) {
   test(`flags a verify:static script that no longer runs ${dropped}`, () => {
     const verifyStatic = VERIFY_STATIC_SCRIPT.split(" && ")

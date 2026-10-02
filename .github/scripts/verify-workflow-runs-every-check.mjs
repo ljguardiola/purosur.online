@@ -47,7 +47,7 @@ const REQUIRED_VERIFY_STATIC_COMMANDS = [
   "pnpm depcruise",
   "knip",
   "node .github/scripts/react-compiler-check.mjs",
-  "node --test .github/scripts/*.test.mjs .github/scripts/test-support/*.test.mjs",
+  "node --test .github/scripts/*.test.mjs .github/scripts/test-support/*.test.mjs .claude/hooks/*.test.mjs",
 ];
 const EXPECTED_RUN_CONDITION = `\${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.docs_only != 'true') }}`;
 const EXPECTED_TESTS_CONDITION = `\${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.tests_needed != 'false') }}`;

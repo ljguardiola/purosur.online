@@ -3,8 +3,10 @@ name: build-screen
 description: Build or change a backoffice screen from the design system in packages/ui, covering every state it can be in. Use when creating a screen, adding a section or an action to one, or reviewing how a screen shows loading, empty, failure, refresh and action outcomes.
 ---
 
-The rules for backoffice screens live in `CONTRIBUTING.md` ("Structure",
-"Code style", "Backoffice screens", "React code" and "Testing"). This skill
+The rules for backoffice screens live in `.claude/rules/` ("Structure" in
+`structure.md`, "Code style" in `code-style.md`, "Backoffice screens" in
+`backoffice-screens.md`, "React code" in `react.md` and "Testing" in
+`testing.md`). This skill
 only sequences the steps and maps each state to its `packages/ui` piece; it
 never restates those rules. Every step below follows the TDD order in
 "Code style".
@@ -48,11 +50,12 @@ from `cloudTableState` (`platform/cloud-table-state.tsx`). Its columns come from
 (`packages/ui/src/components/data-display/table/use-table-model.ts`), which sorts,
 filters and nests them; `Table` renders the table it returns. The rules for
 loading, refreshing after a change and checking responses are in
-"Structure" and "Backoffice screens" in `CONTRIBUTING.md`.
+"Structure" in `.claude/rules/structure.md` and "Backoffice screens" in
+`.claude/rules/backoffice-screens.md`.
 
 List the sections of the screen that load data and the actions a person can
 take, then give each one every state below. The rules for these states are
-in "Backoffice screens" in `CONTRIBUTING.md`; this table only says which
+in "Backoffice screens" in `.claude/rules/backoffice-screens.md`; this table only says which
 piece serves each one.
 
 | State | Table section | Any other section |
@@ -71,7 +74,7 @@ offers:
   `SharedFieldError` from `packages/ui` for one message shared by several
   inputs through `errorMessageId`
   (`packages/ui/src/components/forms/field-error.ts`). The rules for forms
-  are in "Backoffice screens" in `CONTRIBUTING.md`.
+  are in "Backoffice screens" in `.claude/rules/backoffice-screens.md`.
 - A result shown where the action was taken, such as inside its `Modal`:
   `InlineNotice` or `NotificationCard`, with the `tone` of the outcome.
 - A result for the whole screen: `FloatingNotification`. `packages/ui`
@@ -100,7 +103,7 @@ that handles a state some other way is not a precedent.
   `.github/scripts/no-arbitrary-tailwind-values.mjs` rejects them in
   `packages/ui`, the backoffice and the register's renderer, and
   `pnpm verify` runs it.
-- Text follows "Code style" in `CONTRIBUTING.md`.
+- Text follows "Code style" in `.claude/rules/code-style.md`.
 
 ## 4. When the design system lacks a piece or a state
 
@@ -124,7 +127,7 @@ Then use it in the screen.
 ## 5. Test the screen
 
 Divide the screen's code from the start into the kinds of file in
-"Backoffice screens" in `CONTRIBUTING.md`, and give each modal, form model,
+"Backoffice screens" in `.claude/rules/backoffice-screens.md`, and give each modal, form model,
 field message, part and helper the tests beside it that section assigns it.
 
 For each state and each action's outcome, first write the screen's test
@@ -132,4 +135,4 @@ For each state and each action's outcome, first write the screen's test
 then the code that makes it pass. The test covers the screen's presentation
 and its wiring to the cloud and to its modals, not the behavior its other
 files' tests or `packages/ui` own. Finish as "Working on an issue" in
-`CONTRIBUTING.md` says, from its step 2.
+`.claude/rules/workflow.md` says, from its step 2.

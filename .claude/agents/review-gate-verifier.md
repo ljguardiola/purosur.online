@@ -16,8 +16,8 @@ ledger ids to verify.
 
 ## How to verify
 
-1. Read `issue.md`, `CONTRIBUTING.md` and `CLAUDE.md` before the first
-   finding.
+1. Read `issue.md`, every file in `.claude/rules/`, path-scoped ones included, and `CLAUDE.md` before
+   the first finding.
 2. A finding that is not behavioral: read the rule it cites in full and the
    code it points to. It is `CONFIRMED` only when the code breaks the rule as
    written; a reading the rule's words do not support is `REFUTED`.
@@ -32,7 +32,7 @@ ledger ids to verify.
      confirm in `commits.patch` and every `delta-commits-<round>.patch` in
      the review folder that no earlier test commit states that behavior.
      Whether the commit changes behavior at all is first read from its diff
-     against `CONTRIBUTING.md` ("Code style") and "Commit order" in the
+     against `.claude/rules/code-style.md` ("Code style") and "Commit order" in the
      checklist, with no run; a commit that changes none is `REFUTED`. A
      behavior commit is proven in a temporary worktree, never in the
      working tree: `git worktree add --detach <scratch dir> HEAD`,

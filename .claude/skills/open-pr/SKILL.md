@@ -5,7 +5,7 @@ argument-hint: [issue-number]
 ---
 
 The pull request contract (required sections, title convention, exactly one
-`Closes #N`, Delivery impact rule) lives in `CONTRIBUTING.md` ("Branches and
+`Closes #N`, Delivery impact rule) lives in `.claude/rules/workflow.md` ("Branches and
 pull requests") and `.github/pull_request_template.md`. This skill only
 sequences the operational steps; it never restates those rules.
 
@@ -13,11 +13,11 @@ sequences the operational steps; it never restates those rules.
    `gh api repos/{owner}/{repo}/issues/<N> --jq .sub_issues_summary.total`.
    If the total is greater than zero, stop and explain that a pull request
    must close one of that issue's sub-issues instead (see "Issues" in
-   `CONTRIBUTING.md`) — do not open a PR against the parent.
+   `.claude/rules/workflow.md`) — do not open a PR against the parent.
 2. Copy `.github/pull_request_template.md` and fill every section for real:
    `Closes #<N>` under Issue, the approach under How, decisions (or "None.")
    under Technical decisions, what was tested under How it was tested (see
-   "Working on an issue" in `CONTRIBUTING.md`), and
+   "Working on an issue" in `.claude/rules/workflow.md`), and
    check the Delivery impact boxes that apply. Save the filled body to a file
    (do not hand an empty template to `--body`).
 3. Run the same local check the PreToolUse hook and CI use, before creating

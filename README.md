@@ -12,4 +12,4 @@ pnpm install
 pnpm verify
 ```
 
-`pnpm verify` is the same gate CI runs. See `CONTRIBUTING.md` for the full workflow.
+`pnpm verify` is the same gate CI runs. See `.claude/rules/` for the full workflow.

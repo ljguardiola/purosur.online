@@ -93,7 +93,7 @@ function main() {
   }
 
   const message = [
-    "This command violates the repository contract (see CONTRIBUTING.md):",
+    "This command violates the repository contract (see .claude/rules/):",
     "",
     ...problems.map((problem) => `- ${problem}`),
   ].join("\n");
