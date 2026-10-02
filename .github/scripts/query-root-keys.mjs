@@ -1,5 +1,5 @@
 import { statSync } from "node:fs";
-import { join, relative, sep } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import ts from "typescript";
 
 export const QUERY_KEY_SOURCES = [
@@ -18,7 +18,7 @@ export const QUERY_KEY_SOURCES = [
 const TANSTACK_QUERY_CORE = `${sep}@tanstack${sep}query-core${sep}`;
 const TEST_FILE = /\.test\.[cm]?[jt]sx?$/;
 
-function programOf(tsconfigPath) {
+function languageServiceOf(tsconfigPath) {
   const config = ts.getParsedCommandLineOfConfigFile(
     tsconfigPath,
     {},
@@ -29,7 +29,24 @@ function programOf(tsconfigPath) {
       },
     },
   );
-  return ts.createProgram(config.fileNames, config.options);
+  return ts.createLanguageService({
+    getCompilationSettings: () => config.options,
+    getProjectReferences: () => config.projectReferences,
+    getScriptFileNames: () => config.fileNames,
+    getScriptVersion: () => "0",
+    getScriptSnapshot: (fileName) => {
+      const text = ts.sys.readFile(fileName);
+      return text === undefined ? undefined : ts.ScriptSnapshot.fromString(text);
+    },
+    getCurrentDirectory: () => dirname(tsconfigPath),
+    getDefaultLibFileName: ts.getDefaultLibFilePath,
+    fileExists: ts.sys.fileExists,
+    readFile: ts.sys.readFile,
+    readDirectory: ts.sys.readDirectory,
+    directoryExists: ts.sys.directoryExists,
+    getDirectories: ts.sys.getDirectories,
+    realpath: ts.sys.realpath,
+  });
 }
 
 function unwrapped(node) {
@@ -187,44 +204,40 @@ function nameOfFunction(fn) {
     : undefined;
 }
 
-function rootTracer(checker, tools, checkedFiles) {
+function identifierAt(sourceFile, position) {
+  let found;
+  const visit = (node) => {
+    if (found !== undefined || position < node.getStart(sourceFile) || position >= node.end) return;
+    if (ts.isIdentifier(node)) found = node;
+    else ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return found?.getStart(sourceFile) === position ? found : undefined;
+}
+
+function rootTracer(service, checker, tools, checkedFiles) {
   const UNREADABLE = { kind: "unreadable" };
   const PASSED_THROUGH = { kind: "passed-through" };
-
-  let identifiersByName;
-  const identifiersNamed = (name) => {
-    if (identifiersByName === undefined) {
-      identifiersByName = new Map();
-      const visit = (node) => {
-        if (ts.isIdentifier(node)) {
-          identifiersByName.set(node.text, [...(identifiersByName.get(node.text) ?? []), node]);
-        }
-        ts.forEachChild(node, visit);
-      };
-      for (const sourceFile of checkedFiles) visit(sourceFile);
-    }
-    return identifiersByName.get(name) ?? [];
-  };
-
-  const symbolReferencedBy = (identifier) =>
-    ts.isShorthandPropertyAssignment(identifier.parent) && identifier.parent.name === identifier
-      ? checker.getShorthandAssignmentValueSymbol(identifier.parent)
-      : tools.resolved(checker.getSymbolAtLocation(identifier));
+  const checkedFileNamed = new Map(checkedFiles.map((file) => [file.fileName, file]));
 
   const callersChecked = new Map();
   const callersAreChecked = (fn) => {
     if (!callersChecked.has(fn)) {
       const name = nameOfFunction(fn);
-      const symbol = name && ts.isIdentifier(name) ? symbolReferencedBy(name) : undefined;
+      const referenced =
+        name && ts.isIdentifier(name)
+          ? service.findReferences(name.getSourceFile().fileName, name.getStart())
+          : undefined;
       callersChecked.set(
         fn,
-        symbol !== undefined &&
-          identifiersNamed(name.text).every(
-            (reference) =>
-              reference === name ||
-              symbolReferencedBy(reference) !== symbol ||
-              isCalledThrough(reference),
-          ),
+        referenced?.every(({ references }) =>
+          references.every(({ fileName, textSpan }) => {
+            const sourceFile = checkedFileNamed.get(fileName);
+            if (sourceFile === undefined) return true;
+            const reference = identifierAt(sourceFile, textSpan.start);
+            return reference === name || (reference !== undefined && isCalledThrough(reference));
+          }),
+        ) ?? false,
       );
     }
     return callersChecked.get(fn);
@@ -316,7 +329,8 @@ export function findQueryRootKeyProblems(
   { tsconfig, sourceRoot, foldersOutsideConcepts },
   cwd = process.cwd(),
 ) {
-  const program = programOf(join(cwd, tsconfig));
+  const service = languageServiceOf(join(cwd, tsconfig));
+  const program = service.getProgram();
   const checker = program.getTypeChecker();
   const tools = checkerTools(checker);
   const root = join(cwd, sourceRoot);
@@ -327,7 +341,7 @@ export function findQueryRootKeyProblems(
         !relative(root, sourceFile.fileName).startsWith("..") &&
         !TEST_FILE.test(sourceFile.fileName),
     );
-  const trace = rootTracer(checker, tools, checkedFiles);
+  const trace = rootTracer(service, checker, tools, checkedFiles);
   const fromCwd = (fileName) => relative(cwd, fileName).split(sep).join("/");
   const conceptFolderOf = (fileName) => {
     const path = relative(root, fileName);
