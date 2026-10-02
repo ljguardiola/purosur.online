@@ -611,3 +611,63 @@ test("reads again at the interval it is given", async () => {
     vi.useRealTimers();
   }
 });
+
+test("a read at the interval that fails keeps the value shown and reports nothing else", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+  notifyManager.setScheduler(queueMicrotask);
+  try {
+    const read = vi.fn<() => Promise<CloudReadOutcome<string>>>().mockResolvedValueOnce(ok("one"));
+    read.mockResolvedValue({ kind: "failed" });
+    const onSessionEnded = vi.fn();
+    const onForbidden = vi.fn();
+    const screen = await render(
+      <Probe
+        read={read}
+        refetchInterval={5_000}
+        onSessionEnded={onSessionEnded}
+        onForbidden={onForbidden}
+      />,
+    );
+    await expect.element(screen.getByText("loaded:one")).toBeVisible();
+
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    expect(read).toHaveBeenCalledTimes(2);
+    await expect.element(screen.getByText("loaded:one")).toBeVisible();
+    expect(onSessionEnded).not.toHaveBeenCalled();
+    expect(onForbidden).not.toHaveBeenCalled();
+  } finally {
+    notifyManager.setScheduler((callback) => setTimeout(callback, 0));
+    vi.useRealTimers();
+  }
+});
+
+test("a read at the interval that finds the session ended or the access refused says so", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+  notifyManager.setScheduler(queueMicrotask);
+  try {
+    const read = vi.fn<() => Promise<CloudReadOutcome<string>>>().mockResolvedValueOnce(ok("one"));
+    read.mockResolvedValueOnce({ kind: "unauthenticated" });
+    read.mockResolvedValue({ kind: "forbidden" });
+    const onSessionEnded = vi.fn();
+    const onForbidden = vi.fn();
+    const screen = await render(
+      <Probe
+        read={read}
+        refetchInterval={5_000}
+        onSessionEnded={onSessionEnded}
+        onForbidden={onForbidden}
+      />,
+    );
+    await expect.element(screen.getByText("loaded:one")).toBeVisible();
+
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(onSessionEnded).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    expect(onForbidden).toHaveBeenCalledTimes(1);
+  } finally {
+    notifyManager.setScheduler((callback) => setTimeout(callback, 0));
+    vi.useRealTimers();
+  }
+});

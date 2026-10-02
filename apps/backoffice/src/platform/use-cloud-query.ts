@@ -1,4 +1,10 @@
-import { keepPreviousData, type QueryClient, type QueryKey, useQuery } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  type QueryClient,
+  type QueryKey,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useEffect, useEffectEvent, useState } from "react";
 import type { CloudReadOutcome } from "./cloud-read-outcome";
 
@@ -68,13 +74,35 @@ export function useCloudQuery<T>({
 }): CloudData<T> {
   const endSession = useEffectEvent(onSessionEnded);
   const handleForbidden = useEffectEvent(onForbidden);
+  const queryClient = useQueryClient();
   const query = useQuery({
     queryKey,
     queryFn: cloudQueryFn(read),
     ...(gcTime === undefined ? {} : { gcTime }),
-    ...(refetchInterval === undefined ? {} : { refetchInterval }),
     ...(keepsPreviousData ? { placeholderData: keepPreviousData } : {}),
   });
+  const refreshInBackground = useEffectEvent(async () => {
+    if (queryClient.getQueryState(queryKey)?.fetchStatus === "fetching") {
+      return;
+    }
+    const outcome = await read().catch((): CloudReadOutcome<T> => ({ kind: "failed" }));
+    if (outcome.kind === "ok") {
+      queryClient.setQueryData(queryKey, outcome.value);
+    } else if (outcome.kind === "unauthenticated") {
+      endSession();
+    } else if (outcome.kind === "forbidden") {
+      handleForbidden();
+    }
+  });
+
+  useEffect(() => {
+    if (refetchInterval === undefined) {
+      return;
+    }
+    const timer = setInterval(() => void refreshInBackground(), refetchInterval);
+    return () => clearInterval(timer);
+  }, [refetchInterval]);
+
   const [lastLoaded, setLastLoaded] = useState<{ value: T } | undefined>(undefined);
   if (keepsPreviousData && query.isSuccess && query.data !== lastLoaded?.value) {
     setLastLoaded({ value: query.data });

@@ -19,7 +19,6 @@ import {
   DISCOUNT_EDIT_FIELDS,
   DISCOUNT_KIND_CARDS,
   DISCOUNT_MESSAGES,
-  DISCOUNT_TARGET_KIND_OPTIONS,
   discountEditRequestFrom,
   discountFormValues,
   EMPTY_DISCOUNT_EDIT_FORM,
@@ -30,6 +29,7 @@ import {
   soldByWeightHelp,
   TARGET_SOLD_BY_WEIGHT_MESSAGE,
   targetForKind,
+  targetKindOptions,
   targetOptions,
   targetPlaceholder,
   targetUnavailableMessage,
@@ -305,7 +305,7 @@ export function EditDiscountModal({
                 {(field) => (
                   <field.SegmentedControl
                     label="Se aplica sobre"
-                    options={DISCOUNT_TARGET_KIND_OPTIONS}
+                    options={targetKindOptions(values.benefitKind, targets)}
                   />
                 )}
               </form.AppField>

@@ -327,6 +327,17 @@ export function offersTargetKindChoice(
   return sources.targetKindsByBenefit[benefitKind].length > 1;
 }
 
+export function targetKindOptions(
+  benefitKind: DiscountBenefit["kind"],
+  sources: DiscountTargets,
+): Options<Option<DiscountTargetKind>> {
+  const allowed = sources.targetKindsByBenefit[benefitKind];
+  const [first, ...rest] = DISCOUNT_TARGET_KIND_OPTIONS.filter(({ value }) =>
+    allowed.includes(value),
+  );
+  return first === undefined ? DISCOUNT_TARGET_KIND_OPTIONS : [first, ...rest];
+}
+
 export function targetForKind(
   values: DiscountFormValues,
   benefitKind: DiscountBenefit["kind"],
