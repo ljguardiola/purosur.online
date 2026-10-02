@@ -259,6 +259,7 @@ export type {
   StockMovement,
   StockMovementList,
   StockMovementReasonList,
+  StockPeriod,
   StockPeriodDays,
   StockProduct,
   StockProductList,
@@ -269,6 +270,8 @@ export {
   stockCountListSchema,
   stockMovementListSchema,
   stockMovementReasonListSchema,
+  stockPeriodDaysSchema,
+  stockPeriodSchema,
   stockProductListSchema,
 } from "./stock/stock-lists.js";
 export type {
@@ -279,6 +282,7 @@ export type {
 export {
   stockAdjustmentBodySchema,
   stockCountBodySchema,
+  stockCountMomentSchema,
   stockLossBodySchema,
 } from "./stock/stock-movement-bodies.js";
 export type { StockCountResult, StockMovementResult } from "./stock/stock-results.js";

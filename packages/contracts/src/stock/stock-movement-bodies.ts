@@ -1,10 +1,15 @@
 import {
   ADJUSTMENT_REASONS,
+  ARGENTINA_TIME_ZONE,
   adjustmentDirections,
+  argentinaInstant,
+  isCalendarDay,
   LOSS_REASONS,
   mayBeCountedQuantity,
   mayBeMovementQuantity,
   STOCK_DIRECTIONS,
+  STOCK_QUANTITY_DECIMALS,
+  STOCK_QUANTITY_PER_UNIT,
 } from "@purosur/domain";
 import { z } from "zod";
 
@@ -14,9 +19,12 @@ const COUNTED_MESSAGE = "counted must be a non-negative integer number of thousa
 
 const productId = z.guid({ error: PRODUCT_ID_MESSAGE });
 
+const QUANTITY_UNITS = { decimals: STOCK_QUANTITY_DECIMALS, perUnit: STOCK_QUANTITY_PER_UNIT };
+
 const quantity = z
   .number({ error: QUANTITY_MESSAGE })
-  .refine(mayBeMovementQuantity, QUANTITY_MESSAGE);
+  .refine(mayBeMovementQuantity, QUANTITY_MESSAGE)
+  .meta(QUANTITY_UNITS);
 
 export const stockLossBodySchema = z.object({
   productId,
@@ -42,8 +50,20 @@ export type StockAdjustmentBody = z.input<typeof stockAdjustmentBodySchema>;
 
 export const stockCountBodySchema = z.object({
   productId,
-  counted: z.number({ error: COUNTED_MESSAGE }).refine(mayBeCountedQuantity, COUNTED_MESSAGE),
-  occurredAt: z.iso.datetime({ offset: true, error: "occurredAt must be an ISO date and time" }),
+  counted: z
+    .number({ error: COUNTED_MESSAGE })
+    .refine(mayBeCountedQuantity, COUNTED_MESSAGE)
+    .meta(QUANTITY_UNITS),
+  occurredAt: z.iso
+    .datetime({ offset: true, error: "occurredAt must be an ISO date and time" })
+    .meta({ timeZone: ARGENTINA_TIME_ZONE }),
 });
 
 export type StockCountBody = z.input<typeof stockCountBodySchema>;
+
+export const stockCountMomentSchema = z
+  .object({
+    day: z.string().refine(isCalendarDay),
+    time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  })
+  .transform(({ day, time }) => argentinaInstant(day, time));
