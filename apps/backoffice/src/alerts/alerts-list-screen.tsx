@@ -15,9 +15,9 @@ import {
 import { deepEqual } from "@tanstack/react-router";
 import { Bell, Eye, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
-import type { BackofficeAccess } from "../access/backoffice-access";
 import { cloudTableState } from "../platform/cloud-table-state";
 import type { CloudData } from "../platform/use-cloud-query";
+import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { ALERT_LEVEL_LABELS, AlertDetailModal, alertDateTime } from "./alert-detail-modal";

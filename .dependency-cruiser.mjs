@@ -3,7 +3,6 @@ export const CLOUD_ONLY_CONCEPTS = ["purchasing", "alerts", "catalog", "pricing"
 const REAL_POSTGRES_TEST = "apps/cloud/src/.+\\.integration\\.test\\.ts$";
 
 export const SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST = [
-  "apps/backoffice/src/access/backoffice-access.ts",
   "apps/backoffice/src/access/passkey-row-detail.ts",
   "apps/backoffice/src/access/permission-requirement-note.ts",
   "apps/backoffice/src/access/pin-code-validity.ts",
@@ -15,37 +14,10 @@ export const SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST = [
   "apps/backoffice/src/catalog/barcode-chips.tsx",
   "apps/backoffice/src/catalog/label-preview-bars.tsx",
   "apps/backoffice/src/fiscal/issuer-identification-form.ts",
+  "apps/backoffice/src/shell/backoffice-access.ts",
   "apps/backoffice/src/stock/count-moment.ts",
   "apps/backoffice/src/stock/stock-period.ts",
   "apps/backoffice/src/stock/stock-quantity.ts",
-];
-
-export const SCREEN_CROSS_CONCEPT_IMPORT_ALLOWLIST = [
-  "apps/backoffice/src/alerts/alert-detail-modal.tsx",
-  "apps/backoffice/src/alerts/alerts-list-screen.tsx",
-  "apps/backoffice/src/alerts/alerts-overview-screen.tsx",
-  "apps/backoffice/src/alerts/routes.tsx",
-  "apps/backoffice/src/branch/routes.tsx",
-  "apps/backoffice/src/catalog/routes.tsx",
-  "apps/backoffice/src/fiscal/routes.tsx",
-  "apps/backoffice/src/pricing/discount-form.ts",
-  "apps/backoffice/src/pricing/money.ts",
-  "apps/backoffice/src/pricing/price-change-modal.tsx",
-  "apps/backoffice/src/pricing/routes.tsx",
-  "apps/backoffice/src/pricing/test-support/discount-modal.ts",
-  "apps/backoffice/src/register/register-coverage-notice.tsx",
-  "apps/backoffice/src/register/routes.tsx",
-  "apps/backoffice/src/stock/routes.tsx",
-  "apps/backoffice/src/stock/stock-counts-screen.tsx",
-  "apps/backoffice/src/stock/stock-movements-screen.tsx",
-  "apps/pos/src/renderer/register/cash-count-screen.tsx",
-  "apps/pos/src/renderer/register/cash-screen.tsx",
-  "apps/pos/src/renderer/register/locked-cash-count.tsx",
-  "apps/pos/src/renderer/register/locked-close-screen.tsx",
-  "apps/pos/src/renderer/register/locked-closer-identification.tsx",
-  "apps/pos/src/renderer/register/record-cash-movement-modal.tsx",
-  "apps/pos/src/renderer/sales/charge-screen.tsx",
-  "apps/pos/src/renderer/sales/sale-screen.tsx",
 ];
 
 export const CONTRACTS_CROSS_CONCEPT_IMPORT_ALLOWLIST = [
@@ -219,7 +191,6 @@ export default {
           "^apps/backoffice/src/(?!(?:shell|platform|help)/)([^/]+)/",
           "^apps/pos/src/renderer/(?!(?:shell|platform)/)([^/]+)/",
         ],
-        pathNot: exactPaths(SCREEN_CROSS_CONCEPT_IMPORT_ALLOWLIST),
       },
       to: {
         path: ["^apps/backoffice/src/[^/]+/", "^apps/pos/src/renderer/[^/]+/"],

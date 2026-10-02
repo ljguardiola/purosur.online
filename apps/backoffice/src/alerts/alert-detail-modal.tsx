@@ -31,12 +31,12 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { type ReactElement, useState } from "react";
-import { type BackofficeAccess, canCloseAlertsManually } from "../access/backoffice-access";
-import { AREA_LABELS, PERMISSION_LABELS } from "../access/permission-labels";
-import { roleDisplayName } from "../access/role-display";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import { AREA_LABELS, PERMISSION_LABELS } from "../platform/permission-labels";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import { roleDisplayName } from "../platform/role-display-name";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { type BackofficeAccess, canCloseAlertsManually } from "../shell/backoffice-access";
 import { ALERT_LEVEL_TONE } from "./alert-level-tone";
 import { closeAlert as closeAlertDefault, fetchAlert as fetchAlertDefault } from "./alerts-api";
 import { useAlertQuery, useRefreshAlerts, useRefreshAlertsAfterClosing } from "./alerts-queries";

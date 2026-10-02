@@ -1,10 +1,10 @@
 import { createRoute, redirect, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
+import { canSeeRolesArea, canSeeUsersArea } from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
 import { publicRoute } from "../shell/public-route";
 import { settingsAreaRoute } from "../shell/settings-area";
 import { refuseWithout } from "../shell/signed-in-route";
-import { canSeeRolesArea, canSeeUsersArea } from "./backoffice-access";
 
 export const signInRoute = createRoute({
   getParentRoute: () => publicRoute,

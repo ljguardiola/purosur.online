@@ -21,6 +21,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import { roleDisplayName } from "../platform/role-display-name";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import {
   authorizeSession,
@@ -28,7 +29,6 @@ import {
 } from "../platform/session-authorization-api";
 import { useRefreshAccess, useReloadRole, useRoleQuery } from "./access-queries";
 import { ConfirmRoleSaveModal } from "./confirm-role-save-modal";
-import { roleDisplayName } from "./role-display";
 import { RoleEditorForm } from "./role-editor-form";
 import { roleNameMessage } from "./role-name-message";
 import {

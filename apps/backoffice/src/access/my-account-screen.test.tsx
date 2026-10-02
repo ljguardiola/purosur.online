@@ -1,16 +1,16 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { render } from "../shell/test-support/render-with-router";
-import type { BackofficeAccess } from "./backoffice-access";
-import { MyAccountScreen } from "./my-account-screen";
-import type { MyAccountScreenServices } from "./my-account-services";
-import type { Passkey } from "./passkey-api";
+import type { BackofficeAccess } from "../shell/backoffice-access";
 import {
   ADMINISTRATOR_ACCESS,
   accessWith,
   NO_CAPABILITIES_ACCESS,
-} from "./test-support/backoffice-access";
+} from "../shell/test-support/backoffice-access";
+import { render } from "../shell/test-support/render-with-router";
+import { MyAccountScreen } from "./my-account-screen";
+import type { MyAccountScreenServices } from "./my-account-services";
+import type { Passkey } from "./passkey-api";
 
 function createServices(overrides: Partial<MyAccountScreenServices> = {}): MyAccountScreenServices {
   return {

@@ -45,7 +45,6 @@ import { pinPolicyQueryOptions } from "../access/access-queries";
 import { FirstSignInScreen } from "../access/first-sign-in-screen";
 import { PinCodeRedemptionScreen } from "../access/pin-code-redemption-screen";
 import { SignInScreen } from "../access/sign-in-screen";
-import type { SignedInPerson } from "../access/signed-in-person";
 import type { CashMovementInput } from "../platform/core-client";
 import { CashCountScreen } from "../register/cash-count-screen";
 import { CashScreen } from "../register/cash-screen";
@@ -60,6 +59,7 @@ import type { CashSessionState } from "./cash-session-state";
 import { CoreDownNotice } from "./core-down-notice";
 import { LockedRegisterScreen } from "./locked-register-screen";
 import { NoSessionScreen } from "./no-session-screen";
+import type { SignedInPerson } from "./signed-in-person";
 
 export type CoreStatus = CoreStatusMessage["status"];
 

@@ -9,7 +9,7 @@ import type {
   SignInUser,
 } from "@purosur/contracts";
 import { useState } from "react";
-import type { SignedInPerson } from "../access/signed-in-person";
+import type { SignedInPerson } from "../shell/signed-in-person";
 import { LockedCashCount } from "./locked-cash-count";
 import type { IdentifiedCloser, ReturnedCloser } from "./locked-closer-identification";
 import { LockedCloserIdentification } from "./locked-closer-identification";

@@ -1,12 +1,12 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { Laptop, Shield, Store, Users } from "lucide-react";
+import { AreaLayout, SectionLink } from "./area-layout";
 import {
   canSeeBranchArea,
   canSeeRegistersArea,
   canSeeRolesArea,
   canSeeUsersArea,
-} from "../access/backoffice-access";
-import { AreaLayout, SectionLink } from "./area-layout";
+} from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
 
 export const settingsAreaRoute = createRoute({

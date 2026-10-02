@@ -6,6 +6,7 @@ import { useEffect, useEffectEvent, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import { roleDisplayName } from "../platform/role-display-name";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type {
   authorizeSession,
@@ -13,7 +14,7 @@ import type {
 } from "../platform/session-authorization-api";
 import type { UserRead } from "./access-queries";
 import { userEmailMessage } from "./email-field-message";
-import { roleDisplayName, roleOptions } from "./role-display";
+import { roleOptions } from "./role-display";
 import { roleFieldMessage } from "./role-field-message";
 import type { BranchUser, BranchUserRole, EditUserOutcome, editUser } from "./users-api";
 
