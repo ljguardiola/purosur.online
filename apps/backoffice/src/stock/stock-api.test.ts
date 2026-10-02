@@ -3,6 +3,7 @@ import {
   fetchExpectedBalance,
   fetchStockBalances,
   fetchStockCounts,
+  fetchStockMovementReasons,
   fetchStockMovements,
   fetchStockProducts,
   recordAdjustment,
@@ -89,6 +90,16 @@ test("fetchStockMovements asks for the period's days", async () => {
 
   expect(await fetchStockMovements(7)).toEqual({ kind: "ok", value: movements });
   expect(fetch).toHaveBeenCalledWith("/api/inventory-movements?days=7");
+});
+
+test("fetchStockMovementReasons reads each reason with the directions it allows", async () => {
+  const reasons = {
+    reasons: [{ kind: "adjustment", reason: "supplier_return", directions: ["subtract"] }],
+  };
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, reasons));
+
+  expect(await fetchStockMovementReasons()).toEqual({ kind: "ok", value: reasons });
+  expect(fetch).toHaveBeenCalledWith("/api/inventory-movement-reasons");
 });
 
 test("fetchExpectedBalance asks for the product's balance at the moment", async () => {

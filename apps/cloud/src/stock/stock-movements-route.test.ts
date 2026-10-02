@@ -1,3 +1,4 @@
+import { manualStockMovementReasons } from "@purosur/domain";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { stockBalances, stockMovements } from "../platform/db/schema.js";
@@ -373,5 +374,47 @@ describe("GET /inventory-movements", () => {
     const response = await listMovements(headers);
 
     expect(response.json().movements).toHaveLength(2);
+  });
+});
+
+function listMovementReasons(headers: Record<string, string>) {
+  return app.inject({ method: "GET", url: "/inventory-movement-reasons", headers });
+}
+
+describe("GET /inventory-movement-reasons", () => {
+  it("returns 401 when no session cookie was sent", async () => {
+    const response = await listMovementReasons({ origin: BACKOFFICE_ORIGIN });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("rejects a user who may neither adjust stock nor record losses", async () => {
+    const { headers } = await signedInWith(
+      db,
+      ["view_stock_balances", "perform_stock_counts"],
+      NOW,
+    );
+
+    const response = await listMovementReasons(headers);
+
+    expect(response.statusCode).toBe(403);
+  });
+
+  it("answers only the reasons of the kinds the user may see", async () => {
+    const { headers } = await signedInWith(db, ["adjust_stock"], NOW);
+
+    const response = await listMovementReasons(headers);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ reasons: manualStockMovementReasons("adjustment") });
+  });
+
+  it("answers an Administrator the reasons of both kinds, losses first", async () => {
+    const { headers } = await signedInWith(db, [], NOW, { isAdministrator: true });
+
+    const response = await listMovementReasons(headers);
+
+    const kinds = response.json().reasons.map((reason: { kind: string }) => reason.kind);
+    expect(kinds).toEqual([...Array(6).fill("loss"), ...Array(3).fill("adjustment")]);
   });
 });

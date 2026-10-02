@@ -9,6 +9,7 @@ test("invalidating the stock key marks every stock read stale", async () => {
     stockKeys.counts(30),
     stockKeys.counts(7),
     stockKeys.movements(90),
+    stockKeys.movementReasons,
     stockKeys.expectedBalance("product-1", "2026-09-15T21:32:00.000Z"),
   ];
   for (const key of keys) {
