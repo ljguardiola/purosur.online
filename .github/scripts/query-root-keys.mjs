@@ -1,5 +1,5 @@
 import { statSync } from "node:fs";
-import { dirname, join, matchesGlob, relative, resolve, sep } from "node:path";
+import { join, relative, sep } from "node:path";
 import ts from "typescript";
 
 export const QUERY_KEY_SOURCES = [
@@ -18,7 +18,7 @@ export const QUERY_KEY_SOURCES = [
 const TANSTACK_QUERY_CORE = `${sep}@tanstack${sep}query-core${sep}`;
 const TEST_FILE = /\.test\.[cm]?[jt]sx?$/;
 
-function languageServiceOf(tsconfigPath) {
+function programOf(tsconfigPath) {
   const config = ts.getParsedCommandLineOfConfigFile(
     tsconfigPath,
     {},
@@ -29,24 +29,7 @@ function languageServiceOf(tsconfigPath) {
       },
     },
   );
-  return ts.createLanguageService({
-    getCompilationSettings: () => config.options,
-    getProjectReferences: () => config.projectReferences,
-    getScriptFileNames: () => config.fileNames,
-    getScriptVersion: () => "0",
-    getScriptSnapshot: (fileName) => {
-      const text = ts.sys.readFile(fileName);
-      return text === undefined ? undefined : ts.ScriptSnapshot.fromString(text);
-    },
-    getCurrentDirectory: () => dirname(tsconfigPath),
-    getDefaultLibFileName: ts.getDefaultLibFilePath,
-    fileExists: ts.sys.fileExists,
-    readFile: ts.sys.readFile,
-    readDirectory: ts.sys.readDirectory,
-    directoryExists: ts.sys.directoryExists,
-    getDirectories: ts.sys.getDirectories,
-    realpath: ts.sys.realpath,
-  });
+  return ts.createProgram(config.fileNames, config.options);
 }
 
 function unwrapped(node) {
@@ -165,264 +148,16 @@ function checkerTools(checker) {
   };
 }
 
-const HANDED_ON_BY_NAME = {};
-
-function callThrough(reference) {
-  const parent = reference.parent;
-  if (
-    ts.isImportSpecifier(parent) ||
-    ts.isImportClause(parent) ||
-    ts.isExportSpecifier(parent) ||
-    ts.isExportAssignment(parent)
-  ) {
-    return HANDED_ON_BY_NAME;
-  }
-  return ts.isCallExpression(parent) && parent.expression === reference ? parent : undefined;
+function isInlineCallback(fn) {
+  if (!ts.isArrowFunction(fn) && !ts.isFunctionExpression(fn)) return false;
+  let holder = fn.parent;
+  while (ts.isParenthesizedExpression(holder)) holder = holder.parent;
+  return ts.isCallOrNewExpression(holder) && (holder.arguments ?? []).includes(fn);
 }
 
-function standaloneNameOf(fn) {
-  if (ts.isFunctionDeclaration(fn)) return fn.name;
-  return (ts.isArrowFunction(fn) || (ts.isFunctionExpression(fn) && fn.name === undefined)) &&
-    ts.isVariableDeclaration(fn.parent)
-    ? fn.parent.name
-    : undefined;
-}
-
-function propertyNameText(name) {
-  return ts.isIdentifier(name) ? name.text : undefined;
-}
-
-function propertyValue(property) {
-  if (ts.isPropertyAssignment(property)) return property.initializer;
-  if (ts.isShorthandPropertyAssignment(property)) return property.name;
-  return property;
-}
-
-function isTypePosition(reference) {
-  for (let node = reference.parent; node !== undefined; node = node.parent) {
-    if (ts.isExpressionWithTypeArguments(node)) return false;
-    if (ts.isTypeNode(node)) return true;
-  }
-  return false;
-}
-
-function referenceAt(sourceFile, position) {
-  let found;
-  const visit = (node, inJsDoc) => {
-    if (found !== undefined || position < node.pos || position >= node.end) return;
-    if (ts.isIdentifier(node)) {
-      if (node.getStart(sourceFile) === position) found = { node, inJsDoc };
-      return;
-    }
-    for (const jsDoc of node.jsDoc ?? []) visit(jsDoc, true);
-    ts.forEachChild(node, (child) => visit(child, inJsDoc));
-  };
-  visit(sourceFile, false);
-  return found;
-}
-
-function exposesNoModuleObject(literal) {
-  const parent = literal.parent;
-  if (ts.isLiteralTypeNode(parent) && ts.isImportTypeNode(parent.parent)) return true;
-  if (ts.isImportDeclaration(parent)) {
-    const bindings = parent.importClause?.namedBindings;
-    return bindings === undefined || ts.isNamedImports(bindings) || parent.importClause.isTypeOnly;
-  }
-  return (
-    ts.isExportDeclaration(parent) &&
-    (parent.isTypeOnly ||
-      (parent.exportClause !== undefined && ts.isNamedExports(parent.exportClause)))
-  );
-}
-
-const EVERY_MODULE = "every module";
-
-function globPatternsOf(argument) {
-  if (argument === undefined) return undefined;
-  if (ts.isStringLiteralLike(argument)) return [argument.text];
-  return ts.isArrayLiteralExpression(argument) && argument.elements.every(ts.isStringLiteralLike)
-    ? argument.elements.map((element) => element.text)
-    : undefined;
-}
-
-const GLOB_OPTIONS_KEEPING_ITS_FILES = new Set(["eager", "import", "query"]);
-
-function keepsItsFiles(options) {
-  return (
-    options === undefined ||
-    (ts.isObjectLiteralExpression(options) &&
-      options.properties.every(
-        (property) =>
-          ts.isPropertyAssignment(property) &&
-          GLOB_OPTIONS_KEEPING_ITS_FILES.has(propertyNameText(property.name)) &&
-          (ts.isStringLiteralLike(property.initializer) ||
-            property.initializer.kind === ts.SyntaxKind.TrueKeyword ||
-            property.initializer.kind === ts.SyntaxKind.FalseKeyword),
-      ))
-  );
-}
-
-function modulesGlobbedBy(meta, programFiles) {
-  if (meta.keywordToken !== ts.SyntaxKind.ImportKeyword) return [];
-  const member = meta.parent;
-  if (!ts.isPropertyAccessExpression(member)) return [EVERY_MODULE];
-  if (member.name.text !== "glob") return [];
-  const call = member.parent;
-  if (!ts.isCallExpression(call) || call.expression !== member) return [EVERY_MODULE];
-  const [argument, options] = call.arguments;
-  const patterns = globPatternsOf(argument);
-  if (
-    patterns === undefined ||
-    patterns.some((pattern) => !/^\.\.?\//.test(pattern)) ||
-    !keepsItsFiles(options)
-  ) {
-    return [EVERY_MODULE];
-  }
-  const from = dirname(call.getSourceFile().fileName);
-  return programFiles.filter((programFile) =>
-    patterns.some((pattern) => matchesGlob(programFile.fileName, resolve(from, pattern))),
-  );
-}
-
-function moduleReachTester(program, checker, resolved, checkedFiles) {
-  let reached;
-  const options = program.getCompilerOptions();
-  const resolutionCache = ts.createModuleResolutionCache(
-    program.getCurrentDirectory(),
-    (fileName) => fileName,
-    options,
-  );
-  const programFiles = program
-    .getSourceFiles()
-    .filter((sourceFile) => !sourceFile.isDeclarationFile);
-  const moduleMentioned = (literal) => {
-    const fileName = ts.resolveModuleName(
-      literal.text,
-      literal.getSourceFile().fileName,
-      options,
-      ts.sys,
-      resolutionCache,
-    ).resolvedModule?.resolvedFileName;
-    return fileName === undefined ? undefined : program.getSourceFile(fileName);
-  };
-  const collect = () => {
-    reached = new Set();
-    const pending = [];
-    const reach = (module) => {
-      if (reached.has(module)) return;
-      reached.add(module);
-      pending.push(module);
-    };
-    const visit = (node) => {
-      if (ts.isStringLiteralLike(node) && !exposesNoModuleObject(node)) {
-        const module = moduleMentioned(node);
-        if (module !== undefined) reach(module);
-      }
-      if (ts.isMetaProperty(node)) {
-        for (const module of modulesGlobbedBy(node, programFiles)) reach(module);
-      }
-      ts.forEachChild(node, visit);
-    };
-    for (const checkedFile of checkedFiles) visit(checkedFile);
-    while (pending.length > 0) {
-      const module = pending.pop();
-      const symbol = module === EVERY_MODULE ? undefined : checker.getSymbolAtLocation(module);
-      for (const exported of symbol === undefined ? [] : checker.getExportsOfModule(symbol)) {
-        for (const declaration of resolved(exported)?.declarations ?? []) {
-          reach(declaration.getSourceFile());
-        }
-      }
-    }
-  };
-  return (sourceFile) => {
-    if (reached === undefined) collect();
-    return reached.has(sourceFile) || reached.has(EVERY_MODULE);
-  };
-}
-
-function rootTracer(service, checker, tools, checkedFiles, isModuleReachedAsObject) {
+function rootTracer(checker, tools) {
   const UNREADABLE = { kind: "unreadable" };
   const PASSED_THROUGH = { kind: "passed-through" };
-  const checkedFileNamed = new Map(checkedFiles.map((file) => [file.fileName, file]));
-
-  const callsOf = new Map();
-  const checkedCallsOf = (fn) => {
-    if (!callsOf.has(fn)) {
-      const standaloneName = standaloneNameOf(fn);
-      const name =
-        standaloneName && !isModuleReachedAsObject(fn.getSourceFile()) ? standaloneName : undefined;
-      const referenced =
-        name && ts.isIdentifier(name)
-          ? service.findReferences(name.getSourceFile().fileName, name.getStart())
-          : undefined;
-      const calls = [];
-      const checked = referenced?.every(({ references }) =>
-        references.every(({ fileName, textSpan }) => {
-          const sourceFile = checkedFileNamed.get(fileName);
-          if (sourceFile === undefined) return true;
-          const found = referenceAt(sourceFile, textSpan.start);
-          if (found === undefined) return false;
-          const { node: reference, inJsDoc } = found;
-          if (inJsDoc || reference === name || isTypePosition(reference)) return true;
-          const call = callThrough(reference);
-          if (call !== undefined && call !== HANDED_ON_BY_NAME) calls.push(call);
-          return call !== undefined;
-        }),
-      );
-      callsOf.set(fn, checked ? calls : undefined);
-    }
-    return callsOf.get(fn);
-  };
-
-  const fed = [];
-  const fedNodes = new Set();
-  const feed = (position, outcomes) => {
-    if (fedNodes.has(position)) return;
-    fedNodes.add(position);
-    fed.push({ position, outcomes });
-  };
-
-  const feedFromProperties = (declaration, argument) => {
-    const node = unwrapped(argument);
-    if (!ts.isObjectLiteralExpression(node)) {
-      feed(argument, [UNREADABLE]);
-      return;
-    }
-    const name = propertyNameText(declaration.propertyName ?? declaration.name);
-    for (const property of node.properties) {
-      const propertyName =
-        property.name === undefined ? undefined : propertyNameText(property.name);
-      if (propertyName === undefined) feed(property, [UNREADABLE]);
-      else if (propertyName === name) feed(propertyValue(property));
-    }
-  };
-
-  const fedDeclarations = new Set();
-  const feedArguments = (declaration, parameter, calls) => {
-    if (fedDeclarations.has(declaration)) return;
-    fedDeclarations.add(declaration);
-    const index = parameter.parent.parameters
-      .filter((each) => !(ts.isIdentifier(each.name) && each.name.text === "this"))
-      .indexOf(parameter);
-    for (const call of calls) {
-      const passed = call.arguments;
-      const spread = passed.slice(0, index + 1).find(ts.isSpreadElement);
-      const argument = spread ?? passed[index];
-      if (argument === undefined) continue;
-      if (spread !== undefined || declaration === parameter) {
-        feed(argument, parameter.dotDotDotToken ? [UNREADABLE] : undefined);
-      } else {
-        feedFromProperties(declaration, argument);
-      }
-    }
-  };
-
-  const passesThrough = (declaration, parameter) => {
-    const calls = checkedCallsOf(parameter.parent);
-    if (calls === undefined) return false;
-    feedArguments(declaration, parameter, calls);
-    return true;
-  };
 
   const traceDeclaration = (declaration, seen) => {
     if (declaration === undefined || seen.has(declaration)) return [UNREADABLE];
@@ -438,7 +173,7 @@ function rootTracer(service, checker, tools, checkedFiles, isModuleReachedAsObje
       return traceDeclaration(value?.valueDeclaration, next);
     }
     if (ts.isParameter(declaration)) {
-      return tools.declaresQueryKey(declaration) && passesThrough(declaration, declaration)
+      return tools.declaresQueryKey(declaration) && !isInlineCallback(declaration.parent)
         ? [PASSED_THROUGH]
         : [UNREADABLE];
     }
@@ -446,7 +181,7 @@ function rootTracer(service, checker, tools, checkedFiles, isModuleReachedAsObje
       const parameter = declaration.parent.parent;
       return ts.isParameter(parameter) &&
         tools.bindingElementDeclaresQueryKey(declaration) &&
-        passesThrough(declaration, parameter)
+        !isInlineCallback(parameter.parent)
         ? [PASSED_THROUGH]
         : [UNREADABLE];
     }
@@ -498,84 +233,7 @@ function rootTracer(service, checker, tools, checkedFiles, isModuleReachedAsObje
     return [UNREADABLE];
   };
 
-  return { trace, fed };
-}
-
-const RUNTIME_LOADERS = new Set(["require", "createRequire"]);
-const NODE_MODULE = new Set(["module", "node:module"]);
-const SOURCE_EXTENSIONS = [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"];
-
-function isDynamicImport(node) {
-  return ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword;
-}
-
-function isDestructuringPattern(node) {
-  if (!ts.isObjectLiteralExpression(node) && !ts.isArrayLiteralExpression(node)) return false;
-  const parent = node.parent;
-  if (ts.isBinaryExpression(parent)) return parent.operatorToken.kind === ts.SyntaxKind.EqualsToken;
-  if (ts.isForOfStatement(parent)) return parent.initializer === node;
-  return isDestructuringPattern(ts.isPropertyAssignment(parent) ? parent.parent : parent);
-}
-
-function runtimeLoaderTester(program, checker) {
-  const isAmbient = (declaration) =>
-    declaration.flags & ts.NodeFlags.Ambient ||
-    program.isSourceFileFromExternalLibrary(declaration.getSourceFile());
-  const isCallable = (type) =>
-    type.getCallSignatures().length > 0 || type.getConstructSignatures().length > 0;
-  const mayLoad = (type) =>
-    type === undefined ||
-    type.flags & ts.TypeFlags.Any ||
-    (type.isUnionOrIntersection()
-      ? type.types.some(mayLoad)
-      : isCallable(type) && (type.getSymbol()?.declarations ?? []).some(isAmbient));
-  const typesNamedBy = (node) => {
-    const parent = node.parent;
-    if (ts.isElementAccessExpression(parent)) return [checker.getTypeAtLocation(parent)];
-    if (ts.isBindingElement(parent)) return [checker.getTypeAtLocation(parent.name)];
-    if (parent.name !== node || !isDestructuringPattern(parent.parent)) {
-      return [checker.getTypeAtLocation(node)];
-    }
-    const read = checker.getPropertySymbolOfDestructuringAssignment(node);
-    const readType = read && checker.getTypeOfSymbol(read);
-    return ts.isShorthandPropertyAssignment(parent)
-      ? [readType, checker.getTypeAtLocation(node)]
-      : [readType];
-  };
-  return (node) => RUNTIME_LOADERS.has(node.text) && typesNamedBy(node).some(mayLoad);
-}
-
-function loadsAtRunTime(node, isRuntimeLoader) {
-  const parent = node.parent;
-  if (ts.isIdentifier(node)) return isRuntimeLoader(node);
-  if (isDynamicImport(node)) {
-    const [path] = node.arguments;
-    return path === undefined || !ts.isStringLiteralLike(path);
-  }
-  if (!ts.isStringLiteralLike(node)) return false;
-  if (ts.isElementAccessExpression(parent)) return isRuntimeLoader(node);
-  return (
-    NODE_MODULE.has(node.text) &&
-    (ts.isImportDeclaration(parent) ||
-      ts.isExportDeclaration(parent) ||
-      ts.isExternalModuleReference(parent) ||
-      isDynamicImport(parent))
-  );
-}
-
-function runtimeModuleLoadingIn(root, program, isRuntimeLoader) {
-  const lines = [];
-  for (const fileName of ts.sys.readDirectory(root, SOURCE_EXTENSIONS)) {
-    const sourceFile =
-      program.getSourceFile(fileName) ??
-      ts.createSourceFile(fileName, ts.sys.readFile(fileName), ts.ScriptTarget.Latest, true);
-    const visit = (node) => {
-      if (loadsAtRunTime(node, isRuntimeLoader)) lines.push({ fileName, line: lineOf(node) });
-      ts.forEachChild(node, visit);
-    };
-    visit(sourceFile);
-  }
-  return lines;
+  return trace;
 }
 
 function lineOf(node) {
@@ -587,8 +245,7 @@ export function findQueryRootKeyProblems(
   { tsconfig, sourceRoot, foldersOutsideConcepts },
   cwd = process.cwd(),
 ) {
-  const service = languageServiceOf(join(cwd, tsconfig));
-  const program = service.getProgram();
+  const program = programOf(join(cwd, tsconfig));
   const checker = program.getTypeChecker();
   const tools = checkerTools(checker);
   const root = join(cwd, sourceRoot);
@@ -599,13 +256,7 @@ export function findQueryRootKeyProblems(
         !relative(root, sourceFile.fileName).startsWith("..") &&
         !TEST_FILE.test(sourceFile.fileName),
     );
-  const { trace, fed } = rootTracer(
-    service,
-    checker,
-    tools,
-    checkedFiles,
-    moduleReachTester(program, checker, tools.resolved, checkedFiles),
-  );
+  const trace = rootTracer(checker, tools);
   const fromCwd = (fileName) => relative(cwd, fileName).split(sep).join("/");
   const conceptFolderOf = (fileName) => {
     const path = relative(root, fileName);
@@ -623,15 +274,6 @@ export function findQueryRootKeyProblems(
         `${fromCwd(join(root, folder))} is listed as holding no concept, but there is no such folder`,
       );
     }
-  }
-  for (const { fileName, line } of runtimeModuleLoadingIn(
-    root,
-    program,
-    runtimeLoaderTester(program, checker),
-  )) {
-    problems.add(
-      `${fromCwd(fileName)}:${line} loads a module at run time, which the query key check cannot follow`,
-    );
   }
   const report = (position, outcomes) => {
     for (const outcome of outcomes) {
@@ -662,10 +304,6 @@ export function findQueryRootKeyProblems(
       ts.forEachChild(node, visit);
     };
     visit(sourceFile);
-  }
-  for (let index = 0; index < fed.length; index++) {
-    const { position, outcomes } = fed[index];
-    report(position, outcomes ?? trace(position));
   }
   return [...problems].sort((a, b) => a.localeCompare(b, "en", { numeric: true }));
 }
