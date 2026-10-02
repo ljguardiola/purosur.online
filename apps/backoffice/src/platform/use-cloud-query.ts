@@ -82,12 +82,16 @@ export function useCloudQuery<T>({
     ...(keepsPreviousData ? { placeholderData: keepPreviousData } : {}),
   });
   const refreshInBackground = useEffectEvent(async () => {
-    if (queryClient.getQueryState(queryKey)?.fetchStatus === "fetching") {
+    const before = queryClient.getQueryState(queryKey);
+    if (before?.fetchStatus === "fetching") {
       return;
     }
     const outcome = await read().catch((): CloudReadOutcome<T> => ({ kind: "failed" }));
     if (outcome.kind === "ok") {
-      queryClient.setQueryData(queryKey, outcome.value);
+      const now = queryClient.getQueryState(queryKey);
+      if (now?.fetchStatus !== "fetching" && now?.dataUpdatedAt === before?.dataUpdatedAt) {
+        queryClient.setQueryData(queryKey, outcome.value);
+      }
     } else if (outcome.kind === "unauthenticated") {
       endSession();
     } else if (outcome.kind === "forbidden") {
