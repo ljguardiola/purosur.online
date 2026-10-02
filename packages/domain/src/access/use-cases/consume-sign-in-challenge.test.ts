@@ -66,4 +66,13 @@ describe("consumeSignInChallenge", () => {
 
     expect(outcome).toEqual({ kind: "refused" });
   });
+
+  it("takes the challenge in one transaction", async () => {
+    const ports = setup();
+
+    await consumeSignInChallenge(ports, { challenge: "challenge-1", at: ISSUED_AT });
+
+    expect(ports.challenges.operationOrder).toEqual(["takeChallenge"]);
+    expect(ports.challenges.transactions).toBe(1);
+  });
 });

@@ -1,10 +1,11 @@
 import { sessionAuthenticationOptionsSchema } from "@purosur/contracts";
+import { issueSignInChallenge } from "@purosur/domain/access/use-cases";
 import { generateAuthenticationOptions } from "@simplewebauthn/server";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { requireBackofficeOrigin } from "./backoffice-origin.js";
 import { PUBLIC_ACCESS, registerRouteAccess } from "./route-access.js";
-import { pruneExpiredSignInChallenges, storeSignInChallenge } from "./sign-in-challenge.js";
+import { DrizzleSignInChallenges } from "./sign-in-challenge.js";
 import { resolveWebAuthnConfig } from "./webauthn-config.js";
 
 export interface SessionAuthenticationOptionsRouteOptions<TQueryResult extends PgQueryResultHKT> {
@@ -23,6 +24,7 @@ export function registerSessionAuthenticationOptionsRoute<TQueryResult extends P
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
   const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
+  const ports = { challenges: new DrizzleSignInChallenges(options.db) };
 
   app.post(
     "/authentication-challenges",
@@ -32,19 +34,13 @@ export function registerSessionAuthenticationOptionsRoute<TQueryResult extends P
         return;
       }
 
-      const issuedAt = now();
-      await pruneExpiredSignInChallenges(options.db, issuedAt);
-
       const authenticationOptions = await generateAuthenticationOptions({
         rpID: webAuthnConfig.rpID,
         allowCredentials: [],
         userVerification: "required",
         timeout: AUTHENTICATION_TIMEOUT_MS,
       });
-      await storeSignInChallenge(options.db, {
-        challenge: authenticationOptions.challenge,
-        now: issuedAt,
-      });
+      await issueSignInChallenge(ports, { challenge: authenticationOptions.challenge, at: now() });
 
       await reply.code(200).send(
         sessionAuthenticationOptionsSchema.parse({
