@@ -11,10 +11,6 @@ import type {
 } from "@simplewebauthn/browser";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
 
-// The sign-in lockout blocks for a fixed 15 minutes once tripped, unlike the rolling one-hour
-// window other rate limits use.
-const LOCKOUT_FALLBACK_SECONDS = 15 * 60;
-
 export type SessionOutcome =
   | {
       kind: "ok";
@@ -155,7 +151,7 @@ export async function authenticate(
   if (response.status === 429) {
     return {
       kind: "rate_limited",
-      retryAfterSeconds: retryAfterSeconds(response, LOCKOUT_FALLBACK_SECONDS),
+      retryAfterSeconds: retryAfterSeconds(response),
     };
   }
   if (response.status === 401) {
