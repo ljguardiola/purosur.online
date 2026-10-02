@@ -2,10 +2,10 @@ import type { Authorization, AuthorizationRefusal, SignInUser } from "@purosur/c
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import type { RefObject } from "react";
 import { useRef, useState } from "react";
+import type { CoreData } from "../platform/use-core-query";
+import { useCountdown } from "../platform/use-countdown";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { useAuthorizersQuery, useResetAuthorizers } from "./authorizers-queries";
-import type { CoreData } from "./use-core-query";
-import { useCountdown } from "./use-countdown";
 
 export type ShownRefusal =
   | Exclude<AuthorizationRefusal, { kind: "lacks_permission" | "locked" }>

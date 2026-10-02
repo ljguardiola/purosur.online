@@ -14,11 +14,11 @@ import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { accessKey } from "../access/access-queries";
-import { authorizersKey } from "../platform/authorizers-queries";
 import type { CashMovementInput, CoreClient } from "../platform/core-client";
 import { createQueryClient } from "../platform/query-client";
 import { cancelReads, setQueryAnswer } from "../platform/set-query-answer";
 import { useCoreStatus } from "../platform/use-core-status";
+import { authorizersKey } from "../register/authorizers-queries";
 import {
   cashKey,
   cashSessionQueryOptions,

@@ -154,6 +154,7 @@ export default {
     {
       name: "screens-types-only-from-domain",
       comment:
+        "apps/pos/src/renderer/ and apps/backoffice/src/ may depend on packages/domain " +
         "only for its types; the renderer talks to the core process over a MessagePort " +
         "and the backoffice to the cloud over HTTP, never by calling domain code " +
         "directly in-process.",
@@ -170,6 +171,7 @@ export default {
     {
       name: "screens-no-domain-re-exports",
       comment:
+        "apps/pos/src/renderer/ and apps/backoffice/src/ never re-export from " +
         "packages/domain. An empty or type-only re-export (`export {} from`, " +
         "`export type { X } from`) is classified type-only, yet the empty form is kept " +
         "by verbatimModuleSyntax and loads the domain module at runtime; a screen has " +

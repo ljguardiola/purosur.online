@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render as renderInPage } from "vitest-browser-react";
 import { createQueryClient } from "../platform/query-client";
-import { GuardedCashInForm } from "../platform/test-support/guarded-cash-in-form";
+import { GuardedCashInForm } from "../register/test-support/guarded-cash-in-form";
 import type { CashSessionState } from "./cash-session-state";
 import type { CoreStatus, Enrollment, RouterContext } from "./router";
 import { createRegisterRouter, isSessionScreen, routeFor, routeTree } from "./router";

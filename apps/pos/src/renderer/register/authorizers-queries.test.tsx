@@ -4,9 +4,9 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { createQueryClient } from "../platform/query-client";
+import type { CoreData } from "../platform/use-core-query";
 import { useAuthorizersQuery, useResetAuthorizers } from "./authorizers-queries";
-import { createQueryClient } from "./query-client";
-import type { CoreData } from "./use-core-query";
 
 const ADA: SignInUser = { id: "u1", first_name: "Ada" };
 const GRACE: SignInUser = { id: "u2", first_name: "Grace" };

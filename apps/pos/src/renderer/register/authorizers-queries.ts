@@ -1,8 +1,8 @@
 import type { SignInUser } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { useQueryClient } from "@tanstack/react-query";
-import type { CoreData } from "./use-core-query";
-import { useCoreQuery } from "./use-core-query";
+import type { CoreData } from "../platform/use-core-query";
+import { useCoreQuery } from "../platform/use-core-query";
 
 export const authorizersKey = ["authorizers"] as const;
 
