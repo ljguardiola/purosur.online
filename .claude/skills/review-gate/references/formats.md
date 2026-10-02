@@ -10,7 +10,7 @@ One JSON object and nothing else:
     {
       "location": "path:line or path:start-end",
       "kind": "rule | correctness | scope | decision",
-      "rule": ".claude/rules/code-style.md \"Code style\" — the sentence broken, or the issue's definition-of-done item",
+      "rule": ".claude/rules/<file>.md \"Section\" — the sentence broken, or the issue's definition-of-done item",
       "claim": "what is wrong, as observable fact",
       "behavioral": true,
       "evidence": "the lines read and why they break the rule; for a behavioral claim, the input and the wrong outcome"
