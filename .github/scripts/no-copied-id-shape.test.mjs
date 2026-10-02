@@ -155,27 +155,27 @@ test("ignores patterns of other shapes", () => {
 });
 
 const ZOD_ID_FORMATS = [
-  'import { z } from "zod";\nconst id = z.uuid();',
-  'import { z } from "zod";\nconst id = z.guid({ error: "id must be an id" });',
-  'import { z } from "zod";\nconst id = z.string().uuid();',
-  'import { z } from "zod";\nconst id = z.string().min(1).guid();',
-  'import { z } from "zod";\nconst id = z.uuidv4();',
-  'import { z } from "zod";\nconst id = z.uuidv7();',
-  'import { z } from "zod";\nconst id = z.string().regex(z.regexes.uuid());',
-  'import { z } from "zod";\nconst id = z.string().check(z.core.regexes.guid);',
-  'import { z } from "zod";\nconst id = z["uuid"]();',
-  'import { z } from "zod";\nconst id = new z.ZodGUID({ type: "string" });',
-  'import * as z from "zod/v4";\nconst id = z.guid();',
-  'import z from "zod/mini";\nconst id = z.uuid();',
-  'import { guid as anyId } from "zod";\nconst id = anyId();',
-  'import { regexes } from "zod/v4/core";\nconst id = regexes.uuid4;',
-  'import { z } from "zod";\nconst text = z.string();\nconst id = text.uuid();',
-  'import { z } from "zod";\nconst { guid } = z;\nconst id = guid();',
+  ['import { z } from "zod";\nconst id = z.uuid();', 2],
+  ['import { z } from "zod";\nconst id = z.guid({ error: "id must be an id" });', 2],
+  ['import { z } from "zod";\nconst id = z.string().uuid();', 2],
+  ['import { z } from "zod";\nconst id = z.string().min(1).guid();', 2],
+  ['import { z } from "zod";\nconst id = z.uuidv4();', 2],
+  ['import { z } from "zod";\nconst id = z.uuidv7();', 2],
+  ['import { z } from "zod";\nconst id = z.string().regex(z.regexes.uuid());', 2],
+  ['import { z } from "zod";\nconst id = z.string().check(z.core.regexes.guid);', 2],
+  ['import { z } from "zod";\nconst id = z["uuid"]();', 2],
+  ['import { z } from "zod";\nconst id = new z.ZodGUID({ type: "string" });', 2],
+  ['import * as z from "zod/v4";\nconst id = z.guid();', 2],
+  ['import z from "zod/mini";\nconst id = z.uuid();', 2],
+  ['import { guid as anyId } from "zod";\nconst id = anyId();', 1],
+  ['import { regexes } from "zod/v4/core";\nconst id = regexes.uuid4;', 2],
+  ['import { z } from "zod";\nconst text = z.string();\nconst id = text.uuid();', 3],
+  ['import { z } from "zod";\nconst { guid } = z;\nconst id = guid();', 2],
 ];
 
-test("finds a zod uuid or guid format, however it is reached from zod", () => {
-  for (const source of ZOD_ID_FORMATS) {
-    assert.deepEqual(linesOf(source), [2], source);
+test("finds a zod uuid or guid format where it is taken from zod, however it is reached", () => {
+  for (const [source, line] of ZOD_ID_FORMATS) {
+    assert.deepEqual(linesOf(source), [line], source);
   }
 });
 
