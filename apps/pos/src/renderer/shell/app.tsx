@@ -19,6 +19,8 @@ import { createQueryClient } from "../platform/query-client";
 import { cancelReads, setQueryAnswer } from "../platform/set-query-answer";
 import { useCoreStatus } from "../platform/use-core-status";
 import { authorizersKey } from "../register/authorizers-queries";
+import type { CashSessionState } from "../register/cash-session-state";
+import { cashSessionStateOf } from "../register/cash-session-state";
 import {
   cashKey,
   cashSessionQueryOptions,
@@ -28,8 +30,6 @@ import {
   useEnrollmentQuery,
 } from "../register/register-queries";
 import { salesKeys } from "../sales/sales-queries";
-import type { CashSessionState } from "./cash-session-state";
-import { cashSessionStateOf } from "./cash-session-state";
 import type { Enrollment } from "./router";
 import { createAppRouter, isSessionScreen, routeFor } from "./router";
 import type { SignedInPerson } from "./signed-in-person";
