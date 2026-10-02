@@ -27,6 +27,8 @@ function isDefinitiveRejection(outcome: RedeemRecoveryOutcome): boolean {
 
 const PASSKEY_NAME_REQUEST = recoveryRedemptionBodySchema.pick({ passkey_name: true });
 
+const PASSKEY_NAME_MESSAGE = passkeyNameMessage(recoveryRedemptionBodySchema.shape.passkey_name);
+
 type TokenState = "invalid" | "burned" | "expired";
 
 type RedeemResult =
@@ -132,7 +134,7 @@ function RegistrationOfToken({
       from: ({ name }) => ({ passkey_name: name.trim() }),
     },
     fields: { passkey_name: "name" },
-    messages: { name: passkeyNameMessage },
+    messages: { name: PASSKEY_NAME_MESSAGE },
     onSubmit: async ({ passkey_name }, { showWireFieldError }) => {
       if (data.status !== "loaded" || data.value.kind !== "ready") {
         return;

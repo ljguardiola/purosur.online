@@ -13,7 +13,7 @@ export type AccountRecoveryScreenProps = {
   services: AccountRecoveryScreenServices;
 };
 
-const EMAIL_MESSAGE = emailFieldMessage({
+const EMAIL_MESSAGE = emailFieldMessage(recoveryRequestBodySchema.shape.email, {
   required: "Ingresá tu correo.",
   invalid: "Ingresá un correo válido.",
   review: "Revisá tu correo.",
