@@ -177,79 +177,24 @@ function callThrough(reference) {
   ) {
     return HANDED_ON_BY_NAME;
   }
-  const callee =
-    (ts.isPropertyAccessExpression(parent) && parent.name === reference) ||
-    (ts.isElementAccessExpression(parent) && parent.argumentExpression === reference)
-      ? parent
-      : reference;
-  const user = callee.parent;
-  if (ts.isCallOrNewExpression(user)) return user.expression === callee ? user : undefined;
-  if (ts.isJsxClosingElement(user)) return user.tagName === callee ? HANDED_ON_BY_NAME : undefined;
-  return (ts.isJsxOpeningElement(user) || ts.isJsxSelfClosingElement(user)) &&
-    user.tagName === callee
-    ? user
+  return ts.isCallExpression(parent) && parent.expression === reference ? parent : undefined;
+}
+
+function standaloneNameOf(fn) {
+  if (ts.isFunctionDeclaration(fn)) return fn.name;
+  return (ts.isArrowFunction(fn) || (ts.isFunctionExpression(fn) && fn.name === undefined)) &&
+    ts.isVariableDeclaration(fn.parent)
+    ? fn.parent.name
     : undefined;
-}
-
-function nameOfFunction(fn) {
-  if (ts.isFunctionDeclaration(fn) || ts.isMethodDeclaration(fn)) return fn.name;
-  if (!ts.isArrowFunction(fn) && !ts.isFunctionExpression(fn)) return undefined;
-  let holder = fn.parent;
-  while (
-    ts.isParenthesizedExpression(holder) ||
-    ts.isAsExpression(holder) ||
-    ts.isSatisfiesExpression(holder)
-  ) {
-    holder = holder.parent;
-  }
-  return ts.isVariableDeclaration(holder) || ts.isPropertyAssignment(holder)
-    ? holder.name
-    : undefined;
-}
-
-function assignmentPatternTyping(literal) {
-  let node = literal;
-  let typing = "typed";
-  for (;;) {
-    const parent = node.parent;
-    if (ts.isBinaryExpression(parent) && parent.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
-      return parent.left === node ? typing : undefined;
-    }
-    if (ts.isForOfStatement(parent)) return typing;
-    if (ts.isSpreadElement(parent)) typing = "untyped";
-    else if (
-      !(ts.isPropertyAssignment(parent) && parent.initializer === node) &&
-      !ts.isObjectLiteralExpression(parent) &&
-      !ts.isArrayLiteralExpression(parent)
-    ) {
-      return undefined;
-    }
-    node = parent;
-  }
-}
-
-function isMemberName(reference) {
-  const parent = reference.parent;
-  return (
-    (ts.isClassElement(parent) || ts.isTypeElement(parent) || ts.isPropertyAssignment(parent)) &&
-    parent.name === reference
-  );
 }
 
 function propertyNameText(name) {
-  return ts.isIdentifier(name) || ts.isStringLiteralLike(name) || ts.isNumericLiteral(name)
-    ? name.text
-    : undefined;
+  return ts.isIdentifier(name) ? name.text : undefined;
 }
 
 function propertyValue(property) {
   if (ts.isPropertyAssignment(property)) return property.initializer;
   if (ts.isShorthandPropertyAssignment(property)) return property.name;
-  if (ts.isJsxAttribute(property) && property.initializer !== undefined) {
-    return ts.isJsxExpression(property.initializer)
-      ? (property.initializer.expression ?? property)
-      : property.initializer;
-  }
   return property;
 }
 
@@ -265,9 +210,8 @@ function referenceAt(sourceFile, position) {
   let found;
   const visit = (node, inJsDoc) => {
     if (found !== undefined || position < node.pos || position >= node.end) return;
-    if (ts.isIdentifier(node) || ts.isStringLiteralLike(node)) {
-      const nameStart = node.getStart(sourceFile) + (ts.isIdentifier(node) ? 0 : 1);
-      if (nameStart === position) found = { node, inJsDoc };
+    if (ts.isIdentifier(node)) {
+      if (node.getStart(sourceFile) === position) found = { node, inJsDoc };
       return;
     }
     for (const jsDoc of node.jsDoc ?? []) visit(jsDoc, true);
@@ -277,63 +221,57 @@ function referenceAt(sourceFile, position) {
   return found;
 }
 
-function rootTracer(service, checker, tools, checkedFiles) {
+function moduleObjectSpecifier(node) {
+  if (ts.isImportDeclaration(node)) {
+    const bindings = node.importClause?.namedBindings;
+    return bindings && ts.isNamespaceImport(bindings) ? node.moduleSpecifier : undefined;
+  }
+  if (ts.isExportDeclaration(node)) {
+    return node.exportClause === undefined || ts.isNamespaceExport(node.exportClause)
+      ? node.moduleSpecifier
+      : undefined;
+  }
+  if (ts.isImportEqualsDeclaration(node)) {
+    return ts.isExternalModuleReference(node.moduleReference)
+      ? node.moduleReference.expression
+      : undefined;
+  }
+  return ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword
+    ? node.arguments[0]
+    : undefined;
+}
+
+function rootTracer(service, checker, tools, checkedFiles, programFiles) {
   const UNREADABLE = { kind: "unreadable" };
   const PASSED_THROUGH = { kind: "passed-through" };
   const checkedFileNamed = new Map(checkedFiles.map((file) => [file.fileName, file]));
 
-  let assignmentPatterns;
-  const assignmentPatternsInCheckedFiles = () => {
-    if (assignmentPatterns === undefined) {
-      assignmentPatterns = [];
+  let modulesReachedAsObjects;
+  const isModuleReachedAsObject = (sourceFile) => {
+    if (modulesReachedAsObjects === undefined) {
+      modulesReachedAsObjects = new Set();
       const visit = (node) => {
-        const typing = ts.isObjectLiteralExpression(node)
-          ? assignmentPatternTyping(node)
-          : undefined;
-        if (typing !== undefined) assignmentPatterns.push({ pattern: node, typing });
+        const specifier = moduleObjectSpecifier(node);
+        if (specifier !== undefined) {
+          modulesReachedAsObjects.add(
+            (ts.isStringLiteralLike(specifier) &&
+              checker.getSymbolAtLocation(specifier)?.valueDeclaration) ||
+              "every module",
+          );
+        }
         ts.forEachChild(node, visit);
       };
-      for (const sourceFile of checkedFiles) visit(sourceFile);
+      for (const programFile of programFiles) visit(programFile);
     }
-    return assignmentPatterns;
-  };
-
-  const isDestructuredByAssignment = (name, referenced) => {
-    const referenceAtSpan = new Set(
-      referenced.flatMap(({ references }) =>
-        references.map(({ fileName, textSpan }) => `${fileName}:${textSpan.start}`),
-      ),
-    );
-    const isReferenced = (property) =>
-      checker
-        .getRootSymbols(property)
-        .some((root) =>
-          (root.declarations ?? []).some(
-            (declaration) =>
-              declaration.name !== undefined &&
-              referenceAtSpan.has(
-                `${declaration.getSourceFile().fileName}:${declaration.name.getStart()}`,
-              ),
-          ),
-        );
-    return assignmentPatternsInCheckedFiles().some(({ pattern, typing }) => {
-      if (
-        !pattern.properties.some(
-          (each) => each.name !== undefined && propertyNameText(each.name) === name.text,
-        )
-      ) {
-        return false;
-      }
-      if (typing === "untyped") return true;
-      const property = checker.getTypeOfAssignmentPattern(pattern).getProperty(name.text);
-      return property !== undefined && isReferenced(property);
-    });
+    return modulesReachedAsObjects.has(sourceFile) || modulesReachedAsObjects.has("every module");
   };
 
   const callsOf = new Map();
   const checkedCallsOf = (fn) => {
     if (!callsOf.has(fn)) {
-      const name = nameOfFunction(fn);
+      const standaloneName = standaloneNameOf(fn);
+      const name =
+        standaloneName && !isModuleReachedAsObject(fn.getSourceFile()) ? standaloneName : undefined;
       const referenced =
         name && ts.isIdentifier(name)
           ? service.findReferences(name.getSourceFile().fileName, name.getStart())
@@ -346,20 +284,13 @@ function rootTracer(service, checker, tools, checkedFiles) {
           const found = referenceAt(sourceFile, textSpan.start);
           if (found === undefined) return false;
           const { node: reference, inJsDoc } = found;
-          if (
-            inJsDoc ||
-            reference === name ||
-            isMemberName(reference) ||
-            isTypePosition(reference)
-          ) {
-            return true;
-          }
+          if (inJsDoc || reference === name || isTypePosition(reference)) return true;
           const call = callThrough(reference);
           if (call !== undefined && call !== HANDED_ON_BY_NAME) calls.push(call);
           return call !== undefined;
         }),
       );
-      callsOf.set(fn, checked && !isDestructuredByAssignment(name, referenced) ? calls : undefined);
+      callsOf.set(fn, checked ? calls : undefined);
     }
     return callsOf.get(fn);
   };
@@ -374,7 +305,7 @@ function rootTracer(service, checker, tools, checkedFiles) {
 
   const feedFromProperties = (declaration, argument) => {
     const node = unwrapped(argument);
-    if (!ts.isObjectLiteralExpression(node) && !ts.isJsxAttributes(node)) {
+    if (!ts.isObjectLiteralExpression(node)) {
       feed(argument, [UNREADABLE]);
       return;
     }
@@ -395,7 +326,7 @@ function rootTracer(service, checker, tools, checkedFiles) {
       .filter((each) => !(ts.isIdentifier(each.name) && each.name.text === "this"))
       .indexOf(parameter);
     for (const call of calls) {
-      const passed = ts.isCallOrNewExpression(call) ? (call.arguments ?? []) : [call.attributes];
+      const passed = call.arguments;
       const spread = passed.slice(0, index + 1).find(ts.isSpreadElement);
       const argument = spread ?? passed[index];
       if (argument === undefined) continue;
@@ -512,7 +443,13 @@ export function findQueryRootKeyProblems(
         !relative(root, sourceFile.fileName).startsWith("..") &&
         !TEST_FILE.test(sourceFile.fileName),
     );
-  const { trace, fed } = rootTracer(service, checker, tools, checkedFiles);
+  const { trace, fed } = rootTracer(
+    service,
+    checker,
+    tools,
+    checkedFiles,
+    program.getSourceFiles().filter((sourceFile) => !sourceFile.isDeclarationFile),
+  );
   const fromCwd = (fileName) => relative(cwd, fileName).split(sep).join("/");
   const conceptFolderOf = (fileName) => {
     const path = relative(root, fileName);
