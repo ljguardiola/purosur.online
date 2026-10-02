@@ -10,6 +10,12 @@ export type {
 } from "./authorize-register-operation.js";
 export { authorizeRegisterOperation } from "./authorize-register-operation.js";
 export type {
+  AuthorizeSessionInput,
+  AuthorizeSessionOutcome,
+  AuthorizeSessionPorts,
+} from "./authorize-session.js";
+export { authorizeSession } from "./authorize-session.js";
+export type {
   BranchUser,
   BranchUserActiveScope,
   BranchUserFacts,
@@ -327,6 +333,10 @@ export type {
   StoredRoleRevision,
 } from "./role-store.js";
 export { RoleNameConflict } from "./role-store.js";
+export type {
+  SessionAuthorizationStore,
+  SessionAuthorizationStoreTransaction,
+} from "./session-authorization-store.js";
 export type { SessionStore } from "./session-store.js";
 export type { OpenSession, Sessions, StoredSession } from "./sessions.js";
 export type {

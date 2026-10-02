@@ -2,8 +2,9 @@ import type {
   PasskeySummary,
   Passkeys,
   RegisteredCredential,
+  SignInPasskey,
 } from "@purosur/domain/access/use-cases";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { passkeys } from "../platform/db/schema.js";
 
@@ -32,6 +33,25 @@ class DrizzlePasskeys<TQueryResult extends PgQueryResultHKT> implements Passkeys
       .select({ credentialId: passkeys.credentialId, transports: passkeys.transports })
       .from(passkeys)
       .where(eq(passkeys.userId, userId));
+  }
+
+  async passkeyByCredentialId(
+    userId: string,
+    credentialId: string,
+  ): Promise<SignInPasskey | undefined> {
+    const [passkey] = await this.db
+      .select({
+        id: passkeys.id,
+        userId: passkeys.userId,
+        credentialId: passkeys.credentialId,
+        publicKey: passkeys.publicKey,
+        counter: passkeys.counter,
+        transports: passkeys.transports,
+      })
+      .from(passkeys)
+      .where(and(eq(passkeys.credentialId, credentialId), eq(passkeys.userId, userId)))
+      .limit(1);
+    return passkey;
   }
 }
 
