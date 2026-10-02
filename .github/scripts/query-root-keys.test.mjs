@@ -32,11 +32,12 @@ const TSCONFIG = JSON.stringify({
     module: "ESNext",
     moduleResolution: "Bundler",
     noEmit: true,
+    jsx: "preserve",
   },
   include: ["src"],
 });
 
-function problemsIn(t, files) {
+function problemsIn(t, files, foldersOutsideConcepts = []) {
   const root = mkdtempSync(join(tmpdir(), "query-root-keys-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   for (const [name, source] of Object.entries({
@@ -47,7 +48,10 @@ function problemsIn(t, files) {
     mkdirSync(dirname(join(root, name)), { recursive: true });
     writeFileSync(join(root, name), source);
   }
-  return findQueryRootKeyProblems({ tsconfig: "tsconfig.json", sourceRoot: "src" }, root);
+  return findQueryRootKeyProblems(
+    { tsconfig: "tsconfig.json", sourceRoot: "src", foldersOutsideConcepts },
+    root,
+  );
 }
 
 const IMPORTS = 'import { QueryClient, useQuery, type QueryKey } from "@tanstack/react-query";';
@@ -184,6 +188,66 @@ test("checks a key handed to a helper through a property typed as a query key, w
   ]);
 });
 
+test("checks a key given as the default value of a parameter or a destructured property typed as a query key", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/sales-queries.ts": [
+      IMPORTS,
+      'export function useTicket(key: QueryKey = ["ticket"]) {',
+      "  return useQuery({ queryKey: key, queryFn: () => [] });",
+      "}",
+      'export function useReceipt({ key = ["receipt"] }: { key?: QueryKey }) {',
+      "  return useQuery({ queryKey: key, queryFn: () => [] });",
+      "}",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/sales/sales-queries.ts:2 roots a query key at "ticket", but the concept folder holding it is "sales"',
+    'src/sales/sales-queries.ts:5 roots a query key at "receipt", but the concept folder holding it is "sales"',
+  ]);
+});
+
+test("checks a key handed to a component through a prop typed as a query key", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/ticket-panel.tsx": [
+      IMPORTS,
+      "export function TicketPanel({ source }: { source: QueryKey }) {",
+      "  useQuery({ queryKey: source, queryFn: () => [] });",
+      "  return null;",
+      "}",
+      'export const ticketPanel = <TicketPanel source={["ticket"]} />;',
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/sales/ticket-panel.tsx:6 roots a query key at "ticket", but the concept folder holding it is "sales"',
+  ]);
+});
+
+test("refuses a query key read from the parameter of a function whose callers the check cannot see", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/sales-refresh.ts": [
+      IMPORTS,
+      "const client = new QueryClient();",
+      "function invalidate(key: QueryKey) {",
+      "  client.invalidateQueries({ queryKey: key });",
+      "}",
+      "const invalidateNow = (key: QueryKey) => client.invalidateQueries({ queryKey: key });",
+      "export function refreshAll() {",
+      '  [["sale"]].forEach((key: QueryKey) => client.invalidateQueries({ queryKey: key }));',
+      '  [["ticket"]].forEach(invalidate);',
+      '  invalidateNow(["receipt"]);',
+      "}",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    "src/sales/sales-refresh.ts:4 uses a query key whose root the check cannot read",
+    "src/sales/sales-refresh.ts:8 uses a query key whose root the check cannot read",
+    'src/sales/sales-refresh.ts:10 roots a query key at "receipt", but the concept folder holding it is "sales"',
+  ]);
+});
+
 test("refuses a key whose root the check cannot read, naming where it is used", (t) => {
   const problems = problemsIn(t, {
     "src/catalog/catalog-queries.ts": [
@@ -211,6 +275,35 @@ test("refuses a key built in a file that sits in no concept folder", (t) => {
 
   assert.deepEqual(problems, [
     'src/main.ts:2 roots a query key at "session", but no concept folder holds it',
+  ]);
+});
+
+test("refuses a key rooted at a folder that holds no concept", (t) => {
+  const problems = problemsIn(
+    t,
+    {
+      "src/shell/session.ts": [
+        IMPORTS,
+        'export const useSession = () => useQuery({ queryKey: ["shell"], queryFn: () => [] });',
+      ].join("\n"),
+    },
+    ["shell"],
+  );
+
+  assert.deepEqual(problems, [
+    'src/shell/session.ts:2 roots a query key at "shell", but no concept folder holds it',
+  ]);
+});
+
+test("fails when a folder listed as holding no concept does not exist", (t) => {
+  const problems = problemsIn(
+    t,
+    { "src/catalog/catalog-queries.ts": 'export const catalogKey = ["catalog"] as const;' },
+    ["shell"],
+  );
+
+  assert.deepEqual(problems, [
+    "src/shell is listed as holding no concept, but there is no such folder",
   ]);
 });
 
