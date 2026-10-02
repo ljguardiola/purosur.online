@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
@@ -401,14 +401,9 @@ function appendingTo(pathEnding, addition) {
   };
 }
 
-async function fileContentsUnder(dir) {
-  const contents = new Map();
-  for (const entry of await readdir(dir, { recursive: true, withFileTypes: true })) {
-    if (entry.isFile()) {
-      contents.set(entry.name, await readFile(join(entry.parentPath, entry.name), "utf8"));
-    }
-  }
-  return contents;
+async function fileNamesUnder(dir) {
+  const entries = await readdir(dir, { recursive: true, withFileTypes: true });
+  return entries.filter((entry) => entry.isFile()).map((entry) => entry.name);
 }
 
 test("one more export of the backoffice's initial chunk moves the measure by no more than the code it adds", async () => {
@@ -424,8 +419,8 @@ test("one more export of the backoffice's initial chunk moves the measure by no 
       appendingTo("apps/backoffice/src/main.tsx", used),
     ]);
 
-    const builtFileNames = new Set((await fileContentsUnder(builtDist)).keys());
-    const renamedFiles = [...(await fileContentsUnder(grownDist)).keys()].filter(
+    const builtFileNames = new Set(await fileNamesUnder(builtDist));
+    const renamedFiles = (await fileNamesUnder(grownDist)).filter(
       (fileName) => !builtFileNames.has(fileName),
     );
     assert.ok(
