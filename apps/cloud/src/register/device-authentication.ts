@@ -5,6 +5,7 @@ import {
 
 interface AuthenticatedInstallation {
   deviceId: string;
+  registerId: string;
   revoked: boolean;
 }
 
@@ -36,6 +37,10 @@ export async function authenticateDevice(
   }
   return {
     kind: "installation",
-    installation: { deviceId: outcome.deviceId, revoked: outcome.revoked },
+    installation: {
+      deviceId: outcome.deviceId,
+      registerId: outcome.registerId,
+      revoked: outcome.revoked,
+    },
   };
 }

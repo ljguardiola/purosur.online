@@ -6,10 +6,8 @@ import {
 } from "@purosur/contracts";
 import { PIN_MIN_DIGITS } from "@purosur/domain";
 import { redeemPinCode } from "@purosur/domain/access/use-cases";
-import { eq } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { registerInstallations } from "../platform/db/schema.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { hashSecretCode } from "../platform/secret-code.js";
 import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
@@ -70,18 +68,10 @@ export function registerPinCodeRedemptionRoute<TQueryResult extends PgQueryResul
           return;
         }
 
-        const [installation] = await options.db
-          .select({ registerId: registerInstallations.registerId })
-          .from(registerInstallations)
-          .where(eq(registerInstallations.id, authentication.installation.deviceId));
-        if (!installation) {
-          throw new Error("an authenticated installation has no register");
-        }
-
         const outcome = await redeemPinCode(ports, {
           codeHash: hashSecretCode(body.reset_code),
           newPin: body.new_pin,
-          registerId: installation.registerId,
+          registerId: authentication.installation.registerId,
           sourceAddress: resolveSourceAddress(request),
         });
 

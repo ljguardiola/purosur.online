@@ -27,10 +27,26 @@ coordinator's answer of any id that had one, which the fix follows.
    value in a workflow or a fixture) needs no new test; never write one that
    only repeats a configuration value. The tests of every file it touches
    still run.
-3. Follow every rule in `CONTRIBUTING.md` in the code you write, including
+3. A commit-order finding names a commit and a behavior already
+   implemented. History is never rewritten: the fix is the missing test,
+   proven to fail without the implementation. Write or change the test and
+   run it passing. Prove it in a temporary worktree, never in the working
+   tree: `git worktree add --detach <scratch dir> HEAD`, `pnpm install
+   --offline` there, copy your uncommitted test in, then undo, by editing
+   the files there, only the change the finding names as the behavior,
+   leaving every move, rename, import and test as the branch has them. Run
+   the test and see it fail on what it asserts. A failure on a missing
+   module or export means the undo removed more than the behavior: keep the
+   code where it is, undo only what it does, and run again. Then `git worktree remove --force <scratch dir>`.
+   When the test cannot run at `HEAD`, run the proof in a worktree at
+   `<sha>` itself; when it cannot run there either, report the id
+   `not fixed` with that reason. When a test the branch already has states
+   the behavior, even one committed with the implementation, run that same
+   proof on it and change nothing; report the commit that holds it.
+4. Follow every rule in `CONTRIBUTING.md` in the code you write, including
    the comment rule: the fix adds no comment that restates the code or records
    why it was fixed.
-4. Run the focused tests of every file you touched:
+5. Run the focused tests of every file you touched:
    `mise exec node@$(cat .node-version) -- pnpm vitest run <test files>`, or
    `mise exec node@$(cat .node-version) -- node --test <test files>` for the
    tests under `.github/scripts/`.
@@ -38,7 +54,7 @@ coordinator's answer of any id that had one, which the fix follows.
    `packages/contracts`, also run
    `mise exec node@$(cat .node-version) -- pnpm mutation --mutate <each touched source file>`
    and leave no surviving mutant in them.
-5. A fix may change whatever the finding needs, inside the issue's scope. A
+6. A fix may change whatever the finding needs, inside the issue's scope. A
    fix you cannot make, or another problem a fix reveals, is reported under
    the finding, not made.
 

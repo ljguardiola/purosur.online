@@ -1,21 +1,47 @@
-import { challengeExpiryWindowStart } from "@purosur/domain";
-import type { SignInChallenges } from "@purosur/domain/access/use-cases";
+import type {
+  SignInChallenges,
+  SignInChallengesTransaction,
+} from "@purosur/domain/access/use-cases";
 import { eq, inArray, lte } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { signInChallenges } from "../platform/db/schema.js";
 
 const PRUNE_BATCH_SIZE = 100;
 
-export interface StoreSignInChallengeInput {
-  challenge: string;
-  now: Date;
-}
+type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
+  Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
+>[0];
 
-export async function storeSignInChallenge<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  input: StoreSignInChallengeInput,
-): Promise<void> {
-  await db.insert(signInChallenges).values({ challenge: input.challenge, createdAt: input.now });
+class DrizzleSignInChallengesTransaction<TQueryResult extends PgQueryResultHKT>
+  implements SignInChallengesTransaction
+{
+  private readonly tx: Transaction<TQueryResult>;
+
+  constructor(tx: Transaction<TQueryResult>) {
+    this.tx = tx;
+  }
+
+  async discardChallengesIssuedAtOrBefore(cutoff: Date): Promise<void> {
+    const expired = this.tx
+      .select({ id: signInChallenges.id })
+      .from(signInChallenges)
+      .where(lte(signInChallenges.createdAt, cutoff))
+      .limit(PRUNE_BATCH_SIZE)
+      .for("update", { skipLocked: true });
+    await this.tx.delete(signInChallenges).where(inArray(signInChallenges.id, expired));
+  }
+
+  async storeChallenge(challenge: string, issuedAt: Date): Promise<void> {
+    await this.tx.insert(signInChallenges).values({ challenge, createdAt: issuedAt });
+  }
+
+  async takeChallenge(challenge: string): Promise<{ issuedAt: Date } | undefined> {
+    const [row] = await this.tx
+      .delete(signInChallenges)
+      .where(eq(signInChallenges.challenge, challenge))
+      .returning({ issuedAt: signInChallenges.createdAt });
+    return row;
+  }
 }
 
 export class DrizzleSignInChallenges<TQueryResult extends PgQueryResultHKT>
@@ -27,24 +53,9 @@ export class DrizzleSignInChallenges<TQueryResult extends PgQueryResultHKT>
     this.db = db;
   }
 
-  async takeChallenge(challenge: string): Promise<{ issuedAt: Date } | undefined> {
-    const [row] = await this.db
-      .delete(signInChallenges)
-      .where(eq(signInChallenges.challenge, challenge))
-      .returning({ issuedAt: signInChallenges.createdAt });
-    return row;
+  transaction<TOutcome>(
+    work: (tx: SignInChallengesTransaction) => Promise<TOutcome>,
+  ): Promise<TOutcome> {
+    return this.db.transaction((tx) => work(new DrizzleSignInChallengesTransaction(tx)));
   }
-}
-
-export async function pruneExpiredSignInChallenges<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  now: Date,
-): Promise<void> {
-  const expired = db
-    .select({ id: signInChallenges.id })
-    .from(signInChallenges)
-    .where(lte(signInChallenges.createdAt, challengeExpiryWindowStart(now)))
-    .limit(PRUNE_BATCH_SIZE)
-    .for("update", { skipLocked: true });
-  await db.delete(signInChallenges).where(inArray(signInChallenges.id, expired));
 }

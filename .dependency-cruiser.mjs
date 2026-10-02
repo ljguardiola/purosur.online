@@ -3,10 +3,6 @@ export const CLOUD_ONLY_CONCEPTS = ["purchasing", "alerts", "catalog", "pricing"
 const REAL_POSTGRES_TEST = "apps/cloud/src/.+\\.integration\\.test\\.ts$";
 
 export const PERSISTENCE_IN_HANDLERS_ALLOWLIST = [
-  "apps/cloud/src/access/first-pin-code-route.ts",
-  "apps/cloud/src/access/pin-code-redemption-route.ts",
-  "apps/cloud/src/access/sign-in-lookup-route.ts",
-  "apps/cloud/src/access/user-pin-code-route.ts",
   "apps/cloud/src/catalog/brand-deactivation-route.ts",
   "apps/cloud/src/catalog/brand-edit-route.ts",
   "apps/cloud/src/catalog/brand-reactivation-route.ts",

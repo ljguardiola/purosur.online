@@ -5,10 +5,8 @@ import {
   firstPinCodeSchema,
 } from "@purosur/contracts";
 import { emitFirstPinCode } from "@purosur/domain/access/use-cases";
-import { eq } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { registerInstallations } from "../platform/db/schema.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
 import { authenticateDevice } from "../register/device-authentication.js";
@@ -66,16 +64,8 @@ export function registerFirstPinCodeRoute<TQueryResult extends PgQueryResultHKT>
           return;
         }
 
-        const [installation] = await options.db
-          .select({ registerId: registerInstallations.registerId })
-          .from(registerInstallations)
-          .where(eq(registerInstallations.id, authentication.installation.deviceId));
-        if (!installation) {
-          throw new Error("an authenticated installation has no register");
-        }
-
         const outcome = await emitFirstPinCode(ports, {
-          registerId: installation.registerId,
+          registerId: authentication.installation.registerId,
           userId: body.user_id,
         });
 
