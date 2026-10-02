@@ -6,7 +6,7 @@ function passkey(id: string, userId: string, createdAt: string, lastUsedAt: stri
   return {
     id,
     userId,
-    name: `Llave `,
+    name: `Llave ${id}`,
     createdAt: new Date(createdAt),
     lastUsedAt: lastUsedAt === null ? null : new Date(lastUsedAt),
   };

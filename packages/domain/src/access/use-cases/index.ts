@@ -142,13 +142,22 @@ export type {
 export { listAuthorizers } from "./list-authorizers.js";
 export type { ListBranchUsersInput } from "./list-branch-users.js";
 export { listBranchUsers } from "./list-branch-users.js";
+export type { ListOwnPasskeysInput, ListOwnPasskeysPorts } from "./list-own-passkeys.js";
+export { listOwnPasskeys } from "./list-own-passkeys.js";
 export type { RoleSummary } from "./list-roles.js";
 export { listRoles } from "./list-roles.js";
+export type {
+  ListUserPasskeysInput,
+  ListUserPasskeysOutcome,
+  ListUserPasskeysPorts,
+} from "./list-user-passkeys.js";
+export { listUserPasskeys } from "./list-user-passkeys.js";
 export type {
   LookUpSignInInput,
   LookUpSignInOutcome,
 } from "./look-up-sign-in.js";
 export { lookUpSignIn } from "./look-up-sign-in.js";
+export type { PasskeySummary, Passkeys } from "./passkeys.js";
 export type {
   HashedPin,
   LockedPinCode,
