@@ -34,10 +34,11 @@ function GroupUnderHeading(props: Omit<GroupProps, "labelledBy">) {
   );
 }
 
-const meta: Meta<typeof GroupUnderHeading> = {
+const meta: Meta<typeof AvatarOptionCardGroup<PersonValue>> = {
   title: "Components/AvatarOptionCardGroup",
-  component: GroupUnderHeading,
+  component: AvatarOptionCardGroup<PersonValue>,
   args: { options, onChange: () => {} },
+  render: ({ labelledBy: _, ...args }) => <GroupUnderHeading {...args} />,
   decorators: [
     (Story) => (
       <div style={{ width: "320px" }}>
@@ -49,7 +50,7 @@ const meta: Meta<typeof GroupUnderHeading> = {
 
 export default meta;
 
-type Story = StoryObj<typeof GroupUnderHeading>;
+type Story = StoryObj<typeof AvatarOptionCardGroup<PersonValue>>;
 
 function cardInput(canvasElement: HTMLElement, name: string): HTMLElement {
   return within(canvasElement).getByRole("radio", { name });
