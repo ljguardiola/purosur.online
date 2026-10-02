@@ -95,6 +95,8 @@ describe("inserting a user", () => {
   });
 
   it("raises the email conflict, logs nothing and leaves the transaction usable when another user holds the email", async () => {
+    await db.insert(userRoles).values({ userId: actorId, roleId: cashierRoleId });
+
     const { conflict, holder } = await store().transaction(async (tx) => {
       const conflict = await tx
         .insertUser({ firstName: "Otra", email: "ada@example.com", locationId })
@@ -102,7 +104,10 @@ describe("inserting a user", () => {
           () => undefined,
           (error: unknown) => error,
         );
-      return { conflict, holder: await tx.users.emailHolder("ada@example.com") };
+      return {
+        conflict,
+        holder: await tx.users.branchUserWithEmail(locationId, "ada@example.com", "active"),
+      };
     });
 
     expect(conflict).toBeInstanceOf(UserEmailConflict);

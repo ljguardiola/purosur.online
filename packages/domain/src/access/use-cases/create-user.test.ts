@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createUser } from "./create-user.js";
 import { administrator, BRANCH, user } from "./test-support/branch-user-fixtures.js";
 import { FakeUserStore } from "./test-support/fake-user-store.js";
@@ -184,6 +184,28 @@ describe("createUser", () => {
     const outcome = await create({ actorMayReactivateUsers: false });
 
     expect(outcome).toEqual({ kind: "email_taken" });
+  });
+
+  it("looks no user up for someone who may not reactivate users", async () => {
+    const { store, create } = fixture();
+    store.seedUser(user({ id: "u-1", email: "marta@example.test", active: false }));
+
+    await create({ actorMayReactivateUsers: false });
+
+    expect(store.users.lookups).toEqual([]);
+  });
+
+  it("looks the email up only among the deactivated users of the requester's branch", async () => {
+    const { store, create } = fixture();
+    store.seedUser(
+      user({ id: "u-1", email: "marta@example.test", active: false, locationId: "branch-2" }),
+    );
+    const branchUserWithEmail = vi.spyOn(store.users, "branchUserWithEmail");
+
+    await create();
+
+    expect(branchUserWithEmail).toHaveBeenCalledWith(BRANCH, "marta@example.test", "inactive");
+    expect(store.users.lookups).toEqual(["branchUserWithEmail"]);
   });
 
   it("does not reveal a deactivated user of another branch", async () => {
