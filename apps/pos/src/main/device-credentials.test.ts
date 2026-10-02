@@ -302,7 +302,10 @@ describe("credentialsFileAt", () => {
       writeSync: (descriptor, contents) => {
         record(`write ${pathOf(descriptor)}`);
         const chunk = contents.subarray(0, bytesPerWrite);
-        files.set(pathOf(descriptor), Buffer.concat([files.get(pathOf(descriptor)) ?? [], chunk]));
+        files.set(
+          pathOf(descriptor),
+          Buffer.concat([files.get(pathOf(descriptor)) ?? Buffer.alloc(0), chunk]),
+        );
         return chunk.length;
       },
       fsyncSync: (descriptor) => record(`fsync ${pathOf(descriptor)}`),
