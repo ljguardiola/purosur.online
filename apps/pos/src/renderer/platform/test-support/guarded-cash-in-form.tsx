@@ -8,8 +8,8 @@ import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { Button } from "@purosur/ui";
 import type { FormEvent } from "react";
 import { useState } from "react";
+import type { SignedInPerson } from "../../shell/signed-in-person";
 import { AuthorizationSection } from "../authorization-section";
-import type { SignedInPerson } from "../signed-in-person";
 import { useAuthorization } from "../use-authorization";
 
 export type GuardedCashInOutcome =

@@ -17,10 +17,10 @@ import {
 } from "@purosur/ui";
 import { TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
-import { AuthorizationSection } from "../access/authorization-section";
-import type { SignedInPerson } from "../access/signed-in-person";
-import { useAuthorization } from "../access/use-authorization";
+import { AuthorizationSection } from "../platform/authorization-section";
 import type { CashMovementInput } from "../platform/core-client";
+import { useAuthorization } from "../platform/use-authorization";
+import type { SignedInPerson } from "../shell/signed-in-person";
 import {
   amountMessage,
   cashMovementRequestFrom,

@@ -32,16 +32,7 @@ export const SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST = [
   "apps/backoffice/src/stock/stock-quantity.ts",
 ];
 
-export const SCREEN_CROSS_CONCEPT_IMPORT_ALLOWLIST = [
-  "apps/pos/src/renderer/register/cash-count-screen.tsx",
-  "apps/pos/src/renderer/register/cash-screen.tsx",
-  "apps/pos/src/renderer/register/locked-cash-count.tsx",
-  "apps/pos/src/renderer/register/locked-close-screen.tsx",
-  "apps/pos/src/renderer/register/locked-closer-identification.tsx",
-  "apps/pos/src/renderer/register/record-cash-movement-modal.tsx",
-  "apps/pos/src/renderer/sales/charge-screen.tsx",
-  "apps/pos/src/renderer/sales/sale-screen.tsx",
-];
+export const SCREEN_CROSS_CONCEPT_IMPORT_ALLOWLIST = [];
 
 export const CONTRACTS_CROSS_CONCEPT_IMPORT_ALLOWLIST = [
   "packages/contracts/src/register/core-messages.ts",
@@ -163,7 +154,6 @@ export default {
     {
       name: "screens-types-only-from-domain",
       comment:
-        "apps/pos/src/renderer/ and apps/backoffice/src/ may depend on packages/domain " +
         "only for its types; the renderer talks to the core process over a MessagePort " +
         "and the backoffice to the cloud over HTTP, never by calling domain code " +
         "directly in-process.",
@@ -180,7 +170,6 @@ export default {
     {
       name: "screens-no-domain-re-exports",
       comment:
-        "apps/pos/src/renderer/ and apps/backoffice/src/ never re-export from " +
         "packages/domain. An empty or type-only re-export (`export {} from`, " +
         "`export type { X } from`) is classified type-only, yet the empty form is kept " +
         "by verbatimModuleSyntax and loads the domain module at runtime; a screen has " +

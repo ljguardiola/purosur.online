@@ -8,10 +8,10 @@ import type {
 import { Button, InlineNotice } from "@purosur/ui";
 import { ArrowLeft, Mail, TriangleAlert } from "lucide-react";
 import { useState } from "react";
+import { noticeFor } from "../platform/pin-refusal";
 import { ScreenLink } from "../shell/screen-link";
 import { FirstSignInPanel } from "./first-sign-in-panel";
 import { PinCodeRedemptionForm } from "./pin-code-redemption-form";
-import { noticeFor } from "./pin-refusal";
 import { useFirstPinCodeRequest } from "./use-first-pin-code-request";
 
 export type FirstSignInCodeStepProps = {

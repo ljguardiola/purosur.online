@@ -14,7 +14,7 @@ import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { accessKey } from "../access/access-queries";
-import type { SignedInPerson } from "../access/signed-in-person";
+import { authorizersKey } from "../platform/authorizers-queries";
 import type { CashMovementInput, CoreClient } from "../platform/core-client";
 import { createQueryClient } from "../platform/query-client";
 import { cancelReads, setQueryAnswer } from "../platform/set-query-answer";
@@ -32,6 +32,7 @@ import type { CashSessionState } from "./cash-session-state";
 import { cashSessionStateOf } from "./cash-session-state";
 import type { Enrollment } from "./router";
 import { createAppRouter, isSessionScreen, routeFor } from "./router";
+import type { SignedInPerson } from "./signed-in-person";
 
 export function App({ core }: { core: CoreClient }) {
   const [queryClient] = useState(createQueryClient);
@@ -325,6 +326,7 @@ function Register({ core }: { core: CoreClient }) {
     () =>
       core.onPulled(() => {
         void queryClient.invalidateQueries({ queryKey: accessKey });
+        void queryClient.invalidateQueries({ queryKey: authorizersKey });
         void queryClient.invalidateQueries({ queryKey: registerKeys.registerName });
         void queryClient.invalidateQueries({ queryKey: lockedClosersKey });
       }),
