@@ -1,19 +1,7 @@
-import {
-  closeSync,
-  fsyncSync,
-  mkdtempSync,
-  openSync,
-  readFileSync,
-  renameSync,
-  rmSync,
-  writeFileSync,
-  writeSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   answerCoreCredentialsRequest,
+  type CredentialsFile,
   createDeviceCredentialsStore,
   credentialsFileAt,
   type DurableFileSystem,
@@ -32,20 +20,6 @@ const CREDENTIALS = {
   },
 };
 
-const temporaryFolders: string[] = [];
-
-afterEach(() => {
-  for (const folder of temporaryFolders.splice(0)) {
-    rmSync(folder, { recursive: true, force: true });
-  }
-});
-
-function temporaryFolder(): string {
-  const folder = mkdtempSync(join(tmpdir(), "device-credentials-"));
-  temporaryFolders.push(folder);
-  return folder;
-}
-
 // Reverses the bytes, so a stored file never holds the plain text it was given.
 const reversingEncryption: SecretEncryption = {
   isEncryptionAvailable: () => true,
@@ -53,20 +27,27 @@ const reversingEncryption: SecretEncryption = {
   decryptString: (encrypted) => Buffer.from(encrypted).reverse().toString("utf8"),
 };
 
-function storeIn(folder: string, encryption: SecretEncryption = reversingEncryption) {
-  return createDeviceCredentialsStore({
-    encryption,
-    file: credentialsFileAt(join(folder, "device-credentials.bin")),
-  });
+function memoryFile(initial?: string | Buffer): CredentialsFile {
+  let contents = initial === undefined ? undefined : Buffer.from(initial);
+  return {
+    read: () => contents,
+    write: (written) => {
+      contents = Buffer.from(written);
+    },
+  };
+}
+
+function storeIn(file: CredentialsFile, encryption: SecretEncryption = reversingEncryption) {
+  return createDeviceCredentialsStore({ encryption, file });
 }
 
 describe("createDeviceCredentialsStore", () => {
   it("stores the credentials through the operating system's encryption, never as plain text", () => {
-    const folder = temporaryFolder();
+    const file = memoryFile();
 
-    expect(storeIn(folder).store(CREDENTIALS)).toBe(true);
+    expect(storeIn(file).store(CREDENTIALS)).toBe(true);
 
-    const onDisk = readFileSync(join(folder, "device-credentials.bin"));
+    const onDisk = file.read() ?? Buffer.alloc(0);
     expect(onDisk.toString("utf8")).not.toContain(CREDENTIALS.device_token);
     expect(onDisk.toString("utf8")).not.toContain(CREDENTIALS.pepper);
     expect(onDisk.toString("utf8")).not.toContain(CREDENTIALS.keys.outbox_chain_key);
@@ -75,46 +56,45 @@ describe("createDeviceCredentialsStore", () => {
   });
 
   it("reports stored credentials as present, even to a store opened afterwards", () => {
-    const folder = temporaryFolder();
-    storeIn(folder).store(CREDENTIALS);
+    const file = memoryFile();
+    storeIn(file).store(CREDENTIALS);
 
-    expect(storeIn(folder).isPresent()).toBe(true);
+    expect(storeIn(file).isPresent()).toBe(true);
   });
 
   it("reports no credentials before any were stored", () => {
-    expect(storeIn(temporaryFolder()).isPresent()).toBe(false);
+    expect(storeIn(memoryFile()).isPresent()).toBe(false);
   });
 
   it("reads back the credentials it stored, even from a store opened afterwards", () => {
-    const folder = temporaryFolder();
-    storeIn(folder).store(CREDENTIALS);
+    const file = memoryFile();
+    storeIn(file).store(CREDENTIALS);
 
-    expect(storeIn(folder).read()).toEqual(CREDENTIALS);
+    expect(storeIn(file).read()).toEqual(CREDENTIALS);
   });
 
   it("reads credentials stored before their token's arrival was recorded", () => {
-    const folder = temporaryFolder();
+    const file = memoryFile();
     const { token_received_at: _unrecorded, ...older } = CREDENTIALS;
-    storeIn(folder).store(older);
+    storeIn(file).store(older);
 
-    expect(storeIn(folder).read()).toEqual(older);
+    expect(storeIn(file).read()).toEqual(older);
   });
 
   it("reads credentials stored before the installation was handed its keys", () => {
-    const folder = temporaryFolder();
+    const file = memoryFile();
     const { keys: _notHandedOver, ...older } = CREDENTIALS;
-    storeIn(folder).store(older);
+    storeIn(file).store(older);
 
-    expect(storeIn(folder).read()).toEqual(older);
+    expect(storeIn(file).read()).toEqual(older);
   });
 
   it("reads nothing before any credentials were stored", () => {
-    expect(storeIn(temporaryFolder()).read()).toBeUndefined();
+    expect(storeIn(memoryFile()).read()).toBeUndefined();
   });
 
   it("reads nothing from a file it can't decrypt", () => {
-    const folder = temporaryFolder();
-    writeFileSync(join(folder, "device-credentials.bin"), "garbage");
+    const file = memoryFile("garbage");
     const failingDecryption = {
       ...reversingEncryption,
       decryptString: () => {
@@ -122,20 +102,19 @@ describe("createDeviceCredentialsStore", () => {
       },
     };
 
-    expect(storeIn(folder, failingDecryption).read()).toBeUndefined();
+    expect(storeIn(file, failingDecryption).read()).toBeUndefined();
   });
 
   it("refuses to store anything when the operating system can't encrypt", () => {
-    const folder = temporaryFolder();
-    const store = storeIn(folder, { ...reversingEncryption, isEncryptionAvailable: () => false });
+    const file = memoryFile();
+    const store = storeIn(file, { ...reversingEncryption, isEncryptionAvailable: () => false });
 
     expect(store.store(CREDENTIALS)).toBe(false);
-    expect(storeIn(folder).isPresent()).toBe(false);
+    expect(storeIn(file).isPresent()).toBe(false);
   });
 
   it("reports a file it can't decrypt as no credentials", () => {
-    const folder = temporaryFolder();
-    writeFileSync(join(folder, "device-credentials.bin"), "garbage");
+    const file = memoryFile("garbage");
     const failingDecryption = {
       ...reversingEncryption,
       decryptString: () => {
@@ -143,37 +122,35 @@ describe("createDeviceCredentialsStore", () => {
       },
     };
 
-    expect(storeIn(folder, failingDecryption).isPresent()).toBe(false);
+    expect(storeIn(file, failingDecryption).isPresent()).toBe(false);
   });
 
   it("reports a decrypted file that doesn't hold credentials as no credentials", () => {
-    const folder = temporaryFolder();
-    writeFileSync(
-      join(folder, "device-credentials.bin"),
-      reversingEncryption.encryptString(JSON.stringify({ device_id: "x" })),
-    );
+    const file = memoryFile(reversingEncryption.encryptString(JSON.stringify({ device_id: "x" })));
 
-    expect(storeIn(folder).isPresent()).toBe(false);
+    expect(storeIn(file).isPresent()).toBe(false);
   });
 
   it("answers false when the file can't be written", () => {
-    const folder = temporaryFolder();
-    const store = createDeviceCredentialsStore({
-      encryption: reversingEncryption,
-      file: credentialsFileAt(join(folder, "missing-folder", "device-credentials.bin")),
-    });
+    const unwritable: CredentialsFile = {
+      read: () => undefined,
+      write: () => {
+        throw new Error("the folder does not exist");
+      },
+    };
 
-    expect(store.store(CREDENTIALS)).toBe(false);
+    expect(storeIn(unwritable).store(CREDENTIALS)).toBe(false);
   });
 
   it("replaces credentials stored before", () => {
-    const folder = temporaryFolder();
-    storeIn(folder).store({ ...CREDENTIALS, device_id: "previous" });
+    const file = memoryFile();
+    storeIn(file).store({ ...CREDENTIALS, device_id: "previous" });
 
-    storeIn(folder).store(CREDENTIALS);
+    storeIn(file).store(CREDENTIALS);
 
-    const onDisk = readFileSync(join(folder, "device-credentials.bin"));
-    expect(JSON.parse(reversingEncryption.decryptString(onDisk))).toEqual(CREDENTIALS);
+    expect(JSON.parse(reversingEncryption.decryptString(file.read() ?? Buffer.alloc(0)))).toEqual(
+      CREDENTIALS,
+    );
   });
 });
 
@@ -181,33 +158,33 @@ describe("replace", () => {
   const NEXT = { ...CREDENTIALS, device_token: "next.token" };
 
   it("swaps in the new credentials when the stored token is the one expected", () => {
-    const folder = temporaryFolder();
-    storeIn(folder).store(CREDENTIALS);
+    const file = memoryFile();
+    storeIn(file).store(CREDENTIALS);
 
-    expect(storeIn(folder).replace(CREDENTIALS.device_token, NEXT)).toBe("replaced");
-    expect(storeIn(folder).read()).toEqual(NEXT);
+    expect(storeIn(file).replace(CREDENTIALS.device_token, NEXT)).toBe("replaced");
+    expect(storeIn(file).read()).toEqual(NEXT);
   });
 
   it("leaves the credentials of a newer enrollment untouched when the token expected is gone", () => {
-    const folder = temporaryFolder();
+    const file = memoryFile();
     const enrolledMeanwhile = { ...CREDENTIALS, device_id: "other", device_token: "other.token" };
-    storeIn(folder).store(enrolledMeanwhile);
+    storeIn(file).store(enrolledMeanwhile);
 
-    expect(storeIn(folder).replace(CREDENTIALS.device_token, NEXT)).toBe("superseded");
-    expect(storeIn(folder).read()).toEqual(enrolledMeanwhile);
+    expect(storeIn(file).replace(CREDENTIALS.device_token, NEXT)).toBe("superseded");
+    expect(storeIn(file).read()).toEqual(enrolledMeanwhile);
   });
 
   it("counts absent credentials as superseded and stores nothing", () => {
-    const folder = temporaryFolder();
+    const file = memoryFile();
 
-    expect(storeIn(folder).replace(CREDENTIALS.device_token, NEXT)).toBe("superseded");
-    expect(storeIn(folder).isPresent()).toBe(false);
+    expect(storeIn(file).replace(CREDENTIALS.device_token, NEXT)).toBe("superseded");
+    expect(storeIn(file).isPresent()).toBe(false);
   });
 
   it("says nothing was stored when the operating system can't encrypt", () => {
-    const folder = temporaryFolder();
-    storeIn(folder).store(CREDENTIALS);
-    const store = storeIn(folder, { ...reversingEncryption, isEncryptionAvailable: () => false });
+    const file = memoryFile();
+    storeIn(file).store(CREDENTIALS);
+    const store = storeIn(file, { ...reversingEncryption, isEncryptionAvailable: () => false });
 
     expect(store.replace(CREDENTIALS.device_token, NEXT)).toBe("not_stored");
   });
@@ -215,7 +192,7 @@ describe("replace", () => {
 
 describe("answerCoreCredentialsRequest", () => {
   it("answers a replace request with how it went, leaving newer credentials alone", () => {
-    const store = storeIn(temporaryFolder());
+    const store = storeIn(memoryFile());
     store.store(CREDENTIALS);
     const request = {
       type: "replace-device-credentials",
@@ -237,7 +214,7 @@ describe("answerCoreCredentialsRequest", () => {
   });
 
   it("stores the credentials the core hands over and says whether it did", () => {
-    const store = storeIn(temporaryFolder());
+    const store = storeIn(memoryFile());
 
     expect(
       answerCoreCredentialsRequest(store, {
@@ -250,7 +227,7 @@ describe("answerCoreCredentialsRequest", () => {
   });
 
   it("tells the core whether credentials are present, never the credentials themselves", () => {
-    const store = storeIn(temporaryFolder());
+    const store = storeIn(memoryFile());
     store.store(CREDENTIALS);
 
     expect(
@@ -259,7 +236,7 @@ describe("answerCoreCredentialsRequest", () => {
   });
 
   it("hands the core the stored credentials when it asks to read them", () => {
-    const store = storeIn(temporaryFolder());
+    const store = storeIn(memoryFile());
     store.store(CREDENTIALS);
 
     expect(
@@ -272,7 +249,7 @@ describe("answerCoreCredentialsRequest", () => {
 
   it("tells the core there are no credentials when it asks to read them and none are stored", () => {
     expect(
-      answerCoreCredentialsRequest(storeIn(temporaryFolder()), {
+      answerCoreCredentialsRequest(storeIn(memoryFile()), {
         type: "device-credentials-read-request",
         request_id: "r4",
       }),
@@ -282,7 +259,7 @@ describe("answerCoreCredentialsRequest", () => {
   it.each([true, false])(
     "tells the core whether the operating system can encrypt credentials: %s",
     (available) => {
-      const store = storeIn(temporaryFolder(), {
+      const store = storeIn(memoryFile(), {
         ...reversingEncryption,
         isEncryptionAvailable: () => available,
       });
@@ -297,10 +274,10 @@ describe("answerCoreCredentialsRequest", () => {
   );
 });
 
-describe("credentialsFileAt durability", () => {
+describe("credentialsFileAt", () => {
   function recordingFileSystem(failOn?: string, bytesPerWrite = Number.POSITIVE_INFINITY) {
     const calls: string[] = [];
-    const written: Buffer[] = [];
+    const files = new Map<string, Buffer>();
     let nextDescriptor = 10;
     const descriptorPaths = new Map<number, string>();
     function record(call: string): void {
@@ -309,25 +286,65 @@ describe("credentialsFileAt durability", () => {
         throw new Error(`${call} failed`);
       }
     }
+    function pathOf(descriptor: number): string {
+      return descriptorPaths.get(descriptor) ?? "";
+    }
     const fileSystem: DurableFileSystem = {
-      openSync: (path) => {
+      openSync: (path, flags) => {
         const descriptor = nextDescriptor++;
         descriptorPaths.set(descriptor, path);
         record(`open ${path}`);
+        if (flags === "w") {
+          files.set(path, Buffer.alloc(0));
+        }
         return descriptor;
       },
       writeSync: (descriptor, contents) => {
-        record(`write ${descriptorPaths.get(descriptor)}`);
+        record(`write ${pathOf(descriptor)}`);
         const chunk = contents.subarray(0, bytesPerWrite);
-        written.push(chunk);
+        files.set(pathOf(descriptor), Buffer.concat([files.get(pathOf(descriptor)) ?? [], chunk]));
         return chunk.length;
       },
-      fsyncSync: (descriptor) => record(`fsync ${descriptorPaths.get(descriptor)}`),
-      closeSync: (descriptor) => record(`close ${descriptorPaths.get(descriptor)}`),
-      renameSync: (from, to) => record(`rename ${from} ${to}`),
+      fsyncSync: (descriptor) => record(`fsync ${pathOf(descriptor)}`),
+      closeSync: (descriptor) => record(`close ${pathOf(descriptor)}`),
+      renameSync: (from, to) => {
+        record(`rename ${from} ${to}`);
+        const moved = files.get(from);
+        if (moved !== undefined) {
+          files.set(to, moved);
+          files.delete(from);
+        }
+      },
+      readFileSync: (path) => {
+        const contents = files.get(path);
+        if (contents === undefined) {
+          throw new Error(`${path} does not exist`);
+        }
+        return contents;
+      },
     };
-    return { fileSystem, calls, written: () => Buffer.concat(written) };
+    return { fileSystem, calls };
   }
+
+  it("reads back what it wrote", () => {
+    const { fileSystem } = recordingFileSystem();
+    const file = credentialsFileAt("/data/device-credentials.bin", {
+      fileSystem,
+      platform: "linux",
+    });
+
+    file.write(Buffer.from("secret"));
+
+    expect(file.read()?.toString()).toBe("secret");
+  });
+
+  it("reads nothing before anything was written", () => {
+    const { fileSystem } = recordingFileSystem();
+
+    expect(
+      credentialsFileAt("/data/device-credentials.bin", { fileSystem, platform: "linux" }).read(),
+    ).toBeUndefined();
+  });
 
   it("flushes the temporary file before renaming it and the folder after, on Linux", () => {
     const { fileSystem, calls } = recordingFileSystem();
@@ -379,14 +396,15 @@ describe("credentialsFileAt durability", () => {
   });
 
   it("writes every byte before renaming when the disk takes the contents in pieces", () => {
-    const { fileSystem, calls, written } = recordingFileSystem(undefined, 2);
-
-    credentialsFileAt("/data/device-credentials.bin", {
+    const { fileSystem, calls } = recordingFileSystem(undefined, 2);
+    const file = credentialsFileAt("/data/device-credentials.bin", {
       fileSystem,
       platform: "linux",
-    }).write(Buffer.from("secret"));
+    });
 
-    expect(written().toString()).toBe("secret");
+    file.write(Buffer.from("secret"));
+
+    expect(file.read()?.toString()).toBe("secret");
     expect(calls).toContain(
       "rename /data/device-credentials.bin.partial /data/device-credentials.bin",
     );
@@ -405,41 +423,15 @@ describe("credentialsFileAt durability", () => {
   });
 
   it("keeps the stored credentials when only the folder can't be flushed, and closes it", () => {
-    const folder = temporaryFolder();
-    const folderDescriptors = new Set<number>();
-    const closed: number[] = [];
-    const fileSystem: DurableFileSystem = {
-      openSync: (path, flags) => {
-        const descriptor = openSync(path, flags);
-        if (path === folder) {
-          folderDescriptors.add(descriptor);
-        }
-        return descriptor;
-      },
-      writeSync: (descriptor, contents) => writeSync(descriptor, contents),
-      fsyncSync: (descriptor) => {
-        if (folderDescriptors.has(descriptor)) {
-          throw new Error("fsync of the folder failed");
-        }
-        fsyncSync(descriptor);
-      },
-      closeSync: (descriptor) => {
-        closed.push(descriptor);
-        closeSync(descriptor);
-      },
-      renameSync,
-    };
-    const store = createDeviceCredentialsStore({
-      encryption: reversingEncryption,
-      file: credentialsFileAt(join(folder, "device-credentials.bin"), {
-        fileSystem,
-        platform: "linux",
-      }),
+    const { fileSystem, calls } = recordingFileSystem("fsync /data");
+    const file = credentialsFileAt("/data/device-credentials.bin", {
+      fileSystem,
+      platform: "linux",
     });
 
-    expect(store.store(CREDENTIALS)).toBe(true);
-    expect(store.read()).toEqual(CREDENTIALS);
-    expect(folderDescriptors.size).toBe(1);
-    expect(closed).toEqual(expect.arrayContaining([...folderDescriptors]));
+    file.write(Buffer.from("secret"));
+
+    expect(file.read()?.toString()).toBe("secret");
+    expect(calls.at(-1)).toBe("close /data");
   });
 });
