@@ -118,29 +118,28 @@ test("keeps showing a refused field's message until the check answers for what i
   };
   const screen = await render(<Probe check={check} onSubmit={() => Promise.resolve()} />);
   await userEvent.fill(codeField(screen), "AB");
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
   await expect.poll(() => answers.length).toBe(1);
   answers[0]?.resolve(["code"]);
-  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
-  await expect.poll(() => answers.length).toBe(2);
-  answers[1]?.resolve(["code"]);
   await expect.element(screen.getByText(CODE_MESSAGE)).toBeVisible();
 
   await userEvent.type(codeField(screen), "CD");
-  await expect.poll(() => answers.length).toBe(4);
+  await expect.poll(() => answers.length).toBe(3);
   await expect.element(screen.getByText(CODE_MESSAGE)).toBeVisible();
-  answers[3]?.resolve([]);
+  answers[2]?.resolve([]);
 
   await expect.element(screen.getByText(CODE_MESSAGE)).not.toBeInTheDocument();
 });
 
-test("asks the check for what is typed before any submit, without showing its message", async () => {
+test("asks no check for what is typed before the first submit", async () => {
   const check = vi.fn(refusingShortCodes);
   const screen = await render(<Probe check={check} onSubmit={() => Promise.resolve()} />);
-
   await userEvent.fill(codeField(screen), "AB");
+  await userEvent.type(codeField(screen), "C");
 
-  await expect.poll(() => check.mock.calls).toEqual([[{ code: "AB" }]]);
-  await expect.element(screen.getByText(CODE_MESSAGE)).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  await expect.poll(() => check.mock.calls).toEqual([[{ code: "ABC" }]]);
 });
 
 test("ignores a check answered after a newer one was asked", async () => {
@@ -152,22 +151,20 @@ test("ignores a check answered after a newer one was asked", async () => {
   };
   const screen = await render(<Probe check={check} onSubmit={() => Promise.resolve()} />);
   await userEvent.fill(codeField(screen), "AB");
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
   await expect.poll(() => answers.length).toBe(1);
   answers[0]?.resolve(["code"]);
-  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
-  await expect.poll(() => answers.length).toBe(2);
-  answers[1]?.resolve(["code"]);
   await expect.element(screen.getByText(CODE_MESSAGE)).toBeVisible();
   await userEvent.fill(codeField(screen), "ABC");
   await userEvent.fill(codeField(screen), "ABCD");
-  await expect.poll(() => answers.length).toBe(4);
-  answers[3]?.resolve([]);
+  await expect.poll(() => answers.length).toBe(3);
+  answers[2]?.resolve([]);
   await expect.element(screen.getByText(CODE_MESSAGE)).not.toBeInTheDocument();
 
-  answers[2]?.resolve(["code"]);
+  answers[1]?.resolve(["code"]);
   await userEvent.type(codeField(screen), "E");
 
-  await expect.poll(() => answers.length).toBe(5);
+  await expect.poll(() => answers.length).toBe(4);
   await expect.element(screen.getByText(CODE_MESSAGE)).not.toBeInTheDocument();
 });
 
@@ -175,6 +172,7 @@ test("asks no check while the schema itself refuses what is typed", async () => 
   const check = vi.fn(refusingShortCodes);
   const screen = await render(<Probe check={check} onSubmit={() => Promise.resolve()} />);
   await userEvent.fill(codeField(screen), "AB");
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
   await expect.poll(() => check.mock.calls).toEqual([[{ code: "AB" }]]);
 
   await userEvent.clear(codeField(screen));
