@@ -1,6 +1,7 @@
 ---
 paths:
   - "apps/backoffice/src/**"
+  - "apps/pos/src/renderer/**"
 ---
 
 # Backoffice screens

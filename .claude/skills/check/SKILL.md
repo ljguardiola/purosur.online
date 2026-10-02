@@ -12,7 +12,7 @@ started") and `.claude/rules/checks.md` ("Checks"): the same command runs locall
    available).
 2. Report the actual outcome: the exit code, and if it failed, which step
    stopped it (`tsc --noEmit`, `biome ci`, `vitest run`, or the
-   `.github/scripts/*.test.mjs` suite — see the `verify` script in
+   `node --test` suite — see the `verify` script in
    `package.json` for the exact order) and the real error output.
 3. Never report success without having just run this command in this turn,
    and never describe a failing or partial run as passing.

@@ -1,11 +1,3 @@
----
-paths:
-  - "apps/backoffice/src/**"
-  - "apps/pos/src/renderer/**"
-  - "apps/backoffice/package.json"
-  - "apps/pos/package.json"
----
-
 # Application stack
 
 The backoffice and the register's renderer are built on one stack:

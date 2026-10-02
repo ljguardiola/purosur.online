@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 
-const HOOK = new URL("../../.claude/hooks/pretool.mjs", import.meta.url);
+const HOOK = fileURLToPath(new URL("./pretool.mjs", import.meta.url));
 
 function runHook(command) {
-  return spawnSync(process.execPath, [HOOK.pathname], {
+  return spawnSync(process.execPath, [HOOK], {
     input: JSON.stringify({ tool_name: "Bash", tool_input: { command } }),
     encoding: "utf8",
   });
