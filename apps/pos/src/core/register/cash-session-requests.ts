@@ -225,13 +225,13 @@ export function cashBalanceFor(database: LocalDatabase): CashBalance | null {
   }
   const balance = cashBreakdown(readSessionMovements(database, session.id));
   return {
-    opening_float: balance.openingFloat,
-    cash_sales: balance.cashSales,
-    change_given: balance.changeGiven,
-    refunds: balance.refunds,
-    cash_in: balance.cashIn,
-    expenses: balance.expenses,
-    withdrawals: balance.withdrawals,
+    opening_float: balance.openingFloat.amount,
+    cash_sales: balance.cashSales.amount,
+    change_given: balance.changeGiven.amount,
+    refunds: balance.refunds.amount,
+    cash_in: balance.cashIn.amount,
+    expenses: balance.expenses.amount,
+    withdrawals: balance.withdrawals.amount,
     expected: balance.expected,
   };
 }

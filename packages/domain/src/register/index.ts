@@ -1,4 +1,9 @@
 export { isValidCashAmount, MAX_CASH_AMOUNT_CENTS } from "./model/cash-amount.js";
+export type { CashMovementDirection } from "./model/cash-movement-direction.js";
+export {
+  CASH_MOVEMENT_DIRECTIONS,
+  cashMovementDirection,
+} from "./model/cash-movement-direction.js";
 export type { CashMovementKind } from "./model/cash-movement-kind.js";
 export {
   CASH_MOVEMENT_KINDS,
@@ -22,7 +27,7 @@ export {
   isWellFormedEnrollmentCode,
   normalizeEnrollmentCode,
 } from "./model/enrollment-code.js";
-export type { CashBreakdown } from "./model/expected-cash.js";
+export type { CashBreakdown, CashBreakdownLine } from "./model/expected-cash.js";
 export { cashBreakdown, expectedCash } from "./model/expected-cash.js";
 export {
   INSTALLATION_KEY_BYTES,
