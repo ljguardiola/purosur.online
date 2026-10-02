@@ -3,10 +3,10 @@ import { actionsColumn, Button, dataColumn, plural, Table, useTableModel } from 
 import { Copy, Lock, Pencil, Plus, Shield } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { roleDisplayName } from "../platform/role-display-name";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { useRefreshAccess, useRolesQuery } from "./access-queries";
-import { roleDisplayName } from "./role-display";
 import { RoleEditorModal, type RoleEditorRequest } from "./role-editor-modal";
 import type { RoleSummary } from "./roles-api";
 import type { RolesListScreenServices } from "./roles-list-services";

@@ -1,11 +1,11 @@
 import type { SignInOutcome, SignInUser } from "@purosur/contracts";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
+import { PinAttemptControls } from "../platform/pin-attempt-controls";
+import { SignInLockout } from "../platform/sign-in-lockout";
+import { usePinAttempt } from "../platform/use-pin-attempt";
 import { ScreenLink } from "../shell/screen-link";
 import { FirstSignInPanel } from "./first-sign-in-panel";
-import { PinAttemptControls } from "./pin-attempt-controls";
-import { SignInLockout } from "./sign-in-lockout";
-import { usePinAttempt } from "./use-pin-attempt";
 
 export type FirstSignInPinStepProps = {
   person: SignInUser;

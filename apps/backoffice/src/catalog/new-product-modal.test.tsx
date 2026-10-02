@@ -3,14 +3,11 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
+import { radioLabel } from "../platform/test-support/radio-label";
 import { render } from "../shell/test-support/render-with-router";
 import { NewProductModal, type NewProductModalServices } from "./new-product-modal";
 import type { GenerateInternalBarcodeOutcome } from "./products-api";
-import {
-  fillNewProductFieldsExceptBarcodes,
-  radioLabel,
-  scanInputOf,
-} from "./test-support/product-form";
+import { fillNewProductFieldsExceptBarcodes, scanInputOf } from "./test-support/product-form";
 import { driedFruits, groceries } from "./test-support/products";
 
 // A modal panel is centered by a fixed-position overlay that never grows the document's scroll

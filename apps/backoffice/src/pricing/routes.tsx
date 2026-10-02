@@ -1,6 +1,6 @@
 import { createRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
-import { canManagePromotions, canSeePricesArea } from "../access/backoffice-access";
+import { canManagePromotions, canSeePricesArea } from "../shell/backoffice-access";
 import { catalogAreaRoute } from "../shell/catalog-area";
 import { lazyScreen } from "../shell/lazy-screen";
 import { refuseWithout } from "../shell/signed-in-route";

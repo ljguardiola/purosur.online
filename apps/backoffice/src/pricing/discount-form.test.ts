@@ -6,7 +6,7 @@ import {
 } from "@purosur/contracts";
 import { DISCOUNT_NAME_MAX_LENGTH, DISCOUNT_QTY_MAX } from "@purosur/domain";
 import { describe, expect, test } from "vitest";
-import { drinks, groceries, jams, spreads } from "../catalog/test-support/categories";
+import { drinks, groceries, jams, spreads } from "../platform/test-support/categories";
 import {
   DISCOUNT_FIELDS,
   DISCOUNT_KIND_CARDS,

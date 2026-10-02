@@ -1,12 +1,12 @@
 import type { OpenCashSessionOutcome } from "@purosur/contracts";
 import { useState } from "react";
-import type { SignedInPerson } from "../access/signed-in-person";
 import type { ActionEntry } from "./action-entries";
 import { entriesFor } from "./action-entries";
 import { CashOpeningPanel } from "./cash-opening-panel";
 import { NavigationRail } from "./navigation-rail";
 import { SessionEyebrow } from "./session-eyebrow";
 import { SignOutModal } from "./sign-out-modal";
+import type { SignedInPerson } from "./signed-in-person";
 
 export type NoSessionScreenProps = {
   person: SignedInPerson;

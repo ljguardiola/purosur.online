@@ -4,7 +4,7 @@ import {
   canPerformStockCounts,
   canSeeStockBalances,
   canSeeStockMovements,
-} from "../access/backoffice-access";
+} from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
 import { refuseWithout } from "../shell/signed-in-route";
 import { stockAreaRoute } from "../shell/stock-area";

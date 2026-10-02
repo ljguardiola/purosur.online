@@ -1,5 +1,5 @@
 import { createRoute, redirect } from "@tanstack/react-router";
-import type { BackofficeAccess } from "../access/backoffice-access";
+import type { BackofficeAccess } from "./backoffice-access";
 import { rootRoute } from "./root-route";
 
 export const signedInRoute = createRoute({

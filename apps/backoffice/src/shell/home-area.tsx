@@ -1,7 +1,7 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { Bell, LayoutDashboard } from "lucide-react";
-import { canSeeAlertsArea } from "../access/backoffice-access";
 import { AreaLayout, SectionLink } from "./area-layout";
+import { canSeeAlertsArea } from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
 
 export const homeAreaRoute = createRoute({

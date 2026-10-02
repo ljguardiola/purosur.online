@@ -1,7 +1,7 @@
 import type { ProductSummary } from "@purosur/contracts";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { radioLabel } from "./test-support/product-form";
+import { radioLabel } from "../platform/test-support/radio-label";
 import { almonds, honey } from "./test-support/products";
 import {
   createServices,

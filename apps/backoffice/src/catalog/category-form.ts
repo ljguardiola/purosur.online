@@ -1,7 +1,7 @@
 import { type CategorySummary, categoryCreationBodySchema } from "@purosur/contracts";
 import type { Option, Options } from "@purosur/ui";
+import { categoriesInTreeOrder, categoryPathLabels } from "../platform/category-path";
 import { schemaLimit } from "../platform/schema-limit";
-import { categoriesInTreeOrder, categoryPathLabels } from "./category-path";
 
 const categoryNameSchema = categoryCreationBodySchema.shape.name;
 

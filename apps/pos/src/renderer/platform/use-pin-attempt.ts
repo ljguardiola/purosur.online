@@ -1,9 +1,9 @@
 import type { IdentifyLockedCloserOutcome, SignInOutcome } from "@purosur/contracts";
 import type { FormEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
-import { useCountdown } from "../platform/use-countdown";
 import type { Refusal } from "./pin-refusal";
 import { noticeFor } from "./pin-refusal";
+import { useCountdown } from "./use-countdown";
 
 export type PinAttemptOutcome = SignInOutcome | IdentifyLockedCloserOutcome;
 

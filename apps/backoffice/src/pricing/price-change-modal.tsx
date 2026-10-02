@@ -1,4 +1,5 @@
 import { type PriceProduct, priceSetBodySchema } from "@purosur/contracts";
+import type { SaleUnit } from "@purosur/domain";
 import {
   Button,
   InlineNotice,
@@ -9,7 +10,6 @@ import {
 } from "@purosur/ui";
 import { Check, Pencil, RotateCcw, ShieldX, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { ProductSaleUnit } from "../catalog/products-api";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { formatCentsWithUnit } from "./money";
@@ -27,7 +27,7 @@ import type { PriceReload } from "./pricing-queries";
 const PRICE_LABEL = {
   UNIT: "Precio de venta por unidad",
   KG: "Precio de venta por kilo",
-} satisfies Record<ProductSaleUnit, string>;
+} satisfies Record<SaleUnit, string>;
 
 export type PriceModalOutcome = { kind: "confirmed" } | { kind: "saved"; unitPrice: number };
 

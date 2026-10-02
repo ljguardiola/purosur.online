@@ -2,11 +2,11 @@ import type { CategorySummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { drinks, groceries, jams, spreads } from "../platform/test-support/categories";
 import { render } from "../shell/test-support/render-with-router";
 import type { CategoryReload } from "./catalog-queries";
 import type { editCategory } from "./categories-api";
 import { EditCategoryModal } from "./edit-category-modal";
-import { drinks, groceries, jams, spreads } from "./test-support/categories";
 
 function renderModal({
   target,

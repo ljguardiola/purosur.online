@@ -1,5 +1,5 @@
 import { createRoute } from "@tanstack/react-router";
-import { canSeeBranchArea } from "../access/backoffice-access";
+import { canSeeBranchArea } from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
 import { settingsAreaRoute } from "../shell/settings-area";
 import { refuseWithout } from "../shell/signed-in-route";

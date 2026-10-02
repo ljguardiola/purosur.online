@@ -1,15 +1,5 @@
 import { type Locator, userEvent } from "vitest/browser";
-
-// The "radio" role resolves to react-aria's own visually hidden native <input>; the visible,
-// clickable surface is the <label> that wraps it.
-export function radioLabel(dialog: Locator, title: string): HTMLElement {
-  const input = dialog.getByRole("radio", { name: title }).element() as HTMLInputElement;
-  const label = input.closest("label");
-  if (!label) {
-    throw new Error(`no label found for radio "${title}"`);
-  }
-  return label;
-}
+import { radioLabel } from "../../platform/test-support/radio-label";
 
 export async function fillNewProductFieldsExceptBarcodes(dialog: Locator) {
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Producto nuevo");

@@ -11,8 +11,8 @@ import {
 } from "@purosur/ui";
 import { Lock, ShieldX, TriangleAlert, UsersRound, UserX } from "lucide-react";
 import { useEffect, useId } from "react";
-import { waitDescription } from "./pin-attempt-text";
-import { PinField } from "./pin-field";
+import { waitDescription } from "../platform/pin-attempt-text";
+import { PinField } from "../platform/pin-field";
 import type { AuthorizationState, ShownRefusal } from "./use-authorization";
 
 type Notice = { icon: Icon; title: string; description: string };

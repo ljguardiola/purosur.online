@@ -6,7 +6,7 @@ import type {
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import type { SignedInPerson } from "../access/signed-in-person";
+import type { SignedInPerson } from "../shell/signed-in-person";
 import { render } from "../shell/test-support/render-with-router";
 import { CashScreen } from "./cash-screen";
 

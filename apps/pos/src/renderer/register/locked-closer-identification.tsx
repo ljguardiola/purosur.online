@@ -7,12 +7,12 @@ import type {
 import { EmptyState, InlineNotice, LoadFailure, LoadingPlaceholder } from "@purosur/ui";
 import { ArrowLeft, Lock, ShieldX, TriangleAlert, UsersRound, UserX } from "lucide-react";
 import { useId, useState } from "react";
-import { PinAttemptControls } from "../access/pin-attempt-controls";
-import { waitDescription } from "../access/pin-attempt-text";
-import type { PinNotice } from "../access/pin-refusal";
-import { SignInLockout } from "../access/sign-in-lockout";
-import { usePinAttempt } from "../access/use-pin-attempt";
-import { UserPicker } from "../access/user-picker";
+import { PinAttemptControls } from "../platform/pin-attempt-controls";
+import { waitDescription } from "../platform/pin-attempt-text";
+import type { PinNotice } from "../platform/pin-refusal";
+import { SignInLockout } from "../platform/sign-in-lockout";
+import { usePinAttempt } from "../platform/use-pin-attempt";
+import { UserPicker } from "../platform/user-picker";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
 import { ScreenLink } from "../shell/screen-link";
 import { SessionEyebrow } from "../shell/session-eyebrow";
