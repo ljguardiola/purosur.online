@@ -1,4 +1,4 @@
-import { argentinaCalendarDay, codePointLength } from "../../shared/index.js";
+import { argentinaCalendarDay, codePointLength, isCalendarDay } from "../../shared/index.js";
 
 export const ISSUER_TAX_STATUS = "Responsable Monotributo";
 
@@ -17,15 +17,7 @@ export function isIssuerIdentificationGrossIncomeRegistrationTooLong(value: stri
 }
 
 export function isIssuerIdentificationActivityStartDate(value: string, today: Date): boolean {
-  const [year, month, day] = value.split("-");
-  // Date.UTC rolls an out-of-range day or month over (2020-02-30 becomes 2020-03-01) instead of
-  // rejecting it.
-  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
-  return (
-    !Number.isNaN(date.getTime()) &&
-    date.toISOString().slice(0, 10) === value &&
-    value <= argentinaCalendarDay(today)
-  );
+  return isCalendarDay(value) && value <= argentinaCalendarDay(today);
 }
 
 export function latestIssuerIdentification<TVersion extends { version: number }>(
