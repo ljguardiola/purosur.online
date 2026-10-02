@@ -1,7 +1,5 @@
 import { productListSchema } from "@purosur/contracts";
-import type { SaleUnit } from "@purosur/domain";
-import type { CatalogProduct } from "@purosur/domain/catalog/use-cases";
-import { asc, eq, inArray } from "drizzle-orm";
+import type { ProductActivityScope } from "@purosur/domain/catalog/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
@@ -10,22 +8,24 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { categories, productBarcodes, products, productTags, tags } from "../platform/db/schema.js";
-import { netContentRow } from "./net-content-row.js";
+import { DrizzleCatalogListReader } from "./drizzle-catalog-list-reader.js";
 import { toProductSummary } from "./product-summary-wire.js";
 
-type ProductStatusFilter = "active" | "inactive" | "all";
+const PRODUCT_STATUS_SCOPES: ReadonlyMap<string, ProductActivityScope> = new Map([
+  ["active", "active"],
+  ["inactive", "inactive"],
+  ["all", "any"],
+]);
 
-const PRODUCT_STATUS_FILTERS: ProductStatusFilter[] = ["active", "inactive", "all"];
-
-function readProductStatusFilter(
+function readProductStatusScope(
   raw: unknown,
-): ProductStatusFilter | { field: "status"; message: string } {
+): ProductActivityScope | { field: "status"; message: string } {
   if (raw === undefined) {
     return "active";
   }
-  if (typeof raw === "string" && (PRODUCT_STATUS_FILTERS as string[]).includes(raw)) {
-    return raw as ProductStatusFilter;
+  const scope = typeof raw === "string" ? PRODUCT_STATUS_SCOPES.get(raw) : undefined;
+  if (scope) {
+    return scope;
   }
   return { field: "status", message: "status must be one of active, inactive, or all" };
 }
@@ -36,117 +36,6 @@ export interface ProductsRouteOptions<TQueryResult extends PgQueryResultHKT> {
   now?: () => Date;
 }
 
-interface ProductWithoutBarcodes {
-  id: string;
-  name: string;
-  categoryId: string;
-  categoryName: string;
-  brandId: string | null;
-  saleUnit: string;
-  netContentQuantity: number | null;
-  netContentUnit: string | null;
-  active: boolean;
-  version: number;
-}
-
-async function barcodesByProductId<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  productIds: string[],
-): Promise<Map<string, string[]>> {
-  if (productIds.length === 0) {
-    return new Map();
-  }
-  const rows = await db
-    .select({ productId: productBarcodes.productId, code: productBarcodes.code })
-    .from(productBarcodes)
-    .where(inArray(productBarcodes.productId, productIds))
-    .orderBy(asc(productBarcodes.position));
-
-  const grouped = new Map<string, string[]>();
-  for (const row of rows) {
-    const existing = grouped.get(row.productId);
-    if (existing) {
-      existing.push(row.code);
-    } else {
-      grouped.set(row.productId, [row.code]);
-    }
-  }
-  return grouped;
-}
-
-async function tagIdsByProductId<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  productIds: string[],
-): Promise<Map<string, string[]>> {
-  if (productIds.length === 0) {
-    return new Map();
-  }
-  const rows = await db
-    .select({ productId: productTags.productId, tagId: productTags.tagId })
-    .from(productTags)
-    .innerJoin(tags, eq(tags.id, productTags.tagId))
-    .where(inArray(productTags.productId, productIds))
-    .orderBy(asc(tags.name));
-
-  const grouped = new Map<string, string[]>();
-  for (const row of rows) {
-    const existing = grouped.get(row.productId);
-    if (existing) {
-      existing.push(row.tagId);
-    } else {
-      grouped.set(row.productId, [row.tagId]);
-    }
-  }
-  return grouped;
-}
-
-async function listProducts<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  status: ProductStatusFilter = "active",
-): Promise<CatalogProduct[]> {
-  const rows: ProductWithoutBarcodes[] = await db
-    .select({
-      id: products.id,
-      name: products.name,
-      categoryId: products.categoryId,
-      categoryName: categories.name,
-      brandId: products.brandId,
-      saleUnit: products.saleUnit,
-      netContentQuantity: products.netContentQuantity,
-      netContentUnit: products.netContentUnit,
-      active: products.active,
-      version: products.version,
-    })
-    .from(products)
-    .innerJoin(categories, eq(products.categoryId, categories.id))
-    .where(status === "all" ? undefined : eq(products.active, status === "active"))
-    .orderBy(asc(products.name));
-
-  const barcodes = await barcodesByProductId(
-    db,
-    rows.map((row) => row.id),
-  );
-
-  const tagIds = await tagIdsByProductId(
-    db,
-    rows.map((row) => row.id),
-  );
-
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    categoryId: row.categoryId,
-    categoryName: row.categoryName,
-    brandId: row.brandId,
-    saleUnit: row.saleUnit as SaleUnit,
-    barcodes: barcodes.get(row.id) ?? [],
-    tagIds: tagIds.get(row.id) ?? [],
-    netContent: netContentRow(row),
-    active: row.active,
-    version: row.version,
-  }));
-}
-
 export function registerProductsListRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: ProductsRouteOptions<TQueryResult>,
@@ -154,6 +43,7 @@ export function registerProductsListRoute<TQueryResult extends PgQueryResultHKT>
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
+  const catalog = new DrizzleCatalogListReader(options.db);
 
   app.get<{ Querystring: { status?: string } }>(
     "/products",
@@ -165,17 +55,17 @@ export function registerProductsListRoute<TQueryResult extends PgQueryResultHKT>
       },
     },
     async (request, reply) => {
-      const status = readProductStatusFilter(request.query.status);
-      if (typeof status !== "string") {
+      const scope = readProductStatusScope(request.query.status);
+      if (typeof scope !== "string") {
         await reply.code(400).send({
           code: "validation_failed",
-          message: status.message,
-          details: [{ field: status.field }],
+          message: scope.message,
+          details: [{ field: scope.field }],
         });
         return;
       }
 
-      const rows = await listProducts(options.db, status);
+      const rows = await catalog.products(scope);
       await reply.code(200).send(productListSchema.parse(rows.map(toProductSummary)));
     },
   );

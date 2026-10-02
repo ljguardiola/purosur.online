@@ -1,5 +1,5 @@
-import { type BrandSummary, brandListSchema } from "@purosur/contracts";
-import { and, asc, count, eq } from "drizzle-orm";
+import { brandListSchema } from "@purosur/contracts";
+import { listBrands } from "@purosur/domain/catalog/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
@@ -8,32 +8,12 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { brands, products } from "../platform/db/schema.js";
+import { DrizzleCatalogListReader } from "./drizzle-catalog-list-reader.js";
 
 export interface BrandsRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
   now?: () => Date;
-}
-
-// Only active products count: a deactivated product is no longer part of the catalog.
-export async function listBrands<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  brandId?: string,
-): Promise<BrandSummary[]> {
-  return db
-    .select({
-      id: brands.id,
-      name: brands.name,
-      active: brands.active,
-      version: brands.version,
-      productCount: count(products.id),
-    })
-    .from(brands)
-    .leftJoin(products, and(eq(products.brandId, brands.id), eq(products.active, true)))
-    .where(brandId === undefined ? undefined : eq(brands.id, brandId))
-    .groupBy(brands.id)
-    .orderBy(asc(brands.name));
 }
 
 export function registerBrandsListRoute<TQueryResult extends PgQueryResultHKT>(
@@ -43,6 +23,7 @@ export function registerBrandsListRoute<TQueryResult extends PgQueryResultHKT>(
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
+  const catalog = new DrizzleCatalogListReader(options.db);
 
   app.get(
     "/brands",
@@ -54,7 +35,7 @@ export function registerBrandsListRoute<TQueryResult extends PgQueryResultHKT>(
       },
     },
     async (_request, reply) => {
-      const rows = await listBrands(options.db);
+      const rows = await listBrands({ catalog });
       await reply.code(200).send(brandListSchema.parse(rows));
     },
   );

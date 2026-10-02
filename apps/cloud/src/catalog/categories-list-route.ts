@@ -1,5 +1,4 @@
-import { type CategorySummary, categoryListSchema } from "@purosur/contracts";
-import { asc } from "drizzle-orm";
+import { categoryListSchema } from "@purosur/contracts";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
@@ -8,26 +7,12 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { categories } from "../platform/db/schema.js";
+import { DrizzleCatalogListReader } from "./drizzle-catalog-list-reader.js";
 
 export interface CategoriesRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
   now?: () => Date;
-}
-
-async function listCategories<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-): Promise<CategorySummary[]> {
-  return db
-    .select({
-      id: categories.id,
-      name: categories.name,
-      version: categories.version,
-      parentId: categories.parentId,
-    })
-    .from(categories)
-    .orderBy(asc(categories.name));
 }
 
 export function registerCategoriesListRoute<TQueryResult extends PgQueryResultHKT>(
@@ -37,6 +22,7 @@ export function registerCategoriesListRoute<TQueryResult extends PgQueryResultHK
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
+  const catalog = new DrizzleCatalogListReader(options.db);
 
   app.get(
     "/categories",
@@ -48,7 +34,7 @@ export function registerCategoriesListRoute<TQueryResult extends PgQueryResultHK
       },
     },
     async (_request, reply) => {
-      const rows = await listCategories(options.db);
+      const rows = await catalog.categories();
       await reply.code(200).send(categoryListSchema.parse(rows));
     },
   );
