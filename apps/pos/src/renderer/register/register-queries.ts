@@ -21,7 +21,7 @@ export const cashKey = [...registerKey, "cash"] as const;
 
 export const lockedClosersKey = [...registerKey, "locked-closers"] as const;
 
-export const authorizersKey = ["authorizers"] as const;
+export const authorizersKey = [...registerKey, "authorizers"] as const;
 
 export const registerKeys = {
   enrollment: [...registerKey, "enrollment"] as const,
