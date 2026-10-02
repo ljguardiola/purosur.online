@@ -12,15 +12,20 @@ import { resolveWebAuthnConfig } from "./webauthn-config.js";
 const ORIGIN = "https://staging.purosur.online";
 const CONFIG = resolveWebAuthnConfig(ORIGIN);
 
+// The emulator's bundled types don't match `@simplewebauthn/server`'s one-for-one, so values cross as JSON.
+function overTheWire(value: unknown) {
+  return JSON.parse(JSON.stringify(value));
+}
+
 async function registeredPasskey(emulator: WebAuthnEmulator) {
   const options = await generateRegistrationOptions({
     rpName: CONFIG.rpName,
     rpID: CONFIG.rpID,
     userName: "ana@example.test",
   });
-  const credential = emulator.createJSON(ORIGIN, options);
+  const credential = emulator.createJSON(ORIGIN, overTheWire(options));
   const verified = await verifyRegistrationResponse({
-    response: credential,
+    response: overTheWire(credential),
     expectedChallenge: options.challenge,
     expectedOrigin: ORIGIN,
     expectedRPID: CONFIG.rpID,
@@ -42,7 +47,9 @@ async function assertionFor(emulator: WebAuthnEmulator) {
     rpID: CONFIG.rpID,
     userVerification: "required",
   });
-  const assertion = emulator.getJSON(ORIGIN, options) as AuthenticationResponseJSON;
+  const assertion: AuthenticationResponseJSON = overTheWire(
+    emulator.getJSON(ORIGIN, overTheWire(options)),
+  );
   return { assertion, challenge: options.challenge };
 }
 
@@ -117,13 +124,18 @@ describe("webAuthnAssertionVerifier", () => {
     expect(verification).toEqual({ verified: false });
   });
 
-  it("does not verify an assertion signed by another passkey", async () => {
+  it("does not verify an assertion whose authenticator data was altered after signing", async () => {
     const emulator = new WebAuthnEmulator();
     const passkey = await registeredPasskey(emulator);
-    const { assertion, challenge } = await assertionFor(new WebAuthnEmulator());
+    const { assertion, challenge } = await assertionFor(emulator);
+    const altered = Buffer.from(assertion.response.authenticatorData, "base64url");
+    altered[altered.length - 1] = (altered[altered.length - 1] ?? 0) ^ 0xff;
 
     const verification = await webAuthnAssertionVerifier({
-      assertion,
+      assertion: {
+        ...assertion,
+        response: { ...assertion.response, authenticatorData: altered.toString("base64url") },
+      },
       expectedChallenge: challenge,
       config: CONFIG,
     }).verify(passkey);

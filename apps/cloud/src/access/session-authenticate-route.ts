@@ -1,13 +1,12 @@
 import { sessionAuthenticationBodySchema } from "@purosur/contracts";
-import { findSignInPasskey } from "@purosur/domain/access/use-cases";
+import { recordSignInLockout, signInWithPasskey } from "@purosur/domain/access/use-cases";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
-import { verifyAuthenticationResponse } from "@simplewebauthn/server";
-import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply } from "fastify";
-import { auditLog, passkeys, sessions } from "../platform/db/schema.js";
 import { requireBackofficeOrigin } from "./backoffice-origin.js";
 import { drizzleAccounts } from "./drizzle-accounts.js";
+import { DrizzlePasskeySignInStore } from "./drizzle-passkey-sign-in-store.js";
+import { DrizzleSignInLockoutLog } from "./drizzle-sign-in-lockout-log.js";
 import { reportRecoveryBookkeepingError } from "./recovery-error-reporting.js";
 import { resolveSourceAddress } from "./recovery-source-address.js";
 import { PUBLIC_ACCESS, registerRouteAccess } from "./route-access.js";
@@ -17,10 +16,10 @@ import { consumeSignInChallenge } from "./sign-in-challenge.js";
 import {
   admitSignInAttempt,
   confirmRejectedSignInAttempt,
-  discardSignInAttempt,
   hashSourceAddress,
   type TrippedSignInLockout,
 } from "./sign-in-lockout.js";
+import { webAuthnAssertionVerifier } from "./webauthn-assertion-verifier.js";
 import { resolveWebAuthnConfig } from "./webauthn-config.js";
 
 export interface SessionAuthenticateRouteOptions<TQueryResult extends PgQueryResultHKT> {
@@ -121,17 +120,15 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
   async function auditLockout(sourceAddress: string, lockout: TrippedSignInLockout): Promise<void> {
     // A bookkeeping failure here must never turn this 429 into a 500.
     try {
-      await options.db.insert(auditLog).values({
-        entity: "backoffice_lockout",
-        entityId: lockout.id,
-        actorId: null,
-        previousValue: null,
-        newValue: {
+      await recordSignInLockout(
+        { log: new DrizzleSignInLockoutLog(options.db) },
+        {
+          lockoutId: lockout.id,
           sourceAddressHash: hashSourceAddress(sourceAddress),
           failureCount: lockout.failureCount,
-          blockedUntil: lockout.blockedUntil.toISOString(),
+          blockedUntil: lockout.blockedUntil,
         },
-      });
+      );
     } catch (error) {
       reportError(error);
     }
@@ -179,11 +176,29 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
       now: attemptedAt,
     });
 
-    const found = await findSignInPasskey(
-      { accounts: drizzleAccounts(options.db) },
-      { credentialId: assertion.id },
+    const previousRawSessionId = readSessionCookie(request.headers.cookie);
+    const rawSessionId = generateSessionId();
+    const outcome = await signInWithPasskey(
+      {
+        accounts: drizzleAccounts(options.db),
+        verifier: webAuthnAssertionVerifier({
+          assertion,
+          expectedChallenge: () => challengeIsLive,
+          config: webAuthnConfig,
+        }),
+        store: new DrizzlePasskeySignInStore(options.db),
+      },
+      {
+        credentialId: assertion.id,
+        attemptId: admission.attemptId,
+        ...(previousRawSessionId
+          ? { previousSessionKey: hashSessionId(previousRawSessionId) }
+          : {}),
+        sessionKey: hashSessionId(rawSessionId),
+        at: attemptedAt,
+      },
     );
-    if (found.kind === "unknown") {
+    if (outcome.kind === "unknown_passkey") {
       await rejectSignInAttempt(
         sourceAddress,
         attemptedAt,
@@ -193,77 +208,7 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
       );
       return;
     }
-    if (found.kind === "inactive") {
-      await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
-      return;
-    }
-    const { passkey } = found;
-
-    const verification = await verifyAuthenticationResponse({
-      response: assertion,
-      expectedChallenge: () => challengeIsLive,
-      expectedOrigin: webAuthnConfig.expectedOrigin,
-      expectedRPID: webAuthnConfig.rpID,
-      credential: {
-        id: passkey.credentialId,
-        publicKey: Buffer.from(passkey.publicKey, "base64url"),
-        counter: passkey.counter,
-        ...(passkey.transports ? { transports: passkey.transports } : {}),
-      },
-      requireUserVerification: true,
-    }).catch(() => ({ verified: false as const }));
-    if (!verification.verified) {
-      await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
-      return;
-    }
-    const { authenticationInfo } = verification;
-
-    // WebAuthn clone signal: once the counter has left zero, a non-increasing counter means a cloned authenticator.
-    const isCloneSignal = passkey.counter > 0 && authenticationInfo.newCounter <= passkey.counter;
-    if (isCloneSignal) {
-      await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
-      return;
-    }
-
-    // One transaction, so a failed write can never leave behind a live session whose cookie nobody ever received.
-    const previousRawSessionId = readSessionCookie(request.headers.cookie);
-    const rawSessionId = generateSessionId();
-    const opened = await options.db.transaction(async (tx) => {
-      // Locks the passkey's row before any session exists, so a concurrent removal leaves nothing
-      // to update here and no session opens for a passkey removed in the meantime.
-      const [usedPasskey] = await tx
-        .update(passkeys)
-        .set({
-          lastUsedAt: attemptedAt,
-          ...(authenticationInfo.newCounter !== passkey.counter
-            ? { counter: authenticationInfo.newCounter }
-            : {}),
-        })
-        .where(eq(passkeys.id, passkey.id))
-        .returning({ id: passkeys.id });
-      if (!usedPasskey) {
-        return false;
-      }
-
-      if (previousRawSessionId) {
-        await tx
-          .update(sessions)
-          .set({ revokedAt: attemptedAt })
-          .where(eq(sessions.sessionIdHash, hashSessionId(previousRawSessionId)));
-      }
-
-      await tx.insert(sessions).values({
-        userId: passkey.userId,
-        sessionIdHash: hashSessionId(rawSessionId),
-        createdAt: attemptedAt,
-        lastSeenAt: attemptedAt,
-        passkeyAuthorizedAt: attemptedAt,
-      });
-
-      await discardSignInAttempt(tx, admission.attemptId);
-      return true;
-    });
-    if (!opened) {
+    if (outcome.kind !== "signed_in") {
       await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
       return;
     }

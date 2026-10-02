@@ -11,7 +11,6 @@ export {
   hasValidPasskeyAuthorization,
   PASSKEY_AUTHORIZATION_WINDOW_MS,
 } from "./model/passkey-authorization-window.js";
-export { isPasskeyCloneSignal } from "./model/passkey-clone-signal.js";
 export {
   isPasskeyNameTooLong,
   PASSKEY_NAME_MAX_LENGTH,
