@@ -128,7 +128,7 @@ test("measureDownload measures the same build whose minifier chose other names a
     "assets/initial-EEEEEEEE.js":
       "function e(e){return e+1}function t(e,t){return{e,t}}export{t as a,e as c};",
     "assets/lazy-FFFFFFFF.js":
-      'import{a as n,c}from"./initial-EEEEEEEE.js";const t=c(1),{k:ee,m:te=ee}=n(t,{n:t});console.log(ee[te],{[te]:ee});export{ee as r};',
+      'import{a as n,c}from"./initial-EEEEEEEE.js";const t=c(1),{k:ee,m:renamedKey=ee}=n(t,{n:t});console.log(ee[renamedKey],{[renamedKey]:ee});export{ee as r};',
   };
 
   await withDist(built, async ({ dist: builtDist }) => {
