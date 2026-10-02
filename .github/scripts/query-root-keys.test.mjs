@@ -248,6 +248,106 @@ test("refuses a query key read from the parameter of a function whose callers th
   ]);
 });
 
+const INVALIDATE = [
+  IMPORTS,
+  "const client = new QueryClient();",
+  "export function invalidate(key: QueryKey) {",
+  "  client.invalidateQueries({ queryKey: key });",
+  "}",
+].join("\n");
+
+const SALES_KEYS = [
+  IMPORTS,
+  "const client = new QueryClient();",
+  "export const salesKeys = {",
+  "  invalidate(key: QueryKey) {",
+  "    client.invalidateQueries({ queryKey: key });",
+  "  },",
+  "};",
+].join("\n");
+
+const UNCALLED_UNDER_ANOTHER_NAME = [
+  {
+    reach: "a renamed import",
+    line: 4,
+    files: {
+      "src/sales/invalidate.ts": INVALIDATE,
+      "src/sales/refresh.ts": [
+        'import { invalidate as refresh } from "./invalidate";',
+        'export const refreshAll = () => [["ticket"]].forEach(refresh);',
+      ].join("\n"),
+    },
+  },
+  {
+    reach: "a default import under another name",
+    line: 4,
+    files: {
+      "src/sales/invalidate.ts": INVALIDATE.replace("export function", "export default function"),
+      "src/sales/refresh.ts": [
+        'import refresh from "./invalidate";',
+        'export const refreshAll = () => [["ticket"]].forEach(refresh);',
+      ].join("\n"),
+    },
+  },
+  {
+    reach: "a renamed re-export",
+    line: 4,
+    files: {
+      "src/sales/invalidate.ts": INVALIDATE,
+      "src/sales/index.ts": 'export { invalidate as refresh } from "./invalidate";',
+      "src/sales/refresh.ts": [
+        'import { refresh } from "./index";',
+        'export const refreshAll = () => [["ticket"]].forEach(refresh);',
+      ].join("\n"),
+    },
+  },
+  {
+    reach: "a destructured property",
+    line: 5,
+    files: {
+      "src/sales/invalidate.ts": SALES_KEYS,
+      "src/sales/refresh.ts": [
+        'import { salesKeys } from "./invalidate";',
+        "const { invalidate } = salesKeys;",
+        'export const refreshAll = () => [["ticket"]].forEach(invalidate);',
+      ].join("\n"),
+    },
+  },
+  {
+    reach: "a property access passed as a value",
+    line: 5,
+    files: {
+      "src/sales/invalidate.ts": SALES_KEYS,
+      "src/sales/refresh.ts": [
+        'import { salesKeys } from "./invalidate";',
+        'export const refreshAll = () => [["ticket"]].forEach(salesKeys.invalidate);',
+      ].join("\n"),
+    },
+  },
+];
+
+for (const { reach, line, files } of UNCALLED_UNDER_ANOTHER_NAME) {
+  test(`refuses a query key read from the parameter of a function handed on uncalled through ${reach}`, (t) => {
+    assert.deepEqual(problemsIn(t, files), [
+      `src/sales/invalidate.ts:${line} uses a query key whose root the check cannot read`,
+    ]);
+  });
+}
+
+test("follows a key into a function called under another local name", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/invalidate.ts": INVALIDATE,
+    "src/sales/refresh.ts": [
+      'import { invalidate as refresh } from "./invalidate";',
+      'export const refreshTicket = () => refresh(["ticket"]);',
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/sales/refresh.ts:2 roots a query key at "ticket", but the concept folder holding it is "sales"',
+  ]);
+});
+
 test("refuses a key whose root the check cannot read, naming where it is used", (t) => {
   const problems = problemsIn(t, {
     "src/catalog/catalog-queries.ts": [
