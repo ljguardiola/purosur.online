@@ -135,7 +135,7 @@ describe("issuing a token", () => {
   it("refuses a request id that cannot name a stored request, storing nothing", async () => {
     await expect(
       store().transaction((tx) => tx.issueToken(newToken("hash-a", "not-a-uuid"))),
-    ).rejects.toThrow();
+    ).rejects.toThrow(new Error("the recovery request id names no stored request: not-a-uuid"));
 
     expect(await db.select().from(recoveryTokens)).toEqual([]);
   });

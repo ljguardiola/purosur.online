@@ -1,8 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { createGraphileRecoveryJobQueue } from "./graphile-recovery-job-queue.js";
 import { RECOVERY_REQUEST_TASK_IDENTIFIER } from "./recovery-worker.js";
-
-const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 describe("createGraphileRecoveryJobQueue", () => {
   it("enqueues a recovery-request job for the given request through the shared worker utils", async () => {
@@ -21,12 +20,12 @@ describe("createGraphileRecoveryJobQueue", () => {
     expect(workerUtils.addJob).toHaveBeenNthCalledWith(1, RECOVERY_REQUEST_TASK_IDENTIFIER, {
       email: "ada@example.com",
       requestedAt: "2026-01-05T12:00:00.000Z",
-      requestId: expect.stringMatching(UUID_SHAPE),
+      requestId: expect.stringMatching(UUID_PATTERN),
     });
     expect(workerUtils.addJob).toHaveBeenNthCalledWith(2, RECOVERY_REQUEST_TASK_IDENTIFIER, {
       email: "grace@example.com",
       requestedAt: "2026-01-05T12:01:00.000Z",
-      requestId: expect.stringMatching(UUID_SHAPE),
+      requestId: expect.stringMatching(UUID_PATTERN),
     });
     const [firstPayload, secondPayload] = workerUtils.addJob.mock.calls.map(
       ([, payload]) => payload as { requestId: string },
