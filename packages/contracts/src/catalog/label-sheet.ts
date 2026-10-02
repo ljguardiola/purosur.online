@@ -60,11 +60,15 @@ export const labelSheetBodySchema = z.object({
         return z.NEVER;
       }
       return readEntries;
-    })
-    .meta({
-      maxCountPerProduct: LABELS_MAX_COUNT_PER_PRODUCT,
-      maxTotalCount: LABELS_MAX_TOTAL_COUNT,
     }),
 });
+
+export const labelCountsSchema = z
+  .array(z.object({ productId: z.string(), count: z.number() }))
+  .refine(
+    (entries) =>
+      entries.every((entry) => isValidLabelCount(entry.count)) &&
+      labelRequestProblem(entries) === undefined,
+  );
 
 export type LabelSheetBody = z.input<typeof labelSheetBodySchema>;

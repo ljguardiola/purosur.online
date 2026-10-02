@@ -80,12 +80,12 @@ describe("sequenceValueOf", () => {
 });
 
 describe("DrizzleInternalBarcodeStore", () => {
-  it("answers the internal barcode sequence's next value", async () => {
+  it("answers the next internal barcode body from the sequence", async () => {
     await setNextSequenceValue(200000000100n);
     const store = new DrizzleInternalBarcodeStore(db);
 
-    expect(await store.nextSequenceValue()).toBe(200000000100n);
-    expect(await store.nextSequenceValue()).toBe(200000000101n);
+    expect(await store.nextInternalBarcodeBody()).toBe(200000000100n);
+    expect(await store.nextInternalBarcodeBody()).toBe(200000000101n);
   });
 
   it("answers that a code is assigned when a product has it, active or not", async () => {

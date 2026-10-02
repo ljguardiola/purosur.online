@@ -1,4 +1,4 @@
-import { labelSheetBodySchema, type ProductSummary } from "@purosur/contracts";
+import { labelCountsSchema, type ProductSummary } from "@purosur/contracts";
 import {
   Button,
   EmptyState,
@@ -12,14 +12,20 @@ import {
 import { Download, Minus, Package, Plus, Printer, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { schemaLimit } from "../platform/schema-limit";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { groupedEan13Digits, LabelPreviewBars } from "./label-preview-bars";
 import type { printLabels } from "./products-api";
 
-const LABEL_LIMITS = labelSheetBodySchema.shape.labels.meta();
-const MAX_COUNT_PER_PRODUCT = schemaLimit(LABEL_LIMITS?.["maxCountPerProduct"]);
-const MAX_TOTAL_COUNT = schemaLimit(LABEL_LIMITS?.["maxTotalCount"]);
+function acceptsCounts(counts: Record<string, number>): boolean {
+  const entries = Object.entries(counts)
+    .filter(([, count]) => count > 0)
+    .map(([productId, count]) => ({ productId, count }));
+  return labelCountsSchema.safeParse(entries).success;
+}
+
+function withOneMore(counts: Record<string, number>, productId: string): Record<string, number> {
+  return { ...counts, [productId]: (counts[productId] ?? 0) + 1 };
+}
 
 type LabelableProduct = { product: ProductSummary; code: string };
 
@@ -87,13 +93,12 @@ export function PrintLabelsModal({
 
   function changeCount(productId: string, delta: 1 | -1) {
     setCounts((current) => {
-      const count = current[productId] ?? 0;
-      const currentTotal = Object.values(current).reduce((sum, value) => sum + value, 0);
-      const ceiling = Math.min(
-        MAX_COUNT_PER_PRODUCT,
-        count + Math.max(0, MAX_TOTAL_COUNT - currentTotal),
-      );
-      return { ...current, [productId]: Math.max(0, Math.min(ceiling, count + delta)) };
+      if (delta === 1) {
+        return acceptsCounts(withOneMore(current, productId))
+          ? withOneMore(current, productId)
+          : current;
+      }
+      return { ...current, [productId]: Math.max(0, (current[productId] ?? 0) - 1) };
     });
   }
 
@@ -264,7 +269,7 @@ export function PrintLabelsModal({
                       <IconButton
                         icon={<Plus />}
                         aria-label={`Sumar una etiqueta a ${product.name}`}
-                        disabled={count === MAX_COUNT_PER_PRODUCT || total >= MAX_TOTAL_COUNT}
+                        disabled={!acceptsCounts(withOneMore(counts, product.id))}
                         onPress={() => changeCount(product.id, 1)}
                       />
                     </div>

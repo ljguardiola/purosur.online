@@ -88,7 +88,7 @@ export { categoryListSchema, categorySummarySchema } from "./catalog/category-su
 export type { InternalBarcode } from "./catalog/internal-barcode.js";
 export { internalBarcodeSchema } from "./catalog/internal-barcode.js";
 export type { LabelSheetBody } from "./catalog/label-sheet.js";
-export { labelSheetBodySchema } from "./catalog/label-sheet.js";
+export { labelCountsSchema, labelSheetBodySchema } from "./catalog/label-sheet.js";
 export type { ProductCreationBody } from "./catalog/product-creation.js";
 export { productCreationBodySchema } from "./catalog/product-creation.js";
 export type { ProductEditBody } from "./catalog/product-edit.js";

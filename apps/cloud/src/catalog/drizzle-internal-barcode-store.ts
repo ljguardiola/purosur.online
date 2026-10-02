@@ -45,7 +45,7 @@ export class DrizzleInternalBarcodeStore<TQueryResult extends PgQueryResultHKT>
     this.db = db;
   }
 
-  async nextSequenceValue(): Promise<bigint> {
+  async nextInternalBarcodeBody(): Promise<bigint> {
     return sequenceValueOf(await this.db.execute(NEXTVAL_QUERY));
   }
 

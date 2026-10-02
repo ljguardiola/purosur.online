@@ -10,7 +10,7 @@ export class FakeInternalBarcodeStore implements InternalBarcodeStore {
     this.assignedCodes = new Set(input.assignedCodes ?? []);
   }
 
-  async nextSequenceValue(): Promise<bigint> {
+  async nextInternalBarcodeBody(): Promise<bigint> {
     const value = this.nextValue;
     this.nextValue += 1n;
     return value;

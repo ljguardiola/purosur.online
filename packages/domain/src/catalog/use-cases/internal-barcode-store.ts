@@ -1,4 +1,4 @@
 export interface InternalBarcodeStore {
-  nextSequenceValue(): Promise<bigint>;
+  nextInternalBarcodeBody(): Promise<bigint>;
   isBarcodeAssigned(code: string): Promise<boolean>;
 }

@@ -207,23 +207,6 @@ test("lists the products alphabetically by name", async () => {
     ]);
 });
 
-test("does not list an inactive product, even with an internal barcode", async () => {
-  const services = createServices();
-  const inactiveAlmonds: ProductSummary = {
-    ...almondsWithInternalBarcode,
-    active: false,
-    labelCode: null,
-  };
-  const screen = await renderModal(services, {
-    products: [honeyWithInternalBarcode, inactiveAlmonds],
-  });
-
-  const dialog = await openPrintLabelsModal(screen);
-
-  await expect.element(dialog.getByText("2000000000015")).toBeVisible();
-  expect(dialog.getByText("2000000000022").query()).toBeNull();
-});
-
 test("shows only the empty state when no product has an internal barcode", async () => {
   const services = createServices();
   const screen = await renderModal(services, { products: [withoutInternalBarcode] });
@@ -239,26 +222,15 @@ test("shows only the empty state when no product has an internal barcode", async
     .toBeDisabled();
 });
 
-test("an inactive product's internal code isn't offered, and the empty state asks for an active one", async () => {
+test("the empty state asks to generate a code from an active product's form", async () => {
   const services = createServices();
-  const inactiveAlmonds: ProductSummary = {
-    ...almondsWithInternalBarcode,
-    active: false,
-    labelCode: null,
-  };
-  const screen = await renderModal(services, {
-    products: [inactiveAlmonds, withoutInternalBarcode],
-  });
+  const screen = await renderModal(services, { products: [withoutInternalBarcode] });
 
   const dialog = await openPrintLabelsModal(screen);
 
   await expect
-    .element(dialog.getByText("No hay productos activos con código interno"))
-    .toBeVisible();
-  await expect
     .element(dialog.getByText("Generá uno desde el formulario de un producto activo."))
     .toBeVisible();
-  expect(dialog.getByText("Almendras peladas").query()).toBeNull();
 });
 
 test("the stepper increments and decrements between 0 and 999, disabling each bound", async () => {

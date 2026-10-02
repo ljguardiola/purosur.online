@@ -3,7 +3,7 @@ import { allocateInternalBarcode } from "./allocate-internal-barcode.js";
 import { FakeInternalBarcodeStore } from "./test-support/fake-internal-barcode-store.js";
 
 describe("allocateInternalBarcode", () => {
-  it("gives the sequence's next value with its EAN-13 check digit appended", async () => {
+  it("gives the store's next body with its EAN-13 check digit appended", async () => {
     const store = new FakeInternalBarcodeStore({ nextValue: 200000000001n });
 
     expect(await allocateInternalBarcode(store)).toEqual({
@@ -34,5 +34,13 @@ describe("allocateInternalBarcode", () => {
       { kind: "allocated", code: "2000000000015" },
       { kind: "allocated", code: "2000000000022" },
     ]);
+  });
+
+  it("treats a store's body outside the internal range as a broken store", async () => {
+    const store = new FakeInternalBarcodeStore({ nextValue: 100000000001n });
+
+    await expect(allocateInternalBarcode(store)).rejects.toThrow(
+      "internal-barcode: the store gave a body outside the internal range",
+    );
   });
 });

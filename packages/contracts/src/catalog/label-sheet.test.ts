@@ -1,6 +1,6 @@
 import { LABELS_MAX_COUNT_PER_PRODUCT, LABELS_MAX_TOTAL_COUNT } from "@purosur/domain";
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { type LabelSheetBody, labelSheetBodySchema } from "./label-sheet.js";
+import { type LabelSheetBody, labelCountsSchema, labelSheetBodySchema } from "./label-sheet.js";
 
 const PRODUCT_ID = "11111111-1111-1111-1111-111111111111";
 const OTHER_PRODUCT_ID = "22222222-2222-2222-2222-222222222222";
@@ -185,16 +185,56 @@ describe("labelSheetBodySchema", () => {
     ).toEqual({ field: "labels", message: TOTAL_MESSAGE });
   });
 
-  it("declares the per-product and total label limits for the screens to read", () => {
-    expect(labelSheetBodySchema.shape.labels.meta()).toEqual({
-      maxCountPerProduct: LABELS_MAX_COUNT_PER_PRODUCT,
-      maxTotalCount: LABELS_MAX_TOTAL_COUNT,
-    });
-  });
-
   it("types a request as a list of product ids and counts", () => {
     expectTypeOf<LabelSheetBody>().toEqualTypeOf<{
       labels: { productId: string; count: number }[];
     }>();
+  });
+});
+
+describe("labelCountsSchema", () => {
+  const accepts = (entries: unknown) => labelCountsSchema.safeParse(entries).success;
+
+  it("accepts counts of any product id up to the per-product limit", () => {
+    expect(accepts([{ productId: "product-1", count: LABELS_MAX_COUNT_PER_PRODUCT }])).toBe(true);
+  });
+
+  it("accepts an empty list", () => {
+    expect(accepts([])).toBe(true);
+  });
+
+  it("refuses a count over the per-product limit", () => {
+    expect(accepts([{ productId: "product-1", count: LABELS_MAX_COUNT_PER_PRODUCT + 1 }])).toBe(
+      false,
+    );
+  });
+
+  it("refuses a count below one", () => {
+    expect(accepts([{ productId: "product-1", count: 0 }])).toBe(false);
+  });
+
+  it("refuses a product listed twice", () => {
+    expect(
+      accepts([
+        { productId: "product-1", count: 1 },
+        { productId: "product-1", count: 1 },
+      ]),
+    ).toBe(false);
+  });
+
+  it("accepts a total at the limit and refuses one over it", () => {
+    const entries = (lastCount: number) => [
+      { productId: "product-1", count: LABELS_MAX_COUNT_PER_PRODUCT },
+      { productId: "product-2", count: LABELS_MAX_COUNT_PER_PRODUCT },
+      { productId: "product-3", count: lastCount },
+    ];
+    const lastCountAtLimit = LABELS_MAX_TOTAL_COUNT - LABELS_MAX_COUNT_PER_PRODUCT * 2;
+    expect(accepts(entries(lastCountAtLimit))).toBe(true);
+    expect(accepts(entries(lastCountAtLimit + 1))).toBe(false);
+  });
+
+  it("refuses an entry that is not a product id and a count", () => {
+    expect(accepts([{ productId: "product-1" }])).toBe(false);
+    expect(accepts([{ productId: 1, count: 1 }])).toBe(false);
   });
 });
