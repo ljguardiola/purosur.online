@@ -1,5 +1,6 @@
 import { createRef, type Ref, useId } from "react";
 import { expect, expectTypeOf, test } from "vitest";
+import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { tokenRgb } from "../../test/token-colors";
@@ -113,6 +114,48 @@ test("leaves the title out of focus when the screen takes no ref to it", async (
   expect(document.activeElement).not.toBe(title);
 });
 
+test("lets the screen's frame focus a focusable title, out of the tab order, with the focus ring when focus arrives by keyboard", async () => {
+  const screen = await render(
+    <>
+      <button type="button">Ingresar</button>
+      <ScreenHeader title="Ingresar al backoffice" focusableTitle />
+    </>,
+  );
+  const title = screen.getByRole("heading", { name: "Ingresar al backoffice" }).element() as HTMLElement;
+
+  await userEvent.tab();
+  expect(document.activeElement).toBe(screen.getByRole("button").element());
+  await userEvent.tab();
+  expect(document.activeElement).not.toBe(title);
+
+  title.focus();
+
+  expect(document.activeElement).toBe(title);
+  expect(title.getAttribute("tabindex")).toBe("-1");
+  const style = getComputedStyle(title);
+  expect(style.outlineStyle).toBe("solid");
+  expect(style.outlineWidth).toBe("3px");
+  expect(style.outlineColor).toBe(tokenRgb("focus"));
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("draws no focus ring on a focusable title focused after a pointer press", async () => {
+  const screen = await render(
+    <>
+      <button type="button">Ingresar</button>
+      <ScreenHeader title="Ingresar al backoffice" focusableTitle />
+    </>,
+  );
+  const title = screen.getByRole("heading", { name: "Ingresar al backoffice" }).element() as HTMLElement;
+
+  await userEvent.click(screen.getByRole("button"));
+  title.focus();
+
+  expect(document.activeElement).toBe(title);
+  expect(getComputedStyle(title).outlineStyle).toBe("none");
+});
+
 test("wraps a long title and description inside its container instead of overflowing it", async () => {
   const longTitle = "Un título largo que no entra en una sola línea";
   const longDescription =
@@ -154,5 +197,6 @@ test("accepts an eyebrow, a description and a title ref a screen may or may not 
     eyebrow: string | undefined;
     description: string | undefined;
     titleRef: Ref<HTMLHeadingElement> | undefined;
+    focusableTitle: boolean | undefined;
   }>().toExtend<ScreenHeaderProps>();
 });
