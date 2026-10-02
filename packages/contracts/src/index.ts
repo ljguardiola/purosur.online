@@ -274,8 +274,10 @@ export type {
 } from "./stock/stock-movement-bodies.js";
 export {
   stockAdjustmentBodySchema,
+  stockAdjustmentDirectionsSchema,
   stockCountBodySchema,
   stockLossBodySchema,
+  stockMovementChangeSchema,
 } from "./stock/stock-movement-bodies.js";
 export type { StockCountResult, StockMovementResult } from "./stock/stock-results.js";
 export { stockCountResultSchema, stockMovementResultSchema } from "./stock/stock-results.js";
