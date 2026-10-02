@@ -50,6 +50,24 @@ ledger ids to verify.
      itself; when it cannot run there either, decide from the diff and say
      so in the proof. Remove the worktree with
      `git worktree remove --force <scratch dir>`.
+   - "test commit `<sha>` also holds a production change": whether `<sha>`
+     is a test commit at all is first read from its diff against
+     `.claude/rules/code-style.md` ("Code style") and "Commit order" in the
+     checklist, with no run, naming the later commit whose code makes its
+     tests pass; a commit that is not one is `REFUTED`, and a behavior it
+     changes is judged by the step above. Then list, from
+     `commits.patch` and every `delta-commits-<round>.patch` in the review
+     folder, the files of that commit that are neither tests nor used only
+     by tests, read against the same rule and checklist; a test commit with
+     none is `REFUTED`, one with any is `CONFIRMED` whether or not it
+     type-checks. Then prove it
+     in a temporary worktree at the commit, never in the working tree:
+     `git worktree add --detach <scratch dir> <sha>`,
+     `pnpm install --offline` there, and run
+     `mise exec node@$(cat .node-version) -- pnpm typecheck` there. The
+     proof is those files and whether the repository type-checks at
+     `<sha>`, with the first errors when it does not. Remove the worktree
+     with `git worktree remove --force <scratch dir>`.
    - A reopen claim on a fixed commit-order row is judged as "Commit order"
      in the checklist says: the history alone does not reopen it.
    - Run focused tests only, never the whole suite:
