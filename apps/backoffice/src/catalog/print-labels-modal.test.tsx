@@ -10,19 +10,19 @@ import { almonds, honey } from "./test-support/products";
 // Both barcodes are valid check-digit values in the GS1 restricted-circulation range.
 const honeyWithInternalBarcode: ProductSummary = {
   ...honey,
-  id: "product-20",
+  id: "00000020-0000-4000-8000-000000000000",
   barcodes: ["2000000000015"],
   labelCode: "2000000000015",
 };
 const almondsWithInternalBarcode: ProductSummary = {
   ...almonds,
-  id: "product-21",
+  id: "00000021-0000-4000-8000-000000000000",
   barcodes: ["2000000000022"],
   labelCode: "2000000000022",
 };
 const withoutInternalBarcode: ProductSummary = {
   ...honey,
-  id: "product-22",
+  id: "00000022-0000-4000-8000-000000000000",
   name: "Producto sin código interno",
   barcodes: ["7790000000123"],
 };
@@ -528,7 +528,7 @@ test("cancel closes the print labels modal without calling the API", async () =>
 test("caps the sheet at 2400 labels in total, disabling a row's + once the total is reached", async () => {
   const walnutsWithInternalBarcode: ProductSummary = {
     ...almonds,
-    id: "product-23",
+    id: "00000023-0000-4000-8000-000000000000",
     name: "Nueces mariposa",
     barcodes: ["2912345678906"],
     labelCode: "2912345678906",

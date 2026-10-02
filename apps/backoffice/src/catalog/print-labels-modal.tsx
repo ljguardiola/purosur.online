@@ -1,4 +1,4 @@
-import { labelCountsSchema, type ProductSummary } from "@purosur/contracts";
+import { labelSheetBodySchema, type ProductSummary } from "@purosur/contracts";
 import {
   Button,
   EmptyState,
@@ -20,7 +20,7 @@ function acceptsCounts(counts: Record<string, number>): boolean {
   const entries = Object.entries(counts)
     .filter(([, count]) => count > 0)
     .map(([productId, count]) => ({ productId, count }));
-  return labelCountsSchema.safeParse(entries).success;
+  return labelSheetBodySchema.safeParse({ labels: entries }).success;
 }
 
 function withOneMore(counts: Record<string, number>, productId: string): Record<string, number> {
