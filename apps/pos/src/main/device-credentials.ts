@@ -35,6 +35,7 @@ export interface DurableFileSystem {
   fsyncSync(descriptor: number): void;
   closeSync(descriptor: number): void;
   renameSync(from: string, to: string): void;
+  readFileSync(path: string): Buffer;
 }
 
 const nodeFileSystem: DurableFileSystem = {
@@ -43,6 +44,7 @@ const nodeFileSystem: DurableFileSystem = {
   fsyncSync,
   closeSync,
   renameSync,
+  readFileSync,
 };
 
 function writeAll(fileSystem: DurableFileSystem, descriptor: number, contents: Buffer): void {
@@ -79,7 +81,7 @@ export function credentialsFileAt(
   return {
     read() {
       try {
-        return readFileSync(path);
+        return fileSystem.readFileSync(path);
       } catch {
         return undefined;
       }

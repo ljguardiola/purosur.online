@@ -1,6 +1,10 @@
 import { EventEmitter } from "node:events";
 import type { Pool } from "pg";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { auditLog, users } from "../platform/db/schema.js";
+import { buildTestDatabase } from "../test-support/build-test-database.js";
+import { seededLocationId } from "../test-support/seeded-location.js";
+import { processRecoveryRequestJob } from "./process-recovery-request-job.js";
 import type { AccessEmailSender } from "./recovery-email-sender.js";
 import {
   FIRST_PIN_CODE_EMAIL_TASK_IDENTIFIER,
@@ -584,12 +588,124 @@ describe("startRecoveryWorker", () => {
         {
           email: "ada@example.com",
           requestedAt: "2026-01-05T12:00:00.000Z",
+          requestId: 42,
+        },
+        { withPgClient },
+      ),
+    ).rejects.toThrow();
+    await expect(
+      task(
+        {
+          email: "ada@example.com",
+          requestedAt: "2026-01-05T12:00:00.000Z",
           requestId: "not-a-uuid",
         },
         { withPgClient },
       ),
     ).rejects.toThrow();
     expect(withPgClient).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["with a time zone offset", "2026-01-05T12:00:00+03:00"],
+    ["holding only a date", "2026-01-05"],
+  ])(
+    "fails a job whose request time is a readable date %s, which the queue never writes, without borrowing a database client",
+    async (_shape, requestedAt) => {
+      const runWorker = vi.fn().mockResolvedValue(fakeRunner());
+      const withPgClient = vi.fn();
+
+      await startRecoveryWorker(
+        {
+          databaseUrl: "postgres://user:pass@db/purosur",
+          backofficeOrigin: "https://staging.purosur.online",
+          emailSender,
+        },
+        { runWorker },
+      );
+
+      const [options] = runWorker.mock.calls[0] as [
+        {
+          taskList: Record<
+            string,
+            (payload: unknown, helpers: { withPgClient: typeof withPgClient }) => Promise<void>
+          >;
+        },
+      ];
+      const task = mustExist(
+        options.taskList[RECOVERY_REQUEST_TASK_IDENTIFIER],
+        "the registered recovery-request task",
+      );
+
+      await expect(
+        task(
+          {
+            email: "ada@example.com",
+            requestedAt,
+            requestId: "0b8e5c2a-3f4d-4e6a-9b1c-2d3e4f5a6b7c",
+          },
+          { withPgClient },
+        ),
+      ).rejects.toThrow("malformed job payload");
+      expect(withPgClient).not.toHaveBeenCalled();
+    },
+  );
+
+  it("fails a job whose request id the queue never creates, recording nothing even for an inactive account", async () => {
+    const testDatabase = await buildTestDatabase();
+    try {
+      await testDatabase.db.insert(users).values({
+        firstName: "Ada",
+        email: "ada@example.com",
+        active: false,
+        locationId: await seededLocationId(testDatabase.db),
+      });
+      const runWorker = vi.fn().mockResolvedValue(fakeRunner());
+      const withPgClient = vi.fn(async (callback: (client: unknown) => Promise<unknown>) =>
+        callback({ marker: "fake-client" }),
+      );
+
+      await startRecoveryWorker(
+        {
+          databaseUrl: "postgres://user:pass@db/purosur",
+          backofficeOrigin: "https://staging.purosur.online",
+          emailSender,
+        },
+        {
+          runWorker,
+          createDatabase: vi.fn(),
+          processJob: (_db, payload, deps) =>
+            processRecoveryRequestJob(testDatabase.db, payload, deps),
+        },
+      );
+
+      const [options] = runWorker.mock.calls[0] as [
+        {
+          taskList: Record<
+            string,
+            (payload: unknown, helpers: { withPgClient: typeof withPgClient }) => Promise<void>
+          >;
+        },
+      ];
+      const task = mustExist(
+        options.taskList[RECOVERY_REQUEST_TASK_IDENTIFIER],
+        "the registered recovery-request task",
+      );
+
+      await expect(
+        task(
+          {
+            email: "ada@example.com",
+            requestedAt: "2026-01-05T12:00:00.000Z",
+            requestId: "not-a-uuid",
+          },
+          { withPgClient },
+        ),
+      ).rejects.toThrow("malformed job payload");
+      expect(await testDatabase.db.select().from(auditLog)).toEqual([]);
+    } finally {
+      await testDatabase.close();
+    }
   });
 
   it("sends a first PIN code email through the sender once the code read through graphile-worker's client is live, leaving a malformed payload or a failed send to graphile-worker's retry", async () => {

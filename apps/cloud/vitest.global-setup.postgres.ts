@@ -32,6 +32,9 @@ export default async function setup(project: TestProject): Promise<() => Promise
   try {
     container = await new PostgreSqlContainer(POSTGRES_IMAGE)
       .withCommand(["postgres", "-c", `max_connections=${MAX_CONNECTIONS}`])
+      // Every file creates and drops its own database, which Postgres syncs to disk: on a disk other
+      // processes keep busy, each one took up to minutes and pushed files past their timeouts.
+      .withTmpFs({ "/var/lib/postgresql": "rw" })
       .start();
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
