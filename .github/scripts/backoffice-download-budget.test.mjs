@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
+import { build } from "vite";
 import {
   findBudgetViolations,
   gzipSizeOf,
@@ -24,7 +26,7 @@ const INDEX_HTML = [
   "</html>",
 ].join("\n");
 
-const compressibleText = (seed) => `${seed}:${"abcdefgh".repeat(400)}`;
+const compressibleText = (seed) => `"${seed}:${"abcdefgh".repeat(400)}";`;
 
 async function withDist(files, run) {
   const root = await mkdtemp(join(tmpdir(), "download budget "));
@@ -106,6 +108,131 @@ test("measureDownload reports a referenced file that the build did not produce",
   });
 });
 
+const indexHtmlLoading = (script) =>
+  `<!doctype html><html><head><script type="module" src="/assets/${script}"></script></head><body></body></html>`;
+
+test("measureDownload measures the same build whose minifier chose other names and whose content hashes changed", async () => {
+  const built = {
+    "index.html": indexHtmlLoading("index-AAAAAAAA.js"),
+    "assets/index-AAAAAAAA.js":
+      'import{b as t}from"./initial-BBBBBBBB.js";const e=()=>import("./lazy-CCCCCCCC.js");t(1,e);',
+    "assets/initial-BBBBBBBB.js":
+      "function e(e){return e+1}function t(e,t){return{e,t}}export{e as a,t as b};",
+    "assets/lazy-CCCCCCCC.js":
+      'import{a as e,b as t}from"./initial-BBBBBBBB.js";const n=e(1),{k:r,m=r}=t(n,{n});console.log(r[m],{[m]:r});export{r};',
+  };
+  const renamed = {
+    "index.html": indexHtmlLoading("index-DDDDDDDD.js"),
+    "assets/index-DDDDDDDD.js":
+      'import{a as t}from"./initial-EEEEEEEE.js";const e=()=>import("./lazy-FFFFFFFF.js");t(1,e);',
+    "assets/initial-EEEEEEEE.js":
+      "function e(e){return e+1}function t(e,t){return{e,t}}export{t as a,e as c};",
+    "assets/lazy-FFFFFFFF.js":
+      'import{a as n,c}from"./initial-EEEEEEEE.js";const t=c(1),{k:ee,m:renamedKey=ee}=n(t,{n:t});console.log(ee[renamedKey],{[renamedKey]:ee});export{ee as r};',
+  };
+
+  await withDist(built, async ({ dist: builtDist }) => {
+    await withDist(renamed, async ({ dist: renamedDist }) => {
+      assert.deepEqual(measureDownload(renamedDist), measureDownload(builtDist));
+    });
+  });
+});
+
+for (const [description, script, longerNamed] of [
+  ["a property it reads", "o.x;", "o.longerName;"],
+  ["a key of an object", "({x:1});", "({longerName:1});"],
+  ["a key of an object written shorthand", "({x});", "({longerName});"],
+  ["a method of a class", "class C{x(){}}", "class C{longerName(){}}"],
+  ["a field of a class", "class C{x=1}", "class C{longerName=1}"],
+]) {
+  test(`measureDownload counts the name of ${description}, which the minifier keeps`, async () => {
+    await withDist(
+      { "index.html": indexHtmlLoading("index-AAAAAAAA.js"), "assets/index-AAAAAAAA.js": script },
+      async ({ dist: shortDist }) => {
+        await withDist(
+          {
+            "index.html": indexHtmlLoading("index-AAAAAAAA.js"),
+            "assets/index-AAAAAAAA.js": longerNamed,
+          },
+          async ({ dist: longDist }) => {
+            assert.ok(measureDownload(longDist).total > measureDownload(shortDist).total);
+          },
+        );
+      },
+    );
+  });
+}
+
+test("measureDownload counts the name of a content-hashed file without its hash wherever it appears", async () => {
+  const html = indexHtmlLoading("index-AAAAAAAA.js");
+  const script = 'import("./lazy-BBBBBBBB.js");';
+
+  await withDist(
+    { "index.html": html, "assets/index-AAAAAAAA.js": script, "assets/lazy-BBBBBBBB.js": "" },
+    async ({ dist }) => {
+      assert.equal(
+        measureDownload(dist).entry,
+        gzipSizeOf(Buffer.from(indexHtmlLoading("index.js"))) +
+          gzipSizeOf(Buffer.from('import("./lazy.js");')),
+      );
+    },
+  );
+});
+
+test("measureDownload counts a file that is not text by its compressed bytes", async () => {
+  const font = Buffer.from([0x77, 0x4f, 0x46, 0x32, 0xff, 0xfe, 0x00, 0xc3, 0x28]);
+
+  await withDist(
+    { "index.html": indexHtmlLoading("index-AAAAAAAA.js"), "assets/index-AAAAAAAA.js": "" },
+    async ({ dist: withoutFont }) => {
+      await withDist(
+        {
+          "index.html": indexHtmlLoading("index-AAAAAAAA.js"),
+          "assets/index-AAAAAAAA.js": "",
+          "assets/font-BBBBBBBB.woff2": font,
+        },
+        async ({ dist: withFont }) => {
+          assert.equal(
+            measureDownload(withFont).total - measureDownload(withoutFont).total,
+            gzipSizeOf(font),
+          );
+        },
+      );
+    },
+  );
+});
+
+test("runCli exits 1 when real code grows past the budget while shorter names shrink the files", async () => {
+  const lazyModule = (statements) => ({
+    "index.html": indexHtmlLoading("index-AAAAAAAA.js"),
+    "assets/index-AAAAAAAA.js": `${statements.join(";")};`,
+  });
+  const built = lazyModule([
+    "function formatAmountInPesos(amountInCents){return amountInCents/100}",
+    "function describeRegisterState(registerState){return registerState.isOpen}",
+    "console.log(formatAmountInPesos(1),describeRegisterState({isOpen:true}))",
+  ]);
+  const grown = lazyModule([
+    "function e(t){return t/100}",
+    "function n(t){return t.isOpen}",
+    "console.log(e(1),n({isOpen:true}))",
+    "console.log(e(2),n({isOpen:false}))",
+  ]);
+
+  await withDist(built, async ({ dist: builtDist, budgetPath }) => {
+    const { entry, total } = measureDownload(builtDist);
+    await writeFile(budgetPath, JSON.stringify({ entry, total }));
+    await withDist(grown, async ({ dist: grownDist }) => {
+      const { lines, log, logError } = recordingLogs();
+
+      const exitCode = runCli({ distDir: grownDist, budgetPath, log, logError });
+
+      assert.equal(exitCode, 1);
+      assert.match(lines.err.join("\n"), /total is \d+ bytes/);
+    });
+  });
+});
+
 test("findBudgetViolations is empty while both sizes are within their budgets", () => {
   const violations = findBudgetViolations(
     { entry: 100, total: 300, missing: [] },
@@ -173,8 +300,14 @@ test("runCli exits 0 and prints the measured sizes against the budget when withi
 
     assert.equal(exitCode, 0);
     assert.equal(lines.err.length, 0);
-    assert.match(lines.out.join("\n"), /entry: \d+ \/ 10000 bytes gzip/);
-    assert.match(lines.out.join("\n"), /total: \d+ \/ 20000 bytes gzip/);
+    assert.match(
+      lines.out.join("\n"),
+      /entry: \d+ \/ 10000 bytes gzip, with the bundler's names and content hashes left out/,
+    );
+    assert.match(
+      lines.out.join("\n"),
+      /total: \d+ \/ 20000 bytes gzip, with the bundler's names and content hashes left out/,
+    );
   });
 });
 
@@ -244,4 +377,66 @@ test("runCli exits 1 when there is no build to measure", async () => {
     assert.equal(exitCode, 1);
     assert.match(lines.err.join("\n"), /index\.html/);
   });
+});
+
+const BACKOFFICE_DIR = fileURLToPath(new URL("../../apps/backoffice/", import.meta.url));
+
+async function buildBackoffice(outDir, plugins) {
+  await build({
+    root: BACKOFFICE_DIR,
+    configFile: join(BACKOFFICE_DIR, "vite.config.ts"),
+    logLevel: "silent",
+    plugins,
+    build: { outDir, emptyOutDir: true },
+  });
+}
+
+function appendingTo(pathEnding, addition) {
+  return {
+    name: `append-to-${pathEnding}`,
+    enforce: "pre",
+    transform(code, id) {
+      return id.endsWith(pathEnding) ? `${code}\n${addition}\n` : undefined;
+    },
+  };
+}
+
+async function fileNamesUnder(dir) {
+  const entries = await readdir(dir, { recursive: true, withFileTypes: true });
+  return entries.filter((entry) => entry.isFile()).map((entry) => entry.name);
+}
+
+test("one more export of the backoffice's initial chunk moves the measure by no more than the code it adds", async () => {
+  const exported = 'export const addedExport = "added export";';
+  const used = 'import { addedExport } from "@purosur/ui";\nconsole.debug(addedExport);';
+  const root = await mkdtemp(join(tmpdir(), "download budget build "));
+  try {
+    const builtDist = join(root, "built");
+    const grownDist = join(root, "grown");
+    await buildBackoffice(builtDist, []);
+    await buildBackoffice(grownDist, [
+      appendingTo("packages/ui/src/index.ts", exported),
+      appendingTo("apps/backoffice/src/main.tsx", used),
+    ]);
+
+    const builtFileNames = new Set(await fileNamesUnder(builtDist));
+    const renamedFiles = (await fileNamesUnder(grownDist)).filter(
+      (fileName) => !builtFileNames.has(fileName),
+    );
+    assert.ok(
+      renamedFiles.length > 2,
+      `only ${renamedFiles.join(", ")} changed, so the build renamed nothing in the lazy chunks`,
+    );
+
+    const built = measureDownload(builtDist);
+    const grown = measureDownload(grownDist);
+    const addedBytes = Buffer.byteLength(exported) + Buffer.byteLength(used);
+    assert.ok(grown.total > built.total, `the total went from ${built.total} to ${grown.total}`);
+    assert.ok(
+      grown.total - built.total <= addedBytes,
+      `the total grew ${grown.total - built.total} bytes for ${addedBytes} bytes of added code`,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
