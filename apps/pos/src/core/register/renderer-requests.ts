@@ -19,6 +19,7 @@ import type {
   OpenCashSession,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
+  PinPolicy,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RemoveSaleLineOutcome,
@@ -30,7 +31,7 @@ import type {
   SignInOutcome,
   SignInUser,
 } from "@purosur/contracts";
-import { type AuthorizablePermissionKey, PIN_MIN_DIGITS } from "@purosur/domain";
+import type { AuthorizablePermissionKey } from "@purosur/domain";
 import type { ChargeSaleByTransferRequest, ChargeSaleInCashRequest } from "../sales/sale-requests";
 import type { CashMovementRequest } from "./cash-movement-requests";
 
@@ -39,6 +40,10 @@ export interface RendererRequestDeps {
   registerName: () => string | undefined;
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
   redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
+  pinPolicy: () => PinPolicy;
+  checkEnrollmentCode: (typedCode: string) => "code"[];
+  checkPinCodeRedemption: (typedCode: string, newPin: string) => ("reset_code" | "new_pin")[];
+  checkCountedCash: (countedCash: number) => "counted_cash"[];
   signInUsers: (() => SignInUser[]) | undefined;
   signIn: ((userId: string, pin: string) => Promise<SignInOutcome>) | undefined;
   firstSignIn: ((userId: string, pin: string) => Promise<SignInOutcome>) | undefined;
@@ -418,7 +423,25 @@ export async function answerRendererRequest(
         outcome: await deps.enroll(message.code),
       };
     case "pin-policy-request":
-      return { type: "pin-policy", request_id: message.request_id, min_digits: PIN_MIN_DIGITS };
+      return { type: "pin-policy", request_id: message.request_id, ...deps.pinPolicy() };
+    case "check-enrollment-code":
+      return {
+        type: "enrollment-code-check",
+        request_id: message.request_id,
+        fields: deps.checkEnrollmentCode(message.code),
+      };
+    case "check-pin-code-redemption":
+      return {
+        type: "pin-code-redemption-check",
+        request_id: message.request_id,
+        fields: deps.checkPinCodeRedemption(message.reset_code, message.new_pin),
+      };
+    case "check-counted-cash":
+      return {
+        type: "counted-cash-check",
+        request_id: message.request_id,
+        fields: deps.checkCountedCash(message.counted_cash),
+      };
     case "redeem-pin-code":
       return {
         type: "pin-code-redemption-result",

@@ -31,14 +31,15 @@ export function formatDate(value: Date | number, options?: Intl.DateTimeFormatOp
   return new Intl.DateTimeFormat(LOCALE, options).format(value);
 }
 
-const DISPLAY_TIME_ZONE = "America/Argentina/Buenos_Aires";
+const WRITTEN_OFFSET = /(Z|[+-]\d{2}:\d{2})$/;
 
 export function formatClockTime(instant: string): string {
+  const offset = WRITTEN_OFFSET.exec(instant)?.[1];
   return formatDate(new Date(instant), {
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
-    timeZone: DISPLAY_TIME_ZONE,
+    timeZone: offset === "Z" ? "UTC" : offset,
   });
 }
 

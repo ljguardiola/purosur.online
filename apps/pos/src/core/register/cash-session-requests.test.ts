@@ -9,6 +9,7 @@ import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import {
   type CashSessionRequestDeps,
   cashBalanceFor,
+  checkCountedCash,
   closeCashSessionFor,
   closeLockedCashSessionFor,
   currentCashSession,
@@ -101,7 +102,7 @@ describe("opening a cash session on the register", () => {
       kind: "opened",
       cash_session: {
         id: "id-1",
-        opened_at: "2026-09-30T12:00:00.000Z",
+        opened_at: "2026-09-30T09:00:00.000-03:00",
         opened_by: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
         locked: false,
       },
@@ -125,7 +126,7 @@ describe("opening a cash session on the register", () => {
       kind: "opened",
       cash_session: {
         id: "id-1",
-        opened_at: "2026-09-30T12:00:00.000Z",
+        opened_at: "2026-09-30T09:00:00.000-03:00",
         opened_by: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
         locked: false,
       },
@@ -167,6 +168,12 @@ describe("opening a cash session on the register", () => {
     }
 
     expect(await openCashSessionFor(deps(), openingFloat)).toEqual({ kind });
+  });
+
+  it("refuses an opening float that is not an amount before telling that nobody is signed in", async () => {
+    signedInPerson.clear();
+
+    expect(await openCashSessionFor(deps(), -1)).toEqual({ kind: "invalid_opening_float" });
   });
 
   it("answers unavailable when the register does not know its own identity yet", async () => {
@@ -214,7 +221,7 @@ describe("the open cash session", () => {
 
     expect(currentCashSession(database, signedInPerson.userId())).toEqual({
       id: "id-1",
-      opened_at: "2026-09-30T12:00:00.000Z",
+      opened_at: "2026-09-30T09:00:00.000-03:00",
       opened_by: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
       locked: false,
     });
@@ -440,6 +447,15 @@ describe("closing a cash session on the register", () => {
     });
   });
 
+  it("refuses a counted cash that is not an amount before telling that nobody is signed in", async () => {
+    const sessionId = await openAs("u1", 5000);
+    signedInPerson.clear();
+
+    expect(await closeCashSessionFor(deps(), closeRequest(sessionId, -1))).toEqual({
+      kind: "invalid_counted_cash",
+    });
+  });
+
   it("answers unavailable when the register holds no outbox chain key", async () => {
     const sessionId = await openAs("u1", 5000);
 
@@ -449,6 +465,16 @@ describe("closing a cash session on the register", () => {
         closeRequest(sessionId, 5000),
       ),
     ).toEqual({ kind: "unavailable" });
+  });
+});
+
+describe("checking a counted cash", () => {
+  it.each([0, 2_147_483_647])("refuses nothing in a count of %i", (countedCash) => {
+    expect(checkCountedCash(countedCash)).toEqual([]);
+  });
+
+  it.each([-1, 2_147_483_648])("refuses a count of %i", (countedCash) => {
+    expect(checkCountedCash(countedCash)).toEqual(["counted_cash"]);
   });
 });
 
@@ -524,6 +550,21 @@ describe("closing a locked register's cash session with another person's PIN", (
     });
 
     expect(outcome.kind).toBe("wrong_pin");
+    expect(closedSessionRow()).toMatchObject({ state: "OPEN" });
+  });
+
+  it("refuses a counted cash that is not an amount before checking the closer's PIN, spending none of its attempts", async () => {
+    addAuthorizer("u9", ["close_anothers_register_session"]);
+    const sessionId = await lockedWithSessionOf("u1");
+
+    const outcome = await closeLockedCashSessionFor(deps(), {
+      sessionId,
+      countedCash: -1,
+      closer: { user_id: "u9", pin: "0000" },
+    });
+
+    expect(outcome).toEqual({ kind: "invalid_counted_cash" });
+    expect(database.prepare("SELECT user_id FROM pin_sign_in_failures").all()).toEqual([]);
     expect(closedSessionRow()).toMatchObject({ state: "OPEN" });
   });
 

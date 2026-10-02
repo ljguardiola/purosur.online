@@ -17,7 +17,7 @@ const GRACE: SignedInPerson = {
   first_name: "Grace",
   abilities: ["open_cash_session"],
 };
-const OPENED_AT = "2026-09-30T12:02:00.000Z";
+const OPENED_AT = "2026-09-30T09:02:00.000-03:00";
 const BALANCE: CashBalance = {
   opening_float: 2_000_000,
   cash_sales: 3_500_000,
@@ -46,6 +46,10 @@ const CANCELLABLE_SALE: SessionOpenSale = { total: 3_434_000, cancellable: true 
 const OPEN_SALE_NOTICE = "Hay una venta abierta de $ 34.340,00";
 const CANCEL_FAILED_NOTICE = "No se pudo cancelar la venta. Probá de nuevo.";
 
+async function checkingLikeTheCore(countedCash: number): Promise<"counted_cash"[]> {
+  return countedCash > 2_147_483_647 ? ["counted_cash"] : [];
+}
+
 async function renderStep(
   options: { close?: Close; cancelSale?: CancelSale; loadOpenSale?: LoadOpenSale } = {},
 ) {
@@ -64,6 +68,7 @@ async function renderStep(
       openedAt={OPENED_AT}
       loadCashBalance={async () => BALANCE}
       loadOpenSale={loadOpenSale}
+      checkCountedCash={checkingLikeTheCore}
       close={closing}
       cancelSale={cancelling}
       onRefused={(refusal) => refused.push(refusal)}
@@ -116,6 +121,27 @@ describe("LockedCashCount", () => {
     await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
 
     await expect.element(screen.getByText(SHORT_NOTICE).first()).toBeVisible();
+  });
+
+  it("compares nothing while the core refuses what is typed as a count", async () => {
+    const { screen } = await renderStep();
+
+    await userEvent.fill(
+      screen.getByRole("textbox", { name: "Efectivo contado" }),
+      "30.000.000,00",
+    );
+
+    await expect.element(screen.getByText("Sobran", { exact: false })).not.toBeInTheDocument();
+    await expect.element(screen.getByText("$ 30.000.000,00")).not.toBeInTheDocument();
+  });
+
+  it("asks for a valid amount without closing when the core refuses the count", async () => {
+    const { screen, close } = await renderStep();
+
+    await closeWith(screen, "30.000.000,00");
+
+    await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
+    expect(close).not.toHaveBeenCalled();
   });
 
   it("closes the session with the counted cash in cents", async () => {

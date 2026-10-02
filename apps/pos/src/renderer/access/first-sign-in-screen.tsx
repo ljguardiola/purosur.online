@@ -17,6 +17,7 @@ export type FirstSignInScreenProps = {
   signIn: (userId: string, pin: string) => Promise<SignInOutcome>;
   requestCode: (userId: string) => Promise<FirstPinCodeRequestOutcome>;
   loadPinPolicy: () => Promise<PinPolicy>;
+  checkRedemption: (typedCode: string, newPin: string) => Promise<("reset_code" | "new_pin")[]>;
   redeem: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
 };
 
@@ -25,6 +26,7 @@ export function FirstSignInScreen({
   signIn,
   requestCode,
   loadPinPolicy,
+  checkRedemption,
   redeem,
 }: FirstSignInScreenProps) {
   const [found, setFound] = useState<FoundPerson>();
@@ -39,6 +41,7 @@ export function FirstSignInScreen({
           signIn={signIn}
           requestCode={requestCode}
           loadPinPolicy={loadPinPolicy}
+          checkRedemption={checkRedemption}
           redeem={redeem}
         />
       )}
@@ -51,6 +54,7 @@ function FoundPersonStep({
   signIn,
   requestCode,
   loadPinPolicy,
+  checkRedemption,
   redeem,
 }: { person: FoundPerson } & Omit<FirstSignInScreenProps, "lookup">) {
   const [codeSent, setCodeSent] = useState(false);
@@ -62,6 +66,7 @@ function FoundPersonStep({
     <FirstSignInCodeStep
       person={person.user}
       loadPinPolicy={loadPinPolicy}
+      checkRedemption={checkRedemption}
       redeem={redeem}
       signIn={signIn}
       requestCode={requestCode}

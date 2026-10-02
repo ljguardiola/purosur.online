@@ -22,8 +22,9 @@ import { CORE_READY_MESSAGE } from "../shared/core-readiness";
 import { createActionGate } from "./access/action-gate";
 import { authorizersOf } from "./access/authorizers";
 import { requestFirstPinCode } from "./access/first-pin-code-request";
-import { redeemPinCode } from "./access/pin-code-redemption";
+import { checkPinCodeRedemption, redeemPinCode } from "./access/pin-code-redemption";
 import { hashPin } from "./access/pin-hash";
+import { pinPolicy } from "./access/pin-policy";
 import { redeemedPerson } from "./access/redeemed-person";
 import { applyRedeemedPin } from "./access/redeemed-pin";
 import { firstSignIn, signIn } from "./access/sign-in";
@@ -47,6 +48,7 @@ import {
 } from "./register/cash-movement-requests";
 import {
   cashBalanceFor,
+  checkCountedCash,
   closeCashSessionFor,
   closeLockedCashSessionFor,
   currentCashSession,
@@ -57,7 +59,12 @@ import {
 } from "./register/cash-session-requests";
 import { rotateDeviceToken } from "./register/device-token-rotation";
 import { startDeviceTokenRotationSchedule } from "./register/device-token-rotation-schedule";
-import { enroll, generatePepper, installationReportFrom } from "./register/enrollment";
+import {
+  checkEnrollmentCode,
+  enroll,
+  generatePepper,
+  installationReportFrom,
+} from "./register/enrollment";
 import { answerRendererRequest, type RendererRequestDeps } from "./register/renderer-requests";
 import { readOpenSession } from "./register/sqlite-cash-ledger";
 import { uuidV7Ids } from "./register/uuid-v7-ids";
@@ -259,6 +266,10 @@ const rendererRequestDeps: RendererRequestDeps = {
     }
     return outcome;
   },
+  pinPolicy,
+  checkEnrollmentCode,
+  checkPinCodeRedemption,
+  checkCountedCash,
   redeemPinCode: (typedCode: string, newPin: string) =>
     redeemPinCode(
       {

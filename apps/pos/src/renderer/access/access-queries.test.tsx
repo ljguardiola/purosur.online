@@ -1,6 +1,7 @@
 import type { SignInUser } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -50,8 +51,19 @@ function AuthorizersProbe({ permission, read, enabled = true }: AuthorizersProbe
 }
 
 function PinPolicyProbe({ read }: { read: () => Promise<{ min_digits: number }> }) {
-  const policy = usePinPolicyQuery(read);
-  return <p>{policy.status === "loaded" ? `${policy.value.min_digits} digits` : policy.status}</p>;
+  return <p>{`${usePinPolicyQuery(read).min_digits} digits`}</p>;
+}
+
+function PinPolicyToggle({ read }: { read: () => Promise<{ min_digits: number }> }) {
+  const [shown, setShown] = useState(true);
+  return (
+    <>
+      {shown ? <PinPolicyProbe read={read} /> : null}
+      <button type="button" onClick={() => setShown(!shown)}>
+        toggle
+      </button>
+    </>
+  );
 }
 
 describe("access queries", () => {
@@ -63,12 +75,23 @@ describe("access queries", () => {
     await expect.element(screen.getByText("6 digits")).toBeVisible();
   });
 
-  it("fail when the PIN policy cannot be read", async () => {
-    const screen = await renderWithClient(
-      <PinPolicyProbe read={() => Promise.reject(new Error("the connection was replaced"))} />,
-    );
+  it("read the PIN policy once, however long after it is shown again", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const read = vi.fn(async () => ({ min_digits: 6 }));
+      const screen = await renderWithClient(<PinPolicyToggle read={read} />);
+      await expect.element(screen.getByText("6 digits")).toBeVisible();
+      await userEvent.click(screen.getByRole("button", { name: "toggle" }));
+      await expect.element(screen.getByText("6 digits")).not.toBeInTheDocument();
 
-    await expect.element(screen.getByText("failed")).toBeVisible();
+      vi.setSystemTime(Date.now() + 24 * 60 * 60 * 1000);
+      await userEvent.click(screen.getByRole("button", { name: "toggle" }));
+
+      await expect.element(screen.getByText("6 digits")).toBeVisible();
+      expect(read).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("hold the people who can sign in", async () => {

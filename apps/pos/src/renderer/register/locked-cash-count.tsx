@@ -52,6 +52,7 @@ export type LockedCashCountProps = {
   openedAt: string;
   loadCashBalance: () => Promise<CashBalance | null | "unavailable">;
   loadOpenSale: () => Promise<SessionOpenSale | null | "unavailable">;
+  checkCountedCash: (countedCash: number) => Promise<"counted_cash"[]>;
   close: (countedCash: number) => Promise<CloseLockedCashSessionOutcome>;
   cancelSale: () => Promise<CancelLockedSaleOutcome>;
   onRefused: (refusal: RefusedClose) => void;
@@ -65,6 +66,7 @@ export function LockedCashCount({
   openedAt,
   loadCashBalance,
   loadOpenSale,
+  checkCountedCash,
   close,
   cancelSale,
   onRefused,
@@ -77,11 +79,12 @@ export function LockedCashCount({
   const [failure, setFailure] = useState<string>();
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [cancelling, setCancelling] = useState(false);
-  const { form, submit, submitting, values } = useRequestForm({
+  const { form, submit, submitting, values, refused } = useRequestForm({
     defaultValues: EMPTY_COUNTED_CASH_FORM,
     request: { schema: lockedCountedCashRequestSchema, from: countedCashRequestFrom },
     fields: { counted_cash: "countedCash" },
     messages: { countedCash: countedCashMessage },
+    check: ({ counted_cash }) => checkCountedCash(counted_cash),
     onSubmit: async (request, { showFieldError }) => {
       const outcome = await close(request.counted_cash).catch(
         (): CloseLockedCashSessionOutcome => ({ kind: "unavailable" }),
@@ -112,7 +115,9 @@ export function LockedCashCount({
 
   const openSale = openSaleData.status === "loaded" ? openSaleData.value : null;
   const expected = balance.status === "loaded" ? balance.value.expected : undefined;
-  const counted = countedCashOf(lockedCountedCashRequestSchema, values);
+  const counted = refused.includes("countedCash")
+    ? undefined
+    : countedCashOf(lockedCountedCashRequestSchema, values);
   const warning =
     expected === undefined || counted === undefined
       ? undefined

@@ -13,6 +13,7 @@ import {
   cancellableWithoutAuthorization,
   cashBreakdown,
   isLockedToAnother,
+  isValidCashAmount,
   type OpenedCashSession,
   registerAbilities,
 } from "@purosur/domain";
@@ -26,6 +27,7 @@ import {
 import type { ActionGate } from "../access/action-gate";
 import { authorizersOf } from "../access/authorizers";
 import { type ActivePerson, SqliteSignInStore } from "../access/sqlite-sign-in-store";
+import { inArgentinaTime } from "../platform/argentina-time";
 import type { LocalDatabase } from "../platform/local-database";
 import {
   readOpenSale,
@@ -46,6 +48,9 @@ export async function openCashSessionFor(
   { database, gate, readOutboxChainKey, now, ids }: CashSessionRequestDeps,
   openingFloat: number,
 ): Promise<OpenCashSessionOutcome> {
+  if (!isValidCashAmount(openingFloat)) {
+    return { kind: "invalid_opening_float" };
+  }
   const outboxChainKey = await readOutboxChainKey();
   if (outboxChainKey === undefined) {
     return { kind: "unavailable" };
@@ -77,6 +82,10 @@ export async function openCashSessionFor(
   return guarded.result;
 }
 
+export function checkCountedCash(countedCash: number): "counted_cash"[] {
+  return isValidCashAmount(countedCash) ? [] : ["counted_cash"];
+}
+
 export interface CloseCashSessionRequest {
   sessionId: string;
   countedCash: number;
@@ -86,6 +95,9 @@ export async function closeCashSessionFor(
   { database, gate, readOutboxChainKey, now, ids }: CashSessionRequestDeps,
   { sessionId, countedCash }: CloseCashSessionRequest,
 ): Promise<CloseCashSessionOutcome> {
+  if (!isValidCashAmount(countedCash)) {
+    return { kind: "invalid_counted_cash" };
+  }
   const outboxChainKey = await readOutboxChainKey();
   if (outboxChainKey === undefined) {
     return { kind: "unavailable" };
@@ -121,6 +133,9 @@ export async function closeLockedCashSessionFor(
   { database, gate, readOutboxChainKey, now, ids }: CashSessionRequestDeps,
   { sessionId, countedCash, closer }: CloseLockedCashSessionRequest,
 ): Promise<CloseLockedCashSessionOutcome> {
+  if (!isValidCashAmount(countedCash)) {
+    return { kind: "invalid_counted_cash" };
+  }
   const outboxChainKey = await readOutboxChainKey();
   if (outboxChainKey === undefined) {
     return { kind: "unavailable" };
@@ -233,7 +248,7 @@ function cashSessionAnswer(
   };
   return {
     id: session.id,
-    opened_at: session.openedAt.toISOString(),
+    opened_at: inArgentinaTime(session.openedAt),
     opened_by: {
       user_id: session.openedBy,
       first_name: opener.firstName,

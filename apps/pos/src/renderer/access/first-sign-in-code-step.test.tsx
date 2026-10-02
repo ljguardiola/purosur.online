@@ -32,6 +32,7 @@ async function renderStep({
     <FirstSignInCodeStep
       person={ADA}
       loadPinPolicy={async () => ({ min_digits: 6 })}
+      checkRedemption={async () => []}
       redeem={async (code, pin) => {
         redemptions.push([code, pin]);
         return redeemed;

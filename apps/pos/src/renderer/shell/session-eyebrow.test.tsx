@@ -24,7 +24,7 @@ describe("SessionEyebrow", () => {
   });
 
   // 12:02 UTC is 09:02 in Argentina, which has no daylight saving time.
-  const OPENED_AT = "2026-09-30T12:02:00.000Z";
+  const OPENED_AT = "2026-09-30T09:02:00.000-03:00";
 
   it("names the register and the Argentine time the session opened at", async () => {
     const screen = await render(<SessionEyebrow registerName="Caja 1" openedAt={OPENED_AT} />);
@@ -40,7 +40,7 @@ describe("SessionEyebrow", () => {
 
   it("writes the time on a 24-hour clock", async () => {
     const screen = await render(
-      <SessionEyebrow registerName={null} openedAt="2026-09-30T23:45:00.000Z" />,
+      <SessionEyebrow registerName={null} openedAt="2026-09-30T20:45:00.000-03:00" />,
     );
 
     await expect.element(screen.getByText("Sesión abierta 20:45", { exact: true })).toBeVisible();

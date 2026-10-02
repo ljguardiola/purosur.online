@@ -2,7 +2,11 @@ import type { OpenCashSession, PinCodeRedemption } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
 import type { DeviceCredentials } from "../../shared/device-credentials-messages";
 import type { CloudResponse } from "../platform/cloud-client";
-import { type PinCodeRedemptionDeps, redeemPinCode } from "./pin-code-redemption";
+import {
+  checkPinCodeRedemption,
+  type PinCodeRedemptionDeps,
+  redeemPinCode,
+} from "./pin-code-redemption";
 
 const USER_ID = "1e7b3a90-52c4-4d18-9f6a-8b0c2d4e6f71";
 const CREDENTIALS: DeviceCredentials = {
@@ -288,5 +292,19 @@ describe("redeemPinCode", () => {
 
     expect(await redeemPinCode(deps, TYPED_CODE, "482915")).toEqual({ kind: "unavailable" });
     expect(posted).toEqual([]);
+  });
+});
+
+describe("checkPinCodeRedemption", () => {
+  it("refuses nothing in a well-formed code with an acceptable PIN", () => {
+    expect(checkPinCodeRedemption(TYPED_CODE, "482915")).toEqual([]);
+  });
+
+  it.each([
+    ["a malformed code", "too short", "482915", ["reset_code"]],
+    ["an unacceptable PIN", TYPED_CODE, "1234", ["new_pin"]],
+    ["both", "too short", "48291a", ["reset_code", "new_pin"]],
+  ])("refuses the fields of %s", (_name, code, pin, fields) => {
+    expect(checkPinCodeRedemption(code, pin)).toEqual(fields);
   });
 });

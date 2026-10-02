@@ -19,6 +19,11 @@ function answering(outcome: EnrollmentOutcome | Error) {
   return { enroll, codes };
 }
 
+async function checkingLikeTheCore(typedCode: string): Promise<"code"[]> {
+  const code = typedCode.replaceAll(" ", "");
+  return code.length === 16 && !code.includes("1") ? [] : ["code"];
+}
+
 function pending() {
   const codes: string[] = [];
   let finish: (outcome: EnrollmentOutcome) => void = () => {};
@@ -39,7 +44,10 @@ async function submitCode(screen: Awaited<ReturnType<typeof render>>, code = TYP
 describe("EnrollmentScreen", () => {
   it("asks for the enrollment code the backoffice issues", async () => {
     const screen = await render(
-      <EnrollmentScreen enroll={answering({ kind: "enrolled" }).enroll} />,
+      <EnrollmentScreen
+        checkCode={checkingLikeTheCore}
+        enroll={answering({ kind: "enrolled" }).enroll}
+      />,
     );
 
     await expect.element(screen.getByText("NOTEBOOK NUEVA")).toBeVisible();
@@ -62,7 +70,9 @@ describe("EnrollmentScreen", () => {
 
   it("redeems the code as it was typed, with or without spaces and in any case", async () => {
     const { enroll, codes } = answering({ kind: "enrolled" });
-    const screen = await render(<EnrollmentScreen enroll={enroll} />);
+    const screen = await render(
+      <EnrollmentScreen checkCode={checkingLikeTheCore} enroll={enroll} />,
+    );
 
     await submitCode(screen);
 
@@ -71,7 +81,9 @@ describe("EnrollmentScreen", () => {
 
   it("redeems the code when Enter is pressed in the field", async () => {
     const { enroll, codes } = answering({ kind: "enrolled" });
-    const screen = await render(<EnrollmentScreen enroll={enroll} />);
+    const screen = await render(
+      <EnrollmentScreen checkCode={checkingLikeTheCore} enroll={enroll} />,
+    );
 
     await userEvent.fill(screen.getByRole("textbox", { name: "Código de alta" }), TYPED_CODE);
     await userEvent.keyboard("{Enter}");
@@ -81,7 +93,9 @@ describe("EnrollmentScreen", () => {
 
   it("keeps the button disabled while the code is being redeemed, so it's sent only once", async () => {
     const request = pending();
-    const screen = await render(<EnrollmentScreen enroll={request.enroll} />);
+    const screen = await render(
+      <EnrollmentScreen checkCode={checkingLikeTheCore} enroll={request.enroll} />,
+    );
 
     await submitCode(screen);
 
@@ -93,7 +107,10 @@ describe("EnrollmentScreen", () => {
 
   it("shows that the code doesn't work, marking the field, when the cloud refuses it", async () => {
     const screen = await render(
-      <EnrollmentScreen enroll={answering({ kind: "code_rejected" }).enroll} />,
+      <EnrollmentScreen
+        checkCode={checkingLikeTheCore}
+        enroll={answering({ kind: "code_rejected" }).enroll}
+      />,
     );
 
     await submitCode(screen);
@@ -117,6 +134,7 @@ describe("EnrollmentScreen", () => {
   it("says when to try again after too many attempts", async () => {
     const screen = await render(
       <EnrollmentScreen
+        checkCode={checkingLikeTheCore}
         enroll={answering({ kind: "rate_limited", retry_after_seconds: 541 }).enroll}
       />,
     );
@@ -131,7 +149,10 @@ describe("EnrollmentScreen", () => {
 
   it("says the notebook has no connection when the cloud can't be reached", async () => {
     const screen = await render(
-      <EnrollmentScreen enroll={answering({ kind: "unreachable" }).enroll} />,
+      <EnrollmentScreen
+        checkCode={checkingLikeTheCore}
+        enroll={answering({ kind: "unreachable" }).enroll}
+      />,
     );
 
     await submitCode(screen);
@@ -146,7 +167,9 @@ describe("EnrollmentScreen", () => {
     ["the cloud is unavailable", { kind: "unavailable" } as const],
     ["the core can't answer", new Error("the core connection was replaced")],
   ])("says the alta couldn't be done when %s", async (_case, outcome) => {
-    const screen = await render(<EnrollmentScreen enroll={answering(outcome).enroll} />);
+    const screen = await render(
+      <EnrollmentScreen checkCode={checkingLikeTheCore} enroll={answering(outcome).enroll} />,
+    );
 
     await submitCode(screen);
 
@@ -161,7 +184,10 @@ describe("EnrollmentScreen", () => {
 
   it("says this notebook can't keep the alta and that the code wasn't used when its credentials can't be stored", async () => {
     const screen = await render(
-      <EnrollmentScreen enroll={answering({ kind: "storage_unavailable" }).enroll} />,
+      <EnrollmentScreen
+        checkCode={checkingLikeTheCore}
+        enroll={answering({ kind: "storage_unavailable" }).enroll}
+      />,
     );
 
     await submitCode(screen);
@@ -179,7 +205,10 @@ describe("EnrollmentScreen", () => {
 
   it("sends the person to the Administrador for a new code when the alta was redeemed but couldn't be kept on this notebook", async () => {
     const screen = await render(
-      <EnrollmentScreen enroll={answering({ kind: "not_stored" }).enroll} />,
+      <EnrollmentScreen
+        checkCode={checkingLikeTheCore}
+        enroll={answering({ kind: "not_stored" }).enroll}
+      />,
     );
 
     await submitCode(screen);
@@ -200,27 +229,64 @@ describe("EnrollmentScreen", () => {
     ["empty", ""],
     ["too short", "P4NX 7KWE 2QRT"],
     ["made of characters no code has", "P4NX 7KWE 2QRT 6MZ1"],
-  ])(
-    "sends a code that is %s to the core and asks for the whole code on the field when it refuses it",
-    async (_case, code) => {
-      const { enroll, codes } = answering({ kind: "invalid_input", fields: ["code"] });
-      const screen = await render(<EnrollmentScreen enroll={enroll} />);
-
-      await submitCode(screen, code);
-
-      await expect
-        .element(screen.getByText("Escribí los 16 caracteres del código de alta."))
-        .toBeVisible();
-      await expect
-        .element(screen.getByRole("textbox", { name: "Código de alta" }))
-        .toHaveAttribute("aria-invalid", "true");
-      expect(codes).toEqual([code]);
-    },
-  );
-
-  it("stops asking for the whole code once the person types again", async () => {
+  ])("asks for the whole code without redeeming one that is %s", async (_case, code) => {
+    const { enroll, codes } = answering({ kind: "enrolled" });
     const screen = await render(
-      <EnrollmentScreen enroll={answering({ kind: "invalid_input", fields: ["code"] }).enroll} />,
+      <EnrollmentScreen checkCode={checkingLikeTheCore} enroll={enroll} />,
+    );
+
+    await submitCode(screen, code);
+
+    await expect
+      .element(screen.getByText("Escribí los 16 caracteres del código de alta."))
+      .toBeVisible();
+    expect(codes).toEqual([]);
+  });
+
+  it("asks the core whether what is typed is a code", async () => {
+    const checked: string[] = [];
+    const screen = await render(
+      <EnrollmentScreen
+        checkCode={async (typedCode) => {
+          checked.push(typedCode);
+          return ["code"];
+        }}
+        enroll={answering({ kind: "enrolled" }).enroll}
+      />,
+    );
+
+    await submitCode(screen, TYPED_CODE);
+
+    await expect
+      .element(screen.getByText("Escribí los 16 caracteres del código de alta."))
+      .toBeVisible();
+    expect(checked).toContain(TYPED_CODE);
+  });
+
+  it("shows on the field a code the core refuses when redeeming it", async () => {
+    const screen = await render(
+      <EnrollmentScreen
+        checkCode={checkingLikeTheCore}
+        enroll={answering({ kind: "invalid_input", fields: ["code"] }).enroll}
+      />,
+    );
+
+    await submitCode(screen);
+
+    await expect
+      .element(screen.getByText("Escribí los 16 caracteres del código de alta."))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole("textbox", { name: "Código de alta" }))
+      .toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("keeps asking for the whole code while what is typed is still incomplete, and stops once it is whole", async () => {
+    const screen = await render(
+      <EnrollmentScreen
+        checkCode={checkingLikeTheCore}
+        enroll={answering({ kind: "enrolled" }).enroll}
+      />,
     );
     await submitCode(screen, "P4NX 7KWE");
     const field = screen.getByRole("textbox", { name: "Código de alta" });
@@ -228,7 +294,9 @@ describe("EnrollmentScreen", () => {
     await expect.element(message).toBeVisible();
 
     await userEvent.type(field, " 2QRT");
+    await expect.element(message).toBeVisible();
 
+    await userEvent.type(field, " 6MZD");
     await expect.element(message).not.toBeInTheDocument();
     await expect.element(field).not.toHaveAttribute("aria-invalid", "true");
   });
@@ -236,7 +304,10 @@ describe("EnrollmentScreen", () => {
   it("clears the outcome of the last attempt when the code is redeemed again", async () => {
     const outcomes: EnrollmentOutcome[] = [{ kind: "unreachable" }, { kind: "code_rejected" }];
     const screen = await render(
-      <EnrollmentScreen enroll={async () => outcomes.shift() ?? { kind: "enrolled" }} />,
+      <EnrollmentScreen
+        checkCode={checkingLikeTheCore}
+        enroll={async () => outcomes.shift() ?? { kind: "enrolled" }}
+      />,
     );
 
     await submitCode(screen);

@@ -285,6 +285,10 @@ function Register({ core }: { core: CoreClient }) {
     recordCashMovement,
     redeemPinCode,
     pinPolicy: () => core.pinPolicy(),
+    checkEnrollmentCode: (typedCode: string) => core.checkEnrollmentCode(typedCode),
+    checkPinCodeRedemption: (typedCode: string, newPin: string) =>
+      core.checkPinCodeRedemption(typedCode, newPin),
+    checkCountedCash: (countedCash: number) => core.checkCountedCash(countedCash),
     signInLookup: (email: string) => core.signInLookup(email),
     requestFirstPinCode: (userId: string) => core.requestFirstPinCode(userId),
     firstSignIn,

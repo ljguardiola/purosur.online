@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { CloudResponse } from "../platform/cloud-client";
-import { type EnrollmentDeps, enroll, generatePepper, installationReportFrom } from "./enrollment";
+import {
+  checkEnrollmentCode,
+  type EnrollmentDeps,
+  enroll,
+  generatePepper,
+  installationReportFrom,
+} from "./enrollment";
 
 const TYPED_CODE = "p4nx 7kwe 2qrt 6mzd";
 const ENROLLED_AT = new Date("2026-09-29T12:00:00.000Z");
@@ -153,6 +159,16 @@ describe("enroll", () => {
     expect(await enroll({ ...deps, postToCloud: undefined }, TYPED_CODE)).toEqual({
       kind: "unavailable",
     });
+  });
+});
+
+describe("checkEnrollmentCode", () => {
+  it.each([TYPED_CODE, "P4NX7KWE2QRT6MZD"])("refuses nothing in the code '%s'", (typed) => {
+    expect(checkEnrollmentCode(typed)).toEqual([]);
+  });
+
+  it.each(["", "P4NX 7KWE", "P4NX 7KWE 2QRT 6MZ1"])("refuses the code '%s'", (typed) => {
+    expect(checkEnrollmentCode(typed)).toEqual(["code"]);
   });
 });
 

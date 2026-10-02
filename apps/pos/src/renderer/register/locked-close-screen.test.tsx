@@ -49,6 +49,7 @@ async function renderScreen(
   const close = options.close ?? vi.fn<Close>(async () => ({ kind: "unavailable" }));
   const screen = await render(
     <LockedCloseScreen
+      checkCountedCash={async () => []}
       sessionId="s1"
       opener={GRACE}
       registerName="Caja 1"
@@ -85,6 +86,7 @@ describe("LockedCloseScreen", () => {
     const loadClosers = vi.fn(async () => [{ id: "u3", first_name: "Sofía" }]);
     const element = () => (
       <LockedCloseScreen
+        checkCountedCash={async () => []}
         sessionId="s1"
         opener={GRACE}
         registerName="Caja 1"

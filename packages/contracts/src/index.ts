@@ -27,6 +27,7 @@ export {
   pinCodeRedemptionBodySchema,
   pinCodeRedemptionSchema,
 } from "./access/pin-code-redemption.js";
+export type { PinPolicy } from "./access/pin-policy.js";
 export type { RecoveryRedemptionBody } from "./access/recovery-redemption.js";
 export { recoveryRedemptionBodySchema } from "./access/recovery-redemption.js";
 export type { RecoveryRegistrationOptionsWire } from "./access/recovery-registration-options.js";
@@ -174,7 +175,6 @@ export type {
   OpenCashSession,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
-  PinPolicy,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RecordCashMovementRequest,

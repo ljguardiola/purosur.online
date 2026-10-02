@@ -7,12 +7,14 @@ import type {
 import {
   type CashMovementKind,
   cashMovementPermission,
+  isValidCashMovementAmount,
   type RegisterActor,
   registerOperationAccess,
 } from "@purosur/domain";
 import { recordCashMovement } from "@purosur/domain/register/use-cases";
 import type { SignedInPerson } from "../access/signed-in-person";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
+import { inArgentinaTime } from "../platform/argentina-time";
 import type { LocalDatabase } from "../platform/local-database";
 import type { CashSessionRequestDeps } from "./cash-session-requests";
 import { readOpenSessionMovements, SqliteCashLedger } from "./sqlite-cash-ledger";
@@ -23,6 +25,9 @@ export async function recordCashMovementFor(
   { database, gate, readOutboxChainKey, now, ids }: CashSessionRequestDeps,
   { kind, amount, reason, authorization }: CashMovementRequest,
 ): Promise<RecordCashMovementOutcome> {
+  if (!isValidCashMovementAmount(amount)) {
+    return { kind: "invalid_amount" };
+  }
   const outboxChainKey = await readOutboxChainKey();
   if (outboxChainKey === undefined) {
     return { kind: "unavailable" };
@@ -91,5 +96,10 @@ function authorizationNeeded(
 }
 
 export function currentCashMovements(database: LocalDatabase): ListedCashMovement[] | null {
-  return readOpenSessionMovements(database) ?? null;
+  return (
+    readOpenSessionMovements(database)?.map((movement) => ({
+      ...movement,
+      occurred_at: inArgentinaTime(new Date(movement.occurred_at)),
+    })) ?? null
+  );
 }

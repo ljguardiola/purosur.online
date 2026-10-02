@@ -53,6 +53,10 @@ function refusalOutcome(error: CloudError): EnrollmentOutcome {
   }
 }
 
+export function checkEnrollmentCode(typedCode: string): "code"[] {
+  return deviceEnrollmentBodySchema.shape.code.safeParse(typedCode).success ? [] : ["code"];
+}
+
 export async function enroll(deps: EnrollmentDeps, typedCode: string): Promise<EnrollmentOutcome> {
   const report = deps.installationReport();
   const request = deviceEnrollmentBodySchema.safeParse({

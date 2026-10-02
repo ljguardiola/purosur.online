@@ -11,7 +11,7 @@ const ADA: SignedInPerson = {
   first_name: "Ada",
   abilities: ["open_cash_session"],
 };
-const OPENED_AT = "2026-09-30T12:02:00.000Z";
+const OPENED_AT = "2026-09-30T09:02:00.000-03:00";
 const BALANCE: CashBalance = {
   opening_float: 2_000_000,
   cash_sales: 3_500_000,
@@ -36,6 +36,10 @@ const FAILED_NOTICE = "No se pudo cerrar la caja. Probá de nuevo.";
 
 type CloseCashSession = (countedCash: number) => Promise<CloseCashSessionOutcome>;
 
+async function checkingLikeTheCore(countedCash: number): Promise<"counted_cash"[]> {
+  return countedCash > 2_147_483_647 ? ["counted_cash"] : [];
+}
+
 async function renderScreen(
   props: {
     person?: SignedInPerson;
@@ -54,6 +58,7 @@ async function renderScreen(
       openedAt={OPENED_AT}
       lock={() => {}}
       loadCashBalance={props.loadCashBalance ?? (async () => BALANCE)}
+      checkCountedCash={checkingLikeTheCore}
       closeCashSession={closeCashSession}
     />,
   );
@@ -145,6 +150,26 @@ describe("CashCountScreen", () => {
 
     expect(cellOf(screen, "Contado")).toBe("Contado—");
     await expect.element(screen.getByText(SHORT_NOTICE).first()).not.toBeInTheDocument();
+  });
+
+  it("compares nothing while the core refuses what is typed as a count", async () => {
+    const { screen } = await renderScreen();
+
+    await count(screen, "30.000.000,00");
+
+    await expect.poll(() => cellOf(screen, "Contado")).toBe("Contado—");
+    expect(cellOf(screen, "Diferencia")).toBe("Diferencia—");
+    await expect.element(screen.getByText("Sobran", { exact: false })).not.toBeInTheDocument();
+  });
+
+  it("asks for a valid amount without closing when the core refuses the count", async () => {
+    const { screen, closeCashSession } = await renderScreen();
+    await count(screen, "30.000.000,00");
+
+    await submit(screen);
+
+    await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
+    expect(closeCashSession).not.toHaveBeenCalled();
   });
 
   it("closes the session with the counted cash in cents", async () => {
@@ -285,6 +310,7 @@ describe("CashCountScreen", () => {
         openedAt={OPENED_AT}
         lock={() => {}}
         loadCashBalance={() => new Promise(() => {})}
+        checkCountedCash={checkingLikeTheCore}
         closeCashSession={async () => CLOSED}
       />,
     );

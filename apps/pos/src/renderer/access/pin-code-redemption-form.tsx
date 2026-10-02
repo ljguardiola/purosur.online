@@ -1,13 +1,5 @@
 import type { PinCodeRedemptionOutcome, PinPolicy } from "@purosur/contracts";
-import {
-  Button,
-  fieldErrorMessage,
-  InlineNotice,
-  LoadFailure,
-  LoadingPlaceholder,
-  TextField,
-  useRequestForm,
-} from "@purosur/ui";
+import { Button, fieldErrorMessage, InlineNotice, TextField, useRequestForm } from "@purosur/ui";
 import { Check, Lock, ShieldX, TriangleAlert, WifiOff } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
 import { useId, useState } from "react";
@@ -88,6 +80,7 @@ const CODE_OUTCOMES = new Set<PinCodeRedemptionOutcome["kind"]>([
 
 export type PinCodeRedemptionFormProps = {
   loadPinPolicy: () => Promise<PinPolicy>;
+  checkRedemption: (typedCode: string, newPin: string) => Promise<("reset_code" | "new_pin")[]>;
   redeem: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
   onRedeemed: (newPin: string) => void | Promise<void>;
   submitLabel: string;
@@ -95,18 +88,16 @@ export type PinCodeRedemptionFormProps = {
   children?: ReactNode;
 };
 
-type PinCodeRedemptionFieldsProps = Omit<PinCodeRedemptionFormProps, "loadPinPolicy"> & {
-  minDigits: number;
-};
-
-function PinCodeRedemptionFields({
+export function PinCodeRedemptionForm({
+  loadPinPolicy,
+  checkRedemption,
   redeem,
   onRedeemed,
   submitLabel,
   newCodeAskedIn,
-  minDigits,
   children,
-}: PinCodeRedemptionFieldsProps) {
+}: PinCodeRedemptionFormProps) {
+  const minDigits = usePinPolicyQuery(loadPinPolicy).min_digits;
   const [outcome, setOutcome] = useState<PinCodeRedemptionOutcome>();
   const noticeId = useId();
   const { form, submit, submitting, reset } = useRequestForm({
@@ -114,6 +105,7 @@ function PinCodeRedemptionFields({
     request: { schema: pinRedemptionRequestSchema, from: pinRedemptionRequestFrom },
     fields: { reset_code: "code", new_pin: "newPin", repeat: "repeat" },
     messages: { code: CODE_MESSAGE, newPin: pinMessage(minDigits), repeat: REPEAT_MESSAGE },
+    check: ({ reset_code, new_pin }) => checkRedemption(reset_code, new_pin),
     onSubmit: async ({ reset_code, new_pin }, { values, showWireFieldError }) => {
       const answered = await redeem(reset_code, new_pin).catch(
         (): PinCodeRedemptionOutcome => ({ kind: "unavailable" }),
@@ -207,27 +199,5 @@ function PinCodeRedemptionFields({
       </Button>
       {children}
     </form>
-  );
-}
-
-export function PinCodeRedemptionForm({ loadPinPolicy, ...props }: PinCodeRedemptionFormProps) {
-  const policy = usePinPolicyQuery(loadPinPolicy);
-  if (policy.status === "loaded") {
-    return <PinCodeRedemptionFields {...props} minDigits={policy.value.min_digits} />;
-  }
-  return (
-    <div className="flex flex-col gap-4">
-      {policy.status === "failed" ? (
-        <LoadFailure
-          icon={<TriangleAlert />}
-          title="No se pudieron cargar las reglas del PIN"
-          description="Volvé a intentarlo en unos segundos."
-          onRetry={policy.retry}
-        />
-      ) : (
-        <LoadingPlaceholder variant="form" fields={3} />
-      )}
-      {props.children}
-    </div>
   );
 }

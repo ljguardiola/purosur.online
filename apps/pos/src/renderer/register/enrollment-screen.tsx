@@ -64,10 +64,11 @@ function noticeFor(outcome: EnrollmentOutcome): Notice | undefined {
 }
 
 export type EnrollmentScreenProps = {
+  checkCode: (typedCode: string) => Promise<"code"[]>;
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
 };
 
-export function EnrollmentScreen({ enroll }: EnrollmentScreenProps) {
+export function EnrollmentScreen({ checkCode, enroll }: EnrollmentScreenProps) {
   const [outcome, setOutcome] = useState<EnrollmentOutcome>();
   const noticeId = useId();
   const { form, submit, submitting } = useRequestForm({
@@ -75,6 +76,7 @@ export function EnrollmentScreen({ enroll }: EnrollmentScreenProps) {
     request: { schema: enrollmentRequestSchema, from: enrollmentRequestFrom },
     fields: { code: "code" },
     messages: { code: INCOMPLETE_CODE_MESSAGE },
+    check: ({ code }) => checkCode(code),
     onSubmit: async ({ code }, { showWireFieldError }) => {
       const answer = await enroll(code).catch((): EnrollmentOutcome => ({ kind: "unavailable" }));
       if (answer.kind === "invalid_input") {

@@ -43,7 +43,7 @@ const NO_SESSION: CashSessionState = { status: "none" };
 const OPEN_SESSION = {
   status: "open",
   id: "s1",
-  openedAt: "2026-09-30T12:02:00.000Z",
+  openedAt: "2026-09-30T09:02:00.000-03:00",
   openedBy: OPENER,
   locked: false,
 } satisfies CashSessionState;
@@ -121,6 +121,9 @@ function contextWith(
     signOut,
     redeemPinCode: async () => ({ kind: "redeemed" }),
     pinPolicy: async () => ({ min_digits: 6 }),
+    checkEnrollmentCode: async () => [],
+    checkPinCodeRedemption: async () => [],
+    checkCountedCash: async () => [],
     signInLookup: async () => ({ kind: "not_found" }),
     requestFirstPinCode: async () => ({ kind: "sent" }),
     firstSignIn: async () => ({ kind: "signed_in", person: PERSON, cash_session: null }),
@@ -752,7 +755,7 @@ describe("the register's router", () => {
       type: "OPENING",
       amount: 2_000_000,
       reason: null,
-      occurred_at: "2026-09-30T12:02:00.000Z",
+      occurred_at: "2026-09-30T09:02:00.000-03:00",
       actor: { user_id: "u2", first_name: "Grace" },
       authorized_by: null,
     };
@@ -812,6 +815,35 @@ describe("the register's router", () => {
     await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
 
     await expect.poll(() => recorded).toEqual([["CASH_IN", "Cambio"]]);
+  });
+
+  it("asks the context's check before closing with the count typed", async () => {
+    const closed: number[] = [];
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION),
+        cashBalance: async () => BALANCE,
+        checkCountedCash: async () => ["counted_cash"],
+        closeCashSession: async (_person, _sessionId, countedCash) => {
+          closed.push(countedCash);
+          return { kind: "unavailable" };
+        },
+      },
+      "/cash-count",
+    );
+    const screen = await render(<RouterProvider router={router} />);
+    await expect
+      .element(screen.getByRole("complementary").getByText("$ 46.200,00", { exact: true }))
+      .toBeVisible();
+
+    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
+    await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
+
+    await expect
+      .element(screen.getByText("Ingresá un importe válido, por ejemplo 31.500,00."))
+      .toBeVisible();
+    expect(closed).toEqual([]);
   });
 
   it("closes the session through the router context with the session it is showing", async () => {
@@ -1176,6 +1208,109 @@ describe("the register's router", () => {
 
     await expect.element(screen.getByLabelText("PIN nuevo, de al menos 8 dígitos")).toBeVisible();
   });
+
+  it("asks the context's check before enrolling the code typed", async () => {
+    const enrolled: string[] = [];
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "not_enrolled", null),
+        checkEnrollmentCode: async () => ["code"],
+        enroll: async (code) => {
+          enrolled.push(code);
+          return { kind: "enrolled" };
+        },
+      },
+      "/enroll",
+    );
+    const screen = await render(<RouterProvider router={router} />);
+
+    await userEvent.fill(screen.getByRole("textbox", { name: "Código de alta" }), "P4NX");
+    await userEvent.click(screen.getByRole("button", { name: "Dar de alta" }));
+
+    await expect
+      .element(screen.getByText("Escribí los 16 caracteres del código de alta."))
+      .toBeVisible();
+    expect(enrolled).toEqual([]);
+  });
+
+  it("asks the context's check before redeeming the code typed", async () => {
+    const redeemed: string[] = [];
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", null),
+        checkPinCodeRedemption: async () => ["reset_code"],
+        redeemPinCode: async (code) => {
+          redeemed.push(code);
+          return { kind: "redeemed" };
+        },
+      },
+      "/pin-code-redemption",
+    );
+    const screen = await render(<RouterProvider router={router} />);
+
+    await userEvent.fill(screen.getByRole("textbox", { name: "Código" }), "K7QM");
+    await userEvent.fill(screen.getByLabelText("PIN nuevo, de al menos 6 dígitos"), "482915");
+    await userEvent.fill(screen.getByLabelText("Repetí el PIN nuevo"), "482915");
+    await userEvent.click(screen.getByRole("button", { name: "Guardar el PIN nuevo" }));
+
+    await expect
+      .element(screen.getByText("Revisá el código: son 16 letras y números."))
+      .toBeVisible();
+    expect(redeemed).toEqual([]);
+  });
+
+  it.each(["/pin-code-redemption", "/first-sign-in"] as const)(
+    "reads the PIN policy before showing %s",
+    async (path) => {
+      const reads: string[] = [];
+      let answer: (policy: { min_digits: number }) => void = () => {};
+      const router = createRegisterRouter(
+        routeTree,
+        {
+          ...contextWith("up", "enrolled", null),
+          pinPolicy: () => {
+            reads.push(path);
+            return new Promise((resolve) => {
+              answer = resolve;
+            });
+          },
+        },
+        path,
+      );
+      const screen = await render(<RouterProvider router={router} />);
+      await expect.poll(() => reads).toEqual([path]);
+      await expect.element(screenFor[path](screen)).not.toBeInTheDocument();
+
+      answer({ min_digits: 6 });
+
+      await expect.element(screenFor[path](screen)).toBeVisible();
+      expect(reads).toEqual([path]);
+    },
+  );
+
+  it.each(["/pin-code-redemption", "/first-sign-in"] as const)(
+    "lets a PIN policy the core could not answer on %s reach the register's failure recovery",
+    async (path) => {
+      const failure = new Error("the core is gone");
+      const onCatch = vi.fn();
+      const router = createRegisterRouter(
+        routeTree,
+        { ...contextWith("up", "enrolled", null), pinPolicy: () => Promise.reject(failure) },
+        path,
+      );
+
+      const screen = await render(
+        <OuterErrorBoundary onCatch={onCatch}>
+          <RouterProvider router={router} />
+        </OuterErrorBoundary>,
+      );
+
+      await expect.element(screen.getByText(OUTER_BOUNDARY_TEXT)).toBeVisible();
+      expect(onCatch).toHaveBeenCalledWith(failure);
+    },
+  );
 
   it("renders the first sign-in screen while enrolled and nobody is signed in", async () => {
     const router = routerAt("/first-sign-in", "up", "enrolled", null);

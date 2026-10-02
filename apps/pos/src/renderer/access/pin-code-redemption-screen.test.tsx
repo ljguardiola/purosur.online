@@ -15,6 +15,10 @@ function answering(outcome: PinCodeRedemptionOutcome) {
   return async () => outcome;
 }
 
+async function checkingLikeTheCore(typedCode: string): Promise<"reset_code"[]> {
+  return typedCode === "" ? ["reset_code"] : [];
+}
+
 function code(screen: Screen) {
   return screen.getByRole("textbox", { name: "Código" });
 }
@@ -31,6 +35,7 @@ describe("PinCodeRedemptionScreen", () => {
     const screen = await render(
       <PinCodeRedemptionScreen
         loadPinPolicy={async () => ({ min_digits: 6 })}
+        checkRedemption={checkingLikeTheCore}
         redeem={answering({ kind: "redeemed" })}
       />,
     );
@@ -57,6 +62,7 @@ describe("PinCodeRedemptionScreen", () => {
     const screen = await render(
       <PinCodeRedemptionScreen
         loadPinPolicy={async () => ({ min_digits: 6 })}
+        checkRedemption={checkingLikeTheCore}
         redeem={async (typedCode, pin) => {
           calls.push([typedCode, pin]);
           return { kind: "redeemed" };
@@ -73,6 +79,7 @@ describe("PinCodeRedemptionScreen", () => {
     const screen = await render(
       <PinCodeRedemptionScreen
         loadPinPolicy={async () => ({ min_digits: 6 })}
+        checkRedemption={checkingLikeTheCore}
         redeem={answering({ kind: "code_expired" })}
       />,
     );
@@ -86,6 +93,7 @@ describe("PinCodeRedemptionScreen", () => {
     const screen = await render(
       <PinCodeRedemptionScreen
         loadPinPolicy={async () => ({ min_digits: 6 })}
+        checkRedemption={checkingLikeTheCore}
         redeem={answering({ kind: "cash_session_opened_by_another" })}
       />,
     );
@@ -101,14 +109,18 @@ describe("PinCodeRedemptionScreen", () => {
       .toBeVisible();
   });
 
-  it("empties the form once the code is spent for someone else, so the spent code is not sent again", async () => {
+  it("empties the form once the code is spent for someone else, so it cannot be sent again", async () => {
     const calls: string[] = [];
     const redeem = async (typedCode: string): Promise<PinCodeRedemptionOutcome> => {
       calls.push(typedCode);
       return { kind: "cash_session_opened_by_another" };
     };
     const screen = await render(
-      <PinCodeRedemptionScreen loadPinPolicy={async () => ({ min_digits: 6 })} redeem={redeem} />,
+      <PinCodeRedemptionScreen
+        loadPinPolicy={async () => ({ min_digits: 6 })}
+        checkRedemption={checkingLikeTheCore}
+        redeem={redeem}
+      />,
     );
     await fillAndSave(screen);
     await expect.element(screen.getByText("La caja está abierta")).toBeVisible();
@@ -118,13 +130,14 @@ describe("PinCodeRedemptionScreen", () => {
     await expect.element(code(screen)).toHaveValue("");
     await expect.element(screen.getByLabelText(PIN_LABEL)).toHaveValue("");
     await expect.element(screen.getByLabelText(REPEAT_LABEL)).toHaveValue("");
-    expect(calls).toEqual(["k7qm 2xpa 3dtr 4hwn", ""]);
+    expect(calls).toHaveLength(1);
   });
 
   it("replaces the form with the success message and a way back to the start once redeemed", async () => {
     const screen = await render(
       <PinCodeRedemptionScreen
         loadPinPolicy={async () => ({ min_digits: 6 })}
+        checkRedemption={checkingLikeTheCore}
         redeem={answering({ kind: "redeemed" })}
       />,
     );

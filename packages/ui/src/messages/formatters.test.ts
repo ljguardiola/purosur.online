@@ -131,15 +131,19 @@ describe("formatTimeAgo", () => {
 });
 
 describe("formatClockTime", () => {
-  it("writes the hour and minutes in Argentina time", () => {
-    expect(formatClockTime("2026-09-30T15:05:00.000Z")).toBe("12:05");
+  it("writes the hour and minutes of the clock the instant is written in", () => {
+    expect(formatClockTime("2026-09-30T12:05:00.000-03:00")).toBe("12:05");
   });
 
   it("uses a 24-hour clock", () => {
-    expect(formatClockTime("2026-09-30T23:40:00.000Z")).toBe("20:40");
+    expect(formatClockTime("2026-09-30T20:40:00.000-03:00")).toBe("20:40");
   });
 
-  it("rolls over to the previous day's evening", () => {
-    expect(formatClockTime("2026-10-01T02:30:00.000Z")).toBe("23:30");
+  it("keeps the clock of an instant written in UTC", () => {
+    expect(formatClockTime("2026-10-01T02:30:00.000Z")).toBe("02:30");
+  });
+
+  it("keeps the clock of an instant written ahead of UTC", () => {
+    expect(formatClockTime("2026-10-01T09:15:00.000+05:30")).toBe("09:15");
   });
 });

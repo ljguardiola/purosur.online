@@ -357,19 +357,6 @@ describe("coreToRendererMessageSchema", () => {
     expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
-  it.each([0, 6.5, "6", undefined])(
-    "rejects a PIN policy whose minimum digits are %j",
-    (minDigits) => {
-      expect(
-        coreToRendererMessageSchema.safeParse({
-          type: "pin-policy",
-          request_id: REQUEST_ID,
-          min_digits: minDigits,
-        }).success,
-      ).toBe(false);
-    },
-  );
-
   it("rejects a register name that is not text or null", () => {
     expect(
       coreToRendererMessageSchema.safeParse({
@@ -2026,5 +2013,79 @@ describe("cash movement kinds answers", () => {
     expect(
       coreToRendererMessageSchema.safeParse({ type: "cash-movement-kinds-unavailable" }).success,
     ).toBe(false);
+  });
+});
+
+describe("checking typed input", () => {
+  it("accepts a check of an enrollment code as typed", () => {
+    const message = { type: "check-enrollment-code", request_id: REQUEST_ID, code: "p4nx 7kwe" };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { type: "check-enrollment-code", request_id: REQUEST_ID },
+    { type: "check-enrollment-code", code: "p4nx" },
+  ])("rejects an enrollment code check that is not well formed: %j", (message) => {
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it.each([0, 2_147_483_648])("accepts a check of a counted cash of %i", (counted_cash) => {
+    const message = { type: "check-counted-cash", request_id: REQUEST_ID, counted_cash };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([1.5, Number.NaN, "100", null])(
+    "rejects a check of a counted cash of %j",
+    (counted_cash) => {
+      const message = { type: "check-counted-cash", request_id: REQUEST_ID, counted_cash };
+
+      expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+    },
+  );
+
+  it.each([[["code"]], [[]]])("accepts an enrollment code check refusing %j", (fields) => {
+    const message = { type: "enrollment-code-check", request_id: REQUEST_ID, fields };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([[["counted_cash"]], [[]]])("accepts a counted cash check refusing %j", (fields) => {
+    const message = { type: "counted-cash-check", request_id: REQUEST_ID, fields };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { type: "enrollment-code-check", request_id: REQUEST_ID, fields: ["hostname"] },
+    { type: "enrollment-code-check", request_id: REQUEST_ID },
+    { type: "enrollment-code-check", fields: [] },
+    { type: "counted-cash-check", request_id: REQUEST_ID, fields: ["session_id"] },
+    { type: "counted-cash-check", request_id: REQUEST_ID },
+    { type: "counted-cash-check", fields: [] },
+  ])("rejects a check answer that is not well formed: %j", (message) => {
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("accepts a check of a PIN code redemption as typed", () => {
+    const message = {
+      type: "check-pin-code-redemption",
+      request_id: REQUEST_ID,
+      reset_code: "p4nx",
+      new_pin: "12",
+    };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts a PIN code redemption check refusing its fields", () => {
+    const message = {
+      type: "pin-code-redemption-check",
+      request_id: REQUEST_ID,
+      fields: ["reset_code", "new_pin"],
+    };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 });

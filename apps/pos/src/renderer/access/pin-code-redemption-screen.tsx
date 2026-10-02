@@ -9,10 +9,15 @@ import { PinCodeRedemptionForm } from "./pin-code-redemption-form";
 
 export type PinCodeRedemptionScreenProps = {
   loadPinPolicy: () => Promise<PinPolicy>;
+  checkRedemption: (typedCode: string, newPin: string) => Promise<("reset_code" | "new_pin")[]>;
   redeem: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
 };
 
-export function PinCodeRedemptionScreen({ loadPinPolicy, redeem }: PinCodeRedemptionScreenProps) {
+export function PinCodeRedemptionScreen({
+  loadPinPolicy,
+  checkRedemption,
+  redeem,
+}: PinCodeRedemptionScreenProps) {
   const [redeemed, setRedeemed] = useState(false);
   const navigate = useNavigate();
 
@@ -42,6 +47,7 @@ export function PinCodeRedemptionScreen({ loadPinPolicy, redeem }: PinCodeRedemp
         ) : (
           <PinCodeRedemptionForm
             loadPinPolicy={loadPinPolicy}
+            checkRedemption={checkRedemption}
             redeem={redeem}
             onRedeemed={() => setRedeemed(true)}
             submitLabel="Guardar el PIN nuevo"

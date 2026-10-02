@@ -65,7 +65,7 @@ async function renderModal(props: Props = {}) {
       open={props.open ?? true}
       person={ADA}
       registerName={props.registerName === undefined ? "Caja 1" : props.registerName}
-      openedAt="2026-09-30T15:05:00.000Z"
+      openedAt="2026-09-30T12:05:00.000-03:00"
       {...(props.expectedCash === undefined ? {} : { expectedCash: props.expectedCash })}
       loadKinds={loadKinds}
       loadAuthorizers={loadAuthorizers}

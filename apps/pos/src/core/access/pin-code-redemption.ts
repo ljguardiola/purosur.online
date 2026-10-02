@@ -63,6 +63,14 @@ function refusedFields(
   return fields;
 }
 
+export function checkPinCodeRedemption(
+  typedCode: string,
+  newPin: string,
+): ("reset_code" | "new_pin")[] {
+  const request = pinCodeRedemptionBodySchema.safeParse({ reset_code: typedCode, new_pin: newPin });
+  return refusedFields(request.success, newPin);
+}
+
 export async function redeemPinCode(
   deps: PinCodeRedemptionDeps,
   typedCode: string,
