@@ -10,7 +10,7 @@ beforeEach(resetPageState);
 
 afterEach(resetPageState);
 
-test("shows the Inicio item in the rail for a user holding view_branch_alerts, linking to Inicio", async () => {
+test("shows the Inicio item in the rail for a non-administrator, linking to Inicio", async () => {
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(
       openSession({

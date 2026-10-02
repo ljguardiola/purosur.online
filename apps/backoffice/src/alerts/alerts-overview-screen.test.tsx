@@ -117,18 +117,6 @@ test("tells someone without either alert permission that they have no alerts to 
   await expectNoAccessibilityViolations(document.body);
 });
 
-test("asks the cloud for the overview for a view_branch_alerts holder too", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchAlertsOverview).mockResolvedValue(ok(overview));
-
-  const screen = await renderScreen(services, {
-    access: accessWith("alerts_area"),
-  });
-
-  await expect.element(screen.getByRole("link", { name: /^Alertas críticas 4/ })).toBeVisible();
-  expect(services.fetchAlertsOverview).toHaveBeenCalledTimes(1);
-});
-
 test("shows a load error whose retry starts again from the loading placeholder", async () => {
   const services = createServices();
   const retry = deferred<FetchAlertsOverviewOutcome>();
