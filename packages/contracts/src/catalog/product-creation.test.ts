@@ -10,10 +10,12 @@ import {
 import { describe, expect, it } from "vitest";
 import { netContentQuantitySchema, productCreationBodySchema } from "./product-creation.js";
 
+const CATEGORY_ID = "11111111-1111-1111-1111-111111111111";
+
 function validBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     name: "Maceta",
-    categoryId: "cat-1",
+    categoryId: CATEGORY_ID,
     saleUnit: "UNIT",
     barcodes: ["111"],
     ...overrides,
@@ -59,13 +61,18 @@ describe("productCreationBodySchema, name", () => {
 });
 
 describe("productCreationBodySchema, categoryId", () => {
-  it("keeps the category id as sent", () => {
-    const result = productCreationBodySchema.safeParse(validBody({ categoryId: "AbC" }));
+  it("keeps the category id, in its canonical lowercase form", () => {
+    const result = productCreationBodySchema.safeParse(
+      validBody({ categoryId: "D131EC62-1111-4AAA-8BBB-ABCDEF012345" }),
+    );
 
-    expect(result).toMatchObject({ success: true, data: { categoryId: "AbC" } });
+    expect(result).toMatchObject({
+      success: true,
+      data: { categoryId: "d131ec62-1111-4aaa-8bbb-abcdef012345" },
+    });
   });
 
-  it.each([undefined, "", 42, null])("rejects the categoryId %j", (categoryId) => {
+  it.each([undefined, "", "not-an-id", 42, null])("rejects the categoryId %j", (categoryId) => {
     expect(firstFailure(validBody({ categoryId }))).toEqual({
       field: "categoryId",
       message: "categoryId must be an existing category's id",
@@ -91,7 +98,7 @@ describe("productCreationBodySchema, brandId", () => {
     });
   });
 
-  it.each([42, "", true, {}])("rejects the brandId %j", (brandId) => {
+  it.each([42, "", "not-an-id", true, {}])("rejects the brandId %j", (brandId) => {
     expect(firstFailure(validBody({ brandId }))).toEqual({
       field: "brandId",
       message: "brandId must be an existing brand's id, or null for none",
@@ -253,11 +260,13 @@ describe("productCreationBodySchema, tagIds", () => {
 
   it("keeps several tag ids in the order sent, in their canonical lowercase form", () => {
     const result = productCreationBodySchema.safeParse(
-      validBody({ tagIds: ["D131EC62-1111-4AAA-8BBB-ABCDEF012345", "tag-2"] }),
+      validBody({
+        tagIds: ["D131EC62-1111-4AAA-8BBB-ABCDEF012345", "22222222-2222-2222-2222-222222222222"],
+      }),
     );
 
     expect(result.data).toMatchObject({
-      tagIds: ["d131ec62-1111-4aaa-8bbb-abcdef012345", "tag-2"],
+      tagIds: ["d131ec62-1111-4aaa-8bbb-abcdef012345", "22222222-2222-2222-2222-222222222222"],
     });
   });
 
@@ -271,11 +280,23 @@ describe("productCreationBodySchema, tagIds", () => {
     },
   );
 
+  it.each(["not-an-id", "22222222-2222-2222-2222-222222222222,not-an-id"])(
+    "rejects a list holding the malformed id in %j",
+    (spelled) => {
+      expect(firstFailure(validBody({ tagIds: spelled.split(",") }))).toEqual({
+        field: "tagIds",
+        message: "tagIds must be a list of existing tags' ids, [] for none",
+      });
+    },
+  );
+
   it.each([
-    ["tag-1", "tag-1"],
-    ["tag-1", "TAG-1"],
+    ["33333333-3333-3333-3333-333333333333", "33333333-3333-3333-3333-333333333333"],
+    ["aaaaaaaa-3333-3333-3333-333333333333", "AAAAAAAA-3333-3333-3333-333333333333"],
   ])("rejects a tag sent more than once as %j and %j", (first, second) => {
-    expect(firstFailure(validBody({ tagIds: [first, "tag-2", second] }))).toEqual({
+    expect(
+      firstFailure(validBody({ tagIds: [first, "22222222-2222-2222-2222-222222222222", second] })),
+    ).toEqual({
       field: "tagIds",
       message: "tagIds must not repeat a tag",
     });
@@ -296,11 +317,13 @@ describe("productCreationBodySchema, order and unknown keys", () => {
 
     expect(firstFailure(allInvalid)?.field).toBe("name");
     expect(firstFailure({ ...allInvalid, name: "a" })?.field).toBe("categoryId");
-    expect(firstFailure({ ...allInvalid, name: "a", categoryId: "c" })?.field).toBe("brandId");
-    expect(firstFailure({ ...allInvalid, name: "a", categoryId: "c", brandId: null })?.field).toBe(
-      "saleUnit",
+    expect(firstFailure({ ...allInvalid, name: "a", categoryId: CATEGORY_ID })?.field).toBe(
+      "brandId",
     );
-    const validUpToSaleUnit = { name: "a", categoryId: "c", brandId: null, saleUnit: "KG" };
+    expect(
+      firstFailure({ ...allInvalid, name: "a", categoryId: CATEGORY_ID, brandId: null })?.field,
+    ).toBe("saleUnit");
+    const validUpToSaleUnit = { name: "a", categoryId: CATEGORY_ID, brandId: null, saleUnit: "KG" };
     expect(firstFailure({ ...allInvalid, ...validUpToSaleUnit })?.field).toBe("barcodes");
     expect(firstFailure({ ...allInvalid, ...validUpToSaleUnit, barcodes: ["1"] })?.field).toBe(
       "tagIds",
@@ -315,7 +338,7 @@ describe("productCreationBodySchema, order and unknown keys", () => {
 
     expect(result.data).toEqual({
       name: "Maceta",
-      categoryId: "cat-1",
+      categoryId: CATEGORY_ID,
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],

@@ -53,6 +53,14 @@ describe("pointOfSaleConfigurationBodySchema", () => {
     expect(result.data?.fiscal_address_id).toBe(FISCAL_ADDRESS_ID);
   });
 
+  it("reads a fiscal address id whose version and variant digits are unusual", () => {
+    const result = pointOfSaleConfigurationBodySchema.safeParse(
+      validBody({ fiscal_address_id: "0123ABCD-EF01-0567-F9AB-CDEF01234567" }),
+    );
+
+    expect(result.data?.fiscal_address_id).toBe("0123abcd-ef01-0567-f9ab-cdef01234567");
+  });
+
   it("accepts the version 0 of a register never configured", () => {
     expect(firstFailure(validBody({ version: 0 }))).toBeUndefined();
   });

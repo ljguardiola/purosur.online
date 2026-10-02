@@ -8,9 +8,7 @@ const HEX_DIGITS = [..."0123456789abcdefABCDEF"];
 const hexText = (length: number) =>
   fc.string({ unit: fc.constantFrom(...HEX_DIGITS), minLength: length, maxLength: length });
 
-const anyRecordId = fc
-  .tuple(...GROUP_LENGTHS.map(hexText))
-  .map((groups) => groups.join("-"));
+const anyRecordId = fc.tuple(...GROUP_LENGTHS.map(hexText)).map((groups) => groups.join("-"));
 
 function failure(value: unknown, message?: string): string[] {
   const result = recordIdSchema(message).safeParse(value);
@@ -72,6 +70,19 @@ describe("recordIdSchema", () => {
       "role_id must be a role's id",
     ]);
     expect(failure(42, "role_id must be a role's id")).toEqual(["role_id must be a role's id"]);
+  });
+
+  it("refuses with the message a function of the issue returns", () => {
+    const schema = recordIdSchema((issue) =>
+      issue.input === undefined ? "is missing" : "is wrong",
+    );
+
+    expect(schema.safeParse(undefined).error?.issues.map((issue) => issue.message)).toEqual([
+      "is missing",
+    ]);
+    expect(schema.safeParse("not-an-id").error?.issues.map((issue) => issue.message)).toEqual([
+      "is wrong",
+    ]);
   });
 
   it("refuses with a message of its own when given none", () => {

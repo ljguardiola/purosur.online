@@ -67,6 +67,14 @@ describe("priceSetBodySchema", () => {
     ).toBe(true);
   });
 
+  it("reads the expected current price id in lower case", () => {
+    expect(
+      priceSetBodySchema.parse(
+        validBody({ expectedCurrentPriceId: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE" }),
+      ).expectedCurrentPriceId,
+    ).toBe("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+  });
+
   it("reports the unit price before the expected current price id", () => {
     expect(firstIssue({})?.field).toBe("unitPrice");
   });
