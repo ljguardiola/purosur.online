@@ -1,4 +1,5 @@
 import type { CashBalance } from "@purosur/contracts";
+import { SummaryRowGroup } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
@@ -64,6 +65,32 @@ describe("ExpectedCashPanel", () => {
     expect(rowOf(screen, "Vuelto entregado")).toBe("Vuelto entregado− $ 9.300,00");
     expect(rowOf(screen, "Ingresos")).toBe("Ingresos+ $ 1.000,00");
     expect(rowOf(screen, "Gastos")).toBe("Gastos− $ 500,00");
+  });
+
+  it("shows the breakdown as the design system's summary rows", async () => {
+    const screen = await renderPanel();
+    const reference = await render(
+      <SummaryRowGroup rows={[{ label: "Referencia", value: "$ 1,00" }]} />,
+    );
+
+    const label = screen.getByText("Fondo inicial", { exact: true }).element();
+    const value = screen.getByText("$ 20.000,00", { exact: true }).element();
+    const group = label.parentElement?.parentElement as HTMLElement;
+    const referenceLabel = reference.getByText("Referencia", { exact: true }).element();
+    const referenceValue = reference.getByText("$ 1,00", { exact: true }).element();
+    const referenceGroup = reference.container.firstElementChild as HTMLElement;
+    for (const [shown, summary] of [
+      [label, referenceLabel],
+      [value, referenceValue],
+    ] as const) {
+      expect(getComputedStyle(shown).color).toBe(getComputedStyle(summary).color);
+      expect(getComputedStyle(shown).fontWeight).toBe(getComputedStyle(summary).fontWeight);
+    }
+    expect(getComputedStyle(group).borderTop).toBe(getComputedStyle(referenceGroup).borderTop);
+    expect(getComputedStyle(group).borderBottom).toBe(
+      getComputedStyle(referenceGroup).borderBottom,
+    );
+    expect(getComputedStyle(group).paddingTop).toBe(getComputedStyle(referenceGroup).paddingTop);
   });
 
   it("keeps a line with no movement, and leaves Devoluciones out while there are no refunds", async () => {

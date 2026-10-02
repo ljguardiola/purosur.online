@@ -31,7 +31,7 @@ import {
 } from "../register/register-queries";
 import { salesKeys } from "../sales/sales-queries";
 import type { Enrollment } from "./router";
-import { createAppRouter, isSessionScreen, routeFor } from "./router";
+import { createAppRouter } from "./router";
 import type { SignedInPerson } from "./signed-in-person";
 
 export function App({ core }: { core: CoreClient }) {
@@ -334,17 +334,12 @@ function Register({ core }: { core: CoreClient }) {
   );
 
   useEffect(() => {
-    const to = routeFor({ coreStatus, enrollment, person, cashSession });
-    if (to === "/session" && isSessionScreen(router.state.location.pathname)) {
-      return;
-    }
-    router.navigate({ to, replace: true });
+    router.update({
+      ...router.options,
+      context: { ...router.options.context, coreStatus, enrollment, person, cashSession },
+    });
+    void router.invalidate();
   }, [router, coreStatus, enrollment, person, cashSession]);
 
-  return (
-    <RouterProvider
-      router={router}
-      context={{ queryClient, coreStatus, enrollment, person, cashSession, ...services }}
-    />
-  );
+  return <RouterProvider router={router} context={{ queryClient, ...services }} />;
 }

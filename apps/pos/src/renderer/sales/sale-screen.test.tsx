@@ -1,7 +1,9 @@
 import type { OpenSale, ScanProductOutcome } from "@purosur/contracts";
+import { Tag } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import type { SaleScreenProps } from "./sale-screen";
 import { salesKeys } from "./sales-queries";
 import {
@@ -237,6 +239,33 @@ describe("SaleScreen", () => {
       expect(withoutPromotion.element().tagName).toBe("S");
       await expect.element(yerba.getByText("$ 4.284,00")).toBeVisible();
       await expectNoAccessibilityViolations(screen.container);
+    });
+
+    it("shows a line's promotion as the design system's info tag", async () => {
+      const promoted = {
+        ...YERBA,
+        discount_amount: 47_600,
+        promotion: { kind: "PERCENT_OFF", percent: 10 } as const,
+        line_total: 428_400,
+      };
+      const { screen } = await renderScreen({
+        currentSale: async () => ({
+          id: "sale-1",
+          lines: [promoted],
+          total: 428_400,
+          charge_refusal: null,
+        }),
+      });
+      const reference = await render(<Tag tone="info">Referencia</Tag>);
+
+      const promotion = screen.getByText("10 % de descuento").element();
+      const shown = getComputedStyle(promotion);
+      const tag = getComputedStyle(reference.getByText("Referencia").element());
+      expect(shown.backgroundColor).toBe(tag.backgroundColor);
+      expect(shown.color).toBe(tag.color);
+      expect(shown.borderRadius).toBe(tag.borderRadius);
+      expect(shown.fontSize).toBe(tag.fontSize);
+      expect(promotion.querySelector("[aria-hidden='true'] svg")).not.toBeNull();
     });
 
     it("writes a buy N pay M promotion as a purchase and a payment quantity", async () => {
