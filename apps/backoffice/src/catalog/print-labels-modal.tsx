@@ -1,5 +1,4 @@
-import type { ProductSummary } from "@purosur/contracts";
-import { LABELS_MAX_COUNT_PER_PRODUCT, LABELS_MAX_TOTAL_COUNT } from "@purosur/domain";
+import { labelSheetBodySchema, type ProductSummary } from "@purosur/contracts";
 import {
   Button,
   EmptyState,
@@ -13,9 +12,14 @@ import {
 import { Download, Minus, Package, Plus, Printer, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import { schemaLimit } from "../platform/schema-limit";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { groupedEan13Digits, LabelPreviewBars } from "./label-preview-bars";
 import type { printLabels } from "./products-api";
+
+const LABEL_LIMITS = labelSheetBodySchema.shape.labels.meta();
+const MAX_COUNT_PER_PRODUCT = schemaLimit(LABEL_LIMITS?.["maxCountPerProduct"]);
+const MAX_TOTAL_COUNT = schemaLimit(LABEL_LIMITS?.["maxTotalCount"]);
 
 type LabelableProduct = { product: ProductSummary; code: string };
 
@@ -86,8 +90,8 @@ export function PrintLabelsModal({
       const count = current[productId] ?? 0;
       const currentTotal = Object.values(current).reduce((sum, value) => sum + value, 0);
       const ceiling = Math.min(
-        LABELS_MAX_COUNT_PER_PRODUCT,
-        count + Math.max(0, LABELS_MAX_TOTAL_COUNT - currentTotal),
+        MAX_COUNT_PER_PRODUCT,
+        count + Math.max(0, MAX_TOTAL_COUNT - currentTotal),
       );
       return { ...current, [productId]: Math.max(0, Math.min(ceiling, count + delta)) };
     });
@@ -260,9 +264,7 @@ export function PrintLabelsModal({
                       <IconButton
                         icon={<Plus />}
                         aria-label={`Sumar una etiqueta a ${product.name}`}
-                        disabled={
-                          count === LABELS_MAX_COUNT_PER_PRODUCT || total >= LABELS_MAX_TOTAL_COUNT
-                        }
+                        disabled={count === MAX_COUNT_PER_PRODUCT || total >= MAX_TOTAL_COUNT}
                         onPress={() => changeCount(product.id, 1)}
                       />
                     </div>

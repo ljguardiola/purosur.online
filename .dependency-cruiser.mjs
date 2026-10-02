@@ -55,7 +55,6 @@ export const SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST = [
   "apps/backoffice/src/catalog/category-form.ts",
   "apps/backoffice/src/catalog/label-preview-bars.tsx",
   "apps/backoffice/src/catalog/net-content-quantity.ts",
-  "apps/backoffice/src/catalog/print-labels-modal.tsx",
   "apps/backoffice/src/catalog/product-form.ts",
   "apps/backoffice/src/catalog/tag-form.ts",
   "apps/backoffice/src/fiscal/issuer-identification-form.ts",
