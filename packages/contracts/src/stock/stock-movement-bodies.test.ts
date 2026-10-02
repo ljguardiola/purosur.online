@@ -1,8 +1,14 @@
-import { MAX_STOCK_QUANTITY } from "@purosur/domain";
+import {
+  ARGENTINA_TIME_ZONE,
+  MAX_STOCK_QUANTITY,
+  STOCK_QUANTITY_DECIMALS,
+  STOCK_QUANTITY_PER_UNIT,
+} from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
   stockAdjustmentBodySchema,
   stockCountBodySchema,
+  stockCountMomentSchema,
   stockLossBodySchema,
 } from "./stock-movement-bodies.js";
 
@@ -176,5 +182,53 @@ describe("stockCountBodySchema", () => {
 
   it("rejects a bad product id", () => {
     expect(firstIssue(stockCountBodySchema, { ...count, productId: 7 })?.field).toBe("productId");
+  });
+});
+
+describe("stock quantity shapes", () => {
+  it.each([
+    ["a loss's quantity", stockLossBodySchema.shape.quantity],
+    ["an adjustment's quantity", stockAdjustmentBodySchema.shape.quantity],
+    ["a counted quantity", stockCountBodySchema.shape.counted],
+  ])("declare the decimals and thousandths per unit of %s", (_case, schema) => {
+    expect(schema.meta()).toMatchObject({
+      decimals: STOCK_QUANTITY_DECIMALS,
+      perUnit: STOCK_QUANTITY_PER_UNIT,
+    });
+  });
+});
+
+describe("stockCountBodySchema's moment", () => {
+  it("declares the time zone a count's moment is read in", () => {
+    expect(stockCountBodySchema.shape.occurredAt.meta()).toMatchObject({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
+  });
+});
+
+describe("stockCountMomentSchema", () => {
+  it("builds the instant of a day and time on Argentina's clock", () => {
+    expect(stockCountMomentSchema.parse({ day: "2026-09-25", time: "14:30" })).toBe(
+      "2026-09-25T14:30:00-03:00",
+    );
+  });
+
+  it("builds an instant the count's body accepts as its moment", () => {
+    const occurredAt = stockCountMomentSchema.parse({ day: "2026-09-25", time: "23:59" });
+
+    expect(stockCountBodySchema.shape.occurredAt.safeParse(occurredAt).success).toBe(true);
+  });
+
+  it.each([
+    ["a day that does not exist", { day: "2026-02-30", time: "10:00" }],
+    ["a day of year 0000", { day: "0000-01-01", time: "10:00" }],
+    ["no day", { day: "", time: "10:00" }],
+    ["an hour past 23", { day: "2026-09-25", time: "24:00" }],
+    ["a minute past 59", { day: "2026-09-25", time: "10:60" }],
+    ["a time without its leading zero", { day: "2026-09-25", time: "9:30" }],
+    ["a time with seconds", { day: "2026-09-25", time: "10:00:00" }],
+    ["no time", { day: "2026-09-25", time: "" }],
+  ])("refuses %s", (_case, moment) => {
+    expect(stockCountMomentSchema.safeParse(moment).success).toBe(false);
   });
 });
