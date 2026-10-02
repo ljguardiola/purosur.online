@@ -1,4 +1,8 @@
-import { RECOVERY_TOKEN_LIFETIME_MS, SIGN_IN_FAILURE_LIMIT } from "@purosur/domain";
+import {
+  RECOVERY_TOKEN_LIFETIME_MS,
+  SIGN_IN_BLOCK_DURATION_MS,
+  SIGN_IN_FAILURE_LIMIT,
+} from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { WebAuthnEmulator } from "nid-webauthn-emulator";
@@ -517,7 +521,7 @@ describe("POST /sessions", () => {
 
       expect(eleventh.statusCode).toBe(429);
       expect(eleventh.json()).toMatchObject({ code: "rate_limited" });
-      expect(eleventh.headers["retry-after"]).toBeDefined();
+      expect(eleventh.headers["retry-after"]).toBe(String(SIGN_IN_BLOCK_DURATION_MS / 1000));
     });
 
     it("checks the lockout before ever looking up a credential, so a locked address cannot sign in even with a valid passkey", async () => {

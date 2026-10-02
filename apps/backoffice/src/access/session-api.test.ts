@@ -237,12 +237,12 @@ test("authenticate reports rate_limited with the Retry-After seconds on 429", as
   });
 });
 
-test("authenticate falls back to the fixed 15-minute lockout when Retry-After is missing", async () => {
+test("authenticate falls back to the one-hour rolling window when Retry-After is missing on 429", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(429, { code: "rate_limited" }));
 
   await expect(authenticate(assertion)).resolves.toEqual({
     kind: "rate_limited",
-    retryAfterSeconds: 900,
+    retryAfterSeconds: 60 * 60,
   });
 });
 
