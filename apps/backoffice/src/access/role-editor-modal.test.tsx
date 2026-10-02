@@ -70,7 +70,7 @@ const stockSummary: RoleSummary = {
   id: "role-stock",
   name: "Depósito",
   isAdministrator: false,
-  permissionKeys: ["sell_and_charge", "view_branch_alerts", "view_all_alerts"],
+  permissionKeys: ["sell_and_charge", "view_all_alerts"],
   userCount: 0,
 };
 

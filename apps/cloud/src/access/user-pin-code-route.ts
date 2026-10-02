@@ -10,8 +10,8 @@ import { DrizzlePinCodeStore } from "./drizzle-pin-code-store.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import { generatePinCode } from "./pin-code-generator.js";
 import {
+  capabilityAccess,
   openSessionOf,
-  permissionAccess,
   registerRouteAccess,
   routeSessionSource,
 } from "./route-access.js";
@@ -34,7 +34,7 @@ export function registerUserPinCodeRoutes<TQueryResult extends PgQueryResultHKT>
     "/users/:id/pin-codes",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
-      config: { access: permissionAccess("reset_user_pin"), sessionSource },
+      config: { access: capabilityAccess("reset_user_pin"), sessionSource },
     },
     async (request, reply) => {
       const attemptedAt = now();

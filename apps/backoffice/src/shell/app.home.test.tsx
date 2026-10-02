@@ -17,7 +17,7 @@ test("shows the Inicio item in the rail for a user holding view_branch_alerts, l
         userId: "user-2",
         displayName: "Grace Hopper",
         isAdministrator: false,
-        permissions: ["view_branch_alerts"],
+        capabilities: ["alerts_area"],
       }),
     ),
   });

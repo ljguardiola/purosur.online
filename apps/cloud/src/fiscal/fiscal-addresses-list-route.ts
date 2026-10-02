@@ -4,7 +4,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
 import {
-  permissionAccess,
+  capabilityAccess,
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
@@ -33,7 +33,7 @@ export function registerFiscalAddressesListRoute<TQueryResult extends PgQueryRes
     "/fiscal-addresses",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
-      config: { access: permissionAccess("change_fiscal_configuration"), sessionSource },
+      config: { access: capabilityAccess("cash_area"), sessionSource },
     },
     async (_request, reply) => {
       const listed = await reader.listFiscalAddresses();

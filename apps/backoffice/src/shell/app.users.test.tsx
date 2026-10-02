@@ -176,7 +176,7 @@ test("lets a non-Administrator holding deactivate_users open Usuarios, without N
         userId: "user-2",
         displayName: "Grace Hopper",
         isAdministrator: false,
-        permissions: ["deactivate_users"],
+        capabilities: ["users_area", "deactivate_users"],
       }),
     ),
   });
@@ -214,7 +214,7 @@ test("opens a user's detail for a non-Administrator holding deactivate_users, of
         userId: "user-2",
         displayName: "Grace Hopper",
         isAdministrator: false,
-        permissions: ["deactivate_users"],
+        capabilities: ["users_area", "deactivate_users"],
       }),
     ),
   });
@@ -252,7 +252,7 @@ test("lets a non-Administrator holding only reset_user_pin open Usuarios and a u
         userId: "user-2",
         displayName: "Grace Hopper",
         isAdministrator: false,
-        permissions: ["reset_user_pin"],
+        capabilities: ["users_area", "reset_user_pin"],
       }),
     ),
   });

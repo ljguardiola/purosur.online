@@ -1,4 +1,4 @@
-import { holdsPermission } from "../../access/index.js";
+import { grantsCapability, holdsPermission } from "../../access/index.js";
 import type { AlertAudience } from "./alert-catalog.js";
 
 export interface AlertAudienceAccess {
@@ -15,13 +15,13 @@ export type VisibleAlertSight = { kind: "all" } | { kind: "local"; locationId: s
 export type AlertSight = VisibleAlertSight | { kind: "none" };
 
 export function alertSightOf(viewer: AlertViewer): AlertSight {
+  if (!grantsCapability(viewer, "alerts_area")) {
+    return { kind: "none" };
+  }
   if (holdsPermission(viewer, "view_all_alerts")) {
     return { kind: "all" };
   }
-  if (holdsPermission(viewer, "view_branch_alerts")) {
-    return { kind: "local", locationId: viewer.locationId };
-  }
-  return { kind: "none" };
+  return { kind: "local", locationId: viewer.locationId };
 }
 
 export function canSeeAlert(

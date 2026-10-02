@@ -9,8 +9,8 @@ import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
 import {
+  capabilityAccess,
   openSessionOf,
-  permissionAccess,
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
@@ -53,7 +53,7 @@ export function registerStockCountsRoutes<TQueryResult extends PgQueryResultHKT>
   const sessionSource = routeSessionSource({ db: options.db, now });
   const routeConfig = {
     preHandler: sameOriginGuard(options.backofficeOrigin),
-    config: { access: permissionAccess("perform_stock_counts"), sessionSource },
+    config: { access: capabilityAccess("stock_counts"), sessionSource },
   };
 
   app.get<{ Querystring: { days?: string } }>(
@@ -121,7 +121,7 @@ export function registerStockCountsRoutes<TQueryResult extends PgQueryResultHKT>
     "/inventory-levels/:productId",
     {
       preHandler: routeConfig.preHandler,
-      config: { access: permissionAccess("view_stock_balances"), sessionSource },
+      config: { access: capabilityAccess("stock_balances"), sessionSource },
     },
     async (request, reply) => {
       const at = stockCountBodySchema.shape.occurredAt.safeParse(request.query.at);

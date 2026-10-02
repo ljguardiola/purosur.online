@@ -3,7 +3,7 @@ import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
 import {
-  permissionAccess,
+  capabilityAccess,
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
@@ -24,12 +24,7 @@ export function registerStockProductsRoute<TQueryResult extends PgQueryResultHKT
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
       config: {
-        access: permissionAccess([
-          "view_stock_balances",
-          "perform_stock_counts",
-          "adjust_stock",
-          "record_stock_losses",
-        ]),
+        access: capabilityAccess("stock_area"),
         sessionSource,
       },
     },

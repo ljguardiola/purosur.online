@@ -1,5 +1,6 @@
 export type {
   AuthorizablePermissionKey,
+  Capability,
   PermissionArea,
   PermissionDefinition,
   PermissionKey,
@@ -10,11 +11,15 @@ export type {
 } from "./access/index.js";
 export {
   ALERT_VIEW_PERMISSION_KEYS,
+  CAPABILITIES,
+  CAPABILITY_PERMISSIONS,
   CHALLENGE_TTL_MS,
   challengeExpiryWindowStart,
   decodePinSalt,
   encodePinHash,
+  grantedCapabilities,
   grantedPermissionKeys,
+  grantsCapability,
   hasReachedSignInFailureLimit,
   hasValidPasskeyAuthorization,
   heldPermissionKeys,
@@ -71,6 +76,7 @@ export {
   signInLockoutWindowStart,
   signInLookupAttemptWindowStart,
   uncoveredRegisterPermissions,
+  withOneAlertView,
   withRequiredPermissions,
 } from "./access/index.js";
 export type {
@@ -316,7 +322,7 @@ export {
   lossDelta,
   MANUAL_STOCK_MOVEMENT_KINDS,
   MAX_STOCK_QUANTITY,
-  manualStockMovementPermission,
+  manualStockMovementCapability,
   STOCK_DIRECTIONS,
   STOCK_QUANTITY_PER_UNIT,
   signedDelta,

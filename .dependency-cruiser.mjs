@@ -28,7 +28,6 @@ export const SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST = [
   "apps/backoffice/src/access/role-editor-form.tsx",
   "apps/backoffice/src/access/role-editor-modal.tsx",
   "apps/backoffice/src/access/role-name-message.ts",
-  "apps/backoffice/src/access/role-permissions.ts",
   "apps/backoffice/src/access/roles-list-screen.tsx",
   "apps/backoffice/src/alerts/alert-detail-modal.tsx",
   "apps/backoffice/src/alerts/alerts-list-screen.tsx",

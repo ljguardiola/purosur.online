@@ -4,7 +4,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
 import {
-  permissionAccess,
+  capabilityAccess,
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
@@ -30,7 +30,7 @@ export function registerTagsListRoute<TQueryResult extends PgQueryResultHKT>(
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
       config: {
-        access: permissionAccess("manage_products_and_categories"),
+        access: capabilityAccess("products_and_categories"),
         sessionSource,
       },
     },

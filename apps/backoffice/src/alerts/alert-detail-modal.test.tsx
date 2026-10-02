@@ -4,12 +4,13 @@ import { act } from "react";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { BackofficeAccess } from "../access/backoffice-access";
+import {
+  ADMINISTRATOR_ACCESS,
+  NO_CAPABILITIES_ACCESS,
+} from "../access/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import { AlertDetailModal, type AlertDetailModalServices } from "./alert-detail-modal";
 import type { FetchAlertOutcome } from "./alerts-api";
-
-const ADMINISTRATOR_ACCESS: BackofficeAccess = { isAdministrator: true, permissions: [] };
-const NO_ALERT_PERMISSIONS_ACCESS: BackofficeAccess = { isAdministrator: false, permissions: [] };
 
 function createServices(
   overrides: Partial<AlertDetailModalServices> = {},
@@ -388,7 +389,7 @@ test("hides Cerrar la alerta for a viewer without dismiss_alerts_manually", asyn
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(ok(baseDetail()));
 
-  const screen = await renderModal(services, { access: NO_ALERT_PERMISSIONS_ACCESS });
+  const screen = await renderModal(services, { access: NO_CAPABILITIES_ACCESS });
   await expect.element(screen.getByText("Se registró una passkey")).toBeVisible();
 
   expect(screen.getByRole("button", { name: "Cerrar la alerta" }).query()).toBeNull();

@@ -4,7 +4,7 @@ import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
 import {
-  permissionAccess,
+  capabilityAccess,
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
@@ -24,7 +24,7 @@ export function registerDiscountTargetsRoute<TQueryResult extends PgQueryResultH
     "/discount-targets",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
-      config: { access: permissionAccess("manage_promotions"), sessionSource },
+      config: { access: capabilityAccess("promotions"), sessionSource },
     },
     async (_request, reply) => {
       await reply

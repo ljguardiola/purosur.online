@@ -1,4 +1,5 @@
 import { type RoleSummaryWire, roleSummarySchema } from "@purosur/contracts";
+import { type PermissionKey, withOneAlertView } from "@purosur/domain";
 import { listRoles, type RoleSummary } from "@purosur/domain/access/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -17,7 +18,7 @@ export function toRoleSummaryWire(row: RoleSummary): RoleSummaryWire {
     id: row.id,
     name: row.name,
     is_administrator: row.isAdministrator,
-    permissions: row.permissionKeys,
+    permissions: [...withOneAlertView(row.permissionKeys as PermissionKey[])],
     user_count: row.userCount,
   });
 }

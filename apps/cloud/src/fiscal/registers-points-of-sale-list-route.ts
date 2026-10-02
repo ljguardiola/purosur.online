@@ -4,8 +4,8 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
 import {
+  capabilityAccess,
   openSessionOf,
-  permissionAccess,
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
@@ -40,7 +40,7 @@ export function registerRegistersPointsOfSaleListRoute<TQueryResult extends PgQu
     "/registers/points-of-sale",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
-      config: { access: permissionAccess("change_fiscal_configuration"), sessionSource },
+      config: { access: capabilityAccess("cash_area"), sessionSource },
     },
     async (request, reply) => {
       const listed = await reader.listBranchRegisterPointsOfSale(openSessionOf(request).locationId);

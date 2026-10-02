@@ -2,16 +2,13 @@ import type { AlertsOverview } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import type { BackofficeAccess } from "../access/backoffice-access";
+import { accessWith, NO_CAPABILITIES_ACCESS } from "../access/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import type { FetchAlertsOverviewOutcome } from "./alerts-api";
 import { AlertsOverviewScreen } from "./alerts-overview-screen";
 import type { AlertsOverviewScreenServices } from "./alerts-overview-services";
 
-const ALL_ALERTS_ACCESS: BackofficeAccess = {
-  isAdministrator: false,
-  permissions: ["view_all_alerts"],
-};
+const ALL_ALERTS_ACCESS = accessWith("alerts_area");
 
 const overview: AlertsOverview = {
   critical: { openCount: 4, kinds: ["user_access_increased"] },
@@ -108,7 +105,7 @@ test("tells someone without either alert permission that they have no alerts to 
   const services = createServices();
 
   const screen = await renderScreen(services, {
-    access: { isAdministrator: false, permissions: [] },
+    access: NO_CAPABILITIES_ACCESS,
   });
 
   await expect.element(screen.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
@@ -125,7 +122,7 @@ test("asks the cloud for the overview for a view_branch_alerts holder too", asyn
   vi.mocked(services.fetchAlertsOverview).mockResolvedValue(ok(overview));
 
   const screen = await renderScreen(services, {
-    access: { isAdministrator: false, permissions: ["view_branch_alerts"] },
+    access: accessWith("alerts_area"),
   });
 
   await expect.element(screen.getByRole("link", { name: /^Alertas críticas 4/ })).toBeVisible();

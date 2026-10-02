@@ -3,8 +3,8 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
 import {
+  capabilityAccess,
   openSessionOf,
-  permissionAccess,
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
@@ -30,7 +30,7 @@ export function registerBranchSettingsReadRoute<TQueryResult extends PgQueryResu
     "/locations/current/settings",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
-      config: { access: permissionAccess("configure_branch"), sessionSource },
+      config: { access: capabilityAccess("branch_area"), sessionSource },
     },
     async (request, reply) => {
       const settings = await reader.currentBranchSettings(openSessionOf(request).locationId);

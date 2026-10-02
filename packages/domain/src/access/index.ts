@@ -1,5 +1,12 @@
 export type { RoleAccess } from "./model/access-increase.js";
 export { grantedPermissionKeys, increasesAccess } from "./model/access-increase.js";
+export type { Capability } from "./model/capability-permissions.js";
+export {
+  CAPABILITIES,
+  CAPABILITY_PERMISSIONS,
+  grantedCapabilities,
+  grantsCapability,
+} from "./model/capability-permissions.js";
 export { CHALLENGE_TTL_MS, challengeExpiryWindowStart } from "./model/challenge-lifetime.js";
 export { isEmailAddress } from "./model/email-address.js";
 export type { AuthorizablePermissionKey } from "./model/holds-permission.js";
@@ -31,6 +38,7 @@ export {
   PERMISSION_CATALOG,
   PERMISSION_KEYS,
   repeatsAPermissionKey,
+  withOneAlertView,
 } from "./model/permission-catalog.js";
 export {
   lacksARequiredPermission,

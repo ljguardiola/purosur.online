@@ -6,8 +6,8 @@ import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 import { DrizzleUserStore } from "./drizzle-user-store.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import {
+  capabilityAccess,
   openSessionOf,
-  permissionAccess,
   registerRouteAccess,
   routeSessionSource,
 } from "./route-access.js";
@@ -30,7 +30,7 @@ export function registerUserReactivationRoutes<TQueryResult extends PgQueryResul
     "/users/:id/deactivation",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
-      config: { access: permissionAccess("reactivate_users"), sessionSource },
+      config: { access: capabilityAccess("reactivate_users"), sessionSource },
     },
     async (request, reply) => {
       const attemptedAt = now();
