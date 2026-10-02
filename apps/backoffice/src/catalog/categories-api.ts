@@ -5,7 +5,7 @@ import {
   categoryListSchema,
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
-import { retryAfterSeconds } from "../platform/retry-after-seconds";
+import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
 
 export type FetchCategoriesOutcome = CloudReadOutcome<CategorySummary[]>;
@@ -63,7 +63,7 @@ export async function fetchCategories(): Promise<FetchCategoriesOutcome> {
     return { kind: "forbidden" };
   }
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return rateLimitOutcome(response);
   }
   if (!response.ok) {
     return { kind: "failed" };
@@ -103,7 +103,7 @@ export async function createCategory(input: CreateCategoryInput): Promise<Create
     return { kind: "forbidden" };
   }
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return rateLimitOutcome(response);
   }
   return { kind: "failed" };
 }
@@ -153,7 +153,7 @@ export async function editCategory(
     return { kind: "forbidden" };
   }
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return rateLimitOutcome(response);
   }
   return { kind: "failed" };
 }

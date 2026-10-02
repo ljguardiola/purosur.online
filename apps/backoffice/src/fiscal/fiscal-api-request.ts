@@ -1,5 +1,5 @@
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
-import { retryAfterSeconds } from "../platform/retry-after-seconds";
+import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 
 export type WriteFailure =
   | { kind: "forbidden" }
@@ -25,7 +25,7 @@ export async function readCloudList<Value>(
     return { kind: "forbidden" };
   }
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return rateLimitOutcome(response);
   }
   if (!response.ok) {
     return { kind: "failed" };
@@ -68,7 +68,7 @@ export async function writeFailureOf(response: Response): Promise<WriteFailure> 
     return { kind: "forbidden" };
   }
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return rateLimitOutcome(response);
   }
   return { kind: "failed" };
 }

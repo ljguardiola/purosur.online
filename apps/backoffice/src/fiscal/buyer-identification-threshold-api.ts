@@ -6,7 +6,7 @@ import {
 } from "@purosur/contracts";
 import type { BuyerIdentificationThreshold } from "@purosur/domain";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
-import { retryAfterSeconds } from "../platform/retry-after-seconds";
+import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
 
 export type BuyerIdentificationThresholds = {
@@ -45,7 +45,7 @@ export async function fetchBuyerIdentificationThresholds(): Promise<FetchBuyerId
     return { kind: "forbidden" };
   }
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return rateLimitOutcome(response);
   }
   if (!response.ok) {
     return { kind: "failed" };

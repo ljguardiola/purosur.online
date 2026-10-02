@@ -6,7 +6,7 @@ import type {
   AuthenticationResponseJSON,
   PublicKeyCredentialRequestOptionsJSON,
 } from "@simplewebauthn/browser";
-import { retryAfterSeconds } from "./retry-after-seconds";
+import { rateLimitOutcome } from "./rate-limit-outcome";
 
 export type SessionAuthorizationOptionsOutcome =
   | { kind: "ok"; value: PublicKeyCredentialRequestOptionsJSON }
@@ -44,10 +44,7 @@ export async function fetchSessionAuthorizationOptions(): Promise<SessionAuthori
     return { kind: "unauthenticated" };
   }
   if (response.status === 429) {
-    return {
-      kind: "rate_limited",
-      retryAfterSeconds: retryAfterSeconds(response),
-    };
+    return rateLimitOutcome(response);
   }
   if (!response.ok) {
     return { kind: "failed" };
@@ -81,10 +78,7 @@ export async function authorizeSession(
       : { kind: "unauthenticated" };
   }
   if (response.status === 429) {
-    return {
-      kind: "rate_limited",
-      retryAfterSeconds: retryAfterSeconds(response),
-    };
+    return rateLimitOutcome(response);
   }
   return { kind: "failed" };
 }

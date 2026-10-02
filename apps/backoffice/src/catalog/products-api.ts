@@ -8,7 +8,7 @@ import {
 } from "@purosur/contracts";
 import type { NetContentUnit } from "@purosur/domain";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
-import { retryAfterSeconds } from "../platform/retry-after-seconds";
+import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
 
 export type ProductSaleUnit = "UNIT" | "KG";
@@ -109,7 +109,7 @@ export async function fetchProducts(
     return { kind: "forbidden" };
   }
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return rateLimitOutcome(response);
   }
   if (!response.ok) {
     return { kind: "failed" };
@@ -169,7 +169,7 @@ export async function createProduct(input: CreateProductInput): Promise<CreatePr
     return { kind: "forbidden" };
   }
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return rateLimitOutcome(response);
   }
   return { kind: "failed" };
 }
@@ -195,7 +195,7 @@ export async function generateInternalBarcode(): Promise<GenerateInternalBarcode
     return { kind: "forbidden" };
   }
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return rateLimitOutcome(response);
   }
   return { kind: "failed" };
 }
@@ -243,7 +243,7 @@ export async function printLabels(labels: PrintLabelEntry[]): Promise<PrintLabel
     return { kind: "forbidden" };
   }
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return rateLimitOutcome(response);
   }
   return { kind: "failed" };
 }
@@ -313,7 +313,7 @@ export async function editProduct(
     return { kind: "forbidden" };
   }
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return rateLimitOutcome(response);
   }
   return { kind: "failed" };
 }
@@ -347,7 +347,7 @@ export async function deactivateProduct(id: string): Promise<DeactivateProductOu
     return { kind: "forbidden" };
   }
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return rateLimitOutcome(response);
   }
   return { kind: "failed" };
 }

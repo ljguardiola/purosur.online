@@ -9,7 +9,7 @@ import type {
   AuthenticationResponseJSON,
   PublicKeyCredentialRequestOptionsJSON,
 } from "@simplewebauthn/browser";
-import { retryAfterSeconds } from "../platform/retry-after-seconds";
+import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 
 export type SessionOutcome =
   | {
@@ -65,10 +65,7 @@ export async function fetchSession(): Promise<SessionOutcome> {
     return { kind: "unauthenticated" };
   }
   if (response.status === 429) {
-    return {
-      kind: "rate_limited",
-      retryAfterSeconds: retryAfterSeconds(response),
-    };
+    return rateLimitOutcome(response);
   }
   if (!response.ok) {
     return { kind: "failed" };
@@ -100,10 +97,7 @@ export async function checkSessionStatus(): Promise<SessionStatusOutcome> {
     return { kind: "unauthenticated" };
   }
   if (response.status === 429) {
-    return {
-      kind: "rate_limited",
-      retryAfterSeconds: retryAfterSeconds(response),
-    };
+    return rateLimitOutcome(response);
   }
   if (!response.ok) {
     return { kind: "failed" };
@@ -149,10 +143,7 @@ export async function authenticate(
     return { kind: "ok" };
   }
   if (response.status === 429) {
-    return {
-      kind: "rate_limited",
-      retryAfterSeconds: retryAfterSeconds(response),
-    };
+    return rateLimitOutcome(response);
   }
   if (response.status === 401) {
     const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
@@ -174,10 +165,7 @@ export async function signOut(): Promise<SignOutOutcome> {
     return { kind: "ok" };
   }
   if (response.status === 429) {
-    return {
-      kind: "rate_limited",
-      retryAfterSeconds: retryAfterSeconds(response),
-    };
+    return rateLimitOutcome(response);
   }
   return { kind: "failed" };
 }

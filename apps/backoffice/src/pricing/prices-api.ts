@@ -5,7 +5,7 @@ import {
   priceListSchema,
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
-import { retryAfterSeconds } from "../platform/retry-after-seconds";
+import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
 
 export type PricesReviewFilter = "pending" | "all";
@@ -78,7 +78,7 @@ export async function fetchPrices(input: FetchPricesInput): Promise<FetchPricesO
     return { kind: "forbidden" };
   }
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return rateLimitOutcome(response);
   }
   if (!response.ok) {
     return { kind: "failed" };
@@ -118,7 +118,7 @@ export async function setPrice(productId: string, input: SetPriceInput): Promise
     return { kind: "forbidden" };
   }
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return rateLimitOutcome(response);
   }
   return { kind: "failed" };
 }
@@ -156,7 +156,7 @@ export async function confirmPrice(
     return { kind: "forbidden" };
   }
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return rateLimitOutcome(response);
   }
   return { kind: "failed" };
 }

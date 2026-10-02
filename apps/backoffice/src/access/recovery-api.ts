@@ -9,7 +9,7 @@ import type {
   PublicKeyCredentialCreationOptionsJSON,
   RegistrationResponseJSON,
 } from "@simplewebauthn/browser";
-import { retryAfterSeconds } from "../platform/retry-after-seconds";
+import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
 
 export type RecoveryRequestOutcome =
@@ -58,7 +58,7 @@ export async function requestRecoveryLink(email: string): Promise<RecoveryReques
     return { kind: "sent" };
   }
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return rateLimitOutcome(response);
   }
   if (response.status === 400) {
     const field = await readValidationFailedField(response);
@@ -78,7 +78,7 @@ const TOKEN_ERROR_KIND_BY_CODE: Record<string, RecoveryTokenErrorKind> = {
 
 async function tokenErrorOutcome(response: Response): Promise<RecoveryTokenRefusal> {
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return rateLimitOutcome(response);
   }
   const field = await readValidationFailedField(response.clone());
   const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;

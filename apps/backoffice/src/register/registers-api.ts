@@ -7,7 +7,7 @@ import {
 } from "@purosur/contracts";
 import type { PermissionKey } from "@purosur/domain";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
-import { retryAfterSeconds } from "../platform/retry-after-seconds";
+import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
 
 type PendingEnrollmentCode = { secondsSinceIssued: number; secondsUntilExpiry: number };
@@ -88,7 +88,7 @@ async function gatedActionErrorOutcome(response: Response): Promise<GatedActionE
     return { kind: "forbidden" };
   }
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return rateLimitOutcome(response);
   }
   return { kind: "failed" };
 }
@@ -110,7 +110,7 @@ async function readCloud<T>(
     return { kind: "forbidden" };
   }
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return rateLimitOutcome(response);
   }
   if (!response.ok) {
     return { kind: "failed" };
