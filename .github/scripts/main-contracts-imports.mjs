@@ -19,13 +19,15 @@ export function contractsValueExports(entryPath, names) {
   const exports = new Map(
     checker.getExportsOfModule(entry).map((symbol) => [symbol.getName(), symbol]),
   );
-  const resolved = (symbol) =>
-    symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
+  const flags = (symbol) =>
+    symbol.flags & ts.SymbolFlags.Alias
+      ? symbol.flags | checker.getAliasedSymbol(symbol).flags
+      : symbol.flags;
 
   return {
     values: names.filter((name) => {
       const symbol = exports.get(name);
-      return symbol !== undefined && (resolved(symbol).flags & ts.SymbolFlags.Value) !== 0;
+      return symbol !== undefined && (flags(symbol) & ts.SymbolFlags.Value) !== 0;
     }),
     missing: names.filter((name) => !exports.has(name)),
   };

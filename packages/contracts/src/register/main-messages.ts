@@ -11,6 +11,26 @@ const deviceCredentialsSchema = z.object({
 });
 export type DeviceCredentials = z.output<typeof deviceCredentialsSchema>;
 
+const credentialsWithAnyKeysSchema = deviceCredentialsSchema.extend({
+  keys: z.unknown().optional(),
+});
+
+function readableCredentials(value: unknown): DeviceCredentials | undefined {
+  const parsed = credentialsWithAnyKeysSchema.safeParse(value);
+  if (!parsed.success) {
+    return undefined;
+  }
+  const { keys, ...credentials } = parsed.data;
+  const readableKeys = installationKeysSchema.safeParse(keys);
+  return readableKeys.success ? { ...credentials, keys: readableKeys.data } : credentials;
+}
+
+interface CredentialsReadAnswer {
+  type: "device-credentials-read";
+  request_id: string;
+  credentials?: DeviceCredentials;
+}
+
 const credentialsReplacementSchema = z.enum(["replaced", "superseded", "not_stored"]);
 export type CredentialsReplacement = z.output<typeof credentialsReplacementSchema>;
 
@@ -42,11 +62,16 @@ const deviceCredentialsAnswerSchema = z.discriminatedUnion("type", [
     request_id: requestIdSchema,
     outcome: credentialsReplacementSchema,
   }),
-  z.object({
-    type: z.literal("device-credentials-read"),
-    request_id: requestIdSchema,
-    credentials: deviceCredentialsSchema.optional(),
-  }),
+  z
+    .object({
+      type: z.literal("device-credentials-read"),
+      request_id: requestIdSchema,
+      credentials: z.unknown().optional(),
+    })
+    .transform(({ credentials, ...answer }): CredentialsReadAnswer => {
+      const readable = readableCredentials(credentials);
+      return readable === undefined ? answer : { ...answer, credentials: readable };
+    }),
   z.object({
     type: z.literal("device-credentials-storable"),
     request_id: requestIdSchema,

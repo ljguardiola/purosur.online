@@ -296,8 +296,10 @@ export default {
         "apps/pos/src/main/ is the Electron main process shell: it may only import " +
         "its own files, apps/pos/src/shared/ (pure code every process " +
         "shares), electron, electron-updater, @sentry/electron (Sentry is " +
-        "initialized in main), contracts' entry point (for its error report " +
-        "scrubbers alone, which Biome enforces), and Node builtins - not domain, " +
+        "initialized in main), contracts' entry point (its error report scrubbers " +
+        "as values and only the types of the messages main exchanges, which " +
+        "Biome and .github/scripts/main-contracts-imports.mjs enforce), and Node " +
+        "builtins - not domain, " +
         "another contracts file, ui, core, renderer, or any other npm package.",
       severity: "error",
       from: { path: "^apps/pos/src/main/" },
