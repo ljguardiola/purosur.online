@@ -1,9 +1,11 @@
+import { AreaNavItem } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { Clock, History, ShoppingBasket, Wallet } from "lucide-react";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { ActionEntry } from "./action-entries";
 import { NavigationRail } from "./navigation-rail";
+import { expectDrawnLike } from "./test-support/drawn-like";
 import { render } from "./test-support/render-with-router";
 
 const HISTORY: ActionEntry = {
@@ -221,5 +223,65 @@ describe("NavigationRail", () => {
     await expect.element(venta).not.toHaveAttribute("aria-current");
     await userEvent.click(venta);
     expect(screen.router.state.location.pathname).toBe("/session");
+  });
+
+  it("draws its links and buttons as the design system's light rail items, current or not", async () => {
+    const screen = await render(
+      <>
+        <NavigationRail
+          firstName="Ada"
+          entries={[HISTORY]}
+          home={{ label: "Venta", icon: ShoppingBasket }}
+          links={[{ label: "Caja", icon: Wallet, to: "/cash", current: true }]}
+          onSignOut={vi.fn()}
+        />
+        <AreaNavItem rail="light" label="Actual" icon={<Wallet />} active href="/current" />
+        <AreaNavItem rail="light" label="Otro" icon={<History />} active={false} href="/other" />
+      </>,
+    );
+    const item = (role: "link" | "button", name: string) =>
+      screen.getByRole(role, { name }).element();
+    const drawnItems = [
+      { item: item("button", "Venta"), reference: item("link", "Actual"), label: "Venta" },
+      { item: item("link", "Historial"), reference: item("link", "Otro"), label: "Historial" },
+      { item: item("link", "Caja"), reference: item("link", "Actual"), label: "Caja" },
+      { item: item("button", "Salir"), reference: item("link", "Otro"), label: "Salir" },
+    ];
+
+    for (const { item: drawn, reference, label } of drawnItems) {
+      expectDrawnLike(
+        drawn,
+        reference,
+        [
+          "display",
+          "flexDirection",
+          "alignItems",
+          "justifyContent",
+          "width",
+          "paddingTop",
+          "paddingBottom",
+          "borderRadius",
+          "backgroundColor",
+          "rowGap",
+          "cursor",
+          "transitionProperty",
+          "transitionDuration",
+        ],
+        label,
+      );
+      const referenceLabel = reference.textContent ?? "";
+      expectDrawnLike(
+        screen.getByText(label, { exact: true }).element(),
+        screen.getByText(referenceLabel, { exact: true }).element(),
+        ["color", "fontSize", "fontWeight"],
+        `${label} label`,
+      );
+      expectDrawnLike(
+        drawn.querySelector("svg") as SVGSVGElement,
+        reference.querySelector("svg") as SVGSVGElement,
+        ["width", "height", "color"],
+        `${label} icon`,
+      );
+    }
   });
 });
