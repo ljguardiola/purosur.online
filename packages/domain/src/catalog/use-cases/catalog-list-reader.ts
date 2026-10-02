@@ -11,7 +11,9 @@ export interface CatalogTagSummary extends CatalogTag {
 
 export interface CatalogListReader {
   products(scope: ProductActivityScope): Promise<CatalogProduct[]>;
+  product(productId: string): Promise<CatalogProduct | undefined>;
   categories(): Promise<CatalogCategory[]>;
+  category(categoryId: string): Promise<CatalogCategory | undefined>;
   brands(countedProducts: ProductActivityScope): Promise<CatalogBrandSummary[]>;
   brand(
     brandId: string,
