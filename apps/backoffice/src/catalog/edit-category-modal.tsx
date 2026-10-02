@@ -2,6 +2,7 @@ import { type CategorySummary, categoryEditBodySchema } from "@purosur/contracts
 import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, RotateCcw, ShieldX, Tags, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { selfAndDescendantIds } from "../platform/category-path";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type { CategoryReload } from "./catalog-queries";
@@ -18,7 +19,6 @@ import {
   nameTakenUnderParentError,
   parentSelectOptions,
 } from "./category-form";
-import { selfAndDescendantIds } from "./category-path";
 
 type EditCategoryModalProps = {
   target: CategorySummary | null;

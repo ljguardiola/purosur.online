@@ -33,10 +33,6 @@ export const SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST = [
 ];
 
 export const SCREEN_CROSS_CONCEPT_IMPORT_ALLOWLIST = [
-  "apps/backoffice/src/pricing/discount-form.ts",
-  "apps/backoffice/src/pricing/money.ts",
-  "apps/backoffice/src/pricing/price-change-modal.tsx",
-  "apps/backoffice/src/pricing/test-support/discount-modal.ts",
   "apps/pos/src/renderer/register/cash-count-screen.tsx",
   "apps/pos/src/renderer/register/cash-screen.tsx",
   "apps/pos/src/renderer/register/locked-cash-count.tsx",

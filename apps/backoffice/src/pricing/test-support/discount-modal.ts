@@ -1,6 +1,6 @@
 import { expect } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import { radioLabel } from "../../catalog/test-support/product-form";
+import { radioLabel } from "../../platform/test-support/radio-label";
 
 type Dialog = Parameters<typeof radioLabel>[0];
 
@@ -60,5 +60,3 @@ export async function fillQuantities(dialog: Dialog, buy: string, pay: string) {
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Lleve/ }), buy);
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Pague/ }), pay);
 }
-
-export { radioLabel };

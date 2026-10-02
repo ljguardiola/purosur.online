@@ -3,6 +3,7 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { radioLabel } from "../platform/test-support/radio-label";
 import { render } from "../shell/test-support/render-with-router";
 import { EditDiscountModal, type EditDiscountModalServices } from "./edit-discount-modal";
 import type { DiscountReload } from "./pricing-queries";
@@ -12,7 +13,6 @@ import {
   dateSegments,
   fillQuantities,
   productPicker,
-  radioLabel,
   typeDate,
 } from "./test-support/discount-modal";
 import {

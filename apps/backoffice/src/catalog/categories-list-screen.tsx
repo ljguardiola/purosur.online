@@ -12,12 +12,12 @@ import {
 import { deepEqual } from "@tanstack/react-router";
 import { Pencil, Plus, Search, Tags } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
+import { categoryNameOrder, categoryParentId, categoryPathLabels } from "../platform/category-path";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { useCategoriesQuery, useRefreshCatalog, useReloadCategory } from "./catalog-queries";
 import type { CategoriesListScreenServices } from "./categories-list-services";
-import { categoryNameOrder, categoryParentId, categoryPathLabels } from "./category-path";
 import { EditCategoryModal } from "./edit-category-modal";
 import { NewCategoryModal } from "./new-category-modal";
 import type { CategoriesListFilters } from "./routes";
