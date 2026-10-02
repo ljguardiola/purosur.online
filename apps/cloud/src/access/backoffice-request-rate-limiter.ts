@@ -1,10 +1,13 @@
+import {
+  BACKOFFICE_REQUEST_WINDOW_MS,
+  BACKOFFICE_SESSION_REQUEST_LIMIT,
+  BACKOFFICE_SOURCE_ADDRESS_REQUEST_LIMIT,
+  backofficeRequestWindowStart,
+} from "@purosur/domain";
 import { and, desc, eq, gt, inArray, lte, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { backofficeRateLimitAttempts } from "../platform/db/schema.js";
 
-const BACKOFFICE_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
-export const BACKOFFICE_SESSION_LIMIT_PER_HOUR = 600;
-export const BACKOFFICE_SOURCE_ADDRESS_LIMIT_PER_HOUR = 1800;
 const PRUNE_BATCH_SIZE = 100;
 
 export interface BackofficeRateLimitInput {
@@ -49,17 +52,17 @@ export async function recordBackofficeRequest<TQueryResult extends PgQueryResult
     {
       keyKind: "session",
       keyValue: input.sessionKeyValue,
-      limit: BACKOFFICE_SESSION_LIMIT_PER_HOUR,
+      limit: BACKOFFICE_SESSION_REQUEST_LIMIT,
     },
     {
       keyKind: "source_address",
       keyValue: input.sourceAddress,
-      limit: BACKOFFICE_SOURCE_ADDRESS_LIMIT_PER_HOUR,
+      limit: BACKOFFICE_SOURCE_ADDRESS_REQUEST_LIMIT,
     },
   ];
 
   const now = input.now;
-  const windowStart = new Date(now.getTime() - BACKOFFICE_RATE_LIMIT_WINDOW_MS);
+  const windowStart = backofficeRequestWindowStart(now);
   await pruneExpiredAttempts(db, windowStart);
 
   return db.transaction(async (tx) => {
@@ -85,7 +88,7 @@ export async function recordBackofficeRequest<TQueryResult extends PgQueryResult
         .offset(key.limit - 1)
         .limit(1);
       if (oldestCounted) {
-        const slotFreesAt = oldestCounted.attemptedAt.getTime() + BACKOFFICE_RATE_LIMIT_WINDOW_MS;
+        const slotFreesAt = oldestCounted.attemptedAt.getTime() + BACKOFFICE_REQUEST_WINDOW_MS;
         retryAfterMs = Math.max(retryAfterMs, slotFreesAt - now.getTime());
       }
     }

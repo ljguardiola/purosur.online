@@ -1,10 +1,10 @@
+import { RECOVERY_RATE_LIMIT_WINDOW_MS } from "@purosur/domain";
 import { sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   recoveryRejectedAttemptAccumulator,
   type recoveryRejectedAttemptKind,
 } from "../platform/db/schema.js";
-import { RECOVERY_WINDOW_MS } from "./recovery-rate-limiter.js";
 
 export type RecoveryRejectedAttemptKind = (typeof recoveryRejectedAttemptKind.enumValues)[number];
 
@@ -15,7 +15,9 @@ export interface RecordRejectedAttemptInput {
 }
 
 export function windowStartFor(now: Date): Date {
-  return new Date(Math.floor(now.getTime() / RECOVERY_WINDOW_MS) * RECOVERY_WINDOW_MS);
+  return new Date(
+    Math.floor(now.getTime() / RECOVERY_RATE_LIMIT_WINDOW_MS) * RECOVERY_RATE_LIMIT_WINDOW_MS,
+  );
 }
 
 /** One row per (kind, key, hour), so a flood of rejections never costs more than one upsert

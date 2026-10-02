@@ -1,11 +1,10 @@
-import { SESSION_IDLE_TIMEOUT_MS } from "@purosur/domain";
+import { BACKOFFICE_SOURCE_ADDRESS_REQUEST_LIMIT, SESSION_IDLE_TIMEOUT_MS } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { backofficeRateLimitAttempts, sessions, users } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { BACKOFFICE_SOURCE_ADDRESS_LIMIT_PER_HOUR } from "./backoffice-request-rate-limiter.js";
 import { SESSION_COOKIE_NAME } from "./session-cookie.js";
 import { generateSessionId, hashSessionId } from "./session-id.js";
 import { registerSessionReadRoute } from "./session-read-route.js";
@@ -228,7 +227,7 @@ describe("DELETE /sessions/current", () => {
       .where(eq(sessions.sessionIdHash, hashSessionId(idle)));
     expect(row?.revokedAt?.getTime()).toBe(currentTime.getTime());
     expect(await db.select().from(backofficeRateLimitAttempts)).toHaveLength(
-      BACKOFFICE_SOURCE_ADDRESS_LIMIT_PER_HOUR,
+      BACKOFFICE_SOURCE_ADDRESS_REQUEST_LIMIT,
     );
   });
 });

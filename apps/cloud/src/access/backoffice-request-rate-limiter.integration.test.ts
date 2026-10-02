@@ -1,3 +1,7 @@
+import {
+  BACKOFFICE_SESSION_REQUEST_LIMIT,
+  BACKOFFICE_SOURCE_ADDRESS_REQUEST_LIMIT,
+} from "@purosur/domain";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -5,11 +9,7 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
-import {
-  BACKOFFICE_SESSION_LIMIT_PER_HOUR,
-  BACKOFFICE_SOURCE_ADDRESS_LIMIT_PER_HOUR,
-  recordBackofficeRequest,
-} from "./backoffice-request-rate-limiter.js";
+import { recordBackofficeRequest } from "./backoffice-request-rate-limiter.js";
 
 // PGlite serves every query on one connection, so only a real Postgres pool can race two requests for the last slot.
 let integrationDb: IntegrationDatabase;
@@ -75,7 +75,7 @@ async function seedAttempts(
 describe("the backoffice rate limiter on concurrent connections", () => {
   it("admits exactly 5 of 20 concurrent requests once a session is 5 requests under its limit", async () => {
     const db = drizzle(sql);
-    await seedAttempts("session", "concurrent-session", BACKOFFICE_SESSION_LIMIT_PER_HOUR - 5);
+    await seedAttempts("session", "concurrent-session", BACKOFFICE_SESSION_REQUEST_LIMIT - 5);
 
     const results = await Promise.all(
       Array.from({ length: 20 }, (_, i) =>
@@ -95,7 +95,7 @@ describe("the backoffice rate limiter on concurrent connections", () => {
     await seedAttempts(
       "source_address",
       "198.51.100.200",
-      BACKOFFICE_SOURCE_ADDRESS_LIMIT_PER_HOUR - 5,
+      BACKOFFICE_SOURCE_ADDRESS_REQUEST_LIMIT - 5,
     );
 
     const results = await Promise.all(
