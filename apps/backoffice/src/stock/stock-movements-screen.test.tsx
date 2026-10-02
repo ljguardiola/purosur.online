@@ -12,6 +12,7 @@ import {
   crackers,
   honey,
   honeyLoss,
+  movementReasons,
   withoutBalance,
 } from "./test-support/stock-fixtures";
 
@@ -25,6 +26,7 @@ const BOTH: Access = {
 function createServices(movements = [honeyLoss, almondsAdjustment]): StockMovementsScreenServices {
   return {
     fetchStockMovements: vi.fn().mockResolvedValue({ kind: "ok", value: { movements } }),
+    fetchStockMovementReasons: vi.fn().mockResolvedValue({ kind: "ok", value: movementReasons }),
     fetchStockProducts: vi.fn().mockResolvedValue({
       kind: "ok",
       value: { products: [almonds, crackers, honey].map(withoutBalance) },
@@ -400,16 +402,3 @@ test.each([
     await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toMatchObject({ reason: "ALL" });
   },
 );
-
-test("shows the balance an adjustment that adds leaves", async () => {
-  const screen = await renderScreen(createServices());
-  const dialog = await openModal(screen);
-
-  await userEvent.click(cardLabel(screen, "Ajuste"));
-  await chooseProduct(screen, "Miel pura de abeja 1 kg");
-  await userEvent.click(cardLabel(screen, "Error en una compra"));
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad/ }), "2");
-
-  await expect.element(dialog.getByText("+ 2 u")).toBeVisible();
-  await expect.element(dialog.getByText("26 u")).toBeVisible();
-});

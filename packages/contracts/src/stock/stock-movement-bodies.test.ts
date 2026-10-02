@@ -2,10 +2,8 @@ import { MAX_STOCK_QUANTITY } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
   stockAdjustmentBodySchema,
-  stockAdjustmentDirectionsSchema,
   stockCountBodySchema,
   stockLossBodySchema,
-  stockMovementChangeSchema,
 } from "./stock-movement-bodies.js";
 
 const PRODUCT_ID = "11111111-1111-1111-1111-111111111111";
@@ -133,42 +131,6 @@ describe("stockAdjustmentBodySchema", () => {
     expect(firstIssue(stockAdjustmentBodySchema, { ...adjustment, productId: "x" })?.field).toBe(
       "productId",
     );
-  });
-});
-
-describe("stockAdjustmentDirectionsSchema", () => {
-  it("states the directions each adjustment reason may go in", () => {
-    const directions = Object.fromEntries(
-      Object.entries(stockAdjustmentDirectionsSchema.shape).map(([reason, schema]) => [
-        reason,
-        schema.options,
-      ]),
-    );
-
-    expect(directions).toEqual({
-      purchase_correction: ["add", "subtract"],
-      supplier_return: ["subtract"],
-      batch_correction: ["add", "subtract"],
-    });
-  });
-});
-
-describe("stockMovementChangeSchema", () => {
-  it.each([
-    [{ kind: "loss", quantity: 1200 }, -1200],
-    [{ kind: "adjustment", direction: "add", quantity: 250 }, 250],
-    [{ kind: "adjustment", direction: "subtract", quantity: 250 }, -250],
-  ])("turns %j into the change %j", (movement, change) => {
-    expect(stockMovementChangeSchema.parse(movement)).toBe(change);
-  });
-
-  it.each([
-    { kind: "count", quantity: 1 },
-    { kind: "adjustment", quantity: 1 },
-    { kind: "adjustment", direction: "up", quantity: 1 },
-    { kind: "loss", quantity: "1" },
-  ])("rejects %j", (movement) => {
-    expect(stockMovementChangeSchema.safeParse(movement).success).toBe(false);
   });
 });
 

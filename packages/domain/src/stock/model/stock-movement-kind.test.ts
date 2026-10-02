@@ -3,6 +3,7 @@ import type { PermissionKey } from "../../access/index.js";
 import {
   MANUAL_STOCK_MOVEMENT_KINDS,
   manualStockMovementPermission,
+  manualStockMovementReasons,
   visibleManualStockMovementKinds,
 } from "./stock-movement-kind.js";
 
@@ -62,5 +63,26 @@ describe("visibleManualStockMovementKinds", () => {
         permissionKeys: ["view_stock_balances"],
       }),
     ).toEqual([]);
+  });
+});
+
+describe("manualStockMovementReasons", () => {
+  it("lets every loss reason only subtract, in the order they are offered", () => {
+    expect(manualStockMovementReasons("loss")).toEqual([
+      { kind: "loss", reason: "broken_or_spilled", directions: ["subtract"] },
+      { kind: "loss", reason: "spoiled", directions: ["subtract"] },
+      { kind: "loss", reason: "portioning_waste", directions: ["subtract"] },
+      { kind: "loss", reason: "tasting_or_sample", directions: ["subtract"] },
+      { kind: "loss", reason: "store_consumption", directions: ["subtract"] },
+      { kind: "loss", reason: "theft", directions: ["subtract"] },
+    ]);
+  });
+
+  it("lets each adjustment reason go in the directions it allows, in the order they are offered", () => {
+    expect(manualStockMovementReasons("adjustment")).toEqual([
+      { kind: "adjustment", reason: "purchase_correction", directions: ["add", "subtract"] },
+      { kind: "adjustment", reason: "supplier_return", directions: ["subtract"] },
+      { kind: "adjustment", reason: "batch_correction", directions: ["add", "subtract"] },
+    ]);
   });
 });
