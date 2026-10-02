@@ -22,6 +22,16 @@ describe("alertNamedRecordIds", () => {
     }
   });
 
+  it("does not name the scope of an alert of a kind outside the catalog, whose scope is unknown", () => {
+    expect(alertNamedRecordIds({ kind: "retired_kind", scope: SCOPE })).toEqual([]);
+  });
+
+  it("names the actor of an alert of a kind outside the catalog", () => {
+    expect(
+      alertNamedRecordIds({ kind: "retired_kind", scope: SCOPE, detail: { actorId: ACTOR_ID } }),
+    ).toEqual([ACTOR_ID]);
+  });
+
   it("names the actor of the detail after the scope", () => {
     expect(
       alertNamedRecordIds({
