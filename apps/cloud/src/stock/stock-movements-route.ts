@@ -4,7 +4,11 @@ import {
   stockMovementListSchema,
   stockMovementResultSchema,
 } from "@purosur/contracts";
-import type { ManualStockMovementKind } from "@purosur/domain";
+import {
+  MANUAL_STOCK_MOVEMENT_KINDS,
+  manualStockMovementPermission,
+  visibleManualStockMovementKinds,
+} from "@purosur/domain";
 import {
   type RecordAdjustmentOutcome,
   type RecordLossOutcome,
@@ -15,7 +19,6 @@ import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
 import {
-  isAccessGranted,
   openSessionOf,
   permissionAccess,
   registerRouteAccess,
@@ -73,28 +76,24 @@ export function registerStockMovementsRoutes<TQueryResult extends PgQueryResultH
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const preHandler = sameOriginGuard(options.backofficeOrigin);
-  const lossAccess = permissionAccess("record_stock_losses");
-  const adjustmentAccess = permissionAccess("adjust_stock");
+  const lossAccess = permissionAccess(manualStockMovementPermission("loss"));
+  const adjustmentAccess = permissionAccess(manualStockMovementPermission("adjustment"));
 
   app.get<{ Querystring: { days?: string } }>(
     "/inventory-movements",
     {
       preHandler,
       config: {
-        access: permissionAccess(["record_stock_losses", "adjust_stock"]),
+        access: permissionAccess(MANUAL_STOCK_MOVEMENT_KINDS.map(manualStockMovementPermission)),
         sessionSource,
       },
     },
     async (request, reply) => {
       const openSession = openSessionOf(request);
-      const kinds: ManualStockMovementKind[] = [
-        ...(isAccessGranted(lossAccess, openSession) ? (["loss"] as const) : []),
-        ...(isAccessGranted(adjustmentAccess, openSession) ? (["adjustment"] as const) : []),
-      ];
       const movements = await reader.movements({
         locationId: openSession.locationId,
         since: periodStart(request.query.days, now()),
-        kinds,
+        kinds: visibleManualStockMovementKinds(openSession),
       });
       await reply.code(200).send(
         stockMovementListSchema.parse({

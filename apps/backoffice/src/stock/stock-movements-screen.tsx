@@ -1,5 +1,4 @@
 import type { StockMovement, StockMovementResult, StockProduct } from "@purosur/contracts";
-import { ADJUSTMENT_REASONS, LOSS_REASONS } from "@purosur/domain";
 import {
   Button,
   dataColumn,
@@ -24,7 +23,8 @@ import {
 import { cloudTableState } from "../platform/cloud-table-state";
 import { ScreenLayout } from "../shell/screen-layout";
 import type { StockMovementsFilters } from "./routes";
-import { type MovementKind, StockMovementModal } from "./stock-movement-modal";
+import { MOVEMENT_KINDS, type MovementKind, REASONS_OF_KIND } from "./stock-movement-form";
+import { StockMovementModal } from "./stock-movement-modal";
 import type { StockMovementsScreenServices } from "./stock-movements-services";
 import {
   formatStockDay,
@@ -127,11 +127,13 @@ function registeredNotice(
   };
 }
 
+const MAY_RECORD = {
+  loss: canRecordStockLosses,
+  adjustment: canAdjustStock,
+} satisfies Record<MovementKind, (access: BackofficeAccess) => boolean>;
+
 function allowedKinds(access: BackofficeAccess): readonly MovementKind[] {
-  return [
-    ...(canRecordStockLosses(access) ? (["loss"] as const) : []),
-    ...(canAdjustStock(access) ? (["adjustment"] as const) : []),
-  ];
+  return MOVEMENT_KINDS.filter((kind) => MAY_RECORD[kind](access));
 }
 
 function actionLabel(kinds: readonly MovementKind[]): string {
@@ -165,10 +167,9 @@ export function StockMovementsScreen({
     ...{ value: ReasonFilter; label: string }[],
   ] = [
     { value: "ALL", label: "Todos" },
-    ...[
-      ...(kinds.includes("loss") ? LOSS_REASONS : []),
-      ...(kinds.includes("adjustment") ? ADJUSTMENT_REASONS : []),
-    ].map((value) => ({ value, label: REASON_LABELS[value] })),
+    ...kinds
+      .flatMap((kind) => REASONS_OF_KIND[kind])
+      .map((value) => ({ value, label: REASON_LABELS[value] })),
   ];
   const reasonIsOffered = reasonOptions.some((option) => option.value === reason);
 
