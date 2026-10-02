@@ -4,9 +4,9 @@ import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Lock, TriangleAlert, UserX } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
-import type { SignedInPerson } from "../access/signed-in-person";
 import { OpenSessionRail } from "../shell/open-session-rail";
 import { SessionEyebrow } from "../shell/session-eyebrow";
+import type { SignedInPerson } from "../shell/signed-in-person";
 import { differenceNotice } from "./cash-amounts";
 import { CashCountStrip } from "./cash-count-strip";
 import {

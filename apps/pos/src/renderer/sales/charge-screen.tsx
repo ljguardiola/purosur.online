@@ -9,9 +9,9 @@ import { LoadFailure, LoadingPlaceholder, OptionCardGroup, plural } from "@puros
 import { useNavigate } from "@tanstack/react-router";
 import { Banknote, Landmark, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { SignedInPerson } from "../access/signed-in-person";
 import { Eyebrow } from "../shell/eyebrow";
 import { OpenSessionRail } from "../shell/open-session-rail";
+import type { SignedInPerson } from "../shell/signed-in-person";
 import type { CompletedCharge } from "./cash-charge-modal";
 import { CashChargeModal } from "./cash-charge-modal";
 import { ChargePaymentPanel } from "./charge-payment-panel";

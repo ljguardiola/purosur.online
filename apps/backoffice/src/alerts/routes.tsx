@@ -1,6 +1,6 @@
 import { createRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
-import { canSeeAlertsArea } from "../access/backoffice-access";
+import { canSeeAlertsArea } from "../shell/backoffice-access";
 import { homeAreaRoute } from "../shell/home-area";
 import { lazyScreen } from "../shell/lazy-screen";
 import { refuseWithout } from "../shell/signed-in-route";

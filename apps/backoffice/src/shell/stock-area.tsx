@@ -1,11 +1,11 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { ArrowDownUp, ClipboardCheck, Scale } from "lucide-react";
+import { AreaLayout, SectionLink } from "./area-layout";
 import {
   canPerformStockCounts,
   canSeeStockBalances,
   canSeeStockMovements,
-} from "../access/backoffice-access";
-import { AreaLayout, SectionLink } from "./area-layout";
+} from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
 
 export const stockAreaRoute = createRoute({

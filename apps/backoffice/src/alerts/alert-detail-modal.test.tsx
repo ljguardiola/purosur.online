@@ -3,11 +3,11 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { act } from "react";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import type { BackofficeAccess } from "../access/backoffice-access";
+import type { BackofficeAccess } from "../shell/backoffice-access";
 import {
   ADMINISTRATOR_ACCESS,
   NO_CAPABILITIES_ACCESS,
-} from "../access/test-support/backoffice-access";
+} from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import { AlertDetailModal, type AlertDetailModalServices } from "./alert-detail-modal";
 import type { FetchAlertOutcome } from "./alerts-api";

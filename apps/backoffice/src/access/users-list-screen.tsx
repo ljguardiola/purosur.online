@@ -33,18 +33,19 @@ import { useAuthorization } from "../platform/authorization-modal";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { combineCloudData } from "../platform/combine-cloud-data";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import { roleDisplayName } from "../platform/role-display-name";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
 import type { CloudData } from "../platform/use-cloud-query";
+import { type BackofficeAccess, canReactivateUser } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { useRefreshAccess, useRolesQuery, useUsersQuery } from "./access-queries";
-import { type BackofficeAccess, canReactivateUser } from "./backoffice-access";
 import { userEmailMessage } from "./email-field-message";
-import { roleDisplayName, roleOptions } from "./role-display";
+import { roleOptions } from "./role-display";
 import { roleFieldMessage } from "./role-field-message";
 import type { UsersListFilters } from "./routes";
 import type { BranchUser, BranchUserRole, CreateUserOutcome, createUser } from "./users-api";

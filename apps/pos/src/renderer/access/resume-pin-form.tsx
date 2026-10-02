@@ -1,7 +1,7 @@
 import type { SignInUser } from "@purosur/contracts";
-import { PinAttemptControls } from "./pin-attempt-controls";
-import type { PinAttempt } from "./use-pin-attempt";
-import { UserPicker } from "./user-picker";
+import { PinAttemptControls } from "../platform/pin-attempt-controls";
+import type { PinAttempt } from "../platform/use-pin-attempt";
+import { UserPicker } from "../platform/user-picker";
 
 export function ResumePinForm({
   opener,

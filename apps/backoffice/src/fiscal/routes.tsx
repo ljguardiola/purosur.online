@@ -1,5 +1,5 @@
 import { createRoute } from "@tanstack/react-router";
-import { canSeeCashArea } from "../access/backoffice-access";
+import { canSeeCashArea } from "../shell/backoffice-access";
 import { cashAndFiscalAreaRoute } from "../shell/cash-and-fiscal-area";
 import { lazyScreen } from "../shell/lazy-screen";
 import { refuseWithout } from "../shell/signed-in-route";

@@ -10,10 +10,14 @@ import type { BarcodeListProblem, NetContentUnit } from "@purosur/domain";
 import { type Option, type Options, plural } from "@purosur/ui";
 import { Package, Scale } from "lucide-react";
 import { createElement } from "react";
+import {
+  categoriesInTreeOrder,
+  categoryPathLabels,
+  leafCategories,
+} from "../platform/category-path";
 import { failedRules } from "../platform/failed-rules";
+import { NET_CONTENT_UNIT_LABELS } from "../platform/net-content";
 import { schemaLimit } from "../platform/schema-limit";
-import { categoriesInTreeOrder, categoryPathLabels, leafCategories } from "./category-path";
-import { NET_CONTENT_UNIT_LABELS } from "./net-content";
 import {
   formatNetContentQuantity,
   NET_CONTENT_QUANTITY_INVALID,

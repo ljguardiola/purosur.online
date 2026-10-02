@@ -15,6 +15,11 @@ import {
 import { deepEqual } from "@tanstack/react-router";
 import { Ban, Package, Pencil, Plus, Printer, Search, SearchX } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
+import {
+  categoriesInTreeOrder,
+  categoryPathLabels,
+  leafCategories,
+} from "../platform/category-path";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { combineCloudData } from "../platform/combine-cloud-data";
 import { ScreenLayout } from "../shell/screen-layout";
@@ -27,7 +32,6 @@ import {
   useReloadProduct,
   useTagsQuery,
 } from "./catalog-queries";
-import { categoriesInTreeOrder, categoryPathLabels, leafCategories } from "./category-path";
 import { DeactivateProductModal } from "./deactivate-product-modal";
 import { EditProductModal } from "./edit-product-modal";
 import { NewProductModal } from "./new-product-modal";

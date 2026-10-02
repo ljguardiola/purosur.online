@@ -6,12 +6,12 @@ import { Component } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render as renderInPage } from "vitest-browser-react";
-import type { SignedInPerson } from "../access/signed-in-person";
-import { GuardedCashInForm } from "../access/test-support/guarded-cash-in-form";
 import { createQueryClient } from "../platform/query-client";
+import { GuardedCashInForm } from "../register/test-support/guarded-cash-in-form";
 import type { CashSessionState } from "./cash-session-state";
 import type { CoreStatus, Enrollment, RouterContext } from "./router";
 import { createRegisterRouter, isSessionScreen, routeFor, routeTree } from "./router";
+import type { SignedInPerson } from "./signed-in-person";
 
 type RoutePath =
   | "/"

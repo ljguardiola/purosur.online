@@ -2,10 +2,10 @@ import type { CategorySummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { groceries, spreads } from "../platform/test-support/categories";
 import { render } from "../shell/test-support/render-with-router";
 import type { createCategory } from "./categories-api";
 import { NewCategoryModal } from "./new-category-modal";
-import { groceries, spreads } from "./test-support/categories";
 
 function renderModal({
   categories,

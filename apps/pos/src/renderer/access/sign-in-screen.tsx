@@ -3,14 +3,14 @@ import { EmptyState, LoadFailure, LoadingPlaceholder } from "@purosur/ui";
 import { KeyRound, TriangleAlert, UserPlus, UsersRound } from "lucide-react";
 import type { Ref } from "react";
 import { useId, useState } from "react";
+import { PinAttemptControls } from "../platform/pin-attempt-controls";
+import { SignInLockout } from "../platform/sign-in-lockout";
+import { usePinAttempt } from "../platform/use-pin-attempt";
+import { UserPicker } from "../platform/user-picker";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
 import { ScreenLink } from "../shell/screen-link";
 import { SessionEyebrow } from "../shell/session-eyebrow";
 import { useSignInUsersQuery } from "./access-queries";
-import { PinAttemptControls } from "./pin-attempt-controls";
-import { SignInLockout } from "./sign-in-lockout";
-import { usePinAttempt } from "./use-pin-attempt";
-import { UserPicker } from "./user-picker";
 
 export type SignInScreenProps = {
   loadUsers: () => Promise<SignInUser[]>;

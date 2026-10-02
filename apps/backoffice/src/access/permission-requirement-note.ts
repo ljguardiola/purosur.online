@@ -1,5 +1,5 @@
 import { type PermissionKey, permissionsRequiring } from "@purosur/domain";
-import { PERMISSION_LABELS } from "./permission-labels";
+import { PERMISSION_LABELS } from "../platform/permission-labels";
 
 const LIST_FORMAT = new Intl.ListFormat("es-AR", { type: "conjunction" });
 
