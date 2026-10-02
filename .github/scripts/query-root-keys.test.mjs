@@ -455,6 +455,13 @@ for (const { reach, line, files } of UNCALLED_UNDER_ANOTHER_NAME) {
   });
 }
 
+const BUNDLER_GLOBALS = [
+  "interface ImportMeta {",
+  "  glob(patterns: string | string[], options?: { eager?: boolean }): Record<string, unknown>;",
+  "}",
+  "declare function require(path: string): unknown;",
+].join("\n");
+
 const EACH_EXPORT =
   'export const refreshAll = (keys: object) =>\n  (Object.values(keys) as ((key: unknown) => void)[]).forEach((each) => each(["ticket"]));';
 
@@ -536,6 +543,151 @@ const REACHED_THROUGH_ITS_MODULE_OBJECT = [
       ].join("\n"),
     },
   },
+  {
+    reach: "a barrel's re-export by name",
+    files: {
+      "src/sales/invalidate.ts": INVALIDATE,
+      "src/sales/index.ts": 'export { invalidate } from "./invalidate";',
+      "src/sales/refresh.ts": [
+        'import * as keys from "./index";',
+        EACH_EXPORT,
+        "refreshAll(keys);",
+      ].join("\n"),
+    },
+  },
+  {
+    reach: "a barrel's export of a name it imports",
+    files: {
+      "src/sales/invalidate.ts": INVALIDATE,
+      "src/sales/index.ts": 'import { invalidate } from "./invalidate";\nexport { invalidate };',
+      "src/sales/refresh.ts": [
+        'import * as keys from "./index";',
+        EACH_EXPORT,
+        "refreshAll(keys);",
+      ].join("\n"),
+    },
+  },
+  {
+    reach: "a require call",
+    files: {
+      "src/env.d.ts": BUNDLER_GLOBALS,
+      "src/sales/invalidate.ts": INVALIDATE,
+      "src/sales/refresh.ts": [EACH_EXPORT, 'refreshAll(require("./invalidate") as object);'].join(
+        "\n",
+      ),
+    },
+  },
+  {
+    reach: "a require call of a path the check cannot read",
+    files: {
+      "src/env.d.ts": BUNDLER_GLOBALS,
+      "src/sales/invalidate.ts": INVALIDATE,
+      "src/sales/refresh.ts": [
+        EACH_EXPORT,
+        "export const refreshFrom = (path: string) => refreshAll(require(path) as object);",
+      ].join("\n"),
+    },
+  },
+  {
+    reach: "a glob import naming its file",
+    files: {
+      "src/env.d.ts": BUNDLER_GLOBALS,
+      "src/sales/invalidate.ts": INVALIDATE,
+      "src/sales/refresh.ts": [
+        EACH_EXPORT,
+        'refreshAll(import.meta.glob("./invalidate.ts", { eager: true }));',
+      ].join("\n"),
+    },
+  },
+  {
+    reach: "a glob import of a pattern matching its file",
+    files: {
+      "src/env.d.ts": BUNDLER_GLOBALS,
+      "src/sales/invalidate.ts": INVALIDATE,
+      "src/shell/refresh.ts": [
+        EACH_EXPORT,
+        'refreshAll(import.meta.glob(["../sales/*.ts", "./missing.ts"], { eager: true }));',
+      ].join("\n"),
+    },
+  },
+  {
+    reach: "a glob import of a pattern the check cannot read",
+    files: {
+      "src/env.d.ts": BUNDLER_GLOBALS,
+      "src/sales/invalidate.ts": INVALIDATE,
+      "src/sales/refresh.ts": [
+        EACH_EXPORT,
+        "export const refreshFrom = (pattern: string) => refreshAll(import.meta.glob(pattern, { eager: true }));",
+      ].join("\n"),
+    },
+  },
+  {
+    reach: "a require held in another name",
+    files: {
+      "src/env.d.ts": BUNDLER_GLOBALS,
+      "src/sales/invalidate.ts": INVALIDATE,
+      "src/sales/refresh.ts": [
+        EACH_EXPORT,
+        "const load = require;\nexport const refreshFrom = (path: string) => refreshAll(load(path) as object);",
+      ].join("\n"),
+    },
+  },
+  {
+    reach: "a require handed on in a shorthand property",
+    files: {
+      "src/env.d.ts": BUNDLER_GLOBALS,
+      "src/sales/invalidate.ts": INVALIDATE,
+      "src/sales/refresh.ts": [
+        EACH_EXPORT,
+        "const loaders = { require };",
+        "export const refreshFrom = (path: string) => refreshAll(loaders.require(path) as object);",
+      ].join("\n"),
+    },
+  },
+  {
+    reach: "import.meta held in another name",
+    files: {
+      "src/env.d.ts": BUNDLER_GLOBALS,
+      "src/sales/invalidate.ts": INVALIDATE,
+      "src/sales/refresh.ts": [
+        EACH_EXPORT,
+        'const meta = import.meta;\nrefreshAll(meta.glob("./inval*.ts", { eager: true }));',
+      ].join("\n"),
+    },
+  },
+  {
+    reach: "a parenthesized glob import",
+    files: {
+      "src/env.d.ts": BUNDLER_GLOBALS,
+      "src/sales/invalidate.ts": INVALIDATE,
+      "src/sales/refresh.ts": [
+        EACH_EXPORT,
+        'refreshAll((import.meta.glob)("./inval*.ts", { eager: true }));',
+      ].join("\n"),
+    },
+  },
+  {
+    reach: "a glob import read through a string-literal access",
+    files: {
+      "src/env.d.ts": BUNDLER_GLOBALS,
+      "src/sales/invalidate.ts": INVALIDATE,
+      "src/sales/refresh.ts": [
+        EACH_EXPORT,
+        'refreshAll(import.meta["glob"]("./inval*.ts", { eager: true }));',
+      ].join("\n"),
+    },
+  },
+  {
+    reach: "a glob import of a pattern not relative to its file",
+    files: {
+      "src/env.d.ts": BUNDLER_GLOBALS,
+      "src/sales/invalidate.ts": INVALIDATE,
+      "src/sales/refresh.ts": [
+        EACH_EXPORT,
+        'refreshAll(import.meta.glob("/src/sales/*.ts", { eager: true }));',
+      ].join("\n"),
+    },
+  },
 ];
 
 for (const { reach, files } of REACHED_THROUGH_ITS_MODULE_OBJECT) {
@@ -597,6 +749,27 @@ for (const { reach, files } of CALLED_UNDER_ANOTHER_NAME) {
     ]);
   });
 }
+
+test("follows a key into a function whose module no dynamic import, require call or glob import loads", (t) => {
+  const problems = problemsIn(t, {
+    "src/env.d.ts": BUNDLER_GLOBALS,
+    "src/sales/invalidate.ts": INVALIDATE,
+    "src/sales/other-keys.ts": "export const otherKeys = {};",
+    "src/sales/refresh.ts": [
+      'import { invalidate } from "./invalidate";',
+      'export const refreshTicket = () => invalidate(["ticket"]);',
+      'export const others = import.meta.glob(["./other-*.ts", "../migrations/*.sql"], { eager: true });',
+      'export const otherLater = () => [import("./other-keys"), require("./other-keys")];',
+      "export const here = import.meta.url;",
+      "export const flags = { require: false };",
+      "export function Refresher() { return new.target; }",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/sales/refresh.ts:2 roots a query key at "ticket", but the concept folder holding it is "sales"',
+  ]);
+});
 
 test("follows a key into a function whose type is also read", (t) => {
   const problems = problemsIn(t, {
