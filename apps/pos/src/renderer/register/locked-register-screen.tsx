@@ -1,13 +1,13 @@
 import type { SignInOutcome } from "@purosur/contracts";
 import { KeyRound, UserLock } from "lucide-react";
 import { useId } from "react";
-import { ResumePinForm } from "../access/resume-pin-form";
 import { SignInLockout } from "../platform/sign-in-lockout";
 import { usePinAttempt } from "../platform/use-pin-attempt";
-import { BrandPanelScreen } from "./brand-panel-screen";
-import { ScreenLink } from "./screen-link";
-import { SessionEyebrow } from "./session-eyebrow";
-import type { SignedInPerson } from "./signed-in-person";
+import { BrandPanelScreen } from "../shell/brand-panel-screen";
+import { ScreenLink } from "../shell/screen-link";
+import { SessionEyebrow } from "../shell/session-eyebrow";
+import type { SignedInPerson } from "../shell/signed-in-person";
+import { ResumePinForm } from "./resume-pin-form";
 
 export type LockedRegisterScreenProps = {
   opener: SignedInPerson;

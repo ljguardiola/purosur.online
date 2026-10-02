@@ -3,10 +3,10 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { History } from "lucide-react";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import type { ActionEntry } from "./action-entries";
+import type { ActionEntry } from "../shell/action-entries";
+import type { SignedInPerson } from "../shell/signed-in-person";
+import { render } from "../shell/test-support/render-with-router";
 import { NoSessionScreen } from "./no-session-screen";
-import type { SignedInPerson } from "./signed-in-person";
-import { render } from "./test-support/render-with-router";
 
 const PERSON: SignedInPerson = {
   user_id: "u1",

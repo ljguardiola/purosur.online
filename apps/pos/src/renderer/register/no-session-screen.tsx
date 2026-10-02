@@ -1,12 +1,12 @@
 import type { OpenCashSessionOutcome } from "@purosur/contracts";
 import { useState } from "react";
-import type { ActionEntry } from "./action-entries";
-import { entriesFor } from "./action-entries";
+import type { ActionEntry } from "../shell/action-entries";
+import { entriesFor } from "../shell/action-entries";
+import { NavigationRail } from "../shell/navigation-rail";
+import { SessionEyebrow } from "../shell/session-eyebrow";
+import type { SignedInPerson } from "../shell/signed-in-person";
 import { CashOpeningPanel } from "./cash-opening-panel";
-import { NavigationRail } from "./navigation-rail";
-import { SessionEyebrow } from "./session-eyebrow";
 import { SignOutModal } from "./sign-out-modal";
-import type { SignedInPerson } from "./signed-in-person";
 
 export type NoSessionScreenProps = {
   person: SignedInPerson;
