@@ -1,6 +1,5 @@
 import {
   CAPABILITIES,
-  PERMISSION_KEYS,
   SESSION_ABSOLUTE_TIMEOUT_MS,
   SESSION_IDLE_TIMEOUT_MS,
 } from "@purosur/domain";
@@ -154,7 +153,6 @@ describe("GET /sessions/current", () => {
       display_name: "Ada Lovelace",
       expires_at: new Date(NOON.getTime() + SESSION_IDLE_TIMEOUT_MS).toISOString(),
       is_administrator: false,
-      permissions: [],
       capabilities: [],
       stock_movement_kinds: [],
     });
@@ -168,16 +166,6 @@ describe("GET /sessions/current", () => {
     const response = await getSession(rawSessionId);
 
     expect(response.json()).toMatchObject({ is_administrator: true });
-  });
-
-  it("returns the whole permission catalog for a user holding the Administrator role", async () => {
-    const administratorRoleId = await seededAdministratorRoleId();
-    await db.insert(userRoles).values({ userId, roleId: administratorRoleId });
-    const rawSessionId = await insertSession();
-
-    const response = await getSession(rawSessionId);
-
-    expect(response.json()).toMatchObject({ permissions: [...PERMISSION_KEYS] });
   });
 
   it("returns every capability for a user holding the Administrator role", async () => {
@@ -223,45 +211,27 @@ describe("GET /sessions/current", () => {
     });
   });
 
-  it("returns the permission keys held by the user's role, in catalog order", async () => {
-    const [cashierRole] = await db
-      .insert(roles)
-      .values({ name: "Cajera", isAdministrator: false })
-      .returning({ id: roles.id });
-    if (!cashierRole) {
-      throw new Error("test setup: seeding the role returned no row");
-    }
-    await db.insert(userRoles).values({ userId, roleId: cashierRole.id });
-    await db.insert(rolePermissions).values([
-      { roleId: cashierRole.id, permissionKey: "void_sale" },
-      { roleId: cashierRole.id, permissionKey: "sell_and_charge" },
-    ]);
-    const rawSessionId = await insertSession();
-
-    const response = await getSession(rawSessionId);
-
-    expect(response.json()).toMatchObject({
-      permissions: ["sell_and_charge", "void_sale"],
-    });
-  });
-
   it("reflects a permission granted to the user's role without signing in again", async () => {
-    const [cashierRole] = await db
+    const [stockRole] = await db
       .insert(roles)
-      .values({ name: "Cajera", isAdministrator: false })
+      .values({ name: "Depósito", isAdministrator: false })
       .returning({ id: roles.id });
-    if (!cashierRole) {
+    if (!stockRole) {
       throw new Error("test setup: seeding the role returned no row");
     }
-    await db.insert(userRoles).values({ userId, roleId: cashierRole.id });
+    await db.insert(userRoles).values({ userId, roleId: stockRole.id });
     const rawSessionId = await insertSession();
 
     const before = await getSession(rawSessionId);
-    await db.insert(rolePermissions).values({ roleId: cashierRole.id, permissionKey: "void_sale" });
+    await db
+      .insert(rolePermissions)
+      .values({ roleId: stockRole.id, permissionKey: "record_stock_losses" });
     const after = await getSession(rawSessionId);
 
-    expect(before.json()).toMatchObject({ permissions: [] });
-    expect(after.json()).toMatchObject({ permissions: ["void_sale"] });
+    expect(before.json()).toMatchObject({ capabilities: [] });
+    expect(after.json()).toMatchObject({
+      capabilities: ["stock_losses", "stock_movements", "stock_area"],
+    });
   });
 
   it("returns expires_at computed from the touched last_seen_at, not the stale one", async () => {

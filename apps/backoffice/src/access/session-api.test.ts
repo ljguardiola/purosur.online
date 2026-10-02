@@ -28,7 +28,6 @@ const sessionBody = {
   display_name: "Lucas Guardiola",
   expires_at: "2026-09-23T12:30:00.000Z",
   is_administrator: false,
-  permissions: ["void_sale", "sell_and_charge"],
   capabilities: ["stock_area", "branch_area"],
   stock_movement_kinds: ["adjustment"],
 };

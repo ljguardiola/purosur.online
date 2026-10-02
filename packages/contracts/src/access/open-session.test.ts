@@ -6,21 +6,23 @@ const session = {
   display_name: "Lucas",
   expires_at: "2026-09-23T12:30:00.000Z",
   is_administrator: false,
-  permissions: ["void_sale", "sell_and_charge"],
   capabilities: ["stock_area", "branch_area"],
   stock_movement_kinds: ["loss", "adjustment"],
 };
 
 describe("openSessionSchema", () => {
-  it("accepts the body the cloud sends, with permissions or an empty list", () => {
+  it("accepts the body the cloud sends, with capabilities or empty lists", () => {
     expect(openSessionSchema.safeParse(session).data).toEqual(session);
-    const empty = { ...session, permissions: [], capabilities: [], stock_movement_kinds: [] };
+    const empty = { ...session, capabilities: [], stock_movement_kinds: [] };
 
     expect(openSessionSchema.safeParse(empty).data).toEqual(empty);
   });
 
-  it("strips keys it does not define", () => {
-    expect(openSessionSchema.safeParse({ ...session, email: "a@b.c" }).data).toEqual(session);
+  it.each([
+    ["email", "a@b.c"],
+    ["permissions", ["void_sale"]],
+  ])("strips %s, which it does not define", (field, value) => {
+    expect(openSessionSchema.safeParse({ ...session, [field]: value }).data).toEqual(session);
   });
 
   it.each([
@@ -28,7 +30,6 @@ describe("openSessionSchema", () => {
     "display_name",
     "expires_at",
     "is_administrator",
-    "permissions",
     "capabilities",
     "stock_movement_kinds",
   ])("requires %s", (field) => {
@@ -46,9 +47,6 @@ describe("openSessionSchema", () => {
     ["expires_at", null],
     ["is_administrator", "false"],
     ["is_administrator", null],
-    ["permissions", "void_sale"],
-    ["permissions", [1]],
-    ["permissions", null],
     ["capabilities", "stock_area"],
     ["capabilities", ["not_a_capability"]],
     ["capabilities", [1]],

@@ -9,7 +9,7 @@ import {
   openSessionSchema,
   passkeyListSchema,
 } from "@purosur/contracts";
-import { PERMISSION_KEYS } from "@purosur/domain";
+import { CAPABILITY_PERMISSIONS, PERMISSION_KEYS, type PermissionKey } from "@purosur/domain";
 import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -19,10 +19,8 @@ import {
   OPEN_SESSION_ACCESS,
   OPEN_SESSION_PEEK_ACCESS,
   PUBLIC_ACCESS,
-  permissionAccess,
   type RouteAccess,
   type RouteAccessEntry,
-  routeSessionSource,
   SESSION_COOKIE_ACCESS,
 } from "./access/route-access.js";
 import { SESSION_COOKIE_NAME } from "./access/session-cookie.js";
@@ -2123,23 +2121,6 @@ describe("the former session and passkey read paths", () => {
 describe("every route enforces the access it declares", () => {
   const ENDED_BEFORE = new Date("2020-01-01T00:00:00.000Z");
 
-  function appWithTestOnlyPermissionRoute() {
-    const app = productionWiredApp();
-    app.get(
-      "/test-only/void-sale",
-      {
-        config: {
-          access: permissionAccess("void_sale"),
-          sessionSource: routeSessionSource({ db: testDatabase.db }),
-        },
-      },
-      async (_request, reply) => {
-        await reply.code(200).send({ ok: true });
-      },
-    );
-    return app;
-  }
-
   function routesDeclaring(app: ReturnType<typeof buildApp>, levels: RouteAccess["level"][]) {
     const routes = app
       .routeAccessInventory()
@@ -2208,7 +2189,7 @@ describe("every route enforces the access it declares", () => {
   }
 
   it("sweeps every access level a route declares", async () => {
-    const app = appWithTestOnlyPermissionRoute();
+    const app = productionWiredApp();
     await app.ready();
 
     const declaredLevels = new Set(app.routeAccessInventory().map((route) => route.access?.level));
@@ -2220,13 +2201,13 @@ describe("every route enforces the access it declares", () => {
         "open_session_peek",
         "session_cookie",
         "administrator",
-        "permission",
+        "capability",
       ]),
     );
   });
 
   it("lets every public route through without a session", async () => {
-    const app = appWithTestOnlyPermissionRoute();
+    const app = productionWiredApp();
     await app.ready();
 
     for (const route of routesDeclaring(app, ["public"])) {
@@ -2240,7 +2221,7 @@ describe("every route enforces the access it declares", () => {
   });
 
   it("answers 401 unauthenticated on every session route without a session", async () => {
-    const app = appWithTestOnlyPermissionRoute();
+    const app = productionWiredApp();
     await app.ready();
 
     for (const route of routesDeclaring(app, [
@@ -2248,7 +2229,7 @@ describe("every route enforces the access it declares", () => {
       "open_session_peek",
       "session_cookie",
       "administrator",
-      "permission",
+      "capability",
     ])) {
       const response = await send(app, route);
 
@@ -2261,7 +2242,7 @@ describe("every route enforces the access it declares", () => {
   });
 
   it("answers 401 unauthenticated on every open-session route to an already ended session", async () => {
-    const app = appWithTestOnlyPermissionRoute();
+    const app = productionWiredApp();
     await app.ready();
 
     for (const route of routesDeclaring(app, ["open_session", "open_session_peek"])) {
@@ -2281,7 +2262,7 @@ describe("every route enforces the access it declares", () => {
   });
 
   it("answers 403 forbidden on every Administrator-only route to a non-Administrator holding every permission", async () => {
-    const app = appWithTestOnlyPermissionRoute();
+    const app = productionWiredApp();
     await app.ready();
     const rawSessionId = await signedInWithRole(PERMISSION_KEYS);
 
@@ -2296,17 +2277,16 @@ describe("every route enforces the access it declares", () => {
     }
   });
 
-  it("answers 403 forbidden on every permission route to a user missing every declared permission", async () => {
-    const app = appWithTestOnlyPermissionRoute();
+  it("answers 403 forbidden on every capability route to a user missing every permission of its capability", async () => {
+    const app = productionWiredApp();
     await app.ready();
 
-    for (const route of routesDeclaring(app, ["permission"])) {
-      const access = route.access as Extract<RouteAccess, { level: "permission" }>;
-      const declaredPermissions = Array.isArray(access.permission)
-        ? access.permission
-        : [access.permission];
+    for (const route of routesDeclaring(app, ["capability"])) {
+      const access = route.access as Extract<RouteAccess, { level: "capability" }>;
+      const capabilityPermissions: readonly PermissionKey[] =
+        CAPABILITY_PERMISSIONS[access.capability];
       const rawSessionId = await signedInWithRole(
-        PERMISSION_KEYS.filter((key) => !declaredPermissions.includes(key)),
+        PERMISSION_KEYS.filter((key) => !capabilityPermissions.includes(key)),
       );
 
       const response = await send(app, route, rawSessionId);

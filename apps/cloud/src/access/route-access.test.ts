@@ -12,7 +12,6 @@ import {
   openSessionOf,
   originGuard,
   PUBLIC_ACCESS,
-  permissionAccess,
   registerRouteAccess,
   routeSessionSource,
   SESSION_COOKIE_ACCESS,
@@ -53,18 +52,8 @@ beforeEach(async () => {
     await reply.code(200).send({ ok: true });
   };
   app.get(
-    "/test-only/void-sale",
-    { config: { access: permissionAccess("void_sale"), sessionSource } },
-    answerWithSession,
-  );
-  app.get(
-    "/test-only/void-sale-or-process-return",
-    {
-      config: {
-        access: permissionAccess(["void_sale", "process_return"]),
-        sessionSource,
-      },
-    },
+    "/test-only/stock-losses-capability",
+    { config: { access: capabilityAccess("stock_losses"), sessionSource } },
     answerWithSession,
   );
   app.get(
@@ -184,60 +173,28 @@ function callRoute(path: string, rawSessionId?: string, extraHeaders: Record<str
 
 describe("the declared access, enforced before every handler", () => {
   it("returns 401 unauthenticated when no session is open", async () => {
-    const response = await callRoute("/test-only/void-sale");
+    const response = await callRoute("/test-only/stock-losses-capability");
 
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
   });
 
-  it("grants access to a user whose role holds the declared permission", async () => {
-    const roleId = await insertRole("Cajera", ["void_sale"]);
-    const userId = await insertUser(roleId, "cashier@example.com");
+  it("grants access to a user whose role holds the declared capability's permission", async () => {
+    const roleId = await insertRole("Pérdidas", ["record_stock_losses"]);
+    const userId = await insertUser(roleId, "losses@example.com");
     const rawSessionId = await insertSession(userId);
 
-    const response = await callRoute("/test-only/void-sale", rawSessionId);
+    const response = await callRoute("/test-only/stock-losses-capability", rawSessionId);
 
     expect(response.statusCode).toBe(200);
   });
 
-  it("rejects a user whose role does not hold the declared permission with 403 forbidden", async () => {
-    const roleId = await insertRole("Cajera", []);
-    const userId = await insertUser(roleId, "cashier@example.com");
+  it("rejects a user whose role holds no permission of the declared capability with 403 forbidden", async () => {
+    const roleId = await insertRole("Pérdidas", []);
+    const userId = await insertUser(roleId, "losses@example.com");
     const rawSessionId = await insertSession(userId);
 
-    const response = await callRoute("/test-only/void-sale", rawSessionId);
-
-    expect(response.statusCode).toBe(403);
-    expect(response.json()).toMatchObject({ code: "forbidden" });
-  });
-
-  it("grants access to a user holding either permission of an any-of declaration", async () => {
-    const voidSaleRoleId = await insertRole("Cajera", ["void_sale"]);
-    const voidSaleUserId = await insertUser(voidSaleRoleId, "void-sale@example.com");
-    const voidSaleSessionId = await insertSession(voidSaleUserId);
-    const processReturnRoleId = await insertRole("Devoluciones", ["process_return"]);
-    const processReturnUserId = await insertUser(processReturnRoleId, "process-return@example.com");
-    const processReturnSessionId = await insertSession(processReturnUserId);
-
-    const voidSaleResponse = await callRoute(
-      "/test-only/void-sale-or-process-return",
-      voidSaleSessionId,
-    );
-    const processReturnResponse = await callRoute(
-      "/test-only/void-sale-or-process-return",
-      processReturnSessionId,
-    );
-
-    expect(voidSaleResponse.statusCode).toBe(200);
-    expect(processReturnResponse.statusCode).toBe(200);
-  });
-
-  it("rejects a user holding neither permission of an any-of declaration with 403 forbidden", async () => {
-    const roleId = await insertRole("Cajera", []);
-    const userId = await insertUser(roleId, "cashier@example.com");
-    const rawSessionId = await insertSession(userId);
-
-    const response = await callRoute("/test-only/void-sale-or-process-return", rawSessionId);
+    const response = await callRoute("/test-only/stock-losses-capability", rawSessionId);
 
     expect(response.statusCode).toBe(403);
     expect(response.json()).toMatchObject({ code: "forbidden" });
@@ -274,15 +231,6 @@ describe("the declared access, enforced before every handler", () => {
     expect(response.statusCode).toBe(200);
   });
 
-  it("grants an Administrator access to a permission-declared route their role never explicitly holds", async () => {
-    const userId = await insertUser(await seededAdministratorRoleId(), "admin@example.com");
-    const rawSessionId = await insertSession(userId);
-
-    const response = await callRoute("/test-only/void-sale", rawSessionId);
-
-    expect(response.statusCode).toBe(200);
-  });
-
   it("rejects a non-Administrator on an Administrator-only route even holding the matching permission", async () => {
     const roleId = await insertRole("Cajera", ["void_sale"]);
     const userId = await insertUser(roleId, "cashier@example.com");
@@ -314,38 +262,38 @@ describe("the declared access, enforced before every handler", () => {
   });
 
   it("reflects a permission granted to the user's role without signing in again", async () => {
-    const roleId = await insertRole("Cajera", []);
-    const userId = await insertUser(roleId, "cashier@example.com");
+    const roleId = await insertRole("Pérdidas", []);
+    const userId = await insertUser(roleId, "losses@example.com");
     const rawSessionId = await insertSession(userId);
 
-    const before = await callRoute("/test-only/void-sale", rawSessionId);
-    await db.insert(rolePermissions).values({ roleId, permissionKey: "void_sale" });
-    const after = await callRoute("/test-only/void-sale", rawSessionId);
+    const before = await callRoute("/test-only/stock-losses-capability", rawSessionId);
+    await db.insert(rolePermissions).values({ roleId, permissionKey: "record_stock_losses" });
+    const after = await callRoute("/test-only/stock-losses-capability", rawSessionId);
 
     expect(before.statusCode).toBe(403);
     expect(after.statusCode).toBe(200);
   });
 
   it("reflects a permission removed from the user's role on the very next request", async () => {
-    const roleId = await insertRole("Cajera", ["void_sale"]);
-    const userId = await insertUser(roleId, "cashier@example.com");
+    const roleId = await insertRole("Pérdidas", ["record_stock_losses"]);
+    const userId = await insertUser(roleId, "losses@example.com");
     const rawSessionId = await insertSession(userId);
 
-    const before = await callRoute("/test-only/void-sale", rawSessionId);
+    const before = await callRoute("/test-only/stock-losses-capability", rawSessionId);
     await db.delete(rolePermissions).where(eq(rolePermissions.roleId, roleId));
-    const after = await callRoute("/test-only/void-sale", rawSessionId);
+    const after = await callRoute("/test-only/stock-losses-capability", rawSessionId);
 
     expect(before.statusCode).toBe(200);
     expect(after.statusCode).toBe(403);
   });
 
   it("reads the session and its role's permissions in one database read", async () => {
-    const roleId = await insertRole("Cajera", ["void_sale"]);
-    const userId = await insertUser(roleId, "cashier@example.com");
+    const roleId = await insertRole("Pérdidas", ["record_stock_losses"]);
+    const userId = await insertUser(roleId, "losses@example.com");
     const rawSessionId = await insertSession(userId);
     const query = vi.spyOn(testDatabase.client, "query");
 
-    const response = await callRoute("/test-only/void-sale", rawSessionId);
+    const response = await callRoute("/test-only/stock-losses-capability", rawSessionId);
     const statements = query.mock.calls.map(([statement]) => String(statement));
     query.mockRestore();
 
@@ -368,13 +316,13 @@ describe("the declared access, enforced before every handler", () => {
   });
 
   it("never runs the handler when the declared access is refused", async () => {
-    const roleId = await insertRole("Cajera", []);
-    const userId = await insertUser(roleId, "cashier@example.com");
+    const roleId = await insertRole("Pérdidas", []);
+    const userId = await insertUser(roleId, "losses@example.com");
     const rawSessionId = await insertSession(userId);
 
     await callRoute("/test-only/open-session");
     await callRoute("/test-only/administrator-only", rawSessionId);
-    await callRoute("/test-only/void-sale", rawSessionId);
+    await callRoute("/test-only/stock-losses-capability", rawSessionId);
 
     expect(handlerRuns).toBe(0);
   });
@@ -499,6 +447,31 @@ describe("the route access inventory", () => {
     expect(inventoryApp.routeAccessInventory()).toEqual([
       { method: "GET", url: "/foo", access: OPEN_SESSION_ACCESS },
       { method: "POST", url: "/bar", access: ADMINISTRATOR_ACCESS },
+    ]);
+
+    await inventoryApp.close();
+  });
+
+  it("reports a capability-declared route by the capability it names", async () => {
+    const inventoryApp = Fastify();
+    registerRouteAccess(inventoryApp);
+    inventoryApp.get(
+      "/movements",
+      {
+        config: {
+          access: capabilityAccess("stock_movements"),
+          sessionSource: routeSessionSource({ db }),
+        },
+      },
+      async () => "ok",
+    );
+
+    expect(inventoryApp.routeAccessInventory()).toEqual([
+      {
+        method: "GET",
+        url: "/movements",
+        access: { level: "capability", capability: "stock_movements" },
+      },
     ]);
 
     await inventoryApp.close();
