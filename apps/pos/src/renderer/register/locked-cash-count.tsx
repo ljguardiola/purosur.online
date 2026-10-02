@@ -8,6 +8,7 @@ import type {
 import {
   Button,
   formatCents,
+  HighlightedNotice,
   InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
@@ -178,28 +179,28 @@ export function LockedCashCount({
           />
         ) : null}
         {openSale === null ? null : (
-          <div className="flex flex-col items-start gap-3">
-            <InlineNotice
-              tone="error"
-              icon={<ShoppingBasket />}
-              title={`Hay una venta abierta de ${formatCents(openSale.total)}`}
-              description={
-                openSale.cancellable
-                  ? "Cancelala para cerrar la caja."
-                  : `${opener.first_name} tiene que retomar la caja para terminarla o cancelarla.`
-              }
-            />
-            {openSale.cancellable ? (
-              <Button
-                variant="secondary"
-                icon={<X />}
-                disabled={busy}
-                onPress={() => setConfirmingCancel(true)}
-              >
-                Cancelar la venta
-              </Button>
-            ) : null}
-          </div>
+          <HighlightedNotice
+            tone="error"
+            icon={<ShoppingBasket />}
+            title={`Hay una venta abierta de ${formatCents(openSale.total)}`}
+            description={
+              openSale.cancellable
+                ? "Cancelala para cerrar la caja."
+                : `${opener.first_name} tiene que retomar la caja para terminarla o cancelarla.`
+            }
+            actions={
+              openSale.cancellable ? (
+                <Button
+                  variant="secondary"
+                  icon={<X />}
+                  disabled={busy}
+                  onPress={() => setConfirmingCancel(true)}
+                >
+                  Cancelar la venta
+                </Button>
+              ) : undefined
+            }
+          />
         )}
         <section className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-6">
           <p className="text-body text-text-subtle">

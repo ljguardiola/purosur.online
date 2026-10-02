@@ -32,6 +32,8 @@ export type { TableModelOptions } from "./components/data-display/table/use-tabl
 export { useTableModel } from "./components/data-display/table/use-table-model";
 export type { TagProps } from "./components/data-display/tag";
 export { Tag } from "./components/data-display/tag";
+export type { ElevatedNoticeProps } from "./components/feedback/elevated-notice";
+export { ElevatedNotice } from "./components/feedback/elevated-notice";
 export type { EmptyStateProps, EmptyStateVariant } from "./components/feedback/empty-state";
 export { EmptyState } from "./components/feedback/empty-state";
 export type { FloatingNotificationProps } from "./components/feedback/floating-notification";
@@ -40,7 +42,7 @@ export type { HighlightedNoticeProps } from "./components/feedback/highlighted-n
 export { HighlightedNotice } from "./components/feedback/highlighted-notice";
 export type { InlineNoticeProps } from "./components/feedback/inline-notice";
 export { InlineNotice } from "./components/feedback/inline-notice";
-export type { LoadFailureProps } from "./components/feedback/load-failure";
+export type { LoadFailureProps, LoadFailureVariant } from "./components/feedback/load-failure";
 export { LoadFailure } from "./components/feedback/load-failure";
 export type { LoadingPlaceholderProps } from "./components/feedback/loading-placeholder";
 export { LoadingPlaceholder } from "./components/feedback/loading-placeholder";
