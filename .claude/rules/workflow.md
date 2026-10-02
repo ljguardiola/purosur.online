@@ -1,0 +1,34 @@
+# Issues
+
+GitHub tells the story of the work: an issue is the *what*, a pull request is the *how*. Blank issues are disabled; every issue is filed from one of these four forms:
+
+- **Feature** — a deliverable, user-visible vertical slice of functionality.
+- **Bug** — something behaves differently from what it should.
+- **Spike** — a technical question to answer before building. Its outcome is a written answer recorded in the issue; a spike never merges code.
+- **Technical** — work with no user-visible change, such as CI, dependencies, or a refactor.
+
+An issue that does not fill in every required section gets the `invalid-format` label and a bot comment listing what is missing. Fix the issue body and the label is removed automatically. Optional sections — a feature's "Out of scope" and a spike's "Result" — are included only when they have relevant content: a feature lists exclusions only when they are not obvious, and a spike records its result when it closes.
+
+A feature too large for one pull request stays as a parent feature issue holding the overall goal and business rules, split into feature sub-issues (GitHub's native sub-issues) that are each releasable on their own. The parent has no pull request of its own; a pull request must close one of its sub-issues instead. A pull request referencing an issue that has sub-issues is rejected. A parent issue's own open/closed state is kept in sync with its sub-issues automatically: it closes once every sub-issue closes and reopens if a sub-issue reopens or if someone closes it manually while a sub-issue is still open.
+
+# Branches and pull requests
+
+- Keep branches short-lived. One pull request per unit of work.
+- Branch names follow `<type>/<N>-<short-slug>`, where `<type>` is the Conventional Commit type below and `<N>` is the issue number (e.g. `feat/123-add-discounts`).
+- The PR title must be a [Conventional Commit](https://www.conventionalcommits.org/) whose type matches the linked issue's type: `feat` for a feature, `fix` for a bug, and one of `chore`, `refactor`, `ci`, `build`, `test`, or `perf` for technical work. Spikes do not get a pull request.
+- The PR body must close exactly one issue with `Closes #N` (or `Fixes`/`Resolves`). That issue is open and does not carry `invalid-format`.
+- Fill in every section of the pull request template. Check at least one Delivery impact box; `None` is never checked together with another.
+- Nothing is committed or pushed to `main` directly, and `main` is never force-pushed or deleted. A branch takes `main`'s changes by merging it, never by rebasing once pushed.
+- Merges are squash-only. The PR title becomes the commit message on `main`.
+
+# Working on an issue
+
+1. Develop test-first (see `.claude/rules/code-style.md`), running only the test files you touch; the whole suite runs once, at step 4.
+2. A change to `packages/domain` or `packages/contracts` runs `pnpm mutation --mutate <each touched source file>` and leaves no surviving mutant in them. CI runs the whole mutation suite weekly, not on pull requests.
+3. With every change committed, review the branch with the `review-gate` skill (`.claude/skills/review-gate/`) until it reports `CLEAN`. A review that reports `STOPPED` goes to whoever assigned the issue before anything else happens.
+4. Run `pnpm verify` once, in full.
+5. Open the pull request. Its "How it was tested" cites the `review-gate` result line and the result of `pnpm verify`.
+
+# Dependabot
+
+Dependency and GitHub Actions update PRs are opened by Dependabot (`.github/dependabot.yml`), not by a person, so they carry no linked issue and don't fill in the pull request template. The `pr-contract` check recognizes them by author login `dependabot[bot]` and author type `Bot` and skips the issue reference and section requirements for them, but a Dependabot PR title must still be a Conventional Commit of type `chore` or `ci`, and the `verify` check still runs. A human-authored PR whose title or body merely imitates Dependabot's style is not exempt.
