@@ -10,7 +10,7 @@ import { lazyScreen } from "../shell/lazy-screen";
 import { refuseWithout } from "../shell/signed-in-route";
 import { stockAreaRoute } from "../shell/stock-area";
 
-const periodFilter = z.unknown().optional().pipe(stockPeriodSchema);
+const periodFilter = stockPeriodSchema.default(stockPeriodSchema.parse(undefined));
 
 export const stockBalancesFilters = z.object({
   search: z.string().default("").catch(""),
