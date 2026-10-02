@@ -274,6 +274,8 @@ export type {
   SignInLookupStore,
   SignInLookupStoreTransaction,
 } from "./sign-in-lookup-store.js";
+export type { SignOutInput, SignOutOutcome, SignOutPorts } from "./sign-out.js";
+export { signOut } from "./sign-out.js";
 export type {
   AssignableRole,
   LockedUser,

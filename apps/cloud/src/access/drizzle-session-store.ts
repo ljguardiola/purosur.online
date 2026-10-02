@@ -1,5 +1,5 @@
 import type { SessionStore } from "@purosur/domain/access/use-cases";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { sessions } from "../platform/db/schema.js";
 
@@ -14,7 +14,7 @@ class DrizzleSessionStore<TQueryResult extends PgQueryResultHKT> implements Sess
     await this.db
       .update(sessions)
       .set({ revokedAt: at })
-      .where(eq(sessions.sessionIdHash, sessionKey));
+      .where(and(eq(sessions.sessionIdHash, sessionKey), isNull(sessions.revokedAt)));
   }
 
   async recordSessionActivity(sessionKey: string, at: Date): Promise<void> {
