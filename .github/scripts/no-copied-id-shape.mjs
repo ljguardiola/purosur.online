@@ -12,6 +12,7 @@ const SCANNED_SOURCES = [
 const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const COMPILER_OPTIONS_FROM = "apps/cloud/tsconfig.json";
 const ZOD_PACKAGE_FILE = /\/node_modules\/zod\//;
+const PACKAGE_FILE = /\/node_modules\//;
 const ZOD_ID_FORMAT_NAME = /uuid|guid/i;
 
 const HEX_DIGITS = [..."0123456789abcdef"];
@@ -245,14 +246,26 @@ function patternsIn(nodes, constants) {
 
 const realPaths = new Map();
 
-function isZodDeclaration(declaration) {
+function realPathOf(declaration) {
   const fileName = declaration.getSourceFile().fileName;
   let realPath = realPaths.get(fileName);
   if (realPath === undefined) {
-    realPath = ts.sys.realpath?.(fileName) ?? fileName;
+    realPath = (ts.sys.realpath?.(fileName) ?? fileName).replaceAll("\\", "/");
     realPaths.set(fileName, realPath);
   }
-  return ZOD_PACKAGE_FILE.test(realPath.replaceAll("\\", "/"));
+  return realPath;
+}
+
+function isZodDeclaration(declaration) {
+  return ZOD_PACKAGE_FILE.test(realPathOf(declaration));
+}
+
+function isDeclaredOnlyByPackages(symbol) {
+  const declarations = symbol.declarations ?? [];
+  return (
+    declarations.length > 0 &&
+    declarations.every((declaration) => PACKAGE_FILE.test(realPathOf(declaration)))
+  );
 }
 
 function isMemberName(node) {
@@ -323,19 +336,39 @@ function iteratedTypes(type, checker) {
   return typesOfNamedEntries(members, ["value"], checker);
 }
 
-function typesOfArrayEntry(types, entry, checker) {
-  const index = String(entry.parent.elements.indexOf(entry));
+function typesAtIndex(types, index, checker) {
   return types.flatMap((type) => {
-    const [indexed] = typesOfNamedEntries([type], [index], checker);
+    const [indexed] = typesOfNamedEntries([type], [String(index)], checker);
     const element = indexed ?? checker.getIndexTypeOfType(type, ts.IndexKind.Number);
     return element === undefined ? iteratedTypes(type, checker) : [element];
   });
 }
 
+function restOf(pattern) {
+  const parent = pattern.parent;
+  return ts.isSpreadElement(parent) && isAssignedPattern(parent.parent) ? parent : undefined;
+}
+
+function elementTypesOf(pattern, index, checker) {
+  const rest = restOf(pattern);
+  if (rest === undefined)
+    return typesAtIndex(sourceTypesOfPattern(pattern, checker), index, checker);
+  const list = rest.parent;
+  return elementTypesOf(list, list.elements.indexOf(rest) + index, checker);
+}
+
 function typesOfEntry(entry, checker) {
-  const sources = sourceTypesOfPattern(entry.parent, checker);
-  if (ts.isArrayLiteralExpression(entry.parent)) return typesOfArrayEntry(sources, entry, checker);
-  return typesOfNamedEntries(sources, namesOfKey(entry.name, checker), checker);
+  const pattern = entry.parent;
+  if (ts.isArrayLiteralExpression(pattern)) {
+    return elementTypesOf(pattern, pattern.elements.indexOf(entry), checker);
+  }
+  const names = namesOfKey(entry.name, checker);
+  if (restOf(pattern) !== undefined) {
+    return names
+      .filter((name) => /^\d+$/.test(name))
+      .flatMap((name) => elementTypesOf(pattern, Number(name), checker));
+  }
+  return typesOfNamedEntries(sourceTypesOfPattern(pattern, checker), names, checker);
 }
 
 function enclosingEntry(node) {
@@ -352,17 +385,27 @@ function isAssignedPattern(node) {
   return (
     (ts.isForOfStatement(parent) && parent.initializer === node) ||
     (isAssignment(parent) && parent.left === node) ||
+    restOf(node) !== undefined ||
     enclosingEntry(node) !== undefined
   );
 }
 
-function sourceTypesOfAssignedPattern(pattern, checker) {
+function entryHolding(pattern) {
   const parent = pattern.parent;
-  const entry = enclosingEntry(isAssignment(parent) && parent.left === pattern ? parent : pattern);
-  return [
-    checker.getTypeOfAssignmentPattern(pattern),
-    ...(entry === undefined ? [] : typesOfEntry(entry, checker)),
-  ];
+  return enclosingEntry(isAssignment(parent) && parent.left === pattern ? parent : pattern);
+}
+
+function isInsideRest(pattern) {
+  if (restOf(pattern) !== undefined) return true;
+  const entry = entryHolding(pattern);
+  return entry !== undefined && isInsideRest(entry.parent);
+}
+
+function sourceTypesOfAssignedPattern(pattern, checker) {
+  const entry = entryHolding(pattern);
+  const entryTypes = entry === undefined ? [] : typesOfEntry(entry, checker);
+  if (isInsideRest(pattern)) return entryTypes;
+  return [checker.getTypeOfAssignmentPattern(pattern), ...entryTypes];
 }
 
 function sourceTypesOfPattern(pattern, checker) {
@@ -429,6 +472,186 @@ function callsZodIdFormat(node, checker) {
   );
 }
 
+function membersOf(type, checker) {
+  const apparent = checker.getApparentType(type);
+  if (!apparent.isUnionOrIntersection()) return [apparent];
+  return apparent.types.flatMap((member) => membersOf(member, checker));
+}
+
+function declaredParameterType(argument, checker) {
+  const call = argument.parent;
+  if (!(ts.isCallExpression(call) || ts.isNewExpression(call))) return undefined;
+  const index = call.arguments?.indexOf(argument) ?? -1;
+  if (index === -1) return undefined;
+  const parameters = checker.getResolvedSignature(call)?.getDeclaration()?.parameters ?? [];
+  const parameter = parameters[Math.min(index, parameters.length - 1)];
+  if (parameter === undefined) return undefined;
+  const type = checker.getTypeAtLocation(parameter);
+  if (parameter.dotDotDotToken === undefined) return type;
+  return checker.getIndexTypeOfType(checker.getApparentType(type), ts.IndexKind.Number);
+}
+
+function isOfZod(symbol) {
+  return (symbol.declarations ?? []).some(isZodDeclaration);
+}
+
+function numberIndexOf(type, checker) {
+  const index = checker.getIndexTypeOfType(type, ts.IndexKind.Number);
+  return index === undefined ? [] : [index];
+}
+
+function returnsOf(type, checker) {
+  return type.getCallSignatures().map((signature) => checker.getReturnTypeOfSignature(signature));
+}
+
+function nestedEntriesOf(type, checker) {
+  return [
+    ...checker
+      .getPropertiesOfType(type)
+      .filter((property) => !isDeclaredOnlyByPackages(property))
+      .map((property) => ({
+        type: checker.getTypeOfSymbol(property),
+        inSource: (source) => {
+          const same = checker.getPropertyOfType(source, property.name);
+          return same === undefined ? [] : [checker.getTypeOfSymbol(same)];
+        },
+      })),
+    ...numberIndexOf(type, checker).map((index) => ({
+      type: index,
+      inSource: (source) => numberIndexOf(source, checker),
+    })),
+    ...returnsOf(type, checker).map((result) => ({
+      type: result,
+      inSource: (source) => returnsOf(source, checker),
+    })),
+  ];
+}
+
+function namesForeignIdFormat(type, checker) {
+  return checker
+    .getPropertiesOfType(type)
+    .some((property) => ZOD_ID_FORMAT_NAME.test(property.name) && !isOfZod(property));
+}
+
+function reachesForeignIdFormat(type, checker, visited) {
+  if (visited.has(type)) return false;
+  visited.add(type);
+  return membersOf(type, checker).some(
+    (member) =>
+      namesForeignIdFormat(member, checker) ||
+      nestedEntriesOf(member, checker).some((entry) =>
+        reachesForeignIdFormat(entry.type, checker, visited),
+      ),
+  );
+}
+
+const foreignIdFormatsByType = new WeakMap();
+
+function holdsForeignIdFormat(type, checker) {
+  if (!foreignIdFormatsByType.has(type)) {
+    foreignIdFormatsByType.set(type, reachesForeignIdFormat(type, checker, new Set()));
+  }
+  return foreignIdFormatsByType.get(type);
+}
+
+function holdsZodIdFormatNamed(name, sources, checker) {
+  return sources.some((source) =>
+    membersOf(source, checker).some((member) =>
+      isZodIdFormatSymbol(checker.getPropertyOfType(member, name), checker),
+    ),
+  );
+}
+
+function upcastsZodIdFormat(target, sources, checker, { nested = true, visited = new Map() } = {}) {
+  if (sources.length === 0 || !holdsForeignIdFormat(target, checker)) return false;
+  const seen = visited.get(target) ?? new Set();
+  visited.set(target, seen);
+  const fresh = sources.filter((source) => !seen.has(source));
+  if (fresh.length === 0) return false;
+  for (const source of fresh) seen.add(source);
+  return membersOf(target, checker).some(
+    (member) =>
+      checker
+        .getPropertiesOfType(member)
+        .some(
+          (property) =>
+            ZOD_ID_FORMAT_NAME.test(property.name) &&
+            !isOfZod(property) &&
+            holdsZodIdFormatNamed(property.name, fresh, checker),
+        ) ||
+      (nested &&
+        nestedEntriesOf(member, checker).some((entry) =>
+          upcastsZodIdFormat(
+            entry.type,
+            fresh.flatMap((source) =>
+              membersOf(source, checker).flatMap((each) => entry.inSource(each)),
+            ),
+            checker,
+            { visited },
+          ),
+        )),
+  );
+}
+
+function isGivenValue(node) {
+  if (!ts.isExpression(node) || isMemberName(node) || ts.isLiteralExpression(node)) return false;
+  const parent = node.parent;
+  return (
+    !ts.isIdentifier(node) ||
+    ts.isShorthandPropertyAssignment(parent) ||
+    ts.getNameOfDeclaration(parent) !== node
+  );
+}
+
+function givesZodIdFormatAsValue(node, contextual, checker) {
+  const literal = ts.isObjectLiteralExpression(node) || ts.isArrayLiteralExpression(node);
+  const declared = declaredParameterType(node, checker);
+  const targets = [
+    { type: contextual, nested: !literal },
+    { type: declared, nested: !literal || declared !== contextual },
+  ].filter(({ type }) => type !== undefined && holdsForeignIdFormat(type, checker));
+  if (targets.length === 0) return false;
+  const source = checker.getTypeAtLocation(node);
+  return targets.some(({ type, nested }) =>
+    upcastsZodIdFormat(type, [source], checker, { nested }),
+  );
+}
+
+function parameterTypesOf(signature, checker) {
+  return signature.getParameters().map((parameter) => checker.getTypeOfSymbol(parameter));
+}
+
+function receivesZodIdFormatAsParameter(node, contextual, checker) {
+  const given = membersOf(contextual, checker).flatMap((member) =>
+    member.getCallSignatures().map((signature) => parameterTypesOf(signature, checker)),
+  );
+  if (given.length === 0) return false;
+  const receivers = checker
+    .getTypeAtLocation(node)
+    .getCallSignatures()
+    .flatMap((signature) =>
+      parameterTypesOf(signature, checker).map((type, index) => ({ type, index })),
+    );
+  return receivers.some(
+    ({ type, index }) =>
+      holdsForeignIdFormat(type, checker) &&
+      upcastsZodIdFormat(
+        type,
+        given.flatMap((parameters) => parameters[index] ?? []),
+        checker,
+      ),
+  );
+}
+
+function givesZodIdFormatToAnotherType(node, checker) {
+  if (!isGivenValue(node)) return false;
+  const contextual = checker.getContextualType(node);
+  if (contextual !== undefined && receivesZodIdFormatAsParameter(node, contextual, checker)) {
+    return true;
+  }
+  return !ts.isFunctionLike(node) && givesZodIdFormatAsValue(node, contextual, checker);
+}
+
 function isKeyOfPattern(node) {
   return destructuredKey(node.parent) === node;
 }
@@ -441,6 +664,7 @@ function zodIdFormatsIn(nodes, checker) {
       return [ts.isComputedPropertyName(key) ? key.expression : key];
     }
     if (callsZodIdFormat(node, checker)) return [node];
+    if (givesZodIdFormatToAnotherType(node, checker)) return [node];
     if (ts.isIndexedAccessTypeNode(node) && namesZodIdFormat(node, checker)) return [node];
     if (ts.isElementAccessExpression(node) && picksZodIdFormat(node, checker)) {
       return [node.argumentExpression];
