@@ -468,6 +468,22 @@ describe("PUT /roles/:id", () => {
       const audited = await db.select().from(auditLog).where(eq(auditLog.entityId, roleId));
       expect(audited).toHaveLength(0);
     });
+
+    it("returns 401 authorization_required, not 404, for a missing role when the session's passkey authorization is stale, changing nothing", async () => {
+      const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
+      const rawSessionId = await insertSession(administratorId, authorizedAt);
+
+      const response = await editRoleRequest("00000000-0000-0000-0000-000000000000", rawSessionId, {
+        name: "Cajera nueva",
+        permissions: [],
+        version: 1,
+      });
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json()).toMatchObject({ code: "authorization_required" });
+      const [row] = await db.select().from(roles).where(eq(roles.id, roleId));
+      expect(row).toMatchObject({ name: "Cajera", version: 1 });
+    });
   });
 });
 

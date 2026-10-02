@@ -36,6 +36,10 @@ export function registerUserReactivationRoutes<TQueryResult extends PgQueryResul
       const attemptedAt = now();
       const openSession = openSessionOf(request);
 
+      if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
+        return;
+      }
+
       // An already-active target answers the same 404 as a missing one.
       const target = await findBranchUser(
         { users: drizzleBranchUsers(options.db) },
@@ -43,10 +47,6 @@ export function registerUserReactivationRoutes<TQueryResult extends PgQueryResul
       );
       if (!target) {
         await reply.code(404).send(USER_NOT_FOUND_RESPONSE);
-        return;
-      }
-
-      if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
         return;
       }
 

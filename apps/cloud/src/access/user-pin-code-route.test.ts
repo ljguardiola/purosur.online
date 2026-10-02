@@ -200,15 +200,12 @@ describe("POST /users/:id/pin-codes", () => {
   });
 
   describe("a target out of the actor's standing", () => {
-    it("answers the same 404 for a missing target, a malformed one, an Administrator and the holder's own account in any letter case, before asking for a passkey authorization", async () => {
-      const stale = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
-      const staleSession = await insertSession(holderId, stale);
-
-      const missing = await emitPinCode(MISSING_ID, staleSession);
-      const malformed = await emitPinCode("not-a-uuid", staleSession);
-      const administrator = await emitPinCode(administratorId, staleSession);
-      const own = await emitPinCode(holderId, staleSession);
-      const ownUpperCase = await emitPinCode(holderId.toUpperCase(), staleSession);
+    it("answers the same 404 for a missing target, a malformed one, an Administrator and the holder's own account in any letter case", async () => {
+      const missing = await emitPinCode(MISSING_ID, holderSession);
+      const malformed = await emitPinCode("not-a-uuid", holderSession);
+      const administrator = await emitPinCode(administratorId, holderSession);
+      const own = await emitPinCode(holderId, holderSession);
+      const ownUpperCase = await emitPinCode(holderId.toUpperCase(), holderSession);
 
       expect(missing.statusCode).toBe(404);
       expect(missing.json()).toMatchObject({ code: "not_found" });
@@ -231,6 +228,27 @@ describe("POST /users/:id/pin-codes", () => {
       expect(response.statusCode).toBe(401);
       expect(response.json()).toMatchObject({ code: "authorization_required" });
       expect(await codesOf(targetId)).toHaveLength(0);
+    });
+
+    it("returns 401 authorization_required, not 404, for a missing target when the authorization is stale", async () => {
+      const stale = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
+      const staleSession = await insertSession(holderId, stale);
+
+      const response = await emitPinCode("00000000-0000-0000-0000-000000000000", staleSession);
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json()).toMatchObject({ code: "authorization_required" });
+    });
+
+    it("returns 401 authorization_required, not 404, for an Administrator target the holder may not emit for when the authorization is stale", async () => {
+      const stale = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
+      const staleSession = await insertSession(holderId, stale);
+
+      const response = await emitPinCode(administratorId, staleSession);
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json()).toMatchObject({ code: "authorization_required" });
+      expect(await codesOf(administratorId)).toHaveLength(0);
     });
   });
 

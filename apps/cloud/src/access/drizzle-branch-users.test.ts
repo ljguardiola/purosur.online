@@ -288,27 +288,38 @@ describe("drizzleBranchUsers", () => {
     });
   });
 
-  describe("emailHolder", () => {
-    it("names the user holding the email whatever their branch or state", async () => {
-      const elsewhere = await otherBranch();
+  describe("branchUserWithEmail", () => {
+    it("finds the user of the branch holding the email within the scope", async () => {
       const id = await insertUser({
         firstName: "Ana",
         email: "ana@example.test",
         roleId: await insertRole("Cajero"),
-        locationId: elsewhere,
         active: false,
       });
 
-      expect(await drizzleBranchUsers(db).emailHolder("ana@example.test")).toEqual({
-        id,
-        firstName: "Ana",
-        active: false,
-        locationId: elsewhere,
-      });
+      const found = await drizzleBranchUsers(db).branchUserWithEmail(
+        branch,
+        "ana@example.test",
+        "inactive",
+      );
+
+      expect(found).toMatchObject({ id, firstName: "Ana", active: false, roleName: "Cajero" });
     });
 
-    it("finds nobody for an email no user holds", async () => {
-      expect(await drizzleBranchUsers(db).emailHolder("nadie@example.test")).toBeUndefined();
+    it("finds nobody outside the scope, in another branch, or for an email no user holds", async () => {
+      await insertUser({
+        firstName: "Ana",
+        email: "ana@example.test",
+        roleId: await insertRole("Cajero"),
+        active: false,
+      });
+      const users = drizzleBranchUsers(db);
+
+      expect(await users.branchUserWithEmail(branch, "ana@example.test", "active")).toBeUndefined();
+      expect(
+        await users.branchUserWithEmail(await otherBranch(), "ana@example.test", "any"),
+      ).toBeUndefined();
+      expect(await users.branchUserWithEmail(branch, "nadie@example.test", "any")).toBeUndefined();
     });
   });
 });

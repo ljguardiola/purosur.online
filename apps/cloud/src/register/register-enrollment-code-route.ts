@@ -38,12 +38,12 @@ export function registerRegisterEnrollmentCodeRoute<TQueryResult extends PgQuery
       const attemptedAt = now();
       const openSession = openSessionOf(request);
 
-      if (!(await store.hasRegister(openSession.locationId, request.params.id))) {
-        await reply.code(404).send(REGISTER_NOT_FOUND_RESPONSE);
+      if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
         return;
       }
 
-      if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
+      if (!(await store.hasRegister(openSession.locationId, request.params.id))) {
+        await reply.code(404).send(REGISTER_NOT_FOUND_RESPONSE);
         return;
       }
 
