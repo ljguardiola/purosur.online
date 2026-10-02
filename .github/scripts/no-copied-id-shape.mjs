@@ -150,35 +150,55 @@ function isInsideStringExpression(node) {
   );
 }
 
-function textPieces(constants) {
-  const piecesOf = (node, resolving = new Set(), raw = false) => {
+const UNKNOWN_VALUE = { kind: "unknown" };
+const textValue = (pieces) => ({ kind: "text", pieces });
+
+function textPiecesOfValue(value) {
+  if (value.kind === "text") return value.pieces;
+  if (value.kind === "number") return [String(value.number)];
+  return [UNKNOWN_TEXT];
+}
+
+function sum(left, right) {
+  if (left.kind === "text" || right.kind === "text") {
+    return textValue([...textPiecesOfValue(left), ...textPiecesOfValue(right)]);
+  }
+  if (left.kind === "number" && right.kind === "number") {
+    return { kind: "number", number: left.number + right.number };
+  }
+  return UNKNOWN_VALUE;
+}
+
+function evaluatorOf(constants) {
+  const evaluate = (node, resolving = new Set(), raw = false) => {
     const textOf = (literal) => (raw ? literal.rawText : literal.text);
-    if (ts.isStringLiteral(node) || ts.isNumericLiteral(node)) return [node.text];
-    if (ts.isNoSubstitutionTemplateLiteral(node)) return [textOf(node)];
-    if (ts.isParenthesizedExpression(node)) return piecesOf(node.expression, resolving);
+    if (ts.isStringLiteral(node)) return textValue([node.text]);
+    if (ts.isNumericLiteral(node)) return { kind: "number", number: Number(node.text) };
+    if (ts.isNoSubstitutionTemplateLiteral(node)) return textValue([textOf(node)]);
+    if (ts.isParenthesizedExpression(node)) return evaluate(node.expression, resolving);
     if (ts.isTaggedTemplateExpression(node) && isStringRaw(node.tag)) {
-      return piecesOf(node.template, resolving, true);
+      return evaluate(node.template, resolving, true);
     }
     if (ts.isIdentifier(node)) {
       const initializer = constants.get(node.text);
-      if (initializer === undefined || resolving.has(node.text)) return [UNKNOWN_TEXT];
-      return piecesOf(initializer, new Set([...resolving, node.text]));
+      if (initializer === undefined || resolving.has(node.text)) return UNKNOWN_VALUE;
+      return evaluate(initializer, new Set([...resolving, node.text]));
     }
     if (ts.isTemplateExpression(node)) {
-      return [
+      return textValue([
         textOf(node.head),
         ...node.templateSpans.flatMap((span) => [
-          ...piecesOf(span.expression, resolving),
+          ...textPiecesOfValue(evaluate(span.expression, resolving)),
           textOf(span.literal),
         ]),
-      ];
+      ]);
     }
     if (isConcatenation(node)) {
-      return [...piecesOf(node.left, resolving), ...piecesOf(node.right, resolving)];
+      return sum(evaluate(node.left, resolving), evaluate(node.right, resolving));
     }
-    return [UNKNOWN_TEXT];
+    return UNKNOWN_VALUE;
   };
-  return piecesOf;
+  return evaluate;
 }
 
 function knownTextRuns(pieces) {
@@ -198,11 +218,13 @@ function regexLiteralPattern(node) {
 }
 
 function patternsIn(nodes, constants) {
-  const piecesOf = textPieces(constants);
+  const evaluate = evaluatorOf(constants);
   return nodes.flatMap((node) => {
     if (ts.isRegularExpressionLiteral(node)) return [{ node, ...regexLiteralPattern(node) }];
     if (!isStringExpression(node) || isInsideStringExpression(node)) return [];
-    return knownTextRuns(piecesOf(node)).map((pattern) => ({
+    const value = evaluate(node);
+    if (value.kind !== "text") return [];
+    return knownTextRuns(value.pieces).map((pattern) => ({
       node,
       pattern,
       flagSets: STRING_FLAG_SETS,
