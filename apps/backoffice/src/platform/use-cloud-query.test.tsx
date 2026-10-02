@@ -756,3 +756,25 @@ test("a read at the interval that answers after a read through the cache landed 
     await expect.element(screen.getByText("loaded:stale")).not.toBeInTheDocument();
   });
 });
+
+test("a read at the interval that answers after a newer read failed never replaces the failure", async () => {
+  await withIntervalTimers(async () => {
+    const periodic = deferred<CloudReadOutcome<string>>();
+    const read = vi
+      .fn<() => Promise<CloudReadOutcome<string>>>()
+      .mockResolvedValueOnce(ok("one"))
+      .mockReturnValueOnce(periodic.promise)
+      .mockResolvedValueOnce({ kind: "failed" });
+    const screen = await render(<Probe read={read} refetchInterval={5_000} />);
+    await expect.element(screen.getByText("loaded:one")).toBeVisible();
+    await vi.advanceTimersByTimeAsync(5_000);
+    await userEvent.click(screen.getByRole("button", { name: "refresh" }));
+    await expect.element(screen.getByText("failed", { exact: true })).toBeVisible();
+
+    periodic.resolve(ok("stale"));
+    await vi.advanceTimersByTimeAsync(0);
+
+    await expect.element(screen.getByText("failed", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("loaded:stale")).not.toBeInTheDocument();
+  });
+});
