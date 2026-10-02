@@ -86,12 +86,9 @@ describe("mainToCoreMessageSchema", () => {
   });
 
   it.each([
+    ["no snapshot keys", { ...CREDENTIALS.keys, snapshot_key_versions: [] }],
     [
-      "whose outbox-chain key isn't a well-formed installation key",
-      { ...CREDENTIALS.keys, outbox_chain_key: "b3V0Ym94" },
-    ],
-    [
-      "with two snapshot keys under the same version",
+      "two snapshot keys under the same version",
       {
         ...CREDENTIALS.keys,
         snapshot_key_versions: [
@@ -100,14 +97,44 @@ describe("mainToCoreMessageSchema", () => {
         ],
       },
     ],
-    ["that aren't an object", "keys"],
-  ])("reads credentials with installation keys %s as credentials without keys", (_case, keys) => {
-    const { keys: _unreadable, ...withoutKeys } = CREDENTIALS;
+    [
+      "a contingency-ticket key of version 0",
+      { ...CREDENTIALS.keys, contingency_ticket_key: { version: 0, key: KEY_B } },
+    ],
+    [
+      "an outbox-chain key that isn't well formed",
+      { ...CREDENTIALS.keys, outbox_chain_key: "b3V0Ym94" },
+    ],
+  ])("reads the installation keys main holds as they are, with %s", (_case, keys) => {
+    const credentials = { ...CREDENTIALS, keys };
 
-    expect(mainToCoreMessageSchema.parse(readAnswerWith({ ...CREDENTIALS, keys }))).toStrictEqual(
-      readAnswerWith(withoutKeys),
+    expect(mainToCoreMessageSchema.parse(readAnswerWith(credentials))).toStrictEqual(
+      readAnswerWith(credentials),
     );
   });
+
+  it.each([
+    [
+      "a snapshot key without its version",
+      { ...CREDENTIALS.keys, snapshot_key_versions: [{ key: KEY_A }] },
+    ],
+    [
+      "a contingency-ticket key that isn't a string",
+      { ...CREDENTIALS.keys, contingency_ticket_key: { version: 1, key: 1 } },
+    ],
+    ["no outbox-chain key", { ...CREDENTIALS.keys, outbox_chain_key: undefined }],
+    ["snapshot keys that aren't a list", { ...CREDENTIALS.keys, snapshot_key_versions: KEY_A }],
+    ["keys that aren't an object", "keys"],
+  ])(
+    "reads credentials whose installation keys have %s as credentials without keys",
+    (_case, keys) => {
+      const { keys: _unreadable, ...withoutKeys } = CREDENTIALS;
+
+      expect(mainToCoreMessageSchema.parse(readAnswerWith({ ...CREDENTIALS, keys }))).toStrictEqual(
+        readAnswerWith(withoutKeys),
+      );
+    },
+  );
 
   it.each([
     ["without a device token", { device_id: "a4b1", pepper: "cGVwcGVy" }],
