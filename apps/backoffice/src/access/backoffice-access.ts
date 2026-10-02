@@ -1,8 +1,9 @@
-import { type Capability, mayEmitPinCodeFor } from "@purosur/domain";
+import { type Capability, type ManualStockMovementKind, mayEmitPinCodeFor } from "@purosur/domain";
 
 export type BackofficeAccess = {
   isAdministrator: boolean;
   capabilities: readonly Capability[];
+  stockMovementKinds: readonly ManualStockMovementKind[];
 };
 
 function grants(access: BackofficeAccess, capability: Capability): boolean {
@@ -96,14 +97,6 @@ export function canSeeStockBalances(access: BackofficeAccess): boolean {
 
 export function canPerformStockCounts(access: BackofficeAccess): boolean {
   return grants(access, "stock_counts");
-}
-
-export function canRecordStockLosses(access: BackofficeAccess): boolean {
-  return grants(access, "stock_losses");
-}
-
-export function canAdjustStock(access: BackofficeAccess): boolean {
-  return grants(access, "stock_adjustments");
 }
 
 export function canSeeStockMovements(access: BackofficeAccess): boolean {

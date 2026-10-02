@@ -1,4 +1,4 @@
-import type { Capability } from "@purosur/domain";
+import type { Capability, ManualStockMovementKind } from "@purosur/domain";
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import { createContext, useContext, useEffect, useRef } from "react";
 import type { SignInOpeningNotice } from "../access/sign-in-screen";
@@ -12,6 +12,7 @@ export type SignedInSession = {
   displayName: string;
   isAdministrator: boolean;
   capabilities: Capability[];
+  stockMovementKinds: ManualStockMovementKind[];
   expiresAt: string;
 };
 

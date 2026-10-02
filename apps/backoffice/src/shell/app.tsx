@@ -175,6 +175,7 @@ function signedInSessionOf(outcome: Extract<SessionOutcome, { kind: "ok" }>): Si
     displayName: outcome.displayName,
     isAdministrator: outcome.isAdministrator,
     capabilities: outcome.capabilities,
+    stockMovementKinds: outcome.stockMovementKinds,
     expiresAt: outcome.expiresAt,
   };
 }
@@ -186,7 +187,8 @@ function differsOnlyInExpiry(current: SettledSession, next: SettledSession): boo
     current.userId === next.userId &&
     current.displayName === next.displayName &&
     current.isAdministrator === next.isAdministrator &&
-    current.capabilities.join() === next.capabilities.join()
+    current.capabilities.join() === next.capabilities.join() &&
+    current.stockMovementKinds.join() === next.stockMovementKinds.join()
   );
 }
 
@@ -346,6 +348,7 @@ function AppContent({ help, services = defaultAppServices, reportError = () => {
           ...current,
           isAdministrator: touched.isAdministrator,
           capabilities: touched.capabilities,
+          stockMovementKinds: touched.stockMovementKinds,
           expiresAt: touched.expiresAt,
         });
       }

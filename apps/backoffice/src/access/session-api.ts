@@ -4,7 +4,7 @@ import {
   sessionAuthenticationOptionsSchema,
   sessionStatusSchema,
 } from "@purosur/contracts";
-import type { Capability } from "@purosur/domain";
+import type { Capability, ManualStockMovementKind } from "@purosur/domain";
 import type {
   AuthenticationResponseJSON,
   PublicKeyCredentialRequestOptionsJSON,
@@ -23,6 +23,7 @@ export type SessionOutcome =
       isAdministrator: boolean;
       expiresAt: string;
       capabilities: Capability[];
+      stockMovementKinds: ManualStockMovementKind[];
     }
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
@@ -87,6 +88,7 @@ export async function fetchSession(): Promise<SessionOutcome> {
     isAdministrator: body.data.is_administrator,
     expiresAt: body.data.expires_at,
     capabilities: body.data.capabilities,
+    stockMovementKinds: body.data.stock_movement_kinds,
   };
 }
 
