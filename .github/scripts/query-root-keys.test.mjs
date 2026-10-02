@@ -646,6 +646,30 @@ const REACHED_THROUGH_ITS_MODULE_OBJECT = [
     },
   },
   {
+    reach: "a glob import of options held in a variable",
+    files: {
+      "src/env.d.ts": BUNDLER_GLOBALS,
+      "src/sales/invalidate.ts": INVALIDATE,
+      "src/shell/refresh.ts": [
+        EACH_EXPORT,
+        "const options = { eager: true };",
+        'refreshAll(import.meta.glob("./missing.ts", options));',
+      ].join("\n"),
+    },
+  },
+  {
+    reach: "a glob import handed uncalled to another call",
+    files: {
+      "src/env.d.ts": BUNDLER_GLOBALS,
+      "src/sales/invalidate.ts": INVALIDATE,
+      "src/shell/refresh.ts": [
+        EACH_EXPORT,
+        "declare function take(...args: unknown[]): Record<string, unknown>;",
+        'refreshAll(take("./missing.ts", { eager: true }, import.meta.glob));',
+      ].join("\n"),
+    },
+  },
+  {
     reach: "a glob import of an option the check cannot read",
     files: {
       "src/env.d.ts": BUNDLER_GLOBALS,
@@ -782,6 +806,18 @@ const MENTIONED_WITHOUT_ITS_MODULE_OBJECT = [
       ].join("\n"),
     },
   },
+  {
+    mention: "a type-only namespace import of its module",
+    line: 'import type * as keys from "./invalidate";\nexport type Keys = typeof keys;',
+  },
+  {
+    mention: "a type-only re-export of everything its module exports",
+    line: 'export type * from "./invalidate";',
+  },
+  {
+    mention: "a type-only re-export of its module as a namespace",
+    line: 'export type * as keys from "./invalidate";',
+  },
 ];
 
 for (const { mention, files, line } of MENTIONED_WITHOUT_ITS_MODULE_OBJECT) {
@@ -808,6 +844,26 @@ const RUNTIME_MODULE_LOADING = [
   {
     loading: "a require handed on in a shorthand property",
     source: "export const loaders = { require };",
+  },
+  {
+    loading: "a require given as the value of a named property",
+    source: "export const loaders = { load: require };",
+  },
+  {
+    loading: "the global require taken by destructuring",
+    source: "export const { require: load } = globalThis;",
+  },
+  {
+    loading: "the global require taken by a shorthand destructuring",
+    source: "export const { require } = globalThis;",
+  },
+  {
+    loading: "a require exported by an installed package",
+    files: {
+      "node_modules/loader-kit/package.json": '{ "name": "loader-kit", "types": "index.ts" }',
+      "node_modules/loader-kit/index.ts": "export function require(path: string) { return path; }",
+    },
+    source: 'import { require } from "loader-kit"; export const loaded = require;',
   },
   { loading: "a module's require", source: 'export const load = () => module.require("./other");' },
   {
@@ -844,15 +900,37 @@ const RUNTIME_MODULE_LOADING = [
   },
 ];
 
-for (const { loading, source } of RUNTIME_MODULE_LOADING) {
+for (const { loading, source, files } of RUNTIME_MODULE_LOADING) {
   test(`refuses runtime module loading through ${loading}, naming the file and line`, (t) => {
-    const problems = problemsIn(t, { "src/sales/load.ts": `// loads\n${source}` });
+    const problems = problemsIn(t, { ...files, "src/sales/load.ts": `// loads\n${source}` });
 
     assert.deepEqual(problems, [
       "src/sales/load.ts:2 loads a module at run time, which the query key check cannot follow",
     ]);
   });
 }
+
+test("refuses a require its program declares only ambiently, where it is declared and where it is used", (t) => {
+  const problems = problemsIn(t, {
+    "src/env.d.ts": "declare var require: (path: string) => unknown;",
+    "src/sales/load.ts": "export const load = require;",
+  });
+
+  assert.deepEqual(problems, [
+    "src/env.d.ts:1 loads a module at run time, which the query key check cannot follow",
+    "src/sales/load.ts:1 loads a module at run time, which the query key check cannot follow",
+  ]);
+});
+
+test("refuses runtime module loading in a file the TypeScript program leaves out", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/load.js": 'export const load = () => require("./other");',
+  });
+
+  assert.deepEqual(problems, [
+    "src/sales/load.js:1 loads a module at run time, which the query key check cannot follow",
+  ]);
+});
 
 test("refuses runtime module loading in a test file", (t) => {
   const problems = problemsIn(t, {
@@ -876,6 +954,35 @@ test("accepts a dynamic import of a literal path, a property named require and t
 
   assert.deepEqual(problems, []);
 });
+
+const NAMED_REQUIRE_LOADING_NOTHING = [
+  { name: "a type member", source: "export interface Flags { require: boolean }" },
+  {
+    name: "a property read",
+    source: "const flags = { require: false };\nexport const required = flags.require;",
+  },
+  {
+    name: "a destructuring key",
+    source: "const flags = { require: false };\nexport const { require: required } = flags;",
+  },
+  {
+    name: "a destructured name",
+    source:
+      "const flags = { require: false };\nconst { require } = flags;\nexport const required = require;",
+  },
+  { name: "a method", source: "export const loader = { require() { return 1; } };" },
+  {
+    name: "an imported function the program itself declares",
+    files: { "src/sales/flags.ts": "export function createRequire() { return 1; }" },
+    source: 'import { createRequire } from "./flags";\nexport const made = createRequire();',
+  },
+];
+
+for (const { name, source, files } of NAMED_REQUIRE_LOADING_NOTHING) {
+  test(`accepts ${name} named like a module loader`, (t) => {
+    assert.deepEqual(problemsIn(t, { ...files, "src/sales/flags-use.ts": source }), []);
+  });
+}
 
 test("follows a key into a function whose type is also read", (t) => {
   const problems = problemsIn(t, {
