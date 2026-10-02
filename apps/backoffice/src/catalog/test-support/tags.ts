@@ -1,28 +1,28 @@
 import type { TagList, TagSummary } from "@purosur/contracts";
 
 export const sinTacc: TagSummary = {
-  id: "tag-1",
+  id: "7a600000-0000-4000-8000-000000000001",
   name: "Sin TACC",
   active: true,
   version: 1,
   productCount: 34,
 };
 export const vegano: TagSummary = {
-  id: "tag-2",
+  id: "7a600000-0000-4000-8000-000000000002",
   name: "Vegano",
   active: true,
   version: 2,
   productCount: 18,
 };
 export const sinColorantes: TagSummary = {
-  id: "tag-3",
+  id: "7a600000-0000-4000-8000-000000000003",
   name: "Sin colorantes",
   active: false,
   version: 4,
   productCount: 3,
 };
 export const organico: TagSummary = {
-  id: "tag-4",
+  id: "7a600000-0000-4000-8000-000000000004",
   name: "Orgánico",
   active: true,
   version: 1,

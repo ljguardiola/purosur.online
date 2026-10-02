@@ -53,9 +53,9 @@ test("edits a product and shows the updated data in the list", async () => {
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.editProduct).mock.calls.length).toBe(1);
-  expect(services.editProduct).toHaveBeenCalledWith("product-1", {
+  expect(services.editProduct).toHaveBeenCalledWith("90d00000-0000-4000-8000-000000000001", {
     name: "Miel pura de abeja 500 g",
-    categoryId: "category-1",
+    categoryId: "ca7e0000-0000-4000-8000-000000000001",
     brandId: null,
     saleUnit: "UNIT",
     barcodes: ["7790987000015"],

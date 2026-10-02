@@ -1,7 +1,8 @@
 import { z } from "zod";
+import { recordIdSchema } from "../shared/index.js";
 
 export const firstPinCodeBodySchema = z.object({
-  user_id: z.uuid(),
+  user_id: recordIdSchema(),
 });
 
 export type FirstPinCodeBody = z.input<typeof firstPinCodeBodySchema>;

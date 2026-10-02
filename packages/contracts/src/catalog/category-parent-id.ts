@@ -1,12 +1,11 @@
 import { z } from "zod";
+import { recordIdSchema } from "../shared/index.js";
 
 const INVALID_MESSAGE = "parentId must be an existing category's id, or null for top level";
 const MISSING_MESSAGE = "parentId must be sent, null for top level";
 
-// Postgres compares `uuid` values case-insensitively but callers compare ids as JS strings;
-// lowercasing keeps an uppercase spelling from slipping past those checks while still matching.
 function topLevelOrCategoryIdSchema(error: (issue: { input?: unknown }) => string) {
-  return z.union([z.null(), z.string({ error }).min(1).toLowerCase()], { error });
+  return z.union([z.null(), recordIdSchema(error)], { error });
 }
 
 export const optionalParentIdSchema = topLevelOrCategoryIdSchema(() => INVALID_MESSAGE)

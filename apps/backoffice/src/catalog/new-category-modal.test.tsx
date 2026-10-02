@@ -106,7 +106,7 @@ test("creates a subcategory under the chosen parent", async () => {
   await expect.poll(() => create.mock.calls.length).toBe(1);
   expect(create).toHaveBeenCalledWith({
     name: "Snacks",
-    parentId: "category-1",
+    parentId: "ca7e0000-0000-4000-8000-000000000001",
   });
   await expect.poll(() => onCreated.mock.calls.length).toBe(1);
 });

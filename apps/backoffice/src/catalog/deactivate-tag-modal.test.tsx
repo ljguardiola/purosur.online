@@ -66,7 +66,7 @@ test("confirming changes the tag and reports it", async () => {
 
   await confirm(screen);
 
-  expect(deactivateTag).toHaveBeenCalledWith("tag-1");
+  expect(deactivateTag).toHaveBeenCalledWith("7a600000-0000-4000-8000-000000000001");
   await expect.poll(() => onDeactivated.mock.calls.length).toBe(1);
 });
 

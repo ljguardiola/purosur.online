@@ -177,7 +177,7 @@ test("a search that matches a subcategory shows it together with its parent cate
 });
 
 test("keeps each subcategory under its category, siblings in the chosen direction, while a search is active", async () => {
-  const sweets: CategorySummary = { ...jams, id: "category-5", name: "Dulces" };
+  const sweets: CategorySummary = { ...jams, id: "ca7e0000-0000-4000-8000-000000000005", name: "Dulces" };
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({
     kind: "ok",
@@ -375,7 +375,7 @@ test("the create action stays available while a refresh of the shown categories 
 test("creates a top-level category and shows it in the list", async () => {
   const services = createServices();
   const newCategory: CategorySummary = {
-    id: "category-5",
+    id: "ca7e0000-0000-4000-8000-000000000005",
     name: "Limpieza",
     version: 1,
     parentId: null,
@@ -425,7 +425,7 @@ test("the row action opens the edit modal preselecting the category's current pa
 
 test("moves a category to a new parent and shows its updated path in the list", async () => {
   const services = createServices();
-  const moved: CategorySummary = { ...drinks, parentId: "category-1", version: 4 };
+  const moved: CategorySummary = { ...drinks, parentId: "ca7e0000-0000-4000-8000-000000000001", version: 4 };
   vi.mocked(services.fetchCategories)
     .mockResolvedValueOnce({ kind: "ok", value: [groceries, drinks] })
     .mockResolvedValueOnce({ kind: "ok", value: [groceries, moved] });
@@ -440,9 +440,9 @@ test("moves a category to a new parent and shows its updated path in the list", 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.editCategory).mock.calls.length).toBe(1);
-  expect(services.editCategory).toHaveBeenCalledWith("category-4", {
+  expect(services.editCategory).toHaveBeenCalledWith("ca7e0000-0000-4000-8000-000000000004", {
     name: "Bebidas",
-    parentId: "category-1",
+    parentId: "ca7e0000-0000-4000-8000-000000000001",
     version: 3,
   });
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
@@ -497,7 +497,7 @@ test("a stale-version reload on edit refreshes the categories too, so a parent t
     .toBeVisible();
 
   const freshProduce: CategorySummary = {
-    id: "category-9",
+    id: "ca7e0000-0000-4000-8000-000000000009",
     name: "Frescos",
     version: 1,
     parentId: null,

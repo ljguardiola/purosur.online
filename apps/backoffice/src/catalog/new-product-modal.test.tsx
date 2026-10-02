@@ -103,7 +103,7 @@ test("creates a product with a net content", async () => {
   await expect.poll(() => vi.mocked(services.createProduct).mock.calls.length).toBe(1);
   expect(services.createProduct).toHaveBeenCalledWith({
     name: "Pasta de maní 380 g",
-    categoryId: "category-1",
+    categoryId: "ca7e0000-0000-4000-8000-000000000001",
     brandId: null,
     saleUnit: "KG",
     barcodes: ["7790000000099"],
@@ -437,7 +437,7 @@ test("creating includes a code typed in the scan input but not yet confirmed wit
   await expect.poll(() => vi.mocked(services.createProduct).mock.calls.length).toBe(1);
   expect(services.createProduct).toHaveBeenCalledWith({
     name: "Producto nuevo",
-    categoryId: "category-1",
+    categoryId: "ca7e0000-0000-4000-8000-000000000001",
     brandId: null,
     saleUnit: "UNIT",
     barcodes: ["7790000000099"],
@@ -495,7 +495,7 @@ test("generates an internal code, adds it to the list, and saves the product wit
   await expect.poll(() => vi.mocked(services.createProduct).mock.calls.length).toBe(1);
   expect(services.createProduct).toHaveBeenCalledWith({
     name: "Ensalada de fruta 300 g",
-    categoryId: "category-1",
+    categoryId: "ca7e0000-0000-4000-8000-000000000001",
     brandId: null,
     saleUnit: "KG",
     barcodes: ["2000000000015"],
@@ -578,28 +578,28 @@ test("keeps a rate-limited notice raised by saving when generating afterwards su
 });
 
 const granix: BrandSummary = {
-  id: "brand-1",
+  id: "b7a4d000-0000-4000-8000-000000000001",
   name: "Granix",
   active: true,
   version: 1,
   productCount: 42,
 };
 const cabrales: BrandSummary = {
-  id: "brand-2",
+  id: "b7a4d000-0000-4000-8000-000000000002",
   name: "Cabrales",
   active: true,
   version: 1,
   productCount: 9,
 };
 const litoral: BrandSummary = {
-  id: "brand-3",
+  id: "b7a4d000-0000-4000-8000-000000000003",
   name: "Yerba del Litoral",
   active: false,
   version: 2,
   productCount: 3,
 };
 const dulcor: BrandSummary = {
-  id: "brand-9",
+  id: "b7a4d000-0000-4000-8000-000000000009",
   name: "Dulcor",
   active: true,
   version: 1,
@@ -668,7 +668,7 @@ test("creates a product with the brand chosen", async () => {
 
   await expect.poll(() => vi.mocked(services.createProduct).mock.calls.length).toBe(1);
   expect(services.createProduct).toHaveBeenCalledWith(
-    expect.objectContaining({ brandId: "brand-1" }),
+    expect.objectContaining({ brandId: "b7a4d000-0000-4000-8000-000000000001" }),
   );
 });
 
@@ -697,8 +697,8 @@ test("creates a brand in a modal stacked over the product form, then selects it 
   await expect.poll(() => vi.mocked(services.createProduct).mock.calls.length).toBe(1);
   expect(services.createProduct).toHaveBeenCalledWith({
     name: "Dátiles sin carozo 250 g",
-    categoryId: "category-1",
-    brandId: "brand-9",
+    categoryId: "ca7e0000-0000-4000-8000-000000000001",
+    brandId: "b7a4d000-0000-4000-8000-000000000009",
     saleUnit: "UNIT",
     barcodes: ["111"],
     tagIds: [],

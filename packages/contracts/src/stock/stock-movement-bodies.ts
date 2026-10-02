@@ -12,12 +12,13 @@ import {
   STOCK_QUANTITY_PER_UNIT,
 } from "@purosur/domain";
 import { z } from "zod";
+import { recordIdSchema } from "../shared/index.js";
 
 const PRODUCT_ID_MESSAGE = "productId must be an active product's id";
 const QUANTITY_MESSAGE = "quantity must be a positive integer number of thousandths";
 const COUNTED_MESSAGE = "counted must be a non-negative integer number of thousandths";
 
-const productId = z.guid({ error: PRODUCT_ID_MESSAGE });
+const productId = recordIdSchema(PRODUCT_ID_MESSAGE);
 
 const QUANTITY_UNITS = { decimals: STOCK_QUANTITY_DECIMALS, perUnit: STOCK_QUANTITY_PER_UNIT };
 

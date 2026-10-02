@@ -1,16 +1,14 @@
 import { repeatsATag } from "@purosur/domain";
 import { z } from "zod";
+import { recordIdSchema } from "../shared/index.js";
 
 const INVALID_MESSAGE = "tagIds must be a list of existing tags' ids, [] for none";
 const MISSING_MESSAGE = "tagIds must be sent, [] for none";
 const REPEATED_MESSAGE = "tagIds must not repeat a tag";
 
-// Postgres compares `uuid` values case-insensitively but callers compare ids as JS strings;
-// lowercasing keeps an uppercase spelling from slipping past those checks, and makes one tag
-// spelled in two cases count as repeated.
 function tagIdsSchema(error: (issue: { input?: unknown }) => string) {
   return z
-    .array(z.string({ error }).min(1).toLowerCase(), { error })
+    .array(recordIdSchema(error), { error })
     .refine((tagIds) => !repeatsATag(tagIds), REPEATED_MESSAGE);
 }
 

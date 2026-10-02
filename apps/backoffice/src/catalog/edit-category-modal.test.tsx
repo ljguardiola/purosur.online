@@ -93,7 +93,7 @@ test("sends the typed name trimmed", async () => {
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => edit.mock.calls.length).toBe(1);
-  expect(edit).toHaveBeenCalledWith("category-1", {
+  expect(edit).toHaveBeenCalledWith("ca7e0000-0000-4000-8000-000000000001", {
     name: "Despensa",
     parentId: null,
     version: 1,
@@ -205,7 +205,7 @@ test("shows a not-found notice when the category no longer exists", async () => 
 
 test("a stale-version reload discards the typed name and saves again over the refreshed version and parent", async () => {
   const edit = vi.fn<typeof editCategory>().mockResolvedValue({ kind: "stale_version" });
-  const freshened: CategorySummary = { ...drinks, parentId: "category-1", version: 4 };
+  const freshened: CategorySummary = { ...drinks, parentId: "ca7e0000-0000-4000-8000-000000000001", version: 4 };
   const reload = vi
     .fn<(id: string) => Promise<CategoryReload>>()
     .mockResolvedValue({ kind: "found", category: freshened });
@@ -228,7 +228,7 @@ test("a stale-version reload discards the typed name and saves again over the re
 
   await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
 
-  expect(reload).toHaveBeenCalledWith("category-4");
+  expect(reload).toHaveBeenCalledWith("ca7e0000-0000-4000-8000-000000000004");
   await expect
     .element(dialog.getByRole("button", { name: /Categoría superior/ }))
     .toHaveTextContent("Almacén");
@@ -240,9 +240,9 @@ test("a stale-version reload discards the typed name and saves again over the re
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => edit.mock.calls.length).toBe(2);
-  expect(edit).toHaveBeenLastCalledWith("category-4", {
+  expect(edit).toHaveBeenLastCalledWith("ca7e0000-0000-4000-8000-000000000004", {
     name: "Bebidas",
-    parentId: "category-1",
+    parentId: "ca7e0000-0000-4000-8000-000000000001",
     version: 4,
   });
 });
