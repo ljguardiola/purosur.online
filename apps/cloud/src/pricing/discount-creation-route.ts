@@ -1,5 +1,5 @@
 import { discountCreationBodySchema, discountSummarySchema } from "@purosur/contracts";
-import { createDiscount } from "@purosur/domain/pricing/use-cases";
+import { createDiscount, readDiscount } from "@purosur/domain/pricing/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { backofficeOriginGuard } from "../access/backoffice-origin.js";
@@ -9,7 +9,8 @@ import {
   routeSessionSource,
 } from "../access/route-access.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
-import { type DiscountsRouteOptions, listDiscounts } from "./discounts-list-route.js";
+import type { DiscountsRouteOptions } from "./discounts-list-route.js";
+import { DrizzleDiscountReader } from "./drizzle-discount-reader.js";
 import { DrizzleDiscountStore } from "./drizzle-discount-store.js";
 
 export const DISCOUNT_TARGET_NOT_FOUND_RESPONSE = {
@@ -29,6 +30,7 @@ export function registerDiscountCreationRoute<TQueryResult extends PgQueryResult
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
   const ports = { store: new DrizzleDiscountStore(options.db) };
+  const reading = { discounts: new DrizzleDiscountReader(options.db), clock: { now } };
   const sessionSource = routeSessionSource({ db: options.db, now });
 
   app.post(
@@ -54,8 +56,11 @@ export function registerDiscountCreationRoute<TQueryResult extends PgQueryResult
         return;
       }
 
-      const [created] = await listDiscounts(options.db, outcome.id);
-      await reply.code(201).send(discountSummarySchema.parse(created));
+      const created = await readDiscount(reading, outcome.id);
+      if (created.kind === "not_found") {
+        throw new Error(`discount ${outcome.id} was created and cannot be read`);
+      }
+      await reply.code(201).send(discountSummarySchema.parse(created.discount));
     },
   );
 }

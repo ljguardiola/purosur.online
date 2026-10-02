@@ -1,3 +1,4 @@
+import { RECOVERY_TOKEN_LIFETIME_MS } from "@purosur/domain";
 import { and, eq, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import Fastify, { type FastifyInstance } from "fastify";
@@ -19,7 +20,6 @@ import { hashRecoveryToken } from "./recovery-token-hash.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
-const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -96,7 +96,7 @@ async function issueToken(overrides: IssueTokenOverrides = {}): Promise<string> 
     userId: forUserId,
     tokenHash: hashRecoveryToken(rawToken),
     issuedAt: NOON,
-    expiresAt: overrides.expiresAt ?? new Date(NOON.getTime() + FIFTEEN_MINUTES_MS),
+    expiresAt: overrides.expiresAt ?? new Date(NOON.getTime() + RECOVERY_TOKEN_LIFETIME_MS),
     ...(overrides.usedAt ? { usedAt: overrides.usedAt } : {}),
     ...(overrides.voidedAt ? { voidedAt: overrides.voidedAt } : {}),
   });
@@ -419,6 +419,48 @@ describe("POST /account-recovery-redemptions", () => {
         via: "recovery",
       },
     });
+  });
+
+  it("dates the alert with a clock read taken when it is opened, after the token was burned", async () => {
+    let ticks = 0;
+    const ticking = () => new Date(NOON.getTime() + ticks++ * 1000);
+    const tickingApp = Fastify();
+    registerRecoveryRedemptionRoutes(tickingApp, {
+      db,
+      backofficeOrigin: BACKOFFICE_ORIGIN,
+      now: ticking,
+    });
+    const rawToken = await issueToken();
+    const optionsResponse = await tickingApp.inject({
+      method: "POST",
+      url: "/account-recovery-challenges",
+      headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.10" },
+      payload: { recovery_token: rawToken },
+    });
+    const credential = new WebAuthnEmulator().createJSON(
+      BACKOFFICE_ORIGIN,
+      optionsResponse.json().passkey_registration_options,
+    );
+
+    const response = await tickingApp.inject({
+      method: "POST",
+      url: "/account-recovery-redemptions",
+      headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.10" },
+      payload: {
+        recovery_token: rawToken,
+        passkey_registration: credential,
+        passkey_name: "Notebook del local",
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const [token] = await db.select({ usedAt: recoveryTokens.usedAt }).from(recoveryTokens);
+    const [alert] = await db
+      .select({ openedAt: alerts.openedAt })
+      .from(alerts)
+      .where(eq(alerts.kind, "backoffice_passkey_changed"));
+    expect(alert?.openedAt.getTime()).toBeGreaterThan(token?.usedAt?.getTime() ?? Number.NaN);
+    await tickingApp.close();
   });
 
   it("revokes every open session of the account, and opens no new one", async () => {

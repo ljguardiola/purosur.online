@@ -3,15 +3,17 @@ import {
   passkeyRegistrationChallengeSchema,
   passkeySummarySchema,
 } from "@purosur/contracts";
+import { findAccountProfile } from "@purosur/domain/access/use-cases";
 import type { RegistrationResponseJSON } from "@simplewebauthn/server";
 import { generateRegistrationOptions, verifyRegistrationResponse } from "@simplewebauthn/server";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { openAlert } from "../alerts/open-alert.js";
-import { auditLog, passkeys, users } from "../platform/db/schema.js";
+import { auditLog, passkeys } from "../platform/db/schema.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
+import { drizzleAccounts } from "./drizzle-accounts.js";
 import { UNAUTHENTICATED_RESPONSE } from "./open-session.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import {
@@ -64,11 +66,10 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
         return;
       }
 
-      const [account] = await options.db
-        .select({ firstName: users.firstName, email: users.email })
-        .from(users)
-        .where(eq(users.id, openSession.userId))
-        .limit(1);
+      const account = await findAccountProfile(
+        { accounts: drizzleAccounts(options.db) },
+        { userId: openSession.userId },
+      );
       if (!account) {
         await reply.code(401).send(UNAUTHENTICATED_RESPONSE);
         return;

@@ -1,3 +1,4 @@
+import { SIGN_IN_FAILURE_LIMIT } from "@purosur/domain";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance } from "fastify";
 import postgres from "postgres";
@@ -8,7 +9,6 @@ import {
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
 import { registerSessionAuthenticateRoute } from "./session-authenticate-route.js";
-import { SIGN_IN_FAILURE_LIMIT } from "./sign-in-lockout.js";
 
 // PGlite serializes every query onto one connection, so only a real Postgres pool can land a burst
 // of concurrent requests the way a shared office address would.

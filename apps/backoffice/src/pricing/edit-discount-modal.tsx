@@ -19,16 +19,17 @@ import {
   DISCOUNT_EDIT_FIELDS,
   DISCOUNT_KIND_CARDS,
   DISCOUNT_MESSAGES,
-  DISCOUNT_TARGET_KIND_OPTIONS,
   discountEditRequestFrom,
   discountFormValues,
   EMPTY_DISCOUNT_EDIT_FORM,
   eligibleTargets,
   keptTarget,
+  offersTargetKindChoice,
   productSoldByWeightMessage,
   soldByWeightHelp,
   TARGET_SOLD_BY_WEIGHT_MESSAGE,
   targetForKind,
+  targetKindOptions,
   targetOptions,
   targetPlaceholder,
   targetUnavailableMessage,
@@ -295,32 +296,32 @@ export function EditDiscountModal({
               )}
             </form.AppField>
           </FieldGroup>
+          {offersTargetKindChoice(values.benefitKind, targets) && (
+            <FieldGroup label="Se aplica sobre">
+              <form.AppField
+                name="targetKind"
+                listeners={{ onChange: () => form.setFieldValue("targetId", null) }}
+              >
+                {(field) => (
+                  <field.SegmentedControl
+                    label="Se aplica sobre"
+                    options={targetKindOptions(values.benefitKind, targets)}
+                  />
+                )}
+              </form.AppField>
+            </FieldGroup>
+          )}
           {values.benefitKind === "PERCENT_OFF" ? (
-            <>
-              <FieldGroup label="Se aplica sobre">
-                <form.AppField
-                  name="targetKind"
-                  listeners={{ onChange: () => form.setFieldValue("targetId", null) }}
-                >
+            <div className="flex items-start gap-4">
+              <div className="min-w-0 flex-1">{targetField}</div>
+              <div className="w-40">
+                <form.AppField name="percent">
                   {(field) => (
-                    <field.SegmentedControl
-                      label="Se aplica sobre"
-                      options={DISCOUNT_TARGET_KIND_OPTIONS}
-                    />
+                    <field.TextField kind="plain-text" label="Descuento" suffix="%" required />
                   )}
                 </form.AppField>
-              </FieldGroup>
-              <div className="flex items-start gap-4">
-                <div className="min-w-0 flex-1">{targetField}</div>
-                <div className="w-40">
-                  <form.AppField name="percent">
-                    {(field) => (
-                      <field.TextField kind="plain-text" label="Descuento" suffix="%" required />
-                    )}
-                  </form.AppField>
-                </div>
               </div>
-            </>
+            </div>
           ) : (
             <FieldGroup label="Producto y grupo">
               <div className="flex items-start gap-3">

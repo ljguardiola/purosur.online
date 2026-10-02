@@ -1,6 +1,13 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { locations, passkeys, roles, userRoles, users } from "../platform/db/schema.js";
+import {
+  locations,
+  passkeys,
+  rolePermissions,
+  roles,
+  userRoles,
+  users,
+} from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { drizzleBranchUsers } from "./drizzle-branch-users.js";
@@ -215,6 +222,69 @@ describe("drizzleBranchUsers", () => {
       });
 
       expect(await drizzleBranchUsers(db).activeAdministratorCount(branch)).toBe(1);
+    });
+  });
+
+  describe("activeUserPermissionKeys", () => {
+    async function roleListing(name: string, permissionKeys: string[]): Promise<string> {
+      const roleId = await insertRole(name);
+      await db
+        .insert(rolePermissions)
+        .values(permissionKeys.map((permissionKey) => ({ roleId, permissionKey })));
+      return roleId;
+    }
+
+    it("lists the permissions the roles of the branch's active users list", async () => {
+      const cashier = await roleListing("Cajero", ["sell_and_charge"]);
+      await insertUser({ firstName: "Ana", email: "ana@example.test", roleId: cashier });
+      await insertUser({
+        firstName: "Beto",
+        email: "beto@example.test",
+        roleId: await roleListing("Encargado", ["enroll_register_devices"]),
+      });
+
+      expect([...(await drizzleBranchUsers(db).activeUserPermissionKeys(branch))].sort()).toEqual([
+        "enroll_register_devices",
+        "sell_and_charge",
+      ]);
+    });
+
+    it("leaves out deactivated users and other branches' users", async () => {
+      const cashier = await roleListing("Cajero", ["sell_and_charge"]);
+      await insertUser({
+        firstName: "Ana",
+        email: "ana@example.test",
+        roleId: cashier,
+        active: false,
+      });
+      await insertUser({
+        firstName: "Beto",
+        email: "beto@example.test",
+        roleId: cashier,
+        locationId: await otherBranch(),
+      });
+
+      expect(await drizzleBranchUsers(db).activeUserPermissionKeys(branch)).toEqual([]);
+    });
+
+    it("lists a permission once however many active users hold it", async () => {
+      const cashier = await roleListing("Cajero", ["sell_and_charge"]);
+      await insertUser({ firstName: "Ana", email: "ana@example.test", roleId: cashier });
+      await insertUser({ firstName: "Beto", email: "beto@example.test", roleId: cashier });
+
+      expect(await drizzleBranchUsers(db).activeUserPermissionKeys(branch)).toEqual([
+        "sell_and_charge",
+      ]);
+    });
+
+    it("lists nothing for the Administrator role, which lists no permission", async () => {
+      await insertUser({
+        firstName: "Ana",
+        email: "ana@example.test",
+        roleId: await administratorRoleId(),
+      });
+
+      expect(await drizzleBranchUsers(db).activeUserPermissionKeys(branch)).toEqual([]);
     });
   });
 

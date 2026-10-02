@@ -1,13 +1,14 @@
 import type { SaleUnit } from "@purosur/domain";
 import type {
+  AssignableTargetCandidate,
   DiscountFields,
   DiscountStore,
   DiscountStoreTransaction,
-  LockAssignableTargetResult,
   LockDiscountedProductResult,
   LockDiscountResult,
+  LockTargetResult,
 } from "@purosur/domain/pricing/use-cases";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { categories, discounts, products, tags } from "../platform/db/schema.js";
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
@@ -92,16 +93,12 @@ class DrizzleDiscountStoreTransaction<TQueryResult extends PgQueryResultHKT>
     this.pending = pending;
   }
 
-  async lockAssignableTarget(
-    target: DiscountFields["target"],
-  ): Promise<LockAssignableTargetResult> {
+  async lockTarget(target: DiscountFields["target"]): Promise<LockTargetResult> {
     if (!UUID_PATTERN.test(target.id)) {
       return { kind: "not_found" };
     }
     const found = await this.lockedTargetRow(target);
-    return found
-      ? { kind: "locked", name: found.name, saleUnit: found.saleUnit }
-      : { kind: "not_found" };
+    return found ? { kind: "locked", ...found } : { kind: "not_found" };
   }
 
   async insertDiscount(fields: DiscountFields): Promise<{ id: string }> {
@@ -151,23 +148,28 @@ class DrizzleDiscountStoreTransaction<TQueryResult extends PgQueryResultHKT>
   // A shared lock is enough: deactivating a product or a tag takes the row's update lock, which waits.
   private async lockedTargetRow(
     target: DiscountFields["target"],
-  ): Promise<{ name: string; saleUnit: SaleUnit | null } | undefined> {
+  ): Promise<{ name: string; target: AssignableTargetCandidate } | undefined> {
     switch (target.kind) {
       case "PRODUCT": {
         const [row] = await this.tx
-          .select({ name: products.name, saleUnit: products.saleUnit })
+          .select({ name: products.name, active: products.active, saleUnit: products.saleUnit })
           .from(products)
-          .where(and(eq(products.id, target.id), eq(products.active, true)))
+          .where(eq(products.id, target.id))
           .for("share");
-        return row && { name: row.name, saleUnit: row.saleUnit as SaleUnit };
+        return (
+          row && {
+            name: row.name,
+            target: { kind: "PRODUCT", active: row.active, saleUnit: row.saleUnit as SaleUnit },
+          }
+        );
       }
       case "TAG": {
         const [row] = await this.tx
-          .select({ name: tags.name })
+          .select({ name: tags.name, active: tags.active })
           .from(tags)
-          .where(and(eq(tags.id, target.id), eq(tags.active, true)))
+          .where(eq(tags.id, target.id))
           .for("share");
-        return row && { name: row.name, saleUnit: null };
+        return row && { name: row.name, target: { kind: "TAG", active: row.active } };
       }
       case "CATEGORY": {
         const [row] = await this.tx
@@ -175,7 +177,7 @@ class DrizzleDiscountStoreTransaction<TQueryResult extends PgQueryResultHKT>
           .from(categories)
           .where(eq(categories.id, target.id))
           .for("share");
-        return row && { name: row.name, saleUnit: null };
+        return row && { name: row.name, target: { kind: "CATEGORY" } };
       }
     }
   }

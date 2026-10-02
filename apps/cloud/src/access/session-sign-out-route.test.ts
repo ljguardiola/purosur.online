@@ -1,3 +1,4 @@
+import { SESSION_IDLE_TIMEOUT_MS } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -17,7 +18,6 @@ import {
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
-const THIRTY_MINUTES_MS = 30 * 60 * 1000;
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -211,7 +211,7 @@ describe("DELETE /sessions/current", () => {
 
   it("answers a sign-out with no open session as before, uncounted, while its source address is over its limit", async () => {
     const idle = await insertSession();
-    currentTime = new Date(NOON.getTime() + THIRTY_MINUTES_MS);
+    currentTime = new Date(NOON.getTime() + SESSION_IDLE_TIMEOUT_MS);
     await exhaustSourceAddressRateLimit(db, INJECTED_SOURCE_ADDRESS, currentTime);
 
     const withoutCookie = await deleteCurrentSession();

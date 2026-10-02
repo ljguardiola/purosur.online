@@ -1,6 +1,12 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { discountStatus, isDiscountLive } from "./discount-status.js";
+import { DISCOUNT_STATUSES, discountStatus, isDiscountLive } from "./discount-status.js";
+
+describe("DISCOUNT_STATUSES", () => {
+  it("lists the states a discount can be in", () => {
+    expect(DISCOUNT_STATUSES).toEqual(["current", "scheduled", "ended", "deactivated"]);
+  });
+});
 
 const window = { validFrom: "2026-09-12", validTo: "2026-09-30" };
 

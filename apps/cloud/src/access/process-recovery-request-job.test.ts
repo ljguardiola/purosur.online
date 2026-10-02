@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { RECOVERY_TOKEN_LIFETIME_MS } from "@purosur/domain";
 import { and, eq, isNull } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { alerts, auditLog, recoveryTokens, users } from "../platform/db/schema.js";
@@ -197,7 +198,7 @@ describe("processRecoveryRequestJob", () => {
     const liveToken = (tokenHash: string) => ({
       userId,
       tokenHash,
-      expiresAt: new Date(NOW.getTime() + 15 * 60 * 1000),
+      expiresAt: new Date(NOW.getTime() + RECOVERY_TOKEN_LIFETIME_MS),
     });
     await db.insert(recoveryTokens).values(liveToken("first-live-hash"));
 
@@ -251,7 +252,7 @@ describe("processRecoveryRequestJob", () => {
     expect(tokens[0]).toMatchObject({
       userId,
       issuedAt: NOW,
-      expiresAt: new Date(NOW.getTime() + 15 * 60 * 1000),
+      expiresAt: new Date(NOW.getTime() + RECOVERY_TOKEN_LIFETIME_MS),
       usedAt: null,
       voidedAt: null,
     });

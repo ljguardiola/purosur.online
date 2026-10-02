@@ -1,6 +1,5 @@
-import { isAlertKind } from "@purosur/domain";
-import { eq } from "drizzle-orm";
-import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { closeAlert } from "@purosur/domain/alerts/use-cases";
+import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { backofficeOriginGuard } from "../access/backoffice-origin.js";
 import {
@@ -10,93 +9,16 @@ import {
   routeSessionSource,
 } from "../access/route-access.js";
 import { hashSourceAddress } from "../access/sign-in-lockout.js";
-import { alerts, auditLog } from "../platform/db/schema.js";
-import { alertKindDefinition } from "./alert-kind-catalog.js";
-import {
-  ALERT_NOT_FOUND_RESPONSE,
-  type AlertDetailRow,
-  findAlertById,
-  idsToResolve,
-  listAlertDeliveries,
-  toAlertDetailBody,
-} from "./alert-read-route.js";
-import { loadScopeDisplayNames } from "./alert-scope-display.js";
+import { ALERT_NOT_FOUND_RESPONSE, idsToResolve, toAlertDetailBody } from "./alert-read-route.js";
+import { visibleSightOf } from "./alert-route-sight.js";
 import type { AlertsRouteOptions } from "./alerts-list-route.js";
+import { DrizzleAlertReader } from "./drizzle-alert-reader.js";
+import { DrizzleAlertStore } from "./drizzle-alert-store.js";
 
 const ALREADY_CLOSED_RESPONSE = {
   code: "already_closed",
   message: "this alert was already closed",
 } as const;
-
-export type CloseAlertOutcome =
-  | { kind: "already_closed" }
-  | { kind: "closed"; alert: AlertDetailRow };
-
-// Closed rows are permanent, so the raw address is hashed rather than kept indefinitely.
-function withoutSourceAddress(alert: {
-  kind: string;
-  scope: string;
-  detail: Record<string, unknown>;
-}): { scope: string; detail: Record<string, unknown> } | Record<string, never> {
-  if (!isAlertKind(alert.kind) || alertKindDefinition(alert.kind).scopeKind !== "sourceAddress") {
-    return {};
-  }
-  const { sourceAddress } = alert.detail;
-  return {
-    scope: hashSourceAddress(alert.scope),
-    detail: {
-      ...alert.detail,
-      ...(typeof sourceAddress === "string"
-        ? { sourceAddress: hashSourceAddress(sourceAddress) }
-        : {}),
-    },
-  };
-}
-
-export async function closeAlert<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  input: { id: string; actorId: string },
-  deps: { now: () => Date },
-): Promise<CloseAlertOutcome> {
-  return db.transaction(async (tx) => {
-    const [current] = await tx
-      .select({
-        kind: alerts.kind,
-        scope: alerts.scope,
-        detail: alerts.detail,
-        resolvedAt: alerts.resolvedAt,
-      })
-      .from(alerts)
-      .where(eq(alerts.id, input.id))
-      .for("update");
-    if (!current) {
-      throw new Error(`closeAlert: no alert found for id ${input.id}`);
-    }
-    if (current.resolvedAt !== null) {
-      return { kind: "already_closed" };
-    }
-
-    const resolvedAt = deps.now();
-    const [updated] = await tx
-      .update(alerts)
-      .set({ resolvedAt, resolvedBy: input.actorId, ...withoutSourceAddress(current) })
-      .where(eq(alerts.id, input.id))
-      .returning();
-    if (!updated) {
-      throw new Error(`closeAlert: updating alert ${input.id} returned no row`);
-    }
-
-    await tx.insert(auditLog).values({
-      entity: "alert",
-      entityId: input.id,
-      actorId: input.actorId,
-      previousValue: { resolvedAt: null },
-      newValue: { resolvedAt: resolvedAt.toISOString() },
-    });
-
-    return { kind: "closed", alert: updated };
-  });
-}
 
 export function registerAlertCloseRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
@@ -105,6 +27,12 @@ export function registerAlertCloseRoute<TQueryResult extends PgQueryResultHKT>(
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
+  const reader = new DrizzleAlertReader(options.db);
+  const closingPorts = {
+    store: new DrizzleAlertStore(options.db),
+    clock: { now },
+    hasher: { hash: hashSourceAddress },
+  };
 
   app.put<{ Params: { id: string } }>(
     "/alerts/:id/closure",
@@ -114,26 +42,40 @@ export function registerAlertCloseRoute<TQueryResult extends PgQueryResultHKT>(
     },
     async (request, reply) => {
       const openSession = openSessionOf(request);
+      const sight = visibleSightOf(openSession);
 
-      const alert = await findAlertById(options.db, request.params.id, openSession);
+      const alert = sight && (await reader.findVisibleAlert(sight, request.params.id));
       if (!alert) {
         await reply.code(404).send(ALERT_NOT_FOUND_RESPONSE);
         return;
       }
 
-      const outcome = await closeAlert(
-        options.db,
-        { id: alert.id, actorId: openSession.userId },
-        { now },
-      );
+      const outcome = await closeAlert(closingPorts, {
+        alertId: alert.id,
+        closedBy: openSession.userId,
+      });
+      if (outcome.kind === "not_found") {
+        await reply.code(404).send(ALERT_NOT_FOUND_RESPONSE);
+        return;
+      }
       if (outcome.kind === "already_closed") {
         await reply.code(409).send(ALREADY_CLOSED_RESPONSE);
         return;
       }
 
-      const deliveries = await listAlertDeliveries(options.db, outcome.alert.id);
-      const namesById = await loadScopeDisplayNames(options.db, idsToResolve(outcome.alert));
-      await reply.code(200).send(toAlertDetailBody(outcome.alert, deliveries, namesById));
+      const { level, escalatedAt, scope, detail, closedAt, closedBy } = outcome.alert;
+      const closed = {
+        ...alert,
+        level,
+        escalatedAt,
+        scope,
+        detail,
+        resolvedAt: closedAt,
+        resolvedBy: closedBy,
+      };
+      const deliveries = await reader.deliveriesOf(alert.id);
+      const namesById = await reader.displayNames(idsToResolve(closed));
+      await reply.code(200).send(toAlertDetailBody(closed, deliveries, namesById));
     },
   );
 }

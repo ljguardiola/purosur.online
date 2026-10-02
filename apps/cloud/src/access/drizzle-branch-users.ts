@@ -6,7 +6,7 @@ import type {
 } from "@purosur/domain/access/use-cases";
 import { and, asc, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { passkeys, roles, userRoles, users } from "../platform/db/schema.js";
+import { passkeys, rolePermissions, roles, userRoles, users } from "../platform/db/schema.js";
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 
 function activeScopeCondition(scope: BranchUserActiveScope) {
@@ -101,6 +101,16 @@ class DrizzleBranchUsers<TQueryResult extends PgQueryResultHKT> implements Branc
         ),
       );
     return row?.count ?? 0;
+  }
+
+  async activeUserPermissionKeys(locationId: string): Promise<string[]> {
+    const rows = await this.db
+      .selectDistinct({ permissionKey: rolePermissions.permissionKey })
+      .from(users)
+      .innerJoin(userRoles, eq(userRoles.userId, users.id))
+      .innerJoin(rolePermissions, eq(rolePermissions.roleId, userRoles.roleId))
+      .where(and(eq(users.locationId, locationId), eq(users.active, true)));
+    return rows.map((row) => row.permissionKey);
   }
 
   async emailHolder(email: string): Promise<EmailHolder | undefined> {

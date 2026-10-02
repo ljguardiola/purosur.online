@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { PASSKEY_AUTHORIZATION_WINDOW_MS, RECOVERY_TOKEN_LIFETIME_MS } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -16,7 +17,6 @@ import {
 import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { PASSKEY_AUTHORIZATION_WINDOW_MS } from "./passkey-authorization-guard.js";
 import { processRecoveryRequestJob } from "./process-recovery-request-job.js";
 import { registerRecoveryRedemptionRoutes } from "./recovery-redemption-route.js";
 import { hashRecoveryToken } from "./recovery-token-hash.js";
@@ -26,7 +26,6 @@ import { registerUserEditRoutes } from "./user-edit-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
-const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -403,7 +402,7 @@ describe("PUT /users/:id", () => {
       userId: targetId,
       tokenHash: hashRecoveryToken(rawToken),
       issuedAt: currentTime,
-      expiresAt: new Date(currentTime.getTime() + FIFTEEN_MINUTES_MS),
+      expiresAt: new Date(currentTime.getTime() + RECOVERY_TOKEN_LIFETIME_MS),
     });
     const rawSessionId = await insertSession(administratorId);
 
@@ -495,7 +494,7 @@ describe("PUT /users/:id", () => {
       userId: targetId,
       tokenHash: hashRecoveryToken(rawToken),
       issuedAt: currentTime,
-      expiresAt: new Date(currentTime.getTime() + FIFTEEN_MINUTES_MS),
+      expiresAt: new Date(currentTime.getTime() + RECOVERY_TOKEN_LIFETIME_MS),
     });
     const rawSessionId = await insertSession(administratorId);
 

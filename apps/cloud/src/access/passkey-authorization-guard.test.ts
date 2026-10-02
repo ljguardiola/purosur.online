@@ -1,37 +1,12 @@
+import { PASSKEY_AUTHORIZATION_WINDOW_MS } from "@purosur/domain";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   AUTHORIZATION_REQUIRED_RESPONSE,
-  hasValidPasskeyAuthorization,
-  PASSKEY_AUTHORIZATION_WINDOW_MS,
   requirePasskeyAuthorization,
 } from "./passkey-authorization-guard.js";
 
 const NOON = new Date("2026-01-05T12:00:00.000Z");
-
-describe("hasValidPasskeyAuthorization", () => {
-  it("is false when the session was never authorized", () => {
-    expect(hasValidPasskeyAuthorization({ passkeyAuthorizedAt: null }, NOON)).toBe(false);
-  });
-
-  it("is true exactly at the 5-minute boundary", () => {
-    const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS);
-
-    expect(hasValidPasskeyAuthorization({ passkeyAuthorizedAt: authorizedAt }, NOON)).toBe(true);
-  });
-
-  it("is false one millisecond past the 5-minute boundary", () => {
-    const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1);
-
-    expect(hasValidPasskeyAuthorization({ passkeyAuthorizedAt: authorizedAt }, NOON)).toBe(false);
-  });
-
-  it("is true for an authorization made moments ago", () => {
-    const authorizedAt = new Date(NOON.getTime() - 1000);
-
-    expect(hasValidPasskeyAuthorization({ passkeyAuthorizedAt: authorizedAt }, NOON)).toBe(true);
-  });
-});
 
 describe("requirePasskeyAuthorization", () => {
   let app: FastifyInstance;

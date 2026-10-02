@@ -486,6 +486,7 @@ test("lists the promotions and opens Nueva promoción for a user holding only ma
           weekdays: [],
           active: true,
           version: 1,
+          status: "current",
         },
       ],
     },

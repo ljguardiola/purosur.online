@@ -1,7 +1,13 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ALERT_AUDIENCES, ALERT_LEVELS } from "@purosur/domain";
+import {
+  ALERT_AUDIENCES,
+  ALERT_LEVELS,
+  DISCOUNT_TARGET_KINDS,
+  type DiscountBenefit,
+  isTargetKindAllowedFor,
+} from "@purosur/domain";
 import { eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
@@ -381,6 +387,38 @@ describe("discounts", () => {
       ).rejects.toMatchObject({ cause: { constraint: "discounts_buy_n_pay_m_product_check" } });
     },
   );
+
+  it("stores a discount of each benefit on each kind of target exactly when the domain allows it", async () => {
+    const targets = await seedTargets();
+    const targetColumns = {
+      PRODUCT: "productId",
+      CATEGORY: "categoryId",
+      TAG: "tagId",
+    } as const satisfies Record<(typeof DISCOUNT_TARGET_KINDS)[number], string>;
+    const benefitRows = {
+      PERCENT_OFF: { kind: "PERCENT_OFF", percent: 15, buyQty: null, payQty: null },
+      BUY_N_PAY_M: { kind: "BUY_N_PAY_M", percent: null, buyQty: 3, payQty: 2 },
+    } as const satisfies Record<DiscountBenefit["kind"], Partial<typeof discounts.$inferInsert>>;
+
+    const stored: [string, string, boolean][] = [];
+    const allowed: [string, string, boolean][] = [];
+    for (const benefitKind of Object.keys(benefitRows) as DiscountBenefit["kind"][]) {
+      for (const targetKind of DISCOUNT_TARGET_KINDS) {
+        const column = targetColumns[targetKind];
+        const accepted = await db
+          .insert(discounts)
+          .values(discountOn({ ...benefitRows[benefitKind], [column]: targets[column] }))
+          .then(
+            () => true,
+            () => false,
+          );
+        stored.push([benefitKind, targetKind, accepted]);
+        allowed.push([benefitKind, targetKind, isTargetKindAllowedFor(benefitKind, targetKind)]);
+      }
+    }
+
+    expect(stored).toEqual(allowed);
+  });
 
   it.each([0, 100, -5])("rejects a percent-off discount of %s percent", async (percent) => {
     const { tagId } = await seedTargets();

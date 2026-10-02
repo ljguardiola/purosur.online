@@ -1,3 +1,4 @@
+import { PASSKEY_AUTHORIZATION_WINDOW_MS, RECOVERY_TOKEN_LIFETIME_MS } from "@purosur/domain";
 import { and, eq, isNull } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import {
@@ -17,7 +18,6 @@ import {
 } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { PASSKEY_AUTHORIZATION_WINDOW_MS } from "./passkey-authorization-guard.js";
 import { PASSKEY_CHALLENGE_TTL_MS } from "./passkey-challenge.js";
 import { registerPasskeyRegistrationRoutes } from "./passkeys-registration-route.js";
 import { registerRecoveryRedemptionRoutes } from "./recovery-redemption-route.js";
@@ -28,7 +28,6 @@ import { exhaustSessionRateLimit } from "./test-support/exhaust-backoffice-rate-
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
-const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -102,7 +101,7 @@ async function registerFirstPasskey(forUserId: string, emulator: WebAuthnEmulato
     userId: forUserId,
     tokenHash: hashRecoveryToken(rawToken),
     issuedAt: currentTime,
-    expiresAt: new Date(currentTime.getTime() + FIFTEEN_MINUTES_MS),
+    expiresAt: new Date(currentTime.getTime() + RECOVERY_TOKEN_LIFETIME_MS),
   });
   const optionsResponse = await recoveryApp.inject({
     method: "POST",

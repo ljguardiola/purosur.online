@@ -12,22 +12,16 @@ import {
   type UserStore,
   type UserStoreTransaction,
 } from "@purosur/domain/access/use-cases";
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
-import {
-  auditLog,
-  recoveryTokens,
-  rolePermissions,
-  roles,
-  sessions,
-  userRoles,
-  users,
-} from "../platform/db/schema.js";
+import { auditLog, rolePermissions, roles, userRoles, users } from "../platform/db/schema.js";
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import { drizzleBranchUsers } from "./drizzle-branch-users.js";
+import { revokeSessions } from "./revoke-sessions.js";
+import { voidOutstandingRecoveryTokens } from "./void-outstanding-recovery-tokens.js";
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
@@ -212,24 +206,12 @@ class DrizzleUserStoreTransaction<TQueryResult extends PgQueryResultHKT>
     });
   }
 
-  async voidOutstandingRecoveryTokens(userId: string, at: Date): Promise<void> {
-    await this.tx
-      .update(recoveryTokens)
-      .set({ voidedAt: at })
-      .where(
-        and(
-          eq(recoveryTokens.userId, userId),
-          isNull(recoveryTokens.usedAt),
-          isNull(recoveryTokens.voidedAt),
-        ),
-      );
+  voidOutstandingRecoveryTokens(userId: string, at: Date): Promise<void> {
+    return voidOutstandingRecoveryTokens(this.tx, userId, at);
   }
 
   async revokeSessions(userId: string, at: Date): Promise<void> {
-    await this.tx
-      .update(sessions)
-      .set({ revokedAt: at })
-      .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)));
+    await revokeSessions(this.tx, userId, at);
   }
 
   async recordUserChange(userId: string, actorId: string, change: UserChange): Promise<void> {

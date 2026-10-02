@@ -1,12 +1,15 @@
 import { createHash } from "node:crypto";
+import {
+  hasReachedSignInFailureLimit,
+  isSignInBlockLive,
+  signInBlockedUntil,
+  signInLockoutWindowStart,
+} from "@purosur/domain";
 import { and, eq, gt, inArray, lte, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
 import { signInFailures, signInLockouts } from "../platform/db/schema.js";
 
-const SIGN_IN_LOCKOUT_WINDOW_MS = 60 * 60 * 1000;
-export const SIGN_IN_FAILURE_LIMIT = 10;
-export const SIGN_IN_BLOCK_DURATION_MS = 15 * 60 * 1000;
 const PRUNE_BATCH_SIZE = 100;
 
 export interface SignInAttemptInput {
@@ -82,7 +85,7 @@ async function tripLockout(
   now: Date,
   failureCount: number,
 ): Promise<TrippedSignInLockout> {
-  const blockedUntil = new Date(now.getTime() + SIGN_IN_BLOCK_DURATION_MS);
+  const blockedUntil = signInBlockedUntil(now);
   const [blocked] = await tx
     .insert(signInLockouts)
     .values({ sourceAddress, blockedUntil })
@@ -111,14 +114,14 @@ export async function admitSignInAttempt<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: SignInAttemptInput,
 ): Promise<SignInAttemptAdmission> {
-  const windowStart = new Date(input.now.getTime() - SIGN_IN_LOCKOUT_WINDOW_MS);
+  const windowStart = signInLockoutWindowStart(input.now);
   await pruneExpiredFailures(db, windowStart);
 
   return db.transaction(async (tx) => {
     await lockSourceAddress(tx, input.sourceAddress);
 
     const [lockout] = await selectLiveLockout(tx, input.sourceAddress);
-    if (lockout && lockout.blockedUntil.getTime() > input.now.getTime()) {
+    if (lockout && isSignInBlockLive(lockout.blockedUntil, input.now)) {
       return {
         admitted: false,
         blockedUntil: lockout.blockedUntil,
@@ -128,7 +131,7 @@ export async function admitSignInAttempt<TQueryResult extends PgQueryResultHKT>(
 
     // Reaching the limit with no block live means that many attempts are in flight, unsettled: refusing here caps the burst.
     const counted = await countAttemptsInWindow(tx, input.sourceAddress, windowStart);
-    if (counted.length >= SIGN_IN_FAILURE_LIMIT) {
+    if (hasReachedSignInFailureLimit(counted.length)) {
       const tripped = await tripLockout(tx, input.sourceAddress, input.now, counted.length);
       return {
         admitted: false,
@@ -154,18 +157,18 @@ export async function confirmRejectedSignInAttempt<TQueryResult extends PgQueryR
   db: PgDatabase<TQueryResult>,
   input: SignInAttemptInput,
 ): Promise<ConfirmedSignInRejection> {
-  const windowStart = new Date(input.now.getTime() - SIGN_IN_LOCKOUT_WINDOW_MS);
+  const windowStart = signInLockoutWindowStart(input.now);
 
   return db.transaction(async (tx) => {
     await lockSourceAddress(tx, input.sourceAddress);
 
     const [lockout] = await selectLiveLockout(tx, input.sourceAddress);
-    if (lockout && lockout.blockedUntil.getTime() > input.now.getTime()) {
+    if (lockout && isSignInBlockLive(lockout.blockedUntil, input.now)) {
       return { trippedLockout: null };
     }
 
     const counted = await countAttemptsInWindow(tx, input.sourceAddress, windowStart);
-    if (counted.length < SIGN_IN_FAILURE_LIMIT) {
+    if (!hasReachedSignInFailureLimit(counted.length)) {
       return { trippedLockout: null };
     }
 

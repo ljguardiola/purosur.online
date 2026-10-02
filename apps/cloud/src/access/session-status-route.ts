@@ -1,8 +1,8 @@
 import { sessionStatusSchema } from "@purosur/contracts";
+import { sessionExpiresAt } from "@purosur/domain";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "./backoffice-origin.js";
-import { sessionExpiresAt } from "./open-session.js";
 import {
   OPEN_SESSION_PEEK_ACCESS,
   openSessionOf,
