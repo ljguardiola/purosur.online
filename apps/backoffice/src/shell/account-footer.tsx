@@ -1,4 +1,4 @@
-import { Button, InlineNotice, Modal } from "@purosur/ui";
+import { AreaNavButton, Button, InlineNotice, Modal } from "@purosur/ui";
 import { Link } from "@tanstack/react-router";
 import { LogOut, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
@@ -17,11 +17,6 @@ export type AccountFooterProps = {
   services?: AccountFooterServices;
 };
 
-const railItemClassName =
-  "flex w-15 flex-col items-center justify-center gap-1 rounded-lg px-0 py-2 outline-none " +
-  "focus-visible:focus-ring-inverse";
-const railIconWrapperClassName =
-  "inline-flex size-icon-lg shrink-0 text-text-inverse-subtle *:size-full";
 const nameLinkClassName =
   "w-full rounded-sm px-1 text-center text-caption font-semibold leading-xs text-text-inverse-subtle outline-none " +
   "focus-visible:focus-ring-inverse";
@@ -62,12 +57,7 @@ export function AccountFooter({ displayName, onSignedOut, services }: AccountFoo
       <Link to="/account" className={nameLinkClassName}>
         {displayName}
       </Link>
-      <button type="button" className={railItemClassName} onClick={openConfirm}>
-        <span aria-hidden="true" className={railIconWrapperClassName}>
-          <LogOut />
-        </span>
-        <span className="text-caption text-text-inverse-subtle">Salir</span>
-      </button>
+      <AreaNavButton label="Salir" icon={<LogOut />} active={false} onPress={openConfirm} />
       <Modal
         open={confirming}
         onOpenChange={setConfirming}
