@@ -6,6 +6,7 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { seededLocationId } from "../test-support/seeded-location.js";
 import {
   ADMINISTRATOR_ACCESS,
+  capabilityAccess,
   OPEN_SESSION_ACCESS,
   OPEN_SESSION_PEEK_ACCESS,
   openSessionOf,
@@ -64,6 +65,11 @@ beforeEach(async () => {
         sessionSource,
       },
     },
+    answerWithSession,
+  );
+  app.get(
+    "/test-only/stock-movements-capability",
+    { config: { access: capabilityAccess("stock_movements"), sessionSource } },
     answerWithSession,
   );
   app.get(
@@ -235,6 +241,37 @@ describe("the declared access, enforced before every handler", () => {
 
     expect(response.statusCode).toBe(403);
     expect(response.json()).toMatchObject({ code: "forbidden" });
+  });
+
+  it("grants a user holding any permission of a declared capability, and no other", async () => {
+    const lossesRoleId = await insertRole("Pérdidas", ["record_stock_losses"]);
+    const lossesSessionId = await insertSession(
+      await insertUser(lossesRoleId, "losses@example.com"),
+    );
+    const adjustRoleId = await insertRole("Ajustes", ["adjust_stock"]);
+    const adjustSessionId = await insertSession(
+      await insertUser(adjustRoleId, "adjust@example.com"),
+    );
+    const countsRoleId = await insertRole("Conteos", ["perform_stock_counts"]);
+    const countsSessionId = await insertSession(
+      await insertUser(countsRoleId, "counts@example.com"),
+    );
+    const path = "/test-only/stock-movements-capability";
+
+    expect((await callRoute(path, lossesSessionId)).statusCode).toBe(200);
+    expect((await callRoute(path, adjustSessionId)).statusCode).toBe(200);
+    const refused = await callRoute(path, countsSessionId);
+    expect(refused.statusCode).toBe(403);
+    expect(refused.json()).toMatchObject({ code: "forbidden" });
+  });
+
+  it("grants an Administrator every capability-declared route", async () => {
+    const userId = await insertUser(await seededAdministratorRoleId(), "admin@example.com");
+    const rawSessionId = await insertSession(userId);
+
+    const response = await callRoute("/test-only/stock-movements-capability", rawSessionId);
+
+    expect(response.statusCode).toBe(200);
   });
 
   it("grants an Administrator access to a permission-declared route their role never explicitly holds", async () => {
