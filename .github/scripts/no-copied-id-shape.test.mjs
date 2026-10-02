@@ -179,11 +179,14 @@ test("finds a zod uuid or guid format where it is taken from zod, however it is 
   }
 });
 
-test("finds a zod uuid or guid format re-exported from zod, which another file could use", () => {
+test("finds every re-export from zod, through which another file could reach an id format", () => {
   for (const [source, line] of [
     ['export { guid } from "zod";', 1],
-    ['export { z } from "zod";\nexport { uuid as anyId } from "zod/v4";', 2],
+    ['export { z } from "zod";', 1],
+    ['export { string } from "zod/v4";', 1],
+    ['export { uuid as anyId } from "zod/v4";', 1],
     ['export type { ZodGUID } from "zod";', 1],
+    ['export type { ZodType } from "zod";', 1],
     ['export * from "zod";', 1],
     ['export * as zod from "zod/mini";', 1],
   ]) {
@@ -191,11 +194,129 @@ test("finds a zod uuid or guid format re-exported from zod, which another file c
   }
 });
 
-test("ignores a re-export from zod of names that are not an id format, or of an id format from elsewhere", () => {
+test("finds an export of a binding that is zod itself or a part of it taken without a call", () => {
+  for (const [source, line] of [
+    ['import { z } from "zod";\nexport { z };', 2],
+    ['import { z } from "zod";\nexport { z as zod };', 2],
+    ['import * as z from "zod";\nexport default z;', 2],
+    ['import z from "zod/mini";\nexport = z;', 2],
+    ['import { string } from "zod";\nexport { string };', 2],
+    ['import type { ZodType } from "zod";\nexport type { ZodType };', 2],
+    ['import { z } from "zod";\nexport const zz = z;', 2],
+    ['import { z } from "zod";\nexport const zz = (z as typeof z);', 2],
+    ['import { z } from "zod";\nexport const g = z.guid;', 2],
+    ['import { z } from "zod";\nexport const r = z["regexes"];', 2],
+    ['import { z } from "zod";\nexport const { string } = z;', 2],
+    ['import { z } from "zod";\nconst zz = z;\nexport { zz };', 3],
+    ['import { z } from "zod";\nconst zz = z;\nexport default zz;', 3],
+    ['import { z } from "zod";\nconst zz = z;\nexport const zzz = zz;', 3],
+    ['import { z } from "zod";\nconst { object } = z;\nexport { object };', 3],
+  ]) {
+    assert.deepEqual(linesOf(source), [line], source);
+  }
+});
+
+test("ignores exported schemas built with zod and re-exports that do not come from zod", () => {
   const source = [
-    'export { z, string } from "zod";',
+    'import { z } from "zod";',
     'export { uuid } from "drizzle-orm/pg-core";',
     'export * from "./shared/index.js";',
+    'export { recordIdSchema } from "./record-id.js";',
+    "export const nameSchema = z.string().min(1);",
+    "const priceSchema = z.object({ cents: z.number().int() });",
+    "export { priceSchema };",
+    "export default priceSchema;",
+    "export type Price = z.infer<typeof priceSchema>;",
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), []);
+});
+
+test("finds zod or a part of it used as a value, which carries it where the check cannot follow", () => {
+  for (const [source, line] of [
+    ['import { z } from "zod";\nexport const schemas = { z };', 2],
+    ['import { z } from "zod";\nexport const schemas = { zod: z };', 2],
+    ['import { z } from "zod";\nexport function zod() {\n  return z;\n}', 3],
+    ['import { z } from "zod";\nregister(z);', 2],
+    ['import { z } from "zod";\nexport const all = [z];', 2],
+    ['import { z } from "zod";\nexport const zod = () => z;', 2],
+    ['import * as zod from "zod/v4";\nexport const tools = { zod };', 2],
+    ['import { z } from "zod";\nexport const zod = () => (z as typeof z);', 2],
+    ['import { z } from "zod";\nconst zz = z;\nregister(zz);', 3],
+    ['import { z } from "zod";\nconst { core } = z;\nexport const tools = { core };', 3],
+  ]) {
+    assert.deepEqual(linesOf(source), [line], source);
+  }
+});
+
+test("finds a part of zod that holds the id formats used as a value", () => {
+  for (const [source, line] of [
+    ['import * as zod from "zod/v4";\nexport const tools = { patterns: zod.regexes };', 2],
+    ['import { z } from "zod";\nregister(z.core);', 2],
+    ['import { z } from "zod";\nregister(z.guid);', 2],
+    ['import * as zod from "zod";\nregister(zod.z);', 2],
+    ['import * as zod from "zod";\nexport const all = [zod.default];', 2],
+    ['import { z } from "zod";\nexport const zod = () => z.core.regexes;', 2],
+    ['import { z } from "zod";\nregister((z as typeof z).regexes!);', 2],
+    ['import { z } from "zod";\nregister(z["core"]);', 2],
+  ]) {
+    assert.deepEqual(linesOf(source), [line], source);
+  }
+});
+
+test("ignores zod reached only by accessing or calling it, or named in a type", () => {
+  const source = [
+    'import { z } from "zod";',
+    'import type { ZodType } from "zod";',
+    "export const s = z.object({ id: z.string() });",
+    "export const listed = z.array(s).min(1);",
+    "export type S = z.infer<typeof s>;",
+    "let zodType: typeof z;",
+    "export const parse = (schema: ZodType, input: unknown) => schema.parse(input);",
+    "register(z.string().min(1));",
+    "const refuse = () => z.NEVER;",
+    "register(z.string, z.iso, z.coerce, z.locales);",
+    "const zod = { z: 1 };",
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), []);
+});
+
+test("finds any name of zod that spells uuid or guid, whatever else it holds", () => {
+  for (const [source, line] of [
+    ['import { _guid } from "zod/v4/core";\nconst id = _guid();', 1],
+    ['import { z } from "zod";\nconst id = z.core._uuid({});', 2],
+    ['import { ZodMiniUUID } from "zod/mini";', 1],
+    ['import type { $ZodUUIDDef } from "zod/v4/core";', 1],
+    ['import * as core from "zod/v4/core";\nconst params = core.$ZodCheckUUIDParams;', 2],
+    ['import { z } from "zod";\nconst { _uuidv7 } = z.core;', 2],
+    ['import { z } from "zod";\nconst ids = z.core;\nconst id = ids._guid({});', 3],
+  ]) {
+    assert.deepEqual(linesOf(source), [line], source);
+  }
+});
+
+test("finds a member of zod picked by a key that is not written out", () => {
+  for (const [source, line] of [
+    ['import { z } from "zod";\nconst id = z[key]();', 2],
+    ['import { z } from "zod";\nregister(z[key]);', 2],
+    ['import { z } from "zod";\nconst check = z.core[name];', 2],
+    ['import * as zod from "zod";\nconst check = (zod as typeof zod).regexes![name];', 2],
+  ]) {
+    assert.deepEqual(linesOf(source), [line], source);
+  }
+});
+
+test("ignores names that spell uuid or guid and keys not written out when they are not taken from zod", () => {
+  const source = [
+    'import { z } from "zod";',
+    'import { uuidColumn } from "./columns";',
+    "const owner = z.object({ ownerUuid: z.string(), guidance: z.string() });",
+    "const field = owner.shape.ownerUuid;",
+    "const text = parsed.guidance;",
+    "const value = owner.shape[key];",
+    "const row = record[key];",
+    "const column = uuidColumn();",
   ].join("\n");
 
   assert.deepEqual(linesOf(source), []);
