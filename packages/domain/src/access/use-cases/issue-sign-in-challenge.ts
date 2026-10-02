@@ -16,7 +16,9 @@ export async function issueSignInChallenge(
   { challenges }: IssueSignInChallengePorts,
   input: IssueSignInChallengeInput,
 ): Promise<IssueSignInChallengeOutcome> {
-  await challenges.discardChallengesIssuedAtOrBefore(challengeExpiryWindowStart(input.at));
-  await challenges.storeChallenge(input.challenge, input.at);
+  await challenges.transaction(async (tx) => {
+    await tx.discardChallengesIssuedAtOrBefore(challengeExpiryWindowStart(input.at));
+    await tx.storeChallenge(input.challenge, input.at);
+  });
   return { kind: "issued" };
 }

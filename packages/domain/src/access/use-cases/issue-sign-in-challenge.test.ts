@@ -27,4 +27,28 @@ describe("issueSignInChallenge", () => {
 
     expect([...challenges.held.keys()]).toEqual(["live", "challenge-1"]);
   });
+
+  it("discards the expired challenges and stores the new one in one transaction", async () => {
+    const challenges = new FakeSignInChallenges();
+
+    await issueSignInChallenge({ challenges }, { challenge: "challenge-1", at: AT });
+
+    expect(challenges.operationOrder).toEqual([
+      "discardChallengesIssuedAtOrBefore",
+      "storeChallenge",
+    ]);
+    expect(challenges.transactions).toBe(1);
+  });
+
+  it("keeps the expired challenges when storing the new one fails", async () => {
+    const challenges = new FakeSignInChallenges();
+    challenges.held.set("expired", new Date(AT.getTime() - CHALLENGE_TTL_MS));
+    challenges.failingWrites.add("storeChallenge");
+
+    await expect(
+      issueSignInChallenge({ challenges }, { challenge: "challenge-1", at: AT }),
+    ).rejects.toThrow("storeChallenge failed");
+
+    expect([...challenges.held.keys()]).toEqual(["expired"]);
+  });
 });

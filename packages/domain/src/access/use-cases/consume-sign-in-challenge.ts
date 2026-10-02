@@ -16,7 +16,7 @@ export async function consumeSignInChallenge(
   { challenges }: ConsumeSignInChallengePorts,
   input: ConsumeSignInChallengeInput,
 ): Promise<ConsumeSignInChallengeOutcome> {
-  const taken = await challenges.takeChallenge(input.challenge);
+  const taken = await challenges.transaction((tx) => tx.takeChallenge(input.challenge));
   if (!taken || !isChallengeLive(taken.issuedAt, input.at)) {
     return { kind: "refused" };
   }

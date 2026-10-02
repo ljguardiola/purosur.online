@@ -390,7 +390,7 @@ export type {
   SignInAtRegisterPorts,
 } from "./sign-in-at-register.js";
 export { signInAtRegister } from "./sign-in-at-register.js";
-export type { SignInChallenges } from "./sign-in-challenges.js";
+export type { SignInChallenges, SignInChallengesTransaction } from "./sign-in-challenges.js";
 export type { SignInLockoutLog, TrippedLockout } from "./sign-in-lockout-log.js";
 export type {
   SignInLockoutAlert,
