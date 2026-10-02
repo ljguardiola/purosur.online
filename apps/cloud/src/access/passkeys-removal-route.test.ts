@@ -393,6 +393,18 @@ describe("DELETE /account/passkeys/:id", () => {
     expect(response.json()).toMatchObject({ code: "not_found" });
   });
 
+  it("returns not_found for a malformed passkey id before asking for an authorization, deleting nothing", async () => {
+    const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
+    const rawSessionId = await insertSession(userId, authorizedAt);
+
+    const response = await removePasskey(rawSessionId, "not-a-uuid");
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "not_found" });
+    const rows = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
+    expect(rows).toHaveLength(2);
+  });
+
   describe("the passkey authorization a removal requires", () => {
     it("returns 401 authorization_required when the session's passkey authorization is stale, deleting nothing", async () => {
       const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
