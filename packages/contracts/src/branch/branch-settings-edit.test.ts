@@ -307,3 +307,33 @@ describe("branchSettingsEditBodySchema, unknown fields", () => {
     expect(result.success && "unexpected" in result.data).toBe(false);
   });
 });
+
+describe("branchSettingsEditBodySchema, declared limits and rules", () => {
+  const { shape } = branchSettingsEditBodySchema;
+
+  function hoursRules(ranges: unknown): unknown[] {
+    const result = shape.monday_hours.safeParse(ranges);
+    return result.success ? [] : result.error.issues.map((issue) => issue.params?.["rule"]);
+  }
+
+  it("declares the most ranges a day can have", () => {
+    expect(shape.monday_hours.meta()).toEqual({ maxLength: BRANCH_HOURS_RANGES_PER_DAY_MAX });
+  });
+
+  it("names the rule of a time that is not HH:MM", () => {
+    expect(hoursRules([{ opens_at: "9:00", closes_at: "18:00" }])).toContain("time_format");
+  });
+
+  it("names the rule of a range that does not close later than it opens", () => {
+    expect(hoursRules([{ opens_at: "18:00", closes_at: "09:00" }])).toEqual(["range_order"]);
+  });
+
+  it("names the rule of ranges that overlap", () => {
+    expect(
+      hoursRules([
+        { opens_at: "09:00", closes_at: "14:00" },
+        { opens_at: "13:00", closes_at: "18:00" },
+      ]),
+    ).toEqual(["range_overlap"]);
+  });
+});

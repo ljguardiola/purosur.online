@@ -201,3 +201,14 @@ describe("issuerIdentificationEditBodySchema", () => {
     ]);
   });
 });
+
+describe("issuerIdentificationEditBodySchema, declared limits", () => {
+  it("declares each text's maximum length", () => {
+    expect(schema.shape.legal_name.meta()).toEqual({
+      maxLength: ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
+    });
+    expect(schema.shape.gross_income_registration.meta()).toEqual({
+      maxLength: ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
+    });
+  });
+});

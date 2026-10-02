@@ -8,7 +8,7 @@ import {
   SALE_UNITS,
 } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
-import { productCreationBodySchema } from "./product-creation.js";
+import { netContentQuantitySchema, productCreationBodySchema } from "./product-creation.js";
 
 function validBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -331,4 +331,53 @@ describe("productCreationBodySchema, order and unknown keys", () => {
   it.each([null, undefined, "Maceta", 1, []])("rejects the body %j as not an object", (body) => {
     expect(isAccepted(body)).toBe(false);
   });
+});
+
+describe("productCreationBodySchema, declared limits and rules", () => {
+  function barcodeRules(codes: string[]): unknown[] {
+    const result = productCreationBodySchema.shape.barcodes.safeParse(codes);
+    return result.success ? [] : result.error.issues.map((issue) => issue.params?.["rule"]);
+  }
+
+  it("declares the name's maximum length", () => {
+    expect(productCreationBodySchema.shape.name.meta()).toEqual({
+      maxLength: PRODUCT_NAME_MAX_LENGTH,
+    });
+  });
+
+  it("declares the barcodes' maximum count and length", () => {
+    expect(productCreationBodySchema.shape.barcodes.meta()).toEqual({
+      maxCount: PRODUCT_BARCODES_MAX_COUNT,
+      maxLength: BARCODE_MAX_LENGTH,
+    });
+  });
+
+  it.each([
+    ["too_many", Array.from({ length: PRODUCT_BARCODES_MAX_COUNT + 1 }, (_, index) => `c${index}`)],
+    ["too_long", ["1".repeat(BARCODE_MAX_LENGTH + 1)]],
+    ["whitespace", ["12 34"]],
+    ["repeated", ["111", "111"]],
+  ])("names the %s problem of a barcode list", (problem, codes) => {
+    expect(barcodeRules(codes)).toEqual([problem]);
+  });
+});
+
+describe("netContentQuantitySchema", () => {
+  it("declares the quantity's maximum and its maximum number of decimals", () => {
+    expect(netContentQuantitySchema.meta()).toEqual({
+      maxValue: NET_CONTENT_QUANTITY_MAX,
+      maxDecimals: NET_CONTENT_QUANTITY_MAX_DECIMALS,
+    });
+  });
+
+  it("accepts a positive quantity within the limits", () => {
+    expect(netContentQuantitySchema.safeParse(NET_CONTENT_QUANTITY_MAX).success).toBe(true);
+  });
+
+  it.each([0, -1, 1.0001, NET_CONTENT_QUANTITY_MAX + 1, Infinity, Number.NaN, "5"])(
+    "rejects %j",
+    (quantity) => {
+      expect(netContentQuantitySchema.safeParse(quantity).success).toBe(false);
+    },
+  );
 });
