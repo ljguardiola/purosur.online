@@ -7,7 +7,6 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 import { TAG_NOT_FOUND_RESPONSE } from "./tag-edit-route.js";
 import type { TagsRouteOptions } from "./tags-list-route.js";
@@ -34,11 +33,6 @@ export function registerTagDeactivationRoute<TQueryResult extends PgQueryResultH
     },
     async (request, reply) => {
       const targetId = request.params.id;
-      if (!UUID_PATTERN.test(targetId)) {
-        await reply.code(404).send(TAG_NOT_FOUND_RESPONSE);
-        return;
-      }
-
       const outcome = await deactivateTag(catalogStore, targetId);
 
       if (outcome.kind === "not_found") {

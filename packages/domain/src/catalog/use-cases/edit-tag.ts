@@ -8,6 +8,7 @@ export interface EditTagInput {
 }
 
 export type EditTagOutcome =
+  | { kind: "not_found" }
   | { kind: "stale_version" }
   | { kind: "name_taken" }
   | { kind: "applied"; tag: CatalogTag };
@@ -18,25 +19,28 @@ export async function editTag(store: CatalogStore, input: EditTagInput): Promise
       // Locks this one row so a concurrent edit, deactivation or reactivation of the same tag
       // waits instead of racing.
       const locked = await tx.lockTag(input.id);
-      if (locked.kind === "not_found" || locked.tag.version !== input.version) {
+      if (locked.kind === "not_found") {
+        return { kind: "not_found" };
+      }
+      if (locked.tag.version !== input.version) {
         return { kind: "stale_version" };
       }
-      const { active, version } = locked.tag;
+      const { id, active, version } = locked.tag;
 
       if (locked.tag.name === input.name) {
-        return { kind: "applied", tag: { id: input.id, name: input.name, active, version } };
+        return { kind: "applied", tag: { id, name: input.name, active, version } };
       }
 
-      if (await tx.tagNameTaken(input.name, input.id)) {
+      if (await tx.tagNameTaken(input.name, id)) {
         return { kind: "name_taken" };
       }
 
       const nextVersion = version + 1;
-      await tx.updateTag(input.id, { name: input.name, active, version: nextVersion });
+      await tx.updateTag(id, { name: input.name, active, version: nextVersion });
 
       return {
         kind: "applied",
-        tag: { id: input.id, name: input.name, active, version: nextVersion },
+        tag: { id, name: input.name, active, version: nextVersion },
       };
     });
   } catch (error) {

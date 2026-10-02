@@ -9,7 +9,6 @@ import extractTSConfig from "dependency-cruiser/config-utl/extract-ts-config";
 import config, {
   CLOUD_ONLY_CONCEPTS,
   CONTRACTS_CROSS_CONCEPT_IMPORT_ALLOWLIST,
-  PERSISTENCE_IN_HANDLERS_ALLOWLIST,
   SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST,
 } from "../../.dependency-cruiser.mjs";
 
@@ -1274,7 +1273,6 @@ function withoutAllowlist(ruleName) {
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../..");
 
 const ALLOWLISTED_RULES = [
-  ["persistence-only-in-adapters", PERSISTENCE_IN_HANDLERS_ALLOWLIST],
   ["screens-types-only-from-domain", SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST],
   ["contracts-no-cross-concept-imports", CONTRACTS_CROSS_CONCEPT_IMPORT_ALLOWLIST],
 ];

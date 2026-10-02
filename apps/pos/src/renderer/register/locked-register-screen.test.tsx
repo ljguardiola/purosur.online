@@ -2,9 +2,9 @@ import type { SignInOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
+import type { SignedInPerson } from "../shell/signed-in-person";
+import { render } from "../shell/test-support/render-with-router";
 import { LockedRegisterScreen } from "./locked-register-screen";
-import type { SignedInPerson } from "./signed-in-person";
-import { render } from "./test-support/render-with-router";
 
 const OPENER: SignedInPerson = { user_id: "u1", first_name: "Ada", abilities: [] };
 const OPENED_AT = "2026-09-30T09:02:00.000-03:00";

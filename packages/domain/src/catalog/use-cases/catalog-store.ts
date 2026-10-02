@@ -82,15 +82,18 @@ export type LockProductResult = { kind: "not_found" } | { kind: "locked"; produc
 
 export type LockCategoryResult =
   | { kind: "not_found" }
-  | { kind: "locked"; category: { name: string; parentId: string | null; version: number } };
+  | {
+      kind: "locked";
+      category: { id: string; name: string; parentId: string | null; version: number };
+    };
 
 export type LockBrandResult =
   | { kind: "not_found" }
-  | { kind: "locked"; brand: { name: string; active: boolean; version: number } };
+  | { kind: "locked"; brand: { id: string; name: string; active: boolean; version: number } };
 
 export type LockTagResult =
   | { kind: "not_found" }
-  | { kind: "locked"; tag: { name: string; active: boolean; version: number } };
+  | { kind: "locked"; tag: { id: string; name: string; active: boolean; version: number } };
 
 export interface TagFields {
   name: string;

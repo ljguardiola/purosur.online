@@ -1,11 +1,6 @@
-import {
-  type CategorySummary,
-  categoryEditBodySchema,
-  categorySummarySchema,
-} from "@purosur/contracts";
+import { categoryEditBodySchema, categorySummarySchema } from "@purosur/contracts";
 import { editCategory } from "@purosur/domain/catalog/use-cases";
-import { eq } from "drizzle-orm";
-import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { backofficeOriginGuard } from "../access/backoffice-origin.js";
 import {
@@ -13,8 +8,6 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { categories } from "../platform/db/schema.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import type { CategoriesRouteOptions } from "./categories-list-route.js";
 import {
@@ -39,25 +32,6 @@ const STALE_VERSION_RESPONSE = {
   message: "this category was changed since it was loaded",
 } as const;
 
-async function findCategoryById<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  id: string,
-): Promise<CategorySummary | undefined> {
-  if (!UUID_PATTERN.test(id)) {
-    return undefined;
-  }
-  const [category] = await db
-    .select({
-      id: categories.id,
-      name: categories.name,
-      version: categories.version,
-      parentId: categories.parentId,
-    })
-    .from(categories)
-    .where(eq(categories.id, id));
-  return category;
-}
-
 export function registerCategoryEditRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: CategoriesRouteOptions<TQueryResult>,
@@ -77,19 +51,17 @@ export function registerCategoryEditRoute<TQueryResult extends PgQueryResultHKT>
       },
     },
     async (request, reply) => {
-      const target = await findCategoryById(options.db, request.params.id);
-      if (!target) {
-        await reply.code(404).send(NOT_FOUND_RESPONSE);
-        return;
-      }
-
       const parsedBody = await readValidatedBody(reply, categoryEditBodySchema, request.body);
       if (!parsedBody) {
         return;
       }
 
-      const outcome = await editCategory(catalogStore, { id: target.id, ...parsedBody });
+      const outcome = await editCategory(catalogStore, { id: request.params.id, ...parsedBody });
 
+      if (outcome.kind === "not_found") {
+        await reply.code(404).send(NOT_FOUND_RESPONSE);
+        return;
+      }
       if (outcome.kind === "stale_version") {
         await reply.code(409).send(STALE_VERSION_RESPONSE);
         return;

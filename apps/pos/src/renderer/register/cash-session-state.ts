@@ -1,5 +1,5 @@
 import type { OpenCashSession } from "@purosur/contracts";
-import type { SignedInPerson } from "./signed-in-person";
+import type { SignedInPerson } from "../shell/signed-in-person";
 
 export type CashSessionState =
   | { status: "unknown" }

@@ -3,13 +3,16 @@ import { editBrand } from "./edit-brand.js";
 import { FakeCatalogStore } from "./test-support/fake-catalog-store.js";
 
 describe("editBrand", () => {
-  it("answers stale_version for a brand that is missing when it is locked", async () => {
+  it("answers not_found for a brand that is missing when it is locked, changing nothing", async () => {
     const store = new FakeCatalogStore();
     store.seedBrand({ id: "decoy", name: "Decoy", active: true, version: 1 });
 
     const outcome = await editBrand(store, { id: "missing", name: "Granix", version: 1 });
 
-    expect(outcome).toEqual({ kind: "stale_version" });
+    expect(outcome).toEqual({ kind: "not_found" });
+    expect(store.snapshot().brands).toEqual([
+      { id: "decoy", name: "Decoy", active: true, version: 1 },
+    ]);
   });
 
   it("rejects a stale version", async () => {
@@ -40,6 +43,23 @@ describe("editBrand", () => {
       { id: "brand-1", name: "Granix Pro", active: false, version: 4 },
     ]);
     expect(store.lockCallOrder).toEqual(["lockBrand"]);
+  });
+
+  it("answers with the brand's id as the store holds it when asked for it in another letter case", async () => {
+    const store = new FakeCatalogStore();
+    store.seedBrand({ id: "brand-1", name: "Granix", active: true, version: 3 });
+
+    const renamed = await editBrand(store, { id: "BRAND-1", name: "Granix Pro", version: 3 });
+    const unchanged = await editBrand(store, { id: "BRAND-1", name: "Granix Pro", version: 4 });
+
+    expect(renamed).toEqual({
+      kind: "applied",
+      brand: { id: "brand-1", name: "Granix Pro", active: true, version: 4 },
+    });
+    expect(unchanged).toEqual({
+      kind: "applied",
+      brand: { id: "brand-1", name: "Granix Pro", active: true, version: 4 },
+    });
   });
 
   it("keeps an unchanged name as a no-op that does not bump the version", async () => {

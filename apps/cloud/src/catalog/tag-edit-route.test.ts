@@ -122,6 +122,34 @@ describe("PUT /tags/:id", () => {
     },
   );
 
+  it.each(["00000000-0000-0000-0000-000000000000", "not-a-uuid"])(
+    "returns 400 validation_failed for the id %s when the body does not match its shape",
+    async (id) => {
+      const rawSessionId = await signedInWithPermissions(db, NOON);
+
+      const response = await editTag(rawSessionId, id, { name: "", version: 1 });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({
+        code: "validation_failed",
+        details: [{ field: "name" }],
+      });
+    },
+  );
+
+  it("answers a tag renamed through its id in uppercase with the id as stored", async () => {
+    const tag = await insertTag(db, { name: "Sin TACC" });
+    const rawSessionId = await signedInWithPermissions(db, NOON);
+
+    const response = await editTag(rawSessionId, tag.id.toUpperCase(), {
+      name: "Sin gluten",
+      version: 1,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ id: tag.id, name: "Sin gluten", version: 2 });
+  });
+
   it("rejects an empty name, changing nothing", async () => {
     const tag = await insertTag(db, { name: "Sin TACC" });
     const rawSessionId = await signedInWithPermissions(db, NOON);
