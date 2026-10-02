@@ -32,23 +32,17 @@ coordinator's answer of any id that had one, which the fix follows.
    proven to fail without the implementation. Write or change the test and
    run it passing. Prove it in a temporary worktree, never in the working
    tree: `git worktree add --detach <scratch dir> HEAD`, `pnpm install
-   --offline` there, copy your uncommitted test in, reverse the whole commit
-   except the test files that state the behavior
-   (`git diff <sha>^ <sha> -- . ':(exclude)<test file>' | git apply -R`),
-   run the test and see it fail for that behavior, then
-   `git worktree remove --force <scratch dir>`. A failure on a missing module
-   or export is the behavior's when the commit added that file or export.
-   When the commit moved or renamed it, put the code back at its new path as
-   the commit's parent had it (`git show <sha>^:<old path> > <new path>` in
-   the scratch worktree), keep the rest reversed, and run the test again:
-   failing on what it asserts shows the behavior; passing shows the commit
-   only moved code.
-   When the reverse does not apply at `HEAD` because later commits changed
-   the same lines, run the proof in a worktree at `<sha>` itself; when the
-   test cannot run there either, report the id `not fixed` with that
-   reason. When a test the branch already has states the behavior, even one
-   committed with the implementation, run that same proof on it and change
-   nothing; report the commit that holds it.
+   --offline` there, copy your uncommitted test in, then undo, by editing
+   the files there, only the change the finding names as the behavior,
+   leaving every move, rename, import and test as the branch has them. Run
+   the test and see it fail on what it asserts. A failure on a missing
+   module or export means the undo removed more than the behavior: keep the
+   code where it is, undo only what it does, and run again. Then `git worktree remove --force <scratch dir>`.
+   When the test cannot run at `HEAD`, run the proof in a worktree at
+   `<sha>` itself; when it cannot run there either, report the id
+   `not fixed` with that reason. When a test the branch already has states
+   the behavior, even one committed with the implementation, run that same
+   proof on it and change nothing; report the commit that holds it.
 4. Follow every rule in `CONTRIBUTING.md` in the code you write, including
    the comment rule: the fix adds no comment that restates the code or records
    why it was fixed.
