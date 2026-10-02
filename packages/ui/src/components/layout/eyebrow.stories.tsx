@@ -14,6 +14,26 @@ export const Default: Story = {
   args: { text: "Caja 1 · Sesión abierta 09:02" },
 };
 
+export const InfoTone: Story = {
+  args: { text: "Cobro en efectivo", tone: "info" },
+};
+
+export const SuccessTone: Story = {
+  args: { text: "Venta completada", tone: "success" },
+};
+
+export const WarningTone: Story = {
+  args: { text: "Stock bajo", tone: "warning" },
+};
+
+export const ErrorTone: Story = {
+  args: { text: "No se puede deshacer", tone: "error" },
+};
+
+export const Heading: Story = {
+  args: { text: "Antes de empezar", headingLevel: 2 },
+};
+
 export const LongText: Story = {
   args: {
     text: "Un texto largo que no entra en una sola línea dentro de este espacio angosto",

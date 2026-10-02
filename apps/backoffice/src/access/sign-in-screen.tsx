@@ -1,9 +1,9 @@
-import { Button, InlineNotice } from "@purosur/ui";
+import { Button, InlineNotice, ScreenHeader } from "@purosur/ui";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
 import { Clock, KeyRound, LifeBuoy, ShieldX, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { AccessFooterLink, AccessHeader, AccessLayout } from "./access-layout";
+import { AccessFooterLink, AccessLayout } from "./access-layout";
 import type { SignInScreenServices } from "./sign-in-services";
 
 export type SignInOpeningNotice =
@@ -69,9 +69,10 @@ export function SignInScreen({ openingNotice, onSignedIn, services }: SignInScre
 
   return (
     <AccessLayout>
-      <AccessHeader
+      <ScreenHeader
+        focusableTitle
         eyebrow="Puro Sur"
-        heading="Ingresar"
+        title="Ingresar"
         description="Con la passkey de este dispositivo: la huella, la cara o el PIN de la computadora o del teléfono."
       />
       {notice?.kind === "blocked" && (
