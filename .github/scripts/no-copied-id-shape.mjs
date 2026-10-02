@@ -114,44 +114,80 @@ function constantInitializers(nodes) {
   return initializers;
 }
 
-function stringEvaluator(constants) {
-  const evaluate = (node, resolving = new Set()) => {
-    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return node.text;
-    if (ts.isParenthesizedExpression(node)) return evaluate(node.expression, resolving);
-    if (ts.isIdentifier(node)) {
-      const initializer = constants.get(node.text);
-      if (initializer === undefined || resolving.has(node.text)) return undefined;
-      return evaluate(initializer, new Set([...resolving, node.text]));
-    }
-    if (ts.isTemplateExpression(node)) {
-      let text = node.head.text;
-      for (const span of node.templateSpans) {
-        const value = evaluate(span.expression, resolving);
-        if (value === undefined) return undefined;
-        text += value + span.literal.text;
-      }
-      return text;
-    }
-    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) {
-      const left = evaluate(node.left, resolving);
-      const right = evaluate(node.right, resolving);
-      return left === undefined || right === undefined ? undefined : left + right;
-    }
-    return undefined;
-  };
-  return evaluate;
+const UNKNOWN_TEXT = Symbol("unknown text");
+
+function isStringRaw(tag) {
+  return (
+    ts.isPropertyAccessExpression(tag) &&
+    ts.isIdentifier(tag.expression) &&
+    tag.expression.text === "String" &&
+    tag.name.text === "raw"
+  );
 }
 
-function enclosingStringExpression(node) {
+function isConcatenation(node) {
+  return ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken;
+}
+
+function isStringExpression(node) {
+  return (
+    ts.isStringLiteral(node) ||
+    ts.isNoSubstitutionTemplateLiteral(node) ||
+    ts.isTemplateExpression(node) ||
+    (ts.isTaggedTemplateExpression(node) && isStringRaw(node.tag)) ||
+    ts.isParenthesizedExpression(node) ||
+    isConcatenation(node)
+  );
+}
+
+function isInsideStringExpression(node) {
   const parent = node.parent;
-  if (ts.isTemplateSpan(parent)) return parent.parent;
-  if (
+  return (
+    ts.isTemplateSpan(parent) ||
     ts.isParenthesizedExpression(parent) ||
-    (ts.isBinaryExpression(parent) && parent.operatorToken.kind === ts.SyntaxKind.PlusToken)
-  ) {
-    return parent;
+    isConcatenation(parent) ||
+    (ts.isTaggedTemplateExpression(parent) && isStringRaw(parent.tag))
+  );
+}
+
+function textPieces(constants) {
+  const piecesOf = (node, resolving = new Set(), raw = false) => {
+    const textOf = (literal) => (raw ? literal.rawText : literal.text);
+    if (ts.isStringLiteral(node)) return [node.text];
+    if (ts.isNoSubstitutionTemplateLiteral(node)) return [textOf(node)];
+    if (ts.isParenthesizedExpression(node)) return piecesOf(node.expression, resolving);
+    if (ts.isTaggedTemplateExpression(node) && isStringRaw(node.tag)) {
+      return piecesOf(node.template, resolving, true);
+    }
+    if (ts.isIdentifier(node)) {
+      const initializer = constants.get(node.text);
+      if (initializer === undefined || resolving.has(node.text)) return [UNKNOWN_TEXT];
+      return piecesOf(initializer, new Set([...resolving, node.text]));
+    }
+    if (ts.isTemplateExpression(node)) {
+      return [
+        textOf(node.head),
+        ...node.templateSpans.flatMap((span) => [
+          ...piecesOf(span.expression, resolving),
+          textOf(span.literal),
+        ]),
+      ];
+    }
+    if (isConcatenation(node)) {
+      return [...piecesOf(node.left, resolving), ...piecesOf(node.right, resolving)];
+    }
+    return [UNKNOWN_TEXT];
+  };
+  return piecesOf;
+}
+
+function knownTextRuns(pieces) {
+  const runs = [""];
+  for (const piece of pieces) {
+    if (piece === UNKNOWN_TEXT) runs.push("");
+    else runs[runs.length - 1] += piece;
   }
-  return undefined;
+  return runs.filter((run) => run !== "");
 }
 
 function regexLiteralPattern(node) {
@@ -162,15 +198,15 @@ function regexLiteralPattern(node) {
 }
 
 function patternsIn(nodes, constants) {
-  const evaluate = stringEvaluator(constants);
+  const piecesOf = textPieces(constants);
   return nodes.flatMap((node) => {
     if (ts.isRegularExpressionLiteral(node)) return [{ node, ...regexLiteralPattern(node) }];
-    if (ts.isIdentifier(node)) return [];
-    const text = evaluate(node);
-    if (text === undefined) return [];
-    const enclosing = enclosingStringExpression(node);
-    if (enclosing !== undefined && evaluate(enclosing) !== undefined) return [];
-    return [{ node, pattern: text, flagSets: STRING_FLAG_SETS }];
+    if (!isStringExpression(node) || isInsideStringExpression(node)) return [];
+    return knownTextRuns(piecesOf(node)).map((pattern) => ({
+      node,
+      pattern,
+      flagSets: STRING_FLAG_SETS,
+    }));
   });
 }
 
