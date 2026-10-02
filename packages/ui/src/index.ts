@@ -55,6 +55,8 @@ export type {
   ButtonVariant,
 } from "./components/forms/button";
 export { Button } from "./components/forms/button";
+export type { ButtonLinkProps } from "./components/forms/button-link";
+export { ButtonLink } from "./components/forms/button-link";
 export type { CheckboxProps } from "./components/forms/checkbox";
 export { Checkbox } from "./components/forms/checkbox";
 export type { ChipListFieldProps } from "./components/forms/chip-list-field";
@@ -111,6 +113,8 @@ export type { PuroSurIsotypeProps } from "./components/layout/puro-sur-isotype";
 export { PuroSurIsotype } from "./components/layout/puro-sur-isotype";
 export type { PuroSurLogoProps } from "./components/layout/puro-sur-logo";
 export { PuroSurLogo } from "./components/layout/puro-sur-logo";
+export type { AreaNavButtonProps } from "./components/navigation/area-nav-button";
+export { AreaNavButton } from "./components/navigation/area-nav-button";
 export type { AreaNavItemProps } from "./components/navigation/area-nav-item";
 export { AreaNavItem } from "./components/navigation/area-nav-item";
 export type { PaginationProps } from "./components/navigation/pagination";

@@ -1,7 +1,9 @@
 import { LifeBuoy } from "lucide-react";
 import type { ReactNode } from "react";
 import { expect, test } from "vitest";
+import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { expectNoAccessibilityViolations } from "../../test/axe";
 import { tokenBackgroundColor, tokenRgb } from "../../test/token-colors";
 import { AreaNavItem, type AreaNavItemProps } from "./area-nav-item";
 
@@ -80,4 +82,81 @@ test("forwards a style to the link, so a router can apply its own inline styles"
 
   const link = screen.getByRole("link", { name: "Ayuda" }).element() as HTMLAnchorElement;
   expect(link.style.opacity).toBe("0.5");
+});
+
+function renderLightItem(props: Omit<AreaNavItemProps, "icon" | "rail">) {
+  return render(
+    <div className="bg-surface p-2">
+      <AreaNavItem icon={<LifeBuoy />} rail="light" {...props} />
+    </div>,
+  );
+}
+
+test("marks the active item of the light rail with aria-current, in bold accent text over the subtle action surface", async () => {
+  const screen = await renderLightItem({ label: "Caja", active: true, href: "/cash" });
+
+  const link = screen.getByRole("link", { name: "Caja" }).element() as HTMLAnchorElement;
+  expect(link.getAttribute("aria-current")).toBe("page");
+  expect(getComputedStyle(link).backgroundColor).toBe(tokenBackgroundColor("action-subtle"));
+  expect(getComputedStyle(link.querySelector("svg") as SVGSVGElement).color).toBe(
+    tokenRgb("text-accent"),
+  );
+
+  const label = screen.getByText("Caja").element();
+  expect(getComputedStyle(label).color).toBe(tokenRgb("text-accent"));
+  expect(getComputedStyle(label).fontWeight).toBe("700");
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("leaves an inactive item of the light rail in the subtle text color, turning its background bone on hover", async () => {
+  const screen = await renderLightItem({ label: "Caja", active: false, href: "/cash" });
+
+  const link = screen.getByRole("link", { name: "Caja" }).element() as HTMLAnchorElement;
+  expect(link.hasAttribute("aria-current")).toBe(false);
+  expect(getComputedStyle(link).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  expect(getComputedStyle(screen.getByText("Caja").element()).color).toBe(tokenRgb("text-subtle"));
+  expect(getComputedStyle(screen.getByText("Caja").element()).fontWeight).toBe("400");
+
+  await userEvent.hover(link);
+  await expect.poll(() => getComputedStyle(link).backgroundColor).toBe(tokenRgb("surface-subtle"));
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("sizes an item of the light rail for touch, 72px wide with a 24px icon above its label", async () => {
+  const screen = await renderLightItem({ label: "Caja", active: false, href: "/cash" });
+
+  const link = screen.getByRole("link", { name: "Caja" }).element() as HTMLAnchorElement;
+  const icon = (link.querySelector("svg") as SVGSVGElement).getBoundingClientRect();
+  const label = screen.getByText("Caja").element().getBoundingClientRect();
+  expect(link.getBoundingClientRect().width).toBe(72);
+  expect(getComputedStyle(link).paddingTop).toBe("12px");
+  expect(icon.width).toBe(24);
+  expect(icon.bottom).toBeLessThanOrEqual(label.top);
+});
+
+test("shows the shared focus outline on an item of the light rail reached by keyboard", async () => {
+  const screen = await renderLightItem({ label: "Caja", active: false, href: "/cash" });
+  const link = screen.getByRole("link", { name: "Caja" }).element() as HTMLAnchorElement;
+
+  await userEvent.tab();
+
+  expect(document.activeElement).toBe(link);
+  await expect.poll(() => getComputedStyle(link).outlineWidth).toBe("3px");
+  await expect.poll(() => getComputedStyle(link).outlineColor).toBe(tokenRgb("focus"));
+});
+
+test("keeps the dark rail's look when it is given no rail", async () => {
+  const screen = await render(
+    <Rail>
+      <AreaNavItem icon={<LifeBuoy />} label="Ayuda" active href="/help" />
+      <AreaNavItem icon={<LifeBuoy />} label="Ayuda oscura" active href="/help" rail="dark" />
+    </Rail>,
+  );
+
+  const implicit = screen.getByRole("link", { name: "Ayuda", exact: true }).element();
+  const explicit = screen.getByRole("link", { name: "Ayuda oscura" }).element();
+  expect(getComputedStyle(implicit).backgroundColor).toBe(
+    getComputedStyle(explicit).backgroundColor,
+  );
+  expect(implicit.getBoundingClientRect().width).toBe(explicit.getBoundingClientRect().width);
 });

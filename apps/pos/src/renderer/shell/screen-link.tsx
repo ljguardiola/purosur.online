@@ -1,22 +1,21 @@
-import { Link } from "@tanstack/react-router";
-import type { ReactElement } from "react";
+import type { Icon } from "@purosur/ui";
+import { ButtonLink } from "@purosur/ui";
+import { createLink } from "@tanstack/react-router";
+
+const RouterButtonLink = createLink(ButtonLink);
 
 export type ScreenLinkProps = {
   to: "/sign-in" | "/pin-code-redemption" | "/first-sign-in" | "/locked" | "/locked-close";
-  icon: ReactElement;
+  icon: Icon;
   label: string;
 };
 
 export function ScreenLink({ to, icon, label }: ScreenLinkProps) {
   return (
-    <Link
-      to={to}
-      className="inline-flex items-center gap-2 self-start py-1 font-bold text-body text-text-accent outline-none focus-visible:focus-ring-tight"
-    >
-      <span aria-hidden="true" className="inline-flex size-icon-sm shrink-0 *:size-full">
-        {icon}
-      </span>
-      {label}
-    </Link>
+    <div className="self-start">
+      <RouterButtonLink to={to} variant="text" icon={icon}>
+        {label}
+      </RouterButtonLink>
+    </div>
   );
 }

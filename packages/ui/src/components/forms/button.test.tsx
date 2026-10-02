@@ -572,12 +572,7 @@ test("accepts the text-only destructive form at both drawn sizes", () => {
   }>().toExtend<ButtonPropsWithoutText>();
 });
 
-test("does not accept the text variant unless it is destructive, the only form drawn", () => {
-  expectTypeOf<{ variant: "text" }>().not.toExtend<ButtonPropsWithoutText>();
-  expectTypeOf<{ variant: "text"; destructive: false }>().not.toExtend<ButtonPropsWithoutText>();
-});
-
-test("does not accept a caller's icon on the text variant, which carries its own", () => {
+test("does not accept a caller's icon on the text-only destructive form, which carries its own", () => {
   expectTypeOf<{
     variant: "text";
     destructive: true;

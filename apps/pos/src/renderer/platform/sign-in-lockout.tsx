@@ -31,14 +31,11 @@ export function SignInLockout({
       >
         Tengo un código
       </Button>
-      <button
-        type="button"
-        onClick={onBack}
-        className="inline-flex cursor-pointer items-center gap-2 self-start py-1 font-bold text-body text-text-accent outline-none focus-visible:focus-ring-tight"
-      >
-        <ArrowLeft aria-hidden="true" className="size-icon-sm shrink-0" />
-        {backLabel}
-      </button>
+      <div className="self-start">
+        <Button variant="text" icon={<ArrowLeft />} onPress={onBack}>
+          {backLabel}
+        </Button>
+      </div>
     </>
   );
 }
