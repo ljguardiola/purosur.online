@@ -137,6 +137,19 @@ describe("PUT /tags/:id", () => {
     },
   );
 
+  it("answers a tag renamed through its id in uppercase with the id as stored", async () => {
+    const tag = await insertTag(db, { name: "Sin TACC" });
+    const rawSessionId = await signedInWithPermissions(db, NOON);
+
+    const response = await editTag(rawSessionId, tag.id.toUpperCase(), {
+      name: "Sin gluten",
+      version: 1,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ id: tag.id, name: "Sin gluten", version: 2 });
+  });
+
   it("rejects an empty name, changing nothing", async () => {
     const tag = await insertTag(db, { name: "Sin TACC" });
     const rawSessionId = await signedInWithPermissions(db, NOON);

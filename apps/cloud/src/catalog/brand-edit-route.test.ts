@@ -151,6 +151,19 @@ describe("PUT /brands/:id", () => {
     },
   );
 
+  it("answers a brand renamed through its id in uppercase with the id as stored", async () => {
+    const brand = await insertBrand(db, { name: "Granix" });
+    const rawSessionId = await signedInWithPermissions(db, NOON);
+
+    const response = await editBrand(rawSessionId, brand.id.toUpperCase(), {
+      name: "Granix Pro",
+      version: 1,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ id: brand.id, name: "Granix Pro", version: 2 });
+  });
+
   it("rejects an empty name, changing nothing", async () => {
     const brand = await insertBrand(db, { name: "Granix" });
     const rawSessionId = await signedInWithPermissions(db, NOON);

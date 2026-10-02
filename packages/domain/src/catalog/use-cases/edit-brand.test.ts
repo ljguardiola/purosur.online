@@ -45,6 +45,23 @@ describe("editBrand", () => {
     expect(store.lockCallOrder).toEqual(["lockBrand"]);
   });
 
+  it("answers with the brand's id as the store holds it when asked for it in another letter case", async () => {
+    const store = new FakeCatalogStore();
+    store.seedBrand({ id: "brand-1", name: "Granix", active: true, version: 3 });
+
+    const renamed = await editBrand(store, { id: "BRAND-1", name: "Granix Pro", version: 3 });
+    const unchanged = await editBrand(store, { id: "BRAND-1", name: "Granix Pro", version: 4 });
+
+    expect(renamed).toEqual({
+      kind: "applied",
+      brand: { id: "brand-1", name: "Granix Pro", active: true, version: 4 },
+    });
+    expect(unchanged).toEqual({
+      kind: "applied",
+      brand: { id: "brand-1", name: "Granix Pro", active: true, version: 4 },
+    });
+  });
+
   it("keeps an unchanged name as a no-op that does not bump the version", async () => {
     const store = new FakeCatalogStore();
     store.seedBrand({ id: "brand-1", name: "Granix", active: true, version: 3 });

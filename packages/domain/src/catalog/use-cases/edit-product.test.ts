@@ -349,6 +349,29 @@ describe("editProduct", () => {
     expect(store.lockCallOrder).toEqual(["lockProduct", "buyNPayMDiscountsOn", "lockLeafCategory"]);
   });
 
+  it("answers with the product's id as the store holds it when asked for it in another letter case", async () => {
+    const store = new FakeCatalogStore();
+    leafCategory(store);
+    activeProduct(store);
+
+    const outcome = await editProduct(
+      { store, clock },
+      {
+        id: "PRODUCT-1",
+        name: "Yerba Mate",
+        categoryId: "category-1",
+        brandId: null,
+        saleUnit: "UNIT",
+        barcodes: ["111"],
+        tagIds: [],
+        netContent: null,
+        version: 1,
+      },
+    );
+
+    expect(outcome).toMatchObject({ kind: "applied", product: { id: "product-1", version: 2 } });
+  });
+
   it("gives the product an active brand, locking the product, its category and then the brand", async () => {
     const store = new FakeCatalogStore();
     leafCategory(store);

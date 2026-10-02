@@ -117,13 +117,20 @@ function cloneState(state: FakeCatalogState): FakeCatalogState {
   };
 }
 
+// Ids compare the way Postgres compares uuids, ignoring letter case.
+function sameId(left: string | null | undefined, right: string | null | undefined): boolean {
+  return left?.toLowerCase() === right?.toLowerCase();
+}
+
 function activeBarcodesTaken(
   state: FakeCatalogState,
   codes: readonly string[],
   excludingProductId: string | undefined,
 ): string[] {
   return state.barcodes
-    .filter((row) => row.active && codes.includes(row.code) && row.productId !== excludingProductId)
+    .filter(
+      (row) => row.active && codes.includes(row.code) && !sameId(row.productId, excludingProductId),
+    )
     .map((row) => row.code);
 }
 
@@ -138,11 +145,11 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
 
   async lockLeafCategory(categoryId: string): Promise<LockLeafCategoryResult> {
     this.store.lockCallOrder.push("lockLeafCategory");
-    const category = this.state.categories.find((row) => row.id === categoryId);
+    const category = this.state.categories.find((row) => sameId(row.id, categoryId));
     if (!category) {
       return { kind: "not_found" };
     }
-    const hasChild = this.state.categories.some((row) => row.parentId === categoryId);
+    const hasChild = this.state.categories.some((row) => sameId(row.parentId, categoryId));
     return hasChild
       ? { kind: "not_leaf" }
       : { kind: "locked", category: { id: category.id, name: category.name } };
@@ -150,17 +157,17 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
 
   async lockParentForNewChild(parentId: string): Promise<LockParentForNewChildResult> {
     this.store.lockCallOrder.push("lockParentForNewChild");
-    const parent = this.state.categories.find((row) => row.id === parentId);
+    const parent = this.state.categories.find((row) => sameId(row.id, parentId));
     if (!parent) {
       return { kind: "not_found" };
     }
-    const hasProduct = this.state.products.some((row) => row.categoryId === parentId);
+    const hasProduct = this.state.products.some((row) => sameId(row.categoryId, parentId));
     return hasProduct ? { kind: "has_products" } : { kind: "locked" };
   }
 
   async lockProduct(productId: string): Promise<LockProductResult> {
     this.store.lockCallOrder.push("lockProduct");
-    const product = this.state.products.find((row) => row.id === productId);
+    const product = this.state.products.find((row) => sameId(row.id, productId));
     return product
       ? {
           kind: "locked",
@@ -171,7 +178,7 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
             brandId: product.brandId,
             saleUnit: product.saleUnit,
             tagIds: this.state.productTags
-              .filter((row) => row.productId === product.id)
+              .filter((row) => sameId(row.productId, product.id))
               .map((row) => row.tagId),
           },
         }
@@ -181,17 +188,22 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
   async buyNPayMDiscountsOn(productId: string): Promise<BuyNPayMDiscount[]> {
     this.store.lockCallOrder.push("buyNPayMDiscountsOn");
     return this.state.discounts
-      .filter((row) => row.kind === "BUY_N_PAY_M" && row.productId === productId)
+      .filter((row) => row.kind === "BUY_N_PAY_M" && sameId(row.productId, productId))
       .map(({ name, active, validFrom, validTo }) => ({ name, active, validFrom, validTo }));
   }
 
   async lockCategory(categoryId: string): Promise<LockCategoryResult> {
     this.store.lockCallOrder.push("lockCategory");
-    const category = this.state.categories.find((row) => row.id === categoryId);
+    const category = this.state.categories.find((row) => sameId(row.id, categoryId));
     return category
       ? {
           kind: "locked",
-          category: { name: category.name, parentId: category.parentId, version: category.version },
+          category: {
+            id: category.id,
+            name: category.name,
+            parentId: category.parentId,
+            version: category.version,
+          },
         }
       : { kind: "not_found" };
   }
@@ -201,7 +213,7 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
   }
 
   async parentIdOf(categoryId: string): Promise<string | null> {
-    const category = this.state.categories.find((row) => row.id === categoryId);
+    const category = this.state.categories.find((row) => sameId(row.id, categoryId));
     return category?.parentId ?? null;
   }
 
@@ -212,9 +224,9 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
   ): Promise<boolean> {
     return this.state.categories.some(
       (row) =>
-        row.parentId === parentId &&
+        sameId(row.parentId, parentId) &&
         row.name.toLowerCase() === name.toLowerCase() &&
-        row.id !== excludingCategoryId,
+        !sameId(row.id, excludingCategoryId),
     );
   }
 
@@ -251,7 +263,7 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
 
   async updateProduct(productId: string, fields: ProductFields): Promise<void> {
     for (const product of this.state.products) {
-      if (product.id === productId) {
+      if (sameId(product.id, productId)) {
         product.name = fields.name;
         product.categoryId = fields.categoryId;
         product.brandId = fields.brandId;
@@ -269,13 +281,15 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
   }
 
   async replaceProductTags(productId: string, tagIds: readonly string[]): Promise<void> {
-    this.state.productTags = this.state.productTags.filter((row) => row.productId !== productId);
+    this.state.productTags = this.state.productTags.filter(
+      (row) => !sameId(row.productId, productId),
+    );
     await this.insertProductTags(productId, tagIds);
   }
 
   async replaceProductBarcodes(product: LockedProduct, barcodes: readonly string[]): Promise<void> {
     this.store.barcodeReplacements.push({ product: { ...product }, barcodes: [...barcodes] });
-    this.state.barcodes = this.state.barcodes.filter((row) => row.productId !== product.id);
+    this.state.barcodes = this.state.barcodes.filter((row) => !sameId(row.productId, product.id));
     for (const code of barcodes) {
       if (this.store.barcodeConflicts.has(code)) {
         throw new CatalogBarcodeConflict();
@@ -286,7 +300,7 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
 
   async deactivateProduct(productId: string, nextVersion: number): Promise<void> {
     for (const product of this.state.products) {
-      if (product.id === productId) {
+      if (sameId(product.id, productId)) {
         product.active = false;
         product.version = nextVersion;
       }
@@ -295,7 +309,7 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
 
   async deactivateProductBarcodes(productId: string): Promise<void> {
     for (const row of this.state.barcodes) {
-      if (row.productId === productId) {
+      if (sameId(row.productId, productId)) {
         row.active = false;
       }
     }
@@ -315,7 +329,7 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
       throw new CatalogCategoryNameConflict();
     }
     for (const category of this.state.categories) {
-      if (category.id === categoryId) {
+      if (sameId(category.id, categoryId)) {
         category.name = fields.name;
         category.parentId = fields.parentId;
         category.version = fields.version;
@@ -325,18 +339,18 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
 
   async lockBrand(brandId: string): Promise<LockBrandResult> {
     this.store.lockCallOrder.push("lockBrand");
-    const brand = this.state.brands.find((row) => row.id === brandId);
+    const brand = this.state.brands.find((row) => sameId(row.id, brandId));
     return brand
       ? {
           kind: "locked",
-          brand: { name: brand.name, active: brand.active, version: brand.version },
+          brand: { id: brand.id, name: brand.name, active: brand.active, version: brand.version },
         }
       : { kind: "not_found" };
   }
 
   async brandNameTaken(name: string, excludingBrandId?: string): Promise<boolean> {
     return this.state.brands.some(
-      (row) => row.name.toLowerCase() === name.toLowerCase() && row.id !== excludingBrandId,
+      (row) => row.name.toLowerCase() === name.toLowerCase() && !sameId(row.id, excludingBrandId),
     );
   }
 
@@ -354,7 +368,7 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
       throw new CatalogBrandNameConflict();
     }
     for (const brand of this.state.brands) {
-      if (brand.id === brandId) {
+      if (sameId(brand.id, brandId)) {
         brand.name = fields.name;
         brand.active = fields.active;
         brand.version = fields.version;
@@ -365,15 +379,18 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
   async lockTag(tagId: string): Promise<LockTagResult> {
     this.store.lockCallOrder.push("lockTag");
     this.store.lockedTagIds.push(tagId);
-    const tag = this.state.tags.find((row) => row.id === tagId);
+    const tag = this.state.tags.find((row) => sameId(row.id, tagId));
     return tag
-      ? { kind: "locked", tag: { name: tag.name, active: tag.active, version: tag.version } }
+      ? {
+          kind: "locked",
+          tag: { id: tag.id, name: tag.name, active: tag.active, version: tag.version },
+        }
       : { kind: "not_found" };
   }
 
   async tagNameTaken(name: string, excludingTagId?: string): Promise<boolean> {
     return this.state.tags.some(
-      (row) => row.name.toLowerCase() === name.toLowerCase() && row.id !== excludingTagId,
+      (row) => row.name.toLowerCase() === name.toLowerCase() && !sameId(row.id, excludingTagId),
     );
   }
 
@@ -391,7 +408,7 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
       throw new CatalogTagNameConflict();
     }
     for (const tag of this.state.tags) {
-      if (tag.id === tagId) {
+      if (sameId(tag.id, tagId)) {
         tag.name = fields.name;
         tag.active = fields.active;
         tag.version = fields.version;
@@ -483,7 +500,7 @@ export class FakeCatalogStore implements CatalogStore {
   ): Promise<string[]> {
     const committed = activeBarcodesTaken(this.state, codes, excludingProductId);
     const raced = [...this.barcodeConflicts.entries()]
-      .filter(([code, productId]) => codes.includes(code) && productId !== excludingProductId)
+      .filter(([code, productId]) => codes.includes(code) && !sameId(productId, excludingProductId))
       .map(([code]) => code);
     return [...new Set([...committed, ...raced])];
   }

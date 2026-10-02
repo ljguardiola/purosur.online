@@ -249,6 +249,52 @@ describe("editCategory", () => {
     expect(outcome).toEqual({ kind: "move_not_allowed" });
   });
 
+  it("rejects moving a category under its own child when asked for it in another letter case, changing nothing", async () => {
+    const store = new FakeCatalogStore();
+    store.seedCategory({ id: "top", name: "Top", parentId: null, version: 1 });
+    store.seedCategory({ id: "child", name: "Child", parentId: "top", version: 1 });
+
+    const outcome = await editCategory(store, {
+      id: "TOP",
+      name: "Top",
+      parentId: "child",
+      version: 1,
+    });
+
+    expect(outcome).toEqual({ kind: "move_not_allowed" });
+    expect(store.snapshot().categories).toEqual([
+      { id: "top", name: "Top", parentId: null, version: 1 },
+      { id: "child", name: "Child", parentId: "top", version: 1 },
+    ]);
+  });
+
+  it("answers with the category's id as the store holds it when asked for it in another letter case", async () => {
+    const store = new FakeCatalogStore();
+    store.seedCategory({ id: "category-1", name: "Almacén", parentId: null, version: 1 });
+
+    const renamed = await editCategory(store, {
+      id: "CATEGORY-1",
+      name: "Despensa",
+      parentId: null,
+      version: 1,
+    });
+    const unchanged = await editCategory(store, {
+      id: "CATEGORY-1",
+      name: "Despensa",
+      parentId: null,
+      version: 2,
+    });
+
+    expect(renamed).toEqual({
+      kind: "applied",
+      category: { id: "category-1", name: "Despensa", parentId: null, version: 2 },
+    });
+    expect(unchanged).toEqual({
+      kind: "applied",
+      category: { id: "category-1", name: "Despensa", parentId: null, version: 2 },
+    });
+  });
+
   it("rejects a name already used by a sibling under the destination parent", async () => {
     const store = new FakeCatalogStore();
     store.seedCategory({ id: "parent", name: "Parent", parentId: null, version: 1 });

@@ -45,6 +45,23 @@ describe("editTag", () => {
     expect(store.lockCallOrder).toEqual(["lockTag"]);
   });
 
+  it("answers with the tag's id as the store holds it when asked for it in another letter case", async () => {
+    const store = new FakeCatalogStore();
+    store.seedTag({ id: "tag-1", name: "Sin TACC", active: true, version: 3 });
+
+    const renamed = await editTag(store, { id: "TAG-1", name: "Sin gluten", version: 3 });
+    const unchanged = await editTag(store, { id: "TAG-1", name: "Sin gluten", version: 4 });
+
+    expect(renamed).toEqual({
+      kind: "applied",
+      tag: { id: "tag-1", name: "Sin gluten", active: true, version: 4 },
+    });
+    expect(unchanged).toEqual({
+      kind: "applied",
+      tag: { id: "tag-1", name: "Sin gluten", active: true, version: 4 },
+    });
+  });
+
   it("keeps an unchanged name as a no-op that does not bump the version", async () => {
     const store = new FakeCatalogStore();
     store.seedTag({ id: "tag-1", name: "Sin TACC", active: true, version: 3 });
