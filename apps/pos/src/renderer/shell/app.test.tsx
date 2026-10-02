@@ -1913,6 +1913,23 @@ describe("App", () => {
       await expect.poll(() => asks).toBe(2);
       await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
     });
+
+    it("stays on the locked register's close when reading the cash session again finds it still locked", async () => {
+      let asks = 0;
+      const { screen } = await identifyFromLocked({
+        identifyLockedCloser: async () => ({ kind: "not_locked" }),
+        cashSession: async () => {
+          asks += 1;
+          return asks === 1 ? GRACE_SESSION : GRACE_SESSION_LOCKED;
+        },
+      });
+
+      await expect.poll(() => asks).toBe(2);
+      await expect.element(screen.getByText("No se pudo verificar el PIN")).toBeVisible();
+      await expect
+        .element(screen.getByRole("heading", { name: "¿Quién cierra la caja?" }))
+        .toBeVisible();
+    });
   });
 
   describe("recording cash movements", () => {

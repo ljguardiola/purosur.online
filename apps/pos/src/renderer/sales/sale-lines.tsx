@@ -1,6 +1,6 @@
 import type { OpenSale } from "@purosur/contracts";
-import { EmptyState, formatCents, IconButton } from "@purosur/ui";
-import { Minus, Package, Plus, ShoppingBasket, Tag, Trash2 } from "lucide-react";
+import { EmptyState, formatCents, IconButton, Tag } from "@purosur/ui";
+import { Minus, Package, Plus, ShoppingBasket, TagIcon, Trash2 } from "lucide-react";
 import { linePromotionText } from "./line-promotion-text";
 
 type SaleLine = OpenSale["lines"][number];
@@ -39,9 +39,10 @@ function SaleLineRow({
           {line.product_name}
         </span>
         {line.promotion === null ? null : (
-          <span className="flex items-center gap-1 text-detail font-bold text-success">
-            <Tag aria-hidden="true" className="size-icon-xs shrink-0" />
-            {linePromotionText(line.promotion)}
+          <span>
+            <Tag tone="info" icon={<TagIcon />}>
+              {linePromotionText(line.promotion)}
+            </Tag>
           </span>
         )}
       </span>

@@ -164,12 +164,6 @@ export function routeFor({
   return person === undefined ? "/sign-in" : "/";
 }
 
-const SESSION_SCREENS: readonly string[] = ["/session", "/cash", "/cash-count", "/charge"];
-
-export function isSessionScreen(path: string): boolean {
-  return SESSION_SCREENS.includes(path);
-}
-
 function requireRoute(expected: ScreenPath | readonly ScreenPath[], context: RouterContext): void {
   const route = routeFor(context);
   if (![expected].flat().includes(route)) {

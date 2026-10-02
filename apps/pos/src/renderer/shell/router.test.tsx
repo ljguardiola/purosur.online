@@ -10,7 +10,7 @@ import { createQueryClient } from "../platform/query-client";
 import type { CashSessionState } from "../register/cash-session-state";
 import { GuardedCashInForm } from "../register/test-support/guarded-cash-in-form";
 import type { CoreStatus, Enrollment, RouterContext } from "./router";
-import { createRegisterRouter, isSessionScreen, routeFor, routeTree } from "./router";
+import { createRegisterRouter, routeFor, routeTree } from "./router";
 import type { SignedInPerson } from "./signed-in-person";
 
 type RoutePath =
@@ -276,23 +276,6 @@ describe("routeFor", () => {
 beforeEach(() => page.viewport(1280, 720));
 
 afterEach(() => page.viewport(414, 896));
-describe("isSessionScreen", () => {
-  it("is true for the screens reached while a session is open, and false for the others", () => {
-    expect(["/session", "/cash", "/cash-count", "/charge"].map(isSessionScreen)).toEqual([
-      true,
-      true,
-      true,
-      true,
-    ]);
-    expect(["/", "/sign-in", "/starting", "/core-down", "/enroll"].map(isSessionScreen)).toEqual([
-      false,
-      false,
-      false,
-      false,
-      false,
-    ]);
-  });
-});
 
 describe("the register's router", () => {
   it.each<{

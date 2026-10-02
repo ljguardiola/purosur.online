@@ -13,6 +13,7 @@ import { Lock, ShieldX, TriangleAlert, UsersRound, UserX } from "lucide-react";
 import { useEffect, useId } from "react";
 import { waitDescription } from "../platform/pin-attempt-text";
 import { PinField } from "../platform/pin-field";
+import { Eyebrow } from "../shell/eyebrow";
 import type { AuthorizationState, ShownRefusal } from "./use-authorization";
 
 type Notice = { icon: Icon; title: string; description: string };
@@ -102,9 +103,7 @@ export function AuthorizationSection({
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-caption font-bold text-text-eyebrow tracking-sm">
-        AUTORIZA ALGUIEN CON PERMISO
-      </p>
+      <Eyebrow text="AUTORIZA ALGUIEN CON PERMISO" />
       {authorizers.status === "loading" ? <LoadingPlaceholder variant="form" fields={1} /> : null}
       {authorizers.status === "failed" ? (
         <LoadFailure
