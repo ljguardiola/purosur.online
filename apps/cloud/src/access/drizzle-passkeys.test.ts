@@ -125,4 +125,35 @@ describe("drizzlePasskeys", () => {
       );
     });
   });
+
+  describe("passkeyByCredentialId", () => {
+    it("answers the user's passkey with its key material", async () => {
+      const userId = await insertUser("ana@example.test");
+      const createdAt = new Date("2026-10-01T08:00:00.000Z");
+      const passkeyId = await insertPasskey(userId, "c-1", "Una", createdAt, null, ["internal"]);
+
+      expect(await drizzlePasskeys(db).passkeyByCredentialId(userId, "c-1")).toEqual({
+        id: passkeyId,
+        userId,
+        credentialId: "c-1",
+        publicKey: "public-key",
+        counter: 0,
+        transports: ["internal"],
+      });
+    });
+
+    it("never answers another user's passkey, even for a matching credential id", async () => {
+      const userId = await insertUser("ana@example.test");
+      const otherId = await insertUser("beto@example.test");
+      await insertPasskey(otherId, "c-1", "Ajena", new Date("2026-10-01T08:00:00.000Z"));
+
+      expect(await drizzlePasskeys(db).passkeyByCredentialId(userId, "c-1")).toBeUndefined();
+    });
+
+    it("answers nothing for a credential id nobody registered", async () => {
+      const userId = await insertUser("ana@example.test");
+
+      expect(await drizzlePasskeys(db).passkeyByCredentialId(userId, "c-1")).toBeUndefined();
+    });
+  });
 });
