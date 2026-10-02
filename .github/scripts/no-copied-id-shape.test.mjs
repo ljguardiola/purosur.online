@@ -94,6 +94,17 @@ test("finds a copy assembled from pieces held in constants of the same file", ()
   assert.deepEqual(linesOf(source), [4]);
 });
 
+test("finds a copy whose group lengths are numbers substituted into the pattern", () => {
+  const source = [
+    "const FIRST_GROUP = 8;",
+    "const ID = new RegExp(",
+    `  \`^[0-9a-f]{\${FIRST_GROUP}}-[0-9a-f]{\${4}}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$\`,`,
+    ");",
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), [3]);
+});
+
 test("ignores UUID values used as test data", () => {
   const source = [
     'const PRODUCT_ID = "0123abcd-ef01-4567-89ab-cdef01234567";',
