@@ -1,4 +1,4 @@
-import { createRef, useId } from "react";
+import { createRef, type Ref, useId } from "react";
 import { expect, expectTypeOf, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
@@ -146,4 +146,13 @@ function SectionNamedByTheTitle() {
 
 test("does not accept a screen header without its title", () => {
   expectTypeOf<{ eyebrow: string; description: string }>().not.toExtend<ScreenHeaderProps>();
+});
+
+test("accepts an eyebrow, a description and a title ref a screen may or may not have at hand", () => {
+  expectTypeOf<{
+    title: string;
+    eyebrow: string | undefined;
+    description: string | undefined;
+    titleRef: Ref<HTMLHeadingElement> | undefined;
+  }>().toExtend<ScreenHeaderProps>();
 });
