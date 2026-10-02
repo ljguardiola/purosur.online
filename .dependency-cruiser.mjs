@@ -2,8 +2,6 @@ export const CLOUD_ONLY_CONCEPTS = ["purchasing", "alerts", "catalog", "pricing"
 
 const REAL_POSTGRES_TEST = "apps/cloud/src/.+\\.integration\\.test\\.ts$";
 
-export const PERSISTENCE_IN_HANDLERS_ALLOWLIST = [];
-
 export const SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST = [
   "apps/backoffice/src/access/backoffice-access.ts",
   "apps/backoffice/src/access/passkey-row-detail.ts",
@@ -275,7 +273,6 @@ export default {
           "^apps/cloud/src/[^/]+/.+-route\\.ts$",
           "^apps/pos/src/core/[^/]+/.+-requests\\.ts$",
         ],
-        pathNot: exactPaths(PERSISTENCE_IN_HANDLERS_ALLOWLIST),
       },
       to: {
         path: [
