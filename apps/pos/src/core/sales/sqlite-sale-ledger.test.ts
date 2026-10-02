@@ -666,17 +666,18 @@ describe("charging an open sale in cash", () => {
     });
   });
 
-  it("lets the session close once the sale is completed", () => {
+  it("lets the session close once the sale is completed", async () => {
     const saleId = sellTwo();
     charge(saleId, 3000);
 
-    const closed = closeCashSession(
+    const closed = await closeCashSession<never>(
       {
         ledger: new SqliteCashLedger(database, new SqliteSignInStore(database), CHAIN_KEY),
         clock: { now: () => NOW },
         ids,
+        authority: { authorize: async () => ({ kind: "granted", grant: { closerId: "u1" } }) },
       },
-      { sessionId: "session-1", closerId: "u1", countedCash: 3000 },
+      { sessionId: "session-1", countedCash: 3000 },
     );
 
     expect(closed).toMatchObject({ kind: "closed" });

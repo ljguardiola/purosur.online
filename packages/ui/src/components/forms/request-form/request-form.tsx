@@ -6,7 +6,7 @@ import {
   type StandardSchemaV1Issue,
   useStore,
 } from "@tanstack/react-form";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { fieldContext, formContext } from "./request-form-context";
 import {
   BoundComboBox,
@@ -63,6 +63,7 @@ type RequestFormOptions<
     Record<string, FieldDeclaration<Values, Field>>
   >;
   messages: Record<Field, Message<Values>>;
+  check?: (request: Request) => Promise<readonly string[]>;
   onSubmit: (request: Request, submission: RequestSubmission<Values, Parsed>) => Promise<void>;
 };
 
@@ -86,7 +87,7 @@ export function useRequestForm<
   Parsed,
   Field extends keyof Values & string,
 >(options: RequestFormOptions<Values, Request, Parsed, Field>) {
-  const { request, fields, messages } = options;
+  const { request, fields, messages, check } = options;
   const wireFields: Record<string, FieldDeclaration<Values, Field> | undefined> = fields;
   const fieldOf = (wireField: string, values: Values): Field | undefined => {
     const declared = Object.hasOwn(fields, wireField) ? wireFields[wireField] : undefined;
@@ -107,10 +108,15 @@ export function useRequestForm<
   const failuresOf = (
     values: Values,
     issues: readonly StandardSchemaV1Issue[] = [],
+    refusedWireFields: readonly string[] = [],
   ): Partial<Record<Field, string>> | undefined => {
     const failures: Partial<Record<Field, string>> = {};
-    for (const issue of issues) {
-      const field = issueWireFields(issue)
+    const failingWireFields = [
+      ...issues.map((issue) => issueWireFields(issue)),
+      ...refusedWireFields.map((wireField) => [wireField]),
+    ];
+    for (const wireFields of failingWireFields) {
+      const field = wireFields
         .map((wireField) => fieldOf(wireField, values))
         .find((declared) => declared !== undefined);
       if (field !== undefined) {
@@ -120,17 +126,55 @@ export function useRequestForm<
     return Object.keys(failures).length > 0 ? failures : undefined;
   };
 
+  const checked = useRef({ live: false, asked: 0, refused: [] as readonly string[] });
+
+  async function askCheck(
+    checkRequest: (request: Request) => Promise<readonly string[]>,
+    body: Request,
+  ): Promise<{ refusedWireFields: readonly string[]; latest: boolean; afterReset: boolean }> {
+    const round = checked.current;
+    round.asked += 1;
+    const asked = round.asked;
+    const refusedWireFields = validate(body).issues
+      ? []
+      : await checkRequest(body).catch((): readonly string[] => []);
+    const afterReset = round !== checked.current;
+    const latest = !afterReset && asked === round.asked;
+    if (latest) {
+      round.refused = refusedWireFields;
+    }
+    return { refusedWireFields, latest, afterReset };
+  }
+
+  async function recheck(checkRequest: (request: Request) => Promise<readonly string[]>) {
+    const { latest } = await askCheck(checkRequest, request.from(form.state.values));
+    if (latest && form.state.submissionAttempts > 0) {
+      await form.validate("change");
+    }
+  }
+
   const [defaultValues] = useState(() => options.defaultValues);
   const form = useAppForm({
     defaultValues,
     validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
     validators: {
       onDynamic: ({ value }) => {
-        const fields = failuresOf(value, validate(request.from(value)).issues);
+        const fields = failuresOf(
+          value,
+          validate(request.from(value)).issues,
+          checked.current.refused,
+        );
         return fields && { fields };
       },
     },
-    listeners: { onChange: ({ fieldApi }) => clearFieldError(fieldApi.name) },
+    listeners: {
+      onChange: ({ fieldApi }) => {
+        clearFieldError(fieldApi.name);
+        if (check !== undefined && checked.current.live) {
+          void recheck(check);
+        }
+      },
+    },
     onSubmitMeta: NOTHING_STARTED,
     onSubmit: ({ meta }) => meta.started,
   });
@@ -161,6 +205,7 @@ export function useRequestForm<
   const [unsettled, setUnsettled] = useState(0);
 
   async function submit() {
+    checked.current.live = true;
     for (const field of Object.keys(messages) as Field[]) {
       if (form.getFieldMeta(field) !== undefined) {
         clearFieldError(field);
@@ -172,6 +217,19 @@ export function useRequestForm<
     if (failuresOf(values, result.issues)) {
       await form.handleSubmit(NOTHING_STARTED);
       return;
+    }
+    if (check !== undefined) {
+      setUnsettled((count) => count + 1);
+      const { refusedWireFields, afterReset } = await askCheck(check, body).finally(() =>
+        setUnsettled((count) => count - 1),
+      );
+      if (afterReset) {
+        return;
+      }
+      if (failuresOf(values, [], refusedWireFields)) {
+        await form.handleSubmit(NOTHING_STARTED);
+        return;
+      }
     }
     const started = options.onSubmit(body, {
       values,
@@ -190,6 +248,7 @@ export function useRequestForm<
   const [loaded, setLoaded] = useState(defaultValues);
   const [reset] = useState(() => (values?: Values) => {
     setLoaded(values ?? defaultValues);
+    checked.current = { live: false, asked: 0, refused: [] };
     form.reset(values, { keepDefaultValues: true });
   });
   const currentValues = useStore(form.store, (state) => state.values);

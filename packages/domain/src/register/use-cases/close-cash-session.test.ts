@@ -2,13 +2,18 @@ import { describe, expect, it } from "vitest";
 import type { PaymentTransaction } from "../../sales/index.js";
 import { MAX_CASH_AMOUNT_CENTS } from "../model/cash-amount.js";
 import type { CashMovement, CashSession, OpenedCashSession } from "../model/cash-session.js";
-import { closeCashSession } from "./close-cash-session.js";
+import { type CloseCashSessionGrant, closeCashSession } from "./close-cash-session.js";
 import {
   FakeCashLedger,
   type FakeCashLedgerState,
   type FakeCashLedgerWrite,
   SequentialIds,
 } from "./test-support/fake-cash-ledger.js";
+import {
+  type FakeOperationAuthority,
+  granting,
+  refusing,
+} from "./test-support/fake-operation-authority.js";
 import { FixedClock } from "./test-support/fake-register-store.js";
 
 const NOW = new Date("2026-09-30T20:15:00.000Z");
@@ -62,15 +67,18 @@ interface Overrides {
   countedCash?: number;
 }
 
-function close(store: FakeCashLedger, overrides: Overrides = {}) {
+const NOT_SIGNED_IN = { kind: "not_signed_in" } as const;
+
+function close(
+  store: FakeCashLedger,
+  { closerId = "cashier", ...overrides }: Overrides = {},
+  authority: FakeOperationAuthority<CloseCashSessionGrant, typeof NOT_SIGNED_IN> = granting({
+    closerId,
+  }),
+) {
   return closeCashSession(
-    { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds() },
-    {
-      sessionId: "session-1",
-      closerId: "cashier",
-      countedCash: 10_000,
-      ...overrides,
-    },
+    { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds(), authority },
+    { sessionId: "session-1", countedCash: 10_000, ...overrides },
   );
 }
 
@@ -79,7 +87,7 @@ function sessionAfter(store: FakeCashLedger): CashSession | undefined {
 }
 
 describe("closeCashSession", () => {
-  it("closes the session with who closed it, when, and what was expected and counted", () => {
+  it("closes the session with who closed it, when, and what was expected and counted", async () => {
     const store = ledger({
       movements: [
         movement("OPENING", 10_000),
@@ -89,7 +97,7 @@ describe("closeCashSession", () => {
       ],
     });
 
-    const outcome = close(store, { countedCash: 25_000 });
+    const outcome = await close(store, { countedCash: 25_000 });
 
     const closed: CashSession = {
       ...OPEN_SESSION,
@@ -104,7 +112,7 @@ describe("closeCashSession", () => {
     expect(sessionAfter(store)).toEqual(closed);
   });
 
-  it("expects only the movements of the session being closed", () => {
+  it("expects only the movements of the session being closed", async () => {
     const store = ledger({
       movements: [
         movement("OPENING", 10_000),
@@ -115,13 +123,13 @@ describe("closeCashSession", () => {
       ],
     });
 
-    expect(close(store, { countedCash: 14_000 })).toMatchObject({
+    expect(await close(store, { countedCash: 14_000 })).toMatchObject({
       kind: "closed",
       session: { expectedCash: 14_000, difference: 0 },
     });
   });
 
-  it("subtracts what went out and ignores an earlier closing count", () => {
+  it("subtracts what went out and ignores an earlier closing count", async () => {
     const store = ledger({
       movements: [
         movement("OPENING", 10_000),
@@ -132,27 +140,30 @@ describe("closeCashSession", () => {
       ],
     });
 
-    expect(close(store)).toMatchObject({ session: { expectedCash: 11_500 } });
+    expect(await close(store)).toMatchObject({ session: { expectedCash: 11_500 } });
   });
 
   it.each([
     ["short", 9_000, -1_000],
     ["exact", 10_000, 0],
     ["over", 10_750, 750],
-  ])("closes when the count is %s, recording the difference", (_name, countedCash, difference) => {
+  ])(
+    "closes when the count is %s, recording the difference",
+    async (_name, countedCash, difference) => {
+      const store = ledger();
+
+      expect(await close(store, { countedCash })).toMatchObject({
+        kind: "closed",
+        session: { expectedCash: 10_000, countedCash, difference },
+      });
+      expect(sessionAfter(store)?.state).toBe("CLOSED");
+    },
+  );
+
+  it("records the count as a CLOSING movement of the closer", async () => {
     const store = ledger();
 
-    expect(close(store, { countedCash })).toMatchObject({
-      kind: "closed",
-      session: { expectedCash: 10_000, countedCash, difference },
-    });
-    expect(sessionAfter(store)?.state).toBe("CLOSED");
-  });
-
-  it("records the count as a CLOSING movement of the closer", () => {
-    const store = ledger();
-
-    close(store, { countedCash: 9_000 });
+    await close(store, { countedCash: 9_000 });
 
     expect(store.state.movements.at(-1)).toEqual({
       id: "id-1",
@@ -164,27 +175,27 @@ describe("closeCashSession", () => {
     });
   });
 
-  it("records the closer as who closed the session", () => {
+  it("records the closer as who closed the session", async () => {
     const store = ledger();
 
-    close(store, { closerId: "manager" });
+    await close(store, { closerId: "manager" });
 
     expect(store.state.movements.at(-1)).toMatchObject({ type: "CLOSING", actorId: "manager" });
     expect(sessionAfter(store)).toMatchObject({ closedBy: "manager" });
   });
 
-  it("records no authorizer on the closing movement", () => {
+  it("records no authorizer on the closing movement", async () => {
     const store = ledger();
 
-    close(store);
+    await close(store);
 
     expect(store.state.movements.at(-1)).not.toHaveProperty("authorizedBy");
   });
 
-  it("queues a cash_session_closed event for the session", () => {
+  it("queues a cash_session_closed event for the session", async () => {
     const store = ledger();
 
-    close(store, { countedCash: 9_000 });
+    await close(store, { countedCash: 9_000 });
 
     expect(store.state.outbox).toEqual([
       {
@@ -206,25 +217,30 @@ describe("closeCashSession", () => {
     ]);
   });
 
-  it("does everything in one transaction", () => {
+  it("does everything in one transaction", async () => {
     const store = ledger();
 
-    close(store);
+    await close(store);
 
     expect(store.transactions).toBe(1);
   });
 
-  it.each([0, MAX_CASH_AMOUNT_CENTS])("accepts a count of %i cents", (countedCash) => {
-    expect(close(ledger(), { countedCash }).kind).toBe("closed");
+  it.each([0, MAX_CASH_AMOUNT_CENTS])("accepts a count of %i cents", async (countedCash) => {
+    expect((await close(ledger(), { countedCash })).kind).toBe("closed");
   });
 
   it.each([-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, MAX_CASH_AMOUNT_CENTS + 1])(
     "refuses a count of %s without opening a transaction",
-    (countedCash) => {
+    async (countedCash) => {
       const store = ledger();
       const before = structuredClone(store.state);
 
-      expect(close(store, { countedCash })).toEqual({ kind: "invalid_counted_cash" });
+      const authority = granting({ closerId: "cashier" });
+
+      expect(await close(store, { countedCash }, authority)).toEqual({
+        kind: "invalid_counted_cash",
+      });
+      expect(authority.asked).toBe(0);
       expect(store.transactions).toBe(0);
       expect(store.state).toEqual(before);
     },
@@ -237,50 +253,67 @@ describe("closeCashSession", () => {
       "the open session is not the one being closed",
       { sessions: [{ ...OPEN_SESSION, id: "other" }] },
     ],
-  ])("refuses when %s", (_name, state) => {
+  ])("refuses when %s", async (_name, state) => {
     const store = ledger(state);
     const before = structuredClone(store.state);
 
-    expect(close(store)).toEqual({ kind: "no_open_session" });
+    expect(await close(store)).toEqual({ kind: "no_open_session" });
     expect(store.state).toEqual(before);
   });
 
-  it("refuses while a sale is open, telling its total, and records nothing", () => {
+  it("refuses while a sale is open, telling its total, and records nothing", async () => {
     const store = ledger({ openSale: { total: 4_250, payments: [] } });
     const before = structuredClone(store.state);
 
-    expect(close(store)).toEqual({ kind: "open_sale", total: 4_250, cancellable: true });
+    expect(await close(store)).toEqual({ kind: "open_sale", total: 4_250, cancellable: true });
     expect(store.state).toEqual(before);
   });
 
-  it("refuses an open sale even when its total is zero", () => {
-    expect(close(ledger({ openSale: { total: 0, payments: [] } }))).toEqual({
+  it("refuses an open sale even when its total is zero", async () => {
+    expect(await close(ledger({ openSale: { total: 0, payments: [] } }))).toEqual({
       kind: "open_sale",
       total: 0,
       cancellable: true,
     });
   });
 
-  it("tells that an open sale with an approved payment cannot be cancelled", () => {
+  it("tells that an open sale with an approved payment cannot be cancelled", async () => {
     const store = ledger({ openSale: { total: 4_250, payments: [APPROVED_PAYMENT] } });
 
-    expect(close(store)).toEqual({ kind: "open_sale", total: 4_250, cancellable: false });
+    expect(await close(store)).toEqual({ kind: "open_sale", total: 4_250, cancellable: false });
   });
 
-  it("checks the session before the open sale", () => {
+  it("answers the authority's refusal and records nothing when the closing is not authorized", async () => {
+    const store = ledger();
+    const before = structuredClone(store.state);
+
+    expect(await close(store, {}, refusing(NOT_SIGNED_IN))).toEqual(NOT_SIGNED_IN);
+    expect(store.transactions).toBe(0);
+    expect(store.state).toEqual(before);
+  });
+
+  it("asks for the authorization once", async () => {
+    const authority = granting({ closerId: "cashier" });
+
+    await close(ledger(), {}, authority);
+
+    expect(authority.asked).toBe(1);
+  });
+
+  it("checks the session before the open sale", async () => {
     const store = ledger({ sessions: [], openSale: { total: 100, payments: [] } });
 
-    expect(close(store)).toEqual({ kind: "no_open_session" });
+    expect(await close(store)).toEqual({ kind: "no_open_session" });
   });
 
   it.each<FakeCashLedgerWrite>(["recordCashMovement", "recordClosedSession", "appendOutboxEvent"])(
     "leaves nothing behind when %s fails",
-    (write) => {
+    async (write) => {
       const store = ledger();
       const before = structuredClone(store.state);
       store.failOn = write;
 
-      expect(() => close(store)).toThrow(`${write} failed`);
+      await expect(close(store)).rejects.toThrow(`${write} failed`);
       expect(store.state).toEqual(before);
     },
   );

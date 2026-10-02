@@ -238,6 +238,24 @@ describe("recording a cash movement", () => {
     expect(movementRows()).toEqual([]);
   });
 
+  it("refuses an amount it cannot record before checking the authorizer's PIN, spending none of its attempts", async () => {
+    const outcome = await recordCashMovementFor(
+      deps(),
+      request({ kind: "CASH_OUT", amount: 0, authorization: { user_id: "u2", pin: "0000" } }),
+    );
+
+    expect(outcome).toEqual({ kind: "invalid_amount" });
+    expect(database.prepare("SELECT user_id FROM pin_sign_in_failures").all()).toEqual([]);
+  });
+
+  it("refuses an amount it cannot record before telling that nobody is signed in", async () => {
+    signedInPerson.clear();
+
+    expect(await recordCashMovementFor(deps(), request({ amount: 0 }))).toEqual({
+      kind: "invalid_amount",
+    });
+  });
+
   it("refuses a withdrawal above the session's expected cash, saying how much is expected, and writes nothing", async () => {
     const outcome = await recordCashMovementFor(
       deps(),
@@ -283,7 +301,7 @@ describe("the open session's cash movements", () => {
         type: "WITHDRAWAL",
         amount: 2500,
         reason: "Cambio",
-        occurred_at: "2026-09-30T12:00:00.000Z",
+        occurred_at: "2026-09-30T09:00:00.000-03:00",
         actor: { user_id: "u1", first_name: "Ada" },
         authorized_by: { user_id: "u2", first_name: "Grace" },
       },

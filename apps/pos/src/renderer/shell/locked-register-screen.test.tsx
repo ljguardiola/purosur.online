@@ -7,7 +7,7 @@ import { LockedRegisterScreen } from "./locked-register-screen";
 import { render } from "./test-support/render-with-router";
 
 const OPENER: SignedInPerson = { user_id: "u1", first_name: "Ada", abilities: [] };
-const OPENED_AT = "2026-09-30T12:02:00.000Z";
+const OPENED_AT = "2026-09-30T09:02:00.000-03:00";
 
 function answering(outcome: SignInOutcome) {
   const attempts: { userId: string; pin: string }[] = [];

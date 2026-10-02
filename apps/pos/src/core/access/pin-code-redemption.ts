@@ -7,7 +7,7 @@ import {
   pinCodeRedemptionSchema,
   retryAfterSecondsOf,
 } from "@purosur/contracts";
-import { isLockedToAnother } from "@purosur/domain";
+import { isAcceptablePin, isLockedToAnother } from "@purosur/domain";
 import type { DeviceCredentials } from "../../shared/device-credentials-messages";
 import type { CloudResponse } from "../platform/cloud-client";
 import type { SignedInPerson } from "./signed-in-person";
@@ -49,15 +49,36 @@ function refusalOutcome(error: CloudError): PinCodeRedemptionOutcome {
   }
 }
 
+function refusedFields(
+  codeIsWellFormed: boolean,
+  newPin: string,
+): Extract<PinCodeRedemptionOutcome, { kind: "invalid_input" }>["fields"] {
+  const fields: ("reset_code" | "new_pin")[] = [];
+  if (!codeIsWellFormed) {
+    fields.push("reset_code");
+  }
+  if (!isAcceptablePin(newPin)) {
+    fields.push("new_pin");
+  }
+  return fields;
+}
+
+export function checkPinCodeRedemption(
+  typedCode: string,
+  newPin: string,
+): ("reset_code" | "new_pin")[] {
+  const request = pinCodeRedemptionBodySchema.safeParse({ reset_code: typedCode, new_pin: newPin });
+  return refusedFields(request.success, newPin);
+}
+
 export async function redeemPinCode(
   deps: PinCodeRedemptionDeps,
   typedCode: string,
   newPin: string,
 ): Promise<PinCodeRedemptionOutcome> {
   const request = pinCodeRedemptionBodySchema.safeParse({ reset_code: typedCode, new_pin: newPin });
-  if (!request.success) {
-    const codeIsWrong = request.error.issues.some((issue) => issue.path[0] === "reset_code");
-    return codeIsWrong ? { kind: "code_invalid" } : { kind: "unavailable" };
+  if (!request.success || !isAcceptablePin(newPin)) {
+    return { kind: "invalid_input", fields: refusedFields(request.success, newPin) };
   }
   const { postToCloud, applyRedeemedPin } = deps;
   const credentials = await deps.readCredentials();

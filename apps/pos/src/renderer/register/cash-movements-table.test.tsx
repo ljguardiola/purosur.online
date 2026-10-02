@@ -16,7 +16,7 @@ function movement(overrides: Partial<ListedCashMovement> = {}): ListedCashMoveme
     type: "CASH_IN",
     amount: 500_000,
     reason: null,
-    occurred_at: "2026-09-30T15:05:00.000Z",
+    occurred_at: "2026-09-30T12:05:00.000-03:00",
     actor: ADA,
     authorized_by: null,
     ...overrides,
@@ -42,7 +42,7 @@ function movementsEveryMinute(count: number) {
   return Array.from({ length: count }, (_, index) =>
     movement({
       id: `m${index}`,
-      occurred_at: new Date(Date.UTC(2026, 8, 30, 12, index)).toISOString(),
+      occurred_at: `2026-09-30T09:${String(index).padStart(2, "0")}:00.000-03:00`,
     }),
   );
 }
@@ -81,17 +81,17 @@ describe("CashMovementsTable", () => {
     expect(row).toContain("Adaautorizó Grace");
   });
 
-  it("shows the time in Argentina time", async () => {
-    const screen = await renderTable([movement({ occurred_at: "2026-10-01T02:30:00.000Z" })]);
+  it("shows the time on the clock the movement is written in", async () => {
+    const screen = await renderTable([movement({ occurred_at: "2026-09-30T23:30:00.000-03:00" })]);
 
     expect(rowsOf(screen)[0]).toMatch(/^23:30/);
   });
 
   it("lists the newest movement first", async () => {
     const screen = await renderTable([
-      movement({ id: "a", occurred_at: "2026-09-30T12:00:00.000Z" }),
-      movement({ id: "c", occurred_at: "2026-09-30T18:00:00.000Z" }),
-      movement({ id: "b", occurred_at: "2026-09-30T15:00:00.000Z" }),
+      movement({ id: "a", occurred_at: "2026-09-30T09:00:00.000-03:00" }),
+      movement({ id: "c", occurred_at: "2026-09-30T15:00:00.000-03:00" }),
+      movement({ id: "b", occurred_at: "2026-09-30T12:00:00.000-03:00" }),
     ]);
 
     expect(rowsOf(screen).map((row) => row.slice(0, 5))).toEqual(["15:00", "12:00", "09:00"]);
@@ -99,8 +99,8 @@ describe("CashMovementsTable", () => {
 
   it("lists the oldest movement first once the time column is sorted the other way", async () => {
     const screen = await renderTable([
-      movement({ id: "a", occurred_at: "2026-09-30T12:00:00.000Z" }),
-      movement({ id: "b", occurred_at: "2026-09-30T15:00:00.000Z" }),
+      movement({ id: "a", occurred_at: "2026-09-30T09:00:00.000-03:00" }),
+      movement({ id: "b", occurred_at: "2026-09-30T12:00:00.000-03:00" }),
     ]);
 
     await userEvent.click(screen.getByRole("button", { name: /Hora/ }));

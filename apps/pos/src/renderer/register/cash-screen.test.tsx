@@ -15,8 +15,7 @@ const PERSON: SignedInPerson = {
   first_name: "Ada",
   abilities: ["open_cash_session"],
 };
-// 12:02 UTC is 09:02 in Argentina.
-const OPENED_AT = "2026-09-30T12:02:00.000Z";
+const OPENED_AT = "2026-09-30T09:02:00.000-03:00";
 const BALANCE: CashBalance = {
   opening_float: 2_000_000,
   cash_sales: 3_500_000,
@@ -42,7 +41,7 @@ const FLETE: ListedCashMovement = {
   type: "CASH_OUT",
   amount: 50_000,
   reason: "Flete",
-  occurred_at: "2026-09-30T13:30:00.000Z",
+  occurred_at: "2026-09-30T10:30:00.000-03:00",
   actor: { user_id: "u1", first_name: "Ada" },
   authorized_by: null,
 };

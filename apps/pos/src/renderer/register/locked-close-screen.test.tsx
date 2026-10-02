@@ -52,7 +52,7 @@ async function renderScreen(
       sessionId="s1"
       opener={GRACE}
       registerName="Caja 1"
-      openedAt="2026-09-30T12:02:00.000Z"
+      openedAt="2026-09-30T09:02:00.000-03:00"
       loadCashBalance={loadCashBalance}
       loadOpenSale={options.loadOpenSale ?? (async () => null)}
       loadClosers={async () => [{ id: "u3", first_name: "Sofía" }]}
@@ -88,7 +88,7 @@ describe("LockedCloseScreen", () => {
         sessionId="s1"
         opener={GRACE}
         registerName="Caja 1"
-        openedAt="2026-09-30T12:02:00.000Z"
+        openedAt="2026-09-30T09:02:00.000-03:00"
         loadCashBalance={async () => BALANCE}
         loadOpenSale={async () => null}
         loadClosers={loadClosers}

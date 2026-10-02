@@ -161,6 +161,17 @@ describe("ProductSearchResults", () => {
       .toBeVisible();
   });
 
+  it("counts the results it shows in the warning that there are more", async () => {
+    const { screen } = await renderResults({
+      products: Array.from({ length: 7 }, (_, position) => product(position)),
+      more: true,
+    });
+
+    await expect
+      .element(screen.getByText(/Se muestran los primeros 7 resultados y hay más/).first())
+      .toBeVisible();
+  });
+
   it("warns that there are more results instead of the footer, and scrolls the twenty it shows", async () => {
     const { screen } = await renderResults({
       products: Array.from({ length: 20 }, (_, position) => product(position)),

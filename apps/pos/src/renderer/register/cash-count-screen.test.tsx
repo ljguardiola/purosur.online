@@ -11,7 +11,7 @@ const ADA: SignedInPerson = {
   first_name: "Ada",
   abilities: ["open_cash_session"],
 };
-const OPENED_AT = "2026-09-30T12:02:00.000Z";
+const OPENED_AT = "2026-09-30T09:02:00.000-03:00";
 const BALANCE: CashBalance = {
   opening_float: 2_000_000,
   cash_sales: 3_500_000,
@@ -145,6 +145,28 @@ describe("CashCountScreen", () => {
 
     expect(cellOf(screen, "Contado")).toBe("Contado—");
     await expect.element(screen.getByText(SHORT_NOTICE).first()).not.toBeInTheDocument();
+  });
+
+  it("compares any amount it can read as a count, however large", async () => {
+    const { screen } = await renderScreen();
+
+    await count(screen, "30.000.000,00");
+
+    expect(cellOf(screen, "Contado")).toBe("Contado$ 30.000.000,00");
+    await expect.element(screen.getByText("Sobran", { exact: false }).first()).toBeVisible();
+  });
+
+  it("leaves a count of any amount it can read for the core to judge, showing its refusal", async () => {
+    const closeCashSession = vi.fn<CloseCashSession>(async () => ({
+      kind: "invalid_counted_cash",
+    }));
+    const { screen } = await renderScreen({ closeCashSession });
+    await count(screen, "30.000.000,00");
+
+    await submit(screen);
+
+    await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
+    expect(closeCashSession).toHaveBeenCalledWith(3_000_000_000);
   });
 
   it("closes the session with the counted cash in cents", async () => {

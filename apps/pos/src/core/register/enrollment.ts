@@ -53,6 +53,10 @@ function refusalOutcome(error: CloudError): EnrollmentOutcome {
   }
 }
 
+export function checkEnrollmentCode(typedCode: string): "code"[] {
+  return deviceEnrollmentBodySchema.shape.code.safeParse(typedCode).success ? [] : ["code"];
+}
+
 export async function enroll(deps: EnrollmentDeps, typedCode: string): Promise<EnrollmentOutcome> {
   const report = deps.installationReport();
   const request = deviceEnrollmentBodySchema.safeParse({
@@ -62,7 +66,7 @@ export async function enroll(deps: EnrollmentDeps, typedCode: string): Promise<E
   });
   if (!request.success) {
     const codeIsWrong = request.error.issues.some((issue) => issue.path[0] === "code");
-    return codeIsWrong ? { kind: "code_rejected" } : { kind: "unavailable" };
+    return codeIsWrong ? { kind: "invalid_input", fields: ["code"] } : { kind: "unavailable" };
   }
   if (deps.postToCloud === undefined) {
     return { kind: "unavailable" };

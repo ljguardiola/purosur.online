@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { MAX_CASH_AMOUNT_CENTS } from "../model/cash-amount.js";
 import type { CashSession, OpenedCashSession } from "../model/cash-session.js";
-import { openCashSession } from "./open-cash-session.js";
+import { type OpenCashSessionGrant, openCashSession } from "./open-cash-session.js";
 import {
   FakeCashLedger,
   type FakeCashLedgerState,
   type FakeCashLedgerWrite,
   SequentialIds,
 } from "./test-support/fake-cash-ledger.js";
+import {
+  type FakeOperationAuthority,
+  granting,
+  refusing,
+} from "./test-support/fake-operation-authority.js";
 import { FixedClock } from "./test-support/fake-register-store.js";
 
 const NOW = new Date("2026-09-30T12:34:56.789Z");
@@ -27,10 +32,19 @@ function ledger(state: Partial<FakeCashLedgerState> = {}): FakeCashLedger {
   return new FakeCashLedger({ accesses: { cashier: CASHIER }, identity: IDENTITY, ...state });
 }
 
-function open(store: FakeCashLedger, openerId = "cashier", openingFloat = 150000) {
+const NOT_SIGNED_IN = { kind: "not_signed_in" } as const;
+
+function open(
+  store: FakeCashLedger,
+  openerId = "cashier",
+  openingFloat = 150000,
+  authority: FakeOperationAuthority<OpenCashSessionGrant, typeof NOT_SIGNED_IN> = granting({
+    openerId,
+  }),
+) {
   return openCashSession(
-    { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds() },
-    { openerId, openingFloat },
+    { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds(), authority },
+    { openingFloat },
   );
 }
 
@@ -39,10 +53,10 @@ function nothingRecorded(store: FakeCashLedger, before: FakeCashLedgerState): vo
 }
 
 describe("openCashSession", () => {
-  it("opens the session with the opener, the moment and the float", () => {
+  it("opens the session with the opener, the moment and the float", async () => {
     const store = ledger();
 
-    const outcome = open(store);
+    const outcome = await open(store);
 
     const session: OpenedCashSession = {
       id: "id-1",
@@ -53,14 +67,14 @@ describe("openCashSession", () => {
       openingFloat: 150000,
       state: "OPEN",
     };
-    expect(outcome).toEqual({ kind: "opened", session });
+    expect(outcome).toEqual({ kind: "opened", session, grant: { openerId: "cashier" } });
     expect(store.state.sessions).toEqual([session]);
   });
 
-  it("records the opening float as an OPENING cash movement of the opener", () => {
+  it("records the opening float as an OPENING cash movement of the opener", async () => {
     const store = ledger();
 
-    open(store);
+    await open(store);
 
     expect(store.state.movements).toEqual([
       {
@@ -74,10 +88,10 @@ describe("openCashSession", () => {
     ]);
   });
 
-  it("queues a cash_session_opened event for the session", () => {
+  it("queues a cash_session_opened event for the session", async () => {
     const store = ledger();
 
-    open(store);
+    await open(store);
 
     expect(store.state.outbox).toEqual([
       {
@@ -97,31 +111,39 @@ describe("openCashSession", () => {
     ]);
   });
 
-  it("does everything in one transaction", () => {
+  it("does everything in one transaction", async () => {
     const store = ledger();
 
-    open(store);
+    await open(store);
 
     expect(store.transactions).toBe(1);
   });
 
-  it.each([0, MAX_CASH_AMOUNT_CENTS])("accepts an opening float of %i cents", (openingFloat) => {
-    expect(open(ledger(), "cashier", openingFloat).kind).toBe("opened");
-  });
+  it.each([0, MAX_CASH_AMOUNT_CENTS])(
+    "accepts an opening float of %i cents",
+    async (openingFloat) => {
+      expect((await open(ledger(), "cashier", openingFloat)).kind).toBe("opened");
+    },
+  );
 
-  it("lets an Administrator open a session without holding the permission key", () => {
+  it("lets an Administrator open a session without holding the permission key", async () => {
     const store = ledger({ accesses: { boss: { isAdministrator: true, permissionKeys: [] } } });
 
-    expect(open(store, "boss").kind).toBe("opened");
+    expect((await open(store, "boss")).kind).toBe("opened");
   });
 
   it.each([-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, MAX_CASH_AMOUNT_CENTS + 1])(
     "refuses an opening float of %s without opening a transaction",
-    (openingFloat) => {
+    async (openingFloat) => {
       const store = ledger();
       const before = structuredClone(store.state);
 
-      expect(open(store, "cashier", openingFloat)).toEqual({ kind: "invalid_opening_float" });
+      const authority = granting({ openerId: "cashier" });
+
+      expect(await open(store, "cashier", openingFloat, authority)).toEqual({
+        kind: "invalid_opening_float",
+      });
+      expect(authority.asked).toBe(0);
       expect(store.transactions).toBe(0);
       nothingRecorded(store, before);
     },
@@ -130,25 +152,25 @@ describe("openCashSession", () => {
   it.each([
     ["an opener the register does not know", "stranger"],
     ["an opener without the permission to sell and charge", "viewer"],
-  ])("refuses %s", (_name, openerId) => {
+  ])("refuses %s", async (_name, openerId) => {
     const store = ledger({
       accesses: { viewer: { isAdministrator: false, permissionKeys: ["void_sale"] } },
     });
     const before = structuredClone(store.state);
 
-    expect(open(store, openerId)).toEqual({ kind: "not_permitted" });
+    expect(await open(store, openerId)).toEqual({ kind: "not_permitted" });
     nothingRecorded(store, before);
   });
 
-  it("refuses when a session is already open", () => {
+  it("refuses when a session is already open", async () => {
     const store = ledger({ sessions: [EARLIER_SESSION] });
     const before = structuredClone(store.state);
 
-    expect(open(store)).toEqual({ kind: "already_open" });
+    expect(await open(store)).toEqual({ kind: "already_open" });
     nothingRecorded(store, before);
   });
 
-  it("opens a session when the earlier ones are closed", () => {
+  it("opens a session when the earlier ones are closed", async () => {
     const closed: CashSession = {
       ...EARLIER_SESSION,
       state: "CLOSED",
@@ -160,41 +182,58 @@ describe("openCashSession", () => {
     };
     const store = ledger({ sessions: [closed] });
 
-    expect(open(store).kind).toBe("opened");
+    expect((await open(store)).kind).toBe("opened");
   });
 
-  it("refuses when the register has no identity yet", () => {
+  it("refuses when the register has no identity yet", async () => {
     const store = ledger({ identity: undefined });
     const before = structuredClone(store.state);
 
-    expect(open(store)).toEqual({ kind: "unavailable" });
+    expect(await open(store)).toEqual({ kind: "unavailable" });
     nothingRecorded(store, before);
   });
 
-  it("checks the opener's permission before whether a session is already open", () => {
+  it("answers the authority's refusal and records nothing when the opening is not authorized", async () => {
+    const store = ledger();
+    const before = structuredClone(store.state);
+
+    expect(await open(store, "cashier", 150000, refusing(NOT_SIGNED_IN))).toEqual(NOT_SIGNED_IN);
+    expect(store.transactions).toBe(0);
+    nothingRecorded(store, before);
+  });
+
+  it("asks for the authorization once", async () => {
+    const authority = granting({ openerId: "cashier" });
+
+    await open(ledger(), "cashier", 150000, authority);
+
+    expect(authority.asked).toBe(1);
+  });
+
+  it("checks the opener's permission before whether a session is already open", async () => {
     const store = ledger({ sessions: [EARLIER_SESSION] });
 
-    expect(open(store, "stranger")).toEqual({ kind: "not_permitted" });
+    expect(await open(store, "stranger")).toEqual({ kind: "not_permitted" });
   });
 
-  it("checks whether a session is already open before the register's identity", () => {
+  it("checks whether a session is already open before the register's identity", async () => {
     const store = ledger({ sessions: [EARLIER_SESSION], identity: undefined });
 
-    expect(open(store)).toEqual({ kind: "already_open" });
+    expect(await open(store)).toEqual({ kind: "already_open" });
   });
 
-  it("checks the opening float before the opener's permission", () => {
-    expect(open(ledger(), "stranger", -1)).toEqual({ kind: "invalid_opening_float" });
+  it("checks the opening float before the opener's permission", async () => {
+    expect(await open(ledger(), "stranger", -1)).toEqual({ kind: "invalid_opening_float" });
   });
 
   it.each<FakeCashLedgerWrite>(["recordOpenedSession", "recordCashMovement", "appendOutboxEvent"])(
     "leaves nothing behind when %s fails",
-    (write) => {
+    async (write) => {
       const store = ledger();
       const before = structuredClone(store.state);
       store.failOn = write;
 
-      expect(() => open(store)).toThrow(`${write} failed`);
+      await expect(open(store)).rejects.toThrow(`${write} failed`);
       nothingRecorded(store, before);
     },
   );

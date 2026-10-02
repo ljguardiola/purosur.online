@@ -6,12 +6,9 @@ import {
 import { describe, expect, expectTypeOf, it } from "vitest";
 import type { CashCharge } from "../sales/sale.js";
 import {
-  cashMovementAmountSchema,
   coreStatusMessageSchema,
   coreToRendererMessageSchema,
-  countedCashSchema,
   mainToCoreMessageSchema,
-  openingFloatSchema,
   rendererToCoreMessageSchema,
 } from "./core-messages.js";
 
@@ -37,6 +34,12 @@ describe("rendererToCoreMessageSchema", () => {
 
   it("accepts a request for the register's own name", () => {
     const message = { type: "register-name-request", request_id: REQUEST_ID };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts a request for the PIN policy", () => {
+    const message = { type: "pin-policy-request", request_id: REQUEST_ID };
 
     expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
@@ -209,14 +212,20 @@ describe("cash session requests", () => {
     expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(true);
   });
 
-  it.each([-1, 1.5, MAX_CASH_AMOUNT_CENTS + 1, "100", null])(
-    "rejects an opening float of %j",
+  it.each([-1, MAX_CASH_AMOUNT_CENTS + 1, 2_147_483_648])(
+    "leaves an out-of-range opening float of %i to the core",
     (opening_float) => {
       const message = { type: "open-cash-session", request_id: REQUEST_ID, opening_float };
 
-      expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+      expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(true);
     },
   );
+
+  it.each([1.5, Number.NaN, "100", null])("rejects an opening float of %j", (opening_float) => {
+    const message = { type: "open-cash-session", request_id: REQUEST_ID, opening_float };
+
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
 
   it.each([
     { type: "open-cash-session", opening_float: 0 },
@@ -272,12 +281,16 @@ describe("cash movement requests", () => {
     expect(rendererToCoreMessageSchema.safeParse({ ...movement, amount }).success).toBe(true);
   });
 
-  it.each([0, -1, 1.5, MAX_CASH_AMOUNT_CENTS + 1, "100", null])(
-    "rejects an amount of %j",
+  it.each([0, -1, MAX_CASH_AMOUNT_CENTS + 1, 2_147_483_648])(
+    "leaves an out-of-range amount of %i to the core",
     (amount) => {
-      expect(rendererToCoreMessageSchema.safeParse({ ...movement, amount }).success).toBe(false);
+      expect(rendererToCoreMessageSchema.safeParse({ ...movement, amount }).success).toBe(true);
     },
   );
+
+  it.each([1.5, Number.NaN, "100", null])("rejects an amount of %j", (amount) => {
+    expect(rendererToCoreMessageSchema.safeParse({ ...movement, amount }).success).toBe(false);
+  });
 
   it.each(["Flete", " Flete ", "", "   ", "a".repeat(CASH_MOVEMENT_REASON_MAX_LENGTH + 1)])(
     "carries the reason %j as typed, for the core to judge",
@@ -338,6 +351,12 @@ describe("coreToRendererMessageSchema", () => {
     expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
+  it("accepts the PIN policy with its minimum digits", () => {
+    const message = { type: "pin-policy", request_id: REQUEST_ID, min_digits: 6 };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
   it("rejects a register name that is not text or null", () => {
     expect(
       coreToRendererMessageSchema.safeParse({
@@ -360,6 +379,7 @@ describe("coreToRendererMessageSchema", () => {
     { kind: "unavailable" },
     { kind: "storage_unavailable" },
     { kind: "not_stored" },
+    { kind: "invalid_input", fields: ["code"] },
   ])("accepts the enrollment result $kind", (outcome) => {
     const message = { type: "enrollment-result", request_id: REQUEST_ID, outcome };
 
@@ -386,6 +406,7 @@ describe("coreToRendererMessageSchema", () => {
     { kind: "rate_limited", retry_after_seconds: 600 },
     { kind: "unreachable" },
     { kind: "unavailable" },
+    { kind: "invalid_input", fields: ["reset_code", "new_pin"] },
   ])("accepts the PIN code redemption result $kind", (outcome) => {
     const message = { type: "pin-code-redemption-result", request_id: REQUEST_ID, outcome };
 
@@ -406,6 +427,16 @@ describe("coreToRendererMessageSchema", () => {
       expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
     },
   );
+
+  it("rejects a PIN code redemption refusal naming a field the redemption does not have", () => {
+    const message = {
+      type: "pin-code-redemption-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "invalid_input", fields: ["repeat"] },
+    };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
 
   it("rejects a PIN code redemption rate limit without when to retry", () => {
     const message = {
@@ -438,6 +469,16 @@ describe("coreToRendererMessageSchema", () => {
       type: "enrollment-result",
       request_id: REQUEST_ID,
       outcome: { kind: "rate_limited" },
+    };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("rejects an enrollment refusal naming a field the enrollment does not have", () => {
+    const message = {
+      type: "enrollment-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "invalid_input", fields: ["hostname"] },
     };
 
     expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
@@ -703,13 +744,16 @@ describe("closing a cash session requests", () => {
     expect(rendererToCoreMessageSchema.parse({ ...message, closed_by: "u9" })).toEqual(message);
   });
 
-  it.each([-1, 1.5, MAX_CASH_AMOUNT_CENTS + 1, "100", null])(
-    "rejects a counted cash of %j",
+  it.each([-1, MAX_CASH_AMOUNT_CENTS + 1, 2_147_483_648])(
+    "leaves an out-of-range counted cash of %i to the core",
     (counted_cash) => {
-      expect(rendererToCoreMessageSchema.safeParse({ ...close, counted_cash }).success).toBe(false);
-      expect(countedCashSchema.safeParse(counted_cash).success).toBe(false);
+      expect(rendererToCoreMessageSchema.safeParse({ ...close, counted_cash }).success).toBe(true);
     },
   );
+
+  it.each([1.5, Number.NaN, "100", null])("rejects a counted cash of %j", (counted_cash) => {
+    expect(rendererToCoreMessageSchema.safeParse({ ...close, counted_cash }).success).toBe(false);
+  });
 
   it.each([
     { type: "close-cash-session", session_id: "s1", counted_cash: 0 },
@@ -931,12 +975,16 @@ describe("closing a locked register's cash session", () => {
     expect(rendererToCoreMessageSchema.parse(close)).toEqual(close);
   });
 
-  it.each([-1, 1.5, MAX_CASH_AMOUNT_CENTS + 1, "100", null])(
-    "rejects a counted cash of %j",
+  it.each([-1, MAX_CASH_AMOUNT_CENTS + 1, 2_147_483_648])(
+    "leaves an out-of-range counted cash of %i to the core",
     (counted_cash) => {
-      expect(rendererToCoreMessageSchema.safeParse({ ...close, counted_cash }).success).toBe(false);
+      expect(rendererToCoreMessageSchema.safeParse({ ...close, counted_cash }).success).toBe(true);
     },
   );
+
+  it.each([1.5, Number.NaN, "100", null])("rejects a counted cash of %j", (counted_cash) => {
+    expect(rendererToCoreMessageSchema.safeParse({ ...close, counted_cash }).success).toBe(false);
+  });
 
   it.each(["request_id", "session_id", "counted_cash", "closer"])(
     "rejects a request missing its %s",
@@ -1406,29 +1454,6 @@ describe("coreStatusMessageSchema", () => {
   });
 });
 
-describe("openingFloatSchema", () => {
-  it.each([0, 1, MAX_CASH_AMOUNT_CENTS])("accepts %i cents", (cents) => {
-    expect(openingFloatSchema.safeParse(cents).success).toBe(true);
-  });
-
-  it.each([-1, 0.5, MAX_CASH_AMOUNT_CENTS + 1, Number.NaN, "100", null])("rejects %j", (value) => {
-    expect(openingFloatSchema.safeParse(value).success).toBe(false);
-  });
-});
-
-describe("cashMovementAmountSchema", () => {
-  it.each([1, 500_000, MAX_CASH_AMOUNT_CENTS])("accepts %i cents", (cents) => {
-    expect(cashMovementAmountSchema.safeParse(cents).success).toBe(true);
-  });
-
-  it.each([0, -1, 0.5, MAX_CASH_AMOUNT_CENTS + 1, Number.NaN, "100", null])(
-    "rejects %j",
-    (value) => {
-      expect(cashMovementAmountSchema.safeParse(value).success).toBe(false);
-    },
-  );
-});
-
 describe("sale requests", () => {
   it("accepts a scan of a code", () => {
     const message = { type: "scan-product", request_id: REQUEST_ID, code: "7791234567890" };
@@ -1446,9 +1471,20 @@ describe("sale requests", () => {
     { type: "scan-product", code: "1" },
     { type: "scan-product", request_id: REQUEST_ID },
     { type: "scan-product", request_id: REQUEST_ID, code: "" },
-    { type: "scan-product", request_id: REQUEST_ID, code: "x".repeat(65) },
   ])("rejects a scan that is not well formed: %j", (message) => {
     expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("leaves a code longer than any barcode to the core", () => {
+    const message = { type: "scan-product", request_id: REQUEST_ID, code: "7".repeat(65) };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("leaves a search longer than any product name to the core", () => {
+    const message = { type: "search-products", request_id: REQUEST_ID, query: "x".repeat(101) };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
   it("accepts a search of the products by name", () => {
@@ -1460,7 +1496,6 @@ describe("sale requests", () => {
   it.each([
     { type: "search-products", query: "a" },
     { type: "search-products", request_id: REQUEST_ID },
-    { type: "search-products", request_id: REQUEST_ID, query: "x".repeat(101) },
   ])("rejects a search that is not well formed: %j", (message) => {
     expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
   });
@@ -1978,5 +2013,55 @@ describe("cash movement kinds answers", () => {
     expect(
       coreToRendererMessageSchema.safeParse({ type: "cash-movement-kinds-unavailable" }).success,
     ).toBe(false);
+  });
+});
+
+describe("checking typed input", () => {
+  it("accepts a check of an enrollment code as typed", () => {
+    const message = { type: "check-enrollment-code", request_id: REQUEST_ID, code: "p4nx 7kwe" };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { type: "check-enrollment-code", request_id: REQUEST_ID },
+    { type: "check-enrollment-code", code: "p4nx" },
+  ])("rejects an enrollment code check that is not well formed: %j", (message) => {
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it.each([[["code"]], [[]]])("accepts an enrollment code check refusing %j", (fields) => {
+    const message = { type: "enrollment-code-check", request_id: REQUEST_ID, fields };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { type: "enrollment-code-check", request_id: REQUEST_ID, fields: ["hostname"] },
+    { type: "enrollment-code-check", request_id: REQUEST_ID },
+    { type: "enrollment-code-check", fields: [] },
+  ])("rejects a check answer that is not well formed: %j", (message) => {
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("accepts a check of a PIN code redemption as typed", () => {
+    const message = {
+      type: "check-pin-code-redemption",
+      request_id: REQUEST_ID,
+      reset_code: "p4nx",
+      new_pin: "12",
+    };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts a PIN code redemption check refusing its fields", () => {
+    const message = {
+      type: "pin-code-redemption-check",
+      request_id: REQUEST_ID,
+      fields: ["reset_code", "new_pin"],
+    };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 });

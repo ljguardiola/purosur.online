@@ -6,7 +6,7 @@ import { render } from "../shell/test-support/render-with-router";
 import type { IdentifiedCloser, ReturnedCloser } from "./locked-closer-identification";
 import { LockedCloserIdentification } from "./locked-closer-identification";
 
-const OPENED_AT = "2026-09-30T12:02:00.000Z";
+const OPENED_AT = "2026-09-30T09:02:00.000-03:00";
 const CLOSERS: SignInUser[] = [{ id: "u3", first_name: "Sofía" }];
 
 type Identify = (closer: Authorization) => Promise<IdentifyLockedCloserOutcome>;

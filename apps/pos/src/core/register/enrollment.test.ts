@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { CloudResponse } from "../platform/cloud-client";
-import { type EnrollmentDeps, enroll, generatePepper, installationReportFrom } from "./enrollment";
+import {
+  checkEnrollmentCode,
+  type EnrollmentDeps,
+  enroll,
+  generatePepper,
+  installationReportFrom,
+} from "./enrollment";
 
 const TYPED_CODE = "p4nx 7kwe 2qrt 6mzd";
 const ENROLLED_AT = new Date("2026-09-29T12:00:00.000Z");
@@ -129,12 +135,15 @@ describe("enroll", () => {
     expect(await enroll(deps, TYPED_CODE)).toEqual({ kind: "unreachable" });
   });
 
-  it("refuses a code that can't be one without asking the cloud", async () => {
-    const { deps, posted } = depsAnswering({ kind: "ok", body: ENROLLED_BODY });
+  it.each(["", "P4NX 7KWE", "P4NX 7KWE 2QRT 6MZ1"])(
+    "refuses the typed code '%s', which can't be one, naming the field without asking the cloud",
+    async (typed) => {
+      const { deps, posted } = depsAnswering({ kind: "ok", body: ENROLLED_BODY });
 
-    expect(await enroll(deps, "P4NX 7KWE")).toEqual({ kind: "code_rejected" });
-    expect(posted).toEqual([]);
-  });
+      expect(await enroll(deps, typed)).toEqual({ kind: "invalid_input", fields: ["code"] });
+      expect(posted).toEqual([]);
+    },
+  );
 
   it("answers unavailable without asking when the machine reports nothing to send", async () => {
     const { deps, posted } = depsAnswering({ kind: "ok", body: ENROLLED_BODY });
@@ -150,6 +159,16 @@ describe("enroll", () => {
     expect(await enroll({ ...deps, postToCloud: undefined }, TYPED_CODE)).toEqual({
       kind: "unavailable",
     });
+  });
+});
+
+describe("checkEnrollmentCode", () => {
+  it.each([TYPED_CODE, "P4NX7KWE2QRT6MZD"])("refuses nothing in the code '%s'", (typed) => {
+    expect(checkEnrollmentCode(typed)).toEqual([]);
+  });
+
+  it.each(["", "P4NX 7KWE", "P4NX 7KWE 2QRT 6MZ1"])("refuses the code '%s'", (typed) => {
+    expect(checkEnrollmentCode(typed)).toEqual(["code"]);
   });
 });
 

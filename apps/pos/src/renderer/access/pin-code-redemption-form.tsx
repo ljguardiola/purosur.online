@@ -1,14 +1,14 @@
-import type { PinCodeRedemptionOutcome } from "@purosur/contracts";
-import { PIN_MIN_DIGITS } from "@purosur/contracts";
+import type { PinCodeRedemptionOutcome, PinPolicy } from "@purosur/contracts";
 import { Button, fieldErrorMessage, InlineNotice, TextField, useRequestForm } from "@purosur/ui";
 import { Check, Lock, ShieldX, TriangleAlert, WifiOff } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
 import { useId, useState } from "react";
 import { retryAfterText } from "../shell/retry-after-text";
+import { usePinPolicyQuery } from "./access-queries";
 import {
   CODE_MESSAGE,
   EMPTY_PIN_REDEMPTION_FORM,
-  PIN_MESSAGE,
+  pinMessage,
   pinRedemptionRequestFrom,
   pinRedemptionRequestSchema,
   REPEAT_MESSAGE,
@@ -24,6 +24,7 @@ function noticeFor(outcome: PinCodeRedemptionOutcome, newCodeAskedIn: NewCodePla
     case "redeemed":
     case "resumed":
     case "pin_rejected":
+    case "invalid_input":
       return undefined;
     case "cash_session_opened_by_another":
       return {
@@ -78,6 +79,8 @@ const CODE_OUTCOMES = new Set<PinCodeRedemptionOutcome["kind"]>([
 ]);
 
 export type PinCodeRedemptionFormProps = {
+  loadPinPolicy: () => Promise<PinPolicy>;
+  checkRedemption: (typedCode: string, newPin: string) => Promise<("reset_code" | "new_pin")[]>;
   redeem: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
   onRedeemed: (newPin: string) => void | Promise<void>;
   submitLabel: string;
@@ -86,24 +89,25 @@ export type PinCodeRedemptionFormProps = {
 };
 
 export function PinCodeRedemptionForm({
+  loadPinPolicy,
+  checkRedemption,
   redeem,
   onRedeemed,
   submitLabel,
   newCodeAskedIn,
   children,
 }: PinCodeRedemptionFormProps) {
+  const minDigits = usePinPolicyQuery(loadPinPolicy).min_digits;
   const [outcome, setOutcome] = useState<PinCodeRedemptionOutcome>();
   const noticeId = useId();
   const { form, submit, submitting, reset } = useRequestForm({
     defaultValues: EMPTY_PIN_REDEMPTION_FORM,
     request: { schema: pinRedemptionRequestSchema, from: pinRedemptionRequestFrom },
     fields: { reset_code: "code", new_pin: "newPin", repeat: "repeat" },
-    messages: { code: CODE_MESSAGE, newPin: PIN_MESSAGE, repeat: REPEAT_MESSAGE },
-    onSubmit: async ({ new_pin }, { parsed, values, showFieldError }) => {
-      if (parsed === undefined) {
-        return;
-      }
-      const answered = await redeem(parsed.reset_code, new_pin).catch(
+    messages: { code: CODE_MESSAGE, newPin: pinMessage(minDigits), repeat: REPEAT_MESSAGE },
+    check: ({ reset_code, new_pin }) => checkRedemption(reset_code, new_pin),
+    onSubmit: async ({ reset_code, new_pin }, { values, showWireFieldError }) => {
+      const answered = await redeem(reset_code, new_pin).catch(
         (): PinCodeRedemptionOutcome => ({ kind: "unavailable" }),
       );
       setOutcome(answered);
@@ -119,7 +123,10 @@ export function PinCodeRedemptionForm({
           reset();
           break;
         case "pin_rejected":
-          showFieldError("newPin", PIN_MESSAGE);
+          showWireFieldError("new_pin");
+          break;
+        case "invalid_input":
+          answered.fields.forEach(showWireFieldError);
           break;
         default:
           break;
@@ -163,7 +170,7 @@ export function PinCodeRedemptionForm({
             kind="plain-text"
             type="password"
             inputMode="numeric"
-            label={`PIN nuevo, de al menos ${PIN_MIN_DIGITS} dígitos`}
+            label={`PIN nuevo, de al menos ${minDigits} dígitos`}
           />
         )}
       </form.AppField>

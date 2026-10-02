@@ -3,18 +3,23 @@ import { isValidCashAmount } from "../model/cash-amount.js";
 import type { ClosedCashSession } from "../model/cash-session.js";
 import { expectedCash } from "../model/expected-cash.js";
 import type { CashLedger, IdGenerator } from "./cash-ledger.js";
+import type { OperationAuthority } from "./operation-authority.js";
 import type { Clock } from "./register-store.js";
 
 export interface CloseCashSessionInput {
   sessionId: string;
-  closerId: string;
   countedCash: number;
 }
 
-export interface CloseCashSessionPorts {
+export interface CloseCashSessionGrant {
+  closerId: string;
+}
+
+export interface CloseCashSessionPorts<Refusal> {
   ledger: CashLedger;
   clock: Clock;
   ids: IdGenerator;
+  authority: OperationAuthority<CloseCashSessionGrant, Refusal>;
 }
 
 export type CloseCashSessionOutcome =
@@ -23,13 +28,18 @@ export type CloseCashSessionOutcome =
   | { kind: "open_sale"; total: number; cancellable: boolean }
   | { kind: "closed"; session: ClosedCashSession };
 
-export function closeCashSession(
-  { ledger, clock, ids }: CloseCashSessionPorts,
-  { sessionId, closerId, countedCash }: CloseCashSessionInput,
-): CloseCashSessionOutcome {
+export async function closeCashSession<Refusal>(
+  { ledger, clock, ids, authority }: CloseCashSessionPorts<Refusal>,
+  { sessionId, countedCash }: CloseCashSessionInput,
+): Promise<CloseCashSessionOutcome | Refusal> {
   if (!isValidCashAmount(countedCash)) {
     return { kind: "invalid_counted_cash" };
   }
+  const authorization = await authority.authorize();
+  if (authorization.kind === "refused") {
+    return authorization.refusal;
+  }
+  const { closerId } = authorization.grant;
 
   return ledger.transaction<CloseCashSessionOutcome>((tx) => {
     const open = tx.openSession();

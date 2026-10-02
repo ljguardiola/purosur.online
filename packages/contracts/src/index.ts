@@ -24,11 +24,10 @@ export type { PinAttemptRefusal } from "./access/pin-attempt-refusal.js";
 export { pinAttemptRefusalSchema } from "./access/pin-attempt-refusal.js";
 export type { PinCodeRedemption, PinCodeRedemptionBody } from "./access/pin-code-redemption.js";
 export {
-  newPinSchema,
-  PIN_MIN_DIGITS,
   pinCodeRedemptionBodySchema,
   pinCodeRedemptionSchema,
 } from "./access/pin-code-redemption.js";
+export type { PinPolicy } from "./access/pin-policy.js";
 export type { RecoveryRedemptionBody } from "./access/recovery-redemption.js";
 export { recoveryRedemptionBodySchema } from "./access/recovery-redemption.js";
 export type { RecoveryRegistrationOptionsWire } from "./access/recovery-registration-options.js";
@@ -191,16 +190,17 @@ export type {
   SignInUser,
 } from "./register/core-messages.js";
 export {
-  ARGENTINA_TIME_ZONE,
   cashMovementTypeSchema,
   chargeSaleInCashMessageSchema,
   closeCashSessionMessageSchema,
   closeLockedCashSessionMessageSchema,
   coreStatusMessageSchema,
   coreToRendererMessageSchema,
+  enrollMessageSchema,
   mainToCoreMessageSchema,
   openCashSessionMessageSchema,
   recordCashMovementMessageSchema,
+  redeemPinCodeMessageSchema,
   rendererToCoreMessageSchema,
   signInLookupMessageSchema,
 } from "./register/core-messages.js";
@@ -234,11 +234,6 @@ export type {
   RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
-} from "./sales/sale.js";
-export {
-  SEARCH_RESULT_LIMIT,
-  scannedCodeSchema,
-  searchQuerySchema,
 } from "./sales/sale.js";
 export type {
   BranchSettingsBody,
