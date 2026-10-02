@@ -296,7 +296,7 @@ describe("POST /account-recoveries", () => {
 
       expect(response.statusCode).toBe(429);
       expect(response.json()).toMatchObject({ code: "rate_limited" });
-      expect(response.headers["retry-after"]).toBeDefined();
+      expect(response.headers["retry-after"]).toBe(String(RECOVERY_RATE_LIMIT_WINDOW_MS / 1000));
       expect(reportError).toHaveBeenCalledWith(expect.any(Error));
 
       await failingApp.close();

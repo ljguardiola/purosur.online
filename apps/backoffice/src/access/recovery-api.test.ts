@@ -44,12 +44,12 @@ test("requestRecoveryLink reports rate_limited with the Retry-After header in se
   expect(outcome).toEqual({ kind: "rate_limited", retryAfterSeconds: 3600 });
 });
 
-test("requestRecoveryLink falls back to the hourly window when Retry-After is missing", async () => {
+test("requestRecoveryLink reports failed on a 429 without a usable Retry-After", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(429, { code: "rate_limited" }));
 
   const outcome = await requestRecoveryLink("lucia.perez@purosur.online");
 
-  expect(outcome).toEqual({ kind: "rate_limited", retryAfterSeconds: 3600 });
+  expect(outcome).toEqual({ kind: "failed" });
 });
 
 test("requestRecoveryLink reports failed on any other status, including validation_failed and origin_rejected", async () => {

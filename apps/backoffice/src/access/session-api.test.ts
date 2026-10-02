@@ -105,13 +105,10 @@ test("fetchSession reports rate_limited with the Retry-After seconds on 429", as
   await expect(fetchSession()).resolves.toEqual({ kind: "rate_limited", retryAfterSeconds: 120 });
 });
 
-test("fetchSession falls back to the one-hour rolling window when Retry-After is missing on 429", async () => {
+test("fetchSession reports failed on a 429 without a usable Retry-After", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(429, { code: "rate_limited" }));
 
-  await expect(fetchSession()).resolves.toEqual({
-    kind: "rate_limited",
-    retryAfterSeconds: 60 * 60,
-  });
+  await expect(fetchSession()).resolves.toEqual({ kind: "failed" });
 });
 
 test("checkSessionStatus returns the session's deadline on 200, without touching activity", async () => {
@@ -164,13 +161,10 @@ test("checkSessionStatus reports rate_limited with the Retry-After seconds on 42
   });
 });
 
-test("checkSessionStatus falls back to the one-hour rolling window when Retry-After is missing on 429", async () => {
+test("checkSessionStatus reports failed on a 429 without a usable Retry-After", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(429, { code: "rate_limited" }));
 
-  await expect(checkSessionStatus()).resolves.toEqual({
-    kind: "rate_limited",
-    retryAfterSeconds: 60 * 60,
-  });
+  await expect(checkSessionStatus()).resolves.toEqual({ kind: "failed" });
 });
 
 test("fetchAuthenticationOptions posts with no body and returns the WebAuthn options", async () => {
@@ -237,13 +231,10 @@ test("authenticate reports rate_limited with the Retry-After seconds on 429", as
   });
 });
 
-test("authenticate falls back to the one-hour rolling window when Retry-After is missing on 429", async () => {
+test("authenticate reports failed on a 429 without a usable Retry-After", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(429, { code: "rate_limited" }));
 
-  await expect(authenticate(assertion)).resolves.toEqual({
-    kind: "rate_limited",
-    retryAfterSeconds: 60 * 60,
-  });
+  await expect(authenticate(assertion)).resolves.toEqual({ kind: "failed" });
 });
 
 test("authenticate reports failed on a rejected credential, an origin mismatch, or a network failure", async () => {
