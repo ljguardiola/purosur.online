@@ -1,5 +1,6 @@
 export type {
   AuthorizablePermissionKey,
+  Capability,
   PermissionArea,
   PermissionDefinition,
   PermissionKey,
@@ -10,9 +11,13 @@ export type {
 } from "./access/index.js";
 export {
   ALERT_VIEW_PERMISSION_KEYS,
+  CAPABILITIES,
+  CAPABILITY_PERMISSIONS,
   decodePinSalt,
   encodePinHash,
+  grantedCapabilities,
   grantedPermissionKeys,
+  grantsCapability,
   hasReachedSignInFailureLimit,
   hasValidPasskeyAuthorization,
   heldPermissionKeys,
@@ -69,6 +74,7 @@ export {
   signInLockoutWindowStart,
   signInLookupAttemptWindowStart,
   uncoveredRegisterPermissions,
+  withOneAlertView,
   withRequiredPermissions,
 } from "./access/index.js";
 export type {
