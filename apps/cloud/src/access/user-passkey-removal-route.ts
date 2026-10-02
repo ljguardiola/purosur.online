@@ -1,11 +1,9 @@
-import { findBranchUser } from "@purosur/domain/access/use-cases";
-import { and, eq, isNull } from "drizzle-orm";
+import { findPasskeyRemovalTarget, removeUserPasskey } from "@purosur/domain/access/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { openAlert } from "../alerts/open-alert.js";
-import { auditLog, passkeys, sessions } from "../platform/db/schema.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { drizzleBranchUsers } from "./drizzle-branch-users.js";
+import { DrizzlePasskeyRemovalStore } from "./drizzle-passkey-removal-store.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import {
   ADMINISTRATOR_ACCESS,
@@ -40,16 +38,6 @@ export function registerUserPasskeyRemovalRoutes<TQueryResult extends PgQueryRes
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  async function findTarget(locationId: string, targetId: string) {
-    if (!UUID_PATTERN.test(targetId)) {
-      return undefined;
-    }
-    return findBranchUser(
-      { users: drizzleBranchUsers(options.db) },
-      { locationId, userId: targetId },
-    );
-  }
-
   app.delete<{ Params: { id: string; passkeyId: string } }>(
     "/users/:id/passkeys/:passkeyId",
     {
@@ -60,12 +48,19 @@ export function registerUserPasskeyRemovalRoutes<TQueryResult extends PgQueryRes
       const attemptedAt = now();
       const openSession = openSessionOf(request);
 
-      const target = await findTarget(openSession.locationId, request.params.id);
-      if (!target) {
+      const target = await findPasskeyRemovalTarget(
+        { users: drizzleBranchUsers(options.db) },
+        {
+          locationId: openSession.locationId,
+          administratorId: openSession.userId,
+          targetUserId: request.params.id,
+        },
+      );
+      if (target.kind === "not_found") {
         await reply.code(404).send(USER_NOT_FOUND_RESPONSE);
         return;
       }
-      if (target.id === openSession.userId) {
+      if (target.kind === "own_account") {
         await reply.code(403).send(OWN_ACCOUNT_RESPONSE);
         return;
       }
@@ -80,50 +75,16 @@ export function registerUserPasskeyRemovalRoutes<TQueryResult extends PgQueryRes
         return;
       }
 
-      const removed = await options.db.transaction(async (tx) => {
-        // Deleting first takes the passkey's row lock, so a concurrent removal of it finds nothing
-        // (not_found), and a racing sign-in with it has already committed its session before the revoke below.
-        const [removedPasskey] = await tx
-          .delete(passkeys)
-          .where(and(eq(passkeys.id, passkeyId), eq(passkeys.userId, target.id)))
-          .returning({ id: passkeys.id, name: passkeys.name });
-        if (!removedPasskey) {
-          return undefined;
-        }
-
-        // A session open on a lost device must not outlive its removed passkey, so every session
-        // of the target ends here.
-        await tx
-          .update(sessions)
-          .set({ revokedAt: attemptedAt })
-          .where(and(eq(sessions.userId, target.id), isNull(sessions.revokedAt)));
-
-        await tx.insert(auditLog).values({
-          entity: "passkey",
-          entityId: removedPasskey.id,
-          actorId: openSession.userId,
-          previousValue: { id: removedPasskey.id, name: removedPasskey.name, userId: target.id },
-          newValue: null,
-        });
-
-        await openAlert(
-          tx,
-          {
-            kind: "backoffice_passkey_changed",
-            scope: target.id,
-            detail: {
-              action: "removed",
-              passkeyName: removedPasskey.name,
-              actorId: openSession.userId,
-              via: "administrator",
-            },
-          },
-          { now },
-        );
-
-        return removedPasskey;
-      });
-      if (!removed) {
+      const removed = await removeUserPasskey(
+        { store: new DrizzlePasskeyRemovalStore(options.db) },
+        {
+          administratorId: openSession.userId,
+          targetUserId: target.target.id,
+          passkeyId,
+          at: attemptedAt,
+        },
+      );
+      if (removed.kind === "not_found") {
         await reply.code(404).send(PASSKEY_NOT_FOUND_RESPONSE);
         return;
       }

@@ -91,6 +91,12 @@ export type {
 } from "./find-open-session.js";
 export { findOpenSession } from "./find-open-session.js";
 export type {
+  FindPasskeyRemovalTargetInput,
+  FindPasskeyRemovalTargetOutcome,
+  FindPasskeyRemovalTargetPorts,
+} from "./find-passkey-removal-target.js";
+export { findPasskeyRemovalTarget } from "./find-passkey-removal-target.js";
+export type {
   FindRedeemableRecoveryInput,
   FindRedeemableRecoveryOutcome,
   FindRedeemableRecoveryPorts,
@@ -157,6 +163,12 @@ export type {
   LookUpSignInOutcome,
 } from "./look-up-sign-in.js";
 export { lookUpSignIn } from "./look-up-sign-in.js";
+export type {
+  PasskeyRemovalAlert,
+  PasskeyRemovalStore,
+  PasskeyRemovalStoreTransaction,
+  RemovedPasskey,
+} from "./passkey-removal-store.js";
 export type { PasskeySummary, Passkeys } from "./passkeys.js";
 export type {
   HashedPin,
@@ -249,6 +261,18 @@ export type {
   RejectedAttemptKind,
   RejectedAttemptWindow,
 } from "./rejected-attempt-flush-store.js";
+export type {
+  RemoveOwnPasskeyInput,
+  RemoveOwnPasskeyOutcome,
+  RemoveOwnPasskeyPorts,
+} from "./remove-own-passkey.js";
+export { removeOwnPasskey } from "./remove-own-passkey.js";
+export type {
+  RemoveUserPasskeyInput,
+  RemoveUserPasskeyOutcome,
+  RemoveUserPasskeyPorts,
+} from "./remove-user-passkey.js";
+export { removeUserPasskey } from "./remove-user-passkey.js";
 export type {
   PinReplacementPorts,
   PinReplacementStore,

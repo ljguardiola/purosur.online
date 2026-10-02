@@ -1,9 +1,8 @@
-import { and, eq } from "drizzle-orm";
+import { removeOwnPasskey } from "@purosur/domain/access/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { openAlert } from "../alerts/open-alert.js";
-import { auditLog, passkeys } from "../platform/db/schema.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
+import { DrizzlePasskeyRemovalStore } from "./drizzle-passkey-removal-store.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import {
   OPEN_SESSION_ACCESS,
@@ -53,40 +52,14 @@ export function registerPasskeyRemovalRoutes<TQueryResult extends PgQueryResultH
         return;
       }
 
-      const [target] = await options.db
-        .select({ id: passkeys.id, name: passkeys.name })
-        .from(passkeys)
-        .where(and(eq(passkeys.id, targetId), eq(passkeys.userId, openSession.userId)))
-        .limit(1);
-      if (!target) {
+      const outcome = await removeOwnPasskey(
+        { store: new DrizzlePasskeyRemovalStore(options.db) },
+        { userId: openSession.userId, passkeyId: targetId, at: attemptedAt },
+      );
+      if (outcome.kind === "not_found") {
         await reply.code(404).send(NOT_FOUND_RESPONSE);
         return;
       }
-
-      await options.db.transaction(async (tx) => {
-        await tx.delete(passkeys).where(eq(passkeys.id, target.id));
-        await tx.insert(auditLog).values({
-          entity: "passkey",
-          entityId: target.id,
-          actorId: openSession.userId,
-          previousValue: { id: target.id, name: target.name },
-          newValue: null,
-        });
-        await openAlert(
-          tx,
-          {
-            kind: "backoffice_passkey_changed",
-            scope: openSession.userId,
-            detail: {
-              action: "removed",
-              passkeyName: target.name,
-              actorId: openSession.userId,
-              via: "self",
-            },
-          },
-          { now },
-        );
-      });
 
       await reply.code(200).send();
     },
