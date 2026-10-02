@@ -1925,10 +1925,10 @@ describe("App", () => {
       });
 
       await expect.poll(() => asks).toBe(2);
-      await expect.element(screen.getByText("No se pudo cerrar la caja")).toBeVisible();
+      await expect.element(screen.getByText("No se pudo verificar el PIN")).toBeVisible();
       await expect
-        .element(screen.getByRole("heading", { name: LOCKED_TITLE }))
-        .not.toBeInTheDocument();
+        .element(screen.getByRole("heading", { name: "¿Quién cierra la caja?" }))
+        .toBeVisible();
     });
   });
 
