@@ -17,7 +17,7 @@ test("shows the Catálogo item in the rail for a user holding manage_products_an
         userId: "user-2",
         displayName: "Grace Hopper",
         isAdministrator: false,
-        permissions: ["manage_products_and_categories"],
+        capabilities: ["products_and_categories", "catalog_area"],
       }),
     ),
   });
@@ -223,7 +223,7 @@ test("redirects a user holding only manage_products_and_categories away from a t
         userId: "user-2",
         displayName: "Grace Hopper",
         isAdministrator: false,
-        permissions: ["manage_products_and_categories"],
+        capabilities: ["products_and_categories", "catalog_area"],
       }),
     ),
   });
@@ -243,7 +243,7 @@ test("redirects a user holding only manage_prices_and_review away from a typed /
         userId: "user-2",
         displayName: "Grace Hopper",
         isAdministrator: false,
-        permissions: ["manage_prices_and_review"],
+        capabilities: ["prices_area", "catalog_area"],
       }),
     ),
   });
@@ -263,7 +263,7 @@ test("shows the Precios section, and only it, for a user holding only manage_pri
         userId: "user-2",
         displayName: "Grace Hopper",
         isAdministrator: false,
-        permissions: ["manage_prices_and_review"],
+        capabilities: ["prices_area", "catalog_area"],
       }),
     ),
   });
@@ -298,7 +298,7 @@ test("hides the Precios section item for a user holding only manage_products_and
         userId: "user-2",
         displayName: "Grace Hopper",
         isAdministrator: false,
-        permissions: ["manage_products_and_categories"],
+        capabilities: ["products_and_categories", "catalog_area"],
       }),
     ),
   });
@@ -353,16 +353,16 @@ test("redirects a non-permitted user's typed /discounts to Mi cuenta, without li
   expect(services.discountsListScreen.fetchDiscounts).not.toHaveBeenCalled();
 });
 
-test.each([["manage_products_and_categories"], ["manage_prices_and_review"]])(
+test.each([["products_and_categories"], ["prices_area"]] as const)(
   "redirects a user holding only %s away from a typed /discounts",
-  async (permission) => {
+  async (capability) => {
     const services = createAppServices({
       fetchSession: vi.fn().mockResolvedValue(
         openSession({
           userId: "user-2",
           displayName: "Grace Hopper",
           isAdministrator: false,
-          permissions: [permission],
+          capabilities: [capability, "catalog_area"],
         }),
       ),
     });
@@ -379,18 +379,18 @@ test.each([["manage_products_and_categories"], ["manage_prices_and_review"]])(
 );
 
 test.each([
-  ["manage_products_and_categories", "/products", "Productos"],
-  ["manage_prices_and_review", "/prices", "Precios"],
-])(
+  ["products_and_categories", "/products", "Productos"],
+  ["prices_area", "/prices", "Precios"],
+] as const)(
   "hides the Promociones section item for a user holding only %s",
-  async (permission, path, heading) => {
+  async (capability, path, heading) => {
     const services = createAppServices({
       fetchSession: vi.fn().mockResolvedValue(
         openSession({
           userId: "user-2",
           displayName: "Grace Hopper",
           isAdministrator: false,
-          permissions: [permission],
+          capabilities: [capability, "catalog_area"],
         }),
       ),
     });
@@ -410,7 +410,7 @@ test("shows the Promociones section, and only it, for a user holding only manage
         userId: "user-2",
         displayName: "Grace Hopper",
         isAdministrator: false,
-        permissions: ["manage_promotions"],
+        capabilities: ["promotions", "catalog_area"],
       }),
     ),
   });
@@ -444,7 +444,7 @@ test.each([["/products"], ["/prices"]])(
           userId: "user-2",
           displayName: "Grace Hopper",
           isAdministrator: false,
-          permissions: ["manage_promotions"],
+          capabilities: ["promotions", "catalog_area"],
         }),
       ),
     });
@@ -468,7 +468,7 @@ test("lists the promotions and opens Nueva promoción for a user holding only ma
         userId: "user-2",
         displayName: "Grace Hopper",
         isAdministrator: false,
-        permissions: ["manage_promotions"],
+        capabilities: ["promotions", "catalog_area"],
       }),
     ),
   });

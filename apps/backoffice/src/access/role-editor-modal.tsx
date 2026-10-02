@@ -31,7 +31,6 @@ import { ConfirmRoleSaveModal } from "./confirm-role-save-modal";
 import { roleDisplayName } from "./role-display";
 import { RoleEditorForm } from "./role-editor-form";
 import { roleNameMessage } from "./role-name-message";
-import { withOneAlertView } from "./role-permissions";
 import {
   type CreateRoleOutcome,
   createRole,
@@ -92,7 +91,7 @@ function seededName(seed: RoleSeed): string {
 
 function seededPermissions(seed: RoleSeed): ReadonlySet<PermissionKey> {
   if (seed.kind === "duplicate") {
-    return withRequiredPermissions(withOneAlertView(seed.source.permissionKeys as PermissionKey[]));
+    return withRequiredPermissions(seed.source.permissionKeys as PermissionKey[]);
   }
   return withRequiredPermissions(
     seed.kind === "edit" ? (seed.role.permissionKeys as PermissionKey[]) : [],

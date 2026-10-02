@@ -304,7 +304,7 @@ test("hands the refreshed session, with its new expiresAt and current access, to
   const refreshed: SessionOutcome = openSession({
     isAdministrator: false,
     expiresAt: "2099-06-01T00:00:00.000Z",
-    permissions: ["void_sale"],
+    capabilities: [],
   });
   const touchSession = vi.fn<() => Promise<SessionOutcome>>().mockResolvedValue(refreshed);
   const onTouched = vi.fn();

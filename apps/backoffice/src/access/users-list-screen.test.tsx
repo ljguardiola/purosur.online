@@ -6,11 +6,10 @@ import { render } from "../shell/test-support/render-with-router";
 import { useRefreshAccess } from "./access-queries";
 import type { BackofficeAccess } from "./backoffice-access";
 import { type UsersListFilters, usersListFilters } from "./routes";
+import { ADMINISTRATOR_ACCESS, accessWith } from "./test-support/backoffice-access";
 import type { BranchUser } from "./users-api";
 import { UsersListScreen } from "./users-list-screen";
 import type { UsersListScreenServices } from "./users-list-services";
-
-const ADMINISTRATOR_ACCESS: BackofficeAccess = { isAdministrator: true, permissions: [] };
 
 function createServices(overrides: Partial<UsersListScreenServices> = {}): UsersListScreenServices {
   const services: UsersListScreenServices = {
@@ -88,10 +87,7 @@ const sofia: BranchUser = {
   isLastActiveAdministrator: false,
 };
 
-const REACTIVATE_USERS_ACCESS: BackofficeAccess = {
-  isAdministrator: false,
-  permissions: ["reactivate_users"],
-};
+const REACTIVATE_USERS_ACCESS = accessWith("users_area", "reactivate_users");
 
 const authorizationOptions = { challenge: "session-auth" } as never;
 const assertion = { id: "existing-cred" } as never;
@@ -886,10 +882,11 @@ test("hides Nuevo usuario for a non-Administrator holding only deactivate_users"
   });
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, tomas] });
 
-  const screen = await renderScreen(services, () => {}, {
-    isAdministrator: false,
-    permissions: ["deactivate_users"],
-  });
+  const screen = await renderScreen(
+    services,
+    () => {},
+    accessWith("users_area", "deactivate_users"),
+  );
 
   await expect.element(screen.getByText("Tomás Ruiz")).toBeVisible();
   expect(screen.getByRole("button", { name: "Nuevo usuario" }).query()).toBeNull();
@@ -904,10 +901,11 @@ test("offers a view action, not an edit one, to reach a user's detail for a non-
   });
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [tomas] });
 
-  const screen = await renderScreen(services, () => {}, {
-    isAdministrator: false,
-    permissions: ["deactivate_users"],
-  });
+  const screen = await renderScreen(
+    services,
+    () => {},
+    accessWith("users_area", "deactivate_users"),
+  );
 
   await userEvent.click(screen.getByRole("button", { name: "Ver a Tomás Ruiz" }));
   expect(screen.getByRole("button", { name: "Editar a Tomás Ruiz" }).query()).toBeNull();
@@ -952,10 +950,11 @@ test("hides the Estado filter and column for a non-Administrator without reactiv
   });
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [tomas] });
 
-  const screen = await renderScreen(services, () => {}, {
-    isAdministrator: false,
-    permissions: ["deactivate_users"],
-  });
+  const screen = await renderScreen(
+    services,
+    () => {},
+    accessWith("users_area", "deactivate_users"),
+  );
 
   await expect.element(screen.getByText("Tomás Ruiz")).toBeVisible();
   expect(screen.getByRole("button", { name: /^Estado/ }).query()).toBeNull();

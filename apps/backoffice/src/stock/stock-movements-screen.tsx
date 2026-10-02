@@ -14,16 +14,11 @@ import {
 import { deepEqual } from "@tanstack/react-router";
 import { ArrowDownUp, Check, Plus, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import {
-  type BackofficeAccess,
-  canAdjustStock,
-  canRecordStockLosses,
-  canSeeStockBalances,
-} from "../access/backoffice-access";
+import { type BackofficeAccess, canSeeStockBalances } from "../access/backoffice-access";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { ScreenLayout } from "../shell/screen-layout";
 import type { StockMovementsFilters } from "./routes";
-import { MOVEMENT_KINDS, type MovementKind, REASONS_OF_KIND } from "./stock-movement-form";
+import { type MovementKind, REASONS_OF_KIND } from "./stock-movement-form";
 import { StockMovementModal } from "./stock-movement-modal";
 import type { StockMovementsScreenServices } from "./stock-movements-services";
 import {
@@ -127,15 +122,6 @@ function registeredNotice(
   };
 }
 
-const MAY_RECORD = {
-  loss: canRecordStockLosses,
-  adjustment: canAdjustStock,
-} satisfies Record<MovementKind, (access: BackofficeAccess) => boolean>;
-
-function allowedKinds(access: BackofficeAccess): readonly MovementKind[] {
-  return MOVEMENT_KINDS.filter((kind) => MAY_RECORD[kind](access));
-}
-
 function actionLabel(kinds: readonly MovementKind[]): string {
   if (kinds.length > 1) {
     return "Cargar pérdida o ajuste";
@@ -158,7 +144,7 @@ export function StockMovementsScreen({
   const lastNoticeId = useRef(0);
   const reportFilters = useEffectEvent(onFiltersChange);
   const refreshStock = useRefreshStock();
-  const kinds = allowedKinds(access);
+  const kinds = access.stockMovementKinds;
   const showsBalance = canSeeStockBalances(access);
   const [firstKind] = kinds;
 

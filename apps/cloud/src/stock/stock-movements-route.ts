@@ -6,8 +6,7 @@ import {
   stockMovementResultSchema,
 } from "@purosur/contracts";
 import {
-  MANUAL_STOCK_MOVEMENT_KINDS,
-  manualStockMovementPermission,
+  manualStockMovementCapability,
   manualStockMovementReasons,
   visibleManualStockMovementKinds,
 } from "@purosur/domain";
@@ -21,8 +20,8 @@ import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
 import {
+  capabilityAccess,
   openSessionOf,
-  permissionAccess,
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
@@ -78,15 +77,18 @@ export function registerStockMovementsRoutes<TQueryResult extends PgQueryResultH
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const preHandler = sameOriginGuard(options.backofficeOrigin);
-  const lossAccess = permissionAccess(manualStockMovementPermission("loss"));
-  const adjustmentAccess = permissionAccess(manualStockMovementPermission("adjustment"));
-  const anyKindAccess = permissionAccess(
-    MANUAL_STOCK_MOVEMENT_KINDS.map(manualStockMovementPermission),
-  );
+  const lossAccess = capabilityAccess(manualStockMovementCapability("loss"));
+  const adjustmentAccess = capabilityAccess(manualStockMovementCapability("adjustment"));
 
   app.get<{ Querystring: { days?: string } }>(
     "/inventory-movements",
-    { preHandler, config: { access: anyKindAccess, sessionSource } },
+    {
+      preHandler,
+      config: {
+        access: capabilityAccess("stock_movements"),
+        sessionSource,
+      },
+    },
     async (request, reply) => {
       const openSession = openSessionOf(request);
       const movements = await reader.movements({
@@ -107,7 +109,7 @@ export function registerStockMovementsRoutes<TQueryResult extends PgQueryResultH
 
   app.get(
     "/inventory-movement-reasons",
-    { preHandler, config: { access: anyKindAccess, sessionSource } },
+    { preHandler, config: { access: capabilityAccess("stock_movements"), sessionSource } },
     async (request, reply) => {
       await reply.code(200).send(
         stockMovementReasonListSchema.parse({

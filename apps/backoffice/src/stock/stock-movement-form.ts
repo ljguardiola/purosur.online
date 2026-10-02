@@ -4,15 +4,12 @@ import {
   type StockProduct,
   stockAdjustmentBodySchema,
   stockLossBodySchema,
-  stockMovementListSchema,
 } from "@purosur/contracts";
 import type { AdjustmentReason, LossReason, SaleUnit, StockDirection } from "@purosur/domain";
 import { sortedItems, textOrder } from "@purosur/ui";
 import { ADJUSTMENT_REASON_LABELS, LOSS_REASON_LABELS } from "./stock-reason-labels";
 
 export type MovementKind = StockMovement["kind"];
-
-export const MOVEMENT_KINDS = stockMovementListSchema.shape.movements.element.shape.kind.options;
 
 export const REASONS_OF_KIND = {
   loss: stockLossBodySchema.shape.reason.options,
