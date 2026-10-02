@@ -86,7 +86,6 @@ export const Disabled: Story = {
 
 export const LongName: Story = {
   args: {
-    ...heading,
     value: null,
     options: [{ value: "ada", label: "Una persona con un nombre larguísimo que no entra" }],
   },
