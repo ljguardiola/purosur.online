@@ -86,6 +86,17 @@ describe("mainToCoreMessageSchema", () => {
   });
 
   it.each([
+    [
+      "a snapshot key without its version",
+      { ...CREDENTIALS.keys, snapshot_key_versions: [{ key: KEY_A }] },
+    ],
+    [
+      "a contingency-ticket key that isn't a string",
+      { ...CREDENTIALS.keys, contingency_ticket_key: { version: 1, key: 1 } },
+    ],
+    ["no outbox-chain key", { ...CREDENTIALS.keys, outbox_chain_key: undefined }],
+    ["snapshot keys that aren't a list", { ...CREDENTIALS.keys, snapshot_key_versions: KEY_A }],
+    ["keys that aren't an object", "keys"],
     ["no snapshot keys", { ...CREDENTIALS.keys, snapshot_key_versions: [] }],
     [
       "two snapshot keys under the same version",
@@ -105,26 +116,6 @@ describe("mainToCoreMessageSchema", () => {
       "an outbox-chain key that isn't well formed",
       { ...CREDENTIALS.keys, outbox_chain_key: "b3V0Ym94" },
     ],
-  ])("reads the installation keys main holds as they are, with %s", (_case, keys) => {
-    const credentials = { ...CREDENTIALS, keys };
-
-    expect(mainToCoreMessageSchema.parse(readAnswerWith(credentials))).toStrictEqual(
-      readAnswerWith(credentials),
-    );
-  });
-
-  it.each([
-    [
-      "a snapshot key without its version",
-      { ...CREDENTIALS.keys, snapshot_key_versions: [{ key: KEY_A }] },
-    ],
-    [
-      "a contingency-ticket key that isn't a string",
-      { ...CREDENTIALS.keys, contingency_ticket_key: { version: 1, key: 1 } },
-    ],
-    ["no outbox-chain key", { ...CREDENTIALS.keys, outbox_chain_key: undefined }],
-    ["snapshot keys that aren't a list", { ...CREDENTIALS.keys, snapshot_key_versions: KEY_A }],
-    ["keys that aren't an object", "keys"],
   ])(
     "reads credentials whose installation keys have %s as credentials without keys",
     (_case, keys) => {
