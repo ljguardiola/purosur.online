@@ -11,8 +11,8 @@ import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { setQueryAnswer } from "../platform/set-query-answer";
 import type { CoreData } from "../platform/use-core-query";
 import { coreQueryOptions, useCoreQuery } from "../platform/use-core-query";
-import type { CashSessionState } from "../shell/cash-session-state";
-import { cashSessionStateOf } from "../shell/cash-session-state";
+import type { CashSessionState } from "./cash-session-state";
+import { cashSessionStateOf } from "./cash-session-state";
 
 const registerKey = ["register"] as const;
 

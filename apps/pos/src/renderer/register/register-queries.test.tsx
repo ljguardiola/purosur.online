@@ -15,7 +15,7 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { createQueryClient } from "../platform/query-client";
 import type { CoreData } from "../platform/use-core-query";
-import type { CashSessionState } from "../shell/cash-session-state";
+import type { CashSessionState } from "./cash-session-state";
 import {
   cashKey,
   registerKeys,
