@@ -1,4 +1,5 @@
 import type { SaleUnit } from "../../catalog/index.js";
+import type { ManualStockMovementKind } from "../model/stock-movement-kind.js";
 import type { AdjustmentReason, LossReason } from "../model/stock-movement-reason.js";
 import type { ProductStockKey } from "./stock-store.js";
 
@@ -32,8 +33,6 @@ export interface RecordedStockCount {
   delta: number;
   superseded: boolean;
 }
-
-export type ManualStockMovementKind = "loss" | "adjustment";
 
 export interface RecordedStockMovement {
   id: string;

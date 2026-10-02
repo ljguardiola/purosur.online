@@ -1,7 +1,11 @@
-import type { AdjustmentReason, LossReason, SaleUnit } from "@purosur/domain";
+import type {
+  AdjustmentReason,
+  LossReason,
+  ManualStockMovementKind,
+  SaleUnit,
+} from "@purosur/domain";
 import type {
   LedgerAtMoment,
-  ManualStockMovementKind,
   ProductStockKey,
   RecordedStockCount,
   RecordedStockMovement,

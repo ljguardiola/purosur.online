@@ -9,7 +9,6 @@ export type { RegisterCountInput, RegisterCountOutcome } from "./register-count.
 export { registerCount } from "./register-count.js";
 export type {
   LedgerAtMoment,
-  ManualStockMovementKind,
   RecordedStockCount,
   RecordedStockMovement,
   StockLedgerReader,
@@ -26,7 +25,6 @@ export type {
   NewStockCount,
   NewStockMovement,
   ProductStockKey,
-  StockMovementKind,
   StockPorts,
   StockStore,
   StockStoreTransaction,

@@ -4,8 +4,8 @@ import {
   stockMovementListSchema,
   stockMovementResultSchema,
 } from "@purosur/contracts";
+import type { ManualStockMovementKind } from "@purosur/domain";
 import {
-  type ManualStockMovementKind,
   type RecordAdjustmentOutcome,
   type RecordLossOutcome,
   recordAdjustment,

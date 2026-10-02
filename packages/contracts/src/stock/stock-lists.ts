@@ -1,4 +1,9 @@
-import { ADJUSTMENT_REASONS, LOSS_REASONS, SALE_UNITS } from "@purosur/domain";
+import {
+  ADJUSTMENT_REASONS,
+  LOSS_REASONS,
+  MANUAL_STOCK_MOVEMENT_KINDS,
+  SALE_UNITS,
+} from "@purosur/domain";
 import { z } from "zod";
 
 export const STOCK_PERIOD_DAYS = [7, 30, 90] as const;
@@ -50,7 +55,7 @@ const stockMovementSchema = z.object({
   productName: z.string(),
   categoryName: z.string(),
   saleUnit: z.enum(SALE_UNITS),
-  kind: z.enum(["loss", "adjustment"]),
+  kind: z.enum(MANUAL_STOCK_MOVEMENT_KINDS),
   reason: z.enum([...LOSS_REASONS, ...ADJUSTMENT_REASONS]),
   delta: z.int(),
   occurredAt: z.iso.datetime(),

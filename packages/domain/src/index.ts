@@ -280,7 +280,13 @@ export {
   saleTotal,
 } from "./sales/index.js";
 export { ARGENTINA_TIME_ZONE, argentinaCalendarDay } from "./shared/index.js";
-export type { AdjustmentReason, LossReason, StockDirection } from "./stock/index.js";
+export type {
+  AdjustmentReason,
+  LossReason,
+  ManualStockMovementKind,
+  StockDirection,
+  StockMovementKind,
+} from "./stock/index.js";
 export {
   ADJUSTMENT_REASONS,
   adjustmentDirections,
@@ -290,6 +296,7 @@ export {
   isMovementQuantity,
   LOSS_REASONS,
   lossDelta,
+  MANUAL_STOCK_MOVEMENT_KINDS,
   MAX_STOCK_QUANTITY,
   STOCK_DIRECTIONS,
   STOCK_QUANTITY_PER_UNIT,
