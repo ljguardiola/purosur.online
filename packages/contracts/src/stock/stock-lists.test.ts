@@ -1,11 +1,13 @@
+import { DEFAULT_STOCK_PERIOD_DAYS, STOCK_PERIOD_DAYS } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
-  STOCK_PERIOD_DAYS,
   stockBalanceListSchema,
   stockBalanceSchema,
   stockCountListSchema,
   stockMovementListSchema,
   stockMovementReasonListSchema,
+  stockPeriodDaysSchema,
+  stockPeriodSchema,
   stockProductListSchema,
 } from "./stock-lists.js";
 
@@ -46,12 +48,6 @@ const movement = {
   occurredAt: at,
   superseded: false,
 };
-
-describe("STOCK_PERIOD_DAYS", () => {
-  it("offers the last week, month and quarter", () => {
-    expect(STOCK_PERIOD_DAYS).toEqual([7, 30, 90]);
-  });
-});
 
 describe("stockBalanceListSchema", () => {
   it("accepts products with their balance, a negative one included", () => {
@@ -181,4 +177,23 @@ describe("stockMovementReasonListSchema", () => {
       stockMovementReasonListSchema.safeParse({ reasons: [{ ...theft, [field]: value }] }).success,
     ).toBe(false);
   });
+});
+
+describe("stockPeriodDaysSchema", () => {
+  it("lists the offered stock periods", () => {
+    expect([...stockPeriodDaysSchema.values]).toEqual(STOCK_PERIOD_DAYS);
+  });
+});
+
+describe("stockPeriodSchema", () => {
+  it.each(STOCK_PERIOD_DAYS)("reads an offered period of %i days as written", (days) => {
+    expect(stockPeriodSchema.parse(String(days))).toBe(String(days));
+  });
+
+  it.each([undefined, "", "45", "030", "30.0", " 30", "7days", 30])(
+    "reads %j as the default period",
+    (value) => {
+      expect(stockPeriodSchema.parse(value)).toBe(String(DEFAULT_STOCK_PERIOD_DAYS));
+    },
+  );
 });

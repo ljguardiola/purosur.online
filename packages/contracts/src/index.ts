@@ -243,7 +243,10 @@ export type {
 } from "./shared/index.js";
 export {
   branchSettingsSchema,
+  decodePinSalt,
+  encodePinHash,
   issuerIdentificationSchema,
+  PIN_HASH_SCHEME,
   scrubErrorReport,
   scrubErrorReportBreadcrumb,
   scrubErrorReportLog,
@@ -256,17 +259,19 @@ export type {
   StockMovement,
   StockMovementList,
   StockMovementReasonList,
+  StockPeriod,
   StockPeriodDays,
   StockProduct,
   StockProductList,
 } from "./stock/stock-lists.js";
 export {
-  STOCK_PERIOD_DAYS,
   stockBalanceListSchema,
   stockBalanceSchema,
   stockCountListSchema,
   stockMovementListSchema,
   stockMovementReasonListSchema,
+  stockPeriodDaysSchema,
+  stockPeriodSchema,
   stockProductListSchema,
 } from "./stock/stock-lists.js";
 export type {
@@ -277,6 +282,7 @@ export type {
 export {
   stockAdjustmentBodySchema,
   stockCountBodySchema,
+  stockCountMomentSchema,
   stockLossBodySchema,
 } from "./stock/stock-movement-bodies.js";
 export type { StockCountResult, StockMovementResult } from "./stock/stock-results.js";

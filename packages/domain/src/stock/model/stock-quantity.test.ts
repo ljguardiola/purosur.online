@@ -4,12 +4,22 @@ import {
   isCountedQuantity,
   isMovementQuantity,
   MAX_STOCK_QUANTITY,
+  mayBeCountedQuantity,
+  mayBeMovementQuantity,
+  STOCK_QUANTITY_DECIMALS,
   STOCK_QUANTITY_PER_UNIT,
 } from "./stock-quantity.js";
 
 describe("STOCK_QUANTITY_PER_UNIT", () => {
   it("keeps a quantity in thousandths of its sale unit, so a kilo holds a thousand grams", () => {
     expect(STOCK_QUANTITY_PER_UNIT).toBe(1000);
+  });
+});
+
+describe("STOCK_QUANTITY_DECIMALS", () => {
+  it("writes a quantity in its sale unit with the three decimals a thousandth needs", () => {
+    expect(STOCK_QUANTITY_DECIMALS).toBe(3);
+    expect(10 ** STOCK_QUANTITY_DECIMALS).toBe(STOCK_QUANTITY_PER_UNIT);
   });
 });
 
@@ -72,5 +82,56 @@ describe("isCountedQuantity", () => {
     ["UNIT", -1000],
   ] as const)("rejects a %s count of %s", (saleUnit, quantity) => {
     expect(isCountedQuantity(saleUnit, quantity)).toBe(false);
+  });
+});
+
+describe("mayBeCountedQuantity", () => {
+  it("accepts every quantity a count of some sale unit may hold", () => {
+    expect(mayBeCountedQuantity(0)).toBe(true);
+    expect(mayBeCountedQuantity(1)).toBe(true);
+    expect(mayBeCountedQuantity(1500)).toBe(true);
+    expect(mayBeCountedQuantity(MAX_STOCK_QUANTITY)).toBe(true);
+  });
+
+  it.each([-1, 0.5, MAX_STOCK_QUANTITY + 1, Number.NaN, Number.POSITIVE_INFINITY])(
+    "rejects %s, which no count may hold",
+    (quantity) => {
+      expect(mayBeCountedQuantity(quantity)).toBe(false);
+    },
+  );
+
+  it("accepts a quantity exactly when a count of some sale unit accepts it", () => {
+    fc.assert(
+      fc.property(fc.oneof(fc.integer(), fc.double()), (quantity) => {
+        expect(mayBeCountedQuantity(quantity)).toBe(
+          isCountedQuantity("KG", quantity) || isCountedQuantity("UNIT", quantity),
+        );
+      }),
+    );
+  });
+});
+
+describe("mayBeMovementQuantity", () => {
+  it("accepts every quantity a movement of some sale unit may carry", () => {
+    expect(mayBeMovementQuantity(1)).toBe(true);
+    expect(mayBeMovementQuantity(1500)).toBe(true);
+    expect(mayBeMovementQuantity(MAX_STOCK_QUANTITY)).toBe(true);
+  });
+
+  it.each([0, -1, 0.5, MAX_STOCK_QUANTITY + 1, Number.NaN, Number.POSITIVE_INFINITY])(
+    "rejects %s, which no movement may carry",
+    (quantity) => {
+      expect(mayBeMovementQuantity(quantity)).toBe(false);
+    },
+  );
+
+  it("accepts a quantity exactly when a movement of some sale unit accepts it", () => {
+    fc.assert(
+      fc.property(fc.oneof(fc.integer(), fc.double()), (quantity) => {
+        expect(mayBeMovementQuantity(quantity)).toBe(
+          isMovementQuantity("KG", quantity) || isMovementQuantity("UNIT", quantity),
+        );
+      }),
+    );
   });
 });

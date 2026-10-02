@@ -1,6 +1,12 @@
 import { argon2Sync } from "node:crypto";
-import { changesPageSchema, cloudErrorSchema, pinCodeRedemptionSchema } from "@purosur/contracts";
-import { decodePinSalt, encodePinHash, PIN_HASH_SCHEME } from "@purosur/domain";
+import {
+  changesPageSchema,
+  cloudErrorSchema,
+  decodePinSalt,
+  encodePinHash,
+  PIN_HASH_SCHEME,
+  pinCodeRedemptionSchema,
+} from "@purosur/contracts";
 import { and, eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";

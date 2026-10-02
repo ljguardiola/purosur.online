@@ -1,3 +1,4 @@
+import { stockPeriodSchema } from "@purosur/contracts";
 import { createRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 import {
@@ -9,7 +10,7 @@ import { lazyScreen } from "../shell/lazy-screen";
 import { refuseWithout } from "../shell/signed-in-route";
 import { stockAreaRoute } from "../shell/stock-area";
 
-const PERIODS = ["7", "30", "90"] as const;
+const periodFilter = stockPeriodSchema.default(stockPeriodSchema.parse(undefined));
 
 export const stockBalancesFilters = z.object({
   search: z.string().default("").catch(""),
@@ -22,7 +23,7 @@ export type StockBalancesFilters = z.output<typeof stockBalancesFilters>;
 export const stockCountsFilters = z.object({
   search: z.string().default("").catch(""),
   category: z.string().default("ALL").catch("ALL"),
-  period: z.enum(PERIODS).default("30").catch("30"),
+  period: periodFilter,
 });
 
 export type StockCountsFilters = z.output<typeof stockCountsFilters>;
@@ -30,7 +31,7 @@ export type StockCountsFilters = z.output<typeof stockCountsFilters>;
 export const stockMovementsFilters = z.object({
   search: z.string().default("").catch(""),
   reason: z.string().default("ALL").catch("ALL"),
-  period: z.enum(PERIODS).default("30").catch("30"),
+  period: periodFilter,
 });
 
 export type StockMovementsFilters = z.output<typeof stockMovementsFilters>;

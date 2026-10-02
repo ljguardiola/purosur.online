@@ -13,3 +13,10 @@ const ISO_DAY_FORMAT = new Intl.DateTimeFormat("en-CA", {
 export function argentinaCalendarDay(instant: Date): string {
   return ISO_DAY_FORMAT.format(instant);
 }
+
+// Argentina has kept UTC−3 all year, with no daylight saving time, since 2009.
+const ARGENTINA_OFFSET = "-03:00";
+
+export function argentinaInstant(day: string, time: string): string {
+  return `${day}T${time}:00${ARGENTINA_OFFSET}`;
+}

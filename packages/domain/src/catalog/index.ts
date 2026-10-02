@@ -35,4 +35,5 @@ export {
   productNameLength,
   SALE_UNITS,
 } from "./model/product.js";
+export { repeatsATag } from "./model/product-tags.js";
 export { isTagNameTooLong, TAG_NAME_MAX_LENGTH } from "./model/tag-name.js";

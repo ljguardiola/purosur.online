@@ -1,4 +1,5 @@
-import { encodePinHash, REGISTER_ABILITIES } from "@purosur/domain";
+import { encodePinHash } from "@purosur/contracts";
+import { REGISTER_ABILITIES } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createActionGate } from "../access/action-gate";
 import { derivePinVerifier } from "../access/pin-verifier";

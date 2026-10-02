@@ -1,6 +1,7 @@
 import { argon2, randomBytes } from "node:crypto";
 import type { SyncChange } from "@purosur/contracts";
-import { encodePinHash, type PermissionKey, PIN_HASH_SCHEME } from "@purosur/domain";
+import { encodePinHash, PIN_HASH_SCHEME } from "@purosur/contracts";
+import type { PermissionKey } from "@purosur/domain";
 
 type WithoutChangeSeq<TChange> = TChange extends SyncChange ? Omit<TChange, "change_seq"> : never;
 
