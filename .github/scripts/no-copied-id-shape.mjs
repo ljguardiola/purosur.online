@@ -259,25 +259,8 @@ function isMemberName(node) {
   const parent = node.parent;
   return (
     (ts.isPropertyAccessExpression(parent) && parent.name === node) ||
-    (ts.isQualifiedName(parent) && parent.right === node) ||
-    isDestructuredKey(node)
+    (ts.isQualifiedName(parent) && parent.right === node)
   );
-}
-
-function isDestructuredKey(node) {
-  const parent = node.parent;
-  return (
-    ts.isBindingElement(parent) &&
-    ts.isObjectBindingPattern(parent.parent) &&
-    (parent.propertyName ?? parent.name) === node
-  );
-}
-
-function symbolNamedAt(node, checker) {
-  if (isDestructuredKey(node)) {
-    return checker.getPropertyOfType(checker.getTypeAtLocation(node.parent.parent), node.text);
-  }
-  return checker.getSymbolAtLocation(node);
 }
 
 function isZodIdFormatSymbol(symbol, checker) {
@@ -294,21 +277,7 @@ function isZodIdFormatSymbol(symbol, checker) {
 
 function isZodIdFormat(node, checker) {
   if (isMemberName(node) && !ZOD_ID_FORMAT_NAME.test(node.text)) return false;
-  return isZodIdFormatSymbol(symbolNamedAt(node, checker), checker);
-}
-
-function computedKey(node) {
-  if (ts.isElementAccessExpression(node)) {
-    return { key: node.argumentExpression, receiver: node.expression };
-  }
-  if (
-    ts.isComputedPropertyName(node) &&
-    ts.isBindingElement(node.parent) &&
-    ts.isObjectBindingPattern(node.parent.parent)
-  ) {
-    return { key: node.expression, receiver: node.parent.parent };
-  }
-  return undefined;
+  return isZodIdFormatSymbol(checker.getSymbolAtLocation(node), checker);
 }
 
 function namesOfKeyType(type, checker) {
@@ -317,20 +286,168 @@ function namesOfKeyType(type, checker) {
   return types.filter((each) => each.isStringLiteral()).map((each) => each.value);
 }
 
+function namesOfKey(key, checker) {
+  if (ts.isComputedPropertyName(key)) {
+    return namesOfKeyType(checker.getTypeAtLocation(key.expression), checker);
+  }
+  return [key.text];
+}
+
+function isAssignment(node) {
+  return ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken;
+}
+
+function typesOfNamedEntries(types, names, checker) {
+  return types.flatMap((type) =>
+    names.flatMap((name) => {
+      const property = checker.getPropertyOfType(type, name);
+      return property === undefined ? [] : [checker.getTypeOfSymbol(property)];
+    }),
+  );
+}
+
+function returnTypesOf(types, checker) {
+  return types.flatMap((type) =>
+    type.getCallSignatures().map((signature) => checker.getReturnTypeOfSignature(signature)),
+  );
+}
+
+function iteratedTypes(type, checker) {
+  const iterator = checker
+    .getPropertiesOfType(checker.getApparentType(type))
+    .find((property) => String(property.escapedName).startsWith("__@iterator"));
+  if (iterator === undefined) return [];
+  const iterators = returnTypesOf([checker.getTypeOfSymbol(iterator)], checker);
+  const results = returnTypesOf(typesOfNamedEntries(iterators, ["next"], checker), checker);
+  const members = results.flatMap((result) => (result.isUnion() ? result.types : [result]));
+  return typesOfNamedEntries(members, ["value"], checker);
+}
+
+function typesOfArrayEntry(types, entry, checker) {
+  const index = String(entry.parent.elements.indexOf(entry));
+  return types.flatMap((type) => {
+    const [indexed] = typesOfNamedEntries([type], [index], checker);
+    const element = indexed ?? checker.getIndexTypeOfType(type, ts.IndexKind.Number);
+    return element === undefined ? iteratedTypes(type, checker) : [element];
+  });
+}
+
+function typesOfEntry(entry, checker) {
+  const sources = sourceTypesOfPattern(entry.parent, checker);
+  if (ts.isArrayLiteralExpression(entry.parent)) return typesOfArrayEntry(sources, entry, checker);
+  return typesOfNamedEntries(sources, namesOfKey(entry.name, checker), checker);
+}
+
+function enclosingEntry(node) {
+  const parent = node.parent;
+  if (ts.isPropertyAssignment(parent) && parent.initializer === node) {
+    return isAssignedPattern(parent.parent) ? parent : undefined;
+  }
+  return ts.isArrayLiteralExpression(parent) && isAssignedPattern(parent) ? node : undefined;
+}
+
+function isAssignedPattern(node) {
+  if (!ts.isObjectLiteralExpression(node) && !ts.isArrayLiteralExpression(node)) return false;
+  const parent = node.parent;
+  return (
+    (ts.isForOfStatement(parent) && parent.initializer === node) ||
+    (isAssignment(parent) && parent.left === node) ||
+    enclosingEntry(node) !== undefined
+  );
+}
+
+function sourceTypesOfAssignedPattern(pattern, checker) {
+  const parent = pattern.parent;
+  const entry = enclosingEntry(isAssignment(parent) && parent.left === pattern ? parent : pattern);
+  return [
+    checker.getTypeOfAssignmentPattern(pattern),
+    ...(entry === undefined ? [] : typesOfEntry(entry, checker)),
+  ];
+}
+
+function sourceTypesOfPattern(pattern, checker) {
+  if (ts.isObjectBindingPattern(pattern) || ts.isArrayBindingPattern(pattern)) {
+    return [checker.getTypeAtLocation(pattern)];
+  }
+  return isAssignedPattern(pattern) ? sourceTypesOfAssignedPattern(pattern, checker) : [];
+}
+
+function destructuredKey(node) {
+  if (ts.isBindingElement(node) && ts.isObjectBindingPattern(node.parent)) {
+    return node.propertyName ?? node.name;
+  }
+  if (
+    (ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node)) &&
+    isAssignedPattern(node.parent)
+  ) {
+    return node.name;
+  }
+  return undefined;
+}
+
+function destructuresZodIdFormat(entry, key, checker) {
+  const names = namesOfKey(key, checker);
+  return sourceTypesOfPattern(entry.parent, checker).some((source) =>
+    names.some((name) => isZodIdFormatSymbol(checker.getPropertyOfType(source, name), checker)),
+  );
+}
+
+function namesZodIdFormat(node, checker) {
+  const object = checker.getTypeFromTypeNode(node.objectType);
+  return namesOfKeyType(checker.getTypeFromTypeNode(node.indexType), checker).some((name) =>
+    isZodIdFormatSymbol(checker.getPropertyOfType(object, name), checker),
+  );
+}
+
 function picksZodIdFormat(node, checker) {
-  const picked = computedKey(node);
-  if (picked === undefined) return false;
-  const receiver = checker.getTypeAtLocation(picked.receiver);
-  return namesOfKeyType(checker.getTypeAtLocation(picked.key), checker).some((name) =>
+  const receiver = checker.getTypeAtLocation(node.expression);
+  return namesOfKeyType(checker.getTypeAtLocation(node.argumentExpression), checker).some((name) =>
     isZodIdFormatSymbol(checker.getPropertyOfType(receiver, name), checker),
   );
 }
 
+function calleeOf(node) {
+  if (ts.isCallExpression(node) || ts.isNewExpression(node)) return node.expression;
+  if (ts.isTaggedTemplateExpression(node)) return node.tag;
+  return undefined;
+}
+
+function isZodIdFormatSignature(signature) {
+  const declaration = signature.getDeclaration();
+  const name = declaration === undefined ? undefined : ts.getNameOfDeclaration(declaration);
+  return (
+    name !== undefined && ZOD_ID_FORMAT_NAME.test(name.getText()) && isZodDeclaration(declaration)
+  );
+}
+
+function callsZodIdFormat(node, checker) {
+  const callee = calleeOf(node);
+  if (callee === undefined) return false;
+  const type = checker.getTypeAtLocation(callee);
+  return [...type.getCallSignatures(), ...type.getConstructSignatures()].some(
+    isZodIdFormatSignature,
+  );
+}
+
+function isKeyOfPattern(node) {
+  return destructuredKey(node.parent) === node;
+}
+
 function zodIdFormatsIn(nodes, checker) {
   return nodes.flatMap((node) => {
-    if (picksZodIdFormat(node, checker)) return [computedKey(node).key];
-    const named = ts.isIdentifier(node) || (ts.isStringLiteral(node) && isDestructuredKey(node));
-    if (named && isZodIdFormat(node, checker)) return [node];
+    const key = destructuredKey(node);
+    if (key !== undefined) {
+      if (!destructuresZodIdFormat(node, key, checker)) return [];
+      return [ts.isComputedPropertyName(key) ? key.expression : key];
+    }
+    if (callsZodIdFormat(node, checker)) return [node];
+    if (ts.isIndexedAccessTypeNode(node) && namesZodIdFormat(node, checker)) return [node];
+    if (ts.isElementAccessExpression(node) && picksZodIdFormat(node, checker)) {
+      return [node.argumentExpression];
+    }
+    if (ts.isIdentifier(node) && !isKeyOfPattern(node) && isZodIdFormat(node, checker)) {
+      return [node];
+    }
     return [];
   });
 }
