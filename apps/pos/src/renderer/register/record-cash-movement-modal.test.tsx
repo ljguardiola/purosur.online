@@ -4,11 +4,13 @@ import type {
   SignInUser,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey, CashMovementKind } from "@purosur/domain";
+import { Eyebrow } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { CashMovementInput } from "../platform/core-client";
 import type { SignedInPerson } from "../shell/signed-in-person";
+import { expectDrawnLike } from "../shell/test-support/drawn-like";
 import { render } from "../shell/test-support/render-with-router";
 import { RecordCashMovementModal } from "./record-cash-movement-modal";
 
@@ -127,6 +129,24 @@ describe("RecordCashMovementModal", () => {
     await expect.element(screen.getByText("Se paga algo")).toBeVisible();
     await expect.element(screen.getByText("Sale a caja fuerte")).toBeVisible();
     await expect.element(screen.getByRole("button", { name: "Registrar ingreso" })).toBeVisible();
+  });
+
+  it("heads the kinds of movement with the design system's eyebrow, left to the group to announce", async () => {
+    const { screen } = await renderModal();
+    const kindsEyebrow = screen
+      .getByRole("dialog")
+      .getByText("Tipo de movimiento", { exact: true })
+      .element();
+    const reference = await render(<Eyebrow text="Tipo de movimiento" />);
+    const eyebrow = reference.container.querySelector("p") as HTMLElement;
+
+    expectDrawnLike(
+      kindsEyebrow,
+      eyebrow,
+      ["fontSize", "fontWeight", "textTransform", "letterSpacing", "color"],
+      "kinds eyebrow",
+    );
+    expect(kindsEyebrow.closest("[aria-hidden='true']")).not.toBeNull();
   });
 
   it.each([
