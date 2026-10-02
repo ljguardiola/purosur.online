@@ -5,6 +5,7 @@ import type {
   CancelSaleOutcome,
   CashBalance,
   CashChargeAnswer,
+  CashCountPreview,
   ChangeLineQuantityOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
@@ -90,6 +91,7 @@ export interface RendererRequestDeps {
     | ((closer: Authorization) => Promise<IdentifyLockedCloserOutcome>)
     | undefined;
   cashBalance: (() => CashBalance | null) | undefined;
+  cashCountPreview: ((countedCash: number) => CashCountPreview | null) | undefined;
   sessionOpenSale: (() => SessionOpenSale | null) | undefined;
   authorizers: ((permission: AuthorizablePermissionKey) => SignInUser[]) | undefined;
   lockedClosers: (() => SignInUser[]) | undefined;
@@ -250,6 +252,18 @@ function readCashBalance(deps: RendererRequestDeps): CashBalance | null | undefi
     return deps.cashBalance?.();
   } catch (error) {
     deps.reportFailure("reading the cash balance", error);
+    return undefined;
+  }
+}
+
+function readCashCountPreview(
+  deps: RendererRequestDeps,
+  countedCash: number,
+): CashCountPreview | null | undefined {
+  try {
+    return deps.cashCountPreview?.(countedCash);
+  } catch (error) {
+    deps.reportFailure("reading the count preview", error);
     return undefined;
   }
 }
@@ -626,6 +640,12 @@ export async function answerRendererRequest(
       return balance === undefined
         ? { type: "cash-balance-unavailable", request_id: message.request_id }
         : { type: "cash-balance", request_id: message.request_id, balance };
+    }
+    case "cash-count-preview-request": {
+      const preview = readCashCountPreview(deps, message.counted_cash);
+      return preview === undefined
+        ? { type: "cash-count-preview-unavailable", request_id: message.request_id }
+        : { type: "cash-count-preview", request_id: message.request_id, preview };
     }
     case "session-open-sale-request": {
       const sale = readSessionOpenSale(deps);

@@ -44,13 +44,13 @@ const GRACE_SESSION: OpenCashSession = {
 };
 const GRACE_SESSION_LOCKED: OpenCashSession = { ...GRACE_SESSION, locked: true };
 const BALANCE: CashBalance = {
-  opening_float: 2_000_000,
-  cash_sales: 3_500_000,
-  change_given: 930_000,
-  refunds: 0,
-  cash_in: 100_000,
-  expenses: 50_000,
-  withdrawals: 0,
+  opening_float: { amount: 2_000_000, direction: "in" },
+  cash_sales: { amount: 3_500_000, direction: "in" },
+  change_given: { amount: 930_000, direction: "out" },
+  refunds: { amount: 0, direction: "out" },
+  cash_in: { amount: 100_000, direction: "in" },
+  expenses: { amount: 50_000, direction: "out" },
+  withdrawals: { amount: 0, direction: "out" },
   expected: 4_620_000,
 };
 const ADA_SELLS: SignInOutcome = {
@@ -262,6 +262,9 @@ function coreAnswering(
     },
     async cashBalance() {
       return cashDrawer.cashBalance === undefined ? null : cashDrawer.cashBalance();
+    },
+    async cashCountPreview() {
+      return null;
     },
     onPulled(listener) {
       pulledListeners.add(listener);
@@ -1922,6 +1925,7 @@ describe("App", () => {
       type: "OPENING",
       amount: 2_000_000,
       reason: null,
+      direction: "in",
       occurred_at: GRACE_SESSION.opened_at,
       actor: { user_id: "u2", first_name: "Grace" },
       authorized_by: null,
@@ -1992,7 +1996,11 @@ describe("App", () => {
       const cashBalance = vi
         .fn<CoreClient["cashBalance"]>()
         .mockResolvedValueOnce(BALANCE)
-        .mockResolvedValueOnce({ ...BALANCE, cash_in: 600_000, expected: 5_120_000 });
+        .mockResolvedValueOnce({
+          ...BALANCE,
+          cash_in: { amount: 600_000, direction: "in" },
+          expected: 5_120_000,
+        });
       const cashMovements = vi
         .fn<CoreClient["cashMovements"]>()
         .mockResolvedValueOnce([OPENING])

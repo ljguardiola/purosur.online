@@ -6,6 +6,7 @@ const UNKNOWN = "—";
 export type CashCountStripProps = {
   expected: number | undefined;
   counted: number | undefined;
+  difference: number | undefined;
 };
 
 function Cell({ label, text }: { label: string; text: string }) {
@@ -17,9 +18,7 @@ function Cell({ label, text }: { label: string; text: string }) {
   );
 }
 
-export function CashCountStrip({ expected, counted }: CashCountStripProps) {
-  const difference =
-    expected === undefined || counted === undefined ? undefined : counted - expected;
+export function CashCountStrip({ expected, counted, difference }: CashCountStripProps) {
   return (
     <dl className="flex gap-4 rounded-lg bg-surface-subtle p-4">
       <Cell label="Esperado" text={expected === undefined ? UNKNOWN : formatCents(expected)} />

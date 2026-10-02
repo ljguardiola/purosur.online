@@ -4,6 +4,7 @@ import type {
   CancelSaleOutcome,
   CashBalance,
   CashChargeAnswer,
+  CashCountPreview,
   ChangeLineQuantityOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
@@ -48,6 +49,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const kindLookups: string[] = [];
   const saleLookups: string[] = [];
   const chargeReads: { saleId: string; tendered: number }[] = [];
+  const previewReads: number[] = [];
   const saleChanges: string[] = [];
   const signOuts: string[] = [];
   const failures: { context: string; error: unknown }[] = [];
@@ -70,6 +72,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
     kindLookups,
     saleLookups,
     chargeReads,
+    previewReads,
     saleChanges,
     signOuts,
     failures,
@@ -189,6 +192,10 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         kind: "not_locked",
       }),
       cashBalance: (): CashBalance | null => null,
+      cashCountPreview: (countedCash: number): CashCountPreview | null => {
+        previewReads.push(countedCash);
+        return null;
+      },
       lockedClosers: () => [{ id: "u2", first_name: "Grace" }],
       sessionOpenSale: (): SessionOpenSale | null => null,
       authorizers: (permission: AuthorizablePermissionKey) => {
@@ -723,6 +730,7 @@ describe("answerRendererRequest", () => {
         type: "CASH_IN",
         amount: 100,
         reason: "Cambio",
+        direction: "in",
         occurred_at: "2026-09-30T12:00:00.000Z",
         actor: { user_id: "u1", first_name: "Ada" },
         authorized_by: null,
@@ -1550,13 +1558,13 @@ describe("answerRendererRequest", () => {
 
   it("answers the cash balance of the open session", async () => {
     const balance: CashBalance = {
-      opening_float: 5000,
-      cash_sales: 0,
-      change_given: 0,
-      refunds: 0,
-      cash_in: 0,
-      expenses: 0,
-      withdrawals: 0,
+      opening_float: { amount: 5000, direction: "in" },
+      cash_sales: { amount: 0, direction: "in" },
+      change_given: { amount: 0, direction: "out" },
+      refunds: { amount: 0, direction: "out" },
+      cash_in: { amount: 0, direction: "in" },
+      expenses: { amount: 0, direction: "out" },
+      withdrawals: { amount: 0, direction: "out" },
       expected: 5000,
     };
 
@@ -1601,6 +1609,68 @@ describe("answerRendererRequest", () => {
       }),
     ).toEqual({ type: "cash-balance-unavailable", request_id: "r27" });
     expect(failing.failures).toEqual([{ context: "reading the cash balance", error }]);
+  });
+
+  it("answers the count preview of the open session for the counted cash sent", async () => {
+    const preview: CashCountPreview = { difference: -800 };
+
+    expect(
+      await answerRendererRequest(deps(true, { cashCountPreview: () => preview }).deps, {
+        type: "cash-count-preview-request",
+        request_id: "r28",
+        counted_cash: 4200,
+      }),
+    ).toEqual({ type: "cash-count-preview", request_id: "r28", preview });
+  });
+
+  it("hands the counted cash to the core to preview", async () => {
+    const reading = deps(true);
+
+    await answerRendererRequest(reading.deps, {
+      type: "cash-count-preview-request",
+      request_id: "r28",
+      counted_cash: 4200,
+    });
+
+    expect(reading.previewReads).toEqual([4200]);
+  });
+
+  it("answers no count preview while no session is open", async () => {
+    expect(
+      await answerRendererRequest(deps(true).deps, {
+        type: "cash-count-preview-request",
+        request_id: "r29",
+        counted_cash: 100,
+      }),
+    ).toEqual({ type: "cash-count-preview", request_id: "r29", preview: null });
+  });
+
+  it("answers that the count preview cannot be read when the register has no database", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { cashCountPreview: undefined }).deps, {
+        type: "cash-count-preview-request",
+        request_id: "r31",
+        counted_cash: 100,
+      }),
+    ).toEqual({ type: "cash-count-preview-unavailable", request_id: "r31" });
+  });
+
+  it("answers that the count preview cannot be read when reading it fails, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      cashCountPreview: () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "cash-count-preview-request",
+        request_id: "r32",
+        counted_cash: 100,
+      }),
+    ).toEqual({ type: "cash-count-preview-unavailable", request_id: "r32" });
+    expect(failing.failures).toEqual([{ context: "reading the count preview", error }]);
   });
 
   it("answers the open sale of the session", async () => {

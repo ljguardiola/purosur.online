@@ -660,8 +660,8 @@ describe("charging an open sale in cash", () => {
     charge(saleId, 5000);
 
     expect(cashBalanceFor(database)).toMatchObject({
-      cash_sales: 5000,
-      change_given: 2000,
+      cash_sales: { amount: 5000, direction: "in" },
+      change_given: { amount: 2000, direction: "out" },
       expected: 3000,
     });
   });

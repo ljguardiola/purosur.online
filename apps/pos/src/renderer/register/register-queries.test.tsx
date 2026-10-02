@@ -1,12 +1,15 @@
 import type {
   CashBalance,
+  CashCountPreview,
   ListedCashMovement,
   OpenCashSession,
   RecordableCashMovementKinds,
   SessionOpenSale,
   SignInUser,
 } from "@purosur/contracts";
+import type { QueryClient } from "@tanstack/react-query";
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -14,8 +17,10 @@ import { createQueryClient } from "../platform/query-client";
 import type { CoreData } from "../platform/use-core-query";
 import type { CashSessionState } from "../shell/cash-session-state";
 import {
+  cashKey,
   registerKeys,
   useCashBalanceQuery,
+  useCashCountPreviewQuery,
   useCashMovementKindsQuery,
   useCashMovementsQuery,
   useCashSessionQuery,
@@ -26,13 +31,13 @@ import {
 } from "./register-queries";
 
 const BALANCE: CashBalance = {
-  opening_float: 2_000_000,
-  cash_sales: 0,
-  change_given: 0,
-  refunds: 0,
-  cash_in: 0,
-  expenses: 0,
-  withdrawals: 0,
+  opening_float: { amount: 2_000_000, direction: "in" },
+  cash_sales: { amount: 0, direction: "in" },
+  change_given: { amount: 0, direction: "out" },
+  refunds: { amount: 0, direction: "out" },
+  cash_in: { amount: 0, direction: "in" },
+  expenses: { amount: 0, direction: "out" },
+  withdrawals: { amount: 0, direction: "out" },
   expected: 2_000_000,
 };
 
@@ -41,6 +46,7 @@ const OPENING: ListedCashMovement = {
   type: "OPENING",
   amount: 2_000_000,
   reason: null,
+  direction: "in",
   occurred_at: "2026-09-30T12:02:00.000Z",
   actor: { user_id: "u1", first_name: "Ada" },
   authorized_by: null,
@@ -126,6 +132,137 @@ describe("cash queries", () => {
     await expect.poll(() => balance.mock.calls.length).toBe(1);
     await expect.element(screen.getByText("balance loading")).toBeVisible();
     await expect.element(screen.getByText("movements loading")).toBeVisible();
+  });
+});
+
+type PreviewRead = (countedCash: number) => Promise<CashCountPreview | null | "unavailable">;
+
+function PreviewProbe({
+  read,
+  countedCash,
+  sessionId = "s1",
+}: {
+  read: PreviewRead;
+  countedCash: number | undefined;
+  sessionId?: string;
+}) {
+  const difference = useCashCountPreviewQuery(sessionId, countedCash, read);
+  return <p>{["difference", difference === undefined ? "none" : String(difference)].join(" ")}</p>;
+}
+
+function previewTree(queryClient: QueryClient, probe: ReactNode) {
+  return <QueryClientProvider client={queryClient}>{probe}</QueryClientProvider>;
+}
+
+function pending<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
+
+describe("cash count preview query", () => {
+  it("gives the difference the core answers for the counted cash", async () => {
+    const read = vi.fn<PreviewRead>(async (countedCash) => ({ difference: countedCash - 1 }));
+    const screen = await render(
+      previewTree(createQueryClient(), <PreviewProbe read={read} countedCash={4_200} />),
+    );
+
+    await expect.element(screen.getByText("difference 4199")).toBeVisible();
+    expect(read).toHaveBeenCalledExactlyOnceWith(4_200);
+  });
+
+  it("neither reads nor gives a difference while nothing was counted", async () => {
+    const read = vi.fn<PreviewRead>(async () => ({ difference: 0 }));
+    const screen = await render(
+      previewTree(createQueryClient(), <PreviewProbe read={read} countedCash={undefined} />),
+    );
+
+    await expect.element(screen.getByText("difference none")).toBeVisible();
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it("reads again for every different counted cash and keeps the previous difference until the next one is answered", async () => {
+    const queryClient = createQueryClient();
+    const second = pending<CashCountPreview>();
+    const read = vi.fn<PreviewRead>((countedCash) =>
+      countedCash === 100 ? Promise.resolve({ difference: -5 }) : second.promise,
+    );
+    const screen = await render(
+      previewTree(queryClient, <PreviewProbe read={read} countedCash={100} />),
+    );
+    await expect.element(screen.getByText("difference -5")).toBeVisible();
+
+    await screen.rerender(previewTree(queryClient, <PreviewProbe read={read} countedCash={200} />));
+
+    await expect.poll(() => read.mock.calls.length).toBe(2);
+    await expect.element(screen.getByText("difference -5")).toBeVisible();
+    second.resolve({ difference: 7 });
+    await expect.element(screen.getByText("difference 7")).toBeVisible();
+  });
+
+  it("gives no difference once what was counted stops being an amount", async () => {
+    const queryClient = createQueryClient();
+    const read = vi.fn<PreviewRead>(async () => ({ difference: -5 }));
+    const screen = await render(
+      previewTree(queryClient, <PreviewProbe read={read} countedCash={100} />),
+    );
+    await expect.element(screen.getByText("difference -5")).toBeVisible();
+
+    await screen.rerender(
+      previewTree(queryClient, <PreviewProbe read={read} countedCash={undefined} />),
+    );
+
+    await expect.element(screen.getByText("difference none")).toBeVisible();
+  });
+
+  it("never shows the difference read for another session", async () => {
+    const queryClient = createQueryClient();
+    const screen = await render(
+      previewTree(
+        queryClient,
+        <PreviewProbe read={async () => ({ difference: -5 })} countedCash={100} />,
+      ),
+    );
+    await expect.element(screen.getByText("difference -5")).toBeVisible();
+
+    await screen.rerender(
+      previewTree(
+        queryClient,
+        <PreviewProbe read={() => new Promise(() => {})} countedCash={100} sessionId="s2" />,
+      ),
+    );
+
+    await expect.element(screen.getByText("difference none")).toBeVisible();
+  });
+
+  it.each<[string, PreviewRead]>([
+    ["there is no open session", async () => null],
+    ["the core cannot answer", async () => "unavailable"],
+    ["the read fails", () => Promise.reject(new Error("the connection was replaced"))],
+  ])("gives no difference when %s", async (_name, read) => {
+    const screen = await render(
+      previewTree(createQueryClient(), <PreviewProbe read={read} countedCash={100} />),
+    );
+
+    await expect.element(screen.getByText("difference none")).toBeVisible();
+  });
+
+  it("is refreshed by the cash invalidation that refreshes the balance", async () => {
+    const queryClient = createQueryClient();
+    const read = vi
+      .fn<PreviewRead>()
+      .mockResolvedValueOnce({ difference: -5 })
+      .mockResolvedValueOnce({ difference: 0 });
+    const screen = await render(
+      previewTree(queryClient, <PreviewProbe read={read} countedCash={100} />),
+    );
+    await expect.element(screen.getByText("difference -5")).toBeVisible();
+
+    await queryClient.invalidateQueries({ queryKey: cashKey });
+
+    await expect.element(screen.getByText("difference 0")).toBeVisible();
   });
 });
 

@@ -1,5 +1,6 @@
 import {
   type AuthorizablePermissionKey,
+  CASH_MOVEMENT_DIRECTIONS,
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_TYPES,
   isAuthorizablePermissionKey,
@@ -163,6 +164,12 @@ const cashBalanceRequestMessageSchema = z.object({
   request_id: requestId,
 });
 
+const cashCountPreviewRequestMessageSchema = z.object({
+  type: z.literal("cash-count-preview-request"),
+  request_id: requestId,
+  counted_cash: z.int(),
+});
+
 const sessionOpenSaleRequestMessageSchema = z.object({
   type: z.literal("session-open-sale-request"),
   request_id: requestId,
@@ -270,6 +277,7 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   cancelLockedSaleMessageSchema,
   identifyLockedCloserMessageSchema,
   cashBalanceRequestMessageSchema,
+  cashCountPreviewRequestMessageSchema,
   sessionOpenSaleRequestMessageSchema,
   authorizersRequestMessageSchema,
   lockedClosersRequestMessageSchema,
@@ -405,17 +413,24 @@ const identifyLockedCloserOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type IdentifyLockedCloserOutcome = z.infer<typeof identifyLockedCloserOutcomeSchema>;
 
+const cashDirectionSchema = z.enum(CASH_MOVEMENT_DIRECTIONS);
+
+const cashBalanceLineSchema = z.object({ amount: z.number(), direction: cashDirectionSchema });
+
 const cashBalanceSchema = z.object({
-  opening_float: z.number(),
-  cash_sales: z.number(),
-  change_given: z.number(),
-  refunds: z.number(),
-  cash_in: z.number(),
-  expenses: z.number(),
-  withdrawals: z.number(),
+  opening_float: cashBalanceLineSchema,
+  cash_sales: cashBalanceLineSchema,
+  change_given: cashBalanceLineSchema,
+  refunds: cashBalanceLineSchema,
+  cash_in: cashBalanceLineSchema,
+  expenses: cashBalanceLineSchema,
+  withdrawals: cashBalanceLineSchema,
   expected: z.number(),
 });
 export type CashBalance = z.infer<typeof cashBalanceSchema>;
+
+const cashCountPreviewSchema = z.object({ difference: z.number() });
+export type CashCountPreview = z.infer<typeof cashCountPreviewSchema>;
 
 const sessionOpenSaleSchema = z.object({ total: z.number(), cancellable: z.boolean() });
 export type SessionOpenSale = z.infer<typeof sessionOpenSaleSchema>;
@@ -440,6 +455,7 @@ const listedCashMovementSchema = z.object({
   type: cashMovementTypeSchema,
   amount: z.number(),
   reason: z.string().nullable(),
+  direction: cashDirectionSchema,
   occurred_at: z.string(),
   actor: cashMovementPersonSchema,
   authorized_by: cashMovementPersonSchema.nullable(),
@@ -556,6 +572,12 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     balance: cashBalanceSchema.nullable(),
   }),
   z.object({ type: z.literal("cash-balance-unavailable"), request_id: requestId }),
+  z.object({
+    type: z.literal("cash-count-preview"),
+    request_id: requestId,
+    preview: cashCountPreviewSchema.nullable(),
+  }),
+  z.object({ type: z.literal("cash-count-preview-unavailable"), request_id: requestId }),
   z.object({
     type: z.literal("session-open-sale"),
     request_id: requestId,

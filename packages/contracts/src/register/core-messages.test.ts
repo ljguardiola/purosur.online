@@ -776,6 +776,50 @@ describe("closing a cash session requests", () => {
   });
 });
 
+describe("previewing a cash count", () => {
+  it("accepts a request to preview the counted cash of the open session", () => {
+    const message = {
+      type: "cash-count-preview-request",
+      request_id: REQUEST_ID,
+      counted_cash: 42_000,
+    };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { type: "cash-count-preview-request", request_id: REQUEST_ID },
+    { type: "cash-count-preview-request", request_id: REQUEST_ID, counted_cash: 10.5 },
+    { type: "cash-count-preview-request", counted_cash: 100 },
+  ])("rejects a malformed request to preview a count: %j", (message) => {
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it.each([-800, 0, 500])("accepts a preview whose difference is %s", (difference) => {
+    const message = { type: "cash-count-preview", request_id: REQUEST_ID, preview: { difference } };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts that no cash session is open to preview", () => {
+    const message = { type: "cash-count-preview", request_id: REQUEST_ID, preview: null };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a preview without its difference", () => {
+    const message = { type: "cash-count-preview", request_id: REQUEST_ID, preview: {} };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("accepts that the preview cannot be read", () => {
+    const message = { type: "cash-count-preview-unavailable", request_id: REQUEST_ID };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+});
+
 describe("closing a cash session answers", () => {
   it("accepts the session that was closed with its expected cash, counted cash and difference", () => {
     const message = {
@@ -825,18 +869,37 @@ describe("closing a cash session answers", () => {
       type: "cash-balance",
       request_id: REQUEST_ID,
       balance: {
-        opening_float: 10000,
-        cash_sales: 5000,
-        change_given: 500,
-        refunds: 200,
-        cash_in: 300,
-        expenses: 100,
-        withdrawals: 1000,
+        opening_float: { amount: 10000, direction: "in" },
+        cash_sales: { amount: 5000, direction: "in" },
+        change_given: { amount: 500, direction: "out" },
+        refunds: { amount: 200, direction: "out" },
+        cash_in: { amount: 300, direction: "in" },
+        expenses: { amount: 100, direction: "out" },
+        withdrawals: { amount: 1000, direction: "out" },
         expected: 13500,
       },
     };
 
     expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a cash balance line without its direction", () => {
+    const message = {
+      type: "cash-balance",
+      request_id: REQUEST_ID,
+      balance: {
+        opening_float: { amount: 10000 },
+        cash_sales: { amount: 0, direction: "in" },
+        change_given: { amount: 0, direction: "out" },
+        refunds: { amount: 0, direction: "out" },
+        cash_in: { amount: 0, direction: "in" },
+        expenses: { amount: 0, direction: "out" },
+        withdrawals: { amount: 0, direction: "out" },
+        expected: 10000,
+      },
+    };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 
   it("accepts that no cash session is open to balance", () => {
@@ -1266,6 +1329,7 @@ describe("cash movement answers", () => {
     amount: 5000,
     reason: "Cambio de la panadería",
     occurred_at: "2026-09-30T12:30:00.000Z",
+    direction: "in",
     actor: { user_id: "u1", first_name: "Ada" },
     authorized_by: { user_id: "u2", first_name: "Grace" },
   };
@@ -1275,6 +1339,32 @@ describe("cash movement answers", () => {
 
     expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
   });
+
+  it.each(["in", "out", "none"])(
+    "accepts a listed movement that moves the cash %s",
+    (direction) => {
+      const message = {
+        type: "cash-movements",
+        request_id: REQUEST_ID,
+        movements: [{ ...listed, direction }],
+      };
+
+      expect(coreToRendererMessageSchema.safeParse(message).success).toBe(true);
+    },
+  );
+
+  it.each([undefined, "sideways"])(
+    "rejects a listed movement whose direction is %s",
+    (direction) => {
+      const message = {
+        type: "cash-movements",
+        request_id: REQUEST_ID,
+        movements: [{ ...listed, direction }],
+      };
+
+      expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+    },
+  );
 
   it("accepts a movement without a reason or an authorizer", () => {
     const opening = { ...listed, type: "OPENING", reason: null, authorized_by: null };
