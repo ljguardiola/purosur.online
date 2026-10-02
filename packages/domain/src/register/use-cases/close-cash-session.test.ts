@@ -262,7 +262,9 @@ describe("closeCashSession", () => {
   });
 
   it("refuses while a sale is open, telling its total, and records nothing", async () => {
-    const store = ledger({ openSale: { total: 4_250, payments: [] } });
+    const store = ledger({
+      openSale: { lines: [{ lineTotal: 1_250 }, { lineTotal: 3_000 }], payments: [] },
+    });
     const before = structuredClone(store.state);
 
     expect(await close(store)).toEqual({ kind: "open_sale", total: 4_250, cancellable: true });
@@ -270,7 +272,7 @@ describe("closeCashSession", () => {
   });
 
   it("refuses an open sale even when its total is zero", async () => {
-    expect(await close(ledger({ openSale: { total: 0, payments: [] } }))).toEqual({
+    expect(await close(ledger({ openSale: { lines: [], payments: [] } }))).toEqual({
       kind: "open_sale",
       total: 0,
       cancellable: true,
@@ -278,7 +280,9 @@ describe("closeCashSession", () => {
   });
 
   it("tells that an open sale with an approved payment cannot be cancelled", async () => {
-    const store = ledger({ openSale: { total: 4_250, payments: [APPROVED_PAYMENT] } });
+    const store = ledger({
+      openSale: { lines: [{ lineTotal: 4_250 }], payments: [APPROVED_PAYMENT] },
+    });
 
     expect(await close(store)).toEqual({ kind: "open_sale", total: 4_250, cancellable: false });
   });
@@ -301,7 +305,7 @@ describe("closeCashSession", () => {
   });
 
   it("checks the session before the open sale", async () => {
-    const store = ledger({ sessions: [], openSale: { total: 100, payments: [] } });
+    const store = ledger({ sessions: [], openSale: { lines: [{ lineTotal: 100 }], payments: [] } });
 
     expect(await close(store)).toEqual({ kind: "no_open_session" });
   });
