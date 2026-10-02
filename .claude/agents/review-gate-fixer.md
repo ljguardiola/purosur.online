@@ -37,9 +37,13 @@ coordinator's answer of any id that had one, which the fix follows.
    (`git diff <sha>^ <sha> -- . ':(exclude)<test file>' | git apply -R`),
    run the test and see it fail for that behavior, then
    `git worktree remove --force <scratch dir>`. A failure on a missing module
-   or export shows a move, not a behavior, only when the commit's diff removes
-   that code elsewhere (a rename or move); when the commit added the file or
-   export, that failure is the behavior's failure.
+   or export depends on what the commit did with that code: added it, the
+   failure is the behavior's; moved or renamed it unchanged (a move in
+   "Commit order" in `.claude/skills/review-gate/references/checklist.md`),
+   it shows a move, not a behavior; moved or renamed it and changed it, keep
+   the move, undo only the change inside the moved code in the scratch
+   worktree, and run the test again: failing on what it asserts shows the
+   behavior.
    When the reverse does not apply at `HEAD` because later commits changed
    the same lines, run the proof in a worktree at `<sha>` itself; when the
    test cannot run there either, report the id `not fixed` with that

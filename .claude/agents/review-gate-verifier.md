@@ -38,10 +38,13 @@ ledger ids to verify.
      (`git diff <sha>^ <sha> -- . ':(exclude)<test file>' | git apply -R`),
      so a move or rename reverses together with its tests. Run the focused
      tests that state the behavior. A test failing on what it asserts shows
-     the behavior is real. A failure on a missing module or export shows a
-     move, not a behavior, only when the commit's diff removes that code
-     elsewhere (a rename or move); when the commit added the file or export,
-     that failure is the behavior's failure. No test failing leaves
+     the behavior is real. A failure on a missing module or export depends
+     on what the commit did with that code: added it, the failure is the
+     behavior's; moved or renamed it unchanged (a move in "Commit order" in
+     the checklist), it shows a move, not a behavior; moved or renamed it
+     and changed it, keep the move, undo only the change inside the moved
+     code in the scratch worktree, and run the test again: failing on what
+     it asserts shows the behavior. No test failing leaves
      it to the diff, read against "Commit order" in the checklist: a
      behavior no test observes is still confirmed, a change that keeps
      behavior is `REFUTED`. When the reverse does not apply at `HEAD`
