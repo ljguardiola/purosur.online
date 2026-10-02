@@ -246,6 +246,13 @@ test("finds a zod id format taken by destructuring, in any position and at any d
       ),
       [6],
     ],
+    [zodAnd("let f: unknown;", "const pair: [typeof z] = [z];", "[...[{ uuid: f }]] = pair;"), [4]],
+    [
+      zodAnd("let f: unknown;", "const pair: [typeof z] = [z];", "[...{ 0: { guid: f } }] = pair;"),
+      [4],
+    ],
+    [zodAnd("let f: unknown;", "[, ...[{ uuid: f }]] = [1, z];"), [3]],
+    [zodAnd("let f: unknown;", "[...[...[{ guid: f }]]] = [z];"), [3]],
     [zodAnd("for (const { guid } of [z]) guid();"), [2]],
     [zodAnd("const { a: { uuid: f } } = { a: z };"), [2]],
     [zodAnd("const [{ guid }] = [z];"), [2]],
@@ -275,9 +282,119 @@ test("ignores destructuring that takes no zod id format", () => {
     "export function f({ uuid }: typeof row) {",
     "  return uuid;",
     "}",
+    "[...[{ uuid: a }]] = [row];",
+    "[...{ 0: { guid: a } }] = [row];",
+    "[, ...[{ guid: a }]] = [z, row];",
     "({ string: text } = z);",
     "const { object } = z;",
     "export const shape = object({});",
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), []);
+});
+
+test("finds a zod value or schema given to a type the file declares in place of zod's id format", () => {
+  const zodAnd = (...lines) => ['import { z } from "zod";', ...lines].join("\n");
+  for (const [source, lines] of [
+    [zodAnd("const formats: { uuid(): z.ZodType } = z;", "formats.uuid();"), [2]],
+    [zodAnd("const text: { guid(): z.ZodType } = z.string();", "text.guid();"), [2]],
+    [
+      zodAnd(
+        "function pick<T extends { uuid(): unknown }>(o: T) {",
+        "  return o.uuid();",
+        "}",
+        "pick(z);",
+      ),
+      [5],
+    ],
+    [zodAnd("function use(f: { guid(): unknown }) {", "  return f;", "}", "use(z.string());"), [5]],
+    [zodAnd("export function formats(): { uuid(): unknown } {", "  return z;", "}"), [3]],
+    [zodAnd("let formats: { guid(): unknown } | undefined;", "formats = z;"), [3]],
+    [zodAnd("export const holder: { a: { uuid(): unknown } } = {", "  a: z,", "};"), [3]],
+    [zodAnd("export const formats = z satisfies { guid(): unknown };"), [2]],
+    [zodAnd("const a = z;", "export const holder: { a: { uuid(): unknown } } = { a };"), [3]],
+    [
+      zodAnd(
+        "const holder = { a: { b: z.string() } };",
+        "export const upcast: { a: { b: { guid(): unknown } } } = holder;",
+      ),
+      [3],
+    ],
+    [
+      zodAnd(
+        "const holder = { a: { b: { c: { d: z } } } };",
+        "export const upcast: { a: { b: { c: { d: { uuid(): unknown } } } } } = holder;",
+      ),
+      [3],
+    ],
+    [
+      zodAnd(
+        "const holder = { a: { b: { c: { d: { e: z.string() } } } } };",
+        "export const upcast: { a: { b: { c: { d: { e: { guid(): unknown } } } } } } = holder;",
+      ),
+      [3],
+    ],
+    [zodAnd("const all = [z];", "export const upcast: { uuid(): unknown }[] = all;"), [3]],
+    [
+      zodAnd(
+        "const holder = { a: z };",
+        'export const upcast: Record<"a", { uuid(): unknown }> = holder;',
+      ),
+      [3],
+    ],
+    [
+      zodAnd("const make = () => z;", "export const upcast: () => { guid(): unknown } = make;"),
+      [3],
+    ],
+    [
+      zodAnd(
+        "function pick<T extends { a: { uuid(): unknown } }>(o: T) {",
+        "  return o;",
+        "}",
+        "pick({ a: z });",
+      ),
+      [5],
+    ],
+    [zodAnd("const take = (o: { uuid(): unknown }) => o;", "[z].map(take);"), [3]],
+    [zodAnd("[z.string()].map((o: { guid(): unknown }) => o);"), [2]],
+    [
+      zodAnd("export const take: (formats: typeof z) => void = (o: { uuid(): unknown }) => o;"),
+      [2],
+    ],
+  ]) {
+    assert.deepEqual(linesOf(source), lines, source);
+  }
+});
+
+test("ignores zod values and schemas given to zod's own types or to types that ask no id format", () => {
+  const source = [
+    'import { z } from "zod";',
+    'import { recordIdSchema } from "../../../packages/contracts/src/shared/index.js";',
+    "function keep(text: z.ZodString) {",
+    "  return text;",
+    "}",
+    "keep(z.string());",
+    "export const kept: z.ZodString = z.string();",
+    "export const tools: typeof z = z;",
+    "type Owner = { ownerUuid: string };",
+    'export const owner: Owner = z.object({ ownerUuid: z.string() }).parse({ ownerUuid: "" });',
+    "export const ids: { id: z.ZodType } = { id: recordIdSchema() };",
+    "export const id: z.ZodType = recordIdSchema();",
+    "keep(recordIdSchema());",
+    "type Row = { uuid: string };",
+    'export const row: Row = { uuid: "" };',
+    "function store(entry: { guid: number }) {",
+    "  return entry;",
+    "}",
+    "store({ guid: 1 });",
+    "const rows = { a: { guid: 1 } };",
+    "export const nested: { a: { guid: number } } = rows;",
+    "type Tree = { uuid: string; children: Tree[] };",
+    'const tree = { uuid: "", children: [] as Tree[] };',
+    "export const root: Tree = tree;",
+    "export const schemas: { a: { b: z.ZodString } } = { a: { b: recordIdSchema() } };",
+    "export const texts = [z.string()].map((text: z.ZodString) => text.min(1));",
+    "export const guids = [row].map((entry: { uuid: string }) => entry.uuid);",
   ].join("\n");
 
   assert.deepEqual(linesOf(source), []);
