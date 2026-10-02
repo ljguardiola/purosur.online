@@ -193,6 +193,23 @@ test("finds a zod uuid or guid format where it is taken from zod, however it is 
   }
 });
 
+test("finds a zod id format picked by a computed key, whatever spells the key", () => {
+  for (const [source, lines] of [
+    ['import { z } from "zod";\nconst id = z[`uuid`]();', [2]],
+    ['import { z } from "zod";\nconst key = "uuid";\nconst id = z[key]();', [3]],
+    ['import { z } from "zod";\nconst id = z["guid" as const]();', [2]],
+    ['import { z } from "zod";\nconst id = z.string()[("gu" + "id") as "guid"]();', [2]],
+    [
+      'import { z } from "zod";\ndeclare const key: keyof typeof z;\nexport const format = z[key];',
+      [3],
+    ],
+    ['import { z } from "zod";\nconst { ["uuid"]: anyId } = z;\nanyId();', [2]],
+    ['import { z } from "zod";\nconst key = "guid";\nconst { [key]: anyId } = z.string();', [3]],
+  ]) {
+    assert.deepEqual(linesOf(source), lines, source);
+  }
+});
+
 const A_FILE = "apps/cloud/src/id-shape-check-a.ts";
 const B_FILE = "packages/contracts/src/id-shape-check-b.ts";
 
@@ -301,6 +318,11 @@ test("ignores names that spell uuid or guid when they are not declared by zod", 
     "export const generated = crypto.randomUUID();",
     "const row = { uuid: 1, guid: 2 };",
     "export const stored = row.uuid ?? row.guid;",
+    'const key = "uuid";',
+    "export const picked = row[key];",
+    "export const { [key]: destructured } = row;",
+    "declare const field: keyof typeof row;",
+    "export const any = row[field];",
   ].join("\n");
 
   assert.deepEqual(linesOf(source), []);
