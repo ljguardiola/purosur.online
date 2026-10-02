@@ -1,7 +1,6 @@
 import { discountEditBodySchema, discountSummarySchema } from "@purosur/contracts";
-import { editDiscount } from "@purosur/domain/pricing/use-cases";
-import { eq } from "drizzle-orm";
-import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { editDiscount, readDiscount } from "@purosur/domain/pricing/use-cases";
+import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { backofficeOriginGuard } from "../access/backoffice-origin.js";
 import {
@@ -9,14 +8,13 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { discounts } from "../platform/db/schema.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import {
   DISCOUNT_TARGET_NOT_FOUND_RESPONSE,
   DISCOUNT_TARGET_NOT_SOLD_BY_UNIT_RESPONSE,
 } from "./discount-creation-route.js";
-import { type DiscountsRouteOptions, listDiscounts } from "./discounts-list-route.js";
+import type { DiscountsRouteOptions } from "./discounts-list-route.js";
+import { DrizzleDiscountReader } from "./drizzle-discount-reader.js";
 import { DrizzleDiscountStore } from "./drizzle-discount-store.js";
 
 const NOT_FOUND_RESPONSE = { code: "not_found", message: "no discount with that id" } as const;
@@ -31,20 +29,6 @@ const STALE_VERSION_RESPONSE = {
   message: "this discount was changed since it was loaded",
 } as const;
 
-async function discountExists<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  id: string,
-): Promise<boolean> {
-  if (!UUID_PATTERN.test(id)) {
-    return false;
-  }
-  const [discount] = await db
-    .select({ id: discounts.id })
-    .from(discounts)
-    .where(eq(discounts.id, id));
-  return discount !== undefined;
-}
-
 export function registerDiscountEditRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: DiscountsRouteOptions<TQueryResult>,
@@ -52,6 +36,7 @@ export function registerDiscountEditRoute<TQueryResult extends PgQueryResultHKT>
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
   const ports = { store: new DrizzleDiscountStore(options.db), clock: { now } };
+  const reading = { discounts: new DrizzleDiscountReader(options.db), clock: { now } };
   const sessionSource = routeSessionSource({ db: options.db, now });
 
   app.put<{ Params: { id: string } }>(
@@ -62,7 +47,7 @@ export function registerDiscountEditRoute<TQueryResult extends PgQueryResultHKT>
     },
     async (request, reply) => {
       const { id } = request.params;
-      if (!(await discountExists(options.db, id))) {
+      if ((await readDiscount(reading, id)).kind === "not_found") {
         await reply.code(404).send(NOT_FOUND_RESPONSE);
         return;
       }
@@ -97,8 +82,12 @@ export function registerDiscountEditRoute<TQueryResult extends PgQueryResultHKT>
         return;
       }
 
-      const [edited] = await listDiscounts(options.db, id);
-      await reply.code(200).send(discountSummarySchema.parse(edited));
+      const edited = await readDiscount(reading, id);
+      if (edited.kind === "not_found") {
+        await reply.code(404).send(NOT_FOUND_RESPONSE);
+        return;
+      }
+      await reply.code(200).send(discountSummarySchema.parse(edited.discount));
     },
   );
 }

@@ -1,4 +1,4 @@
-import type { DiscountSummary } from "@purosur/contracts";
+import type { DiscountSummary, DiscountTargets } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
@@ -43,6 +43,7 @@ function createServices(
 
 type ModalOptions = {
   target?: DiscountSummary | null;
+  targets?: DiscountTargets;
   reload?: (id: string) => Promise<DiscountReload>;
   onClose?: () => void;
   onSaved?: (discount: DiscountSummary) => void;
@@ -59,7 +60,7 @@ function modalElement(services: EditDiscountModalServices, options: ModalOptions
           onSaved={options.onSaved ?? (() => {})}
           onSessionEnded={options.onSessionEnded ?? (() => {})}
           reload={options.reload ?? (() => Promise.resolve({ kind: "list_failed" }))}
-          targets={discountTargets}
+          targets={options.targets ?? discountTargets}
           services={services}
         />
       </main>
@@ -326,6 +327,31 @@ test("changing what it applies to clears the target until another one is chosen"
     kind: "CATEGORY",
     id: yerbasCategory.id,
   });
+});
+
+test("offers only the target kinds the cloud allows for the promotion", async () => {
+  const { dialog } = await renderModal(createServices(), {
+    targets: {
+      ...discountTargets,
+      targetKindsByBenefit: { PERCENT_OFF: ["PRODUCT", "TAG"], BUY_N_PAY_M: ["PRODUCT"] },
+    },
+  });
+
+  await expect.element(dialog.getByRole("radio", { name: "Producto" })).toBeVisible();
+  await expect.element(dialog.getByRole("radio", { name: "Distintivo" })).toBeVisible();
+  expect(dialog.getByRole("radio", { name: "Categoría" }).query()).toBeNull();
+});
+
+test("does not offer the choice of what a percentage applies to when the cloud allows one target kind", async () => {
+  const { dialog } = await renderModal(createServices(), {
+    targets: {
+      ...discountTargets,
+      targetKindsByBenefit: { PERCENT_OFF: ["PRODUCT"], BUY_N_PAY_M: ["PRODUCT"] },
+    },
+  });
+
+  expect(dialog.getByText("Se aplica sobre").query()).toBeNull();
+  await expect.element(dialog.getByRole("textbox", { name: /^Descuento/ })).toBeVisible();
 });
 
 test("an inactive current product still shows as the chosen value, marked inactive", async () => {

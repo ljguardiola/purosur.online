@@ -78,10 +78,14 @@ describe("fetchDiscountTargets", () => {
         brandName: null,
         netContent: null,
         barcodes: [],
+        benefitKinds: ["PERCENT_OFF", "BUY_N_PAY_M"],
       },
     ],
-    categories: [{ id: "category-1", name: "Almacén", parentId: null }],
-    tags: [{ id: "tag-1", name: "Sin TACC" }],
+    categories: [
+      { id: "category-1", name: "Almacén", parentId: null, benefitKinds: ["PERCENT_OFF"] },
+    ],
+    tags: [{ id: "tag-1", name: "Sin TACC", benefitKinds: ["PERCENT_OFF"] }],
+    targetKindsByBenefit: { PERCENT_OFF: ["PRODUCT", "CATEGORY", "TAG"], BUY_N_PAY_M: ["PRODUCT"] },
   };
 
   test("reads what a promotion can apply to on 200", async () => {

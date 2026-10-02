@@ -1,5 +1,5 @@
 import type { DiscountSummary, DiscountTargets } from "@purosur/contracts";
-import { argentinaCalendarDay, type DiscountStatus, discountStatus } from "@purosur/domain";
+import type { DiscountStatus } from "@purosur/domain";
 import {
   actionsColumn,
   Button,
@@ -46,7 +46,6 @@ export type DiscountsListScreenProps = {
   onFiltersChange: (filters: DiscountsListFilters) => void;
   onSessionEnded: () => void;
   services: DiscountsListScreenServices;
-  now?: () => Date;
 };
 
 type DiscountStatusFilter = DiscountsListFilters["status"];
@@ -54,11 +53,14 @@ type DiscountKindFilter = DiscountsListFilters["kind"];
 type DiscountSortColumn = DiscountsListFilters["sortBy"];
 
 const NO_DISCOUNTS: DiscountSummary[] = [];
-const NO_TARGETS: DiscountTargets = { products: [], categories: [], tags: [] };
+const NO_TARGETS: DiscountTargets = {
+  products: [],
+  categories: [],
+  tags: [],
+  targetKindsByBenefit: { PERCENT_OFF: [], BUY_N_PAY_M: [] },
+};
 
 type ScreenNotice = { id: number; title: string; description: string };
-
-const CLOCK_REFRESH_MS = 60_000;
 
 const STATUS_RANK: Record<DiscountStatus, number> = {
   current: 0,
@@ -125,9 +127,7 @@ export function DiscountsListScreen({
   onFiltersChange,
   onSessionEnded,
   services,
-  now,
 }: DiscountsListScreenProps) {
-  const clock = now ?? (() => new Date());
   const discountsData = useDiscountsQuery({
     fetchDiscounts: services.fetchDiscounts,
     onSessionEnded,
@@ -139,7 +139,6 @@ export function DiscountsListScreen({
   const data = combineCloudData(discountsData, targetsData);
   const refreshDiscounts = useRefreshDiscounts();
   const reloadDiscount = useReloadDiscount({ fetchDiscounts: services.fetchDiscounts });
-  const [today, setToday] = useState(() => argentinaCalendarDay(clock()));
   const [search, setSearch] = useState(filters.search);
   const [kindFilter, setKindFilter] = useState<DiscountKindFilter>(filters.kind);
   const [statusFilter, setStatusFilter] = useState<DiscountStatusFilter>(filters.status);
@@ -152,7 +151,6 @@ export function DiscountsListScreen({
     direction: filters.sort,
   });
   const reportFilters = useEffectEvent(onFiltersChange);
-  const readClock = useEffectEvent(() => argentinaCalendarDay(clock()));
 
   useEffect(() => {
     const shown: DiscountsListFilters = {
@@ -173,23 +171,10 @@ export function DiscountsListScreen({
     }
   }, [data.status]);
 
-  const listSettled = data.status === "loaded" && !data.refreshing;
-  useEffect(() => {
-    if (listSettled) {
-      setToday(readClock());
-    }
-  }, [listSettled]);
-
-  useEffect(() => {
-    const intervalId = window.setInterval(() => setToday(readClock()), CLOCK_REFRESH_MS);
-    return () => window.clearInterval(intervalId);
-  }, []);
-
   const [{ discounts }, targets] =
     data.status === "loaded" ? data.value : [{ discounts: NO_DISCOUNTS }, NO_TARGETS];
-  const statusOf = (discount: DiscountSummary) => discountStatus(discount, today);
   const statusOrder: ItemOrder<DiscountSummary> = (a, b) =>
-    STATUS_RANK[statusOf(a)] - STATUS_RANK[statusOf(b)] || nameOrder(a, b);
+    STATUS_RANK[a.status] - STATUS_RANK[b.status] || nameOrder(a, b);
   const columns = [
     dataColumn({
       id: "promotion",
@@ -224,7 +209,7 @@ export function DiscountsListScreen({
       header: "Estado",
       sort: { order: statusOrder, firstDirection: "ascending" },
       render: (item: DiscountSummary) => {
-        const { label, tone } = DISCOUNT_STATUS_PRESENTATION[statusOf(item)];
+        const { label, tone } = DISCOUNT_STATUS_PRESENTATION[item.status];
         return <StatusIndicator tone={tone}>{label}</StatusIndicator>;
       },
     }),
@@ -247,7 +232,7 @@ export function DiscountsListScreen({
     search: { text: search, in: (discount) => [discount.name, discount.target.name] },
     filter: (discount) =>
       (kindFilter === "ALL" || discount.benefit.kind === kindFilter) &&
-      showsStatus(statusOf(discount), statusFilter),
+      showsStatus(discount.status, statusFilter),
     columns,
     sort,
     onSortChange: setSort,
@@ -255,7 +240,7 @@ export function DiscountsListScreen({
   const matchCount = table.getRowModel().rows.length;
 
   const matched = table.getRowModel().rows.map((row) => row.original);
-  const currentCount = matched.filter((discount) => statusOf(discount) === "current").length;
+  const currentCount = matched.filter((discount) => discount.status === "current").length;
 
   function showNotice(shown: Omit<ScreenNotice, "id">) {
     lastNoticeId.current += 1;

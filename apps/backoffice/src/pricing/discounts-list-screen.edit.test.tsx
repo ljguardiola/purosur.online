@@ -61,7 +61,7 @@ test("switching a promotion off from its modal lists it as deactivated", async (
   const services = createServices();
   vi.mocked(services.editDiscount).mockResolvedValue({
     kind: "ok",
-    discount: { ...yerbaOff, active: false, version: 2 },
+    discount: { ...yerbaOff, active: false, version: 2, status: "deactivated" },
   });
   const screen = await loaded(services, [yerbaOff], {
     filters: discountsListFilters.parse({ status: "all" }),
@@ -74,7 +74,7 @@ test("switching a promotion off from its modal lists it as deactivated", async (
   const dialog = screen.getByRole("dialog");
   vi.mocked(services.fetchDiscounts).mockResolvedValue({
     kind: "ok",
-    value: discountList([{ ...yerbaOff, active: false, version: 2 }]),
+    value: discountList([{ ...yerbaOff, active: false, version: 2, status: "deactivated" }]),
   });
   await userEvent.click(dialog.getByText("Se aplica en la caja"));
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));

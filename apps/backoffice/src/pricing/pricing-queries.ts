@@ -23,6 +23,8 @@ export const pricesKeys = {
 
 export const discountsKey = [...pricesKey, "discounts"] as const;
 
+const DISCOUNT_STATUS_REFRESH_MS = 60_000;
+
 export const discountTargetsKey = [...discountsKey, "targets"] as const;
 
 export function usePricesQuery(params: {
@@ -87,6 +89,7 @@ export function useDiscountsQuery(params: {
   return useCloudQuery<DiscountList>({
     queryKey: discountsKey,
     read: params.fetchDiscounts,
+    refetchInterval: DISCOUNT_STATUS_REFRESH_MS,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

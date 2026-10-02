@@ -1,4 +1,4 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { notifyManager, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -30,6 +30,7 @@ function describeData(data: CloudData<string>): string {
 type ProbeProps = {
   queryKey?: readonly string[];
   gcTime?: number;
+  refetchInterval?: number;
   keepPreviousData?: boolean;
   read: () => Promise<CloudReadOutcome<string>>;
   onSessionEnded?: () => void;
@@ -39,6 +40,7 @@ type ProbeProps = {
 function Probe({
   queryKey = ["probe"],
   gcTime,
+  refetchInterval,
   keepPreviousData,
   read,
   onSessionEnded = () => {},
@@ -51,6 +53,7 @@ function Probe({
     onSessionEnded,
     onForbidden,
     ...(gcTime === undefined ? {} : { gcTime }),
+    ...(refetchInterval === undefined ? {} : { refetchInterval }),
   });
   const client = useQueryClient();
   return (
@@ -587,4 +590,191 @@ test("a read through the cache that asks for no keeping leaves nothing cached on
 
   expect(outcome).toEqual(ok("one"));
   await vi.waitFor(() => expect(client.getQueryData(["probe"])).toBeUndefined());
+});
+
+test("reads again at the interval it is given", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+  notifyManager.setScheduler(queueMicrotask);
+  try {
+    const read = vi.fn<() => Promise<CloudReadOutcome<string>>>().mockResolvedValueOnce(ok("one"));
+    read.mockResolvedValue(ok("two"));
+    const screen = await render(<Probe read={read} refetchInterval={5_000} />);
+    await expect.element(screen.getByText("loaded:one")).toBeVisible();
+
+    await vi.advanceTimersByTimeAsync(4_999);
+    expect(read).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+
+    await expect.element(screen.getByText("loaded:two")).toBeVisible();
+  } finally {
+    notifyManager.setScheduler((callback) => setTimeout(callback, 0));
+    vi.useRealTimers();
+  }
+});
+
+test("a read at the interval that fails keeps the value shown and reports nothing else", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+  notifyManager.setScheduler(queueMicrotask);
+  try {
+    const read = vi.fn<() => Promise<CloudReadOutcome<string>>>().mockResolvedValueOnce(ok("one"));
+    read.mockResolvedValue({ kind: "failed" });
+    const onSessionEnded = vi.fn();
+    const onForbidden = vi.fn();
+    const screen = await render(
+      <Probe
+        read={read}
+        refetchInterval={5_000}
+        onSessionEnded={onSessionEnded}
+        onForbidden={onForbidden}
+      />,
+    );
+    await expect.element(screen.getByText("loaded:one")).toBeVisible();
+
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    expect(read).toHaveBeenCalledTimes(2);
+    await expect.element(screen.getByText("loaded:one")).toBeVisible();
+    expect(onSessionEnded).not.toHaveBeenCalled();
+    expect(onForbidden).not.toHaveBeenCalled();
+  } finally {
+    notifyManager.setScheduler((callback) => setTimeout(callback, 0));
+    vi.useRealTimers();
+  }
+});
+
+test("a read at the interval that finds the session ended or the access refused says so", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+  notifyManager.setScheduler(queueMicrotask);
+  try {
+    const read = vi.fn<() => Promise<CloudReadOutcome<string>>>().mockResolvedValueOnce(ok("one"));
+    read.mockResolvedValueOnce({ kind: "unauthenticated" });
+    read.mockResolvedValue({ kind: "forbidden" });
+    const onSessionEnded = vi.fn();
+    const onForbidden = vi.fn();
+    const screen = await render(
+      <Probe
+        read={read}
+        refetchInterval={5_000}
+        onSessionEnded={onSessionEnded}
+        onForbidden={onForbidden}
+      />,
+    );
+    await expect.element(screen.getByText("loaded:one")).toBeVisible();
+
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(onSessionEnded).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    expect(onForbidden).toHaveBeenCalledTimes(1);
+  } finally {
+    notifyManager.setScheduler((callback) => setTimeout(callback, 0));
+    vi.useRealTimers();
+  }
+});
+
+async function withIntervalTimers(run: () => Promise<void>) {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+  notifyManager.setScheduler(queueMicrotask);
+  try {
+    await run();
+  } finally {
+    notifyManager.setScheduler((callback) => setTimeout(callback, 0));
+    vi.useRealTimers();
+  }
+}
+
+test("a read at the interval that answers after a newer read landed never replaces it", async () => {
+  await withIntervalTimers(async () => {
+    const periodic = deferred<CloudReadOutcome<string>>();
+    const read = vi
+      .fn<() => Promise<CloudReadOutcome<string>>>()
+      .mockResolvedValueOnce(ok("one"))
+      .mockReturnValueOnce(periodic.promise)
+      .mockResolvedValueOnce(ok("saved"));
+    const screen = await render(<Probe read={read} refetchInterval={5_000} />);
+    await expect.element(screen.getByText("loaded:one")).toBeVisible();
+    await vi.advanceTimersByTimeAsync(5_000);
+    await userEvent.click(screen.getByRole("button", { name: "refresh" }));
+    await expect.element(screen.getByText("loaded:saved")).toBeVisible();
+
+    periodic.resolve(ok("stale"));
+    await vi.advanceTimersByTimeAsync(0);
+
+    await expect.element(screen.getByText("loaded:saved")).toBeVisible();
+    await expect.element(screen.getByText("loaded:stale")).not.toBeInTheDocument();
+  });
+});
+
+test("a read at the interval that answers while a newer read is still running never replaces the value shown", async () => {
+  await withIntervalTimers(async () => {
+    const periodic = deferred<CloudReadOutcome<string>>();
+    const newer = deferred<CloudReadOutcome<string>>();
+    const read = vi
+      .fn<() => Promise<CloudReadOutcome<string>>>()
+      .mockResolvedValueOnce(ok("one"))
+      .mockReturnValueOnce(periodic.promise)
+      .mockReturnValueOnce(newer.promise);
+    const screen = await render(<Probe read={read} refetchInterval={5_000} />);
+    await expect.element(screen.getByText("loaded:one")).toBeVisible();
+    await vi.advanceTimersByTimeAsync(5_000);
+    await userEvent.click(screen.getByRole("button", { name: "refresh" }));
+    await expect.element(screen.getByText("loaded:one:refreshing")).toBeVisible();
+
+    periodic.resolve(ok("stale"));
+    await vi.advanceTimersByTimeAsync(0);
+
+    await expect.element(screen.getByText("loaded:one:refreshing")).toBeVisible();
+    newer.resolve(ok("saved"));
+    await expect.element(screen.getByText("loaded:saved")).toBeVisible();
+  });
+});
+
+test("a read at the interval that answers after a read through the cache landed never replaces it", async () => {
+  await withIntervalTimers(async () => {
+    const periodic = deferred<CloudReadOutcome<string>>();
+    const read = vi
+      .fn<() => Promise<CloudReadOutcome<string>>>()
+      .mockResolvedValueOnce(ok("one"))
+      .mockReturnValueOnce(periodic.promise);
+    const screen = await render(
+      <OpenedAfterACachedRead
+        cachedRead={() => Promise.resolve(ok("reloaded"))}
+        read={read}
+        refetchInterval={5_000}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "open" }));
+    await expect.element(screen.getByText("loaded:one")).toBeVisible();
+    await vi.advanceTimersByTimeAsync(5_000);
+    await userEvent.click(screen.getByRole("button", { name: "read through the cache" }));
+    await expect.element(screen.getByText("loaded:reloaded")).toBeVisible();
+
+    periodic.resolve(ok("stale"));
+    await vi.advanceTimersByTimeAsync(0);
+
+    await expect.element(screen.getByText("loaded:reloaded")).toBeVisible();
+    await expect.element(screen.getByText("loaded:stale")).not.toBeInTheDocument();
+  });
+});
+
+test("a read at the interval that answers after a newer read failed never replaces the failure", async () => {
+  await withIntervalTimers(async () => {
+    const periodic = deferred<CloudReadOutcome<string>>();
+    const read = vi
+      .fn<() => Promise<CloudReadOutcome<string>>>()
+      .mockResolvedValueOnce(ok("one"))
+      .mockReturnValueOnce(periodic.promise)
+      .mockResolvedValueOnce({ kind: "failed" });
+    const screen = await render(<Probe read={read} refetchInterval={5_000} />);
+    await expect.element(screen.getByText("loaded:one")).toBeVisible();
+    await vi.advanceTimersByTimeAsync(5_000);
+    await userEvent.click(screen.getByRole("button", { name: "refresh" }));
+    await expect.element(screen.getByText("failed", { exact: true })).toBeVisible();
+
+    periodic.resolve(ok("stale"));
+    await vi.advanceTimersByTimeAsync(0);
+
+    await expect.element(screen.getByText("failed", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("loaded:stale")).not.toBeInTheDocument();
+  });
 });

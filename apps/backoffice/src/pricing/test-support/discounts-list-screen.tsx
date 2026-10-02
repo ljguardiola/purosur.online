@@ -9,8 +9,6 @@ import { discountList, discountTargets } from "./discounts";
 
 const DATA_COLUMN_COUNT = 5;
 
-const TODAY = () => new Date("2026-09-30T15:00:00.000Z");
-
 export function createServices(
   overrides: Partial<DiscountsListScreenServices> = {},
 ): DiscountsListScreenServices {
@@ -34,7 +32,6 @@ export function deferred<T>() {
 type ScreenOptions = {
   filters?: DiscountsListFilters;
   onFiltersChange?: (filters: DiscountsListFilters) => void;
-  now?: () => Date;
   onSessionEnded?: () => void;
 };
 
@@ -43,7 +40,6 @@ function screenElement(
   {
     filters = discountsListFilters.parse({}),
     onFiltersChange = () => {},
-    now = TODAY,
     onSessionEnded = () => {},
   }: ScreenOptions = {},
 ) {
@@ -55,7 +51,6 @@ function screenElement(
           onSessionEnded={onSessionEnded}
           filters={filters}
           onFiltersChange={onFiltersChange}
-          now={now}
         />
       </main>
     </FieldSizeProvider>

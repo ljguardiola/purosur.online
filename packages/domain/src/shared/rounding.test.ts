@@ -1,7 +1,8 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { MAX_UNIT_PRICE_CENTS } from "../../pricing/index.js";
 import { roundHalfUp } from "./rounding.js";
+
+const LARGE_PRICE_CENTS = 2_147_483_647;
 
 describe("roundHalfUp", () => {
   it.each([
@@ -21,11 +22,9 @@ describe("roundHalfUp", () => {
   });
 
   it("is exact for values beyond the safe integer range", () => {
-    const numerator = BigInt(MAX_UNIT_PRICE_CENTS) * 1_000_000n * 1000n + 500n;
+    const numerator = BigInt(LARGE_PRICE_CENTS) * 1_000_000n * 1000n + 500n;
 
-    expect(roundHalfUp({ numerator, denominator: 1000n })).toBe(
-      MAX_UNIT_PRICE_CENTS * 1_000_000 + 1,
-    );
+    expect(roundHalfUp({ numerator, denominator: 1000n })).toBe(LARGE_PRICE_CENTS * 1_000_000 + 1);
   });
 
   it("is within half a unit of the exact value for every fraction", () => {

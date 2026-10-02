@@ -3,6 +3,7 @@ import {
   isCalendarDay,
   isDiscountNameTooLong,
   isDiscountWindowOrdered,
+  isTargetKindAllowedFor,
   isValidDiscountWeekdays,
 } from "@purosur/domain";
 import { z } from "zod";
@@ -17,16 +18,19 @@ function calendarDaySchema(field: "validFrom" | "validTo") {
   return z.string({ error: message }).refine(isCalendarDay, message);
 }
 
+export const discountNameSchema = z
+  .string({ error: NAME_EMPTY_MESSAGE })
+  .trim()
+  .min(1, NAME_EMPTY_MESSAGE)
+  .refine(
+    (name) => !isDiscountNameTooLong(name),
+    `name must be at most ${DISCOUNT_NAME_MAX_LENGTH} characters`,
+  )
+  .meta({ maxLength: DISCOUNT_NAME_MAX_LENGTH });
+
 export const discountCreationBodySchema = z
   .object({
-    name: z
-      .string({ error: NAME_EMPTY_MESSAGE })
-      .trim()
-      .min(1, NAME_EMPTY_MESSAGE)
-      .refine(
-        (name) => !isDiscountNameTooLong(name),
-        `name must be at most ${DISCOUNT_NAME_MAX_LENGTH} characters`,
-      ),
+    name: discountNameSchema,
     benefit: discountBenefitSchema,
     target: discountTargetSchema,
     validFrom: calendarDaySchema("validFrom"),
@@ -36,7 +40,7 @@ export const discountCreationBodySchema = z
       .refine(isValidDiscountWeekdays, WEEKDAYS_MESSAGE),
   })
   .superRefine((discount, context) => {
-    if (discount.benefit.kind === "BUY_N_PAY_M" && discount.target.kind !== "PRODUCT") {
+    if (!isTargetKindAllowedFor(discount.benefit.kind, discount.target.kind)) {
       context.addIssue({
         code: "custom",
         path: ["target", "kind"],

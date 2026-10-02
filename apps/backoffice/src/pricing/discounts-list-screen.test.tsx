@@ -1,6 +1,9 @@
+import type { DiscountList } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { notifyManager } from "@tanstack/react-query";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { discountsListFilters } from "./routes";
 import {
   almacenTuesdays,
@@ -82,38 +85,121 @@ test("names each promotion's weekdays in the accessible text of its days", async
     .toBeVisible();
 });
 
-test("marks a promotion whose validity has passed as ended, and a switched off one as deactivated", async () => {
+test("shows each promotion in the status the cloud sends for it", async () => {
   const services = createServices();
-  const screen = await loaded(services, [endedPromotion, switchedOffPromotion, yerbaOff], {
-    filters: discountsListFilters.parse({ status: "all" }),
-  });
+  const screen = await loaded(
+    services,
+    [
+      { ...yerbaOff, name: "A", status: "deactivated" },
+      { ...yerbaOff, id: "b", name: "B", status: "ended" },
+      { ...endedPromotion, id: "c", name: "C", status: "current" },
+      { ...endedPromotion, id: "d", name: "D", status: "scheduled" },
+    ],
+    { filters: discountsListFilters.parse({ status: "all" }) },
+  );
 
   await expect
     .poll(() => rowCells(screen).map((cells) => cells.at(-1)))
-    .toEqual(["Desactivada", "Terminada", "Vigente"]);
+    .toEqual(["Desactivada", "Terminada", "Vigente", "Programada"]);
 });
 
-test("a promotion that starts today is current, and one that ended yesterday is not", async () => {
+test("reads the list again every minute so a promotion shows the status the cloud sends now", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+  notifyManager.setScheduler(queueMicrotask);
+  try {
+    const services = createServices();
+    vi.mocked(services.fetchDiscounts)
+      .mockResolvedValueOnce({
+        kind: "ok",
+        value: discountList([{ ...yerbaOff, status: "current" }]),
+      })
+      .mockResolvedValue({ kind: "ok", value: discountList([{ ...yerbaOff, status: "ended" }]) });
+    const screen = await renderScreen(services, {
+      filters: discountsListFilters.parse({ status: "all" }),
+    });
+    await expect.poll(() => rowCells(screen).map((cells) => cells.at(-1))).toEqual(["Vigente"]);
+
+    await vi.advanceTimersByTimeAsync(59_000);
+    expect(services.fetchDiscounts).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    await expect.poll(() => rowCells(screen).map((cells) => cells.at(-1))).toEqual(["Terminada"]);
+  } finally {
+    notifyManager.setScheduler((callback) => setTimeout(callback, 0));
+    vi.useRealTimers();
+  }
+});
+
+test("a periodic read that fails keeps the list and the open edit dialog as they are", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+  notifyManager.setScheduler(queueMicrotask);
+  try {
+    const services = createServices();
+    vi.mocked(services.fetchDiscounts)
+      .mockResolvedValueOnce({ kind: "ok", value: discountList([yerbaOff]) })
+      .mockResolvedValue({ kind: "failed" });
+    const screen = await renderScreen(services);
+    await expect.element(screen.getByRole("table", { name: "Promociones" })).toBeVisible();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Editar la promoción Yerba de septiembre" }),
+    );
+    await expect.element(screen.getByRole("dialog")).toBeVisible();
+
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(services.fetchDiscounts).toHaveBeenCalledTimes(2);
+    await expect.element(screen.getByRole("dialog")).toBeVisible();
+    expect(screen.getByText("No pudimos abrir las promociones").query()).toBeNull();
+    await expect.element(screen.getByRole("table", { name: "Promociones" })).toBeVisible();
+  } finally {
+    notifyManager.setScheduler((callback) => setTimeout(callback, 0));
+    vi.useRealTimers();
+  }
+});
+
+test("a periodic read does not show the table as updating while it runs", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+  notifyManager.setScheduler(queueMicrotask);
+  try {
+    const services = createServices();
+    const tick = deferred<CloudReadOutcome<DiscountList>>();
+    vi.mocked(services.fetchDiscounts)
+      .mockResolvedValueOnce({ kind: "ok", value: discountList([yerbaOff]) })
+      .mockReturnValue(tick.promise);
+    const screen = await renderScreen(services, {
+      filters: discountsListFilters.parse({ status: "all" }),
+    });
+    const table = screen.getByRole("table", { name: "Promociones" });
+    await expect.element(table).toBeVisible();
+
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(services.fetchDiscounts).toHaveBeenCalledTimes(2);
+    await expect.element(table).not.toHaveAttribute("aria-busy", "true");
+    tick.resolve({ kind: "ok", value: discountList([{ ...yerbaOff, status: "ended" }]) });
+    await expect.poll(() => rowCells(screen).map((cells) => cells.at(-1))).toEqual(["Terminada"]);
+    await expect.element(table).not.toHaveAttribute("aria-busy", "true");
+  } finally {
+    notifyManager.setScheduler((callback) => setTimeout(callback, 0));
+    vi.useRealTimers();
+  }
+});
+
+test("filters by the status the cloud sends, whatever the promotion's dates say", async () => {
   const services = createServices();
-  const startsToday = { ...almacenTuesdays, validFrom: "2026-09-30", validTo: "2026-10-31" };
-  const endedYesterday = { ...yerbaOff, validFrom: "2026-09-01", validTo: "2026-09-29" };
-  const screen = await loaded(services, [startsToday, endedYesterday], {
-    filters: discountsListFilters.parse({ status: "all" }),
-  });
+  const screen = await loaded(
+    services,
+    [
+      { ...endedPromotion, name: "Terminada según la nube", status: "ended" },
+      { ...yerbaOff, name: "Vigente según la nube", status: "current" },
+      { ...yerbaOff, id: "x", name: "Programada según la nube", status: "scheduled" },
+    ],
+    { filters: discountsListFilters.parse({ status: "ended" }) },
+  );
 
   await expect
-    .poll(() => rowCells(screen).map((cells) => cells.at(-1)))
-    .toEqual(["Vigente", "Terminada"]);
-});
-
-test("today is Argentina's calendar day, not the UTC one", async () => {
-  const services = createServices();
-  const startsTomorrowInUtc = { ...almacenTuesdays, validFrom: "2026-10-01" };
-  const screen = await loaded(services, [startsTomorrowInUtc], {
-    now: () => new Date("2026-10-01T01:00:00.000Z"),
-  });
-
-  await expect.poll(() => rowCells(screen).map((cells) => cells.at(-1))).toEqual(["Programada"]);
+    .poll(() => rowCells(screen).map((cells) => cells[0]))
+    .toEqual(["Terminada según la nubeProducto · Cuaderno rayado"]);
 });
 
 test("the state filter offers Vigentes y programadas, Terminadas, Desactivadas and Todas", async () => {

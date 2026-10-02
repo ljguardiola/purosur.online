@@ -152,6 +152,7 @@ describe("PUT /discounts/:id", () => {
       weekdays: [6, 7],
       active: false,
       version: 2,
+      status: "deactivated",
     });
     expect(await storedDiscount(discount.id)).toMatchObject({
       categoryId: null,
@@ -177,6 +178,34 @@ describe("PUT /discounts/:id", () => {
       expect(response.json()).toMatchObject({ code: "not_found" });
     },
   );
+
+  it("returns 404 not_found for an unknown id before it looks at a body that does not match the shape", async () => {
+    const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
+
+    const response = await editDiscount(rawSessionId, "00000000-0000-0000-0000-000000000000", {
+      name: 42,
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "not_found" });
+  });
+
+  it("answers an edited discount that is running on the clock's day as current", async () => {
+    const category = await insertCategory(db, "Infusiones");
+    const discount = await insertDiscount(db, { categoryId: category });
+    const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
+
+    const response = await editDiscount(
+      rawSessionId,
+      discount.id,
+      editBodyAimedAt(
+        { kind: "CATEGORY", id: category },
+        { validFrom: "2026-01-05", validTo: "2026-01-05", active: true },
+      ),
+    );
+
+    expect(response.json()).toMatchObject({ status: "current" });
+  });
 
   it("rejects a body that does not match the shape with 400 validation_failed, changing nothing", async () => {
     const category = await insertCategory(db, "Infusiones");

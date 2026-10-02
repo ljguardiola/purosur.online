@@ -55,21 +55,25 @@ function fieldsAimedAt(target: DiscountFields["target"]): DiscountFields {
 }
 
 describe("locking the target a discount points at", () => {
-  it("locks a category, a tag and a product that exist and are active", async () => {
+  it("locks a category, a tag and a product that exist, reporting what the domain needs to judge them", async () => {
     const categoryId = await insertCategory();
     const tag = await insertTag(db, { name: "Vegano" });
     const product = await insertProductWithTags(db, { name: "Yerba", tagIds: [] });
 
     const outcomes = await inTransaction(async (tx) => [
-      await tx.lockAssignableTarget({ kind: "CATEGORY", id: categoryId }),
-      await tx.lockAssignableTarget({ kind: "TAG", id: tag.id }),
-      await tx.lockAssignableTarget({ kind: "PRODUCT", id: product.id }),
+      await tx.lockTarget({ kind: "CATEGORY", id: categoryId }),
+      await tx.lockTarget({ kind: "TAG", id: tag.id }),
+      await tx.lockTarget({ kind: "PRODUCT", id: product.id }),
     ]);
 
     expect(outcomes).toEqual([
-      { kind: "locked", name: "Almacén", saleUnit: null },
-      { kind: "locked", name: "Vegano", saleUnit: null },
-      { kind: "locked", name: "Yerba", saleUnit: "UNIT" },
+      { kind: "locked", name: "Almacén", target: { kind: "CATEGORY" } },
+      { kind: "locked", name: "Vegano", target: { kind: "TAG", active: true } },
+      {
+        kind: "locked",
+        name: "Yerba",
+        target: { kind: "PRODUCT", active: true, saleUnit: "UNIT" },
+      },
     ]);
   });
 
@@ -80,18 +84,20 @@ describe("locking the target a discount points at", () => {
       saleUnit: "KG",
     });
 
-    const outcome = await inTransaction((tx) =>
-      tx.lockAssignableTarget({ kind: "PRODUCT", id: product.id }),
-    );
+    const outcome = await inTransaction((tx) => tx.lockTarget({ kind: "PRODUCT", id: product.id }));
 
-    expect(outcome).toEqual({ kind: "locked", name: "Queso cremoso", saleUnit: "KG" });
+    expect(outcome).toEqual({
+      kind: "locked",
+      name: "Queso cremoso",
+      target: { kind: "PRODUCT", active: true, saleUnit: "KG" },
+    });
   });
 
   it("answers not found for a target that does not exist", async () => {
     const outcomes = await inTransaction(async (tx) => [
-      await tx.lockAssignableTarget({ kind: "CATEGORY", id: NEVER_STORED_ID }),
-      await tx.lockAssignableTarget({ kind: "TAG", id: NEVER_STORED_ID }),
-      await tx.lockAssignableTarget({ kind: "PRODUCT", id: NEVER_STORED_ID }),
+      await tx.lockTarget({ kind: "CATEGORY", id: NEVER_STORED_ID }),
+      await tx.lockTarget({ kind: "TAG", id: NEVER_STORED_ID }),
+      await tx.lockTarget({ kind: "PRODUCT", id: NEVER_STORED_ID }),
     ]);
 
     expect(outcomes).toEqual([{ kind: "not_found" }, { kind: "not_found" }, { kind: "not_found" }]);
@@ -99,24 +105,31 @@ describe("locking the target a discount points at", () => {
 
   it("answers not found for a target whose id is malformed", async () => {
     const outcomes = await inTransaction(async (tx) => [
-      await tx.lockAssignableTarget({ kind: "CATEGORY", id: "not-a-uuid" }),
-      await tx.lockAssignableTarget({ kind: "TAG", id: "not-a-uuid" }),
-      await tx.lockAssignableTarget({ kind: "PRODUCT", id: "not-a-uuid" }),
+      await tx.lockTarget({ kind: "CATEGORY", id: "not-a-uuid" }),
+      await tx.lockTarget({ kind: "TAG", id: "not-a-uuid" }),
+      await tx.lockTarget({ kind: "PRODUCT", id: "not-a-uuid" }),
     ]);
 
     expect(outcomes).toEqual([{ kind: "not_found" }, { kind: "not_found" }, { kind: "not_found" }]);
   });
 
-  it("answers not found for an inactive tag and an inactive product", async () => {
+  it("locks an inactive tag and an inactive product, reporting that they are inactive", async () => {
     const tag = await insertTag(db, { name: "Kosher", active: false });
     const product = await insertProductWithTags(db, { name: "Yerba", tagIds: [], active: false });
 
     const outcomes = await inTransaction(async (tx) => [
-      await tx.lockAssignableTarget({ kind: "TAG", id: tag.id }),
-      await tx.lockAssignableTarget({ kind: "PRODUCT", id: product.id }),
+      await tx.lockTarget({ kind: "TAG", id: tag.id }),
+      await tx.lockTarget({ kind: "PRODUCT", id: product.id }),
     ]);
 
-    expect(outcomes).toEqual([{ kind: "not_found" }, { kind: "not_found" }]);
+    expect(outcomes).toEqual([
+      { kind: "locked", name: "Kosher", target: { kind: "TAG", active: false } },
+      {
+        kind: "locked",
+        name: "Yerba",
+        target: { kind: "PRODUCT", active: false, saleUnit: "UNIT" },
+      },
+    ]);
   });
 });
 
