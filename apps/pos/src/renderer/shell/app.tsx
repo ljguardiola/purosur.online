@@ -18,10 +18,10 @@ import type { CashMovementInput, CoreClient } from "../platform/core-client";
 import { createQueryClient } from "../platform/query-client";
 import { cancelReads, setQueryAnswer } from "../platform/set-query-answer";
 import { useCoreStatus } from "../platform/use-core-status";
-import { authorizersKey } from "../register/authorizers-queries";
 import type { CashSessionState } from "../register/cash-session-state";
 import { cashSessionStateOf } from "../register/cash-session-state";
 import {
+  authorizersKey,
   cashKey,
   cashSessionQueryOptions,
   lockedClosersKey,
