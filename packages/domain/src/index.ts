@@ -113,6 +113,7 @@ export {
   alertKindPolicy,
   alertKindsWithScope,
   alertLocationId,
+  alertNamedRecordIds,
   alertSightOf,
   canSeeAlert,
   ESCALATED_LEVEL,
