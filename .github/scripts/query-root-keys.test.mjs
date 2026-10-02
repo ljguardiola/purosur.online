@@ -302,6 +302,17 @@ const UNCALLED_UNDER_ANOTHER_NAME = [
     },
   },
   {
+    reach: "an instantiation expression",
+    line: 4,
+    files: {
+      "src/sales/invalidate.ts": INVALIDATE,
+      "src/sales/refresh.ts": [
+        'import { invalidate } from "./invalidate";',
+        'export const refreshAll = () => [["ticket"]].forEach(invalidate<never>);',
+      ].join("\n"),
+    },
+  },
+  {
     reach: "a destructured property",
     line: 5,
     files: {
@@ -385,6 +396,53 @@ test("follows a key into a method of an object typed with an interface that decl
 
   assert.deepEqual(problems, [
     'src/sales/sales-keys.ts:11 roots a query key at "ticket", but the concept folder holding it is "sales"',
+  ]);
+});
+
+test("follows a key into a function property of an object typed with an interface that declares it", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/sales-keys.ts": [
+      IMPORTS,
+      "const client = new QueryClient();",
+      "interface SalesKeys {",
+      "  invalidate: (key: QueryKey) => void;",
+      "}",
+      "export const salesKeys: SalesKeys = {",
+      "  invalidate: (key: QueryKey) => client.invalidateQueries({ queryKey: key }),",
+      "};",
+      'export const refreshTicket = () => salesKeys.invalidate(["ticket"]);',
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/sales/sales-keys.ts:9 roots a query key at "ticket", but the concept folder holding it is "sales"',
+  ]);
+});
+
+test("follows a key into the methods of two objects typed with one interface, each declaring its own", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/sales-keys.ts": [
+      IMPORTS,
+      "const client = new QueryClient();",
+      "interface SalesKeys {",
+      "  invalidate(key: QueryKey): void;",
+      "}",
+      "export const salesKeys: SalesKeys = {",
+      "  invalidate(key: QueryKey) {",
+      "    client.invalidateQueries({ queryKey: key });",
+      "  },",
+      "};",
+      "export const receiptKeys: SalesKeys = {",
+      "  invalidate: (key: QueryKey) => client.invalidateQueries({ queryKey: key }),",
+      "};",
+      'export const refreshTicket = () => salesKeys.invalidate(["ticket"]);',
+      'export const refreshReceipt = () => receiptKeys.invalidate(["receipt"]);',
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/sales/sales-keys.ts:14 roots a query key at "ticket", but the concept folder holding it is "sales"',
+    'src/sales/sales-keys.ts:15 roots a query key at "receipt", but the concept folder holding it is "sales"',
   ]);
 });
 
