@@ -291,12 +291,6 @@ function literalNamesOfType(type, checker) {
   return types.filter((each) => each.isStringLiteral()).map((each) => each.value);
 }
 
-function calleeOf(node) {
-  if (ts.isCallExpression(node) || ts.isNewExpression(node)) return node.expression;
-  if (ts.isTaggedTemplateExpression(node)) return node.tag;
-  return undefined;
-}
-
 function isZodIdFormatSignature(signature) {
   const declaration = signature.getDeclaration();
   const name = declaration === undefined ? undefined : ts.getNameOfDeclaration(declaration);
@@ -305,10 +299,8 @@ function isZodIdFormatSignature(signature) {
   );
 }
 
-function callsZodIdFormat(node, checker) {
-  const callee = calleeOf(node);
-  if (callee === undefined) return false;
-  const type = checker.getTypeAtLocation(callee);
+function isZodIdFormatType(type) {
+  if (type.isUnionOrIntersection()) return type.types.some(isZodIdFormatType);
   return [...type.getCallSignatures(), ...type.getConstructSignatures()].some(
     isZodIdFormatSignature,
   );
@@ -316,7 +308,7 @@ function callsZodIdFormat(node, checker) {
 
 function zodIdFormatsIn(nodes, checker) {
   return nodes.flatMap((node) => {
-    if (callsZodIdFormat(node, checker)) return [node];
+    if (ts.isExpression(node) && isZodIdFormatType(checker.getTypeAtLocation(node))) return [node];
     if (ts.isIdentifier(node) && isZodIdFormat(node, checker)) return [node];
     return [];
   });
