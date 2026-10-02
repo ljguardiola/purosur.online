@@ -1,73 +1,23 @@
-import { Link } from "@tanstack/react-router";
+import { AreaNavButton, AreaNavItem } from "@purosur/ui";
+import { createLink } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import { House, LogOut } from "lucide-react";
 import type { ActionEntry } from "./action-entries";
 
-type RailItemProps = {
-  label: string;
-  icon: LucideIcon;
-  current?: boolean;
-};
+const RailLink = createLink(AreaNavItem);
 
-const itemClassName =
-  "flex w-18 cursor-pointer flex-col items-center gap-1 rounded-lg py-3 text-caption focus-visible:focus-ring";
-
-function itemClassNameFor(current: boolean): string {
-  return [
-    itemClassName,
-    current
-      ? "bg-action-subtle font-bold text-text-accent"
-      : "text-text-subtle hover:bg-surface-subtle",
-  ].join(" ");
-}
-
-function RailItemContent({ label, icon: Glyph }: RailItemProps) {
-  return (
-    <>
-      <Glyph aria-hidden="true" className="size-icon-xl" />
-      {label}
-    </>
-  );
-}
-
-function RailButton({
-  label,
-  icon,
-  current = false,
-  onPress,
-}: RailItemProps & { onPress: () => void }) {
-  return (
-    <button
-      type="button"
-      aria-current={current ? "page" : undefined}
-      onClick={onPress}
-      className={itemClassNameFor(current)}
-    >
-      <RailItemContent label={label} icon={icon} />
-    </button>
-  );
-}
-
-type RailLink = {
+type RailLinkProps = {
   label: string;
   icon: LucideIcon;
   to: ActionEntry["to"];
   current?: boolean;
 };
 
-function RailLinkItem({ label, icon, to, current = false }: RailLink) {
-  return (
-    <Link to={to} aria-current={current ? "page" : undefined} className={itemClassNameFor(current)}>
-      <RailItemContent label={label} icon={icon} />
-    </Link>
-  );
-}
-
 export type NavigationRailProps = {
   firstName: string;
   entries: readonly ActionEntry[];
   home?: { label: string; icon: LucideIcon; to?: ActionEntry["to"] };
-  links?: readonly RailLink[];
+  links?: readonly RailLinkProps[];
   onSignOut?: () => void;
 };
 
@@ -80,30 +30,54 @@ export function NavigationRail({
   links = [],
   onSignOut,
 }: NavigationRailProps) {
+  const HomeGlyph = home.icon;
   return (
     <nav
       aria-label="Menú de la caja"
       className="flex h-full w-22 shrink-0 flex-col items-center gap-2 overflow-hidden border-r border-border bg-surface py-4"
     >
       {home.to === undefined ? (
-        <RailButton label={home.label} icon={home.icon} current onPress={() => {}} />
+        <AreaNavButton
+          rail="light"
+          label={home.label}
+          icon={<HomeGlyph />}
+          active
+          onPress={() => {}}
+        />
       ) : (
-        <RailLinkItem label={home.label} icon={home.icon} to={home.to} />
+        <RailLink
+          rail="light"
+          to={home.to}
+          label={home.label}
+          icon={<HomeGlyph />}
+          active={false}
+        />
       )}
-      {entries.map((entry) => (
-        <Link key={entry.label} to={entry.to} className={itemClassNameFor(false)}>
-          <RailItemContent label={entry.label} icon={entry.icon} />
-        </Link>
+      {entries.map(({ label, icon: Glyph, to }) => (
+        <RailLink key={label} rail="light" to={to} label={label} icon={<Glyph />} active={false} />
       ))}
-      {links.map((link) => (
-        <RailLinkItem key={link.label} {...link} />
+      {links.map(({ label, icon: Glyph, to, current = false }) => (
+        <RailLink
+          key={label}
+          rail="light"
+          to={to}
+          label={label}
+          icon={<Glyph />}
+          active={current}
+        />
       ))}
       <div className="flex-1" />
       <p className="w-full truncate px-2 text-center text-caption font-semibold text-text-subtle">
         {firstName}
       </p>
       {onSignOut === undefined ? null : (
-        <RailButton label="Salir" icon={LogOut} onPress={onSignOut} />
+        <AreaNavButton
+          rail="light"
+          label="Salir"
+          icon={<LogOut />}
+          active={false}
+          onPress={onSignOut}
+        />
       )}
     </nav>
   );
