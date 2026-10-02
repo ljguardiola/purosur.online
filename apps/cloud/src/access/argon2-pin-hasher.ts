@@ -1,6 +1,6 @@
 import { argon2, randomBytes } from "node:crypto";
 import { promisify } from "node:util";
-import { encodePinHash, PIN_HASH_SCHEME } from "@purosur/domain";
+import { encodePinHash, PIN_HASH_SCHEME } from "@purosur/contracts";
 import type { PinHasher } from "@purosur/domain/access/use-cases";
 
 const deriveArgon2 = promisify(argon2);

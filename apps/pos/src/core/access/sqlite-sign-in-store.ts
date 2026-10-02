@@ -1,5 +1,6 @@
 import type { SignInUser } from "@purosur/contracts";
-import { decodePinSalt, type RoleAccess } from "@purosur/domain";
+import { decodePinSalt } from "@purosur/contracts";
+import type { RoleAccess } from "@purosur/domain";
 import type {
   PinHolder,
   PinReplacementStore,

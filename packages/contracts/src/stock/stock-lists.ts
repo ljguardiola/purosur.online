@@ -1,15 +1,23 @@
 import {
   ADJUSTMENT_REASONS,
+  DEFAULT_STOCK_PERIOD_DAYS,
   LOSS_REASONS,
   MANUAL_STOCK_MOVEMENT_KINDS,
   SALE_UNITS,
   STOCK_DIRECTIONS,
+  STOCK_PERIOD_DAYS,
 } from "@purosur/domain";
 import { z } from "zod";
 
-export const STOCK_PERIOD_DAYS = [7, 30, 90] as const;
+export type { StockPeriodDays } from "@purosur/domain";
 
-export type StockPeriodDays = (typeof STOCK_PERIOD_DAYS)[number];
+export const stockPeriodDaysSchema = z.literal(STOCK_PERIOD_DAYS);
+
+export const stockPeriodSchema = z
+  .enum(STOCK_PERIOD_DAYS.map((days) => `${days}` as const))
+  .catch(`${DEFAULT_STOCK_PERIOD_DAYS}` as const);
+
+export type StockPeriod = z.output<typeof stockPeriodSchema>;
 
 const stockProductSchema = z.object({
   id: z.string(),

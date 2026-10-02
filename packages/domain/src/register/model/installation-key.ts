@@ -15,6 +15,10 @@ export function isWellFormedInstallationKey(encoded: string): boolean {
   return ENCODED_INSTALLATION_KEY.test(encoded);
 }
 
+export function hasDistinctKeyVersions(keys: readonly VersionedKey[]): boolean {
+  return new Set(keys.map((key) => key.version)).size === keys.length;
+}
+
 export function inVersionOrder(keys: readonly VersionedKey[]): VersionedKey[] {
   return [...keys].sort((a, b) => a.version - b.version);
 }

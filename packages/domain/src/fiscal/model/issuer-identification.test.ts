@@ -152,6 +152,17 @@ describe("isIssuerIdentificationActivityStartDate", () => {
     expect(isIssuerIdentificationActivityStartDate("2020-02-29", today)).toBe(true);
   });
 
+  it("accepts a date in the first hundred years of the calendar", () => {
+    expect(isIssuerIdentificationActivityStartDate("0001-01-01", today)).toBe(true);
+    expect(isIssuerIdentificationActivityStartDate("0050-06-15", today)).toBe(true);
+    expect(isIssuerIdentificationActivityStartDate("0099-12-31", today)).toBe(true);
+  });
+
+  it("rejects a date of year 0000, which a database date does not have", () => {
+    expect(isIssuerIdentificationActivityStartDate("0000-01-01", today)).toBe(false);
+    expect(isIssuerIdentificationActivityStartDate("0000-12-31", today)).toBe(false);
+  });
+
   it("takes today from Argentina's calendar, not UTC's, late in the evening", () => {
     const lateEveningInArgentina = new Date("2026-09-25T23:30:00-03:00");
 

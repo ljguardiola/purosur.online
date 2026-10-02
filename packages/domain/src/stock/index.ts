@@ -21,9 +21,14 @@ export {
   lossDelta,
   STOCK_DIRECTIONS,
 } from "./model/stock-movement-reason.js";
+export type { StockPeriodDays } from "./model/stock-period.js";
+export { DEFAULT_STOCK_PERIOD_DAYS, STOCK_PERIOD_DAYS } from "./model/stock-period.js";
 export {
   isCountedQuantity,
   isMovementQuantity,
   MAX_STOCK_QUANTITY,
+  mayBeCountedQuantity,
+  mayBeMovementQuantity,
+  STOCK_QUANTITY_DECIMALS,
   STOCK_QUANTITY_PER_UNIT,
 } from "./model/stock-quantity.js";

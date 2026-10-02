@@ -31,6 +31,7 @@ export {
 export type { CashBreakdown, CashBreakdownLine } from "./model/expected-cash.js";
 export { cashBreakdown, expectedCash } from "./model/expected-cash.js";
 export {
+  hasDistinctKeyVersions,
   INSTALLATION_KEY_BYTES,
   isWellFormedInstallationKey,
 } from "./model/installation-key.js";

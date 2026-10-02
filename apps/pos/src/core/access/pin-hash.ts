@@ -1,4 +1,4 @@
-import { encodePinHash, PIN_HASH_SCHEME } from "@purosur/domain";
+import { encodePinHash, PIN_HASH_SCHEME } from "@purosur/contracts";
 import { argon2id } from "hash-wasm";
 
 // Electron's Node is built on BoringSSL, which has no argon2, so node:crypto can't run it there.

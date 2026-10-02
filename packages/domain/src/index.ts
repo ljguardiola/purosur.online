@@ -19,8 +19,6 @@ export {
   CAPABILITY_PERMISSIONS,
   CHALLENGE_TTL_MS,
   challengeExpiryWindowStart,
-  decodePinSalt,
-  encodePinHash,
   grantedCapabilities,
   grantedPermissionKeys,
   grantsCapability,
@@ -54,7 +52,6 @@ export {
   PIN_CODE_MAX_FAILED_ATTEMPTS,
   PIN_CODE_VALIDITY_MS,
   PIN_CODE_WINDOW_MS,
-  PIN_HASH_SCHEME,
   PIN_MIN_DIGITS,
   PIN_SIGN_IN_LOCKOUT_FAILURES,
   PIN_SIGN_IN_MAX_DELAY_SECONDS,
@@ -170,6 +167,7 @@ export {
   PRODUCT_NAME_MAX_LENGTH,
   productLabelCode,
   productNameLength,
+  repeatsATag,
   SALE_UNITS,
   TAG_NAME_MAX_LENGTH,
 } from "./catalog/index.js";
@@ -232,7 +230,6 @@ export {
   discountAppliesOn,
   discountNameLength,
   discountsTargeting,
-  isCalendarDay,
   isDiscountNameTooLong,
   isDiscountWindowOrdered,
   isoWeekdayOf,
@@ -275,6 +272,7 @@ export {
   ENROLLMENT_CODE_LENGTH,
   enrollmentAttemptWindowStart,
   expectedCash,
+  hasDistinctKeyVersions,
   INSTALLATION_KEY_BYTES,
   INSTALLATION_REPORT_MAX_LENGTH,
   isDeviceTokenRotationDue,
@@ -312,18 +310,25 @@ export {
   SEARCH_RESULT_LIMIT,
   saleTotal,
 } from "./sales/index.js";
-export { ARGENTINA_TIME_ZONE, argentinaCalendarDay } from "./shared/index.js";
+export {
+  ARGENTINA_TIME_ZONE,
+  argentinaCalendarDay,
+  argentinaInstant,
+  isCalendarDay,
+} from "./shared/index.js";
 export type {
   AdjustmentReason,
   LossReason,
   ManualStockMovementKind,
   StockDirection,
   StockMovementKind,
+  StockPeriodDays,
 } from "./stock/index.js";
 export {
   ADJUSTMENT_REASONS,
   adjustmentDirections,
   countResult,
+  DEFAULT_STOCK_PERIOD_DAYS,
   expectedBalance,
   isCountedQuantity,
   isMovementQuantity,
@@ -333,7 +338,11 @@ export {
   MAX_STOCK_QUANTITY,
   manualStockMovementCapability,
   manualStockMovementReasons,
+  mayBeCountedQuantity,
+  mayBeMovementQuantity,
   STOCK_DIRECTIONS,
+  STOCK_PERIOD_DAYS,
+  STOCK_QUANTITY_DECIMALS,
   STOCK_QUANTITY_PER_UNIT,
   visibleManualStockMovementKinds,
 } from "./stock/index.js";
