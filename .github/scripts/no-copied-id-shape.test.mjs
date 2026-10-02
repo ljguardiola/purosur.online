@@ -407,6 +407,77 @@ test("finds a key whose type holds a name of zod's id formats, though the name i
   }
 });
 
+test("finds any value or type whose type is a name of zod's id formats, however the name is produced", () => {
+  const zodAnd = (...lines) => ['import { z } from "zod";', ...lines].join("\n");
+  const get = "declare function get<T, K extends keyof T>(o: T, key: { k: K }): T[K];";
+  for (const [source, lines] of [
+    [
+      zodAnd(
+        `function join<A extends string, B extends string>(a: A, b: B): \`\${A}\${B}\` {`,
+        `  return \`\${a}\${b}\` as \`\${A}\${B}\`;`,
+        "}",
+        get,
+        'get(z, { k: join("uu", "id") }).call(undefined);',
+      ),
+      [6],
+    ],
+    [
+      zodAnd(
+        `declare function tag<A extends string>(text: TemplateStringsArray, a: A): \`\${A}id\`;`,
+        get,
+        `get(z, { k: tag\`\${"uu"}\` }).call(undefined);`,
+      ),
+      [4],
+    ],
+    [
+      zodAnd(
+        'import { recordIdSchema } from "../../../packages/contracts/src/shared/index.js";',
+        get,
+        "get(z, { k: recordIdSchema().def.format }).call(undefined);",
+      ),
+      [4],
+    ],
+    [
+      zodAnd(
+        `type Join<A extends string, B extends string> = \`\${A}\${B}\`;`,
+        'declare const k: Join<"uu", "id">;',
+        "export const f = z[k];",
+      ),
+      [3, 4],
+    ],
+    [
+      zodAnd(
+        `type Id<T> = T extends \`\${infer A}x\` ? \`\${A}id\` : never;`,
+        'declare const k: Id<"uux">;',
+        "export const f = z[k];",
+      ),
+      [3, 4],
+    ],
+  ]) {
+    assert.deepEqual(linesOf(source), lines, source);
+  }
+});
+
+test("ignores values and types whose type is no name of zod's id formats", () => {
+  const source = [
+    'import { z, ZodError } from "zod";',
+    `declare function join<A extends string, B extends string>(a: A, b: B): \`\${A}\${B}\`;`,
+    "declare const text: string;",
+    'export const joined = join(text, "id");',
+    'export const owner = join("owner", "Uuid");',
+    'export const plain = [text, "id"].join("");',
+    "export const picked = (z as Record<string, unknown>)[text];",
+    `type Join<A extends string, B extends string> = \`\${A}\${B}\`;`,
+    'export type Owner = Join<"owner", "Uuid">;',
+    "export const error = new ZodError([]);",
+    "export const never = z.NEVER;",
+    "export const make = z.string;",
+    "export const name = z.string().min(1);",
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), []);
+});
+
 test("finds a key or text whose value is a name of zod's id formats, whatever it names", () => {
   const source = [
     "const row = { uuid: 1, guid: 2 };",
