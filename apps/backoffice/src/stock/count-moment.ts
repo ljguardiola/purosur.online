@@ -1,22 +1,20 @@
 import { type CalendarDate, fromDate, toCalendarDate } from "@internationalized/date";
-import { stockCountBodySchema, stockCountMomentSchema } from "@purosur/contracts";
+import { stockCountMomentSchema } from "@purosur/contracts";
 import { formatDate } from "@purosur/ui";
-import { schemaText } from "../platform/schema-text";
+import { STOCK_TIME_ZONE } from "./stock-period";
 
 export type CountMoment = { day: CalendarDate | null; time: string };
 
 export type CountStart = { day: CalendarDate; time: string; instant: string };
 
-const TIME_ZONE = schemaText(stockCountBodySchema.shape.occurredAt.meta()?.["timeZone"]);
-
 export function countMomentNow(now: Date): CountStart {
   return {
-    day: toCalendarDate(fromDate(now, TIME_ZONE)),
+    day: toCalendarDate(fromDate(now, STOCK_TIME_ZONE)),
     time: formatDate(now, {
       hour: "2-digit",
       minute: "2-digit",
       hourCycle: "h23",
-      timeZone: TIME_ZONE,
+      timeZone: STOCK_TIME_ZONE,
     }),
     instant: now.toISOString(),
   };

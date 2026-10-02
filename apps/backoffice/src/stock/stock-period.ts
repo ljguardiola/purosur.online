@@ -9,7 +9,9 @@ import { schemaText } from "../platform/schema-text";
 
 export type { StockPeriod };
 
-const TIME_ZONE = schemaText(stockCountBodySchema.shape.occurredAt.meta()?.["timeZone"]);
+export const STOCK_TIME_ZONE = schemaText(
+  stockCountBodySchema.shape.occurredAt.meta()?.["timeZone"],
+);
 
 function periodOption(days: number) {
   return { value: stockPeriodSchema.parse(`${days}`), label: `Últimos ${formatNumber(days)} días` };
@@ -34,7 +36,7 @@ export function formatStockDay(at: string): string {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-    timeZone: TIME_ZONE,
+    timeZone: STOCK_TIME_ZONE,
   });
 }
 
@@ -43,6 +45,6 @@ export function formatStockTime(at: string): string {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-    timeZone: TIME_ZONE,
+    timeZone: STOCK_TIME_ZONE,
   });
 }
