@@ -3,6 +3,8 @@ import { removeOwnPasskey } from "./remove-own-passkey.js";
 import { FakePasskeyRemovalStore } from "./test-support/fake-passkey-removal-store.js";
 
 const AT = new Date("2026-10-01T12:00:00.000Z");
+const AUTHORIZED_AT = new Date("2026-10-01T11:58:00.000Z");
+const INPUT = { userId: "u-1", passkeyId: "p-1", passkeyAuthorizedAt: AUTHORIZED_AT, at: AT };
 
 function storeWithPasskey() {
   const store = new FakePasskeyRemovalStore();
@@ -15,7 +17,7 @@ describe("removeOwnPasskey", () => {
   it("removes the passkey, audits it and tells the user, leaving their sessions open", async () => {
     const store = storeWithPasskey();
 
-    const outcome = await removeOwnPasskey({ store }, { userId: "u-1", passkeyId: "p-1", at: AT });
+    const outcome = await removeOwnPasskey({ store }, INPUT);
 
     expect(outcome).toEqual({ kind: "removed" });
     expect(store.current.passkeys).toEqual([]);
@@ -27,6 +29,7 @@ describe("removeOwnPasskey", () => {
     ]);
     expect(store.current.sessions).toEqual([{ id: "s-1", userId: "u-1", revokedAt: null }]);
     expect(store.operationOrder).toEqual([
+      "findRemovablePasskey",
       "deletePasskey",
       "recordOwnPasskeyRemoved",
       "openPasskeyRemovedAlert",
@@ -37,23 +40,41 @@ describe("removeOwnPasskey", () => {
     const store = storeWithPasskey();
     const before = store.snapshot();
 
-    const outcome = await removeOwnPasskey({ store }, { userId: "u-2", passkeyId: "p-1", at: AT });
+    const outcome = await removeOwnPasskey({ store }, { ...INPUT, userId: "u-2" });
 
     expect(outcome).toEqual({ kind: "not_found" });
     expect(store.current).toEqual(before);
-    expect(store.operationOrder).toEqual(["deletePasskey"]);
+    expect(store.operationOrder).toEqual(["findRemovablePasskey"]);
   });
 
-  it.each(["recordOwnPasskeyRemoved", "openPasskeyRemovedAlert"] as const)(
+  it.each([
+    ["never authorized", null],
+    ["authorized more than five minutes ago", new Date("2026-10-01T11:54:59.999Z")],
+  ])(
+    "requires an authorization and changes nothing when the session was %s",
+    async (_name, authorizedAt) => {
+      const store = storeWithPasskey();
+      const before = store.snapshot();
+
+      const outcome = await removeOwnPasskey(
+        { store },
+        { ...INPUT, passkeyAuthorizedAt: authorizedAt },
+      );
+
+      expect(outcome).toEqual({ kind: "authorization_required" });
+      expect(store.current).toEqual(before);
+      expect(store.operationOrder).toEqual(["findRemovablePasskey"]);
+    },
+  );
+
+  it.each(["deletePasskey", "recordOwnPasskeyRemoved", "openPasskeyRemovedAlert"] as const)(
     "keeps the passkey when %s fails",
     async (failing) => {
       const store = storeWithPasskey();
       const before = store.snapshot();
       store.failingWrites.add(failing);
 
-      await expect(
-        removeOwnPasskey({ store }, { userId: "u-1", passkeyId: "p-1", at: AT }),
-      ).rejects.toThrow(`${failing} failed`);
+      await expect(removeOwnPasskey({ store }, INPUT)).rejects.toThrow(`${failing} failed`);
 
       expect(store.current).toEqual(before);
     },

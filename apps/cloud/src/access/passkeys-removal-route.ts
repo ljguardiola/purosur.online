@@ -3,7 +3,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { DrizzlePasskeyRemovalStore } from "./drizzle-passkey-removal-store.js";
-import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
+import { AUTHORIZATION_REQUIRED_RESPONSE } from "./passkey-authorization-guard.js";
 import {
   OPEN_SESSION_ACCESS,
   openSessionOf,
@@ -16,8 +16,6 @@ export interface PasskeyRemovalRouteOptions<TQueryResult extends PgQueryResultHK
   backofficeOrigin: string;
   now?: () => Date;
 }
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const NOT_FOUND_RESPONSE = {
   code: "not_found",
@@ -43,19 +41,20 @@ export function registerPasskeyRemovalRoutes<TQueryResult extends PgQueryResultH
       const openSession = openSessionOf(request);
 
       const targetId = (request.params as { id: string }).id;
-      if (!UUID_PATTERN.test(targetId)) {
-        await reply.code(404).send(NOT_FOUND_RESPONSE);
-        return;
-      }
-
-      if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
-        return;
-      }
 
       const outcome = await removeOwnPasskey(
         { store: new DrizzlePasskeyRemovalStore(options.db) },
-        { userId: openSession.userId, passkeyId: targetId, at: attemptedAt },
+        {
+          userId: openSession.userId,
+          passkeyId: targetId,
+          passkeyAuthorizedAt: openSession.passkeyAuthorizedAt,
+          at: attemptedAt,
+        },
       );
+      if (outcome.kind === "authorization_required") {
+        await reply.code(401).send(AUTHORIZATION_REQUIRED_RESPONSE);
+        return;
+      }
       if (outcome.kind === "not_found") {
         await reply.code(404).send(NOT_FOUND_RESPONSE);
         return;

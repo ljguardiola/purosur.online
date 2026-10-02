@@ -23,7 +23,8 @@ export interface FakePasskeyRemovalState {
   alerts: PasskeyRemovalAlert[];
 }
 
-type WriteOperation =
+type FailableOperation =
+  | "findRemovablePasskey"
   | "deletePasskey"
   | "revokeSessions"
   | "recordOwnPasskeyRemoved"
@@ -41,17 +42,24 @@ class FakePasskeyRemovalStoreTransaction implements PasskeyRemovalStoreTransacti
     return this.store.current;
   }
 
-  async deletePasskey(userId: string, passkeyId: string): Promise<RemovedPasskey | undefined> {
-    this.store.beforeWrite("deletePasskey");
-    const index = this.state.passkeys.findIndex(
-      (held) => held.id === passkeyId && held.userId === userId,
+  async findRemovablePasskey(
+    userId: string,
+    passkeyId: string,
+  ): Promise<RemovedPasskey | undefined> {
+    this.store.beforeOperation("findRemovablePasskey");
+    const held = this.state.passkeys.find(
+      (candidate) => candidate.id === passkeyId && candidate.userId === userId,
     );
-    const [removed] = index === -1 ? [] : this.state.passkeys.splice(index, 1);
-    return removed && { id: removed.id, name: removed.name };
+    return held && { id: held.id, name: held.name };
+  }
+
+  async deletePasskey(passkeyId: string): Promise<void> {
+    this.store.beforeOperation("deletePasskey");
+    this.state.passkeys = this.state.passkeys.filter((held) => held.id !== passkeyId);
   }
 
   async revokeSessions(userId: string, at: Date): Promise<void> {
-    this.store.beforeWrite("revokeSessions");
+    this.store.beforeOperation("revokeSessions");
     for (const session of this.state.sessions) {
       if (session.userId === userId && session.revokedAt === null) {
         session.revokedAt = at;
@@ -60,7 +68,7 @@ class FakePasskeyRemovalStoreTransaction implements PasskeyRemovalStoreTransacti
   }
 
   async recordOwnPasskeyRemoved(userId: string, passkey: RemovedPasskey): Promise<void> {
-    this.store.beforeWrite("recordOwnPasskeyRemoved");
+    this.store.beforeOperation("recordOwnPasskeyRemoved");
     this.state.audits.push({ actorId: userId, userId: null, passkey: structuredClone(passkey) });
   }
 
@@ -69,12 +77,12 @@ class FakePasskeyRemovalStoreTransaction implements PasskeyRemovalStoreTransacti
     userId: string,
     passkey: RemovedPasskey,
   ): Promise<void> {
-    this.store.beforeWrite("recordUserPasskeyRemoved");
+    this.store.beforeOperation("recordUserPasskeyRemoved");
     this.state.audits.push({ actorId: administratorId, userId, passkey: structuredClone(passkey) });
   }
 
   async openPasskeyRemovedAlert(alert: PasskeyRemovalAlert): Promise<void> {
-    this.store.beforeWrite("openPasskeyRemovedAlert");
+    this.store.beforeOperation("openPasskeyRemovedAlert");
     this.state.alerts.push(structuredClone(alert));
   }
 }
@@ -87,7 +95,7 @@ export class FakePasskeyRemovalStore implements PasskeyRemovalStore {
     alerts: [],
   };
 
-  failingWrites = new Set<WriteOperation>();
+  failingWrites = new Set<FailableOperation>();
   operationOrder: string[] = [];
 
   get current(): FakePasskeyRemovalState {
@@ -106,7 +114,7 @@ export class FakePasskeyRemovalStore implements PasskeyRemovalStore {
     return structuredClone(this.state);
   }
 
-  beforeWrite(operation: WriteOperation): void {
+  beforeOperation(operation: FailableOperation): void {
     this.operationOrder.push(operation);
     if (this.failingWrites.has(operation)) {
       throw new Error(`${operation} failed`);

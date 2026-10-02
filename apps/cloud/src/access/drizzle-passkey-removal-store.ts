@@ -24,15 +24,23 @@ class DrizzlePasskeyRemovalStoreTransaction<TQueryResult extends PgQueryResultHK
     this.tx = tx;
   }
 
-  async deletePasskey(userId: string, passkeyId: string): Promise<RemovedPasskey | undefined> {
+  async findRemovablePasskey(
+    userId: string,
+    passkeyId: string,
+  ): Promise<RemovedPasskey | undefined> {
     if (!UUID_PATTERN.test(passkeyId)) {
       return undefined;
     }
-    const [removed] = await this.tx
-      .delete(passkeys)
+    const [found] = await this.tx
+      .select({ id: passkeys.id, name: passkeys.name })
+      .from(passkeys)
       .where(and(eq(passkeys.id, passkeyId), eq(passkeys.userId, userId)))
-      .returning({ id: passkeys.id, name: passkeys.name });
-    return removed;
+      .for("update");
+    return found;
+  }
+
+  async deletePasskey(passkeyId: string): Promise<void> {
+    await this.tx.delete(passkeys).where(eq(passkeys.id, passkeyId));
   }
 
   revokeSessions(userId: string, at: Date): Promise<void> {

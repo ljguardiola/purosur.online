@@ -1,10 +1,10 @@
-import { findPasskeyRemovalTarget, removeUserPasskey } from "@purosur/domain/access/use-cases";
+import { removeUserPasskey } from "@purosur/domain/access/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 import { DrizzlePasskeyRemovalStore } from "./drizzle-passkey-removal-store.js";
-import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
+import { AUTHORIZATION_REQUIRED_RESPONSE } from "./passkey-authorization-guard.js";
 import {
   ADMINISTRATOR_ACCESS,
   openSessionOf,
@@ -12,8 +12,6 @@ import {
   routeSessionSource,
 } from "./route-access.js";
 import type { UsersRouteOptions } from "./users-list-route.js";
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const USER_NOT_FOUND_RESPONSE = {
   code: "not_found",
@@ -48,45 +46,35 @@ export function registerUserPasskeyRemovalRoutes<TQueryResult extends PgQueryRes
       const attemptedAt = now();
       const openSession = openSessionOf(request);
 
-      const target = await findPasskeyRemovalTarget(
-        { users: drizzleBranchUsers(options.db) },
+      const outcome = await removeUserPasskey(
+        {
+          users: drizzleBranchUsers(options.db),
+          store: new DrizzlePasskeyRemovalStore(options.db),
+        },
         {
           locationId: openSession.locationId,
           administratorId: openSession.userId,
           targetUserId: request.params.id,
-        },
-      );
-      if (target.kind === "not_found") {
-        await reply.code(404).send(USER_NOT_FOUND_RESPONSE);
-        return;
-      }
-      if (target.kind === "own_account") {
-        await reply.code(403).send(OWN_ACCOUNT_RESPONSE);
-        return;
-      }
-
-      const passkeyId = request.params.passkeyId;
-      if (!UUID_PATTERN.test(passkeyId)) {
-        await reply.code(404).send(PASSKEY_NOT_FOUND_RESPONSE);
-        return;
-      }
-
-      if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
-        return;
-      }
-
-      const removed = await removeUserPasskey(
-        { store: new DrizzlePasskeyRemovalStore(options.db) },
-        {
-          administratorId: openSession.userId,
-          targetUserId: target.target.id,
-          passkeyId,
+          passkeyId: request.params.passkeyId,
+          passkeyAuthorizedAt: openSession.passkeyAuthorizedAt,
           at: attemptedAt,
         },
       );
-      if (removed.kind === "not_found") {
-        await reply.code(404).send(PASSKEY_NOT_FOUND_RESPONSE);
-        return;
+      switch (outcome.kind) {
+        case "user_not_found":
+          await reply.code(404).send(USER_NOT_FOUND_RESPONSE);
+          return;
+        case "own_account":
+          await reply.code(403).send(OWN_ACCOUNT_RESPONSE);
+          return;
+        case "passkey_not_found":
+          await reply.code(404).send(PASSKEY_NOT_FOUND_RESPONSE);
+          return;
+        case "authorization_required":
+          await reply.code(401).send(AUTHORIZATION_REQUIRED_RESPONSE);
+          return;
+        case "removed":
+          break;
       }
 
       await reply.code(200).send();

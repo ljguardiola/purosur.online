@@ -120,12 +120,6 @@ export type {
 } from "./find-open-session.js";
 export { findOpenSession } from "./find-open-session.js";
 export type {
-  FindPasskeyRemovalTargetInput,
-  FindPasskeyRemovalTargetOutcome,
-  FindPasskeyRemovalTargetPorts,
-} from "./find-passkey-removal-target.js";
-export { findPasskeyRemovalTarget } from "./find-passkey-removal-target.js";
-export type {
   FindRedeemableRecoveryInput,
   FindRedeemableRecoveryOutcome,
   FindRedeemableRecoveryPorts,

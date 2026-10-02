@@ -20,7 +20,8 @@ export interface PasskeyRemovalStore {
 export interface PasskeyRemovalStoreTransaction {
   // Takes the passkey's row lock, so a concurrent removal of it finds nothing and a racing
   // sign-in with it has already committed its session before the sessions are revoked.
-  deletePasskey(userId: string, passkeyId: string): Promise<RemovedPasskey | undefined>;
+  findRemovablePasskey(userId: string, passkeyId: string): Promise<RemovedPasskey | undefined>;
+  deletePasskey(passkeyId: string): Promise<void>;
   revokeSessions(userId: string, at: Date): Promise<void>;
   recordOwnPasskeyRemoved(userId: string, passkey: RemovedPasskey): Promise<void>;
   recordUserPasskeyRemoved(

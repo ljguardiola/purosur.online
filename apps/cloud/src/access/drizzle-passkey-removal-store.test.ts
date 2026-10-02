@@ -83,29 +83,35 @@ function removalStore() {
 }
 
 describe("DrizzlePasskeyRemovalStore", () => {
-  it("deletes the passkey of the user and answers its id and name", async () => {
-    const removed = await removalStore().transaction((tx) => tx.deletePasskey(userId, passkeyId));
+  it("finds the passkey of the user and answers its id and name", async () => {
+    const found = await removalStore().transaction((tx) =>
+      tx.findRemovablePasskey(userId, passkeyId),
+    );
 
-    expect(removed).toEqual({ id: passkeyId, name: "Llave" });
+    expect(found).toEqual({ id: passkeyId, name: "Llave" });
+    expect(await db.select().from(passkeys)).toHaveLength(1);
+  });
+
+  it("finds nothing for a passkey another user holds", async () => {
+    const found = await removalStore().transaction((tx) =>
+      tx.findRemovablePasskey(otherUserId, passkeyId),
+    );
+
+    expect(found).toBeUndefined();
+  });
+
+  it("finds nothing for a malformed passkey id", async () => {
+    const found = await removalStore().transaction((tx) =>
+      tx.findRemovablePasskey(userId, "not-a-uuid"),
+    );
+
+    expect(found).toBeUndefined();
+  });
+
+  it("deletes the passkey", async () => {
+    await removalStore().transaction((tx) => tx.deletePasskey(passkeyId));
+
     expect(await db.select().from(passkeys)).toEqual([]);
-  });
-
-  it("deletes nothing for a passkey another user holds", async () => {
-    const removed = await removalStore().transaction((tx) =>
-      tx.deletePasskey(otherUserId, passkeyId),
-    );
-
-    expect(removed).toBeUndefined();
-    expect(await db.select().from(passkeys)).toHaveLength(1);
-  });
-
-  it("answers nothing for a malformed passkey id and deletes nothing", async () => {
-    const removed = await removalStore().transaction((tx) =>
-      tx.deletePasskey(userId, "not-a-uuid"),
-    );
-
-    expect(removed).toBeUndefined();
-    expect(await db.select().from(passkeys)).toHaveLength(1);
   });
 
   it("revokes only the open sessions of the user", async () => {
@@ -183,7 +189,7 @@ describe("DrizzlePasskeyRemovalStore", () => {
   it("rolls back the deletion when the work fails", async () => {
     await expect(
       removalStore().transaction(async (tx) => {
-        await tx.deletePasskey(userId, passkeyId);
+        await tx.deletePasskey(passkeyId);
         throw new Error("work failed");
       }),
     ).rejects.toThrow("work failed");
