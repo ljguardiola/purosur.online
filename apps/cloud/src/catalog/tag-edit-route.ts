@@ -1,5 +1,5 @@
 import { tagEditBodySchema, tagSummarySchema } from "@purosur/contracts";
-import { editTag } from "@purosur/domain/catalog/use-cases";
+import { editTag, findTagSummary } from "@purosur/domain/catalog/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -12,9 +12,10 @@ import {
 import { tags } from "../platform/db/schema.js";
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
+import { DrizzleCatalogListReader } from "./drizzle-catalog-list-reader.js";
 import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 import { TAG_NAME_TAKEN_RESPONSE } from "./tag-creation-route.js";
-import { listTags, type TagsRouteOptions } from "./tags-list-route.js";
+import type { TagsRouteOptions } from "./tags-list-route.js";
 
 export const TAG_NOT_FOUND_RESPONSE = {
   code: "not_found",
@@ -44,6 +45,7 @@ export function registerTagEditRoute<TQueryResult extends PgQueryResultHKT>(
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
   const catalogStore = new DrizzleCatalogStore(options.db);
+  const catalog = new DrizzleCatalogListReader(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
   app.put<{ Params: { id: string } }>(
@@ -78,7 +80,7 @@ export function registerTagEditRoute<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      const [listed] = await listTags(options.db, target.id);
+      const listed = await findTagSummary({ catalog }, target.id);
       await reply
         .code(200)
         .send(tagSummarySchema.parse({ ...outcome.tag, productCount: listed?.productCount ?? 0 }));

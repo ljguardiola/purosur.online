@@ -10,16 +10,12 @@ export const PERSISTENCE_IN_HANDLERS_ALLOWLIST = [
   "apps/cloud/src/catalog/brand-deactivation-route.ts",
   "apps/cloud/src/catalog/brand-edit-route.ts",
   "apps/cloud/src/catalog/brand-reactivation-route.ts",
-  "apps/cloud/src/catalog/brands-list-route.ts",
-  "apps/cloud/src/catalog/categories-list-route.ts",
   "apps/cloud/src/catalog/category-edit-route.ts",
   "apps/cloud/src/catalog/product-deactivation-route.ts",
   "apps/cloud/src/catalog/product-edit-route.ts",
-  "apps/cloud/src/catalog/products-list-route.ts",
   "apps/cloud/src/catalog/tag-deactivation-route.ts",
   "apps/cloud/src/catalog/tag-edit-route.ts",
   "apps/cloud/src/catalog/tag-reactivation-route.ts",
-  "apps/cloud/src/catalog/tags-list-route.ts",
 ];
 
 export const SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST = [
@@ -50,7 +46,6 @@ export const SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST = [
   "apps/backoffice/src/stock/count-moment.ts",
   "apps/backoffice/src/stock/stock-movement-form.ts",
   "apps/backoffice/src/stock/stock-movement-modal.tsx",
-  "apps/backoffice/src/stock/stock-movements-screen.tsx",
   "apps/backoffice/src/stock/stock-period.ts",
   "apps/backoffice/src/stock/stock-quantity.ts",
 ];

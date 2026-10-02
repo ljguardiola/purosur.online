@@ -1,4 +1,4 @@
-import type { PermissionKey } from "@purosur/domain";
+import type { PermissionKey, StockMovementKind } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { SESSION_COOKIE_NAME } from "../../access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../../access/session-id.js";
@@ -135,7 +135,7 @@ export async function insertMovement(
     productId: string;
     locationId: string;
     actorId: string;
-    kind: "loss" | "adjustment" | "count";
+    kind: StockMovementKind;
     reason?: string | null;
     delta: number;
     occurredAt: Date;

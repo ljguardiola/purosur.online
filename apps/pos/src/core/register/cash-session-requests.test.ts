@@ -9,6 +9,7 @@ import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import {
   type CashSessionRequestDeps,
   cashBalanceFor,
+  cashCountPreviewFor,
   closeCashSessionFor,
   closeLockedCashSessionFor,
   currentCashSession,
@@ -673,13 +674,13 @@ describe("the cash balance of the open session", () => {
     await openAs("u1", 5000);
 
     expect(cashBalanceFor(database)).toEqual({
-      opening_float: 5000,
-      cash_sales: 0,
-      change_given: 0,
-      refunds: 0,
-      cash_in: 0,
-      expenses: 0,
-      withdrawals: 0,
+      opening_float: { amount: 5000, direction: "in" },
+      cash_sales: { amount: 0, direction: "in" },
+      change_given: { amount: 0, direction: "out" },
+      refunds: { amount: 0, direction: "out" },
+      cash_in: { amount: 0, direction: "in" },
+      expenses: { amount: 0, direction: "out" },
+      withdrawals: { amount: 0, direction: "out" },
       expected: 5000,
     });
   });
@@ -709,15 +710,57 @@ describe("the cash balance of the open session", () => {
     });
 
     expect(cashBalanceFor(database)).toEqual({
-      opening_float: 5000,
-      cash_sales: 3000,
-      change_given: 500,
-      refunds: 300,
-      cash_in: 700,
-      expenses: 200,
-      withdrawals: 1000,
+      opening_float: { amount: 5000, direction: "in" },
+      cash_sales: { amount: 3000, direction: "in" },
+      change_given: { amount: 500, direction: "out" },
+      refunds: { amount: 300, direction: "out" },
+      cash_in: { amount: 700, direction: "in" },
+      expenses: { amount: 200, direction: "out" },
+      withdrawals: { amount: 1000, direction: "out" },
       expected: 6700,
     });
+  });
+});
+
+describe("the count preview of the open session", () => {
+  it("is none while no session is open", () => {
+    expect(cashCountPreviewFor(database, 5000)).toBeNull();
+  });
+
+  it("is zero when the count matches what the session expects", async () => {
+    await openAs("u1", 5000);
+
+    expect(cashCountPreviewFor(database, 5000)).toEqual({ difference: 0 });
+  });
+
+  it("is what is missing when less than expected is counted", async () => {
+    await openAs("u1", 5000);
+
+    expect(cashCountPreviewFor(database, 4200)).toEqual({ difference: -800 });
+  });
+
+  it("is what is left over when more than expected is counted, after the movements of the session", async () => {
+    const sessionId = await openAs("u1", 5000);
+    new SqliteCashLedger(database, new SqliteSignInStore(database), CHAIN_KEY).transaction((tx) => {
+      tx.recordCashMovement({
+        id: "m-sale",
+        sessionId,
+        type: "SALE",
+        amount: 3000,
+        actorId: "u1",
+        occurredAt: NOW,
+      });
+      tx.recordCashMovement({
+        id: "m-out",
+        sessionId,
+        type: "WITHDRAWAL",
+        amount: 1000,
+        actorId: "u1",
+        occurredAt: NOW,
+      });
+    });
+
+    expect(cashCountPreviewFor(database, 7500)).toEqual({ difference: 500 });
   });
 });
 

@@ -18,13 +18,13 @@ const GRACE: SignedInPerson = {
   abilities: ["open_cash_session"],
 };
 const BALANCE: CashBalance = {
-  opening_float: 2_000_000,
-  cash_sales: 3_500_000,
-  change_given: 930_000,
-  refunds: 0,
-  cash_in: 100_000,
-  expenses: 50_000,
-  withdrawals: 0,
+  opening_float: { amount: 2_000_000, direction: "in" },
+  cash_sales: { amount: 3_500_000, direction: "in" },
+  change_given: { amount: 930_000, direction: "out" },
+  refunds: { amount: 0, direction: "out" },
+  cash_in: { amount: 100_000, direction: "in" },
+  expenses: { amount: 50_000, direction: "out" },
+  withdrawals: { amount: 0, direction: "out" },
   expected: 4_620_000,
 };
 const IDENTIFIED: IdentifyLockedCloserOutcome = {
@@ -46,6 +46,7 @@ async function renderScreen(
   await page.viewport(1280, 720);
   onTestFinished(() => page.viewport(414, 896));
   const loadCashBalance = vi.fn(async () => BALANCE);
+  const loadCashCountPreview = vi.fn(async (_countedCash: number) => ({ difference: -40_000 }));
   const close = options.close ?? vi.fn<Close>(async () => ({ kind: "unavailable" }));
   const screen = await render(
     <LockedCloseScreen
@@ -54,6 +55,7 @@ async function renderScreen(
       registerName="Caja 1"
       openedAt="2026-09-30T09:02:00.000-03:00"
       loadCashBalance={loadCashBalance}
+      loadCashCountPreview={loadCashCountPreview}
       loadOpenSale={options.loadOpenSale ?? (async () => null)}
       loadClosers={async () => [{ id: "u3", first_name: "Sofía" }]}
       identifyLockedCloser={options.identify ?? (async () => IDENTIFIED)}
@@ -61,7 +63,7 @@ async function renderScreen(
       cancelLockedSale={options.cancelSale ?? (async () => ({ kind: "cancelled" }))}
     />,
   );
-  return { screen, loadCashBalance, close };
+  return { screen, loadCashBalance, loadCashCountPreview, close };
 }
 
 type Screen = Awaited<ReturnType<typeof renderScreen>>["screen"];
@@ -90,6 +92,7 @@ describe("LockedCloseScreen", () => {
         registerName="Caja 1"
         openedAt="2026-09-30T09:02:00.000-03:00"
         loadCashBalance={async () => BALANCE}
+        loadCashCountPreview={async () => null}
         loadOpenSale={async () => null}
         loadClosers={loadClosers}
         identifyLockedCloser={async () => IDENTIFIED}
@@ -125,6 +128,18 @@ describe("LockedCloseScreen", () => {
 
     await expect.element(screen.getByText("PIN incorrecto")).toBeVisible();
     expect(loadCashBalance).not.toHaveBeenCalled();
+  });
+
+  it("previews the typed count with the core once the person is identified", async () => {
+    const { screen, loadCashCountPreview } = await renderScreen();
+    await identifySofia(screen);
+    await expect
+      .element(screen.getByRole("complementary").getByText("$ 46.200,00", { exact: true }))
+      .toBeVisible();
+
+    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
+
+    await expect.poll(() => loadCashCountPreview.mock.calls).toEqual([[4_580_000]]);
   });
 
   it("counts the cash once the person is identified, and closes with their PIN", async () => {

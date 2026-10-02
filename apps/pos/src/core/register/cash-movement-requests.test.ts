@@ -301,6 +301,7 @@ describe("the open session's cash movements", () => {
         type: "WITHDRAWAL",
         amount: 2500,
         reason: "Cambio",
+        direction: "out",
         occurred_at: "2026-09-30T09:00:00.000-03:00",
         actor: { user_id: "u1", first_name: "Ada" },
         authorized_by: { user_id: "u2", first_name: "Grace" },

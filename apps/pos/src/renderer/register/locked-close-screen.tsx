@@ -2,6 +2,7 @@ import type {
   Authorization,
   CancelLockedSaleOutcome,
   CashBalance,
+  CashCountPreview,
   CloseLockedCashSessionOutcome,
   IdentifyLockedCloserOutcome,
   SessionOpenSale,
@@ -23,6 +24,7 @@ export type LockedCloseScreenProps = {
   registerName: string | null;
   openedAt: string;
   loadCashBalance: () => Promise<CashBalance | null | "unavailable">;
+  loadCashCountPreview: (countedCash: number) => Promise<CashCountPreview | null | "unavailable">;
   loadOpenSale: () => Promise<SessionOpenSale | null | "unavailable">;
   loadClosers: () => Promise<SignInUser[]>;
   identifyLockedCloser: (closer: Authorization) => Promise<IdentifyLockedCloserOutcome>;
@@ -39,6 +41,7 @@ export function LockedCloseScreen({
   registerName,
   openedAt,
   loadCashBalance,
+  loadCashCountPreview,
   loadOpenSale,
   loadClosers,
   identifyLockedCloser,
@@ -57,6 +60,7 @@ export function LockedCloseScreen({
         registerName={registerName}
         openedAt={openedAt}
         loadCashBalance={loadCashBalance}
+        loadCashCountPreview={loadCashCountPreview}
         loadOpenSale={loadOpenSale}
         close={(countedCash) => closeLockedCashSession(countedCash, closer.authorization)}
         cancelSale={() => cancelLockedSale(closer.authorization)}

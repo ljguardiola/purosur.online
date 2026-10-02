@@ -1,5 +1,5 @@
 import type { RoleAccess } from "../../access/index.js";
-import type { PaymentTransaction } from "../../sales/index.js";
+import type { PaymentTransaction, SaleLine } from "../../sales/index.js";
 import type { OutboxEventDraft } from "../../sync/index.js";
 import type { CashMovement, ClosedCashSession, OpenedCashSession } from "../model/cash-session.js";
 
@@ -13,7 +13,7 @@ export interface IdGenerator {
 }
 
 export interface OpenSale {
-  total: number;
+  lines: Pick<SaleLine, "lineTotal">[];
   payments: PaymentTransaction[];
 }
 
@@ -24,7 +24,7 @@ export interface CashLedger {
 export interface CashLedgerTransaction {
   openerAccess(userId: string): RoleAccess | undefined;
   openSession(): OpenedCashSession | undefined;
-  openSale(): OpenSale | undefined;
+  openSale(sessionId: string): OpenSale | undefined;
   sessionMovements(sessionId: string): CashMovement[];
   registerIdentity(): RegisterIdentity | undefined;
   recordOpenedSession(session: OpenedCashSession): void;

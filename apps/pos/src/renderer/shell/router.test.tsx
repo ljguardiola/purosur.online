@@ -48,13 +48,13 @@ const OPEN_SESSION = {
   locked: false,
 } satisfies CashSessionState;
 const BALANCE: CashBalance = {
-  opening_float: 2_000_000,
-  cash_sales: 3_500_000,
-  change_given: 930_000,
-  refunds: 0,
-  cash_in: 100_000,
-  expenses: 50_000,
-  withdrawals: 0,
+  opening_float: { amount: 2_000_000, direction: "in" },
+  cash_sales: { amount: 3_500_000, direction: "in" },
+  change_given: { amount: 930_000, direction: "out" },
+  refunds: { amount: 0, direction: "out" },
+  cash_in: { amount: 100_000, direction: "in" },
+  expenses: { amount: 50_000, direction: "out" },
+  withdrawals: { amount: 0, direction: "out" },
   expected: 4_620_000,
 };
 const BRAND_LOGO_ALT = "Puro Sur";
@@ -108,6 +108,7 @@ function contextWith(
     cancelLockedSale: async () => ({ kind: "unavailable" }),
     identifyLockedCloser: async () => ({ kind: "unavailable" }),
     cashBalance: async () => "unavailable",
+    cashCountPreview: async () => "unavailable",
     sessionOpenSale: async () => "unavailable",
     cashMovements: async () => "unavailable",
     cashMovementKinds: async () => "unavailable",
@@ -754,6 +755,7 @@ describe("the register's router", () => {
       type: "OPENING",
       amount: 2_000_000,
       reason: null,
+      direction: "in",
       occurred_at: "2026-09-30T09:02:00.000-03:00",
       actor: { user_id: "u2", first_name: "Grace" },
       authorized_by: null,

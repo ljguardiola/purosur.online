@@ -16,6 +16,7 @@ function movement(overrides: Partial<ListedCashMovement> = {}): ListedCashMoveme
     type: "CASH_IN",
     amount: 500_000,
     reason: null,
+    direction: "in",
     occurred_at: "2026-09-30T12:05:00.000-03:00",
     actor: ADA,
     authorized_by: null,
@@ -52,27 +53,43 @@ function timesOf(screen: Awaited<ReturnType<typeof renderTable>>) {
 }
 
 describe("CashMovementsTable", () => {
-  it.each<[CashMovementType, string | null, string, string, string]>([
-    ["OPENING", null, "Apertura de sesión", "Fondo inicial", "+ $ 5.000,00"],
+  it.each<
+    [CashMovementType, ListedCashMovement["direction"], string | null, string, string, string]
+  >([
+    ["OPENING", "in", null, "Apertura de sesión", "Fondo inicial", "+ $ 5.000,00"],
     [
       "CASH_IN",
+      "in",
       "Cambio para el cajón",
       "Ingreso de efectivo",
       "Cambio para el cajón",
       "+ $ 5.000,00",
     ],
-    ["CASH_OUT", "Flete", "Gasto", "Flete", "− $ 5.000,00"],
-    ["WITHDRAWAL", "Fin de turno", "Retiro a caja fuerte", "Fin de turno", "− $ 5.000,00"],
-    ["SALE", null, "Venta", "Cobro en efectivo", "+ $ 5.000,00"],
-    ["CHANGE", null, "Vuelto", "", "− $ 5.000,00"],
-    ["REFUND", null, "Devolución en efectivo", "", "− $ 5.000,00"],
-    ["CLOSING", null, "Cierre de sesión", "", "$ 5.000,00"],
-  ])("presents a %s movement", async (type, reason, title, secondLine, amount) => {
-    const screen = await renderTable([movement({ type, reason })]);
+    ["CASH_OUT", "out", "Flete", "Gasto", "Flete", "− $ 5.000,00"],
+    ["WITHDRAWAL", "out", "Fin de turno", "Retiro a caja fuerte", "Fin de turno", "− $ 5.000,00"],
+    ["SALE", "in", null, "Venta", "Cobro en efectivo", "+ $ 5.000,00"],
+    ["CHANGE", "out", null, "Vuelto", "", "− $ 5.000,00"],
+    ["REFUND", "out", null, "Devolución en efectivo", "", "− $ 5.000,00"],
+    ["CLOSING", "none", null, "Cierre de sesión", "", "$ 5.000,00"],
+  ])("presents a %s movement", async (type, direction, reason, title, secondLine, amount) => {
+    const screen = await renderTable([movement({ type, direction, reason })]);
 
     const [row] = rowsOf(screen);
     expect(row).toBe(`12:05${title}${secondLine}Ada${amount}`);
   });
+
+  it.each<[ListedCashMovement["direction"], string]>([
+    ["in", "+ $ 5.000,00"],
+    ["out", "− $ 5.000,00"],
+    ["none", "$ 5.000,00"],
+  ])(
+    "signs the amount by the direction the core gives, not by the type: %s",
+    async (direction, amount) => {
+      const screen = await renderTable([movement({ type: "CASH_IN", direction })]);
+
+      expect(rowsOf(screen)[0]?.endsWith(amount)).toBe(true);
+    },
+  );
 
   it("names the person who authorized a movement under the one who recorded it", async () => {
     const screen = await renderTable([movement({ authorized_by: GRACE })]);

@@ -279,6 +279,7 @@ function Register({ core }: { core: CoreClient }) {
     cancelLockedSale,
     identifyLockedCloser,
     cashBalance,
+    cashCountPreview: (countedCash: number) => core.cashCountPreview(countedCash),
     sessionOpenSale: () => core.sessionOpenSale(),
     cashMovements,
     cashMovementKinds: () => core.cashMovementKinds(),

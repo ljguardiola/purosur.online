@@ -1,6 +1,7 @@
 import type {
   CancelLockedSaleOutcome,
   CashBalance,
+  CashCountPreview,
   CloseLockedCashSessionOutcome,
   SessionOpenSale,
 } from "@purosur/contracts";
@@ -32,6 +33,7 @@ import {
 import { ExpectedCashPanel } from "./expected-cash-panel";
 import {
   useCashBalanceQuery,
+  useCashCountPreviewQuery,
   useSessionOpenSaleQuery,
   useSetSessionOpenSale,
 } from "./register-queries";
@@ -51,6 +53,7 @@ export type LockedCashCountProps = {
   registerName: string | null;
   openedAt: string;
   loadCashBalance: () => Promise<CashBalance | null | "unavailable">;
+  loadCashCountPreview: (countedCash: number) => Promise<CashCountPreview | null | "unavailable">;
   loadOpenSale: () => Promise<SessionOpenSale | null | "unavailable">;
   close: (countedCash: number) => Promise<CloseLockedCashSessionOutcome>;
   cancelSale: () => Promise<CancelLockedSaleOutcome>;
@@ -64,6 +67,7 @@ export function LockedCashCount({
   registerName,
   openedAt,
   loadCashBalance,
+  loadCashCountPreview,
   loadOpenSale,
   close,
   cancelSale,
@@ -113,10 +117,8 @@ export function LockedCashCount({
   const openSale = openSaleData.status === "loaded" ? openSaleData.value : null;
   const expected = balance.status === "loaded" ? balance.value.expected : undefined;
   const counted = countedCashOf(lockedCountedCashRequestSchema, values);
-  const warning =
-    expected === undefined || counted === undefined
-      ? undefined
-      : differenceNotice(counted - expected);
+  const difference = useCashCountPreviewQuery(sessionId, counted, loadCashCountPreview);
+  const warning = difference === undefined ? undefined : differenceNotice(difference);
 
   function clearOutcome() {
     setFailure(undefined);
@@ -217,7 +219,7 @@ export function LockedCashCount({
               )}
             </form.AppField>
           </div>
-          <CashCountStrip expected={expected} counted={counted} />
+          <CashCountStrip expected={expected} counted={counted} difference={difference} />
           {warning === undefined ? null : (
             <InlineNotice tone="warning" icon={<TriangleAlert />} title={warning} />
           )}

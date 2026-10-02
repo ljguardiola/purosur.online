@@ -1,10 +1,11 @@
 import type { ListedCashMovement } from "@purosur/contracts";
-import type {
-  CashMovement,
-  CashMovementType,
-  ClosedCashSession,
-  OpenedCashSession,
-  OutboxEventDraft,
+import {
+  type CashMovement,
+  type CashMovementType,
+  type ClosedCashSession,
+  cashMovementDirection,
+  type OpenedCashSession,
+  type OutboxEventDraft,
 } from "@purosur/domain";
 import type {
   CashLedger,
@@ -14,6 +15,7 @@ import type {
 } from "@purosur/domain/register/use-cases";
 import type { SignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
+import { readOpenSale } from "../sales/sqlite-open-sale";
 import { readSalePayments } from "../sales/sqlite-sale-payments";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 
@@ -85,6 +87,7 @@ export function readOpenSessionMovements(
       type: row.type,
       amount: row.amount,
       reason: row.reason,
+      direction: cashMovementDirection(row.type),
       occurred_at: row.occurred_at,
       actor: { user_id: row.actor_id, first_name: row.actor_first_name },
       authorized_by:
@@ -133,18 +136,6 @@ export function readSessionMovements(database: LocalDatabase, sessionId: string)
     .map(movementOf);
 }
 
-export function readOpenSale(database: LocalDatabase): OpenSale | undefined {
-  const row = database
-    .prepare<[], { id: string; total: number }>(
-      `SELECT sales.id AS id, coalesce(sum(sale_lines.line_total), 0) AS total
-       FROM sales LEFT JOIN sale_lines ON sale_lines.sale_id = sales.id
-       WHERE sales.state = 'OPEN'
-       GROUP BY sales.id`,
-    )
-    .get();
-  return row && { total: row.total, payments: readSalePayments(database, row.id) };
-}
-
 export function insertCashMovement(database: LocalDatabase, movement: CashMovement): void {
   database
     .prepare(
@@ -191,7 +182,7 @@ export class SqliteCashLedger implements CashLedger {
     return {
       openerAccess: (userId) => this.people.activePerson(userId)?.access,
       openSession: () => readOpenSession(this.database),
-      openSale: () => readOpenSale(this.database),
+      openSale: (sessionId) => this.openSale(sessionId),
       sessionMovements: (sessionId) => readSessionMovements(this.database, sessionId),
       registerIdentity: () => this.registerIdentity(),
       recordOpenedSession: (session) => this.recordOpenedSession(session),
@@ -199,6 +190,11 @@ export class SqliteCashLedger implements CashLedger {
       recordCashMovement: (movement) => insertCashMovement(this.database, movement),
       appendOutboxEvent: (draft) => this.appendOutboxEvent(draft),
     };
+  }
+
+  private openSale(sessionId: string): OpenSale | undefined {
+    const sale = readOpenSale(this.database, sessionId);
+    return sale && { lines: sale.lines, payments: readSalePayments(this.database, sale.id) };
   }
 
   private appendOutboxEvent(draft: OutboxEventDraft): void {

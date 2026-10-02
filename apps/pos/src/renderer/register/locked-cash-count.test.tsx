@@ -1,6 +1,7 @@
 import type {
   CancelLockedSaleOutcome,
   CashBalance,
+  CashCountPreview,
   CloseLockedCashSessionOutcome,
   SessionOpenSale,
 } from "@purosur/contracts";
@@ -19,13 +20,13 @@ const GRACE: SignedInPerson = {
 };
 const OPENED_AT = "2026-09-30T09:02:00.000-03:00";
 const BALANCE: CashBalance = {
-  opening_float: 2_000_000,
-  cash_sales: 3_500_000,
-  change_given: 930_000,
-  refunds: 0,
-  cash_in: 100_000,
-  expenses: 50_000,
-  withdrawals: 0,
+  opening_float: { amount: 2_000_000, direction: "in" },
+  cash_sales: { amount: 3_500_000, direction: "in" },
+  change_given: { amount: 930_000, direction: "out" },
+  refunds: { amount: 0, direction: "out" },
+  cash_in: { amount: 100_000, direction: "in" },
+  expenses: { amount: 50_000, direction: "out" },
+  withdrawals: { amount: 0, direction: "out" },
   expected: 4_620_000,
 };
 const CLOSED: CloseLockedCashSessionOutcome = {
@@ -42,12 +43,33 @@ type Close = (countedCash: number) => Promise<CloseLockedCashSessionOutcome>;
 type CancelSale = () => Promise<CancelLockedSaleOutcome>;
 type LoadOpenSale = () => Promise<SessionOpenSale | null | "unavailable">;
 
+const PREVIEW_DIFFERENCES = new Map([
+  [4_580_000, -40_000],
+  [4_620_000, 0],
+  [4_660_000, 40_000],
+  [3_000_000_000, 2_953_800_000],
+]);
+
+type LoadCashCountPreview = (
+  countedCash: number,
+) => Promise<CashCountPreview | null | "unavailable">;
+
+const answerPreview: LoadCashCountPreview = async (countedCash) => {
+  const difference = PREVIEW_DIFFERENCES.get(countedCash);
+  return difference === undefined ? null : { difference };
+};
+
 const CANCELLABLE_SALE: SessionOpenSale = { total: 3_434_000, cancellable: true };
 const OPEN_SALE_NOTICE = "Hay una venta abierta de $ 34.340,00";
 const CANCEL_FAILED_NOTICE = "No se pudo cancelar la venta. Probá de nuevo.";
 
 async function renderStep(
-  options: { close?: Close; cancelSale?: CancelSale; loadOpenSale?: LoadOpenSale } = {},
+  options: {
+    close?: Close;
+    cancelSale?: CancelSale;
+    loadOpenSale?: LoadOpenSale;
+    loadCashCountPreview?: LoadCashCountPreview;
+  } = {},
 ) {
   await page.viewport(1280, 720);
   onTestFinished(() => page.viewport(414, 896));
@@ -63,6 +85,7 @@ async function renderStep(
       registerName="Caja 1"
       openedAt={OPENED_AT}
       loadCashBalance={async () => BALANCE}
+      loadCashCountPreview={options.loadCashCountPreview ?? answerPreview}
       loadOpenSale={loadOpenSale}
       close={closing}
       cancelSale={cancelling}
@@ -116,6 +139,42 @@ describe("LockedCashCount", () => {
     await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
 
     await expect.element(screen.getByText(SHORT_NOTICE).first()).toBeVisible();
+  });
+
+  it("shows the difference and the warning the core answers for the counted cash", async () => {
+    const loadCashCountPreview = vi.fn<LoadCashCountPreview>(async () => ({ difference: 70_000 }));
+    const { screen } = await renderStep({ loadCashCountPreview });
+
+    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
+
+    await expect.poll(() => loadCashCountPreview.mock.calls).toEqual([[4_580_000]]);
+    await expect
+      .element(
+        screen
+          .getByText(
+            "Sobran $ 700,00. La diferencia se registra con la sesión y no impide cerrarla.",
+          )
+          .first(),
+      )
+      .toBeVisible();
+  });
+
+  it("keeps the previous difference until the core answers the next count", async () => {
+    const next = deferred<CashCountPreview | null>();
+    const { screen } = await renderStep({
+      loadCashCountPreview: (countedCash) =>
+        countedCash === 4_580_000 ? answerPreview(countedCash) : next.promise,
+    });
+    const field = screen.getByRole("textbox", { name: "Efectivo contado" });
+    await userEvent.fill(field, "45.800,00");
+    await expect.element(screen.getByText(SHORT_NOTICE).first()).toBeVisible();
+
+    await userEvent.fill(field, "46.600,00");
+
+    await expect.element(screen.getByText("$ 46.600,00")).toBeVisible();
+    await expect.element(screen.getByText(SHORT_NOTICE).first()).toBeVisible();
+    next.resolve({ difference: 40_000 });
+    await expect.element(screen.getByText("Sobran", { exact: false }).first()).toBeVisible();
   });
 
   it("compares any amount it can read as a count, however large", async () => {
