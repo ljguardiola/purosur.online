@@ -1,4 +1,5 @@
-import { Button } from "@purosur/ui";
+import { LoadFailure } from "@purosur/ui";
+import { TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { Component, Fragment } from "react";
 import { BrandPanelScreen } from "./brand-panel-screen";
@@ -55,11 +56,13 @@ export class RenderFailureRecovery extends Component<
     if (this.state.phase === "exhausted") {
       return (
         <BrandPanelScreen>
-          <div role="alert" className="flex w-full max-w-112 flex-col gap-4">
-            <p className="text-display text-text-accent">No se pudo mostrar la pantalla</p>
-            <Button size="large" onPress={this.retry}>
-              Reintentar
-            </Button>
+          <div className="w-full max-w-112">
+            <LoadFailure
+              variant="screen"
+              icon={<TriangleAlert />}
+              title="No se pudo mostrar la pantalla"
+              onRetry={this.retry}
+            />
           </div>
         </BrandPanelScreen>
       );
