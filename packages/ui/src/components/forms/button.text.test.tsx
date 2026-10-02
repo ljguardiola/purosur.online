@@ -99,9 +99,9 @@ test("turns the plain text form's background bone on hover, keeping its label re
 
   const hovered = getComputedStyle(button);
   expect(hovered.color).toBe(tokenRgb("text-accent"));
-  expect(contrastRatio(rgbToHex(hovered.color), rgbToHex(hovered.backgroundColor))).toBeGreaterThanOrEqual(
-    AA_TEXT_CONTRAST,
-  );
+  expect(
+    contrastRatio(rgbToHex(hovered.color), rgbToHex(hovered.backgroundColor)),
+  ).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
 });
 
 test("keeps the plain text form's label and icon readable on the surfaces it sits on", async () => {

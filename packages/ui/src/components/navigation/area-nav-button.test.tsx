@@ -25,7 +25,13 @@ const railBackground = { dark: "bg-surface-nav", light: "bg-surface" } as const;
 test("renders as a button named by its own label, with its icon hidden from assistive technology", async () => {
   const screen = await render(
     <div className="bg-surface p-2">
-      <AreaNavButton rail="light" label="Salir" icon={<LogOut />} active={false} onPress={vi.fn()} />
+      <AreaNavButton
+        rail="light"
+        label="Salir"
+        icon={<LogOut />}
+        active={false}
+        onPress={vi.fn()}
+      />
     </div>,
   );
 
@@ -52,16 +58,22 @@ test("marks the active button with aria-current and leaves an inactive one unmar
   const screen = await render(
     <>
       <AreaNavButton rail="light" label="Inicio" icon={<LifeBuoy />} active onPress={vi.fn()} />
-      <AreaNavButton rail="light" label="Salir" icon={<LogOut />} active={false} onPress={vi.fn()} />
+      <AreaNavButton
+        rail="light"
+        label="Salir"
+        icon={<LogOut />}
+        active={false}
+        onPress={vi.fn()}
+      />
     </>,
   );
 
   await expect
     .element(screen.getByRole("button", { name: "Inicio" }))
     .toHaveAttribute("aria-current", "page");
-  await expect.element(screen.getByRole("button", { name: "Salir" })).not.toHaveAttribute(
-    "aria-current",
-  );
+  await expect
+    .element(screen.getByRole("button", { name: "Salir" }))
+    .not.toHaveAttribute("aria-current");
 });
 
 test("draws like the area link of its rail, active or not, its label included", async () => {
