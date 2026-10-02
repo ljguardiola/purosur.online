@@ -118,4 +118,12 @@ describe("UserPicker", () => {
 
     expect(screen.container.querySelector("label")?.textContent).toBe("Aada");
   });
+
+  it("shows nothing when there is nobody to choose", async () => {
+    const screen = await render(
+      <UserPicker users={[]} value={null} onChange={() => {}} labelledBy="none" />,
+    );
+
+    expect(screen.container.innerHTML).toBe("");
+  });
 });
