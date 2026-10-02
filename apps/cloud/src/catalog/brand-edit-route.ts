@@ -1,5 +1,5 @@
 import { brandEditBodySchema, brandSummarySchema } from "@purosur/contracts";
-import { editBrand } from "@purosur/domain/catalog/use-cases";
+import { editBrand, findBrandSummary } from "@purosur/domain/catalog/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -13,7 +13,8 @@ import { brands } from "../platform/db/schema.js";
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { BRAND_NAME_TAKEN_RESPONSE } from "./brand-creation-route.js";
-import { type BrandsRouteOptions, listBrands } from "./brands-list-route.js";
+import type { BrandsRouteOptions } from "./brands-list-route.js";
+import { DrizzleCatalogListReader } from "./drizzle-catalog-list-reader.js";
 import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 
 export const BRAND_NOT_FOUND_RESPONSE = {
@@ -44,6 +45,7 @@ export function registerBrandEditRoute<TQueryResult extends PgQueryResultHKT>(
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
   const catalogStore = new DrizzleCatalogStore(options.db);
+  const catalog = new DrizzleCatalogListReader(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
   app.put<{ Params: { id: string } }>(
@@ -78,7 +80,7 @@ export function registerBrandEditRoute<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      const [listed] = await listBrands(options.db, target.id);
+      const listed = await findBrandSummary({ catalog }, target.id);
       await reply
         .code(200)
         .send(
