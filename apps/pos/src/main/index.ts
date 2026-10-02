@@ -17,7 +17,6 @@ import {
   utilityProcess,
 } from "electron";
 import { type ChannelSettings, coreArgumentsFor } from "../shared/channel";
-import { readDeviceCredentialsRequest } from "../shared/device-credentials-messages";
 import { loadChannelSettings } from "./channel-settings";
 import { buildContentSecurityPolicy } from "./content-security-policy";
 import { establishCoreConnection } from "./core-connection";
@@ -29,6 +28,7 @@ import {
   createDeviceCredentialsStore,
   credentialsFileAt,
 } from "./device-credentials";
+import { readDeviceCredentialsRequest } from "./device-credentials-messages";
 import {
   CHILD_PROCESS_EVENT_REASONS,
   withoutReplacedDefaultIntegrations,

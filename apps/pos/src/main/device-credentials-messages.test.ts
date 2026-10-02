@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  readDeviceCredentialsAnswer,
-  readDeviceCredentialsRequest,
-} from "./device-credentials-messages";
+import { readDeviceCredentialsRequest } from "./device-credentials-messages";
 
 const CREDENTIALS = {
   device_id: "a4b1",
@@ -207,97 +204,5 @@ describe("readDeviceCredentialsRequest", () => {
       request_id: "r1",
       credentials: CREDENTIALS,
     });
-  });
-});
-
-describe("readDeviceCredentialsAnswer", () => {
-  it.each([true, false])("reads whether main stored the credentials: %s", (stored) => {
-    const message = { type: "device-credentials-stored", request_id: "r1", stored };
-
-    expect(readDeviceCredentialsAnswer(message)).toEqual(message);
-  });
-
-  it.each([true, false])("reads whether credentials can be stored: %s", (storable) => {
-    const message = { type: "device-credentials-storable", request_id: "r3", storable };
-
-    expect(readDeviceCredentialsAnswer(message)).toEqual(message);
-  });
-
-  it.each([true, false])("reads whether credentials are present: %s", (present) => {
-    const message = { type: "device-credentials-presence", request_id: "r2", present };
-
-    expect(readDeviceCredentialsAnswer(message)).toEqual(message);
-  });
-
-  it.each(["replaced", "superseded", "not_stored"])(
-    "reads how main answered a replace request: %s",
-    (outcome) => {
-      const message = { type: "device-credentials-replaced", request_id: "r5", outcome };
-
-      expect(readDeviceCredentialsAnswer(message)).toEqual(message);
-    },
-  );
-
-  it("reads nothing from a replace answer with an outcome it doesn't know", () => {
-    expect(
-      readDeviceCredentialsAnswer({
-        type: "device-credentials-replaced",
-        request_id: "r5",
-        outcome: "maybe",
-      }),
-    ).toBeUndefined();
-  });
-
-  it("reads the credentials main holds", () => {
-    const message = {
-      type: "device-credentials-read",
-      request_id: "r4",
-      credentials: CREDENTIALS,
-    };
-
-    expect(readDeviceCredentialsAnswer(message)).toEqual(message);
-  });
-
-  it("reads that main holds no credentials", () => {
-    const message = { type: "device-credentials-read", request_id: "r4" };
-
-    expect(readDeviceCredentialsAnswer(message)).toEqual(message);
-  });
-
-  it("reads credentials main holds that predate the recorded token arrival", () => {
-    const { token_received_at: _unrecorded, ...older } = CREDENTIALS;
-    const message = { type: "device-credentials-read", request_id: "r4", credentials: older };
-
-    expect(readDeviceCredentialsAnswer(message)).toEqual(message);
-  });
-
-  it("reads a read answer whose credentials are malformed as no credentials", () => {
-    expect(
-      readDeviceCredentialsAnswer({
-        type: "device-credentials-read",
-        request_id: "r4",
-        credentials: { device_id: "a4b1" },
-      }),
-    ).toEqual({ type: "device-credentials-read", request_id: "r4" });
-  });
-
-  it.each([
-    ["an answer without its id", { type: "device-credentials-stored", stored: true }],
-    [
-      "a stored answer that isn't a boolean",
-      { type: "device-credentials-stored", request_id: "r", stored: "yes" },
-    ],
-    [
-      "a presence answer without presence",
-      { type: "device-credentials-presence", request_id: "r" },
-    ],
-    [
-      "a storable answer without whether it can store",
-      { type: "device-credentials-storable", request_id: "r" },
-    ],
-    ["a health check", { type: "health-check" }],
-    ["undefined", undefined],
-  ])("reads nothing from %s", (_case, message) => {
-    expect(readDeviceCredentialsAnswer(message)).toBeUndefined();
   });
 });

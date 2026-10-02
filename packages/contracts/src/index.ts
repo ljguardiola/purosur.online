@@ -1,15 +1,19 @@
-export type {
-  Authorization,
-  AuthorizationRefusal,
-  AuthorizedBy,
-} from "./access/authorization.js";
-export {
-  authorizationRefusalSchema,
-  authorizationSchema,
-  authorizedBySchema,
-} from "./access/authorization.js";
 export type { BranchUserWire } from "./access/branch-user.js";
 export { branchUserListSchema, branchUserSchema } from "./access/branch-user.js";
+export type {
+  AccessCoreToRendererMessage,
+  AccessRendererToCoreMessage,
+  FirstPinCodeRequestOutcome,
+  PinCodeRedemptionOutcome,
+  SignInLookupOutcome,
+  SignInOutcome,
+} from "./access/core-messages.js";
+export {
+  accessCoreToRendererMessageSchema,
+  accessRendererToCoreMessageSchema,
+  redeemPinCodeMessageSchema,
+  signInLookupMessageSchema,
+} from "./access/core-messages.js";
 export type { FirstPinCodeBody, FirstPinCodeWire } from "./access/first-pin-code.js";
 export { firstPinCodeBodySchema, firstPinCodeSchema } from "./access/first-pin-code.js";
 export type { OpenSessionWire } from "./access/open-session.js";
@@ -20,8 +24,6 @@ export type { PasskeyRegistrationChallengeWire } from "./access/passkey-registra
 export { passkeyRegistrationChallengeSchema } from "./access/passkey-registration-challenge.js";
 export type { PasskeySummaryWire } from "./access/passkey-summary.js";
 export { passkeyListSchema, passkeySummarySchema } from "./access/passkey-summary.js";
-export type { PinAttemptRefusal } from "./access/pin-attempt-refusal.js";
-export { pinAttemptRefusalSchema } from "./access/pin-attempt-refusal.js";
 export type { PinCodeRedemption, PinCodeRedemptionBody } from "./access/pin-code-redemption.js";
 export {
   pinCodeRedemptionBodySchema,
@@ -129,11 +131,6 @@ export {
   registerPointOfSaleOverviewSchema,
   registerPointOfSaleSchema,
 } from "./fiscal/register-point-of-sale.js";
-export {
-  discountBuyQtySchema,
-  discountPayQtySchema,
-  discountPercentSchema,
-} from "./pricing/discount-benefit.js";
 export type { DiscountCreationBody } from "./pricing/discount-creation.js";
 export { discountCreationBodySchema, discountNameSchema } from "./pricing/discount-creation.js";
 export type { DiscountEditBody } from "./pricing/discount-edit.js";
@@ -166,44 +163,30 @@ export {
   retryAfterSecondsOf,
 } from "./register/cloud-error.js";
 export type {
-  CancelLockedSaleOutcome,
   CashBalance,
   CashCountPreview,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
-  CoreStatusMessage,
-  CoreToRendererMessage,
   EnrollmentOutcome,
-  FirstPinCodeRequestOutcome,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
-  MainToCoreMessage,
-  OpenCashSession,
   OpenCashSessionOutcome,
-  PinCodeRedemptionOutcome,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RecordCashMovementRequest,
-  RendererToCoreMessage,
+  RegisterCoreToRendererMessage,
+  RegisterRendererToCoreMessage,
   SessionOpenSale,
-  SignInLookupOutcome,
-  SignInOutcome,
-  SignInUser,
 } from "./register/core-messages.js";
 export {
   cashMovementTypeSchema,
-  chargeSaleInCashMessageSchema,
   closeCashSessionMessageSchema,
   closeLockedCashSessionMessageSchema,
-  coreStatusMessageSchema,
-  coreToRendererMessageSchema,
   enrollMessageSchema,
-  mainToCoreMessageSchema,
   openCashSessionMessageSchema,
   recordCashMovementMessageSchema,
-  redeemPinCodeMessageSchema,
-  rendererToCoreMessageSchema,
-  signInLookupMessageSchema,
+  registerCoreToRendererMessageSchema,
+  registerRendererToCoreMessageSchema,
 } from "./register/core-messages.js";
 export type { DeviceEnrollment, DeviceEnrollmentBody } from "./register/device-enrollment.js";
 export {
@@ -215,12 +198,33 @@ export { deviceTokenRotationSchema } from "./register/device-token-rotation.js";
 export type { HealthCheck } from "./register/health-check.js";
 export { healthCheckSchema } from "./register/health-check.js";
 export type { InstallationKeysBody } from "./register/installation-keys.js";
+export type {
+  CoreReadyMessage,
+  CoreStatusMessage,
+  CoreStatusRequest,
+  CredentialsReplacement,
+  DeviceCredentials,
+  DeviceCredentialsAnswer,
+  DeviceCredentialsRequest,
+  MainToCoreMessage,
+} from "./register/main-messages.js";
+export { coreStatusMessageSchema, mainToCoreMessageSchema } from "./register/main-messages.js";
 export type { RegisterCreationBody } from "./register/register-creation.js";
 export { registerCreationBodySchema } from "./register/register-creation.js";
 export type { RegisterEnrollmentCodeBody } from "./register/register-enrollment-code.js";
 export { registerEnrollmentCodeSchema } from "./register/register-enrollment-code.js";
 export type { RegisterSummaryBody } from "./register/register-summary.js";
 export { registerListSchema, registerSummarySchema } from "./register/register-summary.js";
+export type {
+  CancelLockedSaleOutcome,
+  SalesCoreToRendererMessage,
+  SalesRendererToCoreMessage,
+} from "./sales/core-messages.js";
+export {
+  chargeSaleInCashMessageSchema,
+  salesCoreToRendererMessageSchema,
+  salesRendererToCoreMessageSchema,
+} from "./sales/core-messages.js";
 export type {
   AddProductOutcome,
   CancelSaleOutcome,
@@ -237,16 +241,29 @@ export type {
   SearchProductsOutcome,
 } from "./sales/sale.js";
 export type {
+  Authorization,
+  AuthorizationRefusal,
+  AuthorizedBy,
   BranchSettingsBody,
   ErrorReportingConfiguration,
   IssuerIdentificationBody,
+  OpenCashSession,
+  PinAttemptRefusal,
+  SignInUser,
 } from "./shared/index.js";
 export {
+  authorizationRefusalSchema,
+  authorizationSchema,
+  authorizedBySchema,
   branchSettingsSchema,
   decodePinSalt,
+  discountBuyQtySchema,
+  discountPayQtySchema,
+  discountPercentSchema,
   encodePinHash,
   issuerIdentificationSchema,
   PIN_HASH_SCHEME,
+  pinAttemptRefusalSchema,
   scrubErrorReport,
   scrubErrorReportBreadcrumb,
   scrubErrorReportLog,
@@ -289,6 +306,8 @@ export type { StockCountResult, StockMovementResult } from "./stock/stock-result
 export { stockCountResultSchema, stockMovementResultSchema } from "./stock/stock-results.js";
 export type { ChangesPage, ChangesQuery, SyncChange } from "./sync/changes.js";
 export { changesPageSchema, changesQuerySchema } from "./sync/changes.js";
+export type { SyncCoreToRendererMessage } from "./sync/core-messages.js";
+export { syncCoreToRendererMessageSchema } from "./sync/core-messages.js";
 export type { PushEventsRequest, PushEventsResponse } from "./sync/events.js";
 export {
   PUSH_EVENTS_REQUEST_MAX_BYTES,

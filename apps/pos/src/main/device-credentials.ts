@@ -1,12 +1,12 @@
 import { closeSync, fsyncSync, openSync, readFileSync, renameSync, writeSync } from "node:fs";
 import { dirname } from "node:path";
-import {
-  type CredentialsReplacement,
-  type DeviceCredentials,
-  type DeviceCredentialsAnswer,
-  type DeviceCredentialsRequest,
-  readDeviceCredentials,
-} from "../shared/device-credentials-messages";
+import type {
+  CredentialsReplacement,
+  DeviceCredentials,
+  DeviceCredentialsAnswer,
+  DeviceCredentialsRequest,
+} from "@purosur/contracts";
+import { readDeviceCredentials } from "./device-credentials-messages";
 
 // Electron's safeStorage, which encrypts with the operating system's own secret store (DPAPI on
 // Windows); only main can reach it.

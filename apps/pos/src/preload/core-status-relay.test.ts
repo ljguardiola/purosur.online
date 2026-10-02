@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { CORE_STATUS_REQUEST } from "../shared/core-status-request";
 import { createCoreStatusRelay } from "./core-status-relay";
 
+const CORE_STATUS_REQUEST = { channel: "core-status-request" };
 const down = { type: "core-status", status: "down" };
 const up = { type: "core-status", status: "up" };
 

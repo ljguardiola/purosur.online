@@ -1,3 +1,4 @@
+import type { DeviceCredentials } from "@purosur/contracts";
 import {
   type CloudError,
   type FirstPinCodeRequestOutcome,
@@ -5,7 +6,6 @@ import {
   firstPinCodeSchema,
   retryAfterSecondsOf,
 } from "@purosur/contracts";
-import type { DeviceCredentials } from "../../shared/device-credentials-messages";
 import type { CloudResponse } from "../platform/cloud-client";
 
 export interface FirstPinCodeRequestDeps {

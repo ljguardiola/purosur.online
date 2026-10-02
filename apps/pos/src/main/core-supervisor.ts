@@ -1,4 +1,4 @@
-import { isCoreReadyMessage } from "../shared/core-readiness";
+import { isCoreReadyMessage } from "./core-readiness";
 import type { CoreStatus } from "./core-status-broadcast";
 
 export interface RestartPolicy {

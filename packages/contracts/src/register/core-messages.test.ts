@@ -1,15 +1,8 @@
+import { CASH_MOVEMENT_REASON_MAX_LENGTH, MAX_CASH_AMOUNT_CENTS } from "@purosur/domain";
+import { describe, expect, it } from "vitest";
 import {
-  CASH_MOVEMENT_REASON_MAX_LENGTH,
-  type cashCharge,
-  MAX_CASH_AMOUNT_CENTS,
-} from "@purosur/domain";
-import { describe, expect, expectTypeOf, it } from "vitest";
-import type { CashCharge } from "../sales/sale.js";
-import {
-  coreStatusMessageSchema,
-  coreToRendererMessageSchema,
-  mainToCoreMessageSchema,
-  rendererToCoreMessageSchema,
+  registerCoreToRendererMessageSchema,
+  registerRendererToCoreMessageSchema,
 } from "./core-messages.js";
 
 const REQUEST_ID = "7d1c1e1e-5b1a-4a53-9c1c-3a7c6f0b2d10";
@@ -21,175 +14,65 @@ const OPEN_CASH_SESSION = {
   locked: false,
 };
 
-describe("rendererToCoreMessageSchema", () => {
+describe("registerRendererToCoreMessageSchema", () => {
   it("accepts a ping", () => {
-    expect(rendererToCoreMessageSchema.safeParse({ type: "ping" }).success).toBe(true);
+    expect(registerRendererToCoreMessageSchema.safeParse({ type: "ping" }).success).toBe(true);
   });
 
   it("accepts a request for whether this installation is enrolled", () => {
     const message = { type: "enrollment-status-request", request_id: REQUEST_ID };
 
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
   it("accepts a request for the register's own name", () => {
     const message = { type: "register-name-request", request_id: REQUEST_ID };
 
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("accepts a request for the PIN policy", () => {
-    const message = { type: "pin-policy-request", request_id: REQUEST_ID };
-
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
   it("accepts an enrollment with the code as typed", () => {
     const message = { type: "enroll", request_id: REQUEST_ID, code: "p4nx 7kwe 2qrt 6mzd" };
 
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("accepts a PIN code redemption with the code as typed and the new PIN", () => {
-    const message = {
-      type: "redeem-pin-code",
-      request_id: REQUEST_ID,
-      reset_code: "p4nx 7kwe 2qrt 5mzd",
-      new_pin: "482913",
-    };
-
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it.each(["request_id", "reset_code", "new_pin"])(
-    "rejects a PIN code redemption without its %s",
-    (field) => {
-      const message = {
-        type: "redeem-pin-code",
-        request_id: REQUEST_ID,
-        reset_code: "P4NX7KWE2QRT5MZD",
-        new_pin: "482913",
-        [field]: undefined,
-      };
-
-      expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
-    },
-  );
-
-  it("accepts a request for the users who can sign in", () => {
-    const message = { type: "sign-in-users", request_id: REQUEST_ID };
-
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("accepts a sign-in with the chosen user and the PIN as typed", () => {
-    const message = { type: "sign-in", request_id: REQUEST_ID, user_id: "u1", pin: "0042" };
-
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("accepts a sign-in lookup with the email as typed", () => {
-    const message = { type: "sign-in-lookup", request_id: REQUEST_ID, email: "Ada@Example.com " };
-
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("accepts a request for a first PIN code by the person found", () => {
-    const message = { type: "first-pin-code-request", request_id: REQUEST_ID, user_id: "u1" };
-
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it.each([
-    { type: "first-pin-code-request", user_id: "u1" },
-    { type: "first-pin-code-request", request_id: REQUEST_ID },
-  ])("rejects a first PIN code request missing a field: %j", (message) => {
-    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
-  });
-
-  it("accepts a first sign-in with the person found and the PIN as typed", () => {
-    const message = { type: "first-sign-in", request_id: REQUEST_ID, user_id: "u1", pin: "0042" };
-
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it.each([
-    { type: "sign-in-lookup", email: "ada@example.com" },
-    { type: "sign-in-lookup", request_id: REQUEST_ID },
-    { type: "first-sign-in", user_id: "u1", pin: "1" },
-    { type: "first-sign-in", request_id: REQUEST_ID, pin: "1" },
-    { type: "first-sign-in", request_id: REQUEST_ID, user_id: "u1" },
-  ])("rejects a first sign-in request missing a field: %j", (message) => {
-    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
-  });
-
-  it.each([
-    { type: "sign-in-users" },
-    { type: "sign-in", user_id: "u1", pin: "1" },
-    { type: "sign-in", request_id: REQUEST_ID, pin: "1" },
-    { type: "sign-in", request_id: REQUEST_ID, user_id: "u1" },
-  ])("rejects a sign-in request missing a field: %j", (message) => {
-    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
-  });
-
-  it("accepts a request for the people who can authorize a permission", () => {
-    const message = { type: "authorizers", request_id: REQUEST_ID, permission: "record_cash_in" };
-
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it.each([
-    { type: "authorizers", permission: "record_cash_in" },
-    { type: "authorizers", request_id: REQUEST_ID },
-    { type: "authorizers", request_id: REQUEST_ID, permission: "sell_and_charge" },
-    { type: "authorizers", request_id: REQUEST_ID, permission: "open_the_safe" },
-  ])("rejects a request for authorizers it cannot answer: %j", (message) => {
-    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
   it("accepts a request for the people who may close a locked register", () => {
     const message = { type: "locked-closers-request", request_id: REQUEST_ID };
 
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
   it("rejects a request for the people who may close a locked register without its request id", () => {
-    expect(rendererToCoreMessageSchema.safeParse({ type: "locked-closers-request" }).success).toBe(
-      false,
-    );
-  });
-
-  it("accepts a request to sign out", () => {
-    const message = { type: "sign-out", request_id: REQUEST_ID };
-
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("rejects a request to sign out without its request id", () => {
-    expect(rendererToCoreMessageSchema.safeParse({ type: "sign-out" }).success).toBe(false);
+    expect(
+      registerRendererToCoreMessageSchema.safeParse({ type: "locked-closers-request" }).success,
+    ).toBe(false);
   });
 
   it("rejects a request without its request id", () => {
     expect(
-      rendererToCoreMessageSchema.safeParse({ type: "enrollment-status-request" }).success,
+      registerRendererToCoreMessageSchema.safeParse({ type: "enrollment-status-request" }).success,
     ).toBe(false);
-    expect(rendererToCoreMessageSchema.safeParse({ type: "enroll", code: "x" }).success).toBe(
-      false,
-    );
-    expect(rendererToCoreMessageSchema.safeParse({ type: "register-name-request" }).success).toBe(
-      false,
-    );
+    expect(
+      registerRendererToCoreMessageSchema.safeParse({ type: "enroll", code: "x" }).success,
+    ).toBe(false);
+    expect(
+      registerRendererToCoreMessageSchema.safeParse({ type: "register-name-request" }).success,
+    ).toBe(false);
   });
 
   it("rejects an enrollment without a code", () => {
     expect(
-      rendererToCoreMessageSchema.safeParse({ type: "enroll", request_id: REQUEST_ID }).success,
+      registerRendererToCoreMessageSchema.safeParse({ type: "enroll", request_id: REQUEST_ID })
+        .success,
     ).toBe(false);
   });
 
   it("rejects any other message type", () => {
-    expect(rendererToCoreMessageSchema.safeParse({ type: "health-check" }).success).toBe(false);
-    expect(rendererToCoreMessageSchema.safeParse({}).success).toBe(false);
+    expect(registerRendererToCoreMessageSchema.safeParse({ type: "health-check" }).success).toBe(
+      false,
+    );
+    expect(registerRendererToCoreMessageSchema.safeParse({}).success).toBe(false);
   });
 });
 
@@ -197,19 +80,21 @@ describe("cash session requests", () => {
   it("accepts a request to open a cash session with the float in cents", () => {
     const message = { type: "open-cash-session", request_id: REQUEST_ID, opening_float: 150000 };
 
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
   it("drops an opener sent with a request to open a cash session", () => {
     const message = { type: "open-cash-session", request_id: REQUEST_ID, opening_float: 150000 };
 
-    expect(rendererToCoreMessageSchema.parse({ ...message, user_id: "u9" })).toEqual(message);
+    expect(registerRendererToCoreMessageSchema.parse({ ...message, user_id: "u9" })).toEqual(
+      message,
+    );
   });
 
   it.each([0, MAX_CASH_AMOUNT_CENTS])("accepts an opening float of %i cents", (opening_float) => {
     const message = { type: "open-cash-session", request_id: REQUEST_ID, opening_float };
 
-    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(true);
+    expect(registerRendererToCoreMessageSchema.safeParse(message).success).toBe(true);
   });
 
   it.each([-1, MAX_CASH_AMOUNT_CENTS + 1, 2_147_483_648])(
@@ -217,33 +102,33 @@ describe("cash session requests", () => {
     (opening_float) => {
       const message = { type: "open-cash-session", request_id: REQUEST_ID, opening_float };
 
-      expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(true);
+      expect(registerRendererToCoreMessageSchema.safeParse(message).success).toBe(true);
     },
   );
 
   it.each([1.5, Number.NaN, "100", null])("rejects an opening float of %j", (opening_float) => {
     const message = { type: "open-cash-session", request_id: REQUEST_ID, opening_float };
 
-    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+    expect(registerRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
   });
 
   it.each([
     { type: "open-cash-session", opening_float: 0 },
     { type: "open-cash-session", request_id: REQUEST_ID },
   ])("rejects a request to open a cash session missing a field: %j", (message) => {
-    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+    expect(registerRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
   });
 
   it("accepts a request for the open cash session", () => {
     const message = { type: "cash-session-request", request_id: REQUEST_ID };
 
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
   it("rejects a request for the open cash session without its request id", () => {
-    expect(rendererToCoreMessageSchema.safeParse({ type: "cash-session-request" }).success).toBe(
-      false,
-    );
+    expect(
+      registerRendererToCoreMessageSchema.safeParse({ type: "cash-session-request" }).success,
+    ).toBe(false);
   });
 });
 
@@ -257,57 +142,69 @@ describe("cash movement requests", () => {
   };
 
   it("accepts a cash movement without an authorization", () => {
-    expect(rendererToCoreMessageSchema.parse(movement)).toEqual(movement);
+    expect(registerRendererToCoreMessageSchema.parse(movement)).toEqual(movement);
   });
 
   it("accepts a cash movement authorized with another person's PIN", () => {
     const authorized = { ...movement, authorization: { user_id: "u2", pin: "1234" } };
 
-    expect(rendererToCoreMessageSchema.parse(authorized)).toEqual(authorized);
+    expect(registerRendererToCoreMessageSchema.parse(authorized)).toEqual(authorized);
   });
 
   it.each(["CASH_IN", "CASH_OUT", "WITHDRAWAL"])("accepts a cash movement of kind %s", (kind) => {
-    expect(rendererToCoreMessageSchema.safeParse({ ...movement, kind }).success).toBe(true);
+    expect(registerRendererToCoreMessageSchema.safeParse({ ...movement, kind }).success).toBe(true);
   });
 
   it.each(["OPENING", "SALE", "cash_in", "", 1, null])(
     "rejects a cash movement of kind %j",
     (kind) => {
-      expect(rendererToCoreMessageSchema.safeParse({ ...movement, kind }).success).toBe(false);
+      expect(registerRendererToCoreMessageSchema.safeParse({ ...movement, kind }).success).toBe(
+        false,
+      );
     },
   );
 
   it.each([1, MAX_CASH_AMOUNT_CENTS])("accepts an amount of %i cents", (amount) => {
-    expect(rendererToCoreMessageSchema.safeParse({ ...movement, amount }).success).toBe(true);
+    expect(registerRendererToCoreMessageSchema.safeParse({ ...movement, amount }).success).toBe(
+      true,
+    );
   });
 
   it.each([0, -1, MAX_CASH_AMOUNT_CENTS + 1, 2_147_483_648])(
     "leaves an out-of-range amount of %i to the core",
     (amount) => {
-      expect(rendererToCoreMessageSchema.safeParse({ ...movement, amount }).success).toBe(true);
+      expect(registerRendererToCoreMessageSchema.safeParse({ ...movement, amount }).success).toBe(
+        true,
+      );
     },
   );
 
   it.each([1.5, Number.NaN, "100", null])("rejects an amount of %j", (amount) => {
-    expect(rendererToCoreMessageSchema.safeParse({ ...movement, amount }).success).toBe(false);
+    expect(registerRendererToCoreMessageSchema.safeParse({ ...movement, amount }).success).toBe(
+      false,
+    );
   });
 
   it.each(["Flete", " Flete ", "", "   ", "a".repeat(CASH_MOVEMENT_REASON_MAX_LENGTH + 1)])(
     "carries the reason %j as typed, for the core to judge",
     (reason) => {
-      expect(rendererToCoreMessageSchema.safeParse({ ...movement, reason }).success).toBe(true);
+      expect(registerRendererToCoreMessageSchema.safeParse({ ...movement, reason }).success).toBe(
+        true,
+      );
     },
   );
 
   it.each([1, null])("rejects the reason %j", (reason) => {
-    expect(rendererToCoreMessageSchema.safeParse({ ...movement, reason }).success).toBe(false);
+    expect(registerRendererToCoreMessageSchema.safeParse({ ...movement, reason }).success).toBe(
+      false,
+    );
   });
 
   it.each(["request_id", "kind", "amount", "reason"])(
     "rejects a cash movement without its %s",
     (field) => {
       expect(
-        rendererToCoreMessageSchema.safeParse({ ...movement, [field]: undefined }).success,
+        registerRendererToCoreMessageSchema.safeParse({ ...movement, [field]: undefined }).success,
       ).toBe(false);
     },
   );
@@ -315,59 +212,57 @@ describe("cash movement requests", () => {
   it.each([{ user_id: "u2" }, { pin: "1234" }, "1234"])(
     "rejects the authorization %j",
     (authorization) => {
-      expect(rendererToCoreMessageSchema.safeParse({ ...movement, authorization }).success).toBe(
-        false,
-      );
+      expect(
+        registerRendererToCoreMessageSchema.safeParse({ ...movement, authorization }).success,
+      ).toBe(false);
     },
   );
 
   it("drops an actor sent with a cash movement", () => {
-    expect(rendererToCoreMessageSchema.parse({ ...movement, actor_id: "u9" })).toEqual(movement);
+    expect(registerRendererToCoreMessageSchema.parse({ ...movement, actor_id: "u9" })).toEqual(
+      movement,
+    );
   });
 
   it("accepts a request for the open session's cash movements", () => {
     const message = { type: "cash-movements-request", request_id: REQUEST_ID };
 
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
   it("rejects a request for the cash movements without its request id", () => {
-    expect(rendererToCoreMessageSchema.safeParse({ type: "cash-movements-request" }).success).toBe(
-      false,
-    );
+    expect(
+      registerRendererToCoreMessageSchema.safeParse({ type: "cash-movements-request" }).success,
+    ).toBe(false);
   });
 });
 
-describe("coreToRendererMessageSchema", () => {
+describe("registerCoreToRendererMessageSchema", () => {
   it.each([true, false])("accepts whether this installation is enrolled: %s", (enrolled) => {
     const message = { type: "enrollment-status", request_id: REQUEST_ID, enrolled };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it.each(["Caja 1", null])("accepts the register's own name, or none yet: %s", (name) => {
     const message = { type: "register-name", request_id: REQUEST_ID, name };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("accepts the PIN policy with its minimum digits", () => {
-    const message = { type: "pin-policy", request_id: REQUEST_ID, min_digits: 6 };
-
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it("rejects a register name that is not text or null", () => {
     expect(
-      coreToRendererMessageSchema.safeParse({
+      registerCoreToRendererMessageSchema.safeParse({
         type: "register-name",
         request_id: REQUEST_ID,
         name: 3,
       }).success,
     ).toBe(false);
     expect(
-      coreToRendererMessageSchema.safeParse({ type: "register-name", request_id: REQUEST_ID })
-        .success,
+      registerCoreToRendererMessageSchema.safeParse({
+        type: "register-name",
+        request_id: REQUEST_ID,
+      }).success,
     ).toBe(false);
   });
 
@@ -383,85 +278,7 @@ describe("coreToRendererMessageSchema", () => {
   ])("accepts the enrollment result $kind", (outcome) => {
     const message = { type: "enrollment-result", request_id: REQUEST_ID, outcome };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it.each([
-    { kind: "redeemed" },
-    {
-      kind: "resumed",
-      person: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
-      cash_session: OPEN_CASH_SESSION,
-    },
-    {
-      kind: "resumed",
-      person: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
-      cash_session: null,
-    },
-    { kind: "cash_session_opened_by_another" },
-    { kind: "code_invalid" },
-    { kind: "code_expired" },
-    { kind: "code_burned" },
-    { kind: "pin_rejected" },
-    { kind: "rate_limited", retry_after_seconds: 600 },
-    { kind: "unreachable" },
-    { kind: "unavailable" },
-    { kind: "invalid_input", fields: ["reset_code", "new_pin"] },
-  ])("accepts the PIN code redemption result $kind", (outcome) => {
-    const message = { type: "pin-code-redemption-result", request_id: REQUEST_ID, outcome };
-
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it.each([
-    { kind: "resumed", cash_session: OPEN_CASH_SESSION },
-    {
-      kind: "resumed",
-      person: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
-    },
-  ])(
-    "rejects a resumed PIN code redemption without the person or the cash session: %j",
-    (outcome) => {
-      const message = { type: "pin-code-redemption-result", request_id: REQUEST_ID, outcome };
-
-      expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
-    },
-  );
-
-  it("rejects a PIN code redemption refusal naming a field the redemption does not have", () => {
-    const message = {
-      type: "pin-code-redemption-result",
-      request_id: REQUEST_ID,
-      outcome: { kind: "invalid_input", fields: ["repeat"] },
-    };
-
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
-  });
-
-  it("rejects a PIN code redemption rate limit without when to retry", () => {
-    const message = {
-      type: "pin-code-redemption-result",
-      request_id: REQUEST_ID,
-      outcome: { kind: "rate_limited" },
-    };
-
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
-  });
-
-  it("rejects a PIN code redemption result it does not know or without its request id", () => {
-    expect(
-      coreToRendererMessageSchema.safeParse({
-        type: "pin-code-redemption-result",
-        request_id: REQUEST_ID,
-        outcome: { kind: "not_stored" },
-      }).success,
-    ).toBe(false);
-    expect(
-      coreToRendererMessageSchema.safeParse({
-        type: "pin-code-redemption-result",
-        outcome: { kind: "redeemed" },
-      }).success,
-    ).toBe(false);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it("rejects a rate limit without when to retry", () => {
@@ -471,7 +288,7 @@ describe("coreToRendererMessageSchema", () => {
       outcome: { kind: "rate_limited" },
     };
 
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 
   it("rejects an enrollment refusal naming a field the enrollment does not have", () => {
@@ -481,240 +298,22 @@ describe("coreToRendererMessageSchema", () => {
       outcome: { kind: "invalid_input", fields: ["hostname"] },
     };
 
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 
   it("rejects an enrollment result it does not know", () => {
     const message = { type: "enrollment-result", request_id: REQUEST_ID, outcome: { kind: "x" } };
 
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
-  });
-
-  it("accepts the notice that a pull finished, which answers no request", () => {
-    const message = { type: "pulled" };
-
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 
   it("rejects an enrollment status without whether it is enrolled", () => {
     expect(
-      coreToRendererMessageSchema.safeParse({ type: "enrollment-status", request_id: REQUEST_ID })
-        .success,
+      registerCoreToRendererMessageSchema.safeParse({
+        type: "enrollment-status",
+        request_id: REQUEST_ID,
+      }).success,
     ).toBe(false);
-  });
-});
-
-describe("sign-in answers", () => {
-  it("accepts the users who can sign in, by id and first name", () => {
-    const message = {
-      type: "sign-in-users",
-      request_id: REQUEST_ID,
-      users: [
-        { id: "u1", first_name: "Ada" },
-        { id: "u2", first_name: "Bruno" },
-      ],
-    };
-
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("accepts that the users cannot be read", () => {
-    const message = { type: "sign-in-users-unavailable", request_id: REQUEST_ID };
-
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("accepts an empty list of users", () => {
-    const message = { type: "sign-in-users", request_id: REQUEST_ID, users: [] };
-
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("drops anything else a listed user carries", () => {
-    const message = {
-      type: "sign-in-users",
-      request_id: REQUEST_ID,
-      users: [{ id: "u1", first_name: "Ada", salt: "s" }],
-    };
-
-    expect(coreToRendererMessageSchema.parse(message)).toEqual({
-      ...message,
-      users: [{ id: "u1", first_name: "Ada" }],
-    });
-  });
-
-  it("rejects a listed user without its first name", () => {
-    const message = { type: "sign-in-users", request_id: REQUEST_ID, users: [{ id: "u1" }] };
-
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
-  });
-
-  it.each([
-    {
-      kind: "signed_in",
-      person: {
-        user_id: "u1",
-        first_name: "Ada",
-        abilities: ["open_cash_session", "view_sales_history"],
-      },
-      cash_session: OPEN_CASH_SESSION,
-    },
-    {
-      kind: "signed_in",
-      person: { user_id: "u1", first_name: "Ada", abilities: [] },
-      cash_session: null,
-    },
-    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 },
-    { kind: "wrong_pin", retry_after_seconds: 30, attempts_left: 1 },
-    { kind: "rate_limited", retry_after_seconds: 4, attempts_left: 5 },
-    { kind: "locked", consecutive_failures: 8 },
-    { kind: "no_register_permission" },
-    { kind: "cash_session_opened_by_another" },
-    { kind: "unavailable" },
-  ])("accepts the sign-in result $kind", (outcome) => {
-    const message = { type: "sign-in-result", request_id: REQUEST_ID, outcome };
-
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("rejects a locked result that counts a different number of failures", () => {
-    const outcome = { kind: "locked", consecutive_failures: 7 };
-    const message = { type: "sign-in-result", request_id: REQUEST_ID, outcome };
-
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
-  });
-
-  it("rejects a locked result without the failures that locked the person", () => {
-    const message = {
-      type: "sign-in-result",
-      request_id: REQUEST_ID,
-      outcome: { kind: "locked" },
-    };
-
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
-  });
-
-  it("does not let a signed-in result carry a role", () => {
-    const message = {
-      type: "sign-in-result",
-      request_id: REQUEST_ID,
-      outcome: {
-        kind: "signed_in",
-        person: { user_id: "u1", first_name: "Ada", abilities: [], role_name: "Cajera" },
-        cash_session: null,
-      },
-    };
-
-    expect(JSON.stringify(coreToRendererMessageSchema.parse(message))).not.toContain("Cajera");
-  });
-
-  it.each([
-    { kind: "signed_in" },
-    { kind: "signed_in", person: { first_name: "Ada" }, cash_session: null },
-    { kind: "signed_in", person: { first_name: "Ada", abilities: [] }, cash_session: null },
-    { kind: "signed_in", person: { user_id: "u1", first_name: "Ada", abilities: [] } },
-    {
-      kind: "signed_in",
-      person: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
-      cash_session: null,
-    },
-    {
-      kind: "signed_in",
-      person: { user_id: "u1", first_name: "Ada", abilities: ["sell_and_charge"] },
-      cash_session: null,
-    },
-    { kind: "x" },
-    { kind: "wrong_pin" },
-    { kind: "wrong_pin", retry_after_seconds: 0 },
-    { kind: "wrong_pin", attempts_left: 7 },
-    { kind: "wrong_pin", retry_after_seconds: -1, attempts_left: 7 },
-    { kind: "wrong_pin", retry_after_seconds: 31, attempts_left: 7 },
-    { kind: "wrong_pin", retry_after_seconds: 1.5, attempts_left: 7 },
-    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 0 },
-    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 8 },
-    { kind: "rate_limited" },
-    { kind: "rate_limited", retry_after_seconds: 0, attempts_left: 5 },
-    { kind: "rate_limited", retry_after_seconds: 31, attempts_left: 5 },
-    { kind: "rate_limited", retry_after_seconds: 4, attempts_left: 0 },
-    { kind: "rate_limited", retry_after_seconds: 4, attempts_left: 8 },
-  ])("rejects a sign-in result it does not know: %j", (outcome) => {
-    const message = { type: "sign-in-result", request_id: REQUEST_ID, outcome };
-
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
-  });
-});
-
-describe("sign-in lookup answers", () => {
-  it.each([
-    { kind: "has_pin", user: { id: "u1", first_name: "Ada" } },
-    { kind: "no_pin", user: { id: "u1", first_name: "Ada" } },
-    { kind: "not_found" },
-    { kind: "invalid_email" },
-    { kind: "rate_limited", retry_after_seconds: 30 },
-    { kind: "not_synced" },
-    { kind: "unreachable" },
-    { kind: "unavailable" },
-  ])("accepts the sign-in lookup result $kind", (outcome) => {
-    const message = { type: "sign-in-lookup-result", request_id: REQUEST_ID, outcome };
-
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it.each([
-    { kind: "has_pin" },
-    { kind: "has_pin", user: { id: "u1" } },
-    { kind: "rate_limited" },
-    { kind: "rate_limited", retry_after_seconds: -1 },
-    { kind: "x" },
-  ])("rejects a sign-in lookup result it does not know: %j", (outcome) => {
-    const message = { type: "sign-in-lookup-result", request_id: REQUEST_ID, outcome };
-
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
-  });
-
-  it("does not let a lookup result carry the email", () => {
-    const message = {
-      type: "sign-in-lookup-result",
-      request_id: REQUEST_ID,
-      outcome: { kind: "not_found", email: "ada@example.com" },
-    };
-
-    expect(JSON.stringify(coreToRendererMessageSchema.parse(message))).not.toContain("ada@");
-  });
-});
-
-describe("first PIN code request answers", () => {
-  it.each([
-    { kind: "sent" },
-    { kind: "pin_already_set" },
-    { kind: "not_found" },
-    { kind: "rate_limited", retry_after_seconds: 600 },
-    { kind: "unreachable" },
-    { kind: "unavailable" },
-  ])("accepts the first PIN code request result $kind", (outcome) => {
-    const message = { type: "first-pin-code-request-result", request_id: REQUEST_ID, outcome };
-
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it.each([
-    { kind: "rate_limited" },
-    { kind: "rate_limited", retry_after_seconds: -1 },
-    { kind: "x" },
-  ])("rejects a first PIN code request result it does not know: %j", (outcome) => {
-    const message = { type: "first-pin-code-request-result", request_id: REQUEST_ID, outcome };
-
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
-  });
-
-  it("does not let a result carry the code", () => {
-    const message = {
-      type: "first-pin-code-request-result",
-      request_id: REQUEST_ID,
-      outcome: { kind: "sent", code: "P4NX7KWE2QRT5MZD" },
-    };
-
-    expect(JSON.stringify(coreToRendererMessageSchema.parse(message))).not.toContain("P4NX");
   });
 });
 
@@ -724,14 +323,14 @@ describe("closing a cash session requests", () => {
   it("accepts a request to close a session with the cash counted in cents", () => {
     const message = { ...close, counted_cash: 152500 };
 
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
   it("drops an authorization sent with a request to close a session", () => {
     const message = { ...close, counted_cash: 0 };
 
     expect(
-      rendererToCoreMessageSchema.parse({
+      registerRendererToCoreMessageSchema.parse({
         ...message,
         authorization: { user_id: "u2", pin: "1234" },
       }),
@@ -741,18 +340,24 @@ describe("closing a cash session requests", () => {
   it("drops a closer sent with a request to close a session", () => {
     const message = { ...close, counted_cash: 100 };
 
-    expect(rendererToCoreMessageSchema.parse({ ...message, closed_by: "u9" })).toEqual(message);
+    expect(registerRendererToCoreMessageSchema.parse({ ...message, closed_by: "u9" })).toEqual(
+      message,
+    );
   });
 
   it.each([-1, MAX_CASH_AMOUNT_CENTS + 1, 2_147_483_648])(
     "leaves an out-of-range counted cash of %i to the core",
     (counted_cash) => {
-      expect(rendererToCoreMessageSchema.safeParse({ ...close, counted_cash }).success).toBe(true);
+      expect(
+        registerRendererToCoreMessageSchema.safeParse({ ...close, counted_cash }).success,
+      ).toBe(true);
     },
   );
 
   it.each([1.5, Number.NaN, "100", null])("rejects a counted cash of %j", (counted_cash) => {
-    expect(rendererToCoreMessageSchema.safeParse({ ...close, counted_cash }).success).toBe(false);
+    expect(registerRendererToCoreMessageSchema.safeParse({ ...close, counted_cash }).success).toBe(
+      false,
+    );
   });
 
   it.each([
@@ -760,19 +365,19 @@ describe("closing a cash session requests", () => {
     { type: "close-cash-session", request_id: REQUEST_ID, counted_cash: 0 },
     { type: "close-cash-session", request_id: REQUEST_ID, session_id: "s1" },
   ])("rejects a request to close a session missing a field: %j", (message) => {
-    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+    expect(registerRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
   });
 
   it("accepts a request for the cash balance of the open session", () => {
     const message = { type: "cash-balance-request", request_id: REQUEST_ID };
 
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
   it("rejects a request for the cash balance without its request id", () => {
-    expect(rendererToCoreMessageSchema.safeParse({ type: "cash-balance-request" }).success).toBe(
-      false,
-    );
+    expect(
+      registerRendererToCoreMessageSchema.safeParse({ type: "cash-balance-request" }).success,
+    ).toBe(false);
   });
 });
 
@@ -784,7 +389,7 @@ describe("previewing a cash count", () => {
       counted_cash: 42_000,
     };
 
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
   it.each([
@@ -792,31 +397,31 @@ describe("previewing a cash count", () => {
     { type: "cash-count-preview-request", request_id: REQUEST_ID, counted_cash: 10.5 },
     { type: "cash-count-preview-request", counted_cash: 100 },
   ])("rejects a malformed request to preview a count: %j", (message) => {
-    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+    expect(registerRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
   });
 
   it.each([-800, 0, 500])("accepts a preview whose difference is %s", (difference) => {
     const message = { type: "cash-count-preview", request_id: REQUEST_ID, preview: { difference } };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it("accepts that no cash session is open to preview", () => {
     const message = { type: "cash-count-preview", request_id: REQUEST_ID, preview: null };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it("rejects a preview without its difference", () => {
     const message = { type: "cash-count-preview", request_id: REQUEST_ID, preview: {} };
 
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 
   it("accepts that the preview cannot be read", () => {
     const message = { type: "cash-count-preview-unavailable", request_id: REQUEST_ID };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 });
 
@@ -831,7 +436,7 @@ describe("closing a cash session answers", () => {
       },
     };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it.each([
@@ -845,7 +450,7 @@ describe("closing a cash session answers", () => {
   ])("accepts the close result $kind", (outcome) => {
     const message = { type: "close-cash-session-result", request_id: REQUEST_ID, outcome };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it.each([
@@ -861,7 +466,7 @@ describe("closing a cash session answers", () => {
   ])("rejects a close result it does not know: %j", (outcome) => {
     const message = { type: "close-cash-session-result", request_id: REQUEST_ID, outcome };
 
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 
   it("accepts the cash balance of the open session line by line", () => {
@@ -880,7 +485,7 @@ describe("closing a cash session answers", () => {
       },
     };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it("rejects a cash balance line without its direction", () => {
@@ -899,13 +504,13 @@ describe("closing a cash session answers", () => {
       },
     };
 
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 
   it("accepts that no cash session is open to balance", () => {
     const message = { type: "cash-balance", request_id: REQUEST_ID, balance: null };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it("rejects a cash balance missing a line", () => {
@@ -915,18 +520,18 @@ describe("closing a cash session answers", () => {
       balance: { opening_float: 0, expected: 0 },
     };
 
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 
   it("accepts that the cash balance cannot be read", () => {
     const message = { type: "cash-balance-unavailable", request_id: REQUEST_ID };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it("rejects that the cash balance cannot be read without its request id", () => {
     expect(
-      coreToRendererMessageSchema.safeParse({ type: "cash-balance-unavailable" }).success,
+      registerCoreToRendererMessageSchema.safeParse({ type: "cash-balance-unavailable" }).success,
     ).toBe(false);
   });
 });
@@ -935,12 +540,12 @@ describe("the open sale of the cash session", () => {
   it("accepts a request for the open sale", () => {
     const message = { type: "session-open-sale-request", request_id: REQUEST_ID };
 
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
   it("rejects a request for the open sale without its request id", () => {
     expect(
-      rendererToCoreMessageSchema.safeParse({ type: "session-open-sale-request" }).success,
+      registerRendererToCoreMessageSchema.safeParse({ type: "session-open-sale-request" }).success,
     ).toBe(false);
   });
 
@@ -949,7 +554,7 @@ describe("the open sale of the cash session", () => {
     (sale) => {
       const message = { type: "session-open-sale", request_id: REQUEST_ID, sale };
 
-      expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+      expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
     },
   );
 
@@ -958,19 +563,20 @@ describe("the open sale of the cash session", () => {
     (sale) => {
       const message = { type: "session-open-sale", request_id: REQUEST_ID, sale };
 
-      expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+      expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
     },
   );
 
   it("accepts that the open sale cannot be read", () => {
     const message = { type: "session-open-sale-unavailable", request_id: REQUEST_ID };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it("rejects that the open sale cannot be read without its request id", () => {
     expect(
-      coreToRendererMessageSchema.safeParse({ type: "session-open-sale-unavailable" }).success,
+      registerCoreToRendererMessageSchema.safeParse({ type: "session-open-sale-unavailable" })
+        .success,
     ).toBe(false);
   });
 });
@@ -983,13 +589,13 @@ describe("identifying who closes a locked register", () => {
   };
 
   it("accepts a request to identify the closer by their PIN", () => {
-    expect(rendererToCoreMessageSchema.parse(identify)).toEqual(identify);
+    expect(registerRendererToCoreMessageSchema.parse(identify)).toEqual(identify);
   });
 
   it.each(["request_id", "closer"])("rejects a request missing its %s", (field) => {
     const message = Object.fromEntries(Object.entries(identify).filter(([key]) => key !== field));
 
-    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+    expect(registerRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
   });
 
   it("accepts the person identified by their id and first name", () => {
@@ -999,7 +605,7 @@ describe("identifying who closes a locked register", () => {
       outcome: { kind: "identified", person: { user_id: "u2", first_name: "Grace" } },
     };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it.each([
@@ -1011,7 +617,7 @@ describe("identifying who closes a locked register", () => {
   ])("accepts the identification result $kind", (outcome) => {
     const message = { type: "identify-locked-closer-result", request_id: REQUEST_ID, outcome };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it.each([
@@ -1021,7 +627,7 @@ describe("identifying who closes a locked register", () => {
   ])("rejects an identification result it does not know: %j", (outcome) => {
     const message = { type: "identify-locked-closer-result", request_id: REQUEST_ID, outcome };
 
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 });
 
@@ -1035,18 +641,22 @@ describe("closing a locked register's cash session", () => {
   };
 
   it("accepts a request to close the session with the cash counted and the closer's PIN", () => {
-    expect(rendererToCoreMessageSchema.parse(close)).toEqual(close);
+    expect(registerRendererToCoreMessageSchema.parse(close)).toEqual(close);
   });
 
   it.each([-1, MAX_CASH_AMOUNT_CENTS + 1, 2_147_483_648])(
     "leaves an out-of-range counted cash of %i to the core",
     (counted_cash) => {
-      expect(rendererToCoreMessageSchema.safeParse({ ...close, counted_cash }).success).toBe(true);
+      expect(
+        registerRendererToCoreMessageSchema.safeParse({ ...close, counted_cash }).success,
+      ).toBe(true);
     },
   );
 
   it.each([1.5, Number.NaN, "100", null])("rejects a counted cash of %j", (counted_cash) => {
-    expect(rendererToCoreMessageSchema.safeParse({ ...close, counted_cash }).success).toBe(false);
+    expect(registerRendererToCoreMessageSchema.safeParse({ ...close, counted_cash }).success).toBe(
+      false,
+    );
   });
 
   it.each(["request_id", "session_id", "counted_cash", "closer"])(
@@ -1054,14 +664,14 @@ describe("closing a locked register's cash session", () => {
     (field) => {
       const message = Object.fromEntries(Object.entries(close).filter(([key]) => key !== field));
 
-      expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+      expect(registerRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
     },
   );
 
   it("rejects a closer without a PIN", () => {
     const message = { ...close, closer: { user_id: "u2" } };
 
-    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+    expect(registerRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
   });
 
   it("accepts the session that was closed with its expected cash, counted cash and difference", () => {
@@ -1074,7 +684,7 @@ describe("closing a locked register's cash session", () => {
       },
     };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it.each([
@@ -1090,7 +700,7 @@ describe("closing a locked register's cash session", () => {
   ])("accepts the close result $kind", (outcome) => {
     const message = { type: "close-locked-cash-session-result", request_id: REQUEST_ID, outcome };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it.each([
@@ -1102,57 +712,8 @@ describe("closing a locked register's cash session", () => {
   ])("rejects a close result it does not know: %j", (outcome) => {
     const message = { type: "close-locked-cash-session-result", request_id: REQUEST_ID, outcome };
 
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
-});
-
-describe("cancelling the open sale of a locked register", () => {
-  const cancel = {
-    type: "cancel-locked-sale",
-    request_id: REQUEST_ID,
-    closer: { user_id: "u2", pin: "1234" },
-  };
-
-  it("accepts a request carrying the closer's PIN", () => {
-    expect(rendererToCoreMessageSchema.parse(cancel)).toEqual(cancel);
-  });
-
-  it.each(["request_id", "closer"])("rejects a request missing its %s", (field) => {
-    const message = Object.fromEntries(Object.entries(cancel).filter(([key]) => key !== field));
-
-    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
-  });
-
-  it("rejects a closer without a PIN", () => {
-    const message = { ...cancel, closer: { user_id: "u2" } };
-
-    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
-  });
-
-  it.each([
-    { kind: "cancelled" },
-    { kind: "has_approved_payment" },
-    { kind: "no_open_sale" },
-    { kind: "no_open_session" },
-    { kind: "not_locked" },
-    { kind: "lacks_permission" },
-    { kind: "unavailable" },
-    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
-    { kind: "rate_limited", retry_after_seconds: 1, attempts_left: 2 },
-  ])("accepts the result $kind", (outcome) => {
-    const message = { type: "cancel-locked-sale-result", request_id: REQUEST_ID, outcome };
-
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it.each([{ kind: "not_signed_in" }, { kind: "closed" }, { kind: "x" }])(
-    "rejects a result it does not know: %j",
-    (outcome) => {
-      const message = { type: "cancel-locked-sale-result", request_id: REQUEST_ID, outcome };
-
-      expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
-    },
-  );
 });
 
 describe("cash session answers", () => {
@@ -1165,7 +726,7 @@ describe("cash session answers", () => {
         outcome: { kind: "opened", cash_session: cashSession },
       };
 
-      expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+      expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
     },
   );
 
@@ -1178,7 +739,7 @@ describe("cash session answers", () => {
   ])("accepts the open result $kind", (outcome) => {
     const message = { type: "open-cash-session-result", request_id: REQUEST_ID, outcome };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it.each([
@@ -1188,7 +749,7 @@ describe("cash session answers", () => {
   ])("rejects an open result it does not know: %j", (outcome) => {
     const message = { type: "open-cash-session-result", request_id: REQUEST_ID, outcome };
 
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 
   it("accepts the open cash session with who opened it", () => {
@@ -1203,24 +764,24 @@ describe("cash session answers", () => {
       },
     };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it("accepts that no cash session is open", () => {
     const message = { type: "cash-session", request_id: REQUEST_ID, session: null };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it("accepts that the open cash session cannot be read", () => {
     const message = { type: "cash-session-unavailable", request_id: REQUEST_ID };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it("rejects that the open cash session cannot be read without its request id", () => {
     expect(
-      coreToRendererMessageSchema.safeParse({ type: "cash-session-unavailable" }).success,
+      registerCoreToRendererMessageSchema.safeParse({ type: "cash-session-unavailable" }).success,
     ).toBe(false);
   });
 
@@ -1257,7 +818,7 @@ describe("cash session answers", () => {
   ])("rejects an open cash session it does not know: %j", (session) => {
     const message = { type: "cash-session", request_id: REQUEST_ID, session };
 
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 });
 
@@ -1269,7 +830,7 @@ describe("cash movement answers", () => {
       outcome: { kind: "recorded", authorized_by: null },
     };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it("accepts a recorded movement with the person who authorized it", () => {
@@ -1279,7 +840,7 @@ describe("cash movement answers", () => {
       outcome: { kind: "recorded", authorized_by: { user_id: "u2", first_name: "Grace" } },
     };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it.each([
@@ -1289,7 +850,7 @@ describe("cash movement answers", () => {
   ])("rejects a recorded movement it does not know: %j", (outcome) => {
     const message = { type: "record-cash-movement-result", request_id: REQUEST_ID, outcome };
 
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 
   it.each([
@@ -1306,7 +867,7 @@ describe("cash movement answers", () => {
   ])("accepts the refusal $kind", (outcome) => {
     const message = { type: "record-cash-movement-result", request_id: REQUEST_ID, outcome };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it.each([
@@ -1320,7 +881,7 @@ describe("cash movement answers", () => {
   ])("rejects a refusal it does not know: %j", (outcome) => {
     const message = { type: "record-cash-movement-result", request_id: REQUEST_ID, outcome };
 
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 
   const listed = {
@@ -1337,7 +898,7 @@ describe("cash movement answers", () => {
   it("accepts the open session's movements, each with who did it and who authorized it", () => {
     const message = { type: "cash-movements", request_id: REQUEST_ID, movements: [listed] };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it.each(["in", "out", "none"])(
@@ -1349,7 +910,7 @@ describe("cash movement answers", () => {
         movements: [{ ...listed, direction }],
       };
 
-      expect(coreToRendererMessageSchema.safeParse(message).success).toBe(true);
+      expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(true);
     },
   );
 
@@ -1362,7 +923,7 @@ describe("cash movement answers", () => {
         movements: [{ ...listed, direction }],
       };
 
-      expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+      expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
     },
   );
 
@@ -1370,7 +931,7 @@ describe("cash movement answers", () => {
     const opening = { ...listed, type: "OPENING", reason: null, authorized_by: null };
     const message = { type: "cash-movements", request_id: REQUEST_ID, movements: [opening] };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it.each(["OPENING", "SALE", "CHANGE", "REFUND", "CASH_IN", "CASH_OUT", "WITHDRAWAL", "CLOSING"])(
@@ -1382,31 +943,31 @@ describe("cash movement answers", () => {
         movements: [{ ...listed, type }],
       };
 
-      expect(coreToRendererMessageSchema.safeParse(message).success).toBe(true);
+      expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(true);
     },
   );
 
   it("accepts an open session with no movements yet", () => {
     const message = { type: "cash-movements", request_id: REQUEST_ID, movements: [] };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it("accepts that no cash session is open", () => {
     const message = { type: "cash-movements", request_id: REQUEST_ID, movements: null };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it("accepts that the movements cannot be read", () => {
     const message = { type: "cash-movements-unavailable", request_id: REQUEST_ID };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it("rejects that the movements cannot be read without its request id", () => {
     expect(
-      coreToRendererMessageSchema.safeParse({ type: "cash-movements-unavailable" }).success,
+      registerCoreToRendererMessageSchema.safeParse({ type: "cash-movements-unavailable" }).success,
     ).toBe(false);
   });
 
@@ -1432,44 +993,16 @@ describe("cash movement answers", () => {
       movements: [{ ...listed, [field]: value }],
     };
 
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 
   it("rejects the movements of a session without saying whether one is open", () => {
     expect(
-      coreToRendererMessageSchema.safeParse({ type: "cash-movements", request_id: REQUEST_ID })
-        .success,
+      registerCoreToRendererMessageSchema.safeParse({
+        type: "cash-movements",
+        request_id: REQUEST_ID,
+      }).success,
     ).toBe(false);
-  });
-});
-
-describe("authorizers answers", () => {
-  it("accepts the people who can authorize, by id and first name", () => {
-    const message = {
-      type: "authorizers",
-      request_id: REQUEST_ID,
-      users: [{ id: "u2", first_name: "Grace" }],
-    };
-
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("accepts that nobody can authorize", () => {
-    const message = { type: "authorizers", request_id: REQUEST_ID, users: [] };
-
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("accepts that the authorizers cannot be read", () => {
-    const message = { type: "authorizers-unavailable", request_id: REQUEST_ID };
-
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("rejects a listed authorizer without its first name", () => {
-    const message = { type: "authorizers", request_id: REQUEST_ID, users: [{ id: "u2" }] };
-
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 });
 
@@ -1481,563 +1014,25 @@ describe("locked register closers answers", () => {
       users: [{ id: "u2", first_name: "Grace" }],
     };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it("accepts that nobody may close a locked register", () => {
     const message = { type: "locked-closers", request_id: REQUEST_ID, users: [] };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it("accepts that the locked register's closers cannot be read", () => {
     const message = { type: "locked-closers-unavailable", request_id: REQUEST_ID };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it("rejects a listed closer without its first name", () => {
     const message = { type: "locked-closers", request_id: REQUEST_ID, users: [{ id: "u2" }] };
 
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
-  });
-});
-
-describe("sign-out answer", () => {
-  it("accepts the confirmation that nobody is signed in", () => {
-    const message = { type: "signed-out", request_id: REQUEST_ID };
-
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("rejects a confirmation without its request id", () => {
-    expect(coreToRendererMessageSchema.safeParse({ type: "signed-out" }).success).toBe(false);
-  });
-});
-
-describe("mainToCoreMessageSchema", () => {
-  it("accepts a health check", () => {
-    expect(mainToCoreMessageSchema.safeParse({ type: "health-check" }).success).toBe(true);
-  });
-
-  it("rejects any other message type", () => {
-    expect(mainToCoreMessageSchema.safeParse({ type: "ping" }).success).toBe(false);
-    expect(mainToCoreMessageSchema.safeParse({}).success).toBe(false);
-  });
-});
-
-describe("coreStatusMessageSchema", () => {
-  it.each(["starting", "down", "up"])("accepts a core status of %s", (status) => {
-    expect(coreStatusMessageSchema.safeParse({ type: "core-status", status }).success).toBe(true);
-  });
-
-  it("rejects a status outside starting, down and up", () => {
-    expect(coreStatusMessageSchema.safeParse({ type: "core-status", status: "" }).success).toBe(
-      false,
-    );
-    expect(coreStatusMessageSchema.safeParse({ type: "core-status" }).success).toBe(false);
-  });
-
-  it("rejects any other message type", () => {
-    expect(coreStatusMessageSchema.safeParse({ type: "ping", status: "up" }).success).toBe(false);
-    expect(coreStatusMessageSchema.safeParse({ status: "up" }).success).toBe(false);
-  });
-});
-
-describe("sale requests", () => {
-  it("accepts a scan of a code", () => {
-    const message = { type: "scan-product", request_id: REQUEST_ID, code: "7791234567890" };
-
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("does not take who is selling from the renderer", () => {
-    const message = { type: "scan-product", request_id: REQUEST_ID, code: "1" };
-
-    expect(rendererToCoreMessageSchema.parse({ ...message, user_id: "u9" })).toEqual(message);
-  });
-
-  it.each([
-    { type: "scan-product", code: "1" },
-    { type: "scan-product", request_id: REQUEST_ID },
-    { type: "scan-product", request_id: REQUEST_ID, code: "" },
-  ])("rejects a scan that is not well formed: %j", (message) => {
-    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
-  });
-
-  it("leaves a code longer than any barcode to the core", () => {
-    const message = { type: "scan-product", request_id: REQUEST_ID, code: "7".repeat(65) };
-
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("leaves a search longer than any product name to the core", () => {
-    const message = { type: "search-products", request_id: REQUEST_ID, query: "x".repeat(101) };
-
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("accepts a search of the products by name", () => {
-    const message = { type: "search-products", request_id: REQUEST_ID, query: "té ver" };
-
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it.each([
-    { type: "search-products", query: "a" },
-    { type: "search-products", request_id: REQUEST_ID },
-  ])("rejects a search that is not well formed: %j", (message) => {
-    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
-  });
-
-  it("accepts adding a product by its id", () => {
-    const message = { type: "add-product", request_id: REQUEST_ID, product_id: "p1" };
-
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("does not take who is selling from the search or the addition", () => {
-    const search = { type: "search-products", request_id: REQUEST_ID, query: "a" };
-    const add = { type: "add-product", request_id: REQUEST_ID, product_id: "p1" };
-
-    expect(rendererToCoreMessageSchema.parse({ ...search, user_id: "u9" })).toEqual(search);
-    expect(rendererToCoreMessageSchema.parse({ ...add, user_id: "u9" })).toEqual(add);
-  });
-
-  it.each([
-    { type: "add-product", product_id: "p1" },
-    { type: "add-product", request_id: REQUEST_ID },
-  ])("rejects an addition that is not well formed: %j", (message) => {
-    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
-  });
-
-  it("accepts a request for the sale in progress", () => {
-    const message = { type: "sale-request", request_id: REQUEST_ID };
-
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("does not take who is selling from the sale request either", () => {
-    const message = { type: "sale-request", request_id: REQUEST_ID };
-
-    expect(rendererToCoreMessageSchema.parse({ ...message, user_id: "u9" })).toEqual(message);
-  });
-
-  it("rejects a request for the sale missing its request id", () => {
-    expect(rendererToCoreMessageSchema.safeParse({ type: "sale-request" }).success).toBe(false);
-  });
-});
-
-describe("charge sale in cash request", () => {
-  const message = {
-    type: "charge-sale-in-cash",
-    request_id: REQUEST_ID,
-    sale_id: "s1",
-    tendered: 5000,
-  };
-
-  it("accepts a charge of a sale with the amount tendered in cents", () => {
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("does not take who is charging from the renderer", () => {
-    expect(rendererToCoreMessageSchema.parse({ ...message, user_id: "u9" })).toEqual(message);
-  });
-
-  it.each([0, -100, MAX_CASH_AMOUNT_CENTS + 1])(
-    "leaves the amount %s for the core to refuse as invalid",
-    (tendered) => {
-      expect(rendererToCoreMessageSchema.parse({ ...message, tendered })).toEqual({
-        ...message,
-        tendered,
-      });
-    },
-  );
-
-  it.each([
-    ["request id", { ...message, request_id: undefined }],
-    ["sale id", { ...message, sale_id: undefined }],
-    ["tendered amount", { ...message, tendered: undefined }],
-    ["whole number of cents", { ...message, tendered: 12.5 }],
-    ["number", { ...message, tendered: "5000" }],
-  ])("rejects a charge without a valid %s", (_case, value) => {
-    expect(rendererToCoreMessageSchema.safeParse(value).success).toBe(false);
-  });
-});
-
-describe("sale answers", () => {
-  const sale = {
-    id: "s1",
-    lines: [
-      {
-        id: "l1",
-        product_id: "p1",
-        product_name: "Yerba",
-        quantity: 1,
-        list_unit_price: 1500,
-        discount_amount: 0,
-        promotion: null,
-        line_total: 1500,
-      },
-    ],
-    total: 1500,
-    charge_refusal: null,
-  };
-
-  it.each([
-    { kind: "added", sale },
-    { kind: "unknown_code" },
-    { kind: "no_price", product_name: "Yerba" },
-    { kind: "not_signed_in" },
-    { kind: "unavailable" },
-  ])("accepts the scan result $kind", (outcome) => {
-    const message = { type: "scan-product-result", request_id: REQUEST_ID, outcome };
-
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("rejects a scan result it does not know", () => {
-    const message = {
-      type: "scan-product-result",
-      request_id: REQUEST_ID,
-      outcome: { kind: "somewhere_else" },
-    };
-
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
-  });
-
-  it.each([
-    { kind: "results", products: [], more: false },
-    { kind: "no_open_session" },
-    { kind: "unavailable" },
-  ])("accepts the search result $kind", (outcome) => {
-    const message = { type: "search-products-result", request_id: REQUEST_ID, outcome };
-
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it.each([
-    { kind: "product_unavailable" },
-    { kind: "no_price", product_name: "Yerba" },
-    { kind: "not_signed_in" },
-  ])("accepts the add-product result $kind", (outcome) => {
-    const message = { type: "add-product-result", request_id: REQUEST_ID, outcome };
-
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("rejects search and add-product results it does not know", () => {
-    const outcome = { kind: "somewhere_else" };
-
-    expect(
-      coreToRendererMessageSchema.safeParse({
-        type: "search-products-result",
-        request_id: REQUEST_ID,
-        outcome,
-      }).success,
-    ).toBe(false);
-    expect(
-      coreToRendererMessageSchema.safeParse({
-        type: "add-product-result",
-        request_id: REQUEST_ID,
-        outcome,
-      }).success,
-    ).toBe(false);
-  });
-
-  it.each([sale, null])("accepts the sale in progress %j", (value) => {
-    const message = { type: "sale", request_id: REQUEST_ID, sale: value };
-
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("rejects the sale in progress without saying whether there is one", () => {
-    expect(
-      coreToRendererMessageSchema.safeParse({ type: "sale", request_id: REQUEST_ID }).success,
-    ).toBe(false);
-  });
-
-  it("accepts that the sale in progress cannot be read", () => {
-    const message = { type: "sale-unavailable", request_id: REQUEST_ID };
-
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("rejects that the sale in progress cannot be read without its request id", () => {
-    expect(coreToRendererMessageSchema.safeParse({ type: "sale-unavailable" }).success).toBe(false);
-  });
-
-  it("accepts that the person signed in may not sell", () => {
-    const message = { type: "sale-not-permitted", request_id: REQUEST_ID };
-
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("rejects that the person signed in may not sell without its request id", () => {
-    expect(coreToRendererMessageSchema.safeParse({ type: "sale-not-permitted" }).success).toBe(
-      false,
-    );
-  });
-});
-
-describe("sale line requests", () => {
-  it("accepts a change of a line's quantity", () => {
-    const message = {
-      type: "change-line-quantity",
-      request_id: REQUEST_ID,
-      line_id: "l1",
-      quantity: 3,
-      expected_quantity: 4,
-    };
-
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it.each([
-    { line_id: "l1", quantity: 3 },
-    { line_id: "l1", expected_quantity: 3 },
-    { quantity: 3, expected_quantity: 3 },
-    { line_id: "l1", quantity: 0, expected_quantity: 3 },
-    { line_id: "l1", quantity: -1, expected_quantity: 3 },
-    { line_id: "l1", quantity: 1.5, expected_quantity: 3 },
-    { line_id: 7, quantity: 1, expected_quantity: 3 },
-    { line_id: "l1", quantity: 1, expected_quantity: 0 },
-    { line_id: "l1", quantity: 1, expected_quantity: -1 },
-    { line_id: "l1", quantity: 1, expected_quantity: 1.5 },
-    { line_id: "l1", quantity: 1, expected_quantity: "3" },
-  ])("rejects a quantity change that is not well formed: %j", (fields) => {
-    expect(
-      rendererToCoreMessageSchema.safeParse({
-        type: "change-line-quantity",
-        request_id: REQUEST_ID,
-        ...fields,
-      }).success,
-    ).toBe(false);
-  });
-
-  it("rejects a quantity change missing its request id", () => {
-    expect(
-      rendererToCoreMessageSchema.safeParse({
-        type: "change-line-quantity",
-        line_id: "l1",
-        quantity: 1,
-        expected_quantity: 2,
-      }).success,
-    ).toBe(false);
-  });
-
-  it("accepts the removal of a line", () => {
-    const message = { type: "remove-sale-line", request_id: REQUEST_ID, line_id: "l1" };
-
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it.each([
-    { type: "remove-sale-line", request_id: REQUEST_ID },
-    { type: "remove-sale-line", line_id: "l1" },
-  ])("rejects a removal that is not well formed: %j", (message) => {
-    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
-  });
-
-  it("accepts the cancellation of the sale", () => {
-    const message = { type: "cancel-sale", request_id: REQUEST_ID };
-
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("rejects a cancellation missing its request id", () => {
-    expect(rendererToCoreMessageSchema.safeParse({ type: "cancel-sale" }).success).toBe(false);
-  });
-
-  it("does not take who is selling from any of them", () => {
-    const cancel = { type: "cancel-sale", request_id: REQUEST_ID };
-
-    expect(rendererToCoreMessageSchema.parse({ ...cancel, user_id: "u9" })).toEqual(cancel);
-  });
-});
-
-describe("sale line answers", () => {
-  const sale = { id: "s1", lines: [], total: 0, charge_refusal: null };
-
-  it.each([
-    ["change-line-quantity-result", { kind: "changed", sale }],
-    ["change-line-quantity-result", { kind: "unknown_line" }],
-    ["change-line-quantity-result", { kind: "stale_quantity" }],
-    ["remove-sale-line-result", { kind: "removed", sale }],
-    ["remove-sale-line-result", { kind: "no_open_sale" }],
-    ["cancel-sale-result", { kind: "cancelled" }],
-    ["cancel-sale-result", { kind: "unavailable" }],
-  ])("accepts %s with the outcome %j", (type, outcome) => {
-    const message = { type, request_id: REQUEST_ID, outcome };
-
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it.each(["change-line-quantity-result", "remove-sale-line-result", "cancel-sale-result"])(
-    "rejects %s with an outcome it does not know",
-    (type) => {
-      expect(
-        coreToRendererMessageSchema.safeParse({
-          type,
-          request_id: REQUEST_ID,
-          outcome: { kind: "somewhere_else" },
-        }).success,
-      ).toBe(false);
-    },
-  );
-
-  it.each(["change-line-quantity-result", "remove-sale-line-result", "cancel-sale-result"])(
-    "rejects %s without its request id",
-    (type) => {
-      expect(
-        coreToRendererMessageSchema.safeParse({ type, outcome: { kind: "unavailable" } }).success,
-      ).toBe(false);
-    },
-  );
-});
-
-describe("charge sale in cash answer", () => {
-  it.each([
-    { kind: "completed", sale_id: "s1", total: 3000, tendered: 5000, change: 2000 },
-    { kind: "insufficient_cash", amount_due: 3000 },
-    { kind: "reaches_buyer_identification_threshold", threshold: 10_000_000 },
-    { kind: "no_buyer_identification_threshold" },
-    { kind: "not_signed_in" },
-    { kind: "unavailable" },
-  ])("accepts the result $kind", (outcome) => {
-    const message = { type: "charge-sale-in-cash-result", request_id: REQUEST_ID, outcome };
-
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("rejects a result it does not know", () => {
-    const message = {
-      type: "charge-sale-in-cash-result",
-      request_id: REQUEST_ID,
-      outcome: { kind: "somewhere_else" },
-    };
-
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
-  });
-
-  it("rejects a result without its request id", () => {
-    const message = { type: "charge-sale-in-cash-result", outcome: { kind: "empty_sale" } };
-
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
-  });
-});
-
-describe("charge sale by transfer request", () => {
-  const message = { type: "charge-sale-by-transfer", request_id: REQUEST_ID, sale_id: "s1" };
-
-  it("accepts a charge of a sale", () => {
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("does not take who is charging or an amount from the renderer", () => {
-    expect(
-      rendererToCoreMessageSchema.parse({ ...message, user_id: "u9", tendered: 5000, amount: 1 }),
-    ).toEqual(message);
-  });
-
-  it.each([
-    ["request id", { ...message, request_id: undefined }],
-    ["sale id", { ...message, sale_id: undefined }],
-    ["sale id as text", { ...message, sale_id: 7 }],
-  ])("rejects a charge without a valid %s", (_case, value) => {
-    expect(rendererToCoreMessageSchema.safeParse(value).success).toBe(false);
-  });
-});
-
-describe("charge sale by transfer answer", () => {
-  it.each([
-    { kind: "completed", sale_id: "s1", total: 3000 },
-    { kind: "empty_sale" },
-    { kind: "not_signed_in" },
-    { kind: "unavailable" },
-  ])("accepts the result $kind", (outcome) => {
-    const message = { type: "charge-sale-by-transfer-result", request_id: REQUEST_ID, outcome };
-
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("rejects a result it does not know", () => {
-    const message = {
-      type: "charge-sale-by-transfer-result",
-      request_id: REQUEST_ID,
-      outcome: { kind: "insufficient_cash", amount_due: 3000 },
-    };
-
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
-  });
-
-  it("rejects a result without its request id", () => {
-    const message = { type: "charge-sale-by-transfer-result", outcome: { kind: "empty_sale" } };
-
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
-  });
-});
-
-describe("cash charge request", () => {
-  const message = {
-    type: "cash-charge-request",
-    request_id: REQUEST_ID,
-    sale_id: "s1",
-    tendered: 5000,
-  };
-
-  it("accepts a request for what a sale needs when an amount in cents is tendered", () => {
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it.each([
-    ["without its request id", { ...message, request_id: undefined }],
-    ["without the sale", { ...message, sale_id: undefined }],
-    ["with an amount that is not whole cents", { ...message, tendered: 50.5 }],
-  ])("rejects a request %s", (_case, invalid) => {
-    expect(rendererToCoreMessageSchema.safeParse(invalid).success).toBe(false);
-  });
-
-  it("does not take who is selling from the request", () => {
-    expect(rendererToCoreMessageSchema.parse({ ...message, user_id: "u9" })).toEqual(message);
-  });
-});
-
-describe("cash charge answers", () => {
-  it.each([
-    [{ kind: "invalid_amount" }],
-    [{ kind: "insufficient", amountDue: 3000 }],
-    [{ kind: "covered", applied: 3000, change: 2000 }],
-    [null],
-  ])("accepts the answer %j", (charge) => {
-    const message = { type: "cash-charge", request_id: REQUEST_ID, charge };
-
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it.each([
-    [{ kind: "covered", applied: 3000 }],
-    [{ kind: "insufficient", amountDue: "3000" }],
-    [{ kind: "unknown" }],
-  ])("rejects the answer %j", (charge) => {
-    expect(
-      coreToRendererMessageSchema.safeParse({ type: "cash-charge", request_id: REQUEST_ID, charge })
-        .success,
-    ).toBe(false);
-  });
-
-  it.each(["cash-charge-unavailable", "cash-charge-not-permitted"])(
-    "accepts %s and rejects it without its request id",
-    (type) => {
-      const message = { type, request_id: REQUEST_ID };
-
-      expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-      expect(coreToRendererMessageSchema.safeParse({ type }).success).toBe(false);
-    },
-  );
-
-  it("describes a charge as the domain does", () => {
-    expectTypeOf<CashCharge>().toEqualTypeOf<ReturnType<typeof cashCharge>>();
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 });
 
@@ -2045,18 +1040,21 @@ describe("cash movement kinds request", () => {
   it("accepts a request for the cash movements the person signed in can record", () => {
     const message = { type: "cash-movement-kinds-request", request_id: REQUEST_ID };
 
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
   it("does not take who is signed in from the request", () => {
     const message = { type: "cash-movement-kinds-request", request_id: REQUEST_ID };
 
-    expect(rendererToCoreMessageSchema.parse({ ...message, user_id: "u9" })).toEqual(message);
+    expect(registerRendererToCoreMessageSchema.parse({ ...message, user_id: "u9" })).toEqual(
+      message,
+    );
   });
 
   it("rejects a request missing its request id", () => {
     expect(
-      rendererToCoreMessageSchema.safeParse({ type: "cash-movement-kinds-request" }).success,
+      registerRendererToCoreMessageSchema.safeParse({ type: "cash-movement-kinds-request" })
+        .success,
     ).toBe(false);
   });
 });
@@ -2071,7 +1069,7 @@ describe("cash movement kinds answers", () => {
   it.each([[kinds], [null]])("accepts the answer %j", (answered) => {
     const message = { type: "cash-movement-kinds", request_id: REQUEST_ID, kinds: answered };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it.each([
@@ -2088,7 +1086,7 @@ describe("cash movement kinds answers", () => {
     ],
   ])("rejects %s", (_case, answered) => {
     expect(
-      coreToRendererMessageSchema.safeParse({
+      registerCoreToRendererMessageSchema.safeParse({
         type: "cash-movement-kinds",
         request_id: REQUEST_ID,
         kinds: answered,
@@ -2099,9 +1097,10 @@ describe("cash movement kinds answers", () => {
   it("accepts that the kinds cannot be read, and rejects it without its request id", () => {
     const message = { type: "cash-movement-kinds-unavailable", request_id: REQUEST_ID };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
     expect(
-      coreToRendererMessageSchema.safeParse({ type: "cash-movement-kinds-unavailable" }).success,
+      registerCoreToRendererMessageSchema.safeParse({ type: "cash-movement-kinds-unavailable" })
+        .success,
     ).toBe(false);
   });
 });
@@ -2110,20 +1109,20 @@ describe("checking typed input", () => {
   it("accepts a check of an enrollment code as typed", () => {
     const message = { type: "check-enrollment-code", request_id: REQUEST_ID, code: "p4nx 7kwe" };
 
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
   it.each([
     { type: "check-enrollment-code", request_id: REQUEST_ID },
     { type: "check-enrollment-code", code: "p4nx" },
   ])("rejects an enrollment code check that is not well formed: %j", (message) => {
-    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+    expect(registerRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
   });
 
   it.each([[["code"]], [[]]])("accepts an enrollment code check refusing %j", (fields) => {
     const message = { type: "enrollment-code-check", request_id: REQUEST_ID, fields };
 
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it.each([
@@ -2131,27 +1130,6 @@ describe("checking typed input", () => {
     { type: "enrollment-code-check", request_id: REQUEST_ID },
     { type: "enrollment-code-check", fields: [] },
   ])("rejects a check answer that is not well formed: %j", (message) => {
-    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
-  });
-
-  it("accepts a check of a PIN code redemption as typed", () => {
-    const message = {
-      type: "check-pin-code-redemption",
-      request_id: REQUEST_ID,
-      reset_code: "p4nx",
-      new_pin: "12",
-    };
-
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("accepts a PIN code redemption check refusing its fields", () => {
-    const message = {
-      type: "pin-code-redemption-check",
-      request_id: REQUEST_ID,
-      fields: ["reset_code", "new_pin"],
-    };
-
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 });

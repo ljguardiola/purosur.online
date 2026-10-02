@@ -3,9 +3,8 @@ import { hostname, release, version } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import {
-  type CoreToRendererMessage,
+  type CoreReadyMessage,
   mainToCoreMessageSchema,
-  rendererToCoreMessageSchema,
   scrubErrorReport,
   scrubErrorReportBreadcrumb,
   scrubErrorReportLog,
@@ -18,7 +17,6 @@ import {
   localDataFolderFromCoreArguments,
   sentryEnvironmentFromCoreArguments,
 } from "../shared/channel";
-import { CORE_READY_MESSAGE } from "../shared/core-readiness";
 import { createActionGate } from "./access/action-gate";
 import { authorizersOf } from "./access/authorizers";
 import { requestFirstPinCode } from "./access/first-pin-code-request";
@@ -65,10 +63,11 @@ import {
   generatePepper,
   installationReportFrom,
 } from "./register/enrollment";
-import { answerRendererRequest, type RendererRequestDeps } from "./register/renderer-requests";
 import { readOpenSession } from "./register/sqlite-cash-ledger";
 import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
+import { type CoreToRendererMessage, rendererToCoreMessageSchema } from "./renderer-messages";
+import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
 import {
   addSearchedProductFor,
   cancelLockedSaleFor,
@@ -116,8 +115,6 @@ const recorder: RejectionRecorder = {
 
 const gateFromMain = createMessageGate(mainToCoreMessageSchema, recorder);
 const gateFromRenderer = createMessageGate(rendererToCoreMessageSchema, recorder);
-
-function handleMainMessage(): void {}
 
 const mainRequests = createMainRequests({
   post: (message) => process.parentPort.postMessage(message),
@@ -580,12 +577,8 @@ process.parentPort.on("message", (event) => {
     rendererConnection.adopt(rendererPort);
     return;
   }
-  if (mainRequests.receive(event.data)) {
-    return;
-  }
-
-  gateFromMain(event.data, handleMainMessage);
+  gateFromMain(event.data, (message) => mainRequests.receive(message));
 });
 
-process.parentPort.postMessage(CORE_READY_MESSAGE);
+process.parentPort.postMessage({ type: "core-ready" } satisfies CoreReadyMessage);
 syncSchedule.start();

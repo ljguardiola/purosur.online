@@ -1,10 +1,10 @@
+import type { DeviceCredentials } from "@purosur/contracts";
 import type { RegisterTelemetry } from "@purosur/domain";
 import {
   type LocalOutbox,
   type PushOutboxOutcome,
   pushOutbox,
 } from "@purosur/domain/sync/use-cases";
-import type { DeviceCredentials } from "../../shared/device-credentials-messages";
 import { CloudEventInbox, type PostToCloudWithBearer } from "./cloud-event-inbox";
 import { type CloudFailure, retryAfterMsOf } from "./cloud-failure";
 import type { SyncResult } from "./sync-schedule";

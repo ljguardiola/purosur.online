@@ -120,26 +120,28 @@ describe("createMainRequests", () => {
     expect(await second).toBe(true);
   });
 
-  it("takes an answer as its own and leaves any other message to the caller", () => {
+  it("settles no request with a health check", async () => {
     const { requests } = requestsWithSequentialIds();
-    void requests.credentialsPresent();
+    const present = requests.credentialsPresent();
 
-    expect(
-      requests.receive({
-        type: "device-credentials-presence",
-        request_id: "request-1",
-        present: true,
-      }),
-    ).toBe(true);
-    expect(requests.receive({ type: "health-check" })).toBe(false);
+    requests.receive({ type: "health-check" });
+    requests.receive({
+      type: "device-credentials-presence",
+      request_id: "request-1",
+      present: true,
+    });
+
+    expect(await present).toBe(true);
   });
 
-  it("takes an answer to no pending request as its own without resolving anything", () => {
+  it("settles nothing with an answer to no pending request", async () => {
     const { requests } = requestsWithSequentialIds();
+    const stored = requests.storeCredentials(CREDENTIALS);
 
-    expect(
-      requests.receive({ type: "device-credentials-stored", request_id: "unknown", stored: true }),
-    ).toBe(true);
+    requests.receive({ type: "device-credentials-stored", request_id: "unknown", stored: true });
+    requests.receive({ type: "device-credentials-stored", request_id: "request-1", stored: false });
+
+    expect(await stored).toBe(false);
   });
 
   it("ignores an answer of the other kind for a pending request", async () => {

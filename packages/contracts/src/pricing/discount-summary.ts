@@ -1,7 +1,6 @@
 import { DISCOUNT_STATUSES } from "@purosur/domain";
 import { z } from "zod";
-import { discountBenefitSchema } from "./discount-benefit.js";
-import { discountTargetSchema } from "./discount-target.js";
+import { discountBenefitSchema, discountTargetSchema } from "../shared/index.js";
 
 export const discountSummarySchema = z.object({
   id: z.string(),

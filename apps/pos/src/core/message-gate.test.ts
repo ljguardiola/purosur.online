@@ -1,6 +1,6 @@
-import { rendererToCoreMessageSchema } from "@purosur/contracts";
 import { describe, expect, it, vi } from "vitest";
 import { createMessageGate, summarizeRejection } from "./message-gate";
+import { rendererToCoreMessageSchema } from "./renderer-messages";
 
 describe("createMessageGate", () => {
   it("lets a message that matches its schema reach the handler", () => {

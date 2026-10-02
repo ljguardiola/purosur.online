@@ -7,8 +7,7 @@ import {
   isValidDiscountWeekdays,
 } from "@purosur/domain";
 import { z } from "zod";
-import { discountBenefitSchema } from "./discount-benefit.js";
-import { discountTargetSchema } from "./discount-target.js";
+import { discountBenefitSchema, discountTargetSchema } from "../shared/index.js";
 
 const NAME_EMPTY_MESSAGE = "name must not be empty";
 const WEEKDAYS_MESSAGE = "weekdays must be distinct ISO weekdays, 1 (Monday) to 7 (Sunday)";

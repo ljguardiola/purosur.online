@@ -1,9 +1,6 @@
+import type { CredentialsReplacement, DeviceCredentials } from "@purosur/contracts";
 import { deviceTokenRotationSchema } from "@purosur/contracts";
 import { isDeviceTokenRotationDue } from "@purosur/domain";
-import type {
-  CredentialsReplacement,
-  DeviceCredentials,
-} from "../../shared/device-credentials-messages";
 import type { CloudResponse } from "../platform/cloud-client";
 import { installationKeysFrom } from "./installation-keys";
 

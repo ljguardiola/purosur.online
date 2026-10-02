@@ -8,7 +8,6 @@ import { cruise } from "dependency-cruiser";
 import extractTSConfig from "dependency-cruiser/config-utl/extract-ts-config";
 import config, {
   CLOUD_ONLY_CONCEPTS,
-  CONTRACTS_CROSS_CONCEPT_IMPORT_ALLOWLIST,
   SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST,
 } from "../../.dependency-cruiser.mjs";
 
@@ -1274,7 +1273,6 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../..");
 
 const ALLOWLISTED_RULES = [
   ["screens-types-only-from-domain", SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST],
-  ["contracts-no-cross-concept-imports", CONTRACTS_CROSS_CONCEPT_IMPORT_ALLOWLIST],
 ];
 
 test("every allowlist is sorted and lists only existing files", async () => {

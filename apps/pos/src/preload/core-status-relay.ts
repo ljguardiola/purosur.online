@@ -1,4 +1,4 @@
-import { isCoreStatusRequest } from "../shared/core-status-request";
+import type { CoreStatusRequest } from "@purosur/contracts";
 
 export interface CoreStatusRelay {
   fromMain(message: unknown): void;
@@ -6,6 +6,15 @@ export interface CoreStatusRelay {
 }
 
 const CORE_STATUS_CHANNEL = "core-status";
+
+function isCoreStatusRequest(data: unknown): data is CoreStatusRequest {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    "channel" in data &&
+    data.channel === "core-status-request"
+  );
+}
 
 export function createCoreStatusRelay(postToPage: (data: unknown) => void): CoreStatusRelay {
   let latest: { message: unknown } | undefined;

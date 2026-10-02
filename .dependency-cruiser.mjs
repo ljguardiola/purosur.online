@@ -17,11 +17,6 @@ export const SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST = [
   "apps/backoffice/src/shell/backoffice-access.ts",
 ];
 
-export const CONTRACTS_CROSS_CONCEPT_IMPORT_ALLOWLIST = [
-  "packages/contracts/src/register/core-messages.ts",
-  "packages/contracts/src/sync/changes.ts",
-];
-
 function exactPaths(paths) {
   return paths.map((path) => `^${path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`);
 }
@@ -208,7 +203,6 @@ export default {
       severity: "error",
       from: {
         path: "^packages/contracts/src/(?!shared/)([^/]+)/",
-        pathNot: exactPaths(CONTRACTS_CROSS_CONCEPT_IMPORT_ALLOWLIST),
       },
       to: {
         path: "^packages/contracts/src/[^/]+/",
@@ -302,8 +296,10 @@ export default {
         "apps/pos/src/main/ is the Electron main process shell: it may only import " +
         "its own files, apps/pos/src/shared/ (pure code every process " +
         "shares), electron, electron-updater, @sentry/electron (Sentry is " +
-        "initialized in main), contracts' entry point (for its error report " +
-        "scrubbers alone, which Biome enforces), and Node builtins - not domain, " +
+        "initialized in main), contracts' entry point (its error report scrubbers " +
+        "as values and only the types of the messages main exchanges, which " +
+        "Biome and .github/scripts/main-contracts-imports.mjs enforce), and Node " +
+        "builtins - not domain, " +
         "another contracts file, ui, core, renderer, or any other npm package.",
       severity: "error",
       from: { path: "^apps/pos/src/main/" },
