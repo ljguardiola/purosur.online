@@ -241,7 +241,7 @@ describe("SaleScreen", () => {
       await expectNoAccessibilityViolations(screen.container);
     });
 
-    it("shows a line's promotion as the design system's info tag", async () => {
+    it("shows a line's promotion as the design system's green success tag with its icon", async () => {
       const promoted = {
         ...YERBA,
         discount_amount: 47_600,
@@ -256,7 +256,7 @@ describe("SaleScreen", () => {
           charge_refusal: null,
         }),
       });
-      const reference = await render(<Tag tone="info">Referencia</Tag>);
+      const reference = await render(<Tag tone="success">Referencia</Tag>);
 
       const promotion = screen.getByText("10 % de descuento").element();
       const shown = getComputedStyle(promotion);

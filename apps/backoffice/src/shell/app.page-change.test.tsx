@@ -74,7 +74,7 @@ test("moves focus to the new area's screen title after switching area from the r
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toHaveFocus();
 });
 
-test("moves focus to the new screen's title after following a link between the screens reached without a session", async () => {
+test("moves focus to the new screen's title, with a focus ring, after following a link with the keyboard between the screens reached without a session", async () => {
   window.history.pushState(null, "", "/sign-in");
   const screen = await render(
     <App
@@ -90,9 +90,11 @@ test("moves focus to the new screen's title after following a link between the s
     screen.getByRole("link", { name: "Perdí mis passkeys" }).element() as HTMLElement,
   );
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Recuperar el acceso", level: 1 }))
-    .toHaveFocus();
+  const title = screen.getByRole("heading", { name: "Recuperar el acceso", level: 1 });
+  await expect.element(title).toHaveFocus();
+  const style = getComputedStyle(title.element());
+  await expect.poll(() => style.outlineStyle).toBe("solid");
+  expect(style.outlineWidth).toBe("3px");
 });
 
 test("moves focus to the first screen's title after signing in", async () => {

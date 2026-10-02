@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { expect, userEvent, within } from "storybook/test";
 import { ScreenHeader } from "./screen-header";
 
 const meta: Meta<typeof ScreenHeader> = {
@@ -32,6 +33,21 @@ export const TitleAndDescription: Story = {
 
 export const TitleOnly: Story = {
   args: { title: "Cambiar el PIN" },
+};
+
+export const FocusableTitle: Story = {
+  args: {
+    eyebrow: "Puro Sur",
+    title: "Ingresar",
+    description: "Usá la passkey de este dispositivo.",
+    focusableTitle: true,
+  },
+  play: async ({ canvasElement }) => {
+    const title = within(canvasElement).getByRole("heading", { name: "Ingresar" });
+    await userEvent.tab();
+    title.focus();
+    await expect(title).toHaveFocus();
+  },
 };
 
 export const LongText: Story = {
