@@ -886,6 +886,45 @@ test("rejects a days value above the maximum with an error that asks for a small
   expect(services.saveBranchSettings).not.toHaveBeenCalled();
 });
 
+test("rejects a days value too long to be read as a number with an error that asks for fewer days, without saving", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Precio sin revisar" }))
+    .toHaveValue("30");
+
+  await userEvent.fill(
+    screen.getByRole("textbox", { name: "Precio sin revisar" }),
+    "9".repeat(400),
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect
+    .element(screen.getByRole("textbox", { name: "Precio sin revisar" }))
+    .toHaveAttribute("aria-invalid", "true");
+  await expect.element(screen.getByText("Ingresá un número de días más chico.")).toBeVisible();
+  expect(services.saveBranchSettings).not.toHaveBeenCalled();
+});
+
+test("rejects a days value that is not a whole number with an error that asks for a whole number of 0 or more, without saving", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Precio sin revisar" }))
+    .toHaveValue("30");
+
+  await userEvent.fill(screen.getByRole("textbox", { name: "Precio sin revisar" }), "-1");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect
+    .element(screen.getByRole("textbox", { name: "Precio sin revisar" }))
+    .toHaveAttribute("aria-invalid", "true");
+  await expect.element(screen.getByText("Ingresá un número entero de 0 días o más.")).toBeVisible();
+  expect(services.saveBranchSettings).not.toHaveBeenCalled();
+});
+
 test("accepts a days value of exactly the maximum", async () => {
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });

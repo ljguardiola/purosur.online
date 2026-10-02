@@ -1,8 +1,12 @@
-import { NET_CONTENT_QUANTITY_MAX, NET_CONTENT_QUANTITY_MAX_DECIMALS } from "@purosur/domain";
+import { netContentQuantitySchema } from "@purosur/contracts";
 import { formatNumber, parseEsArNumber } from "@purosur/ui";
+import { schemaLimit } from "../platform/schema-limit";
+
+const MAX_QUANTITY = schemaLimit(netContentQuantitySchema.meta()?.["maxValue"]);
+const MAX_DECIMALS = schemaLimit(netContentQuantitySchema.meta()?.["maxDecimals"]);
 
 export function parseNetContentQuantity(value: string): number | undefined {
-  const digits = parseEsArNumber(value, NET_CONTENT_QUANTITY_MAX_DECIMALS);
+  const digits = parseEsArNumber(value, MAX_DECIMALS);
   if (!digits) {
     return undefined;
   }
@@ -15,4 +19,4 @@ export function formatNetContentQuantity(quantity: number): string {
   return String(quantity).replace(".", ",");
 }
 
-export const NET_CONTENT_QUANTITY_INVALID = `Ingresá una cantidad mayor que cero, de hasta ${formatNumber(NET_CONTENT_QUANTITY_MAX)} y con hasta ${formatNumber(NET_CONTENT_QUANTITY_MAX_DECIMALS)} decimales.`;
+export const NET_CONTENT_QUANTITY_INVALID = `Ingresá una cantidad mayor que cero, de hasta ${formatNumber(MAX_QUANTITY)} y con hasta ${formatNumber(MAX_DECIMALS)} decimales.`;

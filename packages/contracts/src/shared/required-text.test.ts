@@ -32,3 +32,9 @@ describe("requiredTextSchema", () => {
     expect(failure(value)).toEqual([message]);
   });
 });
+
+describe("requiredTextSchema, declared limits", () => {
+  it("declares the maximum length it was given", () => {
+    expect(schema.meta()).toEqual({ maxLength: 5 });
+  });
+});

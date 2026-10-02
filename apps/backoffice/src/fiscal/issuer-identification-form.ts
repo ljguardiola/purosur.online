@@ -1,13 +1,10 @@
 import { type CalendarDate, parseDate } from "@internationalized/date";
-import type { IssuerIdentificationEditBody } from "@purosur/contracts";
 import {
-  argentinaCalendarDay,
-  ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
-  ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
-  isIssuerIdentificationActivityStartDate,
-  isIssuerIdentificationGrossIncomeRegistrationTooLong,
-  isIssuerIdentificationLegalNameTooLong,
-} from "@purosur/domain";
+  type IssuerIdentificationEditBody,
+  issuerIdentificationEditBodySchema,
+} from "@purosur/contracts";
+import { argentinaCalendarDay } from "@purosur/domain";
+import { schemaLimit } from "../platform/schema-limit";
 import type { IssuerIdentification } from "./issuer-identification-api";
 
 export type IssuerIdentificationFormValues = {
@@ -24,8 +21,13 @@ export const EMPTY_ISSUER_IDENTIFICATION_FORM: IssuerIdentificationFormValues = 
   version: 0,
 };
 
-const LEGAL_NAME_TOO_LONG_ERROR = `Ingresá como mucho ${ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH} caracteres.`;
-const GROSS_INCOME_REGISTRATION_TOO_LONG_ERROR = `Ingresá como mucho ${ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH} caracteres.`;
+// The two texts do not depend on the date the body is checked against.
+const { legal_name: legalNameSchema, gross_income_registration: grossIncomeRegistrationSchema } =
+  issuerIdentificationEditBodySchema(new Date(0)).shape;
+
+const LEGAL_NAME_TOO_LONG_ERROR = `Ingresá como mucho ${schemaLimit(legalNameSchema.meta()?.["maxLength"])} caracteres.`;
+const GROSS_INCOME_REGISTRATION_TOO_LONG_ERROR = `Ingresá como mucho ${schemaLimit(grossIncomeRegistrationSchema.meta()?.["maxLength"])} caracteres.`;
+
 export const ACTIVITY_START_DATE_FUTURE_ERROR = "La fecha no puede ser futura.";
 
 function dateOf(value: string | null): CalendarDate | null {
@@ -66,9 +68,9 @@ export function legalNameMessage({ legalName }: IssuerIdentificationFormValues):
   if (trimmed === "") {
     return "Ingresá la razón social.";
   }
-  return isIssuerIdentificationLegalNameTooLong(trimmed)
-    ? LEGAL_NAME_TOO_LONG_ERROR
-    : "Revisá la razón social.";
+  return legalNameSchema.safeParse(trimmed).success
+    ? "Revisá la razón social."
+    : LEGAL_NAME_TOO_LONG_ERROR;
 }
 
 export function grossIncomeRegistrationMessage({
@@ -78,17 +80,19 @@ export function grossIncomeRegistrationMessage({
   if (trimmed === "") {
     return "Ingresá el número de Ingresos Brutos.";
   }
-  return isIssuerIdentificationGrossIncomeRegistrationTooLong(trimmed)
-    ? GROSS_INCOME_REGISTRATION_TOO_LONG_ERROR
-    : "Revisá el número de Ingresos Brutos.";
+  return grossIncomeRegistrationSchema.safeParse(trimmed).success
+    ? "Revisá el número de Ingresos Brutos."
+    : GROSS_INCOME_REGISTRATION_TOO_LONG_ERROR;
 }
 
 export function activityStartDateMessage(today: Date) {
+  const { activity_start_date: activityStartDateSchema } =
+    issuerIdentificationEditBodySchema(today).shape;
   return ({ activityStartDate }: IssuerIdentificationFormValues): string => {
     if (activityStartDate === null) {
       return "Elegí la fecha de inicio de actividades.";
     }
-    return isIssuerIdentificationActivityStartDate(activityStartDate.toString(), today)
+    return activityStartDateSchema.safeParse(activityStartDate.toString()).success
       ? "Revisá la fecha de inicio de actividades."
       : ACTIVITY_START_DATE_FUTURE_ERROR;
   };

@@ -39,3 +39,9 @@ describe("tagCreationBodySchema", () => {
     expect(tagCreationBodySchema.safeParse(body).success).toBe(false);
   });
 });
+
+describe("tagCreationBodySchema, declared limits", () => {
+  it("declares the name's maximum length", () => {
+    expect(tagCreationBodySchema.shape.name.meta()).toEqual({ maxLength: TAG_NAME_MAX_LENGTH });
+  });
+});

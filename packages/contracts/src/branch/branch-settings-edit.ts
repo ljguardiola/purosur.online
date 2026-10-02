@@ -16,12 +16,14 @@ function textSchema(field: string) {
 
 function dayHoursSchema(field: string) {
   const message = `${field} must be a list of at most ${BRANCH_HOURS_RANGES_PER_DAY_MAX} non-overlapping HH:MM opens_at/closes_at ranges, each with closes_at later`;
-  const time = z.string({ error: message }).refine(isBranchHoursTime, message);
+  const time = z
+    .string({ error: message })
+    .refine(isBranchHoursTime, { message, params: { rule: "time_format" } });
   const range = z
     .object({ opens_at: time, closes_at: time }, { error: message })
     .refine(
       (value) => isBranchHoursRangeOrdered({ opensAt: value.opens_at, closesAt: value.closes_at }),
-      message,
+      { message, params: { rule: "range_order" } },
     );
   return z
     .array(range, { error: message })
@@ -31,8 +33,9 @@ function dayHoursSchema(field: string) {
         !branchHoursRangesOverlap(
           ranges.map((value) => ({ opensAt: value.opens_at, closesAt: value.closes_at })),
         ),
-      message,
-    );
+      { message, params: { rule: "range_overlap" } },
+    )
+    .meta({ maxLength: BRANCH_HOURS_RANGES_PER_DAY_MAX });
 }
 
 function daysSchema(field: string) {
