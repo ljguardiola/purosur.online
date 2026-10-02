@@ -1,5 +1,5 @@
 import type { CashBalance, CashCountPreview, CloseCashSessionOutcome } from "@purosur/contracts";
-import { Button, InlineNotice, ScreenHeader, useRequestForm } from "@purosur/ui";
+import { Button, Card, InlineNotice, ScreenHeader, useRequestForm } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Lock, TriangleAlert, UserX } from "lucide-react";
 import type { FormEvent } from "react";
@@ -126,7 +126,7 @@ export function CashCountScreen({
               onGoToSale={() => void navigate({ to: "/session" })}
             />
           )}
-          <section className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-6">
+          <Card>
             <p className="text-body text-text-subtle">
               Contá el efectivo que hay en la caja y cargá el total.
             </p>
@@ -154,7 +154,7 @@ export function CashCountScreen({
                 title={notice.title}
               />
             )}
-          </section>
+          </Card>
         </main>
         <ExpectedCashPanel eyebrow="EFECTIVO ESPERADO" balance={balance}>
           <Button
