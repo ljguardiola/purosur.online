@@ -176,6 +176,12 @@ export type {
 } from "./issue-recovery-token.js";
 export { issueRecoveryToken } from "./issue-recovery-token.js";
 export type {
+  IssueSignInChallengeInput,
+  IssueSignInChallengeOutcome,
+  IssueSignInChallengePorts,
+} from "./issue-sign-in-challenge.js";
+export { issueSignInChallenge } from "./issue-sign-in-challenge.js";
+export type {
   ListAuthorizersInput,
   ListAuthorizersPorts,
   SignablePerson,
