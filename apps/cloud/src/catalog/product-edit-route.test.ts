@@ -509,6 +509,31 @@ describe("PUT /products/:id", () => {
     expect(response.json()).toMatchObject({ code: "not_found" });
   });
 
+  it.each(["00000000-0000-0000-0000-000000000000", "not-a-uuid"])(
+    "returns 400 validation_failed for the id %s when the body does not match its shape",
+    async (id) => {
+      const categoryId = await insertCategory("Macetas");
+      const userId = await insertUserWithPermission();
+      const rawSessionId = await insertSession(userId);
+
+      const response = await editProduct(rawSessionId, id, {
+        name: "   ",
+        categoryId,
+        saleUnit: "UNIT",
+        barcodes: ["111"],
+        brandId: null,
+        tagIds: [],
+        version: 1,
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({
+        code: "validation_failed",
+        details: [{ field: "name" }],
+      });
+    },
+  );
+
   it("rejects an empty name, changing nothing", async () => {
     const categoryId = await insertCategory("Macetas");
     const product = await insertProduct({

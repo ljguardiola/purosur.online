@@ -77,7 +77,7 @@ function taggedProduct(store: FakeCatalogStore, tagIds: string[]): void {
 }
 
 describe("editProduct", () => {
-  it("answers stale_version for a row that is missing when it is locked", async () => {
+  it("answers not_found for a product that is missing when it is locked, changing nothing", async () => {
     const store = new FakeCatalogStore();
     leafCategory(store);
 
@@ -96,7 +96,8 @@ describe("editProduct", () => {
       },
     );
 
-    expect(outcome).toEqual({ kind: "stale_version" });
+    expect(outcome).toEqual({ kind: "not_found" });
+    expect(store.snapshot().products).toEqual([]);
   });
 
   it("rejects a stale version", async () => {

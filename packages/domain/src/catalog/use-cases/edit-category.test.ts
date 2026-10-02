@@ -3,7 +3,7 @@ import { editCategory } from "./edit-category.js";
 import { FakeCatalogStore } from "./test-support/fake-catalog-store.js";
 
 describe("editCategory", () => {
-  it("answers stale_version for a row that is missing when it is locked", async () => {
+  it("answers not_found for a category that is missing when it is locked, changing nothing", async () => {
     const store = new FakeCatalogStore();
     store.seedCategory({ id: "decoy", name: "Decoy", parentId: null, version: 1 });
 
@@ -14,7 +14,28 @@ describe("editCategory", () => {
       version: 1,
     });
 
-    expect(outcome).toEqual({ kind: "stale_version" });
+    expect(outcome).toEqual({ kind: "not_found" });
+    expect(store.snapshot().categories).toEqual([
+      { id: "decoy", name: "Decoy", parentId: null, version: 1 },
+    ]);
+  });
+
+  it("answers not_found for a category that is missing when a move to a parent is attempted, changing nothing", async () => {
+    const store = new FakeCatalogStore();
+    store.seedCategory({ id: "parent-1", name: "Jardín", parentId: null, version: 1 });
+
+    const outcome = await editCategory(store, {
+      id: "missing",
+      name: "Almacén",
+      parentId: "parent-1",
+      version: 1,
+    });
+
+    expect(outcome).toEqual({ kind: "not_found" });
+    expect(store.lockCallOrder).toEqual(["lockCategoryTreeForMove", "lockCategory"]);
+    expect(store.snapshot().categories).toEqual([
+      { id: "parent-1", name: "Jardín", parentId: null, version: 1 },
+    ]);
   });
 
   it("rejects a stale version", async () => {

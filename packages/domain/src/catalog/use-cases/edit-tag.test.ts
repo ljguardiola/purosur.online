@@ -3,13 +3,16 @@ import { editTag } from "./edit-tag.js";
 import { FakeCatalogStore } from "./test-support/fake-catalog-store.js";
 
 describe("editTag", () => {
-  it("answers stale_version for a tag that is missing when it is locked", async () => {
+  it("answers not_found for a tag that is missing when it is locked, changing nothing", async () => {
     const store = new FakeCatalogStore();
     store.seedTag({ id: "decoy", name: "Decoy", active: true, version: 1 });
 
     const outcome = await editTag(store, { id: "missing", name: "Sin TACC", version: 1 });
 
-    expect(outcome).toEqual({ kind: "stale_version" });
+    expect(outcome).toEqual({ kind: "not_found" });
+    expect(store.snapshot().tags).toEqual([
+      { id: "decoy", name: "Decoy", active: true, version: 1 },
+    ]);
   });
 
   it("rejects a stale version", async () => {

@@ -3,13 +3,16 @@ import { editBrand } from "./edit-brand.js";
 import { FakeCatalogStore } from "./test-support/fake-catalog-store.js";
 
 describe("editBrand", () => {
-  it("answers stale_version for a brand that is missing when it is locked", async () => {
+  it("answers not_found for a brand that is missing when it is locked, changing nothing", async () => {
     const store = new FakeCatalogStore();
     store.seedBrand({ id: "decoy", name: "Decoy", active: true, version: 1 });
 
     const outcome = await editBrand(store, { id: "missing", name: "Granix", version: 1 });
 
-    expect(outcome).toEqual({ kind: "stale_version" });
+    expect(outcome).toEqual({ kind: "not_found" });
+    expect(store.snapshot().brands).toEqual([
+      { id: "decoy", name: "Decoy", active: true, version: 1 },
+    ]);
   });
 
   it("rejects a stale version", async () => {
