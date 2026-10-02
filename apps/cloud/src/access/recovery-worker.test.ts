@@ -606,6 +606,51 @@ describe("startRecoveryWorker", () => {
     expect(withPgClient).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["with a time zone offset", "2026-01-05T12:00:00+03:00"],
+    ["holding only a date", "2026-01-05"],
+  ])(
+    "fails a job whose request time is a readable date %s, which the queue never writes, without borrowing a database client",
+    async (_shape, requestedAt) => {
+      const runWorker = vi.fn().mockResolvedValue(fakeRunner());
+      const withPgClient = vi.fn();
+
+      await startRecoveryWorker(
+        {
+          databaseUrl: "postgres://user:pass@db/purosur",
+          backofficeOrigin: "https://staging.purosur.online",
+          emailSender,
+        },
+        { runWorker },
+      );
+
+      const [options] = runWorker.mock.calls[0] as [
+        {
+          taskList: Record<
+            string,
+            (payload: unknown, helpers: { withPgClient: typeof withPgClient }) => Promise<void>
+          >;
+        },
+      ];
+      const task = mustExist(
+        options.taskList[RECOVERY_REQUEST_TASK_IDENTIFIER],
+        "the registered recovery-request task",
+      );
+
+      await expect(
+        task(
+          {
+            email: "ada@example.com",
+            requestedAt,
+            requestId: "0b8e5c2a-3f4d-4e6a-9b1c-2d3e4f5a6b7c",
+          },
+          { withPgClient },
+        ),
+      ).rejects.toThrow("malformed job payload");
+      expect(withPgClient).not.toHaveBeenCalled();
+    },
+  );
+
   it("fails a job whose request id the queue never creates, recording nothing even for an inactive account", async () => {
     const testDatabase = await buildTestDatabase();
     try {
