@@ -4,15 +4,8 @@ import {
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_TYPES,
   isAuthorizablePermissionKey,
-  REGISTER_ABILITIES,
 } from "@purosur/domain";
 import { z } from "zod";
-import {
-  authorizationRefusalSchema,
-  authorizationSchema,
-  authorizedBySchema,
-} from "../access/authorization.js";
-import { pinAttemptRefusalSchema } from "../access/pin-attempt-refusal.js";
 import {
   checkPinCodeRedemptionMessageSchema,
   pinCodeRedemptionCheckMessageSchema,
@@ -31,8 +24,18 @@ import {
   scanProductOutcomeSchema,
   searchProductsOutcomeSchema,
 } from "../sales/sale.js";
+import {
+  authorizationRefusalSchema,
+  authorizationSchema,
+  authorizedBySchema,
+  openCashSessionSchema,
+  pinAttemptRefusalSchema,
+  requestIdSchema,
+  signedInPersonSchema,
+  signInUserSchema,
+} from "../shared/index.js";
 
-const requestId = z.string();
+const requestId = requestIdSchema;
 
 const rendererPingMessageSchema = z.object({
   type: z.literal("ping"),
@@ -307,20 +310,6 @@ const enrollmentOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type EnrollmentOutcome = z.infer<typeof enrollmentOutcomeSchema>;
 
-const signedInPersonSchema = z.object({
-  user_id: z.string(),
-  first_name: z.string(),
-  abilities: z.array(z.enum(REGISTER_ABILITIES)),
-});
-
-const openCashSessionSchema = z.object({
-  id: z.string(),
-  opened_at: z.string(),
-  opened_by: signedInPersonSchema,
-  locked: z.boolean(),
-});
-export type OpenCashSession = z.infer<typeof openCashSessionSchema>;
-
 const pinCodeRedemptionOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("redeemed") }),
   z.object({
@@ -470,9 +459,6 @@ const recordableCashMovementKindsSchema = z.record(
   }),
 );
 export type RecordableCashMovementKinds = z.infer<typeof recordableCashMovementKindsSchema>;
-
-const signInUserSchema = z.object({ id: z.string(), first_name: z.string() });
-export type SignInUser = z.infer<typeof signInUserSchema>;
 
 const signInLookupOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("has_pin"), user: signInUserSchema }),

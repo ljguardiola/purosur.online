@@ -1,13 +1,3 @@
-export type {
-  Authorization,
-  AuthorizationRefusal,
-  AuthorizedBy,
-} from "./access/authorization.js";
-export {
-  authorizationRefusalSchema,
-  authorizationSchema,
-  authorizedBySchema,
-} from "./access/authorization.js";
 export type { BranchUserWire } from "./access/branch-user.js";
 export { branchUserListSchema, branchUserSchema } from "./access/branch-user.js";
 export type { FirstPinCodeBody, FirstPinCodeWire } from "./access/first-pin-code.js";
@@ -20,8 +10,6 @@ export type { PasskeyRegistrationChallengeWire } from "./access/passkey-registra
 export { passkeyRegistrationChallengeSchema } from "./access/passkey-registration-challenge.js";
 export type { PasskeySummaryWire } from "./access/passkey-summary.js";
 export { passkeyListSchema, passkeySummarySchema } from "./access/passkey-summary.js";
-export type { PinAttemptRefusal } from "./access/pin-attempt-refusal.js";
-export { pinAttemptRefusalSchema } from "./access/pin-attempt-refusal.js";
 export type { PinCodeRedemption, PinCodeRedemptionBody } from "./access/pin-code-redemption.js";
 export {
   pinCodeRedemptionBodySchema,
@@ -129,11 +117,6 @@ export {
   registerPointOfSaleOverviewSchema,
   registerPointOfSaleSchema,
 } from "./fiscal/register-point-of-sale.js";
-export {
-  discountBuyQtySchema,
-  discountPayQtySchema,
-  discountPercentSchema,
-} from "./pricing/discount-benefit.js";
 export type { DiscountCreationBody } from "./pricing/discount-creation.js";
 export { discountCreationBodySchema, discountNameSchema } from "./pricing/discount-creation.js";
 export type { DiscountEditBody } from "./pricing/discount-edit.js";
@@ -178,7 +161,6 @@ export type {
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
   MainToCoreMessage,
-  OpenCashSession,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   RecordableCashMovementKinds,
@@ -188,7 +170,6 @@ export type {
   SessionOpenSale,
   SignInLookupOutcome,
   SignInOutcome,
-  SignInUser,
 } from "./register/core-messages.js";
 export {
   cashMovementTypeSchema,
@@ -237,16 +218,29 @@ export type {
   SearchProductsOutcome,
 } from "./sales/sale.js";
 export type {
+  Authorization,
+  AuthorizationRefusal,
+  AuthorizedBy,
   BranchSettingsBody,
   ErrorReportingConfiguration,
   IssuerIdentificationBody,
+  OpenCashSession,
+  PinAttemptRefusal,
+  SignInUser,
 } from "./shared/index.js";
 export {
+  authorizationRefusalSchema,
+  authorizationSchema,
+  authorizedBySchema,
   branchSettingsSchema,
   decodePinSalt,
+  discountBuyQtySchema,
+  discountPayQtySchema,
+  discountPercentSchema,
   encodePinHash,
   issuerIdentificationSchema,
   PIN_HASH_SCHEME,
+  pinAttemptRefusalSchema,
   scrubErrorReport,
   scrubErrorReportBreadcrumb,
   scrubErrorReportLog,

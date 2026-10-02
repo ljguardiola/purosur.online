@@ -10,10 +10,10 @@ import {
   SALE_UNITS,
 } from "@purosur/domain";
 import { z } from "zod";
-import { discountBenefitSchema } from "../pricing/discount-benefit.js";
-import { discountTargetSchema } from "../pricing/discount-target.js";
 import {
   branchSettingsSchema,
+  discountBenefitSchema,
+  discountTargetSchema,
   issuerIdentificationSchema,
   pointOfSaleNumberSchema,
 } from "../shared/index.js";
