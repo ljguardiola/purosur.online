@@ -401,6 +401,23 @@ describe("GET /products", () => {
       expect(response.statusCode).toBe(400);
       expect(response.json()).toMatchObject({ code: "validation_failed" });
     });
+
+    it.each(["constructor", "__proto__", "toString"])(
+      "rejects the inherited object member %s as a status value",
+      async (status) => {
+        const userId = await insertUserWithPermission();
+        const rawSessionId = await insertSession(userId);
+
+        const response = await getProducts(rawSessionId, {}, { status });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toEqual({
+          code: "validation_failed",
+          message: "status must be one of active, inactive, or all",
+          details: [{ field: "status" }],
+        });
+      },
+    );
   });
 
   it("lists products for an Administrator even without the explicit permission", async () => {
