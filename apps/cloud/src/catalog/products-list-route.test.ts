@@ -216,6 +216,7 @@ describe("GET /products", () => {
         tagIds: [],
         netContent: null,
         active: true,
+        labelCode: null,
         version: semilla.version,
       },
       {
@@ -229,9 +230,43 @@ describe("GET /products", () => {
         tagIds: [],
         netContent: null,
         active: true,
+        labelCode: null,
         version: maceta.version,
       },
     ]);
+  });
+
+  it("gives each product the internal barcode its label carries, none when it is inactive", async () => {
+    const categoryId = await insertCategory("Macetas");
+    const labeled = await insertProduct({
+      name: "Maceta con etiqueta",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["7790001000011", "2000000000015"],
+    });
+    const inactive = await insertProduct({
+      name: "Maceta inactiva",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["2000000000022"],
+    });
+    await db.update(products).set({ active: false }).where(eq(products.id, inactive.id));
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await getProducts(rawSessionId, {}, { status: "all" });
+
+    const labelCodes = new Map(
+      response
+        .json()
+        .map((product: { id: string; labelCode: unknown }) => [product.id, product.labelCode]),
+    );
+    expect(labelCodes).toEqual(
+      new Map([
+        [labeled.id, "2000000000015"],
+        [inactive.id, null],
+      ]),
+    );
   });
 
   it("returns the brand of a product that has one, deactivated or not", async () => {

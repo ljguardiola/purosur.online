@@ -1,3 +1,5 @@
+export type { AllocateInternalBarcodeOutcome } from "./allocate-internal-barcode.js";
+export { allocateInternalBarcode } from "./allocate-internal-barcode.js";
 export type {
   BrandFields,
   BuyNPayMDiscount,
@@ -50,6 +52,10 @@ export type { EditProductInput, EditProductOutcome } from "./edit-product.js";
 export { editProduct } from "./edit-product.js";
 export type { EditTagInput, EditTagOutcome } from "./edit-tag.js";
 export { editTag } from "./edit-tag.js";
+export type { InternalBarcodeStore } from "./internal-barcode-store.js";
+export type { LabelProduct, LabelProductReader } from "./label-product-reader.js";
+export type { LabelSheetItem, PrepareLabelSheetOutcome } from "./prepare-label-sheet.js";
+export { prepareLabelSheet } from "./prepare-label-sheet.js";
 export type { ReactivateBrandOutcome } from "./reactivate-brand.js";
 export { reactivateBrand } from "./reactivate-brand.js";
 export type { ReactivateTagOutcome } from "./reactivate-tag.js";

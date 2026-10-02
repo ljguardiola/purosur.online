@@ -39,6 +39,7 @@ test("creates a product and shows it in the list", async () => {
     tagIds: [],
     netContent: null,
     active: true,
+    labelCode: null,
     version: 1,
   };
   vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok" });

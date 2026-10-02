@@ -21,6 +21,7 @@ import {
   TAG_INACTIVE_RESPONSE,
   TAG_NOT_FOUND_FAILURE,
 } from "./product-creation-route.js";
+import { toProductSummary } from "./product-summary-wire.js";
 import type { ProductsRouteOptions } from "./products-list-route.js";
 
 const NOT_FOUND_RESPONSE = {
@@ -135,7 +136,7 @@ export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      await reply.code(200).send(productSummarySchema.parse(outcome.product));
+      await reply.code(200).send(productSummarySchema.parse(toProductSummary(outcome.product)));
     },
   );
 }

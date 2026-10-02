@@ -10,17 +10,19 @@ import { almonds, honey } from "./test-support/products";
 // Both barcodes are valid check-digit values in the GS1 restricted-circulation range.
 const honeyWithInternalBarcode: ProductSummary = {
   ...honey,
-  id: "product-20",
+  id: "00000020-0000-4000-8000-000000000000",
   barcodes: ["2000000000015"],
+  labelCode: "2000000000015",
 };
 const almondsWithInternalBarcode: ProductSummary = {
   ...almonds,
-  id: "product-21",
+  id: "00000021-0000-4000-8000-000000000000",
   barcodes: ["2000000000022"],
+  labelCode: "2000000000022",
 };
 const withoutInternalBarcode: ProductSummary = {
   ...honey,
-  id: "product-22",
+  id: "00000022-0000-4000-8000-000000000000",
   name: "Producto sin código interno",
   barcodes: ["7790000000123"],
 };
@@ -166,6 +168,24 @@ test("lists only products with an internal barcode", async () => {
   expect(dialog.getByText("Producto sin código interno").query()).toBeNull();
 });
 
+test("lists each product by the label code the cloud sends, not by its barcodes", async () => {
+  const services = createServices();
+  const withoutLabelCode: ProductSummary = {
+    ...almondsWithInternalBarcode,
+    name: "Producto sin etiqueta",
+    labelCode: null,
+  };
+  const screen = await renderModal(services, {
+    products: [{ ...honeyWithInternalBarcode, labelCode: "2000000000039" }, withoutLabelCode],
+  });
+
+  const dialog = await openPrintLabelsModal(screen);
+
+  await expect.element(dialog.getByText("2000000000039")).toBeVisible();
+  expect(dialog.getByText("2000000000015").query()).toBeNull();
+  expect(dialog.getByText("Producto sin etiqueta").query()).toBeNull();
+});
+
 test("lists the products alphabetically by name", async () => {
   const services = createServices();
   const screen = await renderModal(services, {
@@ -187,19 +207,6 @@ test("lists the products alphabetically by name", async () => {
     ]);
 });
 
-test("does not list an inactive product, even with an internal barcode", async () => {
-  const services = createServices();
-  const inactiveAlmonds: ProductSummary = { ...almondsWithInternalBarcode, active: false };
-  const screen = await renderModal(services, {
-    products: [honeyWithInternalBarcode, inactiveAlmonds],
-  });
-
-  const dialog = await openPrintLabelsModal(screen);
-
-  await expect.element(dialog.getByText("2000000000015")).toBeVisible();
-  expect(dialog.getByText("2000000000022").query()).toBeNull();
-});
-
 test("shows only the empty state when no product has an internal barcode", async () => {
   const services = createServices();
   const screen = await renderModal(services, { products: [withoutInternalBarcode] });
@@ -215,22 +222,15 @@ test("shows only the empty state when no product has an internal barcode", async
     .toBeDisabled();
 });
 
-test("an inactive product's internal code isn't offered, and the empty state asks for an active one", async () => {
+test("the empty state asks to generate a code from an active product's form", async () => {
   const services = createServices();
-  const inactiveAlmonds: ProductSummary = { ...almondsWithInternalBarcode, active: false };
-  const screen = await renderModal(services, {
-    products: [inactiveAlmonds, withoutInternalBarcode],
-  });
+  const screen = await renderModal(services, { products: [withoutInternalBarcode] });
 
   const dialog = await openPrintLabelsModal(screen);
 
   await expect
-    .element(dialog.getByText("No hay productos activos con código interno"))
-    .toBeVisible();
-  await expect
     .element(dialog.getByText("Generá uno desde el formulario de un producto activo."))
     .toBeVisible();
-  expect(dialog.getByText("Almendras peladas").query()).toBeNull();
 });
 
 test("the stepper increments and decrements between 0 and 999, disabling each bound", async () => {
@@ -528,9 +528,10 @@ test("cancel closes the print labels modal without calling the API", async () =>
 test("caps the sheet at 2400 labels in total, disabling a row's + once the total is reached", async () => {
   const walnutsWithInternalBarcode: ProductSummary = {
     ...almonds,
-    id: "product-23",
+    id: "00000023-0000-4000-8000-000000000000",
     name: "Nueces mariposa",
     barcodes: ["2912345678906"],
+    labelCode: "2912345678906",
   };
   const services = createServices();
   const screen = await renderModal(services, {

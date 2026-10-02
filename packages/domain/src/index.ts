@@ -117,7 +117,13 @@ export {
   isBranchHoursRangeOrdered,
   isBranchHoursTime,
 } from "./branch/index.js";
-export type { BarcodeListProblem, NetContentUnit, SaleUnit } from "./catalog/index.js";
+export type {
+  BarcodeListProblem,
+  LabelRequestEntry,
+  LabelRequestProblem,
+  NetContentUnit,
+  SaleUnit,
+} from "./catalog/index.js";
 export {
   appendEan13CheckDigit,
   BARCODE_MAX_LENGTH,
@@ -135,14 +141,17 @@ export {
   isNetContentUnit,
   isProductNameTooLong,
   isTagNameTooLong,
+  isValidLabelCount,
   isValidNetContentQuantity,
   LABELS_MAX_COUNT_PER_PRODUCT,
   LABELS_MAX_TOTAL_COUNT,
+  labelRequestProblem,
   NET_CONTENT_QUANTITY_MAX,
   NET_CONTENT_QUANTITY_MAX_DECIMALS,
   NET_CONTENT_UNITS,
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
+  productLabelCode,
   productNameLength,
   SALE_UNITS,
   TAG_NAME_MAX_LENGTH,

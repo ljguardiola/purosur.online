@@ -12,8 +12,9 @@ import {
 // A valid check-digit value in the GS1 restricted-circulation range.
 const honeyWithInternalBarcode: ProductSummary = {
   ...honey,
-  id: "product-20",
+  id: "00000020-0000-4000-8000-000000000000",
   barcodes: ["2000000000015"],
+  labelCode: "2000000000015",
 };
 async function openPrintLabelsModal(screen: Screen) {
   await userEvent.click(screen.getByRole("button", { name: "Imprimir etiquetas" }));
