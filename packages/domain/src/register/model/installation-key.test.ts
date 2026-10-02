@@ -1,6 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
+  hasDistinctKeyVersions,
   INSTALLATION_KEY_BYTES,
   inVersionOrder,
   isWellFormedInstallationKey,
@@ -88,5 +89,27 @@ describe("inVersionOrder", () => {
       { version: 3, key: "third" },
     ]);
     expect(keys[0]).toEqual({ version: 3, key: "third" });
+  });
+});
+
+describe("hasDistinctKeyVersions", () => {
+  it("accepts keys that each carry their own version", () => {
+    expect(hasDistinctKeyVersions([])).toBe(true);
+    expect(
+      hasDistinctKeyVersions([
+        { version: 1, key: "first" },
+        { version: 2, key: "second" },
+      ]),
+    ).toBe(true);
+  });
+
+  it("refuses two keys of the same version, even when the keys differ", () => {
+    expect(
+      hasDistinctKeyVersions([
+        { version: 1, key: "first" },
+        { version: 2, key: "second" },
+        { version: 1, key: "third" },
+      ]),
+    ).toBe(false);
   });
 });
