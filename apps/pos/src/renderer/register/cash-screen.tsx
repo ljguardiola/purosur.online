@@ -6,13 +6,13 @@ import type {
   SignInUser,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
-import { Button } from "@purosur/ui";
+import { Button, ScreenHeader } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { Lock, Plus } from "lucide-react";
 import { useState } from "react";
 import type { CashMovementInput } from "../platform/core-client";
 import { OpenSessionRail } from "../shell/open-session-rail";
-import { SessionEyebrow } from "../shell/session-eyebrow";
+import { sessionEyebrow } from "../shell/session-eyebrow";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { CashMovementsTable } from "./cash-movements-table";
 import { ExpectedCashPanel } from "./expected-cash-panel";
@@ -58,10 +58,10 @@ export function CashScreen({
         current="cash"
       />
       <main className="flex flex-1 flex-col gap-6 p-8">
-        <div className="flex flex-col gap-1.5">
-          <SessionEyebrow registerName={registerName} openedAt={openedAt} />
-          <h1 className="text-display text-text-accent">Movimientos de efectivo</h1>
-        </div>
+        <ScreenHeader
+          eyebrow={sessionEyebrow(registerName, openedAt)}
+          title="Movimientos de efectivo"
+        />
         <CashMovementsTable state={movements} />
       </main>
       <ExpectedCashPanel eyebrow="EFECTIVO ESPERADO AHORA" balance={balance}>

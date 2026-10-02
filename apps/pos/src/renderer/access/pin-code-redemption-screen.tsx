@@ -1,5 +1,5 @@
 import type { PinCodeRedemptionOutcome, PinPolicy } from "@purosur/contracts";
-import { Button, InlineNotice } from "@purosur/ui";
+import { Button, InlineNotice, ScreenHeader } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, CircleCheck } from "lucide-react";
 import { useState } from "react";
@@ -24,14 +24,14 @@ export function PinCodeRedemptionScreen({
   return (
     <BrandPanelScreen>
       <main className="flex w-full max-w-110 flex-col gap-4">
-        <div className="flex flex-col gap-1.5">
-          <h1 className="text-display text-text-accent">Cambiar el PIN</h1>
-          {redeemed ? null : (
-            <p className="text-body text-text-subtle">
-              Escribí el código que te dieron desde el backoffice. Hace falta internet.
-            </p>
-          )}
-        </div>
+        <ScreenHeader
+          title="Cambiar el PIN"
+          description={
+            redeemed
+              ? undefined
+              : "Escribí el código que te dieron desde el backoffice. Hace falta internet."
+          }
+        />
         {redeemed ? (
           <>
             <InlineNotice

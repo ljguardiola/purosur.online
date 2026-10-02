@@ -1,5 +1,4 @@
 import { formatClockTime } from "@purosur/ui";
-import { Eyebrow } from "./eyebrow";
 
 function statusText(openedAt: string | undefined): string {
   if (openedAt === undefined) {
@@ -8,13 +7,7 @@ function statusText(openedAt: string | undefined): string {
   return `Sesión abierta ${formatClockTime(openedAt)}`;
 }
 
-export function SessionEyebrow({
-  registerName,
-  openedAt,
-}: {
-  registerName: string | null;
-  openedAt?: string;
-}) {
+export function sessionEyebrow(registerName: string | null, openedAt?: string): string {
   const status = statusText(openedAt);
-  return <Eyebrow text={registerName === null ? status : `${registerName} · ${status}`} />;
+  return registerName === null ? status : `${registerName} · ${status}`;
 }
