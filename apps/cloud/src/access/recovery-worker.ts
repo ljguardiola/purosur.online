@@ -6,12 +6,10 @@ import pg, { type Pool, type PoolClient } from "pg";
 import { type BackgroundJobs, databaseOfClient } from "../platform/background-jobs.js";
 import { runShutdownSteps } from "../platform/run-shutdown-steps.js";
 import { reportPoolErrors } from "./pool-connection-error-handler.js";
-import {
-  processRecoveryRequestJob,
-  type RecoveryRequestJobPayload,
-} from "./process-recovery-request-job.js";
+import { processRecoveryRequestJob } from "./process-recovery-request-job.js";
 import type { AccessEmailSender } from "./recovery-email-sender.js";
 import { flushClosedRecoveryRejectedAttemptWindows } from "./recovery-rejected-attempt-flush.js";
+import { recoveryRequestJobPayloadSchema } from "./recovery-request-job-payload.js";
 import { findPinCodeByCode, sendFirstPinCodeEmailJob } from "./send-first-pin-code-email-job.js";
 
 export const RECOVERY_REQUEST_TASK_IDENTIFIER = "recovery-request";
@@ -26,22 +24,6 @@ const WORKER_CONCURRENCY = 2;
 
 export interface RecoveryWorkerHandle {
   stop(): Promise<void>;
-}
-
-const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function isRecoveryRequestJobPayload(payload: unknown): payload is RecoveryRequestJobPayload {
-  if (typeof payload !== "object" || payload === null) {
-    return false;
-  }
-  const candidate = payload as Partial<Record<keyof RecoveryRequestJobPayload, unknown>>;
-  return (
-    typeof candidate.email === "string" &&
-    typeof candidate.requestedAt === "string" &&
-    !Number.isNaN(Date.parse(candidate.requestedAt)) &&
-    typeof candidate.requestId === "string" &&
-    UUID_SHAPE.test(candidate.requestId)
-  );
 }
 
 export interface StartRecoveryWorkerOptions {
@@ -101,10 +83,12 @@ export async function startRecoveryWorker(
     events,
     taskList: {
       ...Object.assign({}, ...jobs.map((job) => job.taskList)),
-      [RECOVERY_REQUEST_TASK_IDENTIFIER]: async (payload, helpers) => {
-        if (!isRecoveryRequestJobPayload(payload)) {
+      [RECOVERY_REQUEST_TASK_IDENTIFIER]: async (rawPayload, helpers) => {
+        const parsed = recoveryRequestJobPayloadSchema.safeParse(rawPayload);
+        if (!parsed.success) {
           throw new Error(`${RECOVERY_REQUEST_TASK_IDENTIFIER}: malformed job payload`);
         }
+        const payload = parsed.data;
         const result = await helpers.withPgClient((client) =>
           doProcessJob(doCreateDatabase(client), payload, {
             now,

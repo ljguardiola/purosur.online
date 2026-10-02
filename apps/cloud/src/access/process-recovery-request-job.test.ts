@@ -5,10 +5,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { alerts, auditLog, recoveryTokens, users } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import {
-  processRecoveryRequestJob,
-  type RecoveryRequestJobPayload,
-} from "./process-recovery-request-job.js";
+import { processRecoveryRequestJob } from "./process-recovery-request-job.js";
+import type { RecoveryRequestJobPayload } from "./recovery-request-job-payload.js";
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
