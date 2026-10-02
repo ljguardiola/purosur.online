@@ -143,12 +143,7 @@ test("takes the text variant at its drawn sizes and no class of the caller's", (
     children: string;
     size: "medium";
   }>().not.toExtend<ButtonLinkProps>();
-  expectTypeOf<{
-    variant: "text";
-    href: string;
-    children: string;
-    className: string;
-  }>().not.toExtend<ButtonLinkProps>();
+  expectTypeOf<ButtonLinkProps>().not.toHaveProperty("className");
 });
 
 test("does not accept a link without text, since it would have no accessible name", () => {
