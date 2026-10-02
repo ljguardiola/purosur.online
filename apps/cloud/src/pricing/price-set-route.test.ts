@@ -192,6 +192,24 @@ describe("PUT /prices/:productId", () => {
     expect(response.statusCode).toBe(403);
   });
 
+  it("answers 400 validation_failed naming productId for a malformed product id, changing nothing", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    await insertProduct("Arroz");
+
+    const response = await setPriceRequest(rawSessionId, "not-a-uuid", {
+      unitPrice: 1000,
+      expectedCurrentPriceId: null,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "productId" }],
+    });
+    expect(await db.select().from(prices)).toEqual([]);
+  });
+
   it("returns 404 for a product that does not exist", async () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);

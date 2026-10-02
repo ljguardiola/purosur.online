@@ -163,7 +163,25 @@ describe("GET /roles/:id", () => {
     expect(response.json()).toMatchObject({ code: "forbidden" });
   });
 
-  it("answers the identical 404 for the Administrator role, a missing id, and a malformed one", async () => {
+  it("answers 400 validation_failed naming id for a malformed id, changing nothing", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await getRole("not-a-uuid", rawSessionId);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "id" }],
+    });
+  });
+
+  it("answers the identical 404 for the Administrator role and a missing id", async () => {
     const administratorId = await insertUser({
       firstName: "Ada Lovelace",
       email: "ada@example.com",
@@ -174,13 +192,10 @@ describe("GET /roles/:id", () => {
 
     const administratorResponse = await getRole(await seededAdministratorRoleId(), rawSessionId);
     const missingResponse = await getRole("00000000-0000-0000-0000-000000000000", rawSessionId);
-    const malformedResponse = await getRole("not-a-uuid", rawSessionId);
 
     expect(administratorResponse.statusCode).toBe(404);
     expect(missingResponse.statusCode).toBe(404);
-    expect(malformedResponse.statusCode).toBe(404);
     expect(administratorResponse.json()).toEqual(missingResponse.json());
-    expect(missingResponse.json()).toEqual(malformedResponse.json());
   });
 
   it("returns the role's name, permissions in catalog order, user count, and version", async () => {

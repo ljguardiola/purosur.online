@@ -148,21 +148,32 @@ describe("GET /alerts/:id", () => {
     expect(response.statusCode).toBe(403);
   });
 
-  it("answers the identical 404 for a malformed id, a missing one, and one the viewer cannot see", async () => {
+  it("answers the identical 404 for a missing id and one the viewer cannot see", async () => {
     const roleId = await insertRole("local", ["view_branch_alerts"]);
     const userId = await insertUserWithRole("Cajera", roleId);
     const rawSessionId = await insertSession(userId);
     const invisibleAlertId = await insertAlert({ audience: "local", locationId: otherLocationId });
 
-    const malformedResponse = await getAlert(rawSessionId, "not-a-uuid");
     const missingResponse = await getAlert(rawSessionId, "00000000-0000-0000-0000-000000000000");
     const invisibleResponse = await getAlert(rawSessionId, invisibleAlertId);
 
-    expect(malformedResponse.statusCode).toBe(404);
     expect(missingResponse.statusCode).toBe(404);
     expect(invisibleResponse.statusCode).toBe(404);
-    expect(malformedResponse.json()).toEqual(missingResponse.json());
     expect(missingResponse.json()).toEqual(invisibleResponse.json());
+  });
+
+  it("answers 400 validation_failed naming id for a malformed id", async () => {
+    const roleId = await insertRole("local", ["view_branch_alerts"]);
+    const userId = await insertUserWithRole("Cajera", roleId);
+    const rawSessionId = await insertSession(userId);
+
+    const response = await getAlert(rawSessionId, "not-a-uuid");
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "id" }],
+    });
   });
 
   it("shows a visible alert's detail with its delivery per recipient's name and role", async () => {

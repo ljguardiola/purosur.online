@@ -259,6 +259,23 @@ describe("PUT /alerts/:id/closure", () => {
     expect(row?.resolvedAt).toBeNull();
   });
 
+  it("answers 400 validation_failed naming id for a malformed id, changing nothing", async () => {
+    const roleId = await insertRole("closer", ["dismiss_alerts_manually", "view_all_alerts"]);
+    const userId = await insertUserWithRole("Grace", roleId);
+    const rawSessionId = await insertSession(userId);
+    const alertId = await insertAlert({ audience: "all" });
+
+    const response = await closeAlertRequest(rawSessionId, "not-a-uuid");
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "id" }],
+    });
+    const [row] = await db.select().from(alerts).where(eq(alerts.id, alertId));
+    expect(row?.resolvedAt).toBeNull();
+  });
+
   it("closes a visible alert, recording who closed it and an audit log entry", async () => {
     const roleId = await insertRole("closer", ["dismiss_alerts_manually", "view_all_alerts"]);
     const userId = await insertUserWithRole("Grace", roleId);

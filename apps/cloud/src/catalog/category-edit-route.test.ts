@@ -266,7 +266,8 @@ describe("PUT /categories/:id", () => {
     expect(response.json()).toMatchObject({ code: "not_found" });
   });
 
-  it("returns 404 not_found for a malformed id, changing nothing", async () => {
+  it("answers 400 validation_failed naming id for a malformed id, changing nothing", async () => {
+    const category = await insertCategory("Semillas");
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);
 
@@ -276,11 +277,16 @@ describe("PUT /categories/:id", () => {
       version: 1,
     });
 
-    expect(response.statusCode).toBe(404);
-    expect(response.json()).toMatchObject({ code: "not_found" });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "id" }],
+    });
+    const [row] = await db.select().from(categories).where(eq(categories.id, category.id));
+    expect(row).toMatchObject({ name: "Semillas", version: 1 });
   });
 
-  it.each(["00000000-0000-0000-0000-000000000000", "not-a-uuid"])(
+  it.each(["00000000-0000-0000-0000-000000000000"])(
     "returns 400 validation_failed for the id %s when the body does not match its shape",
     async (id) => {
       const userId = await insertUserWithPermission();

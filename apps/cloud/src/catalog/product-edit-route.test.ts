@@ -515,8 +515,14 @@ describe("PUT /products/:id", () => {
     expect(response.json()).toMatchObject({ code: "not_found" });
   });
 
-  it("returns 404 not_found for a malformed id, changing nothing", async () => {
+  it("answers 400 validation_failed naming id for a malformed id, changing nothing", async () => {
     const categoryId = await insertCategory("Macetas");
+    const product = await insertProduct({
+      name: "Maceta",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+    });
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);
 
@@ -530,11 +536,16 @@ describe("PUT /products/:id", () => {
       version: 1,
     });
 
-    expect(response.statusCode).toBe(404);
-    expect(response.json()).toMatchObject({ code: "not_found" });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "id" }],
+    });
+    const [row] = await db.select().from(products).where(eq(products.id, product.id));
+    expect(row).toMatchObject({ name: "Maceta", version: 1 });
   });
 
-  it.each(["00000000-0000-0000-0000-000000000000", "not-a-uuid"])(
+  it.each(["00000000-0000-0000-0000-000000000000"])(
     "returns 400 validation_failed for the id %s when the body does not match its shape",
     async (id) => {
       const categoryId = await insertCategory("Macetas");

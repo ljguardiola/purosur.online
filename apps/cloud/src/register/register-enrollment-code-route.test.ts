@@ -225,15 +225,18 @@ describe("POST /registers/:id/device-codes", () => {
     expect(await db.select().from(registerEnrollmentCodes)).toHaveLength(0);
   });
 
-  it("returns 404 not_found for a malformed id, changing nothing", async () => {
+  it("answers 400 validation_failed naming id for a malformed id, changing nothing", async () => {
     const locationId = await seededLocationId(db);
     const userId = await insertUserWithPermission(locationId);
     const rawSessionId = await insertSession(userId);
 
     const response = await emitCode("not-a-uuid", rawSessionId);
 
-    expect(response.statusCode).toBe(404);
-    expect(response.json()).toMatchObject({ code: "not_found" });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "id" }],
+    });
     expect(await db.select().from(registerEnrollmentCodes)).toHaveLength(0);
   });
 

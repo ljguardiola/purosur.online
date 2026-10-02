@@ -441,6 +441,18 @@ describe("GET /inventory-levels/:productId", () => {
     expect(response.statusCode).toBe(404);
   });
 
+  it("answers 400 validation_failed naming productId for a malformed product id", async () => {
+    const { headers } = await signedInWith(db, ["view_stock_balances"], NOW);
+
+    const response = await expectedBalanceRequest(headers, "not-a-uuid", COUNTED_AT.toISOString());
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "productId" }],
+    });
+  });
+
   it("refuses a moment that is not an ISO date and time", async () => {
     const { headers } = await signedInWith(db, ["view_stock_balances"], NOW);
     const { productId } = await insertProduct(db);

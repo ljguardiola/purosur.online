@@ -157,6 +157,24 @@ describe("POST /prices/:productId/confirmations", () => {
     expect(response.statusCode).toBe(404);
   });
 
+  it("answers 400 validation_failed naming productId for a malformed product id, changing nothing", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    const productId = await insertProduct("Arroz");
+    const priceId = await insertPrice(productId, 1000, NOON);
+
+    const response = await confirmPriceRequest(rawSessionId, "not-a-uuid", {
+      expectedCurrentPriceId: priceId,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "productId" }],
+    });
+    expect(await db.select().from(priceReviews)).toEqual([]);
+  });
+
   it("returns 401 unauthenticated when no cookie was sent", async () => {
     const productId = await insertProduct("Arroz");
     const priceId = await insertPrice(productId, 1000, NOON);

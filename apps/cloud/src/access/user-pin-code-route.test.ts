@@ -199,17 +199,27 @@ describe("POST /users/:id/pin-codes", () => {
     expect(await codesOf(holderId)).toHaveLength(0);
   });
 
+  it("answers 400 validation_failed naming id for a malformed target id, emitting nothing", async () => {
+    const response = await emitPinCode("not-a-uuid", holderSession);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "id" }],
+    });
+    expect(await codesOf(holderId)).toHaveLength(0);
+  });
+
   describe("a target out of the actor's standing", () => {
-    it("answers the same 404 for a missing target, a malformed one, an Administrator and the holder's own account in any letter case", async () => {
+    it("answers the same 404 for a missing target, an Administrator and the holder's own account in any letter case", async () => {
       const missing = await emitPinCode(MISSING_ID, holderSession);
-      const malformed = await emitPinCode("not-a-uuid", holderSession);
       const administrator = await emitPinCode(administratorId, holderSession);
       const own = await emitPinCode(holderId, holderSession);
       const ownUpperCase = await emitPinCode(holderId.toUpperCase(), holderSession);
 
       expect(missing.statusCode).toBe(404);
       expect(missing.json()).toMatchObject({ code: "not_found" });
-      for (const response of [malformed, administrator, own, ownUpperCase]) {
+      for (const response of [administrator, own, ownUpperCase]) {
         expect(response.statusCode).toBe(404);
         expect(response.json()).toEqual(missing.json());
       }
