@@ -1,9 +1,18 @@
+import { statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import ts from "typescript";
 
 export const QUERY_KEY_SOURCES = [
-  { tsconfig: "apps/backoffice/tsconfig.json", sourceRoot: "apps/backoffice/src" },
-  { tsconfig: "apps/pos/tsconfig.json", sourceRoot: "apps/pos/src/renderer" },
+  {
+    tsconfig: "apps/backoffice/tsconfig.json",
+    sourceRoot: "apps/backoffice/src",
+    foldersOutsideConcepts: ["help", "platform", "shell"],
+  },
+  {
+    tsconfig: "apps/pos/tsconfig.json",
+    sourceRoot: "apps/pos/src/renderer",
+    foldersOutsideConcepts: ["platform", "shell"],
+  },
 ];
 
 const TANSTACK_QUERY_CORE = `${sep}@tanstack${sep}query-core${sep}`;
@@ -94,6 +103,19 @@ function checkerTools(checker) {
 
   const isQueryKeyPosition = (node) => {
     const parent = node.parent;
+    if (ts.isParameter(parent) && parent.initializer === node) return declaresQueryKey(parent);
+    if (ts.isBindingElement(parent) && parent.initializer === node) {
+      return bindingElementDeclaresQueryKey(parent);
+    }
+    if (ts.isJsxExpression(parent) && ts.isJsxAttribute(parent.parent)) {
+      const name = parent.parent.name.getText();
+      return (
+        name === "queryKey" ||
+        declaresQueryKey(
+          propertyDeclarationOf(checker.getContextualType(parent.parent.parent), name),
+        )
+      );
+    }
     if (ts.isPropertyAssignment(parent) && parent.initializer === node) {
       return (
         parent.name.getText() === "queryKey" ||
@@ -102,7 +124,7 @@ function checkerTools(checker) {
         )
       );
     }
-    if (ts.isCallExpression(parent) && parent.arguments.includes(node)) {
+    if (ts.isCallOrNewExpression(parent) && parent.arguments?.includes(node)) {
       const parameters = checker.getResolvedSignature(parent)?.getDeclaration()?.parameters ?? [];
       const index = parent.arguments.indexOf(node);
       return declaresQueryKey(parameters[Math.min(index, parameters.length - 1)]);
@@ -126,9 +148,87 @@ function checkerTools(checker) {
   };
 }
 
-function rootTracer(checker, tools) {
+function isCalledThrough(reference) {
+  const parent = reference.parent;
+  if (
+    ts.isImportSpecifier(parent) ||
+    ts.isImportClause(parent) ||
+    ts.isExportSpecifier(parent) ||
+    ts.isExportAssignment(parent) ||
+    ts.isTypeQueryNode(parent)
+  ) {
+    return true;
+  }
+  const callee =
+    ts.isPropertyAccessExpression(parent) && parent.name === reference ? parent : reference;
+  const user = callee.parent;
+  if (ts.isCallOrNewExpression(user)) return user.expression === callee;
+  return (
+    (ts.isJsxOpeningElement(user) ||
+      ts.isJsxSelfClosingElement(user) ||
+      ts.isJsxClosingElement(user)) &&
+    user.tagName === callee
+  );
+}
+
+function nameOfFunction(fn) {
+  if (ts.isFunctionDeclaration(fn) || ts.isMethodDeclaration(fn)) return fn.name;
+  if (!ts.isArrowFunction(fn) && !ts.isFunctionExpression(fn)) return undefined;
+  let holder = fn.parent;
+  while (
+    ts.isParenthesizedExpression(holder) ||
+    ts.isAsExpression(holder) ||
+    ts.isSatisfiesExpression(holder)
+  ) {
+    holder = holder.parent;
+  }
+  return ts.isVariableDeclaration(holder) || ts.isPropertyAssignment(holder)
+    ? holder.name
+    : undefined;
+}
+
+function rootTracer(checker, tools, checkedFiles) {
   const UNREADABLE = { kind: "unreadable" };
   const PASSED_THROUGH = { kind: "passed-through" };
+
+  let identifiersByName;
+  const identifiersNamed = (name) => {
+    if (identifiersByName === undefined) {
+      identifiersByName = new Map();
+      const visit = (node) => {
+        if (ts.isIdentifier(node)) {
+          identifiersByName.set(node.text, [...(identifiersByName.get(node.text) ?? []), node]);
+        }
+        ts.forEachChild(node, visit);
+      };
+      for (const sourceFile of checkedFiles) visit(sourceFile);
+    }
+    return identifiersByName.get(name) ?? [];
+  };
+
+  const symbolReferencedBy = (identifier) =>
+    ts.isShorthandPropertyAssignment(identifier.parent) && identifier.parent.name === identifier
+      ? checker.getShorthandAssignmentValueSymbol(identifier.parent)
+      : tools.resolved(checker.getSymbolAtLocation(identifier));
+
+  const callersChecked = new Map();
+  const callersAreChecked = (fn) => {
+    if (!callersChecked.has(fn)) {
+      const name = nameOfFunction(fn);
+      const symbol = name && ts.isIdentifier(name) ? symbolReferencedBy(name) : undefined;
+      callersChecked.set(
+        fn,
+        symbol !== undefined &&
+          identifiersNamed(name.text).every(
+            (reference) =>
+              reference === name ||
+              symbolReferencedBy(reference) !== symbol ||
+              isCalledThrough(reference),
+          ),
+      );
+    }
+    return callersChecked.get(fn);
+  };
 
   const traceDeclaration = (declaration, seen) => {
     if (declaration === undefined || seen.has(declaration)) return [UNREADABLE];
@@ -144,11 +244,15 @@ function rootTracer(checker, tools) {
       return traceDeclaration(value?.valueDeclaration, next);
     }
     if (ts.isParameter(declaration)) {
-      return tools.declaresQueryKey(declaration) ? [PASSED_THROUGH] : [UNREADABLE];
+      return tools.declaresQueryKey(declaration) && callersAreChecked(declaration.parent)
+        ? [PASSED_THROUGH]
+        : [UNREADABLE];
     }
     if (ts.isBindingElement(declaration)) {
-      return ts.isParameter(declaration.parent.parent) &&
-        tools.bindingElementDeclaresQueryKey(declaration)
+      const parameter = declaration.parent.parent;
+      return ts.isParameter(parameter) &&
+        tools.bindingElementDeclaresQueryKey(declaration) &&
+        callersAreChecked(parameter.parent)
         ? [PASSED_THROUGH]
         : [UNREADABLE];
     }
@@ -208,21 +312,40 @@ function lineOf(node) {
   return sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
 }
 
-export function findQueryRootKeyProblems({ tsconfig, sourceRoot }, cwd = process.cwd()) {
+export function findQueryRootKeyProblems(
+  { tsconfig, sourceRoot, foldersOutsideConcepts },
+  cwd = process.cwd(),
+) {
   const program = programOf(join(cwd, tsconfig));
   const checker = program.getTypeChecker();
   const tools = checkerTools(checker);
-  const trace = rootTracer(checker, tools);
   const root = join(cwd, sourceRoot);
+  const checkedFiles = program
+    .getSourceFiles()
+    .filter(
+      (sourceFile) =>
+        !relative(root, sourceFile.fileName).startsWith("..") &&
+        !TEST_FILE.test(sourceFile.fileName),
+    );
+  const trace = rootTracer(checker, tools, checkedFiles);
   const fromCwd = (fileName) => relative(cwd, fileName).split(sep).join("/");
   const conceptFolderOf = (fileName) => {
     const path = relative(root, fileName);
     if (path.startsWith("..")) return undefined;
     const segments = path.split(sep);
-    return segments.length > 1 ? segments[0] : undefined;
+    return segments.length > 1 && !foldersOutsideConcepts.includes(segments[0])
+      ? segments[0]
+      : undefined;
   };
 
   const problems = new Set();
+  for (const folder of foldersOutsideConcepts) {
+    if (!statSync(join(root, folder), { throwIfNoEntry: false })?.isDirectory()) {
+      problems.add(
+        `${fromCwd(join(root, folder))} is listed as holding no concept, but there is no such folder`,
+      );
+    }
+  }
   const report = (position, outcomes) => {
     for (const outcome of outcomes) {
       if (outcome.kind === "unreadable") {
@@ -245,9 +368,7 @@ export function findQueryRootKeyProblems({ tsconfig, sourceRoot }, cwd = process
     }
   };
 
-  for (const sourceFile of program.getSourceFiles()) {
-    if (relative(root, sourceFile.fileName).startsWith("..")) continue;
-    if (TEST_FILE.test(sourceFile.fileName)) continue;
+  for (const sourceFile of checkedFiles) {
     const visit = (node) => {
       if (tools.isQueryKeyShorthand(node)) report(node, trace(node.name));
       else if (ts.isExpression(node) && tools.isQueryKeyPosition(node)) report(node, trace(node));
