@@ -153,7 +153,7 @@ function isInsideStringExpression(node) {
 function textPieces(constants) {
   const piecesOf = (node, resolving = new Set(), raw = false) => {
     const textOf = (literal) => (raw ? literal.rawText : literal.text);
-    if (ts.isStringLiteral(node)) return [node.text];
+    if (ts.isStringLiteral(node) || ts.isNumericLiteral(node)) return [node.text];
     if (ts.isNoSubstitutionTemplateLiteral(node)) return [textOf(node)];
     if (ts.isParenthesizedExpression(node)) return piecesOf(node.expression, resolving);
     if (ts.isTaggedTemplateExpression(node) && isStringRaw(node.tag)) {
