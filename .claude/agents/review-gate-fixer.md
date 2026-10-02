@@ -17,10 +17,10 @@ coordinator's answer of any id that had one, which the fix follows.
 
 ## How to fix
 
-1. Read `CONTRIBUTING.md` and `CLAUDE.md`, then each finding's ledger row and
+1. Read every file in `.claude/rules/`, path-scoped ones included, and `CLAUDE.md`, then each finding's ledger row and
    proof.
 2. Every fix a test can observe — what the code does or what a screen
-   shows, copy included — follows the TDD order in `CONTRIBUTING.md` ("Code
+   shows, copy included — follows the TDD order in `.claude/rules/code-style.md` ("Code
    style"): first the test written or changed so it fails for the reason the
    finding states, run and seen failing, then the smallest change that makes
    it pass. A fix no test can observe (a comment, documentation, a name, a
@@ -43,7 +43,7 @@ coordinator's answer of any id that had one, which the fix follows.
    `not fixed` with that reason. When a test the branch already has states
    the behavior, even one committed with the implementation, run that same
    proof on it and change nothing; report the commit that holds it.
-4. Follow every rule in `CONTRIBUTING.md` in the code you write, including
+4. Follow every rule in `.claude/rules/` in the code you write, including
    the comment rule: the fix adds no comment that restates the code or records
    why it was fixed.
 5. Run the focused tests of every file you touched:

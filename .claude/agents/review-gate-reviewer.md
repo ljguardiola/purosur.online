@@ -18,7 +18,7 @@ re-review the delta files `delta-<round>.patch` and
 
 ## How to review
 
-1. Read `issue.md`, then `CONTRIBUTING.md` and `CLAUDE.md` in full, then
+1. Read `issue.md`, then every file in `.claude/rules/`, path-scoped ones included, and `CLAUDE.md` in full, then
    `.claude/skills/review-gate/references/checklist.md`. When the change
    touches a screen, also read `.claude/skills/build-screen/SKILL.md`.
 2. First round: read `change.patch` whole, then every changed file in full and

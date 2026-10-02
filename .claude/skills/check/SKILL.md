@@ -3,8 +3,8 @@ name: check
 description: Run the repository's single verification gate and report its real result. Use before saying a change is done, or whenever asked to verify, check, or run tests.
 ---
 
-`pnpm verify` is the one gate described in `CONTRIBUTING.md` ("Getting
-started" and "Checks"): the same command runs locally and in CI.
+`pnpm verify` is the one gate described in `.claude/rules/setup.md` ("Getting
+started") and `.claude/rules/checks.md` ("Checks"): the same command runs locally and in CI.
 
 1. Run it with the repo's pinned Node:
    `mise exec node@$(cat .node-version) -- pnpm verify`

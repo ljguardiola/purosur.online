@@ -5,7 +5,7 @@ argument-hint: [issue-number]
 ---
 
 Rules for issue types, required sections, and commit types live in
-`CONTRIBUTING.md` ("Issues" and "Branches and pull requests"). This skill only
+`.claude/rules/workflow.md` ("Issues" and "Branches and pull requests"). This skill only
 sequences the operational steps; it never restates those rules.
 
 1. Fetch the issue: `gh issue view <N> --json number,state,labels,body,title`.
@@ -29,11 +29,11 @@ sequences the operational steps; it never restates those rules.
    If this reports problems, stop and tell the user the issue does not follow
    the template yet (do not fix the issue body yourself unless asked).
 3. If the issue type is `spike`, stop: spikes don't get a pull request or a
-   branch (see "Issues" in `CONTRIBUTING.md`).
+   branch (see "Issues" in `.claude/rules/workflow.md`).
 4. Create a branch from the issue using the branch naming convention in
-   "Branches and pull requests" in `CONTRIBUTING.md`: `git checkout -b
+   "Branches and pull requests" in `.claude/rules/workflow.md`: `git checkout -b
    <type>/<N>-<short-slug>`, with the Conventional Commit type that matches
    this issue's type.
 5. State plainly which commit type the eventual PR title must use, per the
-   issue-type-to-commit-type mapping in `CONTRIBUTING.md`, so later commits on
+   issue-type-to-commit-type mapping in `.claude/rules/workflow.md`, so later commits on
    this branch are consistent with it.

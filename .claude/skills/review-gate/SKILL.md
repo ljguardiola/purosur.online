@@ -4,7 +4,7 @@ description: Run the repository's own pre-PR review of an issue branch - two bli
 ---
 
 The rules a change is reviewed against are the ones written in the
-repository: `CONTRIBUTING.md`, `CLAUDE.md`, the skills under `.claude/skills/`
+repository: the files in `.claude/rules/`, `CLAUDE.md`, the skills under `.claude/skills/`
 and the issue the branch closes. This skill sequences the review; it never
 restates those rules. Which sections each area of the review reads is mapped
 in [references/checklist.md](references/checklist.md); the reports and the
@@ -71,7 +71,7 @@ of this round:
 |---|---|
 | New finding, refuted | `refuted` |
 | New finding, confirmed, kind `decision` | `stopped` |
-| New finding, confirmed, out of scope | file it as a new issue following "Issues" in `CONTRIBUTING.md`; `filed as #<n>` |
+| New finding, confirmed, out of scope | file it as a new issue following "Issues" in `.claude/rules/workflow.md`; `filed as #<n>` |
 | New finding, confirmed, in scope, any other kind | `open`, whatever its label |
 | Reopen claim on a `fixed in <sha>` row, refuted | unchanged |
 | Reopen claim on a `fixed in <sha>` row, confirmed | `open`, one more failed attempt |
@@ -99,7 +99,7 @@ and the coordinator's answer of any id that had one. It reports each id
   without the implementation, with no change, is `fixed in <sha>` with the
   sha of the commit that holds that test, even when that is the commit the
   row names. A commit-order row is resolved as the commit-order rule in
-  `CONTRIBUTING.md` ("Code style") says, not reopened for the history itself.
+  `.claude/rules/code-style.md` ("Code style") says, not reopened for the history itself.
 - A round whose fixes changed no file commits nothing and needs no
   re-review.
 - When it fixed none and a row is still `open`, launch the fixer again; the
