@@ -1,5 +1,5 @@
+import { ADMINISTRATOR_CAPABILITIES } from "../../shell/test-support/backoffice-access";
 import type { SessionOutcome } from "../session-api";
-import { ADMINISTRATOR_CAPABILITIES } from "./backoffice-access";
 
 type OpenSession = Extract<SessionOutcome, { kind: "ok" }>;
 

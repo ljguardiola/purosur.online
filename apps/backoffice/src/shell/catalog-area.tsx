@@ -1,11 +1,11 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { BadgePercent, Factory, ListChecks, Package, Sparkles, Tags } from "lucide-react";
+import { AreaLayout, SectionLink } from "./area-layout";
 import {
   canManageProductsAndCategories,
   canManagePromotions,
   canSeePricesArea,
-} from "../access/backoffice-access";
-import { AreaLayout, SectionLink } from "./area-layout";
+} from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
 
 export const catalogAreaRoute = createRoute({

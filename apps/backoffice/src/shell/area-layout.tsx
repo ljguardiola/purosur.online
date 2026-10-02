@@ -2,6 +2,7 @@ import { AreaNavItem, SectionNavItem } from "@purosur/ui";
 import { createLink, useMatchRoute } from "@tanstack/react-router";
 import { Boxes, Home, LifeBuoy, Package, Settings, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
+import { AccountFooter } from "./account-footer";
 import {
   canManageProductsAndCategories,
   canPerformStockCounts,
@@ -10,8 +11,7 @@ import {
   canSeePricesArea,
   canSeeStockArea,
   canSeeStockBalances,
-} from "../access/backoffice-access";
-import { AccountFooter } from "./account-footer";
+} from "./backoffice-access";
 import { Shell } from "./shell";
 import { signedInRoute } from "./signed-in-route";
 

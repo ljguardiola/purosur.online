@@ -1,5 +1,5 @@
 import { createRoute } from "@tanstack/react-router";
-import { canSeeRegistersArea } from "../access/backoffice-access";
+import { canSeeRegistersArea } from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
 import { settingsAreaRoute } from "../shell/settings-area";
 import { refuseWithout } from "../shell/signed-in-route";

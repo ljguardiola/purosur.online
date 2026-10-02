@@ -2,10 +2,10 @@ import { Button, EmptyState, IconButton, LoadFailure, LoadingPlaceholder } from 
 import { KeyRound, Laptop, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import { type BackofficeAccess, canResetUserPin } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { useOwnPasskeysQuery, useRefreshAccess } from "./access-queries";
-import { type BackofficeAccess, canResetUserPin } from "./backoffice-access";
 import type { MyAccountScreenServices } from "./my-account-services";
 import type { Passkey } from "./passkey-api";
 import { passkeyRowDetail } from "./passkey-row-detail";

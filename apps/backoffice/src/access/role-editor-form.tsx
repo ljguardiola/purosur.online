@@ -9,7 +9,7 @@ import {
 import { Checkbox, Focusable, RadioGroup, Tag, Tooltip } from "@purosur/ui";
 import { KeyRound } from "lucide-react";
 import type { ReactNode } from "react";
-import { AREA_LABELS, PERMISSION_LABELS } from "./permission-labels";
+import { AREA_LABELS, PERMISSION_LABELS } from "../platform/permission-labels";
 import { permissionRequirementNote } from "./permission-requirement-note";
 
 type AlertsViewOption = "none" | "view_branch_alerts" | "view_all_alerts";

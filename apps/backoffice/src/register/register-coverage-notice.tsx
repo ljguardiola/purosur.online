@@ -1,8 +1,8 @@
 import type { PermissionKey } from "@purosur/domain";
 import { InlineNotice, LoadFailure, LoadingPlaceholder } from "@purosur/ui";
 import { TriangleAlert } from "lucide-react";
-import { PERMISSION_LABELS } from "../access/permission-labels";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import { PERMISSION_LABELS } from "../platform/permission-labels";
 import type { CloudData } from "../platform/use-cloud-query";
 
 const UNCOVERED_ACTIONS: Partial<Record<PermissionKey, string>> = {

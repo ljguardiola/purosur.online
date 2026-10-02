@@ -14,8 +14,8 @@ import {
 import { deepEqual } from "@tanstack/react-router";
 import { Check, ClipboardCheck, Plus, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { type BackofficeAccess, canSeeStockBalances } from "../access/backoffice-access";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { type BackofficeAccess, canSeeStockBalances } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { countMomentNow } from "./count-moment";
 import { NewCountModal } from "./new-count-modal";

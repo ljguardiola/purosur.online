@@ -1,13 +1,6 @@
 import type { Option, Options } from "@purosur/ui";
-import type { RoleSummary } from "./roles-api";
+import { roleDisplayName } from "../platform/role-display-name";
 import type { BranchUserRole } from "./users-api";
-
-const ADMINISTRATOR_ROLE_NAME = "Administrador";
-
-// The Administrator role's own `name` is stored empty; it is shown by its fixed name instead.
-export function roleDisplayName(role: Pick<RoleSummary, "isAdministrator" | "name">): string {
-  return role.isAdministrator ? ADMINISTRATOR_ROLE_NAME : (role.name ?? "");
-}
 
 export function roleOptions(roles: BranchUserRole[]): Options<Option<string>> {
   const [first, ...rest] = roles.map((role) => ({ value: role.id, label: roleDisplayName(role) }));

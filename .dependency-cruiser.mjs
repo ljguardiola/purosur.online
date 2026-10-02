@@ -15,7 +15,6 @@ export const PERSISTENCE_IN_HANDLERS_ALLOWLIST = [
 ];
 
 export const SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST = [
-  "apps/backoffice/src/access/backoffice-access.ts",
   "apps/backoffice/src/access/passkey-row-detail.ts",
   "apps/backoffice/src/access/permission-requirement-note.ts",
   "apps/backoffice/src/access/pin-code-validity.ts",
@@ -27,29 +26,17 @@ export const SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST = [
   "apps/backoffice/src/catalog/barcode-chips.tsx",
   "apps/backoffice/src/catalog/label-preview-bars.tsx",
   "apps/backoffice/src/fiscal/issuer-identification-form.ts",
+  "apps/backoffice/src/shell/backoffice-access.ts",
   "apps/backoffice/src/stock/count-moment.ts",
   "apps/backoffice/src/stock/stock-period.ts",
   "apps/backoffice/src/stock/stock-quantity.ts",
 ];
 
 export const SCREEN_CROSS_CONCEPT_IMPORT_ALLOWLIST = [
-  "apps/backoffice/src/alerts/alert-detail-modal.tsx",
-  "apps/backoffice/src/alerts/alerts-list-screen.tsx",
-  "apps/backoffice/src/alerts/alerts-overview-screen.tsx",
-  "apps/backoffice/src/alerts/routes.tsx",
-  "apps/backoffice/src/branch/routes.tsx",
-  "apps/backoffice/src/catalog/routes.tsx",
-  "apps/backoffice/src/fiscal/routes.tsx",
   "apps/backoffice/src/pricing/discount-form.ts",
   "apps/backoffice/src/pricing/money.ts",
   "apps/backoffice/src/pricing/price-change-modal.tsx",
-  "apps/backoffice/src/pricing/routes.tsx",
   "apps/backoffice/src/pricing/test-support/discount-modal.ts",
-  "apps/backoffice/src/register/register-coverage-notice.tsx",
-  "apps/backoffice/src/register/routes.tsx",
-  "apps/backoffice/src/stock/routes.tsx",
-  "apps/backoffice/src/stock/stock-counts-screen.tsx",
-  "apps/backoffice/src/stock/stock-movements-screen.tsx",
   "apps/pos/src/renderer/register/cash-count-screen.tsx",
   "apps/pos/src/renderer/register/cash-screen.tsx",
   "apps/pos/src/renderer/register/locked-cash-count.tsx",
