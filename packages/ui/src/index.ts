@@ -3,6 +3,8 @@ export type { ColumnChartBar, ColumnChartProps } from "./components/data-display
 export { ColumnChart } from "./components/data-display/column-chart";
 export type { CountCardProps } from "./components/data-display/count-card";
 export { CountCard } from "./components/data-display/count-card";
+export type { FigureStatProps } from "./components/data-display/figure-stat";
+export { FigureStat } from "./components/data-display/figure-stat";
 export type { ProportionBarProps } from "./components/data-display/proportion-bar";
 export { ProportionBar } from "./components/data-display/proportion-bar";
 export type { SummaryRowProps } from "./components/data-display/summary-row";
