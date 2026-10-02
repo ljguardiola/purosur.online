@@ -30,4 +30,11 @@ export const Outlined: Story = {
 
 export const Subtle: Story = {
   args: { variant: "subtle", children: content },
+  decorators: [
+    (Story) => (
+      <div className="bg-surface p-4">
+        <Story />
+      </div>
+    ),
+  ],
 };
