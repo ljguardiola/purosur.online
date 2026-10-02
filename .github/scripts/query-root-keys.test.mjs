@@ -871,6 +871,30 @@ const RUNTIME_MODULE_LOADING = [
     source: 'export const load = () => globalThis.require("./other");',
   },
   {
+    loading: "the global require read from a value typed any",
+    source: 'export const load = () => (globalThis as any).require("./other");',
+  },
+  {
+    loading: "the global require taken by a shorthand destructuring assignment into a local",
+    source: 'let require; ({ require } = globalThis as any); require("./other");',
+  },
+  {
+    loading: "the global require taken by a destructuring assignment into another local",
+    source: "let load: unknown; ({ require: load } = globalThis as any); export { load };",
+  },
+  {
+    loading: "the global require taken by a destructuring assignment nested in a property",
+    source: "let load: unknown; ({ outer: { require: load } } = { outer: globalThis as any });",
+  },
+  {
+    loading: "the global require taken by a destructuring assignment nested in an array",
+    source: "let load: unknown; [{ require: load }] = [globalThis as any];",
+  },
+  {
+    loading: "the global require taken by a destructuring assignment in a for-of loop",
+    source: "let load: unknown; for ({ require: load } of [globalThis as any]);",
+  },
+  {
     loading: "the global require read through a string-literal access",
     source: 'export const load = () => globalThis["require"]("./other");',
   },
@@ -914,6 +938,42 @@ test("refuses a require its program declares only ambiently, where it is declare
   const problems = problemsIn(t, {
     "src/env.d.ts": "declare var require: (path: string) => unknown;",
     "src/sales/load.ts": "export const load = require;",
+  });
+
+  assert.deepEqual(problems, [
+    "src/env.d.ts:1 loads a module at run time, which the query key check cannot follow",
+    "src/sales/load.ts:1 loads a module at run time, which the query key check cannot follow",
+  ]);
+});
+
+test("refuses a require its program declares ambiently as a constructor", (t) => {
+  const problems = problemsIn(t, {
+    "src/env.d.ts": "declare var require: new (path: string) => object;",
+    "src/sales/load.ts": "export const load = require;",
+  });
+
+  assert.deepEqual(problems, [
+    "src/env.d.ts:1 loads a module at run time, which the query key check cannot follow",
+    "src/sales/load.ts:1 loads a module at run time, which the query key check cannot follow",
+  ]);
+});
+
+test("refuses a require its program declares ambiently as possibly undefined", (t) => {
+  const problems = problemsIn(t, {
+    "src/env.d.ts": "declare var require: ((path: string) => unknown) | undefined;",
+    "src/sales/load.ts": "export const load = require;",
+  });
+
+  assert.deepEqual(problems, [
+    "src/env.d.ts:1 loads a module at run time, which the query key check cannot follow",
+    "src/sales/load.ts:1 loads a module at run time, which the query key check cannot follow",
+  ]);
+});
+
+test("refuses a destructuring assignment into a require its program declares only ambiently", (t) => {
+  const problems = problemsIn(t, {
+    "src/env.d.ts": "declare let require: (path: string) => unknown;",
+    "src/sales/load.ts": "({ require } = { require: (path: string) => path });",
   });
 
   assert.deepEqual(problems, [
@@ -969,6 +1029,52 @@ const NAMED_REQUIRE_LOADING_NOTHING = [
     name: "a destructured name",
     source:
       "const flags = { require: false };\nconst { require } = flags;\nexport const required = require;",
+  },
+  {
+    name: "an array-destructured name",
+    source: "const [require] = [false];\nexport const required = require;",
+  },
+  {
+    name: "a name destructured from another key",
+    source: "const flags = { load: false };\nexport const { load: require } = flags;",
+  },
+  {
+    name: "a member of an interface declared in a declaration file",
+    files: { "src/env.d.ts": "interface Flags { require: boolean }" },
+    source: "declare const flags: Flags;\nexport const required = flags.require;",
+  },
+  {
+    name: "a member read from a constant declared ambiently",
+    source: "declare const flags: { require: boolean };\nexport const required = flags.require;",
+  },
+  {
+    name: "a string-literal access to a record",
+    source:
+      'declare const flags: Record<string, boolean>;\nexport const required = flags["require"];',
+  },
+  {
+    name: "a key of an object compared with another value",
+    source: "let load: unknown;\nexport const same = { require: load } == (globalThis as any);",
+  },
+  {
+    name: "a key of an object iterated by a for-of loop",
+    source: "let load: unknown;\nfor (const entry of [{ require: load }]) void entry;",
+  },
+  {
+    name: "a local written from another key by a destructuring assignment",
+    source: "let require = false;\n({ load: require } = { load: true });",
+  },
+  {
+    name: "a key a destructuring assignment writes into a local typed any",
+    source: "let load: any;\n({ require: load } = { require: false });",
+  },
+  {
+    name: "an array whose type the library declares",
+    source: "const require: string[] = [];\nexport const required = require;",
+  },
+  {
+    name: "a member whose ambiently declared type has no call signatures",
+    source: "declare const flags: { require: Date };\nexport const required = flags.require;",
   },
   { name: "a method", source: "export const loader = { require() { return 1; } };" },
   {
