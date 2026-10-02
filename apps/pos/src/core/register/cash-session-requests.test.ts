@@ -9,7 +9,6 @@ import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import {
   type CashSessionRequestDeps,
   cashBalanceFor,
-  checkCountedCash,
   closeCashSessionFor,
   closeLockedCashSessionFor,
   currentCashSession,
@@ -465,16 +464,6 @@ describe("closing a cash session on the register", () => {
         closeRequest(sessionId, 5000),
       ),
     ).toEqual({ kind: "unavailable" });
-  });
-});
-
-describe("checking a counted cash", () => {
-  it.each([0, 2_147_483_647])("refuses nothing in a count of %i", (countedCash) => {
-    expect(checkCountedCash(countedCash)).toEqual([]);
-  });
-
-  it.each([-1, 2_147_483_648])("refuses a count of %i", (countedCash) => {
-    expect(checkCountedCash(countedCash)).toEqual(["counted_cash"]);
   });
 });
 

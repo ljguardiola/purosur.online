@@ -43,7 +43,6 @@ export interface RendererRequestDeps {
   pinPolicy: () => PinPolicy;
   checkEnrollmentCode: (typedCode: string) => "code"[];
   checkPinCodeRedemption: (typedCode: string, newPin: string) => ("reset_code" | "new_pin")[];
-  checkCountedCash: (countedCash: number) => "counted_cash"[];
   signInUsers: (() => SignInUser[]) | undefined;
   signIn: ((userId: string, pin: string) => Promise<SignInOutcome>) | undefined;
   firstSignIn: ((userId: string, pin: string) => Promise<SignInOutcome>) | undefined;
@@ -435,12 +434,6 @@ export async function answerRendererRequest(
         type: "pin-code-redemption-check",
         request_id: message.request_id,
         fields: deps.checkPinCodeRedemption(message.reset_code, message.new_pin),
-      };
-    case "check-counted-cash":
-      return {
-        type: "counted-cash-check",
-        request_id: message.request_id,
-        fields: deps.checkCountedCash(message.counted_cash),
       };
     case "redeem-pin-code":
       return {

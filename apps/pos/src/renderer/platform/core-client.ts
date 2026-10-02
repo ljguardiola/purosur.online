@@ -53,7 +53,6 @@ export interface CoreClient {
   pinPolicy(): Promise<PinPolicy>;
   checkEnrollmentCode(typedCode: string): Promise<"code"[]>;
   checkPinCodeRedemption(typedCode: string, newPin: string): Promise<("reset_code" | "new_pin")[]>;
-  checkCountedCash(countedCash: number): Promise<"counted_cash"[]>;
   signInUsers(): Promise<SignInUser[]>;
   authorizers(permission: AuthorizablePermissionKey): Promise<SignInUser[]>;
   lockedClosers(): Promise<SignInUser[]>;
@@ -212,12 +211,6 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           new_pin: newPin,
         },
         (answer) => (answer.type === "pin-code-redemption-check" ? answer.fields : undefined),
-      );
-    },
-    checkCountedCash(countedCash) {
-      return ask(
-        { type: "check-counted-cash", request_id: deps.newRequestId(), counted_cash: countedCash },
-        (answer) => (answer.type === "counted-cash-check" ? answer.fields : undefined),
       );
     },
     redeemPinCode(typedCode, newPin) {

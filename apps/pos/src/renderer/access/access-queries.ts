@@ -18,7 +18,10 @@ export function useSignInUsersQuery(read: () => Promise<SignInUser[]>): CoreData
 }
 
 export function pinPolicyQueryOptions(read: () => Promise<PinPolicy>) {
-  return coreQueryOptions({ queryKey: accessKeys.pinPolicy, read, staleTime: Infinity });
+  return {
+    ...coreQueryOptions({ queryKey: accessKeys.pinPolicy, read, staleTime: Infinity }),
+    gcTime: Infinity,
+  };
 }
 
 export function usePinPolicyQuery(read: () => Promise<PinPolicy>): PinPolicy {

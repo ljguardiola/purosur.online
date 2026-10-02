@@ -7,42 +7,53 @@ import {
 import type { CashMovement } from "../model/cash-session.js";
 import { expectedCash } from "../model/expected-cash.js";
 import type { CashLedger, IdGenerator } from "./cash-ledger.js";
+import type { OperationAuthority } from "./operation-authority.js";
 import type { Clock } from "./register-store.js";
 
 export interface RecordCashMovementInput {
   kind: CashMovementKind;
   amount: number;
   reason: string;
+}
+
+export interface RecordCashMovementGrant {
   actorId: string;
   authorizedBy: string | undefined;
 }
 
-export interface RecordCashMovementPorts {
+export interface RecordCashMovementPorts<Grant extends RecordCashMovementGrant, Refusal> {
   ledger: CashLedger;
   clock: Clock;
   ids: IdGenerator;
+  authority: OperationAuthority<Grant, Refusal>;
 }
 
-export type RecordCashMovementOutcome =
+export type RecordCashMovementOutcome<Grant extends RecordCashMovementGrant> =
   | { kind: "invalid_amount" }
   | { kind: "invalid_reason"; maxLength: number }
   | { kind: "no_open_session" }
   | { kind: "exceeds_expected_cash"; expected: number }
-  | { kind: "recorded"; movement: CashMovement };
+  | { kind: "recorded"; movement: CashMovement; grant: Grant };
 
-export function recordCashMovement(
-  { ledger, clock, ids }: RecordCashMovementPorts,
+export async function recordCashMovement<Grant extends RecordCashMovementGrant, Refusal>(
+  { ledger, clock, ids, authority }: RecordCashMovementPorts<Grant, Refusal>,
   input: RecordCashMovementInput,
-): RecordCashMovementOutcome {
+): Promise<RecordCashMovementOutcome<Grant> | Refusal> {
   if (!isValidCashMovementAmount(input.amount)) {
     return { kind: "invalid_amount" };
   }
+  const authorization = await authority.authorize();
+  if (authorization.kind === "refused") {
+    return authorization.refusal;
+  }
+  const { grant } = authorization;
+  const { actorId, authorizedBy } = grant;
   const reason = cashMovementReason(input.reason);
   if (reason === undefined) {
     return { kind: "invalid_reason", maxLength: CASH_MOVEMENT_REASON_MAX_LENGTH };
   }
 
-  return ledger.transaction<RecordCashMovementOutcome>((tx) => {
+  return ledger.transaction<RecordCashMovementOutcome<Grant>>((tx) => {
     const session = tx.openSession();
     if (!session) {
       return { kind: "no_open_session" };
@@ -61,9 +72,9 @@ export function recordCashMovement(
       type: input.kind,
       amount: input.amount,
       reason,
-      actorId: input.actorId,
+      actorId,
       occurredAt,
-      ...(input.authorizedBy === undefined ? {} : { authorizedBy: input.authorizedBy }),
+      ...(authorizedBy === undefined ? {} : { authorizedBy }),
     };
     tx.recordCashMovement(movement);
     const occurredAtIso = occurredAt.toISOString();
@@ -79,13 +90,13 @@ export function recordCashMovement(
         reason,
         ref_type: null,
         ref_id: null,
-        actor_id: input.actorId,
-        authorized_by: input.authorizedBy ?? null,
+        actor_id: actorId,
+        authorized_by: authorizedBy ?? null,
         occurred_at: occurredAtIso,
       },
       occurred_at: occurredAtIso,
-      actor_id: input.actorId,
+      actor_id: actorId,
     });
-    return { kind: "recorded", movement };
+    return { kind: "recorded", movement, grant };
   });
 }

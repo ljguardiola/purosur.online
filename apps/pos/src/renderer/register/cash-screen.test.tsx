@@ -15,7 +15,6 @@ const PERSON: SignedInPerson = {
   first_name: "Ada",
   abilities: ["open_cash_session"],
 };
-// 12:02 UTC is 09:02 in Argentina.
 const OPENED_AT = "2026-09-30T09:02:00.000-03:00";
 const BALANCE: CashBalance = {
   opening_float: 2_000_000,

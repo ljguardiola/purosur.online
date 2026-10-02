@@ -36,10 +36,6 @@ const FAILED_NOTICE = "No se pudo cerrar la caja. Probá de nuevo.";
 
 type CloseCashSession = (countedCash: number) => Promise<CloseCashSessionOutcome>;
 
-async function checkingLikeTheCore(countedCash: number): Promise<"counted_cash"[]> {
-  return countedCash > 2_147_483_647 ? ["counted_cash"] : [];
-}
-
 async function renderScreen(
   props: {
     person?: SignedInPerson;
@@ -58,7 +54,6 @@ async function renderScreen(
       openedAt={OPENED_AT}
       lock={() => {}}
       loadCashBalance={props.loadCashBalance ?? (async () => BALANCE)}
-      checkCountedCash={checkingLikeTheCore}
       closeCashSession={closeCashSession}
     />,
   );
@@ -152,24 +147,26 @@ describe("CashCountScreen", () => {
     await expect.element(screen.getByText(SHORT_NOTICE).first()).not.toBeInTheDocument();
   });
 
-  it("compares nothing while the core refuses what is typed as a count", async () => {
+  it("compares any amount it can read as a count, however large", async () => {
     const { screen } = await renderScreen();
 
     await count(screen, "30.000.000,00");
 
-    await expect.poll(() => cellOf(screen, "Contado")).toBe("Contado—");
-    expect(cellOf(screen, "Diferencia")).toBe("Diferencia—");
-    await expect.element(screen.getByText("Sobran", { exact: false })).not.toBeInTheDocument();
+    expect(cellOf(screen, "Contado")).toBe("Contado$ 30.000.000,00");
+    await expect.element(screen.getByText("Sobran", { exact: false }).first()).toBeVisible();
   });
 
-  it("asks for a valid amount without closing when the core refuses the count", async () => {
-    const { screen, closeCashSession } = await renderScreen();
+  it("leaves a count of any amount it can read for the core to judge, showing its refusal", async () => {
+    const closeCashSession = vi.fn<CloseCashSession>(async () => ({
+      kind: "invalid_counted_cash",
+    }));
+    const { screen } = await renderScreen({ closeCashSession });
     await count(screen, "30.000.000,00");
 
     await submit(screen);
 
     await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
-    expect(closeCashSession).not.toHaveBeenCalled();
+    expect(closeCashSession).toHaveBeenCalledWith(3_000_000_000);
   });
 
   it("closes the session with the counted cash in cents", async () => {
@@ -310,7 +307,6 @@ describe("CashCountScreen", () => {
         openedAt={OPENED_AT}
         lock={() => {}}
         loadCashBalance={() => new Promise(() => {})}
-        checkCountedCash={checkingLikeTheCore}
         closeCashSession={async () => CLOSED}
       />,
     );

@@ -123,7 +123,6 @@ function contextWith(
     pinPolicy: async () => ({ min_digits: 6 }),
     checkEnrollmentCode: async () => [],
     checkPinCodeRedemption: async () => [],
-    checkCountedCash: async () => [],
     signInLookup: async () => ({ kind: "not_found" }),
     requestFirstPinCode: async () => ({ kind: "sent" }),
     firstSignIn: async () => ({ kind: "signed_in", person: PERSON, cash_session: null }),
@@ -815,35 +814,6 @@ describe("the register's router", () => {
     await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
 
     await expect.poll(() => recorded).toEqual([["CASH_IN", "Cambio"]]);
-  });
-
-  it("asks the context's check before closing with the count typed", async () => {
-    const closed: number[] = [];
-    const router = createRegisterRouter(
-      routeTree,
-      {
-        ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION),
-        cashBalance: async () => BALANCE,
-        checkCountedCash: async () => ["counted_cash"],
-        closeCashSession: async (_person, _sessionId, countedCash) => {
-          closed.push(countedCash);
-          return { kind: "unavailable" };
-        },
-      },
-      "/cash-count",
-    );
-    const screen = await render(<RouterProvider router={router} />);
-    await expect
-      .element(screen.getByRole("complementary").getByText("$ 46.200,00", { exact: true }))
-      .toBeVisible();
-
-    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
-    await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
-
-    await expect
-      .element(screen.getByText("Ingresá un importe válido, por ejemplo 31.500,00."))
-      .toBeVisible();
-    expect(closed).toEqual([]);
   });
 
   it("closes the session through the router context with the session it is showing", async () => {

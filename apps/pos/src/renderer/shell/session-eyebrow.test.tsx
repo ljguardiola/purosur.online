@@ -23,7 +23,6 @@ describe("SessionEyebrow", () => {
     expect(style.textTransform).toBe("uppercase");
   });
 
-  // 12:02 UTC is 09:02 in Argentina, which has no daylight saving time.
   const OPENED_AT = "2026-09-30T09:02:00.000-03:00";
 
   it("names the register and the Argentine time the session opened at", async () => {

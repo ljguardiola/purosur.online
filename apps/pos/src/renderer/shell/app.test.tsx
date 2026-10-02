@@ -139,9 +139,6 @@ function coreAnswering(
     async checkPinCodeRedemption() {
       return [];
     },
-    async checkCountedCash() {
-      return [];
-    },
     async redeemPinCode() {
       return cashDrawer.redeemOutcome ?? { kind: "redeemed" };
     },

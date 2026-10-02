@@ -46,10 +46,6 @@ const CANCELLABLE_SALE: SessionOpenSale = { total: 3_434_000, cancellable: true 
 const OPEN_SALE_NOTICE = "Hay una venta abierta de $ 34.340,00";
 const CANCEL_FAILED_NOTICE = "No se pudo cancelar la venta. Probá de nuevo.";
 
-async function checkingLikeTheCore(countedCash: number): Promise<"counted_cash"[]> {
-  return countedCash > 2_147_483_647 ? ["counted_cash"] : [];
-}
-
 async function renderStep(
   options: { close?: Close; cancelSale?: CancelSale; loadOpenSale?: LoadOpenSale } = {},
 ) {
@@ -68,7 +64,6 @@ async function renderStep(
       openedAt={OPENED_AT}
       loadCashBalance={async () => BALANCE}
       loadOpenSale={loadOpenSale}
-      checkCountedCash={checkingLikeTheCore}
       close={closing}
       cancelSale={cancelling}
       onRefused={(refusal) => refused.push(refusal)}
@@ -123,7 +118,7 @@ describe("LockedCashCount", () => {
     await expect.element(screen.getByText(SHORT_NOTICE).first()).toBeVisible();
   });
 
-  it("compares nothing while the core refuses what is typed as a count", async () => {
+  it("compares any amount it can read as a count, however large", async () => {
     const { screen } = await renderStep();
 
     await userEvent.fill(
@@ -131,17 +126,18 @@ describe("LockedCashCount", () => {
       "30.000.000,00",
     );
 
-    await expect.element(screen.getByText("Sobran", { exact: false })).not.toBeInTheDocument();
-    await expect.element(screen.getByText("$ 30.000.000,00")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("$ 30.000.000,00")).toBeVisible();
+    await expect.element(screen.getByText("Sobran", { exact: false }).first()).toBeVisible();
   });
 
-  it("asks for a valid amount without closing when the core refuses the count", async () => {
-    const { screen, close } = await renderStep();
+  it("leaves a count of any amount it can read for the core to judge, showing its refusal", async () => {
+    const close = vi.fn<Close>(async () => ({ kind: "invalid_counted_cash" }));
+    const { screen } = await renderStep({ close });
 
     await closeWith(screen, "30.000.000,00");
 
     await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
-    expect(close).not.toHaveBeenCalled();
+    expect(close).toHaveBeenCalledWith(3_000_000_000);
   });
 
   it("closes the session with the counted cash in cents", async () => {

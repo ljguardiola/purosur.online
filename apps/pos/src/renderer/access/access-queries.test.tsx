@@ -8,6 +8,7 @@ import { render } from "vitest-browser-react";
 import { createQueryClient } from "../platform/query-client";
 import type { CoreData } from "../platform/use-core-query";
 import {
+  pinPolicyQueryOptions,
   useAuthorizersQuery,
   usePinPolicyQuery,
   useResetAuthorizers,
@@ -92,6 +93,27 @@ describe("access queries", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("keep a PIN policy read ahead of its screen, however long before the screen shows it", async () => {
+    const queryClient = createQueryClient();
+    const read = vi.fn(async () => ({ min_digits: 6 }));
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    try {
+      await queryClient.ensureQueryData(pinPolicyQueryOptions(read));
+      vi.advanceTimersByTime(24 * 60 * 60 * 1000);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <PinPolicyProbe read={read} />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("6 digits")).toBeVisible();
+    expect(read).toHaveBeenCalledTimes(1);
   });
 
   it("hold the people who can sign in", async () => {

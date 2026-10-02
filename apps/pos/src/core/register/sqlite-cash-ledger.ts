@@ -4,6 +4,7 @@ import type {
   CashMovementType,
   ClosedCashSession,
   OpenedCashSession,
+  OutboxEventDraft,
 } from "@purosur/domain";
 import type {
   CashLedger,
@@ -170,12 +171,12 @@ export function insertCashMovement(database: LocalDatabase, movement: CashMoveme
 export class SqliteCashLedger implements CashLedger {
   private readonly database: LocalDatabase;
   private readonly people: Pick<SignInStore, "activePerson">;
-  private readonly outboxChainKey: string;
+  private readonly outboxChainKey: string | undefined;
 
   constructor(
     database: LocalDatabase,
     people: Pick<SignInStore, "activePerson">,
-    outboxChainKey: string,
+    outboxChainKey: string | undefined,
   ) {
     this.database = database;
     this.people = people;
@@ -196,8 +197,15 @@ export class SqliteCashLedger implements CashLedger {
       recordOpenedSession: (session) => this.recordOpenedSession(session),
       recordClosedSession: (session) => this.recordClosedSession(session),
       recordCashMovement: (movement) => insertCashMovement(this.database, movement),
-      appendOutboxEvent: (draft) => appendOutboxEvent(this.database, this.outboxChainKey, draft),
+      appendOutboxEvent: (draft) => this.appendOutboxEvent(draft),
     };
+  }
+
+  private appendOutboxEvent(draft: OutboxEventDraft): void {
+    if (this.outboxChainKey === undefined) {
+      throw new Error("the ledger has no outbox chain key");
+    }
+    appendOutboxEvent(this.database, this.outboxChainKey, draft);
   }
 
   private registerIdentity(): RegisterIdentity | undefined {

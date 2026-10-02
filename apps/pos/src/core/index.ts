@@ -48,7 +48,6 @@ import {
 } from "./register/cash-movement-requests";
 import {
   cashBalanceFor,
-  checkCountedCash,
   closeCashSessionFor,
   closeLockedCashSessionFor,
   currentCashSession,
@@ -269,7 +268,6 @@ const rendererRequestDeps: RendererRequestDeps = {
   pinPolicy,
   checkEnrollmentCode,
   checkPinCodeRedemption,
-  checkCountedCash,
   redeemPinCode: (typedCode: string, newPin: string) =>
     redeemPinCode(
       {

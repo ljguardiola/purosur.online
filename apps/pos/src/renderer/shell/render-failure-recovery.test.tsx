@@ -55,7 +55,6 @@ function buildFailingRouter(shouldThrow: () => boolean) {
       pinPolicy: async () => ({ min_digits: 6 }),
       checkEnrollmentCode: async () => [],
       checkPinCodeRedemption: async () => [],
-      checkCountedCash: async () => [],
       signInLookup: async () => ({ kind: "unavailable" }),
       requestFirstPinCode: async () => ({ kind: "unavailable" }),
       firstSignIn: async () => ({ kind: "unavailable" }),

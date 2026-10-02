@@ -138,12 +138,6 @@ export const closeCashSessionMessageSchema = z.object({
   counted_cash: z.int(),
 });
 
-const checkCountedCashMessageSchema = z.object({
-  type: z.literal("check-counted-cash"),
-  request_id: requestId,
-  counted_cash: z.int(),
-});
-
 export const closeLockedCashSessionMessageSchema = z.object({
   type: z.literal("close-locked-cash-session"),
   request_id: requestId,
@@ -260,7 +254,6 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   checkEnrollmentCodeMessageSchema,
   pinPolicyRequestMessageSchema,
   checkPinCodeRedemptionMessageSchema,
-  checkCountedCashMessageSchema,
   redeemPinCodeMessageSchema,
   signInUsersRequestMessageSchema,
   signInMessageSchema,
@@ -505,11 +498,6 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("enrollment-code-check"),
     request_id: requestId,
     fields: z.array(z.literal("code")),
-  }),
-  z.object({
-    type: z.literal("counted-cash-check"),
-    request_id: requestId,
-    fields: z.array(z.literal("counted_cash")),
   }),
   z.object({
     type: z.literal("pin-code-redemption-result"),

@@ -2030,29 +2030,8 @@ describe("checking typed input", () => {
     expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
   });
 
-  it.each([0, 2_147_483_648])("accepts a check of a counted cash of %i", (counted_cash) => {
-    const message = { type: "check-counted-cash", request_id: REQUEST_ID, counted_cash };
-
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it.each([1.5, Number.NaN, "100", null])(
-    "rejects a check of a counted cash of %j",
-    (counted_cash) => {
-      const message = { type: "check-counted-cash", request_id: REQUEST_ID, counted_cash };
-
-      expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
-    },
-  );
-
   it.each([[["code"]], [[]]])("accepts an enrollment code check refusing %j", (fields) => {
     const message = { type: "enrollment-code-check", request_id: REQUEST_ID, fields };
-
-    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it.each([[["counted_cash"]], [[]]])("accepts a counted cash check refusing %j", (fields) => {
-    const message = { type: "counted-cash-check", request_id: REQUEST_ID, fields };
 
     expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
   });
@@ -2061,9 +2040,6 @@ describe("checking typed input", () => {
     { type: "enrollment-code-check", request_id: REQUEST_ID, fields: ["hostname"] },
     { type: "enrollment-code-check", request_id: REQUEST_ID },
     { type: "enrollment-code-check", fields: [] },
-    { type: "counted-cash-check", request_id: REQUEST_ID, fields: ["session_id"] },
-    { type: "counted-cash-check", request_id: REQUEST_ID },
-    { type: "counted-cash-check", fields: [] },
   ])("rejects a check answer that is not well formed: %j", (message) => {
     expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });

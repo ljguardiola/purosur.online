@@ -1,4 +1,6 @@
 import type {
+  AuthorizationRefusal,
+  AuthorizedBy,
   ListedCashMovement,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
@@ -7,11 +9,14 @@ import type {
 import {
   type CashMovementKind,
   cashMovementPermission,
-  isValidCashMovementAmount,
   type RegisterActor,
   registerOperationAccess,
 } from "@purosur/domain";
-import { recordCashMovement } from "@purosur/domain/register/use-cases";
+import {
+  type OperationAuthorization,
+  type RecordCashMovementGrant,
+  recordCashMovement,
+} from "@purosur/domain/register/use-cases";
 import type { SignedInPerson } from "../access/signed-in-person";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import { inArgentinaTime } from "../platform/argentina-time";
@@ -21,43 +26,57 @@ import { readOpenSessionMovements, SqliteCashLedger } from "./sqlite-cash-ledger
 
 export type CashMovementRequest = RecordCashMovementRequest;
 
+interface CashMovementGrant extends RecordCashMovementGrant {
+  authorizer: AuthorizedBy | null;
+}
+
+type CashMovementRefusal = Extract<
+  RecordCashMovementOutcome,
+  { kind: "unavailable" | "not_signed_in" | "lacks_permission" | AuthorizationRefusal["kind"] }
+>;
+
 export async function recordCashMovementFor(
   { database, gate, readOutboxChainKey, now, ids }: CashSessionRequestDeps,
   { kind, amount, reason, authorization }: CashMovementRequest,
 ): Promise<RecordCashMovementOutcome> {
-  if (!isValidCashMovementAmount(amount)) {
-    return { kind: "invalid_amount" };
-  }
   const outboxChainKey = await readOutboxChainKey();
-  if (outboxChainKey === undefined) {
-    return { kind: "unavailable" };
-  }
-  const guarded = await gate.runAuthorized(
-    { kind: "record_cash_movement", movement: kind },
-    authorization,
-    async ({ signedInUserId, authorizedBy }) =>
-      recordCashMovement(
-        {
-          ledger: new SqliteCashLedger(database, new SqliteSignInStore(database), outboxChainKey),
-          clock: { now },
-          ids,
+  const outcome = await recordCashMovement<CashMovementGrant, CashMovementRefusal>(
+    {
+      ledger: new SqliteCashLedger(database, new SqliteSignInStore(database), outboxChainKey),
+      clock: { now },
+      ids,
+      authority: {
+        async authorize(): Promise<OperationAuthorization<CashMovementGrant, CashMovementRefusal>> {
+          if (outboxChainKey === undefined) {
+            return { kind: "refused", refusal: { kind: "unavailable" } };
+          }
+          const guarded = await gate.runAuthorized(
+            { kind: "record_cash_movement", movement: kind },
+            authorization,
+            async (actor) => actor,
+          );
+          return guarded.kind === "performed"
+            ? {
+                kind: "granted",
+                grant: {
+                  actorId: guarded.result.signedInUserId,
+                  authorizedBy: guarded.authorized_by?.user_id,
+                  authorizer: guarded.authorized_by,
+                },
+              }
+            : { kind: "refused", refusal: guarded };
         },
-        { kind, amount, reason, actorId: signedInUserId, authorizedBy: authorizedBy?.user_id },
-      ),
+      },
+    },
+    { kind, amount, reason },
   );
-  if (guarded.kind !== "performed") {
-    return guarded;
-  }
-  const outcome = guarded.result;
   switch (outcome.kind) {
     case "recorded":
-      return { kind: "recorded", authorized_by: guarded.authorized_by };
-    case "exceeds_expected_cash":
-      return outcome;
+      return { kind: "recorded", authorized_by: outcome.grant.authorizer };
     case "invalid_reason":
       return { kind: "invalid_reason", max_length: outcome.maxLength };
     default:
-      return { kind: outcome.kind };
+      return outcome;
   }
 }
 

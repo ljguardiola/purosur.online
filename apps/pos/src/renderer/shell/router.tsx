@@ -103,7 +103,6 @@ export interface RouterContext {
     typedCode: string,
     newPin: string,
   ) => Promise<("reset_code" | "new_pin")[]>;
-  checkCountedCash: (countedCash: number) => Promise<"counted_cash"[]>;
   signInLookup: (email: string) => Promise<SignInLookupOutcome>;
   requestFirstPinCode: (userId: string) => Promise<FirstPinCodeRequestOutcome>;
   firstSignIn: (userId: string, pin: string) => Promise<SignInOutcome>;
@@ -364,7 +363,7 @@ const cashCountRoute = createRoute({
     return { id, openedAt, person };
   },
   component: function CashCountRoute() {
-    const { id, openedAt, person, signOut, cashBalance, checkCountedCash, closeCashSession } =
+    const { id, openedAt, person, signOut, cashBalance, closeCashSession } =
       cashCountRoute.useRouteContext();
     const registerName = useRegisterName();
     const { leaving } = cashCountRoute.useSearch();
@@ -376,7 +375,6 @@ const cashCountRoute = createRoute({
         openedAt={openedAt}
         lock={signOut}
         loadCashBalance={cashBalance}
-        checkCountedCash={checkCountedCash}
         closeCashSession={(countedCash) => closeCashSession(person, id, countedCash, leaving)}
       />
     );
@@ -420,7 +418,6 @@ const lockedCloseRoute = createRoute({
       sessionOpenSale,
       lockedClosers,
       identifyLockedCloser,
-      checkCountedCash,
       closeLockedCashSession,
       cancelLockedSale,
     } = lockedCloseRoute.useRouteContext();
@@ -435,7 +432,6 @@ const lockedCloseRoute = createRoute({
         loadOpenSale={sessionOpenSale}
         loadClosers={lockedClosers}
         identifyLockedCloser={identifyLockedCloser}
-        checkCountedCash={checkCountedCash}
         closeLockedCashSession={(countedCash, closer) =>
           closeLockedCashSession(id, countedCash, closer)
         }
@@ -588,7 +584,6 @@ export function createAppRouter(
     | "pinPolicy"
     | "checkEnrollmentCode"
     | "checkPinCodeRedemption"
-    | "checkCountedCash"
     | "signInLookup"
     | "requestFirstPinCode"
     | "firstSignIn"

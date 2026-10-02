@@ -115,20 +115,6 @@ describe("createCoreClient", () => {
     ]);
   });
 
-  it("asks the core to check a counted cash and resolves with the fields it refuses", async () => {
-    const client = clientWithSequentialIds();
-    const port = new FakePort();
-    client.connect(port);
-
-    const asked = client.checkCountedCash(3_000_000_000);
-    port.answer({ type: "counted-cash-check", request_id: "request-1", fields: ["counted_cash"] });
-
-    expect(await asked).toEqual(["counted_cash"]);
-    expect(port.posted).toEqual([
-      { type: "check-counted-cash", request_id: "request-1", counted_cash: 3_000_000_000 },
-    ]);
-  });
-
   it("asks the core for the users who can sign in and resolves with them", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

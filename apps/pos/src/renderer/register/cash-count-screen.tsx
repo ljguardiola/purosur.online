@@ -36,7 +36,6 @@ export type CashCountScreenProps = {
   openedAt: string;
   lock: () => void;
   loadCashBalance: () => Promise<CashBalance | null | "unavailable">;
-  checkCountedCash: (countedCash: number) => Promise<"counted_cash"[]>;
   closeCashSession: (countedCash: number) => Promise<CloseCashSessionOutcome>;
 };
 
@@ -47,7 +46,6 @@ export function CashCountScreen({
   openedAt,
   lock,
   loadCashBalance,
-  checkCountedCash,
   closeCashSession,
 }: CashCountScreenProps) {
   const navigate = useNavigate();
@@ -55,12 +53,11 @@ export function CashCountScreen({
   const field = useRef<HTMLDivElement>(null);
   const [notice, setNotice] = useState<Notice>();
   const [openSaleTotal, setOpenSaleTotal] = useState<number>();
-  const { form, submit, submitting, values, refused } = useRequestForm({
+  const { form, submit, submitting, values } = useRequestForm({
     defaultValues: EMPTY_COUNTED_CASH_FORM,
     request: { schema: countedCashRequestSchema, from: countedCashRequestFrom },
     fields: { counted_cash: "countedCash" },
     messages: { countedCash: countedCashMessage },
-    check: ({ counted_cash }) => checkCountedCash(counted_cash),
     onSubmit: async (request, { showFieldError }) => {
       const outcome = await closeCashSession(request.counted_cash).catch(
         (): CloseCashSessionOutcome => ({ kind: "unavailable" }),
@@ -92,9 +89,7 @@ export function CashCountScreen({
   }, []);
 
   const expected = balance.status === "loaded" ? balance.value.expected : undefined;
-  const counted = refused.includes("countedCash")
-    ? undefined
-    : countedCashOf(countedCashRequestSchema, values);
+  const counted = countedCashOf(countedCashRequestSchema, values);
   const warning =
     expected === undefined || counted === undefined
       ? undefined

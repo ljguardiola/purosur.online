@@ -87,7 +87,6 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       pinPolicy: () => ({ min_digits: 6 }),
       checkEnrollmentCode: () => [],
       checkPinCodeRedemption: () => [],
-      checkCountedCash: () => [],
       signInUsers: () => [{ id: "u1", first_name: "Ada" }],
       signIn: async (userId: string, pin: string): Promise<SignInOutcome> => {
         signIns.push({ userId, pin });
@@ -238,10 +237,6 @@ describe("answerRendererRequest", () => {
       { type: "check-pin-code-redemption", request_id: "r7", reset_code: "p4nx", new_pin: "12" },
       { type: "pin-code-redemption-check", request_id: "r7", fields: ["reset_code", "new_pin"] },
     ],
-    [
-      { type: "check-counted-cash", request_id: "r8", counted_cash: -1 },
-      { type: "counted-cash-check", request_id: "r8", fields: ["counted_cash"] },
-    ],
   ] as const)("answers the check %j with the fields the core refuses", async (message, answer) => {
     const checked: unknown[] = [];
     const answered = await answerRendererRequest(
@@ -253,10 +248,6 @@ describe("answerRendererRequest", () => {
         checkPinCodeRedemption: (code, pin) => {
           checked.push([code, pin]);
           return ["reset_code", "new_pin"];
-        },
-        checkCountedCash: (countedCash) => {
-          checked.push(countedCash);
-          return ["counted_cash"];
         },
       }).deps,
       message,
