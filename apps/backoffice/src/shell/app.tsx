@@ -174,7 +174,7 @@ function signedInSessionOf(outcome: Extract<SessionOutcome, { kind: "ok" }>): Si
     userId: outcome.userId,
     displayName: outcome.displayName,
     isAdministrator: outcome.isAdministrator,
-    permissions: outcome.permissions,
+    capabilities: outcome.capabilities,
     expiresAt: outcome.expiresAt,
   };
 }
@@ -186,7 +186,7 @@ function differsOnlyInExpiry(current: SettledSession, next: SettledSession): boo
     current.userId === next.userId &&
     current.displayName === next.displayName &&
     current.isAdministrator === next.isAdministrator &&
-    current.permissions.join() === next.permissions.join()
+    current.capabilities.join() === next.capabilities.join()
   );
 }
 
@@ -345,7 +345,7 @@ function AppContent({ help, services = defaultAppServices, reportError = () => {
         void control.settle({
           ...current,
           isAdministrator: touched.isAdministrator,
-          permissions: touched.permissions,
+          capabilities: touched.capabilities,
           expiresAt: touched.expiresAt,
         });
       }

@@ -4,7 +4,12 @@ import {
   roleCreationBodySchema,
   roleEditBodySchema,
 } from "@purosur/contracts";
-import { type PermissionArea, type PermissionKey, withRequiredPermissions } from "@purosur/domain";
+import {
+  type PermissionArea,
+  type PermissionKey,
+  withOneAlertView,
+  withRequiredPermissions,
+} from "@purosur/domain";
 import {
   Button,
   InlineNotice,
@@ -31,7 +36,6 @@ import { ConfirmRoleSaveModal } from "./confirm-role-save-modal";
 import { roleDisplayName } from "./role-display";
 import { RoleEditorForm } from "./role-editor-form";
 import { roleNameMessage } from "./role-name-message";
-import { withOneAlertView } from "./role-permissions";
 import {
   type CreateRoleOutcome,
   createRole,

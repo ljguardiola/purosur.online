@@ -1,17 +1,16 @@
-import { mayEmitPinCodeFor } from "@purosur/domain";
+import { type Capability, mayEmitPinCodeFor } from "@purosur/domain";
 
 export type BackofficeAccess = {
   isAdministrator: boolean;
-  permissions: readonly string[];
+  capabilities: readonly Capability[];
 };
 
+function grants(access: BackofficeAccess, capability: Capability): boolean {
+  return access.capabilities.includes(capability);
+}
+
 export function canSeeUsersArea(access: BackofficeAccess): boolean {
-  return (
-    access.isAdministrator ||
-    access.permissions.includes("deactivate_users") ||
-    access.permissions.includes("reactivate_users") ||
-    access.permissions.includes("reset_user_pin")
-  );
+  return grants(access, "users_area");
 }
 
 export function canResetUserPin(
@@ -22,7 +21,7 @@ export function canResetUserPin(
   if (target.active === false) {
     return false;
   }
-  if (!access.isAdministrator && !access.permissions.includes("reset_user_pin")) {
+  if (!grants(access, "reset_user_pin")) {
     return false;
   }
   // The cloud accepts a user id in any letter case.
@@ -39,7 +38,7 @@ export function canDeactivateUser(
   if (target.isAdministrator) {
     return false;
   }
-  return access.isAdministrator || access.permissions.includes("deactivate_users");
+  return grants(access, "deactivate_users");
 }
 
 /**
@@ -47,7 +46,7 @@ export function canDeactivateUser(
  * admits an inactive target, and an inactive user can't be the last active Administrator.
  */
 export function canReactivateUser(access: BackofficeAccess): boolean {
-  return access.isAdministrator || access.permissions.includes("reactivate_users");
+  return grants(access, "reactivate_users");
 }
 
 export function canSeeRolesArea(access: BackofficeAccess): boolean {
@@ -55,72 +54,62 @@ export function canSeeRolesArea(access: BackofficeAccess): boolean {
 }
 
 export function canSeeBranchArea(access: BackofficeAccess): boolean {
-  return access.isAdministrator || access.permissions.includes("configure_branch");
+  return grants(access, "branch_area");
 }
 
 /** `manage_prices_and_review` alone also unlocks the Catálogo area, without unlocking this section. */
 export function canManageProductsAndCategories(access: BackofficeAccess): boolean {
-  return access.isAdministrator || access.permissions.includes("manage_products_and_categories");
+  return grants(access, "products_and_categories");
 }
 
 export function canSeePricesArea(access: BackofficeAccess): boolean {
-  return access.isAdministrator || access.permissions.includes("manage_prices_and_review");
+  return grants(access, "prices_area");
 }
 
 export function canManagePromotions(access: BackofficeAccess): boolean {
-  return access.isAdministrator || access.permissions.includes("manage_promotions");
+  return grants(access, "promotions");
 }
 
 export function canSeeCatalogArea(access: BackofficeAccess): boolean {
-  return (
-    canManageProductsAndCategories(access) ||
-    canSeePricesArea(access) ||
-    canManagePromotions(access)
-  );
+  return grants(access, "catalog_area");
 }
 
 export function canSeeCashArea(access: BackofficeAccess): boolean {
-  return access.isAdministrator || access.permissions.includes("change_fiscal_configuration");
+  return grants(access, "cash_area");
 }
 
 export function canSeeAlertsArea(access: BackofficeAccess): boolean {
-  return (
-    access.isAdministrator ||
-    access.permissions.includes("view_branch_alerts") ||
-    access.permissions.includes("view_all_alerts")
-  );
+  return grants(access, "alerts_area");
 }
 
 export function canCloseAlertsManually(access: BackofficeAccess): boolean {
-  return access.isAdministrator || access.permissions.includes("dismiss_alerts_manually");
+  return grants(access, "close_alerts_manually");
 }
 
 export function canSeeRegistersArea(access: BackofficeAccess): boolean {
-  return access.isAdministrator || access.permissions.includes("enroll_register_devices");
+  return grants(access, "registers_area");
 }
 
 export function canSeeStockBalances(access: BackofficeAccess): boolean {
-  return access.isAdministrator || access.permissions.includes("view_stock_balances");
+  return grants(access, "stock_balances");
 }
 
 export function canPerformStockCounts(access: BackofficeAccess): boolean {
-  return access.isAdministrator || access.permissions.includes("perform_stock_counts");
+  return grants(access, "stock_counts");
 }
 
 export function canRecordStockLosses(access: BackofficeAccess): boolean {
-  return access.isAdministrator || access.permissions.includes("record_stock_losses");
+  return grants(access, "stock_losses");
 }
 
 export function canAdjustStock(access: BackofficeAccess): boolean {
-  return access.isAdministrator || access.permissions.includes("adjust_stock");
+  return grants(access, "stock_adjustments");
 }
 
 export function canSeeStockMovements(access: BackofficeAccess): boolean {
-  return canRecordStockLosses(access) || canAdjustStock(access);
+  return grants(access, "stock_movements");
 }
 
 export function canSeeStockArea(access: BackofficeAccess): boolean {
-  return (
-    canSeeStockBalances(access) || canPerformStockCounts(access) || canSeeStockMovements(access)
-  );
+  return grants(access, "stock_area");
 }

@@ -1,3 +1,4 @@
+import type { Capability } from "@purosur/domain";
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import { createContext, useContext, useEffect, useRef } from "react";
 import type { SignInOpeningNotice } from "../access/sign-in-screen";
@@ -10,7 +11,7 @@ export type SignedInSession = {
   userId: string;
   displayName: string;
   isAdministrator: boolean;
-  permissions: string[];
+  capabilities: Capability[];
   expiresAt: string;
 };
 

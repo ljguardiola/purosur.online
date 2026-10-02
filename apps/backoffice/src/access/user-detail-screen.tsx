@@ -253,7 +253,7 @@ function UserDetailView({
               />
             ) : null}
             {!user &&
-              (canReactivateUser(access) || access.permissions.includes("deactivate_users")) &&
+              (canReactivateUser(access) || access.capabilities.includes("deactivate_users")) &&
               !isOwnAccount && (
                 <div className="flex items-center justify-end">
                   <Button
