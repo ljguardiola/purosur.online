@@ -3,8 +3,9 @@ import {
   type StockProduct,
   stockAdjustmentBodySchema,
   stockLossBodySchema,
+  stockMovementChangeSchema,
 } from "@purosur/contracts";
-import { type SaleUnit, signedDelta } from "@purosur/domain";
+import type { SaleUnit } from "@purosur/domain";
 import {
   Button,
   EmptyState,
@@ -157,7 +158,7 @@ export function StockMovementModal({
       if (parsed) {
         await send(
           parsed.productId,
-          signedDelta("subtract", parsed.quantity),
+          stockMovementChangeSchema.parse({ kind: "loss", quantity: parsed.quantity }),
           () => services.recordLoss(parsed),
           showWireFieldError,
         );
@@ -197,7 +198,11 @@ export function StockMovementModal({
       if (parsed) {
         await send(
           parsed.productId,
-          signedDelta(parsed.direction, parsed.quantity),
+          stockMovementChangeSchema.parse({
+            kind: "adjustment",
+            direction: parsed.direction,
+            quantity: parsed.quantity,
+          }),
           () => services.recordAdjustment(parsed),
           showWireFieldError,
         );
@@ -319,7 +324,9 @@ export function StockMovementModal({
                   onSessionEnded={onSessionEnded}
                   product={lossProduct}
                   delta={
-                    lossQuantity === undefined ? undefined : signedDelta("subtract", lossQuantity)
+                    lossQuantity === undefined
+                      ? undefined
+                      : stockMovementChangeSchema.parse({ kind: "loss", quantity: lossQuantity })
                   }
                 />
               ) : null}
@@ -381,7 +388,11 @@ export function StockMovementModal({
                   delta={
                     adjustmentQuantity === undefined
                       ? undefined
-                      : signedDelta(direction, adjustmentQuantity)
+                      : stockMovementChangeSchema.parse({
+                          kind: "adjustment",
+                          direction,
+                          quantity: adjustmentQuantity,
+                        })
                   }
                 />
               ) : null}

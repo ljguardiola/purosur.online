@@ -2,16 +2,11 @@ import {
   type StockMovement,
   type StockProduct,
   stockAdjustmentBodySchema,
+  stockAdjustmentDirectionsSchema,
   stockLossBodySchema,
   stockMovementListSchema,
 } from "@purosur/contracts";
-import {
-  type AdjustmentReason,
-  adjustmentDirections,
-  type LossReason,
-  type SaleUnit,
-  type StockDirection,
-} from "@purosur/domain";
+import type { AdjustmentReason, LossReason, SaleUnit, StockDirection } from "@purosur/domain";
 import { sortedItems, textOrder } from "@purosur/ui";
 import { ADJUSTMENT_REASON_LABELS, LOSS_REASON_LABELS } from "./stock-reason-labels";
 
@@ -74,6 +69,7 @@ export const PRODUCT_REQUIRED = "Elegí el producto.";
 export const REASON_REQUIRED = "Elegí el motivo.";
 
 export function soleDirection(reason: AdjustmentReason | null): StockDirection | undefined {
-  const [only, ...others] = reason === null ? [] : adjustmentDirections(reason);
+  const [only, ...others] =
+    reason === null ? [] : stockAdjustmentDirectionsSchema.shape[reason].options;
   return others.length === 0 ? only : undefined;
 }
