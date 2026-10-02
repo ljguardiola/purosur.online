@@ -1,15 +1,28 @@
-import type { StockProduct } from "@purosur/contracts";
 import {
-  ADJUSTMENT_REASONS,
+  type StockMovement,
+  type StockProduct,
+  stockAdjustmentBodySchema,
+  stockLossBodySchema,
+  stockMovementListSchema,
+} from "@purosur/contracts";
+import {
   type AdjustmentReason,
   adjustmentDirections,
-  LOSS_REASONS,
   type LossReason,
   type SaleUnit,
   type StockDirection,
 } from "@purosur/domain";
 import { sortedItems, textOrder } from "@purosur/ui";
 import { ADJUSTMENT_REASON_LABELS, LOSS_REASON_LABELS } from "./stock-reason-labels";
+
+export type MovementKind = StockMovement["kind"];
+
+export const MOVEMENT_KINDS = stockMovementListSchema.shape.movements.element.shape.kind.options;
+
+export const REASONS_OF_KIND = {
+  loss: stockLossBodySchema.shape.reason.options,
+  adjustment: stockAdjustmentBodySchema.shape.reason.options,
+} satisfies Record<MovementKind, readonly StockMovement["reason"][]>;
 
 const productNameOrder = textOrder((product: StockProduct) => product.name);
 
@@ -44,12 +57,12 @@ export type AdjustmentValues = {
   direction: StockDirection;
 };
 
-export const LOSS_REASON_OPTIONS = LOSS_REASONS.map((reason) => ({
+export const LOSS_REASON_OPTIONS = REASONS_OF_KIND.loss.map((reason) => ({
   value: reason,
   label: LOSS_REASON_LABELS[reason],
 })) as [{ value: LossReason; label: string }, ...{ value: LossReason; label: string }[]];
 
-export const ADJUSTMENT_REASON_OPTIONS = ADJUSTMENT_REASONS.map((reason) => ({
+export const ADJUSTMENT_REASON_OPTIONS = REASONS_OF_KIND.adjustment.map((reason) => ({
   value: reason,
   label: ADJUSTMENT_REASON_LABELS[reason],
 })) as [
