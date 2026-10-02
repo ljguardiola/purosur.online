@@ -213,6 +213,12 @@ describe("stockCountMomentSchema", () => {
     );
   });
 
+  it("builds the instant of a day before Argentina's clocks followed a standard offset", () => {
+    expect(stockCountMomentSchema.parse({ day: "1900-01-01", time: "10:00" })).toBe(
+      "1900-01-01T10:00:00-03:00",
+    );
+  });
+
   it("builds an instant the count's body accepts as its moment", () => {
     const occurredAt = stockCountMomentSchema.parse({ day: "2026-09-25", time: "23:59" });
 

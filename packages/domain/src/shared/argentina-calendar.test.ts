@@ -37,11 +37,12 @@ describe("argentinaInstant", () => {
     expect(argentinaCalendarDay(instant)).toBe("2026-09-25");
   });
 
-  it("takes the offset Argentina's time zone had on that day, as during its summer time", () => {
-    expect(argentinaInstant("2008-12-15", "12:00")).toBe("2008-12-15T12:00:00-02:00");
-  });
-
-  it("takes the offset in force after a clock change, in the hours right after it", () => {
-    expect(argentinaInstant("2008-10-19", "02:00")).toBe("2008-10-19T02:00:00-02:00");
+  it.each([
+    ["a day of Argentina's last summer time", "2008-12-15", "12:00"],
+    ["the first hours after Argentina last moved its clocks forward", "2008-10-19", "02:00"],
+    ["a day before Argentina's clocks followed a standard offset", "1900-01-01", "10:00"],
+    ["a day in the first hundred years of the calendar", "0050-01-01", "10:00"],
+  ])("writes %s on Argentina's current offset", (_case, day, time) => {
+    expect(argentinaInstant(day, time)).toBe(`${day}T${time}:00-03:00`);
   });
 });
