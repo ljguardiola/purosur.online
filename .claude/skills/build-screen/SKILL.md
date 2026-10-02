@@ -108,6 +108,10 @@ offers:
   places it and decides how long it stays; the screen passes what to show
   and an `onDismiss` that clears it, and adds no placement or timer of its
   own.
+- A notice that carries an action: `HighlightedNotice`'s `actions`. A message
+  announced in a region that stays mounted while nothing is shown, such as a
+  scan's refusal: `ElevatedNotice`. A failure that fills a whole screen:
+  `LoadFailure`'s `variant="screen"`.
 - A question before an action goes ahead: `Modal` with
   `width="confirmation"`.
 - A label read beside an amount, such as a breakdown of a total:
