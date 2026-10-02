@@ -238,6 +238,7 @@ describe("PUT /categories/:id", () => {
 
     const response = await editCategory(rawSessionId, "00000000-0000-0000-0000-000000000000", {
       name: "Macetas",
+      parentId: null,
       version: 1,
     });
 
@@ -251,6 +252,7 @@ describe("PUT /categories/:id", () => {
 
     const response = await editCategory(rawSessionId, "not-a-uuid", {
       name: "Macetas",
+      parentId: null,
       version: 1,
     });
 

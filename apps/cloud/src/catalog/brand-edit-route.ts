@@ -44,19 +44,17 @@ export function registerBrandEditRoute<TQueryResult extends PgQueryResultHKT>(
       },
     },
     async (request, reply) => {
-      const target = await findBrandSummary({ catalog }, request.params.id);
-      if (!target) {
-        await reply.code(404).send(BRAND_NOT_FOUND_RESPONSE);
-        return;
-      }
-
       const parsedBody = await readValidatedBody(reply, brandEditBodySchema, request.body);
       if (!parsedBody) {
         return;
       }
 
-      const outcome = await editBrand(catalogStore, { id: target.id, ...parsedBody });
+      const outcome = await editBrand(catalogStore, { id: request.params.id, ...parsedBody });
 
+      if (outcome.kind === "not_found") {
+        await reply.code(404).send(BRAND_NOT_FOUND_RESPONSE);
+        return;
+      }
       if (outcome.kind === "stale_version") {
         await reply.code(409).send(STALE_VERSION_RESPONSE);
         return;
@@ -66,7 +64,7 @@ export function registerBrandEditRoute<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      const listed = await findBrandSummary({ catalog }, target.id);
+      const listed = await findBrandSummary({ catalog }, request.params.id);
       await reply
         .code(200)
         .send(

@@ -18,6 +18,7 @@ export interface EditProductInput {
 }
 
 export type EditProductOutcome =
+  | { kind: "not_found" }
   | { kind: "stale_version" }
   | { kind: "category_not_found" }
   | { kind: "category_not_leaf" }
@@ -37,7 +38,10 @@ export async function editProduct(
     return await store.transaction(async (tx) => {
       // Locks this one row so a concurrent edit against the same product waits instead of racing.
       const locked = await tx.lockProduct(input.id);
-      if (locked.kind === "not_found" || locked.product.version !== input.version) {
+      if (locked.kind === "not_found") {
+        return { kind: "not_found" };
+      }
+      if (locked.product.version !== input.version) {
         return { kind: "stale_version" };
       }
 

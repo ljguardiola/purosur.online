@@ -1,5 +1,5 @@
 import { productEditBodySchema, productSummarySchema } from "@purosur/contracts";
-import { editProduct, findProduct } from "@purosur/domain/catalog/use-cases";
+import { editProduct } from "@purosur/domain/catalog/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { backofficeOriginGuard } from "../access/backoffice-origin.js";
@@ -9,7 +9,6 @@ import {
   routeSessionSource,
 } from "../access/route-access.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
-import { DrizzleCatalogListReader } from "./drizzle-catalog-list-reader.js";
 import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 import {
   BRAND_INACTIVE_RESPONSE,
@@ -44,7 +43,6 @@ export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
   const catalogStore = new DrizzleCatalogStore(options.db);
-  const catalog = new DrizzleCatalogListReader(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
   app.put<{ Params: { id: string } }>(
@@ -57,12 +55,6 @@ export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
       },
     },
     async (request, reply) => {
-      const target = await findProduct({ catalog }, request.params.id);
-      if (!target) {
-        await reply.code(404).send(NOT_FOUND_RESPONSE);
-        return;
-      }
-
       const parsedBody = await readValidatedBody(reply, productEditBodySchema, request.body);
       if (!parsedBody) {
         return;
@@ -70,9 +62,13 @@ export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
 
       const outcome = await editProduct(
         { store: catalogStore, clock: { now } },
-        { id: target.id, ...parsedBody },
+        { id: request.params.id, ...parsedBody },
       );
 
+      if (outcome.kind === "not_found") {
+        await reply.code(404).send(NOT_FOUND_RESPONSE);
+        return;
+      }
       if (outcome.kind === "stale_version") {
         await reply.code(409).send(STALE_VERSION_RESPONSE);
         return;

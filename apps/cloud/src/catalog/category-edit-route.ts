@@ -1,5 +1,5 @@
 import { categoryEditBodySchema, categorySummarySchema } from "@purosur/contracts";
-import { editCategory, findCategory } from "@purosur/domain/catalog/use-cases";
+import { editCategory } from "@purosur/domain/catalog/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { backofficeOriginGuard } from "../access/backoffice-origin.js";
@@ -15,7 +15,6 @@ import {
   CATEGORY_PARENT_HAS_PRODUCTS_RESPONSE,
   CATEGORY_PARENT_NOT_FOUND_FAILURE,
 } from "./category-creation-route.js";
-import { DrizzleCatalogListReader } from "./drizzle-catalog-list-reader.js";
 import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 
 const CATEGORY_MOVE_NOT_ALLOWED_RESPONSE = {
@@ -40,7 +39,6 @@ export function registerCategoryEditRoute<TQueryResult extends PgQueryResultHKT>
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
   const catalogStore = new DrizzleCatalogStore(options.db);
-  const catalog = new DrizzleCatalogListReader(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
   app.put<{ Params: { id: string } }>(
@@ -53,19 +51,17 @@ export function registerCategoryEditRoute<TQueryResult extends PgQueryResultHKT>
       },
     },
     async (request, reply) => {
-      const target = await findCategory({ catalog }, request.params.id);
-      if (!target) {
-        await reply.code(404).send(NOT_FOUND_RESPONSE);
-        return;
-      }
-
       const parsedBody = await readValidatedBody(reply, categoryEditBodySchema, request.body);
       if (!parsedBody) {
         return;
       }
 
-      const outcome = await editCategory(catalogStore, { id: target.id, ...parsedBody });
+      const outcome = await editCategory(catalogStore, { id: request.params.id, ...parsedBody });
 
+      if (outcome.kind === "not_found") {
+        await reply.code(404).send(NOT_FOUND_RESPONSE);
+        return;
+      }
       if (outcome.kind === "stale_version") {
         await reply.code(409).send(STALE_VERSION_RESPONSE);
         return;

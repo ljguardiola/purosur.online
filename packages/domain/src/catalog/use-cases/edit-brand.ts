@@ -8,6 +8,7 @@ export interface EditBrandInput {
 }
 
 export type EditBrandOutcome =
+  | { kind: "not_found" }
   | { kind: "stale_version" }
   | { kind: "name_taken" }
   | { kind: "applied"; brand: CatalogBrand };
@@ -21,7 +22,10 @@ export async function editBrand(
       // Locks this one row so a concurrent edit, deactivation or reactivation of the same brand
       // waits instead of racing.
       const locked = await tx.lockBrand(input.id);
-      if (locked.kind === "not_found" || locked.brand.version !== input.version) {
+      if (locked.kind === "not_found") {
+        return { kind: "not_found" };
+      }
+      if (locked.brand.version !== input.version) {
         return { kind: "stale_version" };
       }
       const { active, version } = locked.brand;

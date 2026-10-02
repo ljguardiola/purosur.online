@@ -8,6 +8,7 @@ export interface EditTagInput {
 }
 
 export type EditTagOutcome =
+  | { kind: "not_found" }
   | { kind: "stale_version" }
   | { kind: "name_taken" }
   | { kind: "applied"; tag: CatalogTag };
@@ -18,7 +19,10 @@ export async function editTag(store: CatalogStore, input: EditTagInput): Promise
       // Locks this one row so a concurrent edit, deactivation or reactivation of the same tag
       // waits instead of racing.
       const locked = await tx.lockTag(input.id);
-      if (locked.kind === "not_found" || locked.tag.version !== input.version) {
+      if (locked.kind === "not_found") {
+        return { kind: "not_found" };
+      }
+      if (locked.tag.version !== input.version) {
         return { kind: "stale_version" };
       }
       const { active, version } = locked.tag;
