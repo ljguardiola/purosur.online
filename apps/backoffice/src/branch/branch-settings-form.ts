@@ -152,13 +152,13 @@ const DAYS_WIRE_FIELDS = {
 
 function daysMessage(field: DaysField) {
   return (values: BranchSettingsValues): string => {
-    const result = branchSettingsEditBodySchema.shape[DAYS_WIRE_FIELDS[field]].safeParse(
-      wireDays(values[field]),
-    );
+    const days = wireDays(values[field]);
+    const result = branchSettingsEditBodySchema.shape[DAYS_WIRE_FIELDS[field]].safeParse(days);
     if (result.success) {
       return "Revisá el número de días.";
     }
-    return result.error.issues.some((issue) => issue.code === "too_big")
+    return days === Number.POSITIVE_INFINITY ||
+      result.error.issues.some((issue) => issue.code === "too_big")
       ? "Ingresá un número de días más chico."
       : "Ingresá un número entero de 0 días o más.";
   };
