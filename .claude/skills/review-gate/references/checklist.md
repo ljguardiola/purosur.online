@@ -8,7 +8,7 @@ finding or is not a finding.
 
 | Area | Rules written in | Read in the change |
 |---|---|---|
-| Issue scope | `issue.md` in the review folder | Each definition-of-done item against what the change delivers, and anything the change does beyond the issue. |
+| Issue scope | `issue.md` in the review folder | Each definition-of-done item against what the change delivers, and anything the change does beyond the issue; an example the review itself added to this checklist is not work beyond the issue. |
 | Correctness | — | What the changed code does with each input it can receive; code left without a reader by the change; tests that would still pass with the behavior they name removed. |
 | Structure | `CONTRIBUTING.md`: "Structure" | The folder and file of every added or moved piece of code, including additions to files every feature passes through. |
 | Business rules and boundaries | `CONTRIBUTING.md`: "Business rules and boundaries", "Operations" | Every added condition, constant, computation and query: which layer decides it, and whether `packages/domain` already has a predicate or value that answers it (search before accepting new logic); what each route handler and core request handler does; what each screen and `packages/contracts` file imports from `packages/domain`; every entry added to a guard's allowlist, and every import a change adds to a file an allowlist lists. |
@@ -16,9 +16,23 @@ finding or is not a finding.
 | Screens | `CONTRIBUTING.md`: "Backoffice screens", "Register screens", "React code"; `.claude/skills/build-screen/SKILL.md` | Every state a changed screen can be in and the piece that shows it, its file kinds and names, and what each component reads while rendering. |
 | User-facing text | `CONTRIBUTING.md`: "User-facing text" | Every added or changed Spanish text, read in the screen where it appears. |
 | Comments | `CONTRIBUTING.md`: "Code style" | Every added or changed comment, in code, tests, scripts and configuration. |
+| Commit order | `CONTRIBUTING.md`: "Code style" | `commits.patch` (in a re-review, `delta-commits-<round>.patch`) commit by commit: for each commit that changes behavior, the earlier test commit of that behavior. See "Commit order" below. |
 | Testing and migrations | `CONTRIBUTING.md`: "Testing" | Which kind of test owns each new rule, how each test controls time, and every added or changed migration. |
 | Data | `CONTRIBUTING.md`: "Code style" | Every sample, fixture and test value that names a person, business, tax id or credential. |
-| Process | `CONTRIBUTING.md`: "Branches and pull requests", "Code style", "Checks"; `CLAUDE.md` | Language of code and text, comments that switch off a check, and every changed workflow. |
+| Process | `CONTRIBUTING.md`: "Branches and pull requests", "Code style", "Checks"; `CLAUDE.md` | Language of code and text, comments that switch off a check, every changed workflow, and a line in a skill, an agent or this checklist that restates or contradicts a rule in `CONTRIBUTING.md`. |
+
+## Commit order
+
+Each commit in `commits.patch` lists its files under its message, then its
+diff. A moved or renamed piece of code shows as a rename in that list, or as
+removed in one file and added unchanged in another; a change that keeps
+behavior leaves what every test of the touched files asserts as it was.
+
+A behavior commit with no earlier test commit of that behavior is a `rule`
+finding that names the commit's short sha and the behavior, as an input and
+its outcome. It is resolved as the commit-order rule in `CONTRIBUTING.md`
+("Code style") says, so a re-review does not reopen it because the history
+still shows the code first.
 
 ## Kinds
 

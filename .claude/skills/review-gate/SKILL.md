@@ -24,6 +24,10 @@ undone before it answers.
      the review's only source of scope: when whoever assigned it widened or
      narrowed the work, its definition of done is updated on GitHub first;
    - `change.patch`: `git diff BASE TARGET`;
+   - `commits.patch`: `git log --reverse --no-merges --stat --patch BASE..TARGET`,
+     the branch's own commits in the order they were made, each with its
+     files and diff. Merge commits, such as the ones that take `main`'s
+     changes, are left out;
    - `ledger.md`: the findings ledger, created empty on the first run and
      kept across every later round and resumed run.
 4. Nothing is edited until the round's verdicts are in.
@@ -32,11 +36,14 @@ undone before it answers.
 
 Launch `review-gate-reviewer` twice in parallel, as reviewer A and reviewer B,
 with the same prompt: the review folder, `BASE`, `TARGET`, the round, and for
-a re-review the delta file. Neither sees the other's result. Wait for both.
+a re-review the delta files `delta-<round>.patch` and
+`delta-commits-<round>.patch`. Neither sees the other's result. Wait for both.
 
 - First round: the whole change, against every area of the checklist.
 - Re-review: only the fix delta (`git diff <previous TARGET> <new TARGET>`,
-  written to `delta-<round>.patch`) and the ledger. The reviewers check that
+  written to `delta-<round>.patch`, and its commits,
+  `git log --reverse --no-merges --stat --patch <previous TARGET>..<new TARGET>`,
+  written to `delta-commits-<round>.patch`) and the ledger. The reviewers check that
   each fixed finding is really resolved and look for defects the fixes
   introduced; they do not review the rest of the change again.
 
@@ -80,10 +87,21 @@ and the coordinator's answer of any id that had one. It reports each id
 
 - Each `not fixed` row keeps `open` and counts one more failed attempt; with
   two it becomes `stopped`.
-- When it fixed at least one row: commit them in one commit
-  (`<type>: address review-gate round <n> findings`, with the issue's commit
-  type), mark those rows `fixed in <sha>`, and go to step 2 as a re-review
-  with that commit as the new `TARGET`, whatever else is `open` or `stopped`.
+- When it fixed at least one row: commit the test files the fixer wrote or
+  changed first, on their own (`<type>: add failing tests for review-gate
+  round <n> findings`, with the issue's commit type), then the rest of the
+  fix (`<type>: address review-gate round <n> findings`); a fix with no test,
+  or with only tests, is one commit. Mark those rows `fixed in <sha>` with the
+  sha of the commit that closes each one, and go to step 2 as a re-review
+  with the last commit as the new `TARGET`, whatever else is `open` or
+  `stopped`.
+- A row the fixer closed by proving that a test the branch already has fails
+  without the implementation, with no change, is `fixed in <sha>` with the
+  sha of the commit that holds that test, even when that is the commit the
+  row names. A commit-order row is resolved as the commit-order rule in
+  `CONTRIBUTING.md` ("Code style") says, not reopened for the history itself.
+- A round whose fixes changed no file commits nothing and needs no
+  re-review.
 - When it fixed none and a row is still `open`, launch the fixer again; the
   next launch takes a different approach.
 
@@ -122,3 +140,12 @@ REVIEW-GATE: CLEAN — <rounds> rounds, <fixed> fixed, <refuted> refuted, <filed
 ```
 
 Report the new issues to the coordinator.
+
+## Growing the checklist
+
+When the verifier reports that a confirmed `rule` finding's kind of
+deviation is not named in its area of
+[references/checklist.md](references/checklist.md), add it to that area's
+"Read in the change" as an example, in the round's fix commit. When the
+round has none, commit the example on its own and go to step 2 with that
+commit as the new `TARGET`, re-reviewed like a fix commit.
