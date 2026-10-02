@@ -3,13 +3,16 @@ import { editTag } from "./edit-tag.js";
 import { FakeCatalogStore } from "./test-support/fake-catalog-store.js";
 
 describe("editTag", () => {
-  it("answers stale_version for a tag that is missing when it is locked", async () => {
+  it("answers not_found for a tag that is missing when it is locked, changing nothing", async () => {
     const store = new FakeCatalogStore();
     store.seedTag({ id: "decoy", name: "Decoy", active: true, version: 1 });
 
     const outcome = await editTag(store, { id: "missing", name: "Sin TACC", version: 1 });
 
-    expect(outcome).toEqual({ kind: "stale_version" });
+    expect(outcome).toEqual({ kind: "not_found" });
+    expect(store.snapshot().tags).toEqual([
+      { id: "decoy", name: "Decoy", active: true, version: 1 },
+    ]);
   });
 
   it("rejects a stale version", async () => {
@@ -40,6 +43,23 @@ describe("editTag", () => {
       { id: "tag-1", name: "Sin gluten", active: false, version: 4 },
     ]);
     expect(store.lockCallOrder).toEqual(["lockTag"]);
+  });
+
+  it("answers with the tag's id as the store holds it when asked for it in another letter case", async () => {
+    const store = new FakeCatalogStore();
+    store.seedTag({ id: "tag-1", name: "Sin TACC", active: true, version: 3 });
+
+    const renamed = await editTag(store, { id: "TAG-1", name: "Sin gluten", version: 3 });
+    const unchanged = await editTag(store, { id: "TAG-1", name: "Sin gluten", version: 4 });
+
+    expect(renamed).toEqual({
+      kind: "applied",
+      tag: { id: "tag-1", name: "Sin gluten", active: true, version: 4 },
+    });
+    expect(unchanged).toEqual({
+      kind: "applied",
+      tag: { id: "tag-1", name: "Sin gluten", active: true, version: 4 },
+    });
   });
 
   it("keeps an unchanged name as a no-op that does not bump the version", async () => {

@@ -77,7 +77,7 @@ function taggedProduct(store: FakeCatalogStore, tagIds: string[]): void {
 }
 
 describe("editProduct", () => {
-  it("answers stale_version for a row that is missing when it is locked", async () => {
+  it("answers not_found for a product that is missing when it is locked, changing nothing", async () => {
     const store = new FakeCatalogStore();
     leafCategory(store);
 
@@ -96,7 +96,8 @@ describe("editProduct", () => {
       },
     );
 
-    expect(outcome).toEqual({ kind: "stale_version" });
+    expect(outcome).toEqual({ kind: "not_found" });
+    expect(store.snapshot().products).toEqual([]);
   });
 
   it("rejects a stale version", async () => {
@@ -346,6 +347,29 @@ describe("editProduct", () => {
       { productId: "product-1", code: "333", active: true },
     ]);
     expect(store.lockCallOrder).toEqual(["lockProduct", "buyNPayMDiscountsOn", "lockLeafCategory"]);
+  });
+
+  it("answers with the product's id as the store holds it when asked for it in another letter case", async () => {
+    const store = new FakeCatalogStore();
+    leafCategory(store);
+    activeProduct(store);
+
+    const outcome = await editProduct(
+      { store, clock },
+      {
+        id: "PRODUCT-1",
+        name: "Yerba Mate",
+        categoryId: "category-1",
+        brandId: null,
+        saleUnit: "UNIT",
+        barcodes: ["111"],
+        tagIds: [],
+        netContent: null,
+        version: 1,
+      },
+    );
+
+    expect(outcome).toMatchObject({ kind: "applied", product: { id: "product-1", version: 2 } });
   });
 
   it("gives the product an active brand, locking the product, its category and then the brand", async () => {

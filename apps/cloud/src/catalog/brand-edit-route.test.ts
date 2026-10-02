@@ -136,6 +136,34 @@ describe("PUT /brands/:id", () => {
     },
   );
 
+  it.each(["00000000-0000-0000-0000-000000000000", "not-a-uuid"])(
+    "returns 400 validation_failed for the id %s when the body does not match its shape",
+    async (id) => {
+      const rawSessionId = await signedInWithPermissions(db, NOON);
+
+      const response = await editBrand(rawSessionId, id, { name: "", version: 1 });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({
+        code: "validation_failed",
+        details: [{ field: "name" }],
+      });
+    },
+  );
+
+  it("answers a brand renamed through its id in uppercase with the id as stored", async () => {
+    const brand = await insertBrand(db, { name: "Granix" });
+    const rawSessionId = await signedInWithPermissions(db, NOON);
+
+    const response = await editBrand(rawSessionId, brand.id.toUpperCase(), {
+      name: "Granix Pro",
+      version: 1,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ id: brand.id, name: "Granix Pro", version: 2 });
+  });
+
   it("rejects an empty name, changing nothing", async () => {
     const brand = await insertBrand(db, { name: "Granix" });
     const rawSessionId = await signedInWithPermissions(db, NOON);

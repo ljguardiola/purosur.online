@@ -167,6 +167,7 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
     }
     const [category] = await this.tx
       .select({
+        id: categories.id,
         name: categories.name,
         version: categories.version,
         parentId: categories.parentId,
@@ -347,7 +348,7 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
       return { kind: "not_found" };
     }
     const [tag] = await this.tx
-      .select({ name: tags.name, active: tags.active, version: tags.version })
+      .select({ id: tags.id, name: tags.name, active: tags.active, version: tags.version })
       .from(tags)
       .where(eq(tags.id, tagId))
       .for("update");
@@ -401,7 +402,7 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
       return { kind: "not_found" };
     }
     const [brand] = await this.tx
-      .select({ name: brands.name, active: brands.active, version: brands.version })
+      .select({ id: brands.id, name: brands.name, active: brands.active, version: brands.version })
       .from(brands)
       .where(eq(brands.id, brandId))
       .for("update");
