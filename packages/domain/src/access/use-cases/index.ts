@@ -245,6 +245,8 @@ export type {
   RecordSessionActivityPorts,
 } from "./record-session-activity.js";
 export { recordSessionActivity } from "./record-session-activity.js";
+export type { RecordSignInLockoutPorts } from "./record-sign-in-lockout.js";
+export { recordSignInLockout } from "./record-sign-in-lockout.js";
 export type {
   RecoveredPasskey,
   RecoveringAccount,
@@ -333,6 +335,7 @@ export type {
   SignInAtRegisterPorts,
 } from "./sign-in-at-register.js";
 export { signInAtRegister } from "./sign-in-at-register.js";
+export type { SignInLockoutLog, TrippedLockout } from "./sign-in-lockout-log.js";
 export type {
   SignInCandidate,
   SignInLookupPorts,
