@@ -7,7 +7,9 @@ import {
   PERMISSION_AREAS,
   PERMISSION_CATALOG,
   PERMISSION_KEYS,
+  type PermissionKey,
   repeatsAPermissionKey,
+  withOneAlertView,
 } from "./permission-catalog.js";
 
 const AREA_ORDER_WITH_COUNTS: readonly [string, number][] = [
@@ -139,5 +141,34 @@ describe("holdsBothAlertViewPermissions", () => {
     expect(holdsBothAlertViewPermissions([first])).toBe(false);
     expect(holdsBothAlertViewPermissions([second, "adjust_stock"])).toBe(false);
     expect(holdsBothAlertViewPermissions([])).toBe(false);
+  });
+});
+
+describe("withOneAlertView", () => {
+  it("keeps only the broader alert view when both alert views are held", () => {
+    const keys: PermissionKey[] = [
+      "view_stock_balances",
+      "view_branch_alerts",
+      "view_all_alerts",
+      "dismiss_alerts_manually",
+    ];
+
+    expect([...withOneAlertView(keys)]).toEqual([
+      "view_stock_balances",
+      "view_all_alerts",
+      "dismiss_alerts_manually",
+    ]);
+  });
+
+  it("leaves a selection holding a single alert view unchanged", () => {
+    expect([...withOneAlertView(["view_branch_alerts", "reprint_receipt"])]).toEqual([
+      "view_branch_alerts",
+      "reprint_receipt",
+    ]);
+    expect([...withOneAlertView(["view_all_alerts"])]).toEqual(["view_all_alerts"]);
+  });
+
+  it("leaves a selection holding no alert view unchanged", () => {
+    expect([...withOneAlertView(["reprint_receipt"])]).toEqual(["reprint_receipt"]);
   });
 });
