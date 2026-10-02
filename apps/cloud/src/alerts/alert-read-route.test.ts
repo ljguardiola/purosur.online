@@ -103,14 +103,14 @@ async function insertAlert(input: {
     .insert(alerts)
     .values({
       kind: "user_email_changed",
-      scope: "a-user-id",
+      scope: "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6",
       level: "warning",
       audience: input.audience,
       locationId: input.audience === "local" ? (input.locationId ?? ownLocationId) : null,
       detail: {
         previousEmail: "old@example.com",
         newEmail: "new@example.com",
-        actorId: "an-actor-id",
+        actorId: "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
       },
       openedAt: NOON,
     })
