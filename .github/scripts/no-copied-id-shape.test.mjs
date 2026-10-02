@@ -196,15 +196,15 @@ test("finds a zod uuid or guid format where it is taken from zod, however it is 
 test("finds a zod id format picked by a computed key, whatever spells the key", () => {
   for (const [source, lines] of [
     ['import { z } from "zod";\nconst id = z[`uuid`]();', [2]],
-    ['import { z } from "zod";\nconst key = "uuid";\nconst id = z[key]();', [3]],
+    ['import { z } from "zod";\nconst key = "uuid";\nconst id = z[key]();', [2, 3]],
     ['import { z } from "zod";\nconst id = z["guid" as const]();', [2]],
     ['import { z } from "zod";\nconst id = z.string()[("gu" + "id") as "guid"]();', [2]],
     [
       'import { z } from "zod";\ndeclare const key: keyof typeof z;\nexport const format = z[key];',
-      [3],
+      [2, 3],
     ],
     ['import { z } from "zod";\nconst { ["uuid"]: anyId } = z;\nanyId();', [2, 3]],
-    ['import { z } from "zod";\nconst key = "guid";\nconst { [key]: anyId } = z.string();', [3]],
+    ['import { z } from "zod";\nconst key = "guid";\nconst { [key]: anyId } = z.string();', [2, 3]],
   ]) {
     assert.deepEqual(linesOf(source), lines, source);
   }
@@ -215,7 +215,7 @@ test("finds a zod id format taken by destructuring, in any position and at any d
   for (const [source, lines] of [
     [zodAnd("let f: () => z.ZodType;", "({ uuid: f } = z);"), [3]],
     [zodAnd("let f: () => z.ZodType;", '({ ["uuid"]: f } = z);'), [3]],
-    [zodAnd('const key = "uuid";', "let f: () => z.ZodType;", "({ [key]: f } = z);"), [4]],
+    [zodAnd('const key = "uuid";', "let f: () => z.ZodType;", "({ [key]: f } = z);"), [2, 4]],
     [zodAnd("let guid: () => z.ZodType;", "({ guid } = z);"), [3]],
     [zodAnd("let guid: () => z.ZodType;", "({ guid = z.string } = z);"), [3]],
     [zodAnd("let f: () => z.ZodType;", "({ a: { uuid: f } } = { a: z });"), [3]],
@@ -266,25 +266,25 @@ test("finds a zod id format taken by destructuring, in any position and at any d
 test("ignores destructuring that takes no zod id format", () => {
   const source = [
     'import { z } from "zod";',
-    "const row = { uuid: 1, guid: 2 };",
-    'const key = "uuid";',
+    "const row = { ownerUuid: 1, guidance: 2 };",
+    'const key = "ownerUuid";',
     "let a: number;",
-    "let uuid: number;",
+    "let ownerUuid: number;",
     "let text: () => z.ZodString;",
-    "({ uuid: a, guid: a } = row);",
-    '({ ["uuid"]: a } = row);',
+    "({ ownerUuid: a, guidance: a } = row);",
+    '({ ["ownerUuid"]: a } = row);',
     "({ [key]: a } = row);",
-    "({ uuid } = row);",
-    "({ a: { guid: a } } = { a: row });",
-    "[{ uuid: a }] = [row];",
-    "for ({ uuid } of [row]);",
-    "for (const { guid } of [row]) a = guid;",
-    "export function f({ uuid }: typeof row) {",
-    "  return uuid;",
+    "({ ownerUuid } = row);",
+    "({ a: { guidance: a } } = { a: row });",
+    "[{ ownerUuid: a }] = [row];",
+    "for ({ ownerUuid } of [row]);",
+    "for (const { guidance } of [row]) a = guidance;",
+    "export function f({ ownerUuid }: typeof row) {",
+    "  return ownerUuid;",
     "}",
-    "[...[{ uuid: a }]] = [row];",
-    "[...{ 0: { guid: a } }] = [row];",
-    "[, ...[{ guid: a }]] = [z, row];",
+    "[...[{ ownerUuid: a }]] = [row];",
+    "[...{ 0: { guidance: a } }] = [row];",
+    "[, ...[{ guidance: a }]] = [z, row];",
     "({ string: text } = z);",
     "const { object } = z;",
     "export const shape = object({});",
@@ -293,11 +293,11 @@ test("ignores destructuring that takes no zod id format", () => {
   assert.deepEqual(linesOf(source), []);
 });
 
-test("finds a zod value or schema given to a type the file declares in place of zod's id format", () => {
+test("finds a member the file declares under a name of zod's id formats, whatever is given to it", () => {
   const zodAnd = (...lines) => ['import { z } from "zod";', ...lines].join("\n");
   for (const [source, lines] of [
-    [zodAnd("const formats: { uuid(): z.ZodType } = z;", "formats.uuid();"), [2]],
-    [zodAnd("const text: { guid(): z.ZodType } = z.string();", "text.guid();"), [2]],
+    [zodAnd("const formats: { uuid(): z.ZodType } = z;", "formats.uuid();"), [2, 3]],
+    [zodAnd("const text: { guid(): z.ZodType } = z.string();", "text.guid();"), [2, 3]],
     [
       zodAnd(
         "function pick<T extends { uuid(): unknown }>(o: T) {",
@@ -305,12 +305,12 @@ test("finds a zod value or schema given to a type the file declares in place of 
         "}",
         "pick(z);",
       ),
-      [5],
+      [2, 3],
     ],
-    [zodAnd("function use(f: { guid(): unknown }) {", "  return f;", "}", "use(z.string());"), [5]],
-    [zodAnd("export function formats(): { uuid(): unknown } {", "  return z;", "}"), [3]],
-    [zodAnd("let formats: { guid(): unknown } | undefined;", "formats = z;"), [3]],
-    [zodAnd("export const holder: { a: { uuid(): unknown } } = {", "  a: z,", "};"), [3]],
+    [zodAnd("function use(f: { guid(): unknown }) {", "  return f;", "}", "use(z.string());"), [2]],
+    [zodAnd("export function formats(): { uuid(): unknown } {", "  return z;", "}"), [2]],
+    [zodAnd("let formats: { guid(): unknown } | undefined;", "formats = z;"), [2]],
+    [zodAnd("export const holder: { a: { uuid(): unknown } } = {", "  a: z,", "};"), [2]],
     [zodAnd("export const formats = z satisfies { guid(): unknown };"), [2]],
     [zodAnd("const a = z;", "export const holder: { a: { uuid(): unknown } } = { a };"), [3]],
     [
@@ -353,17 +353,76 @@ test("finds a zod value or schema given to a type the file declares in place of 
         "}",
         "pick({ a: z });",
       ),
-      [5],
+      [2],
     ],
-    [zodAnd("const take = (o: { uuid(): unknown }) => o;", "[z].map(take);"), [3]],
+    [zodAnd("const take = (o: { uuid(): unknown }) => o;", "[z].map(take);"), [2]],
     [zodAnd("[z.string()].map((o: { guid(): unknown }) => o);"), [2]],
     [
       zodAnd("export const take: (formats: typeof z) => void = (o: { uuid(): unknown }) => o;"),
       [2],
     ],
+    [
+      zodAnd(
+        "const formats: Promise<{ uuid(): unknown }> = Promise.resolve(z);",
+        "export const id = (await formats).uuid();",
+      ),
+      [2, 3],
+    ],
+    [
+      zodAnd(
+        'const formats = new Map<string, { guid(): unknown }>([["a", z]]);',
+        'export const id = formats.get("a")?.guid();',
+      ),
+      [2, 3],
+    ],
+    [
+      zodAnd(
+        "const formats: Set<{ uuid(): unknown }> = new Set([z]);",
+        "for (const each of formats) each.uuid();",
+      ),
+      [2, 3],
+    ],
+    [zodAnd("export const formats: Iterable<{ guid(): unknown }> = [z];"), [2]],
+    [
+      zodAnd("class Formats {", "  uuid = z.uuid;", "  guid() {", "    return z;", "  }", "}"),
+      [3, 4],
+    ],
   ]) {
     assert.deepEqual(linesOf(source), lines, source);
   }
+});
+
+test("finds a key whose type holds a name of zod's id formats, though the name is not written there", () => {
+  const zodAnd = (...lines) => ['import { z } from "zod";', ...lines].join("\n");
+  const get = ["function get<T, K extends keyof T>(o: T, k: K): T[K] {", "  return o[k];", "}"];
+  for (const [source, lines] of [
+    [zodAnd(...get, 'get(z, "uuid").call(undefined);'), [5]],
+    [zodAnd(...get, "declare const key: keyof typeof z;", "get(z, key).call(undefined);"), [5, 6]],
+    [zodAnd("function pick<K extends keyof typeof z>(k: K) {", "  return z[k];", "}"), [2, 3]],
+    [zodAnd("type Formats = typeof z;", "export type F = Formats[keyof Formats];"), [3]],
+    [zodAnd(`export type Key = \`\${"uu"}id\`;`), [2]],
+    [zodAnd("declare const key: keyof typeof z;", "export const { [key]: f } = z;"), [2, 3]],
+  ]) {
+    assert.deepEqual(linesOf(source), lines, source);
+  }
+});
+
+test("finds a key or text whose value is a name of zod's id formats, whatever it names", () => {
+  const source = [
+    "const row = { uuid: 1, guid: 2 };",
+    "export const stored = row.uuid ?? row.guid;",
+    "type Row = { uuidv7: string };",
+    'export const typed: Row = { uuidv7: "" };',
+    "export const { uuid } = row;",
+    '({ guid: typed.uuidv7 } = { guid: "" });',
+    'export const key = "uuid";',
+    "export const template = `guid`;",
+    'export type Format = "uuidv4";',
+    'export const picked = row["guid"];',
+    "export const holder = { ZodUUID: 1, _uuid: 2, $ZodGUID: 3, uuid4: 4 };",
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
 });
 
 test("ignores zod values and schemas given to zod's own types or to types that ask no id format", () => {
@@ -381,20 +440,20 @@ test("ignores zod values and schemas given to zod's own types or to types that a
     "export const ids: { id: z.ZodType } = { id: recordIdSchema() };",
     "export const id: z.ZodType = recordIdSchema();",
     "keep(recordIdSchema());",
-    "type Row = { uuid: string };",
-    'export const row: Row = { uuid: "" };',
-    "function store(entry: { guid: number }) {",
+    "type Row = { guidance: string };",
+    'export const row: Row = { guidance: "" };',
+    "function store(entry: { guidance: number }) {",
     "  return entry;",
     "}",
-    "store({ guid: 1 });",
-    "const rows = { a: { guid: 1 } };",
-    "export const nested: { a: { guid: number } } = rows;",
-    "type Tree = { uuid: string; children: Tree[] };",
-    'const tree = { uuid: "", children: [] as Tree[] };',
+    "store({ guidance: 1 });",
+    "const rows = { a: { guidance: 1 } };",
+    "export const nested: { a: { guidance: number } } = rows;",
+    "type Tree = { guidance: string; children: Tree[] };",
+    'const tree = { guidance: "", children: [] as Tree[] };',
     "export const root: Tree = tree;",
     "export const schemas: { a: { b: z.ZodString } } = { a: { b: recordIdSchema() } };",
     "export const texts = [z.string()].map((text: z.ZodString) => text.min(1));",
-    "export const guids = [row].map((entry: { uuid: string }) => entry.uuid);",
+    "export const guids = [row].map((entry: { guidance: string }) => entry.guidance);",
   ].join("\n");
 
   assert.deepEqual(linesOf(source), []);
@@ -445,7 +504,7 @@ test("finds a zod id format named by an indexed access type", () => {
   const zodAnd = (...lines) => ['import { z } from "zod";', ...lines].join("\n");
   for (const [source, lines] of [
     [zodAnd('export type F = z.ZodString["uuid"];'), [2]],
-    [zodAnd('type Key = "uuid" | "string";', "export type F = (typeof z)[Key];"), [3]],
+    [zodAnd('type Key = "uuid" | "string";', "export type F = (typeof z)[Key];"), [2, 3]],
     [zodAnd('export function make(f: z.ZodString["guid"]) {', "  return f;", "}"), [2]],
   ]) {
     assert.deepEqual(linesOf(source), lines, source);
@@ -455,9 +514,9 @@ test("finds a zod id format named by an indexed access type", () => {
 test("ignores indexed access types that name no zod id format", () => {
   const source = [
     'import { z } from "zod";',
-    "const row = { uuid: 1, guid: 2 };",
-    'export type Row = (typeof row)["uuid"];',
-    'export type Plain = { guid: string }["guid"];',
+    "const row = { ownerUuid: 1, guidance: 2 };",
+    'export type Row = (typeof row)["ownerUuid"];',
+    'export type Plain = { guidance: string }["guidance"];',
     'export type Min = z.ZodString["min"];',
     'export type Formats = (typeof z)["string" | "object"];',
     "const owner = z.object({ ownerUuid: z.string() });",
@@ -563,7 +622,7 @@ test("ignores exported schemas built with zod and re-exports of zod that reach n
   assert.deepEqual(linesOf(source), []);
 });
 
-test("ignores names that spell uuid or guid when they are not declared by zod", () => {
+test("ignores another package's uuid and names that hold uuid or guid without being zod's", () => {
   const source = [
     'import { uuid } from "drizzle-orm/pg-core";',
     'import { z } from "zod";',
@@ -573,13 +632,14 @@ test("ignores names that spell uuid or guid when they are not declared by zod", 
     "export const { ownerUuid } = owner.shape;",
     'export const id = uuid("id").primaryKey().defaultRandom();',
     "export const generated = crypto.randomUUID();",
-    "const row = { uuid: 1, guid: 2 };",
-    "export const stored = row.uuid ?? row.guid;",
-    'const key = "uuid";',
+    "const row = { rowUuid: 1, guidId: 2 };",
+    "export const stored = row.rowUuid ?? row.guidId;",
+    'const key = "rowUuid";',
     "export const picked = row[key];",
     "export const { [key]: destructured } = row;",
-    "declare const field: keyof typeof row;",
-    "export const any = row[field];",
+    "declare const rowKey: keyof typeof row;",
+    "export const any = row[rowKey];",
+    'export const message = "not-a-uuid";',
   ].join("\n");
 
   assert.deepEqual(linesOf(source), []);
