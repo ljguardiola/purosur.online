@@ -1,7 +1,27 @@
 import { globSync, readFileSync } from "node:fs";
 import ts from "typescript";
 
-export const ID_SHAPE_PATH = "apps/cloud/src/platform/db/uuid-pattern.ts";
+export const ID_SHAPE_PATH = "packages/contracts/src/shared/record-id.ts";
+
+const SCANNED_SOURCES = [
+  "apps/cloud/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
+  "packages/contracts/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}",
+];
+const ZOD_MODULE = /^zod(?:\/|$)/;
+const ZOD_ID_FORMATS = new Set([
+  "uuid",
+  "guid",
+  "uuidv4",
+  "uuidv6",
+  "uuidv7",
+  "uuid4",
+  "uuid6",
+  "uuid7",
+  "ZodUUID",
+  "ZodGUID",
+  "$ZodUUID",
+  "$ZodGUID",
+]);
 
 const HEX_DIGITS = [..."0123456789abcdef"];
 const PATTERN_FLAGS = new Set(["i", "m", "s", "u", "v"]);
@@ -232,19 +252,97 @@ function patternsIn(nodes, constants) {
   });
 }
 
+function zodImports(nodes) {
+  const zodNames = new Set();
+  const formatSpecifiers = [];
+  for (const node of nodes) {
+    if (!ts.isImportDeclaration(node) || !ts.isStringLiteral(node.moduleSpecifier)) continue;
+    if (!ZOD_MODULE.test(node.moduleSpecifier.text)) continue;
+    const clause = node.importClause;
+    if (clause?.name) zodNames.add(clause.name.text);
+    const bindings = clause?.namedBindings;
+    if (bindings && ts.isNamespaceImport(bindings)) zodNames.add(bindings.name.text);
+    if (bindings && ts.isNamedImports(bindings)) {
+      for (const element of bindings.elements) {
+        const imported = (element.propertyName ?? element.name).text;
+        if (ZOD_ID_FORMATS.has(imported)) formatSpecifiers.push(element);
+        else zodNames.add(element.name.text);
+      }
+    }
+  }
+  return { zodNames, formatSpecifiers };
+}
+
+function reachedFromZod(expression, zodNames, constants, resolving = new Set()) {
+  let node = expression;
+  while (!ts.isIdentifier(node)) {
+    if (
+      ts.isPropertyAccessExpression(node) ||
+      ts.isElementAccessExpression(node) ||
+      ts.isCallExpression(node) ||
+      ts.isNewExpression(node) ||
+      ts.isParenthesizedExpression(node) ||
+      ts.isNonNullExpression(node) ||
+      ts.isAsExpression(node) ||
+      ts.isSatisfiesExpression(node)
+    ) {
+      node = node.expression;
+    } else {
+      return false;
+    }
+  }
+  if (zodNames.has(node.text)) return true;
+  const initializer = constants.get(node.text);
+  if (initializer === undefined || resolving.has(node.text)) return false;
+  return reachedFromZod(initializer, zodNames, constants, new Set([...resolving, node.text]));
+}
+
+function accessedName(node) {
+  if (ts.isPropertyAccessExpression(node)) return node.name.text;
+  if (ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression)) {
+    return node.argumentExpression.text;
+  }
+  return undefined;
+}
+
+function destructuredFormats(node, zodNames, constants) {
+  if (!ts.isVariableDeclaration(node) || !ts.isObjectBindingPattern(node.name)) return [];
+  if (!node.initializer || !reachedFromZod(node.initializer, zodNames, constants)) return [];
+  return node.name.elements.filter((element) => {
+    const key = element.propertyName ?? element.name;
+    return (ts.isIdentifier(key) || ts.isStringLiteral(key)) && ZOD_ID_FORMATS.has(key.text);
+  });
+}
+
+function zodIdFormatsIn(nodes, constants) {
+  const { zodNames, formatSpecifiers } = zodImports(nodes);
+  const accesses = nodes.filter(
+    (node) =>
+      ZOD_ID_FORMATS.has(accessedName(node)) &&
+      reachedFromZod(node.expression, zodNames, constants),
+  );
+  const destructured = nodes.flatMap((node) => destructuredFormats(node, zodNames, constants));
+  return [...formatSpecifiers, ...accesses, ...destructured];
+}
+
 export function findIdShapeCopies(source, fileName) {
   const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true);
   const nodes = descendants(sourceFile);
-  const lines = patternsIn(nodes, constantInitializers(nodes))
-    .filter(({ pattern, flagSets }) => flagSets.some((flags) => holdsTheShape(pattern, flags)))
-    .map(
-      ({ node }) => sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1,
-    );
+  const constants = constantInitializers(nodes);
+  const copies = [
+    ...patternsIn(nodes, constants)
+      .filter(({ pattern, flagSets }) => flagSets.some((flags) => holdsTheShape(pattern, flags)))
+      .map(({ node }) => node),
+    ...zodIdFormatsIn(nodes, constants),
+  ];
+  const lines = copies.map(
+    (node) => sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1,
+  );
   return [...new Set(lines)].sort((a, b) => a - b).map((line) => ({ line }));
 }
 
 export function findScannedFiles(cwd = process.cwd()) {
-  return globSync("apps/cloud/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}", { cwd })
+  return globSync(SCANNED_SOURCES, { cwd })
     .filter((path) => path !== ID_SHAPE_PATH)
     .sort();
 }
@@ -253,7 +351,7 @@ export function checkFiles(paths, readFile = (path) => readFileSync(path, "utf8"
   return paths.flatMap((path) =>
     findIdShapeCopies(readFile(path), path).map(
       ({ line }) =>
-        `${path}:${line} holds a copy of the database id shape, which lives only in ${ID_SHAPE_PATH}`,
+        `${path}:${line} holds a copy of the record id shape, which lives only in ${ID_SHAPE_PATH}`,
     ),
   );
 }

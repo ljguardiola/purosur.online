@@ -264,6 +264,7 @@ export {
   issuerIdentificationSchema,
   PIN_HASH_SCHEME,
   pinAttemptRefusalSchema,
+  recordIdSchema,
   scrubErrorReport,
   scrubErrorReportBreadcrumb,
   scrubErrorReportLog,
