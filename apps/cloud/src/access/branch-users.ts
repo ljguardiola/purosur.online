@@ -1,12 +1,12 @@
 import { type BranchUserWire, branchUserSchema } from "@purosur/contracts";
+import { grantsCapability } from "@purosur/domain";
 import type { BranchUser } from "@purosur/domain/access/use-cases";
 import type { OpenSession } from "./open-session.js";
-import { isAccessGranted, permissionAccess } from "./route-access.js";
 
 export function canReactivateUsers(
   session: Pick<OpenSession, "isAdministrator" | "permissionKeys">,
 ): boolean {
-  return isAccessGranted(permissionAccess("reactivate_users"), session);
+  return grantsCapability(session, "reactivate_users");
 }
 
 export function toBranchUserWire(

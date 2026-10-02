@@ -5,8 +5,8 @@ import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
 import { drizzleBranchUsers } from "../access/drizzle-branch-users.js";
 import {
+  capabilityAccess,
   openSessionOf,
-  permissionAccess,
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
@@ -24,7 +24,7 @@ export function registerRegisterCoverageRoute<TQueryResult extends PgQueryResult
     "/registers/coverage",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
-      config: { access: permissionAccess("enroll_register_devices"), sessionSource },
+      config: { access: capabilityAccess("registers_area"), sessionSource },
     },
     async (request, reply) => {
       const openSession = openSessionOf(request);

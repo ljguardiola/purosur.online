@@ -5,8 +5,8 @@ import type { FastifyInstance } from "fastify";
 import { backofficeOriginGuard } from "../access/backoffice-origin.js";
 import { requirePasskeyAuthorization } from "../access/passkey-authorization-guard.js";
 import {
+  capabilityAccess,
   openSessionOf,
-  permissionAccess,
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
@@ -32,7 +32,7 @@ export function registerRegisterEnrollmentCodeRoute<TQueryResult extends PgQuery
     "/registers/:id/device-codes",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
-      config: { access: permissionAccess("enroll_register_devices"), sessionSource },
+      config: { access: capabilityAccess("registers_area"), sessionSource },
     },
     async (request, reply) => {
       const attemptedAt = now();

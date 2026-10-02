@@ -3,8 +3,8 @@ import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { backofficeOriginGuard } from "../access/backoffice-origin.js";
 import {
+  capabilityAccess,
   openSessionOf,
-  permissionAccess,
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
@@ -38,7 +38,7 @@ export function registerAlertCloseRoute<TQueryResult extends PgQueryResultHKT>(
     "/alerts/:id/closure",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
-      config: { access: permissionAccess("dismiss_alerts_manually"), sessionSource },
+      config: { access: capabilityAccess("close_alerts_manually"), sessionSource },
     },
     async (request, reply) => {
       const openSession = openSessionOf(request);

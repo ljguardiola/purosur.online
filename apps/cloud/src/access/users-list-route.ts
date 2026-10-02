@@ -5,8 +5,8 @@ import { sameOriginGuard } from "./backoffice-origin.js";
 import { canReactivateUsers, toBranchUserWire } from "./branch-users.js";
 import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 import {
+  capabilityAccess,
   openSessionOf,
-  permissionAccess,
   registerRouteAccess,
   routeSessionSource,
 } from "./route-access.js";
@@ -30,7 +30,7 @@ export function registerUsersListRoute<TQueryResult extends PgQueryResultHKT>(
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
       config: {
-        access: permissionAccess(["deactivate_users", "reactivate_users", "reset_user_pin"]),
+        access: capabilityAccess("users_area"),
         sessionSource,
       },
     },

@@ -1,4 +1,9 @@
-import type { PermissionKey } from "@purosur/domain";
+import {
+  CAPABILITY_PERMISSIONS,
+  type Capability,
+  holdsPermission,
+  type PermissionKey,
+} from "@purosur/domain";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type {
   FastifyInstance,
@@ -41,6 +46,10 @@ export function permissionAccess(
   permission: PermissionKey | readonly PermissionKey[],
 ): RouteAccess {
   return { level: "permission", permission };
+}
+
+export function capabilityAccess(capability: Capability): RouteAccess {
+  return permissionAccess(CAPABILITY_PERMISSIONS[capability]);
 }
 
 type SessionCheck<TResult> = <TQueryResult extends PgQueryResultHKT>(
@@ -136,10 +145,7 @@ export function isAccessGranted(
       const declaredPermissions = Array.isArray(access.permission)
         ? access.permission
         : [access.permission as PermissionKey];
-      return (
-        session.isAdministrator ||
-        declaredPermissions.some((permission) => session.permissionKeys.includes(permission))
-      );
+      return declaredPermissions.some((permission) => holdsPermission(session, permission));
     }
   }
 }
