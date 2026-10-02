@@ -119,7 +119,7 @@ test("measureDownload measures the same build whose minifier chose other names a
     "assets/initial-BBBBBBBB.js":
       "function e(e){return e+1}function t(e,t){return{e,t}}export{e as a,t as b};",
     "assets/lazy-CCCCCCCC.js":
-      'import{a as e,b as t}from"./initial-BBBBBBBB.js";const n=e(1),{k:r,m=n}=t(n,{n});console.log(r[n],{[m]:r});export{r};',
+      'import{a as e,b as t}from"./initial-BBBBBBBB.js";const n=e(1),{k:r,m=r}=t(n,{n});console.log(r[m],{[m]:r});export{r};',
   };
   const renamed = {
     "index.html": indexHtmlLoading("index-DDDDDDDD.js"),
@@ -128,7 +128,7 @@ test("measureDownload measures the same build whose minifier chose other names a
     "assets/initial-EEEEEEEE.js":
       "function e(e){return e+1}function t(e,t){return{e,t}}export{t as a,e as c};",
     "assets/lazy-FFFFFFFF.js":
-      'import{a as n,c}from"./initial-EEEEEEEE.js";const t=c(1),{k:ee,m:te=t}=n(t,{n:t});console.log(ee[t],{[te]:ee});export{ee as r};',
+      'import{a as n,c}from"./initial-EEEEEEEE.js";const t=c(1),{k:ee,m:te=ee}=n(t,{n:t});console.log(ee[te],{[te]:ee});export{ee as r};',
   };
 
   await withDist(built, async ({ dist: builtDist }) => {
@@ -162,6 +162,22 @@ for (const [description, script, longerNamed] of [
     );
   });
 }
+
+test("measureDownload counts the name of a content-hashed file without its hash wherever it appears", async () => {
+  const html = indexHtmlLoading("index-AAAAAAAA.js");
+  const script = 'import("./lazy-BBBBBBBB.js");';
+
+  await withDist(
+    { "index.html": html, "assets/index-AAAAAAAA.js": script, "assets/lazy-BBBBBBBB.js": "" },
+    async ({ dist }) => {
+      assert.equal(
+        measureDownload(dist).entry,
+        gzipSizeOf(Buffer.from(indexHtmlLoading("index.js"))) +
+          gzipSizeOf(Buffer.from('import("./lazy.js");')),
+      );
+    },
+  );
+});
 
 test("measureDownload counts a file that is not text by its compressed bytes", async () => {
   const font = Buffer.from([0x77, 0x4f, 0x46, 0x32, 0xff, 0xfe, 0x00, 0xc3, 0x28]);
