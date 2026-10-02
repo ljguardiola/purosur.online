@@ -9,19 +9,18 @@ import {
   openSessionSchema,
   passkeyListSchema,
 } from "@purosur/contracts";
-import { PERMISSION_KEYS } from "@purosur/domain";
+import { CAPABILITY_PERMISSIONS, PERMISSION_KEYS, type PermissionKey } from "@purosur/domain";
 import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ADMINISTRATOR_ACCESS,
+  capabilityAccess,
   OPEN_SESSION_ACCESS,
   OPEN_SESSION_PEEK_ACCESS,
   PUBLIC_ACCESS,
-  permissionAccess,
   type RouteAccess,
   type RouteAccessEntry,
-  routeSessionSource,
   SESSION_COOKIE_ACCESS,
 } from "./access/route-access.js";
 import { SESSION_COOKIE_NAME } from "./access/session-cookie.js";
@@ -1708,12 +1707,12 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/users",
-        access: permissionAccess(["deactivate_users", "reactivate_users", "reset_user_pin"]),
+        access: capabilityAccess("users_area"),
       },
       {
         method: "GET",
         url: "/api/users/:id",
-        access: permissionAccess(["deactivate_users", "reactivate_users", "reset_user_pin"]),
+        access: capabilityAccess("users_area"),
       },
       { method: "POST", url: "/api/users", access: ADMINISTRATOR_ACCESS },
       { method: "PUT", url: "/api/users/:id", access: ADMINISTRATOR_ACCESS },
@@ -1726,17 +1725,17 @@ describe("the route access inventory", () => {
       {
         method: "PUT",
         url: "/api/users/:id/deactivation",
-        access: permissionAccess("deactivate_users"),
+        access: capabilityAccess("deactivate_users"),
       },
       {
         method: "POST",
         url: "/api/users/:id/pin-codes",
-        access: permissionAccess("reset_user_pin"),
+        access: capabilityAccess("reset_user_pin"),
       },
       {
         method: "DELETE",
         url: "/api/users/:id/deactivation",
-        access: permissionAccess("reactivate_users"),
+        access: capabilityAccess("reactivate_users"),
       },
       { method: "GET", url: "/api/roles", access: ADMINISTRATOR_ACCESS },
       { method: "GET", url: "/api/roles/:id", access: ADMINISTRATOR_ACCESS },
@@ -1745,142 +1744,142 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/locations/current/settings",
-        access: permissionAccess("configure_branch"),
+        access: capabilityAccess("branch_area"),
       },
       {
         method: "PUT",
         url: "/api/locations/current/settings",
-        access: permissionAccess("configure_branch"),
+        access: capabilityAccess("branch_area"),
       },
       {
         method: "GET",
         url: "/api/fiscal-settings/issuer-identification",
-        access: permissionAccess("change_fiscal_configuration"),
+        access: capabilityAccess("cash_area"),
       },
       {
         method: "PUT",
         url: "/api/fiscal-settings/issuer-identification",
-        access: permissionAccess("change_fiscal_configuration"),
+        access: capabilityAccess("cash_area"),
       },
       {
         method: "GET",
         url: "/api/buyer-identification-thresholds",
-        access: permissionAccess("change_fiscal_configuration"),
+        access: capabilityAccess("cash_area"),
       },
       {
         method: "POST",
         url: "/api/buyer-identification-thresholds",
-        access: permissionAccess("change_fiscal_configuration"),
+        access: capabilityAccess("cash_area"),
       },
       {
         method: "GET",
         url: "/api/fiscal-addresses",
-        access: permissionAccess("change_fiscal_configuration"),
+        access: capabilityAccess("cash_area"),
       },
       {
         method: "POST",
         url: "/api/fiscal-addresses",
-        access: permissionAccess("change_fiscal_configuration"),
+        access: capabilityAccess("cash_area"),
       },
       {
         method: "PUT",
         url: "/api/fiscal-addresses/:id",
-        access: permissionAccess("change_fiscal_configuration"),
+        access: capabilityAccess("cash_area"),
       },
       {
         method: "GET",
         url: "/api/categories",
-        access: permissionAccess("manage_products_and_categories"),
+        access: capabilityAccess("products_and_categories"),
       },
       {
         method: "POST",
         url: "/api/categories",
-        access: permissionAccess("manage_products_and_categories"),
+        access: capabilityAccess("products_and_categories"),
       },
       {
         method: "PUT",
         url: "/api/categories/:id",
-        access: permissionAccess("manage_products_and_categories"),
+        access: capabilityAccess("products_and_categories"),
       },
       {
         method: "GET",
         url: "/api/brands",
-        access: permissionAccess("manage_products_and_categories"),
+        access: capabilityAccess("products_and_categories"),
       },
       {
         method: "POST",
         url: "/api/brands",
-        access: permissionAccess("manage_products_and_categories"),
+        access: capabilityAccess("products_and_categories"),
       },
       {
         method: "PUT",
         url: "/api/brands/:id",
-        access: permissionAccess("manage_products_and_categories"),
+        access: capabilityAccess("products_and_categories"),
       },
       {
         method: "PUT",
         url: "/api/brands/:id/deactivation",
-        access: permissionAccess("manage_products_and_categories"),
+        access: capabilityAccess("products_and_categories"),
       },
       {
         method: "DELETE",
         url: "/api/brands/:id/deactivation",
-        access: permissionAccess("manage_products_and_categories"),
+        access: capabilityAccess("products_and_categories"),
       },
       {
         method: "GET",
         url: "/api/tags",
-        access: permissionAccess("manage_products_and_categories"),
+        access: capabilityAccess("products_and_categories"),
       },
       {
         method: "POST",
         url: "/api/tags",
-        access: permissionAccess("manage_products_and_categories"),
+        access: capabilityAccess("products_and_categories"),
       },
       {
         method: "PUT",
         url: "/api/tags/:id",
-        access: permissionAccess("manage_products_and_categories"),
+        access: capabilityAccess("products_and_categories"),
       },
       {
         method: "PUT",
         url: "/api/tags/:id/deactivation",
-        access: permissionAccess("manage_products_and_categories"),
+        access: capabilityAccess("products_and_categories"),
       },
       {
         method: "DELETE",
         url: "/api/tags/:id/deactivation",
-        access: permissionAccess("manage_products_and_categories"),
+        access: capabilityAccess("products_and_categories"),
       },
       {
         method: "GET",
         url: "/api/products",
-        access: permissionAccess("manage_products_and_categories"),
+        access: capabilityAccess("products_and_categories"),
       },
       {
         method: "POST",
         url: "/api/products",
-        access: permissionAccess("manage_products_and_categories"),
+        access: capabilityAccess("products_and_categories"),
       },
       {
         method: "PUT",
         url: "/api/products/:id",
-        access: permissionAccess("manage_products_and_categories"),
+        access: capabilityAccess("products_and_categories"),
       },
       {
         method: "PUT",
         url: "/api/products/:id/deactivation",
-        access: permissionAccess("manage_products_and_categories"),
+        access: capabilityAccess("products_and_categories"),
       },
       {
         method: "POST",
         url: "/api/internal-barcodes",
-        access: permissionAccess("manage_products_and_categories"),
+        access: capabilityAccess("products_and_categories"),
       },
       {
         method: "POST",
         url: "/api/label-sheets",
-        access: permissionAccess("manage_products_and_categories"),
+        access: capabilityAccess("products_and_categories"),
       },
       { method: "GET", url: "/api/alerts", access: OPEN_SESSION_ACCESS },
       { method: "GET", url: "/api/alerts/overview", access: OPEN_SESSION_ACCESS },
@@ -1888,117 +1887,112 @@ describe("the route access inventory", () => {
       {
         method: "PUT",
         url: "/api/alerts/:id/closure",
-        access: permissionAccess("dismiss_alerts_manually"),
+        access: capabilityAccess("close_alerts_manually"),
       },
       {
         method: "GET",
         url: "/api/prices",
-        access: permissionAccess("manage_prices_and_review"),
+        access: capabilityAccess("prices_area"),
       },
       {
         method: "PUT",
         url: "/api/prices/:productId",
-        access: permissionAccess("manage_prices_and_review"),
+        access: capabilityAccess("prices_area"),
       },
       {
         method: "POST",
         url: "/api/prices/:productId/confirmations",
-        access: permissionAccess("manage_prices_and_review"),
+        access: capabilityAccess("prices_area"),
       },
       {
         method: "GET",
         url: "/api/discounts",
-        access: permissionAccess("manage_promotions"),
+        access: capabilityAccess("promotions"),
       },
       {
         method: "POST",
         url: "/api/discounts",
-        access: permissionAccess("manage_promotions"),
+        access: capabilityAccess("promotions"),
       },
       {
         method: "PUT",
         url: "/api/discounts/:id",
-        access: permissionAccess("manage_promotions"),
+        access: capabilityAccess("promotions"),
       },
       {
         method: "GET",
         url: "/api/discount-targets",
-        access: permissionAccess("manage_promotions"),
+        access: capabilityAccess("promotions"),
       },
       {
         method: "GET",
         url: "/api/inventory-levels",
-        access: permissionAccess("view_stock_balances"),
+        access: capabilityAccess("stock_balances"),
       },
       {
         method: "GET",
         url: "/api/inventory-items",
-        access: permissionAccess([
-          "view_stock_balances",
-          "perform_stock_counts",
-          "adjust_stock",
-          "record_stock_losses",
-        ]),
+        access: capabilityAccess("stock_area"),
       },
       {
         method: "GET",
         url: "/api/inventory-counts",
-        access: permissionAccess("perform_stock_counts"),
+        access: capabilityAccess("stock_counts"),
       },
       {
         method: "POST",
         url: "/api/inventory-counts",
-        access: permissionAccess("perform_stock_counts"),
+        access: capabilityAccess("stock_counts"),
       },
       {
         method: "GET",
         url: "/api/inventory-levels/:productId",
-        access: permissionAccess("view_stock_balances"),
+        access: capabilityAccess("stock_balances"),
       },
       {
         method: "GET",
         url: "/api/inventory-movements",
-        access: permissionAccess(["record_stock_losses", "adjust_stock"]),
+        access: capabilityAccess("stock_movements"),
       },
       {
         method: "POST",
         url: "/api/inventory-losses",
-        access: permissionAccess("record_stock_losses"),
+        access: capabilityAccess("stock_losses"),
       },
       {
         method: "POST",
         url: "/api/inventory-adjustments",
-        access: permissionAccess("adjust_stock"),
+        access: capabilityAccess("stock_adjustments"),
       },
       {
         method: "GET",
         url: "/api/registers",
-        access: permissionAccess("enroll_register_devices"),
+        access: capabilityAccess("registers_area"),
       },
       {
         method: "POST",
         url: "/api/registers",
-        access: permissionAccess("enroll_register_devices"),
+        access: capabilityAccess("registers_area"),
       },
       {
         method: "GET",
         url: "/api/registers/coverage",
-        access: permissionAccess("enroll_register_devices"),
+        access: capabilityAccess("registers_area"),
       },
       {
         method: "POST",
         url: "/api/registers/:id/device-codes",
-        access: permissionAccess("enroll_register_devices"),
+        access: capabilityAccess("registers_area"),
       },
       {
         method: "GET",
         url: "/api/registers/points-of-sale",
-        access: permissionAccess("change_fiscal_configuration"),
+        access: capabilityAccess("cash_area"),
       },
       {
         method: "PUT",
         url: "/api/registers/:id/point-of-sale",
-        access: permissionAccess("change_fiscal_configuration"),
+        access: capabilityAccess("cash_area"),
       },
       { method: "GET", url: "/api/health", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/devices", access: PUBLIC_ACCESS },
@@ -2127,23 +2121,6 @@ describe("the former session and passkey read paths", () => {
 describe("every route enforces the access it declares", () => {
   const ENDED_BEFORE = new Date("2020-01-01T00:00:00.000Z");
 
-  function appWithTestOnlyPermissionRoute() {
-    const app = productionWiredApp();
-    app.get(
-      "/test-only/void-sale",
-      {
-        config: {
-          access: permissionAccess("void_sale"),
-          sessionSource: routeSessionSource({ db: testDatabase.db }),
-        },
-      },
-      async (_request, reply) => {
-        await reply.code(200).send({ ok: true });
-      },
-    );
-    return app;
-  }
-
   function routesDeclaring(app: ReturnType<typeof buildApp>, levels: RouteAccess["level"][]) {
     const routes = app
       .routeAccessInventory()
@@ -2212,7 +2189,7 @@ describe("every route enforces the access it declares", () => {
   }
 
   it("sweeps every access level a route declares", async () => {
-    const app = appWithTestOnlyPermissionRoute();
+    const app = productionWiredApp();
     await app.ready();
 
     const declaredLevels = new Set(app.routeAccessInventory().map((route) => route.access?.level));
@@ -2224,13 +2201,13 @@ describe("every route enforces the access it declares", () => {
         "open_session_peek",
         "session_cookie",
         "administrator",
-        "permission",
+        "capability",
       ]),
     );
   });
 
   it("lets every public route through without a session", async () => {
-    const app = appWithTestOnlyPermissionRoute();
+    const app = productionWiredApp();
     await app.ready();
 
     for (const route of routesDeclaring(app, ["public"])) {
@@ -2244,7 +2221,7 @@ describe("every route enforces the access it declares", () => {
   });
 
   it("answers 401 unauthenticated on every session route without a session", async () => {
-    const app = appWithTestOnlyPermissionRoute();
+    const app = productionWiredApp();
     await app.ready();
 
     for (const route of routesDeclaring(app, [
@@ -2252,7 +2229,7 @@ describe("every route enforces the access it declares", () => {
       "open_session_peek",
       "session_cookie",
       "administrator",
-      "permission",
+      "capability",
     ])) {
       const response = await send(app, route);
 
@@ -2265,7 +2242,7 @@ describe("every route enforces the access it declares", () => {
   });
 
   it("answers 401 unauthenticated on every open-session route to an already ended session", async () => {
-    const app = appWithTestOnlyPermissionRoute();
+    const app = productionWiredApp();
     await app.ready();
 
     for (const route of routesDeclaring(app, ["open_session", "open_session_peek"])) {
@@ -2285,7 +2262,7 @@ describe("every route enforces the access it declares", () => {
   });
 
   it("answers 403 forbidden on every Administrator-only route to a non-Administrator holding every permission", async () => {
-    const app = appWithTestOnlyPermissionRoute();
+    const app = productionWiredApp();
     await app.ready();
     const rawSessionId = await signedInWithRole(PERMISSION_KEYS);
 
@@ -2300,17 +2277,16 @@ describe("every route enforces the access it declares", () => {
     }
   });
 
-  it("answers 403 forbidden on every permission route to a user missing every declared permission", async () => {
-    const app = appWithTestOnlyPermissionRoute();
+  it("answers 403 forbidden on every capability route to a user missing every permission of its capability", async () => {
+    const app = productionWiredApp();
     await app.ready();
 
-    for (const route of routesDeclaring(app, ["permission"])) {
-      const access = route.access as Extract<RouteAccess, { level: "permission" }>;
-      const declaredPermissions = Array.isArray(access.permission)
-        ? access.permission
-        : [access.permission];
+    for (const route of routesDeclaring(app, ["capability"])) {
+      const access = route.access as Extract<RouteAccess, { level: "capability" }>;
+      const capabilityPermissions: readonly PermissionKey[] =
+        CAPABILITY_PERMISSIONS[access.capability];
       const rawSessionId = await signedInWithRole(
-        PERMISSION_KEYS.filter((key) => !declaredPermissions.includes(key)),
+        PERMISSION_KEYS.filter((key) => !capabilityPermissions.includes(key)),
       );
 
       const response = await send(app, route, rawSessionId);

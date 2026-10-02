@@ -4,6 +4,7 @@ import {
   sessionAuthenticationOptionsSchema,
   sessionStatusSchema,
 } from "@purosur/contracts";
+import type { Capability, ManualStockMovementKind } from "@purosur/domain";
 import type {
   AuthenticationResponseJSON,
   PublicKeyCredentialRequestOptionsJSON,
@@ -21,8 +22,8 @@ export type SessionOutcome =
       displayName: string;
       isAdministrator: boolean;
       expiresAt: string;
-      // In catalog order. An Administrator holds every key implicitly.
-      permissions: string[];
+      capabilities: Capability[];
+      stockMovementKinds: ManualStockMovementKind[];
     }
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
@@ -86,7 +87,8 @@ export async function fetchSession(): Promise<SessionOutcome> {
     displayName: body.data.display_name,
     isAdministrator: body.data.is_administrator,
     expiresAt: body.data.expires_at,
-    permissions: body.data.permissions,
+    capabilities: body.data.capabilities,
+    stockMovementKinds: body.data.stock_movement_kinds,
   };
 }
 

@@ -2,6 +2,8 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import type { BackofficeAccess } from "../access/backoffice-access";
+import { accessWith } from "../access/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import { type StockCountsFilters, stockCountsFilters } from "./routes";
 import { StockCountsScreen } from "./stock-counts-screen";
@@ -17,12 +19,7 @@ import {
   withoutBalance,
 } from "./test-support/stock-fixtures";
 
-type Access = { isAdministrator: boolean; permissions: string[] };
-
-const COUNTER_WHO_VIEWS: Access = {
-  isAdministrator: false,
-  permissions: ["perform_stock_counts", "view_stock_balances"],
-};
+const COUNTER_WHO_VIEWS = accessWith("stock_counts", "stock_balances", "stock_area");
 
 const NOW = () => new Date("2026-09-15T21:40:30.000Z");
 
@@ -48,7 +45,7 @@ function renderScreen(
     onFiltersChange = () => {},
     onSessionEnded = () => {},
   }: {
-    access?: Access;
+    access?: BackofficeAccess;
     filters?: StockCountsFilters;
     onFiltersChange?: (filters: StockCountsFilters) => void;
     onSessionEnded?: () => void;
@@ -357,7 +354,7 @@ test("registers a count for a user who may not view balances, showing no expecte
     value: { expected: 17_000, delta: -1000, balance: 16_000, superseded: false },
   });
   const screen = await renderScreen(services, {
-    access: { isAdministrator: false, permissions: ["perform_stock_counts"] },
+    access: accessWith("stock_counts", "stock_area"),
   });
   const dialog = await openNewCount(screen);
   await chooseProduct(screen, "Té verde en hebras 100 g");

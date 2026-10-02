@@ -7,8 +7,9 @@ import type { RoleSummary } from "../roles-api";
 import { UserDetailScreen } from "../user-detail-screen";
 import type { UserDetailScreenServices } from "../user-detail-services";
 import type { BranchUser } from "../users-api";
+import { ADMINISTRATOR_ACCESS, accessWith, NO_CAPABILITIES_ACCESS } from "./backoffice-access";
 
-export const ADMINISTRATOR_ACCESS: BackofficeAccess = { isAdministrator: true, permissions: [] };
+export { ADMINISTRATOR_ACCESS };
 
 export const shiftRole: RoleSummary = {
   id: "00000000-0000-4000-8000-000000000002",
@@ -105,15 +106,9 @@ export function renderScreen(
   );
 }
 
-export const DEACTIVATE_USERS_ACCESS: BackofficeAccess = {
-  isAdministrator: false,
-  permissions: ["deactivate_users"],
-};
-export const RESET_USER_PIN_ACCESS: BackofficeAccess = {
-  isAdministrator: false,
-  permissions: ["reset_user_pin"],
-};
-export const NO_DEACTIVATE_ACCESS: BackofficeAccess = { isAdministrator: false, permissions: [] };
+export const DEACTIVATE_USERS_ACCESS = accessWith("users_area", "deactivate_users");
+export const RESET_USER_PIN_ACCESS = accessWith("users_area", "reset_user_pin");
+export const NO_DEACTIVATE_ACCESS = NO_CAPABILITIES_ACCESS;
 
 export const adminTarget: BranchUser = {
   id: "user-4",
@@ -125,10 +120,7 @@ export const adminTarget: BranchUser = {
   isLastActiveAdministrator: false,
 };
 
-export const REACTIVATE_USERS_ACCESS: BackofficeAccess = {
-  isAdministrator: false,
-  permissions: ["reactivate_users"],
-};
+export const REACTIVATE_USERS_ACCESS = accessWith("users_area", "reactivate_users");
 
 export const sofia: BranchUser = {
   id: "user-5",

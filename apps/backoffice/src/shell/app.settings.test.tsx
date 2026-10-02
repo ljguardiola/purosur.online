@@ -62,7 +62,7 @@ test("shows the Cajas registradoras item in the rail for a user holding enroll_r
         userId: "user-2",
         displayName: "Grace Hopper",
         isAdministrator: false,
-        permissions: ["enroll_register_devices"],
+        capabilities: ["registers_area"],
       }),
     ),
   });
@@ -140,7 +140,7 @@ test("shows the Sucursal item in the rail for a user holding configure_branch, l
         userId: "user-2",
         displayName: "Grace Hopper",
         isAdministrator: false,
-        permissions: ["configure_branch"],
+        capabilities: ["branch_area"],
       }),
     ),
   });

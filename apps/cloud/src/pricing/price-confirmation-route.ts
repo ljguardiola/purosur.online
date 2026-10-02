@@ -4,8 +4,8 @@ import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
 import {
+  capabilityAccess,
   openSessionOf,
-  permissionAccess,
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
@@ -36,7 +36,7 @@ export function registerPriceConfirmationRoute<TQueryResult extends PgQueryResul
     "/prices/:productId/confirmations",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
-      config: { access: permissionAccess("manage_prices_and_review"), sessionSource },
+      config: { access: capabilityAccess("prices_area"), sessionSource },
     },
     async (request, reply) => {
       const body = await readValidatedBody(reply, priceConfirmationBodySchema, request.body);

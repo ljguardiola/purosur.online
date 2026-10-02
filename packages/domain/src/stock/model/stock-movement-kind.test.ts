@@ -1,8 +1,8 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import type { PermissionKey } from "../../access/index.js";
+import type { Capability } from "../../access/index.js";
 import {
   MANUAL_STOCK_MOVEMENT_KINDS,
-  manualStockMovementPermission,
+  manualStockMovementCapability,
   visibleManualStockMovementKinds,
 } from "./stock-movement-kind.js";
 
@@ -12,14 +12,14 @@ describe("MANUAL_STOCK_MOVEMENT_KINDS", () => {
   });
 });
 
-describe("manualStockMovementPermission", () => {
-  it("asks each kind of movement for its own permission", () => {
-    expect(manualStockMovementPermission("loss")).toBe("record_stock_losses");
-    expect(manualStockMovementPermission("adjustment")).toBe("adjust_stock");
+describe("manualStockMovementCapability", () => {
+  it("pairs each kind of movement with its own capability", () => {
+    expect(manualStockMovementCapability("loss")).toBe("stock_losses");
+    expect(manualStockMovementCapability("adjustment")).toBe("stock_adjustments");
   });
 
-  it("returns a permission of the catalog", () => {
-    expectTypeOf(manualStockMovementPermission).returns.toEqualTypeOf<PermissionKey>();
+  it("returns a capability", () => {
+    expectTypeOf(manualStockMovementCapability).returns.toEqualTypeOf<Capability>();
   });
 });
 

@@ -7,8 +7,8 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
 import {
+  capabilityAccess,
   openSessionOf,
-  permissionAccess,
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
@@ -47,7 +47,7 @@ export function registerRegistersListRoute<TQueryResult extends PgQueryResultHKT
     "/registers",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
-      config: { access: permissionAccess("enroll_register_devices"), sessionSource },
+      config: { access: capabilityAccess("registers_area"), sessionSource },
     },
     async (request, reply) => {
       const openSession = openSessionOf(request);

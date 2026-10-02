@@ -1,17 +1,20 @@
+import type { Capability, ManualStockMovementKind } from "@purosur/domain";
 import { expectTypeOf, test } from "vitest";
 import type { SessionOutcome } from "../access/session-api";
 import type { SignedInSession } from "./root-route";
 
-type ExpiryAndPermissions = { expiresAt: string; permissions: string[] };
+type ExpiryAndAccess = {
+  expiresAt: string;
+  capabilities: Capability[];
+  stockMovementKinds: ManualStockMovementKind[];
+};
 
-test("an open session read from the cloud always carries its expiry and permissions", () => {
+test("an open session read from the cloud always carries its expiry and access", () => {
   expectTypeOf<
-    Pick<Extract<SessionOutcome, { kind: "ok" }>, keyof ExpiryAndPermissions>
-  >().toEqualTypeOf<ExpiryAndPermissions>();
+    Pick<Extract<SessionOutcome, { kind: "ok" }>, keyof ExpiryAndAccess>
+  >().toEqualTypeOf<ExpiryAndAccess>();
 });
 
-test("the shell's signed-in session always carries its expiry and permissions", () => {
-  expectTypeOf<
-    Pick<SignedInSession, keyof ExpiryAndPermissions>
-  >().toEqualTypeOf<ExpiryAndPermissions>();
+test("the shell's signed-in session always carries its expiry and access", () => {
+  expectTypeOf<Pick<SignedInSession, keyof ExpiryAndAccess>>().toEqualTypeOf<ExpiryAndAccess>();
 });

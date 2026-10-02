@@ -5,8 +5,8 @@ import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
 import { requirePasskeyAuthorization } from "../access/passkey-authorization-guard.js";
 import {
+  capabilityAccess,
   openSessionOf,
-  permissionAccess,
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
@@ -48,7 +48,7 @@ export function registerRegisterPointOfSaleConfigurationRoute<
     "/registers/:id/point-of-sale",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
-      config: { access: permissionAccess("change_fiscal_configuration"), sessionSource },
+      config: { access: capabilityAccess("cash_area"), sessionSource },
     },
     async (request, reply) => {
       const attemptedAt = now();

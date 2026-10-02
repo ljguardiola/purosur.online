@@ -130,7 +130,7 @@ describe("GET /roles", () => {
     expect(response.json()).toMatchObject({ code: "forbidden" });
   });
 
-  it("lists Administrator first (with every catalog permission, a null name, and its user count), then other roles by name with their own stored permissions", async () => {
+  it("lists Administrator first (with every catalog permission but the branch alert view, a null name, and its user count), then other roles by name with their own stored permissions", async () => {
     const locationId = await seededLocationId(db);
     const administratorRoleId = await seededAdministratorRoleId();
     const stockRoleId = await insertRole("Depósito", ["view_stock_balances", "adjust_stock"]);
@@ -163,7 +163,7 @@ describe("GET /roles", () => {
         id: administratorRoleId,
         name: null,
         is_administrator: true,
-        permissions: [...PERMISSION_KEYS],
+        permissions: PERMISSION_KEYS.filter((key) => key !== "view_branch_alerts"),
         user_count: 1,
       },
       {

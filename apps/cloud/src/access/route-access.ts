@@ -1,4 +1,4 @@
-import type { PermissionKey } from "@purosur/domain";
+import { type Capability, grantsCapability } from "@purosur/domain";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type {
   FastifyInstance,
@@ -20,8 +20,7 @@ import { readSessionCookie } from "./session-cookie.js";
 
 /**
  * `open_session` counts as use of the session (touches `last_seen_at`); `open_session_peek` does
- * not. `session_cookie` accepts an already-ended session, so sign-out still works. `permission`
- * is satisfied by any one of several declared permissions, and an Administrator always satisfies it.
+ * not. `session_cookie` accepts an already-ended session, so sign-out still works.
  */
 export type RouteAccess =
   | { level: "public" }
@@ -29,7 +28,7 @@ export type RouteAccess =
   | { level: "open_session_peek" }
   | { level: "session_cookie" }
   | { level: "administrator" }
-  | { level: "permission"; permission: PermissionKey | readonly PermissionKey[] };
+  | { level: "capability"; capability: Capability };
 
 export const PUBLIC_ACCESS: RouteAccess = { level: "public" };
 export const OPEN_SESSION_ACCESS: RouteAccess = { level: "open_session" };
@@ -37,10 +36,8 @@ export const OPEN_SESSION_PEEK_ACCESS: RouteAccess = { level: "open_session_peek
 export const SESSION_COOKIE_ACCESS: RouteAccess = { level: "session_cookie" };
 export const ADMINISTRATOR_ACCESS: RouteAccess = { level: "administrator" };
 
-export function permissionAccess(
-  permission: PermissionKey | readonly PermissionKey[],
-): RouteAccess {
-  return { level: "permission", permission };
+export function capabilityAccess(capability: Capability): RouteAccess {
+  return { level: "capability", capability };
 }
 
 type SessionCheck<TResult> = <TQueryResult extends PgQueryResultHKT>(
@@ -120,7 +117,7 @@ export function originGuard(
   };
 }
 
-export function isAccessGranted(
+function isAccessGranted(
   access: RouteAccess,
   session: Pick<OpenSession, "isAdministrator" | "permissionKeys">,
 ): boolean {
@@ -132,15 +129,8 @@ export function isAccessGranted(
       return true;
     case "administrator":
       return session.isAdministrator;
-    case "permission": {
-      const declaredPermissions = Array.isArray(access.permission)
-        ? access.permission
-        : [access.permission as PermissionKey];
-      return (
-        session.isAdministrator ||
-        declaredPermissions.some((permission) => session.permissionKeys.includes(permission))
-      );
-    }
+    case "capability":
+      return grantsCapability(session, access.capability);
   }
 }
 
