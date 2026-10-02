@@ -154,16 +154,57 @@ test("ignores patterns of other shapes", () => {
   assert.deepEqual(linesOf(source), []);
 });
 
-test("does not count a zod uuid format as a copy of the database id shape", () => {
+const ZOD_ID_FORMATS = [
+  'import { z } from "zod";\nconst id = z.uuid();',
+  'import { z } from "zod";\nconst id = z.guid({ error: "id must be an id" });',
+  'import { z } from "zod";\nconst id = z.string().uuid();',
+  'import { z } from "zod";\nconst id = z.string().min(1).guid();',
+  'import { z } from "zod";\nconst id = z.uuidv4();',
+  'import { z } from "zod";\nconst id = z.uuidv7();',
+  'import { z } from "zod";\nconst id = z.string().regex(z.regexes.uuid());',
+  'import { z } from "zod";\nconst id = z.string().check(z.core.regexes.guid);',
+  'import { z } from "zod";\nconst id = z["uuid"]();',
+  'import { z } from "zod";\nconst id = new z.ZodGUID({ type: "string" });',
+  'import * as z from "zod/v4";\nconst id = z.guid();',
+  'import z from "zod/mini";\nconst id = z.uuid();',
+  'import { guid as anyId } from "zod";\nconst id = anyId();',
+  'import { regexes } from "zod/v4/core";\nconst id = regexes.uuid4;',
+  'import { z } from "zod";\nconst text = z.string();\nconst id = text.uuid();',
+  'import { z } from "zod";\nconst { guid } = z;\nconst id = guid();',
+];
+
+test("finds a zod uuid or guid format, however it is reached from zod", () => {
+  for (const source of ZOD_ID_FORMATS) {
+    assert.deepEqual(linesOf(source), [2], source);
+  }
+});
+
+test("finds a zod id format on the line it is used", () => {
   const source = [
     'import { z } from "zod";',
-    "export const payload = z.object({ requestId: z.uuid(), other: z.string().uuid() });",
+    "",
+    "export const payload = z.object({",
+    "  requestId: z.uuid(),",
+    "});",
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), [4]);
+});
+
+test("ignores uuid and guid names that do not come from zod", () => {
+  const source = [
+    'import { uuid } from "drizzle-orm/pg-core";',
+    'import { z } from "zod";',
+    'const id = uuid("id").primaryKey().defaultRandom();',
+    "const generated = crypto.randomUUID();",
+    "const stored = row.uuid ?? row.guid;",
+    "const text = z.string().min(1);",
   ].join("\n");
 
   assert.deepEqual(linesOf(source), []);
 });
 
-test("recognizes the platform file's own pattern as the shape", () => {
+test("recognizes the shared shape's own file as the shape", () => {
   const source = readFileSync(join(repoRoot, ID_SHAPE_PATH), "utf8");
 
   assert.notDeepEqual(findIdShapeCopies(source, ID_SHAPE_PATH), []);
@@ -172,27 +213,36 @@ test("recognizes the platform file's own pattern as the shape", () => {
 test("reports each file and line holding a copy", () => {
   const files = {
     "apps/cloud/src/a.test.ts": `x();\nconst ID = ${PLATFORM_PATTERN};`,
-    "apps/cloud/src/b.ts": "z();",
+    "packages/contracts/src/b.ts": 'import { z } from "zod";\nconst id = z.guid();',
+    "apps/cloud/src/c.ts": "z();",
   };
 
   assert.deepEqual(
     checkFiles(Object.keys(files), (path) => files[path]),
     [
-      `apps/cloud/src/a.test.ts:2 holds a copy of the database id shape, which lives only in ${ID_SHAPE_PATH}`,
+      `apps/cloud/src/a.test.ts:2 holds a copy of the record id shape, which lives only in ${ID_SHAPE_PATH}`,
+      `packages/contracts/src/b.ts:2 holds a copy of the record id shape, which lives only in ${ID_SHAPE_PATH}`,
     ],
   );
 });
 
-test("scans every cloud source file, tests included, except the platform file", () => {
+test("scans every cloud and contracts source file, tests included, except the shared shape's file", () => {
   const scanned = findScannedFiles(repoRoot);
 
+  assert.equal(ID_SHAPE_PATH, "packages/contracts/src/shared/record-id.ts");
   assert.ok(scanned.includes("apps/cloud/src/catalog/drizzle-catalog-store.ts"));
   assert.ok(scanned.includes("apps/cloud/src/catalog/drizzle-catalog-store.test.ts"));
-  assert.ok(scanned.every((path) => path.startsWith("apps/cloud/src/")));
+  assert.ok(scanned.includes("packages/contracts/src/shared/index.ts"));
+  assert.ok(scanned.includes("packages/contracts/src/shared/record-id.test.ts"));
+  assert.ok(
+    scanned.every(
+      (path) => path.startsWith("apps/cloud/src/") || path.startsWith("packages/contracts/src/"),
+    ),
+  );
   assert.ok(!scanned.includes(ID_SHAPE_PATH));
 });
 
-test("no cloud file outside the database platform code holds a copy of the id shape", () => {
+test("no cloud or contracts file outside the shared shape's file holds a copy of the id shape", () => {
   const readFile = (path) => readFileSync(join(repoRoot, path), "utf8");
 
   assert.deepEqual(checkFiles(findScannedFiles(repoRoot), readFile), []);
