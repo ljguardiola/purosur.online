@@ -3,14 +3,8 @@ import { issueRecoveryToken } from "@purosur/domain/access/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { DrizzleRecoveryTokenStore } from "./drizzle-recovery-token-store.js";
 import type { SendRecoveryLinkInput } from "./recovery-email-sender.js";
+import type { RecoveryRequestJobPayload } from "./recovery-request-job-payload.js";
 import { hashRecoveryToken } from "./recovery-token-hash.js";
-
-export interface RecoveryRequestJobPayload {
-  email: string;
-  /** graphile-worker stores the payload as JSON, hence the ISO 8601 string. */
-  requestedAt: string;
-  requestId: string;
-}
 
 export interface ProcessRecoveryRequestJobDeps {
   now: () => Date;
