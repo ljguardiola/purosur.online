@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  STOCK_PERIOD_DAYS,
   stockBalanceListSchema,
   stockBalanceSchema,
   stockCountListSchema,
@@ -46,12 +45,6 @@ const movement = {
   occurredAt: at,
   superseded: false,
 };
-
-describe("STOCK_PERIOD_DAYS", () => {
-  it("offers the last week, month and quarter", () => {
-    expect(STOCK_PERIOD_DAYS).toEqual([7, 30, 90]);
-  });
-});
 
 describe("stockBalanceListSchema", () => {
   it("accepts products with their balance, a negative one included", () => {

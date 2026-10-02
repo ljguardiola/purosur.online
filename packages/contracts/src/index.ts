@@ -264,7 +264,6 @@ export type {
   StockProductList,
 } from "./stock/stock-lists.js";
 export {
-  STOCK_PERIOD_DAYS,
   stockBalanceListSchema,
   stockBalanceSchema,
   stockCountListSchema,

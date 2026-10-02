@@ -1,3 +1,4 @@
+import { repeatsATag } from "@purosur/domain";
 import { z } from "zod";
 
 const INVALID_MESSAGE = "tagIds must be a list of existing tags' ids, [] for none";
@@ -10,7 +11,7 @@ const REPEATED_MESSAGE = "tagIds must not repeat a tag";
 function tagIdsSchema(error: (issue: { input?: unknown }) => string) {
   return z
     .array(z.string({ error }).min(1).toLowerCase(), { error })
-    .refine((tagIds) => new Set(tagIds).size === tagIds.length, REPEATED_MESSAGE);
+    .refine((tagIds) => !repeatsATag(tagIds), REPEATED_MESSAGE);
 }
 
 export const optionalTagIdsSchema = tagIdsSchema(() => INVALID_MESSAGE)

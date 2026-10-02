@@ -7,9 +7,7 @@ import {
 } from "@purosur/domain";
 import { z } from "zod";
 
-export const STOCK_PERIOD_DAYS = [7, 30, 90] as const;
-
-export type StockPeriodDays = (typeof STOCK_PERIOD_DAYS)[number];
+export type { StockPeriodDays } from "@purosur/domain";
 
 const stockProductSchema = z.object({
   id: z.string(),
