@@ -717,6 +717,25 @@ describe("SaleScreen", () => {
         .not.toBeInTheDocument();
     });
 
+    it("announces a refused scan in a status region that was already mounted and stays mounted", async () => {
+      const { screen, field } = await renderScreen();
+      const regionsBefore = Array.from(screen.container.querySelectorAll('[role="status"]'));
+
+      await scan(field, "7790009");
+
+      const message = screen.getByRole("status").filter({
+        hasText: "No hay ningún producto con ese código",
+      });
+      await expect.element(message).toBeInTheDocument();
+      const region = message.element();
+      expect(regionsBefore).toContain(region);
+
+      await field.fill("77900091");
+
+      await expect.poll(() => region.textContent).toBe("");
+      expect(region.isConnected).toBe(true);
+    });
+
     it("takes the message away on the next successful scan", async () => {
       const scanProduct = vi
         .fn<SaleScreenProps["scanProduct"]>()
