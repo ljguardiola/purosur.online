@@ -61,6 +61,8 @@ export type UsersListScreenProps = {
 const NO_USERS: BranchUser[] = [];
 const NO_ROLES: BranchUserRole[] = [];
 
+const EMAIL_MESSAGE = userEmailMessage(userCreationBodySchema.shape.email);
+
 function firstNameMessage({ firstName }: { firstName: string }): string {
   return firstName.trim() === "" ? "Ingresá el nombre." : "Revisá el nombre.";
 }
@@ -119,7 +121,7 @@ function NewUserModal({
       }),
     },
     fields: { first_name: "firstName", email: "email", role_id: "roleId" },
-    messages: { firstName: firstNameMessage, email: userEmailMessage, roleId: roleFieldMessage },
+    messages: { firstName: firstNameMessage, email: EMAIL_MESSAGE, roleId: roleFieldMessage },
     onSubmit: async (request, { values, showWireFieldError, showFieldError }) => {
       setNotice(null);
       setDeactivatedConflict(null);

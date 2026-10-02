@@ -28,6 +28,16 @@ const BARCODE_PROBLEM_MESSAGES: Record<BarcodeListProblem, string> = {
   repeated: "the same barcode was sent more than once",
 };
 
+const NET_CONTENT_QUANTITY_MESSAGE = `netContent's quantity must be a positive number of at most ${NET_CONTENT_QUANTITY_MAX_DECIMALS} decimals, at most ${NET_CONTENT_QUANTITY_MAX}`;
+
+export const netContentQuantitySchema = z
+  .number()
+  .refine(isValidNetContentQuantity, NET_CONTENT_QUANTITY_MESSAGE)
+  .meta({
+    maxValue: NET_CONTENT_QUANTITY_MAX,
+    maxDecimals: NET_CONTENT_QUANTITY_MAX_DECIMALS,
+  });
+
 const netContentSchema = z
   .object(
     {
@@ -52,7 +62,8 @@ export const productCreationBodySchema = z
       .refine(
         (name) => !isProductNameTooLong(name),
         `name must be at most ${PRODUCT_NAME_MAX_LENGTH} characters`,
-      ),
+      )
+      .meta({ maxLength: PRODUCT_NAME_MAX_LENGTH }),
     categoryId: z.string({ error: "categoryId must be an existing category's id" }).min(1),
     brandId: optionalBrandIdSchema,
     saleUnit: z.enum(SALE_UNITS, { error: "saleUnit must be UNIT or KG" }),
@@ -64,19 +75,27 @@ export const productCreationBodySchema = z
       .superRefine((codes, context) => {
         const problem = barcodeListProblem(codes);
         if (problem) {
-          context.addIssue({ code: "custom", message: BARCODE_PROBLEM_MESSAGES[problem] });
+          context.addIssue({
+            code: "custom",
+            message: BARCODE_PROBLEM_MESSAGES[problem],
+            params: { rule: problem },
+          });
         }
-      }),
+      })
+      .meta({ maxCount: PRODUCT_BARCODES_MAX_COUNT, maxLength: BARCODE_MAX_LENGTH }),
     tagIds: optionalTagIdsSchema,
     netContent: netContentSchema,
   })
   .superRefine(
     (product, context) => {
-      if (product.netContent && !isValidNetContentQuantity(product.netContent.quantity)) {
+      if (
+        product.netContent &&
+        !netContentQuantitySchema.safeParse(product.netContent.quantity).success
+      ) {
         context.addIssue({
           code: "custom",
           path: ["netContentQuantity"],
-          message: `netContent's quantity must be a positive number of at most ${NET_CONTENT_QUANTITY_MAX_DECIMALS} decimals, at most ${NET_CONTENT_QUANTITY_MAX}`,
+          message: NET_CONTENT_QUANTITY_MESSAGE,
         });
       }
     },

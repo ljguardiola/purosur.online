@@ -1,22 +1,17 @@
-import type {
-  CategorySummary,
-  ProductCreationBody,
-  ProductSummary,
-  TagSummary,
-} from "@purosur/contracts";
 import {
-  BARCODE_MAX_LENGTH,
-  type BarcodeListProblem,
-  barcodeListProblem,
-  isProductNameTooLong,
-  isValidNetContentQuantity,
-  type NetContentUnit,
-  PRODUCT_BARCODES_MAX_COUNT,
-  PRODUCT_NAME_MAX_LENGTH,
-} from "@purosur/domain";
+  type CategorySummary,
+  netContentQuantitySchema,
+  type ProductCreationBody,
+  type ProductSummary,
+  productCreationBodySchema,
+  type TagSummary,
+} from "@purosur/contracts";
+import type { BarcodeListProblem, NetContentUnit } from "@purosur/domain";
 import { type Option, type Options, plural } from "@purosur/ui";
 import { Package, Scale } from "lucide-react";
 import { createElement } from "react";
+import { failedRules } from "../platform/failed-rules";
+import { schemaLimit } from "../platform/schema-limit";
 import { categoriesInTreeOrder, categoryPathLabels, leafCategories } from "./category-path";
 import { NET_CONTENT_UNIT_LABELS } from "./net-content";
 import {
@@ -122,15 +117,21 @@ export const PRODUCT_EDIT_FIELDS = { ...PRODUCT_FIELDS, version: null } as const
 
 const PRODUCT_BARCODE_REQUIRED = "Escaneá al menos un código de barras.";
 
-const BARCODE_PROBLEM_MESSAGES = {
-  too_many: `El producto puede tener hasta ${PRODUCT_BARCODES_MAX_COUNT} códigos de barras.`,
-  too_long: `El código de barras puede tener hasta ${BARCODE_MAX_LENGTH} caracteres.`,
-  whitespace: "El código de barras no puede tener espacios.",
-  repeated: "Ese código ya está en la lista.",
-} satisfies Record<BarcodeListProblem, string>;
+const nameSchema = productCreationBodySchema.shape.name;
+const barcodesSchema = productCreationBodySchema.shape.barcodes;
 
-export function barcodeProblemMessage(problem: BarcodeListProblem | undefined): string | undefined {
-  return problem === undefined ? undefined : BARCODE_PROBLEM_MESSAGES[problem];
+const BARCODE_PROBLEM_MESSAGES = new Map<string, string>(
+  Object.entries({
+    too_many: `El producto puede tener hasta ${schemaLimit(barcodesSchema.meta()?.["maxCount"])} códigos de barras.`,
+    too_long: `El código de barras puede tener hasta ${schemaLimit(barcodesSchema.meta()?.["maxLength"])} caracteres.`,
+    whitespace: "El código de barras no puede tener espacios.",
+    repeated: "Ese código ya está en la lista.",
+  } satisfies Record<BarcodeListProblem, string>),
+);
+
+export function barcodeProblemMessage(codes: string[]): string | undefined {
+  const [problem] = failedRules(barcodesSchema, codes);
+  return problem === undefined ? undefined : BARCODE_PROBLEM_MESSAGES.get(problem);
 }
 
 export function productMessage({ name }: ProductFormValues): string {
@@ -138,8 +139,8 @@ export function productMessage({ name }: ProductFormValues): string {
   if (trimmed === "") {
     return "Ingresá el nombre del producto.";
   }
-  if (isProductNameTooLong(trimmed)) {
-    return `El nombre puede tener hasta ${PRODUCT_NAME_MAX_LENGTH} caracteres.`;
+  if (!nameSchema.safeParse(trimmed).success) {
+    return `El nombre puede tener hasta ${schemaLimit(nameSchema.meta()?.["maxLength"])} caracteres.`;
   }
   return "Revisá el nombre del producto.";
 }
@@ -164,7 +165,7 @@ export function netContentMessage({ netContent }: ProductFormValues): string {
   const quantity = parseNetContentQuantity(netContent.quantity);
   if (
     netContent.quantity.trim() !== "" &&
-    (quantity === undefined || !isValidNetContentQuantity(quantity))
+    (quantity === undefined || !netContentQuantitySchema.safeParse(quantity).success)
   ) {
     return NET_CONTENT_QUANTITY_INVALID;
   }
@@ -176,10 +177,7 @@ export function barcodeListMessage({ barcodes }: ProductFormValues): string {
   if (list.length === 0) {
     return PRODUCT_BARCODE_REQUIRED;
   }
-  return (
-    barcodeProblemMessage(barcodeListProblem(list)) ??
-    "Alguno de los códigos de barras no es válido."
-  );
+  return barcodeProblemMessage(list) ?? "Alguno de los códigos de barras no es válido.";
 }
 
 export const PRODUCT_MESSAGES = {

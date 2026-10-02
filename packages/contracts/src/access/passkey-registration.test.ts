@@ -74,3 +74,11 @@ describe("passkeyRegistrationBodySchema", () => {
     expect(firstIssue({ passkey_registration: REGISTRATION })?.field).toBe("passkey_name");
   });
 });
+
+describe("passkeyRegistrationBodySchema, declared limits", () => {
+  it("declares the passkey name's maximum length", () => {
+    expect(passkeyRegistrationBodySchema.shape.passkey_name.meta()).toEqual({
+      maxLength: PASSKEY_NAME_MAX_LENGTH,
+    });
+  });
+});

@@ -23,6 +23,8 @@ import type { signalUnknownCredential } from "./signal-unknown-credential";
 
 const PASSKEY_NAME_REQUEST = passkeyRegistrationBodySchema.pick({ passkey_name: true });
 
+const PASSKEY_NAME_MESSAGE = passkeyNameMessage(passkeyRegistrationBodySchema.shape.passkey_name);
+
 function isDefinitiveRejection(outcome: RegisterPasskeyOutcome): boolean {
   switch (outcome.kind) {
     case "validation_failed":
@@ -87,7 +89,7 @@ export function RegisterOwnPasskeyModal({
       from: ({ name }) => ({ passkey_name: name.trim() }),
     },
     fields: { passkey_name: "name" },
-    messages: { name: passkeyNameMessage },
+    messages: { name: PASSKEY_NAME_MESSAGE },
     onSubmit: async ({ passkey_name }, { showWireFieldError }) => {
       setAttemptFailed(false);
       setRateLimitedSeconds(null);

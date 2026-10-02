@@ -51,3 +51,11 @@ describe("registerCreationBodySchema", () => {
     expect(registerCreationBodySchema.safeParse({ name }).success).toBe(true);
   });
 });
+
+describe("registerCreationBodySchema, declared limits", () => {
+  it("declares the name's maximum length", () => {
+    expect(registerCreationBodySchema.shape.name.meta()).toEqual({
+      maxLength: REGISTER_NAME_MAX_LENGTH,
+    });
+  });
+});

@@ -11,7 +11,8 @@ export const registerCreationBodySchema = z.object({
     .refine(
       (name) => !isRegisterNameTooLong(name),
       `name must be at most ${REGISTER_NAME_MAX_LENGTH} characters`,
-    ),
+    )
+    .meta({ maxLength: REGISTER_NAME_MAX_LENGTH }),
 });
 
 export type RegisterCreationBody = z.input<typeof registerCreationBodySchema>;

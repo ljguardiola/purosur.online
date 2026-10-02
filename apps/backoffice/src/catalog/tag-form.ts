@@ -1,5 +1,8 @@
-import { isTagNameTooLong, TAG_NAME_MAX_LENGTH } from "@purosur/domain";
+import { tagCreationBodySchema } from "@purosur/contracts";
 import { formatNumber, plural } from "@purosur/ui";
+import { schemaLimit } from "../platform/schema-limit";
+
+const tagNameSchema = tagCreationBodySchema.shape.name;
 
 export const TAG_NAME_TAKEN = "Ya existe un distintivo con este nombre.";
 
@@ -12,8 +15,8 @@ export function tagNameMessage({ name }: { name: string }): string {
   if (trimmed === "") {
     return "Ingresá el nombre del distintivo.";
   }
-  if (isTagNameTooLong(trimmed)) {
-    return `El nombre puede tener hasta ${TAG_NAME_MAX_LENGTH} caracteres.`;
+  if (!tagNameSchema.safeParse(trimmed).success) {
+    return `El nombre puede tener hasta ${schemaLimit(tagNameSchema.meta()?.["maxLength"])} caracteres.`;
   }
   return "Revisá el nombre del distintivo.";
 }

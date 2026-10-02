@@ -11,7 +11,8 @@ export const tagCreationBodySchema = z.object({
     .refine(
       (name) => !isTagNameTooLong(name),
       `name must be at most ${TAG_NAME_MAX_LENGTH} characters`,
-    ),
+    )
+    .meta({ maxLength: TAG_NAME_MAX_LENGTH }),
 });
 
 export type TagCreationBody = z.input<typeof tagCreationBodySchema>;
