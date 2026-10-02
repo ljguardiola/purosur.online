@@ -226,12 +226,12 @@ function exposesNoModuleObject(literal) {
   if (ts.isLiteralTypeNode(parent) && ts.isImportTypeNode(parent.parent)) return true;
   if (ts.isImportDeclaration(parent)) {
     const bindings = parent.importClause?.namedBindings;
-    return bindings === undefined || ts.isNamedImports(bindings);
+    return bindings === undefined || ts.isNamedImports(bindings) || parent.importClause.isTypeOnly;
   }
   return (
     ts.isExportDeclaration(parent) &&
-    parent.exportClause !== undefined &&
-    ts.isNamedExports(parent.exportClause)
+    (parent.isTypeOnly ||
+      (parent.exportClause !== undefined && ts.isNamedExports(parent.exportClause)))
   );
 }
 
@@ -509,13 +509,28 @@ function isDynamicImport(node) {
   return ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword;
 }
 
-function loadsAtRunTime(node) {
+function runtimeLoaderTester(program, checker, resolved) {
+  const isOwnDeclaration = (declaration) =>
+    !(declaration.flags & ts.NodeFlags.Ambient) &&
+    !program.isSourceFileFromExternalLibrary(declaration.getSourceFile());
+  const symbolNamedBy = (identifier) => {
+    const parent = identifier.parent;
+    if (ts.isShorthandPropertyAssignment(parent)) {
+      return checker.getShorthandAssignmentValueSymbol(parent);
+    }
+    if (ts.isBindingElement(parent) && parent.propertyName === undefined) {
+      return checker.getTypeAtLocation(parent.parent).getProperty(identifier.text);
+    }
+    return resolved(checker.getSymbolAtLocation(identifier));
+  };
+  return (identifier) =>
+    RUNTIME_LOADERS.has(identifier.text) &&
+    !(symbolNamedBy(identifier)?.declarations ?? []).some(isOwnDeclaration);
+}
+
+function loadsAtRunTime(node, isRuntimeLoader) {
   const parent = node.parent;
-  if (ts.isIdentifier(node)) {
-    return (
-      RUNTIME_LOADERS.has(node.text) && !(ts.isPropertyAssignment(parent) && parent.name === node)
-    );
-  }
+  if (ts.isIdentifier(node)) return isRuntimeLoader(node);
   if (isDynamicImport(node)) {
     const [path] = node.arguments;
     return path === undefined || !ts.isStringLiteralLike(path);
@@ -531,17 +546,14 @@ function loadsAtRunTime(node) {
   );
 }
 
-function runtimeModuleLoadingIn(root) {
+function runtimeModuleLoadingIn(root, program, isRuntimeLoader) {
   const lines = [];
   for (const fileName of ts.sys.readDirectory(root, SOURCE_EXTENSIONS)) {
-    const sourceFile = ts.createSourceFile(
-      fileName,
-      ts.sys.readFile(fileName),
-      ts.ScriptTarget.Latest,
-      true,
-    );
+    const sourceFile =
+      program.getSourceFile(fileName) ??
+      ts.createSourceFile(fileName, ts.sys.readFile(fileName), ts.ScriptTarget.Latest, true);
     const visit = (node) => {
-      if (loadsAtRunTime(node)) lines.push({ fileName, line: lineOf(node) });
+      if (loadsAtRunTime(node, isRuntimeLoader)) lines.push({ fileName, line: lineOf(node) });
       ts.forEachChild(node, visit);
     };
     visit(sourceFile);
@@ -595,7 +607,11 @@ export function findQueryRootKeyProblems(
       );
     }
   }
-  for (const { fileName, line } of runtimeModuleLoadingIn(root)) {
+  for (const { fileName, line } of runtimeModuleLoadingIn(
+    root,
+    program,
+    runtimeLoaderTester(program, checker, tools.resolved),
+  )) {
     problems.add(
       `${fromCwd(fileName)}:${line} loads a module at run time, which the query key check cannot follow`,
     );
