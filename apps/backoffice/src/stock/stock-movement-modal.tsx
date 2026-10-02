@@ -26,6 +26,7 @@ import {
   type AdjustmentValues,
   LOSS_REASON_OPTIONS,
   type LossValues,
+  type MovementKind,
   PRODUCT_REQUIRED,
   productOptions,
   quantityFieldKind,
@@ -37,8 +38,6 @@ import { StockMovementNotice } from "./stock-movement-notice";
 import type { StockMovementsScreenServices } from "./stock-movements-services";
 import { parseStockQuantity } from "./stock-quantity";
 import { useRefreshStock, useStockProductsQuery } from "./stock-queries";
-
-export type MovementKind = "loss" | "adjustment";
 
 const KIND_OPTIONS = {
   loss: {
@@ -53,7 +52,7 @@ const KIND_OPTIONS = {
     description: "Corrige el stock de una compra o una tanda",
     icon: <ArrowDownUp />,
   },
-} as const;
+} as const satisfies Record<MovementKind, unknown>;
 
 const DIRECTION_OPTIONS = [
   { value: "add", label: "Suma", icon: <Plus /> },
@@ -266,7 +265,10 @@ export function StockMovementModal({
           {kinds.length > 1 ? (
             <OptionCardGroup
               label="Qué se carga"
-              options={[KIND_OPTIONS.loss, KIND_OPTIONS.adjustment]}
+              options={[
+                KIND_OPTIONS[kinds[0]],
+                ...kinds.slice(1).map((other) => KIND_OPTIONS[other]),
+              ]}
               value={kind}
               onChange={(next) => {
                 setNotice(null);

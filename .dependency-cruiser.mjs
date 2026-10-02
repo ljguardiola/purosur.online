@@ -54,7 +54,6 @@ export const SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST = [
   "apps/backoffice/src/stock/count-moment.ts",
   "apps/backoffice/src/stock/stock-movement-form.ts",
   "apps/backoffice/src/stock/stock-movement-modal.tsx",
-  "apps/backoffice/src/stock/stock-movements-screen.tsx",
   "apps/backoffice/src/stock/stock-period.ts",
   "apps/backoffice/src/stock/stock-quantity.ts",
 ];
