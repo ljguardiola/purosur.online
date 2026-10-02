@@ -15,7 +15,10 @@ test("a refused command points at the rules in .claude/rules/", () => {
   const result = runHook("git push --force origin feat/1-example");
 
   assert.equal(result.status, 2);
-  assert.match(result.stderr, /^This command violates the repository contract \(see \.claude\/rules\/\):\n/);
+  assert.match(
+    result.stderr,
+    /^This command violates the repository contract \(see \.claude\/rules\/\):\n/,
+  );
 });
 
 test("an allowed command passes silently", () => {
