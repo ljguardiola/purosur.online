@@ -121,7 +121,9 @@ test("lets the screen's frame focus a focusable title, out of the tab order, wit
       <ScreenHeader title="Ingresar al backoffice" focusableTitle />
     </>,
   );
-  const title = screen.getByRole("heading", { name: "Ingresar al backoffice" }).element() as HTMLElement;
+  const title = screen
+    .getByRole("heading", { name: "Ingresar al backoffice" })
+    .element() as HTMLElement;
 
   await userEvent.tab();
   expect(document.activeElement).toBe(screen.getByRole("button").element());
@@ -147,7 +149,9 @@ test("draws no focus ring on a focusable title focused after a pointer press", a
       <ScreenHeader title="Ingresar al backoffice" focusableTitle />
     </>,
   );
-  const title = screen.getByRole("heading", { name: "Ingresar al backoffice" }).element() as HTMLElement;
+  const title = screen
+    .getByRole("heading", { name: "Ingresar al backoffice" })
+    .element() as HTMLElement;
 
   await userEvent.click(screen.getByRole("button"));
   title.focus();

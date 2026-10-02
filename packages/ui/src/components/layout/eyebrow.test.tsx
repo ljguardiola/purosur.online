@@ -36,11 +36,7 @@ test("colors its text with the tone it is given", async () => {
     ["error", "error"],
   ];
   const screen = await render(
-    <>
-      {toneColors.map(([tone]) => (
-        <Eyebrow key={tone} text={`Tono ${tone}`} tone={tone} />
-      ))}
-    </>,
+    toneColors.map(([tone]) => <Eyebrow key={tone} text={`Tono ${tone}`} tone={tone} />),
   );
 
   for (const [tone, token] of toneColors) {
