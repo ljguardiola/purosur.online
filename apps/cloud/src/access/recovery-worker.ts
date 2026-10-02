@@ -28,8 +28,6 @@ export interface RecoveryWorkerHandle {
   stop(): Promise<void>;
 }
 
-const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 function isRecoveryRequestJobPayload(payload: unknown): payload is RecoveryRequestJobPayload {
   if (typeof payload !== "object" || payload === null) {
     return false;
@@ -39,8 +37,7 @@ function isRecoveryRequestJobPayload(payload: unknown): payload is RecoveryReque
     typeof candidate.email === "string" &&
     typeof candidate.requestedAt === "string" &&
     !Number.isNaN(Date.parse(candidate.requestedAt)) &&
-    typeof candidate.requestId === "string" &&
-    UUID_SHAPE.test(candidate.requestId)
+    typeof candidate.requestId === "string"
   );
 }
 
