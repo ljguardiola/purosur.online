@@ -1,4 +1,9 @@
-import type { Capability } from "@purosur/domain";
+import {
+  type Capability,
+  MANUAL_STOCK_MOVEMENT_KINDS,
+  type ManualStockMovementKind,
+  manualStockMovementCapability,
+} from "@purosur/domain";
 import type { BackofficeAccess } from "../backoffice-access";
 
 const EVERY_CAPABILITY: Record<Capability, true> = {
@@ -23,18 +28,32 @@ const EVERY_CAPABILITY: Record<Capability, true> = {
   stock_area: true,
 };
 
+export function stockMovementKindsOf(
+  capabilities: readonly Capability[],
+): ManualStockMovementKind[] {
+  return MANUAL_STOCK_MOVEMENT_KINDS.filter((kind) =>
+    capabilities.includes(manualStockMovementCapability(kind)),
+  );
+}
+
 export const ADMINISTRATOR_CAPABILITIES = Object.keys(EVERY_CAPABILITY) as Capability[];
 
 export const ADMINISTRATOR_ACCESS: BackofficeAccess = {
   isAdministrator: true,
   capabilities: ADMINISTRATOR_CAPABILITIES,
+  stockMovementKinds: [...MANUAL_STOCK_MOVEMENT_KINDS],
 };
 
 export const NO_CAPABILITIES_ACCESS: BackofficeAccess = {
   isAdministrator: false,
   capabilities: [],
+  stockMovementKinds: [],
 };
 
 export function accessWith(...capabilities: Capability[]): BackofficeAccess {
-  return { isAdministrator: false, capabilities };
+  return {
+    isAdministrator: false,
+    capabilities,
+    stockMovementKinds: stockMovementKindsOf(capabilities),
+  };
 }

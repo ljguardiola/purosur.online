@@ -30,6 +30,7 @@ test("never preloads the code of a screen the person is refused", async () => {
       displayName: "Lucas Guardiola",
       isAdministrator: false,
       capabilities: [],
+      stockMovementKinds: [],
       expiresAt: new Date(Date.now() + 60_000).toISOString(),
     },
     help: defineHelp("es-AR", { categories: {}, articles: {} }),

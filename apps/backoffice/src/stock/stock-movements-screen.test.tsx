@@ -408,3 +408,12 @@ test.each([
   await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
   await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toMatchObject({ reason: "ALL" });
 });
+
+test("offers the kinds the cloud says the user may record, whatever the capabilities say", async () => {
+  const screen = await renderScreen(createServices(), {
+    access: { ...BOTH, stockMovementKinds: ["adjustment"] },
+  });
+
+  await expect.element(screen.getByRole("button", { name: "Cargar ajuste" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Cargar pérdida" }).query()).toBeNull();
+});

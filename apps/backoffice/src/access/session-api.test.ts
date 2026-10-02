@@ -30,6 +30,7 @@ const sessionBody = {
   is_administrator: false,
   permissions: ["void_sale", "sell_and_charge"],
   capabilities: ["stock_area", "branch_area"],
+  stock_movement_kinds: ["adjustment"],
 };
 
 test("fetchSession returns the signed-in user's identity, capabilities and deadline on 200", async () => {
@@ -44,6 +45,7 @@ test("fetchSession returns the signed-in user's identity, capabilities and deadl
     isAdministrator: false,
     expiresAt: "2026-09-23T12:30:00.000Z",
     capabilities: ["stock_area", "branch_area"],
+    stockMovementKinds: ["adjustment"],
   });
   expect(fetch).toHaveBeenCalledWith("/api/sessions/current");
 });
@@ -77,6 +79,11 @@ test.each([
   ["a body with no deadline", { ...sessionBody, expires_at: undefined }],
   ["a body with no capabilities", { ...sessionBody, capabilities: undefined }],
   ["a body with an unknown capability", { ...sessionBody, capabilities: ["fly_the_moon"] }],
+  ["a body with no stock movement kinds", { ...sessionBody, stock_movement_kinds: undefined }],
+  [
+    "a body with an unknown stock movement kind",
+    { ...sessionBody, stock_movement_kinds: ["count"] },
+  ],
   ["an administrator flag that is not a boolean", { ...sessionBody, is_administrator: "no" }],
   ["a body that is not an object", "session"],
 ])("fetchSession reports failed on %s", async (_, body) => {

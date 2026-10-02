@@ -1,13 +1,11 @@
 import { expect, test } from "vitest";
 import {
-  canAdjustStock,
   canCloseAlertsManually,
   canDeactivateUser,
   canManageProductsAndCategories,
   canManagePromotions,
   canPerformStockCounts,
   canReactivateUser,
-  canRecordStockLosses,
   canResetUserPin,
   canSeeAlertsArea,
   canSeeBranchArea,
@@ -40,8 +38,6 @@ test.each([
   ["canSeeRegistersArea", "registers_area", canSeeRegistersArea],
   ["canSeeStockBalances", "stock_balances", canSeeStockBalances],
   ["canPerformStockCounts", "stock_counts", canPerformStockCounts],
-  ["canRecordStockLosses", "stock_losses", canRecordStockLosses],
-  ["canAdjustStock", "stock_adjustments", canAdjustStock],
   ["canSeeStockMovements", "stock_movements", canSeeStockMovements],
   ["canSeeStockArea", "stock_area", canSeeStockArea],
   ["canReactivateUser", "reactivate_users", canReactivateUser],
