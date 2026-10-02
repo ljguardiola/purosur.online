@@ -117,7 +117,7 @@ describe("RenderFailureRecovery", () => {
       </RenderFailureRecovery>,
     );
 
-    await expect.element(screen.getByText(NOTICE_TITLE)).toBeVisible();
+    await expect.element(screen.getByText(NOTICE_TITLE).first()).toBeVisible();
     await expect.element(screen.getByRole("button", { name: RETRY_LABEL })).toBeVisible();
     expect(reportFailure).toHaveBeenCalledTimes(3);
 
@@ -156,7 +156,7 @@ describe("RenderFailureRecovery", () => {
       </RenderFailureRecovery>,
     );
 
-    await expect.element(screen.getByText(NOTICE_TITLE)).toBeVisible();
+    await expect.element(screen.getByText(NOTICE_TITLE).first()).toBeVisible();
     expect(reportFailure).toHaveBeenCalledTimes(3);
 
     await userEvent.click(screen.getByRole("button", { name: RETRY_LABEL }));
@@ -174,13 +174,13 @@ describe("RenderFailureRecovery", () => {
       </RenderFailureRecovery>,
     );
 
-    await expect.element(screen.getByText(NOTICE_TITLE)).toBeVisible();
+    await expect.element(screen.getByText(NOTICE_TITLE).first()).toBeVisible();
     expect(reportFailure).toHaveBeenCalledTimes(3);
 
     await userEvent.click(screen.getByRole("button", { name: RETRY_LABEL }));
 
     await expect.poll(() => reportFailure.mock.calls.length).toBe(6);
-    await expect.element(screen.getByText(NOTICE_TITLE)).toBeVisible();
+    await expect.element(screen.getByText(NOTICE_TITLE).first()).toBeVisible();
   });
 
   it("shows the notice when the restarted screen throws again in the same render", async () => {
@@ -192,7 +192,7 @@ describe("RenderFailureRecovery", () => {
       </RenderFailureRecovery>,
     );
 
-    await expect.element(screen.getByText(NOTICE_TITLE)).toBeVisible();
+    await expect.element(screen.getByText(NOTICE_TITLE).first()).toBeVisible();
     expect(reportFailure).toHaveBeenCalledTimes(3);
   });
 
@@ -209,7 +209,7 @@ describe("RenderFailureRecovery", () => {
         </RenderFailureRecovery>,
       );
 
-      await expect.element(screen.getByText(NOTICE_TITLE)).toBeVisible();
+      await expect.element(screen.getByText(NOTICE_TITLE).first()).toBeVisible();
       expect(onWindowError).not.toHaveBeenCalled();
     } finally {
       window.removeEventListener("error", onWindowError);
