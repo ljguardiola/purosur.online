@@ -1,4 +1,4 @@
-import { isEmailAddress } from "@purosur/domain";
+import { userCreationBodySchema } from "@purosur/contracts";
 
 type EmailMessages = { required: string; invalid: string; review: string };
 
@@ -8,7 +8,7 @@ export function emailFieldMessage({ required, invalid, review }: EmailMessages) 
     if (trimmed === "") {
       return required;
     }
-    return isEmailAddress(trimmed.toLowerCase()) ? review : invalid;
+    return userCreationBodySchema.shape.email.safeParse(trimmed).success ? review : invalid;
   };
 }
 

@@ -1,11 +1,14 @@
-import { isPasskeyNameTooLong, PASSKEY_NAME_MAX_LENGTH } from "@purosur/domain";
+import { passkeyRegistrationBodySchema } from "@purosur/contracts";
+import { schemaLimit } from "../platform/schema-limit";
+
+const nameSchema = passkeyRegistrationBodySchema.shape.passkey_name;
 
 export function passkeyNameMessage({ name }: { name: string }): string {
   const trimmed = name.trim();
   if (trimmed === "") {
     return "Ingresá un nombre para la passkey.";
   }
-  return isPasskeyNameTooLong(trimmed)
-    ? `El nombre no puede superar los ${PASSKEY_NAME_MAX_LENGTH} caracteres.`
-    : "Revisá el nombre de la passkey.";
+  return nameSchema.safeParse(trimmed).success
+    ? "Revisá el nombre de la passkey."
+    : `El nombre no puede superar los ${schemaLimit(nameSchema.meta()?.["maxLength"])} caracteres.`;
 }
