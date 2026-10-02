@@ -263,13 +263,28 @@ test("still exposes the notice's text exactly once when it has an action", async
 });
 
 test("renders no row for actions when none are given", async () => {
-  const screen = await render(
-    <HighlightedNotice tone="error" icon={<Info />} title="Title" description="Detail" />,
-  );
-  const notice = screen.container.firstElementChild as HTMLElement;
+  const noActions: ReadonlyArray<[string, Partial<HighlightedNoticeProps>]> = [
+    ["omitted", {}],
+    ["undefined", { actions: undefined }],
+    ["null", { actions: null }],
+    ["false", { actions: false }],
+  ];
 
-  expect(notice.querySelector("button")).toBeNull();
-  expect(notice.querySelector(".flex-wrap")).toBeNull();
+  for (const [label, props] of noActions) {
+    const screen = await render(
+      <HighlightedNotice
+        tone="error"
+        icon={<Info />}
+        title="Title"
+        description="Detail"
+        {...props}
+      />,
+    );
+    const notice = screen.container.firstElementChild as HTMLElement;
+
+    expect(notice.querySelector("button"), `${label} button`).toBeNull();
+    expect(notice.querySelector(".flex-wrap"), `${label} row`).toBeNull();
+  }
 });
 
 test("has no accessibility violations with an action", async () => {
