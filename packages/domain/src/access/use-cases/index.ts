@@ -26,7 +26,6 @@ export type {
   BranchUserActiveScope,
   BranchUserFacts,
   BranchUsers,
-  EmailHolder,
 } from "./branch-users.js";
 export type { CheckPinInput, CheckPinOutcome, PinRefusal } from "./check-pin.js";
 export { checkPin } from "./check-pin.js";

@@ -1,4 +1,3 @@
-import { isReactivationOffered } from "../model/email-holder-disclosure.js";
 import { isLastActiveAdministrator } from "../model/last-active-administrator.js";
 import type { BranchUser } from "./branch-users.js";
 import type { Clock } from "./pin-code-store.js";
@@ -45,14 +44,11 @@ export function createUser(
       if (!(error instanceof UserEmailConflict)) {
         throw error;
       }
-      const holder = await tx.users.emailHolder(input.email);
-      if (
-        holder &&
-        isReactivationOffered(holder, {
-          locationId: input.locationId,
-          mayReactivateUsers: input.actorMayReactivateUsers,
-        })
-      ) {
+      if (!input.actorMayReactivateUsers) {
+        return { kind: "email_taken" };
+      }
+      const holder = await tx.users.branchUserWithEmail(input.locationId, input.email, "inactive");
+      if (holder) {
         return {
           kind: "email_belongs_to_deactivated_user",
           id: holder.id,

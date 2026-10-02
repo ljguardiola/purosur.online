@@ -2,7 +2,6 @@ import type {
   BranchUserActiveScope,
   BranchUserFacts,
   BranchUsers,
-  EmailHolder,
 } from "@purosur/domain/access/use-cases";
 import { and, asc, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -87,6 +86,24 @@ class DrizzleBranchUsers<TQueryResult extends PgQueryResultHKT> implements Branc
     return row;
   }
 
+  async branchUserWithEmail(
+    locationId: string,
+    email: string,
+    activeScope: BranchUserActiveScope,
+  ): Promise<BranchUserFacts | undefined> {
+    const [row] = await this.selectBranchUsers()
+      .where(
+        and(
+          eq(users.email, email),
+          eq(users.locationId, locationId),
+          activeScopeCondition(activeScope),
+        ),
+      )
+      .groupBy(...BRANCH_USER_GROUP_BY)
+      .limit(1);
+    return row;
+  }
+
   async activeAdministratorCount(locationId: string): Promise<number> {
     const [row] = await this.db
       .select({ count: sql<number>`count(*)::int` })
@@ -111,20 +128,6 @@ class DrizzleBranchUsers<TQueryResult extends PgQueryResultHKT> implements Branc
       .innerJoin(rolePermissions, eq(rolePermissions.roleId, userRoles.roleId))
       .where(and(eq(users.locationId, locationId), eq(users.active, true)));
     return rows.map((row) => row.permissionKey);
-  }
-
-  async emailHolder(email: string): Promise<EmailHolder | undefined> {
-    const [holder] = await this.db
-      .select({
-        id: users.id,
-        firstName: users.firstName,
-        active: users.active,
-        locationId: users.locationId,
-      })
-      .from(users)
-      .where(eq(users.email, email))
-      .limit(1);
-    return holder;
   }
 }
 

@@ -16,13 +16,6 @@ export interface BranchUser extends BranchUserFacts {
   isLastActiveAdministrator: boolean;
 }
 
-export interface EmailHolder {
-  id: string;
-  firstName: string;
-  active: boolean;
-  locationId: string;
-}
-
 export interface BranchUsers {
   // Ordered by first name.
   branchUsers(locationId: string, activeScope: BranchUserActiveScope): Promise<BranchUserFacts[]>;
@@ -32,9 +25,12 @@ export interface BranchUsers {
     userId: string,
     activeScope: BranchUserActiveScope,
   ): Promise<BranchUserFacts | undefined>;
+  branchUserWithEmail(
+    locationId: string,
+    email: string,
+    activeScope: BranchUserActiveScope,
+  ): Promise<BranchUserFacts | undefined>;
   activeAdministratorCount(locationId: string): Promise<number>;
   // The permission keys the roles of the branch's active users list; the Administrator role lists none.
   activeUserPermissionKeys(locationId: string): Promise<string[]>;
-  // Across every branch.
-  emailHolder(email: string): Promise<EmailHolder | undefined>;
 }
