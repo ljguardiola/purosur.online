@@ -336,7 +336,11 @@ describe("productCreationBodySchema, order and unknown keys", () => {
 describe("productCreationBodySchema, declared limits and rules", () => {
   function barcodeRules(codes: string[]): unknown[] {
     const result = productCreationBodySchema.shape.barcodes.safeParse(codes);
-    return result.success ? [] : result.error.issues.map((issue) => issue.params?.["rule"]);
+    return result.success
+      ? []
+      : result.error.issues.map((issue) =>
+          issue.code === "custom" ? issue.params?.["rule"] : undefined,
+        );
   }
 
   it("declares the name's maximum length", () => {

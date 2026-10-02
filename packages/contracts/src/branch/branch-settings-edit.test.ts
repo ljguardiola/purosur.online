@@ -313,7 +313,11 @@ describe("branchSettingsEditBodySchema, declared limits and rules", () => {
 
   function hoursRules(ranges: unknown): unknown[] {
     const result = shape.monday_hours.safeParse(ranges);
-    return result.success ? [] : result.error.issues.map((issue) => issue.params?.["rule"]);
+    return result.success
+      ? []
+      : result.error.issues.map((issue) =>
+          issue.code === "custom" ? issue.params?.["rule"] : undefined,
+        );
   }
 
   it("declares the most ranges a day can have", () => {

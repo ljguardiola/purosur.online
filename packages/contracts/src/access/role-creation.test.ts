@@ -135,7 +135,11 @@ describe("roleCreationBodySchema, order of checks", () => {
 describe("roleCreationBodySchema, declared limits and rules", () => {
   function nameRules(name: string): unknown[] {
     const result = roleCreationBodySchema.shape.name.safeParse(name);
-    return result.success ? [] : result.error.issues.map((issue) => issue.params?.["rule"]);
+    return result.success
+      ? []
+      : result.error.issues.map((issue) =>
+          issue.code === "custom" ? issue.params?.["rule"] : undefined,
+        );
   }
 
   it("declares the name's maximum length", () => {

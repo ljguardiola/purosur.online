@@ -10,5 +10,6 @@ export function requiredTextSchema(
     .string({ error: message })
     .trim()
     .min(1, message)
-    .refine((value) => !isTooLong(value), message);
+    .refine((value) => !isTooLong(value), message)
+    .meta({ maxLength });
 }
