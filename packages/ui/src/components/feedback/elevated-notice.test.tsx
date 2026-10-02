@@ -34,10 +34,11 @@ test("exposes the visible text to assistive technology inside the region", async
   const screen = await render(<ElevatedNotice notice={NOTICE} />);
 
   const region = screen.getByRole("status").element();
-  expect(region.querySelector('[aria-hidden="true"]:not(svg)')).toBeNull();
+  expect(region.querySelector('[aria-hidden="true"] p, p[aria-hidden="true"]')).toBeNull();
   await expect
-    .element(screen.getByRole("status"))
-    .toHaveTextContent("No hay ningún producto con ese código Buscalo por nombre.");
+    .element(screen.getByRole("paragraph").first())
+    .toHaveTextContent("No hay ningún producto con ese código");
+  expect(screen.getByRole("paragraph").elements()).toHaveLength(2);
 });
 
 test("leaves the same region mounted and empty once the notice is cleared", async () => {
