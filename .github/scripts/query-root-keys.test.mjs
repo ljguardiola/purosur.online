@@ -22,7 +22,12 @@ const TANSTACK = {
   ].join("\n"),
   "node_modules/@tanstack/react-query/package.json":
     '{ "name": "@tanstack/react-query", "types": "index.d.ts" }',
-  "node_modules/@tanstack/react-query/index.d.ts": 'export * from "@tanstack/query-core";',
+  "node_modules/@tanstack/react-query/index.d.ts": [
+    'export * from "@tanstack/query-core";',
+    'import type { QueryKey, QueryOptions } from "@tanstack/query-core";',
+    "export declare function queryOptions<TQueryKey extends QueryKey>(options: QueryOptions<TQueryKey>): QueryOptions<TQueryKey> & { queryKey: TQueryKey };",
+    "export declare function infiniteQueryOptions<TQueryKey extends QueryKey>(options: QueryOptions<TQueryKey>): QueryOptions<TQueryKey> & { queryKey: TQueryKey };",
+  ].join("\n"),
 };
 
 const TSCONFIG = JSON.stringify({
@@ -243,6 +248,285 @@ test("refuses a query key read from the parameter of a callback written inline",
   ]);
 });
 
+test("refuses a query key read from the parameter of a helper handed on by name as a callback", (t) => {
+  const problems = problemsIn(t, {
+    "src/catalog/catalog-refresh.ts": [
+      IMPORTS,
+      "const client = new QueryClient();",
+      "const invalidate = (key: QueryKey) => client.invalidateQueries({ queryKey: key });",
+      "function invalidateNow(key: QueryKey) {",
+      "  client.invalidateQueries({ queryKey: key });",
+      "}",
+      "export const catalogActions = {",
+      "  invalidate(key: QueryKey) {",
+      "    client.invalidateQueries({ queryKey: key });",
+      "  },",
+      "};",
+      "export function useCatalogActions() {",
+      "  const refresh = (key: QueryKey) => client.invalidateQueries({ queryKey: key });",
+      "  return { refresh };",
+      "}",
+      "export function refreshAll() {",
+      '  [["catalog"]].forEach(invalidate);',
+      '  [["catalog"]].forEach(invalidateNow);',
+      '  [["catalog"]].forEach(catalogActions.invalidate);',
+      "}",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    "src/catalog/catalog-refresh.ts:3 uses a query key whose root the check cannot read",
+    "src/catalog/catalog-refresh.ts:5 uses a query key whose root the check cannot read",
+    "src/catalog/catalog-refresh.ts:9 uses a query key whose root the check cannot read",
+    "src/catalog/catalog-refresh.ts:13 uses a query key whose root the check cannot read",
+  ]);
+});
+
+test("follows a key into a helper that is only called, imported, re-exported, rendered or named in a type", (t) => {
+  const problems = problemsIn(t, {
+    "src/platform/invalidate.ts": [
+      IMPORTS,
+      "const client = new QueryClient();",
+      "export const invalidate = (key: QueryKey) => client.invalidateQueries({ queryKey: key });",
+      "export type Invalidate = typeof invalidate;",
+    ].join("\n"),
+    "src/platform/index.ts": 'export { invalidate } from "./invalidate";',
+    "src/sales/ticket-panel.tsx": [
+      IMPORTS,
+      'import { invalidate } from "../platform";',
+      "export function TicketPanel({ source }: { source: QueryKey }) {",
+      "  useQuery({ queryKey: source, queryFn: () => [] });",
+      "  return null;",
+      "}",
+      'export const refreshTicket = () => invalidate(["ticket"]);',
+      'export const ticketPanel = <TicketPanel source={["receipt"]}></TicketPanel>;',
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/sales/ticket-panel.tsx:7 roots a query key at "ticket", but the concept folder holding it is "sales"',
+    'src/sales/ticket-panel.tsx:8 roots a query key at "receipt", but the concept folder holding it is "sales"',
+  ]);
+});
+
+test("follows a key into a helper that is exported and imported as a module's default", (t) => {
+  const problems = problemsIn(t, {
+    "src/platform/set-query-answer.ts": [
+      IMPORTS,
+      "function setQueryAnswer(client: QueryClient, key: QueryKey) {",
+      "  client.setQueryData(key, 1);",
+      "}",
+      "export default setQueryAnswer;",
+    ].join("\n"),
+    "src/sales/sales-answer.ts": [
+      IMPORTS,
+      'import setQueryAnswer from "../platform/set-query-answer";',
+      'export const answer = (client: QueryClient) => setQueryAnswer(client, ["ticket"]);',
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/sales/sales-answer.ts:3 roots a query key at "ticket", but the concept folder holding it is "sales"',
+  ]);
+});
+
+test("follows a key read back through the query options it was declared in", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/sales-queries.ts": [
+      'import { QueryClient, queryOptions, infiniteQueryOptions } from "@tanstack/react-query";',
+      'const ticketOptions = queryOptions({ queryKey: ["sales", "ticket"], queryFn: () => [] });',
+      'const receiptOptions = queryOptions({ queryKey: ["receipts"], queryFn: () => [] });',
+      'const pageOptions = infiniteQueryOptions({ queryKey: ["sales", "pages"], queryFn: () => [] });',
+      'const lineOptions = () => queryOptions({ queryKey: ["sales", "lines"], queryFn: () => [] });',
+      "export function refresh(client: QueryClient) {",
+      "  client.invalidateQueries({ queryKey: ticketOptions.queryKey });",
+      "  client.invalidateQueries({ queryKey: receiptOptions.queryKey });",
+      "  client.invalidateQueries({ queryKey: pageOptions.queryKey });",
+      "  client.invalidateQueries({ queryKey: lineOptions().queryKey });",
+      "}",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/sales/sales-queries.ts:3 roots a query key at "receipts", but the concept folder holding it is "sales"',
+  ]);
+});
+
+test("follows a key read from a parameter that is not destructured", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/sales-queries.tsx": [
+      IMPORTS,
+      "type Ticket = { queryKey: QueryKey; queryFn: () => unknown };",
+      "export function TicketPanel(props: { source: QueryKey }) {",
+      "  useQuery({ queryKey: props.source, queryFn: () => [] });",
+      "  return null;",
+      "}",
+      "export function useTicket(query: Ticket) {",
+      "  return useQuery({ queryKey: query.queryKey, queryFn: query.queryFn });",
+      "}",
+      "export function useReceipt(props: { key: QueryKey }) {",
+      "  const { key } = props;",
+      "  return useQuery({ queryKey: key, queryFn: () => [] });",
+      "}",
+      'export const ticketPanel = <TicketPanel source={["sales"]} />;',
+      'export const useSales = () => useTicket({ queryKey: ["sales"], queryFn: () => [] });',
+      'export const useReceipts = () => useReceipt({ key: ["receipts"] });',
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/sales/sales-queries.tsx:16 roots a query key at "receipts", but the concept folder holding it is "sales"',
+  ]);
+});
+
+test("checks a parameter typed as a query key or nothing", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/sales-answer.ts": [
+      IMPORTS,
+      "export function setAnswer(client: QueryClient, key: QueryKey | undefined) {",
+      "  if (key) client.setQueryData(key, 1);",
+      "}",
+      'export const answer = (client: QueryClient) => setAnswer(client, ["ticket"]);',
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/sales/sales-answer.ts:5 roots a query key at "ticket", but the concept folder holding it is "sales"',
+  ]);
+});
+
+test("checks a key named queryKey in an options object built apart from the query", (t) => {
+  const problems = problemsIn(t, {
+    "src/stock/stock-queries.ts": [
+      IMPORTS,
+      'const balancesOptions = { queryKey: ["balances"], queryFn: () => [] };',
+      'const queryKey = ["movements"];',
+      "const movementsOptions = { queryKey, queryFn: () => [] };",
+      "export const useBalances = () => useQuery({ ...balancesOptions });",
+      "export const useMovements = () => useQuery({ ...movementsOptions });",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/stock/stock-queries.ts:2 roots a query key at "balances", but the concept folder holding it is "stock"',
+    'src/stock/stock-queries.ts:3 roots a query key at "movements", but the concept folder holding it is "stock"',
+  ]);
+});
+
+test("checks a key given in shorthand to a property typed as a query key", (t) => {
+  const problems = problemsIn(t, {
+    "src/platform/use-cloud-query.ts": [
+      IMPORTS,
+      "export function useCloudQuery({ key }: { key: QueryKey }) {",
+      "  return useQuery({ queryKey: key, queryFn: () => [] });",
+      "}",
+    ].join("\n"),
+    "src/alerts/alerts-queries.ts": [
+      'import { useCloudQuery } from "../platform/use-cloud-query";',
+      'const key = ["overview"] as const;',
+      "export const useOverview = () => useCloudQuery({ key });",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/alerts/alerts-queries.ts:2 roots a query key at "overview", but the concept folder holding it is "alerts"',
+  ]);
+});
+
+test("checks both roots of a key chosen by a condition", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/sales-queries.ts": [
+      IMPORTS,
+      "export const useSales = (open: boolean) =>",
+      '  useQuery({ queryKey: open ? ["sales", "open"] : ["receipts"], queryFn: () => [] });',
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/sales/sales-queries.ts:3 roots a query key at "receipts", but the concept folder holding it is "sales"',
+  ]);
+});
+
+test("refuses a key read from a parameter typed by the program's own type named QueryKey", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/sales-queries.ts": [
+      'import { useQuery } from "@tanstack/react-query";',
+      "type QueryKey = readonly string[];",
+      "export function useTicket(key: QueryKey) {",
+      "  return useQuery({ queryKey: key, queryFn: () => [] });",
+      "}",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    "src/sales/sales-queries.ts:4 uses a query key whose root the check cannot read",
+  ]);
+});
+
+test("refuses a key held in a variable that is reassigned", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/sales-queries.ts": [
+      IMPORTS,
+      "export function useSales(open: boolean) {",
+      '  let key = ["sales"];',
+      '  if (open) key = ["receipts"];',
+      "  return useQuery({ queryKey: key, queryFn: () => [] });",
+      "}",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    "src/sales/sales-queries.ts:5 uses a query key whose root the check cannot read",
+  ]);
+});
+
+test("refuses a key read from a parameter or a destructured property not typed as a query key", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/sales-queries.ts": [
+      IMPORTS,
+      "export function useTicket(key: readonly string[]) {",
+      "  return useQuery({ queryKey: key, queryFn: () => [] });",
+      "}",
+      "export function useReceipt({ key }: { key: readonly string[] }) {",
+      "  return useQuery({ queryKey: key, queryFn: () => [] });",
+      "}",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    "src/sales/sales-queries.ts:3 uses a query key whose root the check cannot read",
+    "src/sales/sales-queries.ts:6 uses a query key whose root the check cannot read",
+  ]);
+});
+
+test("refuses a query key read from a destructured parameter of a callback written inline", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/sales-refresh.ts": [
+      IMPORTS,
+      "const client = new QueryClient();",
+      "export function refreshAll() {",
+      '  [{ key: ["sale"] }].forEach(({ key }: { key: QueryKey }) => client.invalidateQueries({ queryKey: key }));',
+      "}",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    "src/sales/sales-refresh.ts:4 uses a query key whose root the check cannot read",
+  ]);
+});
+
+test("a file that loads a module at run time draws no problem from the check", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/sales-loader.ts": [
+      'import { createRequire } from "node:module";',
+      "const require = createRequire(import.meta.url);",
+      'export const loaded = require("./other");',
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, []);
+});
+
 test("follows a key into a helper whose module is imported as a namespace", (t) => {
   const problems = problemsIn(t, {
     "src/platform/use-cloud-query.ts": [
@@ -271,13 +555,16 @@ test("follows a key into a method of an object that forwards it", (t) => {
       "  invalidate(key: QueryKey) {",
       "    client.invalidateQueries({ queryKey: key });",
       "  },",
+      "  reset: (key: QueryKey) => client.invalidateQueries({ queryKey: key }),",
       "};",
       'export const refreshBalances = () => stockActions.invalidate(["balances"]);',
+      'export const resetMovements = () => stockActions.reset(["movements"]);',
     ].join("\n"),
   });
 
   assert.deepEqual(problems, [
-    'src/stock/stock-queries.ts:8 roots a query key at "balances", but the concept folder holding it is "stock"',
+    'src/stock/stock-queries.ts:9 roots a query key at "balances", but the concept folder holding it is "stock"',
+    'src/stock/stock-queries.ts:10 roots a query key at "movements", but the concept folder holding it is "stock"',
   ]);
 });
 
