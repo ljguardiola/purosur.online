@@ -13,7 +13,10 @@ const repoRoot = join(dirname(new URL(import.meta.url).pathname), "../..");
 
 const PLATFORM_PATTERN = "/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i";
 
-const linesOf = (source) => findIdShapeCopies(source, "source.ts").map(({ line }) => line);
+const CASE_FILE = "apps/cloud/src/id-shape-check.ts";
+
+const linesOf = (source) =>
+  findIdShapeCopies({ [CASE_FILE]: source }, repoRoot).map(({ line }) => line);
 
 test("finds a copied regular expression literal with the line it is on", () => {
   const source = ['import { z } from "zod";', "", `const ID = ${PLATFORM_PATTERN};`].join("\n");
@@ -155,73 +158,127 @@ test("ignores patterns of other shapes", () => {
 });
 
 const ZOD_ID_FORMATS = [
-  ['import { z } from "zod";\nconst id = z.uuid();', 2],
-  ['import { z } from "zod";\nconst id = z.guid({ error: "id must be an id" });', 2],
-  ['import { z } from "zod";\nconst id = z.string().uuid();', 2],
-  ['import { z } from "zod";\nconst id = z.string().min(1).guid();', 2],
-  ['import { z } from "zod";\nconst id = z.uuidv4();', 2],
-  ['import { z } from "zod";\nconst id = z.uuidv7();', 2],
-  ['import { z } from "zod";\nconst id = z.string().regex(z.regexes.uuid());', 2],
-  ['import { z } from "zod";\nconst id = z.string().check(z.core.regexes.guid);', 2],
-  ['import { z } from "zod";\nconst id = z["uuid"]();', 2],
-  ['import { z } from "zod";\nconst id = new z.ZodGUID({ type: "string" });', 2],
-  ['import * as z from "zod/v4";\nconst id = z.guid();', 2],
-  ['import z from "zod/mini";\nconst id = z.uuid();', 2],
-  ['import { guid as anyId } from "zod";\nconst id = anyId();', 1],
-  ['import { regexes } from "zod/v4/core";\nconst id = regexes.uuid4;', 2],
-  ['import { z } from "zod";\nconst text = z.string();\nconst id = text.uuid();', 3],
-  ['import { z } from "zod";\nconst { guid } = z;\nconst id = guid();', 2],
+  ['import { z } from "zod";\nconst id = z.uuid();', [2]],
+  ['import { z } from "zod";\nconst id = z.guid({ error: "id must be an id" });', [2]],
+  ['import { z } from "zod";\nconst id = z.string().uuid();', [2]],
+  ['import { z } from "zod";\nconst id = z.string().min(1).guid();', [2]],
+  ['import { z } from "zod";\nconst id = z.uuidv4();', [2]],
+  ['import { z } from "zod";\nconst id = z.uuidv7();', [2]],
+  ['import { z } from "zod";\nconst id = z.string().regex(z.regexes.uuid());', [2]],
+  ['import { z } from "zod";\nconst id = z.string().check(z.core.regexes.guid);', [2]],
+  ['import { z } from "zod";\nconst id = z["uuid"]();', [2]],
+  ['import { z } from "zod";\nconst id = new z.ZodGUID({ type: "string" });', [2]],
+  ['import * as z from "zod/v4";\nconst id = z.guid();', [2]],
+  ['import { z } from "zod/mini";\nconst id = z.uuid();', [2]],
+  ['import zod from "zod";\nconst id = zod.guid();', [2]],
+  ['import { guid as anyId } from "zod";\nconst id = anyId();', [1, 2]],
+  ['import { regexes } from "zod/v4/core";\nconst id = regexes.uuid4;', [2]],
+  ['import { z } from "zod";\nconst text = z.string();\nconst id = text.uuid();', [3]],
+  ['import { z } from "zod";\nconst { guid } = z;\nconst id = guid();', [2]],
+  ['import { z } from "zod";\nconst { "uuid": anyId } = z;', [2]],
+  [
+    'import { z } from "zod";\nconst text = () => z.string();\nexport const id = text().guid();',
+    [3],
+  ],
+  ['const { z } = await import("zod");\nexport const id = z.guid();', [2]],
+  ['export const id = (await import("zod")).z.guid();', [1]],
+  ['export { guid } from "zod";', [1]],
+  ['export { uuid as anyId } from "zod/v4";', [1]],
+  ['export type { ZodGUID } from "zod";', [1]],
 ];
 
 test("finds a zod uuid or guid format where it is taken from zod, however it is reached", () => {
-  for (const [source, line] of ZOD_ID_FORMATS) {
-    assert.deepEqual(linesOf(source), [line], source);
+  for (const [source, lines] of ZOD_ID_FORMATS) {
+    assert.deepEqual(linesOf(source), lines, source);
   }
 });
 
-test("finds every re-export from zod, through which another file could reach an id format", () => {
-  for (const [source, line] of [
-    ['export { guid } from "zod";', 1],
-    ['export { z } from "zod";', 1],
-    ['export { string } from "zod/v4";', 1],
-    ['export { uuid as anyId } from "zod/v4";', 1],
-    ['export type { ZodGUID } from "zod";', 1],
-    ['export type { ZodType } from "zod";', 1],
-    ['export * from "zod";', 1],
-    ['export * as zod from "zod/mini";', 1],
+const A_FILE = "apps/cloud/src/id-shape-check-a.ts";
+const B_FILE = "packages/contracts/src/id-shape-check-b.ts";
+
+const reportsOf = (a, b) =>
+  findIdShapeCopies({ [A_FILE]: a, [B_FILE]: b }, repoRoot).map(
+    ({ path, line }) => `${path}:${line}`,
+  );
+
+test("finds a zod id format reached through a value or a re-export of another file", () => {
+  for (const [a, b, reports] of [
+    [
+      'import { z } from "zod";\nexport const requiredText = () => z.string();',
+      'import { requiredText } from "../../../apps/cloud/src/id-shape-check-a.js";\nexport const id = requiredText().guid();',
+      [`${B_FILE}:2`],
+    ],
+    [
+      'import { z } from "zod";\nexport const text = z.string();',
+      'import { text } from "../../../apps/cloud/src/id-shape-check-a.js";\nexport const id = text.uuid();',
+      [`${B_FILE}:2`],
+    ],
+    [
+      'export { z } from "zod";',
+      'import { z } from "../../../apps/cloud/src/id-shape-check-a.js";\nexport const id = z.guid();',
+      [`${B_FILE}:2`],
+    ],
+    [
+      'export { guid } from "zod";',
+      'import { guid } from "../../../apps/cloud/src/id-shape-check-a.js";\nexport const id = guid();',
+      [`${A_FILE}:1`, `${B_FILE}:1`, `${B_FILE}:2`],
+    ],
+    [
+      'import { z } from "zod";\nexport default z;',
+      'import zod from "../../../apps/cloud/src/id-shape-check-a.js";\nexport const id = zod.uuid();',
+      [`${B_FILE}:2`],
+    ],
   ]) {
-    assert.deepEqual(linesOf(source), [line], source);
+    assert.deepEqual(reportsOf(a, b), reports, b);
   }
 });
 
-test("finds an export of a binding that is zod itself or a part of it taken without a call", () => {
-  for (const [source, line] of [
-    ['import { z } from "zod";\nexport { z };', 2],
-    ['import { z } from "zod";\nexport { z as zod };', 2],
-    ['import * as z from "zod";\nexport default z;', 2],
-    ['import z from "zod/mini";\nexport = z;', 2],
-    ['import { string } from "zod";\nexport { string };', 2],
-    ['import type { ZodType } from "zod";\nexport type { ZodType };', 2],
-    ['import { z } from "zod";\nexport const zz = z;', 2],
-    ['import { z } from "zod";\nexport const zz = (z as typeof z);', 2],
-    ['import { z } from "zod";\nexport const g = z.guid;', 2],
-    ['import { z } from "zod";\nexport const r = z["regexes"];', 2],
-    ['import { z } from "zod";\nexport const { string } = z;', 2],
-    ['import { z } from "zod";\nconst zz = z;\nexport { zz };', 3],
-    ['import { z } from "zod";\nconst zz = z;\nexport default zz;', 3],
-    ['import { z } from "zod";\nconst zz = z;\nexport const zzz = zz;', 3],
-    ['import { z } from "zod";\nconst { object } = z;\nexport { object };', 3],
+test("finds any name of zod that spells uuid or guid, whatever else it holds", () => {
+  for (const [source, lines] of [
+    ['import { _guid } from "zod/v4/core";\nconst id = _guid;', [1, 2]],
+    ['import { z } from "zod";\nconst id = z.core._uuid;', [2]],
+    ['import { ZodMiniUUID } from "zod/mini";', [1]],
+    ['import type { $ZodUUIDDef } from "zod/v4/core";', [1]],
+    ['import * as core from "zod/v4/core";\ntype Params = core.$ZodCheckUUIDParams;', [2]],
+    ['import { z } from "zod";\nconst { _uuidv7 } = z.core;', [2]],
+    ['import { z } from "zod";\nconst ids = z.core;\nconst id = ids._guid;', [3]],
   ]) {
-    assert.deepEqual(linesOf(source), [line], source);
+    assert.deepEqual(linesOf(source), lines, source);
   }
 });
 
-test("ignores exported schemas built with zod and re-exports that do not come from zod", () => {
+test("ignores zod used for anything but an id format, however it is taken or passed on", () => {
+  const source = [
+    'import { z, ZodError, string, NEVER } from "zod";',
+    'import type { ZodType } from "zod";',
+    "export const s = z.object({ id: z.string() });",
+    "export const listed = z.array(s).min(1);",
+    "export type S = z.infer<typeof s>;",
+    "export const parse = (schema: ZodType, input: unknown) => schema.parse(input);",
+    "export const isInvalid = (error: unknown) => error instanceof ZodError;",
+    "export const isZodError = (error: unknown) => error instanceof z.ZodError;",
+    "register(string);",
+    "register(z.string, z.iso, z.coerce, z.locales);",
+    "export const refuse = () => z.NEVER;",
+    "export const never = NEVER;",
+    "export const zod = { z };",
+    "export function tools() {",
+    "  return z;",
+    "}",
+    "declare function register(...values: unknown[]): void;",
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), []);
+});
+
+test("ignores exported schemas built with zod and re-exports of zod that reach no id format", () => {
   const source = [
     'import { z } from "zod";',
+    'export { z } from "zod";',
+    'export * from "zod";',
+    'export * as zod from "zod/mini";',
+    'export type { ZodType } from "zod";',
     'export { uuid } from "drizzle-orm/pg-core";',
-    'export * from "./shared/index.js";',
-    'export { recordIdSchema } from "./record-id.js";',
     "export const nameSchema = z.string().min(1);",
     "const priceSchema = z.object({ cents: z.number().int() });",
     "export { priceSchema };",
@@ -232,91 +289,18 @@ test("ignores exported schemas built with zod and re-exports that do not come fr
   assert.deepEqual(linesOf(source), []);
 });
 
-test("finds zod or a part of it used as a value, which carries it where the check cannot follow", () => {
-  for (const [source, line] of [
-    ['import { z } from "zod";\nexport const schemas = { z };', 2],
-    ['import { z } from "zod";\nexport const schemas = { zod: z };', 2],
-    ['import { z } from "zod";\nexport function zod() {\n  return z;\n}', 3],
-    ['import { z } from "zod";\nregister(z);', 2],
-    ['import { z } from "zod";\nexport const all = [z];', 2],
-    ['import { z } from "zod";\nexport const zod = () => z;', 2],
-    ['import * as zod from "zod/v4";\nexport const tools = { zod };', 2],
-    ['import { z } from "zod";\nexport const zod = () => (z as typeof z);', 2],
-    ['import { z } from "zod";\nconst zz = z;\nregister(zz);', 3],
-    ['import { z } from "zod";\nconst { core } = z;\nexport const tools = { core };', 3],
-  ]) {
-    assert.deepEqual(linesOf(source), [line], source);
-  }
-});
-
-test("finds a part of zod that holds the id formats used as a value", () => {
-  for (const [source, line] of [
-    ['import * as zod from "zod/v4";\nexport const tools = { patterns: zod.regexes };', 2],
-    ['import { z } from "zod";\nregister(z.core);', 2],
-    ['import { z } from "zod";\nregister(z.guid);', 2],
-    ['import * as zod from "zod";\nregister(zod.z);', 2],
-    ['import * as zod from "zod";\nexport const all = [zod.default];', 2],
-    ['import { z } from "zod";\nexport const zod = () => z.core.regexes;', 2],
-    ['import { z } from "zod";\nregister((z as typeof z).regexes!);', 2],
-    ['import { z } from "zod";\nregister(z["core"]);', 2],
-  ]) {
-    assert.deepEqual(linesOf(source), [line], source);
-  }
-});
-
-test("ignores zod reached only by accessing or calling it, or named in a type", () => {
+test("ignores names that spell uuid or guid when they are not declared by zod", () => {
   const source = [
+    'import { uuid } from "drizzle-orm/pg-core";',
     'import { z } from "zod";',
-    'import type { ZodType } from "zod";',
-    "export const s = z.object({ id: z.string() });",
-    "export const listed = z.array(s).min(1);",
-    "export type S = z.infer<typeof s>;",
-    "let zodType: typeof z;",
-    "export const parse = (schema: ZodType, input: unknown) => schema.parse(input);",
-    "register(z.string().min(1));",
-    "const refuse = () => z.NEVER;",
-    "register(z.string, z.iso, z.coerce, z.locales);",
-    "const zod = { z: 1 };",
-  ].join("\n");
-
-  assert.deepEqual(linesOf(source), []);
-});
-
-test("finds any name of zod that spells uuid or guid, whatever else it holds", () => {
-  for (const [source, line] of [
-    ['import { _guid } from "zod/v4/core";\nconst id = _guid();', 1],
-    ['import { z } from "zod";\nconst id = z.core._uuid({});', 2],
-    ['import { ZodMiniUUID } from "zod/mini";', 1],
-    ['import type { $ZodUUIDDef } from "zod/v4/core";', 1],
-    ['import * as core from "zod/v4/core";\nconst params = core.$ZodCheckUUIDParams;', 2],
-    ['import { z } from "zod";\nconst { _uuidv7 } = z.core;', 2],
-    ['import { z } from "zod";\nconst ids = z.core;\nconst id = ids._guid({});', 3],
-  ]) {
-    assert.deepEqual(linesOf(source), [line], source);
-  }
-});
-
-test("finds a member of zod picked by a key that is not written out", () => {
-  for (const [source, line] of [
-    ['import { z } from "zod";\nconst id = z[key]();', 2],
-    ['import { z } from "zod";\nregister(z[key]);', 2],
-    ['import { z } from "zod";\nconst check = z.core[name];', 2],
-    ['import * as zod from "zod";\nconst check = (zod as typeof zod).regexes![name];', 2],
-  ]) {
-    assert.deepEqual(linesOf(source), [line], source);
-  }
-});
-
-test("ignores names that spell uuid or guid and keys not written out when they are not taken from zod", () => {
-  const source = [
-    'import { z } from "zod";',
-    'import { uuidColumn } from "./columns";',
     "const owner = z.object({ ownerUuid: z.string(), guidance: z.string() });",
-    "const field = owner.shape.ownerUuid;",
-    "const text = parsed.guidance;",
-    "const value = owner.shape[key];",
-    "const row = record[key];",
-    "const column = uuidColumn();",
+    "export const field = owner.shape.ownerUuid;",
+    'export const other = owner.shape["guidance"];',
+    "export const { ownerUuid } = owner.shape;",
+    'export const id = uuid("id").primaryKey().defaultRandom();',
+    "export const generated = crypto.randomUUID();",
+    "const row = { uuid: 1, guid: 2 };",
+    "export const stored = row.uuid ?? row.guid;",
   ].join("\n");
 
   assert.deepEqual(linesOf(source), []);
@@ -334,34 +318,22 @@ test("finds a zod id format on the line it is used", () => {
   assert.deepEqual(linesOf(source), [4]);
 });
 
-test("ignores uuid and guid names that do not come from zod", () => {
-  const source = [
-    'import { uuid } from "drizzle-orm/pg-core";',
-    'import { z } from "zod";',
-    'const id = uuid("id").primaryKey().defaultRandom();',
-    "const generated = crypto.randomUUID();",
-    "const stored = row.uuid ?? row.guid;",
-    "const text = z.string().min(1);",
-  ].join("\n");
-
-  assert.deepEqual(linesOf(source), []);
-});
-
 test("recognizes the shared shape's own file as the shape", () => {
   const source = readFileSync(join(repoRoot, ID_SHAPE_PATH), "utf8");
 
-  assert.notDeepEqual(findIdShapeCopies(source, ID_SHAPE_PATH), []);
+  assert.notDeepEqual(findIdShapeCopies({ [ID_SHAPE_PATH]: source }, repoRoot), []);
 });
 
-test("reports each file and line holding a copy", () => {
+test("reports each file and line holding a copy, except in the shared shape's file", () => {
   const files = {
     "apps/cloud/src/a.test.ts": `x();\nconst ID = ${PLATFORM_PATTERN};`,
     "packages/contracts/src/b.ts": 'import { z } from "zod";\nconst id = z.guid();',
     "apps/cloud/src/c.ts": "z();",
+    [ID_SHAPE_PATH]: readFileSync(join(repoRoot, ID_SHAPE_PATH), "utf8"),
   };
 
   assert.deepEqual(
-    checkFiles(Object.keys(files), (path) => files[path]),
+    checkFiles(Object.keys(files), (path) => files[path], repoRoot),
     [
       `apps/cloud/src/a.test.ts:2 holds a copy of the record id shape, which lives only in ${ID_SHAPE_PATH}`,
       `packages/contracts/src/b.ts:2 holds a copy of the record id shape, which lives only in ${ID_SHAPE_PATH}`,
@@ -369,23 +341,23 @@ test("reports each file and line holding a copy", () => {
   );
 });
 
-test("scans every cloud and contracts source file, tests included, except the shared shape's file", () => {
+test("scans every cloud and contracts source file, tests and the shared shape's file included", () => {
   const scanned = findScannedFiles(repoRoot);
 
   assert.ok(scanned.includes("apps/cloud/src/catalog/drizzle-catalog-store.ts"));
   assert.ok(scanned.includes("apps/cloud/src/catalog/drizzle-catalog-store.test.ts"));
   assert.ok(scanned.includes("packages/contracts/src/shared/index.ts"));
   assert.ok(scanned.includes("packages/contracts/src/shared/record-id.test.ts"));
+  assert.ok(scanned.includes(ID_SHAPE_PATH));
   assert.ok(
     scanned.every(
       (path) => path.startsWith("apps/cloud/src/") || path.startsWith("packages/contracts/src/"),
     ),
   );
-  assert.ok(!scanned.includes(ID_SHAPE_PATH));
 });
 
 test("no cloud or contracts file outside the shared shape's file holds a copy of the id shape", () => {
   const readFile = (path) => readFileSync(join(repoRoot, path), "utf8");
 
-  assert.deepEqual(checkFiles(findScannedFiles(repoRoot), readFile), []);
+  assert.deepEqual(checkFiles(findScannedFiles(repoRoot), readFile, repoRoot), []);
 });
