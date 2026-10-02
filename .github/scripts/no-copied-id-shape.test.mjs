@@ -56,6 +56,31 @@ test("finds a copy written as the string a RegExp is built from", () => {
   }
 });
 
+test("finds a copy spelled out one character class per digit", () => {
+  const group = (length) => "[0-9a-f]".repeat(length);
+  const pattern = `/^${[8, 4, 4, 4, 12].map(group).join("-")}$/i`;
+
+  assert.deepEqual(linesOf(`const ID = ${pattern};`), [1]);
+});
+
+test("finds a copy written as the raw text of a template", () => {
+  const source =
+    "const ID = new RegExp(String.raw`^[\\da-f]{8}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{12}$`);";
+
+  assert.deepEqual(linesOf(source), [1]);
+});
+
+test("finds a copy in the literal parts of a template whose substitution is not a constant of the file", () => {
+  const source = [
+    'import { base } from "./routes";',
+    "const ROUTE = new RegExp(",
+    `  \`^\${base}/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$\`,`,
+    ");",
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), [3]);
+});
+
 test("finds a copy assembled from pieces held in constants of the same file", () => {
   const source = [
     'const HEX = "[0-9a-f]";',
@@ -76,6 +101,7 @@ test("ignores UUID values used as test data", () => {
     `const path = \`/products/\${PRODUCT_ID}/prices/00000000-0000-0000-0000-000000000000\`;`,
     "expect(body.id).toMatch(/^0123abcd-ef01-4567-89ab-cdef01234567$/);",
     'const ids = ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"];',
+    "expect(body.ids).toMatch(/^(0123abcd-ef01-4567-89ab-cdef01234567,?)+$/);",
   ].join("\n");
 
   assert.deepEqual(linesOf(source), []);
