@@ -174,7 +174,7 @@ const ZOD_ID_FORMATS = [
   ['import { guid as anyId } from "zod";\nconst id = anyId();', [1, 2]],
   ['import { regexes } from "zod/v4/core";\nconst id = regexes.uuid4;', [2]],
   ['import { z } from "zod";\nconst text = z.string();\nconst id = text.uuid();', [3]],
-  ['import { z } from "zod";\nconst { guid } = z;\nconst id = guid();', [2]],
+  ['import { z } from "zod";\nconst { guid } = z;\nconst id = guid();', [2, 3]],
   ['import { z } from "zod";\nconst { "uuid": anyId } = z;', [2]],
   [
     'import { z } from "zod";\nconst text = () => z.string();\nexport const id = text().guid();',
@@ -203,11 +203,151 @@ test("finds a zod id format picked by a computed key, whatever spells the key", 
       'import { z } from "zod";\ndeclare const key: keyof typeof z;\nexport const format = z[key];',
       [3],
     ],
-    ['import { z } from "zod";\nconst { ["uuid"]: anyId } = z;\nanyId();', [2]],
+    ['import { z } from "zod";\nconst { ["uuid"]: anyId } = z;\nanyId();', [2, 3]],
     ['import { z } from "zod";\nconst key = "guid";\nconst { [key]: anyId } = z.string();', [3]],
   ]) {
     assert.deepEqual(linesOf(source), lines, source);
   }
+});
+
+test("finds a zod id format taken by destructuring, in any position and at any depth", () => {
+  const zodAnd = (...lines) => ['import { z } from "zod";', ...lines].join("\n");
+  for (const [source, lines] of [
+    [zodAnd("let f: () => z.ZodType;", "({ uuid: f } = z);"), [3]],
+    [zodAnd("let f: () => z.ZodType;", '({ ["uuid"]: f } = z);'), [3]],
+    [zodAnd('const key = "uuid";', "let f: () => z.ZodType;", "({ [key]: f } = z);"), [4]],
+    [zodAnd("let guid: () => z.ZodType;", "({ guid } = z);"), [3]],
+    [zodAnd("let guid: () => z.ZodType;", "({ guid = z.string } = z);"), [3]],
+    [zodAnd("let f: () => z.ZodType;", "({ a: { uuid: f } } = { a: z });"), [3]],
+    [zodAnd("let f: () => z.ZodType;", "[{ guid: f }] = [z];"), [3]],
+    [zodAnd("let guid: () => z.ZodType;", "for ({ guid } of [z]) guid();"), [3]],
+    [zodAnd("let guid: () => z.ZodType;", "for ({ guid } of new Set([z])) guid();"), [3]],
+    [zodAnd("let f: () => z.ZodType;", 'for ({ ["uuid"]: f } of new Set([z]));'), [3]],
+    [
+      zodAnd(
+        "function* formats() {",
+        "  yield z;",
+        "}",
+        "let f: () => z.ZodType;",
+        "for ({ guid: f } of formats());",
+      ),
+      [6],
+    ],
+    [zodAnd("let f: () => z.ZodType;", "({ a: { guid: f } = {} } = { a: z });"), [3]],
+    [zodAnd("let f: () => z.ZodType;", "[{ guid: f } = {}] = [z];"), [3]],
+    [zodAnd("let f: () => z.ZodType;", "[{ guid: f } = {}] = new Set([z]);"), [3]],
+    [
+      zodAnd(
+        "function* formats() {",
+        "  yield z;",
+        "}",
+        "let f: () => z.ZodType;",
+        "[{ uuid: f } = {}] = formats();",
+      ),
+      [6],
+    ],
+    [zodAnd("for (const { guid } of [z]) guid();"), [2]],
+    [zodAnd("const { a: { uuid: f } } = { a: z };"), [2]],
+    [zodAnd("const [{ guid }] = [z];"), [2]],
+    [zodAnd("export function f({ uuid }: typeof z) {", "  return uuid();", "}"), [2, 3]],
+    [zodAnd("export const f = ({ a: { guid } }: { a: typeof z }) => guid();"), [2]],
+  ]) {
+    assert.deepEqual(linesOf(source), lines, source);
+  }
+});
+
+test("ignores destructuring that takes no zod id format", () => {
+  const source = [
+    'import { z } from "zod";',
+    "const row = { uuid: 1, guid: 2 };",
+    'const key = "uuid";',
+    "let a: number;",
+    "let uuid: number;",
+    "let text: () => z.ZodString;",
+    "({ uuid: a, guid: a } = row);",
+    '({ ["uuid"]: a } = row);',
+    "({ [key]: a } = row);",
+    "({ uuid } = row);",
+    "({ a: { guid: a } } = { a: row });",
+    "[{ uuid: a }] = [row];",
+    "for ({ uuid } of [row]);",
+    "for (const { guid } of [row]) a = guid;",
+    "export function f({ uuid }: typeof row) {",
+    "  return uuid;",
+    "}",
+    "({ string: text } = z);",
+    "const { object } = z;",
+    "export const shape = object({});",
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), []);
+});
+
+test("finds a call of a zod id format on the line it is called, however the format was passed on", () => {
+  const zodAnd = (...lines) => ['import { z } from "zod";', ...lines].join("\n");
+  for (const [source, lines] of [
+    [
+      zodAnd(
+        "declare const cond: boolean;",
+        "const g = cond ? z.guid : z.uuid;",
+        "export const id = g();",
+      ),
+      [3, 4],
+    ],
+    [zodAnd("const pick = () => z.uuid;", "export const id = pick()();"), [2, 3]],
+    [zodAnd("export function make(f: typeof z.uuid) {", "  return f();", "}"), [2, 3]],
+    [
+      zodAnd(
+        "const make = (text: z.ZodString) => text.guid;",
+        "export const id = make(z.string())();",
+      ),
+      [2, 3],
+    ],
+  ]) {
+    assert.deepEqual(linesOf(source), lines, source);
+  }
+});
+
+test("ignores calls of values built from the shared shape and of zod's other functions", () => {
+  const source = [
+    'import { z, ZodError } from "zod";',
+    'import { recordIdSchema } from "../../../packages/contracts/src/shared/index.js";',
+    "export const id = recordIdSchema();",
+    "export const parsed = id.parse(null);",
+    "export const lowered = recordIdSchema().optional().parse(null);",
+    "export const body = z.object({ id: recordIdSchema(), other: id });",
+    "export const error = new ZodError([]);",
+    "const text = z.string;",
+    "export const name = text().min(1);",
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), []);
+});
+
+test("finds a zod id format named by an indexed access type", () => {
+  const zodAnd = (...lines) => ['import { z } from "zod";', ...lines].join("\n");
+  for (const [source, lines] of [
+    [zodAnd('export type F = z.ZodString["uuid"];'), [2]],
+    [zodAnd('type Key = "uuid" | "string";', "export type F = (typeof z)[Key];"), [3]],
+    [zodAnd('export function make(f: z.ZodString["guid"]) {', "  return f;", "}"), [2]],
+  ]) {
+    assert.deepEqual(linesOf(source), lines, source);
+  }
+});
+
+test("ignores indexed access types that name no zod id format", () => {
+  const source = [
+    'import { z } from "zod";',
+    "const row = { uuid: 1, guid: 2 };",
+    'export type Row = (typeof row)["uuid"];',
+    'export type Plain = { guid: string }["guid"];',
+    'export type Min = z.ZodString["min"];',
+    'export type Formats = (typeof z)["string" | "object"];',
+    "const owner = z.object({ ownerUuid: z.string() });",
+    'export type Owner = z.infer<typeof owner>["ownerUuid"];',
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), []);
 });
 
 const A_FILE = "apps/cloud/src/id-shape-check-a.ts";
