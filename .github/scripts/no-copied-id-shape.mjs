@@ -285,7 +285,7 @@ function isZodIdFormat(node, checker) {
   return isZodIdFormatSymbol(checker.getSymbolAtLocation(node), checker);
 }
 
-function namesOfKeyType(type, checker) {
+function literalNamesOfType(type, checker) {
   const constraint = checker.getBaseConstraintOfType(type) ?? type;
   const types = constraint.isUnion() ? constraint.types : [constraint];
   return types.filter((each) => each.isStringLiteral()).map((each) => each.value);
@@ -382,31 +382,9 @@ function isMemberOrKeyName(node) {
   );
 }
 
-function isKeyOf(node) {
-  return ts.isTypeOperatorNode(node) && node.operator === ts.SyntaxKind.KeyOfKeyword;
-}
-
-function isCallArgument(node) {
-  const parent = node.parent;
-  return (
-    (ts.isCallExpression(parent) || ts.isNewExpression(parent)) &&
-    (parent.arguments ?? []).includes(node)
-  );
-}
-
-function keyTypesOf(node, checker) {
-  if (isKeyOf(node) || ts.isTemplateLiteralTypeNode(node)) {
-    return [checker.getTypeFromTypeNode(node)];
-  }
-  if (ts.isIndexedAccessTypeNode(node)) {
-    return [checker.getTypeFromTypeNode(node), checker.getTypeFromTypeNode(node.indexType)];
-  }
-  if (ts.isElementAccessExpression(node)) {
-    return [checker.getTypeAtLocation(node.argumentExpression)];
-  }
-  if (ts.isComputedPropertyName(node) || isCallArgument(node)) {
-    return [checker.getTypeAtLocation(ts.isComputedPropertyName(node) ? node.expression : node)];
-  }
+function literalNamesOf(node, checker) {
+  if (ts.isTypeNode(node)) return literalNamesOfType(checker.getTypeFromTypeNode(node), checker);
+  if (ts.isExpression(node)) return literalNamesOfType(checker.getTypeAtLocation(node), checker);
   return [];
 }
 
@@ -426,9 +404,7 @@ function reservedNamesIn(nodes, constants, checker, reserved) {
       ((ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) &&
         reserved.has(node.text)) ||
       (isStringExpression(node) && !isInsideStringExpression(node) && isReservedText(node)) ||
-      keyTypesOf(node, checker).some((type) =>
-        namesOfKeyType(type, checker).some((name) => reserved.has(name)),
-      ),
+      literalNamesOf(node, checker).some((name) => reserved.has(name)),
   );
 }
 
