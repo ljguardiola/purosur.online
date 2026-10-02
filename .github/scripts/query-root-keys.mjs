@@ -171,13 +171,15 @@ function isCalledThrough(reference) {
     ts.isImportSpecifier(parent) ||
     ts.isImportClause(parent) ||
     ts.isExportSpecifier(parent) ||
-    ts.isExportAssignment(parent) ||
-    ts.isTypeQueryNode(parent)
+    ts.isExportAssignment(parent)
   ) {
     return true;
   }
   const callee =
-    ts.isPropertyAccessExpression(parent) && parent.name === reference ? parent : reference;
+    (ts.isPropertyAccessExpression(parent) && parent.name === reference) ||
+    (ts.isElementAccessExpression(parent) && parent.argumentExpression === reference)
+      ? parent
+      : reference;
   const user = callee.parent;
   if (ts.isCallOrNewExpression(user)) return user.expression === callee;
   return (
@@ -204,15 +206,42 @@ function nameOfFunction(fn) {
     : undefined;
 }
 
-function identifierAt(sourceFile, position) {
+function isTypePosition(reference) {
+  const parent = reference.parent;
+  if (
+    (ts.isMethodSignature(parent) || ts.isPropertySignature(parent)) &&
+    parent.name === reference
+  ) {
+    return true;
+  }
+  for (let child = reference, node = parent; node !== undefined; child = node, node = node.parent) {
+    if (ts.isExpressionWithTypeArguments(node)) {
+      if (child !== node.expression) return true;
+      const clause = node.parent;
+      return (
+        ts.isHeritageClause(clause) &&
+        !(clause.token === ts.SyntaxKind.ExtendsKeyword && ts.isClassLike(clause.parent))
+      );
+    }
+    if (ts.isTypeNode(node)) return true;
+  }
+  return false;
+}
+
+function referenceAt(sourceFile, position) {
   let found;
-  const visit = (node) => {
-    if (found !== undefined || position < node.getStart(sourceFile) || position >= node.end) return;
-    if (ts.isIdentifier(node)) found = node;
-    else ts.forEachChild(node, visit);
+  const visit = (node, inJsDoc) => {
+    if (found !== undefined || position < node.pos || position >= node.end) return;
+    if (ts.isIdentifier(node) || ts.isStringLiteralLike(node)) {
+      const nameStart = node.getStart(sourceFile) + (ts.isIdentifier(node) ? 0 : 1);
+      if (nameStart === position) found = { node, inJsDoc };
+      return;
+    }
+    for (const jsDoc of node.jsDoc ?? []) visit(jsDoc, true);
+    ts.forEachChild(node, (child) => visit(child, inJsDoc));
   };
-  visit(sourceFile);
-  return found?.getStart(sourceFile) === position ? found : undefined;
+  visit(sourceFile, false);
+  return found;
 }
 
 function rootTracer(service, checker, tools, checkedFiles) {
@@ -234,8 +263,15 @@ function rootTracer(service, checker, tools, checkedFiles) {
           references.every(({ fileName, textSpan }) => {
             const sourceFile = checkedFileNamed.get(fileName);
             if (sourceFile === undefined) return true;
-            const reference = identifierAt(sourceFile, textSpan.start);
-            return reference === name || (reference !== undefined && isCalledThrough(reference));
+            const found = referenceAt(sourceFile, textSpan.start);
+            if (found === undefined) return false;
+            const { node: reference, inJsDoc } = found;
+            return (
+              inJsDoc ||
+              reference === name ||
+              isTypePosition(reference) ||
+              isCalledThrough(reference)
+            );
           }),
         ) ?? false,
       );
