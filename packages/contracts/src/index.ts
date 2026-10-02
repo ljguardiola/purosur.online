@@ -255,6 +255,7 @@ export type {
   StockCountList,
   StockMovement,
   StockMovementList,
+  StockMovementReasonList,
   StockPeriodDays,
   StockProduct,
   StockProductList,
@@ -265,6 +266,7 @@ export {
   stockBalanceSchema,
   stockCountListSchema,
   stockMovementListSchema,
+  stockMovementReasonListSchema,
   stockProductListSchema,
 } from "./stock/stock-lists.js";
 export type {

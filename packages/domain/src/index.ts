@@ -13,6 +13,8 @@ export {
   ALERT_VIEW_PERMISSION_KEYS,
   CAPABILITIES,
   CAPABILITY_PERMISSIONS,
+  CHALLENGE_TTL_MS,
+  challengeExpiryWindowStart,
   decodePinSalt,
   encodePinHash,
   grantedCapabilities,
@@ -321,9 +323,9 @@ export {
   MANUAL_STOCK_MOVEMENT_KINDS,
   MAX_STOCK_QUANTITY,
   manualStockMovementCapability,
+  manualStockMovementReasons,
   STOCK_DIRECTIONS,
   STOCK_QUANTITY_PER_UNIT,
-  signedDelta,
   visibleManualStockMovementKinds,
 } from "./stock/index.js";
 export type {

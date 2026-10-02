@@ -8,7 +8,7 @@ export interface AuthenticateInstallationInput {
 
 export type AuthenticateInstallationOutcome =
   | { kind: "rejected" }
-  | { kind: "authenticated"; deviceId: string; revoked: boolean };
+  | { kind: "authenticated"; deviceId: string; registerId: string; revoked: boolean };
 
 export async function authenticateInstallation(
   { store, clock, tokens }: InstallationTokenPorts,
@@ -27,6 +27,7 @@ export async function authenticateInstallation(
     return {
       kind: "authenticated",
       deviceId: installation.deviceId,
+      registerId: installation.registerId,
       revoked: installation.revoked,
     };
   });

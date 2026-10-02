@@ -1169,6 +1169,7 @@ describe("wiring the stock routes", () => {
       url: "/api/inventory-levels/00000000-0000-0000-0000-000000000000",
     },
     { method: "GET", url: "/api/inventory-movements" },
+    { method: "GET", url: "/api/inventory-movement-reasons" },
     { method: "POST", url: "/api/inventory-losses" },
     { method: "POST", url: "/api/inventory-adjustments" },
   ] as const;
@@ -1952,6 +1953,11 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/inventory-movements",
+        access: capabilityAccess("stock_movements"),
+      },
+      {
+        method: "GET",
+        url: "/api/inventory-movement-reasons",
         access: capabilityAccess("stock_movements"),
       },
       {

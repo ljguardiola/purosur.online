@@ -14,6 +14,7 @@ import {
   crackers,
   honey,
   honeyLoss,
+  movementReasons,
   withoutBalance,
 } from "./test-support/stock-fixtures";
 
@@ -41,6 +42,7 @@ const ADJUSTMENTS_ONLY: BackofficeAccess = {
 function createServices(movements = [honeyLoss, almondsAdjustment]): StockMovementsScreenServices {
   return {
     fetchStockMovements: vi.fn().mockResolvedValue({ kind: "ok", value: { movements } }),
+    fetchStockMovementReasons: vi.fn().mockResolvedValue({ kind: "ok", value: movementReasons }),
     fetchStockProducts: vi.fn().mockResolvedValue({
       kind: "ok",
       value: { products: [almonds, crackers, honey].map(withoutBalance) },

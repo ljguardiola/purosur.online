@@ -3,24 +3,25 @@ import {
   passkeyRegistrationChallengeSchema,
   passkeySummarySchema,
 } from "@purosur/contracts";
-import { findAccountProfile } from "@purosur/domain/access/use-cases";
+import {
+  consumePendingPasskeyChallenge,
+  findAccountProfile,
+  issuePendingPasskeyChallenge,
+  listPasskeyCredentials,
+  registerPasskey,
+} from "@purosur/domain/access/use-cases";
 import type { RegistrationResponseJSON } from "@simplewebauthn/server";
 import { generateRegistrationOptions, verifyRegistrationResponse } from "@simplewebauthn/server";
-import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { openAlert } from "../alerts/open-alert.js";
-import { auditLog, passkeys } from "../platform/db/schema.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { drizzleAccounts } from "./drizzle-accounts.js";
+import { DrizzlePasskeyRegistrationStore } from "./drizzle-passkey-registration-store.js";
+import { drizzlePasskeys } from "./drizzle-passkeys.js";
+import { DrizzlePendingPasskeyChallengeStore } from "./drizzle-pending-passkey-challenge-store.js";
 import { UNAUTHENTICATED_RESPONSE } from "./open-session.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
-import {
-  consumePendingPasskeyChallenge,
-  pruneExpiredPasskeyChallenges,
-  storePendingPasskeyChallenge,
-} from "./passkey-challenge.js";
 import { deriveUserHandle } from "./recovery-user-handle.js";
 import {
   OPEN_SESSION_ACCESS,
@@ -41,8 +42,6 @@ const REGISTRATION_FAILED_RESPONSE = {
   message: "the passkey registration did not verify against the backoffice's origin",
   details: [{ field: "passkey_registration" }],
 } as const;
-
-class CredentialAlreadyRegistered extends Error {}
 
 export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
@@ -75,10 +74,10 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
         return;
       }
 
-      const existingPasskeys = await options.db
-        .select({ credentialId: passkeys.credentialId, transports: passkeys.transports })
-        .from(passkeys)
-        .where(eq(passkeys.userId, openSession.userId));
+      const existingPasskeys = await listPasskeyCredentials(
+        { passkeys: drizzlePasskeys(options.db) },
+        { userId: openSession.userId },
+      );
 
       const registrationOptions = await generateRegistrationOptions({
         rpName: webAuthnConfig.rpName,
@@ -94,13 +93,15 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
         })),
       });
 
-      await pruneExpiredPasskeyChallenges(options.db, issuedAt);
-      await storePendingPasskeyChallenge(options.db, {
-        sessionId: openSession.sessionId,
-        kind: "registration",
-        registrationChallenge: registrationOptions.challenge,
-        now: issuedAt,
-      });
+      await issuePendingPasskeyChallenge(
+        { store: new DrizzlePendingPasskeyChallengeStore(options.db) },
+        {
+          sessionId: openSession.sessionId,
+          kind: "registration",
+          challenge: registrationOptions.challenge,
+          at: issuedAt,
+        },
+      );
 
       await reply.code(200).send(
         passkeyRegistrationChallengeSchema.parse({
@@ -126,19 +127,18 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
       }
       const { passkey_name: passkeyName } = body;
 
-      const pending = await consumePendingPasskeyChallenge(options.db, {
-        sessionId: openSession.sessionId,
-        kind: "registration",
-        now: attemptedAt,
-      });
-      if (!pending?.registrationChallenge) {
+      const pending = await consumePendingPasskeyChallenge(
+        { store: new DrizzlePendingPasskeyChallengeStore(options.db) },
+        { sessionId: openSession.sessionId, kind: "registration", at: attemptedAt },
+      );
+      if (pending.kind !== "consumed") {
         await reply.code(400).send(REGISTRATION_FAILED_RESPONSE);
         return;
       }
 
       const verification = await verifyRegistrationResponse({
         response: body.passkey_registration as RegistrationResponseJSON,
-        expectedChallenge: pending.registrationChallenge,
+        expectedChallenge: pending.challenge,
         expectedOrigin: webAuthnConfig.expectedOrigin,
         expectedRPID: webAuthnConfig.rpID,
         requireUserVerification: true,
@@ -149,65 +149,23 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
       }
       const { registrationInfo } = verification;
 
-      const inserted = await options.db
-        .transaction(async (tx) => {
-          const [newPasskey] = await tx
-            .insert(passkeys)
-            .values({
-              userId: openSession.userId,
-              credentialId: registrationInfo.credential.id,
-              publicKey: Buffer.from(registrationInfo.credential.publicKey).toString("base64url"),
-              counter: registrationInfo.credential.counter,
-              transports: registrationInfo.credential.transports ?? null,
-              deviceType: registrationInfo.credentialDeviceType,
-              backedUp: registrationInfo.credentialBackedUp,
-              name: passkeyName,
-            })
-            .onConflictDoNothing({ target: passkeys.credentialId })
-            .returning({ id: passkeys.id, createdAt: passkeys.createdAt });
-          if (!newPasskey) {
-            throw new CredentialAlreadyRegistered();
-          }
-
-          await tx.insert(auditLog).values({
-            entity: "passkey",
-            entityId: newPasskey.id,
-            actorId: openSession.userId,
-            previousValue: null,
-            newValue: {
-              id: newPasskey.id,
-              name: passkeyName,
-              credentialId: registrationInfo.credential.id,
-              deviceType: registrationInfo.credentialDeviceType,
-              backedUp: registrationInfo.credentialBackedUp,
-            },
-          });
-
-          await openAlert(
-            tx,
-            {
-              kind: "backoffice_passkey_changed",
-              scope: openSession.userId,
-              detail: {
-                action: "registered",
-                passkeyName,
-                actorId: openSession.userId,
-                via: "self",
-              },
-            },
-            { now },
-          );
-
-          return newPasskey;
-        })
-        .catch((error: unknown) => {
-          if (error instanceof CredentialAlreadyRegistered) {
-            return undefined;
-          }
-          throw error;
-        });
-
-      if (!inserted) {
+      const registered = await registerPasskey(
+        { store: new DrizzlePasskeyRegistrationStore(options.db) },
+        {
+          userId: openSession.userId,
+          passkey: {
+            credentialId: registrationInfo.credential.id,
+            publicKey: Buffer.from(registrationInfo.credential.publicKey).toString("base64url"),
+            counter: registrationInfo.credential.counter,
+            transports: registrationInfo.credential.transports ?? null,
+            deviceType: registrationInfo.credentialDeviceType,
+            backedUp: registrationInfo.credentialBackedUp,
+            name: passkeyName,
+          },
+          at: attemptedAt,
+        },
+      );
+      if (registered.kind === "passkey_already_registered") {
         await reply.code(400).send({
           code: "passkey_already_registered",
           message: "this passkey is already registered",
@@ -218,9 +176,9 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
 
       await reply.code(200).send(
         passkeySummarySchema.parse({
-          id: inserted.id,
-          name: passkeyName,
-          created_at: inserted.createdAt.toISOString(),
+          id: registered.passkey.id,
+          name: registered.passkey.name,
+          created_at: registered.passkey.createdAt.toISOString(),
           last_used_at: null,
         }),
       );

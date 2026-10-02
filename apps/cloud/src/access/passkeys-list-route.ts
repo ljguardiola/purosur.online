@@ -1,9 +1,9 @@
 import { passkeyListSchema } from "@purosur/contracts";
-import { asc, eq } from "drizzle-orm";
+import { listOwnPasskeys } from "@purosur/domain/access/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { passkeys } from "../platform/db/schema.js";
 import { sameOriginGuard } from "./backoffice-origin.js";
+import { drizzlePasskeys } from "./drizzle-passkeys.js";
 import {
   OPEN_SESSION_ACCESS,
   openSessionOf,
@@ -34,16 +34,10 @@ export function registerPasskeysListRoute<TQueryResult extends PgQueryResultHKT>
     async (request, reply) => {
       const openSession = openSessionOf(request);
 
-      const rows = await options.db
-        .select({
-          id: passkeys.id,
-          name: passkeys.name,
-          createdAt: passkeys.createdAt,
-          lastUsedAt: passkeys.lastUsedAt,
-        })
-        .from(passkeys)
-        .where(eq(passkeys.userId, openSession.userId))
-        .orderBy(asc(passkeys.createdAt));
+      const rows = await listOwnPasskeys(
+        { passkeys: drizzlePasskeys(options.db) },
+        { userId: openSession.userId },
+      );
 
       await reply.code(200).send(
         passkeyListSchema.parse(

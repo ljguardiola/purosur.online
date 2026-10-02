@@ -5,6 +5,7 @@ import {
   stockBalanceSchema,
   stockCountListSchema,
   stockMovementListSchema,
+  stockMovementReasonListSchema,
   stockProductListSchema,
 } from "./stock-lists.js";
 
@@ -151,6 +152,33 @@ describe("stockProductListSchema", () => {
   ])("refuses %s as %j", (field, value) => {
     expect(
       stockProductListSchema.safeParse({ products: [{ ...product, [field]: value }] }).success,
+    ).toBe(false);
+  });
+});
+
+describe("stockMovementReasonListSchema", () => {
+  const theft = { kind: "loss", reason: "theft", directions: ["subtract"] };
+
+  it("accepts each kind's reasons with the directions each allows", () => {
+    const list = {
+      reasons: [
+        theft,
+        { kind: "adjustment", reason: "purchase_correction", directions: ["add", "subtract"] },
+      ],
+    };
+
+    expect(stockMovementReasonListSchema.safeParse(list).data).toEqual(list);
+  });
+
+  it.each([
+    ["kind", "count"],
+    ["reason", "supplier_return"],
+    ["directions", []],
+    ["directions", ["up"]],
+    ["directions", undefined],
+  ])("refuses %s as %j", (field, value) => {
+    expect(
+      stockMovementReasonListSchema.safeParse({ reasons: [{ ...theft, [field]: value }] }).success,
     ).toBe(false);
   });
 });

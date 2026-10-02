@@ -1,12 +1,11 @@
 import { passkeyListSchema } from "@purosur/contracts";
-import { findBranchUser } from "@purosur/domain/access/use-cases";
-import { asc, eq } from "drizzle-orm";
+import { listUserPasskeys } from "@purosur/domain/access/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { passkeys } from "../platform/db/schema.js";
 import { sameOriginGuard } from "./backoffice-origin.js";
 import { canReactivateUsers } from "./branch-users.js";
 import { drizzleBranchUsers } from "./drizzle-branch-users.js";
+import { drizzlePasskeys } from "./drizzle-passkeys.js";
 import {
   ADMINISTRATOR_ACCESS,
   openSessionOf,
@@ -45,33 +44,22 @@ export function registerUserPasskeysListRoute<TQueryResult extends PgQueryResult
         return;
       }
 
-      const target = await findBranchUser(
-        { users: drizzleBranchUsers(options.db) },
+      const listed = await listUserPasskeys(
+        { users: drizzleBranchUsers(options.db), passkeys: drizzlePasskeys(options.db) },
         {
           locationId: openSession.locationId,
           userId: targetId,
           activeScope: canReactivateUsers(openSession) ? "any" : "active",
         },
       );
-      if (!target) {
+      if (listed.kind === "not_found") {
         await reply.code(404).send(NOT_FOUND_RESPONSE);
         return;
       }
 
-      const rows = await options.db
-        .select({
-          id: passkeys.id,
-          name: passkeys.name,
-          createdAt: passkeys.createdAt,
-          lastUsedAt: passkeys.lastUsedAt,
-        })
-        .from(passkeys)
-        .where(eq(passkeys.userId, target.id))
-        .orderBy(asc(passkeys.createdAt));
-
       await reply.code(200).send(
         passkeyListSchema.parse(
-          rows.map((row) => ({
+          listed.passkeys.map((row) => ({
             id: row.id,
             name: row.name,
             created_at: row.createdAt.toISOString(),

@@ -57,7 +57,12 @@ describe("authenticateInstallation", () => {
 
     const outcome = await authenticate(store, CURRENT);
 
-    expect(outcome).toEqual({ kind: "authenticated", deviceId: "device-1", revoked: false });
+    expect(outcome).toEqual({
+      kind: "authenticated",
+      deviceId: "device-1",
+      registerId: "register-1",
+      revoked: false,
+    });
     expect(store.snapshot()).toEqual(before);
   });
 
@@ -66,7 +71,12 @@ describe("authenticateInstallation", () => {
 
     const outcome = await authenticate(store, CURRENT);
 
-    expect(outcome).toEqual({ kind: "authenticated", deviceId: "device-1", revoked: false });
+    expect(outcome).toEqual({
+      kind: "authenticated",
+      deviceId: "device-1",
+      registerId: "register-1",
+      revoked: false,
+    });
   });
 
   it("refuses the current token once its 7 days are over", async () => {
@@ -83,7 +93,12 @@ describe("authenticateInstallation", () => {
     const outcome = await authenticate(store, PENDING);
 
     const installation = store.snapshot().installations[0];
-    expect(outcome).toEqual({ kind: "authenticated", deviceId: "device-1", revoked: false });
+    expect(outcome).toEqual({
+      kind: "authenticated",
+      deviceId: "device-1",
+      registerId: "register-1",
+      revoked: false,
+    });
     expect(installation?.tokenLookupPrefix).toBe("pen");
     expect(installation?.pendingToken).toBeNull();
   });
@@ -104,7 +119,12 @@ describe("authenticateInstallation", () => {
     const outcome = await authenticate(store, CURRENT);
     expect(store.snapshot()).toEqual(before);
 
-    expect(outcome).toEqual({ kind: "authenticated", deviceId: "device-1", revoked: false });
+    expect(outcome).toEqual({
+      kind: "authenticated",
+      deviceId: "device-1",
+      registerId: "register-1",
+      revoked: false,
+    });
   });
 
   it("refuses an expired pending token without promoting it", async () => {
@@ -122,7 +142,12 @@ describe("authenticateInstallation", () => {
 
     const outcome = await authenticate(store, CURRENT);
 
-    expect(outcome).toEqual({ kind: "authenticated", deviceId: "device-1", revoked: true });
+    expect(outcome).toEqual({
+      kind: "authenticated",
+      deviceId: "device-1",
+      registerId: "register-1",
+      revoked: true,
+    });
   });
 
   it.each([

@@ -1,5 +1,10 @@
 import { expect, test } from "vitest";
-import { formatStockChange, formatStockQuantity, parseStockQuantity } from "./stock-quantity";
+import {
+  directedQuantity,
+  formatStockChange,
+  formatStockQuantity,
+  parseStockQuantity,
+} from "./stock-quantity";
 
 test.each([
   [12_150, "KG", "12,150 kg"],
@@ -48,3 +53,13 @@ test.each([
 ] as const)("does not read %j typed for a %s product", (text, saleUnit) => {
   expect(parseStockQuantity(text, saleUnit)).toBeUndefined();
 });
+
+test.each([
+  ["add", 2000, 2000],
+  ["subtract", 250, -250],
+] as const)(
+  "turns a quantity moved in the %s direction, %i, into the change %i",
+  (direction, quantity, change) => {
+    expect(directedQuantity(direction, quantity)).toBe(change);
+  },
+);

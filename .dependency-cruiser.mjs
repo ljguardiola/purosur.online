@@ -3,18 +3,6 @@ export const CLOUD_ONLY_CONCEPTS = ["purchasing", "alerts", "catalog", "pricing"
 const REAL_POSTGRES_TEST = "apps/cloud/src/.+\\.integration\\.test\\.ts$";
 
 export const PERSISTENCE_IN_HANDLERS_ALLOWLIST = [
-  "apps/cloud/src/access/first-pin-code-route.ts",
-  "apps/cloud/src/access/passkeys-list-route.ts",
-  "apps/cloud/src/access/passkeys-registration-route.ts",
-  "apps/cloud/src/access/passkeys-removal-route.ts",
-  "apps/cloud/src/access/pin-code-redemption-route.ts",
-  "apps/cloud/src/access/session-authenticate-route.ts",
-  "apps/cloud/src/access/session-authorization-route.ts",
-  "apps/cloud/src/access/session-sign-out-route.ts",
-  "apps/cloud/src/access/sign-in-lookup-route.ts",
-  "apps/cloud/src/access/user-passkey-removal-route.ts",
-  "apps/cloud/src/access/user-passkeys-list-route.ts",
-  "apps/cloud/src/access/user-pin-code-route.ts",
   "apps/cloud/src/catalog/brand-deactivation-route.ts",
   "apps/cloud/src/catalog/brand-edit-route.ts",
   "apps/cloud/src/catalog/brand-reactivation-route.ts",
@@ -51,8 +39,6 @@ export const SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST = [
   "apps/backoffice/src/fiscal/issuer-identification-form.ts",
   "apps/backoffice/src/register/register-name-message.ts",
   "apps/backoffice/src/stock/count-moment.ts",
-  "apps/backoffice/src/stock/stock-movement-form.ts",
-  "apps/backoffice/src/stock/stock-movement-modal.tsx",
   "apps/backoffice/src/stock/stock-period.ts",
   "apps/backoffice/src/stock/stock-quantity.ts",
 ];

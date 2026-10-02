@@ -5,10 +5,22 @@ export type {
   StoredSignInPasskey,
 } from "./accounts.js";
 export type {
+  AdmitSignInAttemptPorts,
+  SignInAttemptAdmission,
+  SignInAttemptInput,
+} from "./admit-sign-in-attempt.js";
+export { admitSignInAttempt } from "./admit-sign-in-attempt.js";
+export type {
   AuthorizeRegisterOperationInput,
   AuthorizeRegisterOperationOutcome,
 } from "./authorize-register-operation.js";
 export { authorizeRegisterOperation } from "./authorize-register-operation.js";
+export type {
+  AuthorizeSessionInput,
+  AuthorizeSessionOutcome,
+  AuthorizeSessionPorts,
+} from "./authorize-session.js";
+export { authorizeSession } from "./authorize-session.js";
 export type {
   BranchUser,
   BranchUserActiveScope,
@@ -18,6 +30,23 @@ export type {
 } from "./branch-users.js";
 export type { CheckPinInput, CheckPinOutcome, PinRefusal } from "./check-pin.js";
 export { checkPin } from "./check-pin.js";
+export type {
+  ConfirmedSignInRejection,
+  ConfirmRejectedSignInAttemptPorts,
+} from "./confirm-rejected-sign-in-attempt.js";
+export { confirmRejectedSignInAttempt } from "./confirm-rejected-sign-in-attempt.js";
+export type {
+  ConsumePendingPasskeyChallengeInput,
+  ConsumePendingPasskeyChallengeOutcome,
+  ConsumePendingPasskeyChallengePorts,
+} from "./consume-pending-passkey-challenge.js";
+export { consumePendingPasskeyChallenge } from "./consume-pending-passkey-challenge.js";
+export type {
+  ConsumeSignInChallengeInput,
+  ConsumeSignInChallengeOutcome,
+  ConsumeSignInChallengePorts,
+} from "./consume-sign-in-challenge.js";
+export { consumeSignInChallenge } from "./consume-sign-in-challenge.js";
 export type {
   CreateFirstAdministratorInput,
   CreateFirstAdministratorPorts,
@@ -91,6 +120,12 @@ export type {
 } from "./find-open-session.js";
 export { findOpenSession } from "./find-open-session.js";
 export type {
+  FindPasskeyRemovalTargetInput,
+  FindPasskeyRemovalTargetOutcome,
+  FindPasskeyRemovalTargetPorts,
+} from "./find-passkey-removal-target.js";
+export { findPasskeyRemovalTarget } from "./find-passkey-removal-target.js";
+export type {
   FindRedeemableRecoveryInput,
   FindRedeemableRecoveryOutcome,
   FindRedeemableRecoveryPorts,
@@ -129,11 +164,23 @@ export type {
 } from "./flush-rejected-attempts.js";
 export { flushRejectedAttempts } from "./flush-rejected-attempts.js";
 export type {
+  IssuePendingPasskeyChallengeInput,
+  IssuePendingPasskeyChallengeOutcome,
+  IssuePendingPasskeyChallengePorts,
+} from "./issue-pending-passkey-challenge.js";
+export { issuePendingPasskeyChallenge } from "./issue-pending-passkey-challenge.js";
+export type {
   IssueRecoveryTokenInput,
   IssueRecoveryTokenOutcome,
   IssueRecoveryTokenPorts,
 } from "./issue-recovery-token.js";
 export { issueRecoveryToken } from "./issue-recovery-token.js";
+export type {
+  IssueSignInChallengeInput,
+  IssueSignInChallengeOutcome,
+  IssueSignInChallengePorts,
+} from "./issue-sign-in-challenge.js";
+export { issueSignInChallenge } from "./issue-sign-in-challenge.js";
 export type {
   ListAuthorizersInput,
   ListAuthorizersPorts,
@@ -142,13 +189,61 @@ export type {
 export { listAuthorizers } from "./list-authorizers.js";
 export type { ListBranchUsersInput } from "./list-branch-users.js";
 export { listBranchUsers } from "./list-branch-users.js";
+export type { ListOwnPasskeysInput, ListOwnPasskeysPorts } from "./list-own-passkeys.js";
+export { listOwnPasskeys } from "./list-own-passkeys.js";
+export type {
+  ListPasskeyCredentialsInput,
+  ListPasskeyCredentialsPorts,
+} from "./list-passkey-credentials.js";
+export { listPasskeyCredentials } from "./list-passkey-credentials.js";
 export type { RoleSummary } from "./list-roles.js";
 export { listRoles } from "./list-roles.js";
+export type {
+  ListUserPasskeysInput,
+  ListUserPasskeysOutcome,
+  ListUserPasskeysPorts,
+} from "./list-user-passkeys.js";
+export { listUserPasskeys } from "./list-user-passkeys.js";
 export type {
   LookUpSignInInput,
   LookUpSignInOutcome,
 } from "./look-up-sign-in.js";
 export { lookUpSignIn } from "./look-up-sign-in.js";
+export type {
+  PasskeyAssertionVerification,
+  PasskeyAssertionVerifier,
+  VerifiablePasskey,
+} from "./passkey-assertion-verifier.js";
+export type {
+  AddedPasskey,
+  PasskeyRegistrationAlert,
+  PasskeyRegistrationStore,
+  PasskeyRegistrationStoreTransaction,
+} from "./passkey-registration-store.js";
+export type {
+  PasskeyRemovalAlert,
+  PasskeyRemovalStore,
+  PasskeyRemovalStoreTransaction,
+  RemovedPasskey,
+} from "./passkey-removal-store.js";
+export type {
+  OpenedSession,
+  PasskeySignInStore,
+  PasskeySignInStoreTransaction,
+} from "./passkey-sign-in-store.js";
+export type {
+  PasskeyUse,
+  PasskeyUseRecorder,
+  PasskeyUseRecording,
+} from "./passkey-use-recorder.js";
+export type { PasskeySummary, Passkeys } from "./passkeys.js";
+export type {
+  PendingPasskeyChallenge,
+  PendingPasskeyChallengeKind,
+  PendingPasskeyChallengeSlot,
+  PendingPasskeyChallengeStore,
+  PendingPasskeyChallengeStoreTransaction,
+} from "./pending-passkey-challenge-store.js";
 export type {
   HashedPin,
   LockedPinCode,
@@ -199,6 +294,11 @@ export type {
 } from "./record-session-activity.js";
 export { recordSessionActivity } from "./record-session-activity.js";
 export type {
+  RecordSignInLockoutOutcome,
+  RecordSignInLockoutPorts,
+} from "./record-sign-in-lockout.js";
+export { recordSignInLockout } from "./record-sign-in-lockout.js";
+export type {
   RecoveredPasskey,
   RecoveringAccount,
   RecoveryAttempt,
@@ -234,12 +334,30 @@ export type {
 } from "./redeem-recovery-token.js";
 export { redeemRecoveryToken } from "./redeem-recovery-token.js";
 export type {
+  RegisterPasskeyInput,
+  RegisterPasskeyOutcome,
+  RegisterPasskeyPorts,
+} from "./register-passkey.js";
+export { registerPasskey } from "./register-passkey.js";
+export type {
   FlushedRejectedAttempts,
   RejectedAttemptFlushStore,
   RejectedAttemptFlushStoreTransaction,
   RejectedAttemptKind,
   RejectedAttemptWindow,
 } from "./rejected-attempt-flush-store.js";
+export type {
+  RemoveOwnPasskeyInput,
+  RemoveOwnPasskeyOutcome,
+  RemoveOwnPasskeyPorts,
+} from "./remove-own-passkey.js";
+export { removeOwnPasskey } from "./remove-own-passkey.js";
+export type {
+  RemoveUserPasskeyInput,
+  RemoveUserPasskeyOutcome,
+  RemoveUserPasskeyPorts,
+} from "./remove-user-passkey.js";
+export { removeUserPasskey } from "./remove-user-passkey.js";
 export type {
   PinReplacementPorts,
   PinReplacementStore,
@@ -260,6 +378,10 @@ export type {
   StoredRoleRevision,
 } from "./role-store.js";
 export { RoleNameConflict } from "./role-store.js";
+export type {
+  SessionAuthorizationStore,
+  SessionAuthorizationStoreTransaction,
+} from "./session-authorization-store.js";
 export type { SessionStore } from "./session-store.js";
 export type { OpenSession, Sessions, StoredSession } from "./sessions.js";
 export type {
@@ -268,12 +390,29 @@ export type {
   SignInAtRegisterPorts,
 } from "./sign-in-at-register.js";
 export { signInAtRegister } from "./sign-in-at-register.js";
+export type { SignInChallenges, SignInChallengesTransaction } from "./sign-in-challenges.js";
+export type { SignInLockoutLog, TrippedLockout } from "./sign-in-lockout-log.js";
+export type {
+  SignInLockoutAlert,
+  SignInLockoutStore,
+  SignInLockoutStoreTransaction,
+  SourceAddressBlock,
+} from "./sign-in-lockout-store.js";
 export type {
   SignInCandidate,
   SignInLookupPorts,
   SignInLookupStore,
   SignInLookupStoreTransaction,
 } from "./sign-in-lookup-store.js";
+export type {
+  SignInWithPasskeyInput,
+  SignInWithPasskeyOutcome,
+  SignInWithPasskeyPorts,
+} from "./sign-in-with-passkey.js";
+export { signInWithPasskey } from "./sign-in-with-passkey.js";
+export type { SignOutInput, SignOutOutcome, SignOutPorts } from "./sign-out.js";
+export { signOut } from "./sign-out.js";
+export type { TrippedSignInLockout } from "./trip-sign-in-lockout.js";
 export type {
   AssignableRole,
   LockedUser,

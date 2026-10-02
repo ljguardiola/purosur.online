@@ -1,53 +1,61 @@
+import type {
+  SignInChallenges,
+  SignInChallengesTransaction,
+} from "@purosur/domain/access/use-cases";
 import { eq, inArray, lte } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { signInChallenges } from "../platform/db/schema.js";
 
-/** Generous relative to `generateAuthenticationOptions`'s own 60-second client-side timeout, so a slow biometric prompt never loses to server-side pruning. */
-export const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 const PRUNE_BATCH_SIZE = 100;
 
-export interface StoreSignInChallengeInput {
-  challenge: string;
-  now: Date;
-}
+type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
+  Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
+>[0];
 
-export interface ConsumeSignInChallengeInput {
-  challenge: string;
-  now: Date;
-}
+class DrizzleSignInChallengesTransaction<TQueryResult extends PgQueryResultHKT>
+  implements SignInChallengesTransaction
+{
+  private readonly tx: Transaction<TQueryResult>;
 
-export async function storeSignInChallenge<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  input: StoreSignInChallengeInput,
-): Promise<void> {
-  await db.insert(signInChallenges).values({ challenge: input.challenge, createdAt: input.now });
-}
-
-/** Deletes the row either way: a challenge is redeemable at most once, whether the attempt succeeds or not. */
-export async function consumeSignInChallenge<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  input: ConsumeSignInChallengeInput,
-): Promise<boolean> {
-  const [row] = await db
-    .delete(signInChallenges)
-    .where(eq(signInChallenges.challenge, input.challenge))
-    .returning({ createdAt: signInChallenges.createdAt });
-  if (!row) {
-    return false;
+  constructor(tx: Transaction<TQueryResult>) {
+    this.tx = tx;
   }
-  return row.createdAt.getTime() + CHALLENGE_TTL_MS > input.now.getTime();
+
+  async discardChallengesIssuedAtOrBefore(cutoff: Date): Promise<void> {
+    const expired = this.tx
+      .select({ id: signInChallenges.id })
+      .from(signInChallenges)
+      .where(lte(signInChallenges.createdAt, cutoff))
+      .limit(PRUNE_BATCH_SIZE)
+      .for("update", { skipLocked: true });
+    await this.tx.delete(signInChallenges).where(inArray(signInChallenges.id, expired));
+  }
+
+  async storeChallenge(challenge: string, issuedAt: Date): Promise<void> {
+    await this.tx.insert(signInChallenges).values({ challenge, createdAt: issuedAt });
+  }
+
+  async takeChallenge(challenge: string): Promise<{ issuedAt: Date } | undefined> {
+    const [row] = await this.tx
+      .delete(signInChallenges)
+      .where(eq(signInChallenges.challenge, challenge))
+      .returning({ issuedAt: signInChallenges.createdAt });
+    return row;
+  }
 }
 
-export async function pruneExpiredSignInChallenges<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  now: Date,
-): Promise<void> {
-  const windowStart = new Date(now.getTime() - CHALLENGE_TTL_MS);
-  const expired = db
-    .select({ id: signInChallenges.id })
-    .from(signInChallenges)
-    .where(lte(signInChallenges.createdAt, windowStart))
-    .limit(PRUNE_BATCH_SIZE)
-    .for("update", { skipLocked: true });
-  await db.delete(signInChallenges).where(inArray(signInChallenges.id, expired));
+export class DrizzleSignInChallenges<TQueryResult extends PgQueryResultHKT>
+  implements SignInChallenges
+{
+  private readonly db: PgDatabase<TQueryResult>;
+
+  constructor(db: PgDatabase<TQueryResult>) {
+    this.db = db;
+  }
+
+  transaction<TOutcome>(
+    work: (tx: SignInChallengesTransaction) => Promise<TOutcome>,
+  ): Promise<TOutcome> {
+    return this.db.transaction((tx) => work(new DrizzleSignInChallengesTransaction(tx)));
+  }
 }
