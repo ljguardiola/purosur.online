@@ -1,4 +1,10 @@
 import { createHash } from "node:crypto";
+import {
+  RECOVERY_DESTINATION_ADDRESS_LIMIT,
+  RECOVERY_RATE_LIMIT_WINDOW_MS,
+  RECOVERY_REDEMPTION_SOURCE_ADDRESS_LIMIT,
+  RECOVERY_SOURCE_ADDRESS_LIMIT,
+} from "@purosur/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { recordRecoveryRequestAttempt, recordRedemptionAttempt } from "./recovery-rate-limiter.js";
@@ -28,6 +34,10 @@ function minutesAfterNoon(minutes: number): Date {
   return new Date(NOON.getTime() + minutes * MINUTE_MS);
 }
 
+function secondsLeftInTheWindowAfter(minutes: number): number {
+  return (RECOVERY_RATE_LIMIT_WINDOW_MS - minutes * MINUTE_MS) / 1000;
+}
+
 async function storedKeyValues(): Promise<string[]> {
   const result = await client.query<{ key_value: string }>(
     "select key_value from recovery_rate_limit_attempts",
@@ -46,7 +56,7 @@ describe("recordRecoveryRequestAttempt", () => {
     expect(result.allowed).toBe(true);
   });
 
-  it("allows up to 5 requests per hour for the same destination address, then rejects the 6th", async () => {
+  it("allows the destination address's limit of requests in the window, then rejects the next one", async () => {
     const attempt = (sourceAddress: string) =>
       recordRecoveryRequestAttempt(db, {
         destinationAddress: "ada@example.com",
@@ -54,14 +64,14 @@ describe("recordRecoveryRequestAttempt", () => {
         now: NOON,
       });
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < RECOVERY_DESTINATION_ADDRESS_LIMIT; i++) {
       expect((await attempt(`203.0.113.${i}`)).allowed).toBe(true);
     }
 
     expect((await attempt("203.0.113.99")).allowed).toBe(false);
   });
 
-  it("allows up to 10 requests per hour from the same source address, then rejects the 11th", async () => {
+  it("allows the source address's limit of requests in the window, then rejects the next one", async () => {
     const attempt = (destinationAddress: string) =>
       recordRecoveryRequestAttempt(db, {
         destinationAddress,
@@ -69,7 +79,7 @@ describe("recordRecoveryRequestAttempt", () => {
         now: NOON,
       });
 
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < RECOVERY_SOURCE_ADDRESS_LIMIT; i++) {
       expect((await attempt(`user${i}@example.com`)).allowed).toBe(true);
     }
 
@@ -77,7 +87,7 @@ describe("recordRecoveryRequestAttempt", () => {
   });
 
   it("does not let one destination address's count affect another", async () => {
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < RECOVERY_DESTINATION_ADDRESS_LIMIT; i++) {
       await recordRecoveryRequestAttempt(db, {
         destinationAddress: "ada@example.com",
         sourceAddress: `203.0.113.${i}`,
@@ -94,8 +104,8 @@ describe("recordRecoveryRequestAttempt", () => {
     expect(result.allowed).toBe(true);
   });
 
-  it("resets the destination count once the hourly window rolls over", async () => {
-    for (let i = 0; i < 5; i++) {
+  it("resets the destination count once the window rolls over", async () => {
+    for (let i = 0; i < RECOVERY_DESTINATION_ADDRESS_LIMIT; i++) {
       await recordRecoveryRequestAttempt(db, {
         destinationAddress: "ada@example.com",
         sourceAddress: `203.0.113.${i}`,
@@ -109,18 +119,18 @@ describe("recordRecoveryRequestAttempt", () => {
     });
     expect(withinTheSameHour.allowed).toBe(false);
 
-    const nextHour = new Date(NOON.getTime() + 60 * 60 * 1000);
+    const nextWindow = new Date(NOON.getTime() + RECOVERY_RATE_LIMIT_WINDOW_MS);
     const afterRollover = await recordRecoveryRequestAttempt(db, {
       destinationAddress: "ada@example.com",
       sourceAddress: "203.0.113.100",
-      now: nextHour,
+      now: nextWindow,
     });
 
     expect(afterRollover.allowed).toBe(true);
   });
 
-  it("counts the last 60 minutes, not the current clock hour, so a limit never doubles across the hour", async () => {
-    for (let i = 0; i < 5; i++) {
+  it("counts a sliding window, not the current clock hour, so a limit never doubles across the hour", async () => {
+    for (let i = 0; i < RECOVERY_DESTINATION_ADDRESS_LIMIT; i++) {
       await recordRecoveryRequestAttempt(db, {
         destinationAddress: "ada@example.com",
         sourceAddress: `203.0.113.${i}`,
@@ -138,11 +148,11 @@ describe("recordRecoveryRequestAttempt", () => {
   });
 
   it("reports the seconds until the destination's oldest counted request leaves the window", async () => {
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < RECOVERY_DESTINATION_ADDRESS_LIMIT; i++) {
       await recordRecoveryRequestAttempt(db, {
         destinationAddress: "ada@example.com",
         sourceAddress: `203.0.113.${i}`,
-        now: minutesAfterNoon(i * 10),
+        now: minutesAfterNoon(i),
       });
     }
 
@@ -152,15 +162,18 @@ describe("recordRecoveryRequestAttempt", () => {
       now: minutesAfterNoon(50),
     });
 
-    expect(rejected).toEqual({ allowed: false, retryAfterSeconds: 10 * 60 });
+    expect(rejected).toEqual({
+      allowed: false,
+      retryAfterSeconds: secondsLeftInTheWindowAfter(50),
+    });
   });
 
   it("reports the seconds until the source address's oldest counted request leaves the window", async () => {
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < RECOVERY_SOURCE_ADDRESS_LIMIT; i++) {
       await recordRecoveryRequestAttempt(db, {
         destinationAddress: `user${i}@example.com`,
         sourceAddress: "203.0.113.10",
-        now: minutesAfterNoon(i * 5),
+        now: minutesAfterNoon(i),
       });
     }
 
@@ -170,15 +183,18 @@ describe("recordRecoveryRequestAttempt", () => {
       now: minutesAfterNoon(45),
     });
 
-    expect(rejected).toEqual({ allowed: false, retryAfterSeconds: 15 * 60 });
+    expect(rejected).toEqual({
+      allowed: false,
+      retryAfterSeconds: secondsLeftInTheWindowAfter(45),
+    });
   });
 
   it("admits a request made exactly when the reported wait runs out", async () => {
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < RECOVERY_DESTINATION_ADDRESS_LIMIT; i++) {
       await recordRecoveryRequestAttempt(db, {
         destinationAddress: "ada@example.com",
         sourceAddress: `203.0.113.${i}`,
-        now: minutesAfterNoon(i * 10),
+        now: minutesAfterNoon(i),
       });
     }
     const rejected = await recordRecoveryRequestAttempt(db, {
@@ -187,7 +203,7 @@ describe("recordRecoveryRequestAttempt", () => {
       now: minutesAfterNoon(50),
     });
     if (rejected.allowed) {
-      throw new Error("test setup: expected the sixth request to be rejected");
+      throw new Error("test setup: expected the request over the limit to be rejected");
     }
 
     const retried = await recordRecoveryRequestAttempt(db, {
@@ -221,7 +237,7 @@ describe("recordRecoveryRequestAttempt", () => {
     await recordRecoveryRequestAttempt(db, {
       destinationAddress: "grace@example.com",
       sourceAddress: "203.0.113.20",
-      now: minutesAfterNoon(90),
+      now: new Date(NOON.getTime() + RECOVERY_RATE_LIMIT_WINDOW_MS + 30 * MINUTE_MS),
     });
 
     expect(await storedKeyValues()).toHaveLength(2);
@@ -236,8 +252,8 @@ describe("recordRedemptionAttempt", () => {
     expect(result.allowed).toBe(true);
   });
 
-  it("allows up to 10 attempts per hour from the same source address, then rejects the 11th", async () => {
-    for (let i = 0; i < 10; i++) {
+  it("allows the source address's limit of attempts in the window, then rejects the next one", async () => {
+    for (let i = 0; i < RECOVERY_REDEMPTION_SOURCE_ADDRESS_LIMIT; i++) {
       const result = await recordRedemptionAttempt(db, {
         sourceAddress: "203.0.113.10",
         now: NOON,
@@ -245,16 +261,16 @@ describe("recordRedemptionAttempt", () => {
       expect(result.allowed).toBe(true);
     }
 
-    const eleventh = await recordRedemptionAttempt(db, {
+    const overTheLimit = await recordRedemptionAttempt(db, {
       sourceAddress: "203.0.113.10",
       now: NOON,
     });
 
-    expect(eleventh.allowed).toBe(false);
+    expect(overTheLimit.allowed).toBe(false);
   });
 
   it("does not share its count with the recovery-request source-address limit", async () => {
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < RECOVERY_SOURCE_ADDRESS_LIMIT; i++) {
       await recordRecoveryRequestAttempt(db, {
         destinationAddress: `user${i}@example.com`,
         sourceAddress: "203.0.113.20",
@@ -267,8 +283,8 @@ describe("recordRedemptionAttempt", () => {
     expect(result.allowed).toBe(true);
   });
 
-  it("resets the count once the hourly window rolls over", async () => {
-    for (let i = 0; i < 10; i++) {
+  it("resets the count once the window rolls over", async () => {
+    for (let i = 0; i < RECOVERY_REDEMPTION_SOURCE_ADDRESS_LIMIT; i++) {
       await recordRedemptionAttempt(db, { sourceAddress: "203.0.113.10", now: NOON });
     }
     const withinTheSameHour = await recordRedemptionAttempt(db, {
@@ -277,17 +293,17 @@ describe("recordRedemptionAttempt", () => {
     });
     expect(withinTheSameHour.allowed).toBe(false);
 
-    const nextHour = new Date(NOON.getTime() + 60 * 60 * 1000);
+    const nextWindow = new Date(NOON.getTime() + RECOVERY_RATE_LIMIT_WINDOW_MS);
     const afterRollover = await recordRedemptionAttempt(db, {
       sourceAddress: "203.0.113.10",
-      now: nextHour,
+      now: nextWindow,
     });
 
     expect(afterRollover.allowed).toBe(true);
   });
 
-  it("counts the last 60 minutes, not the current clock hour", async () => {
-    for (let i = 0; i < 10; i++) {
+  it("counts a sliding window, not the current clock hour", async () => {
+    for (let i = 0; i < RECOVERY_REDEMPTION_SOURCE_ADDRESS_LIMIT; i++) {
       await recordRedemptionAttempt(db, {
         sourceAddress: "203.0.113.10",
         now: minutesAfterNoon(59),
@@ -303,7 +319,7 @@ describe("recordRedemptionAttempt", () => {
   });
 
   it("reports the seconds until the oldest counted attempt leaves the window", async () => {
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < RECOVERY_REDEMPTION_SOURCE_ADDRESS_LIMIT; i++) {
       await recordRedemptionAttempt(db, {
         sourceAddress: "203.0.113.10",
         now: minutesAfterNoon(i),
@@ -315,6 +331,9 @@ describe("recordRedemptionAttempt", () => {
       now: minutesAfterNoon(20),
     });
 
-    expect(rejected).toEqual({ allowed: false, retryAfterSeconds: 40 * 60 });
+    expect(rejected).toEqual({
+      allowed: false,
+      retryAfterSeconds: secondsLeftInTheWindowAfter(20),
+    });
   });
 });

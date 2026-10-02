@@ -1,7 +1,7 @@
+import { RECOVERY_RATE_LIMIT_WINDOW_MS } from "@purosur/domain";
 import { flushRejectedAttempts } from "@purosur/domain/access/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { DrizzleRejectedAttemptFlushStore } from "./drizzle-rejected-attempt-flush-store.js";
-import { RECOVERY_WINDOW_MS } from "./recovery-rate-limiter.js";
 
 // Lets a rejection sampled just before the hour ends finish upserting before the flush deletes
 // its row.
@@ -23,7 +23,7 @@ export function flushClosedRecoveryRejectedAttemptWindows<TQueryResult extends P
   return flushRejectedAttempts(
     { store: new DrizzleRejectedAttemptFlushStore(db, batchSize) },
     {
-      closedBefore: new Date(deps.now().getTime() - RECOVERY_WINDOW_MS - CLOSE_GRACE_MS),
+      closedBefore: new Date(deps.now().getTime() - RECOVERY_RATE_LIMIT_WINDOW_MS - CLOSE_GRACE_MS),
       batchSize,
     },
   );

@@ -7,7 +7,7 @@ import {
   userPinCodeSchema,
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
-import { retryAfterSeconds } from "../platform/retry-after-seconds";
+import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
 import { type Passkey, passkeyListFromWire } from "./passkey-api";
 
@@ -130,7 +130,7 @@ export async function fetchUsers(): Promise<FetchUsersOutcome> {
     return { kind: "forbidden" };
   }
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return rateLimitOutcome(response);
   }
   if (!response.ok) {
     return { kind: "failed" };
@@ -162,7 +162,7 @@ async function gatedActionErrorOutcome(response: Response): Promise<GatedActionE
     return { kind: "forbidden" };
   }
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return rateLimitOutcome(response);
   }
   return { kind: "failed" };
 }
@@ -217,7 +217,7 @@ export async function fetchUser(id: string): Promise<FetchUserOutcome> {
     return { kind: "not_found" };
   }
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return rateLimitOutcome(response);
   }
   if (!response.ok) {
     return { kind: "failed" };
@@ -284,7 +284,7 @@ export async function fetchUserPasskeys(id: string): Promise<FetchUserPasskeysOu
     return { kind: "not_found" };
   }
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return rateLimitOutcome(response);
   }
   if (!response.ok) {
     return { kind: "failed" };

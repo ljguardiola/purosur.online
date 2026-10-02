@@ -1,12 +1,15 @@
 import { createHash } from "node:crypto";
+import {
+  RECOVERY_DESTINATION_ADDRESS_LIMIT,
+  RECOVERY_RATE_LIMIT_WINDOW_MS,
+  RECOVERY_REDEMPTION_SOURCE_ADDRESS_LIMIT,
+  RECOVERY_SOURCE_ADDRESS_LIMIT,
+  recoveryRateLimitWindowStart,
+} from "@purosur/domain";
 import { and, desc, eq, gt, inArray, lte, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { recoveryRateLimitAttempts } from "../platform/db/schema.js";
 
-export const RECOVERY_WINDOW_MS = 60 * 60 * 1000;
-const DESTINATION_ADDRESS_LIMIT_PER_HOUR = 5;
-const SOURCE_ADDRESS_LIMIT_PER_HOUR = 10;
-const REDEMPTION_SOURCE_ADDRESS_LIMIT_PER_HOUR = 10;
 const PRUNE_BATCH_SIZE = 100;
 
 export interface RecoveryRateLimitInput {
@@ -59,7 +62,7 @@ async function recordAttempt<TQueryResult extends PgQueryResultHKT>(
   keys: RateLimitedKey[],
   now: Date,
 ): Promise<RecoveryRateLimitResult> {
-  const windowStart = new Date(now.getTime() - RECOVERY_WINDOW_MS);
+  const windowStart = recoveryRateLimitWindowStart(now);
   await pruneExpiredAttempts(db, windowStart);
 
   return db.transaction(async (tx) => {
@@ -84,7 +87,7 @@ async function recordAttempt<TQueryResult extends PgQueryResultHKT>(
         .limit(key.limit);
       const oldestCounted = counted[key.limit - 1];
       if (oldestCounted) {
-        const slotFreesAt = oldestCounted.attemptedAt.getTime() + RECOVERY_WINDOW_MS;
+        const slotFreesAt = oldestCounted.attemptedAt.getTime() + RECOVERY_RATE_LIMIT_WINDOW_MS;
         retryAfterMs = Math.max(retryAfterMs, slotFreesAt - now.getTime());
       }
     }
@@ -113,12 +116,12 @@ export async function recordRecoveryRequestAttempt<TQueryResult extends PgQueryR
       {
         keyKind: "destination_address",
         keyValue: hashDestinationAddress(input.destinationAddress),
-        limit: DESTINATION_ADDRESS_LIMIT_PER_HOUR,
+        limit: RECOVERY_DESTINATION_ADDRESS_LIMIT,
       },
       {
         keyKind: "source_address",
         keyValue: input.sourceAddress,
-        limit: SOURCE_ADDRESS_LIMIT_PER_HOUR,
+        limit: RECOVERY_SOURCE_ADDRESS_LIMIT,
       },
     ],
     input.now,
@@ -135,7 +138,7 @@ export async function recordRedemptionAttempt<TQueryResult extends PgQueryResult
       {
         keyKind: "redemption_source_address",
         keyValue: input.sourceAddress,
-        limit: REDEMPTION_SOURCE_ADDRESS_LIMIT_PER_HOUR,
+        limit: RECOVERY_REDEMPTION_SOURCE_ADDRESS_LIMIT,
       },
     ],
     input.now,

@@ -1,3 +1,7 @@
+import {
+  RECOVERY_DESTINATION_ADDRESS_LIMIT,
+  RECOVERY_REDEMPTION_SOURCE_ADDRESS_LIMIT,
+} from "@purosur/domain";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -25,7 +29,7 @@ afterAll(async () => {
 const NOON = new Date("2026-01-05T12:00:00.000Z");
 
 describe("the recovery rate limiter on concurrent connections", () => {
-  it("admits exactly 5 of 20 concurrent requests for the same destination address", async () => {
+  it("admits only the destination address's limit out of 20 concurrent requests for it", async () => {
     const db = drizzle(sql);
 
     const results = await Promise.all(
@@ -38,10 +42,12 @@ describe("the recovery rate limiter on concurrent connections", () => {
       ),
     );
 
-    expect(results.filter((result) => result.allowed)).toHaveLength(5);
+    expect(results.filter((result) => result.allowed)).toHaveLength(
+      RECOVERY_DESTINATION_ADDRESS_LIMIT,
+    );
   });
 
-  it("admits exactly 10 of 20 concurrent redemption attempts from the same source address", async () => {
+  it("admits only the source address's limit out of 20 concurrent redemption attempts from it", async () => {
     const db = drizzle(sql);
 
     const results = await Promise.all(
@@ -50,6 +56,8 @@ describe("the recovery rate limiter on concurrent connections", () => {
       ),
     );
 
-    expect(results.filter((result) => result.allowed)).toHaveLength(10);
+    expect(results.filter((result) => result.allowed)).toHaveLength(
+      RECOVERY_REDEMPTION_SOURCE_ADDRESS_LIMIT,
+    );
   });
 });

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { RECOVERY_DESTINATION_ADDRESS_LIMIT } from "@purosur/domain";
 import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import pg from "pg";
@@ -310,7 +311,7 @@ describe("setUpRecovery wired to a real Postgres pool and a real graphile-worker
     try {
       // Waited out one at a time: the worker runs two jobs at once, and an out-of-order commit
       // would supersede a link instead of hitting the over-limit case this test is about.
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < RECOVERY_DESTINATION_ADDRESS_LIMIT; i++) {
         expect((await postRecoveryRequest(server.origin, email)).status).toBe(200);
         await vi.waitFor(() => {
           expect(sender.sent).toHaveLength(i + 1);
@@ -322,7 +323,7 @@ describe("setUpRecovery wired to a real Postgres pool and a real graphile-worker
         expect(await countQueuedRecoveryJobs(integrationDb.databaseUrl)).toBe(0);
       }, WAIT_OPTIONS);
 
-      expect(sender.sent).toHaveLength(5);
+      expect(sender.sent).toHaveLength(RECOVERY_DESTINATION_ADDRESS_LIMIT);
       const sql = postgres(integrationDb.databaseUrl, { max: 1 });
       try {
         const db = drizzle(sql);

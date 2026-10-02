@@ -1,10 +1,10 @@
+import {
+  BACKOFFICE_SESSION_REQUEST_LIMIT,
+  BACKOFFICE_SOURCE_ADDRESS_REQUEST_LIMIT,
+} from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { backofficeRateLimitAttempts, sessions } from "../../platform/db/schema.js";
-import {
-  BACKOFFICE_SESSION_LIMIT_PER_HOUR,
-  BACKOFFICE_SOURCE_ADDRESS_LIMIT_PER_HOUR,
-} from "../backoffice-request-rate-limiter.js";
 import { hashSessionId } from "../session-id.js";
 
 /** The source address Fastify's `inject` reports for every test request. */
@@ -23,7 +23,7 @@ export async function exhaustSessionRateLimit<TQueryResult extends PgQueryResult
     throw new Error("test setup: no session row for this cookie");
   }
   await db.insert(backofficeRateLimitAttempts).values(
-    Array.from({ length: BACKOFFICE_SESSION_LIMIT_PER_HOUR }, () => ({
+    Array.from({ length: BACKOFFICE_SESSION_REQUEST_LIMIT }, () => ({
       keyKind: "session" as const,
       keyValue: session.id,
       attemptedAt: at,
@@ -37,7 +37,7 @@ export async function exhaustSourceAddressRateLimit<TQueryResult extends PgQuery
   at: Date,
 ): Promise<void> {
   await db.insert(backofficeRateLimitAttempts).values(
-    Array.from({ length: BACKOFFICE_SOURCE_ADDRESS_LIMIT_PER_HOUR }, () => ({
+    Array.from({ length: BACKOFFICE_SOURCE_ADDRESS_REQUEST_LIMIT }, () => ({
       keyKind: "source_address" as const,
       keyValue: sourceAddress,
       attemptedAt: at,

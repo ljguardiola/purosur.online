@@ -8,7 +8,7 @@ import {
 } from "@purosur/contracts";
 import type { AlertLevel } from "@purosur/domain";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
-import { retryAfterSeconds } from "../platform/retry-after-seconds";
+import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 
 export type AlertListQuery = {
   level?: AlertLevel;
@@ -67,7 +67,7 @@ export async function fetchAlerts(listQuery: AlertListQuery = {}): Promise<Fetch
     return { kind: "forbidden" };
   }
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return rateLimitOutcome(response);
   }
   if (!response.ok) {
     return { kind: "failed" };
@@ -90,7 +90,7 @@ export async function fetchAlertsOverview(): Promise<FetchAlertsOverviewOutcome>
     return { kind: "forbidden" };
   }
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return rateLimitOutcome(response);
   }
   if (!response.ok) {
     return { kind: "failed" };
@@ -116,7 +116,7 @@ export async function fetchAlert(id: string): Promise<FetchAlertOutcome> {
     return { kind: "not_found" };
   }
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return rateLimitOutcome(response);
   }
   if (!response.ok) {
     return { kind: "failed" };
@@ -152,7 +152,7 @@ export async function closeAlert(id: string): Promise<CloseAlertOutcome> {
     return { kind: "already_closed" };
   }
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return rateLimitOutcome(response);
   }
   return { kind: "failed" };
 }

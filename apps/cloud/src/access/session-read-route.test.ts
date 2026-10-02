@@ -1,4 +1,5 @@
 import {
+  BACKOFFICE_REQUEST_WINDOW_MS,
   CAPABILITIES,
   SESSION_ABSOLUTE_TIMEOUT_MS,
   SESSION_IDLE_TIMEOUT_MS,
@@ -342,7 +343,7 @@ describe("GET /sessions/current", () => {
 
     expect(response.statusCode).toBe(429);
     expect(response.json()).toMatchObject({ code: "rate_limited" });
-    expect(response.headers["retry-after"]).toBe("3600");
+    expect(response.headers["retry-after"]).toBe(String(BACKOFFICE_REQUEST_WINDOW_MS / 1000));
     const row = await sessionRow(rawSessionId);
     expect(row?.lastSeenAt.getTime()).toBe(NOON.getTime());
   });
@@ -404,7 +405,9 @@ describe("GET /sessions/current", () => {
 
     expect(response.statusCode).toBe(429);
     expect(response.json()).toMatchObject({ code: "rate_limited" });
-    expect(response.headers["retry-after"]).toBe(String(55 * 60));
+    expect(response.headers["retry-after"]).toBe(
+      String((BACKOFFICE_REQUEST_WINDOW_MS - 5 * 60 * 1000) / 1000),
+    );
     const row = await sessionRow(rawSessionId);
     expect(row?.lastSeenAt.getTime()).toBe(NOON.getTime());
   });

@@ -1,4 +1,8 @@
-import { RECOVERY_TOKEN_LIFETIME_MS } from "@purosur/domain";
+import {
+  RECOVERY_RATE_LIMIT_WINDOW_MS,
+  RECOVERY_REDEMPTION_SOURCE_ADDRESS_LIMIT,
+  RECOVERY_TOKEN_LIFETIME_MS,
+} from "@purosur/domain";
 import { and, eq, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import Fastify, { type FastifyInstance } from "fastify";
@@ -290,31 +294,33 @@ describe("POST /account-recovery-challenges", () => {
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
   });
 
-  it("rate-limits the 11th redemption attempt per hour from the same source address", async () => {
-    for (let i = 0; i < 10; i++) {
+  it("rate-limits a redemption attempt over the source address's limit in the window", async () => {
+    for (let i = 0; i < RECOVERY_REDEMPTION_SOURCE_ADDRESS_LIMIT; i++) {
       const rawToken = await issueToken();
       const response = await postOptions({ recovery_token: rawToken });
       expect(response.statusCode).toBe(200);
     }
 
     const rawToken = await issueToken();
-    const eleventh = await postOptions({ recovery_token: rawToken });
+    const overTheLimit = await postOptions({ recovery_token: rawToken });
 
-    expect(eleventh.statusCode).toBe(429);
-    expect(eleventh.json()).toMatchObject({ code: "rate_limited" });
-    expect(eleventh.headers["retry-after"]).toBeDefined();
+    expect(overTheLimit.statusCode).toBe(429);
+    expect(overTheLimit.json()).toMatchObject({ code: "rate_limited" });
+    expect(overTheLimit.headers["retry-after"]).toBeDefined();
   });
 
   it("sends Retry-After as the seconds left until the limit frees a slot", async () => {
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < RECOVERY_REDEMPTION_SOURCE_ADDRESS_LIMIT; i++) {
       await postOptions({ recovery_token: "an-unknown-raw-token" });
     }
     currentTime = new Date(NOON.getTime() + 20 * 60 * 1000);
 
-    const eleventh = await postOptions({ recovery_token: "an-unknown-raw-token" });
+    const overTheLimit = await postOptions({ recovery_token: "an-unknown-raw-token" });
 
-    expect(eleventh.statusCode).toBe(429);
-    expect(eleventh.headers["retry-after"]).toBe(String(40 * 60));
+    expect(overTheLimit.statusCode).toBe(429);
+    expect(overTheLimit.headers["retry-after"]).toBe(
+      String((RECOVERY_RATE_LIMIT_WINDOW_MS - 20 * 60 * 1000) / 1000),
+    );
   });
 });
 
@@ -701,20 +707,21 @@ describe("POST /account-recovery-redemptions", () => {
   });
 
   it("shares its rate-limit budget with registration-options", async () => {
-    for (let i = 0; i < 5; i++) {
+    const viaOptions = Math.ceil(RECOVERY_REDEMPTION_SOURCE_ADDRESS_LIMIT / 2);
+    for (let i = 0; i < viaOptions; i++) {
       const rawToken = await issueToken();
       expect((await postOptions({ recovery_token: rawToken })).statusCode).toBe(200);
     }
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < RECOVERY_REDEMPTION_SOURCE_ADDRESS_LIMIT - viaOptions; i++) {
       const response = await postRedeem({ recovery_token: "an-unknown-raw-token" });
       expect(response.statusCode).toBe(400);
     }
 
     const rawToken = await issueToken();
-    const eleventh = await postOptions({ recovery_token: rawToken });
+    const overTheLimit = await postOptions({ recovery_token: rawToken });
 
-    expect(eleventh.statusCode).toBe(429);
-    expect(eleventh.json()).toMatchObject({ code: "rate_limited" });
+    expect(overTheLimit.statusCode).toBe(429);
+    expect(overTheLimit.json()).toMatchObject({ code: "rate_limited" });
   });
 });
 
@@ -970,7 +977,7 @@ describe("auditing rejected recovery redemptions", () => {
   describe("grouped audit of rate-limited rejections", () => {
     it("upserts the accumulator for a rate-limited registration-options/redeem attempt on a known token, without any individual audit row, token lookup or account lookup", async () => {
       const rawToken = await issueToken({ usedAt: NOON });
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < RECOVERY_REDEMPTION_SOURCE_ADDRESS_LIMIT; i++) {
         await postOptions({ recovery_token: "an-unknown-raw-token" });
       }
       const queries: string[] = [];
@@ -1011,7 +1018,7 @@ describe("auditing rejected recovery redemptions", () => {
     });
 
     it("does the identical accumulator work for a rate-limited attempt on a token that matches no row", async () => {
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < RECOVERY_REDEMPTION_SOURCE_ADDRESS_LIMIT; i++) {
         await postOptions({ recovery_token: "an-unknown-raw-token" });
       }
 
@@ -1052,7 +1059,7 @@ describe("auditing rejected recovery redemptions", () => {
           headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.10" },
           payload: { recovery_token: rawToken },
         });
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < RECOVERY_REDEMPTION_SOURCE_ADDRESS_LIMIT; i++) {
         await postTicking("an-unknown-raw-token");
       }
       const decidedAt = new Date(NOON.getTime() + ticks * 1000);
@@ -1075,7 +1082,7 @@ describe("auditing rejected recovery redemptions", () => {
     });
 
     it("writes nothing to the accumulator when the rejected request carries no token at all", async () => {
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < RECOVERY_REDEMPTION_SOURCE_ADDRESS_LIMIT; i++) {
         await postOptions({ recovery_token: "an-unknown-raw-token" });
       }
 
@@ -1088,7 +1095,7 @@ describe("auditing rejected recovery redemptions", () => {
 
   describe("bookkeeping failures never block the 429 response", () => {
     it("still answers 429 with Retry-After when recording the rejected attempt fails", async () => {
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < RECOVERY_REDEMPTION_SOURCE_ADDRESS_LIMIT; i++) {
         await postOptions({ recovery_token: "an-unknown-raw-token" });
       }
       const reportError = vi.fn();
@@ -1110,7 +1117,7 @@ describe("auditing rejected recovery redemptions", () => {
 
       expect(response.statusCode).toBe(429);
       expect(response.json()).toMatchObject({ code: "rate_limited" });
-      expect(response.headers["retry-after"]).toBeDefined();
+      expect(response.headers["retry-after"]).toBe(String(RECOVERY_RATE_LIMIT_WINDOW_MS / 1000));
       expect(reportError).toHaveBeenCalledWith(expect.any(Error));
 
       await failingApp.close();

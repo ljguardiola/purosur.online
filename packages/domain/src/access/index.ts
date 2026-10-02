@@ -1,5 +1,11 @@
 export type { RoleAccess } from "./model/access-increase.js";
 export { grantedPermissionKeys, increasesAccess } from "./model/access-increase.js";
+export {
+  BACKOFFICE_REQUEST_WINDOW_MS,
+  BACKOFFICE_SESSION_REQUEST_LIMIT,
+  BACKOFFICE_SOURCE_ADDRESS_REQUEST_LIMIT,
+  backofficeRequestWindowStart,
+} from "./model/backoffice-request-rate-limits.js";
 export type { Capability } from "./model/capability-permissions.js";
 export {
   CAPABILITIES,
@@ -70,6 +76,13 @@ export {
   pinSignInDelaySeconds,
   pinSignInRetryAfterSeconds,
 } from "./model/pin-sign-in-failures.js";
+export {
+  RECOVERY_DESTINATION_ADDRESS_LIMIT,
+  RECOVERY_RATE_LIMIT_WINDOW_MS,
+  RECOVERY_REDEMPTION_SOURCE_ADDRESS_LIMIT,
+  RECOVERY_SOURCE_ADDRESS_LIMIT,
+  recoveryRateLimitWindowStart,
+} from "./model/recovery-rate-limits.js";
 export { RECOVERY_TOKEN_LIFETIME_MS } from "./model/recovery-token.js";
 export {
   holdsARegisterPermission,
