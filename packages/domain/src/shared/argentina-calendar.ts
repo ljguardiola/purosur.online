@@ -13,3 +13,20 @@ const ISO_DAY_FORMAT = new Intl.DateTimeFormat("en-CA", {
 export function argentinaCalendarDay(instant: Date): string {
   return ISO_DAY_FORMAT.format(instant);
 }
+
+const OFFSET_FORMAT = new Intl.DateTimeFormat("en-US", {
+  timeZone: ARGENTINA_TIME_ZONE,
+  timeZoneName: "longOffset",
+});
+
+function argentinaOffsetAt(instant: Date): string {
+  return OFFSET_FORMAT.format(instant).slice(-6);
+}
+
+// Reading the wall-clock time as UTC lands up to a few hours off the real instant, which can fall
+// on the other side of a clock change; the offset is taken again at the instant it first names.
+export function argentinaInstant(day: string, time: string): string {
+  const wallClock = `${day}T${time}:00`;
+  const firstGuess = new Date(`${wallClock}${argentinaOffsetAt(new Date(`${wallClock}Z`))}`);
+  return `${wallClock}${argentinaOffsetAt(firstGuess)}`;
+}
