@@ -31,11 +31,11 @@ ledger ids to verify.
    - "commit `<sha>` changes this behavior with no earlier test commit":
      confirm in `commits.patch` and every `delta-commits-<round>.patch` in
      the review folder that no earlier test commit states that behavior.
-     Whether the commit only moves, renames or removes code no reader uses
-     is read from its diff against `CONTRIBUTING.md` ("Code style") and
-     "Commit order" in the checklist, with no run; such a commit is
-     `REFUTED`. A behavior commit is proven in a temporary worktree, never
-     in the working tree: `git worktree add --detach <scratch dir> HEAD`,
+     Whether the commit changes behavior at all is first read from its diff
+     against `CONTRIBUTING.md` ("Code style") and "Commit order" in the
+     checklist, with no run; a commit that changes none is `REFUTED`. A
+     behavior commit is proven in a temporary worktree, never in the
+     working tree: `git worktree add --detach <scratch dir> HEAD`,
      `pnpm install --offline` there, then undo, by editing the files there,
      only the change the finding names as the behavior, leaving every move,
      rename, import and test as the branch has them. Run the focused tests
@@ -44,7 +44,8 @@ ledger ids to verify.
      undo removed more than the behavior: keep the code where it is, undo
      only what it does, and run again. No test
      failing leaves it to the diff, read against "Commit order" in the
-     checklist: a behavior no test observes is still confirmed. When the
+     checklist: a behavior no test observes is still confirmed, a change
+     that keeps behavior is `REFUTED`. When the
      test cannot run at `HEAD`, run the proof in a worktree at `<sha>`
      itself; when it cannot run there either, decide from the diff and say
      so in the proof. Remove the worktree with
