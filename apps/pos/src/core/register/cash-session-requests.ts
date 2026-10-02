@@ -2,6 +2,7 @@ import type {
   Authorization,
   AuthorizationRefusal,
   CashBalance,
+  CashCountPreview,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   IdentifyLockedCloserOutcome,
@@ -13,6 +14,8 @@ import type {
 import {
   type ClosedCashSession,
   cashBreakdown,
+  cashCountDifference,
+  expectedCash,
   isLockedToAnother,
   type OpenedCashSession,
   openSaleSummary,
@@ -222,14 +225,30 @@ export function cashBalanceFor(database: LocalDatabase): CashBalance | null {
   }
   const balance = cashBreakdown(readSessionMovements(database, session.id));
   return {
-    opening_float: balance.openingFloat.amount,
-    cash_sales: balance.cashSales.amount,
-    change_given: balance.changeGiven.amount,
-    refunds: balance.refunds.amount,
-    cash_in: balance.cashIn.amount,
-    expenses: balance.expenses.amount,
-    withdrawals: balance.withdrawals.amount,
+    opening_float: balance.openingFloat,
+    cash_sales: balance.cashSales,
+    change_given: balance.changeGiven,
+    refunds: balance.refunds,
+    cash_in: balance.cashIn,
+    expenses: balance.expenses,
+    withdrawals: balance.withdrawals,
     expected: balance.expected,
+  };
+}
+
+export function cashCountPreviewFor(
+  database: LocalDatabase,
+  countedCash: number,
+): CashCountPreview | null {
+  const session = readOpenSession(database);
+  if (session === undefined) {
+    return null;
+  }
+  return {
+    difference: cashCountDifference(
+      countedCash,
+      expectedCash(readSessionMovements(database, session.id)),
+    ),
   };
 }
 

@@ -168,6 +168,7 @@ export {
 export type {
   CancelLockedSaleOutcome,
   CashBalance,
+  CashCountPreview,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   CoreStatusMessage,

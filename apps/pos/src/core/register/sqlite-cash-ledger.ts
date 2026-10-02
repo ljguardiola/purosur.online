@@ -1,10 +1,11 @@
 import type { ListedCashMovement } from "@purosur/contracts";
-import type {
-  CashMovement,
-  CashMovementType,
-  ClosedCashSession,
-  OpenedCashSession,
-  OutboxEventDraft,
+import {
+  type CashMovement,
+  type CashMovementType,
+  type ClosedCashSession,
+  cashMovementDirection,
+  type OpenedCashSession,
+  type OutboxEventDraft,
 } from "@purosur/domain";
 import type {
   CashLedger,
@@ -86,6 +87,7 @@ export function readOpenSessionMovements(
       type: row.type,
       amount: row.amount,
       reason: row.reason,
+      direction: cashMovementDirection(row.type),
       occurred_at: row.occurred_at,
       actor: { user_id: row.actor_id, first_name: row.actor_first_name },
       authorized_by:
