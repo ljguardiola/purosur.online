@@ -1,5 +1,5 @@
-import { z } from "zod";
 import { describe, expect, test } from "vitest";
+import { z } from "zod";
 import { failedRules } from "./failed-rules";
 
 const schema = z
@@ -19,7 +19,12 @@ describe("failedRules", () => {
   });
 
   test("skips a failure that names no rule", () => {
-    expect(failedRules(schema.refine((value) => value !== "x", "plain"), "x")).toEqual([]);
+    expect(
+      failedRules(
+        schema.refine((value) => value !== "x", "plain"),
+        "x",
+      ),
+    ).toEqual([]);
   });
 
   test("is empty for a value of the wrong type", () => {

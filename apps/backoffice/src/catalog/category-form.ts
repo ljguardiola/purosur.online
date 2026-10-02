@@ -1,7 +1,9 @@
-import type { CategorySummary } from "@purosur/contracts";
-import { CATEGORY_NAME_MAX_LENGTH, isCategoryNameTooLong } from "@purosur/domain";
+import { type CategorySummary, categoryCreationBodySchema } from "@purosur/contracts";
 import type { Option, Options } from "@purosur/ui";
+import { schemaLimit } from "../platform/schema-limit";
 import { categoriesInTreeOrder, categoryPathLabels } from "./category-path";
+
+const categoryNameSchema = categoryCreationBodySchema.shape.name;
 
 const NO_PARENT_VALUE = "";
 
@@ -80,8 +82,8 @@ export function categoryNameMessage({ name }: { name: string }): string {
   if (trimmed === "") {
     return "Ingresá el nombre de la categoría.";
   }
-  if (isCategoryNameTooLong(trimmed)) {
-    return `El nombre puede tener hasta ${CATEGORY_NAME_MAX_LENGTH} caracteres.`;
+  if (!categoryNameSchema.safeParse(trimmed).success) {
+    return `El nombre puede tener hasta ${schemaLimit(categoryNameSchema.meta()?.["maxLength"])} caracteres.`;
   }
   return "Revisá el nombre de la categoría.";
 }
