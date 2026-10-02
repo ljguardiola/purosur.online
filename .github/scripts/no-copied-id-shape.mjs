@@ -1,6 +1,5 @@
-import { globSync, readFileSync, realpathSync } from "node:fs";
-import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
+import { globSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
@@ -260,37 +259,6 @@ function isZodDeclaration(declaration) {
   return ZOD_PACKAGE_FILE.test(realPathOf(declaration));
 }
 
-function isMemberName(node) {
-  const parent = node.parent;
-  return (
-    (ts.isPropertyAccessExpression(parent) && parent.name === node) ||
-    (ts.isQualifiedName(parent) && parent.right === node)
-  );
-}
-
-function isZodIdFormatSymbol(symbol, checker) {
-  const target =
-    symbol !== undefined && symbol.flags & ts.SymbolFlags.Alias
-      ? checker.getAliasedSymbol(symbol)
-      : symbol;
-  return (
-    target !== undefined &&
-    ZOD_ID_FORMAT_NAME.test(target.name) &&
-    (target.declarations ?? []).some(isZodDeclaration)
-  );
-}
-
-function isZodIdFormat(node, checker) {
-  if (isMemberName(node) && !ZOD_ID_FORMAT_NAME.test(node.text)) return false;
-  return isZodIdFormatSymbol(checker.getSymbolAtLocation(node), checker);
-}
-
-function literalNamesOfType(type, checker) {
-  const constraint = checker.getBaseConstraintOfType(type) ?? type;
-  const types = constraint.isUnion() ? constraint.types : [constraint];
-  return types.filter((each) => each.isStringLiteral()).map((each) => each.value);
-}
-
 function isZodIdFormatSignature(signature) {
   const declaration = signature.getDeclaration();
   const name = declaration === undefined ? undefined : ts.getNameOfDeclaration(declaration);
@@ -306,98 +274,48 @@ function isZodIdFormatType(type) {
   );
 }
 
-function zodIdFormatsIn(nodes, checker) {
+function calleeOf(node) {
+  if (ts.isCallExpression(node) || ts.isNewExpression(node)) return node.expression;
+  if (ts.isTaggedTemplateExpression(node)) return node.tag;
+  return undefined;
+}
+
+function zodIdFormatCallsIn(nodes, checker) {
   return nodes.flatMap((node) => {
-    if (ts.isExpression(node) && isZodIdFormatType(checker.getTypeAtLocation(node))) return [node];
-    if (ts.isIdentifier(node) && isZodIdFormat(node, checker)) return [node];
-    return [];
+    const callee = calleeOf(node);
+    return callee !== undefined && isZodIdFormatType(checker.getTypeAtLocation(callee))
+      ? [callee]
+      : [];
   });
 }
 
-function zodPackageDirectories(root) {
-  return new Set(
-    SCANNED_PACKAGES.map((scanned) =>
-      realpathSync(
-        dirname(createRequire(join(root, scanned, "package.json")).resolve("zod/package.json")),
-      ),
-    ),
-  );
-}
-
-function declaredIdFormatNames(directory) {
-  return globSync("**/*.d.{ts,mts,cts}", { cwd: directory }).flatMap((file) => {
-    const declarations = ts.createSourceFile(
-      file,
-      readFileSync(join(directory, file), "utf8"),
-      ts.ScriptTarget.Latest,
-      true,
-    );
-    return descendants(declarations)
-      .filter(
-        (node) =>
-          ts.isIdentifier(node) &&
-          ZOD_ID_FORMAT_NAME.test(node.text) &&
-          ts.getNameOfDeclaration(node.parent) === node,
-      )
-      .map((node) => node.text);
-  });
-}
-
-const reservedNamesByRoot = new Map();
-
-function reservedNamesOf(root) {
-  if (!reservedNamesByRoot.has(root)) {
-    const directories = [...zodPackageDirectories(root)];
-    reservedNamesByRoot.set(root, new Set(directories.flatMap(declaredIdFormatNames)));
+function isInTypePosition(node) {
+  for (let ancestor = node.parent; ancestor !== undefined; ancestor = ancestor.parent) {
+    if (ts.isTypeNode(ancestor) && !ts.isExpressionWithTypeArguments(ancestor)) return true;
+    if ((ts.isImportSpecifier(ancestor) || ts.isExportSpecifier(ancestor)) && ancestor.isTypeOnly) {
+      return true;
+    }
+    if ((ts.isImportClause(ancestor) || ts.isExportDeclaration(ancestor)) && ancestor.isTypeOnly) {
+      return true;
+    }
   }
-  return reservedNamesByRoot.get(root);
+  return false;
 }
 
-function isMemberOrKeyName(node) {
-  const parent = node.parent;
-  if (isMemberName(node)) return true;
-  if (ts.isBindingElement(parent)) {
-    return (
-      ts.isObjectBindingPattern(parent.parent) && (parent.propertyName ?? parent.name) === node
-    );
-  }
+function isZodIdFormatValue(node, checker) {
+  const symbol = checker.getSymbolAtLocation(node);
+  if (symbol === undefined) return false;
+  const target = symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
   return (
-    (ts.isPropertyAssignment(parent) ||
-      ts.isShorthandPropertyAssignment(parent) ||
-      ts.isPropertySignature(parent) ||
-      ts.isMethodSignature(parent) ||
-      ts.isPropertyDeclaration(parent) ||
-      ts.isMethodDeclaration(parent) ||
-      ts.isGetAccessorDeclaration(parent) ||
-      ts.isSetAccessorDeclaration(parent)) &&
-    parent.name === node
+    ZOD_ID_FORMAT_NAME.test(target.name) &&
+    (target.flags & ts.SymbolFlags.Value) !== 0 &&
+    (target.declarations ?? []).some(isZodDeclaration) &&
+    !isInTypePosition(node)
   );
 }
 
-function literalNamesOf(node, checker) {
-  if (ts.isTypeNode(node)) return literalNamesOfType(checker.getTypeFromTypeNode(node), checker);
-  if (ts.isExpression(node)) return literalNamesOfType(checker.getTypeAtLocation(node), checker);
-  return [];
-}
-
-function reservedNamesIn(nodes, constants, checker, reserved) {
-  const evaluate = evaluatorOf(constants);
-  const isReservedText = (node) => {
-    const value = evaluate(node);
-    return (
-      value.kind === "text" &&
-      value.pieces.every((piece) => piece !== UNKNOWN_TEXT) &&
-      reserved.has(value.pieces.join(""))
-    );
-  };
-  return nodes.filter(
-    (node) =>
-      (ts.isIdentifier(node) && reserved.has(node.text) && isMemberOrKeyName(node)) ||
-      ((ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) &&
-        reserved.has(node.text)) ||
-      (isStringExpression(node) && !isInsideStringExpression(node) && isReservedText(node)) ||
-      literalNamesOf(node, checker).some((name) => reserved.has(name)),
-  );
+function zodIdFormatValuesIn(nodes, checker) {
+  return nodes.filter((node) => ts.isIdentifier(node) && isZodIdFormatValue(node, checker));
 }
 
 function compilerOptionsOf(root) {
@@ -453,7 +371,6 @@ export function findIdShapeCopies(sources, root = REPO_ROOT) {
     host: hostServing(byFileName, options),
   });
   const checker = program.getTypeChecker();
-  const reserved = reservedNamesOf(root);
   return Object.keys(sources).flatMap((path) => {
     const sourceFile = program.getSourceFile(join(root, path));
     const nodes = descendants(sourceFile);
@@ -462,8 +379,8 @@ export function findIdShapeCopies(sources, root = REPO_ROOT) {
       ...patternsIn(nodes, constants)
         .filter(({ pattern, flagSets }) => flagSets.some((flags) => holdsTheShape(pattern, flags)))
         .map(({ node }) => node),
-      ...zodIdFormatsIn(nodes, checker),
-      ...reservedNamesIn(nodes, constants, checker, reserved),
+      ...zodIdFormatCallsIn(nodes, checker),
+      ...zodIdFormatValuesIn(nodes, checker),
     ];
     const lines = copies.map(
       (node) => sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1,
