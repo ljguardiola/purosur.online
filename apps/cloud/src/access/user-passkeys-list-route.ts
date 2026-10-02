@@ -14,8 +14,6 @@ import {
 } from "./route-access.js";
 import type { UsersRouteOptions } from "./users-list-route.js";
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 const NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no user with that id belongs to this branch",
@@ -39,10 +37,6 @@ export function registerUserPasskeysListRoute<TQueryResult extends PgQueryResult
       const openSession = openSessionOf(request);
 
       const targetId = (request.params as { id: string }).id;
-      if (!UUID_PATTERN.test(targetId)) {
-        await reply.code(404).send(NOT_FOUND_RESPONSE);
-        return;
-      }
 
       const listed = await listUserPasskeys(
         { users: drizzleBranchUsers(options.db), passkeys: drizzlePasskeys(options.db) },
