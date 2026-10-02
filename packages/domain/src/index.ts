@@ -335,6 +335,7 @@ export {
   manualStockMovementCapability,
   manualStockMovementReasons,
   STOCK_DIRECTIONS,
+  STOCK_QUANTITY_DECIMALS,
   STOCK_QUANTITY_PER_UNIT,
   visibleManualStockMovementKinds,
 } from "./stock/index.js";

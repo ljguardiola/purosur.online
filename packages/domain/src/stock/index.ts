@@ -25,5 +25,6 @@ export {
   isCountedQuantity,
   isMovementQuantity,
   MAX_STOCK_QUANTITY,
+  STOCK_QUANTITY_DECIMALS,
   STOCK_QUANTITY_PER_UNIT,
 } from "./model/stock-quantity.js";
