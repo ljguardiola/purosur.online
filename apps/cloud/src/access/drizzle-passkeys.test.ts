@@ -39,6 +39,7 @@ async function insertPasskey(
   name: string,
   createdAt: Date,
   lastUsedAt: Date | null = null,
+  transports: string[] | null = null,
 ): Promise<string> {
   const [passkey] = await db
     .insert(passkeys)
@@ -47,7 +48,7 @@ async function insertPasskey(
       credentialId,
       publicKey: "public-key",
       counter: 0,
-      transports: null,
+      transports,
       deviceType: "singleDevice",
       backedUp: false,
       name,
@@ -101,6 +102,27 @@ describe("drizzlePasskeys", () => {
       await insertPasskey(otherId, "c-1", "Ajena", new Date("2026-10-01T08:00:00.000Z"));
 
       expect(await drizzlePasskeys(db).passkeySummaries(userId)).toEqual([]);
+    });
+  });
+
+  describe("registeredCredentials", () => {
+    it("answers the credential ids and transports of the user's passkeys", async () => {
+      const userId = await insertUser("ana@example.test");
+      const otherId = await insertUser("beto@example.test");
+      const createdAt = new Date("2026-10-01T08:00:00.000Z");
+      await insertPasskey(userId, "c-1", "Una", createdAt, null, ["internal", "hybrid"]);
+      await insertPasskey(userId, "c-2", "Otra", createdAt);
+      await insertPasskey(otherId, "c-3", "Ajena", createdAt);
+
+      const credentials = await drizzlePasskeys(db).registeredCredentials(userId);
+
+      expect(credentials).toHaveLength(2);
+      expect(credentials).toEqual(
+        expect.arrayContaining([
+          { credentialId: "c-1", transports: ["internal", "hybrid"] },
+          { credentialId: "c-2", transports: null },
+        ]),
+      );
     });
   });
 });
