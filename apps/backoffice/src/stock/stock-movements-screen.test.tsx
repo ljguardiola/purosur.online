@@ -17,13 +17,26 @@ import {
   withoutBalance,
 } from "./test-support/stock-fixtures";
 
-const BOTH = accessWith(
-  "stock_losses",
-  "stock_adjustments",
-  "stock_balances",
-  "stock_movements",
-  "stock_area",
-);
+const BOTH: BackofficeAccess = {
+  ...accessWith(
+    "stock_losses",
+    "stock_adjustments",
+    "stock_balances",
+    "stock_movements",
+    "stock_area",
+  ),
+  stockMovementKinds: ["loss", "adjustment"],
+};
+
+const LOSSES_ONLY: BackofficeAccess = {
+  ...accessWith("stock_losses", "stock_movements", "stock_area"),
+  stockMovementKinds: ["loss"],
+};
+
+const ADJUSTMENTS_ONLY: BackofficeAccess = {
+  ...accessWith("stock_adjustments", "stock_movements", "stock_area"),
+  stockMovementKinds: ["adjustment"],
+};
 
 function createServices(movements = [honeyLoss, almondsAdjustment]): StockMovementsScreenServices {
   return {
@@ -106,7 +119,7 @@ test("filters by the reason the URL names and reads the period it names", async 
 
 test("offers only the reasons of the kinds the user may register", async () => {
   const screen = await renderScreen(createServices([honeyLoss]), {
-    access: accessWith("stock_losses", "stock_movements", "stock_area"),
+    access: LOSSES_ONLY,
   });
   await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
 
@@ -178,7 +191,7 @@ test("registers a loss for a user who may not view balances, showing no balance"
     value: { balance: 23_000, superseded: false },
   });
   const screen = await renderScreen(services, {
-    access: accessWith("stock_losses", "stock_movements", "stock_area"),
+    access: LOSSES_ONLY,
   });
   const dialog = await openModal(screen, "Cargar pérdida");
   await chooseProduct(screen, "Miel pura de abeja 1 kg");
@@ -337,16 +350,8 @@ test("offers no direction for stock returned to a supplier, which always subtrac
 });
 
 test.each([
-  [
-    accessWith("stock_losses", "stock_movements", "stock_area"),
-    "Cargar pérdida",
-    "Registrar la pérdida",
-  ],
-  [
-    accessWith("stock_adjustments", "stock_movements", "stock_area"),
-    "Cargar ajuste",
-    "Registrar el ajuste",
-  ],
+  [LOSSES_ONLY, "Cargar pérdida", "Registrar la pérdida"],
+  [ADJUSTMENTS_ONLY, "Cargar ajuste", "Registrar el ajuste"],
 ])("offers a user holding only %j only what it allows", async (access, button, submit) => {
   const screen = await renderScreen(createServices(), {
     access,
@@ -395,8 +400,8 @@ test.each([
 });
 
 test.each([
-  ["count", accessWith("stock_losses", "stock_movements", "stock_area", "stock_adjustments")],
-  ["theft", accessWith("stock_adjustments", "stock_movements", "stock_area")],
+  ["count", BOTH],
+  ["theft", ADJUSTMENTS_ONLY],
 ])("falls back to every reason for the reason %s it does not offer", async (reason, access) => {
   const onFiltersChange = vi.fn();
   const screen = await renderScreen(createServices(), {

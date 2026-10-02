@@ -7,6 +7,8 @@ import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 
+const PAST_ACTIVITY_THROTTLE_WINDOW_MS = 120_000;
+
 beforeEach(resetPageState);
 
 afterEach(resetPageState);
@@ -103,4 +105,34 @@ test.each([
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+});
+
+test("offers the kinds of stock movement real use of the open tab reports the user may now record", async () => {
+  const lossesOnly = openSession({
+    userId: "user-2",
+    displayName: "Grace Hopper",
+    isAdministrator: false,
+    capabilities: ["stock_losses", "stock_adjustments", "stock_movements", "stock_area"],
+    stockMovementKinds: ["loss"],
+  });
+  const services = stockServices([]);
+  vi.mocked(services.fetchSession).mockResolvedValue(lossesOnly);
+  window.history.pushState(null, "", "/inventory-adjustments");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("button", { name: "Cargar pérdida" })).toBeVisible();
+
+  vi.mocked(services.fetchSession).mockResolvedValue({
+    ...lossesOnly,
+    stockMovementKinds: ["loss", "adjustment"],
+  });
+  vi.setSystemTime(Date.now() + PAST_ACTIVITY_THROTTLE_WINDOW_MS);
+  try {
+    window.dispatchEvent(new KeyboardEvent("keydown"));
+
+    await expect
+      .element(screen.getByRole("button", { name: "Cargar pérdida o ajuste" }))
+      .toBeVisible();
+  } finally {
+    vi.useRealTimers();
+  }
 });
