@@ -7,6 +7,7 @@ export type ScreenHeaderProps = {
   description?: string | undefined;
   titleId?: string;
   titleRef?: Ref<HTMLHeadingElement> | undefined;
+  focusableTitle?: boolean | undefined;
 };
 
 export function ScreenHeader({
@@ -15,6 +16,7 @@ export function ScreenHeader({
   description,
   titleId,
   titleRef,
+  focusableTitle = false,
 }: ScreenHeaderProps) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -22,8 +24,8 @@ export function ScreenHeader({
       <h1
         id={titleId}
         ref={titleRef}
-        tabIndex={titleRef === undefined ? undefined : -1}
-        className="text-display text-text-accent outline-none"
+        tabIndex={titleRef === undefined && !focusableTitle ? undefined : -1}
+        className={`text-display text-text-accent outline-none ${focusableTitle ? "focus-visible:focus-ring-tight" : ""}`}
       >
         {title}
       </h1>
