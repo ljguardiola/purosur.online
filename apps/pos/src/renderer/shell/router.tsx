@@ -5,6 +5,7 @@ import type {
   CancelSaleOutcome,
   CashBalance,
   CashChargeAnswer,
+  CashCountPreview,
   ChangeLineQuantityOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
@@ -92,6 +93,7 @@ export interface RouterContext {
   cancelLockedSale: (closer: Authorization) => Promise<CancelLockedSaleOutcome>;
   identifyLockedCloser: (closer: Authorization) => Promise<IdentifyLockedCloserOutcome>;
   cashBalance: () => Promise<CashBalance | null | "unavailable">;
+  cashCountPreview: (countedCash: number) => Promise<CashCountPreview | null | "unavailable">;
   sessionOpenSale: () => Promise<SessionOpenSale | null | "unavailable">;
   cashMovements: () => Promise<ListedCashMovement[] | null | "unavailable">;
   cashMovementKinds: () => Promise<RecordableCashMovementKinds | null | "unavailable">;
@@ -363,7 +365,7 @@ const cashCountRoute = createRoute({
     return { id, openedAt, person };
   },
   component: function CashCountRoute() {
-    const { id, openedAt, person, signOut, cashBalance, closeCashSession } =
+    const { id, openedAt, person, signOut, cashBalance, cashCountPreview, closeCashSession } =
       cashCountRoute.useRouteContext();
     const registerName = useRegisterName();
     const { leaving } = cashCountRoute.useSearch();
@@ -375,6 +377,7 @@ const cashCountRoute = createRoute({
         openedAt={openedAt}
         lock={signOut}
         loadCashBalance={cashBalance}
+        loadCashCountPreview={cashCountPreview}
         closeCashSession={(countedCash) => closeCashSession(person, id, countedCash, leaving)}
       />
     );
@@ -415,6 +418,7 @@ const lockedCloseRoute = createRoute({
       openedAt,
       openedBy,
       cashBalance,
+      cashCountPreview,
       sessionOpenSale,
       lockedClosers,
       identifyLockedCloser,
@@ -429,6 +433,7 @@ const lockedCloseRoute = createRoute({
         registerName={registerName}
         openedAt={openedAt}
         loadCashBalance={cashBalance}
+        loadCashCountPreview={cashCountPreview}
         loadOpenSale={sessionOpenSale}
         loadClosers={lockedClosers}
         identifyLockedCloser={identifyLockedCloser}
@@ -574,6 +579,7 @@ export function createAppRouter(
     | "cancelLockedSale"
     | "identifyLockedCloser"
     | "cashBalance"
+    | "cashCountPreview"
     | "sessionOpenSale"
     | "cashMovements"
     | "cashMovementKinds"

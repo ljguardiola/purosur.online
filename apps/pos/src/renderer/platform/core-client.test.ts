@@ -458,6 +458,7 @@ describe("createCoreClient", () => {
         type: "CASH_IN",
         amount: 100,
         reason: "Cambio",
+        direction: "in",
         occurred_at: "2026-09-30T12:00:00.000Z",
         actor: { user_id: "u1", first_name: "Ada" },
         authorized_by: null,

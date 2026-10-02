@@ -3,7 +3,7 @@ import { formatCents, LoadFailure, LoadingPlaceholder } from "@purosur/ui";
 import { TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import type { CoreData } from "../platform/use-core-query";
-import { signedAmount } from "./cash-amounts";
+import { directedAmount } from "./cash-amounts";
 
 export type ExpectedCashPanelProps = {
   eyebrow: string;
@@ -15,15 +15,15 @@ type Line = { label: string; text: string };
 
 function linesOf(balance: CashBalance): Line[] {
   return [
-    { label: "Fondo inicial", text: formatCents(balance.opening_float) },
-    { label: "Ventas en efectivo", text: signedAmount("+", balance.cash_sales) },
-    { label: "Vuelto entregado", text: signedAmount("−", balance.change_given) },
-    ...(balance.refunds > 0
-      ? [{ label: "Devoluciones", text: signedAmount("−", balance.refunds) }]
+    { label: "Fondo inicial", text: formatCents(balance.opening_float.amount) },
+    { label: "Ventas en efectivo", text: directedAmount(balance.cash_sales) },
+    { label: "Vuelto entregado", text: directedAmount(balance.change_given) },
+    ...(balance.refunds.amount > 0
+      ? [{ label: "Devoluciones", text: directedAmount(balance.refunds) }]
       : []),
-    { label: "Ingresos", text: signedAmount("+", balance.cash_in) },
-    { label: "Gastos", text: signedAmount("−", balance.expenses) },
-    { label: "Retiros", text: signedAmount("−", balance.withdrawals) },
+    { label: "Ingresos", text: directedAmount(balance.cash_in) },
+    { label: "Gastos", text: directedAmount(balance.expenses) },
+    { label: "Retiros", text: directedAmount(balance.withdrawals) },
   ];
 }
 
