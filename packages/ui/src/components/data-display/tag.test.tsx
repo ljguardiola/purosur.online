@@ -56,6 +56,38 @@ test("colors the info tone blue message background with strong blue text, cleari
   ).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
 });
 
+test("colors the success tone green message background with strong green text, clearing AA text contrast", async () => {
+  const screen = await render(<Tag tone="success">10 % de descuento</Tag>);
+  const tag = screen.getByText("10 % de descuento").element() as HTMLElement;
+  const style = getComputedStyle(tag);
+
+  expect(style.backgroundColor).toBe(tokenRgb("success-subtle"));
+  expect(style.color).toBe(tokenRgb("success-strong"));
+  expect(
+    contrastRatio(rgbToHex(style.color), rgbToHex(style.backgroundColor)),
+  ).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
+});
+
+test.each<TagProps["tone"]>(["neutral", "info", "success"])(
+  "the %s tone draws the focus ring when reached by keyboard",
+  async (tone) => {
+    const screen = await render(
+      <Focusable>
+        <Tag tone={tone} role="img" aria-label="Etiqueta">
+          Etiqueta
+        </Tag>
+      </Focusable>,
+    );
+    const tag = screen.getByRole("img", { name: "Etiqueta" }).element() as HTMLElement;
+
+    await userEvent.tab();
+
+    expect(document.activeElement).toBe(tag);
+    await expect.poll(() => getComputedStyle(tag).outlineWidth).toBe("3px");
+    await expect.poll(() => getComputedStyle(tag).outlineColor).toBe(tokenRgb("focus"));
+  },
+);
+
 test("renders the caller's icon hidden from assistive technology", async () => {
   const screen = await render(
     <Tag tone="info" icon={<svg data-testid="pin-icon" />}>
@@ -153,6 +185,9 @@ test("the status variant passes the accessibility checks", async () => {
       <Tag tone="info" variant="status">
         Nueva
       </Tag>
+      <Tag tone="success" variant="status">
+        Vigente
+      </Tag>
     </main>,
   );
 
@@ -170,6 +205,32 @@ test("the status variant in the info tone colors its dot with the info tone", as
 
   expect(getComputedStyle(dot).backgroundColor).toBe(tokenRgb("info-soft"));
   expect(getComputedStyle(tag).backgroundColor).toBe(tokenRgb("action-subtle"));
+});
+
+test("the status variant in the success tone colors its dot with the success tone", async () => {
+  const screen = await render(
+    <Tag tone="success" variant="status">
+      Vigente
+    </Tag>,
+  );
+  const tag = screen.getByText("Vigente").element() as HTMLElement;
+  const dot = tag.firstElementChild as HTMLElement;
+
+  expect(getComputedStyle(dot).backgroundColor).toBe(tokenRgb("success-soft"));
+  expect(getComputedStyle(tag).backgroundColor).toBe(tokenRgb("success-subtle"));
+  expect(getComputedStyle(tag).color).toBe(tokenRgb("success-strong"));
+});
+
+test("the plain variant in the success tone passes the accessibility checks with its icon", async () => {
+  const screen = await render(
+    <main>
+      <Tag tone="success" icon={<svg />}>
+        10 % de descuento
+      </Tag>
+    </main>,
+  );
+
+  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("a plain tag draws no dot", async () => {

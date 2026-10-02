@@ -137,7 +137,7 @@ export function ChipListField<V extends string>(props: ChipListFieldProps<V>) {
               {...disabledTextProps(disabled)}
             >
               {option.status !== undefined ? (
-                <span aria-hidden="true" className={tagDotClassName[tone]} />
+                <span aria-hidden="true" className={tagDotClassName(tone)} />
               ) : null}
               {option.label}
               {option.status !== undefined ? (

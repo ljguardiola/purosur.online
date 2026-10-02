@@ -40,7 +40,7 @@ function SaleLineRow({
         </span>
         {line.promotion === null ? null : (
           <span>
-            <Tag tone="info" icon={<TagIcon />}>
+            <Tag tone="success" icon={<TagIcon />}>
               {linePromotionText(line.promotion)}
             </Tag>
           </span>
