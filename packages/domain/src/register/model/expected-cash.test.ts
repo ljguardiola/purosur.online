@@ -80,26 +80,26 @@ describe("cashBreakdown", () => {
         { type: "CLOSING", amount: 24_000 },
       ]),
     ).toEqual({
-      openingFloat: 10_000,
-      cashSales: 25_000,
-      changeGiven: 1_500,
-      refunds: 3_000,
-      cashIn: 2_000,
-      expenses: 500,
-      withdrawals: 8_000,
+      openingFloat: { amount: 10_000, direction: "in" },
+      cashSales: { amount: 25_000, direction: "in" },
+      changeGiven: { amount: 1_500, direction: "out" },
+      refunds: { amount: 3_000, direction: "out" },
+      cashIn: { amount: 2_000, direction: "in" },
+      expenses: { amount: 500, direction: "out" },
+      withdrawals: { amount: 8_000, direction: "out" },
       expected: 24_000,
     });
   });
 
-  it("is all zeros without movements", () => {
+  it("is all zeros, each line keeping its direction, without movements", () => {
     expect(cashBreakdown([])).toEqual({
-      openingFloat: 0,
-      cashSales: 0,
-      changeGiven: 0,
-      refunds: 0,
-      cashIn: 0,
-      expenses: 0,
-      withdrawals: 0,
+      openingFloat: { amount: 0, direction: "in" },
+      cashSales: { amount: 0, direction: "in" },
+      changeGiven: { amount: 0, direction: "out" },
+      refunds: { amount: 0, direction: "out" },
+      cashIn: { amount: 0, direction: "in" },
+      expenses: { amount: 0, direction: "out" },
+      withdrawals: { amount: 0, direction: "out" },
       expected: 0,
     });
   });
