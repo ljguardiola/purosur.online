@@ -50,6 +50,8 @@ export type { NotificationCardProps } from "./components/feedback/notification-c
 export { NotificationCard } from "./components/feedback/notification-card";
 export type { StatusIndicatorProps } from "./components/feedback/status-indicator";
 export { StatusIndicator } from "./components/feedback/status-indicator";
+export type { AvatarOptionCardGroupProps } from "./components/forms/avatar-option-card-group";
+export { AvatarOptionCardGroup } from "./components/forms/avatar-option-card-group";
 export type {
   ButtonProps,
   ButtonSize,
