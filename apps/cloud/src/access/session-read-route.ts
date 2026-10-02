@@ -1,5 +1,9 @@
 import { openSessionSchema } from "@purosur/contracts";
-import { grantedCapabilities, sessionExpiresAt } from "@purosur/domain";
+import {
+  grantedCapabilities,
+  sessionExpiresAt,
+  visibleManualStockMovementKinds,
+} from "@purosur/domain";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "./backoffice-origin.js";
@@ -41,6 +45,7 @@ export function registerSessionReadRoute<TQueryResult extends PgQueryResultHKT>(
           is_administrator: openSession.isAdministrator,
           permissions: [...openSession.permissionKeys],
           capabilities: grantedCapabilities(openSession),
+          stock_movement_kinds: visibleManualStockMovementKinds(openSession),
         }),
       );
     },
