@@ -35,12 +35,12 @@ const widthClassName = {
   full: "flex min-w-0 max-w-full grow basis-0",
 } as const;
 
-const baseClassName =
+const shapeClassName =
   "items-center justify-center px-4 font-sans " +
   // Excludes outline-color from the transition so the focus ring appears instantly, not mid-fade.
-  "transition-background-text-border outline-none " +
-  "data-focus-visible:focus-ring " +
-  "data-disabled:opacity-disabled";
+  "transition-background-text-border outline-none";
+
+const baseClassName = `${shapeClassName} data-focus-visible:focus-ring data-disabled:opacity-disabled`;
 
 const sizeClassName: Record<ButtonSize, string> = {
   small: "h-control-lg text-body",
@@ -74,10 +74,12 @@ const secondaryColorClassName = {
   destructive: "border-error text-error",
 };
 
+const textShapeClassName = "gap-2 rounded-md bg-transparent font-semibold";
+
 const variantClassName: Record<ButtonVariant, string> = {
   primary: "gap-3 rounded-lg font-bold text-text-inverse",
   secondary: "gap-2 rounded-md border bg-transparent font-bold data-hovered:bg-surface-subtle",
-  text: "gap-2 rounded-md bg-transparent font-semibold data-hovered:bg-surface-subtle",
+  text: `${textShapeClassName} data-hovered:bg-surface-subtle`,
 };
 
 const textColorClassName = {
@@ -89,6 +91,21 @@ const iconWrapperClassName: Record<ButtonVariant, string> = {
   primary: iconSlotClassName.xl,
   secondary: iconSlotClassName.md,
   text: iconSlotClassName.md,
+};
+
+// A link carries none of react-aria's data attributes, so it takes CSS's own hover and focus states.
+export const textButtonLinkLook = {
+  className: (size: ButtonTextSize) =>
+    [
+      widthClassName.content,
+      shapeClassName,
+      "focus-visible:focus-ring hover:bg-surface-subtle",
+      sizeClassName[size],
+      textShapeClassName,
+      textColorClassName.regular,
+    ].join(" "),
+  defaultSize: defaultSize.text,
+  iconSlotClassName: iconWrapperClassName.text,
 };
 
 export function Button({
