@@ -6,7 +6,6 @@ import type {
 import { and, asc, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { passkeys, rolePermissions, roles, userRoles, users } from "../platform/db/schema.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 
 function activeScopeCondition(scope: BranchUserActiveScope) {
   switch (scope) {
@@ -70,9 +69,6 @@ class DrizzleBranchUsers<TQueryResult extends PgQueryResultHKT> implements Branc
     userId: string,
     activeScope: BranchUserActiveScope,
   ): Promise<BranchUserFacts | undefined> {
-    if (!UUID_PATTERN.test(userId)) {
-      return undefined;
-    }
     const [row] = await this.selectBranchUsers()
       .where(
         and(

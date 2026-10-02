@@ -15,7 +15,6 @@ import {
   userRoles,
   users,
 } from "../platform/db/schema.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
@@ -36,9 +35,6 @@ class DrizzlePinCodeStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   async lockPinCodeTarget(userId: string): Promise<PinCodeTarget | undefined> {
-    if (!UUID_PATTERN.test(userId)) {
-      return undefined;
-    }
     const [row] = await this.tx
       .select({ active: users.active, isAdministrator: roles.isAdministrator })
       .from(users)

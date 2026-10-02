@@ -103,16 +103,6 @@ describe("locking the target a discount points at", () => {
     expect(outcomes).toEqual([{ kind: "not_found" }, { kind: "not_found" }, { kind: "not_found" }]);
   });
 
-  it("answers not found for a target whose id is malformed", async () => {
-    const outcomes = await inTransaction(async (tx) => [
-      await tx.lockTarget({ kind: "CATEGORY", id: "not-a-uuid" }),
-      await tx.lockTarget({ kind: "TAG", id: "not-a-uuid" }),
-      await tx.lockTarget({ kind: "PRODUCT", id: "not-a-uuid" }),
-    ]);
-
-    expect(outcomes).toEqual([{ kind: "not_found" }, { kind: "not_found" }, { kind: "not_found" }]);
-  });
-
   it("locks an inactive tag and an inactive product, reporting that they are inactive", async () => {
     const tag = await insertTag(db, { name: "Kosher", active: false });
     const product = await insertProductWithTags(db, { name: "Yerba", tagIds: [], active: false });
@@ -154,13 +144,10 @@ describe("locking the product a discount is on", () => {
     ]);
   });
 
-  it("answers not found for a product that does not exist or whose id is malformed", async () => {
-    const outcomes = await inTransaction(async (tx) => [
-      await tx.lockDiscountedProduct(NEVER_STORED_ID),
-      await tx.lockDiscountedProduct("not-a-uuid"),
-    ]);
+  it("answers not found for a product that does not exist", async () => {
+    const outcome = await inTransaction((tx) => tx.lockDiscountedProduct(NEVER_STORED_ID));
 
-    expect(outcomes).toEqual([{ kind: "not_found" }, { kind: "not_found" }]);
+    expect(outcome).toEqual({ kind: "not_found" });
   });
 });
 
@@ -251,12 +238,9 @@ describe("storing a buy-N-pay-M discount", () => {
 });
 
 describe("locking a discount", () => {
-  it("answers not found for an id that was never stored or is malformed", async () => {
-    const outcomes = await inTransaction(async (tx) => [
-      await tx.lockDiscount(NEVER_STORED_ID),
-      await tx.lockDiscount("not-a-uuid"),
-    ]);
+  it("answers not found for an id that was never stored", async () => {
+    const outcome = await inTransaction((tx) => tx.lockDiscount(NEVER_STORED_ID));
 
-    expect(outcomes).toEqual([{ kind: "not_found" }, { kind: "not_found" }]);
+    expect(outcome).toEqual({ kind: "not_found" });
   });
 });

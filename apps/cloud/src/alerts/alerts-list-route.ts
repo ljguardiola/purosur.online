@@ -1,5 +1,5 @@
 import { type AlertSummary, alertListPageSchema } from "@purosur/contracts";
-import { isAlertKind, isAlertLevel } from "@purosur/domain";
+import { alertNamedRecordIds, isAlertKind, isAlertLevel } from "@purosur/domain";
 import type {
   AlertSearch,
   AlertSummary as AlertSummaryRow,
@@ -105,7 +105,7 @@ export function registerAlertsListRoute<TQueryResult extends PgQueryResultHKT>(
         pageFromQuery(query.page),
       );
       const openCounts = await reader.countOpenVisibleAlerts(sight);
-      const namesById = await reader.displayNames(alerts.map((alert) => alert.scope));
+      const namesById = await reader.displayNames(alerts.flatMap(alertNamedRecordIds));
       const body = alertListPageSchema.parse({
         alerts: alerts.map((alert) => toAlertSummary(alert, namesById)),
         total,

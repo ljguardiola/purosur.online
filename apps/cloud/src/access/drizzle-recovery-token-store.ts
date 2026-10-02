@@ -12,7 +12,6 @@ import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
 import { auditLog, recoveryTokens, users } from "../platform/db/schema.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { voidOutstandingRecoveryTokens } from "./void-outstanding-recovery-tokens.js";
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
@@ -66,9 +65,6 @@ class DrizzleRecoveryTokenStoreTransaction<TQueryResult extends PgQueryResultHKT
   }
 
   async issueToken(token: NewRecoveryToken): Promise<IssuedRecoveryToken> {
-    if (!UUID_PATTERN.test(token.requestId)) {
-      throw new Error(`the recovery request id names no stored request: ${token.requestId}`);
-    }
     const [issued] = await this.tx.insert(recoveryTokens).values(token).returning({
       id: recoveryTokens.id,
       issuedAt: recoveryTokens.issuedAt,

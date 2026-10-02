@@ -1,3 +1,4 @@
+import { alertNamedRecordIds } from "@purosur/domain";
 import { closeAlert } from "@purosur/domain/alerts/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -10,7 +11,7 @@ import {
 } from "../access/route-access.js";
 import { hashSourceAddress } from "../access/sign-in-lockout.js";
 import { readRecordIds } from "../platform/record-id-params.js";
-import { ALERT_NOT_FOUND_RESPONSE, idsToResolve, toAlertDetailBody } from "./alert-read-route.js";
+import { ALERT_NOT_FOUND_RESPONSE, toAlertDetailBody } from "./alert-read-route.js";
 import { visibleSightOf } from "./alert-route-sight.js";
 import type { AlertsRouteOptions } from "./alerts-list-route.js";
 import { DrizzleAlertReader } from "./drizzle-alert-reader.js";
@@ -79,7 +80,7 @@ export function registerAlertCloseRoute<TQueryResult extends PgQueryResultHKT>(
         resolvedBy: closedBy,
       };
       const deliveries = await reader.deliveriesOf(alert.id);
-      const namesById = await reader.displayNames(idsToResolve(closed));
+      const namesById = await reader.displayNames(alertNamedRecordIds(closed));
       await reply.code(200).send(toAlertDetailBody(closed, deliveries, namesById));
     },
   );

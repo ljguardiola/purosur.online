@@ -14,7 +14,6 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import { auditLog, rolePermissions, roles } from "../platform/db/schema.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import { drizzleRoleDirectory } from "./drizzle-role-directory.js";
 
@@ -43,9 +42,6 @@ class DrizzleRoleStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   async lockRole(roleId: string): Promise<LockRoleResult> {
-    if (!UUID_PATTERN.test(roleId)) {
-      return { kind: "not_found" };
-    }
     const [role] = await this.tx
       .select({ name: roles.name, isAdministrator: roles.isAdministrator, version: roles.version })
       .from(roles)

@@ -20,7 +20,6 @@ import {
   userRoles,
   users,
 } from "../platform/db/schema.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { closedAlertCondition, openAlertCondition } from "./open-alert-condition.js";
 
 export const ALERTS_PAGE_SIZE = 25;
@@ -80,9 +79,6 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
     sight: VisibleAlertSight,
     alertId: string,
   ): Promise<AlertDetailView | undefined> {
-    if (!UUID_PATTERN.test(alertId)) {
-      return undefined;
-    }
     const [row] = await this.db
       .select({ ...SUMMARY_COLUMNS, detail: alerts.detail, resolvedBy: alerts.resolvedBy })
       .from(alerts)
@@ -176,19 +172,17 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
   }
 
   async displayNames(ids: readonly string[]): Promise<ReadonlyMap<string, string>> {
-    // Postgres rejects the whole query on one malformed `uuid` instead of skipping that id.
-    const wellFormedIds = ids.filter((id) => UUID_PATTERN.test(id));
-    if (wellFormedIds.length === 0) {
+    if (ids.length === 0) {
       return new Map();
     }
     const userRows = await this.db
       .select({ id: users.id, name: users.firstName })
       .from(users)
-      .where(inArray(users.id, wellFormedIds));
+      .where(inArray(users.id, [...ids]));
     const registerRows = await this.db
       .select({ id: registers.id, name: registers.name })
       .from(registers)
-      .where(inArray(registers.id, wellFormedIds));
+      .where(inArray(registers.id, [...ids]));
     return new Map([...userRows, ...registerRows].map((row) => [row.id, row.name]));
   }
 

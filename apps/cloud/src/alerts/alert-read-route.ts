@@ -1,5 +1,5 @@
 import { type AlertDetail, alertDetailSchema } from "@purosur/contracts";
-import { isOpenAlert } from "@purosur/domain";
+import { alertNamedRecordIds, isOpenAlert } from "@purosur/domain";
 import type { AlertDelivery, AlertDetailView } from "@purosur/domain/alerts/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -115,13 +115,8 @@ export function registerAlertReadRoute<TQueryResult extends PgQueryResultHKT>(
       }
 
       const deliveries = await reader.deliveriesOf(alert.id);
-      const namesById = await reader.displayNames(idsToResolve(alert));
+      const namesById = await reader.displayNames(alertNamedRecordIds(alert));
       await reply.code(200).send(toAlertDetailBody(alert, deliveries, namesById));
     },
   );
-}
-
-export function idsToResolve(alert: Pick<AlertDetailView, "scope" | "detail">): string[] {
-  const actorId = alert.detail["actorId"];
-  return typeof actorId === "string" ? [alert.scope, actorId] : [alert.scope];
 }

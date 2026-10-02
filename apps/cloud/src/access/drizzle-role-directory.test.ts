@@ -114,11 +114,10 @@ describe("drizzleRoleDirectory", () => {
       });
     });
 
-    it("finds nothing for an unknown or malformed id", async () => {
+    it("finds nothing for an unknown id", async () => {
       const directory = drizzleRoleDirectory(db);
 
       expect(await directory.role("00000000-0000-4000-8000-000000000000")).toBeUndefined();
-      expect(await directory.role("not-a-uuid")).toBeUndefined();
     });
   });
 
