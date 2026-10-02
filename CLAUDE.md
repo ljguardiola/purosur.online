@@ -24,7 +24,8 @@ See "Code style" in `.claude/rules/code-style.md`.
   `.claude/rules/workflow.md`). Use the `start-work` skill to begin from an issue
   number.
 - A pull request closes exactly one issue and its body is built from
-  `.github/pull_request_template.md` (see "Branches and pull requests"). Use
+  `.github/pull_request_template.md` (see "Branches and pull requests" in
+  `.claude/rules/workflow.md`). Use
   the `open-pr` skill to build and open it.
 - Use the `check` skill to run `pnpm verify` and report its real result.
 
