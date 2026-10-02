@@ -49,14 +49,6 @@ export class FakeCatalogListReader implements CatalogListReader {
     return this.data.products.filter((product) => inScope(product, scope)).sort(byName);
   }
 
-  async product(productId: string): Promise<CatalogProduct | undefined> {
-    return this.data.products.find((candidate) => candidate.id === productId);
-  }
-
-  async category(categoryId: string): Promise<CatalogCategory | undefined> {
-    return this.data.categories.find((candidate) => candidate.id === categoryId);
-  }
-
   async categories(): Promise<CatalogCategory[]> {
     return [...this.data.categories].sort(byName);
   }

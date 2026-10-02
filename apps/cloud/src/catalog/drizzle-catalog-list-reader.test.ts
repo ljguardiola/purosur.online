@@ -142,38 +142,6 @@ describe("DrizzleCatalogListReader", () => {
     it("answers nothing when the catalog has no product", async () => {
       expect(await reader.products("any")).toEqual([]);
     });
-
-    it("answers one product of any activity with its category, barcodes and tag ids", async () => {
-      const categoryId = await insertCategory("Almacén");
-      const vegan = await insertTag("Vegano");
-      const retired = await insertProduct({
-        name: "Harina",
-        categoryId,
-        active: false,
-        tagIds: [vegan],
-        barcodes: ["333", "444"],
-      });
-      await insertProduct({ name: "Miel", categoryId });
-
-      expect(await reader.product(retired)).toEqual({
-        id: retired,
-        name: "Harina",
-        categoryId,
-        categoryName: "Almacén",
-        brandId: null,
-        saleUnit: "UNIT",
-        barcodes: ["333", "444"],
-        tagIds: [vegan],
-        netContent: null,
-        active: false,
-        version: 1,
-      });
-    });
-
-    it("answers nothing for a product that does not exist or an id that is not a uuid", async () => {
-      expect(await reader.product("00000000-0000-0000-0000-000000000000")).toBeUndefined();
-      expect(await reader.product("not-a-uuid")).toBeUndefined();
-    });
   });
 
   describe("categories", () => {
@@ -185,26 +153,6 @@ describe("DrizzleCatalogListReader", () => {
         { id: grocery, name: "Almacén", version: 1, parentId: null },
         { id: cereals, name: "Cereales", version: 1, parentId: grocery },
       ]);
-    });
-  });
-
-  describe("category", () => {
-    it("answers one category with its parent", async () => {
-      const parentId = await insertCategory("Almacén");
-      const childId = await insertCategory("Miel", parentId);
-      await insertCategory("Bebidas");
-
-      expect(await reader.category(childId)).toEqual({
-        id: childId,
-        name: "Miel",
-        version: 1,
-        parentId,
-      });
-    });
-
-    it("answers nothing for a category that does not exist or an id that is not a uuid", async () => {
-      expect(await reader.category("00000000-0000-0000-0000-000000000000")).toBeUndefined();
-      expect(await reader.category("not-a-uuid")).toBeUndefined();
     });
   });
 

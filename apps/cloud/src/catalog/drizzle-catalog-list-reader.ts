@@ -7,7 +7,7 @@ import type {
   CatalogTagSummary,
   ProductActivityScope,
 } from "@purosur/domain/catalog/use-cases";
-import { and, asc, count, countDistinct, eq, inArray, type SQL } from "drizzle-orm";
+import { and, asc, count, countDistinct, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   brands,
@@ -53,19 +53,7 @@ export class DrizzleCatalogListReader<TQueryResult extends PgQueryResultHKT>
     this.db = db;
   }
 
-  products(scope: ProductActivityScope): Promise<CatalogProduct[]> {
-    return this.selectProducts(productActivityCondition(scope));
-  }
-
-  async product(productId: string): Promise<CatalogProduct | undefined> {
-    if (!UUID_PATTERN.test(productId)) {
-      return undefined;
-    }
-    const [product] = await this.selectProducts(eq(products.id, productId));
-    return product;
-  }
-
-  private async selectProducts(condition: SQL | undefined): Promise<CatalogProduct[]> {
+  async products(scope: ProductActivityScope): Promise<CatalogProduct[]> {
     const rows = await this.db
       .select({
         id: products.id,
@@ -81,7 +69,7 @@ export class DrizzleCatalogListReader<TQueryResult extends PgQueryResultHKT>
       })
       .from(products)
       .innerJoin(categories, eq(products.categoryId, categories.id))
-      .where(condition)
+      .where(productActivityCondition(scope))
       .orderBy(asc(products.name));
 
     const productIds = rows.map((row) => row.id);
@@ -113,23 +101,6 @@ export class DrizzleCatalogListReader<TQueryResult extends PgQueryResultHKT>
       })
       .from(categories)
       .orderBy(asc(categories.name));
-  }
-
-  async category(categoryId: string): Promise<CatalogCategory | undefined> {
-    if (!UUID_PATTERN.test(categoryId)) {
-      return undefined;
-    }
-    const [row] = await this.db
-      .select({
-        id: categories.id,
-        name: categories.name,
-        version: categories.version,
-        parentId: categories.parentId,
-      })
-      .from(categories)
-      .where(eq(categories.id, categoryId))
-      .limit(1);
-    return row;
   }
 
   brands(countedProducts: ProductActivityScope): Promise<CatalogBrandSummary[]> {
