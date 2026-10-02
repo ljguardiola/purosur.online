@@ -11,11 +11,11 @@ import {
 import { DrizzleCatalogListReader } from "./drizzle-catalog-list-reader.js";
 import { toProductSummary } from "./product-summary-wire.js";
 
-const PRODUCT_STATUS_SCOPES: Record<string, ProductActivityScope> = {
-  active: "active",
-  inactive: "inactive",
-  all: "any",
-};
+const PRODUCT_STATUS_SCOPES: ReadonlyMap<string, ProductActivityScope> = new Map([
+  ["active", "active"],
+  ["inactive", "inactive"],
+  ["all", "any"],
+]);
 
 function readProductStatusScope(
   raw: unknown,
@@ -23,7 +23,7 @@ function readProductStatusScope(
   if (raw === undefined) {
     return "active";
   }
-  const scope = typeof raw === "string" ? PRODUCT_STATUS_SCOPES[raw] : undefined;
+  const scope = typeof raw === "string" ? PRODUCT_STATUS_SCOPES.get(raw) : undefined;
   if (scope) {
     return scope;
   }
