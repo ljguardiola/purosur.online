@@ -1,14 +1,11 @@
 import {
-  type StockCountList,
   stockBalanceSchema,
   stockCountBodySchema,
   stockCountListSchema,
   stockCountResultSchema,
 } from "@purosur/contracts";
-import { expectedBalance, type SaleUnit } from "@purosur/domain";
-import { registerCount } from "@purosur/domain/stock/use-cases";
-import { and, desc, eq, gte } from "drizzle-orm";
-import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { expectedBalanceAt, registerCount } from "@purosur/domain/stock/use-cases";
+import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
 import {
@@ -17,10 +14,9 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { categories, products, stockCounts, stockMovements } from "../platform/db/schema.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
+import { DrizzleStockReader } from "./drizzle-stock-reader.js";
 import { DrizzleStockStore } from "./drizzle-stock-store.js";
-import { appliedDeltaAfter, currentBalance, findActiveProduct } from "./stock-ledger-queries.js";
 import { periodStart } from "./stock-period.js";
 import type { StockRouteOptions } from "./stock-route-options.js";
 
@@ -46,51 +42,13 @@ const INVALID_MOMENT_RESPONSE = {
   details: [{ field: "at" }],
 } as const;
 
-async function listStockCounts<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  input: { locationId: string; since: Date },
-): Promise<StockCountList> {
-  const rows = await db
-    .select({
-      id: stockMovements.id,
-      productId: stockMovements.productId,
-      productName: products.name,
-      categoryId: products.categoryId,
-      categoryName: categories.name,
-      saleUnit: products.saleUnit,
-      occurredAt: stockMovements.occurredAt,
-      expected: stockCounts.expected,
-      counted: stockCounts.counted,
-      delta: stockMovements.delta,
-      supersededByCountId: stockMovements.supersededByCountId,
-    })
-    .from(stockMovements)
-    .innerJoin(stockCounts, eq(stockCounts.movementId, stockMovements.id))
-    .innerJoin(products, eq(products.id, stockMovements.productId))
-    .innerJoin(categories, eq(categories.id, products.categoryId))
-    .where(
-      and(
-        eq(stockMovements.locationId, input.locationId),
-        gte(stockMovements.occurredAt, input.since),
-      ),
-    )
-    .orderBy(desc(stockMovements.occurredAt), desc(stockMovements.id));
-  return {
-    counts: rows.map(({ supersededByCountId, ...row }) => ({
-      ...row,
-      saleUnit: row.saleUnit as SaleUnit,
-      occurredAt: row.occurredAt.toISOString(),
-      superseded: supersededByCountId !== null,
-    })),
-  };
-}
-
 export function registerStockCountsRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: StockRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
   const ports = { store: new DrizzleStockStore(options.db), clock: { now } };
+  const reader = new DrizzleStockReader(options.db);
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const routeConfig = {
@@ -103,11 +61,18 @@ export function registerStockCountsRoutes<TQueryResult extends PgQueryResultHKT>
     routeConfig,
     async (request, reply) => {
       const { locationId } = openSessionOf(request);
-      const list = await listStockCounts(options.db, {
+      const counts = await reader.counts({
         locationId,
         since: periodStart(request.query.days, now()),
       });
-      await reply.code(200).send(stockCountListSchema.parse(list));
+      await reply.code(200).send(
+        stockCountListSchema.parse({
+          counts: counts.map((count) => ({
+            ...count,
+            occurredAt: count.occurredAt.toISOString(),
+          })),
+        }),
+      );
     },
   );
 
@@ -159,23 +124,26 @@ export function registerStockCountsRoutes<TQueryResult extends PgQueryResultHKT>
       config: { access: permissionAccess("view_stock_balances"), sessionSource },
     },
     async (request, reply) => {
-      const { productId } = request.params;
-      const product = await findActiveProduct(options.db, productId);
-      if (!product) {
+      const at = stockCountBodySchema.shape.occurredAt.safeParse(request.query.at);
+      const outcome = await expectedBalanceAt(
+        { ledger: reader },
+        {
+          productId: request.params.productId,
+          locationId: openSessionOf(request).locationId,
+          at: at.success ? new Date(at.data) : undefined,
+        },
+      );
+      if (outcome.kind === "not_found") {
         await reply.code(404).send(NOT_FOUND_RESPONSE);
         return;
       }
-      const at = stockCountBodySchema.shape.occurredAt.safeParse(request.query.at);
-      if (!at.success) {
+      if (outcome.kind === "invalid_moment") {
         await reply.code(400).send(INVALID_MOMENT_RESPONSE);
         return;
       }
-      const key = { productId, locationId: openSessionOf(request).locationId };
-      const expected = expectedBalance({
-        balance: await currentBalance(options.db, key),
-        appliedAfterCount: await appliedDeltaAfter(options.db, key, new Date(at.data)),
-      });
-      await reply.code(200).send(stockBalanceSchema.parse({ ...product, balance: expected }));
+      await reply
+        .code(200)
+        .send(stockBalanceSchema.parse({ ...outcome.product, balance: outcome.balance }));
     },
   );
 }

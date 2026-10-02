@@ -1,20 +1,17 @@
 import {
-  type StockMovement,
-  type StockMovementList,
   stockAdjustmentBodySchema,
   stockLossBodySchema,
   stockMovementListSchema,
   stockMovementResultSchema,
 } from "@purosur/contracts";
-import type { SaleUnit } from "@purosur/domain";
 import {
+  type ManualStockMovementKind,
   type RecordAdjustmentOutcome,
   type RecordLossOutcome,
   recordAdjustment,
   recordLoss,
 } from "@purosur/domain/stock/use-cases";
-import { and, desc, eq, gte, inArray } from "drizzle-orm";
-import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
 import {
@@ -24,13 +21,11 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { categories, products, stockMovements } from "../platform/db/schema.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
+import { DrizzleStockReader } from "./drizzle-stock-reader.js";
 import { DrizzleStockStore } from "./drizzle-stock-store.js";
 import { periodStart } from "./stock-period.js";
 import type { StockRouteOptions } from "./stock-route-options.js";
-
-type ManualMovementKind = StockMovement["kind"];
 
 const NOT_FOUND_RESPONSE = { code: "not_found", message: "no product with that id" } as const;
 const PART_OF_A_UNIT_RESPONSE = {
@@ -43,44 +38,6 @@ const DIRECTION_NOT_ALLOWED_RESPONSE = {
   message: "this reason only subtracts",
   details: [{ field: "direction" }],
 } as const;
-
-async function listStockMovements<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  input: { locationId: string; since: Date; kinds: readonly ManualMovementKind[] },
-): Promise<StockMovementList> {
-  const rows = await db
-    .select({
-      id: stockMovements.id,
-      productId: stockMovements.productId,
-      productName: products.name,
-      categoryName: categories.name,
-      saleUnit: products.saleUnit,
-      kind: stockMovements.kind,
-      reason: stockMovements.reason,
-      delta: stockMovements.delta,
-      occurredAt: stockMovements.occurredAt,
-      supersededByCountId: stockMovements.supersededByCountId,
-    })
-    .from(stockMovements)
-    .innerJoin(products, eq(products.id, stockMovements.productId))
-    .innerJoin(categories, eq(categories.id, products.categoryId))
-    .where(
-      and(
-        eq(stockMovements.locationId, input.locationId),
-        inArray(stockMovements.kind, [...input.kinds]),
-        gte(stockMovements.occurredAt, input.since),
-      ),
-    )
-    .orderBy(desc(stockMovements.occurredAt), desc(stockMovements.id));
-  return stockMovementListSchema.parse({
-    movements: rows.map(({ supersededByCountId, ...row }) => ({
-      ...row,
-      saleUnit: row.saleUnit as SaleUnit,
-      occurredAt: row.occurredAt.toISOString(),
-      superseded: supersededByCountId !== null,
-    })),
-  });
-}
 
 async function sendMovementOutcome(
   reply: FastifyReply,
@@ -112,6 +69,7 @@ export function registerStockMovementsRoutes<TQueryResult extends PgQueryResultH
 ): void {
   const now = options.now ?? (() => new Date());
   const ports = { store: new DrizzleStockStore(options.db), clock: { now } };
+  const reader = new DrizzleStockReader(options.db);
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const preHandler = sameOriginGuard(options.backofficeOrigin);
@@ -129,16 +87,23 @@ export function registerStockMovementsRoutes<TQueryResult extends PgQueryResultH
     },
     async (request, reply) => {
       const openSession = openSessionOf(request);
-      const kinds: ManualMovementKind[] = [
+      const kinds: ManualStockMovementKind[] = [
         ...(isAccessGranted(lossAccess, openSession) ? (["loss"] as const) : []),
         ...(isAccessGranted(adjustmentAccess, openSession) ? (["adjustment"] as const) : []),
       ];
-      const list = await listStockMovements(options.db, {
+      const movements = await reader.movements({
         locationId: openSession.locationId,
         since: periodStart(request.query.days, now()),
         kinds,
       });
-      await reply.code(200).send(list);
+      await reply.code(200).send(
+        stockMovementListSchema.parse({
+          movements: movements.map((movement) => ({
+            ...movement,
+            occurredAt: movement.occurredAt.toISOString(),
+          })),
+        }),
+      );
     },
   );
 

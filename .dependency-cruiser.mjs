@@ -30,10 +30,6 @@ export const PERSISTENCE_IN_HANDLERS_ALLOWLIST = [
   "apps/cloud/src/catalog/tag-edit-route.ts",
   "apps/cloud/src/catalog/tag-reactivation-route.ts",
   "apps/cloud/src/catalog/tags-list-route.ts",
-  "apps/cloud/src/stock/stock-balances-route.ts",
-  "apps/cloud/src/stock/stock-counts-route.ts",
-  "apps/cloud/src/stock/stock-movements-route.ts",
-  "apps/cloud/src/stock/stock-products-route.ts",
 ];
 
 export const SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST = [
