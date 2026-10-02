@@ -3,6 +3,7 @@ import type {
   StockBalanceList,
   StockCountList,
   StockMovementList,
+  StockMovementReasonList,
   StockPeriodDays,
   StockProductList,
 } from "@purosur/contracts";
@@ -13,6 +14,7 @@ import type {
   fetchExpectedBalance,
   fetchStockBalances,
   fetchStockCounts,
+  fetchStockMovementReasons,
   fetchStockMovements,
   fetchStockProducts,
 } from "./stock-api";
@@ -24,6 +26,7 @@ export const stockKeys = {
   products: [...stockKey, "products"] as const,
   counts: (days: StockPeriodDays) => [...stockKey, "counts", days] as const,
   movements: (days: StockPeriodDays) => [...stockKey, "movements", days] as const,
+  movementReasons: [...stockKey, "movement-reasons"] as const,
   expectedBalance: (productId: string, at: string) =>
     [...stockKey, "expected-balance", productId, at] as const,
 };
@@ -75,6 +78,18 @@ export function useStockMovementsQuery(
     queryKey: stockKeys.movements(params.days),
     keepPreviousData: true,
     read: () => params.fetchStockMovements(params.days),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useStockMovementReasonsQuery(
+  params: ReadParams & { fetchStockMovementReasons: typeof fetchStockMovementReasons },
+) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<StockMovementReasonList>({
+    queryKey: stockKeys.movementReasons,
+    read: params.fetchStockMovementReasons,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

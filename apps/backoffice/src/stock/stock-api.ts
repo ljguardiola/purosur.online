@@ -7,6 +7,7 @@ import {
   type StockCountResult,
   type StockLossBody,
   type StockMovementList,
+  type StockMovementReasonList,
   type StockMovementResult,
   type StockPeriodDays,
   type StockProductList,
@@ -15,6 +16,7 @@ import {
   stockCountListSchema,
   stockCountResultSchema,
   stockMovementListSchema,
+  stockMovementReasonListSchema,
   stockMovementResultSchema,
   stockProductListSchema,
 } from "@purosur/contracts";
@@ -89,6 +91,10 @@ export function fetchStockMovements(
   days: StockPeriodDays,
 ): Promise<CloudReadOutcome<StockMovementList>> {
   return readList(`/api/inventory-movements?days=${days}`, stockMovementListSchema);
+}
+
+export function fetchStockMovementReasons(): Promise<CloudReadOutcome<StockMovementReasonList>> {
+  return readList("/api/inventory-movement-reasons", stockMovementReasonListSchema);
 }
 
 export type FetchExpectedBalanceOutcome = CloudReadOutcome<StockBalance> | { kind: "not_found" };

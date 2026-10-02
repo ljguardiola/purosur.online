@@ -4,7 +4,7 @@ import {
   stockAdjustmentBodySchema,
   stockLossBodySchema,
 } from "@purosur/contracts";
-import { type SaleUnit, signedDelta } from "@purosur/domain";
+import type { SaleUnit } from "@purosur/domain";
 import {
   Button,
   EmptyState,
@@ -18,6 +18,7 @@ import {
 import { ArrowDownUp, Check, Info, Minus, Package, PackageX, Plus } from "lucide-react";
 import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import { combineCloudData } from "../platform/combine-cloud-data";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type { RecordMovementOutcome } from "./stock-api";
 import { StockBalanceChange } from "./stock-balance-change";
@@ -36,8 +37,12 @@ import {
 } from "./stock-movement-form";
 import { StockMovementNotice } from "./stock-movement-notice";
 import type { StockMovementsScreenServices } from "./stock-movements-services";
-import { parseStockQuantity } from "./stock-quantity";
-import { useRefreshStock, useStockProductsQuery } from "./stock-queries";
+import { directedQuantity, parseStockQuantity } from "./stock-quantity";
+import {
+  useRefreshStock,
+  useStockMovementReasonsQuery,
+  useStockProductsQuery,
+} from "./stock-queries";
 
 const KIND_OPTIONS = {
   loss: {
@@ -86,7 +91,13 @@ export function StockMovementModal({
     fetchStockProducts: services.fetchStockProducts,
     onSessionEnded,
   });
-  const listed = products.status === "loaded" ? products.value.products : [];
+  const reasons = useStockMovementReasonsQuery({
+    fetchStockMovementReasons: services.fetchStockMovementReasons,
+    onSessionEnded,
+  });
+  const data = combineCloudData(products, reasons);
+  const [listed, listedReasons] =
+    data.status === "loaded" ? [data.value[0].products, data.value[1].reasons] : [[], []];
   const productOf = (productId: string | null) =>
     listed.find((product) => product.id === productId);
   const unitOf = (productId: string | null): SaleUnit => productOf(productId)?.saleUnit ?? "UNIT";
@@ -154,10 +165,11 @@ export function StockMovementModal({
       quantity: quantityFieldMessage,
     },
     onSubmit: async (_request, { parsed, showWireFieldError }) => {
-      if (parsed) {
+      const chosenDirection = parsed && soleDirection(listedReasons, "loss", parsed.reason);
+      if (parsed && chosenDirection) {
         await send(
           parsed.productId,
-          signedDelta("subtract", parsed.quantity),
+          directedQuantity(chosenDirection, parsed.quantity),
           () => services.recordLoss(parsed),
           showWireFieldError,
         );
@@ -177,7 +189,7 @@ export function StockMovementModal({
       from: (values) => ({
         productId: values.productId ?? "",
         reason: values.reason ?? "",
-        direction: soleDirection(values.reason) ?? values.direction,
+        direction: soleDirection(listedReasons, "adjustment", values.reason) ?? values.direction,
         quantity: quantityOf(values) ?? Number.NaN,
       }),
     },
@@ -197,7 +209,7 @@ export function StockMovementModal({
       if (parsed) {
         await send(
           parsed.productId,
-          signedDelta(parsed.direction, parsed.quantity),
+          directedQuantity(parsed.direction, parsed.quantity),
           () => services.recordAdjustment(parsed),
           showWireFieldError,
         );
@@ -209,9 +221,10 @@ export function StockMovementModal({
   const options = productOptions(listed);
   const lossProduct = productOf(loss.values.productId);
   const lossQuantity = quantityOf(loss.values);
+  const lossDirection = soleDirection(listedReasons, "loss", loss.values.reason);
   const adjustmentProduct = productOf(adjustment.values.productId);
   const adjustmentQuantity = quantityOf(adjustment.values);
-  const fixedDirection = soleDirection(adjustment.values.reason);
+  const fixedDirection = soleDirection(listedReasons, "adjustment", adjustment.values.reason);
   const direction = fixedDirection ?? adjustment.values.direction;
 
   return (
@@ -238,7 +251,7 @@ export function StockMovementModal({
             size="large"
             icon={<Check />}
             fullWidth
-            dataStatus={products.status}
+            dataStatus={data.status}
             disabled={submitting}
             onPress={() => void (kind === "loss" ? loss.submit() : adjustment.submit())}
           >
@@ -247,11 +260,11 @@ export function StockMovementModal({
         </>
       }
     >
-      {products.status === "loading" ? <LoadingPlaceholder variant="form" fields={3} /> : null}
-      {products.status === "failed" ? (
-        <LoadFailure {...cloudLoadFailure(products, "los productos")} />
+      {data.status === "loading" ? <LoadingPlaceholder variant="form" fields={3} /> : null}
+      {data.status === "failed" ? (
+        <LoadFailure {...cloudLoadFailure(data, "los productos")} />
       ) : null}
-      {products.status === "loaded" && !options ? (
+      {data.status === "loaded" && !options ? (
         <EmptyState
           icon={<Package />}
           title="No hay productos activos"
@@ -259,7 +272,7 @@ export function StockMovementModal({
           variant="blank"
         />
       ) : null}
-      {products.status === "loaded" && options ? (
+      {data.status === "loaded" && options ? (
         <div className="flex flex-col gap-4">
           {notice ? <StockMovementNotice notice={notice} /> : null}
           {kinds.length > 1 ? (
@@ -319,7 +332,9 @@ export function StockMovementModal({
                   onSessionEnded={onSessionEnded}
                   product={lossProduct}
                   delta={
-                    lossQuantity === undefined ? undefined : signedDelta("subtract", lossQuantity)
+                    lossQuantity === undefined || lossDirection === undefined
+                      ? undefined
+                      : directedQuantity(lossDirection, lossQuantity)
                   }
                 />
               ) : null}
@@ -381,7 +396,7 @@ export function StockMovementModal({
                   delta={
                     adjustmentQuantity === undefined
                       ? undefined
-                      : signedDelta(direction, adjustmentQuantity)
+                      : directedQuantity(direction, adjustmentQuantity)
                   }
                 />
               ) : null}

@@ -6,6 +6,7 @@ export type {
 export {
   MANUAL_STOCK_MOVEMENT_KINDS,
   manualStockMovementCapability,
+  manualStockMovementReasons,
   visibleManualStockMovementKinds,
 } from "./model/stock-movement-kind.js";
 export type {
@@ -19,7 +20,6 @@ export {
   LOSS_REASONS,
   lossDelta,
   STOCK_DIRECTIONS,
-  signedDelta,
 } from "./model/stock-movement-reason.js";
 export {
   isCountedQuantity,

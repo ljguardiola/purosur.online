@@ -3,6 +3,7 @@ import {
   LOSS_REASONS,
   MANUAL_STOCK_MOVEMENT_KINDS,
   SALE_UNITS,
+  STOCK_DIRECTIONS,
 } from "@purosur/domain";
 import { z } from "zod";
 
@@ -66,3 +67,20 @@ export const stockMovementListSchema = z.object({ movements: z.array(stockMoveme
 
 export type StockMovement = z.output<typeof stockMovementSchema>;
 export type StockMovementList = z.output<typeof stockMovementListSchema>;
+
+const directionsSchema = z.array(z.enum(STOCK_DIRECTIONS)).nonempty();
+
+const stockMovementReasonSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("loss"), reason: z.enum(LOSS_REASONS), directions: directionsSchema }),
+  z.object({
+    kind: z.literal("adjustment"),
+    reason: z.enum(ADJUSTMENT_REASONS),
+    directions: directionsSchema,
+  }),
+]);
+
+export const stockMovementReasonListSchema = z.object({
+  reasons: z.array(stockMovementReasonSchema),
+});
+
+export type StockMovementReasonList = z.output<typeof stockMovementReasonListSchema>;

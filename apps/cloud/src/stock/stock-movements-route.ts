@@ -2,9 +2,14 @@ import {
   stockAdjustmentBodySchema,
   stockLossBodySchema,
   stockMovementListSchema,
+  stockMovementReasonListSchema,
   stockMovementResultSchema,
 } from "@purosur/contracts";
-import { manualStockMovementCapability, visibleManualStockMovementKinds } from "@purosur/domain";
+import {
+  manualStockMovementCapability,
+  manualStockMovementReasons,
+  visibleManualStockMovementKinds,
+} from "@purosur/domain";
 import {
   type RecordAdjustmentOutcome,
   type RecordLossOutcome,
@@ -97,6 +102,20 @@ export function registerStockMovementsRoutes<TQueryResult extends PgQueryResultH
             ...movement,
             occurredAt: movement.occurredAt.toISOString(),
           })),
+        }),
+      );
+    },
+  );
+
+  app.get(
+    "/inventory-movement-reasons",
+    { preHandler, config: { access: capabilityAccess("stock_movements"), sessionSource } },
+    async (request, reply) => {
+      await reply.code(200).send(
+        stockMovementReasonListSchema.parse({
+          reasons: visibleManualStockMovementKinds(openSessionOf(request)).flatMap(
+            manualStockMovementReasons,
+          ),
         }),
       );
     },

@@ -21,6 +21,8 @@ export const STOCK_DIRECTIONS = ["add", "subtract"] as const;
 
 export type StockDirection = (typeof STOCK_DIRECTIONS)[number];
 
+export const LOSS_DIRECTION = "subtract" satisfies StockDirection;
+
 export function adjustmentDirections(reason: AdjustmentReason): readonly StockDirection[] {
   return reason === "supplier_return" ? ["subtract"] : STOCK_DIRECTIONS;
 }
@@ -30,5 +32,5 @@ export function signedDelta(direction: StockDirection, quantity: number): number
 }
 
 export function lossDelta(quantity: number): number {
-  return signedDelta("subtract", quantity);
+  return signedDelta(LOSS_DIRECTION, quantity);
 }
