@@ -16,9 +16,33 @@ finding or is not a finding.
 | Screens | `CONTRIBUTING.md`: "Backoffice screens", "Register screens", "React code"; `.claude/skills/build-screen/SKILL.md` | Every state a changed screen can be in and the piece that shows it, its file kinds and names, and what each component reads while rendering. |
 | User-facing text | `CONTRIBUTING.md`: "User-facing text" | Every added or changed Spanish text, read in the screen where it appears. |
 | Comments | `CONTRIBUTING.md`: "Code style" | Every added or changed comment, in code, tests, scripts and configuration. |
+| Commit order | `CONTRIBUTING.md`: "Code style" | `commits.patch` (in a re-review, `delta-commits-<round>.patch`) commit by commit: for each commit that changes behavior in source code, the earlier commit that only adds or changes the tests of that behavior. See "Commit order" below. |
 | Testing and migrations | `CONTRIBUTING.md`: "Testing" | Which kind of test owns each new rule, how each test controls time, and every added or changed migration. |
 | Data | `CONTRIBUTING.md`: "Code style" | Every sample, fixture and test value that names a person, business, tax id or credential. |
 | Process | `CONTRIBUTING.md`: "Branches and pull requests", "Code style", "Checks"; `CLAUDE.md` | Language of code and text, comments that switch off a check, and every changed workflow. |
+
+## Commit order
+
+A test file is one named `*.test.*`, or one under a `test-support`,
+`fixtures` or `__screenshots__` folder; every other file under `apps/`,
+`packages/` and `.github/scripts/` is source code.
+
+A commit changes behavior when some input gets a different outcome after it
+than before it: a condition, value, result, error, query, response or screen
+state that changes, or code added that something now calls. A commit that
+changes no behavior is not a finding, and needs no test commit: one that moves
+or renames code together with its tests, removes code nothing reads, or only
+changes configuration, documentation or comments. Tell them apart from the
+commit's diff: a moved piece of code appears removed in one file and added
+unchanged in another, and a change that keeps behavior leaves what every test
+of the touched files asserts as it was. A type that now accepts or refuses
+other values is a behavior.
+
+A behavior commit is a `rule` finding when no earlier commit of the branch
+only adds or changes tests that state that behavior, including when its test
+is added in the same commit or a later one. The finding names the commit's
+short sha and the behavior, as an input and its outcome. A commit made of
+tests only is never a finding.
 
 ## Kinds
 

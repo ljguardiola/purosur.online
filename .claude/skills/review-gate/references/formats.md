@@ -51,6 +51,7 @@ One block per ledger id:
 ### R1-1 — CONFIRMED | REFUTED — <kind> — in-scope | out-of-scope
 - Proof: the command run and its observed result (a mutation and the focused test's outcome), or the rule text and the code lines compared.
 - Restored: `git status` clean after the proof (behavioral claims only).
+- Checklist: for a confirmed finding, `named` when its area in `checklist.md` already names this kind of deviation, or `not named` with the example to add to that area.
 ```
 
 ## Fixer report

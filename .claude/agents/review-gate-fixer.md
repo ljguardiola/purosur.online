@@ -27,10 +27,19 @@ coordinator's answer of any id that had one, which the fix follows.
    value in a workflow or a fixture) needs no new test; never write one that
    only repeats a configuration value. The tests of every file it touches
    still run.
-3. Follow every rule in `CONTRIBUTING.md` in the code you write, including
+3. A commit-order finding names a commit and a behavior already
+   implemented. History is never rewritten: the fix is the missing test,
+   proven to fail without the implementation. Write or change the test,
+   undo the commit's source changes in the working tree
+   (`git diff <sha>^ <sha> -- <source files> | git apply -R`), run the test
+   and see it fail for that behavior, restore the source with
+   `git checkout -- <source files>`, and run it again passing. When a test
+   the branch already has states the behavior, run that same proof on it
+   and change nothing; report the commit that holds it.
+4. Follow every rule in `CONTRIBUTING.md` in the code you write, including
    the comment rule: the fix adds no comment that restates the code or records
    why it was fixed.
-4. Run the focused tests of every file you touched:
+5. Run the focused tests of every file you touched:
    `mise exec node@$(cat .node-version) -- pnpm vitest run <test files>`, or
    `mise exec node@$(cat .node-version) -- node --test <test files>` for the
    tests under `.github/scripts/`.
@@ -38,7 +47,7 @@ coordinator's answer of any id that had one, which the fix follows.
    `packages/contracts`, also run
    `mise exec node@$(cat .node-version) -- pnpm mutation --mutate <each touched source file>`
    and leave no surviving mutant in them.
-5. A fix may change whatever the finding needs, inside the issue's scope. A
+6. A fix may change whatever the finding needs, inside the issue's scope. A
    fix you cannot make, or another problem a fix reveals, is reported under
    the finding, not made.
 

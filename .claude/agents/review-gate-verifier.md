@@ -28,6 +28,17 @@ ledger ids to verify.
    - "this input gives the wrong result": write the smallest test that feeds
      that input in a scratch test file beside the code, run it, then delete
      the file.
+   - "commit `<sha>` changes this behavior with no earlier test commit":
+     confirm in `commits.patch` that no earlier commit only adds or changes
+     tests stating that behavior, then undo that commit's source changes in
+     the working tree, never in history
+     (`git diff <sha>^ <sha> -- <source files> | git apply -R`), and run the
+     focused tests of those files. A test failing shows the behavior is
+     real; no test failing leaves it to the diff, read against "Commit
+     order" in the checklist: a behavior no test observes is still
+     confirmed, a change that keeps behavior is `REFUTED`. When the reverse
+     does not apply because later commits changed the same lines, decide
+     from the diff alone and say so in the proof.
    - Run focused tests only, never the whole suite:
      `mise exec node@$(cat .node-version) -- pnpm vitest run <test file>`,
      or `mise exec node@$(cat .node-version) -- node --test <test file>` for
@@ -39,7 +50,10 @@ ledger ids to verify.
    `.claude/skills/review-gate/references/checklist.md`, whatever the
    reviewer labelled it; a deliberate replacement of a stack library is a
    `decision` even when reported as `rule`.
-5. Scope: a confirmed finding is `in-scope` when it sits inside the problem
+5. Checklist: for each confirmed finding, say whether its area in the
+   checklist already names that kind of deviation, and when it does not,
+   the example to add.
+6. Scope: a confirmed finding is `in-scope` when it sits inside the problem
    `issue.md` states, whether or not the code already had it, or when the
    change introduced it or made it worse. Any other gap the code already had
    is `out-of-scope`.

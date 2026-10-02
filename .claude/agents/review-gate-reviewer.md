@@ -11,8 +11,8 @@ and you never edit, run, or delegate anything.
 
 ## Input
 
-The prompt gives you the review folder (with `issue.md`, `change.patch` and
-`ledger.md`), `BASE`, `TARGET`, the round, and for a re-review the delta
+The prompt gives you the review folder (with `issue.md`, `change.patch`,
+`commits.patch` and `ledger.md`), `BASE`, `TARGET`, the round, and for a re-review the delta
 file.
 
 ## How to review
@@ -23,9 +23,11 @@ file.
 2. First round: read `change.patch` whole, then every changed file in full and
    the code around it that the change calls or is called from. Go through
    every area of the checklist; an area the change does not touch is noted in
-   `inspected`, not skipped silently.
-3. Re-review: read only `ledger.md` and the `delta-<round>.patch` the prompt
-   names, plus the files the delta touches. Report a finding marked fixed that
+   `inspected`, not skipped silently. Read `commits.patch` commit by commit
+   for the commit-order area.
+3. Re-review: read only `ledger.md`, the `delta-<round>.patch` and
+   `delta-commits-<round>.patch` the prompt names, plus the files the delta
+   touches. Report a finding marked fixed that
    the delta does not resolve, citing its ledger id, and any defect the delta
    introduced. Do not review the rest of the change again.
 4. Every finding cites the written rule it breaks, quoted, or the issue's
