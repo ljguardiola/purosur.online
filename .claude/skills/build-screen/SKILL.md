@@ -43,9 +43,11 @@ never restates those rules. Every step below follows the TDD order in
   or while the register is locked, `NavigationRail`
   (`navigation-rail.tsx`) for a signed-in screen and `OpenSessionRail`
   (`open-session-rail.tsx`) for one reached while a cash session is open.
-  The line above a title is `Eyebrow` (`eyebrow.tsx`), or `SessionEyebrow`
-  (`session-eyebrow.tsx`) when it names the register and its session, and a
-  link to another screen is `ScreenLink` (`screen-link.tsx`). The register
+  A screen's title block is `packages/ui`'s `ScreenHeader` (eyebrow, title
+  and description), whose eyebrow is `sessionEyebrow(...)`
+  (`session-eyebrow.ts`) when it names the register and its session; any
+  other line in eyebrow style is `packages/ui`'s `Eyebrow`. A link to another
+  screen is `ScreenLink` (`screen-link.tsx`). The register
   already shows `CoreDownNotice` (`core-down-notice.tsx`) while the core is
   down and `RenderFailureRecovery` (`render-failure-recovery.tsx`) when a
   screen fails to render; a screen never builds its own.

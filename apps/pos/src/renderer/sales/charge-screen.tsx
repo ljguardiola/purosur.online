@@ -5,11 +5,16 @@ import type {
   CurrentSaleAnswer,
   OpenSale,
 } from "@purosur/contracts";
-import { LoadFailure, LoadingPlaceholder, OptionCardGroup, plural } from "@purosur/ui";
+import {
+  LoadFailure,
+  LoadingPlaceholder,
+  OptionCardGroup,
+  plural,
+  ScreenHeader,
+} from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { Banknote, Landmark, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Eyebrow } from "../shell/eyebrow";
 import { OpenSessionRail } from "../shell/open-session-rail";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import type { CompletedCharge } from "./cash-charge-modal";
@@ -118,10 +123,10 @@ export function ChargeScreen({
         ) : null}
         {sale === undefined ? null : (
           <>
-            <div className="flex flex-col gap-1.5">
-              <Eyebrow text={`COBRO · VENTA DE ${lineCount} ${lines}`} />
-              <h1 className="text-display text-text-accent">Elegí el medio de pago</h1>
-            </div>
+            <ScreenHeader
+              eyebrow={`COBRO · VENTA DE ${lineCount} ${lines}`}
+              title="Elegí el medio de pago"
+            />
             <OptionCardGroup
               label="Medio de pago"
               options={METHODS}

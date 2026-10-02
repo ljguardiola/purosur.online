@@ -4,7 +4,13 @@ import type {
   IdentifyLockedCloserOutcome,
   SignInUser,
 } from "@purosur/contracts";
-import { EmptyState, InlineNotice, LoadFailure, LoadingPlaceholder } from "@purosur/ui";
+import {
+  EmptyState,
+  InlineNotice,
+  LoadFailure,
+  LoadingPlaceholder,
+  ScreenHeader,
+} from "@purosur/ui";
 import { ArrowLeft, Lock, ShieldX, TriangleAlert, UsersRound, UserX } from "lucide-react";
 import { useId, useState } from "react";
 import { PinAttemptControls } from "../platform/pin-attempt-controls";
@@ -15,7 +21,7 @@ import { usePinAttempt } from "../platform/use-pin-attempt";
 import { UserPicker } from "../platform/user-picker";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
 import { ScreenLink } from "../shell/screen-link";
-import { SessionEyebrow } from "../shell/session-eyebrow";
+import { sessionEyebrow } from "../shell/session-eyebrow";
 import { useLockedClosersQuery } from "./register-queries";
 
 export type IdentifiedCloser = { authorization: Authorization; first_name: string };
@@ -123,19 +129,16 @@ function IdentificationPanel({
 
   return (
     <main className="flex w-full max-w-110 flex-col gap-6">
-      <div className="flex flex-col gap-1.5">
-        <SessionEyebrow registerName={registerName} openedAt={openedAt} />
-        <h1
-          id={headingId}
-          ref={heading}
-          tabIndex={-1}
-          className="text-display text-text-accent outline-none"
-        >
-          {refusal?.kind === "locked"
+      <ScreenHeader
+        eyebrow={sessionEyebrow(registerName, openedAt)}
+        titleId={headingId}
+        titleRef={heading}
+        title={
+          refusal?.kind === "locked"
             ? `${refusal.firstName} está bloqueado`
-            : "¿Quién cierra la caja?"}
-        </h1>
-      </div>
+            : "¿Quién cierra la caja?"
+        }
+      />
       {refusal?.kind === "locked" ? (
         <SignInLockout
           consecutiveFailures={refusal.consecutiveFailures}
