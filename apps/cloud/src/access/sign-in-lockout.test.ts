@@ -1,16 +1,16 @@
 import { createHash } from "node:crypto";
 import { SIGN_IN_BLOCK_DURATION_MS, SIGN_IN_FAILURE_LIMIT } from "@purosur/domain";
+import {
+  admitSignInAttempt,
+  confirmRejectedSignInAttempt,
+  type TrippedSignInLockout,
+} from "@purosur/domain/access/use-cases";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { alerts } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
-import {
-  admitSignInAttempt,
-  confirmRejectedSignInAttempt,
-  discardSignInAttempt,
-  hashSourceAddress,
-  type TrippedSignInLockout,
-} from "./sign-in-lockout.js";
+import { DrizzlePasskeySignInStore } from "./drizzle-passkey-sign-in-store.js";
+import { DrizzleSignInLockoutStore, hashSourceAddress } from "./sign-in-lockout.js";
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -38,7 +38,17 @@ function minutesAfterNoon(minutes: number): Date {
 }
 
 function attempt(sourceAddress: string, now: Date) {
-  return admitSignInAttempt(db, { sourceAddress, now });
+  return admitSignInAttempt(
+    { store: new DrizzleSignInLockoutStore(db) },
+    { sourceAddress, at: now },
+  );
+}
+
+function confirmRejection(sourceAddress: string, now: Date) {
+  return confirmRejectedSignInAttempt(
+    { store: new DrizzleSignInLockoutStore(db) },
+    { sourceAddress, at: now },
+  );
 }
 
 async function rejectedAttempt(
@@ -49,7 +59,7 @@ async function rejectedAttempt(
   if (!admission.admitted) {
     throw new Error("test setup: expected this attempt to be admitted");
   }
-  const confirmed = await confirmRejectedSignInAttempt(db, { sourceAddress, now });
+  const confirmed = await confirmRejection(sourceAddress, now);
   return confirmed.trippedLockout;
 }
 
@@ -159,11 +169,10 @@ describe("admitSignInAttempt", () => {
       throw new Error("test setup: expected the attempt to be admitted");
     }
 
-    await discardSignInAttempt(db, discarded.attemptId);
-    const confirmed = await confirmRejectedSignInAttempt(db, {
-      sourceAddress: "203.0.113.10",
-      now: NOON,
-    });
+    await new DrizzlePasskeySignInStore(db).transaction((tx) =>
+      tx.discardSignInAttempt(discarded.attemptId),
+    );
+    const confirmed = await confirmRejection("203.0.113.10", NOON);
 
     expect(confirmed.trippedLockout).toBeNull();
   });
@@ -237,10 +246,7 @@ describe("confirmRejectedSignInAttempt", () => {
   it("reports the block once, so each block is audited a single time, opening no second alert", async () => {
     await rejectedAttempts("203.0.113.10", NOON, SIGN_IN_FAILURE_LIMIT);
 
-    const confirmed = await confirmRejectedSignInAttempt(db, {
-      sourceAddress: "203.0.113.10",
-      now: NOON,
-    });
+    const confirmed = await confirmRejection("203.0.113.10", NOON);
 
     expect(confirmed.trippedLockout).toBeNull();
     expect(await lockoutAlerts()).toHaveLength(1);

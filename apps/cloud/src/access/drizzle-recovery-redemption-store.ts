@@ -1,19 +1,22 @@
-import {
-  PasskeyAlreadyRegistered,
-  type RecoveredPasskey,
-  type RecoveringAccount,
-  type RecoveryPasskeyAlert,
-  type RecoveryRedemptionStore,
-  type RecoveryRedemptionStoreTransaction,
-  type RecoveryTokenRecord,
-  type RegisteredCredential,
-  type RegisteredPasskey,
-  type RejectedRedemption,
+import type {
+  RecoveredPasskey,
+  RecoveringAccount,
+  RecoveryPasskeyAlert,
+  RecoveryRedemptionStore,
+  RecoveryRedemptionStoreTransaction,
+  RecoveryTokenRecord,
+  RegisteredCredential,
+  RegisteredPasskey,
+  RejectedRedemption,
 } from "@purosur/domain/access/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { openAlert } from "../alerts/open-alert.js";
 import { auditLog, passkeys, recoveryTokens, users } from "../platform/db/schema.js";
+import {
+  addPasskey,
+  openPasskeyRegisteredAlert,
+  recordPasskeyRegistered,
+} from "./passkey-registration-records.js";
 import { revokeSessions } from "./revoke-sessions.js";
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
@@ -64,15 +67,8 @@ class DrizzleRecoveryRedemptionStoreTransaction<TQueryResult extends PgQueryResu
   }
 
   async registerPasskey(passkey: RecoveredPasskey): Promise<RegisteredPasskey> {
-    const [registered] = await this.tx
-      .insert(passkeys)
-      .values(passkey)
-      .onConflictDoNothing({ target: passkeys.credentialId })
-      .returning({ id: passkeys.id });
-    if (!registered) {
-      throw new PasskeyAlreadyRegistered();
-    }
-    return registered;
+    const { id } = await addPasskey(this.tx, passkey);
+    return { id };
   }
 
   async recordTokenRedeemed(tokenId: string, userId: string, at: Date): Promise<void> {
@@ -85,41 +81,16 @@ class DrizzleRecoveryRedemptionStoreTransaction<TQueryResult extends PgQueryResu
     });
   }
 
-  async recordPasskeyRegistered(
+  recordPasskeyRegistered(
     userId: string,
     passkey: RegisteredPasskey,
     details: RecoveredPasskey,
   ): Promise<void> {
-    await this.tx.insert(auditLog).values({
-      entity: "passkey",
-      entityId: passkey.id,
-      actorId: userId,
-      previousValue: null,
-      newValue: {
-        id: passkey.id,
-        name: details.name,
-        credentialId: details.credentialId,
-        deviceType: details.deviceType,
-        backedUp: details.backedUp,
-      },
-    });
+    return recordPasskeyRegistered(this.tx, userId, passkey, details);
   }
 
-  async openPasskeyRegisteredAlert(alert: RecoveryPasskeyAlert): Promise<void> {
-    await openAlert(
-      this.tx,
-      {
-        kind: "backoffice_passkey_changed",
-        scope: alert.userId,
-        detail: {
-          action: "registered",
-          passkeyName: alert.passkeyName,
-          actorId: alert.userId,
-          via: "recovery",
-        },
-      },
-      { now: () => alert.openedAt },
-    );
+  openPasskeyRegisteredAlert(alert: RecoveryPasskeyAlert): Promise<void> {
+    return openPasskeyRegisteredAlert(this.tx, alert, "recovery");
   }
 
   revokeSessions(userId: string, at: Date): Promise<void> {

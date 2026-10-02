@@ -13,6 +13,8 @@ export {
   ALERT_VIEW_PERMISSION_KEYS,
   CAPABILITIES,
   CAPABILITY_PERMISSIONS,
+  CHALLENGE_TTL_MS,
+  challengeExpiryWindowStart,
   decodePinSalt,
   encodePinHash,
   grantedCapabilities,

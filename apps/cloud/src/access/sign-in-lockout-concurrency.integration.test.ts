@@ -1,4 +1,5 @@
 import { SIGN_IN_FAILURE_LIMIT } from "@purosur/domain";
+import { admitSignInAttempt } from "@purosur/domain/access/use-cases";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -6,7 +7,7 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
-import { admitSignInAttempt } from "./sign-in-lockout.js";
+import { DrizzleSignInLockoutStore } from "./sign-in-lockout.js";
 
 // PGlite serves every query on one connection, so only a real Postgres pool can race a burst.
 // Each admission needs two connections (prune, then its locked transaction), hence the headroom.
@@ -33,7 +34,10 @@ describe("the sign-in lockout on concurrent connections", () => {
 
     const admissions = await Promise.all(
       Array.from({ length: BURST }, () =>
-        admitSignInAttempt(db, { sourceAddress: "198.51.100.10", now: NOON }),
+        admitSignInAttempt(
+          { store: new DrizzleSignInLockoutStore(db) },
+          { sourceAddress: "198.51.100.10", at: NOON },
+        ),
       ),
     );
 
@@ -47,7 +51,10 @@ describe("the sign-in lockout on concurrent connections", () => {
 
     const admissions = await Promise.all(
       Array.from({ length: BURST }, () =>
-        admitSignInAttempt(db, { sourceAddress: "198.51.100.20", now: NOON }),
+        admitSignInAttempt(
+          { store: new DrizzleSignInLockoutStore(db) },
+          { sourceAddress: "198.51.100.20", at: NOON },
+        ),
       ),
     );
 
