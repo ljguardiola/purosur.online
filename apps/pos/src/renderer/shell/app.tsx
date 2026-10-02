@@ -334,13 +334,12 @@ function Register({ core }: { core: CoreClient }) {
   );
 
   useEffect(() => {
+    router.update({
+      ...router.options,
+      context: { ...router.options.context, coreStatus, enrollment, person, cashSession },
+    });
     void router.invalidate();
   }, [router, coreStatus, enrollment, person, cashSession]);
 
-  return (
-    <RouterProvider
-      router={router}
-      context={{ queryClient, coreStatus, enrollment, person, cashSession, ...services }}
-    />
-  );
+  return <RouterProvider router={router} context={{ queryClient, ...services }} />;
 }
