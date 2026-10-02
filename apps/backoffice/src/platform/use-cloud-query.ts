@@ -88,8 +88,7 @@ export function useCloudQuery<T>({
     }
     const outcome = await read().catch((): CloudReadOutcome<T> => ({ kind: "failed" }));
     if (outcome.kind === "ok") {
-      const now = queryClient.getQueryState(queryKey);
-      if (now?.fetchStatus !== "fetching" && now?.dataUpdatedAt === before?.dataUpdatedAt) {
+      if (queryClient.getQueryState(queryKey) === before) {
         queryClient.setQueryData(queryKey, outcome.value);
       }
     } else if (outcome.kind === "unauthenticated") {
