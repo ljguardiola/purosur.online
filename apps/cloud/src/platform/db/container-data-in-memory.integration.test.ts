@@ -6,8 +6,12 @@ function filesystemHolding(path: string, mounts: string): string | undefined {
     .split("\n")
     .map((line) => line.split(" "))
     .filter(([, mountPoint]) => mountPoint !== undefined && isWithin(path, mountPoint))
-    .sort(([, a], [, b]) => (b?.length ?? 0) - (a?.length ?? 0));
-  return holding[0]?.[2];
+    .reduce<string[] | undefined>(
+      (visible, mount) =>
+        (mount[1]?.length ?? 0) >= (visible?.[1]?.length ?? 0) ? mount : visible,
+      undefined,
+    );
+  return holding?.[2];
 }
 
 function isWithin(path: string, mountPoint: string): boolean {
