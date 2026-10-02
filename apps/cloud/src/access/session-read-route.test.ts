@@ -1,4 +1,5 @@
 import {
+  CAPABILITIES,
   PERMISSION_KEYS,
   SESSION_ABSOLUTE_TIMEOUT_MS,
   SESSION_IDLE_TIMEOUT_MS,
@@ -154,6 +155,7 @@ describe("GET /sessions/current", () => {
       expires_at: new Date(NOON.getTime() + SESSION_IDLE_TIMEOUT_MS).toISOString(),
       is_administrator: false,
       permissions: [],
+      capabilities: [],
     });
   });
 
@@ -175,6 +177,38 @@ describe("GET /sessions/current", () => {
     const response = await getSession(rawSessionId);
 
     expect(response.json()).toMatchObject({ permissions: [...PERMISSION_KEYS] });
+  });
+
+  it("returns every capability for a user holding the Administrator role", async () => {
+    const administratorRoleId = await seededAdministratorRoleId();
+    await db.insert(userRoles).values({ userId, roleId: administratorRoleId });
+    const rawSessionId = await insertSession();
+
+    const response = await getSession(rawSessionId);
+
+    expect(response.json()).toMatchObject({ capabilities: [...CAPABILITIES] });
+  });
+
+  it("returns the capabilities the user's role permissions grant", async () => {
+    const [stockRole] = await db
+      .insert(roles)
+      .values({ name: "Depósito", isAdministrator: false })
+      .returning({ id: roles.id });
+    if (!stockRole) {
+      throw new Error("test setup: seeding the role returned no row");
+    }
+    await db.insert(userRoles).values({ userId, roleId: stockRole.id });
+    await db.insert(rolePermissions).values([
+      { roleId: stockRole.id, permissionKey: "record_stock_losses" },
+      { roleId: stockRole.id, permissionKey: "sell_and_charge" },
+    ]);
+    const rawSessionId = await insertSession();
+
+    const response = await getSession(rawSessionId);
+
+    expect(response.json()).toMatchObject({
+      capabilities: ["stock_losses", "stock_movements", "stock_area"],
+    });
   });
 
   it("returns the permission keys held by the user's role, in catalog order", async () => {
