@@ -48,6 +48,7 @@ import {
 } from "./register/cash-movement-requests";
 import {
   cashBalanceFor,
+  cashCountPreviewFor,
   closeCashSessionFor,
   closeLockedCashSessionFor,
   currentCashSession,
@@ -421,6 +422,10 @@ const rendererRequestDeps: RendererRequestDeps = {
       ? undefined
       : (closer) => identifyLockedCloserFor({ database: localDatabase, gate: actionGate }, closer),
   cashBalance: localDatabase === undefined ? undefined : () => cashBalanceFor(localDatabase),
+  cashCountPreview:
+    localDatabase === undefined
+      ? undefined
+      : (countedCash) => cashCountPreviewFor(localDatabase, countedCash),
   sessionOpenSale:
     localDatabase === undefined ? undefined : () => sessionOpenSaleFor(localDatabase),
   cashSession:

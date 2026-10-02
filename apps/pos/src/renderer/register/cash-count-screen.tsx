@@ -1,4 +1,4 @@
-import type { CashBalance, CloseCashSessionOutcome } from "@purosur/contracts";
+import type { CashBalance, CashCountPreview, CloseCashSessionOutcome } from "@purosur/contracts";
 import { Button, InlineNotice, useRequestForm } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Lock, TriangleAlert, UserX } from "lucide-react";
@@ -19,7 +19,7 @@ import {
 } from "./counted-cash-form";
 import { ExpectedCashPanel } from "./expected-cash-panel";
 import { OpenSaleBlock } from "./open-sale-block";
-import { useCashBalanceQuery } from "./register-queries";
+import { useCashBalanceQuery, useCashCountPreviewQuery } from "./register-queries";
 
 type Notice = { title: string; icon: "permission" | "failure" };
 
@@ -36,6 +36,7 @@ export type CashCountScreenProps = {
   openedAt: string;
   lock: () => void;
   loadCashBalance: () => Promise<CashBalance | null | "unavailable">;
+  loadCashCountPreview: (countedCash: number) => Promise<CashCountPreview | null | "unavailable">;
   closeCashSession: (countedCash: number) => Promise<CloseCashSessionOutcome>;
 };
 
@@ -46,6 +47,7 @@ export function CashCountScreen({
   openedAt,
   lock,
   loadCashBalance,
+  loadCashCountPreview,
   closeCashSession,
 }: CashCountScreenProps) {
   const navigate = useNavigate();
@@ -90,10 +92,8 @@ export function CashCountScreen({
 
   const expected = balance.status === "loaded" ? balance.value.expected : undefined;
   const counted = countedCashOf(countedCashRequestSchema, values);
-  const warning =
-    expected === undefined || counted === undefined
-      ? undefined
-      : differenceNotice(counted - expected);
+  const difference = useCashCountPreviewQuery(sessionId, counted, loadCashCountPreview);
+  const warning = difference === undefined ? undefined : differenceNotice(difference);
 
   function clearOutcome() {
     setNotice(undefined);
@@ -146,7 +146,7 @@ export function CashCountScreen({
                 )}
               </form.AppField>
             </div>
-            <CashCountStrip expected={expected} counted={counted} />
+            <CashCountStrip expected={expected} counted={counted} difference={difference} />
             {warning === undefined ? null : (
               <InlineNotice tone="warning" icon={<TriangleAlert />} title={warning} />
             )}

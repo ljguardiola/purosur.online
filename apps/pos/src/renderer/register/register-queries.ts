@@ -1,5 +1,6 @@
 import type {
   CashBalance,
+  CashCountPreview,
   ListedCashMovement,
   OpenCashSession,
   RecordableCashMovementKinds,
@@ -25,6 +26,8 @@ export const registerKeys = {
   registerName: [...registerKey, "register-name"] as const,
   lockedClosers: (sessionId: string) => [...lockedClosersKey, sessionId] as const,
   cashBalance: (sessionId: string) => [...cashKey, sessionId, "balance"] as const,
+  cashCountPreview: (sessionId: string, countedCash: number | undefined) =>
+    [...cashKey, sessionId, "count-preview", countedCash] as const,
   cashMovements: (sessionId: string) => [...cashKey, sessionId, "movements"] as const,
   openSale: (sessionId: string) => [...cashKey, sessionId, "open-sale"] as const,
   cashMovementKinds: (userId: string) => [...registerKey, "cash-movement-kinds", userId] as const,
@@ -95,6 +98,23 @@ export function useCashBalanceQuery(
   read: () => Promise<CashBalance | null | "unavailable">,
 ): CoreData<CashBalance> {
   return answeredOrLoading(useCoreQuery({ queryKey: registerKeys.cashBalance(sessionId), read }));
+}
+
+export function useCashCountPreviewQuery(
+  sessionId: string,
+  countedCash: number | undefined,
+  read: (countedCash: number) => Promise<CashCountPreview | null | "unavailable">,
+): number | undefined {
+  const query = useQuery({
+    ...coreQueryOptions({
+      queryKey: registerKeys.cashCountPreview(sessionId, countedCash),
+      read: async () => (countedCash === undefined ? "unavailable" : read(countedCash)),
+    }),
+    enabled: countedCash !== undefined,
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey.at(cashKey.length) === sessionId ? previous : undefined,
+  });
+  return countedCash === undefined ? undefined : query.data?.difference;
 }
 
 export function useCashMovementsQuery(

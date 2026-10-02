@@ -1,4 +1,4 @@
-import type { CashBalance, CloseCashSessionOutcome } from "@purosur/contracts";
+import type { CashBalance, CashCountPreview, CloseCashSessionOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
@@ -13,13 +13,13 @@ const ADA: SignedInPerson = {
 };
 const OPENED_AT = "2026-09-30T09:02:00.000-03:00";
 const BALANCE: CashBalance = {
-  opening_float: 2_000_000,
-  cash_sales: 3_500_000,
-  change_given: 930_000,
-  refunds: 0,
-  cash_in: 100_000,
-  expenses: 50_000,
-  withdrawals: 0,
+  opening_float: { amount: 2_000_000, direction: "in" },
+  cash_sales: { amount: 3_500_000, direction: "in" },
+  change_given: { amount: 930_000, direction: "out" },
+  refunds: { amount: 0, direction: "out" },
+  cash_in: { amount: 100_000, direction: "in" },
+  expenses: { amount: 50_000, direction: "out" },
+  withdrawals: { amount: 0, direction: "out" },
   expected: 4_620_000,
 };
 const CLOSED: CloseCashSessionOutcome = {
@@ -36,10 +36,27 @@ const FAILED_NOTICE = "No se pudo cerrar la caja. Probá de nuevo.";
 
 type CloseCashSession = (countedCash: number) => Promise<CloseCashSessionOutcome>;
 
+const PREVIEW_DIFFERENCES = new Map([
+  [4_580_000, -40_000],
+  [4_620_000, 0],
+  [4_660_000, 40_000],
+  [3_000_000_000, 2_953_800_000],
+]);
+
+type LoadCashCountPreview = (
+  countedCash: number,
+) => Promise<CashCountPreview | null | "unavailable">;
+
+const answerPreview: LoadCashCountPreview = async (countedCash) => {
+  const difference = PREVIEW_DIFFERENCES.get(countedCash);
+  return difference === undefined ? null : { difference };
+};
+
 async function renderScreen(
   props: {
     person?: SignedInPerson;
     loadCashBalance?: () => Promise<CashBalance | null | "unavailable">;
+    loadCashCountPreview?: LoadCashCountPreview;
     closeCashSession?: CloseCashSession;
   } = {},
 ) {
@@ -54,6 +71,7 @@ async function renderScreen(
       openedAt={OPENED_AT}
       lock={() => {}}
       loadCashBalance={props.loadCashBalance ?? (async () => BALANCE)}
+      loadCashCountPreview={props.loadCashCountPreview ?? answerPreview}
       closeCashSession={closeCashSession}
     />,
   );
@@ -75,6 +93,14 @@ async function submit(screen: Screen) {
 
 function cellOf(screen: Screen, label: string) {
   return screen.getByText(label, { exact: true }).element().closest("div")?.textContent;
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
 }
 
 describe("CashCountScreen", () => {
@@ -116,6 +142,62 @@ describe("CashCountScreen", () => {
     expect(cellOf(screen, "Diferencia")).toBe("Diferencia− $ 400,00");
     await expect.element(screen.getByText(SHORT_NOTICE).first()).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("asks the core to preview the count in cents, once it is a valid amount", async () => {
+    const loadCashCountPreview = vi.fn<LoadCashCountPreview>(answerPreview);
+    const { screen } = await renderScreen({ loadCashCountPreview });
+    expect(loadCashCountPreview).not.toHaveBeenCalled();
+
+    await count(screen, "45.800,00");
+
+    await expect.poll(() => loadCashCountPreview.mock.calls).toEqual([[4_580_000]]);
+  });
+
+  it("shows the difference and the warning the core answers, whatever the expected cash it shows", async () => {
+    const { screen } = await renderScreen({
+      loadCashCountPreview: async () => ({ difference: 70_000 }),
+    });
+
+    await count(screen, "45.800,00");
+
+    await expect.poll(() => cellOf(screen, "Diferencia")).toBe("Diferencia+ $ 700,00");
+    await expect
+      .element(
+        screen
+          .getByText(
+            "Sobran $ 700,00. La diferencia se registra con la sesión y no impide cerrarla.",
+          )
+          .first(),
+      )
+      .toBeVisible();
+  });
+
+  it("keeps the previous difference until the core answers the next count", async () => {
+    const next = deferred<CashCountPreview | null>();
+    const { screen } = await renderScreen({
+      loadCashCountPreview: (countedCash) =>
+        countedCash === 4_580_000 ? answerPreview(countedCash) : next.promise,
+    });
+    await count(screen, "45.800,00");
+    await expect.poll(() => cellOf(screen, "Diferencia")).toBe("Diferencia− $ 400,00");
+
+    await count(screen, "46.600,00");
+
+    expect(cellOf(screen, "Contado")).toBe("Contado$ 46.600,00");
+    expect(cellOf(screen, "Diferencia")).toBe("Diferencia− $ 400,00");
+    next.resolve({ difference: 40_000 });
+    await expect.poll(() => cellOf(screen, "Diferencia")).toBe("Diferencia+ $ 400,00");
+  });
+
+  it("shows no difference and no warning when the core cannot preview the count", async () => {
+    const { screen } = await renderScreen({ loadCashCountPreview: async () => "unavailable" });
+
+    await count(screen, "45.800,00");
+
+    expect(cellOf(screen, "Contado")).toBe("Contado$ 45.800,00");
+    expect(cellOf(screen, "Diferencia")).toBe("Diferencia—");
+    await expect.element(screen.getByText("Faltan", { exact: false })).not.toBeInTheDocument();
   });
 
   it("warns when there is cash left over", async () => {
@@ -307,6 +389,7 @@ describe("CashCountScreen", () => {
         openedAt={OPENED_AT}
         lock={() => {}}
         loadCashBalance={() => new Promise(() => {})}
+        loadCashCountPreview={answerPreview}
         closeCashSession={async () => CLOSED}
       />,
     );

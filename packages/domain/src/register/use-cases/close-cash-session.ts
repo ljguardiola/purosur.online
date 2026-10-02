@@ -1,5 +1,6 @@
-import { cancellableWithoutAuthorization } from "../../sales/index.js";
+import { openSaleSummary } from "../../sales/index.js";
 import { isValidCashAmount } from "../model/cash-amount.js";
+import { cashCountDifference } from "../model/cash-count.js";
 import type { ClosedCashSession } from "../model/cash-session.js";
 import { expectedCash } from "../model/expected-cash.js";
 import type { CashLedger, IdGenerator } from "./cash-ledger.js";
@@ -46,13 +47,9 @@ export async function closeCashSession<Refusal>(
     if (!open || open.id !== sessionId) {
       return { kind: "no_open_session" };
     }
-    const openSale = tx.openSale();
+    const openSale = tx.openSale(sessionId);
     if (openSale) {
-      return {
-        kind: "open_sale",
-        total: openSale.total,
-        cancellable: cancellableWithoutAuthorization(openSale.payments),
-      };
+      return { kind: "open_sale", ...openSaleSummary(openSale) };
     }
 
     const closedAt = clock.now();
@@ -69,7 +66,7 @@ export async function closeCashSession<Refusal>(
       closedAt,
       expectedCash: expected,
       countedCash,
-      difference: countedCash - expected,
+      difference: cashCountDifference(countedCash, expected),
     };
     tx.recordCashMovement({
       id: ids.next(),

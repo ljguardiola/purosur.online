@@ -1,10 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { differenceNotice, differenceText, signedAmount } from "./cash-amounts";
+import { differenceNotice, differenceText, directedAmount, signedAmount } from "./cash-amounts";
 
 describe("signedAmount", () => {
   it("puts the direction before the amount, with a proper minus sign", () => {
     expect(signedAmount("+", 5_070_000)).toBe("+ $ 50.700,00");
     expect(signedAmount("−", 930_000)).toBe("− $ 9.300,00");
+  });
+});
+
+describe("directedAmount", () => {
+  it("signs an amount by the direction it moves the cash", () => {
+    expect(directedAmount({ amount: 5_070_000, direction: "in" })).toBe("+ $ 50.700,00");
+    expect(directedAmount({ amount: 930_000, direction: "out" })).toBe("− $ 9.300,00");
+  });
+
+  it("leaves an amount that moves no cash plain", () => {
+    expect(directedAmount({ amount: 930_000, direction: "none" })).toBe("$ 9.300,00");
+  });
+
+  it("keeps the sign of a zero amount", () => {
+    expect(directedAmount({ amount: 0, direction: "in" })).toBe("+ $ 0,00");
+    expect(directedAmount({ amount: 0, direction: "out" })).toBe("− $ 0,00");
   });
 });
 

@@ -232,7 +232,9 @@ export {
 } from "./pricing/index.js";
 export type {
   CashBreakdown,
+  CashBreakdownLine,
   CashMovement,
+  CashMovementDirection,
   CashMovementKind,
   CashMovementType,
   CashSession,
@@ -245,10 +247,13 @@ export type {
   RegisterOperationAccess,
 } from "./register/index.js";
 export {
+  CASH_MOVEMENT_DIRECTIONS,
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_REASON_MAX_LENGTH,
   CASH_MOVEMENT_TYPES,
   cashBreakdown,
+  cashCountDifference,
+  cashMovementDirection,
   cashMovementPermission,
   ENROLLMENT_CODE_LENGTH,
   enrollmentAttemptWindowStart,
@@ -275,6 +280,7 @@ export {
 export type {
   LinePromotion,
   ListPrice,
+  OpenSaleSummary,
   PaymentTransaction,
   Sale,
   SaleLine,
@@ -285,6 +291,7 @@ export type {
 export {
   cancellableWithoutAuthorization,
   cashCharge,
+  openSaleSummary,
   SEARCH_RESULT_LIMIT,
   saleTotal,
 } from "./sales/index.js";

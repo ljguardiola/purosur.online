@@ -4,7 +4,6 @@ import type { CashMovementType } from "@purosur/domain";
 import type { TableLoadingState } from "@purosur/ui";
 import {
   dataColumn,
-  formatCents,
   formatClockTime,
   ListFilter,
   plural,
@@ -16,13 +15,12 @@ import {
 import { Receipt, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import type { CoreData } from "../platform/use-core-query";
-import { signedAmount } from "./cash-amounts";
+import { directedAmount } from "./cash-amounts";
 import { CASH_MOVEMENT_ICONS } from "./cash-movement-icons";
 
 type Presentation = {
   label: string;
   iconClassName: string;
-  sign: "+" | "−" | "";
   detail: (movement: ListedCashMovement) => string | null;
 };
 
@@ -34,49 +32,41 @@ const PRESENTATION = {
   OPENING: {
     label: "Apertura de sesión",
     iconClassName: GREEN,
-    sign: "+",
     detail: () => "Fondo inicial",
   },
   CASH_IN: {
     label: "Ingreso de efectivo",
     iconClassName: GREEN,
-    sign: "+",
     detail: (movement) => movement.reason,
   },
   CASH_OUT: {
     label: "Gasto",
     iconClassName: EARTH,
-    sign: "−",
     detail: (movement) => movement.reason,
   },
   WITHDRAWAL: {
     label: "Retiro a caja fuerte",
     iconClassName: EARTH,
-    sign: "−",
     detail: (movement) => movement.reason,
   },
   SALE: {
     label: "Venta",
     iconClassName: GREEN,
-    sign: "+",
     detail: () => "Cobro en efectivo",
   },
   CHANGE: {
     label: "Vuelto",
     iconClassName: EARTH,
-    sign: "−",
     detail: () => null,
   },
   REFUND: {
     label: "Devolución en efectivo",
     iconClassName: EARTH,
-    sign: "−",
     detail: () => null,
   },
   CLOSING: {
     label: "Cierre de sesión",
     iconClassName: PLAIN,
-    sign: "",
     detail: () => null,
   },
 } as const satisfies Record<CashMovementType, Presentation>;
@@ -92,11 +82,6 @@ const TYPE_FILTER_OPTIONS = [
       label: PRESENTATION[type].label,
     })),
 ] as const;
-
-function amountText(movement: ListedCashMovement): string {
-  const { sign } = PRESENTATION[movement.type];
-  return sign === "" ? formatCents(movement.amount) : signedAmount(sign, movement.amount);
-}
 
 function timeOrder(a: ListedCashMovement, b: ListedCashMovement): number {
   return Date.parse(a.occurred_at) - Date.parse(b.occurred_at);
@@ -146,7 +131,7 @@ const columns = [
     id: "amount",
     header: "Importe",
     align: "end",
-    render: amountText,
+    render: (movement: ListedCashMovement) => directedAmount(movement),
   }),
 ] as const;
 

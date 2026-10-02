@@ -2,6 +2,7 @@ import type {
   Authorization,
   AuthorizationRefusal,
   CashBalance,
+  CashCountPreview,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   IdentifyLockedCloserOutcome,
@@ -12,10 +13,12 @@ import type {
 } from "@purosur/contracts";
 import {
   type ClosedCashSession,
-  cancellableWithoutAuthorization,
   cashBreakdown,
+  cashCountDifference,
+  expectedCash,
   isLockedToAnother,
   type OpenedCashSession,
+  openSaleSummary,
   registerAbilities,
 } from "@purosur/domain";
 import {
@@ -32,12 +35,9 @@ import { authorizersOf } from "../access/authorizers";
 import { type ActivePerson, SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import { inArgentinaTime } from "../platform/argentina-time";
 import type { LocalDatabase } from "../platform/local-database";
-import {
-  readOpenSale,
-  readOpenSession,
-  readSessionMovements,
-  SqliteCashLedger,
-} from "./sqlite-cash-ledger";
+import { readOpenSale } from "../sales/sqlite-open-sale";
+import { readSalePayments } from "../sales/sqlite-sale-payments";
+import { readOpenSession, readSessionMovements, SqliteCashLedger } from "./sqlite-cash-ledger";
 
 export interface CashSessionRequestDeps {
   database: LocalDatabase;
@@ -236,11 +236,28 @@ export function cashBalanceFor(database: LocalDatabase): CashBalance | null {
   };
 }
 
+export function cashCountPreviewFor(
+  database: LocalDatabase,
+  countedCash: number,
+): CashCountPreview | null {
+  const session = readOpenSession(database);
+  if (session === undefined) {
+    return null;
+  }
+  return {
+    difference: cashCountDifference(
+      countedCash,
+      expectedCash(readSessionMovements(database, session.id)),
+    ),
+  };
+}
+
 export function sessionOpenSaleFor(database: LocalDatabase): SessionOpenSale | null {
-  const sale = readOpenSale(database);
-  return sale === undefined
-    ? null
-    : { total: sale.total, cancellable: cancellableWithoutAuthorization(sale.payments) };
+  const session = readOpenSession(database);
+  const sale = session && readOpenSale(database, session.id);
+  return sale
+    ? openSaleSummary({ lines: sale.lines, payments: readSalePayments(database, sale.id) })
+    : null;
 }
 
 export function currentCashSession(

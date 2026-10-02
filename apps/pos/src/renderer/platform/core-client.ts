@@ -5,6 +5,7 @@ import type {
   CancelSaleOutcome,
   CashBalance,
   CashChargeAnswer,
+  CashCountPreview,
   ChangeLineQuantityOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
@@ -89,6 +90,7 @@ export interface CoreClient {
   cancelLockedSale(closer: Authorization): Promise<CancelLockedSaleOutcome>;
   identifyLockedCloser(closer: Authorization): Promise<IdentifyLockedCloserOutcome>;
   cashBalance(): Promise<CashBalance | null | "unavailable">;
+  cashCountPreview(countedCash: number): Promise<CashCountPreview | null | "unavailable">;
   sessionOpenSale(): Promise<SessionOpenSale | null | "unavailable">;
   onPulled(listener: () => void): () => void;
 }
@@ -448,6 +450,21 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
             return "unavailable";
           }
           return answer.type === "cash-balance" ? answer.balance : undefined;
+        },
+      );
+    },
+    cashCountPreview(countedCash) {
+      return ask(
+        {
+          type: "cash-count-preview-request",
+          request_id: deps.newRequestId(),
+          counted_cash: countedCash,
+        },
+        (answer): CashCountPreview | null | "unavailable" | undefined => {
+          if (answer.type === "cash-count-preview-unavailable") {
+            return "unavailable";
+          }
+          return answer.type === "cash-count-preview" ? answer.preview : undefined;
         },
       );
     },
