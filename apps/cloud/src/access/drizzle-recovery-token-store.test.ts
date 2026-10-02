@@ -132,6 +132,14 @@ describe("issuing a token", () => {
     ]);
   });
 
+  it("refuses a request id that cannot name a stored request, storing nothing", async () => {
+    await expect(
+      store().transaction((tx) => tx.issueToken(newToken("hash-a", "not-a-uuid"))),
+    ).rejects.toThrow();
+
+    expect(await db.select().from(recoveryTokens)).toEqual([]);
+  });
+
   it("audits the issued token for the account at the moment the request was made", async () => {
     const issued = await store().transaction(async (tx) => {
       const token = await tx.issueToken(newToken("hash-a", REQUEST_A));

@@ -584,12 +584,54 @@ describe("startRecoveryWorker", () => {
         {
           email: "ada@example.com",
           requestedAt: "2026-01-05T12:00:00.000Z",
-          requestId: "not-a-uuid",
+          requestId: 42,
         },
         { withPgClient },
       ),
     ).rejects.toThrow();
     expect(withPgClient).not.toHaveBeenCalled();
+  });
+
+  it("hands a request id of any text to the job, leaving whether it names a stored request to the store", async () => {
+    const runner = fakeRunner();
+    const runWorker = vi.fn().mockResolvedValue(runner);
+    const withPgClient = vi.fn(async (callback: (client: unknown) => Promise<unknown>) =>
+      callback({ marker: "fake-client" }),
+    );
+    const fakeDb = { marker: "fake-db" };
+    const createDatabase = vi.fn().mockReturnValue(fakeDb);
+    const processJob = vi.fn().mockResolvedValue({});
+
+    await startRecoveryWorker(
+      {
+        databaseUrl: "postgres://user:pass@db/purosur",
+        backofficeOrigin: "https://staging.purosur.online",
+        emailSender,
+      },
+      { runWorker, createDatabase, processJob },
+    );
+
+    const [options] = runWorker.mock.calls[0] as [
+      {
+        taskList: Record<
+          string,
+          (payload: unknown, helpers: { withPgClient: typeof withPgClient }) => Promise<void>
+        >;
+      },
+    ];
+    const task = mustExist(
+      options.taskList[RECOVERY_REQUEST_TASK_IDENTIFIER],
+      "the registered recovery-request task",
+    );
+
+    const payload = {
+      email: "ada@example.com",
+      requestedAt: "2026-01-05T12:00:00.000Z",
+      requestId: "not-a-uuid",
+    };
+    await task(payload, { withPgClient });
+
+    expect(processJob).toHaveBeenCalledWith(fakeDb, payload, expect.anything());
   });
 
   it("sends a first PIN code email through the sender once the code read through graphile-worker's client is live, leaving a malformed payload or a failed send to graphile-worker's retry", async () => {
