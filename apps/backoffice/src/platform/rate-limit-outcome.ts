@@ -1,6 +1,4 @@
-type RateLimitOutcome =
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "failed" };
+type RateLimitOutcome = { kind: "rate_limited"; retryAfterSeconds: number } | { kind: "failed" };
 
 export function rateLimitOutcome(response: Response): RateLimitOutcome {
   const header = response.headers.get("Retry-After");
