@@ -325,6 +325,58 @@ const UNCALLED_UNDER_ANOTHER_NAME = [
     },
   },
   {
+    reach: "a destructuring assignment",
+    line: 5,
+    files: {
+      "src/sales/invalidate.ts": SALES_KEYS,
+      "src/sales/refresh.ts": [
+        'import { salesKeys } from "./invalidate";',
+        "let refresh: typeof salesKeys.invalidate;",
+        "({ invalidate: refresh } = salesKeys);",
+        'export const refreshAll = () => [["ticket"]].forEach(refresh);',
+      ].join("\n"),
+    },
+  },
+  {
+    reach: "a destructuring assignment nested in an object pattern",
+    line: 5,
+    files: {
+      "src/sales/invalidate.ts": SALES_KEYS,
+      "src/sales/refresh.ts": [
+        'import { salesKeys } from "./invalidate";',
+        "let refresh: typeof salesKeys.invalidate;",
+        "({ keys: { invalidate: refresh } } = { keys: salesKeys });",
+        'export const refreshAll = () => [["ticket"]].forEach(refresh);',
+      ].join("\n"),
+    },
+  },
+  {
+    reach: "a destructuring assignment nested in an array pattern's rest element",
+    line: 5,
+    files: {
+      "src/sales/invalidate.ts": SALES_KEYS,
+      "src/sales/refresh.ts": [
+        'import { salesKeys } from "./invalidate";',
+        "let refresh: typeof salesKeys.invalidate;",
+        "[...[{ invalidate: refresh }]] = [salesKeys];",
+        'export const refreshAll = () => [["ticket"]].forEach(refresh);',
+      ].join("\n"),
+    },
+  },
+  {
+    reach: "the target of a for-of loop",
+    line: 5,
+    files: {
+      "src/sales/invalidate.ts": SALES_KEYS,
+      "src/sales/refresh.ts": [
+        'import { salesKeys } from "./invalidate";',
+        "let refresh: typeof salesKeys.invalidate;",
+        "for ({ invalidate: refresh } of [salesKeys]);",
+        'export const refreshAll = () => [["ticket"]].forEach(refresh);',
+      ].join("\n"),
+    },
+  },
+  {
     reach: "a property access passed as a value",
     line: 5,
     files: {
@@ -443,6 +495,234 @@ test("follows a key into the methods of two objects typed with one interface, ea
   assert.deepEqual(problems, [
     'src/sales/sales-keys.ts:14 roots a query key at "ticket", but the concept folder holding it is "sales"',
     'src/sales/sales-keys.ts:15 roots a query key at "receipt", but the concept folder holding it is "sales"',
+  ]);
+});
+
+const CALLED_THROUGH_A_LOOSER_SIGNATURE = [
+  {
+    reach: "an interface's method signature",
+    files: {
+      "src/sales/sales-keys.ts": [
+        IMPORTS,
+        "const client = new QueryClient();",
+        "interface SalesKeys {",
+        "  invalidate(key: readonly unknown[]): void;",
+        "}",
+        "export const salesKeys: SalesKeys = {",
+        "  invalidate(key: QueryKey) {",
+        "    client.invalidateQueries({ queryKey: key });",
+        "  },",
+        "};",
+        'export const refreshTicket = () => salesKeys.invalidate(["ticket"]);',
+      ].join("\n"),
+    },
+    problems: [
+      'src/sales/sales-keys.ts:11 roots a query key at "ticket", but the concept folder holding it is "sales"',
+    ],
+  },
+  {
+    reach: "an interface's property signature",
+    files: {
+      "src/sales/sales-keys.ts": [
+        IMPORTS,
+        "const client = new QueryClient();",
+        "interface SalesKeys {",
+        "  invalidate: (key: readonly unknown[]) => void;",
+        "}",
+        "export const salesKeys: SalesKeys = {",
+        "  invalidate: (key: QueryKey) => client.invalidateQueries({ queryKey: key }),",
+        "};",
+        'export const refreshTicket = () => salesKeys.invalidate(["ticket"]);',
+      ].join("\n"),
+    },
+    problems: [
+      'src/sales/sales-keys.ts:9 roots a query key at "ticket", but the concept folder holding it is "sales"',
+    ],
+  },
+  {
+    reach: "the interface a class implements",
+    files: {
+      "src/sales/sales-keys.ts": [
+        IMPORTS,
+        "const client = new QueryClient();",
+        "interface SalesKeys {",
+        "  invalidate(key: readonly unknown[]): void;",
+        "}",
+        "class SalesKeysCache implements SalesKeys {",
+        "  invalidate(key: QueryKey) {",
+        "    client.invalidateQueries({ queryKey: key });",
+        "  }",
+        "}",
+        "export const salesKeys: SalesKeys = new SalesKeysCache();",
+        'export const refreshTicket = () => salesKeys.invalidate(["ticket"]);',
+      ].join("\n"),
+    },
+    problems: [
+      'src/sales/sales-keys.ts:12 roots a query key at "ticket", but the concept folder holding it is "sales"',
+    ],
+  },
+  {
+    reach: "a function type, with a spread argument",
+    files: {
+      "src/sales/sales-keys.ts": [
+        IMPORTS,
+        "const client = new QueryClient();",
+        "const invalidate: (...keys: readonly unknown[][]) => void = (_scope: unknown, key: QueryKey) =>",
+        "  client.invalidateQueries({ queryKey: key });",
+        'const keys = [["ticket"]];',
+        'export const refreshTicket = () => invalidate(...keys, ["sale"]);',
+      ].join("\n"),
+    },
+    problems: ["src/sales/sales-keys.ts:6 uses a query key whose root the check cannot read"],
+  },
+  {
+    reach: "a function type, into a function declaring its this parameter",
+    files: {
+      "src/sales/sales-keys.ts": [
+        IMPORTS,
+        "const client = new QueryClient();",
+        "const invalidate: (key: readonly unknown[]) => void = function (this: void, key: QueryKey) {",
+        "  client.invalidateQueries({ queryKey: key });",
+        "};",
+        'export const refreshTicket = () => invalidate(["ticket"]);',
+      ].join("\n"),
+    },
+    problems: [
+      'src/sales/sales-keys.ts:6 roots a query key at "ticket", but the concept folder holding it is "sales"',
+    ],
+  },
+  {
+    reach: "a function type, into a rest parameter",
+    files: {
+      "src/sales/sales-keys.ts": [
+        IMPORTS,
+        "const client = new QueryClient();",
+        "const invalidate: (...key: readonly unknown[]) => void = (...key: QueryKey) =>",
+        "  client.invalidateQueries({ queryKey: key });",
+        'export const refreshTicket = () => invalidate(["ticket"]);',
+      ].join("\n"),
+    },
+    problems: ["src/sales/sales-keys.ts:5 uses a query key whose root the check cannot read"],
+  },
+  {
+    reach: "a function type, into a destructured parameter",
+    files: {
+      "src/sales/sales-keys.ts": [
+        IMPORTS,
+        "const client = new QueryClient();",
+        "type Options = { key: readonly unknown[] };",
+        "const invalidate: (options: Options) => void = ({ key }: { key: QueryKey }) =>",
+        "  client.invalidateQueries({ queryKey: key });",
+        'const key = ["receipt"];',
+        'const options = { key: ["sale"] };',
+        "export function refreshAll() {",
+        '  invalidate({ key: ["ticket"], label: ["sale"] });',
+        "  invalidate({ key });",
+        "  invalidate({ ...options });",
+        "  invalidate(options);",
+        '  invalidate({ ["key"]: ["sale"] });',
+        "}",
+      ].join("\n"),
+    },
+    problems: [
+      'src/sales/sales-keys.ts:6 roots a query key at "receipt", but the concept folder holding it is "sales"',
+      'src/sales/sales-keys.ts:9 roots a query key at "ticket", but the concept folder holding it is "sales"',
+      "src/sales/sales-keys.ts:11 uses a query key whose root the check cannot read",
+      "src/sales/sales-keys.ts:12 uses a query key whose root the check cannot read",
+      "src/sales/sales-keys.ts:13 uses a query key whose root the check cannot read",
+    ],
+  },
+  {
+    reach: "a component's type, into a destructured prop",
+    files: {
+      "src/sales/ticket-panel.tsx": [
+        IMPORTS,
+        "type Props = { source: readonly unknown[] };",
+        "export const TicketPanel: (props: Props) => null = ({ source }: { source: QueryKey }) => {",
+        "  useQuery({ queryKey: source, queryFn: () => [] });",
+        "  return null;",
+        "};",
+        'const props = { source: ["sale"] };',
+        "export const panels = [",
+        '  <TicketPanel source={["ticket"]} />,',
+        "  <TicketPanel {...props} />,",
+        "  <TicketPanel source />,",
+        "];",
+      ].join("\n"),
+    },
+    problems: [
+      'src/sales/ticket-panel.tsx:9 roots a query key at "ticket", but the concept folder holding it is "sales"',
+      "src/sales/ticket-panel.tsx:10 uses a query key whose root the check cannot read",
+      "src/sales/ticket-panel.tsx:11 uses a query key whose root the check cannot read",
+    ],
+  },
+];
+
+for (const { reach, files, problems } of CALLED_THROUGH_A_LOOSER_SIGNATURE) {
+  test(`checks a key passed to a function through ${reach} that does not type it as a query key`, (t) => {
+    assert.deepEqual(problemsIn(t, files), problems);
+  });
+}
+
+test("accepts a call through a signature that does not type the key as a query key and passes none", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/sales-keys.ts": [
+      IMPORTS,
+      "const client = new QueryClient();",
+      "const invalidate: (key?: readonly unknown[]) => void = (key?: QueryKey) =>",
+      "  client.invalidateQueries({ queryKey: key });",
+      "export const refreshAll = () => invalidate();",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, []);
+});
+
+test("follows a key into a method of an object assigned to a variable or iterated by a for-of loop", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/assigned.ts": [
+      IMPORTS,
+      "const client = new QueryClient();",
+      "let salesKeys: { invalidate(key: QueryKey): void };",
+      "salesKeys = {",
+      "  invalidate(key: QueryKey) {",
+      "    client.invalidateQueries({ queryKey: key });",
+      "  },",
+      "};",
+      'export const refreshTicket = () => salesKeys.invalidate(["ticket"]);',
+    ].join("\n"),
+    "src/sales/iterated.ts": [
+      IMPORTS,
+      "const client = new QueryClient();",
+      "export function refreshAll() {",
+      "  for (const salesKeys of [{ invalidate: (key: QueryKey) => client.invalidateQueries({ queryKey: key }) }]) {",
+      '    salesKeys.invalidate(["receipt"]);',
+      "  }",
+      "}",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/sales/assigned.ts:9 roots a query key at "ticket", but the concept folder holding it is "sales"',
+    'src/sales/iterated.ts:5 roots a query key at "receipt", but the concept folder holding it is "sales"',
+  ]);
+});
+
+test("follows a key into a method whose name only other objects' destructuring assignments take", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/invalidate.ts": SALES_KEYS,
+    "src/sales/refresh.ts": [
+      'import { salesKeys } from "./invalidate";',
+      "let refresh: () => void;",
+      "let text: () => string;",
+      "({ invalidate: refresh } = { invalidate: () => {} });",
+      "({ toString: text } = salesKeys);",
+      'export const refreshTicket = () => salesKeys.invalidate(["ticket"]);',
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/sales/refresh.ts:6 roots a query key at "ticket", but the concept folder holding it is "sales"',
   ]);
 });
 
