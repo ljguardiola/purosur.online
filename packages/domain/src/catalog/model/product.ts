@@ -44,12 +44,6 @@ export function barcodeListProblem(codes: readonly string[]): BarcodeListProblem
   return undefined;
 }
 
-export const LABELS_MAX_COUNT_PER_PRODUCT = 999;
-
-const LABEL_SHEETS_MAX = 100;
-const LABELS_PER_SHEET = 24;
-export const LABELS_MAX_TOTAL_COUNT = LABEL_SHEETS_MAX * LABELS_PER_SHEET;
-
 export const SALE_UNITS = ["UNIT", "KG"] as const;
 
 export type SaleUnit = (typeof SALE_UNITS)[number];

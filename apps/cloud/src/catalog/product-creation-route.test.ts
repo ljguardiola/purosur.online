@@ -219,6 +219,7 @@ describe("POST /products", () => {
       tagIds: [],
       netContent: null,
       active: true,
+      labelCode: null,
       version: 1,
     });
     const created = await db.select().from(products).where(eq(products.id, body.id));
@@ -229,6 +230,21 @@ describe("POST /products", () => {
       .where(eq(productBarcodes.productId, body.id))
       .orderBy(productBarcodes.position);
     expect(codes.map((row) => row.code)).toEqual(["222", "111"]);
+  });
+
+  it("answers the created product with the internal barcode its label carries", async () => {
+    const categoryId = await insertCategory("Macetas");
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await createProduct(rawSessionId, {
+      name: "Maceta",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["7790001000011", "2000000000015"],
+    });
+
+    expect(response.json()).toMatchObject({ labelCode: "2000000000015" });
   });
 
   it("creates the product for an Administrator even without the explicit permission", async () => {

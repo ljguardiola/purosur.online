@@ -1,5 +1,6 @@
-import { type ProductSummary, productListSchema } from "@purosur/contracts";
+import { productListSchema } from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
+import type { CatalogProduct } from "@purosur/domain/catalog/use-cases";
 import { asc, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -11,6 +12,7 @@ import {
 } from "../access/route-access.js";
 import { categories, productBarcodes, products, productTags, tags } from "../platform/db/schema.js";
 import { netContentRow } from "./net-content-row.js";
+import { toProductSummary } from "./product-summary-wire.js";
 
 type ProductStatusFilter = "active" | "inactive" | "all";
 
@@ -101,7 +103,7 @@ async function tagIdsByProductId<TQueryResult extends PgQueryResultHKT>(
 async function listProducts<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   status: ProductStatusFilter = "active",
-): Promise<ProductSummary[]> {
+): Promise<CatalogProduct[]> {
   const rows: ProductWithoutBarcodes[] = await db
     .select({
       id: products.id,
@@ -174,7 +176,7 @@ export function registerProductsListRoute<TQueryResult extends PgQueryResultHKT>
       }
 
       const rows = await listProducts(options.db, status);
-      await reply.code(200).send(productListSchema.parse(rows));
+      await reply.code(200).send(productListSchema.parse(rows.map(toProductSummary)));
     },
   );
 }

@@ -1,9 +1,4 @@
-import type { ProductSummary } from "@purosur/contracts";
-import {
-  isInternalBarcode,
-  LABELS_MAX_COUNT_PER_PRODUCT,
-  LABELS_MAX_TOTAL_COUNT,
-} from "@purosur/domain";
+import { labelSheetBodySchema, type ProductSummary } from "@purosur/contracts";
 import {
   Button,
   EmptyState,
@@ -21,16 +16,23 @@ import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { groupedEan13Digits, LabelPreviewBars } from "./label-preview-bars";
 import type { printLabels } from "./products-api";
 
+function acceptsCounts(counts: Record<string, number>): boolean {
+  const entries = Object.entries(counts)
+    .filter(([, count]) => count > 0)
+    .map(([productId, count]) => ({ productId, count }));
+  return labelSheetBodySchema.safeParse({ labels: entries }).success;
+}
+
+function withOneMore(counts: Record<string, number>, productId: string): Record<string, number> {
+  return { ...counts, [productId]: (counts[productId] ?? 0) + 1 };
+}
+
 type LabelableProduct = { product: ProductSummary; code: string };
 
 function labelableProducts(products: ProductSummary[]): LabelableProduct[] {
-  const labelable = products.flatMap((product) => {
-    if (!product.active) {
-      return [];
-    }
-    const code = product.barcodes.find(isInternalBarcode);
-    return code ? [{ product, code }] : [];
-  });
+  const labelable = products.flatMap((product) =>
+    product.labelCode === null ? [] : [{ product, code: product.labelCode }],
+  );
   return sortedItems(labelable, {
     order: textOrder((labelableProduct) => labelableProduct.product.name),
     direction: "ascending",
@@ -91,13 +93,12 @@ export function PrintLabelsModal({
 
   function changeCount(productId: string, delta: 1 | -1) {
     setCounts((current) => {
-      const count = current[productId] ?? 0;
-      const currentTotal = Object.values(current).reduce((sum, value) => sum + value, 0);
-      const ceiling = Math.min(
-        LABELS_MAX_COUNT_PER_PRODUCT,
-        count + Math.max(0, LABELS_MAX_TOTAL_COUNT - currentTotal),
-      );
-      return { ...current, [productId]: Math.max(0, Math.min(ceiling, count + delta)) };
+      if (delta === 1) {
+        return acceptsCounts(withOneMore(current, productId))
+          ? withOneMore(current, productId)
+          : current;
+      }
+      return { ...current, [productId]: Math.max(0, (current[productId] ?? 0) - 1) };
     });
   }
 
@@ -268,9 +269,7 @@ export function PrintLabelsModal({
                       <IconButton
                         icon={<Plus />}
                         aria-label={`Sumar una etiqueta a ${product.name}`}
-                        disabled={
-                          count === LABELS_MAX_COUNT_PER_PRODUCT || total >= LABELS_MAX_TOTAL_COUNT
-                        }
+                        disabled={!acceptsCounts(withOneMore(counts, product.id))}
                         onPress={() => changeCount(product.id, 1)}
                       />
                     </div>

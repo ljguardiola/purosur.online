@@ -10,6 +10,14 @@ export {
   ean13Modules,
   isInternalBarcode,
 } from "./model/ean13.js";
+export type { LabelRequestEntry, LabelRequestProblem } from "./model/label-request.js";
+export {
+  isValidLabelCount,
+  LABELS_MAX_COUNT_PER_PRODUCT,
+  LABELS_MAX_TOTAL_COUNT,
+  labelRequestProblem,
+  productLabelCode,
+} from "./model/label-request.js";
 export type { BarcodeListProblem, NetContentUnit, SaleUnit } from "./model/product.js";
 export {
   BARCODE_MAX_LENGTH,
@@ -19,8 +27,6 @@ export {
   isNetContentUnit,
   isProductNameTooLong,
   isValidNetContentQuantity,
-  LABELS_MAX_COUNT_PER_PRODUCT,
-  LABELS_MAX_TOTAL_COUNT,
   NET_CONTENT_QUANTITY_MAX,
   NET_CONTENT_QUANTITY_MAX_DECIMALS,
   NET_CONTENT_UNITS,

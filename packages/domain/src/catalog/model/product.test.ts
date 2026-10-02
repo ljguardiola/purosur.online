@@ -8,8 +8,6 @@ import {
   isNetContentUnit,
   isProductNameTooLong,
   isValidNetContentQuantity,
-  LABELS_MAX_COUNT_PER_PRODUCT,
-  LABELS_MAX_TOTAL_COUNT,
   NET_CONTENT_QUANTITY_MAX,
   NET_CONTENT_QUANTITY_MAX_DECIMALS,
   NET_CONTENT_UNITS,
@@ -62,18 +60,6 @@ describe("isProductNameTooLong", () => {
         expect(isProductNameTooLong(name)).toBe(codePoints.length > PRODUCT_NAME_MAX_LENGTH);
       }),
     );
-  });
-});
-
-describe("LABELS_MAX_COUNT_PER_PRODUCT", () => {
-  it("allows up to 999 labels of one product in a single sheet request", () => {
-    expect(LABELS_MAX_COUNT_PER_PRODUCT).toBe(999);
-  });
-});
-
-describe("LABELS_MAX_TOTAL_COUNT", () => {
-  it("allows up to 2400 labels, 100 sheets of 24, in a single sheet request", () => {
-    expect(LABELS_MAX_TOTAL_COUNT).toBe(2400);
   });
 });
 

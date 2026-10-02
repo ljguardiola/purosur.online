@@ -8,6 +8,7 @@ import { createRole, createUser, deactivateUser } from "@purosur/domain/access/u
 import { closeAlert, escalateOverdueAlerts } from "@purosur/domain/alerts/use-cases";
 import { editBranchSettings } from "@purosur/domain/branch/use-cases";
 import {
+  allocateInternalBarcode,
   createCategory,
   createProduct,
   createTag,
@@ -25,7 +26,7 @@ import { DrizzleAlertStore } from "../alerts/drizzle-alert-store.js";
 import { openAlert } from "../alerts/open-alert.js";
 import { DrizzleBranchSettingsStore } from "../branch/drizzle-branch-settings-store.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
-import { allocateInternalBarcode } from "../catalog/internal-barcode-route.js";
+import { DrizzleInternalBarcodeStore } from "../catalog/drizzle-internal-barcode-store.js";
 import { branchSettings, locations, roles, userRoles, users } from "../platform/db/schema.js";
 import { DrizzleDiscountStore } from "../pricing/drizzle-discount-store.js";
 import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
@@ -234,7 +235,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
               const barcode =
                 plan.barcode.kind === "manufacturer"
                   ? plan.barcode.code
-                  : await allocateInternalBarcode(tx);
+                  : (await allocateInternalBarcode(new DrizzleInternalBarcodeStore(tx))).code;
               const productOutcome = await createProduct(catalogStore, {
                 name: plan.name,
                 categoryId: leafCategory.category.id,
