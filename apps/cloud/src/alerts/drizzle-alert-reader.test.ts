@@ -322,4 +322,12 @@ describe("DrizzleAlertReader displayNames", () => {
   it("answers an empty map for an empty list", async () => {
     expect((await new DrizzleAlertReader(db).displayNames([])).size).toBe(0);
   });
+
+  it("names nothing for a stored value that is no record id, while the record ids beside it are still named", async () => {
+    const userId = await insertUser("Lucía Pérez");
+
+    const names = await new DrizzleAlertReader(db).displayNames([userId, "scope-legacy"]);
+
+    expect(names).toEqual(new Map([[userId, "Lucía Pérez"]]));
+  });
 });

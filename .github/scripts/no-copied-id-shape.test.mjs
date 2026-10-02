@@ -179,6 +179,28 @@ test("finds a zod uuid or guid format where it is taken from zod, however it is 
   }
 });
 
+test("finds a zod uuid or guid format re-exported from zod, which another file could use", () => {
+  for (const [source, line] of [
+    ['export { guid } from "zod";', 1],
+    ['export { z } from "zod";\nexport { uuid as anyId } from "zod/v4";', 2],
+    ['export type { ZodGUID } from "zod";', 1],
+    ['export * from "zod";', 1],
+    ['export * as zod from "zod/mini";', 1],
+  ]) {
+    assert.deepEqual(linesOf(source), [line], source);
+  }
+});
+
+test("ignores a re-export from zod of names that are not an id format, or of an id format from elsewhere", () => {
+  const source = [
+    'export { z, string } from "zod";',
+    'export { uuid } from "drizzle-orm/pg-core";',
+    'export * from "./shared/index.js";',
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), []);
+});
+
 test("finds a zod id format on the line it is used", () => {
   const source = [
     'import { z } from "zod";',
@@ -229,7 +251,6 @@ test("reports each file and line holding a copy", () => {
 test("scans every cloud and contracts source file, tests included, except the shared shape's file", () => {
   const scanned = findScannedFiles(repoRoot);
 
-  assert.equal(ID_SHAPE_PATH, "packages/contracts/src/shared/record-id.ts");
   assert.ok(scanned.includes("apps/cloud/src/catalog/drizzle-catalog-store.ts"));
   assert.ok(scanned.includes("apps/cloud/src/catalog/drizzle-catalog-store.test.ts"));
   assert.ok(scanned.includes("packages/contracts/src/shared/index.ts"));

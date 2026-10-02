@@ -323,6 +323,13 @@ describe("DrizzlePriceReviewReader", () => {
     expect(ids(await pricesUnderReview({ search: "arr" }))).toEqual([riceId]);
   });
 
+  it("applies a category filter as given, listing nothing when no product's category is that value", async () => {
+    const categoryId = await insertCategory("Almacén");
+    await insertProduct("Arroz", categoryId);
+
+    expect(ids(await pricesUnderReview({ categoryId: "no-category" }))).toEqual([]);
+  });
+
   it("reports the pending count regardless of the active filter", async () => {
     const userId = await insertUser();
     const categoryId = await insertCategory("Almacén");
