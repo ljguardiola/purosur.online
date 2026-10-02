@@ -1,10 +1,15 @@
 import type { CashBalance } from "@purosur/contracts";
 import type { SummaryRowGroupProps } from "@purosur/ui";
-import { formatCents, LoadFailure, LoadingPlaceholder, SummaryRowGroup } from "@purosur/ui";
+import {
+  Eyebrow,
+  formatCents,
+  LoadFailure,
+  LoadingPlaceholder,
+  SummaryRowGroup,
+} from "@purosur/ui";
 import { TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import type { CoreData } from "../platform/use-core-query";
-import { Eyebrow } from "../shell/eyebrow";
 import { directedAmount } from "./cash-amounts";
 
 export type ExpectedCashPanelProps = {

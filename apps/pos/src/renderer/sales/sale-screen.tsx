@@ -8,13 +8,19 @@ import type {
   ScanProductOutcome,
   SearchProductsOutcome,
 } from "@purosur/contracts";
-import { EmptyState, LoadFailure, LoadingPlaceholder, SearchField } from "@purosur/ui";
+import {
+  EmptyState,
+  LoadFailure,
+  LoadingPlaceholder,
+  ScreenHeader,
+  SearchField,
+} from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { ScanBarcode, TriangleAlert } from "lucide-react";
 import type { FormEvent, KeyboardEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { OpenSessionRail } from "../shell/open-session-rail";
-import { SessionEyebrow } from "../shell/session-eyebrow";
+import { sessionEyebrow } from "../shell/session-eyebrow";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { CancelSaleModal } from "./cancel-sale-modal";
 import { changedLineId } from "./changed-line";
@@ -301,10 +307,7 @@ export function SaleScreen({
         current="sale"
       />
       <main className="flex min-w-0 flex-1 flex-col gap-4 pt-6 pr-6 pb-6 pl-8">
-        <div className="flex flex-col gap-1.5">
-          <SessionEyebrow registerName={registerName} openedAt={openedAt} />
-          <h1 className="text-display text-text-accent">Venta en curso</h1>
-        </div>
+        <ScreenHeader eyebrow={sessionEyebrow(registerName, openedAt)} title="Venta en curso" />
         <form
           ref={field}
           noValidate

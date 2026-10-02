@@ -1,8 +1,7 @@
 import type { OpenSale } from "@purosur/contracts";
-import { Button, formatCents, InlineNotice, plural, SummaryRowGroup } from "@purosur/ui";
+import { Button, Eyebrow, formatCents, InlineNotice, plural, SummaryRowGroup } from "@purosur/ui";
 import { Banknote, Lock, OctagonAlert, TriangleAlert, X } from "lucide-react";
 import type { ReactNode } from "react";
-import { Eyebrow } from "../shell/eyebrow";
 
 export type PaymentPanelProps = {
   lineCount: number;

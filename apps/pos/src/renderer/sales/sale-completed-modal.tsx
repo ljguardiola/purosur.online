@@ -1,6 +1,5 @@
-import { Button, formatCents, Modal, SummaryRowGroup } from "@purosur/ui";
+import { Button, Eyebrow, formatCents, Modal, SummaryRowGroup } from "@purosur/ui";
 import { CircleCheck, Plus } from "lucide-react";
-import { Eyebrow } from "../shell/eyebrow";
 
 export type SaleCompletedModalProps = {
   total: number;

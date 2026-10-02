@@ -1,6 +1,5 @@
-import { Button, formatCents, SummaryRowGroup } from "@purosur/ui";
+import { Button, Eyebrow, formatCents, SummaryRowGroup } from "@purosur/ui";
 import { ArrowLeft } from "lucide-react";
-import { Eyebrow } from "../shell/eyebrow";
 
 export type ChargePaymentPanelProps = {
   total: number;

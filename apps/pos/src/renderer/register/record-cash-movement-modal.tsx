@@ -6,6 +6,7 @@ import type {
 import type { AuthorizablePermissionKey, CashMovementKind } from "@purosur/domain";
 import {
   Button,
+  Eyebrow,
   formatCents,
   formatClockTime,
   InlineNotice,
@@ -233,9 +234,9 @@ function MovementModal({
     >
       <div className="flex flex-col gap-5">
         <div className="flex flex-col gap-2">
-          <p aria-hidden="true" className="text-caption font-bold text-text-eyebrow tracking-sm">
-            Tipo de movimiento
-          </p>
+          <div aria-hidden="true">
+            <Eyebrow text="Tipo de movimiento" />
+          </div>
           <form.AppField name="kind" listeners={{ onChange: forgetKindOutcome }}>
             {(field) => (
               <OptionCardGroup
