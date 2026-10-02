@@ -240,27 +240,39 @@ describe("the open sale", () => {
   });
 
   it("is none while the session has no sale", () => {
-    expect(ledger.transaction((tx) => tx.openSale())).toBeUndefined();
+    expect(ledger.transaction((tx) => tx.openSale("session-1"))).toBeUndefined();
   });
 
   it("is none while the session only has sales that are over", () => {
     addSale("sale-1", "COMPLETED", [1500]);
     addSale("sale-2", "VOIDED", [700]);
 
-    expect(ledger.transaction((tx) => tx.openSale())).toBeUndefined();
+    expect(ledger.transaction((tx) => tx.openSale("session-1"))).toBeUndefined();
   });
 
-  it("totals the lines of the sale in progress", () => {
+  it("carries the lines of the sale in progress", () => {
     addSale("sale-1", "COMPLETED", [999]);
     addSale("sale-2", "OPEN", [1500, 250]);
 
-    expect(ledger.transaction((tx) => tx.openSale())).toEqual({ total: 1750, payments: [] });
+    const openSale = ledger.transaction((tx) => tx.openSale("session-1"));
+
+    expect(openSale?.lines.map((line) => line.lineTotal)).toEqual([1500, 250]);
+    expect(openSale?.payments).toEqual([]);
   });
 
-  it("totals zero for a sale in progress whose lines were all removed", () => {
+  it("carries no lines for a sale in progress whose lines were all removed", () => {
     addSale("sale-1", "OPEN", []);
 
-    expect(ledger.transaction((tx) => tx.openSale())).toEqual({ total: 0, payments: [] });
+    expect(ledger.transaction((tx) => tx.openSale("session-1"))).toEqual({
+      lines: [],
+      payments: [],
+    });
+  });
+
+  it("is none for a session whose sale is not the one in progress", () => {
+    addSale("sale-1", "OPEN", [1500]);
+
+    expect(ledger.transaction((tx) => tx.openSale("session-2"))).toBeUndefined();
   });
 
   it("carries the payments of the sale in progress and none of another sale", () => {
@@ -269,7 +281,7 @@ describe("the open sale", () => {
     addPayment("sale-1", 999);
     addPayment("sale-2", 1000);
 
-    const openSale = ledger.transaction((tx) => tx.openSale());
+    const openSale = ledger.transaction((tx) => tx.openSale("session-1"));
 
     expect(openSale?.payments.map((payment) => payment.id)).toEqual(["payment-sale-2-1000"]);
   });
