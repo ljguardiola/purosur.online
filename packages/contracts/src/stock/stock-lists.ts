@@ -14,7 +14,7 @@ export type { StockPeriodDays } from "@purosur/domain";
 export const stockPeriodDaysSchema = z.literal(STOCK_PERIOD_DAYS);
 
 export const stockPeriodSchema = z
-  .templateLiteral([stockPeriodDaysSchema])
+  .enum(STOCK_PERIOD_DAYS.map((days) => `${days}` as const))
   .catch(`${DEFAULT_STOCK_PERIOD_DAYS}` as const);
 
 export type StockPeriod = z.output<typeof stockPeriodSchema>;
