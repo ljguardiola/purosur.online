@@ -645,4 +645,22 @@ describe("authorizers queries", () => {
 
     await expect.element(screen.getByText("Grace")).toBeVisible();
   });
+
+  it("read the authorizers again when every query of the register is invalidated", async () => {
+    const queryClient = createQueryClient();
+    const read = vi
+      .fn<AuthorizersProbeProps["read"]>()
+      .mockResolvedValueOnce([ADA])
+      .mockResolvedValueOnce([GRACE]);
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <AuthorizersProbe permission="withdraw_cash" read={read} />
+      </QueryClientProvider>,
+    );
+    await expect.element(screen.getByText("Ada")).toBeVisible();
+
+    await queryClient.invalidateQueries({ queryKey: ["register"] });
+
+    await expect.element(screen.getByText("Grace")).toBeVisible();
+  });
 });
