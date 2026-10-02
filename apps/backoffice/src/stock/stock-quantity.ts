@@ -1,7 +1,11 @@
-import { type SaleUnit, STOCK_QUANTITY_PER_UNIT, type StockDirection } from "@purosur/domain";
+import { stockCountBodySchema } from "@purosur/contracts";
+import type { SaleUnit, StockDirection } from "@purosur/domain";
 import { formatNumber, parseEsArNumber } from "@purosur/ui";
+import { schemaLimit } from "../platform/schema-limit";
 
-const KG_DECIMALS = 3;
+const quantityUnits = stockCountBodySchema.shape.counted.meta();
+const KG_DECIMALS = schemaLimit(quantityUnits?.["decimals"]);
+const STOCK_QUANTITY_PER_UNIT = schemaLimit(quantityUnits?.["perUnit"]);
 const MINUS = "−";
 
 function formatMagnitude(quantity: number, saleUnit: SaleUnit): string {

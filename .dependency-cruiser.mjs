@@ -27,9 +27,6 @@ export const SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST = [
   "apps/backoffice/src/catalog/label-preview-bars.tsx",
   "apps/backoffice/src/fiscal/issuer-identification-form.ts",
   "apps/backoffice/src/shell/backoffice-access.ts",
-  "apps/backoffice/src/stock/count-moment.ts",
-  "apps/backoffice/src/stock/stock-period.ts",
-  "apps/backoffice/src/stock/stock-quantity.ts",
 ];
 
 export const CONTRACTS_CROSS_CONCEPT_IMPORT_ALLOWLIST = [

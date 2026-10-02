@@ -1,17 +1,32 @@
-import type { StockPeriodDays } from "@purosur/contracts";
-import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
-import { formatDate } from "@purosur/ui";
+import {
+  type StockPeriod,
+  stockCountBodySchema,
+  stockPeriodDaysSchema,
+  stockPeriodSchema,
+} from "@purosur/contracts";
+import { formatDate, formatNumber, type Options } from "@purosur/ui";
+import { schemaText } from "../platform/schema-text";
 
-export type StockPeriod = "7" | "30" | "90";
+export type { StockPeriod };
 
-export const STOCK_PERIOD_OPTIONS = [
-  { value: "7", label: "Últimos 7 días" },
-  { value: "30", label: "Últimos 30 días" },
-  { value: "90", label: "Últimos 90 días" },
-] as const satisfies readonly { value: StockPeriod; label: string }[];
+const TIME_ZONE = schemaText(stockCountBodySchema.shape.occurredAt.meta()?.["timeZone"]);
 
-export function periodDays(period: StockPeriod): StockPeriodDays {
-  return Number(period) as StockPeriodDays;
+function periodOption(days: number) {
+  return { value: stockPeriodSchema.parse(`${days}`), label: `Últimos ${formatNumber(days)} días` };
+}
+
+const [firstDays, ...otherDays] = stockPeriodDaysSchema.values;
+if (firstDays === undefined) {
+  throw new Error("The schema offers no stock period");
+}
+
+export const STOCK_PERIOD_OPTIONS: Options<ReturnType<typeof periodOption>> = [
+  periodOption(firstDays),
+  ...otherDays.map(periodOption),
+];
+
+export function periodDays(period: StockPeriod) {
+  return stockPeriodDaysSchema.parse(Number(period));
 }
 
 export function formatStockDay(at: string): string {
@@ -19,7 +34,7 @@ export function formatStockDay(at: string): string {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-    timeZone: ARGENTINA_TIME_ZONE,
+    timeZone: TIME_ZONE,
   });
 }
 
@@ -28,6 +43,6 @@ export function formatStockTime(at: string): string {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-    timeZone: ARGENTINA_TIME_ZONE,
+    timeZone: TIME_ZONE,
   });
 }
