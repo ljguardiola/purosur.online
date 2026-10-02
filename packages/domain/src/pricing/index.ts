@@ -33,7 +33,7 @@ export type {
   TargetedProduct,
 } from "./model/discount-targeting.js";
 export { discountsTargeting } from "./model/discount-targeting.js";
-export { isCalendarDay, isDiscountWindowOrdered } from "./model/discount-validity.js";
+export { isDiscountWindowOrdered } from "./model/discount-validity.js";
 export type { IsoWeekday } from "./model/discount-weekdays.js";
 export {
   isoWeekdayOf,

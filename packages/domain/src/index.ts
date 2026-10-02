@@ -229,7 +229,6 @@ export {
   discountAppliesOn,
   discountNameLength,
   discountsTargeting,
-  isCalendarDay,
   isDiscountNameTooLong,
   isDiscountWindowOrdered,
   isoWeekdayOf,
@@ -309,7 +308,7 @@ export {
   SEARCH_RESULT_LIMIT,
   saleTotal,
 } from "./sales/index.js";
-export { ARGENTINA_TIME_ZONE, argentinaCalendarDay } from "./shared/index.js";
+export { ARGENTINA_TIME_ZONE, argentinaCalendarDay, isCalendarDay } from "./shared/index.js";
 export type {
   AdjustmentReason,
   LossReason,
