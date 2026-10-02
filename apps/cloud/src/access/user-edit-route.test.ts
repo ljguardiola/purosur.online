@@ -738,6 +738,22 @@ describe("PUT /users/:id", () => {
       const [row] = await db.select().from(users).where(eq(users.id, targetId));
       expect(row?.email).toBe("grace@example.com");
     });
+
+    it("returns 401 authorization_required, not 404, for a missing target when the session's passkey authorization is stale, changing nothing", async () => {
+      const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
+      const rawSessionId = await insertSession(administratorId, authorizedAt);
+
+      const response = await editUser("00000000-0000-0000-0000-000000000000", rawSessionId, {
+        email: "new@example.com",
+        role_id: cashierRoleId,
+        version: 1,
+      });
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json()).toMatchObject({ code: "authorization_required" });
+      const [row] = await db.select().from(users).where(eq(users.id, targetId));
+      expect(row?.email).toBe("grace@example.com");
+    });
   });
 });
 

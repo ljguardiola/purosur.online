@@ -355,5 +355,16 @@ describe("DELETE /users/:id/deactivation", () => {
       const [row] = await db.select().from(users).where(eq(users.id, targetId));
       expect(row?.active).toBe(false);
     });
+
+    it("returns 401 authorization_required, not 404, for a missing target when the session was never authorized, changing nothing", async () => {
+      const rawSessionId = await insertSession(administratorId, null);
+
+      const response = await reactivateUser("00000000-0000-0000-0000-000000000000", rawSessionId);
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json()).toMatchObject({ code: "authorization_required" });
+      const [row] = await db.select().from(users).where(eq(users.id, targetId));
+      expect(row?.active).toBe(false);
+    });
   });
 });

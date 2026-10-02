@@ -285,14 +285,16 @@ describe("POST /registers/:id/device-codes", () => {
     expect(await db.select().from(registerEnrollmentCodes)).toHaveLength(0);
   });
 
-  it("checks the register exists before passkey authorization", async () => {
+  it("checks the passkey authorization before the register exists", async () => {
     const locationId = await seededLocationId(db);
     const userId = await insertUserWithPermission(locationId);
     const rawSessionId = await insertSession(userId, null);
 
     const response = await emitCode("00000000-0000-0000-0000-000000000000", rawSessionId);
 
-    expect(response.statusCode).toBe(404);
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "authorization_required" });
+    expect(await db.select().from(registerEnrollmentCodes)).toHaveLength(0);
   });
 
   it("returns 401 authorization_required and changes nothing when the session was never passkey-authorized", async () => {

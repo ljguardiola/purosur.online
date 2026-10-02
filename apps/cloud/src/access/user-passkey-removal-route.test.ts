@@ -396,13 +396,13 @@ describe("DELETE /users/:id/passkeys/:passkeyId", () => {
     expect(response.json()).toMatchObject({ code: "not_found" });
   });
 
-  it("returns not_found for a malformed passkey id before asking for an authorization", async () => {
+  it("asks for an authorization before looking at a malformed passkey id", async () => {
     const rawSessionId = await insertSession(administratorId, null);
 
     const response = await removePasskey(targetId, "not-a-uuid", rawSessionId);
 
-    expect(response.statusCode).toBe(404);
-    expect(response.json()).toMatchObject({ code: "not_found" });
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "authorization_required" });
   });
 
   it("removes the named passkey, ends every open session of the target, leaves the Administrator's own session untouched, and audits the actor", async () => {
@@ -566,6 +566,30 @@ describe("DELETE /users/:id/passkeys/:passkeyId", () => {
       expect(response.json()).toMatchObject({ code: "authorization_required" });
       const rows = await db.select().from(passkeys).where(eq(passkeys.userId, targetId));
       expect(rows).toHaveLength(2);
+    });
+
+    it("returns 401 authorization_required, not 404, for a missing target user when the session's passkey authorization is stale", async () => {
+      const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
+      const rawSessionId = await insertSession(administratorId, authorizedAt);
+
+      const response = await removePasskey(
+        "00000000-0000-0000-0000-000000000000",
+        targetPasskeyAId,
+        rawSessionId,
+      );
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json()).toMatchObject({ code: "authorization_required" });
+    });
+
+    it("returns 401 authorization_required, not 403, for the session's own account when the session's passkey authorization is stale", async () => {
+      const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
+      const rawSessionId = await insertSession(administratorId, authorizedAt);
+
+      const response = await removePasskey(administratorId, targetPasskeyAId, rawSessionId);
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json()).toMatchObject({ code: "authorization_required" });
     });
   });
 });

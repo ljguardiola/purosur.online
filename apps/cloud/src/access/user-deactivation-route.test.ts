@@ -448,5 +448,17 @@ describe("PUT /users/:id/deactivation", () => {
       const [row] = await db.select().from(users).where(eq(users.id, targetId));
       expect(row?.active).toBe(true);
     });
+
+    it("returns 401 authorization_required, not 404, for a missing target when the session's passkey authorization is stale, changing nothing", async () => {
+      const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
+      const rawSessionId = await insertSession(administratorId, authorizedAt);
+
+      const response = await deactivateUser("00000000-0000-0000-0000-000000000000", rawSessionId);
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json()).toMatchObject({ code: "authorization_required" });
+      const [row] = await db.select().from(users).where(eq(users.id, targetId));
+      expect(row?.active).toBe(true);
+    });
   });
 });
