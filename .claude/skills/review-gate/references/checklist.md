@@ -19,7 +19,7 @@ finding or is not a finding.
 | Commit order | `CONTRIBUTING.md`: "Code style" | `commits.patch` (in a re-review, `delta-commits-<round>.patch`) commit by commit: for each commit that changes behavior, the earlier test commit of that behavior. See "Commit order" below. |
 | Testing and migrations | `CONTRIBUTING.md`: "Testing" | Which kind of test owns each new rule, how each test controls time, and every added or changed migration. |
 | Data | `CONTRIBUTING.md`: "Code style" | Every sample, fixture and test value that names a person, business, tax id or credential. |
-| Process | `CONTRIBUTING.md`: "Branches and pull requests", "Code style", "Checks"; `CLAUDE.md` | Language of code and text, comments that switch off a check, every changed workflow, and a skill, agent or checklist line that restates a rule from `CONTRIBUTING.md` or holds a rule `CONTRIBUTING.md` does not. |
+| Process | `CONTRIBUTING.md`: "Branches and pull requests", "Code style", "Checks"; `CLAUDE.md` | Language of code and text, comments that switch off a check, every changed workflow, and a line in a skill, an agent or this checklist that restates or contradicts a rule in `CONTRIBUTING.md`. |
 
 ## Commit order
 
@@ -30,10 +30,9 @@ behavior leaves what every test of the touched files asserts as it was.
 
 A behavior commit with no earlier test commit of that behavior is a `rule`
 finding that names the commit's short sha and the behavior, as an input and
-its outcome. It is resolved by a later commit holding the behavior's test,
-proven to fail with the behavior commit reversed, or by such a test the
-branch already has. A re-review does not reopen it because the history still
-shows the code first.
+its outcome. It is resolved as the commit-order rule in `CONTRIBUTING.md`
+("Code style") says, so a re-review does not reopen it because the history
+still shows the code first.
 
 ## Kinds
 

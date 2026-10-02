@@ -97,9 +97,9 @@ and the coordinator's answer of any id that had one. It reports each id
   `stopped`.
 - A row the fixer closed by proving that a test the branch already has fails
   without the implementation, with no change, is `fixed in <sha>` with the
-  sha of the commit that holds that test. A commit-order row is resolved as
-  "Commit order" in [references/checklist.md](references/checklist.md)
-  says, not reopened for the history itself.
+  sha of the commit that holds that test, even when that is the commit the
+  row names. A commit-order row is resolved as the commit-order rule in
+  `CONTRIBUTING.md` ("Code style") says, not reopened for the history itself.
 - A round whose fixes changed no file commits nothing and needs no
   re-review.
 - When it fixed none and a row is still `open`, launch the fixer again; the

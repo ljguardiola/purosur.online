@@ -36,13 +36,16 @@ coordinator's answer of any id that had one, which the fix follows.
    except the test files that state the behavior
    (`git diff <sha>^ <sha> -- . ':(exclude)<test file>' | git apply -R`),
    run the test and see it fail for that behavior, then
-   `git worktree remove --force <scratch dir>`. A failure that only comes
-   from a missing module or a renamed name shows a move, not a behavior.
+   `git worktree remove --force <scratch dir>`. A failure on a missing module
+   or export shows a move, not a behavior, only when the commit's diff removes
+   that code elsewhere (a rename or move); when the commit added the file or
+   export, that failure is the behavior's failure.
    When the reverse does not apply at `HEAD` because later commits changed
    the same lines, run the proof in a worktree at `<sha>` itself; when the
    test cannot run there either, report the id `not fixed` with that
-   reason. When a test the branch already has states the behavior, run that
-   same proof on it and change nothing; report the commit that holds it.
+   reason. When a test the branch already has states the behavior, even one
+   committed with the implementation, run that same proof on it and change
+   nothing; report the commit that holds it.
 4. Follow every rule in `CONTRIBUTING.md` in the code you write, including
    the comment rule: the fix adds no comment that restates the code or records
    why it was fixed.

@@ -29,16 +29,19 @@ ledger ids to verify.
      that input in a scratch test file beside the code, run it, then delete
      the file.
    - "commit `<sha>` changes this behavior with no earlier test commit":
-     confirm in `commits.patch` that no earlier test commit states that
-     behavior, then prove it in a temporary worktree, never in the working
+     confirm in `commits.patch` and every `delta-commits-<round>.patch` in
+     the review folder that no earlier test commit states that behavior, then
+     prove it in a temporary worktree, never in the working
      tree: `git worktree add --detach <scratch dir> HEAD`, `pnpm install
      --offline` there, and reverse the whole commit except the test files
      that state the behavior
      (`git diff <sha>^ <sha> -- . ':(exclude)<test file>' | git apply -R`),
      so a move or rename reverses together with its tests. Run the focused
      tests that state the behavior. A test failing on what it asserts shows
-     the behavior is real; a failure that only comes from a missing module
-     or a renamed name shows a move, not a behavior. No test failing leaves
+     the behavior is real. A failure on a missing module or export shows a
+     move, not a behavior, only when the commit's diff removes that code
+     elsewhere (a rename or move); when the commit added the file or export,
+     that failure is the behavior's failure. No test failing leaves
      it to the diff, read against "Commit order" in the checklist: a
      behavior no test observes is still confirmed, a change that keeps
      behavior is `REFUTED`. When the reverse does not apply at `HEAD`
