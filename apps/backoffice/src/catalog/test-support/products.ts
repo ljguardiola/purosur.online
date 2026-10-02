@@ -24,6 +24,7 @@ export const honey: ProductSummary = {
   tagIds: [],
   netContent: null,
   active: true,
+  labelCode: null,
   version: 1,
 };
 
@@ -38,5 +39,6 @@ export const almonds: ProductSummary = {
   tagIds: [],
   netContent: null,
   active: true,
+  labelCode: null,
   version: 1,
 };

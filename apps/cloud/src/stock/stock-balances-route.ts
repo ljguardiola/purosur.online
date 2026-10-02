@@ -1,7 +1,5 @@
-import { type StockBalanceList, stockBalanceListSchema } from "@purosur/contracts";
-import type { SaleUnit } from "@purosur/domain";
-import { and, asc, eq, sql } from "drizzle-orm";
-import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { stockBalanceListSchema } from "@purosur/contracts";
+import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
 import {
@@ -10,32 +8,8 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { categories, products, stockBalances } from "../platform/db/schema.js";
+import { DrizzleStockReader } from "./drizzle-stock-reader.js";
 import type { StockRouteOptions } from "./stock-route-options.js";
-
-async function listStockBalances<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  locationId: string,
-): Promise<StockBalanceList> {
-  const rows = await db
-    .select({
-      id: products.id,
-      name: products.name,
-      categoryId: products.categoryId,
-      categoryName: categories.name,
-      saleUnit: products.saleUnit,
-      balance: sql<number>`coalesce(${stockBalances.quantity}, 0)`.mapWith(Number),
-    })
-    .from(products)
-    .innerJoin(categories, eq(products.categoryId, categories.id))
-    .leftJoin(
-      stockBalances,
-      and(eq(stockBalances.productId, products.id), eq(stockBalances.locationId, locationId)),
-    )
-    .where(eq(products.active, true))
-    .orderBy(asc(products.name), asc(products.id));
-  return { products: rows.map((row) => ({ ...row, saleUnit: row.saleUnit as SaleUnit })) };
-}
 
 export function registerStockBalancesRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
@@ -44,6 +18,7 @@ export function registerStockBalancesRoute<TQueryResult extends PgQueryResultHKT
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
+  const reader = new DrizzleStockReader(options.db);
 
   app.get(
     "/inventory-levels",
@@ -53,8 +28,8 @@ export function registerStockBalancesRoute<TQueryResult extends PgQueryResultHKT
     },
     async (request, reply) => {
       const { locationId } = openSessionOf(request);
-      const list = await listStockBalances(options.db, locationId);
-      await reply.code(200).send(stockBalanceListSchema.parse(list));
+      const products = await reader.stockLevels(locationId);
+      await reply.code(200).send(stockBalanceListSchema.parse({ products }));
     },
   );
 }

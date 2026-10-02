@@ -117,7 +117,13 @@ export {
   isBranchHoursRangeOrdered,
   isBranchHoursTime,
 } from "./branch/index.js";
-export type { BarcodeListProblem, NetContentUnit, SaleUnit } from "./catalog/index.js";
+export type {
+  BarcodeListProblem,
+  LabelRequestEntry,
+  LabelRequestProblem,
+  NetContentUnit,
+  SaleUnit,
+} from "./catalog/index.js";
 export {
   appendEan13CheckDigit,
   BARCODE_MAX_LENGTH,
@@ -135,14 +141,17 @@ export {
   isNetContentUnit,
   isProductNameTooLong,
   isTagNameTooLong,
+  isValidLabelCount,
   isValidNetContentQuantity,
   LABELS_MAX_COUNT_PER_PRODUCT,
   LABELS_MAX_TOTAL_COUNT,
+  labelRequestProblem,
   NET_CONTENT_QUANTITY_MAX,
   NET_CONTENT_QUANTITY_MAX_DECIMALS,
   NET_CONTENT_UNITS,
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
+  productLabelCode,
   productNameLength,
   SALE_UNITS,
   TAG_NAME_MAX_LENGTH,
@@ -287,7 +296,13 @@ export {
   saleTotal,
 } from "./sales/index.js";
 export { ARGENTINA_TIME_ZONE, argentinaCalendarDay } from "./shared/index.js";
-export type { AdjustmentReason, LossReason, StockDirection } from "./stock/index.js";
+export type {
+  AdjustmentReason,
+  LossReason,
+  ManualStockMovementKind,
+  StockDirection,
+  StockMovementKind,
+} from "./stock/index.js";
 export {
   ADJUSTMENT_REASONS,
   adjustmentDirections,
@@ -297,6 +312,7 @@ export {
   isMovementQuantity,
   LOSS_REASONS,
   lossDelta,
+  MANUAL_STOCK_MOVEMENT_KINDS,
   MAX_STOCK_QUANTITY,
   STOCK_DIRECTIONS,
   STOCK_QUANTITY_PER_UNIT,

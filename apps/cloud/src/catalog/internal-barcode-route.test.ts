@@ -1,25 +1,11 @@
-import { appendEan13CheckDigit } from "@purosur/domain";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../access/session-id.js";
-import {
-  categories,
-  productBarcodes,
-  products,
-  rolePermissions,
-  roles,
-  sessions,
-  userRoles,
-  users,
-} from "../platform/db/schema.js";
+import { rolePermissions, roles, sessions, userRoles, users } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import {
-  allocateInternalBarcode,
-  registerInternalBarcodeRoute,
-  sequenceValueOf,
-} from "./internal-barcode-route.js";
+import { registerInternalBarcodeRoute } from "./internal-barcode-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
@@ -39,94 +25,6 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDatabase.clear();
-});
-
-// `setval(..., false)` makes the very next `nextval` return exactly `value`.
-async function setNextSequenceValue(value: bigint): Promise<void> {
-  await testDatabase.client.query("select setval('internal_barcode_sequence', $1, false)", [
-    value.toString(),
-  ]);
-}
-
-async function insertBarcodeForNewProduct(code: string): Promise<void> {
-  const [category] = await db
-    .insert(categories)
-    .values({ name: `Macetas ${code}` })
-    .returning({ id: categories.id });
-  if (!category) {
-    throw new Error("test setup: seeding the category returned no row");
-  }
-  const [product] = await db
-    .insert(products)
-    .values({ name: "Existing", categoryId: category.id, saleUnit: "UNIT" })
-    .returning({ id: products.id });
-  if (!product) {
-    throw new Error("test setup: seeding the product returned no row");
-  }
-  await db.insert(productBarcodes).values({ productId: product.id, code, position: 0 });
-}
-
-describe("sequenceValueOf", () => {
-  it("reads the value from a driver that returns the row array itself", () => {
-    expect(sequenceValueOf([{ value: "41" }])).toBe(41n);
-  });
-
-  it("reads the value from a driver that returns its rows under a rows key", () => {
-    expect(sequenceValueOf({ rows: [{ value: "42" }] })).toBe(42n);
-  });
-
-  it("refuses a result with no row", () => {
-    expect(() => sequenceValueOf([])).toThrow("internal-barcode: nextval returned no row");
-    expect(() => sequenceValueOf({ rows: [] })).toThrow(
-      "internal-barcode: nextval returned no row",
-    );
-    expect(() => sequenceValueOf({})).toThrow("internal-barcode: nextval returned no row");
-  });
-
-  it("reads a value a driver returns as a bigint or an integer number", () => {
-    expect(sequenceValueOf({ rows: [{ value: 43n }] })).toBe(43n);
-    expect(sequenceValueOf({ rows: [{ value: 44 }] })).toBe(44n);
-  });
-
-  it("refuses a row whose value is not an integer", () => {
-    expect(() => sequenceValueOf([{ value: 7.5 }])).toThrow(
-      "internal-barcode: nextval returned a row without an integer value",
-    );
-    expect(() => sequenceValueOf({ rows: [{}] })).toThrow(
-      "internal-barcode: nextval returned a row without an integer value",
-    );
-    expect(() => sequenceValueOf({ rows: [null] })).toThrow(
-      "internal-barcode: nextval returned a row without an integer value",
-    );
-  });
-});
-
-describe("allocateInternalBarcode", () => {
-  it("allocates a GS1 restricted-circulation (20-29) EAN-13 code with a valid check digit", async () => {
-    const code = await allocateInternalBarcode(db);
-
-    expect(code).toMatch(EAN13_RESTRICTED_CIRCULATION_PATTERN);
-    expect(code).toBe(appendEan13CheckDigit(code.slice(0, 12)));
-  });
-
-  it("returns a different code on consecutive allocations", async () => {
-    const first = await allocateInternalBarcode(db);
-    const second = await allocateInternalBarcode(db);
-
-    expect(second).not.toBe(first);
-  });
-
-  it("skips a code already used by a product barcode", async () => {
-    const takenValue = 200000000100n;
-    await setNextSequenceValue(takenValue);
-    const takenCode = appendEan13CheckDigit(takenValue.toString());
-    await insertBarcodeForNewProduct(takenCode);
-
-    const code = await allocateInternalBarcode(db);
-
-    expect(code).not.toBe(takenCode);
-    expect(code).toBe(appendEan13CheckDigit((takenValue + 1n).toString()));
-  });
 });
 
 describe("POST /internal-barcodes", () => {

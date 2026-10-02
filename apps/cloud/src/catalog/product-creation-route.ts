@@ -10,6 +10,7 @@ import {
 } from "../access/route-access.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
+import { toProductSummary } from "./product-summary-wire.js";
 import type { ProductsRouteOptions } from "./products-list-route.js";
 
 export const CATEGORY_NOT_FOUND_FAILURE = {
@@ -109,7 +110,7 @@ export function registerProductCreationRoute<TQueryResult extends PgQueryResultH
         return;
       }
 
-      await reply.code(201).send(productSummarySchema.parse(outcome.product));
+      await reply.code(201).send(productSummarySchema.parse(toProductSummary(outcome.product)));
     },
   );
 }

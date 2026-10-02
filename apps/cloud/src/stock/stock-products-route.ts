@@ -1,5 +1,4 @@
 import { stockProductListSchema } from "@purosur/contracts";
-import { asc, eq } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
@@ -8,7 +7,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { categories, products } from "../platform/db/schema.js";
+import { DrizzleStockReader } from "./drizzle-stock-reader.js";
 import type { StockRouteOptions } from "./stock-route-options.js";
 
 export function registerStockProductsRoute<TQueryResult extends PgQueryResultHKT>(
@@ -18,6 +17,7 @@ export function registerStockProductsRoute<TQueryResult extends PgQueryResultHKT
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
+  const reader = new DrizzleStockReader(options.db);
 
   app.get(
     "/inventory-items",
@@ -34,19 +34,8 @@ export function registerStockProductsRoute<TQueryResult extends PgQueryResultHKT
       },
     },
     async (_request, reply) => {
-      const rows = await options.db
-        .select({
-          id: products.id,
-          name: products.name,
-          categoryId: products.categoryId,
-          categoryName: categories.name,
-          saleUnit: products.saleUnit,
-        })
-        .from(products)
-        .innerJoin(categories, eq(products.categoryId, categories.id))
-        .where(eq(products.active, true))
-        .orderBy(asc(products.name), asc(products.id));
-      await reply.code(200).send(stockProductListSchema.parse({ products: rows }));
+      const products = await reader.activeProducts();
+      await reply.code(200).send(stockProductListSchema.parse({ products }));
     },
   );
 }

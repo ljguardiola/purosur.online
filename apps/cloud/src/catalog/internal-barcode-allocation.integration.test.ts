@@ -1,3 +1,4 @@
+import { allocateInternalBarcode } from "@purosur/domain/catalog/use-cases";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -5,7 +6,7 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
-import { allocateInternalBarcode } from "./internal-barcode-route.js";
+import { DrizzleInternalBarcodeStore } from "./drizzle-internal-barcode-store.js";
 
 // A Postgres sequence's `nextval` is concurrency-safe: each caller gets its own value with no
 // locking needed.
@@ -26,7 +27,13 @@ afterAll(async () => {
 
 describe("allocating internal barcodes concurrently on a real Postgres through postgres-js", () => {
   it("gives every concurrent allocation its own distinct code", async () => {
-    const codes = await Promise.all(Array.from({ length: 20 }, () => allocateInternalBarcode(db)));
+    const store = new DrizzleInternalBarcodeStore(db);
+
+    const outcomes = await Promise.all(
+      Array.from({ length: 20 }, () => allocateInternalBarcode(store)),
+    );
+
+    const codes = outcomes.map((outcome) => outcome.code);
 
     expect(new Set(codes).size).toBe(codes.length);
   });

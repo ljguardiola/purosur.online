@@ -198,6 +198,7 @@ describe("the product's brand", () => {
       tagIds: [],
       netContent: null,
       active: true,
+      labelCode: null,
       version: 1,
     };
     expect(productFormValues({ ...product, brandId: "brand-1" }).brandId).toBe("brand-1");
