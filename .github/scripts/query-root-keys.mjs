@@ -206,23 +206,17 @@ function nameOfFunction(fn) {
     : undefined;
 }
 
-function isTypePosition(reference) {
+function isMemberName(reference) {
   const parent = reference.parent;
-  if (
-    (ts.isMethodSignature(parent) || ts.isPropertySignature(parent)) &&
+  return (
+    (ts.isClassElement(parent) || ts.isTypeElement(parent) || ts.isPropertyAssignment(parent)) &&
     parent.name === reference
-  ) {
-    return true;
-  }
-  for (let child = reference, node = parent; node !== undefined; child = node, node = node.parent) {
-    if (ts.isExpressionWithTypeArguments(node)) {
-      if (child !== node.expression) return true;
-      const clause = node.parent;
-      return (
-        ts.isHeritageClause(clause) &&
-        !(clause.token === ts.SyntaxKind.ExtendsKeyword && ts.isClassLike(clause.parent))
-      );
-    }
+  );
+}
+
+function isTypePosition(reference) {
+  for (let node = reference.parent; node !== undefined; node = node.parent) {
+    if (ts.isExpressionWithTypeArguments(node)) return false;
     if (ts.isTypeNode(node)) return true;
   }
   return false;
@@ -269,6 +263,7 @@ function rootTracer(service, checker, tools, checkedFiles) {
             return (
               inJsDoc ||
               reference === name ||
+              isMemberName(reference) ||
               isTypePosition(reference) ||
               isCalledThrough(reference)
             );
