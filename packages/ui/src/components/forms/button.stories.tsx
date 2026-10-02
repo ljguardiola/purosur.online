@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Check } from "lucide-react";
+import { ArrowLeft, Check } from "lucide-react";
 import { within } from "storybook/test";
 import {
   playHoverSetsDataHovered,
@@ -88,6 +88,32 @@ export const SecondaryDisabled: Story = {
 export const SecondaryHovered: Story = {
   args: { variant: "secondary", children: "Cancelar" },
   play: playHoverSetsDataHovered(theButton),
+};
+
+export const Text: Story = {
+  args: { variant: "text", children: "Volver" },
+};
+
+export const TextWithIcon: Story = {
+  args: { variant: "text", icon: <ArrowLeft />, children: "Volver" },
+};
+
+export const TextLarge: Story = {
+  args: { variant: "text", size: "large", icon: <ArrowLeft />, children: "Volver" },
+};
+
+export const TextDisabled: Story = {
+  args: { variant: "text", disabled: true, icon: <ArrowLeft />, children: "Volver" },
+};
+
+export const TextHovered: Story = {
+  args: { variant: "text", icon: <ArrowLeft />, children: "Volver" },
+  play: playHoverSetsDataHovered(theButton),
+};
+
+export const TextFocusVisible: Story = {
+  args: { variant: "text", icon: <ArrowLeft />, children: "Volver" },
+  play: playTabReachesFocusVisible(theButton),
 };
 
 export const TextDestructiveSmall: Story = {
