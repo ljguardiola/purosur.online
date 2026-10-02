@@ -113,6 +113,8 @@ export type {
   ToggleChipOption,
 } from "./components/forms/toggle-chip-group";
 export { ToggleChipGroup } from "./components/forms/toggle-chip-group";
+export type { CardProps } from "./components/layout/card";
+export { Card } from "./components/layout/card";
 export type { EyebrowProps } from "./components/layout/eyebrow";
 export { Eyebrow } from "./components/layout/eyebrow";
 export type { PuroSurIsotypeProps } from "./components/layout/puro-sur-isotype";
