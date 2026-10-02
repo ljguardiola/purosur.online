@@ -127,7 +127,6 @@ export function useRequestForm<
   };
 
   const checked = useRef({ asked: 0, refused: [] as readonly string[] });
-  const [refused, setRefused] = useState<readonly string[]>([]);
 
   async function askCheck(
     checkRequest: (request: Request) => Promise<readonly string[]>,
@@ -141,7 +140,6 @@ export function useRequestForm<
     const latest = asked === checked.current.asked;
     if (latest) {
       checked.current.refused = refusedWireFields;
-      setRefused(refusedWireFields);
     }
     return { refusedWireFields, latest };
   }
@@ -255,7 +253,6 @@ export function useRequestForm<
     clearFieldError,
     submitting: tanStackSubmitting || unsettled > 0,
     values: currentValues,
-    refused: refused.flatMap((wireField) => fieldOf(wireField, currentValues) ?? []),
     dirty: !evaluate(currentValues, loaded),
     reset,
   };
