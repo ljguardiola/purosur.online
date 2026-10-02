@@ -1,11 +1,6 @@
-import {
-  type CategorySummary,
-  categoryEditBodySchema,
-  categorySummarySchema,
-} from "@purosur/contracts";
-import { editCategory } from "@purosur/domain/catalog/use-cases";
-import { eq } from "drizzle-orm";
-import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { categoryEditBodySchema, categorySummarySchema } from "@purosur/contracts";
+import { editCategory, findCategory } from "@purosur/domain/catalog/use-cases";
+import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { backofficeOriginGuard } from "../access/backoffice-origin.js";
 import {
@@ -13,8 +8,6 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { categories } from "../platform/db/schema.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import type { CategoriesRouteOptions } from "./categories-list-route.js";
 import {
@@ -22,6 +15,7 @@ import {
   CATEGORY_PARENT_HAS_PRODUCTS_RESPONSE,
   CATEGORY_PARENT_NOT_FOUND_FAILURE,
 } from "./category-creation-route.js";
+import { DrizzleCatalogListReader } from "./drizzle-catalog-list-reader.js";
 import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 
 const CATEGORY_MOVE_NOT_ALLOWED_RESPONSE = {
@@ -39,25 +33,6 @@ const STALE_VERSION_RESPONSE = {
   message: "this category was changed since it was loaded",
 } as const;
 
-async function findCategoryById<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  id: string,
-): Promise<CategorySummary | undefined> {
-  if (!UUID_PATTERN.test(id)) {
-    return undefined;
-  }
-  const [category] = await db
-    .select({
-      id: categories.id,
-      name: categories.name,
-      version: categories.version,
-      parentId: categories.parentId,
-    })
-    .from(categories)
-    .where(eq(categories.id, id));
-  return category;
-}
-
 export function registerCategoryEditRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: CategoriesRouteOptions<TQueryResult>,
@@ -65,6 +40,7 @@ export function registerCategoryEditRoute<TQueryResult extends PgQueryResultHKT>
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
   const catalogStore = new DrizzleCatalogStore(options.db);
+  const catalog = new DrizzleCatalogListReader(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
   app.put<{ Params: { id: string } }>(
@@ -77,7 +53,7 @@ export function registerCategoryEditRoute<TQueryResult extends PgQueryResultHKT>
       },
     },
     async (request, reply) => {
-      const target = await findCategoryById(options.db, request.params.id);
+      const target = await findCategory({ catalog }, request.params.id);
       if (!target) {
         await reply.code(404).send(NOT_FOUND_RESPONSE);
         return;

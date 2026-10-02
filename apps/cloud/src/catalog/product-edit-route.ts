@@ -1,7 +1,6 @@
 import { productEditBodySchema, productSummarySchema } from "@purosur/contracts";
-import { editProduct } from "@purosur/domain/catalog/use-cases";
-import { eq } from "drizzle-orm";
-import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { editProduct, findProduct } from "@purosur/domain/catalog/use-cases";
+import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { backofficeOriginGuard } from "../access/backoffice-origin.js";
 import {
@@ -9,9 +8,8 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { products } from "../platform/db/schema.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
+import { DrizzleCatalogListReader } from "./drizzle-catalog-list-reader.js";
 import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 import {
   BRAND_INACTIVE_RESPONSE,
@@ -39,17 +37,6 @@ const SALE_UNIT_HELD_BY_DISCOUNT_RESPONSE = {
   message: "a product cannot be sold by weight while a live buy-n-pay-m discount targets it",
 } as const;
 
-async function findProductById<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  id: string,
-): Promise<{ id: string } | undefined> {
-  if (!UUID_PATTERN.test(id)) {
-    return undefined;
-  }
-  const [product] = await db.select({ id: products.id }).from(products).where(eq(products.id, id));
-  return product;
-}
-
 export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: ProductsRouteOptions<TQueryResult>,
@@ -57,6 +44,7 @@ export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
   const catalogStore = new DrizzleCatalogStore(options.db);
+  const catalog = new DrizzleCatalogListReader(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
   app.put<{ Params: { id: string } }>(
@@ -69,7 +57,7 @@ export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
       },
     },
     async (request, reply) => {
-      const target = await findProductById(options.db, request.params.id);
+      const target = await findProduct({ catalog }, request.params.id);
       if (!target) {
         await reply.code(404).send(NOT_FOUND_RESPONSE);
         return;

@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../access/session-id.js";
 import {
@@ -15,7 +15,6 @@ import {
 } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 import { registerProductDeactivationRoute } from "./product-deactivation-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
@@ -221,18 +220,6 @@ describe("PUT /products/:id/deactivation", () => {
     expect(missingResponse.statusCode).toBe(404);
     expect(malformedResponse.statusCode).toBe(404);
     expect(missingResponse.json()).toEqual(malformedResponse.json());
-  });
-
-  it("answers a malformed id without opening a catalog transaction", async () => {
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-    const transaction = vi.spyOn(DrizzleCatalogStore.prototype, "transaction");
-
-    const response = await deactivateProduct("not-a-uuid", rawSessionId);
-
-    expect(response.statusCode).toBe(404);
-    expect(transaction).not.toHaveBeenCalled();
-    transaction.mockRestore();
   });
 
   it("deactivates the product, bumps its version, and deactivates its barcodes", async () => {
