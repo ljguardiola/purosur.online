@@ -16,14 +16,15 @@ export const roleCreationBodySchema = z.object({
     .string({ error: "name must not be empty" })
     .trim()
     .min(1)
-    .refine(
-      (name) => !isRoleNameTooLong(name),
-      `name must be at most ${ROLE_NAME_MAX_LENGTH} characters`,
-    )
-    .refine(
-      (name) => !isAdministratorRoleName(name),
-      "name must not be the Administrator role's own name",
-    ),
+    .refine((name) => !isRoleNameTooLong(name), {
+      message: `name must be at most ${ROLE_NAME_MAX_LENGTH} characters`,
+      params: { rule: "max_length" },
+    })
+    .refine((name) => !isAdministratorRoleName(name), {
+      message: "name must not be the Administrator role's own name",
+      params: { rule: "administrator_name" },
+    })
+    .meta({ maxLength: ROLE_NAME_MAX_LENGTH }),
   permissions: z
     .array(z.string({ error: PERMISSIONS_TYPE_MESSAGE }), { error: PERMISSIONS_TYPE_MESSAGE })
     .refine((keys) => keys.every(isPermissionKey), "permissions must all be known permission keys")

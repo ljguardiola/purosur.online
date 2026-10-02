@@ -89,7 +89,7 @@ export { internalBarcodeSchema } from "./catalog/internal-barcode.js";
 export type { LabelSheetBody } from "./catalog/label-sheet.js";
 export { labelSheetBodySchema } from "./catalog/label-sheet.js";
 export type { ProductCreationBody } from "./catalog/product-creation.js";
-export { productCreationBodySchema } from "./catalog/product-creation.js";
+export { netContentQuantitySchema, productCreationBodySchema } from "./catalog/product-creation.js";
 export type { ProductEditBody } from "./catalog/product-edit.js";
 export { productEditBodySchema } from "./catalog/product-edit.js";
 export type { ProductSummary } from "./catalog/product-summary.js";

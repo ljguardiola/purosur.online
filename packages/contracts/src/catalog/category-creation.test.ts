@@ -74,3 +74,11 @@ describe("categoryCreationBodySchema, parentId", () => {
     });
   });
 });
+
+describe("categoryCreationBodySchema, declared limits", () => {
+  it("declares the name's maximum length", () => {
+    expect(categoryCreationBodySchema.shape.name.meta()).toEqual({
+      maxLength: CATEGORY_NAME_MAX_LENGTH,
+    });
+  });
+});

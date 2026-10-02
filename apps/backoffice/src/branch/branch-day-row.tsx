@@ -1,4 +1,3 @@
-import { BRANCH_HOURS_RANGES_PER_DAY_MAX } from "@purosur/domain";
 import {
   Checkbox,
   IconButton,
@@ -10,7 +9,7 @@ import {
 import { Plus, Trash2 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import type { BranchDay } from "./branch-settings-api";
-import { type DayValues, emptyRange } from "./branch-settings-form";
+import { type DayValues, emptyRange, HOURS_RANGES_PER_DAY_MAX } from "./branch-settings-form";
 
 type PointerType = Parameters<NonNullable<IconButtonProps["onPress"]>>[0]["pointerType"];
 
@@ -31,7 +30,7 @@ export function BranchDayRow({ day }: BranchDayRowProps) {
   const dayValues = field.state.value;
   const dayLabel = DAY_LABELS[day];
   const dayLower = dayLabel.toLocaleLowerCase("es-AR");
-  const atCap = dayValues.ranges.length >= BRANCH_HOURS_RANGES_PER_DAY_MAX;
+  const atCap = dayValues.ranges.length >= HOURS_RANGES_PER_DAY_MAX;
 
   // Adding/removing a range can unmount the button that did it, dropping keyboard focus to the
   // page; focus lands on the added range, or the range that takes the removed one's place, instead.

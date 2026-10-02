@@ -11,7 +11,8 @@ export const brandCreationBodySchema = z.object({
     .refine(
       (name) => !isBrandNameTooLong(name),
       `name must be at most ${BRAND_NAME_MAX_LENGTH} characters`,
-    ),
+    )
+    .meta({ maxLength: BRAND_NAME_MAX_LENGTH }),
 });
 
 export type BrandCreationBody = z.input<typeof brandCreationBodySchema>;

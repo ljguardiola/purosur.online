@@ -131,3 +131,26 @@ describe("roleCreationBodySchema, order of checks", () => {
     expect(firstFailingField({ name: "", permissions: "nope" })).toBe("name");
   });
 });
+
+describe("roleCreationBodySchema, declared limits and rules", () => {
+  function nameRules(name: string): unknown[] {
+    const result = roleCreationBodySchema.shape.name.safeParse(name);
+    return result.success
+      ? []
+      : result.error.issues.map((issue) =>
+          issue.code === "custom" ? issue.params?.["rule"] : undefined,
+        );
+  }
+
+  it("declares the name's maximum length", () => {
+    expect(roleCreationBodySchema.shape.name.meta()).toEqual({ maxLength: ROLE_NAME_MAX_LENGTH });
+  });
+
+  it("names the rule of a name that is too long", () => {
+    expect(nameRules("a".repeat(ROLE_NAME_MAX_LENGTH + 1))).toEqual(["max_length"]);
+  });
+
+  it("names the rule of the Administrator role's own name", () => {
+    expect(nameRules("Administrador")).toEqual(["administrator_name"]);
+  });
+});

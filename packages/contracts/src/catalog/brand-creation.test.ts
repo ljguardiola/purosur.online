@@ -39,3 +39,9 @@ describe("brandCreationBodySchema", () => {
     expect(brandCreationBodySchema.safeParse(body).success).toBe(false);
   });
 });
+
+describe("brandCreationBodySchema, declared limits", () => {
+  it("declares the name's maximum length", () => {
+    expect(brandCreationBodySchema.shape.name.meta()).toEqual({ maxLength: BRAND_NAME_MAX_LENGTH });
+  });
+});

@@ -11,7 +11,8 @@ const categoryNameSchema = z
   .refine(
     (name) => !isCategoryNameTooLong(name),
     `name must be at most ${CATEGORY_NAME_MAX_LENGTH} characters`,
-  );
+  )
+  .meta({ maxLength: CATEGORY_NAME_MAX_LENGTH });
 
 export const categoryCreationBodySchema = z.object({
   name: categoryNameSchema,

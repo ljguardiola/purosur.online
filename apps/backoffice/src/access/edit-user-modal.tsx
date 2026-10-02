@@ -17,6 +17,8 @@ import { roleDisplayName, roleOptions } from "./role-display";
 import { roleFieldMessage } from "./role-field-message";
 import type { BranchUser, BranchUserRole, EditUserOutcome, editUser } from "./users-api";
 
+const EMAIL_MESSAGE = userEmailMessage(userEditBodySchema.shape.email);
+
 export type EditUserModalServices = {
   editUser: typeof editUser;
   fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
@@ -72,7 +74,7 @@ export function EditUserModal({
       }),
     },
     fields: { email: "email", role_id: "roleId", version: null },
-    messages: { email: userEmailMessage, roleId: roleFieldMessage },
+    messages: { email: EMAIL_MESSAGE, roleId: roleFieldMessage },
     onSubmit: async (request, { showWireFieldError, showFieldError }) => {
       setNotice(null);
       const outcome = await run(() => editUser(user.id, request));

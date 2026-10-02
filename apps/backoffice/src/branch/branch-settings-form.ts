@@ -1,11 +1,6 @@
 import { type BranchSettingsEditBody, branchSettingsEditBodySchema } from "@purosur/contracts";
-import {
-  BRANCH_SETTINGS_DAYS_MAX,
-  BRANCH_SETTINGS_TEXT_MAX_LENGTH,
-  branchHoursRangesOverlap,
-  isBranchHoursRangeOrdered,
-  isBranchHoursTime,
-} from "@purosur/domain";
+import { failedRules } from "../platform/failed-rules";
+import { schemaLimit } from "../platform/schema-limit";
 import type { BranchDay, BranchSettings } from "./branch-settings-api";
 
 export type RangeValues = { id: number; opensAt: string; closesAt: string };
@@ -127,7 +122,9 @@ export const REQUEST_FIELDS = {
   version: null,
 } as const;
 
-const TEXT_TOO_LONG = `Ingresá como mucho ${BRANCH_SETTINGS_TEXT_MAX_LENGTH} caracteres.`;
+export const HOURS_RANGES_PER_DAY_MAX = schemaLimit(
+  branchSettingsEditBodySchema.shape.monday_hours.meta()?.["maxLength"],
+);
 
 type TextField = "address" | "whatsappNumber" | "instagramHandle";
 
@@ -138,10 +135,11 @@ const TEXT_WIRE_FIELDS = {
 } as const;
 
 function textMessage(field: TextField, review: string) {
+  const shape = branchSettingsEditBodySchema.shape[TEXT_WIRE_FIELDS[field]];
   return (values: BranchSettingsValues): string =>
-    branchSettingsEditBodySchema.shape[TEXT_WIRE_FIELDS[field]].safeParse(values[field]).success
+    shape.safeParse(values[field]).success
       ? review
-      : TEXT_TOO_LONG;
+      : `Ingresá como mucho ${schemaLimit(shape.maxLength)} caracteres.`;
 }
 
 type DaysField = "expiringLotAlertDays" | "unreviewedPriceAlertDays" | "goodConditionReturnDays";
@@ -155,30 +153,28 @@ const DAYS_WIRE_FIELDS = {
 function daysMessage(field: DaysField) {
   return (values: BranchSettingsValues): string => {
     const days = wireDays(values[field]);
-    if (branchSettingsEditBodySchema.shape[DAYS_WIRE_FIELDS[field]].safeParse(days).success) {
+    const result = branchSettingsEditBodySchema.shape[DAYS_WIRE_FIELDS[field]].safeParse(days);
+    if (result.success) {
       return "Revisá el número de días.";
     }
-    return days > BRANCH_SETTINGS_DAYS_MAX
+    return days === Number.POSITIVE_INFINITY ||
+      result.error.issues.some((issue) => issue.code === "too_big")
       ? "Ingresá un número de días más chico."
       : "Ingresá un número entero de 0 días o más.";
   };
 }
 
 function hoursMessage(day: BranchDay) {
+  const shape = branchSettingsEditBodySchema.shape[`${day}_hours`];
   return (values: BranchSettingsValues): string => {
-    const wire = wireHours(values[day]);
-    if (
-      wire.some(
-        (range) => !(isBranchHoursTime(range.opens_at) && isBranchHoursTime(range.closes_at)),
-      )
-    ) {
+    const rules = failedRules(shape, wireHours(values[day]));
+    if (rules.includes("time_format")) {
       return "Ingresá la hora como 9:00 o 21:30.";
     }
-    const dayRanges = wire.map((range) => ({ opensAt: range.opens_at, closesAt: range.closes_at }));
-    if (!dayRanges.every(isBranchHoursRangeOrdered)) {
+    if (rules.includes("range_order")) {
       return "La hora de cierre tiene que ser posterior a la de apertura.";
     }
-    if (branchHoursRangesOverlap(dayRanges)) {
+    if (rules.includes("range_overlap")) {
       return "Los horarios de un mismo día no se pueden superponer.";
     }
     return "Revisá los horarios de este día.";
