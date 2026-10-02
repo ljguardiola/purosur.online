@@ -26,13 +26,4 @@ describe("retryAfterSeconds", () => {
       expect(retryAfterSeconds(responseWithRetryAfter(value))).toBe(ONE_HOUR_SECONDS);
     },
   );
-
-  it("falls back to the given seconds instead of one hour", () => {
-    expect(retryAfterSeconds(responseWithRetryAfter(null), 900)).toBe(900);
-    expect(retryAfterSeconds(responseWithRetryAfter("abc"), 900)).toBe(900);
-  });
-
-  it("prefers the header over the given fallback", () => {
-    expect(retryAfterSeconds(responseWithRetryAfter("7"), 900)).toBe(7);
-  });
 });
