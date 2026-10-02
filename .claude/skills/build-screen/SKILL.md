@@ -65,7 +65,8 @@ from `cloudTableState` (`platform/cloud-table-state.tsx`). A register
 section reads the core through `useCoreQuery`
 (`apps/pos/src/renderer/platform/use-core-query.ts`), wrapped in its
 concept's `<concept>-queries.ts` (such as `register/register-queries.ts`),
-and renders from the `CoreData` status it returns. In both apps a table's
+which keys every query of that concept under one root key named after its
+concept folder (`["register", …]`), and renders from the `CoreData` status it returns. In both apps a table's
 columns come from `dataColumn` and `actionsColumn`, and its rows from
 `useTableModel`
 (`packages/ui/src/components/data-display/table/use-table-model.ts`), which
