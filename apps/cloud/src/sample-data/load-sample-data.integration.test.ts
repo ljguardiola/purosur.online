@@ -1,10 +1,15 @@
 import { randomUUID } from "node:crypto";
-import { isAlertKind, isInternalBarcode, SALE_UNITS } from "@purosur/domain";
+import {
+  ALERT_KINDS,
+  alertKindPolicy,
+  isAlertKind,
+  isInternalBarcode,
+  SALE_UNITS,
+} from "@purosur/domain";
 import { eq, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterEach, describe, expect, it } from "vitest";
-import { ALERT_KIND_CATALOG, alertKindDefinition } from "../alerts/alert-kind-catalog.js";
 import {
   alerts,
   branchHours,
@@ -40,9 +45,10 @@ import {
 } from "./sample-catalog.js";
 
 const PRODUCIBLE_ALERT_LEVELS = new Set(
-  ALERT_KIND_CATALOG.flatMap((definition) =>
-    definition.escalatesAfterMs === null ? [definition.level] : [definition.level, "critical"],
-  ),
+  ALERT_KINDS.flatMap((kind) => {
+    const policy = alertKindPolicy(kind);
+    return policy.escalatesAfterMs === null ? [policy.level] : [policy.level, "critical"];
+  }),
 );
 
 const NOW = new Date("2026-03-15T12:00:00.000Z");
@@ -503,9 +509,9 @@ describe("loadSampleData", () => {
       if (!isAlertKind(alert.kind)) {
         throw new Error(`alert kind ${alert.kind} is not in the alert catalog`);
       }
-      const definition = alertKindDefinition(alert.kind);
-      const escalated = alert.escalatedAt !== null && definition.escalatesAfterMs !== null;
-      expect(alert.level).toBe(escalated ? "critical" : definition.level);
+      const policy = alertKindPolicy(alert.kind);
+      const escalated = alert.escalatedAt !== null && policy.escalatesAfterMs !== null;
+      expect(alert.level).toBe(escalated ? "critical" : policy.level);
     }
     const lockoutAlerts = alertRows.filter((alert) => alert.kind === "backoffice_sign_in_lockout");
     expect(lockoutAlerts.length).toBeGreaterThan(0);

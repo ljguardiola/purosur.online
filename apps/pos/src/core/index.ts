@@ -20,6 +20,7 @@ import {
 } from "../shared/channel";
 import { CORE_READY_MESSAGE } from "../shared/core-readiness";
 import { createActionGate } from "./access/action-gate";
+import { authorizersOf } from "./access/authorizers";
 import { requestFirstPinCode } from "./access/first-pin-code-request";
 import { redeemPinCode } from "./access/pin-code-redemption";
 import { hashPin } from "./access/pin-hash";
@@ -288,7 +289,9 @@ const rendererRequestDeps: RendererRequestDeps = {
     ),
   signInUsers: signInStore === undefined ? undefined : () => signInStore.signableUsers(),
   authorizers:
-    signInStore === undefined ? undefined : (permission) => signInStore.authorizers(permission),
+    signInStore === undefined
+      ? undefined
+      : (permission) => authorizersOf(signInStore, { kind: "permission", permission }),
   lockedClosers: localDatabase === undefined ? undefined : () => lockedClosersFor(localDatabase),
   signIn:
     localDatabase === undefined || signInStore === undefined

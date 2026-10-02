@@ -49,7 +49,7 @@ async function racesOpenAlertDedup<TQueryResult extends PgQueryResultHKT>(
   const input: OpenAlertInput = {
     kind: "user_email_changed",
     scope,
-    detail: { previousEmail: "old@example.com", newEmail: "new@example.com" },
+    detail: { previousEmail: "old@example.com", newEmail: "new@example.com", actorId: "actor" },
   };
 
   let firstOutcome: OpenAlertOutcome | undefined;

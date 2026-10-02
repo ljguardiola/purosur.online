@@ -1,7 +1,7 @@
 import type { Authorization, AuthorizationRefusal, AuthorizedBy } from "@purosur/contracts";
 import { type RegisterOperation, registerOperationAccess } from "@purosur/domain";
 import { authorize } from "./authorize";
-import type { PinCheckDeps } from "./pin-check";
+import type { PinCheckDeps } from "./pin-matching";
 import type { SignedInPerson } from "./signed-in-person";
 import type { SignInStore } from "./sqlite-sign-in-store";
 

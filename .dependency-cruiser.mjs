@@ -8,7 +8,6 @@ export const PERSISTENCE_IN_HANDLERS_ALLOWLIST = [
   "apps/cloud/src/access/passkeys-registration-route.ts",
   "apps/cloud/src/access/passkeys-removal-route.ts",
   "apps/cloud/src/access/pin-code-redemption-route.ts",
-  "apps/cloud/src/access/recovery-redemption-route.ts",
   "apps/cloud/src/access/session-authenticate-route.ts",
   "apps/cloud/src/access/session-authorization-route.ts",
   "apps/cloud/src/access/session-sign-out-route.ts",
@@ -16,10 +15,6 @@ export const PERSISTENCE_IN_HANDLERS_ALLOWLIST = [
   "apps/cloud/src/access/user-passkey-removal-route.ts",
   "apps/cloud/src/access/user-passkeys-list-route.ts",
   "apps/cloud/src/access/user-pin-code-route.ts",
-  "apps/cloud/src/alerts/alert-close-route.ts",
-  "apps/cloud/src/alerts/alert-read-route.ts",
-  "apps/cloud/src/alerts/alerts-list-route.ts",
-  "apps/cloud/src/alerts/alerts-overview-route.ts",
   "apps/cloud/src/catalog/brand-deactivation-route.ts",
   "apps/cloud/src/catalog/brand-edit-route.ts",
   "apps/cloud/src/catalog/brand-reactivation-route.ts",
@@ -35,12 +30,10 @@ export const PERSISTENCE_IN_HANDLERS_ALLOWLIST = [
   "apps/cloud/src/catalog/tag-edit-route.ts",
   "apps/cloud/src/catalog/tag-reactivation-route.ts",
   "apps/cloud/src/catalog/tags-list-route.ts",
-  "apps/cloud/src/register/register-coverage-route.ts",
   "apps/cloud/src/stock/stock-balances-route.ts",
   "apps/cloud/src/stock/stock-counts-route.ts",
   "apps/cloud/src/stock/stock-movements-route.ts",
   "apps/cloud/src/stock/stock-products-route.ts",
-  "apps/cloud/src/sync/changes-route.ts",
 ];
 
 export const SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST = [

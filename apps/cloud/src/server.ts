@@ -19,6 +19,7 @@ import {
   type RecoveryEmailSenderEnv,
   selectRecoveryEmailSender,
 } from "./access/select-recovery-email-sender.js";
+import { alertEscalationJobs } from "./alerts/alert-escalation-task.js";
 import {
   type BackofficeErrorReporting,
   type BuildAppOptions,
@@ -311,6 +312,7 @@ export async function setUpRecovery(
     databaseUrl: recoveryEnv.databaseUrl,
     backofficeOrigin: recoveryEnv.backofficeOrigin,
     emailSender,
+    jobs: [alertEscalationJobs({ now: () => new Date() })],
   });
   const jobQueuePool = createRecoveryJobQueuePool(
     recoveryEnv.databaseUrl,

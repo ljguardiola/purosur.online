@@ -1,5 +1,6 @@
 import type { Authorization, AuthorizedBy } from "@purosur/contracts";
-import { encodePinHash, type RoleAccess } from "@purosur/domain";
+import type { RoleAccess } from "@purosur/domain";
+import type { PinHolder, PinSignInFailures } from "@purosur/domain/access/use-cases";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   type ActionGate,
@@ -8,20 +9,19 @@ import {
   createActionGate,
   type SignedInActor,
 } from "./action-gate";
+import type { PinCredential } from "./pin-matching";
 import { derivePinVerifier } from "./pin-verifier";
 import { createSignedInPerson } from "./signed-in-person";
-import type { PinSignInFailures, SignInRecord } from "./sqlite-sign-in-store";
 
 const PEPPER = Buffer.alloc(32, 7).toString("base64url");
-const SALT = encodePinHash(new Uint8Array(16).fill(1));
+const SALT = new Uint8Array(16).fill(1);
 const PIN_HASH = "hash-of-the-right-pin";
 
-function record(permissionKeys: string[]): SignInRecord {
+function record(permissionKeys: string[]): PinHolder<PinCredential> {
   return {
     firstName: "Grace",
-    salt: SALT,
-    verifier: derivePinVerifier(PEPPER, PIN_HASH),
     access: { isAdministrator: false, permissionKeys },
+    credential: { salt: SALT, verifier: derivePinVerifier(PEPPER, PIN_HASH) },
   };
 }
 
@@ -53,7 +53,7 @@ function deps({
         const access = accessOf[userId];
         return access === undefined ? undefined : { firstName: "Ada", access };
       },
-      signInRecord: (userId) =>
+      pinHolder: (userId) =>
         userId === "u2" ? record(["record_cash_in", "close_anothers_register_session"]) : undefined,
       pinSignInFailures: () => failures,
       recordPinSignInFailure: (_userId, at) => ({
@@ -413,7 +413,7 @@ describe("running an operation with another person's authorization", () => {
   it("does not run the action when the person lacks the permission", async () => {
     const base = deps();
     const lacking = deps({
-      overrides: { store: { ...base.store, signInRecord: () => record(["sell_and_charge"]) } },
+      overrides: { store: { ...base.store, pinHolder: () => record(["sell_and_charge"]) } },
     });
     const { outcome, performed } = guardedCashIn(lacking, { user_id: "u2", pin: "1234" });
 
@@ -562,7 +562,7 @@ describe("running an operation on a locked register with a person's own PIN", ()
     const base = deps({ signedInAs: null });
     const lacking = {
       ...base,
-      store: { ...base.store, signInRecord: () => record(["sell_and_charge"]) },
+      store: { ...base.store, pinHolder: () => record(["sell_and_charge"]) },
     };
     const { outcome, performed } = lockedClose(lacking, RIGHT_PIN);
 

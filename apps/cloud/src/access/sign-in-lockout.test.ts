@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { SIGN_IN_BLOCK_DURATION_MS, SIGN_IN_FAILURE_LIMIT } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { alerts } from "../platform/db/schema.js";
@@ -8,8 +9,6 @@ import {
   confirmRejectedSignInAttempt,
   discardSignInAttempt,
   hashSourceAddress,
-  SIGN_IN_BLOCK_DURATION_MS,
-  SIGN_IN_FAILURE_LIMIT,
   type TrippedSignInLockout,
 } from "./sign-in-lockout.js";
 

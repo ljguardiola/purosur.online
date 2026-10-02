@@ -33,6 +33,8 @@ export interface BranchUsers {
     activeScope: BranchUserActiveScope,
   ): Promise<BranchUserFacts | undefined>;
   activeAdministratorCount(locationId: string): Promise<number>;
+  // The permission keys the roles of the branch's active users list; the Administrator role lists none.
+  activeUserPermissionKeys(locationId: string): Promise<string[]>;
   // Across every branch.
   emailHolder(email: string): Promise<EmailHolder | undefined>;
 }

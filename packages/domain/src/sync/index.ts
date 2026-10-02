@@ -1,5 +1,6 @@
 export type { JsonValue, OutboxEvent, OutboxEventDraft } from "./model/outbox-event.js";
 export { canonicalOutboxEvent, canonicalOutboxPayload } from "./model/outbox-event.js";
+export { pullAudienceOf } from "./model/pull-audience.js";
 export type { PulledChange, PullPage } from "./model/pull-page.js";
 export {
   FIRST_PULL_CURSOR,

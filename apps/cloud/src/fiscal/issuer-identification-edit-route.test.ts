@@ -1,3 +1,4 @@
+import { PASSKEY_AUTHORIZATION_WINDOW_MS } from "@purosur/domain";
 import {
   FICTIONAL_CERTIFICATE_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
@@ -6,7 +7,6 @@ import {
 import { asc, eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { PASSKEY_AUTHORIZATION_WINDOW_MS } from "../access/passkey-authorization-guard.js";
 import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../access/session-id.js";
 import {

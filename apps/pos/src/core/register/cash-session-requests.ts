@@ -13,7 +13,6 @@ import {
   cancellableWithoutAuthorization,
   cashBreakdown,
   isLockedToAnother,
-  mayAuthorize,
   type OpenedCashSession,
   registerAbilities,
 } from "@purosur/domain";
@@ -25,6 +24,7 @@ import {
   openCashSession,
 } from "@purosur/domain/register/use-cases";
 import type { ActionGate } from "../access/action-gate";
+import { authorizersOf } from "../access/authorizers";
 import { type ActivePerson, SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
 import {
@@ -160,9 +160,10 @@ export async function identifyLockedCloserFor(
 
 export function lockedClosersFor(database: LocalDatabase): SignInUser[] {
   const open = readOpenSession(database);
-  return new SqliteSignInStore(database).authorizersWhere((person) =>
-    mayAuthorize({ kind: "close_locked_register", session: open }, person),
-  );
+  return authorizersOf(new SqliteSignInStore(database), {
+    kind: "operation",
+    operation: { kind: "close_locked_register", session: open },
+  });
 }
 
 function closingAnswer(
