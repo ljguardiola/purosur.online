@@ -2,11 +2,11 @@ import type { Ref } from "react";
 import { Eyebrow } from "./eyebrow";
 
 export type ScreenHeaderProps = {
-  eyebrow?: string;
+  eyebrow?: string | undefined;
   title: string;
-  description?: string;
+  description?: string | undefined;
   titleId?: string;
-  titleRef?: Ref<HTMLHeadingElement>;
+  titleRef?: Ref<HTMLHeadingElement> | undefined;
 };
 
 export function ScreenHeader({
