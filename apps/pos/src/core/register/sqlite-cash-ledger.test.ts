@@ -653,10 +653,25 @@ describe("the open session's movements", () => {
         type: "WITHDRAWAL",
         amount: 7000,
         reason: "Retiro al banco",
+        direction: "out",
         occurred_at: "2026-09-30T13:00:00.000Z",
         actor: { user_id: "u1", first_name: "Ada" },
         authorized_by: { user_id: "u2", first_name: "Grace" },
       },
+    ]);
+  });
+
+  it("tells which way each movement moves the cash", () => {
+    addPerson("u1", "Ada");
+    ledger.transaction((tx) => tx.recordOpenedSession(session()));
+    record("opening", { type: "OPENING", occurredAt: new Date("2026-09-30T08:00:00.000Z") });
+    record("refund", { type: "REFUND", occurredAt: new Date("2026-09-30T09:00:00.000Z") });
+    record("closing", { type: "CLOSING", occurredAt: new Date("2026-09-30T10:00:00.000Z") });
+
+    expect(readOpenSessionMovements(database)?.map((movement) => movement.direction)).toEqual([
+      "in",
+      "out",
+      "none",
     ]);
   });
 
