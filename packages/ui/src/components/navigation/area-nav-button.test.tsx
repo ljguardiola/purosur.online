@@ -89,6 +89,7 @@ test("draws like the area link of its rail, active or not, its label included", 
       expect(buttonLabel.fontSize, `${context} label size`).toBe(linkLabel.fontSize);
       expect(buttonLabel.fontWeight, `${context} label weight`).toBe(linkLabel.fontWeight);
       await expectNoAccessibilityViolations(screen.container);
+      await screen.unmount();
     }
   }
 });
