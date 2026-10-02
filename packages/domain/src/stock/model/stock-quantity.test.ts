@@ -4,12 +4,20 @@ import {
   isCountedQuantity,
   isMovementQuantity,
   MAX_STOCK_QUANTITY,
+  STOCK_QUANTITY_DECIMALS,
   STOCK_QUANTITY_PER_UNIT,
 } from "./stock-quantity.js";
 
 describe("STOCK_QUANTITY_PER_UNIT", () => {
   it("keeps a quantity in thousandths of its sale unit, so a kilo holds a thousand grams", () => {
     expect(STOCK_QUANTITY_PER_UNIT).toBe(1000);
+  });
+});
+
+describe("STOCK_QUANTITY_DECIMALS", () => {
+  it("writes a quantity in its sale unit with the three decimals a thousandth needs", () => {
+    expect(STOCK_QUANTITY_DECIMALS).toBe(3);
+    expect(10 ** STOCK_QUANTITY_DECIMALS).toBe(STOCK_QUANTITY_PER_UNIT);
   });
 });
 
