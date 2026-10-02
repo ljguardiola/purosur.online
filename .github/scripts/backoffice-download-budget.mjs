@@ -165,7 +165,9 @@ export function runCli({
   const measured = measureDownload(distDir);
 
   for (const measure of MEASURES) {
-    log(`${measure}: ${measured[measure]} / ${budget[measure]} bytes gzip`);
+    log(
+      `${measure}: ${measured[measure]} / ${budget[measure]} bytes gzip, with the bundler's names and content hashes left out`,
+    );
   }
 
   const violations = findBudgetViolations(measured, budget);
