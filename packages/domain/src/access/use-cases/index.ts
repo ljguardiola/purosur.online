@@ -169,6 +169,11 @@ export type {
 } from "./look-up-sign-in.js";
 export { lookUpSignIn } from "./look-up-sign-in.js";
 export type {
+  PasskeyAssertionVerification,
+  PasskeyAssertionVerifier,
+  VerifiablePasskey,
+} from "./passkey-assertion-verifier.js";
+export type {
   AddedPasskey,
   PasskeyRegistrationAlert,
   PasskeyRegistrationStore,
@@ -180,6 +185,16 @@ export type {
   PasskeyRemovalStoreTransaction,
   RemovedPasskey,
 } from "./passkey-removal-store.js";
+export type {
+  OpenedSession,
+  PasskeySignInStore,
+  PasskeySignInStoreTransaction,
+} from "./passkey-sign-in-store.js";
+export type {
+  PasskeyUse,
+  PasskeyUseRecorder,
+  PasskeyUseRecording,
+} from "./passkey-use-recorder.js";
 export type { PasskeySummary, Passkeys } from "./passkeys.js";
 export type {
   HashedPin,
@@ -324,6 +339,12 @@ export type {
   SignInLookupStore,
   SignInLookupStoreTransaction,
 } from "./sign-in-lookup-store.js";
+export type {
+  SignInWithPasskeyInput,
+  SignInWithPasskeyOutcome,
+  SignInWithPasskeyPorts,
+} from "./sign-in-with-passkey.js";
+export { signInWithPasskey } from "./sign-in-with-passkey.js";
 export type { SignOutInput, SignOutOutcome, SignOutPorts } from "./sign-out.js";
 export { signOut } from "./sign-out.js";
 export type {
