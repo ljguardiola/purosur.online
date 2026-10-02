@@ -227,6 +227,23 @@ test("checks only the query keys used under the source root", (t) => {
   assert.deepEqual(problems, []);
 });
 
+test("leaves out test files, which seed other concepts' keys to prove a query leaves them alone", (t) => {
+  const problems = problemsIn(t, {
+    "src/branch/branch-queries.test.ts": [
+      IMPORTS,
+      'new QueryClient().setQueryData(["catalog", "brands"], []);',
+    ].join("\n"),
+    "src/branch/test-support/branch-screen.ts": [
+      IMPORTS,
+      'new QueryClient().setQueryData(["catalog", "brands"], []);',
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/branch/test-support/branch-screen.ts:2 roots a query key at "catalog", but the concept folder holding it is "branch"',
+  ]);
+});
+
 test("every query key in the backoffice and the register's screens is rooted at its concept folder", () => {
   for (const source of QUERY_KEY_SOURCES) {
     assert.deepEqual(findQueryRootKeyProblems(source, repoRoot), [], source.sourceRoot);
