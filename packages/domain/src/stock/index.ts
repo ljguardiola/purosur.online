@@ -3,7 +3,11 @@ export type {
   ManualStockMovementKind,
   StockMovementKind,
 } from "./model/stock-movement-kind.js";
-export { MANUAL_STOCK_MOVEMENT_KINDS } from "./model/stock-movement-kind.js";
+export {
+  MANUAL_STOCK_MOVEMENT_KINDS,
+  manualStockMovementPermission,
+  visibleManualStockMovementKinds,
+} from "./model/stock-movement-kind.js";
 export type {
   AdjustmentReason,
   LossReason,
