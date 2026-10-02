@@ -571,12 +571,80 @@ test("ignores calls of values built from the shared shape and of zod's other fun
   assert.deepEqual(linesOf(source), []);
 });
 
+const HOLDER_FILE = "packages/contracts/id-shape-holder.ts";
+
+const caseLinesWithHolder = (source, holder) =>
+  findIdShapeCopies({ [CASE_FILE]: source, [HOLDER_FILE]: holder }, repoRoot)
+    .filter(({ path }) => path === CASE_FILE)
+    .map(({ line }) => line);
+
+test("finds any value whose type is a zod id format, however the value was obtained", () => {
+  const zodAnd = (...lines) => ['import { z } from "zod";', ...lines].join("\n");
+  const importRecordId =
+    'import { recordIdSchema } from "../../../packages/contracts/src/shared/index.js";';
+  const importHolder = 'import { holder } from "../../../packages/contracts/id-shape-holder.js";';
+  for (const [source, holder, lines] of [
+    [
+      zodAnd(
+        importRecordId,
+        "declare function get<T, K extends keyof T>(o: T, key: { format: K }): T[K];",
+        "get(z, recordIdSchema().def).call(undefined);",
+      ),
+      "export {};",
+      [4],
+    ],
+    [
+      zodAnd(
+        `declare function wrap<A extends string, B extends string>(a: A, b: B): { k: \`\${A}\${B}\` };`,
+        "declare function get<T, K extends keyof T>(o: T, key: { k: K }): T[K];",
+        'get(z, wrap("uu", "id")).call(undefined);',
+      ),
+      "export {};",
+      [4],
+    ],
+    [
+      zodAnd(
+        importHolder,
+        "declare function get<T, K extends keyof T>(o: T, key: { k: K }): T[K];",
+        "get(z, holder).call(undefined);",
+      ),
+      'export const holder = { k: "uuid" } as const;',
+      [4],
+    ],
+    [
+      [importHolder, "export const format = holder.f;"].join("\n"),
+      'import { z } from "zod";\nexport const holder = { f: z.uuid };',
+      [2],
+    ],
+  ]) {
+    assert.deepEqual(caseLinesWithHolder(source, holder), lines, source);
+  }
+});
+
+test("ignores values of the shared shape, their methods and zod's other values", () => {
+  const source = [
+    'import { z, ZodError } from "zod";',
+    'import { recordIdSchema } from "../../../packages/contracts/src/shared/index.js";',
+    "const id = recordIdSchema();",
+    "export const parse = id.parse;",
+    "export const optional = recordIdSchema().optional;",
+    "export const check = recordIdSchema().check;",
+    "export const methods = [id.safeParse, id.nullable, recordIdSchema];",
+    "export const text = z.string();",
+    "export const error = ZodError;",
+    "export const errors = [new ZodError([]), z.ZodError];",
+    "export const never = z.NEVER;",
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), []);
+});
+
 test("finds a zod id format named by an indexed access type", () => {
   const zodAnd = (...lines) => ['import { z } from "zod";', ...lines].join("\n");
   for (const [source, lines] of [
     [zodAnd('export type F = z.ZodString["uuid"];'), [2]],
     [zodAnd('type Key = "uuid" | "string";', "export type F = (typeof z)[Key];"), [2, 3]],
-    [zodAnd('export function make(f: z.ZodString["guid"]) {', "  return f;", "}"), [2]],
+    [zodAnd('export function make(f: z.ZodString["guid"]) {', "  return f;", "}"), [2, 3]],
   ]) {
     assert.deepEqual(linesOf(source), lines, source);
   }
