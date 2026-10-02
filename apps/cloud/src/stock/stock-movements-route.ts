@@ -4,11 +4,7 @@ import {
   stockMovementListSchema,
   stockMovementResultSchema,
 } from "@purosur/contracts";
-import {
-  MANUAL_STOCK_MOVEMENT_KINDS,
-  manualStockMovementPermission,
-  visibleManualStockMovementKinds,
-} from "@purosur/domain";
+import { manualStockMovementCapability, visibleManualStockMovementKinds } from "@purosur/domain";
 import {
   type RecordAdjustmentOutcome,
   type RecordLossOutcome,
@@ -19,8 +15,8 @@ import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
 import {
+  capabilityAccess,
   openSessionOf,
-  permissionAccess,
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
@@ -76,15 +72,15 @@ export function registerStockMovementsRoutes<TQueryResult extends PgQueryResultH
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const preHandler = sameOriginGuard(options.backofficeOrigin);
-  const lossAccess = permissionAccess(manualStockMovementPermission("loss"));
-  const adjustmentAccess = permissionAccess(manualStockMovementPermission("adjustment"));
+  const lossAccess = capabilityAccess(manualStockMovementCapability("loss"));
+  const adjustmentAccess = capabilityAccess(manualStockMovementCapability("adjustment"));
 
   app.get<{ Querystring: { days?: string } }>(
     "/inventory-movements",
     {
       preHandler,
       config: {
-        access: permissionAccess(MANUAL_STOCK_MOVEMENT_KINDS.map(manualStockMovementPermission)),
+        access: capabilityAccess("stock_movements"),
         sessionSource,
       },
     },

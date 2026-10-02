@@ -320,7 +320,7 @@ export {
   lossDelta,
   MANUAL_STOCK_MOVEMENT_KINDS,
   MAX_STOCK_QUANTITY,
-  manualStockMovementPermission,
+  manualStockMovementCapability,
   STOCK_DIRECTIONS,
   STOCK_QUANTITY_PER_UNIT,
   signedDelta,

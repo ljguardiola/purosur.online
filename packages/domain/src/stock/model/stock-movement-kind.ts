@@ -1,4 +1,4 @@
-import { holdsPermission, type PermissionKey, type RoleAccess } from "../../access/index.js";
+import { type Capability, grantsCapability, type RoleAccess } from "../../access/index.js";
 
 export const MANUAL_STOCK_MOVEMENT_KINDS = ["loss", "adjustment"] as const;
 
@@ -6,17 +6,17 @@ export type ManualStockMovementKind = (typeof MANUAL_STOCK_MOVEMENT_KINDS)[numbe
 
 export type StockMovementKind = ManualStockMovementKind | "count";
 
-const PERMISSION_OF_KIND = {
-  loss: "record_stock_losses",
-  adjustment: "adjust_stock",
-} as const satisfies Record<ManualStockMovementKind, PermissionKey>;
+const CAPABILITY_OF_KIND = {
+  loss: "stock_losses",
+  adjustment: "stock_adjustments",
+} as const satisfies Record<ManualStockMovementKind, Capability>;
 
-export function manualStockMovementPermission(kind: ManualStockMovementKind): PermissionKey {
-  return PERMISSION_OF_KIND[kind];
+export function manualStockMovementCapability(kind: ManualStockMovementKind): Capability {
+  return CAPABILITY_OF_KIND[kind];
 }
 
 export function visibleManualStockMovementKinds(access: RoleAccess): ManualStockMovementKind[] {
   return MANUAL_STOCK_MOVEMENT_KINDS.filter((kind) =>
-    holdsPermission(access, manualStockMovementPermission(kind)),
+    grantsCapability(access, manualStockMovementCapability(kind)),
   );
 }
