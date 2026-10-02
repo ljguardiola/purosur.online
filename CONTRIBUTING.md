@@ -59,7 +59,7 @@ A feature too large for one pull request stays as a parent feature issue holding
 2. A change to `packages/domain` or `packages/contracts` runs `pnpm mutation --mutate <each touched source file>` and leaves no surviving mutant in them. CI runs the whole mutation suite weekly, not on pull requests.
 3. With every change committed, review the branch with the `review-gate` skill (`.claude/skills/review-gate/`) until it reports `CLEAN`. A review that reports `STOPPED` goes to whoever assigned the issue before anything else happens.
 4. Run `pnpm verify` once, in full.
-5. Open the pull request. Its "How it was tested" cites the `review-gate` result line and the result of `pnpm verify`, and names every behavior whose test was committed after its code.
+5. Open the pull request. Its "How it was tested" cites the `review-gate` result line and the result of `pnpm verify`.
 
 ## Structure
 
@@ -107,7 +107,7 @@ Each level's tests own what only that level can prove:
 ## Code style
 
 - This repository is strict TDD: write a failing test first, then the code that makes it pass. Never write implementation code ahead of its test.
-- The order is visible in the branch's history: each behavior's failing test is committed first, in a commit that only adds or changes tests, and the code that makes it pass follows in a later commit. A commit that changes no behavior — moving or renaming code together with its tests, removing code nothing reads, configuration, documentation, comments — needs no test commit before it.
+- The order is visible in the branch's history: each behavior's failing test is committed first, in a commit that holds only tests and what only tests use (test helpers and setups, fixtures, stories and their approved screenshots), and the code that makes it pass follows in a later commit. A commit changes behavior when some input gets a different outcome after it, a type that now accepts or refuses other values included. A test committed with its code or after it does not count. A commit that changes no behavior — moving or renaming code together with its tests, removing code nothing reads, configuration, documentation, comments — needs no test commit before it.
 - Code, comments, tests, commit messages, issues, and pull requests are written in English.
 - User-facing text is written in Spanish where it is shown; there are no message catalogs. Text built from quantities, amounts or dates goes through `packages/ui`'s formatting functions, fixed to Argentine Spanish (`es-AR`), so a value reads the same on every screen.
 - A `packages/ui` component writes the text that reads the same wherever it is used (a modal's close button, a pagination's previous and next); text that depends on the screen comes from the app as a prop, with no default.

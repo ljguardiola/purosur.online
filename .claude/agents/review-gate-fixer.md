@@ -29,13 +29,20 @@ coordinator's answer of any id that had one, which the fix follows.
    still run.
 3. A commit-order finding names a commit and a behavior already
    implemented. History is never rewritten: the fix is the missing test,
-   proven to fail without the implementation. Write or change the test,
-   undo the commit's source changes in the working tree
-   (`git diff <sha>^ <sha> -- <source files> | git apply -R`), run the test
-   and see it fail for that behavior, restore the source with
-   `git checkout -- <source files>`, and run it again passing. When a test
-   the branch already has states the behavior, run that same proof on it
-   and change nothing; report the commit that holds it.
+   proven to fail without the implementation. Write or change the test and
+   run it passing. Prove it in a temporary worktree, never in the working
+   tree: `git worktree add --detach <scratch dir> HEAD`, `pnpm install
+   --offline` there, copy your uncommitted test in, reverse the whole commit
+   except the test files that state the behavior
+   (`git diff <sha>^ <sha> -- . ':(exclude)<test file>' | git apply -R`),
+   run the test and see it fail for that behavior, then
+   `git worktree remove --force <scratch dir>`. A failure that only comes
+   from a missing module or a renamed name shows a move, not a behavior.
+   When the reverse does not apply at `HEAD` because later commits changed
+   the same lines, run the proof in a worktree at `<sha>` itself; when the
+   test cannot run there either, report the id `not fixed` with that
+   reason. When a test the branch already has states the behavior, run that
+   same proof on it and change nothing; report the commit that holds it.
 4. Follow every rule in `CONTRIBUTING.md` in the code you write, including
    the comment rule: the fix adds no comment that restates the code or records
    why it was fixed.

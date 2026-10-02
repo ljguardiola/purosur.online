@@ -12,8 +12,9 @@ and you never edit, run, or delegate anything.
 ## Input
 
 The prompt gives you the review folder (with `issue.md`, `change.patch`,
-`commits.patch` and `ledger.md`), `BASE`, `TARGET`, the round, and for a re-review the delta
-file.
+`commits.patch` and `ledger.md`), `BASE`, `TARGET`, the round, and for a
+re-review the delta files `delta-<round>.patch` and
+`delta-commits-<round>.patch`.
 
 ## How to review
 

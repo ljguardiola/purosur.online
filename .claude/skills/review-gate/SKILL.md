@@ -36,7 +36,8 @@ undone before it answers.
 
 Launch `review-gate-reviewer` twice in parallel, as reviewer A and reviewer B,
 with the same prompt: the review folder, `BASE`, `TARGET`, the round, and for
-a re-review the delta file. Neither sees the other's result. Wait for both.
+a re-review the delta files `delta-<round>.patch` and
+`delta-commits-<round>.patch`. Neither sees the other's result. Wait for both.
 
 - First round: the whole change, against every area of the checklist.
 - Re-review: only the fix delta (`git diff <previous TARGET> <new TARGET>`,
@@ -96,7 +97,11 @@ and the coordinator's answer of any id that had one. It reports each id
   `stopped`.
 - A row the fixer closed by proving that a test the branch already has fails
   without the implementation, with no change, is `fixed in <sha>` with the
-  sha of the commit that holds that test.
+  sha of the commit that holds that test. A commit-order row is resolved as
+  "Commit order" in [references/checklist.md](references/checklist.md)
+  says, not reopened for the history itself.
+- A round whose fixes changed no file commits nothing and needs no
+  re-review.
 - When it fixed none and a row is still `open`, launch the fixer again; the
   next launch takes a different approach.
 
@@ -134,13 +139,13 @@ When no row is `stopped`, every row is `refuted`, `filed as #<n>` or
 REVIEW-GATE: CLEAN — <rounds> rounds, <fixed> fixed, <refuted> refuted, <filed> filed as new issues (TARGET <sha>)
 ```
 
-Report the new issues to the coordinator. The pull request's "How it was
-tested" also names each confirmed commit-order finding: a behavior whose test
-was committed after its code.
+Report the new issues to the coordinator.
 
 ## Growing the checklist
 
-When the verifier reports that a confirmed finding's kind of deviation is not
-named in its area of [references/checklist.md](references/checklist.md), add
-it to that area's "Read in the change" as an example, in the round's fix
-commit, or in a commit of its own when the round fixes nothing.
+When the verifier reports that a confirmed `rule` finding's kind of
+deviation is not named in its area of
+[references/checklist.md](references/checklist.md), add it to that area's
+"Read in the change" as an example, in the round's fix commit. When the
+round has none, commit the example on its own and go to step 2 with that
+commit as the new `TARGET`, re-reviewed like a fix commit.
