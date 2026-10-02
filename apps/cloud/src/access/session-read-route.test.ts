@@ -156,6 +156,7 @@ describe("GET /sessions/current", () => {
       is_administrator: false,
       permissions: [],
       capabilities: [],
+      stock_movement_kinds: [],
     });
   });
 
@@ -189,6 +190,16 @@ describe("GET /sessions/current", () => {
     expect(response.json()).toMatchObject({ capabilities: [...CAPABILITIES] });
   });
 
+  it("returns every manual stock movement kind for a user holding the Administrator role", async () => {
+    const administratorRoleId = await seededAdministratorRoleId();
+    await db.insert(userRoles).values({ userId, roleId: administratorRoleId });
+    const rawSessionId = await insertSession();
+
+    const response = await getSession(rawSessionId);
+
+    expect(response.json()).toMatchObject({ stock_movement_kinds: ["loss", "adjustment"] });
+  });
+
   it("returns the capabilities the user's role permissions grant", async () => {
     const [stockRole] = await db
       .insert(roles)
@@ -208,6 +219,7 @@ describe("GET /sessions/current", () => {
 
     expect(response.json()).toMatchObject({
       capabilities: ["stock_losses", "stock_movements", "stock_area"],
+      stock_movement_kinds: ["loss"],
     });
   });
 

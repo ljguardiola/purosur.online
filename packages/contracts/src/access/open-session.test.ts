@@ -8,14 +8,15 @@ const session = {
   is_administrator: false,
   permissions: ["void_sale", "sell_and_charge"],
   capabilities: ["stock_area", "branch_area"],
+  stock_movement_kinds: ["loss", "adjustment"],
 };
 
 describe("openSessionSchema", () => {
   it("accepts the body the cloud sends, with permissions or an empty list", () => {
     expect(openSessionSchema.safeParse(session).data).toEqual(session);
-    expect(
-      openSessionSchema.safeParse({ ...session, permissions: [], capabilities: [] }).data,
-    ).toEqual({ ...session, permissions: [], capabilities: [] });
+    const empty = { ...session, permissions: [], capabilities: [], stock_movement_kinds: [] };
+
+    expect(openSessionSchema.safeParse(empty).data).toEqual(empty);
   });
 
   it("strips keys it does not define", () => {
@@ -29,6 +30,7 @@ describe("openSessionSchema", () => {
     "is_administrator",
     "permissions",
     "capabilities",
+    "stock_movement_kinds",
   ])("requires %s", (field) => {
     const { [field as keyof typeof session]: _omitted, ...rest } = session;
 
@@ -51,6 +53,10 @@ describe("openSessionSchema", () => {
     ["capabilities", ["not_a_capability"]],
     ["capabilities", [1]],
     ["capabilities", null],
+    ["stock_movement_kinds", "loss"],
+    ["stock_movement_kinds", ["count"]],
+    ["stock_movement_kinds", [1]],
+    ["stock_movement_kinds", null],
   ])("refuses %s as %j", (field, value) => {
     expect(openSessionSchema.safeParse({ ...session, [field]: value }).success).toBe(false);
   });
