@@ -3,14 +3,21 @@ import { alertKindPolicy } from "./alert-kind-policy.js";
 
 const NAMED_SCOPE_KINDS = ["user", "register"];
 
+export function alertScopeNamesRecord(kind: string): boolean {
+  return isAlertKind(kind) && NAMED_SCOPE_KINDS.includes(alertKindPolicy(kind).scopeKind);
+}
+
+export function alertActorId(detail: Record<string, unknown> | undefined): string | undefined {
+  const actorId = detail?.["actorId"];
+  return typeof actorId === "string" ? actorId : undefined;
+}
+
 export function alertNamedRecordIds(alert: {
   kind: string;
   scope: string;
   detail?: Record<string, unknown>;
 }): string[] {
-  const namesScope =
-    isAlertKind(alert.kind) && NAMED_SCOPE_KINDS.includes(alertKindPolicy(alert.kind).scopeKind);
-  const ids = namesScope ? [alert.scope] : [];
-  const actorId = alert.detail?.["actorId"];
-  return typeof actorId === "string" ? [...ids, actorId] : ids;
+  const ids = alertScopeNamesRecord(alert.kind) ? [alert.scope] : [];
+  const actorId = alertActorId(alert.detail);
+  return actorId === undefined ? ids : [...ids, actorId];
 }

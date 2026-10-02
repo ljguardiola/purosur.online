@@ -252,12 +252,25 @@ function patternsIn(nodes, constants) {
   });
 }
 
+function zodIdFormatReExports(declaration) {
+  const clause = declaration.exportClause;
+  if (clause === undefined || ts.isNamespaceExport(clause)) return [declaration];
+  return clause.elements.filter((element) =>
+    ZOD_ID_FORMATS.has((element.propertyName ?? element.name).text),
+  );
+}
+
 function zodImports(nodes) {
   const zodNames = new Set();
   const formatSpecifiers = [];
   for (const node of nodes) {
-    if (!ts.isImportDeclaration(node) || !ts.isStringLiteral(node.moduleSpecifier)) continue;
+    if (!node.moduleSpecifier || !ts.isStringLiteral(node.moduleSpecifier)) continue;
     if (!ZOD_MODULE.test(node.moduleSpecifier.text)) continue;
+    if (ts.isExportDeclaration(node)) {
+      formatSpecifiers.push(...zodIdFormatReExports(node));
+      continue;
+    }
+    if (!ts.isImportDeclaration(node)) continue;
     const clause = node.importClause;
     if (clause?.name) zodNames.add(clause.name.text);
     const bindings = clause?.namedBindings;

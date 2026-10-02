@@ -1,5 +1,5 @@
 import { type AlertDetail, alertDetailSchema } from "@purosur/contracts";
-import { alertNamedRecordIds, isOpenAlert } from "@purosur/domain";
+import { alertActorId, alertNamedRecordIds, isOpenAlert } from "@purosur/domain";
 import type { AlertDelivery, AlertDetailView } from "@purosur/domain/alerts/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -26,11 +26,8 @@ function detailWithActorName(
   detail: Record<string, unknown>,
   namesById: ReadonlyMap<string, string>,
 ): Record<string, unknown> {
-  const actorId = detail["actorId"];
-  if (typeof actorId !== "string") {
-    return detail;
-  }
-  const actorName = namesById.get(actorId);
+  const actorId = alertActorId(detail);
+  const actorName = actorId === undefined ? undefined : namesById.get(actorId);
   return actorName === undefined ? detail : { ...detail, actorName };
 }
 

@@ -28,7 +28,11 @@ export {
   alertKindPolicy,
   alertKindsWithScope,
 } from "./model/alert-kind-policy.js";
-export { alertNamedRecordIds } from "./model/alert-named-records.js";
+export {
+  alertActorId,
+  alertNamedRecordIds,
+  alertScopeNamesRecord,
+} from "./model/alert-named-records.js";
 export { showsAlertScope } from "./model/alert-scope-visibility.js";
 export type {
   AlertAudienceAccess,

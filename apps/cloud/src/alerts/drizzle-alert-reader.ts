@@ -178,11 +178,11 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
     const userRows = await this.db
       .select({ id: users.id, name: users.firstName })
       .from(users)
-      .where(inArray(users.id, [...ids]));
+      .where(inArray(sql`${users.id}::text`, [...ids]));
     const registerRows = await this.db
       .select({ id: registers.id, name: registers.name })
       .from(registers)
-      .where(inArray(registers.id, [...ids]));
+      .where(inArray(sql`${registers.id}::text`, [...ids]));
     return new Map([...userRows, ...registerRows].map((row) => [row.id, row.name]));
   }
 
