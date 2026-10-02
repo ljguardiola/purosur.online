@@ -142,6 +142,25 @@ test("asks no check for what is typed before the first submit", async () => {
   await expect.poll(() => check.mock.calls).toEqual([[{ code: "ABC" }]]);
 });
 
+test("drops a submit's refusal answered after the field was edited, and asks the check for what is typed now", async () => {
+  const answers: ReturnType<typeof deferred<readonly string[]>>[] = [];
+  const check = vi.fn((_request: Request) => {
+    const answer = deferred<readonly string[]>();
+    answers.push(answer);
+    return answer.promise;
+  });
+  const screen = await render(<Probe check={check} onSubmit={() => Promise.resolve()} />);
+  await userEvent.fill(codeField(screen), "AB");
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+  await expect.poll(() => answers.length).toBe(1);
+
+  await userEvent.type(codeField(screen), "CD");
+  answers[0]?.resolve(["code"]);
+
+  await expect.poll(() => check.mock.calls.at(-1)).toEqual([{ code: "ABCD" }]);
+  await expect.element(screen.getByText(CODE_MESSAGE)).not.toBeInTheDocument();
+});
+
 test("ignores a check answered after a newer one was asked", async () => {
   const answers: ReturnType<typeof deferred<readonly string[]>>[] = [];
   const check = () => {

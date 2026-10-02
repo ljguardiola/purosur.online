@@ -168,7 +168,7 @@ export function useRequestForm<
     listeners: {
       onChange: ({ fieldApi }) => {
         clearFieldError(fieldApi.name);
-        if (check !== undefined && form.state.submissionAttempts > 0) {
+        if (check !== undefined && checked.current.asked > 0) {
           void recheck(check);
         }
       },
