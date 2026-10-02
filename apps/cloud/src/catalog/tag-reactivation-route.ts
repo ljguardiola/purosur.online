@@ -7,6 +7,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
+import { readRecordIds } from "../platform/record-id-params.js";
 import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 import { TAG_NOT_FOUND_RESPONSE } from "./tag-edit-route.js";
 import type { TagsRouteOptions } from "./tags-list-route.js";
@@ -25,14 +26,18 @@ export function registerTagReactivationRoute<TQueryResult extends PgQueryResultH
   const now = options.now ?? (() => new Date());
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.delete<{ Params: { id: string } }>(
+  app.delete(
     "/tags/:id/deactivation",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: capabilityAccess("products_and_categories"), sessionSource },
     },
     async (request, reply) => {
-      const targetId = request.params.id;
+      const ids = await readRecordIds(reply, request.params, ["id"]);
+      if (!ids) {
+        return;
+      }
+      const targetId = ids.id;
       const outcome = await reactivateTag(catalogStore, targetId);
 
       if (outcome.kind === "not_found") {

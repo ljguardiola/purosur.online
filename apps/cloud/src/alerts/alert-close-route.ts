@@ -9,6 +9,7 @@ import {
   routeSessionSource,
 } from "../access/route-access.js";
 import { hashSourceAddress } from "../access/sign-in-lockout.js";
+import { readRecordIds } from "../platform/record-id-params.js";
 import { ALERT_NOT_FOUND_RESPONSE, idsToResolve, toAlertDetailBody } from "./alert-read-route.js";
 import { visibleSightOf } from "./alert-route-sight.js";
 import type { AlertsRouteOptions } from "./alerts-list-route.js";
@@ -34,17 +35,21 @@ export function registerAlertCloseRoute<TQueryResult extends PgQueryResultHKT>(
     hasher: { hash: hashSourceAddress },
   };
 
-  app.put<{ Params: { id: string } }>(
+  app.put(
     "/alerts/:id/closure",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: capabilityAccess("close_alerts_manually"), sessionSource },
     },
     async (request, reply) => {
+      const ids = await readRecordIds(reply, request.params, ["id"]);
+      if (!ids) {
+        return;
+      }
       const openSession = openSessionOf(request);
       const sight = visibleSightOf(openSession);
 
-      const alert = sight && (await reader.findVisibleAlert(sight, request.params.id));
+      const alert = sight && (await reader.findVisibleAlert(sight, ids.id));
       if (!alert) {
         await reply.code(404).send(ALERT_NOT_FOUND_RESPONSE);
         return;

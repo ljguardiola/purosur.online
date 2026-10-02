@@ -10,6 +10,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
+import { readRecordIds } from "../platform/record-id-params.js";
 import { DrizzleBranchRegisterStore } from "./drizzle-branch-register-store.js";
 import { secretEnrollmentCodes } from "./register-enrollment-code.js";
 import type { RegistersRouteOptions } from "./registers-list-route.js";
@@ -28,13 +29,17 @@ export function registerRegisterEnrollmentCodeRoute<TQueryResult extends PgQuery
   const sessionSource = routeSessionSource({ db: options.db, now });
   const store = new DrizzleBranchRegisterStore(options.db);
 
-  app.post<{ Params: { id: string } }>(
+  app.post(
     "/registers/:id/device-codes",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: capabilityAccess("registers_area"), sessionSource },
     },
     async (request, reply) => {
+      const ids = await readRecordIds(reply, request.params, ["id"]);
+      if (!ids) {
+        return;
+      }
       const attemptedAt = now();
       const openSession = openSessionOf(request);
 
@@ -42,7 +47,7 @@ export function registerRegisterEnrollmentCodeRoute<TQueryResult extends PgQuery
         return;
       }
 
-      if (!(await store.hasRegister(openSession.locationId, request.params.id))) {
+      if (!(await store.hasRegister(openSession.locationId, ids.id))) {
         await reply.code(404).send(REGISTER_NOT_FOUND_RESPONSE);
         return;
       }
@@ -51,7 +56,7 @@ export function registerRegisterEnrollmentCodeRoute<TQueryResult extends PgQuery
         { store, clock: { now: () => attemptedAt }, codes: secretEnrollmentCodes },
         {
           locationId: openSession.locationId,
-          registerId: request.params.id,
+          registerId: ids.id,
           actorId: openSession.userId,
         },
       );

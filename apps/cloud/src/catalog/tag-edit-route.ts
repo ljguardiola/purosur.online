@@ -8,6 +8,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
+import { readRecordIds } from "../platform/record-id-params.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { DrizzleCatalogListReader } from "./drizzle-catalog-list-reader.js";
 import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
@@ -34,7 +35,7 @@ export function registerTagEditRoute<TQueryResult extends PgQueryResultHKT>(
   const catalog = new DrizzleCatalogListReader(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.put<{ Params: { id: string } }>(
+  app.put(
     "/tags/:id",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
@@ -44,12 +45,16 @@ export function registerTagEditRoute<TQueryResult extends PgQueryResultHKT>(
       },
     },
     async (request, reply) => {
+      const ids = await readRecordIds(reply, request.params, ["id"]);
+      if (!ids) {
+        return;
+      }
       const parsedBody = await readValidatedBody(reply, tagEditBodySchema, request.body);
       if (!parsedBody) {
         return;
       }
 
-      const outcome = await editTag(catalogStore, { id: request.params.id, ...parsedBody });
+      const outcome = await editTag(catalogStore, { id: ids.id, ...parsedBody });
 
       if (outcome.kind === "not_found") {
         await reply.code(404).send(TAG_NOT_FOUND_RESPONSE);
@@ -64,7 +69,7 @@ export function registerTagEditRoute<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      const listed = await findTagSummary({ catalog }, request.params.id);
+      const listed = await findTagSummary({ catalog }, ids.id);
       await reply
         .code(200)
         .send(tagSummarySchema.parse({ ...outcome.tag, productCount: listed?.productCount ?? 0 }));

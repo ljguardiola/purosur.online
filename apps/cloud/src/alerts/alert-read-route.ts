@@ -11,6 +11,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
+import { readRecordIds } from "../platform/record-id-params.js";
 import { visibleSightOf } from "./alert-route-sight.js";
 import { holdsOnlySourceAddressHash, scopeDisplay, wireScope } from "./alert-scope-wire.js";
 import type { AlertsRouteOptions } from "./alerts-list-route.js";
@@ -88,13 +89,17 @@ export function registerAlertReadRoute<TQueryResult extends PgQueryResultHKT>(
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.get<{ Params: { id: string } }>(
+  app.get(
     "/alerts/:id",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: OPEN_SESSION_ACCESS, sessionSource },
     },
     async (request, reply) => {
+      const ids = await readRecordIds(reply, request.params, ["id"]);
+      if (!ids) {
+        return;
+      }
       const openSession = openSessionOf(request);
       const sight = visibleSightOf(openSession);
       if (!sight) {
@@ -103,7 +108,7 @@ export function registerAlertReadRoute<TQueryResult extends PgQueryResultHKT>(
       }
 
       const reader = new DrizzleAlertReader(options.db);
-      const alert = await reader.findVisibleAlert(sight, request.params.id);
+      const alert = await reader.findVisibleAlert(sight, ids.id);
       if (!alert) {
         await reply.code(404).send(ALERT_NOT_FOUND_RESPONSE);
         return;

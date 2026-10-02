@@ -8,6 +8,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
+import { readRecordIds } from "../platform/record-id-params.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import type { CategoriesRouteOptions } from "./categories-list-route.js";
 import {
@@ -41,7 +42,7 @@ export function registerCategoryEditRoute<TQueryResult extends PgQueryResultHKT>
   const catalogStore = new DrizzleCatalogStore(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.put<{ Params: { id: string } }>(
+  app.put(
     "/categories/:id",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
@@ -51,12 +52,16 @@ export function registerCategoryEditRoute<TQueryResult extends PgQueryResultHKT>
       },
     },
     async (request, reply) => {
+      const ids = await readRecordIds(reply, request.params, ["id"]);
+      if (!ids) {
+        return;
+      }
       const parsedBody = await readValidatedBody(reply, categoryEditBodySchema, request.body);
       if (!parsedBody) {
         return;
       }
 
-      const outcome = await editCategory(catalogStore, { id: request.params.id, ...parsedBody });
+      const outcome = await editCategory(catalogStore, { id: ids.id, ...parsedBody });
 
       if (outcome.kind === "not_found") {
         await reply.code(404).send(NOT_FOUND_RESPONSE);

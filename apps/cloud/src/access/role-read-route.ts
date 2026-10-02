@@ -6,6 +6,7 @@ import {
 } from "@purosur/domain/access/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { readRecordIds } from "../platform/record-id-params.js";
 import { sameOriginGuard } from "./backoffice-origin.js";
 import { drizzleRoleDirectory } from "./drizzle-role-directory.js";
 import type { RolesRouteOptions } from "./roles-list-route.js";
@@ -45,7 +46,11 @@ export function registerRoleReadRoute<TQueryResult extends PgQueryResultHKT>(
       config: { access: ADMINISTRATOR_ACCESS, sessionSource },
     },
     async (request, reply) => {
-      const targetId = (request.params as { id: string }).id;
+      const ids = await readRecordIds(reply, request.params, ["id"]);
+      if (!ids) {
+        return;
+      }
+      const targetId = ids.id;
       const role = await findEditableRole(
         { roles: drizzleRoleDirectory(options.db) },
         { roleId: targetId },

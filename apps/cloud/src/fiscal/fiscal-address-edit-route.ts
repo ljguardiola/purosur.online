@@ -10,6 +10,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
+import { readRecordIds } from "../platform/record-id-params.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { DrizzleFiscalAddressStore } from "./drizzle-fiscal-address-store.js";
 import { FISCAL_ADDRESS_NAME_TAKEN_RESPONSE } from "./fiscal-address-creation-route.js";
@@ -37,13 +38,17 @@ export function registerFiscalAddressEditRoute<TQueryResult extends PgQueryResul
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.put<{ Params: { id: string } }>(
+  app.put(
     "/fiscal-addresses/:id",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: capabilityAccess("cash_area"), sessionSource },
     },
     async (request, reply) => {
+      const ids = await readRecordIds(reply, request.params, ["id"]);
+      if (!ids) {
+        return;
+      }
       const attemptedAt = now();
       const openSession = openSessionOf(request);
 
@@ -57,7 +62,7 @@ export function registerFiscalAddressEditRoute<TQueryResult extends PgQueryResul
       }
 
       const outcome = await editFiscalAddress(ports, {
-        fiscalAddressId: request.params.id,
+        fiscalAddressId: ids.id,
         name: body.name,
         streetAddress: body.street_address,
         version: body.version,

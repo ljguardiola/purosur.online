@@ -9,6 +9,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
+import { readRecordIds } from "../platform/record-id-params.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { DrizzlePricingStore } from "./drizzle-pricing-store.js";
 import type { PricesRouteOptions } from "./prices-list-route.js";
@@ -33,13 +34,17 @@ export function registerPriceSetRoute<TQueryResult extends PgQueryResultHKT>(
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.put<{ Params: { productId: string } }>(
+  app.put(
     "/prices/:productId",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: capabilityAccess("prices_area"), sessionSource },
     },
     async (request, reply) => {
+      const ids = await readRecordIds(reply, request.params, ["productId"]);
+      if (!ids) {
+        return;
+      }
       const body = await readValidatedBody(reply, priceSetBodySchema, request.body);
       if (!body) {
         return;
@@ -48,7 +53,7 @@ export function registerPriceSetRoute<TQueryResult extends PgQueryResultHKT>(
       const openSession = openSessionOf(request);
 
       const outcome = await setPrice(ports, {
-        productId: request.params.productId,
+        productId: ids.productId,
         locationId: openSession.locationId,
         unitPrice: body.unitPrice,
         expectedCurrentPriceId: body.expectedCurrentPriceId,

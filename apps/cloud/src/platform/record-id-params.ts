@@ -14,11 +14,12 @@ async function readIds<Name extends string>(
     if (optional && value === undefined) {
       continue;
     }
-    const result = recordIdSchema(name + " must be a record id").safeParse(value);
+    const message = `${name} must be a record id`;
+    const result = recordIdSchema(message).safeParse(value);
     if (!result.success) {
       await reply.code(400).send({
         code: "validation_failed",
-        message: result.error.issues[0]?.message ?? name + " must be a record id",
+        message,
         details: [{ field: name }],
       });
       return undefined;
