@@ -5,6 +5,7 @@ import { ShieldX, TriangleAlert, WifiOff } from "lucide-react";
 import type { FormEvent } from "react";
 import { useId, useState } from "react";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
+import { Eyebrow } from "../shell/eyebrow";
 import { retryAfterText } from "../shell/retry-after-text";
 import {
   EMPTY_ENROLLMENT_FORM,
@@ -103,9 +104,7 @@ export function EnrollmentScreen({ checkCode, enroll }: EnrollmentScreenProps) {
     <BrandPanelScreen status="Sin dar de alta">
       <main className="flex w-full max-w-110 flex-col gap-4">
         <div className="flex flex-col gap-1.5">
-          <p className="text-caption font-bold text-text-eyebrow uppercase tracking-sm">
-            NOTEBOOK NUEVA
-          </p>
+          <Eyebrow text="NOTEBOOK NUEVA" />
           <h1 className="text-display text-text-accent">Dar de alta esta caja</h1>
           <p className="text-body text-text-subtle">
             Escribí el código de alta que se genera en el backoffice, en Cajas registradoras. Vale
