@@ -7,7 +7,6 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { BRAND_NOT_FOUND_RESPONSE } from "./brand-edit-route.js";
 import type { BrandsRouteOptions } from "./brands-list-route.js";
 import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
@@ -34,11 +33,6 @@ export function registerBrandReactivationRoute<TQueryResult extends PgQueryResul
     },
     async (request, reply) => {
       const targetId = request.params.id;
-      if (!UUID_PATTERN.test(targetId)) {
-        await reply.code(404).send(BRAND_NOT_FOUND_RESPONSE);
-        return;
-      }
-
       const outcome = await reactivateBrand(catalogStore, targetId);
 
       if (outcome.kind === "not_found") {

@@ -232,12 +232,33 @@ describe("PUT /categories/:id", () => {
     expect(updated).toMatchObject({ name: "Macetas", version: 2, parentId: null });
   });
 
+  it("answers a category renamed through its id in uppercase with the id as stored", async () => {
+    const category = await insertCategory("Semillas");
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await editCategory(rawSessionId, category.id.toUpperCase(), {
+      name: "Macetas",
+      parentId: null,
+      version: category.version,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      id: category.id,
+      name: "Macetas",
+      version: 2,
+      parentId: null,
+    });
+  });
+
   it("returns 404 not_found for an id that does not exist, changing nothing", async () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);
 
     const response = await editCategory(rawSessionId, "00000000-0000-0000-0000-000000000000", {
       name: "Macetas",
+      parentId: null,
       version: 1,
     });
 
@@ -251,12 +272,29 @@ describe("PUT /categories/:id", () => {
 
     const response = await editCategory(rawSessionId, "not-a-uuid", {
       name: "Macetas",
+      parentId: null,
       version: 1,
     });
 
     expect(response.statusCode).toBe(404);
     expect(response.json()).toMatchObject({ code: "not_found" });
   });
+
+  it.each(["00000000-0000-0000-0000-000000000000", "not-a-uuid"])(
+    "returns 400 validation_failed for the id %s when the body does not match its shape",
+    async (id) => {
+      const userId = await insertUserWithPermission();
+      const rawSessionId = await insertSession(userId);
+
+      const response = await editCategory(rawSessionId, id, { name: "   ", version: 1 });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({
+        code: "validation_failed",
+        details: [{ field: "name" }],
+      });
+    },
+  );
 
   it("rejects an empty name, changing nothing", async () => {
     const category = await insertCategory("Semillas");
@@ -481,6 +519,24 @@ describe("PUT /categories/:id", () => {
     const response = await editCategory(rawSessionId, category.id, {
       name: "Almacén",
       parentId: category.id.toUpperCase(),
+      version: category.version,
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "category_move_not_allowed" });
+    const [unchanged] = await db.select().from(categories).where(eq(categories.id, category.id));
+    expect(unchanged).toMatchObject({ parentId: null, version: 1 });
+  });
+
+  it("rejects moving a category under its own child through its id in uppercase, changing nothing", async () => {
+    const category = await insertCategory("Almacén");
+    const child = await insertCategory("Untables", category.id);
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await editCategory(rawSessionId, category.id.toUpperCase(), {
+      name: "Almacén",
+      parentId: child.id,
       version: category.version,
     });
 

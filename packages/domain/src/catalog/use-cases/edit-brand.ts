@@ -8,6 +8,7 @@ export interface EditBrandInput {
 }
 
 export type EditBrandOutcome =
+  | { kind: "not_found" }
   | { kind: "stale_version" }
   | { kind: "name_taken" }
   | { kind: "applied"; brand: CatalogBrand };
@@ -21,25 +22,28 @@ export async function editBrand(
       // Locks this one row so a concurrent edit, deactivation or reactivation of the same brand
       // waits instead of racing.
       const locked = await tx.lockBrand(input.id);
-      if (locked.kind === "not_found" || locked.brand.version !== input.version) {
+      if (locked.kind === "not_found") {
+        return { kind: "not_found" };
+      }
+      if (locked.brand.version !== input.version) {
         return { kind: "stale_version" };
       }
-      const { active, version } = locked.brand;
+      const { id, active, version } = locked.brand;
 
       if (locked.brand.name === input.name) {
-        return { kind: "applied", brand: { id: input.id, name: input.name, active, version } };
+        return { kind: "applied", brand: { id, name: input.name, active, version } };
       }
 
-      if (await tx.brandNameTaken(input.name, input.id)) {
+      if (await tx.brandNameTaken(input.name, id)) {
         return { kind: "name_taken" };
       }
 
       const nextVersion = version + 1;
-      await tx.updateBrand(input.id, { name: input.name, active, version: nextVersion });
+      await tx.updateBrand(id, { name: input.name, active, version: nextVersion });
 
       return {
         kind: "applied",
-        brand: { id: input.id, name: input.name, active, version: nextVersion },
+        brand: { id, name: input.name, active, version: nextVersion },
       };
     });
   } catch (error) {

@@ -7,7 +7,6 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 import type { ProductsRouteOptions } from "./products-list-route.js";
 
@@ -33,11 +32,6 @@ export function registerProductDeactivationRoute<TQueryResult extends PgQueryRes
     },
     async (request, reply) => {
       const targetId = request.params.id;
-      if (!UUID_PATTERN.test(targetId)) {
-        await reply.code(404).send(NOT_FOUND_RESPONSE);
-        return;
-      }
-
       const outcome = await deactivateProduct(catalogStore, targetId);
 
       if (outcome.kind === "not_found") {
