@@ -105,6 +105,29 @@ test("finds a copy whose group lengths are numbers substituted into the pattern"
   assert.deepEqual(linesOf(source), [3]);
 });
 
+const withLastGroupLength = (substitution) =>
+  [
+    "const LAST_GROUP = 8;",
+    "const ID = new RegExp(",
+    `  \`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{\${${substitution}}}$\`,`,
+    ");",
+  ].join("\n");
+
+test("reads a sum of numbers substituted into a pattern as the number it adds up to", () => {
+  for (const substitution of ["4 + 8", "LAST_GROUP + 4", "(2 + 2) + LAST_GROUP", "11 + 1"]) {
+    assert.deepEqual(linesOf(withLastGroupLength(substitution)), [3], substitution);
+  }
+  for (const substitution of ["1 + 2", "LAST_GROUP + 2"]) {
+    assert.deepEqual(linesOf(withLastGroupLength(substitution)), [], substitution);
+  }
+});
+
+test("reads a number added to a string as its digits", () => {
+  for (const substitution of ['"1" + 2', '1 + "2"', "1 + `2`"]) {
+    assert.deepEqual(linesOf(withLastGroupLength(substitution)), [3], substitution);
+  }
+});
+
 test("ignores UUID values used as test data", () => {
   const source = [
     'const PRODUCT_ID = "0123abcd-ef01-4567-89ab-cdef01234567";',
