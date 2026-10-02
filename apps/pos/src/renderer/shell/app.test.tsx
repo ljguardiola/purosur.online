@@ -31,14 +31,14 @@ const OPENED: OpenCashSessionOutcome = {
   kind: "opened",
   cash_session: {
     id: "s1",
-    opened_at: "2026-09-30T12:02:00.000Z",
+    opened_at: "2026-09-30T09:02:00.000-03:00",
     opened_by: { user_id: "u1", first_name: "Ada", abilities: ["open_cash_session"] },
     locked: false,
   },
 };
 const GRACE_SESSION: OpenCashSession = {
   id: "s1",
-  opened_at: "2026-09-30T12:02:00.000Z",
+  opened_at: "2026-09-30T09:02:00.000-03:00",
   opened_by: { user_id: "u2", first_name: "Grace", abilities: ["open_cash_session"] },
   locked: false,
 };
@@ -129,6 +129,15 @@ function coreAnswering(
     },
     async enroll() {
       return outcome;
+    },
+    async pinPolicy() {
+      return { min_digits: 6 };
+    },
+    async checkEnrollmentCode() {
+      return [];
+    },
+    async checkPinCodeRedemption() {
+      return [];
     },
     async redeemPinCode() {
       return cashDrawer.redeemOutcome ?? { kind: "redeemed" };
@@ -1613,7 +1622,7 @@ describe("App", () => {
         }),
         openOutcome: {
           kind: "opened",
-          cash_session: { ...GRACE_SESSION, id: "s2", opened_at: "2026-09-30T15:00:00.000Z" },
+          cash_session: { ...GRACE_SESSION, id: "s2", opened_at: "2026-09-30T12:00:00.000-03:00" },
         },
       });
       await startClosing(screen);

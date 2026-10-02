@@ -1,10 +1,5 @@
-import { PIN_MIN_DIGITS } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
-import {
-  newPinSchema,
-  pinCodeRedemptionBodySchema,
-  pinCodeRedemptionSchema,
-} from "./pin-code-redemption.js";
+import { pinCodeRedemptionBodySchema, pinCodeRedemptionSchema } from "./pin-code-redemption.js";
 
 const VALID_BODY = { reset_code: "P4NX 7KWE 2QRT 5MZD", new_pin: "482913" };
 
@@ -73,25 +68,6 @@ describe("pinCodeRedemptionSchema", () => {
   it.each(["salt", "pin_hash"] as const)("rejects a redemption without its %s", (field) => {
     expect(pinCodeRedemptionSchema.safeParse({ ...REDEMPTION, [field]: undefined }).success).toBe(
       false,
-    );
-  });
-});
-
-describe("newPinSchema", () => {
-  it("accepts a PIN of digits with at least the minimum length", () => {
-    expect(newPinSchema.parse("4".repeat(PIN_MIN_DIGITS))).toBe("4".repeat(PIN_MIN_DIGITS));
-  });
-
-  it.each([
-    ["too short", "4".repeat(PIN_MIN_DIGITS - 1)],
-    ["not made of digits only", `${"4".repeat(PIN_MIN_DIGITS)}a`],
-    ["empty", ""],
-    ["not a string", 482913],
-  ])("rejects a PIN that is %s, naming the minimum", (_case, pin) => {
-    const result = newPinSchema.safeParse(pin);
-
-    expect(result.success ? undefined : result.error.issues[0]?.message).toBe(
-      `new_pin must be at least ${PIN_MIN_DIGITS} digits, numbers only`,
     );
   });
 });

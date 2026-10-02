@@ -18,6 +18,7 @@ import type {
   ListedCashMovement,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
+  PinPolicy,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RemoveSaleLineOutcome,
@@ -39,6 +40,7 @@ import {
   Outlet,
   redirect,
 } from "@tanstack/react-router";
+import { pinPolicyQueryOptions } from "../access/access-queries";
 import { FirstSignInScreen } from "../access/first-sign-in-screen";
 import { PinCodeRedemptionScreen } from "../access/pin-code-redemption-screen";
 import { SignInScreen } from "../access/sign-in-screen";
@@ -95,6 +97,12 @@ export interface RouterContext {
   cashMovementKinds: () => Promise<RecordableCashMovementKinds | null | "unavailable">;
   recordCashMovement: (input: CashMovementInput) => Promise<RecordCashMovementOutcome>;
   redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
+  pinPolicy: () => Promise<PinPolicy>;
+  checkEnrollmentCode: (typedCode: string) => Promise<"code"[]>;
+  checkPinCodeRedemption: (
+    typedCode: string,
+    newPin: string,
+  ) => Promise<("reset_code" | "new_pin")[]>;
   signInLookup: (email: string) => Promise<SignInLookupOutcome>;
   requestFirstPinCode: (userId: string) => Promise<FirstPinCodeRequestOutcome>;
   firstSignIn: (userId: string, pin: string) => Promise<SignInOutcome>;
@@ -444,13 +452,28 @@ const signInRoute = createRoute({
   },
 });
 
+async function loadPinPolicy({
+  queryClient,
+  pinPolicy,
+}: Pick<RouterContext, "queryClient" | "pinPolicy">): Promise<void> {
+  await queryClient.ensureQueryData(pinPolicyQueryOptions(pinPolicy));
+}
+
 const pinCodeRedemptionRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/pin-code-redemption",
   beforeLoad: ({ context }) => requireRoute(["/sign-in", "/locked"], context),
+  loader: ({ context }) => loadPinPolicy(context),
   component: function PinCodeRedemptionRoute() {
-    const { redeemPinCode } = pinCodeRedemptionRoute.useRouteContext();
-    return <PinCodeRedemptionScreen redeem={redeemPinCode} />;
+    const { redeemPinCode, pinPolicy, checkPinCodeRedemption } =
+      pinCodeRedemptionRoute.useRouteContext();
+    return (
+      <PinCodeRedemptionScreen
+        loadPinPolicy={pinPolicy}
+        checkRedemption={checkPinCodeRedemption}
+        redeem={redeemPinCode}
+      />
+    );
   },
 });
 
@@ -458,14 +481,23 @@ const firstSignInRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/first-sign-in",
   beforeLoad: ({ context }) => requireRoute("/sign-in", context),
+  loader: ({ context }) => loadPinPolicy(context),
   component: function FirstSignInRoute() {
-    const { signInLookup, firstSignIn, requestFirstPinCode, redeemPinCode } =
-      firstSignInRoute.useRouteContext();
+    const {
+      signInLookup,
+      firstSignIn,
+      requestFirstPinCode,
+      redeemPinCode,
+      pinPolicy,
+      checkPinCodeRedemption,
+    } = firstSignInRoute.useRouteContext();
     return (
       <FirstSignInScreen
         lookup={signInLookup}
         signIn={firstSignIn}
         requestCode={requestFirstPinCode}
+        loadPinPolicy={pinPolicy}
+        checkRedemption={checkPinCodeRedemption}
         redeem={redeemPinCode}
       />
     );
@@ -477,8 +509,8 @@ const enrollRoute = createRoute({
   path: "/enroll",
   beforeLoad: ({ context }) => requireRoute("/enroll", context),
   component: function EnrollRoute() {
-    const { enroll } = enrollRoute.useRouteContext();
-    return <EnrollmentScreen enroll={enroll} />;
+    const { enroll, checkEnrollmentCode } = enrollRoute.useRouteContext();
+    return <EnrollmentScreen checkCode={checkEnrollmentCode} enroll={enroll} />;
   },
 });
 
@@ -549,6 +581,9 @@ export function createAppRouter(
     | "authorizers"
     | "lockedClosers"
     | "redeemPinCode"
+    | "pinPolicy"
+    | "checkEnrollmentCode"
+    | "checkPinCodeRedemption"
     | "signInLookup"
     | "requestFirstPinCode"
     | "firstSignIn"

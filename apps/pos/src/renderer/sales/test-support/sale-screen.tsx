@@ -18,8 +18,7 @@ const PERSON: SaleScreenProps["person"] = {
   first_name: "Ada",
   abilities: ["open_cash_session"],
 };
-// 12:02 UTC is 09:02 in Argentina.
-const OPENED_AT = "2026-09-30T12:02:00.000Z";
+const OPENED_AT = "2026-09-30T09:02:00.000-03:00";
 const FIELD_NAME = "Producto";
 export const PLACEHOLDER = "Escaneá o escribí el nombre del producto";
 export const NOT_PERMITTED_TITLE = "No tenés el permiso de vender y cobrar";

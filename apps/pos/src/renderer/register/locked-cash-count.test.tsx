@@ -17,7 +17,7 @@ const GRACE: SignedInPerson = {
   first_name: "Grace",
   abilities: ["open_cash_session"],
 };
-const OPENED_AT = "2026-09-30T12:02:00.000Z";
+const OPENED_AT = "2026-09-30T09:02:00.000-03:00";
 const BALANCE: CashBalance = {
   opening_float: 2_000_000,
   cash_sales: 3_500_000,
@@ -116,6 +116,28 @@ describe("LockedCashCount", () => {
     await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
 
     await expect.element(screen.getByText(SHORT_NOTICE).first()).toBeVisible();
+  });
+
+  it("compares any amount it can read as a count, however large", async () => {
+    const { screen } = await renderStep();
+
+    await userEvent.fill(
+      screen.getByRole("textbox", { name: "Efectivo contado" }),
+      "30.000.000,00",
+    );
+
+    await expect.element(screen.getByText("$ 30.000.000,00")).toBeVisible();
+    await expect.element(screen.getByText("Sobran", { exact: false }).first()).toBeVisible();
+  });
+
+  it("leaves a count of any amount it can read for the core to judge, showing its refusal", async () => {
+    const close = vi.fn<Close>(async () => ({ kind: "invalid_counted_cash" }));
+    const { screen } = await renderStep({ close });
+
+    await closeWith(screen, "30.000.000,00");
+
+    await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
+    expect(close).toHaveBeenCalledWith(3_000_000_000);
   });
 
   it("closes the session with the counted cash in cents", async () => {

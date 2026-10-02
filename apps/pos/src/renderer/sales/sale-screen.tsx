@@ -8,7 +8,6 @@ import type {
   ScanProductOutcome,
   SearchProductsOutcome,
 } from "@purosur/contracts";
-import { scannedCodeSchema, searchQuerySchema } from "@purosur/contracts";
 import { EmptyState, LoadFailure, LoadingPlaceholder, SearchField } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { ScanBarcode, TriangleAlert } from "lucide-react";
@@ -124,10 +123,6 @@ export function SaleScreen({
       setResults(undefined);
       return;
     }
-    if (!searchQuerySchema.safeParse(query).success) {
-      setResults({ query, products: [], more: false });
-      return;
-    }
     void search(query).then((outcome) => takeSearch(query, outcome));
   }
 
@@ -197,10 +192,6 @@ export function SaleScreen({
     event.preventDefault();
     const submitted = code.trim();
     if (submitted === "") {
-      return;
-    }
-    if (!scannedCodeSchema.safeParse(submitted).success) {
-      refuse(submitted, { kind: "unknown_code" });
       return;
     }
     const outcome = await scanProduct(submitted).catch(

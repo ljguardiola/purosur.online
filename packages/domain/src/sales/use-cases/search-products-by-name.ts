@@ -1,4 +1,4 @@
-import type { SaleUnit } from "../../catalog/index.js";
+import { isProductNameTooLong, type SaleUnit } from "../../catalog/index.js";
 import type { NameMatch } from "../model/product-name-match.js";
 import { rankProductSearch } from "../model/product-search.js";
 import type { Clock, SaleLedger } from "./sale-ledger.js";
@@ -34,6 +34,9 @@ export function searchProductsByName(
     const session = sellingSession(tx, actorId);
     if (isRefusal(session)) {
       return session;
+    }
+    if (isProductNameTooLong(query)) {
+      return { kind: "results", products: [], more: false };
     }
     const moment = clock.now();
     const { hits, more } = rankProductSearch(tx.searchableProducts(), query);

@@ -84,6 +84,9 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         redemptions.push({ resetCode, newPin });
         return { kind: "code_expired" as const };
       },
+      pinPolicy: () => ({ min_digits: 6 }),
+      checkEnrollmentCode: () => [],
+      checkPinCodeRedemption: () => [],
       signInUsers: () => [{ id: "u1", first_name: "Ada" }],
       signIn: async (userId: string, pin: string): Promise<SignInOutcome> => {
         signIns.push({ userId, pin });
@@ -223,6 +226,44 @@ describe("answerRendererRequest", () => {
     });
 
     expect(answer).toEqual({ type: "register-name", request_id: "r3", name: "Caja 1" });
+  });
+
+  it.each([
+    [
+      { type: "check-enrollment-code", request_id: "r6", code: "p4nx" },
+      { type: "enrollment-code-check", request_id: "r6", fields: ["code"] },
+    ],
+    [
+      { type: "check-pin-code-redemption", request_id: "r7", reset_code: "p4nx", new_pin: "12" },
+      { type: "pin-code-redemption-check", request_id: "r7", fields: ["reset_code", "new_pin"] },
+    ],
+  ] as const)("answers the check %j with the fields the core refuses", async (message, answer) => {
+    const checked: unknown[] = [];
+    const answered = await answerRendererRequest(
+      deps(true, {
+        checkEnrollmentCode: (code) => {
+          checked.push(code);
+          return ["code"];
+        },
+        checkPinCodeRedemption: (code, pin) => {
+          checked.push([code, pin]);
+          return ["reset_code", "new_pin"];
+        },
+      }).deps,
+      message,
+    );
+
+    expect(answered).toEqual(answer);
+    expect(checked).toHaveLength(1);
+  });
+
+  it("answers the PIN policy", async () => {
+    const answer = await answerRendererRequest(
+      deps(true, { pinPolicy: () => ({ min_digits: 8 }) }).deps,
+      { type: "pin-policy-request", request_id: "r5" },
+    );
+
+    expect(answer).toEqual({ type: "pin-policy", request_id: "r5", min_digits: 8 });
   });
 
   it("answers no name while the register holds none", async () => {

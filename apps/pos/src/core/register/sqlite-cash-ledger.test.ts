@@ -276,35 +276,40 @@ describe("the open sale", () => {
 
   describe("when closing the session", () => {
     function close() {
-      return closeCashSession(
-        { ledger, clock: { now: () => OPENED_AT }, ids: { next: () => "id-1" } },
-        { sessionId: "session-1", closerId: "u1", countedCash: 5000 },
+      return closeCashSession<never>(
+        {
+          ledger,
+          clock: { now: () => OPENED_AT },
+          ids: { next: () => "id-1" },
+          authority: { authorize: async () => ({ kind: "granted", grant: { closerId: "u1" } }) },
+        },
+        { sessionId: "session-1", countedCash: 5000 },
       );
     }
 
-    it("refuses while a sale is in progress and leaves the session open", () => {
+    it("refuses while a sale is in progress and leaves the session open", async () => {
       deviceId("device-1");
       addSale("sale-1", "OPEN", [1500, 250]);
 
-      expect(close()).toEqual({ kind: "open_sale", total: 1750, cancellable: true });
+      expect(await close()).toEqual({ kind: "open_sale", total: 1750, cancellable: true });
       expect(database.prepare("SELECT state FROM cash_sessions").all()).toEqual([
         { state: "OPEN" },
       ]);
     });
 
-    it("tells that a sale in progress with an approved payment cannot be cancelled", () => {
+    it("tells that a sale in progress with an approved payment cannot be cancelled", async () => {
       deviceId("device-1");
       addSale("sale-1", "OPEN", [1500]);
       addPayment("sale-1", 1000);
 
-      expect(close()).toEqual({ kind: "open_sale", total: 1500, cancellable: false });
+      expect(await close()).toEqual({ kind: "open_sale", total: 1500, cancellable: false });
     });
 
-    it("closes when the sales are over", () => {
+    it("closes when the sales are over", async () => {
       deviceId("device-1");
       addSale("sale-1", "COMPLETED", [1500]);
 
-      expect(close().kind).toBe("closed");
+      expect((await close()).kind).toBe("closed");
     });
   });
 });
@@ -441,6 +446,29 @@ describe("a cash movement", () => {
   });
 });
 
+describe("a ledger given no outbox chain key", () => {
+  it("refuses to append an outbox event", () => {
+    deviceId("device-1");
+    const keyless = new SqliteCashLedger(database, new SqliteSignInStore(database), undefined);
+
+    expect(() =>
+      keyless.transaction((tx) =>
+        tx.appendOutboxEvent({
+          event_id: "event-1",
+          aggregate_type: "CashSession",
+          aggregate_id: "session-1",
+          event_type: "cash_session_opened",
+          schema_version: 1,
+          payload: { opening_float: 5000 },
+          occurred_at: "2026-09-30T12:00:00.000Z",
+          actor_id: "u1",
+        }),
+      ),
+    ).toThrow("the ledger has no outbox chain key");
+    expect(count("outbox")).toBe(0);
+  });
+});
+
 describe("an outbox event appended through the ledger", () => {
   it("is chained with the key the ledger was given", () => {
     deviceId("device-1");
@@ -517,18 +545,23 @@ describe("opening a cash session through the ledger", () => {
   };
 
   function open() {
-    return openCashSession(
-      { ledger, clock: { now: () => OPENED_AT }, ids },
-      { openerId: "u1", openingFloat: 5000 },
+    return openCashSession<{ openerId: string }, never>(
+      {
+        ledger,
+        clock: { now: () => OPENED_AT },
+        ids,
+        authority: { authorize: async () => ({ kind: "granted", grant: { openerId: "u1" } }) },
+      },
+      { openingFloat: 5000 },
     );
   }
 
-  it("writes the session, its opening movement and the outbox event together", () => {
+  it("writes the session, its opening movement and the outbox event together", async () => {
     addCashier("u1", ["sell_and_charge"]);
     ownRegister();
     deviceId("device-1");
 
-    const outcome = open();
+    const outcome = await open();
 
     expect(outcome.kind).toBe("opened");
     expect(count("cash_sessions")).toBe(1);
@@ -541,13 +574,13 @@ describe("opening a cash session through the ledger", () => {
     expect(counter()).toBe(1);
   });
 
-  it("writes nothing when the outbox refuses its event", () => {
+  it("writes nothing when the outbox refuses its event", async () => {
     addCashier("u1", ["sell_and_charge"]);
     ownRegister();
     deviceId("device-1");
     database.prepare("DROP TABLE outbox").run();
 
-    expect(open).toThrow();
+    await expect(open()).rejects.toThrow();
 
     expect([count("cash_sessions"), count("cash_movements"), counter()]).toEqual([0, 0, 0]);
   });

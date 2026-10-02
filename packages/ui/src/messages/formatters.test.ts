@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatCents,
+  formatClockTime,
   formatDate,
   formatMonthAndYear,
   formatMonthName,
@@ -126,5 +127,23 @@ describe("formatTimeAgo", () => {
     [64 * DAY, "hace 2 meses"],
   ])("writes %i seconds as %s", (seconds, text) => {
     expect(formatTimeAgo(seconds)).toBe(text);
+  });
+});
+
+describe("formatClockTime", () => {
+  it("writes the hour and minutes of the clock the instant is written in", () => {
+    expect(formatClockTime("2026-09-30T12:05:00.000-03:00")).toBe("12:05");
+  });
+
+  it("uses a 24-hour clock", () => {
+    expect(formatClockTime("2026-09-30T20:40:00.000-03:00")).toBe("20:40");
+  });
+
+  it("keeps the clock of an instant written in UTC", () => {
+    expect(formatClockTime("2026-10-01T02:30:00.000Z")).toBe("02:30");
+  });
+
+  it("keeps the clock of an instant written ahead of UTC", () => {
+    expect(formatClockTime("2026-10-01T09:15:00.000+05:30")).toBe("09:15");
   });
 });

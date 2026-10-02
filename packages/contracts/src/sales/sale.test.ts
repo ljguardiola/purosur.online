@@ -1,4 +1,4 @@
-import { BARCODE_MAX_LENGTH, PRODUCT_NAME_MAX_LENGTH, SEARCH_RESULT_LIMIT } from "@purosur/domain";
+import { SEARCH_RESULT_LIMIT } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
   addProductOutcomeSchema,
@@ -8,10 +8,8 @@ import {
   chargeSaleInCashOutcomeSchema,
   removeSaleLineOutcomeSchema,
   saleSchema,
-  scannedCodeSchema,
   scanProductOutcomeSchema,
   searchProductsOutcomeSchema,
-  searchQuerySchema,
 } from "./sale.js";
 
 const line = {
@@ -25,25 +23,6 @@ const line = {
   line_total: 3000,
 };
 const sale = { id: "s1", lines: [line], total: 3000, charge_refusal: null };
-
-describe("scannedCodeSchema", () => {
-  it.each(["7791234567890", "A", "x".repeat(BARCODE_MAX_LENGTH), "😀".repeat(BARCODE_MAX_LENGTH)])(
-    "accepts the code %s",
-    (code) => {
-      expect(scannedCodeSchema.safeParse(code).success).toBe(true);
-    },
-  );
-
-  it.each([
-    "",
-    "x".repeat(BARCODE_MAX_LENGTH + 1),
-    "😀".repeat(BARCODE_MAX_LENGTH + 1),
-    7791,
-    null,
-  ])("rejects the code %j", (code) => {
-    expect(scannedCodeSchema.safeParse(code).success).toBe(false);
-  });
-});
 
 describe("saleSchema", () => {
   it("accepts a sale with its lines and the total to charge", () => {
@@ -313,27 +292,6 @@ describe("chargeSaleByTransferOutcomeSchema", () => {
         change: 2000,
       }),
     ).toEqual({ kind: "completed", sale_id: "s1", total: 3000 });
-  });
-});
-
-describe("searchQuerySchema", () => {
-  it.each([
-    "",
-    "yer",
-    "té verde",
-    "x".repeat(PRODUCT_NAME_MAX_LENGTH),
-    "😀".repeat(PRODUCT_NAME_MAX_LENGTH),
-  ])("accepts the query %j", (query) => {
-    expect(searchQuerySchema.safeParse(query).success).toBe(true);
-  });
-
-  it.each([
-    "x".repeat(PRODUCT_NAME_MAX_LENGTH + 1),
-    "😀".repeat(PRODUCT_NAME_MAX_LENGTH + 1),
-    7,
-    null,
-  ])("rejects the query %j", (query) => {
-    expect(searchQuerySchema.safeParse(query).success).toBe(false);
   });
 });
 

@@ -1,11 +1,7 @@
 import { globSync, readFileSync } from "node:fs";
 import ts from "typescript";
 
-export const CONTRACTS_DOMAIN_VALUE_RE_EXPORT_ALLOWLIST = [
-  "packages/contracts/src/access/pin-code-redemption.ts#PIN_MIN_DIGITS",
-  "packages/contracts/src/register/core-messages.ts#ARGENTINA_TIME_ZONE",
-  "packages/contracts/src/sales/sale.ts#SEARCH_RESULT_LIMIT",
-];
+export const CONTRACTS_DOMAIN_VALUE_RE_EXPORT_ALLOWLIST = [];
 
 const DOMAIN_RE_EXPORT =
   /export\s+(?:type\s+)?(?:\*(?:\s+as\s+[\w$]+)?|\{[^}]*\})\s*from\s*["']@purosur\/domain(?:\/[^"']*)?["']/g;

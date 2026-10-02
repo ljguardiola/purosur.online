@@ -28,6 +28,17 @@ function answering(outcome: PinCodeRedemptionOutcome | Error) {
   return { redeem, calls };
 }
 
+async function checkingLikeTheCore(
+  typedCode: string,
+  newPin: string,
+): Promise<("reset_code" | "new_pin")[]> {
+  const code = typedCode.replaceAll(" ", "");
+  return [
+    ...(code.length === 16 && !code.includes("1") ? [] : ["reset_code" as const]),
+    ...(/^\d{6,}$/.test(newPin) ? [] : ["new_pin" as const]),
+  ];
+}
+
 function pending() {
   const calls: { code: string; pin: string }[] = [];
   let finish: (outcome: PinCodeRedemptionOutcome) => void = () => {};
@@ -47,6 +58,8 @@ function renderForm(
   return render(
     <PinCodeRedemptionForm
       redeem={redeem}
+      checkRedemption={checkingLikeTheCore}
+      loadPinPolicy={async () => ({ min_digits: 6 })}
       onRedeemed={() => {}}
       submitLabel={SAVE}
       newCodeAskedIn="backoffice"
@@ -104,13 +117,31 @@ describe("PinCodeRedemptionForm", () => {
     await expect.element(screen.getByText("Debajo del botón")).toBeVisible();
   });
 
-  it("sends the code without its spaces, in uppercase, with the new PIN", async () => {
+  it("sends the code as it was typed, with the new PIN", async () => {
     const { redeem, calls } = answering({ kind: "redeemed" });
     const screen = await renderForm(redeem);
 
     await fillAndSave(screen);
 
-    expect(calls).toEqual([{ code: "K7QM2XPA3DTR4HWN", pin: NEW_PIN }]);
+    expect(calls).toEqual([{ code: TYPED_CODE, pin: NEW_PIN }]);
+  });
+
+  it("asks for as many digits as the core's PIN policy says", async () => {
+    const screen = await renderForm(
+      answering({ kind: "invalid_input", fields: ["new_pin"] }).redeem,
+      {
+        loadPinPolicy: async () => ({ min_digits: 8 }),
+      },
+    );
+
+    await userEvent.fill(screen.getByRole("textbox", { name: CODE_LABEL }), TYPED_CODE);
+    await userEvent.fill(screen.getByLabelText("PIN nuevo, de al menos 8 dígitos"), NEW_PIN);
+    await userEvent.fill(screen.getByLabelText(REPEAT_LABEL), NEW_PIN);
+    await userEvent.click(screen.getByRole("button", { name: SAVE }));
+
+    await expect
+      .element(screen.getByText("El PIN tiene que tener al menos 8 dígitos, solo números."))
+      .toBeVisible();
   });
 
   it("hands the new PIN over once the code is redeemed, and clears the fields", async () => {
@@ -269,6 +300,10 @@ describe("PinCodeRedemptionForm", () => {
     await expect
       .element(screen.getByText("Revisá el código: son 16 letras y números."))
       .toBeVisible();
+    await expect.element(code(screen)).toHaveAttribute("aria-invalid", "true");
+    await expect
+      .element(screen.getByLabelText(PIN_LABEL))
+      .not.toHaveAttribute("aria-invalid", "true");
     expect(calls).toEqual([]);
   });
 
@@ -283,7 +318,41 @@ describe("PinCodeRedemptionForm", () => {
     await fillAndSave(screen, { pin, repeat: pin });
 
     await expect.element(screen.getByText(PIN_RULE_MESSAGE)).toBeVisible();
+    await expect.element(screen.getByLabelText(PIN_LABEL)).toHaveAttribute("aria-invalid", "true");
+    await expect.element(code(screen)).not.toHaveAttribute("aria-invalid", "true");
     expect(calls).toEqual([]);
+  });
+
+  it("asks the core whether the code and the PIN as typed can be redeemed", async () => {
+    const checked: [string, string][] = [];
+    const { redeem, calls } = answering({ kind: "redeemed" });
+    const screen = await renderForm(redeem, {
+      checkRedemption: async (typedCode, newPin) => {
+        checked.push([typedCode, newPin]);
+        return ["reset_code"];
+      },
+    });
+
+    await fillAndSave(screen);
+
+    await expect
+      .element(screen.getByText("Revisá el código: son 16 letras y números."))
+      .toBeVisible();
+    expect(checked).toContainEqual([TYPED_CODE, NEW_PIN]);
+    expect(calls).toEqual([]);
+  });
+
+  it("marks both fields when the core refuses the code and the PIN", async () => {
+    const screen = await renderForm(
+      answering({ kind: "invalid_input", fields: ["reset_code", "new_pin"] }).redeem,
+    );
+
+    await fillAndSave(screen);
+
+    await expect
+      .element(screen.getByText("Revisá el código: son 16 letras y números."))
+      .toBeVisible();
+    await expect.element(screen.getByText(PIN_RULE_MESSAGE)).toBeVisible();
   });
 
   it("says the two PINs don't match without sending anything", async () => {

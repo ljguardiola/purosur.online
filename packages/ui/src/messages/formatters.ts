@@ -31,6 +31,18 @@ export function formatDate(value: Date | number, options?: Intl.DateTimeFormatOp
   return new Intl.DateTimeFormat(LOCALE, options).format(value);
 }
 
+const WRITTEN_OFFSET = /(Z|[+-]\d{2}:\d{2})$/;
+
+export function formatClockTime(instant: string): string {
+  const offset = WRITTEN_OFFSET.exec(instant)?.[1];
+  return formatDate(new Date(instant), {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone: offset === "Z" ? "UTC" : offset,
+  });
+}
+
 export function formatMonthName(month: number): string {
   const name = new Intl.DateTimeFormat(LOCALE, { month: "long", timeZone: "UTC" }).format(
     Date.UTC(2000, month - 1, 1),

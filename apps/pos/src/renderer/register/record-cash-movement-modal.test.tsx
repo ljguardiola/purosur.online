@@ -65,7 +65,7 @@ async function renderModal(props: Props = {}) {
       open={props.open ?? true}
       person={ADA}
       registerName={props.registerName === undefined ? "Caja 1" : props.registerName}
-      openedAt="2026-09-30T15:05:00.000Z"
+      openedAt="2026-09-30T12:05:00.000-03:00"
       {...(props.expectedCash === undefined ? {} : { expectedCash: props.expectedCash })}
       loadKinds={loadKinds}
       loadAuthorizers={loadAuthorizers}
@@ -183,7 +183,6 @@ describe("RecordCashMovementModal", () => {
   it.each([
     ["", "Ingresá el importe."],
     ["abc", "Ingresá un importe válido, por ejemplo 5.000,00."],
-    ["0", "Ingresá un importe válido, por ejemplo 5.000,00."],
   ])("refuses the amount %j before recording anything", async (typed, message) => {
     const { screen, recordCashMovement } = await renderModal();
     await fill(screen, typed, "Cambio");
@@ -192,6 +191,20 @@ describe("RecordCashMovementModal", () => {
 
     await expect.element(screen.getByText(message)).toBeVisible();
     expect(recordCashMovement).not.toHaveBeenCalled();
+  });
+
+  it("sends an amount of zero to the core and shows its refusal on the field", async () => {
+    const { screen, recordCashMovement } = await renderModal({
+      outcome: { kind: "invalid_amount" },
+    });
+    await fill(screen, "0", "Cambio");
+
+    await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
+
+    await expect
+      .element(screen.getByText("Ingresá un importe válido, por ejemplo 5.000,00."))
+      .toBeVisible();
+    expect(recordCashMovement).toHaveBeenCalledOnce();
   });
 
   it("leaves judging a blank reason to the core", async () => {

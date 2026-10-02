@@ -1,6 +1,7 @@
 import type {
   FirstPinCodeRequestOutcome,
   PinCodeRedemptionOutcome,
+  PinPolicy,
   SignInOutcome,
 } from "@purosur/contracts";
 import { useState } from "react";
@@ -15,10 +16,19 @@ export type FirstSignInScreenProps = {
   lookup: FirstSignInEmailStepProps["lookup"];
   signIn: (userId: string, pin: string) => Promise<SignInOutcome>;
   requestCode: (userId: string) => Promise<FirstPinCodeRequestOutcome>;
+  loadPinPolicy: () => Promise<PinPolicy>;
+  checkRedemption: (typedCode: string, newPin: string) => Promise<("reset_code" | "new_pin")[]>;
   redeem: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
 };
 
-export function FirstSignInScreen({ lookup, signIn, requestCode, redeem }: FirstSignInScreenProps) {
+export function FirstSignInScreen({
+  lookup,
+  signIn,
+  requestCode,
+  loadPinPolicy,
+  checkRedemption,
+  redeem,
+}: FirstSignInScreenProps) {
   const [found, setFound] = useState<FoundPerson>();
 
   return (
@@ -26,7 +36,14 @@ export function FirstSignInScreen({ lookup, signIn, requestCode, redeem }: First
       {found === undefined ? (
         <FirstSignInEmailStep lookup={lookup} onFound={setFound} />
       ) : (
-        <FoundPersonStep person={found} signIn={signIn} requestCode={requestCode} redeem={redeem} />
+        <FoundPersonStep
+          person={found}
+          signIn={signIn}
+          requestCode={requestCode}
+          loadPinPolicy={loadPinPolicy}
+          checkRedemption={checkRedemption}
+          redeem={redeem}
+        />
       )}
     </BrandPanelScreen>
   );
@@ -36,6 +53,8 @@ function FoundPersonStep({
   person,
   signIn,
   requestCode,
+  loadPinPolicy,
+  checkRedemption,
   redeem,
 }: { person: FoundPerson } & Omit<FirstSignInScreenProps, "lookup">) {
   const [codeSent, setCodeSent] = useState(false);
@@ -46,6 +65,8 @@ function FoundPersonStep({
   return codeSent ? (
     <FirstSignInCodeStep
       person={person.user}
+      loadPinPolicy={loadPinPolicy}
+      checkRedemption={checkRedemption}
       redeem={redeem}
       signIn={signIn}
       requestCode={requestCode}
