@@ -31,6 +31,8 @@ async function renderStep({
   const screen = await render(
     <FirstSignInCodeStep
       person={ADA}
+      loadPinPolicy={async () => ({ min_digits: 6 })}
+      checkRedemption={async () => []}
       redeem={async (code, pin) => {
         redemptions.push([code, pin]);
         return redeemed;
@@ -83,7 +85,7 @@ describe("FirstSignInCodeStep", () => {
     await saveWithCode(screen);
 
     await expect.poll(() => signIns).toEqual([["u1", "482915"]]);
-    expect(redemptions).toEqual([["K7QM2XPA3DTR4HWN", "482915"]]);
+    expect(redemptions).toEqual([["k7qm 2xpa 3dtr 4hwn", "482915"]]);
   });
 
   it("does not sign in when the code is refused, and says so telling to ask for a new one here", async () => {

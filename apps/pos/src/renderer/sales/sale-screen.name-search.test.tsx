@@ -87,14 +87,14 @@ describe("SaleScreen searching by name", () => {
       await expect.poll(() => searchProducts.mock.calls).toEqual([["yer"]]);
     });
 
-    it("tells that nothing matches a text too long to be any product's name, without searching", async () => {
-      const searchProducts = answering(results([YERBA_FOUND]));
+    it("sends a text too long to be any product's name to the core and shows its empty answer", async () => {
+      const searchProducts = answering(results([]));
       const { screen, field } = await renderScreen({ searchProducts });
 
       await field.fill("a".repeat(101));
 
       await expect.element(screen.getByText("Sin resultados")).toBeVisible();
-      expect(searchProducts).not.toHaveBeenCalled();
+      await expect.poll(() => searchProducts.mock.calls).toEqual([["a".repeat(101)]]);
     });
 
     it("closes the results when the text becomes a code", async () => {

@@ -1,11 +1,8 @@
 import {
-  ARGENTINA_TIME_ZONE,
   type AuthorizablePermissionKey,
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_TYPES,
   isAuthorizablePermissionKey,
-  isValidCashAmount,
-  isValidCashMovementAmount,
   REGISTER_ABILITIES,
 } from "@purosur/domain";
 import { z } from "zod";
@@ -16,6 +13,11 @@ import {
 } from "../access/authorization.js";
 import { pinAttemptRefusalSchema } from "../access/pin-attempt-refusal.js";
 import {
+  checkPinCodeRedemptionMessageSchema,
+  pinCodeRedemptionCheckMessageSchema,
+} from "../access/pin-code-redemption-check.js";
+import { pinPolicyMessageSchema, pinPolicyRequestMessageSchema } from "../access/pin-policy.js";
+import {
   addProductOutcomeSchema,
   cancelSaleOutcomeSchema,
   cashChargeSchema,
@@ -25,22 +27,11 @@ import {
   removeSaleLineOutcomeSchema,
   saleLineQuantitySchema,
   saleSchema,
-  scannedCodeSchema,
   scanProductOutcomeSchema,
   searchProductsOutcomeSchema,
-  searchQuerySchema,
 } from "../sales/sale.js";
 
 const requestId = z.string();
-
-const cashAmountSchema = z.number().refine(isValidCashAmount);
-
-export const openingFloatSchema = cashAmountSchema;
-export const countedCashSchema = cashAmountSchema;
-
-export const cashMovementAmountSchema = z.number().refine(isValidCashMovementAmount);
-
-export { ARGENTINA_TIME_ZONE };
 
 const rendererPingMessageSchema = z.object({
   type: z.literal("ping"),
@@ -56,13 +47,19 @@ const registerNameRequestMessageSchema = z.object({
   request_id: requestId,
 });
 
-const enrollMessageSchema = z.object({
+export const enrollMessageSchema = z.object({
   type: z.literal("enroll"),
   request_id: requestId,
   code: z.string(),
 });
 
-const redeemPinCodeMessageSchema = z.object({
+const checkEnrollmentCodeMessageSchema = z.object({
+  type: z.literal("check-enrollment-code"),
+  request_id: requestId,
+  code: z.string(),
+});
+
+export const redeemPinCodeMessageSchema = z.object({
   type: z.literal("redeem-pin-code"),
   request_id: requestId,
   reset_code: z.string(),
@@ -103,7 +100,7 @@ const firstSignInMessageSchema = z.object({
 export const openCashSessionMessageSchema = z.object({
   type: z.literal("open-cash-session"),
   request_id: requestId,
-  opening_float: openingFloatSchema,
+  opening_float: z.int(),
 });
 
 const cashSessionRequestMessageSchema = z.object({
@@ -115,7 +112,7 @@ export const recordCashMovementMessageSchema = z.object({
   type: z.literal("record-cash-movement"),
   request_id: requestId,
   kind: z.enum(CASH_MOVEMENT_KINDS),
-  amount: cashMovementAmountSchema,
+  amount: z.int(),
   reason: z.string(),
   authorization: authorizationSchema.optional(),
 });
@@ -138,14 +135,14 @@ export const closeCashSessionMessageSchema = z.object({
   type: z.literal("close-cash-session"),
   request_id: requestId,
   session_id: z.string(),
-  counted_cash: countedCashSchema,
+  counted_cash: z.int(),
 });
 
 export const closeLockedCashSessionMessageSchema = z.object({
   type: z.literal("close-locked-cash-session"),
   request_id: requestId,
   session_id: z.string(),
-  counted_cash: countedCashSchema,
+  counted_cash: z.int(),
   closer: authorizationSchema,
 });
 
@@ -185,7 +182,7 @@ const lockedClosersRequestMessageSchema = z.object({
 const scanProductMessageSchema = z.object({
   type: z.literal("scan-product"),
   request_id: requestId,
-  code: scannedCodeSchema,
+  code: z.string().min(1),
 });
 
 const changeLineQuantityMessageSchema = z.object({
@@ -210,7 +207,7 @@ const cancelSaleMessageSchema = z.object({
 const searchProductsMessageSchema = z.object({
   type: z.literal("search-products"),
   request_id: requestId,
-  query: searchQuerySchema,
+  query: z.string(),
 });
 
 const addProductMessageSchema = z.object({
@@ -254,6 +251,9 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   enrollmentStatusRequestMessageSchema,
   registerNameRequestMessageSchema,
   enrollMessageSchema,
+  checkEnrollmentCodeMessageSchema,
+  pinPolicyRequestMessageSchema,
+  checkPinCodeRedemptionMessageSchema,
   redeemPinCodeMessageSchema,
   signInUsersRequestMessageSchema,
   signInMessageSchema,
@@ -295,6 +295,7 @@ const enrollmentOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("unavailable") }),
   z.object({ kind: z.literal("storage_unavailable") }),
   z.object({ kind: z.literal("not_stored") }),
+  z.object({ kind: z.literal("invalid_input"), fields: z.array(z.literal("code")) }),
 ]);
 export type EnrollmentOutcome = z.infer<typeof enrollmentOutcomeSchema>;
 
@@ -327,6 +328,10 @@ const pinCodeRedemptionOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("rate_limited"), retry_after_seconds: z.int().nonnegative() }),
   z.object({ kind: z.literal("unreachable") }),
   z.object({ kind: z.literal("unavailable") }),
+  z.object({
+    kind: z.literal("invalid_input"),
+    fields: z.array(z.enum(["reset_code", "new_pin"])),
+  }),
 ]);
 export type PinCodeRedemptionOutcome = z.infer<typeof pinCodeRedemptionOutcomeSchema>;
 
@@ -486,6 +491,13 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("enrollment-result"),
     request_id: requestId,
     outcome: enrollmentOutcomeSchema,
+  }),
+  pinPolicyMessageSchema,
+  pinCodeRedemptionCheckMessageSchema,
+  z.object({
+    type: z.literal("enrollment-code-check"),
+    request_id: requestId,
+    fields: z.array(z.literal("code")),
   }),
   z.object({
     type: z.literal("pin-code-redemption-result"),

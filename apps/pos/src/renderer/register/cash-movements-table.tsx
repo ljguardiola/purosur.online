@@ -5,6 +5,7 @@ import type { TableLoadingState } from "@purosur/ui";
 import {
   dataColumn,
   formatCents,
+  formatClockTime,
   ListFilter,
   plural,
   Table,
@@ -14,7 +15,6 @@ import {
 } from "@purosur/ui";
 import { Receipt, TriangleAlert } from "lucide-react";
 import { useState } from "react";
-import { formatClockTime } from "../platform/clock-time";
 import type { CoreData } from "../platform/use-core-query";
 import { signedAmount } from "./cash-amounts";
 import { CASH_MOVEMENT_ICONS } from "./cash-movement-icons";

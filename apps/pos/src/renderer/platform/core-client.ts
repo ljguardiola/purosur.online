@@ -19,6 +19,7 @@ import type {
   OpenCashSession,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
+  PinPolicy,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RecordCashMovementRequest,
@@ -49,6 +50,9 @@ export interface CoreClient {
   registerName(): Promise<string | null>;
   enroll(typedCode: string): Promise<EnrollmentOutcome>;
   redeemPinCode(typedCode: string, newPin: string): Promise<PinCodeRedemptionOutcome>;
+  pinPolicy(): Promise<PinPolicy>;
+  checkEnrollmentCode(typedCode: string): Promise<"code"[]>;
+  checkPinCodeRedemption(typedCode: string, newPin: string): Promise<("reset_code" | "new_pin")[]>;
   signInUsers(): Promise<SignInUser[]>;
   authorizers(permission: AuthorizablePermissionKey): Promise<SignInUser[]>;
   lockedClosers(): Promise<SignInUser[]>;
@@ -185,6 +189,28 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
     enroll(typedCode) {
       return ask({ type: "enroll", request_id: deps.newRequestId(), code: typedCode }, (answer) =>
         answer.type === "enrollment-result" ? answer.outcome : undefined,
+      );
+    },
+    pinPolicy() {
+      return ask({ type: "pin-policy-request", request_id: deps.newRequestId() }, (answer) =>
+        answer.type === "pin-policy" ? { min_digits: answer.min_digits } : undefined,
+      );
+    },
+    checkEnrollmentCode(typedCode) {
+      return ask(
+        { type: "check-enrollment-code", request_id: deps.newRequestId(), code: typedCode },
+        (answer) => (answer.type === "enrollment-code-check" ? answer.fields : undefined),
+      );
+    },
+    checkPinCodeRedemption(typedCode, newPin) {
+      return ask(
+        {
+          type: "check-pin-code-redemption",
+          request_id: deps.newRequestId(),
+          reset_code: typedCode,
+          new_pin: newPin,
+        },
+        (answer) => (answer.type === "pin-code-redemption-check" ? answer.fields : undefined),
       );
     },
     redeemPinCode(typedCode, newPin) {

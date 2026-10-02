@@ -2,35 +2,46 @@ import { isValidCashAmount } from "../model/cash-amount.js";
 import type { OpenedCashSession } from "../model/cash-session.js";
 import { registerOperationAccess } from "../model/register-operation.js";
 import type { CashLedger, IdGenerator } from "./cash-ledger.js";
+import type { OperationAuthority } from "./operation-authority.js";
 import type { Clock } from "./register-store.js";
 
 export interface OpenCashSessionInput {
-  openerId: string;
   openingFloat: number;
 }
 
-export interface OpenCashSessionPorts {
+export interface OpenCashSessionGrant {
+  openerId: string;
+}
+
+export interface OpenCashSessionPorts<Grant extends OpenCashSessionGrant, Refusal> {
   ledger: CashLedger;
   clock: Clock;
   ids: IdGenerator;
+  authority: OperationAuthority<Grant, Refusal>;
 }
 
-export type OpenCashSessionOutcome =
+export type OpenCashSessionOutcome<Grant extends OpenCashSessionGrant> =
   | { kind: "invalid_opening_float" }
   | { kind: "not_permitted" }
   | { kind: "already_open" }
   | { kind: "unavailable" }
-  | { kind: "opened"; session: OpenedCashSession };
+  | { kind: "opened"; session: OpenedCashSession; grant: Grant };
 
-export function openCashSession(
-  { ledger, clock, ids }: OpenCashSessionPorts,
-  { openerId, openingFloat }: OpenCashSessionInput,
-): OpenCashSessionOutcome {
+export async function openCashSession<Grant extends OpenCashSessionGrant, Refusal>(
+  { ledger, clock, ids, authority }: OpenCashSessionPorts<Grant, Refusal>,
+  { openingFloat }: OpenCashSessionInput,
+): Promise<OpenCashSessionOutcome<Grant> | Refusal> {
   if (!isValidCashAmount(openingFloat)) {
     return { kind: "invalid_opening_float" };
   }
+  const authorization = await authority.authorize();
+  if (authorization.kind === "refused") {
+    return authorization.refusal;
+  }
+  const { grant } = authorization;
+  const { openerId } = grant;
 
-  return ledger.transaction<OpenCashSessionOutcome>((tx) => {
+  return ledger.transaction<OpenCashSessionOutcome<Grant>>((tx) => {
     const opener = { id: openerId, access: tx.openerAccess(openerId) };
     if (registerOperationAccess({ kind: "open_cash_session" }, opener).kind !== "permitted") {
       return { kind: "not_permitted" };
@@ -73,6 +84,6 @@ export function openCashSession(
       occurred_at: openedAtIso,
       actor_id: openerId,
     });
-    return { kind: "opened", session };
+    return { kind: "opened", session, grant };
   });
 }

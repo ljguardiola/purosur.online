@@ -27,6 +27,7 @@ export type {
   RegisterIdentity,
 } from "./cash-ledger.js";
 export type {
+  CloseCashSessionGrant,
   CloseCashSessionInput,
   CloseCashSessionOutcome,
   CloseCashSessionPorts,
@@ -54,12 +55,15 @@ export type {
 } from "./list-branch-registers.js";
 export { listBranchRegisters } from "./list-branch-registers.js";
 export type {
+  OpenCashSessionGrant,
   OpenCashSessionInput,
   OpenCashSessionOutcome,
   OpenCashSessionPorts,
 } from "./open-cash-session.js";
 export { openCashSession } from "./open-cash-session.js";
+export type { OperationAuthority, OperationAuthorization } from "./operation-authority.js";
 export type {
+  RecordCashMovementGrant,
   RecordCashMovementInput,
   RecordCashMovementOutcome,
   RecordCashMovementPorts,

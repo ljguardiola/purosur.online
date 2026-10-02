@@ -7,6 +7,7 @@ import type { AuthorizablePermissionKey, CashMovementKind } from "@purosur/domai
 import {
   Button,
   formatCents,
+  formatClockTime,
   InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
@@ -19,7 +20,6 @@ import { useState } from "react";
 import { AuthorizationSection } from "../access/authorization-section";
 import type { SignedInPerson } from "../access/signed-in-person";
 import { useAuthorization } from "../access/use-authorization";
-import { formatClockTime } from "../platform/clock-time";
 import type { CashMovementInput } from "../platform/core-client";
 import {
   amountMessage,

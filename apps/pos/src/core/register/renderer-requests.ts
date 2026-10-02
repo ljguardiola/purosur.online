@@ -19,6 +19,7 @@ import type {
   OpenCashSession,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
+  PinPolicy,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RemoveSaleLineOutcome,
@@ -39,6 +40,9 @@ export interface RendererRequestDeps {
   registerName: () => string | undefined;
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
   redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
+  pinPolicy: () => PinPolicy;
+  checkEnrollmentCode: (typedCode: string) => "code"[];
+  checkPinCodeRedemption: (typedCode: string, newPin: string) => ("reset_code" | "new_pin")[];
   signInUsers: (() => SignInUser[]) | undefined;
   signIn: ((userId: string, pin: string) => Promise<SignInOutcome>) | undefined;
   firstSignIn: ((userId: string, pin: string) => Promise<SignInOutcome>) | undefined;
@@ -416,6 +420,20 @@ export async function answerRendererRequest(
         type: "enrollment-result",
         request_id: message.request_id,
         outcome: await deps.enroll(message.code),
+      };
+    case "pin-policy-request":
+      return { type: "pin-policy", request_id: message.request_id, ...deps.pinPolicy() };
+    case "check-enrollment-code":
+      return {
+        type: "enrollment-code-check",
+        request_id: message.request_id,
+        fields: deps.checkEnrollmentCode(message.code),
+      };
+    case "check-pin-code-redemption":
+      return {
+        type: "pin-code-redemption-check",
+        request_id: message.request_id,
+        fields: deps.checkPinCodeRedemption(message.reset_code, message.new_pin),
       };
     case "redeem-pin-code":
       return {

@@ -66,6 +66,55 @@ describe("createCoreClient", () => {
     expect(port.posted).toEqual([{ type: "register-name-request", request_id: "request-1" }]);
   });
 
+  it("asks the core for the PIN policy and resolves with it", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.pinPolicy();
+    port.answer({ type: "pin-policy", request_id: "request-1", min_digits: 6 });
+
+    expect(await asked).toEqual({ min_digits: 6 });
+    expect(port.posted).toEqual([{ type: "pin-policy-request", request_id: "request-1" }]);
+  });
+
+  it("asks the core to check a typed enrollment code and resolves with the fields it refuses", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.checkEnrollmentCode("p4nx");
+    port.answer({ type: "enrollment-code-check", request_id: "request-1", fields: ["code"] });
+
+    expect(await asked).toEqual(["code"]);
+    expect(port.posted).toEqual([
+      { type: "check-enrollment-code", request_id: "request-1", code: "p4nx" },
+    ]);
+  });
+
+  it("asks the core to check a typed PIN code redemption and resolves with the fields it refuses", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.checkPinCodeRedemption("p4nx", "12");
+    port.answer({
+      type: "pin-code-redemption-check",
+      request_id: "request-1",
+      fields: ["new_pin"],
+    });
+
+    expect(await asked).toEqual(["new_pin"]);
+    expect(port.posted).toEqual([
+      {
+        type: "check-pin-code-redemption",
+        request_id: "request-1",
+        reset_code: "p4nx",
+        new_pin: "12",
+      },
+    ]);
+  });
+
   it("asks the core for the users who can sign in and resolves with them", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

@@ -1,4 +1,4 @@
-import { formatClockTime } from "../platform/clock-time";
+import { formatClockTime } from "@purosur/ui";
 import { Eyebrow } from "./eyebrow";
 
 function statusText(openedAt: string | undefined): string {

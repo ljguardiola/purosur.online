@@ -20,21 +20,26 @@ test("the typed values are sent as they were typed", () => {
   });
 });
 
-test("a whole code with a PIN repeated the same is accepted, the code normalized", () => {
+test("what is typed is left for the core to judge, a repeat that matches being the only thing checked", () => {
   const result = pinRedemptionRequestSchema.safeParse(pinRedemptionRequestFrom(WHOLE));
 
-  expect(result.success && result.data.reset_code).toBe("K7QM2XPA3DTR4HWN");
+  expect(result.success && result.data.reset_code).toBe("k7qm 2xpa 3dtr 4hwn");
 });
 
 test.each([
-  { name: "an empty form", values: EMPTY_PIN_REDEMPTION_FORM, paths: ["reset_code", "new_pin"] },
-  { name: "a repeat that differs", values: { ...WHOLE, repeat: "482916" }, paths: ["repeat"] },
+  { name: "an empty form", values: EMPTY_PIN_REDEMPTION_FORM },
+  { name: "a code that is too short", values: { ...WHOLE, code: "k7qm" } },
+  { name: "a PIN that is too short", values: { ...WHOLE, newPin: "4829", repeat: "4829" } },
+])("$name is accepted", ({ values }) => {
+  expect(issuePaths(values)).toEqual([]);
+});
+
+test.each([
+  { name: "a repeat that differs", values: { ...WHOLE, repeat: "482916" } },
   {
     name: "a short PIN repeated differently",
     values: { ...WHOLE, newPin: "4829", repeat: "4828" },
-    paths: ["new_pin", "repeat"],
   },
-])("$name is refused on $paths", ({ values, paths }) => {
-  expect(issuePaths(values)).toEqual(expect.arrayContaining(paths));
-  expect(issuePaths(values)).toHaveLength(paths.length);
+])("$name is refused on the repeat", ({ values }) => {
+  expect(issuePaths(values)).toEqual(["repeat"]);
 });
