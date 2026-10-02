@@ -1,3 +1,4 @@
+import type { DeviceCredentials } from "@purosur/contracts";
 import {
   type CloudError,
   type OpenCashSession,
@@ -8,7 +9,6 @@ import {
   retryAfterSecondsOf,
 } from "@purosur/contracts";
 import { isAcceptablePin, isLockedToAnother } from "@purosur/domain";
-import type { DeviceCredentials } from "../../shared/device-credentials-messages";
 import type { CloudResponse } from "../platform/cloud-client";
 import type { SignedInPerson } from "./signed-in-person";
 

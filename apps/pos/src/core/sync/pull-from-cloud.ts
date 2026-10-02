@@ -1,9 +1,9 @@
+import type { DeviceCredentials } from "@purosur/contracts";
 import {
   type CatchUpOutcome,
   catchUpWithCloud,
   type LocalReplica,
 } from "@purosur/domain/sync/use-cases";
-import type { DeviceCredentials } from "../../shared/device-credentials-messages";
 import { type CloudFailure, retryAfterMsOf } from "./cloud-failure";
 import { CloudPullFeed, type GetFromCloud } from "./cloud-pull-feed";
 import type { RegisterPulledChange } from "./pulled-change";

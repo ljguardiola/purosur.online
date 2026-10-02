@@ -116,8 +116,6 @@ const recorder: RejectionRecorder = {
 const gateFromMain = createMessageGate(mainToCoreMessageSchema, recorder);
 const gateFromRenderer = createMessageGate(rendererToCoreMessageSchema, recorder);
 
-function handleMainMessage(): void {}
-
 const mainRequests = createMainRequests({
   post: (message) => process.parentPort.postMessage(message),
   newRequestId: randomUUID,
@@ -579,11 +577,7 @@ process.parentPort.on("message", (event) => {
     rendererConnection.adopt(rendererPort);
     return;
   }
-  if (mainRequests.receive(event.data)) {
-    return;
-  }
-
-  gateFromMain(event.data, handleMainMessage);
+  gateFromMain(event.data, (message) => mainRequests.receive(message));
 });
 
 process.parentPort.postMessage(CORE_READY_MESSAGE);

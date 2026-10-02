@@ -1,10 +1,10 @@
-import {
-  type CredentialsReplacement,
-  type DeviceCredentials,
-  type DeviceCredentialsAnswer,
-  type DeviceCredentialsRequest,
-  readDeviceCredentialsAnswer,
-} from "../../shared/device-credentials-messages";
+import type {
+  CredentialsReplacement,
+  DeviceCredentials,
+  DeviceCredentialsAnswer,
+  DeviceCredentialsRequest,
+  MainToCoreMessage,
+} from "@purosur/contracts";
 
 export interface MainRequests {
   canStoreCredentials(): Promise<boolean>;
@@ -15,7 +15,7 @@ export interface MainRequests {
   ): Promise<CredentialsReplacement>;
   credentialsPresent(): Promise<boolean>;
   readCredentials(): Promise<DeviceCredentials | undefined>;
-  receive(message: unknown): boolean;
+  receive(message: MainToCoreMessage): void;
 }
 
 type PendingAnswer = (answer: DeviceCredentialsAnswer) => boolean;
@@ -82,14 +82,12 @@ export function createMainRequests(deps: {
       return credentials;
     },
     receive(message) {
-      const answer = readDeviceCredentialsAnswer(message);
-      if (answer === undefined) {
-        return false;
+      if (message.type === "health-check") {
+        return;
       }
-      if (pending.get(answer.request_id)?.(answer)) {
-        pending.delete(answer.request_id);
+      if (pending.get(message.request_id)?.(message)) {
+        pending.delete(message.request_id);
       }
-      return true;
     },
   };
 }

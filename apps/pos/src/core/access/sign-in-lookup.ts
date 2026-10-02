@@ -1,3 +1,4 @@
+import type { DeviceCredentials } from "@purosur/contracts";
 import {
   type CloudError,
   retryAfterSecondsOf,
@@ -5,7 +6,6 @@ import {
   signInLookupBodySchema,
   signInLookupSchema,
 } from "@purosur/contracts";
-import type { DeviceCredentials } from "../../shared/device-credentials-messages";
 import type { CloudResponse } from "../platform/cloud-client";
 
 import type { SignInStore } from "./sqlite-sign-in-store";

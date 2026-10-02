@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import type { DeviceCredentials } from "@purosur/contracts";
 import {
   type CloudError,
   deviceEnrollmentBodySchema,
@@ -6,7 +7,6 @@ import {
   type EnrollmentOutcome,
   retryAfterSecondsOf,
 } from "@purosur/contracts";
-import type { DeviceCredentials } from "../../shared/device-credentials-messages";
 import type { CloudResponse } from "../platform/cloud-client";
 import { installationKeysFrom } from "./installation-keys";
 

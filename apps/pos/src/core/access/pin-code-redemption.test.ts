@@ -1,6 +1,5 @@
-import type { OpenCashSession, PinCodeRedemption } from "@purosur/contracts";
+import type { DeviceCredentials, OpenCashSession, PinCodeRedemption } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
-import type { DeviceCredentials } from "../../shared/device-credentials-messages";
 import type { CloudResponse } from "../platform/cloud-client";
 import {
   checkPinCodeRedemption,

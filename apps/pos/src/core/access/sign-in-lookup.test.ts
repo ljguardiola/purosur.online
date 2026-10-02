@@ -1,6 +1,6 @@
+import type { DeviceCredentials } from "@purosur/contracts";
 import type { PinHolder } from "@purosur/domain/access/use-cases";
 import { describe, expect, it } from "vitest";
-import type { DeviceCredentials } from "../../shared/device-credentials-messages";
 import type { CloudResponse } from "../platform/cloud-client";
 import type { PinCredential } from "./pin-matching";
 import { lookUpSignIn, type SignInLookupDeps } from "./sign-in-lookup";

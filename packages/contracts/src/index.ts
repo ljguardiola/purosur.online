@@ -198,7 +198,17 @@ export { deviceTokenRotationSchema } from "./register/device-token-rotation.js";
 export type { HealthCheck } from "./register/health-check.js";
 export { healthCheckSchema } from "./register/health-check.js";
 export type { InstallationKeysBody } from "./register/installation-keys.js";
-export type { CoreStatusMessage, MainToCoreMessage } from "./register/main-messages.js";
+export type {
+  CoreReadyMessage,
+  CoreStatusMessage,
+  CoreStatusRequest,
+  CoreToMainMessage,
+  CredentialsReplacement,
+  DeviceCredentials,
+  DeviceCredentialsAnswer,
+  DeviceCredentialsRequest,
+  MainToCoreMessage,
+} from "./register/main-messages.js";
 export { coreStatusMessageSchema, mainToCoreMessageSchema } from "./register/main-messages.js";
 export type { RegisterCreationBody } from "./register/register-creation.js";
 export { registerCreationBodySchema } from "./register/register-creation.js";
