@@ -1,20 +1,13 @@
 import { z } from "zod";
 import { requestIdSchema } from "../shared/index.js";
-
-const heldVersionedKeySchema = z.object({ version: z.number(), key: z.string() });
-
-const heldInstallationKeysSchema = z.object({
-  snapshot_key_versions: z.array(heldVersionedKeySchema),
-  contingency_ticket_key: heldVersionedKeySchema,
-  outbox_chain_key: z.string(),
-});
+import { installationKeysSchema } from "./installation-keys.js";
 
 const deviceCredentialsSchema = z.object({
   device_id: z.string(),
   device_token: z.string(),
   pepper: z.string(),
   token_received_at: z.string().optional(),
-  keys: heldInstallationKeysSchema.optional(),
+  keys: installationKeysSchema.optional(),
 });
 export type DeviceCredentials = z.output<typeof deviceCredentialsSchema>;
 
@@ -28,7 +21,7 @@ function readableCredentials(value: unknown): DeviceCredentials | undefined {
     return undefined;
   }
   const { keys, ...credentials } = parsed.data;
-  const readableKeys = heldInstallationKeysSchema.safeParse(keys);
+  const readableKeys = installationKeysSchema.safeParse(keys);
   return readableKeys.success ? { ...credentials, keys: readableKeys.data } : credentials;
 }
 
