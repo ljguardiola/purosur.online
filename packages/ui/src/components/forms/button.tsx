@@ -22,6 +22,7 @@ export type ButtonProps = ButtonCommonProps &
   (
     | { variant?: "primary"; destructive?: boolean; size?: ButtonSize; icon?: Icon }
     | { variant: "secondary"; destructive?: boolean; size?: ButtonSize; icon?: Icon }
+    | { variant: "text"; destructive?: false; size?: ButtonTextSize; icon?: Icon }
     | { variant: "text"; destructive: true; size?: ButtonTextSize; icon?: undefined }
   );
 
@@ -76,7 +77,12 @@ const secondaryColorClassName = {
 const variantClassName: Record<ButtonVariant, string> = {
   primary: "gap-3 rounded-lg font-bold text-text-inverse",
   secondary: "gap-2 rounded-md border bg-transparent font-bold data-hovered:bg-surface-subtle",
-  text: "gap-2 rounded-md bg-transparent font-semibold text-error data-hovered:bg-surface-subtle",
+  text: "gap-2 rounded-md bg-transparent font-semibold data-hovered:bg-surface-subtle",
+};
+
+const textColorClassName = {
+  regular: "text-text-accent",
+  destructive: "text-error",
 };
 
 const iconWrapperClassName: Record<ButtonVariant, string> = {
@@ -106,11 +112,12 @@ export function Button({
     variantClassName[variant],
     variant === "primary" ? primaryColorClassName[color] : "",
     variant === "secondary" ? secondaryColorClassName[color] : "",
+    variant === "text" ? textColorClassName[color] : "",
   ]
     .filter(Boolean)
     .join(" ");
 
-  const glyph = variant === "text" ? <X aria-hidden="true" /> : icon;
+  const glyph = variant === "text" && destructive ? <X aria-hidden="true" /> : icon;
   const sizedIcon = glyph ? <span className={iconWrapperClassName[variant]}>{glyph}</span> : null;
 
   return (
