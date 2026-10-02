@@ -1,4 +1,4 @@
-import { findPasskeyRemovalTarget, removeUserPasskey } from "@purosur/domain/access/use-cases";
+import { removeUserPasskey } from "@purosur/domain/access/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
@@ -12,8 +12,6 @@ import {
   routeSessionSource,
 } from "./route-access.js";
 import type { UsersRouteOptions } from "./users-list-route.js";
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const USER_NOT_FOUND_RESPONSE = {
   code: "not_found",
@@ -48,33 +46,15 @@ export function registerUserPasskeyRemovalRoutes<TQueryResult extends PgQueryRes
       const attemptedAt = now();
       const openSession = openSessionOf(request);
 
-      const found = await findPasskeyRemovalTarget(
-        { users: drizzleBranchUsers(options.db) },
+      const outcome = await removeUserPasskey(
+        {
+          store: new DrizzlePasskeyRemovalStore(options.db),
+          users: drizzleBranchUsers(options.db),
+        },
         {
           locationId: openSession.locationId,
           administratorId: openSession.userId,
           targetUserId: request.params.id,
-        },
-      );
-      if (found.kind === "user_not_found") {
-        await reply.code(404).send(USER_NOT_FOUND_RESPONSE);
-        return;
-      }
-      if (found.kind === "own_account") {
-        await reply.code(403).send(OWN_ACCOUNT_RESPONSE);
-        return;
-      }
-
-      if (!UUID_PATTERN.test(request.params.passkeyId)) {
-        await reply.code(404).send(PASSKEY_NOT_FOUND_RESPONSE);
-        return;
-      }
-
-      const outcome = await removeUserPasskey(
-        { store: new DrizzlePasskeyRemovalStore(options.db) },
-        {
-          administratorId: openSession.userId,
-          targetUserId: found.target.id,
           passkeyId: request.params.passkeyId,
           passkeyAuthorizedAt: openSession.passkeyAuthorizedAt,
           at: attemptedAt,
@@ -82,6 +62,14 @@ export function registerUserPasskeyRemovalRoutes<TQueryResult extends PgQueryRes
       );
       if (outcome.kind === "authorization_required") {
         await reply.code(401).send(AUTHORIZATION_REQUIRED_RESPONSE);
+        return;
+      }
+      if (outcome.kind === "user_not_found") {
+        await reply.code(404).send(USER_NOT_FOUND_RESPONSE);
+        return;
+      }
+      if (outcome.kind === "own_account") {
+        await reply.code(403).send(OWN_ACCOUNT_RESPONSE);
         return;
       }
       if (outcome.kind === "passkey_not_found") {

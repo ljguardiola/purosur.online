@@ -40,6 +40,10 @@ export function registerUserPinCodeRoutes<TQueryResult extends PgQueryResultHKT>
       const openSession = openSessionOf(request);
       const actor = { id: openSession.userId, isAdministrator: openSession.isAdministrator };
 
+      if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
+        return;
+      }
+
       const target = await findBranchUser(
         { users: drizzleBranchUsers(options.db) },
         { locationId: openSession.locationId, userId: request.params.id, activeScope: "any" },
@@ -49,10 +53,6 @@ export function registerUserPinCodeRoutes<TQueryResult extends PgQueryResultHKT>
         !mayEmitPinCodeFor(actor, { id: target.id, isAdministrator: target.roleIsAdministrator })
       ) {
         await reply.code(404).send(USER_NOT_FOUND_RESPONSE);
-        return;
-      }
-
-      if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
         return;
       }
 

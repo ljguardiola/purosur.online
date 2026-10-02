@@ -60,6 +60,10 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
       const attemptedAt = now();
       const openSession = openSessionOf(request);
 
+      if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
+        return;
+      }
+
       const target = await findBranchUser(
         { users: drizzleBranchUsers(options.db) },
         { locationId: openSession.locationId, userId: request.params.id },
@@ -71,10 +75,6 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
 
       const parsedBody = await readValidatedBody(reply, userEditBodySchema, request.body);
       if (!parsedBody) {
-        return;
-      }
-
-      if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
         return;
       }
 

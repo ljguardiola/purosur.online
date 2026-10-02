@@ -45,6 +45,10 @@ export function registerRoleEditRoutes<TQueryResult extends PgQueryResultHKT>(
       const attemptedAt = now();
       const openSession = openSessionOf(request);
 
+      if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
+        return;
+      }
+
       const target = await findEditableRole(
         { roles: drizzleRoleDirectory(options.db) },
         { roleId: request.params.id },
@@ -56,10 +60,6 @@ export function registerRoleEditRoutes<TQueryResult extends PgQueryResultHKT>(
 
       const parsedBody = await readValidatedBody(reply, roleEditBodySchema, request.body);
       if (!parsedBody) {
-        return;
-      }
-
-      if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
         return;
       }
 

@@ -36,6 +36,10 @@ export function registerUserDeactivationRoutes<TQueryResult extends PgQueryResul
       const attemptedAt = now();
       const openSession = openSessionOf(request);
 
+      if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
+        return;
+      }
+
       const target = await findDeactivatableUser(
         { users: drizzleBranchUsers(options.db) },
         {
@@ -46,10 +50,6 @@ export function registerUserDeactivationRoutes<TQueryResult extends PgQueryResul
       );
       if (!target) {
         await reply.code(404).send(USER_NOT_FOUND_RESPONSE);
-        return;
-      }
-
-      if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
         return;
       }
 
