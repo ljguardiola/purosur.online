@@ -44,13 +44,14 @@ export async function editProduct(
       if (locked.product.version !== input.version) {
         return { kind: "stale_version" };
       }
+      const { id } = locked.product;
 
       if (locked.product.saleUnit === "UNIT" && input.saleUnit === "KG") {
         // The product row is already locked and the discounts are only read, never locked: a
         // discount created meanwhile waits on this product row, so it either commits before this
         // read or sees the product sold by weight.
         const today = argentinaCalendarDay(clock.now());
-        const [holding] = (await tx.buyNPayMDiscountsOn(input.id))
+        const [holding] = (await tx.buyNPayMDiscountsOn(id))
           .filter((discount) => isDiscountLive(discount, today))
           .map((discount) => discount.name)
           .sort();
@@ -88,14 +89,14 @@ export async function editProduct(
       // Skipped for an inactive product: its barcodes stay inactive, so none can conflict under
       // the active-only uniqueness rule.
       if (locked.product.active) {
-        const taken = await tx.activeBarcodesTaken(input.barcodes, input.id);
+        const taken = await tx.activeBarcodesTaken(input.barcodes, id);
         if (taken.length > 0) {
           return { kind: "barcode_taken", codes: taken };
         }
       }
 
       const nextVersion = locked.product.version + 1;
-      await tx.updateProduct(input.id, {
+      await tx.updateProduct(id, {
         name: input.name,
         categoryId: input.categoryId,
         brandId: input.brandId,
@@ -104,12 +105,12 @@ export async function editProduct(
         version: nextVersion,
       });
       await tx.replaceProductBarcodes(locked.product, input.barcodes);
-      await tx.replaceProductTags(input.id, input.tagIds);
+      await tx.replaceProductTags(id, input.tagIds);
 
       return {
         kind: "applied",
         product: {
-          id: input.id,
+          id,
           name: input.name,
           categoryId: input.categoryId,
           categoryName: lockedCategory.category.name,

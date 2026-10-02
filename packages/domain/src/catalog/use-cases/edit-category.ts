@@ -51,13 +51,14 @@ export async function editCategory(
       if (locked.category.version !== input.version) {
         return { kind: "stale_version" };
       }
+      const { id } = locked.category;
 
       const parentChanged = locked.category.parentId !== input.parentId;
       if (!parentChanged && locked.category.name === input.name) {
         return {
           kind: "applied",
           category: {
-            id: input.id,
+            id,
             name: input.name,
             parentId: input.parentId,
             version: locked.category.version,
@@ -73,17 +74,17 @@ export async function editCategory(
         if (parent.kind === "has_products") {
           return { kind: "parent_has_products" };
         }
-        if (await wouldCreateCycle(tx, input.parentId, input.id)) {
+        if (await wouldCreateCycle(tx, input.parentId, id)) {
           return { kind: "move_not_allowed" };
         }
       }
 
-      if (await tx.siblingNameTaken(input.parentId, input.name, input.id)) {
+      if (await tx.siblingNameTaken(input.parentId, input.name, id)) {
         return { kind: "name_taken" };
       }
 
       const nextVersion = locked.category.version + 1;
-      await tx.updateCategory(input.id, {
+      await tx.updateCategory(id, {
         name: input.name,
         parentId: input.parentId,
         version: nextVersion,
@@ -92,7 +93,7 @@ export async function editCategory(
       return {
         kind: "applied",
         category: {
-          id: input.id,
+          id,
           name: input.name,
           parentId: input.parentId,
           version: nextVersion,
