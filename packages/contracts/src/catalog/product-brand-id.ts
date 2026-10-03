@@ -1,12 +1,11 @@
 import { z } from "zod";
+import { recordIdSchema } from "../shared/index.js";
 
 const INVALID_MESSAGE = "brandId must be an existing brand's id, or null for none";
 const MISSING_MESSAGE = "brandId must be sent, null for none";
 
-// Postgres compares `uuid` values case-insensitively but callers compare ids as JS strings;
-// lowercasing keeps an uppercase spelling from slipping past those checks while still matching.
 function noneOrBrandIdSchema(error: (issue: { input?: unknown }) => string) {
-  return z.union([z.null(), z.string({ error }).min(1).toLowerCase()], { error });
+  return z.union([z.null(), recordIdSchema(error)], { error });
 }
 
 export const optionalBrandIdSchema = noneOrBrandIdSchema(() => INVALID_MESSAGE)

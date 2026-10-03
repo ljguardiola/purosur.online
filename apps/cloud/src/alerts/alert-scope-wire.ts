@@ -1,4 +1,4 @@
-import { alertKindPolicy, isAlertKind, showsAlertScope } from "@purosur/domain";
+import { alertScopeNamesRecord, isAlertKind, showsAlertScope } from "@purosur/domain";
 
 interface ScopedAlert {
   kind: string;
@@ -23,15 +23,10 @@ export function scopeDisplay(
   alert: ScopedAlert,
   namesById: ReadonlyMap<string, string>,
 ): string | null {
-  const { kind, resolvedAt } = alert;
-  if (!isAlertKind(kind)) {
-    return alert.scope;
-  }
-  if (!showsAlertScope({ kind, resolvedAt })) {
+  if (holdsOnlySourceAddressHash(alert)) {
     return null;
   }
-  if (alertKindPolicy(kind).scopeKind === "sourceAddress") {
-    return alert.scope;
-  }
-  return namesById.get(alert.scope) ?? alert.scope;
+  return alertScopeNamesRecord(alert.kind)
+    ? (namesById.get(alert.scope) ?? alert.scope)
+    : alert.scope;
 }

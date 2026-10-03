@@ -25,7 +25,6 @@ import {
   stockCounts,
   stockMovements,
 } from "../platform/db/schema.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { appliedDeltaAfter } from "./stock-ledger-queries.js";
 
 const stockProductColumns = {
@@ -59,9 +58,6 @@ export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
   }
 
   async activeProduct(productId: string): Promise<StockProduct | undefined> {
-    if (!UUID_PATTERN.test(productId)) {
-      return undefined;
-    }
     const [product] = await this.db
       .select(stockProductColumns)
       .from(products)

@@ -103,14 +103,6 @@ async function auditRows() {
 }
 
 describe("DrizzlePricingStore", () => {
-  it("answers not_found for an id that is not a uuid instead of failing the query", async () => {
-    const store = new DrizzlePricingStore(db);
-
-    const locked = await store.transaction((tx) => tx.lockActiveProduct("not-a-uuid"));
-
-    expect(locked).toEqual({ kind: "not_found" });
-  });
-
   it.each([
     ["greater", [GREATER_ID, LESSER_ID]],
     ["lesser", [LESSER_ID, GREATER_ID]],

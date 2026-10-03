@@ -282,7 +282,25 @@ describe("GET /users/:id", () => {
     expect(response.json()).toMatchObject({ id: inactiveId, active: false });
   });
 
-  it("answers the identical 404 for another branch's id, a missing id, and a malformed id", async () => {
+  it("answers 400 validation_failed naming id for a malformed id, changing nothing", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await getUser("not-a-uuid", rawSessionId);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "id" }],
+    });
+  });
+
+  it("answers the identical 404 for another branch's id and a missing id", async () => {
     const locationId = await seededLocationId(db);
     const administratorRoleId = await seededAdministratorRoleId();
     const cashierRoleId = await insertCashierRole("Cajera");
@@ -306,13 +324,10 @@ describe("GET /users/:id", () => {
 
     const crossBranchResponse = await getUser(strangerId, rawSessionId);
     const missingResponse = await getUser("00000000-0000-0000-0000-000000000000", rawSessionId);
-    const malformedResponse = await getUser("not-a-uuid", rawSessionId);
 
     expect(crossBranchResponse.statusCode).toBe(404);
     expect(missingResponse.statusCode).toBe(404);
-    expect(malformedResponse.statusCode).toBe(404);
     expect(crossBranchResponse.json()).toEqual(missingResponse.json());
-    expect(missingResponse.json()).toEqual(malformedResponse.json());
   });
 
   it("rejects an Origin that is not the backoffice's own", async () => {

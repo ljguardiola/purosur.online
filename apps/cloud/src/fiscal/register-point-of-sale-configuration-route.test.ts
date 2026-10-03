@@ -171,7 +171,25 @@ describe("PUT /registers/:id/point-of-sale", () => {
     });
   });
 
-  it.each(["7c9e6679-7425-40de-944b-e07fc1f90ae7", "not-a-uuid"])(
+  it("answers 400 validation_failed naming id for a malformed register id, changing nothing", async () => {
+    const session = await sessionWith(["change_fiscal_configuration"]);
+
+    const response = await configurePointOfSale(
+      "not-a-uuid",
+      bodyFor(await insertFiscalAddress()),
+      session.headers,
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "id" }],
+    });
+    expect(await db.select().from(pointOfSaleClaims)).toEqual([]);
+    expect(await db.select().from(registerPointsOfSale)).toEqual([]);
+  });
+
+  it.each(["7c9e6679-7425-40de-944b-e07fc1f90ae7"])(
     "answers 404 not_found for the register %s",
     async (registerId) => {
       const session = await sessionWith(["change_fiscal_configuration"]);

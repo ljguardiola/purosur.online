@@ -1,6 +1,7 @@
 import { findBranchUser } from "@purosur/domain/access/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { readRecordIds } from "../platform/record-id-params.js";
 import { sameOriginGuard } from "./backoffice-origin.js";
 import { canReactivateUsers, toBranchUserWire } from "./branch-users.js";
 import { drizzleBranchUsers } from "./drizzle-branch-users.js";
@@ -12,7 +13,7 @@ import {
 } from "./route-access.js";
 import type { UsersRouteOptions } from "./users-list-route.js";
 
-// Answers identically whether the id is malformed, unknown, or another branch's, so none leaks which.
+// Answers identically whether the id is unknown or another branch's, so neither leaks.
 const NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no user with that id belongs to this branch",
@@ -36,10 +37,14 @@ export function registerUserReadRoute<TQueryResult extends PgQueryResultHKT>(
       },
     },
     async (request, reply) => {
+      const ids = await readRecordIds(reply, request.params, ["id"]);
+      if (!ids) {
+        return;
+      }
       const openSession = openSessionOf(request);
       const includesInactive = canReactivateUsers(openSession);
 
-      const targetId = (request.params as { id: string }).id;
+      const targetId = ids.id;
 
       const row = await findBranchUser(
         { users: drizzleBranchUsers(options.db) },

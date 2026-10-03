@@ -133,7 +133,21 @@ describe("PUT /brands/:id/deactivation", () => {
     expect(await storedBrand(brand.id)).toMatchObject({ active: false, version: 1 });
   });
 
-  it.each(["00000000-0000-0000-0000-000000000000", "not-a-uuid"])(
+  it("answers 400 validation_failed naming id for a malformed id, changing nothing", async () => {
+    const brand = await insertBrand(db, { name: "Granix", active: true });
+    const rawSessionId = await signedInWithPermissions(db, NOON);
+
+    const response = await request(rawSessionId, "not-a-uuid");
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "id" }],
+    });
+    expect(await storedBrand(brand.id)).toMatchObject({ active: true, version: 1 });
+  });
+
+  it.each(["00000000-0000-0000-0000-000000000000"])(
     "returns 404 not_found for the id %s",
     async (id) => {
       const rawSessionId = await signedInWithPermissions(db, NOON);

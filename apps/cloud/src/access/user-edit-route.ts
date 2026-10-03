@@ -2,6 +2,7 @@ import { userEditBodySchema } from "@purosur/contracts";
 import { editUser, findBranchUser } from "@purosur/domain/access/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { readRecordIds } from "../platform/record-id-params.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { toBranchUserWire } from "./branch-users.js";
@@ -50,13 +51,17 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.put<{ Params: { id: string } }>(
+  app.put(
     "/users/:id",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: ADMINISTRATOR_ACCESS, sessionSource },
     },
     async (request, reply) => {
+      const ids = await readRecordIds(reply, request.params, ["id"]);
+      if (!ids) {
+        return;
+      }
       const attemptedAt = now();
       const openSession = openSessionOf(request);
 
@@ -66,7 +71,7 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
 
       const target = await findBranchUser(
         { users: drizzleBranchUsers(options.db) },
-        { locationId: openSession.locationId, userId: request.params.id },
+        { locationId: openSession.locationId, userId: ids.id },
       );
       if (!target) {
         await reply.code(404).send(NOT_FOUND_RESPONSE);

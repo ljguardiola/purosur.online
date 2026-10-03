@@ -162,7 +162,7 @@ describe("PUT /discounts/:id", () => {
     });
   });
 
-  it.each(["00000000-0000-0000-0000-000000000000", "not-a-uuid"])(
+  it.each(["00000000-0000-0000-0000-000000000000"])(
     "returns 404 not_found for the id %s",
     async (id) => {
       const category = await insertCategory(db, "Infusiones");
@@ -178,6 +178,25 @@ describe("PUT /discounts/:id", () => {
       expect(response.json()).toMatchObject({ code: "not_found" });
     },
   );
+
+  it("answers 400 validation_failed naming id for a malformed id, changing nothing", async () => {
+    const category = await insertCategory(db, "Infusiones");
+    const discount = await insertDiscount(db, { categoryId: category });
+    const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
+
+    const response = await editDiscount(
+      rawSessionId,
+      "not-a-uuid",
+      editBodyAimedAt({ kind: "CATEGORY", id: category }),
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "id" }],
+    });
+    expect(await storedDiscount(discount.id)).toMatchObject({ active: true, version: 1 });
+  });
 
   it("returns 404 not_found for an unknown id before it looks at a body that does not match the shape", async () => {
     const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);

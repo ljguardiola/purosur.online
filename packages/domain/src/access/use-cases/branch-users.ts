@@ -19,7 +19,6 @@ export interface BranchUser extends BranchUserFacts {
 export interface BranchUsers {
   // Ordered by first name.
   branchUsers(locationId: string, activeScope: BranchUserActiveScope): Promise<BranchUserFacts[]>;
-  // A malformed id is no user.
   branchUser(
     locationId: string,
     userId: string,

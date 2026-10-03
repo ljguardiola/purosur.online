@@ -20,7 +20,6 @@ import {
   registerPointsOfSale,
   registers,
 } from "../platform/db/schema.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 
 const UNIQUE_VIOLATION = "23505";
@@ -91,9 +90,6 @@ class DrizzleBranchRegisterStoreTransaction<TQueryResult extends PgQueryResultHK
   // NO KEY UPDATE leaves the foreign-key check of an enrollment redeeming this register's code free
   // to proceed, instead of deadlocking.
   async lockBranchRegister(locationId: string, registerId: string): Promise<LockRegisterResult> {
-    if (!UUID_PATTERN.test(registerId)) {
-      return { kind: "not_found" };
-    }
     const [register] = await this.tx
       .select({ id: registers.id })
       .from(registers)
@@ -194,9 +190,6 @@ export class DrizzleBranchRegisterStore<TQueryResult extends PgQueryResultHKT>
   }
 
   async hasRegister(locationId: string, registerId: string): Promise<boolean> {
-    if (!UUID_PATTERN.test(registerId)) {
-      return false;
-    }
     const [register] = await this.db
       .select({ id: registers.id })
       .from(registers)

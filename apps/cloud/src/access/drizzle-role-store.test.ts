@@ -192,12 +192,6 @@ describe("editing a role", () => {
     expect(await loggedRoleChanges(role.id)).toEqual(loggedBefore);
   });
 
-  it("treats a malformed role id as a role that is not there", async () => {
-    expect(
-      await edit({ id: "not-a-uuid", name: "Cajera", permissionKeys: [], version: 1 }),
-    ).toEqual({ kind: "stale_version" });
-  });
-
   it("refuses a rename to another role's name in a different letter case", async () => {
     await createdRole("Gerente");
     const role = await createdRole("Cajero");

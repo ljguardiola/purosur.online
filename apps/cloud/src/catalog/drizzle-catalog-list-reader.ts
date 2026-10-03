@@ -17,7 +17,6 @@ import {
   productTags,
   tags,
 } from "../platform/db/schema.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { netContentRow } from "./net-content-row.js";
 
 function productActivityCondition(scope: ProductActivityScope) {
@@ -111,9 +110,6 @@ export class DrizzleCatalogListReader<TQueryResult extends PgQueryResultHKT>
     brandId: string,
     countedProducts: ProductActivityScope,
   ): Promise<CatalogBrandSummary | undefined> {
-    if (!UUID_PATTERN.test(brandId)) {
-      return undefined;
-    }
     const [row] = await this.selectBrandSummaries(countedProducts)
       .where(eq(brands.id, brandId))
       .limit(1);
@@ -128,9 +124,6 @@ export class DrizzleCatalogListReader<TQueryResult extends PgQueryResultHKT>
     tagId: string,
     countedProducts: ProductActivityScope,
   ): Promise<CatalogTagSummary | undefined> {
-    if (!UUID_PATTERN.test(tagId)) {
-      return undefined;
-    }
     const [row] = await this.selectTagSummaries(countedProducts).where(eq(tags.id, tagId)).limit(1);
     return row;
   }

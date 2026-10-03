@@ -32,7 +32,6 @@ import {
   productTags,
   tags,
 } from "../platform/db/schema.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 
 const UNIQUE_VIOLATION = "23505";
@@ -81,9 +80,6 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   async lockLeafCategory(categoryId: string): Promise<LockLeafCategoryResult> {
-    if (!UUID_PATTERN.test(categoryId)) {
-      return { kind: "not_found" };
-    }
     const [category] = await this.tx
       .select({ id: categories.id, name: categories.name })
       .from(categories)
@@ -102,9 +98,6 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
 
   // Any assigned product blocks, inactive ones included.
   async lockParentForNewChild(parentId: string): Promise<LockParentForNewChildResult> {
-    if (!UUID_PATTERN.test(parentId)) {
-      return { kind: "not_found" };
-    }
     const [parent] = await this.tx
       .select({ id: categories.id })
       .from(categories)
@@ -122,9 +115,6 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   async lockProduct(productId: string): Promise<LockProductResult> {
-    if (!UUID_PATTERN.test(productId)) {
-      return { kind: "not_found" };
-    }
     const [product] = await this.tx
       .select({
         id: products.id,
@@ -162,9 +152,6 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   async lockCategory(categoryId: string): Promise<LockCategoryResult> {
-    if (!UUID_PATTERN.test(categoryId)) {
-      return { kind: "not_found" };
-    }
     const [category] = await this.tx
       .select({
         id: categories.id,
@@ -344,9 +331,6 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   async lockTag(tagId: string): Promise<LockTagResult> {
-    if (!UUID_PATTERN.test(tagId)) {
-      return { kind: "not_found" };
-    }
     const [tag] = await this.tx
       .select({ id: tags.id, name: tags.name, active: tags.active, version: tags.version })
       .from(tags)
@@ -398,9 +382,6 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   async lockBrand(brandId: string): Promise<LockBrandResult> {
-    if (!UUID_PATTERN.test(brandId)) {
-      return { kind: "not_found" };
-    }
     const [brand] = await this.tx
       .select({ id: brands.id, name: brands.name, active: brands.active, version: brands.version })
       .from(brands)

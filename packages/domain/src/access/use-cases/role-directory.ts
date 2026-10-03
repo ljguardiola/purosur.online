@@ -22,7 +22,6 @@ export interface RoleHolder {
 export interface RoleDirectory {
   // The Administrator role first, then by name.
   roles(): Promise<RoleListing[]>;
-  // A malformed id is no role.
   role(roleId: string): Promise<StoredRole | undefined>;
   // Ordered by first name.
   activeRoleHolders(roleId: string): Promise<RoleHolder[]>;

@@ -8,6 +8,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
+import { readRecordIds } from "../platform/record-id-params.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { BRAND_NAME_TAKEN_RESPONSE } from "./brand-creation-route.js";
 import type { BrandsRouteOptions } from "./brands-list-route.js";
@@ -34,7 +35,7 @@ export function registerBrandEditRoute<TQueryResult extends PgQueryResultHKT>(
   const catalog = new DrizzleCatalogListReader(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.put<{ Params: { id: string } }>(
+  app.put(
     "/brands/:id",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
@@ -44,12 +45,16 @@ export function registerBrandEditRoute<TQueryResult extends PgQueryResultHKT>(
       },
     },
     async (request, reply) => {
+      const ids = await readRecordIds(reply, request.params, ["id"]);
+      if (!ids) {
+        return;
+      }
       const parsedBody = await readValidatedBody(reply, brandEditBodySchema, request.body);
       if (!parsedBody) {
         return;
       }
 
-      const outcome = await editBrand(catalogStore, { id: request.params.id, ...parsedBody });
+      const outcome = await editBrand(catalogStore, { id: ids.id, ...parsedBody });
 
       if (outcome.kind === "not_found") {
         await reply.code(404).send(BRAND_NOT_FOUND_RESPONSE);
@@ -64,7 +69,7 @@ export function registerBrandEditRoute<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      const listed = await findBrandSummary({ catalog }, request.params.id);
+      const listed = await findBrandSummary({ catalog }, ids.id);
       await reply
         .code(200)
         .send(

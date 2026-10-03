@@ -161,15 +161,14 @@ describe("DrizzleFiscalAddressStore", () => {
     });
   });
 
-  it("finds no fiscal address for an id that is not a uuid or that nobody has", async () => {
+  it("finds no fiscal address for an id that nobody has", async () => {
     const store = new DrizzleFiscalAddressStore(db);
 
-    const lookups = await store.transaction(async (tx) => [
-      await tx.lockFiscalAddress("not-a-uuid"),
-      await tx.lockFiscalAddress("7c9e6679-7425-40de-944b-e07fc1f90ae7"),
-    ]);
+    const lookup = await store.transaction((tx) =>
+      tx.lockFiscalAddress("7c9e6679-7425-40de-944b-e07fc1f90ae7"),
+    );
 
-    expect(lookups).toEqual([undefined, undefined]);
+    expect(lookup).toBeUndefined();
   });
 
   it("raises a name conflict when the name, in any letter case, is already stored", async () => {

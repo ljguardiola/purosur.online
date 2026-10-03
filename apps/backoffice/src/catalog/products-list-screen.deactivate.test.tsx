@@ -41,7 +41,7 @@ test("deactivates a product, closes the modal, and refreshes the list", async ()
   vi.mocked(services.fetchProducts).mockResolvedValueOnce({ kind: "ok", value: [almonds] });
   await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
 
-  expect(services.deactivateProduct).toHaveBeenCalledWith("product-1");
+  expect(services.deactivateProduct).toHaveBeenCalledWith("90d00000-0000-4000-8000-000000000001");
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.poll(() => vi.mocked(services.fetchProducts).mock.calls.length).toBe(2);
   await expect.element(screen.getByText("Almendras peladas")).toBeVisible();

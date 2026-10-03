@@ -6,26 +6,28 @@ import {
   labelRequestProblem,
 } from "@purosur/domain";
 import { z } from "zod";
+import { recordIdSchema } from "../shared/index.js";
 
 const LIST_MESSAGE = "labels must be a non-empty list of { productId, count }";
 const ENTRY_MESSAGE = `each label must have an existing product's id and a count between 1 and ${LABELS_MAX_COUNT_PER_PRODUCT}`;
 const REPEATED_MESSAGE = "the same productId was sent more than once";
 const TOTAL_MESSAGE = `the total label count must be at most ${LABELS_MAX_TOTAL_COUNT}`;
 
-const productIdSchema = z.guid();
+const productIdSchema = recordIdSchema();
 
 function readEntry(entry: unknown): LabelRequestEntry | undefined {
   if (typeof entry !== "object" || entry === null) {
     return undefined;
   }
   const { productId, count } = entry as { productId?: unknown; count?: unknown };
-  if (typeof productId !== "string" || !productIdSchema.safeParse(productId).success) {
+  const readProductId = productIdSchema.safeParse(productId);
+  if (!readProductId.success) {
     return undefined;
   }
   if (typeof count !== "number" || !isValidLabelCount(count)) {
     return undefined;
   }
-  return { productId: productId.toLowerCase(), count };
+  return { productId: readProductId.data, count };
 }
 
 function readEntriesUntilInvalid(entries: unknown[]): LabelRequestEntry[] {

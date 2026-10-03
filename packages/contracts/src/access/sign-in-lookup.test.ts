@@ -39,6 +39,16 @@ describe("signInLookupSchema", () => {
     expect(signInLookupSchema.parse(answer)).toEqual(answer);
   });
 
+  it("reads a found person's id whose version and variant digits are unusual in lower case", () => {
+    expect(
+      signInLookupSchema.parse({
+        kind: "found",
+        user_id: "0123ABCD-EF01-0567-F9AB-CDEF01234567",
+        has_pin: true,
+      }),
+    ).toEqual({ kind: "found", user_id: "0123abcd-ef01-0567-f9ab-cdef01234567", has_pin: true });
+  });
+
   it.each([
     ["a found answer without its PIN flag", { kind: "found", user_id: USER_ID }],
     ["a found answer whose user is not an id", { kind: "found", user_id: "x", has_pin: true }],

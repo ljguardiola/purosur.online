@@ -60,6 +60,12 @@ describe("userCreationBodySchema", () => {
     },
   );
 
+  it("reads a role id in upper case in lower case", () => {
+    expect(
+      userCreationBodySchema.parse(validBody({ role_id: ROLE_ID.toUpperCase() })).role_id,
+    ).toBe(ROLE_ID);
+  });
+
   it("accepts a role id in upper case, and one whose version and variant digits are unusual", () => {
     expect(
       userCreationBodySchema.safeParse(validBody({ role_id: ROLE_ID.toUpperCase() })).success,

@@ -127,9 +127,9 @@ test("changes a product's net content on edit", async () => {
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.editProduct).mock.calls.length).toBe(1);
-  expect(services.editProduct).toHaveBeenCalledWith("product-1", {
+  expect(services.editProduct).toHaveBeenCalledWith("90d00000-0000-4000-8000-000000000001", {
     name: "Miel pura de abeja 1 kg",
-    categoryId: "category-1",
+    categoryId: "ca7e0000-0000-4000-8000-000000000001",
     brandId: null,
     saleUnit: "UNIT",
     barcodes: ["7790987000015"],
@@ -150,9 +150,9 @@ test("clears a product's net content by emptying the quantity on edit", async ()
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.editProduct).mock.calls.length).toBe(1);
-  expect(services.editProduct).toHaveBeenCalledWith("product-1", {
+  expect(services.editProduct).toHaveBeenCalledWith("90d00000-0000-4000-8000-000000000001", {
     name: "Miel pura de abeja 1 kg",
-    categoryId: "category-1",
+    categoryId: "ca7e0000-0000-4000-8000-000000000001",
     brandId: null,
     saleUnit: "UNIT",
     barcodes: ["7790987000015"],
@@ -309,7 +309,7 @@ test("shows a stale-version conflict banner, and reloading restores the fresh pr
   vi.mocked(services.editProduct).mockResolvedValueOnce({ kind: "ok" });
   await userEvent.click(dialog.getByRole("button", { name: "Recargar el producto" }));
 
-  expect(reload).toHaveBeenCalledWith("product-1");
+  expect(reload).toHaveBeenCalledWith("90d00000-0000-4000-8000-000000000001");
   await expect
     .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
     .toHaveValue("Miel pura de abeja 900 g");
@@ -319,9 +319,9 @@ test("shows a stale-version conflict banner, and reloading restores the fresh pr
   );
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
-  expect(services.editProduct).toHaveBeenLastCalledWith("product-1", {
+  expect(services.editProduct).toHaveBeenLastCalledWith("90d00000-0000-4000-8000-000000000001", {
     name: "Miel pura de abeja 1200 g",
-    categoryId: "category-1",
+    categoryId: "ca7e0000-0000-4000-8000-000000000001",
     brandId: null,
     saleUnit: "UNIT",
     barcodes: ["7790987000015"],
@@ -403,9 +403,9 @@ test("saving an edit includes a code typed in the scan input but not yet confirm
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.editProduct).mock.calls.length).toBe(1);
-  expect(services.editProduct).toHaveBeenCalledWith("product-1", {
+  expect(services.editProduct).toHaveBeenCalledWith("90d00000-0000-4000-8000-000000000001", {
     name: "Miel pura de abeja 1 kg",
-    categoryId: "category-1",
+    categoryId: "ca7e0000-0000-4000-8000-000000000001",
     brandId: null,
     saleUnit: "UNIT",
     barcodes: ["7790987000015", "7790000000099"],
@@ -453,9 +453,9 @@ test("generates an internal code from the edit modal and saves it alongside the 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.editProduct).mock.calls.length).toBe(1);
-  expect(services.editProduct).toHaveBeenCalledWith("product-1", {
+  expect(services.editProduct).toHaveBeenCalledWith("90d00000-0000-4000-8000-000000000001", {
     name: "Miel pura de abeja 1 kg",
-    categoryId: "category-1",
+    categoryId: "ca7e0000-0000-4000-8000-000000000001",
     brandId: null,
     saleUnit: "UNIT",
     barcodes: ["7790987000015", "2000000000015"],
@@ -516,21 +516,21 @@ test("clears the rate-limited notice when generating again succeeds", async () =
 });
 
 const granix: BrandSummary = {
-  id: "brand-1",
+  id: "b7a4d000-0000-4000-8000-000000000001",
   name: "Granix",
   active: true,
   version: 1,
   productCount: 42,
 };
 const litoral: BrandSummary = {
-  id: "brand-3",
+  id: "b7a4d000-0000-4000-8000-000000000003",
   name: "Yerba del Litoral",
   active: false,
   version: 2,
   productCount: 3,
 };
 const dulcor: BrandSummary = {
-  id: "brand-9",
+  id: "b7a4d000-0000-4000-8000-000000000009",
   name: "Dulcor",
   active: true,
   version: 1,
@@ -562,7 +562,7 @@ test("editing a product whose brand was deactivated shows it and keeps it on sav
 
   await expect.poll(() => vi.mocked(services.editProduct).mock.calls.length).toBe(1);
   expect(services.editProduct).toHaveBeenCalledWith(
-    "product-1",
+    "90d00000-0000-4000-8000-000000000001",
     expect.objectContaining({ brandId: litoral.id }),
   );
 });
@@ -585,7 +585,7 @@ test("a product with an active brand is not offered the deactivated ones, and ca
 
   await expect.poll(() => vi.mocked(services.editProduct).mock.calls.length).toBe(1);
   expect(services.editProduct).toHaveBeenCalledWith(
-    "product-1",
+    "90d00000-0000-4000-8000-000000000001",
     expect.objectContaining({ brandId: null }),
   );
 });
@@ -630,7 +630,7 @@ test("editing a product with a deactivated tag shows it as a removable chip with
 
   await expect.poll(() => vi.mocked(services.editProduct).mock.calls.length).toBe(1);
   expect(services.editProduct).toHaveBeenCalledWith(
-    "product-1",
+    "90d00000-0000-4000-8000-000000000001",
     expect.objectContaining({ tagIds: [sinTacc.id, sinColorantes.id] }),
   );
 });
@@ -656,7 +656,7 @@ test("removing the deactivated tag drops the help line and the tag, which is not
 
   await expect.poll(() => vi.mocked(services.editProduct).mock.calls.length).toBe(1);
   expect(services.editProduct).toHaveBeenCalledWith(
-    "product-1",
+    "90d00000-0000-4000-8000-000000000001",
     expect.objectContaining({ tagIds: [sinTacc.id] }),
   );
 });
@@ -664,7 +664,11 @@ test("removing the deactivated tag drops the help line and the tag, which is not
 test("a tag chosen is appended after the product's own, and every tag just created too, before the tags are read again", async () => {
   const services = createServices();
   const miel: ProductSummary = { ...honey, tagIds: [sinTacc.id] };
-  const kosher: TagSummary = { ...organico, id: "tag-9", name: "Kosher" };
+  const kosher: TagSummary = {
+    ...organico,
+    id: "7a600000-0000-4000-8000-000000000009",
+    name: "Kosher",
+  };
   vi.mocked(services.createTag)
     .mockResolvedValueOnce({ kind: "ok", tag: organico })
     .mockResolvedValueOnce({ kind: "ok", tag: kosher });
@@ -692,7 +696,7 @@ test("a tag chosen is appended after the product's own, and every tag just creat
 
   await expect.poll(() => vi.mocked(services.editProduct).mock.calls.length).toBe(1);
   expect(services.editProduct).toHaveBeenCalledWith(
-    "product-1",
+    "90d00000-0000-4000-8000-000000000001",
     expect.objectContaining({ tagIds: [sinTacc.id, vegano.id, organico.id, kosher.id] }),
   );
 });

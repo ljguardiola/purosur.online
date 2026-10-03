@@ -17,7 +17,6 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import { auditLog, rolePermissions, roles, userRoles, users } from "../platform/db/schema.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 import { revokeSessions } from "./revoke-sessions.js";
@@ -71,9 +70,6 @@ class DrizzleUserStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   async findRole(roleId: string): Promise<AssignableRole | undefined> {
-    if (!UUID_PATTERN.test(roleId)) {
-      return undefined;
-    }
     const [role] = await this.tx
       .select({ id: roles.id, name: roles.name, isAdministrator: roles.isAdministrator })
       .from(roles)
@@ -117,9 +113,6 @@ class DrizzleUserStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   async lockUser(userId: string): Promise<LockedUser | undefined> {
-    if (!UUID_PATTERN.test(userId)) {
-      return undefined;
-    }
     const [user] = await this.tx
       .select({
         email: users.email,
@@ -134,9 +127,6 @@ class DrizzleUserStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   async lockUserForDeactivation(userId: string): Promise<LockedUser | undefined> {
-    if (!UUID_PATTERN.test(userId)) {
-      return undefined;
-    }
     const [user] = await this.tx
       .select({
         email: users.email,

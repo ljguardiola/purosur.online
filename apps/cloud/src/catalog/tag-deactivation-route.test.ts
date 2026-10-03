@@ -120,7 +120,21 @@ describe("PUT /tags/:id/deactivation", () => {
     expect(await storedTag(tag.id)).toMatchObject({ active: false, version: 1 });
   });
 
-  it.each(["00000000-0000-0000-0000-000000000000", "not-a-uuid"])(
+  it("answers 400 validation_failed naming id for a malformed id, changing nothing", async () => {
+    const tag = await insertTag(db, { name: "Sin TACC", active: true });
+    const rawSessionId = await signedInWithPermissions(db, NOON);
+
+    const response = await request(rawSessionId, "not-a-uuid");
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "id" }],
+    });
+    expect(await storedTag(tag.id)).toMatchObject({ active: true, version: 1 });
+  });
+
+  it.each(["00000000-0000-0000-0000-000000000000"])(
     "returns 404 not_found for the id %s",
     async (id) => {
       const rawSessionId = await signedInWithPermissions(db, NOON);

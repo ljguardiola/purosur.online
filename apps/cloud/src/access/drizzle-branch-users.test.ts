@@ -183,7 +183,7 @@ describe("drizzleBranchUsers", () => {
       expect(found).toMatchObject({ id, passkeyCount: 1, roleName: "Cajero" });
     });
 
-    it("finds nobody outside the scope, in another branch, or for a malformed id", async () => {
+    it("finds nobody outside the scope or in another branch", async () => {
       const cashier = await insertRole("Cajero");
       const inactive = await insertUser({
         firstName: "Ana",
@@ -195,7 +195,6 @@ describe("drizzleBranchUsers", () => {
 
       expect(await users.branchUser(branch, inactive, "active")).toBeUndefined();
       expect(await users.branchUser(await otherBranch(), inactive, "any")).toBeUndefined();
-      expect(await users.branchUser(branch, "not-a-uuid", "any")).toBeUndefined();
     });
   });
 

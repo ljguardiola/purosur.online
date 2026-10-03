@@ -182,7 +182,25 @@ describe("GET /users/:id/passkeys", () => {
     ]);
   });
 
-  it("answers the identical 404 for another branch's target id, a missing one, and a malformed one", async () => {
+  it("answers 400 validation_failed naming id for a malformed id, changing nothing", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await getUserPasskeys("not-a-uuid", rawSessionId);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "id" }],
+    });
+  });
+
+  it("answers the identical 404 for another branch's target id and a missing one", async () => {
     const locationId = await seededLocationId(db);
     const administratorId = await insertUser({
       firstName: "Ada Lovelace",
@@ -206,13 +224,10 @@ describe("GET /users/:id/passkeys", () => {
       "00000000-0000-0000-0000-000000000000",
       rawSessionId,
     );
-    const malformedResponse = await getUserPasskeys("not-a-uuid", rawSessionId);
 
     expect(crossBranchResponse.statusCode).toBe(404);
     expect(missingResponse.statusCode).toBe(404);
-    expect(malformedResponse.statusCode).toBe(404);
     expect(crossBranchResponse.json()).toEqual(missingResponse.json());
-    expect(missingResponse.json()).toEqual(malformedResponse.json());
   });
 
   it("lists a deactivated target's passkeys", async () => {

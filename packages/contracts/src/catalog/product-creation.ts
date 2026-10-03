@@ -13,6 +13,7 @@ import {
   SALE_UNITS,
 } from "@purosur/domain";
 import { z } from "zod";
+import { recordIdSchema } from "../shared/index.js";
 import { optionalBrandIdSchema } from "./product-brand-id.js";
 import { optionalTagIdsSchema } from "./product-tag-ids.js";
 
@@ -64,7 +65,7 @@ export const productCreationBodySchema = z
         `name must be at most ${PRODUCT_NAME_MAX_LENGTH} characters`,
       )
       .meta({ maxLength: PRODUCT_NAME_MAX_LENGTH }),
-    categoryId: z.string({ error: "categoryId must be an existing category's id" }).min(1),
+    categoryId: recordIdSchema("categoryId must be an existing category's id"),
     brandId: optionalBrandIdSchema,
     saleUnit: z.enum(SALE_UNITS, { error: "saleUnit must be UNIT or KG" }),
     barcodes: z

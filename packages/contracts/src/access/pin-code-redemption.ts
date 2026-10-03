@@ -1,5 +1,6 @@
 import { isWellFormedPinCode, normalizePinCode } from "@purosur/domain";
 import { z } from "zod";
+import { recordIdSchema } from "../shared/index.js";
 
 const RESET_CODE_MESSAGE = "reset_code must be 16 base32 characters";
 const NEW_PIN_MESSAGE = "new_pin must be a string";
@@ -15,7 +16,7 @@ export const pinCodeRedemptionBodySchema = z.object({
 export type PinCodeRedemptionBody = z.input<typeof pinCodeRedemptionBodySchema>;
 
 export const pinCodeRedemptionSchema = z.object({
-  user_id: z.uuid(),
+  user_id: recordIdSchema(),
   salt: z.string(),
   pin_hash: z.string(),
 });

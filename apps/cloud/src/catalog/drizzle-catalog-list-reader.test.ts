@@ -202,9 +202,8 @@ describe("DrizzleCatalogListReader", () => {
       });
     });
 
-    it("answers nothing for a brand that does not exist or an id that is not a uuid", async () => {
+    it("answers nothing for a brand that does not exist", async () => {
       expect(await reader.brand("00000000-0000-0000-0000-000000000000", "active")).toBeUndefined();
-      expect(await reader.brand("not-a-uuid", "active")).toBeUndefined();
     });
   });
 
@@ -253,9 +252,8 @@ describe("DrizzleCatalogListReader", () => {
       });
     });
 
-    it("answers nothing for a tag that does not exist or an id that is not a uuid", async () => {
+    it("answers nothing for a tag that does not exist", async () => {
       expect(await reader.tag("00000000-0000-0000-0000-000000000000", "active")).toBeUndefined();
-      expect(await reader.tag("not-a-uuid", "active")).toBeUndefined();
     });
 
     it("counts each tagged product once however many tags it has, within the requested scope", async () => {

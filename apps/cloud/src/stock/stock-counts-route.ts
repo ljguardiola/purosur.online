@@ -14,6 +14,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
+import { readRecordIds } from "../platform/record-id-params.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { DrizzleStockReader } from "./drizzle-stock-reader.js";
 import { DrizzleStockStore } from "./drizzle-stock-store.js";
@@ -117,18 +118,22 @@ export function registerStockCountsRoutes<TQueryResult extends PgQueryResultHKT>
     );
   });
 
-  app.get<{ Params: { productId: string }; Querystring: { at?: string } }>(
+  app.get<{ Querystring: { at?: string } }>(
     "/inventory-levels/:productId",
     {
       preHandler: routeConfig.preHandler,
       config: { access: capabilityAccess("stock_balances"), sessionSource },
     },
     async (request, reply) => {
+      const ids = await readRecordIds(reply, request.params, ["productId"]);
+      if (!ids) {
+        return;
+      }
       const at = stockCountBodySchema.shape.occurredAt.safeParse(request.query.at);
       const outcome = await expectedBalanceAt(
         { ledger: reader },
         {
-          productId: request.params.productId,
+          productId: ids.productId,
           locationId: openSessionOf(request).locationId,
           at: at.success ? new Date(at.data) : undefined,
         },

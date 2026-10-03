@@ -1,22 +1,22 @@
 import type { CategorySummary, ProductSummary } from "@purosur/contracts";
 
 export const groceries: CategorySummary = {
-  id: "category-1",
+  id: "ca7e0000-0000-4000-8000-000000000001",
   name: "Almacén",
   version: 1,
   parentId: null,
 };
 export const driedFruits: CategorySummary = {
-  id: "category-2",
+  id: "ca7e0000-0000-4000-8000-000000000002",
   name: "Frutos secos",
   version: 1,
   parentId: null,
 };
 
 export const honey: ProductSummary = {
-  id: "product-1",
+  id: "90d00000-0000-4000-8000-000000000001",
   name: "Miel pura de abeja 1 kg",
-  categoryId: "category-1",
+  categoryId: "ca7e0000-0000-4000-8000-000000000001",
   brandId: null,
   categoryName: "Almacén",
   saleUnit: "UNIT",
@@ -29,9 +29,9 @@ export const honey: ProductSummary = {
 };
 
 export const almonds: ProductSummary = {
-  id: "product-2",
+  id: "90d00000-0000-4000-8000-000000000002",
   name: "Almendras peladas",
-  categoryId: "category-2",
+  categoryId: "ca7e0000-0000-4000-8000-000000000002",
   brandId: null,
   categoryName: "Frutos secos",
   saleUnit: "KG",

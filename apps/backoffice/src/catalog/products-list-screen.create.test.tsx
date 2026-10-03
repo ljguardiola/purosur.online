@@ -29,9 +29,9 @@ test("creates a product and shows it in the list", async () => {
   const services = createServices();
   mockLoaded(services, []);
   const created: ProductSummary = {
-    id: "product-3",
+    id: "90d00000-0000-4000-8000-000000000003",
     name: "Pasta de maní 380 g",
-    categoryId: "category-1",
+    categoryId: "ca7e0000-0000-4000-8000-000000000001",
     brandId: null,
     categoryName: "Almacén",
     saleUnit: "KG",
@@ -66,7 +66,7 @@ test("creates a product and shows it in the list", async () => {
   await expect.poll(() => vi.mocked(services.createProduct).mock.calls.length).toBe(1);
   expect(services.createProduct).toHaveBeenCalledWith({
     name: "Pasta de maní 380 g",
-    categoryId: "category-1",
+    categoryId: "ca7e0000-0000-4000-8000-000000000001",
     brandId: null,
     saleUnit: "KG",
     barcodes: ["7790000000099"],

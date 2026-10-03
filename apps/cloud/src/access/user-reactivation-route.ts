@@ -1,6 +1,7 @@
 import { findBranchUser, reactivateUser } from "@purosur/domain/access/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { readRecordIds } from "../platform/record-id-params.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 import { DrizzleUserStore } from "./drizzle-user-store.js";
@@ -26,13 +27,17 @@ export function registerUserReactivationRoutes<TQueryResult extends PgQueryResul
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.delete<{ Params: { id: string } }>(
+  app.delete(
     "/users/:id/deactivation",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: capabilityAccess("reactivate_users"), sessionSource },
     },
     async (request, reply) => {
+      const ids = await readRecordIds(reply, request.params, ["id"]);
+      if (!ids) {
+        return;
+      }
       const attemptedAt = now();
       const openSession = openSessionOf(request);
 
@@ -43,7 +48,7 @@ export function registerUserReactivationRoutes<TQueryResult extends PgQueryResul
       // An already-active target answers the same 404 as a missing one.
       const target = await findBranchUser(
         { users: drizzleBranchUsers(options.db) },
-        { locationId: openSession.locationId, userId: request.params.id, activeScope: "inactive" },
+        { locationId: openSession.locationId, userId: ids.id, activeScope: "inactive" },
       );
       if (!target) {
         await reply.code(404).send(USER_NOT_FOUND_RESPONSE);

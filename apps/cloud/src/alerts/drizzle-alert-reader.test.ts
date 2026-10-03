@@ -155,12 +155,6 @@ describe("DrizzleAlertReader sight", () => {
 });
 
 describe("DrizzleAlertReader findVisibleAlert", () => {
-  it("answers nothing for an id that is not a well-formed uuid", async () => {
-    await insertAlert();
-
-    expect(await new DrizzleAlertReader(db).findVisibleAlert(ALL, "not-a-uuid")).toBeUndefined();
-  });
-
   it("answers the alert's detail and who resolved it", async () => {
     const resolverId = await insertUser("Ada");
     const id = await insertAlert({ resolvedAt: NOON });
@@ -329,12 +323,11 @@ describe("DrizzleAlertReader displayNames", () => {
     expect((await new DrizzleAlertReader(db).displayNames([])).size).toBe(0);
   });
 
-  it("skips an id that is not a well-formed uuid instead of failing the whole lookup", async () => {
+  it("names nothing for a stored value that is no record id, while the record ids beside it are still named", async () => {
     const userId = await insertUser("Lucía Pérez");
 
-    const names = await new DrizzleAlertReader(db).displayNames([userId, "203.0.113.5", "scope_a"]);
+    const names = await new DrizzleAlertReader(db).displayNames([userId, "scope-legacy"]);
 
-    expect(names.get(userId)).toBe("Lucía Pérez");
-    expect(names.size).toBe(1);
+    expect(names).toEqual(new Map([[userId, "Lucía Pérez"]]));
   });
 });
