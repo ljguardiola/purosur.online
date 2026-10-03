@@ -786,6 +786,99 @@ test("checks a key in props built apart from the component and spread into it", 
   ]);
 });
 
+test("accepts a key written beside a spread of an object whose type has no such key", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/sales-queries.tsx": [
+      IMPORTS,
+      "export function useReceipt(props: { key: QueryKey; fresh?: boolean }) {",
+      "  return useQuery({ queryKey: props.key, queryFn: () => [] });",
+      "}",
+      "function Panel({ source }: { source: QueryKey; title?: string }) {",
+      "  useQuery({ queryKey: source, queryFn: () => [] });",
+      "  return null;",
+      "}",
+      "export function useSales(options: { staleTime?: number }, queryFn: () => unknown) {",
+      '  return useQuery({ ...options, queryKey: ["sales"], queryFn });',
+      "}",
+      "export function SalesPanel(props: { title?: string }) {",
+      '  return <Panel {...props} source={["sales"]} />;',
+      "}",
+      'export const useFreshSales = (flags: { fresh?: boolean }) => useReceipt({ ...flags, key: ["sales"] });',
+      'export function useLatestSales(options: Omit<{ queryKey: QueryKey; staleTime?: number }, "queryKey">) {',
+      '  return useQuery({ queryKey: ["sales"], ...options, queryFn: () => [] });',
+      "}",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, []);
+});
+
+test("follows a key from a spread that overrides an earlier member of the same name", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/sales-queries.ts": [
+      IMPORTS,
+      "export function useReceipt(props: { key: QueryKey }) {",
+      "  return useQuery({ queryKey: props.key, queryFn: () => [] });",
+      "}",
+      'const base = { key: ["ticket"] as QueryKey };',
+      'const options = { key: ["sales"] as QueryKey, ...base };',
+      "export const useTicket = () => useReceipt(options);",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/sales/sales-queries.ts:5 roots a query key at "ticket", but the concept folder holding it is "sales"',
+  ]);
+});
+
+test("follows the earlier keys of an object only while a later spread may leave the key out", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/sales-queries.ts": [
+      IMPORTS,
+      "export function useReceipt(props: { key: QueryKey }) {",
+      "  return useQuery({ queryKey: props.key, queryFn: () => [] });",
+      "}",
+      'const defaults = { key: ["ticket"] as QueryKey };',
+      'const draftDefaults = { key: ["drafts"] as QueryKey };',
+      'const lineDefaults = { key: ["lines"] as QueryKey };',
+      "const overrides: { key?: QueryKey } = {};",
+      'const required = { key: ["sales"] as QueryKey };',
+      "const draftOptions = { ...draftDefaults, ...overrides };",
+      "export const useTicket = () => useReceipt({ ...defaults, ...overrides });",
+      "export const useDraft = () => useReceipt(draftOptions);",
+      "export const useLines = () => useReceipt({ ...lineDefaults, ...required });",
+      'const receiptDefaults = { key: ["receipts"] as QueryKey };',
+      'export const useSales = () => useReceipt({ ...receiptDefaults, key: ["sales"] });',
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/sales/sales-queries.ts:5 roots a query key at "ticket", but the concept folder holding it is "sales"',
+    'src/sales/sales-queries.ts:6 roots a query key at "drafts", but the concept folder holding it is "sales"',
+  ]);
+});
+
+test("follows a key forwarded through the rest of a destructured parameter spread into a component", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/ticket-panel.tsx": [
+      IMPORTS,
+      "function Panel({ source }: { source: QueryKey }) {",
+      "  useQuery({ queryKey: source, queryFn: () => [] });",
+      "  return null;",
+      "}",
+      "function Wrap({ title, ...rest }: { title: string; source: QueryKey }) {",
+      "  return <Panel {...rest} />;",
+      "}",
+      'export const salesPanel = <Wrap title="Ventas" source={["sales"]} />;',
+      'export const receiptPanel = <Wrap title="Recibos" source={["receipts"]} />;',
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/sales/ticket-panel.tsx:10 roots a query key at "receipts", but the concept folder holding it is "sales"',
+  ]);
+});
+
 test("follows a key read back through query options held in an object or chosen by a condition", (t) => {
   const problems = problemsIn(t, {
     "src/sales/sales-queries.ts": [
