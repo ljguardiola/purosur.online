@@ -831,6 +831,67 @@ test("follows a key from a spread that overrides an earlier member of the same n
   ]);
 });
 
+test("accepts a key written beside a spread of a fallback or conditional one side of which has no such key", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/sales-queries.ts": [
+      IMPORTS,
+      "export function useReceipt(props: { key: QueryKey; title?: string }) {",
+      "  return useQuery({ queryKey: props.key, queryFn: () => [] });",
+      "}",
+      'const ticketOptions = { key: ["sales", "ticket"] as QueryKey };',
+      "export const useTicket = (flags: { title: string }, ticket?: { key: QueryKey }) =>",
+      '  useReceipt({ key: ["sales"], ...(ticket ?? flags) });',
+      "export const useChosen = (flags: { title: string }, isTicket: boolean) =>",
+      '  useReceipt({ key: ["sales"], ...(isTicket ? ticketOptions : flags) });',
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, []);
+});
+
+test("refuses a mismatched root on the keyed side of a spread fallback or conditional whose other side has no key", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/sales-queries.ts": [
+      IMPORTS,
+      "export function useReceipt(props: { key: QueryKey; title?: string }) {",
+      "  return useQuery({ queryKey: props.key, queryFn: () => [] });",
+      "}",
+      'const ticketOptions = { key: ["receipts"] as QueryKey };',
+      "export const useTicket = (flags: { title: string }, ticket?: { key: QueryKey }) =>",
+      '  useReceipt({ key: ["sales"], ...(ticket ?? flags) });',
+      "export const useChosen = (flags: { title: string }, isTicket: boolean) =>",
+      '  useReceipt({ key: ["sales"], ...(isTicket ? ticketOptions : flags) });',
+      'export const useDraft = () => useTicket({ title: "Borrador" }, { key: ["drafts"] });',
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/sales/sales-queries.ts:5 roots a query key at "receipts", but the concept folder holding it is "sales"',
+    'src/sales/sales-queries.ts:10 roots a query key at "drafts", but the concept folder holding it is "sales"',
+  ]);
+});
+
+test("refuses a key read from a value typed as any or unknown", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/sales-queries.ts": [
+      IMPORTS,
+      "export function useReceipt(props: { key: QueryKey }) {",
+      "  return useQuery({ queryKey: props.key, queryFn: () => [] });",
+      "}",
+      "export function useStored(text: string) {",
+      "  const options: any = JSON.parse(text);",
+      "  return useReceipt(options);",
+      "}",
+      "export const useForwarded = (options: unknown) => useReceipt(options as { key: QueryKey });",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    "src/sales/sales-queries.ts:7 uses a query key whose root the check cannot read",
+    "src/sales/sales-queries.ts:9 uses a query key whose root the check cannot read",
+  ]);
+});
+
 test("follows the earlier keys of an object only while a later spread may leave the key out", (t) => {
   const problems = problemsIn(t, {
     "src/sales/sales-queries.ts": [
