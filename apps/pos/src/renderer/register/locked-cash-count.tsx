@@ -7,6 +7,7 @@ import type {
 } from "@purosur/contracts";
 import {
   Button,
+  Card,
   formatCents,
   HighlightedNotice,
   InlineNotice,
@@ -202,7 +203,7 @@ export function LockedCashCount({
             }
           />
         )}
-        <section className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-6">
+        <Card>
           <p className="text-body text-text-subtle">
             Contá el efectivo que hay en la caja y cargá el total.
           </p>
@@ -226,7 +227,7 @@ export function LockedCashCount({
           {failure === undefined ? null : (
             <InlineNotice tone="error" icon={<TriangleAlert />} title={failure} />
           )}
-        </section>
+        </Card>
       </main>
       <ExpectedCashPanel eyebrow="EFECTIVO ESPERADO" balance={balance}>
         <Button

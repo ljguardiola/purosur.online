@@ -46,6 +46,17 @@ async function submitFloat(
 }
 
 describe("CashOpeningPanel", () => {
+  it("pads its content 32px from every edge, whether it invites to open or asks for the float", async () => {
+    const { screen } = await renderPanel();
+    const padding = () => getComputedStyle(screen.getByRole("complementary").element()).padding;
+
+    expect(padding()).toBe("32px");
+
+    await startOpening(screen);
+
+    expect(padding()).toBe("32px");
+  });
+
   it("names the person and invites them to open the cash drawer", async () => {
     const { screen } = await renderPanel();
 

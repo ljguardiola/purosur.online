@@ -46,8 +46,10 @@ never restates those rules. Every step below follows the TDD order in
   A screen's title block is `packages/ui`'s `ScreenHeader` (eyebrow, title
   and description), whose eyebrow is `sessionEyebrow(...)`
   (`session-eyebrow.ts`) when it names the register and its session; any
-  other line in eyebrow style is `packages/ui`'s `Eyebrow`. A link to another
-  screen is `ScreenLink` (`screen-link.tsx`). The register
+  other line in eyebrow style is `packages/ui`'s `Eyebrow`. A group of
+  boxed content is `packages/ui`'s `Card`, and the column beside a screen's
+  main area, with its content and an optional footer, is `SidePanel`. A
+  link to another screen is `ScreenLink` (`screen-link.tsx`). The register
   already shows `CoreDownNotice` (`core-down-notice.tsx`) while the core is
   down and `RenderFailureRecovery` (`render-failure-recovery.tsx`) when a
   screen fails to render; a screen never builds its own.
@@ -116,7 +118,9 @@ offers:
   `width="confirmation"`.
 - A label read beside an amount, such as a breakdown of a total:
   `SummaryRowGroup`. A short mark on an item, such as the promotion a line
-  was charged with: `Tag`.
+  was charged with: `Tag`. A figure with its label and an optional detail
+  above it, such as the change due: `FigureStat`. One person chosen from a
+  list of names: `AvatarOptionCardGroup`.
 
 The canonical use of each pattern is in its own stories:
 `packages/ui/src/components/data-display/table/table.stories.tsx`, and

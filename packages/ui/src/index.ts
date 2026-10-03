@@ -3,6 +3,8 @@ export type { ColumnChartBar, ColumnChartProps } from "./components/data-display
 export { ColumnChart } from "./components/data-display/column-chart";
 export type { CountCardProps } from "./components/data-display/count-card";
 export { CountCard } from "./components/data-display/count-card";
+export type { FigureStatProps } from "./components/data-display/figure-stat";
+export { FigureStat } from "./components/data-display/figure-stat";
 export type { ProportionBarProps } from "./components/data-display/proportion-bar";
 export { ProportionBar } from "./components/data-display/proportion-bar";
 export type { SummaryRowProps } from "./components/data-display/summary-row";
@@ -50,6 +52,8 @@ export type { NotificationCardProps } from "./components/feedback/notification-c
 export { NotificationCard } from "./components/feedback/notification-card";
 export type { StatusIndicatorProps } from "./components/feedback/status-indicator";
 export { StatusIndicator } from "./components/feedback/status-indicator";
+export type { AvatarOptionCardGroupProps } from "./components/forms/avatar-option-card-group";
+export { AvatarOptionCardGroup } from "./components/forms/avatar-option-card-group";
 export type {
   ButtonProps,
   ButtonSize,
@@ -111,6 +115,8 @@ export type {
   ToggleChipOption,
 } from "./components/forms/toggle-chip-group";
 export { ToggleChipGroup } from "./components/forms/toggle-chip-group";
+export type { CardProps } from "./components/layout/card";
+export { Card } from "./components/layout/card";
 export type { EyebrowProps } from "./components/layout/eyebrow";
 export { Eyebrow } from "./components/layout/eyebrow";
 export type { PuroSurIsotypeProps } from "./components/layout/puro-sur-isotype";
@@ -119,6 +125,8 @@ export type { PuroSurLogoProps } from "./components/layout/puro-sur-logo";
 export { PuroSurLogo } from "./components/layout/puro-sur-logo";
 export type { ScreenHeaderProps } from "./components/layout/screen-header";
 export { ScreenHeader } from "./components/layout/screen-header";
+export type { SidePanelProps } from "./components/layout/side-panel";
+export { SidePanel } from "./components/layout/side-panel";
 export type { AreaNavButtonProps } from "./components/navigation/area-nav-button";
 export { AreaNavButton } from "./components/navigation/area-nav-button";
 export type { AreaNavItemProps } from "./components/navigation/area-nav-item";

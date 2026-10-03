@@ -1,5 +1,13 @@
 import type { OpenSale } from "@purosur/contracts";
-import { Button, Eyebrow, formatCents, InlineNotice, plural, SummaryRowGroup } from "@purosur/ui";
+import {
+  Button,
+  Eyebrow,
+  formatCents,
+  InlineNotice,
+  plural,
+  SidePanel,
+  SummaryRowGroup,
+} from "@purosur/ui";
 import { Banknote, Lock, OctagonAlert, TriangleAlert, X } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -40,9 +48,20 @@ export function PaymentPanel({
   const lines = plural(lineCount, { one: "línea", other: "líneas" });
   const isZeroTotal = lineCount > 0 && total === 0;
   return (
-    <aside
-      aria-label="Panel de cobro"
-      className="flex h-full w-98 shrink-0 flex-col gap-4 border-l border-border bg-surface p-8"
+    <SidePanel
+      label="Panel de cobro"
+      footer={
+        <Button
+          variant="secondary"
+          destructive
+          fullWidth
+          icon={<X />}
+          disabled={!canCancel}
+          onPress={onCancel}
+        >
+          Cancelar venta
+        </Button>
+      }
     >
       <Eyebrow text="Total a cobrar" />
       <p className="text-display text-text-accent">{formatCents(total)}</p>
@@ -70,18 +89,6 @@ export function PaymentPanel({
           title="El total es $ 0,00: quitá el producto o cancelá la venta."
         />
       ) : null}
-      <div className="mt-auto flex flex-col">
-        <Button
-          variant="secondary"
-          destructive
-          fullWidth
-          icon={<X />}
-          disabled={!canCancel}
-          onPress={onCancel}
-        >
-          Cancelar venta
-        </Button>
-      </div>
-    </aside>
+    </SidePanel>
   );
 }

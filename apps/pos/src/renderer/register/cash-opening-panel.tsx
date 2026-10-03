@@ -1,5 +1,5 @@
 import type { OpenCashSessionOutcome } from "@purosur/contracts";
-import { Button, InlineNotice, useRequestForm } from "@purosur/ui";
+import { Button, InlineNotice, SidePanel, useRequestForm } from "@purosur/ui";
 import { LockOpen, TriangleAlert, UserX, X } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -119,30 +119,30 @@ function OpeningForm({
 
 export function CashOpeningPanel({ firstName, canOpen, open }: CashOpeningPanelProps) {
   const [opening, setOpening] = useState(false);
-  const panelClassName =
-    "flex h-full w-98 shrink-0 flex-col gap-4 border-l border-border bg-surface p-6";
 
   if (canOpen && opening) {
     return (
-      <aside className={panelClassName}>
+      <SidePanel>
         <OpeningForm open={open} onCancel={() => setOpening(false)} />
-      </aside>
+      </SidePanel>
     );
   }
   return (
-    <aside className={panelClassName}>
+    <SidePanel
+      footer={
+        canOpen ? (
+          <>
+            <p className="text-body text-text-subtle">
+              Para vender, cobrar, devolver o mover efectivo, abrí la caja.
+            </p>
+            <Button size="large" fullWidth icon={<LockOpen />} onPress={() => setOpening(true)}>
+              Abrir caja
+            </Button>
+          </>
+        ) : undefined
+      }
+    >
       <h2 className="text-display font-bold text-text-accent">{firstName}</h2>
-      {canOpen ? (
-        <>
-          <div className="flex-1" />
-          <p className="text-body text-text-subtle">
-            Para vender, cobrar, devolver o mover efectivo, abrí la caja.
-          </p>
-          <Button size="large" fullWidth icon={<LockOpen />} onPress={() => setOpening(true)}>
-            Abrir caja
-          </Button>
-        </>
-      ) : null}
-    </aside>
+    </SidePanel>
   );
 }

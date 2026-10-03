@@ -5,7 +5,7 @@ GitHub tells the story of the work: an issue is the *what*, a pull request is th
 - **Feature** — a deliverable, user-visible vertical slice of functionality.
 - **Bug** — something behaves differently from what it should.
 - **Spike** — a technical question to answer before building. Its outcome is a written answer recorded in the issue; a spike never merges code.
-- **Technical** — work with no user-visible change, such as CI, dependencies, or a refactor.
+- **Technical** — work with no user-visible change, such as CI, dependencies, or a refactor. The one exception is a change that only aligns a screen with `packages/ui`'s pieces: it may change how the screen looks when its pull request declares each visible difference.
 
 An issue that does not fill in every required section gets the `invalid-format` label and a bot comment listing what is missing. Fix the issue body and the label is removed automatically. Optional sections — a feature's "Out of scope" and a spike's "Result" — are included only when they have relevant content: a feature lists exclusions only when they are not obvious, and a spike records its result when it closes.
 

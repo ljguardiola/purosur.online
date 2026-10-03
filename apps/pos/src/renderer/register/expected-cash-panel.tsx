@@ -5,6 +5,7 @@ import {
   formatCents,
   LoadFailure,
   LoadingPlaceholder,
+  SidePanel,
   SummaryRowGroup,
 } from "@purosur/ui";
 import { TriangleAlert } from "lucide-react";
@@ -43,7 +44,7 @@ function Balance({ balance }: { balance: CashBalance }) {
 
 export function ExpectedCashPanel({ eyebrow, balance, children }: ExpectedCashPanelProps) {
   return (
-    <aside className="flex h-full w-98 shrink-0 flex-col gap-4 border-l border-border bg-surface p-6">
+    <SidePanel footer={children ?? undefined}>
       <Eyebrow text={eyebrow} />
       {balance.status === "loading" ? <LoadingPlaceholder variant="card" lines={4} /> : null}
       {balance.status === "failed" ? (
@@ -55,8 +56,6 @@ export function ExpectedCashPanel({ eyebrow, balance, children }: ExpectedCashPa
         />
       ) : null}
       {balance.status === "loaded" ? <Balance balance={balance.value} /> : null}
-      <div className="flex-1" />
-      {children}
-    </aside>
+    </SidePanel>
   );
 }

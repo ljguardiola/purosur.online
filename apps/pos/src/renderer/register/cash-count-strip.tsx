@@ -1,4 +1,4 @@
-import { formatCents } from "@purosur/ui";
+import { Card, formatCents } from "@purosur/ui";
 import { differenceText } from "./cash-amounts";
 
 const UNKNOWN = "—";
@@ -20,13 +20,15 @@ function Cell({ label, text }: { label: string; text: string }) {
 
 export function CashCountStrip({ expected, counted, difference }: CashCountStripProps) {
   return (
-    <dl className="flex gap-4 rounded-lg bg-surface-subtle p-4">
-      <Cell label="Esperado" text={expected === undefined ? UNKNOWN : formatCents(expected)} />
-      <Cell label="Contado" text={counted === undefined ? UNKNOWN : formatCents(counted)} />
-      <Cell
-        label="Diferencia"
-        text={difference === undefined ? UNKNOWN : differenceText(difference)}
-      />
-    </dl>
+    <Card variant="subtle">
+      <dl className="flex gap-4">
+        <Cell label="Esperado" text={expected === undefined ? UNKNOWN : formatCents(expected)} />
+        <Cell label="Contado" text={counted === undefined ? UNKNOWN : formatCents(counted)} />
+        <Cell
+          label="Diferencia"
+          text={difference === undefined ? UNKNOWN : differenceText(difference)}
+        />
+      </dl>
+    </Card>
   );
 }
