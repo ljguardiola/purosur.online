@@ -858,6 +858,75 @@ test("follows the earlier keys of an object only while a later spread may leave 
   ]);
 });
 
+test("follows the earlier keys of an object past a spread of an object that may be absent", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/sales-queries.ts": [
+      IMPORTS,
+      "export function useReceipt(props: { key: QueryKey }) {",
+      "  return useQuery({ queryKey: props.key, queryFn: () => [] });",
+      "}",
+      'const defaults = { key: ["ticket"] as QueryKey };',
+      'const draftDefaults = { key: ["drafts"] as QueryKey };',
+      "export const useTicket = (overrides?: { key: QueryKey }) => useReceipt({ ...defaults, ...overrides });",
+      "export function useDraft(overrides?: { key: QueryKey }) {",
+      "  const options = { ...draftDefaults, ...overrides };",
+      "  return useReceipt(options);",
+      "}",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/sales/sales-queries.ts:5 roots a query key at "ticket", but the concept folder holding it is "sales"',
+    'src/sales/sales-queries.ts:6 roots a query key at "drafts", but the concept folder holding it is "sales"',
+  ]);
+});
+
+test("follows a key from a spread given only when a condition holds, and the keys it may leave in place", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/sales-queries.ts": [
+      IMPORTS,
+      "export function useReceipt(props: { key: QueryKey }) {",
+      "  return useQuery({ queryKey: props.key, queryFn: () => [] });",
+      "}",
+      'const ticketOverride = { key: ["receipts"] as QueryKey };',
+      'const draftOverride = { key: ["drafts"] as QueryKey };',
+      'const defaults = { key: ["ticket"] as QueryKey };',
+      "export const useTicket = (isTicket: boolean) =>",
+      '  useReceipt({ key: ["sales"], ...(isTicket && ticketOverride) });',
+      "export const useDraft = (isTicket: boolean) =>",
+      "  useReceipt({ ...defaults, ...(isTicket && draftOverride) });",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/sales/sales-queries.ts:5 roots a query key at "receipts", but the concept folder holding it is "sales"',
+    'src/sales/sales-queries.ts:6 roots a query key at "drafts", but the concept folder holding it is "sales"',
+    'src/sales/sales-queries.ts:7 roots a query key at "ticket", but the concept folder holding it is "sales"',
+  ]);
+});
+
+test("follows both sides of a key chosen by a fallback", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/sales-queries.ts": [
+      IMPORTS,
+      "export function useReceipt(props: { key: QueryKey }) {",
+      "  return useQuery({ queryKey: props.key, queryFn: () => [] });",
+      "}",
+      'const ticketDefaults = { key: ["ticket"] as QueryKey };',
+      'const draftDefaults = { key: ["drafts"] as QueryKey };',
+      "let lastTicketView: { key: QueryKey } | undefined;",
+      "export const useTicket = () => useReceipt({ ...(lastTicketView ?? ticketDefaults) });",
+      "export const useDraft = (overrides?: { key: QueryKey }) => useReceipt({ ...(overrides || draftDefaults) });",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/sales/sales-queries.ts:5 roots a query key at "ticket", but the concept folder holding it is "sales"',
+    'src/sales/sales-queries.ts:6 roots a query key at "drafts", but the concept folder holding it is "sales"',
+    "src/sales/sales-queries.ts:8 uses a query key whose root the check cannot read",
+  ]);
+});
+
 test("follows a key forwarded through the rest of a destructured parameter spread into a component", (t) => {
   const problems = problemsIn(t, {
     "src/sales/ticket-panel.tsx": [
