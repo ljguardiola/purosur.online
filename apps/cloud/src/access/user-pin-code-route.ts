@@ -3,6 +3,7 @@ import { mayEmitPinCodeFor } from "@purosur/domain";
 import { emitUserPinCode, findBranchUser } from "@purosur/domain/access/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { readRecordIds } from "../platform/record-id-params.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 import { DrizzlePinCodeStore } from "./drizzle-pin-code-store.js";
@@ -29,13 +30,17 @@ export function registerUserPinCodeRoutes<TQueryResult extends PgQueryResultHKT>
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.post<{ Params: { id: string } }>(
+  app.post(
     "/users/:id/pin-codes",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: capabilityAccess("reset_user_pin"), sessionSource },
     },
     async (request, reply) => {
+      const ids = await readRecordIds(reply, request.params, ["id"]);
+      if (!ids) {
+        return;
+      }
       const attemptedAt = now();
       const openSession = openSessionOf(request);
       const actor = { id: openSession.userId, isAdministrator: openSession.isAdministrator };
@@ -46,7 +51,7 @@ export function registerUserPinCodeRoutes<TQueryResult extends PgQueryResultHKT>
 
       const target = await findBranchUser(
         { users: drizzleBranchUsers(options.db) },
-        { locationId: openSession.locationId, userId: request.params.id, activeScope: "any" },
+        { locationId: openSession.locationId, userId: ids.id, activeScope: "any" },
       );
       if (
         !target ||

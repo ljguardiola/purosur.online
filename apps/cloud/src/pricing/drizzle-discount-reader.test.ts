@@ -128,13 +128,12 @@ describe("DrizzleDiscountReader", () => {
     });
   });
 
-  it.each(["00000000-0000-0000-0000-000000000000", "not-a-uuid"])(
-    "reads nothing for the id %s",
-    async (id) => {
-      const category = await insertCategory(db, "Infusiones");
-      await insertDiscount(db, { categoryId: category });
+  it("reads nothing for an id no discount has", async () => {
+    const category = await insertCategory(db, "Infusiones");
+    await insertDiscount(db, { categoryId: category });
 
-      expect(await new DrizzleDiscountReader(db).discount(id)).toBeUndefined();
-    },
-  );
+    expect(
+      await new DrizzleDiscountReader(db).discount("00000000-0000-0000-0000-000000000000"),
+    ).toBeUndefined();
+  });
 });

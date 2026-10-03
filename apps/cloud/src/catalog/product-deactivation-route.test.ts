@@ -207,19 +207,29 @@ describe("PUT /products/:id/deactivation", () => {
     expect(row?.active).toBe(true);
   });
 
-  it("answers the identical 404 for a missing id and a malformed one", async () => {
+  it("answers 404 not_found for an id no product has", async () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);
 
-    const missingResponse = await deactivateProduct(
-      "00000000-0000-0000-0000-000000000000",
-      rawSessionId,
-    );
-    const malformedResponse = await deactivateProduct("not-a-uuid", rawSessionId);
+    const response = await deactivateProduct("00000000-0000-0000-0000-000000000000", rawSessionId);
 
-    expect(missingResponse.statusCode).toBe(404);
-    expect(malformedResponse.statusCode).toBe(404);
-    expect(missingResponse.json()).toEqual(malformedResponse.json());
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "not_found" });
+  });
+
+  it("answers 400 validation_failed naming id for a malformed id, changing nothing", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await deactivateProduct("not-a-uuid", rawSessionId);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "id" }],
+    });
+    const [row] = await db.select().from(products).where(eq(products.id, targetId));
+    expect(row).toMatchObject({ active: true, version: 1 });
   });
 
   it("deactivates the product, bumps its version, and deactivates its barcodes", async () => {

@@ -77,31 +77,36 @@ test("the category filter narrows the list", async () => {
   expect(screen.getByText("Miel pura de abeja 1 kg").query()).toBeNull();
 });
 
-const drinks: CategorySummary = { id: "category-4", name: "Bebidas", version: 1, parentId: null };
+const drinks: CategorySummary = {
+  id: "ca7e0000-0000-4000-8000-000000000004",
+  name: "Bebidas",
+  version: 1,
+  parentId: null,
+};
 const otherGroceries: CategorySummary = {
-  id: "category-5",
+  id: "ca7e0000-0000-4000-8000-000000000005",
   name: "Otros",
   version: 1,
-  parentId: "category-1",
+  parentId: "ca7e0000-0000-4000-8000-000000000001",
 };
 const otherDrinks: CategorySummary = {
-  id: "category-6",
+  id: "ca7e0000-0000-4000-8000-000000000006",
   name: "Otros",
   version: 1,
-  parentId: "category-4",
+  parentId: "ca7e0000-0000-4000-8000-000000000004",
 };
 
 test("the category filter offers only leaf categories, labeled by their full path, in tree order", async () => {
   const soda: ProductSummary = {
     ...almonds,
-    id: "product-3",
+    id: "90d00000-0000-4000-8000-000000000003",
     name: "Soda 2 l",
     categoryId: otherDrinks.id,
     categoryName: "Otros",
   };
   const matchboxes: ProductSummary = {
     ...honey,
-    id: "product-4",
+    id: "90d00000-0000-4000-8000-000000000004",
     name: "Fósforos",
     categoryId: otherGroceries.id,
     categoryName: "Otros",
@@ -135,7 +140,7 @@ test("the category filter offers only leaf categories, labeled by their full pat
 test("the Categoría column shows each product's category by its full path", async () => {
   const matchboxes: ProductSummary = {
     ...honey,
-    id: "product-4",
+    id: "90d00000-0000-4000-8000-000000000004",
     name: "Fósforos",
     categoryId: otherGroceries.id,
     categoryName: "Otros",
@@ -422,7 +427,7 @@ test("opens with the filters and ordering it is given", async () => {
   const inactiveAlmonds: ProductSummary = { ...almonds, active: false };
   const inactiveWalnuts: ProductSummary = {
     ...almonds,
-    id: "product-3",
+    id: "90d00000-0000-4000-8000-000000000003",
     name: "Nueces peladas",
     barcodes: ["7790000000002"],
     active: false,

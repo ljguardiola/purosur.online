@@ -1,5 +1,5 @@
 import { type AlertDetail, alertDetailSchema } from "@purosur/contracts";
-import { isOpenAlert } from "@purosur/domain";
+import { alertActorId, alertNamedRecordIds, isOpenAlert } from "@purosur/domain";
 import type { AlertDelivery, AlertDetailView } from "@purosur/domain/alerts/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -11,6 +11,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
+import { readRecordIds } from "../platform/record-id-params.js";
 import { visibleSightOf } from "./alert-route-sight.js";
 import { holdsOnlySourceAddressHash, scopeDisplay, wireScope } from "./alert-scope-wire.js";
 import type { AlertsRouteOptions } from "./alerts-list-route.js";
@@ -25,11 +26,8 @@ function detailWithActorName(
   detail: Record<string, unknown>,
   namesById: ReadonlyMap<string, string>,
 ): Record<string, unknown> {
-  const actorId = detail["actorId"];
-  if (typeof actorId !== "string") {
-    return detail;
-  }
-  const actorName = namesById.get(actorId);
+  const actorId = alertActorId(detail);
+  const actorName = actorId === undefined ? undefined : namesById.get(actorId);
   return actorName === undefined ? detail : { ...detail, actorName };
 }
 
@@ -88,13 +86,17 @@ export function registerAlertReadRoute<TQueryResult extends PgQueryResultHKT>(
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.get<{ Params: { id: string } }>(
+  app.get(
     "/alerts/:id",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: OPEN_SESSION_ACCESS, sessionSource },
     },
     async (request, reply) => {
+      const ids = await readRecordIds(reply, request.params, ["id"]);
+      if (!ids) {
+        return;
+      }
       const openSession = openSessionOf(request);
       const sight = visibleSightOf(openSession);
       if (!sight) {
@@ -103,20 +105,15 @@ export function registerAlertReadRoute<TQueryResult extends PgQueryResultHKT>(
       }
 
       const reader = new DrizzleAlertReader(options.db);
-      const alert = await reader.findVisibleAlert(sight, request.params.id);
+      const alert = await reader.findVisibleAlert(sight, ids.id);
       if (!alert) {
         await reply.code(404).send(ALERT_NOT_FOUND_RESPONSE);
         return;
       }
 
       const deliveries = await reader.deliveriesOf(alert.id);
-      const namesById = await reader.displayNames(idsToResolve(alert));
+      const namesById = await reader.displayNames(alertNamedRecordIds(alert));
       await reply.code(200).send(toAlertDetailBody(alert, deliveries, namesById));
     },
   );
-}
-
-export function idsToResolve(alert: Pick<AlertDetailView, "scope" | "detail">): string[] {
-  const actorId = alert.detail["actorId"];
-  return typeof actorId === "string" ? [alert.scope, actorId] : [alert.scope];
 }

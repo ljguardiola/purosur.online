@@ -1,7 +1,18 @@
 import { globSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
-export const ID_SHAPE_PATH = "apps/cloud/src/platform/db/uuid-pattern.ts";
+export const ID_SHAPE_PATH = "packages/contracts/src/shared/record-id.ts";
+
+const SCANNED_PACKAGES = ["apps/cloud", "packages/contracts"];
+const SCANNED_SOURCES = SCANNED_PACKAGES.map(
+  (scanned) => `${scanned}/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}`,
+);
+const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url));
+const COMPILER_OPTIONS_FROM = "apps/cloud/tsconfig.json";
+const ZOD_PACKAGE_FILE = /\/node_modules\/zod\//;
+const ZOD_ID_FORMAT_NAME = /uuid|guid/i;
 
 const HEX_DIGITS = [..."0123456789abcdef"];
 const PATTERN_FLAGS = new Set(["i", "m", "s", "u", "v"]);
@@ -232,28 +243,166 @@ function patternsIn(nodes, constants) {
   });
 }
 
-export function findIdShapeCopies(source, fileName) {
-  const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true);
-  const nodes = descendants(sourceFile);
-  const lines = patternsIn(nodes, constantInitializers(nodes))
-    .filter(({ pattern, flagSets }) => flagSets.some((flags) => holdsTheShape(pattern, flags)))
-    .map(
-      ({ node }) => sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1,
-    );
-  return [...new Set(lines)].sort((a, b) => a - b).map((line) => ({ line }));
+const realPaths = new Map();
+
+function realPathOf(declaration) {
+  const fileName = declaration.getSourceFile().fileName;
+  let realPath = realPaths.get(fileName);
+  if (realPath === undefined) {
+    realPath = (ts.sys.realpath?.(fileName) ?? fileName).replaceAll("\\", "/");
+    realPaths.set(fileName, realPath);
+  }
+  return realPath;
 }
 
-export function findScannedFiles(cwd = process.cwd()) {
-  return globSync("apps/cloud/src/**/*.{ts,tsx,mts,cts,js,mjs,cjs}", { cwd })
-    .filter((path) => path !== ID_SHAPE_PATH)
-    .sort();
+function isZodDeclaration(declaration) {
+  return ZOD_PACKAGE_FILE.test(realPathOf(declaration));
 }
 
-export function checkFiles(paths, readFile = (path) => readFileSync(path, "utf8")) {
-  return paths.flatMap((path) =>
-    findIdShapeCopies(readFile(path), path).map(
-      ({ line }) =>
-        `${path}:${line} holds a copy of the database id shape, which lives only in ${ID_SHAPE_PATH}`,
-    ),
+function isZodIdFormatSignature(signature) {
+  const declaration = signature.getDeclaration();
+  const name = declaration === undefined ? undefined : ts.getNameOfDeclaration(declaration);
+  return (
+    name !== undefined && ZOD_ID_FORMAT_NAME.test(name.getText()) && isZodDeclaration(declaration)
   );
+}
+
+function isZodIdFormatType(type) {
+  if (type.isUnionOrIntersection()) return type.types.some(isZodIdFormatType);
+  return [...type.getCallSignatures(), ...type.getConstructSignatures()].some(
+    isZodIdFormatSignature,
+  );
+}
+
+function calleeOf(node) {
+  if (ts.isCallExpression(node) || ts.isNewExpression(node)) return node.expression;
+  if (ts.isTaggedTemplateExpression(node)) return node.tag;
+  return undefined;
+}
+
+function zodIdFormatCallsIn(nodes, checker) {
+  return nodes.flatMap((node) => {
+    const callee = calleeOf(node);
+    return callee !== undefined && isZodIdFormatType(checker.getTypeAtLocation(callee))
+      ? [callee]
+      : [];
+  });
+}
+
+function isInTypePosition(node) {
+  for (let ancestor = node.parent; ancestor !== undefined; ancestor = ancestor.parent) {
+    if (ts.isTypeNode(ancestor) && !ts.isExpressionWithTypeArguments(ancestor)) return true;
+    if ((ts.isImportSpecifier(ancestor) || ts.isExportSpecifier(ancestor)) && ancestor.isTypeOnly) {
+      return true;
+    }
+    if ((ts.isImportClause(ancestor) || ts.isExportDeclaration(ancestor)) && ancestor.isTypeOnly) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isZodIdFormatValue(node, checker) {
+  const symbol = checker.getSymbolAtLocation(node);
+  if (symbol === undefined) return false;
+  const target = symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
+  return (
+    ZOD_ID_FORMAT_NAME.test(target.name) &&
+    (target.flags & ts.SymbolFlags.Value) !== 0 &&
+    (target.declarations ?? []).some(isZodDeclaration) &&
+    !isInTypePosition(node)
+  );
+}
+
+function zodIdFormatValuesIn(nodes, checker) {
+  return nodes.filter((node) => ts.isIdentifier(node) && isZodIdFormatValue(node, checker));
+}
+
+function compilerOptionsOf(root) {
+  const parsed = ts.getParsedCommandLineOfConfigFile(join(root, COMPILER_OPTIONS_FROM), undefined, {
+    ...ts.sys,
+    onUnRecoverableConfigFileDiagnostic: (diagnostic) => {
+      throw new Error(ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"));
+    },
+  });
+  return {
+    ...parsed.options,
+    allowJs: true,
+    noEmit: true,
+    composite: false,
+    declaration: false,
+    incremental: false,
+    rootDir: undefined,
+    outDir: undefined,
+    tsBuildInfoFile: undefined,
+  };
+}
+
+const diskSourceFiles = new Map();
+
+function hostServing(sources, options) {
+  const host = ts.createCompilerHost(options, true);
+  const readDiskSourceFile = host.getSourceFile;
+  return {
+    ...host,
+    fileExists: (fileName) => sources.has(fileName) || host.fileExists(fileName),
+    readFile: (fileName) => sources.get(fileName) ?? host.readFile(fileName),
+    getSourceFile: (fileName, languageVersion, ...rest) => {
+      if (sources.has(fileName)) {
+        return ts.createSourceFile(fileName, sources.get(fileName), languageVersion, true);
+      }
+      const key = `${fileName}\0${JSON.stringify(languageVersion)}`;
+      if (!diskSourceFiles.has(key)) {
+        diskSourceFiles.set(key, readDiskSourceFile(fileName, languageVersion, ...rest));
+      }
+      return diskSourceFiles.get(key);
+    },
+  };
+}
+
+export function findIdShapeCopies(sources, root = REPO_ROOT) {
+  const byFileName = new Map(
+    Object.entries(sources).map(([path, source]) => [join(root, path), source]),
+  );
+  const options = compilerOptionsOf(root);
+  const program = ts.createProgram({
+    rootNames: [...byFileName.keys()],
+    options,
+    host: hostServing(byFileName, options),
+  });
+  const checker = program.getTypeChecker();
+  return Object.keys(sources).flatMap((path) => {
+    const sourceFile = program.getSourceFile(join(root, path));
+    const nodes = descendants(sourceFile);
+    const constants = constantInitializers(nodes);
+    const copies = [
+      ...patternsIn(nodes, constants)
+        .filter(({ pattern, flagSets }) => flagSets.some((flags) => holdsTheShape(pattern, flags)))
+        .map(({ node }) => node),
+      ...zodIdFormatCallsIn(nodes, checker),
+      ...zodIdFormatValuesIn(nodes, checker),
+    ];
+    const lines = copies.map(
+      (node) => sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1,
+    );
+    return [...new Set(lines)].sort((a, b) => a - b).map((line) => ({ path, line }));
+  });
+}
+
+export function findScannedFiles(cwd = REPO_ROOT) {
+  return globSync(SCANNED_SOURCES, { cwd }).sort();
+}
+
+export function checkFiles(
+  paths,
+  readFile = (path) => readFileSync(join(REPO_ROOT, path), "utf8"),
+  root = REPO_ROOT,
+) {
+  const sources = Object.fromEntries(paths.map((path) => [path, readFile(path)]));
+  return findIdShapeCopies(sources, root)
+    .filter(({ path }) => path !== ID_SHAPE_PATH)
+    .map(
+      ({ path, line }) =>
+        `${path}:${line} holds a copy of the record id shape, which lives only in ${ID_SHAPE_PATH}`,
+    );
 }

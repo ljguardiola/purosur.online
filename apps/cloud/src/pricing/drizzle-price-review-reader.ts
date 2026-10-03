@@ -16,7 +16,6 @@ import {
   prices,
   products,
 } from "../platform/db/schema.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 
 interface CategoryTreeRow {
   id: string;
@@ -148,7 +147,7 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
 
     let filtered = withReview;
     const categoryId = query.categoryId;
-    if (categoryId !== undefined && UUID_PATTERN.test(categoryId)) {
+    if (categoryId !== undefined) {
       filtered = filtered.filter((row) => row.categoryId === categoryId);
     }
     if (query.search) {

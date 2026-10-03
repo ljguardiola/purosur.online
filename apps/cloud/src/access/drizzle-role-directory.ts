@@ -7,7 +7,6 @@ import type {
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { rolePermissions, roles, userRoles, users } from "../platform/db/schema.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 
 class DrizzleRoleDirectory<TQueryResult extends PgQueryResultHKT> implements RoleDirectory {
   private readonly db: PgDatabase<TQueryResult>;
@@ -49,9 +48,6 @@ class DrizzleRoleDirectory<TQueryResult extends PgQueryResultHKT> implements Rol
   }
 
   async role(roleId: string): Promise<StoredRole | undefined> {
-    if (!UUID_PATTERN.test(roleId)) {
-      return undefined;
-    }
     const [role] = await this.db
       .select({
         id: roles.id,

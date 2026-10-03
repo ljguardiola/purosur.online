@@ -110,7 +110,24 @@ describe("PUT /tags/:id", () => {
     expect(await storedTag(tag.id)).toMatchObject({ name: "Sin TACC Pro", version: 2 });
   });
 
-  it.each(["00000000-0000-0000-0000-000000000000", "not-a-uuid"])(
+  it("answers 400 validation_failed naming id for a malformed id, changing nothing", async () => {
+    const tag = await insertTag(db, { name: "Sin TACC" });
+    const rawSessionId = await signedInWithPermissions(db, NOON);
+
+    const response = await editTag(rawSessionId, "not-a-uuid", {
+      name: "Sin TACC Pro",
+      version: 1,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "id" }],
+    });
+    expect(await storedTag(tag.id)).toMatchObject({ name: "Sin TACC", version: 1 });
+  });
+
+  it.each(["00000000-0000-0000-0000-000000000000"])(
     "returns 404 not_found for the id %s",
     async (id) => {
       const rawSessionId = await signedInWithPermissions(db, NOON);
@@ -122,7 +139,7 @@ describe("PUT /tags/:id", () => {
     },
   );
 
-  it.each(["00000000-0000-0000-0000-000000000000", "not-a-uuid"])(
+  it.each(["00000000-0000-0000-0000-000000000000"])(
     "returns 400 validation_failed for the id %s when the body does not match its shape",
     async (id) => {
       const rawSessionId = await signedInWithPermissions(db, NOON);

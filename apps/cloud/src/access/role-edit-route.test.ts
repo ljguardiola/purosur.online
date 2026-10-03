@@ -210,7 +210,25 @@ describe("PUT /roles/:id", () => {
     expect(row).toMatchObject({ name: "Cajera", version: 1 });
   });
 
-  it("answers the identical 404 for the Administrator role, a missing id, and a malformed one, changing nothing", async () => {
+  it("answers 400 validation_failed naming id for a malformed id, changing nothing", async () => {
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await editRoleRequest("not-a-uuid", rawSessionId, {
+      name: "Nuevo nombre",
+      permissions: [],
+      version: 1,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "id" }],
+    });
+    const [row] = await db.select().from(roles).where(eq(roles.id, roleId));
+    expect(row).toMatchObject({ name: "Cajera", version: 1 });
+  });
+
+  it("answers the identical 404 for the Administrator role and a missing id, changing nothing", async () => {
     const rawSessionId = await insertSession(administratorId);
     const body = { name: "Nuevo nombre", permissions: [], version: 1 };
 
@@ -224,13 +242,10 @@ describe("PUT /roles/:id", () => {
       rawSessionId,
       body,
     );
-    const malformedResponse = await editRoleRequest("not-a-uuid", rawSessionId, body);
 
     expect(administratorResponse.statusCode).toBe(404);
     expect(missingResponse.statusCode).toBe(404);
-    expect(malformedResponse.statusCode).toBe(404);
     expect(administratorResponse.json()).toEqual(missingResponse.json());
-    expect(missingResponse.json()).toEqual(malformedResponse.json());
   });
 
   it("rejects an empty name, changing nothing", async () => {

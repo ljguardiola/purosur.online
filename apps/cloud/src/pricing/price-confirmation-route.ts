@@ -9,6 +9,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
+import { readRecordIds } from "../platform/record-id-params.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { DrizzlePricingStore } from "./drizzle-pricing-store.js";
 import type { PricesRouteOptions } from "./prices-list-route.js";
@@ -32,13 +33,17 @@ export function registerPriceConfirmationRoute<TQueryResult extends PgQueryResul
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.post<{ Params: { productId: string } }>(
+  app.post(
     "/prices/:productId/confirmations",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: capabilityAccess("prices_area"), sessionSource },
     },
     async (request, reply) => {
+      const ids = await readRecordIds(reply, request.params, ["productId"]);
+      if (!ids) {
+        return;
+      }
       const body = await readValidatedBody(reply, priceConfirmationBodySchema, request.body);
       if (!body) {
         return;
@@ -47,7 +52,7 @@ export function registerPriceConfirmationRoute<TQueryResult extends PgQueryResul
       const openSession = openSessionOf(request);
 
       const outcome = await confirmPrice(ports, {
-        productId: request.params.productId,
+        productId: ids.productId,
         locationId: openSession.locationId,
         expectedCurrentPriceId: body.expectedCurrentPriceId,
         actorId: openSession.userId,

@@ -124,7 +124,24 @@ describe("PUT /brands/:id", () => {
     expect(await storedBrand(brand.id)).toMatchObject({ name: "Granix Pro", version: 2 });
   });
 
-  it.each(["00000000-0000-0000-0000-000000000000", "not-a-uuid"])(
+  it("answers 400 validation_failed naming id for a malformed id, changing nothing", async () => {
+    const brand = await insertBrand(db, { name: "Granix" });
+    const rawSessionId = await signedInWithPermissions(db, NOON);
+
+    const response = await editBrand(rawSessionId, "not-a-uuid", {
+      name: "Granix Pro",
+      version: 1,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "id" }],
+    });
+    expect(await storedBrand(brand.id)).toMatchObject({ name: "Granix", version: 1 });
+  });
+
+  it.each(["00000000-0000-0000-0000-000000000000"])(
     "returns 404 not_found for the id %s",
     async (id) => {
       const rawSessionId = await signedInWithPermissions(db, NOON);
@@ -136,7 +153,7 @@ describe("PUT /brands/:id", () => {
     },
   );
 
-  it.each(["00000000-0000-0000-0000-000000000000", "not-a-uuid"])(
+  it.each(["00000000-0000-0000-0000-000000000000"])(
     "returns 400 validation_failed for the id %s when the body does not match its shape",
     async (id) => {
       const rawSessionId = await signedInWithPermissions(db, NOON);

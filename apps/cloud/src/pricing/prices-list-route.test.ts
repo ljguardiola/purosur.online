@@ -262,7 +262,7 @@ describe("GET /prices", () => {
     expect(await idsFor({ search: "fid" })).toEqual([noodlesId]);
   });
 
-  it("ignores a review filter it does not know, a category id that is not an id and a blank search", async () => {
+  it("ignores a review filter it does not know and a blank search", async () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);
     const categoryId = await insertCategory("Almacén");
@@ -278,13 +278,41 @@ describe("GET /prices", () => {
 
     const response = await listPricesRequest(rawSessionId, {
       review: "everything",
-      categoryId: "not-an-id",
       search: "   ",
     });
 
     expect(response.json().products.map((product: { id: string }) => product.id)).toEqual([
       productId,
     ]);
+  });
+
+  it("answers 400 validation_failed naming categoryId for a category id that is not an id", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    const categoryId = await insertCategory("Almacén");
+    await insertProduct("Arroz", categoryId);
+
+    const response = await listPricesRequest(rawSessionId, { categoryId: "not-an-id" });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "categoryId" }],
+    });
+  });
+
+  it("lists no products for a category id no category has", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    const categoryId = await insertCategory("Almacén");
+    await insertProduct("Arroz", categoryId);
+
+    const response = await listPricesRequest(rawSessionId, {
+      categoryId: "00000000-0000-0000-0000-000000000000",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().products).toEqual([]);
   });
 
   it("shows a price reviewed 23 hours earlier as 23 hours old and not pending, across Argentine midnight", async () => {

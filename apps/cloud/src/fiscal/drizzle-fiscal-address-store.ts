@@ -10,7 +10,6 @@ import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import { auditLog, fiscalAddresses } from "../platform/db/schema.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { storedFiscalAddress } from "./drizzle-fiscal-address-reader.js";
 
 const UNIQUE_VIOLATION = "23505";
@@ -44,9 +43,6 @@ class DrizzleFiscalAddressStoreTransaction<TQueryResult extends PgQueryResultHKT
   }
 
   async lockFiscalAddress(fiscalAddressId: string): Promise<FiscalAddress | undefined> {
-    if (!UUID_PATTERN.test(fiscalAddressId)) {
-      return undefined;
-    }
     const [current] = await this.tx
       .select(storedFiscalAddress)
       .from(fiscalAddresses)

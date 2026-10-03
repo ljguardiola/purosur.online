@@ -60,10 +60,6 @@ describe("DrizzleStockReader.activeProduct", () => {
     expect(await new DrizzleStockReader(db).activeProduct(productId)).toBeUndefined();
   });
 
-  it("answers nothing for an id that is not a uuid", async () => {
-    expect(await new DrizzleStockReader(db).activeProduct("not-a-uuid")).toBeUndefined();
-  });
-
   it("answers nothing for an unknown product", async () => {
     expect(
       await new DrizzleStockReader(db).activeProduct("00000000-0000-4000-8000-000000000000"),

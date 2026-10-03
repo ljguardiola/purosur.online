@@ -56,7 +56,7 @@ describe("categoryCreationBodySchema, parentId", () => {
     ).toBe("d131ec62-1111-4aaa-8bbb-abcdef012345");
   });
 
-  it.each([42, "", true, {}])("rejects the parentId %j", (parentId) => {
+  it.each([42, "", "not-an-id", true, {}])("rejects the parentId %j", (parentId) => {
     expect(firstFailure({ name: "A", parentId })).toEqual({
       field: "parentId",
       message: "parentId must be an existing category's id, or null for top level",

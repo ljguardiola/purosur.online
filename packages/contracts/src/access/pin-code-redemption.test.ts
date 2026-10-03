@@ -55,6 +55,15 @@ describe("pinCodeRedemptionSchema", () => {
     pin_hash: "FO3oOFk5tY4DPtoNNGl7KXTcZfn77pjiKvugqG5Dm-E",
   };
 
+  it("reads a user id whose version and variant digits are unusual in lower case", () => {
+    expect(
+      pinCodeRedemptionSchema.parse({
+        ...REDEMPTION,
+        user_id: "0123ABCD-EF01-0567-F9AB-CDEF01234567",
+      }).user_id,
+    ).toBe("0123abcd-ef01-0567-f9ab-cdef01234567");
+  });
+
   it("carries the user's id and the salt and hash of the new PIN", () => {
     expect(pinCodeRedemptionSchema.parse(REDEMPTION)).toEqual(REDEMPTION);
   });

@@ -85,7 +85,10 @@ test("saves the rename with the name trimmed and the version it opened at", asyn
 
   await save(screen, " Sin gluten ");
 
-  expect(editTag).toHaveBeenCalledWith("tag-1", { name: "Sin gluten", version: 1 });
+  expect(editTag).toHaveBeenCalledWith("7a600000-0000-4000-8000-000000000001", {
+    name: "Sin gluten",
+    version: 1,
+  });
   await expect.poll(() => onSaved.mock.calls.length).toBe(1);
 });
 
@@ -136,7 +139,10 @@ test("a stale version asks to reload, and reloading refills the form from the fr
   await expect.element(dialog.getByRole("textbox", { name: /^Nombre/ })).toHaveValue("Sin gluten");
   await expect.element(dialog.getByRole("heading", { name: "Sin gluten" })).toBeVisible();
   await save(screen);
-  expect(editTag).toHaveBeenLastCalledWith("tag-1", { name: "Sin gluten", version: 5 });
+  expect(editTag).toHaveBeenLastCalledWith("7a600000-0000-4000-8000-000000000001", {
+    name: "Sin gluten",
+    version: 5,
+  });
 });
 
 test("reloading a tag that no longer exists says so", async () => {

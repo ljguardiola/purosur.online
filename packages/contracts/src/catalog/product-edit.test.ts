@@ -4,7 +4,7 @@ import { productEditBodySchema } from "./product-edit.js";
 function validBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     name: "Maceta",
-    categoryId: "cat-1",
+    categoryId: "11111111-1111-1111-1111-111111111111",
     brandId: null,
     saleUnit: "UNIT",
     barcodes: ["111"],
@@ -28,7 +28,7 @@ describe("productEditBodySchema", () => {
 
     expect(result.data).toEqual({
       name: "Maceta",
-      categoryId: "cat-1",
+      categoryId: "11111111-1111-1111-1111-111111111111",
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
@@ -39,8 +39,12 @@ describe("productEditBodySchema", () => {
   });
 
   it("reads a brand id", () => {
-    expect(productEditBodySchema.safeParse(validBody({ brandId: "brand-1" })).data).toMatchObject({
-      brandId: "brand-1",
+    expect(
+      productEditBodySchema.safeParse(
+        validBody({ brandId: "22222222-2222-2222-2222-222222222222" }),
+      ).data,
+    ).toMatchObject({
+      brandId: "22222222-2222-2222-2222-222222222222",
     });
   });
 
@@ -66,8 +70,14 @@ describe("productEditBodySchema", () => {
 
   it("reads the tag ids", () => {
     expect(
-      productEditBodySchema.safeParse(validBody({ tagIds: ["tag-1", "tag-2"] })).data,
-    ).toMatchObject({ tagIds: ["tag-1", "tag-2"] });
+      productEditBodySchema.safeParse(
+        validBody({
+          tagIds: ["33333333-3333-3333-3333-333333333333", "44444444-4444-4444-4444-444444444444"],
+        }),
+      ).data,
+    ).toMatchObject({
+      tagIds: ["33333333-3333-3333-3333-333333333333", "44444444-4444-4444-4444-444444444444"],
+    });
   });
 
   it("requires the tagIds key so a client that omits it cannot remove a product's tags", () => {
@@ -91,7 +101,13 @@ describe("productEditBodySchema", () => {
   });
 
   it("rejects a tag sent more than once", () => {
-    expect(firstFailure(validBody({ tagIds: ["tag-1", "tag-1"] }))).toEqual({
+    expect(
+      firstFailure(
+        validBody({
+          tagIds: ["33333333-3333-3333-3333-333333333333", "33333333-3333-3333-3333-333333333333"],
+        }),
+      ),
+    ).toEqual({
       field: "tagIds",
       message: "tagIds must not repeat a tag",
     });

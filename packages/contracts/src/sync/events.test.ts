@@ -40,6 +40,12 @@ describe("push events request", () => {
     expect(requestWith({ events: events(PUSH_BATCH_MAX_EVENTS + 1) }).success).toBe(false);
   });
 
+  it("reads an event_id whose version and variant digits are unusual in lower case", () => {
+    const result = requestWithEvent({ event_id: "0123ABCD-EF01-0567-F9AB-CDEF01234567" });
+
+    expect(result.data?.events[0]?.event_id).toBe("0123abcd-ef01-0567-f9ab-cdef01234567");
+  });
+
   it("refuses an empty batch", () => {
     expect(requestWith({ events: [] }).success).toBe(false);
   });

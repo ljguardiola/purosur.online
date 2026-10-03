@@ -13,6 +13,14 @@ describe("firstPinCodeBodySchema", () => {
     expect(firstPinCodeBodySchema.parse({ user_id: USER_ID })).toEqual({ user_id: USER_ID });
   });
 
+  it("reads an id whose version and variant digits are unusual in lower case", () => {
+    expect(
+      firstPinCodeBodySchema.parse({ user_id: "0123ABCD-EF01-0567-F9AB-CDEF01234567" }),
+    ).toEqual({
+      user_id: "0123abcd-ef01-0567-f9ab-cdef01234567",
+    });
+  });
+
   it.each([
     ["missing", undefined],
     ["not a string", 42],

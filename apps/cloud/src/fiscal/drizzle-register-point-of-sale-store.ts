@@ -17,7 +17,6 @@ import {
   registerPointsOfSale,
   registers,
 } from "../platform/db/schema.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import { NEVER_CONFIGURED_VERSION } from "./register-point-of-sale-version.js";
 
@@ -53,9 +52,6 @@ class DrizzleRegisterPointOfSaleStoreTransaction<TQueryResult extends PgQueryRes
     locationId: string,
     registerId: string,
   ): Promise<LockBranchRegisterResult> {
-    if (!UUID_PATTERN.test(registerId)) {
-      return { kind: "not_found" };
-    }
     const [register] = await this.tx
       .select({ id: registers.id })
       .from(registers)
@@ -84,9 +80,6 @@ class DrizzleRegisterPointOfSaleStoreTransaction<TQueryResult extends PgQueryRes
   }
 
   async fiscalAddressExists(fiscalAddressId: string): Promise<boolean> {
-    if (!UUID_PATTERN.test(fiscalAddressId)) {
-      return false;
-    }
     const [existing] = await this.tx
       .select({ id: fiscalAddresses.id })
       .from(fiscalAddresses)

@@ -1,5 +1,6 @@
 import { type JsonValue, PUSH_BATCH_MAX_EVENTS } from "@purosur/domain";
 import { z } from "zod";
+import { recordIdSchema } from "../shared/index.js";
 
 const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
   z.union([
@@ -13,7 +14,7 @@ const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
 );
 
 const pushedEventSchema = z.object({
-  event_id: z.uuid(),
+  event_id: recordIdSchema(),
   device_seq: z.int().positive(),
   aggregate_type: z.string().min(1),
   aggregate_id: z.string().min(1),

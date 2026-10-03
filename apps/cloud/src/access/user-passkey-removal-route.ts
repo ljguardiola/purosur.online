@@ -1,6 +1,7 @@
 import { removeUserPasskey } from "@purosur/domain/access/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { readRecordIds } from "../platform/record-id-params.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 import { DrizzlePasskeyRemovalStore } from "./drizzle-passkey-removal-store.js";
@@ -36,13 +37,17 @@ export function registerUserPasskeyRemovalRoutes<TQueryResult extends PgQueryRes
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.delete<{ Params: { id: string; passkeyId: string } }>(
+  app.delete(
     "/users/:id/passkeys/:passkeyId",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: ADMINISTRATOR_ACCESS, sessionSource },
     },
     async (request, reply) => {
+      const ids = await readRecordIds(reply, request.params, ["id", "passkeyId"]);
+      if (!ids) {
+        return;
+      }
       const attemptedAt = now();
       const openSession = openSessionOf(request);
 
@@ -54,8 +59,8 @@ export function registerUserPasskeyRemovalRoutes<TQueryResult extends PgQueryRes
         {
           locationId: openSession.locationId,
           administratorId: openSession.userId,
-          targetUserId: request.params.id,
-          passkeyId: request.params.passkeyId,
+          targetUserId: ids.id,
+          passkeyId: ids.passkeyId,
           passkeyAuthorizedAt: openSession.passkeyAuthorizedAt,
           at: attemptedAt,
         },

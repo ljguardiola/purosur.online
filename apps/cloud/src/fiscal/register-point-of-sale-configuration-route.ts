@@ -10,6 +10,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
+import { readRecordIds } from "../platform/record-id-params.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { DrizzleRegisterPointOfSaleStore } from "./drizzle-register-point-of-sale-store.js";
 import type { RegistersPointsOfSaleRouteOptions } from "./registers-points-of-sale-list-route.js";
@@ -44,13 +45,17 @@ export function registerRegisterPointOfSaleConfigurationRoute<
   const sessionSource = routeSessionSource({ db: options.db, now });
   const store = new DrizzleRegisterPointOfSaleStore(options.db);
 
-  app.put<{ Params: { id: string } }>(
+  app.put(
     "/registers/:id/point-of-sale",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: capabilityAccess("cash_area"), sessionSource },
     },
     async (request, reply) => {
+      const ids = await readRecordIds(reply, request.params, ["id"]);
+      if (!ids) {
+        return;
+      }
       const attemptedAt = now();
       const openSession = openSessionOf(request);
 
@@ -65,7 +70,7 @@ export function registerRegisterPointOfSaleConfigurationRoute<
 
       const outcome = await configureRegisterPointOfSale(store, {
         locationId: openSession.locationId,
-        registerId: request.params.id,
+        registerId: ids.id,
         pointOfSaleNumber: body.point_of_sale_number,
         fiscalAddressId: body.fiscal_address_id,
         version: body.version,
@@ -91,7 +96,7 @@ export function registerRegisterPointOfSaleConfigurationRoute<
 
       await reply.code(200).send(
         registerPointOfSaleSchema.parse({
-          register_id: request.params.id,
+          register_id: ids.id,
           point_of_sale_number: outcome.setup.pointOfSaleNumber,
           fiscal_address_id: outcome.setup.fiscalAddressId,
           version: outcome.setup.version,

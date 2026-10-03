@@ -9,7 +9,6 @@ import type {
 import { and, eq, gt, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { auditLog, registers, userPinCodes, userPins, users } from "../platform/db/schema.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import {
   type EnqueueFirstPinCodeEmail,
   enqueueFirstPinCodeEmailJob,
@@ -34,9 +33,6 @@ class DrizzleFirstPinCodeStoreTransaction<TQueryResult extends PgQueryResultHKT>
     registerId: string,
     userId: string,
   ): Promise<FirstPinCodeTarget | undefined> {
-    if (!UUID_PATTERN.test(userId)) {
-      return undefined;
-    }
     const [row] = await this.tx
       .select({ active: users.active, email: users.email })
       .from(users)
