@@ -139,10 +139,36 @@ function checkerTools(checker) {
     return false;
   };
 
+  const mayBeMissing = (property) => {
+    const type = checker.getTypeOfSymbol(property);
+    return type !== type.getNonNullableType();
+  };
+
+  const writersOf = (members, name) => {
+    const writers = [];
+    for (const member of [...members].reverse()) {
+      if (!ts.isSpreadAssignment(member) && !ts.isJsxSpreadAttribute(member)) {
+        if (member.name?.getText() !== name) continue;
+        writers.push(member);
+        break;
+      }
+      const property = checker
+        .getTypeAtLocation(member.expression)
+        .getNonNullableType()
+        .getProperty(name);
+      if (property === undefined) continue;
+      writers.push(member);
+      if (!mayBeMissing(property)) break;
+    }
+    return writers;
+  };
+
   const queryKeyPropertiesAt = (node) => {
     const parent = node.parent;
     if (ts.isJsxSpreadAttribute(parent) || ts.isSpreadAssignment(parent)) {
-      return queryKeyProperties(checker.getContextualType(parent.parent));
+      return queryKeyProperties(checker.getContextualType(parent.parent)).filter((name) =>
+        writersOf(parent.parent.properties, name).includes(parent),
+      );
     }
     if (
       ts.isCallExpression(parent) &&
@@ -168,6 +194,7 @@ function checkerTools(checker) {
     declaresQueryKey,
     propertyDeclarationOf,
     isQueryKeyPosition,
+    writersOf,
     queryKeyPropertiesAt,
     isQueryKeyShorthand,
   };
@@ -258,7 +285,9 @@ function rootTracer(checker, tools, references) {
     }
     if (ts.isParameter(declaration)) return fromParameter(declaration, property);
     if (ts.isBindingElement(declaration)) {
-      const name = (declaration.propertyName ?? declaration.name).getText();
+      const name = declaration.dotDotDotToken
+        ? property
+        : (declaration.propertyName ?? declaration.name).getText();
       return traceDeclaration(declaration.parent.parent, next, name);
     }
     return [UNREADABLE];
@@ -297,11 +326,13 @@ function rootTracer(checker, tools, references) {
       return [UNREADABLE];
     }
     if (ts.isObjectLiteralExpression(node)) {
-      const member = node.properties.find((candidate) => candidate.name?.getText() === property);
-      if (member !== undefined) return traceDeclaration(member, seen);
-      return node.properties
-        .filter(ts.isSpreadAssignment)
-        .flatMap((spread) => trace(spread.expression, seen, property));
+      return tools
+        .writersOf(node.properties, property)
+        .flatMap((writer) =>
+          ts.isSpreadAssignment(writer)
+            ? trace(writer.expression, seen, property)
+            : traceDeclaration(writer, seen),
+        );
     }
     if (ts.isIdentifier(node)) return traceDeclaration(declarationAt(node), seen, property);
     if (ts.isPropertyAccessExpression(node)) {
