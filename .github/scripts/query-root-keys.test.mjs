@@ -892,6 +892,45 @@ test("refuses a key read from a value typed as any or unknown", (t) => {
   ]);
 });
 
+test("refuses a key cast from a value whose type does not name the key as unreadable", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/sales-queries.ts": [
+      IMPORTS,
+      "export function useReceipt(props: { key: QueryKey; title?: string }) {",
+      "  return useQuery({ queryKey: props.key, queryFn: () => [] });",
+      "}",
+      "export const useRecord = (stored: Record<string, unknown>) =>",
+      "  useReceipt(stored as { key: QueryKey });",
+      "export const useObject = (stored: object) => useReceipt(stored as { key: QueryKey });",
+      "export const useSpread = (flags: { title: string }) =>",
+      "  useReceipt({ ...(flags as { key: QueryKey }) });",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    "src/sales/sales-queries.ts:6 uses a query key whose root the check cannot read",
+    "src/sales/sales-queries.ts:7 uses a query key whose root the check cannot read",
+    "src/sales/sales-queries.ts:9 uses a query key whose root the check cannot read",
+  ]);
+});
+
+test("follows a key cast from a loosely typed constant to the literal it holds", (t) => {
+  const problems = problemsIn(t, {
+    "src/sales/sales-queries.ts": [
+      IMPORTS,
+      "export function useReceipt(props: { key: QueryKey }) {",
+      "  return useQuery({ queryKey: props.key, queryFn: () => [] });",
+      "}",
+      'const stored: Record<string, unknown> = { key: ["receipts"] };',
+      "export const useStored = () => useReceipt(stored as { key: QueryKey });",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    'src/sales/sales-queries.ts:5 roots a query key at "receipts", but the concept folder holding it is "sales"',
+  ]);
+});
+
 test("follows the earlier keys of an object only while a later spread may leave the key out", (t) => {
   const problems = problemsIn(t, {
     "src/sales/sales-queries.ts": [
