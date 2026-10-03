@@ -144,6 +144,17 @@ function checkerTools(checker) {
     return type !== type.getNonNullableType();
   };
 
+  const propertiesOfEach = (type, name) =>
+    (type.isUnion() ? type.types : [type]).map((constituent) => constituent.getProperty(name));
+
+  const lacksProperty = (node, name) => {
+    const type = checker.getTypeAtLocation(node);
+    return (
+      !(type.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown)) &&
+      propertiesOfEach(type, name).every((property) => property === undefined)
+    );
+  };
+
   const writersOf = (members, name) => {
     const writers = [];
     for (const member of [...members].reverse()) {
@@ -152,10 +163,7 @@ function checkerTools(checker) {
         writers.push(member);
         break;
       }
-      const type = checker.getTypeAtLocation(member.expression);
-      const properties = (type.isUnion() ? type.types : [type]).map((constituent) =>
-        constituent.getProperty(name),
-      );
+      const properties = propertiesOfEach(checker.getTypeAtLocation(member.expression), name);
       if (properties.every((property) => property === undefined)) continue;
       writers.push(member);
       if (properties.every((property) => property !== undefined && !mayBeMissing(property))) break;
@@ -194,6 +202,7 @@ function checkerTools(checker) {
     declaresQueryKey,
     propertyDeclarationOf,
     isQueryKeyPosition,
+    lacksProperty,
     writersOf,
     queryKeyPropertiesAt,
     isQueryKeyShorthand,
@@ -318,6 +327,7 @@ function rootTracer(checker, tools, references) {
 
   const trace = (expression, seen = new Set(), property = undefined) => {
     const node = unwrapped(expression);
+    if (property !== undefined && tools.lacksProperty(node, property)) return [];
     if (ts.isArrayLiteralExpression(node)) {
       const first = node.elements[0];
       if (first === undefined) return [UNREADABLE];
