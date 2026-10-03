@@ -11,7 +11,6 @@ import type {
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { categories, discounts, products, tags } from "../platform/db/schema.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 
 type DiscountRow = typeof discounts.$inferSelect;
@@ -94,9 +93,6 @@ class DrizzleDiscountStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   async lockTarget(target: DiscountFields["target"]): Promise<LockTargetResult> {
-    if (!UUID_PATTERN.test(target.id)) {
-      return { kind: "not_found" };
-    }
     const found = await this.lockedTargetRow(target);
     return found ? { kind: "locked", ...found } : { kind: "not_found" };
   }
@@ -119,17 +115,11 @@ class DrizzleDiscountStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   async lockDiscount(id: string): Promise<LockDiscountResult> {
-    if (!UUID_PATTERN.test(id)) {
-      return { kind: "not_found" };
-    }
     const [row] = await this.tx.select().from(discounts).where(eq(discounts.id, id)).for("update");
     return row ? { kind: "locked", discount: discountFieldsOf(row) } : { kind: "not_found" };
   }
 
   async lockDiscountedProduct(productId: string): Promise<LockDiscountedProductResult> {
-    if (!UUID_PATTERN.test(productId)) {
-      return { kind: "not_found" };
-    }
     const [row] = await this.tx
       .select({ name: products.name, saleUnit: products.saleUnit })
       .from(products)

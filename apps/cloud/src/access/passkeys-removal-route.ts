@@ -1,6 +1,7 @@
 import { removeOwnPasskey } from "@purosur/domain/access/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { readRecordIds } from "../platform/record-id-params.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { DrizzlePasskeyRemovalStore } from "./drizzle-passkey-removal-store.js";
 import { AUTHORIZATION_REQUIRED_RESPONSE } from "./passkey-authorization-guard.js";
@@ -37,10 +38,14 @@ export function registerPasskeyRemovalRoutes<TQueryResult extends PgQueryResultH
       config: { access: OPEN_SESSION_ACCESS, sessionSource },
     },
     async (request, reply) => {
+      const ids = await readRecordIds(reply, request.params, ["id"]);
+      if (!ids) {
+        return;
+      }
       const attemptedAt = now();
       const openSession = openSessionOf(request);
 
-      const targetId = (request.params as { id: string }).id;
+      const targetId = ids.id;
 
       const outcome = await removeOwnPasskey(
         { store: new DrizzlePasskeyRemovalStore(options.db) },

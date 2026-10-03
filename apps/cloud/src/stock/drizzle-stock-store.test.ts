@@ -106,17 +106,6 @@ function portsAt(moment: Date) {
 }
 
 describe("DrizzleStockStore", () => {
-  it("answers not_found for an id that is not a uuid instead of failing the query", async () => {
-    const locationId = await seededLocationId(db);
-    const store = new DrizzleStockStore(db);
-
-    const locked = await store.transaction((tx) =>
-      tx.lockProductStock({ productId: "not-a-uuid", locationId }),
-    );
-
-    expect(locked).toEqual({ kind: "not_found" });
-  });
-
   it("answers not_found for a deactivated product, creating no balance for it", async () => {
     const locationId = await seededLocationId(db);
     const productId = await insertProduct({ active: false });

@@ -43,8 +43,12 @@ never restates those rules. Every step below follows the TDD order in
   or while the register is locked, `NavigationRail`
   (`navigation-rail.tsx`) for a signed-in screen and `OpenSessionRail`
   (`open-session-rail.tsx`) for one reached while a cash session is open.
-  The line above a title is `Eyebrow` (`eyebrow.tsx`), or `SessionEyebrow`
-  (`session-eyebrow.tsx`) when it names the register and its session, and a
+  A screen's title block is `packages/ui`'s `ScreenHeader` (eyebrow, title
+  and description), whose eyebrow is `sessionEyebrow(...)`
+  (`session-eyebrow.ts`) when it names the register and its session; any
+  other line in eyebrow style is `packages/ui`'s `Eyebrow`. A group of
+  boxed content is `packages/ui`'s `Card`, and the column beside a screen's
+  main area, with its content and an optional footer, is `SidePanel`. A
   link to another screen is `ScreenLink` (`screen-link.tsx`). The register
   already shows `CoreDownNotice` (`core-down-notice.tsx`) while the core is
   down and `RenderFailureRecovery` (`render-failure-recovery.tsx`) when a
@@ -106,11 +110,17 @@ offers:
   places it and decides how long it stays; the screen passes what to show
   and an `onDismiss` that clears it, and adds no placement or timer of its
   own.
+- A notice that carries an action: `HighlightedNotice`'s `actions`. A message
+  announced in a region that stays mounted while nothing is shown, such as a
+  scan's refusal: `ElevatedNotice`. A failure that fills a whole screen:
+  `LoadFailure`'s `variant="screen"`.
 - A question before an action goes ahead: `Modal` with
   `width="confirmation"`.
 - A label read beside an amount, such as a breakdown of a total:
   `SummaryRowGroup`. A short mark on an item, such as the promotion a line
-  was charged with: `Tag`.
+  was charged with: `Tag`. A figure with its label and an optional detail
+  above it, such as the change due: `FigureStat`. One person chosen from a
+  list of names: `AvatarOptionCardGroup`.
 
 The canonical use of each pattern is in its own stories:
 `packages/ui/src/components/data-display/table/table.stories.tsx`, and

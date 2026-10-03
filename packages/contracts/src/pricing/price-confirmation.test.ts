@@ -26,6 +26,14 @@ describe("priceConfirmationBodySchema", () => {
     },
   );
 
+  it("reads the expected current price id in lower case", () => {
+    expect(
+      priceConfirmationBodySchema.parse({
+        expectedCurrentPriceId: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE",
+      }).expectedCurrentPriceId,
+    ).toBe("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+  });
+
   it("accepts an id in upper case and one with unusual version and variant digits", () => {
     expect(
       priceConfirmationBodySchema.safeParse({ expectedCurrentPriceId: PRICE_ID.toUpperCase() })

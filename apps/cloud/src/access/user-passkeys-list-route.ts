@@ -2,6 +2,7 @@ import { passkeyListSchema } from "@purosur/contracts";
 import { listUserPasskeys } from "@purosur/domain/access/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { readRecordIds } from "../platform/record-id-params.js";
 import { sameOriginGuard } from "./backoffice-origin.js";
 import { canReactivateUsers } from "./branch-users.js";
 import { drizzleBranchUsers } from "./drizzle-branch-users.js";
@@ -34,9 +35,13 @@ export function registerUserPasskeysListRoute<TQueryResult extends PgQueryResult
       config: { access: ADMINISTRATOR_ACCESS, sessionSource },
     },
     async (request, reply) => {
+      const ids = await readRecordIds(reply, request.params, ["id"]);
+      if (!ids) {
+        return;
+      }
       const openSession = openSessionOf(request);
 
-      const targetId = (request.params as { id: string }).id;
+      const targetId = ids.id;
 
       const listed = await listUserPasskeys(
         { users: drizzleBranchUsers(options.db), passkeys: drizzlePasskeys(options.db) },

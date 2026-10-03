@@ -1,9 +1,9 @@
 import { recoveryRequestBodySchema } from "@purosur/contracts";
-import { Button, InlineNotice, useRequestForm } from "@purosur/ui";
+import { Button, InlineNotice, ScreenHeader, useRequestForm } from "@purosur/ui";
 import { ArrowLeft, MailCheck, Send, ShieldX, TriangleAlert } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { AccessFooterLink, AccessHeader, AccessLayout } from "./access-layout";
+import { AccessFooterLink, AccessLayout } from "./access-layout";
 import type { AccountRecoveryScreenServices } from "./account-recovery-services";
 import { emailFieldMessage } from "./email-field-message";
 
@@ -49,7 +49,7 @@ export function AccountRecoveryScreen({ services }: AccountRecoveryScreenProps) 
   if (sent) {
     return (
       <AccessLayout>
-        <AccessHeader eyebrow="Recuperar el acceso" heading="Revisá tu correo" />
+        <ScreenHeader focusableTitle eyebrow="Recuperar el acceso" title="Revisá tu correo" />
         <InlineNotice
           tone="info"
           icon={<MailCheck />}
@@ -63,9 +63,10 @@ export function AccountRecoveryScreen({ services }: AccountRecoveryScreenProps) 
 
   return (
     <AccessLayout>
-      <AccessHeader
+      <ScreenHeader
+        focusableTitle
         eyebrow="Perdí mis passkeys"
-        heading="Recuperar el acceso"
+        title="Recuperar el acceso"
         description="Te mandamos un enlace al correo de tu cuenta para registrar una passkey nueva."
       />
       {notice?.kind === "rate_limited" && (

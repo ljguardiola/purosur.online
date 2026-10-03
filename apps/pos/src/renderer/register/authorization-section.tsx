@@ -2,6 +2,7 @@ import type { SignInUser } from "@purosur/contracts";
 import type { Icon } from "@purosur/ui";
 import {
   EmptyState,
+  Eyebrow,
   InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
@@ -13,7 +14,6 @@ import { Lock, ShieldX, TriangleAlert, UsersRound, UserX } from "lucide-react";
 import { useEffect, useId } from "react";
 import { waitDescription } from "../platform/pin-attempt-text";
 import { PinField } from "../platform/pin-field";
-import { Eyebrow } from "../shell/eyebrow";
 import type { AuthorizationState, ShownRefusal } from "./use-authorization";
 
 type Notice = { icon: Icon; title: string; description: string };

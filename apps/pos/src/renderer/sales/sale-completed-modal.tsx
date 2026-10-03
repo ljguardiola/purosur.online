@@ -1,6 +1,5 @@
-import { Button, formatCents, Modal, SummaryRowGroup } from "@purosur/ui";
+import { Button, FigureStat, formatCents, Modal, SummaryRowGroup } from "@purosur/ui";
 import { CircleCheck, Plus } from "lucide-react";
-import { Eyebrow } from "../shell/eyebrow";
 
 export type SaleCompletedModalProps = {
   total: number;
@@ -31,12 +30,7 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
       }
     >
       <div className="flex flex-col gap-5">
-        {change > 0 ? (
-          <div className="flex flex-col gap-1">
-            <Eyebrow text="VUELTO" />
-            <p className="text-display text-text-accent">{formatCents(change)}</p>
-          </div>
-        ) : null}
+        {change > 0 ? <FigureStat label="VUELTO" value={formatCents(change)} /> : null}
         <SummaryRowGroup rows={[{ label: "Total", value: formatCents(total) }, paymentRow]} />
       </div>
     </Modal>

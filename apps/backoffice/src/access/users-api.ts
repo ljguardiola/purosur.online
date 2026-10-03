@@ -319,7 +319,7 @@ export async function removeUserPasskey(
   return gatedActionErrorOutcome(response);
 }
 
-// The cloud answers the same `not_found` for a malformed, missing, other-branch, already-inactive, or Administrator target.
+// The cloud answers the same `not_found` for a missing, other-branch, already-inactive, or Administrator target.
 export async function deactivateUser(id: string): Promise<DeactivateUserOutcome> {
   let response: Response;
   try {
@@ -336,7 +336,7 @@ export async function deactivateUser(id: string): Promise<DeactivateUserOutcome>
   return gatedActionErrorOutcome(response);
 }
 
-// The cloud answers the same `not_found` for a malformed, missing, other-branch, or already-active target.
+// The cloud answers the same `not_found` for a missing, other-branch, or already-active target.
 export async function reactivateUser(id: string): Promise<ReactivateUserOutcome> {
   let response: Response;
   try {

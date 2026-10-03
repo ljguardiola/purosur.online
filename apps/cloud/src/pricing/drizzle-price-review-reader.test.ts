@@ -323,11 +323,11 @@ describe("DrizzlePriceReviewReader", () => {
     expect(ids(await pricesUnderReview({ search: "arr" }))).toEqual([riceId]);
   });
 
-  it("ignores a category filter that is not an id", async () => {
+  it("applies a category filter as given, listing nothing when no product's category is that value", async () => {
     const categoryId = await insertCategory("Almacén");
-    const productId = await insertProduct("Arroz", categoryId);
+    await insertProduct("Arroz", categoryId);
 
-    expect(ids(await pricesUnderReview({ categoryId: "not-an-id" }))).toEqual([productId]);
+    expect(ids(await pricesUnderReview({ categoryId: "no-category" }))).toEqual([]);
   });
 
   it("reports the pending count regardless of the active filter", async () => {

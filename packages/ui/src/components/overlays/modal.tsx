@@ -5,6 +5,7 @@ import {
   Modal as AriaModal,
   ModalOverlay as AriaModalOverlay,
 } from "react-aria-components";
+import { Eyebrow } from "../layout/eyebrow";
 import { CloseButton } from "../shared/close-button";
 import { type Icon, iconSlotClassName } from "../shared/icon";
 import { type NoticeTone, type Tone, toneClassName } from "../shared/tone";
@@ -126,16 +127,7 @@ export function Modal(props: ModalProps) {
                   <span className={iconSlotClassName.xl}>{icon}</span>
                 </span>
                 <div className="flex flex-1 flex-col gap-1">
-                  {context ? (
-                    <p
-                      className={[
-                        "text-caption font-bold uppercase",
-                        toneClassName[contextTone].text,
-                      ].join(" ")}
-                    >
-                      {context}
-                    </p>
-                  ) : null}
+                  {context ? <Eyebrow text={context} tone={contextTone} /> : null}
                   <AriaHeading
                     slot="title"
                     className={["text-title", toneClassName[tone].strongText].join(" ")}

@@ -44,6 +44,13 @@ describe("stockLossBodySchema", () => {
     expect(stockLossBodySchema.safeParse({ ...loss, reason }).success).toBe(true);
   });
 
+  it("reads a product id in upper case in lower case", () => {
+    expect(
+      stockLossBodySchema.parse({ ...loss, productId: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE" })
+        .productId,
+    ).toBe("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+  });
+
   it.each([undefined, "", "not-a-uuid", 42])("rejects the product id %j", (productId) => {
     expect(firstIssue(stockLossBodySchema, { ...loss, productId })).toEqual({
       field: "productId",

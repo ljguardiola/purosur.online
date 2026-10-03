@@ -100,14 +100,6 @@ describe("DrizzlePasskeyRemovalStore", () => {
     expect(found).toBeUndefined();
   });
 
-  it("finds nothing for a malformed passkey id", async () => {
-    const found = await removalStore().transaction((tx) =>
-      tx.findRemovablePasskey(userId, "not-a-uuid"),
-    );
-
-    expect(found).toBeUndefined();
-  });
-
   it("deletes the passkey", async () => {
     await removalStore().transaction((tx) => tx.deletePasskey(passkeyId));
 

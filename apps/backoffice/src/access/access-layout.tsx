@@ -25,26 +25,6 @@ export function AccessLayout({ children }: AccessLayoutProps) {
   );
 }
 
-export type AccessHeaderProps = {
-  eyebrow?: string;
-  heading: string;
-  description?: string;
-};
-
-export function AccessHeader({ eyebrow, heading, description }: AccessHeaderProps) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      {eyebrow ? (
-        <p className="text-caption font-bold text-text-eyebrow uppercase tracking-sm">{eyebrow}</p>
-      ) : null}
-      <h1 tabIndex={-1} className={`text-display text-text-accent ${focusRingClassName}`}>
-        {heading}
-      </h1>
-      {description ? <p className="text-body text-text-subtle">{description}</p> : null}
-    </div>
-  );
-}
-
 export type AccessFooterLinkProps = {
   to: "/sign-in" | "/account-recovery";
   icon: ReactElement;

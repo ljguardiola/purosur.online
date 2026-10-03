@@ -12,7 +12,6 @@ import type {
 import { and, desc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { auditLog, branchSettings, priceReviews, prices, products } from "../platform/db/schema.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import { PRICE_VERSION } from "./price-version.js";
 
@@ -28,9 +27,6 @@ class DrizzlePricingStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   async lockActiveProduct(productId: string): Promise<LockActiveProductResult> {
-    if (!UUID_PATTERN.test(productId)) {
-      return { kind: "not_found" };
-    }
     const [product] = await this.tx
       .select({ id: products.id })
       .from(products)

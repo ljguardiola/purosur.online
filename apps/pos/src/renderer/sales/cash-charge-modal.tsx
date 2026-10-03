@@ -1,6 +1,8 @@
 import type { CashChargeAnswer, ChargeSaleInCashOutcome } from "@purosur/contracts";
 import {
   Button,
+  Card,
+  FigureStat,
   fieldErrorMessage,
   formatCents,
   InlineNotice,
@@ -14,7 +16,6 @@ import {
 } from "@purosur/ui";
 import { ArrowLeft, Banknote, Check, TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Eyebrow } from "../shell/eyebrow";
 import {
   cashChargeRequestFrom,
   chargeSaleInCashRequestSchema,
@@ -212,11 +213,13 @@ export function CashChargeModal({
           />
         ) : null}
         {covered === undefined ? null : (
-          <div className="flex flex-col gap-1 rounded-lg bg-surface-subtle p-4">
-            <Eyebrow text="VUELTO A ENTREGAR" />
-            <p className="text-detail text-text-subtle">{`${formatCents(covered.tendered)} − ${formatCents(covered.applied)}`}</p>
-            <p className="text-display text-text-accent">{formatCents(covered.change)}</p>
-          </div>
+          <Card variant="subtle">
+            <FigureStat
+              label="VUELTO A ENTREGAR"
+              detail={`${formatCents(covered.tendered)} − ${formatCents(covered.applied)}`}
+              value={formatCents(covered.change)}
+            />
+          </Card>
         )}
         {notice === undefined ? null : (
           <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />

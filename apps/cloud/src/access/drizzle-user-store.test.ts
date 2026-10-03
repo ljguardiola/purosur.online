@@ -166,14 +166,11 @@ describe("locking a user", () => {
     });
   });
 
-  it("treats a malformed id, a missing user and a malformed role id as not there", async () => {
+  it("treats a missing user as not there when locking it for deactivation", async () => {
     await store().transaction(async (tx) => {
-      expect(await tx.lockUser("not-a-uuid")).toBeUndefined();
-      expect(await tx.lockUserForDeactivation("not-a-uuid")).toBeUndefined();
       expect(await tx.lockUserForDeactivation("00000000-0000-4000-8000-000000000000")).toBe(
         undefined,
       );
-      expect(await tx.findRole("not-a-uuid")).toBeUndefined();
     });
   });
 

@@ -155,7 +155,7 @@ test("renders the icon box at 48px with a 12px radius and the icon at 24px", asy
   expect(iconRect.width).toBeLessThan(25);
 });
 
-test("shows a context line in bold uppercase eyebrow color by default", async () => {
+test("shows a context line drawn as the design system's eyebrow, in the eyebrow color by default", async () => {
   const screen = await render(<Modal {...baseProps({ context: "Warning" })} />);
   const context = screen.getByText("Warning", { exact: true }).element() as HTMLElement;
   const style = getComputedStyle(context);
@@ -163,6 +163,7 @@ test("shows a context line in bold uppercase eyebrow color by default", async ()
   expect(style.fontWeight).toBe("700");
   expect(style.textTransform).toBe("uppercase");
   expect(style.fontSize).toBe("12px");
+  expect(style.letterSpacing).toBe("1.2px");
   expect(style.color).toBe(tokenRgb("text-eyebrow"));
 
   await expectNoAccessibilityViolations(document.body);

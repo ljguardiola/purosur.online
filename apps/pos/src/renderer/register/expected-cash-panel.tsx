@@ -1,10 +1,16 @@
 import type { CashBalance } from "@purosur/contracts";
 import type { SummaryRowGroupProps } from "@purosur/ui";
-import { formatCents, LoadFailure, LoadingPlaceholder, SummaryRowGroup } from "@purosur/ui";
+import {
+  Eyebrow,
+  formatCents,
+  LoadFailure,
+  LoadingPlaceholder,
+  SidePanel,
+  SummaryRowGroup,
+} from "@purosur/ui";
 import { TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import type { CoreData } from "../platform/use-core-query";
-import { Eyebrow } from "../shell/eyebrow";
 import { directedAmount } from "./cash-amounts";
 
 export type ExpectedCashPanelProps = {
@@ -38,7 +44,7 @@ function Balance({ balance }: { balance: CashBalance }) {
 
 export function ExpectedCashPanel({ eyebrow, balance, children }: ExpectedCashPanelProps) {
   return (
-    <aside className="flex h-full w-98 shrink-0 flex-col gap-4 border-l border-border bg-surface p-6">
+    <SidePanel footer={children ?? undefined}>
       <Eyebrow text={eyebrow} />
       {balance.status === "loading" ? <LoadingPlaceholder variant="card" lines={4} /> : null}
       {balance.status === "failed" ? (
@@ -50,8 +56,6 @@ export function ExpectedCashPanel({ eyebrow, balance, children }: ExpectedCashPa
         />
       ) : null}
       {balance.status === "loaded" ? <Balance balance={balance.value} /> : null}
-      <div className="flex-1" />
-      {children}
-    </aside>
+    </SidePanel>
   );
 }

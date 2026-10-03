@@ -13,7 +13,10 @@ const repoRoot = join(dirname(new URL(import.meta.url).pathname), "../..");
 
 const PLATFORM_PATTERN = "/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i";
 
-const linesOf = (source) => findIdShapeCopies(source, "source.ts").map(({ line }) => line);
+const CASE_FILE = "apps/cloud/src/id-shape-check.ts";
+
+const linesOf = (source) =>
+  findIdShapeCopies({ [CASE_FILE]: source }, repoRoot).map(({ line }) => line);
 
 test("finds a copied regular expression literal with the line it is on", () => {
   const source = ['import { z } from "zod";', "", `const ID = ${PLATFORM_PATTERN};`].join("\n");
@@ -154,46 +157,319 @@ test("ignores patterns of other shapes", () => {
   assert.deepEqual(linesOf(source), []);
 });
 
-test("does not count a zod uuid format as a copy of the database id shape", () => {
+const ZOD_ID_FORMATS = [
+  ['import { z } from "zod";\nconst id = z.uuid();', [2]],
+  ['import { z } from "zod";\nconst id = z.guid({ error: "id must be an id" });', [2]],
+  ['import { z } from "zod";\nconst id = z.string().uuid();', [2]],
+  ['import { z } from "zod";\nconst id = z.string().min(1).guid();', [2]],
+  ['import { z } from "zod";\nconst id = z.uuidv4();', [2]],
+  ['import { z } from "zod";\nconst id = z.uuidv7();', [2]],
+  ['import { z } from "zod";\nconst id = z.string().regex(z.regexes.uuid());', [2]],
+  ['import { z } from "zod";\nconst id = z.string().regex(z.regexes.guid);', [2]],
+  ['import { guid as anyId } from "zod";\nregister(anyId);', [1, 2]],
+  ['import { _guid } from "zod/v4/core";\nconst id = _guid;', [1, 2]],
+  ['import { z } from "zod";\nconst id = z.core._uuid;', [2]],
+  ['import { ZodMiniUUID } from "zod/mini";', [1]],
+  ['import { z } from "zod";\nconst id = z.string().check(z.core.regexes.guid);', [2]],
+  ['import { z } from "zod";\nconst id = new z.ZodGUID({ type: "string" });', [2]],
+  ['import * as z from "zod/v4";\nconst id = z.guid();', [2]],
+  ['import { z } from "zod/mini";\nconst id = z.uuid();', [2]],
+  ['import zod from "zod";\nconst id = zod.guid();', [2]],
+  ['import { guid as anyId } from "zod";\nconst id = anyId();', [1, 2]],
+  ['import { regexes } from "zod/v4/core";\nconst id = regexes.uuid4;', [2]],
+  ['import { z } from "zod";\nconst text = z.string();\nconst id = text.uuid();', [3]],
+  ['import { z } from "zod";\nconst { guid } = z;\nconst id = guid();', [3]],
+  [
+    'import { z } from "zod";\nconst text = () => z.string();\nexport const id = text().guid();',
+    [3],
+  ],
+  ['const { z } = await import("zod");\nexport const id = z.guid();', [2]],
+  ['export const id = (await import("zod")).z.guid();', [1]],
+  ['export { guid } from "zod";', [1]],
+  ['export { uuid as anyId } from "zod/v4";', [1]],
+];
+
+test("finds a zod uuid or guid format called or referenced as a value, however it is reached", () => {
+  for (const [source, lines] of ZOD_ID_FORMATS) {
+    assert.deepEqual(linesOf(source), lines, source);
+  }
+});
+
+test("ignores values and types whose type is no name of zod's id formats", () => {
   const source = [
-    'import { z } from "zod";',
-    "export const payload = z.object({ requestId: z.uuid(), other: z.string().uuid() });",
+    'import { z, ZodError } from "zod";',
+    `declare function join<A extends string, B extends string>(a: A, b: B): \`\${A}\${B}\`;`,
+    "declare const text: string;",
+    'export const joined = join(text, "id");',
+    'export const owner = join("owner", "Uuid");',
+    'export const plain = [text, "id"].join("");',
+    "export const picked = (z as Record<string, unknown>)[text];",
+    `type Join<A extends string, B extends string> = \`\${A}\${B}\`;`,
+    'export type Owner = Join<"owner", "Uuid">;',
+    "export const error = new ZodError([]);",
+    "export const never = z.NEVER;",
+    "export const make = z.string;",
+    "export const name = z.string().min(1);",
   ].join("\n");
 
   assert.deepEqual(linesOf(source), []);
 });
 
-test("recognizes the platform file's own pattern as the shape", () => {
-  const source = readFileSync(join(repoRoot, ID_SHAPE_PATH), "utf8");
+test("ignores zod values and schemas given to zod's own types or to types that ask no id format", () => {
+  const source = [
+    'import { z } from "zod";',
+    'import { recordIdSchema } from "../../../packages/contracts/src/shared/index.js";',
+    "function keep(text: z.ZodString) {",
+    "  return text;",
+    "}",
+    "keep(z.string());",
+    "export const kept: z.ZodString = z.string();",
+    "export const tools: typeof z = z;",
+    "type Owner = { ownerUuid: string };",
+    'export const owner: Owner = z.object({ ownerUuid: z.string() }).parse({ ownerUuid: "" });',
+    "export const ids: { id: z.ZodType } = { id: recordIdSchema() };",
+    "export const id: z.ZodType = recordIdSchema();",
+    "keep(recordIdSchema());",
+    "type Row = { guidance: string };",
+    'export const row: Row = { guidance: "" };',
+    "function store(entry: { guidance: number }) {",
+    "  return entry;",
+    "}",
+    "store({ guidance: 1 });",
+    "const rows = { a: { guidance: 1 } };",
+    "export const nested: { a: { guidance: number } } = rows;",
+    "type Tree = { guidance: string; children: Tree[] };",
+    'const tree = { guidance: "", children: [] as Tree[] };',
+    "export const root: Tree = tree;",
+    "export const schemas: { a: { b: z.ZodString } } = { a: { b: recordIdSchema() } };",
+    "export const texts = [z.string()].map((text: z.ZodString) => text.min(1));",
+    "export const guids = [row].map((entry: { guidance: string }) => entry.guidance);",
+  ].join("\n");
 
-  assert.notDeepEqual(findIdShapeCopies(source, ID_SHAPE_PATH), []);
+  assert.deepEqual(linesOf(source), []);
 });
 
-test("reports each file and line holding a copy", () => {
+test("ignores calls of values built from the shared shape and of zod's other functions", () => {
+  const source = [
+    'import { z, ZodError } from "zod";',
+    'import { recordIdSchema } from "../../../packages/contracts/src/shared/index.js";',
+    "export const id = recordIdSchema();",
+    "export const parsed = id.parse(null);",
+    "export const lowered = recordIdSchema().optional().parse(null);",
+    "export const body = z.object({ id: recordIdSchema(), other: id });",
+    "export const error = new ZodError([]);",
+    "const text = z.string;",
+    "export const name = text().min(1);",
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), []);
+});
+
+test("ignores values of the shared shape, their methods and zod's other values", () => {
+  const source = [
+    'import { z, ZodError } from "zod";',
+    'import { recordIdSchema } from "../../../packages/contracts/src/shared/index.js";',
+    "const id = recordIdSchema();",
+    "export const parse = id.parse;",
+    "export const optional = recordIdSchema().optional;",
+    "export const check = recordIdSchema().check;",
+    "export const methods = [id.safeParse, id.nullable, recordIdSchema];",
+    "export const text = z.string();",
+    "export const error = ZodError;",
+    "export const errors = [new ZodError([]), z.ZodError];",
+    "export const never = z.NEVER;",
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), []);
+});
+
+const A_FILE = "apps/cloud/src/id-shape-check-a.ts";
+const B_FILE = "packages/contracts/src/id-shape-check-b.ts";
+
+const reportsOf = (a, b) =>
+  findIdShapeCopies({ [A_FILE]: a, [B_FILE]: b }, repoRoot).map(
+    ({ path, line }) => `${path}:${line}`,
+  );
+
+test("finds a zod id format reached through a value or a re-export of another file", () => {
+  for (const [a, b, reports] of [
+    [
+      'import { z } from "zod";\nexport const requiredText = () => z.string();',
+      'import { requiredText } from "../../../apps/cloud/src/id-shape-check-a.js";\nexport const id = requiredText().guid();',
+      [`${B_FILE}:2`],
+    ],
+    [
+      'import { z } from "zod";\nexport const text = z.string();',
+      'import { text } from "../../../apps/cloud/src/id-shape-check-a.js";\nexport const id = text.uuid();',
+      [`${B_FILE}:2`],
+    ],
+    [
+      'export { z } from "zod";',
+      'import { z } from "../../../apps/cloud/src/id-shape-check-a.js";\nexport const id = z.guid();',
+      [`${B_FILE}:2`],
+    ],
+    [
+      'export { guid } from "zod";',
+      'import { guid } from "../../../apps/cloud/src/id-shape-check-a.js";\nexport const id = guid();',
+      [`${A_FILE}:1`, `${B_FILE}:1`, `${B_FILE}:2`],
+    ],
+    [
+      'import { z } from "zod";\nexport default z;',
+      'import zod from "../../../apps/cloud/src/id-shape-check-a.js";\nexport const id = zod.uuid();',
+      [`${B_FILE}:2`],
+    ],
+  ]) {
+    assert.deepEqual(reportsOf(a, b), reports, b);
+  }
+});
+
+test("ignores zod used for anything but an id format, however it is taken or passed on", () => {
+  const source = [
+    'import { z, ZodError, string, NEVER } from "zod";',
+    'import type { ZodType } from "zod";',
+    "export const s = z.object({ id: z.string() });",
+    "export const listed = z.array(s).min(1);",
+    "export type S = z.infer<typeof s>;",
+    "export const parse = (schema: ZodType, input: unknown) => schema.parse(input);",
+    "export const isInvalid = (error: unknown) => error instanceof ZodError;",
+    "export const isZodError = (error: unknown) => error instanceof z.ZodError;",
+    "register(string);",
+    "register(z.string, z.iso, z.coerce, z.locales);",
+    "export const refuse = () => z.NEVER;",
+    "export const never = NEVER;",
+    "export const zod = { z };",
+    "export function tools() {",
+    "  return z;",
+    "}",
+    "declare function register(...values: unknown[]): void;",
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), []);
+});
+
+test("ignores exported schemas built with zod and re-exports of zod that reach no id format", () => {
+  const source = [
+    'import { z } from "zod";',
+    'export { z } from "zod";',
+    'export * from "zod";',
+    'export * as zod from "zod/mini";',
+    'export type { ZodType } from "zod";',
+    'export { uuid } from "drizzle-orm/pg-core";',
+    "export const nameSchema = z.string().min(1);",
+    "const priceSchema = z.object({ cents: z.number().int() });",
+    "export { priceSchema };",
+    "export default priceSchema;",
+    "export type Price = z.infer<typeof priceSchema>;",
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), []);
+});
+
+test("ignores another package's uuid and names that hold uuid or guid without being zod's", () => {
+  const source = [
+    'import { uuid } from "drizzle-orm/pg-core";',
+    'import { z } from "zod";',
+    "const owner = z.object({ ownerUuid: z.string(), guidance: z.string() });",
+    "export const field = owner.shape.ownerUuid;",
+    'export const other = owner.shape["guidance"];',
+    "export const { ownerUuid } = owner.shape;",
+    'export const id = uuid("id").primaryKey().defaultRandom();',
+    "export const generated = crypto.randomUUID();",
+    "const row = { rowUuid: 1, guidId: 2 };",
+    "export const stored = row.rowUuid ?? row.guidId;",
+    'const key = "rowUuid";',
+    "export const picked = row[key];",
+    "export const { [key]: destructured } = row;",
+    "declare const rowKey: keyof typeof row;",
+    "export const any = row[rowKey];",
+    'export const message = "not-a-uuid";',
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), []);
+});
+
+test("ignores zod's id format types, in annotations, type queries and type-only imports", () => {
+  const source = [
+    'import { z } from "zod";',
+    'import type { ZodUUID } from "zod";',
+    'import { type ZodGUID } from "zod/v4";',
+    'import { recordIdSchema } from "../../../packages/contracts/src/shared/index.js";',
+    'export type { ZodGUID as Guid } from "zod";',
+    "export const s: z.ZodGUID = recordIdSchema();",
+    "export type Format = typeof z.uuid;",
+    "export type Other = ZodUUID | z.core.$ZodUUIDDef;",
+    "export type Query = typeof z.core.regexes.guid;",
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), []);
+});
+
+test("ignores a data field named uuid or guid", () => {
+  const source = [
+    "const row = { uuid: 1, guid: 2 };",
+    "export const stored = row.uuid ?? row.guid;",
+    "type Row = { uuidv7: string };",
+    'export const typed: Row = { uuidv7: "" };',
+    "export const { uuid } = row;",
+    'export const picked = row["guid"];',
+    "export const holder = { ZodUUID: 1, _uuid: 2, $ZodGUID: 3, uuid4: 4 };",
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), []);
+});
+
+test("finds a zod id format on the line it is used", () => {
+  const source = [
+    'import { z } from "zod";',
+    "",
+    "export const payload = z.object({",
+    "  requestId: z.uuid(),",
+    "});",
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), [4]);
+});
+
+test("recognizes the shared shape's own file as the shape", () => {
+  const source = readFileSync(join(repoRoot, ID_SHAPE_PATH), "utf8");
+
+  assert.notDeepEqual(findIdShapeCopies({ [ID_SHAPE_PATH]: source }, repoRoot), []);
+});
+
+test("reports each file and line holding a copy, except in the shared shape's file", () => {
   const files = {
     "apps/cloud/src/a.test.ts": `x();\nconst ID = ${PLATFORM_PATTERN};`,
-    "apps/cloud/src/b.ts": "z();",
+    "packages/contracts/src/b.ts": 'import { z } from "zod";\nconst id = z.guid();',
+    "apps/cloud/src/c.ts": "z();",
+    [ID_SHAPE_PATH]: readFileSync(join(repoRoot, ID_SHAPE_PATH), "utf8"),
   };
 
   assert.deepEqual(
-    checkFiles(Object.keys(files), (path) => files[path]),
+    checkFiles(Object.keys(files), (path) => files[path], repoRoot),
     [
-      `apps/cloud/src/a.test.ts:2 holds a copy of the database id shape, which lives only in ${ID_SHAPE_PATH}`,
+      `apps/cloud/src/a.test.ts:2 holds a copy of the record id shape, which lives only in ${ID_SHAPE_PATH}`,
+      `packages/contracts/src/b.ts:2 holds a copy of the record id shape, which lives only in ${ID_SHAPE_PATH}`,
     ],
   );
 });
 
-test("scans every cloud source file, tests included, except the platform file", () => {
+test("scans every cloud and contracts source file, tests and the shared shape's file included", () => {
   const scanned = findScannedFiles(repoRoot);
 
   assert.ok(scanned.includes("apps/cloud/src/catalog/drizzle-catalog-store.ts"));
   assert.ok(scanned.includes("apps/cloud/src/catalog/drizzle-catalog-store.test.ts"));
-  assert.ok(scanned.every((path) => path.startsWith("apps/cloud/src/")));
-  assert.ok(!scanned.includes(ID_SHAPE_PATH));
+  assert.ok(scanned.includes("packages/contracts/src/shared/index.ts"));
+  assert.ok(scanned.includes("packages/contracts/src/shared/record-id.test.ts"));
+  assert.ok(scanned.includes(ID_SHAPE_PATH));
+  assert.ok(
+    scanned.every(
+      (path) => path.startsWith("apps/cloud/src/") || path.startsWith("packages/contracts/src/"),
+    ),
+  );
 });
 
-test("no cloud file outside the database platform code holds a copy of the id shape", () => {
+test("no cloud or contracts file outside the shared shape's file holds a copy of the id shape", () => {
   const readFile = (path) => readFileSync(join(repoRoot, path), "utf8");
 
-  assert.deepEqual(checkFiles(findScannedFiles(repoRoot), readFile), []);
+  assert.deepEqual(checkFiles(findScannedFiles(repoRoot), readFile, repoRoot), []);
 });

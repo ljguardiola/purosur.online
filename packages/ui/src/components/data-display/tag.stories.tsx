@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { CreditCard } from "lucide-react";
+import { CreditCard, TagIcon } from "lucide-react";
 import { Tag } from "./tag";
 
 const meta: Meta<typeof Tag> = {
@@ -33,4 +33,16 @@ export const Status: Story = {
 
 export const StatusInfo: Story = {
   args: { tone: "info", variant: "status", children: "Nueva" },
+};
+
+export const Success: Story = {
+  args: {
+    tone: "success",
+    icon: <TagIcon aria-hidden="true" />,
+    children: "10 % de descuento",
+  },
+};
+
+export const StatusSuccess: Story = {
+  args: { tone: "success", variant: "status", children: "Vigente" },
 };

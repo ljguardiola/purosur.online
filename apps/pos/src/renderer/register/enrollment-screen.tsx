@@ -1,11 +1,17 @@
 import type { EnrollmentOutcome } from "@purosur/contracts";
 import type { Icon } from "@purosur/ui";
-import { Button, fieldErrorMessage, InlineNotice, TextField, useRequestForm } from "@purosur/ui";
+import {
+  Button,
+  fieldErrorMessage,
+  InlineNotice,
+  ScreenHeader,
+  TextField,
+  useRequestForm,
+} from "@purosur/ui";
 import { ShieldX, TriangleAlert, WifiOff } from "lucide-react";
 import type { FormEvent } from "react";
 import { useId, useState } from "react";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
-import { Eyebrow } from "../shell/eyebrow";
 import { retryAfterText } from "../shell/retry-after-text";
 import {
   EMPTY_ENROLLMENT_FORM,
@@ -103,14 +109,11 @@ export function EnrollmentScreen({ checkCode, enroll }: EnrollmentScreenProps) {
   return (
     <BrandPanelScreen status="Sin dar de alta">
       <main className="flex w-full max-w-110 flex-col gap-4">
-        <div className="flex flex-col gap-1.5">
-          <Eyebrow text="NOTEBOOK NUEVA" />
-          <h1 className="text-display text-text-accent">Dar de alta esta caja</h1>
-          <p className="text-body text-text-subtle">
-            Escribí el código de alta que se genera en el backoffice, en Cajas registradoras. Vale
-            15 minutos y hace falta internet.
-          </p>
-        </div>
+        <ScreenHeader
+          eyebrow="NOTEBOOK NUEVA"
+          title="Dar de alta esta caja"
+          description="Escribí el código de alta que se genera en el backoffice, en Cajas registradoras. Vale 15 minutos y hace falta internet."
+        />
         <form className="flex flex-col gap-4" noValidate onSubmit={handleSubmit}>
           <form.AppField name="code">
             {(code) => {

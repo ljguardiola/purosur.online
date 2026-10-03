@@ -237,7 +237,12 @@ test("the create action stays available while the tags load, and after they fail
 
 test("the create action opens the new tag modal, and the created tag is listed", async () => {
   const services = createServices();
-  const nuevo: TagSummary = { ...organico, id: "tag-9", name: "Sin conservantes", productCount: 0 };
+  const nuevo: TagSummary = {
+    ...organico,
+    id: "7a600000-0000-4000-8000-000000000009",
+    name: "Sin conservantes",
+    productCount: 0,
+  };
   vi.mocked(services.fetchTags)
     .mockResolvedValueOnce({ kind: "ok", value: tagList([sinTacc]) })
     .mockResolvedValueOnce({ kind: "ok", value: tagList([sinTacc, nuevo]) });
@@ -281,7 +286,10 @@ test("the edit action opens the tag's edit modal, and the saved rename is listed
   });
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
-  expect(services.editTag).toHaveBeenCalledWith("tag-1", { name: "Sin gluten", version: 1 });
+  expect(services.editTag).toHaveBeenCalledWith("7a600000-0000-4000-8000-000000000001", {
+    name: "Sin gluten",
+    version: 1,
+  });
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.element(screen.getByText("Sin gluten")).toBeVisible();
 });
@@ -322,7 +330,7 @@ test("deactivating asks first, then deactivates the tag and refreshes the list",
   });
   await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
 
-  expect(services.deactivateTag).toHaveBeenCalledWith("tag-1");
+  expect(services.deactivateTag).toHaveBeenCalledWith("7a600000-0000-4000-8000-000000000001");
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.element(screen.getByText("No hay distintivos activos")).toBeVisible();
 });
@@ -346,7 +354,7 @@ test("reactivating an inactive tag asks first, then reactivates it and refreshes
     .toBeVisible();
   await userEvent.click(dialog.getByRole("button", { name: "Reactivar" }));
 
-  expect(services.reactivateTag).toHaveBeenCalledWith("tag-3");
+  expect(services.reactivateTag).toHaveBeenCalledWith("7a600000-0000-4000-8000-000000000003");
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.poll(() => vi.mocked(services.fetchTags).mock.calls.length).toBe(2);
 });

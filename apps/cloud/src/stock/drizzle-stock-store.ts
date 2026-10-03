@@ -11,7 +11,6 @@ import type {
 import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { products, stockBalances, stockCounts, stockMovements } from "../platform/db/schema.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { appliedDeltaAfter, earliestCountAtOrAfter } from "./stock-ledger-queries.js";
 
 function balanceOf(key: ProductStockKey) {
@@ -31,9 +30,6 @@ class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   async lockProductStock(key: ProductStockKey): Promise<LockProductStockResult> {
-    if (!UUID_PATTERN.test(key.productId)) {
-      return { kind: "not_found" };
-    }
     const [product] = await this.tx
       .select({ saleUnit: products.saleUnit })
       .from(products)

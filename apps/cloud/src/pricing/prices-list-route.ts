@@ -9,6 +9,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
+import { readOptionalRecordIds } from "../platform/record-id-params.js";
 import { DrizzlePriceReviewReader } from "./drizzle-price-review-reader.js";
 
 export interface PricesRouteOptions<TQueryResult extends PgQueryResultHKT> {
@@ -55,7 +56,11 @@ export function registerPricesListRoute<TQueryResult extends PgQueryResultHKT>(
       config: { access: capabilityAccess("prices_area"), sessionSource },
     },
     async (request, reply) => {
-      const { categoryId } = request.query;
+      const ids = await readOptionalRecordIds(reply, request.query, ["categoryId"]);
+      if (!ids) {
+        return;
+      }
+      const { categoryId } = ids;
       const search = readSearchFilter(request.query.search);
       const result = await reader.pricesUnderReview({
         locationId: openSessionOf(request).locationId,

@@ -274,7 +274,25 @@ describe("PUT /users/:id", () => {
     expect(response.json()).toMatchObject({ code: "not_found" });
   });
 
-  it("answers the identical 404 for another branch's target id, a missing one, and a malformed one, changing nothing", async () => {
+  it("answers 400 validation_failed naming id for a malformed id, changing nothing", async () => {
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await editUser("not-a-uuid", rawSessionId, {
+      email: "new@example.com",
+      role_id: cashierRoleId,
+      version: 1,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "id" }],
+    });
+    const [row] = await db.select().from(users).where(eq(users.id, targetId));
+    expect(row?.email).toBe("grace@example.com");
+  });
+
+  it("answers the identical 404 for another branch's target id and a missing one, changing nothing", async () => {
     const rawSessionId = await insertSession(administratorId);
     const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
     if (!otherLocation) throw new Error("test setup: seeding the other location returned no row");
@@ -292,13 +310,10 @@ describe("PUT /users/:id", () => {
       rawSessionId,
       body,
     );
-    const malformedResponse = await editUser("not-a-uuid", rawSessionId, body);
 
     expect(crossBranchResponse.statusCode).toBe(404);
     expect(missingResponse.statusCode).toBe(404);
-    expect(malformedResponse.statusCode).toBe(404);
     expect(crossBranchResponse.json()).toEqual(missingResponse.json());
-    expect(missingResponse.json()).toEqual(malformedResponse.json());
   });
 
   it("rejects a malformed email, changing nothing", async () => {

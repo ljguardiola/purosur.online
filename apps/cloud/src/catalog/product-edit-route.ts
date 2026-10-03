@@ -8,6 +8,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
+import { readRecordIds } from "../platform/record-id-params.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 import {
@@ -45,7 +46,7 @@ export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
   const catalogStore = new DrizzleCatalogStore(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.put<{ Params: { id: string } }>(
+  app.put(
     "/products/:id",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
@@ -55,6 +56,10 @@ export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
       },
     },
     async (request, reply) => {
+      const ids = await readRecordIds(reply, request.params, ["id"]);
+      if (!ids) {
+        return;
+      }
       const parsedBody = await readValidatedBody(reply, productEditBodySchema, request.body);
       if (!parsedBody) {
         return;
@@ -62,7 +67,7 @@ export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
 
       const outcome = await editProduct(
         { store: catalogStore, clock: { now } },
-        { id: request.params.id, ...parsedBody },
+        { id: ids.id, ...parsedBody },
       );
 
       if (outcome.kind === "not_found") {

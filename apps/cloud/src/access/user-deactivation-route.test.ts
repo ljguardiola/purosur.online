@@ -223,7 +223,21 @@ describe("PUT /users/:id/deactivation", () => {
     expect(row?.active).toBe(true);
   });
 
-  it("answers the identical 404 for another branch's target id, a missing one, and a malformed one, changing nothing", async () => {
+  it("answers 400 validation_failed naming id for a malformed id, changing nothing", async () => {
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await deactivateUser("not-a-uuid", rawSessionId);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "id" }],
+    });
+    const [row] = await db.select().from(users).where(eq(users.id, targetId));
+    expect(row?.active).toBe(true);
+  });
+
+  it("answers the identical 404 for another branch's target id and a missing one, changing nothing", async () => {
     const rawSessionId = await insertSession(administratorId);
     const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
     if (!otherLocation) throw new Error("test setup: seeding the other location returned no row");
@@ -239,13 +253,10 @@ describe("PUT /users/:id/deactivation", () => {
       "00000000-0000-0000-0000-000000000000",
       rawSessionId,
     );
-    const malformedResponse = await deactivateUser("not-a-uuid", rawSessionId);
 
     expect(crossBranchResponse.statusCode).toBe(404);
     expect(missingResponse.statusCode).toBe(404);
-    expect(malformedResponse.statusCode).toBe(404);
     expect(crossBranchResponse.json()).toEqual(missingResponse.json());
-    expect(missingResponse.json()).toEqual(malformedResponse.json());
   });
 
   it("answers not_found for a target already inactive, changing nothing", async () => {

@@ -1,11 +1,11 @@
 import type { CashBalance, CashCountPreview, CloseCashSessionOutcome } from "@purosur/contracts";
-import { Button, InlineNotice, useRequestForm } from "@purosur/ui";
+import { Button, Card, InlineNotice, ScreenHeader, useRequestForm } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Lock, TriangleAlert, UserX } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { OpenSessionRail } from "../shell/open-session-rail";
-import { SessionEyebrow } from "../shell/session-eyebrow";
+import { sessionEyebrow } from "../shell/session-eyebrow";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { differenceNotice } from "./cash-amounts";
 import { CashCountStrip } from "./cash-count-strip";
@@ -119,17 +119,14 @@ export function CashCountScreen({
       />
       <form className="flex flex-1" noValidate onSubmit={handleSubmit}>
         <main className="flex flex-1 flex-col gap-4 p-8">
-          <div className="flex flex-col gap-1.5">
-            <SessionEyebrow registerName={registerName} openedAt={openedAt} />
-            <h1 className="text-display text-text-accent">Cerrar caja</h1>
-          </div>
+          <ScreenHeader eyebrow={sessionEyebrow(registerName, openedAt)} title="Cerrar caja" />
           {openSaleTotal === undefined ? null : (
             <OpenSaleBlock
               total={openSaleTotal}
               onGoToSale={() => void navigate({ to: "/session" })}
             />
           )}
-          <section className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-6">
+          <Card>
             <p className="text-body text-text-subtle">
               Contá el efectivo que hay en la caja y cargá el total.
             </p>
@@ -157,7 +154,7 @@ export function CashCountScreen({
                 title={notice.title}
               />
             )}
-          </section>
+          </Card>
         </main>
         <ExpectedCashPanel eyebrow="EFECTIVO ESPERADO" balance={balance}>
           <Button

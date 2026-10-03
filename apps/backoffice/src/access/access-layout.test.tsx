@@ -3,7 +3,7 @@ import { LifeBuoy } from "lucide-react";
 import { beforeEach, expect, test } from "vitest";
 import { page } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import { AccessFooterLink, AccessHeader, AccessLayout } from "./access-layout";
+import { AccessFooterLink, AccessLayout } from "./access-layout";
 
 // The panel's 680px basis only holds when the row is wide enough for it, so tests pin a desktop
 // viewport instead of the default phone-sized one.
@@ -70,26 +70,6 @@ test("renders the content inside a main landmark", async () => {
 
   const main = screen.getByRole("main");
   await expect.element(main.getByText("screen content")).toBeVisible();
-});
-
-test("AccessHeader renders the eyebrow, heading and optional description", async () => {
-  const screen = await render(
-    <AccessHeader eyebrow="Puro Sur" heading="Ingresar" description="Some description" />,
-  );
-
-  await expect.element(screen.getByRole("heading", { name: "Ingresar", level: 1 })).toBeVisible();
-  await expect.element(screen.getByText("Puro Sur")).toBeVisible();
-  await expect.element(screen.getByText("Some description")).toBeVisible();
-  await expectNoAccessibilityViolations(screen.container);
-});
-
-test("AccessHeader renders with no eyebrow and no description", async () => {
-  const screen = await render(<AccessHeader heading="Registrá una passkey nueva" />);
-
-  await expect
-    .element(screen.getByRole("heading", { name: "Registrá una passkey nueva", level: 1 }))
-    .toBeVisible();
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("AccessFooterLink navigates through the router and shows its icon and label", async () => {

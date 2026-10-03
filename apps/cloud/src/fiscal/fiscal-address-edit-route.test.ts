@@ -128,7 +128,21 @@ describe("PUT /fiscal-addresses/:id", () => {
     });
   });
 
-  it.each(["7c9e6679-7425-40de-944b-e07fc1f90ae7", "not-a-uuid"])(
+  it("answers 400 validation_failed naming id for a malformed id, changing nothing", async () => {
+    await insertFiscalAddress();
+    const session = await sessionWith(["change_fiscal_configuration"]);
+
+    const response = await editFiscalAddress("not-a-uuid", body, session.headers);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "id" }],
+    });
+    expect(await db.select().from(fiscalAddresses)).toMatchObject([{ name: "Deposito Central" }]);
+  });
+
+  it.each(["7c9e6679-7425-40de-944b-e07fc1f90ae7"])(
     "answers 404 not_found for the id %s",
     async (id) => {
       const session = await sessionWith(["change_fiscal_configuration"]);

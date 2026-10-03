@@ -1,8 +1,10 @@
-import { Info } from "lucide-react";
-import { expect, expectTypeOf, test } from "vitest";
+import { Info, X } from "lucide-react";
+import { expect, expectTypeOf, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { AA_TEXT_CONTRAST, contrastRatio } from "../../styles/contrast";
+import { expectNoAccessibilityViolations } from "../../test/axe";
 import { rgbToHex, tokenRgb } from "../../test/token-colors";
+import { Button } from "../forms/button";
 import type { Icon } from "../shared/icon";
 import type { NoticeTone } from "../shared/tone";
 import { HighlightedNotice, type HighlightedNoticeProps } from "./highlighted-notice";
@@ -201,4 +203,102 @@ test("announces every other tone politely, after the current speech ends", async
 
 test("does not name its secondary text detail", () => {
   expectTypeOf<HighlightedNoticeProps>().not.toHaveProperty("detail");
+});
+
+function noticeWithAction(onPress: () => void = () => {}) {
+  return (
+    <HighlightedNotice
+      tone="error"
+      icon={<Info />}
+      title="Sale open"
+      description="Cancel it to close"
+      actions={
+        <Button variant="secondary" icon={<X />} onPress={onPress}>
+          Cancel the sale
+        </Button>
+      }
+    />
+  );
+}
+
+test("places the action 12px below the text, aligned with its left edge", async () => {
+  const screen = await render(noticeWithAction());
+  const title = screen.getByText("Sale open", { exact: true }).first().element() as HTMLElement;
+  const textStack = title.parentElement as HTMLElement;
+  const button = screen.getByRole("button", { name: "Cancel the sale" }).element();
+
+  const textRect = textStack.getBoundingClientRect();
+  const buttonRect = button.getBoundingClientRect();
+  expect(buttonRect.top - textRect.bottom).toBeGreaterThan(11);
+  expect(buttonRect.top - textRect.bottom).toBeLessThan(13);
+  expect(buttonRect.left).toBe(textRect.left);
+});
+
+test("keeps the action inside the notice's box", async () => {
+  const screen = await render(noticeWithAction());
+  const notice = screen.container.firstElementChild as HTMLElement;
+  const button = screen.getByRole("button", { name: "Cancel the sale" }).element();
+
+  const noticeRect = notice.getBoundingClientRect();
+  const buttonRect = button.getBoundingClientRect();
+  expect(buttonRect.bottom).toBeLessThanOrEqual(noticeRect.bottom - 15);
+  expect(buttonRect.right).toBeLessThanOrEqual(noticeRect.right);
+});
+
+test("lets the action be found by role and pressed", async () => {
+  const onPress = vi.fn();
+  const screen = await render(noticeWithAction(onPress));
+
+  await screen.getByRole("button", { name: "Cancel the sale" }).click();
+
+  expect(onPress).toHaveBeenCalledTimes(1);
+});
+
+test("still exposes the notice's text exactly once when it has an action", async () => {
+  const screen = await render(noticeWithAction());
+
+  expect(screen.getByRole("paragraph").elements()).toHaveLength(0);
+  const region = screen.container.querySelector('[role="alert"]') as HTMLElement;
+  await expect.poll(() => region.textContent).toBe("Sale open Cancel it to close");
+});
+
+test("renders no row for actions when none are given", async () => {
+  const noActions: ReadonlyArray<[string, Partial<HighlightedNoticeProps>]> = [
+    ["omitted", {}],
+    ["undefined", { actions: undefined }],
+    ["null", { actions: null }],
+    ["false", { actions: false }],
+  ];
+
+  for (const [label, props] of noActions) {
+    const screen = await render(
+      <HighlightedNotice
+        tone="error"
+        icon={<Info />}
+        title="Title"
+        description="Detail"
+        {...props}
+      />,
+    );
+    const notice = screen.container.firstElementChild as HTMLElement;
+
+    expect(notice.querySelector("button"), `${label} button`).toBeNull();
+    expect(notice.querySelector(".flex-wrap"), `${label} row`).toBeNull();
+  }
+});
+
+test("has no accessibility violations with an action", async () => {
+  const screen = await render(noticeWithAction());
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("accepts actions that are explicitly undefined", () => {
+  expectTypeOf<{
+    tone: "error";
+    icon: Icon;
+    title: string;
+    description: string;
+    actions: undefined;
+  }>().toExtend<HighlightedNoticeProps>();
 });

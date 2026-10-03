@@ -2,7 +2,6 @@ import type { DiscountReader, StoredDiscount } from "@purosur/domain/pricing/use
 import { asc, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { categories, discounts, products, tags } from "../platform/db/schema.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { storedBenefit } from "./drizzle-discount-store.js";
 
 function targetOf(discount: typeof discounts.$inferSelect, name: string): StoredDiscount["target"] {
@@ -32,9 +31,6 @@ export class DrizzleDiscountReader<TQueryResult extends PgQueryResultHKT>
   }
 
   async discount(id: string): Promise<StoredDiscount | undefined> {
-    if (!UUID_PATTERN.test(id)) {
-      return undefined;
-    }
     const [found] = await this.read(id);
     return found;
   }
