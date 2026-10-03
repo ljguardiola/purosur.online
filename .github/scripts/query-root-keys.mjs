@@ -327,7 +327,7 @@ function rootTracer(checker, tools, references) {
 
   const trace = (expression, seen = new Set(), property = undefined) => {
     const node = unwrapped(expression);
-    if (property !== undefined && tools.lacksProperty(node, property)) return [];
+    if (property !== undefined && tools.lacksProperty(expression, property)) return [];
     if (ts.isArrayLiteralExpression(node)) {
       const first = node.elements[0];
       if (first === undefined) return [UNREADABLE];
