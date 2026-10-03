@@ -101,6 +101,16 @@ function checkerTools(checker) {
     return declaresQueryKey(propertyDeclarationOf(checker.getTypeAtLocation(element.parent), name));
   };
 
+  const queryKeyProperties = (type) =>
+    (type?.getNonNullableType().getProperties() ?? [])
+      .map((property) => property.getName())
+      .filter((name) => declaresQueryKey(propertyDeclarationOf(type, name)));
+
+  const parameterOf = (call, argument) => {
+    const parameters = checker.getResolvedSignature(call)?.getDeclaration()?.parameters ?? [];
+    return parameters[Math.min(call.arguments.indexOf(argument), parameters.length - 1)];
+  };
+
   const isQueryKeyPosition = (node) => {
     const parent = node.parent;
     if (ts.isParameter(parent) && parent.initializer === node) return declaresQueryKey(parent);
@@ -124,11 +134,25 @@ function checkerTools(checker) {
       );
     }
     if (ts.isCallExpression(parent) && parent.arguments.includes(node)) {
-      const parameters = checker.getResolvedSignature(parent)?.getDeclaration()?.parameters ?? [];
-      const index = parent.arguments.indexOf(node);
-      return declaresQueryKey(parameters[Math.min(index, parameters.length - 1)]);
+      return declaresQueryKey(parameterOf(parent, node));
     }
     return false;
+  };
+
+  const queryKeyPropertiesAt = (node) => {
+    const parent = node.parent;
+    if (ts.isJsxSpreadAttribute(parent) || ts.isSpreadAssignment(parent)) {
+      return queryKeyProperties(checker.getContextualType(parent.parent));
+    }
+    if (
+      ts.isCallExpression(parent) &&
+      parent.arguments.includes(node) &&
+      !ts.isObjectLiteralExpression(unwrapped(node))
+    ) {
+      const parameter = parameterOf(parent, node);
+      return queryKeyProperties(parameter && checker.getTypeAtLocation(parameter.name));
+    }
+    return [];
   };
 
   const isQueryKeyShorthand = (node) =>
@@ -144,6 +168,7 @@ function checkerTools(checker) {
     declaresQueryKey,
     propertyDeclarationOf,
     isQueryKeyPosition,
+    queryKeyPropertiesAt,
     isQueryKeyShorthand,
   };
 }
@@ -171,10 +196,10 @@ function referenceIndex(checker, tools, sourceFiles) {
 }
 
 function isCallOrNaming(reference) {
-  const node =
-    ts.isPropertyAccessExpression(reference.parent) && reference.parent.name === reference
-      ? reference.parent
-      : reference;
+  const lifted =
+    (ts.isPropertyAccessExpression(reference.parent) && reference.parent.name === reference) ||
+    (ts.isQualifiedName(reference.parent) && reference.parent.right === reference);
+  const node = lifted ? reference.parent : reference;
   const parent = node.parent;
   return (
     (ts.isCallExpression(parent) && parent.expression === node) ||
@@ -273,7 +298,10 @@ function rootTracer(checker, tools, references) {
     }
     if (ts.isObjectLiteralExpression(node)) {
       const member = node.properties.find((candidate) => candidate.name?.getText() === property);
-      return traceDeclaration(member, seen);
+      if (member !== undefined) return traceDeclaration(member, seen);
+      return node.properties
+        .filter(ts.isSpreadAssignment)
+        .flatMap((spread) => trace(spread.expression, seen, property));
     }
     if (ts.isIdentifier(node)) return traceDeclaration(declarationAt(node), seen, property);
     if (ts.isPropertyAccessExpression(node)) {
@@ -357,6 +385,11 @@ export function findQueryRootKeyProblems(
     const visit = (node) => {
       if (tools.isQueryKeyShorthand(node)) report(node, trace(node.name));
       else if (ts.isExpression(node) && tools.isQueryKeyPosition(node)) report(node, trace(node));
+      if (ts.isExpression(node)) {
+        for (const property of tools.queryKeyPropertiesAt(node)) {
+          report(node, trace(node, new Set(), property));
+        }
+      }
       ts.forEachChild(node, visit);
     };
     visit(sourceFile);
