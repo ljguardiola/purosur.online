@@ -152,13 +152,13 @@ function checkerTools(checker) {
         writers.push(member);
         break;
       }
-      const property = checker
-        .getTypeAtLocation(member.expression)
-        .getNonNullableType()
-        .getProperty(name);
-      if (property === undefined) continue;
+      const type = checker.getTypeAtLocation(member.expression);
+      const properties = (type.isUnion() ? type.types : [type]).map((constituent) =>
+        constituent.getProperty(name),
+      );
+      if (properties.every((property) => property === undefined)) continue;
       writers.push(member);
-      if (!mayBeMissing(property)) break;
+      if (properties.every((property) => property !== undefined && !mayBeMissing(property))) break;
     }
     return writers;
   };
@@ -342,6 +342,18 @@ function rootTracer(checker, tools, references) {
         : traceDeclaration(declaration, seen, property);
     }
     if (ts.isCallExpression(node)) return traceCall(node, seen, property);
+    if (ts.isBinaryExpression(node)) {
+      const operator = node.operatorToken.kind;
+      if (operator === ts.SyntaxKind.AmpersandAmpersandToken) {
+        return trace(node.right, seen, property);
+      }
+      if (
+        operator === ts.SyntaxKind.BarBarToken ||
+        operator === ts.SyntaxKind.QuestionQuestionToken
+      ) {
+        return [...trace(node.left, seen, property), ...trace(node.right, seen, property)];
+      }
+    }
     if (ts.isConditionalExpression(node)) {
       return [...trace(node.whenTrue, seen, property), ...trace(node.whenFalse, seen, property)];
     }
