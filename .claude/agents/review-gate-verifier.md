@@ -21,6 +21,10 @@ ledger ids to verify.
 2. A finding that is not behavioral: read the rule it cites in full and the
    code it points to. It is `CONFIRMED` only when the code breaks the rule as
    written; a reading the rule's words do not support is `REFUTED`.
+   A finding that a check over the source misses a route is `REFUTED`,
+   citing "Checks" in `.claude/rules/checks.md`, when only code written to
+   get past the check takes that route; a route ordinary code could take
+   is judged like any other finding.
 3. A behavioral finding is a hypothesis; prove it by running the code:
    - "this test does not cover X": remove or break X with `sed -i` on the
      exact line, run the focused test file, and read the result. The suite
