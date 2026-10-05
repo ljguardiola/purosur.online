@@ -2,6 +2,7 @@ import type { CashBalance } from "@purosur/contracts";
 import type { SummaryRowGroupProps } from "@purosur/ui";
 import {
   Eyebrow,
+  FigureStat,
   formatCents,
   LoadFailure,
   LoadingPlaceholder,
@@ -33,10 +34,10 @@ function rowsOf(balance: CashBalance): SummaryRowGroupProps["rows"] {
   ];
 }
 
-function Balance({ balance }: { balance: CashBalance }) {
+function Balance({ eyebrow, balance }: { eyebrow: string; balance: CashBalance }) {
   return (
     <>
-      <p className="text-display font-bold text-text-accent">{formatCents(balance.expected)}</p>
+      <FigureStat label={eyebrow} value={formatCents(balance.expected)} />
       <SummaryRowGroup rows={rowsOf(balance)} />
     </>
   );
@@ -45,17 +46,24 @@ function Balance({ balance }: { balance: CashBalance }) {
 export function ExpectedCashPanel({ eyebrow, balance, children }: ExpectedCashPanelProps) {
   return (
     <SidePanel footer={children ?? undefined}>
-      <Eyebrow text={eyebrow} />
-      {balance.status === "loading" ? <LoadingPlaceholder variant="card" lines={4} /> : null}
-      {balance.status === "failed" ? (
-        <LoadFailure
-          icon={<TriangleAlert />}
-          title="No se pudo leer el efectivo esperado"
-          description="Volvé a intentarlo en unos segundos."
-          onRetry={balance.retry}
-        />
+      {balance.status === "loading" ? (
+        <>
+          <FigureStat label={eyebrow} loading />
+          <LoadingPlaceholder variant="card" lines={4} />
+        </>
       ) : null}
-      {balance.status === "loaded" ? <Balance balance={balance.value} /> : null}
+      {balance.status === "failed" ? (
+        <>
+          <Eyebrow text={eyebrow} />
+          <LoadFailure
+            icon={<TriangleAlert />}
+            title="No se pudo leer el efectivo esperado"
+            description="Volvé a intentarlo en unos segundos."
+            onRetry={balance.retry}
+          />
+        </>
+      ) : null}
+      {balance.status === "loaded" ? <Balance eyebrow={eyebrow} balance={balance.value} /> : null}
     </SidePanel>
   );
 }

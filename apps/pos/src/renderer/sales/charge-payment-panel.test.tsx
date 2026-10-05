@@ -2,6 +2,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { expectDrawnAsFigureStat } from "../platform/test-support/figure-stat";
 import { ChargePaymentPanel } from "./charge-payment-panel";
 
 describe("ChargePaymentPanel", () => {
@@ -17,6 +18,15 @@ describe("ChargePaymentPanel", () => {
     await expect.element(panel.getByText("$ 0,00")).toBeVisible();
     await expect.element(panel.getByText("Saldo pendiente")).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("draws the total as the design system's figure stat", async () => {
+    const screen = await render(<ChargePaymentPanel total={476_000} paid={0} />);
+
+    await expectDrawnAsFigureStat(
+      screen.getByText("Total a cobrar").element(),
+      screen.getByText("$ 4.760,00").first().element(),
+    );
   });
 
   it("goes back to the sale from Volver a la venta", async () => {
