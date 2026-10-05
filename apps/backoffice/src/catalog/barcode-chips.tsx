@@ -1,4 +1,4 @@
-import { isInternalBarcode } from "@purosur/domain";
+import { internalBarcodeSchema } from "@purosur/contracts";
 import { FieldGroup, fieldErrorMessage, IconButton, useFieldContext } from "@purosur/ui";
 import { Barcode, ScanBarcode, X } from "lucide-react";
 import { type KeyboardEvent, useId, useRef, useState } from "react";
@@ -34,7 +34,7 @@ function scanProblemMessage(code: string, listed: string[]): string | undefined 
 }
 
 function hasInternalBarcode(barcodes: string[]): boolean {
-  return barcodes.some(isInternalBarcode);
+  return barcodes.some((code) => internalBarcodeSchema.shape.code.safeParse(code).success);
 }
 
 export function useBarcodeChips({ list, latest, setList }: BarcodeListControl) {
