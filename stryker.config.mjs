@@ -8,6 +8,7 @@ export default {
     "packages/domain/src/**/*.ts",
     "packages/contracts/src/**/*.ts",
     "!packages/*/src/**/*.test.ts",
+    "!packages/*/src/**/test-support/**",
   ],
   ignorePatterns: [
     "/*",
