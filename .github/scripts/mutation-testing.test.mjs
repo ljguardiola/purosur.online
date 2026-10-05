@@ -147,7 +147,9 @@ async function runMutationOnFixture() {
     );
     await writeFixtureFile(dir, ".env", "DATABASE_URL=postgres://local\n");
     await writeFixtureFile(dir, "apps/cloud/dist/server.js", "export {};\n");
-    await cp(join(repoRoot, "vitest.mutation.config.ts"), join(dir, "vitest.mutation.config.ts"));
+    for (const mutationConfigFile of ["vitest.mutation.config.ts", "tsconfig.mutation.json"]) {
+      await cp(join(repoRoot, mutationConfigFile), join(dir, mutationConfigFile));
+    }
     for (const guardFile of ["without-package-output.mjs", "without-package-output.d.mts"]) {
       await cp(
         join(repoRoot, ".github/scripts", guardFile),
