@@ -1,6 +1,8 @@
+import type { PermissionCatalogWire } from "@purosur/contracts";
 import type { PublicKeyCredentialCreationOptionsJSON } from "@simplewebauthn/browser";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import type { fetchPermissionCatalog } from "../platform/permission-catalog-api";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchPasskeys, Passkey } from "./passkey-api";
@@ -13,6 +15,7 @@ const accessKey = ["access"] as const;
 const accessKeys = {
   users: [...accessKey, "users"] as const,
   roles: [...accessKey, "roles"] as const,
+  permissionCatalog: [...accessKey, "permission-catalog"] as const,
   ownPasskeys: [...accessKey, "own-passkeys"] as const,
   role: (id: string) => [...accessKey, "role", id] as const,
   user: (id: string) => [...accessKey, "user", id] as const,
@@ -43,6 +46,19 @@ export function useRolesQuery(params: {
   return useCloudQuery<RoleSummary[]>({
     queryKey: accessKeys.roles,
     read: params.fetchRoles,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function usePermissionCatalogQuery(params: {
+  fetchPermissionCatalog: typeof fetchPermissionCatalog;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<PermissionCatalogWire>({
+    queryKey: accessKeys.permissionCatalog,
+    read: params.fetchPermissionCatalog,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

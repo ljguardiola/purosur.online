@@ -1,12 +1,14 @@
-import { PERMISSION_KEYS } from "@purosur/domain";
+import type { PermissionCatalogWire } from "@purosur/contracts";
 import { actionsColumn, Button, dataColumn, plural, Table, useTableModel } from "@purosur/ui";
 import { Copy, Lock, Pencil, Plus, Shield } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { combineCloudData } from "../platform/combine-cloud-data";
 import { roleDisplayName } from "../platform/role-display-name";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
-import { useRefreshAccess, useRolesQuery } from "./access-queries";
+import { usePermissionCatalogQuery, useRefreshAccess, useRolesQuery } from "./access-queries";
+import { permissionsOf } from "./permission-catalog";
 import { RoleEditorModal, type RoleEditorRequest } from "./role-editor-modal";
 import type { RoleSummary } from "./roles-api";
 import type { RolesListScreenServices } from "./roles-list-services";
@@ -16,15 +18,15 @@ export type RolesListScreenProps = {
   services: RolesListScreenServices;
 };
 
-const NO_ROLES: RoleSummary[] = [];
+const NOTHING_LOADED: [RoleSummary[], PermissionCatalogWire] = [[], []];
 
-function permissionsCellContent(role: RoleSummary) {
+function permissionsCellContent(role: RoleSummary, permissionCount: number) {
   return role.isAdministrator
     ? "Todos los permisos"
-    : `${role.permissionKeys.length} de ${PERMISSION_KEYS.length} permisos`;
+    : `${role.permissionKeys.length} de ${permissionCount} permisos`;
 }
 
-function columnsFor(openEditor: (request: RoleEditorRequest) => void) {
+function columnsFor(openEditor: (request: RoleEditorRequest) => void, permissionCount: number) {
   return [
     dataColumn({
       id: "role",
@@ -42,7 +44,7 @@ function columnsFor(openEditor: (request: RoleEditorRequest) => void) {
     dataColumn({
       id: "permissions",
       header: "Permisos",
-      render: (item: RoleSummary) => permissionsCellContent(item),
+      render: (item: RoleSummary) => permissionsCellContent(item, permissionCount),
     }),
     dataColumn({
       id: "users",
@@ -78,8 +80,11 @@ function columnsFor(openEditor: (request: RoleEditorRequest) => void) {
 }
 
 export function RolesListScreen({ onSessionEnded, services }: RolesListScreenProps) {
-  const { fetchRoles, roleEditorModal } = services;
-  const data = useRolesQuery({ fetchRoles, onSessionEnded });
+  const { fetchRoles, fetchPermissionCatalog, roleEditorModal } = services;
+  const data = combineCloudData(
+    useRolesQuery({ fetchRoles, onSessionEnded }),
+    usePermissionCatalogQuery({ fetchPermissionCatalog, onSessionEnded }),
+  );
   const refreshAccess = useRefreshAccess();
   const [editorRequest, setEditorRequest] = useState<RoleEditorRequest | null>(null);
 
@@ -89,11 +94,11 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
     }
   }, [data.status]);
 
-  const roles = data.status === "loaded" ? data.value : NO_ROLES;
+  const [roles, catalog] = data.status === "loaded" ? data.value : NOTHING_LOADED;
   const table = useTableModel({
     items: roles,
     id: (role) => role.id,
-    columns: columnsFor(setEditorRequest),
+    columns: columnsFor(setEditorRequest, permissionsOf(catalog).length),
   });
 
   return (

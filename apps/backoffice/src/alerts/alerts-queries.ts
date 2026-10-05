@@ -1,6 +1,12 @@
-import type { AlertDetail, AlertListPage, AlertsOverview } from "@purosur/contracts";
+import type {
+  AlertDetail,
+  AlertListPage,
+  AlertsOverview,
+  PermissionCatalogWire,
+} from "@purosur/contracts";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import type { fetchPermissionCatalog } from "../platform/permission-catalog-api";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useCloudQuery } from "../platform/use-cloud-query";
 import type { AlertListQuery, fetchAlert, fetchAlerts, fetchAlertsOverview } from "./alerts-api";
@@ -14,7 +20,21 @@ export const alertsKeys = {
   lists: alertListsKey,
   list: (query: AlertListQuery) => [...alertListsKey, query] as const,
   detail: (id: string) => [...alertsKey, "detail", id] as const,
+  permissionCatalog: [...alertsKey, "permission-catalog"] as const,
 };
+
+export function usePermissionCatalogQuery(params: {
+  fetchPermissionCatalog: typeof fetchPermissionCatalog;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<PermissionCatalogWire>({
+    queryKey: alertsKeys.permissionCatalog,
+    read: params.fetchPermissionCatalog,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
 
 export type AlertRead = { kind: "found"; alert: AlertDetail } | { kind: "not_found" };
 

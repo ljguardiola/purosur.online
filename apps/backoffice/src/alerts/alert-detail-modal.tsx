@@ -1,10 +1,9 @@
-import { type AlertDetail, alertDetailSchema } from "@purosur/contracts";
 import {
-  type AlertLevel,
-  isPermissionKey,
-  PERMISSION_CATALOG,
-  type PermissionKey,
-} from "@purosur/domain";
+  type AlertDetail,
+  alertDetailSchema,
+  type PermissionCatalogWire,
+} from "@purosur/contracts";
+import type { AlertLevel } from "@purosur/domain";
 import {
   Button,
   EmptyState,
@@ -31,6 +30,7 @@ import {
 } from "lucide-react";
 import { type ReactElement, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import { fetchPermissionCatalog as fetchPermissionCatalogDefault } from "../platform/permission-catalog-api";
 import { AREA_LABELS, PERMISSION_LABELS } from "../platform/permission-labels";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { roleDisplayName } from "../platform/role-display-name";
@@ -39,7 +39,12 @@ import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { type BackofficeAccess, canCloseAlertsManually } from "../shell/backoffice-access";
 import { ALERT_LEVEL_TONE } from "./alert-level-tone";
 import { closeAlert as closeAlertDefault, fetchAlert as fetchAlertDefault } from "./alerts-api";
-import { useAlertQuery, useRefreshAlerts, useRefreshAlertsAfterClosing } from "./alerts-queries";
+import {
+  useAlertQuery,
+  usePermissionCatalogQuery,
+  useRefreshAlerts,
+  useRefreshAlertsAfterClosing,
+} from "./alerts-queries";
 
 type Icon = ReactElement<{ className?: string }>;
 
@@ -72,11 +77,13 @@ export const ALERT_LEVEL_LABELS: Record<AlertLevel, string> = {
 
 export type AlertDetailModalServices = {
   fetchAlert: typeof fetchAlertDefault;
+  fetchPermissionCatalog: typeof fetchPermissionCatalogDefault;
   closeAlert: typeof closeAlertDefault;
 };
 
 const defaultAlertDetailModalServices: AlertDetailModalServices = {
   fetchAlert: fetchAlertDefault,
+  fetchPermissionCatalog: fetchPermissionCatalogDefault,
   closeAlert: closeAlertDefault,
 };
 
@@ -118,24 +125,30 @@ function alertIcon(kind: string): Icon {
 }
 
 // Many permission labels only read clearly under their area's heading, as the role editor shows them.
-function permissionLabelWithArea(key: PermissionKey): string {
-  const definition = PERMISSION_CATALOG.find((permission) => permission.key === key);
-  const label = PERMISSION_LABELS[key];
-  return definition ? `${AREA_LABELS[definition.area]}: ${label}` : label;
-}
-
-function permissionLabels(keys: readonly string[]): string[] | undefined {
-  if (keys.length === 0 || !keys.every(isPermissionKey)) {
+function permissionLabels(
+  catalog: PermissionCatalogWire,
+  keys: readonly string[],
+): string[] | undefined {
+  const labelsWithArea = new Map<string, string>(
+    catalog.flatMap(({ area, permissions }) =>
+      permissions.map(({ key }) => [key, `${AREA_LABELS[area]}: ${PERMISSION_LABELS[key]}`]),
+    ),
+  );
+  if (keys.length === 0 || !keys.every((key) => labelsWithArea.has(key))) {
     return undefined;
   }
-  return keys.map((key) => `«${permissionLabelWithArea(key)}»`);
+  return keys.map((key) => `«${labelsWithArea.get(key)}»`);
 }
 
 const PERMISSION_LIST_FORMAT = new Intl.ListFormat("es-AR", { type: "conjunction" });
 
 type AccessIncreasedAlert = Extract<AlertDetail, { kind: "user_access_increased" }>;
 
-function accessIncreaseDescription(detail: AccessIncreasedAlert["detail"], targetName: string) {
+function accessIncreaseDescription(
+  detail: AccessIncreasedAlert["detail"],
+  targetName: string,
+  catalog: PermissionCatalogWire,
+) {
   const { actorName } = detail;
   if (actorName === undefined) {
     return "";
@@ -146,7 +159,7 @@ function accessIncreaseDescription(detail: AccessIncreasedAlert["detail"], targe
     case "role_assigned":
       return `El Administrador ${actorName} cambió el rol de ${targetName} de «${roleDisplayName(detail.previousRole)}» a «${roleDisplayName(detail.newRole)}», que le da permisos que no tenía.`;
     case "role_permissions_added": {
-      const labels = permissionLabels(detail.addedPermissionKeys);
+      const labels = permissionLabels(catalog, detail.addedPermissionKeys);
       if (labels === undefined) {
         return "";
       }
@@ -191,7 +204,7 @@ function alertTitle(alert: AlertDetail): string {
   }
 }
 
-function alertDescription(alert: AlertDetail): string {
+function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = []): string {
   if (alert.kind === "backoffice_sign_in_lockout") {
     const { failureCount } = alert.detail;
     const failuresText = plural(failureCount, {
@@ -230,10 +243,29 @@ function alertDescription(alert: AlertDetail): string {
         : `El Administrador ${actorName} cambió el correo de ${targetName} de ${previousEmail} a ${newEmail}.`;
     }
     case "user_access_increased":
-      return accessIncreaseDescription(alert.detail, targetName);
+      return accessIncreaseDescription(alert.detail, targetName, catalog);
     case "register_enrolled":
       return registerEnrollmentDescription(alert.detail, targetName);
   }
+}
+
+function PermissionsAddedDescription({
+  alert,
+  fetchPermissionCatalog,
+  onSessionEnded,
+}: {
+  alert: AlertDetail;
+  fetchPermissionCatalog: typeof fetchPermissionCatalogDefault;
+  onSessionEnded: () => void;
+}) {
+  const data = usePermissionCatalogQuery({ fetchPermissionCatalog, onSessionEnded });
+  if (data.status === "loading") {
+    return <LoadingPlaceholder variant="card" lines={2} />;
+  }
+  if (data.status === "failed") {
+    return <LoadFailure {...cloudLoadFailure(data, "los permisos")} />;
+  }
+  return <p className="text-text text-body">{alertDescription(alert, data.value)}</p>;
 }
 
 export function AlertDetailModal(props: AlertDetailModalProps) {
@@ -252,7 +284,8 @@ function OpenAlertDetailModal({
   services,
 }: Omit<AlertDetailModalProps, "alertId"> & { alertId: string }) {
   const sendToMyAccount = useSendToMyAccount();
-  const { fetchAlert, closeAlert } = services ?? defaultAlertDetailModalServices;
+  const { fetchAlert, fetchPermissionCatalog, closeAlert } =
+    services ?? defaultAlertDetailModalServices;
   const data = useAlertQuery({ id: alertId, fetchAlert, onSessionEnded });
   const refreshAlerts = useRefreshAlerts();
   const refreshAlertsAfterClosing = useRefreshAlertsAfterClosing();
@@ -377,7 +410,16 @@ function OpenAlertDetailModal({
                 {levelLabel(alert.level)}
               </StatusIndicator>
             </div>
-            <p className="text-text text-body">{alertDescription(alert)}</p>
+            {alert.kind === "user_access_increased" &&
+            alert.detail.cause === "role_permissions_added" ? (
+              <PermissionsAddedDescription
+                alert={alert}
+                fetchPermissionCatalog={fetchPermissionCatalog}
+                onSessionEnded={onSessionEnded}
+              />
+            ) : (
+              <p className="text-text text-body">{alertDescription(alert)}</p>
+            )}
             <div className="flex flex-col gap-1 rounded-lg border border-border p-3 text-detail">
               <div className="flex justify-between gap-2">
                 <span className="text-text-subtle">Abierta</span>

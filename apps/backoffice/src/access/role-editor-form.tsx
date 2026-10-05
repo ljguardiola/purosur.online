@@ -1,15 +1,10 @@
-import {
-  PERMISSION_AREAS,
-  PERMISSION_CATALOG,
-  type PermissionArea,
-  type PermissionDefinition,
-  type PermissionKey,
-  withRequiredPermissions,
-} from "@purosur/domain";
+import type { PermissionCatalogWire } from "@purosur/contracts";
+import type { PermissionArea, PermissionKey } from "@purosur/domain";
 import { Checkbox, Focusable, RadioGroup, Tag, Tooltip } from "@purosur/ui";
 import { KeyRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { AREA_LABELS, PERMISSION_LABELS } from "../platform/permission-labels";
+import { type CataloguedPermission, withRequiredPermissions } from "./permission-catalog";
 import { permissionRequirementNote } from "./permission-requirement-note";
 
 type AlertsViewOption = "none" | "view_branch_alerts" | "view_all_alerts";
@@ -23,23 +18,8 @@ const ALERTS_RADIO_OPTIONS: readonly [
   { value: "view_all_alerts", label: "Ver todas las alertas" },
 ];
 
-function definitionsByArea(area: PermissionArea): PermissionDefinition[] {
-  return PERMISSION_CATALOG.filter((definition) => definition.area === area);
-}
-
-export function areaSelectedCount(
-  area: PermissionArea,
-  selected: ReadonlySet<PermissionKey>,
-): { count: number; total: number } {
-  const definitions = definitionsByArea(area);
-  return {
-    count: definitions.filter((d) => selected.has(d.key)).length,
-    total: definitions.length,
-  };
-}
-
-function PermissionTags({ definition }: { definition: PermissionDefinition }) {
-  if (definition.registerMarker === "none") {
+function PermissionTags({ permission }: { permission: CataloguedPermission }) {
+  if (permission.register_marker === "none") {
     return null;
   }
   return (
@@ -52,7 +32,7 @@ function PermissionTags({ definition }: { definition: PermissionDefinition }) {
           </Tag>
         </Focusable>
       </Tooltip>
-      {definition.registerMarker === "register_with_another_persons_pin" && (
+      {permission.register_marker === "register_with_another_persons_pin" && (
         <Tooltip description="En la caja, si quien atiende no tiene el permiso, lo autoriza con su PIN alguien que sí lo tenga.">
           <Focusable>
             <Tag tone="info" icon={<KeyRound aria-hidden="true" />} role="img" aria-label="PIN">
@@ -66,12 +46,12 @@ function PermissionTags({ definition }: { definition: PermissionDefinition }) {
 }
 
 function PermissionRow({
-  definition,
+  permission,
   checked,
   requirementNote,
   onToggle,
 }: {
-  definition: PermissionDefinition;
+  permission: CataloguedPermission;
   checked: boolean;
   requirementNote: string | undefined;
   onToggle: (checked: boolean) => void;
@@ -85,10 +65,10 @@ function PermissionRow({
           disabled={requirementNote !== undefined}
           {...(requirementNote !== undefined ? { description: requirementNote } : {})}
         >
-          {PERMISSION_LABELS[definition.key]}
+          {PERMISSION_LABELS[permission.key]}
         </Checkbox>
       </div>
-      <PermissionTags definition={definition} />
+      <PermissionTags permission={permission} />
     </div>
   );
 }
@@ -144,16 +124,19 @@ function AlertsAreaList({
 
 function AreaRow({
   area,
+  permissions,
   active,
   onSelect,
   selected,
 }: {
   area: PermissionArea;
+  permissions: CataloguedPermission[];
   active: boolean;
   onSelect: () => void;
   selected: ReadonlySet<PermissionKey>;
 }) {
-  const { count, total } = areaSelectedCount(area, selected);
+  const count = permissions.filter(({ key }) => selected.has(key)).length;
+  const total = permissions.length;
   return (
     <button
       type="button"
@@ -176,6 +159,7 @@ function AreaRow({
 }
 
 export type RoleEditorFormProps = {
+  catalog: PermissionCatalogWire;
   nameField: ReactNode;
   selected: ReadonlySet<PermissionKey>;
   onSelectedChange: (next: ReadonlySet<PermissionKey>) => void;
@@ -184,6 +168,7 @@ export type RoleEditorFormProps = {
 };
 
 export function RoleEditorForm({
+  catalog,
   nameField,
   selected,
   onSelectedChange,
@@ -191,7 +176,7 @@ export function RoleEditorForm({
   onSelectedAreaChange,
 }: RoleEditorFormProps) {
   function changeSelected(next: ReadonlySet<PermissionKey>) {
-    onSelectedChange(withRequiredPermissions(next));
+    onSelectedChange(withRequiredPermissions(catalog, next));
   }
 
   function togglePermission(key: PermissionKey, checked: boolean) {
@@ -204,7 +189,7 @@ export function RoleEditorForm({
     changeSelected(next);
   }
 
-  const definitions = definitionsByArea(selectedArea);
+  const selectedPermissions = catalog.find(({ area }) => area === selectedArea)?.permissions ?? [];
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -214,10 +199,11 @@ export function RoleEditorForm({
           aria-label="Áreas de permisos"
           className="flex w-70 shrink-0 flex-col gap-1 overflow-y-auto border-border border-r bg-surface-subtle p-3"
         >
-          {PERMISSION_AREAS.map((area) => (
+          {catalog.map(({ area, permissions }) => (
             <AreaRow
               key={area}
               area={area}
+              permissions={permissions}
               active={area === selectedArea}
               onSelect={() => onSelectedAreaChange(area)}
               selected={selected}
@@ -230,13 +216,13 @@ export function RoleEditorForm({
             {selectedArea === "alerts" ? (
               <AlertsAreaList selected={selected} onSelectedChange={changeSelected} />
             ) : (
-              definitions.map((definition) => (
+              selectedPermissions.map((permission) => (
                 <PermissionRow
-                  key={definition.key}
-                  definition={definition}
-                  checked={selected.has(definition.key)}
-                  requirementNote={permissionRequirementNote(definition.key, selected)}
-                  onToggle={(checked) => togglePermission(definition.key, checked)}
+                  key={permission.key}
+                  permission={permission}
+                  checked={selected.has(permission.key)}
+                  requirementNote={permissionRequirementNote(catalog, permission.key, selected)}
+                  onToggle={(checked) => togglePermission(permission.key, checked)}
                 />
               ))
             )}
