@@ -171,11 +171,16 @@ describe("ExpectedCashPanel", () => {
     expect(figure?.getAttribute("aria-busy")).toBe("true");
   });
 
-  it("shows only the failure, without the expected cash's label, when the balance cannot be read", async () => {
+  it("keeps the eyebrow above the failure when the balance cannot be read", async () => {
     const screen = await renderPanel({ balance: { status: "failed", retry: vi.fn() } });
+    const eyebrow = screen.getByText("EFECTIVO ESPERADO AHORA");
+    const failure = screen.getByText("No se pudo leer el efectivo esperado");
 
-    await expect.element(screen.getByText("No se pudo leer el efectivo esperado")).toBeVisible();
-    await expect.element(screen.getByText("EFECTIVO ESPERADO AHORA")).not.toBeInTheDocument();
+    await expect.element(eyebrow).toBeVisible();
+    await expect.element(failure).toBeVisible();
+    expect(eyebrow.element().getBoundingClientRect().bottom).toBeLessThanOrEqual(
+      failure.element().getBoundingClientRect().top,
+    );
   });
 
   it("says the balance could not be read and offers Reintentar", async () => {

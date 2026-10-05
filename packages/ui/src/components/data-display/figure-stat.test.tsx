@@ -96,6 +96,23 @@ test("shows its label and no value while the value loads, marked busy", async ()
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("reveals its value's placeholder exactly at 300ms, so a fast load never flashes it", async () => {
+  const screen = await render(<FigureStat label="Efectivo esperado" loading />);
+  const placeholder = screen.container.querySelector('[aria-hidden="true"]') as HTMLElement;
+
+  const [animation] = placeholder.getAnimations();
+  if (!animation) {
+    throw new Error("Expected the placeholder to have a running CSS animation.");
+  }
+  animation.pause();
+
+  animation.currentTime = 299;
+  expect(getComputedStyle(placeholder).opacity).toBe("0");
+
+  animation.currentTime = 300;
+  expect(getComputedStyle(placeholder).opacity).toBe("1");
+});
+
 test.each(["display", "heading"] as const)(
   "takes the same height while its %s-size value loads as once it is shown",
   async (size) => {

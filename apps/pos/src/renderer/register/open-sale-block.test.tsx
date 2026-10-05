@@ -1,4 +1,6 @@
+import { HighlightedNotice } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { Info } from "lucide-react";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -33,6 +35,16 @@ describe("OpenSaleBlock", () => {
       .toHaveTextContent(
         "Hay una venta abierta de $ 34.340,00 Cobrala o cancelala antes de cerrar la caja.",
       );
-    expect(notice.querySelector(":scope > [aria-hidden='true'] > svg")).not.toBeNull();
+
+    const warning = await render(
+      <HighlightedNotice tone="warning" icon={<Info />} title="Referencia" description="Aviso" />,
+    );
+    const warningNotice = warning.container.firstElementChild as HTMLElement;
+    expect(getComputedStyle(notice).backgroundColor).toBe(
+      getComputedStyle(warningNotice).backgroundColor,
+    );
+    expect(
+      notice.querySelector(":scope > [aria-hidden='true'] > svg.lucide-shopping-basket"),
+    ).not.toBeNull();
   });
 });
