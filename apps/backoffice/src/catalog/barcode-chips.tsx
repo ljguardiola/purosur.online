@@ -1,4 +1,3 @@
-import { internalBarcodeSchema } from "@purosur/contracts";
 import { FieldGroup, fieldErrorMessage, IconButton, useFieldContext } from "@purosur/ui";
 import { Barcode, ScanBarcode, X } from "lucide-react";
 import { type KeyboardEvent, useId, useRef, useState } from "react";
@@ -31,10 +30,6 @@ type BarcodeListControl = {
 
 function scanProblemMessage(code: string, listed: string[]): string | undefined {
   return barcodeProblemMessage([...listed, code]);
-}
-
-function hasInternalBarcode(barcodes: string[]): boolean {
-  return barcodes.some((code) => internalBarcodeSchema.shape.code.safeParse(code).success);
 }
 
 export function useBarcodeChips({ list, latest, setList }: BarcodeListControl) {
@@ -83,18 +78,17 @@ export function useBarcodeChips({ list, latest, setList }: BarcodeListControl) {
     return true;
   }
 
-  // The cloud already allocated and confirmed this code unique, so unlike a scanned one it
-  // skips the spaces/length checks.
   function addGenerated(code: string): boolean {
     const current = latest();
-    const problem = scanProblemMessage("", current.codes);
+    if (current.codes.includes(code)) {
+      return true;
+    }
+    const problem = scanProblemMessage(code, current.codes);
     if (problem !== undefined) {
       setScanError(problem);
       return false;
     }
-    if (!current.codes.includes(code)) {
-      setList({ ...current, codes: [...current.codes, code] });
-    }
+    setList({ ...current, codes: [...current.codes, code] });
     return true;
   }
 
@@ -112,12 +106,11 @@ export function useBarcodeChips({ list, latest, setList }: BarcodeListControl) {
 
 type BarcodeChipsState = ReturnType<typeof useBarcodeChips>;
 
-type BarcodeChipsProps = {
-  chips: BarcodeChipsState;
-  onGenerate: () => void;
-  generateDisabled: boolean;
-  generateError: string | undefined;
-};
+type GenerateProps =
+  | { onGenerate: () => void; generateDisabled: boolean; generateError: string | undefined }
+  | { onGenerate?: never; generateDisabled?: never; generateError?: never };
+
+type BarcodeChipsProps = { chips: BarcodeChipsState } & GenerateProps;
 
 export function BarcodeChips({
   chips,
@@ -177,16 +170,18 @@ export function BarcodeChips({
             aria-describedby={error ? errorId : undefined}
           />
         </label>
-        <button
-          type="button"
-          className={generateButtonClassName}
-          disabled={generateDisabled}
-          onClick={onGenerate}
-          aria-describedby={generateError ? generateErrorId : undefined}
-        >
-          <Barcode aria-hidden="true" className="size-icon-md shrink-0" />
-          <span className="truncate">Generar código interno</span>
-        </button>
+        {onGenerate ? (
+          <button
+            type="button"
+            className={generateButtonClassName}
+            disabled={generateDisabled}
+            onClick={onGenerate}
+            aria-describedby={generateError ? generateErrorId : undefined}
+          >
+            <Barcode aria-hidden="true" className="size-icon-md shrink-0" />
+            <span className="truncate">Generar código interno</span>
+          </button>
+        ) : null}
       </div>
       {generateError ? (
         <span id={generateErrorId} role="alert" className="text-detail text-error">
@@ -213,12 +208,14 @@ export function useGenerateInternalBarcode(
   const sendToMyAccount = useSendToMyAccount();
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | undefined>(undefined);
+  const [generatedCode, setGeneratedCode] = useState<string | undefined>(undefined);
   const requestIdRef = useRef(0);
 
   const reset = () => {
     requestIdRef.current += 1;
     setGenerating(false);
     setGenerateError(undefined);
+    setGeneratedCode(undefined);
   };
 
   async function handleGenerate() {
@@ -236,7 +233,9 @@ export function useGenerateInternalBarcode(
     }
     setGenerating(false);
     if (outcome.kind === "ok") {
-      chips.addGenerated(outcome.code);
+      if (chips.addGenerated(outcome.code)) {
+        setGeneratedCode(outcome.code);
+      }
       return;
     }
     if (outcome.kind === "unauthenticated") {
@@ -254,7 +253,8 @@ export function useGenerateInternalBarcode(
     setGenerateError(generateFailedMessage);
   }
 
-  const disabled = generating || hasInternalBarcode(chips.codes);
+  const disabled =
+    generating || (generatedCode !== undefined && chips.codes.includes(generatedCode));
 
   return { generating, generateError, disabled, reset, handleGenerate };
 }

@@ -60,6 +60,7 @@ export type EditProductOutcome =
   | { kind: "brand_inactive" }
   | { kind: "tag_inactive"; tagId: string }
   | { kind: "sale_unit_held_by_discount"; discountName: string }
+  | { kind: "internal_barcode_on_product_with_barcodes" }
   | { kind: "stale_version" }
   | { kind: "not_found" }
   | { kind: "forbidden" }
@@ -295,6 +296,9 @@ export async function editProduct(
       return typeof body.tagId === "string"
         ? { kind: "tag_inactive", tagId: body.tagId }
         : { kind: "failed" };
+    }
+    if (body?.code === "internal_barcode_on_product_with_barcodes") {
+      return { kind: "internal_barcode_on_product_with_barcodes" };
     }
     if (body?.code === "sale_unit_held_by_discount") {
       return typeof body.discountName === "string"

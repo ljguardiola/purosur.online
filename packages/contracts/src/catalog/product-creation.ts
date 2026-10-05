@@ -27,6 +27,7 @@ const BARCODE_PROBLEM_MESSAGES: Record<BarcodeListProblem, string> = {
   too_long: `each barcode must be at most ${BARCODE_MAX_LENGTH} characters`,
   whitespace: "a barcode must not contain whitespace",
   repeated: "the same barcode was sent more than once",
+  several_internal: "a product can have at most one internal barcode",
 };
 
 const NET_CONTENT_QUANTITY_MESSAGE = `netContent's quantity must be a positive number of at most ${NET_CONTENT_QUANTITY_MAX_DECIMALS} decimals, at most ${NET_CONTENT_QUANTITY_MAX}`;

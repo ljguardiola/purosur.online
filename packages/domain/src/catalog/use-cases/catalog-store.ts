@@ -69,6 +69,7 @@ export interface LockedProduct {
   brandId: string | null;
   saleUnit: SaleUnit;
   tagIds: string[];
+  barcodes: string[];
 }
 
 export interface BuyNPayMDiscount {

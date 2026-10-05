@@ -1,4 +1,5 @@
 import { codePointLength } from "../../shared/index.js";
+import { isInternalBarcode } from "./ean13.js";
 
 export const PRODUCT_NAME_MAX_LENGTH = 100;
 
@@ -22,7 +23,12 @@ export function isBarcodeTooLong(code: string): boolean {
 
 export const PRODUCT_BARCODES_MAX_COUNT = 20;
 
-export type BarcodeListProblem = "too_many" | "too_long" | "whitespace" | "repeated";
+export type BarcodeListProblem =
+  | "too_many"
+  | "too_long"
+  | "whitespace"
+  | "repeated"
+  | "several_internal";
 
 export function barcodeListProblem(codes: readonly string[]): BarcodeListProblem | undefined {
   if (codes.length > PRODUCT_BARCODES_MAX_COUNT) {
@@ -41,7 +47,20 @@ export function barcodeListProblem(codes: readonly string[]): BarcodeListProblem
     }
     seen.add(code);
   }
+  if (codes.filter(isInternalBarcode).length > 1) {
+    return "several_internal";
+  }
   return undefined;
+}
+
+export function addsInternalBarcodeToProductWithBarcodes(
+  storedBarcodes: readonly string[],
+  submittedBarcodes: readonly string[],
+): boolean {
+  return (
+    storedBarcodes.length > 0 &&
+    submittedBarcodes.some((code) => isInternalBarcode(code) && !storedBarcodes.includes(code))
+  );
 }
 
 export const SALE_UNITS = ["UNIT", "KG"] as const;

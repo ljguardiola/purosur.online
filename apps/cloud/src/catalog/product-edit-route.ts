@@ -37,6 +37,11 @@ const SALE_UNIT_HELD_BY_DISCOUNT_RESPONSE = {
   message: "a product cannot be sold by weight while a live buy-n-pay-m discount targets it",
 } as const;
 
+const INTERNAL_BARCODE_ON_PRODUCT_WITH_BARCODES_RESPONSE = {
+  code: "internal_barcode_on_product_with_barcodes",
+  message: "an internal barcode can only be added to a product that has no barcode",
+} as const;
+
 export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: ProductsRouteOptions<TQueryResult>,
@@ -118,6 +123,10 @@ export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
         await reply
           .code(409)
           .send({ ...SALE_UNIT_HELD_BY_DISCOUNT_RESPONSE, discountName: outcome.discountName });
+        return;
+      }
+      if (outcome.kind === "internal_barcode_on_product_with_barcodes") {
+        await reply.code(409).send(INTERNAL_BARCODE_ON_PRODUCT_WITH_BARCODES_RESPONSE);
         return;
       }
       if (outcome.kind === "barcode_taken") {

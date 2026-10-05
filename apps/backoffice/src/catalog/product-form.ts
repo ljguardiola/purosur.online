@@ -130,6 +130,7 @@ const BARCODE_PROBLEM_MESSAGES = new Map<string, string>(
     too_long: `El código de barras puede tener hasta ${schemaLimit(barcodesSchema.meta()?.["maxLength"])} caracteres.`,
     whitespace: "El código de barras no puede tener espacios.",
     repeated: "Ese código ya está en la lista.",
+    several_internal: "El producto puede tener un solo código interno.",
   } satisfies Record<BarcodeListProblem, string>),
 );
 
@@ -250,6 +251,9 @@ export function categoryNameOf(categories: CategorySummary[], id: string): strin
 
 export const PRODUCT_BRAND_INACTIVE_ERROR =
   "La marca elegida se dio de baja. Elegí otra o dejala sin marca.";
+
+export const PRODUCT_INTERNAL_BARCODE_ON_PRODUCT_WITH_BARCODES_ERROR =
+  "Un código interno solo se puede agregar a un producto sin códigos de barras.";
 
 export function saleUnitHeldByDiscountError(discountName: string): string {
   return `No se puede vender por peso mientras la promoción "${discountName}" no esté desactivada o terminada.`;
