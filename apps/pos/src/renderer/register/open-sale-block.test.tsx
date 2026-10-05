@@ -23,4 +23,16 @@ describe("OpenSaleBlock", () => {
 
     expect(onGoToSale).toHaveBeenCalledOnce();
   });
+
+  it("announces the open sale as a warning notice with its basket icon", async () => {
+    const screen = await render(<OpenSaleBlock total={3_434_000} onGoToSale={vi.fn()} />);
+    const notice = screen.container.firstElementChild as HTMLElement;
+
+    await expect
+      .element(screen.getByRole("status"))
+      .toHaveTextContent(
+        "Hay una venta abierta de $ 34.340,00 Cobrala o cancelala antes de cerrar la caja.",
+      );
+    expect(notice.querySelector(":scope > [aria-hidden='true'] > svg")).not.toBeNull();
+  });
 });

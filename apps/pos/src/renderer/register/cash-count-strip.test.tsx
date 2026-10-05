@@ -1,6 +1,7 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it } from "vitest";
 import { render } from "vitest-browser-react";
+import { expectDrawnAsFigureStat } from "../platform/test-support/figure-stat";
 import { CashCountStrip } from "./cash-count-strip";
 
 function cellOf(screen: Awaited<ReturnType<typeof render>>, label: string) {
@@ -52,5 +53,23 @@ describe("CashCountStrip", () => {
     );
 
     expect(cellOf(screen, "Diferencia")).toBe("Diferencia$ 0,00");
+  });
+
+  it("draws each amount as the design system's heading-size figure stat", async () => {
+    const screen = await render(
+      <CashCountStrip expected={4_620_000} counted={4_580_000} difference={-40_000} />,
+    );
+
+    for (const [label, value] of [
+      ["Esperado", "$ 46.200,00"],
+      ["Contado", "$ 45.800,00"],
+      ["Diferencia", "− $ 400,00"],
+    ] as const) {
+      await expectDrawnAsFigureStat(
+        screen.getByText(label, { exact: true }).element(),
+        screen.getByText(value, { exact: true }).element(),
+        "heading",
+      );
+    }
   });
 });
