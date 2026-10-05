@@ -89,19 +89,48 @@ test("gives the title the id it is given, so a part of the screen can be named b
     .toHaveTextContent("PIN");
 });
 
-test("lets the screen move focus to the title through its ref, without putting the title in the tab order", async () => {
+test("lets the screen move focus to the title through its ref, out of the tab order, with the focus ring when focus arrives by keyboard", async () => {
   const titleRef = createRef<HTMLHeadingElement>();
-  const screen = await render(<ScreenHeader title="¿Quién abre la caja?" titleRef={titleRef} />);
+  const screen = await render(
+    <>
+      <button type="button">Ingresar</button>
+      <ScreenHeader title="¿Quién abre la caja?" titleRef={titleRef} />
+    </>,
+  );
   const title = screen.getByRole("heading", { name: "¿Quién abre la caja?" }).element();
+
+  await userEvent.tab();
+  expect(document.activeElement).toBe(screen.getByRole("button").element());
+  await userEvent.tab();
+  expect(document.activeElement).not.toBe(title);
 
   titleRef.current?.focus();
 
   expect(titleRef.current).toBe(title);
   expect(document.activeElement).toBe(title);
   expect(title.getAttribute("tabindex")).toBe("-1");
-  expect(getComputedStyle(title).outlineStyle).toBe("none");
+  const style = getComputedStyle(title);
+  expect(style.outlineStyle).toBe("solid");
+  expect(style.outlineWidth).toBe("3px");
+  expect(style.outlineColor).toBe(tokenRgb("focus"));
 
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("draws no focus ring on a title focused through its ref after a pointer press", async () => {
+  const titleRef = createRef<HTMLHeadingElement>();
+  const screen = await render(
+    <>
+      <button type="button">Ingresar</button>
+      <ScreenHeader title="¿Quién abre la caja?" titleRef={titleRef} />
+    </>,
+  );
+
+  await userEvent.click(screen.getByRole("button"));
+  titleRef.current?.focus();
+
+  expect(document.activeElement).toBe(titleRef.current);
+  expect(titleRef.current && getComputedStyle(titleRef.current).outlineStyle).toBe("none");
 });
 
 test("leaves the title out of focus when the screen takes no ref to it", async () => {
