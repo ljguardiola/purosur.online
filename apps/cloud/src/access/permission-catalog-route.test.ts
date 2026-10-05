@@ -109,9 +109,7 @@ describe("GET /permission-catalog", () => {
     expect(areas.map(({ area }) => area)).toEqual([...PERMISSION_AREAS]);
     for (const { area, permissions } of areas) {
       expect(permissions.map(({ key }) => key)).toEqual(
-        PERMISSION_CATALOG.filter((definition) => definition.area === area).map(
-          ({ key }) => key,
-        ),
+        PERMISSION_CATALOG.filter((definition) => definition.area === area).map(({ key }) => key),
       );
     }
     expect(areas.flatMap(({ permissions }) => permissions.map(({ key }) => key))).toEqual([

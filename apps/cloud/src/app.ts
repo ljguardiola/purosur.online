@@ -13,6 +13,7 @@ import type { PasskeysListRouteOptions } from "./access/passkeys-list-route.js";
 import { registerPasskeysListRoute } from "./access/passkeys-list-route.js";
 import { registerPasskeyRegistrationRoutes } from "./access/passkeys-registration-route.js";
 import { registerPasskeyRemovalRoutes } from "./access/passkeys-removal-route.js";
+import { registerPermissionCatalogRoute } from "./access/permission-catalog-route.js";
 import { registerPinCodeRedemptionRoute } from "./access/pin-code-redemption-route.js";
 import type { RecoveryJobQueue } from "./access/recovery-job-queue.js";
 import { registerRecoveryRedemptionRoutes } from "./access/recovery-redemption-route.js";
@@ -321,6 +322,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
       if (options.roles) {
         registerRolesListRoute(api, options.roles);
+        registerPermissionCatalogRoute(api, options.roles);
         registerRoleReadRoute(api, options.roles);
         registerRoleCreationRoutes(api, options.roles);
         registerRoleEditRoutes(api, options.roles);
