@@ -2,7 +2,7 @@ export default {
   testRunner: "vitest",
   plugins: ["@stryker-mutator/vitest-runner", "@stryker-mutator/typescript-checker"],
   checkers: ["typescript"],
-  tsconfigFile: "tsconfig.json",
+  tsconfigFile: "tsconfig.mutation.json",
   vitest: { configFile: "vitest.mutation.config.ts" },
   mutate: [
     "packages/domain/src/**/*.ts",
