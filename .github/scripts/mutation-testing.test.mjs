@@ -85,6 +85,11 @@ const CONTRACTS_USING_DOMAIN_SOURCE = `import { LOWEST_LIMIT_NAME } from "@puros
 export const lowestLimitName: "low" = LOWEST_LIMIT_NAME;
 `;
 
+const DOMAIN_TEST_HELPER_SOURCE = `export function describeSign(value: number): string {
+  return value > 0 ? "positive" : "not positive";
+}
+`;
+
 const DOMAIN_FIXTURE_TEST = `import { expect, it } from "vitest";
 import { isPositive } from "./sign.js";
 
@@ -107,6 +112,11 @@ async function runMutationOnFixture() {
     await writeFixtureFile(dir, "packages/contracts/src/limits.test.ts", FIXTURE_TEST);
     await writeFixtureFile(dir, "packages/domain/src/sign.ts", DOMAIN_FIXTURE_SOURCE);
     await writeFixtureFile(dir, "packages/domain/src/sign.test.ts", DOMAIN_FIXTURE_TEST);
+    await writeFixtureFile(
+      dir,
+      "packages/domain/src/test-support/describe-sign.ts",
+      DOMAIN_TEST_HELPER_SOURCE,
+    );
     await writeFixtureFile(dir, "packages/domain/src/index.ts", DOMAIN_ENTRY_SOURCE);
     await writeFixtureFile(
       dir,
@@ -197,10 +207,16 @@ test("reports every change no test catches with its file and line, and nothing a
   );
 });
 
+test("leaves the tests' own helpers unchanged", () => {
+  const plain = stripVTControlCharacters(fixtureRun.stdout + fixtureRun.stderr);
+
+  assert.doesNotMatch(plain, /test-support/, plain);
+});
+
 test("runs on a copy of the rule packages alone, leaving out local files such as secrets and builds", () => {
   const plain = stripVTControlCharacters(fixtureRun.stdout + fixtureRun.stderr);
 
-  assert.match(plain, /Found 4 of 12 file\(s\) to be mutated/, plain);
+  assert.match(plain, /Found 4 of 13 file\(s\) to be mutated/, plain);
 });
 
 test("fails the run when a change goes uncaught", () => {
