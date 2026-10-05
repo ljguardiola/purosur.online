@@ -18,14 +18,15 @@ ledger ids to verify.
 
 1. Read `issue.md`, every file in `.claude/rules/`, path-scoped ones included, and `CLAUDE.md` before
    the first finding.
-2. A finding that is not behavioral: read the rule it cites in full and the
+2. A finding that a check over the source misses a route, behavioral or
+   not, is `REFUTED`, citing "Checks" in `.claude/rules/checks.md`, when
+   only code written to get past the check takes that route, even when a
+   run shows the check missing it; a route ordinary code could take is
+   judged by the steps below like any other finding.
+3. A finding that is not behavioral: read the rule it cites in full and the
    code it points to. It is `CONFIRMED` only when the code breaks the rule as
    written; a reading the rule's words do not support is `REFUTED`.
-   A finding that a check over the source misses a route is `REFUTED`,
-   citing "Checks" in `.claude/rules/checks.md`, when only code written to
-   get past the check takes that route; a route ordinary code could take
-   is judged like any other finding.
-3. A behavioral finding is a hypothesis; prove it by running the code:
+4. A behavioral finding is a hypothesis; prove it by running the code:
    - "this test does not cover X": remove or break X with `sed -i` on the
      exact line, run the focused test file, and read the result. The suite
      staying green confirms the claim.
@@ -81,14 +82,14 @@ ledger ids to verify.
    - After each proof, restore with `git checkout -- <path>` (and delete any
      scratch file), and check `git status` is clean before the next finding.
    - A claim the run disproves is `REFUTED`, however reasonable it read.
-4. Kind: settle each confirmed finding's kind with the definitions in
+5. Kind: settle each confirmed finding's kind with the definitions in
    `.claude/skills/review-gate/references/checklist.md`, whatever the
    reviewer labelled it; a deliberate replacement of a stack library is a
    `decision` even when reported as `rule`.
-5. Checklist: for each confirmed finding, say whether its area in the
+6. Checklist: for each confirmed finding, say whether its area in the
    checklist already names that kind of deviation, and when it does not,
    the example to add.
-6. Scope: a confirmed finding is `in-scope` when it sits inside the problem
+7. Scope: a confirmed finding is `in-scope` when it sits inside the problem
    `issue.md` states, whether or not the code already had it, or when the
    change introduced it or made it worse. Any other gap the code already had
    is `out-of-scope`.
