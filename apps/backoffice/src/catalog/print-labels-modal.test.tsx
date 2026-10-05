@@ -13,12 +13,14 @@ const honeyWithInternalBarcode: ProductSummary = {
   id: "00000020-0000-4000-8000-000000000000",
   barcodes: ["2000000000015"],
   labelCode: "2000000000015",
+  labelModules: "10100011010001101010011101001110001101010011101010111001011100101110010111001011001101001110101",
 };
 const almondsWithInternalBarcode: ProductSummary = {
   ...almonds,
   id: "00000021-0000-4000-8000-000000000000",
   barcodes: ["2000000000022"],
   labelCode: "2000000000022",
+  labelModules: "10100011010001101010011101001110001101010011101010111001011100101110010111001011011001101100101",
 };
 const withoutInternalBarcode: ProductSummary = {
   ...honey,
@@ -174,9 +176,10 @@ test("lists each product by the label code the cloud sends, not by its barcodes"
     ...almondsWithInternalBarcode,
     name: "Producto sin etiqueta",
     labelCode: null,
+    labelModules: null,
   };
   const screen = await renderModal(services, {
-    products: [{ ...honeyWithInternalBarcode, labelCode: "2000000000039" }, withoutLabelCode],
+    products: [{ ...honeyWithInternalBarcode, labelCode: "2000000000039", labelModules: "10100011010001101010011101001110001101010011101010111001011100101110010111001010000101110100101" }, withoutLabelCode],
   });
 
   const dialog = await openPrintLabelsModal(screen);
@@ -525,6 +528,24 @@ test("cancel closes the print labels modal without calling the API", async () =>
   expect(services.printLabels).not.toHaveBeenCalled();
 });
 
+test("draws the preview's bars from the modules the cloud sends", async () => {
+  const services = createServices();
+  const screen = await renderModal(services, {
+    products: [{ ...honeyWithInternalBarcode, labelModules: "1011" }],
+  });
+
+  const dialog = await openPrintLabelsModal(screen);
+
+  const preview = dialog.getByRole("group", { name: "Vista previa de la etiqueta" });
+  await expect.element(preview).toBeVisible();
+  const svg = preview.element().querySelector("svg");
+  expect(svg?.getAttribute("viewBox")).toBe("0 0 4 40");
+  expect([...(svg?.querySelectorAll("rect") ?? [])].map((rect) => rect.getAttribute("x"))).toEqual([
+    "0",
+    "2",
+  ]);
+});
+
 test("caps the sheet at 2400 labels in total, disabling a row's + once the total is reached", async () => {
   const walnutsWithInternalBarcode: ProductSummary = {
     ...almonds,
@@ -532,6 +553,7 @@ test("caps the sheet at 2400 labels in total, disabling a row's + once the total
     name: "Nueces mariposa",
     barcodes: ["2912345678906"],
     labelCode: "2912345678906",
+    labelModules: "10100010110011001001101101000010100011011100101010101000010001001001000111010011100101010000101",
   };
   const services = createServices();
   const screen = await renderModal(services, {

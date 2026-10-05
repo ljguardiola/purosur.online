@@ -1,3 +1,4 @@
+import { ean13Modules } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -217,6 +218,7 @@ describe("GET /products", () => {
         netContent: null,
         active: true,
         labelCode: null,
+        labelModules: null,
         version: semilla.version,
       },
       {
@@ -231,6 +233,7 @@ describe("GET /products", () => {
         netContent: null,
         active: true,
         labelCode: null,
+        labelModules: null,
         version: maceta.version,
       },
     ]);
@@ -256,15 +259,18 @@ describe("GET /products", () => {
 
     const response = await getProducts(rawSessionId, {}, { status: "all" });
 
-    const labelCodes = new Map(
+    const labels = new Map(
       response
         .json()
-        .map((product: { id: string; labelCode: unknown }) => [product.id, product.labelCode]),
+        .map((product: { id: string; labelCode: unknown; labelModules: unknown }) => [
+          product.id,
+          { labelCode: product.labelCode, labelModules: product.labelModules },
+        ]),
     );
-    expect(labelCodes).toEqual(
+    expect(labels).toEqual(
       new Map([
-        [labeled.id, "2000000000015"],
-        [inactive.id, null],
+        [labeled.id, { labelCode: "2000000000015", labelModules: ean13Modules("2000000000015") }],
+        [inactive.id, { labelCode: null, labelModules: null }],
       ]),
     );
   });

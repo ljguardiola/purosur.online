@@ -1,3 +1,4 @@
+import { ean13Modules } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -324,6 +325,7 @@ describe("PUT /products/:id", () => {
       netContent: null,
       active: true,
       labelCode: null,
+      labelModules: null,
       brandId: null,
       tagIds: [],
       version: 2,
@@ -381,7 +383,10 @@ describe("PUT /products/:id", () => {
       version: product.version,
     });
 
-    expect(response.json()).toMatchObject({ labelCode: "2000000000015" });
+    expect(response.json()).toMatchObject({
+      labelCode: "2000000000015",
+      labelModules: ean13Modules("2000000000015"),
+    });
   });
 
   it("allows a product to keep one of its own codes", async () => {

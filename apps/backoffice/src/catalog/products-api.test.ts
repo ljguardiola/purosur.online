@@ -36,6 +36,7 @@ const honey: ProductSummary = {
   netContent: null,
   active: true,
   labelCode: null,
+  labelModules: null,
   version: 1,
 };
 
