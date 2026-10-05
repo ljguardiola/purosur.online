@@ -1,5 +1,6 @@
 import {
   type CategorySummary,
+  type InternalBarcodeGenerationBody,
   internalBarcodeGenerationBodySchema,
   netContentQuantitySchema,
   type ProductCreationBody,
@@ -151,8 +152,10 @@ export function editedProductBarcodeProblemMessage(codes: string[]): string | un
   return barcodeProblemMessageOf(productEditBarcodesSchema, codes);
 }
 
-export function internalBarcodeMayBeGeneratedFor(codes: string[]): boolean {
-  return internalBarcodeGenerationBodySchema.safeParse({ barcodes: codes }).success;
+export function internalBarcodeGenerationRequestFrom(
+  codes: string[],
+): InternalBarcodeGenerationBody | undefined {
+  return internalBarcodeGenerationBodySchema.safeParse({ barcodes: codes }).data;
 }
 
 export function productMessage({ name }: ProductFormValues): string {

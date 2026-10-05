@@ -143,7 +143,6 @@ export function NewProductModal({
   });
   const chips = useBarcodeChips({
     list: values.barcodes,
-    latest: () => form.state.values.barcodes,
     setList: (next) => form.setFieldValue("barcodes", next),
     problemMessage: barcodeProblemMessage,
   });
@@ -303,14 +302,7 @@ export function NewProductModal({
           </form.AppField>
         </FieldGroup>
         <form.AppField name="barcodes">
-          {() => (
-            <BarcodeChips
-              chips={chips}
-              onGenerate={() => void generate.handleGenerate()}
-              generateDisabled={generate.disabled}
-              generateError={generate.generateError}
-            />
-          )}
+          {() => <BarcodeChips chips={chips} generation={generate.generation} />}
         </form.AppField>
         <NewBrandModal
           open={brandCreation.open}

@@ -177,11 +177,11 @@ export async function createProduct(input: CreateProductInput): Promise<CreatePr
 }
 
 export async function generateInternalBarcode(
-  barcodes: InternalBarcodeGenerationBody["barcodes"],
+  body: InternalBarcodeGenerationBody,
 ): Promise<GenerateInternalBarcodeOutcome> {
   let response: Response;
   try {
-    response = await postJson("/api/internal-barcodes", { barcodes });
+    response = await postJson("/api/internal-barcodes", body);
   } catch {
     return { kind: "failed" };
   }

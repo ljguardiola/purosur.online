@@ -170,7 +170,6 @@ export function EditProductModal({
   });
   const chips = useBarcodeChips({
     list: values.barcodes,
-    latest: () => form.state.values.barcodes,
     setList: (next) => form.setFieldValue("barcodes", next),
     problemMessage: editedProductBarcodeProblemMessage,
   });
