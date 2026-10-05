@@ -1,4 +1,9 @@
-import { ALERT_KINDS, ARGENTINA_TIME_ZONE, type AlertDetails, type AlertKind } from "@purosur/domain";
+import {
+  ALERT_KINDS,
+  type AlertDetails,
+  type AlertKind,
+  ARGENTINA_TIME_ZONE,
+} from "@purosur/domain";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { type AlertDetail, alertDetailSchema } from "./alert-detail.js";
 

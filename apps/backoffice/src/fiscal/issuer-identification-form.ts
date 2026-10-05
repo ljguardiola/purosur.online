@@ -3,8 +3,8 @@ import {
   type IssuerIdentificationEditBody,
   issuerIdentificationEditBodySchema,
 } from "@purosur/contracts";
-import { argentinaCalendarDay } from "@purosur/domain";
 import { schemaLimit } from "../platform/schema-limit";
+import { schemaText } from "../platform/schema-text";
 import type { IssuerIdentification } from "./issuer-identification-api";
 
 export type IssuerIdentificationFormValues = {
@@ -35,7 +35,11 @@ function dateOf(value: string | null): CalendarDate | null {
 }
 
 export function latestActivityStartDate(now: Date): CalendarDate {
-  return parseDate(argentinaCalendarDay(now));
+  return parseDate(
+    schemaText(
+      issuerIdentificationEditBodySchema(now).shape.activity_start_date.meta()?.["latestDay"],
+    ),
+  );
 }
 
 export function issuerIdentificationFormValuesFrom(

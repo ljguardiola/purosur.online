@@ -1,7 +1,6 @@
-import type { AlertDetail } from "@purosur/contracts";
+import { type AlertDetail, alertDetailSchema } from "@purosur/contracts";
 import {
   type AlertLevel,
-  ARGENTINA_TIME_ZONE,
   isPermissionKey,
   PERMISSION_CATALOG,
   type PermissionKey,
@@ -35,6 +34,7 @@ import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { AREA_LABELS, PERMISSION_LABELS } from "../platform/permission-labels";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { roleDisplayName } from "../platform/role-display-name";
+import { schemaText } from "../platform/schema-text";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { type BackofficeAccess, canCloseAlertsManually } from "../shell/backoffice-access";
 import { ALERT_LEVEL_TONE } from "./alert-level-tone";
@@ -43,17 +43,21 @@ import { useAlertQuery, useRefreshAlerts, useRefreshAlertsAfterClosing } from ".
 
 type Icon = ReactElement<{ className?: string }>;
 
+const ALERT_TIME_ZONE = schemaText(
+  alertDetailSchema.options[0].shape.openedAt.meta()?.["timeZone"],
+);
+
 const ALERT_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
   day: "2-digit",
   month: "2-digit",
   year: "numeric",
-  timeZone: ARGENTINA_TIME_ZONE,
+  timeZone: ALERT_TIME_ZONE,
 };
 const ALERT_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
   hour: "2-digit",
   minute: "2-digit",
   hour12: false,
-  timeZone: ARGENTINA_TIME_ZONE,
+  timeZone: ALERT_TIME_ZONE,
 };
 
 export function alertDateTime(date: Date): string {

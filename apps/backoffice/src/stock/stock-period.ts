@@ -5,7 +5,7 @@ import {
   stockPeriodSchema,
 } from "@purosur/contracts";
 import { formatDate, formatNumber, type Options } from "@purosur/ui";
-import { schemaText } from "./schema-text";
+import { schemaText } from "../platform/schema-text";
 
 export type { StockPeriod };
 
