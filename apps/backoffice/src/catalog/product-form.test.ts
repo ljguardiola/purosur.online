@@ -8,7 +8,7 @@ import {
   categorySelectOptions,
   EMPTY_PRODUCT_FORM,
   editedProductBarcodeProblemMessage,
-  internalBarcodeMayBeGeneratedFor,
+  internalBarcodeGenerationRequestFrom,
   netContentMessage,
   PRODUCT_EDIT_MESSAGES,
   productFormValues,
@@ -283,9 +283,9 @@ describe("categorySelectOptions", () => {
   });
 });
 
-describe("internalBarcodeMayBeGeneratedFor", () => {
-  it("allows generating an internal code only for a list with no barcode", () => {
-    expect(internalBarcodeMayBeGeneratedFor([])).toBe(true);
-    expect(internalBarcodeMayBeGeneratedFor(["7790987000015"])).toBe(false);
+describe("internalBarcodeGenerationRequestFrom", () => {
+  it("builds the request to generate an internal code only for a list with no barcode", () => {
+    expect(internalBarcodeGenerationRequestFrom([])).toEqual({ barcodes: [] });
+    expect(internalBarcodeGenerationRequestFrom(["7790987000015"])).toBeUndefined();
   });
 });
