@@ -29,12 +29,14 @@ export const ADMINISTRATOR_ACCESS: BackofficeAccess = {
   isAdministrator: true,
   capabilities: ADMINISTRATOR_CAPABILITIES,
   stockMovementKinds: ["loss", "adjustment"],
+  mayEmitOwnPinCode: true,
 };
 
 export const NO_CAPABILITIES_ACCESS: BackofficeAccess = {
   isAdministrator: false,
   capabilities: [],
   stockMovementKinds: [],
+  mayEmitOwnPinCode: false,
 };
 
 export function accessWith(...capabilities: Capability[]): BackofficeAccess {
@@ -42,5 +44,6 @@ export function accessWith(...capabilities: Capability[]): BackofficeAccess {
     isAdministrator: false,
     capabilities,
     stockMovementKinds: [],
+    mayEmitOwnPinCode: false,
   };
 }

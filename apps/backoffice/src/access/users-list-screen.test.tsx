@@ -46,6 +46,7 @@ const administrator: BranchUser = {
   role: { id: "00000000-0000-4000-8000-000000000001", isAdministrator: true, name: null },
   passkeyCount: 2,
   isLastActiveAdministrator: true,
+  mayEmitPinCode: true,
 };
 
 const martina: BranchUser = {
@@ -56,6 +57,7 @@ const martina: BranchUser = {
   role: { id: "00000000-0000-4000-8000-000000000001", isAdministrator: true, name: null },
   passkeyCount: 1,
   isLastActiveAdministrator: false,
+  mayEmitPinCode: true,
 };
 
 const tomas: BranchUser = {
@@ -70,6 +72,7 @@ const tomas: BranchUser = {
   },
   passkeyCount: 0,
   isLastActiveAdministrator: false,
+  mayEmitPinCode: true,
 };
 
 const sofia: BranchUser = {
@@ -85,6 +88,7 @@ const sofia: BranchUser = {
   },
   passkeyCount: 0,
   isLastActiveAdministrator: false,
+  mayEmitPinCode: true,
 };
 
 const REACTIVATE_USERS_ACCESS = accessWith("users_area", "reactivate_users");

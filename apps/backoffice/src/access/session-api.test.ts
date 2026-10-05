@@ -30,6 +30,7 @@ const sessionBody = {
   is_administrator: false,
   capabilities: ["stock_area", "branch_area"],
   stock_movement_kinds: ["adjustment"],
+  may_emit_own_pin_code: true,
 };
 
 test("fetchSession returns the signed-in user's identity, capabilities and deadline on 200", async () => {
@@ -45,6 +46,7 @@ test("fetchSession returns the signed-in user's identity, capabilities and deadl
     expiresAt: "2026-09-23T12:30:00.000Z",
     capabilities: ["stock_area", "branch_area"],
     stockMovementKinds: ["adjustment"],
+    mayEmitOwnPinCode: true,
   });
   expect(fetch).toHaveBeenCalledWith("/api/sessions/current");
 });
@@ -83,6 +85,7 @@ test.each([
     "a body with an unknown stock movement kind",
     { ...sessionBody, stock_movement_kinds: ["count"] },
   ],
+  ["a body with no own PIN code answer", { ...sessionBody, may_emit_own_pin_code: undefined }],
   ["an administrator flag that is not a boolean", { ...sessionBody, is_administrator: "no" }],
   ["a body that is not an object", "session"],
 ])("fetchSession reports failed on %s", async (_, body) => {

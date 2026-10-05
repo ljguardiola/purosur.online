@@ -71,6 +71,7 @@ export const lucia: BranchUser = {
   role: shiftRole,
   passkeyCount: 1,
   isLastActiveAdministrator: false,
+  mayEmitPinCode: true,
 };
 
 export const NOW = () => new Date("2026-09-23T12:00:00.000Z");
@@ -122,6 +123,7 @@ export const adminTarget: BranchUser = {
   role: { id: "00000000-0000-4000-8000-000000000001", isAdministrator: true, name: null },
   passkeyCount: 1,
   isLastActiveAdministrator: false,
+  mayEmitPinCode: true,
 };
 
 export const REACTIVATE_USERS_ACCESS = accessWith("users_area", "reactivate_users");
@@ -135,6 +137,7 @@ export const sofia: BranchUser = {
   role: shiftRole,
   passkeyCount: 1,
   isLastActiveAdministrator: false,
+  mayEmitPinCode: false,
 };
 
 export async function openEditModal(screen: Screen) {

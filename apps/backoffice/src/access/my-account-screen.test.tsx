@@ -472,6 +472,18 @@ test("offers an Administrator to reset their own PIN, and emits the code for the
   expect(services.emitUserPinCode).toHaveBeenCalledExactlyOnceWith("user-1");
 });
 
+test("offers the PIN reset exactly when the cloud answers the session may emit its own PIN code", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
+
+  const screen = await renderScreen(services, () => {}, {
+    ...NO_CAPABILITIES_ACCESS,
+    mayEmitOwnPinCode: true,
+  });
+
+  await expect.element(screen.getByRole("heading", { name: "PIN de la caja" })).toBeVisible();
+});
+
 test("offers no PIN reset to someone who is not an Administrator, even holding reset_user_pin", async () => {
   const services = createServices();
   vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });

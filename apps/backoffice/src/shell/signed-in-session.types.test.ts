@@ -7,6 +7,7 @@ type ExpiryAndAccess = {
   expiresAt: string;
   capabilities: Capability[];
   stockMovementKinds: ManualStockMovementKind[];
+  mayEmitOwnPinCode: boolean;
 };
 
 test("an open session read from the cloud always carries its expiry and access", () => {

@@ -14,6 +14,7 @@ export function openSession(overrides: Partial<Omit<OpenSession, "kind">> = {}):
     isAdministrator,
     capabilities: isAdministrator ? ADMINISTRATOR_CAPABILITIES : [],
     stockMovementKinds: isAdministrator ? ["loss", "adjustment"] : [],
+    mayEmitOwnPinCode: isAdministrator,
     expiresAt: new Date(Date.now() + SESSION_IDLE_TIMEOUT_MS).toISOString(),
     ...overrides,
   };
