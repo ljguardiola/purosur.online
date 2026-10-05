@@ -41,7 +41,7 @@ async function makeFixture(t, files) {
   return root;
 }
 
-async function cruiseFixture(root, dirs, forbidden = config.forbidden) {
+async function cruiseFixture(root, dirs) {
   const tsConfigFileName = join(root, config.options.tsConfig.fileName);
   const result = await cruise(
     dirs,
@@ -51,7 +51,7 @@ async function cruiseFixture(root, dirs, forbidden = config.forbidden) {
       baseDir: root,
       outputType: "json",
       validate: true,
-      ruleSet: { forbidden },
+      ruleSet: { forbidden: config.forbidden },
     },
     undefined,
     { tsConfig: extractTSConfig(tsConfigFileName) },

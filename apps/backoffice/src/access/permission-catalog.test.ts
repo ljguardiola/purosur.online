@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { permissionCatalogFixture } from "../platform/test-support/permission-catalog";
-import { permissionsOf, permissionsRequiring, withRequiredPermissions } from "./permission-catalog";
+import { permissionsOf, withRequiredPermissions } from "./permission-catalog";
 
 test("permissionsOf lists every permission of every area, in the order the catalog gives them", () => {
   const permissions = permissionsOf(permissionCatalogFixture);
@@ -29,21 +29,4 @@ test("withRequiredPermissions keeps a key the catalog does not know", () => {
   expect(
     withRequiredPermissions(permissionCatalogFixture, ["make_coffee" as "adjust_stock"]),
   ).toEqual(new Set(["make_coffee"]));
-});
-
-test("permissionsRequiring lists, in catalog order, the held permissions that require the key", () => {
-  expect(
-    permissionsRequiring(permissionCatalogFixture, "view_stock_balances", [
-      "record_stock_losses",
-      "view_stock_balances",
-      "adjust_stock",
-    ]),
-  ).toEqual(["adjust_stock", "record_stock_losses"]);
-});
-
-test("permissionsRequiring ignores a permission that is not held and the key itself", () => {
-  expect(
-    permissionsRequiring(permissionCatalogFixture, "view_stock_balances", ["view_stock_balances"]),
-  ).toEqual([]);
-  expect(permissionsRequiring(permissionCatalogFixture, "view_stock_balances", [])).toEqual([]);
 });

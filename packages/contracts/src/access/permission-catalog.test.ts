@@ -11,14 +11,27 @@ const adjustStock = {
   key: "adjust_stock",
   register_marker: "none",
   requires: ["view_stock_balances"],
+  required_by: [],
 };
-const sellAndCharge = { key: "sell_and_charge", register_marker: "register", requires: [] };
+const viewStockBalances = {
+  key: "view_stock_balances",
+  register_marker: "none",
+  requires: [],
+  required_by: ["adjust_stock"],
+};
+const sellAndCharge = {
+  key: "sell_and_charge",
+  register_marker: "register",
+  requires: [],
+  required_by: [],
+};
 const stockArea = { area: "stock", permissions: [adjustStock] };
 const cashRegisterArea = { area: "cashRegister", permissions: [sellAndCharge] };
 
 describe("permissionSchema", () => {
-  it("accepts a permission with or without requirements", () => {
+  it("accepts a permission with or without requirements, required by others or not", () => {
     expect(permissionSchema.safeParse(adjustStock).data).toEqual(adjustStock);
+    expect(permissionSchema.safeParse(viewStockBalances).data).toEqual(viewStockBalances);
     expect(permissionSchema.safeParse(sellAndCharge).data).toEqual(sellAndCharge);
   });
 
@@ -37,7 +50,7 @@ describe("permissionSchema", () => {
     );
   });
 
-  it.each(["key", "register_marker", "requires"])("requires %s", (field) => {
+  it.each(["key", "register_marker", "requires", "required_by"])("requires %s", (field) => {
     const { [field as keyof typeof adjustStock]: _omitted, ...rest } = adjustStock;
 
     expect(permissionSchema.safeParse(rest).success).toBe(false);
@@ -53,6 +66,10 @@ describe("permissionSchema", () => {
     ["requires", ["make_coffee"]],
     ["requires", [1]],
     ["requires", null],
+    ["required_by", "adjust_stock"],
+    ["required_by", ["make_coffee"]],
+    ["required_by", [1]],
+    ["required_by", null],
   ])("refuses %s as %j", (field, value) => {
     expect(permissionSchema.safeParse({ ...adjustStock, [field]: value }).success).toBe(false);
   });
@@ -114,6 +131,7 @@ describe("permissionCatalogSchema", () => {
     expectTypeOf<Area["area"]>().toEqualTypeOf<PermissionArea>();
     expectTypeOf<Permission["key"]>().toEqualTypeOf<PermissionKey>();
     expectTypeOf<Permission["requires"]>().toEqualTypeOf<PermissionKey[]>();
+    expectTypeOf<Permission["required_by"]>().toEqualTypeOf<PermissionKey[]>();
     expectTypeOf<Permission["register_marker"]>().toEqualTypeOf<PermissionRegisterMarker>();
   });
 });

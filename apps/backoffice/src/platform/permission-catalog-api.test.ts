@@ -20,8 +20,18 @@ const catalog = [
   {
     area: "stock",
     permissions: [
-      { key: "view_stock_balances", register_marker: "none", requires: [] },
-      { key: "adjust_stock", register_marker: "none", requires: ["view_stock_balances"] },
+      {
+        key: "view_stock_balances",
+        register_marker: "none",
+        requires: [],
+        required_by: ["adjust_stock"],
+      },
+      {
+        key: "adjust_stock",
+        register_marker: "none",
+        requires: ["view_stock_balances"],
+        required_by: [],
+      },
     ],
   },
 ];

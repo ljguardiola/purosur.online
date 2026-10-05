@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { PERMISSION_KEYS, type PermissionKey } from "./permission-catalog.js";
+import { PERMISSION_KEYS } from "./permission-catalog.js";
 import {
   closeUnderRequirements,
   lacksARequiredPermission,
@@ -159,24 +159,16 @@ describe("lacksARequiredPermission", () => {
 });
 
 describe("permissionsRequiring", () => {
-  it("names each held permission that requires the given one, in catalog order", () => {
-    const held: PermissionKey[] = [
-      "record_stock_losses",
-      "view_stock_balances",
+  it("names every permission that requires the given one, in catalog order", () => {
+    expect(permissionsRequiring("view_stock_balances")).toEqual([
       "perform_stock_counts",
-      "sell_and_charge",
-    ];
-
-    expect(permissionsRequiring("view_stock_balances", held)).toEqual([
-      "perform_stock_counts",
+      "adjust_stock",
       "record_stock_losses",
     ]);
   });
 
-  it("names nothing when no held permission requires it", () => {
-    expect(permissionsRequiring("view_stock_balances", ["view_stock_balances"])).toEqual([]);
-    expect(permissionsRequiring("adjust_stock", ["adjust_stock", "view_stock_balances"])).toEqual(
-      [],
-    );
+  it("names nothing for a permission no other one requires", () => {
+    expect(permissionsRequiring("adjust_stock")).toEqual([]);
+    expect(permissionsRequiring("sell_and_charge")).toEqual([]);
   });
 });

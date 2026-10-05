@@ -32,8 +32,8 @@ beforeEach(async () => {
   const [user] = await db
     .insert(users)
     .values({
-      firstName: "Ada Lovelace",
-      email: "ada@example.com",
+      firstName: "Ana",
+      email: "ana@example.com",
       locationId: await seededLocationId(db),
     })
     .returning({ id: users.id });
@@ -154,6 +154,26 @@ describe("GET /permission-catalog", () => {
       expect.objectContaining({ key: "perform_stock_counts", requires: ["view_stock_balances"] }),
       expect.objectContaining({ key: "adjust_stock", requires: ["view_stock_balances"] }),
       expect.objectContaining({ key: "record_stock_losses", requires: ["view_stock_balances"] }),
+    ]);
+  });
+
+  it("gives each permission every permission that requires it, none for one nothing requires", async () => {
+    const rawSessionId = await insertSession();
+
+    const response = await getPermissionCatalog(rawSessionId);
+
+    const stock = response
+      .json<{ area: string; permissions: { key: string; required_by: string[] }[] }[]>()
+      .find(({ area }) => area === "stock");
+    expect(stock?.permissions).toEqual([
+      expect.objectContaining({ key: "record_initial_inventory", required_by: [] }),
+      expect.objectContaining({
+        key: "view_stock_balances",
+        required_by: ["perform_stock_counts", "adjust_stock", "record_stock_losses"],
+      }),
+      expect.objectContaining({ key: "perform_stock_counts", required_by: [] }),
+      expect.objectContaining({ key: "adjust_stock", required_by: [] }),
+      expect.objectContaining({ key: "record_stock_losses", required_by: [] }),
     ]);
   });
 

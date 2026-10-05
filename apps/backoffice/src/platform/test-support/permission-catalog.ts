@@ -7,8 +7,13 @@ const NONE: Marker = "none";
 const REGISTER: Marker = "register";
 const PIN: Marker = "register_with_another_persons_pin";
 const VIEW_BALANCES: PermissionKey[] = ["view_stock_balances"];
+const STOCK_MOVEMENTS: PermissionKey[] = [
+  "perform_stock_counts",
+  "adjust_stock",
+  "record_stock_losses",
+];
 
-const rows: [PermissionArea, PermissionKey, Marker, PermissionKey[]?][] = [
+const rows: [PermissionArea, PermissionKey, Marker, PermissionKey[]?, PermissionKey[]?][] = [
   ["cashRegister", "sell_and_charge", REGISTER],
   ["cashRegister", "view_sales_history", REGISTER],
   ["cashRegister", "close_anothers_register_session", PIN],
@@ -23,7 +28,7 @@ const rows: [PermissionArea, PermissionKey, Marker, PermissionKey[]?][] = [
   ["returns", "authorize_late_defect_refund", PIN],
   ["checkout", "confirm_refunds", PIN],
   ["stock", "record_initial_inventory", REGISTER],
-  ["stock", "view_stock_balances", NONE],
+  ["stock", "view_stock_balances", NONE, [], STOCK_MOVEMENTS],
   ["stock", "perform_stock_counts", NONE, VIEW_BALANCES],
   ["stock", "adjust_stock", NONE, VIEW_BALANCES],
   ["stock", "record_stock_losses", NONE, VIEW_BALANCES],
@@ -66,5 +71,10 @@ export const permissionCatalogFixture: PermissionCatalogWire = areas.map((area) 
   area,
   permissions: rows
     .filter(([rowArea]) => rowArea === area)
-    .map(([, key, register_marker, requires = []]) => ({ key, register_marker, requires })),
+    .map(([, key, register_marker, requires = [], required_by = []]) => ({
+      key,
+      register_marker,
+      requires,
+      required_by,
+    })),
 }));

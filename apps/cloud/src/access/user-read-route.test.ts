@@ -366,16 +366,16 @@ describe("GET /users/:id", () => {
         ? await seededAdministratorRoleId()
         : await insertCashierRole("Encargada", viewer.permissionKeys);
       const viewerId = await insertUser({
-        firstName: "Ada Lovelace",
-        email: "ada@example.com",
+        firstName: "Ana",
+        email: "ana@example.com",
         roleId: viewerRoleId,
         locationId,
       });
       const targetId = target.self
         ? viewerId
         : await insertUser({
-            firstName: "Grace Hopper",
-            email: "grace@example.com",
+            firstName: "Beto",
+            email: "beto@example.com",
             roleId:
               target.role === "administrator"
                 ? await seededAdministratorRoleId()

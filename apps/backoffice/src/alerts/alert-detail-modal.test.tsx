@@ -814,7 +814,7 @@ test("shows no description when an added permission is not in the permission cat
 
   const screen = await renderModal(services);
   await expect.element(screen.getByText("Se amplió el acceso de un usuario")).toBeVisible();
-  await vi.waitFor(() => expect(services.fetchPermissionCatalog).toHaveBeenCalled());
+  await expect.element(screen.getByRole("status")).not.toBeInTheDocument();
 
   expect(screen.getByText(/Administrador/).query()).toBeNull();
 });
