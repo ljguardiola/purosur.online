@@ -53,6 +53,22 @@ export function barcodeListProblem(codes: readonly string[]): BarcodeListProblem
   return undefined;
 }
 
+export type NewProductBarcodeListProblem = BarcodeListProblem | "internal_beside_others";
+
+export function newProductBarcodeListProblem(
+  codes: readonly string[],
+): NewProductBarcodeListProblem | undefined {
+  const problem = barcodeListProblem(codes);
+  if (problem !== undefined) {
+    return problem;
+  }
+  return codes.length > 1 && codes.some(isInternalBarcode) ? "internal_beside_others" : undefined;
+}
+
+export function mayGenerateInternalBarcodeFor(barcodes: readonly string[]): boolean {
+  return barcodes.length === 0;
+}
+
 export function addsInternalBarcodeToProductWithBarcodes(
   storedBarcodes: readonly string[],
   submittedBarcodes: readonly string[],

@@ -33,6 +33,7 @@ import {
   withCreatedBrand,
 } from "./product-brand-field";
 import {
+  barcodeProblemMessage,
   barcodeTakenError,
   categoryNameOf,
   categorySelectOptions,
@@ -144,6 +145,7 @@ export function NewProductModal({
     list: values.barcodes,
     latest: () => form.state.values.barcodes,
     setList: (next) => form.setFieldValue("barcodes", next),
+    problemMessage: barcodeProblemMessage,
   });
   const generate = useGenerateInternalBarcode(
     chips,

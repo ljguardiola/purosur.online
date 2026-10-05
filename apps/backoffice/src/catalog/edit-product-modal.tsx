@@ -34,12 +34,13 @@ import {
   categoryNameOf,
   categorySelectOptions,
   EMPTY_PRODUCT_FORM,
+  editedProductBarcodeProblemMessage,
   NET_CONTENT_UNIT_OPTIONS,
   PRODUCT_BRAND_INACTIVE_ERROR,
   PRODUCT_CATEGORY_NOT_LEAF_ERROR,
   PRODUCT_EDIT_FIELDS,
+  PRODUCT_EDIT_MESSAGES,
   PRODUCT_INTERNAL_BARCODE_ON_PRODUCT_WITH_BARCODES_ERROR,
-  PRODUCT_MESSAGES,
   productEditRequestFrom,
   productFormValues,
   SALE_UNIT_OPTIONS,
@@ -97,7 +98,7 @@ export function EditProductModal({
     defaultValues: { ...EMPTY_PRODUCT_FORM, version: 1 },
     request: { schema: productEditBodySchema, from: productEditRequestFrom },
     fields: PRODUCT_EDIT_FIELDS,
-    messages: PRODUCT_MESSAGES,
+    messages: PRODUCT_EDIT_MESSAGES,
     onSubmit: async (_request, { parsed, showFieldError, showWireFieldError }) => {
       if (!target) {
         return;
@@ -171,6 +172,7 @@ export function EditProductModal({
     list: values.barcodes,
     latest: () => form.state.values.barcodes,
     setList: (next) => form.setFieldValue("barcodes", next),
+    problemMessage: editedProductBarcodeProblemMessage,
   });
 
   const brandCreation = useStackedBrandCreation((brandId) =>

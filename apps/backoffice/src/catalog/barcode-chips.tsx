@@ -2,7 +2,7 @@ import { FieldGroup, fieldErrorMessage, IconButton, useFieldContext } from "@pur
 import { Barcode, ScanBarcode, X } from "lucide-react";
 import { type KeyboardEvent, useId, useRef, useState } from "react";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import { type BarcodeListValue, barcodeProblemMessage } from "./product-form";
+import { type BarcodeListValue, internalBarcodeMayBeGeneratedFor } from "./product-form";
 import type { generateInternalBarcode } from "./products-api";
 
 export const PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED =
@@ -26,14 +26,13 @@ type BarcodeListControl = {
   list: BarcodeListValue;
   latest: () => BarcodeListValue;
   setList: (next: BarcodeListValue) => void;
+  problemMessage: (codes: string[]) => string | undefined;
 };
 
-function scanProblemMessage(code: string, listed: string[]): string | undefined {
-  return barcodeProblemMessage([...listed, code]);
-}
-
-export function useBarcodeChips({ list, latest, setList }: BarcodeListControl) {
+export function useBarcodeChips({ list, latest, setList, problemMessage }: BarcodeListControl) {
   const [scanError, setScanError] = useState<string | undefined>(undefined);
+
+  const scanProblemMessage = (code: string, listed: string[]) => problemMessage([...listed, code]);
 
   const reset = () => setScanError(undefined);
 
@@ -68,28 +67,17 @@ export function useBarcodeChips({ list, latest, setList }: BarcodeListControl) {
     setScanError(undefined);
   }
 
-  // Checked before allocating a code from the cloud, so a full list never wastes one.
-  function refuseWhenFull(): boolean {
-    const problem = scanProblemMessage("", list.codes);
-    if (problem === undefined) {
-      return false;
-    }
-    setScanError(problem);
-    return true;
-  }
-
-  function addGenerated(code: string): boolean {
+  function addGenerated(code: string) {
     const current = latest();
     if (current.codes.includes(code)) {
-      return true;
+      return;
     }
     const problem = scanProblemMessage(code, current.codes);
     if (problem !== undefined) {
       setScanError(problem);
-      return false;
+      return;
     }
     setList({ ...current, codes: [...current.codes, code] });
-    return true;
   }
 
   return {
@@ -99,7 +87,6 @@ export function useBarcodeChips({ list, latest, setList }: BarcodeListControl) {
     changeScanInput,
     remove,
     handleScanKeyDown,
-    refuseWhenFull,
     addGenerated,
   };
 }
@@ -198,7 +185,7 @@ export function BarcodeChips({
 }
 
 export function useGenerateInternalBarcode(
-  chips: Pick<BarcodeChipsState, "codes" | "refuseWhenFull" | "addGenerated">,
+  chips: Pick<BarcodeChipsState, "codes" | "addGenerated">,
   generateInternalBarcodeService: typeof generateInternalBarcode,
   onSessionEnded: () => void,
   onRateLimited: (retryAfterSeconds: number) => void,
@@ -208,34 +195,27 @@ export function useGenerateInternalBarcode(
   const sendToMyAccount = useSendToMyAccount();
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | undefined>(undefined);
-  const [generatedCode, setGeneratedCode] = useState<string | undefined>(undefined);
   const requestIdRef = useRef(0);
 
   const reset = () => {
     requestIdRef.current += 1;
     setGenerating(false);
     setGenerateError(undefined);
-    setGeneratedCode(undefined);
   };
 
   async function handleGenerate() {
     setGenerateError(undefined);
     clearRateLimited();
-    if (chips.refuseWhenFull()) {
-      return;
-    }
     setGenerating(true);
     requestIdRef.current += 1;
     const requestId = requestIdRef.current;
-    const outcome = await generateInternalBarcodeService();
+    const outcome = await generateInternalBarcodeService(chips.codes);
     if (requestId !== requestIdRef.current) {
       return;
     }
     setGenerating(false);
     if (outcome.kind === "ok") {
-      if (chips.addGenerated(outcome.code)) {
-        setGeneratedCode(outcome.code);
-      }
+      chips.addGenerated(outcome.code);
       return;
     }
     if (outcome.kind === "unauthenticated") {
@@ -253,8 +233,7 @@ export function useGenerateInternalBarcode(
     setGenerateError(generateFailedMessage);
   }
 
-  const disabled =
-    generating || (generatedCode !== undefined && chips.codes.includes(generatedCode));
+  const disabled = generating || !internalBarcodeMayBeGeneratedFor(chips.codes);
 
   return { generating, generateError, disabled, reset, handleGenerate };
 }

@@ -1,15 +1,18 @@
 import {
   type CategorySummary,
+  internalBarcodeGenerationBodySchema,
   netContentQuantitySchema,
   type ProductCreationBody,
   type ProductSummary,
   productCreationBodySchema,
+  productEditBarcodesSchema,
   type TagSummary,
 } from "@purosur/contracts";
-import type { BarcodeListProblem, NetContentUnit } from "@purosur/domain";
+import type { NetContentUnit, NewProductBarcodeListProblem } from "@purosur/domain";
 import { type Option, type Options, plural } from "@purosur/ui";
 import { Package, Scale } from "lucide-react";
 import { createElement } from "react";
+import type { ZodType } from "zod";
 import {
   categoriesInTreeOrder,
   categoryPathLabels,
@@ -131,12 +134,25 @@ const BARCODE_PROBLEM_MESSAGES = new Map<string, string>(
     whitespace: "El código de barras no puede tener espacios.",
     repeated: "Ese código ya está en la lista.",
     several_internal: "El producto puede tener un solo código interno.",
-  } satisfies Record<BarcodeListProblem, string>),
+    internal_beside_others: "El código interno tiene que ser el único del producto.",
+  } satisfies Record<NewProductBarcodeListProblem, string>),
 );
 
-export function barcodeProblemMessage(codes: string[]): string | undefined {
-  const [problem] = failedRules(barcodesSchema, codes);
+function barcodeProblemMessageOf(schema: ZodType, codes: string[]): string | undefined {
+  const [problem] = failedRules(schema, codes);
   return problem === undefined ? undefined : BARCODE_PROBLEM_MESSAGES.get(problem);
+}
+
+export function barcodeProblemMessage(codes: string[]): string | undefined {
+  return barcodeProblemMessageOf(barcodesSchema, codes);
+}
+
+export function editedProductBarcodeProblemMessage(codes: string[]): string | undefined {
+  return barcodeProblemMessageOf(productEditBarcodesSchema, codes);
+}
+
+export function internalBarcodeMayBeGeneratedFor(codes: string[]): boolean {
+  return internalBarcodeGenerationBodySchema.safeParse({ barcodes: codes }).success;
 }
 
 export function productMessage({ name }: ProductFormValues): string {
@@ -177,12 +193,19 @@ export function netContentMessage({ netContent }: ProductFormValues): string {
   return "Revisá el contenido neto.";
 }
 
-export function barcodeListMessage({ barcodes }: ProductFormValues): string {
+function barcodeListMessageFrom(
+  { barcodes }: ProductFormValues,
+  problemMessage: (codes: string[]) => string | undefined,
+): string {
   const list = barcodesWithScan(barcodes);
   if (list.length === 0) {
     return PRODUCT_BARCODE_REQUIRED;
   }
-  return barcodeProblemMessage(list) ?? "Alguno de los códigos de barras no es válido.";
+  return problemMessage(list) ?? "Alguno de los códigos de barras no es válido.";
+}
+
+export function barcodeListMessage(values: ProductFormValues): string {
+  return barcodeListMessageFrom(values, barcodeProblemMessage);
 }
 
 export const PRODUCT_MESSAGES = {
@@ -193,6 +216,12 @@ export const PRODUCT_MESSAGES = {
   saleUnit: saleUnitMessage,
   netContent: netContentMessage,
   barcodes: barcodeListMessage,
+};
+
+export const PRODUCT_EDIT_MESSAGES = {
+  ...PRODUCT_MESSAGES,
+  barcodes: (values: ProductFormValues) =>
+    barcodeListMessageFrom(values, editedProductBarcodeProblemMessage),
 };
 
 // Typed by hand: inferred from lucide, an icon's optional className fails the design system's Icon
