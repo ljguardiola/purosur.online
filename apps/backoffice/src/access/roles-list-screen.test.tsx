@@ -12,16 +12,15 @@ import type { RolesListScreenServices } from "./roles-list-services";
 function createServices(
   overrides: Partial<RolesListScreenServices> = {},
 ): RolesListScreenServices & Required<Pick<RolesListScreenServices, "roleEditorModal">> {
+  const fetchPermissionCatalog =
+    overrides.fetchPermissionCatalog ??
+    vi.fn().mockResolvedValue({ kind: "ok", value: permissionCatalogFixture });
   return {
     fetchRoles: vi.fn(),
-    fetchPermissionCatalog: vi
-      .fn()
-      .mockResolvedValue({ kind: "ok", value: permissionCatalogFixture }),
+    fetchPermissionCatalog,
     roleEditorModal: {
       fetchRole: vi.fn().mockReturnValue(new Promise(() => {})),
-      fetchPermissionCatalog: vi
-        .fn()
-        .mockResolvedValue({ kind: "ok", value: permissionCatalogFixture }),
+      fetchPermissionCatalog,
       createRole: vi.fn(),
       editRole: vi.fn(),
       fetchSessionAuthorizationOptions: vi.fn(),
@@ -113,7 +112,9 @@ test("keeps the table loading until the permission catalog arrives, since each r
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
+  await expect
+    .element(screen.getByRole("table", { name: "Roles" }))
+    .toHaveAttribute("aria-busy", "true");
   expect(screen.getByText("Depósito").elements()).toHaveLength(0);
 
   catalog.resolve({ kind: "ok", value: permissionCatalogFixture });

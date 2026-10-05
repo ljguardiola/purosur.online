@@ -190,6 +190,7 @@ test("a permission catalog that fails to load while editing shows the failure, a
 test("draws the name row and both panes flush to the panel's own edges, not inset by Modal's default body padding", async () => {
   const services = createServices();
   const screen = await renderModal({ kind: "new" }, services);
+  await expect.element(screen.getByRole("textbox", { name: /^Nombre del rol/ })).toBeVisible();
   const dialog = screen.getByRole("dialog").element() as HTMLElement;
   const panel = dialog.parentElement as HTMLElement;
   const panelRect = panel.getBoundingClientRect();
