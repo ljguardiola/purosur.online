@@ -24,6 +24,8 @@ export type { PasskeyRegistrationChallengeWire } from "./access/passkey-registra
 export { passkeyRegistrationChallengeSchema } from "./access/passkey-registration-challenge.js";
 export type { PasskeySummaryWire } from "./access/passkey-summary.js";
 export { passkeyListSchema, passkeySummarySchema } from "./access/passkey-summary.js";
+export type { PermissionCatalogWire } from "./access/permission-catalog.js";
+export { permissionCatalogSchema } from "./access/permission-catalog.js";
 export type { PinCodeRedemption, PinCodeRedemptionBody } from "./access/pin-code-redemption.js";
 export {
   pinCodeRedemptionBodySchema,
@@ -86,14 +88,20 @@ export type { CategoryEditBody } from "./catalog/category-edit.js";
 export { categoryEditBodySchema } from "./catalog/category-edit.js";
 export type { CategorySummary } from "./catalog/category-summary.js";
 export { categoryListSchema, categorySummarySchema } from "./catalog/category-summary.js";
-export type { InternalBarcode } from "./catalog/internal-barcode.js";
-export { internalBarcodeSchema } from "./catalog/internal-barcode.js";
+export type {
+  InternalBarcode,
+  InternalBarcodeGenerationBody,
+} from "./catalog/internal-barcode.js";
+export {
+  internalBarcodeGenerationBodySchema,
+  internalBarcodeSchema,
+} from "./catalog/internal-barcode.js";
 export type { LabelSheetBody } from "./catalog/label-sheet.js";
 export { labelSheetBodySchema } from "./catalog/label-sheet.js";
 export type { ProductCreationBody } from "./catalog/product-creation.js";
 export { netContentQuantitySchema, productCreationBodySchema } from "./catalog/product-creation.js";
 export type { ProductEditBody } from "./catalog/product-edit.js";
-export { productEditBodySchema } from "./catalog/product-edit.js";
+export { productEditBarcodesSchema, productEditBodySchema } from "./catalog/product-edit.js";
 export type { ProductSummary } from "./catalog/product-summary.js";
 export { productListSchema, productSummarySchema } from "./catalog/product-summary.js";
 export type { TagCreationBody } from "./catalog/tag-creation.js";

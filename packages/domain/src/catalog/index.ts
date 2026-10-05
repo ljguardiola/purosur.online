@@ -18,7 +18,12 @@ export {
   labelRequestProblem,
   productLabelCode,
 } from "./model/label-request.js";
-export type { BarcodeListProblem, NetContentUnit, SaleUnit } from "./model/product.js";
+export type {
+  BarcodeListProblem,
+  NetContentUnit,
+  NewProductBarcodeListProblem,
+  SaleUnit,
+} from "./model/product.js";
 export {
   BARCODE_MAX_LENGTH,
   barcodeLength,
@@ -27,9 +32,11 @@ export {
   isNetContentUnit,
   isProductNameTooLong,
   isValidNetContentQuantity,
+  mayGenerateInternalBarcodeFor,
   NET_CONTENT_QUANTITY_MAX,
   NET_CONTENT_QUANTITY_MAX_DECIMALS,
   NET_CONTENT_UNITS,
+  newProductBarcodeListProblem,
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
   productNameLength,

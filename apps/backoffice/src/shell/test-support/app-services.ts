@@ -1,6 +1,9 @@
 import { vi } from "vitest";
 import { openSession } from "../../access/test-support/open-session";
+import { permissionCatalogFixture } from "../../platform/test-support/permission-catalog";
 import type { AppServices } from "../app";
+
+const permissionCatalogOutcome = { kind: "ok", value: permissionCatalogFixture } as const;
 
 export function createAppServices(overrides: Partial<AppServices> = {}): AppServices {
   return {
@@ -41,8 +44,10 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     },
     rolesListScreen: {
       fetchRoles: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchPermissionCatalog: vi.fn().mockResolvedValue(permissionCatalogOutcome),
       roleEditorModal: {
         fetchRole: vi.fn().mockReturnValue(new Promise(() => {})),
+        fetchPermissionCatalog: vi.fn().mockResolvedValue(permissionCatalogOutcome),
         createRole: vi.fn(),
         editRole: vi.fn(),
         fetchSessionAuthorizationOptions: vi.fn(),
@@ -177,6 +182,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchAlerts: vi.fn().mockReturnValue(new Promise(() => {})),
       alertDetailModal: {
         fetchAlert: vi.fn().mockReturnValue(new Promise(() => {})),
+        fetchPermissionCatalog: vi.fn().mockResolvedValue(permissionCatalogOutcome),
         closeAlert: vi.fn(),
       },
     },

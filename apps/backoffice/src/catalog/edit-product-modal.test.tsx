@@ -5,9 +5,8 @@ import { type Locator, page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { ProductReload } from "./catalog-queries";
 import { EditProductModal, type EditProductModalServices } from "./edit-product-modal";
-import type { GenerateInternalBarcodeOutcome } from "./products-api";
 import { scanInputOf } from "./test-support/product-form";
-import { almonds, driedFruits, groceries, honey } from "./test-support/products";
+import { driedFruits, groceries, honey } from "./test-support/products";
 import { organico, sinColorantes, sinTacc, vegano } from "./test-support/tags";
 
 // A modal panel is centered by a fixed-position overlay that never grows the document's scroll
@@ -23,7 +22,6 @@ function createServices(
     editProduct: vi.fn(),
     createBrand: vi.fn(),
     createTag: vi.fn(),
-    generateInternalBarcode: vi.fn(),
     ...overrides,
   };
 }
@@ -83,20 +81,6 @@ function found(product: ProductSummary) {
     kind: "found",
     product,
   });
-}
-
-function generateButtonOf(dialog: Locator) {
-  return dialog.getByRole("button", { name: "Generar código interno" });
-}
-
-function pendingGenerate(services: EditProductModalServices) {
-  let resolveGenerate: (outcome: GenerateInternalBarcodeOutcome) => void = () => {};
-  vi.mocked(services.generateInternalBarcode).mockReturnValue(
-    new Promise((resolve) => {
-      resolveGenerate = resolve;
-    }),
-  );
-  return (outcome: GenerateInternalBarcodeOutcome) => resolveGenerate(outcome);
 }
 
 test("prefills the edit modal with the product's net content quantity and unit", async () => {
@@ -438,81 +422,47 @@ test("shows a generic barcode-taken error on edit when the cloud names no taken 
     .toBeVisible();
 });
 
-test("generates an internal code from the edit modal and saves it alongside the existing code", async () => {
+test("offers no internal code to generate, since a product being edited already has a barcode", async () => {
+  const { dialog } = await renderModal(honey, createServices());
+
+  await expect.element(scanInputOf(dialog)).toBeVisible();
+  expect(dialog.getByRole("button", { name: "Generar código interno" }).query()).toBeNull();
+});
+
+test("lets a product keep its internal code while a supplier's code is scanned beside it", async () => {
   const services = createServices();
-  vi.mocked(services.generateInternalBarcode).mockResolvedValue({
-    kind: "ok",
-    code: "2000000000015",
-  });
   vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok" });
-  const { dialog } = await renderModal(honey, services);
+  const { dialog } = await renderModal({ ...honey, barcodes: ["2000000000015"] }, services);
 
-  await userEvent.click(generateButtonOf(dialog));
-  await expect.element(dialog.getByText("2000000000015")).toBeVisible();
-
+  await userEvent.fill(scanInputOf(dialog), "7790987000015");
+  await userEvent.keyboard("{Enter}");
+  await expect.element(dialog.getByText("7790987000015")).toBeVisible();
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.editProduct).mock.calls.length).toBe(1);
-  expect(services.editProduct).toHaveBeenCalledWith("90d00000-0000-4000-8000-000000000001", {
-    name: "Miel pura de abeja 1 kg",
-    categoryId: "ca7e0000-0000-4000-8000-000000000001",
-    brandId: null,
-    saleUnit: "UNIT",
-    barcodes: ["7790987000015", "2000000000015"],
-    tagIds: [],
-    netContent: null,
-    version: 1,
-  });
+  expect(services.editProduct).toHaveBeenCalledWith(
+    "90d00000-0000-4000-8000-000000000001",
+    expect.objectContaining({ barcodes: ["2000000000015", "7790987000015"] }),
+  );
 });
 
-test("drops an internal code that arrives after the edit modal moved to another product", async () => {
+test("shows on the barcodes the refusal of an internal code added to a product that already had a barcode", async () => {
   const services = createServices();
-  const resolveGenerate = pendingGenerate(services);
-  const { dialog, rerender } = await renderModal(honey, services);
-
-  await userEvent.click(generateButtonOf(dialog));
-  await rerender(null);
-  await expect.poll(() => dialog.query()).toBeNull();
-  await rerender(almonds);
-  await expect.element(dialog.getByText("7790000000001")).toBeVisible();
-
-  resolveGenerate({ kind: "ok", code: "2000000000015" });
-  // Rerendering drives React's async `act()`, which flushes the already-resolved response's
-  // continuation before returning.
-  await rerender(almonds);
-
-  expect(dialog.getByText("2000000000015").query()).toBeNull();
-  expect(dialog.getByText("7790987000015").query()).toBeNull();
-  await expect.element(dialog.getByText("7790000000001")).toBeVisible();
-});
-
-test("shows the rate-limited notice when generating is refused for too many requests", async () => {
-  const services = createServices();
-  vi.mocked(services.generateInternalBarcode).mockResolvedValue({
-    kind: "rate_limited",
-    retryAfterSeconds: 120,
+  vi.mocked(services.editProduct).mockResolvedValue({
+    kind: "internal_barcode_on_product_with_barcodes",
   });
   const { dialog } = await renderModal(honey, services);
 
-  await userEvent.click(generateButtonOf(dialog));
+  await userEvent.fill(scanInputOf(dialog), "2000000000015");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
-  await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
-  await expect.element(dialog.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
-});
-
-test("clears the rate-limited notice when generating again succeeds", async () => {
-  const services = createServices();
-  vi.mocked(services.generateInternalBarcode)
-    .mockResolvedValueOnce({ kind: "rate_limited", retryAfterSeconds: 120 })
-    .mockResolvedValueOnce({ kind: "ok", code: "2000000000022" });
-  const { dialog } = await renderModal(honey, services);
-
-  await userEvent.click(generateButtonOf(dialog));
-  await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
-  await userEvent.click(generateButtonOf(dialog));
-
-  await expect.element(dialog.getByText("2000000000022")).toBeVisible();
-  expect(dialog.getByText("Demasiadas solicitudes").query()).toBeNull();
+  await expect
+    .element(
+      dialog.getByText(
+        "Un código interno solo se puede agregar a un producto sin códigos de barras.",
+      ),
+    )
+    .toBeVisible();
 });
 
 const granix: BrandSummary = {

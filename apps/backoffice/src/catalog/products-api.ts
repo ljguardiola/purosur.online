@@ -1,4 +1,5 @@
 import {
+  type InternalBarcodeGenerationBody,
   internalBarcodeSchema,
   type LabelSheetBody,
   type ProductCreationBody,
@@ -60,6 +61,7 @@ export type EditProductOutcome =
   | { kind: "brand_inactive" }
   | { kind: "tag_inactive"; tagId: string }
   | { kind: "sale_unit_held_by_discount"; discountName: string }
+  | { kind: "internal_barcode_on_product_with_barcodes" }
   | { kind: "stale_version" }
   | { kind: "not_found" }
   | { kind: "forbidden" }
@@ -74,15 +76,15 @@ export type GenerateInternalBarcodeOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-function sendJson(method: "POST" | "PUT", path: string, body?: unknown): Promise<Response> {
+function sendJson(method: "POST" | "PUT", path: string, body: unknown): Promise<Response> {
   return fetch(path, {
     method,
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body ?? {}),
+    body: JSON.stringify(body),
   });
 }
 
-function postJson(path: string, body?: unknown): Promise<Response> {
+function postJson(path: string, body: unknown): Promise<Response> {
   return sendJson("POST", path, body);
 }
 
@@ -174,10 +176,12 @@ export async function createProduct(input: CreateProductInput): Promise<CreatePr
   return { kind: "failed" };
 }
 
-export async function generateInternalBarcode(): Promise<GenerateInternalBarcodeOutcome> {
+export async function generateInternalBarcode(
+  body: InternalBarcodeGenerationBody,
+): Promise<GenerateInternalBarcodeOutcome> {
   let response: Response;
   try {
-    response = await postJson("/api/internal-barcodes");
+    response = await postJson("/api/internal-barcodes", body);
   } catch {
     return { kind: "failed" };
   }
@@ -295,6 +299,9 @@ export async function editProduct(
       return typeof body.tagId === "string"
         ? { kind: "tag_inactive", tagId: body.tagId }
         : { kind: "failed" };
+    }
+    if (body?.code === "internal_barcode_on_product_with_barcodes") {
+      return { kind: "internal_barcode_on_product_with_barcodes" };
     }
     if (body?.code === "sale_unit_held_by_discount") {
       return typeof body.discountName === "string"

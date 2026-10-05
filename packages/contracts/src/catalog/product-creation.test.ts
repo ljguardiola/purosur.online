@@ -170,6 +170,24 @@ describe("productCreationBodySchema, barcodes", () => {
     });
   });
 
+  it("rejects a second internal code", () => {
+    expect(firstFailure(validBody({ barcodes: ["2000000000015", "2000000000022"] }))).toEqual({
+      field: "barcodes",
+      message: "a product can have at most one internal barcode",
+    });
+  });
+
+  it("accepts an internal code as the product's only code", () => {
+    expect(isAccepted(validBody({ barcodes: ["2000000000015"] }))).toBe(true);
+  });
+
+  it("rejects an internal code listed beside another code", () => {
+    expect(firstFailure(validBody({ barcodes: ["7790987000015", "2000000000015"] }))).toEqual({
+      field: "barcodes",
+      message: "a product is created with an internal barcode only as its sole barcode",
+    });
+  });
+
   it("reports the first problem in the order the codes were sent", () => {
     expect(
       firstFailure(validBody({ barcodes: ["1 1", "a".repeat(BARCODE_MAX_LENGTH + 1)] })),
@@ -384,6 +402,8 @@ describe("productCreationBodySchema, declared limits and rules", () => {
     ["too_long", ["1".repeat(BARCODE_MAX_LENGTH + 1)]],
     ["whitespace", ["12 34"]],
     ["repeated", ["111", "111"]],
+    ["several_internal", ["2000000000015", "2000000000022"]],
+    ["internal_beside_others", ["2000000000015", "111"]],
   ])("names the %s problem of a barcode list", (problem, codes) => {
     expect(barcodeRules(codes)).toEqual([problem]);
   });

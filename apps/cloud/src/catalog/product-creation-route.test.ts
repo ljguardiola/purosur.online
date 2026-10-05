@@ -1,3 +1,4 @@
+import { ean13Modules } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -220,6 +221,7 @@ describe("POST /products", () => {
       netContent: null,
       active: true,
       labelCode: null,
+      labelModules: null,
       version: 1,
     });
     const created = await db.select().from(products).where(eq(products.id, body.id));
@@ -241,10 +243,13 @@ describe("POST /products", () => {
       name: "Maceta",
       categoryId,
       saleUnit: "UNIT",
-      barcodes: ["7790001000011", "2000000000015"],
+      barcodes: ["2000000000015"],
     });
 
-    expect(response.json()).toMatchObject({ labelCode: "2000000000015" });
+    expect(response.json()).toMatchObject({
+      labelCode: "2000000000015",
+      labelModules: ean13Modules("2000000000015"),
+    });
   });
 
   it("creates the product for an Administrator even without the explicit permission", async () => {

@@ -212,3 +212,13 @@ describe("issuerIdentificationEditBodySchema, declared limits", () => {
     });
   });
 });
+
+describe("issuerIdentificationEditBodySchema, declared latest day", () => {
+  it("declares the latest activity start date it accepts, in Argentina's calendar", () => {
+    const justAfterUtcMidnight = new Date("2026-09-26T01:00:00.000Z");
+
+    expect(
+      issuerIdentificationEditBodySchema(justAfterUtcMidnight).shape.activity_start_date.meta(),
+    ).toEqual({ latestDay: "2026-09-25" });
+  });
+});

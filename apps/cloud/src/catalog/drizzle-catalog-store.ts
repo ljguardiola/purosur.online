@@ -135,6 +135,7 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
         ...product,
         saleUnit: product.saleUnit as SaleUnit,
         tagIds: await this.tagIdsOf(productId),
+        barcodes: await this.barcodesOf(productId),
       },
     };
   }
@@ -425,6 +426,15 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
     } catch (error) {
       throw translateBrandNameViolation(error);
     }
+  }
+
+  private async barcodesOf(productId: string): Promise<string[]> {
+    const rows = await this.tx
+      .select({ code: productBarcodes.code })
+      .from(productBarcodes)
+      .where(eq(productBarcodes.productId, productId))
+      .orderBy(asc(productBarcodes.position));
+    return rows.map((row) => row.code);
   }
 
   private async tagIdsOf(productId: string): Promise<string[]> {

@@ -863,6 +863,7 @@ describe("wiring the roles routes", () => {
     const app = buildApp({ version: "abc1234" });
 
     const list = await app.inject({ method: "GET", url: "/api/roles" });
+    const catalog = await app.inject({ method: "GET", url: "/api/permission-catalog" });
     const read = await app.inject({
       method: "GET",
       url: "/api/roles/00000000-0000-0000-0000-000000000000",
@@ -879,6 +880,7 @@ describe("wiring the roles routes", () => {
     });
 
     expect(list.statusCode).toBe(404);
+    expect(catalog.statusCode).toBe(404);
     expect(read.statusCode).toBe(404);
     expect(create.statusCode).toBe(404);
     expect(edit.statusCode).toBe(404);
@@ -891,6 +893,11 @@ describe("wiring the roles routes", () => {
     });
 
     const list = await app.inject({ method: "GET", url: "/api/roles" });
+    const catalog = await app.inject({
+      method: "GET",
+      url: "/api/permission-catalog",
+      headers: { origin: "https://staging.purosur.online" },
+    });
     const read = await app.inject({
       method: "GET",
       url: "/api/roles/00000000-0000-0000-0000-000000000000",
@@ -908,6 +915,7 @@ describe("wiring the roles routes", () => {
     });
 
     expect(list.statusCode).toBe(401);
+    expect(catalog.statusCode).toBe(401);
     expect(read.statusCode).toBe(401);
     expect(create.statusCode).toBe(401);
     expect(edit.statusCode).toBe(401);
@@ -1746,6 +1754,7 @@ describe("the route access inventory", () => {
         access: capabilityAccess("reactivate_users"),
       },
       { method: "GET", url: "/api/roles", access: ADMINISTRATOR_ACCESS },
+      { method: "GET", url: "/api/permission-catalog", access: OPEN_SESSION_ACCESS },
       { method: "GET", url: "/api/roles/:id", access: ADMINISTRATOR_ACCESS },
       { method: "POST", url: "/api/roles", access: ADMINISTRATOR_ACCESS },
       { method: "PUT", url: "/api/roles/:id", access: ADMINISTRATOR_ACCESS },

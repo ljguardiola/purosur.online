@@ -1,9 +1,9 @@
-import { isInternalBarcode } from "@purosur/domain";
+import type { InternalBarcodeGenerationBody } from "@purosur/contracts";
 import { FieldGroup, fieldErrorMessage, IconButton, useFieldContext } from "@purosur/ui";
 import { Barcode, ScanBarcode, X } from "lucide-react";
 import { type KeyboardEvent, useId, useRef, useState } from "react";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import { type BarcodeListValue, barcodeProblemMessage } from "./product-form";
+import { type BarcodeListValue, internalBarcodeGenerationRequestFrom } from "./product-form";
 import type { generateInternalBarcode } from "./products-api";
 
 export const PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED =
@@ -15,8 +15,8 @@ const barcodeActionClassName =
   "outline-none transition-background";
 
 const scanControlClassName =
-  `${barcodeActionClassName} relative min-w-0 cursor-text hover:bg-surface-subtle ` +
-  "focus-within:focus-ring";
+  `${barcodeActionClassName} relative min-w-0 cursor-text hover:not-has-disabled:bg-surface-subtle ` +
+  "focus-within:focus-ring has-disabled:opacity-disabled";
 
 // `enabled:` keeps the hover fill off a disabled button.
 const generateButtonClassName =
@@ -25,20 +25,14 @@ const generateButtonClassName =
 
 type BarcodeListControl = {
   list: BarcodeListValue;
-  latest: () => BarcodeListValue;
   setList: (next: BarcodeListValue) => void;
+  problemMessage: (codes: string[]) => string | undefined;
 };
 
-function scanProblemMessage(code: string, listed: string[]): string | undefined {
-  return barcodeProblemMessage([...listed, code]);
-}
-
-function hasInternalBarcode(barcodes: string[]): boolean {
-  return barcodes.some(isInternalBarcode);
-}
-
-export function useBarcodeChips({ list, latest, setList }: BarcodeListControl) {
+export function useBarcodeChips({ list, setList, problemMessage }: BarcodeListControl) {
   const [scanError, setScanError] = useState<string | undefined>(undefined);
+
+  const scanProblemMessage = (code: string, listed: string[]) => problemMessage([...listed, code]);
 
   const reset = () => setScanError(undefined);
 
@@ -73,29 +67,8 @@ export function useBarcodeChips({ list, latest, setList }: BarcodeListControl) {
     setScanError(undefined);
   }
 
-  // Checked before allocating a code from the cloud, so a full list never wastes one.
-  function refuseWhenFull(): boolean {
-    const problem = scanProblemMessage("", list.codes);
-    if (problem === undefined) {
-      return false;
-    }
-    setScanError(problem);
-    return true;
-  }
-
-  // The cloud already allocated and confirmed this code unique, so unlike a scanned one it
-  // skips the spaces/length checks.
-  function addGenerated(code: string): boolean {
-    const current = latest();
-    const problem = scanProblemMessage("", current.codes);
-    if (problem !== undefined) {
-      setScanError(problem);
-      return false;
-    }
-    if (!current.codes.includes(code)) {
-      setList({ ...current, codes: [...current.codes, code] });
-    }
-    return true;
+  function addGenerated(code: string) {
+    setList({ ...list, codes: [...list.codes, code] });
   }
 
   return {
@@ -105,26 +78,21 @@ export function useBarcodeChips({ list, latest, setList }: BarcodeListControl) {
     changeScanInput,
     remove,
     handleScanKeyDown,
-    refuseWhenFull,
     addGenerated,
   };
 }
 
 type BarcodeChipsState = ReturnType<typeof useBarcodeChips>;
 
-type BarcodeChipsProps = {
-  chips: BarcodeChipsState;
-  onGenerate: () => void;
-  generateDisabled: boolean;
-  generateError: string | undefined;
+type InternalBarcodeGeneration = {
+  start: (() => void) | undefined;
+  generating: boolean;
+  error: string | undefined;
 };
 
-export function BarcodeChips({
-  chips,
-  onGenerate,
-  generateDisabled,
-  generateError,
-}: BarcodeChipsProps) {
+type BarcodeChipsProps = { chips: BarcodeChipsState; generation?: InternalBarcodeGeneration };
+
+export function BarcodeChips({ chips, generation }: BarcodeChipsProps) {
   const field = useFieldContext<BarcodeListValue>();
   const { codes, scan } = field.state.value;
   const error = fieldErrorMessage(field.state.meta.errors) ?? chips.scanError;
@@ -172,25 +140,28 @@ export function BarcodeChips({
             onKeyDown={chips.handleScanKeyDown}
             onFocus={() => setScanFocused(true)}
             onBlur={() => setScanFocused(false)}
+            disabled={generation?.generating}
             aria-label="Escanear otro código"
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? errorId : undefined}
           />
         </label>
-        <button
-          type="button"
-          className={generateButtonClassName}
-          disabled={generateDisabled}
-          onClick={onGenerate}
-          aria-describedby={generateError ? generateErrorId : undefined}
-        >
-          <Barcode aria-hidden="true" className="size-icon-md shrink-0" />
-          <span className="truncate">Generar código interno</span>
-        </button>
+        {generation ? (
+          <button
+            type="button"
+            className={generateButtonClassName}
+            disabled={generation.start === undefined}
+            onClick={generation.start}
+            aria-describedby={generation.error ? generateErrorId : undefined}
+          >
+            <Barcode aria-hidden="true" className="size-icon-md shrink-0" />
+            <span className="truncate">Generar código interno</span>
+          </button>
+        ) : null}
       </div>
-      {generateError ? (
+      {generation?.error ? (
         <span id={generateErrorId} role="alert" className="text-detail text-error">
-          {generateError}
+          {generation.error}
         </span>
       ) : null}
       {error ? (
@@ -203,7 +174,7 @@ export function BarcodeChips({
 }
 
 export function useGenerateInternalBarcode(
-  chips: Pick<BarcodeChipsState, "codes" | "refuseWhenFull" | "addGenerated">,
+  chips: Pick<BarcodeChipsState, "codes" | "addGenerated">,
   generateInternalBarcodeService: typeof generateInternalBarcode,
   onSessionEnded: () => void,
   onRateLimited: (retryAfterSeconds: number) => void,
@@ -221,16 +192,13 @@ export function useGenerateInternalBarcode(
     setGenerateError(undefined);
   };
 
-  async function handleGenerate() {
+  async function generateFor(request: InternalBarcodeGenerationBody) {
     setGenerateError(undefined);
     clearRateLimited();
-    if (chips.refuseWhenFull()) {
-      return;
-    }
     setGenerating(true);
     requestIdRef.current += 1;
     const requestId = requestIdRef.current;
-    const outcome = await generateInternalBarcodeService();
+    const outcome = await generateInternalBarcodeService(request);
     if (requestId !== requestIdRef.current) {
       return;
     }
@@ -254,7 +222,12 @@ export function useGenerateInternalBarcode(
     setGenerateError(generateFailedMessage);
   }
 
-  const disabled = generating || hasInternalBarcode(chips.codes);
+  const request = generating ? undefined : internalBarcodeGenerationRequestFrom(chips.codes);
+  const generation: InternalBarcodeGeneration = {
+    start: request === undefined ? undefined : () => void generateFor(request),
+    generating,
+    error: generateError,
+  };
 
-  return { generating, generateError, disabled, reset, handleGenerate };
+  return { generation, reset };
 }

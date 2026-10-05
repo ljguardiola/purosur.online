@@ -14,6 +14,7 @@ const honey = {
   netContent: null,
   active: true,
   labelCode: null,
+  labelModules: null,
   version: 1,
 };
 const almonds = {
@@ -39,6 +40,13 @@ describe("productSummarySchema", () => {
       ...honey,
       labelCode: "2000000000015",
     });
+  });
+
+  it("accepts the modules of the code a product's label carries", () => {
+    expect(
+      productSummarySchema.safeParse({ ...honey, labelCode: "2000000000015", labelModules: "101" })
+        .data,
+    ).toEqual({ ...honey, labelCode: "2000000000015", labelModules: "101" });
   });
 
   it("strips keys it does not define, also inside the net content", () => {
@@ -73,6 +81,7 @@ describe("productSummarySchema", () => {
     "netContent",
     "active",
     "labelCode",
+    "labelModules",
     "version",
   ])("requires %s", (field) => {
     const { [field as keyof typeof honey]: _omitted, ...rest } = honey;
@@ -109,6 +118,8 @@ describe("productSummarySchema", () => {
     ["active", null],
     ["labelCode", 2000000000015],
     ["labelCode", undefined],
+    ["labelModules", 101],
+    ["labelModules", undefined],
     ["version", "1"],
     ["version", 1.5],
     ["version", null],

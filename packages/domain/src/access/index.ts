@@ -56,6 +56,7 @@ export type { PinCodeParty, PinCodeState } from "./model/pin-code.js";
 export {
   isPinCodeLive,
   isWellFormedPinCode,
+  mayEmitPinCode,
   mayEmitPinCodeFor,
   normalizePinCode,
   PIN_CODE_HOURLY_LIMIT,

@@ -1,9 +1,10 @@
-import { type Capability, type ManualStockMovementKind, mayEmitPinCodeFor } from "@purosur/domain";
+import type { Capability, ManualStockMovementKind } from "@purosur/domain";
 
 export type BackofficeAccess = {
   isAdministrator: boolean;
   capabilities: readonly Capability[];
   stockMovementKinds: readonly ManualStockMovementKind[];
+  mayEmitOwnPinCode: boolean;
 };
 
 function grants(access: BackofficeAccess, capability: Capability): boolean {
@@ -12,24 +13,6 @@ function grants(access: BackofficeAccess, capability: Capability): boolean {
 
 export function canSeeUsersArea(access: BackofficeAccess): boolean {
   return grants(access, "users_area");
-}
-
-export function canResetUserPin(
-  access: BackofficeAccess,
-  signedInUserId: string,
-  target: { id: string; isAdministrator: boolean; active?: boolean },
-): boolean {
-  if (target.active === false) {
-    return false;
-  }
-  if (!grants(access, "reset_user_pin")) {
-    return false;
-  }
-  // The cloud accepts a user id in any letter case.
-  return mayEmitPinCodeFor(
-    { id: signedInUserId.toLowerCase(), isAdministrator: access.isAdministrator },
-    { id: target.id.toLowerCase(), isAdministrator: target.isAdministrator },
-  );
 }
 
 export function canDeactivateUser(

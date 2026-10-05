@@ -1,10 +1,11 @@
 import {
+  type PermissionCatalogWire,
   type RoleCreationBody,
   type RoleEditBody,
   roleCreationBodySchema,
   roleEditBodySchema,
 } from "@purosur/contracts";
-import { type PermissionArea, type PermissionKey, withRequiredPermissions } from "@purosur/domain";
+import type { PermissionArea, PermissionKey } from "@purosur/domain";
 import {
   Button,
   InlineNotice,
@@ -20,6 +21,8 @@ import { Check, RotateCcw, Shield, ShieldOff, ShieldX, TriangleAlert, X } from "
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import { combineCloudData } from "../platform/combine-cloud-data";
+import { fetchPermissionCatalog } from "../platform/permission-catalog-api";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { roleDisplayName } from "../platform/role-display-name";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
@@ -27,8 +30,15 @@ import {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
-import { useRefreshAccess, useReloadRole, useRoleQuery } from "./access-queries";
+import type { CloudData } from "../platform/use-cloud-query";
+import {
+  usePermissionCatalogQuery,
+  useRefreshAccess,
+  useReloadRole,
+  useRoleQuery,
+} from "./access-queries";
 import { ConfirmRoleSaveModal } from "./confirm-role-save-modal";
+import { withRequiredPermissions } from "./permission-catalog";
 import { RoleEditorForm } from "./role-editor-form";
 import { roleNameMessage } from "./role-name-message";
 import {
@@ -48,6 +58,7 @@ export type RoleEditorRequest =
 
 export type RoleEditorModalServices = {
   fetchRole: typeof fetchRole;
+  fetchPermissionCatalog: typeof fetchPermissionCatalog;
   createRole: typeof createRole;
   editRole: typeof editRole;
   fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
@@ -57,6 +68,7 @@ export type RoleEditorModalServices = {
 
 const defaultRoleEditorModalServices: RoleEditorModalServices = {
   fetchRole,
+  fetchPermissionCatalog,
   createRole,
   editRole,
   fetchSessionAuthorizationOptions,
@@ -89,13 +101,27 @@ function seededName(seed: RoleSeed): string {
   return seed.kind === "edit" ? (seed.role.name ?? "") : "";
 }
 
-function seededPermissions(seed: RoleSeed): ReadonlySet<PermissionKey> {
+function seededPermissions(
+  seed: RoleSeed,
+  catalog: PermissionCatalogWire,
+): ReadonlySet<PermissionKey> {
   if (seed.kind === "duplicate") {
-    return withRequiredPermissions(seed.source.permissionKeys as PermissionKey[]);
+    return withRequiredPermissions(catalog, seed.source.permissionKeys as PermissionKey[]);
   }
   return withRequiredPermissions(
+    catalog,
     seed.kind === "edit" ? (seed.role.permissionKeys as PermissionKey[]) : [],
   );
+}
+
+const HEADINGS = {
+  new: "Nuevo rol",
+  duplicate: "Duplicar rol",
+  edit: "Editar rol",
+} satisfies Record<RoleEditorRequest["kind"], string>;
+
+function saveLabelFor(kind: RoleEditorRequest["kind"]): string {
+  return kind === "edit" ? "Guardar los cambios" : "Guardar el rol";
 }
 
 type RoleEditorFrameProps = {
@@ -175,6 +201,7 @@ function NoticeSlot({ children }: { children: ReactNode }) {
 
 type RoleEditorSessionProps = {
   seed: RoleSeed;
+  catalog: PermissionCatalogWire;
   onClose: () => void;
   onSaved: () => void;
   onSessionEnded: () => void;
@@ -183,6 +210,7 @@ type RoleEditorSessionProps = {
 
 function RoleEditorSession({
   seed,
+  catalog,
   onClose,
   onSaved,
   onSessionEnded,
@@ -221,7 +249,7 @@ function RoleEditorSession({
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
   const { form, submit, submitting, reset, values } = useRequestForm({
-    defaultValues: { name: seededName(seed), permissions: seededPermissions(seed) },
+    defaultValues: { name: seededName(seed), permissions: seededPermissions(seed, catalog) },
     request: {
       schema: stored ? roleEditBodySchema : roleCreationBodySchema,
       from: ({ name, permissions }): RoleCreationBody | RoleEditBody => ({
@@ -298,7 +326,7 @@ function RoleEditorSession({
       setStored(fresh);
       reset({
         name: fresh.name ?? "",
-        permissions: withRequiredPermissions(fresh.permissionKeys as PermissionKey[]),
+        permissions: withRequiredPermissions(catalog, fresh.permissionKeys as PermissionKey[]),
       });
       setNotice(null);
     }
@@ -312,15 +340,11 @@ function RoleEditorSession({
     saveConfirmed.current = false;
   }
 
-  const heading =
-    seed.kind === "edit" ? "Editar rol" : seed.kind === "duplicate" ? "Duplicar rol" : "Nuevo rol";
-  const saveLabel = seed.kind === "edit" ? "Guardar los cambios" : "Guardar el rol";
-
   return (
     <>
       <RoleEditorFrame
-        heading={heading}
-        saveLabel={saveLabel}
+        heading={HEADINGS[seed.kind]}
+        saveLabel={saveLabelFor(seed.kind)}
         selectedCount={values.permissions.size}
         saveDisabled={busy}
         busy={busy}
@@ -367,6 +391,7 @@ function RoleEditorSession({
         ) : null}
         <div className="flex min-h-0 flex-1 flex-col">
           <RoleEditorForm
+            catalog={catalog}
             nameField={
               <form.AppField name="name">
                 {(field) => <field.TextField kind="plain-text" label="Nombre del rol" required />}
@@ -392,32 +417,23 @@ function RoleEditorSession({
   );
 }
 
-type EditRoleEditorProps = Omit<RoleEditorSessionProps, "seed"> & { roleId: string };
-
-function EditRoleEditor({ roleId, services, ...handlers }: EditRoleEditorProps) {
-  const data = useRoleQuery({
-    roleId,
-    fetchRole: services.fetchRole,
-    onSessionEnded: handlers.onSessionEnded,
-  });
-
-  if (data.status === "loaded" && data.value.kind === "found") {
-    return (
-      <RoleEditorSession
-        seed={{ kind: "edit", role: data.value.role }}
-        services={services}
-        {...handlers}
-      />
-    );
-  }
+function PendingRoleEditor({
+  kind,
+  data,
+  onClose,
+}: {
+  kind: RoleEditorRequest["kind"];
+  data: CloudData<unknown>;
+  onClose: () => void;
+}) {
   return (
     <RoleEditorFrame
-      heading="Editar rol"
-      saveLabel="Guardar los cambios"
+      heading={HEADINGS[kind]}
+      saveLabel={saveLabelFor(kind)}
       saveStatus={data.status}
       saveDisabled={data.status === "loaded"}
       busy={false}
-      onClose={handlers.onClose}
+      onClose={onClose}
       onSave={() => {}}
     >
       <NoticeSlot>
@@ -429,6 +445,34 @@ function EditRoleEditor({ roleId, services, ...handlers }: EditRoleEditorProps) 
       </NoticeSlot>
     </RoleEditorFrame>
   );
+}
+
+type EditRoleEditorProps = Omit<RoleEditorSessionProps, "seed" | "catalog"> & {
+  roleId: string;
+  catalog: CloudData<PermissionCatalogWire>;
+};
+
+function EditRoleEditor({ roleId, catalog, services, ...handlers }: EditRoleEditorProps) {
+  const data = combineCloudData(
+    useRoleQuery({
+      roleId,
+      fetchRole: services.fetchRole,
+      onSessionEnded: handlers.onSessionEnded,
+    }),
+    catalog,
+  );
+
+  if (data.status === "loaded" && data.value[0].kind === "found") {
+    return (
+      <RoleEditorSession
+        seed={{ kind: "edit", role: data.value[0].role }}
+        catalog={data.value[1]}
+        services={services}
+        {...handlers}
+      />
+    );
+  }
+  return <PendingRoleEditor kind="edit" data={data} onClose={handlers.onClose} />;
 }
 
 export function RoleEditorModal({
@@ -444,16 +488,31 @@ export function RoleEditorModal({
     onSessionEnded,
     services: services ?? defaultRoleEditorModalServices,
   };
+  const catalog = usePermissionCatalogQuery({
+    fetchPermissionCatalog: handlers.services.fetchPermissionCatalog,
+    onSessionEnded,
+  });
   if (request === null) {
     return null;
   }
   if (request.kind === "edit") {
-    return <EditRoleEditor key={request.roleId} roleId={request.roleId} {...handlers} />;
+    return (
+      <EditRoleEditor
+        key={request.roleId}
+        roleId={request.roleId}
+        catalog={catalog}
+        {...handlers}
+      />
+    );
+  }
+  if (catalog.status !== "loaded") {
+    return <PendingRoleEditor kind={request.kind} data={catalog} onClose={onClose} />;
   }
   return (
     <RoleEditorSession
       key={request.kind === "duplicate" ? request.source.id : "new"}
       seed={request}
+      catalog={catalog.value}
       {...handlers}
     />
   );

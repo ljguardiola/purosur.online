@@ -1,4 +1,5 @@
 import {
+  argentinaCalendarDay,
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
   isIssuerIdentificationActivityStartDate,
@@ -27,7 +28,8 @@ export function issuerIdentificationEditBodySchema(today: Date) {
       .refine(
         (value) => isIssuerIdentificationActivityStartDate(value, today),
         activityStartDateMessage,
-      ),
+      )
+      .meta({ latestDay: argentinaCalendarDay(today) }),
     version: loadedVersionSchema,
   });
 }

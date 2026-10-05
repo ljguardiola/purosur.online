@@ -21,6 +21,20 @@ function firstFailure(body: unknown): { field: unknown; message: unknown } | und
 }
 
 describe("productEditBodySchema", () => {
+  it("accepts a product's internal code kept beside other codes", () => {
+    expect(
+      productEditBodySchema.safeParse(validBody({ barcodes: ["2000000000015", "7790987000015"] }))
+        .success,
+    ).toBe(true);
+  });
+
+  it("rejects a second internal code", () => {
+    expect(firstFailure(validBody({ barcodes: ["2000000000015", "2000000000022"] }))).toEqual({
+      field: "barcodes",
+      message: "a product can have at most one internal barcode",
+    });
+  });
+
   it("reads the creation fields together with the version loaded", () => {
     const result = productEditBodySchema.safeParse(
       validBody({ name: " Maceta ", netContent: { quantity: 2, unit: "L" }, version: 4 }),

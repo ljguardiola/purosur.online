@@ -25,6 +25,7 @@ export const honey: ProductSummary = {
   netContent: null,
   active: true,
   labelCode: null,
+  labelModules: null,
   version: 1,
 };
 
@@ -40,5 +41,6 @@ export const almonds: ProductSummary = {
   netContent: null,
   active: true,
   labelCode: null,
+  labelModules: null,
   version: 1,
 };

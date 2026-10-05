@@ -10,6 +10,7 @@ const ana = {
   role: { id: "role-1", is_administrator: false, name: "Cajero" },
   passkey_count: 1,
   is_last_active_administrator: false,
+  may_emit_pin_code: true,
 };
 const { active: _active, ...withoutActive } = ana;
 const administrator = {
@@ -17,6 +18,7 @@ const administrator = {
   id: "user-2",
   role: { id: "role-2", is_administrator: true, name: null },
   is_last_active_administrator: true,
+  may_emit_pin_code: false,
 };
 
 describe("branchUserSchema", () => {
@@ -48,6 +50,7 @@ describe("branchUserSchema", () => {
     "role",
     "passkey_count",
     "is_last_active_administrator",
+    "may_emit_pin_code",
   ])("requires %s", (field) => {
     const { [field as keyof typeof ana]: _omitted, ...rest } = ana;
 
@@ -78,6 +81,8 @@ describe("branchUserSchema", () => {
     ["passkey_count", 0.5],
     ["is_last_active_administrator", "false"],
     ["is_last_active_administrator", null],
+    ["may_emit_pin_code", "true"],
+    ["may_emit_pin_code", null],
   ])("refuses %s as %j", (field, value) => {
     expect(branchUserSchema.safeParse({ ...ana, [field]: value }).success).toBe(false);
   });

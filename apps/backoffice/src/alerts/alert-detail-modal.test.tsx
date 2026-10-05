@@ -1,8 +1,10 @@
-import type { AlertDetail } from "@purosur/contracts";
+import type { AlertDetail, PermissionCatalogWire } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { act } from "react";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import { permissionCatalogFixture } from "../platform/test-support/permission-catalog";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import {
   ADMINISTRATOR_ACCESS,
@@ -17,6 +19,9 @@ function createServices(
 ): AlertDetailModalServices {
   return {
     fetchAlert: vi.fn().mockReturnValue(new Promise<never>(() => {})),
+    fetchPermissionCatalog: vi
+      .fn()
+      .mockResolvedValue({ kind: "ok", value: permissionCatalogFixture }),
     closeAlert: vi.fn(),
     ...overrides,
   };
@@ -747,6 +752,81 @@ test("shows a single permission added to the role the user holds", async () => {
       ),
     )
     .toBeVisible();
+});
+
+function permissionsAddedAlert(addedPermissionKeys: string[]) {
+  return ok(
+    baseDetail({
+      kind: "user_access_increased",
+      level: "critical",
+      detail: {
+        cause: "role_permissions_added",
+        roleName: "Cajera",
+        addedPermissionKeys,
+        actorId: "admin-1",
+        actorName: "Ada",
+      },
+    }),
+  );
+}
+
+test("shows the loading placeholder in place of the added permissions until the permission catalog loads", async () => {
+  let resolveCatalog: (outcome: CloudReadOutcome<PermissionCatalogWire>) => void = () => {};
+  const services = createServices({
+    fetchPermissionCatalog: vi.fn().mockReturnValue(
+      new Promise((settle) => {
+        resolveCatalog = settle;
+      }),
+    ),
+  });
+  vi.mocked(services.fetchAlert).mockResolvedValue(permissionsAddedAlert(["configure_branch"]));
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
+  expect(screen.getByText(/Administrador/).query()).toBeNull();
+
+  resolveCatalog({ kind: "ok", value: permissionCatalogFixture });
+  await expect.element(screen.getByText(/Sucursal: Configurar la sucursal/)).toBeVisible();
+});
+
+test("a permission catalog that fails to load shows the failure in place of the added permissions, and Reintentar reads it again", async () => {
+  const services = createServices({
+    fetchPermissionCatalog: vi
+      .fn()
+      .mockResolvedValueOnce({ kind: "failed" })
+      .mockResolvedValueOnce({ kind: "ok", value: permissionCatalogFixture }),
+  });
+  vi.mocked(services.fetchAlert).mockResolvedValue(permissionsAddedAlert(["configure_branch"]));
+  const screen = await renderModal(services);
+  await expect.element(screen.getByText("No pudimos abrir los permisos")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText(/Sucursal: Configurar la sucursal/)).toBeVisible();
+});
+
+test("shows no description when an added permission is not in the permission catalog", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    permissionsAddedAlert(["configure_branch", "make_coffee"]),
+  );
+
+  const screen = await renderModal(services);
+  await expect.element(screen.getByText("Se amplió el acceso de un usuario")).toBeVisible();
+  await expect.element(screen.getByRole("status")).not.toBeInTheDocument();
+
+  expect(screen.getByText(/Administrador/).query()).toBeNull();
+});
+
+test("reads the permission catalog only for an alert that lists added permissions", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(baseDetail()));
+
+  const screen = await renderModal(services);
+  await expect.element(screen.getByText("Se registró una passkey")).toBeVisible();
+
+  expect(services.fetchPermissionCatalog).not.toHaveBeenCalled();
 });
 
 test("never shows an increase of access without the Administrator's name", async () => {

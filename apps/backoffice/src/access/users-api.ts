@@ -113,6 +113,7 @@ function userFromWire(row: BranchUserWire) {
     passkeyCount: row.passkey_count,
     // The server refuses to change the role regardless, so callers lock that field on this.
     isLastActiveAdministrator: row.is_last_active_administrator,
+    mayEmitPinCode: row.may_emit_pin_code,
   };
 }
 

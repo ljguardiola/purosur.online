@@ -23,6 +23,7 @@ test("announces the design system's screen-reader texts in Spanish whatever the 
         role: { id: "00000000-0000-4000-8000-000000000001", isAdministrator: true, name: null },
         passkeyCount: 2,
         isLastActiveAdministrator: true,
+        mayEmitPinCode: true,
       },
     ],
   });

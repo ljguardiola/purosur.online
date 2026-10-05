@@ -5,6 +5,7 @@ import {
   isPinCodeExpired,
   isPinCodeLive,
   isWellFormedPinCode,
+  mayEmitPinCode,
   mayEmitPinCodeFor,
   normalizePinCode,
   pinCodeExpiresAt,
@@ -112,6 +113,40 @@ describe("mayEmitPinCodeFor", () => {
 
   it("lets an Administrator emit for their own account", () => {
     expect(mayEmitPinCodeFor(administrator, administrator)).toBe(true);
+  });
+});
+
+describe("mayEmitPinCode", () => {
+  const resetter = {
+    id: "person-1",
+    isAdministrator: false,
+    permissionKeys: ["reset_user_pin"],
+  };
+  const activePerson = { id: "person-2", isAdministrator: false, active: true };
+
+  it("lets one who may reset PINs emit for an active user they may emit for", () => {
+    expect(mayEmitPinCode(resetter, activePerson)).toBe(true);
+  });
+
+  it("refuses an inactive user", () => {
+    expect(mayEmitPinCode(resetter, { ...activePerson, active: false })).toBe(false);
+  });
+
+  it("refuses one who may not reset PINs", () => {
+    expect(
+      mayEmitPinCode({ ...resetter, permissionKeys: ["deactivate_users"] }, activePerson),
+    ).toBe(false);
+  });
+
+  it("refuses a user the actor may not emit for", () => {
+    expect(mayEmitPinCode(resetter, { ...resetter, active: true })).toBe(false);
+    expect(mayEmitPinCode(resetter, { ...activePerson, isAdministrator: true })).toBe(false);
+  });
+
+  it("lets an Administrator, who holds every permission, emit for their own active account", () => {
+    const administrator = { id: "admin-1", isAdministrator: true, permissionKeys: [] };
+
+    expect(mayEmitPinCode(administrator, { ...administrator, active: true })).toBe(true);
   });
 });
 

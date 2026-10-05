@@ -1,15 +1,19 @@
 import {
   type CategorySummary,
+  type InternalBarcodeGenerationBody,
+  internalBarcodeGenerationBodySchema,
   netContentQuantitySchema,
   type ProductCreationBody,
   type ProductSummary,
   productCreationBodySchema,
+  productEditBarcodesSchema,
   type TagSummary,
 } from "@purosur/contracts";
-import type { BarcodeListProblem, NetContentUnit } from "@purosur/domain";
+import type { NetContentUnit, NewProductBarcodeListProblem } from "@purosur/domain";
 import { type Option, type Options, plural } from "@purosur/ui";
 import { Package, Scale } from "lucide-react";
 import { createElement } from "react";
+import type { ZodType } from "zod";
 import {
   categoriesInTreeOrder,
   categoryPathLabels,
@@ -130,12 +134,28 @@ const BARCODE_PROBLEM_MESSAGES = new Map<string, string>(
     too_long: `El código de barras puede tener hasta ${schemaLimit(barcodesSchema.meta()?.["maxLength"])} caracteres.`,
     whitespace: "El código de barras no puede tener espacios.",
     repeated: "Ese código ya está en la lista.",
-  } satisfies Record<BarcodeListProblem, string>),
+    several_internal: "El producto puede tener un solo código interno.",
+    internal_beside_others: "El código interno tiene que ser el único del producto.",
+  } satisfies Record<NewProductBarcodeListProblem, string>),
 );
 
-export function barcodeProblemMessage(codes: string[]): string | undefined {
-  const [problem] = failedRules(barcodesSchema, codes);
+function barcodeProblemMessageOf(schema: ZodType, codes: string[]): string | undefined {
+  const [problem] = failedRules(schema, codes);
   return problem === undefined ? undefined : BARCODE_PROBLEM_MESSAGES.get(problem);
+}
+
+export function barcodeProblemMessage(codes: string[]): string | undefined {
+  return barcodeProblemMessageOf(barcodesSchema, codes);
+}
+
+export function editedProductBarcodeProblemMessage(codes: string[]): string | undefined {
+  return barcodeProblemMessageOf(productEditBarcodesSchema, codes);
+}
+
+export function internalBarcodeGenerationRequestFrom(
+  codes: string[],
+): InternalBarcodeGenerationBody | undefined {
+  return internalBarcodeGenerationBodySchema.safeParse({ barcodes: codes }).data;
 }
 
 export function productMessage({ name }: ProductFormValues): string {
@@ -176,12 +196,19 @@ export function netContentMessage({ netContent }: ProductFormValues): string {
   return "Revisá el contenido neto.";
 }
 
-export function barcodeListMessage({ barcodes }: ProductFormValues): string {
+function barcodeListMessageFrom(
+  { barcodes }: ProductFormValues,
+  problemMessage: (codes: string[]) => string | undefined,
+): string {
   const list = barcodesWithScan(barcodes);
   if (list.length === 0) {
     return PRODUCT_BARCODE_REQUIRED;
   }
-  return barcodeProblemMessage(list) ?? "Alguno de los códigos de barras no es válido.";
+  return problemMessage(list) ?? "Alguno de los códigos de barras no es válido.";
+}
+
+export function barcodeListMessage(values: ProductFormValues): string {
+  return barcodeListMessageFrom(values, barcodeProblemMessage);
 }
 
 export const PRODUCT_MESSAGES = {
@@ -192,6 +219,12 @@ export const PRODUCT_MESSAGES = {
   saleUnit: saleUnitMessage,
   netContent: netContentMessage,
   barcodes: barcodeListMessage,
+};
+
+export const PRODUCT_EDIT_MESSAGES = {
+  ...PRODUCT_MESSAGES,
+  barcodes: (values: ProductFormValues) =>
+    barcodeListMessageFrom(values, editedProductBarcodeProblemMessage),
 };
 
 // Typed by hand: inferred from lucide, an icon's optional className fails the design system's Icon
@@ -250,6 +283,9 @@ export function categoryNameOf(categories: CategorySummary[], id: string): strin
 
 export const PRODUCT_BRAND_INACTIVE_ERROR =
   "La marca elegida se dio de baja. Elegí otra o dejala sin marca.";
+
+export const PRODUCT_INTERNAL_BARCODE_ON_PRODUCT_WITH_BARCODES_ERROR =
+  "Un código interno solo se puede agregar a un producto sin códigos de barras.";
 
 export function saleUnitHeldByDiscountError(discountName: string): string {
   return `No se puede vender por peso mientras la promoción "${discountName}" no esté desactivada o terminada.`;

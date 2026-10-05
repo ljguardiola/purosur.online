@@ -20,6 +20,7 @@ export type SessionOutcome =
       expiresAt: string;
       capabilities: Capability[];
       stockMovementKinds: ManualStockMovementKind[];
+      mayEmitOwnPinCode: boolean;
     }
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
@@ -82,6 +83,7 @@ export async function fetchSession(): Promise<SessionOutcome> {
     expiresAt: body.data.expires_at,
     capabilities: body.data.capabilities,
     stockMovementKinds: body.data.stock_movement_kinds,
+    mayEmitOwnPinCode: body.data.may_emit_own_pin_code,
   };
 }
 

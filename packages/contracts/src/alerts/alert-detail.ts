@@ -1,4 +1,4 @@
-import type { AlertKind } from "@purosur/domain";
+import { type AlertKind, ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { z } from "zod";
 import { alertAudienceSchema, alertLevelSchema } from "./alert-summary.js";
 
@@ -91,15 +91,17 @@ const registerEnrolledDetailSchema = z.object({
   replacedInstallation: z.boolean(),
 });
 
+const ALERT_INSTANT = { timeZone: ARGENTINA_TIME_ZONE };
+
 const alertBase = {
   id: z.string(),
   scope: z.string().nullable(),
   scopeDisplay: z.string().nullable(),
   level: alertLevelSchema,
   audience: alertAudienceSchema,
-  openedAt: z.string(),
-  escalatedAt: z.string().nullable(),
-  resolvedAt: z.string().nullable(),
+  openedAt: z.string().meta(ALERT_INSTANT),
+  escalatedAt: z.string().nullable().meta(ALERT_INSTANT),
+  resolvedAt: z.string().nullable().meta(ALERT_INSTANT),
   open: z.boolean(),
   deliveries: z.array(alertDeliverySchema),
 };

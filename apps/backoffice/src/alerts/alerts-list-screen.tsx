@@ -1,5 +1,5 @@
 import type { AlertListPage, AlertSummary } from "@purosur/contracts";
-import { ALERT_KINDS, type AlertKind, type AlertLevel } from "@purosur/domain";
+import type { AlertKind, AlertLevel } from "@purosur/domain";
 import {
   actionsColumn,
   dataColumn,
@@ -65,7 +65,7 @@ function listKindDescription(kind: string): string {
     : "";
 }
 
-const LIST_KINDS: readonly string[] = ALERT_KINDS;
+const LIST_KINDS: readonly string[] = Object.keys(LIST_KIND_DESCRIPTIONS);
 
 function kindsMatching(text: string): string[] {
   const query = text.toLowerCase();

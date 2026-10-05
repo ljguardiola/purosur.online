@@ -6,7 +6,8 @@ import { useState } from "react";
 import { expect, test, vi } from "vitest";
 import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { areaSelectedCount, RoleEditorForm } from "./role-editor-form";
+import { permissionCatalogFixture } from "../platform/test-support/permission-catalog";
+import { RoleEditorForm } from "./role-editor-form";
 
 // React Aria opens a tooltip only after a real pointer move; the first hover on a fresh page
 // fires before that move and is silently dropped, so this throwaway move supplies it.
@@ -27,6 +28,7 @@ function Harness({
   const [selectedArea, setSelectedArea] = useState<PermissionArea>(initialArea);
   return (
     <RoleEditorForm
+      catalog={permissionCatalogFixture}
       nameField={
         <TextField
           kind="plain-text"
@@ -226,12 +228,6 @@ test("unchecking the last permission that required another leaves it checked and
 
   await userEvent.click(screen.getByText("Ver saldos").element());
   await expect.element(balances).not.toBeChecked();
-});
-
-test("areaSelectedCount counts only the permissions selected in that area", () => {
-  const selected = new Set<PermissionKey>(["sell_and_charge", "view_stock_balances"]);
-
-  expect(areaSelectedCount("cashRegister", selected)).toEqual({ count: 1, total: 7 });
 });
 
 test("has no accessibility violations", async () => {

@@ -1,7 +1,10 @@
+import type { PermissionCatalogWire } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { type ReactElement, useEffect } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import { permissionCatalogFixture } from "../platform/test-support/permission-catalog";
 import { render } from "../shell/test-support/render-with-router";
 import { useRefreshAccess } from "./access-queries";
 import {
@@ -26,6 +29,9 @@ beforeEach(async () => {
 function createServices(overrides: Partial<RoleEditorModalServices> = {}): RoleEditorModalServices {
   return {
     fetchRole: vi.fn().mockReturnValue(new Promise(() => {})),
+    fetchPermissionCatalog: vi
+      .fn()
+      .mockResolvedValue({ kind: "ok", value: permissionCatalogFixture }),
     createRole: vi.fn(),
     editRole: vi.fn(),
     fetchSessionAuthorizationOptions: vi.fn(),
@@ -111,9 +117,80 @@ test("opening for a new role shows the empty form, the eyebrow, and the create s
   await expect.element(screen.getByRole("button", { name: "Guardar el rol" })).toBeVisible();
 });
 
+test("a new role's editor shows the loading placeholder, with saving disabled, until the permission catalog loads", async () => {
+  const catalog = deferred<CloudReadOutcome<PermissionCatalogWire>>();
+  const services = createServices({
+    fetchPermissionCatalog: vi.fn().mockReturnValue(catalog.promise),
+  });
+  const screen = await renderModal({ kind: "new" }, services);
+
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
+  await expect.element(screen.getByRole("button", { name: "Guardar el rol" })).toBeDisabled();
+  await expect.element(screen.getByRole("button", { name: "Cancelar" })).toBeEnabled();
+
+  catalog.resolve({ kind: "ok", value: permissionCatalogFixture });
+  await expect.element(screen.getByRole("textbox", { name: /^Nombre del rol/ })).toHaveValue("");
+});
+
+test("a permission catalog that fails to load keeps saving disabled, and Reintentar opens the duplicate pre-filled", async () => {
+  const services = createServices({
+    fetchPermissionCatalog: vi
+      .fn()
+      .mockResolvedValueOnce({ kind: "failed" })
+      .mockResolvedValueOnce({ kind: "ok", value: permissionCatalogFixture }),
+  });
+  const screen = await renderModal({ kind: "duplicate", source: stockSummary }, services);
+  await expect.element(screen.getByText("No pudimos abrir este rol")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Guardar el rol" })).toBeDisabled();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Copia de Depósito");
+});
+
+test("editing a role waits for the permission catalog as well as the role, and reads each once", async () => {
+  const catalog = deferred<CloudReadOutcome<PermissionCatalogWire>>();
+  const services = createServices({
+    fetchPermissionCatalog: vi.fn().mockReturnValue(catalog.promise),
+  });
+  vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stockDetail });
+  const screen = await renderModal({ kind: "edit", roleId: "role-stock" }, services);
+
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
+
+  catalog.resolve({ kind: "ok", value: permissionCatalogFixture });
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+  expect(services.fetchRole).toHaveBeenCalledTimes(1);
+  expect(services.fetchPermissionCatalog).toHaveBeenCalledTimes(1);
+});
+
+test("a permission catalog that fails to load while editing shows the failure, and Reintentar opens the role", async () => {
+  const services = createServices({
+    fetchPermissionCatalog: vi
+      .fn()
+      .mockResolvedValueOnce({ kind: "failed" })
+      .mockResolvedValueOnce({ kind: "ok", value: permissionCatalogFixture }),
+  });
+  vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stockDetail });
+  const screen = await renderModal({ kind: "edit", roleId: "role-stock" }, services);
+  await expect.element(screen.getByText("No pudimos abrir este rol")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Guardar los cambios" })).toBeDisabled();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+});
+
 test("draws the name row and both panes flush to the panel's own edges, not inset by Modal's default body padding", async () => {
   const services = createServices();
   const screen = await renderModal({ kind: "new" }, services);
+  await expect.element(screen.getByRole("textbox", { name: /^Nombre del rol/ })).toBeVisible();
   const dialog = screen.getByRole("dialog").element() as HTMLElement;
   const panel = dialog.parentElement as HTMLElement;
   const panelRect = panel.getBoundingClientRect();

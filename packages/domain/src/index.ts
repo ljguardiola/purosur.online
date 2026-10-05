@@ -41,6 +41,7 @@ export {
   isSignInBlockLive,
   isWellFormedPinCode,
   lacksARequiredPermission,
+  mayEmitPinCode,
   mayEmitPinCodeFor,
   normalizePinCode,
   PASSKEY_AUTHORIZATION_WINDOW_MS,
@@ -139,6 +140,7 @@ export type {
   LabelRequestEntry,
   LabelRequestProblem,
   NetContentUnit,
+  NewProductBarcodeListProblem,
   SaleUnit,
 } from "./catalog/index.js";
 export {
@@ -163,9 +165,11 @@ export {
   LABELS_MAX_COUNT_PER_PRODUCT,
   LABELS_MAX_TOTAL_COUNT,
   labelRequestProblem,
+  mayGenerateInternalBarcodeFor,
   NET_CONTENT_QUANTITY_MAX,
   NET_CONTENT_QUANTITY_MAX_DECIMALS,
   NET_CONTENT_UNITS,
+  newProductBarcodeListProblem,
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
   productLabelCode,

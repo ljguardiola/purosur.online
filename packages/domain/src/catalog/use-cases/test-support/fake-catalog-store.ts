@@ -180,6 +180,9 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
             tagIds: this.state.productTags
               .filter((row) => sameId(row.productId, product.id))
               .map((row) => row.tagId),
+            barcodes: this.state.barcodes
+              .filter((row) => sameId(row.productId, product.id))
+              .map((row) => row.code),
           },
         }
       : { kind: "not_found" };

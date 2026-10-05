@@ -20,6 +20,7 @@ function createServices(
     fetchAlerts: vi.fn(),
     alertDetailModal: {
       fetchAlert: vi.fn().mockReturnValue(new Promise<never>(() => {})),
+      fetchPermissionCatalog: vi.fn(),
       closeAlert: vi.fn(),
     },
     ...overrides,
@@ -377,7 +378,7 @@ test("the eye action opens the detail modal for that alert", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert]));
   const fetchAlert = vi.fn().mockResolvedValue({ kind: "ok", value: passkeyDetail });
-  services.alertDetailModal = { fetchAlert, closeAlert: vi.fn() };
+  services.alertDetailModal = { fetchAlert, fetchPermissionCatalog: vi.fn(), closeAlert: vi.fn() };
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Passkey")).toBeVisible();
 
@@ -476,6 +477,7 @@ test("reads the alerts again after one is closed, keeping the rows shown while i
     .mockReturnValueOnce(refresh.promise);
   services.alertDetailModal = {
     fetchAlert: vi.fn().mockResolvedValue({ kind: "ok", value: passkeyDetail }),
+    fetchPermissionCatalog: vi.fn(),
     closeAlert: vi.fn().mockResolvedValue({ kind: "ok" }),
   };
   const screen = await renderScreen(services);
@@ -508,6 +510,7 @@ test("never shows an alert the person just closed as still open when it is opene
       .fn()
       .mockResolvedValueOnce({ kind: "ok", value: passkeyDetail })
       .mockReturnValueOnce(reread.promise),
+    fetchPermissionCatalog: vi.fn(),
     closeAlert: vi.fn().mockResolvedValue({ kind: "ok" }),
   };
   const screen = await renderScreen(services);
@@ -547,6 +550,7 @@ test("moves to the last page left when closing the only alert on the last page e
   });
   services.alertDetailModal = {
     fetchAlert: vi.fn().mockResolvedValue({ kind: "ok", value: passkeyDetail }),
+    fetchPermissionCatalog: vi.fn(),
     closeAlert: vi.fn().mockImplementation(async () => {
       closed = true;
       return { kind: "ok" };
@@ -580,6 +584,7 @@ test("never shows the emptied last page as empty while it moves to the last page
   });
   services.alertDetailModal = {
     fetchAlert: vi.fn().mockResolvedValue({ kind: "ok", value: passkeyDetail }),
+    fetchPermissionCatalog: vi.fn(),
     closeAlert: vi.fn().mockImplementation(async () => {
       closed = true;
       return { kind: "ok" };

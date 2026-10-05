@@ -14,6 +14,7 @@ export const productSummarySchema = z.object({
   netContent: netContentSchema.nullable(),
   active: z.boolean(),
   labelCode: z.string().nullable(),
+  labelModules: z.string().nullable(),
   version: z.int(),
 });
 

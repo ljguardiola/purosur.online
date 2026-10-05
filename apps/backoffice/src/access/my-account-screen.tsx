@@ -2,7 +2,7 @@ import { Button, EmptyState, IconButton, LoadFailure, LoadingPlaceholder } from 
 import { KeyRound, Laptop, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
-import { type BackofficeAccess, canResetUserPin } from "../shell/backoffice-access";
+import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { useOwnPasskeysQuery, useRefreshAccess } from "./access-queries";
@@ -106,16 +106,13 @@ export function MyAccountScreen({
               </ul>
             ))}
         </div>
-        {canResetUserPin(access, userId, {
-          id: userId,
-          isAdministrator: access.isAdministrator,
-        }) && (
+        {access.mayEmitOwnPinCode ? (
           <UserPinSection
             user={{ id: userId, firstName: displayName }}
             onSessionEnded={onSessionEnded}
             services={services}
           />
-        )}
+        ) : null}
       </ScreenLayout>
       <RegisterOwnPasskeyModal
         open={registerModalOpen}

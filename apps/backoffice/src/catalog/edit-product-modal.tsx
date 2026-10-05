@@ -17,12 +17,7 @@ import { Check, Pencil, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-reac
 import { useEffect, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import {
-  BarcodeChips,
-  PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED,
-  useBarcodeChips,
-  useGenerateInternalBarcode,
-} from "./barcode-chips";
+import { BarcodeChips, useBarcodeChips } from "./barcode-chips";
 import type { createBrand } from "./brands-api";
 import type { ProductReload } from "./catalog-queries";
 import { NewBrandModal } from "./new-brand-modal";
@@ -39,11 +34,13 @@ import {
   categoryNameOf,
   categorySelectOptions,
   EMPTY_PRODUCT_FORM,
+  editedProductBarcodeProblemMessage,
   NET_CONTENT_UNIT_OPTIONS,
   PRODUCT_BRAND_INACTIVE_ERROR,
   PRODUCT_CATEGORY_NOT_LEAF_ERROR,
   PRODUCT_EDIT_FIELDS,
-  PRODUCT_MESSAGES,
+  PRODUCT_EDIT_MESSAGES,
+  PRODUCT_INTERNAL_BARCODE_ON_PRODUCT_WITH_BARCODES_ERROR,
   productEditRequestFrom,
   productFormValues,
   SALE_UNIT_OPTIONS,
@@ -51,14 +48,13 @@ import {
   tagInactiveError,
 } from "./product-form";
 import { TagsField, useStackedTagCreation, withCreatedTags } from "./product-tags-field";
-import type { editProduct, generateInternalBarcode } from "./products-api";
+import type { editProduct } from "./products-api";
 import type { createTag } from "./tags-api";
 
 export type EditProductModalServices = {
   editProduct: typeof editProduct;
   createBrand: typeof createBrand;
   createTag: typeof createTag;
-  generateInternalBarcode: typeof generateInternalBarcode;
 };
 
 type EditProductModalProps = {
@@ -75,7 +71,7 @@ type EditProductModalProps = {
 
 type EditNotice =
   | { kind: "attemptFailed" }
-  | { kind: "rateLimited"; retryAfterSeconds: number; raisedByGenerate?: true }
+  | { kind: "rateLimited"; retryAfterSeconds: number }
   | { kind: "staleVersion" }
   | { kind: "notFound" }
   | { kind: "reloadFailed" };
@@ -91,7 +87,7 @@ export function EditProductModal({
   tags,
   services,
 }: EditProductModalProps) {
-  const { editProduct, createBrand, createTag, generateInternalBarcode } = services;
+  const { editProduct, createBrand, createTag } = services;
   const sendToMyAccount = useSendToMyAccount();
   const open = target !== null;
   const [title, setTitle] = useState("");
@@ -102,7 +98,7 @@ export function EditProductModal({
     defaultValues: { ...EMPTY_PRODUCT_FORM, version: 1 },
     request: { schema: productEditBodySchema, from: productEditRequestFrom },
     fields: PRODUCT_EDIT_FIELDS,
-    messages: PRODUCT_MESSAGES,
+    messages: PRODUCT_EDIT_MESSAGES,
     onSubmit: async (_request, { parsed, showFieldError, showWireFieldError }) => {
       if (!target) {
         return;
@@ -134,6 +130,10 @@ export function EditProductModal({
         return;
       }
       if (outcome.kind === "validation_failed" && showWireFieldError(outcome.field)) {
+        return;
+      }
+      if (outcome.kind === "internal_barcode_on_product_with_barcodes") {
+        showFieldError("barcodes", PRODUCT_INTERNAL_BARCODE_ON_PRODUCT_WITH_BARCODES_ERROR);
         return;
       }
       if (outcome.kind === "barcode_taken") {
@@ -170,21 +170,9 @@ export function EditProductModal({
   });
   const chips = useBarcodeChips({
     list: values.barcodes,
-    latest: () => form.state.values.barcodes,
     setList: (next) => form.setFieldValue("barcodes", next),
+    problemMessage: editedProductBarcodeProblemMessage,
   });
-  const generate = useGenerateInternalBarcode(
-    chips,
-    generateInternalBarcode,
-    onSessionEnded,
-    (retryAfterSeconds) =>
-      setNotice({ kind: "rateLimited", retryAfterSeconds, raisedByGenerate: true }),
-    () =>
-      setNotice((current) =>
-        current?.kind === "rateLimited" && current.raisedByGenerate ? null : current,
-      ),
-    PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED,
-  );
 
   const brandCreation = useStackedBrandCreation((brandId) =>
     form.setFieldValue("brandId", brandId),
@@ -206,11 +194,10 @@ export function EditProductModal({
       chips.reset();
       setNotice(null);
       setReloading(false);
-      generate.reset();
       brandCreation.reset();
       tagCreation.reset();
     }
-  }, [open, target, reset, chips.reset, generate.reset, brandCreation.reset, tagCreation.reset]);
+  }, [open, target, reset, chips.reset, brandCreation.reset, tagCreation.reset]);
 
   const categoryOptions = categorySelectOptions(categories);
 
@@ -227,7 +214,6 @@ export function EditProductModal({
       chips.reset();
       setNotice(null);
       setReloading(false);
-      generate.reset();
       return;
     }
     if (outcome.kind === "not_found") {
@@ -406,16 +392,7 @@ export function EditProductModal({
               )}
             </form.AppField>
           </FieldGroup>
-          <form.AppField name="barcodes">
-            {() => (
-              <BarcodeChips
-                chips={chips}
-                onGenerate={() => void generate.handleGenerate()}
-                generateDisabled={generate.disabled}
-                generateError={generate.generateError}
-              />
-            )}
-          </form.AppField>
+          <form.AppField name="barcodes">{() => <BarcodeChips chips={chips} />}</form.AppField>
           <NewBrandModal
             open={brandCreation.open}
             context="Marcas"

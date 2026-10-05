@@ -31,6 +31,7 @@ test("never preloads the code of a screen the person is refused", async () => {
       isAdministrator: false,
       capabilities: [],
       stockMovementKinds: [],
+      mayEmitOwnPinCode: false,
       expiresAt: new Date(Date.now() + 60_000).toISOString(),
     },
     help: defineHelp("es-AR", { categories: {}, articles: {} }),

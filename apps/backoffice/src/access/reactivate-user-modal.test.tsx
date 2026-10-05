@@ -30,6 +30,7 @@ const sofia: BranchUser = {
   },
   passkeyCount: 1,
   isLastActiveAdministrator: false,
+  mayEmitPinCode: true,
 };
 
 afterEach(() => {

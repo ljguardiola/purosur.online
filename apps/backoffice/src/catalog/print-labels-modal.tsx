@@ -27,11 +27,13 @@ function withOneMore(counts: Record<string, number>, productId: string): Record<
   return { ...counts, [productId]: (counts[productId] ?? 0) + 1 };
 }
 
-type LabelableProduct = { product: ProductSummary; code: string };
+type LabelableProduct = { product: ProductSummary; code: string; modules: string };
 
 function labelableProducts(products: ProductSummary[]): LabelableProduct[] {
   const labelable = products.flatMap((product) =>
-    product.labelCode === null ? [] : [{ product, code: product.labelCode }],
+    product.labelCode === null || product.labelModules === null
+      ? []
+      : [{ product, code: product.labelCode, modules: product.labelModules }],
   );
   return sortedItems(labelable, {
     order: textOrder((labelableProduct) => labelableProduct.product.name),
@@ -288,7 +290,7 @@ export function PrintLabelsModal({
                   <span className="line-clamp-2 text-center text-caption font-bold text-text">
                     {previewRow.product.name}
                   </span>
-                  <LabelPreviewBars code={previewRow.code} />
+                  <LabelPreviewBars modules={previewRow.modules} />
                   <span className="font-mono text-caption text-text">
                     {groupedEan13Digits(previewRow.code)}
                   </span>

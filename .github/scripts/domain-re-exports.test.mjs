@@ -1,10 +1,9 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import {
-  CONTRACTS_DOMAIN_VALUE_RE_EXPORT_ALLOWLIST,
   checkFiles,
   checkScreenFiles,
   findDomainValueReExports,
@@ -238,18 +237,8 @@ function repoViolations() {
   );
 }
 
-test("every allowlisted entry is sorted and names an existing file", () => {
-  assert.deepEqual(
-    CONTRACTS_DOMAIN_VALUE_RE_EXPORT_ALLOWLIST,
-    CONTRACTS_DOMAIN_VALUE_RE_EXPORT_ALLOWLIST.toSorted(),
-  );
-  for (const entry of CONTRACTS_DOMAIN_VALUE_RE_EXPORT_ALLOWLIST) {
-    statSync(join(repoRoot, entry.split("#")[0]));
-  }
-});
-
-test("the allowlist is exactly the contracts files that re-export a domain value today", () => {
-  assert.deepEqual(repoViolations().toSorted(), CONTRACTS_DOMAIN_VALUE_RE_EXPORT_ALLOWLIST);
+test("no contracts file re-exports a domain value", () => {
+  assert.deepEqual(repoViolations(), []);
 });
 
 test("no screen file re-exports from domain", () => {

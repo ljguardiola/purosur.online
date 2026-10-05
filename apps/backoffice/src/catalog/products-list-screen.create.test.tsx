@@ -40,6 +40,7 @@ test("creates a product and shows it in the list", async () => {
     netContent: null,
     active: true,
     labelCode: null,
+    labelModules: null,
     version: 1,
   };
   vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok" });

@@ -9,7 +9,12 @@ import {
   useBarcodeChips,
   useGenerateInternalBarcode,
 } from "./barcode-chips";
-import { EMPTY_PRODUCT_FORM, PRODUCT_MESSAGES, productRequestFrom } from "./product-form";
+import {
+  barcodeProblemMessage,
+  EMPTY_PRODUCT_FORM,
+  PRODUCT_MESSAGES,
+  productRequestFrom,
+} from "./product-form";
 import type { GenerateInternalBarcodeOutcome, generateInternalBarcode } from "./products-api";
 import { scanInputOf } from "./test-support/product-form";
 
@@ -38,8 +43,8 @@ function Harness({ initialCodes, generateInternalBarcode, onSessionEnded }: Harn
   });
   const chips = useBarcodeChips({
     list: values.barcodes,
-    latest: () => form.state.values.barcodes,
     setList: (next) => form.setFieldValue("barcodes", next),
+    problemMessage: barcodeProblemMessage,
   });
   const generate = useGenerateInternalBarcode(
     chips,
@@ -53,14 +58,7 @@ function Harness({ initialCodes, generateInternalBarcode, onSessionEnded }: Harn
     <FieldSizeProvider size="backoffice">
       <main>
         <form.AppField name="barcodes">
-          {() => (
-            <BarcodeChips
-              chips={chips}
-              onGenerate={() => void generate.handleGenerate()}
-              generateDisabled={generate.disabled}
-              generateError={generate.generateError}
-            />
-          )}
+          {() => <BarcodeChips chips={chips} generation={generate.generation} />}
         </form.AppField>
         <button type="button" onClick={() => void submit()}>
           Enviar
@@ -257,10 +255,7 @@ test("hides the scan placeholder while the empty scan input has focus", async ()
 test("rings the whole scan control while its input has keyboard focus", async () => {
   const chips = await renderChips();
   const input = scanInputOf(chips).element() as HTMLInputElement;
-  const control = input.parentElement;
-  if (!control) {
-    throw new Error("the scan input has no enclosing control");
-  }
+  const control = scanControlOf(chips);
   expect(getComputedStyle(control).outlineStyle).toBe("none");
 
   input.focus();
@@ -303,7 +298,19 @@ test("disables the generate button while its request is pending", async () => {
   await expect.element(generateButton).not.toBeDisabled();
 });
 
-test("disables generating another internal code once one is already listed, enabling again once it's removed", async () => {
+test("asks for an internal code with the barcodes listed", async () => {
+  const generate = vi
+    .fn<typeof generateInternalBarcode>()
+    .mockResolvedValue({ kind: "ok", code: "2000000000015" });
+  const chips = await renderChips({ generate });
+
+  await userEvent.click(generateButtonOf(chips));
+
+  await expect.element(chips.getByText("2000000000015")).toBeVisible();
+  expect(generate).toHaveBeenCalledWith({ barcodes: [] });
+});
+
+test("offers generating an internal code only while no barcode is listed", async () => {
   const generate = vi
     .fn<typeof generateInternalBarcode>()
     .mockResolvedValue({ kind: "ok", code: "2000000000015" });
@@ -316,66 +323,101 @@ test("disables generating another internal code once one is already listed, enab
   await expect.element(generateButton).toBeDisabled();
 
   await userEvent.click(chips.getByRole("button", { name: "Quitar el código 2000000000015" }));
-
   await expect.element(generateButton).not.toBeDisabled();
+
+  await scan(chips, "7790987000015");
+  await expect.element(generateButton).toBeDisabled();
 });
 
-test("shows an inline error when generating fails, keeping the codes already entered", async () => {
-  const generate = vi.fn<typeof generateInternalBarcode>().mockResolvedValue({ kind: "failed" });
-  const chips = await renderChips({ generate });
-  await scan(chips, "7790000000099");
-  await expect.element(chips.getByText("7790000000099")).toBeVisible();
+test("refuses scanning a second internal code, without listing it", async () => {
+  const chips = await renderChips({ initialCodes: ["2000000000015"] });
 
-  await userEvent.click(generateButtonOf(chips));
+  await scan(chips, "2000000000022");
 
   await expect
-    .element(chips.getByText("No se pudo generar el código interno. Probá de nuevo."))
+    .element(chips.getByText("El producto puede tener un solo código interno."))
     .toBeVisible();
-  await expect.element(chips.getByText("7790000000099")).toBeVisible();
+  expect(chips.getByRole("button", { name: /^Quitar el código/ }).elements()).toHaveLength(1);
 });
 
-test("keeps a code scanned while the internal code is being generated", async () => {
+test("stops offering generation once an internal code is scanned", async () => {
+  const chips = await renderChips();
+
+  await scan(chips, "2000000000022");
+
+  await expect.element(chips.getByText("2000000000022")).toBeVisible();
+  await expect.element(generateButtonOf(chips)).toBeDisabled();
+});
+
+test("refuses scanning another code beside an internal one, without listing it", async () => {
+  const chips = await renderChips({ initialCodes: ["2000000000015"] });
+
+  await scan(chips, "7790987000015");
+
+  await expect
+    .element(chips.getByText("El código interno tiene que ser el único del producto."))
+    .toBeVisible();
+  expect(chips.getByRole("button", { name: /^Quitar el código/ }).elements()).toHaveLength(1);
+});
+
+function scanControlOf(chips: Locator) {
+  const control = scanInputOf(chips).element().parentElement;
+  if (!control) {
+    throw new Error("the scan input has no enclosing control");
+  }
+  return control;
+}
+
+test("keeps the list from changing while an internal code is being generated", async () => {
   const { generate, resolveGenerate } = pendingGenerate();
   const chips = await renderChips({ generate });
+  await expect.element(scanInputOf(chips)).not.toBeDisabled();
 
   await userEvent.click(generateButtonOf(chips));
-  await scan(chips, "7790000000099");
-  await expect.element(chips.getByText("7790000000099")).toBeVisible();
+  await expect.element(scanInputOf(chips)).toBeDisabled();
 
   resolveGenerate({ kind: "ok", code: "2000000000015" });
-
   await expect.element(chips.getByText("2000000000015")).toBeVisible();
-  await expect.element(chips.getByText("7790000000099")).toBeVisible();
+  await expect.element(scanInputOf(chips)).not.toBeDisabled();
 });
 
-test("keeps a code removed while the internal code is being generated out of the list", async () => {
+test("dims the scan control while the list cannot change, as the disabled generate button", async () => {
   const { generate, resolveGenerate } = pendingGenerate();
-  const chips = await renderChips({ initialCodes: ["7790987000015"], generate });
+  const chips = await renderChips({ generate });
+  const control = scanControlOf(chips);
+  expect(getComputedStyle(control).opacity).toBe("1");
 
   await userEvent.click(generateButtonOf(chips));
-  await userEvent.click(chips.getByRole("button", { name: "Quitar el código 7790987000015" }));
-  await expect.poll(() => chips.getByText("7790987000015").query()).toBeNull();
+  await expect.element(scanInputOf(chips)).toBeDisabled();
 
-  resolveGenerate({ kind: "ok", code: "2000000000015" });
-
-  await expect.element(chips.getByText("2000000000015")).toBeVisible();
-  expect(chips.getByText("7790987000015").query()).toBeNull();
+  expect(getComputedStyle(control).opacity).toBe(
+    getComputedStyle(generateButtonOf(chips).element()).opacity,
+  );
+  resolveGenerate({ kind: "failed" });
 });
 
-test("shows the 20-code limit instead of generating when the list is already full", async () => {
-  const generate = vi.fn<typeof generateInternalBarcode>();
+test("fills the scan control on hover only while its input is enabled", async () => {
+  const { generate, resolveGenerate } = pendingGenerate();
   const chips = await renderChips({ generate });
-  for (let index = 1; index <= 20; index += 1) {
-    await scan(chips, `code-${index}`);
+  const control = scanControlOf(chips);
+  const unfilled = getComputedStyle(control).backgroundColor;
+  await userEvent.hover(control);
+  await expect.poll(() => getComputedStyle(control).backgroundColor).not.toBe(unfilled);
+  await userEvent.unhover(control);
+  await expect.poll(() => getComputedStyle(control).backgroundColor).toBe(unfilled);
+
+  await userEvent.click(generateButtonOf(chips));
+  await expect.element(scanInputOf(chips)).toBeDisabled();
+  await userEvent.hover(control);
+  // Forces a style recalc to capture any started transition, then finishes it: a transition
+  // begins at its from-value, so reading it too soon looks the same as never starting.
+  getComputedStyle(control).backgroundColor;
+  for (const animation of control.getAnimations()) {
+    animation.finish();
   }
 
-  await userEvent.click(generateButtonOf(chips));
-
-  await expect
-    .element(chips.getByText("El producto puede tener hasta 20 códigos de barras."))
-    .toBeVisible();
-  expect(generate).not.toHaveBeenCalled();
-  expect(chips.getByRole("button", { name: /^Quitar el código/ }).elements()).toHaveLength(20);
+  expect(getComputedStyle(control).backgroundColor).toBe(unfilled);
+  resolveGenerate({ kind: "failed" });
 });
 
 test("ends the session when generating finds no open session", async () => {

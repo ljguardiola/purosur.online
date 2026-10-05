@@ -47,7 +47,11 @@ export function registerUsersListRoute<TQueryResult extends PgQueryResultHKT>(
       );
       await reply
         .code(200)
-        .send(rows.map((row) => toBranchUserWire(row, { includeActive: includesInactive })));
+        .send(
+          rows.map((row) =>
+            toBranchUserWire(row, openSession, { includeActive: includesInactive }),
+          ),
+        );
     },
   );
 }

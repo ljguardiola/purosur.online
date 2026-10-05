@@ -1,13 +1,13 @@
 import {
   BARCODE_MAX_LENGTH,
-  type BarcodeListProblem,
-  barcodeListProblem,
   isNetContentUnit,
   isProductNameTooLong,
   isValidNetContentQuantity,
   NET_CONTENT_QUANTITY_MAX,
   NET_CONTENT_QUANTITY_MAX_DECIMALS,
   type NetContentUnit,
+  type NewProductBarcodeListProblem,
+  newProductBarcodeListProblem,
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
   SALE_UNITS,
@@ -22,11 +22,13 @@ const BARCODES_TYPE_MESSAGE = "barcodes must be a non-empty list of codes";
 const NET_CONTENT_MESSAGE =
   "netContent must be an object with a quantity and a listed unit, or absent/null";
 
-const BARCODE_PROBLEM_MESSAGES: Record<BarcodeListProblem, string> = {
+const BARCODE_PROBLEM_MESSAGES: Record<NewProductBarcodeListProblem, string> = {
   too_many: `a product can have at most ${PRODUCT_BARCODES_MAX_COUNT} barcodes`,
   too_long: `each barcode must be at most ${BARCODE_MAX_LENGTH} characters`,
   whitespace: "a barcode must not contain whitespace",
   repeated: "the same barcode was sent more than once",
+  several_internal: "a product can have at most one internal barcode",
+  internal_beside_others: "a product is created with an internal barcode only as its sole barcode",
 };
 
 const NET_CONTENT_QUANTITY_MESSAGE = `netContent's quantity must be a positive number of at most ${NET_CONTENT_QUANTITY_MAX_DECIMALS} decimals, at most ${NET_CONTENT_QUANTITY_MAX}`;
@@ -54,57 +56,69 @@ const netContentSchema = z
   .nullish()
   .transform((netContent) => netContent ?? null);
 
-export const productCreationBodySchema = z
-  .object({
-    name: z
-      .string({ error: NAME_EMPTY_MESSAGE })
-      .trim()
-      .min(1, NAME_EMPTY_MESSAGE)
-      .refine(
-        (name) => !isProductNameTooLong(name),
-        `name must be at most ${PRODUCT_NAME_MAX_LENGTH} characters`,
-      )
-      .meta({ maxLength: PRODUCT_NAME_MAX_LENGTH }),
-    categoryId: recordIdSchema("categoryId must be an existing category's id"),
-    brandId: optionalBrandIdSchema,
-    saleUnit: z.enum(SALE_UNITS, { error: "saleUnit must be UNIT or KG" }),
-    barcodes: z
-      .array(z.string({ error: BARCODES_TYPE_MESSAGE }).trim().min(1, BARCODES_TYPE_MESSAGE), {
-        error: BARCODES_TYPE_MESSAGE,
-      })
-      .min(1, BARCODES_TYPE_MESSAGE)
-      .superRefine((codes, context) => {
-        const problem = barcodeListProblem(codes);
-        if (problem) {
-          context.addIssue({
-            code: "custom",
-            message: BARCODE_PROBLEM_MESSAGES[problem],
-            params: { rule: problem },
-          });
-        }
-      })
-      .meta({ maxCount: PRODUCT_BARCODES_MAX_COUNT, maxLength: BARCODE_MAX_LENGTH }),
-    tagIds: optionalTagIdsSchema,
-    netContent: netContentSchema,
-  })
-  .superRefine(
-    (product, context) => {
-      if (
-        product.netContent &&
-        !netContentQuantitySchema.safeParse(product.netContent.quantity).success
-      ) {
+export function barcodeListSchema(
+  problemOf: (codes: readonly string[]) => NewProductBarcodeListProblem | undefined,
+) {
+  return z
+    .array(z.string({ error: BARCODES_TYPE_MESSAGE }).trim().min(1, BARCODES_TYPE_MESSAGE), {
+      error: BARCODES_TYPE_MESSAGE,
+    })
+    .min(1, BARCODES_TYPE_MESSAGE)
+    .superRefine((codes, context) => {
+      const problem = problemOf(codes);
+      if (problem) {
         context.addIssue({
           code: "custom",
-          path: ["netContentQuantity"],
-          message: NET_CONTENT_QUANTITY_MESSAGE,
+          message: BARCODE_PROBLEM_MESSAGES[problem],
+          params: { rule: problem },
         });
       }
-    },
-    {
-      // zod records a body that is not an object with no path, and keeps checking it.
-      when: ({ issues }) =>
-        issues.every((issue) => issue.path !== undefined && issue.path[0] !== "netContent"),
-    },
-  );
+    })
+    .meta({ maxCount: PRODUCT_BARCODES_MAX_COUNT, maxLength: BARCODE_MAX_LENGTH });
+}
+
+export function productBodySchema(barcodes: ReturnType<typeof barcodeListSchema>) {
+  return z
+    .object({
+      name: z
+        .string({ error: NAME_EMPTY_MESSAGE })
+        .trim()
+        .min(1, NAME_EMPTY_MESSAGE)
+        .refine(
+          (name) => !isProductNameTooLong(name),
+          `name must be at most ${PRODUCT_NAME_MAX_LENGTH} characters`,
+        )
+        .meta({ maxLength: PRODUCT_NAME_MAX_LENGTH }),
+      categoryId: recordIdSchema("categoryId must be an existing category's id"),
+      brandId: optionalBrandIdSchema,
+      saleUnit: z.enum(SALE_UNITS, { error: "saleUnit must be UNIT or KG" }),
+      barcodes,
+      tagIds: optionalTagIdsSchema,
+      netContent: netContentSchema,
+    })
+    .superRefine(
+      (product, context) => {
+        if (
+          product.netContent &&
+          !netContentQuantitySchema.safeParse(product.netContent.quantity).success
+        ) {
+          context.addIssue({
+            code: "custom",
+            path: ["netContentQuantity"],
+            message: NET_CONTENT_QUANTITY_MESSAGE,
+          });
+        }
+      },
+      {
+        // zod records a body that is not an object with no path, and keeps checking it.
+        when: ({ issues }) =>
+          issues.every((issue) => issue.path !== undefined && issue.path[0] !== "netContent"),
+      },
+    );
+}
+
+export const productCreationBodySchema = productBodySchema(
+  barcodeListSchema(newProductBarcodeListProblem),
+);
 
 export type ProductCreationBody = z.input<typeof productCreationBodySchema>;

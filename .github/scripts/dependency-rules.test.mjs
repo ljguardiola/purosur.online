@@ -6,10 +6,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { cruise } from "dependency-cruiser";
 import extractTSConfig from "dependency-cruiser/config-utl/extract-ts-config";
-import config, {
-  CLOUD_ONLY_CONCEPTS,
-  SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST,
-} from "../../.dependency-cruiser.mjs";
+import config, { CLOUD_ONLY_CONCEPTS } from "../../.dependency-cruiser.mjs";
 
 async function writeFixtureFile(root, relativePath, content) {
   const filePath = join(root, relativePath);
@@ -44,7 +41,7 @@ async function makeFixture(t, files) {
   return root;
 }
 
-async function cruiseFixture(root, dirs, forbidden = config.forbidden) {
+async function cruiseFixture(root, dirs) {
   const tsConfigFileName = join(root, config.options.tsConfig.fileName);
   const result = await cruise(
     dirs,
@@ -54,7 +51,7 @@ async function cruiseFixture(root, dirs, forbidden = config.forbidden) {
       baseDir: root,
       outputType: "json",
       validate: true,
-      ruleSet: { forbidden },
+      ruleSet: { forbidden: config.forbidden },
     },
     undefined,
     { tsConfig: extractTSConfig(tsConfigFileName) },
@@ -1261,40 +1258,6 @@ test("contracts-concept-not-root flags a concept or shared importing a contracts
     ["packages/contracts/src/sales/sale.ts", "packages/contracts/src/index.ts"],
     ["packages/contracts/src/shared/index.ts", "packages/contracts/src/index.ts"],
   ]);
-});
-
-function withoutAllowlist(ruleName) {
-  const rule = config.forbidden.find((candidate) => candidate.name === ruleName);
-  const { pathNot: _allowlisted, ...from } = rule.from;
-  return { ...rule, from };
-}
-
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../..");
-
-const ALLOWLISTED_RULES = [
-  ["screens-types-only-from-domain", SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST],
-];
-
-test("every allowlist is sorted and lists only existing files", async () => {
-  for (const [ruleName, allowlist] of ALLOWLISTED_RULES) {
-    assert.deepEqual(allowlist, allowlist.toSorted(), ruleName);
-    for (const file of allowlist) {
-      await stat(join(repoRoot, file));
-    }
-  }
-});
-
-test("every allowlisted file still breaks the rule it is excluded from", async () => {
-  const report = await cruiseFixture(
-    repoRoot,
-    ["packages", "apps"],
-    ALLOWLISTED_RULES.map(([ruleName]) => withoutAllowlist(ruleName)),
-  );
-
-  for (const [ruleName, allowlist] of ALLOWLISTED_RULES) {
-    const violators = new Set(violationsFor(report, ruleName).map((violation) => violation.from));
-    assert.deepEqual([...violators].toSorted(), allowlist, ruleName);
-  }
 });
 
 test("persistence-only-in-adapters allows type-only database imports and flags value imports", async (t) => {

@@ -1,4 +1,4 @@
-import { internalBarcodeSchema } from "@purosur/contracts";
+import { internalBarcodeGenerationBodySchema, internalBarcodeSchema } from "@purosur/contracts";
 import { allocateInternalBarcode } from "@purosur/domain/catalog/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -8,6 +8,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
 import { DrizzleInternalBarcodeStore } from "./drizzle-internal-barcode-store.js";
 import type { ProductsRouteOptions } from "./products-list-route.js";
 
@@ -29,7 +30,15 @@ export function registerInternalBarcodeRoute<TQueryResult extends PgQueryResultH
         sessionSource,
       },
     },
-    async (_request, reply) => {
+    async (request, reply) => {
+      const parsedBody = await readValidatedBody(
+        reply,
+        internalBarcodeGenerationBodySchema,
+        request.body,
+      );
+      if (!parsedBody) {
+        return;
+      }
       const outcome = await allocateInternalBarcode(store);
       await reply.code(200).send(internalBarcodeSchema.parse({ code: outcome.code }));
     },

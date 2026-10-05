@@ -13,6 +13,7 @@ export type SignedInSession = {
   isAdministrator: boolean;
   capabilities: Capability[];
   stockMovementKinds: ManualStockMovementKind[];
+  mayEmitOwnPinCode: boolean;
   expiresAt: string;
 };
 

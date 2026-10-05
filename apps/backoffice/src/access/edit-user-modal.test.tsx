@@ -37,6 +37,7 @@ const lucia: BranchUser = {
   role: shiftRole,
   passkeyCount: 1,
   isLastActiveAdministrator: false,
+  mayEmitPinCode: true,
 };
 
 function createServices(overrides: Partial<EditUserModalServices> = {}): EditUserModalServices {
@@ -156,6 +157,7 @@ function openLastAdministratorEditModal() {
     ...lucia,
     role: administratorRole,
     isLastActiveAdministrator: true,
+    mayEmitPinCode: true,
   };
   return renderModal(createServices(), {}, lastAdmin);
 }

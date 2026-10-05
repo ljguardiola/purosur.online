@@ -8,6 +8,7 @@ const session = {
   is_administrator: false,
   capabilities: ["stock_area", "branch_area"],
   stock_movement_kinds: ["loss", "adjustment"],
+  may_emit_own_pin_code: false,
 };
 
 describe("openSessionSchema", () => {
@@ -16,6 +17,10 @@ describe("openSessionSchema", () => {
     const empty = { ...session, capabilities: [], stock_movement_kinds: [] };
 
     expect(openSessionSchema.safeParse(empty).data).toEqual(empty);
+    expect(openSessionSchema.safeParse({ ...session, may_emit_own_pin_code: true }).data).toEqual({
+      ...session,
+      may_emit_own_pin_code: true,
+    });
   });
 
   it.each([
@@ -32,6 +37,7 @@ describe("openSessionSchema", () => {
     "is_administrator",
     "capabilities",
     "stock_movement_kinds",
+    "may_emit_own_pin_code",
   ])("requires %s", (field) => {
     const { [field as keyof typeof session]: _omitted, ...rest } = session;
 
@@ -55,6 +61,8 @@ describe("openSessionSchema", () => {
     ["stock_movement_kinds", ["count"]],
     ["stock_movement_kinds", [1]],
     ["stock_movement_kinds", null],
+    ["may_emit_own_pin_code", "false"],
+    ["may_emit_own_pin_code", null],
   ])("refuses %s as %j", (field, value) => {
     expect(openSessionSchema.safeParse({ ...session, [field]: value }).success).toBe(false);
   });

@@ -1,6 +1,7 @@
 import { openSessionSchema } from "@purosur/contracts";
 import {
   grantedCapabilities,
+  mayEmitPinCode,
   sessionExpiresAt,
   visibleManualStockMovementKinds,
 } from "@purosur/domain";
@@ -45,6 +46,14 @@ export function registerSessionReadRoute<TQueryResult extends PgQueryResultHKT>(
           is_administrator: openSession.isAdministrator,
           capabilities: grantedCapabilities(openSession),
           stock_movement_kinds: visibleManualStockMovementKinds(openSession),
+          may_emit_own_pin_code: mayEmitPinCode(
+            {
+              id: openSession.userId,
+              isAdministrator: openSession.isAdministrator,
+              permissionKeys: openSession.permissionKeys,
+            },
+            { id: openSession.userId, isAdministrator: openSession.isAdministrator, active: true },
+          ),
         }),
       );
     },

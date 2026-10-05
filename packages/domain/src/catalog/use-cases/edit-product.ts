@@ -1,6 +1,6 @@
 import { isDiscountLive } from "../../pricing/index.js";
 import { argentinaCalendarDay } from "../../shared/index.js";
-import type { SaleUnit } from "../model/product.js";
+import { addsInternalBarcodeToProductWithBarcodes, type SaleUnit } from "../model/product.js";
 import type { CatalogNetContent, CatalogPorts, CatalogProduct } from "./catalog-store.js";
 import { CatalogBarcodeConflict } from "./catalog-store.js";
 import { refuseUnassignableTags } from "./refuse-unassignable-tags.js";
@@ -27,6 +27,7 @@ export type EditProductOutcome =
   | { kind: "tag_not_found" }
   | { kind: "tag_inactive"; tagId: string }
   | { kind: "sale_unit_held_by_discount"; discountName: string }
+  | { kind: "internal_barcode_on_product_with_barcodes" }
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "applied"; product: CatalogProduct };
 
@@ -45,6 +46,10 @@ export async function editProduct(
         return { kind: "stale_version" };
       }
       const { id } = locked.product;
+
+      if (addsInternalBarcodeToProductWithBarcodes(locked.product.barcodes, input.barcodes)) {
+        return { kind: "internal_barcode_on_product_with_barcodes" };
+      }
 
       if (locked.product.saleUnit === "UNIT" && input.saleUnit === "KG") {
         // The product row is already locked and the discounts are only read, never locked: a

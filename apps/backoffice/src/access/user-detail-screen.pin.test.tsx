@@ -61,7 +61,10 @@ test("hides the PIN section from a holder of reset_user_pin against an Administr
   const services = createServices({
     fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: adminTarget });
+  vi.mocked(services.fetchUser).mockResolvedValue({
+    kind: "ok",
+    value: { ...adminTarget, mayEmitPinCode: false },
+  });
 
   const screen = await renderScreen(services, () => {}, "user-4", "user-2", RESET_USER_PIN_ACCESS);
 
@@ -76,7 +79,10 @@ test("hides the PIN section from a holder of reset_user_pin on their own account
   const services = createServices({
     fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  vi.mocked(services.fetchUser).mockResolvedValue({
+    kind: "ok",
+    value: { ...lucia, mayEmitPinCode: false },
+  });
 
   const screen = await renderScreen(services, () => {}, "user-1", "user-1", RESET_USER_PIN_ACCESS);
 
@@ -88,9 +94,25 @@ test("hides the PIN section without reset_user_pin", async () => {
   const services = createServices({
     fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  vi.mocked(services.fetchUser).mockResolvedValue({
+    kind: "ok",
+    value: { ...lucia, mayEmitPinCode: false },
+  });
 
   const screen = await renderScreen(services, () => {}, "user-1", "user-2", NO_DEACTIVATE_ACCESS);
+
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "PIN de la caja" }).query()).toBeNull();
+});
+
+test("hides the PIN section from an Administrator when the cloud answers the PIN code may not be emitted", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({
+    kind: "ok",
+    value: { ...lucia, mayEmitPinCode: false },
+  });
+
+  const screen = await renderScreen(services);
 
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   expect(screen.getByRole("heading", { name: "PIN de la caja" }).query()).toBeNull();
@@ -123,6 +145,15 @@ test("while the user loads, shows a holder of reset_user_pin a disabled Reinicia
   vi.mocked(services.fetchUser).mockReturnValue(new Promise(() => {}));
 
   const screen = await renderScreen(services, () => {}, "user-1", "user-2", RESET_USER_PIN_ACCESS);
+
+  await expect.element(screen.getByRole("button", { name: "Reiniciar el PIN" })).toBeDisabled();
+});
+
+test("while the user loads, shows an Administrator on their own account a disabled Reiniciar el PIN", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockReturnValue(new Promise(() => {}));
+
+  const screen = await renderScreen(services, () => {}, "user-1", "user-1");
 
   await expect.element(screen.getByRole("button", { name: "Reiniciar el PIN" })).toBeDisabled();
 });

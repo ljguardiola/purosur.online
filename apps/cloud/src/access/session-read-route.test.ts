@@ -156,6 +156,7 @@ describe("GET /sessions/current", () => {
       is_administrator: false,
       capabilities: [],
       stock_movement_kinds: [],
+      may_emit_own_pin_code: false,
     });
   });
 
@@ -167,6 +168,38 @@ describe("GET /sessions/current", () => {
     const response = await getSession(rawSessionId);
 
     expect(response.json()).toMatchObject({ is_administrator: true });
+  });
+
+  it("answers may_emit_own_pin_code true for an Administrator", async () => {
+    const administratorRoleId = await seededAdministratorRoleId();
+    await db.insert(userRoles).values({ userId, roleId: administratorRoleId });
+    const rawSessionId = await insertSession();
+
+    const response = await getSession(rawSessionId);
+
+    expect(response.json()).toMatchObject({ may_emit_own_pin_code: true });
+  });
+
+  it("answers may_emit_own_pin_code false for a holder of reset_user_pin who is not an Administrator", async () => {
+    const [pinRole] = await db
+      .insert(roles)
+      .values({ name: "Encargada", isAdministrator: false })
+      .returning({ id: roles.id });
+    if (!pinRole) {
+      throw new Error("test setup: seeding the role returned no row");
+    }
+    await db.insert(userRoles).values({ userId, roleId: pinRole.id });
+    await db
+      .insert(rolePermissions)
+      .values({ roleId: pinRole.id, permissionKey: "reset_user_pin" });
+    const rawSessionId = await insertSession();
+
+    const response = await getSession(rawSessionId);
+
+    expect(response.json()).toMatchObject({
+      capabilities: expect.arrayContaining(["reset_user_pin"]),
+      may_emit_own_pin_code: false,
+    });
   });
 
   it("returns every capability for a user holding the Administrator role", async () => {

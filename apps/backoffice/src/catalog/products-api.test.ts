@@ -36,6 +36,7 @@ const honey: ProductSummary = {
   netContent: null,
   active: true,
   labelCode: null,
+  labelModules: null,
   version: 1,
 };
 
@@ -350,6 +351,16 @@ test.each([{ code: "tag_inactive" }, { code: "tag_inactive", tagId: 2 }])(
   },
 );
 
+test("editProduct returns internal_barcode_on_product_with_barcodes on a 409 carrying that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(409, { code: "internal_barcode_on_product_with_barcodes" }),
+  );
+
+  expect(await editProduct("product-1", editInput)).toEqual({
+    kind: "internal_barcode_on_product_with_barcodes",
+  });
+});
+
 test("editProduct returns sale_unit_held_by_discount with the discount's name on a 409 carrying that code", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(409, { code: "sale_unit_held_by_discount", discountName: "3x2 Yerba" }),
@@ -412,47 +423,56 @@ test("editProduct returns failed when the request throws", async () => {
   expect(await editProduct("product-1", editInput)).toEqual({ kind: "failed" });
 });
 
-test("generateInternalBarcode posts with no body and returns the generated code on 200", async () => {
+test("generateInternalBarcode posts the product's barcodes and returns the generated code on 200", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { code: "2000000000015" }));
 
-  const outcome = await generateInternalBarcode();
+  const outcome = await generateInternalBarcode({ barcodes: [] });
 
   expect(outcome).toEqual({ kind: "ok", code: "2000000000015" });
   expect(fetch).toHaveBeenCalledWith("/api/internal-barcodes", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ barcodes: [] }),
   });
 });
 
 test("generateInternalBarcode returns failed on a body carrying no code", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, {}));
 
-  expect(await generateInternalBarcode()).toEqual({ kind: "failed" });
+  expect(await generateInternalBarcode({ barcodes: [] })).toEqual({ kind: "failed" });
+});
+
+test("generateInternalBarcode returns failed on a code that is not an internal barcode", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { code: "7790987000015" }));
+
+  expect(await generateInternalBarcode({ barcodes: [] })).toEqual({ kind: "failed" });
 });
 
 test("generateInternalBarcode returns unauthenticated on 401", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(401));
 
-  expect(await generateInternalBarcode()).toEqual({ kind: "unauthenticated" });
+  expect(await generateInternalBarcode({ barcodes: [] })).toEqual({ kind: "unauthenticated" });
 });
 
 test("generateInternalBarcode returns forbidden on 403", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(403));
 
-  expect(await generateInternalBarcode()).toEqual({ kind: "forbidden" });
+  expect(await generateInternalBarcode({ barcodes: [] })).toEqual({ kind: "forbidden" });
 });
 
 test("generateInternalBarcode returns rate_limited with the Retry-After header on 429", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "20" }));
 
-  expect(await generateInternalBarcode()).toEqual({ kind: "rate_limited", retryAfterSeconds: 20 });
+  expect(await generateInternalBarcode({ barcodes: [] })).toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 20,
+  });
 });
 
 test("generateInternalBarcode returns failed when the request throws", async () => {
   vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
-  expect(await generateInternalBarcode()).toEqual({ kind: "failed" });
+  expect(await generateInternalBarcode({ barcodes: [] })).toEqual({ kind: "failed" });
 });
 
 const labelRequest = [{ productId: "product-1", count: 3 }];
@@ -591,5 +611,5 @@ test("editProduct returns ok on 200 whatever the body says, since the change is 
 test("generateInternalBarcode returns failed when the body has no code", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { code: 7790987000015 }));
 
-  expect(await generateInternalBarcode()).toEqual({ kind: "failed" });
+  expect(await generateInternalBarcode({ barcodes: [] })).toEqual({ kind: "failed" });
 });

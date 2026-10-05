@@ -34,13 +34,8 @@ export function lacksARequiredPermission(keys: readonly string[]): boolean {
   return withRequiredPermissions(known).size !== new Set(known).size;
 }
 
-export function permissionsRequiring(
-  key: PermissionKey,
-  held: Iterable<PermissionKey>,
-): PermissionKey[] {
-  const heldKeys = new Set(held);
+export function permissionsRequiring(key: PermissionKey): PermissionKey[] {
   return PERMISSION_KEYS.filter(
-    (candidate) =>
-      candidate !== key && heldKeys.has(candidate) && withRequiredPermissions([candidate]).has(key),
+    (candidate) => candidate !== key && withRequiredPermissions([candidate]).has(key),
   );
 }
