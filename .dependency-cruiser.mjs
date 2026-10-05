@@ -2,25 +2,6 @@ export const CLOUD_ONLY_CONCEPTS = ["purchasing", "alerts", "catalog", "pricing"
 
 const REAL_POSTGRES_TEST = "apps/cloud/src/.+\\.integration\\.test\\.ts$";
 
-export const SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST = [
-  "apps/backoffice/src/access/passkey-row-detail.ts",
-  "apps/backoffice/src/access/permission-requirement-note.ts",
-  "apps/backoffice/src/access/pin-code-validity.ts",
-  "apps/backoffice/src/access/role-editor-form.tsx",
-  "apps/backoffice/src/access/role-editor-modal.tsx",
-  "apps/backoffice/src/access/roles-list-screen.tsx",
-  "apps/backoffice/src/alerts/alert-detail-modal.tsx",
-  "apps/backoffice/src/alerts/alerts-list-screen.tsx",
-  "apps/backoffice/src/catalog/barcode-chips.tsx",
-  "apps/backoffice/src/catalog/label-preview-bars.tsx",
-  "apps/backoffice/src/fiscal/issuer-identification-form.ts",
-  "apps/backoffice/src/shell/backoffice-access.ts",
-];
-
-function exactPaths(paths) {
-  return paths.map((path) => `^${path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`);
-}
-
 // Matches an npm package either by its raw specifier (left unresolved when the
 // package isn't installed) or by its resolved node_modules path, never by a repo
 // folder that happens to share the package's name.
@@ -137,10 +118,7 @@ export default {
         "and the backoffice to the cloud over HTTP, never by calling domain code " +
         "directly in-process.",
       severity: "error",
-      from: {
-        path: ["^apps/pos/src/renderer/", "^apps/backoffice/src/"],
-        pathNot: exactPaths(SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST),
-      },
+      from: { path: ["^apps/pos/src/renderer/", "^apps/backoffice/src/"] },
       to: {
         path: "^packages/domain/src/",
         dependencyTypesNot: ["type-only"],
