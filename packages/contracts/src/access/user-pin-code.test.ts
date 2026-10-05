@@ -1,3 +1,4 @@
+import { PIN_CODE_VALIDITY_MS } from "@purosur/domain";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { type UserPinCodeWire, userPinCodeSchema } from "./user-pin-code.js";
 
@@ -31,6 +32,12 @@ describe("userPinCodeSchema", () => {
     ["expires_at", "tomorrow"],
   ])("refuses %s as %j", (field, value) => {
     expect(userPinCodeSchema.safeParse({ ...emitted, [field]: value }).success).toBe(false);
+  });
+
+  it("declares how long a code stays valid", () => {
+    expect(userPinCodeSchema.shape.expires_at.meta()).toEqual({
+      validityMs: PIN_CODE_VALIDITY_MS,
+    });
   });
 
   it("types its output as the wire shape", () => {

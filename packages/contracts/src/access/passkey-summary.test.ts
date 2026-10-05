@@ -1,3 +1,4 @@
+import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { passkeyListSchema, passkeySummarySchema } from "./passkey-summary.js";
 
@@ -38,6 +39,12 @@ describe("passkeySummarySchema", () => {
     ["last_used_at", undefined],
   ])("refuses %s as %j", (field, value) => {
     expect(passkeySummarySchema.safeParse({ ...notebook, [field]: value }).success).toBe(false);
+  });
+});
+
+describe("passkeySummarySchema, declared time zone", () => {
+  it.each(["created_at", "last_used_at"] as const)("declares the zone %s is shown in", (field) => {
+    expect(passkeySummarySchema.shape[field].meta()).toEqual({ timeZone: ARGENTINA_TIME_ZONE });
   });
 });
 

@@ -1,4 +1,4 @@
-import { ALERT_KINDS, type AlertDetails, type AlertKind } from "@purosur/domain";
+import { ALERT_KINDS, ARGENTINA_TIME_ZONE, type AlertDetails, type AlertKind } from "@purosur/domain";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { type AlertDetail, alertDetailSchema } from "./alert-detail.js";
 
@@ -395,4 +395,15 @@ describe("alertDetailSchema", () => {
       expect(alertDetailSchema.safeParse({ ...emailChange, detail }).success).toBe(false);
     });
   });
+});
+
+describe("alertDetailSchema, declared time zone", () => {
+  it.each(["openedAt", "escalatedAt", "resolvedAt"] as const)(
+    "declares the zone %s is shown in on every kind",
+    (field) => {
+      for (const option of alertDetailSchema.options) {
+        expect(option.shape[field].meta()).toEqual({ timeZone: ARGENTINA_TIME_ZONE });
+      }
+    },
+  );
 });
