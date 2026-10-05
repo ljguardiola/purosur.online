@@ -22,7 +22,10 @@ export function FigureStat({ label, size = "display", ...figure }: FigureStatPro
         <p className="text-detail text-text-subtle">{figure.detail}</p>
       )}
       {figure.loading ? (
-        <div aria-hidden="true" className={`flex h-lh items-center ${sizeClassName[size]}`}>
+        <div
+          aria-hidden="true"
+          className={`flex h-lh animate-placeholder-reveal items-center ${sizeClassName[size]}`}
+        >
           <PlaceholderLine widthPercent={60} />
         </div>
       ) : (

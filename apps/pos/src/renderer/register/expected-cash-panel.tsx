@@ -1,6 +1,7 @@
 import type { CashBalance } from "@purosur/contracts";
 import type { SummaryRowGroupProps } from "@purosur/ui";
 import {
+  Eyebrow,
   FigureStat,
   formatCents,
   LoadFailure,
@@ -52,12 +53,15 @@ export function ExpectedCashPanel({ eyebrow, balance, children }: ExpectedCashPa
         </>
       ) : null}
       {balance.status === "failed" ? (
-        <LoadFailure
-          icon={<TriangleAlert />}
-          title="No se pudo leer el efectivo esperado"
-          description="Volvé a intentarlo en unos segundos."
-          onRetry={balance.retry}
-        />
+        <>
+          <Eyebrow text={eyebrow} />
+          <LoadFailure
+            icon={<TriangleAlert />}
+            title="No se pudo leer el efectivo esperado"
+            description="Volvé a intentarlo en unos segundos."
+            onRetry={balance.retry}
+          />
+        </>
       ) : null}
       {balance.status === "loaded" ? <Balance eyebrow={eyebrow} balance={balance.value} /> : null}
     </SidePanel>
