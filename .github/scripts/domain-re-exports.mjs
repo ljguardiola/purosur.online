@@ -1,8 +1,6 @@
 import { globSync, readFileSync } from "node:fs";
 import ts from "typescript";
 
-export const CONTRACTS_DOMAIN_VALUE_RE_EXPORT_ALLOWLIST = [];
-
 const DOMAIN_RE_EXPORT =
   /export\s+(?:type\s+)?(?:\*(?:\s+as\s+[\w$]+)?|\{[^}]*\})\s*from\s*["']@purosur\/domain(?:\/[^"']*)?["']/g;
 
