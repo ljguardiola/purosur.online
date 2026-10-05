@@ -1,7 +1,7 @@
 import type { PermissionCatalogWire } from "@purosur/contracts";
 import type { PermissionKey } from "@purosur/domain";
 
-export type CatalogArea = PermissionCatalogWire[number];
+type CatalogArea = PermissionCatalogWire[number];
 
 export type CataloguedPermission = CatalogArea["permissions"][number];
 
