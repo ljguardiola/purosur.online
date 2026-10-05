@@ -9,9 +9,11 @@ import {
   isNetContentUnit,
   isProductNameTooLong,
   isValidNetContentQuantity,
+  mayGenerateInternalBarcodeFor,
   NET_CONTENT_QUANTITY_MAX,
   NET_CONTENT_QUANTITY_MAX_DECIMALS,
   NET_CONTENT_UNITS,
+  newProductBarcodeListProblem,
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
   productNameLength,
@@ -271,6 +273,43 @@ describe("barcodeListProblem", () => {
     expect(barcodeListProblem(["2000000000015", "2000000000022", "2000000000015"])).toBe(
       "repeated",
     );
+  });
+});
+
+describe("newProductBarcodeListProblem", () => {
+  it("finds no problem in an internal code listed alone", () => {
+    expect(newProductBarcodeListProblem(["2000000000015"])).toBeUndefined();
+  });
+
+  it("finds no problem in several codes none of them internal", () => {
+    expect(newProductBarcodeListProblem(["7790987000015", "2000000000016"])).toBeUndefined();
+  });
+
+  it("finds an internal code listed beside a supplier's, before or after it", () => {
+    expect(newProductBarcodeListProblem(["2000000000015", "7790987000015"])).toBe(
+      "internal_beside_others",
+    );
+    expect(newProductBarcodeListProblem(["7790987000015", "2000000000015"])).toBe(
+      "internal_beside_others",
+    );
+  });
+
+  it("reports every problem of any product's list before an internal code beside others", () => {
+    expect(newProductBarcodeListProblem(["2000000000015", "1 1"])).toBe("whitespace");
+    expect(newProductBarcodeListProblem(["2000000000015", "2000000000022"])).toBe(
+      "several_internal",
+    );
+  });
+});
+
+describe("mayGenerateInternalBarcodeFor", () => {
+  it("allows generating an internal code for a product with no barcode", () => {
+    expect(mayGenerateInternalBarcodeFor([])).toBe(true);
+  });
+
+  it("refuses generating an internal code for a product that has any barcode", () => {
+    expect(mayGenerateInternalBarcodeFor(["7790987000015"])).toBe(false);
+    expect(mayGenerateInternalBarcodeFor(["2000000000015"])).toBe(false);
   });
 });
 

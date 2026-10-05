@@ -9,7 +9,12 @@ import {
   useBarcodeChips,
   useGenerateInternalBarcode,
 } from "./barcode-chips";
-import { EMPTY_PRODUCT_FORM, PRODUCT_MESSAGES, productRequestFrom } from "./product-form";
+import {
+  barcodeProblemMessage,
+  EMPTY_PRODUCT_FORM,
+  PRODUCT_MESSAGES,
+  productRequestFrom,
+} from "./product-form";
 import type { GenerateInternalBarcodeOutcome, generateInternalBarcode } from "./products-api";
 import { scanInputOf } from "./test-support/product-form";
 
@@ -40,6 +45,7 @@ function Harness({ initialCodes, generateInternalBarcode, onSessionEnded }: Harn
     list: values.barcodes,
     latest: () => form.state.values.barcodes,
     setList: (next) => form.setFieldValue("barcodes", next),
+    problemMessage: barcodeProblemMessage,
   });
   const generate = useGenerateInternalBarcode(
     chips,
@@ -303,7 +309,19 @@ test("disables the generate button while its request is pending", async () => {
   await expect.element(generateButton).not.toBeDisabled();
 });
 
-test("disables generating another internal code once one is already listed, enabling again once it's removed", async () => {
+test("asks for an internal code with the barcodes listed", async () => {
+  const generate = vi
+    .fn<typeof generateInternalBarcode>()
+    .mockResolvedValue({ kind: "ok", code: "2000000000015" });
+  const chips = await renderChips({ generate });
+
+  await userEvent.click(generateButtonOf(chips));
+
+  await expect.element(chips.getByText("2000000000015")).toBeVisible();
+  expect(generate).toHaveBeenCalledWith([]);
+});
+
+test("offers generating an internal code only while no barcode is listed", async () => {
   const generate = vi
     .fn<typeof generateInternalBarcode>()
     .mockResolvedValue({ kind: "ok", code: "2000000000015" });
@@ -316,8 +334,10 @@ test("disables generating another internal code once one is already listed, enab
   await expect.element(generateButton).toBeDisabled();
 
   await userEvent.click(chips.getByRole("button", { name: "Quitar el código 2000000000015" }));
-
   await expect.element(generateButton).not.toBeDisabled();
+
+  await scan(chips, "7790987000015");
+  await expect.element(generateButton).toBeDisabled();
 });
 
 test("refuses scanning a second internal code, without listing it", async () => {
@@ -331,30 +351,34 @@ test("refuses scanning a second internal code, without listing it", async () => 
   expect(chips.getByRole("button", { name: /^Quitar el código/ }).elements()).toHaveLength(1);
 });
 
-test("keeps generating offered after scanning an internal code, refusing a generated one beside it", async () => {
-  const generate = vi
-    .fn<typeof generateInternalBarcode>()
-    .mockResolvedValue({ kind: "ok", code: "2000000000015" });
-  const chips = await renderChips({ generate });
+test("stops offering generation once an internal code is scanned", async () => {
+  const chips = await renderChips();
+
   await scan(chips, "2000000000022");
+
   await expect.element(chips.getByText("2000000000022")).toBeVisible();
-  await expect.element(generateButtonOf(chips)).not.toBeDisabled();
-
-  await userEvent.click(generateButtonOf(chips));
-
-  await expect
-    .element(chips.getByText("El producto puede tener un solo código interno."))
-    .toBeVisible();
-  expect(chips.getByText("2000000000015").query()).toBeNull();
+  await expect.element(generateButtonOf(chips)).toBeDisabled();
 });
 
-test("shows an inline error when generating fails, keeping the codes already entered", async () => {
-  const generate = vi.fn<typeof generateInternalBarcode>().mockResolvedValue({ kind: "failed" });
+test("refuses scanning another code beside an internal one, without listing it", async () => {
+  const chips = await renderChips({ initialCodes: ["2000000000015"] });
+
+  await scan(chips, "7790987000015");
+
+  await expect
+    .element(chips.getByText("El código interno tiene que ser el único del producto."))
+    .toBeVisible();
+  expect(chips.getByRole("button", { name: /^Quitar el código/ }).elements()).toHaveLength(1);
+});
+
+test("shows an inline error when generating fails, keeping a code scanned meanwhile", async () => {
+  const { generate, resolveGenerate } = pendingGenerate();
   const chips = await renderChips({ generate });
+  await userEvent.click(generateButtonOf(chips));
   await scan(chips, "7790000000099");
   await expect.element(chips.getByText("7790000000099")).toBeVisible();
 
-  await userEvent.click(generateButtonOf(chips));
+  resolveGenerate({ kind: "failed" });
 
   await expect
     .element(chips.getByText("No se pudo generar el código interno. Probá de nuevo."))
@@ -362,7 +386,7 @@ test("shows an inline error when generating fails, keeping the codes already ent
   await expect.element(chips.getByText("7790000000099")).toBeVisible();
 });
 
-test("keeps a code scanned while the internal code is being generated", async () => {
+test("refuses an internal code that arrives after another code was scanned, keeping the scanned one", async () => {
   const { generate, resolveGenerate } = pendingGenerate();
   const chips = await renderChips({ generate });
 
@@ -372,15 +396,20 @@ test("keeps a code scanned while the internal code is being generated", async ()
 
   resolveGenerate({ kind: "ok", code: "2000000000015" });
 
-  await expect.element(chips.getByText("2000000000015")).toBeVisible();
+  await expect
+    .element(chips.getByText("El código interno tiene que ser el único del producto."))
+    .toBeVisible();
+  expect(chips.getByText("2000000000015").query()).toBeNull();
   await expect.element(chips.getByText("7790000000099")).toBeVisible();
 });
 
 test("keeps a code removed while the internal code is being generated out of the list", async () => {
   const { generate, resolveGenerate } = pendingGenerate();
-  const chips = await renderChips({ initialCodes: ["7790987000015"], generate });
+  const chips = await renderChips({ generate });
 
   await userEvent.click(generateButtonOf(chips));
+  await scan(chips, "7790987000015");
+  await expect.element(chips.getByText("7790987000015")).toBeVisible();
   await userEvent.click(chips.getByRole("button", { name: "Quitar el código 7790987000015" }));
   await expect.poll(() => chips.getByText("7790987000015").query()).toBeNull();
 
@@ -388,22 +417,6 @@ test("keeps a code removed while the internal code is being generated out of the
 
   await expect.element(chips.getByText("2000000000015")).toBeVisible();
   expect(chips.getByText("7790987000015").query()).toBeNull();
-});
-
-test("shows the 20-code limit instead of generating when the list is already full", async () => {
-  const generate = vi.fn<typeof generateInternalBarcode>();
-  const chips = await renderChips({ generate });
-  for (let index = 1; index <= 20; index += 1) {
-    await scan(chips, `code-${index}`);
-  }
-
-  await userEvent.click(generateButtonOf(chips));
-
-  await expect
-    .element(chips.getByText("El producto puede tener hasta 20 códigos de barras."))
-    .toBeVisible();
-  expect(generate).not.toHaveBeenCalled();
-  expect(chips.getByRole("button", { name: /^Quitar el código/ }).elements()).toHaveLength(20);
 });
 
 test("ends the session when generating finds no open session", async () => {

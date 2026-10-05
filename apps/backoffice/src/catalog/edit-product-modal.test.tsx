@@ -429,6 +429,23 @@ test("offers no internal code to generate, since a product being edited already 
   expect(dialog.getByRole("button", { name: "Generar código interno" }).query()).toBeNull();
 });
 
+test("lets a product keep its internal code while a supplier's code is scanned beside it", async () => {
+  const services = createServices();
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok" });
+  const { dialog } = await renderModal({ ...honey, barcodes: ["2000000000015"] }, services);
+
+  await userEvent.fill(scanInputOf(dialog), "7790987000015");
+  await userEvent.keyboard("{Enter}");
+  await expect.element(dialog.getByText("7790987000015")).toBeVisible();
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.editProduct).mock.calls.length).toBe(1);
+  expect(services.editProduct).toHaveBeenCalledWith(
+    "90d00000-0000-4000-8000-000000000001",
+    expect.objectContaining({ barcodes: ["2000000000015", "7790987000015"] }),
+  );
+});
+
 test("shows on the barcodes the refusal of an internal code added to a product that already had a barcode", async () => {
   const services = createServices();
   vi.mocked(services.editProduct).mockResolvedValue({

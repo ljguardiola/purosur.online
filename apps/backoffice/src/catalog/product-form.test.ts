@@ -7,7 +7,10 @@ import {
   categoryMessage,
   categorySelectOptions,
   EMPTY_PRODUCT_FORM,
+  editedProductBarcodeProblemMessage,
+  internalBarcodeMayBeGeneratedFor,
   netContentMessage,
+  PRODUCT_EDIT_MESSAGES,
   productFormValues,
   productMessage,
   productRequestFrom,
@@ -120,6 +123,19 @@ describe("barcodeListMessage", () => {
       ),
     ).toBe("El producto puede tener hasta 20 códigos de barras.");
     expect(barcodeListMessage(withBarcodes(["2000000000015"], "2000000000022"))).toBe(
+      "El producto puede tener un solo código interno.",
+    );
+    expect(barcodeListMessage(withBarcodes(["2000000000015"], "7790987000015"))).toBe(
+      "El código interno tiene que ser el único del producto.",
+    );
+  });
+
+  it("lets an edited product keep its internal code beside others, still refusing a second one", () => {
+    expect(PRODUCT_EDIT_MESSAGES.barcodes(withBarcodes(["2000000000015"], "7790987000015"))).toBe(
+      "Alguno de los códigos de barras no es válido.",
+    );
+    expect(editedProductBarcodeProblemMessage(["2000000000015", "7790987000015"])).toBeUndefined();
+    expect(editedProductBarcodeProblemMessage(["2000000000015", "2000000000022"])).toBe(
       "El producto puede tener un solo código interno.",
     );
   });
@@ -264,5 +280,12 @@ describe("categorySelectOptions", () => {
     expect(categorySelectOptions([groceries, spreads])).toEqual([
       { value: "category-3", label: "Almacén › Untables" },
     ]);
+  });
+});
+
+describe("internalBarcodeMayBeGeneratedFor", () => {
+  it("allows generating an internal code only for a list with no barcode", () => {
+    expect(internalBarcodeMayBeGeneratedFor([])).toBe(true);
+    expect(internalBarcodeMayBeGeneratedFor(["7790987000015"])).toBe(false);
   });
 });

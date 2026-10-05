@@ -243,7 +243,7 @@ describe("POST /products", () => {
       name: "Maceta",
       categoryId,
       saleUnit: "UNIT",
-      barcodes: ["7790001000011", "2000000000015"],
+      barcodes: ["2000000000015"],
     });
 
     expect(response.json()).toMatchObject({

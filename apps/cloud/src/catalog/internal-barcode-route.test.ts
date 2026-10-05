@@ -1,3 +1,4 @@
+import { appendEan13CheckDigit } from "@purosur/domain";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
@@ -88,6 +89,7 @@ describe("POST /internal-barcodes", () => {
   function requestInternalBarcode(
     rawSessionId: string | undefined,
     headers: Record<string, string> = {},
+    payload: Record<string, unknown> = { barcodes: [] },
   ) {
     return app.inject({
       method: "POST",
@@ -97,7 +99,12 @@ describe("POST /internal-barcodes", () => {
         ...(rawSessionId ? cookieHeader(rawSessionId) : {}),
         ...headers,
       },
+      payload,
     });
+  }
+
+  function nextInternalBarcode(code: string): string {
+    return appendEan13CheckDigit((BigInt(code.slice(0, 12)) + 1n).toString());
   }
 
   it("no longer answers the old internal barcode path", async () => {
@@ -155,5 +162,23 @@ describe("POST /internal-barcodes", () => {
     expect(response.statusCode).toBe(200);
     const body = response.json();
     expect(body.code).toMatch(EAN13_RESTRICTED_CIRCULATION_PATTERN);
+  });
+
+  it("refuses generating for a product that already has a barcode with 400 validation_failed, drawing nothing from the internal sequence", async () => {
+    const roleId = await insertRole("Encargada", ["manage_products_and_categories"]);
+    const userId = await insertUser(roleId);
+    const rawSessionId = await insertSession(userId);
+    const before = (await requestInternalBarcode(rawSessionId)).json().code;
+
+    const refused = await requestInternalBarcode(rawSessionId, {}, { barcodes: ["7790987000015"] });
+
+    expect(refused.statusCode).toBe(400);
+    expect(refused.json()).toEqual({
+      code: "validation_failed",
+      message: "an internal barcode is only generated for a product with no barcode",
+      details: [{ field: "barcodes" }],
+    });
+    const after = (await requestInternalBarcode(rawSessionId)).json().code;
+    expect(after).toBe(nextInternalBarcode(before));
   });
 });
