@@ -6,7 +6,6 @@ import {
   canManagePromotions,
   canPerformStockCounts,
   canReactivateUser,
-  canResetUserPin,
   canSeeAlertsArea,
   canSeeBranchArea,
   canSeeCashArea,
@@ -66,36 +65,4 @@ test("canDeactivateUser needs the deactivate_users capability and a non-Administ
 
 test("canDeactivateUser is false against an Administrator target, even for an Administrator viewer", () => {
   expect(canDeactivateUser(ADMINISTRATOR_ACCESS, { isAdministrator: true })).toBe(false);
-});
-
-const holder = accessWith("reset_user_pin");
-const cashier = { id: "user-2", isAdministrator: false };
-
-test("canResetUserPin is true for a holder of the reset_user_pin capability against another non-Administrator", () => {
-  expect(canResetUserPin(holder, "user-1", cashier)).toBe(true);
-});
-
-test("canResetUserPin is false without the reset_user_pin capability", () => {
-  expect(canResetUserPin(accessWith("users_area"), "user-1", cashier)).toBe(false);
-});
-
-test("canResetUserPin is false for a holder against an Administrator", () => {
-  expect(canResetUserPin(holder, "user-1", { id: "user-2", isAdministrator: true })).toBe(false);
-});
-
-test("canResetUserPin is false for a holder against themselves, whatever the id's letter case", () => {
-  expect(canResetUserPin(holder, "USER-1", { id: "user-1", isAdministrator: false })).toBe(false);
-});
-
-test("canResetUserPin is true for an Administrator against another Administrator and against themselves", () => {
-  expect(
-    canResetUserPin(ADMINISTRATOR_ACCESS, "user-1", { id: "user-2", isAdministrator: true }),
-  ).toBe(true);
-  expect(
-    canResetUserPin(ADMINISTRATOR_ACCESS, "user-1", { id: "user-1", isAdministrator: true }),
-  ).toBe(true);
-});
-
-test("canResetUserPin is false against an inactive user", () => {
-  expect(canResetUserPin(holder, "user-1", { ...cashier, active: false })).toBe(false);
 });

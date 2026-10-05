@@ -18,7 +18,6 @@ import {
   type BackofficeAccess,
   canDeactivateUser,
   canReactivateUser,
-  canResetUserPin,
 } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
@@ -134,11 +133,10 @@ function UserDetailView({
   const isOwnAccount = signedInUserId.toLowerCase() === userId.toLowerCase();
   const isInactive = user?.active === false;
   const showsPinSection = user
-    ? canResetUserPin(access, signedInUserId, {
-        ...user,
-        isAdministrator: user.role.isAdministrator,
-      })
-    : canResetUserPin(access, signedInUserId, { id: userId, isAdministrator: false });
+    ? user.mayEmitPinCode
+    : isOwnAccount
+      ? access.mayEmitOwnPinCode
+      : access.capabilities.includes("reset_user_pin");
 
   return (
     <>
