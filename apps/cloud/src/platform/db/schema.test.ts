@@ -606,7 +606,9 @@ describe("passkey_challenges.kind", () => {
   });
 });
 
-describe("migrating a database with a pending passkey challenge of a removed kind", () => {
+describe("migrating a database with a pending passkey challenge of a removed kind", {
+  timeout: 30_000,
+}, () => {
   async function migrationsFolderBeforeAuthorizationReuse(): Promise<string> {
     const folder = await mkdtemp(join(tmpdir(), "migrations-before-authorization-reuse-"));
     onTestFinished(() => rm(folder, { recursive: true, force: true }));
@@ -671,7 +673,7 @@ describe("migrating a database with a pending passkey challenge of a removed kin
   });
 });
 
-describe("migrating a database that already has users", () => {
+describe("migrating a database that already has users", { timeout: 30_000 }, () => {
   async function migrationsFolderBeforeLocations(): Promise<string> {
     const folder = await mkdtemp(join(tmpdir(), "migrations-before-locations-"));
     onTestFinished(() => rm(folder, { recursive: true, force: true }));

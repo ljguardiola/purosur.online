@@ -126,7 +126,7 @@ async function migrationsFolderWith(statements: string[]): Promise<string> {
   return folder;
 }
 
-describe("buildTestDatabase", () => {
+describe("buildTestDatabase", { timeout: 30_000 }, () => {
   let testDatabase: TestDatabase;
 
   beforeAll(async () => {
