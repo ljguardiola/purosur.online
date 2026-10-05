@@ -1,6 +1,9 @@
+import type { PermissionCatalogWire } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import { permissionCatalogFixture } from "../platform/test-support/permission-catalog";
 import { render } from "../shell/test-support/render-with-router";
 import type { RoleSummary } from "./roles-api";
 import { RolesListScreen } from "./roles-list-screen";
@@ -11,8 +14,14 @@ function createServices(
 ): RolesListScreenServices & Required<Pick<RolesListScreenServices, "roleEditorModal">> {
   return {
     fetchRoles: vi.fn(),
+    fetchPermissionCatalog: vi
+      .fn()
+      .mockResolvedValue({ kind: "ok", value: permissionCatalogFixture }),
     roleEditorModal: {
       fetchRole: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchPermissionCatalog: vi
+        .fn()
+        .mockResolvedValue({ kind: "ok", value: permissionCatalogFixture }),
       createRole: vi.fn(),
       editRole: vi.fn(),
       fetchSessionAuthorizationOptions: vi.fn(),
@@ -93,6 +102,38 @@ test("shows a hand-picked role's name, its permission count out of the full cata
   await expect.element(screen.getByText("1 de 49 permisos")).toBeVisible();
   await expect.element(screen.getByText("3 usuarios")).toBeVisible();
   await expect.element(screen.getByText("3 roles")).toBeVisible();
+});
+
+test("keeps the table loading until the permission catalog arrives, since each row's total comes from it", async () => {
+  const catalog = deferred<CloudReadOutcome<PermissionCatalogWire>>();
+  const services = createServices({
+    fetchPermissionCatalog: vi.fn().mockReturnValue(catalog.promise),
+  });
+  vi.mocked(services.fetchRoles).mockResolvedValue({ kind: "ok", value: [stock] });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
+  expect(screen.getByText("Depósito").elements()).toHaveLength(0);
+
+  catalog.resolve({ kind: "ok", value: permissionCatalogFixture });
+  await expect.element(screen.getByText("2 de 49 permisos")).toBeVisible();
+});
+
+test("a permission catalog that fails to load fails the table, and Reintentar reads it again", async () => {
+  const services = createServices({
+    fetchPermissionCatalog: vi
+      .fn()
+      .mockResolvedValueOnce({ kind: "failed" })
+      .mockResolvedValueOnce({ kind: "ok", value: permissionCatalogFixture }),
+  });
+  vi.mocked(services.fetchRoles).mockResolvedValue({ kind: "ok", value: [stock] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No pudimos abrir los roles")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("2 de 49 permisos")).toBeVisible();
 });
 
 test("shows a duplicate action on every row, including Administrator, opening the editor modal pre-filled from that row", async () => {
