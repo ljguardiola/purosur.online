@@ -59,7 +59,9 @@ export function registerUserReadRoute<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      await reply.code(200).send(toBranchUserWire(row, { includeActive: includesInactive }));
+      await reply
+        .code(200)
+        .send(toBranchUserWire(row, openSession, { includeActive: includesInactive }));
     },
   );
 }

@@ -112,7 +112,7 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      await reply.code(200).send(toBranchUserWire(outcome.user));
+      await reply.code(200).send(toBranchUserWire(outcome.user, openSession));
     },
   );
 }

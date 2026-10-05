@@ -7,6 +7,7 @@ import {
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "./backoffice-origin.js";
+import { mayEmitPinCode } from "./branch-users.js";
 import {
   OPEN_SESSION_ACCESS,
   openSessionOf,
@@ -45,6 +46,11 @@ export function registerSessionReadRoute<TQueryResult extends PgQueryResultHKT>(
           is_administrator: openSession.isAdministrator,
           capabilities: grantedCapabilities(openSession),
           stock_movement_kinds: visibleManualStockMovementKinds(openSession),
+          may_emit_own_pin_code: mayEmitPinCode(openSession, {
+            id: openSession.userId,
+            isAdministrator: openSession.isAdministrator,
+            active: true,
+          }),
         }),
       );
     },
