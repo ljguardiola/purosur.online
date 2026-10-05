@@ -76,7 +76,7 @@ const ISSUER = {
   taxStatus: "Condicion de prueba",
   version: 2,
 };
-const BUYER_TAX_STATUSES = [{ code: 90, description: "Consumidor Final", invoiceClass: "A/M/C" }];
+const BUYER_TAX_STATUSES = [{ code: 5, description: "Consumidor Final", invoiceClass: "A/M/C" }];
 
 const DISCOUNTED_SALE: SaleWithLines = {
   ...OPEN_SALE,
@@ -375,7 +375,7 @@ describe("chargeSaleInCash", () => {
               activityStartDate: "2020-01-15",
               version: 2,
             },
-            buyerTaxStatusCode: 90,
+            buyerTaxStatusCode: 5,
           },
         },
       },

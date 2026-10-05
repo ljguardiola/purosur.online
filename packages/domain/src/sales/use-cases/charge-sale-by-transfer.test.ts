@@ -64,7 +64,7 @@ const ISSUER = {
   version: 2,
 };
 const THRESHOLD = { id: "threshold-1", amount: 10_000_000, validFrom: "2026-01-01" };
-const BUYER_TAX_STATUSES = [{ code: 90, description: "Consumidor Final", invoiceClass: "A/M/C" }];
+const BUYER_TAX_STATUSES = [{ code: 5, description: "Consumidor Final", invoiceClass: "A/M/C" }];
 
 function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
   return new FakeSaleLedger({
