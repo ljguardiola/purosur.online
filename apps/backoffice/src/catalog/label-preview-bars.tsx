@@ -1,5 +1,3 @@
-import { ean13Modules } from "@purosur/domain";
-
 // The standard EAN-13 human-readable layout: first digit alone, then two halves of six digits.
 export function groupedEan13Digits(code: string): string {
   return `${code.slice(0, 1)} ${code.slice(1, 7)} ${code.slice(7, 13)}`;
@@ -22,8 +20,7 @@ function barRuns(modules: string): { start: number; width: number }[] {
   return runs;
 }
 
-export function LabelPreviewBars({ code }: { code: string }) {
-  const modules = ean13Modules(code);
+export function LabelPreviewBars({ modules }: { modules: string }) {
   return (
     <svg
       aria-hidden="true"
