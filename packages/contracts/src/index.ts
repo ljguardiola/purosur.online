@@ -24,6 +24,8 @@ export type { PasskeyRegistrationChallengeWire } from "./access/passkey-registra
 export { passkeyRegistrationChallengeSchema } from "./access/passkey-registration-challenge.js";
 export type { PasskeySummaryWire } from "./access/passkey-summary.js";
 export { passkeyListSchema, passkeySummarySchema } from "./access/passkey-summary.js";
+export type { PermissionCatalogWire } from "./access/permission-catalog.js";
+export { permissionCatalogSchema } from "./access/permission-catalog.js";
 export type { PinCodeRedemption, PinCodeRedemptionBody } from "./access/pin-code-redemption.js";
 export {
   pinCodeRedemptionBodySchema,
