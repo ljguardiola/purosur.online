@@ -18,14 +18,15 @@ export function ScreenHeader({
   titleRef,
   focusableTitle = false,
 }: ScreenHeaderProps) {
+  const focusable = titleRef !== undefined || focusableTitle;
   return (
     <div className="flex flex-col gap-1.5">
       {eyebrow === undefined ? null : <Eyebrow text={eyebrow} />}
       <h1
         id={titleId}
         ref={titleRef}
-        tabIndex={titleRef === undefined && !focusableTitle ? undefined : -1}
-        className={`text-display text-text-accent outline-none ${focusableTitle ? "focus-visible:focus-ring-tight" : ""}`}
+        tabIndex={focusable ? -1 : undefined}
+        className={`text-display text-text-accent outline-none ${focusable ? "focus-visible:focus-ring-tight" : ""}`}
       >
         {title}
       </h1>
