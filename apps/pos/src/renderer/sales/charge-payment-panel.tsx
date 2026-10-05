@@ -1,4 +1,4 @@
-import { Button, Eyebrow, formatCents, SidePanel, SummaryRowGroup } from "@purosur/ui";
+import { Button, FigureStat, formatCents, SidePanel, SummaryRowGroup } from "@purosur/ui";
 import { ArrowLeft } from "lucide-react";
 
 export type ChargePaymentPanelProps = {
@@ -10,8 +10,7 @@ export type ChargePaymentPanelProps = {
 export function ChargePaymentPanel({ total, paid, onBackToSale }: ChargePaymentPanelProps) {
   return (
     <SidePanel label="Panel de cobro">
-      <Eyebrow text="Total a cobrar" />
-      <p className="text-display text-text-accent">{formatCents(total)}</p>
+      <FigureStat label="Total a cobrar" value={formatCents(total)} />
       <SummaryRowGroup
         rows={[
           { label: "Pagado", value: formatCents(paid) },

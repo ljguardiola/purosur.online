@@ -119,8 +119,9 @@ offers:
 - A label read beside an amount, such as a breakdown of a total:
   `SummaryRowGroup`. A short mark on an item, such as the promotion a line
   was charged with: `Tag`. A figure with its label and an optional detail
-  above it, such as the change due: `FigureStat`. One person chosen from a
-  list of names: `AvatarOptionCardGroup`.
+  above it, such as the change due: `FigureStat`, at `size="heading"` in a
+  row of several figures in a `Card`, and with `loading` while its value
+  loads. One person chosen from a list of names: `AvatarOptionCardGroup`.
 
 The canonical use of each pattern is in its own stories:
 `packages/ui/src/components/data-display/table/table.stories.tsx`, and

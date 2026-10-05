@@ -34,6 +34,13 @@ describe("isValidLabelCount", () => {
     );
   });
 
+  it.each([1, LABELS_MAX_COUNT_PER_PRODUCT])(
+    "accepts exactly %s labels of one product",
+    (count) => {
+      expect(isValidLabelCount(count)).toBe(true);
+    },
+  );
+
   it.each([0, -1, LABELS_MAX_COUNT_PER_PRODUCT + 1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
     "refuses %s labels of one product",
     (count) => {

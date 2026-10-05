@@ -1,7 +1,7 @@
 import type { OpenSale } from "@purosur/contracts";
 import {
   Button,
-  Eyebrow,
+  FigureStat,
   formatCents,
   InlineNotice,
   plural,
@@ -63,8 +63,7 @@ export function PaymentPanel({
         </Button>
       }
     >
-      <Eyebrow text="Total a cobrar" />
-      <p className="text-display text-text-accent">{formatCents(total)}</p>
+      <FigureStat label="Total a cobrar" value={formatCents(total)} />
       <SummaryRowGroup rows={[{ label: `${lineCount} ${lines}`, value: formatCents(total) }]} />
       {chargeRefusal === null ? null : refusalNotice(chargeRefusal)}
       {chargeRefusal === null ? (

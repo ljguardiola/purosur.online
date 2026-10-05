@@ -4,6 +4,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { expectDrawnAsFigureStat } from "../platform/test-support/figure-stat";
 import type { CoreData } from "../platform/use-core-query";
 import { ExpectedCashPanel } from "./expected-cash-panel";
 
@@ -58,6 +59,15 @@ describe("ExpectedCashPanel", () => {
     await expect.element(screen.getByText("EFECTIVO ESPERADO AHORA")).toBeVisible();
     await expect.element(screen.getByText("$ 46.200,00", { exact: true })).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("draws the expected cash as the design system's figure stat", async () => {
+    const screen = await renderPanel();
+
+    await expectDrawnAsFigureStat(
+      screen.getByText("EFECTIVO ESPERADO AHORA").element(),
+      screen.getByText("$ 46.200,00", { exact: true }).element(),
+    );
   });
 
   it("takes its eyebrow from the screen that uses it", async () => {
@@ -152,6 +162,25 @@ describe("ExpectedCashPanel", () => {
     await expect.element(screen.getByText("EFECTIVO ESPERADO AHORA")).toBeVisible();
     await expect.element(screen.getByText("Fondo inicial")).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("keeps the expected cash's label over a busy figure while the balance loads", async () => {
+    const screen = await renderPanel({ balance: { status: "loading" } });
+    const figure = screen.getByText("EFECTIVO ESPERADO AHORA").element().parentElement;
+
+    expect(figure?.getAttribute("aria-busy")).toBe("true");
+  });
+
+  it("keeps the eyebrow above the failure when the balance cannot be read", async () => {
+    const screen = await renderPanel({ balance: { status: "failed", retry: vi.fn() } });
+    const eyebrow = screen.getByText("EFECTIVO ESPERADO AHORA");
+    const failure = screen.getByText("No se pudo leer el efectivo esperado");
+
+    await expect.element(eyebrow).toBeVisible();
+    await expect.element(failure).toBeVisible();
+    expect(eyebrow.element().getBoundingClientRect().bottom).toBeLessThanOrEqual(
+      failure.element().getBoundingClientRect().top,
+    );
   });
 
   it("says the balance could not be read and offers Reintentar", async () => {
