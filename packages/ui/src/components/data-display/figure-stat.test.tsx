@@ -68,6 +68,58 @@ test("wraps a long value inside its container instead of overflowing it", async 
   expect(value.getBoundingClientRect().right).toBeLessThanOrEqual(160);
 });
 
+test("draws a heading-size value at 20px bold in the accent text color", async () => {
+  const screen = await render(<FigureStat size="heading" label="Contado" value="$ 1.500,00" />);
+  const style = getComputedStyle(screen.getByText("$ 1.500,00").element());
+
+  expect(style.fontSize).toBe("20px");
+  expect(style.fontWeight).toBe("700");
+  expect(style.color).toBe(tokenRgb("text-accent"));
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps the eyebrow label at every size", async () => {
+  const screen = await render(<FigureStat size="heading" label="Contado" value="$ 1" />);
+  const style = getComputedStyle(screen.getByText("Contado").element());
+
+  expect(style.fontSize).toBe("12px");
+  expect(style.textTransform).toBe("uppercase");
+});
+
+test("shows its label and no value while the value loads, marked busy", async () => {
+  const screen = await render(<FigureStat label="Efectivo esperado" loading />);
+  const figure = screen.container.firstElementChild as HTMLElement;
+
+  await expect.element(screen.getByText("Efectivo esperado")).toBeVisible();
+  expect(figure.textContent).toBe("Efectivo esperado");
+  expect(figure.getAttribute("aria-busy")).toBe("true");
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test.each(["display", "heading"] as const)(
+  "takes the same height while its %s-size value loads as once it is shown",
+  async (size) => {
+    const screen = await render(
+      <div>
+        <FigureStat size={size} label="Cargando" loading />
+        <FigureStat size={size} label="Cargado" value="$ 1.500,00" />
+      </div>,
+    );
+    const [loading, loaded] = Array.from(
+      screen.container.firstElementChild?.children ?? [],
+    ) as HTMLElement[];
+
+    expect(loading?.getBoundingClientRect().height).toBeCloseTo(
+      loaded?.getBoundingClientRect().height ?? 0,
+      0,
+    );
+  },
+);
+
 test("does not accept a figure without its value", () => {
   expectTypeOf<{ label: string }>().not.toExtend<FigureStatProps>();
+});
+
+test("does not accept a value while it loads", () => {
+  expectTypeOf<{ label: string; loading: true; value: string }>().not.toExtend<FigureStatProps>();
 });
