@@ -23,14 +23,3 @@ export function withRequiredPermissions(
   }
   return selected;
 }
-
-export function permissionsRequiring(
-  catalog: PermissionCatalogWire,
-  key: PermissionKey,
-  held: Iterable<PermissionKey>,
-): PermissionKey[] {
-  const heldKeys = new Set(held);
-  return permissionsOf(catalog)
-    .filter((permission) => heldKeys.has(permission.key) && permission.requires.includes(key))
-    .map((permission) => permission.key);
-}

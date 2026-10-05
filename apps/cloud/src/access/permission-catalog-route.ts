@@ -3,6 +3,7 @@ import {
   PERMISSION_AREAS,
   PERMISSION_CATALOG,
   type PermissionKey,
+  permissionsRequiring,
   withRequiredPermissions,
 } from "@purosur/domain";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -11,7 +12,7 @@ import { sameOriginGuard } from "./backoffice-origin.js";
 import type { RolesRouteOptions } from "./roles-list-route.js";
 import { OPEN_SESSION_ACCESS, registerRouteAccess, routeSessionSource } from "./route-access.js";
 
-function requiredBy(key: PermissionKey): PermissionKey[] {
+function requirementsOf(key: PermissionKey): PermissionKey[] {
   return [...withRequiredPermissions([key])].filter((required) => required !== key);
 }
 
@@ -23,7 +24,8 @@ function permissionCatalogWire() {
         ({ key, registerMarker }) => ({
           key,
           register_marker: registerMarker,
-          requires: requiredBy(key),
+          requires: requirementsOf(key),
+          required_by: permissionsRequiring(key),
         }),
       ),
     })),

@@ -41,6 +41,7 @@ export {
   isSignInBlockLive,
   isWellFormedPinCode,
   lacksARequiredPermission,
+  mayEmitPinCode,
   mayEmitPinCodeFor,
   normalizePinCode,
   PASSKEY_AUTHORIZATION_WINDOW_MS,

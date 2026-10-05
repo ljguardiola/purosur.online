@@ -1,3 +1,6 @@
+import type { RoleAccess } from "./access-increase.js";
+import { grantsCapability } from "./capability-permissions.js";
+
 const PIN_CODE_LENGTH = 16;
 export const PIN_CODE_VALIDITY_MS = 15 * 60 * 1000;
 export const PIN_CODE_MAX_FAILED_ATTEMPTS = 5;
@@ -49,6 +52,15 @@ export function pinCodeRetryAfterSeconds(
 
 export function mayEmitPinCodeFor(actor: PinCodeParty, target: PinCodeParty): boolean {
   return actor.isAdministrator || (!target.isAdministrator && actor.id !== target.id);
+}
+
+export function mayEmitPinCode(
+  actor: PinCodeParty & RoleAccess,
+  target: PinCodeParty & { active: boolean },
+): boolean {
+  return (
+    target.active && grantsCapability(actor, "reset_user_pin") && mayEmitPinCodeFor(actor, target)
+  );
 }
 
 export function isPinCodeBurned(code: PinCodeState): boolean {

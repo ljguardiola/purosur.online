@@ -7,6 +7,7 @@ export const permissionSchema = z.object({
   key: permissionKeySchema,
   register_marker: z.enum(["none", "register", "register_with_another_persons_pin"]),
   requires: z.array(permissionKeySchema),
+  required_by: z.array(permissionKeySchema),
 });
 
 export const permissionAreaSchema = z.object({
