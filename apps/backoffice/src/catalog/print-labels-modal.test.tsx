@@ -13,14 +13,16 @@ const honeyWithInternalBarcode: ProductSummary = {
   id: "00000020-0000-4000-8000-000000000000",
   barcodes: ["2000000000015"],
   labelCode: "2000000000015",
-  labelModules: "10100011010001101010011101001110001101010011101010111001011100101110010111001011001101001110101",
+  labelModules:
+    "10100011010001101010011101001110001101010011101010111001011100101110010111001011001101001110101",
 };
 const almondsWithInternalBarcode: ProductSummary = {
   ...almonds,
   id: "00000021-0000-4000-8000-000000000000",
   barcodes: ["2000000000022"],
   labelCode: "2000000000022",
-  labelModules: "10100011010001101010011101001110001101010011101010111001011100101110010111001011011001101100101",
+  labelModules:
+    "10100011010001101010011101001110001101010011101010111001011100101110010111001011011001101100101",
 };
 const withoutInternalBarcode: ProductSummary = {
   ...honey,
@@ -179,7 +181,15 @@ test("lists each product by the label code the cloud sends, not by its barcodes"
     labelModules: null,
   };
   const screen = await renderModal(services, {
-    products: [{ ...honeyWithInternalBarcode, labelCode: "2000000000039", labelModules: "10100011010001101010011101001110001101010011101010111001011100101110010111001010000101110100101" }, withoutLabelCode],
+    products: [
+      {
+        ...honeyWithInternalBarcode,
+        labelCode: "2000000000039",
+        labelModules:
+          "10100011010001101010011101001110001101010011101010111001011100101110010111001010000101110100101",
+      },
+      withoutLabelCode,
+    ],
   });
 
   const dialog = await openPrintLabelsModal(screen);
@@ -553,7 +563,8 @@ test("caps the sheet at 2400 labels in total, disabling a row's + once the total
     name: "Nueces mariposa",
     barcodes: ["2912345678906"],
     labelCode: "2912345678906",
-    labelModules: "10100010110011001001101101000010100011011100101010101000010001001001000111010011100101010000101",
+    labelModules:
+      "10100010110011001001101101000010100011011100101010101000010001001001000111010011100101010000101",
   };
   const services = createServices();
   const screen = await renderModal(services, {

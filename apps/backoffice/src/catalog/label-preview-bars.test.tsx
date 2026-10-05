@@ -7,7 +7,8 @@ test("groups an EAN-13 code as its first digit alone, then two halves of six dig
 });
 
 test("draws each run of dark modules as one bar, at its position and as wide as the run", async () => {
-  const modules = "10100011010001101010011101001110001101010011101010111001011100101110010111001011001101001110101";
+  const modules =
+    "10100011010001101010011101001110001101010011101010111001011100101110010111001011001101001110101";
   const screen = await render(<LabelPreviewBars modules={modules} />);
 
   const svg = screen.container.querySelector("svg");
