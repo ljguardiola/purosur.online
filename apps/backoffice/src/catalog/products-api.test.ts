@@ -431,6 +431,12 @@ test("generateInternalBarcode returns failed on a body carrying no code", async 
   expect(await generateInternalBarcode()).toEqual({ kind: "failed" });
 });
 
+test("generateInternalBarcode returns failed on a code that is not an internal barcode", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { code: "7790987000015" }));
+
+  expect(await generateInternalBarcode()).toEqual({ kind: "failed" });
+});
+
 test("generateInternalBarcode returns unauthenticated on 401", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(401));
 
