@@ -34,7 +34,10 @@ import {
   userRoles,
   users,
 } from "./platform/db/schema.js";
-import { insertEnrolledInstallation } from "./register/test-support/enrolled-installation.js";
+import {
+  ENROLLED_TOKEN_ISSUED_AT,
+  insertEnrolledInstallation,
+} from "./register/test-support/enrolled-installation.js";
 import {
   buildTestApp as buildApp,
   TEST_EDGE_ORIGIN_SECRET,
@@ -58,6 +61,10 @@ beforeEach(async () => {
   await testDatabase.clear();
 });
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe("GET /api/health", () => {
   it("responds 200 with status ok and the given version", async () => {
     const app = buildApp({ version: "abc1234" });
@@ -69,9 +76,8 @@ describe("GET /api/health", () => {
   });
 
   it("reaches the enrolled installations when the device routes are wired", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(testDatabase.db, {
-      tokenIssuedAt: new Date(),
-    });
+    vi.useFakeTimers({ toFake: ["Date"], now: ENROLLED_TOKEN_ISSUED_AT });
+    const { deviceToken } = await insertEnrolledInstallation(testDatabase.db);
     const app = buildApp({
       version: "abc1234",
       devices: {
@@ -94,6 +100,7 @@ describe("GET /api/health", () => {
 
 describe("GET /api/changes", () => {
   it("pulls the enrolled installation's branch changes when the device routes are wired", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: ENROLLED_TOKEN_ISSUED_AT });
     const { deviceToken } = await insertEnrolledInstallation(testDatabase.db);
     const app = buildApp({
       version: "abc1234",

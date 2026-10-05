@@ -3,6 +3,8 @@ import { registerInstallations, registers } from "../../platform/db/schema.js";
 import { seededLocationId } from "../../test-support/seeded-location.js";
 import { issueDeviceToken } from "../device-token.js";
 
+export const ENROLLED_TOKEN_ISSUED_AT = new Date("2026-09-28T12:00:00.000Z");
+
 export interface EnrolledInstallation {
   deviceId: string;
   registerId: string;
@@ -44,7 +46,7 @@ export async function insertEnrolledInstallation<TQueryResult extends PgQueryRes
       registerId,
       tokenLookupPrefix: lookupPrefix,
       tokenHash,
-      tokenIssuedAt: options.tokenIssuedAt ?? new Date("2026-09-28T12:00:00.000Z"),
+      tokenIssuedAt: options.tokenIssuedAt ?? ENROLLED_TOKEN_ISSUED_AT,
       hostname: "CAJA-MOSTRADOR",
       windowsVersion: "Windows 11 Pro 10.0.26100",
       enrolledAt: new Date("2026-09-28T12:00:00.000Z"),
