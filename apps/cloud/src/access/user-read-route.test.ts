@@ -151,6 +151,7 @@ describe("GET /users/:id", () => {
       role: { id: roleId, is_administrator: false, name: "Encargada" },
       passkey_count: 0,
       is_last_active_administrator: false,
+      may_emit_pin_code: false,
     });
   });
 
@@ -194,6 +195,7 @@ describe("GET /users/:id", () => {
       role: { id: administratorRoleId, is_administrator: true, name: null },
       passkey_count: 0,
       is_last_active_administrator: true,
+      may_emit_pin_code: true,
     });
   });
 
@@ -254,6 +256,7 @@ describe("GET /users/:id", () => {
       role: { id: cashierRoleId, is_administrator: false, name: "Cajera" },
       passkey_count: 0,
       is_last_active_administrator: false,
+      may_emit_pin_code: false,
     });
   });
 
@@ -351,5 +354,94 @@ describe("GET /users/:id", () => {
 
     expect(response.statusCode).toBe(403);
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
+  });
+
+  describe("may_emit_pin_code", () => {
+    async function pinCodeAnswer(
+      viewer: { permissionKeys: string[]; administrator?: boolean },
+      target: { role: "cashier" | "administrator"; active?: boolean; self?: boolean },
+    ): Promise<unknown> {
+      const locationId = await seededLocationId(db);
+      const viewerRoleId = viewer.administrator
+        ? await seededAdministratorRoleId()
+        : await insertCashierRole("Encargada", viewer.permissionKeys);
+      const viewerId = await insertUser({
+        firstName: "Ada Lovelace",
+        email: "ada@example.com",
+        roleId: viewerRoleId,
+        locationId,
+      });
+      const targetId = target.self
+        ? viewerId
+        : await insertUser({
+            firstName: "Grace Hopper",
+            email: "grace@example.com",
+            roleId:
+              target.role === "administrator"
+                ? await seededAdministratorRoleId()
+                : await insertCashierRole("Cajera"),
+            locationId,
+          });
+      if (target.active === false) {
+        await db.update(users).set({ active: false }).where(eq(users.id, targetId));
+      }
+      const rawSessionId = await insertSession(viewerId);
+
+      const response = await getUser(targetId, rawSessionId);
+
+      expect(response.statusCode).toBe(200);
+      return response.json().may_emit_pin_code;
+    }
+
+    it("is true for a holder of reset_user_pin reading another user who is not an Administrator", async () => {
+      expect(
+        await pinCodeAnswer(
+          { permissionKeys: ["deactivate_users", "reset_user_pin"] },
+          { role: "cashier" },
+        ),
+      ).toBe(true);
+    });
+
+    it("is false without reset_user_pin", async () => {
+      expect(
+        await pinCodeAnswer({ permissionKeys: ["deactivate_users"] }, { role: "cashier" }),
+      ).toBe(false);
+    });
+
+    it("is false for a holder of reset_user_pin reading an Administrator", async () => {
+      expect(
+        await pinCodeAnswer(
+          { permissionKeys: ["deactivate_users", "reset_user_pin"] },
+          { role: "administrator" },
+        ),
+      ).toBe(false);
+    });
+
+    it("is false for a holder of reset_user_pin reading their own user", async () => {
+      expect(
+        await pinCodeAnswer(
+          { permissionKeys: ["deactivate_users", "reset_user_pin"] },
+          { role: "cashier", self: true },
+        ),
+      ).toBe(false);
+    });
+
+    it("is true for an Administrator reading their own user", async () => {
+      expect(
+        await pinCodeAnswer(
+          { permissionKeys: [], administrator: true },
+          { role: "administrator", self: true },
+        ),
+      ).toBe(true);
+    });
+
+    it("is false for an Administrator reading an inactive user", async () => {
+      expect(
+        await pinCodeAnswer(
+          { permissionKeys: [], administrator: true },
+          { role: "cashier", active: false },
+        ),
+      ).toBe(false);
+    });
   });
 });

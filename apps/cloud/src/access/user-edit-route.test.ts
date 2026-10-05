@@ -436,6 +436,7 @@ describe("PUT /users/:id", () => {
       role: { id: cashierRoleId, is_administrator: false, name: "Cajera" },
       passkey_count: 0,
       is_last_active_administrator: false,
+      may_emit_pin_code: true,
     });
     const audited = await db.select().from(auditLog).where(eq(auditLog.entityId, targetId));
     expect(audited).toHaveLength(1);
@@ -528,6 +529,7 @@ describe("PUT /users/:id", () => {
       role: { id: encargadaRoleId, is_administrator: false, name: "Encargada" },
       passkey_count: 0,
       is_last_active_administrator: false,
+      may_emit_pin_code: true,
     });
     expect(await roleOf(targetId)).toBe(encargadaRoleId);
     const audited = await db.select().from(auditLog).where(eq(auditLog.entityId, targetId));
@@ -655,6 +657,7 @@ describe("PUT /users/:id", () => {
       role: { id: cashierRoleId, is_administrator: false, name: "Cajera" },
       passkey_count: 0,
       is_last_active_administrator: false,
+      may_emit_pin_code: true,
     });
   });
 
@@ -673,6 +676,7 @@ describe("PUT /users/:id", () => {
       version: 2,
       role: { id: administratorRoleId, is_administrator: true },
       is_last_active_administrator: false,
+      may_emit_pin_code: true,
     });
   });
 
@@ -709,6 +713,7 @@ describe("PUT /users/:id", () => {
       expect(response.json()).toMatchObject({
         email: "ada.lovelace@example.com",
         is_last_active_administrator: true,
+        may_emit_pin_code: true,
       });
     });
 
@@ -732,6 +737,7 @@ describe("PUT /users/:id", () => {
       expect(response.json()).toMatchObject({
         role: { id: cashierRoleId },
         is_last_active_administrator: false,
+        may_emit_pin_code: true,
       });
       expect(await roleOf(administratorId)).toBe(cashierRoleId);
     });

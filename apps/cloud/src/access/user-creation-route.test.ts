@@ -214,6 +214,7 @@ describe("POST /users", () => {
       role: { id: cashierRoleId, is_administrator: false, name: "Cajera" },
       passkey_count: 0,
       is_last_active_administrator: false,
+      may_emit_pin_code: true,
     });
 
     const [createdUser] = await db.select().from(users).where(eq(users.id, body.id));

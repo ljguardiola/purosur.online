@@ -165,6 +165,7 @@ describe("GET /users", () => {
         role: { id: roleId, is_administrator: false, name: "Encargada" },
         passkey_count: 0,
         is_last_active_administrator: false,
+        may_emit_pin_code: false,
       },
     ]);
   });
@@ -217,6 +218,7 @@ describe("GET /users", () => {
         role: { id: holderRoleId, is_administrator: false, name: "Encargada" },
         passkey_count: 0,
         is_last_active_administrator: false,
+        may_emit_pin_code: false,
       },
     ]);
   });
@@ -253,6 +255,7 @@ describe("GET /users", () => {
         role: { id: cashierRoleId, is_administrator: false, name: "Cajera" },
         passkey_count: 0,
         is_last_active_administrator: false,
+        may_emit_pin_code: false,
       },
       {
         id: administratorId,
@@ -263,6 +266,7 @@ describe("GET /users", () => {
         role: { id: administratorRoleId, is_administrator: true, name: null },
         passkey_count: 0,
         is_last_active_administrator: true,
+        may_emit_pin_code: true,
       },
     ]);
   });
@@ -341,6 +345,7 @@ describe("GET /users", () => {
         role: { id: cashierRoleId, is_administrator: false, name: "Cajera" },
         passkey_count: 2,
         is_last_active_administrator: false,
+        may_emit_pin_code: true,
       },
       {
         id: administratorId,
@@ -351,6 +356,7 @@ describe("GET /users", () => {
         role: { id: administratorRoleId, is_administrator: true, name: null },
         passkey_count: 0,
         is_last_active_administrator: true,
+        may_emit_pin_code: true,
       },
     ]);
   });
