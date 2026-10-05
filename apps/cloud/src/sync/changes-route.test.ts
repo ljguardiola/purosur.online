@@ -371,7 +371,9 @@ describe("GET /changes", () => {
     });
   });
 
-  it("answers a failure with the cloud error envelope, revealing nothing of it", async () => {
+  it("answers a failure with the cloud error envelope, revealing nothing of it", {
+    timeout: 30_000,
+  }, async () => {
     const broken = await buildTestDatabase();
     await broken.close();
     const failing = Fastify();

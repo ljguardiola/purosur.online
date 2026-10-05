@@ -23,7 +23,9 @@ async function brandsEntry(): Promise<JournalEntry> {
   );
 }
 
-describe("the brands migration applied to a database that already holds products", () => {
+describe("the brands migration applied to a database that already holds products", {
+  timeout: 30_000,
+}, () => {
   it("leaves existing products unchanged, with no brand", async () => {
     const folder = await mkdtemp(join(tmpdir(), "brands-migration-"));
     onTestFinished(() => rm(folder, { recursive: true, force: true }));

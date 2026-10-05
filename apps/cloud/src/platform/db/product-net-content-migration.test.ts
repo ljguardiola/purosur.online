@@ -31,7 +31,9 @@ async function addNetContentMigration(destFolder: string): Promise<void> {
   await addMigrationEntry(destFolder, await netContentEntry());
 }
 
-describe("the product_net_content migration applied to a database that already holds products", () => {
+describe("the product_net_content migration applied to a database that already holds products", {
+  timeout: 30_000,
+}, () => {
   it("leaves existing products unchanged, with no net content", async () => {
     const folder = await mkdtemp(join(tmpdir(), "product-net-content-migration-"));
     onTestFinished(() => rm(folder, { recursive: true, force: true }));

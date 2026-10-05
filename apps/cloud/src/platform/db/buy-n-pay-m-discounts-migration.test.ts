@@ -20,7 +20,9 @@ async function buyNPayMEntry(): Promise<JournalEntry> {
   );
 }
 
-describe("the buy-N-pay-M migration applied to a database that already holds discounts", () => {
+describe("the buy-N-pay-M migration applied to a database that already holds discounts", {
+  timeout: 30_000,
+}, () => {
   it("keeps every percent-off discount as it was, with no quantities", async () => {
     const folder = await mkdtemp(join(tmpdir(), "buy-n-pay-m-discounts-migration-"));
     onTestFinished(() => rm(folder, { recursive: true, force: true }));

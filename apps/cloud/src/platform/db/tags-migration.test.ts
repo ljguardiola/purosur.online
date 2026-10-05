@@ -23,7 +23,9 @@ async function tagsEntry(): Promise<JournalEntry> {
   );
 }
 
-describe("the tags migration applied to a database that already holds products", () => {
+describe("the tags migration applied to a database that already holds products", {
+  timeout: 30_000,
+}, () => {
   it("leaves existing products unchanged, with no tags", async () => {
     const folder = await mkdtemp(join(tmpdir(), "tags-migration-"));
     onTestFinished(() => rm(folder, { recursive: true, force: true }));

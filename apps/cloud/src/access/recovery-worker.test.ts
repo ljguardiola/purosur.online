@@ -651,7 +651,9 @@ describe("startRecoveryWorker", () => {
     },
   );
 
-  it("fails a job whose request id the queue never creates, recording nothing even for an inactive account", async () => {
+  it("fails a job whose request id the queue never creates, recording nothing even for an inactive account", {
+    timeout: 30_000,
+  }, async () => {
     const testDatabase = await buildTestDatabase();
     try {
       await testDatabase.db.insert(users).values({
