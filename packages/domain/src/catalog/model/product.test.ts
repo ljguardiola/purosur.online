@@ -1,6 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
+  addsInternalBarcodeToProductWithBarcodes,
   BARCODE_MAX_LENGTH,
   barcodeLength,
   barcodeListProblem,
@@ -249,5 +250,83 @@ describe("barcodeListProblem", () => {
 
   it("checks a code's length before its whitespace", () => {
     expect(barcodeListProblem([`${"a".repeat(BARCODE_MAX_LENGTH)} `])).toBe("too_long");
+  });
+
+  it("finds no problem in one internal code listed beside a supplier's", () => {
+    expect(barcodeListProblem(["7790987000015", "2000000000015"])).toBeUndefined();
+  });
+
+  it("finds a second internal code", () => {
+    expect(barcodeListProblem(["2000000000015", "7790987000015", "2000000000022"])).toBe(
+      "several_internal",
+    );
+  });
+
+  it("does not count a code in the internal range without its check digit as internal", () => {
+    expect(barcodeListProblem(["2000000000015", "2000000000016"])).toBeUndefined();
+  });
+
+  it("reports a single code's problem before a second internal code", () => {
+    expect(barcodeListProblem(["2000000000015", "2000000000022", "1 1"])).toBe("whitespace");
+    expect(barcodeListProblem(["2000000000015", "2000000000022", "2000000000015"])).toBe(
+      "repeated",
+    );
+  });
+});
+
+describe("addsInternalBarcodeToProductWithBarcodes", () => {
+  it("is false for a product that had no barcode at all", () => {
+    expect(addsInternalBarcodeToProductWithBarcodes([], ["2000000000015"])).toBe(false);
+    expect(addsInternalBarcodeToProductWithBarcodes([], ["2000000000015", "7790987000015"])).toBe(
+      false,
+    );
+  });
+
+  it("is true for an internal code added to a product that already had a barcode", () => {
+    expect(
+      addsInternalBarcodeToProductWithBarcodes(
+        ["7790987000015"],
+        ["7790987000015", "2000000000015"],
+      ),
+    ).toBe(true);
+  });
+
+  it("is true for an internal code replacing every barcode the product had", () => {
+    expect(addsInternalBarcodeToProductWithBarcodes(["7790987000015"], ["2000000000015"])).toBe(
+      true,
+    );
+  });
+
+  it("is true for an internal code replacing the product's own internal code", () => {
+    expect(addsInternalBarcodeToProductWithBarcodes(["2000000000015"], ["2000000000022"])).toBe(
+      true,
+    );
+  });
+
+  it("is false for a product keeping its internal code while adding a supplier's", () => {
+    expect(
+      addsInternalBarcodeToProductWithBarcodes(
+        ["2000000000015"],
+        ["2000000000015", "7790987000015"],
+      ),
+    ).toBe(false);
+  });
+
+  it("is false for a product adding only codes outside the internal range", () => {
+    expect(
+      addsInternalBarcodeToProductWithBarcodes(
+        ["7790987000015"],
+        ["7790987000015", "2000000000016"],
+      ),
+    ).toBe(false);
+  });
+
+  it("is false for a product dropping its internal code", () => {
+    expect(
+      addsInternalBarcodeToProductWithBarcodes(
+        ["2000000000015", "7790987000015"],
+        ["7790987000015"],
+      ),
+    ).toBe(false);
   });
 });

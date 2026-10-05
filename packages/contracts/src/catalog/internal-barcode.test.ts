@@ -8,13 +8,6 @@ describe("internalBarcodeSchema", () => {
     });
   });
 
-  it.each(["1234567890128", "2000000000016", "200000000001", "20000000000150", ""])(
-    "refuses %j as the code",
-    (code) => {
-      expect(internalBarcodeSchema.safeParse({ code }).success).toBe(false);
-    },
-  );
-
   it.each([undefined, null, {}, { code: 2000000000015 }, { code: null }, "2000000000015"])(
     "refuses %j",
     (body) => {

@@ -119,6 +119,9 @@ describe("barcodeListMessage", () => {
         ),
       ),
     ).toBe("El producto puede tener hasta 20 códigos de barras.");
+    expect(barcodeListMessage(withBarcodes(["2000000000015"], "2000000000022"))).toBe(
+      "El producto puede tener un solo código interno.",
+    );
   });
 
   it("says a list that passes every local check was refused by the cloud", () => {

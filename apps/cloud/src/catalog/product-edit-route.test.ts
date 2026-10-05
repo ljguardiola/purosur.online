@@ -362,7 +362,36 @@ describe("PUT /products/:id", () => {
     expect(response.json()).toMatchObject({ id: product.id, name: "Maceta 20cm", version: 2 });
   });
 
-  it("answers the edited product with the internal barcode its label carries", async () => {
+  it("lets a product keep its internal barcode while adding a supplier's, answering the internal one its label carries", async () => {
+    const categoryId = await insertCategory("Macetas");
+    const product = await insertProduct({
+      name: "Maceta",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["2000000000015"],
+    });
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await editProduct(rawSessionId, product.id, {
+      name: "Maceta",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111", "2000000000015"],
+      brandId: null,
+      tagIds: [],
+      version: product.version,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      barcodes: ["111", "2000000000015"],
+      labelCode: "2000000000015",
+      labelModules: ean13Modules("2000000000015"),
+    });
+  });
+
+  it("rejects an internal barcode added to a product that already has a barcode with 409 internal_barcode_on_product_with_barcodes, changing nothing", async () => {
     const categoryId = await insertCategory("Macetas");
     const product = await insertProduct({
       name: "Maceta",
@@ -383,10 +412,17 @@ describe("PUT /products/:id", () => {
       version: product.version,
     });
 
-    expect(response.json()).toMatchObject({
-      labelCode: "2000000000015",
-      labelModules: ean13Modules("2000000000015"),
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toEqual({
+      code: "internal_barcode_on_product_with_barcodes",
+      message: "an internal barcode can only be added to a product that has no barcode",
     });
+    expect(await db.select().from(products)).toMatchObject([{ version: 1 }]);
+    const codes = await db
+      .select()
+      .from(productBarcodes)
+      .where(eq(productBarcodes.productId, product.id));
+    expect(codes.map((row) => row.code)).toEqual(["111"]);
   });
 
   it("allows a product to keep one of its own codes", async () => {

@@ -229,6 +229,87 @@ describe("editProduct", () => {
     expect(outcome.kind).toBe("applied");
   });
 
+  describe("an internal barcode", () => {
+    function productWithBarcodes(store: FakeCatalogStore, codes: string[], active = true): void {
+      store.seedProduct(
+        {
+          id: "product-1",
+          name: "Yerba",
+          categoryId: "category-1",
+          brandId: null,
+          saleUnit: "UNIT",
+          netContent: null,
+          active,
+          version: 1,
+        },
+        codes.map((code) => ({ code, active })),
+      );
+    }
+
+    function editBarcodes(store: FakeCatalogStore, barcodes: string[], version = 1) {
+      return editProduct(
+        { store, clock },
+        {
+          id: "product-1",
+          name: "Yerba",
+          categoryId: "category-1",
+          brandId: null,
+          saleUnit: "UNIT",
+          barcodes,
+          tagIds: [],
+          netContent: null,
+          version,
+        },
+      );
+    }
+
+    it("is refused when added to a product that already has a barcode, locking nothing past the product and changing nothing", async () => {
+      const store = new FakeCatalogStore();
+      leafCategory(store);
+      productWithBarcodes(store, ["7790987000015"]);
+      const before = store.snapshot();
+
+      const outcome = await editBarcodes(store, ["7790987000015", "2000000000015"]);
+
+      expect(outcome).toEqual({ kind: "internal_barcode_on_product_with_barcodes" });
+      expect(store.lockCallOrder).toEqual(["lockProduct"]);
+      expect(store.snapshot()).toEqual(before);
+    });
+
+    it("is refused when added to an inactive product, whose barcodes are inactive", async () => {
+      const store = new FakeCatalogStore();
+      leafCategory(store);
+      productWithBarcodes(store, ["7790987000015"], false);
+
+      const outcome = await editBarcodes(store, ["2000000000015"]);
+
+      expect(outcome).toEqual({ kind: "internal_barcode_on_product_with_barcodes" });
+    });
+
+    it("is kept by a product that adds a supplier's code beside it", async () => {
+      const store = new FakeCatalogStore();
+      leafCategory(store);
+      productWithBarcodes(store, ["2000000000015"]);
+
+      const outcome = await editBarcodes(store, ["2000000000015", "7790987000015"]);
+
+      expect(outcome).toEqual({
+        kind: "applied",
+        product: expect.objectContaining({ barcodes: ["2000000000015", "7790987000015"] }),
+      });
+    });
+
+    it("answers stale_version before the internal barcode is judged", async () => {
+      const store = new FakeCatalogStore();
+      leafCategory(store);
+      productWithBarcodes(store, ["7790987000015"]);
+
+      const outcome = await editBarcodes(store, ["2000000000015"], 2);
+
+      expect(outcome).toEqual({ kind: "stale_version" });
+    });
+  });
+
   it("skips the active-barcode check for an inactive product, and hands its replaced barcodes to the store for the product it locked", async () => {
     const store = new FakeCatalogStore();
     leafCategory(store);
@@ -276,6 +357,7 @@ describe("editProduct", () => {
           brandId: null,
           saleUnit: "UNIT",
           tagIds: [],
+          barcodes: ["111"],
         },
         barcodes: ["222"],
       },

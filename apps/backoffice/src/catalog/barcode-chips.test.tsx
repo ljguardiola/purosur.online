@@ -320,6 +320,34 @@ test("disables generating another internal code once one is already listed, enab
   await expect.element(generateButton).not.toBeDisabled();
 });
 
+test("refuses scanning a second internal code, without listing it", async () => {
+  const chips = await renderChips({ initialCodes: ["2000000000015"] });
+
+  await scan(chips, "2000000000022");
+
+  await expect
+    .element(chips.getByText("El producto puede tener un solo código interno."))
+    .toBeVisible();
+  expect(chips.getByRole("button", { name: /^Quitar el código/ }).elements()).toHaveLength(1);
+});
+
+test("keeps generating offered after scanning an internal code, refusing a generated one beside it", async () => {
+  const generate = vi
+    .fn<typeof generateInternalBarcode>()
+    .mockResolvedValue({ kind: "ok", code: "2000000000015" });
+  const chips = await renderChips({ generate });
+  await scan(chips, "2000000000022");
+  await expect.element(chips.getByText("2000000000022")).toBeVisible();
+  await expect.element(generateButtonOf(chips)).not.toBeDisabled();
+
+  await userEvent.click(generateButtonOf(chips));
+
+  await expect
+    .element(chips.getByText("El producto puede tener un solo código interno."))
+    .toBeVisible();
+  expect(chips.getByText("2000000000015").query()).toBeNull();
+});
+
 test("shows an inline error when generating fails, keeping the codes already entered", async () => {
   const generate = vi.fn<typeof generateInternalBarcode>().mockResolvedValue({ kind: "failed" });
   const chips = await renderChips({ generate });

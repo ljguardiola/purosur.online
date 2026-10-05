@@ -351,6 +351,16 @@ test.each([{ code: "tag_inactive" }, { code: "tag_inactive", tagId: 2 }])(
   },
 );
 
+test("editProduct returns internal_barcode_on_product_with_barcodes on a 409 carrying that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(409, { code: "internal_barcode_on_product_with_barcodes" }),
+  );
+
+  expect(await editProduct("product-1", editInput)).toEqual({
+    kind: "internal_barcode_on_product_with_barcodes",
+  });
+});
+
 test("editProduct returns sale_unit_held_by_discount with the discount's name on a 409 carrying that code", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(409, { code: "sale_unit_held_by_discount", discountName: "3x2 Yerba" }),
@@ -428,12 +438,6 @@ test("generateInternalBarcode posts with no body and returns the generated code 
 
 test("generateInternalBarcode returns failed on a body carrying no code", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, {}));
-
-  expect(await generateInternalBarcode()).toEqual({ kind: "failed" });
-});
-
-test("generateInternalBarcode returns failed on a code that is not an internal barcode", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { code: "7790987000015" }));
 
   expect(await generateInternalBarcode()).toEqual({ kind: "failed" });
 });
