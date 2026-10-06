@@ -168,11 +168,12 @@ export class FakeSaleLedger implements SaleLedger {
         this.failIfAsked("recordCashMovement");
         working.movements.push(movement);
       },
-      recordCompletedSale: (saleId) => {
+      recordCompletedSale: (saleId, occurredAt) => {
         this.failIfAsked("recordCompletedSale");
         for (const sale of working.sales) {
           if (sale.id === saleId) {
             sale.state = "COMPLETED";
+            sale.occurredAt = occurredAt;
           }
         }
       },

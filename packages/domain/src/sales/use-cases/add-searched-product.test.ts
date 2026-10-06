@@ -79,7 +79,6 @@ describe("addSearchedProduct", () => {
       sessionId: "session-1",
       actorId: "cashier",
       state: "OPEN",
-      occurredAt: NOW,
       lines: [
         {
           id: "id-2",

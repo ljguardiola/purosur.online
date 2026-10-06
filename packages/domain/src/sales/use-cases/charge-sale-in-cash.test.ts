@@ -17,7 +17,6 @@ import {
 } from "./test-support/fake-sale-ledger.js";
 
 const NOW = new Date("2026-09-30T12:34:56.789Z");
-const STARTED = new Date("2026-09-30T12:00:00.000Z");
 const IDENTITY = { registerId: "register-1", deviceId: "device-1" };
 const CASHIER = { isAdministrator: false, permissionKeys: ["sell_and_charge"] };
 const SESSION = { id: "session-1", openedBy: "cashier" };
@@ -37,7 +36,6 @@ const OPEN_SALE: SaleWithLines = {
   sessionId: "session-1",
   actorId: "cashier",
   state: "OPEN",
-  occurredAt: STARTED,
   lines: [
     {
       id: "line-1",
@@ -136,6 +134,14 @@ describe("chargeSaleInCash", () => {
       change: 4100,
     });
     expect(store.state.sales[0]?.state).toBe("COMPLETED");
+  });
+
+  it("dates the sale with the moment it is charged, not with the moment its first product was added", () => {
+    const store = ledger();
+
+    charge(store, 10000);
+
+    expect(store.state.sales[0]?.occurredAt).toEqual(NOW);
   });
 
   it("records an approved cash payment of the total with the tendered amount", () => {
@@ -271,7 +277,7 @@ describe("chargeSaleInCash", () => {
           device_id: "device-1",
           session_id: "session-1",
           actor_id: "cashier",
-          occurred_at: STARTED.toISOString(),
+          occurred_at: NOW.toISOString(),
           completed_at: NOW.toISOString(),
           total: TOTAL,
           lines: [

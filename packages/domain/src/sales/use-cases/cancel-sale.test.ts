@@ -25,7 +25,6 @@ const OPEN_SALE: SaleWithLines = {
   sessionId: "session-1",
   actorId: "cashier",
   state: "OPEN",
-  occurredAt: new Date("2026-09-30T12:00:00.000Z"),
   lines: [YERBA_LINE],
 };
 const APPROVED_PAYMENT: PaymentTransaction = {
@@ -36,7 +35,6 @@ const APPROVED_PAYMENT: PaymentTransaction = {
   provider: "NONE",
   amount: 6750,
   state: "APPROVED",
-  occurredAt: new Date("2026-09-30T12:20:00.000Z"),
 };
 const COMPLETED_SALE: SaleWithLines = {
   ...OPEN_SALE,

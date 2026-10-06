@@ -38,7 +38,6 @@ const OPEN_SALE: SaleWithLines = {
   sessionId: "session-1",
   actorId: "cashier",
   state: "OPEN",
-  occurredAt: new Date("2026-09-30T12:00:00.000Z"),
   lines: [YERBA_LINE, AZUCAR_LINE],
 };
 const TEN_PERCENT = { id: "ten", benefit: { kind: "PERCENT_OFF" as const, percent: 10 } };
