@@ -8,13 +8,12 @@ const LATER = new Date("2026-09-20T12:00:00.000Z");
 const KEY = { productId: "product-1", locationId: "branch-1" };
 
 function storeWithProduct(
-  overrides: { active?: boolean; saleUnit?: "UNIT" | "KG"; balance?: number } = {},
+  overrides: { saleUnit?: "UNIT" | "KG"; balance?: number } = {},
 ): FakeStockStore {
   const store = new FakeStockStore();
   store.seedProduct({
     id: "product-1",
     saleUnit: overrides.saleUnit ?? "UNIT",
-    active: overrides.active ?? true,
   });
   store.seedBalance({ ...KEY, quantity: overrides.balance ?? 19_000 });
   return store;
@@ -51,15 +50,6 @@ describe("recordAdjustment", () => {
 
     expect(outcome).toEqual({ kind: "not_found" });
     expect(store.snapshot()).toEqual(before);
-  });
-
-  it("records the adjustment of a deactivated product's leftover stock", async () => {
-    const store = storeWithProduct({ active: false, balance: 19_000 });
-
-    const outcome = await adjust(store, { direction: "add", quantity: 12_000 });
-
-    expect(outcome).toMatchObject({ kind: "recorded", balance: 31_000 });
-    expect(store.balanceOf(KEY)).toBe(31_000);
   });
 
   it("refuses to add stock returned to a supplier, writing nothing", async () => {

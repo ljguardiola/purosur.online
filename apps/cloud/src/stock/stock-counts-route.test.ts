@@ -155,26 +155,6 @@ describe("POST /inventory-counts", () => {
     expect(response.json()).toMatchObject({ balance: 5000, superseded: true });
   });
 
-  it("registers the count of a deactivated product's stock", async () => {
-    const { headers, locationId } = await signedInWith(db, ["perform_stock_counts"], NOW);
-    const { productId } = await insertProduct(db, { name: "Arroz", active: false });
-    await insertBalance(db, { productId, locationId, quantity: 5000 });
-
-    const response = await registerCountRequest(headers, {
-      productId,
-      counted: 4000,
-      occurredAt: COUNTED_AT.toISOString(),
-    });
-
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({
-      expected: 5000,
-      delta: -1000,
-      balance: 4000,
-      superseded: false,
-    });
-  });
-
   it("answers 404 for an unknown product", async () => {
     const { headers } = await signedInWith(db, ["perform_stock_counts"], NOW);
 
@@ -442,17 +422,6 @@ describe("GET /inventory-levels/:productId", () => {
       active: true,
       balance: 17_000,
     });
-  });
-
-  it("answers the expected balance of a deactivated product", async () => {
-    const { headers, locationId } = await signedInWith(db, ["view_stock_balances"], NOW);
-    const { productId } = await insertProduct(db, { name: "Arroz", active: false });
-    await insertBalance(db, { productId, locationId, quantity: 5000 });
-
-    const response = await expectedBalanceRequest(headers, productId, COUNTED_AT.toISOString());
-
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ id: productId, active: false, balance: 5000 });
   });
 
   it("answers 404 for an unknown product", async () => {

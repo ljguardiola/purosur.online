@@ -7,14 +7,13 @@ const EARLIER = new Date("2026-09-10T12:00:00.000Z");
 const KEY = { productId: "product-1", locationId: "branch-1" };
 
 function storeWithProduct(
-  overrides: { active?: boolean; saleUnit?: "UNIT" | "KG"; balance?: number } = {},
+  overrides: { saleUnit?: "UNIT" | "KG"; balance?: number } = {},
 ): FakeStockStore {
   const store = new FakeStockStore();
-  store.seedProduct({ id: "decoy", saleUnit: "UNIT", active: true });
+  store.seedProduct({ id: "decoy", saleUnit: "UNIT" });
   store.seedProduct({
     id: "product-1",
     saleUnit: overrides.saleUnit ?? "UNIT",
-    active: overrides.active ?? true,
   });
   store.seedBalance({ ...KEY, quantity: overrides.balance ?? 24_000 });
   store.seedBalance({ productId: "product-1", locationId: "branch-2", quantity: 5000 });
@@ -47,15 +46,6 @@ describe("recordLoss", () => {
     expect(outcome).toEqual({ kind: "not_found" });
     expect(store.snapshot()).toEqual(before);
     expect(store.operationOrder).toEqual(["lockProductStock"]);
-  });
-
-  it("records the loss of a deactivated product's leftover stock", async () => {
-    const store = storeWithProduct({ active: false, balance: 24_000 });
-
-    const outcome = await lose(store, { quantity: 1000 });
-
-    expect(outcome).toMatchObject({ kind: "recorded", balance: 23_000 });
-    expect(store.balanceOf(KEY)).toBe(23_000);
   });
 
   it("refuses part of a unit of a product sold by the unit, writing nothing", async () => {

@@ -14,7 +14,6 @@ import {
   crackers,
   honey,
   honeyCount,
-  oats,
   supersededCount,
   tea,
   withoutBalance,
@@ -273,7 +272,6 @@ test.each([
   ],
   [{ kind: "failed" }, "No se pudo guardar el recuento"],
   [{ kind: "rate_limited", retryAfterSeconds: 30 }, "Demasiadas solicitudes"],
-  [{ kind: "not_found" }, "Producto desactivado"],
 ] as const)("keeps the modal open and explains the refusal %j", async (outcome, message) => {
   const services = createServices();
   vi.mocked(services.registerCount).mockResolvedValue(outcome);
@@ -285,6 +283,19 @@ test.each([
   await userEvent.click(dialog.getByRole("button", { name: "Registrar el recuento" }));
 
   await expect.element(dialog.getByText(message)).toBeVisible();
+});
+
+test("keeps the modal open and says the product no longer exists when the cloud cannot find it", async () => {
+  const services = createServices();
+  vi.mocked(services.registerCount).mockResolvedValue({ kind: "not_found" });
+  const screen = await renderScreen(services);
+  const dialog = await openNewCount(screen);
+  await chooseProduct(screen, "Almendras peladas");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad contada/ }), "12,150");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar el recuento" }));
+
+  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Este producto ya no existe");
 });
 
 test("ends the session when registering finds it over", async () => {
@@ -370,20 +381,4 @@ test("registers a count for a user who may not view balances, showing no expecte
     )
     .toBeInTheDocument();
   expect(services.fetchExpectedBalance).not.toHaveBeenCalled();
-});
-
-test("offers a deactivated product in the new count's selector marked as deactivated", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchStockProducts).mockResolvedValue({
-    kind: "ok",
-    value: { products: [almonds, oats, honey].map(withoutBalance) },
-  });
-  const screen = await renderScreen(services);
-  const dialog = await openNewCount(screen);
-
-  await userEvent.click(dialog.getByRole("button", { name: /Producto/ }));
-
-  await expect
-    .element(screen.getByRole("option", { name: /Avena arrollada/ }).getByText("Desactivado"))
-    .toBeVisible();
 });

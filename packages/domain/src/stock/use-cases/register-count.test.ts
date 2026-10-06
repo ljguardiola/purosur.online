@@ -9,13 +9,12 @@ const AFTER_COUNT = new Date("2026-09-15T21:35:00.000Z");
 const KEY = { productId: "product-1", locationId: "branch-1" };
 
 function storeWithProduct(
-  overrides: { active?: boolean; saleUnit?: "UNIT" | "KG"; balance?: number } = {},
+  overrides: { saleUnit?: "UNIT" | "KG"; balance?: number } = {},
 ): FakeStockStore {
   const store = new FakeStockStore();
   store.seedProduct({
     id: "product-1",
     saleUnit: overrides.saleUnit ?? "KG",
-    active: overrides.active ?? true,
   });
   store.seedBalance({ ...KEY, quantity: overrides.balance ?? 12_400 });
   return store;
@@ -91,15 +90,6 @@ describe("registerCount", () => {
     expect(outcome).toEqual({ kind: "not_found" });
     expect(store.snapshot()).toEqual(before);
     expect(store.operationOrder).toEqual(["lockProductStock"]);
-  });
-
-  it("records the count of a deactivated product's leftover stock", async () => {
-    const store = storeWithProduct({ active: false, balance: 12_400 });
-
-    const outcome = await count(store, { counted: 12_150 });
-
-    expect(outcome).toMatchObject({ kind: "recorded", expected: 12_400, balance: 12_150 });
-    expect(store.balanceOf(KEY)).toBe(12_150);
   });
 
   it("refuses part of a unit of a product sold by the unit, writing nothing", async () => {

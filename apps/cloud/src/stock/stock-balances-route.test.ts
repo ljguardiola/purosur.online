@@ -114,18 +114,4 @@ describe("GET /inventory-levels", () => {
       ],
     });
   });
-
-  it("lists a deactivated product only while it holds stock in the user's branch", async () => {
-    const { headers, locationId } = await signedInWith(db, ["view_stock_balances"], NOON);
-    const withStock = await insertProduct(db, { name: "Arroz", active: false });
-    const emptied = await insertProduct(db, { name: "Avena", active: false });
-    await insertBalance(db, { productId: withStock.productId, locationId, quantity: 3000 });
-    await insertBalance(db, { productId: emptied.productId, locationId, quantity: 0 });
-
-    const response = await listBalances(headers);
-
-    expect(response.json().products).toEqual([
-      expect.objectContaining({ id: withStock.productId, active: false, balance: 3000 }),
-    ]);
-  });
 });

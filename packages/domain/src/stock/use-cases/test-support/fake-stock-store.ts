@@ -13,7 +13,6 @@ import type {
 export interface FakeStockProduct {
   id: string;
   saleUnit: SaleUnit;
-  active: boolean;
 }
 
 export interface FakeStockMovement extends NewStockMovement {
