@@ -30,6 +30,8 @@ interface FakePrice extends ListPrice {
   validFrom: Date;
 }
 
+export type StoredSale = SaleWithLines & { occurredAt?: Date };
+
 export interface FakeSaleLedgerState {
   accesses: Record<string, RoleAccess>;
   identity: RegisterIdentity | undefined;
@@ -40,7 +42,7 @@ export interface FakeSaleLedgerState {
   prices: FakePrice[];
   thresholds: BuyerIdentificationThreshold[];
   promotionsByProduct: Record<string, CandidatePromotion[]>;
-  sales: SaleWithLines[];
+  sales: StoredSale[];
   payments: PaymentTransaction[];
   movements: CashMovement[];
   outbox: OutboxEventDraft[];

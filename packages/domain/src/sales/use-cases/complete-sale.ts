@@ -22,7 +22,7 @@ export function completeSale(
   ids: IdGenerator,
   { sale, total, payment, movements, actorId, completedAt }: SaleCompletion,
 ): void {
-  tx.recordCompletedSale(sale.id);
+  tx.recordCompletedSale(sale.id, completedAt);
   tx.appendOutboxEvent(
     saleCompletedEvent(ids.next(), sale, total, payment, movements, actorId, completedAt),
   );
@@ -86,7 +86,7 @@ function saleCompletedEvent(
       device_id: sale.deviceId,
       session_id: sale.sessionId,
       actor_id: sale.actorId,
-      occurred_at: sale.occurredAt.toISOString(),
+      occurred_at: completedAtIso,
       completed_at: completedAtIso,
       total,
       lines: sale.lines.map((line) => ({

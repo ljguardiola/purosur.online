@@ -72,7 +72,7 @@ export function addProductToSale(
 
   const sale = isOpenSale(target)
     ? target
-    : startSale(tx, ids.next(), target, session.id, actorId, moment);
+    : startSale(tx, ids.next(), target, session.id, actorId);
   const addedLine = newSaleLine(
     ids.next(),
     product,
@@ -109,7 +109,6 @@ function startSale(
   identity: RegisterIdentity,
   sessionId: string,
   actorId: string,
-  occurredAt: Date,
 ): SaleWithLines {
   const sale: Sale = {
     id,
@@ -118,7 +117,6 @@ function startSale(
     sessionId,
     actorId,
     state: "OPEN",
-    occurredAt,
   };
   tx.recordOpenedSale(sale);
   return { ...sale, lines: [] };
