@@ -1,9 +1,8 @@
 import { readdirSync, writeFileSync } from "node:fs";
+import { RECORDED_PUSHES_DIR } from "@purosur/contracts/sync/test-support";
 import { it } from "vitest";
 import { recordingNameFrom } from "./recording-name.js";
 import { registerSessionPush } from "./register-session-push.js";
-
-const RECORDED_PUSHES_DIR = new URL("./recorded-pushes/", import.meta.url);
 
 it("records the push a register session sends", async () => {
   const name = recordingNameFrom(
