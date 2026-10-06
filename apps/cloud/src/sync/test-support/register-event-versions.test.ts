@@ -79,6 +79,22 @@ export const draft = () => ({ event_type: "sale_completed", schema_version: VERS
     ).toEqual({ versions: [], unreadable: ["draft.ts:2"] });
   });
 
+  it("reports a builder whose version is any number its caller picks", () => {
+    expect(
+      versionsIn({
+        "draft.ts": `export const draft = <V extends number>(version: V) => ({ event_type: "sale_completed", schema_version: version });`,
+      }),
+    ).toEqual({ versions: [], unreadable: ["draft.ts:1"] });
+  });
+
+  it("reports a builder whose version is typed as unknown", () => {
+    expect(
+      versionsIn({
+        "draft.ts": `export const draft = (version: unknown) => ({ event_type: "sale_completed", schema_version: version });`,
+      }),
+    ).toEqual({ versions: [], unreadable: ["draft.ts:1"] });
+  });
+
   it("reports a builder whose version could be one of several numbers", () => {
     expect(
       versionsIn({
