@@ -43,6 +43,7 @@ describe("sqliteIntegrityHolds", () => {
       CREATE TABLE authors (id INTEGER PRIMARY KEY);
       CREATE TABLE notes (id INTEGER PRIMARY KEY, author_id INTEGER REFERENCES authors (id));
     `);
+    database.pragma("foreign_keys = OFF");
     database.exec("INSERT INTO notes (author_id) VALUES (7)");
 
     expect(sqliteIntegrityHolds(database)).toBe(false);
