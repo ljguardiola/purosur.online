@@ -14,7 +14,7 @@ export function registerStockProductsRoute<TQueryResult extends PgQueryResultHKT
   app: FastifyInstance,
   options: StockRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const reader = new DrizzleStockReader(options.db);

@@ -311,6 +311,8 @@ describe("resolveRecoveryEnv", () => {
   });
 });
 
+const now = () => new Date("2026-01-05T12:00:00.000Z");
+
 describe("startServer", () => {
   it("initializes Sentry, builds the app with the resolved version and static dir, and listens on PORT/0.0.0.0", async () => {
     const listen = vi.fn().mockResolvedValue(undefined);
@@ -329,7 +331,7 @@ describe("startServer", () => {
       EDGE_ORIGIN_SECRET: "edge-secret",
     };
 
-    const app = await startServer(env, { initSentry, buildApp }).finally(() =>
+    const app = await startServer(env, { initSentry, buildApp, now }).finally(() =>
       rmSync(staticDir, { recursive: true, force: true }),
     );
 
@@ -340,6 +342,7 @@ describe("startServer", () => {
     });
     expect(buildApp).toHaveBeenCalledWith({
       version: "sha123",
+      now,
       edgeOriginSecret: "edge-secret",
       staticDir,
     });
@@ -408,10 +411,14 @@ describe("startServer", () => {
     const fakeApp = { listen } as unknown as ReturnType<typeof import("./app.js").buildApp>;
     const buildApp = vi.fn().mockReturnValue(fakeApp);
 
-    await startServer({ EDGE_ORIGIN_SECRET: "edge-secret" }, { initSentry: vi.fn(), buildApp });
+    await startServer(
+      { EDGE_ORIGIN_SECRET: "edge-secret" },
+      { initSentry: vi.fn(), buildApp, now },
+    );
 
     expect(buildApp).toHaveBeenCalledWith({
       version: "unknown",
+      now,
       edgeOriginSecret: "edge-secret",
       staticDir: undefined,
     });
@@ -425,12 +432,13 @@ describe("startServer", () => {
 
     await startServer(
       { EDGE_ORIGIN_SECRET: "edge-secret" },
-      { initSentry: vi.fn(), buildApp, setUpRecovery },
+      { initSentry: vi.fn(), buildApp, setUpRecovery, now },
     );
 
     expect(setUpRecovery).not.toHaveBeenCalled();
     expect(buildApp).toHaveBeenCalledWith({
       version: "unknown",
+      now,
       edgeOriginSecret: "edge-secret",
       staticDir: undefined,
     });
@@ -596,17 +604,22 @@ describe("startServer", () => {
       buildApp,
       setUpRecovery,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      now,
     });
 
-    expect(setUpRecovery).toHaveBeenCalledWith({
-      databaseUrl: "postgres://user:pass@db/purosur",
-      emailSender: { transport: "resend", resendApiKey: "re_test_key" },
-      emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
-      emailReplyTo: "purosur.comarca@gmail.com",
-      backofficeOrigin: "https://staging.purosur.online",
-    });
+    expect(setUpRecovery).toHaveBeenCalledWith(
+      {
+        databaseUrl: "postgres://user:pass@db/purosur",
+        emailSender: { transport: "resend", resendApiKey: "re_test_key" },
+        emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
+        emailReplyTo: "purosur.comarca@gmail.com",
+        backofficeOrigin: "https://staging.purosur.online",
+      },
+      now,
+    );
     expect(buildApp).toHaveBeenCalledWith({
       version: "unknown",
+      now,
       edgeOriginSecret: "edge-secret",
       staticDir: undefined,
       recovery: {

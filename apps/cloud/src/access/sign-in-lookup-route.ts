@@ -33,7 +33,7 @@ export function registerSignInLookupRoute<TQueryResult extends PgQueryResultHKT>
   const tokenPorts = installationTokenPorts(options);
   const ports = {
     store: new DrizzleSignInLookupStore(options.db),
-    clock: { now: options.now ?? (() => new Date()) },
+    clock: { now: options.now },
   };
 
   app.register(async (scope) => {

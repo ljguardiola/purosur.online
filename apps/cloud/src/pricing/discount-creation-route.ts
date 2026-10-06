@@ -27,7 +27,7 @@ export function registerDiscountCreationRoute<TQueryResult extends PgQueryResult
   app: FastifyInstance,
   options: DiscountsRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const ports = { store: new DrizzleDiscountStore(options.db) };
   const reading = { discounts: new DrizzleDiscountReader(options.db), clock: { now } };

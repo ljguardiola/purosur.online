@@ -468,20 +468,64 @@ describe("POST /sessions", () => {
     expect(response.json()).toMatchObject({ code: "authentication_failed" });
   });
 
-  it("pads a failure's response time up to the uniform floor", async () => {
-    await postAuthenticate({});
+  it("holds a failure's answer until the whole floor, started before the request reads the database, has passed", async () => {
+    let releaseFloor = () => {};
+    delaySpy.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseFloor = resolve;
+        }),
+    );
+    const databaseUse = vi.fn();
+    const floored = Fastify();
+    registerSessionAuthenticateRoute(floored, {
+      db: new Proxy(db, {
+        get(target, property, receiver) {
+          databaseUse(property);
+          return Reflect.get(target, property, receiver);
+        },
+      }),
+      backofficeOrigin: BACKOFFICE_ORIGIN,
+      now: () => currentTime,
+      delay: delaySpy,
+    });
+    onTestFinished(() => floored.close());
+    databaseUse.mockClear();
+    let answered = false;
+    const answer = floored
+      .inject({
+        method: "POST",
+        url: "/sessions",
+        headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": SOURCE_ADDRESS },
+        payload: { assertion: unregisteredCredentialAssertion() },
+      })
+      .then((response) => {
+        answered = true;
+        return response;
+      });
 
-    expect(delaySpy).toHaveBeenCalled();
+    await vi.waitFor(() => expect(delaySpy).toHaveBeenCalled());
+    await vi.waitFor(() => expect(databaseUse).toHaveBeenCalled());
+    expect(delaySpy).toHaveBeenCalledExactlyOnceWith(200);
+    expect(delaySpy.mock.invocationCallOrder[0]).toBeLessThan(
+      databaseUse.mock.invocationCallOrder[0] ?? 0,
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(answered).toBe(false);
+
+    releaseFloor();
+    expect((await answer).statusCode).toBe(401);
   });
 
-  it("does not pad a successful sign-in", async () => {
+  it("answers a successful sign-in without waiting for the floor", async () => {
     const emulator = new WebAuthnEmulator();
     await registerPasskey(userId, emulator);
     const assertion = await getAuthenticationAssertion(emulator);
+    delaySpy.mockImplementation(() => new Promise<void>(() => {}));
 
-    await postAuthenticate({ assertion });
+    const response = await postAuthenticate({ assertion });
 
-    expect(delaySpy).not.toHaveBeenCalled();
+    expect(response.statusCode).toBe(200);
   });
 
   it("rejects a signature counter that does not exceed the stored one once it left zero", async () => {
@@ -633,7 +677,7 @@ describe("POST /sessions", () => {
         .from(auditLog)
         .where(eq(auditLog.entity, "backoffice_lockout"));
       expect(rows).toHaveLength(1);
-      expect(rows[0]).toMatchObject({ actorId: null });
+      expect(rows[0]).toMatchObject({ actorId: null, at: currentTime });
       expect(rows[0]?.newValue).toMatchObject({ failureCount: SIGN_IN_FAILURE_LIMIT });
     });
   });

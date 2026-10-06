@@ -47,7 +47,7 @@ export function registerProductCreationRoute<TQueryResult extends PgQueryResultH
   app: FastifyInstance,
   options: ProductsRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const catalogStore = new DrizzleCatalogStore(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });

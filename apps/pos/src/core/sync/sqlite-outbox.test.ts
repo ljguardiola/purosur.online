@@ -3,6 +3,7 @@ import type { OutboxEventDraft } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { migrationClock } from "../platform/test-support/migration-clock";
 import { appendOutboxEvent } from "./sqlite-outbox";
 
 const CHAIN_KEY_BYTES = Buffer.from("0123456789abcdef0123456789abcdef");
@@ -66,7 +67,7 @@ function syncState() {
 }
 
 beforeEach(() => {
-  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
+  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
   database.prepare("UPDATE sync_state SET device_id = 'device-a'").run();
 });
 

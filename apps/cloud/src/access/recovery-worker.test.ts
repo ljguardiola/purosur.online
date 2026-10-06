@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 import type { Pool } from "pg";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { auditLog, users } from "../platform/db/schema.js";
 import { buildTestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
@@ -10,6 +10,7 @@ import {
   FIRST_PIN_CODE_EMAIL_TASK_IDENTIFIER,
   RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER,
   RECOVERY_REQUEST_TASK_IDENTIFIER,
+  type StartRecoveryWorkerOptions,
   startRecoveryWorker,
 } from "./recovery-worker.js";
 
@@ -18,6 +19,8 @@ const emailSender: AccessEmailSender = { sendRecoveryLink: vi.fn(), sendFirstPin
 function fakeRunner() {
   return { stop: vi.fn().mockResolvedValue(undefined) };
 }
+
+const FIXED_NOW = new Date("2026-01-05T12:00:00.000Z");
 
 class FakePool extends EventEmitter {
   readonly end = vi.fn().mockResolvedValue(undefined);
@@ -56,6 +59,7 @@ describe("startRecoveryWorker", () => {
     await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
       },
@@ -80,6 +84,7 @@ describe("startRecoveryWorker", () => {
     await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
       },
@@ -104,6 +109,7 @@ describe("startRecoveryWorker", () => {
     await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
       },
@@ -131,6 +137,7 @@ describe("startRecoveryWorker", () => {
     await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
       },
@@ -153,6 +160,7 @@ describe("startRecoveryWorker", () => {
     await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
         jobs: [{ taskList: { "other-task": otherTask }, crontab: ["0 * * * * other-task"] }],
@@ -190,6 +198,7 @@ describe("startRecoveryWorker", () => {
     const handle = await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
       },
@@ -225,6 +234,7 @@ describe("startRecoveryWorker", () => {
     const handle = await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
       },
@@ -259,6 +269,7 @@ describe("startRecoveryWorker", () => {
     const handle = await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
       },
@@ -282,6 +293,7 @@ describe("startRecoveryWorker", () => {
     const handle = await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
       },
@@ -316,6 +328,7 @@ describe("startRecoveryWorker", () => {
     const handle = await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
       },
@@ -339,6 +352,7 @@ describe("startRecoveryWorker", () => {
     await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
       },
@@ -421,6 +435,7 @@ describe("startRecoveryWorker", () => {
     await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender: { sendRecoveryLink, sendFirstPinCode: vi.fn() },
       },
@@ -469,6 +484,7 @@ describe("startRecoveryWorker", () => {
     await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender: { sendRecoveryLink, sendFirstPinCode: vi.fn() },
       },
@@ -513,6 +529,7 @@ describe("startRecoveryWorker", () => {
     await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender: { sendRecoveryLink, sendFirstPinCode: vi.fn() },
       },
@@ -552,6 +569,7 @@ describe("startRecoveryWorker", () => {
     await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
       },
@@ -618,6 +636,7 @@ describe("startRecoveryWorker", () => {
       await startRecoveryWorker(
         {
           databaseUrl: "postgres://user:pass@db/purosur",
+          now: () => FIXED_NOW,
           backofficeOrigin: "https://staging.purosur.online",
           emailSender,
         },
@@ -670,6 +689,7 @@ describe("startRecoveryWorker", () => {
       await startRecoveryWorker(
         {
           databaseUrl: "postgres://user:pass@db/purosur",
+          now: () => FIXED_NOW,
           backofficeOrigin: "https://staging.purosur.online",
           emailSender,
         },
@@ -810,5 +830,13 @@ describe("startRecoveryWorker", () => {
       fakeDb,
       expect.objectContaining({ now: expect.any(Function) }),
     );
+  });
+});
+
+describe("the recovery worker's clock", () => {
+  it("is required to start the worker", () => {
+    expectTypeOf<
+      Omit<StartRecoveryWorkerOptions, "now">
+    >().not.toExtend<StartRecoveryWorkerOptions>();
   });
 });

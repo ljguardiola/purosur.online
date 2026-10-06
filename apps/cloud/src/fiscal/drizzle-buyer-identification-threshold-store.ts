@@ -23,10 +23,12 @@ class DrizzleBuyerIdentificationThresholdStoreTransaction<TQueryResult extends P
   implements BuyerIdentificationThresholdStoreTransaction
 {
   private readonly tx: PgDatabase<TQueryResult>;
+  private readonly now: () => Date;
   private readonly pending: PendingChanges;
 
-  constructor(tx: PgDatabase<TQueryResult>, pending: PendingChanges) {
+  constructor(tx: PgDatabase<TQueryResult>, now: () => Date, pending: PendingChanges) {
     this.tx = tx;
+    this.now = now;
     this.pending = pending;
   }
 
@@ -64,6 +66,7 @@ class DrizzleBuyerIdentificationThresholdStoreTransaction<TQueryResult extends P
       actorId: threshold.actorId,
       previousValue: null,
       newValue: { amount: recorded.amount, valid_from: recorded.validFrom },
+      at: this.now(),
     });
     this.pending.note({
       entity: "buyer_identification_threshold",
@@ -79,10 +82,12 @@ export class DrizzleBuyerIdentificationThresholdStore<TQueryResult extends PgQue
   implements BuyerIdentificationThresholdStore
 {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly now: () => Date;
   private readonly pending: PendingChanges | undefined;
 
-  constructor(db: PgDatabase<TQueryResult>, pending?: PendingChanges) {
+  constructor(db: PgDatabase<TQueryResult>, now: () => Date, pending?: PendingChanges) {
     this.db = db;
+    this.now = now;
     this.pending = pending;
   }
 
@@ -90,7 +95,7 @@ export class DrizzleBuyerIdentificationThresholdStore<TQueryResult extends PgQue
     work: (tx: BuyerIdentificationThresholdStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     return withPendingChanges(this.db, this.pending, (tx, pending) =>
-      work(new DrizzleBuyerIdentificationThresholdStoreTransaction(tx, pending)),
+      work(new DrizzleBuyerIdentificationThresholdStoreTransaction(tx, this.now, pending)),
     );
   }
 }

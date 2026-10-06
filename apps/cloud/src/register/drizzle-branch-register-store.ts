@@ -29,10 +29,12 @@ class DrizzleBranchRegisterStoreTransaction<TQueryResult extends PgQueryResultHK
   implements BranchRegisterStoreTransaction
 {
   private readonly tx: PgDatabase<TQueryResult>;
+  private readonly now: () => Date;
   private readonly pending: PendingChanges;
 
-  constructor(tx: PgDatabase<TQueryResult>, pending: PendingChanges) {
+  constructor(tx: PgDatabase<TQueryResult>, now: () => Date, pending: PendingChanges) {
     this.tx = tx;
+    this.now = now;
     this.pending = pending;
   }
 
@@ -84,6 +86,7 @@ class DrizzleBranchRegisterStoreTransaction<TQueryResult extends PgQueryResultHK
       actorId: creation.actorId,
       previousValue: null,
       newValue: { name: creation.name, location_id: creation.locationId },
+      at: this.now(),
     });
   }
 
@@ -137,6 +140,7 @@ class DrizzleBranchRegisterStoreTransaction<TQueryResult extends PgQueryResultHK
         ? { expires_at: emission.replacedCodeExpiresAt.toISOString() }
         : null,
       newValue: { expires_at: emission.expiresAt.toISOString() },
+      at: this.now(),
     });
   }
 }
@@ -145,10 +149,12 @@ export class DrizzleBranchRegisterStore<TQueryResult extends PgQueryResultHKT>
   implements BranchRegisterStore, BranchRegisters
 {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly now: () => Date;
   private readonly pending: PendingChanges | undefined;
 
-  constructor(db: PgDatabase<TQueryResult>, pending?: PendingChanges) {
+  constructor(db: PgDatabase<TQueryResult>, now: () => Date, pending?: PendingChanges) {
     this.db = db;
+    this.now = now;
     this.pending = pending;
   }
 
@@ -156,7 +162,7 @@ export class DrizzleBranchRegisterStore<TQueryResult extends PgQueryResultHKT>
     work: (tx: BranchRegisterStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     return withPendingChanges(this.db, this.pending, (tx, pending) =>
-      work(new DrizzleBranchRegisterStoreTransaction(tx, pending)),
+      work(new DrizzleBranchRegisterStoreTransaction(tx, this.now, pending)),
     );
   }
 

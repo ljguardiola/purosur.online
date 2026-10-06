@@ -40,10 +40,10 @@ const FISCAL_ADDRESS_NOT_FOUND_RESPONSE = {
 export function registerRegisterPointOfSaleConfigurationRoute<
   TQueryResult extends PgQueryResultHKT,
 >(app: FastifyInstance, options: RegistersPointsOfSaleRouteOptions<TQueryResult>): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
-  const store = new DrizzleRegisterPointOfSaleStore(options.db);
+  const store = new DrizzleRegisterPointOfSaleStore(options.db, now);
 
   app.put(
     "/registers/:id/point-of-sale",

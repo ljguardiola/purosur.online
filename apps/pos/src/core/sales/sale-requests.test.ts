@@ -11,6 +11,7 @@ import { createSignedInPerson, type SignedInPerson } from "../access/signed-in-p
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { migrationClock } from "../platform/test-support/migration-clock";
 import {
   addSearchedProductFor,
   cancelLockedSaleFor,
@@ -153,7 +154,7 @@ function seed(): void {
 }
 
 beforeEach(() => {
-  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
+  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
   seed();
   signedInPerson = createSignedInPerson();
   signedInPerson.set("u1");

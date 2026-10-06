@@ -54,9 +54,9 @@ export interface RouteSessionSource {
 
 export function routeSessionSource<TQueryResult extends PgQueryResultHKT>(options: {
   db: PgDatabase<TQueryResult>;
-  now?: () => Date;
+  now: () => Date;
 }): RouteSessionSource {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   return {
     check: (sessionCheck, request, reply) =>
       sessionCheck(request, reply, { db: options.db, now: now() }),

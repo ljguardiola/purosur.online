@@ -239,6 +239,7 @@ describe("POST /users", () => {
       actorId: administratorId,
       previousValue: null,
       newValue: { firstName: "New Hire", email: "newhire@example.com", roleId: cashierRoleId },
+      at: currentTime,
     });
   });
 

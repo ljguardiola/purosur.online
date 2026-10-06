@@ -11,6 +11,8 @@ import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rot
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { registerHealthRoute } from "./health-route.js";
 
+const NOW = new Date("2026-09-29T12:00:00.000Z");
+
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 let app: FastifyInstance;
@@ -36,7 +38,7 @@ beforeEach(async () => {
           db,
           rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
           keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
-          now: () => new Date("2026-09-29T12:00:00.000Z"),
+          now: () => NOW,
         }),
         authorization,
       ),
@@ -67,7 +69,10 @@ describe("GET /health", () => {
     ["an active installation that it is not revoked", undefined, false],
     ["a revoked installation that it is revoked", new Date("2026-09-29T09:00:00.000Z"), true],
   ])("tells %s", async (_case, revokedAt, revoked) => {
-    const { deviceToken } = await insertEnrolledInstallation(db, revokedAt ? { revokedAt } : {});
+    const { deviceToken } = await insertEnrolledInstallation(db, {
+      now: NOW,
+      ...(revokedAt && { revokedAt }),
+    });
 
     const response = await checkHealth(`Bearer ${deviceToken}`);
 

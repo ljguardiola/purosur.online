@@ -17,7 +17,7 @@ export function registerProductLabelsRoute<TQueryResult extends PgQueryResultHKT
   app: FastifyInstance,
   options: ProductsRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const reader = new DrizzleLabelProductReader(options.db);
@@ -55,7 +55,7 @@ export function registerProductLabelsRoute<TQueryResult extends PgQueryResultHKT
         return;
       }
 
-      const pdf = await renderLabelSheetPdf(outcome.items);
+      const pdf = await renderLabelSheetPdf(outcome.items, now());
       await reply
         .header("Content-Disposition", "attachment")
         .type("application/pdf")

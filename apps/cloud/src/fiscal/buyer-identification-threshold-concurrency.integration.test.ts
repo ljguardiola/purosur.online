@@ -15,6 +15,8 @@ import {
   DrizzleBuyerIdentificationThresholdStore,
 } from "./drizzle-buyer-identification-threshold-store.js";
 
+const NOON = new Date("2026-01-05T12:00:00.000Z");
+
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;
@@ -55,7 +57,7 @@ describe("two thresholds recorded at once on top of the installed one, on a real
     const actorId = await insertActor();
     const record = () =>
       recordBuyerIdentificationThreshold(
-        { store: new DrizzleBuyerIdentificationThresholdStore(db) },
+        { store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOON) },
         { amount: 1_000_000, validFrom: "2026-10-01", actorId },
       );
 

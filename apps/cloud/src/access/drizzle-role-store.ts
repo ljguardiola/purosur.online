@@ -34,10 +34,12 @@ class DrizzleRoleStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements RoleStoreTransaction
 {
   private readonly tx: Transaction<TQueryResult>;
+  private readonly now: () => Date;
   private readonly pending: PendingChanges;
 
-  constructor(tx: Transaction<TQueryResult>, pending: PendingChanges) {
+  constructor(tx: Transaction<TQueryResult>, now: () => Date, pending: PendingChanges) {
     this.tx = tx;
+    this.now = now;
     this.pending = pending;
   }
 
@@ -118,6 +120,7 @@ class DrizzleRoleStoreTransaction<TQueryResult extends PgQueryResultHKT>
         permissions: change.previous.permissionKeys,
       },
       newValue: { name: change.next.name, permissions: change.next.permissionKeys },
+      at: this.now(),
     });
   }
 
@@ -165,16 +168,18 @@ class DrizzleRoleStoreTransaction<TQueryResult extends PgQueryResultHKT>
 
 export class DrizzleRoleStore<TQueryResult extends PgQueryResultHKT> implements RoleStore {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly now: () => Date;
   private readonly pending: PendingChanges | undefined;
 
-  constructor(db: PgDatabase<TQueryResult>, pending?: PendingChanges) {
+  constructor(db: PgDatabase<TQueryResult>, now: () => Date, pending?: PendingChanges) {
     this.db = db;
+    this.now = now;
     this.pending = pending;
   }
 
   transaction<TOutcome>(work: (tx: RoleStoreTransaction) => Promise<TOutcome>): Promise<TOutcome> {
     return withPendingChanges(this.db, this.pending, (tx, pending) =>
-      work(new DrizzleRoleStoreTransaction(tx, pending)),
+      work(new DrizzleRoleStoreTransaction(tx, this.now, pending)),
     );
   }
 }

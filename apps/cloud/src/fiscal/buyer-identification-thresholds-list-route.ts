@@ -13,13 +13,13 @@ import { DrizzleBuyerIdentificationThresholdReader } from "./drizzle-buyer-ident
 export interface BuyerIdentificationThresholdsRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  now?: () => Date;
+  now: () => Date;
 }
 
 export function registerBuyerIdentificationThresholdsListRoute<
   TQueryResult extends PgQueryResultHKT,
 >(app: FastifyInstance, options: BuyerIdentificationThresholdsRouteOptions<TQueryResult>): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   const reader = new DrizzleBuyerIdentificationThresholdReader(options.db);
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });

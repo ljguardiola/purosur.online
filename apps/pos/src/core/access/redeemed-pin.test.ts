@@ -2,6 +2,7 @@ import type { SyncChange } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { migrationClock } from "../platform/test-support/migration-clock";
 import { SqliteLocalReplica } from "../sync/sqlite-local-replica";
 import { derivePinVerifier } from "./pin-verifier";
 import { applyRedeemedPin } from "./redeemed-pin";
@@ -47,7 +48,7 @@ let database: LocalDatabase;
 let replica: SqliteLocalReplica;
 
 beforeEach(() => {
-  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
+  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
   replica = new SqliteLocalReplica(database);
   replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
 });

@@ -13,7 +13,7 @@ export interface RunMigrationsOptions {
   waitForDatabaseSeconds?: number;
   waitIntervalMs?: number;
   sleep?: (ms: number) => Promise<void>;
-  now?: () => number;
+  now: () => number;
   onWaiting?: (error: unknown, elapsedMs: number) => void;
 }
 
@@ -202,7 +202,7 @@ function createWorkerPool(connectionString: string): pg.Pool {
 export async function runMigrations(
   databaseUrl: string,
   cloudAppPassword: string,
-  options: RunMigrationsOptions = {},
+  options: RunMigrationsOptions,
 ): Promise<void> {
   const migrationsFolder = options.migrationsFolder ?? MIGRATIONS_FOLDER;
   const connectTimeoutSeconds = options.connectTimeoutSeconds ?? 10;
@@ -214,7 +214,7 @@ export async function runMigrations(
       budgetSeconds: options.waitForDatabaseSeconds ?? DEFAULT_WAIT_FOR_DATABASE_SECONDS,
       intervalMs: options.waitIntervalMs ?? DEFAULT_WAIT_INTERVAL_MS,
       sleep: options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms))),
-      now: options.now ?? Date.now,
+      now: options.now,
       onWaiting: options.onWaiting ?? logWaiting,
     },
   );
@@ -255,7 +255,7 @@ if (import.meta.main) {
     console.error("migrate: CLOUD_APP_DATABASE_PASSWORD is not set");
     process.exit(1);
   } else {
-    runMigrations(databaseUrl, cloudAppPassword)
+    runMigrations(databaseUrl, cloudAppPassword, { now: Date.now })
       .then(() => {
         console.log("migrate: done");
       })

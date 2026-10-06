@@ -31,6 +31,8 @@ import {
   secretEnrollmentCodes,
 } from "./register-enrollment-code.js";
 
+const NOON = new Date("2026-01-05T12:00:00.000Z");
+
 // PGlite runs every query over one connection, so it can never race two redemptions of the same
 // code; this runs them over a real multi-connection postgres-js pool instead.
 const CODE = "P4NX7KWE2QRT6MZD";
@@ -120,7 +122,7 @@ describe("emitting a new code while the current one is being redeemed, on a real
       await waitForLockWaiters(adminSql, 1);
       emission = emitEnrollmentCode(
         {
-          store: new DrizzleBranchRegisterStore(db),
+          store: new DrizzleBranchRegisterStore(db, () => NOON),
           clock: { now: () => new Date() },
           codes: secretEnrollmentCodes,
         },

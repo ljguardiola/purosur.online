@@ -291,6 +291,7 @@ describe("DELETE /users/:id/deactivation", () => {
       actorId: administratorId,
       previousValue: { active: false },
       newValue: { active: true },
+      at: currentTime,
     });
   });
 

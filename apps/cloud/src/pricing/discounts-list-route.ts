@@ -13,14 +13,14 @@ import { DrizzleDiscountReader } from "./drizzle-discount-reader.js";
 export interface DiscountsRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  now?: () => Date;
+  now: () => Date;
 }
 
 export function registerDiscountsListRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: DiscountsRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const ports = { discounts: new DrizzleDiscountReader(options.db), clock: { now } };

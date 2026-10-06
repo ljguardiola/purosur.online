@@ -4,6 +4,8 @@ import { PADDING_TOP_BOTTOM_MM, PT_PER_MM } from "./label-content-layout.js";
 import { LABEL_HEIGHT_MM, LABELS_PER_PAGE } from "./label-sheet-layout.js";
 import { renderLabelSheetPdf } from "./label-sheet-pdf.js";
 
+const CREATED_AT = new Date("2026-01-05T12:00:00.000Z");
+
 interface PdfObject {
   dictionary: string;
   stream: Buffer | undefined;
@@ -181,7 +183,10 @@ function firstBarY(pdf: Buffer): number {
 
 describe("renderLabelSheetPdf", () => {
   it("compresses every stream it writes", async () => {
-    const pdf = await renderLabelSheetPdf([{ name: "Maceta", code: "2000000000015", count: 1 }]);
+    const pdf = await renderLabelSheetPdf(
+      [{ name: "Maceta", code: "2000000000015", count: 1 }],
+      CREATED_AT,
+    );
     const streams = [...pdfObjectsWithInflatedStreams(pdf).values()].filter(
       (object) => object.stream,
     );
@@ -199,31 +204,47 @@ describe("renderLabelSheetPdf", () => {
       count: LABELS_PER_PAGE,
     }));
 
-    const pdf = await renderLabelSheetPdf(items);
+    const pdf = await renderLabelSheetPdf(items, CREATED_AT);
 
     expect(pageCount(pdf)).toBe(100);
     expect(pdf.length).toBeLessThan(2 * 1024 * 1024);
   });
 
+  it("dates the document with the creation time it is given", async () => {
+    const pdf = await renderLabelSheetPdf(
+      [{ name: "Maceta", code: "2000000000015", count: 1 }],
+      new Date("2026-01-05T12:00:00.000Z"),
+    );
+
+    expect(pdf.toString("latin1")).toContain("(D:20260105120000Z)");
+  });
+
   it("produces a valid PDF document", async () => {
-    const pdf = await renderLabelSheetPdf([{ name: "Maceta", code: "2000000000015", count: 1 }]);
+    const pdf = await renderLabelSheetPdf(
+      [{ name: "Maceta", code: "2000000000015", count: 1 }],
+      CREATED_AT,
+    );
 
     expect(pdf.subarray(0, 5).toString("latin1")).toBe("%PDF-");
   });
 
   it("renders one page per 24 labels, product by product", async () => {
-    const pdf = await renderLabelSheetPdf([
-      { name: "Maceta", code: "2000000000015", count: LABELS_PER_PAGE + 1 },
-    ]);
+    const pdf = await renderLabelSheetPdf(
+      [{ name: "Maceta", code: "2000000000015", count: LABELS_PER_PAGE + 1 }],
+      CREATED_AT,
+    );
 
     expect(pageCount(pdf)).toBe(2);
   });
 
   it("renders each product's name and its barcode's human-readable digits", async () => {
-    const pdf = await renderLabelSheetPdf([
-      { name: "Almendras peladas", code: "2000000000015", count: 1 },
-      { name: "Nueces mariposa", code: "2912345678906", count: 1 },
-    ]);
+    const pdf = await renderLabelSheetPdf(
+      [
+        { name: "Almendras peladas", code: "2000000000015", count: 1 },
+        { name: "Nueces mariposa", code: "2912345678906", count: 1 },
+      ],
+      CREATED_AT,
+    );
     const texts = renderedTexts(pdf);
 
     expect(texts).toContain("Almendras peladas");
@@ -235,10 +256,13 @@ describe("renderLabelSheetPdf", () => {
   });
 
   it("renders Spanish accented names", async () => {
-    const pdf = await renderLabelSheetPdf([
-      { name: "Semillas de chía", code: "2000000000015", count: 1 },
-      { name: "Ñandú", code: "2000000000022", count: 1 },
-    ]);
+    const pdf = await renderLabelSheetPdf(
+      [
+        { name: "Semillas de chía", code: "2000000000015", count: 1 },
+        { name: "Ñandú", code: "2000000000022", count: 1 },
+      ],
+      CREATED_AT,
+    );
     const texts = renderedTexts(pdf);
 
     expect(texts).toContain("Semillas de chía");
@@ -249,6 +273,7 @@ describe("renderLabelSheetPdf", () => {
     const names = ["Omega Ω 3", "Kőrösi", "Мёд", "≈ 1 kg"];
     const pdf = await renderLabelSheetPdf(
       names.map((name) => ({ name, code: "2000000000015", count: 1 })),
+      CREATED_AT,
     );
     const nameRuns = renderedTextRuns(pdf).filter((run) => names.includes(run.text));
 
@@ -261,7 +286,10 @@ describe("renderLabelSheetPdf", () => {
   });
 
   it("renders the human-readable digits in a bold monospace font, matching the proof's weight", async () => {
-    const pdf = await renderLabelSheetPdf([{ name: "Maceta", code: "2000000000015", count: 1 }]);
+    const pdf = await renderLabelSheetPdf(
+      [{ name: "Maceta", code: "2000000000015", count: 1 }],
+      CREATED_AT,
+    );
     const content = pdf.toString("latin1");
 
     expect(content).toContain("/BaseFont /Courier-Bold");
@@ -269,28 +297,35 @@ describe("renderLabelSheetPdf", () => {
   });
 
   it("centers the whole content group, so a 2-line name pushes its barcode lower than a 1-line name's", async () => {
-    const oneLinePdf = await renderLabelSheetPdf([
-      { name: "Maceta", code: "2000000000015", count: 1 },
-    ]);
-    const twoLinePdf = await renderLabelSheetPdf([
-      {
-        name: "Harina de almendras integral orgánica sin gluten y sin azúcar añadido",
-        code: "2000000000015",
-        count: 1,
-      },
-    ]);
+    const oneLinePdf = await renderLabelSheetPdf(
+      [{ name: "Maceta", code: "2000000000015", count: 1 }],
+      CREATED_AT,
+    );
+    const twoLinePdf = await renderLabelSheetPdf(
+      [
+        {
+          name: "Harina de almendras integral orgánica sin gluten y sin azúcar añadido",
+          code: "2000000000015",
+          count: 1,
+        },
+      ],
+      CREATED_AT,
+    );
 
     expect(firstBarY(twoLinePdf)).toBeGreaterThan(firstBarY(oneLinePdf));
   });
 
   it("wraps a name across two lines by words instead of truncating it to one", async () => {
-    const pdf = await renderLabelSheetPdf([
-      {
-        name: "Harina de almendras integral orgánica sin gluten",
-        code: "2000000000015",
-        count: 1,
-      },
-    ]);
+    const pdf = await renderLabelSheetPdf(
+      [
+        {
+          name: "Harina de almendras integral orgánica sin gluten",
+          code: "2000000000015",
+          count: 1,
+        },
+      ],
+      CREATED_AT,
+    );
     const texts = renderedTexts(pdf).map((text) => text.trim());
 
     expect(texts).toContain("Harina de almendras");
@@ -299,13 +334,16 @@ describe("renderLabelSheetPdf", () => {
   });
 
   it("ellipsizes only the second line when a name still doesn't fit in two lines", async () => {
-    const pdf = await renderLabelSheetPdf([
-      {
-        name: "Harina de almendras integral orgánica sin gluten y sin azúcar añadido nunca jamás",
-        code: "2000000000015",
-        count: 1,
-      },
-    ]);
+    const pdf = await renderLabelSheetPdf(
+      [
+        {
+          name: "Harina de almendras integral orgánica sin gluten y sin azúcar añadido nunca jamás",
+          code: "2000000000015",
+          count: 1,
+        },
+      ],
+      CREATED_AT,
+    );
     const nameLines = renderedTexts(pdf).filter((text) => /[A-Za-zÁÉÍÓÚÑáéíóúñ]{3,}/.test(text));
 
     expect(nameLines).toHaveLength(2);
@@ -319,7 +357,10 @@ describe("renderLabelSheetPdf", () => {
   ])(
     "keeps %s name's accented capitals and the barcode inside the label's padded box",
     async (_, name) => {
-      const pdf = await renderLabelSheetPdf([{ name, code: "2000000000015", count: 1 }]);
+      const pdf = await renderLabelSheetPdf(
+        [{ name, code: "2000000000015", count: 1 }],
+        CREATED_AT,
+      );
       const runs = renderedTextRuns(pdf);
       const nameRuns = runs.filter((run) => run.font.embedded);
       const digitRuns = runs.filter((run) => run.font.baseFont === "Courier-Bold");

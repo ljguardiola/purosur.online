@@ -29,8 +29,8 @@ export function registerPriceSetRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: PricesRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
-  const ports = { store: new DrizzlePricingStore(options.db), clock: { now } };
+  const { now } = options;
+  const ports = { store: new DrizzlePricingStore(options.db, now), clock: { now } };
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 

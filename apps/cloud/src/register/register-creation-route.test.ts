@@ -219,6 +219,7 @@ describe("POST /registers", () => {
       actorId: userId,
       previousValue: null,
       newValue: { name: "Caja 1", location_id: locationId },
+      at: NOON,
     });
   });
 

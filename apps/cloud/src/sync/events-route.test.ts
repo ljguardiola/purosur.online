@@ -88,8 +88,8 @@ function bodyOf(events: PushedWireEvent[]): PushEventsRequest {
   return { ...body(), events };
 }
 
-function enroll(options: Parameters<typeof insertEnrolledInstallation>[1] = {}) {
-  return insertEnrolledInstallation(db, { outboxChainKey: CHAIN_KEY, ...options });
+function enroll(options: Omit<Parameters<typeof insertEnrolledInstallation>[1], "now"> = {}) {
+  return insertEnrolledInstallation(db, { now: NOW, outboxChainKey: CHAIN_KEY, ...options });
 }
 
 function push(payload: unknown, authorization?: string) {
@@ -272,6 +272,7 @@ describe("POST /events", () => {
     registerRouteAccess(failing);
     registerEventsRoute(failing, {
       db: broken.db,
+      now: () => NOW,
       rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
       keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
     });

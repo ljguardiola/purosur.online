@@ -120,9 +120,11 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         throw new Error("sample-data: no location is seeded in the database");
       }
 
+      const loadedAt = deps.now();
+      const loadClock = () => loadedAt;
       const pending = new PendingChanges();
 
-      const userStore = new DrizzleUserStore(tx, pending);
+      const userStore = new DrizzleUserStore(tx, loadClock, pending);
       const administratorOutcome = await createUser(
         { store: userStore, clock: deps },
         {
@@ -144,7 +146,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
       const roleIdByName = new Map<string, string>();
       for (const rolePlan of SAMPLE_ROLES) {
         const outcome = await createRole(
-          { store: new DrizzleRoleStore(tx, pending) },
+          { store: new DrizzleRoleStore(tx, loadClock, pending) },
           {
             name: rolePlan.name,
             permissionKeys: [...rolePlan.permissionKeys],
@@ -189,7 +191,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
       const overdueReviewMoment = new Date(recentMoment.getTime() - OVERDUE_PRICE_REVIEW_AGE_MS);
 
       const catalogStore = new DrizzleCatalogStore(tx, pending);
-      const pricingStore = new DrizzlePricingStore(tx, pending);
+      const pricingStore = new DrizzlePricingStore(tx, loadClock, pending);
       const pricingPortsAt = (moment: Date) => ({
         store: pricingStore,
         clock: { now: () => moment },
@@ -330,7 +332,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         expectOutcome(discountOutcome, "created", `discount "${plan.name}"`);
       }
 
-      const registerStore = new DrizzleBranchRegisterStore(tx, pending);
+      const registerStore = new DrizzleBranchRegisterStore(tx, loadClock, pending);
       for (const registerName of SAMPLE_REGISTER_NAMES) {
         const outcome = await createRegister(registerStore, {
           locationId: location.id,
@@ -349,7 +351,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
           throw new Error("sample-data: no branch settings are seeded for the location");
         }
         const settingsOutcome = await editBranchSettings(
-          { store: new DrizzleBranchSettingsStore(tx, pending) },
+          { store: new DrizzleBranchSettingsStore(tx, loadClock, pending) },
           {
             ...SAMPLE_BRANCH_SETTINGS,
             locationId: location.id,
@@ -381,7 +383,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
       );
       expectOutcome(warningOpenOutcome, "opened", "the open warning alert");
 
-      const openingPorts = { store: new DrizzleAlertStore(tx), clock: { now: deps.now } };
+      const openingPorts = { store: new DrizzleAlertStore(tx, deps.now), clock: { now: deps.now } };
       const closingPorts = { ...openingPorts, hasher: { hash: hashSourceAddress } };
       const recoveryRequestedAt = deps.now();
       const warningToCloseOutcome = await openAlert(

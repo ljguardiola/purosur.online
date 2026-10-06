@@ -28,10 +28,12 @@ class DrizzleIssuerIdentificationStoreTransaction<TQueryResult extends PgQueryRe
   implements IssuerIdentificationStoreTransaction
 {
   private readonly tx: PgDatabase<TQueryResult>;
+  private readonly now: () => Date;
   private readonly pending: PendingChanges;
 
-  constructor(tx: PgDatabase<TQueryResult>, pending: PendingChanges) {
+  constructor(tx: PgDatabase<TQueryResult>, now: () => Date, pending: PendingChanges) {
     this.tx = tx;
+    this.now = now;
     this.pending = pending;
   }
 
@@ -80,6 +82,7 @@ class DrizzleIssuerIdentificationStoreTransaction<TQueryResult extends PgQueryRe
       actorId: next.recordedBy,
       previousValue: auditValueOf(previous),
       newValue: auditValueOf(next),
+      at: this.now(),
     });
     this.pending.note({
       entity: "issuer_identification",
@@ -94,16 +97,18 @@ export class DrizzleIssuerIdentificationStore<TQueryResult extends PgQueryResult
   implements IssuerIdentificationStore
 {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly now: () => Date;
 
-  constructor(db: PgDatabase<TQueryResult>) {
+  constructor(db: PgDatabase<TQueryResult>, now: () => Date) {
     this.db = db;
+    this.now = now;
   }
 
   transaction<TOutcome>(
     work: (tx: IssuerIdentificationStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     return withPendingChanges(this.db, undefined, (tx, pending) =>
-      work(new DrizzleIssuerIdentificationStoreTransaction(tx, pending)),
+      work(new DrizzleIssuerIdentificationStoreTransaction(tx, this.now, pending)),
     );
   }
 }

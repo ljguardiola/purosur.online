@@ -16,7 +16,7 @@ export interface IssuerIdentificationRouteOptions<TQueryResult extends PgQueryRe
   backofficeOrigin: string;
   // From deployment configuration (ARCA_CERTIFICATE); never accepted from a client.
   authorizedCuit: string;
-  now?: () => Date;
+  now: () => Date;
 }
 
 export function toIssuerIdentificationWire(
@@ -36,7 +36,7 @@ export function registerIssuerIdentificationReadRoute<TQueryResult extends PgQue
   app: FastifyInstance,
   options: IssuerIdentificationRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const reader = new DrizzleIssuerIdentificationReader(options.db);

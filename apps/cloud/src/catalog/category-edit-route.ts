@@ -37,7 +37,7 @@ export function registerCategoryEditRoute<TQueryResult extends PgQueryResultHKT>
   app: FastifyInstance,
   options: CategoriesRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const catalogStore = new DrizzleCatalogStore(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });

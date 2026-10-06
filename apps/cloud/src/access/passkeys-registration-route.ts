@@ -34,7 +34,7 @@ import { resolveWebAuthnConfig } from "./webauthn-config.js";
 export interface PasskeyRegistrationRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  now?: () => Date;
+  now: () => Date;
 }
 
 const REGISTRATION_FAILED_RESPONSE = {
@@ -47,7 +47,7 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
   app: FastifyInstance,
   options: PasskeyRegistrationRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
@@ -150,7 +150,7 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
       const { registrationInfo } = verification;
 
       const registered = await registerPasskey(
-        { store: new DrizzlePasskeyRegistrationStore(options.db) },
+        { store: new DrizzlePasskeyRegistrationStore(options.db, now) },
         {
           userId: openSession.userId,
           passkey: {

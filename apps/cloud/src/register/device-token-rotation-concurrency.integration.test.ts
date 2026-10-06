@@ -48,7 +48,9 @@ function rotate(deviceToken: string, now: Date) {
 // installation; this runs them over a real multi-connection postgres-js pool instead.
 describe("rotating the same device token twice at once on a real Postgres through postgres-js", () => {
   it("answers both the same new token and leaves the pending token the first one recorded", async () => {
-    const { deviceId, deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceId, deviceToken } = await insertEnrolledInstallation(db, {
+      now: FIRST_ROTATION_AT,
+    });
 
     const outcomes = await runQueuedBehindHeldLock(
       sql,

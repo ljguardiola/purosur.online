@@ -277,7 +277,7 @@ describe("PUT /prices/:productId", () => {
       .select()
       .from(auditLog)
       .where(and(eq(auditLog.entity, "product_price"), eq(auditLog.entityId, productId)));
-    expect(auditRow).toMatchObject({ actorId: userId, previousValue: null });
+    expect(auditRow).toMatchObject({ actorId: userId, previousValue: null, at: NOON });
   });
 
   it("changing a price inserts a new row and leaves the previous one exactly as it was", async () => {

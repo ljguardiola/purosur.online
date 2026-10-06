@@ -48,9 +48,11 @@ class DrizzleRecoveryRedemptionStoreTransaction<TQueryResult extends PgQueryResu
   implements RecoveryRedemptionStoreTransaction
 {
   private readonly tx: Transaction<TQueryResult>;
+  private readonly now: () => Date;
 
-  constructor(tx: Transaction<TQueryResult>) {
+  constructor(tx: Transaction<TQueryResult>, now: () => Date) {
     this.tx = tx;
+    this.now = now;
   }
 
   async lockToken(tokenId: string): Promise<RecoveryTokenRecord | undefined> {
@@ -67,7 +69,7 @@ class DrizzleRecoveryRedemptionStoreTransaction<TQueryResult extends PgQueryResu
   }
 
   async registerPasskey(passkey: RecoveredPasskey): Promise<RegisteredPasskey> {
-    const { id } = await addPasskey(this.tx, passkey);
+    const { id } = await addPasskey(this.tx, passkey, this.now());
     return { id };
   }
 
@@ -78,6 +80,7 @@ class DrizzleRecoveryRedemptionStoreTransaction<TQueryResult extends PgQueryResu
       actorId: userId,
       previousValue: null,
       newValue: { usedAt: at.toISOString() },
+      at,
     });
   }
 
@@ -86,7 +89,7 @@ class DrizzleRecoveryRedemptionStoreTransaction<TQueryResult extends PgQueryResu
     passkey: RegisteredPasskey,
     details: RecoveredPasskey,
   ): Promise<void> {
-    return recordPasskeyRegistered(this.tx, userId, passkey, details);
+    return recordPasskeyRegistered(this.tx, userId, passkey, details, this.now());
   }
 
   openPasskeyRegisteredAlert(alert: RecoveryPasskeyAlert): Promise<void> {
@@ -102,9 +105,11 @@ export class DrizzleRecoveryRedemptionStore<TQueryResult extends PgQueryResultHK
   implements RecoveryRedemptionStore
 {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly now: () => Date;
 
-  constructor(db: PgDatabase<TQueryResult>) {
+  constructor(db: PgDatabase<TQueryResult>, now: () => Date) {
     this.db = db;
+    this.now = now;
   }
 
   async findTokenByHash(tokenHash: string): Promise<RecoveryTokenRecord | undefined> {
@@ -151,12 +156,15 @@ export class DrizzleRecoveryRedemptionStore<TQueryResult extends PgQueryResultHK
       actorId: rejection.userId,
       previousValue: null,
       newValue: { attempt: rejection.attempt, rejectedWith: rejectionCode(rejection.rejectedWith) },
+      at: this.now(),
     });
   }
 
   transaction<TOutcome>(
     work: (tx: RecoveryRedemptionStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return this.db.transaction((tx) => work(new DrizzleRecoveryRedemptionStoreTransaction(tx)));
+    return this.db.transaction((tx) =>
+      work(new DrizzleRecoveryRedemptionStoreTransaction(tx, this.now)),
+    );
   }
 }

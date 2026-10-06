@@ -82,7 +82,7 @@ async function storedDiscount(id: string) {
 describe("PUT /discounts/:id", () => {
   it("returns 401 unauthenticated when no cookie was sent", async () => {
     const category = await insertCategory(db, "Infusiones");
-    const discount = await insertDiscount(db, { categoryId: category });
+    const discount = await insertDiscount(db, { now: NOON, categoryId: category });
 
     const response = await editDiscount(
       undefined,
@@ -95,7 +95,7 @@ describe("PUT /discounts/:id", () => {
 
   it("rejects an Origin that is not the backoffice's own, changing nothing", async () => {
     const category = await insertCategory(db, "Infusiones");
-    const discount = await insertDiscount(db, { categoryId: category });
+    const discount = await insertDiscount(db, { now: NOON, categoryId: category });
     const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
 
     const response = await editDiscount(
@@ -114,7 +114,7 @@ describe("PUT /discounts/:id", () => {
     "rejects a user who only has %s with 403 forbidden, changing nothing",
     async (...permissionKeys) => {
       const category = await insertCategory(db, "Infusiones");
-      const discount = await insertDiscount(db, { categoryId: category });
+      const discount = await insertDiscount(db, { now: NOON, categoryId: category });
       const rawSessionId = await signedInWithPermissions(db, NOON, permissionKeys);
 
       const response = await editDiscount(
@@ -132,7 +132,7 @@ describe("PUT /discounts/:id", () => {
   it("changes every field of the discount, answering it with its target's name", async () => {
     const category = await insertCategory(db, "Infusiones");
     const tag = await insertTag(db, { name: "Sin TACC" });
-    const discount = await insertDiscount(db, { categoryId: category });
+    const discount = await insertDiscount(db, { now: NOON, categoryId: category });
     const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
 
     const response = await editDiscount(
@@ -181,7 +181,7 @@ describe("PUT /discounts/:id", () => {
 
   it("answers 400 validation_failed naming id for a malformed id, changing nothing", async () => {
     const category = await insertCategory(db, "Infusiones");
-    const discount = await insertDiscount(db, { categoryId: category });
+    const discount = await insertDiscount(db, { now: NOON, categoryId: category });
     const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
 
     const response = await editDiscount(
@@ -211,7 +211,7 @@ describe("PUT /discounts/:id", () => {
 
   it("answers an edited discount that is running on the clock's day as current", async () => {
     const category = await insertCategory(db, "Infusiones");
-    const discount = await insertDiscount(db, { categoryId: category });
+    const discount = await insertDiscount(db, { now: NOON, categoryId: category });
     const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
 
     const response = await editDiscount(
@@ -228,7 +228,7 @@ describe("PUT /discounts/:id", () => {
 
   it("rejects a body that does not match the shape with 400 validation_failed, changing nothing", async () => {
     const category = await insertCategory(db, "Infusiones");
-    const discount = await insertDiscount(db, { categoryId: category });
+    const discount = await insertDiscount(db, { now: NOON, categoryId: category });
     const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
 
     const response = await editDiscount(
@@ -247,7 +247,7 @@ describe("PUT /discounts/:id", () => {
 
   it("returns 409 stale_version for a save made over a version someone else already changed, changing nothing", async () => {
     const category = await insertCategory(db, "Infusiones");
-    const discount = await insertDiscount(db, { categoryId: category, version: 2 });
+    const discount = await insertDiscount(db, { now: NOON, categoryId: category, version: 2 });
     const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
 
     const response = await editDiscount(
@@ -264,7 +264,7 @@ describe("PUT /discounts/:id", () => {
   it("answers 409 discount_target_not_found for a new target that is deactivated, changing nothing", async () => {
     const category = await insertCategory(db, "Infusiones");
     const tag = await insertTag(db, { name: "Kosher", active: false });
-    const discount = await insertDiscount(db, { categoryId: category });
+    const discount = await insertDiscount(db, { now: NOON, categoryId: category });
     const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
 
     const response = await editDiscount(
@@ -284,7 +284,7 @@ describe("PUT /discounts/:id", () => {
       tagIds: [],
       saleUnit: "KG",
     });
-    const discount = await insertDiscount(db, { productId: product.id });
+    const discount = await insertDiscount(db, { now: NOON, productId: product.id });
     const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
 
     const response = await editDiscount(
@@ -312,6 +312,7 @@ describe("PUT /discounts/:id", () => {
       saleUnit: "KG",
     });
     const discount = await insertDiscount(db, {
+      now: NOON,
       productId: product.id,
       kind: "BUY_N_PAY_M",
       percent: null,
@@ -348,7 +349,7 @@ describe("PUT /discounts/:id", () => {
 
   it("switches a discount to buy-N-pay-M on a product sold by the unit", async () => {
     const product = await insertProductWithTags(db, { name: "Alfajor", tagIds: [] });
-    const discount = await insertDiscount(db, { productId: product.id });
+    const discount = await insertDiscount(db, { now: NOON, productId: product.id });
     const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
 
     const response = await editDiscount(
@@ -369,7 +370,7 @@ describe("PUT /discounts/:id", () => {
 
   it("logs an edit as an update of the next version, for every branch", async () => {
     const category = await insertCategory(db, "Infusiones");
-    const discount = await insertDiscount(db, { categoryId: category });
+    const discount = await insertDiscount(db, { now: NOON, categoryId: category });
     const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
     const mark = await lastLoggedChangeSeq(db);
 
@@ -386,7 +387,7 @@ describe("PUT /discounts/:id", () => {
 
   it("logs switching a discount off and back on as one update each", async () => {
     const category = await insertCategory(db, "Infusiones");
-    const discount = await insertDiscount(db, { categoryId: category });
+    const discount = await insertDiscount(db, { now: NOON, categoryId: category });
     const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
     const mark = await lastLoggedChangeSeq(db);
     const target = { kind: "CATEGORY", id: category };
@@ -407,6 +408,7 @@ describe("PUT /discounts/:id", () => {
   it("logs a change of a buy-N-pay-M discount's quantities as an update of the next version", async () => {
     const product = await insertProductWithTags(db, { name: "Alfajor", tagIds: [] });
     const discount = await insertDiscount(db, {
+      now: NOON,
       productId: product.id,
       kind: "BUY_N_PAY_M",
       percent: null,
@@ -432,7 +434,7 @@ describe("PUT /discounts/:id", () => {
 
   it("logs nothing for an edit refused as stale", async () => {
     const category = await insertCategory(db, "Infusiones");
-    const discount = await insertDiscount(db, { categoryId: category });
+    const discount = await insertDiscount(db, { now: NOON, categoryId: category });
     const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
     const mark = await lastLoggedChangeSeq(db);
 
@@ -448,7 +450,7 @@ describe("PUT /discounts/:id", () => {
   it("logs nothing for an edit refused because its new target is deactivated", async () => {
     const category = await insertCategory(db, "Infusiones");
     const tag = await insertTag(db, { name: "Kosher", active: false });
-    const discount = await insertDiscount(db, { categoryId: category });
+    const discount = await insertDiscount(db, { now: NOON, categoryId: category });
     const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
     const mark = await lastLoggedChangeSeq(db);
 

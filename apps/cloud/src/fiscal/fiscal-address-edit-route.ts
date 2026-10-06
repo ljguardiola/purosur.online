@@ -33,8 +33,8 @@ export function registerFiscalAddressEditRoute<TQueryResult extends PgQueryResul
   app: FastifyInstance,
   options: FiscalAddressesRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
-  const ports = { store: new DrizzleFiscalAddressStore(options.db) };
+  const { now } = options;
+  const ports = { store: new DrizzleFiscalAddressStore(options.db, now) };
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 

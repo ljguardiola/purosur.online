@@ -7,6 +7,7 @@ import { createSignedInPerson, type SignedInPerson } from "../access/signed-in-p
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { migrationClock } from "../platform/test-support/migration-clock";
 import {
   type CashSessionRequestDeps,
   cashBalanceFor,
@@ -80,7 +81,7 @@ function enrolled(): void {
 }
 
 beforeEach(() => {
-  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
+  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
   addRole("cashier", { permissions: ["sell_and_charge"] });
   addPerson("u1", "cashier");
   enrolled();

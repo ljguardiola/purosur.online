@@ -21,13 +21,15 @@ class DrizzlePasskeyRegistrationStoreTransaction<TQueryResult extends PgQueryRes
   implements PasskeyRegistrationStoreTransaction
 {
   private readonly tx: Transaction<TQueryResult>;
+  private readonly now: () => Date;
 
-  constructor(tx: Transaction<TQueryResult>) {
+  constructor(tx: Transaction<TQueryResult>, now: () => Date) {
     this.tx = tx;
+    this.now = now;
   }
 
   addPasskey(passkey: RecoveredPasskey): Promise<AddedPasskey> {
-    return addPasskey(this.tx, passkey);
+    return addPasskey(this.tx, passkey, this.now());
   }
 
   recordPasskeyRegistered(
@@ -35,7 +37,7 @@ class DrizzlePasskeyRegistrationStoreTransaction<TQueryResult extends PgQueryRes
     passkey: RegisteredPasskey,
     details: RecoveredPasskey,
   ): Promise<void> {
-    return recordPasskeyRegistered(this.tx, userId, passkey, details);
+    return recordPasskeyRegistered(this.tx, userId, passkey, details, this.now());
   }
 
   openPasskeyRegisteredAlert(alert: PasskeyRegistrationAlert): Promise<void> {
@@ -47,14 +49,18 @@ export class DrizzlePasskeyRegistrationStore<TQueryResult extends PgQueryResultH
   implements PasskeyRegistrationStore
 {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly now: () => Date;
 
-  constructor(db: PgDatabase<TQueryResult>) {
+  constructor(db: PgDatabase<TQueryResult>, now: () => Date) {
     this.db = db;
+    this.now = now;
   }
 
   transaction<TOutcome>(
     work: (tx: PasskeyRegistrationStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return this.db.transaction((tx) => work(new DrizzlePasskeyRegistrationStoreTransaction(tx)));
+    return this.db.transaction((tx) =>
+      work(new DrizzlePasskeyRegistrationStoreTransaction(tx, this.now)),
+    );
   }
 }

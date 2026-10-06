@@ -27,6 +27,8 @@ import { SESSION_COOKIE_NAME } from "./session-cookie.js";
 import { generateSessionId, hashSessionId } from "./session-id.js";
 import { registerUserEditRoutes } from "./user-edit-route.js";
 
+const NOON = new Date("2026-01-05T12:00:00.000Z");
+
 // PGlite serializes every transaction, so an assignment and a role edit can only interleave, and
 // the alert can only be made to fail inside the change's own transaction, on a real Postgres.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
@@ -53,7 +55,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   app = Fastify();
-  registerUserEditRoutes(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN });
+  registerUserEditRoutes(app, { db, now: () => new Date(), backofficeOrigin: BACKOFFICE_ORIGIN });
   const [administratorRole] = await db
     .select({ id: roles.id })
     .from(roles)
@@ -167,7 +169,7 @@ describe("assigning a role while that role's permissions change, on a real Postg
       await holder`select id from roles where id = ${editedRoleId} for share`;
       edit = editRole(
         {
-          store: new DrizzleRoleStore(db),
+          store: new DrizzleRoleStore(db, () => NOON),
           clock: { now: () => new Date() },
         },
         {
@@ -317,7 +319,7 @@ describe("an alert for increased access that fails to open, on a real Postgres",
     await expect(
       createUser(
         {
-          store: new DrizzleUserStore(db),
+          store: new DrizzleUserStore(db, () => NOON),
           clock: { now: () => new Date() },
         },
         {
@@ -346,7 +348,7 @@ describe("an alert for increased access that fails to open, on a real Postgres",
     await expect(
       editRole(
         {
-          store: new DrizzleRoleStore(db),
+          store: new DrizzleRoleStore(db, () => NOON),
           clock: { now: () => new Date() },
         },
         {

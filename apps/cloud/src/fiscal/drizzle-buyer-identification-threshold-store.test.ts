@@ -1,11 +1,14 @@
 import { recordBuyerIdentificationThreshold } from "@purosur/domain/fiscal/use-cases";
 import { asc } from "drizzle-orm";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
 import { auditLog, buyerIdentificationThresholds, changes, users } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { removeSeededThreshold } from "../test-support/remove-seeded-threshold.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleBuyerIdentificationThresholdStore } from "./drizzle-buyer-identification-threshold-store.js";
+
+const NOON = new Date("2026-01-05T12:00:00.000Z");
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -45,14 +48,14 @@ async function seedThreshold(amount: number, validFrom: string, actorId: string)
 
 function record(actorId: string, validFrom: string, amount = 1_000_000) {
   return recordBuyerIdentificationThreshold(
-    { store: new DrizzleBuyerIdentificationThresholdStore(db) },
+    { store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOON) },
     { amount, validFrom, actorId },
   );
 }
 
 describe("DrizzleBuyerIdentificationThresholdStore", () => {
   it("answers no latest threshold while none exists", async () => {
-    const store = new DrizzleBuyerIdentificationThresholdStore(db);
+    const store = new DrizzleBuyerIdentificationThresholdStore(db, () => NOON);
 
     const latest = await store.transaction((tx) => tx.lockLatestBuyerIdentificationThreshold());
 
@@ -63,7 +66,7 @@ describe("DrizzleBuyerIdentificationThresholdStore", () => {
     const actorId = await insertActor();
     await seedThreshold(2_000_000, "2026-06-01", actorId);
     await seedThreshold(1_000_000, "2026-01-01", actorId);
-    const store = new DrizzleBuyerIdentificationThresholdStore(db);
+    const store = new DrizzleBuyerIdentificationThresholdStore(db, () => NOON);
 
     const latest = await store.transaction((tx) => tx.lockLatestBuyerIdentificationThreshold());
 
@@ -149,7 +152,7 @@ describe("DrizzleBuyerIdentificationThresholdStore", () => {
 
   it("leaves nothing behind when the operation fails after recording", async () => {
     const actorId = await insertActor();
-    const store = new DrizzleBuyerIdentificationThresholdStore(db);
+    const store = new DrizzleBuyerIdentificationThresholdStore(db, () => NOON);
     const loggedBefore = await db.select().from(changes);
 
     await expect(
@@ -166,5 +169,13 @@ describe("DrizzleBuyerIdentificationThresholdStore", () => {
     expect(await db.select().from(buyerIdentificationThresholds)).toEqual([]);
     expect(await db.select().from(auditLog)).toEqual([]);
     expect(await db.select().from(changes)).toHaveLength(loggedBefore.length);
+  });
+});
+
+describe("DrizzleBuyerIdentificationThresholdStore's clock", () => {
+  it("is required to build the store", () => {
+    expectTypeOf<[PgDatabase<PgQueryResultHKT>]>().not.toExtend<
+      ConstructorParameters<typeof DrizzleBuyerIdentificationThresholdStore>
+    >();
   });
 });

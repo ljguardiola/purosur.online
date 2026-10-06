@@ -26,8 +26,8 @@ export function registerIssuerIdentificationEditRoute<TQueryResult extends PgQue
   app: FastifyInstance,
   options: IssuerIdentificationRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
-  const ports = { store: new DrizzleIssuerIdentificationStore(options.db) };
+  const { now } = options;
+  const ports = { store: new DrizzleIssuerIdentificationStore(options.db, now) };
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 

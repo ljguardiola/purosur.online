@@ -16,7 +16,7 @@ export function registerInternalBarcodeRoute<TQueryResult extends PgQueryResultH
   app: FastifyInstance,
   options: ProductsRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const store = new DrizzleInternalBarcodeStore(options.db);

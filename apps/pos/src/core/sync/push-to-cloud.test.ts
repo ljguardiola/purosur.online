@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { CloudResponse } from "../platform/cloud-client";
 import { openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { migrationClock } from "../platform/test-support/migration-clock";
 import {
   type PushAttempt,
   type PushToCloudDeps,
@@ -33,7 +34,7 @@ function draft(number: number): OutboxEventDraft {
 }
 
 function registerWithEvents(count: number) {
-  const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
+  const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
   const replica = new SqliteLocalReplica(database);
   replica.adoptDevice({ deviceId: CREDENTIALS.device_id, pepper: CREDENTIALS.pepper });
   for (let number = 1; number <= count; number += 1) {

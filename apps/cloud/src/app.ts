@@ -122,39 +122,49 @@ import type { StockRouteOptions } from "./stock/stock-route-options.js";
 import { registerChangesRoute } from "./sync/changes-route.js";
 import { registerEventsRoute } from "./sync/events-route.js";
 
+type WithoutClock<T> = Omit<T, "now">;
+
 export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = PostgresJsQueryResultHKT> {
   version: string;
+  now: () => Date;
   errorReporting?: BackofficeErrorReporting;
   edgeOriginSecret: string;
   setupFastifyErrorHandler?: (app: FastifyInstance) => void;
   staticDir?: string | undefined;
-  recovery?: RecoveryRouteOptions<TQueryResult>;
-  session?: SessionAuthenticateRouteOptions<TQueryResult>;
-  passkeys?: PasskeysListRouteOptions<TQueryResult>;
-  users?: UsersRouteOptions<TQueryResult>;
-  roles?: RolesRouteOptions<TQueryResult>;
-  branchSettings?: BranchSettingsRouteOptions<TQueryResult>;
-  issuerIdentification?: IssuerIdentificationRouteOptions<TQueryResult>;
-  buyerIdentificationThresholds?: BuyerIdentificationThresholdsRouteOptions<TQueryResult>;
-  fiscalAddresses?: FiscalAddressesRouteOptions<TQueryResult>;
-  categories?: CategoriesRouteOptions<TQueryResult>;
-  brands?: BrandsRouteOptions<TQueryResult>;
-  tags?: TagsRouteOptions<TQueryResult>;
-  products?: ProductsRouteOptions<TQueryResult>;
-  alerts?: AlertsRouteOptions<TQueryResult>;
-  prices?: PricesRouteOptions<TQueryResult>;
-  discounts?: DiscountsRouteOptions<TQueryResult>;
-  registers?: RegistersRouteOptions<TQueryResult>;
-  registersPointsOfSale?: RegistersPointsOfSaleRouteOptions<TQueryResult>;
-  stock?: StockRouteOptions<TQueryResult>;
-  devices?: DeviceTokensOptions<TQueryResult>;
-  firstPinCodes?: FirstPinCodeRouteOptions<TQueryResult>;
+  recovery?: WithoutClock<RecoveryRouteOptions<TQueryResult>>;
+  session?: WithoutClock<SessionAuthenticateRouteOptions<TQueryResult>>;
+  passkeys?: WithoutClock<PasskeysListRouteOptions<TQueryResult>>;
+  users?: WithoutClock<UsersRouteOptions<TQueryResult>>;
+  roles?: WithoutClock<RolesRouteOptions<TQueryResult>>;
+  branchSettings?: WithoutClock<BranchSettingsRouteOptions<TQueryResult>>;
+  issuerIdentification?: WithoutClock<IssuerIdentificationRouteOptions<TQueryResult>>;
+  buyerIdentificationThresholds?: WithoutClock<
+    BuyerIdentificationThresholdsRouteOptions<TQueryResult>
+  >;
+  fiscalAddresses?: WithoutClock<FiscalAddressesRouteOptions<TQueryResult>>;
+  categories?: WithoutClock<CategoriesRouteOptions<TQueryResult>>;
+  brands?: WithoutClock<BrandsRouteOptions<TQueryResult>>;
+  tags?: WithoutClock<TagsRouteOptions<TQueryResult>>;
+  products?: WithoutClock<ProductsRouteOptions<TQueryResult>>;
+  alerts?: WithoutClock<AlertsRouteOptions<TQueryResult>>;
+  prices?: WithoutClock<PricesRouteOptions<TQueryResult>>;
+  discounts?: WithoutClock<DiscountsRouteOptions<TQueryResult>>;
+  registers?: WithoutClock<RegistersRouteOptions<TQueryResult>>;
+  registersPointsOfSale?: WithoutClock<RegistersPointsOfSaleRouteOptions<TQueryResult>>;
+  stock?: WithoutClock<StockRouteOptions<TQueryResult>>;
+  devices?: WithoutClock<DeviceTokensOptions<TQueryResult>>;
+  firstPinCodes?: WithoutClock<FirstPinCodeRouteOptions<TQueryResult>>;
 }
 
 type DatabaseRouteOptions<TQueryResult extends PgQueryResultHKT> = Required<
   Omit<
     BuildAppOptions<TQueryResult>,
-    "version" | "errorReporting" | "edgeOriginSecret" | "setupFastifyErrorHandler" | "staticDir"
+    | "version"
+    | "now"
+    | "errorReporting"
+    | "edgeOriginSecret"
+    | "setupFastifyErrorHandler"
+    | "staticDir"
   >
 >;
 
@@ -268,9 +278,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
   registerEdgeOriginGuard(app, options.edgeOriginSecret);
 
+  const { now } = options;
   app.register(
     async (api) => {
-      const devices = options.devices;
+      const devices = options.devices && { ...options.devices, now };
       registerHealthRoute(api, {
         version: options.version,
         ...(devices && {
@@ -289,147 +300,156 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
       );
 
       if (options.recovery) {
-        registerRecoveryRoutes(api, options.recovery);
-        registerRecoveryRedemptionRoutes(api, options.recovery);
+        registerRecoveryRoutes(api, { ...options.recovery, now });
+        registerRecoveryRedemptionRoutes(api, { ...options.recovery, now });
       }
 
       if (options.session) {
-        registerSessionAuthenticationOptionsRoute(api, options.session);
-        registerSessionAuthenticateRoute(api, options.session);
-        registerSessionReadRoute(api, options.session);
-        registerSessionStatusRoute(api, options.session);
-        registerSessionSignOutRoute(api, options.session);
-        registerSessionAuthorizationRoutes(api, options.session);
+        registerSessionAuthenticationOptionsRoute(api, { ...options.session, now });
+        registerSessionAuthenticateRoute(api, { ...options.session, now });
+        registerSessionReadRoute(api, { ...options.session, now });
+        registerSessionStatusRoute(api, { ...options.session, now });
+        registerSessionSignOutRoute(api, { ...options.session, now });
+        registerSessionAuthorizationRoutes(api, { ...options.session, now });
       }
 
       if (options.passkeys) {
-        registerPasskeysListRoute(api, options.passkeys);
-        registerPasskeyRegistrationRoutes(api, options.passkeys);
-        registerPasskeyRemovalRoutes(api, options.passkeys);
+        registerPasskeysListRoute(api, { ...options.passkeys, now });
+        registerPasskeyRegistrationRoutes(api, { ...options.passkeys, now });
+        registerPasskeyRemovalRoutes(api, { ...options.passkeys, now });
       }
 
       if (options.users) {
-        registerUsersListRoute(api, options.users);
-        registerUserReadRoute(api, options.users);
-        registerUserCreationRoutes(api, options.users);
-        registerUserEditRoutes(api, options.users);
-        registerUserPasskeysListRoute(api, options.users);
-        registerUserPasskeyRemovalRoutes(api, options.users);
-        registerUserDeactivationRoutes(api, options.users);
-        registerUserPinCodeRoutes(api, options.users);
-        registerUserReactivationRoutes(api, options.users);
+        registerUsersListRoute(api, { ...options.users, now });
+        registerUserReadRoute(api, { ...options.users, now });
+        registerUserCreationRoutes(api, { ...options.users, now });
+        registerUserEditRoutes(api, { ...options.users, now });
+        registerUserPasskeysListRoute(api, { ...options.users, now });
+        registerUserPasskeyRemovalRoutes(api, { ...options.users, now });
+        registerUserDeactivationRoutes(api, { ...options.users, now });
+        registerUserPinCodeRoutes(api, { ...options.users, now });
+        registerUserReactivationRoutes(api, { ...options.users, now });
       }
 
       if (options.roles) {
-        registerRolesListRoute(api, options.roles);
-        registerPermissionCatalogRoute(api, options.roles);
-        registerRoleReadRoute(api, options.roles);
-        registerRoleCreationRoutes(api, options.roles);
-        registerRoleEditRoutes(api, options.roles);
+        registerRolesListRoute(api, { ...options.roles, now });
+        registerPermissionCatalogRoute(api, { ...options.roles, now });
+        registerRoleReadRoute(api, { ...options.roles, now });
+        registerRoleCreationRoutes(api, { ...options.roles, now });
+        registerRoleEditRoutes(api, { ...options.roles, now });
       }
 
       if (options.branchSettings) {
-        registerBranchSettingsReadRoute(api, options.branchSettings);
-        registerBranchSettingsEditRoute(api, options.branchSettings);
+        registerBranchSettingsReadRoute(api, { ...options.branchSettings, now });
+        registerBranchSettingsEditRoute(api, { ...options.branchSettings, now });
       }
 
       if (options.issuerIdentification) {
-        registerIssuerIdentificationReadRoute(api, options.issuerIdentification);
-        registerIssuerIdentificationEditRoute(api, options.issuerIdentification);
+        registerIssuerIdentificationReadRoute(api, { ...options.issuerIdentification, now });
+        registerIssuerIdentificationEditRoute(api, { ...options.issuerIdentification, now });
       }
 
       if (options.buyerIdentificationThresholds) {
-        registerBuyerIdentificationThresholdsListRoute(api, options.buyerIdentificationThresholds);
-        registerBuyerIdentificationThresholdRecordRoute(api, options.buyerIdentificationThresholds);
+        registerBuyerIdentificationThresholdsListRoute(api, {
+          ...options.buyerIdentificationThresholds,
+          now,
+        });
+        registerBuyerIdentificationThresholdRecordRoute(api, {
+          ...options.buyerIdentificationThresholds,
+          now,
+        });
       }
 
       if (options.fiscalAddresses) {
-        registerFiscalAddressesListRoute(api, options.fiscalAddresses);
-        registerFiscalAddressCreationRoute(api, options.fiscalAddresses);
-        registerFiscalAddressEditRoute(api, options.fiscalAddresses);
+        registerFiscalAddressesListRoute(api, { ...options.fiscalAddresses, now });
+        registerFiscalAddressCreationRoute(api, { ...options.fiscalAddresses, now });
+        registerFiscalAddressEditRoute(api, { ...options.fiscalAddresses, now });
       }
 
       if (options.categories) {
-        registerCategoriesListRoute(api, options.categories);
-        registerCategoryCreationRoute(api, options.categories);
-        registerCategoryEditRoute(api, options.categories);
+        registerCategoriesListRoute(api, { ...options.categories, now });
+        registerCategoryCreationRoute(api, { ...options.categories, now });
+        registerCategoryEditRoute(api, { ...options.categories, now });
       }
 
       if (options.brands) {
-        registerBrandsListRoute(api, options.brands);
-        registerBrandCreationRoute(api, options.brands);
-        registerBrandEditRoute(api, options.brands);
-        registerBrandDeactivationRoute(api, options.brands);
-        registerBrandReactivationRoute(api, options.brands);
+        registerBrandsListRoute(api, { ...options.brands, now });
+        registerBrandCreationRoute(api, { ...options.brands, now });
+        registerBrandEditRoute(api, { ...options.brands, now });
+        registerBrandDeactivationRoute(api, { ...options.brands, now });
+        registerBrandReactivationRoute(api, { ...options.brands, now });
       }
 
       if (options.tags) {
-        registerTagsListRoute(api, options.tags);
-        registerTagCreationRoute(api, options.tags);
-        registerTagEditRoute(api, options.tags);
-        registerTagDeactivationRoute(api, options.tags);
-        registerTagReactivationRoute(api, options.tags);
+        registerTagsListRoute(api, { ...options.tags, now });
+        registerTagCreationRoute(api, { ...options.tags, now });
+        registerTagEditRoute(api, { ...options.tags, now });
+        registerTagDeactivationRoute(api, { ...options.tags, now });
+        registerTagReactivationRoute(api, { ...options.tags, now });
       }
 
       if (options.products) {
-        registerProductsListRoute(api, options.products);
-        registerProductCreationRoute(api, options.products);
-        registerProductEditRoute(api, options.products);
-        registerProductDeactivationRoute(api, options.products);
-        registerInternalBarcodeRoute(api, options.products);
-        registerProductLabelsRoute(api, options.products);
+        registerProductsListRoute(api, { ...options.products, now });
+        registerProductCreationRoute(api, { ...options.products, now });
+        registerProductEditRoute(api, { ...options.products, now });
+        registerProductDeactivationRoute(api, { ...options.products, now });
+        registerInternalBarcodeRoute(api, { ...options.products, now });
+        registerProductLabelsRoute(api, { ...options.products, now });
       }
 
       if (options.alerts) {
-        registerAlertsListRoute(api, options.alerts);
-        registerAlertsOverviewRoute(api, options.alerts);
-        registerAlertReadRoute(api, options.alerts);
-        registerAlertCloseRoute(api, options.alerts);
+        registerAlertsListRoute(api, { ...options.alerts, now });
+        registerAlertsOverviewRoute(api, { ...options.alerts, now });
+        registerAlertReadRoute(api, { ...options.alerts, now });
+        registerAlertCloseRoute(api, { ...options.alerts, now });
       }
 
       if (options.prices) {
-        registerPricesListRoute(api, options.prices);
-        registerPriceSetRoute(api, options.prices);
-        registerPriceConfirmationRoute(api, options.prices);
+        registerPricesListRoute(api, { ...options.prices, now });
+        registerPriceSetRoute(api, { ...options.prices, now });
+        registerPriceConfirmationRoute(api, { ...options.prices, now });
       }
 
       if (options.discounts) {
-        registerDiscountsListRoute(api, options.discounts);
-        registerDiscountCreationRoute(api, options.discounts);
-        registerDiscountEditRoute(api, options.discounts);
-        registerDiscountTargetsRoute(api, options.discounts);
+        registerDiscountsListRoute(api, { ...options.discounts, now });
+        registerDiscountCreationRoute(api, { ...options.discounts, now });
+        registerDiscountEditRoute(api, { ...options.discounts, now });
+        registerDiscountTargetsRoute(api, { ...options.discounts, now });
       }
 
       if (options.stock) {
-        registerStockBalancesRoute(api, options.stock);
-        registerStockProductsRoute(api, options.stock);
-        registerStockCountsRoutes(api, options.stock);
-        registerStockMovementsRoutes(api, options.stock);
+        registerStockBalancesRoute(api, { ...options.stock, now });
+        registerStockProductsRoute(api, { ...options.stock, now });
+        registerStockCountsRoutes(api, { ...options.stock, now });
+        registerStockMovementsRoutes(api, { ...options.stock, now });
       }
 
       if (options.registers) {
-        registerRegistersListRoute(api, options.registers);
-        registerRegisterCreationRoute(api, options.registers);
-        registerRegisterCoverageRoute(api, options.registers);
-        registerRegisterEnrollmentCodeRoute(api, options.registers);
+        registerRegistersListRoute(api, { ...options.registers, now });
+        registerRegisterCreationRoute(api, { ...options.registers, now });
+        registerRegisterCoverageRoute(api, { ...options.registers, now });
+        registerRegisterEnrollmentCodeRoute(api, { ...options.registers, now });
       }
 
       if (options.registersPointsOfSale) {
-        registerRegistersPointsOfSaleListRoute(api, options.registersPointsOfSale);
-        registerRegisterPointOfSaleConfigurationRoute(api, options.registersPointsOfSale);
+        registerRegistersPointsOfSaleListRoute(api, { ...options.registersPointsOfSale, now });
+        registerRegisterPointOfSaleConfigurationRoute(api, {
+          ...options.registersPointsOfSale,
+          now,
+        });
       }
 
       if (options.devices) {
-        registerDeviceEnrollmentRoute(api, options.devices);
-        registerChangesRoute(api, options.devices);
-        registerEventsRoute(api, options.devices);
-        registerPinCodeRedemptionRoute(api, options.devices);
-        registerSignInLookupRoute(api, options.devices);
-        registerDeviceTokenRotationRoute(api, options.devices);
+        registerDeviceEnrollmentRoute(api, { ...options.devices, now });
+        registerChangesRoute(api, { ...options.devices, now });
+        registerEventsRoute(api, { ...options.devices, now });
+        registerPinCodeRedemptionRoute(api, { ...options.devices, now });
+        registerSignInLookupRoute(api, { ...options.devices, now });
+        registerDeviceTokenRotationRoute(api, { ...options.devices, now });
       }
 
       if (options.firstPinCodes) {
-        registerFirstPinCodeRoute(api, options.firstPinCodes);
+        registerFirstPinCodeRoute(api, { ...options.firstPinCodes, now });
       }
     },
     { prefix: API_PREFIX },

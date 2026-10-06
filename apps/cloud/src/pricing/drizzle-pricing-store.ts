@@ -19,10 +19,12 @@ class DrizzlePricingStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements PricingStoreTransaction
 {
   private readonly tx: PgDatabase<TQueryResult>;
+  private readonly now: () => Date;
   private readonly pending: PendingChanges;
 
-  constructor(tx: PgDatabase<TQueryResult>, pending: PendingChanges) {
+  constructor(tx: PgDatabase<TQueryResult>, now: () => Date, pending: PendingChanges) {
     this.tx = tx;
+    this.now = now;
     this.pending = pending;
   }
 
@@ -93,6 +95,7 @@ class DrizzlePricingStoreTransaction<TQueryResult extends PgQueryResultHKT>
       actorId: change.actorId,
       previousValue: change.previous,
       newValue: change.next,
+      at: this.now(),
     });
   }
 
@@ -103,16 +106,19 @@ class DrizzlePricingStoreTransaction<TQueryResult extends PgQueryResultHKT>
       actorId: confirmation.actorId,
       previousValue: null,
       newValue: { priceId: confirmation.priceId },
+      at: this.now(),
     });
   }
 }
 
 export class DrizzlePricingStore<TQueryResult extends PgQueryResultHKT> implements PricingStore {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly now: () => Date;
   private readonly pending: PendingChanges | undefined;
 
-  constructor(db: PgDatabase<TQueryResult>, pending?: PendingChanges) {
+  constructor(db: PgDatabase<TQueryResult>, now: () => Date, pending?: PendingChanges) {
     this.db = db;
+    this.now = now;
     this.pending = pending;
   }
 
@@ -120,7 +126,7 @@ export class DrizzlePricingStore<TQueryResult extends PgQueryResultHKT> implemen
     work: (tx: PricingStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     return withPendingChanges(this.db, this.pending, (tx, pending) =>
-      work(new DrizzlePricingStoreTransaction(tx, pending)),
+      work(new DrizzlePricingStoreTransaction(tx, this.now, pending)),
     );
   }
 }

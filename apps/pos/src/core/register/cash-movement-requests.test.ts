@@ -7,6 +7,7 @@ import { createSignedInPerson, type SignedInPerson } from "../access/signed-in-p
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { migrationClock } from "../platform/test-support/migration-clock";
 import {
   type CashMovementRequest,
   cashMovementKindsFor,
@@ -101,7 +102,7 @@ function outboxPayloads(): unknown[] {
 
 beforeEach(async () => {
   idCount = 0;
-  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
+  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
   addRole("clerk", ["sell_and_charge", "record_cash_in"]);
   addRole("manager", ["sell_and_charge", "record_cash_in", "record_cash_expense", "withdraw_cash"]);
   addPerson("u1", "clerk", "Ada");

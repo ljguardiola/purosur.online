@@ -14,6 +14,7 @@ export interface BackofficeSession {
 export async function openBackofficeSession<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   options: {
+    now: Date;
     locationId: string;
     permissionKeys: string[];
     passkeyAuthorized?: boolean;
@@ -46,9 +47,9 @@ export async function openBackofficeSession<TQueryResult extends PgQueryResultHK
   await db.insert(sessions).values({
     userId: user.id,
     sessionIdHash: hashSessionId(rawSessionId),
-    createdAt: SESSION_NOON,
-    lastSeenAt: SESSION_NOON,
-    passkeyAuthorizedAt: options.passkeyAuthorized === false ? null : SESSION_NOON,
+    createdAt: options.now,
+    lastSeenAt: options.now,
+    passkeyAuthorizedAt: options.passkeyAuthorized === false ? null : options.now,
   });
   return {
     userId: user.id,

@@ -12,6 +12,8 @@ import {
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleRoleStore } from "./drizzle-role-store.js";
 
+const NOON = new Date("2026-01-05T12:00:00.000Z");
+
 // PGlite runs every query over one connection, so it can never race two edits for the same role or
 // the same name; this runs them over a real postgres-js pool against a real Postgres.
 let integrationDb: IntegrationDatabase;
@@ -63,7 +65,7 @@ describe("two edits racing on the same role's version, on a real Postgres throug
     const [first, second] = await Promise.all([
       editRole(
         {
-          store: new DrizzleRoleStore(db),
+          store: new DrizzleRoleStore(db, () => NOON),
           clock: { now: () => new Date() },
         },
         {
@@ -76,7 +78,7 @@ describe("two edits racing on the same role's version, on a real Postgres throug
       ),
       editRole(
         {
-          store: new DrizzleRoleStore(db),
+          store: new DrizzleRoleStore(db, () => NOON),
           clock: { now: () => new Date() },
         },
         {
@@ -118,7 +120,7 @@ describe("two edits racing to rename different roles to the same name, on a real
     const [first, second] = await Promise.all([
       editRole(
         {
-          store: new DrizzleRoleStore(db),
+          store: new DrizzleRoleStore(db, () => NOON),
           clock: { now: () => new Date() },
         },
         {
@@ -131,7 +133,7 @@ describe("two edits racing to rename different roles to the same name, on a real
       ),
       editRole(
         {
-          store: new DrizzleRoleStore(db),
+          store: new DrizzleRoleStore(db, () => NOON),
           clock: { now: () => new Date() },
         },
         {

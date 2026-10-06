@@ -47,7 +47,7 @@ export function registerStockCountsRoutes<TQueryResult extends PgQueryResultHKT>
   app: FastifyInstance,
   options: StockRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   const ports = { store: new DrizzleStockStore(options.db), clock: { now } };
   const reader = new DrizzleStockReader(options.db);
   registerRouteAccess(app);

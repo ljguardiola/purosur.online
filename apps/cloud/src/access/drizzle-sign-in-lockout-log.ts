@@ -7,9 +7,11 @@ export class DrizzleSignInLockoutLog<TQueryResult extends PgQueryResultHKT>
   implements SignInLockoutLog
 {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly now: () => Date;
 
-  constructor(db: PgDatabase<TQueryResult>) {
+  constructor(db: PgDatabase<TQueryResult>, now: () => Date) {
     this.db = db;
+    this.now = now;
   }
 
   async recordLockout(lockout: TrippedLockout): Promise<void> {
@@ -23,6 +25,7 @@ export class DrizzleSignInLockoutLog<TQueryResult extends PgQueryResultHKT>
         failureCount: lockout.failureCount,
         blockedUntil: lockout.blockedUntil.toISOString(),
       },
+      at: this.now(),
     });
   }
 }

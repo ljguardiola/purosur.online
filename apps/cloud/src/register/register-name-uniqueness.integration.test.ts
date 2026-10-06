@@ -13,6 +13,8 @@ import { waitForLockWaiters } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleBranchRegisterStore } from "./drizzle-branch-register-store.js";
 
+const NOON = new Date("2026-01-05T12:00:00.000Z");
+
 // PGlite can't race two creations for the same name; this runs them on a real postgres-js pool,
 // whose driver reports the violated index as `constraint_name` rather than PGlite's `constraint`.
 let integrationDb: IntegrationDatabase;
@@ -56,8 +58,12 @@ describe("creating two registers with the same name in the same branch concurren
       await holder`begin`;
       await holder`lock table registers in share mode`;
       creations = [
-        createRegister(new DrizzleBranchRegisterStore(db), { locationId, name, actorId: actor.id }),
-        createRegister(new DrizzleBranchRegisterStore(db), {
+        createRegister(new DrizzleBranchRegisterStore(db, () => NOON), {
+          locationId,
+          name,
+          actorId: actor.id,
+        }),
+        createRegister(new DrizzleBranchRegisterStore(db, () => NOON), {
           locationId,
           name: name.toUpperCase(),
           actorId: actor.id,

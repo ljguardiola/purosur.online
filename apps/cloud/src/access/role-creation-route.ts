@@ -24,7 +24,7 @@ export function registerRoleCreationRoutes<TQueryResult extends PgQueryResultHKT
   app: FastifyInstance,
   options: RolesRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
@@ -48,7 +48,7 @@ export function registerRoleCreationRoutes<TQueryResult extends PgQueryResultHKT
       }
 
       const outcome = await createRole(
-        { store: new DrizzleRoleStore(options.db) },
+        { store: new DrizzleRoleStore(options.db, now) },
         {
           name: parsedBody.name,
           permissionKeys: parsedBody.permissions,

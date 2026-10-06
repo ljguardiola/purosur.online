@@ -19,6 +19,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { migrationClock } from "../platform/test-support/migration-clock";
 import { cashBalanceFor } from "../register/cash-session-requests";
 import { SqliteCashLedger } from "../register/sqlite-cash-ledger";
 import { SqliteSaleLedger } from "./sqlite-sale-ledger";
@@ -214,7 +215,7 @@ function readySeller(): void {
 
 beforeEach(() => {
   idCount = 0;
-  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
+  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
   ledger = new SqliteSaleLedger(database, new SqliteSignInStore(database), CHAIN_KEY);
 });
 
@@ -461,7 +462,7 @@ describe("the sale after the register restarts", () => {
     try {
       const path = join(folder, "register.sqlite");
       database.close();
-      database = openLocalDatabase(path, LOCAL_MIGRATIONS);
+      database = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
       ledger = new SqliteSaleLedger(database, new SqliteSignInStore(database), CHAIN_KEY);
       readySeller();
       addProduct("111");
@@ -470,7 +471,7 @@ describe("the sale after the register restarts", () => {
       scan("111");
       database.close();
 
-      database = openLocalDatabase(path, LOCAL_MIGRATIONS);
+      database = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
       ledger = new SqliteSaleLedger(database, new SqliteSignInStore(database), CHAIN_KEY);
 
       expect(currentSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" })).toMatchObject({
@@ -491,7 +492,7 @@ describe("the sale after the register restarts", () => {
     } finally {
       database.close();
       rmSync(folder, { recursive: true, force: true });
-      database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
+      database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
     }
   });
 });

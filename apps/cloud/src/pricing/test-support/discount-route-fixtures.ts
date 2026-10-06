@@ -17,9 +17,18 @@ export async function insertCategory(db: Db, name: string): Promise<string> {
   return category.id;
 }
 
+function daysAfter(date: Date, days: number): Date {
+  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+function isoDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
 export async function insertDiscount(
   db: Db,
   input: {
+    now: Date;
     categoryId?: string;
     productId?: string;
     tagId?: string;
@@ -35,15 +44,16 @@ export async function insertDiscount(
     version?: number;
   },
 ): Promise<{ id: string; version: number }> {
+  const { now, ...discountInput } = input;
   const [discount] = await db
     .insert(discounts)
     .values({
       name: "Semana de los frutos secos",
       kind: "PERCENT_OFF",
       percent: 15,
-      validFrom: "2026-10-01",
-      validTo: "2026-10-31",
-      ...input,
+      validFrom: isoDate(daysAfter(now, 1)),
+      validTo: isoDate(daysAfter(now, 31)),
+      ...discountInput,
     })
     .returning({ id: discounts.id, version: discounts.version });
   if (!discount) {

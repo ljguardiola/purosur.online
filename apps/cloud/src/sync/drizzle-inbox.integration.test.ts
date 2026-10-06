@@ -72,6 +72,7 @@ let registerCount = 0;
 function insertEnrolledInstallation() {
   registerCount += 1;
   return enrollInstallation(db, {
+    now: NOW,
     registerName: `Caja ${registerCount}`,
     outboxChainKey: CHAIN_KEY,
   });

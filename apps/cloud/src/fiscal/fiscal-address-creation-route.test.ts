@@ -44,6 +44,7 @@ async function sessionWith(
   passkeyAuthorized = true,
 ): Promise<BackofficeSession> {
   return openBackofficeSession(db, {
+    now: SESSION_NOON,
     locationId: await seededLocationId(db),
     permissionKeys,
     passkeyAuthorized,
@@ -127,7 +128,11 @@ describe("POST /fiscal-addresses", () => {
       { id: created.id, ...{ name: body.name } },
     ]);
     const [entry] = await db.select().from(auditLog).where(eq(auditLog.entityId, created.id));
-    expect(entry).toMatchObject({ entity: "fiscal_address", actorId: session.userId });
+    expect(entry).toMatchObject({
+      entity: "fiscal_address",
+      actorId: session.userId,
+      at: SESSION_NOON,
+    });
   });
 
   it("answers 409 fiscal_address_name_taken for a name already used in any letter case, creating nothing", async () => {

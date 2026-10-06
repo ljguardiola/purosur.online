@@ -15,7 +15,7 @@ export function registerDiscountTargetsRoute<TQueryResult extends PgQueryResultH
   app: FastifyInstance,
   options: DiscountsRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const targets = new DrizzleDiscountTargetReader(options.db);

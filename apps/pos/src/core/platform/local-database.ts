@@ -9,7 +9,11 @@ export interface LocalMigration {
   sql: string;
 }
 
-function applyMigrations(database: LocalDatabase, migrations: readonly LocalMigration[]): void {
+function applyMigrations(
+  database: LocalDatabase,
+  migrations: readonly LocalMigration[],
+  now: () => Date,
+): void {
   database.exec(
     "CREATE TABLE IF NOT EXISTS applied_migrations (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL)",
   );
@@ -28,7 +32,7 @@ function applyMigrations(database: LocalDatabase, migrations: readonly LocalMigr
   for (const migration of pending) {
     database.transaction(() => {
       database.exec(migration.sql);
-      record.run(migration.name, new Date().toISOString());
+      record.run(migration.name, now().toISOString());
     })();
   }
 }
@@ -36,13 +40,14 @@ function applyMigrations(database: LocalDatabase, migrations: readonly LocalMigr
 export function openLocalDatabase(
   path: string,
   migrations: readonly LocalMigration[],
+  now: () => Date,
 ): LocalDatabase {
   mkdirSync(dirname(path), { recursive: true });
   const database = new Database(path);
   try {
     database.pragma("journal_mode = WAL");
     database.pragma("foreign_keys = ON");
-    applyMigrations(database, migrations);
+    applyMigrations(database, migrations, now);
     return database;
   } catch (error) {
     database.close();

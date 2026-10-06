@@ -23,7 +23,7 @@ export function registerBrandReactivationRoute<TQueryResult extends PgQueryResul
 ): void {
   registerRouteAccess(app);
   const catalogStore = new DrizzleCatalogStore(options.db);
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   const sessionSource = routeSessionSource({ db: options.db, now });
 
   app.delete(

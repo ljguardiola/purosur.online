@@ -95,7 +95,7 @@ function queuedCode(): string {
 describe("POST /first-pin-codes", () => {
   it("answers 201 with the expiry and queues one email with the code for the address on file", async () => {
     const userId = await insertUser();
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
 
     const response = await ask(deviceToken, { user_id: userId });
 
@@ -113,7 +113,7 @@ describe("POST /first-pin-codes", () => {
 
   it("stores only the hash of the queued code, with no issuer, for the person", async () => {
     const userId = await insertUser();
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
 
     await ask(deviceToken, { user_id: userId });
 
@@ -133,7 +133,7 @@ describe("POST /first-pin-codes", () => {
 
   it("audits the emission with the register and no actor, never the code", async () => {
     const userId = await insertUser();
-    const { deviceToken, registerId } = await insertEnrolledInstallation(db);
+    const { deviceToken, registerId } = await insertEnrolledInstallation(db, { now: NOW });
 
     await ask(deviceToken, { user_id: userId });
 
@@ -145,6 +145,7 @@ describe("POST /first-pin-codes", () => {
         first_pin_code_expires_at: minutesFromNow(15).toISOString(),
         register_id: registerId,
       },
+      at: NOW,
     });
     expect(JSON.stringify(entry)).not.toContain(queuedCode());
   });
@@ -158,7 +159,7 @@ describe("POST /first-pin-codes", () => {
       issuedAt: minutesFromNow(-10),
       expiresAt: minutesFromNow(5),
     });
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
 
     await ask(deviceToken, { user_id: userId });
 
@@ -168,7 +169,7 @@ describe("POST /first-pin-codes", () => {
 
   it("answers 409 pin_already_set for a person who has a PIN, queueing and storing nothing", async () => {
     const userId = await insertUser({ hasPin: true });
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
 
     const response = await ask(deviceToken, { user_id: userId });
 
@@ -194,7 +195,7 @@ describe("POST /first-pin-codes", () => {
     ],
   ])("answers 404 not_found for %s", async (_case, seed) => {
     const userId = await seed();
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
 
     const response = await ask(deviceToken, { user_id: userId });
 
@@ -215,7 +216,7 @@ describe("POST /first-pin-codes", () => {
         expiresAt: minutesFromNow(15 - minutes),
       })),
     );
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
 
     const response = await ask(deviceToken, { user_id: userId });
 
@@ -231,7 +232,7 @@ describe("POST /first-pin-codes", () => {
 
   it("answers 500 and stores, audits and queues nothing when the email cannot be queued", async () => {
     const userId = await insertUser();
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
     enqueueEmail.mockRejectedValue(new Error("queue unavailable"));
     vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -243,7 +244,7 @@ describe("POST /first-pin-codes", () => {
   });
 
   it("refuses a body without a user id, before any lookup", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
 
     const response = await ask(deviceToken, { user_id: "grace" });
 
@@ -273,7 +274,7 @@ describe("POST /first-pin-codes", () => {
 
   it("answers 401 device_token_rejected to a revoked installation", async () => {
     const userId = await insertUser();
-    const { deviceToken } = await insertEnrolledInstallation(db, { revokedAt: NOW });
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW, revokedAt: NOW });
 
     const response = await ask(deviceToken, { user_id: userId });
 

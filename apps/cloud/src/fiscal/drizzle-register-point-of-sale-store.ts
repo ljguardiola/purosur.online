@@ -39,10 +39,12 @@ class DrizzleRegisterPointOfSaleStoreTransaction<TQueryResult extends PgQueryRes
   implements RegisterPointOfSaleStoreTransaction
 {
   private readonly tx: PgDatabase<TQueryResult>;
+  private readonly now: () => Date;
   private readonly pending: PendingChanges;
 
-  constructor(tx: PgDatabase<TQueryResult>, pending: PendingChanges) {
+  constructor(tx: PgDatabase<TQueryResult>, now: () => Date, pending: PendingChanges) {
     this.tx = tx;
+    this.now = now;
     this.pending = pending;
   }
 
@@ -140,6 +142,7 @@ class DrizzleRegisterPointOfSaleStoreTransaction<TQueryResult extends PgQueryRes
       actorId,
       previousValue: previous ? pointOfSaleAuditValueOf(previous) : null,
       newValue: pointOfSaleAuditValueOf(fields),
+      at: this.now(),
     });
     this.pending.note({
       entity: "register_point_of_sale",
@@ -154,10 +157,12 @@ export class DrizzleRegisterPointOfSaleStore<TQueryResult extends PgQueryResultH
   implements RegisterPointOfSaleStore
 {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly now: () => Date;
   private readonly pending: PendingChanges | undefined;
 
-  constructor(db: PgDatabase<TQueryResult>, pending?: PendingChanges) {
+  constructor(db: PgDatabase<TQueryResult>, now: () => Date, pending?: PendingChanges) {
     this.db = db;
+    this.now = now;
     this.pending = pending;
   }
 
@@ -165,7 +170,7 @@ export class DrizzleRegisterPointOfSaleStore<TQueryResult extends PgQueryResultH
     work: (tx: RegisterPointOfSaleStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     return withPendingChanges(this.db, this.pending, (tx, pending) =>
-      work(new DrizzleRegisterPointOfSaleStoreTransaction(tx, pending)),
+      work(new DrizzleRegisterPointOfSaleStoreTransaction(tx, this.now, pending)),
     );
   }
 }

@@ -39,6 +39,8 @@ import { logChange } from "./change-log.js";
 import { DrizzleChangeLog } from "./drizzle-change-log.js";
 import { changesLoggedAfter } from "./test-support/logged-changes.js";
 
+const NOW = new Date("2026-10-06T12:00:00.000Z");
+
 interface Installation {
   deviceId: string;
   locationId: string;
@@ -74,7 +76,7 @@ function sorted(list: readonly Pulled[]): Pulled[] {
 }
 
 async function pullEverything(installation: Installation): Promise<Pulled[]> {
-  const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => new Date() } };
+  const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => NOW } };
   const received: Pulled[] = [];
   let since = 0;
   for (;;) {
@@ -158,7 +160,10 @@ async function insertRegisterOf(locationId: string, name: string): Promise<Insta
     throw new Error("test setup: seeding the register returned no row");
   }
   await logChange(db, { entity: "register", entityId: register.id, version: 1, op: "insert" });
-  const enrolled = await insertEnrolledInstallation(db, { existingRegisterId: register.id });
+  const enrolled = await insertEnrolledInstallation(db, {
+    now: NOW,
+    existingRegisterId: register.id,
+  });
   return { deviceId: enrolled.deviceId, locationId, registerId: register.id };
 }
 
@@ -179,7 +184,7 @@ beforeAll(async () => {
     throw new Error("test setup: no role seeded");
   }
 
-  const first = await insertEnrolledInstallation(db, { registerName: "Caja 1" });
+  const first = await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 1" });
   registerA1 = {
     deviceId: first.deviceId,
     locationId: first.locationId,
@@ -191,7 +196,7 @@ beforeAll(async () => {
     version: 1,
     op: "insert",
   });
-  const second = await insertEnrolledInstallation(db, { registerName: "Caja 2" });
+  const second = await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 2" });
   registerA2 = {
     deviceId: second.deviceId,
     locationId: second.locationId,
@@ -264,7 +269,7 @@ beforeAll(async () => {
 
   const role = expectOutcome(
     await createRole(
-      { store: new DrizzleRoleStore(db) },
+      { store: new DrizzleRoleStore(db, () => NOW) },
       { name: "Cajera", permissionKeys: ["sell_and_charge"], actorId: actorA },
     ),
     "created",
@@ -285,13 +290,13 @@ beforeAll(async () => {
   );
   const threshold = expectOutcome(
     await recordBuyerIdentificationThreshold(
-      { store: new DrizzleBuyerIdentificationThresholdStore(db) },
+      { store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOW) },
       { amount: 1_000_000, validFrom: "2026-10-01", actorId: actorA },
     ),
     "recorded",
   );
 
-  const pricing = { store: new DrizzlePricingStore(db), clock: { now: () => new Date() } };
+  const pricing = { store: new DrizzlePricingStore(db, () => NOW), clock: { now: () => NOW } };
   const priceOfA = expectOutcome(
     await setPrice(pricing, {
       productId: product.product.id,
@@ -330,12 +335,12 @@ beforeAll(async () => {
 
   const fiscalAddress = expectOutcome(
     await createFiscalAddress(
-      { store: new DrizzleFiscalAddressStore(db) },
+      { store: new DrizzleFiscalAddressStore(db, () => NOW) },
       { name: "Deposito Central", streetAddress: "Calle Ficticia 123, CABA", actorId: actorA },
     ),
     "created",
   );
-  const pointsOfSale = new DrizzleRegisterPointOfSaleStore(db);
+  const pointsOfSale = new DrizzleRegisterPointOfSaleStore(db, () => NOW);
   for (const [number, installation] of [
     [7, registerA1],
     [8, registerA2],

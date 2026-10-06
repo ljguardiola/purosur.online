@@ -153,12 +153,13 @@ function drawLabel(doc: PDFKit.PDFDocument, label: PositionedLabel): void {
   drawBarcode(doc, label, label.yMm + layout.barcodeTopMm);
 }
 
-export function renderLabelSheetPdf(items: LabelSheetItem[]): Promise<Buffer> {
+export function renderLabelSheetPdf(items: LabelSheetItem[], createdAt: Date): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
       size: [mm(A4_WIDTH_MM), mm(A4_HEIGHT_MM)],
       margins: { top: 0, bottom: 0, left: 0, right: 0 },
       autoFirstPage: false,
+      info: { CreationDate: createdAt },
     });
     const chunks: Buffer[] = [];
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));

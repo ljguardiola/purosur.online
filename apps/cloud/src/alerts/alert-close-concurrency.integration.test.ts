@@ -36,7 +36,7 @@ afterAll(async () => {
 
 function closingPorts(now: () => Date) {
   return {
-    store: new DrizzleAlertStore(db),
+    store: new DrizzleAlertStore(db, () => NOON),
     clock: { now },
     hasher: { hash: hashSourceAddress },
   };
@@ -149,7 +149,7 @@ async function escalateWhileClosureCommits(alertId: string): Promise<number> {
     await holder`begin`;
     await holder`update alerts set resolved_at = ${NOON.toISOString()} where id = ${alertId}`;
     escalation = escalateOverdueAlerts({
-      store: new DrizzleAlertStore(db),
+      store: new DrizzleAlertStore(db, () => NOON),
       clock: { now: () => NOON },
     });
     escalation.catch(() => {});

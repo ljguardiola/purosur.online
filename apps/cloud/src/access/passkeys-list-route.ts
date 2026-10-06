@@ -14,14 +14,14 @@ import {
 export interface PasskeysListRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  now?: () => Date;
+  now: () => Date;
 }
 
 export function registerPasskeysListRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: PasskeysListRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 

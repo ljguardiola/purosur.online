@@ -13,6 +13,8 @@ import { waitForLockWaiters } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleBranchRegisterStore } from "./drizzle-branch-register-store.js";
 
+const NOON = new Date("2026-01-05T12:00:00.000Z");
+
 const UNIQUE_VIOLATION = "23505";
 
 // PGlite serializes every query on one connection, so where a lock is taken can only be observed
@@ -47,7 +49,7 @@ describe("creating a register while another writer holds the change log, on a re
     const holder = await sql.reserve();
     await holder`begin`;
     await holder`select pg_advisory_xact_lock(hashtextextended('changes_log', 0))`;
-    const creation = createRegister(new DrizzleBranchRegisterStore(db), {
+    const creation = createRegister(new DrizzleBranchRegisterStore(db, () => NOON), {
       locationId,
       name,
       actorId: actor.id,

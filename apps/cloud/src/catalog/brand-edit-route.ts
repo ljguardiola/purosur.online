@@ -29,7 +29,7 @@ export function registerBrandEditRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: BrandsRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const catalogStore = new DrizzleCatalogStore(options.db);
   const catalog = new DrizzleCatalogListReader(options.db);

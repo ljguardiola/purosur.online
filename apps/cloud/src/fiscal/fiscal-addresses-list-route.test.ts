@@ -51,6 +51,7 @@ describe("GET /fiscal-addresses", () => {
 
   it("rejects a user without the change_fiscal_configuration permission with 403 forbidden", async () => {
     const session = await openBackofficeSession(db, {
+      now: SESSION_NOON,
       locationId: await seededLocationId(db),
       permissionKeys: ["sell_and_charge"],
     });
@@ -71,6 +72,7 @@ describe("GET /fiscal-addresses", () => {
       { name: "Deposito Central", streetAddress: "Calle Ficticia 2, CABA" },
     ]);
     const session = await openBackofficeSession(db, {
+      now: SESSION_NOON,
       locationId: await seededLocationId(db),
       permissionKeys: ["change_fiscal_configuration"],
       passkeyAuthorized: false,
@@ -101,6 +103,7 @@ describe("GET /fiscal-addresses", () => {
 
   it("lists nothing while no fiscal address exists", async () => {
     const session = await openBackofficeSession(db, {
+      now: SESSION_NOON,
       locationId: await seededLocationId(db),
       permissionKeys: ["change_fiscal_configuration"],
     });

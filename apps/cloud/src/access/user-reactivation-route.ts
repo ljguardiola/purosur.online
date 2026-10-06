@@ -23,7 +23,7 @@ export function registerUserReactivationRoutes<TQueryResult extends PgQueryResul
   app: FastifyInstance,
   options: UsersRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
@@ -56,7 +56,7 @@ export function registerUserReactivationRoutes<TQueryResult extends PgQueryResul
       }
 
       const outcome = await reactivateUser(
-        { store: new DrizzleUserStore(options.db) },
+        { store: new DrizzleUserStore(options.db, now) },
         { id: target.id, actorId: openSession.userId },
       );
 

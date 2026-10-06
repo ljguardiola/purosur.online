@@ -21,6 +21,8 @@ import { waitForLockWaiters } from "../test-support/queued-behind-held-lock.js";
 import { DrizzleChangeLog } from "./drizzle-change-log.js";
 import type { PulledCloudChange } from "./pulled-changes.js";
 
+const NOW = new Date("2026-10-06T12:00:00.000Z");
+
 // PGlite runs every query over one connection, so two pulls can never overlap there.
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
@@ -39,8 +41,8 @@ afterAll(async () => {
 
 describe("two pulls of the same device overlapping, on a real Postgres", () => {
   it("answers the later one once the earlier one commits, instead of failing it", async () => {
-    const { deviceId } = await insertEnrolledInstallation(db);
-    const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => new Date() } };
+    const { deviceId } = await insertEnrolledInstallation(db, { now: NOW });
+    const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => NOW } };
     await pullChanges(ports, { deviceId, since: 0 });
 
     let markEarlierRecorded = () => {};
@@ -74,9 +76,10 @@ describe("two pulls of the same device overlapping, on a real Postgres", () => {
 
   it("waits for a save of the branch's settings under way, then gives its settings with its hours", async () => {
     const { deviceId, locationId } = await insertEnrolledInstallation(db, {
+      now: NOW,
       registerName: "Caja 2",
     });
-    const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => new Date() } };
+    const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => NOW } };
 
     let markSaveUnderWay = () => {};
     const saveIsUnderWay = new Promise<void>((resolve) => {
@@ -123,10 +126,8 @@ describe("two pulls of the same device overlapping, on a real Postgres", () => {
   });
 
   it("waits for a product edit under way, then gives the product edited, with its new barcodes", async () => {
-    const { deviceId } = await insertEnrolledInstallation(db, {
-      registerName: "Caja 3",
-    });
-    const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => new Date() } };
+    const { deviceId } = await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 3" });
+    const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => NOW } };
     const store = new DrizzleCatalogStore(db);
     const category = await createCategory(store, { name: "Almacén", parentId: null });
     if (category.kind !== "created") {
@@ -192,10 +193,8 @@ describe("two pulls of the same device overlapping, on a real Postgres", () => {
   });
 
   it("gives a category a writer holds locked as it was, without waiting for the writer", async () => {
-    const { deviceId } = await insertEnrolledInstallation(db, {
-      registerName: "Caja 4",
-    });
-    const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => new Date() } };
+    const { deviceId } = await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 4" });
+    const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => NOW } };
     const created = await createCategory(new DrizzleCatalogStore(db), {
       name: "Bebidas",
       parentId: null,

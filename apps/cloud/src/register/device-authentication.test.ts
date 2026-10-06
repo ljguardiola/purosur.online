@@ -38,7 +38,9 @@ describe("authenticateDevice", () => {
   });
 
   it("identifies the installation that holds the presented device token", async () => {
-    const { deviceId, registerId, deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceId, registerId, deviceToken } = await insertEnrolledInstallation(db, {
+      now: NOW,
+    });
 
     expect(await authenticateDevice(ports, `Bearer ${deviceToken}`)).toEqual({
       kind: "installation",
@@ -48,6 +50,7 @@ describe("authenticateDevice", () => {
 
   it("still identifies a revoked installation by its token, telling it that it is revoked", async () => {
     const { deviceId, registerId, deviceToken } = await insertEnrolledInstallation(db, {
+      now: NOW,
       revokedAt: new Date("2026-09-29T09:00:00.000Z"),
     });
 
@@ -58,7 +61,9 @@ describe("authenticateDevice", () => {
   });
 
   it("reads the Bearer scheme regardless of its case", async () => {
-    const { deviceId, registerId, deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceId, registerId, deviceToken } = await insertEnrolledInstallation(db, {
+      now: NOW,
+    });
 
     expect(await authenticateDevice(ports, `bearer ${deviceToken}`)).toEqual({
       kind: "installation",
@@ -67,7 +72,7 @@ describe("authenticateDevice", () => {
   });
 
   it("rejects a token whose lookup prefix matches but whose secret does not", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
     const [lookupPrefix] = deviceToken.split(".");
     const [, otherSecret] = issueDeviceToken().deviceToken.split(".");
 
@@ -77,7 +82,7 @@ describe("authenticateDevice", () => {
   });
 
   it("rejects a well-formed token no installation holds", async () => {
-    await insertEnrolledInstallation(db);
+    await insertEnrolledInstallation(db, { now: NOW });
 
     expect(await authenticateDevice(ports, `Bearer ${issueDeviceToken().deviceToken}`)).toEqual({
       kind: "rejected",
@@ -91,7 +96,7 @@ describe("authenticateDevice", () => {
     ["a token without its lookup prefix", (token: string) => `Bearer ${token.split(".")[1]}`],
     ["a token followed by something else", (token: string) => `Bearer ${token} extra`],
   ])("rejects an Authorization header with %s", async (_case, header) => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
 
     expect(await authenticateDevice(ports, header(deviceToken))).toEqual({ kind: "rejected" });
   });

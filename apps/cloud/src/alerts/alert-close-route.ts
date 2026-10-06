@@ -26,12 +26,12 @@ export function registerAlertCloseRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: AlertsRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const reader = new DrizzleAlertReader(options.db);
   const closingPorts = {
-    store: new DrizzleAlertStore(options.db),
+    store: new DrizzleAlertStore(options.db, now),
     clock: { now },
     hasher: { hash: hashSourceAddress },
   };

@@ -1,6 +1,7 @@
 import { AlertAlreadyOpenError, type NewAlert } from "@purosur/domain/alerts/use-cases";
 import { eq } from "drizzle-orm";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
 import {
   alertDeliveries,
   alerts,
@@ -96,7 +97,7 @@ async function insertUser(
 
 describe("DrizzleAlertStore insertAlert", () => {
   it("stores the alert as given and answers its id", async () => {
-    const store = new DrizzleAlertStore(db);
+    const store = new DrizzleAlertStore(db, () => NOON);
 
     const id = await store.transaction((tx) => tx.insertAlert(newAlert()));
 
@@ -117,7 +118,7 @@ describe("DrizzleAlertStore insertAlert", () => {
   });
 
   it("refuses a second open alert of a deduplicating kind and scope with AlertAlreadyOpenError", async () => {
-    const store = new DrizzleAlertStore(db);
+    const store = new DrizzleAlertStore(db, () => NOON);
     await store.transaction((tx) => tx.insertAlert(newAlert()));
 
     await expect(store.transaction((tx) => tx.insertAlert(newAlert()))).rejects.toBeInstanceOf(
@@ -126,7 +127,7 @@ describe("DrizzleAlertStore insertAlert", () => {
   });
 
   it("names the kind and scope of the open alert it refused to duplicate", async () => {
-    const store = new DrizzleAlertStore(db);
+    const store = new DrizzleAlertStore(db, () => NOON);
     await store.transaction((tx) => tx.insertAlert(newAlert()));
 
     await expect(store.transaction((tx) => tx.insertAlert(newAlert()))).rejects.toMatchObject({
@@ -136,7 +137,7 @@ describe("DrizzleAlertStore insertAlert", () => {
   });
 
   it("accepts an alert of the same kind and scope once the earlier one is closed", async () => {
-    const store = new DrizzleAlertStore(db);
+    const store = new DrizzleAlertStore(db, () => NOON);
     const first = await store.transaction((tx) => tx.insertAlert(newAlert()));
     await db.update(alerts).set({ resolvedAt: NOON }).where(eq(alerts.id, first));
 
@@ -146,7 +147,7 @@ describe("DrizzleAlertStore insertAlert", () => {
   });
 
   it("accepts a second open alert of a kind that does not deduplicate", async () => {
-    const store = new DrizzleAlertStore(db);
+    const store = new DrizzleAlertStore(db, () => NOON);
     const alert = newAlert({ kind: "user_access_increased", deduplicates: false });
 
     await store.transaction((tx) => tx.insertAlert(alert));
@@ -156,7 +157,7 @@ describe("DrizzleAlertStore insertAlert", () => {
   });
 
   it("rethrows a failure that is not the open-alert uniqueness", async () => {
-    const store = new DrizzleAlertStore(db);
+    const store = new DrizzleAlertStore(db, () => NOON);
 
     await expect(
       store.transaction((tx) => tx.insertAlert(newAlert({ audience: "local", locationId: null }))),
@@ -164,7 +165,7 @@ describe("DrizzleAlertStore insertAlert", () => {
   });
 
   it("keeps its own transaction usable after a refused duplicate, so it can still find the open alert", async () => {
-    const store = new DrizzleAlertStore(db);
+    const store = new DrizzleAlertStore(db, () => NOON);
     const first = await store.transaction((tx) => tx.insertAlert(newAlert()));
 
     const found = await store.transaction(async (tx) => {
@@ -176,10 +177,10 @@ describe("DrizzleAlertStore insertAlert", () => {
   });
 
   it("keeps the caller's transaction usable after a refused duplicate, so its other writes commit", async () => {
-    await new DrizzleAlertStore(db).transaction((tx) => tx.insertAlert(newAlert()));
+    await new DrizzleAlertStore(db, () => NOON).transaction((tx) => tx.insertAlert(newAlert()));
 
     await db.transaction(async (callerTx) => {
-      const store = new DrizzleAlertStore(callerTx);
+      const store = new DrizzleAlertStore(callerTx, () => NOON);
       await expect(store.transaction((tx) => tx.insertAlert(newAlert()))).rejects.toBeInstanceOf(
         AlertAlreadyOpenError,
       );
@@ -193,7 +194,7 @@ describe("DrizzleAlertStore insertAlert", () => {
 
 describe("DrizzleAlertStore findOpenAlertId", () => {
   it("answers the open alert of that kind and scope", async () => {
-    const store = new DrizzleAlertStore(db);
+    const store = new DrizzleAlertStore(db, () => NOON);
     const id = await store.transaction((tx) => tx.insertAlert(newAlert()));
 
     const found = await store.transaction((tx) =>
@@ -204,7 +205,7 @@ describe("DrizzleAlertStore findOpenAlertId", () => {
   });
 
   it("ignores a closed alert and one of another scope", async () => {
-    const store = new DrizzleAlertStore(db);
+    const store = new DrizzleAlertStore(db, () => NOON);
     const closed = await store.transaction((tx) => tx.insertAlert(newAlert()));
     await db.update(alerts).set({ resolvedAt: NOON }).where(eq(alerts.id, closed));
     await store.transaction((tx) => tx.insertAlert(newAlert({ scope: "user-2" })));
@@ -232,7 +233,7 @@ describe("DrizzleAlertStore listActiveAlertViewers", () => {
     );
     const cashierId = await insertUser("Local", await insertRole("Cashier", []));
 
-    const viewers = await new DrizzleAlertStore(db).transaction((tx) =>
+    const viewers = await new DrizzleAlertStore(db, () => NOON).transaction((tx) =>
       tx.listActiveAlertViewers(),
     );
 
@@ -261,7 +262,7 @@ describe("DrizzleAlertStore listActiveAlertViewers", () => {
       await insertRole("Other viewer", ["view_all_alerts"]),
     );
 
-    const viewers = await new DrizzleAlertStore(db).transaction((tx) =>
+    const viewers = await new DrizzleAlertStore(db, () => NOON).transaction((tx) =>
       tx.listActiveAlertViewers(),
     );
 
@@ -271,7 +272,7 @@ describe("DrizzleAlertStore listActiveAlertViewers", () => {
 
 describe("DrizzleAlertStore recordBackofficeDeliveries", () => {
   it("writes a sent backoffice delivery for each recipient", async () => {
-    const store = new DrizzleAlertStore(db);
+    const store = new DrizzleAlertStore(db, () => NOON);
     const first = await insertUser("Ada", await seededAdministratorRoleId());
     const second = await insertUser("Grace", await insertRole("Viewer", ["view_all_alerts"]));
     const alertId = await store.transaction((tx) => tx.insertAlert(newAlert()));
@@ -283,11 +284,21 @@ describe("DrizzleAlertStore recordBackofficeDeliveries", () => {
     expect(rows.every((row) => row.channel === "backoffice" && row.status === "sent")).toBe(true);
     expect(rows.every((row) => row.alertId === alertId)).toBe(true);
   });
+
+  it("stamps each delivery with the clock", async () => {
+    const store = new DrizzleAlertStore(db, () => NOON);
+    const recipient = await insertUser("Ada", await seededAdministratorRoleId());
+    const alertId = await store.transaction((tx) => tx.insertAlert(newAlert()));
+
+    await store.transaction((tx) => tx.recordBackofficeDeliveries(alertId, [recipient]));
+
+    expect(await db.select().from(alertDeliveries)).toMatchObject([{ createdAt: NOON }]);
+  });
 });
 
 describe("DrizzleAlertStore lockAlert", () => {
   it("answers the alert's kind, level, escalation, scope, detail and resolution", async () => {
-    const store = new DrizzleAlertStore(db);
+    const store = new DrizzleAlertStore(db, () => NOON);
     const alertId = await store.transaction((tx) => tx.insertAlert(newAlert()));
     await db
       .update(alerts)
@@ -307,7 +318,7 @@ describe("DrizzleAlertStore lockAlert", () => {
   });
 
   it("answers nothing for an unknown alert", async () => {
-    const store = new DrizzleAlertStore(db);
+    const store = new DrizzleAlertStore(db, () => NOON);
 
     const locked = await store.transaction((tx) =>
       tx.lockAlert("00000000-0000-4000-8000-000000000000"),
@@ -319,7 +330,7 @@ describe("DrizzleAlertStore lockAlert", () => {
 
 describe("DrizzleAlertStore recordClosure", () => {
   it("closes the alert with the kept scope and detail and audits the closure", async () => {
-    const store = new DrizzleAlertStore(db);
+    const store = new DrizzleAlertStore(db, () => NOON);
     const closerId = await insertUser("Ada", await seededAdministratorRoleId());
     const alertId = await store.transaction((tx) => tx.insertAlert(newAlert()));
 
@@ -351,7 +362,7 @@ describe("DrizzleAlertStore recordClosure", () => {
 
 describe("DrizzleAlertStore lockOpenAlerts and recordEscalation", () => {
   it("lists only open alerts with their level and escalation time", async () => {
-    const store = new DrizzleAlertStore(db);
+    const store = new DrizzleAlertStore(db, () => NOON);
     const open = await store.transaction((tx) => tx.insertAlert(newAlert()));
     const closed = await store.transaction((tx) => tx.insertAlert(newAlert({ scope: "user-2" })));
     await db.update(alerts).set({ resolvedAt: NOON }).where(eq(alerts.id, closed));
@@ -369,7 +380,7 @@ describe("DrizzleAlertStore lockOpenAlerts and recordEscalation", () => {
   });
 
   it("escalates the given alerts to the given level, recording when", async () => {
-    const store = new DrizzleAlertStore(db);
+    const store = new DrizzleAlertStore(db, () => NOON);
     const escalated = await store.transaction((tx) => tx.insertAlert(newAlert()));
     const untouched = await store.transaction((tx) =>
       tx.insertAlert(newAlert({ scope: "user-2" })),
@@ -383,5 +394,13 @@ describe("DrizzleAlertStore lockOpenAlerts and recordEscalation", () => {
     const [miss] = await db.select().from(alerts).where(eq(alerts.id, untouched));
     expect(hit).toMatchObject({ level: "critical", escalatedAt: NOON });
     expect(miss).toMatchObject({ level: "warning", escalatedAt: null });
+  });
+});
+
+describe("DrizzleAlertStore's clock", () => {
+  it("is required to build the store", () => {
+    expectTypeOf<[PgDatabase<PgQueryResultHKT>]>().not.toExtend<
+      ConstructorParameters<typeof DrizzleAlertStore>
+    >();
   });
 });

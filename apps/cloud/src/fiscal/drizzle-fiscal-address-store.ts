@@ -30,9 +30,11 @@ class DrizzleFiscalAddressStoreTransaction<TQueryResult extends PgQueryResultHKT
   implements FiscalAddressStoreTransaction
 {
   private readonly tx: PgDatabase<TQueryResult>;
+  private readonly now: () => Date;
 
-  constructor(tx: PgDatabase<TQueryResult>) {
+  constructor(tx: PgDatabase<TQueryResult>, now: () => Date) {
     this.tx = tx;
+    this.now = now;
   }
 
   listFiscalAddresses(): Promise<FiscalAddress[]> {
@@ -74,6 +76,7 @@ class DrizzleFiscalAddressStoreTransaction<TQueryResult extends PgQueryResultHKT
       actorId,
       previousValue: null,
       newValue: auditValueOf({ name, streetAddress, version: inserted.version }),
+      at: this.now(),
     });
     return { id: inserted.id };
   }
@@ -101,6 +104,7 @@ class DrizzleFiscalAddressStoreTransaction<TQueryResult extends PgQueryResultHKT
       actorId,
       previousValue: previous ? auditValueOf(previous) : null,
       newValue: auditValueOf(change),
+      at: this.now(),
     });
   }
 }
@@ -109,14 +113,18 @@ export class DrizzleFiscalAddressStore<TQueryResult extends PgQueryResultHKT>
   implements FiscalAddressStore
 {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly now: () => Date;
 
-  constructor(db: PgDatabase<TQueryResult>) {
+  constructor(db: PgDatabase<TQueryResult>, now: () => Date) {
     this.db = db;
+    this.now = now;
   }
 
   transaction<TOutcome>(
     work: (tx: FiscalAddressStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return this.db.transaction((tx) => work(new DrizzleFiscalAddressStoreTransaction(tx)));
+    return this.db.transaction((tx) =>
+      work(new DrizzleFiscalAddressStoreTransaction(tx, this.now)),
+    );
   }
 }

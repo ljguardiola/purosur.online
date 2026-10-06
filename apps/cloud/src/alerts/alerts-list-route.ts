@@ -21,7 +21,7 @@ import { ALERTS_PAGE_SIZE, DrizzleAlertReader } from "./drizzle-alert-reader.js"
 export interface AlertsRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  now?: () => Date;
+  now: () => Date;
 }
 
 function toAlertSummary(
@@ -68,7 +68,7 @@ export function registerAlertsListRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: AlertsRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 

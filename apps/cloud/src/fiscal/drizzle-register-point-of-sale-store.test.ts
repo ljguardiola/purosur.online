@@ -2,7 +2,8 @@ import {
   configureRegisterPointOfSale,
   PointOfSaleClaimConflict,
 } from "@purosur/domain/fiscal/use-cases";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
 import {
   auditLog,
   fiscalAddresses,
@@ -16,6 +17,8 @@ import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/lo
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleRegisterPointOfSaleStore } from "./drizzle-register-point-of-sale-store.js";
+
+const NOON = new Date("2026-01-05T12:00:00.000Z");
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -82,7 +85,7 @@ function configure(input: {
   version: number;
   actorId: string;
 }) {
-  return configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db), input);
+  return configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db, () => NOON), input);
 }
 
 describe("configuring a register's point of sale through DrizzleRegisterPointOfSaleStore", () => {
@@ -308,12 +311,20 @@ describe("configuring a register's point of sale through DrizzleRegisterPointOfS
     await db
       .insert(pointOfSaleClaims)
       .values({ pointOfSaleNumber: 7, registerId, claimedBy: actorId });
-    const store = new DrizzleRegisterPointOfSaleStore(db);
+    const store = new DrizzleRegisterPointOfSaleStore(db, () => NOON);
 
     const claim = store.transaction((tx) =>
       tx.claimPointOfSale({ pointOfSaleNumber: 7, registerId: otherRegisterId, actorId }),
     );
 
     await expect(claim).rejects.toBeInstanceOf(PointOfSaleClaimConflict);
+  });
+});
+
+describe("DrizzleRegisterPointOfSaleStore's clock", () => {
+  it("is required to build the store", () => {
+    expectTypeOf<[PgDatabase<PgQueryResultHKT>]>().not.toExtend<
+      ConstructorParameters<typeof DrizzleRegisterPointOfSaleStore>
+    >();
   });
 });

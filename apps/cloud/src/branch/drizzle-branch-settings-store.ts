@@ -15,10 +15,12 @@ class DrizzleBranchSettingsStoreTransaction<TQueryResult extends PgQueryResultHK
   implements BranchSettingsStoreTransaction
 {
   private readonly tx: PgDatabase<TQueryResult>;
+  private readonly now: () => Date;
   private readonly pending: PendingChanges;
 
-  constructor(tx: PgDatabase<TQueryResult>, pending: PendingChanges) {
+  constructor(tx: PgDatabase<TQueryResult>, now: () => Date, pending: PendingChanges) {
     this.tx = tx;
+    this.now = now;
     this.pending = pending;
   }
 
@@ -72,6 +74,7 @@ class DrizzleBranchSettingsStoreTransaction<TQueryResult extends PgQueryResultHK
       actorId: recordedBy,
       previousValue: toBranchSettingsWire(previous),
       newValue: toBranchSettingsWire({ ...settings, hours }),
+      at: this.now(),
     });
   }
 }
@@ -80,10 +83,12 @@ export class DrizzleBranchSettingsStore<TQueryResult extends PgQueryResultHKT>
   implements BranchSettingsStore
 {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly now: () => Date;
   private readonly pending: PendingChanges | undefined;
 
-  constructor(db: PgDatabase<TQueryResult>, pending?: PendingChanges) {
+  constructor(db: PgDatabase<TQueryResult>, now: () => Date, pending?: PendingChanges) {
     this.db = db;
+    this.now = now;
     this.pending = pending;
   }
 
@@ -91,7 +96,7 @@ export class DrizzleBranchSettingsStore<TQueryResult extends PgQueryResultHKT>
     work: (tx: BranchSettingsStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     return withPendingChanges(this.db, this.pending, (tx, pending) =>
-      work(new DrizzleBranchSettingsStoreTransaction(tx, pending)),
+      work(new DrizzleBranchSettingsStoreTransaction(tx, this.now, pending)),
     );
   }
 }

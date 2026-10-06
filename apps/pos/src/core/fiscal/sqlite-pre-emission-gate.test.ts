@@ -7,6 +7,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { migrationClock } from "../platform/test-support/migration-clock";
 import {
   insertPreEmissionGateOutcome,
   readBuyerTaxStatusSetInEffect,
@@ -75,7 +76,7 @@ function storedOutcomes() {
 }
 
 beforeEach(() => {
-  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
+  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
   database
     .prepare(
       `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)

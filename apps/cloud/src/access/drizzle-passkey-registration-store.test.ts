@@ -1,6 +1,7 @@
 import { PasskeyAlreadyRegistered } from "@purosur/domain/access/use-cases";
 import { eq } from "drizzle-orm";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
 import { alerts, auditLog, passkeys, users } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
@@ -52,7 +53,7 @@ function newPasskey(credentialId = "credential-1") {
 
 describe("DrizzlePasskeyRegistrationStore", () => {
   it("stores the passkey and answers its id and creation moment", async () => {
-    const added = await new DrizzlePasskeyRegistrationStore(db).transaction((tx) =>
+    const added = await new DrizzlePasskeyRegistrationStore(db, () => AT).transaction((tx) =>
       tx.addPasskey(newPasskey()),
     );
 
@@ -62,7 +63,7 @@ describe("DrizzlePasskeyRegistrationStore", () => {
   });
 
   it("raises PasskeyAlreadyRegistered for a credential another passkey holds", async () => {
-    const store = new DrizzlePasskeyRegistrationStore(db);
+    const store = new DrizzlePasskeyRegistrationStore(db, () => AT);
     await store.transaction((tx) => tx.addPasskey(newPasskey()));
 
     await expect(store.transaction((tx) => tx.addPasskey(newPasskey()))).rejects.toBeInstanceOf(
@@ -72,7 +73,7 @@ describe("DrizzlePasskeyRegistrationStore", () => {
   });
 
   it("audits the registration with the passkey's identity and kind", async () => {
-    const store = new DrizzlePasskeyRegistrationStore(db);
+    const store = new DrizzlePasskeyRegistrationStore(db, () => AT);
 
     const added = await store.transaction(async (tx) => {
       const passkey = await tx.addPasskey(newPasskey());
@@ -98,7 +99,7 @@ describe("DrizzlePasskeyRegistrationStore", () => {
   });
 
   it("opens a self-registered passkey-changed alert for the user", async () => {
-    await new DrizzlePasskeyRegistrationStore(db).transaction((tx) =>
+    await new DrizzlePasskeyRegistrationStore(db, () => AT).transaction((tx) =>
       tx.openPasskeyRegisteredAlert({ userId, passkeyName: "Llave", openedAt: AT }),
     );
 
@@ -109,5 +110,13 @@ describe("DrizzlePasskeyRegistrationStore", () => {
         openedAt: AT,
       },
     ]);
+  });
+});
+
+describe("DrizzlePasskeyRegistrationStore's clock", () => {
+  it("is required to build the store", () => {
+    expectTypeOf<[PgDatabase<PgQueryResultHKT>]>().not.toExtend<
+      ConstructorParameters<typeof DrizzlePasskeyRegistrationStore>
+    >();
   });
 });

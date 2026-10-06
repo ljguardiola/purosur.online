@@ -14,6 +14,8 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleBranchRegisterStore } from "./drizzle-branch-register-store.js";
 import { secretEnrollmentCodes } from "./register-enrollment-code.js";
 
+const NOON = new Date("2026-01-05T12:00:00.000Z");
+
 // PGlite runs every query over one connection, so it can never race two emissions for the same
 // register; this runs them over a real multi-connection postgres-js pool instead.
 let integrationDb: IntegrationDatabase;
@@ -32,7 +34,7 @@ beforeAll(async () => {
 function emitAt(locationId: string, registerId: string, actorId: string, now: Date) {
   return emitEnrollmentCode(
     {
-      store: new DrizzleBranchRegisterStore(db),
+      store: new DrizzleBranchRegisterStore(db, () => NOON),
       clock: { now: () => now },
       codes: secretEnrollmentCodes,
     },

@@ -48,7 +48,7 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: UsersRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
@@ -85,7 +85,7 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
       }
 
       const outcome = await editUser(
-        { store: new DrizzleUserStore(options.db), clock: { now } },
+        { store: new DrizzleUserStore(options.db, now), clock: { now } },
         {
           id: target.id,
           locationId: openSession.locationId,

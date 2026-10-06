@@ -32,7 +32,7 @@ import { resolveWebAuthnConfig } from "./webauthn-config.js";
 export interface RecoveryRedemptionRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  now?: () => Date;
+  now: () => Date;
   recordRejectedAttempt?: typeof recordRejectedAttempt;
   reportError?: (error: unknown) => void;
 }
@@ -53,12 +53,12 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
   app: FastifyInstance,
   options: RecoveryRedemptionRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
   const doRecordRejectedAttempt = options.recordRejectedAttempt ?? recordRejectedAttempt;
   const reportError = options.reportError ?? reportRecoveryBookkeepingError;
-  const ports = { store: new DrizzleRecoveryRedemptionStore(options.db) };
+  const ports = { store: new DrizzleRecoveryRedemptionStore(options.db, now) };
 
   async function checkRedemptionRateLimit(
     request: FastifyRequest,

@@ -22,6 +22,8 @@ import {
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleIssuerIdentificationStore } from "./drizzle-issuer-identification-store.js";
 
+const NOON = new Date("2026-01-05T12:00:00.000Z");
+
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;
@@ -62,7 +64,7 @@ describe("two saves racing on the same issuer identification version, on a real 
     }
     const actorId = actor.id;
 
-    const ports = { store: new DrizzleIssuerIdentificationStore(db) };
+    const ports = { store: new DrizzleIssuerIdentificationStore(db, () => NOON) };
     const [first, second] = await Promise.all([
       editIssuerIdentification(
         ports,

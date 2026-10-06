@@ -13,14 +13,14 @@ import { DrizzleCatalogListReader } from "./drizzle-catalog-list-reader.js";
 export interface TagsRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  now?: () => Date;
+  now: () => Date;
 }
 
 export function registerTagsListRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: TagsRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const catalog = new DrizzleCatalogListReader(options.db);

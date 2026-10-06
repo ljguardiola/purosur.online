@@ -7,7 +7,7 @@ import { issueDeviceToken } from "../device-token.js";
 import { installationKeyCipher } from "../installation-key-cipher.js";
 import { sealOutboxChainKey } from "../outbox-chain-key.js";
 
-export const ENROLLED_TOKEN_ISSUED_AT = new Date("2026-09-28T12:00:00.000Z");
+const A_DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 export interface EnrolledInstallation {
   deviceId: string;
@@ -34,13 +34,15 @@ async function insertRegister<TQueryResult extends PgQueryResultHKT>(
 export async function insertEnrolledInstallation<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   options: {
+    now: Date;
     revokedAt?: Date;
     tokenIssuedAt?: Date;
     registerName?: string;
     existingRegisterId?: string;
     outboxChainKey?: string;
-  } = {},
+  },
 ): Promise<EnrolledInstallation> {
+  const aDayBefore = new Date(options.now.getTime() - A_DAY_IN_MS);
   const locationId = await seededLocationId(db);
   const registerId =
     options.existingRegisterId ?? (await insertRegister(db, locationId, options.registerName));
@@ -51,10 +53,10 @@ export async function insertEnrolledInstallation<TQueryResult extends PgQueryRes
       registerId,
       tokenLookupPrefix: lookupPrefix,
       tokenHash,
-      tokenIssuedAt: options.tokenIssuedAt ?? ENROLLED_TOKEN_ISSUED_AT,
+      tokenIssuedAt: options.tokenIssuedAt ?? aDayBefore,
       hostname: "CAJA-MOSTRADOR",
       windowsVersion: "Windows 11 Pro 10.0.26100",
-      enrolledAt: new Date("2026-09-28T12:00:00.000Z"),
+      enrolledAt: aDayBefore,
       revokedAt: options.revokedAt ?? null,
     })
     .returning({ id: registerInstallations.id });

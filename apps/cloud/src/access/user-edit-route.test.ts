@@ -448,6 +448,7 @@ describe("PUT /users/:id", () => {
       actorId: administratorId,
       previousValue: { email: "grace@example.com" },
       newValue: { email: "new.email@example.com" },
+      at: currentTime,
     });
 
     const opened = await db.select().from(alerts).where(eq(alerts.kind, "user_email_changed"));
@@ -546,6 +547,7 @@ describe("PUT /users/:id", () => {
       actorId: administratorId,
       previousValue: { roleId: cashierRoleId },
       newValue: { roleId: encargadaRoleId },
+      at: currentTime,
     });
     const opened = await db.select().from(alerts).where(eq(alerts.kind, "user_email_changed"));
     expect(opened).toHaveLength(0);

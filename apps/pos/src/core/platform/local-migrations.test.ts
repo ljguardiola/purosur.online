@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { openLocalDatabase } from "./local-database";
 import { LOCAL_MIGRATIONS } from "./local-migrations";
+import { migrationClock } from "./test-support/migration-clock";
 
 const MIGRATIONS_FOLDER = fileURLToPath(new URL("../migrations/", import.meta.url));
 
@@ -31,7 +32,7 @@ describe("the register's local migrations", () => {
       if (first === undefined) {
         throw new Error("test setup: no local migration");
       }
-      const before = openLocalDatabase(path, [first]);
+      const before = openLocalDatabase(path, [first], migrationClock);
       before
         .prepare("UPDATE sync_state SET pull_cursor = 7, device_id = 'device-a' WHERE id = 1")
         .run();
@@ -45,7 +46,7 @@ describe("the register's local migrations", () => {
         .run();
       before.close();
 
-      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
 
       expect(after.prepare("SELECT pull_cursor, device_id FROM sync_state").all()).toEqual([
         { pull_cursor: 7, device_id: "device-a" },
@@ -81,7 +82,7 @@ describe("the register's local migrations", () => {
       if (first === undefined || second === undefined) {
         throw new Error("test setup: fewer than two local migrations");
       }
-      const before = openLocalDatabase(path, [first, second]);
+      const before = openLocalDatabase(path, [first, second], migrationClock);
       before
         .prepare("UPDATE sync_state SET pull_cursor = 9, device_id = 'device-a' WHERE id = 1")
         .run();
@@ -90,7 +91,7 @@ describe("the register's local migrations", () => {
         .run();
       before.close();
 
-      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
 
       expect(after.prepare("SELECT pull_cursor, device_id FROM sync_state").all()).toEqual([
         { pull_cursor: 9, device_id: "device-a" },
@@ -125,7 +126,7 @@ describe("the register's local migrations", () => {
       if (first === undefined || second === undefined || third === undefined) {
         throw new Error("test setup: fewer than three local migrations");
       }
-      const before = openLocalDatabase(path, [first, second, third]);
+      const before = openLocalDatabase(path, [first, second, third], migrationClock);
       before
         .prepare("UPDATE sync_state SET pull_cursor = 11, device_id = 'device-a' WHERE id = 1")
         .run();
@@ -136,7 +137,7 @@ describe("the register's local migrations", () => {
         .run();
       before.close();
 
-      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
 
       expect(after.prepare("SELECT pull_cursor, device_id FROM sync_state").all()).toEqual([
         { pull_cursor: 11, device_id: "device-a" },
@@ -156,7 +157,7 @@ describe("the register's local migrations", () => {
     try {
       const path = join(folder, "register.sqlite");
       const previous = LOCAL_MIGRATIONS.slice(0, 4);
-      const before = openLocalDatabase(path, previous);
+      const before = openLocalDatabase(path, previous, migrationClock);
       before
         .prepare(
           "INSERT INTO users (id, first_name, role_id, salt, active, version) VALUES ('u1', 'Ada', 'role', 'salt', 1, 3)",
@@ -165,7 +166,7 @@ describe("the register's local migrations", () => {
       before.prepare("INSERT INTO pin_verifiers (user_id, verifier) VALUES ('u1', 'v')").run();
       before.close();
 
-      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
 
       expect(after.prepare("SELECT first_name, version FROM users").all()).toEqual([
         { first_name: "Ada", version: 3 },
@@ -183,7 +184,7 @@ describe("the register's local migrations", () => {
     try {
       const path = join(folder, "register.sqlite");
       const previous = LOCAL_MIGRATIONS.slice(0, 7);
-      const before = openLocalDatabase(path, previous);
+      const before = openLocalDatabase(path, previous, migrationClock);
       before
         .prepare(
           "INSERT INTO users (id, first_name, role_id, salt, active, version) VALUES ('u1', 'Ada', 'role', 'salt', 1, 3)",
@@ -192,7 +193,7 @@ describe("the register's local migrations", () => {
       before.prepare("INSERT INTO pin_verifiers (user_id, verifier) VALUES ('u1', 'v')").run();
       before.close();
 
-      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
 
       expect(after.prepare("SELECT first_name, version FROM users").all()).toEqual([
         { first_name: "Ada", version: 3 },
@@ -210,13 +211,13 @@ describe("the register's local migrations", () => {
     try {
       const path = join(folder, "register.sqlite");
       const previous = LOCAL_MIGRATIONS.slice(0, 5);
-      const before = openLocalDatabase(path, previous);
+      const before = openLocalDatabase(path, previous, migrationClock);
       before
         .prepare("UPDATE sync_state SET pull_cursor = 13, device_id = 'device-a' WHERE id = 1")
         .run();
       before.close();
 
-      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
 
       expect(
         after
@@ -241,7 +242,7 @@ describe("the register's local migrations", () => {
     try {
       const path = join(folder, "register.sqlite");
       const previous = LOCAL_MIGRATIONS.slice(0, 6);
-      const before = openLocalDatabase(path, previous);
+      const before = openLocalDatabase(path, previous, migrationClock);
       before
         .prepare("UPDATE sync_state SET pull_cursor = 14, device_id = 'device-a' WHERE id = 1")
         .run();
@@ -252,7 +253,7 @@ describe("the register's local migrations", () => {
         .run();
       before.close();
 
-      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
 
       expect(after.prepare("SELECT pull_cursor, device_id FROM sync_state").all()).toEqual([
         { pull_cursor: 14, device_id: "device-a" },
@@ -272,7 +273,7 @@ describe("the register's local migrations", () => {
     try {
       const path = join(folder, "register.sqlite");
       const previous = LOCAL_MIGRATIONS.slice(0, 8);
-      const before = openLocalDatabase(path, previous);
+      const before = openLocalDatabase(path, previous, migrationClock);
       before
         .prepare(
           `INSERT INTO discounts (
@@ -282,7 +283,7 @@ describe("the register's local migrations", () => {
         .run();
       before.close();
 
-      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
 
       expect(
         after.prepare("SELECT id, kind, percent, buy_qty, pay_qty, version FROM discounts").all(),
@@ -296,7 +297,7 @@ describe("the register's local migrations", () => {
   });
 
   it("hold a discount of a kind and a percent a later migration may extend without a rewrite", () => {
-    const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
+    const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
     const insert = database.prepare(
       `INSERT INTO discounts (
          id, name, kind, percent, target_kind, target_id, valid_from, valid_to, weekdays, active, version
@@ -320,7 +321,7 @@ describe("the register's local migrations", () => {
       const previous = LOCAL_MIGRATIONS.slice(0, 9);
       expect(previous.at(-1)?.name).toBe("0008_buy_n_pay_m_discounts");
       expect(LOCAL_MIGRATIONS.at(previous.length)?.name).toBe("0009_sales");
-      const before = openLocalDatabase(path, previous);
+      const before = openLocalDatabase(path, previous, migrationClock);
       before
         .prepare("UPDATE sync_state SET pull_cursor = 15, device_id = 'device-a' WHERE id = 1")
         .run();
@@ -339,7 +340,7 @@ describe("the register's local migrations", () => {
         .run();
       before.close();
 
-      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
 
       expect(after.prepare("SELECT id, buy_qty, pay_qty FROM discounts").all()).toEqual([
         { id: "d1", buy_qty: 3, pay_qty: 2 },
@@ -368,7 +369,7 @@ describe("the register's local migrations", () => {
       const previous = LOCAL_MIGRATIONS.slice(0, 10);
       expect(previous.at(-1)?.name).toBe("0009_sales");
       expect(LOCAL_MIGRATIONS.at(previous.length)?.name).toBe("0010_sale_line_promotions");
-      const before = openLocalDatabase(path, previous);
+      const before = openLocalDatabase(path, previous, migrationClock);
       before
         .prepare(
           `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
@@ -389,7 +390,7 @@ describe("the register's local migrations", () => {
         .run();
       before.close();
 
-      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
 
       expect(
         after.prepare("SELECT id, line_total, promotion_id, discount_amount FROM sale_lines").all(),
@@ -411,7 +412,7 @@ describe("the register's local migrations", () => {
       expect(previous.at(-1)?.name).toBe("0012_payment_transactions");
       const withRemovals = LOCAL_MIGRATIONS.slice(0, 14);
       expect(withRemovals.at(-1)?.name).toBe("0013_sale_line_removals");
-      const before = openLocalDatabase(path, previous);
+      const before = openLocalDatabase(path, previous, migrationClock);
       before
         .prepare(
           `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
@@ -426,7 +427,7 @@ describe("the register's local migrations", () => {
         .run();
       before.close();
 
-      const after = openLocalDatabase(path, withRemovals);
+      const after = openLocalDatabase(path, withRemovals, migrationClock);
 
       expect(after.prepare("SELECT id, state FROM sales").all()).toEqual([
         { id: "a", state: "OPEN" },
@@ -447,7 +448,7 @@ describe("the register's local migrations", () => {
       const previous = LOCAL_MIGRATIONS.slice(0, 18);
       expect(previous.at(-1)?.name).toBe("0017_completed_sales_only");
       expect(LOCAL_MIGRATIONS.at(previous.length)?.name).toBe("0018_transfer_payments");
-      const before = openLocalDatabase(path, previous);
+      const before = openLocalDatabase(path, previous, migrationClock);
       before
         .prepare(
           `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
@@ -468,7 +469,7 @@ describe("the register's local migrations", () => {
         .run();
       before.close();
 
-      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
 
       expect(
         after
@@ -522,7 +523,7 @@ describe("the register's local migrations", () => {
       const previous = LOCAL_MIGRATIONS.slice(0, 11);
       expect(previous.at(-1)?.name).toBe("0010_sale_line_promotions");
       expect(LOCAL_MIGRATIONS.at(previous.length)?.name).toBe("0011_sale_lines_by_product");
-      const before = openLocalDatabase(path, previous);
+      const before = openLocalDatabase(path, previous, migrationClock);
       before
         .prepare(
           `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
@@ -543,7 +544,7 @@ describe("the register's local migrations", () => {
         .run();
       before.close();
 
-      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
 
       expect(after.prepare("SELECT id, product_id, quantity FROM sale_lines").all()).toEqual([
         { id: "l1", product_id: "p1", quantity: 2 },
@@ -574,7 +575,7 @@ describe("the register's local migrations", () => {
       const previous = LOCAL_MIGRATIONS.slice(0, 12);
       expect(previous.at(-1)?.name).toBe("0011_sale_lines_by_product");
       expect(LOCAL_MIGRATIONS.slice(previous.length)[0]?.name).toBe("0012_payment_transactions");
-      const before = openLocalDatabase(path, previous);
+      const before = openLocalDatabase(path, previous, migrationClock);
       before
         .prepare(
           `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
@@ -595,7 +596,7 @@ describe("the register's local migrations", () => {
         .run();
       before.close();
 
-      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
 
       expect(after.prepare("SELECT id, state FROM sales").all()).toEqual([
         { id: "sale-1", state: "OPEN" },
@@ -614,7 +615,7 @@ describe("the register's local migrations", () => {
 
   describe("hold payment transactions that", () => {
     function withOpenSale() {
-      const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
+      const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
       database
         .prepare(
           `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
@@ -699,7 +700,7 @@ describe("the register's local migrations", () => {
     }
 
     function withSession() {
-      const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
+      const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
       database
         .prepare(
           `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
@@ -859,7 +860,7 @@ describe("the register's local migrations", () => {
         "0017_completed_sales_only",
         "0018_transfer_payments",
       ]);
-      const before = openLocalDatabase(path, previous);
+      const before = openLocalDatabase(path, previous, migrationClock);
       before
         .prepare("UPDATE sync_state SET pull_cursor = 16, device_id = 'device-a' WHERE id = 1")
         .run();
@@ -871,7 +872,7 @@ describe("the register's local migrations", () => {
         .run();
       before.close();
 
-      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
 
       expect(after.prepare("SELECT pull_cursor, device_id FROM sync_state").all()).toEqual([
         { pull_cursor: 16, device_id: "device-a" },
@@ -904,7 +905,7 @@ describe("the register's local migrations", () => {
         "0017_completed_sales_only",
         "0018_transfer_payments",
       ]);
-      const before = openLocalDatabase(path, previous);
+      const before = openLocalDatabase(path, previous, migrationClock);
       before
         .prepare(
           `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
@@ -919,7 +920,7 @@ describe("the register's local migrations", () => {
         .run();
       before.close();
 
-      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
 
       expect(after.prepare("SELECT id, state FROM sales").all()).toEqual([
         { id: "sale-1", state: "COMPLETED" },
@@ -944,7 +945,7 @@ describe("the register's local migrations", () => {
         "0017_completed_sales_only",
         "0018_transfer_payments",
       ]);
-      const before = openLocalDatabase(path, previous);
+      const before = openLocalDatabase(path, previous, migrationClock);
       before
         .prepare("INSERT INTO own_register (id, name, version) VALUES ('r1', 'Caja 1', 3)")
         .run();
@@ -956,7 +957,7 @@ describe("the register's local migrations", () => {
         .run();
       before.close();
 
-      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
 
       expect(after.prepare("SELECT id, name, version FROM own_register").all()).toEqual([
         { id: "r1", name: "Caja 1", version: 3 },
@@ -983,7 +984,7 @@ describe("the register's local migrations", () => {
         "0017_completed_sales_only",
         "0018_transfer_payments",
       ]);
-      const before = openLocalDatabase(path, previous);
+      const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
         `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
          VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN');
@@ -1009,7 +1010,7 @@ describe("the register's local migrations", () => {
       );
       before.close();
 
-      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
 
       expect(after.prepare("SELECT id, state FROM sales ORDER BY id").all()).toEqual([
         { id: "done", state: "COMPLETED" },

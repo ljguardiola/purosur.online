@@ -168,6 +168,7 @@ describe("POST /buyer-identification-thresholds", () => {
       entity: "buyer_identification_threshold",
       actorId: userId,
       newValue: { amount: 1_000_000, valid_from: "2026-10-01" },
+      at: NOON,
     });
     const logged = await db.select().from(changes).where(eq(changes.entityId, id));
     expect(logged).toMatchObject([{ entity: "buyer_identification_threshold", op: "insert" }]);

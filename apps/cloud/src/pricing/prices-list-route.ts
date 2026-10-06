@@ -15,7 +15,7 @@ import { DrizzlePriceReviewReader } from "./drizzle-price-review-reader.js";
 export interface PricesRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  now?: () => Date;
+  now: () => Date;
 }
 
 function toPriceListBody(result: PricesUnderReview) {
@@ -44,7 +44,7 @@ export function registerPricesListRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: PricesRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   const reader = new DrizzlePriceReviewReader(options.db);
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });

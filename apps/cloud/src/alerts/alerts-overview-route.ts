@@ -17,7 +17,7 @@ export function registerAlertsOverviewRoute<TQueryResult extends PgQueryResultHK
   app: FastifyInstance,
   options: AlertsRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 

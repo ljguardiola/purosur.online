@@ -12,6 +12,8 @@ import {
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleRoleStore } from "./drizzle-role-store.js";
 
+const NOON = new Date("2026-01-05T12:00:00.000Z");
+
 // PGlite runs every query over one connection, so it can never race two creations for the same
 // name; this runs them over a real postgres-js pool against a real Postgres instead.
 let integrationDb: IntegrationDatabase;
@@ -48,11 +50,11 @@ describe("creating two roles with the same name concurrently on a real Postgres 
 
     const [first, second] = await Promise.all([
       createRole(
-        { store: new DrizzleRoleStore(db) },
+        { store: new DrizzleRoleStore(db, () => NOON) },
         { name, permissionKeys: ["sell_and_charge"], actorId: administratorId },
       ),
       createRole(
-        { store: new DrizzleRoleStore(db) },
+        { store: new DrizzleRoleStore(db, () => NOON) },
         {
           name: name.toUpperCase(),
           permissionKeys: ["sell_and_charge"],

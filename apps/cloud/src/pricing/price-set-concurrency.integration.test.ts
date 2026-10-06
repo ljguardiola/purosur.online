@@ -14,6 +14,8 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { DrizzlePricingStore } from "./drizzle-pricing-store.js";
 
+const NOON = new Date("2026-01-05T12:00:00.000Z");
+
 // PGlite serializes all transactions on one connection, so only a real Postgres pool can
 // interleave two writes to the same product; each test holds the row lock and waits for both to queue.
 let integrationDb: IntegrationDatabase;
@@ -64,7 +66,7 @@ function holdProductRowLock(productId: string) {
 const NOW = () => new Date("2026-01-05T12:00:00.000Z");
 
 function pricingPorts() {
-  return { store: new DrizzlePricingStore(db), clock: { now: NOW } };
+  return { store: new DrizzlePricingStore(db, () => NOON), clock: { now: NOW } };
 }
 
 describe("two price changes on the same never-priced product queued behind each other, on a real Postgres", () => {

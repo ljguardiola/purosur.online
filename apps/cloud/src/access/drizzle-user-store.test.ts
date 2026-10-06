@@ -1,6 +1,7 @@
 import { UserEmailConflict, type UserStoreTransaction } from "@purosur/domain/access/use-cases";
 import { asc, eq } from "drizzle-orm";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
 import {
   alerts,
   auditLog,
@@ -66,7 +67,7 @@ beforeEach(async () => {
   administratorRoleId = administrator.id;
 });
 
-const store = () => new DrizzleUserStore(db);
+const store = () => new DrizzleUserStore(db, () => NOW);
 
 async function loggedUserChanges(userId: string) {
   return db
@@ -428,7 +429,7 @@ describe("opening alerts", () => {
 describe("the change log", () => {
   it("logs through the collector of a caller that owns the outer transaction, and discards it on rollback", async () => {
     const pending = new PendingChanges();
-    const attempt = new DrizzleUserStore(db, pending).transaction(async (tx) => {
+    const attempt = new DrizzleUserStore(db, () => NOW, pending).transaction(async (tx) => {
       await tx.insertUser({ firstName: "Marta", email: "marta@example.com", locationId });
       throw new Error("the operation failed afterwards");
     });
@@ -437,5 +438,13 @@ describe("the change log", () => {
 
     expect(pending.mark()).toBe(0);
     expect(await db.select().from(users).where(eq(users.email, "marta@example.com"))).toEqual([]);
+  });
+});
+
+describe("DrizzleUserStore's clock", () => {
+  it("is required to build the store", () => {
+    expectTypeOf<[PgDatabase<PgQueryResultHKT>]>().not.toExtend<
+      ConstructorParameters<typeof DrizzleUserStore>
+    >();
   });
 });

@@ -1,6 +1,17 @@
 import { eq } from "drizzle-orm";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  expectTypeOf,
+  it,
+  vi,
+} from "vitest";
 import { rolePermissions, roles, sessions, userRoles, users } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
@@ -431,7 +442,7 @@ describe("the route access inventory", () => {
   it("collects the declared access of every registered route, excluding the auto-mirrored HEAD of a GET", async () => {
     const inventoryApp = Fastify();
     registerRouteAccess(inventoryApp);
-    const sessionSource = routeSessionSource({ db });
+    const sessionSource = routeSessionSource({ db, now: () => NOON });
     inventoryApp.get(
       "/foo",
       { config: { access: OPEN_SESSION_ACCESS, sessionSource } },
@@ -459,7 +470,7 @@ describe("the route access inventory", () => {
       {
         config: {
           access: capabilityAccess("stock_movements"),
-          sessionSource: routeSessionSource({ db }),
+          sessionSource: routeSessionSource({ db, now: () => NOON }),
         },
       },
       async () => "ok",
@@ -514,5 +525,13 @@ describe("the route access inventory", () => {
     const response = await app.inject({ method: "HEAD", url: "/test-only/open-session" });
 
     expect(response.statusCode).toBe(401);
+  });
+});
+
+describe("routeSessionSource's clock", () => {
+  it("is required", () => {
+    expectTypeOf<{ db: PgDatabase<PgQueryResultHKT> }>().not.toExtend<
+      Parameters<typeof routeSessionSource<PgQueryResultHKT>>[0]
+    >();
   });
 });

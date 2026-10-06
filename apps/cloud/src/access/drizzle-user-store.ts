@@ -61,10 +61,12 @@ class DrizzleUserStoreTransaction<TQueryResult extends PgQueryResultHKT>
 {
   readonly users: BranchUsers;
   private readonly tx: Transaction<TQueryResult>;
+  private readonly now: () => Date;
   private readonly pending: PendingChanges;
 
-  constructor(tx: Transaction<TQueryResult>, pending: PendingChanges) {
+  constructor(tx: Transaction<TQueryResult>, now: () => Date, pending: PendingChanges) {
     this.tx = tx;
+    this.now = now;
     this.pending = pending;
     this.users = drizzleBranchUsers(tx);
   }
@@ -205,9 +207,13 @@ class DrizzleUserStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   async recordUserChange(userId: string, actorId: string, change: UserChange): Promise<void> {
-    await this.tx
-      .insert(auditLog)
-      .values({ entity: "user", entityId: userId, actorId, ...auditValues(change) });
+    await this.tx.insert(auditLog).values({
+      entity: "user",
+      entityId: userId,
+      actorId,
+      ...auditValues(change),
+      at: this.now(),
+    });
   }
 
   async openUserAlert(alert: UserAlert): Promise<void> {
@@ -261,16 +267,18 @@ class DrizzleUserStoreTransaction<TQueryResult extends PgQueryResultHKT>
 
 export class DrizzleUserStore<TQueryResult extends PgQueryResultHKT> implements UserStore {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly now: () => Date;
   private readonly pending: PendingChanges | undefined;
 
-  constructor(db: PgDatabase<TQueryResult>, pending?: PendingChanges) {
+  constructor(db: PgDatabase<TQueryResult>, now: () => Date, pending?: PendingChanges) {
     this.db = db;
+    this.now = now;
     this.pending = pending;
   }
 
   transaction<TOutcome>(work: (tx: UserStoreTransaction) => Promise<TOutcome>): Promise<TOutcome> {
     return withPendingChanges(this.db, this.pending, (tx, pending) =>
-      work(new DrizzleUserStoreTransaction(tx, pending)),
+      work(new DrizzleUserStoreTransaction(tx, this.now, pending)),
     );
   }
 }

@@ -19,10 +19,12 @@ class DrizzleFirstAdministratorStoreTransaction<TQueryResult extends PgQueryResu
   implements FirstAdministratorStoreTransaction
 {
   private readonly tx: Transaction<TQueryResult>;
+  private readonly now: () => Date;
   private readonly pending: PendingChanges;
 
-  constructor(tx: Transaction<TQueryResult>, pending: PendingChanges) {
+  constructor(tx: Transaction<TQueryResult>, now: () => Date, pending: PendingChanges) {
     this.tx = tx;
+    this.now = now;
     this.pending = pending;
   }
 
@@ -81,6 +83,7 @@ class DrizzleFirstAdministratorStoreTransaction<TQueryResult extends PgQueryResu
       actorId: userId,
       previousValue: null,
       newValue: created,
+      at: this.now(),
     });
   }
 }
@@ -89,16 +92,18 @@ export class DrizzleFirstAdministratorStore<TQueryResult extends PgQueryResultHK
   implements FirstAdministratorStore
 {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly now: () => Date;
 
-  constructor(db: PgDatabase<TQueryResult>) {
+  constructor(db: PgDatabase<TQueryResult>, now: () => Date) {
     this.db = db;
+    this.now = now;
   }
 
   transaction<TOutcome>(
     work: (tx: FirstAdministratorStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     return withPendingChanges(this.db, undefined, (tx, pending) =>
-      work(new DrizzleFirstAdministratorStoreTransaction(tx, pending)),
+      work(new DrizzleFirstAdministratorStoreTransaction(tx, this.now, pending)),
     );
   }
 }

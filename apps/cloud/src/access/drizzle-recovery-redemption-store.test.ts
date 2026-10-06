@@ -1,6 +1,7 @@
 import { PasskeyAlreadyRegistered } from "@purosur/domain/access/use-cases";
 import { and, asc, eq } from "drizzle-orm";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
 import {
   alerts,
   auditLog,
@@ -12,6 +13,8 @@ import {
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleRecoveryRedemptionStore } from "./drizzle-recovery-redemption-store.js";
+
+const NOON = new Date("2026-01-05T12:00:00.000Z");
 
 const ISSUED_AT = new Date("2026-10-01T12:00:00.000Z");
 const EXPIRES_AT = new Date("2026-10-01T12:15:00.000Z");
@@ -65,7 +68,7 @@ beforeEach(async () => {
   tokenId = await insertToken();
 });
 
-const store = () => new DrizzleRecoveryRedemptionStore(db);
+const store = () => new DrizzleRecoveryRedemptionStore(db, () => NOON);
 
 function recoveredPasskey(overrides: Record<string, unknown> = {}) {
   return {
@@ -355,5 +358,13 @@ describe("the transaction", () => {
 
     const [row] = await db.select({ usedAt: recoveryTokens.usedAt }).from(recoveryTokens);
     expect(row?.usedAt).toBeNull();
+  });
+});
+
+describe("DrizzleRecoveryRedemptionStore's clock", () => {
+  it("is required to build the store", () => {
+    expectTypeOf<[PgDatabase<PgQueryResultHKT>]>().not.toExtend<
+      ConstructorParameters<typeof DrizzleRecoveryRedemptionStore>
+    >();
   });
 });

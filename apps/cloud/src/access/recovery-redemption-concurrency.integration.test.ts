@@ -23,6 +23,8 @@ import { findFreePort } from "./test-support/find-free-port.js";
 // PGlite serializes every query on one connection and can never race for real; this proves the
 // same guarantee against a real Postgres pool, over two genuinely parallel HTTP requests.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
+const NOW = new Date("2026-01-05T12:00:00.000Z");
+const now = () => NOW;
 
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
@@ -46,18 +48,21 @@ interface StartedFixture {
 
 async function startRealServer(): Promise<StartedFixture> {
   const port = await findFreePort();
-  const app = await startServer({
-    PORT: String(port),
-    DATABASE_URL: integrationDb.databaseUrl,
-    RESEND_API_KEY: "unused-redeem-never-sends-email",
-    RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
-    RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
-    BACKOFFICE_ORIGIN,
-    EDGE_ORIGIN_SECRET: TEST_EDGE_ORIGIN_SECRET,
-    ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
-    DEVICE_TOKEN_ROTATION_KEY: TEST_DEVICE_TOKEN_ROTATION_KEY.toString("base64"),
-    INSTALLATION_KEYS_ENCRYPTION_KEY: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY.toString("base64"),
-  });
+  const app = await startServer(
+    {
+      PORT: String(port),
+      DATABASE_URL: integrationDb.databaseUrl,
+      RESEND_API_KEY: "unused-redeem-never-sends-email",
+      RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+      RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+      BACKOFFICE_ORIGIN,
+      EDGE_ORIGIN_SECRET: TEST_EDGE_ORIGIN_SECRET,
+      ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
+      DEVICE_TOKEN_ROTATION_KEY: TEST_DEVICE_TOKEN_ROTATION_KEY.toString("base64"),
+      INSTALLATION_KEYS_ENCRYPTION_KEY: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY.toString("base64"),
+    },
+    { now },
+  );
   return { origin: `http://127.0.0.1:${port}`, close: () => app.close() };
 }
 
@@ -77,8 +82,8 @@ async function seedUserAndToken(): Promise<{ userId: string; rawToken: string }>
   await db.insert(recoveryTokens).values({
     userId: user.id,
     tokenHash: hashRecoveryToken(rawToken),
-    issuedAt: new Date(),
-    expiresAt: new Date(Date.now() + RECOVERY_TOKEN_LIFETIME_MS),
+    issuedAt: now(),
+    expiresAt: new Date(now().getTime() + RECOVERY_TOKEN_LIFETIME_MS),
   });
   return { userId: user.id, rawToken };
 }

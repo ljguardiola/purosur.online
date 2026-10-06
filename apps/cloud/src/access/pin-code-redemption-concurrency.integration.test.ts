@@ -25,6 +25,8 @@ import { DrizzlePinCodeRedemptionStore } from "./drizzle-pin-code-redemption-sto
 import { DrizzlePinCodeStore } from "./drizzle-pin-code-store.js";
 import { generatePinCode } from "./pin-code-generator.js";
 
+const NOON = new Date("2026-01-05T12:00:00.000Z");
+
 // PGlite serializes every transaction, so racing redemptions can only interleave on a real
 // Postgres pool.
 const CODE = "P4NX7KWE2QRT6MZD";
@@ -160,7 +162,7 @@ describe("emitting a PIN code while its holder redeems one on a real Postgres", 
       () =>
         emitUserPinCode(
           {
-            store: new DrizzlePinCodeStore(db, locationId),
+            store: new DrizzlePinCodeStore(db, () => NOON, locationId),
             clock: { now: () => now },
             codes: { generate: generatePinCode },
           },
