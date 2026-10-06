@@ -8,9 +8,13 @@ import { test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { stripVTControlCharacters } from "node:util";
 import { parse } from "yaml";
+import { filesToMutate, shardOfFiles } from "./mutation-shard.mjs";
 
 const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
 const strykerBin = join(repoRoot, "node_modules/@stryker-mutator/core/bin/stryker.js");
+const { default: strykerConfig } = await import(
+  pathToFileURL(join(repoRoot, "stryker.config.mjs")).href
+);
 
 const FIXTURE_SOURCE = `const NUMBER_FORMAT = new Intl.NumberFormat("es-AR");
 
@@ -124,7 +128,7 @@ async function copyFromRepo(root, relativePath) {
   await cp(join(repoRoot, relativePath), join(root, relativePath));
 }
 
-async function runMutationOn(writeFixture) {
+async function runMutationOn(writeFixture, strykerArgsFor = () => []) {
   const dir = await mkdtemp(join(tmpdir(), "mutation testing "));
   try {
     await symlink(join(repoRoot, "node_modules"), join(dir, "node_modules"), "junction");
@@ -145,7 +149,7 @@ async function runMutationOn(writeFixture) {
         "export default { ...config, concurrency: 2 };",
       ].join("\n"),
     );
-    return spawnSync(process.execPath, [strykerBin, "run", "stryker.fixture.config.mjs"], {
+    return spawnSync(process.execPath, [strykerBin, "run", "stryker.fixture.config.mjs", ...strykerArgsFor(dir)], {
       cwd: dir,
       encoding: "utf8",
       env: { PATH: process.env.PATH, NO_COLOR: "1" },
@@ -234,6 +238,30 @@ test("reports every change no test catches with its file and line, and nothing a
       "packages/domain/src/sign.ts:2",
     ],
     fixtureRun.stdout + fixtureRun.stderr,
+  );
+});
+
+test("the runs of every shard together mutate and report what the whole run does", async () => {
+  const shardRuns = [];
+  for (const index of [0, 1]) {
+    shardRuns.push(
+      await runMutationOn(writeRulePackages, (dir) => [
+        "--mutate",
+        shardOfFiles(filesToMutate({ root: dir, patterns: strykerConfig.mutate }), {
+          index,
+          total: 2,
+        }).join(","),
+      ]),
+    );
+  }
+  const output = shardRuns.map((run) => stripVTControlCharacters(run.stdout + run.stderr));
+  const mutatedFileCounts = output.map((plain) => Number(/Found (\d+) of/.exec(plain)?.[1]));
+
+  assert.deepEqual(mutatedFileCounts, [2, 2], output.join("\n"));
+  assert.deepEqual(
+    shardRuns.flatMap((run) => reportedLines(run.stdout)).sort(),
+    reportedLines(fixtureRun.stdout),
+    output.join("\n"),
   );
 });
 
