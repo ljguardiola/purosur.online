@@ -47,6 +47,7 @@ export {
   mayEmitPinCodeFor,
   mayReactivateUser,
   mayRemoveUserPasskey,
+  mayRequestPinCodeFor,
   normalizePinCode,
   PASSKEY_AUTHORIZATION_WINDOW_MS,
   PASSKEY_NAME_MAX_LENGTH,

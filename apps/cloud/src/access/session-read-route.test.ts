@@ -155,7 +155,7 @@ describe("GET /sessions/current", () => {
       expires_at: new Date(NOON.getTime() + SESSION_IDLE_TIMEOUT_MS).toISOString(),
       capabilities: [],
       stock_movement_kinds: [],
-      may_emit_own_pin_code: false,
+      may_emit_own_pin_code: true,
     });
   });
 
@@ -180,7 +180,7 @@ describe("GET /sessions/current", () => {
     expect(response.json()).toMatchObject({ may_emit_own_pin_code: true });
   });
 
-  it("answers may_emit_own_pin_code false for a holder of reset_user_pin who is not an Administrator", async () => {
+  it("answers may_emit_own_pin_code true for a holder of reset_user_pin who is not an Administrator", async () => {
     const [pinRole] = await db
       .insert(roles)
       .values({ name: "Encargada", isAdministrator: false })
@@ -198,7 +198,7 @@ describe("GET /sessions/current", () => {
 
     expect(response.json()).toMatchObject({
       capabilities: expect.arrayContaining(["reset_user_pin"]),
-      may_emit_own_pin_code: false,
+      may_emit_own_pin_code: true,
     });
   });
 

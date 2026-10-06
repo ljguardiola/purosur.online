@@ -58,6 +58,7 @@ export {
   isWellFormedPinCode,
   mayEmitPinCode,
   mayEmitPinCodeFor,
+  mayRequestPinCodeFor,
   normalizePinCode,
   PIN_CODE_HOURLY_LIMIT,
   PIN_CODE_MAX_FAILED_ATTEMPTS,

@@ -151,7 +151,7 @@ describe("GET /users/:id", () => {
       role: { id: roleId, is_administrator: false, name: "Encargada" },
       passkey_count: 0,
       is_last_active_administrator: false,
-      may_emit_pin_code: false,
+      may_emit_pin_code: true,
       may_edit: false,
       may_deactivate: false,
       may_reactivate: false,
@@ -496,13 +496,13 @@ describe("GET /users/:id", () => {
       ).toBe(false);
     });
 
-    it("is false for a holder of reset_user_pin reading their own user", async () => {
+    it("is true for a holder of reset_user_pin who is not an Administrator reading their own user", async () => {
       expect(
         await pinCodeAnswer(
           { permissionKeys: ["deactivate_users", "reset_user_pin"] },
           { role: "cashier", self: true },
         ),
-      ).toBe(false);
+      ).toBe(true);
     });
 
     it("is true for an Administrator reading their own user", async () => {

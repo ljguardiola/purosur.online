@@ -9,7 +9,12 @@ import {
   openSessionSchema,
   passkeyListSchema,
 } from "@purosur/contracts";
-import { CAPABILITY_PERMISSIONS, PERMISSION_KEYS, type PermissionKey } from "@purosur/domain";
+import {
+  CAPABILITY_PERMISSIONS,
+  mayRequestPinCodeFor,
+  PERMISSION_KEYS,
+  type PermissionKey,
+} from "@purosur/domain";
 import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support";
 import { eq } from "drizzle-orm";
 import {
@@ -30,6 +35,7 @@ import {
   PUBLIC_ACCESS,
   type RouteAccess,
   type RouteAccessEntry,
+  recordAccess,
   SESSION_COOKIE_ACCESS,
 } from "./access/route-access.js";
 import { SESSION_COOKIE_NAME } from "./access/session-cookie.js";
@@ -1860,7 +1866,7 @@ describe("the route access inventory", () => {
       {
         method: "POST",
         url: "/api/users/:id/pin-codes",
-        access: capabilityAccess("reset_user_pin"),
+        access: recordAccess("id", mayRequestPinCodeFor),
       },
       {
         method: "DELETE",
@@ -2331,7 +2337,14 @@ describe("every route enforces the access it declares", () => {
     const declaredLevels = new Set(app.routeAccessInventory().map((route) => route.access?.level));
 
     expect(declaredLevels).toEqual(
-      new Set(["public", "open_session", "open_session_peek", "session_cookie", "capability"]),
+      new Set([
+        "public",
+        "open_session",
+        "open_session_peek",
+        "session_cookie",
+        "capability",
+        "record",
+      ]),
     );
   });
 
@@ -2358,6 +2371,7 @@ describe("every route enforces the access it declares", () => {
       "open_session_peek",
       "session_cookie",
       "capability",
+      "record",
     ])) {
       const response = await send(app, route);
 
@@ -2373,7 +2387,7 @@ describe("every route enforces the access it declares", () => {
     const app = productionWiredApp();
     await app.ready();
 
-    for (const route of routesDeclaring(app, ["open_session", "open_session_peek"])) {
+    for (const route of routesDeclaring(app, ["open_session", "open_session_peek", "record"])) {
       const rawSessionId = await signedInWithRole([]);
       await testDatabase.db
         .update(sessions)
@@ -2400,6 +2414,23 @@ describe("every route enforces the access it declares", () => {
       const rawSessionId = await signedInWithRole(
         PERMISSION_KEYS.filter((key) => !capabilityPermissions.includes(key)),
       );
+
+      const response = await send(app, route, rawSessionId);
+
+      expect(
+        response.statusCode,
+        `${route.method} ${route.url} responded ${response.statusCode}, body: ${response.body}`,
+      ).toBe(403);
+      expect(response.json()).toMatchObject({ code: "forbidden" });
+    }
+  });
+
+  it("answers 403 forbidden on every record route to a user without permissions aiming at another person's record", async () => {
+    const app = productionWiredApp();
+    await app.ready();
+
+    for (const route of routesDeclaring(app, ["record"])) {
+      const rawSessionId = await signedInWithRole([]);
 
       const response = await send(app, route, rawSessionId);
 
