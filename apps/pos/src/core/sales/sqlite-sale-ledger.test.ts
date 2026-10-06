@@ -17,9 +17,10 @@ import {
 } from "@purosur/domain/sales/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
-import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
+import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
+import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { cashBalanceFor } from "../register/cash-session-requests";
 import { SqliteCashLedger } from "../register/sqlite-cash-ledger";
 import { SqliteSaleLedger } from "./sqlite-sale-ledger";

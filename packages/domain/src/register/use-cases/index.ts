@@ -26,6 +26,7 @@ export type {
   OpenSale,
   RegisterIdentity,
 } from "./cash-ledger.js";
+export { checkLocalDatabase } from "./check-local-database.js";
 export type {
   CloseCashSessionGrant,
   CloseCashSessionInput,
@@ -54,6 +55,10 @@ export type {
   PendingEnrollmentCode,
 } from "./list-branch-registers.js";
 export { listBranchRegisters } from "./list-branch-registers.js";
+export type {
+  LocalDatabaseHealth,
+  LocalDatabaseHealthPorts,
+} from "./local-database-health.js";
 export type {
   OpenCashSessionGrant,
   OpenCashSessionInput,
@@ -93,6 +98,7 @@ export type {
   StoredDeviceToken,
   VersionedKey,
 } from "./register-store.js";
+export { reportLocalDatabaseDamage } from "./report-local-database-damage.js";
 export type {
   RotateDeviceTokenInput,
   RotateDeviceTokenOutcome,

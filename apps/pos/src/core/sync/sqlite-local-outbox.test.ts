@@ -1,9 +1,10 @@
 import { PUSH_EVENTS_REQUEST_MAX_BYTES } from "@purosur/contracts";
 import { type OutboxEventDraft, PUSH_BATCH_MAX_EVENTS, type PushedEvent } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
+import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
+import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { CloudEventInbox } from "./cloud-event-inbox";
 import { SqliteLocalOutbox } from "./sqlite-local-outbox";
 import { appendOutboxEvent } from "./sqlite-outbox";

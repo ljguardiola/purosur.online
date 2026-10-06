@@ -65,15 +65,14 @@ function columnsFor(openEditor: (request: RoleEditorRequest) => void, permission
           "aria-label": `Duplicar el rol ${roleDisplayName(item)}`,
           onPress: () => openEditor({ kind: "duplicate", source: item }),
         }),
-        // The server refuses to edit the Administrator role regardless, so no edit action is offered.
         (item: RoleSummary) =>
-          item.isAdministrator
-            ? undefined
-            : {
+          item.mayEdit
+            ? {
                 icon: <Pencil />,
                 "aria-label": `Editar el rol ${roleDisplayName(item)}`,
                 onPress: () => openEditor({ kind: "edit", roleId: item.id }),
-              },
+              }
+            : undefined,
       ],
     }),
   ] as const;

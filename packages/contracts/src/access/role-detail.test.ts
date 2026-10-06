@@ -7,6 +7,7 @@ const cashier = {
   is_administrator: false,
   permissions: ["view_catalog"],
   user_count: 1,
+  may_edit: true,
   version: 3,
   assigned_users: [{ id: "user-1", name: "Ana" }],
 };
@@ -34,6 +35,7 @@ describe("roleDetailSchema", () => {
     "is_administrator",
     "permissions",
     "user_count",
+    "may_edit",
     "version",
     "assigned_users",
   ])("requires %s", (field) => {

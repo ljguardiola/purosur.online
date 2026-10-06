@@ -34,6 +34,7 @@ function buildFailingRouter(shouldThrow: () => boolean) {
     {
       queryClient: createQueryClient(),
       coreStatus: "up",
+      registerService: "in_service",
       enrollment: "enrolled",
       person: undefined,
       cashSession: { status: "none" },

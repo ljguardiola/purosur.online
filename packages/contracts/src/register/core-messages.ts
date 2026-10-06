@@ -26,6 +26,11 @@ const enrollmentStatusRequestMessageSchema = z.object({
   request_id: requestId,
 });
 
+const registerServiceRequestMessageSchema = z.object({
+  type: z.literal("register-service-request"),
+  request_id: requestId,
+});
+
 const registerNameRequestMessageSchema = z.object({
   type: z.literal("register-name-request"),
   request_id: requestId,
@@ -122,6 +127,7 @@ const lockedClosersRequestMessageSchema = z.object({
 export const registerRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   rendererPingMessageSchema,
   enrollmentStatusRequestMessageSchema,
+  registerServiceRequestMessageSchema,
   registerNameRequestMessageSchema,
   enrollMessageSchema,
   checkEnrollmentCodeMessageSchema,
@@ -259,6 +265,11 @@ export type RecordableCashMovementKinds = z.infer<typeof recordableCashMovementK
 
 export const registerCoreToRendererMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("enrollment-status"), request_id: requestId, enrolled: z.boolean() }),
+  z.object({
+    type: z.literal("register-service"),
+    request_id: requestId,
+    service: z.enum(["in_service", "out_of_service"]),
+  }),
   z.object({
     type: z.literal("register-name"),
     request_id: requestId,

@@ -353,6 +353,7 @@ describe("PUT /roles/:id", () => {
       is_administrator: false,
       permissions: ["sell_and_charge", "configure_branch"],
       user_count: 1,
+      may_edit: true,
       version: 2,
       assigned_users: [{ id: graceId, name: "Grace Hopper" }],
     });

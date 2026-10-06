@@ -9,7 +9,7 @@ export interface LocalMigration {
   sql: string;
 }
 
-function applyMigrations(
+export function applyMigrations(
   database: LocalDatabase,
   migrations: readonly LocalMigration[],
   now: () => Date,
@@ -37,17 +37,12 @@ function applyMigrations(
   }
 }
 
-export function openLocalDatabase(
-  path: string,
-  migrations: readonly LocalMigration[],
-  now: () => Date,
-): LocalDatabase {
+export function openLocalDatabaseFile(path: string): LocalDatabase {
   mkdirSync(dirname(path), { recursive: true });
   const database = new Database(path);
   try {
     database.pragma("journal_mode = WAL");
     database.pragma("foreign_keys = ON");
-    applyMigrations(database, migrations, now);
     return database;
   } catch (error) {
     database.close();

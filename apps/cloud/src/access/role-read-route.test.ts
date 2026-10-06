@@ -224,6 +224,7 @@ describe("GET /roles/:id", () => {
       is_administrator: false,
       permissions: ["sell_and_charge", "adjust_stock"],
       user_count: 1,
+      may_edit: true,
       version: 1,
       assigned_users: [{ id: graceId, name: "Grace Hopper" }],
     });

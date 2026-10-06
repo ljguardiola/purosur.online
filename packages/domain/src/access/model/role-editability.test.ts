@@ -1,10 +1,31 @@
 import { describe, expect, it } from "vitest";
-import { editableRoleDetail, isRoleEditable } from "./role-editability.js";
+import { editableRoleDetail, isRoleEditable, mayEditRole } from "./role-editability.js";
 
 describe("isRoleEditable", () => {
   it("lets any role but the Administrator role be edited", () => {
     expect(isRoleEditable({ isAdministrator: false })).toBe(true);
     expect(isRoleEditable({ isAdministrator: true })).toBe(false);
+  });
+});
+
+describe("mayEditRole", () => {
+  const ADMINISTRATOR = { isAdministrator: true, permissionKeys: [] };
+
+  it("lets an administrator edit an ordinary role", () => {
+    expect(mayEditRole(ADMINISTRATOR, { isAdministrator: false })).toBe(true);
+  });
+
+  it("refuses the Administrator role, even to an administrator", () => {
+    expect(mayEditRole(ADMINISTRATOR, { isAdministrator: true })).toBe(false);
+  });
+
+  it("refuses a person who is not an administrator, whatever permission they hold", () => {
+    const actor = {
+      isAdministrator: false,
+      permissionKeys: ["deactivate_users", "reset_user_pin", "configure_branch"],
+    };
+
+    expect(mayEditRole(actor, { isAdministrator: false })).toBe(false);
   });
 });
 
