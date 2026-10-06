@@ -1,6 +1,7 @@
 import { UserEmailConflict, type UserStoreTransaction } from "@purosur/domain/access/use-cases";
 import { asc, eq } from "drizzle-orm";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
 import {
   alerts,
   auditLog,
@@ -437,5 +438,13 @@ describe("the change log", () => {
 
     expect(pending.mark()).toBe(0);
     expect(await db.select().from(users).where(eq(users.email, "marta@example.com"))).toEqual([]);
+  });
+});
+
+describe("DrizzleUserStore's clock", () => {
+  it("is required to build the store", () => {
+    expectTypeOf<[PgDatabase<PgQueryResultHKT>]>().not.toExtend<
+      ConstructorParameters<typeof DrizzleUserStore>
+    >();
   });
 });

@@ -3,6 +3,7 @@ import {
   SIGN_IN_BLOCK_DURATION_MS,
   SIGN_IN_FAILURE_LIMIT,
 } from "@purosur/domain";
+import { confirmRejectedSignInAttempt } from "@purosur/domain/access/use-cases";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { WebAuthnEmulator } from "nid-webauthn-emulator";
@@ -476,13 +477,34 @@ describe("POST /sessions", () => {
           releaseFloor = resolve;
         }),
     );
-    let answered = false;
-    const answer = postAuthenticate({}).then((response) => {
-      answered = true;
-      return response;
+    const confirmRejection = vi.fn(confirmRejectedSignInAttempt);
+    const floored = Fastify();
+    registerSessionAuthenticateRoute(floored, {
+      db,
+      backofficeOrigin: BACKOFFICE_ORIGIN,
+      now: () => currentTime,
+      delay: delaySpy,
+      confirmRejectedSignInAttempt: confirmRejection,
     });
+    onTestFinished(() => floored.close());
+    let answered = false;
+    const answer = floored
+      .inject({
+        method: "POST",
+        url: "/sessions",
+        headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": SOURCE_ADDRESS },
+        payload: { assertion: unregisteredCredentialAssertion() },
+      })
+      .then((response) => {
+        answered = true;
+        return response;
+      });
 
-    await vi.waitFor(() => expect(delaySpy).toHaveBeenCalledWith(200));
+    await vi.waitFor(() => expect(confirmRejection).toHaveBeenCalled());
+    expect(delaySpy).toHaveBeenCalledExactlyOnceWith(200);
+    expect(delaySpy.mock.invocationCallOrder[0]).toBeLessThan(
+      confirmRejection.mock.invocationCallOrder[0] ?? 0,
+    );
     await new Promise((resolve) => setImmediate(resolve));
     expect(answered).toBe(false);
 

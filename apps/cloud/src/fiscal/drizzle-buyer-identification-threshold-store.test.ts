@@ -1,6 +1,7 @@
 import { recordBuyerIdentificationThreshold } from "@purosur/domain/fiscal/use-cases";
 import { asc } from "drizzle-orm";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
 import { auditLog, buyerIdentificationThresholds, changes, users } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { removeSeededThreshold } from "../test-support/remove-seeded-threshold.js";
@@ -168,5 +169,13 @@ describe("DrizzleBuyerIdentificationThresholdStore", () => {
     expect(await db.select().from(buyerIdentificationThresholds)).toEqual([]);
     expect(await db.select().from(auditLog)).toEqual([]);
     expect(await db.select().from(changes)).toHaveLength(loggedBefore.length);
+  });
+});
+
+describe("DrizzleBuyerIdentificationThresholdStore's clock", () => {
+  it("is required to build the store", () => {
+    expectTypeOf<[PgDatabase<PgQueryResultHKT>]>().not.toExtend<
+      ConstructorParameters<typeof DrizzleBuyerIdentificationThresholdStore>
+    >();
   });
 });

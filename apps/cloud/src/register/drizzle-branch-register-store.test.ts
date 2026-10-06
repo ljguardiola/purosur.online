@@ -1,5 +1,6 @@
 import { emitEnrollmentCode } from "@purosur/domain/register/use-cases";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
 import {
   auditLog,
   fiscalAddresses,
@@ -131,5 +132,13 @@ describe("branchRegisters of DrizzleBranchRegisterStore", () => {
       { id: neverConfiguredId, name: "Caja 1", enrollmentCode: null, pointOfSaleNumber: null },
       { id: configuredId, name: "Caja 2", enrollmentCode: null, pointOfSaleNumber: 7 },
     ]);
+  });
+});
+
+describe("DrizzleBranchRegisterStore's clock", () => {
+  it("is required to build the store", () => {
+    expectTypeOf<[PgDatabase<PgQueryResultHKT>]>().not.toExtend<
+      ConstructorParameters<typeof DrizzleBranchRegisterStore>
+    >();
   });
 });

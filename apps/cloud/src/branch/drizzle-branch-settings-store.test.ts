@@ -1,6 +1,7 @@
 import { editBranchSettings } from "@purosur/domain/branch/use-cases";
 import { eq } from "drizzle-orm";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
 import { auditLog, branchHours, users } from "../platform/db/schema.js";
 import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -147,5 +148,13 @@ describe("editing the branch settings through DrizzleBranchSettingsStore", () =>
     await expect(edit("00000000-0000-4000-8000-000000000000", actorId, 1)).rejects.toThrow(
       "branch settings missing for location",
     );
+  });
+});
+
+describe("DrizzleBranchSettingsStore's clock", () => {
+  it("is required to build the store", () => {
+    expectTypeOf<[PgDatabase<PgQueryResultHKT>]>().not.toExtend<
+      ConstructorParameters<typeof DrizzleBranchSettingsStore>
+    >();
   });
 });

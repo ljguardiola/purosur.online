@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
-import { describe, expect, inject, it, vi } from "vitest";
-import { isNotMigratedYetError, waitForReady } from "./wait-for-ready.js";
+import { describe, expect, expectTypeOf, inject, it, vi } from "vitest";
+import { isNotMigratedYetError, type WaitForReadyOptions, waitForReady } from "./wait-for-ready.js";
 
 function envWithout(...names: string[]): NodeJS.ProcessEnv {
   const env = { ...process.env };
@@ -90,5 +90,11 @@ describe("isNotMigratedYetError", () => {
 
   it("does not treat a non-error value as not migrated yet", () => {
     expect(isNotMigratedYetError("boom")).toBe(false);
+  });
+});
+
+describe("waitForReady's clock", () => {
+  it("is required to measure its wait for the database", () => {
+    expectTypeOf<Omit<WaitForReadyOptions, "now">>().not.toExtend<WaitForReadyOptions>();
   });
 });

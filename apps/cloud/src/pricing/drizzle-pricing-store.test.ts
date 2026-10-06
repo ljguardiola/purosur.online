@@ -1,6 +1,7 @@
 import { confirmPrice, setPrice } from "@purosur/domain/pricing/use-cases";
 import { asc, eq } from "drizzle-orm";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
 import {
   auditLog,
   categories,
@@ -410,5 +411,13 @@ describe("the price changes a pull hands to the registers", () => {
       "confirmed",
     ]);
     expect(await loggedPriceChanges()).toHaveLength(1);
+  });
+});
+
+describe("DrizzlePricingStore's clock", () => {
+  it("is required to build the store", () => {
+    expectTypeOf<[PgDatabase<PgQueryResultHKT>]>().not.toExtend<
+      ConstructorParameters<typeof DrizzlePricingStore>
+    >();
   });
 });

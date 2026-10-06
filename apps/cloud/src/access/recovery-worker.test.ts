@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 import type { Pool } from "pg";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { auditLog, users } from "../platform/db/schema.js";
 import { buildTestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
@@ -10,6 +10,7 @@ import {
   FIRST_PIN_CODE_EMAIL_TASK_IDENTIFIER,
   RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER,
   RECOVERY_REQUEST_TASK_IDENTIFIER,
+  type StartRecoveryWorkerOptions,
   startRecoveryWorker,
 } from "./recovery-worker.js";
 
@@ -829,5 +830,13 @@ describe("startRecoveryWorker", () => {
       fakeDb,
       expect.objectContaining({ now: expect.any(Function) }),
     );
+  });
+});
+
+describe("the recovery worker's clock", () => {
+  it("is required to start the worker", () => {
+    expectTypeOf<
+      Omit<StartRecoveryWorkerOptions, "now">
+    >().not.toExtend<StartRecoveryWorkerOptions>();
   });
 });

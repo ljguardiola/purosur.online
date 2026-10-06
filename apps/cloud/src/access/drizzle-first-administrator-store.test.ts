@@ -1,6 +1,7 @@
 import type { FirstAdministratorStoreTransaction } from "@purosur/domain/access/use-cases";
 import { eq } from "drizzle-orm";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
 import { auditLog, roles, userRoles, users } from "../platform/db/schema.js";
 import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -107,5 +108,13 @@ describe("DrizzleFirstAdministratorStore", () => {
       previousValue: null,
       newValue: { firstName: "Ada", email: "ada@example.com", roleId: administrator.id },
     });
+  });
+});
+
+describe("DrizzleFirstAdministratorStore's clock", () => {
+  it("is required to build the store", () => {
+    expectTypeOf<[PgDatabase<PgQueryResultHKT>]>().not.toExtend<
+      ConstructorParameters<typeof DrizzleFirstAdministratorStore>
+    >();
   });
 });

@@ -1,9 +1,10 @@
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
-import { describe, expect, inject, it, vi } from "vitest";
+import { describe, expect, expectTypeOf, inject, it, vi } from "vitest";
 import {
   isRetryableConnectionError,
   probeConnectTimeoutSeconds,
+  type RunMigrationsOptions,
   runMigrations,
   scramSha256Verifier,
   waitForDatabase,
@@ -11,24 +12,36 @@ import {
 import { MIGRATIONS_FOLDER } from "./platform/db/migrations-folder.js";
 
 describe("runMigrations", () => {
+  it("requires a clock to measure its wait for the database", () => {
+    expectTypeOf<Omit<RunMigrationsOptions, "now">>().not.toExtend<RunMigrationsOptions>();
+  });
+
   it("rejects immediately when the database is unreachable and the wait budget is zero", async () => {
+    const clock = fakeClock();
+    const sleep = vi.fn(clock.sleep);
+
     await expect(
       runMigrations("postgres://user:pass@127.0.0.1:1/nonexistent", "unused-unreachable-database", {
         migrationsFolder: MIGRATIONS_FOLDER,
-        now: Date.now,
+        sleep,
+        now: clock.now,
         connectTimeoutSeconds: 1,
         waitForDatabaseSeconds: 0,
       }),
     ).rejects.toThrow();
+
+    expect(sleep).not.toHaveBeenCalled();
   });
 
   it("keeps retrying an unreachable database until the wait budget runs out", async () => {
+    const clock = fakeClock();
     const onWaiting = vi.fn();
 
     await expect(
       runMigrations("postgres://user:pass@127.0.0.1:1/nonexistent", "unused-unreachable-database", {
         migrationsFolder: MIGRATIONS_FOLDER,
-        now: Date.now,
+        sleep: clock.sleep,
+        now: clock.now,
         connectTimeoutSeconds: 1,
         waitForDatabaseSeconds: 1,
         waitIntervalMs: 100,
@@ -36,7 +49,7 @@ describe("runMigrations", () => {
       }),
     ).rejects.toMatchObject({ code: "ECONNREFUSED" });
 
-    expect(onWaiting.mock.calls.length).toBeGreaterThan(1);
+    expect(onWaiting).toHaveBeenCalledTimes(10);
   });
 
   it("probes on the wait interval without the driver's reconnect backoff piling up", async () => {

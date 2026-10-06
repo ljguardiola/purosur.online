@@ -1,6 +1,7 @@
 import { createRole, editRole, RoleNameConflict } from "@purosur/domain/access/use-cases";
 import { asc, eq } from "drizzle-orm";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
 import {
   alerts,
   auditLog,
@@ -231,5 +232,13 @@ describe("editing a role", () => {
         actorId,
       },
     });
+  });
+});
+
+describe("DrizzleRoleStore's clock", () => {
+  it("is required to build the store", () => {
+    expectTypeOf<[PgDatabase<PgQueryResultHKT>]>().not.toExtend<
+      ConstructorParameters<typeof DrizzleRoleStore>
+    >();
   });
 });

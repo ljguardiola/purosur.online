@@ -1,6 +1,7 @@
 import { AlertAlreadyOpenError, type NewAlert } from "@purosur/domain/alerts/use-cases";
 import { eq } from "drizzle-orm";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
 import {
   alertDeliveries,
   alerts,
@@ -393,5 +394,13 @@ describe("DrizzleAlertStore lockOpenAlerts and recordEscalation", () => {
     const [miss] = await db.select().from(alerts).where(eq(alerts.id, untouched));
     expect(hit).toMatchObject({ level: "critical", escalatedAt: NOON });
     expect(miss).toMatchObject({ level: "warning", escalatedAt: null });
+  });
+});
+
+describe("DrizzleAlertStore's clock", () => {
+  it("is required to build the store", () => {
+    expectTypeOf<[PgDatabase<PgQueryResultHKT>]>().not.toExtend<
+      ConstructorParameters<typeof DrizzleAlertStore>
+    >();
   });
 });

@@ -47,7 +47,36 @@ const readsOnLineOne = [
   'const a = "select timeofday()";',
   "const a = \"select datetime('now')\";",
   "const a = \"select strftime('%s', 'NOW')\";",
+  'const a = "select datetime()";',
+  'const a = "select date()";',
+  'const a = "select time ( )";',
+  'const a = "select julianday()";',
+  'const a = "select unixepoch()";',
+  "const a = \"select strftime('%s')\";",
 ];
+
+const importedReads = [
+  'import { hrtime } from "node:process";\nconst a = hrtime();',
+  'import { hrtime } from "process";\nconst a = hrtime.bigint();',
+  'import { uptime } from "node:process";\nconst a = uptime();',
+  'import { hrtime as clock } from "node:process";\nconst a = clock.bigint();',
+  'import * as proc from "node:process";\nconst a = proc.uptime();',
+  'import proc from "node:process";\nconst a = proc.hrtime();',
+  'import { performance as perf } from "node:perf_hooks";\nconst a = perf.now();',
+  'import { performance } from "perf_hooks";\nconst a = performance.timeOrigin;',
+  'import * as hooks from "node:perf_hooks";\nconst a = hooks.performance.now();',
+  'import hooks from "node:perf_hooks";\nconst a = hooks.performance.now();',
+  'import { performance as perf } from "node:perf_hooks";\nconst read = perf.now;',
+  'import { uptime } from "node:process";\nconst read = uptime;',
+  'import { uptime } from "node:process";\nconst clock = { read: uptime };',
+  'import { uptime } from "node:process";\nfunction run(read = uptime) {}',
+];
+
+for (const source of importedReads) {
+  test(`flags a real-time read through an import: ${source.replace("\n", " ")}`, () => {
+    assert.deepEqual(flaggedLines(source), [2]);
+  });
+}
 
 for (const line of readsOnLineOne) {
   test(`flags a real-time read: ${line}`, () => {
@@ -104,6 +133,13 @@ const notReads = [
   "const a = Temporal.Instant.from(text);",
   "const a = process.env.NODE_ENV;",
   "const a = dateNow();",
+  'const a = "select datetime(created_at)";',
+  'const a = "select date(?)";',
+  "const a = \"select strftime('%s', recorded_at)\";",
+  'const a = "update(), validate(), runtime()";',
+  'import { env } from "node:process";\nconst a = env.NODE_ENV;',
+  'import { hrtime } from "./clock";\nconst a = hrtime();',
+  'import { now } from "node:perf_hooks";\nconst a = now;',
 ];
 
 for (const line of notReads) {
@@ -165,11 +201,14 @@ test("fails when the cloud's package scripts run no entry point", () => {
   assert.throws(() => readCloudRoots(JSON.stringify({ scripts: { test: "vitest run" } })), /entry/);
 });
 
-test("scans production source of the cloud and of the register core only", () => {
+test("scans production source the cloud and the register core run only", () => {
   for (const path of [
     "apps/cloud/src/access/sessions.ts",
     "apps/cloud/src/platform/clock.ts",
     "apps/pos/src/core/sync/access-page-writes.ts",
+    "packages/domain/src/access/use-cases/start-account-recovery.ts",
+    "packages/domain/src/pricing/model/price.ts",
+    "apps/pos/src/shared/channel.ts",
   ]) {
     assert.equal(isScannedPath(path), true, path);
   }
@@ -185,7 +224,12 @@ test("scans production source of the cloud and of the register core only", () =>
     "apps/pos/src/renderer/clock.ts",
     "apps/pos/src/main/index.ts",
     "apps/backoffice/src/shell/app.ts",
-    "packages/domain/src/shared/clock.ts",
+    "packages/domain/src/pricing/model/price.test.ts",
+    "packages/domain/src/fiscal/test-support/fictional-tax-identities.ts",
+    "packages/domain/src/access/use-cases/test-support/fakes.ts",
+    "apps/pos/src/shared/channel.test.ts",
+    "apps/pos/src/shared/test-support/fake-channel.ts",
+    "packages/contracts/src/shared/clock.ts",
   ]) {
     assert.equal(isScannedPath(path), false, path);
   }
@@ -208,6 +252,10 @@ const sampleRepository = {
   "apps/pos/src/core/index.ts": "export const clock = () => new Date();",
   "apps/pos/src/core/sync/access-page-writes.ts": "export const stamp = sql`select now()`;",
   "apps/pos/src/renderer/clock.ts": "const at = Date.now();",
+  "packages/domain/src/access/model/expiry.ts":
+    "export const expired = (at: Date) => at < new Date();",
+  "packages/domain/src/access/model/expiry.test.ts": "const at = new Date();",
+  "apps/pos/src/shared/stamp.ts": "export const stamp = () => Date.now();",
 };
 
 test("derives the composition roots and exempts them from the scan", () => {
@@ -222,14 +270,18 @@ test("derives the composition roots and exempts them from the scan", () => {
     assert.deepEqual(findScannedFiles(root), [
       "apps/cloud/src/access/sessions.ts",
       "apps/pos/src/core/sync/access-page-writes.ts",
+      "apps/pos/src/shared/stamp.ts",
+      "packages/domain/src/access/model/expiry.ts",
     ]);
 
     const violations = checkFiles(findScannedFiles(root).map((path) => join(root, path))).map(
       describeViolation,
     );
-    assert.equal(violations.length, 2);
+    assert.equal(violations.length, 4);
     assert.match(violations[0], /sessions\.ts:1: .*new Date\(\)/);
     assert.match(violations[1], /access-page-writes\.ts:1: .*now\(\)/);
+    assert.match(violations[2], /stamp\.ts:1: .*Date\.now/);
+    assert.match(violations[3], /expiry\.ts:1: .*new Date\(\)/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -256,6 +308,8 @@ test("no production source outside the composition roots reads real time", () =>
   for (const sentinel of [
     "apps/cloud/src/app.ts",
     "apps/pos/src/core/sync/access-page-writes.ts",
+    "packages/domain/src/access/use-cases/index.ts",
+    "apps/pos/src/shared/channel.ts",
   ]) {
     assert.ok(files.includes(sentinel), `expected the scan to include ${sentinel}`);
   }

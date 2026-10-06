@@ -1,6 +1,7 @@
 import { PasskeyAlreadyRegistered } from "@purosur/domain/access/use-cases";
 import { eq } from "drizzle-orm";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
 import { alerts, auditLog, passkeys, users } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
@@ -109,5 +110,13 @@ describe("DrizzlePasskeyRegistrationStore", () => {
         openedAt: AT,
       },
     ]);
+  });
+});
+
+describe("DrizzlePasskeyRegistrationStore's clock", () => {
+  it("is required to build the store", () => {
+    expectTypeOf<[PgDatabase<PgQueryResultHKT>]>().not.toExtend<
+      ConstructorParameters<typeof DrizzlePasskeyRegistrationStore>
+    >();
   });
 });

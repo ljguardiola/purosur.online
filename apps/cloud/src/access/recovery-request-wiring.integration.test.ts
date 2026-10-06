@@ -32,6 +32,7 @@ import { findFreePort } from "./test-support/find-free-port.js";
 // real run()), which PGlite cannot exercise: no LISTEN/NOTIFY, and every query on one connection.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const WAIT_OPTIONS = { timeout: 20_000, interval: 100 };
+const NOW = new Date("2026-01-05T12:00:00.000Z");
 
 /**
  * pg-pool reaps an idle connection after ten seconds by default, racing the drain wait below.
@@ -107,6 +108,7 @@ async function countQueuedRecoveryJobs(databaseUrl: string): Promise<number> {
 
 interface StartedFixture {
   origin: string;
+  advanceClock(ms: number): void;
   close(): Promise<void>;
 }
 
@@ -141,6 +143,7 @@ async function startRealServer(
   createJobQueuePool?: (connectionString: string) => pg.Pool,
 ): Promise<StartedFixture> {
   const port = await findFreePort();
+  let currentTime = NOW.getTime();
   let recovery: RecoveryInfrastructure | undefined;
   let app: Awaited<ReturnType<typeof startServer>>;
   try {
@@ -158,8 +161,9 @@ async function startRealServer(
         INSTALLATION_KEYS_ENCRYPTION_KEY: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY.toString("base64"),
       },
       {
-        setUpRecovery: async (recoveryEnv) => {
-          recovery = await setUpRecovery(recoveryEnv, () => new Date(), {
+        now: () => new Date(currentTime),
+        setUpRecovery: async (recoveryEnv, now) => {
+          recovery = await setUpRecovery(recoveryEnv, now, {
             emailSender,
             createJobQueuePool,
           });
@@ -174,6 +178,9 @@ async function startRealServer(
   }
   return {
     origin: `http://127.0.0.1:${port}`,
+    advanceClock(ms) {
+      currentTime += ms;
+    },
     close() {
       return app.close();
     },
@@ -263,10 +270,11 @@ describe("setUpRecovery wired to a real Postgres pool and a real graphile-worker
       try {
         const db = drizzle(sql);
         const [tokenRow] = await db
-          .select({ tokenHash: recoveryTokens.tokenHash })
+          .select({ tokenHash: recoveryTokens.tokenHash, issuedAt: recoveryTokens.issuedAt })
           .from(recoveryTokens)
           .where(eq(recoveryTokens.userId, userId));
         expect(tokenRow?.tokenHash).toBe(hashRecoveryToken(fragment));
+        expect(tokenRow?.issuedAt).toEqual(NOW);
 
         const auditRows = await db.select().from(auditLog).where(eq(auditLog.actorId, userId));
         expect(auditRows).toHaveLength(1);
@@ -315,11 +323,13 @@ describe("setUpRecovery wired to a real Postgres pool and a real graphile-worker
       // Waited out one at a time: the worker runs two jobs at once, and an out-of-order commit
       // would supersede a link instead of hitting the over-limit case this test is about.
       for (let i = 0; i < RECOVERY_DESTINATION_ADDRESS_LIMIT; i++) {
+        server.advanceClock(1000);
         expect((await postRecoveryRequest(server.origin, email)).status).toBe(200);
         await vi.waitFor(() => {
           expect(sender.sent).toHaveLength(i + 1);
         }, WAIT_OPTIONS);
       }
+      server.advanceClock(1000);
       expect((await postRecoveryRequest(server.origin, email)).status).toBe(429);
 
       await vi.waitFor(async () => {

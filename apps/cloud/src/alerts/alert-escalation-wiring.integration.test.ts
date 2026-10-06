@@ -15,6 +15,9 @@ const UNUSED_EMAIL_SENDER: AccessEmailSender = {
   async sendFirstPinCode() {},
 };
 
+const NOW = new Date("2100-01-05T12:00:00.000Z");
+const HOUR_MS = 60 * 60 * 1000;
+
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;
@@ -31,8 +34,7 @@ afterAll(async () => {
 });
 
 describe("the background worker the server sets up on a real Postgres", () => {
-  it("runs the alert escalation job, escalating an overdue alert", async () => {
-    const now = Date.now();
+  it("runs the alert escalation job by the clock it is handed, escalating an alert overdue by it", async () => {
     const [overdue] = await db
       .insert(alerts)
       .values({
@@ -41,8 +43,8 @@ describe("the background worker the server sets up on a real Postgres", () => {
         level: "warning",
         audience: "all",
         detail: {},
-        openedAt: new Date(now - 25 * 60 * 60 * 1000),
-        escalateAt: new Date(now - 60 * 60 * 1000),
+        openedAt: new Date(NOW.getTime() - 25 * HOUR_MS),
+        escalateAt: new Date(NOW.getTime() - HOUR_MS),
       })
       .returning({ id: alerts.id });
     if (!overdue) {
@@ -56,7 +58,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
         emailReplyTo: "purosur.comarca@gmail.com",
         backofficeOrigin: "https://staging.purosur.online",
       },
-      () => new Date(),
+      () => NOW,
       { emailSender: UNUSED_EMAIL_SENDER },
     );
 

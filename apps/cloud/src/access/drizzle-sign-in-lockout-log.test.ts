@@ -1,4 +1,5 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
 import { auditLog } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleSignInLockoutLog } from "./drizzle-sign-in-lockout-log.js";
@@ -47,5 +48,13 @@ describe("DrizzleSignInLockoutLog", () => {
         },
       },
     ]);
+  });
+});
+
+describe("DrizzleSignInLockoutLog's clock", () => {
+  it("is required to build the store", () => {
+    expectTypeOf<[PgDatabase<PgQueryResultHKT>]>().not.toExtend<
+      ConstructorParameters<typeof DrizzleSignInLockoutLog>
+    >();
   });
 });
