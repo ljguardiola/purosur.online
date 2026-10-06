@@ -462,6 +462,7 @@ describe("DELETE /users/:id/passkeys/:passkeyId", () => {
       actorId: administratorId,
       previousValue: { id: targetPasskeyAId, name: "Notebook de Grace", userId: targetId },
       newValue: null,
+      at: currentTime,
     });
   });
 

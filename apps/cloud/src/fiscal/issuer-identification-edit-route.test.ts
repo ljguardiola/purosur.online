@@ -297,6 +297,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
         activity_start_date: "2020-01-15",
         version: 2,
       },
+      at: NOON,
     });
   });
 

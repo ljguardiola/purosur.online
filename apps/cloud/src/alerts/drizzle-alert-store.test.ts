@@ -283,6 +283,16 @@ describe("DrizzleAlertStore recordBackofficeDeliveries", () => {
     expect(rows.every((row) => row.channel === "backoffice" && row.status === "sent")).toBe(true);
     expect(rows.every((row) => row.alertId === alertId)).toBe(true);
   });
+
+  it("stamps each delivery with the clock", async () => {
+    const store = new DrizzleAlertStore(db, () => NOON);
+    const recipient = await insertUser("Ada", await seededAdministratorRoleId());
+    const alertId = await store.transaction((tx) => tx.insertAlert(newAlert()));
+
+    await store.transaction((tx) => tx.recordBackofficeDeliveries(alertId, [recipient]));
+
+    expect(await db.select().from(alertDeliveries)).toMatchObject([{ createdAt: NOON }]);
+  });
 });
 
 describe("DrizzleAlertStore lockAlert", () => {

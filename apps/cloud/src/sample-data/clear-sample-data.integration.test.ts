@@ -772,6 +772,18 @@ describe("clearSampleData", () => {
     expect(outcome.kind).toBe("refused");
     expect(await sampleDataSnapshot(db)).toEqual(beforeClear);
   }, 120_000);
+  it("clears everything a load wrote under a clock that moves on with every reading", async () => {
+    const db = await freshOwnerDatabase();
+    await seedActiveAdministrator(db);
+    let reads = 0;
+    const movingClock = () => new Date(NOW.getTime() + reads++ * 1000);
+    expect((await loadSampleData(db, { now: movingClock })).kind).toBe("loaded");
+
+    expect((await clearSampleData(db)).kind).toBe("cleared");
+
+    expect(await db.select().from(auditLog)).toEqual([]);
+  }, 120_000);
+
   it("clears after a real administrator changed the branch settings, keeping those settings and their audit row", async () => {
     const db = await freshOwnerDatabase();
     const bootstrapAdmin = await seedActiveAdministrator(db);

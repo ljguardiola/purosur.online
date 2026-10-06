@@ -205,6 +205,15 @@ describe("renderLabelSheetPdf", () => {
     expect(pdf.length).toBeLessThan(2 * 1024 * 1024);
   });
 
+  it("dates the document with the creation time it is given", async () => {
+    const pdf = await renderLabelSheetPdf(
+      [{ name: "Maceta", code: "2000000000015", count: 1 }],
+      new Date("2026-01-05T12:00:00.000Z"),
+    );
+
+    expect(pdf.toString("latin1")).toContain("/CreationDate (D:20260105120000Z)");
+  });
+
   it("produces a valid PDF document", async () => {
     const pdf = await renderLabelSheetPdf([{ name: "Maceta", code: "2000000000015", count: 1 }]);
 

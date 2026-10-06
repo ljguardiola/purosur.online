@@ -169,7 +169,9 @@ describe("PUT /fiscal-addresses/:id", () => {
       version: 2,
     });
     const entries = await db.select().from(auditLog).where(eq(auditLog.entityId, id));
-    expect(entries).toMatchObject([{ entity: "fiscal_address", actorId: session.userId }]);
+    expect(entries).toMatchObject([
+      { entity: "fiscal_address", actorId: session.userId, at: SESSION_NOON },
+    ]);
   });
 
   it("answers the current fiscal address, unchanged, when the edit changes nothing", async () => {

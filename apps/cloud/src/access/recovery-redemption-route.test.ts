@@ -392,7 +392,9 @@ describe("POST /account-recovery-redemptions", () => {
         deviceType: inserted?.deviceType,
         backedUp: inserted?.backedUp,
       },
+      at: currentTime,
     });
+    expect(inserted?.createdAt).toEqual(currentTime);
   });
 
   it("opens a backoffice_passkey_changed alert scoped to the account", async () => {
@@ -776,6 +778,7 @@ describe("POST /account-recovery-redemptions passkey_name", () => {
     expect(rows[0]).toMatchObject({
       actorId: userId,
       newValue: { attempt: "redeem", rejectedWith: "validation_failed" },
+      at: currentTime,
     });
   });
 });

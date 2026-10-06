@@ -293,7 +293,7 @@ describe("POST /prices/:productId/confirmations", () => {
       .select()
       .from(auditLog)
       .where(and(eq(auditLog.entity, "product_price_review"), eq(auditLog.entityId, productId)));
-    expect(auditRow).toMatchObject({ actorId: userId });
+    expect(auditRow).toMatchObject({ actorId: userId, at: NOON });
   });
 
   it("treats as current the same price the prices list shows when several start at the same moment", async () => {

@@ -12,6 +12,7 @@ import postgres from "postgres";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   alerts,
+  auditLog,
   branchHours,
   branchSettings,
   categories,
@@ -134,6 +135,19 @@ describe("loadSampleData", () => {
     expect(await tableCount(db, "categories")).toBe(0);
     expect(await tableCount(db, "products")).toBe(0);
   });
+
+  it("stamps every audit row it writes with the moment it started, however the clock moves on", async () => {
+    const db = await freshDatabase();
+    await seedActiveAdministrator(db);
+    let reads = 0;
+    const movingClock = () => new Date(NOW.getTime() + reads++ * 1000);
+
+    expect((await loadSampleData(db, { now: movingClock })).kind).toBe("loaded");
+
+    const audited = await db.select({ at: auditLog.at }).from(auditLog);
+    expect(audited.length).toBeGreaterThan(0);
+    expect(new Set(audited.map((row) => row.at.getTime()))).toEqual(new Set([NOW.getTime()]));
+  }, 120_000);
 
   it("loads users, roles, a category tree, products, prices, registers, branch settings and open and closed alerts of every level the alert catalog produces, and a second run changes nothing", async () => {
     const db = await freshDatabase();

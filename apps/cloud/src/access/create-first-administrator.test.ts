@@ -9,6 +9,9 @@ import {
   FirstAdministratorAlreadyBootstrappedError,
 } from "./create-first-administrator.js";
 
+const NOON = new Date("2026-01-05T12:00:00.000Z");
+const clock = () => NOON;
+
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 
@@ -38,10 +41,11 @@ async function administratorRoleId(): Promise<string> {
 
 describe("createFirstAdministrator", () => {
   it("creates one user with the Administrator role and audits the run", async () => {
-    const result = await createFirstAdministrator(db, {
-      name: "Ada Lovelace",
-      email: "ada@example.com",
-    });
+    const result = await createFirstAdministrator(
+      db,
+      { name: "Ada Lovelace", email: "ada@example.com" },
+      clock,
+    );
 
     expect(result.email).toBe("ada@example.com");
 
@@ -66,16 +70,18 @@ describe("createFirstAdministrator", () => {
       actorId: result.id,
       previousValue: null,
       newValue: { firstName: "Ada Lovelace", email: "ada@example.com", roleId },
+      at: NOON,
     });
   });
 
   it("logs the created Administrator as an insert of its first version, in the seeded location", async () => {
     const mark = await lastLoggedChangeSeq(db);
 
-    const result = await createFirstAdministrator(db, {
-      name: "Ada Lovelace",
-      email: "ada@example.com",
-    });
+    const result = await createFirstAdministrator(
+      db,
+      { name: "Ada Lovelace", email: "ada@example.com" },
+      clock,
+    );
 
     expect(await changesLoggedAfter(db, mark)).toEqual([
       {
@@ -94,23 +100,25 @@ describe("createFirstAdministrator", () => {
       throw new Error("test setup: no location seeded");
     }
 
-    const result = await createFirstAdministrator(db, {
-      name: "Ada Lovelace",
-      email: "ada@example.com",
-    });
+    const result = await createFirstAdministrator(
+      db,
+      { name: "Ada Lovelace", email: "ada@example.com" },
+      clock,
+    );
 
     const [createdUser] = await db.select().from(users).where(eq(users.id, result.id));
     expect(createdUser).toMatchObject({ locationId: seededLocation.id });
   });
 
   it("refuses a second run and keeps only what the first run created", async () => {
-    const first = await createFirstAdministrator(db, {
-      name: "Ada Lovelace",
-      email: "ada@example.com",
-    });
+    const first = await createFirstAdministrator(
+      db,
+      { name: "Ada Lovelace", email: "ada@example.com" },
+      clock,
+    );
 
     await expect(
-      createFirstAdministrator(db, { name: "Grace Hopper", email: "grace@example.com" }),
+      createFirstAdministrator(db, { name: "Grace Hopper", email: "grace@example.com" }, clock),
     ).rejects.toBeInstanceOf(FirstAdministratorAlreadyBootstrappedError);
 
     const remainingUsers = await db.select().from(users);
@@ -132,7 +140,7 @@ describe("createFirstAdministrator", () => {
     });
 
     await expect(
-      createFirstAdministrator(db, { name: "Ada Lovelace", email: "ada@example.com" }),
+      createFirstAdministrator(db, { name: "Ada Lovelace", email: "ada@example.com" }, clock),
     ).rejects.toBeInstanceOf(FirstAdministratorAlreadyBootstrappedError);
 
     const remainingUsers = await db.select().from(users);

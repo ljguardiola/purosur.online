@@ -175,6 +175,7 @@ describe("POST /pin-code-redemptions", () => {
       entity: "user",
       actorId: userId,
       newValue: { pin_code_redeemed_at: NOW.toISOString(), register_id: registerId },
+      at: NOW,
     });
   });
 

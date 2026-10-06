@@ -375,6 +375,17 @@ describe("POST /account/passkeys", () => {
     expect((await db.select().from(passkeys)).length).toBe(beforeCount);
   });
 
+  it("stamps the registered passkey's creation time with the clock", async () => {
+    const rawSessionId = await insertSession(userId);
+
+    const { response } = await registerSecondPasskey(rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ created_at: currentTime.toISOString() });
+    const rows = await db.select().from(passkeys).where(eq(passkeys.name, "Teléfono del local"));
+    expect(rows).toMatchObject([{ createdAt: currentTime }]);
+  });
+
   it("registers a second passkey with a valid registration, writing an audit row", async () => {
     const rawSessionId = await insertSession(userId);
 
@@ -394,6 +405,7 @@ describe("POST /account/passkeys", () => {
       actorId: userId,
       previousValue: null,
       newValue: { id: newRow?.id, name: "Teléfono del local" },
+      at: currentTime,
     });
   });
 

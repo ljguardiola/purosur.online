@@ -350,6 +350,7 @@ describe("PUT /users/:id/deactivation", () => {
       actorId: administratorId,
       previousValue: { active: true },
       newValue: { active: false },
+      at: currentTime,
     });
   });
 

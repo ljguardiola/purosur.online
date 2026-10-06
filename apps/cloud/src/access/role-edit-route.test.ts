@@ -373,6 +373,7 @@ describe("PUT /roles/:id", () => {
       actorId: administratorId,
       previousValue: { name: "Cajera", permissions: ["sell_and_charge"] },
       newValue: { name: "Cajera senior", permissions: ["sell_and_charge", "configure_branch"] },
+      at: currentTime,
     });
   });
 

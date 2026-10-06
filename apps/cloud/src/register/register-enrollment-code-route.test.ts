@@ -382,6 +382,7 @@ describe("POST /registers/:id/device-codes", () => {
       newValue: {
         expires_at: new Date(NOON.getTime() + FIFTEEN_MINUTES_MS).toISOString(),
       },
+      at: NOON,
     });
     const serialized = JSON.stringify(entry);
     expect(serialized).not.toContain(response.json().code);

@@ -203,6 +203,7 @@ describe("POST /roles", () => {
       actorId: administratorId,
       previousValue: null,
       newValue: { name: "Depósito", permissions: ["view_stock_balances", "adjust_stock"] },
+      at: currentTime,
     });
   });
 

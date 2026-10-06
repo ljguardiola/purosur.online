@@ -255,6 +255,7 @@ describe("DELETE /account/passkeys/:id", () => {
       actorId: userId,
       previousValue: { id: target.id, name: "Teléfono del local" },
       newValue: null,
+      at: currentTime,
     });
   });
 

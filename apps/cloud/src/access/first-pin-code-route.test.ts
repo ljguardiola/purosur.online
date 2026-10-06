@@ -145,6 +145,7 @@ describe("POST /first-pin-codes", () => {
         first_pin_code_expires_at: minutesFromNow(15).toISOString(),
         register_id: registerId,
       },
+      at: NOW,
     });
     expect(JSON.stringify(entry)).not.toContain(queuedCode());
   });

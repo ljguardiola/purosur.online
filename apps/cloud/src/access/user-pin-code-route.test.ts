@@ -381,6 +381,7 @@ describe("POST /users/:id/pin-codes", () => {
         actorId: holderId,
         previousValue: null,
         newValue: { pin_code_expires_at: "2026-01-05T12:15:00.000Z" },
+        at: currentTime,
       });
       expect(JSON.stringify(audited)).not.toContain(code);
       expect(JSON.stringify(audited)).not.toContain(hashSecretCode(code));

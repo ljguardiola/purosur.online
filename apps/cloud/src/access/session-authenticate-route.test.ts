@@ -633,7 +633,7 @@ describe("POST /sessions", () => {
         .from(auditLog)
         .where(eq(auditLog.entity, "backoffice_lockout"));
       expect(rows).toHaveLength(1);
-      expect(rows[0]).toMatchObject({ actorId: null });
+      expect(rows[0]).toMatchObject({ actorId: null, at: currentTime });
       expect(rows[0]?.newValue).toMatchObject({ failureCount: SIGN_IN_FAILURE_LIMIT });
     });
   });

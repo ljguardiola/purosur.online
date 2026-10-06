@@ -265,7 +265,9 @@ describe("PUT /registers/:id/point-of-sale", () => {
       { registerId, pointOfSaleNumber: 7, fiscalAddressId, version: 1 },
     ]);
     const entries = await db.select().from(auditLog).where(eq(auditLog.entityId, registerId));
-    expect(entries).toMatchObject([{ entity: "register_point_of_sale", actorId: session.userId }]);
+    expect(entries).toMatchObject([
+      { entity: "register_point_of_sale", actorId: session.userId, at: SESSION_NOON },
+    ]);
     expect(await changesLoggedAfter(db, mark)).toMatchObject([
       { entity: "register_point_of_sale", entityId: registerId, version: 1 },
     ]);

@@ -295,6 +295,7 @@ describe("PUT /alerts/:id/closure", () => {
       actorId: userId,
       previousValue: { resolvedAt: null },
       newValue: { resolvedAt: NOON.toISOString() },
+      at: NOON,
     });
   });
 

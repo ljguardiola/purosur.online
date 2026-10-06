@@ -339,6 +339,7 @@ describe("PUT /locations/current/settings", () => {
         saturday_hours: [{ opens_at: "09:00", closes_at: "13:00" }],
         sunday_hours: [],
       },
+      at: NOON,
     });
   });
 
