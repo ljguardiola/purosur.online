@@ -280,8 +280,7 @@ export function NewCountModal({
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title="Producto desactivado"
-              description="Ya no está en el catálogo."
+              title="Este producto ya no existe"
             />
           )}
           <form.AppField name="productId">

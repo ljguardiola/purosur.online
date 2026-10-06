@@ -27,12 +27,7 @@ export function StockMovementNotice({ notice }: { notice: StockMovementNotice })
         />
       )}
       {notice.kind === "notFound" && (
-        <InlineNotice
-          tone="error"
-          icon={<TriangleAlert />}
-          title="Producto desactivado"
-          description="Ya no está en el catálogo."
-        />
+        <InlineNotice tone="error" icon={<TriangleAlert />} title="Este producto ya no existe" />
       )}
     </>
   );
