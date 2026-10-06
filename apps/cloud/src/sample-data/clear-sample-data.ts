@@ -376,8 +376,9 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
           eq(auditLog.entityId, location.id),
           eq(auditLog.actorId, sampleAdministrator.id),
           sql`${auditLog.newValue} - 'version' = ${JSON.stringify(sampleBranchSettingsAuditValue())}::jsonb`,
-          // The load stamps every audit row it writes with the one moment it started, so the row
-          // it wrote for the branch settings shares `at` with the sample administrator's creation.
+          // The load's user and branch settings stores share one clock fixed at the moment it
+          // started, so the row it wrote for the branch settings shares `at` with the sample
+          // administrator's creation.
           sql`${auditLog.at} = (select min(creation.at) from audit_log creation
             where creation.entity = 'user' and creation.entity_id = ${sampleAdministrator.id})`,
         )

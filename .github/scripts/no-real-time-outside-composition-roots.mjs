@@ -2,7 +2,12 @@ import { existsSync, globSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
 
-const SCANNED_GLOBS = ["apps/cloud/src/**/*.ts", "apps/pos/src/core/**/*.ts"];
+const SCANNED_GLOBS = [
+  "apps/cloud/src/**/*.ts",
+  "apps/pos/src/core/**/*.ts",
+  "apps/pos/src/shared/**/*.ts",
+  "packages/domain/src/**/*.ts",
+];
 const CLOUD_PACKAGE = "apps/cloud/package.json";
 const REGISTER_BUILD_CONFIG = "apps/pos/electron.vite.config.ts";
 const TEST_ONLY_DIRECTORIES = new Set(["test", "test-support"]);
@@ -10,9 +15,15 @@ const TEST_ONLY_DIRECTORIES = new Set(["test", "test-support"]);
 const CLOCK_READS = ["Date.now", "performance.now", "performance.timeOrigin", "process.uptime"];
 const CLOCK_NAMESPACES = ["process.hrtime", "Temporal.Now"];
 const GLOBAL_OBJECTS = new Set(["globalThis", "global"]);
+const CLOCK_MODULES = new Map([
+  ["process", "process"],
+  ["node:process", "process"],
+  ["perf_hooks", undefined],
+  ["node:perf_hooks", undefined],
+]);
 
 const DATABASE_CLOCK =
-  /\b(?:now|clock_timestamp|statement_timestamp|transaction_timestamp|timeofday)\s*\(|\b(?:current_timestamp|current_date|current_time|localtimestamp|localtime)\b|'now'/i;
+  /\b(?:now|clock_timestamp|statement_timestamp|transaction_timestamp|timeofday)\s*\(|\b(?:datetime|date|time|julianday|unixepoch)\s*\(\s*\)|\bstrftime\s*\(\s*'[^']*'\s*\)|\b(?:current_timestamp|current_date|current_time|localtimestamp|localtime)\b|'now'/i;
 
 function parse(source, fileName) {
   return ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true);
@@ -43,8 +54,65 @@ function withoutGlobalObject(name) {
   return GLOBAL_OBJECTS.has(first) && rest.length > 0 ? rest.join(".") : name;
 }
 
-function nameOf(node) {
-  return withoutGlobalObject(dottedName(node));
+function joinName(...parts) {
+  return parts.filter((part) => part !== undefined).join(".");
+}
+
+function clockModuleImports(sourceFile) {
+  const imports = new Map();
+  for (const statement of sourceFile.statements) {
+    if (
+      !ts.isImportDeclaration(statement) ||
+      !ts.isStringLiteral(statement.moduleSpecifier) ||
+      !CLOCK_MODULES.has(statement.moduleSpecifier.text)
+    ) {
+      continue;
+    }
+    const moduleName = CLOCK_MODULES.get(statement.moduleSpecifier.text);
+    const clause = statement.importClause;
+    if (clause?.name) imports.set(clause.name.text, moduleName);
+    const bindings = clause?.namedBindings;
+    if (bindings && ts.isNamespaceImport(bindings)) {
+      imports.set(bindings.name.text, moduleName);
+    }
+    if (bindings && ts.isNamedImports(bindings)) {
+      for (const element of bindings.elements) {
+        const imported = (element.propertyName ?? element.name).text;
+        imports.set(element.name.text, joinName(moduleName, imported));
+      }
+    }
+  }
+  return imports;
+}
+
+function resolveImport(name, imports) {
+  if (name === undefined) return undefined;
+  const [first, ...rest] = name.split(".");
+  if (!imports.has(first)) return name;
+  const resolved = joinName(imports.get(first), ...rest);
+  return resolved === "" ? undefined : resolved;
+}
+
+function isExpressionName(node) {
+  if (ts.isPropertyAccessExpression(node)) return true;
+  if (!ts.isIdentifier(node)) return false;
+  const parent = node.parent;
+  if (ts.isPropertyAccessExpression(parent) && parent.name === node) return false;
+  if (
+    ts.isImportSpecifier(parent) ||
+    ts.isImportClause(parent) ||
+    ts.isNamespaceImport(parent) ||
+    ts.isExportSpecifier(parent)
+  ) {
+    return false;
+  }
+  return !(
+    (ts.isPropertyAssignment(parent) ||
+      ts.isBindingElement(parent) ||
+      ts.isVariableDeclaration(parent) ||
+      ts.isParameter(parent)) &&
+    parent.name === node
+  );
 }
 
 function isClockRead(name) {
@@ -55,11 +123,10 @@ function isClockRead(name) {
   );
 }
 
-function isCurrentDateConstructor(node) {
-  return nameOf(node) === "Date";
-}
-
 function realClockReads(sourceFile) {
+  const imports = clockModuleImports(sourceFile);
+  const nameOf = (node) => resolveImport(withoutGlobalObject(dottedName(node)), imports);
+  const isCurrentDateConstructor = (node) => nameOf(node) === "Date";
   return descendants(sourceFile).flatMap((node) => {
     if (
       ts.isNewExpression(node) &&
@@ -71,7 +138,7 @@ function realClockReads(sourceFile) {
     if (ts.isCallExpression(node) && isCurrentDateConstructor(node.expression)) {
       return [{ node, reason: "reads the real clock with Date()" }];
     }
-    if (ts.isPropertyAccessExpression(node) && isClockRead(nameOf(node))) {
+    if (isExpressionName(node) && isClockRead(nameOf(node))) {
       const outer = node.parent;
       const insideLongerRead =
         ts.isPropertyAccessExpression(outer) &&
