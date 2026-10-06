@@ -78,6 +78,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
     failures,
     deps: {
       credentialsPresent: async () => enrolled,
+      registerService: { kind: "in_service" as const },
       registerName: (): string | undefined => undefined,
       enroll: async (code: string) => {
         enrolledCodes.push(code);
@@ -223,6 +224,21 @@ describe("answerRendererRequest", () => {
       });
 
       expect(answer).toEqual({ type: "enrollment-status", request_id: "r1", enrolled });
+    },
+  );
+
+  it.each([
+    ["in_service", { kind: "in_service" }],
+    ["out_of_service", { kind: "out_of_service" }],
+  ] as const)(
+    "answers whether the register is in service: %s",
+    async (service, registerService) => {
+      const answer = await answerRendererRequest(deps(true, { registerService }).deps, {
+        type: "register-service-request",
+        request_id: "r1",
+      });
+
+      expect(answer).toEqual({ type: "register-service", request_id: "r1", service });
     },
   );
 
