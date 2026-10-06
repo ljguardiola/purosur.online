@@ -130,3 +130,13 @@ test("fails for a shard outside the number of shards", async () => {
     }
   });
 });
+
+test("fails for more shards than files to mutate", async () => {
+  await withRepository(async (dir) => {
+    const run = await runInShard(dir, { MUTATION_SHARD_INDEX: "0", MUTATION_SHARD_TOTAL: "6" });
+
+    assert.equal(run.status, 1);
+    assert.equal(run.out, "");
+    assert.match(run.errors, /^mutation-shard: 6 shards for 5 files/);
+  });
+});
