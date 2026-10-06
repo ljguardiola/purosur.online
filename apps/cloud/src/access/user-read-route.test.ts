@@ -152,6 +152,10 @@ describe("GET /users/:id", () => {
       passkey_count: 0,
       is_last_active_administrator: false,
       may_emit_pin_code: false,
+      may_edit: false,
+      may_deactivate: false,
+      may_reactivate: false,
+      may_remove_passkey: false,
     });
   });
 
@@ -196,6 +200,10 @@ describe("GET /users/:id", () => {
       passkey_count: 0,
       is_last_active_administrator: true,
       may_emit_pin_code: true,
+      may_edit: true,
+      may_deactivate: false,
+      may_reactivate: false,
+      may_remove_passkey: false,
     });
   });
 
@@ -257,6 +265,10 @@ describe("GET /users/:id", () => {
       passkey_count: 0,
       is_last_active_administrator: false,
       may_emit_pin_code: false,
+      may_edit: false,
+      may_deactivate: false,
+      may_reactivate: true,
+      may_remove_passkey: false,
     });
   });
 
@@ -356,11 +368,11 @@ describe("GET /users/:id", () => {
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
   });
 
-  describe("may_emit_pin_code", () => {
-    async function pinCodeAnswer(
+  describe("what the viewer may do with the user", () => {
+    async function answersFor(
       viewer: { permissionKeys: string[]; administrator?: boolean },
       target: { role: "cashier" | "administrator"; active?: boolean; self?: boolean },
-    ): Promise<unknown> {
+    ): Promise<Record<string, unknown>> {
       const locationId = await seededLocationId(db);
       const viewerRoleId = viewer.administrator
         ? await seededAdministratorRoleId()
@@ -390,8 +402,75 @@ describe("GET /users/:id", () => {
       const response = await getUser(targetId, rawSessionId);
 
       expect(response.statusCode).toBe(200);
-      return response.json().may_emit_pin_code;
+      return response.json();
     }
+
+    async function pinCodeAnswer(...args: Parameters<typeof answersFor>): Promise<unknown> {
+      return (await answersFor(...args)).may_emit_pin_code;
+    }
+
+    const ADMINISTRATOR = { permissionKeys: [], administrator: true };
+
+    it("lets an Administrator edit, deactivate and remove the passkeys of another active user, but not reactivate", async () => {
+      expect(await answersFor(ADMINISTRATOR, { role: "cashier" })).toMatchObject({
+        may_edit: true,
+        may_deactivate: true,
+        may_reactivate: false,
+        may_remove_passkey: true,
+      });
+    });
+
+    it("lets an Administrator edit their own user but not deactivate it or remove its passkeys", async () => {
+      expect(await answersFor(ADMINISTRATOR, { role: "administrator", self: true })).toMatchObject({
+        may_edit: true,
+        may_deactivate: false,
+        may_reactivate: false,
+        may_remove_passkey: false,
+      });
+    });
+
+    it("lets an Administrator edit another Administrator and remove their passkeys but not deactivate them", async () => {
+      expect(await answersFor(ADMINISTRATOR, { role: "administrator" })).toMatchObject({
+        may_edit: true,
+        may_deactivate: false,
+        may_reactivate: false,
+        may_remove_passkey: true,
+      });
+    });
+
+    it("lets an Administrator only reactivate an inactive user", async () => {
+      expect(await answersFor(ADMINISTRATOR, { role: "cashier", active: false })).toMatchObject({
+        may_edit: false,
+        may_deactivate: false,
+        may_reactivate: true,
+        may_remove_passkey: false,
+      });
+    });
+
+    it("lets a holder of deactivate_users deactivate another active user and do nothing else", async () => {
+      expect(
+        await answersFor({ permissionKeys: ["deactivate_users"] }, { role: "cashier" }),
+      ).toMatchObject({
+        may_edit: false,
+        may_deactivate: true,
+        may_reactivate: false,
+        may_remove_passkey: false,
+      });
+    });
+
+    it("lets a holder of reactivate_users reactivate an inactive user and do nothing else", async () => {
+      expect(
+        await answersFor(
+          { permissionKeys: ["reactivate_users"] },
+          { role: "cashier", active: false },
+        ),
+      ).toMatchObject({
+        may_edit: false,
+        may_deactivate: false,
+        may_reactivate: true,
+        may_remove_passkey: false,
+      });
+    });
 
     it("is true for a holder of reset_user_pin reading another user who is not an Administrator", async () => {
       expect(

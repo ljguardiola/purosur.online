@@ -5,7 +5,6 @@ import { rolePermissions, roles, sessions, userRoles, users } from "../platform/
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import {
-  ADMINISTRATOR_ACCESS,
   capabilityAccess,
   OPEN_SESSION_ACCESS,
   OPEN_SESSION_PEEK_ACCESS,
@@ -62,8 +61,8 @@ beforeEach(async () => {
     answerWithSession,
   );
   app.get(
-    "/test-only/administrator-only",
-    { config: { access: ADMINISTRATOR_ACCESS, sessionSource } },
+    "/test-only/manage-users-capability",
+    { config: { access: capabilityAccess("manage_users"), sessionSource } },
     answerWithSession,
   );
   app.get(
@@ -231,22 +230,22 @@ describe("the declared access, enforced before every handler", () => {
     expect(response.statusCode).toBe(200);
   });
 
-  it("rejects a non-Administrator on an Administrator-only route even holding the matching permission", async () => {
+  it("rejects a non-Administrator on a manage_users route even holding other permissions", async () => {
     const roleId = await insertRole("Cajera", ["void_sale"]);
     const userId = await insertUser(roleId, "cashier@example.com");
     const rawSessionId = await insertSession(userId);
 
-    const response = await callRoute("/test-only/administrator-only", rawSessionId);
+    const response = await callRoute("/test-only/manage-users-capability", rawSessionId);
 
     expect(response.statusCode).toBe(403);
     expect(response.json()).toMatchObject({ code: "forbidden" });
   });
 
-  it("grants an Administrator access to an Administrator-only route", async () => {
+  it("grants an Administrator access to a manage_users route", async () => {
     const userId = await insertUser(await seededAdministratorRoleId(), "admin@example.com");
     const rawSessionId = await insertSession(userId);
 
-    const response = await callRoute("/test-only/administrator-only", rawSessionId);
+    const response = await callRoute("/test-only/manage-users-capability", rawSessionId);
 
     expect(response.statusCode).toBe(200);
   });
@@ -321,7 +320,7 @@ describe("the declared access, enforced before every handler", () => {
     const rawSessionId = await insertSession(userId);
 
     await callRoute("/test-only/open-session");
-    await callRoute("/test-only/administrator-only", rawSessionId);
+    await callRoute("/test-only/manage-users-capability", rawSessionId);
     await callRoute("/test-only/stock-losses-capability", rawSessionId);
 
     expect(handlerRuns).toBe(0);
@@ -440,13 +439,13 @@ describe("the route access inventory", () => {
     );
     inventoryApp.post(
       "/bar",
-      { config: { access: ADMINISTRATOR_ACCESS, sessionSource } },
+      { config: { access: capabilityAccess("manage_users"), sessionSource } },
       async () => "ok",
     );
 
     expect(inventoryApp.routeAccessInventory()).toEqual([
       { method: "GET", url: "/foo", access: OPEN_SESSION_ACCESS },
-      { method: "POST", url: "/bar", access: ADMINISTRATOR_ACCESS },
+      { method: "POST", url: "/bar", access: capabilityAccess("manage_users") },
     ]);
 
     await inventoryApp.close();

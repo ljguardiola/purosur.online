@@ -14,7 +14,6 @@ import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support"
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  ADMINISTRATOR_ACCESS,
   capabilityAccess,
   OPEN_SESSION_ACCESS,
   OPEN_SESSION_PEEK_ACCESS,
@@ -1730,13 +1729,13 @@ describe("the route access inventory", () => {
         url: "/api/users/:id",
         access: capabilityAccess("users_area"),
       },
-      { method: "POST", url: "/api/users", access: ADMINISTRATOR_ACCESS },
-      { method: "PUT", url: "/api/users/:id", access: ADMINISTRATOR_ACCESS },
-      { method: "GET", url: "/api/users/:id/passkeys", access: ADMINISTRATOR_ACCESS },
+      { method: "POST", url: "/api/users", access: capabilityAccess("manage_users") },
+      { method: "PUT", url: "/api/users/:id", access: capabilityAccess("manage_users") },
+      { method: "GET", url: "/api/users/:id/passkeys", access: capabilityAccess("manage_users") },
       {
         method: "DELETE",
         url: "/api/users/:id/passkeys/:passkeyId",
-        access: ADMINISTRATOR_ACCESS,
+        access: capabilityAccess("manage_users"),
       },
       {
         method: "PUT",
@@ -1753,11 +1752,11 @@ describe("the route access inventory", () => {
         url: "/api/users/:id/deactivation",
         access: capabilityAccess("reactivate_users"),
       },
-      { method: "GET", url: "/api/roles", access: ADMINISTRATOR_ACCESS },
+      { method: "GET", url: "/api/roles", access: capabilityAccess("manage_roles") },
       { method: "GET", url: "/api/permission-catalog", access: OPEN_SESSION_ACCESS },
-      { method: "GET", url: "/api/roles/:id", access: ADMINISTRATOR_ACCESS },
-      { method: "POST", url: "/api/roles", access: ADMINISTRATOR_ACCESS },
-      { method: "PUT", url: "/api/roles/:id", access: ADMINISTRATOR_ACCESS },
+      { method: "GET", url: "/api/roles/:id", access: capabilityAccess("manage_roles") },
+      { method: "POST", url: "/api/roles", access: capabilityAccess("manage_roles") },
+      { method: "PUT", url: "/api/roles/:id", access: capabilityAccess("manage_roles") },
       {
         method: "GET",
         url: "/api/locations/current/settings",
@@ -2217,14 +2216,7 @@ describe("every route enforces the access it declares", () => {
     const declaredLevels = new Set(app.routeAccessInventory().map((route) => route.access?.level));
 
     expect(declaredLevels).toEqual(
-      new Set([
-        "public",
-        "open_session",
-        "open_session_peek",
-        "session_cookie",
-        "administrator",
-        "capability",
-      ]),
+      new Set(["public", "open_session", "open_session_peek", "session_cookie", "capability"]),
     );
   });
 
@@ -2250,7 +2242,6 @@ describe("every route enforces the access it declares", () => {
       "open_session",
       "open_session_peek",
       "session_cookie",
-      "administrator",
       "capability",
     ])) {
       const response = await send(app, route);
@@ -2280,22 +2271,6 @@ describe("every route enforces the access it declares", () => {
         response.statusCode,
         `${route.method} ${route.url} responded ${response.statusCode}, body: ${response.body}`,
       ).toBe(401);
-    }
-  });
-
-  it("answers 403 forbidden on every Administrator-only route to a non-Administrator holding every permission", async () => {
-    const app = productionWiredApp();
-    await app.ready();
-    const rawSessionId = await signedInWithRole(PERMISSION_KEYS);
-
-    for (const route of routesDeclaring(app, ["administrator"])) {
-      const response = await send(app, route, rawSessionId);
-
-      expect(
-        response.statusCode,
-        `${route.method} ${route.url} responded ${response.statusCode}, body: ${response.body}`,
-      ).toBe(403);
-      expect(response.json()).toMatchObject({ code: "forbidden" });
     }
   });
 

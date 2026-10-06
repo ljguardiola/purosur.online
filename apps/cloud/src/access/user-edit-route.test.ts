@@ -437,6 +437,10 @@ describe("PUT /users/:id", () => {
       passkey_count: 0,
       is_last_active_administrator: false,
       may_emit_pin_code: true,
+      may_edit: true,
+      may_deactivate: true,
+      may_reactivate: false,
+      may_remove_passkey: true,
     });
     const audited = await db.select().from(auditLog).where(eq(auditLog.entityId, targetId));
     expect(audited).toHaveLength(1);
@@ -530,6 +534,10 @@ describe("PUT /users/:id", () => {
       passkey_count: 0,
       is_last_active_administrator: false,
       may_emit_pin_code: true,
+      may_edit: true,
+      may_deactivate: true,
+      may_reactivate: false,
+      may_remove_passkey: true,
     });
     expect(await roleOf(targetId)).toBe(encargadaRoleId);
     const audited = await db.select().from(auditLog).where(eq(auditLog.entityId, targetId));
@@ -658,6 +666,10 @@ describe("PUT /users/:id", () => {
       passkey_count: 0,
       is_last_active_administrator: false,
       may_emit_pin_code: true,
+      may_edit: true,
+      may_deactivate: true,
+      may_reactivate: false,
+      may_remove_passkey: true,
     });
   });
 
@@ -677,6 +689,10 @@ describe("PUT /users/:id", () => {
       role: { id: administratorRoleId, is_administrator: true },
       is_last_active_administrator: false,
       may_emit_pin_code: true,
+      may_edit: true,
+      may_deactivate: true,
+      may_reactivate: false,
+      may_remove_passkey: true,
     });
   });
 
@@ -714,6 +730,10 @@ describe("PUT /users/:id", () => {
         email: "ada.lovelace@example.com",
         is_last_active_administrator: true,
         may_emit_pin_code: true,
+        may_edit: true,
+        may_deactivate: false,
+        may_reactivate: false,
+        may_remove_passkey: false,
       });
     });
 
@@ -738,6 +758,10 @@ describe("PUT /users/:id", () => {
         role: { id: cashierRoleId },
         is_last_active_administrator: false,
         may_emit_pin_code: true,
+        may_edit: true,
+        may_deactivate: false,
+        may_reactivate: false,
+        may_remove_passkey: false,
       });
       expect(await roleOf(administratorId)).toBe(cashierRoleId);
     });
