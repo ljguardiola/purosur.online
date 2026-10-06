@@ -25,6 +25,18 @@ describe("registerRendererToCoreMessageSchema", () => {
     expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
+  it("accepts a request for whether the register is in service", () => {
+    const message = { type: "register-service-request", request_id: REQUEST_ID };
+
+    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a request for whether the register is in service without its request id", () => {
+    expect(
+      registerRendererToCoreMessageSchema.safeParse({ type: "register-service-request" }).success,
+    ).toBe(false);
+  });
+
   it("accepts a request for the register's own name", () => {
     const message = { type: "register-name-request", request_id: REQUEST_ID };
 
@@ -242,6 +254,31 @@ describe("registerCoreToRendererMessageSchema", () => {
     const message = { type: "enrollment-status", request_id: REQUEST_ID, enrolled };
 
     expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each(["in_service", "out_of_service"])(
+    "accepts whether the register is in service: %s",
+    (service) => {
+      const message = { type: "register-service", request_id: REQUEST_ID, service };
+
+      expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+    },
+  );
+
+  it("rejects a register service that is neither in service nor out of service", () => {
+    expect(
+      registerCoreToRendererMessageSchema.safeParse({
+        type: "register-service",
+        request_id: REQUEST_ID,
+        service: "damaged",
+      }).success,
+    ).toBe(false);
+    expect(
+      registerCoreToRendererMessageSchema.safeParse({
+        type: "register-service",
+        request_id: REQUEST_ID,
+      }).success,
+    ).toBe(false);
   });
 
   it.each(["Caja 1", null])("accepts the register's own name, or none yet: %s", (name) => {
