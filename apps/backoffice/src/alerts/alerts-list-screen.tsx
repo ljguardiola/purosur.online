@@ -36,6 +36,7 @@ const LIST_KIND_DESCRIPTIONS = {
   backoffice_sign_in_lockout: "Demasiados intentos fallidos de ingreso",
   user_access_increased: "Se amplió el acceso de un usuario",
   register_enrolled: "Se dio de alta una caja",
+  outbox_chain_broken: "Se alteraron eventos guardados en una caja",
 } satisfies Record<AlertKind, string>;
 
 export type AlertsListScreenProps = {
