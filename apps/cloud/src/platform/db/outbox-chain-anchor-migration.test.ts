@@ -31,11 +31,11 @@ describe("the outbox chain anchor migration applied over a database that already
     const { rows: locationRows } = await client.query<{ id: string }>(
       "select id from locations limit 1",
     );
-    const { rows: registerRows } = await client.query<{ id: string }>(
-      "insert into registers (location_id, name) values ($1, 'Caja 1') returning id",
-      [locationRows[0]?.id],
-    );
     const installation = async (prefix: string) => {
+      const { rows: registerRows } = await client.query<{ id: string }>(
+        "insert into registers (location_id, name) values ($1, $2) returning id",
+        [locationRows[0]?.id, `Caja ${prefix}`],
+      );
       const { rows } = await client.query<{ id: string }>(
         `insert into register_installations
            (register_id, token_lookup_prefix, token_hash, token_issued_at, hostname, windows_version, enrolled_at)

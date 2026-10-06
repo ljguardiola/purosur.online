@@ -195,6 +195,7 @@ describe("POST /events", () => {
         appVersion: "1.4.0",
         lastPushedAt: NOW,
         walSizeBytes: 4096,
+        lastChainHmac: "hmac",
         diskFreeBytes: 50_000_000,
         diskFreeRatio: 0.42,
       },
