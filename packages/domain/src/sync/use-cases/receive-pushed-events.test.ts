@@ -201,37 +201,59 @@ describe("receiving the events a register pushes", () => {
     expect(inbox.state).toEqual({
       received: [],
       reports: [],
-      chainAnchors: {},
-      chainBrokenAlerts: [],
+      refusedPushes: [],
+      brokenChainRevocations: [],
     });
   });
 });
 
 describe("checking the chain of the events a register pushes", () => {
-  it("finds no break in events that each chain from the one before", async () => {
+  const REFUSED = { kind: "chain_broken" };
+
+  it("receives events that each chain from the one before", async () => {
     const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1, 2] }]);
 
     const outcome = await receive(inbox, eventsOf(3, 4, 5));
 
     expect(outcome).toEqual({ kind: "received", ackSeq: 5 });
-    expect(inbox.state.chainBrokenAlerts).toEqual([]);
+    expect(inbox.state.refusedPushes).toEqual([]);
+    expect(inbox.state.brokenChainRevocations).toEqual([]);
   });
 
-  it("still receives an altered event and opens one alert naming it", async () => {
+  it("refuses a whole push holding an altered event, receiving none of it", async () => {
     const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]);
     const altered = { ...fakeEvent(2), payload: { seq: 99 } };
 
     const outcome = await receive(inbox, [altered, fakeEvent(3)]);
 
-    expect(outcome).toEqual({ kind: "received", ackSeq: 3 });
-    expect(inbox.state.chainBrokenAlerts).toEqual([
-      { deviceId: DEVICE, brokenEvents: [{ deviceSeq: 2, eventId: "event-2" }], detectedAt: NOW },
-    ]);
-    expect(inbox.receivedSeqs(DEVICE)).toEqual([1, 2, 3]);
-    expect(inbox.state.received[1]?.event).toEqual(altered);
+    expect(outcome).toEqual(REFUSED);
+    expect(inbox.receivedSeqs(DEVICE)).toEqual([1]);
   });
 
-  it("opens the alert at the break where an event was removed and the ones after it renumbered", async () => {
+  it("keeps the refused push's events aside and revokes the installation for its broken chain", async () => {
+    const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]);
+    const pushed = [{ ...fakeEvent(2), payload: { seq: 99 } }, fakeEvent(3)];
+
+    await receive(inbox, pushed);
+
+    expect(inbox.state.refusedPushes).toEqual([
+      { deviceId: DEVICE, events: pushed, refusedAt: NOW },
+    ]);
+    expect(inbox.state.brokenChainRevocations).toEqual([{ deviceId: DEVICE, revokedAt: NOW }]);
+  });
+
+  it("keeps aside every event of the refused push, the ones it already holds included", async () => {
+    const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1, 2] }]);
+    const pushed = [fakeEvent(2), { ...fakeEvent(3), payload: { seq: 99 } }];
+
+    await receive(inbox, pushed);
+
+    expect(inbox.state.refusedPushes).toEqual([
+      { deviceId: DEVICE, events: pushed, refusedAt: NOW },
+    ]);
+  });
+
+  it("refuses a push where an event was removed and the ones after it renumbered", async () => {
     const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]);
 
     const outcome = await receive(inbox, [
@@ -239,40 +261,31 @@ describe("checking the chain of the events a register pushes", () => {
       { ...fakeEvent(4), device_seq: 3 },
     ]);
 
-    expect(outcome).toEqual({ kind: "received", ackSeq: 3 });
-    expect(inbox.state.chainBrokenAlerts).toEqual([
-      {
-        deviceId: DEVICE,
-        brokenEvents: [
-          { deviceSeq: 2, eventId: "event-3" },
-          { deviceSeq: 3, eventId: "event-4" },
-        ],
-        detectedAt: NOW,
-      },
-    ]);
+    expect(outcome).toEqual(REFUSED);
   });
 
-  it("opens one alert naming both events where two events were swapped", async () => {
+  it("refuses a push where two events were swapped", async () => {
     const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]);
-    const second = fakeEvent(2);
-    const third = fakeEvent(3);
 
     const outcome = await receive(inbox, [
-      { ...third, device_seq: 2 },
-      { ...second, device_seq: 3 },
+      { ...fakeEvent(3), device_seq: 2 },
+      { ...fakeEvent(2), device_seq: 3 },
     ]);
 
-    expect(outcome).toEqual({ kind: "received", ackSeq: 3 });
-    expect(inbox.state.chainBrokenAlerts).toEqual([
-      {
-        deviceId: DEVICE,
-        brokenEvents: [
-          { deviceSeq: 2, eventId: "event-3" },
-          { deviceSeq: 3, eventId: "event-2" },
-        ],
-        detectedAt: NOW,
-      },
+    expect(outcome).toEqual(REFUSED);
+  });
+
+  it("refuses a push whose break comes after events that chain well", async () => {
+    const inbox = new FakeInbox();
+
+    const outcome = await receive(inbox, [
+      fakeEvent(1),
+      fakeEvent(2),
+      { ...fakeEvent(3), chain_hmac: "forged-link" },
     ]);
+
+    expect(outcome).toEqual(REFUSED);
+    expect(inbox.receivedSeqs(DEVICE)).toEqual([]);
   });
 
   it("chains the first event of an installation from the origin", async () => {
@@ -280,69 +293,42 @@ describe("checking the chain of the events a register pushes", () => {
 
     const outcome = await receive(inbox, [chainedFrom("some-link", unchainedFakeEvent(1))]);
 
-    expect(outcome).toEqual({ kind: "received", ackSeq: 1 });
-    expect(inbox.state.chainBrokenAlerts).toEqual([
-      { deviceId: DEVICE, brokenEvents: [{ deviceSeq: 1, eventId: "event-1" }], detectedAt: NOW },
-    ]);
+    expect(outcome).toEqual(REFUSED);
   });
 
-  it("chains the first event of a push from the anchor the cloud keeps for the installation", async () => {
-    const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1, 2] }]);
+  it("chains the first event of a push from the link the inbox holds for the event before", async () => {
+    const held = new FakeInbox([{ deviceId: DEVICE, seqs: [1, 2] }]);
+    const fromOrigin = new FakeInbox([{ deviceId: DEVICE, seqs: [1, 2] }]);
 
-    const outcome = await receive(inbox, [chainedFrom(null, unchainedFakeEvent(3))]);
-
-    expect(outcome).toEqual({ kind: "received", ackSeq: 3 });
-    expect(inbox.state.chainBrokenAlerts).toEqual([
-      { deviceId: DEVICE, brokenEvents: [{ deviceSeq: 3, eventId: "event-3" }], detectedAt: NOW },
+    const chained = await receive(held, [
+      chainedFrom(fakeEvent(2).chain_hmac, unchainedFakeEvent(3)),
     ]);
+    const unchained = await receive(fromOrigin, [chainedFrom(null, unchainedFakeEvent(3))]);
+
+    expect(chained).toEqual({ kind: "received", ackSeq: 3 });
+    expect(unchained).toEqual(REFUSED);
   });
 
-  it("adopts a broken link as the anchor of the event after it in the same push", async () => {
+  it("checks the chain with the key of the installation that pushes", async () => {
     const inbox = new FakeInbox();
-    const forged = { ...fakeEvent(2), chain_hmac: "forged-link" };
+    inbox.chainKeys.set(DEVICE, "chain-key-2");
 
     const outcome = await receive(inbox, [
-      fakeEvent(1),
-      forged,
-      chainedFrom("forged-link", unchainedFakeEvent(3)),
+      chainedFrom(null, unchainedFakeEvent(1), "chain-key-2"),
+      fakeEvent(2),
     ]);
 
-    expect(outcome).toEqual({ kind: "received", ackSeq: 3 });
-    expect(inbox.state.chainBrokenAlerts).toEqual([
-      { deviceId: DEVICE, brokenEvents: [{ deviceSeq: 2, eventId: "event-2" }], detectedAt: NOW },
-    ]);
+    expect(outcome).toEqual(REFUSED);
   });
 
-  it("does not report a break again on a later push that chains from the adopted link", async () => {
-    const inbox = new FakeInbox();
-    await receive(inbox, [fakeEvent(1), { ...fakeEvent(2), chain_hmac: "forged-link" }]);
-
-    const outcome = await receive(inbox, [chainedFrom("forged-link", unchainedFakeEvent(3))]);
-
-    expect(outcome).toEqual({ kind: "received", ackSeq: 3 });
-    expect(inbox.state.chainBrokenAlerts).toEqual([
-      { deviceId: DEVICE, brokenEvents: [{ deviceSeq: 2, eventId: "event-2" }], detectedAt: NOW },
-    ]);
-  });
-
-  it("names every event received as broken when the installation has no chain key", async () => {
+  it("refuses a push from an installation that has no chain key", async () => {
     const inbox = new FakeInbox();
     inbox.chainKeys.set(DEVICE, undefined);
 
     const outcome = await receive(inbox, eventsOf(1, 2));
 
-    expect(outcome).toEqual({ kind: "received", ackSeq: 2 });
-    expect(inbox.state.chainBrokenAlerts).toEqual([
-      {
-        deviceId: DEVICE,
-        brokenEvents: [
-          { deviceSeq: 1, eventId: "event-1" },
-          { deviceSeq: 2, eventId: "event-2" },
-        ],
-        detectedAt: NOW,
-      },
-    ]);
-    expect(inbox.receivedSeqs(DEVICE)).toEqual([1, 2]);
+    expect(outcome).toEqual(REFUSED);
+    expect(inbox.receivedSeqs(DEVICE)).toEqual([]);
   });
 
   it("does not check again an event it already holds", async () => {
@@ -354,40 +340,17 @@ describe("checking the chain of the events a register pushes", () => {
     ]);
 
     expect(outcome).toEqual({ kind: "received", ackSeq: 3 });
-    expect(inbox.state.chainBrokenAlerts).toEqual([]);
   });
 
-  it("keeps the link of the last event it receives as the anchor", async () => {
-    const inbox = new FakeInbox();
-
-    await receive(inbox, eventsOf(1, 2));
-
-    expect(inbox.state.chainAnchors).toEqual({ [DEVICE]: fakeEvent(2).chain_hmac });
-  });
-
-  it("keeps the anchor as it was when the batch is refused", async () => {
+  it("checks nothing of a push it refuses for a gap or a stale device", async () => {
     const gap = new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]);
     const stale = new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]);
 
     await receive(gap, [{ ...fakeEvent(3), chain_hmac: "forged-link" }]);
-    await receive(stale, [fakeEvent(1, "another-event")]);
+    await receive(stale, [{ ...fakeEvent(1, "another-event"), chain_hmac: "forged-link" }]);
 
-    expect(gap.state.chainAnchors).toEqual({ [DEVICE]: fakeEvent(1).chain_hmac });
-    expect(gap.state.chainBrokenAlerts).toEqual([]);
-    expect(stale.state.chainAnchors).toEqual({ [DEVICE]: fakeEvent(1).chain_hmac });
-    expect(stale.state.chainBrokenAlerts).toEqual([]);
-  });
-
-  it("keeps the anchor of each installation apart", async () => {
-    const inbox = new FakeInbox([{ deviceId: OTHER_DEVICE, seqs: [1, 2, 3] }]);
-
-    await receive(inbox, eventsOf(1));
-
-    expect(inbox.state.chainAnchors).toEqual({
-      [DEVICE]: fakeEvent(1).chain_hmac,
-      [OTHER_DEVICE]: fakeEvent(3).chain_hmac,
-    });
-    expect(inbox.state.chainBrokenAlerts).toEqual([]);
+    expect(gap.state.brokenChainRevocations).toEqual([]);
+    expect(stale.state.brokenChainRevocations).toEqual([]);
   });
 
   it("checks the chain only after locking the installation", async () => {
@@ -395,20 +358,20 @@ describe("checking the chain of the events a register pushes", () => {
 
     await receive(inbox, eventsOf(1));
 
-    expect(inbox.calls.indexOf("chainAnchor device-1")).toBeGreaterThan(
+    expect(inbox.calls.indexOf("outboxChainKey device-1")).toBeGreaterThan(
       inbox.calls.indexOf("lockDevice device-1"),
     );
   });
 
-  it("leaves no anchor and no alert behind when receiving fails", async () => {
+  it("leaves nothing aside and revokes nothing when keeping the refused push fails", async () => {
     const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]);
-    inbox.failReceiving = true;
+    inbox.failSettingAside = true;
 
     await expect(receive(inbox, [{ ...fakeEvent(2), chain_hmac: "forged-link" }])).rejects.toThrow(
-      "the inbox could not be written",
+      "the refused push could not be kept",
     );
 
-    expect(inbox.state.chainAnchors).toEqual({ [DEVICE]: fakeEvent(1).chain_hmac });
-    expect(inbox.state.chainBrokenAlerts).toEqual([]);
+    expect(inbox.state.refusedPushes).toEqual([]);
+    expect(inbox.state.brokenChainRevocations).toEqual([]);
   });
 });

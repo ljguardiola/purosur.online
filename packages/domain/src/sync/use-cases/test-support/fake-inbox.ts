@@ -1,6 +1,6 @@
 import { canonicalOutboxEvent, type OutboxEvent } from "../../model/outbox-event.js";
 import type { PushedEvent } from "../../model/push-batch.js";
-import type { ChainBrokenAlert, Inbox, InboxTransaction, PushReport } from "../sync-ports.js";
+import type { Inbox, InboxTransaction, PushReport } from "../sync-ports.js";
 import { FAKE_CHAIN_KEY, fakeEventChain } from "./fake-event-chain.js";
 
 interface FakeReceivedEvent {
@@ -17,14 +17,20 @@ interface FakePushReport extends PushReport {
 export interface FakeInboxState {
   received: FakeReceivedEvent[];
   reports: FakePushReport[];
-  chainAnchors: Record<string, string>;
-  chainBrokenAlerts: ChainBrokenAlert[];
+  refusedPushes: { deviceId: string; events: PushedEvent[]; refusedAt: Date }[];
+  brokenChainRevocations: { deviceId: string; revokedAt: Date }[];
 }
 
 export class FakeInbox implements Inbox {
-  state: FakeInboxState = { received: [], reports: [], chainAnchors: {}, chainBrokenAlerts: [] };
+  state: FakeInboxState = {
+    received: [],
+    reports: [],
+    refusedPushes: [],
+    brokenChainRevocations: [],
+  };
   calls: string[] = [];
   failReceiving = false;
+  failSettingAside = false;
   chainKeys = new Map<string, string | undefined>();
 
   constructor(receivedSeqs: { deviceId: string; seqs: number[] }[] = []) {
@@ -35,9 +41,6 @@ export class FakeInbox implements Inbox {
           event: fakeEvent(seq),
           receivedAt: new Date(0),
         });
-      }
-      if (seqs.length > 0) {
-        this.state.chainAnchors[deviceId] = fakeEvent(Math.max(...seqs)).chain_hmac;
       }
     }
   }
@@ -71,17 +74,22 @@ export class FakeInbox implements Inbox {
             .map((entry) => [entry.event.device_seq, entry.event.event_id]),
         );
       },
-      chainAnchor: async (deviceId) => {
-        this.calls.push(`chainAnchor ${deviceId}`);
-        return working.chainAnchors[deviceId] ?? null;
+      receivedChainLink: async (deviceId, deviceSeq) => {
+        this.calls.push(`receivedChainLink ${deviceId}`);
+        return working.received.find(
+          (entry) => entry.deviceId === deviceId && entry.event.device_seq === deviceSeq,
+        )?.event.chain_hmac;
       },
-      adoptChainAnchor: async (deviceId, link) => {
-        this.calls.push(`adoptChainAnchor ${deviceId}`);
-        working.chainAnchors[deviceId] = link;
+      setAsideRefusedPush: async (deviceId, events, refusedAt) => {
+        this.calls.push(`setAsideRefusedPush ${deviceId}`);
+        if (this.failSettingAside) {
+          throw new Error("the refused push could not be kept");
+        }
+        working.refusedPushes.push({ deviceId, events: structuredClone(events), refusedAt });
       },
-      openChainBrokenAlert: async (alert) => {
-        this.calls.push(`openChainBrokenAlert ${alert.deviceId}`);
-        working.chainBrokenAlerts.push(structuredClone(alert));
+      revokeForBrokenChain: async (deviceId, revokedAt) => {
+        this.calls.push(`revokeForBrokenChain ${deviceId}`);
+        working.brokenChainRevocations.push({ deviceId, revokedAt });
       },
       outboxChainKey: async (deviceId) => {
         this.calls.push(`outboxChainKey ${deviceId}`);
