@@ -94,7 +94,7 @@ export class SqliteSaleLedger implements SaleLedger {
       discardOpenSale: (saleId) => this.discardOpenSale(saleId),
       recordPayment: (payment) => this.recordPayment(payment),
       recordCashMovement: (movement) => insertCashMovement(this.database, movement),
-      recordCompletedSale: (saleId) => this.recordCompletedSale(saleId),
+      recordCompletedSale: (saleId, occurredAt) => this.recordCompletedSale(saleId, occurredAt),
       appendOutboxEvent: (draft) => this.appendOutboxEvent(draft),
       issuerIdentificationInEffect: () => readIssuerIdentificationInEffect(this.database),
       buyerTaxStatusSetInEffect: () => readBuyerTaxStatusSetInEffect(this.database),
@@ -257,8 +257,8 @@ export class SqliteSaleLedger implements SaleLedger {
   private recordOpenedSale(sale: Sale): void {
     this.database
       .prepare(
-        `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
-         VALUES (@id, @register_id, @device_id, @session_id, @actor_id, @state, @occurred_at)`,
+        `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state)
+         VALUES (@id, @register_id, @device_id, @session_id, @actor_id, @state)`,
       )
       .run({
         id: sale.id,
@@ -267,7 +267,6 @@ export class SqliteSaleLedger implements SaleLedger {
         session_id: sale.sessionId,
         actor_id: sale.actorId,
         state: sale.state,
-        occurred_at: sale.occurredAt.toISOString(),
       });
   }
 
@@ -367,10 +366,12 @@ export class SqliteSaleLedger implements SaleLedger {
       });
   }
 
-  private recordCompletedSale(saleId: string): void {
+  private recordCompletedSale(saleId: string, occurredAt: Date): void {
     const { changes } = this.database
-      .prepare("UPDATE sales SET state = 'COMPLETED' WHERE id = ? AND state = 'OPEN'")
-      .run(saleId);
+      .prepare(
+        "UPDATE sales SET state = 'COMPLETED', occurred_at = ? WHERE id = ? AND state = 'OPEN'",
+      )
+      .run(occurredAt.toISOString(), saleId);
     if (changes !== 1) {
       throw new Error("the sale is not in progress");
     }

@@ -625,7 +625,7 @@ describe("the register's local migrations", () => {
       database
         .prepare(
           `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
-           VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'OPEN', '2026-09-30T12:05:00.000Z')`,
+           VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL)`,
         )
         .run();
       return database;
@@ -694,9 +694,9 @@ describe("the register's local migrations", () => {
       database
         .prepare(
           `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
-           VALUES (?, 'r1', 'device-a', ?, 'u1', ?, '2026-09-30T12:00:00.000Z')`,
+           VALUES (?, 'r1', 'device-a', ?, 'u1', ?, ?)`,
         )
-        .run(id, sessionId, state);
+        .run(id, sessionId, state, state === "OPEN" ? null : "2026-09-30T12:00:00.000Z");
     }
 
     function withSession() {
@@ -1050,7 +1050,7 @@ describe("the register's local migrations", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
       const path = join(folder, "register.sqlite");
-      const previous = LOCAL_MIGRATIONS.slice(0, 18);
+      const previous = LOCAL_MIGRATIONS.slice(0, 19);
       expect(previous.at(-1)?.name).toBe("0018_transfer_payments");
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0019_sales_dated_when_charged",
