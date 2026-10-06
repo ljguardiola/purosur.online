@@ -2,7 +2,7 @@ import { HighlightedNotice } from "@purosur/ui";
 import { Ban } from "lucide-react";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
 
-export function OutOfServiceNotice() {
+export function OutOfServiceScreen() {
   return (
     <BrandPanelScreen>
       <div className="w-full max-w-112">

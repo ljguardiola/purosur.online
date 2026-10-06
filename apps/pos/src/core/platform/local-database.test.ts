@@ -2,8 +2,9 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { type LocalMigration, openLocalDatabase } from "./local-database";
+import type { LocalMigration } from "./local-database";
 import { migrationClock } from "./test-support/migration-clock";
+import { openLocalDatabase } from "./test-support/open-local-database";
 
 const folders: string[] = [];
 

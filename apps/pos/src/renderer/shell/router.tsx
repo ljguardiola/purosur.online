@@ -53,7 +53,7 @@ import { EnrollmentScreen } from "../register/enrollment-screen";
 import { LockedCloseScreen } from "../register/locked-close-screen";
 import { LockedRegisterScreen } from "../register/locked-register-screen";
 import { NoSessionScreen } from "../register/no-session-screen";
-import { OutOfServiceNotice } from "../register/out-of-service-notice";
+import { OutOfServiceScreen } from "../register/out-of-service-screen";
 import { registerNameQueryOptions, useRegisterNameQuery } from "../register/register-queries";
 import { ChargeScreen } from "../sales/charge-screen";
 import { SaleScreen } from "../sales/sale-screen";
@@ -139,9 +139,9 @@ type ScreenPath =
   | "/core-down"
   | "/out-of-service";
 
-// Until the core says whether this installation is enrolled, the register stays on the brand panel
-// instead of guessing between the enrollment screen and the rest of the register. The same goes
-// for whether a cash session is open, which decides between signing in and resuming it.
+// Until the core says whether the register is in service and then whether this installation is
+// enrolled, the register stays on the brand panel instead of guessing which screen comes next. The
+// same goes for whether a cash session is open, which decides between signing in and resuming it.
 export function routeFor({
   coreStatus,
   registerService,
@@ -546,7 +546,7 @@ const outOfServiceRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/out-of-service",
   beforeLoad: ({ context }) => requireRoute("/out-of-service", context),
-  component: OutOfServiceNotice,
+  component: OutOfServiceScreen,
 });
 
 export const routeTree = rootRoute.addChildren([

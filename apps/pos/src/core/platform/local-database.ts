@@ -49,18 +49,3 @@ export function openLocalDatabaseFile(path: string): LocalDatabase {
     throw error;
   }
 }
-
-export function openLocalDatabase(
-  path: string,
-  migrations: readonly LocalMigration[],
-  now: () => Date,
-): LocalDatabase {
-  const database = openLocalDatabaseFile(path);
-  try {
-    applyMigrations(database, migrations, now);
-    return database;
-  } catch (error) {
-    database.close();
-    throw error;
-  }
-}

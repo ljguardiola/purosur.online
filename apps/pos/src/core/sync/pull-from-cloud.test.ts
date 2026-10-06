@@ -1,9 +1,9 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import type { CloudResponse } from "../platform/cloud-client";
-import { openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
+import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { pullFromCloud, pullResultOf } from "./pull-from-cloud";
 import { SqliteLocalReplica } from "./sqlite-local-replica";
 
