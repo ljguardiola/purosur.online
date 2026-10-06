@@ -331,6 +331,15 @@ describe("checking the chain of the events a register pushes", () => {
     expect(inbox.receivedSeqs(DEVICE)).toEqual([]);
   });
 
+  it("receives a push of events it already holds from an installation that has no chain key", async () => {
+    const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1, 2] }]);
+    inbox.chainKeys.set(DEVICE, undefined);
+
+    const outcome = await receive(inbox, eventsOf(1, 2));
+
+    expect(outcome).toEqual({ kind: "received", ackSeq: 2 });
+  });
+
   it("does not check again an event it already holds", async () => {
     const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1, 2] }]);
 
