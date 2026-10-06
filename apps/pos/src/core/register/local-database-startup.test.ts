@@ -85,6 +85,19 @@ describe("starting the register's local database", () => {
     expect(damageRecordedIn(dataFolder)).toBe(false);
   });
 
+  it("hands over the health that records a damage found while the register runs", async () => {
+    const dataFolder = folder();
+
+    const started = await startWith(dataFolder);
+
+    expect(started.kind).toBe("ready");
+    if (started.kind === "ready") {
+      await started.health.recordDamage();
+      expect(damageRecordedIn(dataFolder)).toBe(true);
+      started.database.close();
+    }
+  });
+
   it("is ready and keeps the data of a healthy database", async () => {
     const dataFolder = folder();
     healthyDatabaseIn(dataFolder);
