@@ -59,7 +59,7 @@ export function registerUserDeactivationRoutes<TQueryResult extends PgQueryResul
       }
 
       const outcome = await deactivateUser(
-        { store: new DrizzleUserStore(options.db) },
+        { store: new DrizzleUserStore(options.db, now) },
         { id: target.id, actorId: openSession.userId, at: attemptedAt },
       );
 

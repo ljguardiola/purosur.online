@@ -10,10 +10,11 @@ import { auditLog, passkeys } from "../platform/db/schema.js";
 export async function addPasskey<TQueryResult extends PgQueryResultHKT>(
   tx: PgDatabase<TQueryResult>,
   passkey: RecoveredPasskey,
+  createdAt: Date,
 ): Promise<RegisteredPasskey & { createdAt: Date }> {
   const [added] = await tx
     .insert(passkeys)
-    .values(passkey)
+    .values({ ...passkey, createdAt })
     .onConflictDoNothing({ target: passkeys.credentialId })
     .returning({ id: passkeys.id, createdAt: passkeys.createdAt });
   if (!added) {
@@ -27,6 +28,7 @@ export async function recordPasskeyRegistered<TQueryResult extends PgQueryResult
   userId: string,
   passkey: RegisteredPasskey,
   details: RecoveredPasskey,
+  at: Date,
 ): Promise<void> {
   await tx.insert(auditLog).values({
     entity: "passkey",
@@ -40,6 +42,7 @@ export async function recordPasskeyRegistered<TQueryResult extends PgQueryResult
       deviceType: details.deviceType,
       backedUp: details.backedUp,
     },
+    at,
   });
 }
 

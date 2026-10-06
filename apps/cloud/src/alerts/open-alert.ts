@@ -17,5 +17,8 @@ export function openAlert<TQueryResult extends PgQueryResultHKT>(
   input: OpenAlertInput,
   deps: OpenAlertDeps,
 ): Promise<OpenAlertOutcome> {
-  return openAlertUseCase({ store: new DrizzleAlertStore(tx), clock: { now: deps.now } }, input);
+  return openAlertUseCase(
+    { store: new DrizzleAlertStore(tx, deps.now), clock: { now: deps.now } },
+    input,
+  );
 }

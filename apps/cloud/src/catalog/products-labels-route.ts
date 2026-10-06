@@ -55,7 +55,7 @@ export function registerProductLabelsRoute<TQueryResult extends PgQueryResultHKT
         return;
       }
 
-      const pdf = await renderLabelSheetPdf(outcome.items);
+      const pdf = await renderLabelSheetPdf(outcome.items, now());
       await reply
         .header("Content-Disposition", "attachment")
         .type("application/pdf")

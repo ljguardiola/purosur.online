@@ -150,7 +150,7 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
       const { registrationInfo } = verification;
 
       const registered = await registerPasskey(
-        { store: new DrizzlePasskeyRegistrationStore(options.db) },
+        { store: new DrizzlePasskeyRegistrationStore(options.db, now) },
         {
           userId: openSession.userId,
           passkey: {

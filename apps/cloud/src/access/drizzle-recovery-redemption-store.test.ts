@@ -13,6 +13,8 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleRecoveryRedemptionStore } from "./drizzle-recovery-redemption-store.js";
 
+const NOON = new Date("2026-01-05T12:00:00.000Z");
+
 const ISSUED_AT = new Date("2026-10-01T12:00:00.000Z");
 const EXPIRES_AT = new Date("2026-10-01T12:15:00.000Z");
 const BEFORE_EXPIRY = new Date("2026-10-01T12:14:59.999Z");
@@ -65,7 +67,7 @@ beforeEach(async () => {
   tokenId = await insertToken();
 });
 
-const store = () => new DrizzleRecoveryRedemptionStore(db);
+const store = () => new DrizzleRecoveryRedemptionStore(db, () => NOON);
 
 function recoveredPasskey(overrides: Record<string, unknown> = {}) {
   return {

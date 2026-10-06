@@ -48,7 +48,7 @@ export function registerRoleCreationRoutes<TQueryResult extends PgQueryResultHKT
       }
 
       const outcome = await createRole(
-        { store: new DrizzleRoleStore(options.db) },
+        { store: new DrizzleRoleStore(options.db, now) },
         {
           name: parsedBody.name,
           permissionKeys: parsedBody.permissions,

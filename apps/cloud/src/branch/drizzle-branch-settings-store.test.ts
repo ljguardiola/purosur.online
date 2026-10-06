@@ -8,6 +8,8 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleBranchSettingsReader } from "./drizzle-branch-settings-reader.js";
 import { DrizzleBranchSettingsStore } from "./drizzle-branch-settings-store.js";
 
+const NOON = new Date("2026-01-05T12:00:00.000Z");
+
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 
@@ -42,7 +44,7 @@ function edit(
   overrides: Record<string, unknown> = {},
 ) {
   return editBranchSettings(
-    { store: new DrizzleBranchSettingsStore(db) },
+    { store: new DrizzleBranchSettingsStore(db, () => NOON) },
     {
       locationId,
       actorId,

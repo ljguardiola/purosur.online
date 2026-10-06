@@ -346,9 +346,10 @@ export interface StartServerDeps {
 function recordAuthorizedCuitInDatabase(
   db: RecoveryInfrastructure["db"],
   authorizedCuit: string,
+  now: () => Date,
 ): Promise<unknown> {
   return recordAuthorizedCuit(
-    { store: new DrizzleIssuerIdentificationStore(db) },
+    { store: new DrizzleIssuerIdentificationStore(db, now) },
     { authorizedCuit },
   );
 }
@@ -361,7 +362,10 @@ export async function startServer(
   const doBuildApp = deps.buildApp ?? buildApp;
   const doSetUpRecovery = deps.setUpRecovery ?? setUpRecovery;
   const now = deps.now ?? (() => new Date());
-  const doRecordAuthorizedCuit = deps.recordAuthorizedCuit ?? recordAuthorizedCuitInDatabase;
+  const doRecordAuthorizedCuit =
+    deps.recordAuthorizedCuit ??
+    ((db: RecoveryInfrastructure["db"], authorizedCuit: string) =>
+      recordAuthorizedCuitInDatabase(db, authorizedCuit, now));
 
   const version = resolveVersion(env);
   doInitSentry({ dsn: env.SENTRY_DSN, environment: env.SENTRY_ENVIRONMENT, release: version });

@@ -53,7 +53,7 @@ export function registerUserPasskeyRemovalRoutes<TQueryResult extends PgQueryRes
 
       const outcome = await removeUserPasskey(
         {
-          store: new DrizzlePasskeyRemovalStore(options.db),
+          store: new DrizzlePasskeyRemovalStore(options.db, now),
           users: drizzleBranchUsers(options.db),
         },
         {

@@ -54,7 +54,7 @@ describe("emitting an enrollment code through DrizzleBranchRegisterStore", () =>
 
     const outcome = await emitEnrollmentCode(
       {
-        store: new DrizzleBranchRegisterStore(db),
+        store: new DrizzleBranchRegisterStore(db, () => NOW),
         clock: { now: () => NOW },
         codes: secretEnrollmentCodes,
       },
@@ -125,7 +125,7 @@ describe("branchRegisters of DrizzleBranchRegisterStore", () => {
       version: 1,
     });
 
-    const listed = await new DrizzleBranchRegisterStore(db).branchRegisters(locationId);
+    const listed = await new DrizzleBranchRegisterStore(db, () => NOW).branchRegisters(locationId);
 
     expect(listed).toEqual([
       { id: neverConfiguredId, name: "Caja 1", enrollmentCode: null, pointOfSaleNumber: null },

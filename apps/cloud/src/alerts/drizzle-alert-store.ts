@@ -42,9 +42,11 @@ class DrizzleAlertStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements AlertStoreTransaction
 {
   private readonly tx: Transaction<TQueryResult>;
+  private readonly now: () => Date;
 
-  constructor(tx: Transaction<TQueryResult>) {
+  constructor(tx: Transaction<TQueryResult>, now: () => Date) {
     this.tx = tx;
+    this.now = now;
   }
 
   async insertAlert(alert: NewAlert): Promise<string> {
@@ -127,6 +129,7 @@ class DrizzleAlertStoreTransaction<TQueryResult extends PgQueryResultHKT>
         recipientUserId,
         channel: "backoffice" as const,
         status: "sent" as const,
+        createdAt: this.now(),
       })),
     );
   }
@@ -169,6 +172,7 @@ class DrizzleAlertStoreTransaction<TQueryResult extends PgQueryResultHKT>
       actorId: closure.closedBy,
       previousValue: { resolvedAt: null },
       newValue: { resolvedAt: closure.closedAt.toISOString() },
+      at: closure.closedAt,
     });
   }
 
@@ -191,12 +195,14 @@ class DrizzleAlertStoreTransaction<TQueryResult extends PgQueryResultHKT>
 
 export class DrizzleAlertStore<TQueryResult extends PgQueryResultHKT> implements AlertStore {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly now: () => Date;
 
-  constructor(db: PgDatabase<TQueryResult>) {
+  constructor(db: PgDatabase<TQueryResult>, now: () => Date) {
     this.db = db;
+    this.now = now;
   }
 
   transaction<TOutcome>(work: (tx: AlertStoreTransaction) => Promise<TOutcome>): Promise<TOutcome> {
-    return this.db.transaction((tx) => work(new DrizzleAlertStoreTransaction(tx)));
+    return this.db.transaction((tx) => work(new DrizzleAlertStoreTransaction(tx, this.now)));
   }
 }

@@ -21,7 +21,7 @@ export function registerBuyerIdentificationThresholdRecordRoute<
   TQueryResult extends PgQueryResultHKT,
 >(app: FastifyInstance, options: BuyerIdentificationThresholdsRouteOptions<TQueryResult>): void {
   const { now } = options;
-  const ports = { store: new DrizzleBuyerIdentificationThresholdStore(options.db) };
+  const ports = { store: new DrizzleBuyerIdentificationThresholdStore(options.db, now) };
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 

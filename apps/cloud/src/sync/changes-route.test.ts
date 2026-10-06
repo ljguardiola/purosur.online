@@ -269,7 +269,7 @@ describe("GET /changes", () => {
     expect(first.cursor).toBe(4);
 
     await editBranchSettings(
-      { store: new DrizzleBranchSettingsStore(db) },
+      { store: new DrizzleBranchSettingsStore(db, () => NOW) },
       settingsEdit(locationId, await insertActor(locationId), 1, "Av. Belgrano 1450"),
     );
     const next = await pullPage(first.cursor, deviceToken);
@@ -442,7 +442,7 @@ describe("GET /changes carrying the catalog and the prices", () => {
 
   async function newPrice(productId: string, locationId: string, unitPrice: number) {
     const outcome = await setPrice(
-      { store: new DrizzlePricingStore(db), clock: { now: () => AT } },
+      { store: new DrizzlePricingStore(db, () => NOW), clock: { now: () => AT } },
       {
         productId,
         locationId,
@@ -767,7 +767,7 @@ describe("GET /changes carrying the users and the roles", () => {
 
   async function newRole(name: string, permissionKeys: string[]): Promise<string> {
     const outcome = await createRole(
-      { store: new DrizzleRoleStore(db) },
+      { store: new DrizzleRoleStore(db, () => NOW) },
       { name, permissionKeys, actorId: await anActor() },
     );
     if (outcome.kind !== "created") {
@@ -778,7 +778,7 @@ describe("GET /changes carrying the users and the roles", () => {
 
   async function newUser(firstName: string, email: string, roleId: string): Promise<string> {
     const outcome = await createUser(
-      { store: new DrizzleUserStore(db), clock: NOW_FOR_ALERTS },
+      { store: new DrizzleUserStore(db, () => NOW), clock: NOW_FOR_ALERTS },
       {
         firstName,
         email,
@@ -953,7 +953,7 @@ describe("GET /changes carrying the users and the roles", () => {
     const cashierRoleId = await newRole("Cajera", []);
     const graceId = await newUser("Grace", "grace@example.com", cashierRoleId);
     await deactivateUser(
-      { store: new DrizzleUserStore(db) },
+      { store: new DrizzleUserStore(db, () => NOW) },
       { id: graceId, actorId: await anActor(), at: NOW },
     );
 
@@ -1196,7 +1196,7 @@ describe("GET /changes carrying the register's own row", () => {
 
   async function newRegister(name: string): Promise<string> {
     const [actor] = await db.select({ id: users.id }).from(users).limit(1);
-    const outcome = await createRegister(new DrizzleBranchRegisterStore(db), {
+    const outcome = await createRegister(new DrizzleBranchRegisterStore(db, () => NOW), {
       locationId: await seededLocationId(db),
       name,
       actorId: actor?.id ?? (await insertActor(await seededLocationId(db))),

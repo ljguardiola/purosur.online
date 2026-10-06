@@ -48,7 +48,7 @@ export function registerPasskeyRemovalRoutes<TQueryResult extends PgQueryResultH
       const targetId = ids.id;
 
       const outcome = await removeOwnPasskey(
-        { store: new DrizzlePasskeyRemovalStore(options.db) },
+        { store: new DrizzlePasskeyRemovalStore(options.db, now) },
         {
           userId: openSession.userId,
           passkeyId: targetId,

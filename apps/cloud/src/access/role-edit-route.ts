@@ -69,7 +69,7 @@ export function registerRoleEditRoutes<TQueryResult extends PgQueryResultHKT>(
       }
 
       const outcome = await editRole(
-        { store: new DrizzleRoleStore(options.db), clock: { now } },
+        { store: new DrizzleRoleStore(options.db, now), clock: { now } },
         {
           id: target.id,
           name: parsedBody.name,

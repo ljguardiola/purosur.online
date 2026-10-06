@@ -66,7 +66,7 @@ beforeEach(async () => {
   administratorRoleId = administrator.id;
 });
 
-const store = () => new DrizzleUserStore(db);
+const store = () => new DrizzleUserStore(db, () => NOW);
 
 async function loggedUserChanges(userId: string) {
   return db
@@ -428,7 +428,7 @@ describe("opening alerts", () => {
 describe("the change log", () => {
   it("logs through the collector of a caller that owns the outer transaction, and discards it on rollback", async () => {
     const pending = new PendingChanges();
-    const attempt = new DrizzleUserStore(db, pending).transaction(async (tx) => {
+    const attempt = new DrizzleUserStore(db, () => NOW, pending).transaction(async (tx) => {
       await tx.insertUser({ firstName: "Marta", email: "marta@example.com", locationId });
       throw new Error("the operation failed afterwards");
     });

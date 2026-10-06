@@ -19,6 +19,8 @@ import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleRegisterPointOfSaleStore } from "./drizzle-register-point-of-sale-store.js";
 
+const NOON = new Date("2026-01-05T12:00:00.000Z");
+
 const FOREIGN_KEY_VIOLATION = "23503";
 
 let integrationDb: IntegrationDatabase;
@@ -73,7 +75,7 @@ describe("two registers configured at once with the same point-of-sale number on
     const { locationId, actorId, fiscalAddressId, firstRegisterId, secondRegisterId } =
       await seedTwoRegisters();
     const configure = (registerId: string) => () =>
-      configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db), {
+      configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db, () => NOON), {
         locationId,
         registerId,
         pointOfSaleNumber: 42,

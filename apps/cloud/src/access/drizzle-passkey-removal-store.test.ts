@@ -79,7 +79,7 @@ beforeEach(async () => {
 });
 
 function removalStore() {
-  return new DrizzlePasskeyRemovalStore(db);
+  return new DrizzlePasskeyRemovalStore(db, () => AT);
 }
 
 describe("DrizzlePasskeyRemovalStore", () => {

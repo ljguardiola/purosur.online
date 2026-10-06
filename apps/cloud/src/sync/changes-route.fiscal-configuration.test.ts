@@ -137,7 +137,7 @@ async function insertTaxStatusSet(
 }
 
 function issuerPorts() {
-  return { store: new DrizzleIssuerIdentificationStore(db) };
+  return { store: new DrizzleIssuerIdentificationStore(db, () => NOW) };
 }
 
 async function startUnder(authorizedCuit: string) {
@@ -242,7 +242,7 @@ describe("GET /changes carrying the fiscal configuration", () => {
     });
     const ownBranch = await insertEnrolledInstallation(db, { now: NOW });
     const outcome = await recordBuyerIdentificationThreshold(
-      { store: new DrizzleBuyerIdentificationThresholdStore(db) },
+      { store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOW) },
       { amount: 3_500_000_000, validFrom: "2026-10-01", actorId: await insertActor() },
     );
     if (outcome.kind !== "recorded") {

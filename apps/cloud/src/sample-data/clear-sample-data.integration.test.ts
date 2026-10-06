@@ -53,6 +53,8 @@ import {
 } from "./sample-catalog.js";
 
 const NOW = new Date("2026-04-01T09:00:00.000Z");
+const EARLIER = new Date(NOW.getTime() - 3_600_000);
+const LATER = new Date(NOW.getTime() + 3_600_000);
 const RECOVERY_REQUESTED_DETAIL = {
   requestedAt: NOW.toISOString(),
   issuedAt: NOW.toISOString(),
@@ -189,6 +191,7 @@ async function editBranchSettingsAs(
   locationId: string,
   actorId: string,
   address: string,
+  at: Date,
 ): Promise<void> {
   const [current] = await db
     .select({ version: branchSettings.version })
@@ -196,7 +199,7 @@ async function editBranchSettingsAs(
     .where(eq(branchSettings.locationId, locationId));
   if (!current) throw new Error("test setup: no branch settings seeded");
   const edit = await editBranchSettings(
-    { store: new DrizzleBranchSettingsStore(db) },
+    { store: new DrizzleBranchSettingsStore(db, () => at) },
     {
       ...SAMPLE_BRANCH_SETTINGS,
       address,
@@ -209,7 +212,7 @@ async function editBranchSettingsAs(
 }
 
 function pricingPorts(db: PostgresJsDatabase<Record<string, never>>) {
-  return { store: new DrizzlePricingStore(db), clock: { now: () => NOW } };
+  return { store: new DrizzlePricingStore(db, () => NOW), clock: { now: () => NOW } };
 }
 
 describe("clearSampleData", () => {
@@ -229,7 +232,7 @@ describe("clearSampleData", () => {
     const bootstrapAdmin = await seedActiveAdministrator(db);
 
     const realRoleOutcome = await createRole(
-      { store: new DrizzleRoleStore(db) },
+      { store: new DrizzleRoleStore(db, () => NOW) },
       {
         name: "Cajera Real",
         permissionKeys: ["sell_and_charge"],
@@ -239,7 +242,7 @@ describe("clearSampleData", () => {
     if (realRoleOutcome.kind !== "created") throw new Error("test setup: real role collided");
     const realUserOutcome = await createUser(
       {
-        store: new DrizzleUserStore(db),
+        store: new DrizzleUserStore(db, () => NOW),
         clock: { now: () => new Date() },
       },
       {
@@ -294,11 +297,14 @@ describe("clearSampleData", () => {
     });
     if (realPriceOutcome.kind !== "applied") throw new Error("test setup: real price failed");
 
-    const realRegisterOutcome = await createRegister(new DrizzleBranchRegisterStore(db), {
-      locationId: bootstrapAdmin.locationId,
-      name: "Caja Real",
-      actorId: bootstrapAdmin.id,
-    });
+    const realRegisterOutcome = await createRegister(
+      new DrizzleBranchRegisterStore(db, () => NOW),
+      {
+        locationId: bootstrapAdmin.locationId,
+        name: "Caja Real",
+        actorId: bootstrapAdmin.id,
+      },
+    );
     if (realRegisterOutcome.kind !== "created")
       throw new Error("test setup: real register collided");
 
@@ -592,7 +598,7 @@ describe("clearSampleData", () => {
   it("logs every register it removes as a delete of the version after its last one, and none it leaves in place", async () => {
     const db = await freshOwnerDatabase();
     const bootstrap = await seedActiveAdministrator(db);
-    const realRegister = await createRegister(new DrizzleBranchRegisterStore(db), {
+    const realRegister = await createRegister(new DrizzleBranchRegisterStore(db, () => NOW), {
       locationId: bootstrap.locationId,
       name: "Caja Real",
       actorId: bootstrap.id,
@@ -794,7 +800,7 @@ describe("clearSampleData", () => {
       .where(eq(branchSettings.locationId, bootstrapAdmin.locationId));
     if (!loadedSettings) throw new Error("test setup: no branch settings seeded");
     const edit = await editBranchSettings(
-      { store: new DrizzleBranchSettingsStore(db) },
+      { store: new DrizzleBranchSettingsStore(db, () => LATER) },
       {
         ...SAMPLE_BRANCH_SETTINGS,
         address: "Calle Real 1",
@@ -834,7 +840,7 @@ describe("clearSampleData", () => {
       .where(eq(branchSettings.locationId, bootstrapAdmin.locationId));
     if (!initialSettings) throw new Error("test setup: no branch settings seeded");
     const edit = await editBranchSettings(
-      { store: new DrizzleBranchSettingsStore(db) },
+      { store: new DrizzleBranchSettingsStore(db, () => EARLIER) },
       {
         ...SAMPLE_BRANCH_SETTINGS,
         locationId: bootstrapAdmin.locationId,
@@ -865,7 +871,7 @@ describe("clearSampleData", () => {
         .where(eq(branchSettings.locationId, bootstrapAdmin.locationId));
       if (!current) throw new Error("test setup: no branch settings seeded");
       const edit = await editBranchSettings(
-        { store: new DrizzleBranchSettingsStore(db) },
+        { store: new DrizzleBranchSettingsStore(db, () => LATER) },
         {
           ...SAMPLE_BRANCH_SETTINGS,
           address,
@@ -901,12 +907,19 @@ describe("clearSampleData", () => {
     const bootstrapAdmin = await seedActiveAdministrator(db);
     expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
     const sampleAdministratorId = await userIdByEmail(db, SAMPLE_ADMINISTRATOR.email);
-    await editBranchSettingsAs(db, bootstrapAdmin.locationId, bootstrapAdmin.id, "Calle Real 1");
+    await editBranchSettingsAs(
+      db,
+      bootstrapAdmin.locationId,
+      bootstrapAdmin.id,
+      "Calle Real 1",
+      LATER,
+    );
     await editBranchSettingsAs(
       db,
       bootstrapAdmin.locationId,
       sampleAdministratorId,
       SAMPLE_BRANCH_SETTINGS.address,
+      LATER,
     );
     const beforeClear = await sampleDataSnapshot(db);
 
@@ -919,13 +932,20 @@ describe("clearSampleData", () => {
   it("refuses and deletes nothing when the sample administrator set the sample values on branch settings the load had left alone", async () => {
     const db = await freshOwnerDatabase();
     const bootstrapAdmin = await seedActiveAdministrator(db);
-    await editBranchSettingsAs(db, bootstrapAdmin.locationId, bootstrapAdmin.id, "Calle Real 1");
+    await editBranchSettingsAs(
+      db,
+      bootstrapAdmin.locationId,
+      bootstrapAdmin.id,
+      "Calle Real 1",
+      EARLIER,
+    );
     expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
     await editBranchSettingsAs(
       db,
       bootstrapAdmin.locationId,
       await userIdByEmail(db, SAMPLE_ADMINISTRATOR.email),
       SAMPLE_BRANCH_SETTINGS.address,
+      LATER,
     );
     const beforeClear = await sampleDataSnapshot(db);
 
@@ -945,7 +965,7 @@ describe("clearSampleData", () => {
       .where(eq(branchSettings.locationId, bootstrapAdmin.locationId));
     if (!loadedSettings) throw new Error("test setup: no branch settings seeded");
     const edit = await editBranchSettings(
-      { store: new DrizzleBranchSettingsStore(db) },
+      { store: new DrizzleBranchSettingsStore(db, () => LATER) },
       {
         ...SAMPLE_BRANCH_SETTINGS,
         address: "Calle Real 1",

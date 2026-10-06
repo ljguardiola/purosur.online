@@ -14,6 +14,8 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleRoleStore } from "./drizzle-role-store.js";
 import { DrizzleUserStore } from "./drizzle-user-store.js";
 
+const NOON = new Date("2026-01-05T12:00:00.000Z");
+
 const UNIQUE_VIOLATION = "23505";
 
 // PGlite serializes every query on one connection, so where a lock is taken can only be observed
@@ -88,7 +90,7 @@ describe("changing a user or a role while another writer holds the change log, o
     const { started } = await holdingTheChangeLog(
       () =>
         deactivateUser(
-          { store: new DrizzleUserStore(db) },
+          { store: new DrizzleUserStore(db, () => NOON) },
           { id: userId, actorId, at: new Date() },
         ),
       () => sql`update users set first_name = 'Otra' where id = ${userId}`.then(() => undefined),
@@ -107,7 +109,7 @@ describe("changing a user or a role while another writer holds the change log, o
       () =>
         editRole(
           {
-            store: new DrizzleRoleStore(db),
+            store: new DrizzleRoleStore(db, () => NOON),
             clock: { now: () => new Date() },
           },
           {

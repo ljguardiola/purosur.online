@@ -12,6 +12,8 @@ import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleFiscalAddressStore } from "./drizzle-fiscal-address-store.js";
 
+const NOON = new Date("2026-01-05T12:00:00.000Z");
+
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let adminSql: ReturnType<typeof postgres>;
@@ -45,7 +47,7 @@ describe("two fiscal addresses created at once under the same name on a real Pos
     }
     const create = (name: string) => () =>
       createFiscalAddress(
-        { store: new DrizzleFiscalAddressStore(db) },
+        { store: new DrizzleFiscalAddressStore(db, () => NOON) },
         { name, streetAddress: "Calle Ficticia 123, CABA", actorId: actor.id },
       );
 

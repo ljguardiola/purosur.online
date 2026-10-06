@@ -13,7 +13,10 @@ export function escalateAlertsTask<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   deps: { now: () => Date },
 ): Promise<number> {
-  return escalateOverdueAlerts({ store: new DrizzleAlertStore(db), clock: { now: deps.now } });
+  return escalateOverdueAlerts({
+    store: new DrizzleAlertStore(db, deps.now),
+    clock: { now: deps.now },
+  });
 }
 
 export interface AlertEscalationJobsDeps {

@@ -14,6 +14,10 @@ export {
 export function createFirstAdministrator<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: CreateFirstAdministratorInput,
+  now: () => Date,
 ): Promise<CreateFirstAdministratorResult> {
-  return createFirstAdministratorUseCase({ store: new DrizzleFirstAdministratorStore(db) }, input);
+  return createFirstAdministratorUseCase(
+    { store: new DrizzleFirstAdministratorStore(db, now) },
+    input,
+  );
 }

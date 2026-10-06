@@ -43,10 +43,11 @@ export function parseCreateFirstAdministratorArgs(
 async function runCreateFirstAdministrator(
   databaseUrl: string,
   input: ParsedCreateFirstAdministratorArgs,
+  now: () => Date,
 ): Promise<{ email: string }> {
   const sql = postgres(databaseUrl, { max: 1, connect_timeout: 10 });
   try {
-    const result = await createFirstAdministrator(drizzle(sql), input);
+    const result = await createFirstAdministrator(drizzle(sql), input, now);
     return { email: result.email };
   } finally {
     await sql.end({ timeout: 1 });
@@ -81,7 +82,7 @@ if (import.meta.main) {
     console.error("create-first-administrator: DATABASE_URL is not set");
     process.exit(1);
   } else {
-    runCreateFirstAdministrator(databaseUrl, parsedArgs)
+    runCreateFirstAdministrator(databaseUrl, parsedArgs, () => new Date())
       .then((result) => {
         console.log(`create-first-administrator: created Administrator ${result.email}`);
       })

@@ -159,6 +159,7 @@ class DrizzlePinCodeRedemptionStoreTransaction<TQueryResult extends PgQueryResul
         pin_code_redeemed_at: redemption.redeemedAt.toISOString(),
         register_id: redemption.registerId,
       },
+      at: redemption.redeemedAt,
     });
   }
 }

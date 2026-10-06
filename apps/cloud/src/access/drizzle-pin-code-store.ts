@@ -25,11 +25,18 @@ class DrizzlePinCodeStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements PinCodeStoreTransaction
 {
   private readonly tx: Transaction<TQueryResult>;
+  private readonly now: () => Date;
   private readonly locationId: string;
   private readonly pending: PendingChanges;
 
-  constructor(tx: Transaction<TQueryResult>, locationId: string, pending: PendingChanges) {
+  constructor(
+    tx: Transaction<TQueryResult>,
+    now: () => Date,
+    locationId: string,
+    pending: PendingChanges,
+  ) {
     this.tx = tx;
+    this.now = now;
     this.locationId = locationId;
     this.pending = pending;
   }
@@ -102,16 +109,19 @@ class DrizzlePinCodeStoreTransaction<TQueryResult extends PgQueryResultHKT>
       entityId: emission.userId,
       actorId: emission.actorId,
       newValue: { pin_code_expires_at: emission.expiresAt.toISOString() },
+      at: this.now(),
     });
   }
 }
 
 export class DrizzlePinCodeStore<TQueryResult extends PgQueryResultHKT> implements PinCodeStore {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly now: () => Date;
   private readonly locationId: string;
 
-  constructor(db: PgDatabase<TQueryResult>, locationId: string) {
+  constructor(db: PgDatabase<TQueryResult>, now: () => Date, locationId: string) {
     this.db = db;
+    this.now = now;
     this.locationId = locationId;
   }
 
@@ -119,7 +129,7 @@ export class DrizzlePinCodeStore<TQueryResult extends PgQueryResultHKT> implemen
     work: (tx: PinCodeStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     return withPendingChanges(this.db, undefined, (tx, pending) =>
-      work(new DrizzlePinCodeStoreTransaction(tx, this.locationId, pending)),
+      work(new DrizzlePinCodeStoreTransaction(tx, this.now, this.locationId, pending)),
     );
   }
 }

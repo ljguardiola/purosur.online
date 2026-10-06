@@ -6,6 +6,8 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleRegisterPointOfSaleReader } from "./drizzle-register-point-of-sale-reader.js";
 import { DrizzleRegisterPointOfSaleStore } from "./drizzle-register-point-of-sale-store.js";
 
+const NOON = new Date("2026-01-05T12:00:00.000Z");
+
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 
@@ -70,7 +72,7 @@ describe("DrizzleRegisterPointOfSaleReader", () => {
     const neverConfiguredId = await insertRegister(locationId, "Caja 1");
     await insertRegister(await insertOtherLocation(), "Caja 3");
     const fiscalAddressId = await insertFiscalAddress();
-    await configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db), {
+    await configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db, () => NOON), {
       locationId,
       registerId: configuredId,
       pointOfSaleNumber: 7,

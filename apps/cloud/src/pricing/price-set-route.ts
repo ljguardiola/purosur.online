@@ -30,7 +30,7 @@ export function registerPriceSetRoute<TQueryResult extends PgQueryResultHKT>(
   options: PricesRouteOptions<TQueryResult>,
 ): void {
   const { now } = options;
-  const ports = { store: new DrizzlePricingStore(options.db), clock: { now } };
+  const ports = { store: new DrizzlePricingStore(options.db, now), clock: { now } };
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 

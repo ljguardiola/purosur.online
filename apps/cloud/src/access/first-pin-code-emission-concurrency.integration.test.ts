@@ -17,6 +17,8 @@ import { DrizzleFirstPinCodeStore } from "./drizzle-first-pin-code-store.js";
 import { DrizzlePinCodeRedemptionStore } from "./drizzle-pin-code-redemption-store.js";
 import { generatePinCode } from "./pin-code-generator.js";
 
+const NOON = new Date("2026-01-05T12:00:00.000Z");
+
 // PGlite serializes every transaction, so an emission can only wait on a redemption's lock on a
 // real Postgres pool.
 const CODE = "K3PX7WNE2QRT6MZD";
@@ -80,7 +82,7 @@ describe("asking for a first PIN code while the person redeems a code on a real 
       () =>
         emitFirstPinCode(
           {
-            store: new DrizzleFirstPinCodeStore(db),
+            store: new DrizzleFirstPinCodeStore(db, () => NOON),
             clock: { now: () => now },
             codes: { generate: generatePinCode },
           },

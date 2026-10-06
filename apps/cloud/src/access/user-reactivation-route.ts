@@ -56,7 +56,7 @@ export function registerUserReactivationRoutes<TQueryResult extends PgQueryResul
       }
 
       const outcome = await reactivateUser(
-        { store: new DrizzleUserStore(options.db) },
+        { store: new DrizzleUserStore(options.db, now) },
         { id: target.id, actorId: openSession.userId },
       );
 

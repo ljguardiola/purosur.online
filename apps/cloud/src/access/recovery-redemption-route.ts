@@ -58,7 +58,7 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
   const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
   const doRecordRejectedAttempt = options.recordRejectedAttempt ?? recordRejectedAttempt;
   const reportError = options.reportError ?? reportRecoveryBookkeepingError;
-  const ports = { store: new DrizzleRecoveryRedemptionStore(options.db) };
+  const ports = { store: new DrizzleRecoveryRedemptionStore(options.db, now) };
 
   async function checkRedemptionRateLimit(
     request: FastifyRequest,

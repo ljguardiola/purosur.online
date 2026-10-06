@@ -32,7 +32,7 @@ export function registerBranchSettingsEditRoute<TQueryResult extends PgQueryResu
   options: BranchSettingsRouteOptions<TQueryResult>,
 ): void {
   const { now } = options;
-  const ports = { store: new DrizzleBranchSettingsStore(options.db) };
+  const ports = { store: new DrizzleBranchSettingsStore(options.db, now) };
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 

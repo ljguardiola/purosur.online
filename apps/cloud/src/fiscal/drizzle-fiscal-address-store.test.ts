@@ -11,6 +11,8 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleFiscalAddressReader } from "./drizzle-fiscal-address-reader.js";
 import { DrizzleFiscalAddressStore } from "./drizzle-fiscal-address-store.js";
 
+const NOON = new Date("2026-01-05T12:00:00.000Z");
+
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 
@@ -43,7 +45,7 @@ async function insertActor(): Promise<string> {
 }
 
 function ports() {
-  return { store: new DrizzleFiscalAddressStore(db) };
+  return { store: new DrizzleFiscalAddressStore(db, () => NOON) };
 }
 
 describe("DrizzleFiscalAddressStore", () => {
@@ -162,7 +164,7 @@ describe("DrizzleFiscalAddressStore", () => {
   });
 
   it("finds no fiscal address for an id that nobody has", async () => {
-    const store = new DrizzleFiscalAddressStore(db);
+    const store = new DrizzleFiscalAddressStore(db, () => NOON);
 
     const lookup = await store.transaction((tx) =>
       tx.lockFiscalAddress("7c9e6679-7425-40de-944b-e07fc1f90ae7"),
@@ -176,7 +178,7 @@ describe("DrizzleFiscalAddressStore", () => {
     await db
       .insert(fiscalAddresses)
       .values({ name: "Deposito Central", streetAddress: "Calle Ficticia 123, CABA" });
-    const store = new DrizzleFiscalAddressStore(db);
+    const store = new DrizzleFiscalAddressStore(db, () => NOON);
 
     const insertion = store.transaction((tx) =>
       tx.insertFiscalAddress({
@@ -201,7 +203,7 @@ describe("DrizzleFiscalAddressStore", () => {
     if (!other) {
       throw new Error("test setup: seeding the fiscal address returned no row");
     }
-    const store = new DrizzleFiscalAddressStore(db);
+    const store = new DrizzleFiscalAddressStore(db, () => NOON);
 
     const update = store.transaction((tx) =>
       tx.updateFiscalAddress({

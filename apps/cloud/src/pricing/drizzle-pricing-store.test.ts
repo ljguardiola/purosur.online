@@ -80,12 +80,12 @@ async function insertOtherPriceList(): Promise<string> {
 }
 
 function pricingPortsAt(moment: Date) {
-  return { store: new DrizzlePricingStore(db), clock: { now: () => moment } };
+  return { store: new DrizzlePricingStore(db, () => MOMENT), clock: { now: () => moment } };
 }
 
 async function latestReviewOf(productId: string): Promise<Date | undefined> {
   const priceListId = await seededPriceListId(db);
-  return new DrizzlePricingStore(db).transaction((tx) =>
+  return new DrizzlePricingStore(db, () => MOMENT).transaction((tx) =>
     tx.latestReviewedAt(productId, priceListId),
   );
 }
@@ -120,7 +120,7 @@ describe("DrizzlePricingStore", () => {
           validFrom: MOMENT,
         })),
       );
-      const store = new DrizzlePricingStore(db);
+      const store = new DrizzlePricingStore(db, () => MOMENT);
 
       const current = await store.transaction((tx) => tx.currentPrice(productId, priceListId));
 
@@ -133,7 +133,7 @@ describe("DrizzlePricingStore", () => {
     ["a deactivated product", false, { kind: "not_found" }],
   ])("locks a product only while it is active: %s", async (_case, active, expected) => {
     const productId = await insertProduct(active);
-    const store = new DrizzlePricingStore(db);
+    const store = new DrizzlePricingStore(db, () => MOMENT);
 
     const locked = await store.transaction((tx) => tx.lockActiveProduct(productId));
 
@@ -141,7 +141,7 @@ describe("DrizzlePricingStore", () => {
   });
 
   it("answers the price list of a branch", async () => {
-    const store = new DrizzlePricingStore(db);
+    const store = new DrizzlePricingStore(db, () => MOMENT);
 
     const locationId = await seededLocationId(db);
 
@@ -151,7 +151,7 @@ describe("DrizzlePricingStore", () => {
   });
 
   it("refuses a branch with no settings", async () => {
-    const store = new DrizzlePricingStore(db);
+    const store = new DrizzlePricingStore(db, () => MOMENT);
 
     await expect(
       store.transaction((tx) => tx.branchPriceList("00000000-0000-4000-8000-0000000000aa")),
@@ -172,7 +172,7 @@ describe("DrizzlePricingStore", () => {
         validFrom: LATER,
       },
     ]);
-    const store = new DrizzlePricingStore(db);
+    const store = new DrizzlePricingStore(db, () => MOMENT);
 
     const current = await store.transaction((tx) => tx.currentPrice(productId, priceListId));
 
@@ -195,7 +195,7 @@ describe("DrizzlePricingStore", () => {
         priceId: LESSER_ID,
       })),
     );
-    const store = new DrizzlePricingStore(db);
+    const store = new DrizzlePricingStore(db, () => MOMENT);
 
     const latest = await store.transaction((tx) => tx.latestReviewedAt(productId, priceListId));
 
@@ -208,7 +208,7 @@ describe("DrizzlePricingStore", () => {
   ])("audits %s as a product price change", async (_case, previous) => {
     const productId = await insertProduct();
     const actorId = await insertUser();
-    const store = new DrizzlePricingStore(db);
+    const store = new DrizzlePricingStore(db, () => MOMENT);
 
     await store.transaction((tx) =>
       tx.recordPriceChange({
@@ -233,7 +233,7 @@ describe("DrizzlePricingStore", () => {
   it("audits a confirmation as a product price review", async () => {
     const productId = await insertProduct();
     const actorId = await insertUser();
-    const store = new DrizzlePricingStore(db);
+    const store = new DrizzlePricingStore(db, () => MOMENT);
 
     await store.transaction((tx) =>
       tx.recordPriceConfirmation({ productId, actorId, priceId: LESSER_ID }),

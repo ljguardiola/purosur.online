@@ -62,7 +62,7 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
       }
 
       const outcome = await createUser(
-        { store: new DrizzleUserStore(options.db), clock: { now } },
+        { store: new DrizzleUserStore(options.db, now), clock: { now } },
         {
           firstName: parsedBody.first_name,
           email: parsedBody.email,

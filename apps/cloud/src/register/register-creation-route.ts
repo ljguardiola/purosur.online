@@ -26,7 +26,7 @@ export function registerRegisterCreationRoute<TQueryResult extends PgQueryResult
   const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
-  const store = new DrizzleBranchRegisterStore(options.db);
+  const store = new DrizzleBranchRegisterStore(options.db, now);
 
   app.post(
     "/registers",

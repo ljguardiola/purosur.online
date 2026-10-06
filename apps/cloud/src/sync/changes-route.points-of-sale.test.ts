@@ -97,7 +97,7 @@ async function configure(input: {
   actorId: string;
 }) {
   const outcome = await configureRegisterPointOfSale(
-    new DrizzleRegisterPointOfSaleStore(db),
+    new DrizzleRegisterPointOfSaleStore(db, () => NOW),
     input,
   );
   if (outcome.kind !== "configured") {

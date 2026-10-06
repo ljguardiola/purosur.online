@@ -7,6 +7,8 @@ import { removeSeededThreshold } from "../test-support/remove-seeded-threshold.j
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleBuyerIdentificationThresholdStore } from "./drizzle-buyer-identification-threshold-store.js";
 
+const NOON = new Date("2026-01-05T12:00:00.000Z");
+
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 
@@ -45,14 +47,14 @@ async function seedThreshold(amount: number, validFrom: string, actorId: string)
 
 function record(actorId: string, validFrom: string, amount = 1_000_000) {
   return recordBuyerIdentificationThreshold(
-    { store: new DrizzleBuyerIdentificationThresholdStore(db) },
+    { store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOON) },
     { amount, validFrom, actorId },
   );
 }
 
 describe("DrizzleBuyerIdentificationThresholdStore", () => {
   it("answers no latest threshold while none exists", async () => {
-    const store = new DrizzleBuyerIdentificationThresholdStore(db);
+    const store = new DrizzleBuyerIdentificationThresholdStore(db, () => NOON);
 
     const latest = await store.transaction((tx) => tx.lockLatestBuyerIdentificationThreshold());
 
@@ -63,7 +65,7 @@ describe("DrizzleBuyerIdentificationThresholdStore", () => {
     const actorId = await insertActor();
     await seedThreshold(2_000_000, "2026-06-01", actorId);
     await seedThreshold(1_000_000, "2026-01-01", actorId);
-    const store = new DrizzleBuyerIdentificationThresholdStore(db);
+    const store = new DrizzleBuyerIdentificationThresholdStore(db, () => NOON);
 
     const latest = await store.transaction((tx) => tx.lockLatestBuyerIdentificationThreshold());
 
@@ -149,7 +151,7 @@ describe("DrizzleBuyerIdentificationThresholdStore", () => {
 
   it("leaves nothing behind when the operation fails after recording", async () => {
     const actorId = await insertActor();
-    const store = new DrizzleBuyerIdentificationThresholdStore(db);
+    const store = new DrizzleBuyerIdentificationThresholdStore(db, () => NOON);
     const loggedBefore = await db.select().from(changes);
 
     await expect(

@@ -20,6 +20,8 @@ import { generatePinCode } from "./pin-code-generator.js";
 import type { AccessEmailSender, SendFirstPinCodeInput } from "./recovery-email-sender.js";
 import { FIRST_PIN_CODE_EMAIL_TASK_IDENTIFIER, startRecoveryWorker } from "./recovery-worker.js";
 
+const NOON = new Date("2026-01-05T12:00:00.000Z");
+
 // Only a real Postgres has graphile-worker's job table and a transaction the enqueue can join.
 const WAIT_OPTIONS = { timeout: 20_000, interval: 100 };
 
@@ -64,7 +66,7 @@ async function seedPersonWithoutPin(): Promise<Person> {
 function emit(person: Person, enqueueEmail?: EnqueueFirstPinCodeEmail) {
   return emitFirstPinCode(
     {
-      store: new DrizzleFirstPinCodeStore(db, enqueueEmail),
+      store: new DrizzleFirstPinCodeStore(db, () => NOON, enqueueEmail),
       clock: { now: () => new Date() },
       codes: { generate: generatePinCode },
     },

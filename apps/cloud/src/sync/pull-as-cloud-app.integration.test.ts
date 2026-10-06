@@ -74,7 +74,7 @@ describe("a pull run as the role the deployed cloud connects with", () => {
       throw new Error("test setup: the product or the actor was not created");
     }
     const role = await createRole(
-      { store: new DrizzleRoleStore(db) },
+      { store: new DrizzleRoleStore(db, () => NOW) },
       {
         name: "Cajera",
         permissionKeys: ["sell_and_charge"],
@@ -86,7 +86,7 @@ describe("a pull run as the role the deployed cloud connects with", () => {
     }
     await createUser(
       {
-        store: new DrizzleUserStore(db),
+        store: new DrizzleUserStore(db, () => NOW),
         clock: { now: () => NOW },
       },
       {
@@ -99,7 +99,7 @@ describe("a pull run as the role the deployed cloud connects with", () => {
       },
     );
     await setPrice(
-      { store: new DrizzlePricingStore(db), clock: { now: () => NOW } },
+      { store: new DrizzlePricingStore(db, () => NOW), clock: { now: () => NOW } },
       {
         productId: product.product.id,
         locationId,
@@ -109,11 +109,11 @@ describe("a pull run as the role the deployed cloud connects with", () => {
       },
     );
     await recordAuthorizedCuit(
-      { store: new DrizzleIssuerIdentificationStore(db) },
+      { store: new DrizzleIssuerIdentificationStore(db, () => NOW) },
       { authorizedCuit: FICTIONAL_CUIT },
     );
     await recordBuyerIdentificationThreshold(
-      { store: new DrizzleBuyerIdentificationThresholdStore(db) },
+      { store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOW) },
       { amount: 1_000_000, validFrom: "2026-10-01", actorId: actor.id },
     );
     const [taxStatusSet] = await db
@@ -133,14 +133,14 @@ describe("a pull run as the role the deployed cloud connects with", () => {
       op: "insert",
     });
     const fiscalAddress = await createFiscalAddress(
-      { store: new DrizzleFiscalAddressStore(db) },
+      { store: new DrizzleFiscalAddressStore(db, () => NOW) },
       { name: "Deposito Central", streetAddress: "Calle Ficticia 123, CABA", actorId: actor.id },
     );
     if (fiscalAddress.kind !== "created") {
       throw new Error("test setup: the fiscal address was not created");
     }
     const pointOfSale = await configureRegisterPointOfSale(
-      new DrizzleRegisterPointOfSaleStore(db),
+      new DrizzleRegisterPointOfSaleStore(db, () => NOW),
       {
         locationId,
         registerId,

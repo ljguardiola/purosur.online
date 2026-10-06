@@ -34,7 +34,7 @@ export function registerFiscalAddressEditRoute<TQueryResult extends PgQueryResul
   options: FiscalAddressesRouteOptions<TQueryResult>,
 ): void {
   const { now } = options;
-  const ports = { store: new DrizzleFiscalAddressStore(options.db) };
+  const ports = { store: new DrizzleFiscalAddressStore(options.db, now) };
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 

@@ -18,9 +18,11 @@ class DrizzlePasskeyRemovalStoreTransaction<TQueryResult extends PgQueryResultHK
   implements PasskeyRemovalStoreTransaction
 {
   private readonly tx: Transaction<TQueryResult>;
+  private readonly now: () => Date;
 
-  constructor(tx: Transaction<TQueryResult>) {
+  constructor(tx: Transaction<TQueryResult>, now: () => Date) {
     this.tx = tx;
+    this.now = now;
   }
 
   async findRemovablePasskey(
@@ -50,6 +52,7 @@ class DrizzlePasskeyRemovalStoreTransaction<TQueryResult extends PgQueryResultHK
       actorId: userId,
       previousValue: { id: passkey.id, name: passkey.name },
       newValue: null,
+      at: this.now(),
     });
   }
 
@@ -64,6 +67,7 @@ class DrizzlePasskeyRemovalStoreTransaction<TQueryResult extends PgQueryResultHK
       actorId: administratorId,
       previousValue: { id: passkey.id, name: passkey.name, userId },
       newValue: null,
+      at: this.now(),
     });
   }
 
@@ -89,14 +93,18 @@ export class DrizzlePasskeyRemovalStore<TQueryResult extends PgQueryResultHKT>
   implements PasskeyRemovalStore
 {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly now: () => Date;
 
-  constructor(db: PgDatabase<TQueryResult>) {
+  constructor(db: PgDatabase<TQueryResult>, now: () => Date) {
     this.db = db;
+    this.now = now;
   }
 
   transaction<TOutcome>(
     work: (tx: PasskeyRemovalStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return this.db.transaction((tx) => work(new DrizzlePasskeyRemovalStoreTransaction(tx)));
+    return this.db.transaction((tx) =>
+      work(new DrizzlePasskeyRemovalStoreTransaction(tx, this.now)),
+    );
   }
 }

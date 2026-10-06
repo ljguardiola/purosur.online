@@ -7,6 +7,8 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleFirstAdministratorStore } from "./drizzle-first-administrator-store.js";
 
+const NOON = new Date("2026-01-05T12:00:00.000Z");
+
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 
@@ -26,7 +28,7 @@ beforeEach(async () => {
 function inTransaction<TOutcome>(
   work: (tx: FirstAdministratorStoreTransaction) => Promise<TOutcome>,
 ): Promise<TOutcome> {
-  return new DrizzleFirstAdministratorStore(db).transaction(work);
+  return new DrizzleFirstAdministratorStore(db, () => NOON).transaction(work);
 }
 
 describe("DrizzleFirstAdministratorStore", () => {

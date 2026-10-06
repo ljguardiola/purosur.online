@@ -17,6 +17,8 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleRegisterPointOfSaleStore } from "./drizzle-register-point-of-sale-store.js";
 
+const NOON = new Date("2026-01-05T12:00:00.000Z");
+
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 
@@ -82,7 +84,7 @@ function configure(input: {
   version: number;
   actorId: string;
 }) {
-  return configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db), input);
+  return configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db, () => NOON), input);
 }
 
 describe("configuring a register's point of sale through DrizzleRegisterPointOfSaleStore", () => {
@@ -308,7 +310,7 @@ describe("configuring a register's point of sale through DrizzleRegisterPointOfS
     await db
       .insert(pointOfSaleClaims)
       .values({ pointOfSaleNumber: 7, registerId, claimedBy: actorId });
-    const store = new DrizzleRegisterPointOfSaleStore(db);
+    const store = new DrizzleRegisterPointOfSaleStore(db, () => NOON);
 
     const claim = store.transaction((tx) =>
       tx.claimPointOfSale({ pointOfSaleNumber: 7, registerId: otherRegisterId, actorId }),

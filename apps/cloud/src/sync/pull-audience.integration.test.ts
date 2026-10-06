@@ -269,7 +269,7 @@ beforeAll(async () => {
 
   const role = expectOutcome(
     await createRole(
-      { store: new DrizzleRoleStore(db) },
+      { store: new DrizzleRoleStore(db, () => NOW) },
       { name: "Cajera", permissionKeys: ["sell_and_charge"], actorId: actorA },
     ),
     "created",
@@ -290,13 +290,13 @@ beforeAll(async () => {
   );
   const threshold = expectOutcome(
     await recordBuyerIdentificationThreshold(
-      { store: new DrizzleBuyerIdentificationThresholdStore(db) },
+      { store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOW) },
       { amount: 1_000_000, validFrom: "2026-10-01", actorId: actorA },
     ),
     "recorded",
   );
 
-  const pricing = { store: new DrizzlePricingStore(db), clock: { now: () => NOW } };
+  const pricing = { store: new DrizzlePricingStore(db, () => NOW), clock: { now: () => NOW } };
   const priceOfA = expectOutcome(
     await setPrice(pricing, {
       productId: product.product.id,
@@ -335,12 +335,12 @@ beforeAll(async () => {
 
   const fiscalAddress = expectOutcome(
     await createFiscalAddress(
-      { store: new DrizzleFiscalAddressStore(db) },
+      { store: new DrizzleFiscalAddressStore(db, () => NOW) },
       { name: "Deposito Central", streetAddress: "Calle Ficticia 123, CABA", actorId: actorA },
     ),
     "created",
   );
-  const pointsOfSale = new DrizzleRegisterPointOfSaleStore(db);
+  const pointsOfSale = new DrizzleRegisterPointOfSaleStore(db, () => NOW);
   for (const [number, installation] of [
     [7, registerA1],
     [8, registerA2],

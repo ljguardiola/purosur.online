@@ -12,6 +12,8 @@ import {
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleBranchSettingsStore } from "./drizzle-branch-settings-store.js";
 
+const NOON = new Date("2026-01-05T12:00:00.000Z");
+
 // PGlite runs every query over one connection, so it can never race two saves for the same
 // location; this runs them over a real postgres-js pool against a real Postgres instead.
 let integrationDb: IntegrationDatabase;
@@ -66,11 +68,11 @@ describe("two saves racing on the same branch's settings version, on a real Post
 
     const [first, second] = await Promise.all([
       editBranchSettings(
-        { store: new DrizzleBranchSettingsStore(db) },
+        { store: new DrizzleBranchSettingsStore(db, () => NOON) },
         editInput(locationId, actorId, { address: "Calle de Prueba 1 - Primera edición" }),
       ),
       editBranchSettings(
-        { store: new DrizzleBranchSettingsStore(db) },
+        { store: new DrizzleBranchSettingsStore(db, () => NOON) },
         editInput(locationId, actorId, { address: "Calle de Prueba 1 - Segunda edición" }),
       ),
     ]);

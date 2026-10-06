@@ -48,10 +48,10 @@ beforeEach(async () => {
 });
 
 const create = (name: string, permissionKeys: string[] = ["sell_and_charge"]) =>
-  createRole({ store: new DrizzleRoleStore(db) }, { name, permissionKeys, actorId });
+  createRole({ store: new DrizzleRoleStore(db, () => NOW) }, { name, permissionKeys, actorId });
 
 const edit = (input: { id: string; name: string; permissionKeys: string[]; version: number }) =>
-  editRole({ store: new DrizzleRoleStore(db), clock }, { ...input, actorId });
+  editRole({ store: new DrizzleRoleStore(db, () => NOW), clock }, { ...input, actorId });
 
 async function createdRole(name: string, permissionKeys?: string[]) {
   const outcome = await create(name, permissionKeys);
@@ -114,7 +114,7 @@ describe("creating a role", () => {
   });
 
   it("raises the role-name conflict when the unique index refuses a name that slipped past the check", async () => {
-    const store = new DrizzleRoleStore(db);
+    const store = new DrizzleRoleStore(db, () => NOW);
     await createdRole("Depósito");
 
     await expect(
@@ -128,7 +128,7 @@ describe("creating a role", () => {
 
     const outcome = await db.transaction((tx) =>
       createRole(
-        { store: new DrizzleRoleStore(tx, pending) },
+        { store: new DrizzleRoleStore(tx, () => NOW, pending) },
         { name: "Depósito", permissionKeys: [], actorId },
       ),
     );

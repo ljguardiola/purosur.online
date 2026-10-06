@@ -85,7 +85,7 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
       }
 
       const outcome = await editUser(
-        { store: new DrizzleUserStore(options.db), clock: { now } },
+        { store: new DrizzleUserStore(options.db, now), clock: { now } },
         {
           id: target.id,
           locationId: openSession.locationId,

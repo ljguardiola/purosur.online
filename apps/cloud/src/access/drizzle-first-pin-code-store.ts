@@ -22,10 +22,16 @@ class DrizzleFirstPinCodeStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements FirstPinCodeStoreTransaction
 {
   private readonly tx: Transaction<TQueryResult>;
+  private readonly now: () => Date;
   private readonly enqueueEmail: EnqueueFirstPinCodeEmail;
 
-  constructor(tx: Transaction<TQueryResult>, enqueueEmail: EnqueueFirstPinCodeEmail) {
+  constructor(
+    tx: Transaction<TQueryResult>,
+    now: () => Date,
+    enqueueEmail: EnqueueFirstPinCodeEmail,
+  ) {
     this.tx = tx;
+    this.now = now;
     this.enqueueEmail = enqueueEmail;
   }
 
@@ -85,6 +91,7 @@ class DrizzleFirstPinCodeStoreTransaction<TQueryResult extends PgQueryResultHKT>
         first_pin_code_expires_at: emission.expiresAt.toISOString(),
         register_id: emission.registerId,
       },
+      at: this.now(),
     });
   }
 
@@ -97,13 +104,16 @@ export class DrizzleFirstPinCodeStore<TQueryResult extends PgQueryResultHKT>
   implements FirstPinCodeStore
 {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly now: () => Date;
   private readonly enqueueEmail: EnqueueFirstPinCodeEmail;
 
   constructor(
     db: PgDatabase<TQueryResult>,
+    now: () => Date,
     enqueueEmail: EnqueueFirstPinCodeEmail = enqueueFirstPinCodeEmailJob,
   ) {
     this.db = db;
+    this.now = now;
     this.enqueueEmail = enqueueEmail;
   }
 
@@ -111,7 +121,7 @@ export class DrizzleFirstPinCodeStore<TQueryResult extends PgQueryResultHKT>
     work: (tx: FirstPinCodeStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     return this.db.transaction((tx) =>
-      work(new DrizzleFirstPinCodeStoreTransaction(tx, this.enqueueEmail)),
+      work(new DrizzleFirstPinCodeStoreTransaction(tx, this.now, this.enqueueEmail)),
     );
   }
 }

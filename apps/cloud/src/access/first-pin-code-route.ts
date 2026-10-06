@@ -38,7 +38,7 @@ export function registerFirstPinCodeRoute<TQueryResult extends PgQueryResultHKT>
 ): void {
   const tokenPorts = installationTokenPorts(options);
   const ports = {
-    store: new DrizzleFirstPinCodeStore(options.db, options.enqueueEmail),
+    store: new DrizzleFirstPinCodeStore(options.db, options.now, options.enqueueEmail),
     clock: { now: options.now },
     codes: { generate: generatePinCode },
   };

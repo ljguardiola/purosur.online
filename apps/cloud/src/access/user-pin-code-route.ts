@@ -63,7 +63,7 @@ export function registerUserPinCodeRoutes<TQueryResult extends PgQueryResultHKT>
 
       const outcome = await emitUserPinCode(
         {
-          store: new DrizzlePinCodeStore(options.db, openSession.locationId),
+          store: new DrizzlePinCodeStore(options.db, () => attemptedAt, openSession.locationId),
           clock: { now: () => attemptedAt },
           codes: { generate: generatePinCode },
         },

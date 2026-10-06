@@ -123,7 +123,7 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
     // A bookkeeping failure here must never turn this 429 into a 500.
     try {
       await recordSignInLockout(
-        { log: new DrizzleSignInLockoutLog(options.db) },
+        { log: new DrizzleSignInLockoutLog(options.db, now) },
         {
           lockoutId: lockout.id,
           sourceAddress,
