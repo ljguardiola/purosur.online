@@ -10,7 +10,6 @@ import {
   userRoles,
   users,
 } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleAlertReader } from "./drizzle-alert-reader.js";
@@ -248,23 +247,6 @@ describe("DrizzleAlertReader listVisibleAlerts", () => {
     );
   });
 
-  it("searches an alert scoped to a device by the name of the device's register", async () => {
-    const { deviceId } = await insertEnrolledInstallation(db, { registerName: "Caja Lucía" });
-    const { deviceId: otherDeviceId } = await insertEnrolledInstallation(db, {
-      registerName: "Caja 2",
-    });
-    const byDevice = await insertAlert({ kind: "outbox_chain_broken", scope: deviceId });
-    await insertAlert({ kind: "outbox_chain_broken", scope: otherDeviceId });
-
-    const page = await new DrizzleAlertReader(db).listVisibleAlerts(
-      ALL,
-      { search: { text: "lucía", kindsWithMatchingTitle: [] } },
-      1,
-    );
-
-    expect(page.alerts.map((a) => a.id)).toEqual([byDevice]);
-  });
-
   it("treats the search text literally, not as a pattern", async () => {
     const percent = await insertUser("100% Real");
     await insertUser("Someone else");
@@ -335,14 +317,6 @@ describe("DrizzleAlertReader displayNames", () => {
 
     expect(names.get(userId)).toBe("Lucía Pérez");
     expect(names.get(register.id)).toBe("Caja 1");
-  });
-
-  it("maps a device id to the name of the device's register", async () => {
-    const { deviceId } = await insertEnrolledInstallation(db, { registerName: "Caja 3" });
-
-    const names = await new DrizzleAlertReader(db).displayNames([deviceId]);
-
-    expect(names).toEqual(new Map([[deviceId, "Caja 3"]]));
   });
 
   it("answers an empty map for an empty list", async () => {

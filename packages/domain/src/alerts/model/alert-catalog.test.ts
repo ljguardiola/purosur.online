@@ -9,7 +9,7 @@ import {
 } from "./alert-catalog.js";
 
 describe("ALERT_KINDS", () => {
-  it("lists exactly the kinds a backoffice account, a register enrollment or a register's pushed events can raise", () => {
+  it("lists exactly the security-fact kinds a backoffice account or a register enrollment can raise", () => {
     expect(ALERT_KINDS).toEqual([
       "backoffice_passkey_changed",
       "backoffice_recovery_requested",
@@ -17,7 +17,6 @@ describe("ALERT_KINDS", () => {
       "backoffice_sign_in_lockout",
       "user_access_increased",
       "register_enrolled",
-      "outbox_chain_broken",
     ]);
   });
 });
