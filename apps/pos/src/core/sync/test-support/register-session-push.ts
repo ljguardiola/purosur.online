@@ -1,4 +1,6 @@
+import { encodePinHash } from "@purosur/contracts";
 import { createActionGate } from "../../access/action-gate";
+import { derivePinVerifier } from "../../access/pin-verifier";
 import { createSignedInPerson } from "../../access/signed-in-person";
 import { SqliteSignInStore } from "../../access/sqlite-sign-in-store";
 import { LOCAL_MIGRATIONS } from "../../platform/local-migrations";
@@ -23,14 +25,22 @@ const DEVICE = "6f0c2a1e-3b54-4d7a-9c10-5e8a7b2d4f01";
 const REGISTER = "a41d9e07-52c3-4b68-8f2e-1c7d3a9b6e02";
 const ADA = "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03";
 const ROLE = "e2f8a6b4-7d19-4c35-a0e3-9b1c5d7f2a04";
+const GRACE = "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13";
+const MANAGER_ROLE = "8c2e5a1f-6d93-4b47-a1c8-3f7d2b9e6a14";
 const YERBA = "0b9d4c7e-6a21-4e83-9f5b-3d8e1a2c7b05";
 const SUGAR = "5d1a8f3c-9e47-4b02-8c6d-7a3f2e9b1c06";
+const COOKIES = "2e6b9d3f-7a15-4c80-b4e2-8d1f5a3c9b15";
 const PRICE_LIST = "9a6e2b1d-4c78-4f13-b5a0-8e7d3c1f9a07";
 const YERBA_PRICE = "3c8f1d5a-2b96-4e70-a4c9-6f1b8d2e5a08";
 const SUGAR_PRICE = "7e4a9c2f-1d63-4b85-9e0a-2c5f7b8d1309";
+const COOKIES_PRICE = "6a3d8f1c-2e74-4b59-9c0d-5f8a1e3b7c16";
 const DISCOUNT = "b5d2f7a1-8c40-4e96-a3b7-1f9e6c4d2a10";
+const BUY_THREE_PAY_TWO = "c9f4b2e7-1a58-4d36-8e0b-4a7c3f9d1e17";
 const THRESHOLD = "d3e6a9c1-5f28-4b74-8a0d-9c2e7f1b4a11";
 const CATEGORY = "f1a7c3e9-4b52-4d68-9e01-7a3c5b8d2f12";
+const PEPPER = Buffer.alloc(32, 9).toString("base64url");
+const PIN = "4826";
+const PIN_HASH = "hash-of-the-pin";
 
 function expectOutcome(step: string, actual: string, expected: string): void {
   if (actual !== expected) {
@@ -39,19 +49,32 @@ function expectOutcome(step: string, actual: string, expected: string): void {
 }
 
 function seed(database: ReturnType<typeof openLocalDatabase>): void {
-  database
-    .prepare("INSERT INTO roles (id, name, is_administrator, version) VALUES (?, 'Cajera', 0, 1)")
-    .run(ROLE);
-  for (const key of ["sell_and_charge", "record_cash_expense"]) {
+  for (const [role, name, permissions] of [
+    [ROLE, "Cajera", ["sell_and_charge", "record_cash_expense"]],
+    [MANAGER_ROLE, "Encargada", ["sell_and_charge", "record_cash_expense", "withdraw_cash"]],
+  ] as const) {
     database
-      .prepare("INSERT INTO role_permissions (role_id, permission_key, active) VALUES (?, ?, 1)")
-      .run(ROLE, key);
+      .prepare("INSERT INTO roles (id, name, is_administrator, version) VALUES (?, ?, 0, 1)")
+      .run(role, name);
+    for (const key of permissions) {
+      database
+        .prepare("INSERT INTO role_permissions (role_id, permission_key, active) VALUES (?, ?, 1)")
+        .run(role, key);
+    }
   }
-  database
-    .prepare(
-      "INSERT INTO users (id, first_name, role_id, salt, active, version) VALUES (?, 'Ada', ?, 's', 1, 1)",
-    )
-    .run(ADA, ROLE);
+  for (const [user, name, role] of [
+    [ADA, "Ada", ROLE],
+    [GRACE, "Grace", MANAGER_ROLE],
+  ]) {
+    database
+      .prepare(
+        "INSERT INTO users (id, first_name, role_id, salt, active, version) VALUES (?, ?, ?, ?, 1, 1)",
+      )
+      .run(user, name, role, encodePinHash(new Uint8Array(16).fill(1)));
+    database
+      .prepare("INSERT INTO pin_verifiers (user_id, verifier) VALUES (?, ?)")
+      .run(user, derivePinVerifier(PEPPER, PIN_HASH));
+  }
   database
     .prepare("INSERT INTO own_register (id, name, version) VALUES (?, 'Caja 1', 1)")
     .run(REGISTER);
@@ -64,6 +87,7 @@ function seed(database: ReturnType<typeof openLocalDatabase>): void {
   for (const [id, name, code] of [
     [YERBA, "Yerba", "7790001000011"],
     [SUGAR, "Azucar", "7790001000028"],
+    [COOKIES, "Galletitas", "7790001000035"],
   ]) {
     database
       .prepare(
@@ -79,6 +103,7 @@ function seed(database: ReturnType<typeof openLocalDatabase>): void {
   for (const [id, product, amount] of [
     [YERBA_PRICE, YERBA, 1500],
     [SUGAR_PRICE, SUGAR, 2400],
+    [COOKIES_PRICE, COOKIES, 900],
   ]) {
     database
       .prepare(
@@ -92,6 +117,12 @@ function seed(database: ReturnType<typeof openLocalDatabase>): void {
        VALUES (?, 'Promo yerba', 'PERCENT_OFF', 10, NULL, NULL, 'PRODUCT', ?, '2026-09-01', '2026-12-31', '[]', 1, 1)`,
     )
     .run(DISCOUNT, YERBA);
+  database
+    .prepare(
+      `INSERT INTO discounts (id, name, kind, percent, buy_qty, pay_qty, target_kind, target_id, valid_from, valid_to, weekdays, active, version)
+       VALUES (?, 'Galletitas 3x2', 'BUY_N_PAY_M', NULL, 3, 2, 'PRODUCT', ?, '2026-09-01', '2026-12-31', '[]', 1, 1)`,
+    )
+    .run(BUY_THREE_PAY_TWO, COOKIES);
 }
 
 export async function registerSessionPush(): Promise<{
@@ -117,8 +148,8 @@ export async function registerSessionPush(): Promise<{
       gate: createActionGate({
         store: new SqliteSignInStore(database),
         signedInPerson,
-        readPepper: async () => undefined,
-        hashPin: async () => "",
+        readPepper: async () => PEPPER,
+        hashPin: async (pin) => (pin === PIN ? PIN_HASH : "hash-of-another-pin"),
         now,
       }),
       readOutboxChainKey: async () => OUTBOX_CHAIN_KEY,
@@ -140,6 +171,14 @@ export async function registerSessionPush(): Promise<{
     });
     expectOutcome("record a cash expense", movement.kind, "recorded");
     nextStep();
+    const withdrawal = await recordCashMovementFor(deps(), {
+      kind: "WITHDRAWAL",
+      amount: 1000,
+      reason: "Retiro parcial",
+      authorization: { user_id: GRACE, pin: PIN },
+    });
+    expectOutcome("record a withdrawal authorized by PIN", withdrawal.kind, "recorded");
+    nextStep();
     const firstScan = await scanProductFor(deps(), "7790001000011");
     expectOutcome("scan the first product", firstScan.kind, "added");
     nextStep();
@@ -155,13 +194,18 @@ export async function registerSessionPush(): Promise<{
     if (second.kind !== "added") {
       throw new Error(`The register session's "scan another product" ended as "${second.kind}"`);
     }
+    for (const scan of ["first", "second", "third"]) {
+      nextStep();
+      const cookies = await scanProductFor(deps(), "7790001000035");
+      expectOutcome(`scan the ${scan} product on promotion`, cookies.kind, "added");
+    }
     nextStep();
     const transfer = await chargeSaleByTransferFor(deps(), { saleId: second.sale.id });
     expectOutcome("charge a sale by transfer", transfer.kind, "completed");
     nextStep();
     const closed = await closeCashSessionFor(deps(), {
       sessionId: opened.cash_session.id,
-      countedCash: 10_900,
+      countedCash: 9_900,
     });
     expectOutcome("close the cash session", closed.kind, "closed");
 

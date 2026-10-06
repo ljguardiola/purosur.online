@@ -1,17 +1,16 @@
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
-import { pushEventsRequestSchema } from "@purosur/contracts";
 import ts from "typescript";
 import { beforeAll, describe, expect, it } from "vitest";
 import { shapeOf } from "./event-shape.js";
-import { recordedPushes } from "./recorded-pushes.js";
+import { recordedEvents, sentEvents } from "./recorded-pushes.js";
 import { eventVersionsBuiltBy } from "./register-event-versions.js";
 import { registerSessionPush } from "./register-session-push.js";
 
 const REPO_DIR = fileURLToPath(new URL("../../../../../../", import.meta.url));
 const REGISTER_DIR = fileURLToPath(new URL("../../../../", import.meta.url));
 
-const RECORDED_PUSHES = recordedPushes();
+const RECORDED_EVENTS = recordedEvents();
 
 function registerCoreProgram(): ts.Program {
   const config = ts.getParsedCommandLineOfConfigFile(`${REGISTER_DIR}tsconfig.json`, undefined, {
@@ -41,24 +40,32 @@ describe("the recorded pushes", () => {
   });
 
   it("hold an event of every version the register's core builds, sent by a register session", () => {
-    const built = eventVersionsBuiltBy(registerCoreProgram(), REPO_DIR);
-    const sent = new Set(pushEventsRequestSchema.parse(session.sentBody).events.map(describeEvent));
+    const program = registerCoreProgram();
+    const built = eventVersionsBuiltBy(program, REPO_DIR);
+    const sent = new Set(sentEvents(session.sentBody).map(describeEvent));
 
+    expect(
+      program
+        .getSourceFiles()
+        .filter(
+          (file) =>
+            !file.isDeclarationFile && file.fileName.startsWith(`${REPO_DIR}packages/domain/src/`),
+        ),
+    ).not.toEqual([]);
+    expect(built.versions).not.toEqual([]);
     expect(built.unreadable).toEqual([]);
     expect(built.versions.filter((version) => !sent.has(version))).toEqual([]);
   });
 
   it("hold an event of the type, version and form of every event a register session sends", () => {
-    const recorded = RECORDED_PUSHES.flatMap(({ push }) => push.events);
-    const unmatched = pushEventsRequestSchema
-      .parse(session.sentBody)
-      .events.filter(
+    const unmatched = sentEvents(session.sentBody)
+      .filter(
         (sent) =>
-          !recorded.some(
+          !RECORDED_EVENTS.some(
             (event) =>
               event.event_type === sent.event_type &&
               event.schema_version === sent.schema_version &&
-              isDeepStrictEqual(shapeOf({ ...event }), shapeOf({ ...sent })),
+              isDeepStrictEqual(shapeOf(event), shapeOf(sent)),
           ),
       )
       .map(describeEvent);
