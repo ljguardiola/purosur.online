@@ -861,7 +861,23 @@ describe("App", () => {
     postCoreStatus("up");
 
     await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
-    await expect.poll(() => asked.length).toBe(2);
+    await expect.poll(() => asked.filter((q) => q === "enrollment-status").length).toBe(2);
+  });
+
+  it("shows that the register needs restoring when the core comes back up out of service", async () => {
+    const { core } = coreAnswering(true);
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+
+    core.registerService = async () => "out_of_service";
+    postCoreStatus("starting");
+    postCoreStatus("up");
+
+    await expect.element(screen.getByText(OUT_OF_SERVICE_TITLE)).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .not.toBeInTheDocument();
   });
 
   it("stays on the brand panel until the core says whether a cash session is open", async () => {
