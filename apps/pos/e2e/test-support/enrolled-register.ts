@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { ElectronApplication, Page } from "playwright";
+import { expect, vi } from "vitest";
 import { launchApp, writeChannelFile } from "../launch-app";
 import type { StandInCloud } from "./stand-in-cloud";
 
@@ -11,6 +12,7 @@ export interface EnrolledRegister {
   readonly logs: readonly string[];
   launch(): Promise<void>;
   restart(): Promise<void>;
+  restartAfter(change: (localDataFolder: string) => Promise<void>): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -20,11 +22,31 @@ interface RunningRegister {
   readonly logs: string[];
 }
 
-function dataFoldersOf(userData: string, dataFolder: string): string[] {
+function localDataFolderOf(userData: string, dataFolder: string): string {
   const localAppData = process.env["LOCALAPPDATA"];
-  return process.platform === "win32" && localAppData
-    ? [userData, join(localAppData, dataFolder)]
-    : [userData];
+  return process.platform === "win32" && localAppData ? join(localAppData, dataFolder) : userData;
+}
+
+function isRunning(processId: number): boolean {
+  try {
+    process.kill(processId, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "EPERM";
+  }
+}
+
+async function closeEveryProcessOf(app: ElectronApplication): Promise<void> {
+  const processIds = await app.evaluate(({ app: electronApp }) =>
+    electronApp.getAppMetrics().map((metric) => metric.pid),
+  );
+  await app.close();
+  await vi.waitFor(
+    () => {
+      expect(processIds.filter(isRunning)).toEqual([]);
+    },
+    { timeout: 10_000, interval: 100 },
+  );
 }
 
 async function enroll(page: Page, cloud: StandInCloud): Promise<void> {
@@ -41,6 +63,7 @@ export function enrolledRegister(cloud: StandInCloud): EnrolledRegister {
   const channelFile = writeChannelFile({ channel: "staging", dataFolder, cloudUrl: cloud.url });
   const folders = new Set([dirname(channelFile)]);
   let openApp: ElectronApplication | undefined;
+  let localDataFolder: string | undefined;
   let running: RunningRegister | undefined;
   let closed = false;
 
@@ -55,9 +78,9 @@ export function enrolledRegister(cloud: StandInCloud): EnrolledRegister {
     }
     openApp = app;
     const userData = await app.evaluate(({ app: electronApp }) => electronApp.getPath("userData"));
-    for (const folder of dataFoldersOf(userData, dataFolder)) {
-      folders.add(folder);
-    }
+    localDataFolder = localDataFolderOf(userData, dataFolder);
+    folders.add(userData);
+    folders.add(localDataFolder);
     const page = await app.firstWindow();
     if (process.platform === "linux") {
       await app.evaluate(({ safeStorage }) => safeStorage.setUsePlainTextEncryption(true));
@@ -69,7 +92,9 @@ export function enrolledRegister(cloud: StandInCloud): EnrolledRegister {
 
   async function stop(): Promise<void> {
     running = undefined;
-    await openApp?.close();
+    if (openApp !== undefined) {
+      await closeEveryProcessOf(openApp);
+    }
     openApp = undefined;
   }
 
@@ -97,6 +122,14 @@ export function enrolledRegister(cloud: StandInCloud): EnrolledRegister {
     },
     restart: async () => {
       await stop();
+      await start();
+    },
+    restartAfter: async (change) => {
+      await stop();
+      if (localDataFolder === undefined) {
+        throw new Error("the register has not been launched");
+      }
+      await change(localDataFolder);
       await start();
     },
     // Windows keeps a file busy for a moment after the process that held it exits.

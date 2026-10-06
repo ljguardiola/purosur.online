@@ -61,6 +61,7 @@ function roleSummaryFromWire(row: RoleSummaryWire) {
     isAdministrator: row.is_administrator,
     permissionKeys: row.permissions,
     userCount: row.user_count,
+    mayEdit: row.may_edit,
   };
 }
 

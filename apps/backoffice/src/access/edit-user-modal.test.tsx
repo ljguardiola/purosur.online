@@ -13,6 +13,7 @@ const shiftRole: RoleSummary = {
   name: "Responsable de turno",
   permissionKeys: [],
   userCount: 1,
+  mayEdit: true,
 };
 const cashierRole: RoleSummary = {
   id: "00000000-0000-4000-8000-000000000003",
@@ -20,6 +21,7 @@ const cashierRole: RoleSummary = {
   name: "Cajero",
   permissionKeys: [],
   userCount: 0,
+  mayEdit: true,
 };
 const administratorRole: RoleSummary = {
   id: "00000000-0000-4000-8000-000000000001",
@@ -27,6 +29,7 @@ const administratorRole: RoleSummary = {
   name: null,
   permissionKeys: [],
   userCount: 1,
+  mayEdit: false,
 };
 
 const lucia: BranchUser = {

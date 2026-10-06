@@ -89,6 +89,7 @@ export {
   holdsARegisterPermission,
   uncoveredRegisterPermissions,
 } from "./model/register-coverage.js";
+export { mayEditRole } from "./model/role-editability.js";
 export {
   isAdministratorRoleName,
   isRoleNameTooLong,

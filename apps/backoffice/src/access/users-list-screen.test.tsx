@@ -31,6 +31,7 @@ function createServices(overrides: Partial<UsersListScreenServices> = {}): Users
           name: null,
           permissionKeys: [],
           userCount: 1,
+          mayEdit: false,
         },
       ],
     });
@@ -249,6 +250,7 @@ test("shows a load error when the roles fail to load, and Reintentar reads again
         name: null,
         permissionKeys: [],
         userCount: 1,
+        mayEdit: false,
       },
     ],
   });
@@ -435,6 +437,7 @@ test("offers a role held by no users yet in the create-user selector", async () 
           name: null,
           permissionKeys: [],
           userCount: 1,
+          mayEdit: false,
         },
         {
           id: "00000000-0000-4000-8000-000000000004",
@@ -442,6 +445,7 @@ test("offers a role held by no users yet in the create-user selector", async () 
           name: "Depósito",
           permissionKeys: [],
           userCount: 0,
+          mayEdit: true,
         },
       ],
     }),
@@ -716,6 +720,7 @@ test("a refresh of the roles in the background does not overwrite what is typed 
     name: null,
     permissionKeys: [],
     userCount: 1,
+    mayEdit: false,
   };
   const refreshedUsers = deferred<Awaited<ReturnType<typeof services.fetchUsers>>>();
   vi.mocked(services.fetchUsers)
@@ -732,6 +737,7 @@ test("a refresh of the roles in the background does not overwrite what is typed 
           name: "Cajero",
           permissionKeys: [],
           userCount: 0,
+          mayEdit: true,
         },
         administratorRole,
       ],

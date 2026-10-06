@@ -36,7 +36,6 @@ import {
   postToCloud,
   postToCloudWithBearer,
 } from "./platform/cloud-client";
-import { type LocalDatabase, openLocalDatabase } from "./platform/local-database";
 import { LOCAL_MIGRATIONS } from "./platform/local-migrations";
 import { createMainRequests } from "./platform/main-requests";
 import {
@@ -55,6 +54,7 @@ import {
   openCashSessionFor,
   sessionOpenSaleFor,
 } from "./register/cash-session-requests";
+import { coreFailureReporters } from "./register/core-failure-reporters";
 import { rotateDeviceToken } from "./register/device-token-rotation";
 import { startDeviceTokenRotationSchedule } from "./register/device-token-rotation-schedule";
 import {
@@ -63,6 +63,8 @@ import {
   generatePepper,
   installationReportFrom,
 } from "./register/enrollment";
+import { type StartedLocalDatabase, startLocalDatabase } from "./register/local-database-startup";
+import { registerServiceOf } from "./register/register-service-of-database";
 import { readOpenSession } from "./register/sqlite-cash-ledger";
 import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
@@ -136,20 +138,24 @@ const SYNC_INTERVAL_MS = 30_000;
 const SYNC_FAILURE_BACKOFF = { baseMs: 2000, maxMs: 60_000 };
 const PULLED_NOTICE: CoreToRendererMessage = { type: "pulled" };
 
-function openLocalDatabaseFile(): LocalDatabase | undefined {
+async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefined> {
   const localDataFolder = localDataFolderFromCoreArguments(process.argv);
   if (localDataFolder === undefined) {
     console.error("core: no local data folder was handed over, so it can't pull or sign anyone in");
     return undefined;
   }
   try {
-    const database = openLocalDatabase(
-      join(localDataFolder, LOCAL_DATABASE_FILE),
-      LOCAL_MIGRATIONS,
+    const started = await startLocalDatabase({
+      path: join(localDataFolder, LOCAL_DATABASE_FILE),
+      migrations: LOCAL_MIGRATIONS,
       now,
+    });
+    console.info(
+      started.kind === "ready"
+        ? "core: the local database is ready"
+        : "core: the local database is damaged, so the register is out of service",
     );
-    console.info("core: the local database is ready");
-    return database;
+    return started;
   } catch (error) {
     console.error(
       "core: the local database could not be opened, so it can't pull or sign anyone in",
@@ -160,7 +166,8 @@ function openLocalDatabaseFile(): LocalDatabase | undefined {
   }
 }
 
-const localDatabase = openLocalDatabaseFile();
+const register = registerServiceOf(await startLocalDatabaseFile(), () => process.exit(1));
+const localDatabase = register.database;
 const replica = localDatabase === undefined ? undefined : new SqliteLocalReplica(localDatabase);
 const localOutbox =
   localDatabase === undefined ? undefined : new SqliteLocalOutbox(localDatabase, now);
@@ -178,10 +185,11 @@ const actionGate =
         now,
       });
 
-function reportFailure(context: string, error: unknown): void {
-  console.error(`core: ${context} failed`, error);
-  Sentry.captureException(error);
-}
+const { reportFailure, reportSyncFailure, reportRedeemedPinFailure } = coreFailureReporters({
+  log: console.error,
+  capture: Sentry.captureException,
+  watchFailure: register.watchFailure,
+});
 
 // An unreachable cloud is how a register without internet looks, so only an unexpected stop is
 // reported; the next cycle resumes from the cursor and the outbox already saved either way.
@@ -236,14 +244,13 @@ const syncSchedule = createSyncSchedule({
     const timer = setTimeout(run, delayMs);
     return () => clearTimeout(timer);
   },
-  onFailure: (error) => {
-    console.error("core: the sync failed", error);
-  },
+  onFailure: reportSyncFailure,
   afterEachSync: () => rendererConnection.tell(PULLED_NOTICE),
 });
 
 const rendererRequestDeps: RendererRequestDeps = {
   credentialsPresent: () => mainRequests.credentialsPresent(),
+  registerService: register.service,
   registerName: () => replica?.registerName(),
   enroll: async (typedCode: string) => {
     const outcome = await enroll(
@@ -281,10 +288,7 @@ const rendererRequestDeps: RendererRequestDeps = {
           localDatabase === undefined
             ? undefined
             : (pepper, redemption) => applyRedeemedPin(localDatabase, pepper, redemption),
-        reportLocalFailure: (error) => {
-          console.error("core: the redeemed PIN could not be kept locally", error);
-          Sentry.captureException(error);
-        },
+        reportLocalFailure: reportRedeemedPinFailure,
         openCashSession: () =>
           localDatabase === undefined ? undefined : readOpenSession(localDatabase),
         redeemedPerson: (userId) =>

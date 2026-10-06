@@ -42,6 +42,7 @@ export {
   isWellFormedPinCode,
   lacksARequiredPermission,
   mayDeactivateUser,
+  mayEditRole,
   mayEditUser,
   mayEmitPinCode,
   mayEmitPinCodeFor,
@@ -271,6 +272,7 @@ export type {
   RegisterActor,
   RegisterOperation,
   RegisterOperationAccess,
+  RegisterService,
 } from "./register/index.js";
 export {
   CASH_MOVEMENT_DIRECTIONS,

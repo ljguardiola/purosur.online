@@ -193,6 +193,7 @@ describe("POST /roles", () => {
       is_administrator: false,
       permissions: ["view_stock_balances", "adjust_stock"],
       user_count: 0,
+      may_edit: true,
     });
 
     const [createdRole] = await db.select().from(roles).where(eq(roles.id, body.id));

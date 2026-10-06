@@ -88,7 +88,7 @@ export function registerRoleEditRoutes<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      await reply.code(200).send(toRoleDetailWire(outcome.role));
+      await reply.code(200).send(toRoleDetailWire(outcome.role, openSession));
     },
   );
 }

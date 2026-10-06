@@ -54,6 +54,33 @@ describe("createCoreClient", () => {
     expect(port.posted).toEqual([{ type: "enrollment-status-request", request_id: "request-1" }]);
   });
 
+  it.each(["in_service", "out_of_service"] as const)(
+    "asks the core whether the register is in service and resolves with its answer: %s",
+    async (service) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const answer = client.registerService();
+      port.answer({ type: "register-service", request_id: "request-1", service });
+
+      expect(await answer).toBe(service);
+      expect(port.posted).toEqual([{ type: "register-service-request", request_id: "request-1" }]);
+    },
+  );
+
+  it("ignores an answer about the register's service that does not follow the contract", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const answer = client.registerService();
+    port.answer({ type: "register-service", request_id: "request-1", service: "damaged" });
+    port.answer({ type: "register-service", request_id: "request-1", service: "in_service" });
+
+    expect(await answer).toBe("in_service");
+  });
+
   it.each(["Caja 1", null])("asks the core for the register's own name: %s", async (name) => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

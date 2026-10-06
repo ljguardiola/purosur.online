@@ -37,6 +37,7 @@ const administrator: RoleSummary = {
   isAdministrator: true,
   permissionKeys: [],
   userCount: 1,
+  mayEdit: false,
 };
 
 const stock: RoleSummary = {
@@ -45,6 +46,7 @@ const stock: RoleSummary = {
   isAdministrator: false,
   permissionKeys: ["view_stock_balances", "adjust_stock"],
   userCount: 0,
+  mayEdit: true,
 };
 
 const cashier: RoleSummary = {
@@ -53,6 +55,7 @@ const cashier: RoleSummary = {
   isAdministrator: false,
   permissionKeys: ["sell_and_charge"],
   userCount: 3,
+  mayEdit: true,
 };
 
 function deferred<T>() {
@@ -220,6 +223,23 @@ test("shows no edit action on the Administrator row", async () => {
   await expect.element(screen.getByText("2 roles")).toBeVisible();
 
   expect(screen.getByRole("button", { name: /^Editar el rol/ }).elements()).toHaveLength(1);
+});
+
+test("offers the edit action of a role the cloud says may be edited, and none for one it says may not", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRoles).mockResolvedValue({
+    kind: "ok",
+    value: [{ ...stock, mayEdit: false }, cashier],
+  });
+
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("2 roles")).toBeVisible();
+
+  const editActionNames = screen
+    .getByRole("button", { name: /^Editar el rol/ })
+    .elements()
+    .map((button) => button.getAttribute("aria-label"));
+  expect(editActionNames).toEqual(["Editar el rol Cajera"]);
 });
 
 test("keeps the loaded list without refetching when the parent re-renders with a new onSessionEnded", async () => {
