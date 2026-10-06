@@ -112,7 +112,7 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
   ): Promise<{ revoked: boolean }> {
     const revoked = await this.tx
       .update(registerInstallations)
-      .set({ revokedAt })
+      .set({ revokedAt, revocationReason: "replaced" })
       .where(
         and(
           eq(registerInstallations.registerId, registerId),

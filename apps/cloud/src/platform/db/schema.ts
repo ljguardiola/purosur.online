@@ -611,6 +611,11 @@ export const registerPointsOfSale = pgTable(
   ],
 );
 
+export const installationRevocationReason = pgEnum("installation_revocation_reason", [
+  "replaced",
+  "outbox_chain_broken",
+]);
+
 export const registerInstallations = pgTable(
   "register_installations",
   {
@@ -630,6 +635,7 @@ export const registerInstallations = pgTable(
     windowsVersion: text("windows_version").notNull(),
     enrolledAt: timestamp("enrolled_at", { withTimezone: true }).notNull(),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    revocationReason: installationRevocationReason("revocation_reason"),
   },
   (table) => [
     uniqueIndex("register_installations_token_lookup_prefix_key").on(table.tokenLookupPrefix),
@@ -675,8 +681,6 @@ export const deviceState = pgTable("device_state", {
   walSizeBytes: bigint("wal_size_bytes", { mode: "number" }),
   diskFreeBytes: bigint("disk_free_bytes", { mode: "number" }),
   diskFreeRatio: doublePrecision("disk_free_ratio"),
-  // The chain value of the last event received from the outbox; null until the first one.
-  lastChainHmac: text("last_chain_hmac"),
 });
 
 export const inbox = pgTable(
@@ -702,6 +706,25 @@ export const inbox = pgTable(
     check("inbox_device_seq_positive", sql`${table.deviceSeq} > 0`),
   ],
 );
+
+// A push refused for a broken chain, kept for a person to review and never applied.
+export const refusedEvents = pgTable("refused_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  deviceId: uuid("device_id")
+    .notNull()
+    .references(() => registerInstallations.id),
+  eventId: uuid("event_id").notNull(),
+  deviceSeq: bigint("device_seq", { mode: "number" }).notNull(),
+  aggregateType: text("aggregate_type").notNull(),
+  aggregateId: text("aggregate_id").notNull(),
+  eventType: text("event_type").notNull(),
+  schemaVersion: integer("schema_version").notNull(),
+  payload: jsonb("payload").notNull(),
+  occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+  actorId: text("actor_id").notNull(),
+  chainHmac: text("chain_hmac").notNull(),
+  refusedAt: timestamp("refused_at", { withTimezone: true }).notNull(),
+});
 
 export const changeOp = pgEnum("change_op", ["insert", "update", "delete"]);
 

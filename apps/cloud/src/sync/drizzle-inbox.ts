@@ -1,14 +1,8 @@
 import type { PushedEvent } from "@purosur/domain";
-import type {
-  ChainBrokenAlert,
-  Inbox,
-  InboxTransaction,
-  PushReport,
-} from "@purosur/domain/sync/use-cases";
+import type { Inbox, InboxTransaction, PushReport } from "@purosur/domain/sync/use-cases";
 import { and, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { openAlert } from "../alerts/open-alert.js";
-import { deviceState, inbox, registerInstallations } from "../platform/db/schema.js";
+import { deviceState, inbox, refusedEvents, registerInstallations } from "../platform/db/schema.js";
 import type { InstallationKeyCipher } from "../register/installation-key-cipher.js";
 import { readOutboxChainKey } from "../register/outbox-chain-key.js";
 
@@ -92,31 +86,42 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
     return readOutboxChainKey(this.tx, this.cipher, deviceId);
   }
 
-  async chainAnchor(deviceId: string): Promise<string | null> {
+  async receivedChainLink(deviceId: string, deviceSeq: number): Promise<string | undefined> {
     const [row] = await this.tx
-      .select({ lastChainHmac: deviceState.lastChainHmac })
-      .from(deviceState)
-      .where(eq(deviceState.deviceId, deviceId));
-    return row?.lastChainHmac ?? null;
+      .select({ chainHmac: inbox.chainHmac })
+      .from(inbox)
+      .where(and(eq(inbox.deviceId, deviceId), eq(inbox.deviceSeq, deviceSeq)));
+    return row?.chainHmac;
   }
 
-  async adoptChainAnchor(deviceId: string, link: string): Promise<void> {
-    await this.tx
-      .update(deviceState)
-      .set({ lastChainHmac: link })
-      .where(eq(deviceState.deviceId, deviceId));
-  }
-
-  async openChainBrokenAlert(alert: ChainBrokenAlert): Promise<void> {
-    await openAlert(
-      this.tx,
-      {
-        kind: "outbox_chain_broken",
-        scope: alert.deviceId,
-        detail: { brokenEvents: alert.brokenEvents },
-      },
-      { now: () => alert.detectedAt },
+  async setAsideRefusedPush(
+    deviceId: string,
+    events: readonly PushedEvent[],
+    refusedAt: Date,
+  ): Promise<void> {
+    await this.tx.insert(refusedEvents).values(
+      events.map((event) => ({
+        deviceId,
+        eventId: event.event_id,
+        deviceSeq: event.device_seq,
+        aggregateType: event.aggregate_type,
+        aggregateId: event.aggregate_id,
+        eventType: event.event_type,
+        schemaVersion: event.schema_version,
+        payload: event.payload,
+        occurredAt: new Date(event.occurred_at),
+        actorId: event.actor_id,
+        chainHmac: event.chain_hmac,
+        refusedAt,
+      })),
     );
+  }
+
+  async revokeForBrokenChain(deviceId: string, revokedAt: Date): Promise<void> {
+    await this.tx
+      .update(registerInstallations)
+      .set({ revokedAt, revocationReason: "outbox_chain_broken" })
+      .where(eq(registerInstallations.id, deviceId));
   }
 }
 
