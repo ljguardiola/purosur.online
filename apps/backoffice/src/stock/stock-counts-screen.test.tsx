@@ -14,6 +14,7 @@ import {
   crackers,
   honey,
   honeyCount,
+  oats,
   supersededCount,
   tea,
   withoutBalance,
@@ -369,4 +370,20 @@ test("registers a count for a user who may not view balances, showing no expecte
     )
     .toBeInTheDocument();
   expect(services.fetchExpectedBalance).not.toHaveBeenCalled();
+});
+
+test("offers a deactivated product in the new count's selector marked as deactivated", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchStockProducts).mockResolvedValue({
+    kind: "ok",
+    value: { products: [almonds, oats, honey].map(withoutBalance) },
+  });
+  const screen = await renderScreen(services);
+  const dialog = await openNewCount(screen);
+
+  await userEvent.click(dialog.getByRole("button", { name: /Producto/ }));
+
+  await expect
+    .element(screen.getByRole("option", { name: /Avena arrollada/ }).getByText("Desactivado"))
+    .toBeVisible();
 });

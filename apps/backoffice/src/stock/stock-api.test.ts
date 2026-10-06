@@ -36,6 +36,7 @@ const balances = {
       categoryId: "category-1",
       categoryName: "Frutos secos",
       saleUnit: "KG",
+      active: true,
       balance: 12_150,
     },
   ],
@@ -109,6 +110,7 @@ test("fetchExpectedBalance asks for the product's balance at the moment", async 
     categoryId: "category-1",
     categoryName: "Frutos secos",
     saleUnit: "KG",
+    active: true,
     balance: 17_000,
   };
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, level));
@@ -230,6 +232,7 @@ test("fetchStockProducts reads the products a movement can be registered for", a
         categoryId: "category-1",
         categoryName: "Frutos secos",
         saleUnit: "KG",
+        active: true,
       },
     ],
   };
