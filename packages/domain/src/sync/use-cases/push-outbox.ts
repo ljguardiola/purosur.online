@@ -36,12 +36,15 @@ export async function pushOutbox<TFailure>({
         break;
       case "gap": {
         await outbox.acknowledgeThrough(answer.ackSeq);
-        await outbox.resendFrom(answer.expectedSeq);
-        const [nextToSend] = await outbox.unacknowledged(1);
-        if (nextToSend !== undefined && nextToSend.device_seq > answer.expectedSeq) {
+        if (
+          !(await outbox.holdsEvent(answer.expectedSeq)) &&
+          (await outbox.holdsEventAfter(answer.expectedSeq))
+        ) {
           await outbox.recordCompromised();
           return { kind: "compromised" };
         }
+        await outbox.resendFrom(answer.expectedSeq);
+        const [nextToSend] = await outbox.unacknowledged(1);
         if (nextToSend !== undefined && nextToSend.device_seq < firstSentSeq) {
           break;
         }

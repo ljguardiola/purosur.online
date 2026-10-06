@@ -63,6 +63,26 @@ export class SqliteLocalOutbox implements LocalOutbox {
       .run(deviceSeq);
   }
 
+  async holdsEvent(deviceSeq: number): Promise<boolean> {
+    return (
+      this.database
+        .prepare<[number], { held: 1 }>(
+          `SELECT 1 AS held FROM outbox WHERE ${CURRENT_INSTALLATION} AND device_seq = ?`,
+        )
+        .get(deviceSeq) !== undefined
+    );
+  }
+
+  async holdsEventAfter(deviceSeq: number): Promise<boolean> {
+    return (
+      this.database
+        .prepare<[number], { held: 1 }>(
+          `SELECT 1 AS held FROM outbox WHERE ${CURRENT_INSTALLATION} AND device_seq > ? LIMIT 1`,
+        )
+        .get(deviceSeq) !== undefined
+    );
+  }
+
   async recordCompromised(): Promise<void> {
     this.database
       .prepare(

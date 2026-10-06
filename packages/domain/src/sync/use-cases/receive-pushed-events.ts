@@ -14,7 +14,8 @@ export type ReceivePushedEventsOutcome =
   | { kind: "received"; ackSeq: number }
   | { kind: "gap"; ackSeq: number; expectedSeq: number }
   | { kind: "stale_device"; ackSeq: number }
-  | { kind: "chain_broken" };
+  | { kind: "chain_broken" }
+  | { kind: "revoked" };
 
 export async function receivePushedEvents(
   { inbox, eventChain, clock }: ReceivePorts,
@@ -23,6 +24,9 @@ export async function receivePushedEvents(
   return inbox.transaction(async (tx) => {
     const now = clock.now();
     await tx.lockDevice(deviceId);
+    if (await tx.installationRevoked(deviceId)) {
+      return { kind: "revoked" };
+    }
     await tx.recordPushReport(deviceId, { appVersion, telemetry }, now);
     const ackSeq = highestContiguousSeq(await tx.receivedDeviceSeqs(deviceId));
 

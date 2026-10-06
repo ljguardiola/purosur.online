@@ -65,6 +65,7 @@ export interface Inbox {
 
 export interface InboxTransaction {
   lockDevice(deviceId: string): Promise<void>;
+  installationRevoked(deviceId: string): Promise<boolean>;
   receivedDeviceSeqs(deviceId: string): Promise<number[]>;
   receivedEventIds(
     deviceId: string,
@@ -93,6 +94,9 @@ export interface LocalOutbox {
   unacknowledged(limit: number): Promise<PushedEvent[]>;
   acknowledgeThrough(deviceSeq: number): Promise<void>;
   resendFrom(deviceSeq: number): Promise<void>;
+  // Acknowledged or not.
+  holdsEvent(deviceSeq: number): Promise<boolean>;
+  holdsEventAfter(deviceSeq: number): Promise<boolean>;
   // The outbox lost events outside the system: the register stops opening new sales.
   recordCompromised(): Promise<void>;
 }

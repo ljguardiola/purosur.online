@@ -1,6 +1,6 @@
 import type { PushedEvent } from "@purosur/domain";
 import type { Inbox, InboxTransaction, PushReport } from "@purosur/domain/sync/use-cases";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { deviceState, inbox, refusedEvents, registerInstallations } from "../platform/db/schema.js";
 import type { InstallationKeyCipher } from "../register/installation-key-cipher.js";
@@ -21,6 +21,14 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
       .from(registerInstallations)
       .where(eq(registerInstallations.id, deviceId))
       .for("no key update");
+  }
+
+  async installationRevoked(deviceId: string): Promise<boolean> {
+    const [row] = await this.tx
+      .select({ revokedAt: registerInstallations.revokedAt })
+      .from(registerInstallations)
+      .where(eq(registerInstallations.id, deviceId));
+    return row?.revokedAt != null;
   }
 
   async receivedDeviceSeqs(deviceId: string): Promise<number[]> {
@@ -121,7 +129,7 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
     await this.tx
       .update(registerInstallations)
       .set({ revokedAt, revocationReason: "outbox_chain_broken" })
-      .where(eq(registerInstallations.id, deviceId));
+      .where(and(eq(registerInstallations.id, deviceId), isNull(registerInstallations.revokedAt)));
   }
 }
 

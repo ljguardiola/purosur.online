@@ -35,7 +35,7 @@ const DEVICE_TOKEN_REJECTED = cloudError(
 const REVOKED = cloudError("revoked", "this installation was revoked");
 
 function toPushWire(
-  outcome: Exclude<ReceivePushedEventsOutcome, { kind: "chain_broken" }>,
+  outcome: Exclude<ReceivePushedEventsOutcome, { kind: "chain_broken" | "revoked" }>,
 ): PushEventsResponse {
   switch (outcome.kind) {
     case "received":
@@ -94,7 +94,7 @@ export function registerEventsRoute<TQueryResult extends PgQueryResultHKT>(
           telemetry: push.telemetry,
           events: push.events,
         });
-        if (outcome.kind === "chain_broken") {
+        if (outcome.kind === "chain_broken" || outcome.kind === "revoked") {
           await reply.code(cloudErrorStatus(REVOKED.code)).send(REVOKED);
           return;
         }
