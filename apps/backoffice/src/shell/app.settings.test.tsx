@@ -252,6 +252,7 @@ test("opens the role editor modal for editing, from a role's pencil action, with
         isAdministrator: false,
         permissionKeys: [],
         userCount: 0,
+        mayEdit: true,
       },
     ],
   });
@@ -263,6 +264,7 @@ test("opens the role editor modal for editing, from a role's pencil action, with
       isAdministrator: false,
       permissionKeys: [],
       userCount: 0,
+      mayEdit: true,
       version: 1,
       assignedUsers: [],
     },
@@ -294,6 +296,7 @@ test("opens the role editor modal for duplicating, pre-filled from the source ro
         isAdministrator: false,
         permissionKeys: [],
         userCount: 0,
+        mayEdit: true,
       },
     ],
   });

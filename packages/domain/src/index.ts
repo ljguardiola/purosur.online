@@ -42,6 +42,7 @@ export {
   isWellFormedPinCode,
   lacksARequiredPermission,
   mayDeactivateUser,
+  mayEditRole,
   mayEditUser,
   mayEmitPinCode,
   mayEmitPinCodeFor,
