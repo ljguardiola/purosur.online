@@ -15,7 +15,7 @@ const UNUSED_EMAIL_SENDER: AccessEmailSender = {
   async sendFirstPinCode() {},
 };
 
-const NOW = new Date("2100-01-05T12:00:00.000Z");
+const NOW = new Date("2020-01-05T12:00:00.000Z");
 const HOUR_MS = 60 * 60 * 1000;
 
 let integrationDb: IntegrationDatabase;
@@ -34,21 +34,32 @@ afterAll(async () => {
 });
 
 describe("the background worker the server sets up on a real Postgres", () => {
-  it("runs the alert escalation job by the clock it is handed, escalating an alert overdue by it", async () => {
-    const [overdue] = await db
+  it("runs the alert escalation job by the clock it is handed, escalating only the alerts overdue by it", async () => {
+    const [overdue, dueLater] = await db
       .insert(alerts)
-      .values({
-        kind: "user_email_changed",
-        scope: "user-overdue",
-        level: "warning",
-        audience: "all",
-        detail: {},
-        openedAt: new Date(NOW.getTime() - 25 * HOUR_MS),
-        escalateAt: new Date(NOW.getTime() - HOUR_MS),
-      })
+      .values([
+        {
+          kind: "user_email_changed",
+          scope: "user-overdue",
+          level: "warning",
+          audience: "all",
+          detail: {},
+          openedAt: new Date(NOW.getTime() - 25 * HOUR_MS),
+          escalateAt: new Date(NOW.getTime() - HOUR_MS),
+        },
+        {
+          kind: "user_email_changed",
+          scope: "user-due-later",
+          level: "warning",
+          audience: "all",
+          detail: {},
+          openedAt: new Date(NOW.getTime() - HOUR_MS),
+          escalateAt: new Date(NOW.getTime() + HOUR_MS),
+        },
+      ])
       .returning({ id: alerts.id });
-    if (!overdue) {
-      throw new Error("test setup: inserting the alert returned no row");
+    if (!overdue || !dueLater) {
+      throw new Error("test setup: inserting the alerts returned no rows");
     }
     const recovery = await setUpRecovery(
       {
@@ -72,6 +83,8 @@ describe("the background worker the server sets up on a real Postgres", () => {
         },
         { timeout: 20_000, interval: 100 },
       );
+      const [notYetDue] = await db.select().from(alerts).where(eq(alerts.id, dueLater.id));
+      expect(notYetDue?.level).toBe("warning");
     } finally {
       await recovery.close();
     }
