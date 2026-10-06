@@ -28,34 +28,26 @@ export async function startLocalDatabase(deps: {
   migrations: readonly LocalMigration[];
   now: () => Date;
 }): Promise<StartedLocalDatabase> {
-  const markerPath = join(dirname(deps.path), DAMAGE_MARKER_FILE);
-  let database: LocalDatabase;
-  try {
-    database = openLocalDatabaseFile(deps.path);
-  } catch (error) {
-    if (!isDatabaseDamage(error)) {
-      throw error;
-    }
-    await reportLocalDatabaseDamage({
-      health: localDatabaseHealth({ markerPath, now: deps.now, integrityHolds: () => false }),
-    });
-    return OUT_OF_SERVICE;
+  let opened: LocalDatabase | undefined;
+  function open(): LocalDatabase {
+    opened ??= openLocalDatabaseFile(deps.path);
+    return opened;
   }
-
   const health = localDatabaseHealth({
-    markerPath,
+    markerPath: join(dirname(deps.path), DAMAGE_MARKER_FILE),
     now: deps.now,
-    integrityHolds: () => sqliteIntegrityHolds(database),
+    integrityHolds: () => sqliteIntegrityHolds(open()),
   });
   try {
     if ((await checkLocalDatabase({ health })).kind === "out_of_service") {
-      database.close();
+      opened?.close();
       return OUT_OF_SERVICE;
     }
+    const database = open();
     applyMigrations(database, deps.migrations, deps.now);
     return { kind: "ready", database, health };
   } catch (error) {
-    database.close();
+    opened?.close();
     if (!isDatabaseDamage(error)) {
       throw error;
     }

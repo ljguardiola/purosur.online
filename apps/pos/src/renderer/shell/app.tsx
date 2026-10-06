@@ -322,8 +322,9 @@ function Register({ core }: { core: CoreClient }) {
   useEffect(() => {
     if (coreStatus !== "up") {
       setPerson(undefined);
+      void queryClient.resetQueries({ queryKey: registerKeys.service });
     }
-  }, [coreStatus]);
+  }, [coreStatus, queryClient]);
 
   useEffect(() => {
     if (enrollment !== "enrolled") {

@@ -31,6 +31,7 @@ import type {
   SignInUser,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey, RegisterService } from "@purosur/domain";
+import { isDatabaseDamage } from "./platform/database-damage";
 import type { CashMovementRequest } from "./register/cash-movement-requests";
 import type { CoreToRendererMessage, RendererToCoreMessage } from "./renderer-messages";
 import type { ChargeSaleByTransferRequest, ChargeSaleInCashRequest } from "./sales/sale-requests";
@@ -146,15 +147,18 @@ async function attemptFirstSignIn(
   }
 }
 
-// The failure is reported without its error: what a lookup fails on may carry the email typed.
+// Only damage is reported with its error: another failure may carry the email typed.
 async function attemptSignInLookup(
   deps: RendererRequestDeps,
   email: string,
 ): Promise<SignInLookupOutcome> {
   try {
     return (await deps.signInLookup?.(email)) ?? { kind: "unavailable" };
-  } catch {
-    deps.reportFailure("looking up who signs in", new Error("the lookup failed"));
+  } catch (error) {
+    deps.reportFailure(
+      "looking up who signs in",
+      isDatabaseDamage(error) ? error : new Error("the lookup failed"),
+    );
     return { kind: "unavailable" };
   }
 }

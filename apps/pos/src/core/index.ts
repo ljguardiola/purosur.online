@@ -9,7 +9,6 @@ import {
   scrubErrorReportBreadcrumb,
   scrubErrorReportLog,
 } from "@purosur/contracts";
-import type { RegisterService } from "@purosur/domain";
 import * as Sentry from "@sentry/electron/utility";
 import { net } from "electron";
 import {
@@ -55,7 +54,6 @@ import {
   openCashSessionFor,
   sessionOpenSaleFor,
 } from "./register/cash-session-requests";
-import { watchForDatabaseDamage } from "./register/database-damage-watch";
 import { rotateDeviceToken } from "./register/device-token-rotation";
 import { startDeviceTokenRotationSchedule } from "./register/device-token-rotation-schedule";
 import {
@@ -65,6 +63,7 @@ import {
   installationReportFrom,
 } from "./register/enrollment";
 import { type StartedLocalDatabase, startLocalDatabase } from "./register/local-database-startup";
+import { registerServiceOf } from "./register/register-service-of-database";
 import { readOpenSession } from "./register/sqlite-cash-ledger";
 import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
@@ -166,14 +165,8 @@ async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefine
   }
 }
 
-const startedDatabase = await startLocalDatabaseFile();
-const localDatabase = startedDatabase?.kind === "ready" ? startedDatabase.database : undefined;
-const registerService: RegisterService =
-  startedDatabase?.kind === "out_of_service" ? { kind: "out_of_service" } : { kind: "in_service" };
-const watchForDamage =
-  startedDatabase?.kind === "ready"
-    ? watchForDatabaseDamage({ health: startedDatabase.health, exit: () => process.exit(1) })
-    : undefined;
+const register = registerServiceOf(await startLocalDatabaseFile(), () => process.exit(1));
+const localDatabase = register.database;
 const replica = localDatabase === undefined ? undefined : new SqliteLocalReplica(localDatabase);
 const localOutbox =
   localDatabase === undefined ? undefined : new SqliteLocalOutbox(localDatabase, now);
@@ -194,7 +187,7 @@ const actionGate =
 function reportFailure(context: string, error: unknown): void {
   console.error(`core: ${context} failed`, error);
   Sentry.captureException(error);
-  void watchForDamage?.(error);
+  void register.watchFailure(error);
 }
 
 // An unreachable cloud is how a register without internet looks, so only an unexpected stop is
@@ -252,14 +245,14 @@ const syncSchedule = createSyncSchedule({
   },
   onFailure: (error) => {
     console.error("core: the sync failed", error);
-    void watchForDamage?.(error);
+    void register.watchFailure(error);
   },
   afterEachSync: () => rendererConnection.tell(PULLED_NOTICE),
 });
 
 const rendererRequestDeps: RendererRequestDeps = {
   credentialsPresent: () => mainRequests.credentialsPresent(),
-  registerService,
+  registerService: register.service,
   registerName: () => replica?.registerName(),
   enroll: async (typedCode: string) => {
     const outcome = await enroll(
@@ -300,7 +293,7 @@ const rendererRequestDeps: RendererRequestDeps = {
         reportLocalFailure: (error) => {
           console.error("core: the redeemed PIN could not be kept locally", error);
           Sentry.captureException(error);
-          void watchForDamage?.(error);
+          void register.watchFailure(error);
         },
         openCashSession: () =>
           localDatabase === undefined ? undefined : readOpenSession(localDatabase),
@@ -585,6 +578,4 @@ process.parentPort.on("message", (event) => {
 });
 
 process.parentPort.postMessage({ type: "core-ready" } satisfies CoreReadyMessage);
-if (registerService.kind === "in_service") {
-  syncSchedule.start();
-}
+register.startSync(syncSchedule);
