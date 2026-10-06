@@ -100,7 +100,6 @@ export type {
   AlertViewer,
   EmailChangedDetail,
   OpenAlertInput,
-  OutboxChainBrokenDetail,
   PasskeyChangedDetail,
   RecoveryRequestedDetail,
   RegisterEnrolledDetail,

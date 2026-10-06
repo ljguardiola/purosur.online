@@ -8,7 +8,6 @@ import {
   Button,
   EmptyState,
   formatDate,
-  formatNumber,
   InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
@@ -119,7 +118,6 @@ function alertIcon(kind: string): Icon {
     case "user_access_increased":
       return <ShieldPlus />;
     case "register_enrolled":
-    case "outbox_chain_broken":
       return <Laptop />;
     default:
       return <Bell />;
@@ -187,20 +185,6 @@ function registerEnrollmentDescription(
   return `La caja «${registerName}» se dio de alta en el equipo «${hostname}» (${windowsVersion}).${replaced} Si no se reconoce esta alta, conviene revisarla desde Cajas registradoras.`;
 }
 
-function brokenChainDescription(
-  brokenEvents: readonly { deviceSeq: number }[],
-  registerName: string,
-): string {
-  const numbers = brokenEvents.map(({ deviceSeq }) => `n.º ${formatNumber(deviceSeq)}`);
-  const last = numbers.pop();
-  const listed = numbers.length === 0 ? last : `${numbers.join(", ")} y ${last}`;
-  const mismatch = plural(brokenEvents.length, {
-    one: `El evento ${listed} no coincide.`,
-    other: `Los eventos ${listed} no coinciden.`,
-  });
-  return `Los eventos guardados en el equipo de la caja «${registerName}» se alteraron, se quitaron o se reordenaron antes de llegar a la nube. ${mismatch} Se recibieron y se aplicaron igual. Conviene revisar quién tuvo acceso a ese equipo.`;
-}
-
 function alertTitle(alert: AlertDetail): string {
   switch (alert.kind) {
     case "backoffice_passkey_changed":
@@ -217,8 +201,6 @@ function alertTitle(alert: AlertDetail): string {
       return "Se amplió el acceso de un usuario";
     case "register_enrolled":
       return "Se dio de alta una caja";
-    case "outbox_chain_broken":
-      return "Se alteraron eventos guardados en una caja";
   }
 }
 
@@ -264,8 +246,6 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
       return accessIncreaseDescription(alert.detail, targetName, catalog);
     case "register_enrolled":
       return registerEnrollmentDescription(alert.detail, targetName);
-    case "outbox_chain_broken":
-      return brokenChainDescription(alert.detail.brokenEvents, targetName);
   }
 }
 

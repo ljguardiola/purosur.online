@@ -91,13 +91,6 @@ const registerEnrolledDetailSchema = z.object({
   replacedInstallation: z.boolean(),
 });
 
-const outboxChainBrokenDetailSchema = z.object({
-  brokenEvents: z
-    .array(z.object({ deviceSeq: z.int().positive(), eventId: z.string().min(1) }))
-    .min(1)
-    .readonly(),
-});
-
 const ALERT_INSTANT = { timeZone: ARGENTINA_TIME_ZONE };
 
 const alertBase = {
@@ -143,11 +136,6 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("register_enrolled" satisfies AlertKind),
     detail: registerEnrolledDetailSchema,
-  }),
-  z.object({
-    ...alertBase,
-    kind: z.literal("outbox_chain_broken" satisfies AlertKind),
-    detail: outboxChainBrokenDetailSchema,
   }),
 ] as const;
 

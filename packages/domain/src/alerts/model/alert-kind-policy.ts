@@ -5,7 +5,7 @@ import {
   type AlertLevel,
 } from "./alert-catalog.js";
 
-export type AlertScopeKind = "user" | "sourceAddress" | "register" | "device";
+export type AlertScopeKind = "user" | "sourceAddress" | "register";
 
 export interface AlertKindPolicy {
   level: AlertLevel;
@@ -58,13 +58,6 @@ const ALERT_KIND_POLICIES = {
     escalatesAfterMs: ALERT_ESCALATION_DELAY_MS,
     audience: "all",
     scopeKind: "register",
-    deduplicates: false,
-  },
-  outbox_chain_broken: {
-    level: "warning",
-    escalatesAfterMs: ALERT_ESCALATION_DELAY_MS,
-    audience: "all",
-    scopeKind: "device",
     deduplicates: false,
   },
 } as const satisfies Record<AlertKind, AlertKindPolicy>;

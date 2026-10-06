@@ -12,7 +12,6 @@ export type {
   AlertRoleSummary,
   EmailChangedDetail,
   OpenAlertInput,
-  OutboxChainBrokenDetail,
   PasskeyChangedDetail,
   RecoveryRequestedDetail,
   RegisterEnrolledDetail,
