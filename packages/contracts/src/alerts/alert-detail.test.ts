@@ -299,6 +299,7 @@ describe("alertDetailSchema", () => {
     });
 
     it.each([
+      [[]],
       [[{ deviceSeq: 0, eventId: "event-0" }]],
       [[{ deviceSeq: 1.5, eventId: "event-1" }]],
       [[{ deviceSeq: 1, eventId: "" }]],
