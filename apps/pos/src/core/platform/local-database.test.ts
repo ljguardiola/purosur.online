@@ -48,6 +48,22 @@ describe("the register's local database", () => {
     reopened.close();
   });
 
+  it("records each applied migration at the time its clock gives", () => {
+    const database = openLocalDatabase(
+      databasePath(),
+      [FIRST, SECOND],
+      () => new Date("2026-03-04T10:15:30.000Z"),
+    );
+
+    expect(
+      database.prepare("SELECT name, applied_at FROM applied_migrations ORDER BY name").all(),
+    ).toEqual([
+      { name: "0000_notes", applied_at: "2026-03-04T10:15:30.000Z" },
+      { name: "0001_note_authors", applied_at: "2026-03-04T10:15:30.000Z" },
+    ]);
+    database.close();
+  });
+
   it("applies a migration added later over the data the previous schema already holds", () => {
     const path = databasePath();
     const before = openLocalDatabase(path, [FIRST]);
