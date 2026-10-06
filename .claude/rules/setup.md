@@ -4,7 +4,7 @@
 2. Install pnpm by any method (npm, the standalone install script, or your OS package manager). pnpm self-manages: once invoked in this repository, it reads the `packageManager` field in `package.json` and switches itself to that pinned version.
 3. Install Docker or Podman (with the compose plugin): the tests start their own Postgres and browser server in containers.
 4. Install dependencies: `pnpm install`.
-5. Run the single gate before opening a pull request: `pnpm verify`. It runs every check of CI's `verify`: type checking, the builds of the cloud, the backoffice and the register, the backoffice's download budget, lint, the architecture rules, unused code, the React Compiler check, the tests, the design-system screenshots, and the repository's own automation tests.
+5. Before opening a pull request, run the checks step 4 of "Working on an issue" in `.claude/rules/workflow.md` names. The whole suite is `pnpm verify`, which CI's `verify` runs on every pull request and which also runs locally when the full run is wanted. It runs every check of CI's `verify`: type checking, the builds of the cloud, the backoffice and the register, the backoffice's download budget, lint, the architecture rules, unused code, the React Compiler check, the tests, the design-system screenshots, and the repository's own automation tests.
 
 # Running it locally
 

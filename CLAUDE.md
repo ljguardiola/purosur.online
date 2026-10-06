@@ -10,9 +10,11 @@ restates its rules.
   (any version manager that honors `.node-version` works the same way). pnpm
   itself comes from the `packageManager` pin in `package.json` — don't install
   a different version.
-- `pnpm verify` is the merge gate (see "Checks" in `.claude/rules/checks.md`). Run it
-  before calling anything done, and report its actual output — pass or fail —
-  never assume or claim it passed without running it.
+- CI's `verify`, the full `pnpm verify`, is the merge gate (see "Checks" in
+  `.claude/rules/checks.md`). Before a pull request, run the checks step 4 of
+  "Working on an issue" in `.claude/rules/workflow.md` names, and call nothing
+  done until CI's `verify` passes. Report actual output — pass or fail — never
+  assume or claim a check passed without running it.
 
 ## TDD
 
@@ -27,7 +29,8 @@ See "Code style" in `.claude/rules/code-style.md`.
   `.github/pull_request_template.md` (see "Branches and pull requests" in
   `.claude/rules/workflow.md`). Use
   the `open-pr` skill to build and open it.
-- Use the `check` skill to run `pnpm verify` and report its real result.
+- Use the `check` skill to run the pre-pull-request checks and report their real
+  result.
 
 ## Hard blocks
 

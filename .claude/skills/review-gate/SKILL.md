@@ -1,6 +1,6 @@
 ---
 name: review-gate
-description: Run the repository's own pre-PR review of an issue branch - two blind reviewers check the change against the rules written in the repository, a verifier proves or refutes every finding, a fixer fixes every confirmed in-scope one, and rounds repeat until none is left. Use after the issue's work is committed and before the single full pnpm verify.
+description: Run the repository's own pre-PR review of an issue branch - two blind reviewers check the change against the rules written in the repository, a verifier proves or refutes every finding, a fixer fixes every confirmed in-scope one, and rounds repeat until none is left. Use after the issue's work is committed and before the branch's pre-pull-request checks.
 ---
 
 The rules a change is reviewed against are the ones written in the
