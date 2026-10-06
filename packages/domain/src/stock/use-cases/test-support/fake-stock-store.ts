@@ -60,7 +60,7 @@ class FakeStockStoreTransaction implements StockStoreTransaction {
   async lockProductStock(key: ProductStockKey): Promise<LockProductStockResult> {
     this.store.operationOrder.push("lockProductStock");
     const product = this.state.products.find((row) => row.id === key.productId);
-    if (!product?.active) {
+    if (!product) {
       return { kind: "not_found" };
     }
     const balance = this.state.balances.find((row) => sameKey(row, key));

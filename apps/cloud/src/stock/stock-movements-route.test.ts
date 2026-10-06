@@ -113,12 +113,26 @@ describe("POST /inventory-losses", () => {
     });
   });
 
-  it("answers 404 for a deactivated product", async () => {
-    const { headers } = await signedInWith(db, ["record_stock_losses"], NOW);
+  it("records the loss of a deactivated product's stock", async () => {
+    const { headers, locationId } = await signedInWith(db, ["record_stock_losses"], NOW);
     const { productId } = await insertProduct(db, { active: false });
+    await insertBalance(db, { productId, locationId, quantity: 5000 });
 
     const response = await post("/inventory-losses", headers, {
       productId,
+      reason: "theft",
+      quantity: 1000,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ balance: 4000, superseded: false });
+  });
+
+  it("answers 404 for an unknown product", async () => {
+    const { headers } = await signedInWith(db, ["record_stock_losses"], NOW);
+
+    const response = await post("/inventory-losses", headers, {
+      productId: "00000000-0000-4000-8000-000000000000",
       reason: "theft",
       quantity: 1000,
     });

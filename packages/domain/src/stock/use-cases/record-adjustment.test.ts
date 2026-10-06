@@ -43,21 +43,24 @@ function adjust(
 }
 
 describe("recordAdjustment", () => {
-  it.each([
-    ["doesn't exist", "missing", true],
-    ["is inactive", "product-1", false],
-  ])(
-    "answers not_found for a product that %s, writing nothing",
-    async (_case, productId, active) => {
-      const store = storeWithProduct({ active });
-      const before = store.snapshot();
+  it("answers not_found for a product that doesn't exist, writing nothing", async () => {
+    const store = storeWithProduct();
+    const before = store.snapshot();
 
-      const outcome = await adjust(store, { productId });
+    const outcome = await adjust(store, { productId: "missing" });
 
-      expect(outcome).toEqual({ kind: "not_found" });
-      expect(store.snapshot()).toEqual(before);
-    },
-  );
+    expect(outcome).toEqual({ kind: "not_found" });
+    expect(store.snapshot()).toEqual(before);
+  });
+
+  it("records the adjustment of a deactivated product's leftover stock", async () => {
+    const store = storeWithProduct({ active: false, balance: 19_000 });
+
+    const outcome = await adjust(store, { direction: "add", quantity: 12_000 });
+
+    expect(outcome).toMatchObject({ kind: "recorded", balance: 31_000 });
+    expect(store.balanceOf(KEY)).toBe(31_000);
+  });
 
   it("refuses to add stock returned to a supplier, writing nothing", async () => {
     const store = storeWithProduct();

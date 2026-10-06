@@ -38,22 +38,25 @@ function lose(
 }
 
 describe("recordLoss", () => {
-  it.each([
-    ["doesn't exist", "missing", true],
-    ["is inactive", "product-1", false],
-  ])(
-    "answers not_found for a product that %s, writing nothing",
-    async (_case, productId, active) => {
-      const store = storeWithProduct({ active });
-      const before = store.snapshot();
+  it("answers not_found for a product that doesn't exist, writing nothing", async () => {
+    const store = storeWithProduct();
+    const before = store.snapshot();
 
-      const outcome = await lose(store, { productId });
+    const outcome = await lose(store, { productId: "missing" });
 
-      expect(outcome).toEqual({ kind: "not_found" });
-      expect(store.snapshot()).toEqual(before);
-      expect(store.operationOrder).toEqual(["lockProductStock"]);
-    },
-  );
+    expect(outcome).toEqual({ kind: "not_found" });
+    expect(store.snapshot()).toEqual(before);
+    expect(store.operationOrder).toEqual(["lockProductStock"]);
+  });
+
+  it("records the loss of a deactivated product's leftover stock", async () => {
+    const store = storeWithProduct({ active: false, balance: 24_000 });
+
+    const outcome = await lose(store, { quantity: 1000 });
+
+    expect(outcome).toMatchObject({ kind: "recorded", balance: 23_000 });
+    expect(store.balanceOf(KEY)).toBe(23_000);
+  });
 
   it("refuses part of a unit of a product sold by the unit, writing nothing", async () => {
     const store = storeWithProduct({ saleUnit: "UNIT" });

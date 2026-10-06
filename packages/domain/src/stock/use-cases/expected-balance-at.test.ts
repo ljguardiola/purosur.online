@@ -9,6 +9,7 @@ const honey: StockProduct = {
   categoryId: "category-1",
   categoryName: "Almacén",
   saleUnit: "UNIT",
+  active: true,
 };
 
 const moment = new Date("2027-04-10T12:00:00Z");
@@ -38,7 +39,19 @@ describe("expectedBalanceAt", () => {
     ]);
   });
 
-  it("reports a product that is not active as not found, without reading the ledger", async () => {
+  it("answers a deactivated product with its balance", async () => {
+    const deactivated = { ...honey, active: false };
+    const ledger = new FakeStockLedgerReader([deactivated], { balance: 12, appliedAfterCount: 5 });
+
+    const outcome = await expectedBalanceAt(
+      { ledger },
+      { productId: "product-1", locationId: "location-1", at: moment },
+    );
+
+    expect(outcome).toEqual({ kind: "found", product: deactivated, balance: 7 });
+  });
+
+  it("reports an unknown product as not found, without reading the ledger", async () => {
     const ledger = new FakeStockLedgerReader([honey], { balance: 12, appliedAfterCount: 5 });
 
     const outcome = await expectedBalanceAt(

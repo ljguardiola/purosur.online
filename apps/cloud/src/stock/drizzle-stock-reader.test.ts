@@ -37,32 +37,37 @@ async function seededActor(): Promise<{ actorId: string; locationId: string }> {
   return { actorId: userId, locationId };
 }
 
-describe("DrizzleStockReader.activeProduct", () => {
-  it("answers an active product with its category and sale unit", async () => {
+describe("DrizzleStockReader.product", () => {
+  it("answers a product with its category and sale unit", async () => {
     const { productId, categoryId } = await insertProduct(db, {
       name: "Almendras peladas",
       categoryName: "Frutos secos",
       saleUnit: "KG",
     });
 
-    expect(await new DrizzleStockReader(db).activeProduct(productId)).toEqual({
+    expect(await new DrizzleStockReader(db).product(productId)).toEqual({
       id: productId,
       name: "Almendras peladas",
       categoryId,
       categoryName: "Frutos secos",
       saleUnit: "KG",
+      active: true,
     });
   });
 
-  it("answers nothing for an inactive product", async () => {
-    const { productId } = await insertProduct(db, { active: false });
+  it("answers a deactivated product, flagged as not active", async () => {
+    const { productId } = await insertProduct(db, { name: "Avena", active: false });
 
-    expect(await new DrizzleStockReader(db).activeProduct(productId)).toBeUndefined();
+    expect(await new DrizzleStockReader(db).product(productId)).toMatchObject({
+      id: productId,
+      name: "Avena",
+      active: false,
+    });
   });
 
   it("answers nothing for an unknown product", async () => {
     expect(
-      await new DrizzleStockReader(db).activeProduct("00000000-0000-4000-8000-000000000000"),
+      await new DrizzleStockReader(db).product("00000000-0000-4000-8000-000000000000"),
     ).toBeUndefined();
   });
 });
@@ -130,19 +135,20 @@ describe("DrizzleStockReader.ledgerAt", () => {
   });
 });
 
-describe("DrizzleStockReader.activeProducts", () => {
-  it("answers the active products by name, then by id", async () => {
+describe("DrizzleStockReader.products", () => {
+  it("answers every product, active or not, by name, then by id", async () => {
     const nuts = await insertProduct(db, { name: "Nueces", categoryName: "Frutos secos" });
     const honey = await insertProduct(db, { name: "Miel", saleUnit: "KG" });
     const sameName = await insertProduct(db, { name: "Miel" });
-    await insertProduct(db, { name: "Avena", active: false });
+    const oats = await insertProduct(db, { name: "Avena", active: false });
 
-    const products = await new DrizzleStockReader(db).activeProducts();
+    const products = await new DrizzleStockReader(db).products();
 
     const [firstHoney, secondHoney] = [honey, sameName].sort((a, b) =>
       a.productId.localeCompare(b.productId),
     );
     expect(products.map((product) => product.id)).toEqual([
+      oats.productId,
       firstHoney?.productId,
       secondHoney?.productId,
       nuts.productId,
@@ -153,18 +159,33 @@ describe("DrizzleStockReader.activeProducts", () => {
       categoryId: honey.categoryId,
       categoryName: "Almacén",
       saleUnit: "KG",
+      active: true,
     });
+    expect(products.find((product) => product.id === oats.productId)?.active).toBe(false);
   });
 });
 
 describe("DrizzleStockReader.stockLevels", () => {
-  it("answers each active product with its balance at the location, zero when it has none", async () => {
+  it("leaves out a deactivated product with no stock at the location", async () => {
+    const locationId = await insertLocation(db);
+    const rice = await insertProduct(db, { name: "Arroz", active: false });
+    await insertBalance(db, { productId: rice.productId, locationId, quantity: 0 });
+    await insertProduct(db, { name: "Harina", active: false });
+
+    expect(await new DrizzleStockReader(db).stockLevels(locationId)).toEqual([]);
+  });
+
+  it("answers each listed product with its balance at the location, zero when it has none", async () => {
     const locationId = await insertLocation(db);
     const otherLocationId = await insertLocation(db);
     const honey = await insertProduct(db, { name: "Miel" });
     const nuts = await insertProduct(db, { name: "Nueces", categoryName: "Frutos secos" });
     const oats = await insertProduct(db, { name: "Avena", active: false });
+    const rice = await insertProduct(db, { name: "Arroz", active: false });
+    const flour = await insertProduct(db, { name: "Harina", active: false });
     await insertBalance(db, { productId: honey.productId, locationId, quantity: 12 });
+    await insertBalance(db, { productId: rice.productId, locationId, quantity: 0 });
+    await insertBalance(db, { productId: flour.productId, locationId: otherLocationId, quantity: 9 });
     await insertBalance(db, {
       productId: nuts.productId,
       locationId: otherLocationId,
@@ -174,11 +195,21 @@ describe("DrizzleStockReader.stockLevels", () => {
 
     expect(await new DrizzleStockReader(db).stockLevels(locationId)).toEqual([
       {
+        id: oats.productId,
+        name: "Avena",
+        categoryId: oats.categoryId,
+        categoryName: "Almacén",
+        saleUnit: "UNIT",
+        active: false,
+        balance: 3,
+      },
+      {
         id: honey.productId,
         name: "Miel",
         categoryId: honey.categoryId,
         categoryName: "Almacén",
         saleUnit: "UNIT",
+        active: true,
         balance: 12,
       },
       {
@@ -187,6 +218,7 @@ describe("DrizzleStockReader.stockLevels", () => {
         categoryId: nuts.categoryId,
         categoryName: "Frutos secos",
         saleUnit: "UNIT",
+        active: true,
         balance: 0,
       },
     ]);
