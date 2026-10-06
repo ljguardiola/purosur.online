@@ -9,10 +9,14 @@ permissions:
   contents: read
 
 jobs:
-  mutation:
-    name: mutation
+  shard:
+    name: mutation (${{ matrix.shard }}/6)
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -27,4 +31,21 @@ jobs:
 
       - run: pnpm install --frozen-lockfile --filter purosur-pos --filter @purosur/contracts --filter @purosur/domain
 
-      - run: pnpm mutation
+      - run: |
+          files=$(node .github/scripts/mutation-shard.mjs)
+          pnpm mutation --mutate "$files"
+        env:
+          MUTATION_SHARD_INDEX: ${{ strategy.job-index }}
+          MUTATION_SHARD_TOTAL: ${{ strategy.job-total }}
+
+  mutation:
+    name: mutation
+    needs: shard
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Decide whether every shard tested its mutants and caught them all
+        run: test "$SHARDS_RESULT" = success
+        env:
+          SHARDS_RESULT: ${{ needs.shard.result }}
