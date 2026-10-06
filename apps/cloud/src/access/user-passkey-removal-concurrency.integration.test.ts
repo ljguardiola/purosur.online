@@ -62,11 +62,24 @@ afterAll(async () => {
 
 beforeEach(() => {
   app = Fastify();
-  registerUserPasskeyRemovalRoutes(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN });
-  registerRecoveryRedemptionRoutes(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN });
-  registerSessionAuthenticationOptionsRoute(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN });
+  registerUserPasskeyRemovalRoutes(app, {
+    db,
+    now: () => new Date(),
+    backofficeOrigin: BACKOFFICE_ORIGIN,
+  });
+  registerRecoveryRedemptionRoutes(app, {
+    db,
+    now: () => new Date(),
+    backofficeOrigin: BACKOFFICE_ORIGIN,
+  });
+  registerSessionAuthenticationOptionsRoute(app, {
+    db,
+    now: () => new Date(),
+    backofficeOrigin: BACKOFFICE_ORIGIN,
+  });
   registerSessionAuthenticateRoute(app, {
     db,
+    now: () => new Date(),
     backofficeOrigin: BACKOFFICE_ORIGIN,
     delay: async () => {},
   });

@@ -21,7 +21,7 @@ import { registerEnrollmentCodeMatches } from "./register-enrollment-code.js";
 export interface DeviceEnrollmentRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   keysEncryptionKey: Uint8Array;
-  now?: () => Date;
+  now: () => Date;
 }
 
 const CODE_REJECTED = cloudError(
@@ -35,7 +35,7 @@ export function registerDeviceEnrollmentRoute<TQueryResult extends PgQueryResult
 ): void {
   const ports = {
     store: new DrizzleRegisterStore(options.db, installationKeyCipher(options.keysEncryptionKey)),
-    clock: { now: options.now ?? (() => new Date()) },
+    clock: { now: options.now },
     tokens: { issue: issueDeviceToken },
     codes: { matches: registerEnrollmentCodeMatches },
     keys: { generate: generateInstallationKey },

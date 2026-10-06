@@ -79,12 +79,14 @@ describe("waitForReady", () => {
     await withExclusiveMigration(() =>
       runMigrations(created.adminDatabaseUrl, CLOUD_APP_PASSWORD, {
         migrationsFolder: MIGRATIONS_FOLDER,
+        now: Date.now,
       }),
     );
 
     await expect(
       waitForReady(created.databaseUrl, {
         migrationsFolder: MIGRATIONS_FOLDER,
+        now: Date.now,
         connectTimeoutSeconds: 5,
         waitForReadySeconds: 5,
         waitIntervalMs: 200,
@@ -100,6 +102,7 @@ describe("waitForReady", () => {
       await withExclusiveMigration(() =>
         runMigrations(created.adminDatabaseUrl, CLOUD_APP_PASSWORD, {
           migrationsFolder: behind.path,
+          now: Date.now,
         }),
       );
       const clock = fakeClock();
@@ -128,6 +131,7 @@ describe("waitForReady", () => {
       await withExclusiveMigration(() =>
         runMigrations(created.adminDatabaseUrl, CLOUD_APP_PASSWORD, {
           migrationsFolder: MIGRATIONS_FOLDER,
+          now: Date.now,
         }),
       );
       const admin = postgres(created.adminDatabaseUrl, { max: 1 });

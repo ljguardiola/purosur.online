@@ -12,7 +12,7 @@ export interface DeviceTokensOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   rotationKey: Uint8Array;
   keysEncryptionKey: Uint8Array;
-  now?: () => Date;
+  now: () => Date;
 }
 
 export function installationTokenPorts<TQueryResult extends PgQueryResultHKT>(
@@ -20,7 +20,7 @@ export function installationTokenPorts<TQueryResult extends PgQueryResultHKT>(
 ): InstallationTokenPorts {
   return {
     store: new DrizzleRegisterStore(options.db, installationKeyCipher(options.keysEncryptionKey)),
-    clock: { now: options.now ?? (() => new Date()) },
+    clock: { now: options.now },
     tokens: deviceTokenRotator(options.rotationKey),
   };
 }

@@ -29,6 +29,8 @@ import {
 import { logChange } from "./change-log.js";
 import { DrizzleChangeLog } from "./drizzle-change-log.js";
 
+const NOW = new Date("2026-10-06T12:00:00.000Z");
+
 // PGlite has no roles, so only a real Postgres connected as the role the deployed cloud uses shows
 // which privileges a pull's reads need.
 let integrationDb: IntegrationDatabase;
@@ -48,7 +50,7 @@ afterAll(async () => {
 
 describe("a pull run as the role the deployed cloud connects with", () => {
   it("gives a page holding every kind of catalog, price, user, role, fiscal configuration and point-of-sale change", async () => {
-    const { deviceId, locationId, registerId } = await insertEnrolledInstallation(db);
+    const { deviceId, locationId, registerId } = await insertEnrolledInstallation(db, { now: NOW });
     const store = new DrizzleCatalogStore(db);
     const category = await createCategory(store, { name: "Almacén", parentId: null });
     const tag = await createTag(store, { name: "Sin TACC" });
@@ -85,7 +87,7 @@ describe("a pull run as the role the deployed cloud connects with", () => {
     await createUser(
       {
         store: new DrizzleUserStore(db),
-        clock: { now: () => new Date() },
+        clock: { now: () => NOW },
       },
       {
         firstName: "Grace",
@@ -97,7 +99,7 @@ describe("a pull run as the role the deployed cloud connects with", () => {
       },
     );
     await setPrice(
-      { store: new DrizzlePricingStore(db), clock: { now: () => new Date() } },
+      { store: new DrizzlePricingStore(db), clock: { now: () => NOW } },
       {
         productId: product.product.id,
         locationId,
@@ -151,7 +153,7 @@ describe("a pull run as the role the deployed cloud connects with", () => {
     if (pointOfSale.kind !== "configured") {
       throw new Error("test setup: the point of sale was not configured");
     }
-    const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => new Date() } };
+    const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => NOW } };
 
     const page = await pullChanges(ports, { deviceId, since: 0 });
 

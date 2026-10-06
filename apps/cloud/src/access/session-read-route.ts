@@ -18,14 +18,14 @@ import {
 export interface SessionReadRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  now?: () => Date;
+  now: () => Date;
 }
 
 export function registerSessionReadRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: SessionReadRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 

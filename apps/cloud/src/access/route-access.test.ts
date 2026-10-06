@@ -431,7 +431,7 @@ describe("the route access inventory", () => {
   it("collects the declared access of every registered route, excluding the auto-mirrored HEAD of a GET", async () => {
     const inventoryApp = Fastify();
     registerRouteAccess(inventoryApp);
-    const sessionSource = routeSessionSource({ db });
+    const sessionSource = routeSessionSource({ db, now: () => NOON });
     inventoryApp.get(
       "/foo",
       { config: { access: OPEN_SESSION_ACCESS, sessionSource } },
@@ -459,7 +459,7 @@ describe("the route access inventory", () => {
       {
         config: {
           access: capabilityAccess("stock_movements"),
-          sessionSource: routeSessionSource({ db }),
+          sessionSource: routeSessionSource({ db, now: () => NOON }),
         },
       },
       async () => "ok",

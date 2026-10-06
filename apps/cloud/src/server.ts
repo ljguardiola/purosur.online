@@ -297,6 +297,7 @@ export interface SetUpRecoveryDeps {
  */
 export async function setUpRecovery(
   recoveryEnv: RecoveryEnv,
+  now: () => Date,
   deps: SetUpRecoveryDeps = {},
 ): Promise<RecoveryInfrastructure> {
   const sql = postgres(recoveryEnv.databaseUrl);
@@ -312,7 +313,8 @@ export async function setUpRecovery(
     databaseUrl: recoveryEnv.databaseUrl,
     backofficeOrigin: recoveryEnv.backofficeOrigin,
     emailSender,
-    jobs: [alertEscalationJobs({ now: () => new Date() })],
+    now,
+    jobs: [alertEscalationJobs({ now })],
   });
   const jobQueuePool = createRecoveryJobQueuePool(
     recoveryEnv.databaseUrl,
@@ -333,7 +335,8 @@ export async function setUpRecovery(
 export interface StartServerDeps {
   initSentry?: typeof initSentry;
   buildApp?: (options: BuildAppOptions) => FastifyInstance;
-  setUpRecovery?: (recoveryEnv: RecoveryEnv) => Promise<RecoveryInfrastructure>;
+  setUpRecovery?: (recoveryEnv: RecoveryEnv, now: () => Date) => Promise<RecoveryInfrastructure>;
+  now?: () => Date;
   recordAuthorizedCuit?: (
     db: RecoveryInfrastructure["db"],
     authorizedCuit: string,
@@ -357,6 +360,7 @@ export async function startServer(
   const doInitSentry = deps.initSentry ?? initSentry;
   const doBuildApp = deps.buildApp ?? buildApp;
   const doSetUpRecovery = deps.setUpRecovery ?? setUpRecovery;
+  const now = deps.now ?? (() => new Date());
   const doRecordAuthorizedCuit = deps.recordAuthorizedCuit ?? recordAuthorizedCuitInDatabase;
 
   const version = resolveVersion(env);
@@ -370,12 +374,13 @@ export async function startServer(
         authorizedCuit: requireAuthorizedCuit(env),
         deviceTokenRotationKey: requireDeviceTokenRotationKey(env),
         installationKeysEncryptionKey: requireInstallationKeysEncryptionKey(env),
-        recovery: await doSetUpRecovery(recoveryEnv),
+        recovery: await doSetUpRecovery(recoveryEnv, now),
       }
     : undefined;
 
   const app = doBuildApp({
     version,
+    now,
     edgeOriginSecret,
     staticDir: resolveStaticDir(env, DEFAULT_STATIC_DIR),
     ...(errorReporting ? { errorReporting } : {}),

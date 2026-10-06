@@ -13,7 +13,7 @@ import { DrizzleFiscalAddressReader } from "./drizzle-fiscal-address-reader.js";
 export interface FiscalAddressesRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  now?: () => Date;
+  now: () => Date;
 }
 
 export function toFiscalAddressWire({ id, name, streetAddress, version }: FiscalAddress) {
@@ -24,7 +24,7 @@ export function registerFiscalAddressesListRoute<TQueryResult extends PgQueryRes
   app: FastifyInstance,
   options: FiscalAddressesRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   const reader = new DrizzleFiscalAddressReader(options.db);
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });

@@ -15,6 +15,7 @@ describe("runMigrations", () => {
     await expect(
       runMigrations("postgres://user:pass@127.0.0.1:1/nonexistent", "unused-unreachable-database", {
         migrationsFolder: MIGRATIONS_FOLDER,
+        now: Date.now,
         connectTimeoutSeconds: 1,
         waitForDatabaseSeconds: 0,
       }),
@@ -27,6 +28,7 @@ describe("runMigrations", () => {
     await expect(
       runMigrations("postgres://user:pass@127.0.0.1:1/nonexistent", "unused-unreachable-database", {
         migrationsFolder: MIGRATIONS_FOLDER,
+        now: Date.now,
         connectTimeoutSeconds: 1,
         waitForDatabaseSeconds: 1,
         waitIntervalMs: 100,

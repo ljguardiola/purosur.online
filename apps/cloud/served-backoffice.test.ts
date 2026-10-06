@@ -35,7 +35,11 @@ async function buildBackoffice(outDir: string): Promise<void> {
 beforeAll(async () => {
   staticDir = mkdtempSync(join(tmpdir(), "purosur-served-backoffice-"));
   await buildBackoffice(staticDir);
-  app = buildTestApp({ version: "abc1234", staticDir });
+  app = buildTestApp({
+    version: "abc1234",
+    now: () => new Date("2026-01-05T12:00:00.000Z"),
+    staticDir,
+  });
   origin = await app.listen({ host: "127.0.0.1", port: 0 });
   browser = await chromium.connect(process.env["PLAYWRIGHT_SERVER_WS_ENDPOINT"] ?? "", {
     exposeNetwork: "<loopback>",

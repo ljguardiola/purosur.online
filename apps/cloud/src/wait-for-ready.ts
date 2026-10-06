@@ -17,7 +17,7 @@ export interface WaitForReadyOptions {
   waitForReadySeconds?: number;
   waitIntervalMs?: number;
   sleep?: (ms: number) => Promise<void>;
-  now?: () => number;
+  now: () => number;
   onWaiting?: (error: unknown, elapsedMs: number) => void;
 }
 
@@ -169,7 +169,7 @@ async function checkSchemaReady(sql: postgres.Sql, migrationsFolder: string): Pr
  */
 export async function waitForReady(
   databaseUrl: string,
-  options: WaitForReadyOptions = {},
+  options: WaitForReadyOptions,
 ): Promise<void> {
   const migrationsFolder = options.migrationsFolder ?? MIGRATIONS_FOLDER;
   const connectTimeoutSeconds = options.connectTimeoutSeconds ?? 10;
@@ -190,7 +190,7 @@ export async function waitForReady(
       budgetSeconds: options.waitForReadySeconds ?? DEFAULT_WAIT_FOR_READY_SECONDS,
       intervalMs: options.waitIntervalMs ?? DEFAULT_WAIT_INTERVAL_MS,
       sleep: options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms))),
-      now: options.now ?? Date.now,
+      now: options.now,
       onWaiting: options.onWaiting ?? logWaiting,
       isRetryable: isRetryableReadyError,
     },
@@ -209,7 +209,7 @@ if (import.meta.main) {
     console.error("wait-for-ready: DATABASE_URL is not set");
     process.exit(1);
   } else {
-    waitForReady(databaseUrl)
+    waitForReady(databaseUrl, { now: Date.now })
       .then(() => {
         console.log("wait-for-ready: ready");
       })

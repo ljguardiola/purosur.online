@@ -57,6 +57,7 @@ describe("GET /registers/points-of-sale", () => {
 
   it("rejects a user holding only the permission to enroll registers with 403 forbidden", async () => {
     const session = await openBackofficeSession(db, {
+      now: SESSION_NOON,
       locationId: await seededLocationId(db),
       permissionKeys: ["enroll_register_devices"],
     });
@@ -91,6 +92,7 @@ describe("GET /registers/points-of-sale", () => {
       throw new Error("test setup: seeding the registers returned no row");
     }
     const session = await openBackofficeSession(db, {
+      now: SESSION_NOON,
       locationId,
       permissionKeys: ["change_fiscal_configuration"],
       passkeyAuthorized: false,

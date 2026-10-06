@@ -11,7 +11,7 @@ import { resolveWebAuthnConfig } from "./webauthn-config.js";
 export interface SessionAuthenticationOptionsRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  now?: () => Date;
+  now: () => Date;
 }
 
 const AUTHENTICATION_TIMEOUT_MS = 60_000;
@@ -21,7 +21,7 @@ export function registerSessionAuthenticationOptionsRoute<TQueryResult extends P
   app: FastifyInstance,
   options: SessionAuthenticationOptionsRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
   const ports = { challenges: new DrizzleSignInChallenges(options.db) };

@@ -28,6 +28,7 @@ describe("the cloud_app role runMigrations creates", () => {
     await withExclusiveMigration(() =>
       runMigrations(database.adminDatabaseUrl, CLOUD_APP_PASSWORD, {
         migrationsFolder: MIGRATIONS_FOLDER,
+        now: Date.now,
       }),
     );
     cloudApp = postgres(database.databaseUrl, { max: 1 });
@@ -373,6 +374,7 @@ describe("the cloud_app role runMigrations creates", () => {
       await withExclusiveMigration(() =>
         runMigrations(database.adminDatabaseUrl, CLOUD_APP_PASSWORD, {
           migrationsFolder: MIGRATIONS_FOLDER,
+          now: Date.now,
         }),
       );
 
@@ -391,6 +393,7 @@ describe("the cloud_app role runMigrations creates", () => {
       await withExclusiveMigration(async () => {
         await runMigrations(database.adminDatabaseUrl, CLOUD_APP_PASSWORD, {
           migrationsFolder: MIGRATIONS_FOLDER,
+          now: Date.now,
         });
         const backends = await admin<{ pid: number }[]>`
           select pid from pg_stat_activity

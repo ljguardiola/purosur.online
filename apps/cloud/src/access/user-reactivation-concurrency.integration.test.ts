@@ -37,7 +37,11 @@ afterAll(async () => {
 
 beforeEach(() => {
   app = Fastify();
-  registerUserReactivationRoutes(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN });
+  registerUserReactivationRoutes(app, {
+    db,
+    now: () => new Date(),
+    backofficeOrigin: BACKOFFICE_ORIGIN,
+  });
 });
 
 afterEach(async () => {

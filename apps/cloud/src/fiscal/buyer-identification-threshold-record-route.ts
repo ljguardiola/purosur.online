@@ -20,7 +20,7 @@ import { DrizzleBuyerIdentificationThresholdStore } from "./drizzle-buyer-identi
 export function registerBuyerIdentificationThresholdRecordRoute<
   TQueryResult extends PgQueryResultHKT,
 >(app: FastifyInstance, options: BuyerIdentificationThresholdsRouteOptions<TQueryResult>): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   const ports = { store: new DrizzleBuyerIdentificationThresholdStore(options.db) };
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });

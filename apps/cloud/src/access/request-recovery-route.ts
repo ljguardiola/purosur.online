@@ -14,7 +14,7 @@ export interface RecoveryRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   jobQueue: RecoveryJobQueue;
   backofficeOrigin: string;
-  now?: () => Date;
+  now: () => Date;
   recordRejectedAttempt?: typeof recordRejectedAttempt;
   reportError?: (error: unknown) => void;
 }
@@ -25,7 +25,7 @@ export function registerRecoveryRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: RecoveryRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const doRecordRejectedAttempt = options.recordRejectedAttempt ?? recordRejectedAttempt;
   const reportError = options.reportError ?? reportRecoveryBookkeepingError;

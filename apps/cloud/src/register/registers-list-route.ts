@@ -17,7 +17,7 @@ import { DrizzleBranchRegisterStore } from "./drizzle-branch-register-store.js";
 export interface RegistersRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  now?: () => Date;
+  now: () => Date;
 }
 
 function toRegisterWire(register: BranchRegisterSummary): RegisterSummaryBody {
@@ -38,7 +38,7 @@ export function registerRegistersListRoute<TQueryResult extends PgQueryResultHKT
   app: FastifyInstance,
   options: RegistersRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const registers = new DrizzleBranchRegisterStore(options.db);

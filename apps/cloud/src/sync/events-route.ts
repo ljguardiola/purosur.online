@@ -60,7 +60,7 @@ export function registerEventsRoute<TQueryResult extends PgQueryResultHKT>(
   const ports = {
     inbox: new DrizzleInbox(options.db, installationKeyCipher(options.keysEncryptionKey)),
     eventChain: hmacEventChain,
-    clock: { now: options.now ?? (() => new Date()) },
+    clock: { now: options.now },
   };
 
   app.register(async (scope) => {

@@ -202,7 +202,7 @@ const SEEDED_THRESHOLD_ROW = { amount: 1_000_000_000, valid_from: "2000-01-01" }
 
 describe("GET /changes", () => {
   it("gives a brand-new installation its branch's settings, with their version, from the very first cursor", async () => {
-    const { deviceToken, locationId } = await insertEnrolledInstallation(db);
+    const { deviceToken, locationId } = await insertEnrolledInstallation(db, { now: NOW });
 
     const page = await pullPage(0, deviceToken);
 
@@ -239,7 +239,7 @@ describe("GET /changes", () => {
   });
 
   it("gives only the branch the token belongs to, whatever else the request names", async () => {
-    const { deviceToken, locationId } = await insertEnrolledInstallation(db);
+    const { deviceToken, locationId } = await insertEnrolledInstallation(db, { now: NOW });
     const otherLocationId = await insertOtherBranch();
 
     const response = await pull(
@@ -258,13 +258,13 @@ describe("GET /changes", () => {
   });
 
   it("gives nothing and keeps the cursor once the register has every change", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
 
     expect(await pullPage(4, deviceToken)).toEqual({ changes: [], cursor: 4, has_more: false });
   });
 
   it("reaches a register only on its next pull after a backoffice edit, with the edited row and its new version", async () => {
-    const { deviceToken, locationId } = await insertEnrolledInstallation(db);
+    const { deviceToken, locationId } = await insertEnrolledInstallation(db, { now: NOW });
     const first = await pullPage(0, deviceToken);
     expect(first.cursor).toBe(4);
 
@@ -291,7 +291,7 @@ describe("GET /changes", () => {
   });
 
   it("pages more than 500 changes through, 500 at a time, until none is left", async () => {
-    const { deviceToken, locationId } = await insertEnrolledInstallation(db);
+    const { deviceToken, locationId } = await insertEnrolledInstallation(db, { now: NOW });
     await db.insert(changes).values(
       Array.from({ length: 600 }, (_, index) => ({
         entity: "branch_settings",
@@ -312,7 +312,7 @@ describe("GET /changes", () => {
   });
 
   it("records the cursor each device last asked from and when", async () => {
-    const { deviceId, deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceId, deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
 
     await pullPage(0, deviceToken);
     await pullPage(3, deviceToken);
@@ -334,7 +334,7 @@ describe("GET /changes", () => {
     ["a device token no installation holds", `Bearer ${issueDeviceToken().deviceToken}`],
     ["something that is not a device token", "Basic dXNlcjpwYXNz"],
   ])("refuses a request with %s, giving nothing", async (_case, authorization) => {
-    await insertEnrolledInstallation(db);
+    await insertEnrolledInstallation(db, { now: NOW });
 
     const response = await pull("?since=0", authorization);
 
@@ -347,6 +347,7 @@ describe("GET /changes", () => {
 
   it("refuses a revoked installation's token, recording nothing", async () => {
     const { deviceToken } = await insertEnrolledInstallation(db, {
+      now: NOW,
       revokedAt: new Date("2026-09-29T09:00:00.000Z"),
     });
 
@@ -360,7 +361,7 @@ describe("GET /changes", () => {
   });
 
   it("refuses a since that is not a cursor, naming the field", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
 
     const response = await pull("?since=-1", `Bearer ${deviceToken}`);
 
@@ -380,6 +381,7 @@ describe("GET /changes", () => {
     registerRouteAccess(failing);
     registerChangesRoute(failing, {
       db: broken.db,
+      now: () => NOW,
       rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
       keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
     });
@@ -489,7 +491,7 @@ describe("GET /changes carrying the catalog and the prices", () => {
   }
 
   it("gives the categories, the products with their barcodes in order, and the branch's price list's prices, each with its version", async () => {
-    const { deviceToken, locationId } = await insertEnrolledInstallation(db);
+    const { deviceToken, locationId } = await insertEnrolledInstallation(db, { now: NOW });
     const priceListId = await seededPriceListId(db);
     const parentId = await newCategory("Almacén");
     const leafId = await newCategory("Secos", parentId);
@@ -554,7 +556,7 @@ describe("GET /changes carrying the catalog and the prices", () => {
   });
 
   it("gives a deactivated tag marked inactive, at its version, and a removed tag as a removal", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
     const deactivatedId = await newTag("Vegano");
     const removedId = await newTag("Temporal");
     await deactivateTag(catalogStore(), deactivatedId);
@@ -584,7 +586,7 @@ describe("GET /changes carrying the catalog and the prices", () => {
   });
 
   it("gives every change of a row the row as it is now, so a deactivated product arrives marked with the barcodes it kept", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
     const categoryId = await newCategory("Almacén");
     const product = await newProduct(categoryId, ["7790001000011", "7790001000028"]);
     await editProduct(
@@ -625,7 +627,7 @@ describe("GET /changes carrying the catalog and the prices", () => {
   });
 
   it("gives the branch's own price list but neither another list nor its prices", async () => {
-    const { deviceToken, locationId } = await insertEnrolledInstallation(db);
+    const { deviceToken, locationId } = await insertEnrolledInstallation(db, { now: NOW });
     const otherPriceListId = await insertOtherPriceList();
     const otherLocationId = await insertLocationOnPriceList(otherPriceListId);
     const product = await newProduct(await newCategory("Almacén"), ["7790001000011"]);
@@ -640,7 +642,7 @@ describe("GET /changes carrying the catalog and the prices", () => {
   });
 
   it("gives a removal in place of a row that no longer exists, at the version of its latest change", async () => {
-    const { deviceToken, locationId } = await insertEnrolledInstallation(db);
+    const { deviceToken, locationId } = await insertEnrolledInstallation(db, { now: NOW });
     const priceListId = await seededPriceListId(db);
     const categoryId = await newCategory("Almacén");
     const emptyCategoryId = await newCategory("Vacía");
@@ -713,7 +715,7 @@ describe("GET /changes carrying the catalog and the prices", () => {
   });
 
   it("gives no removal of a price of another price list, even though the price is gone", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
     const otherPriceListId = await insertOtherPriceList();
     await db.insert(changes).values({
       entity: "price",
@@ -731,7 +733,7 @@ describe("GET /changes carrying the catalog and the prices", () => {
   });
 
   it("pages catalog changes through 500 at a time, each carrying its row", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
     const inserted = await db
       .insert(categories)
       .values(Array.from({ length: 600 }, (_, index) => ({ name: `Categoría ${index}` })))
@@ -837,7 +839,7 @@ describe("GET /changes carrying the users and the roles", () => {
   }
 
   it("gives a brand-new installation the Administrator role, which grants no listed permission, from the first cursor", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
     const [administratorRole] = await db
       .select({ id: roles.id })
       .from(roles)
@@ -862,7 +864,7 @@ describe("GET /changes carrying the users and the roles", () => {
   });
 
   it("gives the branch's users with their role, salt and PIN hash and the roles with their permissions, never a user's email", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
     const cashierRoleId = await newRole("Cajera", ["sell_and_charge", "adjust_stock"]);
     const adaId = await newUser("Ada", "ada.l@example.com", cashierRoleId);
     const graceId = await newUser("Grace", "grace@example.com", cashierRoleId);
@@ -910,7 +912,7 @@ describe("GET /changes carrying the users and the roles", () => {
   });
 
   it("gives a user of another branch to nobody but that branch, and every role to every branch", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
     const otherLocationId = await insertOtherBranch();
     const cashierRoleId = await newRole("Cajera", []);
     await newUserOfAnotherBranch(otherLocationId, cashierRoleId);
@@ -922,7 +924,7 @@ describe("GET /changes carrying the users and the roles", () => {
   });
 
   it("gives a user who lost their PIN with no salt and no PIN hash, at the version of the change", async () => {
-    const { deviceToken, locationId } = await insertEnrolledInstallation(db);
+    const { deviceToken, locationId } = await insertEnrolledInstallation(db, { now: NOW });
     const cashierRoleId = await newRole("Cajera", []);
     const graceId = await newUser("Grace", "grace@example.com", cashierRoleId);
     await setPin(graceId, locationId);
@@ -947,7 +949,7 @@ describe("GET /changes carrying the users and the roles", () => {
   });
 
   it("gives a deactivated user marked inactive, at its version", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
     const cashierRoleId = await newRole("Cajera", []);
     const graceId = await newUser("Grace", "grace@example.com", cashierRoleId);
     await deactivateUser(
@@ -965,7 +967,7 @@ describe("GET /changes carrying the users and the roles", () => {
   });
 
   it("gives a removal in place of a user or a role that no longer exists, at the version of its latest change, and none for another branch's user", async () => {
-    const { deviceToken, locationId } = await insertEnrolledInstallation(db);
+    const { deviceToken, locationId } = await insertEnrolledInstallation(db, { now: NOW });
     const otherLocationId = await insertOtherBranch();
     const removedRoleId = await newRole("Temporal", ["adjust_stock"]);
     const graceId = await newUser("Grace", "grace@example.com", removedRoleId);
@@ -997,7 +999,7 @@ describe("GET /changes carrying the users and the roles", () => {
   });
 
   it("pages user changes through 500 at a time, each carrying its row", async () => {
-    const { deviceToken, locationId } = await insertEnrolledInstallation(db);
+    const { deviceToken, locationId } = await insertEnrolledInstallation(db, { now: NOW });
     const cashierRoleId = await newRole("Cajera", []);
     const inserted = await db
       .insert(users)
@@ -1070,8 +1072,9 @@ describe("GET /changes carrying the discounts", () => {
     if (!otherBranchRegister) {
       throw new Error("test setup: seeding the other branch's register returned no row");
     }
-    const ownBranch = await insertEnrolledInstallation(db);
+    const ownBranch = await insertEnrolledInstallation(db, { now: NOW });
     const otherBranch = await insertEnrolledInstallation(db, {
+      now: NOW,
       existingRegisterId: otherBranchRegister.id,
     });
     const tagId = await newTag("Infusiones");
@@ -1098,7 +1101,7 @@ describe("GET /changes carrying the discounts", () => {
   });
 
   it("gives a switched off discount marked inactive, at its next version", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
     const tagId = await newTag("Infusiones");
     const discountId = await newDiscount(tagId);
     await editDiscount(
@@ -1125,7 +1128,7 @@ describe("GET /changes carrying the discounts", () => {
   });
 
   it("gives a buy-N-pay-M discount with its quantities, and a change of them at its next version", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
     const product = await insertProductWithTags(db, { name: "Alfajor", tagIds: [] });
     const store = new DrizzleDiscountStore(db);
     const fields = {
@@ -1171,7 +1174,7 @@ describe("GET /changes carrying the discounts", () => {
   });
 
   it("gives a removal in place of a discount that no longer exists, at the version of its latest change", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
     const discountId = await newDiscount(await newTag("Infusiones"));
     await db.delete(discounts).where(eq(discounts.id, discountId));
     await db
@@ -1207,6 +1210,7 @@ describe("GET /changes carrying the register's own row", () => {
   it("gives a register its own name and version once it was created", async () => {
     const registerId = await newRegister("Caja 1");
     const { deviceToken } = await insertEnrolledInstallation(db, {
+      now: NOW,
       existingRegisterId: registerId,
     });
 
@@ -1220,7 +1224,10 @@ describe("GET /changes carrying the register's own row", () => {
   it("gives a register nothing of another register of the same branch", async () => {
     const ownId = await newRegister("Caja 1");
     const otherId = await newRegister("Caja 2");
-    const { deviceToken } = await insertEnrolledInstallation(db, { existingRegisterId: ownId });
+    const { deviceToken } = await insertEnrolledInstallation(db, {
+      now: NOW,
+      existingRegisterId: ownId,
+    });
 
     const page = await pullPage(SEEDED_CHANGES, deviceToken);
 
@@ -1231,6 +1238,7 @@ describe("GET /changes carrying the register's own row", () => {
   it("gives the register as it is now, at its version, for every change logged for it", async () => {
     const registerId = await newRegister("Caja 1");
     const { deviceToken } = await insertEnrolledInstallation(db, {
+      now: NOW,
       existingRegisterId: registerId,
     });
     await db
@@ -1252,7 +1260,7 @@ describe("the change log read for a register whose row is gone", () => {
   const SEEDED_CHANGES = 4;
 
   it("gives a removal at the version of its latest change", async () => {
-    const { registerId, locationId } = await insertEnrolledInstallation(db);
+    const { registerId, locationId } = await insertEnrolledInstallation(db, { now: NOW });
     await logChange(db, { entity: "register", entityId: registerId, version: 1, op: "insert" });
     await db.delete(registerInstallations).where(eq(registerInstallations.registerId, registerId));
     await db.delete(registers).where(eq(registers.id, registerId));

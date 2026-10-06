@@ -30,7 +30,7 @@ export interface StartRecoveryWorkerOptions {
   databaseUrl: string;
   backofficeOrigin: string;
   emailSender: AccessEmailSender;
-  now?: () => Date;
+  now: () => Date;
   jobs?: readonly BackgroundJobs[];
 }
 
@@ -58,7 +58,7 @@ export async function startRecoveryWorker(
   const doFindPinCode = deps.findPinCode ?? findPinCodeByCode;
   const doCreatePool =
     deps.createPool ?? ((connectionString: string) => new pg.Pool({ connectionString }));
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   const jobs = options.jobs ?? [];
 
   const pool = doCreatePool(options.databaseUrl);

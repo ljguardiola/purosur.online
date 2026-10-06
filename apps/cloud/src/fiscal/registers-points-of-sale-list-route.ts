@@ -14,7 +14,7 @@ import { DrizzleRegisterPointOfSaleReader } from "./drizzle-register-point-of-sa
 export interface RegistersPointsOfSaleRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  now?: () => Date;
+  now: () => Date;
 }
 
 function toOverviewWire(setup: BranchRegisterPointOfSale) {
@@ -31,7 +31,7 @@ export function registerRegistersPointsOfSaleListRoute<TQueryResult extends PgQu
   app: FastifyInstance,
   options: RegistersPointsOfSaleRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const reader = new DrizzleRegisterPointOfSaleReader(options.db);

@@ -27,7 +27,7 @@ import { resolveWebAuthnConfig } from "./webauthn-config.js";
 export interface SessionAuthenticateRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  now?: () => Date;
+  now: () => Date;
   delay?: (ms: number) => Promise<void>;
   confirmRejectedSignInAttempt?: typeof confirmRejectedSignInAttempt;
   reportError?: (error: unknown) => void;
@@ -75,7 +75,7 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
   app: FastifyInstance,
   options: SessionAuthenticateRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const delay = options.delay ?? defaultDelay;
   const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);

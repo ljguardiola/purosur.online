@@ -57,6 +57,7 @@ beforeEach(() => {
   registerRouteAccess(app);
   registerDeviceEnrollmentRoute(app, {
     db,
+    now: () => new Date(),
     keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
   });
 });

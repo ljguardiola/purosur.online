@@ -116,7 +116,7 @@ function redeem(
 describe("POST /pin-code-redemptions", () => {
   it("stores the chosen PIN's verifier and answers the salt and hash the register derives its own from", async () => {
     const userId = await insertUserWithCode();
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
 
     const response = await redeem(deviceToken, {
       reset_code: "p4nx 7kwe 2qrt 6mzd",
@@ -145,7 +145,7 @@ describe("POST /pin-code-redemptions", () => {
 
   it("bumps the user's version, logs the user change and marks the code redeemed in the same operation", async () => {
     const userId = await insertUserWithCode();
-    const { deviceToken, locationId } = await insertEnrolledInstallation(db);
+    const { deviceToken, locationId } = await insertEnrolledInstallation(db, { now: NOW });
 
     await redeem(deviceToken);
 
@@ -166,7 +166,7 @@ describe("POST /pin-code-redemptions", () => {
 
   it("audits the redemption as the person's own act, naming the register", async () => {
     const userId = await insertUserWithCode();
-    const { deviceToken, registerId } = await insertEnrolledInstallation(db);
+    const { deviceToken, registerId } = await insertEnrolledInstallation(db, { now: NOW });
 
     await redeem(deviceToken);
 
@@ -180,7 +180,7 @@ describe("POST /pin-code-redemptions", () => {
 
   it("reaches the register's next pull as the user's new salt and hash", async () => {
     await insertUserWithCode();
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
 
     const body = pinCodeRedemptionSchema.parse((await redeem(deviceToken)).json());
     const pulled = await app.inject({
@@ -199,7 +199,7 @@ describe("POST /pin-code-redemptions", () => {
 
   it("answers reset_code_burned to a repeat of a redeemed code, leaving the PIN as first chosen", async () => {
     await insertUserWithCode();
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
     const first = pinCodeRedemptionSchema.parse((await redeem(deviceToken)).json());
 
     const repeat = await redeem(deviceToken, { reset_code: CODE, new_pin: "999999" });
@@ -210,7 +210,7 @@ describe("POST /pin-code-redemptions", () => {
   });
 
   it("answers reset_code_invalid to a code no user holds, and to one whose user is inactive", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
     const unknown = await redeem(deviceToken);
     await insertUserWithCode({ active: false });
     const inactive = await redeem(deviceToken);
@@ -224,7 +224,7 @@ describe("POST /pin-code-redemptions", () => {
 
   it("answers reset_code_expired to a code past its expiry", async () => {
     await insertUserWithCode({ expiresAt: minutesFromNow(-1) });
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
 
     const response = await redeem(deviceToken);
 
@@ -234,7 +234,7 @@ describe("POST /pin-code-redemptions", () => {
 
   it("refuses a PIN that is too short as a new_pin validation failure and counts it against the code", async () => {
     await insertUserWithCode();
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
 
     const response = await redeem(deviceToken, { reset_code: CODE, new_pin: "12345" });
 
@@ -257,7 +257,7 @@ describe("POST /pin-code-redemptions", () => {
     ["no new_pin", { reset_code: CODE }, "new_pin"],
   ])("refuses a body with %s", async (_case, payload, field) => {
     await insertUserWithCode();
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
 
     const response = await redeem(deviceToken, payload);
 
@@ -267,7 +267,7 @@ describe("POST /pin-code-redemptions", () => {
   });
 
   it("answers rate_limited with the wait once the register has made ten attempts in the hour", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
     for (let attempt = 0; attempt < 10; attempt += 1) {
       await redeem(deviceToken);
     }
@@ -289,7 +289,7 @@ describe("POST /pin-code-redemptions", () => {
     ["a device token no installation holds", issueDeviceToken().deviceToken],
   ])("refuses a request with %s, redeeming nothing", async (_case, deviceToken) => {
     await insertUserWithCode();
-    await insertEnrolledInstallation(db);
+    await insertEnrolledInstallation(db, { now: NOW });
 
     const response = await redeem(deviceToken);
 
@@ -305,6 +305,7 @@ describe("POST /pin-code-redemptions", () => {
   it("refuses a revoked installation's token", async () => {
     await insertUserWithCode();
     const { deviceToken } = await insertEnrolledInstallation(db, {
+      now: NOW,
       revokedAt: new Date("2026-09-29T09:00:00.000Z"),
     });
 

@@ -83,5 +83,6 @@ async function createAndMigrateTemplateDatabase(adminUrl: string): Promise<void>
   templateUrl.pathname = `/${TEMPLATE_DATABASE_NAME}`;
   await runMigrations(templateUrl.toString(), CLOUD_APP_PASSWORD, {
     migrationsFolder: MIGRATIONS_FOLDER,
+    now: Date.now,
   });
 }

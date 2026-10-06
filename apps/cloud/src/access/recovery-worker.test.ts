@@ -19,6 +19,8 @@ function fakeRunner() {
   return { stop: vi.fn().mockResolvedValue(undefined) };
 }
 
+const FIXED_NOW = new Date("2026-01-05T12:00:00.000Z");
+
 class FakePool extends EventEmitter {
   readonly end = vi.fn().mockResolvedValue(undefined);
 }
@@ -56,6 +58,7 @@ describe("startRecoveryWorker", () => {
     await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
       },
@@ -80,6 +83,7 @@ describe("startRecoveryWorker", () => {
     await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
       },
@@ -104,6 +108,7 @@ describe("startRecoveryWorker", () => {
     await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
       },
@@ -131,6 +136,7 @@ describe("startRecoveryWorker", () => {
     await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
       },
@@ -153,6 +159,7 @@ describe("startRecoveryWorker", () => {
     await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
         jobs: [{ taskList: { "other-task": otherTask }, crontab: ["0 * * * * other-task"] }],
@@ -190,6 +197,7 @@ describe("startRecoveryWorker", () => {
     const handle = await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
       },
@@ -225,6 +233,7 @@ describe("startRecoveryWorker", () => {
     const handle = await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
       },
@@ -259,6 +268,7 @@ describe("startRecoveryWorker", () => {
     const handle = await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
       },
@@ -282,6 +292,7 @@ describe("startRecoveryWorker", () => {
     const handle = await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
       },
@@ -316,6 +327,7 @@ describe("startRecoveryWorker", () => {
     const handle = await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
       },
@@ -339,6 +351,7 @@ describe("startRecoveryWorker", () => {
     await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
       },
@@ -421,6 +434,7 @@ describe("startRecoveryWorker", () => {
     await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender: { sendRecoveryLink, sendFirstPinCode: vi.fn() },
       },
@@ -469,6 +483,7 @@ describe("startRecoveryWorker", () => {
     await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender: { sendRecoveryLink, sendFirstPinCode: vi.fn() },
       },
@@ -513,6 +528,7 @@ describe("startRecoveryWorker", () => {
     await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender: { sendRecoveryLink, sendFirstPinCode: vi.fn() },
       },
@@ -552,6 +568,7 @@ describe("startRecoveryWorker", () => {
     await startRecoveryWorker(
       {
         databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
       },
@@ -618,6 +635,7 @@ describe("startRecoveryWorker", () => {
       await startRecoveryWorker(
         {
           databaseUrl: "postgres://user:pass@db/purosur",
+          now: () => FIXED_NOW,
           backofficeOrigin: "https://staging.purosur.online",
           emailSender,
         },
@@ -670,6 +688,7 @@ describe("startRecoveryWorker", () => {
       await startRecoveryWorker(
         {
           databaseUrl: "postgres://user:pass@db/purosur",
+          now: () => FIXED_NOW,
           backofficeOrigin: "https://staging.purosur.online",
           emailSender,
         },

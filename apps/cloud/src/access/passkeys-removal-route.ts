@@ -15,7 +15,7 @@ import {
 export interface PasskeyRemovalRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  now?: () => Date;
+  now: () => Date;
 }
 
 const NOT_FOUND_RESPONSE = {
@@ -27,7 +27,7 @@ export function registerPasskeyRemovalRoutes<TQueryResult extends PgQueryResultH
   app: FastifyInstance,
   options: PasskeyRemovalRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 

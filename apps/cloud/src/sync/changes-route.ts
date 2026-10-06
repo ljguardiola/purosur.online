@@ -194,7 +194,7 @@ export function registerChangesRoute<TQueryResult extends PgQueryResultHKT>(
   const tokenPorts = installationTokenPorts(options);
   const ports = {
     changeLog: new DrizzleChangeLog(options.db),
-    clock: { now: options.now ?? (() => new Date()) },
+    clock: { now: options.now },
   };
 
   app.register(async (scope) => {

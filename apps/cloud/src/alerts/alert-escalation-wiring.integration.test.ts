@@ -56,6 +56,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
         emailReplyTo: "purosur.comarca@gmail.com",
         backofficeOrigin: "https://staging.purosur.online",
       },
+      () => new Date(),
       { emailSender: UNUSED_EMAIL_SENDER },
     );
 

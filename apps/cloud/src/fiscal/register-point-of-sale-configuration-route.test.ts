@@ -52,6 +52,7 @@ async function sessionWith(
   passkeyAuthorized = true,
 ): Promise<BackofficeSession> {
   return openBackofficeSession(db, {
+    now: SESSION_NOON,
     locationId: await seededLocationId(db),
     permissionKeys,
     passkeyAuthorized,

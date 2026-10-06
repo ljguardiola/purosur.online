@@ -27,7 +27,7 @@ export function registerFiscalAddressCreationRoute<TQueryResult extends PgQueryR
   app: FastifyInstance,
   options: FiscalAddressesRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   const ports = { store: new DrizzleFiscalAddressStore(options.db) };
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });

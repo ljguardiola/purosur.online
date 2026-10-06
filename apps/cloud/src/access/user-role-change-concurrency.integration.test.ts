@@ -37,7 +37,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   app = Fastify();
-  registerUserEditRoutes(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN });
+  registerUserEditRoutes(app, { db, now: () => new Date(), backofficeOrigin: BACKOFFICE_ORIGIN });
 });
 
 afterEach(async () => {

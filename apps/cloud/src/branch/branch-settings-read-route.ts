@@ -14,14 +14,14 @@ import { DrizzleBranchSettingsReader } from "./drizzle-branch-settings-reader.js
 export interface BranchSettingsRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  now?: () => Date;
+  now: () => Date;
 }
 
 export function registerBranchSettingsReadRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: BranchSettingsRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const reader = new DrizzleBranchSettingsReader(options.db);

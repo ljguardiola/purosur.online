@@ -79,7 +79,7 @@ async function rotatedToken(previousToken: string): Promise<string> {
 
 describe("POST /devices/current/tokens", () => {
   it("no longer answers POST /devices/rotate-token", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
 
     const response = await app.inject({
       method: "POST",
@@ -91,7 +91,7 @@ describe("POST /devices/current/tokens", () => {
   });
 
   it("answers a new device token shaped like an enrolled one, without a session", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
 
     const response = await rotate(`Bearer ${deviceToken}`);
 
@@ -102,7 +102,7 @@ describe("POST /devices/current/tokens", () => {
   });
 
   it("hands back the installation's keys, the same on every rotation", async () => {
-    const { deviceId, deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceId, deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
 
     const first = deviceTokenRotationSchema.parse((await rotate(`Bearer ${deviceToken}`)).json());
     const second = deviceTokenRotationSchema.parse(
@@ -121,7 +121,7 @@ describe("POST /devices/current/tokens", () => {
   });
 
   it("hands back a snapshot key version and a contingency-ticket key the register got since the last rotation", async () => {
-    const { deviceId, deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceId, deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
     const first = deviceTokenRotationSchema.parse((await rotate(`Bearer ${deviceToken}`)).json());
     const [installation] = await db
       .select({ registerId: registerInstallations.registerId })
@@ -145,7 +145,7 @@ describe("POST /devices/current/tokens", () => {
   });
 
   it("answers the same new token when retried with the previous token, keeping one pending token", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
 
     const first = await rotatedToken(deviceToken);
     const retry = await rotatedToken(deviceToken);
@@ -158,7 +158,7 @@ describe("POST /devices/current/tokens", () => {
   });
 
   it("refuses the previous token once the new one has been used", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
     const newToken = await rotatedToken(deviceToken);
 
     expect((await checkHealth(deviceToken)).statusCode).toBe(200);
@@ -172,7 +172,10 @@ describe("POST /devices/current/tokens", () => {
   });
 
   it("rotates a token whose seven days ran out, which nothing else accepts", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db, { tokenIssuedAt: daysAgo(8) });
+    const { deviceToken } = await insertEnrolledInstallation(db, {
+      now: NOW,
+      tokenIssuedAt: daysAgo(8),
+    });
 
     const response = await rotate(`Bearer ${deviceToken}`);
 
@@ -183,7 +186,10 @@ describe("POST /devices/current/tokens", () => {
   });
 
   it("refuses the token of a revoked installation", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db, { revokedAt: daysAgo(1) });
+    const { deviceToken } = await insertEnrolledInstallation(db, {
+      now: NOW,
+      revokedAt: daysAgo(1),
+    });
 
     const response = await rotate(`Bearer ${deviceToken}`);
 
@@ -199,7 +205,7 @@ describe("POST /devices/current/tokens", () => {
     ["a token without its lookup prefix", "Bearer ghijkl"],
     ["a token no installation holds", "Bearer abcdefghijklmnop.qrstuvwxyz"],
   ])("refuses a request with %s, asking for a bearer token", async (_case, authorization) => {
-    await insertEnrolledInstallation(db);
+    await insertEnrolledInstallation(db, { now: NOW });
 
     const response = await rotate(authorization);
 

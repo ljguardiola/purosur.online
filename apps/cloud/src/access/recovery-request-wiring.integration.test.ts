@@ -159,7 +159,10 @@ async function startRealServer(
       },
       {
         setUpRecovery: async (recoveryEnv) => {
-          recovery = await setUpRecovery(recoveryEnv, { emailSender, createJobQueuePool });
+          recovery = await setUpRecovery(recoveryEnv, () => new Date(), {
+            emailSender,
+            createJobQueuePool,
+          });
           return recovery;
         },
       },

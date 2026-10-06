@@ -169,7 +169,7 @@ function issuerRows(page: ChangesPage) {
 
 describe("GET /changes carrying the fiscal configuration", () => {
   it("gives a register the issuer identification under the CUIT the cloud started with, and nothing of the version kept from before", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
     await startUnder(AUTHORIZED_CUIT);
 
     const page = await pullFrom(0, deviceToken);
@@ -187,7 +187,7 @@ describe("GET /changes carrying the fiscal configuration", () => {
   });
 
   it("gives every version of the issuer identification as it was saved, even when several were saved between two pulls", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
     const actorId = await insertActor();
     await startUnder(AUTHORIZED_CUIT);
     await editIssuer(actorId, 2, FICTIONAL_LEGAL_NAME);
@@ -206,7 +206,7 @@ describe("GET /changes carrying the fiscal configuration", () => {
   });
 
   it("gives a new version under the new CUIT on the pull after the cloud starts with another certificate, the earlier versions keeping theirs", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
     await startUnder(AUTHORIZED_CUIT);
     await editIssuer(await insertActor(), 2, FICTIONAL_LEGAL_NAME);
     const first = await pullFrom(0, deviceToken);
@@ -237,9 +237,10 @@ describe("GET /changes carrying the fiscal configuration", () => {
 
   it("gives a threshold with its amount in cents and the day it starts, to a register of any branch", async () => {
     const otherBranch = await insertEnrolledInstallation(db, {
+      now: NOW,
       existingRegisterId: await insertRegisterOfAnotherBranch(),
     });
-    const ownBranch = await insertEnrolledInstallation(db);
+    const ownBranch = await insertEnrolledInstallation(db, { now: NOW });
     const outcome = await recordBuyerIdentificationThreshold(
       { store: new DrizzleBuyerIdentificationThresholdStore(db) },
       { amount: 3_500_000_000, validFrom: "2026-10-01", actorId: await insertActor() },
@@ -261,9 +262,10 @@ describe("GET /changes carrying the fiscal configuration", () => {
 
   it("gives each buyer tax-status set with its version and its options in order, to a register of any branch", async () => {
     const otherBranch = await insertEnrolledInstallation(db, {
+      now: NOW,
       existingRegisterId: await insertRegisterOfAnotherBranch(),
     });
-    const ownBranch = await insertEnrolledInstallation(db);
+    const ownBranch = await insertEnrolledInstallation(db, { now: NOW });
     const options = [
       { code: 902, description: "Condicion de prueba B", invoiceClass: "C" },
       { code: 901, description: "Condicion de prueba A", invoiceClass: "A" },
@@ -295,7 +297,7 @@ describe("GET /changes carrying the fiscal configuration", () => {
   });
 
   it("gives nothing more once the register has every fiscal change", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
     await insertTaxStatusSet(1, [
       { code: 901, description: "Condicion de prueba A", invoiceClass: "A" },
     ]);

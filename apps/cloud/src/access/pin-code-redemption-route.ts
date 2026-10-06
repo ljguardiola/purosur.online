@@ -43,7 +43,7 @@ export function registerPinCodeRedemptionRoute<TQueryResult extends PgQueryResul
   const tokenPorts = installationTokenPorts(options);
   const ports = {
     store: new DrizzlePinCodeRedemptionStore(options.db),
-    clock: { now: options.now ?? (() => new Date()) },
+    clock: { now: options.now },
     hasher: argon2PinHasher(),
   };
 

@@ -68,7 +68,6 @@ beforeEach(async () => {
 });
 
 const APP_CLOCK = new Date("2020-06-15T12:00:00.000Z");
-const A_DAY_BEFORE_THE_APP_CLOCK = new Date("2020-06-14T12:00:00.000Z");
 
 describe("BuildAppOptions", () => {
   it("refuses options without the clock", () => {
@@ -78,7 +77,7 @@ describe("BuildAppOptions", () => {
 
 describe("GET /api/health", () => {
   it("responds 200 with status ok and the given version", async () => {
-    const app = buildApp({ version: "abc1234" });
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
     const response = await app.inject({ method: "GET", url: "/api/health" });
 
@@ -87,12 +86,10 @@ describe("GET /api/health", () => {
   });
 
   it("reaches the enrolled installations when the device routes are wired", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(testDatabase.db, {
-      tokenIssuedAt: A_DAY_BEFORE_THE_APP_CLOCK,
-    });
+    const { deviceToken } = await insertEnrolledInstallation(testDatabase.db, { now: APP_CLOCK });
     const app = buildApp({
-      version: "abc1234",
       now: () => APP_CLOCK,
+      version: "abc1234",
       devices: {
         db: testDatabase.db,
         rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
@@ -113,12 +110,10 @@ describe("GET /api/health", () => {
 
 describe("GET /api/changes", () => {
   it("pulls the enrolled installation's branch changes when the device routes are wired", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(testDatabase.db, {
-      tokenIssuedAt: A_DAY_BEFORE_THE_APP_CLOCK,
-    });
+    const { deviceToken } = await insertEnrolledInstallation(testDatabase.db, { now: APP_CLOCK });
     const app = buildApp({
-      version: "abc1234",
       now: () => APP_CLOCK,
+      version: "abc1234",
       devices: {
         db: testDatabase.db,
         rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
@@ -141,7 +136,7 @@ describe("GET /api/error-reporting", () => {
   const dsn = "https://key@errors.example.test/1";
 
   it("says reporting is off when no backoffice DSN is configured", async () => {
-    const app = buildApp({ version: "abc1234" });
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
     const response = await app.inject({ method: "GET", url: "/api/error-reporting" });
 
@@ -151,6 +146,7 @@ describe("GET /api/error-reporting", () => {
 
   it("gives the backoffice its DSN, environment and the cloud's own version when a DSN is configured", async () => {
     const app = buildApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       errorReporting: { dsn, environment: "staging" },
     });
@@ -167,7 +163,11 @@ describe("GET /api/error-reporting", () => {
   });
 
   it("answers without a session", async () => {
-    const app = buildApp({ version: "abc1234", errorReporting: { dsn, environment: "staging" } });
+    const app = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      errorReporting: { dsn, environment: "staging" },
+    });
 
     const response = await app.inject({ method: "GET", url: "/api/error-reporting" });
 
@@ -177,6 +177,7 @@ describe("GET /api/error-reporting", () => {
   it("refuses a DSN that is not a URL when building the app", () => {
     expect(() =>
       buildApp({
+        now: () => APP_CLOCK,
         version: "abc1234",
         errorReporting: { dsn: "not a url", environment: "staging" },
       }),
@@ -186,7 +187,11 @@ describe("GET /api/error-reporting", () => {
 
 describe("the edge origin guard", () => {
   it("refuses a request with no edge secret header with 403 direct_access_rejected", async () => {
-    const app = buildRealApp({ version: "abc1234", edgeOriginSecret: TEST_EDGE_ORIGIN_SECRET });
+    const app = buildRealApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      edgeOriginSecret: TEST_EDGE_ORIGIN_SECRET,
+    });
 
     const response = await app.inject({ method: "GET", url: "/some-route" });
 
@@ -198,7 +203,11 @@ describe("the edge origin guard", () => {
   });
 
   it("refuses a request whose edge secret header does not match", async () => {
-    const app = buildRealApp({ version: "abc1234", edgeOriginSecret: TEST_EDGE_ORIGIN_SECRET });
+    const app = buildRealApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      edgeOriginSecret: TEST_EDGE_ORIGIN_SECRET,
+    });
 
     const response = await app.inject({
       method: "GET",
@@ -210,7 +219,11 @@ describe("the edge origin guard", () => {
   });
 
   it("lets a request with the correct edge secret header reach routing", async () => {
-    const app = buildRealApp({ version: "abc1234", edgeOriginSecret: TEST_EDGE_ORIGIN_SECRET });
+    const app = buildRealApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      edgeOriginSecret: TEST_EDGE_ORIGIN_SECRET,
+    });
 
     const response = await app.inject({
       method: "GET",
@@ -222,7 +235,11 @@ describe("the edge origin guard", () => {
   });
 
   it("exempts GET /api/health even with no edge secret header", async () => {
-    const app = buildRealApp({ version: "abc1234", edgeOriginSecret: TEST_EDGE_ORIGIN_SECRET });
+    const app = buildRealApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      edgeOriginSecret: TEST_EDGE_ORIGIN_SECRET,
+    });
 
     const response = await app.inject({ method: "GET", url: "/api/health" });
 
@@ -230,7 +247,11 @@ describe("the edge origin guard", () => {
   });
 
   it("exempts GET /api/health with a query string even with no edge secret header", async () => {
-    const app = buildRealApp({ version: "abc1234", edgeOriginSecret: TEST_EDGE_ORIGIN_SECRET });
+    const app = buildRealApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      edgeOriginSecret: TEST_EDGE_ORIGIN_SECRET,
+    });
 
     const response = await app.inject({ method: "GET", url: "/api/health?probe=1" });
 
@@ -249,6 +270,7 @@ describe("the edge origin guard", () => {
       staticDir = mkdtempSync(join(tmpdir(), "cloud-edge-static-"));
       writeFileSync(join(staticDir, "index.html"), "<!doctype html><title>backoffice</title>");
       app = buildRealApp({
+        now: () => APP_CLOCK,
         version: "abc1234",
         edgeOriginSecret: TEST_EDGE_ORIGIN_SECRET,
         staticDir,
@@ -315,6 +337,7 @@ describe("Strict-Transport-Security", () => {
     mkdirSync(join(staticDir, "assets"));
     writeFileSync(join(staticDir, "assets", "app.js"), "console.log('app');");
     app = buildRealApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       edgeOriginSecret: TEST_EDGE_ORIGIN_SECRET,
       staticDir,
@@ -381,7 +404,7 @@ describe("Sentry error handler wiring", () => {
   it("wires the provided setupFastifyErrorHandler function onto the built app", () => {
     const setupFastifyErrorHandler = vi.fn();
 
-    const app = buildApp({ version: "abc1234", setupFastifyErrorHandler });
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234", setupFastifyErrorHandler });
 
     expect(setupFastifyErrorHandler).toHaveBeenCalledTimes(1);
     expect(setupFastifyErrorHandler).toHaveBeenCalledWith(app);
@@ -396,7 +419,7 @@ describe("Sentry error handler wiring", () => {
       });
     });
 
-    const app = buildApp({ version: "abc1234", setupFastifyErrorHandler });
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234", setupFastifyErrorHandler });
     app.get("/boom", { config: { access: PUBLIC_ACCESS } }, async () => {
       throw new Error("boom");
     });
@@ -428,7 +451,11 @@ describe("serving the backoffice's static build", () => {
   });
 
   it("serves a real static asset from staticDir", async () => {
-    const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
+    const app = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      staticDir: backofficeBuild(),
+    });
 
     const response = await app.inject({ method: "GET", url: "/assets/app.js" });
 
@@ -437,7 +464,11 @@ describe("serving the backoffice's static build", () => {
   });
 
   it("falls back to index.html for a GET to a path that matches no static file or route", async () => {
-    const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
+    const app = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      staticDir: backofficeBuild(),
+    });
 
     const response = await app.inject({ method: "GET", url: "/help/getting_started" });
 
@@ -446,7 +477,11 @@ describe("serving the backoffice's static build", () => {
   });
 
   it("still serves /api/health normally instead of falling back to index.html", async () => {
-    const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
+    const app = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      staticDir: backofficeBuild(),
+    });
 
     const response = await app.inject({ method: "GET", url: "/api/health" });
 
@@ -492,7 +527,11 @@ describe("serving the backoffice's static build", () => {
   it.each(["GET", "HEAD", "POST"] as const)(
     "answers 404 to a %s on an unknown /api path instead of serving the page",
     async (method) => {
-      const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
+      const app = buildApp({
+        now: () => APP_CLOCK,
+        version: "abc1234",
+        staticDir: backofficeBuild(),
+      });
 
       const response = await app.inject({ method, url: "/api/inventory-unknown" });
 
@@ -504,7 +543,11 @@ describe("serving the backoffice's static build", () => {
   it.each(["/api", "/api/", "/api?view=all"])(
     "answers 404 to %s instead of serving the page",
     async (url) => {
-      const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
+      const app = buildApp({
+        now: () => APP_CLOCK,
+        version: "abc1234",
+        staticDir: backofficeBuild(),
+      });
 
       const response = await app.inject({ method: "GET", url });
 
@@ -514,7 +557,11 @@ describe("serving the backoffice's static build", () => {
   );
 
   it("serves the page at an address that only starts with the letters of the API prefix", async () => {
-    const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
+    const app = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      staticDir: backofficeBuild(),
+    });
 
     const response = await app.inject({ method: "GET", url: "/apiaries" });
 
@@ -523,7 +570,11 @@ describe("serving the backoffice's static build", () => {
   });
 
   it("falls back to index.html for a HEAD to a client route, same as a GET", async () => {
-    const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
+    const app = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      staticDir: backofficeBuild(),
+    });
 
     const response = await app.inject({ method: "HEAD", url: "/help/getting_started" });
 
@@ -534,7 +585,11 @@ describe("serving the backoffice's static build", () => {
   it.each(["/assets/old-hash.js", "/robots.txt", "/help/getting_started.png"])(
     "answers 404 instead of index.html for a missing file like %s",
     async (url) => {
-      const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
+      const app = buildApp({
+        now: () => APP_CLOCK,
+        version: "abc1234",
+        staticDir: backofficeBuild(),
+      });
 
       const get = await app.inject({ method: "GET", url });
       const head = await app.inject({ method: "HEAD", url });
@@ -548,7 +603,11 @@ describe("serving the backoffice's static build", () => {
   it.each(["/assets/app.js", "/help/getting_started"])(
     "sends the security headers with %s",
     async (url) => {
-      const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
+      const app = buildApp({
+        now: () => APP_CLOCK,
+        version: "abc1234",
+        staticDir: backofficeBuild(),
+      });
 
       const response = await app.inject({ method: "GET", url });
 
@@ -565,6 +624,7 @@ describe("serving the backoffice's static build", () => {
 
   it("lets the backoffice send its error reports to the DSN's origin, and only when a DSN is configured", async () => {
     const app = buildApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       staticDir: backofficeBuild(),
       errorReporting: { dsn: "https://key@errors.example.test/1", environment: "staging" },
@@ -578,7 +638,11 @@ describe("serving the backoffice's static build", () => {
   });
 
   it("lets browsers keep a hashed asset for a year without revalidating", async () => {
-    const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
+    const app = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      staticDir: backofficeBuild(),
+    });
 
     const response = await app.inject({ method: "GET", url: "/assets/app.js" });
 
@@ -588,7 +652,11 @@ describe("serving the backoffice's static build", () => {
   it.each(["/", "/index.html", "/help/getting_started"])(
     "makes browsers revalidate the page served for %s",
     async (url) => {
-      const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
+      const app = buildApp({
+        now: () => APP_CLOCK,
+        version: "abc1234",
+        staticDir: backofficeBuild(),
+      });
 
       const response = await app.inject({ method: "GET", url });
 
@@ -605,7 +673,7 @@ describe("serving the backoffice's static build", () => {
     async (file, contentType) => {
       const dir = backofficeBuild();
       writeFileSync(join(dir, file), "isotype-bytes");
-      const app = buildApp({ version: "abc1234", staticDir: dir });
+      const app = buildApp({ now: () => APP_CLOCK, version: "abc1234", staticDir: dir });
 
       const response = await app.inject({ method: "GET", url: `/${file}` });
 
@@ -616,7 +684,11 @@ describe("serving the backoffice's static build", () => {
   );
 
   it("does not fall back for a non-GET request to an unmatched path", async () => {
-    const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
+    const app = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      staticDir: backofficeBuild(),
+    });
 
     const response = await app.inject({ method: "POST", url: "/help/getting_started" });
 
@@ -624,7 +696,7 @@ describe("serving the backoffice's static build", () => {
   });
 
   it("keeps the plain 404 behavior when no staticDir is configured", async () => {
-    const app = buildApp({ version: "abc1234" });
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
     const response = await app.inject({ method: "GET", url: "/help/getting_started" });
 
@@ -634,7 +706,7 @@ describe("serving the backoffice's static build", () => {
 
 describe("wiring the recovery routes", () => {
   it("does not register POST /api/account-recoveries when no recovery option is given", async () => {
-    const app = buildApp({ version: "abc1234" });
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
     const response = await app.inject({
       method: "POST",
@@ -649,6 +721,7 @@ describe("wiring the recovery routes", () => {
     const enqueued: string[] = [];
 
     const app = buildApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       recovery: {
         db: testDatabase.db,
@@ -673,7 +746,7 @@ describe("wiring the recovery routes", () => {
   });
 
   it("does not register the redemption routes when no recovery option is given", async () => {
-    const app = buildApp({ version: "abc1234" });
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
     const optionsResponse = await app.inject({
       method: "POST",
@@ -692,6 +765,7 @@ describe("wiring the recovery routes", () => {
 
   it("registers the redemption routes when a recovery option is given", async () => {
     const app = buildApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       recovery: {
         db: testDatabase.db,
@@ -714,7 +788,7 @@ describe("wiring the recovery routes", () => {
 
 describe("wiring the session routes", () => {
   it("does not register GET /api/sessions/current, its status route, DELETE /api/sessions/current, or the authorization pair when no session option is given", async () => {
-    const app = buildApp({ version: "abc1234" });
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
     const readResponse = await app.inject({ method: "GET", url: "/api/sessions/current" });
     const statusResponse = await app.inject({
@@ -746,6 +820,7 @@ describe("wiring the session routes", () => {
 
   it("registers GET /api/sessions/current, its status route, DELETE /api/sessions/current, and the authorization pair when a session option is given", async () => {
     const app = buildApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       session: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
@@ -786,7 +861,7 @@ describe("wiring the session routes", () => {
 
 describe("wiring the users routes", () => {
   it("does not register the users routes when no users option is given", async () => {
-    const app = buildApp({ version: "abc1234" });
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
     const list = await app.inject({ method: "GET", url: "/api/users" });
     const read = await app.inject({
@@ -829,6 +904,7 @@ describe("wiring the users routes", () => {
 
   it("registers the users routes when a users option is given", async () => {
     const app = buildApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       users: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
@@ -875,7 +951,7 @@ describe("wiring the users routes", () => {
 
 describe("wiring the roles routes", () => {
   it("does not register the roles routes when no roles option is given", async () => {
-    const app = buildApp({ version: "abc1234" });
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
     const list = await app.inject({ method: "GET", url: "/api/roles" });
     const catalog = await app.inject({ method: "GET", url: "/api/permission-catalog" });
@@ -903,6 +979,7 @@ describe("wiring the roles routes", () => {
 
   it("registers the roles routes when a roles option is given", async () => {
     const app = buildApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       roles: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
@@ -939,7 +1016,7 @@ describe("wiring the roles routes", () => {
 
 describe("wiring the categories routes", () => {
   it("does not register the categories routes when no categories option is given", async () => {
-    const app = buildApp({ version: "abc1234" });
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
     const list = await app.inject({ method: "GET", url: "/api/categories" });
     const create = await app.inject({
@@ -960,6 +1037,7 @@ describe("wiring the categories routes", () => {
 
   it("registers the categories routes when a categories option is given", async () => {
     const app = buildApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       categories: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
@@ -998,13 +1076,14 @@ describe("wiring the brands routes", () => {
   }
 
   it("does not register the brands routes when no brands option is given", async () => {
-    const app = buildApp({ version: "abc1234" });
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
     expect(await brandsResponses(app)).toEqual([404, 404, 404, 404, 404]);
   });
 
   it("registers the brands routes when a brands option is given", async () => {
     const app = buildApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       brands: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
@@ -1029,13 +1108,14 @@ describe("wiring the tags routes", () => {
   }
 
   it("does not register the tags routes when no tags option is given", async () => {
-    const app = buildApp({ version: "abc1234" });
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
     expect(await tagsResponses(app)).toEqual([404, 404, 404, 404, 404]);
   });
 
   it("registers the tags routes when a tags option is given", async () => {
     const app = buildApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       tags: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
@@ -1046,7 +1126,7 @@ describe("wiring the tags routes", () => {
 
 describe("wiring the products routes", () => {
   it("does not register the products routes when no products option is given", async () => {
-    const app = buildApp({ version: "abc1234" });
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
     const list = await app.inject({ method: "GET", url: "/api/products" });
     const create = await app.inject({
@@ -1079,6 +1159,7 @@ describe("wiring the products routes", () => {
 
   it("registers the products routes when a products option is given", async () => {
     const app = buildApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       products: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
@@ -1128,13 +1209,14 @@ describe("wiring the discounts routes", () => {
   }
 
   it("does not register the discounts routes when no discounts option is given", async () => {
-    const app = buildApp({ version: "abc1234" });
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
     expect(await discountsResponses(app)).toEqual([404, 404, 404, 404]);
   });
 
   it("registers the discounts routes when a discounts option is given", async () => {
     const app = buildApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       discounts: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
@@ -1145,7 +1227,7 @@ describe("wiring the discounts routes", () => {
 
 describe("wiring the prices routes", () => {
   it("does not register the prices routes when no prices option is given", async () => {
-    const app = buildApp({ version: "abc1234" });
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
     const list = await app.inject({ method: "GET", url: "/api/prices" });
     const setPrice = await app.inject({
@@ -1166,6 +1248,7 @@ describe("wiring the prices routes", () => {
 
   it("registers the prices routes when a prices option is given", async () => {
     const app = buildApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       prices: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
@@ -1228,13 +1311,14 @@ describe("wiring the stock routes", () => {
   }
 
   it("does not register the stock routes when no stock option is given", async () => {
-    const app = buildApp({ version: "abc1234" });
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
     expect(await statusCodes(app)).toEqual(stockRequests.map(() => 404));
   });
 
   it("registers the stock routes when a stock option is given", async () => {
     const app = buildApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       stock: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
@@ -1244,6 +1328,7 @@ describe("wiring the stock routes", () => {
 
   it("no longer answers the former stock paths", async () => {
     const app = buildApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       stock: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
@@ -1262,7 +1347,7 @@ describe("wiring the stock routes", () => {
 
 describe("wiring the registers routes", () => {
   it("does not register the registers routes when no registers option is given", async () => {
-    const app = buildApp({ version: "abc1234" });
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
     const list = await app.inject({ method: "GET", url: "/api/registers" });
     const create = await app.inject({
@@ -1286,6 +1371,7 @@ describe("wiring the registers routes", () => {
 
   it("registers the registers routes when a registers option is given", async () => {
     const app = buildApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       registers: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
@@ -1316,8 +1402,9 @@ describe("wiring the register point of sale routes", () => {
     ["GET", "/api/registers/points-of-sale"],
     ["PUT", "/api/registers/00000000-0000-0000-0000-000000000000/point-of-sale"],
   ])("%s %s: answers according to the registersPointsOfSale option", async (method, url) => {
-    const unwired = buildApp({ version: "abc1234" });
+    const unwired = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
     const wired = buildApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       registersPointsOfSale: {
         db: testDatabase.db,
@@ -1337,7 +1424,7 @@ describe("wiring the register point of sale routes", () => {
 
 describe("wiring the device enrollment route", () => {
   it("does not register POST /api/devices when no devices option is given", async () => {
-    const app = buildApp({ version: "abc1234" });
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
     const response = await app.inject({ method: "POST", url: "/api/devices", payload: {} });
 
@@ -1346,6 +1433,7 @@ describe("wiring the device enrollment route", () => {
 
   it("registers POST /api/devices, answering without a session, when a devices option is given", async () => {
     const app = buildApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       devices: {
         db: testDatabase.db,
@@ -1363,7 +1451,7 @@ describe("wiring the device enrollment route", () => {
 
 describe("wiring the first PIN code route", () => {
   it("does not register POST /api/first-pin-codes when no firstPinCodes option is given", async () => {
-    const app = buildApp({ version: "abc1234" });
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
     const response = await app.inject({ method: "POST", url: "/api/first-pin-codes", payload: {} });
 
@@ -1372,6 +1460,7 @@ describe("wiring the first PIN code route", () => {
 
   it("registers POST /api/first-pin-codes, refusing a request without a device token, when a firstPinCodes option is given", async () => {
     const app = buildApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       firstPinCodes: {
         db: testDatabase.db,
@@ -1389,7 +1478,7 @@ describe("wiring the first PIN code route", () => {
 
 describe("wiring the device token rotation route", () => {
   it("does not register POST /api/devices/current/tokens when no devices option is given", async () => {
-    const app = buildApp({ version: "abc1234" });
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
     const response = await app.inject({ method: "POST", url: "/api/devices/current/tokens" });
 
@@ -1398,6 +1487,7 @@ describe("wiring the device token rotation route", () => {
 
   it("registers POST /api/devices/current/tokens, refusing a request without a device token, when a devices option is given", async () => {
     const app = buildApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       devices: {
         db: testDatabase.db,
@@ -1415,7 +1505,7 @@ describe("wiring the device token rotation route", () => {
 
 describe("wiring the branch settings routes", () => {
   it("does not register GET /api/locations/current/settings when no branchSettings option is given", async () => {
-    const app = buildApp({ version: "abc1234" });
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
     const response = await app.inject({ method: "GET", url: "/api/locations/current/settings" });
 
@@ -1424,6 +1514,7 @@ describe("wiring the branch settings routes", () => {
 
   it("registers GET /api/locations/current/settings when a branchSettings option is given", async () => {
     const app = buildApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       branchSettings: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
@@ -1439,7 +1530,7 @@ describe("wiring the branch settings routes", () => {
   });
 
   it("does not register PUT /api/locations/current/settings when no branchSettings option is given", async () => {
-    const app = buildApp({ version: "abc1234" });
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
     const response = await app.inject({ method: "PUT", url: "/api/locations/current/settings" });
 
@@ -1448,6 +1539,7 @@ describe("wiring the branch settings routes", () => {
 
   it("registers PUT /api/locations/current/settings when a branchSettings option is given", async () => {
     const app = buildApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       branchSettings: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
@@ -1467,7 +1559,7 @@ describe("wiring the issuer identification routes", () => {
   const authorizedCuit = FICTIONAL_CERTIFICATE_CUIT;
 
   it("does not register GET /api/fiscal-settings/issuer-identification when no issuerIdentification option is given", async () => {
-    const app = buildApp({ version: "abc1234" });
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
     const response = await app.inject({
       method: "GET",
@@ -1479,6 +1571,7 @@ describe("wiring the issuer identification routes", () => {
 
   it("registers GET /api/fiscal-settings/issuer-identification when an issuerIdentification option is given", async () => {
     const app = buildApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       issuerIdentification: {
         db: testDatabase.db,
@@ -1498,7 +1591,7 @@ describe("wiring the issuer identification routes", () => {
   });
 
   it("does not register PUT /api/fiscal-settings/issuer-identification when no issuerIdentification option is given", async () => {
-    const app = buildApp({ version: "abc1234" });
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
     const response = await app.inject({
       method: "PUT",
@@ -1510,6 +1603,7 @@ describe("wiring the issuer identification routes", () => {
 
   it("registers PUT /api/fiscal-settings/issuer-identification when an issuerIdentification option is given", async () => {
     const app = buildApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       issuerIdentification: {
         db: testDatabase.db,
@@ -1539,6 +1633,7 @@ describe("wiring the buyer-identification threshold routes", () => {
     "%s /api/buyer-identification-thresholds: %s it according to the buyerIdentificationThresholds option",
     async (method, _verb, wired) => {
       const app = buildApp({
+        now: () => APP_CLOCK,
         version: "abc1234",
         ...(wired && {
           buyerIdentificationThresholds: {
@@ -1565,8 +1660,9 @@ describe("wiring the fiscal address routes", () => {
     ["POST", "/api/fiscal-addresses"],
     ["PUT", "/api/fiscal-addresses/00000000-0000-0000-0000-000000000000"],
   ])("%s %s: answers according to the fiscalAddresses option", async (method, url) => {
-    const unwired = buildApp({ version: "abc1234" });
+    const unwired = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
     const wired = buildApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       fiscalAddresses: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
@@ -1583,7 +1679,7 @@ describe("wiring the fiscal address routes", () => {
 
 describe("wiring the passkeys routes", () => {
   it("does not register GET /api/account/passkeys when no passkeys option is given", async () => {
-    const app = buildApp({ version: "abc1234" });
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
     const response = await app.inject({ method: "GET", url: "/api/account/passkeys" });
 
@@ -1592,6 +1688,7 @@ describe("wiring the passkeys routes", () => {
 
   it("registers GET /api/account/passkeys when a passkeys option is given", async () => {
     const app = buildApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       passkeys: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
@@ -1603,7 +1700,7 @@ describe("wiring the passkeys routes", () => {
   });
 
   it("does not register the registration or removal routes when no passkeys option is given", async () => {
-    const app = buildApp({ version: "abc1234" });
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
     const registrationOptions = await app.inject({
       method: "POST",
@@ -1622,6 +1719,7 @@ describe("wiring the passkeys routes", () => {
 
   it("registers the registration and removal routes when a passkeys option is given", async () => {
     const app = buildApp({
+      now: () => APP_CLOCK,
       version: "abc1234",
       passkeys: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
@@ -1657,6 +1755,7 @@ function productionWiredApp() {
   productionStaticDirs.push(staticDir);
   writeFileSync(join(staticDir, "index.html"), "<!doctype html><title>backoffice</title>");
   return buildApp({
+    now: () => APP_CLOCK,
     version: "abc1234",
     staticDir,
     ...databaseRouteOptions({
@@ -2114,8 +2213,8 @@ describe("the former session and passkey read paths", () => {
     await db.insert(sessions).values({
       userId: user.id,
       sessionIdHash: hashSessionId(rawSessionId),
-      createdAt: new Date(),
-      lastSeenAt: new Date(),
+      createdAt: APP_CLOCK,
+      lastSeenAt: APP_CLOCK,
     });
     return rawSessionId;
   }
@@ -2219,8 +2318,8 @@ describe("every route enforces the access it declares", () => {
     await db.insert(sessions).values({
       userId: user.id,
       sessionIdHash: hashSessionId(rawSessionId),
-      createdAt: new Date(),
-      lastSeenAt: new Date(),
+      createdAt: APP_CLOCK,
+      lastSeenAt: APP_CLOCK,
     });
     return rawSessionId;
   }

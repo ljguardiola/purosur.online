@@ -15,14 +15,14 @@ import { hashSessionId } from "./session-id.js";
 export interface SessionSignOutRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  now?: () => Date;
+  now: () => Date;
 }
 
 export function registerSessionSignOutRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: SessionSignOutRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 

@@ -129,6 +129,7 @@ describe("the first PIN code email queued by an emission on a real Postgres", ()
       },
     };
     const worker = await startRecoveryWorker({
+      now: () => new Date(),
       databaseUrl: integrationDb.databaseUrl,
       backofficeOrigin: "https://staging.purosur.online",
       emailSender,
@@ -166,6 +167,7 @@ describe("the first PIN code email queued by an emission on a real Postgres", ()
     await emit(person);
     expect(await queuedJobsFor(person.email)).toHaveLength(2);
     const worker = await startRecoveryWorker({
+      now: () => new Date(),
       databaseUrl: integrationDb.databaseUrl,
       backofficeOrigin: "https://staging.purosur.online",
       emailSender,

@@ -16,7 +16,7 @@ export function registerRegisterCoverageRoute<TQueryResult extends PgQueryResult
   app: FastifyInstance,
   options: RegistersRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 

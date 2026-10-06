@@ -10,7 +10,7 @@ import { capabilityAccess, registerRouteAccess, routeSessionSource } from "./rou
 export interface RolesRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  now?: () => Date;
+  now: () => Date;
 }
 
 export function toRoleSummaryWire(row: RoleSummary): RoleSummaryWire {
@@ -27,7 +27,7 @@ export function registerRolesListRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: RolesRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 

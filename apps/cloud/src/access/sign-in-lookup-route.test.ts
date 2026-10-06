@@ -85,7 +85,7 @@ function lookUp(deviceToken: string | undefined, payload: object = { email: EMAI
 describe("POST /sign-in-lookups", () => {
   it("answers who the email belongs to and that they have a PIN", async () => {
     const userId = await insertUser({ withPin: true });
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
 
     const response = await lookUp(deviceToken);
 
@@ -99,7 +99,7 @@ describe("POST /sign-in-lookups", () => {
 
   it("answers that a person without a PIN has none", async () => {
     const userId = await insertUser();
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
 
     const response = await lookUp(deviceToken);
 
@@ -112,7 +112,7 @@ describe("POST /sign-in-lookups", () => {
 
   it("finds a person typing their email in another case or with spaces around it", async () => {
     const userId = await insertUser();
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
 
     const response = await lookUp(deviceToken, { email: "  Grace@Example.COM " });
 
@@ -125,7 +125,7 @@ describe("POST /sign-in-lookups", () => {
   it("answers the same not-found body for an unknown email, a user of another branch and an inactive user", async () => {
     await insertUser({ email: "elsewhere@example.com", locationId: await insertOtherLocation() });
     await insertUser({ email: "gone@example.com", active: false });
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
 
     const answers = [];
     for (const email of ["nobody@example.com", "elsewhere@example.com", "gone@example.com"]) {
@@ -140,7 +140,7 @@ describe("POST /sign-in-lookups", () => {
 
   it("never echoes the email it was asked about", async () => {
     await insertUser({ withPin: true });
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
 
     const found = await lookUp(deviceToken);
     const notFound = await lookUp(deviceToken, { email: "nobody@example.com" });
@@ -151,7 +151,7 @@ describe("POST /sign-in-lookups", () => {
 
   it("counts every accepted lookup and refuses the eleventh in the hour with the wait", async () => {
     await insertUser();
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
     for (let attempt = 0; attempt < 10; attempt += 1) {
       expect((await lookUp(deviceToken)).statusCode).toBe(200);
     }
@@ -168,8 +168,8 @@ describe("POST /sign-in-lookups", () => {
   });
 
   it("counts each register's lookups apart", async () => {
-    const first = await insertEnrolledInstallation(db);
-    const second = await insertEnrolledInstallation(db, { registerName: "Caja 2" });
+    const first = await insertEnrolledInstallation(db, { now: NOW });
+    const second = await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 2" });
     for (let attempt = 0; attempt < 10; attempt += 1) {
       await lookUp(first.deviceToken);
     }
@@ -183,7 +183,7 @@ describe("POST /sign-in-lookups", () => {
     ["no email", {}],
     ["something that is not an email", { email: "grace" }],
   ])("refuses a body with %s, counting nothing", async (_case, payload) => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
 
     const response = await lookUp(deviceToken, payload);
 
@@ -200,7 +200,7 @@ describe("POST /sign-in-lookups", () => {
     ["a device token no installation holds", issueDeviceToken().deviceToken],
   ])("refuses a request with %s, counting nothing", async (_case, deviceToken) => {
     await insertUser();
-    await insertEnrolledInstallation(db);
+    await insertEnrolledInstallation(db, { now: NOW });
 
     const response = await lookUp(deviceToken);
 
@@ -215,6 +215,7 @@ describe("POST /sign-in-lookups", () => {
   it("refuses a revoked installation's token", async () => {
     await insertUser();
     const { deviceToken } = await insertEnrolledInstallation(db, {
+      now: NOW,
       revokedAt: new Date("2026-09-29T09:00:00.000Z"),
     });
 
@@ -225,7 +226,7 @@ describe("POST /sign-in-lookups", () => {
   });
 
   it("records the attempt against the asking register", async () => {
-    const { deviceToken, registerId } = await insertEnrolledInstallation(db);
+    const { deviceToken, registerId } = await insertEnrolledInstallation(db, { now: NOW });
 
     await lookUp(deviceToken);
 

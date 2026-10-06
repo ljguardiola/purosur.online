@@ -4,10 +4,13 @@ import { describeDatabaseFailure } from "./platform/db/describe-database-failure
 import { type LoadSampleDataOutcome, loadSampleData } from "./sample-data/load-sample-data.js";
 import { resolveSampleDataTarget } from "./sample-data/target-guard.js";
 
-async function runLoadSampleData(databaseUrl: string): Promise<LoadSampleDataOutcome> {
+async function runLoadSampleData(
+  databaseUrl: string,
+  now: () => Date,
+): Promise<LoadSampleDataOutcome> {
   const sql = postgres(databaseUrl, { max: 1, connect_timeout: 10 });
   try {
-    return await loadSampleData(drizzle(sql), { now: () => new Date() });
+    return await loadSampleData(drizzle(sql), { now });
   } finally {
     await sql.end({ timeout: 1 });
   }
@@ -47,7 +50,7 @@ if (import.meta.main) {
     console.error("load-sample-data: DATABASE_URL is not set");
     process.exit(1);
   } else {
-    runLoadSampleData(databaseUrl)
+    runLoadSampleData(databaseUrl, () => new Date())
       .then((outcome) => {
         console.log(`load-sample-data: ${describeLoadSampleDataOutcome(outcome)}`);
         if (outcome.kind === "collision" || outcome.kind === "no_administrator") {

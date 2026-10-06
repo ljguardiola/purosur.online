@@ -119,6 +119,7 @@ describe("GET /changes carrying the register's own point of sale", () => {
     const registerId = await insertRegister(locationId, "Caja 1");
     const fiscalAddressId = await insertFiscalAddress();
     const { deviceToken } = await insertEnrolledInstallation(db, {
+      now: NOW,
       existingRegisterId: registerId,
     });
     await configure({
@@ -147,6 +148,7 @@ describe("GET /changes carrying the register's own point of sale", () => {
     const fiscalAddressId = await insertFiscalAddress();
     const actorId = await insertActor(locationId);
     const { deviceToken } = await insertEnrolledInstallation(db, {
+      now: NOW,
       existingRegisterId: registerId,
     });
     await configure({
@@ -174,6 +176,7 @@ describe("GET /changes carrying the register's own point of sale", () => {
     const fiscalAddressId = await insertFiscalAddress();
     const actorId = await insertActor(locationId);
     const { deviceToken } = await insertEnrolledInstallation(db, {
+      now: NOW,
       existingRegisterId: registerId,
     });
     const base = { locationId, registerId, fiscalAddressId, actorId };

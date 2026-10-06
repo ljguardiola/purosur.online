@@ -92,12 +92,14 @@ describe("GET /discounts", () => {
     const tag = await insertTag(db, { name: "Sin TACC" });
     const product = await insertProductWithTags(db, { name: "Yerba mate", tagIds: [] });
     const onCategory = await insertDiscount(db, {
+      now: NOON,
       name: "Martes de infusiones",
       categoryId: category,
       percent: 10,
       weekdays: [2],
     });
     const onTag = await insertDiscount(db, {
+      now: NOON,
       name: "Semana sin TACC",
       tagId: tag.id,
       percent: 20,
@@ -107,6 +109,7 @@ describe("GET /discounts", () => {
       version: 3,
     });
     const onProduct = await insertDiscount(db, {
+      now: NOON,
       name: "Yerba en oferta",
       productId: product.id,
       percent: 5,
@@ -123,8 +126,8 @@ describe("GET /discounts", () => {
           name: "Martes de infusiones",
           benefit: { kind: "PERCENT_OFF", percent: 10 },
           target: { kind: "CATEGORY", id: category, name: "Infusiones" },
-          validFrom: "2026-10-01",
-          validTo: "2026-10-31",
+          validFrom: "2026-01-06",
+          validTo: "2026-02-05",
           weekdays: [2],
           active: true,
           version: 1,
@@ -147,8 +150,8 @@ describe("GET /discounts", () => {
           name: "Yerba en oferta",
           benefit: { kind: "PERCENT_OFF", percent: 5 },
           target: { kind: "PRODUCT", id: product.id, name: "Yerba mate" },
-          validFrom: "2026-10-01",
-          validTo: "2026-10-31",
+          validFrom: "2026-01-06",
+          validTo: "2026-02-05",
           weekdays: [],
           active: true,
           version: 1,
@@ -161,6 +164,7 @@ describe("GET /discounts", () => {
   it("lists a buy-N-pay-M discount with its quantities", async () => {
     const product = await insertProductWithTags(db, { name: "Alfajor", tagIds: [] });
     const discount = await insertDiscount(db, {
+      now: NOON,
       name: "Alfajores 3x2",
       productId: product.id,
       kind: "BUY_N_PAY_M",
@@ -179,8 +183,8 @@ describe("GET /discounts", () => {
           name: "Alfajores 3x2",
           benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
           target: { kind: "PRODUCT", id: product.id, name: "Alfajor" },
-          validFrom: "2026-10-01",
-          validTo: "2026-10-31",
+          validFrom: "2026-01-06",
+          validTo: "2026-02-05",
           weekdays: [],
           active: true,
           version: 1,
@@ -193,12 +197,14 @@ describe("GET /discounts", () => {
   it("gives each discount its status on the clock's day", async () => {
     const category = await insertCategory(db, "Infusiones");
     await insertDiscount(db, {
+      now: NOON,
       name: "A running",
       categoryId: category,
       validFrom: "2026-01-05",
       validTo: "2026-01-05",
     });
     await insertDiscount(db, {
+      now: NOON,
       name: "B over",
       categoryId: category,
       validFrom: "2025-12-01",

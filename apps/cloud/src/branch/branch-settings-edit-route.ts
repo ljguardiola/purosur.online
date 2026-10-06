@@ -31,7 +31,7 @@ export function registerBranchSettingsEditRoute<TQueryResult extends PgQueryResu
   app: FastifyInstance,
   options: BranchSettingsRouteOptions<TQueryResult>,
 ): void {
-  const now = options.now ?? (() => new Date());
+  const { now } = options;
   const ports = { store: new DrizzleBranchSettingsStore(options.db) };
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
