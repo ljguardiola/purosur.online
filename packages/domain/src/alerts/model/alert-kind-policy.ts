@@ -65,7 +65,7 @@ const ALERT_KIND_POLICIES = {
     escalatesAfterMs: ALERT_ESCALATION_DELAY_MS,
     audience: "all",
     scopeKind: "device",
-    deduplicates: true,
+    deduplicates: false,
   },
 } as const satisfies Record<AlertKind, AlertKindPolicy>;
 
