@@ -56,34 +56,20 @@ test("lets a non-Administrator holding deactivate_users deactivate the user, bac
   expect(services.fetchUserPasskeys).not.toHaveBeenCalled();
 });
 
-test("hides the Desactivar row on the viewer's own account, even when its id arrives in another case", async () => {
-  const signedInUserId = "3f2b8c1e-9d4a-4e6b-8a7c-1b2d3e4f5a6b";
-  const services = createServices();
-  vi.mocked(services.fetchUser).mockResolvedValue({
-    kind: "ok",
-    value: { ...lucia, id: signedInUserId, mayDeactivate: false },
-  });
-
-  const screen = await renderScreen(
-    services,
-    () => {},
-    signedInUserId.toUpperCase(),
-    signedInUserId,
-    DEACTIVATE_USERS_ACCESS,
-  );
-
-  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
-  expect(screen.getByRole("button", { name: "Desactivar a Lucía" }).query()).toBeNull();
-});
-
-test("hides the Desactivar row for a non-Administrator without deactivate_users", async () => {
+test("hides the Desactivar row when the cloud answers the user may not be deactivated, even for another person's account and a session holding deactivate_users", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({
     kind: "ok",
     value: { ...lucia, mayDeactivate: false },
   });
 
-  const screen = await renderScreen(services, () => {}, "user-1", "user-2", NO_DEACTIVATE_ACCESS);
+  const screen = await renderScreen(
+    services,
+    () => {},
+    "user-1",
+    "user-2",
+    DEACTIVATE_USERS_ACCESS,
+  );
 
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   expect(screen.getByRole("button", { name: "Desactivar a Lucía" }).query()).toBeNull();
@@ -146,6 +132,16 @@ test("while the user loads, shows no Desactivar on the viewer's own account", as
   vi.mocked(services.fetchUser).mockReturnValue(new Promise(() => {}));
 
   const screen = await renderScreen(services, () => {}, "admin-1", "admin-1");
+
+  await expect.element(screen.getByRole("status").first()).toHaveTextContent("Cargando…");
+  expect(screen.getByRole("button", { name: "Desactivar" }).query()).toBeNull();
+});
+
+test("while the user loads, shows no Desactivar on the viewer's own account when its id arrives in another case", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockReturnValue(new Promise(() => {}));
+
+  const screen = await renderScreen(services, () => {}, "ADMIN-1", "admin-1");
 
   await expect.element(screen.getByRole("status").first()).toHaveTextContent("Cargando…");
   expect(screen.getByRole("button", { name: "Desactivar" }).query()).toBeNull();

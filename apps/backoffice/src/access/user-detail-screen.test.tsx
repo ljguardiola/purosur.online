@@ -185,7 +185,7 @@ test("navigates to Mi cuenta when the passkeys list comes back forbidden", async
   await expect.poll(() => window.location.pathname).toBe("/account");
 });
 
-test("shows no remove button on the signed-in Administrator's own passkeys", async () => {
+test("shows no remove button when the cloud answers the user's passkeys may not be removed, even for an Administrator viewing another person's account", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({
     kind: "ok",
@@ -196,32 +196,7 @@ test("shows no remove button on the signed-in Administrator's own passkeys", asy
     value: [notebook, phone],
   });
 
-  const screen = await renderScreen(services, () => {}, "user-1", "user-1");
-
-  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
-  expect(
-    screen.getByRole("button", { name: `Dar de baja la passkey «${notebook.name}»` }).query(),
-  ).toBeNull();
-});
-
-test("shows no remove button on the Administrator's own passkeys when the id arrives in another case", async () => {
-  const signedInUserId = "3f2b8c1e-9d4a-4e6b-8a7c-1b2d3e4f5a6b";
-  const services = createServices();
-  vi.mocked(services.fetchUser).mockResolvedValue({
-    kind: "ok",
-    value: { ...lucia, id: signedInUserId, mayRemovePasskey: false },
-  });
-  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({
-    kind: "ok",
-    value: [notebook, phone],
-  });
-
-  const screen = await renderScreen(
-    services,
-    () => {},
-    signedInUserId.toUpperCase(),
-    signedInUserId,
-  );
+  const screen = await renderScreen(services, () => {}, "user-1", "admin-1");
 
   await expect.element(screen.getByText("Notebook del local")).toBeVisible();
   expect(

@@ -4,7 +4,6 @@ import { userEvent } from "vitest/browser";
 import {
   createServices,
   lucia,
-  NO_DEACTIVATE_ACCESS,
   notebook,
   openReactivateModal,
   REACTIVATE_USERS_ACCESS,
@@ -78,14 +77,20 @@ test("lets a reactivate-only holder reach an inactive user's Reactivar row, hidi
   expect(services.fetchUserPasskeys).not.toHaveBeenCalled();
 });
 
-test("hides the Reactivar row for a non-Administrator without reactivate_users", async () => {
+test("hides the Reactivar row when the cloud answers the user may not be reactivated, even for a session holding reactivate_users", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({
     kind: "ok",
     value: { ...sofia, mayReactivate: false },
   });
 
-  const screen = await renderScreen(services, () => {}, "user-5", "user-2", NO_DEACTIVATE_ACCESS);
+  const screen = await renderScreen(
+    services,
+    () => {},
+    "user-5",
+    "user-2",
+    REACTIVATE_USERS_ACCESS,
+  );
 
   await expect.element(screen.getByRole("heading", { name: "Sofía Díaz", level: 1 })).toBeVisible();
   expect(screen.getByRole("button", { name: "Reactivar a Sofía Díaz" }).query()).toBeNull();
