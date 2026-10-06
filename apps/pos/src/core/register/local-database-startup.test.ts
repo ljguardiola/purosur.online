@@ -1,6 +1,5 @@
 import {
   closeSync,
-  copyFileSync,
   existsSync,
   mkdtempSync,
   openSync,
@@ -13,7 +12,6 @@ import { join } from "node:path";
 import Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
 import type { LocalMigration } from "../platform/local-database";
-import { migrationClock } from "../platform/test-support/migration-clock";
 import { startLocalDatabase } from "./local-database-startup";
 
 const folders: string[] = [];
@@ -132,7 +130,6 @@ describe("starting the register's local database", () => {
     healthyDatabaseIn(dataFolder);
     overwritePage(dataFolder, 3);
     await startWith(dataFolder);
-    copyFileSync(join(dataFolder, "register.sqlite"), join(dataFolder, "backup.sqlite"));
     rmSync(join(dataFolder, "register.sqlite"));
     healthyDatabaseIn(dataFolder);
 
