@@ -1,8 +1,9 @@
-import type {
-  AdjustmentReason,
-  LossReason,
-  ManualStockMovementKind,
-  SaleUnit,
+import {
+  type AdjustmentReason,
+  isListedInStockBalances,
+  type LossReason,
+  type ManualStockMovementKind,
+  type SaleUnit,
 } from "@purosur/domain";
 import type {
   LedgerAtMoment,
@@ -33,6 +34,7 @@ const stockProductColumns = {
   categoryId: products.categoryId,
   categoryName: categories.name,
   saleUnit: products.saleUnit,
+  active: products.active,
 };
 
 async function currentBalance<TQueryResult extends PgQueryResultHKT>(
@@ -57,12 +59,12 @@ export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
     this.db = db;
   }
 
-  async activeProduct(productId: string): Promise<StockProduct | undefined> {
+  async product(productId: string): Promise<StockProduct | undefined> {
     const [product] = await this.db
       .select(stockProductColumns)
       .from(products)
       .innerJoin(categories, eq(products.categoryId, categories.id))
-      .where(and(eq(products.id, productId), eq(products.active, true)));
+      .where(eq(products.id, productId));
     return product && { ...product, saleUnit: product.saleUnit as SaleUnit };
   }
 
@@ -76,12 +78,11 @@ export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
     );
   }
 
-  async activeProducts(): Promise<StockProduct[]> {
+  async products(): Promise<StockProduct[]> {
     const rows = await this.db
       .select(stockProductColumns)
       .from(products)
       .innerJoin(categories, eq(products.categoryId, categories.id))
-      .where(eq(products.active, true))
       .orderBy(asc(products.name), asc(products.id));
     return rows.map((row) => ({ ...row, saleUnit: row.saleUnit as SaleUnit }));
   }
@@ -98,9 +99,10 @@ export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
         stockBalances,
         and(eq(stockBalances.productId, products.id), eq(stockBalances.locationId, locationId)),
       )
-      .where(eq(products.active, true))
       .orderBy(asc(products.name), asc(products.id));
-    return rows.map((row) => ({ ...row, saleUnit: row.saleUnit as SaleUnit }));
+    return rows
+      .filter(isListedInStockBalances)
+      .map((row) => ({ ...row, saleUnit: row.saleUnit as SaleUnit }));
   }
 
   async counts(query: StockPeriodQuery): Promise<RecordedStockCount[]> {

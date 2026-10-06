@@ -54,7 +54,7 @@ describe("stockLossBodySchema", () => {
   it.each([undefined, "", "not-a-uuid", 42])("rejects the product id %j", (productId) => {
     expect(firstIssue(stockLossBodySchema, { ...loss, productId })).toEqual({
       field: "productId",
-      message: "productId must be an active product's id",
+      message: "productId must be a product's id",
     });
   });
 

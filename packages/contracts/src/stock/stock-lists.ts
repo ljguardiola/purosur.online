@@ -25,6 +25,7 @@ const stockProductSchema = z.object({
   categoryId: z.string(),
   categoryName: z.string(),
   saleUnit: z.enum(SALE_UNITS),
+  active: z.boolean(),
 });
 
 export const stockProductListSchema = z.object({ products: z.array(stockProductSchema) });

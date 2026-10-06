@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { soleDirection } from "./stock-movement-form";
-import { movementReasons } from "./test-support/stock-fixtures";
+import { productOptions, soleDirection } from "./stock-movement-form";
+import {
+  almonds,
+  honey,
+  movementReasons,
+  oats,
+  withoutBalance,
+} from "./test-support/stock-fixtures";
 
 const { reasons } = movementReasons;
 
@@ -23,5 +29,19 @@ describe("soleDirection", () => {
 
   it("leaves the direction open for a reason the cloud did not list", () => {
     expect(soleDirection([], "loss", "theft")).toBeUndefined();
+  });
+});
+
+describe("productOptions", () => {
+  it("offers every product by name, marking a deactivated one", () => {
+    expect(productOptions([oats, honey, almonds].map(withoutBalance))).toEqual([
+      { value: almonds.id, label: almonds.name },
+      { value: oats.id, label: oats.name, status: "Desactivado" },
+      { value: honey.id, label: honey.name },
+    ]);
+  });
+
+  it("offers nothing when there are no products", () => {
+    expect(productOptions([])).toBeUndefined();
   });
 });

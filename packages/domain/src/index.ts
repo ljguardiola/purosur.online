@@ -345,6 +345,7 @@ export {
   DEFAULT_STOCK_PERIOD_DAYS,
   expectedBalance,
   isCountedQuantity,
+  isListedInStockBalances,
   isMovementQuantity,
   LOSS_REASONS,
   lossDelta,

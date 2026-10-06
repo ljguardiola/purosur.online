@@ -113,12 +113,11 @@ describe("POST /inventory-losses", () => {
     });
   });
 
-  it("answers 404 for a deactivated product", async () => {
+  it("answers 404 for an unknown product", async () => {
     const { headers } = await signedInWith(db, ["record_stock_losses"], NOW);
-    const { productId } = await insertProduct(db, { active: false });
 
     const response = await post("/inventory-losses", headers, {
-      productId,
+      productId: "00000000-0000-4000-8000-000000000000",
       reason: "theft",
       quantity: 1000,
     });

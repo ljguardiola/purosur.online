@@ -9,13 +9,12 @@ const AFTER_COUNT = new Date("2026-09-15T21:35:00.000Z");
 const KEY = { productId: "product-1", locationId: "branch-1" };
 
 function storeWithProduct(
-  overrides: { active?: boolean; saleUnit?: "UNIT" | "KG"; balance?: number } = {},
+  overrides: { saleUnit?: "UNIT" | "KG"; balance?: number } = {},
 ): FakeStockStore {
   const store = new FakeStockStore();
   store.seedProduct({
     id: "product-1",
     saleUnit: overrides.saleUnit ?? "KG",
-    active: overrides.active ?? true,
   });
   store.seedBalance({ ...KEY, quantity: overrides.balance ?? 12_400 });
   return store;
@@ -82,22 +81,16 @@ describe("registerCount", () => {
     expect(outcome).toMatchObject({ kind: "recorded" });
   });
 
-  it.each([
-    ["doesn't exist", "missing", true],
-    ["is inactive", "product-1", false],
-  ])(
-    "answers not_found for a product that %s, writing nothing",
-    async (_case, productId, active) => {
-      const store = storeWithProduct({ active });
-      const before = store.snapshot();
+  it("answers not_found for a product that doesn't exist, writing nothing", async () => {
+    const store = storeWithProduct();
+    const before = store.snapshot();
 
-      const outcome = await count(store, { productId });
+    const outcome = await count(store, { productId: "missing" });
 
-      expect(outcome).toEqual({ kind: "not_found" });
-      expect(store.snapshot()).toEqual(before);
-      expect(store.operationOrder).toEqual(["lockProductStock"]);
-    },
-  );
+    expect(outcome).toEqual({ kind: "not_found" });
+    expect(store.snapshot()).toEqual(before);
+    expect(store.operationOrder).toEqual(["lockProductStock"]);
+  });
 
   it("refuses part of a unit of a product sold by the unit, writing nothing", async () => {
     const store = storeWithProduct({ saleUnit: "UNIT" });

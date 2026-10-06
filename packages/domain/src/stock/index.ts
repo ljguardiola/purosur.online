@@ -1,3 +1,4 @@
+export { isListedInStockBalances } from "./model/stock-balance.js";
 export { countResult, expectedBalance } from "./model/stock-count.js";
 export type {
   ManualStockMovementKind,

@@ -29,7 +29,7 @@ export function registerStockProductsRoute<TQueryResult extends PgQueryResultHKT
       },
     },
     async (_request, reply) => {
-      const products = await reader.activeProducts();
+      const products = await reader.products();
       await reply.code(200).send(stockProductListSchema.parse({ products }));
     },
   );
