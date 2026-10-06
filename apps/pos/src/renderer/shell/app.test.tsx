@@ -872,6 +872,9 @@ describe("App", () => {
 
     core.registerService = async () => "out_of_service";
     postCoreStatus("starting");
+    await expect
+      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .not.toBeInTheDocument();
     postCoreStatus("up");
 
     await expect.element(screen.getByText(OUT_OF_SERVICE_TITLE)).toBeVisible();
