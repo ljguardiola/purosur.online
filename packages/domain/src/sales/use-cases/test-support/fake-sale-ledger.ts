@@ -30,7 +30,7 @@ interface FakePrice extends ListPrice {
   validFrom: Date;
 }
 
-export type StoredSale = SaleWithLines & { occurredAt?: Date };
+type StoredSale = SaleWithLines & { occurredAt?: Date };
 
 export interface FakeSaleLedgerState {
   accesses: Record<string, RoleAccess>;
