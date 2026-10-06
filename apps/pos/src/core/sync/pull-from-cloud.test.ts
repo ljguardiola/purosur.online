@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { CloudResponse } from "../platform/cloud-client";
 import { openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { migrationClock } from "../platform/test-support/migration-clock";
 import { pullFromCloud, pullResultOf } from "./pull-from-cloud";
 import { SqliteLocalReplica } from "./sqlite-local-replica";
 
@@ -90,7 +91,7 @@ function cloudAnswering(...answers: CloudResponse[]) {
 }
 
 function freshReplica() {
-  return new SqliteLocalReplica(openLocalDatabase(":memory:", LOCAL_MIGRATIONS));
+  return new SqliteLocalReplica(openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock));
 }
 
 describe("a pull from the cloud", () => {

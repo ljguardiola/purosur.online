@@ -130,6 +130,7 @@ const cloudClient: CloudClientDeps | undefined =
     ? undefined
     : { cloudUrl, fetch: (input, init) => net.fetch(input, init), sleep };
 
+const now = () => new Date();
 const LOCAL_DATABASE_FILE = "register.sqlite";
 const SYNC_INTERVAL_MS = 30_000;
 const SYNC_FAILURE_BACKOFF = { baseMs: 2000, maxMs: 60_000 };
@@ -145,6 +146,7 @@ function openLocalDatabaseFile(): LocalDatabase | undefined {
     const database = openLocalDatabase(
       join(localDataFolder, LOCAL_DATABASE_FILE),
       LOCAL_MIGRATIONS,
+      now,
     );
     console.info("core: the local database is ready");
     return database;
@@ -161,7 +163,7 @@ function openLocalDatabaseFile(): LocalDatabase | undefined {
 const localDatabase = openLocalDatabaseFile();
 const replica = localDatabase === undefined ? undefined : new SqliteLocalReplica(localDatabase);
 const localOutbox =
-  localDatabase === undefined ? undefined : new SqliteLocalOutbox(localDatabase, () => new Date());
+  localDatabase === undefined ? undefined : new SqliteLocalOutbox(localDatabase, now);
 const signInStore = localDatabase === undefined ? undefined : new SqliteSignInStore(localDatabase);
 const signedInPerson = createSignedInPerson();
 const readPepper = async () => (await mainRequests.readCredentials())?.pepper;
@@ -173,7 +175,7 @@ const actionGate =
         signedInPerson,
         readPepper,
         hashPin,
-        now: () => new Date(),
+        now,
       });
 
 function reportFailure(context: string, error: unknown): void {
@@ -254,7 +256,7 @@ const rendererRequestDeps: RendererRequestDeps = {
         canStoreCredentials: () => mainRequests.canStoreCredentials(),
         generatePepper,
         storeCredentials: (credentials) => mainRequests.storeCredentials(credentials),
-        now: () => new Date(),
+        now,
       },
       typedCode,
     );
@@ -313,7 +315,7 @@ const rendererRequestDeps: RendererRequestDeps = {
                 currentCashSession(localDatabase, signedInPersonId),
               readPepper,
               hashPin,
-              now: () => new Date(),
+              now,
             },
             userId,
             pin,
@@ -331,7 +333,7 @@ const rendererRequestDeps: RendererRequestDeps = {
                 currentCashSession(localDatabase, signedInPersonId),
               readPepper,
               hashPin,
-              now: () => new Date(),
+              now,
             },
             userId,
             pin,
@@ -375,7 +377,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               gate: actionGate,
               readOutboxChainKey: async () =>
                 (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
-              now: () => new Date(),
+              now,
               ids: uuidV7Ids,
             },
             openingFloat,
@@ -390,7 +392,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               gate: actionGate,
               readOutboxChainKey: async () =>
                 (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
-              now: () => new Date(),
+              now,
               ids: uuidV7Ids,
             },
             { sessionId, countedCash },
@@ -405,7 +407,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               gate: actionGate,
               readOutboxChainKey: async () =>
                 (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
-              now: () => new Date(),
+              now,
               ids: uuidV7Ids,
             },
             { sessionId, countedCash, closer },
@@ -439,7 +441,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               gate: actionGate,
               readOutboxChainKey: async () =>
                 (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
-              now: () => new Date(),
+              now,
               ids: uuidV7Ids,
             },
             request,
@@ -454,16 +456,13 @@ const rendererRequestDeps: RendererRequestDeps = {
     localDatabase === undefined || actionGate === undefined
       ? undefined
       : (code) =>
-          scanProductFor(
-            { database: localDatabase, gate: actionGate, now: () => new Date(), ids: uuidV7Ids },
-            code,
-          ),
+          scanProductFor({ database: localDatabase, gate: actionGate, now, ids: uuidV7Ids }, code),
   changeLineQuantity:
     localDatabase === undefined || actionGate === undefined
       ? undefined
       : (lineId, quantity, expectedQuantity) =>
           changeLineQuantityFor(
-            { database: localDatabase, gate: actionGate, now: () => new Date() },
+            { database: localDatabase, gate: actionGate, now },
             lineId,
             quantity,
             expectedQuantity,
@@ -471,11 +470,7 @@ const rendererRequestDeps: RendererRequestDeps = {
   removeSaleLine:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (lineId) =>
-          removeSaleLineFor(
-            { database: localDatabase, gate: actionGate, now: () => new Date() },
-            lineId,
-          ),
+      : (lineId) => removeSaleLineFor({ database: localDatabase, gate: actionGate, now }, lineId),
   cancelSale:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -490,7 +485,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               gate: actionGate,
               readOutboxChainKey: async () =>
                 (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
-              now: () => new Date(),
+              now,
               ids: uuidV7Ids,
             },
             request,
@@ -505,7 +500,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               gate: actionGate,
               readOutboxChainKey: async () =>
                 (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
-              now: () => new Date(),
+              now,
               ids: uuidV7Ids,
             },
             request,
@@ -513,31 +508,23 @@ const rendererRequestDeps: RendererRequestDeps = {
   searchProducts:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (query) =>
-          searchProductsFor(
-            { database: localDatabase, gate: actionGate, now: () => new Date() },
-            query,
-          ),
+      : (query) => searchProductsFor({ database: localDatabase, gate: actionGate, now }, query),
   addProduct:
     localDatabase === undefined || actionGate === undefined
       ? undefined
       : (productId) =>
           addSearchedProductFor(
-            { database: localDatabase, gate: actionGate, now: () => new Date(), ids: uuidV7Ids },
+            { database: localDatabase, gate: actionGate, now, ids: uuidV7Ids },
             productId,
           ),
   currentSale:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : () => currentSaleFor({ database: localDatabase, gate: actionGate, now: () => new Date() }),
+      : () => currentSaleFor({ database: localDatabase, gate: actionGate, now }),
   cashCharge:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (request) =>
-          cashChargeFor(
-            { database: localDatabase, gate: actionGate, now: () => new Date() },
-            request,
-          ),
+      : (request) => cashChargeFor({ database: localDatabase, gate: actionGate, now }, request),
   reportFailure,
 };
 
@@ -549,7 +536,7 @@ if (cloudClient !== undefined) {
         postToCloud: (path, bearerToken) => postToCloudWithBearer(cloudClient, path, bearerToken),
         replaceCredentials: (expectedDeviceToken, credentials) =>
           mainRequests.replaceCredentials(expectedDeviceToken, credentials),
-        now: () => new Date(),
+        now,
       }),
     schedule: (run, delayMs) => {
       const id = setTimeout(run, delayMs);

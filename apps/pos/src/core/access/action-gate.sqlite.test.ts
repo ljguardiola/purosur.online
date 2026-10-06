@@ -3,6 +3,7 @@ import { encodePinHash } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { migrationClock } from "../platform/test-support/migration-clock";
 import { readOpenSession } from "../register/sqlite-cash-ledger";
 import type { RegisterPulledChange } from "../sync/pulled-change";
 import { SqliteLocalReplica } from "../sync/sqlite-local-replica";
@@ -95,7 +96,7 @@ function cashIn() {
 }
 
 beforeEach(async () => {
-  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
+  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
   replica = new SqliteLocalReplica(database);
   replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
   signedInPerson = createSignedInPerson();

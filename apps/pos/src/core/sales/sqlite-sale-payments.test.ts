@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { migrationClock } from "../platform/test-support/migration-clock";
 import { readSalePayments } from "./sqlite-sale-payments";
 
 const OCCURRED_AT = new Date("2026-09-30T12:00:00.000Z");
@@ -41,7 +42,7 @@ function addTransfer(id: string, saleId: string, amount: number): void {
 }
 
 beforeEach(() => {
-  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
+  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
   addSession();
   addSale("sale-1", "OPEN");
   addSale("sale-2", "COMPLETED");

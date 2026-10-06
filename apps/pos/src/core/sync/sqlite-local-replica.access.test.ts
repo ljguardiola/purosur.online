@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { migrationClock } from "../platform/test-support/migration-clock";
 import type { RegisterPulledChange } from "./pulled-change";
 import { SqliteLocalReplica } from "./sqlite-local-replica";
 
@@ -79,7 +80,7 @@ let database: LocalDatabase;
 let replica: SqliteLocalReplica;
 
 beforeEach(() => {
-  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
+  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
   replica = new SqliteLocalReplica(database);
   replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
 });
@@ -380,7 +381,9 @@ describe("the register's local copy of the users, roles and permissions it pulls
   });
 
   it("refuses a user's page when no installation has been adopted, saving nothing", async () => {
-    const unadopted = new SqliteLocalReplica(openLocalDatabase(":memory:", LOCAL_MIGRATIONS));
+    const unadopted = new SqliteLocalReplica(
+      openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock),
+    );
 
     await expect(
       unadopted.savePage({ changes: [userChange(1, userRow())], cursor: 1, hasMore: false }),

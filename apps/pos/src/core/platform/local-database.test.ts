@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { type LocalMigration, openLocalDatabase } from "./local-database";
+import { migrationClock } from "./test-support/migration-clock";
 
 const folders: string[] = [];
 
@@ -29,7 +30,7 @@ const SECOND: LocalMigration = {
 
 describe("the register's local database", () => {
   it("is created in its folder, writing ahead to a log", () => {
-    const database = openLocalDatabase(databasePath(), [FIRST]);
+    const database = openLocalDatabase(databasePath(), [FIRST], migrationClock);
 
     expect(database.pragma("journal_mode", { simple: true })).toBe("wal");
     database.close();
@@ -38,8 +39,8 @@ describe("the register's local database", () => {
   it("applies every migration once, in the order of their names", () => {
     const path = databasePath();
 
-    openLocalDatabase(path, [SECOND, FIRST]).close();
-    const reopened = openLocalDatabase(path, [FIRST, SECOND]);
+    openLocalDatabase(path, [SECOND, FIRST], migrationClock).close();
+    const reopened = openLocalDatabase(path, [FIRST, SECOND], migrationClock);
     reopened.prepare("INSERT INTO notes (body) VALUES ('hola')").run();
 
     expect(reopened.prepare("SELECT body, author FROM notes").all()).toEqual([
@@ -66,11 +67,11 @@ describe("the register's local database", () => {
 
   it("applies a migration added later over the data the previous schema already holds", () => {
     const path = databasePath();
-    const before = openLocalDatabase(path, [FIRST]);
+    const before = openLocalDatabase(path, [FIRST], migrationClock);
     before.prepare("INSERT INTO notes (body) VALUES ('antes')").run();
     before.close();
 
-    const after = openLocalDatabase(path, [FIRST, SECOND]);
+    const after = openLocalDatabase(path, [FIRST, SECOND], migrationClock);
 
     expect(after.prepare("SELECT body, author FROM notes").all()).toEqual([
       { body: "antes", author: "nadie" },
@@ -86,13 +87,15 @@ describe("the register's local database", () => {
     };
     const later: LocalMigration = { name: "0002_later", sql: "CREATE TABLE later (id INTEGER);" };
 
-    expect(() => openLocalDatabase(path, [FIRST, broken, later])).toThrow(/missing/);
+    expect(() => openLocalDatabase(path, [FIRST, broken, later], migrationClock)).toThrow(
+      /missing/,
+    );
 
-    const fixed = openLocalDatabase(path, [
-      FIRST,
-      { name: "0001_broken", sql: "CREATE TABLE half (id INTEGER);" },
-      later,
-    ]);
+    const fixed = openLocalDatabase(
+      path,
+      [FIRST, { name: "0001_broken", sql: "CREATE TABLE half (id INTEGER);" }, later],
+      migrationClock,
+    );
     const tables = fixed
       .prepare("SELECT name FROM sqlite_schema WHERE type = 'table' AND name IN ('half', 'later')")
       .all();

@@ -5,6 +5,7 @@ import { encodePinHash } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { migrationClock } from "../platform/test-support/migration-clock";
 import { SqliteSignInStore } from "./sqlite-sign-in-store";
 
 let database: LocalDatabase;
@@ -62,7 +63,7 @@ function grant(roleId: string, permissionKey: string, active = true): void {
 }
 
 beforeEach(() => {
-  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
+  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
   store = new SqliteSignInStore(database);
   addRole("cashier");
 });
@@ -478,7 +479,7 @@ describe("a user's PIN sign-in failures", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-sign-in-failures-"));
     try {
       const path = join(folder, "register.sqlite");
-      const first = openLocalDatabase(path, LOCAL_MIGRATIONS);
+      const first = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
       first
         .prepare(
           "INSERT INTO users (id, first_name, role_id, salt, active, version) VALUES ('u1', 'Ada', 'cashier', 's', 1, 1)",
@@ -489,7 +490,7 @@ describe("a user's PIN sign-in failures", () => {
       beforeRestart.recordPinSignInFailure("u1", SECOND);
       first.close();
 
-      const second = openLocalDatabase(path, LOCAL_MIGRATIONS);
+      const second = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
 
       expect(new SqliteSignInStore(second).pinSignInFailures("u1")).toEqual({
         consecutiveFailures: 2,

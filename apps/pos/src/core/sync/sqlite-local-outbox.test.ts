@@ -3,6 +3,7 @@ import { type OutboxEventDraft, PUSH_BATCH_MAX_EVENTS, type PushedEvent } from "
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { migrationClock } from "../platform/test-support/migration-clock";
 import { CloudEventInbox } from "./cloud-event-inbox";
 import { SqliteLocalOutbox } from "./sqlite-local-outbox";
 import { appendOutboxEvent } from "./sqlite-outbox";
@@ -66,7 +67,7 @@ function ackedAts(): (string | null)[] {
 }
 
 beforeEach(() => {
-  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
+  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
   adoptDevice("device-a");
   outbox = new SqliteLocalOutbox(database, () => ACKNOWLEDGED_AT);
 });
@@ -111,7 +112,7 @@ describe("the events waiting to be pushed", () => {
   });
 
   it("cuts a full batch whose request would be one byte over the limit", async () => {
-    const probe = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
+    const probe = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
     probe.prepare("UPDATE sync_state SET device_id = ?").run("device-a");
     for (let number = 1; number <= PUSH_BATCH_MAX_EVENTS; number += 1) {
       appendOutboxEvent(probe, CHAIN_KEY, draft(number, 0));
