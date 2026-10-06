@@ -285,19 +285,6 @@ test.each([
   await expect.element(dialog.getByText(message)).toBeVisible();
 });
 
-test("keeps the modal open and says the product no longer exists when the cloud cannot find it", async () => {
-  const services = createServices();
-  vi.mocked(services.registerCount).mockResolvedValue({ kind: "not_found" });
-  const screen = await renderScreen(services);
-  const dialog = await openNewCount(screen);
-  await chooseProduct(screen, "Almendras peladas");
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad contada/ }), "12,150");
-
-  await userEvent.click(dialog.getByRole("button", { name: "Registrar el recuento" }));
-
-  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Este producto ya no existe");
-});
-
 test("ends the session when registering finds it over", async () => {
   const services = createServices();
   vi.mocked(services.registerCount).mockResolvedValue({ kind: "unauthenticated" });

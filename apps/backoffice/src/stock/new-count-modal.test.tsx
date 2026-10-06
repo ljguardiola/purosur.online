@@ -55,3 +55,17 @@ test("offers a deactivated product in the selector marked as deactivated", async
     .element(screen.getByRole("option", { name: /Avena arrollada/ }).getByText("Desactivado"))
     .toBeVisible();
 });
+
+test("keeps the modal open and says the product no longer exists when the cloud cannot find it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchExpectedBalance).mockResolvedValue({ kind: "ok", value: almonds });
+  vi.mocked(services.registerCount).mockResolvedValue({ kind: "not_found" });
+  const { screen, dialog } = await renderModal(services);
+  await userEvent.click(dialog.getByRole("button", { name: /Producto/ }));
+  await userEvent.click(screen.getByRole("option", { name: "Almendras peladas" }));
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad contada/ }), "12,150");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar el recuento" }));
+
+  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Este producto ya no existe");
+});

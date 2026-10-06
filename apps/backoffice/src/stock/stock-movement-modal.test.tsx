@@ -199,3 +199,17 @@ test("offers a deactivated product in the selector marked as deactivated", async
       .query(),
   ).toBeNull();
 });
+
+test("keeps the modal open and says the product no longer exists when the cloud cannot find it", async () => {
+  const services = createServices();
+  vi.mocked(services.recordLoss).mockResolvedValue({ kind: "not_found" });
+  const rendered = await renderForm(services, { kinds: ["loss"] });
+  const { dialog } = rendered;
+  await chooseProduct(rendered, "Miel pura de abeja 1 kg");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad perdida/ }), "1");
+  await userEvent.click(cardLabel(rendered, "Robo"));
+
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar la pérdida" }));
+
+  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Este producto ya no existe");
+});

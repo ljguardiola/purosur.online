@@ -400,21 +400,6 @@ test.each([
   await expect.element(dialog.getByText(message)).toBeVisible();
 });
 
-test("keeps the modal open and says the product no longer exists when the cloud cannot find it", async () => {
-  const services = createServices();
-  vi.mocked(services.recordLoss).mockResolvedValue({ kind: "not_found" });
-  const screen = await renderScreen(services);
-  const dialog = await openModal(screen);
-  await userEvent.click(cardLabel(screen, "Pérdida"));
-  await chooseProduct(screen, "Miel pura de abeja 1 kg");
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad perdida/ }), "1");
-  await userEvent.click(cardLabel(screen, "Robo"));
-
-  await userEvent.click(dialog.getByRole("button", { name: "Registrar la pérdida" }));
-
-  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Este producto ya no existe");
-});
-
 test.each([
   ["count", BOTH],
   ["theft", ADJUSTMENTS_ONLY],
