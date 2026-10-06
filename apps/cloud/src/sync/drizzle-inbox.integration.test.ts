@@ -1,10 +1,10 @@
-import type { PushedEvent, RegisterTelemetry } from "@purosur/domain";
+import { canonicalOutboxEvent, type PushedEvent, type RegisterTelemetry } from "@purosur/domain";
 import { receivePushedEvents } from "@purosur/domain/sync/use-cases";
 import { count, eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { deviceState, inbox } from "../platform/db/schema.js";
+import { deviceState, inbox, refusedEvents, registerInstallations } from "../platform/db/schema.js";
 import { installationKeyCipher } from "../register/installation-key-cipher.js";
 import { insertEnrolledInstallation as enrollInstallation } from "../register/test-support/enrolled-installation.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
@@ -57,11 +57,24 @@ function event(deviceSeq: number, eventId: string = crypto.randomUUID()): Pushed
   };
 }
 
+const CHAIN_KEY = Buffer.alloc(32, 3).toString("base64");
+
+function linked(...events: PushedEvent[]): PushedEvent[] {
+  let link: string | null = null;
+  return events.map(({ chain_hmac: _unlinked, ...unlinked }) => {
+    link = hmacEventChain.link(CHAIN_KEY, link, canonicalOutboxEvent(unlinked));
+    return { ...unlinked, chain_hmac: link };
+  });
+}
+
 let registerCount = 0;
 
 function insertEnrolledInstallation() {
   registerCount += 1;
-  return enrollInstallation(db, { registerName: `Caja ${registerCount}` });
+  return enrollInstallation(db, {
+    registerName: `Caja ${registerCount}`,
+    outboxChainKey: CHAIN_KEY,
+  });
 }
 
 function push(deviceId: string, events: PushedEvent[]) {
@@ -82,7 +95,7 @@ async function storedSeqs(deviceId: string): Promise<number[]> {
 describe("the inbox on a real Postgres, as the role the deployed cloud connects with", () => {
   it("stores a pushed event whole and acknowledges it", async () => {
     const { deviceId } = await insertEnrolledInstallation();
-    const pushed = event(1);
+    const [pushed = event(1)] = linked(event(1));
 
     expect(await push(deviceId, [pushed])).toEqual({ kind: "received", ackSeq: 1 });
 
@@ -98,7 +111,7 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
       payload: { quantity: 2, note: null, tags: ["a", "b"] },
       occurredAt: new Date("2026-10-01T09:00:00.000Z"),
       actorId: "user-1",
-      chainHmac: "hmac",
+      chainHmac: pushed.chain_hmac,
       receivedAt: NOW,
     });
   });
@@ -120,19 +133,23 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
 
   it("acknowledges what a push fills in after a hole it left behind", async () => {
     const { deviceId } = await insertEnrolledInstallation();
+    const [first, second, third, fourth] = linked(event(1), event(2), event(3), event(4));
+    if (!first || !second || !third || !fourth) {
+      throw new Error("test setup: the chain holds four events");
+    }
     await db
       .insert(inbox)
-      .values([event(1), event(2), event(4)].map((pushed) => storedRow(deviceId, pushed)));
+      .values([first, second, fourth].map((pushed) => storedRow(deviceId, pushed)));
 
-    expect(await push(deviceId, [event(3)])).toEqual({ kind: "received", ackSeq: 4 });
+    expect(await push(deviceId, [third])).toEqual({ kind: "received", ackSeq: 4 });
   });
 
   it("keeps the events of each installation apart", async () => {
     const first = await insertEnrolledInstallation();
     const second = await insertEnrolledInstallation();
 
-    await push(first.deviceId, [event(1), event(2)]);
-    const outcome = await push(second.deviceId, [event(1)]);
+    await push(first.deviceId, linked(event(1), event(2)));
+    const outcome = await push(second.deviceId, linked(event(1)));
 
     expect(outcome).toEqual({ kind: "received", ackSeq: 1 });
     expect(await storedSeqs(first.deviceId)).toEqual([1, 2]);
@@ -141,7 +158,7 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
   it("records the push report of an installation that has never pulled", async () => {
     const { deviceId } = await insertEnrolledInstallation();
 
-    await push(deviceId, [event(1)]);
+    await push(deviceId, linked(event(1)));
 
     expect(await db.select().from(deviceState).where(eq(deviceState.deviceId, deviceId))).toEqual([
       {
@@ -151,7 +168,6 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
         appVersion: "1.4.0",
         lastPushedAt: NOW,
         walSizeBytes: 4096,
-        lastChainHmac: "hmac",
         diskFreeBytes: 50_000_000,
         diskFreeRatio: 0.42,
       },
@@ -160,7 +176,7 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
 
   it("serializes two pushes of one installation, so both end consistent", async () => {
     const { deviceId } = await insertEnrolledInstallation();
-    const events = [event(1), event(2), event(3)];
+    const events = linked(event(1), event(2), event(3));
 
     const [first, second] = await runQueuedBehindHeldLock(
       sql,
@@ -177,6 +193,24 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
       .from(inbox)
       .where(eq(inbox.deviceId, deviceId));
     expect(stored).toBe(3);
+  });
+
+  it("keeps a push with a broken chain aside and revokes its installation", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
+    const forged = { ...event(1), chain_hmac: "forged-link" };
+
+    expect(await push(deviceId, [forged])).toEqual({ kind: "chain_broken" });
+
+    expect(await storedSeqs(deviceId)).toEqual([]);
+    const kept = await db.select().from(refusedEvents).where(eq(refusedEvents.deviceId, deviceId));
+    expect(kept.map((row) => [row.eventId, row.chainHmac])).toEqual([
+      [forged.event_id, "forged-link"],
+    ]);
+    const [installation] = await db
+      .select({ revocationReason: registerInstallations.revocationReason })
+      .from(registerInstallations)
+      .where(eq(registerInstallations.id, deviceId));
+    expect(installation?.revocationReason).toBe("outbox_chain_broken");
   });
 });
 

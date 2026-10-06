@@ -5,13 +5,13 @@ import {
   pushEventsResponseSchema,
 } from "@purosur/contracts";
 import { canonicalOutboxEvent } from "@purosur/domain";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { registerRouteAccess } from "../access/route-access.js";
-import { alerts, deviceState, inbox } from "../platform/db/schema.js";
+import { deviceState, inbox, refusedEvents, registerInstallations } from "../platform/db/schema.js";
 import { issueDeviceToken } from "../register/device-token.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import type { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
@@ -49,6 +49,18 @@ afterEach(async () => {
   await app.close();
 });
 
+const CHAIN_KEY = Buffer.alloc(32, 3).toString("base64");
+
+type PushedWireEvent = PushEventsRequest["events"][number];
+
+function linked(previousLink: string | null, events: PushedWireEvent[]): PushedWireEvent[] {
+  let link = previousLink;
+  return events.map(({ chain_hmac: _unlinked, ...unlinked }) => {
+    link = hmacEventChain.link(CHAIN_KEY, link, canonicalOutboxEvent(unlinked));
+    return { ...unlinked, chain_hmac: link };
+  });
+}
+
 function event(deviceSeq: number): PushEventsRequest["events"][number] {
   return {
     event_id: crypto.randomUUID(),
@@ -68,34 +80,16 @@ function body(...seqs: number[]): PushEventsRequest {
   return {
     app_version: "1.4.0",
     telemetry: { wal_size_bytes: 4096, disk_free_bytes: 50_000_000, disk_free_ratio: 0.42 },
-    events: seqs.map(event),
+    events: linked(null, seqs.map(event)),
   };
-}
-
-const CHAIN_KEY = Buffer.alloc(32, 3).toString("base64");
-
-type PushedWireEvent = PushEventsRequest["events"][number];
-
-function chained(previousLink: string | null, ...seqs: number[]): PushedWireEvent[] {
-  const events: PushedWireEvent[] = [];
-  let link = previousLink;
-  for (const seq of seqs) {
-    const { chain_hmac: _unchained, ...unchained } = event(seq);
-    link = hmacEventChain.link(CHAIN_KEY, link, canonicalOutboxEvent(unchained));
-    events.push({ ...unchained, chain_hmac: link });
-  }
-  return events;
 }
 
 function bodyOf(events: PushedWireEvent[]): PushEventsRequest {
   return { ...body(), events };
 }
 
-function chainBrokenAlerts(deviceId: string) {
-  return db
-    .select({ level: alerts.level, detail: alerts.detail, resolvedAt: alerts.resolvedAt })
-    .from(alerts)
-    .where(and(eq(alerts.kind, "outbox_chain_broken"), eq(alerts.scope, deviceId)));
+function enroll(options: Parameters<typeof insertEnrolledInstallation>[1] = {}) {
+  return enroll({ outboxChainKey: CHAIN_KEY, ...options });
 }
 
 function push(payload: unknown, authorization?: string) {
@@ -109,7 +103,7 @@ function push(payload: unknown, authorization?: string) {
 
 describe("POST /events", () => {
   it("stores the pushed events and answers the ack", async () => {
-    const { deviceId, deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceId, deviceToken } = await enroll();
 
     const response = await push(body(1, 2, 3), `Bearer ${deviceToken}`);
 
@@ -126,13 +120,13 @@ describe("POST /events", () => {
   });
 
   it("accepts a full batch of large events although its body is over 1 MiB", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await enroll();
     const seqs = Array.from({ length: 200 }, (_, index) => index + 1);
     const largeEvents = seqs.map((seq) => ({
       ...event(seq),
       payload: { lines: "x".repeat(7_000) },
     }));
-    const largeBatch = { ...body(), events: largeEvents };
+    const largeBatch = bodyOf(linked(null, largeEvents));
     expect(JSON.stringify(largeBatch).length).toBeGreaterThan(1_048_576);
 
     const response = await push(largeBatch, `Bearer ${deviceToken}`);
@@ -146,12 +140,10 @@ describe("POST /events", () => {
 
   describe("the request size limit", () => {
     function bodyOfBytes(totalBytes: number): string {
-      const empty = JSON.stringify({
-        ...body(1),
-        events: [{ ...event(1), payload: { filler: "" } }],
-      });
-      const filler = "x".repeat(totalBytes - Buffer.byteLength(empty));
-      return JSON.stringify({ ...body(1), events: [{ ...event(1), payload: { filler } }] });
+      const withFiller = (filler: string) =>
+        JSON.stringify(bodyOf(linked(null, [{ ...event(1), payload: { filler } }])));
+      const filler = "x".repeat(totalBytes - Buffer.byteLength(withFiller("")));
+      return withFiller(filler);
     }
 
     function pushRaw(rawBody: string, deviceToken: string) {
@@ -164,7 +156,7 @@ describe("POST /events", () => {
     }
 
     it("accepts a request of exactly the contract's limit", async () => {
-      const { deviceToken } = await insertEnrolledInstallation(db);
+      const { deviceToken } = await enroll();
       const rawBody = bodyOfBytes(PUSH_EVENTS_REQUEST_MAX_BYTES);
       expect(Buffer.byteLength(rawBody)).toBe(PUSH_EVENTS_REQUEST_MAX_BYTES);
 
@@ -174,7 +166,7 @@ describe("POST /events", () => {
     });
 
     it("refuses a request one byte over the contract's limit", async () => {
-      const { deviceToken } = await insertEnrolledInstallation(db);
+      const { deviceToken } = await enroll();
 
       const response = await pushRaw(bodyOfBytes(PUSH_EVENTS_REQUEST_MAX_BYTES + 1), deviceToken);
 
@@ -183,7 +175,7 @@ describe("POST /events", () => {
   });
 
   it("records the installation's version and telemetry", async () => {
-    const { deviceId, deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceId, deviceToken } = await enroll();
 
     await push(body(1), `Bearer ${deviceToken}`);
 
@@ -195,7 +187,6 @@ describe("POST /events", () => {
         appVersion: "1.4.0",
         lastPushedAt: NOW,
         walSizeBytes: 4096,
-        lastChainHmac: "hmac",
         diskFreeBytes: 50_000_000,
         diskFreeRatio: 0.42,
       },
@@ -203,7 +194,7 @@ describe("POST /events", () => {
   });
 
   it("answers the seq it expects and stores nothing of a batch that skips one", async () => {
-    const { deviceId, deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceId, deviceToken } = await enroll();
 
     const response = await push(body(2, 3), `Bearer ${deviceToken}`);
 
@@ -217,7 +208,7 @@ describe("POST /events", () => {
   });
 
   it("answers stale_device for a seq the inbox holds under another event", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await enroll();
     await push(body(1), `Bearer ${deviceToken}`);
 
     const response = await push(body(1), `Bearer ${deviceToken}`);
@@ -230,7 +221,7 @@ describe("POST /events", () => {
   });
 
   it("tells a revoked installation so, storing and recording nothing", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db, {
+    const { deviceToken } = await enroll({
       revokedAt: new Date("2026-10-01T08:00:00.000Z"),
     });
 
@@ -247,7 +238,7 @@ describe("POST /events", () => {
     ["a device token no installation holds", `Bearer ${issueDeviceToken().deviceToken}`],
     ["something that is not a device token", "Basic dXNlcjpwYXNz"],
   ])("refuses a request with %s, storing nothing", async (_case, authorization) => {
-    await insertEnrolledInstallation(db);
+    await enroll();
 
     const response = await push(body(1), authorization);
 
@@ -260,7 +251,7 @@ describe("POST /events", () => {
   });
 
   it("refuses a body that is not a push, naming the field", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceToken } = await enroll();
 
     const response = await push({ ...body(1), events: [] }, `Bearer ${deviceToken}`);
 
@@ -299,85 +290,69 @@ describe("POST /events", () => {
   });
 
   describe("the chain of the pushed events", () => {
-    it("opens no alert for events that each chain from the one before", async () => {
-      const { deviceId, deviceToken } = await insertEnrolledInstallation(db, {
-        outboxChainKey: CHAIN_KEY,
-      });
-
-      const events = chained(null, 1, 2, 3);
+    it("receives a push whose events chain from the ones it already holds", async () => {
+      const { deviceToken } = await enroll();
+      const events = linked(null, [event(1), event(2), event(3)]);
 
       await push(bodyOf(events.slice(0, 2)), `Bearer ${deviceToken}`);
       const response = await push(bodyOf(events.slice(2)), `Bearer ${deviceToken}`);
 
       expect(pushEventsResponseSchema.parse(response.json())).toEqual({ status: "ok", ack_seq: 3 });
-      expect(await chainBrokenAlerts(deviceId)).toEqual([]);
     });
 
-    it("stores an altered event and opens an alert for the installation naming it", async () => {
-      const { deviceId, deviceToken } = await insertEnrolledInstallation(db, {
-        outboxChainKey: CHAIN_KEY,
-      });
-      const [first, second] = chained(null, 1, 2);
-      if (!first || !second) {
-        throw new Error("test setup: the chain holds two events");
+    it("refuses a push whose chain is broken as revoked, storing none of its events", async () => {
+      const { deviceId, deviceToken } = await enroll();
+      const [first, second, third] = linked(null, [event(1), event(2), event(3)]);
+      if (!first || !second || !third) {
+        throw new Error("test setup: the chain holds three events");
       }
-      const altered = { ...second, payload: { quantity: 9 } };
+      await push(bodyOf([first]), `Bearer ${deviceToken}`);
 
-      const response = await push(bodyOf([first, altered]), `Bearer ${deviceToken}`);
-
-      expect(pushEventsResponseSchema.parse(response.json())).toEqual({ status: "ok", ack_seq: 2 });
-      const stored = await db.select().from(inbox).where(eq(inbox.deviceId, deviceId));
-      expect(stored.find((row) => row.deviceSeq === 2)?.payload).toEqual({ quantity: 9 });
-      expect(await chainBrokenAlerts(deviceId)).toEqual([
-        {
-          level: "warning",
-          detail: { brokenEvents: [{ deviceSeq: 2, eventId: second.event_id }] },
-          resolvedAt: null,
-        },
-      ]);
-    });
-
-    it("anchors the next push on the value it received, so the break is not reported again", async () => {
-      const { deviceId, deviceToken } = await insertEnrolledInstallation(db, {
-        outboxChainKey: CHAIN_KEY,
-      });
-      const forged = { ...event(1), chain_hmac: "forged-link" };
-      await push(bodyOf([forged]), `Bearer ${deviceToken}`);
-      await db
-        .update(alerts)
-        .set({ resolvedAt: NOW })
-        .where(and(eq(alerts.kind, "outbox_chain_broken"), eq(alerts.scope, deviceId)));
-
-      const next = chained("forged-link", 2);
-
-      await push(bodyOf(next), `Bearer ${deviceToken}`);
-
-      expect(await chainBrokenAlerts(deviceId)).toEqual([
-        expect.objectContaining({ resolvedAt: NOW }),
-      ]);
-      const [state] = await db
-        .select({ lastChainHmac: deviceState.lastChainHmac })
-        .from(deviceState)
-        .where(eq(deviceState.deviceId, deviceId));
-      expect(state?.lastChainHmac).toBe(next[0]?.chain_hmac);
-    });
-
-    it("opens an alert of its own for a later push with another break, while the first is still open", async () => {
-      const { deviceId, deviceToken } = await insertEnrolledInstallation(db, {
-        outboxChainKey: CHAIN_KEY,
-      });
-
-      await push(bodyOf([{ ...event(1), chain_hmac: "forged-1" }]), `Bearer ${deviceToken}`);
-      await push(bodyOf([{ ...event(2), chain_hmac: "forged-2" }]), `Bearer ${deviceToken}`);
-
-      const opened = await chainBrokenAlerts(deviceId);
-      expect(opened).toHaveLength(2);
-      expect(opened.map((alert) => alert.detail)).toEqual(
-        expect.arrayContaining([
-          { brokenEvents: [expect.objectContaining({ deviceSeq: 1 })] },
-          { brokenEvents: [expect.objectContaining({ deviceSeq: 2 })] },
-        ]),
+      const response = await push(
+        bodyOf([{ ...second, payload: { quantity: 9 } }, third]),
+        `Bearer ${deviceToken}`,
       );
+
+      expect(response.statusCode).toBe(403);
+      expect(cloudErrorSchema.parse(response.json())).toMatchObject({ code: "revoked" });
+      const stored = await db.select().from(inbox).where(eq(inbox.deviceId, deviceId));
+      expect(stored.map((row) => row.deviceSeq)).toEqual([1]);
+    });
+
+    it("keeps the refused events aside and revokes the installation for its broken chain", async () => {
+      const { deviceId, deviceToken } = await enroll();
+      const altered = { ...event(1), chain_hmac: "forged-link" };
+
+      await push(bodyOf([altered]), `Bearer ${deviceToken}`);
+
+      expect(await db.select().from(refusedEvents)).toEqual([
+        expect.objectContaining({
+          deviceId,
+          eventId: altered.event_id,
+          deviceSeq: 1,
+          payload: { quantity: 2 },
+          chainHmac: "forged-link",
+          refusedAt: NOW,
+        }),
+      ]);
+      const [installation] = await db
+        .select({
+          revokedAt: registerInstallations.revokedAt,
+          revocationReason: registerInstallations.revocationReason,
+        })
+        .from(registerInstallations)
+        .where(eq(registerInstallations.id, deviceId));
+      expect(installation).toEqual({ revokedAt: NOW, revocationReason: "outbox_chain_broken" });
+    });
+
+    it("answers revoked to the installation's next push", async () => {
+      const { deviceToken } = await enroll();
+      await push(bodyOf([{ ...event(1), chain_hmac: "forged-link" }]), `Bearer ${deviceToken}`);
+
+      const response = await push(body(1), `Bearer ${deviceToken}`);
+
+      expect(response.statusCode).toBe(403);
+      expect(cloudErrorSchema.parse(response.json())).toMatchObject({ code: "revoked" });
     });
   });
 });
