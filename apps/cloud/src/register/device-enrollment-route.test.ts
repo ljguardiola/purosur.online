@@ -234,7 +234,11 @@ describe("POST /devices", () => {
         entityId: previousId,
         actorId: null,
         previousValue: { revoked_at: null, revocation_reason: null },
-        newValue: { revoked_at: NOW.toISOString(), revocation_reason: "replaced" },
+        newValue: {
+          register_id: registerId,
+          revoked_at: NOW.toISOString(),
+          revocation_reason: "replaced",
+        },
         at: NOW,
       }),
     );
