@@ -54,6 +54,7 @@ import {
   openCashSessionFor,
   sessionOpenSaleFor,
 } from "./register/cash-session-requests";
+import { coreFailureReporters } from "./register/core-failure-reporters";
 import { rotateDeviceToken } from "./register/device-token-rotation";
 import { startDeviceTokenRotationSchedule } from "./register/device-token-rotation-schedule";
 import {
@@ -184,11 +185,11 @@ const actionGate =
         now,
       });
 
-function reportFailure(context: string, error: unknown): void {
-  console.error(`core: ${context} failed`, error);
-  Sentry.captureException(error);
-  void register.watchFailure(error);
-}
+const { reportFailure, reportSyncFailure, reportRedeemedPinFailure } = coreFailureReporters({
+  log: console.error,
+  capture: Sentry.captureException,
+  watchFailure: register.watchFailure,
+});
 
 // An unreachable cloud is how a register without internet looks, so only an unexpected stop is
 // reported; the next cycle resumes from the cursor and the outbox already saved either way.
@@ -243,10 +244,7 @@ const syncSchedule = createSyncSchedule({
     const timer = setTimeout(run, delayMs);
     return () => clearTimeout(timer);
   },
-  onFailure: (error) => {
-    console.error("core: the sync failed", error);
-    void register.watchFailure(error);
-  },
+  onFailure: reportSyncFailure,
   afterEachSync: () => rendererConnection.tell(PULLED_NOTICE),
 });
 
@@ -290,11 +288,7 @@ const rendererRequestDeps: RendererRequestDeps = {
           localDatabase === undefined
             ? undefined
             : (pepper, redemption) => applyRedeemedPin(localDatabase, pepper, redemption),
-        reportLocalFailure: (error) => {
-          console.error("core: the redeemed PIN could not be kept locally", error);
-          Sentry.captureException(error);
-          void register.watchFailure(error);
-        },
+        reportLocalFailure: reportRedeemedPinFailure,
         openCashSession: () =>
           localDatabase === undefined ? undefined : readOpenSession(localDatabase),
         redeemedPerson: (userId) =>
