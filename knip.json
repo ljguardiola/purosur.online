@@ -14,6 +14,7 @@
       "entry": [
         ".claude/hooks/pretool.mjs",
         "vitest.mutation.config.ts",
+        "vitest.register-push-recorder.config.ts",
         ".github/scripts/validate-pr.mjs",
         ".github/scripts/validate-issue.mjs",
         ".github/scripts/parent-issue.mjs",
