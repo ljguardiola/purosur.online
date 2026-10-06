@@ -28,14 +28,6 @@ function readyDatabase(events: string[]): StartedLocalDatabase {
   };
 }
 
-function scheduleRecording(events: string[]) {
-  return {
-    start: () => {
-      events.push("sync started");
-    },
-  };
-}
-
 const DAMAGE = new Database.SqliteError("database disk image is malformed", "SQLITE_CORRUPT");
 
 describe("registerServiceOf", () => {
@@ -85,22 +77,6 @@ describe("registerServiceOf", () => {
     const register = registerServiceOf(undefined, () => events.push("exit"));
 
     await register.watchFailure(DAMAGE);
-
-    expect(events).toEqual([]);
-  });
-
-  it("starts the sync of a register in service", () => {
-    const events: string[] = [];
-
-    registerServiceOf(readyDatabase([]), () => {}).startSync(scheduleRecording(events));
-
-    expect(events).toEqual(["sync started"]);
-  });
-
-  it("starts no sync of a register out of service, so it pushes nothing to the cloud", () => {
-    const events: string[] = [];
-
-    registerServiceOf({ kind: "out_of_service" }, () => {}).startSync(scheduleRecording(events));
 
     expect(events).toEqual([]);
   });

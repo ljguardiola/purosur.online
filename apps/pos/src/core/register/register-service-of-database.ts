@@ -7,7 +7,6 @@ interface RegisterServiceOfDatabase {
   database: LocalDatabase | undefined;
   service: RegisterService;
   watchFailure: (error: unknown) => Promise<void>;
-  startSync: (schedule: { start: () => void }) => void;
 }
 
 export function registerServiceOf(
@@ -24,10 +23,5 @@ export function registerServiceOf(
     database: started?.kind === "ready" ? started.database : undefined,
     service,
     watchFailure,
-    startSync: (schedule) => {
-      if (service.kind === "in_service") {
-        schedule.start();
-      }
-    },
   };
 }

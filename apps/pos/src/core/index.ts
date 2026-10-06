@@ -572,4 +572,4 @@ process.parentPort.on("message", (event) => {
 });
 
 process.parentPort.postMessage({ type: "core-ready" } satisfies CoreReadyMessage);
-register.startSync(syncSchedule);
+syncSchedule.start();
