@@ -1,9 +1,10 @@
 import { createHmac } from "node:crypto";
 import type { OutboxEventDraft } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
+import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
+import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { appendOutboxEvent } from "./sqlite-outbox";
 
 const CHAIN_KEY_BYTES = Buffer.from("0123456789abcdef0123456789abcdef");

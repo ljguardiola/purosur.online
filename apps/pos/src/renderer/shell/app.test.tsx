@@ -25,6 +25,7 @@ const LOCKED_TITLE = "Caja bloqueada";
 const BRAND_LOGO_ALT = "Puro Sur";
 const CORE_DOWN_TITLE = "Esperá un momento";
 const ENROLLMENT_TITLE = "Dar de alta esta caja";
+const OUT_OF_SERVICE_TITLE = "La caja necesita restaurarse";
 
 const SESSION_TITLE = "Venta en curso";
 const OPENED: OpenCashSessionOutcome = {
@@ -106,6 +107,7 @@ function coreAnswering(
     addProduct?: CoreClient["addProduct"];
   } = {},
   signOut: () => Promise<void> = async () => {},
+  service: "in_service" | "out_of_service" | "unanswered" = "in_service",
 ) {
   const cashSessionAsks: string[] = [];
   const opened: number[] = [];
@@ -123,6 +125,13 @@ function coreAnswering(
     async enrollmentStatus() {
       asked.push("enrollment-status");
       return enrolled;
+    },
+    async registerService() {
+      asked.push("register-service");
+      if (service === "unanswered") {
+        return new Promise<never>(() => {});
+      }
+      return service;
     },
     async registerName() {
       return savedName;
@@ -329,6 +338,86 @@ describe("App", () => {
       .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
       .not.toBeInTheDocument();
     await expect.element(screen.getByText(CORE_DOWN_TITLE)).not.toBeInTheDocument();
+  });
+
+  it("shows that the register needs restoring when the core answers it is out of service", async () => {
+    const { core } = coreAnswering(
+      true,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      "out_of_service",
+    );
+    const screen = await render(<App core={core} />);
+
+    postCoreStatus("up");
+
+    await expect.element(screen.getByText(OUT_OF_SERVICE_TITLE)).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .not.toBeInTheDocument();
+  });
+
+  it("shows that the register needs restoring even when it is not enrolled", async () => {
+    const { core } = coreAnswering(
+      false,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      "out_of_service",
+    );
+    const screen = await render(<App core={core} />);
+
+    postCoreStatus("up");
+
+    await expect.element(screen.getByText(OUT_OF_SERVICE_TITLE)).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: ENROLLMENT_TITLE }))
+      .not.toBeInTheDocument();
+  });
+
+  it("does not read the cash session of a register that is out of service", async () => {
+    const { core, cashSessionAsks } = coreAnswering(
+      true,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      "out_of_service",
+    );
+    const screen = await render(<App core={core} />);
+
+    postCoreStatus("up");
+
+    await expect.element(screen.getByText(OUT_OF_SERVICE_TITLE)).toBeVisible();
+    expect(cashSessionAsks).toEqual([]);
+  });
+
+  it("stays on the brand panel until the core answers whether the register is in service", async () => {
+    const { core, asked } = coreAnswering(
+      true,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      "unanswered",
+    );
+    const screen = await render(<App core={core} />);
+
+    postCoreStatus("up");
+
+    await expect.poll(() => asked).toContain("register-service");
+    await expect.element(screen.getByRole("img", { name: BRAND_LOGO_ALT })).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .not.toBeInTheDocument();
+    await expect.element(screen.getByText(OUT_OF_SERVICE_TITLE)).not.toBeInTheDocument();
   });
 
   it("shows who can sign in once the core reports it is up", async () => {
@@ -772,7 +861,52 @@ describe("App", () => {
     postCoreStatus("up");
 
     await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
-    await expect.poll(() => asked.length).toBe(2);
+    await expect.poll(() => asked.filter((q) => q === "enrollment-status").length).toBe(2);
+  });
+
+  it("stays on the brand panel after the core comes back up until it answers again whether the register is in service", async () => {
+    const { core, asked, cashSessionAsks } = coreAnswering(true);
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    const cashSessionAsksBeforeRestart = cashSessionAsks.length;
+
+    core.registerService = () => {
+      asked.push("register-service");
+      return new Promise(() => {});
+    };
+    postCoreStatus("starting");
+    await expect
+      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .not.toBeInTheDocument();
+    postCoreStatus("up");
+
+    await expect.poll(() => asked.filter((q) => q === "register-service").length).toBe(2);
+    await expect.poll(() => asked.filter((q) => q === "enrollment-status").length).toBe(2);
+    expect(cashSessionAsks).toHaveLength(cashSessionAsksBeforeRestart);
+    await expect.element(screen.getByRole("img", { name: BRAND_LOGO_ALT })).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .not.toBeInTheDocument();
+  });
+
+  it("shows that the register needs restoring when the core comes back up out of service", async () => {
+    const { core } = coreAnswering(true);
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+
+    core.registerService = async () => "out_of_service";
+    postCoreStatus("starting");
+    await expect
+      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .not.toBeInTheDocument();
+    postCoreStatus("up");
+
+    await expect.element(screen.getByText(OUT_OF_SERVICE_TITLE)).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .not.toBeInTheDocument();
   });
 
   it("stays on the brand panel until the core says whether a cash session is open", async () => {

@@ -26,6 +26,8 @@ export interface StandInCloud {
   readonly url: string;
   readonly enrollmentCode: string;
   readonly feedStored: Promise<void>;
+  readonly requests: readonly string[];
+  dropEveryConnection(): Promise<void>;
   stop(): Promise<void>;
 }
 
@@ -70,6 +72,7 @@ export async function startStandInCloud(
   const lastChangeSeq = feed.at(-1)?.change_seq ?? 0;
   const deviceToken = randomUUID();
   const problems: string[] = [];
+  const requests: string[] = [];
   const firstPinCodes: Record<string, string> = { ...options.firstPinCodes };
   let markFeedStored = () => {};
   let markFeedRefused = (_problem: Error) => {};
@@ -237,18 +240,36 @@ export async function startStandInCloud(
   const server = createServer((request, response) => {
     const url = new URL(request.url ?? "/", "http://stand-in");
     const route = `${request.method} ${url.pathname}`;
+    requests.push(route);
     answer(route, url, request, response).catch((error: unknown) => {
       fail(`${route} failed: ${error}`);
       refuse(response, "internal_error");
     });
   });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  async function listen(port: number): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(port, "127.0.0.1", () => {
+        server.off("error", reject);
+        resolve();
+      });
+    });
+  }
+
+  await listen(0);
   const { port } = server.address() as AddressInfo;
 
   return {
     url: `http://127.0.0.1:${port}`,
     enrollmentCode: ENROLLMENT_CODE,
     feedStored,
+    requests,
+    dropEveryConnection: async () => {
+      const closed = new Promise<void>((resolve) => server.close(() => resolve()));
+      server.closeAllConnections();
+      await closed;
+      await listen(port);
+    },
     stop: async () => {
       server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));

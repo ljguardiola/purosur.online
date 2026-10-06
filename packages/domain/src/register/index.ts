@@ -57,3 +57,4 @@ export {
   registerAbilities,
   registerOperationAccess,
 } from "./model/register-operation.js";
+export type { RegisterService } from "./model/register-service.js";

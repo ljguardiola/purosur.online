@@ -3,9 +3,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { openLocalDatabase } from "./local-database";
 import { LOCAL_MIGRATIONS } from "./local-migrations";
 import { migrationClock } from "./test-support/migration-clock";
+import { openLocalDatabase } from "./test-support/open-local-database";
 
 const MIGRATIONS_FOLDER = fileURLToPath(new URL("../migrations/", import.meta.url));
 

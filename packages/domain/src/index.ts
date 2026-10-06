@@ -272,6 +272,7 @@ export type {
   RegisterActor,
   RegisterOperation,
   RegisterOperationAccess,
+  RegisterService,
 } from "./register/index.js";
 export {
   CASH_MOVEMENT_DIRECTIONS,

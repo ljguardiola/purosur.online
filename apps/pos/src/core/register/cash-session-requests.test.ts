@@ -5,9 +5,10 @@ import { createActionGate } from "../access/action-gate";
 import { derivePinVerifier } from "../access/pin-verifier";
 import { createSignedInPerson, type SignedInPerson } from "../access/signed-in-person";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
-import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
+import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
+import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import {
   type CashSessionRequestDeps,
   cashBalanceFor,

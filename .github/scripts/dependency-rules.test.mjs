@@ -1278,12 +1278,12 @@ test("persistence-only-in-adapters allows type-only database imports and flags v
       "export type Wiring = LocalDatabase;",
     ].join("\n"),
     "apps/pos/src/core/sales/valued-requests.ts": [
-      'import { openLocalDatabase } from "../platform/local-database";',
-      "export const open = openLocalDatabase;",
+      'import { openLocalDatabaseFile } from "../platform/local-database";',
+      "export const open = openLocalDatabaseFile;",
     ].join("\n"),
     "apps/pos/src/core/platform/local-database.ts": [
       "export type LocalDatabase = object;",
-      "export function openLocalDatabase() {}",
+      "export function openLocalDatabaseFile() {}",
     ].join("\n"),
   });
   await installPnpmPackage(root, "drizzle-orm");

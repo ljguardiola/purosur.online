@@ -30,13 +30,15 @@ import type {
   SignInOutcome,
   SignInUser,
 } from "@purosur/contracts";
-import type { AuthorizablePermissionKey } from "@purosur/domain";
+import type { AuthorizablePermissionKey, RegisterService } from "@purosur/domain";
+import { isDatabaseDamage } from "./platform/database-damage";
 import type { CashMovementRequest } from "./register/cash-movement-requests";
 import type { CoreToRendererMessage, RendererToCoreMessage } from "./renderer-messages";
 import type { ChargeSaleByTransferRequest, ChargeSaleInCashRequest } from "./sales/sale-requests";
 
 export interface RendererRequestDeps {
   credentialsPresent: () => Promise<boolean>;
+  registerService: RegisterService;
   registerName: () => string | undefined;
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
   redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
@@ -145,15 +147,18 @@ async function attemptFirstSignIn(
   }
 }
 
-// The failure is reported without its error: what a lookup fails on may carry the email typed.
+// Only damage is reported with its error: another failure may carry the email typed.
 async function attemptSignInLookup(
   deps: RendererRequestDeps,
   email: string,
 ): Promise<SignInLookupOutcome> {
   try {
     return (await deps.signInLookup?.(email)) ?? { kind: "unavailable" };
-  } catch {
-    deps.reportFailure("looking up who signs in", new Error("the lookup failed"));
+  } catch (error) {
+    deps.reportFailure(
+      "looking up who signs in",
+      isDatabaseDamage(error) ? error : new Error("the lookup failed"),
+    );
     return { kind: "unavailable" };
   }
 }
@@ -421,6 +426,12 @@ export async function answerRendererRequest(
         type: "enrollment-status",
         request_id: message.request_id,
         enrolled: await deps.credentialsPresent(),
+      };
+    case "register-service-request":
+      return {
+        type: "register-service",
+        request_id: message.request_id,
+        service: deps.registerService.kind,
       };
     case "register-name-request":
       return {
