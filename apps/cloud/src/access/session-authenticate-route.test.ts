@@ -468,20 +468,37 @@ describe("POST /sessions", () => {
     expect(response.json()).toMatchObject({ code: "authentication_failed" });
   });
 
-  it("pads a failure's response time up to the uniform floor", async () => {
-    await postAuthenticate({});
+  it("holds a failure's answer until the whole floor, started when the request arrived, has passed", async () => {
+    let releaseFloor = () => {};
+    delaySpy.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseFloor = resolve;
+        }),
+    );
+    let answered = false;
+    const answer = postAuthenticate({}).then((response) => {
+      answered = true;
+      return response;
+    });
 
-    expect(delaySpy).toHaveBeenCalled();
+    await vi.waitFor(() => expect(delaySpy).toHaveBeenCalledWith(200));
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(answered).toBe(false);
+
+    releaseFloor();
+    expect((await answer).statusCode).toBe(401);
   });
 
-  it("does not pad a successful sign-in", async () => {
+  it("answers a successful sign-in without waiting for the floor", async () => {
     const emulator = new WebAuthnEmulator();
     await registerPasskey(userId, emulator);
     const assertion = await getAuthenticationAssertion(emulator);
+    delaySpy.mockImplementation(() => new Promise<void>(() => {}));
 
-    await postAuthenticate({ assertion });
+    const response = await postAuthenticate({ assertion });
 
-    expect(delaySpy).not.toHaveBeenCalled();
+    expect(response.statusCode).toBe(200);
   });
 
   it("rejects a signature counter that does not exceed the stored one once it left zero", async () => {
