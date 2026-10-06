@@ -362,7 +362,7 @@ describe("POST /events", () => {
       expect(state?.lastChainHmac).toBe(next[0]?.chain_hmac);
     });
 
-    it("opens no second alert for another break while the first is still open", async () => {
+    it("opens an alert of its own for a later push with another break, while the first is still open", async () => {
       const { deviceId, deviceToken } = await insertEnrolledInstallation(db, {
         outboxChainKey: CHAIN_KEY,
       });
@@ -370,7 +370,14 @@ describe("POST /events", () => {
       await push(bodyOf([{ ...event(1), chain_hmac: "forged-1" }]), `Bearer ${deviceToken}`);
       await push(bodyOf([{ ...event(2), chain_hmac: "forged-2" }]), `Bearer ${deviceToken}`);
 
-      expect(await chainBrokenAlerts(deviceId)).toHaveLength(1);
+      const opened = await chainBrokenAlerts(deviceId);
+      expect(opened).toHaveLength(2);
+      expect(opened.map((alert) => alert.detail)).toEqual(
+        expect.arrayContaining([
+          { brokenEvents: [expect.objectContaining({ deviceSeq: 1 })] },
+          { brokenEvents: [expect.objectContaining({ deviceSeq: 2 })] },
+        ]),
+      );
     });
   });
 });
