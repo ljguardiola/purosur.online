@@ -27,14 +27,12 @@ export type RouteAccess =
   | { level: "open_session" }
   | { level: "open_session_peek" }
   | { level: "session_cookie" }
-  | { level: "administrator" }
   | { level: "capability"; capability: Capability };
 
 export const PUBLIC_ACCESS: RouteAccess = { level: "public" };
 export const OPEN_SESSION_ACCESS: RouteAccess = { level: "open_session" };
 export const OPEN_SESSION_PEEK_ACCESS: RouteAccess = { level: "open_session_peek" };
 export const SESSION_COOKIE_ACCESS: RouteAccess = { level: "session_cookie" };
-export const ADMINISTRATOR_ACCESS: RouteAccess = { level: "administrator" };
 
 export function capabilityAccess(capability: Capability): RouteAccess {
   return { level: "capability", capability };
@@ -127,8 +125,6 @@ function isAccessGranted(
     case "open_session_peek":
     case "session_cookie":
       return true;
-    case "administrator":
-      return session.isAdministrator;
     case "capability":
       return grantsCapability(session, access.capability);
   }

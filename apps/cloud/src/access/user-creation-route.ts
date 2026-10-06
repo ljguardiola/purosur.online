@@ -8,7 +8,7 @@ import { canReactivateUsers, toBranchUserWire } from "./branch-users.js";
 import { DrizzleUserStore } from "./drizzle-user-store.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import {
-  ADMINISTRATOR_ACCESS,
+  capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
@@ -46,7 +46,7 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
     "/users",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
-      config: { access: ADMINISTRATOR_ACCESS, sessionSource },
+      config: { access: capabilityAccess("manage_users"), sessionSource },
     },
     async (request, reply) => {
       const attemptedAt = now();

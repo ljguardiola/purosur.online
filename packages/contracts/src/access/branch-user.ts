@@ -14,6 +14,10 @@ export const branchUserSchema = z.object({
   passkey_count: z.int(),
   is_last_active_administrator: z.boolean(),
   may_emit_pin_code: z.boolean(),
+  may_edit: z.boolean(),
+  may_deactivate: z.boolean(),
+  may_reactivate: z.boolean(),
+  may_remove_passkey: z.boolean(),
 });
 
 export const branchUserListSchema = z.array(branchUserSchema);
