@@ -46,7 +46,6 @@ export {
   mayEmitPinCode,
   mayEmitPinCodeFor,
   mayReactivateUser,
-  mayRemovePasskeyOf,
   mayRemoveUserPasskey,
   normalizePinCode,
   PASSKEY_AUTHORIZATION_WINDOW_MS,

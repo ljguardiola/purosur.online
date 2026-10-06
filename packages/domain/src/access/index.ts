@@ -112,6 +112,5 @@ export {
   mayDeactivateUser,
   mayEditUser,
   mayReactivateUser,
-  mayRemovePasskeyOf,
   mayRemoveUserPasskey,
 } from "./model/user-management.js";
