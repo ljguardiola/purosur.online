@@ -62,4 +62,12 @@ export class SqliteLocalOutbox implements LocalOutbox {
       )
       .run(deviceSeq);
   }
+
+  async recordCompromised(): Promise<void> {
+    this.database
+      .prepare(
+        "UPDATE sync_state SET installation_revoked_at = ? WHERE installation_revoked_at IS NULL",
+      )
+      .run(this.now().toISOString());
+  }
 }

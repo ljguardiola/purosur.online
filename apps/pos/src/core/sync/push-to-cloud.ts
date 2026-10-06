@@ -73,6 +73,8 @@ export function pushWarningOf(attempt: PushAttempt): string | undefined {
   switch (attempt.kind) {
     case "revoked":
       return "core: the cloud says this installation was revoked, so its events were not sent";
+    case "compromised":
+      return "core: the outbox lost events the cloud expects, so this register stopped opening new sales";
     case "failed":
       return attempt.failure.kind === "unreachable"
         ? undefined
