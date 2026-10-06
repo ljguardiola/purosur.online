@@ -231,7 +231,7 @@ describe("POST /users/:id/pin-codes", () => {
       personId = await insertUser({
         firstName: "Margaret Hamilton",
         email: "margaret@example.com",
-        roleId: await insertRole("Cajera"),
+        roleId: await insertRole("Operadora"),
       });
       personSession = await insertSession(personId);
     });
