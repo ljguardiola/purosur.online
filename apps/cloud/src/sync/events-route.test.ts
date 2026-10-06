@@ -4,17 +4,19 @@ import {
   type PushEventsRequest,
   pushEventsResponseSchema,
 } from "@purosur/contracts";
-import { eq } from "drizzle-orm";
+import { canonicalOutboxEvent } from "@purosur/domain";
+import { and, eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { registerRouteAccess } from "../access/route-access.js";
-import { deviceState, inbox } from "../platform/db/schema.js";
+import { alerts, deviceState, inbox } from "../platform/db/schema.js";
 import { issueDeviceToken } from "../register/device-token.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { registerEventsRoute } from "./events-route.js";
+import { hmacEventChain } from "./hmac-event-chain.js";
 
 const NOW = new Date("2026-10-01T09:30:00.000Z");
 
@@ -68,6 +70,32 @@ function body(...seqs: number[]): PushEventsRequest {
     telemetry: { wal_size_bytes: 4096, disk_free_bytes: 50_000_000, disk_free_ratio: 0.42 },
     events: seqs.map(event),
   };
+}
+
+const CHAIN_KEY = Buffer.alloc(32, 3).toString("base64");
+
+type PushedWireEvent = PushEventsRequest["events"][number];
+
+function chained(previousLink: string | null, ...seqs: number[]): PushedWireEvent[] {
+  const events: PushedWireEvent[] = [];
+  let link = previousLink;
+  for (const seq of seqs) {
+    const { chain_hmac: _unchained, ...unchained } = event(seq);
+    link = hmacEventChain.link(CHAIN_KEY, link, canonicalOutboxEvent(unchained));
+    events.push({ ...unchained, chain_hmac: link });
+  }
+  return events;
+}
+
+function bodyOf(events: PushedWireEvent[]): PushEventsRequest {
+  return { ...body(), events };
+}
+
+function chainBrokenAlerts(deviceId: string) {
+  return db
+    .select({ level: alerts.level, detail: alerts.detail, resolvedAt: alerts.resolvedAt })
+    .from(alerts)
+    .where(and(eq(alerts.kind, "outbox_chain_broken"), eq(alerts.scope, deviceId)));
 }
 
 function push(payload: unknown, authorization?: string) {
@@ -267,5 +295,81 @@ describe("POST /events", () => {
     expect(response.statusCode).toBe(500);
     expect(cloudErrorSchema.parse(response.json())).toMatchObject({ code: "internal_error" });
     expect(response.body).not.toContain("register_installations");
+  });
+
+  describe("the chain of the pushed events", () => {
+    it("opens no alert for events that each chain from the one before", async () => {
+      const { deviceId, deviceToken } = await insertEnrolledInstallation(db, {
+        outboxChainKey: CHAIN_KEY,
+      });
+
+      const events = chained(null, 1, 2, 3);
+
+      await push(bodyOf(events.slice(0, 2)), `Bearer ${deviceToken}`);
+      const response = await push(bodyOf(events.slice(2)), `Bearer ${deviceToken}`);
+
+      expect(pushEventsResponseSchema.parse(response.json())).toEqual({ status: "ok", ack_seq: 3 });
+      expect(await chainBrokenAlerts(deviceId)).toEqual([]);
+    });
+
+    it("stores an altered event and opens an alert for the installation naming it", async () => {
+      const { deviceId, deviceToken } = await insertEnrolledInstallation(db, {
+        outboxChainKey: CHAIN_KEY,
+      });
+      const [first, second] = chained(null, 1, 2);
+      if (!first || !second) {
+        throw new Error("test setup: the chain holds two events");
+      }
+      const altered = { ...second, payload: { quantity: 9 } };
+
+      const response = await push(bodyOf([first, altered]), `Bearer ${deviceToken}`);
+
+      expect(pushEventsResponseSchema.parse(response.json())).toEqual({ status: "ok", ack_seq: 2 });
+      const stored = await db.select().from(inbox).where(eq(inbox.deviceId, deviceId));
+      expect(stored.find((row) => row.deviceSeq === 2)?.payload).toEqual({ quantity: 9 });
+      expect(await chainBrokenAlerts(deviceId)).toEqual([
+        {
+          level: "warning",
+          detail: { brokenEvents: [{ deviceSeq: 2, eventId: second.event_id }] },
+          resolvedAt: null,
+        },
+      ]);
+    });
+
+    it("anchors the next push on the value it received, so the break is not reported again", async () => {
+      const { deviceId, deviceToken } = await insertEnrolledInstallation(db, {
+        outboxChainKey: CHAIN_KEY,
+      });
+      const forged = { ...event(1), chain_hmac: "forged-link" };
+      await push(bodyOf([forged]), `Bearer ${deviceToken}`);
+      await db
+        .update(alerts)
+        .set({ resolvedAt: NOW })
+        .where(and(eq(alerts.kind, "outbox_chain_broken"), eq(alerts.scope, deviceId)));
+
+      const next = chained("forged-link", 2);
+
+      await push(bodyOf(next), `Bearer ${deviceToken}`);
+
+      expect(await chainBrokenAlerts(deviceId)).toEqual([
+        expect.objectContaining({ resolvedAt: NOW }),
+      ]);
+      const [state] = await db
+        .select({ lastChainHmac: deviceState.lastChainHmac })
+        .from(deviceState)
+        .where(eq(deviceState.deviceId, deviceId));
+      expect(state?.lastChainHmac).toBe(next[0]?.chain_hmac);
+    });
+
+    it("opens no second alert for another break while the first is still open", async () => {
+      const { deviceId, deviceToken } = await insertEnrolledInstallation(db, {
+        outboxChainKey: CHAIN_KEY,
+      });
+
+      await push(bodyOf([{ ...event(1), chain_hmac: "forged-1" }]), `Bearer ${deviceToken}`);
+      await push(bodyOf([{ ...event(2), chain_hmac: "forged-2" }]), `Bearer ${deviceToken}`);
+
+      expect(await chainBrokenAlerts(deviceId)).toHaveLength(1);
+    });
   });
 });

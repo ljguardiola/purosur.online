@@ -125,6 +125,20 @@ describe("appending an event to the outbox", () => {
     expect(syncState()).toEqual({ last_device_seq: 0, last_chain_hmac: null });
   });
 
+  it("chains its events to the values the cloud verifies them against", () => {
+    appendOutboxEvent(database, CHAIN_KEY, draft());
+    appendOutboxEvent(
+      database,
+      CHAIN_KEY,
+      draft({ event_id: "018f0000-0000-7000-8000-000000000002" }),
+    );
+
+    expect(rows().map((row) => row.chain_hmac)).toEqual([
+      "OymB3viQoTt/FZJzCVWyQn+LaV7S4+n9New7I9P3Njg=",
+      "gVbvVZIeSFEu11rEXwMHik5+fqq30deItMhUCt2MO8Q=",
+    ]);
+  });
+
   it("numbers the next event after the last one and chains it from the previous chain value", () => {
     appendOutboxEvent(database, CHAIN_KEY, draft());
     appendOutboxEvent(
