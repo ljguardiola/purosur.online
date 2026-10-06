@@ -730,3 +730,16 @@ test("names an alert for a register's enrollment by its kind and what happened",
   await expect.element(row.getByText("Alta de caja")).toBeVisible();
   await expect.element(row.getByText("Se dio de alta una caja")).toBeVisible();
 });
+
+test("names an alert for altered register events by its kind and what happened", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(
+    ok([{ ...passkeyAlert, kind: "outbox_chain_broken", scopeDisplay: "Caja 1" }]),
+  );
+
+  const screen = await renderScreen(services);
+
+  const row = screen.getByRole("row", { name: /Caja 1/ });
+  await expect.element(row.getByText("Eventos de caja alterados")).toBeVisible();
+  await expect.element(row.getByText("Se alteraron eventos guardados en una caja")).toBeVisible();
+});

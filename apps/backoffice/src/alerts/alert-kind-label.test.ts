@@ -9,3 +9,7 @@ test("names a kind of the catalog by its title", () => {
 test("names a kind this app does not know yet, such as one a later cloud adds, by the kind itself", () => {
   expect(alertKindLabel("register_battery_low")).toBe("register_battery_low");
 });
+
+test("names the alert for altered register events by its title", () => {
+  expect(alertKindLabel("outbox_chain_broken")).toBe("Eventos de caja alterados");
+});
