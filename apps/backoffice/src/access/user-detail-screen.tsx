@@ -16,7 +16,7 @@ import { roleDisplayName } from "../platform/role-display-name";
 import type { CloudData } from "../platform/use-cloud-query";
 import {
   type BackofficeAccess,
-  canDeactivateUser,
+  canManageUsers,
   canReactivateUser,
 } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
@@ -52,7 +52,7 @@ export type UserDetailScreenProps = {
 const NO_ROLES: BranchUserRole[] = [];
 
 export function UserDetailScreen(props: UserDetailScreenProps) {
-  return props.access.isAdministrator ? (
+  return canManageUsers(props.access) ? (
     <AdministratorUserDetail {...props} />
   ) : (
     <ReaderUserDetail {...props} />
@@ -166,7 +166,7 @@ function UserDetailView({
             <div className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4">
               <div className="flex items-center gap-3">
                 <h2 className="flex-1 text-subheading text-text-accent">Datos</h2>
-                {access.isAdministrator && !isInactive && (
+                {(user ? user.mayEdit : canManageUsers(access)) === true && (
                   <Button
                     variant="secondary"
                     size="small"
@@ -229,7 +229,7 @@ function UserDetailView({
                               {passkeyRowDetail(passkey, passkeys.value.loadedAt)}
                             </p>
                           </div>
-                          {user && access.isAdministrator && !isOwnAccount && !isInactive && (
+                          {user?.mayRemovePasskey === true && (
                             <IconButton
                               icon={<Trash2 />}
                               aria-label={`Dar de baja la passkey «${passkey.name}»`}
@@ -265,7 +265,7 @@ function UserDetailView({
                   </Button>
                 </div>
               )}
-            {user && !isInactive && canDeactivateUser(access, user.role) && !isOwnAccount && (
+            {user?.mayDeactivate === true && (
               <div className="flex items-center gap-3">
                 <p className="flex-1 text-text-subtle text-detail">
                   {`Al desactivar a ${user.firstName}, deja de poder entrar a la caja y al backoffice; su historial queda igual.`}
@@ -282,7 +282,7 @@ function UserDetailView({
                 </Button>
               </div>
             )}
-            {user && isInactive && canReactivateUser(access) && (
+            {user?.mayReactivate === true && (
               <div className="flex items-center gap-3">
                 <p className="flex-1 text-text-subtle text-detail">
                   {`Al reactivar a ${user.firstName}, vuelve a entrar a la caja y al backoffice con su misma cuenta: mismo correo, rol y passkeys.`}

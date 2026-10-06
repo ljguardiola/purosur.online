@@ -1,7 +1,6 @@
 import type { Capability, ManualStockMovementKind } from "@purosur/domain";
 
 export type BackofficeAccess = {
-  isAdministrator: boolean;
   capabilities: readonly Capability[];
   stockMovementKinds: readonly ManualStockMovementKind[];
   mayEmitOwnPinCode: boolean;
@@ -15,26 +14,16 @@ export function canSeeUsersArea(access: BackofficeAccess): boolean {
   return grants(access, "users_area");
 }
 
-export function canDeactivateUser(
-  access: BackofficeAccess,
-  target: { isAdministrator: boolean },
-): boolean {
-  if (target.isAdministrator) {
-    return false;
-  }
-  return grants(access, "deactivate_users");
+export function canManageUsers(access: BackofficeAccess): boolean {
+  return grants(access, "manage_users");
 }
 
-/**
- * Unlike `canDeactivateUser`, this takes no target: the cloud's reactivation route only ever
- * admits an inactive target, and an inactive user can't be the last active Administrator.
- */
 export function canReactivateUser(access: BackofficeAccess): boolean {
   return grants(access, "reactivate_users");
 }
 
 export function canSeeRolesArea(access: BackofficeAccess): boolean {
-  return access.isAdministrator;
+  return grants(access, "manage_roles");
 }
 
 export function canSeeBranchArea(access: BackofficeAccess): boolean {
