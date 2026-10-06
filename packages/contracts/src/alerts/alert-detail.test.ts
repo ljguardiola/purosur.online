@@ -172,6 +172,9 @@ describe("alertDetailSchema", () => {
     expectTypeOf<WireDetail<"register_enrolled">>().toEqualTypeOf<
       AlertDetails["register_enrolled"]
     >();
+    expectTypeOf<WireDetail<"outbox_chain_broken">>().toEqualTypeOf<
+      AlertDetails["outbox_chain_broken"]
+    >();
     expectTypeOf<WireDetail<"backoffice_sign_in_lockout">>().toExtend<
       Omit<AlertDetails["backoffice_sign_in_lockout"], "sourceAddress">
     >();
@@ -263,6 +266,9 @@ describe("alertDetailSchema", () => {
         windowsVersion: "11",
         replacedInstallation: true,
       },
+      outbox_chain_broken: {
+        brokenEvents: [{ deviceSeq: 7, eventId: "event-7" }],
+      },
     } satisfies Record<AlertKind, unknown>;
 
     it.each(ALERT_KINDS)("accepts the detail of %s", (kind) => {
@@ -288,6 +294,20 @@ describe("alertDetailSchema", () => {
           ...base,
           kind: "register_enrolled",
           detail: emailChange.detail,
+        }).success,
+      ).toBe(false);
+    });
+
+    it.each([
+      [[{ deviceSeq: 0, eventId: "event-0" }]],
+      [[{ deviceSeq: 1.5, eventId: "event-1" }]],
+      [[{ deviceSeq: 1, eventId: "" }]],
+    ])("refuses a broken outbox chain naming %j", (brokenEvents) => {
+      expect(
+        alertDetailSchema.safeParse({
+          ...base,
+          kind: "outbox_chain_broken",
+          detail: { brokenEvents },
         }).success,
       ).toBe(false);
     });

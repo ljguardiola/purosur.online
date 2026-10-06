@@ -18,6 +18,7 @@ describe("alertKindPolicy", () => {
     ["backoffice_sign_in_lockout", "warning", ALERT_ESCALATION_DELAY_MS, "sourceAddress", true],
     ["user_access_increased", "critical", null, "user", false],
     ["register_enrolled", "warning", ALERT_ESCALATION_DELAY_MS, "register", false],
+    ["outbox_chain_broken", "warning", ALERT_ESCALATION_DELAY_MS, "device", true],
   ] as const)(
     "%s opens as %s, escalates after %s, is scoped to %s and deduplicates: %s",
     (kind, level, escalatesAfterMs, scopeKind, deduplicates) => {
@@ -48,5 +49,6 @@ describe("alertKindsWithScope", () => {
     ]);
     expect(alertKindsWithScope("sourceAddress")).toEqual(["backoffice_sign_in_lockout"]);
     expect(alertKindsWithScope("register")).toEqual(["register_enrolled"]);
+    expect(alertKindsWithScope("device")).toEqual(["outbox_chain_broken"]);
   });
 });

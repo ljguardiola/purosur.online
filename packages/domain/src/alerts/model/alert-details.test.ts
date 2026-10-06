@@ -40,4 +40,12 @@ describe("OpenAlertInput", () => {
       detail: { cause: "role_assigned"; actorId: string };
     }>().not.toExtend<OpenAlertInput>();
   });
+
+  it("accepts a broken outbox chain naming the events whose link did not match", () => {
+    expectTypeOf<{
+      kind: "outbox_chain_broken";
+      scope: string;
+      detail: { brokenEvents: readonly { deviceSeq: number; eventId: string }[] };
+    }>().toExtend<OpenAlertInput>();
+  });
 });
