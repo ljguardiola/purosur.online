@@ -55,30 +55,34 @@ function withoutGlobalObject(name) {
 }
 
 function joinName(...parts) {
-  return parts.filter((part) => part !== undefined).join(".");
+  return parts.filter((part) => part !== undefined && part !== "").join(".");
+}
+
+function moduleMember(moduleName, exported) {
+  return exported === "default" ? (moduleName ?? "") : joinName(moduleName, exported);
+}
+
+function isClockModule(node) {
+  return node !== undefined && ts.isStringLiteral(node) && CLOCK_MODULES.has(node.text);
 }
 
 function clockModuleImports(sourceFile) {
   const imports = new Map();
   for (const statement of sourceFile.statements) {
-    if (
-      !ts.isImportDeclaration(statement) ||
-      !ts.isStringLiteral(statement.moduleSpecifier) ||
-      !CLOCK_MODULES.has(statement.moduleSpecifier.text)
-    ) {
+    if (!ts.isImportDeclaration(statement) || !isClockModule(statement.moduleSpecifier)) {
       continue;
     }
     const moduleName = CLOCK_MODULES.get(statement.moduleSpecifier.text);
     const clause = statement.importClause;
-    if (clause?.name) imports.set(clause.name.text, moduleName);
+    if (clause?.name) imports.set(clause.name.text, moduleName ?? "");
     const bindings = clause?.namedBindings;
     if (bindings && ts.isNamespaceImport(bindings)) {
-      imports.set(bindings.name.text, moduleName);
+      imports.set(bindings.name.text, moduleName ?? "");
     }
     if (bindings && ts.isNamedImports(bindings)) {
       for (const element of bindings.elements) {
         const imported = (element.propertyName ?? element.name).text;
-        imports.set(element.name.text, joinName(moduleName, imported));
+        imports.set(element.name.text, moduleMember(moduleName, imported));
       }
     }
   }
@@ -89,8 +93,7 @@ function resolveImport(name, imports) {
   if (name === undefined) return undefined;
   const [first, ...rest] = name.split(".");
   if (!imports.has(first)) return name;
-  const resolved = joinName(imports.get(first), ...rest);
-  return resolved === "" ? undefined : resolved;
+  return joinName(imports.get(first), ...rest);
 }
 
 function isExpressionName(node) {
@@ -123,11 +126,66 @@ function isClockRead(name) {
   );
 }
 
+function exposesClock(name) {
+  if (name === undefined) return false;
+  return (
+    name === "" ||
+    [...CLOCK_READS, ...CLOCK_NAMESPACES].some(
+      (clock) => clock === name || clock.startsWith(`${name}.`),
+    ) ||
+    isClockRead(name)
+  );
+}
+
+function reexportsClock(statement, imports) {
+  if (!ts.isExportDeclaration(statement)) return false;
+  const clause = statement.exportClause;
+  if (statement.moduleSpecifier !== undefined) {
+    if (!isClockModule(statement.moduleSpecifier)) return false;
+    if (clause === undefined || ts.isNamespaceExport(clause)) return true;
+    const moduleName = CLOCK_MODULES.get(statement.moduleSpecifier.text);
+    return clause.elements.some((element) =>
+      exposesClock(moduleMember(moduleName, (element.propertyName ?? element.name).text)),
+    );
+  }
+  return (
+    clause !== undefined &&
+    ts.isNamedExports(clause) &&
+    clause.elements.some((element) =>
+      exposesClock(resolveImport((element.propertyName ?? element.name).text, imports)),
+    )
+  );
+}
+
+function destructuresClock(pattern, objectName) {
+  if (objectName === undefined) return false;
+  return pattern.elements.some((element) => {
+    const property = element.propertyName ?? element.name;
+    if (!ts.isIdentifier(property) && !ts.isStringLiteral(property)) return false;
+    const name = joinName(objectName, property.text);
+    return ts.isObjectBindingPattern(element.name)
+      ? destructuresClock(element.name, name)
+      : exposesClock(name);
+  });
+}
+
 function realClockReads(sourceFile) {
   const imports = clockModuleImports(sourceFile);
   const nameOf = (node) => resolveImport(withoutGlobalObject(dottedName(node)), imports);
   const isCurrentDateConstructor = (node) => nameOf(node) === "Date";
+  const objectNameOf = (node) => (GLOBAL_OBJECTS.has(dottedName(node)) ? "" : nameOf(node));
   return descendants(sourceFile).flatMap((node) => {
+    if (reexportsClock(node, imports)) {
+      return [{ node, reason: "re-exports the real clock" }];
+    }
+    if (
+      (ts.isVariableDeclaration(node) || ts.isParameter(node)) &&
+      ts.isObjectBindingPattern(node.name) &&
+      node.initializer !== undefined &&
+      destructuresClock(node.name, objectNameOf(node.initializer))
+    ) {
+      return [{ node, reason: "reads the real clock by destructuring it" }];
+    }
     if (
       ts.isNewExpression(node) &&
       isCurrentDateConstructor(node.expression) &&
