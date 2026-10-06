@@ -135,6 +135,7 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
       actorId: null,
       previousValue: { revoked_at: null, revocation_reason: null },
       newValue: {
+        register_id: revocation.registerId,
         revoked_at: revocation.revokedAt.toISOString(),
         revocation_reason: replacedRevocationReason,
       },
