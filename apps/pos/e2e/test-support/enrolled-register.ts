@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { ElectronApplication, Page } from "playwright";
+import { expect, vi } from "vitest";
 import { launchApp, writeChannelFile } from "../launch-app";
 import type { StandInCloud } from "./stand-in-cloud";
 
@@ -24,6 +25,28 @@ interface RunningRegister {
 function localDataFolderOf(userData: string, dataFolder: string): string {
   const localAppData = process.env["LOCALAPPDATA"];
   return process.platform === "win32" && localAppData ? join(localAppData, dataFolder) : userData;
+}
+
+function isRunning(processId: number): boolean {
+  try {
+    process.kill(processId, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "EPERM";
+  }
+}
+
+async function closeEveryProcessOf(app: ElectronApplication): Promise<void> {
+  const processIds = await app.evaluate(({ app: electronApp }) =>
+    electronApp.getAppMetrics().map((metric) => metric.pid),
+  );
+  await app.close();
+  await vi.waitFor(
+    () => {
+      expect(processIds.filter(isRunning)).toEqual([]);
+    },
+    { timeout: 10_000, interval: 100 },
+  );
 }
 
 async function enroll(page: Page, cloud: StandInCloud): Promise<void> {
@@ -69,7 +92,9 @@ export function enrolledRegister(cloud: StandInCloud): EnrolledRegister {
 
   async function stop(): Promise<void> {
     running = undefined;
-    await openApp?.close();
+    if (openApp !== undefined) {
+      await closeEveryProcessOf(openApp);
+    }
     openApp = undefined;
   }
 

@@ -30,9 +30,13 @@ describe("a register whose local database is damaged", () => {
   });
 
   it("starts out of service, says it needs restoring and pushes nothing to the cloud", async () => {
-    const requestsBefore = cloud.requests.length;
+    let requestsBefore = 0;
 
-    await register.restartAfter(replaceDatabaseWithBytesThatAreNotOne);
+    await register.restartAfter(async (localDataFolder) => {
+      await cloud.dropEveryConnection();
+      requestsBefore = cloud.requests.length;
+      await replaceDatabaseWithBytesThatAreNotOne(localDataFolder);
+    });
 
     await register.page.getByText("La caja necesita restaurarse", { exact: true }).waitFor();
     await vi.waitFor(
