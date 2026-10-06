@@ -108,3 +108,10 @@ export {
   signInLockoutWindowStart,
 } from "./model/sign-in-lockout.js";
 export { signInLookupAttemptWindowStart } from "./model/sign-in-lookup-attempt-limit.js";
+export {
+  mayDeactivateUser,
+  mayEditUser,
+  mayReactivateUser,
+  mayRemovePasskeyOf,
+  mayRemoveUserPasskey,
+} from "./model/user-management.js";
