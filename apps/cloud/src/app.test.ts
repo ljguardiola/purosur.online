@@ -12,7 +12,17 @@ import {
 import { CAPABILITY_PERMISSIONS, PERMISSION_KEYS, type PermissionKey } from "@purosur/domain";
 import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support";
 import { eq } from "drizzle-orm";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  expectTypeOf,
+  it,
+  vi,
+} from "vitest";
 import {
   capabilityAccess,
   OPEN_SESSION_ACCESS,
@@ -24,7 +34,7 @@ import {
 } from "./access/route-access.js";
 import { SESSION_COOKIE_NAME } from "./access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "./access/session-id.js";
-import { buildApp as buildRealApp, databaseRouteOptions } from "./app.js";
+import { type BuildAppOptions, buildApp as buildRealApp, databaseRouteOptions } from "./app.js";
 import {
   passkeys,
   rolePermissions,
@@ -33,10 +43,7 @@ import {
   userRoles,
   users,
 } from "./platform/db/schema.js";
-import {
-  ENROLLED_TOKEN_ISSUED_AT,
-  insertEnrolledInstallation,
-} from "./register/test-support/enrolled-installation.js";
+import { insertEnrolledInstallation } from "./register/test-support/enrolled-installation.js";
 import {
   buildTestApp as buildApp,
   TEST_EDGE_ORIGIN_SECRET,
@@ -60,8 +67,13 @@ beforeEach(async () => {
   await testDatabase.clear();
 });
 
-afterEach(() => {
-  vi.useRealTimers();
+const APP_CLOCK = new Date("2020-06-15T12:00:00.000Z");
+const A_DAY_BEFORE_THE_APP_CLOCK = new Date("2020-06-14T12:00:00.000Z");
+
+describe("BuildAppOptions", () => {
+  it("refuses options without the clock", () => {
+    expectTypeOf<Omit<BuildAppOptions, "now">>().not.toExtend<BuildAppOptions>();
+  });
 });
 
 describe("GET /api/health", () => {
@@ -75,10 +87,12 @@ describe("GET /api/health", () => {
   });
 
   it("reaches the enrolled installations when the device routes are wired", async () => {
-    vi.useFakeTimers({ toFake: ["Date"], now: ENROLLED_TOKEN_ISSUED_AT });
-    const { deviceToken } = await insertEnrolledInstallation(testDatabase.db);
+    const { deviceToken } = await insertEnrolledInstallation(testDatabase.db, {
+      tokenIssuedAt: A_DAY_BEFORE_THE_APP_CLOCK,
+    });
     const app = buildApp({
       version: "abc1234",
+      now: () => APP_CLOCK,
       devices: {
         db: testDatabase.db,
         rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
@@ -99,10 +113,12 @@ describe("GET /api/health", () => {
 
 describe("GET /api/changes", () => {
   it("pulls the enrolled installation's branch changes when the device routes are wired", async () => {
-    vi.useFakeTimers({ toFake: ["Date"], now: ENROLLED_TOKEN_ISSUED_AT });
-    const { deviceToken } = await insertEnrolledInstallation(testDatabase.db);
+    const { deviceToken } = await insertEnrolledInstallation(testDatabase.db, {
+      tokenIssuedAt: A_DAY_BEFORE_THE_APP_CLOCK,
+    });
     const app = buildApp({
       version: "abc1234",
+      now: () => APP_CLOCK,
       devices: {
         db: testDatabase.db,
         rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
