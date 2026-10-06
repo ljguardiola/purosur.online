@@ -149,11 +149,15 @@ async function runMutationOn(writeFixture, strykerArgsFor = () => []) {
         "export default { ...config, concurrency: 2 };",
       ].join("\n"),
     );
-    return spawnSync(process.execPath, [strykerBin, "run", "stryker.fixture.config.mjs", ...strykerArgsFor(dir)], {
-      cwd: dir,
-      encoding: "utf8",
-      env: { PATH: process.env.PATH, NO_COLOR: "1" },
-    });
+    return spawnSync(
+      process.execPath,
+      [strykerBin, "run", "stryker.fixture.config.mjs", ...strykerArgsFor(dir)],
+      {
+        cwd: dir,
+        encoding: "utf8",
+        env: { PATH: process.env.PATH, NO_COLOR: "1" },
+      },
+    );
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
