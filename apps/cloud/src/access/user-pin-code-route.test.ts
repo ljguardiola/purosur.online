@@ -211,20 +211,69 @@ describe("POST /users/:id/pin-codes", () => {
   });
 
   describe("a target out of the actor's standing", () => {
-    it("answers the same 404 for a missing target, an Administrator and the holder's own account in any letter case", async () => {
+    it("answers the same 404 for a missing target and an Administrator", async () => {
       const missing = await emitPinCode(MISSING_ID, holderSession);
       const administrator = await emitPinCode(administratorId, holderSession);
-      const own = await emitPinCode(holderId, holderSession);
-      const ownUpperCase = await emitPinCode(holderId.toUpperCase(), holderSession);
 
       expect(missing.statusCode).toBe(404);
       expect(missing.json()).toMatchObject({ code: "not_found" });
-      for (const response of [administrator, own, ownUpperCase]) {
-        expect(response.statusCode).toBe(404);
-        expect(response.json()).toEqual(missing.json());
-      }
+      expect(administrator.statusCode).toBe(404);
+      expect(administrator.json()).toEqual(missing.json());
       expect(await codesOf(administratorId)).toHaveLength(0);
-      expect(await codesOf(holderId)).toHaveLength(0);
+    });
+  });
+
+  describe("a person's own account", () => {
+    let personId: string;
+    let personSession: string;
+
+    beforeEach(async () => {
+      personId = await insertUser({
+        firstName: "Margaret Hamilton",
+        email: "margaret@example.com",
+        roleId: await insertRole("Cajera"),
+      });
+      personSession = await insertSession(personId);
+    });
+
+    it("answers 201 to a person without the reset_user_pin permission, in any letter case", async () => {
+      const lower = await emitPinCode(personId, personSession);
+      const upper = await emitPinCode(personId.toUpperCase(), personSession);
+
+      expect(lower.statusCode).toBe(201);
+      expect(upper.statusCode).toBe(201);
+      expect(await codesOf(personId)).toHaveLength(2);
+    });
+
+    it("answers 201 to a holder of reset_user_pin who is not an Administrator", async () => {
+      const response = await emitPinCode(holderId, holderSession);
+
+      expect(response.statusCode).toBe(201);
+      expect((await codesOf(holderId))[0]).toMatchObject({ issuedBy: holderId });
+    });
+
+    it("answers 403 forbidden to a person without the permission aiming at another user, emitting nothing", async () => {
+      const other = await emitPinCode(targetId, personSession);
+      const missing = await emitPinCode(MISSING_ID, personSession);
+      const administrator = await emitPinCode(administratorId, personSession);
+
+      for (const response of [other, missing, administrator]) {
+        expect(response.statusCode).toBe(403);
+        expect(response.json()).toMatchObject({ code: "forbidden" });
+      }
+      expect(await codesOf(targetId)).toHaveLength(0);
+      expect(await codesOf(administratorId)).toHaveLength(0);
+    });
+
+    it("returns 401 authorization_required when the authorization is stale, emitting nothing", async () => {
+      const stale = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
+      const staleSession = await insertSession(personId, stale);
+
+      const response = await emitPinCode(personId, staleSession);
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json()).toMatchObject({ code: "authorization_required" });
+      expect(await codesOf(personId)).toHaveLength(0);
     });
   });
 
