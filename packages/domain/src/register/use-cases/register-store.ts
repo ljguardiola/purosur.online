@@ -96,6 +96,21 @@ export interface EnrollmentAlert {
   enrolledAt: Date;
 }
 
+export interface InstallationRevocation {
+  registerId: string;
+  deviceId: string;
+  revokedAt: Date;
+}
+
+export interface InstallationEnrollment {
+  registerId: string;
+  deviceId: string;
+  hostname: string;
+  windowsVersion: string;
+  replacedDeviceId: string | null;
+  enrolledAt: Date;
+}
+
 export interface RegisterKeys {
   snapshotKeys: VersionedKey[];
   contingencyTicketKeys: VersionedKey[];
@@ -113,8 +128,13 @@ export interface RegisterStoreTransaction {
   acceptedEnrollmentAttempts(key: EnrollmentAttemptKey, since: Date): Promise<Date[]>;
   recordEnrollmentAttempt(keys: readonly EnrollmentAttemptKey[], attemptedAt: Date): Promise<void>;
   recordFailedEnrollmentAttempt(registerIds: readonly string[]): Promise<void>;
-  revokeActiveInstallation(registerId: string, revokedAt: Date): Promise<{ revoked: boolean }>;
+  revokeActiveInstallation(
+    registerId: string,
+    revokedAt: Date,
+  ): Promise<{ revokedDeviceId: string | null }>;
+  recordInstallationRevocation(revocation: InstallationRevocation): Promise<void>;
   recordInstallation(installation: NewInstallation): Promise<{ deviceId: string }>;
+  recordInstallationEnrollment(enrollment: InstallationEnrollment): Promise<void>;
   lockInstallationByTokenPrefix(lookupPrefix: string): Promise<LockedInstallation | undefined>;
   promotePendingDeviceToken(deviceId: string): Promise<void>;
   recordPendingDeviceToken(deviceId: string, token: StoredDeviceToken): Promise<void>;
