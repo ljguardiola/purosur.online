@@ -16,11 +16,13 @@ import { PUBLIC_ACCESS } from "../access/route-access.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
 import { authenticateDevice } from "../register/device-authentication.js";
+import { installationKeyCipher } from "../register/installation-key-cipher.js";
 import {
   type DeviceTokensOptions,
   installationTokenPorts,
 } from "../register/installation-token-ports.js";
 import { DrizzleInbox } from "./drizzle-inbox.js";
+import { hmacEventChain } from "./hmac-event-chain.js";
 
 export type EventsRouteOptions<TQueryResult extends PgQueryResultHKT> =
   DeviceTokensOptions<TQueryResult>;
@@ -54,7 +56,8 @@ export function registerEventsRoute<TQueryResult extends PgQueryResultHKT>(
 ): void {
   const tokenPorts = installationTokenPorts(options);
   const ports = {
-    inbox: new DrizzleInbox(options.db),
+    inbox: new DrizzleInbox(options.db, installationKeyCipher(options.keysEncryptionKey)),
+    eventChain: hmacEventChain,
     clock: { now: options.now ?? (() => new Date()) },
   };
 

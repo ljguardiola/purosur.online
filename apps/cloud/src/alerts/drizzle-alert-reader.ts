@@ -15,6 +15,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   alertDeliveries,
   alerts,
+  registerInstallations,
   registers,
   roles,
   userRoles,
@@ -183,7 +184,12 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
       .select({ id: registers.id, name: registers.name })
       .from(registers)
       .where(inArray(sql`${registers.id}::text`, [...ids]));
-    return new Map([...userRows, ...registerRows].map((row) => [row.id, row.name]));
+    const deviceRows = await this.db
+      .select({ id: registerInstallations.id, name: registers.name })
+      .from(registerInstallations)
+      .innerJoin(registers, eq(registers.id, registerInstallations.registerId))
+      .where(inArray(sql`${registerInstallations.id}::text`, [...ids]));
+    return new Map([...userRows, ...registerRows, ...deviceRows].map((row) => [row.id, row.name]));
   }
 
   private searchCondition(search: AlertSearch): SQL | undefined {
@@ -196,6 +202,11 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
       .select({ id: sql<string>`${registers.id}::text` })
       .from(registers)
       .where(ilike(registers.name, pattern));
+    const matchingDeviceIds = this.db
+      .select({ id: sql<string>`${registerInstallations.id}::text` })
+      .from(registerInstallations)
+      .innerJoin(registers, eq(registers.id, registerInstallations.registerId))
+      .where(ilike(registers.name, pattern));
     return or(
       search.kindsWithMatchingTitle.length > 0
         ? inArray(alerts.kind, [...search.kindsWithMatchingTitle])
@@ -207,6 +218,10 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
       and(
         inArray(alerts.kind, alertKindsWithScope("register")),
         inArray(alerts.scope, matchingRegisterIds),
+      ),
+      and(
+        inArray(alerts.kind, alertKindsWithScope("device")),
+        inArray(alerts.scope, matchingDeviceIds),
       ),
       and(
         inArray(alerts.kind, alertKindsWithScope("sourceAddress")),

@@ -675,6 +675,8 @@ export const deviceState = pgTable("device_state", {
   walSizeBytes: bigint("wal_size_bytes", { mode: "number" }),
   diskFreeBytes: bigint("disk_free_bytes", { mode: "number" }),
   diskFreeRatio: doublePrecision("disk_free_ratio"),
+  // The chain value of the last event received from the outbox; null until the first one.
+  lastChainHmac: text("last_chain_hmac"),
 });
 
 export const inbox = pgTable(

@@ -5,13 +5,18 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { deviceState, inbox } from "../platform/db/schema.js";
+import { installationKeyCipher } from "../register/installation-key-cipher.js";
 import { insertEnrolledInstallation as enrollInstallation } from "../register/test-support/enrolled-installation.js";
+import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
 import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock.js";
 import { DrizzleInbox } from "./drizzle-inbox.js";
+import { hmacEventChain } from "./hmac-event-chain.js";
+
+const CIPHER = installationKeyCipher(TEST_INSTALLATION_KEYS_ENCRYPTION_KEY);
 
 // PGlite runs every query over one connection, so two pushes can never overlap there, and it has
 // no roles to show which privileges the inbox needs.
@@ -61,7 +66,7 @@ function insertEnrolledInstallation() {
 
 function push(deviceId: string, events: PushedEvent[]) {
   return receivePushedEvents(
-    { inbox: new DrizzleInbox(db), clock: { now: () => NOW } },
+    { inbox: new DrizzleInbox(db, CIPHER), eventChain: hmacEventChain, clock: { now: () => NOW } },
     { deviceId, appVersion: "1.4.0", telemetry: TELEMETRY, events },
   );
 }
@@ -106,7 +111,7 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
       .values([event(4), event(1), event(2)].map((pushed) => storedRow(first.deviceId, pushed)));
     await db.insert(inbox).values(storedRow(second.deviceId, event(3)));
 
-    const seqs = await new DrizzleInbox(db).transaction((tx) =>
+    const seqs = await new DrizzleInbox(db, CIPHER).transaction((tx) =>
       tx.receivedDeviceSeqs(first.deviceId),
     );
 
@@ -146,6 +151,7 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
         appVersion: "1.4.0",
         lastPushedAt: NOW,
         walSizeBytes: 4096,
+        lastChainHmac: "hmac",
         diskFreeBytes: 50_000_000,
         diskFreeRatio: 0.42,
       },

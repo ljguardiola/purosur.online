@@ -379,6 +379,13 @@
       "when": 1790868188842,
       "tag": "0053_fiscal_addresses_and_points_of_sale",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1791246009907,
+      "tag": "0054_outbox_chain_anchor",
+      "breakpoints": true
     }
   ]
 }
