@@ -73,13 +73,15 @@ describe("GET /inventory-items", () => {
     expect(response.statusCode).toBe(200);
   });
 
-  it("lists the active products", async () => {
+  it("lists every product, deactivated ones flagged", async () => {
     const { headers } = await signedInWith(db, ["record_stock_losses"], NOON);
     const almonds = await insertProduct(db, {
       name: "Almendras peladas",
       categoryName: "Frutos secos",
       saleUnit: "KG",
     });
+
+    const oats = await insertProduct(db, { name: "Avena", active: false });
 
     const response = await listProducts(headers);
 
@@ -91,6 +93,15 @@ describe("GET /inventory-items", () => {
           categoryId: almonds.categoryId,
           categoryName: "Frutos secos",
           saleUnit: "KG",
+          active: true,
+        },
+        {
+          id: oats.productId,
+          name: "Avena",
+          categoryId: oats.categoryId,
+          categoryName: "Almacén",
+          saleUnit: "UNIT",
+          active: false,
         },
       ],
     });

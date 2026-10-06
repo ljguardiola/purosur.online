@@ -8,13 +8,12 @@ const LATER = new Date("2026-09-20T12:00:00.000Z");
 const KEY = { productId: "product-1", locationId: "branch-1" };
 
 function storeWithProduct(
-  overrides: { active?: boolean; saleUnit?: "UNIT" | "KG"; balance?: number } = {},
+  overrides: { saleUnit?: "UNIT" | "KG"; balance?: number } = {},
 ): FakeStockStore {
   const store = new FakeStockStore();
   store.seedProduct({
     id: "product-1",
     saleUnit: overrides.saleUnit ?? "UNIT",
-    active: overrides.active ?? true,
   });
   store.seedBalance({ ...KEY, quantity: overrides.balance ?? 19_000 });
   return store;
@@ -43,21 +42,15 @@ function adjust(
 }
 
 describe("recordAdjustment", () => {
-  it.each([
-    ["doesn't exist", "missing", true],
-    ["is inactive", "product-1", false],
-  ])(
-    "answers not_found for a product that %s, writing nothing",
-    async (_case, productId, active) => {
-      const store = storeWithProduct({ active });
-      const before = store.snapshot();
+  it("answers not_found for a product that doesn't exist, writing nothing", async () => {
+    const store = storeWithProduct();
+    const before = store.snapshot();
 
-      const outcome = await adjust(store, { productId });
+    const outcome = await adjust(store, { productId: "missing" });
 
-      expect(outcome).toEqual({ kind: "not_found" });
-      expect(store.snapshot()).toEqual(before);
-    },
-  );
+    expect(outcome).toEqual({ kind: "not_found" });
+    expect(store.snapshot()).toEqual(before);
+  });
 
   it("refuses to add stock returned to a supplier, writing nothing", async () => {
     const store = storeWithProduct();

@@ -17,7 +17,7 @@ export class FakeStockLedgerReader implements StockLedgerReader {
     this.ledger = ledger;
   }
 
-  async activeProduct(productId: string): Promise<StockProduct | undefined> {
+  async product(productId: string): Promise<StockProduct | undefined> {
     return this.products.find((product) => product.id === productId);
   }
 

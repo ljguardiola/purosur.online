@@ -272,7 +272,6 @@ test.each([
   ],
   [{ kind: "failed" }, "No se pudo guardar el recuento"],
   [{ kind: "rate_limited", retryAfterSeconds: 30 }, "Demasiadas solicitudes"],
-  [{ kind: "not_found" }, "Producto desactivado"],
 ] as const)("keeps the modal open and explains the refusal %j", async (outcome, message) => {
   const services = createServices();
   vi.mocked(services.registerCount).mockResolvedValue(outcome);

@@ -6,6 +6,7 @@ import {
   SearchField,
   Table,
   TableCellText,
+  Tag,
   useTableModel,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
@@ -55,7 +56,10 @@ const columns = [
     id: "product",
     header: "Producto",
     render: (item: StockBalance) => (
-      <TableCellText description={item.categoryName}>{item.name}</TableCellText>
+      <div className="flex items-center gap-2">
+        <TableCellText description={item.categoryName}>{item.name}</TableCellText>
+        {item.active ? null : <Tag tone="neutral">Desactivado</Tag>}
+      </div>
     ),
   }),
   dataColumn({

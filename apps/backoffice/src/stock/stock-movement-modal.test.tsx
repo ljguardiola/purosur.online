@@ -5,7 +5,13 @@ import { render } from "../shell/test-support/render-with-router";
 import type { MovementKind } from "./stock-movement-form";
 import { StockMovementModal } from "./stock-movement-modal";
 import type { StockMovementsScreenServices } from "./stock-movements-services";
-import { almonds, honey, movementReasons, withoutBalance } from "./test-support/stock-fixtures";
+import {
+  almonds,
+  honey,
+  movementReasons,
+  oats,
+  withoutBalance,
+} from "./test-support/stock-fixtures";
 
 beforeEach(async () => {
   await page.viewport(1280, 900);
@@ -171,4 +177,39 @@ test("shows a failed load of the reasons with a retry that loads the form again"
   await userEvent.click(dialog.getByRole("button", { name: "Reintentar" }));
 
   await expect.element(dialog.getByRole("button", { name: /Producto/ })).toBeVisible();
+});
+
+test("offers a deactivated product in the selector marked as deactivated", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchStockProducts).mockResolvedValue({
+    kind: "ok",
+    value: { products: [almonds, oats, honey].map(withoutBalance) },
+  });
+  const { screen, dialog } = await renderForm(services);
+
+  await userEvent.click(dialog.getByRole("button", { name: /Producto/ }));
+
+  await expect
+    .element(screen.getByRole("option", { name: /Avena arrollada/ }).getByText("Desactivado"))
+    .toBeVisible();
+  expect(
+    screen
+      .getByRole("option", { name: /Almendras peladas/ })
+      .getByText("Desactivado")
+      .query(),
+  ).toBeNull();
+});
+
+test("keeps the modal open and says the product no longer exists when the cloud cannot find it", async () => {
+  const services = createServices();
+  vi.mocked(services.recordLoss).mockResolvedValue({ kind: "not_found" });
+  const rendered = await renderForm(services, { kinds: ["loss"] });
+  const { dialog } = rendered;
+  await chooseProduct(rendered, "Miel pura de abeja 1 kg");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad perdida/ }), "1");
+  await userEvent.click(cardLabel(rendered, "Robo"));
+
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar la pérdida" }));
+
+  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Este producto ya no existe");
 });

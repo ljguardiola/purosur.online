@@ -106,15 +106,27 @@ function portsAt(moment: Date) {
 }
 
 describe("DrizzleStockStore", () => {
-  it("answers not_found for a deactivated product, creating no balance for it", async () => {
+  it("answers not_found for a product that doesn't exist, creating no balance for it", async () => {
     const locationId = await seededLocationId(db);
-    const productId = await insertProduct({ active: false });
+    const store = new DrizzleStockStore(db);
+
+    const locked = await store.transaction((tx) =>
+      tx.lockProductStock({ productId: "00000000-0000-4000-8000-000000000000", locationId }),
+    );
+
+    expect(locked).toEqual({ kind: "not_found" });
+    expect(await db.select().from(stockBalances)).toEqual([]);
+  });
+
+  it("locks a deactivated product with the balance it still holds", async () => {
+    const locationId = await seededLocationId(db);
+    const productId = await insertProduct({ active: false, saleUnit: "KG" });
+    await db.insert(stockBalances).values({ productId, locationId, quantity: 3000 });
     const store = new DrizzleStockStore(db);
 
     const locked = await store.transaction((tx) => tx.lockProductStock({ productId, locationId }));
 
-    expect(locked).toEqual({ kind: "not_found" });
-    expect(await db.select().from(stockBalances)).toEqual([]);
+    expect(locked).toEqual({ kind: "locked", saleUnit: "KG", balance: 3000 });
   });
 
   it("locks a product with no movement yet at a zero balance, with its sale unit", async () => {

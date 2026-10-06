@@ -155,17 +155,11 @@ describe("POST /inventory-counts", () => {
     expect(response.json()).toMatchObject({ balance: 5000, superseded: true });
   });
 
-  it.each([
-    ["an unknown product", async () => "00000000-0000-4000-8000-000000000000"],
-    [
-      "a deactivated product",
-      async () => (await insertProduct(db, { name: "Arroz", active: false })).productId,
-    ],
-  ])("answers 404 for %s", async (_case, productOf) => {
+  it("answers 404 for an unknown product", async () => {
     const { headers } = await signedInWith(db, ["perform_stock_counts"], NOW);
 
     const response = await registerCountRequest(headers, {
-      productId: await productOf(),
+      productId: "00000000-0000-4000-8000-000000000000",
       counted: 1000,
       occurredAt: COUNTED_AT.toISOString(),
     });
@@ -425,6 +419,7 @@ describe("GET /inventory-levels/:productId", () => {
       categoryId,
       categoryName: "Frutos secos",
       saleUnit: "KG",
+      active: true,
       balance: 17_000,
     });
   });

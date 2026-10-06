@@ -9,6 +9,7 @@ const honey: StockProduct = {
   categoryId: "category-1",
   categoryName: "Almacén",
   saleUnit: "UNIT",
+  active: true,
 };
 
 const moment = new Date("2027-04-10T12:00:00Z");
@@ -38,7 +39,7 @@ describe("expectedBalanceAt", () => {
     ]);
   });
 
-  it("reports a product that is not active as not found, without reading the ledger", async () => {
+  it("reports an unknown product as not found, without reading the ledger", async () => {
     const ledger = new FakeStockLedgerReader([honey], { balance: 12, appliedAfterCount: 5 });
 
     const outcome = await expectedBalanceAt(

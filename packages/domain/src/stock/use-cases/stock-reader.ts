@@ -9,6 +9,7 @@ export interface StockProduct {
   categoryId: string;
   categoryName: string;
   saleUnit: SaleUnit;
+  active: boolean;
 }
 
 export interface StockLevel extends StockProduct {
@@ -57,12 +58,12 @@ export interface StockMovementsQuery extends StockPeriodQuery {
 }
 
 export interface StockLedgerReader {
-  activeProduct(productId: string): Promise<StockProduct | undefined>;
+  product(productId: string): Promise<StockProduct | undefined>;
   ledgerAt(key: ProductStockKey, at: Date): Promise<LedgerAtMoment>;
 }
 
 export interface StockListReader {
-  activeProducts(): Promise<StockProduct[]>;
+  products(): Promise<StockProduct[]>;
   stockLevels(locationId: string): Promise<StockLevel[]>;
   counts(query: StockPeriodQuery): Promise<RecordedStockCount[]>;
   movements(query: StockMovementsQuery): Promise<RecordedStockMovement[]>;

@@ -108,6 +108,7 @@ describe("GET /inventory-levels", () => {
           categoryId: almonds.categoryId,
           categoryName: "Frutos secos",
           saleUnit: "KG",
+          active: true,
           balance: 12_150,
         },
       ],

@@ -12,6 +12,7 @@ export const almonds: StockBalance = {
   categoryId: "category-nuts",
   categoryName: "Frutos secos",
   saleUnit: "KG",
+  active: true,
   balance: 12_150,
 };
 
@@ -21,6 +22,7 @@ export const honey: StockBalance = {
   categoryId: "category-grocery",
   categoryName: "Almacén",
   saleUnit: "UNIT",
+  active: true,
   balance: 24_000,
 };
 
@@ -30,6 +32,7 @@ export const crackers: StockBalance = {
   categoryId: "category-grocery",
   categoryName: "Almacén",
   saleUnit: "UNIT",
+  active: true,
   balance: -4000,
 };
 
@@ -39,7 +42,18 @@ export const tea: StockBalance = {
   categoryId: "category-grocery",
   categoryName: "Almacén",
   saleUnit: "UNIT",
+  active: true,
   balance: 0,
+};
+
+export const oats: StockBalance = {
+  id: "55555555-5555-4555-8555-555555555555",
+  name: "Avena arrollada",
+  categoryId: "category-grocery",
+  categoryName: "Almacén",
+  saleUnit: "UNIT",
+  active: false,
+  balance: 3000,
 };
 
 export const almondsCount: StockCount = {

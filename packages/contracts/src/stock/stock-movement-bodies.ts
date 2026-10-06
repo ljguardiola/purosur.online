@@ -14,7 +14,7 @@ import {
 import { z } from "zod";
 import { recordIdSchema } from "../shared/index.js";
 
-const PRODUCT_ID_MESSAGE = "productId must be an active product's id";
+const PRODUCT_ID_MESSAGE = "productId must be a product's id";
 const QUANTITY_MESSAGE = "quantity must be a positive integer number of thousandths";
 const COUNTED_MESSAGE = "counted must be a non-negative integer number of thousandths";
 

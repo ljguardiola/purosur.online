@@ -6,7 +6,7 @@ import { render } from "../shell/test-support/render-with-router";
 import { type StockBalancesFilters, stockBalancesFilters } from "./routes";
 import { StockBalancesScreen } from "./stock-balances-screen";
 import type { StockBalancesScreenServices } from "./stock-balances-services";
-import { almonds, crackers, honey, tea } from "./test-support/stock-fixtures";
+import { almonds, crackers, honey, oats, tea } from "./test-support/stock-fixtures";
 
 function createServices(): StockBalancesScreenServices {
   return { fetchStockBalances: vi.fn() };
@@ -148,4 +148,21 @@ test("ends the session when the cloud says it is over", async () => {
   await renderScreen(services, { onSessionEnded });
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("marks a deactivated product that still holds stock", async () => {
+  const screen = await renderScreen(listed([almonds, oats]));
+
+  const table = screen.getByRole("table", { name: "Saldos" });
+  await expect.element(table.getByText("Avena arrollada")).toBeVisible();
+  await expect.element(table.getByText("Desactivado")).toBeVisible();
+  await expect.element(table.getByText("3 u")).toBeVisible();
+  await expect.element(screen.getByText("2 productos")).toBeVisible();
+});
+
+test("marks no active product as deactivated", async () => {
+  const screen = await renderScreen(listed([almonds]));
+
+  await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+  expect(screen.getByText("Desactivado").query()).toBeNull();
 });

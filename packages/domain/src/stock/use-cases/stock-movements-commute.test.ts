@@ -78,7 +78,7 @@ async function apply(store: FakeStockStore, operation: Operation): Promise<void>
 
 async function finalBalance(operations: readonly Operation[]): Promise<number> {
   const store = new FakeStockStore();
-  store.seedProduct({ id: KEY.productId, saleUnit: "UNIT", active: true });
+  store.seedProduct({ id: KEY.productId, saleUnit: "UNIT" });
   store.seedBalance({ ...KEY, quantity: 10_000 });
   for (const operation of operations) {
     await apply(store, operation);
