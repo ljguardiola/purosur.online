@@ -26,6 +26,7 @@ import type {
   SignInOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
+import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
 import type { CashMovementRequest } from "./register/cash-movement-requests";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
@@ -1819,6 +1820,23 @@ describe("answerRendererRequest", () => {
     expect(failing.failures).toHaveLength(1);
     expect(failing.failures[0]?.context).not.toContain("ada@example.com");
     expect(String(failing.failures[0]?.error)).not.toContain("ada@example.com");
+  });
+
+  it("reports the database damage a lookup fails on as it was raised", async () => {
+    const damage = new Database.SqliteError("database disk image is malformed", "SQLITE_CORRUPT");
+    const failing = deps(true, {
+      signInLookup: async () => {
+        throw damage;
+      },
+    });
+
+    await answerRendererRequest(failing.deps, {
+      type: "sign-in-lookup",
+      request_id: "r17",
+      email: "ada@example.com",
+    });
+
+    expect(failing.failures.map((failure) => failure.error)).toEqual([damage]);
   });
 
   it("answers that the lookup is unavailable when the register has no database", async () => {

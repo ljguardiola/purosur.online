@@ -1,6 +1,7 @@
 import {
   closeSync,
   existsSync,
+  mkdirSync,
   mkdtempSync,
   openSync,
   rmSync,
@@ -133,6 +134,14 @@ describe("starting the register's local database", () => {
   it("is out of service for a healthy database while a damage is recorded", async () => {
     const dataFolder = folder();
     healthyDatabaseIn(dataFolder);
+    writeFileSync(join(dataFolder, "local-database-damaged"), "2026-10-05T00:00:00.000Z");
+
+    expect(await startWith(dataFolder)).toEqual({ kind: "out_of_service" });
+  });
+
+  it("is out of service while a damage is recorded, even when the database cannot be opened", async () => {
+    const dataFolder = folder();
+    mkdirSync(join(dataFolder, "register.sqlite"));
     writeFileSync(join(dataFolder, "local-database-damaged"), "2026-10-05T00:00:00.000Z");
 
     expect(await startWith(dataFolder)).toEqual({ kind: "out_of_service" });

@@ -865,18 +865,25 @@ describe("App", () => {
   });
 
   it("stays on the brand panel after the core comes back up until it answers again whether the register is in service", async () => {
-    const { core } = coreAnswering(true);
+    const { core, asked, cashSessionAsks } = coreAnswering(true);
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
     await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    const cashSessionAsksBeforeRestart = cashSessionAsks.length;
 
-    core.registerService = () => new Promise(() => {});
+    core.registerService = () => {
+      asked.push("register-service");
+      return new Promise(() => {});
+    };
     postCoreStatus("starting");
     await expect
       .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
       .not.toBeInTheDocument();
     postCoreStatus("up");
 
+    await expect.poll(() => asked.filter((q) => q === "register-service").length).toBe(2);
+    await expect.poll(() => asked.filter((q) => q === "enrollment-status").length).toBe(2);
+    expect(cashSessionAsks).toHaveLength(cashSessionAsksBeforeRestart);
     await expect.element(screen.getByRole("img", { name: BRAND_LOGO_ALT })).toBeVisible();
     await expect
       .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
