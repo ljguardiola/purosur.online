@@ -3,6 +3,8 @@ import { enrollmentAttemptWindowStart } from "@purosur/domain";
 import type {
   EnrollmentAlert,
   EnrollmentAttemptKey,
+  InstallationEnrollment,
+  InstallationRevocation,
   LockedEnrollmentCode,
   LockedInstallation,
   NewInstallation,
@@ -16,6 +18,7 @@ import { and, asc, desc, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-o
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
 import {
+  auditLog,
   registerContingencyTicketKeys,
   registerEnrollmentAttempts,
   registerEnrollmentCodes,
@@ -35,6 +38,8 @@ function attemptKeyCondition(key: EnrollmentAttemptKey) {
     eq(registerEnrollmentAttempts.keyValue, key.value),
   );
 }
+
+const replacedRevocationReason = "replaced";
 
 const snapshotKeyPurpose = (registerId: string, version: number) =>
   `snapshot_key:${registerId}:${version}`;
@@ -109,10 +114,10 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
   async revokeActiveInstallation(
     registerId: string,
     revokedAt: Date,
-  ): Promise<{ revoked: boolean }> {
+  ): Promise<{ revokedDeviceId: string | null }> {
     const revoked = await this.tx
       .update(registerInstallations)
-      .set({ revokedAt, revocationReason: "replaced" })
+      .set({ revokedAt, revocationReason: replacedRevocationReason })
       .where(
         and(
           eq(registerInstallations.registerId, registerId),
@@ -120,7 +125,22 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
         ),
       )
       .returning({ id: registerInstallations.id });
-    return { revoked: revoked.length > 0 };
+    return { revokedDeviceId: revoked[0]?.id ?? null };
+  }
+
+  async recordInstallationRevocation(revocation: InstallationRevocation): Promise<void> {
+    await this.tx.insert(auditLog).values({
+      entity: "register_installation",
+      entityId: revocation.deviceId,
+      actorId: null,
+      previousValue: { revoked_at: null, revocation_reason: null },
+      newValue: {
+        register_id: revocation.registerId,
+        revoked_at: revocation.revokedAt.toISOString(),
+        revocation_reason: replacedRevocationReason,
+      },
+      at: revocation.revokedAt,
+    });
   }
 
   async recordInstallation(installation: NewInstallation): Promise<{ deviceId: string }> {
@@ -138,6 +158,23 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
       throw new Error("inserting the new installation returned no row");
     }
     return { deviceId: recorded.id };
+  }
+
+  async recordInstallationEnrollment(enrollment: InstallationEnrollment): Promise<void> {
+    await this.tx.insert(auditLog).values({
+      entity: "register_installation",
+      entityId: enrollment.deviceId,
+      actorId: null,
+      previousValue: null,
+      newValue: {
+        register_id: enrollment.registerId,
+        hostname: enrollment.hostname,
+        windows_version: enrollment.windowsVersion,
+        enrolled_at: enrollment.enrolledAt.toISOString(),
+        replaced_installation_id: enrollment.replacedDeviceId,
+      },
+      at: enrollment.enrolledAt,
+    });
   }
 
   async lockInstallationByTokenPrefix(

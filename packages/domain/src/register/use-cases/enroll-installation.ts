@@ -68,7 +68,14 @@ export async function enrollInstallation(
       return { kind: "code_rejected" };
     }
 
-    const { revoked } = await tx.revokeActiveInstallation(matched.registerId, now);
+    const { revokedDeviceId } = await tx.revokeActiveInstallation(matched.registerId, now);
+    if (revokedDeviceId !== null) {
+      await tx.recordInstallationRevocation({
+        registerId: matched.registerId,
+        deviceId: revokedDeviceId,
+        revokedAt: now,
+      });
+    }
     const registerKeys = await registerKeysHandedOver(tx, installationKeys, matched.registerId);
     const outboxChainKey = installationKeys.generate();
     const issued = tokens.issue();
@@ -82,13 +89,21 @@ export async function enrollInstallation(
       windowsVersion: input.windowsVersion,
       enrolledAt: now,
     });
+    await tx.recordInstallationEnrollment({
+      registerId: matched.registerId,
+      deviceId,
+      hostname: input.hostname,
+      windowsVersion: input.windowsVersion,
+      replacedDeviceId: revokedDeviceId,
+      enrolledAt: now,
+    });
     await tx.markEnrollmentCodeRedeemed(matched.registerId, now);
     await tx.openEnrollmentAlert({
       registerId: matched.registerId,
       deviceId,
       hostname: input.hostname,
       windowsVersion: input.windowsVersion,
-      replacedInstallation: revoked,
+      replacedInstallation: revokedDeviceId !== null,
       enrolledAt: now,
     });
 
