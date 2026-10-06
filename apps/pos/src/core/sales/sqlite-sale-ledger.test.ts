@@ -367,9 +367,18 @@ describe("the sale being built", () => {
         session_id: "session-1",
         actor_id: "u1",
         state: "OPEN",
-        occurred_at: "2026-09-30T12:00:00.000Z",
+        occurred_at: null,
       },
     ]);
+  });
+
+  it("is refused by the database when it is open with a date or completed without one", () => {
+    scan("111");
+
+    expect(() => database.prepare("UPDATE sales SET occurred_at = ?").run(NOW.toISOString())).toThrow(
+      /CHECK/,
+    );
+    expect(() => database.prepare("UPDATE sales SET state = 'COMPLETED'").run()).toThrow(/CHECK/);
   });
 
   it("keeps its lines in the order they were first scanned", () => {
@@ -409,7 +418,6 @@ describe("the sale being built", () => {
           sessionId: "session-1",
           actorId: "u1",
           state: "OPEN",
-          occurredAt: NOW,
         }),
       ),
     ).toThrow(/UNIQUE/);
@@ -417,7 +425,9 @@ describe("the sale being built", () => {
 
   it("is not the current one once it was completed", () => {
     scan("111");
-    database.prepare("UPDATE sales SET state = 'COMPLETED'").run();
+    database
+      .prepare("UPDATE sales SET state = 'COMPLETED', occurred_at = ?")
+      .run(NOW.toISOString());
 
     expect(currentSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" })).toEqual({
       kind: "no_sale",
@@ -567,6 +577,20 @@ describe("charging an open sale in cash", () => {
     );
   }
 
+  it("dates the sale with the moment it was charged, not with the moment it was started", () => {
+    const saleId = sellTwo();
+    const chargedAt = new Date("2026-10-01T00:02:00.000Z");
+
+    chargeSaleInCash(
+      { ledger, clock: { now: () => chargedAt }, ids },
+      { actorId: "u1", saleId, tendered: 5000 },
+    );
+
+    expect(database.prepare("SELECT state, occurred_at FROM sales").all()).toEqual([
+      { state: "COMPLETED", occurred_at: chargedAt.toISOString() },
+    ]);
+  });
+
   it("completes the sale and stores the payment with what was tendered and applied", () => {
     const saleId = sellTwo();
 
@@ -714,8 +738,8 @@ describe("charging an open sale in cash", () => {
     const saleId = sellTwo();
     charge(saleId, 3000);
 
-    expect(() => ledger.transaction((tx) => tx.recordCompletedSale(saleId))).toThrow();
-    expect(() => ledger.transaction((tx) => tx.recordCompletedSale("missing"))).toThrow();
+    expect(() => ledger.transaction((tx) => tx.recordCompletedSale(saleId, NOW))).toThrow();
+    expect(() => ledger.transaction((tx) => tx.recordCompletedSale("missing", NOW))).toThrow();
   });
 });
 
@@ -744,9 +768,9 @@ function addSale(id: string, state: string, productIds: string[], registerId = "
   database
     .prepare(
       `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
-       VALUES (?, ?, 'device-1', 'session-1', 'u1', ?, '2026-09-30T09:00:00.000Z')`,
+       VALUES (?, ?, 'device-1', 'session-1', 'u1', ?, ?)`,
     )
-    .run(id, registerId, state);
+    .run(id, registerId, state, state === "OPEN" ? null : "2026-09-30T09:00:00.000Z");
   productIds.forEach((productId, index) => {
     database
       .prepare(

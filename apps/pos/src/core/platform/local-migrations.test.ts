@@ -859,6 +859,7 @@ describe("the register's local migrations", () => {
         "0016_register_point_of_sale",
         "0017_completed_sales_only",
         "0018_transfer_payments",
+        "0019_sales_dated_when_charged",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -904,6 +905,7 @@ describe("the register's local migrations", () => {
         "0016_register_point_of_sale",
         "0017_completed_sales_only",
         "0018_transfer_payments",
+        "0019_sales_dated_when_charged",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -944,6 +946,7 @@ describe("the register's local migrations", () => {
         "0016_register_point_of_sale",
         "0017_completed_sales_only",
         "0018_transfer_payments",
+        "0019_sales_dated_when_charged",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -983,6 +986,7 @@ describe("the register's local migrations", () => {
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0017_completed_sales_only",
         "0018_transfer_payments",
+        "0019_sales_dated_when_charged",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1036,6 +1040,66 @@ describe("the register's local migrations", () => {
       expect(() => after.prepare("DELETE FROM sales WHERE id = 'done'").run()).toThrow(
         /FOREIGN KEY/,
       );
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("date each completed sale with the moment of its payment and leave an open sale without a date over the sales a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(0, 18);
+      expect(previous.at(-1)?.name).toBe("0018_transfer_payments");
+      expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
+        "0019_sales_dated_when_charged",
+      ]);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('done', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-09-30T23:58:00.000Z'),
+                ('open', 'r1', 'device-a', 's1', 'u1', 'OPEN', '2026-10-01T00:10:00.000Z');
+         INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+         VALUES ('l-done', 'done', 1, 'p1', 'Yerba', 1, 1000, 'pl', 1000),
+                ('l-open', 'open', 1, 'p1', 'Yerba', 1, 1000, 'pl', 1000);
+         INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, state, occurred_at)
+         VALUES ('pay-done', 'done', 'SALE', 'CASH', 'NONE', 1000, 1000, 'APPROVED', '2026-10-01T00:02:00.000Z');`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT id, state, occurred_at FROM sales ORDER BY id").all()).toEqual([
+        { id: "done", state: "COMPLETED", occurred_at: "2026-10-01T00:02:00.000Z" },
+        { id: "open", state: "OPEN", occurred_at: null },
+      ]);
+      expect(after.prepare("SELECT id, sale_id FROM sale_lines ORDER BY id").all()).toEqual([
+        { id: "l-done", sale_id: "done" },
+        { id: "l-open", sale_id: "open" },
+      ]);
+      expect(after.prepare("SELECT id FROM payment_transactions").all()).toEqual([
+        { id: "pay-done" },
+      ]);
+      expect(after.pragma("foreign_key_check")).toEqual([]);
+      expect(() =>
+        after
+          .prepare(
+            `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+             VALUES ('second', 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL)`,
+          )
+          .run(),
+      ).toThrow(/UNIQUE/);
+      expect(() =>
+        after
+          .prepare(
+            `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+             VALUES ('dated-open', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', NULL)`,
+          )
+          .run(),
+      ).toThrow(/CHECK/);
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });

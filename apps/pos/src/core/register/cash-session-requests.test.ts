@@ -770,9 +770,9 @@ describe("the open sale of the session", () => {
   function addOpenSale(sessionId: string, lineTotal: number): void {
     database
       .prepare(
-        "INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at) VALUES ('sale-1', 'register-1', 'device-1', ?, 'u1', 'OPEN', ?)",
+        "INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at) VALUES ('sale-1', 'register-1', 'device-1', ?, 'u1', 'OPEN', NULL)",
       )
-      .run(sessionId, NOW.toISOString());
+      .run(sessionId);
     database
       .prepare(
         "INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total) VALUES ('line-1', 'sale-1', 1, 'p1', 'Yerba', 1, ?, 'pl-1', ?)",
