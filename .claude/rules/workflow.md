@@ -23,11 +23,11 @@ A feature too large for one pull request stays as a parent feature issue holding
 
 # Working on an issue
 
-1. Develop test-first (see `.claude/rules/code-style.md`), running only the test files you touch; the whole suite runs once, at step 4.
+1. Develop test-first (see `.claude/rules/code-style.md`), running only the test files you touch; every test the change affects runs at step 4.
 2. A change to `packages/domain` or `packages/contracts` runs `pnpm mutation --mutate <each touched source file>` and leaves no surviving mutant in them. CI runs the whole mutation suite weekly, not on pull requests.
 3. With every change committed, review the branch with the `review-gate` skill (`.claude/skills/review-gate/`) until it reports `CLEAN`. A review that reports `STOPPED` goes to whoever assigned the issue before anything else happens.
-4. Run `pnpm verify` once, in full.
-5. Open the pull request. Its "How it was tested" cites the `review-gate` result line and the result of `pnpm verify`.
+4. Run the static checks, `pnpm verify:static`, and the tests the change affects, `pnpm test --changed origin/main --passWithNoTests` after `git fetch origin main`. The whole suite runs in CI's `verify`, which is the full run of record; the full `pnpm verify` is not run locally before a pull request.
+5. Open the pull request. Its "How it was tested" cites the `review-gate` result line and the result of step 4, and gains CI's `verify` result once that run finishes. A pull request is not done until CI's `verify` passes.
 
 # Dependabot
 
