@@ -77,6 +77,7 @@ export type CashMovementInput = RecordCashMovementRequest;
 export interface CoreClient {
   connect(port: CorePort): void;
   enrollmentStatus(): Promise<boolean>;
+  registerService(): Promise<"in_service" | "out_of_service">;
   registerName(): Promise<string | null>;
   enroll(typedCode: string): Promise<EnrollmentOutcome>;
   redeemPinCode(typedCode: string, newPin: string): Promise<PinCodeRedemptionOutcome>;
@@ -210,6 +211,11 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       return ask(
         { type: "enrollment-status-request", request_id: deps.newRequestId() },
         (answer) => (answer.type === "enrollment-status" ? answer.enrolled : undefined),
+      );
+    },
+    registerService() {
+      return ask({ type: "register-service-request", request_id: deps.newRequestId() }, (answer) =>
+        answer.type === "register-service" ? answer.service : undefined,
       );
     },
     registerName() {

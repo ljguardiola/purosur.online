@@ -28,9 +28,10 @@ import {
   registerKeys,
   useCashSessionQuery,
   useEnrollmentQuery,
+  useRegisterServiceQuery,
 } from "../register/register-queries";
 import { salesKeys } from "../sales/sales-queries";
-import type { Enrollment } from "./router";
+import type { Enrollment, RegisterServiceState } from "./router";
 import { createAppRouter } from "./router";
 import type { SignedInPerson } from "./signed-in-person";
 
@@ -49,6 +50,14 @@ export function App({ core }: { core: CoreClient }) {
 function Register({ core }: { core: CoreClient }) {
   const queryClient = useQueryClient();
   const coreStatus = useCoreStatus();
+  const serviceRead = useRegisterServiceQuery({
+    read: () => core.registerService(),
+    enabled: coreStatus === "up",
+  });
+  let registerService: RegisterServiceState = "unknown";
+  if (coreStatus === "up" && serviceRead.status === "loaded") {
+    registerService = serviceRead.value;
+  }
   const enrollmentRead = useEnrollmentQuery({
     read: () => core.enrollmentStatus(),
     enabled: coreStatus === "up",
@@ -60,7 +69,7 @@ function Register({ core }: { core: CoreClient }) {
   const [signedInPerson, setPerson] = useState<SignedInPerson>();
   const cashSession = useCashSessionQuery({
     read: () => core.cashSession(),
-    enabled: enrollment === "enrolled",
+    enabled: enrollment === "enrolled" && registerService === "in_service",
   });
   const person = cashSession.status === "open" && cashSession.locked ? undefined : signedInPerson;
 
@@ -336,10 +345,17 @@ function Register({ core }: { core: CoreClient }) {
   useEffect(() => {
     router.update({
       ...router.options,
-      context: { ...router.options.context, coreStatus, enrollment, person, cashSession },
+      context: {
+        ...router.options.context,
+        coreStatus,
+        registerService,
+        enrollment,
+        person,
+        cashSession,
+      },
     });
     void router.invalidate();
-  }, [router, coreStatus, enrollment, person, cashSession]);
+  }, [router, coreStatus, registerService, enrollment, person, cashSession]);
 
   return <RouterProvider router={router} context={{ queryClient, ...services }} />;
 }

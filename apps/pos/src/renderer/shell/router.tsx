@@ -53,6 +53,7 @@ import { EnrollmentScreen } from "../register/enrollment-screen";
 import { LockedCloseScreen } from "../register/locked-close-screen";
 import { LockedRegisterScreen } from "../register/locked-register-screen";
 import { NoSessionScreen } from "../register/no-session-screen";
+import { OutOfServiceNotice } from "../register/out-of-service-notice";
 import { registerNameQueryOptions, useRegisterNameQuery } from "../register/register-queries";
 import { ChargeScreen } from "../sales/charge-screen";
 import { SaleScreen } from "../sales/sale-screen";
@@ -65,9 +66,12 @@ export type CoreStatus = CoreStatusMessage["status"];
 
 export type Enrollment = "unknown" | "enrolled" | "not_enrolled";
 
+export type RegisterServiceState = "unknown" | "in_service" | "out_of_service";
+
 export interface RouterContext {
   queryClient: QueryClient;
   coreStatus: CoreStatus;
+  registerService: RegisterServiceState;
   enrollment: Enrollment;
   person: SignedInPerson | undefined;
   cashSession: CashSessionState;
@@ -132,21 +136,32 @@ type ScreenPath =
   | "/locked"
   | "/enroll"
   | "/starting"
-  | "/core-down";
+  | "/core-down"
+  | "/out-of-service";
 
 // Until the core says whether this installation is enrolled, the register stays on the brand panel
 // instead of guessing between the enrollment screen and the rest of the register. The same goes
 // for whether a cash session is open, which decides between signing in and resuming it.
 export function routeFor({
   coreStatus,
+  registerService,
   enrollment,
   person,
   cashSession,
-}: Pick<RouterContext, "coreStatus" | "enrollment" | "person" | "cashSession">): ScreenPath {
+}: Pick<
+  RouterContext,
+  "coreStatus" | "registerService" | "enrollment" | "person" | "cashSession"
+>): ScreenPath {
   if (coreStatus === "down") {
     return "/core-down";
   }
-  if (coreStatus === "starting" || enrollment === "unknown") {
+  if (coreStatus === "starting" || registerService === "unknown") {
+    return "/starting";
+  }
+  if (registerService === "out_of_service") {
+    return "/out-of-service";
+  }
+  if (enrollment === "unknown") {
     return "/starting";
   }
   if (enrollment !== "enrolled") {
@@ -527,6 +542,13 @@ const coreDownRoute = createRoute({
   component: CoreDownNotice,
 });
 
+const outOfServiceRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/out-of-service",
+  beforeLoad: ({ context }) => requireRoute("/out-of-service", context),
+  component: OutOfServiceNotice,
+});
+
 export const routeTree = rootRoute.addChildren([
   sessionEyebrowRoute.addChildren([
     signedInRoute,
@@ -543,6 +565,7 @@ export const routeTree = rootRoute.addChildren([
   enrollRoute,
   startingRoute,
   coreDownRoute,
+  outOfServiceRoute,
 ]);
 
 export function createRegisterRouter<TRouteTree extends AnyRoute>(
@@ -605,6 +628,7 @@ export function createAppRouter(
     {
       queryClient,
       coreStatus: "starting",
+      registerService: "unknown",
       enrollment: "unknown",
       person: undefined,
       cashSession: { status: "unknown" },

@@ -25,6 +25,7 @@ export const authorizersKey = [...registerKey, "authorizers"] as const;
 
 export const registerKeys = {
   enrollment: [...registerKey, "enrollment"] as const,
+  service: [...registerKey, "service"] as const,
   cashSession: [...registerKey, "cash-session"] as const,
   registerName: [...registerKey, "register-name"] as const,
   lockedClosers: (sessionId: string) => [...lockedClosersKey, sessionId] as const,
@@ -56,6 +57,16 @@ export function useEnrollmentQuery({
   enabled: boolean;
 }): CoreData<boolean> {
   return useCoreQuery({ queryKey: registerKeys.enrollment, read, enabled });
+}
+
+export function useRegisterServiceQuery({
+  read,
+  enabled,
+}: {
+  read: () => Promise<"in_service" | "out_of_service">;
+  enabled: boolean;
+}): CoreData<"in_service" | "out_of_service"> {
+  return useCoreQuery({ queryKey: registerKeys.service, read, enabled });
 }
 
 export function cashSessionQueryOptions(
