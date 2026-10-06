@@ -864,6 +864,25 @@ describe("App", () => {
     await expect.poll(() => asked.filter((q) => q === "enrollment-status").length).toBe(2);
   });
 
+  it("stays on the brand panel after the core comes back up until it answers again whether the register is in service", async () => {
+    const { core } = coreAnswering(true);
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+
+    core.registerService = () => new Promise(() => {});
+    postCoreStatus("starting");
+    await expect
+      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .not.toBeInTheDocument();
+    postCoreStatus("up");
+
+    await expect.element(screen.getByRole("img", { name: BRAND_LOGO_ALT })).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .not.toBeInTheDocument();
+  });
+
   it("shows that the register needs restoring when the core comes back up out of service", async () => {
     const { core } = coreAnswering(true);
     const screen = await render(<App core={core} />);

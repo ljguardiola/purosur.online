@@ -8,7 +8,7 @@ import { OutOfServiceNotice } from "./out-of-service-notice";
 
 const TITLE = "La caja necesita restaurarse";
 const DESCRIPTION =
-  "La base de datos de esta caja está dañada y no puede vender. Hay que restaurarla para volver a vender.";
+  "Su base de datos está dañada, así que no puede vender.";
 
 describe("OutOfServiceNotice", () => {
   it("says the register needs restoring and why it cannot sell", async () => {
