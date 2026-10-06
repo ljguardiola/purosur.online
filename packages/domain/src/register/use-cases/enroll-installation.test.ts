@@ -290,6 +290,8 @@ describe("enrollInstallation", () => {
       "revokeActiveInstallation",
       "recordInstallationRevocation",
       "lockRegisterKeys",
+      "recordSnapshotKey",
+      "recordContingencyTicketKey",
       "recordInstallation",
       "recordInstallationEnrollment",
       "markEnrollmentCodeRedeemed",
