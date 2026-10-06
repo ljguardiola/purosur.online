@@ -136,16 +136,18 @@ describe("starting the register's local database", () => {
     expect(await startWith(dataFolder)).toEqual({ kind: "out_of_service" });
   });
 
-  it("applies no migration to a damaged database", async () => {
+  it("applies no migration to a database that is out of service", async () => {
     const dataFolder = folder();
     healthyDatabaseIn(dataFolder);
-    overwritePage(dataFolder, 3);
+    writeFileSync(join(dataFolder, "local-database-damaged"), "2026-10-05T00:00:00.000Z");
     const pending: LocalMigration = { name: "0001_more", sql: "CREATE TABLE more (id INTEGER)" };
 
     await startWith(dataFolder, [NOTES, pending]);
 
     const database = new Database(join(dataFolder, "register.sqlite"), { readonly: true });
-    expect(() => database.prepare("SELECT 1 FROM more").get()).toThrow();
+    expect(database.prepare("SELECT name FROM applied_migrations").all()).toEqual([
+      { name: "0000_notes" },
+    ]);
     database.close();
   });
 
