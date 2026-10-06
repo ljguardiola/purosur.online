@@ -2,20 +2,17 @@ import { readdirSync, readFileSync } from "node:fs";
 import { type PushEventsRequest, pushEventsRequestSchema } from "@purosur/contracts";
 import { z } from "zod";
 
-const RECORDED_PUSHES_DIR = new URL(
-  "../../../../pos/src/core/sync/test-support/recorded-pushes/",
-  import.meta.url,
-);
+const RECORDED_PUSHES_DIR = new URL("./recorded-pushes/", import.meta.url);
 
 const recordedPushSchema = z.object({
   outbox_chain_key: z.string().min(1),
-  push: z.record(z.string(), z.unknown()),
+  push: z.unknown(),
 });
 
 export interface RecordedPush {
   name: string;
   outboxChainKey: string;
-  sentBody: Record<string, unknown>;
+  sentBody: unknown;
   push: PushEventsRequest;
 }
 

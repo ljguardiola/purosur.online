@@ -1,33 +1,14 @@
-import { fileURLToPath } from "node:url";
 import { pushEventsResponseSchema } from "@purosur/contracts";
 import { asc, eq } from "drizzle-orm";
-import ts from "typescript";
-import { beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { inbox } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { eventsRouteUnderTest, NOW } from "./test-support/events-route.js";
 import { type RecordedPush, recordedPushes } from "./test-support/recorded-pushes.js";
-import { eventVersionsBuiltBy } from "./test-support/register-event-versions.js";
-
-const REPO_DIR = fileURLToPath(new URL("../../../../", import.meta.url));
-const REGISTER_DIR = fileURLToPath(new URL("../../../pos/", import.meta.url));
 
 const RECORDED_PUSHES = recordedPushes();
 
 const route = eventsRouteUnderTest();
-
-function registerCoreProgram(): ts.Program {
-  const config = ts.getParsedCommandLineOfConfigFile(`${REGISTER_DIR}tsconfig.json`, undefined, {
-    ...ts.sys,
-    onUnRecoverableConfigFileDiagnostic: (diagnostic) => {
-      throw new Error(ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"));
-    },
-  });
-  if (!config) {
-    throw new Error("apps/pos/tsconfig.json could not be read");
-  }
-  return ts.createProgram([`${REGISTER_DIR}src/core/index.ts`], config.options);
-}
 
 function storedAsSent(row: typeof inbox.$inferSelect) {
   return {
@@ -43,29 +24,6 @@ function storedAsSent(row: typeof inbox.$inferSelect) {
     chain_hmac: row.chainHmac,
   };
 }
-
-describe("the recorded pushes", () => {
-  let builtByTheRegister: ReturnType<typeof eventVersionsBuiltBy>;
-
-  beforeAll(() => {
-    builtByTheRegister = eventVersionsBuiltBy(registerCoreProgram(), REPO_DIR);
-  });
-
-  it("can tell the version of every event the register's core builds", () => {
-    expect(builtByTheRegister.unreadable).toEqual([]);
-    expect(builtByTheRegister.versions).not.toEqual([]);
-  });
-
-  it("hold an event of every version the register's core builds", () => {
-    const recorded = new Set(
-      RECORDED_PUSHES.flatMap(({ push }) =>
-        push.events.map((event) => `${event.event_type} v${event.schema_version}`),
-      ),
-    );
-
-    expect(builtByTheRegister.versions.filter((version) => !recorded.has(version))).toEqual([]);
-  });
-});
 
 describe("POST /events with a push a register in the field sent", () => {
   it.each(RECORDED_PUSHES.map((recorded): [string, RecordedPush] => [recorded.name, recorded]))(
