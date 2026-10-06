@@ -10,7 +10,6 @@ export type SignedInSession = {
   kind: "signed-in";
   userId: string;
   displayName: string;
-  isAdministrator: boolean;
   capabilities: Capability[];
   stockMovementKinds: ManualStockMovementKind[];
   mayEmitOwnPinCode: boolean;

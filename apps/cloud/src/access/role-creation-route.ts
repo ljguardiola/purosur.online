@@ -9,7 +9,7 @@ import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import type { RolesRouteOptions } from "./roles-list-route.js";
 import { toRoleSummaryWire } from "./roles-list-route.js";
 import {
-  ADMINISTRATOR_ACCESS,
+  capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
@@ -32,7 +32,7 @@ export function registerRoleCreationRoutes<TQueryResult extends PgQueryResultHKT
     "/roles",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
-      config: { access: ADMINISTRATOR_ACCESS, sessionSource },
+      config: { access: capabilityAccess("manage_roles"), sessionSource },
     },
     async (request, reply) => {
       const attemptedAt = now();

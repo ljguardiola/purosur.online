@@ -24,6 +24,10 @@ test("announces the design system's screen-reader texts in Spanish whatever the 
         passkeyCount: 2,
         isLastActiveAdministrator: true,
         mayEmitPinCode: true,
+        mayEdit: true,
+        mayDeactivate: false,
+        mayReactivate: false,
+        mayRemovePasskey: true,
       },
     ],
   });

@@ -143,7 +143,7 @@ describe("GET /sessions/current", () => {
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
   });
 
-  it("returns the signed-in user's id and name for a live session, not an Administrator", async () => {
+  it("returns the signed-in user's id and name for a live session, not an Administrator, without an administrator flag", async () => {
     const rawSessionId = await insertSession();
 
     const response = await getSession(rawSessionId);
@@ -153,21 +153,21 @@ describe("GET /sessions/current", () => {
       user_id: userId,
       display_name: "Ada Lovelace",
       expires_at: new Date(NOON.getTime() + SESSION_IDLE_TIMEOUT_MS).toISOString(),
-      is_administrator: false,
       capabilities: [],
       stock_movement_kinds: [],
       may_emit_own_pin_code: false,
     });
   });
 
-  it("returns is_administrator true for a user holding the Administrator role", async () => {
+  it("returns every capability, manage_users and manage_roles among them, for an Administrator", async () => {
     const administratorRoleId = await seededAdministratorRoleId();
     await db.insert(userRoles).values({ userId, roleId: administratorRoleId });
     const rawSessionId = await insertSession();
 
     const response = await getSession(rawSessionId);
 
-    expect(response.json()).toMatchObject({ is_administrator: true });
+    expect(response.json().capabilities).toEqual(CAPABILITIES);
+    expect(response.json()).not.toHaveProperty("is_administrator");
   });
 
   it("answers may_emit_own_pin_code true for an Administrator", async () => {

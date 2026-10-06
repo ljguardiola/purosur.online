@@ -11,7 +11,7 @@ import { sameOriginGuard } from "./backoffice-origin.js";
 import { drizzleRoleDirectory } from "./drizzle-role-directory.js";
 import type { RolesRouteOptions } from "./roles-list-route.js";
 import { toRoleSummaryWire } from "./roles-list-route.js";
-import { ADMINISTRATOR_ACCESS, registerRouteAccess, routeSessionSource } from "./route-access.js";
+import { capabilityAccess, registerRouteAccess, routeSessionSource } from "./route-access.js";
 
 const NOT_FOUND_RESPONSE = {
   code: "not_found",
@@ -43,7 +43,7 @@ export function registerRoleReadRoute<TQueryResult extends PgQueryResultHKT>(
     "/roles/:id",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
-      config: { access: ADMINISTRATOR_ACCESS, sessionSource },
+      config: { access: capabilityAccess("manage_roles"), sessionSource },
     },
     async (request, reply) => {
       const ids = await readRecordIds(reply, request.params, ["id"]);

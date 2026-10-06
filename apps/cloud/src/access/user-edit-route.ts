@@ -8,9 +8,10 @@ import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { toBranchUserWire } from "./branch-users.js";
 import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 import { DrizzleUserStore } from "./drizzle-user-store.js";
+import { readCurrentOpenSession, UNAUTHENTICATED_RESPONSE } from "./open-session.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import {
-  ADMINISTRATOR_ACCESS,
+  capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
@@ -55,7 +56,7 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
     "/users/:id",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
-      config: { access: ADMINISTRATOR_ACCESS, sessionSource },
+      config: { access: capabilityAccess("manage_users"), sessionSource },
     },
     async (request, reply) => {
       const ids = await readRecordIds(reply, request.params, ["id"]);
@@ -112,7 +113,15 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      await reply.code(200).send(toBranchUserWire(outcome.user, openSession));
+      const sessionAfterEdit = await readCurrentOpenSession(request, {
+        db: options.db,
+        now: attemptedAt,
+      });
+      if (!sessionAfterEdit) {
+        await reply.code(401).send(UNAUTHENTICATED_RESPONSE);
+        return;
+      }
+      await reply.code(200).send(toBranchUserWire(outcome.user, sessionAfterEdit));
     },
   );
 }

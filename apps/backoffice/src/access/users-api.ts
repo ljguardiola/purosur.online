@@ -114,6 +114,10 @@ function userFromWire(row: BranchUserWire) {
     // The server refuses to change the role regardless, so callers lock that field on this.
     isLastActiveAdministrator: row.is_last_active_administrator,
     mayEmitPinCode: row.may_emit_pin_code,
+    mayEdit: row.may_edit,
+    mayDeactivate: row.may_deactivate,
+    mayReactivate: row.may_reactivate,
+    mayRemovePasskey: row.may_remove_passkey,
   };
 }
 

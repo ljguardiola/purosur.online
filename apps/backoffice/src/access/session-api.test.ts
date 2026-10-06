@@ -42,23 +42,12 @@ test("fetchSession returns the signed-in user's identity, capabilities and deadl
     kind: "ok",
     userId: "user-1",
     displayName: "Lucas Guardiola",
-    isAdministrator: false,
     expiresAt: "2026-09-23T12:30:00.000Z",
     capabilities: ["stock_area", "branch_area"],
     stockMovementKinds: ["adjustment"],
     mayEmitOwnPinCode: true,
   });
   expect(fetch).toHaveBeenCalledWith("/api/sessions/current");
-});
-
-test("fetchSession reports isAdministrator true for an Administrator session", async () => {
-  vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(200, { ...sessionBody, is_administrator: true, capabilities: ["users_area"] }),
-  );
-
-  const outcome = await fetchSession();
-
-  expect(outcome).toMatchObject({ isAdministrator: true, capabilities: ["users_area"] });
 });
 
 test("fetchSession reports unauthenticated on 401", async () => {
@@ -86,7 +75,6 @@ test.each([
     { ...sessionBody, stock_movement_kinds: ["count"] },
   ],
   ["a body with no own PIN code answer", { ...sessionBody, may_emit_own_pin_code: undefined }],
-  ["an administrator flag that is not a boolean", { ...sessionBody, is_administrator: "no" }],
   ["a body that is not an object", "session"],
 ])("fetchSession reports failed on %s", async (_, body) => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));

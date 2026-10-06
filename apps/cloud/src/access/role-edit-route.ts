@@ -12,7 +12,7 @@ import { ROLE_NAME_TAKEN_RESPONSE } from "./role-creation-route.js";
 import { toRoleDetailWire } from "./role-read-route.js";
 import type { RolesRouteOptions } from "./roles-list-route.js";
 import {
-  ADMINISTRATOR_ACCESS,
+  capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
@@ -40,7 +40,7 @@ export function registerRoleEditRoutes<TQueryResult extends PgQueryResultHKT>(
     "/roles/:id",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
-      config: { access: ADMINISTRATOR_ACCESS, sessionSource },
+      config: { access: capabilityAccess("manage_roles"), sessionSource },
     },
     async (request, reply) => {
       const ids = await readRecordIds(reply, request.params, ["id"]);

@@ -1,4 +1,5 @@
 import { hasValidPasskeyAuthorization } from "../model/passkey-authorization-window.js";
+import { mayRemovePasskeyOf } from "../model/user-management.js";
 import type { BranchUsers } from "./branch-users.js";
 import { findBranchUser } from "./find-branch-user.js";
 import type { PasskeyRemovalStore } from "./passkey-removal-store.js";
@@ -38,7 +39,7 @@ export async function removeUserPasskey(
   if (!target) {
     return { kind: "user_not_found" };
   }
-  if (target.id === input.administratorId) {
+  if (!mayRemovePasskeyOf(input.administratorId, target)) {
     return { kind: "own_account" };
   }
   return store.transaction<RemoveUserPasskeyOutcome>(async (tx) => {

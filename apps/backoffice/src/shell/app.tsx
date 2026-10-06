@@ -173,7 +173,6 @@ function signedInSessionOf(outcome: Extract<SessionOutcome, { kind: "ok" }>): Si
     kind: "signed-in",
     userId: outcome.userId,
     displayName: outcome.displayName,
-    isAdministrator: outcome.isAdministrator,
     capabilities: outcome.capabilities,
     stockMovementKinds: outcome.stockMovementKinds,
     mayEmitOwnPinCode: outcome.mayEmitOwnPinCode,
@@ -187,7 +186,6 @@ function differsOnlyInExpiry(current: SettledSession, next: SettledSession): boo
     next.kind === "signed-in" &&
     current.userId === next.userId &&
     current.displayName === next.displayName &&
-    current.isAdministrator === next.isAdministrator &&
     current.capabilities.join() === next.capabilities.join() &&
     current.stockMovementKinds.join() === next.stockMovementKinds.join() &&
     current.mayEmitOwnPinCode === next.mayEmitOwnPinCode
@@ -348,7 +346,6 @@ function AppContent({ help, services = defaultAppServices, reportError = () => {
       if (current.kind === "signed-in") {
         void control.settle({
           ...current,
-          isAdministrator: touched.isAdministrator,
           capabilities: touched.capabilities,
           stockMovementKinds: touched.stockMovementKinds,
           mayEmitOwnPinCode: touched.mayEmitOwnPinCode,

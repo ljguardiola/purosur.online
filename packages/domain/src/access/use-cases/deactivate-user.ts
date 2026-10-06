@@ -19,14 +19,14 @@ export function deactivateUser(
 ): Promise<DeactivateUserOutcome> {
   return store.transaction<DeactivateUserOutcome>(async (tx) => {
     const locked = await tx.lockUserForDeactivation(input.id);
-    if (!locked?.active) {
+    if (!locked) {
       return { kind: "not_found" };
     }
     const role = await tx.roleOfUser(input.id);
     if (
       !role ||
       !isUserDeactivatable(
-        { id: input.id, holdsAdministratorRole: role.isAdministrator },
+        { id: input.id, holdsAdministratorRole: role.isAdministrator, active: locked.active },
         input.actorId,
       )
     ) {

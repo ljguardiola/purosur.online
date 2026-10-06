@@ -11,6 +11,10 @@ const ana = {
   passkey_count: 1,
   is_last_active_administrator: false,
   may_emit_pin_code: true,
+  may_edit: true,
+  may_deactivate: true,
+  may_reactivate: false,
+  may_remove_passkey: true,
 };
 const { active: _active, ...withoutActive } = ana;
 const administrator = {
@@ -19,6 +23,10 @@ const administrator = {
   role: { id: "role-2", is_administrator: true, name: null },
   is_last_active_administrator: true,
   may_emit_pin_code: false,
+  may_edit: true,
+  may_deactivate: false,
+  may_reactivate: false,
+  may_remove_passkey: true,
 };
 
 describe("branchUserSchema", () => {
@@ -51,6 +59,10 @@ describe("branchUserSchema", () => {
     "passkey_count",
     "is_last_active_administrator",
     "may_emit_pin_code",
+    "may_edit",
+    "may_deactivate",
+    "may_reactivate",
+    "may_remove_passkey",
   ])("requires %s", (field) => {
     const { [field as keyof typeof ana]: _omitted, ...rest } = ana;
 
@@ -83,6 +95,14 @@ describe("branchUserSchema", () => {
     ["is_last_active_administrator", null],
     ["may_emit_pin_code", "true"],
     ["may_emit_pin_code", null],
+    ["may_edit", "true"],
+    ["may_edit", null],
+    ["may_deactivate", "true"],
+    ["may_deactivate", null],
+    ["may_reactivate", "true"],
+    ["may_reactivate", null],
+    ["may_remove_passkey", "true"],
+    ["may_remove_passkey", null],
   ])("refuses %s as %j", (field, value) => {
     expect(branchUserSchema.safeParse({ ...ana, [field]: value }).success).toBe(false);
   });

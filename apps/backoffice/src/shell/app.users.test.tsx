@@ -73,6 +73,10 @@ test("opens a user's detail screen at /users/:id, with Usuarios still the active
     passkeyCount: 1,
     isLastActiveAdministrator: false,
     mayEmitPinCode: true,
+    mayEdit: true,
+    mayDeactivate: false,
+    mayReactivate: false,
+    mayRemovePasskey: true,
   };
   vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({
     kind: "ok",
@@ -107,6 +111,10 @@ test("passes the signed-in Administrator's own id to the user detail screen, hid
     passkeyCount: 1,
     isLastActiveAdministrator: true,
     mayEmitPinCode: true,
+    mayEdit: true,
+    mayDeactivate: false,
+    mayReactivate: false,
+    mayRemovePasskey: false,
   };
   vi.mocked(services.userDetailScreen.fetchUser).mockResolvedValue({ kind: "ok", value: lucas });
   vi.mocked(services.userDetailScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
@@ -194,6 +202,10 @@ test("lets a non-Administrator holding deactivate_users open Usuarios, without N
         passkeyCount: 0,
         isLastActiveAdministrator: false,
         mayEmitPinCode: true,
+        mayEdit: true,
+        mayDeactivate: true,
+        mayReactivate: false,
+        mayRemovePasskey: true,
       },
     ],
   });
@@ -232,6 +244,10 @@ test("opens a user's detail for a non-Administrator holding deactivate_users, of
       passkeyCount: 0,
       isLastActiveAdministrator: false,
       mayEmitPinCode: true,
+      mayEdit: false,
+      mayDeactivate: true,
+      mayReactivate: false,
+      mayRemovePasskey: false,
     },
   });
   vi.mocked(services.userDetailScreen.fetchUserPasskeys).mockResolvedValue({ kind: "forbidden" });
@@ -271,6 +287,10 @@ test("lets a non-Administrator holding only reset_user_pin open Usuarios and a u
       passkeyCount: 0,
       isLastActiveAdministrator: false,
       mayEmitPinCode: true,
+      mayEdit: true,
+      mayDeactivate: true,
+      mayReactivate: false,
+      mayRemovePasskey: true,
     },
   });
   vi.mocked(services.userDetailScreen.fetchUserPasskeys).mockResolvedValue({ kind: "forbidden" });

@@ -133,3 +133,11 @@ export async function peekOpenSession<TQueryResult extends PgQueryResultHKT>(
   const resolved = await resolveOpenSession(request, reply, options);
   return resolved?.session;
 }
+
+export async function readCurrentOpenSession<TQueryResult extends PgQueryResultHKT>(
+  request: FastifyRequest,
+  options: BackofficeSessionCheckOptions<TQueryResult>,
+): Promise<OpenSession | undefined> {
+  const lookup = await lookUpSession(request, options);
+  return lookup.state === "open" ? lookup.session : undefined;
+}

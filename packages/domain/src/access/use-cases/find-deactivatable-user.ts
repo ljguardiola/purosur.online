@@ -20,7 +20,11 @@ export async function findDeactivatableUser(
   if (
     !found ||
     !isUserDeactivatable(
-      { id: found.id, holdsAdministratorRole: found.roleIsAdministrator },
+      {
+        id: found.id,
+        holdsAdministratorRole: found.roleIsAdministrator,
+        active: found.active,
+      },
       input.actorId,
     )
   ) {
