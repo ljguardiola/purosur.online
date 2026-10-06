@@ -375,9 +375,9 @@ describe("the sale being built", () => {
   it("is refused by the database when it is open with a date or completed without one", () => {
     scan("111");
 
-    expect(() => database.prepare("UPDATE sales SET occurred_at = ?").run(NOW.toISOString())).toThrow(
-      /CHECK/,
-    );
+    expect(() =>
+      database.prepare("UPDATE sales SET occurred_at = ?").run(NOW.toISOString()),
+    ).toThrow(/CHECK/);
     expect(() => database.prepare("UPDATE sales SET state = 'COMPLETED'").run()).toThrow(/CHECK/);
   });
 

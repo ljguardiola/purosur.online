@@ -70,9 +70,7 @@ export function addProductToSale(
     return { kind: "no_price", productName: product.name };
   }
 
-  const sale = isOpenSale(target)
-    ? target
-    : startSale(tx, ids.next(), target, session.id, actorId);
+  const sale = isOpenSale(target) ? target : startSale(tx, ids.next(), target, session.id, actorId);
   const addedLine = newSaleLine(
     ids.next(),
     product,
