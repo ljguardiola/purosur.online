@@ -22,6 +22,7 @@ import {
   openSessionOf,
   originGuard,
   PUBLIC_ACCESS,
+  recordAccess,
   registerRouteAccess,
   routeSessionSource,
   SESSION_COOKIE_ACCESS,
@@ -90,6 +91,16 @@ beforeEach(async () => {
     "/test-only/session-cookie",
     { config: { access: SESSION_COOKIE_ACCESS, sessionSource } },
     answer,
+  );
+  app.get(
+    "/test-only/own-record/:recordId",
+    {
+      config: {
+        access: recordAccess("recordId", (actor, recordId) => actor.id === recordId),
+        sessionSource,
+      },
+    },
+    answerWithSession,
   );
   app.get("/test-only/public", { config: { access: PUBLIC_ACCESS } }, answer);
   app.get("/test-only/undeclared", answer);
@@ -269,6 +280,88 @@ describe("the declared access, enforced before every handler", () => {
     const response = await callRoute("/test-only/open-session", rawSessionId);
 
     expect(response.statusCode).toBe(200);
+  });
+
+  it("answers 401 unauthenticated on a record route without a session", async () => {
+    const response = await callRoute("/test-only/own-record/00000000-0000-4000-8000-000000000000");
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "unauthenticated" });
+    expect(handlerRuns).toBe(0);
+  });
+
+  it("answers 400 validation_failed on a record route whose id is malformed", async () => {
+    const userId = await insertUser(await insertRole("Cajera", []), "cashier@example.com");
+    const rawSessionId = await insertSession(userId);
+
+    const response = await callRoute("/test-only/own-record/not-an-id", rawSessionId);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "recordId" }],
+    });
+    expect(handlerRuns).toBe(0);
+  });
+
+  it("answers 403 forbidden on a record route when its predicate refuses the record", async () => {
+    const userId = await insertUser(await insertRole("Cajera", []), "cashier@example.com");
+    const rawSessionId = await insertSession(userId);
+
+    const response = await callRoute(
+      "/test-only/own-record/00000000-0000-4000-8000-000000000000",
+      rawSessionId,
+    );
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "forbidden" });
+    expect(handlerRuns).toBe(0);
+  });
+
+  it("lets a record route through when its predicate grants the record", async () => {
+    const userId = await insertUser(await insertRole("Cajera", []), "cashier@example.com");
+    const rawSessionId = await insertSession(userId);
+
+    const response = await callRoute(`/test-only/own-record/${userId}`, rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ user_id: userId });
+  });
+
+  it("matches a record id written in upper case against the signed-in user's own id", async () => {
+    const userId = await insertUser(await insertRole("Cajera", []), "cashier@example.com");
+    const rawSessionId = await insertSession(userId);
+
+    const response = await callRoute(`/test-only/own-record/${userId.toUpperCase()}`, rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+  });
+
+  it("hands a record route's predicate the user's administrator flag and permissions", async () => {
+    const roleId = await insertRole("Pérdidas", ["record_stock_losses"]);
+    const userId = await insertUser(roleId, "losses@example.com");
+    const rawSessionId = await insertSession(userId);
+    const seen: unknown[] = [];
+    app.get(
+      "/test-only/inspected-record/:recordId",
+      {
+        config: {
+          access: recordAccess("recordId", (actor) => {
+            seen.push(actor);
+            return true;
+          }),
+          sessionSource: routeSessionSource({ db, now: () => NOON }),
+        },
+      },
+      async (_request, reply) => reply.code(200).send({}),
+    );
+    await app.ready();
+
+    await callRoute(`/test-only/inspected-record/${userId}`, rawSessionId);
+
+    expect(seen).toEqual([
+      { id: userId, isAdministrator: false, permissionKeys: ["record_stock_losses"] },
+    ]);
   });
 
   it("reflects a permission granted to the user's role without signing in again", async () => {

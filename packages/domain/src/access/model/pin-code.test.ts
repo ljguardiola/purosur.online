@@ -7,6 +7,7 @@ import {
   isWellFormedPinCode,
   mayEmitPinCode,
   mayEmitPinCodeFor,
+  mayRequestPinCodeFor,
   normalizePinCode,
   pinCodeExpiresAt,
   pinCodeRetryAfterSeconds,
@@ -95,8 +96,8 @@ describe("mayEmitPinCodeFor", () => {
     expect(mayEmitPinCodeFor(person, { id: "person-2", isAdministrator: false })).toBe(true);
   });
 
-  it("refuses a person who is not an Administrator their own account", () => {
-    expect(mayEmitPinCodeFor(person, person)).toBe(false);
+  it("lets a person who is not an Administrator emit for their own account", () => {
+    expect(mayEmitPinCodeFor(person, person)).toBe(true);
   });
 
   it("refuses a person who is not an Administrator an Administrator's account", () => {
@@ -113,6 +114,24 @@ describe("mayEmitPinCodeFor", () => {
 
   it("lets an Administrator emit for their own account", () => {
     expect(mayEmitPinCodeFor(administrator, administrator)).toBe(true);
+  });
+});
+
+describe("mayRequestPinCodeFor", () => {
+  const person = { id: "person-1", isAdministrator: false, permissionKeys: [] };
+
+  it("lets anyone request one for their own account, holding no permission", () => {
+    expect(mayRequestPinCodeFor(person, "person-1")).toBe(true);
+  });
+
+  it("refuses one who does not hold the permission a code for another person", () => {
+    expect(mayRequestPinCodeFor(person, "person-2")).toBe(false);
+  });
+
+  it("lets one who may reset PINs request one for another person", () => {
+    expect(
+      mayRequestPinCodeFor({ ...person, permissionKeys: ["reset_user_pin"] }, "person-2"),
+    ).toBe(true);
   });
 });
 
@@ -138,8 +157,25 @@ describe("mayEmitPinCode", () => {
     ).toBe(false);
   });
 
+  it("lets anyone emit for their own active account without holding the permission", () => {
+    const person = { id: "person-3", isAdministrator: false, permissionKeys: [] };
+
+    expect(mayEmitPinCode(person, { ...person, active: true })).toBe(true);
+  });
+
+  it("refuses their own inactive account", () => {
+    const person = { id: "person-3", isAdministrator: false, permissionKeys: [] };
+
+    expect(mayEmitPinCode(person, { ...person, active: false })).toBe(false);
+  });
+
+  it("refuses one without the permission another person's account", () => {
+    const person = { id: "person-3", isAdministrator: false, permissionKeys: [] };
+
+    expect(mayEmitPinCode(person, activePerson)).toBe(false);
+  });
+
   it("refuses a user the actor may not emit for", () => {
-    expect(mayEmitPinCode(resetter, { ...resetter, active: true })).toBe(false);
     expect(mayEmitPinCode(resetter, { ...activePerson, isAdministrator: true })).toBe(false);
   });
 

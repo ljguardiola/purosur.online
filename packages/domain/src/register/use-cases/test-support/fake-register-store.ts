@@ -5,7 +5,9 @@ import type {
   EnrollmentAlert,
   EnrollmentAttemptKey,
   EnrollmentCodeVerifier,
+  InstallationEnrollment,
   InstallationKeyGenerator,
+  InstallationRevocation,
   IssuedDeviceToken,
   LockedEnrollmentCode,
   LockedInstallation,
@@ -45,6 +47,8 @@ export interface FakeRegisterState {
   snapshotKeys: FakeRegisterKey[];
   contingencyTicketKeys: FakeRegisterKey[];
   enrollmentAlerts: EnrollmentAlert[];
+  installationRevocations: InstallationRevocation[];
+  installationEnrollments: InstallationEnrollment[];
   nextId: number;
 }
 
@@ -52,7 +56,9 @@ type WriteOperation =
   | "recordEnrollmentAttempt"
   | "recordFailedEnrollmentAttempt"
   | "revokeActiveInstallation"
+  | "recordInstallationRevocation"
   | "recordInstallation"
+  | "recordInstallationEnrollment"
   | "promotePendingDeviceToken"
   | "recordPendingDeviceToken"
   | "recordOutboxChainKey"
@@ -119,16 +125,21 @@ class FakeRegisterStoreTransaction implements RegisterStoreTransaction {
   async revokeActiveInstallation(
     registerId: string,
     revokedAt: Date,
-  ): Promise<{ revoked: boolean }> {
+  ): Promise<{ revokedDeviceId: string | null }> {
     this.beforeWrite("revokeActiveInstallation");
-    let revoked = false;
+    let revokedDeviceId: string | null = null;
     for (const installation of this.state.installations) {
       if (installation.registerId === registerId && installation.revokedAt === null) {
         installation.revokedAt = new Date(revokedAt);
-        revoked = true;
+        revokedDeviceId = installation.deviceId;
       }
     }
-    return { revoked };
+    return { revokedDeviceId };
+  }
+
+  async recordInstallationRevocation(revocation: InstallationRevocation): Promise<void> {
+    this.beforeWrite("recordInstallationRevocation");
+    this.state.installationRevocations.push(structuredClone(revocation));
   }
 
   async recordInstallation(installation: NewInstallation): Promise<{ deviceId: string }> {
@@ -141,6 +152,11 @@ class FakeRegisterStoreTransaction implements RegisterStoreTransaction {
       pendingToken: null,
     });
     return { deviceId };
+  }
+
+  async recordInstallationEnrollment(enrollment: InstallationEnrollment): Promise<void> {
+    this.beforeWrite("recordInstallationEnrollment");
+    this.state.installationEnrollments.push(structuredClone(enrollment));
   }
 
   async lockInstallationByTokenPrefix(
@@ -255,6 +271,8 @@ export class FakeRegisterStore implements RegisterStore {
     snapshotKeys: [],
     contingencyTicketKeys: [],
     enrollmentAlerts: [],
+    installationRevocations: [],
+    installationEnrollments: [],
     nextId: 1,
   };
 

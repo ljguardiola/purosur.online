@@ -812,7 +812,7 @@ describe("PUT /users/:id", () => {
       });
 
       expect(response.json()).toMatchObject({
-        may_emit_pin_code: false,
+        may_emit_pin_code: true,
         may_edit: false,
         may_deactivate: false,
         may_reactivate: false,
