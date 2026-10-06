@@ -117,6 +117,15 @@ export const shape = { event_type: int(), schema_version: int().positive() };`,
     ).toEqual({ versions: [], unreadable: [] });
   });
 
+  it("ignores installed dependencies inside the source folder", () => {
+    expect(
+      versionsIn({
+        "packages/domain/open.ts": `export const o = { event_type: "cash_session_opened", schema_version: 1 };`,
+        "node_modules/library/index.ts": `export const l = { event_type: "library_event", schema_version: 1 };`,
+      }),
+    ).toEqual({ versions: ["cash_session_opened v1"], unreadable: [] });
+  });
+
   it("ignores code outside the given source folder", () => {
     expect(
       eventVersionsBuiltBy(
