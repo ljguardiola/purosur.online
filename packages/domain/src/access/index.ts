@@ -109,6 +109,7 @@ export {
   signInLockoutWindowStart,
 } from "./model/sign-in-lockout.js";
 export { signInLookupAttemptWindowStart } from "./model/sign-in-lookup-attempt-limit.js";
+export { mayEditRole } from "./model/role-editability.js";
 export {
   mayDeactivateUser,
   mayEditUser,

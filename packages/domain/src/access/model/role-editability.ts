@@ -1,3 +1,5 @@
+import type { RoleAccess } from "./access-increase.js";
+import { grantsCapability } from "./capability-permissions.js";
 import { heldPermissionKeys } from "./holds-permission.js";
 import type { PermissionKey } from "./permission-catalog.js";
 
@@ -20,6 +22,10 @@ export interface EditableRoleDetail<Holder> {
 
 export function isRoleEditable(role: { isAdministrator: boolean }): boolean {
   return !role.isAdministrator;
+}
+
+export function mayEditRole(actor: RoleAccess, role: { isAdministrator: boolean }): boolean {
+  return grantsCapability(actor, "manage_roles") && isRoleEditable(role);
 }
 
 export function editableRoleDetail<Holder>(
