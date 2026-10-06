@@ -22,6 +22,7 @@ const administratorRow = {
   is_administrator: true,
   permissions: ["sell_and_charge"],
   user_count: 1,
+  may_edit: false,
 };
 const administrator: RoleSummary = {
   id: "role-admin",
@@ -29,6 +30,7 @@ const administrator: RoleSummary = {
   isAdministrator: true,
   permissionKeys: ["sell_and_charge"],
   userCount: 1,
+  mayEdit: false,
 };
 
 test("fetchRoles lists every role on 200", async () => {
@@ -47,6 +49,7 @@ test("fetchRoles maps a role with no users and no permissions", async () => {
     is_administrator: false,
     permissions: [],
     user_count: 0,
+    may_edit: true,
   };
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [stockRow]));
 
@@ -61,6 +64,7 @@ test("fetchRoles maps a role with no users and no permissions", async () => {
         isAdministrator: false,
         permissionKeys: [],
         userCount: 0,
+        mayEdit: true,
       },
     ],
   });
@@ -194,6 +198,7 @@ const stockDetailRow = {
   is_administrator: false,
   permissions: ["view_stock_balances"],
   user_count: 0,
+  may_edit: true,
   version: 3,
   assigned_users: [],
 };
@@ -203,6 +208,7 @@ const stockDetail = {
   isAdministrator: false,
   permissionKeys: ["view_stock_balances"],
   userCount: 0,
+  mayEdit: true,
   version: 3,
   assignedUsers: [],
 };
@@ -221,6 +227,7 @@ test("fetchRole parses the role's assigned people, in the order the server sent 
     jsonResponse(200, {
       ...stockDetailRow,
       user_count: 2,
+      may_edit: true,
       assigned_users: [
         { id: "user-1", name: "Amara Ortiz" },
         { id: "user-2", name: "Zoe Almeida" },
@@ -235,6 +242,7 @@ test("fetchRole parses the role's assigned people, in the order the server sent 
     value: {
       ...stockDetail,
       userCount: 2,
+      mayEdit: true,
       assignedUsers: [
         { id: "user-1", name: "Amara Ortiz" },
         { id: "user-2", name: "Zoe Almeida" },
