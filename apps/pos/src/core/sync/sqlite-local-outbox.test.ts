@@ -240,3 +240,29 @@ describe("sending events again", () => {
     expect(ackedAts()).toEqual([ACKNOWLEDGED_AT.toISOString(), ACKNOWLEDGED_AT.toISOString()]);
   });
 });
+
+describe("recording that the outbox lost events", () => {
+  function revokedAt(): string | null | undefined {
+    return database
+      .prepare<[], { installation_revoked_at: string | null }>(
+        "SELECT installation_revoked_at FROM sync_state",
+      )
+      .get()?.installation_revoked_at;
+  }
+
+  it("stops the register from opening new sales, as a revoked installation", async () => {
+    await outbox.recordCompromised();
+
+    expect(revokedAt()).toBe(ACKNOWLEDGED_AT.toISOString());
+  });
+
+  it("keeps the moment it was first stopped", async () => {
+    database
+      .prepare("UPDATE sync_state SET installation_revoked_at = '2026-09-30T08:00:00.000Z'")
+      .run();
+
+    await outbox.recordCompromised();
+
+    expect(revokedAt()).toBe("2026-09-30T08:00:00.000Z");
+  });
+});
