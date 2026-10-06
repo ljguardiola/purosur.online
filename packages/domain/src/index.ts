@@ -45,6 +45,7 @@ export {
   mayEditUser,
   mayEmitPinCode,
   mayEmitPinCodeFor,
+  mayRequestPinCodeFor,
   mayReactivateUser,
   mayRemoveUserPasskey,
   normalizePinCode,

@@ -51,7 +51,11 @@ export function pinCodeRetryAfterSeconds(
 }
 
 export function mayEmitPinCodeFor(actor: PinCodeParty, target: PinCodeParty): boolean {
-  return actor.isAdministrator || (!target.isAdministrator && actor.id !== target.id);
+  return actor.isAdministrator || !target.isAdministrator;
+}
+
+export function mayRequestPinCodeFor(actor: PinCodeParty & RoleAccess, targetId: string): boolean {
+  return actor.id === targetId || grantsCapability(actor, "reset_user_pin");
 }
 
 export function mayEmitPinCode(
@@ -59,7 +63,7 @@ export function mayEmitPinCode(
   target: PinCodeParty & { active: boolean },
 ): boolean {
   return (
-    target.active && grantsCapability(actor, "reset_user_pin") && mayEmitPinCodeFor(actor, target)
+    target.active && mayRequestPinCodeFor(actor, target.id) && mayEmitPinCodeFor(actor, target)
   );
 }
 
