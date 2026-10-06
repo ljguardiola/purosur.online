@@ -2,6 +2,8 @@ import type { Capability } from "@purosur/domain";
 import type { BackofficeAccess } from "../backoffice-access";
 
 const EVERY_CAPABILITY: Record<Capability, true> = {
+  manage_users: true,
+  manage_roles: true,
   users_area: true,
   reset_user_pin: true,
   deactivate_users: true,
@@ -26,14 +28,12 @@ const EVERY_CAPABILITY: Record<Capability, true> = {
 export const ADMINISTRATOR_CAPABILITIES = Object.keys(EVERY_CAPABILITY) as Capability[];
 
 export const ADMINISTRATOR_ACCESS: BackofficeAccess = {
-  isAdministrator: true,
   capabilities: ADMINISTRATOR_CAPABILITIES,
   stockMovementKinds: ["loss", "adjustment"],
   mayEmitOwnPinCode: true,
 };
 
 export const NO_CAPABILITIES_ACCESS: BackofficeAccess = {
-  isAdministrator: false,
   capabilities: [],
   stockMovementKinds: [],
   mayEmitOwnPinCode: false,
@@ -41,7 +41,6 @@ export const NO_CAPABILITIES_ACCESS: BackofficeAccess = {
 
 export function accessWith(...capabilities: Capability[]): BackofficeAccess {
   return {
-    isAdministrator: false,
     capabilities,
     stockMovementKinds: [],
     mayEmitOwnPinCode: false,

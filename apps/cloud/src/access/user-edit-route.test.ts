@@ -437,6 +437,10 @@ describe("PUT /users/:id", () => {
       passkey_count: 0,
       is_last_active_administrator: false,
       may_emit_pin_code: true,
+      may_edit: true,
+      may_deactivate: true,
+      may_reactivate: false,
+      may_remove_passkey: true,
     });
     const audited = await db.select().from(auditLog).where(eq(auditLog.entityId, targetId));
     expect(audited).toHaveLength(1);
@@ -530,6 +534,10 @@ describe("PUT /users/:id", () => {
       passkey_count: 0,
       is_last_active_administrator: false,
       may_emit_pin_code: true,
+      may_edit: true,
+      may_deactivate: true,
+      may_reactivate: false,
+      may_remove_passkey: true,
     });
     expect(await roleOf(targetId)).toBe(encargadaRoleId);
     const audited = await db.select().from(auditLog).where(eq(auditLog.entityId, targetId));
@@ -658,7 +666,39 @@ describe("PUT /users/:id", () => {
       passkey_count: 0,
       is_last_active_administrator: false,
       may_emit_pin_code: true,
+      may_edit: true,
+      may_deactivate: true,
+      may_reactivate: false,
+      may_remove_passkey: true,
     });
+  });
+
+  it("answers 401 unauthenticated, keeping the edit, when the session is revoked right after it commits", async () => {
+    const rawSessionId = await insertSession(administratorId);
+    const racedApp = Fastify();
+    registerUserEditRoutes(racedApp, {
+      db: withChangeAfterCommit(() =>
+        db
+          .update(sessions)
+          .set({ revokedAt: NOON })
+          .where(eq(sessions.sessionIdHash, hashSessionId(rawSessionId))),
+      ),
+      backofficeOrigin: BACKOFFICE_ORIGIN,
+      now: () => currentTime,
+    });
+
+    const response = await putJson(
+      racedApp,
+      `/users/${targetId}`,
+      { email: "new.email@example.com", role_id: cashierRoleId, version: 1 },
+      cookieHeader(rawSessionId),
+    );
+    await racedApp.close();
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "unauthenticated" });
+    const [row] = await db.select().from(users).where(eq(users.id, targetId));
+    expect(row?.email).toBe("new.email@example.com");
   });
 
   it("answers a promotion to Administrator with the promoted user no longer the last active one", async () => {
@@ -677,6 +717,10 @@ describe("PUT /users/:id", () => {
       role: { id: administratorRoleId, is_administrator: true },
       is_last_active_administrator: false,
       may_emit_pin_code: true,
+      may_edit: true,
+      may_deactivate: false,
+      may_reactivate: false,
+      may_remove_passkey: true,
     });
   });
 
@@ -714,6 +758,10 @@ describe("PUT /users/:id", () => {
         email: "ada.lovelace@example.com",
         is_last_active_administrator: true,
         may_emit_pin_code: true,
+        may_edit: true,
+        may_deactivate: false,
+        may_reactivate: false,
+        may_remove_passkey: false,
       });
     });
 
@@ -737,9 +785,38 @@ describe("PUT /users/:id", () => {
       expect(response.json()).toMatchObject({
         role: { id: cashierRoleId },
         is_last_active_administrator: false,
-        may_emit_pin_code: true,
       });
       expect(await roleOf(administratorId)).toBe(cashierRoleId);
+    });
+
+    it("answers what the person may do with their own account from the role they just moved to", async () => {
+      await insertUser({
+        firstName: "Zoe Second",
+        email: "zoe@example.com",
+        roleId: await seededAdministratorRoleId(),
+        locationId: await seededLocationId(db),
+      });
+      const rawSessionId = await insertSession(administratorId);
+
+      const response = await editUser(administratorId, rawSessionId, {
+        email: "ada@example.com",
+        role_id: cashierRoleId,
+        version: 1,
+      });
+      const nextEdit = await editUser(administratorId, rawSessionId, {
+        email: "ada@example.com",
+        role_id: cashierRoleId,
+        version: 2,
+      });
+
+      expect(response.json()).toMatchObject({
+        may_emit_pin_code: false,
+        may_edit: false,
+        may_deactivate: false,
+        may_reactivate: false,
+        may_remove_passkey: false,
+      });
+      expect(nextEdit.statusCode).toBe(403);
     });
   });
 

@@ -40,7 +40,11 @@ import type {
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
 import type { CloudData } from "../platform/use-cloud-query";
-import { type BackofficeAccess, canReactivateUser } from "../shell/backoffice-access";
+import {
+  type BackofficeAccess,
+  canManageUsers,
+  canReactivateUser,
+} from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { useRefreshAccess, useRolesQuery, useUsersQuery } from "./access-queries";
@@ -272,7 +276,7 @@ function NewUserModal({
 }
 
 export function UsersListScreen(props: UsersListScreenProps) {
-  return props.access.isAdministrator ? (
+  return canManageUsers(props.access) ? (
     <AdministratorUsersList {...props} />
   ) : (
     <ReaderUsersList {...props} />
@@ -378,8 +382,8 @@ function UsersListView({
     header: "Acciones",
     actions: [
       (item: BranchUser) => ({
-        icon: access.isAdministrator ? <Pencil /> : <Eye />,
-        "aria-label": access.isAdministrator
+        icon: canManageUsers(access) ? <Pencil /> : <Eye />,
+        "aria-label": canManageUsers(access)
           ? `Editar a ${item.firstName}`
           : `Ver a ${item.firstName}`,
         onPress: () => navigate({ to: "/users/$userId", params: { userId: item.id } }),
@@ -410,7 +414,7 @@ function UsersListView({
               <p className="text-text-subtle text-detail">Configuración</p>
               <ScreenTitle>Usuarios</ScreenTitle>
             </div>
-            {access.isAdministrator ? (
+            {canManageUsers(access) ? (
               <Button
                 variant="primary"
                 icon={<Plus />}

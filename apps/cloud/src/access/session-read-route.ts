@@ -43,7 +43,6 @@ export function registerSessionReadRoute<TQueryResult extends PgQueryResultHKT>(
           user_id: openSession.userId,
           display_name: openSession.firstName,
           expires_at: sessionExpiresAt(openSession).toISOString(),
-          is_administrator: openSession.isAdministrator,
           capabilities: grantedCapabilities(openSession),
           stock_movement_kinds: visibleManualStockMovementKinds(openSession),
           may_emit_own_pin_code: mayEmitPinCode(

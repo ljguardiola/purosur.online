@@ -185,40 +185,18 @@ test("navigates to Mi cuenta when the passkeys list comes back forbidden", async
   await expect.poll(() => window.location.pathname).toBe("/account");
 });
 
-test("shows no remove button on the signed-in Administrator's own passkeys", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
-  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({
-    kind: "ok",
-    value: [notebook, phone],
-  });
-
-  const screen = await renderScreen(services, () => {}, "user-1", "user-1");
-
-  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
-  expect(
-    screen.getByRole("button", { name: `Dar de baja la passkey «${notebook.name}»` }).query(),
-  ).toBeNull();
-});
-
-test("shows no remove button on the Administrator's own passkeys when the id arrives in another case", async () => {
-  const signedInUserId = "3f2b8c1e-9d4a-4e6b-8a7c-1b2d3e4f5a6b";
+test("shows no remove button when the cloud answers the user's passkeys may not be removed, even for an Administrator viewing another person's account", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({
     kind: "ok",
-    value: { ...lucia, id: signedInUserId },
+    value: { ...lucia, mayRemovePasskey: false },
   });
   vi.mocked(services.fetchUserPasskeys).mockResolvedValue({
     kind: "ok",
     value: [notebook, phone],
   });
 
-  const screen = await renderScreen(
-    services,
-    () => {},
-    signedInUserId.toUpperCase(),
-    signedInUserId,
-  );
+  const screen = await renderScreen(services, () => {}, "user-1", "admin-1");
 
   await expect.element(screen.getByText("Notebook del local")).toBeVisible();
   expect(
@@ -286,7 +264,10 @@ test("hides Editar and the whole Passkeys section for a non-Administrator, never
   const services = createServices({
     fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  vi.mocked(services.fetchUser).mockResolvedValue({
+    kind: "ok",
+    value: { ...lucia, mayEdit: false, mayRemovePasskey: false },
+  });
 
   const screen = await renderScreen(
     services,
@@ -466,4 +447,42 @@ test("ends the session when the remove modal's removal finds it closed", async (
   await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("follows the user's answers, not the session, for every action an Administrator is offered", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({
+    kind: "ok",
+    value: {
+      ...lucia,
+      mayEdit: false,
+      mayDeactivate: false,
+      mayReactivate: false,
+      mayRemovePasskey: false,
+    },
+  });
+  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Editar" }).query()).toBeNull();
+  expect(screen.getByRole("button", { name: "Desactivar a Lucía" }).query()).toBeNull();
+  expect(screen.getByRole("button", { name: "Reactivar a Lucía" }).query()).toBeNull();
+  expect(
+    screen.getByRole("button", { name: `Dar de baja la passkey «${notebook.name}»` }).query(),
+  ).toBeNull();
+});
+
+test("offers Editar and the remove button when the user's answers allow them", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByRole("button", { name: "Editar" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: `Dar de baja la passkey «${notebook.name}»` }))
+    .toBeVisible();
 });

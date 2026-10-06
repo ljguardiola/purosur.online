@@ -166,6 +166,10 @@ describe("GET /users", () => {
         passkey_count: 0,
         is_last_active_administrator: false,
         may_emit_pin_code: false,
+        may_edit: false,
+        may_deactivate: false,
+        may_reactivate: false,
+        may_remove_passkey: false,
       },
     ]);
   });
@@ -219,6 +223,10 @@ describe("GET /users", () => {
         passkey_count: 0,
         is_last_active_administrator: false,
         may_emit_pin_code: false,
+        may_edit: false,
+        may_deactivate: false,
+        may_reactivate: false,
+        may_remove_passkey: false,
       },
     ]);
   });
@@ -256,6 +264,10 @@ describe("GET /users", () => {
         passkey_count: 0,
         is_last_active_administrator: false,
         may_emit_pin_code: false,
+        may_edit: false,
+        may_deactivate: false,
+        may_reactivate: true,
+        may_remove_passkey: false,
       },
       {
         id: administratorId,
@@ -267,6 +279,10 @@ describe("GET /users", () => {
         passkey_count: 0,
         is_last_active_administrator: true,
         may_emit_pin_code: true,
+        may_edit: true,
+        may_deactivate: false,
+        may_reactivate: false,
+        may_remove_passkey: false,
       },
     ]);
   });
@@ -346,6 +362,10 @@ describe("GET /users", () => {
         passkey_count: 2,
         is_last_active_administrator: false,
         may_emit_pin_code: true,
+        may_edit: true,
+        may_deactivate: true,
+        may_reactivate: false,
+        may_remove_passkey: true,
       },
       {
         id: administratorId,
@@ -357,6 +377,10 @@ describe("GET /users", () => {
         passkey_count: 0,
         is_last_active_administrator: true,
         may_emit_pin_code: true,
+        may_edit: true,
+        may_deactivate: false,
+        may_reactivate: false,
+        may_remove_passkey: false,
       },
     ]);
   });

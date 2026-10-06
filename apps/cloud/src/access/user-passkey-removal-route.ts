@@ -7,7 +7,7 @@ import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 import { DrizzlePasskeyRemovalStore } from "./drizzle-passkey-removal-store.js";
 import { AUTHORIZATION_REQUIRED_RESPONSE } from "./passkey-authorization-guard.js";
 import {
-  ADMINISTRATOR_ACCESS,
+  capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
@@ -41,7 +41,7 @@ export function registerUserPasskeyRemovalRoutes<TQueryResult extends PgQueryRes
     "/users/:id/passkeys/:passkeyId",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
-      config: { access: ADMINISTRATOR_ACCESS, sessionSource },
+      config: { access: capabilityAccess("manage_users"), sessionSource },
     },
     async (request, reply) => {
       const ids = await readRecordIds(reply, request.params, ["id", "passkeyId"]);

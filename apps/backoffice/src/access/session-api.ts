@@ -16,7 +16,6 @@ export type SessionOutcome =
       kind: "ok";
       userId: string;
       displayName: string;
-      isAdministrator: boolean;
       expiresAt: string;
       capabilities: Capability[];
       stockMovementKinds: ManualStockMovementKind[];
@@ -79,7 +78,6 @@ export async function fetchSession(): Promise<SessionOutcome> {
     kind: "ok",
     userId: body.data.user_id,
     displayName: body.data.display_name,
-    isAdministrator: body.data.is_administrator,
     expiresAt: body.data.expires_at,
     capabilities: body.data.capabilities,
     stockMovementKinds: body.data.stock_movement_kinds,

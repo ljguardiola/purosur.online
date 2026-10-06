@@ -8,7 +8,7 @@ import { canReactivateUsers } from "./branch-users.js";
 import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 import { drizzlePasskeys } from "./drizzle-passkeys.js";
 import {
-  ADMINISTRATOR_ACCESS,
+  capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
@@ -32,7 +32,7 @@ export function registerUserPasskeysListRoute<TQueryResult extends PgQueryResult
     "/users/:id/passkeys",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
-      config: { access: ADMINISTRATOR_ACCESS, sessionSource },
+      config: { access: capabilityAccess("manage_users"), sessionSource },
     },
     async (request, reply) => {
       const ids = await readRecordIds(reply, request.params, ["id"]);

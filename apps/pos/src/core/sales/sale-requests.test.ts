@@ -89,7 +89,7 @@ function addFiscalConfiguration(): void {
     .prepare(
       "INSERT INTO buyer_tax_status_sets (params_version, set_id, options) VALUES (1, 'set-1', ?)",
     )
-    .run(JSON.stringify([{ code: 90, description: "Consumidor Final", invoice_class: "A/M/C" }]));
+    .run(JSON.stringify([{ code: 5, description: "Consumidor Final", invoice_class: "A/M/C" }]));
 }
 
 function seed(): void {

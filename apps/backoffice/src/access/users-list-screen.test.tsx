@@ -47,6 +47,10 @@ const administrator: BranchUser = {
   passkeyCount: 2,
   isLastActiveAdministrator: true,
   mayEmitPinCode: true,
+  mayEdit: true,
+  mayDeactivate: false,
+  mayReactivate: false,
+  mayRemovePasskey: true,
 };
 
 const martina: BranchUser = {
@@ -58,6 +62,10 @@ const martina: BranchUser = {
   passkeyCount: 1,
   isLastActiveAdministrator: false,
   mayEmitPinCode: true,
+  mayEdit: true,
+  mayDeactivate: false,
+  mayReactivate: false,
+  mayRemovePasskey: true,
 };
 
 const tomas: BranchUser = {
@@ -73,6 +81,10 @@ const tomas: BranchUser = {
   passkeyCount: 0,
   isLastActiveAdministrator: false,
   mayEmitPinCode: true,
+  mayEdit: true,
+  mayDeactivate: true,
+  mayReactivate: false,
+  mayRemovePasskey: true,
 };
 
 const sofia: BranchUser = {
@@ -89,6 +101,10 @@ const sofia: BranchUser = {
   passkeyCount: 0,
   isLastActiveAdministrator: false,
   mayEmitPinCode: true,
+  mayEdit: false,
+  mayDeactivate: false,
+  mayReactivate: true,
+  mayRemovePasskey: false,
 };
 
 const REACTIVATE_USERS_ACCESS = accessWith("users_area", "reactivate_users");
@@ -1106,4 +1122,29 @@ test("does not report its filters again when the route hands it a new callback",
   );
 
   expect(onFiltersChange).toHaveBeenCalledTimes(1);
+});
+
+test("offers the administrator's list, with Nuevo usuario and Editar, to whoever holds manage_users", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, martina] });
+
+  const screen = await renderScreen(services, () => {}, accessWith("manage_users"));
+
+  await expect.element(screen.getByRole("button", { name: "Nuevo usuario" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: "Editar a Martina Gómez" }))
+    .toBeVisible();
+});
+
+test("offers the reader's list, without Nuevo usuario, to whoever lacks manage_users, whatever else they hold", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, martina] });
+  const everythingButManageUsers = ADMINISTRATOR_ACCESS.capabilities.filter(
+    (capability) => capability !== "manage_users",
+  );
+
+  const screen = await renderScreen(services, () => {}, accessWith(...everythingButManageUsers));
+
+  await expect.element(screen.getByRole("button", { name: "Ver a Martina Gómez" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Nuevo usuario" }).query()).toBeNull();
 });

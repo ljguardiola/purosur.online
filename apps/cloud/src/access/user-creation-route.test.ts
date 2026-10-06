@@ -215,6 +215,10 @@ describe("POST /users", () => {
       passkey_count: 0,
       is_last_active_administrator: false,
       may_emit_pin_code: true,
+      may_edit: true,
+      may_deactivate: true,
+      may_reactivate: false,
+      may_remove_passkey: true,
     });
 
     const [createdUser] = await db.select().from(users).where(eq(users.id, body.id));

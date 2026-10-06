@@ -20,7 +20,7 @@ const ISSUER: IssuerIdentificationInEffect = {
   version: 3,
 };
 const CONSUMIDOR_FINAL: BuyerTaxStatusOption = {
-  code: 90,
+  code: 5,
   description: "Consumidor Final",
   invoiceClass: "A/M/C",
 };
@@ -50,17 +50,17 @@ describe("preEmissionGate", () => {
           activityStartDate: "2020-01-15",
           version: 3,
         },
-        buyerTaxStatusCode: 90,
+        buyerTaxStatusCode: 5,
       },
     });
   });
 
-  it("takes the buyer tax-status code from the set, never from a fixed value", () => {
+  it("passes with the entry identified as 5 whatever its description says", () => {
     const outcome = preEmissionGate({
       ...INPUT,
-      buyerTaxStatuses: [{ ...CONSUMIDOR_FINAL, code: 12 }],
+      buyerTaxStatuses: [{ ...CONSUMIDOR_FINAL, description: "Condicion de prueba" }],
     });
-    expect(outcome).toMatchObject({ kind: "passed", document: { buyerTaxStatusCode: 12 } });
+    expect(outcome).toMatchObject({ kind: "passed", document: { buyerTaxStatusCode: 5 } });
   });
 
   it("fails when no issuer identification has been delivered", () => {
@@ -113,7 +113,16 @@ describe("preEmissionGate", () => {
     });
   });
 
-  it("fails when the set has no Consumidor Final entry admitting C", () => {
+  it("fails when the set has no entry identified as 5, even one described as Consumidor Final", () => {
+    expect(
+      preEmissionGate({
+        ...INPUT,
+        buyerTaxStatuses: [{ ...CONSUMIDOR_FINAL, code: 90 }],
+      }),
+    ).toStrictEqual({ kind: "failed", reason: "buyer_tax_status_missing" });
+  });
+
+  it("fails when the entry identified as 5 does not admit class C", () => {
     expect(
       preEmissionGate({
         ...INPUT,

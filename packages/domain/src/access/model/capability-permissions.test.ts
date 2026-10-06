@@ -5,7 +5,7 @@ import {
   grantedCapabilities,
   grantsCapability,
 } from "./capability-permissions.js";
-import type { PermissionKey } from "./permission-catalog.js";
+import { PERMISSION_KEYS, type PermissionKey } from "./permission-catalog.js";
 
 const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][] = [
   ["deactivate_users", ["users_area", "deactivate_users"]],
@@ -64,6 +64,23 @@ describe("grantsCapability", () => {
         { isAdministrator: false, permissionKeys: ["adjust_stock"] },
         "stock_losses",
       ),
+    ).toBe(false);
+  });
+});
+
+describe.each(["manage_users", "manage_roles"] as const)("the %s capability", (capability) => {
+  it("is granted to an administrator holding no permission", () => {
+    expect(grantsCapability({ isAdministrator: true, permissionKeys: [] }, capability)).toBe(true);
+  });
+
+  it("is granted to no one who is not an administrator, whatever permission is held", () => {
+    for (const key of PERMISSION_KEYS) {
+      expect(grantsCapability({ isAdministrator: false, permissionKeys: [key] }, capability)).toBe(
+        false,
+      );
+    }
+    expect(
+      grantsCapability({ isAdministrator: false, permissionKeys: PERMISSION_KEYS }, capability),
     ).toBe(false);
   });
 });

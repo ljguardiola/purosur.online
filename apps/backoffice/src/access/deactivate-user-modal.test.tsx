@@ -30,6 +30,10 @@ const lucia: BranchUser = {
   passkeyCount: 1,
   isLastActiveAdministrator: false,
   mayEmitPinCode: true,
+  mayEdit: true,
+  mayDeactivate: true,
+  mayReactivate: false,
+  mayRemovePasskey: true,
 };
 
 const authorizationOptions = { challenge: "session-auth" } as never;

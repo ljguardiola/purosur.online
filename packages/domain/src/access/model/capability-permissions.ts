@@ -2,7 +2,11 @@ import type { RoleAccess } from "./access-increase.js";
 import { holdsPermission } from "./holds-permission.js";
 import type { PermissionKey } from "./permission-catalog.js";
 
+const ADMINISTRATOR_ONLY: readonly PermissionKey[] = [];
+
 export const CAPABILITY_PERMISSIONS = {
+  manage_users: ADMINISTRATOR_ONLY,
+  manage_roles: ADMINISTRATOR_ONLY,
   users_area: ["deactivate_users", "reactivate_users", "reset_user_pin"],
   reset_user_pin: ["reset_user_pin"],
   deactivate_users: ["deactivate_users"],
@@ -34,8 +38,11 @@ export type Capability = keyof typeof CAPABILITY_PERMISSIONS;
 export const CAPABILITIES = Object.keys(CAPABILITY_PERMISSIONS) as [Capability, ...Capability[]];
 
 export function grantsCapability(access: RoleAccess, capability: Capability): boolean {
-  return CAPABILITY_PERMISSIONS[capability].some((permission: PermissionKey) =>
-    holdsPermission(access, permission),
+  return (
+    access.isAdministrator ||
+    CAPABILITY_PERMISSIONS[capability].some((permission: PermissionKey) =>
+      holdsPermission(access, permission),
+    )
   );
 }
 

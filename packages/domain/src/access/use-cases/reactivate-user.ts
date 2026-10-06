@@ -1,3 +1,4 @@
+import { isUserReactivatable } from "../model/user-deactivation.js";
 import type { UserStore } from "./user-store.js";
 
 export interface ReactivateUserPorts {
@@ -17,7 +18,7 @@ export function reactivateUser(
 ): Promise<ReactivateUserOutcome> {
   return store.transaction<ReactivateUserOutcome>(async (tx) => {
     const locked = await tx.lockUser(input.id);
-    if (!locked || locked.active) {
+    if (!locked || !isUserReactivatable(locked)) {
       return { kind: "not_found" };
     }
 

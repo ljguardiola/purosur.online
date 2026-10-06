@@ -72,6 +72,10 @@ export const lucia: BranchUser = {
   passkeyCount: 1,
   isLastActiveAdministrator: false,
   mayEmitPinCode: true,
+  mayEdit: true,
+  mayDeactivate: true,
+  mayReactivate: false,
+  mayRemovePasskey: true,
 };
 
 export const NOW = () => new Date("2026-09-23T12:00:00.000Z");
@@ -124,6 +128,10 @@ export const adminTarget: BranchUser = {
   passkeyCount: 1,
   isLastActiveAdministrator: false,
   mayEmitPinCode: true,
+  mayEdit: true,
+  mayDeactivate: false,
+  mayReactivate: false,
+  mayRemovePasskey: true,
 };
 
 export const REACTIVATE_USERS_ACCESS = accessWith("users_area", "reactivate_users");
@@ -138,6 +146,10 @@ export const sofia: BranchUser = {
   passkeyCount: 1,
   isLastActiveAdministrator: false,
   mayEmitPinCode: false,
+  mayEdit: false,
+  mayDeactivate: false,
+  mayReactivate: true,
+  mayRemovePasskey: false,
 };
 
 export async function openEditModal(screen: Screen) {

@@ -5,7 +5,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "./backoffice-origin.js";
 import { drizzleRoleDirectory } from "./drizzle-role-directory.js";
-import { ADMINISTRATOR_ACCESS, registerRouteAccess, routeSessionSource } from "./route-access.js";
+import { capabilityAccess, registerRouteAccess, routeSessionSource } from "./route-access.js";
 
 export interface RolesRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
@@ -35,7 +35,7 @@ export function registerRolesListRoute<TQueryResult extends PgQueryResultHKT>(
     "/roles",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
-      config: { access: ADMINISTRATOR_ACCESS, sessionSource },
+      config: { access: capabilityAccess("manage_roles"), sessionSource },
     },
     async (_request, reply) => {
       const rows = await listRoles({ roles: drizzleRoleDirectory(options.db) });
