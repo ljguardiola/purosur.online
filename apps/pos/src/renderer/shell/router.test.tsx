@@ -9,7 +9,7 @@ import { render as renderInPage } from "vitest-browser-react";
 import { createQueryClient } from "../platform/query-client";
 import type { CashSessionState } from "../register/cash-session-state";
 import { GuardedCashInForm } from "../register/test-support/guarded-cash-in-form";
-import type { CoreStatus, Enrollment, RouterContext } from "./router";
+import type { CoreStatus, Enrollment, RegisterServiceState, RouterContext } from "./router";
 import { createRegisterRouter, routeFor, routeTree } from "./router";
 import type { SignedInPerson } from "./signed-in-person";
 
@@ -25,11 +25,13 @@ type RoutePath =
   | "/enroll"
   | "/starting"
   | "/core-down"
+  | "/out-of-service"
   | "/pin-code-redemption"
   | "/first-sign-in";
 type RenderedScreen = Awaited<ReturnType<typeof render>>;
 
 const CORE_DOWN_TITLE = "Esperá un momento";
+const OUT_OF_SERVICE_TITLE = "La caja necesita restaurarse";
 const SIGNED_IN_TITLE = "¿Qué querés hacer?";
 const SIGN_IN_TITLE = "¿Quién abre la caja?";
 const SESSION_TITLE = "Venta en curso";
@@ -79,6 +81,7 @@ const screenFor: Record<
   "/enroll": (screen) => screen.getByRole("heading", { name: ENROLLMENT_TITLE }),
   "/starting": (screen) => screen.getByRole("img", { name: BRAND_LOGO_ALT }),
   "/core-down": (screen) => screen.getByText(CORE_DOWN_TITLE),
+  "/out-of-service": (screen) => screen.getByText(OUT_OF_SERVICE_TITLE),
   "/pin-code-redemption": (screen) => screen.getByRole("heading", { name: PIN_REDEMPTION_TITLE }),
   "/first-sign-in": (screen) => screen.getByRole("heading", { name: FIRST_SIGN_IN_TITLE }),
 };
@@ -95,10 +98,12 @@ function contextWith(
   person: SignedInPerson | null = PERSON,
   signOut: () => void = () => {},
   cashSession: CashSessionState = NO_SESSION,
+  registerService: RegisterServiceState = "in_service",
 ): RouterContext {
   return {
     queryClient,
     coreStatus,
+    registerService,
     enrollment,
     person: person ?? undefined,
     cashSession,
@@ -147,10 +152,11 @@ function routerAt(
   enrollment?: Enrollment,
   person?: SignedInPerson | null,
   cashSession?: CashSessionState,
+  registerService?: RegisterServiceState,
 ) {
   return createRegisterRouter(
     routeTree,
-    contextWith(coreStatus, enrollment, person, undefined, cashSession),
+    contextWith(coreStatus, enrollment, person, undefined, cashSession, registerService),
     path,
   );
 }
@@ -194,6 +200,7 @@ describe("routeFor", () => {
     enrollment: Enrollment;
     person: SignedInPerson | undefined;
     cashSession?: CashSessionState;
+    registerService?: RegisterServiceState;
     route: RoutePath;
   }>([
     { coreStatus: "up", enrollment: "enrolled", person: undefined, route: "/sign-in" },
@@ -265,10 +272,76 @@ describe("routeFor", () => {
       cashSession: { status: "unavailable" },
       route: "/core-down",
     },
+    {
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: PERSON,
+      registerService: "out_of_service",
+      route: "/out-of-service",
+    },
+    {
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: undefined,
+      cashSession: OPEN_SESSION,
+      registerService: "out_of_service",
+      route: "/out-of-service",
+    },
+    {
+      coreStatus: "up",
+      enrollment: "not_enrolled",
+      person: undefined,
+      registerService: "out_of_service",
+      route: "/out-of-service",
+    },
+    {
+      coreStatus: "up",
+      enrollment: "unknown",
+      person: undefined,
+      registerService: "out_of_service",
+      route: "/out-of-service",
+    },
+    {
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: PERSON,
+      registerService: "unknown",
+      route: "/starting",
+    },
+    {
+      coreStatus: "up",
+      enrollment: "not_enrolled",
+      person: PERSON,
+      registerService: "unknown",
+      route: "/starting",
+    },
+    {
+      coreStatus: "down",
+      enrollment: "enrolled",
+      person: PERSON,
+      registerService: "out_of_service",
+      route: "/core-down",
+    },
+    {
+      coreStatus: "starting",
+      enrollment: "enrolled",
+      person: PERSON,
+      registerService: "out_of_service",
+      route: "/starting",
+    },
   ])(
-    "goes to $route when the core is $coreStatus, the installation $enrollment, the cash session $cashSession.status and a person may be signed in",
-    ({ coreStatus, enrollment, person, cashSession = NO_SESSION, route }) => {
-      expect(routeFor({ coreStatus, enrollment, person, cashSession })).toBe(route);
+    "goes to $route when the core is $coreStatus, the installation $enrollment, the cash session $cashSession.status and the register $registerService",
+    ({
+      coreStatus,
+      enrollment,
+      person,
+      cashSession = NO_SESSION,
+      registerService = "in_service",
+      route,
+    }) => {
+      expect(routeFor({ coreStatus, enrollment, person, cashSession, registerService })).toBe(
+        route,
+      );
     },
   );
 });
@@ -284,6 +357,7 @@ describe("the register's router", () => {
     enrollment: Enrollment;
     person?: null;
     cashSession?: CashSessionState;
+    registerService?: RegisterServiceState;
     redirectedTo: RoutePath;
   }>([
     { path: "/", coreStatus: "down", enrollment: "enrolled", redirectedTo: "/core-down" },
@@ -537,15 +611,82 @@ describe("the register's router", () => {
       person: null,
       redirectedTo: "/sign-in",
     },
+    {
+      path: "/",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      registerService: "out_of_service",
+      redirectedTo: "/out-of-service",
+    },
+    {
+      path: "/sign-in",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: null,
+      registerService: "out_of_service",
+      redirectedTo: "/out-of-service",
+    },
+    {
+      path: "/session",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      cashSession: OPEN_SESSION,
+      registerService: "out_of_service",
+      redirectedTo: "/out-of-service",
+    },
+    {
+      path: "/enroll",
+      coreStatus: "up",
+      enrollment: "not_enrolled",
+      person: null,
+      registerService: "out_of_service",
+      redirectedTo: "/out-of-service",
+    },
+    {
+      path: "/out-of-service",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      redirectedTo: "/",
+    },
+    {
+      path: "/out-of-service",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      registerService: "unknown",
+      redirectedTo: "/starting",
+    },
+    {
+      path: "/out-of-service",
+      coreStatus: "down",
+      enrollment: "enrolled",
+      registerService: "out_of_service",
+      redirectedTo: "/core-down",
+    },
+    {
+      path: "/",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      registerService: "unknown",
+      redirectedTo: "/starting",
+    },
   ])(
-    "redirects away from $path when the core is $coreStatus and the installation $enrollment",
-    async ({ path, coreStatus, enrollment, person, cashSession, redirectedTo }) => {
+    "redirects away from $path when the core is $coreStatus, the installation $enrollment and the register $registerService",
+    async ({
+      path,
+      coreStatus,
+      enrollment,
+      person,
+      cashSession,
+      registerService,
+      redirectedTo,
+    }) => {
       const router = routerAt(
         path,
         coreStatus,
         enrollment,
         person === null ? null : PERSON,
         cashSession,
+        registerService,
       );
 
       const screen = await render(<RouterProvider router={router} />);
@@ -563,6 +704,21 @@ describe("the register's router", () => {
     await expect.element(screen.getByRole("heading", { name: "Caja bloqueada" })).toBeVisible();
     await expect.element(screen.getByRole("radio", { name: "Grace" })).toBeVisible();
     await expect.element(screen.getByText("Sesión abierta 09:02")).toBeVisible();
+  });
+
+  it("renders the out-of-service notice while the register is out of service", async () => {
+    const router = routerAt(
+      "/out-of-service",
+      "up",
+      "enrolled",
+      null,
+      NO_SESSION,
+      "out_of_service",
+    );
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screen.getByText(OUT_OF_SERVICE_TITLE)).toBeVisible();
   });
 
   it("renders the enrollment screen while the installation isn't enrolled", async () => {
