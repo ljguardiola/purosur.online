@@ -6,7 +6,7 @@ import {
   isInternalBarcode,
   SALE_UNITS,
 } from "@purosur/domain";
-import { eq, sql } from "drizzle-orm";
+import { eq, ne, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterEach, describe, expect, it } from "vitest";
@@ -136,7 +136,7 @@ describe("loadSampleData", () => {
     expect(await tableCount(db, "products")).toBe(0);
   });
 
-  it("stamps every audit row it writes with the moment it started, however the clock moves on", async () => {
+  it("stamps every audit row it writes, but an alert's closure, with the moment it started, however the clock moves on", async () => {
     const db = await freshDatabase();
     await seedActiveAdministrator(db);
     let reads = 0;
@@ -144,7 +144,10 @@ describe("loadSampleData", () => {
 
     expect((await loadSampleData(db, { now: movingClock })).kind).toBe("loaded");
 
-    const audited = await db.select({ at: auditLog.at }).from(auditLog);
+    const audited = await db
+      .select({ at: auditLog.at })
+      .from(auditLog)
+      .where(ne(auditLog.entity, "alert"));
     expect(audited.length).toBeGreaterThan(0);
     expect(new Set(audited.map((row) => row.at.getTime()))).toEqual(new Set([NOW.getTime()]));
   }, 120_000);

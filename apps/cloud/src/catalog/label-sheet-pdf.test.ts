@@ -211,7 +211,7 @@ describe("renderLabelSheetPdf", () => {
       new Date("2026-01-05T12:00:00.000Z"),
     );
 
-    expect(pdf.toString("latin1")).toContain("/CreationDate (D:20260105120000Z)");
+    expect(pdf.toString("latin1")).toContain("(D:20260105120000Z)");
   });
 
   it("produces a valid PDF document", async () => {

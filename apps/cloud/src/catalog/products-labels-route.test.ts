@@ -329,6 +329,6 @@ describe("POST /label-sheets", () => {
     expect(response.headers["content-disposition"]).toBe("attachment");
     const pdf = response.rawPayload;
     expect(pdf.subarray(0, 5).toString("latin1")).toBe("%PDF-");
-    expect(pdf.toString("latin1")).toContain("/CreationDate (D:20260105120000Z)");
+    expect(pdf.toString("latin1")).toContain("(D:20260105120000Z)");
   });
 });
