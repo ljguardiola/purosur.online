@@ -12,7 +12,7 @@ jobs:
   shard:
     name: mutation (${{ matrix.shard }}/6)
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 12
     strategy:
       fail-fast: false
       matrix:
