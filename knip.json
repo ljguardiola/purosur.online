@@ -14,7 +14,6 @@
       "entry": [
         ".claude/hooks/pretool.mjs",
         "vitest.mutation.config.ts",
-        "vitest.register-push-recorder.config.ts",
         ".github/scripts/validate-pr.mjs",
         ".github/scripts/validate-issue.mjs",
         ".github/scripts/parent-issue.mjs",
@@ -26,6 +25,7 @@
       "includeEntryExports": true
     },
     "apps/pos": {
+      "entry": ["src/core/sync/test-support/register-session-push.recorder.ts"],
       "vitest": {
         "entry": ["src/**/*.test.{ts,tsx}", "*.test.ts"]
       },
