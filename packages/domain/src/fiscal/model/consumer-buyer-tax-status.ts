@@ -1,6 +1,7 @@
 import type { BuyerTaxStatusOption } from "./buyer-tax-status-set.js";
 
-const CONSUMER_DESCRIPTION = "Consumidor Final";
+// ARCA identifies Consumidor Final as Id 5 in the buyer tax-status set its web service returns.
+const CONSUMER_CODE = 5;
 
 // ARCA lists the invoice classes an entry admits as letters separated by slashes, such as "A/M/C".
 function admitsClassC(option: BuyerTaxStatusOption): boolean {
@@ -10,7 +11,6 @@ function admitsClassC(option: BuyerTaxStatusOption): boolean {
 export function selectConsumerBuyerTaxStatus(
   options: readonly BuyerTaxStatusOption[],
 ): BuyerTaxStatusOption | undefined {
-  return options.find(
-    (option) => option.description === CONSUMER_DESCRIPTION && admitsClassC(option),
-  );
+  const consumer = options.find((option) => option.code === CONSUMER_CODE);
+  return consumer !== undefined && admitsClassC(consumer) ? consumer : undefined;
 }
