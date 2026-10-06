@@ -79,7 +79,7 @@ function saleCompletedEvent(
     aggregate_type: "Sale",
     aggregate_id: sale.id,
     event_type: "sale_completed",
-    schema_version: 1,
+    schema_version: 2,
     payload: {
       id: sale.id,
       register_id: sale.registerId,
@@ -87,7 +87,6 @@ function saleCompletedEvent(
       session_id: sale.sessionId,
       actor_id: sale.actorId,
       occurred_at: completedAtIso,
-      completed_at: completedAtIso,
       total,
       lines: sale.lines.map((line) => ({
         id: line.id,
