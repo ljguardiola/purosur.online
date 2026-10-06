@@ -185,7 +185,11 @@ describe("DrizzleStockReader.stockLevels", () => {
     const flour = await insertProduct(db, { name: "Harina", active: false });
     await insertBalance(db, { productId: honey.productId, locationId, quantity: 12 });
     await insertBalance(db, { productId: rice.productId, locationId, quantity: 0 });
-    await insertBalance(db, { productId: flour.productId, locationId: otherLocationId, quantity: 9 });
+    await insertBalance(db, {
+      productId: flour.productId,
+      locationId: otherLocationId,
+      quantity: 9,
+    });
     await insertBalance(db, {
       productId: nuts.productId,
       locationId: otherLocationId,

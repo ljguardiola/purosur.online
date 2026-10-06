@@ -18,7 +18,9 @@ export const REASONS_OF_KIND = {
 
 const productNameOrder = textOrder((product: StockProduct) => product.name);
 
-type ProductOption = { value: string; label: string };
+const DEACTIVATED_STATUS = "Desactivado";
+
+type ProductOption = { value: string; label: string; status?: string };
 
 export function productOptions(
   products: readonly StockProduct[],
@@ -26,7 +28,11 @@ export function productOptions(
   const [first, ...rest] = sortedItems(products, {
     order: productNameOrder,
     direction: "ascending",
-  }).map((product) => ({ value: product.id, label: product.name }));
+  }).map((product) => ({
+    value: product.id,
+    label: product.name,
+    ...(product.active ? {} : { status: DEACTIVATED_STATUS }),
+  }));
   return first && [first, ...rest];
 }
 
