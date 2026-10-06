@@ -11,7 +11,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { registerRouteAccess } from "../access/route-access.js";
 import { deviceState, inbox, refusedEvents, registerInstallations } from "../platform/db/schema.js";
 import { issueDeviceToken } from "../register/device-token.js";
-import type { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
@@ -89,7 +89,7 @@ function bodyOf(events: PushedWireEvent[]): PushEventsRequest {
 }
 
 function enroll(options: Parameters<typeof insertEnrolledInstallation>[1] = {}) {
-  return enroll({ outboxChainKey: CHAIN_KEY, ...options });
+  return insertEnrolledInstallation(db, { outboxChainKey: CHAIN_KEY, ...options });
 }
 
 function push(payload: unknown, authorization?: string) {
