@@ -16,7 +16,7 @@ export async function expectedBalanceAt(
   { ledger }: { ledger: StockLedgerReader },
   input: ExpectedBalanceAtInput,
 ): Promise<ExpectedBalanceAtOutcome> {
-  const product = await ledger.activeProduct(input.productId);
+  const product = await ledger.product(input.productId);
   if (!product) {
     return { kind: "not_found" };
   }
