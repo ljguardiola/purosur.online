@@ -19,6 +19,7 @@ const balance = {
   categoryId: "category-1",
   categoryName: "Frutos secos",
   saleUnit: "KG",
+  active: true,
   balance: 12_150,
 };
 
@@ -51,7 +52,13 @@ const movement = {
 
 describe("stockBalanceListSchema", () => {
   it("accepts products with their balance, a negative one included", () => {
-    const list = { products: [balance, { ...balance, id: "product-2", balance: -4000 }] };
+    const list = {
+      products: [
+        balance,
+        { ...balance, id: "product-2", balance: -4000 },
+        { ...balance, id: "product-3", active: false },
+      ],
+    };
 
     expect(stockBalanceListSchema.safeParse(list).data).toEqual(list);
   });
@@ -61,6 +68,8 @@ describe("stockBalanceListSchema", () => {
     ["balance", "12150"],
     ["saleUnit", "LITRE"],
     ["name", null],
+    ["active", undefined],
+    ["active", "false"],
   ])("refuses %s as %j", (field, value) => {
     expect(
       stockBalanceListSchema.safeParse({ products: [{ ...balance, [field]: value }] }).success,
@@ -76,6 +85,7 @@ describe("stockBalanceSchema", () => {
   it.each([
     ["balance", 0.5],
     ["balance", undefined],
+    ["active", undefined],
   ])("refuses %s as %j", (field, value) => {
     expect(stockBalanceSchema.safeParse({ ...balance, [field]: value }).success).toBe(false);
   });
@@ -131,12 +141,16 @@ describe("stockProductListSchema", () => {
     categoryId: "category-1",
     categoryName: "Frutos secos",
     saleUnit: "KG",
+    active: true,
   };
 
   it("accepts the products a movement can be registered for, without their balance", () => {
     expect(stockProductListSchema.safeParse({ products: [product] }).data).toEqual({
       products: [product],
     });
+    expect(
+      stockProductListSchema.safeParse({ products: [{ ...product, active: false }] }).data,
+    ).toEqual({ products: [{ ...product, active: false }] });
     expect(
       stockProductListSchema.safeParse({ products: [{ ...product, balance: 12_150 }] }).data,
     ).toEqual({ products: [product] });
@@ -145,6 +159,8 @@ describe("stockProductListSchema", () => {
   it.each([
     ["saleUnit", "LITRE"],
     ["name", null],
+    ["active", undefined],
+    ["active", "true"],
   ])("refuses %s as %j", (field, value) => {
     expect(
       stockProductListSchema.safeParse({ products: [{ ...product, [field]: value }] }).success,
