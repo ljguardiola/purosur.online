@@ -32,6 +32,7 @@ export class FakeInbox implements Inbox {
   failReceiving = false;
   failSettingAside = false;
   chainKeys = new Map<string, string | undefined>();
+  revokedDevices = new Set<string>();
 
   constructor(receivedSeqs: { deviceId: string; seqs: number[] }[] = []) {
     for (const { deviceId, seqs } of receivedSeqs) {
@@ -58,6 +59,13 @@ export class FakeInbox implements Inbox {
     const outcome = await work({
       lockDevice: async (deviceId) => {
         this.calls.push(`lockDevice ${deviceId}`);
+      },
+      installationRevoked: async (deviceId) => {
+        this.calls.push(`installationRevoked ${deviceId}`);
+        return (
+          this.revokedDevices.has(deviceId) ||
+          working.brokenChainRevocations.some((revocation) => revocation.deviceId === deviceId)
+        );
       },
       receivedDeviceSeqs: async (deviceId) => {
         this.calls.push(`receivedDeviceSeqs ${deviceId}`);

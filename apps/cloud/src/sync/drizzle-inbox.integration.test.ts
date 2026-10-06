@@ -212,6 +212,43 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
       .where(eq(registerInstallations.id, deviceId));
     expect(installation?.revocationReason).toBe("outbox_chain_broken");
   });
+
+  it("answers revoked to a push queued behind the one whose chain broke, receiving nothing of it", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
+    const forged = { ...event(1), chain_hmac: "forged-link" };
+
+    const [first, second] = await runQueuedBehindHeldLock(
+      sql,
+      (holder) =>
+        holder`select id from register_installations where id = ${deviceId} for no key update`,
+      () => push(deviceId, [forged]),
+      () => push(deviceId, linked(event(1))),
+    );
+
+    expect(first).toEqual({ kind: "chain_broken" });
+    expect(second).toEqual({ kind: "revoked" });
+    expect(await storedSeqs(deviceId)).toEqual([]);
+  });
+
+  it("keeps an earlier revocation and its reason when the chain breaks", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
+    const replacedAt = new Date("2026-09-30T08:00:00.000Z");
+    await db
+      .update(registerInstallations)
+      .set({ revokedAt: replacedAt, revocationReason: "replaced" })
+      .where(eq(registerInstallations.id, deviceId));
+
+    await new DrizzleInbox(db, CIPHER).transaction((tx) => tx.revokeForBrokenChain(deviceId, NOW));
+
+    const [installation] = await db
+      .select({
+        revokedAt: registerInstallations.revokedAt,
+        revocationReason: registerInstallations.revocationReason,
+      })
+      .from(registerInstallations)
+      .where(eq(registerInstallations.id, deviceId));
+    expect(installation).toEqual({ revokedAt: replacedAt, revocationReason: "replaced" });
+  });
 });
 
 function storedRow(deviceId: string, pushed: PushedEvent): typeof inbox.$inferInsert {

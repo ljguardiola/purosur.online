@@ -98,6 +98,14 @@ describe("pushing the outbox to the cloud", () => {
     expect(inbox.pushedBatches).toHaveLength(1);
   });
 
+  it("records itself as compromised when it lost the expected event between two it still has to send", async () => {
+    const outbox = new FakeLocalOutbox([fakeEvent(3), fakeEvent(5)]);
+    const { outcome } = push(outbox, [{ kind: "gap", ackSeq: 2, expectedSeq: 4 }]);
+
+    expect(await outcome).toEqual({ kind: "compromised" });
+    expect(outbox.compromised).toBe(true);
+  });
+
   it("does not record itself as compromised when it holds the expected event", async () => {
     const outbox = new FakeLocalOutbox(eventsFrom(1, 4), 3);
     const { outcome } = push(outbox, [

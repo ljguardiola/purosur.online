@@ -42,6 +42,32 @@ describe("receiving the events a register pushes", () => {
     expect(inbox.calls[0]).toBe("lockDevice device-1");
   });
 
+  it("answers revoked to an installation revoked while its push waited for the lock, recording nothing", async () => {
+    const inbox = new FakeInbox();
+    inbox.revokedDevices.add(DEVICE);
+
+    const outcome = await receive(inbox, [{ ...fakeEvent(1), chain_hmac: "forged-link" }]);
+
+    expect(outcome).toEqual({ kind: "revoked" });
+    expect(inbox.state).toEqual({
+      received: [],
+      reports: [],
+      refusedPushes: [],
+      brokenChainRevocations: [],
+    });
+  });
+
+  it("reads whether the installation is revoked right after locking it", async () => {
+    const inbox = new FakeInbox();
+
+    await receive(inbox, eventsOf(1));
+
+    expect(inbox.calls.slice(0, 2)).toEqual([
+      "lockDevice device-1",
+      "installationRevoked device-1",
+    ]);
+  });
+
   it("receives the first events of an installation and acknowledges them", async () => {
     const inbox = new FakeInbox();
 
@@ -310,15 +336,20 @@ describe("checking the chain of the events a register pushes", () => {
   });
 
   it("checks the chain with the key of the installation that pushes", async () => {
-    const inbox = new FakeInbox();
-    inbox.chainKeys.set(DEVICE, "chain-key-2");
+    const ownKey = new FakeInbox();
+    ownKey.chainKeys.set(DEVICE, "chain-key-2");
+    const otherKey = new FakeInbox();
+    otherKey.chainKeys.set(DEVICE, "chain-key-2");
+    const first = chainedFrom(null, unchainedFakeEvent(1), "chain-key-2");
 
-    const outcome = await receive(inbox, [
-      chainedFrom(null, unchainedFakeEvent(1), "chain-key-2"),
-      fakeEvent(2),
+    const chainedWithOwnKey = await receive(ownKey, [
+      first,
+      chainedFrom(first.chain_hmac, unchainedFakeEvent(2), "chain-key-2"),
     ]);
+    const chainedWithAnotherKey = await receive(otherKey, [first, fakeEvent(2)]);
 
-    expect(outcome).toEqual(REFUSED);
+    expect(chainedWithOwnKey).toEqual({ kind: "received", ackSeq: 2 });
+    expect(chainedWithAnotherKey).toEqual(REFUSED);
   });
 
   it("refuses a push from an installation that has no chain key", async () => {
@@ -370,6 +401,18 @@ describe("checking the chain of the events a register pushes", () => {
     expect(inbox.calls.indexOf("outboxChainKey device-1")).toBeGreaterThan(
       inbox.calls.indexOf("lockDevice device-1"),
     );
+  });
+
+  it("answers revoked to the push after the one whose chain broke, receiving nothing of it", async () => {
+    const inbox = new FakeInbox();
+    await receive(inbox, [{ ...fakeEvent(1), chain_hmac: "forged-link" }]);
+
+    const outcome = await receive(inbox, eventsOf(1));
+
+    expect(outcome).toEqual({ kind: "revoked" });
+    expect(inbox.receivedSeqs(DEVICE)).toEqual([]);
+    expect(inbox.state.refusedPushes).toHaveLength(1);
+    expect(inbox.state.brokenChainRevocations).toHaveLength(1);
   });
 
   it("leaves nothing aside and revokes nothing when keeping the refused push fails", async () => {

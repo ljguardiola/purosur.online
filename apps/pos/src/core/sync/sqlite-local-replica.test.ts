@@ -327,6 +327,26 @@ describe("the register's local copy of what it pulls", () => {
     );
   });
 
+  it("lets a new installation sell where the one before was stopped, and keeps the same one stopped", () => {
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+    database
+      .prepare("UPDATE sync_state SET installation_revoked_at = '2026-09-30T08:00:00.000Z'")
+      .run();
+    const installationRevokedAt = () =>
+      database
+        .prepare<[], { installation_revoked_at: string | null }>(
+          "SELECT installation_revoked_at FROM sync_state",
+        )
+        .get()?.installation_revoked_at;
+
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+    const sameInstallation = installationRevokedAt();
+    replica.adoptDevice({ deviceId: "device-b", pepper: PEPPER });
+
+    expect(sameInstallation).toBe("2026-09-30T08:00:00.000Z");
+    expect(installationRevokedAt()).toBeNull();
+  });
+
   it("saves neither the data nor the cursor when the page can't be saved whole", async () => {
     database.exec(
       "CREATE TRIGGER refuse_cursor BEFORE UPDATE ON sync_state BEGIN SELECT RAISE(ABORT, 'disk full'); END",

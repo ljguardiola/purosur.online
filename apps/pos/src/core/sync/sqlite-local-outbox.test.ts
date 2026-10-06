@@ -241,6 +241,33 @@ describe("sending events again", () => {
   });
 });
 
+describe("the events the outbox still holds", () => {
+  it("holds an event whether or not it was acknowledged", async () => {
+    appendEvents(2);
+    await outbox.acknowledgeThrough(1);
+
+    expect(await outbox.holdsEvent(1)).toBe(true);
+    expect(await outbox.holdsEvent(2)).toBe(true);
+    expect(await outbox.holdsEvent(3)).toBe(false);
+  });
+
+  it("holds an event after a sequence whether or not it was acknowledged", async () => {
+    appendEvents(3);
+    await outbox.acknowledgeThrough(3);
+
+    expect(await outbox.holdsEventAfter(2)).toBe(true);
+    expect(await outbox.holdsEventAfter(3)).toBe(false);
+  });
+
+  it("does not count the events of a previous installation", async () => {
+    appendEvents(3);
+    adoptDevice("device-b");
+
+    expect(await outbox.holdsEvent(1)).toBe(false);
+    expect(await outbox.holdsEventAfter(0)).toBe(false);
+  });
+});
+
 describe("recording that the outbox lost events", () => {
   function revokedAt(): string | null | undefined {
     return database

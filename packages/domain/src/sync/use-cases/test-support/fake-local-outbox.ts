@@ -37,6 +37,14 @@ export class FakeLocalOutbox implements LocalOutbox {
     }
   }
 
+  async holdsEvent(deviceSeq: number): Promise<boolean> {
+    return this.held.some((event) => event.device_seq === deviceSeq);
+  }
+
+  async holdsEventAfter(deviceSeq: number): Promise<boolean> {
+    return this.held.some((event) => event.device_seq > deviceSeq);
+  }
+
   async recordCompromised(): Promise<void> {
     this.compromised = true;
   }
