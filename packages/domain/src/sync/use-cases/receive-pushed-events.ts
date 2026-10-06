@@ -1,6 +1,7 @@
 import { highestContiguousSeq } from "../model/contiguous-seq.js";
+import { canonicalOutboxEvent } from "../model/outbox-event.js";
 import type { PushedEvent, RegisterTelemetry } from "../model/push-batch.js";
-import type { ReceivePorts } from "./sync-ports.js";
+import type { BrokenChainLink, EventChain, InboxTransaction, ReceivePorts } from "./sync-ports.js";
 
 export interface ReceivePushedEventsInput {
   deviceId: string;
@@ -15,7 +16,7 @@ export type ReceivePushedEventsOutcome =
   | { kind: "stale_device"; ackSeq: number };
 
 export async function receivePushedEvents(
-  { inbox, clock }: ReceivePorts,
+  { inbox, eventChain, clock }: ReceivePorts,
   { deviceId, appVersion, telemetry, events }: ReceivePushedEventsInput,
 ): Promise<ReceivePushedEventsOutcome> {
   return inbox.transaction(async (tx) => {
@@ -50,9 +51,40 @@ export async function receivePushedEvents(
     }
 
     await tx.receive(deviceId, toReceive, now);
+    await checkChain(tx, eventChain, deviceId, toReceive, now);
     return {
       kind: "received",
       ackSeq: highestContiguousSeq(await tx.receivedDeviceSeqs(deviceId)),
     };
   });
+}
+
+async function checkChain(
+  tx: InboxTransaction,
+  eventChain: EventChain,
+  deviceId: string,
+  received: readonly PushedEvent[],
+  now: Date,
+): Promise<void> {
+  const lastReceived = received.at(-1);
+  if (lastReceived === undefined) {
+    return;
+  }
+  const chainKey = await tx.outboxChainKey(deviceId);
+  let anchor = await tx.chainAnchor(deviceId);
+  const brokenEvents: BrokenChainLink[] = [];
+  for (const { chain_hmac: receivedLink, ...event } of received) {
+    const expectedLink =
+      chainKey === undefined
+        ? undefined
+        : eventChain.link(chainKey, anchor, canonicalOutboxEvent(event));
+    if (expectedLink !== receivedLink) {
+      brokenEvents.push({ deviceSeq: event.device_seq, eventId: event.event_id });
+    }
+    anchor = receivedLink;
+  }
+  await tx.adoptChainAnchor(deviceId, lastReceived.chain_hmac);
+  if (brokenEvents.length > 0) {
+    await tx.openChainBrokenAlert({ deviceId, brokenEvents, detectedAt: now });
+  }
 }

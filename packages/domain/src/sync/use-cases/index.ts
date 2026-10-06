@@ -10,7 +10,9 @@ export type {
 } from "./receive-pushed-events.js";
 export { receivePushedEvents } from "./receive-pushed-events.js";
 export type {
+  BrokenChainLink,
   CatchUpPorts,
+  ChainBrokenAlert,
   ChangeLog,
   ChangeLogTransaction,
   Clock,
@@ -18,6 +20,7 @@ export type {
   CloudChangeFeedAnswer,
   CloudEventInbox,
   CloudEventInboxAnswer,
+  EventChain,
   Inbox,
   InboxTransaction,
   LocalOutbox,
