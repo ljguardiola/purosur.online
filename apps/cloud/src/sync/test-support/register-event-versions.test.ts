@@ -22,6 +22,9 @@ function programOf(sources: Record<string, string>): ts.Program {
   const fileExists = host.fileExists.bind(host);
   host.readFile = (fileName) => files.get(fileName) ?? readFile(fileName);
   host.fileExists = (fileName) => files.has(fileName) || fileExists(fileName);
+  host.directoryExists = (directoryName) =>
+    [...files.keys()].some((fileName) => fileName.startsWith(`${directoryName}/`)) ||
+    ts.sys.directoryExists(directoryName);
   return ts.createProgram([...files.keys()], options, host);
 }
 
@@ -65,6 +68,15 @@ export const b = () => ({ event_type: "cash_session_closed", schema_version: 1 }
         "draft.ts": `export const draft = (version: number) => ({ event_type: "sale_completed", schema_version: version });`,
       }),
     ).toEqual({ versions: [], unreadable: ["draft.ts:1"] });
+  });
+
+  it("reports a builder whose version's type cannot be known", () => {
+    expect(
+      versionsIn({
+        "draft.ts": `import { VERSION } from "./missing";
+export const draft = () => ({ event_type: "sale_completed", schema_version: VERSION });`,
+      }),
+    ).toEqual({ versions: [], unreadable: ["draft.ts:2"] });
   });
 
   it("reports a builder whose version could be one of several numbers", () => {
