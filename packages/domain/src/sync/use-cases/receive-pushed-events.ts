@@ -1,7 +1,7 @@
 import { highestContiguousSeq } from "../model/contiguous-seq.js";
 import { canonicalOutboxEvent } from "../model/outbox-event.js";
 import type { PushedEvent, RegisterTelemetry } from "../model/push-batch.js";
-import type { BrokenChainLink, EventChain, InboxTransaction, ReceivePorts } from "./sync-ports.js";
+import type { EventChain, InboxTransaction, ReceivePorts } from "./sync-ports.js";
 
 export interface ReceivePushedEventsInput {
   deviceId: string;
@@ -13,7 +13,8 @@ export interface ReceivePushedEventsInput {
 export type ReceivePushedEventsOutcome =
   | { kind: "received"; ackSeq: number }
   | { kind: "gap"; ackSeq: number; expectedSeq: number }
-  | { kind: "stale_device"; ackSeq: number };
+  | { kind: "stale_device"; ackSeq: number }
+  | { kind: "chain_broken" };
 
 export async function receivePushedEvents(
   { inbox, eventChain, clock }: ReceivePorts,
@@ -50,8 +51,13 @@ export async function receivePushedEvents(
       }
     }
 
+    if (!(await chainHolds(tx, eventChain, deviceId, toReceive))) {
+      await tx.setAsideRefusedPush(deviceId, events, now);
+      await tx.revokeForBrokenChain(deviceId, now);
+      return { kind: "chain_broken" };
+    }
+
     await tx.receive(deviceId, toReceive, now);
-    await checkChain(tx, eventChain, deviceId, toReceive, now);
     return {
       kind: "received",
       ackSeq: highestContiguousSeq(await tx.receivedDeviceSeqs(deviceId)),
@@ -59,32 +65,33 @@ export async function receivePushedEvents(
   });
 }
 
-async function checkChain(
+async function chainHolds(
   tx: InboxTransaction,
   eventChain: EventChain,
   deviceId: string,
   received: readonly PushedEvent[],
-  now: Date,
-): Promise<void> {
-  const lastReceived = received.at(-1);
-  if (lastReceived === undefined) {
-    return;
+): Promise<boolean> {
+  if (received.length === 0) {
+    return true;
   }
   const chainKey = await tx.outboxChainKey(deviceId);
-  let anchor = await tx.chainAnchor(deviceId);
-  const brokenEvents: BrokenChainLink[] = [];
+  if (chainKey === undefined) {
+    return false;
+  }
+  const receivedLinks = new Map<number, string>();
   for (const { chain_hmac: receivedLink, ...event } of received) {
-    const expectedLink =
-      chainKey === undefined
-        ? undefined
-        : eventChain.link(chainKey, anchor, canonicalOutboxEvent(event));
-    if (expectedLink !== receivedLink) {
-      brokenEvents.push({ deviceSeq: event.device_seq, eventId: event.event_id });
+    const previousSeq = event.device_seq - 1;
+    const previousLink =
+      previousSeq === 0
+        ? null
+        : (receivedLinks.get(previousSeq) ?? (await tx.receivedChainLink(deviceId, previousSeq)));
+    if (
+      previousLink === undefined ||
+      eventChain.link(chainKey, previousLink, canonicalOutboxEvent(event)) !== receivedLink
+    ) {
+      return false;
     }
-    anchor = receivedLink;
+    receivedLinks.set(event.device_seq, receivedLink);
   }
-  await tx.adoptChainAnchor(deviceId, lastReceived.chain_hmac);
-  if (brokenEvents.length > 0) {
-    await tx.openChainBrokenAlert({ deviceId, brokenEvents, detectedAt: now });
-  }
+  return true;
 }

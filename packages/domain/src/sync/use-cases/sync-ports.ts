@@ -54,17 +54,6 @@ export interface PushReport {
   telemetry: RegisterTelemetry;
 }
 
-export interface BrokenChainLink {
-  deviceSeq: number;
-  eventId: string;
-}
-
-export interface ChainBrokenAlert {
-  deviceId: string;
-  brokenEvents: readonly BrokenChainLink[];
-  detectedAt: Date;
-}
-
 export interface EventChain {
   // previousLink is null for an installation's first event.
   link(chainKey: string, previousLink: string | null, canonicalEvent: string): string;
@@ -84,9 +73,13 @@ export interface InboxTransaction {
   receive(deviceId: string, events: readonly PushedEvent[], receivedAt: Date): Promise<void>;
   recordPushReport(deviceId: string, report: PushReport, at: Date): Promise<void>;
   outboxChainKey(deviceId: string): Promise<string | undefined>;
-  chainAnchor(deviceId: string): Promise<string | null>;
-  adoptChainAnchor(deviceId: string, link: string): Promise<void>;
-  openChainBrokenAlert(alert: ChainBrokenAlert): Promise<void>;
+  receivedChainLink(deviceId: string, deviceSeq: number): Promise<string | undefined>;
+  setAsideRefusedPush(
+    deviceId: string,
+    events: readonly PushedEvent[],
+    refusedAt: Date,
+  ): Promise<void>;
+  revokeForBrokenChain(deviceId: string, revokedAt: Date): Promise<void>;
 }
 
 export interface ReceivePorts {

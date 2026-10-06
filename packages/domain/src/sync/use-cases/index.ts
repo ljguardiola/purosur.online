@@ -10,9 +10,7 @@ export type {
 } from "./receive-pushed-events.js";
 export { receivePushedEvents } from "./receive-pushed-events.js";
 export type {
-  BrokenChainLink,
   CatchUpPorts,
-  ChainBrokenAlert,
   ChangeLog,
   ChangeLogTransaction,
   Clock,

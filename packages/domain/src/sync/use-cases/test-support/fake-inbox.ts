@@ -17,7 +17,7 @@ interface FakePushReport extends PushReport {
 export interface FakeInboxState {
   received: FakeReceivedEvent[];
   reports: FakePushReport[];
-  refusedPushes: { deviceId: string; events: PushedEvent[]; refusedAt: Date }[];
+  refusedPushes: { deviceId: string; events: readonly PushedEvent[]; refusedAt: Date }[];
   brokenChainRevocations: { deviceId: string; revokedAt: Date }[];
 }
 
