@@ -1,6 +1,6 @@
 import type { RoleAccess } from "./access-increase.js";
 import { grantsCapability } from "./capability-permissions.js";
-import { isUserDeactivatable } from "./user-deactivation.js";
+import { isUserDeactivatable, isUserReactivatable } from "./user-deactivation.js";
 
 type Actor = { id: string } & RoleAccess;
 
@@ -26,12 +26,14 @@ export function mayDeactivateUser(
   target: { id: string; isAdministrator: boolean; active: boolean },
 ): boolean {
   return (
-    target.active &&
     grantsCapability(actor, "deactivate_users") &&
-    isUserDeactivatable({ id: target.id, holdsAdministratorRole: target.isAdministrator }, actor.id)
+    isUserDeactivatable(
+      { id: target.id, holdsAdministratorRole: target.isAdministrator, active: target.active },
+      actor.id,
+    )
   );
 }
 
 export function mayReactivateUser(actor: Actor, target: { active: boolean }): boolean {
-  return !target.active && grantsCapability(actor, "reactivate_users");
+  return grantsCapability(actor, "reactivate_users") && isUserReactivatable(target);
 }
