@@ -3,7 +3,6 @@ import {
   SIGN_IN_BLOCK_DURATION_MS,
   SIGN_IN_FAILURE_LIMIT,
 } from "@purosur/domain";
-import { confirmRejectedSignInAttempt } from "@purosur/domain/access/use-cases";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { WebAuthnEmulator } from "nid-webauthn-emulator";
@@ -469,7 +468,7 @@ describe("POST /sessions", () => {
     expect(response.json()).toMatchObject({ code: "authentication_failed" });
   });
 
-  it("holds a failure's answer until the whole floor, started when the request arrived, has passed", async () => {
+  it("holds a failure's answer until the whole floor, started before the request reads the database, has passed", async () => {
     let releaseFloor = () => {};
     delaySpy.mockImplementation(
       () =>
@@ -477,16 +476,21 @@ describe("POST /sessions", () => {
           releaseFloor = resolve;
         }),
     );
-    const confirmRejection = vi.fn(confirmRejectedSignInAttempt);
+    const databaseUse = vi.fn();
     const floored = Fastify();
     registerSessionAuthenticateRoute(floored, {
-      db,
+      db: new Proxy(db, {
+        get(target, property, receiver) {
+          databaseUse(property);
+          return Reflect.get(target, property, receiver);
+        },
+      }),
       backofficeOrigin: BACKOFFICE_ORIGIN,
       now: () => currentTime,
       delay: delaySpy,
-      confirmRejectedSignInAttempt: confirmRejection,
     });
     onTestFinished(() => floored.close());
+    databaseUse.mockClear();
     let answered = false;
     const answer = floored
       .inject({
@@ -500,10 +504,11 @@ describe("POST /sessions", () => {
         return response;
       });
 
-    await vi.waitFor(() => expect(confirmRejection).toHaveBeenCalled());
+    await vi.waitFor(() => expect(delaySpy).toHaveBeenCalled());
+    await vi.waitFor(() => expect(databaseUse).toHaveBeenCalled());
     expect(delaySpy).toHaveBeenCalledExactlyOnceWith(200);
     expect(delaySpy.mock.invocationCallOrder[0]).toBeLessThan(
-      confirmRejection.mock.invocationCallOrder[0] ?? 0,
+      databaseUse.mock.invocationCallOrder[0] ?? 0,
     );
     await new Promise((resolve) => setImmediate(resolve));
     expect(answered).toBe(false);

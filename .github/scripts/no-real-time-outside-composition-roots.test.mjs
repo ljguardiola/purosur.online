@@ -53,6 +53,19 @@ const readsOnLineOne = [
   'const a = "select julianday()";',
   'const a = "select unixepoch()";',
   "const a = \"select strftime('%s')\";",
+  'export { hrtime } from "node:process";',
+  'export { hrtime, uptime } from "process";',
+  'export * from "node:process";',
+  'export * as proc from "node:process";',
+  'export { performance } from "node:perf_hooks";',
+  'export { default as hooks } from "node:perf_hooks";',
+  "const { hrtime } = process;",
+  "const { now } = Date;",
+  "const { now } = performance;",
+  "const { now: read } = Date;",
+  "const { hrtime: { bigint } } = process;",
+  "const { now } = globalThis.performance;",
+  "const { performance: perf } = globalThis;",
 ];
 
 const importedReads = [
@@ -70,6 +83,12 @@ const importedReads = [
   'import { uptime } from "node:process";\nconst read = uptime;',
   'import { uptime } from "node:process";\nconst clock = { read: uptime };',
   'import { uptime } from "node:process";\nfunction run(read = uptime) {}',
+  'import { hrtime } from "node:process";\nexport { hrtime };',
+  'import { performance as perf } from "node:perf_hooks";\nexport { perf as performance };',
+  'import proc from "node:process";\nexport { proc };',
+  'import * as proc from "node:process";\nconst { uptime } = proc;',
+  'import proc from "node:process";\nconst { hrtime: read } = proc;',
+  'import * as hooks from "node:perf_hooks";\nconst { now } = hooks.performance;',
 ];
 
 for (const source of importedReads) {
@@ -140,6 +159,13 @@ const notReads = [
   'import { env } from "node:process";\nconst a = env.NODE_ENV;',
   'import { hrtime } from "./clock";\nconst a = hrtime();',
   'import { now } from "node:perf_hooks";\nconst a = now;',
+  'export { env } from "node:process";',
+  'export { hrtime } from "./clock";',
+  'export * from "./clock";',
+  'import { env } from "node:process";\nexport { env };',
+  "const { env } = process;",
+  "const { now } = clock;",
+  "const { parse } = Date;",
 ];
 
 for (const line of notReads) {
