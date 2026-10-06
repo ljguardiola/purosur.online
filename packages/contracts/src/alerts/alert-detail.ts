@@ -94,6 +94,7 @@ const registerEnrolledDetailSchema = z.object({
 const outboxChainBrokenDetailSchema = z.object({
   brokenEvents: z
     .array(z.object({ deviceSeq: z.int().positive(), eventId: z.string().min(1) }))
+    .min(1)
     .readonly(),
 });
 
