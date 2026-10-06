@@ -23,10 +23,10 @@ A feature too large for one pull request stays as a parent feature issue holding
 
 # Working on an issue
 
-1. Develop test-first (see `.claude/rules/code-style.md`), running only the test files you touch; every test the change affects runs at step 4.
+1. Develop test-first (see `.claude/rules/code-style.md`), running only the test files you touch; the whole suite runs in CI's `verify`.
 2. A change to `packages/domain` or `packages/contracts` runs `pnpm mutation --mutate <each touched source file>` and leaves no surviving mutant in them. CI runs the whole mutation suite weekly, not on pull requests.
 3. With every change committed, review the branch with the `review-gate` skill (`.claude/skills/review-gate/`) until it reports `CLEAN`. A review that reports `STOPPED` goes to whoever assigned the issue before anything else happens.
-4. Run the static checks, `pnpm verify:static`, and the tests the change affects, `pnpm test --changed origin/main --passWithNoTests` after `git fetch origin main`. The whole suite runs in CI's `verify`, which is the full run of record; the full `pnpm verify` is not run locally before a pull request.
+4. Run the static checks, `pnpm verify:static`, and the tests related to the files the branch changed. `pnpm test --changed origin/main`, after `git fetch origin main`, runs the tests that import a changed file. It follows imports only, so the tests that reach a changed file at run time are run by path, `pnpm test <test files>`: a test that reads the file from disk (an approved screenshot, or a cloud or register migration, which every test on that app's database applies) and a test that builds or spawns the app the file belongs to (`apps/backoffice/*.test.ts`, `apps/cloud/*.test.ts`, `apps/pos/*.test.ts`, a cloud test that runs the cloud's compiled build). The whole suite runs in CI's `verify`, which is the full run of record; the full `pnpm verify` is not run locally before a pull request.
 5. Open the pull request. Its "How it was tested" cites the `review-gate` result line and the result of step 4, and gains CI's `verify` result once that run finishes. A pull request is not done until CI's `verify` passes.
 
 # Dependabot
