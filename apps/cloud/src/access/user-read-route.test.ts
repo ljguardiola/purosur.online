@@ -406,7 +406,7 @@ describe("GET /users/:id", () => {
     }
 
     async function pinCodeAnswer(...args: Parameters<typeof answersFor>): Promise<unknown> {
-      return (await answersFor(...args)).may_emit_pin_code;
+      return (await answersFor(...args))["may_emit_pin_code"];
     }
 
     const ADMINISTRATOR = { permissionKeys: [], administrator: true };

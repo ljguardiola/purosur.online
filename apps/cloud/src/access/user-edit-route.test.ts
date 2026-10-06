@@ -690,7 +690,7 @@ describe("PUT /users/:id", () => {
       is_last_active_administrator: false,
       may_emit_pin_code: true,
       may_edit: true,
-      may_deactivate: true,
+      may_deactivate: false,
       may_reactivate: false,
       may_remove_passkey: true,
     });
