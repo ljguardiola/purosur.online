@@ -165,6 +165,7 @@ describe("GET /roles", () => {
         is_administrator: true,
         permissions: PERMISSION_KEYS.filter((key) => key !== "view_branch_alerts"),
         user_count: 1,
+        may_edit: false,
       },
       {
         id: cashierRoleId,
@@ -172,6 +173,7 @@ describe("GET /roles", () => {
         is_administrator: false,
         permissions: ["sell_and_charge"],
         user_count: 2,
+        may_edit: true,
       },
       {
         id: stockRoleId,
@@ -179,6 +181,7 @@ describe("GET /roles", () => {
         is_administrator: false,
         permissions: ["view_stock_balances", "adjust_stock"],
         user_count: 0,
+        may_edit: true,
       },
     ]);
   });

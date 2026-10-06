@@ -9,9 +9,15 @@ import type { FastifyInstance } from "fastify";
 import { readRecordIds } from "../platform/record-id-params.js";
 import { sameOriginGuard } from "./backoffice-origin.js";
 import { drizzleRoleDirectory } from "./drizzle-role-directory.js";
+import type { OpenSession } from "./open-session.js";
 import type { RolesRouteOptions } from "./roles-list-route.js";
 import { toRoleSummaryWire } from "./roles-list-route.js";
-import { capabilityAccess, registerRouteAccess, routeSessionSource } from "./route-access.js";
+import {
+  capabilityAccess,
+  openSessionOf,
+  registerRouteAccess,
+  routeSessionSource,
+} from "./route-access.js";
 
 const NOT_FOUND_RESPONSE = {
   code: "not_found",
@@ -23,9 +29,12 @@ export interface RoleDetailRow extends RoleSummary {
   assignedUsers: RoleHolder[];
 }
 
-export function toRoleDetailWire(row: RoleDetailRow): RoleDetailWire {
+export function toRoleDetailWire(
+  row: RoleDetailRow,
+  session: Pick<OpenSession, "isAdministrator" | "permissionKeys">,
+): RoleDetailWire {
   return roleDetailSchema.parse({
-    ...toRoleSummaryWire(row),
+    ...toRoleSummaryWire(row, session),
     version: row.version,
     assigned_users: row.assignedUsers,
   });
@@ -60,7 +69,7 @@ export function registerRoleReadRoute<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      await reply.code(200).send(toRoleDetailWire(role));
+      await reply.code(200).send(toRoleDetailWire(role, openSessionOf(request)));
     },
   );
 }

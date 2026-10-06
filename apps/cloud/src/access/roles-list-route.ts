@@ -1,11 +1,17 @@
 import { type RoleSummaryWire, roleSummarySchema } from "@purosur/contracts";
-import { type PermissionKey, withOneAlertView } from "@purosur/domain";
+import { mayEditRole, type PermissionKey, withOneAlertView } from "@purosur/domain";
 import { listRoles, type RoleSummary } from "@purosur/domain/access/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "./backoffice-origin.js";
 import { drizzleRoleDirectory } from "./drizzle-role-directory.js";
-import { capabilityAccess, registerRouteAccess, routeSessionSource } from "./route-access.js";
+import type { OpenSession } from "./open-session.js";
+import {
+  capabilityAccess,
+  openSessionOf,
+  registerRouteAccess,
+  routeSessionSource,
+} from "./route-access.js";
 
 export interface RolesRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
@@ -13,13 +19,17 @@ export interface RolesRouteOptions<TQueryResult extends PgQueryResultHKT> {
   now: () => Date;
 }
 
-export function toRoleSummaryWire(row: RoleSummary): RoleSummaryWire {
+export function toRoleSummaryWire(
+  row: RoleSummary,
+  session: Pick<OpenSession, "isAdministrator" | "permissionKeys">,
+): RoleSummaryWire {
   return roleSummarySchema.parse({
     id: row.id,
     name: row.name,
     is_administrator: row.isAdministrator,
     permissions: [...withOneAlertView(row.permissionKeys as PermissionKey[])],
     user_count: row.userCount,
+    may_edit: mayEditRole(session, { isAdministrator: row.isAdministrator }),
   });
 }
 
@@ -37,9 +47,10 @@ export function registerRolesListRoute<TQueryResult extends PgQueryResultHKT>(
       preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: capabilityAccess("manage_roles"), sessionSource },
     },
-    async (_request, reply) => {
+    async (request, reply) => {
+      const session = openSessionOf(request);
       const rows = await listRoles({ roles: drizzleRoleDirectory(options.db) });
-      await reply.code(200).send(rows.map(toRoleSummaryWire));
+      await reply.code(200).send(rows.map((row) => toRoleSummaryWire(row, session)));
     },
   );
 }

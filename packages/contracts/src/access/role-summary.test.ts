@@ -7,6 +7,7 @@ const cashier = {
   is_administrator: false,
   permissions: ["view_catalog", "manage_catalog"],
   user_count: 2,
+  may_edit: true,
 };
 const administrator = {
   id: "role-2",
@@ -14,6 +15,7 @@ const administrator = {
   is_administrator: true,
   permissions: [],
   user_count: 1,
+  may_edit: false,
 };
 
 describe("roleSummarySchema", () => {
@@ -26,7 +28,7 @@ describe("roleSummarySchema", () => {
     expect(roleSummarySchema.safeParse({ ...cashier, version: 4 }).data).toEqual(cashier);
   });
 
-  it.each(["id", "name", "is_administrator", "permissions", "user_count"])(
+  it.each(["id", "name", "is_administrator", "permissions", "user_count", "may_edit"])(
     "requires %s",
     (field) => {
       const { [field as keyof typeof cashier]: _omitted, ...rest } = cashier;
@@ -48,6 +50,8 @@ describe("roleSummarySchema", () => {
     ["user_count", "2"],
     ["user_count", null],
     ["user_count", 1.5],
+    ["may_edit", "true"],
+    ["may_edit", null],
   ])("refuses %s as %j", (field, value) => {
     expect(roleSummarySchema.safeParse({ ...cashier, [field]: value }).success).toBe(false);
   });

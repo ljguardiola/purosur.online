@@ -59,6 +59,7 @@ const stockDetail: RoleDetail = {
   isAdministrator: false,
   permissionKeys: ["view_stock_balances"],
   userCount: 0,
+  mayEdit: true,
   version: 3,
   assignedUsers: [],
 };
@@ -66,6 +67,7 @@ const stockDetail: RoleDetail = {
 const stockDetailWithPeople: RoleDetail = {
   ...stockDetail,
   userCount: 2,
+  mayEdit: true,
   assignedUsers: [
     { id: "user-amara", name: "Amara Ortiz" },
     { id: "user-zoe", name: "Zoe Almeida" },
@@ -78,6 +80,7 @@ const stockSummary: RoleSummary = {
   isAdministrator: false,
   permissionKeys: ["sell_and_charge", "view_all_alerts"],
   userCount: 0,
+  mayEdit: true,
 };
 
 function renderModal(
@@ -233,6 +236,7 @@ test("opening to duplicate the Administrator role pre-fills the name from the Ad
     isAdministrator: true,
     permissionKeys: [],
     userCount: 1,
+    mayEdit: false,
   };
   const screen = await renderModal({ kind: "duplicate", source: administratorSummary }, services);
 
@@ -652,6 +656,7 @@ const cashDetail: RoleDetail = {
   isAdministrator: false,
   permissionKeys: ["sell_and_charge", "view_sales_history"],
   userCount: 0,
+  mayEdit: true,
   version: 8,
   assignedUsers: [],
 };

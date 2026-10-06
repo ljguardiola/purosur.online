@@ -6,6 +6,7 @@ export const roleSummarySchema = z.object({
   is_administrator: z.boolean(),
   permissions: z.array(z.string()),
   user_count: z.int(),
+  may_edit: z.boolean(),
 });
 
 export const roleListSchema = z.array(roleSummarySchema);
