@@ -240,3 +240,56 @@ describe("sending events again", () => {
     expect(ackedAts()).toEqual([ACKNOWLEDGED_AT.toISOString(), ACKNOWLEDGED_AT.toISOString()]);
   });
 });
+
+describe("the events the outbox still holds", () => {
+  it("holds an event whether or not it was acknowledged", async () => {
+    appendEvents(2);
+    await outbox.acknowledgeThrough(1);
+
+    expect(await outbox.holdsEvent(1)).toBe(true);
+    expect(await outbox.holdsEvent(2)).toBe(true);
+    expect(await outbox.holdsEvent(3)).toBe(false);
+  });
+
+  it("holds an event after a sequence whether or not it was acknowledged", async () => {
+    appendEvents(3);
+    await outbox.acknowledgeThrough(3);
+
+    expect(await outbox.holdsEventAfter(2)).toBe(true);
+    expect(await outbox.holdsEventAfter(3)).toBe(false);
+  });
+
+  it("does not count the events of a previous installation", async () => {
+    appendEvents(3);
+    adoptDevice("device-b");
+
+    expect(await outbox.holdsEvent(1)).toBe(false);
+    expect(await outbox.holdsEventAfter(0)).toBe(false);
+  });
+});
+
+describe("recording that the outbox lost events", () => {
+  function revokedAt(): string | null | undefined {
+    return database
+      .prepare<[], { installation_revoked_at: string | null }>(
+        "SELECT installation_revoked_at FROM sync_state",
+      )
+      .get()?.installation_revoked_at;
+  }
+
+  it("stops the register from opening new sales, as a revoked installation", async () => {
+    await outbox.recordCompromised();
+
+    expect(revokedAt()).toBe(ACKNOWLEDGED_AT.toISOString());
+  });
+
+  it("keeps the moment it was first stopped", async () => {
+    database
+      .prepare("UPDATE sync_state SET installation_revoked_at = '2026-09-30T08:00:00.000Z'")
+      .run();
+
+    await outbox.recordCompromised();
+
+    expect(revokedAt()).toBe("2026-09-30T08:00:00.000Z");
+  });
+});

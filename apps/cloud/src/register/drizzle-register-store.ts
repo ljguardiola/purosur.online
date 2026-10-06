@@ -23,6 +23,7 @@ import {
   registerSnapshotKeys,
 } from "../platform/db/schema.js";
 import type { InstallationKeyCipher } from "./installation-key-cipher.js";
+import { readOutboxChainKey, sealOutboxChainKey } from "./outbox-chain-key.js";
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
@@ -35,7 +36,6 @@ function attemptKeyCondition(key: EnrollmentAttemptKey) {
   );
 }
 
-const outboxChainKeyPurpose = (deviceId: string) => `outbox_chain_key:${deviceId}`;
 const snapshotKeyPurpose = (registerId: string, version: number) =>
   `snapshot_key:${registerId}:${version}`;
 const contingencyTicketKeyPurpose = (registerId: string, version: number) =>
@@ -112,7 +112,7 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
   ): Promise<{ revoked: boolean }> {
     const revoked = await this.tx
       .update(registerInstallations)
-      .set({ revokedAt })
+      .set({ revokedAt, revocationReason: "replaced" })
       .where(
         and(
           eq(registerInstallations.registerId, registerId),
@@ -131,7 +131,7 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .values({
         ...installation,
         id,
-        outboxChainKey: this.cipher.seal(installation.outboxChainKey, outboxChainKeyPurpose(id)),
+        outboxChainKey: sealOutboxChainKey(this.cipher, id, installation.outboxChainKey),
       })
       .returning({ id: registerInstallations.id });
     if (!recorded) {
@@ -214,21 +214,14 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .where(eq(registerInstallations.id, deviceId));
   }
 
-  async outboxChainKey(deviceId: string): Promise<string | undefined> {
-    const [row] = await this.tx
-      .select({ outboxChainKey: registerInstallations.outboxChainKey })
-      .from(registerInstallations)
-      .where(eq(registerInstallations.id, deviceId));
-    if (!row || row.outboxChainKey === null) {
-      return undefined;
-    }
-    return this.cipher.open(row.outboxChainKey, outboxChainKeyPurpose(deviceId));
+  outboxChainKey(deviceId: string): Promise<string | undefined> {
+    return readOutboxChainKey(this.tx, this.cipher, deviceId);
   }
 
   async recordOutboxChainKey(deviceId: string, outboxChainKey: string): Promise<void> {
     await this.tx
       .update(registerInstallations)
-      .set({ outboxChainKey: this.cipher.seal(outboxChainKey, outboxChainKeyPurpose(deviceId)) })
+      .set({ outboxChainKey: sealOutboxChainKey(this.cipher, deviceId, outboxChainKey) })
       .where(eq(registerInstallations.id, deviceId));
   }
 

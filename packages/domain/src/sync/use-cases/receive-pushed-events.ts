@@ -1,6 +1,7 @@
 import { highestContiguousSeq } from "../model/contiguous-seq.js";
+import { canonicalOutboxEvent } from "../model/outbox-event.js";
 import type { PushedEvent, RegisterTelemetry } from "../model/push-batch.js";
-import type { ReceivePorts } from "./sync-ports.js";
+import type { EventChain, InboxTransaction, ReceivePorts } from "./sync-ports.js";
 
 export interface ReceivePushedEventsInput {
   deviceId: string;
@@ -12,15 +13,20 @@ export interface ReceivePushedEventsInput {
 export type ReceivePushedEventsOutcome =
   | { kind: "received"; ackSeq: number }
   | { kind: "gap"; ackSeq: number; expectedSeq: number }
-  | { kind: "stale_device"; ackSeq: number };
+  | { kind: "stale_device"; ackSeq: number }
+  | { kind: "chain_broken" }
+  | { kind: "revoked" };
 
 export async function receivePushedEvents(
-  { inbox, clock }: ReceivePorts,
+  { inbox, eventChain, clock }: ReceivePorts,
   { deviceId, appVersion, telemetry, events }: ReceivePushedEventsInput,
 ): Promise<ReceivePushedEventsOutcome> {
   return inbox.transaction(async (tx) => {
     const now = clock.now();
     await tx.lockDevice(deviceId);
+    if (await tx.installationRevoked(deviceId)) {
+      return { kind: "revoked" };
+    }
     await tx.recordPushReport(deviceId, { appVersion, telemetry }, now);
     const ackSeq = highestContiguousSeq(await tx.receivedDeviceSeqs(deviceId));
 
@@ -49,10 +55,47 @@ export async function receivePushedEvents(
       }
     }
 
+    if (!(await chainHolds(tx, eventChain, deviceId, toReceive))) {
+      await tx.setAsideRefusedPush(deviceId, events, now);
+      await tx.revokeForBrokenChain(deviceId, now);
+      return { kind: "chain_broken" };
+    }
+
     await tx.receive(deviceId, toReceive, now);
     return {
       kind: "received",
       ackSeq: highestContiguousSeq(await tx.receivedDeviceSeqs(deviceId)),
     };
   });
+}
+
+async function chainHolds(
+  tx: InboxTransaction,
+  eventChain: EventChain,
+  deviceId: string,
+  received: readonly PushedEvent[],
+): Promise<boolean> {
+  if (received.length === 0) {
+    return true;
+  }
+  const chainKey = await tx.outboxChainKey(deviceId);
+  if (chainKey === undefined) {
+    return false;
+  }
+  const receivedLinks = new Map<number, string>();
+  for (const { chain_hmac: receivedLink, ...event } of received) {
+    const previousSeq = event.device_seq - 1;
+    const previousLink =
+      previousSeq === 0
+        ? null
+        : (receivedLinks.get(previousSeq) ?? (await tx.receivedChainLink(deviceId, previousSeq)));
+    if (
+      previousLink === undefined ||
+      eventChain.link(chainKey, previousLink, canonicalOutboxEvent(event)) !== receivedLink
+    ) {
+      return false;
+    }
+    receivedLinks.set(event.device_seq, receivedLink);
+  }
+  return true;
 }

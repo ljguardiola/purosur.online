@@ -190,10 +190,13 @@ describe("POST /devices", () => {
     await enroll();
 
     const [after] = await db
-      .select({ revokedAt: registerInstallations.revokedAt })
+      .select({
+        revokedAt: registerInstallations.revokedAt,
+        revocationReason: registerInstallations.revocationReason,
+      })
       .from(registerInstallations)
       .where(eq(registerInstallations.id, previous?.id ?? ""));
-    expect(after?.revokedAt).toEqual(NOW);
+    expect(after).toEqual({ revokedAt: NOW, revocationReason: "replaced" });
   });
 
   it("opens the register's enrollment alert along with the installation", async () => {

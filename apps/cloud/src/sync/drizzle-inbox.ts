@@ -1,14 +1,18 @@
 import type { PushedEvent } from "@purosur/domain";
 import type { Inbox, InboxTransaction, PushReport } from "@purosur/domain/sync/use-cases";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { deviceState, inbox, registerInstallations } from "../platform/db/schema.js";
+import { deviceState, inbox, refusedEvents, registerInstallations } from "../platform/db/schema.js";
+import type { InstallationKeyCipher } from "../register/installation-key-cipher.js";
+import { readOutboxChainKey } from "../register/outbox-chain-key.js";
 
 class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements InboxTransaction {
   private readonly tx: PgDatabase<TQueryResult>;
+  private readonly cipher: InstallationKeyCipher;
 
-  constructor(tx: PgDatabase<TQueryResult>) {
+  constructor(tx: PgDatabase<TQueryResult>, cipher: InstallationKeyCipher) {
     this.tx = tx;
+    this.cipher = cipher;
   }
 
   async lockDevice(deviceId: string): Promise<void> {
@@ -17,6 +21,14 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
       .from(registerInstallations)
       .where(eq(registerInstallations.id, deviceId))
       .for("no key update");
+  }
+
+  async installationRevoked(deviceId: string): Promise<boolean> {
+    const [row] = await this.tx
+      .select({ revokedAt: registerInstallations.revokedAt })
+      .from(registerInstallations)
+      .where(eq(registerInstallations.id, deviceId));
+    return row?.revokedAt != null;
   }
 
   async receivedDeviceSeqs(deviceId: string): Promise<number[]> {
@@ -77,19 +89,63 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
       .values({ deviceId, ...pushed })
       .onConflictDoUpdate({ target: deviceState.deviceId, set: pushed });
   }
+
+  outboxChainKey(deviceId: string): Promise<string | undefined> {
+    return readOutboxChainKey(this.tx, this.cipher, deviceId);
+  }
+
+  async receivedChainLink(deviceId: string, deviceSeq: number): Promise<string | undefined> {
+    const [row] = await this.tx
+      .select({ chainHmac: inbox.chainHmac })
+      .from(inbox)
+      .where(and(eq(inbox.deviceId, deviceId), eq(inbox.deviceSeq, deviceSeq)));
+    return row?.chainHmac;
+  }
+
+  async setAsideRefusedPush(
+    deviceId: string,
+    events: readonly PushedEvent[],
+    refusedAt: Date,
+  ): Promise<void> {
+    await this.tx.insert(refusedEvents).values(
+      events.map((event) => ({
+        deviceId,
+        eventId: event.event_id,
+        deviceSeq: event.device_seq,
+        aggregateType: event.aggregate_type,
+        aggregateId: event.aggregate_id,
+        eventType: event.event_type,
+        schemaVersion: event.schema_version,
+        payload: event.payload,
+        occurredAt: new Date(event.occurred_at),
+        actorId: event.actor_id,
+        chainHmac: event.chain_hmac,
+        refusedAt,
+      })),
+    );
+  }
+
+  async revokeForBrokenChain(deviceId: string, revokedAt: Date): Promise<void> {
+    await this.tx
+      .update(registerInstallations)
+      .set({ revokedAt, revocationReason: "outbox_chain_broken" })
+      .where(and(eq(registerInstallations.id, deviceId), isNull(registerInstallations.revokedAt)));
+  }
 }
 
 export class DrizzleInbox<TQueryResult extends PgQueryResultHKT> implements Inbox {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly cipher: InstallationKeyCipher;
 
-  constructor(db: PgDatabase<TQueryResult>) {
+  constructor(db: PgDatabase<TQueryResult>, cipher: InstallationKeyCipher) {
     this.db = db;
+    this.cipher = cipher;
   }
 
   // Read committed. Every push of an installation first takes its installation row, in a mode that
   // does not block the foreign keys of what it stores, so a second push reads the inbox only once
   // the first one committed and cannot insert the same seq twice.
   transaction<TOutcome>(work: (tx: InboxTransaction) => Promise<TOutcome>): Promise<TOutcome> {
-    return this.db.transaction((tx) => work(new DrizzleInboxTransaction(tx)));
+    return this.db.transaction((tx) => work(new DrizzleInboxTransaction(tx, this.cipher)));
   }
 }

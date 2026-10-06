@@ -35,6 +35,7 @@ import {
   recoveryRateLimitAttempts,
   recoveryRejectedAttemptAccumulator,
   recoveryTokens,
+  refusedEvents,
   registerContingencyTicketKeys,
   registerEnrollmentAttempts,
   registerEnrollmentCodes,
@@ -293,6 +294,20 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       actorId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e11",
       chainHmac: "chain-hmac",
       receivedAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
+    await db.insert(refusedEvents).values({
+      deviceId: installation.id,
+      eventId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e12",
+      deviceSeq: 2,
+      aggregateType: "cash_session",
+      aggregateId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e10",
+      eventType: "cash_session_closed",
+      schemaVersion: 1,
+      payload: {},
+      occurredAt: new Date("2026-01-05T12:00:00.000Z"),
+      actorId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e11",
+      chainHmac: "forged-chain-hmac",
+      refusedAt: new Date("2026-01-05T12:00:00.000Z"),
     });
     await db.insert(changes).values({
       entity: "branch_settings",

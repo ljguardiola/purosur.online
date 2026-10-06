@@ -196,6 +196,7 @@ describe("what a push means for the next one", () => {
       { kind: "gap", expectedSeq: 5 },
       { kind: "stale_device" },
       { kind: "revoked" },
+      { kind: "compromised" },
       { kind: "ack_short_of_batch", ackSeq: 2 },
       { kind: "no_app_version" },
     ] as const) {
@@ -216,6 +217,10 @@ describe("what a push means for the next one", () => {
 describe("what a push is worth warning about", () => {
   it("says an installation the cloud revoked was told so", () => {
     expect(pushWarningOf({ kind: "revoked" })).toMatch(/revoked/);
+  });
+
+  it("says a register that lost events from its outbox stopped selling", () => {
+    expect(pushWarningOf({ kind: "compromised" })).toMatch(/lost events/);
   });
 
   it("warns about every stop that is not just being offline", () => {

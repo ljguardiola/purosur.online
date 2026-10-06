@@ -54,12 +54,18 @@ export interface PushReport {
   telemetry: RegisterTelemetry;
 }
 
+export interface EventChain {
+  // previousLink is null for an installation's first event.
+  link(chainKey: string, previousLink: string | null, canonicalEvent: string): string;
+}
+
 export interface Inbox {
   transaction<TOutcome>(work: (tx: InboxTransaction) => Promise<TOutcome>): Promise<TOutcome>;
 }
 
 export interface InboxTransaction {
   lockDevice(deviceId: string): Promise<void>;
+  installationRevoked(deviceId: string): Promise<boolean>;
   receivedDeviceSeqs(deviceId: string): Promise<number[]>;
   receivedEventIds(
     deviceId: string,
@@ -67,10 +73,19 @@ export interface InboxTransaction {
   ): Promise<ReadonlyMap<number, string>>;
   receive(deviceId: string, events: readonly PushedEvent[], receivedAt: Date): Promise<void>;
   recordPushReport(deviceId: string, report: PushReport, at: Date): Promise<void>;
+  outboxChainKey(deviceId: string): Promise<string | undefined>;
+  receivedChainLink(deviceId: string, deviceSeq: number): Promise<string | undefined>;
+  setAsideRefusedPush(
+    deviceId: string,
+    events: readonly PushedEvent[],
+    refusedAt: Date,
+  ): Promise<void>;
+  revokeForBrokenChain(deviceId: string, revokedAt: Date): Promise<void>;
 }
 
 export interface ReceivePorts {
   inbox: Inbox;
+  eventChain: EventChain;
   clock: Clock;
 }
 
@@ -79,6 +94,11 @@ export interface LocalOutbox {
   unacknowledged(limit: number): Promise<PushedEvent[]>;
   acknowledgeThrough(deviceSeq: number): Promise<void>;
   resendFrom(deviceSeq: number): Promise<void>;
+  // Acknowledged or not.
+  holdsEvent(deviceSeq: number): Promise<boolean>;
+  holdsEventAfter(deviceSeq: number): Promise<boolean>;
+  // The outbox lost events outside the system: the register stops opening new sales.
+  recordCompromised(): Promise<void>;
 }
 
 export type CloudEventInboxAnswer<TFailure> =

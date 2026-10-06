@@ -18,6 +18,7 @@ export type {
   CloudChangeFeedAnswer,
   CloudEventInbox,
   CloudEventInboxAnswer,
+  EventChain,
   Inbox,
   InboxTransaction,
   LocalOutbox,

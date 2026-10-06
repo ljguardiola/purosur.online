@@ -16,11 +16,13 @@ import { PUBLIC_ACCESS } from "../access/route-access.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
 import { authenticateDevice } from "../register/device-authentication.js";
+import { installationKeyCipher } from "../register/installation-key-cipher.js";
 import {
   type DeviceTokensOptions,
   installationTokenPorts,
 } from "../register/installation-token-ports.js";
 import { DrizzleInbox } from "./drizzle-inbox.js";
+import { hmacEventChain } from "./hmac-event-chain.js";
 
 export type EventsRouteOptions<TQueryResult extends PgQueryResultHKT> =
   DeviceTokensOptions<TQueryResult>;
@@ -32,7 +34,9 @@ const DEVICE_TOKEN_REJECTED = cloudError(
 
 const REVOKED = cloudError("revoked", "this installation was revoked");
 
-function toPushWire(outcome: ReceivePushedEventsOutcome): PushEventsResponse {
+function toPushWire(
+  outcome: Exclude<ReceivePushedEventsOutcome, { kind: "chain_broken" | "revoked" }>,
+): PushEventsResponse {
   switch (outcome.kind) {
     case "received":
       return { status: "ok", ack_seq: outcome.ackSeq };
@@ -54,7 +58,8 @@ export function registerEventsRoute<TQueryResult extends PgQueryResultHKT>(
 ): void {
   const tokenPorts = installationTokenPorts(options);
   const ports = {
-    inbox: new DrizzleInbox(options.db),
+    inbox: new DrizzleInbox(options.db, installationKeyCipher(options.keysEncryptionKey)),
+    eventChain: hmacEventChain,
     clock: { now: options.now ?? (() => new Date()) },
   };
 
@@ -89,6 +94,10 @@ export function registerEventsRoute<TQueryResult extends PgQueryResultHKT>(
           telemetry: push.telemetry,
           events: push.events,
         });
+        if (outcome.kind === "chain_broken" || outcome.kind === "revoked") {
+          await reply.code(cloudErrorStatus(REVOKED.code)).send(REVOKED);
+          return;
+        }
         await reply.code(200).send(pushEventsResponseSchema.parse(toPushWire(outcome)));
       },
     );

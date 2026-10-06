@@ -1,7 +1,11 @@
+import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { registerInstallations, registers } from "../../platform/db/schema.js";
+import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../../test-support/installation-keys-encryption-key.js";
 import { seededLocationId } from "../../test-support/seeded-location.js";
 import { issueDeviceToken } from "../device-token.js";
+import { installationKeyCipher } from "../installation-key-cipher.js";
+import { sealOutboxChainKey } from "../outbox-chain-key.js";
 
 export const ENROLLED_TOKEN_ISSUED_AT = new Date("2026-09-28T12:00:00.000Z");
 
@@ -34,6 +38,7 @@ export async function insertEnrolledInstallation<TQueryResult extends PgQueryRes
     tokenIssuedAt?: Date;
     registerName?: string;
     existingRegisterId?: string;
+    outboxChainKey?: string;
   } = {},
 ): Promise<EnrolledInstallation> {
   const locationId = await seededLocationId(db);
@@ -55,6 +60,13 @@ export async function insertEnrolledInstallation<TQueryResult extends PgQueryRes
     .returning({ id: registerInstallations.id });
   if (!installation) {
     throw new Error("test setup: seeding the installation returned no row");
+  }
+  if (options.outboxChainKey !== undefined) {
+    const cipher = installationKeyCipher(TEST_INSTALLATION_KEYS_ENCRYPTION_KEY);
+    await db
+      .update(registerInstallations)
+      .set({ outboxChainKey: sealOutboxChainKey(cipher, installation.id, options.outboxChainKey) })
+      .where(eq(registerInstallations.id, installation.id));
   }
   return { deviceId: installation.id, registerId, locationId, deviceToken };
 }

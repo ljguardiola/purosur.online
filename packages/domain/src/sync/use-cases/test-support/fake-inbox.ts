@@ -1,5 +1,7 @@
+import { canonicalOutboxEvent, type OutboxEvent } from "../../model/outbox-event.js";
 import type { PushedEvent } from "../../model/push-batch.js";
 import type { Inbox, InboxTransaction, PushReport } from "../sync-ports.js";
+import { FAKE_CHAIN_KEY, fakeEventChain } from "./fake-event-chain.js";
 
 interface FakeReceivedEvent {
   deviceId: string;
@@ -15,12 +17,22 @@ interface FakePushReport extends PushReport {
 export interface FakeInboxState {
   received: FakeReceivedEvent[];
   reports: FakePushReport[];
+  refusedPushes: { deviceId: string; events: readonly PushedEvent[]; refusedAt: Date }[];
+  brokenChainRevocations: { deviceId: string; revokedAt: Date }[];
 }
 
 export class FakeInbox implements Inbox {
-  state: FakeInboxState = { received: [], reports: [] };
+  state: FakeInboxState = {
+    received: [],
+    reports: [],
+    refusedPushes: [],
+    brokenChainRevocations: [],
+  };
   calls: string[] = [];
   failReceiving = false;
+  failSettingAside = false;
+  chainKeys = new Map<string, string | undefined>();
+  revokedDevices = new Set<string>();
 
   constructor(receivedSeqs: { deviceId: string; seqs: number[] }[] = []) {
     for (const { deviceId, seqs } of receivedSeqs) {
@@ -48,6 +60,13 @@ export class FakeInbox implements Inbox {
       lockDevice: async (deviceId) => {
         this.calls.push(`lockDevice ${deviceId}`);
       },
+      installationRevoked: async (deviceId) => {
+        this.calls.push(`installationRevoked ${deviceId}`);
+        return (
+          this.revokedDevices.has(deviceId) ||
+          working.brokenChainRevocations.some((revocation) => revocation.deviceId === deviceId)
+        );
+      },
       receivedDeviceSeqs: async (deviceId) => {
         this.calls.push(`receivedDeviceSeqs ${deviceId}`);
         return working.received
@@ -62,6 +81,27 @@ export class FakeInbox implements Inbox {
             .filter((entry) => entry.deviceId === deviceId && wanted.has(entry.event.device_seq))
             .map((entry) => [entry.event.device_seq, entry.event.event_id]),
         );
+      },
+      receivedChainLink: async (deviceId, deviceSeq) => {
+        this.calls.push(`receivedChainLink ${deviceId}`);
+        return working.received.find(
+          (entry) => entry.deviceId === deviceId && entry.event.device_seq === deviceSeq,
+        )?.event.chain_hmac;
+      },
+      setAsideRefusedPush: async (deviceId, events, refusedAt) => {
+        this.calls.push(`setAsideRefusedPush ${deviceId}`);
+        if (this.failSettingAside) {
+          throw new Error("the refused push could not be kept");
+        }
+        working.refusedPushes.push({ deviceId, events: structuredClone(events), refusedAt });
+      },
+      revokeForBrokenChain: async (deviceId, revokedAt) => {
+        this.calls.push(`revokeForBrokenChain ${deviceId}`);
+        working.brokenChainRevocations.push({ deviceId, revokedAt });
+      },
+      outboxChainKey: async (deviceId) => {
+        this.calls.push(`outboxChainKey ${deviceId}`);
+        return this.chainKeys.has(deviceId) ? this.chainKeys.get(deviceId) : FAKE_CHAIN_KEY;
       },
       receive: async (deviceId, events, receivedAt) => {
         this.calls.push(`receive ${deviceId}`);
@@ -82,7 +122,7 @@ export class FakeInbox implements Inbox {
   }
 }
 
-export function fakeEvent(deviceSeq: number, eventId = `event-${deviceSeq}`): PushedEvent {
+export function unchainedFakeEvent(deviceSeq: number, eventId = `event-${deviceSeq}`): OutboxEvent {
   return {
     event_id: eventId,
     device_seq: deviceSeq,
@@ -93,6 +133,21 @@ export function fakeEvent(deviceSeq: number, eventId = `event-${deviceSeq}`): Pu
     payload: { seq: deviceSeq },
     occurred_at: "2026-09-30T12:00:00.000Z",
     actor_id: "user-1",
-    chain_hmac: `hmac-${deviceSeq}`,
   };
+}
+
+export function chainedFrom(
+  previousLink: string | null,
+  event: OutboxEvent,
+  chainKey = FAKE_CHAIN_KEY,
+): PushedEvent {
+  return {
+    ...event,
+    chain_hmac: fakeEventChain.link(chainKey, previousLink, canonicalOutboxEvent(event)),
+  };
+}
+
+export function fakeEvent(deviceSeq: number, eventId = `event-${deviceSeq}`): PushedEvent {
+  const previousLink = deviceSeq === 1 ? null : fakeEvent(deviceSeq - 1).chain_hmac;
+  return chainedFrom(previousLink, unchainedFakeEvent(deviceSeq, eventId));
 }
