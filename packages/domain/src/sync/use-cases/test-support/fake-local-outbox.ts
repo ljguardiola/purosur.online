@@ -6,6 +6,7 @@ export class FakeLocalOutbox implements LocalOutbox {
   acknowledgedThrough: number[] = [];
   resentFrom: number[] = [];
   readLimits: number[] = [];
+  compromised = false;
   private readonly acknowledged = new Set<number>();
 
   constructor(events: PushedEvent[], alreadyAcknowledgedThrough = 0) {
@@ -34,6 +35,10 @@ export class FakeLocalOutbox implements LocalOutbox {
         this.acknowledged.delete(event.device_seq);
       }
     }
+  }
+
+  async recordCompromised(): Promise<void> {
+    this.compromised = true;
   }
 
   private markAcknowledged(matches: (deviceSeq: number) => boolean): void {

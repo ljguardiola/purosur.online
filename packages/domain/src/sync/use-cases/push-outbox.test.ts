@@ -67,7 +67,7 @@ describe("pushing the outbox to the cloud", () => {
   });
 
   it("acknowledges what the cloud holds and reports the gap with the device_seq it expects", async () => {
-    const outbox = new FakeLocalOutbox(eventsFrom(5, 2));
+    const outbox = new FakeLocalOutbox(eventsFrom(1, 2));
     const { outcome } = push(outbox, [{ kind: "gap", ackSeq: 2, expectedSeq: 3 }]);
 
     expect(await outcome).toEqual({ kind: "gap", expectedSeq: 3 });
@@ -89,12 +89,32 @@ describe("pushing the outbox to the cloud", () => {
     expect(outbox.resentFrom).toEqual([2]);
   });
 
-  it("reports the gap without pushing again when the register no longer holds the expected event", async () => {
-    const outbox = new FakeLocalOutbox([fakeEvent(4)]);
+  it("records itself as compromised when it no longer holds the expected event but holds later ones", async () => {
+    const outbox = new FakeLocalOutbox([fakeEvent(4), fakeEvent(5)]);
     const { inbox, outcome } = push(outbox, [{ kind: "gap", ackSeq: 2, expectedSeq: 3 }]);
 
-    expect(await outcome).toEqual({ kind: "gap", expectedSeq: 3 });
+    expect(await outcome).toEqual({ kind: "compromised" });
+    expect(outbox.compromised).toBe(true);
     expect(inbox.pushedBatches).toHaveLength(1);
+  });
+
+  it("does not record itself as compromised when it holds the expected event", async () => {
+    const outbox = new FakeLocalOutbox(eventsFrom(1, 4), 3);
+    const { outcome } = push(outbox, [
+      { kind: "gap", ackSeq: 1, expectedSeq: 2 },
+      { kind: "received", ackSeq: 4 },
+    ]);
+
+    await outcome;
+    expect(outbox.compromised).toBe(false);
+  });
+
+  it("reports the gap without recording itself as compromised when it holds nothing from the expected event on", async () => {
+    const outbox = new FakeLocalOutbox([fakeEvent(1), fakeEvent(2)]);
+    const { outcome } = push(outbox, [{ kind: "gap", ackSeq: 0, expectedSeq: 3 }]);
+
+    expect(await outcome).toEqual({ kind: "gap", expectedSeq: 3 });
+    expect(outbox.compromised).toBe(false);
   });
 
   it("reports the gap without pushing again when the batch it sent already started at the expected event", async () => {
