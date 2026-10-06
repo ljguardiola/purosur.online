@@ -1,7 +1,7 @@
 import { isAlertKind } from "./alert-catalog.js";
 import { alertKindPolicy } from "./alert-kind-policy.js";
 
-const NAMED_SCOPE_KINDS = ["user", "register"];
+const NAMED_SCOPE_KINDS = ["user", "register", "device"];
 
 export function alertScopeNamesRecord(kind: string): boolean {
   return isAlertKind(kind) && NAMED_SCOPE_KINDS.includes(alertKindPolicy(kind).scopeKind);

@@ -50,6 +50,10 @@ export interface RegisterEnrolledDetail {
   replacedInstallation: boolean;
 }
 
+export interface OutboxChainBrokenDetail {
+  brokenEvents: readonly { deviceSeq: number; eventId: string }[];
+}
+
 export interface AlertDetails {
   backoffice_passkey_changed: PasskeyChangedDetail;
   backoffice_recovery_requested: RecoveryRequestedDetail;
@@ -57,6 +61,7 @@ export interface AlertDetails {
   backoffice_sign_in_lockout: SignInLockoutDetail;
   user_access_increased: AccessIncreasedDetail;
   register_enrolled: RegisterEnrolledDetail;
+  outbox_chain_broken: OutboxChainBrokenDetail;
 }
 
 export type OpenAlertInput = {
