@@ -11,6 +11,9 @@
       "@purosur/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./sync/test-support": {
+      "@purosur/source": "./src/sync/test-support/recorded-pushes.ts"
     }
   },
   "files": [

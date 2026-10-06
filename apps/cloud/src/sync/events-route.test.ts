@@ -6,48 +6,20 @@ import {
 } from "@purosur/contracts";
 import { canonicalOutboxEvent } from "@purosur/domain";
 import { eq } from "drizzle-orm";
-import Fastify, { type FastifyInstance } from "fastify";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import Fastify from "fastify";
+import { describe, expect, it } from "vitest";
 import { registerRouteAccess } from "../access/route-access.js";
 import { deviceState, inbox, refusedEvents, registerInstallations } from "../platform/db/schema.js";
 import { issueDeviceToken } from "../register/device-token.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
-import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { buildTestDatabase } from "../test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { registerEventsRoute } from "./events-route.js";
 import { hmacEventChain } from "./hmac-event-chain.js";
+import { eventsRouteUnderTest, NOW } from "./test-support/events-route.js";
 
-const NOW = new Date("2026-10-01T09:30:00.000Z");
-
-let testDatabase: TestDatabase;
-let db: TestDatabase["db"];
-let app: FastifyInstance;
-
-beforeAll(async () => {
-  testDatabase = await buildTestDatabase();
-  db = testDatabase.db;
-});
-
-afterAll(async () => {
-  await testDatabase.close();
-});
-
-beforeEach(async () => {
-  await testDatabase.clear();
-  app = Fastify();
-  registerRouteAccess(app);
-  registerEventsRoute(app, {
-    db,
-    rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
-    keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
-    now: () => NOW,
-  });
-});
-
-afterEach(async () => {
-  await app.close();
-});
+const route = eventsRouteUnderTest();
 
 const CHAIN_KEY = Buffer.alloc(32, 3).toString("base64");
 
@@ -89,11 +61,11 @@ function bodyOf(events: PushedWireEvent[]): PushEventsRequest {
 }
 
 function enroll(options: Omit<Parameters<typeof insertEnrolledInstallation>[1], "now"> = {}) {
-  return insertEnrolledInstallation(db, { now: NOW, outboxChainKey: CHAIN_KEY, ...options });
+  return insertEnrolledInstallation(route.db, { now: NOW, outboxChainKey: CHAIN_KEY, ...options });
 }
 
 function push(payload: unknown, authorization?: string) {
-  return app.inject({
+  return route.app.inject({
     method: "POST",
     url: "/events",
     payload: payload as object,
@@ -109,7 +81,7 @@ describe("POST /events", () => {
 
     expect(response.statusCode).toBe(200);
     expect(pushEventsResponseSchema.parse(response.json())).toEqual({ status: "ok", ack_seq: 3 });
-    const stored = await db.select().from(inbox).where(eq(inbox.deviceId, deviceId));
+    const stored = await route.db.select().from(inbox).where(eq(inbox.deviceId, deviceId));
     expect(stored.map((row) => row.deviceSeq).sort()).toEqual([1, 2, 3]);
     expect(stored[0]).toMatchObject({
       aggregateType: "sale",
@@ -147,7 +119,7 @@ describe("POST /events", () => {
     }
 
     function pushRaw(rawBody: string, deviceToken: string) {
-      return app.inject({
+      return route.app.inject({
         method: "POST",
         url: "/events",
         payload: rawBody,
@@ -179,7 +151,9 @@ describe("POST /events", () => {
 
     await push(body(1), `Bearer ${deviceToken}`);
 
-    expect(await db.select().from(deviceState).where(eq(deviceState.deviceId, deviceId))).toEqual([
+    expect(
+      await route.db.select().from(deviceState).where(eq(deviceState.deviceId, deviceId)),
+    ).toEqual([
       {
         deviceId,
         lastPullSince: null,
@@ -204,7 +178,7 @@ describe("POST /events", () => {
       ack_seq: 0,
       expected_seq: 1,
     });
-    expect(await db.select().from(inbox).where(eq(inbox.deviceId, deviceId))).toEqual([]);
+    expect(await route.db.select().from(inbox).where(eq(inbox.deviceId, deviceId))).toEqual([]);
   });
 
   it("answers stale_device for a seq the inbox holds under another event", async () => {
@@ -229,8 +203,8 @@ describe("POST /events", () => {
 
     expect(response.statusCode).toBe(403);
     expect(cloudErrorSchema.parse(response.json())).toMatchObject({ code: "revoked" });
-    expect(await db.select().from(inbox)).toEqual([]);
-    expect(await db.select().from(deviceState)).toEqual([]);
+    expect(await route.db.select().from(inbox)).toEqual([]);
+    expect(await route.db.select().from(deviceState)).toEqual([]);
   });
 
   it.each([
@@ -247,7 +221,7 @@ describe("POST /events", () => {
     expect(cloudErrorSchema.parse(response.json())).toMatchObject({
       code: "device_token_rejected",
     });
-    expect(await db.select().from(inbox)).toEqual([]);
+    expect(await route.db.select().from(inbox)).toEqual([]);
   });
 
   it("refuses a body that is not a push, naming the field", async () => {
@@ -260,7 +234,7 @@ describe("POST /events", () => {
       code: "validation_failed",
       details: [{ field: "events" }],
     });
-    expect(await db.select().from(deviceState)).toEqual([]);
+    expect(await route.db.select().from(deviceState)).toEqual([]);
   });
 
   it("answers a failure with the cloud error envelope, revealing nothing of it", {
@@ -316,7 +290,7 @@ describe("POST /events", () => {
 
       expect(response.statusCode).toBe(403);
       expect(cloudErrorSchema.parse(response.json())).toMatchObject({ code: "revoked" });
-      const stored = await db.select().from(inbox).where(eq(inbox.deviceId, deviceId));
+      const stored = await route.db.select().from(inbox).where(eq(inbox.deviceId, deviceId));
       expect(stored.map((row) => row.deviceSeq)).toEqual([1]);
     });
 
@@ -326,7 +300,7 @@ describe("POST /events", () => {
 
       await push(bodyOf([altered]), `Bearer ${deviceToken}`);
 
-      expect(await db.select().from(refusedEvents)).toEqual([
+      expect(await route.db.select().from(refusedEvents)).toEqual([
         expect.objectContaining({
           deviceId,
           eventId: altered.event_id,
@@ -336,7 +310,7 @@ describe("POST /events", () => {
           refusedAt: NOW,
         }),
       ]);
-      const [installation] = await db
+      const [installation] = await route.db
         .select({
           revokedAt: registerInstallations.revokedAt,
           revocationReason: registerInstallations.revocationReason,

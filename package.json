@@ -17,6 +17,7 @@
     "verify:visual": "vitest run --project=catalog-visual",
     "verify": "pnpm verify:static && pnpm verify:tests && pnpm verify:visual",
     "mutation": "stryker run stryker.config.mjs",
+    "record:register-push": "vitest run --config vitest.register-push-recorder.config.ts",
     "dev:db": "docker compose up -d",
     "dev:migrate": "pnpm --filter @purosur/cloud build && node --env-file=.env apps/cloud/dist/migrate.js",
     "dev:create-first-administrator": "pnpm --filter @purosur/cloud build && node --env-file=.env apps/cloud/dist/create-first-administrator.js",

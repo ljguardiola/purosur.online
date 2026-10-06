@@ -25,6 +25,7 @@
       "includeEntryExports": true
     },
     "apps/pos": {
+      "entry": ["src/core/sync/test-support/register-session-push.recorder.ts"],
       "vitest": {
         "entry": ["src/**/*.test.{ts,tsx}", "*.test.ts"]
       },
