@@ -44,6 +44,7 @@ describe("emitUserPinCode", () => {
       ["an Administrator for a user who is not an Administrator", ADMINISTRATOR, "person-2"],
       ["an Administrator for another Administrator", ADMINISTRATOR, "admin-2"],
       ["an Administrator for their own account", ADMINISTRATOR, "admin-1"],
+      ["a person for their own account", PERSON, "person-1"],
     ])("emits for %s", async (_label, actor, targetId) => {
       const outcome = await emit(storeWithUsers(), actor, targetId);
 
@@ -56,7 +57,6 @@ describe("emitUserPinCode", () => {
 
     it.each([
       ["a person for an Administrator", PERSON, "admin-1"],
-      ["a person for their own account", PERSON, "person-1"],
       ["anyone for a user that does not exist", ADMINISTRATOR, "nobody"],
     ])("answers not_found and writes nothing for %s", async (_label, actor, targetId) => {
       const store = storeWithUsers();
