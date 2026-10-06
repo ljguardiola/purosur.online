@@ -9,7 +9,6 @@ export interface Sale {
   sessionId: string;
   actorId: string;
   state: SaleState;
-  occurredAt: Date;
 }
 
 export interface LinePromotion {

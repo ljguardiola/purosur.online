@@ -25,7 +25,6 @@ const OPEN_SALE: SaleWithLines = {
   sessionId: "session-1",
   actorId: "cashier",
   state: "OPEN",
-  occurredAt: new Date("2026-09-30T12:00:00.000Z"),
   lines: [],
 };
 
@@ -90,7 +89,6 @@ describe("addScannedProduct", () => {
       sessionId: "session-1",
       actorId: "cashier",
       state: "OPEN",
-      occurredAt: NOW,
       lines: [
         {
           id: "id-2",

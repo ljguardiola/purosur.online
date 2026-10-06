@@ -30,6 +30,8 @@ interface FakePrice extends ListPrice {
   validFrom: Date;
 }
 
+type StoredSale = SaleWithLines & { occurredAt?: Date };
+
 export interface FakeSaleLedgerState {
   accesses: Record<string, RoleAccess>;
   identity: RegisterIdentity | undefined;
@@ -40,7 +42,7 @@ export interface FakeSaleLedgerState {
   prices: FakePrice[];
   thresholds: BuyerIdentificationThreshold[];
   promotionsByProduct: Record<string, CandidatePromotion[]>;
-  sales: SaleWithLines[];
+  sales: StoredSale[];
   payments: PaymentTransaction[];
   movements: CashMovement[];
   outbox: OutboxEventDraft[];
@@ -168,11 +170,12 @@ export class FakeSaleLedger implements SaleLedger {
         this.failIfAsked("recordCashMovement");
         working.movements.push(movement);
       },
-      recordCompletedSale: (saleId) => {
+      recordCompletedSale: (saleId, occurredAt) => {
         this.failIfAsked("recordCompletedSale");
         for (const sale of working.sales) {
           if (sale.id === saleId) {
             sale.state = "COMPLETED";
+            sale.occurredAt = occurredAt;
           }
         }
       },
