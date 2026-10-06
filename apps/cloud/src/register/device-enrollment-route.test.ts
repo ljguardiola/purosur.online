@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { registerRouteAccess } from "../access/route-access.js";
 import {
   alerts,
+  auditLog,
   registerContingencyTicketKeys,
   registerEnrollmentAttempts,
   registerEnrollmentCodes,
@@ -54,6 +55,25 @@ afterEach(async () => {
 
 function minutesAgo(minutes: number): Date {
   return new Date(NOW.getTime() - minutes * 60 * 1000);
+}
+
+async function insertPreviousInstallation(registerId: string): Promise<string> {
+  const [previous] = await db
+    .insert(registerInstallations)
+    .values({
+      registerId,
+      tokenLookupPrefix: "previous",
+      tokenHash: "previous-hash",
+      hostname: "VIEJA",
+      windowsVersion: "Windows 10",
+      tokenIssuedAt: minutesAgo(60 * 24),
+      enrolledAt: minutesAgo(60 * 24),
+    })
+    .returning({ id: registerInstallations.id });
+  if (!previous) {
+    throw new Error("test setup: seeding the previous installation returned no row");
+  }
+  return previous.id;
 }
 
 async function insertRegisterWithCode(
@@ -199,6 +219,67 @@ describe("POST /devices", () => {
     expect(after).toEqual({ revokedAt: NOW, revocationReason: "replaced" });
   });
 
+  it("writes an audit row for the revocation of the installation it replaced and one for the new enrollment", async () => {
+    const registerId = await insertRegisterWithCode();
+    const previousId = await insertPreviousInstallation(registerId);
+
+    const response = await enroll();
+
+    const body = deviceEnrollmentSchema.parse(response.json());
+    const rows = await db.select().from(auditLog);
+    expect(rows).toHaveLength(2);
+    expect(rows).toContainEqual(
+      expect.objectContaining({
+        entity: "register_installation",
+        entityId: previousId,
+        actorId: null,
+        previousValue: { revoked_at: null, revocation_reason: null },
+        newValue: {
+          register_id: registerId,
+          revoked_at: NOW.toISOString(),
+          revocation_reason: "replaced",
+        },
+        at: NOW,
+      }),
+    );
+    expect(rows).toContainEqual(
+      expect.objectContaining({
+        entity: "register_installation",
+        entityId: body.device_id,
+        actorId: null,
+        previousValue: null,
+        newValue: {
+          register_id: registerId,
+          hostname: "CAJA-MOSTRADOR",
+          windows_version: "Windows 11 Pro 10.0.26100",
+          enrolled_at: NOW.toISOString(),
+          replaced_installation_id: previousId,
+        },
+        at: NOW,
+      }),
+    );
+    const serialized = JSON.stringify(rows);
+    expect(serialized).not.toContain(body.device_token);
+    expect(serialized).not.toContain(CODE);
+  });
+
+  it("writes only the enrollment audit row on a register no installation held", async () => {
+    const registerId = await insertRegisterWithCode();
+
+    const body = deviceEnrollmentSchema.parse((await enroll()).json());
+
+    expect(await db.select().from(auditLog)).toEqual([
+      expect.objectContaining({
+        entity: "register_installation",
+        entityId: body.device_id,
+        newValue: expect.objectContaining({
+          register_id: registerId,
+          replaced_installation_id: null,
+        }),
+      }),
+    ]);
+  });
+
   it("opens the register's enrollment alert along with the installation", async () => {
     const registerId = await insertRegisterWithCode();
 
@@ -228,6 +309,7 @@ describe("POST /devices", () => {
     });
     expect(await db.select().from(registerInstallations)).toEqual([]);
     expect(await db.select().from(alerts)).toEqual([]);
+    expect(await db.select().from(auditLog)).toEqual([]);
   });
 
   it("refuses an attempt past the hour's limit as rate_limited with when to retry", async () => {

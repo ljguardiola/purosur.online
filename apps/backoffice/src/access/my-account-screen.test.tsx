@@ -484,7 +484,7 @@ test("offers the PIN reset exactly when the cloud answers the session may emit i
   await expect.element(screen.getByRole("heading", { name: "PIN de la caja" })).toBeVisible();
 });
 
-test("offers no PIN reset to someone who is not an Administrator, even holding reset_user_pin", async () => {
+test("offers no PIN reset when the cloud answers the session may not emit its own PIN code, whatever its capabilities", async () => {
   const services = createServices();
   vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
 

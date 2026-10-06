@@ -22,7 +22,7 @@ function addSale(id: string, state: string): void {
     .prepare(
       "INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at) VALUES (?, 'register-1', 'device-1', 'session-1', 'u1', ?, ?)",
     )
-    .run(id, state, OCCURRED_AT.toISOString());
+    .run(id, state, state === "OPEN" ? null : OCCURRED_AT.toISOString());
 }
 
 function addPayment(id: string, saleId: string, amount: number, tendered: number | null): void {

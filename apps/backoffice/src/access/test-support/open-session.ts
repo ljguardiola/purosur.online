@@ -15,7 +15,7 @@ export function openSession(
     displayName: "Lucas Guardiola",
     capabilities: isAdministrator ? ADMINISTRATOR_CAPABILITIES : [],
     stockMovementKinds: isAdministrator ? ["loss", "adjustment"] : [],
-    mayEmitOwnPinCode: isAdministrator,
+    mayEmitOwnPinCode: true,
     expiresAt: new Date(Date.now() + SESSION_IDLE_TIMEOUT_MS).toISOString(),
     ...rest,
   };

@@ -22,7 +22,7 @@ export function completeSale(
   ids: IdGenerator,
   { sale, total, payment, movements, actorId, completedAt }: SaleCompletion,
 ): void {
-  tx.recordCompletedSale(sale.id);
+  tx.recordCompletedSale(sale.id, completedAt);
   tx.appendOutboxEvent(
     saleCompletedEvent(ids.next(), sale, total, payment, movements, actorId, completedAt),
   );
@@ -79,15 +79,14 @@ function saleCompletedEvent(
     aggregate_type: "Sale",
     aggregate_id: sale.id,
     event_type: "sale_completed",
-    schema_version: 1,
+    schema_version: 2,
     payload: {
       id: sale.id,
       register_id: sale.registerId,
       device_id: sale.deviceId,
       session_id: sale.sessionId,
       actor_id: sale.actorId,
-      occurred_at: sale.occurredAt.toISOString(),
-      completed_at: completedAtIso,
+      occurred_at: completedAtIso,
       total,
       lines: sale.lines.map((line) => ({
         id: line.id,

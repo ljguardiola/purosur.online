@@ -1,5 +1,5 @@
 import { userPinCodeSchema } from "@purosur/contracts";
-import { mayEmitPinCodeFor } from "@purosur/domain";
+import { mayEmitPinCodeFor, mayRequestPinCodeFor } from "@purosur/domain";
 import { emitUserPinCode, findBranchUser } from "@purosur/domain/access/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -10,8 +10,8 @@ import { DrizzlePinCodeStore } from "./drizzle-pin-code-store.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import { generatePinCode } from "./pin-code-generator.js";
 import {
-  capabilityAccess,
   openSessionOf,
+  recordAccess,
   registerRouteAccess,
   routeSessionSource,
 } from "./route-access.js";
@@ -34,7 +34,7 @@ export function registerUserPinCodeRoutes<TQueryResult extends PgQueryResultHKT>
     "/users/:id/pin-codes",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
-      config: { access: capabilityAccess("reset_user_pin"), sessionSource },
+      config: { access: recordAccess("id", mayRequestPinCodeFor), sessionSource },
     },
     async (request, reply) => {
       const ids = await readRecordIds(reply, request.params, ["id"]);

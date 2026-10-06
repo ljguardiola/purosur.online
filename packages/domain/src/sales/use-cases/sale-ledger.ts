@@ -70,7 +70,7 @@ export interface SaleLedgerTransaction {
   discardOpenSale(saleId: string): void;
   recordPayment(payment: PaymentTransaction): void;
   recordCashMovement(movement: CashMovement): void;
-  recordCompletedSale(saleId: string): void;
+  recordCompletedSale(saleId: string, occurredAt: Date): void;
   appendOutboxEvent(draft: OutboxEventDraft): void;
   issuerIdentificationInEffect(): IssuerIdentificationInEffect | undefined;
   buyerTaxStatusSetInEffect(): readonly BuyerTaxStatusOption[] | undefined;

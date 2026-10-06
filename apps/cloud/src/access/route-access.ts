@@ -7,6 +7,7 @@ import type {
   preHandlerAsyncHookHandler,
   RouteOptions,
 } from "fastify";
+import { readRecordIds } from "../platform/record-id-params.js";
 import { FORBIDDEN_RESPONSE } from "./forbidden-response.js";
 import {
   type BackofficeSessionCheckOptions,
@@ -27,7 +28,13 @@ export type RouteAccess =
   | { level: "open_session" }
   | { level: "open_session_peek" }
   | { level: "session_cookie" }
-  | { level: "capability"; capability: Capability };
+  | { level: "capability"; capability: Capability }
+  | { level: "record"; recordParam: string; grants: RecordGrants };
+
+export type RecordGrants = (
+  actor: { id: string; isAdministrator: boolean; permissionKeys: readonly string[] },
+  recordId: string,
+) => boolean;
 
 export const PUBLIC_ACCESS: RouteAccess = { level: "public" };
 export const OPEN_SESSION_ACCESS: RouteAccess = { level: "open_session" };
@@ -36,6 +43,10 @@ export const SESSION_COOKIE_ACCESS: RouteAccess = { level: "session_cookie" };
 
 export function capabilityAccess(capability: Capability): RouteAccess {
   return { level: "capability", capability };
+}
+
+export function recordAccess(recordParam: string, grants: RecordGrants): RouteAccess {
+  return { level: "record", recordParam, grants };
 }
 
 type SessionCheck<TResult> = <TQueryResult extends PgQueryResultHKT>(
@@ -127,6 +138,8 @@ function isAccessGranted(
       return true;
     case "capability":
       return grantsCapability(session, access.capability);
+    case "record":
+      return true;
   }
 }
 
@@ -173,6 +186,20 @@ async function enforceDeclaredAccess(
   }
   if (!isAccessGranted(access, session)) {
     return refuse(reply, 403);
+  }
+  if (access.level === "record") {
+    const ids = await readRecordIds(reply, request.params, [access.recordParam]);
+    if (!ids) {
+      return reply;
+    }
+    const actor = {
+      id: session.userId,
+      isAdministrator: session.isAdministrator,
+      permissionKeys: session.permissionKeys,
+    };
+    if (!access.grants(actor, ids[access.recordParam] as string)) {
+      return refuse(reply, 403);
+    }
   }
   resolvedSessions.set(request, session);
   return undefined;

@@ -225,7 +225,7 @@ function addSale(id: string, state: string, lineTotals: number[], sessionId = "s
     .prepare(
       "INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at) VALUES (?, 'register-1', 'device-1', ?, 'u1', ?, ?)",
     )
-    .run(id, sessionId, state, OPENED_AT.toISOString());
+    .run(id, sessionId, state, state === "OPEN" ? null : OPENED_AT.toISOString());
   lineTotals.forEach((lineTotal, index) => {
     database
       .prepare(

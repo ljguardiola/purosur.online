@@ -7,7 +7,6 @@ interface SaleRow {
   device_id: string;
   session_id: string;
   actor_id: string;
-  occurred_at: string;
 }
 
 interface LineRow {
@@ -46,7 +45,7 @@ export function readOpenSale(
 ): SaleWithLines | undefined {
   const sale = database
     .prepare<[string], SaleRow>(
-      `SELECT id, register_id, device_id, session_id, actor_id, occurred_at
+      `SELECT id, register_id, device_id, session_id, actor_id
        FROM sales WHERE session_id = ? AND state = 'OPEN'`,
     )
     .get(sessionId);
@@ -78,7 +77,6 @@ export function readOpenSale(
     sessionId: sale.session_id,
     actorId: sale.actor_id,
     state: "OPEN",
-    occurredAt: new Date(sale.occurred_at),
     lines: lines.map((line) =>
       toSaleLine(
         line,

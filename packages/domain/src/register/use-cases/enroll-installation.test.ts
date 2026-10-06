@@ -72,6 +72,22 @@ function seedAttempts(
   }
 }
 
+function previousInstallation() {
+  return {
+    deviceId: "device-old",
+    registerId: "register-1",
+    tokenLookupPrefix: "old",
+    tokenHash: "old-hash",
+    tokenIssuedAt: EARLIER,
+    pendingToken: null,
+    outboxChainKey: null,
+    hostname: "VIEJA",
+    windowsVersion: "Windows 10",
+    enrolledAt: EARLIER,
+    revokedAt: null,
+  };
+}
+
 const NINE = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const TEN_OLDEST_FIFTY_MINUTES_AGO = [...NINE, 50];
 
@@ -251,15 +267,84 @@ describe("enrollInstallation", () => {
 
     await enroll(store);
 
-    expect(store.operationOrder.slice(-7)).toEqual([
+    expect(store.operationOrder.slice(-8)).toEqual([
       "revokeActiveInstallation",
       "lockRegisterKeys",
       "recordSnapshotKey",
       "recordContingencyTicketKey",
       "recordInstallation",
+      "recordInstallationEnrollment",
       "markEnrollmentCodeRedeemed",
       "openEnrollmentAlert",
     ]);
+  });
+
+  it("records the revocation right after revoking, and the enrollment right after recording the installation", async () => {
+    const store = storeWithCode();
+    store.seedInstallation(previousInstallation());
+
+    await enroll(store);
+
+    const order = store.operationOrder;
+    expect(order.slice(order.indexOf("revokeActiveInstallation"))).toEqual([
+      "revokeActiveInstallation",
+      "recordInstallationRevocation",
+      "lockRegisterKeys",
+      "recordSnapshotKey",
+      "recordContingencyTicketKey",
+      "recordInstallation",
+      "recordInstallationEnrollment",
+      "markEnrollmentCodeRedeemed",
+      "openEnrollmentAlert",
+    ]);
+  });
+
+  it("records the revocation of the installation it replaced and the enrollment of the new one", async () => {
+    const store = storeWithCode();
+    store.seedInstallation(previousInstallation());
+
+    await enroll(store);
+
+    expect(store.snapshot().installationRevocations).toEqual([
+      { registerId: "register-1", deviceId: "device-old", revokedAt: NOW },
+    ]);
+    expect(store.snapshot().installationEnrollments).toEqual([
+      {
+        registerId: "register-1",
+        deviceId: "device-1",
+        hostname: "CAJA-MOSTRADOR",
+        windowsVersion: "Windows 11 Pro 10.0.26100",
+        replacedDeviceId: "device-old",
+        enrolledAt: NOW,
+      },
+    ]);
+  });
+
+  it("records no revocation and an enrollment that replaced nothing on a register nothing held", async () => {
+    const store = storeWithCode();
+
+    await enroll(store);
+
+    expect(store.snapshot().installationRevocations).toEqual([]);
+    expect(store.snapshot().installationEnrollments).toEqual([
+      expect.objectContaining({ deviceId: "device-1", replacedDeviceId: null }),
+    ]);
+  });
+
+  it("records no revocation and no enrollment when the code is refused or the attempt is rate limited", async () => {
+    const refused = storeWithCode({ redeemedAt: EARLIER });
+    refused.seedInstallation(previousInstallation());
+    const limited = storeWithCode();
+    limited.seedInstallation(previousInstallation());
+    seedAttempts(limited, { kind: "source_address", value: SOURCE }, [...NINE, 10]);
+
+    await enroll(refused);
+    await enroll(limited);
+
+    for (const store of [refused, limited]) {
+      expect(store.snapshot().installationRevocations).toEqual([]);
+      expect(store.snapshot().installationEnrollments).toEqual([]);
+    }
   });
 
   it("opens the register's enrollment alert for the new installation, on a register nothing held before", async () => {
@@ -579,13 +664,16 @@ describe("enrollInstallation", () => {
 
   it.each([
     "revokeActiveInstallation",
+    "recordInstallationRevocation",
     "recordSnapshotKey",
     "recordContingencyTicketKey",
     "recordInstallation",
+    "recordInstallationEnrollment",
     "markEnrollmentCodeRedeemed",
     "openEnrollmentAlert",
   ] as const)("leaves everything as it was when %s fails", async (operation) => {
     const store = storeWithCode();
+    store.seedInstallation(previousInstallation());
     store.failingWrites.add(operation);
     const before = store.snapshot();
 
