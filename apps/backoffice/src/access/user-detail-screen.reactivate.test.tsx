@@ -80,7 +80,10 @@ test("lets a reactivate-only holder reach an inactive user's Reactivar row, hidi
 
 test("hides the Reactivar row for a non-Administrator without reactivate_users", async () => {
   const services = createServices();
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: sofia });
+  vi.mocked(services.fetchUser).mockResolvedValue({
+    kind: "ok",
+    value: { ...sofia, mayReactivate: false },
+  });
 
   const screen = await renderScreen(services, () => {}, "user-5", "user-2", NO_DEACTIVATE_ACCESS);
 
@@ -98,7 +101,7 @@ test("treats a reactivation 404 as already resolved, refetching the user", async
 
   vi.mocked(services.fetchUser).mockResolvedValueOnce({
     kind: "ok",
-    value: { ...sofia, active: true },
+    value: { ...sofia, active: true, mayDeactivate: true, mayReactivate: false },
   });
   await userEvent.click(dialog.getByRole("button", { name: "Reactivar" }));
 

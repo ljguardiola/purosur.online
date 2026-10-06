@@ -36,6 +36,10 @@ const administratorRow = {
   passkey_count: 2,
   is_last_active_administrator: false,
   may_emit_pin_code: true,
+  may_edit: true,
+  may_deactivate: false,
+  may_reactivate: false,
+  may_remove_passkey: true,
 };
 const administrator: BranchUser = {
   id: "user-1",
@@ -46,6 +50,10 @@ const administrator: BranchUser = {
   passkeyCount: 2,
   isLastActiveAdministrator: false,
   mayEmitPinCode: true,
+  mayEdit: true,
+  mayDeactivate: false,
+  mayReactivate: false,
+  mayRemovePasskey: true,
 };
 
 test("fetchUsers lists the branch's users on 200", async () => {
@@ -97,6 +105,23 @@ test("fetchUsers maps each user's mayEmitPinCode from the wire", async () => {
 
   expect(outcome.kind).toBe("ok");
   expect(outcome.kind === "ok" && outcome.value[0]?.mayEmitPinCode).toBe(false);
+});
+
+test.each([
+  ["may_edit", "mayEdit"],
+  ["may_deactivate", "mayDeactivate"],
+  ["may_reactivate", "mayReactivate"],
+  ["may_remove_passkey", "mayRemovePasskey"],
+] as const)("fetchUsers maps each user's %s from the wire to %s", async (field, mapped) => {
+  for (const answer of [true, false]) {
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(200, [{ ...administratorRow, [field]: answer }]),
+    );
+
+    const outcome = await fetchUsers();
+
+    expect(outcome.kind === "ok" && outcome.value[0]?.[mapped]).toBe(answer);
+  }
 });
 
 test("fetchUsers maps each user's active field from the wire, when present", async () => {

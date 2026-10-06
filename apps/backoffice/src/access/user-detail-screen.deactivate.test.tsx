@@ -61,7 +61,7 @@ test("hides the Desactivar row on the viewer's own account, even when its id arr
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({
     kind: "ok",
-    value: { ...lucia, id: signedInUserId },
+    value: { ...lucia, id: signedInUserId, mayDeactivate: false },
   });
 
   const screen = await renderScreen(
@@ -78,7 +78,10 @@ test("hides the Desactivar row on the viewer's own account, even when its id arr
 
 test("hides the Desactivar row for a non-Administrator without deactivate_users", async () => {
   const services = createServices();
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  vi.mocked(services.fetchUser).mockResolvedValue({
+    kind: "ok",
+    value: { ...lucia, mayDeactivate: false },
+  });
 
   const screen = await renderScreen(services, () => {}, "user-1", "user-2", NO_DEACTIVATE_ACCESS);
 
