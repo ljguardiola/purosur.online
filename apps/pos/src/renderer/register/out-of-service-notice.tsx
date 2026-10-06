@@ -10,7 +10,7 @@ export function OutOfServiceNotice() {
           tone="error"
           icon={<Ban />}
           title="La caja necesita restaurarse"
-          description="La base de datos de esta caja está dañada y no puede vender. Hay que restaurarla para volver a vender."
+          description="Su base de datos está dañada, así que no puede vender."
         />
       </div>
     </BrandPanelScreen>
