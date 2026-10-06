@@ -1,5 +1,9 @@
 import { dirname, join } from "node:path";
-import { checkLocalDatabase, reportLocalDatabaseDamage } from "@purosur/domain/register/use-cases";
+import {
+  checkLocalDatabase,
+  type LocalDatabaseHealth,
+  reportLocalDatabaseDamage,
+} from "@purosur/domain/register/use-cases";
 import { isDatabaseDamage } from "../platform/database-damage";
 import {
   applyMigrations,
@@ -14,7 +18,7 @@ import {
 } from "./sqlite-local-database-health";
 
 export type StartedLocalDatabase =
-  | { kind: "ready"; database: LocalDatabase }
+  | { kind: "ready"; database: LocalDatabase; health: LocalDatabaseHealth }
   | { kind: "out_of_service" };
 
 const OUT_OF_SERVICE: StartedLocalDatabase = { kind: "out_of_service" };
@@ -49,7 +53,7 @@ export async function startLocalDatabase(deps: {
       return OUT_OF_SERVICE;
     }
     applyMigrations(database, deps.migrations, deps.now);
-    return { kind: "ready", database };
+    return { kind: "ready", database, health };
   } catch (error) {
     database.close();
     if (!isDatabaseDamage(error)) {
