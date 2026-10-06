@@ -229,8 +229,8 @@ describe("POST /users/:id/pin-codes", () => {
 
     beforeEach(async () => {
       personId = await insertUser({
-        firstName: "Margaret Hamilton",
-        email: "margaret@example.com",
+        firstName: "Rocío Fictaria",
+        email: "rocio.fictaria@example.com",
         roleId: await insertRole("Operadora"),
       });
       personSession = await insertSession(personId);
