@@ -85,14 +85,10 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
 
   async function rejectAuthentication(
     reply: FastifyReply,
-    startedAt: number,
+    floor: Promise<void>,
     response: SessionAuthenticationRejection = AUTHENTICATION_FAILED_RESPONSE,
   ): Promise<void> {
-    const elapsedMs = performance.now() - startedAt;
-    if (elapsedMs < FAILURE_RESPONSE_FLOOR_MS) {
-      await delay(FAILURE_RESPONSE_FLOOR_MS - elapsedMs);
-    }
-
+    await floor;
     await reply.code(401).send(response);
   }
 
@@ -101,7 +97,7 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
     sourceAddress: string,
     attemptedAt: Date,
     reply: FastifyReply,
-    startedAt: number,
+    floor: Promise<void>,
     response: SessionAuthenticationRejection = AUTHENTICATION_FAILED_RESPONSE,
   ): Promise<void> {
     try {
@@ -116,7 +112,7 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
       reportError(error);
     }
 
-    await rejectAuthentication(reply, startedAt, response);
+    await rejectAuthentication(reply, floor, response);
   }
 
   async function auditLockout(sourceAddress: string, lockout: TrippedSignInLockout): Promise<void> {
@@ -137,7 +133,7 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
   }
 
   app.post("/sessions", { config: { access: PUBLIC_ACCESS } }, async (request, reply) => {
-    const startedAt = performance.now();
+    const floor = delay(FAILURE_RESPONSE_FLOOR_MS);
     if (!requireBackofficeOrigin(request, reply, options.backofficeOrigin)) {
       return;
     }
@@ -145,13 +141,13 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
     // Checked before anything is recorded, so a request with nothing to verify never takes a lockout slot.
     const body = sessionAuthenticationBodySchema.safeParse(request.body);
     if (!body.success) {
-      await rejectAuthentication(reply, startedAt);
+      await rejectAuthentication(reply, floor);
       return;
     }
     const assertion = body.data.assertion as AuthenticationResponseJSON;
     const challenge = readAssertionChallenge(assertion);
     if (challenge === undefined) {
-      await rejectAuthentication(reply, startedAt);
+      await rejectAuthentication(reply, floor);
       return;
     }
 
@@ -204,17 +200,11 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
       },
     );
     if (outcome.kind === "unknown_passkey") {
-      await rejectSignInAttempt(
-        sourceAddress,
-        attemptedAt,
-        reply,
-        startedAt,
-        UNKNOWN_PASSKEY_RESPONSE,
-      );
+      await rejectSignInAttempt(sourceAddress, attemptedAt, reply, floor, UNKNOWN_PASSKEY_RESPONSE);
       return;
     }
     if (outcome.kind !== "signed_in") {
-      await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
+      await rejectSignInAttempt(sourceAddress, attemptedAt, reply, floor);
       return;
     }
 
