@@ -93,6 +93,8 @@ export interface LocalOutbox {
   unacknowledged(limit: number): Promise<PushedEvent[]>;
   acknowledgeThrough(deviceSeq: number): Promise<void>;
   resendFrom(deviceSeq: number): Promise<void>;
+  // The outbox lost events outside the system: the register stops opening new sales.
+  recordCompromised(): Promise<void>;
 }
 
 export type CloudEventInboxAnswer<TFailure> =

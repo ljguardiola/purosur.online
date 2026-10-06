@@ -8,6 +8,7 @@ export type PushOutboxOutcome<TFailure> =
   | { kind: "gap"; expectedSeq: number }
   | { kind: "stale_device" }
   | { kind: "revoked" }
+  | { kind: "compromised" }
   | { kind: "failed"; failure: TFailure };
 
 export async function pushOutbox<TFailure>({
@@ -37,6 +38,10 @@ export async function pushOutbox<TFailure>({
         await outbox.acknowledgeThrough(answer.ackSeq);
         await outbox.resendFrom(answer.expectedSeq);
         const [nextToSend] = await outbox.unacknowledged(1);
+        if (nextToSend !== undefined && nextToSend.device_seq > answer.expectedSeq) {
+          await outbox.recordCompromised();
+          return { kind: "compromised" };
+        }
         if (nextToSend !== undefined && nextToSend.device_seq < firstSentSeq) {
           break;
         }
