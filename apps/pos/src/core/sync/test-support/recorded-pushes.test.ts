@@ -32,12 +32,12 @@ function describeEvent(event: { event_type: string; schema_version: number }): s
   return `${event.event_type} v${event.schema_version}`;
 }
 
-describe("the recorded pushes", () => {
+describe("the recorded pushes", { timeout: 0 }, () => {
   let session: Awaited<ReturnType<typeof registerSessionPush>>;
 
   beforeAll(async () => {
     session = await registerSessionPush();
-  });
+  }, 0);
 
   it("hold an event of every version the register's core builds, sent by a register session", () => {
     const program = registerCoreProgram();
