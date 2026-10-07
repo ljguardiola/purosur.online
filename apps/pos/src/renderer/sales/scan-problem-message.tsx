@@ -13,8 +13,7 @@ export type ScanProblem =
           | "no_price"
           | "sold_by_weight"
           | "not_permitted"
-          | "installation_revoked"
-          | "sale_has_payments";
+          | "installation_revoked";
       }
     >
   | { kind: "scan_failed" }
@@ -94,12 +93,6 @@ export function messageFor(problem: ScanProblem): Message {
         icon: TriangleAlert,
         title: "No se pudo cancelar la venta",
         help: "Probá de nuevo.",
-      };
-    case "sale_has_payments":
-      return {
-        icon: Ban,
-        title: "No se puede cambiar la venta",
-        help: "Ya tiene un pago aprobado.",
       };
     case "has_approved_payment":
       return {

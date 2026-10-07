@@ -193,7 +193,8 @@ export function SaleScreen({
         refuse(submitted, outcome);
         break;
       case "sale_has_payments":
-        refuse(submitted, outcome);
+        setProblem(undefined);
+        setCode((typed) => (typed.trim() === submitted ? "" : typed));
         await refreshCurrentSale();
         break;
       case "unavailable":
@@ -257,7 +258,7 @@ export function SaleScreen({
         setProblem(outcome);
         break;
       case "sale_has_payments":
-        setProblem(outcome);
+        setProblem(undefined);
         await refreshCurrentSale();
         break;
       case "unknown_line":
@@ -310,8 +311,7 @@ export function SaleScreen({
   const notPermitted = messageFor({ kind: "not_permitted" });
   const shownProblem =
     answer === "not_permitted" && problem?.kind === "not_permitted" ? undefined : problem;
-  const lockedReason =
-    editable || shownProblem?.kind === "sale_has_payments" ? undefined : LOCKED_REASON;
+  const lockedReason = editable ? undefined : LOCKED_REASON;
 
   return (
     <div className="flex h-screen w-screen bg-surface-subtle">
@@ -332,9 +332,7 @@ export function SaleScreen({
         >
           <SearchField
             label="Producto"
-            {...(lockedReason === undefined
-              ? { disabled: !editable }
-              : { disabledReason: lockedReason })}
+            {...(lockedReason === undefined ? {} : { disabledReason: lockedReason })}
             placeholder="Escaneá o escribí el nombre del producto"
             icon={<ScanBarcode />}
             value={code}
