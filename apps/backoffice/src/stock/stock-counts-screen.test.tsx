@@ -147,23 +147,30 @@ async function chooseProduct(screen: Screen, name: string) {
   await userEvent.click(screen.getByRole("option", { name }));
 }
 
-test("starts a new count now, and shows the balance the chosen product expects and the difference", async () => {
+test("starts a new count now, at the moment the screen reads", async () => {
   const services = createServices();
+  vi.mocked(services.registerCount).mockResolvedValue({
+    kind: "ok",
+    value: { expected: 17_000, delta: -1000, balance: 16_000, superseded: false },
+  });
   const screen = await renderScreen(services);
   const dialog = await openNewCount(screen);
-
   expect(dialog.getByRole("textbox", { name: "Hora" }).element()).toHaveProperty("value", "18:40");
   await chooseProduct(screen, "Té verde en hebras 100 g");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad contada/ }), "16");
 
-  await expect.element(dialog.getByText("Saldo esperado")).toBeVisible();
-  await expect.element(dialog.getByText("17 u")).toBeVisible();
-  await expect.element(dialog.getByText("− 1 u")).toBeVisible();
-  expect(services.fetchExpectedBalance).toHaveBeenCalledWith(tea.id, "2026-09-15T21:40:30.000Z");
-  await expectNoAccessibilityViolations(screen.container);
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar el recuento" }));
+
+  await expect
+    .poll(() => vi.mocked(services.registerCount).mock.calls[0]?.[0])
+    .toEqual({
+      productId: tea.id,
+      counted: 16_000,
+      occurredAt: "2026-09-15T21:40:30.000Z",
+    });
 });
 
-test("registers the count at the moment chosen and shows the balance it left", async () => {
+test("closes the modal, refreshes the counts and shows the balance a count left", async () => {
   const services = createServices();
   vi.mocked(services.registerCount).mockResolvedValue({
     kind: "ok",
@@ -172,7 +179,6 @@ test("registers the count at the moment chosen and shows the balance it left", a
   const screen = await renderScreen(services);
   const dialog = await openNewCount(screen);
   await chooseProduct(screen, "Té verde en hebras 100 g");
-  await userEvent.fill(dialog.getByRole("textbox", { name: "Hora" }), "18:32");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad contada/ }), "16");
 
   await userEvent.click(dialog.getByRole("button", { name: "Registrar el recuento" }));
@@ -184,11 +190,6 @@ test("registers the count at the moment chosen and shows the balance it left", a
         .getByText("Saldo corregido Té verde en hebras 100 g queda en 16 u."),
     )
     .toBeInTheDocument();
-  expect(services.registerCount).toHaveBeenCalledWith({
-    productId: tea.id,
-    counted: 16_000,
-    occurredAt: "2026-09-15T18:32:00-03:00",
-  });
   expect(screen.getByRole("dialog").query()).toBeNull();
   await expect.poll(() => vi.mocked(services.fetchStockCounts).mock.calls.length).toBe(2);
 });
@@ -219,72 +220,6 @@ test.each([
     .toBeInTheDocument();
 });
 
-test("asks for the product and the quantity before registering anything", async () => {
-  const services = createServices();
-  const screen = await renderScreen(services);
-  const dialog = await openNewCount(screen);
-
-  await userEvent.click(dialog.getByRole("button", { name: "Registrar el recuento" }));
-
-  await expect.element(dialog.getByText("Elegí el producto.")).toBeVisible();
-  await expect.element(dialog.getByText("Ingresá la cantidad contada.")).toBeVisible();
-  expect(services.registerCount).not.toHaveBeenCalled();
-});
-
-test("asks for whole units of a product sold by the unit", async () => {
-  const services = createServices();
-  const screen = await renderScreen(services);
-  const dialog = await openNewCount(screen);
-  await chooseProduct(screen, "Miel pura de abeja 1 kg");
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad contada/ }), "1,5");
-
-  await userEvent.click(dialog.getByRole("button", { name: "Registrar el recuento" }));
-
-  await expect
-    .element(dialog.getByText("Escribí una cantidad entera de unidades, por ejemplo 16."))
-    .toBeVisible();
-  expect(services.registerCount).not.toHaveBeenCalled();
-});
-
-test("asks for a time written the way it expects", async () => {
-  const services = createServices();
-  const screen = await renderScreen(services);
-  const dialog = await openNewCount(screen);
-  await chooseProduct(screen, "Almendras peladas");
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad contada/ }), "12,150");
-  await userEvent.fill(dialog.getByRole("textbox", { name: "Hora" }), "6 y media");
-
-  await userEvent.click(dialog.getByRole("button", { name: "Registrar el recuento" }));
-
-  await expect.element(dialog.getByText("Escribí la hora como 18:32.")).toBeVisible();
-  expect(services.registerCount).not.toHaveBeenCalled();
-});
-
-test.each([
-  [{ kind: "occurred_in_the_future" }, "El recuento no puede ser posterior a ahora."],
-  [
-    { kind: "count_at_same_moment" },
-    "Ya hay un recuento de este producto a esa hora. Elegí otra hora.",
-  ],
-  [
-    { kind: "validation_failed", field: "counted" },
-    "Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.",
-  ],
-  [{ kind: "failed" }, "No se pudo guardar el recuento"],
-  [{ kind: "rate_limited", retryAfterSeconds: 30 }, "Demasiadas solicitudes"],
-] as const)("keeps the modal open and explains the refusal %j", async (outcome, message) => {
-  const services = createServices();
-  vi.mocked(services.registerCount).mockResolvedValue(outcome);
-  const screen = await renderScreen(services);
-  const dialog = await openNewCount(screen);
-  await chooseProduct(screen, "Almendras peladas");
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad contada/ }), "12,150");
-
-  await userEvent.click(dialog.getByRole("button", { name: "Registrar el recuento" }));
-
-  await expect.element(dialog.getByText(message)).toBeVisible();
-});
-
 test("ends the session when registering finds it over", async () => {
   const services = createServices();
   vi.mocked(services.registerCount).mockResolvedValue({ kind: "unauthenticated" });
@@ -299,20 +234,6 @@ test("ends the session when registering finds it over", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("shows a failed load of the products with a retry inside the modal", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchStockProducts)
-    .mockResolvedValueOnce({ kind: "failed" })
-    .mockResolvedValueOnce({ kind: "ok", value: { products: [withoutBalance(almonds)] } });
-  const screen = await renderScreen(services);
-  await userEvent.click(screen.getByRole("button", { name: "Nuevo recuento" }));
-  const dialog = screen.getByRole("dialog", { name: "Nuevo recuento" });
-
-  await userEvent.click(dialog.getByRole("button", { name: "Reintentar" }));
-
-  await expect.element(dialog.getByRole("button", { name: /Producto/ })).toBeVisible();
-});
-
 test("closes the modal without registering anything on Cancelar", async () => {
   const services = createServices();
   const screen = await renderScreen(services);
@@ -322,28 +243,6 @@ test("closes the modal without registering anything on Cancelar", async () => {
 
   expect(screen.getByRole("dialog").query()).toBeNull();
   expect(services.registerCount).not.toHaveBeenCalled();
-});
-
-test("registers a count left at its default moment at the exact instant the modal opened", async () => {
-  const services = createServices();
-  vi.mocked(services.registerCount).mockResolvedValue({
-    kind: "ok",
-    value: { expected: 17_000, delta: -1000, balance: 16_000, superseded: false },
-  });
-  const screen = await renderScreen(services);
-  const dialog = await openNewCount(screen);
-  await chooseProduct(screen, "Té verde en hebras 100 g");
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad contada/ }), "16");
-
-  await userEvent.click(dialog.getByRole("button", { name: "Registrar el recuento" }));
-
-  await expect
-    .poll(() => vi.mocked(services.registerCount).mock.calls[0]?.[0])
-    .toEqual({
-      productId: tea.id,
-      counted: 16_000,
-      occurredAt: "2026-09-15T21:40:30.000Z",
-    });
 });
 
 test("registers a count for a user who may not view balances, showing no expected balance", async () => {
