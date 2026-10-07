@@ -69,6 +69,14 @@ describe("the order events of one aggregate were created in", () => {
     expect(ids(inCreationOrder([afterClockChange, other, first]))).toEqual(["c", "a", "b"]);
   });
 
+  it("follows the sequence of the installation for events it reported at the same instants", () => {
+    const events = [3, 2, 1].map((deviceSeq) =>
+      event(`event-`, "register-1", deviceSeq, "2026-10-07T10:00:00.000Z"),
+    );
+
+    expect(ids(inCreationOrder(events))).toEqual(["event-1", "event-2", "event-3"]);
+  });
+
   it("does not change the list it was given", () => {
     const events = [
       event("b", "register-1", 2, "2026-10-07T10:00:00.000Z"),
