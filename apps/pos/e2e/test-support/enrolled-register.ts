@@ -105,6 +105,13 @@ export function enrolledRegister(cloud: StandInCloud): EnrolledRegister {
     return running;
   }
 
+  async function startReady(): Promise<RunningRegister> {
+    const started = await start();
+    await untilLogged(started, coreStartEnded);
+    expect(startEndingsIn(started.logs.join(""))).toEqual([CORE_READY]);
+    return started;
+  }
+
   async function stop(): Promise<void> {
     running = undefined;
     if (openApp !== undefined) {
@@ -131,16 +138,13 @@ export function enrolledRegister(cloud: StandInCloud): EnrolledRegister {
       return current().logs;
     },
     launch: async () => {
-      const first = await start();
-      await untilLogged(first, coreStartEnded);
-      expect(startEndingsIn(first.logs.join(""))).toEqual([CORE_READY]);
-      await enroll(first.page, cloud);
+      await enroll((await startReady()).page, cloud);
       await stop();
-      await start();
+      await startReady();
     },
     restart: async () => {
       await stop();
-      await start();
+      await startReady();
     },
     restartAfter: async (change) => {
       await stop();
