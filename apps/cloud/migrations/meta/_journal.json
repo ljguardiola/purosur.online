@@ -386,6 +386,13 @@
       "when": 1791249058506,
       "tag": "0054_refused_events",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1791386069700,
+      "tag": "0055_arca_vitality_checks",
+      "breakpoints": true
     }
   ]
 }
