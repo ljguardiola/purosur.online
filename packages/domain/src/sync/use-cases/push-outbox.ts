@@ -14,6 +14,7 @@ export type PushOutboxOutcome<TFailure> =
 export async function pushOutbox<TFailure>({
   outbox,
   inbox,
+  installation,
 }: PushOutboxPorts<TFailure>): Promise<PushOutboxOutcome<TFailure>> {
   let pushedAny = false;
   let lastAckSeq = 0;
@@ -53,6 +54,7 @@ export async function pushOutbox<TFailure>({
       case "stale_device":
         return { kind: "stale_device" };
       case "revoked":
+        await installation.recordRevoked();
         return { kind: "revoked" };
       case "failed":
         return { kind: "failed", failure: answer.failure };
