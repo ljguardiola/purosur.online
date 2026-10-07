@@ -7,11 +7,6 @@ export type {
   OpenCertificateExpiringAlert,
 } from "./arca-certificate-expiry-store.js";
 export type {
-  CheckArcaCertificateExpiryInput,
-  CheckArcaCertificateExpiryOutcome,
-} from "./check-arca-certificate-expiry.js";
-export { checkArcaCertificateExpiry } from "./check-arca-certificate-expiry.js";
-export type {
   BuyerIdentificationThresholdOverview,
   BuyerIdentificationThresholdPorts,
   BuyerIdentificationThresholdReader,
@@ -25,6 +20,11 @@ export type {
   BuyerTaxStatusStore,
   BuyerTaxStatusStoreTransaction,
 } from "./buyer-tax-status-store.js";
+export type {
+  CheckArcaCertificateExpiryInput,
+  CheckArcaCertificateExpiryOutcome,
+} from "./check-arca-certificate-expiry.js";
+export { checkArcaCertificateExpiry } from "./check-arca-certificate-expiry.js";
 export type {
   ConfigureRegisterPointOfSaleInput,
   ConfigureRegisterPointOfSaleOutcome,

@@ -1,7 +1,7 @@
 import type { AlertKind, AlertLevel } from "../model/alert-catalog.js";
 import { isOpenAlert } from "../model/open-alert-state.js";
-import { keptAfterClosure } from "./kept-after-closure.js";
 import type { AlertClosingPorts } from "./alert-store.js";
+import { keptAfterClosure } from "./kept-after-closure.js";
 
 export interface CloseAlertInput {
   alertId: string;

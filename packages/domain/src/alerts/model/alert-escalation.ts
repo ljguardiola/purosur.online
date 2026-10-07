@@ -1,4 +1,4 @@
-import type { AlertKind, AlertLevel } from "./alert-catalog.js";
+import type { AlertLevel } from "./alert-catalog.js";
 import type { OpenAlertInput } from "./alert-details.js";
 import { alertKindPolicy } from "./alert-kind-policy.js";
 import { isOpenAlert } from "./open-alert-state.js";
