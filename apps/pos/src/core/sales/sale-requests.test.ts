@@ -186,6 +186,10 @@ describe("scanning a product on the register", () => {
           },
         ],
         total: 3000,
+        paid: 0,
+        pending: 3000,
+        lines_editable: true,
+        cancellable: true,
         charge_refusal: null,
       },
     });
@@ -348,6 +352,10 @@ describe("adding a searched product on the register", () => {
           },
         ],
         total: 1500,
+        paid: 0,
+        pending: 1500,
+        lines_editable: true,
+        cancellable: true,
         charge_refusal: null,
       },
     });
@@ -439,7 +447,24 @@ describe("the sale in progress", () => {
         },
       ],
       total: 3000,
+      paid: 0,
+      pending: 3000,
+      lines_editable: true,
+      cancellable: true,
       charge_refusal: null,
+    });
+  });
+
+  it("reports what was paid, what is pending and that the lines are frozen once a payment is approved", async () => {
+    const saleId = await sellTwoForPayments();
+    await chargeSaleInCashFor(deps(), { saleId, tendered: 1000 });
+
+    expect(await currentSaleFor(deps())).toMatchObject({
+      total: 3000,
+      paid: 1000,
+      pending: 2000,
+      lines_editable: false,
+      cancellable: false,
     });
   });
 
@@ -463,6 +488,15 @@ describe("the sale in progress", () => {
     });
   });
 });
+
+async function sellTwoForPayments(): Promise<string> {
+  await scanProductFor(deps(), "111");
+  const outcome = await scanProductFor(deps(), "111");
+  if (outcome.kind !== "added") {
+    throw new Error("test setup: the product was not added");
+  }
+  return outcome.sale.id;
+}
 
 async function sellTwoYerbas(): Promise<string> {
   await scanProductFor(deps(), "111");
@@ -539,7 +573,16 @@ describe("removing a line", () => {
 
     expect(await removeSaleLineFor(deps(), lineId)).toEqual({
       kind: "removed",
-      sale: { id: "id-1", lines: [], total: 0, charge_refusal: null },
+      sale: {
+        id: "id-1",
+        lines: [],
+        total: 0,
+        paid: 0,
+        pending: 0,
+        lines_editable: true,
+        cancellable: true,
+        charge_refusal: null,
+      },
     });
   });
 
@@ -745,12 +788,31 @@ describe("charging the sale in progress in cash", () => {
     expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([]);
   });
 
-  it("answers how much is still due when the cash does not cover the sale", async () => {
+  it("answers what is paid and what is pending when the cash does not cover the sale, leaving it open", async () => {
     const saleId = await sellTwo();
 
     expect(await chargeSaleInCashFor(deps(), { saleId, tendered: 1000 })).toEqual({
-      kind: "insufficient_cash",
-      amount_due: 3000,
+      kind: "partially_paid",
+      sale_id: saleId,
+      total: 3000,
+      paid: 1000,
+      pending: 2000,
+    });
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([]);
+  });
+
+  it("completes the sale with the change of what the remaining cash exceeds", async () => {
+    addFiscalConfiguration();
+    const saleId = await sellTwo();
+    await chargeSaleInCashFor(deps(), { saleId, tendered: 1000 });
+
+    expect(await chargeSaleInCashFor(deps(), { saleId, tendered: 5000 })).toEqual({
+      kind: "completed",
+      sale_id: saleId,
+      total: 3000,
+      tendered: 5000,
+      change: 3000,
     });
   });
 
@@ -833,7 +895,7 @@ describe("charging the sale in progress by transfer", () => {
     addFiscalConfiguration();
     const saleId = await sellTwo();
 
-    expect(await chargeSaleByTransferFor(deps(), { saleId })).toEqual({
+    expect(await chargeSaleByTransferFor(deps(), { saleId, amount: 3000 })).toEqual({
       kind: "completed",
       sale_id: saleId,
       total: 3000,
@@ -844,10 +906,10 @@ describe("charging the sale in progress by transfer", () => {
     ]);
   });
 
-  it("records one approved transfer for the whole total, confirmed by the signed-in person", async () => {
+  it("records one approved transfer for the amount, confirmed by the signed-in person", async () => {
     const saleId = await sellTwo();
 
-    await chargeSaleByTransferFor(deps(), { saleId });
+    await chargeSaleByTransferFor(deps(), { saleId, amount: 3000 });
 
     expect(
       database
@@ -872,7 +934,7 @@ describe("charging the sale in progress by transfer", () => {
     addFiscalConfiguration();
     const saleId = await sellTwo();
 
-    await chargeSaleByTransferFor(deps(), { saleId });
+    await chargeSaleByTransferFor(deps(), { saleId, amount: 3000 });
 
     expect(
       database.prepare("SELECT sale_id, outcome FROM pre_emission_gate_outcomes").all(),
@@ -883,7 +945,7 @@ describe("charging the sale in progress by transfer", () => {
     const saleId = await sellTwo();
     database.exec("DROP TABLE pre_emission_gate_outcomes");
 
-    await expect(chargeSaleByTransferFor(deps(), { saleId })).rejects.toThrow();
+    await expect(chargeSaleByTransferFor(deps(), { saleId, amount: 3000 })).rejects.toThrow();
 
     expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
     expect(database.prepare("SELECT count(*) AS total FROM payment_transactions").get()).toEqual({
@@ -891,10 +953,67 @@ describe("charging the sale in progress by transfer", () => {
     });
   });
 
+  it("answers what is paid and what is pending when the transfer does not cover the sale, leaving it open", async () => {
+    const saleId = await sellTwo();
+
+    expect(await chargeSaleByTransferFor(deps(), { saleId, amount: 1200 })).toEqual({
+      kind: "partially_paid",
+      sale_id: saleId,
+      total: 3000,
+      paid: 1200,
+      pending: 1800,
+    });
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+    expect(database.prepare("SELECT method, amount FROM payment_transactions").all()).toEqual([
+      { method: "TRANSFER", amount: 1200 },
+    ]);
+  });
+
+  it("completes the sale with a cash payment and a transfer for the rest", async () => {
+    addFiscalConfiguration();
+    const saleId = await sellTwo();
+    await chargeSaleInCashFor(deps(), { saleId, tendered: 1000 });
+
+    expect(await chargeSaleByTransferFor(deps(), { saleId, amount: 2000 })).toEqual({
+      kind: "completed",
+      sale_id: saleId,
+      total: 3000,
+    });
+    expect(
+      database.prepare("SELECT method, amount FROM payment_transactions ORDER BY rowid").all(),
+    ).toEqual([
+      { method: "CASH", amount: 1000 },
+      { method: "TRANSFER", amount: 2000 },
+    ]);
+    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([
+      { event_type: "sale_completed" },
+    ]);
+  });
+
+  it("answers how much is pending when the transfer exceeds it, charging nothing", async () => {
+    const saleId = await sellTwo();
+
+    expect(await chargeSaleByTransferFor(deps(), { saleId, amount: 3001 })).toEqual({
+      kind: "exceeds_pending",
+      pending: 3000,
+    });
+    expect(database.prepare("SELECT count(*) AS total FROM payment_transactions").get()).toEqual({
+      total: 0,
+    });
+  });
+
+  it("answers the domain's refusal of an amount that is not positive", async () => {
+    const saleId = await sellTwo();
+
+    expect(await chargeSaleByTransferFor(deps(), { saleId, amount: 0 })).toEqual({
+      kind: "invalid_amount",
+    });
+  });
+
   it("answers the domain's refusal of a sale that is not the one in progress", async () => {
     await sellTwo();
 
-    expect(await chargeSaleByTransferFor(deps(), { saleId: "other-sale" })).toEqual({
+    expect(await chargeSaleByTransferFor(deps(), { saleId: "other-sale", amount: 3000 })).toEqual({
       kind: "no_open_sale",
     });
   });
@@ -903,7 +1022,7 @@ describe("charging the sale in progress by transfer", () => {
     saveThreshold(3000, "2026-09-30");
     const saleId = await sellTwo();
 
-    expect(await chargeSaleByTransferFor(deps(), { saleId })).toEqual({
+    expect(await chargeSaleByTransferFor(deps(), { saleId, amount: 3000 })).toEqual({
       kind: "reaches_buyer_identification_threshold",
       threshold: 3000,
     });
@@ -917,7 +1036,7 @@ describe("charging the sale in progress by transfer", () => {
     database.prepare("DELETE FROM buyer_identification_thresholds").run();
     const saleId = await sellTwo();
 
-    expect(await chargeSaleByTransferFor(deps(), { saleId })).toEqual({
+    expect(await chargeSaleByTransferFor(deps(), { saleId, amount: 3000 })).toEqual({
       kind: "no_buyer_identification_threshold",
     });
     expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
@@ -927,21 +1046,25 @@ describe("charging the sale in progress by transfer", () => {
     const saleId = await sellTwo();
     database.prepare("UPDATE sale_lines SET line_total = 0").run();
 
-    expect(await chargeSaleByTransferFor(deps(), { saleId })).toEqual({ kind: "zero_total" });
+    expect(await chargeSaleByTransferFor(deps(), { saleId, amount: 3000 })).toEqual({
+      kind: "zero_total",
+    });
   });
 
   it("answers the domain's refusal of a sale without lines", async () => {
     const saleId = await sellTwo();
     database.exec("DELETE FROM sale_line_promotions; DELETE FROM sale_lines");
 
-    expect(await chargeSaleByTransferFor(deps(), { saleId })).toEqual({ kind: "empty_sale" });
+    expect(await chargeSaleByTransferFor(deps(), { saleId, amount: 3000 })).toEqual({
+      kind: "empty_sale",
+    });
   });
 
   it("answers that no session is open", async () => {
     const saleId = await sellTwo();
     database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
 
-    expect(await chargeSaleByTransferFor(deps(), { saleId })).toEqual({
+    expect(await chargeSaleByTransferFor(deps(), { saleId, amount: 3000 })).toEqual({
       kind: "no_open_session",
     });
   });
@@ -950,7 +1073,9 @@ describe("charging the sale in progress by transfer", () => {
     const saleId = await sellTwo();
     signedInPerson.clear();
 
-    expect(await chargeSaleByTransferFor(deps(), { saleId })).toEqual({ kind: "not_signed_in" });
+    expect(await chargeSaleByTransferFor(deps(), { saleId, amount: 3000 })).toEqual({
+      kind: "not_signed_in",
+    });
   });
 
   it("answers not permitted to a signed-in person without the permission to sell", async () => {
@@ -958,7 +1083,9 @@ describe("charging the sale in progress by transfer", () => {
     addPerson("u2", "guest");
     signedInPerson.set("u2");
 
-    expect(await chargeSaleByTransferFor(deps(), { saleId })).toEqual({ kind: "not_permitted" });
+    expect(await chargeSaleByTransferFor(deps(), { saleId, amount: 3000 })).toEqual({
+      kind: "not_permitted",
+    });
     expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
     expect(database.prepare("SELECT count(*) AS total FROM payment_transactions").get()).toEqual({
       total: 0,
@@ -971,6 +1098,7 @@ describe("charging the sale in progress by transfer", () => {
     expect(
       await chargeSaleByTransferFor(deps({ readOutboxChainKey: async () => undefined }), {
         saleId,
+        amount: 3000,
       }),
     ).toEqual({ kind: "unavailable" });
     expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
@@ -990,7 +1118,7 @@ describe("what a sale in progress needs when an amount is tendered", () => {
   it.each([
     [5000, { kind: "covered", applied: 3000, change: 2000 }],
     [3000, { kind: "covered", applied: 3000, change: 0 }],
-    [1000, { kind: "insufficient", amountDue: 3000 }],
+    [1000, { kind: "partial", applied: 1000, pending: 2000 }],
     [0, { kind: "invalid_amount" }],
   ] as const)(
     "answers the domain's charge of %i against the total of the sale",
@@ -1000,6 +1128,22 @@ describe("what a sale in progress needs when an amount is tendered", () => {
       expect(await cashChargeFor(deps(), { saleId, tendered })).toEqual(charge);
     },
   );
+
+  it("answers the charge against what is still pending once a payment was approved", async () => {
+    const saleId = await sellTwo();
+    await chargeSaleByTransferFor(deps(), { saleId, amount: 1200 });
+
+    expect(await cashChargeFor(deps(), { saleId, tendered: 2000 })).toEqual({
+      kind: "covered",
+      applied: 1800,
+      change: 200,
+    });
+    expect(await cashChargeFor(deps(), { saleId, tendered: 500 })).toEqual({
+      kind: "partial",
+      applied: 500,
+      pending: 1300,
+    });
+  });
 
   it("charges nothing and changes nothing", async () => {
     const saleId = await sellTwo();
@@ -1177,5 +1321,38 @@ describe("cancelling the open sale of a locked register", () => {
       await cancelLockedSaleFor(lockedDeps({ readOutboxChainKey: async () => undefined }), CLOSER),
     ).toEqual({ kind: "cancelled" });
     expect(saleStates()).toEqual([]);
+  });
+});
+
+describe("editing the lines of a sale with an approved payment", () => {
+  async function sellTwoPartlyPaid(): Promise<void> {
+    const saleId = await sellTwoForPayments();
+    await chargeSaleInCashFor(deps(), { saleId, tendered: 1000 });
+  }
+
+  it("answers that a scanned product cannot be added", async () => {
+    await sellTwoPartlyPaid();
+
+    expect(await scanProductFor(deps(), "111")).toEqual({ kind: "sale_has_payments" });
+  });
+
+  it("answers that a searched product cannot be added", async () => {
+    await sellTwoPartlyPaid();
+
+    expect(await addSearchedProductFor(deps(), "p1")).toEqual({ kind: "sale_has_payments" });
+  });
+
+  it("answers that a line's quantity cannot change", async () => {
+    await sellTwoPartlyPaid();
+
+    expect(await changeLineQuantityFor(deps(), "id-2", 1, 2)).toEqual({
+      kind: "sale_has_payments",
+    });
+  });
+
+  it("answers that a line cannot be removed", async () => {
+    await sellTwoPartlyPaid();
+
+    expect(await removeSaleLineFor(deps(), "id-2")).toEqual({ kind: "sale_has_payments" });
   });
 });

@@ -11,6 +11,7 @@ import {
   addScannedProduct,
   cancelSale,
   changeLineQuantity,
+  chargeSaleByTransfer,
   chargeSaleInCash,
   currentSale,
   removeSaleLine,
@@ -741,6 +742,143 @@ describe("charging an open sale in cash", () => {
 
     expect(() => ledger.transaction((tx) => tx.recordCompletedSale(saleId, NOW))).toThrow();
     expect(() => ledger.transaction((tx) => tx.recordCompletedSale("missing", NOW))).toThrow();
+  });
+});
+
+describe("paying an open sale across several payments", () => {
+  beforeEach(() => {
+    readySeller();
+    addProduct("111");
+    addPrice("p1", "2026-09-01T00:00:00.000Z", 1500);
+    database
+      .prepare(
+        `INSERT INTO issuer_identification_versions (
+           version, legal_name, gross_income_registration, activity_start_date, authorized_cuit, tax_status
+         ) VALUES (1, ?, ?, '2020-01-15', ?, 'Condicion de prueba')`,
+      )
+      .run(FICTIONAL_LEGAL_NAME, FICTIONAL_GROSS_INCOME_REGISTRATION, FICTIONAL_CUIT);
+    database
+      .prepare(
+        "INSERT INTO buyer_tax_status_sets (params_version, set_id, options) VALUES (1, 'set-1', ?)",
+      )
+      .run(JSON.stringify([{ code: 5, description: "Consumidor Final", invoice_class: "A/M/C" }]));
+  });
+
+  function sellTwo(): string {
+    scan("111");
+    const outcome = scan("111");
+    if (outcome.kind !== "added") {
+      throw new Error("test setup: the product was not added");
+    }
+    return outcome.sale.id;
+  }
+
+  function payCash(saleId: string, tendered: number) {
+    return chargeSaleInCash(
+      { ledger, clock: { now: () => NOW }, ids },
+      { actorId: "u1", saleId, tendered },
+    );
+  }
+
+  function payByTransfer(saleId: string, amount: number) {
+    return chargeSaleByTransfer(
+      { ledger, clock: { now: () => NOW }, ids },
+      { actorId: "u1", saleId, amount },
+    );
+  }
+
+  it("keeps the sale open with the payment of a partial cash charge stored", () => {
+    const saleId = sellTwo();
+
+    expect(payCash(saleId, 1000)).toMatchObject({
+      kind: "partially_paid",
+      paid: 1000,
+      pending: 2000,
+    });
+
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+    expect(
+      database.prepare("SELECT method, amount, tendered FROM payment_transactions").all(),
+    ).toEqual([{ method: "CASH", amount: 1000, tendered: 1000 }]);
+    expect(database.prepare("SELECT count(*) AS total FROM outbox").get()).toEqual({ total: 0 });
+  });
+
+  it("completes the sale with every payment once they cover its total", () => {
+    const saleId = sellTwo();
+
+    payCash(saleId, 1000);
+    expect(payByTransfer(saleId, 2000)).toMatchObject({ kind: "completed", total: 3000 });
+
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "COMPLETED" }]);
+    expect(
+      database.prepare("SELECT method, amount FROM payment_transactions ORDER BY rowid").all(),
+    ).toEqual([
+      { method: "CASH", amount: 1000 },
+      { method: "TRANSFER", amount: 2000 },
+    ]);
+  });
+
+  it("lists the cash movements of a sale in the order they were recorded", () => {
+    const saleId = sellTwo();
+    payCash(saleId, 1000);
+    payCash(saleId, 5000);
+
+    const movements = ledger.transaction((tx) => tx.saleCashMovements(saleId));
+
+    expect(
+      movements.map(({ type, amount, ref, actorId, sessionId }) => ({
+        type,
+        amount,
+        ref,
+        actorId,
+        sessionId,
+      })),
+    ).toEqual([
+      {
+        type: "SALE",
+        amount: 1000,
+        ref: { type: "sale", id: saleId },
+        actorId: "u1",
+        sessionId: "session-1",
+      },
+      {
+        type: "SALE",
+        amount: 5000,
+        ref: { type: "sale", id: saleId },
+        actorId: "u1",
+        sessionId: "session-1",
+      },
+      {
+        type: "CHANGE",
+        amount: 3000,
+        ref: { type: "sale", id: saleId },
+        actorId: "u1",
+        sessionId: "session-1",
+      },
+    ]);
+  });
+
+  it("leaves out the cash movements of other sales and of other references", () => {
+    const saleId = sellTwo();
+    payCash(saleId, 1000);
+    database
+      .prepare(
+        `INSERT INTO cash_movements (id, session_id, type, amount, ref_type, ref_id, actor_id, occurred_at)
+         VALUES ('m-other-sale', 'session-1', 'SALE', 700, 'sale', 'another-sale', 'u1', ?),
+                ('m-other-ref', 'session-1', 'SALE', 800, 'refund', ?, 'u1', ?),
+                ('m-no-ref', 'session-1', 'SALE', 900, NULL, NULL, 'u1', ?)`,
+      )
+      .run(NOW.toISOString(), saleId, NOW.toISOString(), NOW.toISOString());
+
+    const movements = ledger.transaction((tx) => tx.saleCashMovements(saleId));
+
+    expect(movements.map(({ amount }) => amount)).toEqual([1000]);
+  });
+
+  it("lists no cash movement for a sale without one", () => {
+    const saleId = sellTwo();
+
+    expect(ledger.transaction((tx) => tx.saleCashMovements(saleId))).toEqual([]);
   });
 });
 
