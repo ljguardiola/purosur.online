@@ -52,7 +52,7 @@ describe("searching products by name into a sale on the register", () => {
     );
     register = enrolledRegister(cloud);
     await register.launch();
-  }, 60_000);
+  });
 
   afterAll(async () => {
     try {

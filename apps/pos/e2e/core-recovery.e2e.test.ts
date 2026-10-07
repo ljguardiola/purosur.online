@@ -1,7 +1,7 @@
 import type { ElectronApplication, Page } from "playwright";
-import { _electron as electron } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { APP_DIR, appEnv, E2E_CHANNEL_FILE, platformArgs, writeChannelFile } from "./launch-app";
+import { launchApp } from "./launch-app";
+import { until, untilLogged } from "./test-support/until";
 
 // A fresh data folder holds no enrollment, so a core that is up shows the enrollment screen.
 const CORE_UP_TEXT = "Dar de alta esta caja";
@@ -40,13 +40,7 @@ async function liveCore(app: ElectronApplication): Promise<UtilityProcessInfo | 
 async function killTheRunningCore(app: ElectronApplication): Promise<void> {
   // A new core hands the window its port as soon as it is forked, before it shows up in the
   // metrics, so the next kill waits for it to be listed.
-  await expect
-    .poll(() => liveCore(app), {
-      timeout: 20_000,
-      interval: 100,
-      message: "expected a core process to kill",
-    })
-    .toBeDefined();
+  await until(async () => (await liveCore(app)) !== undefined);
   const current = await liveCore(app);
   if (current === undefined) {
     throw new Error("expected a core process to kill");
@@ -58,14 +52,12 @@ function portsReceived(page: Page): Promise<number> {
   return page.evaluate(() => (window as unknown as NoticeProbe).__ports.length);
 }
 
-// Polls for a new port instead of a fixed time or PID: Windows can reuse the killed core's freed
+// Waits for a new port instead of a fixed time or PID: Windows can reuse the killed core's freed
 // process id, but every core hands the window a port of its own.
 async function killAndWaitForTheNextCore(app: ElectronApplication, page: Page): Promise<void> {
   const portsBefore = await portsReceived(page);
   await killTheRunningCore(app);
-  await expect
-    .poll(() => portsReceived(page), { timeout: 20_000, interval: 250 })
-    .toBeGreaterThan(portsBefore);
+  await until(async () => (await portsReceived(page)) > portsBefore);
 }
 
 function isAlive(pid: number): boolean {
@@ -84,21 +76,17 @@ const BOUNDED_RESTART_ATTEMPTS = 5;
 describe("the register's own recovery once the core's bounded restarts run out", () => {
   let app: ElectronApplication;
   let page: Page;
-  const logs: string[] = [];
+  let logs: string[];
 
   beforeAll(async () => {
-    const channelFile = writeChannelFile(E2E_CHANNEL_FILE);
-    app = await electron.launch({
-      args: [APP_DIR, ...platformArgs()],
-      // A short periodic retry interval so the recovery half of this test doesn't also wait the
-      // real 90s default; never honored in a packaged build.
-      env: { ...appEnv(channelFile), POS_CORE_RETRY_INTERVAL_MS: "1000" },
-    });
-    app.process().stdout?.on("data", (chunk: Buffer) => logs.push(chunk.toString()));
-    app.process().stderr?.on("data", (chunk: Buffer) => logs.push(chunk.toString()));
+    // A short periodic retry interval so the recovery half of this test doesn't also wait the
+    // real 90s default; never honored in a packaged build.
+    const launched = await launchApp(undefined, { POS_CORE_RETRY_INTERVAL_MS: "1000" });
+    app = launched.app;
+    logs = launched.logs;
     page = await app.firstWindow();
     await page.waitForLoadState("domcontentloaded");
-    await page.getByText(CORE_UP_TEXT).waitFor({ state: "visible", timeout: 10_000 });
+    await page.getByText(CORE_UP_TEXT).waitFor({ state: "visible" });
 
     await page.evaluate(() => {
       const probe = window as unknown as NoticeProbe;
@@ -120,23 +108,57 @@ describe("the register's own recovery once the core's bounded restarts run out",
       await killAndWaitForTheNextCore(app, page);
     }
 
-    // Recorded by the page itself the moment the notice renders, however briefly it stays up
-    // before the periodic retry's core is ready.
+    // Recorded by the page itself from every change the renderer makes, however briefly the notice
+    // stays up; a retry's core that is back without the notice ever shown ends the wait unseen.
     await page.evaluate(
-      ({ title, body }) => {
+      ({ title, body, upText }) => {
         const probe = window as unknown as NoticeProbe;
         probe.__noticeShown = new Promise((resolve) => {
-          const observer = new MutationObserver(() => {
-            const alert = document.querySelector('[role="alert"]');
-            if (alert?.textContent?.includes(title)) {
-              observer.disconnect();
-              resolve({ title: true, body: alert.textContent.includes(body) });
+          let retryCoreArrived = false;
+          const showsCoreUp = (): boolean => document.body.textContent?.includes(upText) ?? false;
+          const endUnseen = (): void => {
+            observer.disconnect();
+            window.removeEventListener("message", onMessage);
+            resolve({ title: false, body: false });
+          };
+          const alertIn = (node: Node): Element | undefined => {
+            const element = node instanceof Element ? node : node.parentElement;
+            const enclosing = element?.closest('[role="alert"]');
+            const alerts = [
+              ...(enclosing ? [enclosing] : []),
+              ...(element?.querySelectorAll('[role="alert"]') ?? []),
+            ];
+            return alerts.find((alert) => alert.textContent?.includes(title));
+          };
+          const observer = new MutationObserver((records) => {
+            for (const record of records) {
+              for (const node of [record.target, ...record.addedNodes]) {
+                const alert = alertIn(node);
+                if (alert !== undefined) {
+                  observer.disconnect();
+                  window.removeEventListener("message", onMessage);
+                  resolve({ title: true, body: alert.textContent?.includes(body) ?? false });
+                  return;
+                }
+              }
+            }
+            if (retryCoreArrived && showsCoreUp()) {
+              endUnseen();
             }
           });
-          observer.observe(document.body, { childList: true, subtree: true });
+          const onMessage = (event: MessageEvent): void => {
+            if (event.data === "core-port") {
+              retryCoreArrived = true;
+              if (showsCoreUp()) {
+                endUnseen();
+              }
+            }
+          };
+          observer.observe(document.body, { childList: true, characterData: true, subtree: true });
+          window.addEventListener("message", onMessage);
         });
       },
-      { title: CORE_DOWN_TITLE, body: CORE_DOWN_BODY },
+      { title: CORE_DOWN_TITLE, body: CORE_DOWN_BODY, upText: CORE_UP_TEXT },
     );
     await killTheRunningCore(app);
 
@@ -145,9 +167,7 @@ describe("the register's own recovery once the core's bounded restarts run out",
       body: true,
     });
 
-    await expect
-      .poll(() => page.getByText(CORE_UP_TEXT).isVisible(), { timeout: 10_000 })
-      .toBe(true);
+    await until(() => page.getByText(CORE_UP_TEXT).isVisible());
     expect(await page.getByText(CORE_DOWN_TITLE).count()).toBe(0);
 
     const cores = await coreProcesses(app);
@@ -160,9 +180,7 @@ describe("the register's own recovery once the core's bounded restarts run out",
       port?.start();
       port?.postMessage({ type: "bogus" });
     });
-    await expect
-      .poll(() => logs.join("").includes("core: rejected message"), { timeout: 5_000 })
-      .toBe(true);
-    // Five waits of up to 20 s each fit, so a stuck restart reports its own wait, not this limit.
-  }, 180_000);
+    await untilLogged({ app, logs }, "core: rejected message");
+    expect(logs.join("")).toContain("core: rejected message");
+  });
 });

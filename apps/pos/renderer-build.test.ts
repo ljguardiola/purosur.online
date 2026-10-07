@@ -7,6 +7,8 @@ const POS_ROOT = fileURLToPath(new URL(".", import.meta.url));
 
 let chunks: Rollup.OutputChunk[];
 
+// The build ends on its own, succeeding or failing, so the setup waits for it however long the
+// machine takes to build.
 beforeAll(async () => {
   const { config } = await resolveConfig(
     { root: POS_ROOT, configFile: `${POS_ROOT}electron.vite.config.ts`, logLevel: "silent" },
@@ -20,7 +22,7 @@ beforeAll(async () => {
     build: { ...renderer.build, write: false },
   })) as Rollup.RollupOutput;
   chunks = output.output.filter((file): file is Rollup.OutputChunk => file.type === "chunk");
-}, 60_000);
+}, 0);
 
 test("the renderer carries the design system's screen-reader texts only in Spanish", () => {
   const translations = chunks
