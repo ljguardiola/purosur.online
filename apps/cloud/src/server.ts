@@ -32,6 +32,8 @@ import {
 } from "./fiscal/arca-certificate-expiry-task.js";
 import { arcaVitalityJobs } from "./fiscal/arca-vitality-task.js";
 import { DrizzleIssuerIdentificationStore } from "./fiscal/drizzle-issuer-identification-store.js";
+import { ArcaWsaaAuthentication } from "./fiscal/wsaa-authentication.js";
+import { wsaaTokenRenewalJobs } from "./fiscal/wsaa-token-renewal-task.js";
 import { WsfeArcaVitalityService, wsfeEndpointOf } from "./fiscal/wsfe-arca-vitality-service.js";
 import { runShutdownSteps } from "./platform/run-shutdown-steps.js";
 import { initSentry } from "./platform/sentry.js";
@@ -271,6 +273,28 @@ export function resolveRecoveryEnv(env: ServerEnv): RecoveryEnv | undefined {
 export interface SetUpRecoveryEnv extends RecoveryEnv {
   arcaCertificate: { environment: string; notAfter: Date };
   arcaVitality: { endpoint: string };
+  arcaWsaa?: {
+    endpoint: string;
+    certificatePem: string;
+    privateKeyPem: string;
+    certificateFingerprint: string;
+  };
+}
+
+function wsaaRenewalInput(
+  {
+    endpoint,
+    certificatePem,
+    privateKeyPem,
+    certificateFingerprint,
+  }: NonNullable<SetUpRecoveryEnv["arcaWsaa"]>,
+  now: () => Date,
+) {
+  return {
+    now,
+    certificateFingerprint,
+    authentication: new ArcaWsaaAuthentication({ endpoint, certificatePem, privateKeyPem, now }),
+  };
 }
 
 export interface RecoveryInfrastructure {
@@ -355,6 +379,9 @@ export async function setUpRecovery(
         now,
         vitality: new WsfeArcaVitalityService({ endpoint: recoveryEnv.arcaVitality.endpoint }),
       }),
+      ...(recoveryEnv.arcaWsaa
+        ? [wsaaTokenRenewalJobs(wsaaRenewalInput(recoveryEnv.arcaWsaa, now))]
+        : []),
     ],
   });
   const jobQueuePool = createRecoveryJobQueuePool(
