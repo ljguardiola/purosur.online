@@ -1,4 +1,4 @@
-import { X509Certificate } from "node:crypto";
+import { createPrivateKey, X509Certificate } from "node:crypto";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -32,7 +32,7 @@ import {
 } from "./fiscal/arca-certificate-expiry-task.js";
 import { arcaVitalityJobs } from "./fiscal/arca-vitality-task.js";
 import { DrizzleIssuerIdentificationStore } from "./fiscal/drizzle-issuer-identification-store.js";
-import { ArcaWsaaAuthentication } from "./fiscal/wsaa-authentication.js";
+import { ArcaWsaaAuthentication, wsaaEndpointOf } from "./fiscal/wsaa-authentication.js";
 import { wsaaTokenRenewalJobs } from "./fiscal/wsaa-token-renewal-task.js";
 import { WsfeArcaVitalityService, wsfeEndpointOf } from "./fiscal/wsfe-arca-vitality-service.js";
 import { runShutdownSteps } from "./platform/run-shutdown-steps.js";
@@ -58,6 +58,8 @@ export interface ServerEnv {
   ARCA_CERTIFICATE?: string | undefined;
   /** The ARCA environment the certificate belongs to: `homologation` or `production`. */
   ARCA_ENVIRONMENT?: string | undefined;
+  /** PEM text of the RSA private key matching `ARCA_CERTIFICATE`, used to sign WSAA login requests. */
+  ARCA_PRIVATE_KEY?: string | undefined;
 }
 
 const DEFAULT_PORT = 3000;
@@ -224,6 +226,42 @@ export function requireAuthorizedCuit(env: ServerEnv): string {
     throw new Error("ARCA_CERTIFICATE's CUIT must have a correct check digit");
   }
   return normalized;
+}
+
+function resolveArcaWsaa(env: ServerEnv): Pick<SetUpRecoveryEnv, "arcaWsaa"> {
+  const environment = requireArcaEnvironment(env);
+  const encodedKey = env.ARCA_PRIVATE_KEY;
+  if (!encodedKey) {
+    if (environment === "production") {
+      throw new Error("ARCA_PRIVATE_KEY must be set when ARCA_ENVIRONMENT is production");
+    }
+    console.warn(
+      "ARCA_PRIVATE_KEY is not set: the WSAA token is not renewed, so the register sees ARCA as offline for fiscal purposes",
+    );
+    return {};
+  }
+  const certificate = parseArcaCertificate(env);
+  const privateKeyPem = normalizePemNewlines(encodedKey);
+  let privateKey: ReturnType<typeof createPrivateKey>;
+  try {
+    privateKey = createPrivateKey(privateKeyPem);
+  } catch (cause) {
+    throw new Error("ARCA_PRIVATE_KEY must be a valid PEM private key", { cause });
+  }
+  if (privateKey.asymmetricKeyType !== "rsa") {
+    throw new Error("ARCA_PRIVATE_KEY must be an RSA private key");
+  }
+  if (!certificate.checkPrivateKey(privateKey)) {
+    throw new Error("ARCA_PRIVATE_KEY must match ARCA_CERTIFICATE's public key");
+  }
+  return {
+    arcaWsaa: {
+      endpoint: wsaaEndpointOf(environment),
+      certificatePem: normalizePemNewlines(env.ARCA_CERTIFICATE ?? ""),
+      privateKeyPem,
+      certificateFingerprint: certificate.fingerprint256,
+    },
+  };
 }
 
 const LOG_RECOVERY_EMAIL_TRANSPORT_VALUE = "log";
@@ -463,6 +501,7 @@ export async function startServer(
               notAfter: requireCertificateNotAfter(env),
             },
             arcaVitality: { endpoint: wsfeEndpointOf(requireArcaEnvironment(env)) },
+            ...resolveArcaWsaa(env),
           },
           now,
         ),
