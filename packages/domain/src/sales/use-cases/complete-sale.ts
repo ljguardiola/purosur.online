@@ -1,12 +1,9 @@
 import { preEmissionGate, preEmissionGateFailedEvent } from "../../fiscal/index.js";
-import type { CashMovement } from "../../register/index.js";
 import type { OutboxEventDraft } from "../../sync/index.js";
 import type { PaymentTransaction } from "../model/payment.js";
 import type { LinePromotion, SaleWithLines } from "../model/sale.js";
 import { paymentRecord } from "./payment-record.js";
-import type { IdGenerator, SaleLedgerTransaction } from "./sale-ledger.js";
-
-export type SaleCashMovement = CashMovement & { ref: { type: string; id: string } };
+import type { IdGenerator, SaleCashMovement, SaleLedgerTransaction } from "./sale-ledger.js";
 
 export interface SaleCompletion {
   sale: SaleWithLines;
