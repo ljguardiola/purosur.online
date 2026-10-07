@@ -82,11 +82,11 @@ describe("the ARCA vitality check the server sets up on a real Postgres", () => 
           const scheduled = await scheduledChecks();
           expect(checks).toEqual([{ ok: true }]);
           expect(scheduled).toHaveLength(1);
+          expect(scheduled[0]?.runAt.getTime()).toBeGreaterThanOrEqual(startedAt + INTERVAL_MS);
           nextCheck = scheduled[0];
         },
         { timeout: 20_000, interval: 100 },
       );
-      expect(nextCheck?.runAt.getTime()).toBeGreaterThanOrEqual(startedAt + INTERVAL_MS);
       expect(nextCheck?.runAt.getTime()).toBeLessThanOrEqual(Date.now() + INTERVAL_MS);
 
       await recovery.workerUtils.addJob(WATCHDOG_TASK_IDENTIFIER, {});

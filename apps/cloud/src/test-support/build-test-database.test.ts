@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, inject, it, onTestFinished, vi }
 import {
   alertDeliveries,
   alerts,
+  arcaVitalityChecks,
   auditLog,
   backofficeRateLimitAttempts,
   branchHours,
@@ -444,6 +445,9 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       channel: "backoffice",
       status: "sent",
     });
+    await db
+      .insert(arcaVitalityChecks)
+      .values({ checkedAt: new Date("2026-01-05T12:00:00.000Z"), ok: true });
     // issuer_identification is a true singleton: its row count can never grow, so its "seeded
     // before clear()" is a content change instead.
     await db.update(issuerIdentification).set({ legalName: "Temporary legal name" });
