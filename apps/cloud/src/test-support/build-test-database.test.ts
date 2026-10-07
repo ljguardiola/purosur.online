@@ -7,6 +7,7 @@ import {
   alertDeliveries,
   alerts,
   arcaVitalityChecks,
+  arcaWsaaTokens,
   auditLog,
   backofficeRateLimitAttempts,
   branchHours,
@@ -448,6 +449,14 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
     await db
       .insert(arcaVitalityChecks)
       .values({ checkedAt: new Date("2026-01-05T12:00:00.000Z"), ok: true });
+    await db.insert(arcaWsaaTokens).values({
+      service: "wsfe",
+      certificateFingerprint: "AB:CD:EF",
+      token: "FICTIONAL-TOKEN-0001",
+      sign: "FICTIONAL-SIGN-0001",
+      issuedAt: new Date("2026-01-05T12:00:00.000Z"),
+      expiresAt: new Date("2026-01-06T00:00:00.000Z"),
+    });
     // issuer_identification is a true singleton: its row count can never grow, so its "seeded
     // before clear()" is a content change instead.
     await db.update(issuerIdentification).set({ legalName: "Temporary legal name" });
