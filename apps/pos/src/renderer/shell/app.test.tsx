@@ -238,10 +238,10 @@ function coreAnswering(
         ? { kind: "unavailable" }
         : sales.chargeSaleInCash(saleId, tendered);
     },
-    async chargeSaleByTransfer(saleId) {
+    async chargeSaleByTransfer(saleId, amount) {
       return sales.chargeSaleByTransfer === undefined
         ? { kind: "unavailable" }
-        : sales.chargeSaleByTransfer(saleId);
+        : sales.chargeSaleByTransfer(saleId, amount);
     },
     async closeCashSession(sessionId, countedCash) {
       closed.push([sessionId, countedCash]);

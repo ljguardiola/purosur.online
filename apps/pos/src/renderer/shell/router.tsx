@@ -116,7 +116,7 @@ export interface RouterContext {
   scanProduct: (code: string) => Promise<ScanProductOutcome>;
   cashCharge: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
-  chargeSaleByTransfer: (saleId: string) => Promise<ChargeSaleByTransferOutcome>;
+  chargeSaleByTransfer: (saleId: string, amount: number) => Promise<ChargeSaleByTransferOutcome>;
   searchProducts: (query: string) => Promise<SearchProductsOutcome>;
   addProduct: (productId: string) => Promise<AddProductOutcome>;
   changeLineQuantity: (

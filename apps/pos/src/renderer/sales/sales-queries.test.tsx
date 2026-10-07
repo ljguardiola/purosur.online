@@ -209,15 +209,15 @@ describe("product search", () => {
 function CashChargeProbe({
   read,
   saleId = "sale-1",
-  total = 476_000,
+  pending = 476_000,
   tendered,
 }: {
   read: (tendered: number) => Promise<CashChargeAnswer>;
   saleId?: string;
-  total?: number;
+  pending?: number;
   tendered: number | undefined;
 }) {
-  const charge = useCashChargeQuery({ saleId, total, tendered, read });
+  const charge = useCashChargeQuery({ saleId, pending, tendered, read });
   return <p>{charge.status === "loaded" ? JSON.stringify(charge.value) : charge.status}</p>;
 }
 
@@ -253,8 +253,8 @@ describe("cash charge query", () => {
   it.each([
     ["another amount", "sale-1", 476_000, 400_000],
     ["another sale", "sale-2", 476_000, 500_000],
-    ["another total of the sale", "sale-1", 490_000, 500_000],
-  ])("never shows the answer given for %s", async (_what, saleId, total, tendered) => {
+    ["another pending balance of the sale", "sale-1", 490_000, 500_000],
+  ])("never shows the answer given for %s", async (_what, saleId, pending, tendered) => {
     const queryClient = createQueryClient();
     const screen = await render(
       <QueryClientProvider client={queryClient}>
@@ -268,7 +268,7 @@ describe("cash charge query", () => {
         <CashChargeProbe
           read={() => new Promise(() => {})}
           saleId={saleId}
-          total={total}
+          pending={pending}
           tendered={tendered}
         />
       </QueryClientProvider>,

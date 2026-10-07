@@ -21,7 +21,7 @@ import type { CompletedCharge } from "./cash-charge-modal";
 import { CashChargeModal } from "./cash-charge-modal";
 import { ChargePaymentPanel } from "./charge-payment-panel";
 import { SaleCompletedModal } from "./sale-completed-modal";
-import { useCurrentSaleQuery } from "./sales-queries";
+import { useCurrentSaleQuery, useRefreshCurrentSale } from "./sales-queries";
 import type { CompletedTransfer } from "./transfer-charge-modal";
 import { TransferChargeModal } from "./transfer-charge-modal";
 
@@ -58,7 +58,7 @@ export type ChargeScreenProps = {
   currentSale: () => Promise<CurrentSaleAnswer>;
   cashCharge: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
-  chargeSaleByTransfer: (saleId: string) => Promise<ChargeSaleByTransferOutcome>;
+  chargeSaleByTransfer: (saleId: string, amount: number) => Promise<ChargeSaleByTransferOutcome>;
   onSessionInvalid: () => void;
 };
 
@@ -75,10 +75,16 @@ export function ChargeScreen({
 }: ChargeScreenProps) {
   const navigate = useNavigate();
   const current = useCurrentSaleQuery({ sessionId, userId: person.user_id, read: currentSale });
+  const refreshCurrentSale = useRefreshCurrentSale(sessionId, person.user_id);
   const [step, setStep] = useState<Step>({ name: "methods" });
 
   function backToSale() {
     void navigate({ to: "/session" });
+  }
+
+  async function backToMethodsWithBalance() {
+    await refreshCurrentSale();
+    setStep({ name: "methods" });
   }
 
   const answer = current.status === "loaded" ? current.value : undefined;
@@ -141,7 +147,8 @@ export function ChargeScreen({
       {sale === undefined ? null : (
         <ChargePaymentPanel
           total={sale.total}
-          paid={step.name === "completed" ? step.payment.charge.total : 0}
+          paid={step.name === "completed" ? step.sale.total : sale.paid}
+          pending={step.name === "completed" ? 0 : sale.pending}
           {...(step.name === "completed" ? {} : { onBackToSale: backToSale })}
         />
       )}
@@ -149,12 +156,15 @@ export function ChargeScreen({
         <CashChargeModal
           saleId={sale.id}
           total={sale.total}
+          paid={sale.paid}
+          pending={sale.pending}
           readCharge={(tendered) => cashCharge(sale.id, tendered)}
           charge={(tendered) => chargeSaleInCash(sale.id, tendered)}
           onChooseAnotherMethod={() => setStep({ name: "methods" })}
           onCompleted={(charge) =>
             setStep({ name: "completed", payment: { method: "CASH", charge }, sale })
           }
+          onPartiallyPaid={() => void backToMethodsWithBalance()}
           onSaleUnavailable={backToSale}
           onSessionInvalid={onSessionInvalid}
         />
@@ -162,11 +172,14 @@ export function ChargeScreen({
       {sale !== undefined && step.name === "transfer" ? (
         <TransferChargeModal
           total={sale.total}
-          charge={() => chargeSaleByTransfer(sale.id)}
+          paid={sale.paid}
+          pending={sale.pending}
+          charge={(amount) => chargeSaleByTransfer(sale.id, amount)}
           onChooseAnotherMethod={() => setStep({ name: "methods" })}
           onCompleted={(charge) =>
             setStep({ name: "completed", payment: { method: "TRANSFER", charge }, sale })
           }
+          onPartiallyPaid={() => void backToMethodsWithBalance()}
           onSaleUnavailable={backToSale}
           onSessionInvalid={onSessionInvalid}
         />
@@ -183,6 +196,7 @@ export function ChargeScreen({
         <SaleCompletedModal
           total={step.payment.charge.total}
           method="TRANSFER"
+          amount={step.payment.charge.amount}
           onNewSale={backToSale}
         />
       ) : null}

@@ -10,13 +10,14 @@ import type {
 } from "@purosur/contracts";
 import {
   EmptyState,
+  InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
   ScreenHeader,
   SearchField,
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
-import { ScanBarcode, TriangleAlert } from "lucide-react";
+import { Lock, ScanBarcode, TriangleAlert } from "lucide-react";
 import type { FormEvent, KeyboardEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { OpenSessionRail } from "../shell/open-session-rail";
@@ -30,6 +31,7 @@ import { ProductSearchResults, searchOptionId } from "./product-search-results";
 import { SaleLines } from "./sale-lines";
 import {
   useCurrentSaleQuery,
+  useRefreshCurrentSale,
   useResetCurrentSale,
   useSearchProducts,
   useTakeSale,
@@ -96,6 +98,7 @@ export function SaleScreen({
   const current = useCurrentSaleQuery({ sessionId, userId: person.user_id, read: currentSale });
   const takeSale = useTakeSale(sessionId, person.user_id);
   const resetCurrentSale = useResetCurrentSale(sessionId, person.user_id);
+  const refreshCurrentSale = useRefreshCurrentSale(sessionId, person.user_id);
   const search = useSearchProducts(searchProducts);
   const [changed, setChanged] = useState<string>();
   const [code, setCode] = useState("");
@@ -188,6 +191,10 @@ export function SaleScreen({
       case "installation_revoked":
         refuse(submitted, outcome);
         break;
+      case "sale_has_payments":
+        refuse(submitted, outcome);
+        await refreshCurrentSale();
+        break;
       case "unavailable":
         refuse(submitted, failure);
         break;
@@ -248,6 +255,10 @@ export function SaleScreen({
       case "has_approved_payment":
         setProblem(outcome);
         break;
+      case "sale_has_payments":
+        setProblem(outcome);
+        await refreshCurrentSale();
+        break;
       case "unknown_line":
       case "stale_quantity":
       case "no_open_sale":
@@ -294,6 +305,7 @@ export function SaleScreen({
 
   const answer = current.status === "loaded" ? current.value : undefined;
   const sale = answer === undefined || answer === "not_permitted" ? null : answer;
+  const editable = sale?.lines_editable ?? true;
   const notPermitted = messageFor({ kind: "not_permitted" });
   const shownProblem =
     answer === "not_permitted" && problem?.kind === "not_permitted" ? undefined : problem;
@@ -317,6 +329,7 @@ export function SaleScreen({
         >
           <SearchField
             label="Producto"
+            disabled={!editable}
             placeholder="Escaneá o escribí el nombre del producto"
             icon={<ScanBarcode />}
             value={code}
@@ -335,6 +348,14 @@ export function SaleScreen({
           />
           <ScanProblemMessage problem={shownProblem} />
         </form>
+        {editable ? null : (
+          <InlineNotice
+            tone="info"
+            icon={<Lock />}
+            title="La venta ya no se puede cambiar"
+            description="Tiene un pago aprobado. Cobrá el saldo pendiente para completarla."
+          />
+        )}
         {current.status === "loading" ? <LoadingPlaceholder variant="list" items={4} /> : null}
         {current.status === "failed" ? (
           <LoadFailure
@@ -361,6 +382,7 @@ export function SaleScreen({
             changedLineId={changed}
             actions={{
               busy: editing,
+              editable,
               onChangeQuantity: (line, quantity) =>
                 void edit(() => changeLineQuantity(line.id, quantity, line.quantity), {
                   kind: "change_failed",
@@ -374,6 +396,9 @@ export function SaleScreen({
       <PaymentPanel
         lineCount={sale?.lines.length ?? 0}
         total={sale?.total ?? 0}
+        paid={sale?.paid ?? 0}
+        pending={sale?.pending ?? 0}
+        cancellable={sale?.cancellable ?? true}
         chargeRefusal={sale?.charge_refusal ?? null}
         canCancel={sale !== null && !editing}
         onCharge={() => void navigate({ to: "/charge" })}

@@ -7,6 +7,7 @@ type SaleLine = OpenSale["lines"][number];
 
 export type SaleLineActions = {
   busy: boolean;
+  editable: boolean;
   onChangeQuantity: (line: SaleLine, quantity: number) => void;
   onRemove: (line: SaleLine) => void;
 };
@@ -50,14 +51,14 @@ function SaleLineRow({
         <IconButton
           aria-label={`Bajar la cantidad de ${line.product_name}`}
           icon={<Minus />}
-          disabled={actions.busy || line.quantity <= 1}
+          disabled={actions.busy || !actions.editable || line.quantity <= 1}
           onPress={() => actions.onChangeQuantity(line, line.quantity - 1)}
         />
         <span className="text-subheading text-text">{line.quantity}</span>
         <IconButton
           aria-label={`Subir la cantidad de ${line.product_name}`}
           icon={<Plus />}
-          disabled={actions.busy}
+          disabled={actions.busy || !actions.editable}
           onPress={() => actions.onChangeQuantity(line, line.quantity + 1)}
         />
       </span>
@@ -73,7 +74,7 @@ function SaleLineRow({
         variant="subtle"
         aria-label={`Quitar ${line.product_name}`}
         icon={<Trash2 />}
-        disabled={actions.busy}
+        disabled={actions.busy || !actions.editable}
         onPress={() => actions.onRemove(line)}
       />
     </li>

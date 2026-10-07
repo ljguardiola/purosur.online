@@ -241,8 +241,8 @@ function Register({ core }: { core: CoreClient }) {
     return outcome;
   }
 
-  async function chargeSaleByTransfer(saleId: string) {
-    const outcome = await core.chargeSaleByTransfer(saleId);
+  async function chargeSaleByTransfer(saleId: string, amount: number) {
+    const outcome = await core.chargeSaleByTransfer(saleId, amount);
     await refreshAfterCharge(outcome.kind);
     return outcome;
   }
