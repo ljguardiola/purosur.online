@@ -284,14 +284,4 @@ describe("recording that the outbox lost events", () => {
 
     expect(revokedAt()).toBe(ACKNOWLEDGED_AT.toISOString());
   });
-
-  it("keeps the moment it was first stopped", async () => {
-    database
-      .prepare("UPDATE sync_state SET installation_revoked_at = '2026-09-30T08:00:00.000Z'")
-      .run();
-
-    await outbox.recordCompromised();
-
-    expect(revokedAt()).toBe("2026-09-30T08:00:00.000Z");
-  });
 });

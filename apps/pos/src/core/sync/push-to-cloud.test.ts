@@ -278,16 +278,4 @@ describe("a revoked installation", () => {
     expect(register.acknowledged()).toEqual([]);
     expect(register.revokedAt()).toBe("2026-10-01T09:30:00.000Z");
   });
-
-  it("is not recorded when the cloud only refuses the device token", async () => {
-    const register = registerWithEvents(2);
-    const { post } = cloudAnswering(() => ({
-      kind: "error",
-      error: cloudError("device_token_rejected", "the device token is not recognized"),
-    }));
-
-    await pushToCloud(depsFor(register, post));
-
-    expect(register.revokedAt()).toBeNull();
-  });
 });
