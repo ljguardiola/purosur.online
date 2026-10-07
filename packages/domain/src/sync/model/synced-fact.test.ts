@@ -52,8 +52,12 @@ describe("what a synced fact breaks that only its own history shows", () => {
         fc.integer({ min: 0, max: 1_000_000 }),
         fc.string(),
         (frozenPrice, priceListId) => {
-          const line = { ...base.sale.lines[0], listUnitPrice: frozenPrice, priceListId };
-          const sale = aCompletedSaleFact({ lines: line === undefined ? [] : [line] });
+          const lines = base.sale.lines.map((line) => ({
+            ...line,
+            listUnitPrice: frozenPrice,
+            priceListId,
+          }));
+          const sale = aCompletedSaleFact({ lines });
 
           expect(invariantBreaksOf(sale)).toEqual(invariantBreaksOf(base));
         },

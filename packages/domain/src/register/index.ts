@@ -21,6 +21,11 @@ export type {
   OpenedCashSession,
 } from "./model/cash-session.js";
 export { CASH_MOVEMENT_TYPES } from "./model/cash-session.js";
+export type {
+  CashMovementRecordedFact,
+  CashSessionClosedFact,
+  CashSessionOpenedFact,
+} from "./model/cash-session-facts.js";
 export { isDeviceTokenRotationDue } from "./model/device-token.js";
 export { enrollmentAttemptWindowStart } from "./model/enrollment-attempt-limit.js";
 export {
