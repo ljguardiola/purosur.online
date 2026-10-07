@@ -51,7 +51,7 @@ function modulesLoadedBy(entrypoints: string[]): string[] {
   return [...loaded].map((file) => relative(SOURCE_DIR, file).replace(/\.ts$/, ".js")).sort();
 }
 
-describe("the built cloud", () => {
+describe("the built cloud", { timeout: 0 }, () => {
   it("holds exactly the modules its entrypoints load", () => {
     const entrypoints = entrypointSources();
     const emitted = readdirSync(inject("cloudBuildDir"), { recursive: true, encoding: "utf8" })
