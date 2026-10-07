@@ -15,7 +15,8 @@ const UNUSED_EMAIL_SENDER: AccessEmailSender = {
 };
 
 const WATCHDOG_TASK_IDENTIFIER = "arca-vitality-watchdog";
-const INTERVAL_MS = 30_000;
+const CHECKED_AT = new Date("2126-01-01T00:00:00.000Z");
+const NEXT_CHECK_AT = new Date("2126-01-01T00:00:30.000Z");
 
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
@@ -64,30 +65,26 @@ describe("the ARCA vitality check the server sets up on a real Postgres", () => 
         arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
         arcaVitality: { endpoint: fakeWsfe.endpoint },
       },
-      () => new Date(),
+      () => CHECKED_AT,
       { emailSender: UNUSED_EMAIL_SENDER },
     );
     try {
-      const startedAt = Date.now();
       await recovery.workerUtils.addJob(
         ARCA_VITALITY_CHECK_TASK_IDENTIFIER,
         {},
         { jobKey: ARCA_VITALITY_CHECK_TASK_IDENTIFIER },
       );
 
-      let nextCheck: { runAt: Date } | undefined;
       await vi.waitFor(
         async () => {
           const checks = await sql<{ ok: boolean }[]>`select ok from arca_vitality_checks`;
           const scheduled = await scheduledChecks();
           expect(checks).toEqual([{ ok: true }]);
           expect(scheduled).toHaveLength(1);
-          expect(scheduled[0]?.runAt.getTime()).toBeGreaterThanOrEqual(startedAt + INTERVAL_MS);
-          nextCheck = scheduled[0];
+          expect(scheduled[0]?.runAt).toEqual(NEXT_CHECK_AT);
         },
         { timeout: 20_000, interval: 100 },
       );
-      expect(nextCheck?.runAt.getTime()).toBeLessThanOrEqual(Date.now() + INTERVAL_MS);
 
       await recovery.workerUtils.addJob(WATCHDOG_TASK_IDENTIFIER, {});
       await vi.waitFor(async () => expect(await pendingWatchdogs()).toHaveLength(0), {
@@ -95,7 +92,7 @@ describe("the ARCA vitality check the server sets up on a real Postgres", () => 
         interval: 100,
       });
 
-      expect(await scheduledChecks()).toEqual([nextCheck]);
+      expect(await scheduledChecks()).toEqual([{ runAt: NEXT_CHECK_AT }]);
       expect(await sql`select 1 from arca_vitality_checks`).toHaveLength(1);
     } finally {
       await recovery.close();
@@ -115,7 +112,7 @@ describe("the ARCA vitality check the server sets up on a real Postgres", () => 
         arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
         arcaVitality: { endpoint: fakeWsfe.endpoint },
       },
-      () => new Date(),
+      () => CHECKED_AT,
       { emailSender: UNUSED_EMAIL_SENDER },
     );
     try {
