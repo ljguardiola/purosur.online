@@ -91,6 +91,10 @@ const registerEnrolledDetailSchema = z.object({
   replacedInstallation: z.boolean(),
 });
 
+const arcaCertificateExpiringDetailSchema = z.object({
+  notAfter: z.string(),
+});
+
 const ALERT_INSTANT = { timeZone: ARGENTINA_TIME_ZONE };
 
 const alertBase = {
@@ -136,6 +140,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("register_enrolled" satisfies AlertKind),
     detail: registerEnrolledDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("arca_certificate_expiring" satisfies AlertKind),
+    detail: arcaCertificateExpiringDetailSchema,
   }),
 ] as const;
 

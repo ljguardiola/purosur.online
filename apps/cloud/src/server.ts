@@ -1,4 +1,4 @@
-import { X509Certificate } from "node:crypto";
+import { createPrivateKey, X509Certificate } from "node:crypto";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -26,7 +26,16 @@ import {
   buildApp,
   databaseRouteOptions,
 } from "./app.js";
+import {
+  arcaCertificateExpiryJobs,
+  enqueueArcaCertificateExpiryCheck,
+} from "./fiscal/arca-certificate-expiry-task.js";
+import { arcaVitalityJobs } from "./fiscal/arca-vitality-task.js";
 import { DrizzleIssuerIdentificationStore } from "./fiscal/drizzle-issuer-identification-store.js";
+import { ArcaWsaaAuthentication, wsaaEndpointOf } from "./fiscal/wsaa-authentication.js";
+import { wsaaTokenRenewalJobs } from "./fiscal/wsaa-token-renewal-task.js";
+import { WsfeArcaVitalityService, wsfeEndpointOf } from "./fiscal/wsfe-arca-vitality-service.js";
+import { normalizePemNewlines } from "./platform/pem-newlines.js";
 import { runShutdownSteps } from "./platform/run-shutdown-steps.js";
 import { initSentry } from "./platform/sentry.js";
 
@@ -48,6 +57,10 @@ export interface ServerEnv {
   EDGE_ORIGIN_SECRET?: string | undefined;
   /** PEM text of the ARCA X.509 certificate authorizing this business at the tax authority. */
   ARCA_CERTIFICATE?: string | undefined;
+  /** The ARCA environment the certificate belongs to: `homologation` or `production`. */
+  ARCA_ENVIRONMENT?: string | undefined;
+  /** PEM text of the RSA private key matching `ARCA_CERTIFICATE`, used to sign WSAA login requests. */
+  ARCA_PRIVATE_KEY?: string | undefined;
 }
 
 const DEFAULT_PORT = 3000;
@@ -161,26 +174,38 @@ function extractSerialNumber(subject: string): string | undefined {
   return undefined;
 }
 
-/**
- * Railway and GitHub deliver a multi-line variable either with real newlines or, collapsed to one
- * line, as the literal two-character sequence `\n`; both are accepted so the PEM parses either way.
- */
-function normalizePemNewlines(pem: string): string {
-  return pem.includes("\\n") ? pem.replaceAll("\\n", "\n") : pem;
-}
-
-/** ARCA's X.509 subject carries the authorized CUIT as `serialNumber=CUIT <11 digits>`. */
-export function requireAuthorizedCuit(env: ServerEnv): string {
+function parseArcaCertificate(env: ServerEnv): X509Certificate {
   const pem = env.ARCA_CERTIFICATE;
   if (!pem) {
     throw new Error("ARCA_CERTIFICATE must be set once DATABASE_URL is configured");
   }
-  let certificate: X509Certificate;
   try {
-    certificate = new X509Certificate(normalizePemNewlines(pem));
+    return new X509Certificate(normalizePemNewlines(pem));
   } catch (cause) {
     throw new Error("ARCA_CERTIFICATE must be a valid X.509 certificate", { cause });
   }
+}
+
+export function requireCertificateNotAfter(env: ServerEnv): Date {
+  return parseArcaCertificate(env).validToDate;
+}
+
+const ARCA_ENVIRONMENTS = ["homologation", "production"] as const;
+
+export function requireArcaEnvironment(env: ServerEnv): string {
+  const value = env.ARCA_ENVIRONMENT;
+  if (!value) {
+    throw new Error("ARCA_ENVIRONMENT must be set once DATABASE_URL is configured");
+  }
+  if (!(ARCA_ENVIRONMENTS as readonly string[]).includes(value)) {
+    throw new Error('ARCA_ENVIRONMENT must be "homologation" or "production"');
+  }
+  return value;
+}
+
+/** ARCA's X.509 subject carries the authorized CUIT as `serialNumber=CUIT <11 digits>`. */
+export function requireAuthorizedCuit(env: ServerEnv): string {
+  const certificate = parseArcaCertificate(env);
   const serialNumber = extractSerialNumber(certificate.subject);
   if (!serialNumber) {
     throw new Error("ARCA_CERTIFICATE's subject has no serialNumber");
@@ -194,6 +219,54 @@ export function requireAuthorizedCuit(env: ServerEnv): string {
     throw new Error("ARCA_CERTIFICATE's CUIT must have a correct check digit");
   }
   return normalized;
+}
+
+interface ArcaEndpoints {
+  wsfe: string;
+  wsaa: string;
+}
+
+export function arcaEndpointsOf(environment: string): ArcaEndpoints {
+  return { wsfe: wsfeEndpointOf(environment), wsaa: wsaaEndpointOf(environment) };
+}
+
+function resolveArcaWsaa(
+  env: ServerEnv,
+  arcaEndpoints: (environment: string) => ArcaEndpoints,
+): Pick<SetUpRecoveryEnv, "arcaWsaa"> {
+  const environment = requireArcaEnvironment(env);
+  const encodedKey = env.ARCA_PRIVATE_KEY;
+  if (!encodedKey) {
+    if (environment === "production") {
+      throw new Error("ARCA_PRIVATE_KEY must be set when ARCA_ENVIRONMENT is production");
+    }
+    console.warn(
+      "ARCA_PRIVATE_KEY is not set: the WSAA token is not renewed, so the register sees ARCA as offline for fiscal purposes",
+    );
+    return {};
+  }
+  const certificate = parseArcaCertificate(env);
+  const privateKeyPem = normalizePemNewlines(encodedKey);
+  let privateKey: ReturnType<typeof createPrivateKey>;
+  try {
+    privateKey = createPrivateKey(privateKeyPem);
+  } catch (cause) {
+    throw new Error("ARCA_PRIVATE_KEY must be a valid PEM private key", { cause });
+  }
+  if (privateKey.asymmetricKeyType !== "rsa") {
+    throw new Error("ARCA_PRIVATE_KEY must be an RSA private key");
+  }
+  if (!certificate.checkPrivateKey(privateKey)) {
+    throw new Error("ARCA_PRIVATE_KEY must match ARCA_CERTIFICATE's public key");
+  }
+  return {
+    arcaWsaa: {
+      endpoint: arcaEndpoints(environment).wsaa,
+      certificatePem: normalizePemNewlines(env.ARCA_CERTIFICATE ?? ""),
+      privateKeyPem,
+      certificateFingerprint: certificate.fingerprint256,
+    },
+  };
 }
 
 const LOG_RECOVERY_EMAIL_TRANSPORT_VALUE = "log";
@@ -240,9 +313,37 @@ export function resolveRecoveryEnv(env: ServerEnv): RecoveryEnv | undefined {
   };
 }
 
+export interface SetUpRecoveryEnv extends RecoveryEnv {
+  arcaCertificate: { environment: string; notAfter: Date };
+  arcaVitality: { endpoint: string };
+  arcaWsaa?: {
+    endpoint: string;
+    certificatePem: string;
+    privateKeyPem: string;
+    certificateFingerprint: string;
+  };
+}
+
+function wsaaRenewalInput(
+  {
+    endpoint,
+    certificatePem,
+    privateKeyPem,
+    certificateFingerprint,
+  }: NonNullable<SetUpRecoveryEnv["arcaWsaa"]>,
+  now: () => Date,
+) {
+  return {
+    now,
+    certificateFingerprint,
+    authentication: new ArcaWsaaAuthentication({ endpoint, certificatePem, privateKeyPem, now }),
+  };
+}
+
 export interface RecoveryInfrastructure {
   db: PostgresJsDatabase<Record<string, never>>;
   jobQueue: RecoveryJobQueue;
+  workerUtils: Pick<WorkerUtils, "addJob">;
   backofficeOrigin: string;
   worker: RecoveryWorkerHandle;
   close(): Promise<void>;
@@ -296,7 +397,7 @@ export interface SetUpRecoveryDeps {
  * repository's PGlite-based test database does not provide.
  */
 export async function setUpRecovery(
-  recoveryEnv: RecoveryEnv,
+  recoveryEnv: SetUpRecoveryEnv,
   now: () => Date,
   deps: SetUpRecoveryDeps = {},
 ): Promise<RecoveryInfrastructure> {
@@ -314,7 +415,17 @@ export async function setUpRecovery(
     backofficeOrigin: recoveryEnv.backofficeOrigin,
     emailSender,
     now,
-    jobs: [alertEscalationJobs({ now })],
+    jobs: [
+      alertEscalationJobs({ now }),
+      arcaCertificateExpiryJobs({ now, ...recoveryEnv.arcaCertificate }),
+      arcaVitalityJobs({
+        now,
+        vitality: new WsfeArcaVitalityService({ endpoint: recoveryEnv.arcaVitality.endpoint }),
+      }),
+      ...(recoveryEnv.arcaWsaa
+        ? [wsaaTokenRenewalJobs(wsaaRenewalInput(recoveryEnv.arcaWsaa, now))]
+        : []),
+    ],
   });
   const jobQueuePool = createRecoveryJobQueuePool(
     recoveryEnv.databaseUrl,
@@ -326,6 +437,7 @@ export async function setUpRecovery(
   return {
     db,
     jobQueue,
+    workerUtils,
     backofficeOrigin: recoveryEnv.backofficeOrigin,
     worker,
     close: () => closeRecoveryResources({ worker, workerUtils, jobQueuePool, sql }),
@@ -335,8 +447,15 @@ export async function setUpRecovery(
 export interface StartServerDeps {
   initSentry?: typeof initSentry;
   buildApp?: (options: BuildAppOptions) => FastifyInstance;
-  setUpRecovery?: (recoveryEnv: RecoveryEnv, now: () => Date) => Promise<RecoveryInfrastructure>;
+  setUpRecovery?: (
+    recoveryEnv: SetUpRecoveryEnv,
+    now: () => Date,
+  ) => Promise<RecoveryInfrastructure>;
+  enqueueArcaCertificateExpiryCheck?: (
+    workerUtils: RecoveryInfrastructure["workerUtils"],
+  ) => Promise<unknown>;
   now?: () => Date;
+  arcaEndpoints: (environment: string) => ArcaEndpoints;
   recordAuthorizedCuit?: (
     db: RecoveryInfrastructure["db"],
     authorizedCuit: string,
@@ -354,14 +473,14 @@ function recordAuthorizedCuitInDatabase(
   );
 }
 
-export async function startServer(
-  env: ServerEnv = process.env,
-  deps: StartServerDeps = {},
-): Promise<FastifyInstance> {
+export async function startServer(env: ServerEnv, deps: StartServerDeps): Promise<FastifyInstance> {
   const doInitSentry = deps.initSentry ?? initSentry;
   const doBuildApp = deps.buildApp ?? buildApp;
   const doSetUpRecovery = deps.setUpRecovery ?? setUpRecovery;
   const now = deps.now ?? (() => new Date());
+  const arcaEndpoints = deps.arcaEndpoints;
+  const doEnqueueArcaCertificateExpiryCheck =
+    deps.enqueueArcaCertificateExpiryCheck ?? enqueueArcaCertificateExpiryCheck;
   const doRecordAuthorizedCuit =
     deps.recordAuthorizedCuit ??
     ((db: RecoveryInfrastructure["db"], authorizedCuit: string) =>
@@ -376,9 +495,21 @@ export async function startServer(
   const database = recoveryEnv
     ? {
         authorizedCuit: requireAuthorizedCuit(env),
+        certificateFingerprint: parseArcaCertificate(env).fingerprint256,
         deviceTokenRotationKey: requireDeviceTokenRotationKey(env),
         installationKeysEncryptionKey: requireInstallationKeysEncryptionKey(env),
-        recovery: await doSetUpRecovery(recoveryEnv, now),
+        recovery: await doSetUpRecovery(
+          {
+            ...recoveryEnv,
+            arcaCertificate: {
+              environment: requireArcaEnvironment(env),
+              notAfter: requireCertificateNotAfter(env),
+            },
+            arcaVitality: { endpoint: arcaEndpoints(requireArcaEnvironment(env)).wsfe },
+            ...resolveArcaWsaa(env, arcaEndpoints),
+          },
+          now,
+        ),
       }
     : undefined;
 
@@ -394,6 +525,7 @@ export async function startServer(
           backofficeOrigin: database.recovery.backofficeOrigin,
           recoveryJobQueue: database.recovery.jobQueue,
           authorizedCuit: database.authorizedCuit,
+          certificateFingerprint: database.certificateFingerprint,
           deviceTokenRotationKey: database.deviceTokenRotationKey,
           installationKeysEncryptionKey: database.installationKeysEncryptionKey,
         })
@@ -402,6 +534,7 @@ export async function startServer(
   if (database) {
     app.addHook("onClose", () => database.recovery.close());
     await doRecordAuthorizedCuit(database.recovery.db, database.authorizedCuit);
+    await doEnqueueArcaCertificateExpiryCheck(database.recovery.workerUtils);
   }
   await app.listen({ port: resolvePort(env), host: "0.0.0.0" });
   return app;
@@ -470,7 +603,7 @@ export async function reportStartupFailure(
 }
 
 if (import.meta.main) {
-  startServer().then(
+  startServer(process.env, { arcaEndpoints: arcaEndpointsOf }).then(
     (app) => registerShutdownHandlers(app),
     (error: unknown) => reportStartupFailure(error),
   );

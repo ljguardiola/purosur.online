@@ -9,6 +9,14 @@ describe("AlertDetails", () => {
 });
 
 describe("OpenAlertInput", () => {
+  it("accepts the expiry of the certificate for an expiring-certificate alert", () => {
+    expectTypeOf<{
+      kind: "arca_certificate_expiring";
+      scope: string;
+      detail: { notAfter: string };
+    }>().toExtend<OpenAlertInput>();
+  });
+
   it("accepts the detail of the kind it names", () => {
     expectTypeOf<{
       kind: "user_email_changed";

@@ -14,6 +14,7 @@ const REQUIRED_ENV: Record<string, string> = {
   INSTALLATION_KEYS_ENCRYPTION_KEY: "installation-keys-encryption-key",
   CLOUD_APP_DATABASE_PASSWORD: "cloud-app-password",
   ARCA_CERTIFICATE: "arca-certificate-pem",
+  ARCA_PRIVATE_KEY: "arca-private-key-pem",
 };
 
 beforeEach(() => {
@@ -26,8 +27,8 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-async function compile(): Promise<ProjectDefinition> {
-  const ctx = createRailwayContext({ environment: "staging" });
+async function compile(environment = "staging"): Promise<ProjectDefinition> {
+  const ctx = createRailwayContext({ environment });
   // `railway.ts`'s own default export ignores the second argument (it uses the `project`
   // imported at its own module top level instead), but its declared type still requires one.
   return railway(ctx, project);
@@ -101,6 +102,34 @@ describe("the Cloud Server service's environment", () => {
       type: "literal",
       value: "arca-certificate-pem",
     });
+  });
+
+  it("carries the ARCA private key from the deploying environment", async () => {
+    const cloud = findService(await compile(), "Cloud Server");
+    expect(cloud.variables?.["ARCA_PRIVATE_KEY"]).toEqual({
+      type: "literal",
+      value: "arca-private-key-pem",
+    });
+  });
+
+  it("does not compile without the ARCA private key", async () => {
+    vi.stubEnv("ARCA_PRIVATE_KEY", "");
+
+    await expect(compile()).rejects.toThrow(
+      "missing required environment variable ARCA_PRIVATE_KEY",
+    );
+  });
+
+  it("runs staging against ARCA's homologation environment", async () => {
+    const cloud = findService(await compile("staging"), "Cloud Server");
+    expect(cloud.variables?.["ARCA_ENVIRONMENT"]).toEqual({
+      type: "literal",
+      value: "homologation",
+    });
+  });
+
+  it("refuses an environment with no ARCA environment", async () => {
+    await expect(compile("preview")).rejects.toThrow("no ARCA environment configured for preview");
   });
 
   it("carries the device token rotation key from the deploying environment", async () => {

@@ -49,7 +49,7 @@ export interface LockedAlert {
 
 export interface AlertClosure {
   closedAt: Date;
-  closedBy: string;
+  closedBy: string | null;
   scope: string;
   detail: Record<string, unknown>;
 }

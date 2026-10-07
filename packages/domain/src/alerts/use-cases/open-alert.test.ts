@@ -43,6 +43,19 @@ function open(store: FakeAlertStore, input: OpenAlertInput, at: Date = NOW) {
 }
 
 describe("openAlert", () => {
+  it("schedules an expiring-certificate alert to escalate 7 days before the certificate expires", async () => {
+    const store = storeWithViewers();
+    const notAfter = new Date("2026-10-20T00:00:00.000Z");
+
+    await open(store, {
+      kind: "arca_certificate_expiring",
+      scope: "production",
+      detail: { notAfter: notAfter.toISOString() },
+    });
+
+    expect(store.snapshot().alerts[0]?.escalateAt).toEqual(new Date("2026-10-13T00:00:00.000Z"));
+  });
+
   it("opens the alert and delivers it to the active users who may see it", async () => {
     const store = storeWithViewers();
 

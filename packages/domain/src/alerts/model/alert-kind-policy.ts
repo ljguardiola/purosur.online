@@ -1,3 +1,4 @@
+import { ARCA_CERTIFICATE_EXPIRY_ESCALATION_MS } from "../../fiscal/index.js";
 import {
   ALERT_KINDS,
   type AlertAudience,
@@ -5,11 +6,15 @@ import {
   type AlertLevel,
 } from "./alert-catalog.js";
 
-export type AlertScopeKind = "user" | "sourceAddress" | "register";
+export type AlertScopeKind = "user" | "sourceAddress" | "register" | "environment";
+
+type AlertEscalationRule =
+  | { kind: "afterOpening"; delayMs: number }
+  | { kind: "beforeDeadline"; leadMs: number };
 
 export interface AlertKindPolicy {
   level: AlertLevel;
-  escalatesAfterMs: number | null;
+  escalation: AlertEscalationRule | null;
   audience: AlertAudience;
   scopeKind: AlertScopeKind;
   deduplicates: boolean;
@@ -17,48 +22,57 @@ export interface AlertKindPolicy {
 
 export const ALERT_ESCALATION_DELAY_MS = 24 * 60 * 60 * 1000;
 
+const AFTER_OPENING = { kind: "afterOpening", delayMs: ALERT_ESCALATION_DELAY_MS } as const;
+
 const ALERT_KIND_POLICIES = {
   backoffice_passkey_changed: {
     level: "warning",
-    escalatesAfterMs: ALERT_ESCALATION_DELAY_MS,
+    escalation: AFTER_OPENING,
     audience: "all",
     scopeKind: "user",
     deduplicates: true,
   },
   backoffice_recovery_requested: {
     level: "warning",
-    escalatesAfterMs: ALERT_ESCALATION_DELAY_MS,
+    escalation: AFTER_OPENING,
     audience: "all",
     scopeKind: "user",
     deduplicates: true,
   },
   user_email_changed: {
     level: "warning",
-    escalatesAfterMs: ALERT_ESCALATION_DELAY_MS,
+    escalation: AFTER_OPENING,
     audience: "all",
     scopeKind: "user",
     deduplicates: true,
   },
   backoffice_sign_in_lockout: {
     level: "warning",
-    escalatesAfterMs: ALERT_ESCALATION_DELAY_MS,
+    escalation: AFTER_OPENING,
     audience: "all",
     scopeKind: "sourceAddress",
     deduplicates: true,
   },
   user_access_increased: {
     level: "critical",
-    escalatesAfterMs: null,
+    escalation: null,
     audience: "all",
     scopeKind: "user",
     deduplicates: false,
   },
   register_enrolled: {
     level: "warning",
-    escalatesAfterMs: ALERT_ESCALATION_DELAY_MS,
+    escalation: AFTER_OPENING,
     audience: "all",
     scopeKind: "register",
     deduplicates: false,
+  },
+  arca_certificate_expiring: {
+    level: "warning",
+    escalation: { kind: "beforeDeadline", leadMs: ARCA_CERTIFICATE_EXPIRY_ESCALATION_MS },
+    audience: "all",
+    scopeKind: "environment",
+    deduplicates: true,
   },
 } as const satisfies Record<AlertKind, AlertKindPolicy>;
 

@@ -79,6 +79,7 @@ import { registerTagEditRoute } from "./catalog/tag-edit-route.js";
 import { registerTagReactivationRoute } from "./catalog/tag-reactivation-route.js";
 import type { TagsRouteOptions } from "./catalog/tags-list-route.js";
 import { registerTagsListRoute } from "./catalog/tags-list-route.js";
+import { arcaOnlineStatusOf } from "./fiscal/arca-online-status.js";
 import { registerBuyerIdentificationThresholdRecordRoute } from "./fiscal/buyer-identification-threshold-record-route.js";
 import type { BuyerIdentificationThresholdsRouteOptions } from "./fiscal/buyer-identification-thresholds-list-route.js";
 import { registerBuyerIdentificationThresholdsListRoute } from "./fiscal/buyer-identification-thresholds-list-route.js";
@@ -155,6 +156,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   registersPointsOfSale?: WithoutClock<RegistersPointsOfSaleRouteOptions<TQueryResult>>;
   stock?: WithoutClock<StockRouteOptions<TQueryResult>>;
   devices?: WithoutClock<DeviceTokensOptions<TQueryResult>>;
+  health?: WithoutClock<HealthArcaOptions<TQueryResult>>;
   firstPinCodes?: WithoutClock<FirstPinCodeRouteOptions<TQueryResult>>;
 }
 
@@ -170,11 +172,18 @@ type DatabaseRouteOptions<TQueryResult extends PgQueryResultHKT> = Required<
   >
 >;
 
+interface HealthArcaOptions<TQueryResult extends PgQueryResultHKT> {
+  db: PgDatabase<TQueryResult>;
+  certificateFingerprint: string;
+  now: () => Date;
+}
+
 interface DatabaseWiring<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
   recoveryJobQueue: RecoveryJobQueue;
   authorizedCuit: string;
+  certificateFingerprint: string;
   deviceTokenRotationKey: Uint8Array;
   installationKeysEncryptionKey: Uint8Array;
 }
@@ -211,6 +220,7 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     stock: backoffice,
     devices,
     firstPinCodes: devices,
+    health: { db, certificateFingerprint: wiring.certificateFingerprint },
   };
 }
 
@@ -284,8 +294,12 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
   app.register(
     async (api) => {
       const devices = options.devices && { ...options.devices, now };
+      const health = options.health && { ...options.health, now };
       registerHealthRoute(api, {
         version: options.version,
+        ...(health && {
+          arcaOnlineStatus: arcaOnlineStatusOf(health.db, health),
+        }),
         ...(devices && {
           authenticateDevice: (authorization) =>
             authenticateDevice(installationTokenPorts(devices), authorization),

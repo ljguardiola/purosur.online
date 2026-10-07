@@ -3,6 +3,7 @@ import { admitInstallationRequest } from "@purosur/domain/sync/use-cases";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { registerRouteAccess } from "../access/route-access.js";
+import { arcaOnlineStatusOf } from "../fiscal/arca-online-status.js";
 import { authenticateDevice } from "../register/device-authentication.js";
 import { issueDeviceToken } from "../register/device-token.js";
 import { installationTokenPorts } from "../register/installation-token-ports.js";
@@ -12,9 +13,11 @@ import { insertRequestsUpToLimit } from "../sync/test-support/admitted-requests.
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
+import { arcaVitalityChecks, arcaWsaaTokens } from "./db/schema.js";
 import { registerHealthRoute } from "./health-route.js";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z");
+const CERTIFICATE_FINGERPRINT = "AA:BB:CC";
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -35,6 +38,10 @@ beforeEach(async () => {
   registerRouteAccess(app);
   registerHealthRoute(app, {
     version: "abc1234",
+    arcaOnlineStatus: arcaOnlineStatusOf(db, {
+      certificateFingerprint: CERTIFICATE_FINGERPRINT,
+      now: () => NOW,
+    }),
     authenticateDevice: (authorization) =>
       authenticateDevice(
         installationTokenPorts({
@@ -89,7 +96,85 @@ describe("GET /health", () => {
       status: "ok",
       version: "abc1234",
       installation: { revoked },
+      arca: { token_valid: false, probe_ok_at: null, reachable: false },
     });
+  });
+
+  it("does not read the state of ARCA for a caller that presents no device token", async () => {
+    const failing = Fastify();
+    registerRouteAccess(failing);
+    registerHealthRoute(failing, {
+      version: "abc1234",
+      arcaOnlineStatus: () => Promise.reject(new Error("must not be read")),
+    });
+
+    const response = await failing.inject({ method: "GET", url: "/health" });
+    await failing.close();
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ status: "ok", version: "abc1234" });
+  });
+
+  it("tells an installation ARCA is reachable from a recent successful probe", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
+    const probeOkAt = new Date(NOW.getTime() - 30_000);
+    await db.insert(arcaVitalityChecks).values({ checkedAt: probeOkAt, ok: true });
+
+    const response = await checkHealth(`Bearer ${deviceToken}`);
+
+    expect(healthCheckSchema.parse(response.json()).arca).toMatchObject({
+      probe_ok_at: probeOkAt.toISOString(),
+      reachable: true,
+    });
+  });
+
+  it("tells an installation no probe succeeded yet when only failed checks exist", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
+    await db.insert(arcaVitalityChecks).values({ checkedAt: NOW, ok: false });
+
+    const response = await checkHealth(`Bearer ${deviceToken}`);
+
+    expect(healthCheckSchema.parse(response.json()).arca).toMatchObject({
+      probe_ok_at: null,
+      reachable: false,
+    });
+  });
+
+  it.each([
+    ["valid until after now", 3_600_000, true],
+    ["expired", -60_000, false],
+  ])("tells an installation its WSAA token is %s", async (_case, expiresInMs, tokenValid) => {
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
+    await db.insert(arcaWsaaTokens).values({
+      service: "wsfe",
+      certificateFingerprint: CERTIFICATE_FINGERPRINT,
+      token: "t",
+      sign: "s",
+      issuedAt: new Date(NOW.getTime() - 3_600_000),
+      expiresAt: new Date(NOW.getTime() + expiresInMs),
+    });
+
+    const response = await checkHealth(`Bearer ${deviceToken}`);
+
+    expect(healthCheckSchema.parse(response.json()).arca).toMatchObject({
+      token_valid: tokenValid,
+    });
+  });
+
+  it("does not take another certificate's token for a valid one", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
+    await db.insert(arcaWsaaTokens).values({
+      service: "wsfe",
+      certificateFingerprint: "DD:EE:FF",
+      token: "t",
+      sign: "s",
+      issuedAt: new Date(NOW.getTime() - 3_600_000),
+      expiresAt: new Date(NOW.getTime() + 3_600_000),
+    });
+
+    const response = await checkHealth(`Bearer ${deviceToken}`);
+
+    expect(healthCheckSchema.parse(response.json()).arca).toMatchObject({ token_valid: false });
   });
 
   it("refuses an installation's check past its limit with when to retry", async () => {

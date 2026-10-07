@@ -1,3 +1,24 @@
+export type { ArcaReachabilityEvidence } from "../model/arca-reachability.js";
+export type {
+  ArcaCertificateExpiryPorts,
+  ArcaCertificateExpiryStore,
+  ArcaCertificateExpiryStoreTransaction,
+  Clock,
+  NewCertificateExpiringAlert,
+  OpenCertificateExpiringAlert,
+} from "./arca-certificate-expiry-store.js";
+export type {
+  ArcaOnlineStatusPorts,
+  ArcaReachabilityReader,
+  WsaaTokenReader,
+} from "./arca-online-status-ports.js";
+export type {
+  ArcaVitalityPorts,
+  ArcaVitalityResult,
+  ArcaVitalityService,
+  ArcaVitalityStore,
+  VitalityCheckRecord,
+} from "./arca-vitality-ports.js";
 export type {
   BuyerIdentificationThresholdOverview,
   BuyerIdentificationThresholdPorts,
@@ -12,6 +33,13 @@ export type {
   BuyerTaxStatusStore,
   BuyerTaxStatusStoreTransaction,
 } from "./buyer-tax-status-store.js";
+export type {
+  CheckArcaCertificateExpiryInput,
+  CheckArcaCertificateExpiryOutcome,
+} from "./check-arca-certificate-expiry.js";
+export { checkArcaCertificateExpiry } from "./check-arca-certificate-expiry.js";
+export type { CheckArcaVitalityOutcome } from "./check-arca-vitality.js";
+export { checkArcaVitality } from "./check-arca-vitality.js";
 export type {
   ConfigureRegisterPointOfSaleInput,
   ConfigureRegisterPointOfSaleOutcome,
@@ -53,6 +81,11 @@ export type {
   NewIssuerIdentificationVersion,
 } from "./issuer-identification-store.js";
 export type {
+  ArcaOnlineStatus,
+  ReadArcaOnlineStatusInput,
+} from "./read-arca-online-status.js";
+export { readArcaOnlineStatus } from "./read-arca-online-status.js";
+export type {
   RecordAuthorizedCuitInput,
   RecordAuthorizedCuitOutcome,
 } from "./record-authorized-cuit.js";
@@ -78,3 +111,16 @@ export type {
   RegisterPointOfSaleStoreTransaction,
 } from "./register-point-of-sale-store.js";
 export { PointOfSaleClaimConflict } from "./register-point-of-sale-store.js";
+export type {
+  RenewWsaaTokenInput,
+  RenewWsaaTokenOutcome,
+} from "./renew-wsaa-token.js";
+export { renewWsaaToken } from "./renew-wsaa-token.js";
+export type {
+  WsaaAuthentication,
+  WsaaAuthenticationResult,
+  WsaaToken,
+  WsaaTokenPorts,
+  WsaaTokenRenewal,
+  WsaaTokenStore,
+} from "./wsaa-token-ports.js";
