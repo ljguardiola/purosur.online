@@ -8,7 +8,7 @@ import { eventsRouteUnderTest, NOW } from "./test-support/events-route.js";
 const CHAIN_KEY = Buffer.alloc(32, 3).toString("base64");
 
 const enqueue = vi.fn<() => Promise<void>>();
-const route = eventsRouteUnderTest((transaction) => enqueue(transaction));
+const route = eventsRouteUnderTest(() => enqueue());
 
 function pushOf(deviceSeq: number) {
   const unlinked = {
