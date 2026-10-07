@@ -26,7 +26,7 @@ export async function renewWsaaToken(
     if (result.kind !== "issued") {
       return { kind: result.kind };
     }
-    await tx.recordWsaaToken(result.token);
+    await tx.recordWsaaToken(service, certificateFingerprint, result.token);
     return { kind: "renewed" };
   });
 }
