@@ -12,6 +12,7 @@ import { createQueryClient } from "../platform/query-client";
 import {
   useCashChargeQuery,
   useCurrentSaleQuery,
+  useRefreshCurrentSale,
   useResetCurrentSale,
   useSearchProducts,
   useTakeSale,
@@ -50,6 +51,7 @@ function CurrentSaleProbe({
 }) {
   const current = useCurrentSaleQuery({ sessionId, userId, read });
   const takeSale = useTakeSale(sessionId, userId);
+  const refreshCurrentSale = useRefreshCurrentSale(sessionId, userId);
   const resetCurrentSale = useResetCurrentSale(sessionId, userId);
   let text: string = current.status;
   if (current.status === "loaded") {
@@ -66,6 +68,9 @@ function CurrentSaleProbe({
       </button>
       <button type="button" onClick={() => takeSale(null)}>
         take none
+      </button>
+      <button type="button" onClick={() => void refreshCurrentSale()}>
+        refresh
       </button>
       <button type="button" onClick={() => void resetCurrentSale()}>
         reset
@@ -169,6 +174,41 @@ describe("current sale query", () => {
     answer(null);
 
     await expect.element(screen.getByText("null")).toBeVisible();
+  });
+
+  it("keeps the sale shown while it is read again and then shows the new answer", async () => {
+    let answer: (sale: CurrentSaleAnswer) => void = () => {};
+    const read = vi
+      .fn<() => Promise<CurrentSaleAnswer>>()
+      .mockResolvedValueOnce(SALE)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            answer = resolve;
+          }),
+      );
+    const screen = await renderWithClient(<CurrentSaleProbe read={read} />);
+    await expect.element(screen.getByText("sale-1")).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "refresh" }));
+    await expect.poll(() => read).toHaveBeenCalledTimes(2);
+    await expect.element(screen.getByText("sale-1")).toBeVisible();
+    answer(null);
+
+    await expect.element(screen.getByText("null")).toBeVisible();
+  });
+
+  it("fails instead of showing the earlier sale when reading it again fails", async () => {
+    const read = vi
+      .fn<() => Promise<CurrentSaleAnswer>>()
+      .mockResolvedValueOnce(SALE)
+      .mockRejectedValue(new Error("the connection was replaced"));
+    const screen = await renderWithClient(<CurrentSaleProbe read={read} />);
+    await expect.element(screen.getByText("sale-1")).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "refresh" }));
+
+    await expect.element(screen.getByText("failed")).toBeVisible();
   });
 });
 
