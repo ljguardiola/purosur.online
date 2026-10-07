@@ -648,7 +648,7 @@ describe("startServer", () => {
       BACKOFFICE_ORIGIN: "https://staging.purosur.online",
       EDGE_ORIGIN_SECRET: "edge-secret",
       ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
-      ARCA_ENVIRONMENT: "production",
+      ARCA_ENVIRONMENT: "homologation",
       DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
       INSTALLATION_KEYS_ENCRYPTION_KEY: KEYS_ENCRYPTION_KEY,
     };
@@ -668,8 +668,8 @@ describe("startServer", () => {
         emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
         emailReplyTo: "purosur.comarca@gmail.com",
         backofficeOrigin: "https://staging.purosur.online",
-        arcaCertificate: { environment: "production", notAfter: VALID_ARCA_CERTIFICATE_NOT_AFTER },
-        arcaVitality: { endpoint: "https://servicios1.afip.gov.ar/wsfev1/service.asmx" },
+        arcaCertificate: { environment: "homologation", notAfter: VALID_ARCA_CERTIFICATE_NOT_AFTER },
+        arcaVitality: { endpoint: "https://wswhomo.afip.gov.ar/wsfev1/service.asmx" },
       },
       now,
     );
