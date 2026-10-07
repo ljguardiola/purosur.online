@@ -48,6 +48,8 @@ function toPushWire(
       };
     case "stale_device":
       return { status: "stale_device", ack_seq: outcome.ackSeq };
+    case "update_required":
+      return { status: "update_required", ack_seq: outcome.ackSeq };
   }
 }
 

@@ -1,5 +1,6 @@
 import { highestContiguousSeq } from "../model/contiguous-seq.js";
 import { canonicalOutboxEvent } from "../model/outbox-event.js";
+import { registerVersionAccepted } from "../model/register-version.js";
 import type { PushedEvent, RegisterTelemetry } from "../model/push-batch.js";
 import type { EventChain, InboxTransaction, ReceivePorts } from "./sync-ports.js";
 
@@ -14,6 +15,7 @@ export type ReceivePushedEventsOutcome =
   | { kind: "received"; ackSeq: number }
   | { kind: "gap"; ackSeq: number; expectedSeq: number }
   | { kind: "stale_device"; ackSeq: number }
+  | { kind: "update_required"; ackSeq: number }
   | { kind: "chain_broken" }
   | { kind: "revoked" };
 
@@ -29,6 +31,9 @@ export async function receivePushedEvents(
     }
     await tx.recordPushReport(deviceId, { appVersion, telemetry }, now);
     const ackSeq = highestContiguousSeq(await tx.receivedDeviceSeqs(deviceId));
+    if (!registerVersionAccepted(appVersion)) {
+      return { kind: "update_required", ackSeq };
+    }
 
     const heldEventIds = new Map(
       await tx.receivedEventIds(
