@@ -353,14 +353,14 @@ test("dates each passkey's last use against the time the list was read again aft
   expect(services.fetchUserPasskeys).toHaveBeenCalledTimes(2);
 });
 
-test("while the user loads, shows a loading placeholder, keeps Editar disabled and reads the passkeys without waiting for the user", async () => {
+test("while the user loads, shows a loading placeholder, no Editar, and reads the passkeys without waiting for the user", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockReturnValue(new Promise(() => {}));
 
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByRole("status").first()).toHaveTextContent("Cargando…");
-  await expect.element(screen.getByRole("button", { name: "Editar" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Editar" }).query()).toBeNull();
   await expect.poll(() => vi.mocked(services.fetchUserPasskeys).mock.calls.length).toBe(1);
   expect(services.fetchUserPasskeys).toHaveBeenCalledWith("user-1");
 });
@@ -377,7 +377,7 @@ test("shows the passkeys placeholder while only the passkeys are loading, with D
   await expect.element(screen.getByRole("button", { name: "Editar" })).toBeEnabled();
 });
 
-test("a failed user read keeps Editar disabled, and Reintentar starts again from the loading placeholder", async () => {
+test("a failed user read shows no Editar, and Reintentar starts again from the loading placeholder", async () => {
   const services = createServices();
   const retry = deferred<FetchUserOutcome>();
   vi.mocked(services.fetchUser)
@@ -385,13 +385,13 @@ test("a failed user read keeps Editar disabled, and Reintentar starts again from
     .mockReturnValueOnce(retry.promise);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("No pudimos abrir este usuario")).toBeVisible();
-  await expect.element(screen.getByRole("button", { name: "Editar" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Editar" }).query()).toBeNull();
 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
   await expect.element(screen.getByText("No pudimos abrir este usuario")).not.toBeInTheDocument();
   await expect.element(screen.getByRole("status").first()).toHaveTextContent("Cargando…");
-  await expect.element(screen.getByRole("button", { name: "Editar" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Editar" }).query()).toBeNull();
   retry.resolve({ kind: "ok", value: lucia });
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Editar" })).toBeEnabled();

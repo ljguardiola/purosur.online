@@ -161,6 +161,15 @@ test("while the user loads, shows an Administrator on their own account a disabl
   await expect.element(screen.getByRole("button", { name: "Reiniciar el PIN" })).toBeDisabled();
 });
 
+test("while their own account loads with its id in another case, shows an Administrator a disabled Reiniciar el PIN", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockReturnValue(new Promise(() => {}));
+
+  const screen = await renderScreen(services, () => {}, "ADMIN-1", "admin-1");
+
+  await expect.element(screen.getByRole("button", { name: "Reiniciar el PIN" })).toBeDisabled();
+});
+
 test("while the user loads, shows no PIN section to a holder of reset_user_pin on their own account", async () => {
   const services = createServices({
     fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "forbidden" }),
