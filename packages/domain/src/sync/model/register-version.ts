@@ -2,12 +2,9 @@ export const MINIMUM_ACCEPTED_REGISTER_VERSION = "0.0.0";
 
 const VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
-function versionParts(version: string): [bigint, bigint, bigint] | undefined {
+function versionParts(version: string): bigint[] | undefined {
   const match = VERSION_PATTERN.exec(version);
-  if (match === null) {
-    return undefined;
-  }
-  return [BigInt(match[1] ?? ""), BigInt(match[2] ?? ""), BigInt(match[3] ?? "")];
+  return match === null ? undefined : match.slice(1).map((part) => BigInt(part));
 }
 
 export function versionAtLeast(version: string, minimum: string): boolean {
@@ -18,8 +15,11 @@ export function versionAtLeast(version: string, minimum: string): boolean {
   }
   for (const [index, part] of parts.entries()) {
     const minimumPart = minimumParts[index] ?? 0n;
-    if (part !== minimumPart) {
-      return part > minimumPart;
+    if (part < minimumPart) {
+      return false;
+    }
+    if (part > minimumPart) {
+      return true;
     }
   }
   return true;
