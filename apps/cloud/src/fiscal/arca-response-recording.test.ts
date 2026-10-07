@@ -25,7 +25,6 @@ import {
   type FakeWsfeServer,
   NO_ANSWER,
   startFakeWsfeServer,
-  answers as wsfeAnswers,
   answersInTurn as wsfeAnswersInTurn,
 } from "./test-support/fake-wsfe-server.js";
 
