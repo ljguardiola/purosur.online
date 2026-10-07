@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { normalizePemNewlines } from "../platform/pem-newlines.js";
+import { requireAuthorizedCuit } from "../server.js";
 import { type ScrubReplacement, scrubArcaRecording } from "./scrub-arca-recording.js";
 import { ArcaWsaaAuthentication } from "./wsaa-authentication.js";
 import { WsfeArcaVitalityService } from "./wsfe-arca-vitality-service.js";
@@ -13,7 +14,10 @@ const UNISSUED_SIGN = "FICTIONAL-SIGN-0001";
 export type RecordingSettingsResult =
   | {
       kind: "ready";
-      settings: Pick<RecordArcaResponsesOptions, "outDir" | "certificatePem" | "privateKeyPem">;
+      settings: Pick<
+        RecordArcaResponsesOptions,
+        "outDir" | "certificatePem" | "privateKeyPem" | "cuit"
+      >;
     }
   | { kind: "refused"; reason: string };
 
@@ -36,12 +40,19 @@ export function recordingSettingsOf(
   if (!privateKey) {
     return { kind: "refused", reason: "ARCA_PRIVATE_KEY is not set" };
   }
+  let cuit: string;
+  try {
+    cuit = requireAuthorizedCuit(env);
+  } catch (error) {
+    return { kind: "refused", reason: error instanceof Error ? error.message : String(error) };
+  }
   return {
     kind: "ready",
     settings: {
       outDir,
       certificatePem: normalizePemNewlines(certificate),
       privateKeyPem: normalizePemNewlines(privateKey),
+      cuit,
     },
   };
 }

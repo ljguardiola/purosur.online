@@ -1,7 +1,6 @@
 import { recordArcaResponses, recordingSettingsOf } from "./fiscal/arca-response-recording.js";
 import { wsaaEndpointOf } from "./fiscal/wsaa-authentication.js";
 import { wsfeEndpointOf } from "./fiscal/wsfe-arca-vitality-service.js";
-import { requireAuthorizedCuit } from "./server.js";
 
 if (import.meta.main) {
   const result = recordingSettingsOf(process.argv.slice(2), process.env);
@@ -15,7 +14,6 @@ if (import.meta.main) {
           ...result.settings,
           wsaaEndpoint: wsaaEndpointOf("homologation"),
           wsfeEndpoint: wsfeEndpointOf("homologation"),
-          cuit: requireAuthorizedCuit(process.env),
           now: () => new Date(),
         }),
       )
