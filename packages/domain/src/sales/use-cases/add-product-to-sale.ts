@@ -1,9 +1,10 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
 import { discountAppliesOn } from "../../pricing/index.js";
 import { argentinaCalendarDay } from "../../shared/index.js";
+import { type OpenSaleStanding, openSaleStanding } from "../model/open-sale-standing.js";
 import { hasApprovedPayment } from "../model/payment.js";
 import type { LinePromotion, Sale, SaleWithLines } from "../model/sale.js";
-import { addUnitToLine, newSaleLine } from "../model/sale-line.js";
+import { addUnitToLine, newSaleLine, saleTotal } from "../model/sale-line.js";
 import { saleChargeRefusal } from "./sale-charge-refusal.js";
 import type {
   Clock,
@@ -23,7 +24,11 @@ export type AddProductToSaleOutcome =
   | { kind: "product_not_found" }
   | { kind: "sold_by_weight"; productName: string }
   | { kind: "no_price"; productName: string }
-  | { kind: "added"; sale: SaleWithLines; chargeRefusal: ChargeRefusal | undefined };
+  | ({
+      kind: "added";
+      sale: SaleWithLines;
+      chargeRefusal: ChargeRefusal | undefined;
+    } & OpenSaleStanding);
 
 export interface AddProductToSaleRequest {
   actorId: string;
@@ -91,7 +96,12 @@ function added(
   moment: Date,
   sale: SaleWithLines,
 ): AddProductToSaleOutcome {
-  return { kind: "added", sale, chargeRefusal: saleChargeRefusal(tx, sale, moment) };
+  return {
+    kind: "added",
+    sale,
+    chargeRefusal: saleChargeRefusal(tx, sale, moment),
+    ...openSaleStanding(saleTotal(sale.lines), tx.salePayments(sale.id)),
+  };
 }
 
 function validPromotions(
