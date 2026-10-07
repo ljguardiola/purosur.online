@@ -1,13 +1,14 @@
 import { X509Certificate } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createServer } from "node:net";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   type ArcaTestCredentials,
   generateArcaTestCredentials,
 } from "./test-support/arca-test-credentials.js";
 import {
   answers,
+  answersWhenReleased,
   type FakeWsaaServer,
   readLoginRequest,
   SHA256_OID,
@@ -211,6 +212,41 @@ describe("ArcaWsaaAuthentication", () => {
     expect(await authenticationOf(server.endpoint, 200).requestToken("wsfe")).toEqual({
       kind: "failed",
     });
+  });
+});
+
+describe("ArcaWsaaAuthentication given no timeout", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    server.behave(answersWhenReleased("login-cms-issued.xml"));
+  });
+
+  afterEach(() => {
+    server.release();
+    vi.useRealTimers();
+  });
+
+  async function answeredAfter(delayMs: number) {
+    const authentication = new ArcaWsaaAuthentication({
+      endpoint: server.endpoint,
+      certificatePem: credentials.certificatePem,
+      privateKeyPem: credentials.privateKeyPem,
+      now: () => NOW,
+    });
+    const received = server.nextRequest();
+    const result = authentication.requestToken("wsfe");
+    await received;
+    await vi.advanceTimersByTimeAsync(delayMs);
+    server.release();
+    return result;
+  }
+
+  it("waits for a slow answer that arrives twenty seconds after the request", async () => {
+    expect((await answeredAfter(20_000)).kind).toBe("issued");
+  });
+
+  it("fails when the answer has not arrived thirty seconds after the request", async () => {
+    expect(await answeredAfter(30_000)).toEqual({ kind: "failed" });
   });
 });
 

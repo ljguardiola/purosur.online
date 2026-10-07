@@ -1,6 +1,11 @@
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import {
+  FICTIONAL_CERTIFICATE_CUIT,
+  FICTIONAL_CUIT,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { recordArcaResponses, recordingSettingsOf } from "./arca-response-recording.js";
 import {
@@ -8,9 +13,11 @@ import {
   generateArcaTestCredentials,
 } from "./test-support/arca-test-credentials.js";
 import {
+  answerOf,
   answersInTurn,
   type FakeWsaaServer,
   readLoginRequest,
+  recordedAnswer,
   startFakeWsaaServer,
   answers as wsaaAnswers,
 } from "./test-support/fake-wsaa-server.js";
@@ -21,6 +28,9 @@ import {
 } from "./test-support/fake-wsfe-server.js";
 
 const NOW = new Date("2026-10-01T15:00:00.000Z");
+const ORIGINAL_TOKEN = "T0K3N-original/with+base64==";
+const ORIGINAL_SIGN = "S1GN-original/with+base64==";
+const ORIGINAL_CUIT = FICTIONAL_CUIT.replaceAll("-", "");
 
 let wsaa: FakeWsaaServer;
 let wsfe: FakeWsfeServer;
@@ -44,8 +54,8 @@ beforeEach(() => {
   wsfe.requests.length = 0;
   wsaa.behave(
     answersInTurn(
-      { responseFile: "login-cms-issued.xml" },
-      { responseFile: "already-authenticated-fault.xml", status: 500 },
+      answerOf(unscrubbedLogin()),
+      recordedAnswer("already-authenticated-fault.xml", 500),
     ),
   );
   wsfe.behave(wsfeAnswers("fe-dummy-all-ok.xml"));
@@ -73,6 +83,15 @@ function fixture(directory: string, name: string): string {
   ).trim();
 }
 
+function unscrubbedLogin(): string {
+  return fixture("wsaa-responses", "login-cms-issued.xml")
+    .replace("FICTIONAL-TOKEN-0001", ORIGINAL_TOKEN)
+    .replace("FICTIONAL-SIGN-0001", ORIGINAL_SIGN)
+    .replace("&lt;uniqueId&gt;1234567890", "&lt;uniqueId&gt;987654321")
+    .replaceAll(FICTIONAL_CERTIFICATE_CUIT.replaceAll("-", ""), ORIGINAL_CUIT)
+    .replace("CN=comercio-de-prueba", `CN=holder-alias, O=${FICTIONAL_LEGAL_NAME}, C=AR`);
+}
+
 describe("recordArcaResponses", () => {
   it("saves the raw answer of FEDummy, of a login and of the login refused right after it", async () => {
     await record();
@@ -80,9 +99,7 @@ describe("recordArcaResponses", () => {
     expect(readFileSync(join(outDir, "fe-dummy.raw.xml"), "utf8")).toBe(
       fixture("wsfe-responses", "fe-dummy-all-ok.xml"),
     );
-    expect(readFileSync(join(outDir, "login-cms-issued.raw.xml"), "utf8")).toBe(
-      fixture("wsaa-responses", "login-cms-issued.xml"),
-    );
+    expect(readFileSync(join(outDir, "login-cms-issued.raw.xml"), "utf8")).toBe(unscrubbedLogin());
     expect(readFileSync(join(outDir, "login-cms-already-authenticated.raw.xml"), "utf8")).toBe(
       fixture("wsaa-responses", "already-authenticated-fault.xml"),
     );
@@ -117,8 +134,11 @@ describe("recordArcaResponses", () => {
       "login-cms-issued.scrubbed.xml",
     ]);
     const scrubbed = readFileSync(join(outDir, "login-cms-issued.scrubbed.xml"), "utf8");
-    expect(scrubbed).toContain("FICTIONAL-TOKEN-0001");
-    expect(scrubbed).not.toContain("20000000001");
+    expect(scrubbed).not.toContain(ORIGINAL_TOKEN);
+    expect(scrubbed).not.toContain(ORIGINAL_SIGN);
+    expect(scrubbed).not.toContain(ORIGINAL_CUIT);
+    expect(scrubbed).not.toContain(FICTIONAL_LEGAL_NAME);
+    expect(scrubbed).toBe(fixture("wsaa-responses", "login-cms-issued.xml"));
   });
 
   it("reports what it replaced in each file, by field and count", async () => {
@@ -133,7 +153,7 @@ describe("recordArcaResponses", () => {
           { field: "sign", count: 1 },
           { field: "CUIT", count: 2 },
           { field: "uniqueId", count: 1 },
-          { field: "destination common name", count: 1 },
+          { field: "destination", count: 1 },
         ],
       },
       { file: "login-cms-already-authenticated.scrubbed.xml", replacements: [] },

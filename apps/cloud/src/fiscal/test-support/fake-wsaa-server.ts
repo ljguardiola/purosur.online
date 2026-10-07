@@ -6,30 +6,50 @@ import forge from "node-forge";
 
 const RESPONSES_DIR = new URL("./wsaa-responses/", import.meta.url);
 
+export interface FakeWsaaAnswer {
+  status: number;
+  body: string;
+}
+
 export type FakeWsaaBehavior =
-  | { kind: "answers"; status: number; responseFile: string }
-  | { kind: "answers-in-turn"; steps: { status: number; responseFile: string }[] }
+  | ({ kind: "answers" } & FakeWsaaAnswer)
+  | { kind: "answers-in-turn"; steps: FakeWsaaAnswer[] }
+  | ({ kind: "answers-when-released" } & FakeWsaaAnswer)
   | { kind: "never-answers" };
 
 export interface FakeWsaaServer {
   endpoint: string;
   requests: string[];
   behave(behavior: FakeWsaaBehavior): void;
+  nextRequest(): Promise<void>;
+  /** Sends the held answer to every request the server is holding. */
+  release(): void;
   close(): Promise<void>;
 }
 
+function recorded(responseFile: string): string {
+  return readFileSync(new URL(responseFile, RESPONSES_DIR), "utf8");
+}
+
 export function answers(responseFile: string, status = 200): FakeWsaaBehavior {
-  return { kind: "answers", status, responseFile };
+  return { kind: "answers", status, body: recorded(responseFile) };
+}
+
+export function answerOf(body: string, status = 200): FakeWsaaAnswer {
+  return { status, body };
 }
 
 /** Answers each request with the next step, and the last step to every request after them. */
-export function answersInTurn(
-  ...steps: { responseFile: string; status?: number }[]
-): FakeWsaaBehavior {
-  return {
-    kind: "answers-in-turn",
-    steps: steps.map(({ responseFile, status = 200 }) => ({ responseFile, status })),
-  };
+export function answersInTurn(...steps: FakeWsaaAnswer[]): FakeWsaaBehavior {
+  return { kind: "answers-in-turn", steps };
+}
+
+export function recordedAnswer(responseFile: string, status = 200): FakeWsaaAnswer {
+  return { status, body: recorded(responseFile) };
+}
+
+export function answersWhenReleased(responseFile: string, status = 200): FakeWsaaBehavior {
+  return { kind: "answers-when-released", status, body: recorded(responseFile) };
 }
 
 export async function startFakeWsaaServer(
@@ -37,24 +57,32 @@ export async function startFakeWsaaServer(
 ): Promise<FakeWsaaServer> {
   let behavior = initial;
   const requests: string[] = [];
+  const held: (() => void)[] = [];
+  const requestWaiters: (() => void)[] = [];
   const server: Server = createServer((request, response) => {
     const chunks: Buffer[] = [];
     request.on("data", (chunk: Buffer) => chunks.push(chunk));
     request.on("end", () => {
       requests.push(Buffer.concat(chunks).toString("utf8"));
+      for (const waiter of requestWaiters.splice(0)) {
+        waiter();
+      }
       if (behavior.kind === "never-answers") {
         return;
       }
       const answer =
         behavior.kind === "answers-in-turn"
-          ? (behavior.steps[Math.min(requests.length, behavior.steps.length) - 1] as {
-              status: number;
-              responseFile: string;
-            })
+          ? (behavior.steps[Math.min(requests.length, behavior.steps.length) - 1] as FakeWsaaAnswer)
           : behavior;
-      const body = readFileSync(new URL(answer.responseFile, RESPONSES_DIR));
-      response.writeHead(answer.status, { "content-type": "text/xml; charset=utf-8" });
-      response.end(body);
+      const send = () => {
+        response.writeHead(answer.status, { "content-type": "text/xml; charset=utf-8" });
+        response.end(answer.body);
+      };
+      if (behavior.kind === "answers-when-released") {
+        held.push(send);
+      } else {
+        send();
+      }
     });
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -64,6 +92,12 @@ export async function startFakeWsaaServer(
     requests,
     behave(next) {
       behavior = next;
+    },
+    nextRequest: () => new Promise<void>((resolve) => requestWaiters.push(resolve)),
+    release() {
+      for (const send of held.splice(0)) {
+        send();
+      }
     },
     close: () =>
       new Promise<void>((resolve, reject) => {
