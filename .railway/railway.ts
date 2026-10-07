@@ -91,9 +91,8 @@ export default defineRailway((ctx) => {
   const deviceTokenRotationKey = requireEnv("DEVICE_TOKEN_ROTATION_KEY");
   const installationKeysEncryptionKey = requireEnv("INSTALLATION_KEYS_ENCRYPTION_KEY");
   const cloudAppDatabasePassword = requireEnv("CLOUD_APP_DATABASE_PASSWORD");
-  // The PEM text of the ARCA X.509 certificate the business is authorized under: public data, not
-  // a secret in the credential sense (the matching private key is the secret), but
-  // still an environment-specific value the owner supplies per this file's existing pattern.
+  // A secret although a certificate is public: its subject carries the business's real CUIT, which
+  // stays out of this public repository and its logs.
   const arcaCertificate = requireEnv("ARCA_CERTIFICATE");
   // The secret key matching `ARCA_CERTIFICATE`, with which the cloud signs its logins at ARCA.
   const arcaPrivateKey = requireEnv("ARCA_PRIVATE_KEY");
