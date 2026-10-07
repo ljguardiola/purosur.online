@@ -127,6 +127,12 @@ export function SalesByDayScreen({
     }
   }
 
+  const endField = {
+    label: "Hasta",
+    value: range.to,
+    onChange: (to: CalendarDate | null) => changeRange({ ...range, to }),
+  };
+
   return (
     <ScreenLayout
       topBar={<SalesTopBar eyebrow="Reportes" title="Ventas por día o por rango" />}
@@ -138,17 +144,15 @@ export function SalesByDayScreen({
           value={range.from}
           onChange={(from) => changeRange({ ...range, from })}
         />
-        <DateField
-          label="Hasta"
-          value={range.to}
-          onChange={(to) => changeRange({ ...range, to })}
-          {...(range.from === null
-            ? {}
-            : {
-                minValue: range.from,
-                rangeMessage: "La fecha de fin no puede ser anterior a la de inicio.",
-              })}
-        />
+        {range.from === null ? (
+          <DateField {...endField} />
+        ) : (
+          <DateField
+            {...endField}
+            minValue={range.from}
+            rangeMessage="La fecha de fin no puede ser anterior a la de inicio."
+          />
+        )}
         <ListFilter
           label="Caja:"
           options={registerOptions}
