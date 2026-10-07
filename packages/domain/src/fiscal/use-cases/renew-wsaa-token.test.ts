@@ -44,7 +44,7 @@ describe("renewWsaaToken", () => {
     await expect(outcome).resolves.toEqual({ kind: "kept" });
 
     expect(authentication.requestedServices).toEqual([]);
-    expect(store.operations).toEqual(["lockWsaaToken"]);
+    expect(store.operations).toEqual(["holdRenewal", "persistedToken", "releaseRenewal"]);
     expect(store.rows[0]?.token.token).toBe("old-token");
   });
 
@@ -72,12 +72,39 @@ describe("renewWsaaToken", () => {
     ]);
   });
 
-  it("locks the token before requesting a new one", async () => {
+  it("holds the renewal before requesting a new token and releases it after recording", async () => {
     const store = new FakeWsaaTokenStore();
     const { outcome } = renew(store, { kind: "issued", token: ISSUED });
     await outcome;
 
-    expect(store.operations).toEqual(["lockWsaaToken", "requestToken", "recordWsaaToken"]);
+    expect(store.operations).toEqual([
+      "holdRenewal",
+      "persistedToken",
+      "requestToken",
+      "recordIssuedToken",
+      "releaseRenewal",
+    ]);
+  });
+
+  it("holds the renewal while WSAA is called", async () => {
+    const store = new FakeWsaaTokenStore();
+    const { authentication, outcome } = renew(store, { kind: "issued", token: ISSUED });
+    await outcome;
+
+    expect(authentication.renewalHeldDuringRequest).toBe(true);
+    expect(store.renewalHeld).toBe(false);
+  });
+
+  it("keeps the issued token when releasing the renewal fails afterwards", async () => {
+    const store = new FakeWsaaTokenStore();
+    store.failingRelease = true;
+    const { outcome } = renew(store, { kind: "issued", token: ISSUED });
+
+    await expect(outcome).rejects.toThrow("releaseRenewal failed");
+
+    expect(store.rows).toEqual([
+      { service: SERVICE, certificateFingerprint: FINGERPRINT, token: ISSUED },
+    ]);
   });
 
   it("keeps what is persisted when WSAA says the certificate is already authenticated", async () => {
@@ -87,7 +114,7 @@ describe("renewWsaaToken", () => {
 
     await expect(outcome).resolves.toEqual({ kind: "already_authenticated" });
 
-    expect(store.operations).toEqual(["lockWsaaToken", "requestToken"]);
+    expect(store.operations).toEqual(["holdRenewal", "persistedToken", "requestToken", "releaseRenewal"]);
     expect(store.rows[0]?.token.token).toBe("old-token");
   });
 
@@ -97,7 +124,7 @@ describe("renewWsaaToken", () => {
 
     await expect(outcome).resolves.toEqual({ kind: "failed" });
 
-    expect(store.operations).toEqual(["lockWsaaToken", "requestToken"]);
+    expect(store.operations).toEqual(["holdRenewal", "persistedToken", "requestToken", "releaseRenewal"]);
     expect(store.rows).toEqual([]);
   });
 
@@ -107,7 +134,7 @@ describe("renewWsaaToken", () => {
     store.failingRecord = true;
     const { outcome } = renew(store, { kind: "issued", token: ISSUED });
 
-    await expect(outcome).rejects.toThrow("recordWsaaToken failed");
+    await expect(outcome).rejects.toThrow("recordIssuedToken failed");
 
     expect(store.rows[0]?.token.token).toBe("old-token");
   });

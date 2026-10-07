@@ -1,4 +1,4 @@
-import { renewWsaaToken, type WsaaToken } from "@purosur/domain/fiscal/use-cases";
+import { renewWsaaToken, type WsaaToken, type WsaaTokenRenewal } from "@purosur/domain/fiscal/use-cases";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleWsaaTokenStore } from "./drizzle-wsaa-token-store.js";
@@ -33,63 +33,66 @@ function newStore() {
   return new DrizzleWsaaTokenStore(testDatabase.db);
 }
 
+function held<TOutcome>(
+  work: (renewal: WsaaTokenRenewal) => Promise<TOutcome>,
+  service = SERVICE,
+  fingerprint = FINGERPRINT,
+) {
+  return newStore().holdRenewal(service, fingerprint, work);
+}
+
 describe("DrizzleWsaaTokenStore", () => {
   it("finds no token before one is recorded", async () => {
-    expect(await newStore().transaction((tx) => tx.lockWsaaToken(SERVICE, FINGERPRINT))).toBeNull();
+    expect(await held((renewal) => renewal.persistedToken())).toBeNull();
   });
 
   it("finds the recorded token, with its times, by service and certificate", async () => {
-    await newStore().transaction((tx) => tx.recordWsaaToken(SERVICE, FINGERPRINT, ISSUED));
+    await held((renewal) => renewal.recordIssuedToken(ISSUED));
 
-    expect(await newStore().transaction((tx) => tx.lockWsaaToken(SERVICE, FINGERPRINT))).toEqual(
-      ISSUED,
-    );
+    expect(await held((renewal) => renewal.persistedToken())).toEqual(ISSUED);
   });
 
   it("replaces the token of the same service and certificate", async () => {
     const newer = { ...ISSUED, token: "FICTIONAL-TOKEN-0002", sign: "FICTIONAL-SIGN-0002" };
-    await newStore().transaction((tx) => tx.recordWsaaToken(SERVICE, FINGERPRINT, ISSUED));
-    await newStore().transaction((tx) => tx.recordWsaaToken(SERVICE, FINGERPRINT, newer));
+    await held((renewal) => renewal.recordIssuedToken(ISSUED));
+    await held((renewal) => renewal.recordIssuedToken(newer));
 
-    expect(await newStore().transaction((tx) => tx.lockWsaaToken(SERVICE, FINGERPRINT))).toEqual(
-      newer,
-    );
+    expect(await held((renewal) => renewal.persistedToken())).toEqual(newer);
   });
 
   it("keeps a token for each certificate and each service", async () => {
     const other = { ...ISSUED, token: "FICTIONAL-TOKEN-0003" };
-    await newStore().transaction(async (tx) => {
-      await tx.recordWsaaToken(SERVICE, FINGERPRINT, ISSUED);
-      await tx.recordWsaaToken(SERVICE, "11:22:33", other);
-      await tx.recordWsaaToken("ws_sr_padron_a13", FINGERPRINT, other);
-    });
+    await held((renewal) => renewal.recordIssuedToken(ISSUED));
+    await held((renewal) => renewal.recordIssuedToken(other), SERVICE, "11:22:33");
+    await held((renewal) => renewal.recordIssuedToken(other), "ws_sr_padron_a13");
 
-    expect(await newStore().transaction((tx) => tx.lockWsaaToken(SERVICE, FINGERPRINT))).toEqual(
-      ISSUED,
-    );
-    expect(await newStore().transaction((tx) => tx.lockWsaaToken(SERVICE, "11:22:33"))).toEqual(
-      other,
-    );
+    expect(await held((renewal) => renewal.persistedToken())).toEqual(ISSUED);
+    expect(await held((renewal) => renewal.persistedToken(), SERVICE, "11:22:33")).toEqual(other);
   });
 
-  it("leaves the previous token when the transaction fails after recording", async () => {
-    await newStore().transaction((tx) => tx.recordWsaaToken(SERVICE, FINGERPRINT, ISSUED));
-    const newer = { ...ISSUED, token: "FICTIONAL-TOKEN-0002" };
-
+  it("keeps the recorded token when the work fails after recording", async () => {
     await expect(
-      newStore().transaction(async (tx) => {
-        await tx.recordWsaaToken(SERVICE, FINGERPRINT, newer);
+      held(async (renewal) => {
+        await renewal.recordIssuedToken(ISSUED);
         throw new Error("the operation failed");
       }),
     ).rejects.toThrow("the operation failed");
 
-    expect(await newStore().transaction((tx) => tx.lockWsaaToken(SERVICE, FINGERPRINT))).toEqual(
-      ISSUED,
-    );
+    expect(await held((renewal) => renewal.persistedToken())).toEqual(ISSUED);
+  });
+
+  it("holds the renewal again once the work failed", async () => {
+    await expect(
+      held(async () => {
+        throw new Error("the operation failed");
+      }),
+    ).rejects.toThrow("the operation failed");
+
+    expect(await held(async () => "held again")).toBe("held again");
   });
 
   it("makes a token due only for the certificate and service it was recorded for", async () => {
-    await newStore().transaction((tx) => tx.recordWsaaToken(SERVICE, FINGERPRINT, ISSUED));
+    await held((renewal) => renewal.recordIssuedToken(ISSUED));
     let requests = 0;
     const authentication = {
       async requestToken() {

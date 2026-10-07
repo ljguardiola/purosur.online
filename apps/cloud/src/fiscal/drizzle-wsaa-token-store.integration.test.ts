@@ -47,31 +47,28 @@ afterAll(async () => {
   await integrationDb.close();
 });
 
-function renewWith(client: ReturnType<typeof postgres>, authentication: WsaaAuthentication) {
-  return renewWsaaToken(
-    {
-      store: new DrizzleWsaaTokenStore(drizzle(client)),
-      authentication,
-      clock: { now: () => NOW },
-    },
-    { service: SERVICE, certificateFingerprint: FINGERPRINT },
-  );
+async function renewOnOwnConnection(authentication: WsaaAuthentication) {
+  const connection = postgres(integrationDb.databaseUrl, { max: 1 });
+  try {
+    return await renewWsaaToken(
+      {
+        store: new DrizzleWsaaTokenStore(drizzle(connection)),
+        authentication,
+        clock: { now: () => NOW },
+      },
+      { service: SERVICE, certificateFingerprint: FINGERPRINT },
+    );
+  } finally {
+    await connection.end({ timeout: 1 });
+  }
 }
 
 describe("the WSAA token store on a real Postgres", () => {
   it("reuses a persisted token through a new connection without calling WSAA", async () => {
-    const firstProcess = postgres(integrationDb.databaseUrl, { max: 1 });
-    const issuing = new CountingAuthentication();
-    expect(await renewWith(firstProcess, issuing)).toEqual({ kind: "renewed" });
-    await firstProcess.end({ timeout: 1 });
+    expect(await renewOnOwnConnection(new CountingAuthentication())).toEqual({ kind: "renewed" });
 
-    const restartedProcess = postgres(integrationDb.databaseUrl, { max: 1 });
     const unusedAuthentication = new CountingAuthentication();
-    try {
-      expect(await renewWith(restartedProcess, unusedAuthentication)).toEqual({ kind: "kept" });
-    } finally {
-      await restartedProcess.end({ timeout: 1 });
-    }
+    expect(await renewOnOwnConnection(unusedAuthentication)).toEqual({ kind: "kept" });
     expect(unusedAuthentication.requests).toBe(0);
   });
 
@@ -83,11 +80,45 @@ describe("the WSAA token store on a real Postgres", () => {
       sql,
       (holder) =>
         holder`select pg_advisory_xact_lock(hashtextextended(${wsaaTokenLockKey(SERVICE, FINGERPRINT)}, 0))`,
-      () => renewWith(sql, authentication),
-      () => renewWith(sql, authentication),
+      () => renewOnOwnConnection(authentication),
+      () => renewOnOwnConnection(authentication),
     );
 
     expect(outcomes.map(({ kind }) => kind)).toEqual(["renewed", "kept"]);
     expect(authentication.requests).toBe(1);
+  });
+
+  it("keeps the token WSAA issued when the renewal fails after recording it", async () => {
+    await sql`delete from arca_wsaa_tokens`;
+    const connection = postgres(integrationDb.databaseUrl, { max: 1 });
+    try {
+      await expect(
+        new DrizzleWsaaTokenStore(drizzle(connection)).holdRenewal(
+          SERVICE,
+          FINGERPRINT,
+          async (renewal) => {
+            await renewal.recordIssuedToken(ISSUED);
+            throw new Error("the renewal failed after recording");
+          },
+        ),
+      ).rejects.toThrow("the renewal failed after recording");
+    } finally {
+      await connection.end({ timeout: 1 });
+    }
+
+    const rows = await sql`select token from arca_wsaa_tokens where service = `;
+    expect(rows).toEqual([{ token: ISSUED.token }]);
+  });
+
+  it("lets the next renewal run once one failed, so a failure never leaves the lock held", async () => {
+    await sql`delete from arca_wsaa_tokens`;
+    const failing: WsaaAuthentication = {
+      async requestToken() {
+        throw new Error("the connection to WSAA broke");
+      },
+    };
+    await expect(renewOnOwnConnection(failing)).rejects.toThrow("the connection to WSAA broke");
+
+    expect(await renewOnOwnConnection(new CountingAuthentication())).toEqual({ kind: "renewed" });
   });
 });
