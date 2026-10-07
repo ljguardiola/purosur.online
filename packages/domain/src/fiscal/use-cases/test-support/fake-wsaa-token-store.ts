@@ -16,9 +16,7 @@ function copyOf(token: WsaaToken): WsaaToken {
   return { ...token, issuedAt: new Date(token.issuedAt), expiresAt: new Date(token.expiresAt) };
 }
 
-export type WsaaTokenOperation = "lockWsaaToken" | "recordWsaaToken" | "requestToken";
-
-export type FakeOperationLog = WsaaTokenOperation[];
+type WsaaTokenOperation = "lockWsaaToken" | "recordWsaaToken" | "requestToken";
 
 class FakeTransaction implements WsaaTokenStoreTransaction {
   private readonly store: FakeWsaaTokenStore;
@@ -33,7 +31,8 @@ class FakeTransaction implements WsaaTokenStoreTransaction {
     this.key = { service, certificateFingerprint };
     const row = this.store.rows.find(
       (candidate) =>
-        candidate.service === service && candidate.certificateFingerprint === certificateFingerprint,
+        candidate.service === service &&
+        candidate.certificateFingerprint === certificateFingerprint,
     );
     return row ? copyOf(row.token) : null;
   }
@@ -56,7 +55,7 @@ class FakeTransaction implements WsaaTokenStoreTransaction {
 
 export class FakeWsaaTokenStore implements WsaaTokenStore {
   rows: FakeWsaaTokenRow[] = [];
-  operations: FakeOperationLog = [];
+  operations: WsaaTokenOperation[] = [];
   failingRecord = false;
 
   seed(service: string, certificateFingerprint: string, token: WsaaToken): void {

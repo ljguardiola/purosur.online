@@ -25,6 +25,7 @@ export function isArcaReachable(
   now: Date,
 ): boolean {
   return [lastVitalityCheckOkAt, lastWsfeCallOkAt].some(
-    (evidence) => evidence !== null && now.getTime() - evidence.getTime() <= ARCA_REACHABILITY_HORIZON_MS,
+    (evidence) =>
+      evidence !== null && now.getTime() - evidence.getTime() <= ARCA_REACHABILITY_HORIZON_MS,
   );
 }

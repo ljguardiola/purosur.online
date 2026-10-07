@@ -21,9 +21,9 @@ describe("ARCA reachability policy", () => {
 
 describe("isArcaVitalityAnswerOk", () => {
   it("is true when the application, database and authentication servers report OK", () => {
-    expect(
-      isArcaVitalityAnswerOk({ appServer: "OK", dbServer: "OK", authServer: "OK" }),
-    ).toBe(true);
+    expect(isArcaVitalityAnswerOk({ appServer: "OK", dbServer: "OK", authServer: "OK" })).toBe(
+      true,
+    );
   });
 
   it.each([

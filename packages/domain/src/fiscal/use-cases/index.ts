@@ -7,6 +7,13 @@ export type {
   OpenCertificateExpiringAlert,
 } from "./arca-certificate-expiry-store.js";
 export type {
+  ArcaVitalityPorts,
+  ArcaVitalityResult,
+  ArcaVitalityService,
+  ArcaVitalityStore,
+  VitalityCheckRecord,
+} from "./arca-vitality-ports.js";
+export type {
   BuyerIdentificationThresholdOverview,
   BuyerIdentificationThresholdPorts,
   BuyerIdentificationThresholdReader,
@@ -25,6 +32,8 @@ export type {
   CheckArcaCertificateExpiryOutcome,
 } from "./check-arca-certificate-expiry.js";
 export { checkArcaCertificateExpiry } from "./check-arca-certificate-expiry.js";
+export type { CheckArcaVitalityOutcome } from "./check-arca-vitality.js";
+export { checkArcaVitality } from "./check-arca-vitality.js";
 export type {
   ConfigureRegisterPointOfSaleInput,
   ConfigureRegisterPointOfSaleOutcome,
@@ -91,3 +100,16 @@ export type {
   RegisterPointOfSaleStoreTransaction,
 } from "./register-point-of-sale-store.js";
 export { PointOfSaleClaimConflict } from "./register-point-of-sale-store.js";
+export type {
+  RenewWsaaTokenInput,
+  RenewWsaaTokenOutcome,
+} from "./renew-wsaa-token.js";
+export { renewWsaaToken } from "./renew-wsaa-token.js";
+export type {
+  WsaaAuthentication,
+  WsaaAuthenticationResult,
+  WsaaToken,
+  WsaaTokenPorts,
+  WsaaTokenStore,
+  WsaaTokenStoreTransaction,
+} from "./wsaa-token-ports.js";

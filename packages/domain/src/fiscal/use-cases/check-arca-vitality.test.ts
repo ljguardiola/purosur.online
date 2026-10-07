@@ -34,12 +34,15 @@ describe("checkArcaVitality", () => {
     { appServer: "NOT OK", dbServer: "OK", authServer: "OK" },
     { appServer: "OK", dbServer: "NOT OK", authServer: "OK" },
     { appServer: "OK", dbServer: "OK", authServer: "NOT OK" },
-  ])("is not ok and records a failed check when a server does not report OK: %o", async (answer) => {
-    const { store, outcome } = check({ kind: "answered", ...answer });
+  ])(
+    "is not ok and records a failed check when a server does not report OK: %o",
+    async (answer) => {
+      const { store, outcome } = check({ kind: "answered", ...answer });
 
-    await expect(outcome).resolves.toEqual({ kind: "not_ok" });
-    expect(store.checks).toEqual([{ checkedAt: ANSWERED_AT, ok: false }]);
-  });
+      await expect(outcome).resolves.toEqual({ kind: "not_ok" });
+      expect(store.checks).toEqual([{ checkedAt: ANSWERED_AT, ok: false }]);
+    },
+  );
 
   it("is not ok and records a failed check, stamped when the failure arrived, when ARCA is unreachable", async () => {
     const { store, outcome } = check({ kind: "unreachable" });
