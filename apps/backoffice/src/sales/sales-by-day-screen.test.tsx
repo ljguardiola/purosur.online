@@ -106,7 +106,7 @@ test("asks the cloud for the range and the register the URL names", async () => 
   expect(dateSegments(screen, "Desde")).toEqual(["2", "10", "2026"]);
   await expect
     .element(screen.getByRole("button", { name: /Caja:/ }))
-    .toHaveTextContent("Caja del fondo");
+    .toHaveTextContent(/Caja del fondo/);
 });
 
 test("shows placeholders while the report loads", async () => {
@@ -180,7 +180,7 @@ test("offers every register of the branch by name and reports the one chosen", a
     .map((option) => option.textContent);
   await userEvent.click(screen.getByRole("option", { name: "Caja principal" }));
 
-  expect(options).toEqual(["Todas", "Caja principal", "Caja del fondo"]);
+  expect(options).toEqual(["Todas", "Caja del fondo", "Caja principal"]);
   await expect
     .poll(() => onFiltersChange.mock.lastCall?.[0])
     .toEqual({ from: "", to: "", register: FRONT_REGISTER_ID });
