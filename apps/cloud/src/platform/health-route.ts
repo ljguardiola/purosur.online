@@ -4,7 +4,7 @@ import type { FastifyInstance } from "fastify";
 import { PUBLIC_ACCESS } from "../access/route-access.js";
 import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
 import type { DeviceAuthentication } from "../register/device-authentication.js";
-import { sendRateLimited } from "../register/rate-limited-response.js";
+import { sendRateLimited } from "./rate-limited-response.js";
 
 export interface HealthRouteOptions {
   version: string;

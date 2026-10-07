@@ -14,6 +14,7 @@ import {
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { PUBLIC_ACCESS } from "../access/route-access.js";
+import { sendRateLimited } from "../platform/rate-limited-response.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
 import { authenticateDevice } from "../register/device-authentication.js";
@@ -22,7 +23,6 @@ import {
   type DeviceTokensOptions,
   installationTokenPorts,
 } from "../register/installation-token-ports.js";
-import { sendRateLimited } from "../register/rate-limited-response.js";
 import { DrizzleInbox } from "./drizzle-inbox.js";
 import { DrizzleRequestAdmission } from "./drizzle-request-admission.js";
 import { hmacEventChain } from "./hmac-event-chain.js";

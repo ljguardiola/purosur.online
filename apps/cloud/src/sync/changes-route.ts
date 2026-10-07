@@ -15,6 +15,7 @@ import type { FastifyInstance } from "fastify";
 import { PUBLIC_ACCESS } from "../access/route-access.js";
 import { toBranchSettingsWire } from "../branch/branch-settings-wire.js";
 import { toIssuerIdentificationWire } from "../fiscal/issuer-identification-read-route.js";
+import { sendRateLimited } from "../platform/rate-limited-response.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
 import { authenticateDevice } from "../register/device-authentication.js";
@@ -22,7 +23,6 @@ import {
   type DeviceTokensOptions,
   installationTokenPorts,
 } from "../register/installation-token-ports.js";
-import { sendRateLimited } from "../register/rate-limited-response.js";
 import { DrizzleChangeLog } from "./drizzle-change-log.js";
 import { DrizzleRequestAdmission } from "./drizzle-request-admission.js";
 import type { PulledCloudChange } from "./pulled-changes.js";

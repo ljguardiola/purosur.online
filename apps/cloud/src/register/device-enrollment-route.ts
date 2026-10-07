@@ -9,6 +9,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { resolveSourceAddress } from "../access/recovery-source-address.js";
 import { PUBLIC_ACCESS } from "../access/route-access.js";
+import { sendRateLimited } from "../platform/rate-limited-response.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { answerErrorsWithCloudEnvelope } from "./cloud-error-handler.js";
 import { issueDeviceToken } from "./device-token.js";
@@ -16,7 +17,6 @@ import { DrizzleRegisterStore } from "./drizzle-register-store.js";
 import { generateInstallationKey } from "./installation-key.js";
 import { installationKeyCipher } from "./installation-key-cipher.js";
 import { installationKeysBody } from "./installation-keys-body.js";
-import { sendRateLimited } from "./rate-limited-response.js";
 import { registerEnrollmentCodeMatches } from "./register-enrollment-code.js";
 
 export interface DeviceEnrollmentRouteOptions<TQueryResult extends PgQueryResultHKT> {
