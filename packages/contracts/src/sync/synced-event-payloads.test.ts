@@ -9,7 +9,7 @@ function recordedPayload(eventType: string, schemaVersion: number, index = 0): P
   const matching = recordedEvents().filter(
     (event) => event.event_type === eventType && event.schema_version === schemaVersion,
   );
-  return structuredClone(matching[index]?.payload as Payload);
+  return structuredClone(matching[index]?.["payload"] as Payload);
 }
 
 function accepts(eventType: string, schemaVersion: number, payload: unknown): boolean {
@@ -53,7 +53,7 @@ describe("synced event payloads", () => {
   it("describes every event the registers pushed in the recorded pushes", () => {
     const refused = recordedEvents().filter(
       (event) =>
-        !accepts(event.event_type, event.schema_version, event.payload) ||
+        !accepts(event.event_type, event.schema_version, event["payload"]) ||
         syncedEventPayloadSchema(event.event_type, event.schema_version) === undefined,
     );
 
@@ -256,7 +256,7 @@ describe("synced event payloads", () => {
     [2, "occurred_at"],
   ])("sale_completed v%i", (version, _dateField) => {
     const sale = () => recordedPayload("sale_completed", version);
-    const salePayment = (): Payload => (sale().payments as Payload[])[0] as Payload;
+    const salePayment = (): Payload => (sale()["payments"] as Payload[])[0] as Payload;
     const withPayments = (payments: unknown[]) => ({ ...sale(), payments });
     const firstSale = () => recordedPayload("sale_completed", version, 0);
 
@@ -321,7 +321,7 @@ describe("synced event payloads", () => {
     });
 
     it("refuses a line missing any one of its fields", () => {
-      const line = (sale().lines as Payload[])[0] as Payload;
+      const line = (sale()["lines"] as Payload[])[0] as Payload;
 
       const accepted = Object.keys(line).filter((key) => {
         const { [key]: _removed, ...rest } = line;
@@ -332,7 +332,7 @@ describe("synced event payloads", () => {
     });
 
     it("refuses a line with a fractional quantity", () => {
-      const line = (sale().lines as Payload[])[0] as Payload;
+      const line = (sale()["lines"] as Payload[])[0] as Payload;
 
       expect(
         accepts("sale_completed", version, { ...sale(), lines: [{ ...line, quantity: 1.5 }] }),
@@ -340,7 +340,7 @@ describe("synced event payloads", () => {
     });
 
     it("refuses a line with a zero quantity", () => {
-      const line = (sale().lines as Payload[])[0] as Payload;
+      const line = (sale()["lines"] as Payload[])[0] as Payload;
 
       expect(
         accepts("sale_completed", version, { ...sale(), lines: [{ ...line, quantity: 0 }] }),
@@ -352,7 +352,7 @@ describe("synced event payloads", () => {
       ["a negative discount", { discount_amount: -1 }],
       ["a fractional line total", { line_total: 1.5 }],
     ])("refuses a line with %s", (_case, change) => {
-      const line = (sale().lines as Payload[])[0] as Payload;
+      const line = (sale()["lines"] as Payload[])[0] as Payload;
 
       expect(
         accepts("sale_completed", version, { ...sale(), lines: [{ ...line, ...change }] }),
@@ -360,7 +360,7 @@ describe("synced event payloads", () => {
     });
 
     it("accepts a line without promotions or a promotion id", () => {
-      const line = (sale().lines as Payload[])[0] as Payload;
+      const line = (sale()["lines"] as Payload[])[0] as Payload;
 
       expect(
         accepts("sale_completed", version, {
@@ -374,7 +374,7 @@ describe("synced event payloads", () => {
       ["a percent promotion", { kind: "PERCENT_OFF", percent: 10, buy_qty: null, pay_qty: null }],
       ["a buy n pay m promotion", { kind: "BUY_N_PAY_M", percent: null, buy_qty: 3, pay_qty: 2 }],
     ])("accepts a line with %s", (_case, benefit) => {
-      const line = (sale().lines as Payload[])[0] as Payload;
+      const line = (sale()["lines"] as Payload[])[0] as Payload;
       const promotion = { discount_id: "discount-1", ...benefit };
 
       expect(
@@ -391,7 +391,7 @@ describe("synced event payloads", () => {
       ["a buy n pay m promotion without quantities", { kind: "BUY_N_PAY_M", buy_qty: null }],
       ["a fractional percent", { kind: "PERCENT_OFF", percent: 10.5 }],
     ])("refuses a promotion with %s", (_case, benefit) => {
-      const line = (sale().lines as Payload[])[0] as Payload;
+      const line = (sale()["lines"] as Payload[])[0] as Payload;
       const promotion = { discount_id: "discount-1", buy_qty: null, pay_qty: null, ...benefit };
 
       expect(
@@ -404,7 +404,7 @@ describe("synced event payloads", () => {
 
     it("refuses a cash movement missing any one of its fields", () => {
       const withMovements = firstSale();
-      const movement = (withMovements.cash_movements as Payload[])[0] as Payload;
+      const movement = (withMovements["cash_movements"] as Payload[])[0] as Payload;
 
       const accepted = Object.keys(movement).filter((key) => {
         const { [key]: _removed, ...rest } = movement;
@@ -420,7 +420,7 @@ describe("synced event payloads", () => {
       ["a negative amount", { amount: -1 }],
     ])("refuses a cash movement with %s", (_case, change) => {
       const withMovements = firstSale();
-      const movement = (withMovements.cash_movements as Payload[])[0] as Payload;
+      const movement = (withMovements["cash_movements"] as Payload[])[0] as Payload;
 
       expect(
         accepts("sale_completed", version, {
@@ -432,7 +432,7 @@ describe("synced event payloads", () => {
 
     it.each(["SALE", "CHANGE", "REFUND"])("accepts a %s cash movement", (type) => {
       const withMovements = firstSale();
-      const movement = (withMovements.cash_movements as Payload[])[0] as Payload;
+      const movement = (withMovements["cash_movements"] as Payload[])[0] as Payload;
 
       expect(
         accepts("sale_completed", version, {
