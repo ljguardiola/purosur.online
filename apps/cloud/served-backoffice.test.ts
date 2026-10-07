@@ -55,9 +55,8 @@ afterAll(async () => {
 });
 
 // Every screen the router ends on, the sign-in screen and the failure screen alike, renders a
-// heading, and a policy or a failure that keeps any screen from rendering reports a violation, an
-// uncaught error or a failed download, so the test waits for whichever comes first however long
-// it takes.
+// heading; a policy violation, an uncaught page error and a failed script or stylesheet download
+// each end the wait too, so the test waits for whichever comes first however long it takes.
 test("the built backoffice runs under the cloud's content security policy without a violation", {
   timeout: 0,
 }, async () => {
