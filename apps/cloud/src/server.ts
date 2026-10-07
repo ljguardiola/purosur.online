@@ -29,6 +29,7 @@ import {
 import { DrizzleIssuerIdentificationStore } from "./fiscal/drizzle-issuer-identification-store.js";
 import { runShutdownSteps } from "./platform/run-shutdown-steps.js";
 import { initSentry } from "./platform/sentry.js";
+import { applySyncedEventsJobs } from "./sync/apply-synced-events-task.js";
 
 export interface ServerEnv {
   PORT?: string | undefined;
@@ -314,7 +315,7 @@ export async function setUpRecovery(
     backofficeOrigin: recoveryEnv.backofficeOrigin,
     emailSender,
     now,
-    jobs: [alertEscalationJobs({ now })],
+    jobs: [alertEscalationJobs({ now }), applySyncedEventsJobs({ now })],
   });
   const jobQueuePool = createRecoveryJobQueuePool(
     recoveryEnv.databaseUrl,
