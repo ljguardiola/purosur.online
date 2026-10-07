@@ -135,6 +135,18 @@ export interface LocalOutbox {
   recordCompromised(): Promise<void>;
 }
 
+// Only the register's own copy of what the cloud's inbox already holds.
+export interface OutboxPruning {
+  // Removes every acknowledged event whose acknowledgement came strictly before the cutoff and
+  // returns how many; an event the cloud has not acknowledged is never removed.
+  forgetAcknowledgedBefore(cutoff: Date): Promise<number>;
+}
+
+export interface PruneOutboxPorts {
+  outbox: OutboxPruning;
+  clock: Clock;
+}
+
 export type CloudEventInboxAnswer<TFailure> =
   | { kind: "received"; ackSeq: number }
   | { kind: "gap"; ackSeq: number; expectedSeq: number }

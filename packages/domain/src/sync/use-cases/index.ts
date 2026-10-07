@@ -8,6 +8,8 @@ export type { CatchUpOutcome } from "./catch-up-with-cloud.js";
 export { catchUpWithCloud } from "./catch-up-with-cloud.js";
 export type { CheckInstallationOutcome } from "./check-installation-with-cloud.js";
 export { checkInstallationWithCloud } from "./check-installation-with-cloud.js";
+export type { PruneOutboxOutcome } from "./prune-outbox.js";
+export { pruneOutbox } from "./prune-outbox.js";
 export type { PullChangesInput } from "./pull-changes.js";
 export { pullChanges } from "./pull-changes.js";
 export type { PushOutboxOutcome } from "./push-outbox.js";
@@ -38,6 +40,8 @@ export type {
   LocalInstallation,
   LocalOutbox,
   LocalReplica,
+  OutboxPruning,
+  PruneOutboxPorts,
   PullAudience,
   PulledChange,
   PulledEntity,
