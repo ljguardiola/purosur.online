@@ -228,7 +228,7 @@ export function requireAuthorizedCuit(env: ServerEnv): string {
   return normalized;
 }
 
-export interface ArcaEndpoints {
+interface ArcaEndpoints {
   wsfe: string;
   wsaa: string;
 }
