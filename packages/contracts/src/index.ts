@@ -323,3 +323,4 @@ export {
   pushEventsRequestSchema,
   pushEventsResponseSchema,
 } from "./sync/events.js";
+export { syncedEventPayloadSchema } from "./sync/synced-event-payloads.js";
