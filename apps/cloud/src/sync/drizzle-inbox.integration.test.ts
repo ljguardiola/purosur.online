@@ -67,6 +67,9 @@ function linked(...events: PushedEvent[]): PushedEvent[] {
   });
 }
 
+// The database of this suite has no job queue.
+const NO_JOB = async () => {};
+
 let registerCount = 0;
 
 function insertEnrolledInstallation() {
@@ -80,7 +83,11 @@ function insertEnrolledInstallation() {
 
 function push(deviceId: string, events: PushedEvent[]) {
   return receivePushedEvents(
-    { inbox: new DrizzleInbox(db, CIPHER), eventChain: hmacEventChain, clock: { now: () => NOW } },
+    {
+      inbox: new DrizzleInbox(db, CIPHER, NO_JOB),
+      eventChain: hmacEventChain,
+      clock: { now: () => NOW },
+    },
     { deviceId, appVersion: "1.4.0", telemetry: TELEMETRY, events },
   );
 }
@@ -125,7 +132,7 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
       .values([event(4), event(1), event(2)].map((pushed) => storedRow(first.deviceId, pushed)));
     await db.insert(inbox).values(storedRow(second.deviceId, event(3)));
 
-    const seqs = await new DrizzleInbox(db, CIPHER).transaction((tx) =>
+    const seqs = await new DrizzleInbox(db, CIPHER, NO_JOB).transaction((tx) =>
       tx.receivedDeviceSeqs(first.deviceId),
     );
 
@@ -139,7 +146,7 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
     await db.insert(inbox).values([one, two].map((pushed) => storedRow(first.deviceId, pushed)));
     await db.insert(inbox).values(storedRow(second.deviceId, event(2)));
 
-    const held = await new DrizzleInbox(db, CIPHER).transaction((tx) =>
+    const held = await new DrizzleInbox(db, CIPHER, NO_JOB).transaction((tx) =>
       tx.receivedEventsAt(first.deviceId, [2, 3]),
     );
 
@@ -149,7 +156,7 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
   it("reads nothing for no seq", async () => {
     const { deviceId } = await insertEnrolledInstallation();
 
-    const held = await new DrizzleInbox(db, CIPHER).transaction((tx) =>
+    const held = await new DrizzleInbox(db, CIPHER, NO_JOB).transaction((tx) =>
       tx.receivedEventsAt(deviceId, []),
     );
 
@@ -163,7 +170,7 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
     await db.insert(inbox).values(storedRow(first.deviceId, pushed[0] ?? event(1)));
     await db.insert(inbox).values(storedRow(second.deviceId, pushed[1] ?? event(2)));
 
-    const positions = await new DrizzleInbox(db, CIPHER).transaction((tx) =>
+    const positions = await new DrizzleInbox(db, CIPHER, NO_JOB).transaction((tx) =>
       tx.receivedEventPositions(pushed.map((one) => one.event_id)),
     );
 
@@ -176,7 +183,7 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
   });
 
   it("reads no position for no event id", async () => {
-    const positions = await new DrizzleInbox(db, CIPHER).transaction((tx) =>
+    const positions = await new DrizzleInbox(db, CIPHER, NO_JOB).transaction((tx) =>
       tx.receivedEventPositions([]),
     );
 
@@ -304,7 +311,9 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
       .set({ revokedAt: replacedAt, revocationReason: "replaced" })
       .where(eq(registerInstallations.id, deviceId));
 
-    await new DrizzleInbox(db, CIPHER).transaction((tx) => tx.revokeForBrokenChain(deviceId, NOW));
+    await new DrizzleInbox(db, CIPHER, NO_JOB).transaction((tx) =>
+      tx.revokeForBrokenChain(deviceId, NOW),
+    );
 
     const [installation] = await db
       .select({
