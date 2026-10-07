@@ -65,8 +65,12 @@ export function useTakeSale(
 
 export function useRefreshCurrentSale(sessionId: string, userId: string): () => Promise<void> {
   const queryClient = useQueryClient();
-  return () =>
-    queryClient.invalidateQueries({ queryKey: salesKeys.currentSale(sessionId, userId) });
+  return () => {
+    const queryKey = salesKeys.currentSale(sessionId, userId);
+    return queryClient
+      .invalidateQueries({ queryKey }, { throwOnError: true })
+      .catch(() => queryClient.resetQueries({ queryKey }));
+  };
 }
 
 export function useResetCurrentSale(sessionId: string, userId: string): () => Promise<void> {
