@@ -132,6 +132,71 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
     expect([...seqs].sort((a, b) => a - b)).toEqual([1, 2, 4]);
   });
 
+  it("reads the event id and the link it holds at the seqs asked for, for one installation only", async () => {
+    const first = await insertEnrolledInstallation();
+    const second = await insertEnrolledInstallation();
+    const [one = event(1), two = event(2)] = linked(event(1), event(2));
+    await db.insert(inbox).values([one, two].map((pushed) => storedRow(first.deviceId, pushed)));
+    await db.insert(inbox).values(storedRow(second.deviceId, event(2)));
+
+    const held = await new DrizzleInbox(db, CIPHER).transaction((tx) =>
+      tx.receivedEventsAt(first.deviceId, [2, 3]),
+    );
+
+    expect(held).toEqual(new Map([[2, { eventId: two.event_id, chainHmac: two.chain_hmac }]]));
+  });
+
+  it("reads nothing for no seq", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
+
+    const held = await new DrizzleInbox(db, CIPHER).transaction((tx) =>
+      tx.receivedEventsAt(deviceId, []),
+    );
+
+    expect(held).toEqual(new Map());
+  });
+
+  it("reads where it holds each event id asked for, whichever installation holds it", async () => {
+    const first = await insertEnrolledInstallation();
+    const second = await insertEnrolledInstallation();
+    const pushed = [event(1), event(2), event(3)];
+    await db.insert(inbox).values(storedRow(first.deviceId, pushed[0] ?? event(1)));
+    await db.insert(inbox).values(storedRow(second.deviceId, pushed[1] ?? event(2)));
+
+    const positions = await new DrizzleInbox(db, CIPHER).transaction((tx) =>
+      tx.receivedEventPositions(pushed.map((one) => one.event_id)),
+    );
+
+    expect(positions).toEqual(
+      new Map([
+        [pushed[0]?.event_id, { deviceId: first.deviceId, deviceSeq: 1 }],
+        [pushed[1]?.event_id, { deviceId: second.deviceId, deviceSeq: 2 }],
+      ]),
+    );
+  });
+
+  it("reads no position for no event id", async () => {
+    const positions = await new DrizzleInbox(db, CIPHER).transaction((tx) =>
+      tx.receivedEventPositions([]),
+    );
+
+    expect(positions).toEqual(new Map());
+  });
+
+  it("skips an event pushed again whole as it was stored, however the database returns its date and payload", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
+    const [pushed = event(1)] = linked({
+      ...event(1),
+      occurred_at: "2026-10-01T09:00:00.123Z",
+      payload: { z: 1, a: { y: [3, 2], x: null }, note: "ñ" },
+    });
+    await push(deviceId, [pushed]);
+
+    expect(await push(deviceId, [pushed])).toEqual({ kind: "received", ackSeq: 1 });
+
+    expect(await storedSeqs(deviceId)).toEqual([1]);
+  });
+
   it("acknowledges what a push fills in after a hole it left behind", async () => {
     const { deviceId } = await insertEnrolledInstallation();
     const [first, second, third, fourth] = linked(event(1), event(2), event(3), event(4));

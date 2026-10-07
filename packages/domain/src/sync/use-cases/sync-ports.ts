@@ -1,3 +1,4 @@
+import type { LimitedEndpoint } from "../model/installation-request-limit.js";
 import type {
   PullAudience,
   PulledEntity,
@@ -63,14 +64,28 @@ export interface Inbox {
   transaction<TOutcome>(work: (tx: InboxTransaction) => Promise<TOutcome>): Promise<TOutcome>;
 }
 
+export interface HeldEvent {
+  eventId: string;
+  chainHmac: string;
+}
+
+export interface HeldEventPosition {
+  deviceId: string;
+  deviceSeq: number;
+}
+
 export interface InboxTransaction {
   lockDevice(deviceId: string): Promise<void>;
   installationRevoked(deviceId: string): Promise<boolean>;
   receivedDeviceSeqs(deviceId: string): Promise<number[]>;
-  receivedEventIds(
+  receivedEventsAt(
     deviceId: string,
     deviceSeqs: readonly number[],
-  ): Promise<ReadonlyMap<number, string>>;
+  ): Promise<ReadonlyMap<number, HeldEvent>>;
+  // Where the inbox holds each of these event ids, whichever installation holds it.
+  receivedEventPositions(
+    eventIds: readonly string[],
+  ): Promise<ReadonlyMap<string, HeldEventPosition>>;
   receive(deviceId: string, events: readonly PushedEvent[], receivedAt: Date): Promise<void>;
   recordPushReport(deviceId: string, report: PushReport, at: Date): Promise<void>;
   outboxChainKey(deviceId: string): Promise<string | undefined>;
@@ -81,6 +96,25 @@ export interface InboxTransaction {
     refusedAt: Date,
   ): Promise<void>;
   revokeForBrokenChain(deviceId: string, revokedAt: Date): Promise<void>;
+}
+
+export interface RequestAdmission {
+  transaction<TOutcome>(
+    work: (tx: RequestAdmissionTransaction) => Promise<TOutcome>,
+  ): Promise<TOutcome>;
+}
+
+export interface RequestAdmissionTransaction {
+  lockRequestAttempts(deviceId: string, endpoint: LimitedEndpoint): Promise<void>;
+  admittedRequests(deviceId: string, endpoint: LimitedEndpoint, since: Date): Promise<Date[]>;
+  recordAdmittedRequest(deviceId: string, endpoint: LimitedEndpoint, at: Date): Promise<void>;
+  // Bookkeeping of the limiter: what it forgets was never business data.
+  forgetRequestsThrough(deviceId: string, endpoint: LimitedEndpoint, through: Date): Promise<void>;
+}
+
+export interface AdmissionPorts {
+  admission: RequestAdmission;
+  clock: Clock;
 }
 
 export interface ReceivePorts {
@@ -101,10 +135,23 @@ export interface LocalOutbox {
   recordCompromised(): Promise<void>;
 }
 
+// Only the register's own copy of what the cloud's inbox already holds.
+export interface OutboxPruning {
+  // Removes every acknowledged event whose acknowledgement came strictly before the cutoff and
+  // returns how many; an event the cloud has not acknowledged is never removed.
+  forgetAcknowledgedBefore(cutoff: Date): Promise<number>;
+}
+
+export interface PruneOutboxPorts {
+  outbox: OutboxPruning;
+  clock: Clock;
+}
+
 export type CloudEventInboxAnswer<TFailure> =
   | { kind: "received"; ackSeq: number }
   | { kind: "gap"; ackSeq: number; expectedSeq: number }
   | { kind: "stale_device"; ackSeq: number }
+  | { kind: "update_required"; ackSeq: number }
   | { kind: "revoked" }
   | { kind: "failed"; failure: TFailure };
 

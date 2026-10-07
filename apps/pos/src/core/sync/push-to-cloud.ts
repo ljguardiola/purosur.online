@@ -82,6 +82,8 @@ export function pushWarningOf(attempt: PushAttempt): string | undefined {
       return attempt.failure.kind === "unreachable"
         ? undefined
         : "core: the push was refused or unreadable, so the outbox will be sent again later";
+    case "update_required":
+      return "core: the cloud asks this register to update, so the events it does not hold stay in the outbox";
     case "gap":
     case "stale_device":
     case "ack_short_of_batch":

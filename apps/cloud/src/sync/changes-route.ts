@@ -5,12 +5,17 @@ import {
   cloudError,
   cloudErrorStatus,
 } from "@purosur/contracts";
-import { type PullPage, pullChanges } from "@purosur/domain/sync/use-cases";
+import {
+  admitInstallationRequest,
+  type PullPage,
+  pullChanges,
+} from "@purosur/domain/sync/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { PUBLIC_ACCESS } from "../access/route-access.js";
 import { toBranchSettingsWire } from "../branch/branch-settings-wire.js";
 import { toIssuerIdentificationWire } from "../fiscal/issuer-identification-read-route.js";
+import { sendRateLimited } from "../platform/rate-limited-response.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
 import { authenticateDevice } from "../register/device-authentication.js";
@@ -19,6 +24,7 @@ import {
   installationTokenPorts,
 } from "../register/installation-token-ports.js";
 import { DrizzleChangeLog } from "./drizzle-change-log.js";
+import { DrizzleRequestAdmission } from "./drizzle-request-admission.js";
 import type { PulledCloudChange } from "./pulled-changes.js";
 
 export type ChangesRouteOptions<TQueryResult extends PgQueryResultHKT> =
@@ -196,6 +202,7 @@ export function registerChangesRoute<TQueryResult extends PgQueryResultHKT>(
     changeLog: new DrizzleChangeLog(options.db),
     clock: { now: options.now },
   };
+  const admission = { admission: new DrizzleRequestAdmission(options.db), clock: ports.clock };
 
   app.register(async (scope) => {
     answerErrorsWithCloudEnvelope(scope);
@@ -207,6 +214,15 @@ export function registerChangesRoute<TQueryResult extends PgQueryResultHKT>(
           .code(cloudErrorStatus(DEVICE_TOKEN_REJECTED.code))
           .header("WWW-Authenticate", "Bearer")
           .send(DEVICE_TOKEN_REJECTED);
+        return;
+      }
+
+      const admitted = await admitInstallationRequest(admission, {
+        deviceId: authentication.installation.deviceId,
+        endpoint: "pull",
+      });
+      if (admitted.kind === "rate_limited") {
+        await sendRateLimited(reply, "too many requests", admitted.retryAfterSeconds);
         return;
       }
 
