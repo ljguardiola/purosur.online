@@ -43,6 +43,8 @@ export type {
   CurrentSalePorts,
 } from "./current-sale.js";
 export { currentSale } from "./current-sale.js";
+export type { ReadSalesByDayInput, SalesByDayReport } from "./read-sales-by-day.js";
+export { readSalesByDay } from "./read-sales-by-day.js";
 export type {
   RemoveSaleLineInput,
   RemoveSaleLineOutcome,
@@ -59,6 +61,11 @@ export type {
   SellableProduct,
   SellingSession,
 } from "./sale-ledger.js";
+export type {
+  ReportRegister,
+  SalesByDayQuery,
+  SalesReportReader,
+} from "./sales-report-reader.js";
 export type {
   FoundProduct,
   SearchProductsByNameInput,

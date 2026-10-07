@@ -318,11 +318,15 @@ export type {
   SaleLine,
   SaleState,
   SaleWithLines,
+  SalesOfDay,
+  SalesReportRange,
+  SalesReportTotals,
   SoldProduct,
 } from "./sales/index.js";
 export {
   cancellableWithoutAuthorization,
   cashCharge,
+  isSalesReportRangeAsked,
   openSaleSummary,
   SEARCH_RESULT_LIMIT,
   saleTotal,
