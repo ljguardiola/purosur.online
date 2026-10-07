@@ -6,12 +6,6 @@ export interface SalesByDayQuery {
   registerId: string | undefined;
 }
 
-export interface ReportRegister {
-  id: string;
-  name: string;
-}
-
 export interface SalesReportReader {
   completedSalesByDay(query: SalesByDayQuery): Promise<SalesOfDay[]>;
-  registersOfBranch(locationId: string): Promise<ReportRegister[]>;
 }

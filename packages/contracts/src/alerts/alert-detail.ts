@@ -91,13 +91,23 @@ const registerEnrolledDetailSchema = z.object({
   replacedInstallation: z.boolean(),
 });
 
+const eventQuarantineReasonSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("unreadable") }),
+  z.object({
+    kind: z.literal("missing_dependency"),
+    aggregateType: z.string(),
+    aggregateId: z.string(),
+  }),
+  z.object({ kind: z.literal("not_recorded") }),
+]);
+
 const eventsQuarantinedDetailSchema = z.object({
   deviceId: z.string(),
   eventId: z.string(),
   eventType: z.string(),
   aggregateType: z.string(),
   aggregateId: z.string(),
-  error: z.string(),
+  reason: eventQuarantineReasonSchema,
 });
 
 const eventInvariantViolatedDetailSchema = z.object({

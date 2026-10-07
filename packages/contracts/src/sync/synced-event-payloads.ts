@@ -100,24 +100,24 @@ const saleCompletedFields = {
   cash_movements: z.array(saleCashMovementSchema),
 };
 
-export const saleCompletedV1Schema = z.object({
+const saleCompletedV1Schema = z.object({
   ...saleCompletedFields,
   completed_at: instant,
   payments: z.array(z.union([cashPaymentV1Schema, paymentSchema])).min(1),
 });
 
-export const saleCompletedV2Schema = z.object({
+const saleCompletedV2Schema = z.object({
   ...saleCompletedFields,
   payments: z.array(paymentSchema).min(1),
 });
 
-export const cashSessionOpenedSchema = z.object({
+const cashSessionOpenedSchema = z.object({
   opened_by: text,
   opened_at: instant,
   opening_float: cashAmount,
 });
 
-export const cashSessionClosedSchema = z.object({
+const cashSessionClosedSchema = z.object({
   closed_by: text,
   closed_at: instant,
   expected_cash: cashAmount,
@@ -125,7 +125,7 @@ export const cashSessionClosedSchema = z.object({
   difference: z.int(),
 });
 
-export const cashMovementRecordedSchema = z.object({
+const cashMovementRecordedSchema = z.object({
   type: z.enum(CASH_MOVEMENT_KINDS),
   amount: z.int().refine(isValidCashMovementAmount),
   reason: z.string().refine((reason) => cashMovementReason(reason) === reason),
@@ -136,25 +136,45 @@ export const cashMovementRecordedSchema = z.object({
   occurred_at: instant,
 });
 
-export const fiscalGateFailedSchema = z.object({
+const fiscalGateFailedSchema = z.object({
   sale_id: text,
   register_id: text,
   reason: z.enum(PRE_EMISSION_GATE_FAILURE_REASONS),
   evaluated_at: instant,
 });
 
-const SCHEMAS = new Map<string, z.ZodType>([
-  ["sale_completed@1", saleCompletedV1Schema],
-  ["sale_completed@2", saleCompletedV2Schema],
-  ["cash_session_opened@1", cashSessionOpenedSchema],
-  ["cash_session_closed@1", cashSessionClosedSchema],
-  ["cash_movement_recorded@1", cashMovementRecordedSchema],
-  ["fiscal_gate_failed@1", fiscalGateFailedSchema],
-]);
+const PAYLOAD_SCHEMAS = {
+  "sale_completed@1": saleCompletedV1Schema,
+  "sale_completed@2": saleCompletedV2Schema,
+  "cash_session_opened@1": cashSessionOpenedSchema,
+  "cash_session_closed@1": cashSessionClosedSchema,
+  "cash_movement_recorded@1": cashMovementRecordedSchema,
+  "fiscal_gate_failed@1": fiscalGateFailedSchema,
+};
 
-export function syncedEventPayloadSchema(
+export type SyncedEventPayloads = {
+  [Key in keyof typeof PAYLOAD_SCHEMAS]: z.output<(typeof PAYLOAD_SCHEMAS)[Key]>;
+};
+
+export type SyncedEventPayloadKey = keyof SyncedEventPayloads;
+
+const SCHEMAS: { [Key in SyncedEventPayloadKey]: z.ZodType<SyncedEventPayloads[Key]> } =
+  PAYLOAD_SCHEMAS;
+
+function isSyncedEventPayloadKey(key: string): key is SyncedEventPayloadKey {
+  return Object.hasOwn(SCHEMAS, key);
+}
+
+export function syncedEventPayloadKey(
   eventType: string,
   schemaVersion: number,
-): z.ZodType | undefined {
-  return SCHEMAS.get([eventType, schemaVersion].join("@"));
+): SyncedEventPayloadKey | undefined {
+  const key = [eventType, schemaVersion].join("@");
+  return isSyncedEventPayloadKey(key) ? key : undefined;
+}
+
+export function syncedEventPayloadSchema<Key extends SyncedEventPayloadKey>(
+  key: Key,
+): z.ZodType<SyncedEventPayloads[Key]> {
+  return SCHEMAS[key];
 }

@@ -1,10 +1,10 @@
 import { FloatingNotification } from "@purosur/ui";
 import { Check } from "lucide-react";
 import { useRef, useState } from "react";
+import { formatDisplayDate } from "../platform/display-date";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { BuyerIdentificationThresholdSection } from "./buyer-identification-threshold-section";
-import { formatDisplayDate } from "./display-date";
 import { EditIssuerIdentificationModal } from "./edit-issuer-identification-modal";
 import type { FiscalConfigurationScreenServices } from "./fiscal-configuration-services";
 import {

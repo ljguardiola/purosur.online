@@ -61,11 +61,7 @@ export type {
   SellableProduct,
   SellingSession,
 } from "./sale-ledger.js";
-export type {
-  ReportRegister,
-  SalesByDayQuery,
-  SalesReportReader,
-} from "./sales-report-reader.js";
+export type { SalesByDayQuery, SalesReportReader } from "./sales-report-reader.js";
 export type {
   FoundProduct,
   SearchProductsByNameInput,

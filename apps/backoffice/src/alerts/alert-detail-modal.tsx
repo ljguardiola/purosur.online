@@ -47,6 +47,10 @@ import {
   useRefreshAlerts,
   useRefreshAlertsAfterClosing,
 } from "./alerts-queries";
+import {
+  invariantViolationDescription,
+  quarantinedEventDescription,
+} from "./synced-event-alert-description";
 
 type Icon = ReactElement<{ className?: string }>;
 
@@ -191,22 +195,6 @@ function registerEnrollmentDescription(
   return `La caja «${registerName}» se dio de alta en el equipo «${hostname}» (${windowsVersion}).${replaced} Si no se reconoce esta alta, conviene revisarla desde Cajas registradoras.`;
 }
 
-const EVENT_BREAK_DESCRIPTIONS: Record<string, string> = {
-  approved_payments_below_total: "los pagos aprobados no cubren el total de la venta",
-};
-
-const BREAK_LIST_FORMAT = new Intl.ListFormat("es-AR", { type: "conjunction" });
-
-function eventAggregate({
-  aggregateType,
-  aggregateId,
-}: {
-  aggregateType: string;
-  aggregateId: string;
-}): string {
-  return `${aggregateType} ${aggregateId}`;
-}
-
 function arcaCertificateExpiringDescription(notAfter: string, environment: string): string {
   const label = alertScopeLabel("arca_certificate_expiring", environment).toLocaleLowerCase(
     "es-AR",
@@ -231,7 +219,7 @@ function alertTitle(alert: AlertDetail): string {
     case "register_enrolled":
       return "Se dio de alta una caja";
     case "events_quarantined":
-      return "Eventos de una caja en cuarentena";
+      return "Evento de una caja en cuarentena";
     case "event_invariant_violated":
       return "Evento aplicado con una inconsistencia";
     case "arca_certificate_expiring":
@@ -251,16 +239,10 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
       : `La dirección ${alert.scopeDisplay} quedó bloqueada para ingresar al backoffice después de ${failuresText}.`;
   }
   if (alert.kind === "events_quarantined") {
-    const { eventType, eventId, error } = alert.detail;
-    const aggregate = eventAggregate(alert.detail);
-    return `El evento «${eventType}» (${eventId}) de ${aggregate} no se pudo aplicar y quedó en cuarentena: ${error}. Los eventos siguientes de ${aggregate} esperan hasta que se resuelva.`;
+    return quarantinedEventDescription(alert.detail);
   }
   if (alert.kind === "event_invariant_violated") {
-    const { eventType, eventId, breaks } = alert.detail;
-    const breaksText = BREAK_LIST_FORMAT.format(
-      breaks.map((code) => EVENT_BREAK_DESCRIPTIONS[code] ?? code),
-    );
-    return `Se aplicó el evento «${eventType}» (${eventId}) de ${eventAggregate(alert.detail)}, pero tiene una inconsistencia: ${breaksText}.`;
+    return invariantViolationDescription(alert.detail);
   }
   const targetName = alert.scopeDisplay;
   if (targetName === null) {

@@ -50,13 +50,18 @@ export interface RegisterEnrolledDetail {
   replacedInstallation: boolean;
 }
 
+export type EventQuarantineReason =
+  | { kind: "unreadable" }
+  | { kind: "missing_dependency"; aggregateType: string; aggregateId: string }
+  | { kind: "not_recorded" };
+
 export interface EventsQuarantinedDetail {
   deviceId: string;
   eventId: string;
   eventType: string;
   aggregateType: string;
   aggregateId: string;
-  error: string;
+  reason: EventQuarantineReason;
 }
 
 export interface EventInvariantViolatedDetail {

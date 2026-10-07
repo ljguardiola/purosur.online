@@ -116,7 +116,7 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
   async openQuarantineAlert(details: AlertDetails["events_quarantined"]): Promise<void> {
     await openAlert(
       this.tx,
-      { kind: "events_quarantined", scope: details.deviceId, detail: details },
+      { kind: "events_quarantined", scope: details.eventId, detail: details },
       { now: this.now },
     );
   }

@@ -1,5 +1,9 @@
 import type { CalendarDate } from "@internationalized/date";
-import type { SalesReportBody, SalesReportQuery } from "@purosur/contracts";
+import {
+  type SalesReportBody,
+  type SalesReportQuery,
+  salesReportQuerySchema,
+} from "@purosur/contracts";
 import {
   Card,
   DateField,
@@ -16,8 +20,9 @@ import {
 import { Receipt } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { formatDisplayDate } from "../platform/display-date";
 import { ScreenLayout } from "../shell/screen-layout";
-import { calendarDateOf, dayOf, formatReportDay, hasFourDigitYear } from "./report-day";
+import { calendarDateOf, dayOf, hasFourDigitYear } from "./report-day";
 import type { SalesByDayFilters } from "./sales-by-day-filters";
 import type { SalesByDayScreenServices } from "./sales-by-day-services";
 import { useReportRegistersQuery, useSalesReportQuery } from "./sales-queries";
@@ -36,13 +41,20 @@ type RangeDraft = { from: CalendarDate | null; to: CalendarDate | null };
 
 const NO_DAYS: SalesOfDay[] = [];
 
+function typedRange({ from, to }: RangeDraft): { from: string; to: string } | null {
+  if (from === null || to === null || !hasFourDigitYear(from) || !hasFourDigitYear(to)) {
+    return null;
+  }
+  return { from: dayOf(from), to: dayOf(to) };
+}
+
 const registerOrder = textOrder((register: { label: string }) => register.label);
 
 const columns = [
   dataColumn({
     id: "day",
     header: "Día",
-    render: (sales: SalesOfDay) => formatReportDay(sales.day),
+    render: (sales: SalesOfDay) => formatDisplayDate(sales.day),
   }),
   dataColumn({
     id: "sales",
@@ -76,23 +88,27 @@ export function SalesByDayScreen({
     fetchReportRegisters: services.fetchReportRegisters,
     onSessionEnded,
   });
+  const registersListed = registers.status === "loaded";
+  const listedOptions = registersListed
+    ? sortedItems(
+        registers.value.registers.map(({ id, name }) => ({ value: id, label: name })),
+        { order: registerOrder, direction: "ascending" },
+      )
+    : [];
+  const chosenOption =
+    registerChosen && !registersListed ? [{ value: filters.register, label: "La elegida" }] : [];
   const registerOptions = [
     { value: "ALL", label: "Todas" },
-    ...sortedItems(
-      registers.status === "loaded"
-        ? registers.value.registers.map(({ id, name }) => ({ value: id, label: name }))
-        : [],
-      { order: registerOrder, direction: "ascending" },
-    ),
+    ...chosenOption,
+    ...listedOptions,
   ] satisfies [{ value: string; label: string }, ...{ value: string; label: string }[]];
   const registerOffered = registerOptions.some((option) => option.value === filters.register);
-  const registersSettled = registers.status !== "loading";
 
   useEffect(() => {
-    if (registersSettled && !registerOffered) {
+    if (registersListed && !registerOffered) {
       reportFilters({ ...filters, register: "ALL" });
     }
-  }, [registersSettled, registerOffered, filters]);
+  }, [registersListed, registerOffered, filters]);
 
   const data = useSalesReportQuery({
     query,
@@ -109,29 +125,21 @@ export function SalesByDayScreen({
     to: shownRange ? calendarDateOf(shownRange.to) : null,
   };
 
+  const typed = typedRange(range);
+  const rangeRefused = typed !== null && !salesReportQuerySchema.safeParse(typed).success;
+
   function changeRange(next: RangeDraft) {
+    const nextTyped = typedRange(next);
     if (next.from === null && next.to === null) {
       setDraft(null);
       onFiltersChange({ ...filters, from: "", to: "" });
-    } else if (
-      next.from !== null &&
-      next.to !== null &&
-      hasFourDigitYear(next.from) &&
-      hasFourDigitYear(next.to) &&
-      next.from.compare(next.to) <= 0
-    ) {
+    } else if (nextTyped !== null && salesReportQuerySchema.safeParse(nextTyped).success) {
       setDraft(null);
-      onFiltersChange({ ...filters, from: dayOf(next.from), to: dayOf(next.to) });
+      onFiltersChange({ ...filters, ...nextTyped });
     } else {
       setDraft(next);
     }
   }
-
-  const endField = {
-    label: "Hasta",
-    value: range.to,
-    onChange: (to: CalendarDate | null) => changeRange({ ...range, to }),
-  };
 
   return (
     <ScreenLayout
@@ -144,15 +152,14 @@ export function SalesByDayScreen({
           value={range.from}
           onChange={(from) => changeRange({ ...range, from })}
         />
-        {range.from === null ? (
-          <DateField {...endField} />
-        ) : (
-          <DateField
-            {...endField}
-            minValue={range.from}
-            rangeMessage="La fecha de fin no puede ser anterior a la de inicio."
-          />
-        )}
+        <DateField
+          label="Hasta"
+          value={range.to}
+          onChange={(to) => changeRange({ ...range, to })}
+          errorMessage={
+            rangeRefused ? "La fecha de fin no puede ser anterior a la de inicio." : undefined
+          }
+        />
         <ListFilter
           label="Caja:"
           options={registerOptions}

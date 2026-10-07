@@ -334,12 +334,11 @@ export {
   pushEventsRequestSchema,
   pushEventsResponseSchema,
 } from "./sync/events.js";
+export type {
+  SyncedEventPayloadKey,
+  SyncedEventPayloads,
+} from "./sync/synced-event-payloads.js";
 export {
-  cashMovementRecordedSchema,
-  cashSessionClosedSchema,
-  cashSessionOpenedSchema,
-  fiscalGateFailedSchema,
-  saleCompletedV1Schema,
-  saleCompletedV2Schema,
+  syncedEventPayloadKey,
   syncedEventPayloadSchema,
 } from "./sync/synced-event-payloads.js";

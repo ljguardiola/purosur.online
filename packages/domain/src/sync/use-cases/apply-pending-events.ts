@@ -1,3 +1,4 @@
+import type { EventQuarantineReason } from "../../alerts/index.js";
 import { afterFailedAttempt } from "../model/event-application-retry.js";
 import { nextEventToApply } from "../model/next-event-to-apply.js";
 import { type AggregateKey, dependenciesOf, invariantBreaksOf } from "../model/synced-fact.js";
@@ -27,21 +28,43 @@ type Step =
   | { kind: "busy" }
   | { kind: "nothing_due" }
   | { kind: "applied"; flagged: boolean }
-  | { kind: "failed"; event: UnappliedEvent; error: string }
+  | { kind: "failed"; event: UnappliedEvent; failure: Failure }
   | { kind: "failure_recorded"; quarantined: boolean }
   | { kind: "failure_obsolete" };
 
-class EventApplicationFailure extends Error {
-  readonly event: UnappliedEvent;
+interface Failure {
+  reason: EventQuarantineReason;
+  message: string;
+}
 
-  constructor(event: UnappliedEvent, reason: string) {
-    super(reason);
-    this.event = event;
+class EventRefused extends Error {
+  readonly reason: EventQuarantineReason;
+
+  constructor(reason: EventQuarantineReason, message: string) {
+    super(message);
+    this.reason = reason;
   }
 }
 
-function reasonOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+class EventApplicationFailure extends Error {
+  readonly event: UnappliedEvent;
+  readonly failure: Failure;
+
+  constructor(event: UnappliedEvent, failure: Failure) {
+    super(failure.message);
+    this.event = event;
+    this.failure = failure;
+  }
+}
+
+function failureOf(error: unknown): Failure {
+  if (error instanceof EventRefused) {
+    return { reason: error.reason, message: error.message };
+  }
+  return {
+    reason: { kind: "not_recorded" },
+    message: error instanceof Error ? error.message : String(error),
+  };
 }
 
 async function applyEvent(
@@ -52,13 +75,16 @@ async function applyEvent(
 ): Promise<boolean> {
   const decoded = ports.upcaster.decode(event);
   if (decoded.kind === "unreadable") {
-    throw new Error(decoded.reason);
+    throw new EventRefused({ kind: "unreadable" }, decoded.reason);
   }
   const { fact } = decoded;
   for (const dependency of dependenciesOf(fact)) {
     if (!(await tx.aggregateApplied(dependency))) {
       const { aggregateType, aggregateId } = dependency;
-      throw new Error(`depends on ${aggregateType} ${aggregateId} not applied yet`);
+      throw new EventRefused(
+        { kind: "missing_dependency", aggregateType, aggregateId },
+        `depends on ${aggregateType} ${aggregateId} not applied yet`,
+      );
     }
   }
   await tx.record(fact, event);
@@ -90,12 +116,12 @@ async function applyNextEvent(ports: ApplyPendingEventsPorts, key: AggregateKey)
       try {
         return { kind: "applied", flagged: await applyEvent(ports, tx, next.event, now) };
       } catch (error) {
-        throw new EventApplicationFailure(next.event, reasonOf(error));
+        throw new EventApplicationFailure(next.event, failureOf(error));
       }
     });
   } catch (error) {
     if (error instanceof EventApplicationFailure) {
-      return { kind: "failed", event: error.event, error: error.message };
+      return { kind: "failed", event: error.event, failure: error.failure };
     }
     throw error;
   }
@@ -104,7 +130,7 @@ async function applyNextEvent(ports: ApplyPendingEventsPorts, key: AggregateKey)
 async function recordFailure(
   ports: ApplyPendingEventsPorts,
   key: AggregateKey,
-  failure: { event: UnappliedEvent; error: string },
+  { event, failure }: { event: UnappliedEvent; failure: Failure },
 ): Promise<Step> {
   const now = ports.clock.now();
   return ports.eventApplication.transaction(async (tx) => {
@@ -112,25 +138,25 @@ async function recordFailure(
       return { kind: "failure_obsolete" };
     }
     const next = nextEventToApply(await tx.unappliedEventsOf(key), now);
-    if (next.kind !== "due" || next.event.eventId !== failure.event.eventId) {
+    if (next.kind !== "due" || next.event.eventId !== event.eventId) {
       return { kind: "failure_obsolete" };
     }
     const attempts = next.event.attempts + 1;
     const after = afterFailedAttempt(attempts, now);
     if (after.kind === "retry") {
-      await tx.recordFailedAttempt(failure.event.eventId, {
+      await tx.recordFailedAttempt(event.eventId, {
         attempts,
         nextAttemptAt: after.at,
         quarantinedAt: null,
-        error: failure.error,
+        error: failure.message,
       });
       return { kind: "failure_recorded", quarantined: false };
     }
-    await tx.recordFailedAttempt(failure.event.eventId, {
+    await tx.recordFailedAttempt(event.eventId, {
       attempts,
       nextAttemptAt: null,
       quarantinedAt: now,
-      error: failure.error,
+      error: failure.message,
     });
     await tx.openQuarantineAlert({
       deviceId: next.event.deviceId,
@@ -138,7 +164,7 @@ async function recordFailure(
       eventType: next.event.eventType,
       aggregateType: next.event.aggregateType,
       aggregateId: next.event.aggregateId,
-      error: failure.error,
+      reason: failure.reason,
     });
     return { kind: "failure_recorded", quarantined: true };
   });

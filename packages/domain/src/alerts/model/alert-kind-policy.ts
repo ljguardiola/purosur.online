@@ -6,13 +6,7 @@ import {
   type AlertLevel,
 } from "./alert-catalog.js";
 
-export type AlertScopeKind =
-  | "user"
-  | "sourceAddress"
-  | "register"
-  | "environment"
-  | "installation"
-  | "event";
+export type AlertScopeKind = "user" | "sourceAddress" | "register" | "environment" | "event";
 
 type AlertEscalationRule =
   | { kind: "afterOpening"; delayMs: number }
@@ -77,7 +71,7 @@ const ALERT_KIND_POLICIES = {
     level: "warning",
     escalation: AFTER_OPENING,
     audience: "all",
-    scopeKind: "installation",
+    scopeKind: "event",
     deduplicates: true,
   },
   event_invariant_violated: {

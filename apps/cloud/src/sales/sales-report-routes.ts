@@ -14,6 +14,7 @@ import {
   routeSessionSource,
 } from "../access/route-access.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
+import { DrizzleBranchRegisterStore } from "../register/drizzle-branch-register-store.js";
 import { DrizzleSalesReportReader } from "./drizzle-sales-report-reader.js";
 
 export interface SalesReportRouteOptions<TQueryResult extends PgQueryResultHKT> {
@@ -30,6 +31,7 @@ export function registerSalesReportRoutes<TQueryResult extends PgQueryResultHKT>
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const reader = new DrizzleSalesReportReader(options.db);
+  const branchRegisters = new DrizzleBranchRegisterStore(options.db, now);
   const preHandler = sameOriginGuard(options.backofficeOrigin);
   const config = { access: capabilityAccess("reports_area"), sessionSource };
 
@@ -60,7 +62,11 @@ export function registerSalesReportRoutes<TQueryResult extends PgQueryResultHKT>
   });
 
   app.get("/reports/registers", { preHandler, config }, async (request, reply) => {
-    const registers = await reader.registersOfBranch(openSessionOf(request).locationId);
-    await reply.code(200).send(reportRegisterListSchema.parse({ registers }));
+    const registers = await branchRegisters.branchRegisters(openSessionOf(request).locationId);
+    await reply.code(200).send(
+      reportRegisterListSchema.parse({
+        registers: registers.map(({ id, name }) => ({ id, name })),
+      }),
+    );
   });
 }
