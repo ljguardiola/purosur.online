@@ -929,3 +929,48 @@ test("describes a register that had no installation before without a replaced on
     )
     .toBeVisible();
 });
+
+test("shows an expiring ARCA certificate with the environment it is for and the day it expires", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "arca_certificate_expiring",
+        scope: "production",
+        scopeDisplay: "production",
+        detail: { notAfter: "2026-11-20T15:30:00.000Z" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText("El certificado de ARCA está por vencer")).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "El certificado de ARCA de producción vence el 20/11/2026 12:30. Conviene cargar uno nuevo antes de esa fecha.",
+      ),
+    )
+    .toBeVisible();
+});
+
+test("names the homologation environment of an expiring ARCA certificate", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "arca_certificate_expiring",
+        scope: "homologation",
+        scopeDisplay: "homologation",
+        detail: { notAfter: "2026-11-20T15:30:00.000Z" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText(/El certificado de ARCA de homologación vence el/))
+    .toBeVisible();
+});
