@@ -31,6 +31,8 @@ export type {
   CloudInstallationCheck,
   CloudInstallationStanding,
   EventChain,
+  HeldEvent,
+  HeldEventPosition,
   Inbox,
   InboxTransaction,
   LocalInstallation,

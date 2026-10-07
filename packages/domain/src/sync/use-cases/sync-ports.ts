@@ -64,14 +64,28 @@ export interface Inbox {
   transaction<TOutcome>(work: (tx: InboxTransaction) => Promise<TOutcome>): Promise<TOutcome>;
 }
 
+export interface HeldEvent {
+  eventId: string;
+  chainHmac: string;
+}
+
+export interface HeldEventPosition {
+  deviceId: string;
+  deviceSeq: number;
+}
+
 export interface InboxTransaction {
   lockDevice(deviceId: string): Promise<void>;
   installationRevoked(deviceId: string): Promise<boolean>;
   receivedDeviceSeqs(deviceId: string): Promise<number[]>;
-  receivedEventIds(
+  receivedEventsAt(
     deviceId: string,
     deviceSeqs: readonly number[],
-  ): Promise<ReadonlyMap<number, string>>;
+  ): Promise<ReadonlyMap<number, HeldEvent>>;
+  // Where the inbox holds each of these event ids, whichever installation holds it.
+  receivedEventPositions(
+    eventIds: readonly string[],
+  ): Promise<ReadonlyMap<string, HeldEventPosition>>;
   receive(deviceId: string, events: readonly PushedEvent[], receivedAt: Date): Promise<void>;
   recordPushReport(deviceId: string, report: PushReport, at: Date): Promise<void>;
   outboxChainKey(deviceId: string): Promise<string | undefined>;
