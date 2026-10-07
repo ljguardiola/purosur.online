@@ -172,6 +172,12 @@ describe("alertDetailSchema", () => {
     expectTypeOf<WireDetail<"register_enrolled">>().toEqualTypeOf<
       AlertDetails["register_enrolled"]
     >();
+    expectTypeOf<WireDetail<"events_quarantined">>().toEqualTypeOf<
+      AlertDetails["events_quarantined"]
+    >();
+    expectTypeOf<WireDetail<"event_invariant_violated">>().toEqualTypeOf<
+      AlertDetails["event_invariant_violated"]
+    >();
     expectTypeOf<WireDetail<"backoffice_sign_in_lockout">>().toExtend<
       Omit<AlertDetails["backoffice_sign_in_lockout"], "sourceAddress">
     >();
@@ -262,6 +268,21 @@ describe("alertDetailSchema", () => {
         hostname: "CAJA",
         windowsVersion: "11",
         replacedInstallation: true,
+      },
+      events_quarantined: {
+        deviceId: "device-1",
+        eventId: "event-1",
+        eventType: "sale_completed",
+        aggregateType: "Sale",
+        aggregateId: "sale-1",
+        error: "the cash session is not applied yet",
+      },
+      event_invariant_violated: {
+        eventId: "event-1",
+        eventType: "sale_completed",
+        aggregateType: "Sale",
+        aggregateId: "sale-1",
+        breaks: ["approved_payments_below_total"],
       },
     } satisfies Record<AlertKind, unknown>;
 
@@ -391,6 +412,14 @@ describe("alertDetailSchema", () => {
 
       expect(
         alertDetailSchema.safeParse({ ...base, kind: "register_enrolled", detail }).success,
+      ).toBe(false);
+    });
+
+    it("refuses an invariant violation whose breaks are not a list of text", () => {
+      const detail = { ...detailOf.event_invariant_violated, breaks: [1] };
+
+      expect(
+        alertDetailSchema.safeParse({ ...base, kind: "event_invariant_violated", detail }).success,
       ).toBe(false);
     });
 
