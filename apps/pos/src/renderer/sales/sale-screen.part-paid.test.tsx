@@ -74,7 +74,7 @@ describe("SaleScreen with a sale that already has an approved payment", () => {
     await expect.element(screen.getByRole("button", { name: "Cancelar venta" })).toBeEnabled();
   });
 
-  it("explains it once, and reads the sale again, when a scan is refused because the sale has payments", async () => {
+  it("reads the sale again and explains the lock only on the locked field when a scan is refused because the sale has payments", async () => {
     const scanProduct = vi.fn(
       async (): Promise<ScanProductOutcome> => ({ kind: "sale_has_payments" }),
     );
@@ -86,17 +86,17 @@ describe("SaleScreen with a sale that already has an approved payment", () => {
 
     await scan(field, "7790001");
 
-    await expect.element(screen.getByText(REFUSAL_TITLE)).toBeVisible();
+    await expect.element(field).toHaveAccessibleDescription(LOCKED_REASON);
+    await expect.element(field).toHaveAttribute("aria-disabled", "true");
+    await expect.element(field).toHaveValue("");
     await expect
       .element(screen.getByRole("button", { name: "Cancelar venta" }))
       .not.toBeInTheDocument();
-    await expect.element(field).toBeDisabled();
-    await expect.element(field).not.toHaveAccessibleDescription(LOCKED_REASON);
-    await expect.element(screen.getByRole("tooltip")).not.toBeInTheDocument();
+    await expect.element(screen.getByText(REFUSAL_TITLE)).not.toBeInTheDocument();
     await expect.element(screen.getByText(LOCKED_NOTICE, { exact: true })).not.toBeInTheDocument();
   });
 
-  it("explains it when a chosen product is refused because the sale has payments", async () => {
+  it("reads the sale again and explains the lock only on the locked field when a chosen product is refused because the sale has payments", async () => {
     const { screen, field } = await renderScreen({
       currentSale: readingFirst(SALE_OF_YERBA, SALE_WITH_PAYMENT),
       searchProducts: async () => ({
@@ -119,7 +119,9 @@ describe("SaleScreen with a sale that already has an approved payment", () => {
     await field.fill("Fideos");
     await userEvent.keyboard("{Enter}");
 
-    await expect.element(screen.getByText(REFUSAL_TITLE)).toBeVisible();
+    await expect.element(field).toHaveAccessibleDescription(LOCKED_REASON);
+    await expect.element(field).toHaveValue("");
+    await expect.element(screen.getByText(REFUSAL_TITLE)).not.toBeInTheDocument();
   });
 
   it.each([
@@ -140,7 +142,7 @@ describe("SaleScreen with a sale that already has an approved payment", () => {
       },
     ],
   ])(
-    "explains it once when %s is refused because the sale has payments",
+    "reads the sale again and explains the lock only in the locked controls' tooltip when %s is refused because the sale has payments",
     async (_, button, edit) => {
       const { screen } = await renderScreen({
         currentSale: readingFirst({ ...SALE_OF_YERBA, lines: [YERBA] }, SALE_WITH_PAYMENT),
@@ -149,9 +151,11 @@ describe("SaleScreen with a sale that already has an approved payment", () => {
 
       await screen.getByRole("button", { name: button }).click();
 
-      await expect.element(screen.getByText(REFUSAL_TITLE)).toBeVisible();
-      await expect.element(screen.getByRole("button", { name: button })).toBeDisabled();
-      await expect.element(screen.getByRole("tooltip")).not.toBeInTheDocument();
+      const control = screen.getByRole("button", { name: button });
+      await expect.element(control).toHaveAttribute("aria-disabled", "true");
+      await control.hover();
+      await expect.element(screen.getByRole("tooltip")).toHaveTextContent(LOCKED_REASON);
+      await expect.element(screen.getByText(REFUSAL_TITLE)).not.toBeInTheDocument();
       await expect
         .element(screen.getByText(LOCKED_NOTICE, { exact: true }))
         .not.toBeInTheDocument();
