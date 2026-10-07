@@ -18,6 +18,12 @@ describe("salesReportQuerySchema", () => {
     expect(salesReportQuerySchema.parse(query)).toEqual(query);
   });
 
+  it("reads a register id written in capitals as the lowercase id records are kept under", () => {
+    expect(salesReportQuerySchema.parse({ register_id: REGISTER_ID.toUpperCase() })).toEqual({
+      register_id: REGISTER_ID,
+    });
+  });
+
   it.each([
     ["a range ending before it starts", { from: "2026-10-06", to: "2026-10-05" }],
     ["a start without an end", { from: "2026-10-06" }],
