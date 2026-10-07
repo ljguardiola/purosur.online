@@ -8,7 +8,7 @@ import {
 
 export type AlertScopeKind = "user" | "sourceAddress" | "register" | "environment";
 
-export type AlertEscalationRule =
+type AlertEscalationRule =
   | { kind: "afterOpening"; delayMs: number }
   | { kind: "beforeDeadline"; leadMs: number };
 

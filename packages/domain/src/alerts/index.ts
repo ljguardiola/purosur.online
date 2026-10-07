@@ -23,11 +23,7 @@ export {
   escalatesAt,
   isDueForEscalation,
 } from "./model/alert-escalation.js";
-export type {
-  AlertEscalationRule,
-  AlertKindPolicy,
-  AlertScopeKind,
-} from "./model/alert-kind-policy.js";
+export type { AlertKindPolicy, AlertScopeKind } from "./model/alert-kind-policy.js";
 export {
   ALERT_ESCALATION_DELAY_MS,
   alertKindPolicy,

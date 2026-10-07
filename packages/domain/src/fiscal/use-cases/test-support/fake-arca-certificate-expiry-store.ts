@@ -6,7 +6,7 @@ import type {
   OpenCertificateExpiringAlert,
 } from "../arca-certificate-expiry-store.js";
 
-export interface FakeCertificateExpiringAlert extends NewCertificateExpiringAlert {
+interface FakeCertificateExpiringAlert extends NewCertificateExpiringAlert {
   alertId: string;
   resolvedAt: Date | null;
 }
