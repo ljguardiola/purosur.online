@@ -14,11 +14,7 @@ import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { combineCloudData } from "../platform/combine-cloud-data";
 import { roleDisplayName } from "../platform/role-display-name";
 import type { CloudData } from "../platform/use-cloud-query";
-import {
-  type BackofficeAccess,
-  canManageUsers,
-  canReactivateUser,
-} from "../shell/backoffice-access";
+import { type BackofficeAccess, canManageUsers } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import {
@@ -132,11 +128,7 @@ function UserDetailView({
   // session's own.
   const isOwnAccount = signedInUserId.toLowerCase() === userId.toLowerCase();
   const isInactive = user?.active === false;
-  const showsPinSection = user
-    ? user.mayEmitPinCode
-    : isOwnAccount
-      ? access.mayEmitOwnPinCode
-      : access.capabilities.includes("reset_user_pin");
+  const showsPinSection = user ? user.mayEmitPinCode : isOwnAccount && access.mayEmitOwnPinCode;
 
   return (
     <>
@@ -166,7 +158,7 @@ function UserDetailView({
             <div className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4">
               <div className="flex items-center gap-3">
                 <h2 className="flex-1 text-subheading text-text-accent">Datos</h2>
-                {(user ? user.mayEdit : canManageUsers(access)) === true && (
+                {user?.mayEdit === true && (
                   <Button
                     variant="secondary"
                     size="small"
@@ -250,21 +242,6 @@ function UserDetailView({
                 services={services}
               />
             ) : null}
-            {!user &&
-              (canReactivateUser(access) || access.capabilities.includes("deactivate_users")) &&
-              !isOwnAccount && (
-                <div className="flex items-center justify-end">
-                  <Button
-                    variant="secondary"
-                    size="small"
-                    destructive
-                    icon={<UserX />}
-                    dataStatus={data.status}
-                  >
-                    Desactivar
-                  </Button>
-                </div>
-              )}
             {user?.mayDeactivate === true && (
               <div className="flex items-center gap-3">
                 <p className="flex-1 text-text-subtle text-detail">
