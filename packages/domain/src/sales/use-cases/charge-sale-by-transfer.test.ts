@@ -142,7 +142,7 @@ describe("chargeSaleByTransfer", () => {
     const discounted = { ...OPEN_LINE, discountAmount: 1000, lineTotal: 4000 };
     const store = ledger({ sales: [{ ...OPEN_SALE, lines: [discounted] }] });
 
-    expect(charge(store)).toMatchObject({ total: 4000 });
+    expect(charge(store, 4000)).toMatchObject({ total: 4000 });
     expect(store.state.payments[0]).toMatchObject({ amount: 4000 });
   });
 

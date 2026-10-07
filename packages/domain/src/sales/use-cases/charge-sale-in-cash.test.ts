@@ -673,7 +673,7 @@ describe("chargeSaleInCash", () => {
         saleId: "sale-1",
         total: TOTAL,
         tendered: TOTAL,
-        change: 0,
+        change: 2000,
       });
     });
 
