@@ -805,9 +805,10 @@ describe("charging the sale in progress in cash", () => {
   it("completes the sale with the change of what the remaining cash exceeds", async () => {
     addFiscalConfiguration();
     const saleId = await sellTwo();
-    await chargeSaleInCashFor(deps(), { saleId, tendered: 1000 });
+    const { ids } = deps();
+    await chargeSaleInCashFor(deps({ ids }), { saleId, tendered: 1000 });
 
-    expect(await chargeSaleInCashFor(deps(), { saleId, tendered: 5000 })).toEqual({
+    expect(await chargeSaleInCashFor(deps({ ids }), { saleId, tendered: 5000 })).toEqual({
       kind: "completed",
       sale_id: saleId,
       total: 3000,
@@ -972,9 +973,10 @@ describe("charging the sale in progress by transfer", () => {
   it("completes the sale with a cash payment and a transfer for the rest", async () => {
     addFiscalConfiguration();
     const saleId = await sellTwo();
-    await chargeSaleInCashFor(deps(), { saleId, tendered: 1000 });
+    const { ids } = deps();
+    await chargeSaleInCashFor(deps({ ids }), { saleId, tendered: 1000 });
 
-    expect(await chargeSaleByTransferFor(deps(), { saleId, amount: 2000 })).toEqual({
+    expect(await chargeSaleByTransferFor(deps({ ids }), { saleId, amount: 2000 })).toEqual({
       kind: "completed",
       sale_id: saleId,
       total: 3000,

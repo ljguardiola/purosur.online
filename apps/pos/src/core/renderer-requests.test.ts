@@ -1115,6 +1115,10 @@ describe("answerRendererRequest", () => {
         },
       ],
       total: 1500,
+      paid: 0,
+      pending: 1500,
+      lines_editable: true,
+      cancellable: true,
       charge_refusal: null,
     };
     const { deps: withSale, saleLookups } = deps(true, { currentSale: async () => sale });
