@@ -8,6 +8,7 @@ const RESPONSES_DIR = new URL("./wsaa-responses/", import.meta.url);
 
 export type FakeWsaaBehavior =
   | { kind: "answers"; status: number; responseFile: string }
+  | { kind: "answers-in-turn"; steps: { status: number; responseFile: string }[] }
   | { kind: "never-answers" };
 
 export interface FakeWsaaServer {
@@ -19,6 +20,16 @@ export interface FakeWsaaServer {
 
 export function answers(responseFile: string, status = 200): FakeWsaaBehavior {
   return { kind: "answers", status, responseFile };
+}
+
+/** Answers each request with the next step, and the last step to every request after them. */
+export function answersInTurn(
+  ...steps: { responseFile: string; status?: number }[]
+): FakeWsaaBehavior {
+  return {
+    kind: "answers-in-turn",
+    steps: steps.map(({ responseFile, status = 200 }) => ({ responseFile, status })),
+  };
 }
 
 export async function startFakeWsaaServer(
@@ -34,8 +45,15 @@ export async function startFakeWsaaServer(
       if (behavior.kind === "never-answers") {
         return;
       }
-      const body = readFileSync(new URL(behavior.responseFile, RESPONSES_DIR));
-      response.writeHead(behavior.status, { "content-type": "text/xml; charset=utf-8" });
+      const answer =
+        behavior.kind === "answers-in-turn"
+          ? (behavior.steps[Math.min(requests.length, behavior.steps.length) - 1] as {
+              status: number;
+              responseFile: string;
+            })
+          : behavior;
+      const body = readFileSync(new URL(answer.responseFile, RESPONSES_DIR));
+      response.writeHead(answer.status, { "content-type": "text/xml; charset=utf-8" });
       response.end(body);
     });
   });
