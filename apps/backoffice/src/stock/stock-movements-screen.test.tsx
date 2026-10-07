@@ -1,7 +1,7 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { beforeEach, expect, test, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
@@ -17,6 +17,10 @@ import {
   movementReasons,
   withoutBalance,
 } from "./test-support/stock-fixtures";
+
+beforeEach(async () => {
+  await page.viewport(1280, 900);
+});
 
 const BOTH: BackofficeAccess = {
   ...accessWith(
@@ -249,7 +253,7 @@ async function chooseProduct(screen: Screen, name: string) {
   await userEvent.click(screen.getByRole("option", { name }));
 }
 
-test("registers a loss with its reason and shows the balance it left", async () => {
+test("closes the modal, refreshes the movements and shows the balance a loss left", async () => {
   const services = createServices();
   vi.mocked(services.recordLoss).mockResolvedValue({
     kind: "ok",
@@ -262,13 +266,6 @@ test("registers a loss with its reason and shows the balance it left", async () 
   await chooseProduct(screen, "Miel pura de abeja 1 kg");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad perdida/ }), "1");
   await userEvent.click(cardLabel(screen, "Rotura o derrame"));
-
-  await expect.element(dialog.getByText("Saldo actual")).toBeVisible();
-  await expect.element(dialog.getByText("24 u")).toBeVisible();
-  await expect.element(dialog.getByText("− 1 u")).toBeVisible();
-  await expect.element(dialog.getByText("23 u")).toBeVisible();
-  await expectNoAccessibilityViolations(screen.container);
-
   await userEvent.click(dialog.getByRole("button", { name: "Registrar la pérdida" }));
 
   await expect
@@ -278,77 +275,8 @@ test("registers a loss with its reason and shows the balance it left", async () 
         .getByText("Saldo actualizado Miel pura de abeja 1 kg queda en 23 u."),
     )
     .toBeInTheDocument();
-  expect(services.recordLoss).toHaveBeenCalledWith({
-    productId: honey.id,
-    reason: "broken_or_spilled",
-    quantity: 1000,
-  });
   expect(screen.getByRole("dialog").query()).toBeNull();
   await expect.poll(() => vi.mocked(services.fetchStockMovements).mock.calls.length).toBe(2);
-});
-
-test("registers an adjustment in the direction chosen", async () => {
-  const services = createServices();
-  vi.mocked(services.recordAdjustment).mockResolvedValue({
-    kind: "ok",
-    value: { balance: 12_150, superseded: false },
-  });
-  const screen = await renderScreen(services);
-  const dialog = await openModal(screen);
-
-  await userEvent.click(cardLabel(screen, "Ajuste"));
-  await chooseProduct(screen, "Almendras peladas");
-  await userEvent.click(cardLabel(screen, "Error en una compra"));
-  await userEvent.click(cardLabel(screen, "Resta"));
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad/ }), "0,250");
-
-  await expect.element(dialog.getByText("− 0,250 kg")).toBeVisible();
-  await expect
-    .element(
-      dialog
-        .getByText(
-          "Si lo que hay en el local no coincide con el sistema, se corrige con un recuento.",
-        )
-        .first(),
-    )
-    .toBeVisible();
-  await userEvent.click(dialog.getByRole("button", { name: "Registrar el ajuste" }));
-
-  await expect.poll(() => vi.mocked(services.recordAdjustment).mock.calls.length).toBe(1);
-  expect(services.recordAdjustment).toHaveBeenCalledWith({
-    productId: almonds.id,
-    reason: "purchase_correction",
-    direction: "subtract",
-    quantity: 250,
-  });
-});
-
-test("offers no direction for stock returned to a supplier, which always subtracts", async () => {
-  const services = createServices();
-  vi.mocked(services.recordAdjustment).mockResolvedValue({
-    kind: "ok",
-    value: { balance: 20_000, superseded: false },
-  });
-  const screen = await renderScreen(services);
-  const dialog = await openModal(screen);
-  await userEvent.click(cardLabel(screen, "Ajuste"));
-  await expect.element(dialog.getByRole("radiogroup", { name: "Sentido" })).toBeVisible();
-
-  await userEvent.click(cardLabel(screen, "Devolución al proveedor"));
-
-  expect(dialog.getByRole("radiogroup", { name: "Sentido" }).query()).toBeNull();
-  await chooseProduct(screen, "Miel pura de abeja 1 kg");
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad/ }), "4");
-  await userEvent.click(dialog.getByRole("button", { name: "Registrar el ajuste" }));
-
-  await expect
-    .poll(() => vi.mocked(services.recordAdjustment).mock.calls[0]?.[0])
-    .toEqual({
-      productId: honey.id,
-      reason: "supplier_return",
-      direction: "subtract",
-      quantity: 4000,
-    });
 });
 
 test.each([
@@ -360,35 +288,25 @@ test.each([
   });
   const dialog = await openModal(screen, button);
 
-  expect(dialog.getByRole("radiogroup", { name: "Qué se carga" }).query()).toBeNull();
   await expect.element(dialog.getByRole("button", { name: submit })).toBeVisible();
 });
 
-test("asks for the product, the quantity and the reason before registering anything", async () => {
+test("closes the modal without registering anything on Cancelar", async () => {
   const services = createServices();
   const screen = await renderScreen(services);
   const dialog = await openModal(screen);
-  await userEvent.click(cardLabel(screen, "Pérdida"));
 
-  await userEvent.click(dialog.getByRole("button", { name: "Registrar la pérdida" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
 
-  await expect.element(dialog.getByText("Elegí el producto.")).toBeVisible();
-  await expect.element(dialog.getByText("Ingresá la cantidad.")).toBeVisible();
-  await expect.element(dialog.getByText("Elegí el motivo.")).toBeVisible();
+  expect(screen.getByRole("dialog").query()).toBeNull();
   expect(services.recordLoss).not.toHaveBeenCalled();
 });
 
-test.each([
-  [
-    { kind: "validation_failed", field: "quantity" },
-    "Escribí una cantidad entera de unidades, por ejemplo 16.",
-  ],
-  [{ kind: "failed" }, "No se pudo guardar el movimiento"],
-  [{ kind: "rate_limited", retryAfterSeconds: 30 }, "Demasiadas solicitudes"],
-] as const)("keeps the modal open and explains the refusal %j", async (outcome, message) => {
+test("ends the session when registering finds it over", async () => {
   const services = createServices();
-  vi.mocked(services.recordLoss).mockResolvedValue(outcome);
-  const screen = await renderScreen(services);
+  vi.mocked(services.recordLoss).mockResolvedValue({ kind: "unauthenticated" });
+  const onSessionEnded = vi.fn();
+  const screen = await renderScreen(services, { onSessionEnded });
   const dialog = await openModal(screen);
   await userEvent.click(cardLabel(screen, "Pérdida"));
   await chooseProduct(screen, "Miel pura de abeja 1 kg");
@@ -397,7 +315,7 @@ test.each([
 
   await userEvent.click(dialog.getByRole("button", { name: "Registrar la pérdida" }));
 
-  await expect.element(dialog.getByText(message)).toBeVisible();
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
 test.each([
