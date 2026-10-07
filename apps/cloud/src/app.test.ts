@@ -1302,6 +1302,38 @@ describe("wiring the prices routes", () => {
   });
 });
 
+describe("wiring the sales report routes", () => {
+  const reportRequests = [
+    { method: "GET", url: "/api/reports/sales-by-day" },
+    { method: "GET", url: "/api/reports/registers" },
+  ] as const;
+
+  async function statusCodes(app: ReturnType<typeof buildApp>): Promise<number[]> {
+    const responses = await Promise.all(
+      reportRequests.map((request) =>
+        app.inject({ ...request, headers: { origin: "https://staging.purosur.online" } }),
+      ),
+    );
+    return responses.map((response) => response.statusCode);
+  }
+
+  it("does not register the sales report routes when no salesReports option is given", async () => {
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
+
+    expect(await statusCodes(app)).toEqual(reportRequests.map(() => 404));
+  });
+
+  it("registers the sales report routes when a salesReports option is given", async () => {
+    const app = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      salesReports: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    expect(await statusCodes(app)).toEqual(reportRequests.map(() => 401));
+  });
+});
+
 describe("wiring the stock routes", () => {
   const stockRequests = [
     { method: "GET", url: "/api/inventory-levels" },
@@ -2130,6 +2162,16 @@ describe("the route access inventory", () => {
         method: "POST",
         url: "/api/inventory-adjustments",
         access: capabilityAccess("stock_adjustments"),
+      },
+      {
+        method: "GET",
+        url: "/api/reports/sales-by-day",
+        access: capabilityAccess("reports_area"),
+      },
+      {
+        method: "GET",
+        url: "/api/reports/registers",
+        access: capabilityAccess("reports_area"),
       },
       {
         method: "GET",
