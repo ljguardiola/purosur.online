@@ -205,6 +205,10 @@ describe("sale answers", () => {
       },
     ],
     total: 1500,
+    paid: 0,
+    pending: 1500,
+    lines_editable: true,
+    cancellable: true,
     charge_refusal: null,
   };
 
@@ -212,6 +216,7 @@ describe("sale answers", () => {
     { kind: "added", sale },
     { kind: "unknown_code" },
     { kind: "no_price", product_name: "Yerba" },
+    { kind: "sale_has_payments" },
     { kind: "not_signed_in" },
     { kind: "unavailable" },
   ])("accepts the scan result $kind", (outcome) => {
@@ -243,6 +248,7 @@ describe("sale answers", () => {
   it.each([
     { kind: "product_unavailable" },
     { kind: "no_price", product_name: "Yerba" },
+    { kind: "sale_has_payments" },
     { kind: "not_signed_in" },
   ])("accepts the add-product result $kind", (outcome) => {
     const message = { type: "add-product-result", request_id: REQUEST_ID, outcome };
@@ -383,14 +389,25 @@ describe("sale line requests", () => {
 });
 
 describe("sale line answers", () => {
-  const sale = { id: "s1", lines: [], total: 0, charge_refusal: null };
+  const sale = {
+    id: "s1",
+    lines: [],
+    total: 0,
+    paid: 0,
+    pending: 0,
+    lines_editable: true,
+    cancellable: true,
+    charge_refusal: null,
+  };
 
   it.each([
     ["change-line-quantity-result", { kind: "changed", sale }],
     ["change-line-quantity-result", { kind: "unknown_line" }],
     ["change-line-quantity-result", { kind: "stale_quantity" }],
+    ["change-line-quantity-result", { kind: "sale_has_payments" }],
     ["remove-sale-line-result", { kind: "removed", sale }],
     ["remove-sale-line-result", { kind: "no_open_sale" }],
+    ["remove-sale-line-result", { kind: "sale_has_payments" }],
     ["cancel-sale-result", { kind: "cancelled" }],
     ["cancel-sale-result", { kind: "unavailable" }],
   ])("accepts %s with the outcome %j", (type, outcome) => {
@@ -426,7 +443,7 @@ describe("sale line answers", () => {
 describe("charge sale in cash answer", () => {
   it.each([
     { kind: "completed", sale_id: "s1", total: 3000, tendered: 5000, change: 2000 },
-    { kind: "insufficient_cash", amount_due: 3000 },
+    { kind: "partially_paid", sale_id: "s1", total: 3000, paid: 1000, pending: 2000 },
     { kind: "reaches_buyer_identification_threshold", threshold: 10_000_000 },
     { kind: "no_buyer_identification_threshold" },
     { kind: "not_signed_in" },
@@ -455,27 +472,37 @@ describe("charge sale in cash answer", () => {
 });
 
 describe("charge sale by transfer request", () => {
-  const message = { type: "charge-sale-by-transfer", request_id: REQUEST_ID, sale_id: "s1" };
+  const message = {
+    type: "charge-sale-by-transfer",
+    request_id: REQUEST_ID,
+    sale_id: "s1",
+    amount: 2000,
+  };
 
-  it("accepts a charge of a sale", () => {
+  it("accepts a charge of an amount of a sale", () => {
     expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
-  it("does not take who is charging or an amount from the renderer", () => {
+  it("does not take who is charging or a tendered amount from the renderer", () => {
     expect(
-      salesRendererToCoreMessageSchema.parse({
-        ...message,
-        user_id: "u9",
-        tendered: 5000,
-        amount: 1,
-      }),
+      salesRendererToCoreMessageSchema.parse({ ...message, user_id: "u9", tendered: 5000 }),
     ).toEqual(message);
+  });
+
+  it.each([0, -100])("leaves the amount %s for the core to refuse as invalid", (amount) => {
+    expect(salesRendererToCoreMessageSchema.parse({ ...message, amount })).toEqual({
+      ...message,
+      amount,
+    });
   });
 
   it.each([
     ["request id", { ...message, request_id: undefined }],
     ["sale id", { ...message, sale_id: undefined }],
     ["sale id as text", { ...message, sale_id: 7 }],
+    ["amount", { ...message, amount: undefined }],
+    ["whole number of cents", { ...message, amount: 12.5 }],
+    ["number", { ...message, amount: "2000" }],
   ])("rejects a charge without a valid %s", (_case, value) => {
     expect(salesRendererToCoreMessageSchema.safeParse(value).success).toBe(false);
   });
@@ -484,6 +511,9 @@ describe("charge sale by transfer request", () => {
 describe("charge sale by transfer answer", () => {
   it.each([
     { kind: "completed", sale_id: "s1", total: 3000 },
+    { kind: "partially_paid", sale_id: "s1", total: 3000, paid: 1000, pending: 2000 },
+    { kind: "invalid_amount" },
+    { kind: "exceeds_pending", pending: 2000 },
     { kind: "empty_sale" },
     { kind: "not_signed_in" },
     { kind: "unavailable" },
@@ -538,7 +568,7 @@ describe("cash charge request", () => {
 describe("cash charge answers", () => {
   it.each([
     [{ kind: "invalid_amount" }],
-    [{ kind: "insufficient", amountDue: 3000 }],
+    [{ kind: "partial", applied: 1000, pending: 2000 }],
     [{ kind: "covered", applied: 3000, change: 2000 }],
     [null],
   ])("accepts the answer %j", (charge) => {
@@ -549,7 +579,9 @@ describe("cash charge answers", () => {
 
   it.each([
     [{ kind: "covered", applied: 3000 }],
-    [{ kind: "insufficient", amountDue: "3000" }],
+    [{ kind: "partial", applied: 1000 }],
+    [{ kind: "partial", applied: "1000", pending: 2000 }],
+    [{ kind: "insufficient", amountDue: 3000 }],
     [{ kind: "unknown" }],
   ])("rejects the answer %j", (charge) => {
     expect(

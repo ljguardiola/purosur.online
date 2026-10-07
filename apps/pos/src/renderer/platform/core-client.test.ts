@@ -435,7 +435,7 @@ describe("createCoreClient", () => {
     const port = new FakePort();
     client.connect(port);
 
-    const outcome = client.chargeSaleByTransfer("sale-1");
+    const outcome = client.chargeSaleByTransfer("sale-1", 300_000);
     port.answer({
       type: "charge-sale-by-transfer-result",
       request_id: "request-1",
@@ -444,7 +444,12 @@ describe("createCoreClient", () => {
 
     expect(await outcome).toEqual({ kind: "completed", sale_id: "sale-1", total: 476_000 });
     expect(port.posted).toEqual([
-      { type: "charge-sale-by-transfer", request_id: "request-1", sale_id: "sale-1" },
+      {
+        type: "charge-sale-by-transfer",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        amount: 300_000,
+      },
     ]);
   });
 
@@ -655,6 +660,10 @@ describe("createCoreClient", () => {
         },
       ],
       total: 4_760,
+      paid: 0,
+      pending: 4_760,
+      lines_editable: true,
+      cancellable: true,
       charge_refusal: null,
     },
     {
@@ -672,6 +681,10 @@ describe("createCoreClient", () => {
         },
       ],
       total: 1_000_000_000,
+      paid: 0,
+      pending: 1_000_000_000,
+      lines_editable: true,
+      cancellable: true,
       charge_refusal: { kind: "reaches_buyer_identification_threshold", threshold: 1_000_000_000 },
     },
   ])(
@@ -713,7 +726,7 @@ describe("createCoreClient", () => {
 
   it.each([
     [{ kind: "covered", applied: 3000, change: 2000 }],
-    [{ kind: "insufficient", amountDue: 3000 }],
+    [{ kind: "partial", applied: 1000, pending: 2000 }],
     [{ kind: "invalid_amount" }],
     [null],
   ])(

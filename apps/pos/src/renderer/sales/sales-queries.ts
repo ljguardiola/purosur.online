@@ -15,8 +15,8 @@ export const salesKeys = {
   currentSaleRoot: [...salesKey, "current-sale"] as const,
   currentSale: (sessionId: string, userId: string) =>
     [...salesKey, "current-sale", sessionId, userId] as const,
-  cashCharge: (saleId: string, total: number, tendered: number | undefined) =>
-    [...salesKey, "cash-charge", saleId, total, tendered ?? null] as const,
+  cashCharge: (saleId: string, pending: number, tendered: number | undefined) =>
+    [...salesKey, "cash-charge", saleId, pending, tendered ?? null] as const,
   search: (query: string) => [...salesKey, "search", query] as const,
 };
 
@@ -34,17 +34,17 @@ export function useCurrentSaleQuery({
 
 export function useCashChargeQuery({
   saleId,
-  total,
+  pending,
   tendered,
   read,
 }: {
   saleId: string;
-  total: number;
+  pending: number;
   tendered: number | undefined;
   read: (tendered: number) => Promise<CashChargeAnswer>;
 }): CoreData<CashChargeAnswer> {
   return useCoreQuery({
-    queryKey: salesKeys.cashCharge(saleId, total, tendered),
+    queryKey: salesKeys.cashCharge(saleId, pending, tendered),
     read: async () => (tendered === undefined ? "unavailable" : read(tendered)),
     enabled: tendered !== undefined,
   });
@@ -60,6 +60,16 @@ export function useTakeSale(
     const previous = queryClient.getQueryData<CurrentSaleAnswer>(queryKey);
     await setQueryAnswer(queryClient, queryKey, sale);
     return previous === undefined || previous === "not_permitted" ? null : previous;
+  };
+}
+
+export function useRefreshCurrentSale(sessionId: string, userId: string): () => Promise<void> {
+  const queryClient = useQueryClient();
+  return () => {
+    const queryKey = salesKeys.currentSale(sessionId, userId);
+    return queryClient
+      .invalidateQueries({ queryKey }, { throwOnError: true })
+      .catch(() => queryClient.resetQueries({ queryKey }));
   };
 }
 

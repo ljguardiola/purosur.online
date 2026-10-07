@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BARCODE_MAX_LENGTH } from "../../catalog/index.js";
+import type { PaymentTransaction } from "../model/payment.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { addScannedProduct } from "./add-scanned-product.js";
 import type { CandidatePromotion } from "./sale-ledger.js";
@@ -26,6 +27,18 @@ const OPEN_SALE: SaleWithLines = {
   actorId: "cashier",
   state: "OPEN",
   lines: [],
+};
+
+const PAYMENT: PaymentTransaction = {
+  id: "payment-1",
+  saleId: "sale-0",
+  kind: "SALE",
+  method: "CASH",
+  provider: "NONE",
+  amount: 1000,
+  tendered: 1000,
+  state: "APPROVED",
+  occurredAt: NOW,
 };
 
 const TEN_PERCENT: CandidatePromotion = {
@@ -104,7 +117,13 @@ describe("addScannedProduct", () => {
         },
       ],
     };
-    expect(outcome).toEqual({ kind: "added", sale });
+    expect(outcome).toEqual({
+      kind: "added",
+      sale,
+      balance: { paid: 0, pending: 2500 },
+      linesEditable: true,
+      cancellable: true,
+    });
     expect(store.state.sales).toEqual([sale]);
   });
 
@@ -631,5 +650,31 @@ describe("add-scanned-product charge refusal", () => {
     expect(scan(store)).toEqual(
       expect.objectContaining({ chargeRefusal: { kind: "no_buyer_identification_threshold" } }),
     );
+  });
+});
+
+describe("add-scanned-product on a sale with an approved payment", () => {
+  it("refuses to add a line, writing nothing", () => {
+    const store = ledger({ sales: [OPEN_SALE], payments: [PAYMENT] });
+    const before = structuredClone(store.state);
+
+    expect(scan(store)).toEqual({ kind: "sale_has_payments" });
+    nothingRecorded(store, before);
+  });
+
+  it("refuses before looking the barcode up", () => {
+    const store = ledger({ sales: [OPEN_SALE], payments: [PAYMENT] });
+
+    expect(scan(store, "unknown")).toEqual({ kind: "sale_has_payments" });
+    expect(store.barcodeLookups).toBe(0);
+  });
+
+  it("still adds to a sale whose payments belong to another sale", () => {
+    const store = ledger({
+      sales: [OPEN_SALE],
+      payments: [{ ...PAYMENT, saleId: "sale-9" }],
+    });
+
+    expect(scan(store)).toMatchObject({ kind: "added" });
   });
 });

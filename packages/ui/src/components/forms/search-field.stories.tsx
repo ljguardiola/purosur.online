@@ -1,5 +1,6 @@
 import type { Decorator, Meta, StoryObj } from "@storybook/react-vite";
 import { Search } from "lucide-react";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 import {
   playPseudoHoverPaintsBoneFill,
   playTabMatchesCssFocusWithin,
@@ -90,4 +91,17 @@ export const HoveredBackoffice: Story = {
 
 export const Disabled: Story = {
   args: { value: "", disabled: true },
+};
+
+export const DisabledWithReason: Story = {
+  args: {
+    value: "",
+    disabledReason: "La venta ya no se puede cambiar porque tiene un pago aprobado.",
+  },
+  play: async ({ canvasElement }) => {
+    await userEvent.hover(fieldInput(canvasElement));
+    await waitFor(() => {
+      expect(within(document.body).getByRole("tooltip")).toBeInTheDocument();
+    });
+  },
 };

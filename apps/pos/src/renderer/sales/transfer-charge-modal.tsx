@@ -1,65 +1,101 @@
 import type { ChargeSaleByTransferOutcome } from "@purosur/contracts";
-import { Button, formatCents, InlineNotice, Modal, SummaryRowGroup } from "@purosur/ui";
+import {
+  Button,
+  fieldErrorMessage,
+  formatAmountInput,
+  formatCents,
+  InlineNotice,
+  Modal,
+  SummaryRowGroup,
+  TextField,
+  useRequestForm,
+} from "@purosur/ui";
 import { ArrowLeft, Check, Landmark, TriangleAlert } from "lucide-react";
-import { useRef, useState } from "react";
+import { useState } from "react";
+import { INVALID_AMOUNT_MESSAGE } from "./cash-charge-form";
+import {
+  chargeSaleByTransferRequestSchema,
+  transferChargeRequestFrom,
+} from "./transfer-charge-form";
 
 const FAILED_MESSAGE = "No se pudo cobrar la venta. Probá de nuevo.";
 
-export type CompletedTransfer = Extract<ChargeSaleByTransferOutcome, { kind: "completed" }>;
+function exceedsPendingMessage(pending: number): string {
+  return `No puede superar el saldo pendiente de ${formatCents(pending)}.`;
+}
+
+export type CompletedTransfer = Extract<ChargeSaleByTransferOutcome, { kind: "completed" }> & {
+  amount: number;
+};
 
 export type TransferChargeModalProps = {
   total: number;
-  charge: () => Promise<ChargeSaleByTransferOutcome>;
+  paid: number;
+  pending: number;
+  charge: (amount: number) => Promise<ChargeSaleByTransferOutcome>;
   onChooseAnotherMethod: () => void;
   onCompleted: (charge: CompletedTransfer) => void;
+  onPartiallyPaid: () => Promise<void>;
   onSaleUnavailable: () => void;
   onSessionInvalid: () => void;
 };
 
 export function TransferChargeModal({
   total,
+  paid,
+  pending,
   charge,
   onChooseAnotherMethod,
   onCompleted,
+  onPartiallyPaid,
   onSaleUnavailable,
   onSessionInvalid,
 }: TransferChargeModalProps) {
-  const inFlight = useRef(false);
-  const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<string>();
+  const { form, submit, submitting } = useRequestForm({
+    defaultValues: { amount: formatAmountInput(pending) },
+    request: { schema: chargeSaleByTransferRequestSchema, from: transferChargeRequestFrom },
+    fields: { amount: "amount" },
+    messages: { amount: INVALID_AMOUNT_MESSAGE },
+    onSubmit: async (request, { showFieldError }) => {
+      const outcome = await charge(request.amount).catch(
+        (): ChargeSaleByTransferOutcome => ({ kind: "unavailable" }),
+      );
+      switch (outcome.kind) {
+        case "completed":
+          onCompleted({ ...outcome, amount: request.amount });
+          break;
+        case "partially_paid":
+          await onPartiallyPaid();
+          break;
+        case "exceeds_pending":
+          showFieldError("amount", exceedsPendingMessage(outcome.pending));
+          break;
+        case "invalid_amount":
+          showFieldError("amount", INVALID_AMOUNT_MESSAGE);
+          break;
+        case "empty_sale":
+        case "zero_total":
+        case "reaches_buyer_identification_threshold":
+        case "no_buyer_identification_threshold":
+        case "no_open_sale":
+        case "not_permitted":
+          onSaleUnavailable();
+          break;
+        case "not_signed_in":
+        case "no_open_session":
+          onSessionInvalid();
+          break;
+        case "unavailable":
+          setNotice(FAILED_MESSAGE);
+          break;
+      }
+    },
+  });
 
-  async function confirmCredit() {
-    if (inFlight.current) {
-      return;
-    }
-    inFlight.current = true;
-    setSubmitting(true);
+  function confirmCredit() {
     setNotice(undefined);
-    const outcome = await charge().catch(
-      (): ChargeSaleByTransferOutcome => ({ kind: "unavailable" }),
-    );
-    inFlight.current = false;
-    setSubmitting(false);
-    switch (outcome.kind) {
-      case "completed":
-        onCompleted(outcome);
-        break;
-      case "empty_sale":
-      case "zero_total":
-      case "reaches_buyer_identification_threshold":
-      case "no_buyer_identification_threshold":
-      case "no_open_sale":
-      case "not_permitted":
-        onSaleUnavailable();
-        break;
-      case "not_signed_in":
-      case "no_open_session":
-        onSessionInvalid();
-        break;
-      case "unavailable":
-        setNotice(FAILED_MESSAGE);
-        break;
-    }
+    void submit();
   }
 
   return (
@@ -93,7 +129,7 @@ export function TransferChargeModal({
             fullWidth
             icon={<Check />}
             dataStatus={submitting ? "loading" : "loaded"}
-            onPress={() => void confirmCredit()}
+            onPress={confirmCredit}
           >
             Vi el ingreso
           </Button>
@@ -104,10 +140,24 @@ export function TransferChargeModal({
         <SummaryRowGroup
           rows={[
             { label: "Total de la venta", value: formatCents(total) },
-            { label: "Pagado", value: formatCents(0) },
-            { label: "A cobrar ahora", value: formatCents(total) },
+            { label: "Pagado", value: formatCents(paid) },
+            { label: "A cobrar ahora", value: formatCents(pending) },
           ]}
         />
+        <form.AppField name="amount" listeners={{ onChange: () => setNotice(undefined) }}>
+          {(field) => (
+            <TextField
+              kind="amount"
+              prefix="$"
+              label="Importe a cobrar con este medio"
+              inputMode="numeric"
+              value={field.state.value}
+              onChange={field.handleChange}
+              disabled={submitting}
+              errorMessage={fieldErrorMessage(field.state.meta.errors)}
+            />
+          )}
+        </form.AppField>
         <InlineNotice
           tone="warning"
           icon={<TriangleAlert />}

@@ -2,7 +2,7 @@ import { isValidCashAmount } from "../../register/index.js";
 
 export type CashCharge =
   | { kind: "invalid_amount" }
-  | { kind: "insufficient"; amountDue: number }
+  | { kind: "partial"; applied: number; pending: number }
   | { kind: "covered"; applied: number; change: number };
 
 export function cashCharge(amountDue: number, tendered: number): CashCharge {
@@ -10,7 +10,7 @@ export function cashCharge(amountDue: number, tendered: number): CashCharge {
     return { kind: "invalid_amount" };
   }
   if (tendered < amountDue) {
-    return { kind: "insufficient", amountDue };
+    return { kind: "partial", applied: tendered, pending: amountDue - tendered };
   }
   return { kind: "covered", applied: amountDue, change: tendered - amountDue };
 }

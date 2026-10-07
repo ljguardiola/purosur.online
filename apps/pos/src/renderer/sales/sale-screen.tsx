@@ -66,6 +66,8 @@ type SaleEditFailure = Extract<
 
 const LETTER = /\p{L}/u;
 
+const LOCKED_REASON = "La venta ya no se puede cambiar porque tiene un pago aprobado.";
+
 function focusScanField(form: HTMLFormElement | null) {
   form?.querySelector("input")?.focus();
 }
@@ -188,6 +190,11 @@ export function SaleScreen({
       case "installation_revoked":
         refuse(submitted, outcome);
         break;
+      case "sale_has_payments":
+        setProblem(undefined);
+        setCode((typed) => (typed.trim() === submitted ? "" : typed));
+        await resetCurrentSale();
+        break;
       case "unavailable":
         refuse(submitted, failure);
         break;
@@ -248,6 +255,10 @@ export function SaleScreen({
       case "has_approved_payment":
         setProblem(outcome);
         break;
+      case "sale_has_payments":
+        setProblem(undefined);
+        await resetCurrentSale();
+        break;
       case "unknown_line":
       case "stale_quantity":
       case "no_open_sale":
@@ -294,9 +305,11 @@ export function SaleScreen({
 
   const answer = current.status === "loaded" ? current.value : undefined;
   const sale = answer === undefined || answer === "not_permitted" ? null : answer;
+  const editable = sale?.lines_editable ?? true;
   const notPermitted = messageFor({ kind: "not_permitted" });
   const shownProblem =
     answer === "not_permitted" && problem?.kind === "not_permitted" ? undefined : problem;
+  const lockedReason = editable ? undefined : LOCKED_REASON;
 
   return (
     <div className="flex h-screen w-screen bg-surface-subtle">
@@ -317,6 +330,7 @@ export function SaleScreen({
         >
           <SearchField
             label="Producto"
+            {...(lockedReason === undefined ? {} : { disabledReason: lockedReason })}
             placeholder="Escaneá o escribí el nombre del producto"
             icon={<ScanBarcode />}
             value={code}
@@ -361,6 +375,8 @@ export function SaleScreen({
             changedLineId={changed}
             actions={{
               busy: editing,
+              editable,
+              lockedReason,
               onChangeQuantity: (line, quantity) =>
                 void edit(() => changeLineQuantity(line.id, quantity, line.quantity), {
                   kind: "change_failed",
@@ -374,6 +390,9 @@ export function SaleScreen({
       <PaymentPanel
         lineCount={sale?.lines.length ?? 0}
         total={sale?.total ?? 0}
+        paid={sale?.paid ?? 0}
+        pending={sale?.pending ?? 0}
+        cancellable={answer !== undefined && (sale?.cancellable ?? true)}
         chargeRefusal={sale?.charge_refusal ?? null}
         canCancel={sale !== null && !editing}
         onCharge={() => void navigate({ to: "/charge" })}

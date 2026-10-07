@@ -26,7 +26,7 @@ import {
   readIssuerIdentificationInEffect,
 } from "../fiscal/sqlite-pre-emission-gate";
 import type { LocalDatabase } from "../platform/local-database";
-import { insertCashMovement } from "../register/sqlite-cash-ledger";
+import { insertCashMovement, readMovementsOf } from "../register/sqlite-cash-ledger";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 import { type BenefitColumns, readOpenSale, toBenefit } from "./sqlite-open-sale";
 import { readSalePayments } from "./sqlite-sale-payments";
@@ -93,6 +93,7 @@ export class SqliteSaleLedger implements SaleLedger {
       salePayments: (saleId) => readSalePayments(this.database, saleId),
       discardOpenSale: (saleId) => this.discardOpenSale(saleId),
       recordPayment: (payment) => this.recordPayment(payment),
+      saleCashMovements: (saleId) => readMovementsOf(this.database, { type: "sale", id: saleId }),
       recordCashMovement: (movement) => insertCashMovement(this.database, movement),
       recordCompletedSale: (saleId, occurredAt) => this.recordCompletedSale(saleId, occurredAt),
       appendOutboxEvent: (draft) => this.appendOutboxEvent(draft),

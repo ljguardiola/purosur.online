@@ -4,14 +4,17 @@ import { CircleCheck, Plus } from "lucide-react";
 export type SaleCompletedModalProps = {
   total: number;
   onNewSale: () => void;
-} & ({ tendered: number; change: number; method?: "CASH" } | { method: "TRANSFER" });
+} & (
+  | { tendered: number; change: number; method?: "CASH" }
+  | { method: "TRANSFER"; amount: number }
+);
 
 export function SaleCompletedModal(props: SaleCompletedModalProps) {
   const { total, onNewSale } = props;
   const change = props.method === "TRANSFER" ? 0 : props.change;
   const paymentRow =
     props.method === "TRANSFER"
-      ? { label: "Transferencia", value: formatCents(total) }
+      ? { label: "Transferencia", value: formatCents(props.amount) }
       : { label: "Efectivo entregado", value: formatCents(props.tendered) };
   return (
     <Modal

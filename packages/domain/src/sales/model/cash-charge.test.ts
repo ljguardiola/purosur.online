@@ -16,8 +16,8 @@ describe("cashCharge", () => {
     expect(cashCharge(1, 2)).toEqual({ kind: "covered", applied: 1, change: 1 });
   });
 
-  it("refuses a tendered amount below the amount due and carries the amount due", () => {
-    expect(cashCharge(2500, 2499)).toEqual({ kind: "insufficient", amountDue: 2500 });
+  it("applies a tendered amount below the amount due and leaves the difference pending", () => {
+    expect(cashCharge(2500, 2499)).toEqual({ kind: "partial", applied: 2499, pending: 1 });
   });
 
   it.each([
@@ -56,7 +56,7 @@ describe("cashCharge", () => {
     );
   });
 
-  it("refuses every valid amount below the amount due", () => {
+  it("applies the tendered amount and leaves the rest pending for every valid amount below the amount due", () => {
     fc.assert(
       fc.property(
         fc
@@ -65,7 +65,13 @@ describe("cashCharge", () => {
             fc.tuple(fc.constant(amountDue), fc.integer({ min: 1, max: amountDue - 1 })),
           ),
         ([amountDue, tendered]) => {
-          expect(cashCharge(amountDue, tendered)).toEqual({ kind: "insufficient", amountDue });
+          const charge = cashCharge(amountDue, tendered);
+          expect(charge).toEqual({
+            kind: "partial",
+            applied: tendered,
+            pending: amountDue - tendered,
+          });
+          expect(charge.kind === "partial" && charge.applied + charge.pending).toBe(amountDue);
         },
       ),
     );

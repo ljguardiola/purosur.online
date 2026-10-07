@@ -15,7 +15,11 @@ export function formatNumber(value: number, options?: Intl.NumberFormatOptions):
 }
 
 export function formatCents(cents: number): string {
-  return `$ ${formatNumber(cents / 100, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `$ ${formatAmountInput(cents)}`;
+}
+
+export function formatAmountInput(cents: number): string {
+  return formatNumber(cents / 100, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 export function formatPointOfSaleNumber(number: number): string {
