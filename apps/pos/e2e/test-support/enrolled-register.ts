@@ -2,9 +2,11 @@ import { randomUUID } from "node:crypto";
 import { rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { ElectronApplication, Page } from "playwright";
+import { expect } from "vitest";
 import { launchApp, writeChannelFile } from "../launch-app";
+import { CORE_READY, coreStartEnded, startEndingsIn } from "./core-start-outcomes";
 import type { StandInCloud } from "./stand-in-cloud";
-import { until } from "./until";
+import { until, untilLogged } from "./until";
 
 export interface EnrolledRegister {
   readonly app: ElectronApplication;
@@ -129,7 +131,10 @@ export function enrolledRegister(cloud: StandInCloud): EnrolledRegister {
       return current().logs;
     },
     launch: async () => {
-      await enroll((await start()).page, cloud);
+      const first = await start();
+      await untilLogged(first, coreStartEnded);
+      expect(startEndingsIn(first.logs.join(""))).toEqual([CORE_READY]);
+      await enroll(first.page, cloud);
       await stop();
       await start();
     },

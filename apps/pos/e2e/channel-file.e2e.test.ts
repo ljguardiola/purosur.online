@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { APP_DIR, appEnv, launchApp, platformArgs, writeChannelFile } from "./launch-app";
-import { loggedAStartOutcome } from "./test-support/core-start-outcomes";
+import { coreStartEnded } from "./test-support/core-start-outcomes";
 
 // The electron package's main export is the path to its binary.
 const ELECTRON_BINARY = createRequire(join(APP_DIR, "package.json"))("electron") as string;
@@ -27,7 +27,7 @@ async function runUntilItExitsOrStarts(channelFile: string): Promise<Run> {
   const started = new Promise<void>((resolve) => {
     const collect = (append: (text: string) => void) => (chunk: Buffer) => {
       append(chunk.toString());
-      if (loggedAStartOutcome(stdout + stderr)) {
+      if (coreStartEnded(stdout + stderr)) {
         resolve();
       }
     };

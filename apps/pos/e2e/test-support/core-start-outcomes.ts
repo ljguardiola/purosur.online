@@ -1,20 +1,21 @@
 export const CORE_READY = "core: the local database is ready";
 export const CORE_DAMAGED =
   "core: the local database is damaged, so the register is out of service";
-export const CORE_NOT_OPENED = "core: the local database could not be opened";
-export const CORE_WITHOUT_DATA_FOLDER = "core: no local data folder was handed over";
 
-export const CORE_START_OUTCOMES = [
+// Every launch ends its core's start with exactly one of these: an outcome the core logs, or main
+// giving up on a core that kept crashing before it logged one.
+const CORE_START_ENDINGS = [
   CORE_READY,
   CORE_DAMAGED,
-  CORE_NOT_OPENED,
-  CORE_WITHOUT_DATA_FOLDER,
+  "core: the local database could not be opened",
+  "core: no local data folder was handed over",
+  "core process: restart attempts exhausted",
 ] as const;
 
-export function startOutcomesIn(output: string): string[] {
-  return CORE_START_OUTCOMES.filter((outcome) => output.includes(outcome));
+export function startEndingsIn(output: string): string[] {
+  return CORE_START_ENDINGS.filter((ending) => output.includes(ending));
 }
 
-export function loggedAStartOutcome(output: string): boolean {
-  return startOutcomesIn(output).length > 0;
+export function coreStartEnded(output: string): boolean {
+  return startEndingsIn(output).length > 0;
 }
