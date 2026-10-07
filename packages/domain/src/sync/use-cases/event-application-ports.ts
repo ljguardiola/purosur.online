@@ -24,7 +24,7 @@ export interface FailedAttempt {
 }
 
 export interface EventApplicationTransaction {
-  lockAggregate(key: AggregateKey): Promise<void>;
+  lockAggregate(key: AggregateKey): Promise<boolean>;
   unappliedEventsOf(key: AggregateKey): Promise<UnappliedEvent[]>;
   aggregateApplied(key: AggregateKey): Promise<boolean>;
   record(fact: SyncedFact, event: UnappliedEvent): Promise<void>;

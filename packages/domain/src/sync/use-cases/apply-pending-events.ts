@@ -19,10 +19,12 @@ export type ApplyPendingEventsOutcome =
       flagged: number;
       retried: number;
       quarantined: number;
+      busy: number;
       limitReached: boolean;
     };
 
 type Step =
+  | { kind: "busy" }
   | { kind: "nothing_due" }
   | { kind: "applied"; flagged: boolean }
   | { kind: "failed"; event: UnappliedEvent; error: string }
@@ -78,7 +80,9 @@ async function applyNextEvent(ports: ApplyPendingEventsPorts, key: AggregateKey)
   const now = ports.clock.now();
   try {
     return await ports.eventApplication.transaction(async (tx) => {
-      await tx.lockAggregate(key);
+      if (!(await tx.lockAggregate(key))) {
+        return { kind: "busy" };
+      }
       const next = nextEventToApply(await tx.unappliedEventsOf(key), now);
       if (next.kind !== "due") {
         return { kind: "nothing_due" };
@@ -104,7 +108,9 @@ async function recordFailure(
 ): Promise<Step> {
   const now = ports.clock.now();
   return ports.eventApplication.transaction(async (tx) => {
-    await tx.lockAggregate(key);
+    if (!(await tx.lockAggregate(key))) {
+      return { kind: "failure_obsolete" };
+    }
     const next = nextEventToApply(await tx.unappliedEventsOf(key), now);
     if (next.kind !== "due" || next.event.eventId !== failure.event.eventId) {
       return { kind: "failure_obsolete" };
@@ -147,11 +153,15 @@ export async function applyPendingEvents(
   let flagged = 0;
   let retried = 0;
   let quarantined = 0;
+  let busy = 0;
   for (const key of await ports.eventApplication.pendingAggregates()) {
     let aggregateDone = false;
     while (!aggregateDone && attempted < input.limit) {
       const step = await applyNextEvent(ports, key);
-      if (step.kind === "nothing_due") {
+      if (step.kind === "busy") {
+        aggregateDone = true;
+        busy += 1;
+      } else if (step.kind === "nothing_due") {
         aggregateDone = true;
       } else if (step.kind === "applied") {
         attempted += 1;
@@ -168,7 +178,7 @@ export async function applyPendingEvents(
       }
     }
   }
-  if (attempted === 0) {
+  if (attempted === 0 && busy === 0) {
     return { kind: "idle" };
   }
   return {
@@ -177,6 +187,7 @@ export async function applyPendingEvents(
     flagged,
     retried,
     quarantined,
+    busy,
     limitReached: attempted >= input.limit,
   };
 }

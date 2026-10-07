@@ -34,10 +34,13 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
     this.now = now;
   }
 
-  async lockAggregate({ aggregateType, aggregateId }: AggregateKey): Promise<void> {
-    await this.tx.execute(
-      sql`select pg_advisory_xact_lock(hashtextextended(json_build_array(${aggregateType}::text, ${aggregateId}::text)::text, 0))`,
-    );
+  async lockAggregate({ aggregateType, aggregateId }: AggregateKey): Promise<boolean> {
+    const [row] = await this.tx
+      .select({
+        held: sql<boolean>`pg_try_advisory_xact_lock(hashtextextended(json_build_array(${aggregateType}::text, ${aggregateId}::text)::text, 0))`,
+      })
+      .from(sql`(values (1)) as attempt(one)`);
+    return row?.held === true;
   }
 
   async unappliedEventsOf({ aggregateType, aggregateId }: AggregateKey): Promise<UnappliedEvent[]> {
