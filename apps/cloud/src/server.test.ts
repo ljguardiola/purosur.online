@@ -1160,6 +1160,97 @@ describe("startServer with the ARCA private key", () => {
   });
 });
 
+describe("startServer fetching the buyer tax-status values", () => {
+  const credentials = generateArcaTestCredentials();
+  const env = {
+    DATABASE_URL: "postgres://user:pass@db/purosur",
+    RESEND_API_KEY: "re_test_key",
+    RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+    RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+    BACKOFFICE_ORIGIN: "https://staging.purosur.online",
+    EDGE_ORIGIN_SECRET: "edge-secret",
+    ARCA_CERTIFICATE: credentials.certificatePem,
+    ARCA_ENVIRONMENT: "homologation",
+    DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
+    INSTALLATION_KEYS_ENCRYPTION_KEY: KEYS_ENCRYPTION_KEY,
+  };
+
+  function start(startEnv: Record<string, string>) {
+    const steps: string[] = [];
+    const fakeApp = {
+      listen: vi.fn(async () => {
+        steps.push("listen");
+      }),
+      addHook: vi.fn(),
+    } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+    const recovery = {
+      db: {},
+      jobQueue: { enqueueRecoveryRequest: vi.fn() },
+      backofficeOrigin: "https://staging.purosur.online",
+      worker: { stop: vi.fn() },
+      workerUtils: { addJob: vi.fn() },
+      close: vi.fn(),
+    };
+    const setUpRecovery = vi.fn().mockResolvedValue(recovery);
+    const enqueueBuyerTaxStatusFetch = vi.fn(async () => {
+      steps.push("enqueueBuyerTaxStatusFetch");
+    });
+    const started = startServer(startEnv, {
+      arcaEndpoints: arcaEndpointsOf,
+      initSentry: vi.fn(),
+      buildApp: vi.fn().mockReturnValue(fakeApp),
+      setUpRecovery,
+      recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      enqueueBuyerTaxStatusFetch,
+    });
+    return { started, steps, recovery, setUpRecovery, enqueueBuyerTaxStatusFetch };
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("sets up the fetch from the environment's WSFE with the certificate's CUIT and fingerprint", async () => {
+    const { started, setUpRecovery } = start({
+      ...env,
+      ARCA_PRIVATE_KEY: credentials.privateKeyPem,
+    });
+    await started;
+
+    expect(setUpRecovery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        arcaBuyerTaxStatus: {
+          endpoint: "https://wswhomo.afip.gov.ar/wsfev1/service.asmx",
+          cuit: FICTIONAL_CERTIFICATE_CUIT,
+          certificateFingerprint: credentials.fingerprint,
+        },
+      }),
+      expect.any(Function),
+    );
+  });
+
+  it("fetches once on the started job queue before it starts listening", async () => {
+    const { started, steps, recovery, enqueueBuyerTaxStatusFetch } = start({
+      ...env,
+      ARCA_PRIVATE_KEY: credentials.privateKeyPem,
+    });
+    await started;
+
+    expect(enqueueBuyerTaxStatusFetch).toHaveBeenCalledWith(recovery.workerUtils);
+    expect(steps).toEqual(["enqueueBuyerTaxStatusFetch", "listen"]);
+  });
+
+  it("sets up no fetch without the key, as no WSAA token is ever renewed to fetch with", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { started, setUpRecovery, enqueueBuyerTaxStatusFetch } = start(env);
+    await started;
+
+    const [recoveryEnv] = setUpRecovery.mock.calls[0] as [Record<string, unknown>];
+    expect(recoveryEnv).not.toHaveProperty("arcaBuyerTaxStatus");
+    expect(enqueueBuyerTaxStatusFetch).not.toHaveBeenCalled();
+  });
+});
+
 describe("startServer with the real app", () => {
   const dirs: string[] = [];
 

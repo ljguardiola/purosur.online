@@ -215,6 +215,7 @@ export {
   latestBuyerTaxStatusSet,
   latestIssuerIdentification,
   latestThreshold,
+  nextBuyerTaxStatusFetchAt,
   POINT_OF_SALE_NUMBER_MAX,
   PRE_EMISSION_GATE_FAILURE_REASONS,
   preEmissionGateFailedEvent,

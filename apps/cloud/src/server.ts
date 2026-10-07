@@ -31,10 +31,15 @@ import {
   enqueueArcaCertificateExpiryCheck,
 } from "./fiscal/arca-certificate-expiry-task.js";
 import { arcaVitalityJobs } from "./fiscal/arca-vitality-task.js";
+import {
+  buyerTaxStatusFetchJobs,
+  enqueueBuyerTaxStatusFetch,
+} from "./fiscal/buyer-tax-status-fetch-task.js";
 import { DrizzleIssuerIdentificationStore } from "./fiscal/drizzle-issuer-identification-store.js";
 import { ArcaWsaaAuthentication, wsaaEndpointOf } from "./fiscal/wsaa-authentication.js";
 import { wsaaTokenRenewalJobs } from "./fiscal/wsaa-token-renewal-task.js";
 import { WsfeArcaVitalityService, wsfeEndpointOf } from "./fiscal/wsfe-arca-vitality-service.js";
+import { WsfeBuyerTaxStatusSource } from "./fiscal/wsfe-buyer-tax-status-source.js";
 import { normalizePemNewlines } from "./platform/pem-newlines.js";
 import { runShutdownSteps } from "./platform/run-shutdown-steps.js";
 import { initSentry } from "./platform/sentry.js";
@@ -231,10 +236,10 @@ export function arcaEndpointsOf(environment: string): ArcaEndpoints {
   return { wsfe: wsfeEndpointOf(environment), wsaa: wsaaEndpointOf(environment) };
 }
 
-function resolveArcaWsaa(
+function resolveArcaSigning(
   env: ServerEnv,
   arcaEndpoints: (environment: string) => ArcaEndpoints,
-): Pick<SetUpRecoveryEnv, "arcaWsaa"> {
+): Pick<SetUpRecoveryEnv, "arcaWsaa" | "arcaBuyerTaxStatus"> {
   const environment = requireArcaEnvironment(env);
   const encodedKey = env.ARCA_PRIVATE_KEY;
   if (!encodedKey) {
@@ -265,6 +270,11 @@ function resolveArcaWsaa(
       endpoint: arcaEndpoints(environment).wsaa,
       certificatePem: normalizePemNewlines(env.ARCA_CERTIFICATE ?? ""),
       privateKeyPem,
+      certificateFingerprint: certificate.fingerprint256,
+    },
+    arcaBuyerTaxStatus: {
+      endpoint: arcaEndpoints(environment).wsfe,
+      cuit: requireAuthorizedCuit(env),
       certificateFingerprint: certificate.fingerprint256,
     },
   };
@@ -323,6 +333,7 @@ export interface SetUpRecoveryEnv extends RecoveryEnv {
     privateKeyPem: string;
     certificateFingerprint: string;
   };
+  arcaBuyerTaxStatus?: { endpoint: string; cuit: string; certificateFingerprint: string };
 }
 
 function wsaaRenewalInput(
@@ -427,6 +438,15 @@ export async function setUpRecovery(
       ...(recoveryEnv.arcaWsaa
         ? [wsaaTokenRenewalJobs(wsaaRenewalInput(recoveryEnv.arcaWsaa, now))]
         : []),
+      ...(recoveryEnv.arcaBuyerTaxStatus
+        ? [
+            buyerTaxStatusFetchJobs({
+              now,
+              source: new WsfeBuyerTaxStatusSource(recoveryEnv.arcaBuyerTaxStatus),
+              certificateFingerprint: recoveryEnv.arcaBuyerTaxStatus.certificateFingerprint,
+            }),
+          ]
+        : []),
     ],
   });
   const jobQueuePool = createRecoveryJobQueuePool(
@@ -456,6 +476,9 @@ export interface StartServerDeps {
   enqueueArcaCertificateExpiryCheck?: (
     workerUtils: RecoveryInfrastructure["workerUtils"],
   ) => Promise<unknown>;
+  enqueueBuyerTaxStatusFetch?: (
+    workerUtils: RecoveryInfrastructure["workerUtils"],
+  ) => Promise<unknown>;
   now?: () => Date;
   arcaEndpoints: (environment: string) => ArcaEndpoints;
   recordAuthorizedCuit?: (
@@ -483,6 +506,8 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
   const arcaEndpoints = deps.arcaEndpoints;
   const doEnqueueArcaCertificateExpiryCheck =
     deps.enqueueArcaCertificateExpiryCheck ?? enqueueArcaCertificateExpiryCheck;
+  const doEnqueueBuyerTaxStatusFetch =
+    deps.enqueueBuyerTaxStatusFetch ?? enqueueBuyerTaxStatusFetch;
   const doRecordAuthorizedCuit =
     deps.recordAuthorizedCuit ??
     ((db: RecoveryInfrastructure["db"], authorizedCuit: string) =>
@@ -494,24 +519,27 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
   const edgeOriginSecret = requireEdgeOriginSecret(env);
   const errorReporting = resolveBackofficeErrorReporting(env);
   const recoveryEnv = resolveRecoveryEnv(env);
-  const database = recoveryEnv
+  const configuration = recoveryEnv
     ? {
         authorizedCuit: requireAuthorizedCuit(env),
         certificateFingerprint: parseArcaCertificate(env).fingerprint256,
         deviceTokenRotationKey: requireDeviceTokenRotationKey(env),
         installationKeysEncryptionKey: requireInstallationKeysEncryptionKey(env),
-        recovery: await doSetUpRecovery(
-          {
-            ...recoveryEnv,
-            arcaCertificate: {
-              environment: requireArcaEnvironment(env),
-              notAfter: requireCertificateNotAfter(env),
-            },
-            arcaVitality: { endpoint: arcaEndpoints(requireArcaEnvironment(env)).wsfe },
-            ...resolveArcaWsaa(env, arcaEndpoints),
+        setUpRecoveryEnv: {
+          ...recoveryEnv,
+          arcaCertificate: {
+            environment: requireArcaEnvironment(env),
+            notAfter: requireCertificateNotAfter(env),
           },
-          now,
-        ),
+          arcaVitality: { endpoint: arcaEndpoints(requireArcaEnvironment(env)).wsfe },
+          ...resolveArcaSigning(env, arcaEndpoints),
+        },
+      }
+    : undefined;
+  const database = configuration
+    ? {
+        ...configuration,
+        recovery: await doSetUpRecovery(configuration.setUpRecoveryEnv, now),
       }
     : undefined;
 
@@ -537,6 +565,9 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
     app.addHook("onClose", () => database.recovery.close());
     await doRecordAuthorizedCuit(database.recovery.db, database.authorizedCuit);
     await doEnqueueArcaCertificateExpiryCheck(database.recovery.workerUtils);
+    if (database.setUpRecoveryEnv.arcaBuyerTaxStatus) {
+      await doEnqueueBuyerTaxStatusFetch(database.recovery.workerUtils);
+    }
   }
   await app.listen({ port: resolvePort(env), host: "0.0.0.0" });
   return app;

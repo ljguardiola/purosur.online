@@ -28,6 +28,11 @@ export type {
   NewBuyerIdentificationThreshold,
 } from "./buyer-identification-threshold-store.js";
 export type {
+  BuyerTaxStatusFetchResult,
+  BuyerTaxStatusSource,
+  FetchBuyerTaxStatusSetPorts,
+} from "./buyer-tax-status-source.js";
+export type {
   BuyerTaxStatusPorts,
   BuyerTaxStatusSetVersion,
   BuyerTaxStatusStore,
@@ -60,6 +65,11 @@ export type {
   EditIssuerIdentificationOutcome,
 } from "./edit-issuer-identification.js";
 export { editIssuerIdentification } from "./edit-issuer-identification.js";
+export type {
+  FetchBuyerTaxStatusSetInput,
+  FetchBuyerTaxStatusSetOutcome,
+} from "./fetch-buyer-tax-status-set.js";
+export { fetchBuyerTaxStatusSet } from "./fetch-buyer-tax-status-set.js";
 export type {
   FiscalAddress,
   FiscalAddressChange,

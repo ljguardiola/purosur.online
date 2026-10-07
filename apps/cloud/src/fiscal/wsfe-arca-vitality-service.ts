@@ -1,9 +1,6 @@
-import { fileURLToPath } from "node:url";
 import type { ArcaVitalityResult, ArcaVitalityService } from "@purosur/domain/fiscal/use-cases";
-import { type Client, createClientAsync } from "soap";
-
-// `wsdl/` sits beside both `src/` and `dist/` and ships through package.json's `files`.
-const WSFE_WSDL_PATH = fileURLToPath(new URL("../../wsdl/wsfev1.wsdl", import.meta.url));
+import type { Client } from "soap";
+import { createWsfeClient } from "./wsfe-client.js";
 
 const ARCA_VITALITY_TIMEOUT_MS = 10_000;
 
@@ -50,7 +47,7 @@ export class WsfeArcaVitalityService implements ArcaVitalityService {
 
   async check(): Promise<ArcaVitalityResult> {
     try {
-      this.client ??= createClientAsync(WSFE_WSDL_PATH, { endpoint: this.endpoint });
+      this.client ??= createWsfeClient(this.endpoint);
       const client = await this.client;
       let result: unknown;
       try {
