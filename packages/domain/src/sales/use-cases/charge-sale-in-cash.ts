@@ -57,15 +57,7 @@ export function chargeSaleInCash(
       occurredAt: completedAt,
     };
     const change = charge.kind === "covered" ? charge.change : 0;
-    const movements = cashMovements(
-      ids,
-      sale,
-      session.id,
-      actorId,
-      completedAt,
-      tendered,
-      change,
-    );
+    const movements = cashMovements(ids, sale, session.id, actorId, completedAt, tendered, change);
 
     tx.recordPayment(payment);
     for (const movement of movements) {

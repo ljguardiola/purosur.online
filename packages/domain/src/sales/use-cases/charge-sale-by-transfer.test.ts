@@ -4,8 +4,8 @@ import {
   FICTIONAL_GROSS_INCOME_REGISTRATION,
   FICTIONAL_LEGAL_NAME,
 } from "../../fiscal/test-support/fictional-tax-identities.js";
-import type { SaleWithLines } from "../model/sale.js";
 import { type CashMovement, expectedCash } from "../../register/index.js";
+import type { SaleWithLines } from "../model/sale.js";
 import { chargeSaleByTransfer } from "./charge-sale-by-transfer.js";
 import { chargeSaleInCash } from "./charge-sale-in-cash.js";
 import {
@@ -474,14 +474,17 @@ describe("chargeSaleByTransfer", () => {
       expect(expectedCash(store.state.movements)).toBe(before);
     });
 
-    it.each<FakeSaleLedgerWrite>(["recordPayment"])("leaves nothing behind when %s fails", (write) => {
-      const store = ledger();
-      const before = structuredClone(store.state);
-      store.failOn = write;
+    it.each<FakeSaleLedgerWrite>(["recordPayment"])(
+      "leaves nothing behind when %s fails",
+      (write) => {
+        const store = ledger();
+        const before = structuredClone(store.state);
+        store.failOn = write;
 
-      expect(() => charge(store, PARTIAL)).toThrow("failed");
-      expect(store.state).toEqual(before);
-    });
+        expect(() => charge(store, PARTIAL)).toThrow("failed");
+        expect(store.state).toEqual(before);
+      },
+    );
 
     it.each<FakeSaleLedgerWrite>([
       "recordPayment",

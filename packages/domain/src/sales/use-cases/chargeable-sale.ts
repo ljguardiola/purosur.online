@@ -1,7 +1,7 @@
 import { type ChargeRefusal, chargeRefusal } from "../../fiscal/index.js";
 import type { SaleWithLines } from "../model/sale.js";
-import { saleTotal } from "../model/sale-line.js";
 import { saleBalance } from "../model/sale-balance.js";
+import { saleTotal } from "../model/sale-line.js";
 import type { SaleLedgerTransaction, SellingSession } from "./sale-ledger.js";
 import { isRefusal, sellingSession } from "./selling-session.js";
 

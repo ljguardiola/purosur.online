@@ -1,5 +1,9 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { cancellableWithoutAuthorization, hasApprovedPayment, type PaymentTransaction } from "./payment.js";
+import {
+  cancellableWithoutAuthorization,
+  hasApprovedPayment,
+  type PaymentTransaction,
+} from "./payment.js";
 
 const APPROVED: PaymentTransaction = {
   id: "payment-1",
