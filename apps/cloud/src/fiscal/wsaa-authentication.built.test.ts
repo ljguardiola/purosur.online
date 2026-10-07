@@ -52,8 +52,8 @@ describe("the built WSAA authentication", () => {
       token: {
         token: "FICTIONAL-TOKEN-0001",
         sign: "FICTIONAL-SIGN-0001",
-        issuedAt: "2026-10-01T15:00:00.000Z",
-        expiresAt: "2026-10-02T03:00:00.000Z",
+        issuedAt: "2026-10-07T20:44:50.255Z",
+        expiresAt: "2026-10-08T08:44:50.255Z",
       },
     });
   });

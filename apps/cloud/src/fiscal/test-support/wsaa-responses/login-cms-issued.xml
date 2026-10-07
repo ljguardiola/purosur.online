@@ -1,16 +1,15 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><soapenv:Body><loginCmsResponse xmlns="http://wsaa.view.sua.dvadac.desein.afip.gov"><loginCmsReturn>&lt;?xml version="1.0" encoding="UTF-8" standalone="yes"?&gt;
-&lt;loginTicketResponse version="1.0"&gt;
-&lt;header&gt;
-&lt;source&gt;SERIALNUMBER=CUIT 20000000001, CN=wsaahomo, O=AFIP, C=AR&lt;/source&gt;
-&lt;destination&gt;SERIALNUMBER=CUIT 20123456786, CN=comercio-de-prueba, O=Comercio de Prueba, C=AR&lt;/destination&gt;
-&lt;uniqueId&gt;1234567890&lt;/uniqueId&gt;
-&lt;generationTime&gt;2026-10-01T12:00:00.000-03:00&lt;/generationTime&gt;
-&lt;expirationTime&gt;2026-10-02T00:00:00.000-03:00&lt;/expirationTime&gt;
-&lt;/header&gt;
-&lt;credentials&gt;
-&lt;token&gt;FICTIONAL-TOKEN-0001&lt;/token&gt;
-&lt;sign&gt;FICTIONAL-SIGN-0001&lt;/sign&gt;
-&lt;/credentials&gt;
+<?xml version="1.0" encoding="utf-8"?><soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><soapenv:Body><loginCmsResponse xmlns="http://wsaa.view.sua.dvadac.desein.afip.gov"><loginCmsReturn>&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;yes&quot;?&gt;
+&lt;loginTicketResponse version=&quot;1.0&quot;&gt;
+    &lt;header&gt;
+        &lt;source&gt;CN=wsaahomo, O=AFIP, C=AR, SERIALNUMBER=CUIT 20123456786&lt;/source&gt;
+        &lt;destination&gt;SERIALNUMBER=CUIT 20123456786, CN=comercio-de-prueba&lt;/destination&gt;
+        &lt;uniqueId&gt;1234567890&lt;/uniqueId&gt;
+        &lt;generationTime&gt;2026-10-07T17:44:50.255-03:00&lt;/generationTime&gt;
+        &lt;expirationTime&gt;2026-10-08T05:44:50.255-03:00&lt;/expirationTime&gt;
+    &lt;/header&gt;
+    &lt;credentials&gt;
+        &lt;token&gt;FICTIONAL-TOKEN-0001&lt;/token&gt;
+        &lt;sign&gt;FICTIONAL-SIGN-0001&lt;/sign&gt;
+    &lt;/credentials&gt;
 &lt;/loginTicketResponse&gt;
 </loginCmsReturn></loginCmsResponse></soapenv:Body></soapenv:Envelope>
