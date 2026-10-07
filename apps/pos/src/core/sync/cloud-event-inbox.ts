@@ -52,7 +52,7 @@ export class CloudEventInbox implements CloudEventInboxPort<CloudFailure> {
       case "stale_device":
         return { kind: "stale_device", ackSeq: answer.data.ack_seq };
       case "update_required":
-        return { kind: "failed", failure: { kind: "unreadable" } };
+        return { kind: "update_required", ackSeq: answer.data.ack_seq };
     }
   }
 }

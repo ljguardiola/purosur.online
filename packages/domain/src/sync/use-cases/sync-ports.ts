@@ -139,6 +139,7 @@ export type CloudEventInboxAnswer<TFailure> =
   | { kind: "received"; ackSeq: number }
   | { kind: "gap"; ackSeq: number; expectedSeq: number }
   | { kind: "stale_device"; ackSeq: number }
+  | { kind: "update_required"; ackSeq: number }
   | { kind: "revoked" }
   | { kind: "failed"; failure: TFailure };
 
