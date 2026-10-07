@@ -36,6 +36,7 @@ const LIST_KIND_DESCRIPTIONS = {
   backoffice_sign_in_lockout: "Demasiados intentos fallidos de ingreso",
   user_access_increased: "Se amplió el acceso de un usuario",
   register_enrolled: "Se dio de alta una caja",
+  arca_certificate_expiring: "El certificado de ARCA está por vencer",
 } satisfies Record<AlertKind, string>;
 
 export type AlertsListScreenProps = {
