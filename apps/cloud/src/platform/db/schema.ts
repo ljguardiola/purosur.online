@@ -700,12 +700,114 @@ export const inbox = pgTable(
     actorId: text("actor_id").notNull(),
     chainHmac: text("chain_hmac").notNull(),
     receivedAt: timestamp("received_at", { withTimezone: true }).notNull(),
+    appliedAt: timestamp("applied_at", { withTimezone: true }),
+    attempts: integer("attempts").notNull().default(0),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }),
+    quarantinedAt: timestamp("quarantined_at", { withTimezone: true }),
+    lastError: text("last_error"),
   },
   (table) => [
     unique("inbox_device_id_device_seq_key").on(table.deviceId, table.deviceSeq),
     check("inbox_device_seq_positive", sql`${table.deviceSeq} > 0`),
+    index("inbox_unapplied_aggregate_idx")
+      .on(table.aggregateType, table.aggregateId, table.receivedAt)
+      .where(sql`${table.appliedAt} is null`),
+    index("inbox_applied_aggregate_idx")
+      .on(table.aggregateType, table.aggregateId)
+      .where(sql`${table.appliedAt} is not null`),
   ],
 );
+
+// What the cloud derived from the events it applied. The location, register and installation of a
+// row come from the installation that pushed the event, never from the event's own payload; the
+// people (`actor_id`, `opened_by`, ...) are the register's user ids as the event named them, and
+// the frozen product, price list and promotion of a line are not checked against today's.
+// A sale, its lines and payments, and a cash movement are never changed once recorded.
+export const cashSessions = pgTable("cash_sessions", {
+  id: uuid("id").primaryKey(),
+  locationId: uuid("location_id")
+    .notNull()
+    .references(() => locations.id),
+  registerId: uuid("register_id")
+    .notNull()
+    .references(() => registers.id),
+  deviceId: uuid("device_id")
+    .notNull()
+    .references(() => registerInstallations.id),
+  openedBy: text("opened_by").notNull(),
+  openedAt: timestamp("opened_at", { withTimezone: true }).notNull(),
+  openingFloat: bigint("opening_float", { mode: "number" }).notNull(),
+  closedBy: text("closed_by"),
+  closedAt: timestamp("closed_at", { withTimezone: true }),
+  expectedCash: bigint("expected_cash", { mode: "number" }),
+  countedCash: bigint("counted_cash", { mode: "number" }),
+  difference: bigint("difference", { mode: "number" }),
+});
+
+export const sales = pgTable("sales", {
+  id: uuid("id").primaryKey(),
+  locationId: uuid("location_id")
+    .notNull()
+    .references(() => locations.id),
+  registerId: uuid("register_id")
+    .notNull()
+    .references(() => registers.id),
+  deviceId: uuid("device_id")
+    .notNull()
+    .references(() => registerInstallations.id),
+  sessionId: uuid("session_id")
+    .notNull()
+    .references(() => cashSessions.id),
+  actorId: text("actor_id").notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true }).notNull(),
+  total: bigint("total", { mode: "number" }).notNull(),
+  appliedAt: timestamp("applied_at", { withTimezone: true }).notNull(),
+});
+
+export const saleLines = pgTable("sale_lines", {
+  id: uuid("id").primaryKey(),
+  saleId: uuid("sale_id")
+    .notNull()
+    .references(() => sales.id),
+  productId: uuid("product_id").notNull(),
+  productName: text("product_name").notNull(),
+  quantity: integer("quantity").notNull(),
+  listUnitPrice: bigint("list_unit_price", { mode: "number" }).notNull(),
+  priceListId: uuid("price_list_id").notNull(),
+  promotionId: uuid("promotion_id"),
+  discountAmount: bigint("discount_amount", { mode: "number" }).notNull(),
+  lineTotal: bigint("line_total", { mode: "number" }).notNull(),
+});
+
+export const salePayments = pgTable("sale_payments", {
+  id: uuid("id").primaryKey(),
+  saleId: uuid("sale_id")
+    .notNull()
+    .references(() => sales.id),
+  method: text("method").notNull(),
+  provider: text("provider").notNull(),
+  amount: bigint("amount", { mode: "number" }).notNull(),
+  tendered: bigint("tendered", { mode: "number" }),
+  state: text("state").notNull(),
+  occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+  authorizedBy: text("authorized_by"),
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+});
+
+export const cashMovements = pgTable("cash_movements", {
+  id: uuid("id").primaryKey(),
+  sessionId: uuid("session_id")
+    .notNull()
+    .references(() => cashSessions.id),
+  type: text("type").notNull(),
+  amount: bigint("amount", { mode: "number" }).notNull(),
+  reason: text("reason"),
+  refType: text("ref_type"),
+  refId: text("ref_id"),
+  actorId: text("actor_id").notNull(),
+  authorizedBy: text("authorized_by"),
+  occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+});
 
 // A push refused for a broken chain, kept for a person to review and never applied.
 export const refusedEvents = pgTable("refused_events", {
