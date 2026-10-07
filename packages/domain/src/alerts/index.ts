@@ -11,6 +11,8 @@ export type {
   AlertDetails,
   AlertRoleSummary,
   EmailChangedDetail,
+  EventInvariantViolatedDetail,
+  EventsQuarantinedDetail,
   OpenAlertInput,
   PasskeyChangedDetail,
   RecoveryRequestedDetail,

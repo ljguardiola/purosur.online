@@ -50,6 +50,23 @@ export interface RegisterEnrolledDetail {
   replacedInstallation: boolean;
 }
 
+export interface EventsQuarantinedDetail {
+  deviceId: string;
+  eventId: string;
+  eventType: string;
+  aggregateType: string;
+  aggregateId: string;
+  error: string;
+}
+
+export interface EventInvariantViolatedDetail {
+  eventId: string;
+  eventType: string;
+  aggregateType: string;
+  aggregateId: string;
+  breaks: string[];
+}
+
 export interface AlertDetails {
   backoffice_passkey_changed: PasskeyChangedDetail;
   backoffice_recovery_requested: RecoveryRequestedDetail;
@@ -57,6 +74,8 @@ export interface AlertDetails {
   backoffice_sign_in_lockout: SignInLockoutDetail;
   user_access_increased: AccessIncreasedDetail;
   register_enrolled: RegisterEnrolledDetail;
+  events_quarantined: EventsQuarantinedDetail;
+  event_invariant_violated: EventInvariantViolatedDetail;
 }
 
 export type OpenAlertInput = {

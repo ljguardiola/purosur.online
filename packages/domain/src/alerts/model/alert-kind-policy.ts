@@ -5,7 +5,7 @@ import {
   type AlertLevel,
 } from "./alert-catalog.js";
 
-export type AlertScopeKind = "user" | "sourceAddress" | "register";
+export type AlertScopeKind = "user" | "sourceAddress" | "register" | "installation" | "event";
 
 export interface AlertKindPolicy {
   level: AlertLevel;
@@ -59,6 +59,20 @@ const ALERT_KIND_POLICIES = {
     audience: "all",
     scopeKind: "register",
     deduplicates: false,
+  },
+  events_quarantined: {
+    level: "warning",
+    escalatesAfterMs: ALERT_ESCALATION_DELAY_MS,
+    audience: "all",
+    scopeKind: "installation",
+    deduplicates: true,
+  },
+  event_invariant_violated: {
+    level: "warning",
+    escalatesAfterMs: ALERT_ESCALATION_DELAY_MS,
+    audience: "all",
+    scopeKind: "event",
+    deduplicates: true,
   },
 } as const satisfies Record<AlertKind, AlertKindPolicy>;
 
