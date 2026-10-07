@@ -30,7 +30,6 @@ import { ProductSearchResults, searchOptionId } from "./product-search-results";
 import { SaleLines } from "./sale-lines";
 import {
   useCurrentSaleQuery,
-  useRefreshCurrentSale,
   useResetCurrentSale,
   useSearchProducts,
   useTakeSale,
@@ -99,7 +98,6 @@ export function SaleScreen({
   const current = useCurrentSaleQuery({ sessionId, userId: person.user_id, read: currentSale });
   const takeSale = useTakeSale(sessionId, person.user_id);
   const resetCurrentSale = useResetCurrentSale(sessionId, person.user_id);
-  const refreshCurrentSale = useRefreshCurrentSale(sessionId, person.user_id);
   const search = useSearchProducts(searchProducts);
   const [changed, setChanged] = useState<string>();
   const [code, setCode] = useState("");
@@ -195,7 +193,7 @@ export function SaleScreen({
       case "sale_has_payments":
         setProblem(undefined);
         setCode((typed) => (typed.trim() === submitted ? "" : typed));
-        await refreshCurrentSale();
+        await resetCurrentSale();
         break;
       case "unavailable":
         refuse(submitted, failure);
@@ -259,7 +257,7 @@ export function SaleScreen({
         break;
       case "sale_has_payments":
         setProblem(undefined);
-        await refreshCurrentSale();
+        await resetCurrentSale();
         break;
       case "unknown_line":
       case "stale_quantity":
