@@ -163,6 +163,31 @@ describe("CashChargeModal", () => {
     expect(callbacks.onCompleted).not.toHaveBeenCalled();
   });
 
+  it("stays charging until the screen has gone back to the methods with the new balance", async () => {
+    const backToMethods = deferred<void>();
+    const { screen, field, chargeSale, callbacks } = await renderModal(async () => ({
+      kind: "partially_paid",
+      sale_id: "sale-1",
+      total: TOTAL,
+      paid: 400_000,
+      pending: 76_000,
+    }));
+    callbacks.onPartiallyPaid.mockReturnValue(backToMethods.promise);
+
+    await userEvent.fill(field, "4.000,00");
+    await userEvent.click(screen.getByRole("button", { name: "Registrar pago parcial" }));
+
+    await expect.poll(() => callbacks.onPartiallyPaid.mock.calls.length).toBe(1);
+    await expect
+      .element(screen.getByRole("button", { name: "Registrar pago parcial" }))
+      .toBeDisabled();
+    backToMethods.resolve();
+    await expect
+      .element(screen.getByRole("button", { name: "Registrar pago parcial" }))
+      .toBeEnabled();
+    expect(chargeSale).toHaveBeenCalledOnce();
+  });
+
   it("shows the change to hand over once the amount covers the total", async () => {
     const { screen, field, complete } = await renderModal();
 

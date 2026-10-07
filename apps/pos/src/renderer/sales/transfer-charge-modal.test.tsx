@@ -109,6 +109,27 @@ describe("TransferChargeModal", () => {
     expect(callbacks.onCompleted).not.toHaveBeenCalled();
   });
 
+  it("stays charging until the screen has gone back to the methods with the new balance", async () => {
+    const backToMethods = deferred<void>();
+    const { field, seen, chargeSale, callbacks } = await renderModal(async () => ({
+      kind: "partially_paid",
+      sale_id: "sale-1",
+      total: TOTAL,
+      paid: 200_000,
+      pending: 276_000,
+    }));
+    callbacks.onPartiallyPaid.mockReturnValue(backToMethods.promise);
+
+    await userEvent.fill(field, "2.000,00");
+    await userEvent.click(seen);
+
+    await expect.poll(() => callbacks.onPartiallyPaid.mock.calls.length).toBe(1);
+    await expect.element(seen).toBeDisabled();
+    backToMethods.resolve();
+    await expect.element(seen).toBeEnabled();
+    expect(chargeSale).toHaveBeenCalledOnce();
+  });
+
   it("says the amount cannot exceed the pending balance the core answers", async () => {
     const { screen, field, seen, callbacks } = await renderModal(
       async () => ({ kind: "exceeds_pending", pending: 376_000 }),

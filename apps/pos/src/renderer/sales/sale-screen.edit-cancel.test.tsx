@@ -270,6 +270,26 @@ describe("SaleScreen cancelling the sale", () => {
     await expect.element(screen.getByRole("button", { name: "Cancelar venta" })).toBeDisabled();
   });
 
+  it("offers no Cancelar venta while the sale loads", async () => {
+    const { screen } = await renderScreen({ currentSale: () => new Promise(() => {}) });
+
+    await expect.element(screen.getByRole("button", { name: "Cobrar" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Cancelar venta" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("offers no Cancelar venta when the sale cannot be read", async () => {
+    const { screen } = await renderScreen({
+      currentSale: () => Promise.reject(new Error("unavailable")),
+    });
+
+    await expect.element(screen.getByText("No se pudo cargar la venta")).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Cancelar venta" }))
+      .not.toBeInTheDocument();
+  });
+
   it("can cancel a sale that has no lines left", async () => {
     const { screen } = await renderScreen({ currentSale: async () => EMPTY_SALE });
 

@@ -18,9 +18,9 @@ const SALE_WITH_PAYMENT: OpenSale = {
   lines_editable: false,
   cancellable: false,
 };
-const NOTICE_TITLE = "La venta ya no se puede cambiar";
-const NOTICE_DESCRIPTION = "Tiene un pago aprobado. Cobrá el saldo pendiente para completarla.";
+const LOCKED_REASON = "La venta ya no se puede cambiar porque tiene un pago aprobado.";
 const REFUSAL_TITLE = "No se puede cambiar la venta";
+const LOCKED_NOTICE = "La venta ya no se puede cambiar";
 
 function readingFirst(before: OpenSale, after: OpenSale): () => Promise<CurrentSaleAnswer> {
   const reads = [before];
@@ -28,11 +28,11 @@ function readingFirst(before: OpenSale, after: OpenSale): () => Promise<CurrentS
 }
 
 describe("SaleScreen with a sale that already has an approved payment", () => {
-  it("explains the sale can no longer be changed", async () => {
-    const { screen } = await renderScreen({ currentSale: async () => SALE_WITH_PAYMENT });
+  it("explains on the scan field, not in a line under it, that the sale can no longer be changed", async () => {
+    const { screen, field } = await renderScreen({ currentSale: async () => SALE_WITH_PAYMENT });
 
-    await expect.element(screen.getByText(NOTICE_TITLE)).toBeVisible();
-    await expect.element(screen.getByText(NOTICE_DESCRIPTION)).toBeVisible();
+    await expect.element(field).toHaveAccessibleDescription(LOCKED_REASON);
+    await expect.element(screen.getByText(LOCKED_NOTICE, { exact: true })).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(document.body);
   });
 
@@ -48,9 +48,9 @@ describe("SaleScreen with a sale that already has an approved payment", () => {
   });
 
   it("offers no way to cancel the sale", async () => {
-    const { screen } = await renderScreen({ currentSale: async () => SALE_WITH_PAYMENT });
+    const { screen, field } = await renderScreen({ currentSale: async () => SALE_WITH_PAYMENT });
 
-    await expect.element(screen.getByText(NOTICE_TITLE)).toBeVisible();
+    await expect.element(field).toHaveAccessibleDescription(LOCKED_REASON);
     await expect
       .element(screen.getByRole("button", { name: "Cancelar venta" }))
       .not.toBeInTheDocument();
@@ -59,29 +59,22 @@ describe("SaleScreen with a sale that already has an approved payment", () => {
   it("offers no way to add, change or remove a line", async () => {
     const { screen, field } = await renderScreen({ currentSale: async () => SALE_WITH_PAYMENT });
 
-    await expect.element(screen.getByText(NOTICE_TITLE)).toBeVisible();
-    await expect.element(field).toBeDisabled();
-    await expect
-      .element(screen.getByRole("button", { name: "Subir la cantidad de Yerba mate 1 kg" }))
-      .toBeDisabled();
-    await expect
-      .element(screen.getByRole("button", { name: "Bajar la cantidad de Yerba mate 1 kg" }))
-      .toBeDisabled();
+    await expect.element(field).toHaveAttribute("aria-disabled", "true");
     await expect
       .element(screen.getByRole("button", { name: "Quitar Yerba mate 1 kg" }))
-      .toBeDisabled();
+      .toHaveAttribute("aria-disabled", "true");
   });
 
-  it("shows no notice, no payment rows and still offers to cancel while nothing is paid", async () => {
-    const { screen } = await renderScreen({ currentSale: async () => SALE_OF_YERBA });
+  it("explains no lock, shows no payment rows and still offers to cancel while nothing is paid", async () => {
+    const { screen, field } = await renderScreen({ currentSale: async () => SALE_OF_YERBA });
 
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
-    await expect.element(screen.getByText(NOTICE_TITLE)).not.toBeInTheDocument();
+    await expect.element(field).not.toHaveAccessibleDescription(LOCKED_REASON);
     await expect.element(screen.getByText("Saldo pendiente")).not.toBeInTheDocument();
     await expect.element(screen.getByRole("button", { name: "Cancelar venta" })).toBeEnabled();
   });
 
-  it("explains it, and reads the sale again, when a scan is refused because the sale has payments", async () => {
+  it("explains it once, and reads the sale again, when a scan is refused because the sale has payments", async () => {
     const scanProduct = vi.fn(
       async (): Promise<ScanProductOutcome> => ({ kind: "sale_has_payments" }),
     );
@@ -94,10 +87,13 @@ describe("SaleScreen with a sale that already has an approved payment", () => {
     await scan(field, "7790001");
 
     await expect.element(screen.getByText(REFUSAL_TITLE)).toBeVisible();
-    await expect.element(screen.getByText(NOTICE_TITLE)).toBeVisible();
     await expect
       .element(screen.getByRole("button", { name: "Cancelar venta" }))
       .not.toBeInTheDocument();
+    await expect.element(field).toBeDisabled();
+    await expect.element(field).not.toHaveAccessibleDescription(LOCKED_REASON);
+    await expect.element(screen.getByRole("tooltip")).not.toBeInTheDocument();
+    await expect.element(screen.getByText(LOCKED_NOTICE, { exact: true })).not.toBeInTheDocument();
   });
 
   it("explains it when a chosen product is refused because the sale has payments", async () => {
@@ -143,15 +139,22 @@ describe("SaleScreen with a sale that already has an approved payment", () => {
         removeSaleLine: async (): Promise<RemoveSaleLineOutcome> => ({ kind: "sale_has_payments" }),
       },
     ],
-  ])("explains it when %s is refused because the sale has payments", async (_, button, edit) => {
-    const { screen } = await renderScreen({
-      currentSale: readingFirst({ ...SALE_OF_YERBA, lines: [YERBA] }, SALE_WITH_PAYMENT),
-      ...edit,
-    });
+  ])(
+    "explains it once when %s is refused because the sale has payments",
+    async (_, button, edit) => {
+      const { screen } = await renderScreen({
+        currentSale: readingFirst({ ...SALE_OF_YERBA, lines: [YERBA] }, SALE_WITH_PAYMENT),
+        ...edit,
+      });
 
-    await screen.getByRole("button", { name: button }).click();
+      await screen.getByRole("button", { name: button }).click();
 
-    await expect.element(screen.getByText(REFUSAL_TITLE)).toBeVisible();
-    await expect.element(screen.getByText(NOTICE_TITLE)).toBeVisible();
-  });
+      await expect.element(screen.getByText(REFUSAL_TITLE)).toBeVisible();
+      await expect.element(screen.getByRole("button", { name: button })).toBeDisabled();
+      await expect.element(screen.getByRole("tooltip")).not.toBeInTheDocument();
+      await expect
+        .element(screen.getByText(LOCKED_NOTICE, { exact: true }))
+        .not.toBeInTheDocument();
+    },
+  );
 });

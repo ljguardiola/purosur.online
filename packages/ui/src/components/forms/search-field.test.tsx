@@ -1,10 +1,11 @@
 import axe from "axe-core";
 import { Search } from "lucide-react";
 import { useState } from "react";
-import { expect, expectTypeOf, test } from "vitest";
-import { userEvent } from "vitest/browser";
+import { expect, expectTypeOf, test, vi } from "vitest";
+import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
+import type { DispatchableCdpSession } from "../../test/setup-browser";
 import { insetBoundary, paintedBoxShadowLayers, tokenRgb } from "../../test/token-colors";
 import { type FieldSize, FieldSizeProvider } from "./field-size";
 import { SearchField, type SearchFieldProps } from "./search-field";
@@ -26,7 +27,10 @@ function fieldWrapper(screen: Screen, name: string): HTMLElement {
 function SearchFieldHarness({
   size,
   ...props
-}: Omit<SearchFieldProps, "value" | "onChange"> & { size: FieldSize }) {
+}: Pick<SearchFieldProps, "placeholder" | "icon" | "label" | "combobox"> & {
+  disabled?: boolean;
+  size: FieldSize;
+}) {
   const [value, setValue] = useState("");
   return (
     <FieldSizeProvider size={size}>
@@ -463,4 +467,103 @@ test("points at no list and no option while its suggestions are closed", async (
   await expect.element(combobox).not.toHaveAttribute("aria-controls");
   await expect.element(combobox).not.toHaveAttribute("aria-activedescendant");
   await expectNoAccessibilityViolations(screen.container);
+});
+
+const lockedReason = "La venta ya no se puede cambiar porque tiene un pago aprobado.";
+
+async function renderLocked(onChange = vi.fn<(value: string) => void>()) {
+  await page.viewport(1280, 900);
+  const session = cdp() as unknown as DispatchableCdpSession;
+  await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
+  window.focus();
+  const screen = await render(
+    <SearchField
+      value="7790001"
+      onChange={onChange}
+      placeholder="Scan or type the product name"
+      icon={<Search />}
+      disabledReason={lockedReason}
+    />,
+  );
+  return { screen, input: fieldInput(screen, "Scan or type the product name") };
+}
+
+test("is dimmed, announced disabled and described by its reason, keeping its value and ignoring what is typed, when given the reason it is disabled", async () => {
+  const onChange = vi.fn<(value: string) => void>();
+  const { screen, input } = await renderLocked(onChange);
+
+  await userEvent.tab();
+  await userEvent.keyboard("123");
+
+  expect(document.activeElement).toBe(input);
+  expect(input.value).toBe("7790001");
+  expect(input.getAttribute("aria-disabled")).toBe("true");
+  expect(onChange).not.toHaveBeenCalled();
+  expect(getComputedStyle(fieldWrapper(screen, "Scan or type the product name")).opacity).toBe(
+    "0.45",
+  );
+  const description = (input.getAttribute("aria-describedby") ?? "")
+    .split(" ")
+    .map((id) => document.getElementById(id)?.textContent);
+  expect(description).toContain(lockedReason);
+});
+
+test("opens the reason it is disabled as a tooltip when hovered", async () => {
+  const { screen, input } = await renderLocked();
+
+  await userEvent.hover(input);
+
+  await expect.element(screen.getByRole("tooltip")).toHaveTextContent(lockedReason);
+});
+
+test("opens the reason it is disabled as a tooltip when reached by keyboard", async () => {
+  const { screen } = await renderLocked();
+
+  await userEvent.tab();
+
+  await expect.element(screen.getByRole("tooltip")).toHaveTextContent(lockedReason);
+});
+
+test("has no accessibility violations with the reason it is disabled, closed or open", async () => {
+  const { screen } = await renderLocked();
+  await expectNoAccessibilityViolations(screen.container);
+
+  await userEvent.tab();
+  await expect.element(screen.getByRole("tooltip")).toBeVisible();
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("takes the reason it is disabled instead of being told it is disabled", () => {
+  expectTypeOf<{
+    value: string;
+    onChange: (value: string) => void;
+    placeholder: string;
+    icon: SearchFieldProps["icon"];
+    disabledReason: string;
+  }>().toExtend<SearchFieldProps>();
+  expectTypeOf<{
+    value: string;
+    onChange: (value: string) => void;
+    placeholder: string;
+    icon: SearchFieldProps["icon"];
+    disabled: boolean;
+    disabledReason: string;
+  }>().not.toExtend<SearchFieldProps>();
+});
+
+test("stays announced as the combobox of its list of suggestions when given the reason it is disabled", async () => {
+  const screen = await render(
+    <SearchField
+      value=""
+      onChange={() => {}}
+      placeholder="Scan or type the product name"
+      icon={<Search />}
+      disabledReason={lockedReason}
+      combobox={{ expanded: false, listboxId: "suggestions" }}
+    />,
+  );
+
+  await expect
+    .element(screen.getByRole("combobox", { name: "Scan or type the product name" }))
+    .toHaveAttribute("aria-disabled", "true");
 });

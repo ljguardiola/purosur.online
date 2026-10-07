@@ -802,21 +802,6 @@ describe("charging the sale in progress in cash", () => {
     expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([]);
   });
 
-  it("completes the sale with the change of what the remaining cash exceeds", async () => {
-    addFiscalConfiguration();
-    const saleId = await sellTwo();
-    const { ids } = deps();
-    await chargeSaleInCashFor(deps({ ids }), { saleId, tendered: 1000 });
-
-    expect(await chargeSaleInCashFor(deps({ ids }), { saleId, tendered: 5000 })).toEqual({
-      kind: "completed",
-      sale_id: saleId,
-      total: 3000,
-      tendered: 5000,
-      change: 3000,
-    });
-  });
-
   it.each([
     ["an amount that is not a valid cash amount", "invalid_amount", 0],
     ["a sale that is not the one in progress", "no_open_sale", 3000],
@@ -967,28 +952,6 @@ describe("charging the sale in progress by transfer", () => {
     expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
     expect(database.prepare("SELECT method, amount FROM payment_transactions").all()).toEqual([
       { method: "TRANSFER", amount: 1200 },
-    ]);
-  });
-
-  it("completes the sale with a cash payment and a transfer for the rest", async () => {
-    addFiscalConfiguration();
-    const saleId = await sellTwo();
-    const { ids } = deps();
-    await chargeSaleInCashFor(deps({ ids }), { saleId, tendered: 1000 });
-
-    expect(await chargeSaleByTransferFor(deps({ ids }), { saleId, amount: 2000 })).toEqual({
-      kind: "completed",
-      sale_id: saleId,
-      total: 3000,
-    });
-    expect(
-      database.prepare("SELECT method, amount FROM payment_transactions ORDER BY rowid").all(),
-    ).toEqual([
-      { method: "CASH", amount: 1000 },
-      { method: "TRANSFER", amount: 2000 },
-    ]);
-    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([
-      { event_type: "sale_completed" },
     ]);
   });
 

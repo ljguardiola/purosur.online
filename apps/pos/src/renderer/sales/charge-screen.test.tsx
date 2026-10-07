@@ -327,6 +327,67 @@ describe("ChargeScreen", () => {
     expect(chargeSaleInCash).toHaveBeenCalledExactlyOnceWith("sale-1", 400_000);
   });
 
+  it("keeps the cash charge busy, so it cannot charge again, until the core answers the new balance", async () => {
+    const reads = [SALE_OF_ONE_LINE];
+    const { screen, chargeSaleInCash } = await renderScreen({
+      currentSale: () => {
+        const read = reads.shift();
+        return read === undefined
+          ? new Promise<CurrentSaleAnswer>(() => {})
+          : Promise.resolve(read);
+      },
+      cashCharge: async () => ({ kind: "partial", applied: 400_000, pending: 76_000 }),
+      chargeSaleInCash: async () => ({
+        kind: "partially_paid",
+        sale_id: "sale-1",
+        total: 476_000,
+        paid: 400_000,
+        pending: 76_000,
+      }),
+    });
+
+    await chooseCash(screen);
+    await userEvent.fill(
+      screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
+      "4.000,00",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Registrar pago parcial" }));
+
+    await expect
+      .element(screen.getByRole("button", { name: "Registrar pago parcial" }))
+      .toBeDisabled();
+    expect(chargeSaleInCash).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the transfer busy, so it cannot charge again, until the core answers the new balance", async () => {
+    const reads = [SALE_OF_ONE_LINE];
+    const { screen, chargeSaleByTransfer } = await renderScreen({
+      currentSale: () => {
+        const read = reads.shift();
+        return read === undefined
+          ? new Promise<CurrentSaleAnswer>(() => {})
+          : Promise.resolve(read);
+      },
+      chargeSaleByTransfer: async () => ({
+        kind: "partially_paid",
+        sale_id: "sale-1",
+        total: 476_000,
+        paid: 200_000,
+        pending: 276_000,
+      }),
+    });
+
+    await chooseTransfer(screen);
+    await userEvent.fill(
+      screen.getByRole("textbox", { name: "Importe a cobrar con este medio" }),
+      "2.000,00",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
+
+    await expect.poll(() => chargeSaleByTransfer.mock.calls.length).toBe(1);
+    await expect.element(screen.getByRole("button", { name: "Vi el ingreso" })).toBeDisabled();
+  });
+
   it("charges the pending balance by transfer unless the cashier lowers the amount", async () => {
     const { screen, chargeSaleByTransfer } = await renderScreen({
       currentSale: async () => SALE_WITH_PART_PAID,
