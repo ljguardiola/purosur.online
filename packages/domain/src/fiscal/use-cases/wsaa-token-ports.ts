@@ -18,11 +18,7 @@ export interface WsaaAuthentication {
 
 export interface WsaaTokenStoreTransaction {
   lockWsaaToken(service: string, certificateFingerprint: string): Promise<WsaaToken | null>;
-  recordWsaaToken(
-    service: string,
-    certificateFingerprint: string,
-    token: WsaaToken,
-  ): Promise<void>;
+  recordWsaaToken(service: string, certificateFingerprint: string, token: WsaaToken): Promise<void>;
 }
 
 export interface WsaaTokenStore {

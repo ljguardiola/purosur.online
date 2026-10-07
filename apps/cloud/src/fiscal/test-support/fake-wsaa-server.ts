@@ -6,8 +6,6 @@ import forge from "node-forge";
 
 const RESPONSES_DIR = new URL("./wsaa-responses/", import.meta.url);
 
-export const UNREACHABLE_WSAA_ENDPOINT = "http://127.0.0.1:1/ws/services/LoginCms";
-
 export type FakeWsaaBehavior =
   | { kind: "answers"; status: number; responseFile: string }
   | { kind: "never-answers" };

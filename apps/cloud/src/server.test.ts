@@ -668,7 +668,10 @@ describe("startServer", () => {
         emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
         emailReplyTo: "purosur.comarca@gmail.com",
         backofficeOrigin: "https://staging.purosur.online",
-        arcaCertificate: { environment: "homologation", notAfter: VALID_ARCA_CERTIFICATE_NOT_AFTER },
+        arcaCertificate: {
+          environment: "homologation",
+          notAfter: VALID_ARCA_CERTIFICATE_NOT_AFTER,
+        },
         arcaVitality: { endpoint: "https://wswhomo.afip.gov.ar/wsfev1/service.asmx" },
       },
       now,
