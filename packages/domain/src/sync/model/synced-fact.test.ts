@@ -1,0 +1,63 @@
+import fc from "fast-check";
+import { describe, expect, it } from "vitest";
+import { dependenciesOf, invariantBreaksOf } from "./synced-fact.js";
+import {
+  A_CASH_MOVEMENT_FACT,
+  A_GATE_FAILED_FACT,
+  A_SESSION_CLOSED_FACT,
+  A_SESSION_OPENED_FACT,
+  aCompletedSaleFact,
+} from "./test-support/synced-facts.js";
+
+describe("what a synced fact needs applied before it", () => {
+  it("is the cash session a completed sale was made in", () => {
+    expect(dependenciesOf(aCompletedSaleFact({ sessionId: "session-9" }))).toEqual([
+      { aggregateType: "CashSession", aggregateId: "session-9" },
+    ]);
+  });
+
+  it("is nothing outside its own aggregate for the events of a cash session", () => {
+    expect(dependenciesOf(A_SESSION_OPENED_FACT)).toEqual([]);
+    expect(dependenciesOf(A_SESSION_CLOSED_FACT)).toEqual([]);
+    expect(dependenciesOf(A_CASH_MOVEMENT_FACT)).toEqual([]);
+  });
+
+  it("is nothing for a failed fiscal gate", () => {
+    expect(dependenciesOf(A_GATE_FAILED_FACT)).toEqual([]);
+  });
+});
+
+describe("what a synced fact breaks that only its own history shows", () => {
+  it("is that its approved payments are below the total for a sale not fully paid", () => {
+    const sale = aCompletedSaleFact({ total: 1501 });
+
+    expect(invariantBreaksOf(sale)).toEqual(["approved_payments_below_total"]);
+  });
+
+  it("is nothing for a sale whose approved payments cover the total", () => {
+    expect(invariantBreaksOf(aCompletedSaleFact())).toEqual([]);
+  });
+
+  it("is nothing for any other fact", () => {
+    expect(invariantBreaksOf(A_SESSION_OPENED_FACT)).toEqual([]);
+    expect(invariantBreaksOf(A_SESSION_CLOSED_FACT)).toEqual([]);
+    expect(invariantBreaksOf(A_CASH_MOVEMENT_FACT)).toEqual([]);
+    expect(invariantBreaksOf(A_GATE_FAILED_FACT)).toEqual([]);
+  });
+
+  it("never flags a sale whose lines' frozen prices differ from any price list, since the fact holds no current price to compare", () => {
+    const base = aCompletedSaleFact();
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: 1_000_000 }),
+        fc.string(),
+        (frozenPrice, priceListId) => {
+          const line = { ...base.sale.lines[0], listUnitPrice: frozenPrice, priceListId };
+          const sale = aCompletedSaleFact({ lines: line === undefined ? [] : [line] });
+
+          expect(invariantBreaksOf(sale)).toEqual(invariantBreaksOf(base));
+        },
+      ),
+    );
+  });
+});
