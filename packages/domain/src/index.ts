@@ -317,10 +317,10 @@ export type {
   Sale,
   SaleLine,
   SaleState,
-  SaleWithLines,
   SalesOfDay,
   SalesReportRange,
   SalesReportTotals,
+  SaleWithLines,
   SoldProduct,
 } from "./sales/index.js";
 export {
