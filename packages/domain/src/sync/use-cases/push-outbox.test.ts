@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { pushOutbox } from "./push-outbox.js";
 import { fakeEvent } from "./test-support/fake-inbox.js";
+import { FakeLocalInstallation } from "./test-support/fake-local-installation.js";
 import {
   type FakeCloudAnswer,
   FakeCloudEventInbox,
@@ -13,7 +14,8 @@ function eventsFrom(firstSeq: number, count: number) {
 
 function push(outbox: FakeLocalOutbox, answers: FakeCloudAnswer[]) {
   const inbox = new FakeCloudEventInbox(answers);
-  return { inbox, outcome: pushOutbox({ outbox, inbox }) };
+  const installation = new FakeLocalInstallation();
+  return { inbox, installation, outcome: pushOutbox({ outbox, inbox, installation }) };
 }
 
 describe("pushing the outbox to the cloud", () => {
@@ -141,12 +143,26 @@ describe("pushing the outbox to the cloud", () => {
     expect(outbox.acknowledgedThrough).toEqual([]);
   });
 
-  it("reports a revoked installation and acknowledges nothing", async () => {
+  it("records the installation as revoked when the cloud says so, acknowledging nothing", async () => {
     const outbox = new FakeLocalOutbox(eventsFrom(1, 2));
-    const { outcome } = push(outbox, [{ kind: "revoked" }]);
+    const { installation, outcome } = push(outbox, [{ kind: "revoked" }]);
 
     expect(await outcome).toEqual({ kind: "revoked" });
     expect(outbox.acknowledgedThrough).toEqual([]);
+    expect(installation.revocationsRecorded).toBe(1);
+  });
+
+  it.each<FakeCloudAnswer>([
+    { kind: "received", ackSeq: 2 },
+    { kind: "gap", ackSeq: 0, expectedSeq: 1 },
+    { kind: "stale_device", ackSeq: 9 },
+    { kind: "failed", failure: "token refused" },
+  ])("does not record the installation as revoked when the cloud answers $kind", async (answer) => {
+    const outbox = new FakeLocalOutbox(eventsFrom(1, 2));
+    const { installation, outcome } = push(outbox, [answer, { kind: "received", ackSeq: 2 }]);
+    await outcome;
+
+    expect(installation.revoked).toBe(false);
   });
 
   it("keeps the events and reports the failure when the cloud cannot be reached", async () => {

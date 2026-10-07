@@ -1,6 +1,7 @@
 import type { DeviceCredentials } from "@purosur/contracts";
 import type { RegisterTelemetry } from "@purosur/domain";
 import {
+  type LocalInstallation,
   type LocalOutbox,
   type PushOutboxOutcome,
   pushOutbox,
@@ -12,6 +13,7 @@ import type { SyncResult } from "./sync-schedule";
 export interface PushToCloudDeps {
   readCredentials: () => Promise<DeviceCredentials | undefined>;
   outbox: LocalOutbox | undefined;
+  installation: LocalInstallation | undefined;
   adoptDevice: (device: { deviceId: string; pepper: string }) => void;
   post: PostToCloudWithBearer | undefined;
   appVersion: string | undefined;
@@ -26,11 +28,11 @@ export type PushAttempt =
   | PushOutboxOutcome<CloudFailure>;
 
 export async function pushToCloud(deps: PushToCloudDeps): Promise<PushAttempt> {
-  const { post, outbox, readTelemetry, appVersion } = deps;
+  const { post, outbox, installation, readTelemetry, appVersion } = deps;
   if (post === undefined) {
     return { kind: "no_cloud" };
   }
-  if (outbox === undefined || readTelemetry === undefined) {
+  if (outbox === undefined || installation === undefined || readTelemetry === undefined) {
     return { kind: "no_local_database" };
   }
   if (appVersion === undefined) {
@@ -43,6 +45,7 @@ export async function pushToCloud(deps: PushToCloudDeps): Promise<PushAttempt> {
   deps.adoptDevice({ deviceId: credentials.device_id, pepper: credentials.pepper });
   return pushOutbox({
     outbox,
+    installation,
     inbox: new CloudEventInbox({
       post,
       deviceToken: credentials.device_token,

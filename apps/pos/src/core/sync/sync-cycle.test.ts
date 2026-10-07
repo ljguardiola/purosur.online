@@ -5,11 +5,20 @@ import { createSyncSchedule, type SyncResult } from "./sync-schedule";
 const SUCCEEDED: SyncResult = { kind: "succeeded" };
 const FAILED: SyncResult = { kind: "failed" };
 
-function cycleWith(push: () => Promise<SyncResult>, pull: () => Promise<SyncResult>) {
+function cycleWith(
+  push: () => Promise<SyncResult>,
+  pull: () => Promise<SyncResult>,
+  checkInstallation: () => Promise<SyncResult> = async () => SUCCEEDED,
+) {
   const order: string[] = [];
   const pushFailures: unknown[] = [];
+  const checkFailures: unknown[] = [];
   const cycle = () =>
     runSyncCycle({
+      checkInstallation: async () => {
+        order.push("check");
+        return checkInstallation();
+      },
       push: async () => {
         order.push("push");
         return push();
@@ -19,19 +28,55 @@ function cycleWith(push: () => Promise<SyncResult>, pull: () => Promise<SyncResu
         return pull();
       },
       onPushFailure: (error) => pushFailures.push(error),
+      onCheckFailure: (error) => checkFailures.push(error),
     });
-  return { cycle, order, pushFailures };
+  return { cycle, order, pushFailures, checkFailures };
 }
 
 describe("a sync cycle", () => {
-  it("pushes the outbox, then pulls the cloud's changes", async () => {
+  it("checks the installation with the cloud, pushes the outbox, then pulls the cloud's changes", async () => {
     const { cycle, order } = cycleWith(
       async () => SUCCEEDED,
       async () => SUCCEEDED,
     );
 
     expect(await cycle()).toEqual(SUCCEEDED);
-    expect(order).toEqual(["push", "pull"]);
+    expect(order).toEqual(["check", "push", "pull"]);
+  });
+
+  it("still pushes and pulls when the check failed, and counts the cycle as failed", async () => {
+    const { cycle, order } = cycleWith(
+      async () => SUCCEEDED,
+      async () => SUCCEEDED,
+      async () => FAILED,
+    );
+
+    expect(await cycle()).toEqual(FAILED);
+    expect(order).toEqual(["check", "push", "pull"]);
+  });
+
+  it("still pushes and pulls when the check throws, reporting the failure and counting the cycle as failed", async () => {
+    const { cycle, order, checkFailures } = cycleWith(
+      async () => SUCCEEDED,
+      async () => SUCCEEDED,
+      async () => {
+        throw new Error("disk full");
+      },
+    );
+
+    expect(await cycle()).toEqual(FAILED);
+    expect(order).toEqual(["check", "push", "pull"]);
+    expect(checkFailures).toEqual([new Error("disk full")]);
+  });
+
+  it("waits as long as the cloud asked the check to when that is the longest wait", async () => {
+    const { cycle } = cycleWith(
+      async () => ({ kind: "failed", retryAfterMs: 30_000 }),
+      async () => SUCCEEDED,
+      async () => ({ kind: "failed", retryAfterMs: 60_000 }),
+    );
+
+    expect(await cycle()).toEqual({ kind: "failed", retryAfterMs: 60_000 });
   });
 
   it("still pulls when the push failed, and counts the cycle as failed", async () => {
@@ -41,7 +86,7 @@ describe("a sync cycle", () => {
     );
 
     expect(await cycle()).toEqual(FAILED);
-    expect(order).toEqual(["push", "pull"]);
+    expect(order).toEqual(["check", "push", "pull"]);
   });
 
   it("counts the cycle as failed when only the pull failed", async () => {
@@ -62,7 +107,7 @@ describe("a sync cycle", () => {
     );
 
     expect(await cycle()).toEqual(FAILED);
-    expect(order).toEqual(["push", "pull"]);
+    expect(order).toEqual(["check", "push", "pull"]);
     expect(pushFailures).toEqual([new Error("disk full")]);
   });
 
@@ -109,6 +154,7 @@ describe("the sync schedule running sync cycles", () => {
     const schedule = createSyncSchedule({
       syncOnce: () =>
         runSyncCycle({
+          checkInstallation: async () => SUCCEEDED,
           push: async () => {
             pushes += 1;
             if (pushes === 1) {
@@ -121,6 +167,7 @@ describe("the sync schedule running sync cycles", () => {
             return SUCCEEDED;
           },
           onPushFailure: () => {},
+          onCheckFailure: () => {},
         }),
       intervalMs: 30_000,
       failureBackoff: { baseMs: 2000, maxMs: 60_000 },
