@@ -5,7 +5,7 @@ import { FICTIONAL_CERTIFICATE_CUIT_DIGITS, scrubArcaRecording } from "./scrub-a
 const ORIGINAL_TOKEN = "T0K3N-original/with+base64==";
 const ORIGINAL_SIGN = "S1GN-original/with+base64==";
 const ORIGINAL_ISSUER_CUIT = "33111111112";
-const ORIGINAL_HOLDER_CUIT = "20222222223";
+const ORIGINAL_HOLDER_CUIT = "20222222224";
 const CUIT_PATTERN = /(?<!\d)\d{2}-?\d{8}-?\d(?!\d)/g;
 
 function escaped(xml: string): string {
@@ -81,7 +81,7 @@ describe("scrubArcaRecording", () => {
   });
 
   it("replaces a CUIT written with dashes in the same form", () => {
-    const { text } = scrubArcaRecording("<detail>20-22222222-3 and 33-11111111-2</detail>");
+    const { text } = scrubArcaRecording("<detail>20-22222222-4 and 33-11111111-2</detail>");
 
     expect(text).toBe(
       `<detail>${FICTIONAL_CERTIFICATE_CUIT} and ${FICTIONAL_CERTIFICATE_CUIT}</detail>`,

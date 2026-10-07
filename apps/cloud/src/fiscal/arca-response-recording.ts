@@ -7,14 +7,11 @@ import { WsfeArcaVitalityService } from "./wsfe-arca-vitality-service.js";
 
 const WSAA_SERVICE = "wsfe";
 
-export interface RecordingSettings {
-  outDir: string;
-  certificatePem: string;
-  privateKeyPem: string;
-}
-
 export type RecordingSettingsResult =
-  | { kind: "ready"; settings: RecordingSettings }
+  | {
+      kind: "ready";
+      settings: Pick<RecordArcaResponsesOptions, "outDir" | "certificatePem" | "privateKeyPem">;
+    }
   | { kind: "refused"; reason: string };
 
 export function recordingSettingsOf(
@@ -46,7 +43,10 @@ export function recordingSettingsOf(
   };
 }
 
-export interface RecordArcaResponsesOptions extends RecordingSettings {
+export interface RecordArcaResponsesOptions {
+  outDir: string;
+  certificatePem: string;
+  privateKeyPem: string;
   wsaaEndpoint: string;
   wsfeEndpoint: string;
   now: () => Date;
