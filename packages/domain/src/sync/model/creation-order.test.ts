@@ -71,7 +71,7 @@ describe("the order events of one aggregate were created in", () => {
 
   it("follows the sequence of the installation for events it reported at the same instants", () => {
     const events = [3, 2, 1].map((deviceSeq) =>
-      event(`event-`, "register-1", deviceSeq, "2026-10-07T10:00:00.000Z"),
+      event(`event-${deviceSeq}`, "register-1", deviceSeq, "2026-10-07T10:00:00.000Z"),
     );
 
     expect(ids(inCreationOrder(events))).toEqual(["event-1", "event-2", "event-3"]);
