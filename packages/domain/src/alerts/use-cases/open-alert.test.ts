@@ -168,6 +168,52 @@ describe("openAlert", () => {
     expect(outcome).toEqual({ kind: "opened", alertId: "alert-2" });
   });
 
+  it("opens one alert per installation for quarantined events while one is still open", async () => {
+    const store = storeWithViewers();
+    const quarantined = (deviceId: string, eventId: string): OpenAlertInput => ({
+      kind: "events_quarantined",
+      scope: deviceId,
+      detail: {
+        deviceId,
+        eventId,
+        eventType: "sale_completed",
+        aggregateType: "Sale",
+        aggregateId: "sale-1",
+        error: "depends on CashSession session-1 not applied yet",
+      },
+    });
+
+    const first = await open(store, quarantined("device-1", "event-1"));
+    const sameInstallation = await open(store, quarantined("device-1", "event-2"));
+    const otherInstallation = await open(store, quarantined("device-2", "event-3"));
+
+    expect(first).toEqual({ kind: "opened", alertId: "alert-1" });
+    expect(sameInstallation).toEqual({ kind: "already_open", alertId: "alert-1" });
+    expect(otherInstallation).toEqual({ kind: "opened", alertId: "alert-2" });
+  });
+
+  it("opens one alert per event for an invariant violation", async () => {
+    const store = storeWithViewers();
+    const violated = (eventId: string): OpenAlertInput => ({
+      kind: "event_invariant_violated",
+      scope: eventId,
+      detail: {
+        eventId,
+        eventType: "sale_completed",
+        aggregateType: "Sale",
+        aggregateId: "sale-1",
+        breaks: ["approved_payments_below_total"],
+      },
+    });
+
+    await open(store, violated("event-1"));
+    const same = await open(store, violated("event-1"));
+    const other = await open(store, violated("event-2"));
+
+    expect(same).toEqual({ kind: "already_open", alertId: "alert-1" });
+    expect(other).toEqual({ kind: "opened", alertId: "alert-2" });
+  });
+
   it("opens a new alert once the earlier one of that kind and scope is closed", async () => {
     const store = storeWithViewers();
     store.seedAlert({
