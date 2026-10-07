@@ -5,7 +5,7 @@ import { type Client, createClientAsync } from "soap";
 // `wsdl/` sits beside both `src/` and `dist/` and ships through package.json's `files`.
 const WSFE_WSDL_PATH = fileURLToPath(new URL("../../wsdl/wsfev1.wsdl", import.meta.url));
 
-export const ARCA_VITALITY_TIMEOUT_MS = 10_000;
+const ARCA_VITALITY_TIMEOUT_MS = 10_000;
 
 const WSFE_ENDPOINTS: Record<string, string> = {
   homologation: "https://wswhomo.afip.gov.ar/wsfev1/service.asmx",
