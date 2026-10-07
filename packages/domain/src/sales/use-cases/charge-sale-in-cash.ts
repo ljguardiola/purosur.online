@@ -44,8 +44,8 @@ export function chargeSaleInCash(
     if (charge.kind === "invalid_amount") {
       return charge;
     }
-    if (charge.kind === "insufficient") {
-      return { kind: "insufficient_cash", amountDue: charge.amountDue };
+    if (charge.kind === "partial") {
+      return { kind: "insufficient_cash", amountDue: total };
     }
 
     const payment: PaymentTransaction = {
