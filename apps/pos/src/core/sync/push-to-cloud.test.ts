@@ -12,6 +12,7 @@ import {
   pushToCloud,
   pushWarningOf,
 } from "./push-to-cloud";
+import { SqliteLocalInstallation } from "./sqlite-local-installation";
 import { SqliteLocalOutbox } from "./sqlite-local-outbox";
 import { SqliteLocalReplica } from "./sqlite-local-replica";
 import { appendOutboxEvent } from "./sqlite-outbox";
@@ -41,6 +42,16 @@ function registerWithEvents(count: number) {
     appendOutboxEvent(database, CHAIN_KEY, draft(number));
   }
   const outbox = new SqliteLocalOutbox(database, () => new Date("2026-10-01T09:30:00.000Z"));
+  const installation = new SqliteLocalInstallation(
+    database,
+    () => new Date("2026-10-01T09:30:00.000Z"),
+  );
+  const revokedAt = () =>
+    database
+      .prepare<[], { installation_revoked_at: string | null }>(
+        "SELECT installation_revoked_at FROM sync_state",
+      )
+      .get()?.installation_revoked_at;
   const acknowledged = () =>
     database
       .prepare<[], { device_seq: number }>(
@@ -48,7 +59,7 @@ function registerWithEvents(count: number) {
       )
       .all()
       .map((row) => row.device_seq);
-  return { database, replica, outbox, acknowledged };
+  return { database, replica, outbox, installation, acknowledged, revokedAt };
 }
 
 function cloudAnswering(answer: (seqs: number[]) => CloudResponse) {
@@ -75,6 +86,7 @@ function depsFor(
   return {
     readCredentials: async () => CREDENTIALS,
     outbox: register.outbox,
+    installation: register.installation,
     adoptDevice: (device) => register.replica.adoptDevice(device),
     post,
     appVersion: "1.4.2",
@@ -158,6 +170,7 @@ describe("a push to the cloud", () => {
     const attempt = await pushToCloud(
       depsFor(register, post, {
         outbox: undefined,
+        installation: undefined,
         readTelemetry: undefined,
       }),
     );
@@ -252,7 +265,7 @@ describe("what a push is worth warning about", () => {
 });
 
 describe("a revoked installation", () => {
-  it("is reported by the push and keeps its events", async () => {
+  it("is recorded by the push, which keeps its events", async () => {
     const register = registerWithEvents(2);
     const { post } = cloudAnswering(() => ({
       kind: "error",
@@ -263,5 +276,18 @@ describe("a revoked installation", () => {
 
     expect(attempt).toEqual({ kind: "revoked" });
     expect(register.acknowledged()).toEqual([]);
+    expect(register.revokedAt()).toBe("2026-10-01T09:30:00.000Z");
+  });
+
+  it("is not recorded when the cloud only refuses the device token", async () => {
+    const register = registerWithEvents(2);
+    const { post } = cloudAnswering(() => ({
+      kind: "error",
+      error: cloudError("device_token_rejected", "the device token is not recognized"),
+    }));
+
+    await pushToCloud(depsFor(register, post));
+
+    expect(register.revokedAt()).toBeNull();
   });
 });
