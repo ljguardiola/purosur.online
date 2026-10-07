@@ -91,6 +91,23 @@ const registerEnrolledDetailSchema = z.object({
   replacedInstallation: z.boolean(),
 });
 
+const eventsQuarantinedDetailSchema = z.object({
+  deviceId: z.string(),
+  eventId: z.string(),
+  eventType: z.string(),
+  aggregateType: z.string(),
+  aggregateId: z.string(),
+  error: z.string(),
+});
+
+const eventInvariantViolatedDetailSchema = z.object({
+  eventId: z.string(),
+  eventType: z.string(),
+  aggregateType: z.string(),
+  aggregateId: z.string(),
+  breaks: z.array(z.string()),
+});
+
 const ALERT_INSTANT = { timeZone: ARGENTINA_TIME_ZONE };
 
 const alertBase = {
@@ -136,6 +153,16 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("register_enrolled" satisfies AlertKind),
     detail: registerEnrolledDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("events_quarantined" satisfies AlertKind),
+    detail: eventsQuarantinedDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("event_invariant_violated" satisfies AlertKind),
+    detail: eventInvariantViolatedDetailSchema,
   }),
 ] as const;
 
