@@ -16,12 +16,12 @@ export interface ArcaCertificateExpiryCheckInput {
   notAfter: Date;
 }
 
-export function checkArcaCertificateExpiryTask<TQueryResult extends PgQueryResultHKT>(
+function checkArcaCertificateExpiryTask<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   { now, environment, notAfter }: ArcaCertificateExpiryCheckInput,
 ) {
   return checkArcaCertificateExpiry(
-    { store: new DrizzleArcaCertificateExpiryStore(db, now), clock: { now } },
+    { store: new DrizzleArcaCertificateExpiryStore(db), clock: { now } },
     { environment, notAfter },
   );
 }

@@ -53,9 +53,8 @@ async function runCheckOfCertificateExpiringAt(notAfter: Date): Promise<void> {
     await enqueueArcaCertificateExpiryCheck(recovery.workerUtils);
     await vi.waitFor(
       async () => {
-        const [{ pending }] = await sql<{ pending: number }[]>`
-          select count(*)::int as pending from graphile_worker._private_jobs`;
-        expect(pending).toBe(0);
+        const jobs = await sql`select 1 from graphile_worker._private_jobs`;
+        expect(jobs).toHaveLength(0);
       },
       { timeout: 20_000, interval: 100 },
     );
@@ -87,7 +86,10 @@ describe("the certificate expiry check the server sets up on a real Postgres", (
     await runCheckOfCertificateExpiringAt(RENEWED);
 
     expect(await openAlerts()).toHaveLength(0);
-    const [resolved] = await db.select().from(alerts).where(eq(alerts.id, opened?.id ?? ""));
+    const [resolved] = await db
+      .select()
+      .from(alerts)
+      .where(eq(alerts.id, opened?.id ?? ""));
     expect(resolved).toMatchObject({ resolvedAt: NOW, resolvedBy: null });
   }, 90_000);
 });

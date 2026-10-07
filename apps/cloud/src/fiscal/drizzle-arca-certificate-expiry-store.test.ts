@@ -29,7 +29,7 @@ beforeEach(async () => {
 
 function check(environment: string, notAfter: Date) {
   return checkArcaCertificateExpiry(
-    { store: new DrizzleArcaCertificateExpiryStore(db, () => NOW), clock: { now: () => NOW } },
+    { store: new DrizzleArcaCertificateExpiryStore(db), clock: { now: () => NOW } },
     { environment, notAfter },
   );
 }

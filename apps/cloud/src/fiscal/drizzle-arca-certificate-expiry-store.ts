@@ -6,8 +6,8 @@ import type {
 } from "@purosur/domain/fiscal/use-cases";
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { openAlertCondition } from "../alerts/open-alert-condition.js";
 import { openAlert } from "../alerts/open-alert.js";
+import { openAlertCondition } from "../alerts/open-alert-condition.js";
 import { resolveAlert } from "../alerts/resolve-alert.js";
 import { alerts } from "../platform/db/schema.js";
 
@@ -19,11 +19,9 @@ class DrizzleArcaCertificateExpiryStoreTransaction<TQueryResult extends PgQueryR
   implements ArcaCertificateExpiryStoreTransaction
 {
   private readonly tx: Transaction<TQueryResult>;
-  private readonly now: () => Date;
 
-  constructor(tx: Transaction<TQueryResult>, now: () => Date) {
+  constructor(tx: Transaction<TQueryResult>) {
     this.tx = tx;
-    this.now = now;
   }
 
   async lockOpenCertificateExpiringAlert(
@@ -68,18 +66,14 @@ export class DrizzleArcaCertificateExpiryStore<TQueryResult extends PgQueryResul
   implements ArcaCertificateExpiryStore
 {
   private readonly db: PgDatabase<TQueryResult>;
-  private readonly now: () => Date;
 
-  constructor(db: PgDatabase<TQueryResult>, now: () => Date) {
+  constructor(db: PgDatabase<TQueryResult>) {
     this.db = db;
-    this.now = now;
   }
 
   transaction<TOutcome>(
     work: (tx: ArcaCertificateExpiryStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return this.db.transaction((tx) =>
-      work(new DrizzleArcaCertificateExpiryStoreTransaction(tx, this.now)),
-    );
+    return this.db.transaction((tx) => work(new DrizzleArcaCertificateExpiryStoreTransaction(tx)));
   }
 }
