@@ -8,12 +8,15 @@ if (import.meta.main) {
     console.error(`record-arca-responses: ${result.reason}`);
     process.exit(1);
   } else {
-    recordArcaResponses({
-      ...result.settings,
-      wsaaEndpoint: wsaaEndpointOf("homologation"),
-      wsfeEndpoint: wsfeEndpointOf("homologation"),
-      now: () => new Date(),
-    })
+    Promise.resolve()
+      .then(() =>
+        recordArcaResponses({
+          ...result.settings,
+          wsaaEndpoint: wsaaEndpointOf("homologation"),
+          wsfeEndpoint: wsfeEndpointOf("homologation"),
+          now: () => new Date(),
+        }),
+      )
       .then((report) => {
         for (const { file, replacements } of report.scrubbed) {
           const replaced = replacements.map(({ field, count }) => `${field} x${count}`);

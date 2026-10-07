@@ -1,16 +1,23 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { normalizePemNewlines } from "../platform/pem-newlines.js";
+import { requireAuthorizedCuit } from "../server.js";
 import { type ScrubReplacement, scrubArcaRecording } from "./scrub-arca-recording.js";
 import { ArcaWsaaAuthentication } from "./wsaa-authentication.js";
 import { WsfeArcaVitalityService } from "./wsfe-arca-vitality-service.js";
+import { WsfeBuyerTaxStatusSource } from "./wsfe-buyer-tax-status-source.js";
 
 const WSAA_SERVICE = "wsfe";
+const UNISSUED_TOKEN = "FICTIONAL-TOKEN-0001";
+const UNISSUED_SIGN = "FICTIONAL-SIGN-0001";
 
 export type RecordingSettingsResult =
   | {
       kind: "ready";
-      settings: Pick<RecordArcaResponsesOptions, "outDir" | "certificatePem" | "privateKeyPem">;
+      settings: Pick<
+        RecordArcaResponsesOptions,
+        "outDir" | "certificatePem" | "privateKeyPem" | "cuit"
+      >;
     }
   | { kind: "refused"; reason: string };
 
@@ -33,12 +40,19 @@ export function recordingSettingsOf(
   if (!privateKey) {
     return { kind: "refused", reason: "ARCA_PRIVATE_KEY is not set" };
   }
+  let cuit: string;
+  try {
+    cuit = requireAuthorizedCuit(env);
+  } catch (error) {
+    return { kind: "refused", reason: error instanceof Error ? error.message : String(error) };
+  }
   return {
     kind: "ready",
     settings: {
       outDir,
       certificatePem: normalizePemNewlines(certificate),
       privateKeyPem: normalizePemNewlines(privateKey),
+      cuit,
     },
   };
 }
@@ -49,6 +63,7 @@ export interface RecordArcaResponsesOptions {
   privateKeyPem: string;
   wsaaEndpoint: string;
   wsfeEndpoint: string;
+  cuit: string;
   now: () => Date;
   timeoutMs?: number;
 }
@@ -101,6 +116,27 @@ export async function recordArcaResponses(
   });
   const first = await authentication.requestToken(WSAA_SERVICE);
   const issued = firstLogin.raw();
+  const buyerTaxStatusRecordings: [string, string][] = [];
+  if (first.kind === "issued") {
+    const withIssuedTicket = capturedBy("FEParamGetCondicionIvaReceptor");
+    await new WsfeBuyerTaxStatusSource({
+      endpoint: options.wsfeEndpoint,
+      cuit: options.cuit,
+      onRawResponse: withIssuedTicket.onRawResponse,
+      ...timeout,
+    }).fetchBuyerTaxStatusSet(first.token);
+    const withUnissuedTicket = capturedBy("FEParamGetCondicionIvaReceptor with an unissued ticket");
+    await new WsfeBuyerTaxStatusSource({
+      endpoint: options.wsfeEndpoint,
+      cuit: options.cuit,
+      onRawResponse: withUnissuedTicket.onRawResponse,
+      ...timeout,
+    }).fetchBuyerTaxStatusSet({ ...first.token, token: UNISSUED_TOKEN, sign: UNISSUED_SIGN });
+    buyerTaxStatusRecordings.push(
+      ["fe-param-get-condicion-iva-receptor", withIssuedTicket.raw()],
+      ["fe-param-get-condicion-iva-receptor-token-error", withUnissuedTicket.raw()],
+    );
+  }
   logins += 1;
   current = secondLogin;
   await authentication.requestToken(WSAA_SERVICE);
@@ -111,6 +147,7 @@ export async function recordArcaResponses(
   const recordings = [
     ["fe-dummy", feDummy],
     ["login-cms-issued", issued],
+    ...buyerTaxStatusRecordings,
     ["login-cms-already-authenticated", alreadyAuthenticated],
   ] as const;
   for (const [name, raw] of recordings) {

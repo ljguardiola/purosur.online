@@ -11,6 +11,7 @@ export {
   thresholdInEffectOn,
   thresholdScheduledAfter,
 } from "./model/buyer-identification-threshold.js";
+export { nextBuyerTaxStatusFetchAt } from "./model/buyer-tax-status-fetch.js";
 export type { BuyerTaxStatusOption } from "./model/buyer-tax-status-set.js";
 export {
   isValidBuyerTaxStatusSet,

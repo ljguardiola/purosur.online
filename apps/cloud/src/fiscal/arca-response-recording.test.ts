@@ -7,6 +7,12 @@ import {
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  ARCA_CERTIFICATE_WITH_WRONG_CHECK_DIGIT,
+  ARCA_CERTIFICATE_WITHOUT_SERIAL_NUMBER,
+  VALID_ARCA_CERTIFICATE,
+  VALID_ARCA_CERTIFICATE_SINGLE_LINE,
+} from "../test-support/arca-certificate-fixtures.js";
 import { recordArcaResponses, recordingSettingsOf } from "./arca-response-recording.js";
 import {
   type ArcaTestCredentials,
@@ -23,8 +29,9 @@ import {
 } from "./test-support/fake-wsaa-server.js";
 import {
   type FakeWsfeServer,
+  NO_ANSWER,
   startFakeWsfeServer,
-  answers as wsfeAnswers,
+  answersInTurn as wsfeAnswersInTurn,
 } from "./test-support/fake-wsfe-server.js";
 
 const NOW = new Date("2026-10-01T15:00:00.000Z");
@@ -58,7 +65,13 @@ beforeEach(() => {
       recordedAnswer("already-authenticated-fault.xml", 500),
     ),
   );
-  wsfe.behave(wsfeAnswers("fe-dummy-all-ok.xml"));
+  wsfe.behave(
+    wsfeAnswersInTurn(
+      "fe-dummy-all-ok.xml",
+      "fe-param-get-condicion-iva-receptor.xml",
+      "fe-param-get-condicion-iva-receptor-token-error.xml",
+    ),
+  );
 });
 
 afterEach(() => {
@@ -72,6 +85,7 @@ function record() {
     outDir,
     wsaaEndpoint: wsaa.endpoint,
     wsfeEndpoint: wsfe.endpoint,
+    cuit: FICTIONAL_CERTIFICATE_CUIT,
     now: () => NOW,
   });
 }
@@ -100,16 +114,44 @@ describe("recordArcaResponses", () => {
       fixture("wsfe-responses", "fe-dummy-all-ok.xml"),
     );
     expect(readFileSync(join(outDir, "login-cms-issued.raw.xml"), "utf8")).toBe(unscrubbedLogin());
+    expect(readFileSync(join(outDir, "fe-param-get-condicion-iva-receptor.raw.xml"), "utf8")).toBe(
+      fixture("wsfe-responses", "fe-param-get-condicion-iva-receptor.xml"),
+    );
+    expect(
+      readFileSync(join(outDir, "fe-param-get-condicion-iva-receptor-token-error.raw.xml"), "utf8"),
+    ).toBe(fixture("wsfe-responses", "fe-param-get-condicion-iva-receptor-token-error.xml"));
     expect(readFileSync(join(outDir, "login-cms-already-authenticated.raw.xml"), "utf8")).toBe(
       fixture("wsaa-responses", "already-authenticated-fault.xml"),
     );
   });
 
-  it("makes exactly one FEDummy call and two logins", async () => {
+  it("makes exactly one FEDummy call, two logins and two buyer tax-status calls", async () => {
+    await record();
+
+    expect(wsfe.requests).toHaveLength(3);
+    expect(wsaa.requests).toHaveLength(2);
+  });
+
+  it("asks for the buyer tax-status values with the issued ticket and the certificate's CUIT, then with a ticket ARCA never issued", async () => {
+    await record();
+
+    const [, withIssuedTicket, withUnissuedTicket] = wsfe.requests;
+    expect(withIssuedTicket).toContain("FEParamGetCondicionIvaReceptor");
+    expect(withIssuedTicket).toContain(ORIGINAL_TOKEN);
+    expect(withIssuedTicket).toContain(ORIGINAL_SIGN);
+    expect(withIssuedTicket).toContain(FICTIONAL_CERTIFICATE_CUIT.replaceAll("-", ""));
+    expect(withUnissuedTicket).toContain("FEParamGetCondicionIvaReceptor");
+    expect(withUnissuedTicket).not.toContain(ORIGINAL_TOKEN);
+    expect(withUnissuedTicket).not.toContain(ORIGINAL_SIGN);
+  });
+
+  it("asks for no buyer tax-status values when the first login issued no ticket", async () => {
+    wsaa.behave(wsaaAnswers("already-authenticated-fault.xml", 500));
+
     await record();
 
     expect(wsfe.requests).toHaveLength(1);
-    expect(wsaa.requests).toHaveLength(2);
+    expect(readdirSync(outDir).filter((file) => file.startsWith("fe-param"))).toEqual([]);
   });
 
   it("sends the two logins with different unique ids", async () => {
@@ -128,6 +170,10 @@ describe("recordArcaResponses", () => {
     expect(readdirSync(outDir).sort()).toEqual([
       "fe-dummy.raw.xml",
       "fe-dummy.scrubbed.xml",
+      "fe-param-get-condicion-iva-receptor-token-error.raw.xml",
+      "fe-param-get-condicion-iva-receptor-token-error.scrubbed.xml",
+      "fe-param-get-condicion-iva-receptor.raw.xml",
+      "fe-param-get-condicion-iva-receptor.scrubbed.xml",
       "login-cms-already-authenticated.raw.xml",
       "login-cms-already-authenticated.scrubbed.xml",
       "login-cms-issued.raw.xml",
@@ -156,6 +202,11 @@ describe("recordArcaResponses", () => {
           { field: "destination", count: 1 },
         ],
       },
+      { file: "fe-param-get-condicion-iva-receptor.scrubbed.xml", replacements: [] },
+      {
+        file: "fe-param-get-condicion-iva-receptor-token-error.scrubbed.xml",
+        replacements: [],
+      },
       { file: "login-cms-already-authenticated.scrubbed.xml", replacements: [] },
     ]);
   });
@@ -178,33 +229,73 @@ describe("recordArcaResponses", () => {
         outDir,
         wsaaEndpoint: wsaa.endpoint,
         wsfeEndpoint: wsfe.endpoint,
+        cuit: FICTIONAL_CERTIFICATE_CUIT,
         now: () => NOW,
         timeoutMs: 200,
       }),
     ).rejects.toThrow("FEDummy");
   });
+
+  it("refuses when ARCA gives no answer to the buyer tax-status call, naming it", async () => {
+    wsfe.behave(wsfeAnswersInTurn("fe-dummy-all-ok.xml", NO_ANSWER));
+
+    await expect(
+      recordArcaResponses({
+        certificatePem: credentials.certificatePem,
+        privateKeyPem: credentials.privateKeyPem,
+        outDir,
+        wsaaEndpoint: wsaa.endpoint,
+        wsfeEndpoint: wsfe.endpoint,
+        cuit: FICTIONAL_CERTIFICATE_CUIT,
+        now: () => NOW,
+        timeoutMs: 200,
+      }),
+    ).rejects.toThrow("FEParamGetCondicionIvaReceptor");
+  });
 });
 
 describe("recordingSettingsOf", () => {
-  const environment = { ARCA_CERTIFICATE: "CERT", ARCA_PRIVATE_KEY: "KEY" };
+  const environment = { ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE, ARCA_PRIVATE_KEY: "KEY" };
 
-  it("reads the output directory from --out and the credentials from the environment", () => {
+  it("reads the output directory from --out, the credentials from the environment and the CUIT from the certificate", () => {
     expect(recordingSettingsOf(["--out", "/some/dir"], environment)).toEqual({
       kind: "ready",
-      settings: { outDir: "/some/dir", certificatePem: "CERT", privateKeyPem: "KEY" },
+      settings: {
+        outDir: "/some/dir",
+        certificatePem: VALID_ARCA_CERTIFICATE,
+        privateKeyPem: "KEY",
+        cuit: FICTIONAL_CERTIFICATE_CUIT,
+      },
     });
   });
 
   it("turns the literal \\n of a collapsed variable into line breaks", () => {
     const result = recordingSettingsOf(["--out", "/d"], {
-      ARCA_CERTIFICATE: "A\\nB",
+      ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE_SINGLE_LINE,
       ARCA_PRIVATE_KEY: "C\\nD",
     });
 
     expect(result).toEqual({
       kind: "ready",
-      settings: { outDir: "/d", certificatePem: "A\nB", privateKeyPem: "C\nD" },
+      settings: {
+        outDir: "/d",
+        certificatePem: VALID_ARCA_CERTIFICATE.trimEnd(),
+        privateKeyPem: "C\nD",
+        cuit: FICTIONAL_CERTIFICATE_CUIT,
+      },
     });
+  });
+
+  it.each([
+    [ARCA_CERTIFICATE_WITHOUT_SERIAL_NUMBER, "serialNumber"],
+    [ARCA_CERTIFICATE_WITH_WRONG_CHECK_DIGIT, "check digit"],
+  ])("refuses a certificate that carries no valid CUIT, saying why", (certificate, reason) => {
+    const result = recordingSettingsOf(["--out", "/d"], {
+      ...environment,
+      ARCA_CERTIFICATE: certificate,
+    });
+
+    expect(result).toEqual({ kind: "refused", reason: expect.stringContaining(reason) });
   });
 
   it.each([
