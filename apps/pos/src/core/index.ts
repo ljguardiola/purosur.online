@@ -83,8 +83,14 @@ import {
   scanProductFor,
   searchProductsFor,
 } from "./sales/sale-requests";
+import {
+  checkInstallation,
+  installationCheckResultOf,
+  installationCheckWarningOf,
+} from "./sync/check-installation";
 import { pullFromCloud, pullResultOf } from "./sync/pull-from-cloud";
 import { pushResultOf, pushToCloud, pushWarningOf } from "./sync/push-to-cloud";
+import { SqliteLocalInstallation } from "./sync/sqlite-local-installation";
 import { SqliteLocalOutbox } from "./sync/sqlite-local-outbox";
 import { SqliteLocalReplica } from "./sync/sqlite-local-replica";
 import { nodeStorageFileSystem, storageTelemetryReader } from "./sync/storage-telemetry";
@@ -171,6 +177,8 @@ const localDatabase = register.database;
 const replica = localDatabase === undefined ? undefined : new SqliteLocalReplica(localDatabase);
 const localOutbox =
   localDatabase === undefined ? undefined : new SqliteLocalOutbox(localDatabase, now);
+const localInstallation =
+  localDatabase === undefined ? undefined : new SqliteLocalInstallation(localDatabase, now);
 const signInStore = localDatabase === undefined ? undefined : new SqliteSignInStore(localDatabase);
 const signedInPerson = createSignedInPerson();
 const readPepper = async () => (await mainRequests.readCredentials())?.pepper;
@@ -196,10 +204,27 @@ const { reportFailure, reportSyncFailure, reportRedeemedPinFailure } = coreFailu
 const syncSchedule = createSyncSchedule({
   syncOnce: () =>
     runSyncCycle({
+      checkInstallation: async () => {
+        const attempt = await checkInstallation({
+          readCredentials: () => mainRequests.readCredentials(),
+          installation: localInstallation,
+          adoptDevice: (device) => replica?.adoptDevice(device),
+          getFromCloud:
+            cloudClient === undefined
+              ? undefined
+              : (path, headers) => getFromCloud(cloudClient, path, headers),
+        });
+        const warning = installationCheckWarningOf(attempt);
+        if (warning !== undefined) {
+          console.warn(warning, attempt);
+        }
+        return installationCheckResultOf(attempt);
+      },
       push: async () => {
         const attempt = await pushToCloud({
           readCredentials: () => mainRequests.readCredentials(),
           outbox: localOutbox,
+          installation: localInstallation,
           adoptDevice: (device) => replica?.adoptDevice(device),
           post:
             cloudClient === undefined
@@ -235,6 +260,7 @@ const syncSchedule = createSyncSchedule({
         }
         return pullResultOf(attempt);
       },
+      onCheckFailure: (error) => reportFailure("the installation check", error),
       onPushFailure: (error) => reportFailure("the push", error),
     }),
   intervalMs: SYNC_INTERVAL_MS,

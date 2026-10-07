@@ -2,6 +2,7 @@ import { PUSH_EVENTS_REQUEST_MAX_BYTES } from "@purosur/contracts";
 import type { PushedEvent } from "@purosur/domain";
 import type { LocalOutbox } from "@purosur/domain/sync/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
+import { stopOpeningNewSales } from "./sqlite-local-installation";
 
 interface OutboxRow extends Omit<PushedEvent, "payload"> {
   payload: string;
@@ -84,10 +85,6 @@ export class SqliteLocalOutbox implements LocalOutbox {
   }
 
   async recordCompromised(): Promise<void> {
-    this.database
-      .prepare(
-        "UPDATE sync_state SET installation_revoked_at = ? WHERE installation_revoked_at IS NULL",
-      )
-      .run(this.now().toISOString());
+    stopOpeningNewSales(this.database, this.now());
   }
 }

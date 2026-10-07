@@ -11,6 +11,7 @@ import {
   deviceEnrollmentSchema,
   firstPinCodeBodySchema,
   firstPinCodeSchema,
+  healthCheckSchema,
   pinCodeRedemptionBodySchema,
   pinCodeRedemptionSchema,
   pushEventsRequestSchema,
@@ -176,6 +177,21 @@ export async function startStandInCloud(
     send(response, 200, pushEventsResponseSchema.parse({ status: "ok", ack_seq: ackSeq }));
   }
 
+  function answerHealthCheck(request: IncomingMessage, response: ServerResponse): void {
+    if (!hasDeviceToken(request, response, "a health check")) {
+      return;
+    }
+    send(
+      response,
+      200,
+      healthCheckSchema.parse({
+        status: "ok",
+        version: "stand-in",
+        installation: { revoked: false },
+      }),
+    );
+  }
+
   async function answerFirstPinCode(
     request: IncomingMessage,
     response: ServerResponse,
@@ -229,6 +245,8 @@ export async function startStandInCloud(
       await answerPinCodeRedemption(request, response);
     } else if (route === "POST /api/events") {
       await answerEventPush(request, response);
+    } else if (route === "GET /api/health") {
+      answerHealthCheck(request, response);
     } else if (route === "GET /api/changes") {
       pageAfter(url, request, response);
     } else {

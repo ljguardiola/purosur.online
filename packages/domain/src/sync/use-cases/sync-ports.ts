@@ -112,7 +112,27 @@ export interface CloudEventInbox<TFailure> {
   push(events: readonly PushedEvent[]): Promise<CloudEventInboxAnswer<TFailure>>;
 }
 
+// Once recorded, the register keeps knowing it was revoked: nothing the cloud answers later undoes it.
+export interface LocalInstallation {
+  recordRevoked(): Promise<void>;
+}
+
 export interface PushOutboxPorts<TFailure> {
   outbox: LocalOutbox;
   inbox: CloudEventInbox<TFailure>;
+  installation: LocalInstallation;
+}
+
+export type CloudInstallationStanding<TFailure> =
+  | { kind: "in_service" }
+  | { kind: "revoked" }
+  | { kind: "failed"; failure: TFailure };
+
+export interface CloudInstallationCheck<TFailure> {
+  standing(): Promise<CloudInstallationStanding<TFailure>>;
+}
+
+export interface CheckInstallationPorts<TFailure> {
+  installation: LocalInstallation;
+  cloud: CloudInstallationCheck<TFailure>;
 }
