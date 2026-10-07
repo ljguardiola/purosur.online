@@ -1,4 +1,4 @@
-import { generateKeyPairSync } from "node:crypto";
+import { generateKeyPairSync, X509Certificate } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -768,6 +768,10 @@ describe("startServer", () => {
         db: fakeRecovery.db,
         rotationKey: ROTATION_KEY_BYTES,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
+      },
+      health: {
+        db: fakeRecovery.db,
+        certificateFingerprint: new X509Certificate(VALID_ARCA_CERTIFICATE).fingerprint256,
       },
     });
 

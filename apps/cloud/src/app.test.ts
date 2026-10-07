@@ -42,6 +42,7 @@ import { SESSION_COOKIE_NAME } from "./access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "./access/session-id.js";
 import { type BuildAppOptions, buildApp as buildRealApp, databaseRouteOptions } from "./app.js";
 import {
+  arcaVitalityChecks,
   passkeys,
   rolePermissions,
   roles,
@@ -111,6 +112,35 @@ describe("GET /api/health", () => {
 
     expect(response.statusCode).toBe(200);
     expect(healthCheckSchema.parse(response.json()).installation).toEqual({ revoked: false });
+  });
+
+  it("tells an enrolled installation the state of ARCA when the health route is wired to the database", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(testDatabase.db, { now: APP_CLOCK });
+    await testDatabase.db
+      .insert(arcaVitalityChecks)
+      .values({ checkedAt: new Date(APP_CLOCK.getTime() - 10_000), ok: true });
+    const app = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      devices: {
+        db: testDatabase.db,
+        rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+        keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+      },
+      health: { db: testDatabase.db, certificateFingerprint: "AA:BB" },
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/health",
+      headers: { authorization: `Bearer ${deviceToken}` },
+    });
+
+    expect(healthCheckSchema.parse(response.json()).arca).toEqual({
+      token_valid: false,
+      probe_ok_at: "2020-06-15T11:59:50.000Z",
+      reachable: true,
+    });
   });
 });
 
@@ -1769,6 +1799,7 @@ function productionWiredApp() {
       backofficeOrigin: BACKOFFICE_ORIGIN,
       recoveryJobQueue: { async enqueueRecoveryRequest() {} },
       authorizedCuit: FICTIONAL_CERTIFICATE_CUIT,
+      certificateFingerprint: "AA:BB",
       deviceTokenRotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
       installationKeysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
     }),
