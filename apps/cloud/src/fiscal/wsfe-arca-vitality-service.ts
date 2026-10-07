@@ -23,6 +23,7 @@ export function wsfeEndpointOf(environment: string): string {
 export interface WsfeArcaVitalityServiceOptions {
   endpoint: string;
   timeoutMs?: number;
+  onRawResponse?: (raw: string) => void;
 }
 
 function serverStatus(result: unknown, server: string): string | undefined {
@@ -34,18 +35,31 @@ function serverStatus(result: unknown, server: string): string | undefined {
 export class WsfeArcaVitalityService implements ArcaVitalityService {
   private readonly endpoint: string;
   private readonly timeoutMs: number;
+  private readonly onRawResponse: ((raw: string) => void) | undefined;
   private client: Promise<Client> | undefined;
 
-  constructor({ endpoint, timeoutMs = ARCA_VITALITY_TIMEOUT_MS }: WsfeArcaVitalityServiceOptions) {
+  constructor({
+    endpoint,
+    timeoutMs = ARCA_VITALITY_TIMEOUT_MS,
+    onRawResponse,
+  }: WsfeArcaVitalityServiceOptions) {
     this.endpoint = endpoint;
     this.timeoutMs = timeoutMs;
+    this.onRawResponse = onRawResponse;
   }
 
   async check(): Promise<ArcaVitalityResult> {
     try {
       this.client ??= createClientAsync(WSFE_WSDL_PATH, { endpoint: this.endpoint });
       const client = await this.client;
-      const [result] = await client["FEDummyAsync"]({}, { timeout: this.timeoutMs });
+      let result: unknown;
+      try {
+        [result] = await client["FEDummyAsync"]({}, { timeout: this.timeoutMs });
+      } finally {
+        if (typeof client.lastResponse === "string") {
+          this.onRawResponse?.(client.lastResponse);
+        }
+      }
       const appServer = serverStatus(result, "AppServer");
       const dbServer = serverStatus(result, "DbServer");
       const authServer = serverStatus(result, "AuthServer");

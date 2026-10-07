@@ -159,8 +159,8 @@ describe("ArcaWsaaAuthentication", () => {
 
     const responses = new URL("./test-support/wsaa-responses/", import.meta.url);
     expect(received).toEqual([
-      readFileSync(new URL("login-cms-issued.xml", responses), "utf8"),
-      readFileSync(new URL("already-authenticated-fault.xml", responses), "utf8"),
+      readFileSync(new URL("login-cms-issued.xml", responses), "utf8").trim(),
+      readFileSync(new URL("already-authenticated-fault.xml", responses), "utf8").trim(),
     ]);
   });
 

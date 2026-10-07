@@ -58,8 +58,8 @@ describe("WsfeArcaVitalityService", () => {
 
     const responses = new URL("./test-support/wsfe-responses/", import.meta.url);
     expect(received).toEqual([
-      readFileSync(new URL("fe-dummy-all-ok.xml", responses), "utf8"),
-      readFileSync(new URL("fe-dummy-fault.xml", responses), "utf8"),
+      readFileSync(new URL("fe-dummy-all-ok.xml", responses), "utf8").trim(),
+      readFileSync(new URL("fe-dummy-fault.xml", responses), "utf8").trim(),
     ]);
   });
 

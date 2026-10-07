@@ -114,6 +114,7 @@ export interface ArcaWsaaAuthenticationOptions {
   privateKeyPem: string;
   now: () => Date;
   timeoutMs?: number;
+  onRawResponse?: (raw: string) => void;
 }
 
 export class ArcaWsaaAuthentication implements WsaaAuthentication {
@@ -122,6 +123,7 @@ export class ArcaWsaaAuthentication implements WsaaAuthentication {
   private readonly privateKeyPem: string;
   private readonly now: () => Date;
   private readonly timeoutMs: number;
+  private readonly onRawResponse: ((raw: string) => void) | undefined;
   private client: Promise<Client> | undefined;
 
   constructor({
@@ -130,12 +132,14 @@ export class ArcaWsaaAuthentication implements WsaaAuthentication {
     privateKeyPem,
     now,
     timeoutMs = WSAA_TIMEOUT_MS,
+    onRawResponse,
   }: ArcaWsaaAuthenticationOptions) {
     this.endpoint = endpoint;
     this.certificatePem = certificatePem;
     this.privateKeyPem = privateKeyPem;
     this.now = now;
     this.timeoutMs = timeoutMs;
+    this.onRawResponse = onRawResponse;
   }
 
   async requestToken(service: string): Promise<WsaaAuthenticationResult> {
@@ -147,7 +151,14 @@ export class ArcaWsaaAuthentication implements WsaaAuthentication {
       );
       this.client ??= createClientAsync(WSAA_WSDL_PATH, { endpoint: this.endpoint });
       const client = await this.client;
-      const [result] = await client["loginCmsAsync"]({ in0: cms }, { timeout: this.timeoutMs });
+      let result: unknown;
+      try {
+        [result] = await client["loginCmsAsync"]({ in0: cms }, { timeout: this.timeoutMs });
+      } finally {
+        if (typeof client.lastResponse === "string") {
+          this.onRawResponse?.(client.lastResponse);
+        }
+      }
       return issuedTokenOf((result as { loginCmsReturn?: unknown } | undefined)?.loginCmsReturn);
     } catch (error) {
       return isAlreadyAuthenticatedFault(error)
