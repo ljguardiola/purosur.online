@@ -72,6 +72,23 @@ describe("the description of a quarantined event", () => {
       "El evento (event-1) del registro return-1 no se pudo aplicar y quedó en cuarentena: depende del registro layaway-1, que todavía no se aplicó. Los eventos siguientes del registro return-1 esperan hasta que se resuelva.",
     );
   });
+
+  test.each(["constructor", "toString", "__proto__"])(
+    "names an event type and record types called %s in general words",
+    (code) => {
+      expect(
+        quarantinedEventDescription({
+          ...saleEvent,
+          eventType: code,
+          aggregateType: code,
+          aggregateId: "record-1",
+          reason: { kind: "missing_dependency", aggregateType: code, aggregateId: "record-2" },
+        }),
+      ).toBe(
+        "El evento (event-1) del registro record-1 no se pudo aplicar y quedó en cuarentena: depende del registro record-2, que todavía no se aplicó. Los eventos siguientes del registro record-1 esperan hasta que se resuelva.",
+      );
+    },
+  );
 });
 
 describe("the description of an event applied with an inconsistency", () => {
@@ -100,4 +117,13 @@ describe("the description of an event applied with an inconsistency", () => {
       "Se aplicó el evento de venta (event-1) de la venta sale-1, pero tiene una inconsistencia: los pagos aprobados no cubren el total de la venta y otra inconsistencia.",
     );
   });
+
+  test.each(["constructor", "toString", "__proto__"])(
+    "names an inconsistency called %s in general words",
+    (code) => {
+      expect(invariantViolationDescription({ ...violation, breaks: [code] })).toBe(
+        "Se aplicó el evento de venta (event-1) de la venta sale-1, pero tiene una inconsistencia: otra inconsistencia.",
+      );
+    },
+  );
 });
