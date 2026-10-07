@@ -46,6 +46,12 @@ export class FakeInbox implements Inbox {
     }
   }
 
+  holdEvents(deviceId: string, ...events: PushedEvent[]): void {
+    for (const event of events) {
+      this.state.received.push({ deviceId, event, receivedAt: new Date(0) });
+    }
+  }
+
   receivedSeqs(deviceId: string): number[] {
     return this.state.received
       .filter((entry) => entry.deviceId === deviceId)
@@ -73,13 +79,28 @@ export class FakeInbox implements Inbox {
           .filter((entry) => entry.deviceId === deviceId)
           .map((entry) => entry.event.device_seq);
       },
-      receivedEventIds: async (deviceId, deviceSeqs) => {
-        this.calls.push(`receivedEventIds ${deviceId}`);
+      receivedEventsAt: async (deviceId, deviceSeqs) => {
+        this.calls.push(`receivedEventsAt ${deviceId}`);
         const wanted = new Set(deviceSeqs);
         return new Map(
           working.received
             .filter((entry) => entry.deviceId === deviceId && wanted.has(entry.event.device_seq))
-            .map((entry) => [entry.event.device_seq, entry.event.event_id]),
+            .map((entry) => [
+              entry.event.device_seq,
+              { eventId: entry.event.event_id, chainHmac: entry.event.chain_hmac },
+            ]),
+        );
+      },
+      receivedEventPositions: async (eventIds) => {
+        this.calls.push("receivedEventPositions");
+        const wanted = new Set(eventIds);
+        return new Map(
+          working.received
+            .filter((entry) => wanted.has(entry.event.event_id))
+            .map((entry) => [
+              entry.event.event_id,
+              { deviceId: entry.deviceId, deviceSeq: entry.event.device_seq },
+            ]),
         );
       },
       receivedChainLink: async (deviceId, deviceSeq) => {
