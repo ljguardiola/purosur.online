@@ -23,12 +23,27 @@ const RECOVERY_EMAIL_FROM: Record<string, string> = {
 };
 const RECOVERY_EMAIL_REPLY_TO = "purosur.comarca@gmail.com";
 
+// Staging talks to ARCA's homologation (test) services; only the production environment talks to
+// ARCA's real ones.
+const ARCA_ENVIRONMENTS: Record<string, string> = {
+  staging: "homologation",
+  production: "production",
+};
+
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
     throw new Error(`.railway/railway.ts: missing required environment variable ${name}`);
   }
   return value;
+}
+
+function requireArcaEnvironment(environment: string): string {
+  const arcaEnvironment = ARCA_ENVIRONMENTS[environment];
+  if (!arcaEnvironment) {
+    throw new Error(`.railway/railway.ts: no ARCA environment configured for ${environment}`);
+  }
+  return arcaEnvironment;
 }
 
 function requireBackofficeOrigin(environment: string): string {
@@ -80,10 +95,13 @@ export default defineRailway((ctx) => {
   // a secret in the credential sense (the matching private key is the secret), but
   // still an environment-specific value the owner supplies per this file's existing pattern.
   const arcaCertificate = requireEnv("ARCA_CERTIFICATE");
+  // The secret key matching `ARCA_CERTIFICATE`, with which the cloud signs its logins at ARCA.
+  const arcaPrivateKey = requireEnv("ARCA_PRIVATE_KEY");
   const environment = ctx.environment;
   if (!environment) {
     throw new Error(".railway/railway.ts: the CLI gave no target environment name");
   }
+  const arcaEnvironment = requireArcaEnvironment(environment);
   const backofficeOrigin = requireBackofficeOrigin(environment);
 
   // Railway identifies each resource by its name: renaming one only here deletes it and creates an
@@ -142,6 +160,8 @@ export default defineRailway((ctx) => {
       DEVICE_TOKEN_ROTATION_KEY: deviceTokenRotationKey,
       INSTALLATION_KEYS_ENCRYPTION_KEY: installationKeysEncryptionKey,
       ARCA_CERTIFICATE: arcaCertificate,
+      ARCA_PRIVATE_KEY: arcaPrivateKey,
+      ARCA_ENVIRONMENT: arcaEnvironment,
     },
   });
 
