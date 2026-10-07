@@ -9,7 +9,13 @@ import { eq } from "drizzle-orm";
 import Fastify from "fastify";
 import { describe, expect, it } from "vitest";
 import { registerRouteAccess } from "../access/route-access.js";
-import { deviceState, inbox, refusedEvents, registerInstallations } from "../platform/db/schema.js";
+import {
+  deviceState,
+  inbox,
+  installationRequestAttempts,
+  refusedEvents,
+  registerInstallations,
+} from "../platform/db/schema.js";
 import { issueDeviceToken } from "../register/device-token.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase } from "../test-support/build-test-database.js";
@@ -17,6 +23,7 @@ import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rot
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { registerEventsRoute } from "./events-route.js";
 import { hmacEventChain } from "./hmac-event-chain.js";
+import { insertAdmittedRequests, insertRequestsUpToLimit } from "./test-support/admitted-requests.js";
 import { eventsRouteUnderTest, NOW } from "./test-support/events-route.js";
 
 const route = eventsRouteUnderTest();
@@ -210,6 +217,61 @@ describe("POST /events", () => {
       .from(deviceState)
       .where(eq(deviceState.deviceId, deviceId));
     expect(state?.appVersion).toBe("1.4");
+  });
+
+  it("records each admitted push as a request of its installation", async () => {
+    const { deviceId, deviceToken } = await enroll();
+
+    await push(body(1), `Bearer ${deviceToken}`);
+
+    expect(
+      await route.db
+        .select({ endpoint: installationRequestAttempts.endpoint })
+        .from(installationRequestAttempts)
+        .where(eq(installationRequestAttempts.deviceId, deviceId)),
+    ).toEqual([{ endpoint: "push" }]);
+  });
+
+  it("refuses a push past the installation's limit with when to retry, storing and recording nothing", async () => {
+    const { deviceId, deviceToken } = await enroll();
+    await insertRequestsUpToLimit(
+      route.db,
+      deviceId,
+      "push",
+      new Date(NOW.getTime() - 59 * 60 * 1000),
+    );
+
+    const response = await push(body(1), `Bearer ${deviceToken}`);
+
+    expect(response.statusCode).toBe(429);
+    expect(response.headers["retry-after"]).toBe("60");
+    expect(cloudErrorSchema.parse(response.json())).toEqual({
+      code: "rate_limited",
+      message: "too many requests",
+      details: [{ retry_after_seconds: 60 }],
+    });
+    expect(await route.db.select().from(inbox).where(eq(inbox.deviceId, deviceId))).toEqual([]);
+    expect(await route.db.select().from(deviceState)).toEqual([]);
+  });
+
+  it("does not count the pushes of another endpoint", async () => {
+    const { deviceId, deviceToken } = await enroll();
+    await insertAdmittedRequests(route.db, deviceId, "pull", NOW, 5000);
+
+    const response = await push(body(1), `Bearer ${deviceToken}`);
+
+    expect(response.statusCode).toBe(200);
+  });
+
+  it("tells a revoked installation so before counting its request", async () => {
+    const { deviceId, deviceToken } = await enroll({
+      revokedAt: new Date("2026-10-01T08:00:00.000Z"),
+    });
+    await insertRequestsUpToLimit(route.db, deviceId, "push", NOW);
+
+    const response = await push(body(1), `Bearer ${deviceToken}`);
+
+    expect(response.statusCode).toBe(403);
   });
 
   it("tells a revoked installation so, storing and recording nothing", async () => {
