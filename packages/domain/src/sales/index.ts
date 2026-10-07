@@ -1,10 +1,5 @@
 export { cashCharge } from "./model/cash-charge.js";
-export type {
-  CompletedSale,
-  CompletedSaleCashMovement,
-  CompletedSaleLine,
-  CompletedSalePayment,
-} from "./model/completed-sale.js";
+export type { CompletedSale } from "./model/completed-sale.js";
 export { approvedPaymentsCoverTotal } from "./model/completed-sale.js";
 export type { OpenSaleSummary } from "./model/open-sale-summary.js";
 export { openSaleSummary } from "./model/open-sale-summary.js";
