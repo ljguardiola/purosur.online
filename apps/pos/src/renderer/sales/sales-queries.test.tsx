@@ -32,6 +32,10 @@ const SALE: OpenSale = {
     },
   ],
   total: 238_000,
+  paid: 0,
+  pending: 238_000,
+  lines_editable: true,
+  cancellable: true,
   charge_refusal: null,
 };
 

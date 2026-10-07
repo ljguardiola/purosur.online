@@ -41,12 +41,20 @@ const SALE_OF_ONE_LINE: OpenSale = {
   id: "sale-1",
   lines: [YERBA],
   total: 476_000,
+  paid: 0,
+  pending: 476_000,
+  lines_editable: true,
+  cancellable: true,
   charge_refusal: null,
 };
 const SALE_OF_TWO_LINES: OpenSale = {
   id: "sale-1",
   lines: [YERBA, ALFAJOR],
   total: 626_000,
+  paid: 0,
+  pending: 626_000,
+  lines_editable: true,
+  cancellable: true,
   charge_refusal: null,
 };
 const COMPLETED: ChargeSaleInCashOutcome = {
@@ -63,13 +71,21 @@ const TRANSFER_COMPLETED: ChargeSaleByTransferOutcome = {
   total: 476_000,
 };
 
+const SALE_WITH_PART_PAID: OpenSale = {
+  ...SALE_OF_ONE_LINE,
+  paid: 100_000,
+  pending: 376_000,
+  lines_editable: false,
+  cancellable: false,
+};
+
 const COVERED: CashChargeAnswer = { kind: "covered", applied: 476_000, change: 24_000 };
 
 type Overrides = {
   currentSale?: () => Promise<CurrentSaleAnswer>;
   cashCharge?: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
   chargeSaleInCash?: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
-  chargeSaleByTransfer?: (saleId: string) => Promise<ChargeSaleByTransferOutcome>;
+  chargeSaleByTransfer?: (saleId: string, amount: number) => Promise<ChargeSaleByTransferOutcome>;
 };
 
 async function renderScreen(overrides: Overrides = {}) {
@@ -161,6 +177,15 @@ describe("ChargeScreen", () => {
     await expect.element(panel.getByText("$ 0,00")).toBeVisible();
   });
 
+  it("shows the paid amount and the pending balance the core answers for the sale", async () => {
+    const { screen } = await renderScreen({ currentSale: async () => SALE_WITH_PART_PAID });
+
+    const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
+    await expect.element(panel.getByText("$ 4.760,00")).toBeVisible();
+    await expect.element(panel.getByText("$ 1.000,00")).toBeVisible();
+    await expect.element(panel.getByText("$ 3.760,00")).toBeVisible();
+  });
+
   it("marks Venta as the current screen of the menu", async () => {
     const { screen } = await renderScreen();
 
@@ -180,7 +205,19 @@ describe("ChargeScreen", () => {
 
   it.each<[string, CurrentSaleAnswer]>([
     ["there is no sale", null],
-    ["the sale has no lines", { id: "sale-1", lines: [], total: 0, charge_refusal: null }],
+    [
+      "the sale has no lines",
+      {
+        id: "sale-1",
+        lines: [],
+        total: 0,
+        paid: 0,
+        pending: 0,
+        lines_editable: true,
+        cancellable: true,
+        charge_refusal: null,
+      },
+    ],
     ["the person may not sell", "not_permitted"],
   ])("goes back to the sale when %s", async (_, answer) => {
     const { screen } = await renderScreen({ currentSale: async () => answer });
@@ -258,6 +295,78 @@ describe("ChargeScreen", () => {
     await expect.element(screen.getByText("Elegí el medio de pago")).not.toBeInTheDocument();
   });
 
+  it("goes back to the methods, with the balance the core now answers, after a partial cash payment", async () => {
+    const reads = [SALE_OF_ONE_LINE, { ...SALE_OF_ONE_LINE, paid: 400_000, pending: 76_000 }];
+    const { screen, chargeSaleInCash } = await renderScreen({
+      currentSale: async () => reads.shift() ?? SALE_WITH_PART_PAID,
+      cashCharge: async () => ({ kind: "partial", applied: 400_000, pending: 76_000 }),
+      chargeSaleInCash: async () => ({
+        kind: "partially_paid",
+        sale_id: "sale-1",
+        total: 476_000,
+        paid: 400_000,
+        pending: 76_000,
+      }),
+    });
+
+    await chooseCash(screen);
+    await userEvent.fill(
+      screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
+      "4.000,00",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Registrar pago parcial" }));
+
+    await expect.element(screen.getByText("COBRO EN EFECTIVO")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
+      .toBeVisible();
+    const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
+    await expect.element(panel.getByText("$ 4.000,00")).toBeVisible();
+    await expect.element(panel.getByText("$ 760,00")).toBeVisible();
+    await expect.element(screen.getByText("VENTA COMPLETADA")).not.toBeInTheDocument();
+    expect(chargeSaleInCash).toHaveBeenCalledExactlyOnceWith("sale-1", 400_000);
+  });
+
+  it("charges the pending balance by transfer unless the cashier lowers the amount", async () => {
+    const { screen, chargeSaleByTransfer } = await renderScreen({
+      currentSale: async () => SALE_WITH_PART_PAID,
+    });
+
+    await chooseTransfer(screen);
+    await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
+
+    expect(chargeSaleByTransfer).toHaveBeenCalledExactlyOnceWith("sale-1", 376_000);
+  });
+
+  it("goes back to the methods, with the balance the core now answers, after a partial transfer", async () => {
+    const reads = [SALE_OF_ONE_LINE, { ...SALE_OF_ONE_LINE, paid: 200_000, pending: 276_000 }];
+    const { screen, chargeSaleByTransfer } = await renderScreen({
+      currentSale: async () => reads.shift() ?? SALE_WITH_PART_PAID,
+      chargeSaleByTransfer: async () => ({
+        kind: "partially_paid",
+        sale_id: "sale-1",
+        total: 476_000,
+        paid: 200_000,
+        pending: 276_000,
+      }),
+    });
+
+    await chooseTransfer(screen);
+    await userEvent.fill(
+      screen.getByRole("textbox", { name: "Importe a cobrar con este medio" }),
+      "2.000,00",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
+
+    await expect
+      .element(screen.getByRole("heading", { name: "Esperando el ingreso en la cuenta" }))
+      .not.toBeInTheDocument();
+    const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
+    await expect.element(panel.getByText("$ 2.000,00")).toBeVisible();
+    await expect.element(panel.getByText("$ 2.760,00")).toBeVisible();
+    expect(chargeSaleByTransfer).toHaveBeenCalledExactlyOnceWith("sale-1", 200_000);
+  });
+
   it("starts a new sale from Nueva venta by going back to the sale screen", async () => {
     const { screen } = await renderScreen();
 
@@ -328,7 +437,7 @@ describe("ChargeScreen", () => {
     await expect
       .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }))
       .toBeVisible();
-    expect(chargeSaleByTransfer).toHaveBeenCalledExactlyOnceWith("sale-1");
+    expect(chargeSaleByTransfer).toHaveBeenCalledExactlyOnceWith("sale-1", 476_000);
   });
 
   it("starts a new sale after a transfer by going back to the sale screen", async () => {

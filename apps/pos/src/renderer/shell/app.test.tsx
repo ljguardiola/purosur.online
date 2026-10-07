@@ -1057,6 +1057,10 @@ describe("App", () => {
               },
             ],
             total: 238_000,
+            paid: 0,
+            pending: 238_000,
+            lines_editable: true,
+            cancellable: true,
             charge_refusal: null,
           };
         },
@@ -1094,6 +1098,10 @@ describe("App", () => {
             },
           ],
           total: 238_000,
+          paid: 0,
+          pending: 238_000,
+          lines_editable: true,
+          cancellable: true,
           charge_refusal: null,
         }),
         cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 12_000 }),
@@ -1144,6 +1152,10 @@ describe("App", () => {
                 id: "sale-1",
                 lines: [yerba],
                 total: 238_000,
+                paid: 0,
+                pending: 238_000,
+                lines_editable: true,
+                cancellable: true,
                 charge_refusal: null,
               })
             : new Promise(() => {});
@@ -1178,7 +1190,7 @@ describe("App", () => {
   });
 
   it("charges the sale in progress by transfer through the core", async () => {
-    const charges: string[] = [];
+    const charges: [string, number][] = [];
     const { core } = coreAnswering(
       true,
       { kind: "enrolled" },
@@ -1200,10 +1212,14 @@ describe("App", () => {
             },
           ],
           total: 238_000,
+          paid: 0,
+          pending: 238_000,
+          lines_editable: true,
+          cancellable: true,
           charge_refusal: null,
         }),
-        chargeSaleByTransfer: async (saleId) => {
-          charges.push(saleId);
+        chargeSaleByTransfer: async (saleId, amount) => {
+          charges.push([saleId, amount]);
           return { kind: "completed", sale_id: saleId, total: 238_000 };
         },
       },
@@ -1219,7 +1235,7 @@ describe("App", () => {
     await expect
       .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }))
       .toBeVisible();
-    expect(charges).toEqual(["sale-1"]);
+    expect(charges).toEqual([["sale-1", 238_000]]);
   });
 
   it("shows no line of the sale that was just charged by transfer when a new sale starts", async () => {
@@ -1247,6 +1263,10 @@ describe("App", () => {
                 id: "sale-1",
                 lines: [yerba],
                 total: 238_000,
+                paid: 0,
+                pending: 238_000,
+                lines_editable: true,
+                cancellable: true,
                 charge_refusal: null,
               })
             : new Promise(() => {});

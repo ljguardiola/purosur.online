@@ -19,7 +19,7 @@ const INVALID_AMOUNT: CashChargeAnswer = { kind: "invalid_amount" };
 const CORE_ANSWERS = new Map<number, CashChargeAnswer>([
   [0, INVALID_AMOUNT],
   [3_000_000_000, INVALID_AMOUNT],
-  [400_000, { kind: "insufficient", amountDue: TOTAL }],
+  [400_000, { kind: "partial", applied: 400_000, pending: 76_000 }],
   [476_000, { kind: "covered", applied: TOTAL, change: 0 }],
   [500_000, { kind: "covered", applied: TOTAL, change: 24_000 }],
   [500_005, { kind: "covered", applied: TOTAL, change: 24_005 }],
@@ -36,9 +36,12 @@ async function answerLikeTheCore(tendered: number): Promise<CashChargeAnswer> {
   return answer;
 }
 
+const WHOLE_SALE = { total: TOTAL, paid: 0, pending: TOTAL };
+
 async function renderModal(
   charge: Charge = async () => COMPLETED,
   readCharge: ReadCharge = answerLikeTheCore,
+  sale: { total: number; paid: number; pending: number } = WHOLE_SALE,
 ) {
   await page.viewport(1280, 1000);
   onTestFinished(() => page.viewport(414, 896));
@@ -47,13 +50,14 @@ async function renderModal(
   const callbacks = {
     onChooseAnotherMethod: vi.fn(),
     onCompleted: vi.fn(),
+    onPartiallyPaid: vi.fn(),
     onSaleUnavailable: vi.fn(),
     onSessionInvalid: vi.fn(),
   };
   const screen = await render(
     <CashChargeModal
       saleId="sale-1"
-      total={TOTAL}
+      {...sale}
       readCharge={readCashCharge}
       charge={chargeSale}
       {...callbacks}
@@ -89,7 +93,9 @@ describe("CashChargeModal", () => {
     await expect.element(screen.getByText("Pagado")).toBeVisible();
     await expect.element(screen.getByText("$ 0,00")).toBeVisible();
     await expect.element(screen.getByText("A cobrar ahora")).toBeVisible();
-    await expect.element(screen.getByText("Tiene que cubrir $ 4.760,00.")).toBeVisible();
+    await expect
+      .element(screen.getByText("Con menos de lo que falta, el resto queda pendiente."))
+      .toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
   });
 
@@ -101,14 +107,60 @@ describe("CashChargeModal", () => {
     await expect.element(field).toHaveValue("5000");
   });
 
-  it("keeps Completar venta disabled, and shows no change, while the amount does not cover the total", async () => {
-    const { screen, field, complete } = await renderModal();
+  it("shows what has been paid and what is to be charged now when part of the sale is already paid", async () => {
+    const { screen } = await renderModal(undefined, undefined, {
+      total: TOTAL,
+      paid: 100_000,
+      pending: 376_000,
+    });
+
+    await expect.element(screen.getByText("Total de la venta")).toBeVisible();
+    await expect.element(screen.getByText("$ 4.760,00")).toBeVisible();
+    await expect.element(screen.getByText("Pagado")).toBeVisible();
+    await expect.element(screen.getByText("$ 1.000,00")).toBeVisible();
+    await expect.element(screen.getByText("A cobrar ahora")).toBeVisible();
+    await expect.element(screen.getByText("$ 3.760,00")).toBeVisible();
+  });
+
+  it("keeps Completar venta disabled until the core has answered for the amount", async () => {
+    const { complete } = await renderModal();
 
     await expect.element(complete).toBeDisabled();
+  });
+
+  it("offers to register a partial payment, and shows what stays pending and no change, while the amount does not cover the pending balance", async () => {
+    const { screen, field } = await renderModal();
+
     await userEvent.fill(field, "4.000,00");
 
-    await expect.element(complete).toBeDisabled();
+    await expect
+      .element(screen.getByRole("button", { name: "Registrar pago parcial" }))
+      .toBeEnabled();
+    await expect
+      .element(screen.getByRole("button", { name: "Completar venta" }))
+      .not.toBeInTheDocument();
+    await expect.element(screen.getByText("QUEDA PENDIENTE")).toBeVisible();
+    await expect.element(screen.getByText("$ 4.760,00 − $ 4.000,00")).toBeVisible();
+    await expect.element(screen.getByText("$ 760,00")).toBeVisible();
     await expect.element(screen.getByText("VUELTO A ENTREGAR")).not.toBeInTheDocument();
+  });
+
+  it("goes back to the methods when the partial payment is registered", async () => {
+    const outcome: ChargeSaleInCashOutcome = {
+      kind: "partially_paid",
+      sale_id: "sale-1",
+      total: TOTAL,
+      paid: 400_000,
+      pending: 76_000,
+    };
+    const { screen, field, chargeSale, callbacks } = await renderModal(async () => outcome);
+
+    await userEvent.fill(field, "4.000,00");
+    await userEvent.click(screen.getByRole("button", { name: "Registrar pago parcial" }));
+
+    await expect.poll(() => callbacks.onPartiallyPaid.mock.calls.length).toBe(1);
+    expect(chargeSale).toHaveBeenCalledExactlyOnceWith(400_000);
+    expect(callbacks.onCompleted).not.toHaveBeenCalled();
   });
 
   it("shows the change to hand over once the amount covers the total", async () => {
@@ -195,7 +247,6 @@ describe("CashChargeModal", () => {
   it("shows nothing loading while nothing is typed", async () => {
     const { screen } = await renderModal();
 
-    await expect.element(screen.getByText("Tiene que cubrir $ 4.760,00.")).toBeVisible();
     await expect.element(screen.getByText("Cargando…")).not.toBeInTheDocument();
   });
 
@@ -246,6 +297,8 @@ describe("CashChargeModal", () => {
       <CashChargeModal
         saleId="sale-1"
         total={490_000}
+        paid={0}
+        pending={490_000}
         readCharge={readCharge}
         charge={chargeSale}
         {...callbacks}
@@ -328,18 +381,6 @@ describe("CashChargeModal", () => {
     await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
 
     expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
-  });
-
-  it("shows what the core says is still owed when it refuses the amount as short", async () => {
-    const { screen, field, complete } = await renderModal(async () => ({
-      kind: "insufficient_cash",
-      amount_due: 600_000,
-    }));
-
-    await userEvent.fill(field, "5.000,00");
-    await userEvent.click(complete);
-
-    await expect.element(screen.getByText("Tiene que cubrir $ 6.000,00.").last()).toBeVisible();
   });
 
   it("shows the amount as invalid when the core refuses it", async () => {

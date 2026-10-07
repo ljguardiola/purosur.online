@@ -12,25 +12,31 @@ const COMPLETED: ChargeSaleByTransferOutcome = {
   total: TOTAL,
 };
 
-type Charge = () => Promise<ChargeSaleByTransferOutcome>;
+const AMOUNT_FIELD = "Importe a cobrar con este medio";
+const WHOLE_SALE = { total: TOTAL, paid: 0, pending: TOTAL };
 
-async function renderModal(charge: Charge = async () => COMPLETED) {
+type Charge = (amount: number) => Promise<ChargeSaleByTransferOutcome>;
+
+async function renderModal(
+  charge: Charge = async () => COMPLETED,
+  sale: { total: number; paid: number; pending: number } = WHOLE_SALE,
+) {
   await page.viewport(1280, 1000);
   onTestFinished(() => page.viewport(414, 896));
   const chargeSale = vi.fn(charge);
   const callbacks = {
     onChooseAnotherMethod: vi.fn(),
     onCompleted: vi.fn(),
+    onPartiallyPaid: vi.fn(),
     onSaleUnavailable: vi.fn(),
     onSessionInvalid: vi.fn(),
   };
-  const screen = await render(
-    <TransferChargeModal total={TOTAL} charge={chargeSale} {...callbacks} />,
-  );
+  const screen = await render(<TransferChargeModal {...sale} charge={chargeSale} {...callbacks} />);
   return {
     screen,
     chargeSale,
     callbacks,
+    field: screen.getByRole("textbox", { name: AMOUNT_FIELD }),
     seen: screen.getByRole("button", { name: "Vi el ingreso" }),
   };
 }
@@ -60,6 +66,87 @@ describe("TransferChargeModal", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
+  it("asks for the amount to charge with this method, filled with the whole pending balance", async () => {
+    const { field } = await renderModal();
+
+    await expect.element(field).toHaveValue("4.760,00");
+  });
+
+  it("fills the amount with the pending balance, and shows what is paid and what is to be charged now, when part of the sale is already paid", async () => {
+    const { screen, field } = await renderModal(undefined, {
+      total: TOTAL,
+      paid: 100_000,
+      pending: 376_000,
+    });
+
+    await expect.element(field).toHaveValue("3.760,00");
+    await expect.element(screen.getByText("$ 1.000,00")).toBeVisible();
+    await expect.element(screen.getByText("$ 3.760,00").first()).toBeVisible();
+  });
+
+  it("charges the amount the cashier typed", async () => {
+    const { field, seen, chargeSale } = await renderModal();
+
+    await userEvent.fill(field, "2.000,50");
+    await userEvent.click(seen);
+
+    await expect.poll(() => chargeSale.mock.calls).toEqual([[200_050]]);
+  });
+
+  it("goes back to the methods when the core registers it as a partial payment", async () => {
+    const { field, seen, callbacks } = await renderModal(async () => ({
+      kind: "partially_paid",
+      sale_id: "sale-1",
+      total: TOTAL,
+      paid: 200_000,
+      pending: 276_000,
+    }));
+
+    await userEvent.fill(field, "2.000,00");
+    await userEvent.click(seen);
+
+    await expect.poll(() => callbacks.onPartiallyPaid.mock.calls.length).toBe(1);
+    expect(callbacks.onCompleted).not.toHaveBeenCalled();
+  });
+
+  it("says the amount cannot exceed the pending balance the core answers", async () => {
+    const { screen, field, seen, callbacks } = await renderModal(
+      async () => ({ kind: "exceeds_pending", pending: 376_000 }),
+      { total: TOTAL, paid: 100_000, pending: 376_000 },
+    );
+
+    await userEvent.fill(field, "5.000,00");
+    await userEvent.click(seen);
+
+    await expect
+      .element(screen.getByText("No puede superar el saldo pendiente de $ 3.760,00."))
+      .toBeVisible();
+    expect(callbacks.onCompleted).not.toHaveBeenCalled();
+  });
+
+  it("says the amount is invalid when the core refuses it", async () => {
+    const { screen, field, seen } = await renderModal(async () => ({ kind: "invalid_amount" }));
+
+    await userEvent.fill(field, "0");
+    await userEvent.click(seen);
+
+    await expect
+      .element(screen.getByText("Ingresá un importe válido, por ejemplo 5.000,00."))
+      .toBeVisible();
+  });
+
+  it("does not charge what is not an amount, and says so", async () => {
+    const { screen, field, seen, chargeSale } = await renderModal();
+
+    await userEvent.fill(field, "abc");
+    await userEvent.click(seen);
+
+    await expect
+      .element(screen.getByText("Ingresá un importe válido, por ejemplo 5.000,00."))
+      .toBeVisible();
+    expect(chargeSale).not.toHaveBeenCalled();
+  });
+
   it("warns not to confirm from the customer's screen", async () => {
     const { screen } = await renderModal();
 
@@ -80,8 +167,10 @@ describe("TransferChargeModal", () => {
 
     await userEvent.click(seen);
 
-    await expect.poll(() => callbacks.onCompleted.mock.calls).toEqual([[COMPLETED]]);
-    expect(chargeSale).toHaveBeenCalledOnce();
+    await expect
+      .poll(() => callbacks.onCompleted.mock.calls)
+      .toEqual([[{ ...COMPLETED, amount: TOTAL }]]);
+    expect(chargeSale).toHaveBeenCalledExactlyOnceWith(TOTAL);
   });
 
   it("charges nothing until Vi el ingreso is pressed", async () => {
@@ -172,7 +261,9 @@ describe("TransferChargeModal", () => {
       .toHaveTextContent("No se pudo cobrar la venta. Probá de nuevo.");
     await userEvent.click(seen);
 
-    await expect.poll(() => callbacks.onCompleted.mock.calls).toEqual([[COMPLETED]]);
+    await expect
+      .poll(() => callbacks.onCompleted.mock.calls)
+      .toEqual([[{ ...COMPLETED, amount: TOTAL }]]);
   });
 
   it("treats a failed request as the core being unavailable", async () => {

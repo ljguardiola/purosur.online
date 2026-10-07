@@ -9,6 +9,9 @@ describe("PaymentPanel", () => {
       <PaymentPanel
         lineCount={2}
         total={476_000}
+        paid={0}
+        pending={476_000}
+        cancellable
         chargeRefusal={null}
         canCancel
         onCharge={() => {}}
