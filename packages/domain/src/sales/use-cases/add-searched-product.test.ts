@@ -107,7 +107,13 @@ describe("addSearchedProduct", () => {
         },
       ],
     };
-    expect(outcome).toEqual({ kind: "added", sale });
+    expect(outcome).toEqual({
+      kind: "added",
+      sale,
+      balance: { paid: 0, pending: 2500 },
+      linesEditable: true,
+      cancellable: true,
+    });
     expect(store.state.sales).toEqual([sale]);
   });
 

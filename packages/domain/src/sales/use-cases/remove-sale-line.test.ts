@@ -79,7 +79,13 @@ describe("removeSaleLine", () => {
 
     const outcome = remove(store, "line-1");
 
-    expect(outcome).toEqual({ kind: "removed", sale: { ...OPEN_SALE, lines: [AZUCAR_LINE] } });
+    expect(outcome).toEqual({
+      kind: "removed",
+      sale: { ...OPEN_SALE, lines: [AZUCAR_LINE] },
+      balance: { paid: 0, pending: 1200 },
+      linesEditable: true,
+      cancellable: true,
+    });
     expect(store.state).toEqual({ ...before, sales: [{ ...OPEN_SALE, lines: [AZUCAR_LINE] }] });
     expect(store.transactions).toBe(1);
   });
@@ -89,7 +95,13 @@ describe("removeSaleLine", () => {
 
     const outcome = remove(store, "line-2");
 
-    expect(outcome).toEqual({ kind: "removed", sale: { ...OPEN_SALE, lines: [] } });
+    expect(outcome).toEqual({
+      kind: "removed",
+      sale: { ...OPEN_SALE, lines: [] },
+      balance: { paid: 0, pending: 0 },
+      linesEditable: true,
+      cancellable: true,
+    });
     expect(store.state.sales[0]?.state).toBe("OPEN");
   });
 

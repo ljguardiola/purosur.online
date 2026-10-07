@@ -101,6 +101,9 @@ describe("changeLineQuantity", () => {
         ...OPEN_SALE,
         lines: [{ ...YERBA_LINE, quantity: 5, lineTotal: 12500 }, AZUCAR_LINE],
       },
+      balance: { paid: 0, pending: 13700 },
+      linesEditable: true,
+      cancellable: true,
     });
     expect(store.state.outbox).toEqual([]);
   });
@@ -115,6 +118,9 @@ describe("changeLineQuantity", () => {
     expect(outcome).toEqual({
       kind: "changed",
       sale: { ...OPEN_SALE, lines: [{ ...YERBA_LINE, quantity: 1, lineTotal: 2500 }, AZUCAR_LINE] },
+      balance: { paid: 0, pending: 3700 },
+      linesEditable: true,
+      cancellable: true,
     });
     expect(store.state).toEqual({
       ...before,
@@ -199,7 +205,13 @@ describe("changeLineQuantity", () => {
 
     const outcome = change(store, "line-1", 3);
 
-    expect(outcome).toEqual({ kind: "changed", sale: OPEN_SALE });
+    expect(outcome).toEqual({
+      kind: "changed",
+      sale: OPEN_SALE,
+      balance: { paid: 0, pending: 8700 },
+      linesEditable: true,
+      cancellable: true,
+    });
     expect(store.state).toEqual(before);
   });
 

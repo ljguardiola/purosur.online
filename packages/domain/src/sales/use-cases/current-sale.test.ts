@@ -56,6 +56,8 @@ describe("currentSale", () => {
       kind: "open",
       sale: SALE,
       balance: { paid: 0, pending: 5000 },
+      linesEditable: true,
+      cancellable: true,
     });
   });
 
@@ -76,6 +78,8 @@ describe("currentSale", () => {
     expect(read(ledger({ payments: [payment, elsewhere] }))).toMatchObject({
       kind: "open",
       balance: { paid: 1200, pending: 3800 },
+      linesEditable: false,
+      cancellable: false,
     });
   });
 
