@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { PaymentTransaction } from "../model/payment.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { removeSaleLine } from "./remove-sale-line.js";
 import {
@@ -41,6 +42,18 @@ const OPEN_SALE: SaleWithLines = {
   actorId: "cashier",
   state: "OPEN",
   lines: [YERBA_LINE, AZUCAR_LINE],
+};
+
+const PAYMENT: PaymentTransaction = {
+  id: "payment-1",
+  saleId: "sale-1",
+  kind: "SALE",
+  method: "CASH",
+  provider: "NONE",
+  amount: 1000,
+  tendered: 1000,
+  state: "APPROVED",
+  occurredAt: NOW,
 };
 
 const THRESHOLD = { id: "threshold-1", amount: 10_000_000, validFrom: "2026-01-01" };
@@ -149,5 +162,27 @@ describe("remove-sale-line charge refusal", () => {
     expect(remove(store, "line-1")).toEqual(
       expect.objectContaining({ chargeRefusal: { kind: "no_buyer_identification_threshold" } }),
     );
+  });
+});
+
+describe("removeSaleLine on a sale with an approved payment", () => {
+  it("refuses to remove a line, writing nothing", () => {
+    const store = ledger({ payments: [PAYMENT] });
+    const before = structuredClone(store.state);
+
+    expect(remove(store, "line-1")).toEqual({ kind: "sale_has_payments" });
+    expect(store.state).toEqual(before);
+  });
+
+  it("refuses before looking the line up", () => {
+    const store = ledger({ payments: [PAYMENT] });
+
+    expect(remove(store, "line-9")).toEqual({ kind: "sale_has_payments" });
+  });
+
+  it("still removes from a sale whose payments belong to another sale", () => {
+    const store = ledger({ payments: [{ ...PAYMENT, saleId: "sale-9" }] });
+
+    expect(remove(store, "line-1")).toMatchObject({ kind: "removed" });
   });
 });

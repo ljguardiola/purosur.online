@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { PaymentTransaction } from "../model/payment.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { addSearchedProduct } from "./add-searched-product.js";
 import type { CandidatePromotion } from "./sale-ledger.js";
@@ -16,6 +17,18 @@ const SESSION = { id: "session-1", openedBy: "cashier" };
 const YERBA = { id: "yerba", name: "Yerba 1 kg", saleUnit: "UNIT" as const };
 const QUESO = { id: "queso", name: "Queso cremoso", saleUnit: "KG" as const };
 const FIDEOS = { id: "fideos", name: "Fideos", saleUnit: "UNIT" as const };
+const PAYMENT: PaymentTransaction = {
+  id: "payment-1",
+  saleId: "sale-0",
+  kind: "SALE",
+  method: "CASH",
+  provider: "NONE",
+  amount: 1000,
+  tendered: 1000,
+  state: "APPROVED",
+  occurredAt: NOW,
+};
+
 const TEN_PERCENT: CandidatePromotion = {
   id: "ten",
   benefit: { kind: "PERCENT_OFF", percent: 10 },
@@ -189,5 +202,40 @@ describe("add-searched-product charge refusal", () => {
     expect(add(store)).toEqual(
       expect.objectContaining({ chargeRefusal: { kind: "no_buyer_identification_threshold" } }),
     );
+  });
+});
+
+describe("add-searched-product on a sale with an approved payment", () => {
+  const OPEN_SALE: SaleWithLines = {
+    id: "sale-0",
+    registerId: "register-1",
+    deviceId: "device-1",
+    sessionId: "session-1",
+    actorId: "cashier",
+    state: "OPEN",
+    lines: [],
+  };
+
+  it("refuses to add a line, writing nothing", () => {
+    const store = ledger({ sales: [OPEN_SALE], payments: [PAYMENT] });
+    const before = structuredClone(store.state);
+
+    expect(add(store)).toEqual({ kind: "sale_has_payments" });
+    expect(store.state).toEqual(before);
+  });
+
+  it("refuses before looking the product up", () => {
+    const store = ledger({ sales: [OPEN_SALE], payments: [PAYMENT] });
+
+    expect(add(store, "unknown")).toEqual({ kind: "sale_has_payments" });
+  });
+
+  it("still adds to a sale whose payments belong to another sale", () => {
+    const store = ledger({
+      sales: [OPEN_SALE],
+      payments: [{ ...PAYMENT, saleId: "sale-9" }],
+    });
+
+    expect(add(store)).toMatchObject({ kind: "added" });
   });
 });

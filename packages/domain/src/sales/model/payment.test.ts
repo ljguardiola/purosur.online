@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { cancellableWithoutAuthorization, type PaymentTransaction } from "./payment.js";
+import { cancellableWithoutAuthorization, hasApprovedPayment, type PaymentTransaction } from "./payment.js";
 
 const APPROVED: PaymentTransaction = {
   id: "payment-1",
@@ -29,6 +29,20 @@ describe("cancellableWithoutAuthorization", () => {
     expect(cancellableWithoutAuthorization([APPROVED, { ...APPROVED, id: "payment-2" }])).toBe(
       false,
     );
+  });
+});
+
+describe("hasApprovedPayment", () => {
+  it("is false for a sale without payments", () => {
+    expect(hasApprovedPayment([])).toBe(false);
+  });
+
+  it("is true when a payment is approved", () => {
+    expect(hasApprovedPayment([APPROVED])).toBe(true);
+  });
+
+  it("is false when no payment is approved", () => {
+    expect(hasApprovedPayment([{ state: "DECLINED" }])).toBe(false);
   });
 });
 
