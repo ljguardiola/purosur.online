@@ -17,6 +17,7 @@ import {
   startFakeWsfeServer,
   UNREACHABLE_WSFE_ENDPOINT,
 } from "./test-support/fake-wsfe-server.js";
+import { RECORDED_BUYER_TAX_STATUS_OPTIONS } from "./test-support/recorded-buyer-tax-status-options.js";
 
 const UNUSED_EMAIL_SENDER: AccessEmailSender = {
   async sendRecoveryLink() {},
@@ -89,11 +90,7 @@ describe("the buyer tax-status fetch the server sets up on a real Postgres", () 
             {
               id: expect.any(String),
               paramsVersion: 1,
-              options: [
-                { code: 1, description: "IVA Responsable Inscripto", invoiceClass: "A/M/C" },
-                { code: 5, description: "Consumidor Final", invoiceClass: "B/C" },
-                { code: 6, description: "Responsable Monotributo", invoiceClass: "A/M/C" },
-              ],
+              options: RECORDED_BUYER_TAX_STATUS_OPTIONS,
             },
           ]);
           expect(

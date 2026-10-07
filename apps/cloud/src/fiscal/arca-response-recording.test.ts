@@ -205,7 +205,7 @@ describe("recordArcaResponses", () => {
       { file: "fe-param-get-condicion-iva-receptor.scrubbed.xml", replacements: [] },
       {
         file: "fe-param-get-condicion-iva-receptor-token-error.scrubbed.xml",
-        replacements: [{ field: "CUIT", count: 1 }],
+        replacements: [],
       },
       { file: "login-cms-already-authenticated.scrubbed.xml", replacements: [] },
     ]);

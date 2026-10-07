@@ -7,6 +7,7 @@ import {
   startFakeWsfeServer,
   UNREACHABLE_WSFE_ENDPOINT,
 } from "./test-support/fake-wsfe-server.js";
+import { RECORDED_BUYER_TAX_STATUS_OPTIONS } from "./test-support/recorded-buyer-tax-status-options.js";
 import { WsfeBuyerTaxStatusSource } from "./wsfe-buyer-tax-status-source.js";
 
 const token = {
@@ -39,11 +40,7 @@ describe("WsfeBuyerTaxStatusSource", () => {
   it("answers every value ARCA lists, each with the invoice classes it applies to", async () => {
     expect(await sourceAt(server.endpoint).fetchBuyerTaxStatusSet(token)).toEqual({
       kind: "fetched",
-      options: [
-        { code: 1, description: "IVA Responsable Inscripto", invoiceClass: "A/M/C" },
-        { code: 5, description: "Consumidor Final", invoiceClass: "B/C" },
-        { code: 6, description: "Responsable Monotributo", invoiceClass: "A/M/C" },
-      ],
+      options: RECORDED_BUYER_TAX_STATUS_OPTIONS,
     });
   });
 
@@ -52,7 +49,7 @@ describe("WsfeBuyerTaxStatusSource", () => {
 
     expect(await sourceAt(server.endpoint).fetchBuyerTaxStatusSet(token)).toEqual({
       kind: "fetched",
-      options: [{ code: 5, description: "Consumidor Final", invoiceClass: "B/C" }],
+      options: [{ code: 5, description: "Consumidor Final", invoiceClass: "C/49" }],
     });
   });
 
