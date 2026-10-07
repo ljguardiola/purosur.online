@@ -1,6 +1,7 @@
 import { recordArcaResponses, recordingSettingsOf } from "./fiscal/arca-response-recording.js";
 import { wsaaEndpointOf } from "./fiscal/wsaa-authentication.js";
 import { wsfeEndpointOf } from "./fiscal/wsfe-arca-vitality-service.js";
+import { requireAuthorizedCuit } from "./server.js";
 
 if (import.meta.main) {
   const result = recordingSettingsOf(process.argv.slice(2), process.env);
@@ -8,12 +9,16 @@ if (import.meta.main) {
     console.error(`record-arca-responses: ${result.reason}`);
     process.exit(1);
   } else {
-    recordArcaResponses({
-      ...result.settings,
-      wsaaEndpoint: wsaaEndpointOf("homologation"),
-      wsfeEndpoint: wsfeEndpointOf("homologation"),
-      now: () => new Date(),
-    })
+    Promise.resolve()
+      .then(() =>
+        recordArcaResponses({
+          ...result.settings,
+          wsaaEndpoint: wsaaEndpointOf("homologation"),
+          wsfeEndpoint: wsfeEndpointOf("homologation"),
+          cuit: requireAuthorizedCuit(process.env),
+          now: () => new Date(),
+        }),
+      )
       .then((report) => {
         for (const { file, replacements } of report.scrubbed) {
           const replaced = replacements.map(({ field, count }) => `${field} x${count}`);
