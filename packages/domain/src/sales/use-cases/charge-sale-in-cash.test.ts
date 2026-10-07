@@ -113,9 +113,15 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
   });
 }
 
-function charge(store: FakeSaleLedger, tendered: number, saleId = "sale-1", actorId = "cashier") {
+function charge(
+  store: FakeSaleLedger,
+  tendered: number,
+  saleId = "sale-1",
+  actorId = "cashier",
+  ids = new SequentialIds(),
+) {
   return chargeSaleInCash(
-    { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds() },
+    { ledger: store, clock: new FixedClock(NOW), ids },
     { actorId, saleId, tendered },
   );
 }
@@ -210,7 +216,13 @@ describe("chargeSaleInCash", () => {
   it("charges the total with the line promotions applied, not the list prices", () => {
     const store = ledger({ sales: [DISCOUNTED_SALE] });
 
-    expect(charge(store, 1999)).toEqual({ kind: "insufficient_cash", amountDue: 2000 });
+    expect(charge(ledger({ sales: [DISCOUNTED_SALE] }), 1999)).toEqual({
+      kind: "partially_paid",
+      saleId: "sale-1",
+      total: 2000,
+      paid: 1999,
+      pending: 1,
+    });
     expect(charge(store, 2500)).toEqual({
       kind: "completed",
       saleId: "sale-1",
@@ -453,14 +465,6 @@ describe("chargeSaleInCash", () => {
     );
   });
 
-  it("refuses a tendered amount below the total and carries the amount due", () => {
-    const store = ledger();
-    const before = structuredClone(store.state);
-
-    expect(charge(store, TOTAL - 1)).toEqual({ kind: "insufficient_cash", amountDue: TOTAL });
-    expect(store.state).toEqual(before);
-  });
-
   it.each([0, -100, 0.5, Number.NaN, MAX_CASH_AMOUNT_CENTS + 1])(
     "refuses the tendered amount %s as invalid and records nothing",
     (tendered) => {
@@ -573,7 +577,7 @@ describe("chargeSaleInCash", () => {
         tendered: TOTAL,
       },
       { name: "invalid amount", state: {}, tendered: 0 },
-      { name: "insufficient cash", state: {}, tendered: TOTAL - 1 },
+      { name: "partial payment", state: {}, tendered: TOTAL - 1 },
     ],
   )("evaluates no gate when the charge is refused: $name", ({ state, tendered, saleId }) => {
     const store = ledger({ issuerIdentifications: [], ...state });
@@ -598,5 +602,187 @@ describe("chargeSaleInCash", () => {
 
     expect(() => charge(store, 10000)).toThrow(` failed`);
     expect(store.state).toEqual(before);
+  });
+
+  describe("when the tendered amount is below the total", () => {
+    const PARTIAL = 2000;
+
+    it("leaves the sale open and reports what is paid and what is pending", () => {
+      const store = ledger();
+
+      expect(charge(store, PARTIAL)).toEqual({
+        kind: "partially_paid",
+        saleId: "sale-1",
+        total: TOTAL,
+        paid: PARTIAL,
+        pending: TOTAL - PARTIAL,
+      });
+      expect(store.state.sales[0]?.state).toBe("OPEN");
+      expect(store.transactions).toBe(1);
+    });
+
+    it("records an approved cash payment of the tendered amount and the cash collected against the sale", () => {
+      const store = ledger();
+
+      charge(store, PARTIAL);
+
+      expect(store.state.payments).toEqual([
+        {
+          id: "id-1",
+          saleId: "sale-1",
+          kind: "SALE",
+          method: "CASH",
+          provider: "NONE",
+          amount: PARTIAL,
+          tendered: PARTIAL,
+          state: "APPROVED",
+          occurredAt: NOW,
+        },
+      ]);
+      expect(store.state.movements.slice(1)).toEqual([
+        {
+          id: "id-2",
+          sessionId: "session-1",
+          type: "SALE",
+          amount: PARTIAL,
+          actorId: "cashier",
+          occurredAt: NOW,
+          ref: { type: "sale", id: "sale-1" },
+        },
+      ]);
+    });
+
+    it("appends no event and evaluates no gate", () => {
+      const store = ledger({ issuerIdentifications: [] });
+
+      charge(store, PARTIAL);
+
+      expect(store.state.outbox).toEqual([]);
+      expect(store.state.preEmissionGates).toEqual([]);
+      expect(store.state.sales[0]?.occurredAt).toBeUndefined();
+    });
+
+    it("keeps the sale chargeable for what is pending", () => {
+      const store = ledger();
+      const ids = new SequentialIds();
+
+      charge(store, PARTIAL, "sale-1", "cashier", ids);
+
+      expect(charge(store, TOTAL, "sale-1", "cashier", ids)).toEqual({
+        kind: "completed",
+        saleId: "sale-1",
+        total: TOTAL,
+        tendered: TOTAL,
+        change: 0,
+      });
+    });
+
+    it("reports the running balance after a second partial payment", () => {
+      const store = ledger();
+      const ids = new SequentialIds();
+
+      charge(store, 2000, "sale-1", "cashier", ids);
+
+      expect(charge(store, 1000, "sale-1", "cashier", ids)).toEqual({
+        kind: "partially_paid",
+        saleId: "sale-1",
+        total: TOTAL,
+        paid: 3000,
+        pending: 2900,
+      });
+    });
+
+    it("completes with both payments and every cash movement in the event when a second payment covers the rest", () => {
+      const store = ledger();
+      const ids = new SequentialIds();
+
+      charge(store, 2000, "sale-1", "cashier", ids);
+      const outcome = charge(store, 5000, "sale-1", "cashier", ids);
+
+      expect(outcome).toEqual({
+        kind: "completed",
+        saleId: "sale-1",
+        total: TOTAL,
+        tendered: 5000,
+        change: 1100,
+      });
+      expect(store.state.payments.map((payment) => [payment.amount, payment.tendered])).toEqual([
+        [2000, 2000],
+        [3900, 5000],
+      ]);
+      expect(store.state.outbox).toHaveLength(1);
+      expect(store.state.outbox[0]?.payload).toMatchObject({
+        total: TOTAL,
+        payments: [
+          { id: "id-1", amount: 2000, tendered: 2000 },
+          { id: "id-3", amount: 3900, tendered: 5000 },
+        ],
+        cash_movements: [
+          { id: "id-2", type: "SALE", amount: 2000 },
+          { id: "id-4", type: "SALE", amount: 5000 },
+          { id: "id-5", type: "CHANGE", amount: 1100 },
+        ],
+      });
+      expect(store.state.preEmissionGates).toHaveLength(1);
+    });
+
+    it("raises the session's expected cash by exactly what the cash payments applied", () => {
+      const store = ledger();
+      const ids = new SequentialIds();
+      const before = expectedCash(store.state.movements);
+
+      charge(store, 2000, "sale-1", "cashier", ids);
+      expect(expectedCash(store.state.movements) - before).toBe(2000);
+      charge(store, 9000, "sale-1", "cashier", ids);
+
+      expect(expectedCash(store.state.movements) - before).toBe(TOTAL);
+    });
+
+    it("applies the tendered amount and leaves the rest pending for every amount below the total", () => {
+      fc.assert(
+        fc.property(fc.integer({ min: 1, max: TOTAL - 1 }), (tendered) => {
+          const store = ledger();
+          const before = expectedCash(store.state.movements);
+
+          expect(charge(store, tendered)).toEqual({
+            kind: "partially_paid",
+            saleId: "sale-1",
+            total: TOTAL,
+            paid: tendered,
+            pending: TOTAL - tendered,
+          });
+          expect(expectedCash(store.state.movements) - before).toBe(tendered);
+        }),
+      );
+    });
+
+    it.each<FakeSaleLedgerWrite>(["recordPayment", "recordCashMovement"])(
+      "leaves nothing behind when %s fails",
+      (write) => {
+        const store = ledger();
+        const before = structuredClone(store.state);
+        store.failOn = write;
+
+        expect(() => charge(store, PARTIAL)).toThrow("failed");
+        expect(store.state).toEqual(before);
+      },
+    );
+
+    it.each<FakeSaleLedgerWrite>([
+      "recordPayment",
+      "recordCashMovement",
+      "recordCompletedSale",
+      "appendOutboxEvent",
+      "recordPreEmissionGate",
+    ])("leaves the earlier payment alone when %s fails on the covering one", (write) => {
+      const store = ledger();
+      const ids = new SequentialIds();
+      charge(store, 2000, "sale-1", "cashier", ids);
+      const before = structuredClone(store.state);
+      store.failOn = write;
+
+      expect(() => charge(store, 4000, "sale-1", "cashier", ids)).toThrow("failed");
+      expect(store.state).toEqual(before);
+    });
   });
 });

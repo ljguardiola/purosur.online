@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { PaymentTransaction } from "../model/payment.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { currentSale } from "./current-sale.js";
 import {
@@ -51,7 +52,31 @@ function read(store: FakeSaleLedger, actorId = "cashier") {
 
 describe("currentSale", () => {
   it("returns the open sale of the current session with its lines", () => {
-    expect(read(ledger())).toEqual({ kind: "open", sale: SALE });
+    expect(read(ledger())).toEqual({
+      kind: "open",
+      sale: SALE,
+      balance: { paid: 0, pending: 5000 },
+    });
+  });
+
+  it("reports what the approved payments paid and what is still pending", () => {
+    const payment: PaymentTransaction = {
+      id: "payment-1",
+      saleId: "sale-1",
+      kind: "SALE",
+      method: "CASH",
+      provider: "NONE",
+      amount: 1200,
+      tendered: 1500,
+      state: "APPROVED",
+      occurredAt: NOW,
+    };
+    const elsewhere: PaymentTransaction = { ...payment, id: "payment-2", saleId: "sale-2" };
+
+    expect(read(ledger({ payments: [payment, elsewhere] }))).toMatchObject({
+      kind: "open",
+      balance: { paid: 1200, pending: 3800 },
+    });
   });
 
   it("reports that there is no sale when none is open in the session", () => {
