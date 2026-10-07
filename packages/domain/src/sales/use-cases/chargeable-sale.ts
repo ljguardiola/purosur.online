@@ -1,4 +1,5 @@
-import { type ChargeRefusal, chargeRefusal } from "../../fiscal/index.js";
+import type { ChargeRefusal } from "../../fiscal/index.js";
+import { buyerIdentificationRefusal } from "../model/buyer-identification-check.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { saleBalance } from "../model/sale-balance.js";
 import { saleTotal } from "../model/sale-line.js";
@@ -50,11 +51,17 @@ export function chargeableSale(
   if (total === 0) {
     return { kind: "zero_total" };
   }
-  const refusal = chargeRefusal(total, tx.buyerIdentificationThresholds(), completedAt);
+  const payments = tx.salePayments(sale.id);
+  const refusal = buyerIdentificationRefusal(
+    total,
+    payments,
+    tx.buyerIdentificationThresholds(),
+    completedAt,
+  );
   if (refusal) {
     return refusal;
   }
-  const { paid, pending } = saleBalance(total, tx.salePayments(sale.id));
+  const { paid, pending } = saleBalance(total, payments);
   return { session, sale, total, paid, pending };
 }
 
