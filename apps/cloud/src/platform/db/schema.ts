@@ -1136,3 +1136,16 @@ export const arcaVitalityChecks = pgTable(
   },
   (table) => [index("arca_vitality_checks_checked_at_idx").on(table.checkedAt)],
 );
+
+export const arcaWsaaTokens = pgTable(
+  "arca_wsaa_tokens",
+  {
+    service: text("service").notNull(),
+    certificateFingerprint: text("certificate_fingerprint").notNull(),
+    token: text("token").notNull(),
+    sign: text("sign").notNull(),
+    issuedAt: timestamp("issued_at", { withTimezone: true }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.service, table.certificateFingerprint] })],
+);
