@@ -23,6 +23,7 @@ import { ScreenTitle } from "../shell/screen-title";
 import { ALERT_LEVEL_LABELS, AlertDetailModal, alertDateTime } from "./alert-detail-modal";
 import { alertKindLabel } from "./alert-kind-label";
 import { ALERT_LEVEL_TONE } from "./alert-level-tone";
+import { alertScopeLabel } from "./alert-scope-label";
 import type { AlertListQuery } from "./alerts-api";
 import type { AlertsListScreenServices } from "./alerts-list-services";
 import { AlertsOpenCountPill } from "./alerts-open-count-pill";
@@ -175,7 +176,8 @@ export function AlertsListScreen({
     dataColumn({
       id: "scope",
       header: "Alcance",
-      render: (item: AlertSummary) => item.scopeDisplay ?? "—",
+      render: (item: AlertSummary) =>
+        item.scopeDisplay === null ? "—" : alertScopeLabel(item.kind, item.scopeDisplay),
     }),
     dataColumn({
       id: "openedAt",

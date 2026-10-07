@@ -233,7 +233,7 @@ interface ArcaEndpoints {
   wsaa: string;
 }
 
-function arcaEndpointsOf(environment: string): ArcaEndpoints {
+export function arcaEndpointsOf(environment: string): ArcaEndpoints {
   return { wsfe: wsfeEndpointOf(environment), wsaa: wsaaEndpointOf(environment) };
 }
 
@@ -462,8 +462,7 @@ export interface StartServerDeps {
     workerUtils: RecoveryInfrastructure["workerUtils"],
   ) => Promise<unknown>;
   now?: () => Date;
-  /** Only a test replaces ARCA's own endpoints, so that nothing it runs can reach the tax authority. */
-  arcaEndpoints?: (environment: string) => ArcaEndpoints;
+  arcaEndpoints: (environment: string) => ArcaEndpoints;
   recordAuthorizedCuit?: (
     db: RecoveryInfrastructure["db"],
     authorizedCuit: string,
@@ -481,15 +480,12 @@ function recordAuthorizedCuitInDatabase(
   );
 }
 
-export async function startServer(
-  env: ServerEnv = process.env,
-  deps: StartServerDeps = {},
-): Promise<FastifyInstance> {
+export async function startServer(env: ServerEnv, deps: StartServerDeps): Promise<FastifyInstance> {
   const doInitSentry = deps.initSentry ?? initSentry;
   const doBuildApp = deps.buildApp ?? buildApp;
   const doSetUpRecovery = deps.setUpRecovery ?? setUpRecovery;
   const now = deps.now ?? (() => new Date());
-  const arcaEndpoints = deps.arcaEndpoints ?? arcaEndpointsOf;
+  const arcaEndpoints = deps.arcaEndpoints;
   const doEnqueueArcaCertificateExpiryCheck =
     deps.enqueueArcaCertificateExpiryCheck ?? enqueueArcaCertificateExpiryCheck;
   const doRecordAuthorizedCuit =
@@ -614,7 +610,7 @@ export async function reportStartupFailure(
 }
 
 if (import.meta.main) {
-  startServer().then(
+  startServer(process.env, { arcaEndpoints: arcaEndpointsOf }).then(
     (app) => registerShutdownHandlers(app),
     (error: unknown) => reportStartupFailure(error),
   );

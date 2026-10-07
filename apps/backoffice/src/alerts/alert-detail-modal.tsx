@@ -38,6 +38,7 @@ import { schemaText } from "../platform/schema-text";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { type BackofficeAccess, canCloseAlertsManually } from "../shell/backoffice-access";
 import { ALERT_LEVEL_TONE } from "./alert-level-tone";
+import { alertScopeLabel } from "./alert-scope-label";
 import { closeAlert as closeAlertDefault, fetchAlert as fetchAlertDefault } from "./alerts-api";
 import {
   useAlertQuery,
@@ -185,13 +186,10 @@ function registerEnrollmentDescription(
   return `La caja «${registerName}» se dio de alta en el equipo «${hostname}» (${windowsVersion}).${replaced} Si no se reconoce esta alta, conviene revisarla desde Cajas registradoras.`;
 }
 
-const ARCA_ENVIRONMENT_LABELS: Record<string, string> = {
-  production: "producción",
-  homologation: "homologación",
-};
-
 function arcaCertificateExpiringDescription(notAfter: string, environment: string): string {
-  const label = ARCA_ENVIRONMENT_LABELS[environment] ?? environment;
+  const label = alertScopeLabel("arca_certificate_expiring", environment).toLocaleLowerCase(
+    "es-AR",
+  );
   return `El certificado de ARCA de ${label} vence el ${alertDateTime(new Date(notAfter))}. Conviene cargar uno nuevo antes de esa fecha.`;
 }
 
@@ -448,7 +446,7 @@ function OpenAlertDetailModal({
               {alert.scopeDisplay !== null && (
                 <div className="flex justify-between gap-2">
                   <span className="text-text-subtle">Alcance</span>
-                  <span>{alert.scopeDisplay}</span>
+                  <span>{alertScopeLabel(alert.kind, alert.scopeDisplay)}</span>
                 </div>
               )}
             </div>

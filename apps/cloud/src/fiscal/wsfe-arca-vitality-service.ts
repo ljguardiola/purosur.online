@@ -15,7 +15,7 @@ const WSFE_ENDPOINTS: Record<string, string> = {
 export function wsfeEndpointOf(environment: string): string {
   const endpoint = WSFE_ENDPOINTS[environment];
   if (endpoint === undefined) {
-    throw new Error(`No WSFE endpoint for the ARCA environment ""`);
+    throw new Error(`No WSFE endpoint for the ARCA environment "${environment}"`);
   }
   return endpoint;
 }
