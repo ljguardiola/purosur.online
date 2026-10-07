@@ -139,13 +139,19 @@ When no row is `stopped`, every row is `refuted`, `filed as #<n>` or
 REVIEW-GATE: CLEAN — <rounds> rounds, <fixed> fixed, <refuted> refuted, <filed> filed as new issues (TARGET <sha>)
 ```
 
-Report the new issues to the coordinator.
+Report the new issues and the proposed checklist examples to the coordinator.
 
 ## Growing the checklist
 
-When the verifier reports that a confirmed `rule` finding's kind of
-deviation is not named in its area of
-[references/checklist.md](references/checklist.md), add it to that area's
-"Read in the change" as an example, in the round's fix commit. When the
-round has none, commit the example on its own and go to step 2 with that
-commit as the new `TARGET`, re-reviewed like a fix commit.
+The review never changes [references/checklist.md](references/checklist.md)
+inside the issue's branch: that file is shared by every branch, and its
+examples reach it through their own pull request.
+
+When the verifier reports that a confirmed finding's kind of deviation is not
+named in its area of the checklist, record the example it proposes under
+"Proposed checklist examples" in the ledger, with the area its verdict
+names. With the review's result, CLEAN
+or STOPPED, report every proposal not yet reported to the coordinator, the
+same way as the new issues, in the proposal shape of
+[references/formats.md](references/formats.md), and mark it reported in the
+ledger.
