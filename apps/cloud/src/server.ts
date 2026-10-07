@@ -228,7 +228,19 @@ export function requireAuthorizedCuit(env: ServerEnv): string {
   return normalized;
 }
 
-function resolveArcaWsaa(env: ServerEnv): Pick<SetUpRecoveryEnv, "arcaWsaa"> {
+export interface ArcaEndpoints {
+  wsfe: string;
+  wsaa: string;
+}
+
+function arcaEndpointsOf(environment: string): ArcaEndpoints {
+  return { wsfe: wsfeEndpointOf(environment), wsaa: wsaaEndpointOf(environment) };
+}
+
+function resolveArcaWsaa(
+  env: ServerEnv,
+  arcaEndpoints: (environment: string) => ArcaEndpoints,
+): Pick<SetUpRecoveryEnv, "arcaWsaa"> {
   const environment = requireArcaEnvironment(env);
   const encodedKey = env.ARCA_PRIVATE_KEY;
   if (!encodedKey) {
@@ -256,7 +268,7 @@ function resolveArcaWsaa(env: ServerEnv): Pick<SetUpRecoveryEnv, "arcaWsaa"> {
   }
   return {
     arcaWsaa: {
-      endpoint: wsaaEndpointOf(environment),
+      endpoint: arcaEndpoints(environment).wsaa,
       certificatePem: normalizePemNewlines(env.ARCA_CERTIFICATE ?? ""),
       privateKeyPem,
       certificateFingerprint: certificate.fingerprint256,
@@ -450,6 +462,8 @@ export interface StartServerDeps {
     workerUtils: RecoveryInfrastructure["workerUtils"],
   ) => Promise<unknown>;
   now?: () => Date;
+  /** Only a test replaces ARCA's own endpoints, so that nothing it runs can reach the tax authority. */
+  arcaEndpoints?: (environment: string) => ArcaEndpoints;
   recordAuthorizedCuit?: (
     db: RecoveryInfrastructure["db"],
     authorizedCuit: string,
@@ -475,6 +489,7 @@ export async function startServer(
   const doBuildApp = deps.buildApp ?? buildApp;
   const doSetUpRecovery = deps.setUpRecovery ?? setUpRecovery;
   const now = deps.now ?? (() => new Date());
+  const arcaEndpoints = deps.arcaEndpoints ?? arcaEndpointsOf;
   const doEnqueueArcaCertificateExpiryCheck =
     deps.enqueueArcaCertificateExpiryCheck ?? enqueueArcaCertificateExpiryCheck;
   const doRecordAuthorizedCuit =
@@ -500,8 +515,8 @@ export async function startServer(
               environment: requireArcaEnvironment(env),
               notAfter: requireCertificateNotAfter(env),
             },
-            arcaVitality: { endpoint: wsfeEndpointOf(requireArcaEnvironment(env)) },
-            ...resolveArcaWsaa(env),
+            arcaVitality: { endpoint: arcaEndpoints(requireArcaEnvironment(env)).wsfe },
+            ...resolveArcaWsaa(env, arcaEndpoints),
           },
           now,
         ),
