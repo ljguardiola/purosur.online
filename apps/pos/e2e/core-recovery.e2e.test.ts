@@ -108,23 +108,57 @@ describe("the register's own recovery once the core's bounded restarts run out",
       await killAndWaitForTheNextCore(app, page);
     }
 
-    // Recorded by the page itself the moment the notice renders, however briefly it stays up
-    // before the periodic retry's core is ready.
+    // Recorded by the page itself from every change the renderer makes, however briefly the notice
+    // stays up; a retry's core that is back without the notice ever shown ends the wait unseen.
     await page.evaluate(
-      ({ title, body }) => {
+      ({ title, body, upText }) => {
         const probe = window as unknown as NoticeProbe;
         probe.__noticeShown = new Promise((resolve) => {
-          const observer = new MutationObserver(() => {
-            const alert = document.querySelector('[role="alert"]');
-            if (alert?.textContent?.includes(title)) {
-              observer.disconnect();
-              resolve({ title: true, body: alert.textContent.includes(body) });
+          let retryCoreArrived = false;
+          const showsCoreUp = (): boolean => document.body.textContent?.includes(upText) ?? false;
+          const endUnseen = (): void => {
+            observer.disconnect();
+            window.removeEventListener("message", onMessage);
+            resolve({ title: false, body: false });
+          };
+          const alertIn = (node: Node): Element | undefined => {
+            const element = node instanceof Element ? node : node.parentElement;
+            const enclosing = element?.closest('[role="alert"]');
+            const alerts = [
+              ...(enclosing ? [enclosing] : []),
+              ...(element?.querySelectorAll('[role="alert"]') ?? []),
+            ];
+            return alerts.find((alert) => alert.textContent?.includes(title));
+          };
+          const observer = new MutationObserver((records) => {
+            for (const record of records) {
+              for (const node of [record.target, ...record.addedNodes]) {
+                const alert = alertIn(node);
+                if (alert !== undefined) {
+                  observer.disconnect();
+                  window.removeEventListener("message", onMessage);
+                  resolve({ title: true, body: alert.textContent?.includes(body) ?? false });
+                  return;
+                }
+              }
+            }
+            if (retryCoreArrived && showsCoreUp()) {
+              endUnseen();
             }
           });
-          observer.observe(document.body, { childList: true, subtree: true });
+          const onMessage = (event: MessageEvent): void => {
+            if (event.data === "core-port") {
+              retryCoreArrived = true;
+              if (showsCoreUp()) {
+                endUnseen();
+              }
+            }
+          };
+          observer.observe(document.body, { childList: true, characterData: true, subtree: true });
+          window.addEventListener("message", onMessage);
         });
       },
-      { title: CORE_DOWN_TITLE, body: CORE_DOWN_BODY },
+      { title: CORE_DOWN_TITLE, body: CORE_DOWN_BODY, upText: CORE_UP_TEXT },
     );
     await killTheRunningCore(app);
 

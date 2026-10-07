@@ -43,7 +43,7 @@ describe("the register's cash session", () => {
     );
     register = enrolledRegister(cloud);
     await register.launch();
-  }, 60_000);
+  });
 
   afterAll(async () => {
     try {

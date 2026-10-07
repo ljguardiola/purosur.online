@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { launchApp, writeChannelFile } from "./launch-app";
+import {
+  CORE_READY,
+  loggedAStartOutcome,
+  startOutcomesIn,
+} from "./test-support/core-start-outcomes";
 import { untilLogged } from "./test-support/until";
 
 describe("the register's local database", () => {
@@ -10,15 +15,8 @@ describe("the register's local database", () => {
     try {
       await launched.app.firstWindow();
 
-      await untilLogged(
-        launched,
-        (output) =>
-          output.includes("core: the local database is ready") ||
-          output.includes("core: the local database could not be opened"),
-      );
-      const output = launched.logs.join("");
-      expect(output).toContain("core: the local database is ready");
-      expect(output).not.toContain("core: the local database could not be opened");
+      await untilLogged(launched, loggedAStartOutcome);
+      expect(startOutcomesIn(launched.logs.join(""))).toEqual([CORE_READY]);
     } finally {
       await launched.app.close();
     }
