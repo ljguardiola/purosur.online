@@ -113,6 +113,16 @@ describe("receiving the events a register pushes", () => {
     expect(inbox.receivedSeqs(DEVICE)).toEqual([1, 2, 4]);
   });
 
+  it("needs no chain key to answer the ack of a push that carries no event", async () => {
+    const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1, 2] }]);
+    inbox.chainKeys.set(DEVICE, undefined);
+
+    const outcome = await receive(inbox, []);
+
+    expect(outcome).toEqual({ kind: "received", ackSeq: 2 });
+    expect(inbox.state.brokenChainRevocations).toEqual([]);
+  });
+
   it("keeps the events of each installation apart", async () => {
     const inbox = new FakeInbox();
     inbox.holdEvents(
