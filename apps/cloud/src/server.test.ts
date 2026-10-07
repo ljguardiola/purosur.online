@@ -1354,3 +1354,59 @@ describe("reportStartupFailure", () => {
     expect(calls).toEqual(["capture listen EADDRINUSE", "flush", "exit 1"]);
   });
 });
+
+describe("startServer ARCA endpoints", () => {
+  const credentials = generateArcaTestCredentials();
+  const endpoints = {
+    wsfe: "http://127.0.0.1:1/wsfe-for-this-test",
+    wsaa: "http://127.0.0.1:1/wsaa-for-this-test",
+  };
+
+  it("hands setUpRecovery the endpoints it was given instead of ARCA's own", async () => {
+    const fakeApp = {
+      listen: vi.fn().mockResolvedValue(undefined),
+      addHook: vi.fn(),
+    } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+    const setUpRecovery = vi.fn().mockResolvedValue({
+      db: {},
+      jobQueue: { enqueueRecoveryRequest: vi.fn() },
+      backofficeOrigin: "https://staging.purosur.online",
+      worker: { stop: vi.fn() },
+      workerUtils: { addJob: vi.fn() },
+      close: vi.fn(),
+    });
+    const arcaEndpoints = vi.fn().mockReturnValue(endpoints);
+
+    await startServer(
+      {
+        DATABASE_URL: "postgres://user:pass@db/purosur",
+        RESEND_API_KEY: "re_test_key",
+        RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+        RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+        BACKOFFICE_ORIGIN: "https://staging.purosur.online",
+        EDGE_ORIGIN_SECRET: "edge-secret",
+        ARCA_CERTIFICATE: credentials.certificatePem,
+        ARCA_ENVIRONMENT: "homologation",
+        ARCA_PRIVATE_KEY: credentials.privateKeyPem,
+        DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
+        INSTALLATION_KEYS_ENCRYPTION_KEY: KEYS_ENCRYPTION_KEY,
+      },
+      {
+        initSentry: vi.fn(),
+        buildApp: vi.fn().mockReturnValue(fakeApp),
+        setUpRecovery,
+        recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+        arcaEndpoints,
+      },
+    );
+
+    expect(arcaEndpoints).toHaveBeenCalledWith("homologation");
+    expect(setUpRecovery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        arcaVitality: { endpoint: endpoints.wsfe },
+        arcaWsaa: expect.objectContaining({ endpoint: endpoints.wsaa }),
+      }),
+      expect.any(Function),
+    );
+  });
+});
