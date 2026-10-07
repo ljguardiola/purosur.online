@@ -9,7 +9,7 @@ export const WSAA_TOKEN_RENEWAL_TASK_IDENTIFIER = "wsaa-token-renewal";
 
 const WSAA_TOKEN_RENEWAL_CRONTAB_LINE = `* * * * * ${WSAA_TOKEN_RENEWAL_TASK_IDENTIFIER}`;
 
-const WSFE_SERVICE = "wsfe";
+export const WSFE_SERVICE = "wsfe";
 
 export interface WsaaTokenRenewalInput {
   now: () => Date;

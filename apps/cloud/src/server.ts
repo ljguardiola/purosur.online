@@ -506,6 +506,7 @@ export async function startServer(
   const database = recoveryEnv
     ? {
         authorizedCuit: requireAuthorizedCuit(env),
+        certificateFingerprint: parseArcaCertificate(env).fingerprint256,
         deviceTokenRotationKey: requireDeviceTokenRotationKey(env),
         installationKeysEncryptionKey: requireInstallationKeysEncryptionKey(env),
         recovery: await doSetUpRecovery(
@@ -535,6 +536,7 @@ export async function startServer(
           backofficeOrigin: database.recovery.backofficeOrigin,
           recoveryJobQueue: database.recovery.jobQueue,
           authorizedCuit: database.authorizedCuit,
+          certificateFingerprint: database.certificateFingerprint,
           deviceTokenRotationKey: database.deviceTokenRotationKey,
           installationKeysEncryptionKey: database.installationKeysEncryptionKey,
         })

@@ -1,4 +1,5 @@
 import { cloudError, cloudErrorStatus, healthCheckSchema } from "@purosur/contracts";
+import type { ArcaOnlineStatus } from "@purosur/domain/fiscal/use-cases";
 import type { FastifyInstance } from "fastify";
 import { PUBLIC_ACCESS } from "../access/route-access.js";
 import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
@@ -6,6 +7,7 @@ import type { DeviceAuthentication } from "../register/device-authentication.js"
 
 export interface HealthRouteOptions {
   version: string;
+  arcaOnlineStatus?: () => Promise<ArcaOnlineStatus>;
   authenticateDevice?: (authorization: string | undefined) => Promise<DeviceAuthentication>;
 }
 
@@ -34,12 +36,22 @@ export function registerHealthRoute(app: FastifyInstance, options: HealthRouteOp
         return;
       }
 
+      const arca =
+        authentication.kind === "installation" ? await options.arcaOnlineStatus?.() : undefined;
+
       await reply.send(
         healthCheckSchema.parse({
           status: "ok",
           version: options.version,
           ...(authentication.kind === "installation" && {
             installation: { revoked: authentication.installation.revoked },
+          }),
+          ...(arca && {
+            arca: {
+              token_valid: arca.tokenValid,
+              probe_ok_at: arca.probeOkAt?.toISOString() ?? null,
+              reachable: arca.reachable,
+            },
           }),
         }),
       );
