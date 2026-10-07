@@ -15,15 +15,8 @@ function minutesAgo(minutes: number): Date {
   return new Date(NOW.getTime() - minutes * 60 * 1000);
 }
 
-function admitting(
-  admission: FakeRequestAdmission,
-  endpoint: LimitedEndpoint,
-  deviceId = DEVICE,
-) {
-  return admitInstallationRequest(
-    { admission, clock: { now: () => NOW } },
-    { deviceId, endpoint },
-  );
+function admitting(admission: FakeRequestAdmission, endpoint: LimitedEndpoint, deviceId = DEVICE) {
+  return admitInstallationRequest({ admission, clock: { now: () => NOW } }, { deviceId, endpoint });
 }
 
 function fill(

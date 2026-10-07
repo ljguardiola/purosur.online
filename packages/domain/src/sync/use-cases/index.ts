@@ -1,3 +1,8 @@
+export type {
+  AdmitInstallationRequestInput,
+  AdmitInstallationRequestOutcome,
+} from "./admit-installation-request.js";
+export { admitInstallationRequest } from "./admit-installation-request.js";
 export type { CatchUpOutcome } from "./catch-up-with-cloud.js";
 export { catchUpWithCloud } from "./catch-up-with-cloud.js";
 export type { CheckInstallationOutcome } from "./check-installation-with-cloud.js";
@@ -12,6 +17,7 @@ export type {
 } from "./receive-pushed-events.js";
 export { receivePushedEvents } from "./receive-pushed-events.js";
 export type {
+  AdmissionPorts,
   CatchUpPorts,
   ChangeLog,
   ChangeLogTransaction,
@@ -39,4 +45,6 @@ export type {
   PushOutboxPorts,
   PushReport,
   ReceivePorts,
+  RequestAdmission,
+  RequestAdmissionTransaction,
 } from "./sync-ports.js";

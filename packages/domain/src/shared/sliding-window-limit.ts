@@ -3,7 +3,10 @@ export interface SlidingWindowLimit {
   windowMs: number;
 }
 
-export function slidingWindowStart(now: Date, { windowMs }: SlidingWindowLimit): Date {
+export function slidingWindowStart(
+  now: Date,
+  { windowMs }: Pick<SlidingWindowLimit, "windowMs">,
+): Date {
   return new Date(now.getTime() - windowMs);
 }
 

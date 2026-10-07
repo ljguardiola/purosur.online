@@ -40,10 +40,7 @@ describe("installationRequestRetryAfterSeconds", () => {
   it.each(["push", "pull", "health_check"] as const)(
     "refuses a %s request at its limit until the oldest counted one leaves the window",
     (endpoint) => {
-      const accepted = [
-        ...attempts(INSTALLATION_REQUEST_LIMITS[endpoint] - 1),
-        minutesAgo(50),
-      ];
+      const accepted = [...attempts(INSTALLATION_REQUEST_LIMITS[endpoint] - 1), minutesAgo(50)];
 
       expect(installationRequestRetryAfterSeconds(endpoint, accepted, NOW)).toBe(10 * 60);
     },

@@ -1,3 +1,4 @@
+import type { LimitedEndpoint } from "../model/installation-request-limit.js";
 import type {
   PullAudience,
   PulledEntity,
@@ -81,6 +82,25 @@ export interface InboxTransaction {
     refusedAt: Date,
   ): Promise<void>;
   revokeForBrokenChain(deviceId: string, revokedAt: Date): Promise<void>;
+}
+
+export interface RequestAdmission {
+  transaction<TOutcome>(
+    work: (tx: RequestAdmissionTransaction) => Promise<TOutcome>,
+  ): Promise<TOutcome>;
+}
+
+export interface RequestAdmissionTransaction {
+  lockRequestAttempts(deviceId: string, endpoint: LimitedEndpoint): Promise<void>;
+  admittedRequests(deviceId: string, endpoint: LimitedEndpoint, since: Date): Promise<Date[]>;
+  recordAdmittedRequest(deviceId: string, endpoint: LimitedEndpoint, at: Date): Promise<void>;
+  // Bookkeeping of the limiter: what it forgets was never business data.
+  forgetRequestsThrough(deviceId: string, endpoint: LimitedEndpoint, through: Date): Promise<void>;
+}
+
+export interface AdmissionPorts {
+  admission: RequestAdmission;
+  clock: Clock;
 }
 
 export interface ReceivePorts {
