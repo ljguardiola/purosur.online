@@ -30,6 +30,7 @@ const processed = (limitReached: boolean): ApplyPendingEventsOutcome => ({
   flagged: 0,
   retried: 0,
   quarantined: 0,
+  busy: 0,
   limitReached,
 });
 

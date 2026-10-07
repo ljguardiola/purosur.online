@@ -62,10 +62,15 @@ export class FakeEventApplication implements EventApplication {
   transactions = 0;
   failRecording = new Map<string, Error>();
   failOpeningInvariantAlert = false;
+  heldByAnotherRun = new Set<string>();
   beforeTransaction: (transactionNumber: number) => void = () => {};
 
   constructor(events: FakeStoredEvent[] = []) {
     this.state.events = events;
+  }
+
+  holdAggregateAsAnotherRun(key: AggregateKey): void {
+    this.heldByAnotherRun.add(keyOf(key));
   }
 
   get appliedEventIds(): string[] {
@@ -111,6 +116,7 @@ export class FakeEventApplication implements EventApplication {
     return {
       lockAggregate: async (key) => {
         this.calls.push(`lock ${keyOf(key)}`);
+        return !this.heldByAnotherRun.has(keyOf(key));
       },
       unappliedEventsOf: async (key) => {
         this.calls.push(`read ${keyOf(key)}`);

@@ -86,6 +86,7 @@ describe("applying the events the cloud holds", () => {
       flagged: 0,
       retried: 0,
       quarantined: 0,
+      busy: 0,
       limitReached: false,
     });
   });
@@ -352,6 +353,75 @@ describe("an event that cannot be applied yet", () => {
 
     expect(application.event("sale-event").attempts).toBe(0);
     expect(application.event("earlier").attempts).toBe(0);
+  });
+});
+
+describe("an aggregate another run is applying", () => {
+  const SESSION_1 = { aggregateType: "CashSession", aggregateId: "session-1" };
+
+  it("is skipped while the other aggregates still apply in the same run", async () => {
+    const application = new FakeEventApplication([
+      openedEvent({ receivedAt: new Date("2026-10-07T10:00:01.000Z") }),
+      sessionEvent("other-opened", 1, {
+        aggregateId: "session-2",
+        eventType: "cash_session_opened",
+        receivedAt: new Date("2026-10-07T10:00:02.000Z"),
+      }),
+    ]);
+    application.holdAggregateAsAnotherRun(SESSION_1);
+    const upcaster = new FakeEventUpcaster({
+      opened: A_SESSION_OPENED_FACT,
+      "other-opened": A_SESSION_OPENED_FACT,
+    });
+
+    const outcome = await run(application, upcaster);
+
+    expect(application.appliedEventIds).toEqual(["other-opened"]);
+    expect(outcome).toMatchObject({ kind: "processed", applied: 1, busy: 1 });
+  });
+
+  it("is neither read nor written", async () => {
+    const application = new FakeEventApplication([openedEvent()]);
+    application.holdAggregateAsAnotherRun(SESSION_1);
+
+    await run(application, new FakeEventUpcaster({ opened: A_SESSION_OPENED_FACT }));
+
+    expect(application.calls).toEqual(["begin", "lock CashSession/session-1", "commit"]);
+    expect(application.event("opened")).toMatchObject({ appliedAt: null, attempts: 0 });
+  });
+
+  it("ends the run as one that skipped it when nothing else was due", async () => {
+    const application = new FakeEventApplication([openedEvent()]);
+    application.holdAggregateAsAnotherRun(SESSION_1);
+
+    const outcome = await run(application, new FakeEventUpcaster({}));
+
+    expect(outcome).toEqual({
+      kind: "processed",
+      applied: 0,
+      flagged: 0,
+      retried: 0,
+      quarantined: 0,
+      busy: 1,
+      limitReached: false,
+    });
+  });
+
+  it("records no failed attempt when it is held by another run by the time the failure is recorded", async () => {
+    const application = new FakeEventApplication([saleEvent()]);
+    application.beforeTransaction = (number) => {
+      if (number === 2) {
+        application.holdAggregateAsAnotherRun({ aggregateType: "Sale", aggregateId: "sale-1" });
+      }
+    };
+
+    const outcome = await run(
+      application,
+      new FakeEventUpcaster({ "sale-event": aCompletedSaleFact() }),
+    );
+
+    expect(application.event("sale-event")).toMatchObject({ attempts: 0, error: null });
+    expect(outcome).toMatchObject({ retried: 0, quarantined: 0 });
   });
 });
 

@@ -3,17 +3,13 @@ import { applyPendingEvents } from "@purosur/domain/sync/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { cashSessions, inbox } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
-import {
-  runQueuedBehindHeldLock,
-  waitForLockWaiters,
-} from "../test-support/queued-behind-held-lock.js";
 import { DrizzleEventApplication } from "./drizzle-event-application.js";
 import { syncedEventUpcaster } from "./synced-event-upcaster.js";
 import { insertInboxEvent } from "./test-support/inbox-events.js";
@@ -69,6 +65,10 @@ async function insertOpeningOf(deviceId: string, receivedAt: Date): Promise<stri
   return sessionId;
 }
 
+async function sessionsOf(sessionId: string) {
+  return db.select().from(cashSessions).where(eq(cashSessions.id, sessionId));
+}
+
 describe("applying events on a real Postgres", () => {
   it("lets two appliers meet on the same aggregate without applying its event twice", async () => {
     const { deviceId } = await insertEnrolledInstallation(db, {
@@ -77,49 +77,46 @@ describe("applying events on a real Postgres", () => {
     });
     const sessionId = await insertOpeningOf(deviceId, new Date("2026-10-06T11:00:05.000Z"));
 
-    const [first, second] = await runQueuedBehindHeldLock(
-      sql,
-      (holder) => holdAggregateLock(holder, sessionId),
-      applier,
-      applier,
-    );
+    const outcomes = await Promise.all([applier(), applier()]);
 
-    expect([first.kind, second.kind].sort()).toEqual(["idle", "processed"]);
-    const opened = await db.select().from(cashSessions).where(eq(cashSessions.id, sessionId));
-    expect(opened).toHaveLength(1);
+    const appliedByRuns = outcomes.reduce(
+      (total, outcome) => total + (outcome.kind === "processed" ? outcome.applied : 0),
+      0,
+    );
+    expect(appliedByRuns).toBe(1);
+    expect(await sessionsOf(sessionId)).toHaveLength(1);
     const [event] = await db.select().from(inbox).where(eq(inbox.aggregateId, sessionId));
     expect(event).toMatchObject({ appliedAt: NOW, attempts: 0 });
   }, 30_000);
 
-  it("applies another aggregate while the lock of an older one is held", async () => {
+  it("skips an aggregate another session holds without waiting, applies the others and picks it up once released", async () => {
     const { deviceId } = await insertEnrolledInstallation(db, {
       now: NOW,
       registerName: randomUUID(),
     });
-    const other = await insertOpeningOf(deviceId, new Date("2026-10-06T12:00:05.000Z"));
+    const older = await insertOpeningOf(deviceId, new Date("2026-10-06T12:00:05.000Z"));
     const held = await insertOpeningOf(deviceId, new Date("2026-10-06T12:00:10.000Z"));
+    const newer = await insertOpeningOf(deviceId, new Date("2026-10-06T12:00:15.000Z"));
     const holder = await sql.reserve();
-    let applying: ReturnType<typeof applier> | undefined;
     try {
       await holder`begin`;
       await holdAggregateLock(holder, held);
-      applying = applier();
-      applying.catch(() => {});
-      await waitForLockWaiters(sql, 1);
 
-      await vi.waitFor(async () => {
-        const rows = await db.select().from(cashSessions).where(eq(cashSessions.id, other));
-        expect(rows).toHaveLength(1);
-      });
-      const heldBefore = await db.select().from(cashSessions).where(eq(cashSessions.id, held));
-      expect(heldBefore).toEqual([]);
+      const whileHeld = await applier();
+
+      expect(whileHeld).toMatchObject({ kind: "processed", applied: 2, busy: 1 });
+      expect(await sessionsOf(older)).toHaveLength(1);
+      expect(await sessionsOf(newer)).toHaveLength(1);
+      expect(await sessionsOf(held)).toEqual([]);
     } finally {
       await holder`rollback`;
       holder.release();
     }
 
-    await applying;
-    const heldAfter = await db.select().from(cashSessions).where(eq(cashSessions.id, held));
-    expect(heldAfter).toHaveLength(1);
+    const afterRelease = await applier();
+
+    expect(afterRelease).toMatchObject({ kind: "processed", applied: 1, busy: 0 });
+    expect(await sessionsOf(held)).toHaveLength(1);
+    expect(await applier()).toEqual({ kind: "idle" });
   }, 30_000);
 });

@@ -204,11 +204,20 @@ describe("recording what happened to an event", () => {
 describe("locking an aggregate", () => {
   it("can be taken for several aggregates in one transaction", async () => {
     await expect(
-      system.application.transaction(async (tx) => {
-        await tx.lockAggregate({ aggregateType: "Sale", aggregateId: "a" });
-        await tx.lockAggregate({ aggregateType: "CashSession", aggregateId: "a" });
-      }),
-    ).resolves.toBeUndefined();
+      system.application.transaction(async (tx) => [
+        await tx.lockAggregate(sale("a")),
+        await tx.lockAggregate(session("a")),
+      ]),
+    ).resolves.toEqual([true, true]);
+  });
+
+  it("can be taken again by the transaction that already holds it", async () => {
+    await expect(
+      system.application.transaction(async (tx) => [
+        await tx.lockAggregate(sale("a")),
+        await tx.lockAggregate(sale("a")),
+      ]),
+    ).resolves.toEqual([true, true]);
   });
 });
 
