@@ -1,5 +1,11 @@
 import type { PushedEvent } from "@purosur/domain";
-import type { Inbox, InboxTransaction, PushReport } from "@purosur/domain/sync/use-cases";
+import type {
+  HeldEvent,
+  HeldEventPosition,
+  Inbox,
+  InboxTransaction,
+  PushReport,
+} from "@purosur/domain/sync/use-cases";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { deviceState, inbox, refusedEvents, registerInstallations } from "../platform/db/schema.js";
@@ -39,18 +45,35 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
     return rows.map((row) => row.deviceSeq);
   }
 
-  async receivedEventIds(
+  async receivedEventsAt(
     deviceId: string,
     deviceSeqs: readonly number[],
-  ): Promise<ReadonlyMap<number, string>> {
+  ): Promise<ReadonlyMap<number, HeldEvent>> {
     if (deviceSeqs.length === 0) {
       return new Map();
     }
     const rows = await this.tx
-      .select({ deviceSeq: inbox.deviceSeq, eventId: inbox.eventId })
+      .select({ deviceSeq: inbox.deviceSeq, eventId: inbox.eventId, chainHmac: inbox.chainHmac })
       .from(inbox)
       .where(and(eq(inbox.deviceId, deviceId), inArray(inbox.deviceSeq, [...deviceSeqs])));
-    return new Map(rows.map(({ deviceSeq, eventId }) => [deviceSeq, eventId]));
+    return new Map(
+      rows.map(({ deviceSeq, eventId, chainHmac }) => [deviceSeq, { eventId, chainHmac }]),
+    );
+  }
+
+  async receivedEventPositions(
+    eventIds: readonly string[],
+  ): Promise<ReadonlyMap<string, HeldEventPosition>> {
+    if (eventIds.length === 0) {
+      return new Map();
+    }
+    const rows = await this.tx
+      .select({ eventId: inbox.eventId, deviceId: inbox.deviceId, deviceSeq: inbox.deviceSeq })
+      .from(inbox)
+      .where(inArray(inbox.eventId, [...eventIds]));
+    return new Map(
+      rows.map(({ eventId, deviceId, deviceSeq }) => [eventId, { deviceId, deviceSeq }]),
+    );
   }
 
   async receive(deviceId: string, events: readonly PushedEvent[], receivedAt: Date): Promise<void> {

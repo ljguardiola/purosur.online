@@ -1,6 +1,7 @@
 import { highestContiguousSeq } from "../model/contiguous-seq.js";
 import { canonicalOutboxEvent } from "../model/outbox-event.js";
 import type { PushedEvent, RegisterTelemetry } from "../model/push-batch.js";
+import { registerVersionAccepted } from "../model/register-version.js";
 import type { EventChain, InboxTransaction, ReceivePorts } from "./sync-ports.js";
 
 export interface ReceivePushedEventsInput {
@@ -14,6 +15,7 @@ export type ReceivePushedEventsOutcome =
   | { kind: "received"; ackSeq: number }
   | { kind: "gap"; ackSeq: number; expectedSeq: number }
   | { kind: "stale_device"; ackSeq: number }
+  | { kind: "update_required"; ackSeq: number }
   | { kind: "chain_broken" }
   | { kind: "revoked" };
 
@@ -29,33 +31,51 @@ export async function receivePushedEvents(
     }
     await tx.recordPushReport(deviceId, { appVersion, telemetry }, now);
     const ackSeq = highestContiguousSeq(await tx.receivedDeviceSeqs(deviceId));
+    if (!registerVersionAccepted(appVersion)) {
+      return { kind: "update_required", ackSeq };
+    }
 
-    const heldEventIds = new Map(
-      await tx.receivedEventIds(
-        deviceId,
-        events.map((event) => event.device_seq),
-      ),
+    const heldAt = await tx.receivedEventsAt(
+      deviceId,
+      events.map((event) => event.device_seq),
     );
+    const positions = await tx.receivedEventPositions(events.map((event) => event.event_id));
+    const references = new Map<number, Reference>();
+    for (const [deviceSeq, held] of heldAt) {
+      references.set(deviceSeq, { eventId: held.eventId, link: held.chainHmac });
+    }
+    const batchSeqOfEventId = new Map<string, number>();
     const toReceive: PushedEvent[] = [];
+    let misplaced = false;
     let expectedSeq = ackSeq + 1;
     for (const event of events) {
       if (event.device_seq > expectedSeq) {
         return { kind: "gap", ackSeq, expectedSeq };
       }
-      const heldEventId = heldEventIds.get(event.device_seq);
-      if (heldEventId !== undefined && heldEventId !== event.event_id) {
+      const reference = references.get(event.device_seq);
+      if (reference !== undefined && reference.eventId !== event.event_id) {
         return { kind: "stale_device", ackSeq };
       }
-      if (heldEventId === undefined) {
+      if (reference === undefined) {
         toReceive.push(event);
-        heldEventIds.set(event.device_seq, event.event_id);
+        references.set(event.device_seq, { eventId: event.event_id, link: event.chain_hmac });
+      }
+      const position = positions.get(event.event_id);
+      const batchSeq = batchSeqOfEventId.get(event.event_id);
+      batchSeqOfEventId.set(event.event_id, batchSeq ?? event.device_seq);
+      if (
+        (position !== undefined &&
+          (position.deviceId !== deviceId || position.deviceSeq !== event.device_seq)) ||
+        (batchSeq !== undefined && batchSeq !== event.device_seq)
+      ) {
+        misplaced = true;
       }
       if (event.device_seq === expectedSeq) {
         expectedSeq += 1;
       }
     }
 
-    if (!(await chainHolds(tx, eventChain, deviceId, toReceive))) {
+    if (misplaced || !(await chainHolds(tx, eventChain, deviceId, events, references))) {
       await tx.setAsideRefusedPush(deviceId, events, now);
       await tx.revokeForBrokenChain(deviceId, now);
       return { kind: "chain_broken" };
@@ -69,33 +89,40 @@ export async function receivePushedEvents(
   });
 }
 
+interface Reference {
+  eventId: string;
+  link: string;
+}
+
 async function chainHolds(
   tx: InboxTransaction,
   eventChain: EventChain,
   deviceId: string,
-  received: readonly PushedEvent[],
+  events: readonly PushedEvent[],
+  references: ReadonlyMap<number, Reference>,
 ): Promise<boolean> {
-  if (received.length === 0) {
+  if (events.length === 0) {
     return true;
   }
   const chainKey = await tx.outboxChainKey(deviceId);
   if (chainKey === undefined) {
     return false;
   }
-  const receivedLinks = new Map<number, string>();
-  for (const { chain_hmac: receivedLink, ...event } of received) {
+  for (const { chain_hmac: pushedLink, ...event } of events) {
+    const expectedLink = references.get(event.device_seq)?.link;
     const previousSeq = event.device_seq - 1;
     const previousLink =
       previousSeq === 0
         ? null
-        : (receivedLinks.get(previousSeq) ?? (await tx.receivedChainLink(deviceId, previousSeq)));
+        : (references.get(previousSeq)?.link ??
+          (await tx.receivedChainLink(deviceId, previousSeq)));
     if (
       previousLink === undefined ||
-      eventChain.link(chainKey, previousLink, canonicalOutboxEvent(event)) !== receivedLink
+      pushedLink !== expectedLink ||
+      eventChain.link(chainKey, previousLink, canonicalOutboxEvent(event)) !== expectedLink
     ) {
       return false;
     }
-    receivedLinks.set(event.device_seq, receivedLink);
   }
   return true;
 }

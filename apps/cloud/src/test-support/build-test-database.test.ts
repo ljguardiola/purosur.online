@@ -19,6 +19,7 @@ import {
   discounts,
   fiscalAddresses,
   inbox,
+  installationRequestAttempts,
   issuerIdentification,
   issuerIdentificationVersions,
   locations,
@@ -308,6 +309,11 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       actorId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e11",
       chainHmac: "forged-chain-hmac",
       refusedAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
+    await db.insert(installationRequestAttempts).values({
+      deviceId: installation.id,
+      endpoint: "push",
+      attemptedAt: new Date("2026-01-05T12:00:00.000Z"),
     });
     await db.insert(changes).values({
       entity: "branch_settings",

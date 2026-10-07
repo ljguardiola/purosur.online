@@ -7,12 +7,14 @@ import {
   pushEventsResponseSchema,
 } from "@purosur/contracts";
 import {
+  admitInstallationRequest,
   type ReceivePushedEventsOutcome,
   receivePushedEvents,
 } from "@purosur/domain/sync/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { PUBLIC_ACCESS } from "../access/route-access.js";
+import { sendRateLimited } from "../platform/rate-limited-response.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
 import { authenticateDevice } from "../register/device-authentication.js";
@@ -22,6 +24,7 @@ import {
   installationTokenPorts,
 } from "../register/installation-token-ports.js";
 import { DrizzleInbox } from "./drizzle-inbox.js";
+import { DrizzleRequestAdmission } from "./drizzle-request-admission.js";
 import { hmacEventChain } from "./hmac-event-chain.js";
 
 export type EventsRouteOptions<TQueryResult extends PgQueryResultHKT> =
@@ -48,6 +51,8 @@ function toPushWire(
       };
     case "stale_device":
       return { status: "stale_device", ack_seq: outcome.ackSeq };
+    case "update_required":
+      return { status: "update_required", ack_seq: outcome.ackSeq };
   }
 }
 
@@ -62,6 +67,7 @@ export function registerEventsRoute<TQueryResult extends PgQueryResultHKT>(
     eventChain: hmacEventChain,
     clock: { now: options.now },
   };
+  const admission = { admission: new DrizzleRequestAdmission(options.db), clock: ports.clock };
 
   app.register(async (scope) => {
     answerErrorsWithCloudEnvelope(scope);
@@ -80,6 +86,15 @@ export function registerEventsRoute<TQueryResult extends PgQueryResultHKT>(
         }
         if (authentication.installation.revoked) {
           await reply.code(cloudErrorStatus(REVOKED.code)).send(REVOKED);
+          return;
+        }
+
+        const admitted = await admitInstallationRequest(admission, {
+          deviceId: authentication.installation.deviceId,
+          endpoint: "push",
+        });
+        if (admitted.kind === "rate_limited") {
+          await sendRateLimited(reply, "too many requests", admitted.retryAfterSeconds);
           return;
         }
 

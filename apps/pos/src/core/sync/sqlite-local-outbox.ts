@@ -1,6 +1,6 @@
 import { PUSH_EVENTS_REQUEST_MAX_BYTES } from "@purosur/contracts";
 import type { PushedEvent } from "@purosur/domain";
-import type { LocalOutbox } from "@purosur/domain/sync/use-cases";
+import type { LocalOutbox, OutboxPruning } from "@purosur/domain/sync/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 import { stopOpeningNewSales } from "./sqlite-local-installation";
 
@@ -22,7 +22,7 @@ function withinByteBudget(events: PushedEvent[]): PushedEvent[] {
   return firstOver === -1 ? events : events.slice(0, Math.max(firstOver, 1));
 }
 
-export class SqliteLocalOutbox implements LocalOutbox {
+export class SqliteLocalOutbox implements LocalOutbox, OutboxPruning {
   private readonly database: LocalDatabase;
   private readonly now: () => Date;
 
@@ -86,5 +86,11 @@ export class SqliteLocalOutbox implements LocalOutbox {
 
   async recordCompromised(): Promise<void> {
     stopOpeningNewSales(this.database, this.now());
+  }
+
+  async forgetAcknowledgedBefore(cutoff: Date): Promise<number> {
+    return this.database
+      .prepare("DELETE FROM outbox WHERE acked_at IS NOT NULL AND acked_at < ?")
+      .run(cutoff.toISOString()).changes;
   }
 }

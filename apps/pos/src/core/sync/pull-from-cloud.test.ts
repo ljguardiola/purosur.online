@@ -1,4 +1,5 @@
 import { createHmac } from "node:crypto";
+import { cloudError } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
 import type { CloudResponse } from "../platform/cloud-client";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
@@ -253,5 +254,27 @@ describe("what a pull attempt means for the schedule", () => {
         failure: { kind: "refused", code: "rate_limited", retryAfterSeconds: 45 },
       }),
     ).toEqual({ kind: "failed", retryAfterMs: 45_000 });
+  });
+});
+
+describe("a pull the cloud refuses for asking too often", () => {
+  it("asks to wait as long as the cloud said, leaving the local database as it was", async () => {
+    const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
+    const replica = new SqliteLocalReplica(database);
+    replica.adoptDevice({ deviceId: CREDENTIALS.device_id, pepper: CREDENTIALS.pepper });
+    const syncStateBefore = database.prepare("SELECT * FROM sync_state").all();
+    const { getFromCloud } = cloudAnswering({
+      kind: "error",
+      error: cloudError("rate_limited", "too many requests", [{ retry_after_seconds: 45 }]),
+    });
+
+    const attempt = await pullFromCloud({
+      readCredentials: async () => CREDENTIALS,
+      replica,
+      getFromCloud,
+    });
+
+    expect(pullResultOf(attempt)).toEqual({ kind: "failed", retryAfterMs: 45_000 });
+    expect(database.prepare("SELECT * FROM sync_state").all()).toEqual(syncStateBefore);
   });
 });

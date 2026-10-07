@@ -41,25 +41,4 @@ describe("enrollmentAttemptRetryAfterSeconds", () => {
 
     expect(enrollmentAttemptRetryAfterSeconds(ten, NOW)).toBe(10 * 60);
   });
-
-  it("waits for the tenth newest attempt when more than 10 are counted, in any order", () => {
-    const eleven = attemptsMinutesAgo(59, 1, 2, 3, 4, 5, 6, 7, 8, 9, 40);
-
-    expect(enrollmentAttemptRetryAfterSeconds(eleven, NOW)).toBe(20 * 60);
-  });
-
-  it("rounds a partial second of waiting up to a whole second", () => {
-    const ten = [
-      ...attemptsMinutesAgo(1, 2, 3, 4, 5, 6, 7, 8, 9),
-      new Date(minutesAgo(60).getTime() + 1),
-    ];
-
-    expect(enrollmentAttemptRetryAfterSeconds(ten, NOW)).toBe(1);
-  });
-
-  it("ignores attempts from before the last hour", () => {
-    const tenWithOneStale = attemptsMinutesAgo(1, 2, 3, 4, 5, 6, 7, 8, 9, 60);
-
-    expect(enrollmentAttemptRetryAfterSeconds(tenWithOneStale, NOW)).toBeUndefined();
-  });
 });

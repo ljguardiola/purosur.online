@@ -9,6 +9,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { resolveSourceAddress } from "../access/recovery-source-address.js";
 import { PUBLIC_ACCESS } from "../access/route-access.js";
+import { sendRateLimited } from "../platform/rate-limited-response.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { answerErrorsWithCloudEnvelope } from "./cloud-error-handler.js";
 import { issueDeviceToken } from "./device-token.js";
@@ -58,14 +59,7 @@ export function registerDeviceEnrollmentRoute<TQueryResult extends PgQueryResult
       });
 
       if (outcome.kind === "rate_limited") {
-        await reply
-          .code(cloudErrorStatus("rate_limited"))
-          .header("Retry-After", String(outcome.retryAfterSeconds))
-          .send(
-            cloudError("rate_limited", "too many enrollment attempts", [
-              { retry_after_seconds: outcome.retryAfterSeconds },
-            ]),
-          );
+        await sendRateLimited(reply, "too many enrollment attempts", outcome.retryAfterSeconds);
         return;
       }
       if (outcome.kind === "code_rejected") {
