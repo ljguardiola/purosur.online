@@ -164,7 +164,7 @@ export function ChargeScreen({
           onCompleted={(charge) =>
             setStep({ name: "completed", payment: { method: "CASH", charge }, sale })
           }
-          onPartiallyPaid={() => void backToMethodsWithBalance()}
+          onPartiallyPaid={backToMethodsWithBalance}
           onSaleUnavailable={backToSale}
           onSessionInvalid={onSessionInvalid}
         />
@@ -179,7 +179,7 @@ export function ChargeScreen({
           onCompleted={(charge) =>
             setStep({ name: "completed", payment: { method: "TRANSFER", charge }, sale })
           }
-          onPartiallyPaid={() => void backToMethodsWithBalance()}
+          onPartiallyPaid={backToMethodsWithBalance}
           onSaleUnavailable={backToSale}
           onSessionInvalid={onSessionInvalid}
         />

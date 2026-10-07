@@ -35,7 +35,7 @@ export type TransferChargeModalProps = {
   charge: (amount: number) => Promise<ChargeSaleByTransferOutcome>;
   onChooseAnotherMethod: () => void;
   onCompleted: (charge: CompletedTransfer) => void;
-  onPartiallyPaid: () => void;
+  onPartiallyPaid: () => Promise<void>;
   onSaleUnavailable: () => void;
   onSessionInvalid: () => void;
 };
@@ -66,7 +66,7 @@ export function TransferChargeModal({
           onCompleted({ ...outcome, amount: request.amount });
           break;
         case "partially_paid":
-          onPartiallyPaid();
+          await onPartiallyPaid();
           break;
         case "exceeds_pending":
           showFieldError("amount", exceedsPendingMessage(outcome.pending));
@@ -94,9 +94,6 @@ export function TransferChargeModal({
   });
 
   function confirmCredit() {
-    if (submitting) {
-      return;
-    }
     setNotice(undefined);
     void submit();
   }

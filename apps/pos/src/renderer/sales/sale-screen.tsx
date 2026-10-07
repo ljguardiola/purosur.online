@@ -10,14 +10,13 @@ import type {
 } from "@purosur/contracts";
 import {
   EmptyState,
-  InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
   ScreenHeader,
   SearchField,
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
-import { Lock, ScanBarcode, TriangleAlert } from "lucide-react";
+import { ScanBarcode, TriangleAlert } from "lucide-react";
 import type { FormEvent, KeyboardEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { OpenSessionRail } from "../shell/open-session-rail";
@@ -67,6 +66,8 @@ type SaleEditFailure = Extract<
 >;
 
 const LETTER = /\p{L}/u;
+
+const LOCKED_REASON = "La venta ya no se puede cambiar porque tiene un pago aprobado.";
 
 function focusScanField(form: HTMLFormElement | null) {
   form?.querySelector("input")?.focus();
@@ -309,6 +310,8 @@ export function SaleScreen({
   const notPermitted = messageFor({ kind: "not_permitted" });
   const shownProblem =
     answer === "not_permitted" && problem?.kind === "not_permitted" ? undefined : problem;
+  const lockedReason =
+    editable || shownProblem?.kind === "sale_has_payments" ? undefined : LOCKED_REASON;
 
   return (
     <div className="flex h-screen w-screen bg-surface-subtle">
@@ -329,7 +332,9 @@ export function SaleScreen({
         >
           <SearchField
             label="Producto"
-            disabled={!editable}
+            {...(lockedReason === undefined
+              ? { disabled: !editable }
+              : { disabledReason: lockedReason })}
             placeholder="Escaneá o escribí el nombre del producto"
             icon={<ScanBarcode />}
             value={code}
@@ -348,14 +353,6 @@ export function SaleScreen({
           />
           <ScanProblemMessage problem={shownProblem} />
         </form>
-        {editable ? null : (
-          <InlineNotice
-            tone="info"
-            icon={<Lock />}
-            title="La venta ya no se puede cambiar"
-            description="Tiene un pago aprobado. Cobrá el saldo pendiente para completarla."
-          />
-        )}
         {current.status === "loading" ? <LoadingPlaceholder variant="list" items={4} /> : null}
         {current.status === "failed" ? (
           <LoadFailure
@@ -383,6 +380,7 @@ export function SaleScreen({
             actions={{
               busy: editing,
               editable,
+              lockedReason,
               onChangeQuantity: (line, quantity) =>
                 void edit(() => changeLineQuantity(line.id, quantity, line.quantity), {
                   kind: "change_failed",
@@ -398,7 +396,7 @@ export function SaleScreen({
         total={sale?.total ?? 0}
         paid={sale?.paid ?? 0}
         pending={sale?.pending ?? 0}
-        cancellable={sale?.cancellable ?? true}
+        cancellable={answer !== undefined && (sale?.cancellable ?? true)}
         chargeRefusal={sale?.charge_refusal ?? null}
         canCancel={sale !== null && !editing}
         onCharge={() => void navigate({ to: "/charge" })}

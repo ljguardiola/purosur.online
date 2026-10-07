@@ -39,7 +39,7 @@ export type CashChargeModalProps = {
   charge: (tendered: number) => Promise<ChargeSaleInCashOutcome>;
   onChooseAnotherMethod: () => void;
   onCompleted: (charge: CompletedCharge) => void;
-  onPartiallyPaid: () => void;
+  onPartiallyPaid: () => Promise<void>;
   onSaleUnavailable: () => void;
   onSessionInvalid: () => void;
 };
@@ -73,7 +73,7 @@ export function CashChargeModal({
           onCompleted(outcome);
           break;
         case "partially_paid":
-          onPartiallyPaid();
+          await onPartiallyPaid();
           break;
         case "invalid_amount":
           showFieldError("tendered", INVALID_AMOUNT_MESSAGE);
@@ -136,7 +136,7 @@ export function CashChargeModal({
   }
 
   function handleSubmit() {
-    if (submitting || (covered === undefined && partial === undefined)) {
+    if (covered === undefined && partial === undefined) {
       return;
     }
     setNotice(undefined);

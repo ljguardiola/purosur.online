@@ -8,9 +8,20 @@ type SaleLine = OpenSale["lines"][number];
 export type SaleLineActions = {
   busy: boolean;
   editable: boolean;
+  lockedReason: string | undefined;
   onChangeQuantity: (line: SaleLine, quantity: number) => void;
   onRemove: (line: SaleLine) => void;
 };
+
+function availability(
+  actions: SaleLineActions,
+  unavailable: boolean,
+): { disabled: boolean } | { disabledReason: string } {
+  if (!actions.editable && actions.lockedReason !== undefined) {
+    return { disabledReason: actions.lockedReason };
+  }
+  return { disabled: actions.busy || !actions.editable || unavailable };
+}
 
 function SaleLineRow({
   line,
@@ -51,14 +62,14 @@ function SaleLineRow({
         <IconButton
           aria-label={`Bajar la cantidad de ${line.product_name}`}
           icon={<Minus />}
-          disabled={actions.busy || !actions.editable || line.quantity <= 1}
+          {...availability(actions, line.quantity <= 1)}
           onPress={() => actions.onChangeQuantity(line, line.quantity - 1)}
         />
         <span className="text-subheading text-text">{line.quantity}</span>
         <IconButton
           aria-label={`Subir la cantidad de ${line.product_name}`}
           icon={<Plus />}
-          disabled={actions.busy || !actions.editable}
+          {...availability(actions, false)}
           onPress={() => actions.onChangeQuantity(line, line.quantity + 1)}
         />
       </span>
@@ -74,7 +85,7 @@ function SaleLineRow({
         variant="subtle"
         aria-label={`Quitar ${line.product_name}`}
         icon={<Trash2 />}
-        disabled={actions.busy || !actions.editable}
+        {...availability(actions, false)}
         onPress={() => actions.onRemove(line)}
       />
     </li>
