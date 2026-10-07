@@ -18,7 +18,7 @@
     "@purosur/domain": "workspace:*",
     "@purosur/ui": "workspace:*",
     "@react-aria/optimize-locales-plugin": "^2.0.2",
-    "@sentry/electron": "^7.19.0",
+    "@sentry/electron": "^8.0.0",
     "@tailwindcss/node": "^4.3.3",
     "@tailwindcss/oxide": "^4.3.3",
     "@tailwindcss/vite": "^4.3.3",
