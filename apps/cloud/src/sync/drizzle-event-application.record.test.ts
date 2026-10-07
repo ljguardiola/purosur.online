@@ -195,6 +195,18 @@ describe("recording the sales of applied events", () => {
     );
   });
 
+  it("keeps a sale that has no line", async () => {
+    const { deviceId } = await system.enrollInstallation();
+    const sessionId = randomUUID();
+    await openSession(deviceId, sessionId);
+    const completed = aCompletedSale({ sessionId, lines: [], total: 0, cashMovements: [] });
+
+    await record({ kind: "sale_completed", sale: completed }, { deviceId });
+
+    expect(await system.db.select().from(sales)).toHaveLength(1);
+    expect(await system.db.select().from(saleLines)).toEqual([]);
+  });
+
   it("keeps every payment of a sale paid in several ways", async () => {
     const { deviceId } = await system.enrollInstallation();
     const sessionId = randomUUID();
