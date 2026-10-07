@@ -199,6 +199,22 @@ test("asks for the product and the quantity before registering anything", async 
   expect(services.registerCount).not.toHaveBeenCalled();
 });
 
+test("asks for the day of the count when it is cleared, registering nothing", async () => {
+  const services = createServices();
+  const rendered = await renderModal(services);
+  await count(rendered, "Almendras peladas", "12,150");
+  const day = rendered.dialog.getByRole("group", { name: /^Día del recuento/ });
+  for (const segment of day.getByRole("spinbutton").all()) {
+    await userEvent.click(segment);
+    await userEvent.keyboard("{Backspace}{Backspace}{Backspace}{Backspace}");
+  }
+
+  await userEvent.click(rendered.dialog.getByRole("button", { name: REGISTER }));
+
+  await expect.element(rendered.dialog.getByText("Elegí el día del recuento.")).toBeVisible();
+  expect(services.registerCount).not.toHaveBeenCalled();
+});
+
 test("asks for whole units of a product sold by the unit", async () => {
   const services = createServices();
   const rendered = await renderModal(services);

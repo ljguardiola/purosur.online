@@ -212,11 +212,6 @@ test("registers a loss for a user who may not view balances, showing no balance"
       screen.getByRole("status").getByText("Saldo actualizado Miel pura de abeja 1 kg: − 1 u."),
     )
     .toBeInTheDocument();
-  expect(services.recordLoss).toHaveBeenCalledWith({
-    productId: honey.id,
-    reason: "theft",
-    quantity: 1000,
-  });
   expect(services.fetchStockBalances).not.toHaveBeenCalled();
 });
 

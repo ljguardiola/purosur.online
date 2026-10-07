@@ -172,6 +172,22 @@ test("keeps showing the form for a quantity too large to read", async () => {
   await expect.element(dialog.getByRole("button", { name: "Registrar la pérdida" })).toBeVisible();
 });
 
+test("shows a failed load of the balance with a retry that loads the balance again", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchStockBalances)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockResolvedValueOnce({ kind: "ok", value: { products: [almonds, honey] } });
+  const rendered = await renderForm(services, { kinds: ["loss"] });
+  const { dialog } = rendered;
+  await chooseProduct(rendered, "Miel pura de abeja 1 kg");
+
+  await expect.element(dialog.getByText("No pudimos abrir el saldo")).toBeVisible();
+  await userEvent.click(dialog.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(dialog.getByText("Saldo actual")).toBeVisible();
+  await expect.element(dialog.getByText("24 u")).toBeVisible();
+});
+
 test("shows a failed load of the reasons with a retry that loads the form again", async () => {
   const services = createServices();
   vi.mocked(services.fetchStockMovementReasons)
