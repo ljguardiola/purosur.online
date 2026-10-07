@@ -249,6 +249,16 @@ export type {
   SearchProductsOutcome,
 } from "./sales/sale.js";
 export type {
+  ReportRegisterListBody,
+  SalesReportBody,
+  SalesReportQuery,
+} from "./sales/sales-report.js";
+export {
+  reportRegisterListSchema,
+  salesReportQuerySchema,
+  salesReportSchema,
+} from "./sales/sales-report.js";
+export type {
   Authorization,
   AuthorizationRefusal,
   AuthorizedBy,
