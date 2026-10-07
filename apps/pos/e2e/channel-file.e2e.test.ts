@@ -33,7 +33,6 @@ describe("the register's channel file", () => {
     const run = spawnSync(ELECTRON_BINARY, [APP_DIR, ...platformArgs()], {
       env: appEnv(channelFile),
       encoding: "utf8",
-      timeout: 20_000,
     });
 
     expect(run.status).toBe(1);

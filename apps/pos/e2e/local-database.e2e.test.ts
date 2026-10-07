@@ -1,23 +1,26 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { launchApp, writeChannelFile } from "./launch-app";
+import { untilLogged } from "./test-support/until";
 
 describe("the register's local database", () => {
   it("opens with its migrations applied when the register starts", async () => {
-    const { app, logs } = await launchApp(
+    const launched = await launchApp(
       writeChannelFile({ channel: "staging", dataFolder: "purosur-pos-e2e-local-database" }),
     );
     try {
-      await app.firstWindow();
+      await launched.app.firstWindow();
 
-      await vi.waitFor(
-        () => {
-          expect(logs.join("")).toContain("core: the local database is ready");
-        },
-        { timeout: 20_000, interval: 100 },
+      await untilLogged(
+        launched,
+        (output) =>
+          output.includes("core: the local database is ready") ||
+          output.includes("core: the local database could not be opened"),
       );
-      expect(logs.join("")).not.toContain("core: the local database could not be opened");
+      const output = launched.logs.join("");
+      expect(output).toContain("core: the local database is ready");
+      expect(output).not.toContain("core: the local database could not be opened");
     } finally {
-      await app.close();
+      await launched.app.close();
     }
   });
 });

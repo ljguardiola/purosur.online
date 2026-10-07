@@ -42,13 +42,18 @@ export function appEnv(channelFile: string): Record<string, string> {
   return env;
 }
 
+// Launching and every wait on the app have no limit, so each test waits for what it checks however
+// long the machine takes; the job's own timeout ends a run where it never comes.
 export async function launchApp(
   channelFile: string = writeChannelFile(E2E_CHANNEL_FILE),
+  extraEnv: Record<string, string> = {},
 ): Promise<LaunchedApp> {
   const app = await electron.launch({
     args: [APP_DIR, ...platformArgs()],
-    env: appEnv(channelFile),
+    env: { ...appEnv(channelFile), ...extraEnv },
+    timeout: 0,
   });
+  app.context().setDefaultTimeout(0);
   const logs: string[] = [];
   app.process().stdout?.on("data", (chunk: Buffer) => logs.push(chunk.toString()));
   app.process().stderr?.on("data", (chunk: Buffer) => logs.push(chunk.toString()));

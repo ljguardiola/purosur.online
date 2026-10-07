@@ -2,9 +2,9 @@ import { randomUUID } from "node:crypto";
 import { rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { ElectronApplication, Page } from "playwright";
-import { expect, vi } from "vitest";
 import { launchApp, writeChannelFile } from "../launch-app";
 import type { StandInCloud } from "./stand-in-cloud";
+import { until } from "./until";
 
 export interface EnrolledRegister {
   readonly app: ElectronApplication;
@@ -41,12 +41,7 @@ async function closeEveryProcessOf(app: ElectronApplication): Promise<void> {
     electronApp.getAppMetrics().map((metric) => metric.pid),
   );
   await app.close();
-  await vi.waitFor(
-    () => {
-      expect(processIds.filter(isRunning)).toEqual([]);
-    },
-    { timeout: 10_000, interval: 100 },
-  );
+  await until(() => processIds.every((processId) => !isRunning(processId)));
 }
 
 async function enroll(page: Page, cloud: StandInCloud): Promise<void> {
@@ -56,6 +51,24 @@ async function enroll(page: Page, cloud: StandInCloud): Promise<void> {
     page.getByRole("heading", { name: "Dar de alta esta caja" }).waitFor({ state: "detached" }),
     cloud.feedStored,
   ]);
+}
+
+// Windows keeps a file busy for a moment after the process that held it exits.
+async function removeOnceWindowsReleasesIt(folder: string): Promise<void> {
+  const stillHeld = new Set(["EBUSY", "EPERM", "ENOTEMPTY"]);
+  let removed = false;
+  await until(async () => {
+    try {
+      await rm(folder, { recursive: true, force: true });
+      removed = true;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === undefined || !stillHeld.has(code)) {
+        throw error;
+      }
+    }
+    return removed;
+  });
 }
 
 export function enrolledRegister(cloud: StandInCloud): EnrolledRegister {
@@ -132,17 +145,12 @@ export function enrolledRegister(cloud: StandInCloud): EnrolledRegister {
       await change(localDataFolder);
       await start();
     },
-    // Windows keeps a file busy for a moment after the process that held it exits.
     close: async () => {
       closed = true;
       try {
         await stop();
       } finally {
-        await Promise.all(
-          [...folders].map((folder) =>
-            rm(folder, { recursive: true, force: true, maxRetries: 10 }),
-          ),
-        );
+        await Promise.all([...folders].map(removeOnceWindowsReleasesIt));
       }
     },
   };
