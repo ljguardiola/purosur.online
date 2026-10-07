@@ -8,6 +8,7 @@ import {
   type CheckInstallationDeps,
   checkInstallation,
   installationCheckResultOf,
+  installationCheckWarningOf,
 } from "./check-installation";
 import { SqliteLocalInstallation } from "./sqlite-local-installation";
 import { SqliteLocalReplica } from "./sqlite-local-replica";
@@ -145,5 +146,37 @@ describe("the sync result of checking the installation", () => {
         failure: { kind: "refused", code: "rate_limited", retryAfterSeconds: 30 },
       }),
     ).toEqual({ kind: "failed", retryAfterMs: 30_000 });
+  });
+});
+
+describe("the warning of checking the installation", () => {
+  it("says an installation the cloud revoked stopped opening new sales", () => {
+    expect(installationCheckWarningOf({ kind: "revoked" })).toMatch(
+      /revoked.*stopped opening new sales/,
+    );
+  });
+
+  it("warns about a check the cloud refused or answered unreadably", () => {
+    expect(
+      installationCheckWarningOf({
+        kind: "failed",
+        failure: { kind: "refused", code: "device_token_rejected" },
+      }),
+    ).toMatch(/refused or unreadable/);
+    expect(
+      installationCheckWarningOf({ kind: "failed", failure: { kind: "unreadable" } }),
+    ).toMatch(/refused or unreadable/);
+  });
+
+  it("stays quiet when the cloud can't be reached or the installation is in service", () => {
+    for (const attempt of [
+      { kind: "failed", failure: { kind: "unreachable" } },
+      { kind: "in_service" },
+      { kind: "not_enrolled" },
+      { kind: "no_cloud" },
+      { kind: "no_local_database" },
+    ] as const) {
+      expect(installationCheckWarningOf(attempt)).toBeUndefined();
+    }
   });
 });
