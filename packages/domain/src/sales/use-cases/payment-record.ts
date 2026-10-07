@@ -1,4 +1,4 @@
-import type { JsonValue } from "../../sync/index.js";
+import type { JsonValue } from "../../shared/index.js";
 import type { PaymentTransaction } from "../model/payment.js";
 
 export function paymentRecord(payment: PaymentTransaction): JsonValue {
