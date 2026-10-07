@@ -58,6 +58,7 @@ export interface ChargeSaleInCashRequest {
 
 export interface ChargeSaleByTransferRequest {
   saleId: string;
+  amount: number;
 }
 
 function saleLedger(database: LocalDatabase, outboxChainKey?: string): SqliteSaleLedger {
@@ -74,7 +75,21 @@ function appliedPromotion(line: SaleLine): OpenSale["lines"][number]["promotion"
     : { kind: benefit.kind, buy_qty: benefit.buyQty, pay_qty: benefit.payQty };
 }
 
-function toOpenSale(sale: SaleWithLines, refusal: ChargeRefusal | undefined): OpenSale {
+interface OpenSaleAnswer {
+  sale: SaleWithLines;
+  chargeRefusal: ChargeRefusal | undefined;
+  balance: { paid: number; pending: number };
+  linesEditable: boolean;
+  cancellable: boolean;
+}
+
+function toOpenSale({
+  sale,
+  chargeRefusal,
+  balance,
+  linesEditable,
+  cancellable,
+}: OpenSaleAnswer): OpenSale {
   return {
     id: sale.id,
     lines: sale.lines.map((line) => ({
@@ -88,7 +103,11 @@ function toOpenSale(sale: SaleWithLines, refusal: ChargeRefusal | undefined): Op
       line_total: line.lineTotal,
     })),
     total: saleTotal(sale.lines),
-    charge_refusal: refusal ?? null,
+    paid: balance.paid,
+    pending: balance.pending,
+    lines_editable: linesEditable,
+    cancellable,
+    charge_refusal: chargeRefusal ?? null,
   };
 }
 
@@ -179,7 +198,7 @@ function toDetailOutcome(
   outcome: SaleDetailOutcome,
 ): Extract<ScanProductOutcome, { kind: SaleDetailOutcome["kind"] }> {
   return outcome.kind === "added"
-    ? { kind: "added", sale: toOpenSale(outcome.sale, outcome.chargeRefusal) }
+    ? { kind: "added", sale: toOpenSale(outcome) }
     : { kind: outcome.kind, product_name: outcome.productName };
 }
 
@@ -198,7 +217,7 @@ export async function currentSaleFor({
     return "not_permitted";
   }
   const outcome = guarded.result;
-  return outcome.kind === "open" ? toOpenSale(outcome.sale, outcome.chargeRefusal) : null;
+  return outcome.kind === "open" ? toOpenSale(outcome) : null;
 }
 
 export async function cashChargeFor(
@@ -209,7 +228,7 @@ export async function cashChargeFor(
   if (sale === "not_permitted") {
     return sale;
   }
-  return sale === null || sale.id !== saleId ? null : cashCharge(sale.total, tendered);
+  return sale === null || sale.id !== saleId ? null : cashCharge(sale.pending, tendered);
 }
 
 export async function changeLineQuantityFor(
@@ -229,7 +248,7 @@ export async function changeLineQuantityFor(
   }
   const outcome = guarded.result;
   return outcome.kind === "changed"
-    ? { kind: "changed", sale: toOpenSale(outcome.sale, outcome.chargeRefusal) }
+    ? { kind: "changed", sale: toOpenSale(outcome) }
     : { kind: outcome.kind };
 }
 
@@ -248,7 +267,7 @@ export async function removeSaleLineFor(
   }
   const outcome = guarded.result;
   return outcome.kind === "removed"
-    ? { kind: "removed", sale: toOpenSale(outcome.sale, outcome.chargeRefusal) }
+    ? { kind: "removed", sale: toOpenSale(outcome) }
     : { kind: outcome.kind };
 }
 
@@ -311,8 +330,8 @@ export async function chargeSaleInCashFor(
         tendered: outcome.tendered,
         change: outcome.change,
       };
-    case "insufficient_cash":
-      return { kind: "insufficient_cash", amount_due: outcome.amountDue };
+    case "partially_paid":
+      return partiallyPaid(outcome);
     case "reaches_buyer_identification_threshold":
       return { kind: outcome.kind, threshold: outcome.threshold };
     default:
@@ -320,9 +339,24 @@ export async function chargeSaleInCashFor(
   }
 }
 
+function partiallyPaid(outcome: {
+  saleId: string;
+  total: number;
+  paid: number;
+  pending: number;
+}): Extract<ChargeSaleInCashOutcome, { kind: "partially_paid" }> {
+  return {
+    kind: "partially_paid",
+    sale_id: outcome.saleId,
+    total: outcome.total,
+    paid: outcome.paid,
+    pending: outcome.pending,
+  };
+}
+
 export async function chargeSaleByTransferFor(
   { database, gate, now, ids, readOutboxChainKey }: OutboxSaleRequestDeps,
-  { saleId }: ChargeSaleByTransferRequest,
+  { saleId, amount }: ChargeSaleByTransferRequest,
 ): Promise<ChargeSaleByTransferOutcome> {
   const outboxChainKey = await readOutboxChainKey();
   if (outboxChainKey === undefined) {
@@ -331,7 +365,7 @@ export async function chargeSaleByTransferFor(
   const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
     chargeSaleByTransfer(
       { ledger: saleLedger(database, outboxChainKey), clock: { now }, ids },
-      { actorId: signedInUserId, saleId },
+      { actorId: signedInUserId, saleId, amount },
     ),
   );
   if (guarded.kind !== "performed") {
@@ -341,6 +375,10 @@ export async function chargeSaleByTransferFor(
   switch (outcome.kind) {
     case "completed":
       return { kind: "completed", sale_id: outcome.saleId, total: outcome.total };
+    case "partially_paid":
+      return partiallyPaid(outcome);
+    case "exceeds_pending":
+      return { kind: outcome.kind, pending: outcome.pending };
     case "reaches_buyer_identification_threshold":
       return { kind: outcome.kind, threshold: outcome.threshold };
     default:

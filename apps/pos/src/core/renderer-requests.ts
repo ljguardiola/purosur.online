@@ -581,7 +581,10 @@ export async function answerRendererRequest(
       return {
         type: "charge-sale-by-transfer-result",
         request_id: message.request_id,
-        outcome: await attemptChargeSaleByTransfer(deps, { saleId: message.sale_id }),
+        outcome: await attemptChargeSaleByTransfer(deps, {
+          saleId: message.sale_id,
+          amount: message.amount,
+        }),
       };
     case "search-products":
       return {

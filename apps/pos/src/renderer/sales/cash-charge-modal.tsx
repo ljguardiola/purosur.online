@@ -26,19 +26,20 @@ import { useCashChargeQuery } from "./sales-queries";
 
 const FAILED_MESSAGE = "No se pudo cobrar la venta. Probá de nuevo.";
 
-function coverMessage(amount: number): string {
-  return `Tiene que cubrir ${formatCents(amount)}.`;
-}
+const PARTIAL_PAYMENT_HINT = "Con menos de lo que falta, el resto queda pendiente.";
 
 export type CompletedCharge = Extract<ChargeSaleInCashOutcome, { kind: "completed" }>;
 
 export type CashChargeModalProps = {
   saleId: string;
   total: number;
+  paid: number;
+  pending: number;
   readCharge: (tendered: number) => Promise<CashChargeAnswer>;
   charge: (tendered: number) => Promise<ChargeSaleInCashOutcome>;
   onChooseAnotherMethod: () => void;
   onCompleted: (charge: CompletedCharge) => void;
+  onPartiallyPaid: () => Promise<void>;
   onSaleUnavailable: () => void;
   onSessionInvalid: () => void;
 };
@@ -46,10 +47,13 @@ export type CashChargeModalProps = {
 export function CashChargeModal({
   saleId,
   total,
+  paid,
+  pending,
   readCharge,
   charge,
   onChooseAnotherMethod,
   onCompleted,
+  onPartiallyPaid,
   onSaleUnavailable,
   onSessionInvalid,
 }: CashChargeModalProps) {
@@ -68,8 +72,8 @@ export function CashChargeModal({
         case "completed":
           onCompleted(outcome);
           break;
-        case "insufficient_cash":
-          showFieldError("tendered", coverMessage(outcome.amount_due));
+        case "partially_paid":
+          await onPartiallyPaid();
           break;
         case "invalid_amount":
           showFieldError("tendered", INVALID_AMOUNT_MESSAGE);
@@ -99,7 +103,7 @@ export function CashChargeModal({
 
   const isBlank = values.tendered.trim() === "";
   const tendered = isBlank ? undefined : parseAmountCents(values.tendered);
-  const answer = useCashChargeQuery({ saleId, total, tendered, read: readCharge });
+  const answer = useCashChargeQuery({ saleId, pending, tendered, read: readCharge });
   const loaded = answer.status === "loaded" ? answer : undefined;
   const answered =
     loaded === undefined || loaded.value === null || loaded.value === "not_permitted"
@@ -113,6 +117,10 @@ export function CashChargeModal({
   const covered =
     tendered !== undefined && answered?.kind === "covered" && !loaded?.refreshing
       ? { tendered, ...answered }
+      : undefined;
+  const partial =
+    tendered !== undefined && answered?.kind === "partial" && !loaded?.refreshing
+      ? answered
       : undefined;
 
   useEffect(() => {
@@ -128,7 +136,7 @@ export function CashChargeModal({
   }
 
   function handleSubmit() {
-    if (submitting || covered === undefined) {
+    if (covered === undefined && partial === undefined) {
       return;
     }
     setNotice(undefined);
@@ -166,10 +174,10 @@ export function CashChargeModal({
             fullWidth
             icon={<Check />}
             dataStatus={submitting ? "loading" : answer.status}
-            disabled={covered === undefined}
+            disabled={covered === undefined && partial === undefined}
             onPress={handleSubmit}
           >
-            Completar venta
+            {partial === undefined ? "Completar venta" : "Registrar pago parcial"}
           </Button>
         </>
       }
@@ -178,8 +186,8 @@ export function CashChargeModal({
         <SummaryRowGroup
           rows={[
             { label: "Total de la venta", value: formatCents(total) },
-            { label: "Pagado", value: formatCents(0) },
-            { label: "A cobrar ahora", value: formatCents(total) },
+            { label: "Pagado", value: formatCents(paid) },
+            { label: "A cobrar ahora", value: formatCents(pending) },
           ]}
         />
         <form.AppField
@@ -196,7 +204,7 @@ export function CashChargeModal({
               value={field.state.value}
               onChange={field.handleChange}
               disabled={submitting}
-              description={coverMessage(total)}
+              description={PARTIAL_PAYMENT_HINT}
               errorMessage={fieldErrorMessage(field.state.meta.errors) ?? answeredMessage}
             />
           )}
@@ -218,6 +226,15 @@ export function CashChargeModal({
               label="VUELTO A ENTREGAR"
               detail={`${formatCents(covered.tendered)} − ${formatCents(covered.applied)}`}
               value={formatCents(covered.change)}
+            />
+          </Card>
+        )}
+        {partial === undefined ? null : (
+          <Card variant="subtle">
+            <FigureStat
+              label="QUEDA PENDIENTE"
+              detail={`${formatCents(pending)} − ${formatCents(partial.applied)}`}
+              value={formatCents(partial.pending)}
             />
           </Card>
         )}

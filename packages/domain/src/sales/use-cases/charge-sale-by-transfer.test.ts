@@ -4,8 +4,10 @@ import {
   FICTIONAL_GROSS_INCOME_REGISTRATION,
   FICTIONAL_LEGAL_NAME,
 } from "../../fiscal/test-support/fictional-tax-identities.js";
+import { type CashMovement, expectedCash } from "../../register/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { chargeSaleByTransfer } from "./charge-sale-by-transfer.js";
+import { chargeSaleInCash } from "./charge-sale-in-cash.js";
 import {
   FakeSaleLedger,
   type FakeSaleLedgerState,
@@ -61,6 +63,14 @@ const ISSUER = {
   taxStatus: "Condicion de prueba",
   version: 2,
 };
+const OPENING: CashMovement = {
+  id: "movement-0",
+  sessionId: "session-1",
+  type: "OPENING",
+  amount: 10000,
+  actorId: "cashier",
+  occurredAt: new Date("2026-09-30T08:00:00.000Z"),
+};
 const THRESHOLD = { id: "threshold-1", amount: 10_000_000, validFrom: "2026-01-01" };
 const BUYER_TAX_STATUSES = [{ code: 5, description: "Consumidor Final", invoiceClass: "A/M/C" }];
 
@@ -77,10 +87,16 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
   });
 }
 
-function charge(store: FakeSaleLedger, saleId = "sale-1", actorId = "cashier") {
+function charge(
+  store: FakeSaleLedger,
+  amount = TOTAL,
+  saleId = "sale-1",
+  actorId = "cashier",
+  ids = new SequentialIds(),
+) {
   return chargeSaleByTransfer(
-    { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds() },
-    { actorId, saleId },
+    { ledger: store, clock: new FixedClock(NOW), ids },
+    { actorId, saleId, amount },
   );
 }
 
@@ -126,7 +142,7 @@ describe("chargeSaleByTransfer", () => {
     const discounted = { ...OPEN_LINE, discountAmount: 1000, lineTotal: 4000 };
     const store = ledger({ sales: [{ ...OPEN_SALE, lines: [discounted] }] });
 
-    expect(charge(store)).toMatchObject({ total: 4000 });
+    expect(charge(store, 4000)).toMatchObject({ total: 4000 });
     expect(store.state.payments[0]).toMatchObject({ amount: 4000 });
   });
 
@@ -318,7 +334,7 @@ describe("chargeSaleByTransfer", () => {
     const store = ledger();
     const before = structuredClone(store.state);
 
-    expect(charge(store, "sale-2")).toEqual({ kind: "no_open_sale" });
+    expect(charge(store, TOTAL, "sale-2")).toEqual({ kind: "no_open_sale" });
     expect(store.state).toEqual(before);
   });
 
@@ -355,5 +371,191 @@ describe("chargeSaleByTransfer", () => {
 
     expect(() => charge(store)).toThrow("failed");
     expect(store.state).toEqual(before);
+  });
+
+  describe("when the amount is below the pending balance", () => {
+    const PARTIAL = 2000;
+
+    it("leaves the sale open and reports what is paid and what is pending", () => {
+      const store = ledger();
+
+      expect(charge(store, PARTIAL)).toEqual({
+        kind: "partially_paid",
+        saleId: "sale-1",
+        total: TOTAL,
+        paid: PARTIAL,
+        pending: TOTAL - PARTIAL,
+      });
+      expect(store.state.sales[0]?.state).toBe("OPEN");
+      expect(store.transactions).toBe(1);
+    });
+
+    it("records the transfer of that amount, authorized by whoever charged and confirmed now", () => {
+      const store = ledger();
+
+      charge(store, PARTIAL);
+
+      expect(store.state.payments).toEqual([
+        {
+          id: "id-1",
+          saleId: "sale-1",
+          kind: "SALE",
+          method: "TRANSFER",
+          provider: "NONE",
+          amount: PARTIAL,
+          state: "APPROVED",
+          occurredAt: NOW,
+          authorizedBy: "cashier",
+          confirmedAt: NOW,
+        },
+      ]);
+      expect(store.state.movements).toEqual([]);
+    });
+
+    it("appends no event and evaluates no gate", () => {
+      const store = ledger({ issuerIdentifications: [] });
+
+      charge(store, PARTIAL);
+
+      expect(store.state.outbox).toEqual([]);
+      expect(store.state.preEmissionGates).toEqual([]);
+    });
+
+    it("accepts the payment that covers the rest when a threshold at the total takes effect after the first payment", () => {
+      const store = ledger();
+      const ids = new SequentialIds();
+      charge(store, PARTIAL, "sale-1", "cashier", ids);
+      store.state.thresholds = [{ ...THRESHOLD, amount: TOTAL }];
+
+      expect(charge(store, TOTAL - PARTIAL, "sale-1", "cashier", ids)).toEqual({
+        kind: "completed",
+        saleId: "sale-1",
+        total: TOTAL,
+      });
+    });
+
+    it("completes with both payments when a second transfer covers exactly what is pending", () => {
+      const store = ledger();
+      const ids = new SequentialIds();
+
+      charge(store, PARTIAL, "sale-1", "cashier", ids);
+
+      expect(charge(store, TOTAL - PARTIAL, "sale-1", "cashier", ids)).toEqual({
+        kind: "completed",
+        saleId: "sale-1",
+        total: TOTAL,
+      });
+      expect(store.state.sales[0]?.state).toBe("COMPLETED");
+      expect(store.state.outbox[0]?.payload).toMatchObject({
+        payments: [
+          { id: "id-1", method: "TRANSFER", amount: PARTIAL },
+          { id: "id-2", method: "TRANSFER", amount: TOTAL - PARTIAL },
+        ],
+        cash_movements: [],
+      });
+    });
+
+    it("completes with the cash payment, the transfer and the cash movements when a transfer covers what a partial cash payment left pending", () => {
+      const store = ledger({ movements: [OPENING] });
+      const ids = new SequentialIds();
+      chargeSaleInCash(
+        { ledger: store, clock: new FixedClock(NOW), ids },
+        { actorId: "cashier", saleId: "sale-1", tendered: 2000 },
+      );
+
+      expect(charge(store, TOTAL - 2000, "sale-1", "cashier", ids)).toEqual({
+        kind: "completed",
+        saleId: "sale-1",
+        total: TOTAL,
+      });
+      expect(store.state.outbox).toHaveLength(1);
+      expect(store.state.outbox[0]?.payload).toMatchObject({
+        payments: [
+          { id: "id-1", method: "CASH", amount: 2000, tendered: 2000 },
+          { id: "id-3", method: "TRANSFER", amount: 3900, tendered: null },
+        ],
+        cash_movements: [{ id: "id-2", type: "SALE", amount: 2000 }],
+      });
+    });
+
+    it("leaves a cash session's expected cash alone", () => {
+      const store = ledger({ movements: [OPENING] });
+      const before = expectedCash(store.state.movements);
+
+      charge(store, PARTIAL);
+
+      expect(expectedCash(store.state.movements)).toBe(before);
+    });
+
+    it.each<FakeSaleLedgerWrite>(["recordPayment"])(
+      "leaves nothing behind when %s fails",
+      (write) => {
+        const store = ledger();
+        const before = structuredClone(store.state);
+        store.failOn = write;
+
+        expect(() => charge(store, PARTIAL)).toThrow("failed");
+        expect(store.state).toEqual(before);
+      },
+    );
+
+    it.each<FakeSaleLedgerWrite>([
+      "recordPayment",
+      "recordCompletedSale",
+      "appendOutboxEvent",
+      "recordPreEmissionGate",
+    ])("leaves the earlier payment alone when %s fails on the covering one", (write) => {
+      const store = ledger();
+      const ids = new SequentialIds();
+      charge(store, PARTIAL, "sale-1", "cashier", ids);
+      const before = structuredClone(store.state);
+      store.failOn = write;
+
+      expect(() => charge(store, TOTAL - PARTIAL, "sale-1", "cashier", ids)).toThrow("failed");
+      expect(store.state).toEqual(before);
+    });
+  });
+
+  describe("when the amount is not payable", () => {
+    it("refuses an amount above the pending balance with the pending balance and writes nothing", () => {
+      const store = ledger();
+      const before = structuredClone(store.state);
+
+      expect(charge(store, TOTAL + 1)).toEqual({ kind: "exceeds_pending", pending: TOTAL });
+      expect(store.state).toEqual(before);
+    });
+
+    it("measures the amount against what is still pending after an earlier payment", () => {
+      const store = ledger();
+      const ids = new SequentialIds();
+      charge(store, 2000, "sale-1", "cashier", ids);
+      const before = structuredClone(store.state);
+
+      expect(charge(store, 3901, "sale-1", "cashier", ids)).toEqual({
+        kind: "exceeds_pending",
+        pending: 3900,
+      });
+      expect(store.state).toEqual(before);
+    });
+
+    it.each([0, -100, 0.5, Number.NaN, Number.POSITIVE_INFINITY])(
+      "refuses the amount %s as invalid and writes nothing",
+      (amount) => {
+        const store = ledger();
+        const before = structuredClone(store.state);
+
+        expect(charge(store, amount)).toEqual({ kind: "invalid_amount" });
+        expect(store.state).toEqual(before);
+      },
+    );
+
+    it("evaluates no gate when the amount is refused", () => {
+      const store = ledger({ issuerIdentifications: [] });
+
+      charge(store, TOTAL + 1);
+
+      expect(store.state.preEmissionGates).toEqual([]);
+      expect(store.state.outbox).toEqual([]);
+    });
   });
 });

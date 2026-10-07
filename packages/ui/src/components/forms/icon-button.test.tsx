@@ -2,9 +2,11 @@ import axe from "axe-core";
 import { Trash2 } from "lucide-react";
 import { useId } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { contrastRatio, NON_TEXT_CONTRAST } from "../../styles/contrast";
+import { expectNoAccessibilityViolations } from "../../test/axe";
+import type { DispatchableCdpSession } from "../../test/setup-browser";
 import { rgbToHex, tokenRgb } from "../../test/token-colors";
 import type { Icon } from "../shared/icon";
 import { IconButton, type IconButtonProps } from "./icon-button";
@@ -280,4 +282,76 @@ test("dims the subtle look to the same 45% opacity when disabled", async () => {
   await expect.element(screen.getByRole("button", { name: "Remove code" })).toBeDisabled();
   expect(getComputedStyle(button).opacity).toBe("0.45");
   expect(getComputedStyle(button).cursor).toBe("default");
+});
+
+const lockedReason = "La venta ya no se puede cambiar porque tiene un pago aprobado.";
+
+async function renderLocked(onPress = vi.fn()) {
+  await page.viewport(1280, 900);
+  const session = cdp() as unknown as DispatchableCdpSession;
+  await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
+  window.focus();
+  const screen = await render(
+    <IconButton
+      aria-label="Remove row"
+      icon={<Trash2 />}
+      disabledReason={lockedReason}
+      onPress={onPress}
+    />,
+  );
+  return { screen, button: screen.getByRole("button", { name: "Remove row" }) };
+}
+
+test("is announced disabled and dimmed, and ignores a press, when given the reason it is disabled", async () => {
+  const onPress = vi.fn();
+  const { button } = await renderLocked(onPress);
+
+  button.element().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  await userEvent.tab();
+  await userEvent.keyboard("{Enter}");
+
+  await expect.element(button).toHaveAttribute("aria-disabled", "true");
+  expect(getComputedStyle(button.element()).opacity).toBe("0.45");
+  expect(getComputedStyle(button.element()).cursor).toBe("default");
+  expect(onPress).not.toHaveBeenCalled();
+});
+
+test("opens the reason it is disabled as a tooltip when hovered", async () => {
+  const { screen, button } = await renderLocked();
+
+  await userEvent.hover(button);
+
+  await expect.element(screen.getByRole("tooltip")).toHaveTextContent(lockedReason);
+});
+
+test("opens the reason it is disabled as a tooltip when reached by keyboard", async () => {
+  const { screen, button } = await renderLocked();
+
+  await userEvent.tab();
+
+  expect(document.activeElement).toBe(button.element());
+  await expect.element(screen.getByRole("tooltip")).toHaveTextContent(lockedReason);
+});
+
+test("has no accessibility violations with the reason it is disabled, closed or open", async () => {
+  const { screen } = await renderLocked();
+  await expectNoAccessibilityViolations(screen.container);
+
+  await userEvent.tab();
+  await expect.element(screen.getByRole("tooltip")).toBeVisible();
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("takes the reason it is disabled instead of being told it is disabled", () => {
+  expectTypeOf<{
+    "aria-label": string;
+    icon: Icon;
+    disabledReason: string;
+  }>().toExtend<IconButtonProps>();
+  expectTypeOf<{
+    "aria-label": string;
+    icon: Icon;
+    disabled: boolean;
+    disabledReason: string;
+  }>().not.toExtend<IconButtonProps>();
 });

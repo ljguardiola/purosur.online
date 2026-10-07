@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Trash2, X } from "lucide-react";
 import { useId } from "react";
-import { within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 import {
   playHoverSetsDataHovered,
   playTabReachesFocusVisible,
@@ -35,6 +35,17 @@ export const FocusVisible: Story = {
 
 export const Disabled: Story = {
   args: { disabled: true },
+};
+
+export const DisabledWithReason: Story = {
+  args: { disabledReason: "La venta ya no se puede cambiar porque tiene un pago aprobado." },
+  play: async ({ canvasElement }) => {
+    await userEvent.tab();
+    await expect(theButton(canvasElement)).toHaveFocus();
+    await waitFor(() => {
+      expect(within(document.body).getByRole("tooltip")).toBeInTheDocument();
+    });
+  },
 };
 
 const subtleArgs = {

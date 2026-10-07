@@ -203,8 +203,19 @@ export function useRequestForm<
   }
 
   const [unsettled, setUnsettled] = useState(0);
+  const inFlight = useRef(false);
 
   async function submit() {
+    if (inFlight.current) {
+      return;
+    }
+    inFlight.current = true;
+    await submitOnce().finally(() => {
+      inFlight.current = false;
+    });
+  }
+
+  async function submitOnce() {
     checked.current.live = true;
     for (const field of Object.keys(messages) as Field[]) {
       if (form.getFieldMeta(field) !== undefined) {

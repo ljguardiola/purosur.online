@@ -1,12 +1,14 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
+import { nonCashCharge } from "../model/non-cash-charge.js";
 import type { PaymentTransaction } from "../model/payment.js";
-import { chargeableSale, isSaleRefusal } from "./chargeable-sale.js";
+import { chargeableSale, isSaleRefusal, type PartiallyPaid } from "./chargeable-sale.js";
 import { completeSale } from "./complete-sale.js";
 import type { Clock, IdGenerator, SaleLedger } from "./sale-ledger.js";
 
 export interface ChargeSaleByTransferInput {
   actorId: string;
   saleId: string;
+  amount: number;
 }
 
 export interface ChargeSaleByTransferPorts {
@@ -22,11 +24,14 @@ export type ChargeSaleByTransferOutcome =
   | { kind: "empty_sale" }
   | { kind: "zero_total" }
   | ChargeRefusal
+  | { kind: "invalid_amount" }
+  | { kind: "exceeds_pending"; pending: number }
+  | PartiallyPaid
   | { kind: "completed"; saleId: string; total: number };
 
 export function chargeSaleByTransfer(
   { ledger, clock, ids }: ChargeSaleByTransferPorts,
-  { actorId, saleId }: ChargeSaleByTransferInput,
+  { actorId, saleId, amount }: ChargeSaleByTransferInput,
 ): ChargeSaleByTransferOutcome {
   return ledger.transaction<ChargeSaleByTransferOutcome>((tx) => {
     const completedAt = clock.now();
@@ -34,7 +39,11 @@ export function chargeSaleByTransfer(
     if (isSaleRefusal(chargeable)) {
       return chargeable;
     }
-    const { sale, total } = chargeable;
+    const { sale, total, paid, pending } = chargeable;
+    const charge = nonCashCharge(pending, amount);
+    if (charge.kind === "invalid_amount" || charge.kind === "exceeds_pending") {
+      return charge;
+    }
 
     const payment: PaymentTransaction = {
       id: ids.next(),
@@ -42,7 +51,7 @@ export function chargeSaleByTransfer(
       kind: "SALE",
       method: "TRANSFER",
       provider: "NONE",
-      amount: total,
+      amount: charge.applied,
       state: "APPROVED",
       occurredAt: completedAt,
       authorizedBy: actorId,
@@ -50,7 +59,23 @@ export function chargeSaleByTransfer(
     };
 
     tx.recordPayment(payment);
-    completeSale(tx, ids, { sale, total, payment, movements: [], actorId, completedAt });
+    if (charge.kind === "partial") {
+      return {
+        kind: "partially_paid",
+        saleId: sale.id,
+        total,
+        paid: paid + charge.applied,
+        pending: charge.pending,
+      };
+    }
+    completeSale(tx, ids, {
+      sale,
+      total,
+      payments: tx.salePayments(sale.id),
+      movements: tx.saleCashMovements(sale.id),
+      actorId,
+      completedAt,
+    });
     return { kind: "completed", saleId: sale.id, total };
   });
 }

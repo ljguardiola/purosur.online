@@ -22,7 +22,16 @@ const line = {
   promotion: null,
   line_total: 3000,
 };
-const sale = { id: "s1", lines: [line], total: 3000, charge_refusal: null };
+const sale = {
+  id: "s1",
+  lines: [line],
+  total: 3000,
+  paid: 1000,
+  pending: 2000,
+  lines_editable: false,
+  cancellable: false,
+  charge_refusal: null,
+};
 
 describe("saleSchema", () => {
   it("accepts a sale with its lines and the total to charge", () => {
@@ -49,6 +58,10 @@ describe("saleSchema", () => {
     ["id", { ...sale, id: undefined }],
     ["lines", { ...sale, lines: undefined }],
     ["total", { ...sale, total: undefined }],
+    ["paid amount", { ...sale, paid: undefined }],
+    ["pending amount", { ...sale, pending: undefined }],
+    ["answer on editing its lines", { ...sale, lines_editable: undefined }],
+    ["answer on cancelling it", { ...sale, cancellable: undefined }],
     ["line id", { ...sale, lines: [{ ...line, id: undefined }] }],
     ["line product id", { ...sale, lines: [{ ...line, product_id: undefined }] }],
     ["line product name", { ...sale, lines: [{ ...line, product_name: undefined }] }],
@@ -87,6 +100,14 @@ describe("saleSchema", () => {
 
   it.each([-1, 1.5])("rejects a total of %s", (total) => {
     expect(saleSchema.safeParse({ ...sale, total }).success).toBe(false);
+  });
+
+  it.each([-1, 1.5])("rejects a paid amount of %s", (paid) => {
+    expect(saleSchema.safeParse({ ...sale, paid }).success).toBe(false);
+  });
+
+  it.each([-1, 1.5])("rejects a pending amount of %s", (pending) => {
+    expect(saleSchema.safeParse({ ...sale, pending }).success).toBe(false);
   });
 
   it.each([
@@ -131,6 +152,7 @@ describe("scanProductOutcomeSchema", () => {
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
     { kind: "installation_revoked" },
+    { kind: "sale_has_payments" },
     { kind: "unavailable" },
   ])("accepts the outcome $kind", (outcome) => {
     expect(scanProductOutcomeSchema.parse(outcome)).toEqual(outcome);
@@ -161,6 +183,7 @@ describe("changeLineQuantityOutcomeSchema", () => {
     { kind: "unknown_line" },
     { kind: "stale_quantity" },
     { kind: "invalid_quantity" },
+    { kind: "sale_has_payments" },
     ...refusals,
   ])("accepts the outcome $kind", (outcome) => {
     expect(changeLineQuantityOutcomeSchema.parse(outcome)).toEqual(outcome);
@@ -175,12 +198,14 @@ describe("changeLineQuantityOutcomeSchema", () => {
 });
 
 describe("removeSaleLineOutcomeSchema", () => {
-  it.each([{ kind: "removed", sale }, { kind: "unknown_line" }, ...refusals])(
-    "accepts the outcome $kind",
-    (outcome) => {
-      expect(removeSaleLineOutcomeSchema.parse(outcome)).toEqual(outcome);
-    },
-  );
+  it.each([
+    { kind: "removed", sale },
+    { kind: "unknown_line" },
+    { kind: "sale_has_payments" },
+    ...refusals,
+  ])("accepts the outcome $kind", (outcome) => {
+    expect(removeSaleLineOutcomeSchema.parse(outcome)).toEqual(outcome);
+  });
 
   it.each([
     { kind: "removed" },
@@ -213,7 +238,7 @@ describe("chargeSaleInCashOutcomeSchema", () => {
   it.each([
     { kind: "completed", sale_id: "s1", total: 3000, tendered: 5000, change: 2000 },
     { kind: "completed", sale_id: "s1", total: 3000, tendered: 3000, change: 0 },
-    { kind: "insufficient_cash", amount_due: 3000 },
+    { kind: "partially_paid", sale_id: "s1", total: 3000, paid: 1000, pending: 2000 },
     { kind: "invalid_amount" },
     { kind: "empty_sale" },
     { kind: "zero_total" },
@@ -236,9 +261,12 @@ describe("chargeSaleInCashOutcomeSchema", () => {
     { kind: "completed", sale_id: "s1", total: 3000.5, tendered: 5000, change: 2000 },
     { kind: "completed", sale_id: "s1", total: -1, tendered: 5000, change: 2000 },
     { kind: "completed", sale_id: "s1", total: 3000, tendered: -1, change: 2000 },
-    { kind: "insufficient_cash" },
-    { kind: "insufficient_cash", amount_due: -1 },
-    { kind: "insufficient_cash", amount_due: 1.5 },
+    { kind: "insufficient_cash", amount_due: 3000 },
+    { kind: "partially_paid" },
+    { kind: "partially_paid", sale_id: "s1", total: 3000, paid: 1000 },
+    { kind: "partially_paid", sale_id: "s1", total: 3000, pending: 2000 },
+    { kind: "partially_paid", sale_id: "s1", total: 3000, paid: -1, pending: 2000 },
+    { kind: "partially_paid", sale_id: "s1", total: 3000, paid: 1000, pending: 1.5 },
     { kind: "reaches_buyer_identification_threshold" },
     { kind: "reaches_buyer_identification_threshold", threshold: 0 },
     { kind: "reaches_buyer_identification_threshold", threshold: 1.5 },
@@ -252,6 +280,9 @@ describe("chargeSaleInCashOutcomeSchema", () => {
 describe("chargeSaleByTransferOutcomeSchema", () => {
   it.each([
     { kind: "completed", sale_id: "s1", total: 3000 },
+    { kind: "partially_paid", sale_id: "s1", total: 3000, paid: 1000, pending: 2000 },
+    { kind: "invalid_amount" },
+    { kind: "exceeds_pending", pending: 2000 },
     { kind: "empty_sale" },
     { kind: "zero_total" },
     { kind: "reaches_buyer_identification_threshold", threshold: 10_000_000 },
@@ -272,7 +303,10 @@ describe("chargeSaleByTransferOutcomeSchema", () => {
     { kind: "completed", sale_id: "s1", total: -1 },
     { kind: "completed", sale_id: "s1", total: 3000.5 },
     { kind: "insufficient_cash", amount_due: 3000 },
-    { kind: "invalid_amount" },
+    { kind: "exceeds_pending" },
+    { kind: "exceeds_pending", pending: -1 },
+    { kind: "exceeds_pending", pending: 1.5 },
+    { kind: "partially_paid", sale_id: "s1", total: 3000, paid: 1000 },
     { kind: "reaches_buyer_identification_threshold" },
     { kind: "reaches_buyer_identification_threshold", threshold: 0 },
     { kind: "reaches_buyer_identification_threshold", threshold: 1.5 },
@@ -412,6 +446,7 @@ describe("addProductOutcomeSchema", () => {
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
     { kind: "installation_revoked" },
+    { kind: "sale_has_payments" },
     { kind: "unavailable" },
   ])("accepts the outcome $kind", (outcome) => {
     expect(addProductOutcomeSchema.parse(outcome)).toEqual(outcome);

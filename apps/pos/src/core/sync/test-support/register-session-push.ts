@@ -13,6 +13,7 @@ import { uuidV7Ids } from "../../register/uuid-v7-ids";
 import {
   chargeSaleByTransferFor,
   chargeSaleInCashFor,
+  currentSaleFor,
   scanProductFor,
 } from "../../sales/sale-requests";
 import { CloudEventInbox } from "../cloud-event-inbox";
@@ -205,12 +206,36 @@ export async function withRegisterSession<TResult>(
       expectOutcome(`scan the ${scan} product on promotion`, cookies.kind, "added");
     }
     nextStep();
-    const transfer = await chargeSaleByTransferFor(deps(), { saleId: second.sale.id });
+    const toTransfer = await currentSaleFor(deps());
+    if (toTransfer === null || toTransfer === "not_permitted") {
+      throw new Error(`The register session's "read the sale to transfer" found no sale`);
+    }
+    nextStep();
+    const transfer = await chargeSaleByTransferFor(deps(), {
+      saleId: second.sale.id,
+      amount: toTransfer.total,
+    });
     expectOutcome("charge a sale by transfer", transfer.kind, "completed");
+    nextStep();
+    const split = await scanProductFor(deps(), "7790001000011");
+    if (split.kind !== "added") {
+      throw new Error(`The register session's "scan a product to split" ended as "${split.kind}"`);
+    }
+    nextStep();
+    const partial = await chargeSaleInCashFor(deps(), { saleId: split.sale.id, tendered: 500 });
+    if (partial.kind !== "partially_paid") {
+      throw new Error(`The register session's "pay part in cash" ended as "${partial.kind}"`);
+    }
+    nextStep();
+    const rest = await chargeSaleByTransferFor(deps(), {
+      saleId: split.sale.id,
+      amount: partial.pending,
+    });
+    expectOutcome("pay the rest by transfer", rest.kind, "completed");
     nextStep();
     const closed = await closeCashSessionFor(deps(), {
       sessionId: opened.cash_session.id,
-      countedCash: 9_900,
+      countedCash: 10_400,
     });
     expectOutcome("close the cash session", closed.kind, "closed");
 

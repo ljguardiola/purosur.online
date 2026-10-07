@@ -177,4 +177,34 @@ describe("scanning products into a sale on the register", () => {
     await page.getByRole("heading", { name: "Venta en curso" }).waitFor();
     await page.getByText("La venta está vacía").waitFor();
   });
+
+  it("pays part of a sale in cash, sees what is pending and pays the rest by transfer", async () => {
+    const { page } = register;
+    const scanField = page.getByRole("combobox", { name: "Producto" });
+    await scanField.fill(YERBA_CODE);
+    await scanField.press("Enter");
+    await page
+      .getByRole("listitem")
+      .filter({ hasText: "Yerba mate 1 kg" })
+      .getByText("$ 2.380,00")
+      .waitFor();
+
+    await page.getByRole("button", { name: "Cobrar" }).click();
+    await page.getByText("Efectivo", { exact: true }).click();
+    await page.getByLabel("Importe entregado por el cliente").fill("1.000,00");
+    await page.getByRole("button", { name: "Registrar pago parcial" }).click();
+
+    const panel = page.getByRole("complementary", { name: "Panel de cobro" });
+    await page.getByRole("heading", { name: "Elegí el medio de pago" }).waitFor();
+    await panel.getByText("$ 1.000,00").waitFor();
+    await panel.getByText("$ 1.380,00").waitFor();
+
+    await page.getByText("Transferencia", { exact: true }).click();
+    await page.getByLabel("Importe a cobrar con este medio").waitFor();
+    await page.getByRole("button", { name: "Vi el ingreso" }).click();
+
+    await page.getByRole("heading", { name: "No hay vuelto para entregar" }).waitFor();
+    await page.getByRole("button", { name: "Nueva venta" }).click();
+    await page.getByText("La venta está vacía").waitFor();
+  });
 });

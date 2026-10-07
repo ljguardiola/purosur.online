@@ -1,6 +1,8 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
+import { type OpenSaleStanding, openSaleStanding } from "../model/open-sale-standing.js";
+import { hasApprovedPayment } from "../model/payment.js";
 import type { SaleWithLines } from "../model/sale.js";
-import { withQuantity } from "../model/sale-line.js";
+import { saleTotal, withQuantity } from "../model/sale-line.js";
 import { saleChargeRefusal } from "./sale-charge-refusal.js";
 import type { Clock, SaleLedger } from "./sale-ledger.js";
 import { isRefusal, sellingSession } from "./selling-session.js";
@@ -21,10 +23,15 @@ export type ChangeLineQuantityOutcome =
   | { kind: "not_permitted" }
   | { kind: "no_open_session" }
   | { kind: "no_open_sale" }
+  | { kind: "sale_has_payments" }
   | { kind: "invalid_quantity" }
   | { kind: "unknown_line" }
   | { kind: "stale_quantity" }
-  | { kind: "changed"; sale: SaleWithLines; chargeRefusal: ChargeRefusal | undefined };
+  | ({
+      kind: "changed";
+      sale: SaleWithLines;
+      chargeRefusal: ChargeRefusal | undefined;
+    } & OpenSaleStanding);
 
 export function changeLineQuantity(
   { ledger, clock }: ChangeLineQuantityPorts,
@@ -38,6 +45,9 @@ export function changeLineQuantity(
     const sale = tx.openSale(session.id);
     if (!sale) {
       return { kind: "no_open_sale" };
+    }
+    if (hasApprovedPayment(tx.salePayments(sale.id))) {
+      return { kind: "sale_has_payments" };
     }
     if (!Number.isSafeInteger(quantity) || quantity < 1) {
       return { kind: "invalid_quantity" };
@@ -59,6 +69,7 @@ export function changeLineQuantity(
       kind: "changed",
       sale: changed,
       chargeRefusal: saleChargeRefusal(tx, changed, clock.now()),
+      ...openSaleStanding(saleTotal(changed.lines), tx.salePayments(changed.id)),
     };
   });
 }

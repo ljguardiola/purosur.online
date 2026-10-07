@@ -7,7 +7,7 @@ import { SaleCompletedModal } from "./sale-completed-modal";
 async function renderModal(
   amounts:
     | { total: number; tendered: number; change: number }
-    | { total: number; method: "TRANSFER" },
+    | { total: number; method: "TRANSFER"; amount: number },
 ) {
   await page.viewport(1280, 1000);
   onTestFinished(() => page.viewport(414, 896));
@@ -42,7 +42,7 @@ describe("SaleCompletedModal", () => {
   });
 
   it("says there is no change to hand over and shows the total charged by transfer", async () => {
-    const { screen } = await renderModal({ total: 476_000, method: "TRANSFER" });
+    const { screen } = await renderModal({ total: 476_000, method: "TRANSFER", amount: 476_000 });
 
     await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
     await expect
@@ -54,6 +54,14 @@ describe("SaleCompletedModal", () => {
     await expect.element(screen.getByText("VUELTO", { exact: true })).not.toBeInTheDocument();
     await expect.element(screen.getByText("Efectivo entregado")).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("shows only what the last transfer charged when it paid part of the sale", async () => {
+    const { screen } = await renderModal({ total: 476_000, method: "TRANSFER", amount: 300_000 });
+
+    await expect.element(screen.getByText("Transferencia", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("$ 3.000,00")).toBeVisible();
+    await expect.element(screen.getByText("$ 4.760,00")).toBeVisible();
   });
 
   it("starts a new sale from its only button", async () => {
