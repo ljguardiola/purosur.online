@@ -8,7 +8,7 @@ import type { IdGenerator, SaleCashMovement, SaleLedgerTransaction } from "./sal
 export interface SaleCompletion {
   sale: SaleWithLines;
   total: number;
-  payment: PaymentTransaction;
+  payments: readonly PaymentTransaction[];
   movements: readonly SaleCashMovement[];
   actorId: string;
   completedAt: Date;
@@ -17,11 +17,11 @@ export interface SaleCompletion {
 export function completeSale(
   tx: SaleLedgerTransaction,
   ids: IdGenerator,
-  { sale, total, payment, movements, actorId, completedAt }: SaleCompletion,
+  { sale, total, payments, movements, actorId, completedAt }: SaleCompletion,
 ): void {
   tx.recordCompletedSale(sale.id, completedAt);
   tx.appendOutboxEvent(
-    saleCompletedEvent(ids.next(), sale, total, payment, movements, actorId, completedAt),
+    saleCompletedEvent(ids.next(), sale, total, payments, movements, actorId, completedAt),
   );
   const gate = preEmissionGate({
     total,
@@ -65,7 +65,7 @@ function saleCompletedEvent(
   eventId: string,
   sale: SaleWithLines,
   total: number,
-  payment: PaymentTransaction,
+  payments: readonly PaymentTransaction[],
   movements: readonly SaleCashMovement[],
   actorId: string,
   completedAt: Date,
@@ -97,7 +97,7 @@ function saleCompletedEvent(
         promotions: line.promotions.map(frozenPromotion),
         line_total: line.lineTotal,
       })),
-      payments: [paymentRecord(payment)],
+      payments: payments.map(paymentRecord),
       cash_movements: movements.map((movement) => ({
         id: movement.id,
         type: movement.type,

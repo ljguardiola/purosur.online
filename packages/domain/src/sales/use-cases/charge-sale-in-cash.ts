@@ -2,7 +2,7 @@ import type { ChargeRefusal } from "../../fiscal/index.js";
 import { cashCharge } from "../model/cash-charge.js";
 import type { PaymentTransaction } from "../model/payment.js";
 import type { SaleWithLines } from "../model/sale.js";
-import { chargeableSale, isSaleRefusal } from "./chargeable-sale.js";
+import { chargeableSale, isSaleRefusal, type PartiallyPaid } from "./chargeable-sale.js";
 import { completeSale } from "./complete-sale.js";
 import type { Clock, IdGenerator, SaleCashMovement, SaleLedger } from "./sale-ledger.js";
 
@@ -26,7 +26,7 @@ export type ChargeSaleInCashOutcome =
   | { kind: "zero_total" }
   | ChargeRefusal
   | { kind: "invalid_amount" }
-  | { kind: "insufficient_cash"; amountDue: number }
+  | PartiallyPaid
   | { kind: "completed"; saleId: string; total: number; tendered: number; change: number };
 
 export function chargeSaleInCash(
@@ -39,13 +39,10 @@ export function chargeSaleInCash(
     if (isSaleRefusal(chargeable)) {
       return chargeable;
     }
-    const { session, sale, total } = chargeable;
-    const charge = cashCharge(total, tendered);
+    const { session, sale, total, paid, pending } = chargeable;
+    const charge = cashCharge(pending, tendered);
     if (charge.kind === "invalid_amount") {
       return charge;
-    }
-    if (charge.kind === "partial") {
-      return { kind: "insufficient_cash", amountDue: total };
     }
 
     const payment: PaymentTransaction = {
@@ -59,6 +56,7 @@ export function chargeSaleInCash(
       state: "APPROVED",
       occurredAt: completedAt,
     };
+    const change = charge.kind === "covered" ? charge.change : 0;
     const movements = cashMovements(
       ids,
       sale,
@@ -66,15 +64,31 @@ export function chargeSaleInCash(
       actorId,
       completedAt,
       tendered,
-      charge.change,
+      change,
     );
 
     tx.recordPayment(payment);
     for (const movement of movements) {
       tx.recordCashMovement(movement);
     }
-    completeSale(tx, ids, { sale, total, payment, movements, actorId, completedAt });
-    return { kind: "completed", saleId: sale.id, total, tendered, change: charge.change };
+    if (charge.kind === "partial") {
+      return {
+        kind: "partially_paid",
+        saleId: sale.id,
+        total,
+        paid: paid + charge.applied,
+        pending: charge.pending,
+      };
+    }
+    completeSale(tx, ids, {
+      sale,
+      total,
+      payments: tx.salePayments(sale.id),
+      movements: tx.saleCashMovements(sale.id),
+      actorId,
+      completedAt,
+    });
+    return { kind: "completed", saleId: sale.id, total, tendered, change };
   });
 }
 

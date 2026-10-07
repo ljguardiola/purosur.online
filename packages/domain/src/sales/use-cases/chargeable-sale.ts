@@ -1,6 +1,7 @@
 import { type ChargeRefusal, chargeRefusal } from "../../fiscal/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { saleTotal } from "../model/sale-line.js";
+import { saleBalance } from "../model/sale-balance.js";
 import type { SaleLedgerTransaction, SellingSession } from "./sale-ledger.js";
 import { isRefusal, sellingSession } from "./selling-session.js";
 
@@ -16,6 +17,16 @@ export interface ChargeableSale {
   session: SellingSession;
   sale: SaleWithLines;
   total: number;
+  paid: number;
+  pending: number;
+}
+
+export interface PartiallyPaid {
+  kind: "partially_paid";
+  saleId: string;
+  total: number;
+  paid: number;
+  pending: number;
 }
 
 export function chargeableSale(
@@ -43,7 +54,8 @@ export function chargeableSale(
   if (refusal) {
     return refusal;
   }
-  return { session, sale, total };
+  const { paid, pending } = saleBalance(total, tx.salePayments(sale.id));
+  return { session, sale, total, paid, pending };
 }
 
 export function isSaleRefusal(result: ChargeableSale | SaleRefusal): result is SaleRefusal {
