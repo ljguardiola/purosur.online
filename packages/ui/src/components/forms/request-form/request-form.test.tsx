@@ -282,6 +282,25 @@ test("the form is submitting until onSubmit settles", async () => {
   await expect.element(screen.getByRole("button", { name: "Enviar" })).toBeEnabled();
 });
 
+test("a second submit before the form shows it is submitting starts nothing, and the next one after it settles does", async () => {
+  const pending = deferred();
+  const onSubmit = vi.fn<SubmitHandler>(() => pending.promise);
+  const screen = await render(<Probe onSubmit={onSubmit} />);
+  await userEvent.fill(screen.getByRole("textbox", { name: "Nombre" }), "Ana");
+  await userEvent.fill(screen.getByRole("textbox", { name: "Monto" }), "12");
+  const send = screen.getByRole("button", { name: "Enviar" }).element();
+
+  send.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  send.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+  await expect.element(screen.getByRole("button", { name: "Enviar" })).toBeDisabled();
+  expect(onSubmit).toHaveBeenCalledOnce();
+  pending.resolve();
+  await expect.element(screen.getByRole("button", { name: "Enviar" })).toBeEnabled();
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+  expect(onSubmit).toHaveBeenCalledTimes(2);
+});
+
 test("the form is submitting until onSubmit settles, also when it shows a field error before its first await", async () => {
   const pending = deferred();
   const screen = await render(

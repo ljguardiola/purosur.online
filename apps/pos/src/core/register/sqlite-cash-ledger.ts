@@ -136,6 +136,19 @@ export function readSessionMovements(database: LocalDatabase, sessionId: string)
     .map(movementOf);
 }
 
+export function readMovementsOf(
+  database: LocalDatabase,
+  ref: { type: string; id: string },
+): (CashMovement & { ref: { type: string; id: string } })[] {
+  return database
+    .prepare<[string, string], MovementRow>(
+      `SELECT id, session_id, type, amount, reason, ref_type, ref_id, actor_id, authorized_by, occurred_at
+       FROM cash_movements WHERE ref_type = ? AND ref_id = ? ORDER BY rowid`,
+    )
+    .all(ref.type, ref.id)
+    .map((row) => ({ ...movementOf(row), ref }));
+}
+
 export function insertCashMovement(database: LocalDatabase, movement: CashMovement): void {
   database
     .prepare(

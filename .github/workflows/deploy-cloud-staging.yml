@@ -158,7 +158,8 @@ jobs:
           DEVICE_TOKEN_ROTATION_KEY: ${{ secrets.DEVICE_TOKEN_ROTATION_KEY }}
           INSTALLATION_KEYS_ENCRYPTION_KEY: ${{ secrets.INSTALLATION_KEYS_ENCRYPTION_KEY }}
           CLOUD_APP_DATABASE_PASSWORD: ${{ secrets.CLOUD_APP_DATABASE_PASSWORD }}
-          ARCA_CERTIFICATE: ${{ vars.ARCA_CERTIFICATE }}
+          ARCA_CERTIFICATE: ${{ secrets.ARCA_CERTIFICATE }}
+          ARCA_PRIVATE_KEY: ${{ secrets.ARCA_PRIVATE_KEY }}
         # Without --confirm-destructive, a plan that destroys or replaces a resource fails here.
         run: railway config apply --json --yes
 

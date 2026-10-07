@@ -227,6 +227,10 @@ describe("SaleScreen", () => {
           id: "sale-1",
           lines: [promoted, ALFAJOR],
           total: 578_400,
+          paid: 0,
+          pending: 578_400,
+          lines_editable: true,
+          cancellable: true,
           charge_refusal: null,
         }),
       });
@@ -253,6 +257,10 @@ describe("SaleScreen", () => {
           id: "sale-1",
           lines: [promoted],
           total: 428_400,
+          paid: 0,
+          pending: 428_400,
+          lines_editable: true,
+          cancellable: true,
           charge_refusal: null,
         }),
       });
@@ -281,6 +289,10 @@ describe("SaleScreen", () => {
           id: "sale-1",
           lines: [promoted],
           total: 300_000,
+          paid: 0,
+          pending: 300_000,
+          lines_editable: true,
+          cancellable: true,
           charge_refusal: null,
         }),
       });
@@ -319,6 +331,10 @@ describe("SaleScreen", () => {
           id: "sale-1",
           lines: [{ ...YERBA, discount_amount: 476_000, line_total: 0 }],
           total: 0,
+          paid: 0,
+          pending: 0,
+          lines_editable: true,
+          cancellable: true,
           charge_refusal: null,
         }),
       });
@@ -508,6 +524,10 @@ describe("SaleScreen", () => {
         id: "sale-1",
         lines: [YERBA, { ...ALFAJOR, quantity: 2, line_total: 300_000 }],
         total: 776_000,
+        paid: 0,
+        pending: 776_000,
+        lines_editable: true,
+        cancellable: true,
         charge_refusal: null,
       };
       const scanProduct = vi.fn(

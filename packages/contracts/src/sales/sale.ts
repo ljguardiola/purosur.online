@@ -39,6 +39,10 @@ export const saleSchema = z.object({
   id: z.string(),
   lines: z.array(saleLineSchema),
   total: cents,
+  paid: cents,
+  pending: cents,
+  lines_editable: z.boolean(),
+  cancellable: z.boolean(),
   charge_refusal: z
     .discriminatedUnion("kind", [reachesThresholdRefusal, noThresholdRefusal])
     .nullable(),
@@ -48,7 +52,7 @@ export type CurrentSaleAnswer = OpenSale | null | "not_permitted";
 
 export const cashChargeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("invalid_amount") }),
-  z.object({ kind: z.literal("insufficient"), amountDue: z.number() }),
+  z.object({ kind: z.literal("partial"), applied: z.number(), pending: z.number() }),
   z.object({ kind: z.literal("covered"), applied: z.number(), change: z.number() }),
 ]);
 export type CashCharge = z.infer<typeof cashChargeSchema>;
@@ -65,12 +69,21 @@ const notSignedInOutcome = z.object({ kind: z.literal("not_signed_in") });
 const noOpenSessionOutcome = z.object({ kind: z.literal("no_open_session") });
 const installationRevokedOutcome = z.object({ kind: z.literal("installation_revoked") });
 const unavailableOutcome = z.object({ kind: z.literal("unavailable") });
+const saleHasPaymentsOutcome = z.object({ kind: z.literal("sale_has_payments") });
+const partiallyPaidOutcome = z.object({
+  kind: z.literal("partially_paid"),
+  sale_id: z.string(),
+  total: cents,
+  paid: cents,
+  pending: cents,
+});
 
 export const scanProductOutcomeSchema = z.discriminatedUnion("kind", [
   addedOutcome,
   z.object({ kind: z.literal("unknown_code") }),
   noPriceOutcome,
   soldByWeightOutcome,
+  saleHasPaymentsOutcome,
   notPermittedOutcome,
   notSignedInOutcome,
   noOpenSessionOutcome,
@@ -94,6 +107,7 @@ export const changeLineQuantityOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("unknown_line") }),
   z.object({ kind: z.literal("stale_quantity") }),
   z.object({ kind: z.literal("invalid_quantity") }),
+  saleHasPaymentsOutcome,
   ...saleRefusalSchemas,
 ]);
 export type ChangeLineQuantityOutcome = z.infer<typeof changeLineQuantityOutcomeSchema>;
@@ -101,6 +115,7 @@ export type ChangeLineQuantityOutcome = z.infer<typeof changeLineQuantityOutcome
 export const removeSaleLineOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("removed"), sale: saleSchema }),
   z.object({ kind: z.literal("unknown_line") }),
+  saleHasPaymentsOutcome,
   ...saleRefusalSchemas,
 ]);
 export type RemoveSaleLineOutcome = z.infer<typeof removeSaleLineOutcomeSchema>;
@@ -117,6 +132,7 @@ export const addProductOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("product_unavailable") }),
   noPriceOutcome,
   soldByWeightOutcome,
+  saleHasPaymentsOutcome,
   notPermittedOutcome,
   notSignedInOutcome,
   noOpenSessionOutcome,
@@ -155,7 +171,7 @@ export const chargeSaleInCashOutcomeSchema = z.discriminatedUnion("kind", [
     tendered: cents,
     change: cents,
   }),
-  z.object({ kind: z.literal("insufficient_cash"), amount_due: cents }),
+  partiallyPaidOutcome,
   z.object({ kind: z.literal("invalid_amount") }),
   z.object({ kind: z.literal("empty_sale") }),
   z.object({ kind: z.literal("zero_total") }),
@@ -171,6 +187,9 @@ export type ChargeSaleInCashOutcome = z.infer<typeof chargeSaleInCashOutcomeSche
 
 export const chargeSaleByTransferOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("completed"), sale_id: z.string(), total: cents }),
+  partiallyPaidOutcome,
+  z.object({ kind: z.literal("invalid_amount") }),
+  z.object({ kind: z.literal("exceeds_pending"), pending: cents }),
   z.object({ kind: z.literal("empty_sale") }),
   z.object({ kind: z.literal("zero_total") }),
   reachesThresholdRefusal,

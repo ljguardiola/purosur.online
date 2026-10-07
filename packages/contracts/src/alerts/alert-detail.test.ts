@@ -178,6 +178,9 @@ describe("alertDetailSchema", () => {
     expectTypeOf<WireDetail<"event_invariant_violated">>().toEqualTypeOf<
       AlertDetails["event_invariant_violated"]
     >();
+    expectTypeOf<WireDetail<"arca_certificate_expiring">>().toEqualTypeOf<
+      AlertDetails["arca_certificate_expiring"]
+    >();
     expectTypeOf<WireDetail<"backoffice_sign_in_lockout">>().toExtend<
       Omit<AlertDetails["backoffice_sign_in_lockout"], "sourceAddress">
     >();
@@ -284,6 +287,7 @@ describe("alertDetailSchema", () => {
         aggregateId: "sale-1",
         breaks: ["approved_payments_below_total"],
       },
+      arca_certificate_expiring: { notAfter: "2026-11-20T15:30:00.000Z" },
     } satisfies Record<AlertKind, unknown>;
 
     it.each(ALERT_KINDS)("accepts the detail of %s", (kind) => {

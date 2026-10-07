@@ -20,6 +20,10 @@ function sale(...lines: ReturnType<typeof line>[]): OpenSale {
     id: "sale-1",
     lines,
     total: lines.reduce((sum, item) => sum + item.line_total, 0),
+    paid: 0,
+    pending: lines.reduce((sum, item) => sum + item.line_total, 0),
+    lines_editable: true,
+    cancellable: true,
     charge_refusal: null,
   };
 }

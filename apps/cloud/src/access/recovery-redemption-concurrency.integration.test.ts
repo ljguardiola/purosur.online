@@ -5,6 +5,7 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { WebAuthnEmulator } from "nid-webauthn-emulator";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { unreachableArcaEndpoints } from "../fiscal/test-support/unreachable-arca-endpoints.js";
 import { auditLog, passkeys, recoveryTokens, users } from "../platform/db/schema.js";
 import { EDGE_ORIGIN_SECRET_HEADER } from "../platform/edge-origin-guard.js";
 import { startServer } from "../server.js";
@@ -58,10 +59,11 @@ async function startRealServer(): Promise<StartedFixture> {
       BACKOFFICE_ORIGIN,
       EDGE_ORIGIN_SECRET: TEST_EDGE_ORIGIN_SECRET,
       ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
+      ARCA_ENVIRONMENT: "homologation",
       DEVICE_TOKEN_ROTATION_KEY: TEST_DEVICE_TOKEN_ROTATION_KEY.toString("base64"),
       INSTALLATION_KEYS_ENCRYPTION_KEY: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY.toString("base64"),
     },
-    { now },
+    { now, arcaEndpoints: unreachableArcaEndpoints },
   );
   return { origin: `http://127.0.0.1:${port}`, close: () => app.close() };
 }

@@ -360,6 +360,27 @@ describe("DrizzleAlertStore recordClosure", () => {
   });
 });
 
+describe("DrizzleAlertStore recordClosure by no person", () => {
+  it("closes the alert with no resolver and audits the closure with no actor", async () => {
+    const store = new DrizzleAlertStore(db, () => NOON);
+    const alertId = await store.transaction((tx) => tx.insertAlert(newAlert()));
+
+    await store.transaction((tx) =>
+      tx.recordClosure(alertId, {
+        closedAt: NOON,
+        closedBy: null,
+        scope: "user-1",
+        detail: {},
+      }),
+    );
+
+    const [row] = await db.select().from(alerts).where(eq(alerts.id, alertId));
+    expect(row).toMatchObject({ resolvedAt: NOON, resolvedBy: null });
+    const [audit] = await db.select().from(auditLog).where(eq(auditLog.entityId, alertId));
+    expect(audit).toMatchObject({ entity: "alert", actorId: null });
+  });
+});
+
 describe("DrizzleAlertStore lockOpenAlerts and recordEscalation", () => {
   it("lists only open alerts with their level and escalation time", async () => {
     const store = new DrizzleAlertStore(db, () => NOON);

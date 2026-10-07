@@ -23,6 +23,7 @@ const ENTRY_POINTS = [
   "create-first-administrator.ts",
   "load-sample-data.ts",
   "migrate.ts",
+  "record-arca-responses.ts",
   "server.ts",
   "wait-for-ready.ts",
 ];

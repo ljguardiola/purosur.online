@@ -756,3 +756,16 @@ test("names an alert for an event applied with an inconsistency by its kind and 
   await expect.element(row.getByText("Inconsistencia en un evento")).toBeVisible();
   await expect.element(row.getByText("Evento aplicado con una inconsistencia")).toBeVisible();
 });
+
+test("names an alert for an expiring ARCA certificate by its kind and what happened", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(
+    ok([{ ...passkeyAlert, kind: "arca_certificate_expiring", scopeDisplay: "production" }]),
+  );
+
+  const screen = await renderScreen(services);
+
+  const row = screen.getByRole("row", { name: /Producción/ });
+  await expect.element(row.getByText("Certificado de ARCA por vencer")).toBeVisible();
+  await expect.element(row.getByText("El certificado de ARCA está por vencer")).toBeVisible();
+});

@@ -39,6 +39,7 @@ import { schemaText } from "../platform/schema-text";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { type BackofficeAccess, canCloseAlertsManually } from "../shell/backoffice-access";
 import { ALERT_LEVEL_TONE } from "./alert-level-tone";
+import { alertScopeLabel } from "./alert-scope-label";
 import { closeAlert as closeAlertDefault, fetchAlert as fetchAlertDefault } from "./alerts-api";
 import {
   useAlertQuery,
@@ -206,6 +207,13 @@ function eventAggregate({
   return `${aggregateType} ${aggregateId}`;
 }
 
+function arcaCertificateExpiringDescription(notAfter: string, environment: string): string {
+  const label = alertScopeLabel("arca_certificate_expiring", environment).toLocaleLowerCase(
+    "es-AR",
+  );
+  return `El certificado de ARCA de ${label} vence el ${alertDateTime(new Date(notAfter))}. Conviene cargar uno nuevo antes de esa fecha.`;
+}
+
 function alertTitle(alert: AlertDetail): string {
   switch (alert.kind) {
     case "backoffice_passkey_changed":
@@ -226,6 +234,8 @@ function alertTitle(alert: AlertDetail): string {
       return "Eventos de una caja en cuarentena";
     case "event_invariant_violated":
       return "Evento aplicado con una inconsistencia";
+    case "arca_certificate_expiring":
+      return "El certificado de ARCA está por vencer";
   }
 }
 
@@ -283,6 +293,8 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
       return accessIncreaseDescription(alert.detail, targetName, catalog);
     case "register_enrolled":
       return registerEnrollmentDescription(alert.detail, targetName);
+    case "arca_certificate_expiring":
+      return arcaCertificateExpiringDescription(alert.detail.notAfter, targetName);
   }
 }
 
@@ -471,7 +483,7 @@ function OpenAlertDetailModal({
               {alert.scopeDisplay !== null && (
                 <div className="flex justify-between gap-2">
                   <span className="text-text-subtle">Alcance</span>
-                  <span>{alert.scopeDisplay}</span>
+                  <span>{alertScopeLabel(alert.kind, alert.scopeDisplay)}</span>
                 </div>
               )}
             </div>

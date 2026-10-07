@@ -48,7 +48,7 @@ import {
 const PRODUCIBLE_ALERT_LEVELS = new Set(
   ALERT_KINDS.flatMap((kind) => {
     const policy = alertKindPolicy(kind);
-    return policy.escalatesAfterMs === null ? [policy.level] : [policy.level, "critical"];
+    return policy.escalation === null ? [policy.level] : [policy.level, "critical"];
   }),
 );
 
@@ -527,7 +527,7 @@ describe("loadSampleData", () => {
         throw new Error(`alert kind ${alert.kind} is not in the alert catalog`);
       }
       const policy = alertKindPolicy(alert.kind);
-      const escalated = alert.escalatedAt !== null && policy.escalatesAfterMs !== null;
+      const escalated = alert.escalatedAt !== null && policy.escalation !== null;
       expect(alert.level).toBe(escalated ? "critical" : policy.level);
     }
     const lockoutAlerts = alertRows.filter((alert) => alert.kind === "backoffice_sign_in_lockout");

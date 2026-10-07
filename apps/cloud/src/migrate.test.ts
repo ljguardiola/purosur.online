@@ -106,7 +106,9 @@ function envWithout(...names: string[]): NodeJS.ProcessEnv {
   return env;
 }
 
-describe("the migrate command", () => {
+// The command's process ends on its own once it refuses what it was given, so each test waits
+// for it to exit however long the machine takes to load the command.
+describe("the migrate command", { timeout: 0 }, () => {
   it("does not print the database URL when it fails on a malformed one", () => {
     const result = spawnSync(process.execPath, [join(inject("cloudBuildDir"), "migrate.js")], {
       env: {

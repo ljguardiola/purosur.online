@@ -108,6 +108,10 @@ const eventInvariantViolatedDetailSchema = z.object({
   breaks: z.array(z.string()),
 });
 
+const arcaCertificateExpiringDetailSchema = z.object({
+  notAfter: z.string(),
+});
+
 const ALERT_INSTANT = { timeZone: ARGENTINA_TIME_ZONE };
 
 const alertBase = {
@@ -163,6 +167,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("event_invariant_violated" satisfies AlertKind),
     detail: eventInvariantViolatedDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("arca_certificate_expiring" satisfies AlertKind),
+    detail: arcaCertificateExpiringDetailSchema,
   }),
 ] as const;
 

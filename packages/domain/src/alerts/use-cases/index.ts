@@ -33,3 +33,5 @@ export { closeAlert } from "./close-alert.js";
 export { escalateOverdueAlerts } from "./escalate-overdue-alerts.js";
 export type { OpenAlertOutcome } from "./open-alert.js";
 export { openAlert } from "./open-alert.js";
+export type { ResolveAlertOutcome } from "./resolve-alert.js";
+export { resolveAlert } from "./resolve-alert.js";

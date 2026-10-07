@@ -229,6 +229,7 @@ export type {
   SalesRendererToCoreMessage,
 } from "./sales/core-messages.js";
 export {
+  chargeSaleByTransferMessageSchema,
   chargeSaleInCashMessageSchema,
   salesCoreToRendererMessageSchema,
   salesRendererToCoreMessageSchema,

@@ -69,10 +69,11 @@ export const chargeSaleInCashMessageSchema = z.object({
   tendered: z.int(),
 });
 
-const chargeSaleByTransferMessageSchema = z.object({
+export const chargeSaleByTransferMessageSchema = z.object({
   type: z.literal("charge-sale-by-transfer"),
   request_id: requestId,
   sale_id: z.string(),
+  amount: z.int(),
 });
 
 const cashChargeRequestMessageSchema = z.object({

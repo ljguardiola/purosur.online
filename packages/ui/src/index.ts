@@ -149,6 +149,7 @@ export type { LoadStatus } from "./components/shared/load-status";
 export type { NoticeTone, Tone } from "./components/shared/tone";
 export type { Locale, PluralForms } from "./messages/formatters";
 export {
+  formatAmountInput,
   formatCents,
   formatClockTime,
   formatDate,

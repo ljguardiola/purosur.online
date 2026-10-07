@@ -42,6 +42,7 @@ export default async function setup(project: TestProject): Promise<() => void> {
     cpSync(join(CLOUD_DIR, "package.json"), join(buildRoot, "package.json"));
     cpSync(MIGRATIONS_FOLDER, join(buildRoot, "migrations"), { recursive: true });
     cpSync(join(CLOUD_DIR, "fonts"), join(buildRoot, "fonts"), { recursive: true });
+    cpSync(join(CLOUD_DIR, "wsdl"), join(buildRoot, "wsdl"), { recursive: true });
     symlinkSync(join(CLOUD_DIR, "node_modules"), join(buildRoot, "node_modules"), "dir");
 
     project.provide("cloudBuildDir", join(buildRoot, "dist"));

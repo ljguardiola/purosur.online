@@ -46,6 +46,8 @@ export interface RecordedPreEmissionGate {
   outcome: PreEmissionGateOutcome;
 }
 
+export type SaleCashMovement = CashMovement & { ref: { type: string; id: string } };
+
 export interface SaleLedger {
   transaction<TOutcome>(work: (tx: SaleLedgerTransaction) => TOutcome): TOutcome;
 }
@@ -67,6 +69,7 @@ export interface SaleLedgerTransaction {
   recordLineQuantity(line: SaleLine): void;
   deleteSaleLine(lineId: string): void;
   salePayments(saleId: string): PaymentTransaction[];
+  saleCashMovements(saleId: string): SaleCashMovement[];
   discardOpenSale(saleId: string): void;
   recordPayment(payment: PaymentTransaction): void;
   recordCashMovement(movement: CashMovement): void;

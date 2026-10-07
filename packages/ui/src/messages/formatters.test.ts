@@ -1,5 +1,7 @@
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
+  formatAmountInput,
   formatCents,
   formatClockTime,
   formatDate,
@@ -11,6 +13,7 @@ import {
   parsePointOfSaleNumber,
   plural,
 } from "./formatters";
+import { parseAmountCents } from "./parsers";
 
 describe("plural", () => {
   it("selects the form Argentine Spanish plural rules choose", () => {
@@ -44,6 +47,23 @@ describe("formatCents", () => {
     expect(formatCents(750_050)).toBe("$ 7.500,50");
     expect(formatCents(1)).toBe("$ 0,01");
     expect(formatCents(2_147_483_647)).toBe("$ 21.474.836,47");
+  });
+});
+
+describe("formatAmountInput", () => {
+  it("writes an amount in cents as the text a person types, with no currency sign", () => {
+    expect(formatAmountInput(420_000)).toBe("4.200,00");
+    expect(formatAmountInput(5)).toBe("0,05");
+    expect(formatAmountInput(0)).toBe("0,00");
+    expect(formatAmountInput(2_147_483_647)).toBe("21.474.836,47");
+  });
+
+  it("reads back as the cents it was written from", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: 99_999_999_999_900 }), (cents) => {
+        expect(parseAmountCents(formatAmountInput(cents))).toBe(cents);
+      }),
+    );
   });
 });
 

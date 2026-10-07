@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ARCA_CERTIFICATE_EXPIRY_ESCALATION_MS } from "../../fiscal/index.js";
 import { ALERT_KINDS } from "./alert-catalog.js";
 import {
   ALERT_ESCALATION_DELAY_MS,
@@ -11,21 +12,30 @@ describe("alertKindPolicy", () => {
     expect(ALERT_ESCALATION_DELAY_MS).toBe(24 * 60 * 60 * 1000);
   });
 
+  const afterOpening = { kind: "afterOpening", delayMs: ALERT_ESCALATION_DELAY_MS } as const;
+
   it.each([
-    ["backoffice_passkey_changed", "warning", ALERT_ESCALATION_DELAY_MS, "user", true],
-    ["backoffice_recovery_requested", "warning", ALERT_ESCALATION_DELAY_MS, "user", true],
-    ["user_email_changed", "warning", ALERT_ESCALATION_DELAY_MS, "user", true],
-    ["backoffice_sign_in_lockout", "warning", ALERT_ESCALATION_DELAY_MS, "sourceAddress", true],
+    ["backoffice_passkey_changed", "warning", afterOpening, "user", true],
+    ["backoffice_recovery_requested", "warning", afterOpening, "user", true],
+    ["user_email_changed", "warning", afterOpening, "user", true],
+    ["backoffice_sign_in_lockout", "warning", afterOpening, "sourceAddress", true],
     ["user_access_increased", "critical", null, "user", false],
-    ["register_enrolled", "warning", ALERT_ESCALATION_DELAY_MS, "register", false],
-    ["events_quarantined", "warning", ALERT_ESCALATION_DELAY_MS, "installation", true],
-    ["event_invariant_violated", "warning", ALERT_ESCALATION_DELAY_MS, "event", true],
+    ["register_enrolled", "warning", afterOpening, "register", false],
+    [
+      "arca_certificate_expiring",
+      "warning",
+      { kind: "beforeDeadline", leadMs: ARCA_CERTIFICATE_EXPIRY_ESCALATION_MS },
+      "environment",
+      true,
+    ],
+    ["events_quarantined", "warning", afterOpening, "installation", true],
+    ["event_invariant_violated", "warning", afterOpening, "event", true],
   ] as const)(
-    "%s opens as %s, escalates after %s, is scoped to %s and deduplicates: %s",
-    (kind, level, escalatesAfterMs, scopeKind, deduplicates) => {
+    "%s opens as %s, escalates %o, is scoped to %s and deduplicates: %s",
+    (kind, level, escalation, scopeKind, deduplicates) => {
       expect(alertKindPolicy(kind)).toEqual({
         level,
-        escalatesAfterMs,
+        escalation,
         audience: "all",
         scopeKind,
         deduplicates,
@@ -52,5 +62,6 @@ describe("alertKindsWithScope", () => {
     expect(alertKindsWithScope("register")).toEqual(["register_enrolled"]);
     expect(alertKindsWithScope("installation")).toEqual(["events_quarantined"]);
     expect(alertKindsWithScope("event")).toEqual(["event_invariant_violated"]);
+    expect(alertKindsWithScope("environment")).toEqual(["arca_certificate_expiring"]);
   });
 });

@@ -1,5 +1,7 @@
-import { type ChargeRefusal, chargeRefusal } from "../../fiscal/index.js";
+import type { ChargeRefusal } from "../../fiscal/index.js";
+import { buyerIdentificationRefusal } from "../model/buyer-identification-check.js";
 import type { SaleWithLines } from "../model/sale.js";
+import { saleBalance } from "../model/sale-balance.js";
 import { saleTotal } from "../model/sale-line.js";
 import type { SaleLedgerTransaction, SellingSession } from "./sale-ledger.js";
 import { isRefusal, sellingSession } from "./selling-session.js";
@@ -16,6 +18,16 @@ export interface ChargeableSale {
   session: SellingSession;
   sale: SaleWithLines;
   total: number;
+  paid: number;
+  pending: number;
+}
+
+export interface PartiallyPaid {
+  kind: "partially_paid";
+  saleId: string;
+  total: number;
+  paid: number;
+  pending: number;
 }
 
 export function chargeableSale(
@@ -39,11 +51,18 @@ export function chargeableSale(
   if (total === 0) {
     return { kind: "zero_total" };
   }
-  const refusal = chargeRefusal(total, tx.buyerIdentificationThresholds(), completedAt);
+  const payments = tx.salePayments(sale.id);
+  const refusal = buyerIdentificationRefusal(
+    total,
+    payments,
+    tx.buyerIdentificationThresholds(),
+    completedAt,
+  );
   if (refusal) {
     return refusal;
   }
-  return { session, sale, total };
+  const { paid, pending } = saleBalance(total, payments);
+  return { session, sale, total, paid, pending };
 }
 
 export function isSaleRefusal(result: ChargeableSale | SaleRefusal): result is SaleRefusal {

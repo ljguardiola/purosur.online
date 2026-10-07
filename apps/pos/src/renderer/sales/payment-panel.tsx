@@ -14,6 +14,9 @@ import type { ReactNode } from "react";
 export type PaymentPanelProps = {
   lineCount: number;
   total: number;
+  paid: number;
+  pending: number;
+  cancellable: boolean;
   chargeRefusal: OpenSale["charge_refusal"];
   canCancel: boolean;
   onCharge: () => void;
@@ -40,6 +43,9 @@ function refusalNotice(refusal: NonNullable<OpenSale["charge_refusal"]>): ReactN
 export function PaymentPanel({
   lineCount,
   total,
+  paid,
+  pending,
+  cancellable,
   chargeRefusal,
   canCancel,
   onCharge,
@@ -51,20 +57,30 @@ export function PaymentPanel({
     <SidePanel
       label="Panel de cobro"
       footer={
-        <Button
-          variant="secondary"
-          destructive
-          fullWidth
-          icon={<X />}
-          disabled={!canCancel}
-          onPress={onCancel}
-        >
-          Cancelar venta
-        </Button>
+        cancellable ? (
+          <Button
+            variant="secondary"
+            destructive
+            fullWidth
+            icon={<X />}
+            disabled={!canCancel}
+            onPress={onCancel}
+          >
+            Cancelar venta
+          </Button>
+        ) : undefined
       }
     >
       <FigureStat label="Total a cobrar" value={formatCents(total)} />
       <SummaryRowGroup rows={[{ label: `${lineCount} ${lines}`, value: formatCents(total) }]} />
+      {paid === 0 ? null : (
+        <SummaryRowGroup
+          rows={[
+            { label: "Pagado", value: formatCents(paid) },
+            { label: "Saldo pendiente", value: formatCents(pending), strong: true },
+          ]}
+        />
+      )}
       {chargeRefusal === null ? null : refusalNotice(chargeRefusal)}
       {chargeRefusal === null ? (
         <Button

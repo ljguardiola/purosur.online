@@ -5,6 +5,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import pg from "pg";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { unreachableArcaEndpoints } from "../fiscal/test-support/unreachable-arca-endpoints.js";
 import {
   auditLog,
   recoveryRejectedAttemptAccumulator,
@@ -157,11 +158,13 @@ async function startRealServer(
         BACKOFFICE_ORIGIN,
         EDGE_ORIGIN_SECRET: TEST_EDGE_ORIGIN_SECRET,
         ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
+        ARCA_ENVIRONMENT: "homologation",
         DEVICE_TOKEN_ROTATION_KEY: TEST_DEVICE_TOKEN_ROTATION_KEY.toString("base64"),
         INSTALLATION_KEYS_ENCRYPTION_KEY: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY.toString("base64"),
       },
       {
         now: () => new Date(currentTime),
+        arcaEndpoints: unreachableArcaEndpoints,
         setUpRecovery: async (recoveryEnv, now) => {
           recovery = await setUpRecovery(recoveryEnv, now, {
             emailSender,

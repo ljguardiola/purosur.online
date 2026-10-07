@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { PaymentTransaction } from "../model/payment.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { changeLineQuantity } from "./change-line-quantity.js";
 import {
@@ -40,6 +41,18 @@ const OPEN_SALE: SaleWithLines = {
   state: "OPEN",
   lines: [YERBA_LINE, AZUCAR_LINE],
 };
+const PAYMENT: PaymentTransaction = {
+  id: "payment-1",
+  saleId: "sale-1",
+  kind: "SALE",
+  method: "CASH",
+  provider: "NONE",
+  amount: 1000,
+  tendered: 1000,
+  state: "APPROVED",
+  occurredAt: NOW,
+};
+
 const TEN_PERCENT = { id: "ten", benefit: { kind: "PERCENT_OFF" as const, percent: 10 } };
 const THREE_FOR_TWO = {
   id: "three-for-two",
@@ -88,6 +101,9 @@ describe("changeLineQuantity", () => {
         ...OPEN_SALE,
         lines: [{ ...YERBA_LINE, quantity: 5, lineTotal: 12500 }, AZUCAR_LINE],
       },
+      balance: { paid: 0, pending: 13700 },
+      linesEditable: true,
+      cancellable: true,
     });
     expect(store.state.outbox).toEqual([]);
   });
@@ -102,6 +118,9 @@ describe("changeLineQuantity", () => {
     expect(outcome).toEqual({
       kind: "changed",
       sale: { ...OPEN_SALE, lines: [{ ...YERBA_LINE, quantity: 1, lineTotal: 2500 }, AZUCAR_LINE] },
+      balance: { paid: 0, pending: 3700 },
+      linesEditable: true,
+      cancellable: true,
     });
     expect(store.state).toEqual({
       ...before,
@@ -186,7 +205,13 @@ describe("changeLineQuantity", () => {
 
     const outcome = change(store, "line-1", 3);
 
-    expect(outcome).toEqual({ kind: "changed", sale: OPEN_SALE });
+    expect(outcome).toEqual({
+      kind: "changed",
+      sale: OPEN_SALE,
+      balance: { paid: 0, pending: 8700 },
+      linesEditable: true,
+      cancellable: true,
+    });
     expect(store.state).toEqual(before);
   });
 
@@ -351,5 +376,28 @@ describe("change-line-quantity charge refusal", () => {
     expect(change(store, "line-1", 5)).toEqual(
       expect.objectContaining({ chargeRefusal: { kind: "no_buyer_identification_threshold" } }),
     );
+  });
+});
+
+describe("changeLineQuantity on a sale with an approved payment", () => {
+  it("refuses to change a line, writing nothing", () => {
+    const store = ledger({ payments: [PAYMENT] });
+    const before = structuredClone(store.state);
+
+    expect(change(store, "line-1", 5)).toEqual({ kind: "sale_has_payments" });
+    expect(store.state).toEqual(before);
+  });
+
+  it("refuses before checking the quantity and the line", () => {
+    const store = ledger({ payments: [PAYMENT] });
+
+    expect(change(store, "line-1", 0)).toEqual({ kind: "sale_has_payments" });
+    expect(change(store, "line-9", 2)).toEqual({ kind: "sale_has_payments" });
+  });
+
+  it("still changes a sale whose payments belong to another sale", () => {
+    const store = ledger({ payments: [{ ...PAYMENT, saleId: "sale-9" }] });
+
+    expect(change(store, "line-1", 5)).toMatchObject({ kind: "changed" });
   });
 });

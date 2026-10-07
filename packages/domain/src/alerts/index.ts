@@ -10,6 +10,7 @@ export type {
   AccessIncreasedDetail,
   AlertDetails,
   AlertRoleSummary,
+  ArcaCertificateExpiringDetail,
   EmailChangedDetail,
   EventInvariantViolatedDetail,
   EventsQuarantinedDetail,

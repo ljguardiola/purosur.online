@@ -18,6 +18,7 @@ import type {
   IdGenerator,
   RecordedPreEmissionGate,
   RegisterIdentity,
+  SaleCashMovement,
   SaleLedger,
   SaleLedgerTransaction,
   SellableProduct,
@@ -158,6 +159,13 @@ export class FakeSaleLedger implements SaleLedger {
       },
       salePayments: (saleId) =>
         structuredClone(working.payments.filter((payment) => payment.saleId === saleId)),
+      saleCashMovements: (saleId) =>
+        structuredClone(
+          working.movements.filter(
+            (movement): movement is SaleCashMovement =>
+              movement.ref?.type === "sale" && movement.ref.id === saleId,
+          ),
+        ),
       discardOpenSale: (saleId) => {
         this.failIfAsked("discardOpenSale");
         working.sales = working.sales.filter((stored) => stored.id !== saleId);

@@ -154,6 +154,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       },
       chargeSaleByTransfer: async (request: {
         saleId: string;
+        amount: number;
       }): Promise<ChargeSaleByTransferOutcome> => {
         transferCharges.push(request);
         return { kind: "no_open_sale" };
@@ -938,17 +939,19 @@ describe("answerRendererRequest", () => {
       type: "charge-sale-by-transfer",
       request_id: "r34",
       sale_id: "s1",
+      amount: 1200,
     });
     const recording = deps(true);
     await answerRendererRequest(recording.deps, {
       type: "charge-sale-by-transfer",
       request_id: "r35",
       sale_id: "s2",
+      amount: 1200,
     });
 
     expect(answer).toEqual({ type: "charge-sale-by-transfer-result", request_id: "r34", outcome });
     expect(transferCharges).toEqual([]);
-    expect(recording.transferCharges).toEqual([{ saleId: "s2" }]);
+    expect(recording.transferCharges).toEqual([{ saleId: "s2", amount: 1200 }]);
     expect(recording.charges).toEqual([]);
   });
 
@@ -965,6 +968,7 @@ describe("answerRendererRequest", () => {
         type: "charge-sale-by-transfer",
         request_id: "r36",
         sale_id: "s1",
+        amount: 1200,
       }),
     ).toEqual({
       type: "charge-sale-by-transfer-result",
@@ -982,6 +986,7 @@ describe("answerRendererRequest", () => {
         type: "charge-sale-by-transfer",
         request_id: "r37",
         sale_id: "s1",
+        amount: 1200,
       }),
     ).toEqual({
       type: "charge-sale-by-transfer-result",
@@ -1110,6 +1115,10 @@ describe("answerRendererRequest", () => {
         },
       ],
       total: 1500,
+      paid: 0,
+      pending: 1500,
+      lines_editable: true,
+      cancellable: true,
       charge_refusal: null,
     };
     const { deps: withSale, saleLookups } = deps(true, { currentSale: async () => sale });

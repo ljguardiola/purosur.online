@@ -48,12 +48,20 @@ export const SALE_OF_YERBA: OpenSale = {
   id: "sale-1",
   lines: [YERBA],
   total: 476_000,
+  paid: 0,
+  pending: 476_000,
+  lines_editable: true,
+  cancellable: true,
   charge_refusal: null,
 };
 export const SALE_OF_YERBA_AND_ALFAJOR: OpenSale = {
   id: "sale-1",
   lines: [YERBA, ALFAJOR],
   total: 626_000,
+  paid: 0,
+  pending: 626_000,
+  lines_editable: true,
+  cancellable: true,
   charge_refusal: null,
 };
 

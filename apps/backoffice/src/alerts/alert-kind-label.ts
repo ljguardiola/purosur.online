@@ -9,6 +9,7 @@ const ALERT_KIND_LABELS = {
   register_enrolled: "Alta de caja",
   events_quarantined: "Cuarentena de eventos",
   event_invariant_violated: "Inconsistencia en un evento",
+  arca_certificate_expiring: "Certificado de ARCA por vencer",
 } satisfies Record<AlertKind, string>;
 
 export function alertKindLabel(kind: string): string {
