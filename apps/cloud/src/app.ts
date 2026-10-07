@@ -1,6 +1,7 @@
 import { extname, relative, sep } from "node:path";
 import fastifyStatic from "@fastify/static";
 import type { ErrorReportingConfiguration } from "@purosur/contracts";
+import { admitInstallationRequest } from "@purosur/domain/sync/use-cases";
 import { setupFastifyErrorHandler as defaultSetupFastifyErrorHandler } from "@sentry/node";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
@@ -120,6 +121,7 @@ import { registerStockMovementsRoutes } from "./stock/stock-movements-route.js";
 import { registerStockProductsRoute } from "./stock/stock-products-route.js";
 import type { StockRouteOptions } from "./stock/stock-route-options.js";
 import { registerChangesRoute } from "./sync/changes-route.js";
+import { DrizzleRequestAdmission } from "./sync/drizzle-request-admission.js";
 import { registerEventsRoute } from "./sync/events-route.js";
 
 type WithoutClock<T> = Omit<T, "now">;
@@ -287,6 +289,11 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         ...(devices && {
           authenticateDevice: (authorization) =>
             authenticateDevice(installationTokenPorts(devices), authorization),
+          admitRequest: (deviceId) =>
+            admitInstallationRequest(
+              { admission: new DrizzleRequestAdmission(devices.db), clock: { now } },
+              { deviceId, endpoint: "health_check" },
+            ),
         }),
       });
 

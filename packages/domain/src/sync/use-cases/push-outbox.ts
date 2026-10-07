@@ -7,6 +7,7 @@ export type PushOutboxOutcome<TFailure> =
   | { kind: "ack_short_of_batch"; ackSeq: number }
   | { kind: "gap"; expectedSeq: number }
   | { kind: "stale_device" }
+  | { kind: "update_required" }
   | { kind: "revoked" }
   | { kind: "compromised" }
   | { kind: "failed"; failure: TFailure };
@@ -53,6 +54,9 @@ export async function pushOutbox<TFailure>({
       }
       case "stale_device":
         return { kind: "stale_device" };
+      case "update_required":
+        await outbox.acknowledgeThrough(answer.ackSeq);
+        return { kind: "update_required" };
       case "revoked":
         await installation.recordRevoked();
         return { kind: "revoked" };

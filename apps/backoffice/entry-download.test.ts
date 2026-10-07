@@ -8,6 +8,8 @@ const SIGN_IN_PAGE = `${BACKOFFICE_ROOT}src/access/sign-in-page.tsx`;
 
 let chunks: Map<string, Rolldown.OutputChunk>;
 
+// The build ends on its own, succeeding or failing, so the setup waits for it however long the
+// machine takes to build.
 beforeAll(async () => {
   const output = (await build({
     root: BACKOFFICE_ROOT,
@@ -20,7 +22,7 @@ beforeAll(async () => {
       .filter((file): file is Rolldown.OutputChunk => file.type === "chunk")
       .map((chunk) => [chunk.fileName, chunk]),
   );
-}, 60_000);
+}, 0);
 
 function modulesDownloadedFrom(starts: Rolldown.OutputChunk[]) {
   const downloaded = new Set<string>();

@@ -3,6 +3,7 @@ import { createActionGate } from "../../access/action-gate";
 import { derivePinVerifier } from "../../access/pin-verifier";
 import { createSignedInPerson } from "../../access/signed-in-person";
 import { SqliteSignInStore } from "../../access/sqlite-sign-in-store";
+import type { LocalDatabase } from "../../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../../platform/local-migrations";
 import { migrationClock } from "../../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../../platform/test-support/open-local-database";
@@ -126,10 +127,14 @@ function seed(database: ReturnType<typeof openLocalDatabase>): void {
     .run(BUY_THREE_PAY_TWO, COOKIES);
 }
 
-export async function registerSessionPush(): Promise<{
-  outboxChainKey: string;
-  sentBody: unknown;
-}> {
+export interface RegisterSession {
+  database: LocalDatabase;
+  now: () => Date;
+}
+
+export async function withRegisterSession<TResult>(
+  use: (session: RegisterSession) => Promise<TResult>,
+): Promise<TResult> {
   const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
   try {
     seed(database);
@@ -234,6 +239,17 @@ export async function registerSessionPush(): Promise<{
     });
     expectOutcome("close the cash session", closed.kind, "closed");
 
+    return await use({ database, now });
+  } finally {
+    database.close();
+  }
+}
+
+export async function registerSessionPush(): Promise<{
+  outboxChainKey: string;
+  sentBody: unknown;
+}> {
+  return withRegisterSession(async ({ database, now }) => {
     const events = await new SqliteLocalOutbox(database, now).unacknowledged(100);
     const lastSeq = events.at(-1)?.device_seq ?? 0;
     const posted: unknown[] = [];
@@ -254,7 +270,5 @@ export async function registerSessionPush(): Promise<{
       throw new Error(`The register session posted ${posted.length} pushes, not 1`);
     }
     return { outboxChainKey: OUTBOX_CHAIN_KEY, sentBody: posted[0] };
-  } finally {
-    database.close();
-  }
+  });
 }

@@ -3,9 +3,11 @@ import type { SyncResult } from "./sync-schedule";
 export interface SyncCycleDeps {
   checkInstallation: () => Promise<SyncResult>;
   push: () => Promise<SyncResult>;
+  prune: () => Promise<void>;
   pull: () => Promise<SyncResult>;
   onCheckFailure: (error: unknown) => void;
   onPushFailure: (error: unknown) => void;
+  onPruneFailure: (error: unknown) => void;
 }
 
 async function caught(
@@ -21,11 +23,10 @@ async function caught(
 }
 
 export async function runSyncCycle(deps: SyncCycleDeps): Promise<SyncResult> {
-  const results = [
-    await caught(deps.checkInstallation, deps.onCheckFailure),
-    await caught(deps.push, deps.onPushFailure),
-    await deps.pull(),
-  ];
+  const checked = await caught(deps.checkInstallation, deps.onCheckFailure);
+  const pushed = await caught(deps.push, deps.onPushFailure);
+  await deps.prune().catch(deps.onPruneFailure);
+  const results = [checked, pushed, await deps.pull()];
   if (results.every((result) => result.kind === "succeeded")) {
     return { kind: "succeeded" };
   }

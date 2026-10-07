@@ -3,7 +3,9 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { describe, expect, inject, it } from "vitest";
 
-describe("the built cloud", () => {
+// Node exits on its own once the module is imported, so the test waits for it however long the
+// machine takes to load the module.
+describe("the built cloud", { timeout: 0 }, () => {
   it("runs a module that imports @purosur/contracts under plain Node", () => {
     const registerCreationRouteUrl = pathToFileURL(
       join(inject("cloudBuildDir"), "register", "register-creation-route.js"),

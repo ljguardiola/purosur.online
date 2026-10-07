@@ -52,6 +52,7 @@ export const pushEventsResponseSchema = z.discriminatedUnion("status", [
     expected_seq: z.int().positive(),
   }),
   z.object({ status: z.literal("stale_device"), ack_seq: ackSeqSchema }),
+  z.object({ status: z.literal("update_required"), ack_seq: ackSeqSchema }),
 ]);
 
 export type PushEventsResponse = z.output<typeof pushEventsResponseSchema>;

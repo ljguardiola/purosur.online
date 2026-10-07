@@ -113,8 +113,22 @@ describe("receiving the events a register pushes", () => {
     expect(inbox.receivedSeqs(DEVICE)).toEqual([1, 2, 4]);
   });
 
+  it("needs no chain key to answer the ack of a push that carries no event", async () => {
+    const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1, 2] }]);
+    inbox.chainKeys.set(DEVICE, undefined);
+
+    const outcome = await receive(inbox, []);
+
+    expect(outcome).toEqual({ kind: "received", ackSeq: 2 });
+    expect(inbox.state.brokenChainRevocations).toEqual([]);
+  });
+
   it("keeps the events of each installation apart", async () => {
-    const inbox = new FakeInbox([{ deviceId: OTHER_DEVICE, seqs: [1, 2, 3] }]);
+    const inbox = new FakeInbox();
+    inbox.holdEvents(
+      OTHER_DEVICE,
+      ...[1, 2, 3].map((seq) => fakeEvent(seq, `other-installation-event-${seq}`)),
+    );
 
     const outcome = await receive(inbox, eventsOf(1));
 
@@ -230,6 +244,189 @@ describe("receiving the events a register pushes", () => {
       refusedPushes: [],
       brokenChainRevocations: [],
     });
+  });
+});
+
+describe("requiring a register version", () => {
+  it("answers update_required to a version that is not accepted, with the ack it already holds and receiving nothing", async () => {
+    const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1, 2, 4] }]);
+
+    const outcome = await receive(inbox, eventsOf(3), { appVersion: "not-a-version" });
+
+    expect(outcome).toEqual({ kind: "update_required", ackSeq: 2 });
+    expect(inbox.receivedSeqs(DEVICE)).toEqual([1, 2, 4]);
+  });
+
+  it("still records the version and the telemetry the register reported", async () => {
+    const inbox = new FakeInbox();
+
+    await receive(inbox, eventsOf(1), { appVersion: "not-a-version" });
+
+    expect(inbox.state.reports).toEqual([
+      { deviceId: DEVICE, appVersion: "not-a-version", telemetry: TELEMETRY, at: NOW },
+    ]);
+  });
+
+  it("answers update_required before looking at the events, even when they would break the chain", async () => {
+    const inbox = new FakeInbox();
+
+    const outcome = await receive(inbox, [{ ...fakeEvent(3), chain_hmac: "forged-link" }], {
+      appVersion: "1.4",
+    });
+
+    expect(outcome).toEqual({ kind: "update_required", ackSeq: 0 });
+    expect(inbox.state.refusedPushes).toEqual([]);
+    expect(inbox.state.brokenChainRevocations).toEqual([]);
+  });
+
+  it("answers revoked to a revoked installation before looking at its version", async () => {
+    const inbox = new FakeInbox();
+    inbox.revokedDevices.add(DEVICE);
+
+    const outcome = await receive(inbox, eventsOf(1), { appVersion: "1.4" });
+
+    expect(outcome).toEqual({ kind: "revoked" });
+    expect(inbox.state.reports).toEqual([]);
+  });
+
+  it("receives the push of an accepted version", async () => {
+    const inbox = new FakeInbox();
+
+    const outcome = await receive(inbox, eventsOf(1), { appVersion: "0.0.0" });
+
+    expect(outcome).toEqual({ kind: "received", ackSeq: 1 });
+  });
+});
+
+describe("an event a register pushes again", () => {
+  const REFUSED = { kind: "chain_broken" };
+
+  function expectBrokenChain(inbox: FakeInbox, pushed: PushedEvent[], heldSeqs: number[]) {
+    expect(inbox.receivedSeqs(DEVICE)).toEqual(heldSeqs);
+    expect(inbox.state.refusedPushes).toEqual([
+      { deviceId: DEVICE, events: pushed, refusedAt: NOW },
+    ]);
+    expect(inbox.state.brokenChainRevocations).toEqual([{ deviceId: DEVICE, revokedAt: NOW }]);
+  }
+
+  it("is skipped when it is identical to the one held, storing nothing again and revoking nothing", async () => {
+    const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1, 2, 3] }]);
+
+    const outcome = await receive(inbox, eventsOf(2, 3));
+
+    expect(outcome).toEqual({ kind: "received", ackSeq: 3 });
+    expect(inbox.receivedSeqs(DEVICE)).toEqual([1, 2, 3]);
+    expect(inbox.state.refusedPushes).toEqual([]);
+    expect(inbox.state.brokenChainRevocations).toEqual([]);
+  });
+
+  it("is skipped when its first copy of the batch is repeated identically inside it", async () => {
+    const inbox = new FakeInbox();
+
+    const outcome = await receive(inbox, [...eventsOf(1, 2), fakeEvent(2)]);
+
+    expect(outcome).toEqual({ kind: "received", ackSeq: 2 });
+    expect(inbox.state.brokenChainRevocations).toEqual([]);
+  });
+
+  it("breaks the chain when it arrives with altered content, receiving none of the batch", async () => {
+    const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1, 2] }]);
+    const pushed = [fakeEvent(1), { ...fakeEvent(2), payload: { seq: 99 } }, fakeEvent(3)];
+
+    const outcome = await receive(inbox, pushed);
+
+    expect(outcome).toEqual(REFUSED);
+    expectBrokenChain(inbox, pushed, [1, 2]);
+  });
+
+  it("breaks the chain when it arrives with a link other than the one held", async () => {
+    const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1, 2] }]);
+    const pushed = [{ ...fakeEvent(2), chain_hmac: "another-link" }, fakeEvent(3)];
+
+    const outcome = await receive(inbox, pushed);
+
+    expect(outcome).toEqual(REFUSED);
+    expectBrokenChain(inbox, pushed, [1, 2]);
+  });
+
+  it("breaks the chain when the first event of an installation arrives again altered", async () => {
+    const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]);
+    const pushed = [{ ...fakeEvent(1), actor_id: "someone-else" }];
+
+    const outcome = await receive(inbox, pushed);
+
+    expect(outcome).toEqual(REFUSED);
+    expectBrokenChain(inbox, pushed, [1]);
+  });
+
+  it("breaks the chain when the copy repeated inside the batch differs from the first", async () => {
+    const inbox = new FakeInbox();
+    const pushed = [fakeEvent(1), { ...fakeEvent(1), payload: { seq: 99 } }];
+
+    const outcome = await receive(inbox, pushed);
+
+    expect(outcome).toEqual(REFUSED);
+    expectBrokenChain(inbox, pushed, []);
+  });
+
+  it("breaks the chain when it arrives at another position of the same installation", async () => {
+    const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1, 2] }]);
+    const pushed = [fakeEvent(3, "event-1")];
+
+    const outcome = await receive(inbox, pushed);
+
+    expect(outcome).toEqual(REFUSED);
+    expectBrokenChain(inbox, pushed, [1, 2]);
+  });
+
+  it("breaks the chain when its id is already held for another installation", async () => {
+    const inbox = new FakeInbox([{ deviceId: OTHER_DEVICE, seqs: [1] }]);
+    const pushed = [fakeEvent(1, "event-1")];
+
+    const outcome = await receive(inbox, pushed);
+
+    expect(outcome).toEqual(REFUSED);
+    expectBrokenChain(inbox, pushed, []);
+    expect(inbox.receivedSeqs(OTHER_DEVICE)).toEqual([1]);
+  });
+
+  it("breaks the chain when its id comes twice in the batch at different positions", async () => {
+    const inbox = new FakeInbox();
+    const pushed = [fakeEvent(1), fakeEvent(2, "event-1")];
+
+    const outcome = await receive(inbox, pushed);
+
+    expect(outcome).toEqual(REFUSED);
+    expectBrokenChain(inbox, pushed, []);
+  });
+
+  it("breaks the chain when the installation has no chain key to show the held copy was not altered", async () => {
+    const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1, 2] }]);
+    inbox.chainKeys.set(DEVICE, undefined);
+    const pushed = eventsOf(1, 2);
+
+    const outcome = await receive(inbox, pushed);
+
+    expect(outcome).toEqual(REFUSED);
+    expectBrokenChain(inbox, pushed, [1, 2]);
+  });
+
+  it("is answered as a stale device when its position holds another event, even beside one that would break the chain", async () => {
+    const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1, 2] }]);
+
+    const outcome = await receive(inbox, [fakeEvent(1, "event-2"), fakeEvent(2, "another-event")]);
+
+    expect(outcome).toEqual({ kind: "stale_device", ackSeq: 2 });
+    expect(inbox.state.brokenChainRevocations).toEqual([]);
+  });
+
+  it("is answered as a gap when one comes ahead, even beside one that would break the chain", async () => {
+    const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1, 2] }]);
+
+    const outcome = await receive(inbox, [{ ...fakeEvent(2), payload: { seq: 99 } }, fakeEvent(5)]);
+
+    expect(outcome).toEqual({ kind: "gap", ackSeq: 2, expectedSeq: 3 });
+    expect(inbox.state.brokenChainRevocations).toEqual([]);
   });
 });
 
@@ -360,26 +557,6 @@ describe("checking the chain of the events a register pushes", () => {
 
     expect(outcome).toEqual(REFUSED);
     expect(inbox.receivedSeqs(DEVICE)).toEqual([]);
-  });
-
-  it("receives a push of events it already holds from an installation that has no chain key", async () => {
-    const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1, 2] }]);
-    inbox.chainKeys.set(DEVICE, undefined);
-
-    const outcome = await receive(inbox, eventsOf(1, 2));
-
-    expect(outcome).toEqual({ kind: "received", ackSeq: 2 });
-  });
-
-  it("does not check again an event it already holds", async () => {
-    const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1, 2] }]);
-
-    const outcome = await receive(inbox, [
-      { ...fakeEvent(2), chain_hmac: "another-link" },
-      fakeEvent(3),
-    ]);
-
-    expect(outcome).toEqual({ kind: "received", ackSeq: 3 });
   });
 
   it("checks nothing of a push it refuses for a gap or a stale device", async () => {

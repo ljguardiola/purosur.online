@@ -143,6 +143,20 @@ describe("pushing the outbox to the cloud", () => {
     expect(outbox.acknowledgedThrough).toEqual([]);
   });
 
+  it("acknowledges what the cloud already holds and pushes nothing more when it asks the register to update", async () => {
+    const outbox = new FakeLocalOutbox(eventsFrom(1, 250));
+    const { inbox, installation, outcome } = push(outbox, [
+      { kind: "update_required", ackSeq: 40 },
+    ]);
+
+    expect(await outcome).toEqual({ kind: "update_required" });
+    expect(outbox.acknowledgedThrough).toEqual([40]);
+    expect(inbox.pushedBatches).toHaveLength(1);
+    expect(installation.revoked).toBe(false);
+    expect(outbox.compromised).toBe(false);
+    expect(outbox.events.map((event) => event.device_seq)[0]).toBe(41);
+  });
+
   it("records the installation as revoked when the cloud says so, acknowledging nothing", async () => {
     const outbox = new FakeLocalOutbox(eventsFrom(1, 2));
     const { installation, outcome } = push(outbox, [{ kind: "revoked" }]);
@@ -156,6 +170,7 @@ describe("pushing the outbox to the cloud", () => {
     { kind: "received", ackSeq: 2 },
     { kind: "gap", ackSeq: 0, expectedSeq: 1 },
     { kind: "stale_device", ackSeq: 9 },
+    { kind: "update_required", ackSeq: 1 },
     { kind: "failed", failure: "token refused" },
   ])("does not record the installation as revoked when the cloud answers $kind", async (answer) => {
     const outbox = new FakeLocalOutbox(eventsFrom(1, 2));

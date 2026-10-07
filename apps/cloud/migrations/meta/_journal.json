@@ -386,6 +386,13 @@
       "when": 1791249058506,
       "tag": "0054_refused_events",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1791378432728,
+      "tag": "0055_installation_request_attempts",
+      "breakpoints": true
     }
   ]
 }

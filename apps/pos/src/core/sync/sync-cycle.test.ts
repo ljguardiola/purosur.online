@@ -9,10 +9,12 @@ function cycleWith(
   push: () => Promise<SyncResult>,
   pull: () => Promise<SyncResult>,
   checkInstallation: () => Promise<SyncResult> = async () => SUCCEEDED,
+  prune: () => Promise<void> = async () => {},
 ) {
   const order: string[] = [];
   const pushFailures: unknown[] = [];
   const checkFailures: unknown[] = [];
+  const pruneFailures: unknown[] = [];
   const cycle = () =>
     runSyncCycle({
       checkInstallation: async () => {
@@ -23,25 +25,30 @@ function cycleWith(
         order.push("push");
         return push();
       },
+      prune: async () => {
+        order.push("prune");
+        return prune();
+      },
       pull: async () => {
         order.push("pull");
         return pull();
       },
       onPushFailure: (error) => pushFailures.push(error),
       onCheckFailure: (error) => checkFailures.push(error),
+      onPruneFailure: (error) => pruneFailures.push(error),
     });
-  return { cycle, order, pushFailures, checkFailures };
+  return { cycle, order, pushFailures, checkFailures, pruneFailures };
 }
 
 describe("a sync cycle", () => {
-  it("checks the installation with the cloud, pushes the outbox, then pulls the cloud's changes", async () => {
+  it("checks the installation with the cloud, pushes the outbox, prunes it, then pulls the cloud's changes", async () => {
     const { cycle, order } = cycleWith(
       async () => SUCCEEDED,
       async () => SUCCEEDED,
     );
 
     expect(await cycle()).toEqual(SUCCEEDED);
-    expect(order).toEqual(["check", "push", "pull"]);
+    expect(order).toEqual(["check", "push", "prune", "pull"]);
   });
 
   it("still pushes and pulls when the check failed, and counts the cycle as failed", async () => {
@@ -52,7 +59,7 @@ describe("a sync cycle", () => {
     );
 
     expect(await cycle()).toEqual(FAILED);
-    expect(order).toEqual(["check", "push", "pull"]);
+    expect(order).toEqual(["check", "push", "prune", "pull"]);
   });
 
   it("still pushes and pulls when the check throws, reporting the failure and counting the cycle as failed", async () => {
@@ -65,7 +72,7 @@ describe("a sync cycle", () => {
     );
 
     expect(await cycle()).toEqual(FAILED);
-    expect(order).toEqual(["check", "push", "pull"]);
+    expect(order).toEqual(["check", "push", "prune", "pull"]);
     expect(checkFailures).toEqual([new Error("disk full")]);
   });
 
@@ -86,7 +93,7 @@ describe("a sync cycle", () => {
     );
 
     expect(await cycle()).toEqual(FAILED);
-    expect(order).toEqual(["check", "push", "pull"]);
+    expect(order).toEqual(["check", "push", "prune", "pull"]);
   });
 
   it("counts the cycle as failed when only the pull failed", async () => {
@@ -107,8 +114,33 @@ describe("a sync cycle", () => {
     );
 
     expect(await cycle()).toEqual(FAILED);
-    expect(order).toEqual(["check", "push", "pull"]);
+    expect(order).toEqual(["check", "push", "prune", "pull"]);
     expect(pushFailures).toEqual([new Error("disk full")]);
+  });
+
+  it("still pulls when the pruning throws, reporting the failure without counting the cycle as failed", async () => {
+    const { cycle, order, pruneFailures } = cycleWith(
+      async () => SUCCEEDED,
+      async () => SUCCEEDED,
+      async () => SUCCEEDED,
+      async () => {
+        throw new Error("database is locked");
+      },
+    );
+
+    expect(await cycle()).toEqual(SUCCEEDED);
+    expect(order).toEqual(["check", "push", "prune", "pull"]);
+    expect(pruneFailures).toEqual([new Error("database is locked")]);
+  });
+
+  it("prunes the outbox even when the push failed", async () => {
+    const { cycle, order } = cycleWith(
+      async () => FAILED,
+      async () => SUCCEEDED,
+    );
+
+    expect(await cycle()).toEqual(FAILED);
+    expect(order).toEqual(["check", "push", "prune", "pull"]);
   });
 
   it("lets a pull that throws reach the schedule", async () => {
@@ -162,12 +194,14 @@ describe("the sync schedule running sync cycles", () => {
             }
             return FAILED;
           },
+          prune: async () => {},
           pull: async () => {
             pulls += 1;
             return SUCCEEDED;
           },
           onPushFailure: () => {},
           onCheckFailure: () => {},
+          onPruneFailure: () => {},
         }),
       intervalMs: 30_000,
       failureBackoff: { baseMs: 2000, maxMs: 60_000 },
