@@ -21,7 +21,11 @@
       ]
     },
     "apps/cloud": {
-      "entry": ["src/load-sample-data.ts", "src/clear-sample-data.ts"],
+      "entry": [
+        "src/load-sample-data.ts",
+        "src/clear-sample-data.ts",
+        "src/record-arca-responses.ts"
+      ],
       "includeEntryExports": true
     },
     "apps/pos": {

@@ -35,6 +35,7 @@ import { DrizzleIssuerIdentificationStore } from "./fiscal/drizzle-issuer-identi
 import { ArcaWsaaAuthentication, wsaaEndpointOf } from "./fiscal/wsaa-authentication.js";
 import { wsaaTokenRenewalJobs } from "./fiscal/wsaa-token-renewal-task.js";
 import { WsfeArcaVitalityService, wsfeEndpointOf } from "./fiscal/wsfe-arca-vitality-service.js";
+import { normalizePemNewlines } from "./platform/pem-newlines.js";
 import { runShutdownSteps } from "./platform/run-shutdown-steps.js";
 import { initSentry } from "./platform/sentry.js";
 
@@ -171,14 +172,6 @@ function extractSerialNumber(subject: string): string | undefined {
     }
   }
   return undefined;
-}
-
-/**
- * Railway and GitHub deliver a multi-line variable either with real newlines or, collapsed to one
- * line, as the literal two-character sequence `\n`; both are accepted so the PEM parses either way.
- */
-function normalizePemNewlines(pem: string): string {
-  return pem.includes("\\n") ? pem.replaceAll("\\n", "\n") : pem;
 }
 
 function parseArcaCertificate(env: ServerEnv): X509Certificate {
