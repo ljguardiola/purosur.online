@@ -5,7 +5,7 @@ import { hmacEventChain } from "../hmac-event-chain.js";
 
 export const PUSHING_CHAIN_KEY = Buffer.alloc(32, 3).toString("base64");
 
-export const CASHIER = "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03";
+const CASHIER = "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03";
 
 export interface PushedEventDraft {
   aggregate_type: string;
