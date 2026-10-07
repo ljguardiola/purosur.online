@@ -20,7 +20,6 @@ type WsaaTokenOperation = "lockWsaaToken" | "recordWsaaToken" | "requestToken";
 
 class FakeTransaction implements WsaaTokenStoreTransaction {
   private readonly store: FakeWsaaTokenStore;
-  private key: { service: string; certificateFingerprint: string } | null = null;
 
   constructor(store: FakeWsaaTokenStore) {
     this.store = store;
@@ -28,7 +27,6 @@ class FakeTransaction implements WsaaTokenStoreTransaction {
 
   async lockWsaaToken(service: string, certificateFingerprint: string): Promise<WsaaToken | null> {
     this.store.operations.push("lockWsaaToken");
-    this.key = { service, certificateFingerprint };
     const row = this.store.rows.find(
       (candidate) =>
         candidate.service === service &&
@@ -37,15 +35,15 @@ class FakeTransaction implements WsaaTokenStoreTransaction {
     return row ? copyOf(row.token) : null;
   }
 
-  async recordWsaaToken(token: WsaaToken): Promise<void> {
+  async recordWsaaToken(
+    service: string,
+    certificateFingerprint: string,
+    token: WsaaToken,
+  ): Promise<void> {
     this.store.operations.push("recordWsaaToken");
     if (this.store.failingRecord) {
       throw new Error("recordWsaaToken failed");
     }
-    if (!this.key) {
-      throw new Error("the token row was not locked");
-    }
-    const { service, certificateFingerprint } = this.key;
     const kept = this.store.rows.filter(
       (row) => row.service !== service || row.certificateFingerprint !== certificateFingerprint,
     );
