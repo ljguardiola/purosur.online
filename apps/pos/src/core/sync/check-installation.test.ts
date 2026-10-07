@@ -26,7 +26,8 @@ function register() {
         "SELECT installation_revoked_at FROM sync_state",
       )
       .get()?.installation_revoked_at;
-  return { replica, installation, revokedAt };
+  const syncState = () => database.prepare("SELECT * FROM sync_state").all();
+  return { replica, installation, revokedAt, syncState };
 }
 
 function depsFor(
@@ -180,5 +181,27 @@ describe("the warning of checking the installation", () => {
     ] as const) {
       expect(installationCheckWarningOf(attempt)).toBeUndefined();
     }
+  });
+});
+
+describe("a health check the cloud refuses for asking too often", () => {
+  it("asks to wait as long as the cloud said, without recording the installation as revoked", async () => {
+    const registerUnderTest = register();
+    registerUnderTest.replica.adoptDevice({
+      deviceId: CREDENTIALS.device_id,
+      pepper: CREDENTIALS.pepper,
+    });
+    const syncStateBefore = registerUnderTest.syncState();
+
+    const attempt = await checkInstallation(
+      depsFor(registerUnderTest, {
+        kind: "error",
+        error: cloudError("rate_limited", "too many requests", [{ retry_after_seconds: 45 }]),
+      }),
+    );
+
+    expect(installationCheckResultOf(attempt)).toEqual({ kind: "failed", retryAfterMs: 45_000 });
+    expect(registerUnderTest.revokedAt()).toBeNull();
+    expect(registerUnderTest.syncState()).toEqual(syncStateBefore);
   });
 });

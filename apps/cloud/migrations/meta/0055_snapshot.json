@@ -1,5 +1,5 @@
 {
-  "id": "d9140286-8ad8-4034-9855-a19cb862680f",
+  "id": "096787ee-0d71-4c33-8038-9c7c79595107",
   "prevId": "d932fa9a-74c5-401b-83ab-87fec461b87a",
   "version": "7",
   "dialect": "postgresql",
@@ -283,54 +283,6 @@
           "value": "(\"alerts\".\"audience\" = 'local' AND \"alerts\".\"location_id\" IS NOT NULL) OR (\"alerts\".\"audience\" = 'all' AND \"alerts\".\"location_id\" IS NULL)"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.arca_vitality_checks": {
-      "name": "arca_vitality_checks",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "checked_at": {
-          "name": "checked_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "ok": {
-          "name": "ok",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "arca_vitality_checks_checked_at_idx": {
-          "name": "arca_vitality_checks_checked_at_idx",
-          "columns": [
-            {
-              "expression": "checked_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.audit_log": {
@@ -1525,6 +1477,83 @@
           "value": "\"inbox\".\"device_seq\" > 0"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.installation_request_attempts": {
+      "name": "installation_request_attempts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "device_id": {
+          "name": "device_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "endpoint": {
+          "name": "endpoint",
+          "type": "installation_request_endpoint",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "attempted_at": {
+          "name": "attempted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "installation_request_attempts_device_endpoint_idx": {
+          "name": "installation_request_attempts_device_endpoint_idx",
+          "columns": [
+            {
+              "expression": "device_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "endpoint",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "attempted_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "installation_request_attempts_device_id_register_installations_id_fk": {
+          "name": "installation_request_attempts_device_id_register_installations_id_fk",
+          "tableFrom": "installation_request_attempts",
+          "tableTo": "register_installations",
+          "columnsFrom": ["device_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.issuer_identification": {
@@ -4612,6 +4641,11 @@
       "name": "change_op",
       "schema": "public",
       "values": ["insert", "update", "delete"]
+    },
+    "public.installation_request_endpoint": {
+      "name": "installation_request_endpoint",
+      "schema": "public",
+      "values": ["push", "pull", "health_check"]
     },
     "public.installation_revocation_reason": {
       "name": "installation_revocation_reason",

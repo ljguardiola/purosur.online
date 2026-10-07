@@ -28,6 +28,7 @@ import {
   changes,
   deviceState,
   discounts,
+  installationRequestAttempts,
   locations,
   priceLists,
   priceReviews,
@@ -56,6 +57,7 @@ import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { logChange } from "./change-log.js";
 import { registerChangesRoute } from "./changes-route.js";
 import { DrizzleChangeLog } from "./drizzle-change-log.js";
+import { insertRequestsUpToLimit } from "./test-support/admitted-requests.js";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z");
 
@@ -343,6 +345,35 @@ describe("GET /changes", () => {
     expect(cloudErrorSchema.parse(response.json())).toMatchObject({
       code: "device_token_rejected",
     });
+  });
+
+  it("records each admitted pull as a request of its installation", async () => {
+    const { deviceId, deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
+
+    await pull("?since=0", `Bearer ${deviceToken}`);
+
+    expect(
+      await db
+        .select({ endpoint: installationRequestAttempts.endpoint })
+        .from(installationRequestAttempts)
+        .where(eq(installationRequestAttempts.deviceId, deviceId)),
+    ).toEqual([{ endpoint: "pull" }]);
+  });
+
+  it("refuses a pull past the installation's limit with when to retry, recording no cursor", async () => {
+    const { deviceId, deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
+    await insertRequestsUpToLimit(db, deviceId, "pull", new Date(NOW.getTime() - 59 * 60 * 1000));
+
+    const response = await pull("?since=0", `Bearer ${deviceToken}`);
+
+    expect(response.statusCode).toBe(429);
+    expect(response.headers["retry-after"]).toBe("60");
+    expect(cloudErrorSchema.parse(response.json())).toEqual({
+      code: "rate_limited",
+      message: "too many requests",
+      details: [{ retry_after_seconds: 60 }],
+    });
+    expect(await db.select().from(deviceState)).toEqual([]);
   });
 
   it("refuses a revoked installation's token, recording nothing", async () => {

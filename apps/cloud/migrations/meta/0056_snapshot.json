@@ -1,6 +1,6 @@
 {
-  "id": "17c434af-bcd8-438e-9e42-f3f9275c0928",
-  "prevId": "d9140286-8ad8-4034-9855-a19cb862680f",
+  "id": "45ccfc26-cd50-4dea-9d29-06d624b91762",
+  "prevId": "096787ee-0d71-4c33-8038-9c7c79595107",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1579,6 +1579,83 @@
           "value": "\"inbox\".\"device_seq\" > 0"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.installation_request_attempts": {
+      "name": "installation_request_attempts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "device_id": {
+          "name": "device_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "endpoint": {
+          "name": "endpoint",
+          "type": "installation_request_endpoint",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "attempted_at": {
+          "name": "attempted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "installation_request_attempts_device_endpoint_idx": {
+          "name": "installation_request_attempts_device_endpoint_idx",
+          "columns": [
+            {
+              "expression": "device_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "endpoint",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "attempted_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "installation_request_attempts_device_id_register_installations_id_fk": {
+          "name": "installation_request_attempts_device_id_register_installations_id_fk",
+          "tableFrom": "installation_request_attempts",
+          "tableTo": "register_installations",
+          "columnsFrom": ["device_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.issuer_identification": {
@@ -4666,6 +4743,11 @@
       "name": "change_op",
       "schema": "public",
       "values": ["insert", "update", "delete"]
+    },
+    "public.installation_request_endpoint": {
+      "name": "installation_request_endpoint",
+      "schema": "public",
+      "values": ["push", "pull", "health_check"]
     },
     "public.installation_revocation_reason": {
       "name": "installation_revocation_reason",

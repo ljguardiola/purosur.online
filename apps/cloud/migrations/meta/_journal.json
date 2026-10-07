@@ -390,15 +390,15 @@
     {
       "idx": 55,
       "version": "7",
-      "when": 1791386069700,
-      "tag": "0055_arca_vitality_checks",
+      "when": 1791378432728,
+      "tag": "0055_installation_request_attempts",
       "breakpoints": true
     },
     {
       "idx": 56,
       "version": "7",
-      "when": 1791391278010,
-      "tag": "0056_arca_wsaa_tokens",
+      "when": 1791400972415,
+      "tag": "0056_arca_signal",
       "breakpoints": true
     }
   ]

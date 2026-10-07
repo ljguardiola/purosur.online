@@ -51,6 +51,7 @@ import {
   users,
 } from "./platform/db/schema.js";
 import { insertEnrolledInstallation } from "./register/test-support/enrolled-installation.js";
+import { insertRequestsUpToLimit } from "./sync/test-support/admitted-requests.js";
 import {
   buildTestApp as buildApp,
   TEST_EDGE_ORIGIN_SECRET,
@@ -141,6 +142,30 @@ describe("GET /api/health", () => {
       probe_ok_at: "2020-06-15T11:59:50.000Z",
       reachable: true,
     });
+  });
+
+  it("limits an enrolled installation's health checks when the device routes are wired", async () => {
+    const { deviceId, deviceToken } = await insertEnrolledInstallation(testDatabase.db, {
+      now: APP_CLOCK,
+    });
+    await insertRequestsUpToLimit(testDatabase.db, deviceId, "health_check", APP_CLOCK);
+    const app = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      devices: {
+        db: testDatabase.db,
+        rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+        keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+      },
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/health",
+      headers: { authorization: `Bearer ${deviceToken}` },
+    });
+
+    expect(response.statusCode).toBe(429);
   });
 });
 

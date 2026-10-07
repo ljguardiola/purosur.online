@@ -376,6 +376,7 @@ export {
   canonicalOutboxEvent,
   canonicalOutboxPayload,
   FIRST_PULL_CURSOR,
+  INSTALLATION_REQUEST_LIMITS,
   isPageAfter,
   isPullCursor,
   PULL_PAGE_MAX_CHANGES,

@@ -1,4 +1,5 @@
 import { cloudErrorSchema, healthCheckSchema } from "@purosur/contracts";
+import { admitInstallationRequest } from "@purosur/domain/sync/use-cases";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { registerRouteAccess } from "../access/route-access.js";
@@ -7,6 +8,8 @@ import { authenticateDevice } from "../register/device-authentication.js";
 import { issueDeviceToken } from "../register/device-token.js";
 import { installationTokenPorts } from "../register/installation-token-ports.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { DrizzleRequestAdmission } from "../sync/drizzle-request-admission.js";
+import { insertRequestsUpToLimit } from "../sync/test-support/admitted-requests.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
@@ -48,6 +51,11 @@ beforeEach(async () => {
           now: () => NOW,
         }),
         authorization,
+      ),
+    admitRequest: (deviceId) =>
+      admitInstallationRequest(
+        { admission: new DrizzleRequestAdmission(db), clock: { now: () => NOW } },
+        { deviceId, endpoint: "health_check" },
       ),
   });
 });
@@ -167,6 +175,32 @@ describe("GET /health", () => {
     const response = await checkHealth(`Bearer ${deviceToken}`);
 
     expect(healthCheckSchema.parse(response.json()).arca).toMatchObject({ token_valid: false });
+  });
+
+  it("refuses an installation's check past its limit with when to retry", async () => {
+    const { deviceId, deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
+    await insertRequestsUpToLimit(
+      db,
+      deviceId,
+      "health_check",
+      new Date(NOW.getTime() - 59 * 60 * 1000),
+    );
+
+    const response = await checkHealth(`Bearer ${deviceToken}`);
+
+    expect(response.statusCode).toBe(429);
+    expect(response.headers["retry-after"]).toBe("60");
+    expect(cloudErrorSchema.parse(response.json())).toEqual({
+      code: "rate_limited",
+      message: "too many requests",
+      details: [{ retry_after_seconds: 60 }],
+    });
+  });
+
+  it("never limits a caller that presents no device token", async () => {
+    const responses = await Promise.all([checkHealth(), checkHealth(), checkHealth()]);
+
+    expect(responses.map((response) => response.statusCode)).toEqual([200, 200, 200]);
   });
 
   it("refuses a device token no installation holds with the cloud error envelope", async () => {

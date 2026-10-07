@@ -726,6 +726,32 @@ export const refusedEvents = pgTable("refused_events", {
   refusedAt: timestamp("refused_at", { withTimezone: true }).notNull(),
 });
 
+export const installationRequestEndpoint = pgEnum("installation_request_endpoint", [
+  "push",
+  "pull",
+  "health_check",
+]);
+
+// The limiter's own bookkeeping, not business data: what left the limit's window is deleted.
+export const installationRequestAttempts = pgTable(
+  "installation_request_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    deviceId: uuid("device_id")
+      .notNull()
+      .references(() => registerInstallations.id),
+    endpoint: installationRequestEndpoint("endpoint").notNull(),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index("installation_request_attempts_device_endpoint_idx").on(
+      table.deviceId,
+      table.endpoint,
+      table.attemptedAt,
+    ),
+  ],
+);
+
 export const changeOp = pgEnum("change_op", ["insert", "update", "delete"]);
 
 // Append-only and never pruned: a register returning after any time offline catches up from it.

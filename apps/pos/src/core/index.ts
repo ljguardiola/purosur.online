@@ -88,6 +88,7 @@ import {
   installationCheckResultOf,
   installationCheckWarningOf,
 } from "./sync/check-installation";
+import { pruneLocalOutbox } from "./sync/prune-local-outbox";
 import { pullFromCloud, pullResultOf } from "./sync/pull-from-cloud";
 import { pushResultOf, pushToCloud, pushWarningOf } from "./sync/push-to-cloud";
 import { SqliteLocalInstallation } from "./sync/sqlite-local-installation";
@@ -243,6 +244,9 @@ const syncSchedule = createSyncSchedule({
         }
         return pushResultOf(attempt);
       },
+      prune: async () => {
+        await pruneLocalOutbox({ outbox: localOutbox, now });
+      },
       pull: async () => {
         const attempt = await pullFromCloud({
           readCredentials: () => mainRequests.readCredentials(),
@@ -262,6 +266,7 @@ const syncSchedule = createSyncSchedule({
       },
       onCheckFailure: (error) => reportFailure("the installation check", error),
       onPushFailure: (error) => reportFailure("the push", error),
+      onPruneFailure: (error) => reportFailure("the outbox pruning", error),
     }),
   intervalMs: SYNC_INTERVAL_MS,
   failureBackoff: SYNC_FAILURE_BACKOFF,

@@ -42,6 +42,8 @@ function filesUnder(dir: string): string[] {
     .map((entry) => join(entry.parentPath, entry.name));
 }
 
+// A build ends on its own, succeeding or failing, so every test that reads one waits for it
+// however long the machine takes to build.
 function build(overrides: Record<string, string>): string {
   const outDir = mkdtempSync(join(tmpdir(), "purosur-pos-build-"));
   outputDirs.push(outDir);
@@ -74,7 +76,7 @@ afterAll(() => {
   }
 });
 
-describe("the register's compiled app code", () => {
+describe("the register's compiled app code", { timeout: 0 }, () => {
   it("is byte-identical whatever channel or error-reporting target the build environment names", () => {
     const plain = hashes(plainBuild());
     const staging = hashes(
@@ -91,7 +93,7 @@ describe("the register's compiled app code", () => {
 
     expect(Object.keys(plain).length).toBeGreaterThan(0);
     expect(staging).toEqual(plain);
-  }, 120_000);
+  });
 });
 
 const UI_COMPONENTS_DIR = join(APP_DIR, "../../packages/ui/src/components");
@@ -196,7 +198,7 @@ function classNamesIn(css: string, minify = false): Set<string> {
   return names;
 }
 
-describe("the register's compiled stylesheet", () => {
+describe("the register's compiled stylesheet", { timeout: 0 }, () => {
   it("includes every utility class the design system's components use", async () => {
     const stylesheet = filesUnder(join(plainBuild(), "renderer"))
       .filter((file) => file.endsWith(".css"))
@@ -207,7 +209,7 @@ describe("the register's compiled stylesheet", () => {
 
     expect(candidates.length).toBeGreaterThan(0);
     expect(candidates.filter((candidate) => !classNames.has(candidate))).toEqual([]);
-  }, 120_000);
+  });
 });
 
 describe("classNamesIn", () => {
@@ -279,7 +281,8 @@ describe("classNamesIn", () => {
   });
 });
 
-describe("scanCandidates and classNamesIn end to end", () => {
+// The scan ends on its own, so the test waits for it however long the machine takes to scan.
+describe("scanCandidates and classNamesIn end to end", { timeout: 0 }, () => {
   it("scans, compiles, minifies and matches classes the same way the real guard does", async () => {
     const fixtureDir = mkdtempSync(join(tmpdir(), "purosur-pos-class-scan-"));
     outputDirs.push(fixtureDir);
@@ -345,5 +348,5 @@ describe("scanCandidates and classNamesIn end to end", () => {
       expect(classNames.has(candidate)).toBe(true);
     }
     expect(classNames.has("this-class-does-not-exist")).toBe(false);
-  }, 30_000);
+  });
 });

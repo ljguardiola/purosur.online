@@ -51,6 +51,8 @@ export class CloudEventInbox implements CloudEventInboxPort<CloudFailure> {
         return { kind: "gap", ackSeq: answer.data.ack_seq, expectedSeq: answer.data.expected_seq };
       case "stale_device":
         return { kind: "stale_device", ackSeq: answer.data.ack_seq };
+      case "update_required":
+        return { kind: "update_required", ackSeq: answer.data.ack_seq };
     }
   }
 }
