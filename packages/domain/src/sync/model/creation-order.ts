@@ -35,8 +35,7 @@ export function inCreationOrder<T extends CreationOrderFields>(events: readonly 
       (a, b) =>
         a.occurredAt - b.occurredAt ||
         a.receivedAt - b.receivedAt ||
-        a.event.deviceId.localeCompare(b.event.deviceId) ||
-        a.event.deviceSeq - b.event.deviceSeq,
+        a.event.deviceId.localeCompare(b.event.deviceId),
     )
     .map(({ event }) => event);
 }
