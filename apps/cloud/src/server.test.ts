@@ -1,3 +1,4 @@
+import { generateKeyPairSync } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -6,6 +7,7 @@ import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support"
 import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type BuildAppOptions, buildApp as buildRealApp } from "./app.js";
+import { generateArcaTestCredentials } from "./fiscal/test-support/arca-test-credentials.js";
 import {
   closeRecoveryResources,
   createRecoveryJobQueuePool,
@@ -785,7 +787,7 @@ describe("startServer recording the certificate's CUIT", () => {
     BACKOFFICE_ORIGIN: "https://staging.purosur.online",
     EDGE_ORIGIN_SECRET: "edge-secret",
     ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
-    ARCA_ENVIRONMENT: "production",
+    ARCA_ENVIRONMENT: "homologation",
     DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
     INSTALLATION_KEYS_ENCRYPTION_KEY: KEYS_ENCRYPTION_KEY,
   };
@@ -847,7 +849,7 @@ describe("startServer checking the certificate's expiry", () => {
     BACKOFFICE_ORIGIN: "https://staging.purosur.online",
     EDGE_ORIGIN_SECRET: "edge-secret",
     ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
-    ARCA_ENVIRONMENT: "production",
+    ARCA_ENVIRONMENT: "homologation",
     DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
     INSTALLATION_KEYS_ENCRYPTION_KEY: KEYS_ENCRYPTION_KEY,
   };
@@ -909,6 +911,185 @@ describe("startServer checking the certificate's expiry", () => {
   });
 });
 
+describe("startServer with the ARCA private key", () => {
+  const credentials = generateArcaTestCredentials();
+  const baseEnv = {
+    DATABASE_URL: "postgres://user:pass@db/purosur",
+    RESEND_API_KEY: "re_test_key",
+    RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+    RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+    BACKOFFICE_ORIGIN: "https://staging.purosur.online",
+    EDGE_ORIGIN_SECRET: "edge-secret",
+    ARCA_CERTIFICATE: credentials.certificatePem,
+    ARCA_ENVIRONMENT: "homologation",
+    DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
+    INSTALLATION_KEYS_ENCRYPTION_KEY: KEYS_ENCRYPTION_KEY,
+  };
+
+  function start(env: Record<string, string>) {
+    const fakeApp = {
+      listen: vi.fn().mockResolvedValue(undefined),
+      addHook: vi.fn(),
+    } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+    const setUpRecovery = vi.fn().mockResolvedValue({
+      db: {},
+      jobQueue: { enqueueRecoveryRequest: vi.fn() },
+      backofficeOrigin: "https://staging.purosur.online",
+      worker: { stop: vi.fn() },
+      workerUtils: { addJob: vi.fn() },
+      close: vi.fn(),
+    });
+    const started = startServer(env, {
+      initSentry: vi.fn(),
+      buildApp: vi.fn().mockReturnValue(fakeApp),
+      setUpRecovery,
+      recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+    });
+    return { started, setUpRecovery };
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("sets up the WSAA token renewal with the certificate, its key and its fingerprint in homologation", async () => {
+    const { started, setUpRecovery } = start({
+      ...baseEnv,
+      ARCA_PRIVATE_KEY: credentials.privateKeyPem,
+    });
+    await started;
+
+    expect(setUpRecovery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        arcaWsaa: {
+          endpoint: "https://wsaahomo.afip.gov.ar/ws/services/LoginCms",
+          certificatePem: credentials.certificatePem,
+          privateKeyPem: credentials.privateKeyPem,
+          certificateFingerprint: credentials.fingerprint,
+        },
+      }),
+      expect.any(Function),
+    );
+  });
+
+  it("uses ARCA's production WSAA in production", async () => {
+    const { started, setUpRecovery } = start({
+      ...baseEnv,
+      ARCA_ENVIRONMENT: "production",
+      ARCA_PRIVATE_KEY: credentials.privateKeyPem,
+    });
+    await started;
+
+    expect(setUpRecovery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        arcaWsaa: expect.objectContaining({
+          endpoint: "https://wsaa.afip.gov.ar/ws/services/LoginCms",
+        }),
+      }),
+      expect.any(Function),
+    );
+  });
+
+  it("accepts the key and the certificate collapsed to one line with literal \\n sequences", async () => {
+    const { started, setUpRecovery } = start({
+      ...baseEnv,
+      ARCA_CERTIFICATE: credentials.certificatePem.trimEnd().split("\n").join("\\n"),
+      ARCA_PRIVATE_KEY: credentials.privateKeyPem.trimEnd().split("\n").join("\\n"),
+    });
+    await started;
+
+    expect(setUpRecovery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        arcaWsaa: expect.objectContaining({
+          privateKeyPem: credentials.privateKeyPem.trimEnd(),
+          certificateFingerprint: credentials.fingerprint,
+        }),
+      }),
+      expect.any(Function),
+    );
+  });
+
+  it("refuses to start in production without the key, before opening any resource", async () => {
+    const { started, setUpRecovery } = start({ ...baseEnv, ARCA_ENVIRONMENT: "production" });
+
+    await expect(started).rejects.toThrow(
+      "ARCA_PRIVATE_KEY must be set when ARCA_ENVIRONMENT is production",
+    );
+    expect(setUpRecovery).not.toHaveBeenCalled();
+  });
+
+  it("starts in homologation without the key, sets up no renewal and warns once", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { started, setUpRecovery } = start(baseEnv);
+    await started;
+
+    const [recoveryEnv] = setUpRecovery.mock.calls[0] as [Record<string, unknown>];
+    expect(recoveryEnv).not.toHaveProperty("arcaWsaa");
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("ARCA_PRIVATE_KEY"));
+  });
+
+  it("does not warn when the key is set", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { started } = start({ ...baseEnv, ARCA_PRIVATE_KEY: credentials.privateKeyPem });
+    await started;
+
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it.each(["homologation", "production"])(
+    "refuses to start in %s when the key is not a PEM private key",
+    async (environment) => {
+      const { started, setUpRecovery } = start({
+        ...baseEnv,
+        ARCA_ENVIRONMENT: environment,
+        ARCA_PRIVATE_KEY: "not a key",
+      });
+
+      await expect(started).rejects.toThrow("ARCA_PRIVATE_KEY must be a valid PEM private key");
+      expect(setUpRecovery).not.toHaveBeenCalled();
+    },
+  );
+
+  it("refuses to start when the key does not belong to the certificate", async () => {
+    const { started, setUpRecovery } = start({
+      ...baseEnv,
+      ARCA_PRIVATE_KEY: generateArcaTestCredentials().privateKeyPem,
+    });
+
+    await expect(started).rejects.toThrow(
+      "ARCA_PRIVATE_KEY must match ARCA_CERTIFICATE's public key",
+    );
+    expect(setUpRecovery).not.toHaveBeenCalled();
+  });
+
+  it("refuses to start when the key is not an RSA key", async () => {
+    const { privateKey } = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+    const { started, setUpRecovery } = start({
+      ...baseEnv,
+      ARCA_PRIVATE_KEY: privateKey.export({ type: "pkcs8", format: "pem" }).toString(),
+    });
+
+    await expect(started).rejects.toThrow("ARCA_PRIVATE_KEY must be an RSA private key");
+    expect(setUpRecovery).not.toHaveBeenCalled();
+  });
+
+  it("asks for no key when no database is configured", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const fakeApp = {
+      listen: vi.fn().mockResolvedValue(undefined),
+      addHook: vi.fn(),
+    } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+
+    await startServer(
+      { EDGE_ORIGIN_SECRET: "edge-secret" },
+      { initSentry: vi.fn(), buildApp: vi.fn().mockReturnValue(fakeApp) },
+    );
+
+    expect(warn).not.toHaveBeenCalled();
+  });
+});
+
 describe("startServer with the real app", () => {
   const dirs: string[] = [];
 
@@ -947,7 +1128,7 @@ describe("startServer with the real app", () => {
         BACKOFFICE_ORIGIN: "https://staging.purosur.online",
         EDGE_ORIGIN_SECRET: "edge-secret",
         ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
-        ARCA_ENVIRONMENT: "production",
+        ARCA_ENVIRONMENT: "homologation",
         DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
         INSTALLATION_KEYS_ENCRYPTION_KEY: KEYS_ENCRYPTION_KEY,
         BACKOFFICE_STATIC_DIR: staticDir,
