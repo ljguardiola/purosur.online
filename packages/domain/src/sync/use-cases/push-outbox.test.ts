@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { pushOutbox } from "./push-outbox.js";
 import { fakeEvent } from "./test-support/fake-inbox.js";
+import { FakeLocalInstallation } from "./test-support/fake-local-installation.js";
 import {
   type FakeCloudAnswer,
   FakeCloudEventInbox,
   FakeLocalOutbox,
 } from "./test-support/fake-local-outbox.js";
-import { FakeLocalInstallation } from "./test-support/fake-local-installation.js";
 
 function eventsFrom(firstSeq: number, count: number) {
   return Array.from({ length: count }, (_, index) => fakeEvent(firstSeq + index));

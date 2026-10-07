@@ -99,7 +99,9 @@ describe("checking this installation with the cloud", () => {
     const registerUnderTest = register();
 
     const attempt = await checkInstallation(
-      depsFor(registerUnderTest, answeringRevoked(true), { readCredentials: async () => undefined }),
+      depsFor(registerUnderTest, answeringRevoked(true), {
+        readCredentials: async () => undefined,
+      }),
     );
 
     expect(attempt).toEqual({ kind: "not_enrolled" });
@@ -137,9 +139,9 @@ describe("the sync result of checking the installation", () => {
   });
 
   it("counts a failed check as failed, carrying the wait the cloud asked for", () => {
-    expect(
-      installationCheckResultOf({ kind: "failed", failure: { kind: "unreachable" } }),
-    ).toEqual({ kind: "failed" });
+    expect(installationCheckResultOf({ kind: "failed", failure: { kind: "unreachable" } })).toEqual(
+      { kind: "failed" },
+    );
     expect(
       installationCheckResultOf({
         kind: "failed",
@@ -163,9 +165,9 @@ describe("the warning of checking the installation", () => {
         failure: { kind: "refused", code: "device_token_rejected" },
       }),
     ).toMatch(/refused or unreadable/);
-    expect(
-      installationCheckWarningOf({ kind: "failed", failure: { kind: "unreadable" } }),
-    ).toMatch(/refused or unreadable/);
+    expect(installationCheckWarningOf({ kind: "failed", failure: { kind: "unreadable" } })).toMatch(
+      /refused or unreadable/,
+    );
   });
 
   it("stays quiet when the cloud can't be reached or the installation is in service", () => {
