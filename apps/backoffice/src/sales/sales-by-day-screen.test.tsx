@@ -104,9 +104,7 @@ test("asks the cloud for the range and the register the URL names", async () => 
     register_id: BACK_REGISTER_ID,
   });
   expect(dateSegments(screen, "Desde")).toEqual(["2", "10", "2026"]);
-  await expect
-    .element(screen.getByRole("button", { name: /Caja:/ }))
-    .toHaveTextContent(/Caja del fondo/);
+  await expect.element(screen.getByRole("button", { name: "Caja: Caja del fondo" })).toBeVisible();
 });
 
 test("shows placeholders while the report loads", async () => {
