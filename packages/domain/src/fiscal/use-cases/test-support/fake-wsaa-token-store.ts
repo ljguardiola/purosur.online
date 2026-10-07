@@ -85,11 +85,15 @@ export class FakeWsaaTokenStore implements WsaaTokenStore {
     try {
       return await work(new FakeRenewal(this, service, certificateFingerprint));
     } finally {
-      this.renewalHeld = false;
-      this.operations.push("releaseRenewal");
-      if (this.failingRelease) {
-        throw new Error("releaseRenewal failed");
-      }
+      this.release();
+    }
+  }
+
+  private release(): void {
+    this.renewalHeld = false;
+    this.operations.push("releaseRenewal");
+    if (this.failingRelease) {
+      throw new Error("releaseRenewal failed");
     }
   }
 }

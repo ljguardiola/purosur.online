@@ -1,34 +1,25 @@
-import type {
-  WsaaToken,
-  WsaaTokenStore,
-  WsaaTokenStoreTransaction,
-} from "@purosur/domain/fiscal/use-cases";
+import type { WsaaToken, WsaaTokenRenewal, WsaaTokenStore } from "@purosur/domain/fiscal/use-cases";
 import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { arcaWsaaTokens } from "../platform/db/schema.js";
-
-type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
-  Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
->[0];
 
 export function wsaaTokenLockKey(service: string, certificateFingerprint: string): string {
   return `wsaa_token:${service}:${certificateFingerprint}`;
 }
 
-class DrizzleWsaaTokenStoreTransaction<TQueryResult extends PgQueryResultHKT>
-  implements WsaaTokenStoreTransaction
-{
-  private readonly tx: Transaction<TQueryResult>;
+class DrizzleWsaaTokenRenewal<TQueryResult extends PgQueryResultHKT> implements WsaaTokenRenewal {
+  private readonly db: PgDatabase<TQueryResult>;
+  private readonly service: string;
+  private readonly certificateFingerprint: string;
 
-  constructor(tx: Transaction<TQueryResult>) {
-    this.tx = tx;
+  constructor(db: PgDatabase<TQueryResult>, service: string, certificateFingerprint: string) {
+    this.db = db;
+    this.service = service;
+    this.certificateFingerprint = certificateFingerprint;
   }
 
-  async lockWsaaToken(service: string, certificateFingerprint: string): Promise<WsaaToken | null> {
-    await this.tx.execute(
-      sql`select pg_advisory_xact_lock(hashtextextended(${wsaaTokenLockKey(service, certificateFingerprint)}, 0))`,
-    );
-    const [row] = await this.tx
+  async persistedToken(): Promise<WsaaToken | null> {
+    const [row] = await this.db
       .select({
         token: arcaWsaaTokens.token,
         sign: arcaWsaaTokens.sign,
@@ -38,21 +29,24 @@ class DrizzleWsaaTokenStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .from(arcaWsaaTokens)
       .where(
         and(
-          eq(arcaWsaaTokens.service, service),
-          eq(arcaWsaaTokens.certificateFingerprint, certificateFingerprint),
+          eq(arcaWsaaTokens.service, this.service),
+          eq(arcaWsaaTokens.certificateFingerprint, this.certificateFingerprint),
         ),
       );
     return row ?? null;
   }
 
-  async recordWsaaToken(
-    service: string,
-    certificateFingerprint: string,
-    { token, sign, issuedAt, expiresAt }: WsaaToken,
-  ): Promise<void> {
-    await this.tx
+  async recordIssuedToken({ token, sign, issuedAt, expiresAt }: WsaaToken): Promise<void> {
+    await this.db
       .insert(arcaWsaaTokens)
-      .values({ service, certificateFingerprint, token, sign, issuedAt, expiresAt })
+      .values({
+        service: this.service,
+        certificateFingerprint: this.certificateFingerprint,
+        token,
+        sign,
+        issuedAt,
+        expiresAt,
+      })
       .onConflictDoUpdate({
         target: [arcaWsaaTokens.service, arcaWsaaTokens.certificateFingerprint],
         set: { token, sign, issuedAt, expiresAt },
@@ -60,6 +54,9 @@ class DrizzleWsaaTokenStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 }
 
+// The renewal holds a session-level advisory lock and records in autocommit, so the database
+// handle must be bound to one connection for the whole renewal: the lock and its release have to
+// run on the connection that took it.
 export class DrizzleWsaaTokenStore<TQueryResult extends PgQueryResultHKT>
   implements WsaaTokenStore
 {
@@ -69,9 +66,17 @@ export class DrizzleWsaaTokenStore<TQueryResult extends PgQueryResultHKT>
     this.db = db;
   }
 
-  transaction<TOutcome>(
-    work: (tx: WsaaTokenStoreTransaction) => Promise<TOutcome>,
+  async holdRenewal<TOutcome>(
+    service: string,
+    certificateFingerprint: string,
+    work: (renewal: WsaaTokenRenewal) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return this.db.transaction((tx) => work(new DrizzleWsaaTokenStoreTransaction(tx)));
+    const key = sql`hashtextextended(${wsaaTokenLockKey(service, certificateFingerprint)}, 0)`;
+    await this.db.execute(sql`select pg_advisory_lock(${key})`);
+    try {
+      return await work(new DrizzleWsaaTokenRenewal(this.db, service, certificateFingerprint));
+    } finally {
+      await this.db.execute(sql`select pg_advisory_unlock(${key})`);
+    }
   }
 }

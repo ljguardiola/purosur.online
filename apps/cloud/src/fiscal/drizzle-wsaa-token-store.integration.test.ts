@@ -106,7 +106,7 @@ describe("the WSAA token store on a real Postgres", () => {
       await connection.end({ timeout: 1 });
     }
 
-    const rows = await sql`select token from arca_wsaa_tokens where service = `;
+    const rows = await sql`select token from arca_wsaa_tokens where service = ${SERVICE}`;
     expect(rows).toEqual([{ token: ISSUED.token }]);
   });
 

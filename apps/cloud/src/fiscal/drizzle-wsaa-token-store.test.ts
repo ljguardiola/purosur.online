@@ -1,4 +1,8 @@
-import { renewWsaaToken, type WsaaToken, type WsaaTokenRenewal } from "@purosur/domain/fiscal/use-cases";
+import {
+  renewWsaaToken,
+  type WsaaToken,
+  type WsaaTokenRenewal,
+} from "@purosur/domain/fiscal/use-cases";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleWsaaTokenStore } from "./drizzle-wsaa-token-store.js";

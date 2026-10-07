@@ -121,6 +121,6 @@ export type {
   WsaaAuthenticationResult,
   WsaaToken,
   WsaaTokenPorts,
+  WsaaTokenRenewal,
   WsaaTokenStore,
-  WsaaTokenStoreTransaction,
 } from "./wsaa-token-ports.js";

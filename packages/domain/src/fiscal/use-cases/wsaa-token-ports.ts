@@ -16,14 +16,16 @@ export interface WsaaAuthentication {
   requestToken(service: string): Promise<WsaaAuthenticationResult>;
 }
 
-export interface WsaaTokenStoreTransaction {
-  lockWsaaToken(service: string, certificateFingerprint: string): Promise<WsaaToken | null>;
-  recordWsaaToken(service: string, certificateFingerprint: string, token: WsaaToken): Promise<void>;
+export interface WsaaTokenRenewal {
+  persistedToken(): Promise<WsaaToken | null>;
+  recordIssuedToken(token: WsaaToken): Promise<void>;
 }
 
 export interface WsaaTokenStore {
-  transaction<TOutcome>(
-    work: (tx: WsaaTokenStoreTransaction) => Promise<TOutcome>,
+  holdRenewal<TOutcome>(
+    service: string,
+    certificateFingerprint: string,
+    work: (renewal: WsaaTokenRenewal) => Promise<TOutcome>,
   ): Promise<TOutcome>;
 }
 

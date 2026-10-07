@@ -114,7 +114,12 @@ describe("renewWsaaToken", () => {
 
     await expect(outcome).resolves.toEqual({ kind: "already_authenticated" });
 
-    expect(store.operations).toEqual(["holdRenewal", "persistedToken", "requestToken", "releaseRenewal"]);
+    expect(store.operations).toEqual([
+      "holdRenewal",
+      "persistedToken",
+      "requestToken",
+      "releaseRenewal",
+    ]);
     expect(store.rows[0]?.token.token).toBe("old-token");
   });
 
@@ -124,7 +129,12 @@ describe("renewWsaaToken", () => {
 
     await expect(outcome).resolves.toEqual({ kind: "failed" });
 
-    expect(store.operations).toEqual(["holdRenewal", "persistedToken", "requestToken", "releaseRenewal"]);
+    expect(store.operations).toEqual([
+      "holdRenewal",
+      "persistedToken",
+      "requestToken",
+      "releaseRenewal",
+    ]);
     expect(store.rows).toEqual([]);
   });
 

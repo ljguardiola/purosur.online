@@ -16,17 +16,21 @@ export async function renewWsaaToken(
   { store, authentication, clock }: WsaaTokenPorts,
   { service, certificateFingerprint }: RenewWsaaTokenInput,
 ): Promise<RenewWsaaTokenOutcome> {
-  return store.transaction<RenewWsaaTokenOutcome>(async (tx) => {
-    const persisted = await tx.lockWsaaToken(service, certificateFingerprint);
-    if (!isWsaaTokenDueForRenewal(persisted, clock.now())) {
-      return { kind: "kept" };
-    }
+  return store.holdRenewal<RenewWsaaTokenOutcome>(
+    service,
+    certificateFingerprint,
+    async (renewal) => {
+      const persisted = await renewal.persistedToken();
+      if (!isWsaaTokenDueForRenewal(persisted, clock.now())) {
+        return { kind: "kept" };
+      }
 
-    const result = await authentication.requestToken(service);
-    if (result.kind !== "issued") {
-      return { kind: result.kind };
-    }
-    await tx.recordWsaaToken(service, certificateFingerprint, result.token);
-    return { kind: "renewed" };
-  });
+      const result = await authentication.requestToken(service);
+      if (result.kind !== "issued") {
+        return { kind: result.kind };
+      }
+      await renewal.recordIssuedToken(result.token);
+      return { kind: "renewed" };
+    },
+  );
 }

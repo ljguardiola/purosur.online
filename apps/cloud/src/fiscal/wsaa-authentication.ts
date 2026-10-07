@@ -10,7 +10,7 @@ import { type Client, createClientAsync } from "soap";
 // `wsdl/` sits beside both `src/` and `dist/` and ships through package.json's `files`.
 const WSAA_WSDL_PATH = fileURLToPath(new URL("../../wsdl/wsaa.wsdl", import.meta.url));
 
-const WSAA_TIMEOUT_MS = 10_000;
+const WSAA_TIMEOUT_MS = 30_000;
 
 // ARCA rejects a ticket request whose generation time is ahead of its own clock, so it is stamped
 // in the past; the expiration only bounds how long ARCA accepts this one request.
