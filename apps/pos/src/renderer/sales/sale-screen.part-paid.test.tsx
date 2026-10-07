@@ -27,6 +27,17 @@ function readingFirst(before: OpenSale, after: OpenSale): () => Promise<CurrentS
   return async () => reads.shift() ?? after;
 }
 
+function failingAfter(before: OpenSale): () => Promise<CurrentSaleAnswer> {
+  const reads = [before];
+  return async () => {
+    const read = reads.shift();
+    if (read === undefined) {
+      throw new Error("the core could not read the sale in progress");
+    }
+    return read;
+  };
+}
+
 describe("SaleScreen with a sale that already has an approved payment", () => {
   it("explains on the scan field, not in a line under it, that the sale can no longer be changed", async () => {
     const { screen, field } = await renderScreen({ currentSale: async () => SALE_WITH_PAYMENT });
@@ -96,6 +107,19 @@ describe("SaleScreen with a sale that already has an approved payment", () => {
     await expect.element(screen.getByText(LOCKED_NOTICE, { exact: true })).not.toBeInTheDocument();
   });
 
+  it("says the sale could not be loaded when a scan is refused because the sale has payments and the sale cannot be read again", async () => {
+    const { screen, field } = await renderScreen({
+      currentSale: failingAfter(SALE_OF_YERBA),
+      scanProduct: async (): Promise<ScanProductOutcome> => ({ kind: "sale_has_payments" }),
+    });
+    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+
+    await scan(field, "7790001");
+
+    await expect.element(screen.getByText("No se pudo cargar la venta")).toBeVisible();
+    await expect.element(screen.getByText("Yerba mate 1 kg")).not.toBeInTheDocument();
+  });
+
   it("reads the sale again and explains the lock only on the locked field when a chosen product is refused because the sale has payments", async () => {
     const { screen, field } = await renderScreen({
       currentSale: readingFirst(SALE_OF_YERBA, SALE_WITH_PAYMENT),
@@ -159,6 +183,38 @@ describe("SaleScreen with a sale that already has an approved payment", () => {
       await expect
         .element(screen.getByText(LOCKED_NOTICE, { exact: true }))
         .not.toBeInTheDocument();
+    },
+  );
+
+  it.each([
+    [
+      "raising a quantity",
+      "Subir la cantidad de Yerba mate 1 kg",
+      {
+        changeLineQuantity: async (): Promise<ChangeLineQuantityOutcome> => ({
+          kind: "sale_has_payments",
+        }),
+      },
+    ],
+    [
+      "removing a line",
+      "Quitar Yerba mate 1 kg",
+      {
+        removeSaleLine: async (): Promise<RemoveSaleLineOutcome> => ({ kind: "sale_has_payments" }),
+      },
+    ],
+  ])(
+    "says the sale could not be loaded when %s is refused because the sale has payments and the sale cannot be read again",
+    async (_, button, edit) => {
+      const { screen } = await renderScreen({
+        currentSale: failingAfter({ ...SALE_OF_YERBA, lines: [YERBA] }),
+        ...edit,
+      });
+
+      await screen.getByRole("button", { name: button }).click();
+
+      await expect.element(screen.getByText("No se pudo cargar la venta")).toBeVisible();
+      await expect.element(screen.getByText("Yerba mate 1 kg")).not.toBeInTheDocument();
     },
   );
 });
