@@ -3,6 +3,7 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../access/recovery-email-sender.js";
+import { UNREACHABLE_WSFE_ENDPOINT } from "../fiscal/test-support/fake-wsfe-server.js";
 import { alerts } from "../platform/db/schema.js";
 import { setUpRecovery } from "../server.js";
 import {
@@ -69,6 +70,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
         emailReplyTo: "purosur.comarca@gmail.com",
         backofficeOrigin: "https://staging.purosur.online",
         arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
+        arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
       },
       () => NOW,
       { emailSender: UNUSED_EMAIL_SENDER },

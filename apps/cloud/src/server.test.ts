@@ -667,6 +667,7 @@ describe("startServer", () => {
         emailReplyTo: "purosur.comarca@gmail.com",
         backofficeOrigin: "https://staging.purosur.online",
         arcaCertificate: { environment: "production", notAfter: VALID_ARCA_CERTIFICATE_NOT_AFTER },
+        arcaVitality: { endpoint: "https://servicios1.afip.gov.ar/wsfev1/service.asmx" },
       },
       now,
     );

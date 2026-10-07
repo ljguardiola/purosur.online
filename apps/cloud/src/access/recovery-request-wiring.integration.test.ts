@@ -5,6 +5,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import pg from "pg";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { UNREACHABLE_WSFE_ENDPOINT } from "../fiscal/test-support/fake-wsfe-server.js";
 import {
   auditLog,
   recoveryRejectedAttemptAccumulator,
@@ -164,10 +165,14 @@ async function startRealServer(
       {
         now: () => new Date(currentTime),
         setUpRecovery: async (recoveryEnv, now) => {
-          recovery = await setUpRecovery(recoveryEnv, now, {
-            emailSender,
-            createJobQueuePool,
-          });
+          recovery = await setUpRecovery(
+            { ...recoveryEnv, arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT } },
+            now,
+            {
+              emailSender,
+              createJobQueuePool,
+            },
+          );
           return recovery;
         },
       },

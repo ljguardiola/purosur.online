@@ -10,6 +10,7 @@ import {
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
 import { enqueueArcaCertificateExpiryCheck } from "./arca-certificate-expiry-task.js";
+import { UNREACHABLE_WSFE_ENDPOINT } from "./test-support/fake-wsfe-server.js";
 
 const UNUSED_EMAIL_SENDER: AccessEmailSender = {
   async sendRecoveryLink() {},
@@ -45,6 +46,7 @@ async function runCheckOfCertificateExpiringAt(notAfter: Date): Promise<void> {
       emailReplyTo: "purosur.comarca@gmail.com",
       backofficeOrigin: "https://staging.purosur.online",
       arcaCertificate: { environment: "production", notAfter },
+      arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
     },
     () => NOW,
     { emailSender: UNUSED_EMAIL_SENDER },

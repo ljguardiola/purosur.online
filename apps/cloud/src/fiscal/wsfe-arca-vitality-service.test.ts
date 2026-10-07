@@ -62,13 +62,13 @@ describe("WsfeArcaVitalityService", () => {
   });
 
   it("is unreachable on an HTTP error that is not SOAP", async () => {
-    server.behave(answers("not-soap.html", 502));
+    server.behave(answers("not-soap.txt", 502));
 
     expect(await serviceOf(server.endpoint).check()).toEqual({ kind: "unreachable" });
   });
 
   it("is unreachable on an answer that is not SOAP", async () => {
-    server.behave(answers("not-soap.html"));
+    server.behave(answers("not-soap.txt"));
 
     expect(await serviceOf(server.endpoint).check()).toEqual({ kind: "unreachable" });
   });

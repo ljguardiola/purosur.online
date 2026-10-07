@@ -4,6 +4,8 @@ import type { AddressInfo } from "node:net";
 
 const RESPONSES_DIR = new URL("./wsfe-responses/", import.meta.url);
 
+export const UNREACHABLE_WSFE_ENDPOINT = "http://127.0.0.1:1/wsfev1/service.asmx";
+
 export type FakeWsfeBehavior =
   | { kind: "answers"; status: number; responseFile: string }
   | { kind: "never-answers" };
