@@ -12,6 +12,7 @@ export interface ScrubbedRecording {
 // here and a test holds them equal to the domain's fictional certificate CUIT.
 export const FICTIONAL_CERTIFICATE_CUIT_DIGITS = "20123456786";
 const FICTIONAL_CERTIFICATE_CUIT_DASHED = `${FICTIONAL_CERTIFICATE_CUIT_DIGITS.slice(0, 2)}-${FICTIONAL_CERTIFICATE_CUIT_DIGITS.slice(2, 10)}-${FICTIONAL_CERTIFICATE_CUIT_DIGITS.slice(10)}`;
+const FICTIONAL_DESTINATION = `SERIALNUMBER=CUIT ${FICTIONAL_CERTIFICATE_CUIT_DIGITS}, CN=comercio-de-prueba`;
 
 // ARCA answers a ticket as XML escaped inside the loginCmsReturn element, so each pattern reads
 // a tag written either way.
@@ -71,9 +72,9 @@ export function scrubArcaRecording(raw: string): ScrubbedRecording {
     (_all, open = "", close = "") => `${open}1234567890${close}`,
   );
   apply(
-    "destination common name",
-    new RegExp(`(destination${CLOSE}[^<&]*?CN=)[^,<&]+`, "g"),
-    (_all, before = "") => `${before}comercio-de-prueba`,
+    "destination",
+    elementPattern("destination"),
+    (_all, open = "", close = "") => `${open}${FICTIONAL_DESTINATION}${close}`,
   );
   return { text, replacements };
 }
