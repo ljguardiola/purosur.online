@@ -128,17 +128,18 @@ test("hides the PIN section for an inactive user", async () => {
   expect(screen.getByRole("heading", { name: "PIN de la caja" }).query()).toBeNull();
 });
 
-test("while the user loads, shows an Administrator a disabled Reiniciar el PIN", async () => {
+test("while another person's user loads, shows an Administrator no PIN section", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockReturnValue(new Promise(() => {}));
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByRole("heading", { name: "PIN de la caja" })).toBeVisible();
-  await expect.element(screen.getByRole("button", { name: "Reiniciar el PIN" })).toBeDisabled();
+  await expect.element(screen.getByRole("status").first()).toHaveTextContent("Cargando…");
+  expect(screen.getByRole("heading", { name: "PIN de la caja" }).query()).toBeNull();
+  expect(screen.getByRole("button", { name: "Reiniciar el PIN" }).query()).toBeNull();
 });
 
-test("while the user loads, shows a holder of reset_user_pin a disabled Reiniciar el PIN", async () => {
+test("while another person's user loads, shows a holder of reset_user_pin no PIN section", async () => {
   const services = createServices({
     fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });
@@ -146,7 +147,9 @@ test("while the user loads, shows a holder of reset_user_pin a disabled Reinicia
 
   const screen = await renderScreen(services, () => {}, "user-1", "user-2", RESET_USER_PIN_ACCESS);
 
-  await expect.element(screen.getByRole("button", { name: "Reiniciar el PIN" })).toBeDisabled();
+  await expect.element(screen.getByRole("status").first()).toHaveTextContent("Cargando…");
+  expect(screen.getByRole("heading", { name: "PIN de la caja" }).query()).toBeNull();
+  expect(screen.getByRole("button", { name: "Reiniciar el PIN" }).query()).toBeNull();
 });
 
 test("while the user loads, shows an Administrator on their own account a disabled Reiniciar el PIN", async () => {
@@ -182,11 +185,22 @@ test("while the user loads, shows no PIN section without reset_user_pin", async 
   expect(screen.getByRole("heading", { name: "PIN de la caja" }).query()).toBeNull();
 });
 
-test("after the user fails to load, shows Reiniciar el PIN disabled", async () => {
+test("after another person's user fails to load, shows no PIN section", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "failed" });
 
   const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("No pudimos abrir este usuario")).toBeVisible();
+  expect(screen.getByRole("heading", { name: "PIN de la caja" }).query()).toBeNull();
+  expect(screen.getByRole("button", { name: "Reiniciar el PIN" }).query()).toBeNull();
+});
+
+test("after their own account fails to load, shows an Administrator Reiniciar el PIN disabled", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "failed" });
+
+  const screen = await renderScreen(services, () => {}, "user-1", "user-1");
 
   await expect.element(screen.getByText("No pudimos abrir este usuario")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Reiniciar el PIN" })).toBeDisabled();
