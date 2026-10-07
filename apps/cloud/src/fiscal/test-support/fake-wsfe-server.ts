@@ -29,7 +29,6 @@ export function answers(responseFile: string, status = 200): FakeWsfeBehavior {
 
 export const NO_ANSWER = null;
 
-/** Answers each request with the next file, and the last file to every request after them. */
 export function answersInTurn(...responseFiles: (string | typeof NO_ANSWER)[]): FakeWsfeBehavior {
   return {
     kind: "answers-in-turn",

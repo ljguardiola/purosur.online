@@ -7,6 +7,12 @@ import {
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  ARCA_CERTIFICATE_WITH_WRONG_CHECK_DIGIT,
+  ARCA_CERTIFICATE_WITHOUT_SERIAL_NUMBER,
+  VALID_ARCA_CERTIFICATE,
+  VALID_ARCA_CERTIFICATE_SINGLE_LINE,
+} from "../test-support/arca-certificate-fixtures.js";
 import { recordArcaResponses, recordingSettingsOf } from "./arca-response-recording.js";
 import {
   type ArcaTestCredentials,
@@ -249,25 +255,47 @@ describe("recordArcaResponses", () => {
 });
 
 describe("recordingSettingsOf", () => {
-  const environment = { ARCA_CERTIFICATE: "CERT", ARCA_PRIVATE_KEY: "KEY" };
+  const environment = { ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE, ARCA_PRIVATE_KEY: "KEY" };
 
-  it("reads the output directory from --out and the credentials from the environment", () => {
+  it("reads the output directory from --out, the credentials from the environment and the CUIT from the certificate", () => {
     expect(recordingSettingsOf(["--out", "/some/dir"], environment)).toEqual({
       kind: "ready",
-      settings: { outDir: "/some/dir", certificatePem: "CERT", privateKeyPem: "KEY" },
+      settings: {
+        outDir: "/some/dir",
+        certificatePem: VALID_ARCA_CERTIFICATE,
+        privateKeyPem: "KEY",
+        cuit: FICTIONAL_CERTIFICATE_CUIT,
+      },
     });
   });
 
   it("turns the literal \\n of a collapsed variable into line breaks", () => {
     const result = recordingSettingsOf(["--out", "/d"], {
-      ARCA_CERTIFICATE: "A\\nB",
+      ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE_SINGLE_LINE,
       ARCA_PRIVATE_KEY: "C\\nD",
     });
 
     expect(result).toEqual({
       kind: "ready",
-      settings: { outDir: "/d", certificatePem: "A\nB", privateKeyPem: "C\nD" },
+      settings: {
+        outDir: "/d",
+        certificatePem: VALID_ARCA_CERTIFICATE.trimEnd(),
+        privateKeyPem: "C\nD",
+        cuit: FICTIONAL_CERTIFICATE_CUIT,
+      },
     });
+  });
+
+  it.each([
+    [ARCA_CERTIFICATE_WITHOUT_SERIAL_NUMBER, "serialNumber"],
+    [ARCA_CERTIFICATE_WITH_WRONG_CHECK_DIGIT, "check digit"],
+  ])("refuses a certificate that carries no valid CUIT, saying why", (certificate, reason) => {
+    const result = recordingSettingsOf(["--out", "/d"], {
+      ...environment,
+      ARCA_CERTIFICATE: certificate,
+    });
+
+    expect(result).toEqual({ kind: "refused", reason: expect.stringContaining(reason) });
   });
 
   it.each([

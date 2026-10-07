@@ -92,6 +92,18 @@ describe("WsfeBuyerTaxStatusSource", () => {
       answers("fe-param-get-condicion-iva-receptor-token-error.xml"),
     ],
     [
+      "ARCA answers an error beside the values",
+      answers("fe-param-get-condicion-iva-receptor-with-errors.xml"),
+    ],
+    [
+      "a value comes without its code",
+      answers("fe-param-get-condicion-iva-receptor-missing-id.xml"),
+    ],
+    [
+      "a value comes without its description",
+      answers("fe-param-get-condicion-iva-receptor-missing-description.xml"),
+    ],
+    [
       "a value comes without its invoice classes",
       answers("fe-param-get-condicion-iva-receptor-missing-class.xml"),
     ],
