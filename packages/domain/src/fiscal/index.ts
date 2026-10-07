@@ -1,3 +1,9 @@
+export type { ArcaCertificateExpiryStanding } from "./model/arca-certificate-expiry.js";
+export {
+  ARCA_CERTIFICATE_EXPIRY_ESCALATION_MS,
+  ARCA_CERTIFICATE_EXPIRY_WARNING_MS,
+  arcaCertificateExpiryStanding,
+} from "./model/arca-certificate-expiry.js";
 export type {
   BuyerIdentificationThreshold,
   ChargeRefusal,
