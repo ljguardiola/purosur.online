@@ -22,7 +22,10 @@ export class FakeWsaaTokenReader implements WsaaTokenReader {
     this.tokens.push({ service, certificateFingerprint, token });
   }
 
-  async currentWsaaToken(service: string, certificateFingerprint: string): Promise<WsaaToken | null> {
+  async currentWsaaToken(
+    service: string,
+    certificateFingerprint: string,
+  ): Promise<WsaaToken | null> {
     this.reads.push({ service, certificateFingerprint });
     return (
       this.tokens.find(

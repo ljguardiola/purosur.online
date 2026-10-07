@@ -7,6 +7,11 @@ export type {
   OpenCertificateExpiringAlert,
 } from "./arca-certificate-expiry-store.js";
 export type {
+  ArcaOnlineStatusPorts,
+  ArcaReachabilityReader,
+  WsaaTokenReader,
+} from "./arca-online-status-ports.js";
+export type {
   ArcaVitalityPorts,
   ArcaVitalityResult,
   ArcaVitalityService,
@@ -74,6 +79,11 @@ export type {
   IssuerIdentificationStoreTransaction,
   NewIssuerIdentificationVersion,
 } from "./issuer-identification-store.js";
+export type {
+  ArcaOnlineStatus,
+  ReadArcaOnlineStatusInput,
+} from "./read-arca-online-status.js";
+export { readArcaOnlineStatus } from "./read-arca-online-status.js";
 export type {
   RecordAuthorizedCuitInput,
   RecordAuthorizedCuitOutcome,
