@@ -114,7 +114,11 @@ describe("receiving the events a register pushes", () => {
   });
 
   it("keeps the events of each installation apart", async () => {
-    const inbox = new FakeInbox([{ deviceId: OTHER_DEVICE, seqs: [1, 2, 3] }]);
+    const inbox = new FakeInbox();
+    inbox.holdEvents(
+      OTHER_DEVICE,
+      ...[1, 2, 3].map((seq) => fakeEvent(seq, `other-installation-event-${seq}`)),
+    );
 
     const outcome = await receive(inbox, eventsOf(1));
 
