@@ -86,9 +86,9 @@ ledger ids to verify.
    `.claude/skills/review-gate/references/checklist.md`, whatever the
    reviewer labelled it; a deliberate replacement of a stack library is a
    `decision` even when reported as `rule`.
-6. Checklist: for each confirmed finding, say whether its area in the
-   checklist already names that kind of deviation, and when it does not,
-   the example to add.
+6. Checklist: for each confirmed finding, name the area of the checklist
+   it belongs to, say whether that area already names that kind of
+   deviation, and when it does not, the example to propose.
 7. Scope: a confirmed finding is `in-scope` when it sits inside the problem
    `issue.md` states, whether or not the code already had it, or when the
    change introduced it or made it worse. Any other gap the code already had
