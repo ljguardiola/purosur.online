@@ -1,3 +1,4 @@
+export type { ArcaReachabilityEvidence } from "../model/arca-reachability.js";
 export type {
   ArcaCertificateExpiryPorts,
   ArcaCertificateExpiryStore,
