@@ -127,6 +127,37 @@ test("after another person's user fails to load, shows no Desactivar to someone 
   expect(screen.getByRole("button", { name: "Desactivar" }).query()).toBeNull();
 });
 
+test("while their own account loads, shows an Administrator only the PIN section, with no Desactivar", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockReturnValue(new Promise(() => {}));
+
+  const screen = await renderScreen(services, () => {}, "admin-1", "admin-1");
+
+  await expect.element(screen.getByRole("button", { name: "Reiniciar el PIN" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Desactivar" }).query()).toBeNull();
+});
+
+test("while their own account loads with its id in another case, shows an Administrator only the PIN section, with no Desactivar", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockReturnValue(new Promise(() => {}));
+
+  const screen = await renderScreen(services, () => {}, "ADMIN-1", "admin-1");
+
+  await expect.element(screen.getByRole("button", { name: "Reiniciar el PIN" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Desactivar" }).query()).toBeNull();
+});
+
+test("after their own account fails to load, shows an Administrator only the PIN section, with no Desactivar", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "failed" });
+
+  const screen = await renderScreen(services, () => {}, "admin-1", "admin-1");
+
+  await expect.element(screen.getByText("No pudimos abrir este usuario")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Reiniciar el PIN" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Desactivar" }).query()).toBeNull();
+});
+
 test("a deactivation refreshes every access read", async () => {
   window.history.pushState(null, "", "/users/user-1");
   const services = createServices();
