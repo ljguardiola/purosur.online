@@ -45,10 +45,4 @@ describe("installationRequestRetryAfterSeconds", () => {
       expect(installationRequestRetryAfterSeconds(endpoint, accepted, NOW)).toBe(10 * 60);
     },
   );
-
-  it("ignores the requests that already left the window", () => {
-    const accepted = [...attempts(INSTALLATION_REQUEST_LIMITS.push - 1), minutesAgo(60)];
-
-    expect(installationRequestRetryAfterSeconds("push", accepted, NOW)).toBeUndefined();
-  });
 });

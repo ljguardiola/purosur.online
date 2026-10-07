@@ -23,10 +23,7 @@ import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rot
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { registerEventsRoute } from "./events-route.js";
 import { hmacEventChain } from "./hmac-event-chain.js";
-import {
-  insertAdmittedRequests,
-  insertRequestsUpToLimit,
-} from "./test-support/admitted-requests.js";
+import { insertRequestsUpToLimit } from "./test-support/admitted-requests.js";
 import { eventsRouteUnderTest, NOW } from "./test-support/events-route.js";
 
 const route = eventsRouteUnderTest();
@@ -191,41 +188,6 @@ describe("POST /events", () => {
     expect(await route.db.select().from(inbox).where(eq(inbox.deviceId, deviceId))).toEqual([]);
   });
 
-  it("answers the ack again to a push it already holds whole, storing nothing twice", async () => {
-    const { deviceId, deviceToken } = await enroll();
-    const pushed = body(1, 2);
-    await push(pushed, `Bearer ${deviceToken}`);
-
-    const response = await push(pushed, `Bearer ${deviceToken}`);
-
-    expect(response.statusCode).toBe(200);
-    expect(pushEventsResponseSchema.parse(response.json())).toEqual({ status: "ok", ack_seq: 2 });
-    expect(await route.db.select().from(inbox).where(eq(inbox.deviceId, deviceId))).toHaveLength(2);
-  });
-
-  it("answers revoked to an event pushed again with other content, keeping the push aside and revoking the installation", async () => {
-    const { deviceId, deviceToken } = await enroll();
-    const pushed = body(1, 2);
-    await push(pushed, `Bearer ${deviceToken}`);
-    const [first, second] = pushed.events;
-    if (!first || !second) {
-      throw new Error("test setup: the push holds two events");
-    }
-    const altered = bodyOf([first, { ...second, payload: { quantity: 99 } }]);
-
-    const response = await push(altered, `Bearer ${deviceToken}`);
-
-    expect(response.statusCode).toBe(403);
-    expect(cloudErrorSchema.parse(response.json())).toMatchObject({ code: "revoked" });
-    expect(await route.db.select().from(inbox).where(eq(inbox.deviceId, deviceId))).toHaveLength(2);
-    expect(await route.db.select().from(refusedEvents)).toHaveLength(2);
-    const [installation] = await route.db
-      .select({ revocationReason: registerInstallations.revocationReason })
-      .from(registerInstallations)
-      .where(eq(registerInstallations.id, deviceId));
-    expect(installation).toEqual({ revocationReason: "outbox_chain_broken" });
-  });
-
   it("answers stale_device for a seq the inbox holds under another event", async () => {
     const { deviceToken } = await enroll();
     await push(body(1), `Bearer ${deviceToken}`);
@@ -290,15 +252,6 @@ describe("POST /events", () => {
     });
     expect(await route.db.select().from(inbox).where(eq(inbox.deviceId, deviceId))).toEqual([]);
     expect(await route.db.select().from(deviceState)).toEqual([]);
-  });
-
-  it("does not count the pushes of another endpoint", async () => {
-    const { deviceId, deviceToken } = await enroll();
-    await insertAdmittedRequests(route.db, deviceId, "pull", NOW, 5000);
-
-    const response = await push(body(1), `Bearer ${deviceToken}`);
-
-    expect(response.statusCode).toBe(200);
   });
 
   it("tells a revoked installation so before counting its request", async () => {

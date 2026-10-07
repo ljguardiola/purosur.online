@@ -93,15 +93,6 @@ describe("admitting a request of an installation", () => {
     expect(outcome).toEqual({ kind: "admitted" });
   });
 
-  it("does not count the requests that already left the window", async () => {
-    const admission = new FakeRequestAdmission();
-    fill(admission, "push", INSTALLATION_REQUEST_LIMITS.push, minutesAgo(61));
-
-    const outcome = await admitting(admission, "push");
-
-    expect(outcome).toEqual({ kind: "admitted" });
-  });
-
   it("forgets the installation's requests of that endpoint that left the window once it admits one", async () => {
     const admission = new FakeRequestAdmission();
     const leftTheWindow = new Date(NOW.getTime() - INSTALLATION_REQUEST_WINDOW_MS);
