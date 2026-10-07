@@ -1,4 +1,5 @@
 import type { CashMovementType } from "../../register/index.js";
+import { saleBalance } from "./sale-balance.js";
 
 interface CompletedSaleLine {
   id: string;
@@ -47,8 +48,5 @@ export function approvedPaymentsCoverTotal(sale: {
   total: number;
   payments: readonly { amount: number; state: string }[];
 }): boolean {
-  const approved = sale.payments
-    .filter((payment) => payment.state === "APPROVED")
-    .reduce((sum, payment) => sum + payment.amount, 0);
-  return approved >= sale.total;
+  return saleBalance(sale.total, sale.payments).pending <= 0;
 }
