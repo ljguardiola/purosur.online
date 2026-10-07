@@ -11,7 +11,9 @@ import {
   createRecoveryJobQueuePool,
   registerShutdownHandlers,
   reportStartupFailure,
+  requireArcaEnvironment,
   requireAuthorizedCuit,
+  requireCertificateNotAfter,
   requireDeviceTokenRotationKey,
   requireInstallationKeysEncryptionKey,
   resolvePort,
@@ -103,6 +105,52 @@ describe("requireInstallationKeysEncryptionKey", () => {
     expect(() =>
       requireInstallationKeysEncryptionKey({ INSTALLATION_KEYS_ENCRYPTION_KEY: wrongSize }),
     ).toThrow("INSTALLATION_KEYS_ENCRYPTION_KEY must hold exactly 32 bytes");
+  });
+});
+
+const VALID_ARCA_CERTIFICATE_NOT_AFTER = new Date("2126-09-01T19:42:17.000Z");
+
+describe("requireCertificateNotAfter", () => {
+  it("returns the instant the certificate stops being valid", () => {
+    expect(requireCertificateNotAfter({ ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE })).toEqual(
+      VALID_ARCA_CERTIFICATE_NOT_AFTER,
+    );
+  });
+
+  it("reads it from the same certificate delivered as a single line with literal \\n sequences", () => {
+    expect(
+      requireCertificateNotAfter({ ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE_SINGLE_LINE }),
+    ).toEqual(VALID_ARCA_CERTIFICATE_NOT_AFTER);
+  });
+
+  it("throws when ARCA_CERTIFICATE is not set", () => {
+    expect(() => requireCertificateNotAfter({})).toThrow(
+      "ARCA_CERTIFICATE must be set once DATABASE_URL is configured",
+    );
+  });
+
+  it("throws when ARCA_CERTIFICATE is not a parseable certificate", () => {
+    expect(() => requireCertificateNotAfter({ ARCA_CERTIFICATE: "not a certificate" })).toThrow(
+      "ARCA_CERTIFICATE must be a valid X.509 certificate",
+    );
+  });
+});
+
+describe("requireArcaEnvironment", () => {
+  it.each(["homologation", "production"])("accepts %s", (environment) => {
+    expect(requireArcaEnvironment({ ARCA_ENVIRONMENT: environment })).toBe(environment);
+  });
+
+  it.each([undefined, ""])("throws when ARCA_ENVIRONMENT is %j", (value) => {
+    expect(() => requireArcaEnvironment({ ARCA_ENVIRONMENT: value })).toThrow(
+      "ARCA_ENVIRONMENT must be set once DATABASE_URL is configured",
+    );
+  });
+
+  it.each(["staging", "Production"])("throws on %j, naming the accepted values", (value) => {
+    expect(() => requireArcaEnvironment({ ARCA_ENVIRONMENT: value })).toThrow(
+      'ARCA_ENVIRONMENT must be "homologation" or "production"',
+    );
   });
 });
 
@@ -513,6 +561,7 @@ describe("startServer", () => {
       BACKOFFICE_ORIGIN: "https://staging.purosur.online",
       EDGE_ORIGIN_SECRET: "edge-secret",
       ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
+      ARCA_ENVIRONMENT: "production",
     };
 
     await expect(
@@ -533,6 +582,7 @@ describe("startServer", () => {
       BACKOFFICE_ORIGIN: "https://staging.purosur.online",
       EDGE_ORIGIN_SECRET: "edge-secret",
       ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
+      ARCA_ENVIRONMENT: "production",
       DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
     };
 
@@ -583,6 +633,7 @@ describe("startServer", () => {
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
       backofficeOrigin: "https://staging.purosur.online",
       worker: { stop: vi.fn() },
+      workerUtils: { addJob: vi.fn() },
       close,
     };
     const setUpRecovery = vi.fn().mockResolvedValue(fakeRecovery);
@@ -595,6 +646,7 @@ describe("startServer", () => {
       BACKOFFICE_ORIGIN: "https://staging.purosur.online",
       EDGE_ORIGIN_SECRET: "edge-secret",
       ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
+      ARCA_ENVIRONMENT: "production",
       DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
       INSTALLATION_KEYS_ENCRYPTION_KEY: KEYS_ENCRYPTION_KEY,
     };
@@ -614,6 +666,7 @@ describe("startServer", () => {
         emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
         emailReplyTo: "purosur.comarca@gmail.com",
         backofficeOrigin: "https://staging.purosur.online",
+        arcaCertificate: { environment: "production", notAfter: VALID_ARCA_CERTIFICATE_NOT_AFTER },
       },
       now,
     );
@@ -731,6 +784,7 @@ describe("startServer recording the certificate's CUIT", () => {
     BACKOFFICE_ORIGIN: "https://staging.purosur.online",
     EDGE_ORIGIN_SECRET: "edge-secret",
     ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
+    ARCA_ENVIRONMENT: "production",
     DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
     INSTALLATION_KEYS_ENCRYPTION_KEY: KEYS_ENCRYPTION_KEY,
   };
@@ -749,6 +803,7 @@ describe("startServer recording the certificate's CUIT", () => {
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
       backofficeOrigin: "https://staging.purosur.online",
       worker: { stop: vi.fn() },
+      workerUtils: { addJob: vi.fn() },
       close: vi.fn(),
     });
     const recordAuthorizedCuit = vi.fn(async () => {
@@ -782,6 +837,77 @@ describe("startServer recording the certificate's CUIT", () => {
   });
 });
 
+describe("startServer checking the certificate's expiry", () => {
+  const env = {
+    DATABASE_URL: "postgres://user:pass@db/purosur",
+    RESEND_API_KEY: "re_test_key",
+    RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+    RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+    BACKOFFICE_ORIGIN: "https://staging.purosur.online",
+    EDGE_ORIGIN_SECRET: "edge-secret",
+    ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
+    ARCA_ENVIRONMENT: "production",
+    DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
+    INSTALLATION_KEYS_ENCRYPTION_KEY: KEYS_ENCRYPTION_KEY,
+  };
+
+  it("enqueues the check on the started job queue before it starts listening", async () => {
+    const steps: string[] = [];
+    const fakeApp = {
+      listen: vi.fn(async () => {
+        steps.push("listen");
+      }),
+      addHook: vi.fn(),
+    } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+    const recovery = {
+      db: { marker: "fake-db" },
+      jobQueue: { enqueueRecoveryRequest: vi.fn() },
+      backofficeOrigin: "https://staging.purosur.online",
+      worker: { stop: vi.fn() },
+      workerUtils: { marker: "fake-worker-utils" },
+      close: vi.fn(),
+    };
+    const enqueueArcaCertificateExpiryCheck = vi.fn(async () => {
+      steps.push("enqueueArcaCertificateExpiryCheck");
+    });
+
+    await startServer(env, {
+      initSentry: vi.fn(),
+      buildApp: vi.fn().mockReturnValue(fakeApp),
+      setUpRecovery: vi.fn().mockResolvedValue(recovery),
+      recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      enqueueArcaCertificateExpiryCheck,
+    });
+
+    expect(enqueueArcaCertificateExpiryCheck).toHaveBeenCalledWith(recovery.workerUtils);
+    expect(steps).toEqual(["enqueueArcaCertificateExpiryCheck", "listen"]);
+  });
+
+  it("refuses to start when ARCA_ENVIRONMENT is not valid, before opening any database or job-queue resource", async () => {
+    const setUpRecovery = vi.fn();
+
+    await expect(
+      startServer(
+        { ...env, ARCA_ENVIRONMENT: "staging" },
+        { initSentry: vi.fn(), buildApp: vi.fn(), setUpRecovery },
+      ),
+    ).rejects.toThrow('ARCA_ENVIRONMENT must be "homologation" or "production"');
+    expect(setUpRecovery).not.toHaveBeenCalled();
+  });
+
+  it("refuses to start when ARCA_ENVIRONMENT is not set", async () => {
+    const { ARCA_ENVIRONMENT: _omitted, ...withoutEnvironment } = env;
+
+    await expect(
+      startServer(withoutEnvironment, {
+        initSentry: vi.fn(),
+        buildApp: vi.fn(),
+        setUpRecovery: vi.fn(),
+      }),
+    ).rejects.toThrow("ARCA_ENVIRONMENT must be set once DATABASE_URL is configured");
+  });
+});
+
 describe("startServer with the real app", () => {
   const dirs: string[] = [];
 
@@ -807,6 +933,7 @@ describe("startServer with the real app", () => {
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
       backofficeOrigin: "https://staging.purosur.online",
       worker: { stop: vi.fn() },
+      workerUtils: { addJob: vi.fn() },
       close: vi.fn().mockResolvedValue(undefined),
     });
 
@@ -819,6 +946,7 @@ describe("startServer with the real app", () => {
         BACKOFFICE_ORIGIN: "https://staging.purosur.online",
         EDGE_ORIGIN_SECRET: "edge-secret",
         ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
+        ARCA_ENVIRONMENT: "production",
         DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
         INSTALLATION_KEYS_ENCRYPTION_KEY: KEYS_ENCRYPTION_KEY,
         BACKOFFICE_STATIC_DIR: staticDir,
