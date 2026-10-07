@@ -100,24 +100,24 @@ const saleCompletedFields = {
   cash_movements: z.array(saleCashMovementSchema),
 };
 
-const saleCompletedV1Schema = z.object({
+export const saleCompletedV1Schema = z.object({
   ...saleCompletedFields,
   completed_at: instant,
   payments: z.array(z.union([cashPaymentV1Schema, paymentSchema])).min(1),
 });
 
-const saleCompletedV2Schema = z.object({
+export const saleCompletedV2Schema = z.object({
   ...saleCompletedFields,
   payments: z.array(paymentSchema).min(1),
 });
 
-const cashSessionOpenedSchema = z.object({
+export const cashSessionOpenedSchema = z.object({
   opened_by: text,
   opened_at: instant,
   opening_float: cashAmount,
 });
 
-const cashSessionClosedSchema = z.object({
+export const cashSessionClosedSchema = z.object({
   closed_by: text,
   closed_at: instant,
   expected_cash: cashAmount,
@@ -125,7 +125,7 @@ const cashSessionClosedSchema = z.object({
   difference: z.int(),
 });
 
-const cashMovementRecordedSchema = z.object({
+export const cashMovementRecordedSchema = z.object({
   type: z.enum(CASH_MOVEMENT_KINDS),
   amount: z.int().refine(isValidCashMovementAmount),
   reason: z.string().refine((reason) => cashMovementReason(reason) === reason),
@@ -136,7 +136,7 @@ const cashMovementRecordedSchema = z.object({
   occurred_at: instant,
 });
 
-const fiscalGateFailedSchema = z.object({
+export const fiscalGateFailedSchema = z.object({
   sale_id: text,
   register_id: text,
   reason: z.enum(PRE_EMISSION_GATE_FAILURE_REASONS),

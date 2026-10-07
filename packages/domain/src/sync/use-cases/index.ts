@@ -1,4 +1,5 @@
 export type { LimitedEndpoint } from "../model/installation-request-limit.js";
+export type { SyncedFact } from "../model/synced-fact.js";
 export type {
   AdmitInstallationRequestInput,
   AdmitInstallationRequestOutcome,
