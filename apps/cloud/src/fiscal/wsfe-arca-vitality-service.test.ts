@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
@@ -42,6 +43,24 @@ describe("WsfeArcaVitalityService", () => {
     expect(server.requests).toHaveLength(1);
     expect(server.requests[0]).toContain("FEDummy");
     expect(server.requests[0]).not.toContain("Auth");
+  });
+
+  it("hands over the raw answer ARCA gave, a SOAP fault included", async () => {
+    const received: string[] = [];
+    const service = new WsfeArcaVitalityService({
+      endpoint: server.endpoint,
+      onRawResponse: (raw) => received.push(raw),
+    });
+
+    await service.check();
+    server.behave(answers("fe-dummy-fault.xml", 500));
+    await service.check();
+
+    const responses = new URL("./test-support/wsfe-responses/", import.meta.url);
+    expect(received).toEqual([
+      readFileSync(new URL("fe-dummy-all-ok.xml", responses), "utf8"),
+      readFileSync(new URL("fe-dummy-fault.xml", responses), "utf8"),
+    ]);
   });
 
   it("answers with the values as reported when one server is not OK", async () => {

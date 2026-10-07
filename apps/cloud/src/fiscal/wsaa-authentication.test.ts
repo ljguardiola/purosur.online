@@ -1,4 +1,5 @@
 import { X509Certificate } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
@@ -140,6 +141,27 @@ describe("ArcaWsaaAuthentication", () => {
     expect(await authenticationOf(server.endpoint).requestToken("wsfe")).toEqual({
       kind: "already_authenticated",
     });
+  });
+
+  it("hands over the raw answer ARCA gave, a SOAP fault included", async () => {
+    const received: string[] = [];
+    const authentication = new ArcaWsaaAuthentication({
+      endpoint: server.endpoint,
+      certificatePem: credentials.certificatePem,
+      privateKeyPem: credentials.privateKeyPem,
+      now: () => NOW,
+      onRawResponse: (raw) => received.push(raw),
+    });
+
+    await authentication.requestToken("wsfe");
+    server.behave(answers("already-authenticated-fault.xml", 500));
+    await authentication.requestToken("wsfe");
+
+    const responses = new URL("./test-support/wsaa-responses/", import.meta.url);
+    expect(received).toEqual([
+      readFileSync(new URL("login-cms-issued.xml", responses), "utf8"),
+      readFileSync(new URL("already-authenticated-fault.xml", responses), "utf8"),
+    ]);
   });
 
   it("fails on any other fault", async () => {
