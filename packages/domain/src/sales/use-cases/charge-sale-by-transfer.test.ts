@@ -421,6 +421,31 @@ describe("chargeSaleByTransfer", () => {
       expect(store.state.preEmissionGates).toEqual([]);
     });
 
+    it("accepts the payment that covers the rest when a threshold at the total takes effect after the first payment", () => {
+      const store = ledger();
+      const ids = new SequentialIds();
+      charge(store, PARTIAL, "sale-1", "cashier", ids);
+      store.state.thresholds = [{ ...THRESHOLD, amount: TOTAL }];
+
+      expect(charge(store, TOTAL - PARTIAL, "sale-1", "cashier", ids)).toEqual({
+        kind: "completed",
+        saleId: "sale-1",
+        total: TOTAL,
+      });
+    });
+
+    it("accepts a further partial payment when no threshold is in effect any more", () => {
+      const store = ledger();
+      const ids = new SequentialIds();
+      charge(store, PARTIAL, "sale-1", "cashier", ids);
+      store.state.thresholds = [];
+
+      expect(charge(store, 1000, "sale-1", "cashier", ids)).toMatchObject({
+        kind: "partially_paid",
+        paid: PARTIAL + 1000,
+      });
+    });
+
     it("completes with both payments when a second transfer covers exactly what is pending", () => {
       const store = ledger();
       const ids = new SequentialIds();

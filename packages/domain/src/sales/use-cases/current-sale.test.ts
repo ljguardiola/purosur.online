@@ -149,4 +149,25 @@ describe("current-sale charge refusal", () => {
       expect.objectContaining({ chargeRefusal: { kind: "no_buyer_identification_threshold" } }),
     );
   });
+
+  it("tells nothing is refused once the sale has an approved payment, whatever the threshold in force", () => {
+    const payment: PaymentTransaction = {
+      id: "payment-1",
+      saleId: "sale-1",
+      kind: "SALE",
+      method: "CASH",
+      provider: "NONE",
+      amount: 1200,
+      tendered: 1200,
+      state: "APPROVED",
+      occurredAt: NOW,
+    };
+
+    for (const thresholds of [[{ ...THRESHOLD, amount: 5000 }], []]) {
+      expect(read(ledger({ thresholds, payments: [payment] }))).toHaveProperty(
+        "chargeRefusal",
+        undefined,
+      );
+    }
+  });
 });

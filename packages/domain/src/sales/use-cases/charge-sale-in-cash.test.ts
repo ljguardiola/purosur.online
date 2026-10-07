@@ -677,6 +677,30 @@ describe("chargeSaleInCash", () => {
       });
     });
 
+    it("accepts the payment that covers the rest when a threshold at the total takes effect after the first payment", () => {
+      const store = ledger();
+      const ids = new SequentialIds();
+      charge(store, PARTIAL, "sale-1", "cashier", ids);
+      store.state.thresholds = [{ ...THRESHOLD, amount: TOTAL }];
+
+      expect(charge(store, TOTAL, "sale-1", "cashier", ids)).toMatchObject({
+        kind: "completed",
+        saleId: "sale-1",
+      });
+    });
+
+    it("accepts a further partial payment when no threshold is in effect any more", () => {
+      const store = ledger();
+      const ids = new SequentialIds();
+      charge(store, PARTIAL, "sale-1", "cashier", ids);
+      store.state.thresholds = [];
+
+      expect(charge(store, 1000, "sale-1", "cashier", ids)).toMatchObject({
+        kind: "partially_paid",
+        paid: PARTIAL + 1000,
+      });
+    });
+
     it("reports the running balance after a second partial payment", () => {
       const store = ledger();
       const ids = new SequentialIds();
