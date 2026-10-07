@@ -76,16 +76,13 @@ describe("the cloud's inbox, as the register pushes to it", () => {
     expect(await inbox.push([event(3)])).toEqual({ kind: "stale_device", ackSeq: 9 });
   });
 
-  it("reads an update request as a failure, since the register cannot act on it yet", async () => {
+  it("reads an update request with the sequence the cloud already holds", async () => {
     const { inbox } = inboxAnswering({
       kind: "ok",
       body: { status: "update_required", ack_seq: 2 },
     });
 
-    expect(await inbox.push([event(3)])).toEqual({
-      kind: "failed",
-      failure: { kind: "unreadable" },
-    });
+    expect(await inbox.push([event(3)])).toEqual({ kind: "update_required", ackSeq: 2 });
   });
 
   it("reads a revoked installation", async () => {

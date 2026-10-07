@@ -211,6 +211,7 @@ describe("what a push means for the next one", () => {
       { kind: "stale_device" },
       { kind: "revoked" },
       { kind: "compromised" },
+      { kind: "update_required" },
       { kind: "ack_short_of_batch", ackSeq: 2 },
       { kind: "no_app_version" },
     ] as const) {
@@ -235,6 +236,10 @@ describe("what a push is worth warning about", () => {
 
   it("says a register that lost events from its outbox stopped selling", () => {
     expect(pushWarningOf({ kind: "compromised" })).toMatch(/lost events/);
+  });
+
+  it("says the cloud asks for an update and the events stay in the outbox", () => {
+    expect(pushWarningOf({ kind: "update_required" })).toMatch(/update.*outbox/);
   });
 
   it("warns about every stop that is not just being offline", () => {
@@ -277,5 +282,22 @@ describe("a revoked installation", () => {
     expect(attempt).toEqual({ kind: "revoked" });
     expect(register.acknowledged()).toEqual([]);
     expect(register.revokedAt()).toBe("2026-10-01T09:30:00.000Z");
+  });
+});
+
+describe("a cloud that asks the register to update", () => {
+  it("keeps the events it does not hold, acknowledges the ones it does, and never revokes", async () => {
+    const register = registerWithEvents(3);
+    const { post, requests } = cloudAnswering(() => ({
+      kind: "ok",
+      body: { status: "update_required", ack_seq: 1 },
+    }));
+
+    const attempt = await pushToCloud(depsFor(register, post));
+
+    expect(attempt).toEqual({ kind: "update_required" });
+    expect(requests).toHaveLength(1);
+    expect(register.acknowledged()).toEqual([1]);
+    expect(register.revokedAt()).toBeNull();
   });
 });
