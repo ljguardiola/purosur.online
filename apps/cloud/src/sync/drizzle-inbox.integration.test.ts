@@ -121,6 +121,11 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
       actorId: "user-1",
       chainHmac: pushed.chain_hmac,
       receivedAt: NOW,
+      appliedAt: null,
+      attempts: 0,
+      nextAttemptAt: null,
+      quarantinedAt: null,
+      lastError: null,
     });
   });
 
