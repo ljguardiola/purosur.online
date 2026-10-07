@@ -1,12 +1,15 @@
 import { cloudError, cloudErrorStatus, healthCheckSchema } from "@purosur/contracts";
+import type { AdmitInstallationRequestOutcome } from "@purosur/domain/sync/use-cases";
 import type { FastifyInstance } from "fastify";
 import { PUBLIC_ACCESS } from "../access/route-access.js";
 import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
 import type { DeviceAuthentication } from "../register/device-authentication.js";
+import { sendRateLimited } from "../register/rate-limited-response.js";
 
 export interface HealthRouteOptions {
   version: string;
   authenticateDevice?: (authorization: string | undefined) => Promise<DeviceAuthentication>;
+  admitRequest?: (deviceId: string) => Promise<AdmitInstallationRequestOutcome>;
 }
 
 const DEVICE_TOKEN_REJECTED = cloudError(
@@ -32,6 +35,14 @@ export function registerHealthRoute(app: FastifyInstance, options: HealthRouteOp
           .header("WWW-Authenticate", "Bearer")
           .send(DEVICE_TOKEN_REJECTED);
         return;
+      }
+
+      if (authentication.kind === "installation" && options.admitRequest) {
+        const admitted = await options.admitRequest(authentication.installation.deviceId);
+        if (admitted.kind === "rate_limited") {
+          await sendRateLimited(reply, "too many requests", admitted.retryAfterSeconds);
+          return;
+        }
       }
 
       await reply.send(

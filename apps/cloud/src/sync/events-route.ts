@@ -7,6 +7,7 @@ import {
   pushEventsResponseSchema,
 } from "@purosur/contracts";
 import {
+  admitInstallationRequest,
   type ReceivePushedEventsOutcome,
   receivePushedEvents,
 } from "@purosur/domain/sync/use-cases";
@@ -21,7 +22,9 @@ import {
   type DeviceTokensOptions,
   installationTokenPorts,
 } from "../register/installation-token-ports.js";
+import { sendRateLimited } from "../register/rate-limited-response.js";
 import { DrizzleInbox } from "./drizzle-inbox.js";
+import { DrizzleRequestAdmission } from "./drizzle-request-admission.js";
 import { hmacEventChain } from "./hmac-event-chain.js";
 
 export type EventsRouteOptions<TQueryResult extends PgQueryResultHKT> =
@@ -64,6 +67,7 @@ export function registerEventsRoute<TQueryResult extends PgQueryResultHKT>(
     eventChain: hmacEventChain,
     clock: { now: options.now },
   };
+  const admission = { admission: new DrizzleRequestAdmission(options.db), clock: ports.clock };
 
   app.register(async (scope) => {
     answerErrorsWithCloudEnvelope(scope);
@@ -82,6 +86,15 @@ export function registerEventsRoute<TQueryResult extends PgQueryResultHKT>(
         }
         if (authentication.installation.revoked) {
           await reply.code(cloudErrorStatus(REVOKED.code)).send(REVOKED);
+          return;
+        }
+
+        const admitted = await admitInstallationRequest(admission, {
+          deviceId: authentication.installation.deviceId,
+          endpoint: "push",
+        });
+        if (admitted.kind === "rate_limited") {
+          await sendRateLimited(reply, "too many requests", admitted.retryAfterSeconds);
           return;
         }
 

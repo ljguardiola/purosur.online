@@ -1,3 +1,4 @@
+export type { LimitedEndpoint } from "../model/installation-request-limit.js";
 export type {
   AdmitInstallationRequestInput,
   AdmitInstallationRequestOutcome,

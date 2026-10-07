@@ -23,7 +23,10 @@ import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rot
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { registerEventsRoute } from "./events-route.js";
 import { hmacEventChain } from "./hmac-event-chain.js";
-import { insertAdmittedRequests, insertRequestsUpToLimit } from "./test-support/admitted-requests.js";
+import {
+  insertAdmittedRequests,
+  insertRequestsUpToLimit,
+} from "./test-support/admitted-requests.js";
 import { eventsRouteUnderTest, NOW } from "./test-support/events-route.js";
 
 const route = eventsRouteUnderTest();

@@ -16,6 +16,7 @@ import { DrizzleRegisterStore } from "./drizzle-register-store.js";
 import { generateInstallationKey } from "./installation-key.js";
 import { installationKeyCipher } from "./installation-key-cipher.js";
 import { installationKeysBody } from "./installation-keys-body.js";
+import { sendRateLimited } from "./rate-limited-response.js";
 import { registerEnrollmentCodeMatches } from "./register-enrollment-code.js";
 
 export interface DeviceEnrollmentRouteOptions<TQueryResult extends PgQueryResultHKT> {
@@ -58,14 +59,7 @@ export function registerDeviceEnrollmentRoute<TQueryResult extends PgQueryResult
       });
 
       if (outcome.kind === "rate_limited") {
-        await reply
-          .code(cloudErrorStatus("rate_limited"))
-          .header("Retry-After", String(outcome.retryAfterSeconds))
-          .send(
-            cloudError("rate_limited", "too many enrollment attempts", [
-              { retry_after_seconds: outcome.retryAfterSeconds },
-            ]),
-          );
+        await sendRateLimited(reply, "too many enrollment attempts", outcome.retryAfterSeconds);
         return;
       }
       if (outcome.kind === "code_rejected") {
