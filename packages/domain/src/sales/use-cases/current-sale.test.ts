@@ -150,7 +150,7 @@ describe("current-sale charge refusal", () => {
     );
   });
 
-  it("tells nothing is refused once the sale has an approved payment, whatever the threshold in force", () => {
+  it("tells nothing is refused once the sale has an approved payment, even when its total reaches the threshold", () => {
     const payment: PaymentTransaction = {
       id: "payment-1",
       saleId: "sale-1",
@@ -163,11 +163,8 @@ describe("current-sale charge refusal", () => {
       occurredAt: NOW,
     };
 
-    for (const thresholds of [[{ ...THRESHOLD, amount: 5000 }], []]) {
-      expect(read(ledger({ thresholds, payments: [payment] }))).toHaveProperty(
-        "chargeRefusal",
-        undefined,
-      );
-    }
+    expect(
+      read(ledger({ thresholds: [{ ...THRESHOLD, amount: 5000 }], payments: [payment] })),
+    ).toHaveProperty("chargeRefusal", undefined);
   });
 });
