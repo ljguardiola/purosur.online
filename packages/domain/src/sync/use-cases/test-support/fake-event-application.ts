@@ -20,6 +20,7 @@ export interface FakeStoredEvent extends UnappliedEvent {
 export interface FakeEventApplicationState {
   events: FakeStoredEvent[];
   recorded: { fact: SyncedFact; eventId: string }[];
+  appliedOrder: string[];
   quarantineAlerts: EventsQuarantinedDetail[];
   invariantAlerts: EventInvariantViolatedDetail[];
 }
@@ -53,6 +54,7 @@ export class FakeEventApplication implements EventApplication {
   state: FakeEventApplicationState = {
     events: [],
     recorded: [],
+    appliedOrder: [],
     quarantineAlerts: [],
     invariantAlerts: [],
   };
@@ -67,10 +69,7 @@ export class FakeEventApplication implements EventApplication {
   }
 
   get appliedEventIds(): string[] {
-    return this.state.events
-      .filter((event) => event.appliedAt !== null)
-      .sort((a, b) => (a.appliedAt?.getTime() ?? 0) - (b.appliedAt?.getTime() ?? 0))
-      .map((event) => event.eventId);
+    return this.state.appliedOrder.filter((eventId) => this.event(eventId).appliedAt !== null);
   }
 
   event(eventId: string): FakeStoredEvent {
@@ -134,6 +133,7 @@ export class FakeEventApplication implements EventApplication {
       },
       markApplied: async (eventId, at) => {
         this.event(eventId).appliedAt = at;
+        this.state.appliedOrder.push(eventId);
       },
       recordFailedAttempt: async (eventId, failed: FailedAttempt) => {
         Object.assign(this.event(eventId), failed);
