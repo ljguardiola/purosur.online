@@ -54,9 +54,10 @@ afterAll(async () => {
   rmSync(staticDir, { recursive: true, force: true });
 });
 
-// The press ends once the screen renders its button, and a policy or an error that keeps the
-// screen from rendering reports a violation or the error first, so the test waits for whichever
-// comes first however long it takes.
+// Every screen the router ends on, the sign-in screen and the failure screen alike, renders a
+// heading, and a policy or a failure that keeps any screen from rendering reports a violation, an
+// uncaught error or a failed download, so the test waits for whichever comes first however long
+// it takes.
 test("the built backoffice runs under the cloud's content security policy without a violation", {
   timeout: 0,
 }, async () => {
@@ -82,17 +83,40 @@ test("the built backoffice runs under the cloud's content security policy withou
       resolve();
     });
   });
+  const failedDownloads: string[] = [];
+  const firstFailedDownload = new Promise<void>((resolve) => {
+    const isCode = (resourceType: string) =>
+      resourceType === "script" || resourceType === "stylesheet";
+    page.on("requestfailed", (request) => {
+      if (isCode(request.resourceType())) {
+        failedDownloads.push(`${request.url()} ${request.failure()?.errorText}`);
+        resolve();
+      }
+    });
+    page.on("response", (response) => {
+      if (isCode(response.request().resourceType()) && response.status() >= 400) {
+        failedDownloads.push(`${response.url()} ${response.status()}`);
+        resolve();
+      }
+    });
+  });
 
   await page.goto(new URL("/sign-in", origin).href);
-  await Promise.race([
-    page.getByRole("button", { name: "Ingresar con passkey" }).click(),
-    page.waitForFunction(
-      () =>
-        (window as unknown as { contentSecurityPolicyViolations: string[] })
-          .contentSecurityPolicyViolations.length > 0,
-    ),
-    firstPageError,
-  ]);
+  const violationReported = page.waitForFunction(
+    () =>
+      (window as unknown as { contentSecurityPolicyViolations: string[] })
+        .contentSecurityPolicyViolations.length > 0,
+  );
+  const screenRendered = page.locator("h1").first().waitFor();
+  violationReported.catch(() => undefined);
+  screenRendered.catch(() => undefined);
+  await Promise.race([screenRendered, violationReported, firstPageError, firstFailedDownload]);
+
+  const signInButton = page.getByRole("button", { name: "Ingresar con passkey" });
+  const signInButtonShown = (await signInButton.count()) > 0;
+  if (signInButtonShown) {
+    await signInButton.click();
+  }
 
   const violations = await page.evaluate(
     () =>
@@ -102,4 +126,6 @@ test("the built backoffice runs under the cloud's content security policy withou
   await context.close();
   expect(violations).toEqual([]);
   expect(pageErrors).toEqual([]);
+  expect(failedDownloads).toEqual([]);
+  expect(signInButtonShown).toBe(true);
 });
