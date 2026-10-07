@@ -84,15 +84,14 @@ export function readLoginRequest(soapRequest: string): ReceivedLoginRequest {
       authenticatedAttributes: forge.asn1.Asn1[];
       signature: string;
       digestAlgorithm: string;
+      content: forge.asn1.Asn1;
     };
-    content: forge.util.ByteStringBuffer | string;
   };
   const certificate = message.certificates[0];
   if (!certificate) {
     throw new Error("the CMS embeds no certificate");
   }
-  const signedContent =
-    typeof message.content === "string" ? message.content : message.content.getBytes();
+  const signedContent = (message.rawCapture.content.value as forge.asn1.Asn1[])[0]?.value as string;
   const attributes = forge.asn1.create(
     forge.asn1.Class.UNIVERSAL,
     forge.asn1.Type.SET,
