@@ -61,7 +61,7 @@ describe("synced event payloads", () => {
   });
 
   it("covers every event type and version the recorded pushes hold", () => {
-    const pairs = new Set(recordedEvents().map((e) => `@`));
+    const pairs = new Set(recordedEvents().map((e) => [e.event_type, e.schema_version].join("@")));
 
     expect([...pairs].sort()).toEqual([
       "cash_movement_recorded@1",
@@ -415,7 +415,7 @@ describe("synced event payloads", () => {
     });
 
     it.each([
-      ["a type cash movements of a sale never have", { type: "WITHDRAWAL" }],
+      ["a type no cash movement has", { type: "TIP" }],
       ["a fractional amount", { amount: 1.5 }],
       ["a negative amount", { amount: -1 }],
     ])("refuses a cash movement with %s", (_case, change) => {
