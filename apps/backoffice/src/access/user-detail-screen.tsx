@@ -132,11 +132,7 @@ function UserDetailView({
   // session's own.
   const isOwnAccount = signedInUserId.toLowerCase() === userId.toLowerCase();
   const isInactive = user?.active === false;
-  const showsPinSection = user
-    ? user.mayEmitPinCode
-    : isOwnAccount
-      ? access.mayEmitOwnPinCode
-      : access.capabilities.includes("reset_user_pin");
+  const showsPinSection = user ? user.mayEmitPinCode : isOwnAccount && access.mayEmitOwnPinCode;
 
   return (
     <>
