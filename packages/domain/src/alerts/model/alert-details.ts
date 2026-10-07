@@ -50,6 +50,10 @@ export interface RegisterEnrolledDetail {
   replacedInstallation: boolean;
 }
 
+export interface ArcaCertificateExpiringDetail {
+  notAfter: string;
+}
+
 export interface AlertDetails {
   backoffice_passkey_changed: PasskeyChangedDetail;
   backoffice_recovery_requested: RecoveryRequestedDetail;
@@ -57,6 +61,7 @@ export interface AlertDetails {
   backoffice_sign_in_lockout: SignInLockoutDetail;
   user_access_increased: AccessIncreasedDetail;
   register_enrolled: RegisterEnrolledDetail;
+  arca_certificate_expiring: ArcaCertificateExpiringDetail;
 }
 
 export type OpenAlertInput = {

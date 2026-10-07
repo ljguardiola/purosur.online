@@ -102,6 +102,7 @@ export type {
   AlertLevel,
   AlertRoleSummary,
   AlertScopeKind,
+  ArcaCertificateExpiringDetail,
   AlertSight,
   AlertViewer,
   EmailChangedDetail,

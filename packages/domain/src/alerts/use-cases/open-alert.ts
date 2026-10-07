@@ -27,7 +27,7 @@ export async function openAlert(
     locationId: alertLocationId(policy.audience, input.locationId),
     detail: input.detail,
     openedAt,
-    escalateAt: escalatesAt(input.kind, openedAt),
+    escalateAt: escalatesAt(input, openedAt),
     deduplicates: policy.deduplicates,
   };
 
