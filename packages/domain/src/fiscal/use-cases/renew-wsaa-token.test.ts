@@ -36,9 +36,9 @@ function renew(store: FakeWsaaTokenStore, result: WsaaAuthenticationResult) {
 }
 
 describe("renewWsaaToken", () => {
-  it("keeps a token with more than an hour left and never calls WSAA", async () => {
+  it("keeps a token that is still valid, however little time it has left, and never calls WSAA", async () => {
     const store = new FakeWsaaTokenStore();
-    store.seed(SERVICE, FINGERPRINT, persisted(HOUR_MS));
+    store.seed(SERVICE, FINGERPRINT, persisted(1));
     const { authentication, outcome } = renew(store, { kind: "issued", token: ISSUED });
 
     await expect(outcome).resolves.toEqual({ kind: "kept" });
@@ -60,9 +60,9 @@ describe("renewWsaaToken", () => {
     ]);
   });
 
-  it("replaces a token with less than an hour left", async () => {
+  it("replaces a token once it expired", async () => {
     const store = new FakeWsaaTokenStore();
-    store.seed(SERVICE, FINGERPRINT, persisted(HOUR_MS - 1));
+    store.seed(SERVICE, FINGERPRINT, persisted(0));
     const { outcome } = renew(store, { kind: "issued", token: ISSUED });
 
     await expect(outcome).resolves.toEqual({ kind: "renewed" });
@@ -82,7 +82,7 @@ describe("renewWsaaToken", () => {
 
   it("keeps what is persisted when WSAA says the certificate is already authenticated", async () => {
     const store = new FakeWsaaTokenStore();
-    store.seed(SERVICE, FINGERPRINT, persisted(HOUR_MS - 1));
+    store.seed(SERVICE, FINGERPRINT, persisted(0));
     const { outcome } = renew(store, { kind: "already_authenticated" });
 
     await expect(outcome).resolves.toEqual({ kind: "already_authenticated" });

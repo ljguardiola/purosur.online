@@ -100,4 +100,10 @@ describe("wsfeEndpointOf", () => {
     expect(wsfeEndpointOf("homologation")).toBe("https://wswhomo.afip.gov.ar/wsfev1/service.asmx");
     expect(wsfeEndpointOf("production")).toBe("https://servicios1.afip.gov.ar/wsfev1/service.asmx");
   });
+
+  it("refuses an environment it does not know", () => {
+    expect(() => wsfeEndpointOf("staging")).toThrow(
+      'No WSFE endpoint for the ARCA environment "staging"',
+    );
+  });
 });

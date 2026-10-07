@@ -739,7 +739,7 @@ test("names an alert for an expiring ARCA certificate by its kind and what happe
 
   const screen = await renderScreen(services);
 
-  const row = screen.getByRole("row", { name: /production/ });
+  const row = screen.getByRole("row", { name: /Producción/ });
   await expect.element(row.getByText("Certificado de ARCA por vencer")).toBeVisible();
   await expect.element(row.getByText("El certificado de ARCA está por vencer")).toBeVisible();
 });

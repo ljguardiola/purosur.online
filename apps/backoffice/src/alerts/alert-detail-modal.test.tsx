@@ -953,6 +953,7 @@ test("shows an expiring ARCA certificate with the environment it is for and the 
       ),
     )
     .toBeVisible();
+  await expect.element(screen.getByText("Producción", { exact: true })).toBeVisible();
 });
 
 test("names the homologation environment of an expiring ARCA certificate", async () => {

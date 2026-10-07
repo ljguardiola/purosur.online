@@ -5,10 +5,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support";
 import type { FastifyInstance } from "fastify";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { type BuildAppOptions, buildApp as buildRealApp } from "./app.js";
 import { generateArcaTestCredentials } from "./fiscal/test-support/arca-test-credentials.js";
+import { unreachableArcaEndpoints } from "./fiscal/test-support/unreachable-arca-endpoints.js";
 import {
+  arcaEndpointsOf,
   closeRecoveryResources,
   createRecoveryJobQueuePool,
   registerShutdownHandlers,
@@ -22,6 +24,7 @@ import {
   resolveRecoveryEnv,
   resolveStaticDir,
   resolveVersion,
+  type StartServerDeps,
   shutdownServer,
   startServer,
 } from "./server.js";
@@ -381,9 +384,12 @@ describe("startServer", () => {
       EDGE_ORIGIN_SECRET: "edge-secret",
     };
 
-    const app = await startServer(env, { initSentry, buildApp, now }).finally(() =>
-      rmSync(staticDir, { recursive: true, force: true }),
-    );
+    const app = await startServer(env, {
+      arcaEndpoints: unreachableArcaEndpoints,
+      initSentry,
+      buildApp,
+      now,
+    }).finally(() => rmSync(staticDir, { recursive: true, force: true }));
 
     expect(initSentry).toHaveBeenCalledWith({
       dsn: "https://public@sentry.example/1",
@@ -413,7 +419,7 @@ describe("startServer", () => {
         SENTRY_ENVIRONMENT: "staging",
         EDGE_ORIGIN_SECRET: "edge-secret",
       },
-      { initSentry, buildApp },
+      { arcaEndpoints: unreachableArcaEndpoints, initSentry, buildApp },
     );
 
     expect(buildApp).toHaveBeenCalledWith(expect.objectContaining({ version: "unknown" }));
@@ -431,7 +437,7 @@ describe("startServer", () => {
         BACKOFFICE_SENTRY_DSN: "https://key@errors.example.test/1",
         SENTRY_ENVIRONMENT: "staging",
       },
-      { initSentry: vi.fn(), buildApp },
+      { arcaEndpoints: unreachableArcaEndpoints, initSentry: vi.fn(), buildApp },
     );
 
     expect(buildApp).toHaveBeenCalledWith(
@@ -450,7 +456,7 @@ describe("startServer", () => {
           EDGE_ORIGIN_SECRET: "edge-secret",
           BACKOFFICE_SENTRY_DSN: "https://key@errors.example.test/1",
         },
-        { initSentry: vi.fn(), buildApp },
+        { arcaEndpoints: unreachableArcaEndpoints, initSentry: vi.fn(), buildApp },
       ),
     ).rejects.toThrow("SENTRY_ENVIRONMENT must be set when BACKOFFICE_SENTRY_DSN is");
     expect(buildApp).not.toHaveBeenCalled();
@@ -463,7 +469,7 @@ describe("startServer", () => {
 
     await startServer(
       { EDGE_ORIGIN_SECRET: "edge-secret" },
-      { initSentry: vi.fn(), buildApp, now },
+      { arcaEndpoints: unreachableArcaEndpoints, initSentry: vi.fn(), buildApp, now },
     );
 
     expect(buildApp).toHaveBeenCalledWith({
@@ -482,7 +488,13 @@ describe("startServer", () => {
 
     await startServer(
       { EDGE_ORIGIN_SECRET: "edge-secret" },
-      { initSentry: vi.fn(), buildApp, setUpRecovery, now },
+      {
+        arcaEndpoints: unreachableArcaEndpoints,
+        initSentry: vi.fn(),
+        buildApp,
+        setUpRecovery,
+        now,
+      },
     );
 
     expect(setUpRecovery).not.toHaveBeenCalled();
@@ -497,9 +509,9 @@ describe("startServer", () => {
   it("refuses to start when EDGE_ORIGIN_SECRET is not set", async () => {
     const buildApp = vi.fn();
 
-    await expect(startServer({}, { initSentry: vi.fn(), buildApp })).rejects.toThrow(
-      "EDGE_ORIGIN_SECRET",
-    );
+    await expect(
+      startServer({}, { arcaEndpoints: unreachableArcaEndpoints, initSentry: vi.fn(), buildApp }),
+    ).rejects.toThrow("EDGE_ORIGIN_SECRET");
     expect(buildApp).not.toHaveBeenCalled();
   });
 
@@ -515,7 +527,12 @@ describe("startServer", () => {
     };
 
     await expect(
-      startServer(env, { initSentry: vi.fn(), buildApp, setUpRecovery }),
+      startServer(env, {
+        arcaEndpoints: unreachableArcaEndpoints,
+        initSentry: vi.fn(),
+        buildApp,
+        setUpRecovery,
+      }),
     ).rejects.toThrow("EDGE_ORIGIN_SECRET");
     expect(setUpRecovery).not.toHaveBeenCalled();
     expect(buildApp).not.toHaveBeenCalled();
@@ -526,7 +543,10 @@ describe("startServer", () => {
     const fakeApp = { listen } as unknown as ReturnType<typeof import("./app.js").buildApp>;
     const buildApp = vi.fn().mockReturnValue(fakeApp);
 
-    await startServer({ EDGE_ORIGIN_SECRET: "edge-secret" }, { initSentry: vi.fn(), buildApp });
+    await startServer(
+      { EDGE_ORIGIN_SECRET: "edge-secret" },
+      { arcaEndpoints: unreachableArcaEndpoints, initSentry: vi.fn(), buildApp },
+    );
 
     expect(buildApp).toHaveBeenCalledWith(
       expect.not.objectContaining({ issuerIdentification: expect.anything() }),
@@ -546,7 +566,12 @@ describe("startServer", () => {
     };
 
     await expect(
-      startServer(env, { initSentry: vi.fn(), buildApp, setUpRecovery }),
+      startServer(env, {
+        arcaEndpoints: unreachableArcaEndpoints,
+        initSentry: vi.fn(),
+        buildApp,
+        setUpRecovery,
+      }),
     ).rejects.toThrow("ARCA_CERTIFICATE must be set once DATABASE_URL is configured");
     expect(setUpRecovery).not.toHaveBeenCalled();
     expect(buildApp).not.toHaveBeenCalled();
@@ -567,7 +592,12 @@ describe("startServer", () => {
     };
 
     await expect(
-      startServer(env, { initSentry: vi.fn(), buildApp, setUpRecovery }),
+      startServer(env, {
+        arcaEndpoints: unreachableArcaEndpoints,
+        initSentry: vi.fn(),
+        buildApp,
+        setUpRecovery,
+      }),
     ).rejects.toThrow("DEVICE_TOKEN_ROTATION_KEY must be set once DATABASE_URL is configured");
     expect(setUpRecovery).not.toHaveBeenCalled();
     expect(buildApp).not.toHaveBeenCalled();
@@ -589,7 +619,12 @@ describe("startServer", () => {
     };
 
     await expect(
-      startServer(env, { initSentry: vi.fn(), buildApp, setUpRecovery }),
+      startServer(env, {
+        arcaEndpoints: unreachableArcaEndpoints,
+        initSentry: vi.fn(),
+        buildApp,
+        setUpRecovery,
+      }),
     ).rejects.toThrow(
       "INSTALLATION_KEYS_ENCRYPTION_KEY must be set once DATABASE_URL is configured",
     );
@@ -611,7 +646,12 @@ describe("startServer", () => {
     };
 
     await expect(
-      startServer(env, { initSentry: vi.fn(), buildApp, setUpRecovery }),
+      startServer(env, {
+        arcaEndpoints: unreachableArcaEndpoints,
+        initSentry: vi.fn(),
+        buildApp,
+        setUpRecovery,
+      }),
     ).rejects.toThrow("ARCA_CERTIFICATE's CUIT must have a correct check digit");
     expect(setUpRecovery).not.toHaveBeenCalled();
     expect(buildApp).not.toHaveBeenCalled();
@@ -654,6 +694,7 @@ describe("startServer", () => {
     };
 
     await startServer(env, {
+      arcaEndpoints: arcaEndpointsOf,
       initSentry: vi.fn(),
       buildApp,
       setUpRecovery,
@@ -821,6 +862,7 @@ describe("startServer recording the certificate's CUIT", () => {
     });
 
     await startServer(env, {
+      arcaEndpoints: unreachableArcaEndpoints,
       initSentry: vi.fn(),
       buildApp: vi.fn().mockReturnValue(fakeApp),
       setUpRecovery,
@@ -840,7 +882,12 @@ describe("startServer recording the certificate's CUIT", () => {
 
     await startServer(
       { EDGE_ORIGIN_SECRET: "edge-secret" },
-      { initSentry: vi.fn(), buildApp: vi.fn().mockReturnValue(fakeApp), recordAuthorizedCuit },
+      {
+        arcaEndpoints: unreachableArcaEndpoints,
+        initSentry: vi.fn(),
+        buildApp: vi.fn().mockReturnValue(fakeApp),
+        recordAuthorizedCuit,
+      },
     );
 
     expect(recordAuthorizedCuit).not.toHaveBeenCalled();
@@ -882,6 +929,7 @@ describe("startServer checking the certificate's expiry", () => {
     });
 
     await startServer(env, {
+      arcaEndpoints: unreachableArcaEndpoints,
       initSentry: vi.fn(),
       buildApp: vi.fn().mockReturnValue(fakeApp),
       setUpRecovery: vi.fn().mockResolvedValue(recovery),
@@ -899,7 +947,12 @@ describe("startServer checking the certificate's expiry", () => {
     await expect(
       startServer(
         { ...env, ARCA_ENVIRONMENT: "staging" },
-        { initSentry: vi.fn(), buildApp: vi.fn(), setUpRecovery },
+        {
+          arcaEndpoints: unreachableArcaEndpoints,
+          initSentry: vi.fn(),
+          buildApp: vi.fn(),
+          setUpRecovery,
+        },
       ),
     ).rejects.toThrow('ARCA_ENVIRONMENT must be "homologation" or "production"');
     expect(setUpRecovery).not.toHaveBeenCalled();
@@ -910,6 +963,7 @@ describe("startServer checking the certificate's expiry", () => {
 
     await expect(
       startServer(withoutEnvironment, {
+        arcaEndpoints: unreachableArcaEndpoints,
         initSentry: vi.fn(),
         buildApp: vi.fn(),
         setUpRecovery: vi.fn(),
@@ -947,6 +1001,7 @@ describe("startServer with the ARCA private key", () => {
       close: vi.fn(),
     });
     const started = startServer(env, {
+      arcaEndpoints: arcaEndpointsOf,
       initSentry: vi.fn(),
       buildApp: vi.fn().mockReturnValue(fakeApp),
       setUpRecovery,
@@ -1090,7 +1145,11 @@ describe("startServer with the ARCA private key", () => {
 
     await startServer(
       { EDGE_ORIGIN_SECRET: "edge-secret" },
-      { initSentry: vi.fn(), buildApp: vi.fn().mockReturnValue(fakeApp) },
+      {
+        arcaEndpoints: unreachableArcaEndpoints,
+        initSentry: vi.fn(),
+        buildApp: vi.fn().mockReturnValue(fakeApp),
+      },
     );
 
     expect(warn).not.toHaveBeenCalled();
@@ -1141,6 +1200,7 @@ describe("startServer with the real app", () => {
         BACKOFFICE_STATIC_DIR: staticDir,
       },
       {
+        arcaEndpoints: unreachableArcaEndpoints,
         initSentry: vi.fn(),
         buildApp: buildAppWithoutListening,
         setUpRecovery,
@@ -1360,6 +1420,11 @@ describe("reportStartupFailure", () => {
 });
 
 describe("startServer ARCA endpoints", () => {
+  it("cannot be started without being handed the ARCA endpoints", () => {
+    expectTypeOf<undefined>().not.toExtend<Parameters<typeof startServer>[1]>();
+    expectTypeOf<Omit<StartServerDeps, "arcaEndpoints">>().not.toExtend<StartServerDeps>();
+  });
+
   const credentials = generateArcaTestCredentials();
   const endpoints = {
     wsfe: "http://127.0.0.1:1/wsfe-for-this-test",
