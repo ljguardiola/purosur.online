@@ -6,8 +6,14 @@ const RESPONSES_DIR = new URL("./wsfe-responses/", import.meta.url);
 
 export const UNREACHABLE_WSFE_ENDPOINT = "http://127.0.0.1:1/wsfev1/service.asmx";
 
+interface FakeWsfeAnswer {
+  status: number;
+  responseFile: string;
+}
+
 export type FakeWsfeBehavior =
-  | { kind: "answers"; status: number; responseFile: string }
+  | ({ kind: "answers" } & FakeWsfeAnswer)
+  | { kind: "answers-in-turn"; steps: (FakeWsfeAnswer | undefined)[] }
   | { kind: "never-answers" };
 
 export interface FakeWsfeServer {
@@ -21,6 +27,29 @@ export function answers(responseFile: string, status = 200): FakeWsfeBehavior {
   return { kind: "answers", status, responseFile };
 }
 
+export const NO_ANSWER = null;
+
+/** Answers each request with the next file, and the last file to every request after them. */
+export function answersInTurn(...responseFiles: (string | typeof NO_ANSWER)[]): FakeWsfeBehavior {
+  return {
+    kind: "answers-in-turn",
+    steps: responseFiles.map((responseFile) =>
+      responseFile === NO_ANSWER ? undefined : { status: 200, responseFile },
+    ),
+  };
+}
+
+function answerTo(behavior: FakeWsfeBehavior, request: number): FakeWsfeAnswer | undefined {
+  switch (behavior.kind) {
+    case "answers":
+      return behavior;
+    case "answers-in-turn":
+      return behavior.steps[Math.min(request, behavior.steps.length - 1)];
+    case "never-answers":
+      return undefined;
+  }
+}
+
 export async function startFakeWsfeServer(
   initial: FakeWsfeBehavior = answers("fe-dummy-all-ok.xml"),
 ): Promise<FakeWsfeServer> {
@@ -30,12 +59,13 @@ export async function startFakeWsfeServer(
     const chunks: Buffer[] = [];
     request.on("data", (chunk: Buffer) => chunks.push(chunk));
     request.on("end", () => {
+      const answer = answerTo(behavior, requests.length);
       requests.push(Buffer.concat(chunks).toString("utf8"));
-      if (behavior.kind === "never-answers") {
+      if (answer === undefined) {
         return;
       }
-      const body = readFileSync(new URL(behavior.responseFile, RESPONSES_DIR));
-      response.writeHead(behavior.status, { "content-type": "text/xml; charset=utf-8" });
+      const body = readFileSync(new URL(answer.responseFile, RESPONSES_DIR));
+      response.writeHead(answer.status, { "content-type": "text/xml; charset=utf-8" });
       response.end(body);
     });
   });

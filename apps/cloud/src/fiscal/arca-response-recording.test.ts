@@ -23,8 +23,10 @@ import {
 } from "./test-support/fake-wsaa-server.js";
 import {
   type FakeWsfeServer,
+  NO_ANSWER,
   startFakeWsfeServer,
   answers as wsfeAnswers,
+  answersInTurn as wsfeAnswersInTurn,
 } from "./test-support/fake-wsfe-server.js";
 
 const NOW = new Date("2026-10-01T15:00:00.000Z");
@@ -58,7 +60,13 @@ beforeEach(() => {
       recordedAnswer("already-authenticated-fault.xml", 500),
     ),
   );
-  wsfe.behave(wsfeAnswers("fe-dummy-all-ok.xml"));
+  wsfe.behave(
+    wsfeAnswersInTurn(
+      "fe-dummy-all-ok.xml",
+      "fe-param-get-condicion-iva-receptor.xml",
+      "fe-param-get-condicion-iva-receptor-token-error.xml",
+    ),
+  );
 });
 
 afterEach(() => {
@@ -72,6 +80,7 @@ function record() {
     outDir,
     wsaaEndpoint: wsaa.endpoint,
     wsfeEndpoint: wsfe.endpoint,
+    cuit: FICTIONAL_CERTIFICATE_CUIT,
     now: () => NOW,
   });
 }
@@ -100,16 +109,44 @@ describe("recordArcaResponses", () => {
       fixture("wsfe-responses", "fe-dummy-all-ok.xml"),
     );
     expect(readFileSync(join(outDir, "login-cms-issued.raw.xml"), "utf8")).toBe(unscrubbedLogin());
+    expect(readFileSync(join(outDir, "fe-param-get-condicion-iva-receptor.raw.xml"), "utf8")).toBe(
+      fixture("wsfe-responses", "fe-param-get-condicion-iva-receptor.xml"),
+    );
+    expect(
+      readFileSync(join(outDir, "fe-param-get-condicion-iva-receptor-token-error.raw.xml"), "utf8"),
+    ).toBe(fixture("wsfe-responses", "fe-param-get-condicion-iva-receptor-token-error.xml"));
     expect(readFileSync(join(outDir, "login-cms-already-authenticated.raw.xml"), "utf8")).toBe(
       fixture("wsaa-responses", "already-authenticated-fault.xml"),
     );
   });
 
-  it("makes exactly one FEDummy call and two logins", async () => {
+  it("makes exactly one FEDummy call, two logins and two buyer tax-status calls", async () => {
+    await record();
+
+    expect(wsfe.requests).toHaveLength(3);
+    expect(wsaa.requests).toHaveLength(2);
+  });
+
+  it("asks for the buyer tax-status values with the issued ticket and the certificate's CUIT, then with a ticket ARCA never issued", async () => {
+    await record();
+
+    const [, withIssuedTicket, withUnissuedTicket] = wsfe.requests;
+    expect(withIssuedTicket).toContain("FEParamGetCondicionIvaReceptor");
+    expect(withIssuedTicket).toContain(ORIGINAL_TOKEN);
+    expect(withIssuedTicket).toContain(ORIGINAL_SIGN);
+    expect(withIssuedTicket).toContain(FICTIONAL_CERTIFICATE_CUIT.replaceAll("-", ""));
+    expect(withUnissuedTicket).toContain("FEParamGetCondicionIvaReceptor");
+    expect(withUnissuedTicket).not.toContain(ORIGINAL_TOKEN);
+    expect(withUnissuedTicket).not.toContain(ORIGINAL_SIGN);
+  });
+
+  it("asks for no buyer tax-status values when the first login issued no ticket", async () => {
+    wsaa.behave(wsaaAnswers("already-authenticated-fault.xml", 500));
+
     await record();
 
     expect(wsfe.requests).toHaveLength(1);
-    expect(wsaa.requests).toHaveLength(2);
+    expect(readdirSync(outDir).filter((file) => file.startsWith("fe-param"))).toEqual([]);
   });
 
   it("sends the two logins with different unique ids", async () => {
@@ -128,6 +165,10 @@ describe("recordArcaResponses", () => {
     expect(readdirSync(outDir).sort()).toEqual([
       "fe-dummy.raw.xml",
       "fe-dummy.scrubbed.xml",
+      "fe-param-get-condicion-iva-receptor-token-error.raw.xml",
+      "fe-param-get-condicion-iva-receptor-token-error.scrubbed.xml",
+      "fe-param-get-condicion-iva-receptor.raw.xml",
+      "fe-param-get-condicion-iva-receptor.scrubbed.xml",
       "login-cms-already-authenticated.raw.xml",
       "login-cms-already-authenticated.scrubbed.xml",
       "login-cms-issued.raw.xml",
@@ -156,6 +197,11 @@ describe("recordArcaResponses", () => {
           { field: "destination", count: 1 },
         ],
       },
+      { file: "fe-param-get-condicion-iva-receptor.scrubbed.xml", replacements: [] },
+      {
+        file: "fe-param-get-condicion-iva-receptor-token-error.scrubbed.xml",
+        replacements: [{ field: "CUIT", count: 1 }],
+      },
       { file: "login-cms-already-authenticated.scrubbed.xml", replacements: [] },
     ]);
   });
@@ -178,10 +224,28 @@ describe("recordArcaResponses", () => {
         outDir,
         wsaaEndpoint: wsaa.endpoint,
         wsfeEndpoint: wsfe.endpoint,
+        cuit: FICTIONAL_CERTIFICATE_CUIT,
         now: () => NOW,
         timeoutMs: 200,
       }),
     ).rejects.toThrow("FEDummy");
+  });
+
+  it("refuses when ARCA gives no answer to the buyer tax-status call, naming it", async () => {
+    wsfe.behave(wsfeAnswersInTurn("fe-dummy-all-ok.xml", NO_ANSWER));
+
+    await expect(
+      recordArcaResponses({
+        certificatePem: credentials.certificatePem,
+        privateKeyPem: credentials.privateKeyPem,
+        outDir,
+        wsaaEndpoint: wsaa.endpoint,
+        wsfeEndpoint: wsfe.endpoint,
+        cuit: FICTIONAL_CERTIFICATE_CUIT,
+        now: () => NOW,
+        timeoutMs: 200,
+      }),
+    ).rejects.toThrow("FEParamGetCondicionIvaReceptor");
   });
 });
 
