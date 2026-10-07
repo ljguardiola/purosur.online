@@ -32,6 +32,8 @@ async function buildBackoffice(outDir: string): Promise<void> {
   );
 }
 
+// The build and the cloud's start end on their own, so the setup waits for them however long the
+// machine takes.
 beforeAll(async () => {
   staticDir = mkdtempSync(join(tmpdir(), "purosur-served-backoffice-"));
   await buildBackoffice(staticDir);
@@ -44,7 +46,7 @@ beforeAll(async () => {
   browser = await chromium.connect(process.env["PLAYWRIGHT_SERVER_WS_ENDPOINT"] ?? "", {
     exposeNetwork: "<loopback>",
   });
-}, 120_000);
+}, 0);
 
 afterAll(async () => {
   await browser?.close();
@@ -52,10 +54,16 @@ afterAll(async () => {
   rmSync(staticDir, { recursive: true, force: true });
 });
 
-test("the built backoffice runs under the cloud's content security policy without a violation", async () => {
+// The press ends once the screen renders its button, and a policy that keeps the screen from
+// rendering reports a violation first, so the test waits for whichever comes first however long it
+// takes.
+test("the built backoffice runs under the cloud's content security policy without a violation", {
+  timeout: 0,
+}, async () => {
   const context = await browser.newContext({
     extraHTTPHeaders: { [EDGE_ORIGIN_SECRET_HEADER]: TEST_EDGE_ORIGIN_SECRET },
   });
+  context.setDefaultTimeout(0);
   const page = await context.newPage();
   await page.addInitScript(() => {
     const violations: string[] = [];
@@ -68,7 +76,14 @@ test("the built backoffice runs under the cloud's content security policy withou
   });
 
   await page.goto(new URL("/sign-in", origin).href);
-  await page.getByRole("button", { name: "Ingresar con passkey" }).click();
+  await Promise.race([
+    page.getByRole("button", { name: "Ingresar con passkey" }).click(),
+    page.waitForFunction(
+      () =>
+        (window as unknown as { contentSecurityPolicyViolations: string[] })
+          .contentSecurityPolicyViolations.length > 0,
+    ),
+  ]);
 
   const violations = await page.evaluate(
     () =>
