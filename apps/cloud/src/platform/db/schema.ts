@@ -1,4 +1,9 @@
-import { ALERT_AUDIENCES, ALERT_LEVELS, POINT_OF_SALE_NUMBER_MAX } from "@purosur/domain";
+import {
+  ALERT_AUDIENCES,
+  ALERT_LEVELS,
+  type JsonValue,
+  POINT_OF_SALE_NUMBER_MAX,
+} from "@purosur/domain";
 import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
@@ -695,7 +700,7 @@ export const inbox = pgTable(
     aggregateId: text("aggregate_id").notNull(),
     eventType: text("event_type").notNull(),
     schemaVersion: integer("schema_version").notNull(),
-    payload: jsonb("payload").notNull(),
+    payload: jsonb("payload").$type<{ [member: string]: JsonValue }>().notNull(),
     occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
     actorId: text("actor_id").notNull(),
     chainHmac: text("chain_hmac").notNull(),
