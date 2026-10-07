@@ -194,6 +194,24 @@ describe("POST /events", () => {
     });
   });
 
+  it("answers update_required to a version that is not accepted, storing no event but recording the report", async () => {
+    const { deviceId, deviceToken } = await enroll();
+
+    const response = await push({ ...body(1), app_version: "1.4" }, `Bearer ${deviceToken}`);
+
+    expect(response.statusCode).toBe(200);
+    expect(pushEventsResponseSchema.parse(response.json())).toEqual({
+      status: "update_required",
+      ack_seq: 0,
+    });
+    expect(await route.db.select().from(inbox).where(eq(inbox.deviceId, deviceId))).toEqual([]);
+    const [state] = await route.db
+      .select()
+      .from(deviceState)
+      .where(eq(deviceState.deviceId, deviceId));
+    expect(state?.appVersion).toBe("1.4");
+  });
+
   it("tells a revoked installation so, storing and recording nothing", async () => {
     const { deviceToken } = await enroll({
       revokedAt: new Date("2026-10-01T08:00:00.000Z"),

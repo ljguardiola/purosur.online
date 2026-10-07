@@ -111,6 +111,7 @@ describe("push events response", () => {
     [{ status: "ok", ack_seq: 7 }],
     [{ status: "expected_seq", ack_seq: 2, expected_seq: 3 }],
     [{ status: "stale_device", ack_seq: 9 }],
+    [{ status: "update_required", ack_seq: 4 }],
   ])("accepts %j", (body) => {
     expect(pushEventsResponseSchema.parse(body)).toEqual(body);
   });
@@ -122,6 +123,8 @@ describe("push events response", () => {
     [{ status: "expected_seq", ack_seq: 2 }],
     [{ status: "expected_seq", ack_seq: 2, expected_seq: 0 }],
     [{ status: "stale_device" }],
+    [{ status: "update_required" }],
+    [{ status: "update_required", ack_seq: -1 }],
     [{ status: "revoked", ack_seq: 1 }],
     [{ ack_seq: 1 }],
   ])("refuses %j", (body) => {

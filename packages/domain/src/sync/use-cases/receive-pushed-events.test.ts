@@ -233,6 +233,57 @@ describe("receiving the events a register pushes", () => {
   });
 });
 
+describe("requiring a register version", () => {
+  it("answers update_required to a version that is not accepted, with the ack it already holds and receiving nothing", async () => {
+    const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1, 2, 4] }]);
+
+    const outcome = await receive(inbox, eventsOf(3), { appVersion: "not-a-version" });
+
+    expect(outcome).toEqual({ kind: "update_required", ackSeq: 2 });
+    expect(inbox.receivedSeqs(DEVICE)).toEqual([1, 2, 4]);
+  });
+
+  it("still records the version and the telemetry the register reported", async () => {
+    const inbox = new FakeInbox();
+
+    await receive(inbox, eventsOf(1), { appVersion: "not-a-version" });
+
+    expect(inbox.state.reports).toEqual([
+      { deviceId: DEVICE, appVersion: "not-a-version", telemetry: TELEMETRY, at: NOW },
+    ]);
+  });
+
+  it("answers update_required before looking at the events, even when they would break the chain", async () => {
+    const inbox = new FakeInbox();
+
+    const outcome = await receive(inbox, [{ ...fakeEvent(3), chain_hmac: "forged-link" }], {
+      appVersion: "1.4",
+    });
+
+    expect(outcome).toEqual({ kind: "update_required", ackSeq: 0 });
+    expect(inbox.state.refusedPushes).toEqual([]);
+    expect(inbox.state.brokenChainRevocations).toEqual([]);
+  });
+
+  it("answers revoked to a revoked installation before looking at its version", async () => {
+    const inbox = new FakeInbox();
+    inbox.revokedDevices.add(DEVICE);
+
+    const outcome = await receive(inbox, eventsOf(1), { appVersion: "1.4" });
+
+    expect(outcome).toEqual({ kind: "revoked" });
+    expect(inbox.state.reports).toEqual([]);
+  });
+
+  it("receives the push of an accepted version", async () => {
+    const inbox = new FakeInbox();
+
+    const outcome = await receive(inbox, eventsOf(1), { appVersion: "0.0.0" });
+
+    expect(outcome).toEqual({ kind: "received", ackSeq: 1 });
+  });
+});
+
 describe("checking the chain of the events a register pushes", () => {
   const REFUSED = { kind: "chain_broken" };
 
