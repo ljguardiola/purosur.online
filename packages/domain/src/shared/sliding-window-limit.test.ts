@@ -12,6 +12,10 @@ describe("slidingWindowStart", () => {
   it("starts one window before now", () => {
     expect(slidingWindowStart(NOW, POLICY)).toEqual(minutesAgo(10));
   });
+
+  it("needs only the window, not the limit", () => {
+    expect(slidingWindowStart(NOW, { windowMs: POLICY.windowMs })).toEqual(minutesAgo(10));
+  });
 });
 
 describe("slidingWindowRetryAfterSeconds", () => {

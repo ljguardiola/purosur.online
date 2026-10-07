@@ -1,37 +1,19 @@
-import type { OutboxEventDraft } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
-import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
-import { migrationClock } from "../platform/test-support/migration-clock";
-import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { SqliteLocalOutbox } from "./sqlite-local-outbox";
 import { appendOutboxEvent } from "./sqlite-outbox";
 import { withRegisterSession } from "./test-support/register-session-push";
+import {
+  appendOutboxEvents,
+  CHAIN_KEY,
+  openOutboxDatabase,
+  outboxEventDraft,
+} from "./test-support/sqlite-local-outbox";
 
-const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DAY_ZERO = new Date("2026-09-01T09:00:00.000Z");
 
 let database: LocalDatabase;
-
-function draft(number: number): OutboxEventDraft {
-  return {
-    event_id: `018f0000-0000-7000-8000-${String(number).padStart(12, "0")}`,
-    aggregate_type: "CashSession",
-    aggregate_id: "session-1",
-    event_type: "cash_session_opened",
-    schema_version: 1,
-    payload: { opening_float: 5000 },
-    occurred_at: "2026-08-30T12:00:00.000Z",
-    actor_id: "u1",
-  };
-}
-
-function appendEvents(target: LocalDatabase, count: number): void {
-  for (let number = 1; number <= count; number += 1) {
-    appendOutboxEvent(target, CHAIN_KEY, draft(number));
-  }
-}
 
 function dayAfterZero(days: number): Date {
   return new Date(DAY_ZERO.getTime() + days * DAY_MS);
@@ -53,8 +35,7 @@ function prunable(): SqliteLocalOutbox {
 }
 
 beforeEach(() => {
-  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
-  database.prepare("UPDATE sync_state SET device_id = ?").run("device-a");
+  database = openOutboxDatabase();
 });
 
 afterEach(() => {
@@ -63,7 +44,7 @@ afterEach(() => {
 
 describe("forgetting the acknowledged events of the outbox", () => {
   it("removes the events acknowledged before the cutoff and says how many", async () => {
-    appendEvents(database, 3);
+    appendOutboxEvents(database, 3);
     await acknowledgeThroughOnDay(3, 1);
 
     expect(await prunable().forgetAcknowledgedBefore(dayAfterZero(2))).toBe(3);
@@ -71,7 +52,7 @@ describe("forgetting the acknowledged events of the outbox", () => {
   });
 
   it("keeps an event acknowledged exactly at the cutoff and the ones acknowledged after it", async () => {
-    appendEvents(database, 3);
+    appendOutboxEvents(database, 3);
     await acknowledgeThroughOnDay(1, 1);
     await acknowledgeThroughOnDay(2, 5);
     await acknowledgeThroughOnDay(3, 9);
@@ -81,7 +62,7 @@ describe("forgetting the acknowledged events of the outbox", () => {
   });
 
   it("keeps an event the cloud has not acknowledged, however old", async () => {
-    appendEvents(database, 3);
+    appendOutboxEvents(database, 3);
     await acknowledgeThroughOnDay(1, 1);
 
     expect(await prunable().forgetAcknowledgedBefore(dayAfterZero(90))).toBe(1);
@@ -89,7 +70,7 @@ describe("forgetting the acknowledged events of the outbox", () => {
   });
 
   it("keeps an event that was acknowledged and then asked to be sent again", async () => {
-    appendEvents(database, 2);
+    appendOutboxEvents(database, 2);
     await acknowledgeThroughOnDay(2, 1);
     await prunable().resendFrom(2);
 
@@ -99,17 +80,16 @@ describe("forgetting the acknowledged events of the outbox", () => {
   });
 
   it("numbers and chains the next event from where the outbox was, as if nothing was forgotten", async () => {
-    const untouched = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
-    untouched.prepare("UPDATE sync_state SET device_id = ?").run("device-a");
-    appendEvents(untouched, 3);
-    appendEvents(database, 3);
+    const untouched = openOutboxDatabase();
+    appendOutboxEvents(untouched, 3);
+    appendOutboxEvents(database, 3);
     await acknowledgeThroughOnDay(3, 1);
     const syncStateBefore = database.prepare("SELECT * FROM sync_state").all();
 
     await prunable().forgetAcknowledgedBefore(dayAfterZero(2));
     expect(database.prepare("SELECT * FROM sync_state").all()).toEqual(syncStateBefore);
-    appendOutboxEvent(database, CHAIN_KEY, draft(4));
-    appendOutboxEvent(untouched, CHAIN_KEY, draft(4));
+    appendOutboxEvent(database, CHAIN_KEY, outboxEventDraft(4));
+    appendOutboxEvent(untouched, CHAIN_KEY, outboxEventDraft(4));
 
     const nextEvent = (target: LocalDatabase) =>
       target.prepare("SELECT * FROM outbox WHERE device_seq = 4").get();
