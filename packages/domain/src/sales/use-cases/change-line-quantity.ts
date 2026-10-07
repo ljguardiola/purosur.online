@@ -1,4 +1,5 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
+import { hasApprovedPayment } from "../model/payment.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { withQuantity } from "../model/sale-line.js";
 import { saleChargeRefusal } from "./sale-charge-refusal.js";
@@ -21,6 +22,7 @@ export type ChangeLineQuantityOutcome =
   | { kind: "not_permitted" }
   | { kind: "no_open_session" }
   | { kind: "no_open_sale" }
+  | { kind: "sale_has_payments" }
   | { kind: "invalid_quantity" }
   | { kind: "unknown_line" }
   | { kind: "stale_quantity" }
@@ -38,6 +40,9 @@ export function changeLineQuantity(
     const sale = tx.openSale(session.id);
     if (!sale) {
       return { kind: "no_open_sale" };
+    }
+    if (hasApprovedPayment(tx.salePayments(sale.id))) {
+      return { kind: "sale_has_payments" };
     }
     if (!Number.isSafeInteger(quantity) || quantity < 1) {
       return { kind: "invalid_quantity" };

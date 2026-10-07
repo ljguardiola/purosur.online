@@ -1,4 +1,5 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
+import { hasApprovedPayment } from "../model/payment.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { saleChargeRefusal } from "./sale-charge-refusal.js";
 import type { Clock, SaleLedger } from "./sale-ledger.js";
@@ -18,6 +19,7 @@ export type RemoveSaleLineOutcome =
   | { kind: "not_permitted" }
   | { kind: "no_open_session" }
   | { kind: "no_open_sale" }
+  | { kind: "sale_has_payments" }
   | { kind: "unknown_line" }
   | { kind: "removed"; sale: SaleWithLines; chargeRefusal: ChargeRefusal | undefined };
 
@@ -33,6 +35,9 @@ export function removeSaleLine(
     const sale = tx.openSale(session.id);
     if (!sale) {
       return { kind: "no_open_sale" };
+    }
+    if (hasApprovedPayment(tx.salePayments(sale.id))) {
+      return { kind: "sale_has_payments" };
     }
     const line = sale.lines.find((candidate) => candidate.id === lineId);
     if (!line) {
