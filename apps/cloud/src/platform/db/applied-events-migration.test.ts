@@ -66,8 +66,14 @@ describe("the apply synced events migration applied over a database that already
         last_error: null,
       },
     ]);
-    for (const table of ["sales", "sale_lines", "sale_payments", "cash_sessions", "cash_movements"]) {
-      const { rows: appliedRows } = await client.query(`select 1 from `);
+    for (const table of [
+      "sales",
+      "sale_lines",
+      "sale_payments",
+      "cash_sessions",
+      "cash_movements",
+    ]) {
+      const { rows: appliedRows } = await client.query(`select 1 from ${table}`);
       expect(appliedRows).toEqual([]);
     }
   });
