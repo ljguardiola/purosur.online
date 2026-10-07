@@ -278,7 +278,11 @@ describe("alertDetailSchema", () => {
         eventType: "sale_completed",
         aggregateType: "Sale",
         aggregateId: "sale-1",
-        error: "the cash session is not applied yet",
+        reason: {
+          kind: "missing_dependency",
+          aggregateType: "CashSession",
+          aggregateId: "session-1",
+        },
       },
       event_invariant_violated: {
         eventId: "event-1",
@@ -416,6 +420,32 @@ describe("alertDetailSchema", () => {
 
       expect(
         alertDetailSchema.safeParse({ ...base, kind: "register_enrolled", detail }).success,
+      ).toBe(false);
+    });
+
+    it.each([{ kind: "unreadable" }, { kind: "not_recorded" }])(
+      "accepts a quarantine whose reason is %j",
+      (reason) => {
+        const alert = {
+          ...base,
+          kind: "events_quarantined",
+          detail: { ...detailOf.events_quarantined, reason },
+        };
+
+        expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
+      },
+    );
+
+    it.each([
+      { kind: "timed_out" },
+      { kind: "missing_dependency", aggregateType: "CashSession" },
+      { kind: "missing_dependency", aggregateId: "session-1" },
+      "the cash session is not applied yet",
+    ])("refuses a quarantine whose reason is %j", (reason) => {
+      const detail = { ...detailOf.events_quarantined, reason };
+
+      expect(
+        alertDetailSchema.safeParse({ ...base, kind: "events_quarantined", detail }).success,
       ).toBe(false);
     });
 

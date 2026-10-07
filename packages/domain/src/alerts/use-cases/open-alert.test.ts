@@ -181,28 +181,32 @@ describe("openAlert", () => {
     expect(outcome).toEqual({ kind: "opened", alertId: "alert-2" });
   });
 
-  it("opens one alert per installation for quarantined events while one is still open", async () => {
+  it("opens one alert per quarantined event, even for events of the same installation", async () => {
     const store = storeWithViewers();
-    const quarantined = (deviceId: string, eventId: string): OpenAlertInput => ({
+    const quarantined = (eventId: string): OpenAlertInput => ({
       kind: "events_quarantined",
-      scope: deviceId,
+      scope: eventId,
       detail: {
-        deviceId,
+        deviceId: "device-1",
         eventId,
         eventType: "sale_completed",
         aggregateType: "Sale",
         aggregateId: "sale-1",
-        error: "depends on CashSession session-1 not applied yet",
+        reason: {
+          kind: "missing_dependency",
+          aggregateType: "CashSession",
+          aggregateId: "session-1",
+        },
       },
     });
 
-    const first = await open(store, quarantined("device-1", "event-1"));
-    const sameInstallation = await open(store, quarantined("device-1", "event-2"));
-    const otherInstallation = await open(store, quarantined("device-2", "event-3"));
+    const first = await open(store, quarantined("event-1"));
+    const sameEvent = await open(store, quarantined("event-1"));
+    const otherEvent = await open(store, quarantined("event-2"));
 
     expect(first).toEqual({ kind: "opened", alertId: "alert-1" });
-    expect(sameInstallation).toEqual({ kind: "already_open", alertId: "alert-1" });
-    expect(otherInstallation).toEqual({ kind: "opened", alertId: "alert-2" });
+    expect(sameEvent).toEqual({ kind: "already_open", alertId: "alert-1" });
+    expect(otherEvent).toEqual({ kind: "opened", alertId: "alert-2" });
   });
 
   it("opens one alert per event for an invariant violation", async () => {

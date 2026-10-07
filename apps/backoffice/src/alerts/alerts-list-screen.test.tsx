@@ -734,14 +734,14 @@ test("names an alert for a register's enrollment by its kind and what happened",
 test("names an alert for quarantined events by its kind and what happened", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlerts).mockResolvedValue(
-    ok([{ ...passkeyAlert, kind: "events_quarantined", scopeDisplay: "installation-1" }]),
+    ok([{ ...passkeyAlert, kind: "events_quarantined", scopeDisplay: "event-1" }]),
   );
 
   const screen = await renderScreen(services);
 
-  const row = screen.getByRole("row", { name: /installation-1/ });
+  const row = screen.getByRole("row", { name: /event-1/ });
   await expect.element(row.getByText("Cuarentena de eventos")).toBeVisible();
-  await expect.element(row.getByText("Eventos de una caja en cuarentena")).toBeVisible();
+  await expect.element(row.getByText("Evento de una caja en cuarentena")).toBeVisible();
 });
 
 test("names an alert for an event applied with an inconsistency by its kind and what happened", async () => {

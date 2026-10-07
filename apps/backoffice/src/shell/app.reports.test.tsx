@@ -17,7 +17,7 @@ function reportsServices(capabilities: Capability[]) {
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
         userId: "user-2",
-        displayName: "Grace Hopper",
+        displayName: "Lucía Ferreyra",
         isAdministrator: false,
         capabilities,
       }),

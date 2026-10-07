@@ -265,10 +265,39 @@ describe("an event that cannot be applied yet", () => {
         eventType: "sale_completed",
         aggregateType: "Sale",
         aggregateId: "sale-9",
-        error: "depends on CashSession session-1 not applied yet",
+        reason: {
+          kind: "missing_dependency",
+          aggregateType: "CashSession",
+          aggregateId: "session-1",
+        },
       },
     ]);
     expect(outcome).toMatchObject({ applied: 0, retried: 0, quarantined: 1 });
+  });
+
+  it("is flagged as unreadable when no schema reads its payload on its last allowed attempt", async () => {
+    const application = new FakeEventApplication([saleEvent({ attempts: 7 })]);
+
+    await run(application, new FakeEventUpcaster({}));
+
+    expect(application.state.quarantineAlerts).toEqual([
+      expect.objectContaining({ eventId: "sale-event", reason: { kind: "unreadable" } }),
+    ]);
+  });
+
+  it("is flagged as not recorded when recording it fails on its last allowed attempt", async () => {
+    const application = new FakeEventApplication([
+      appliedSessionOpening(),
+      saleEvent({ attempts: 7 }),
+    ]);
+    application.failRecording.set("sale-event", new Error("deadlock detected"));
+
+    await run(application, new FakeEventUpcaster({ "sale-event": aCompletedSaleFact() }));
+
+    expect(application.event("sale-event").error).toBe("deadlock detected");
+    expect(application.state.quarantineAlerts).toEqual([
+      expect.objectContaining({ eventId: "sale-event", reason: { kind: "not_recorded" } }),
+    ]);
   });
 
   it("is retried, with the reason, when no schema reads its payload", async () => {

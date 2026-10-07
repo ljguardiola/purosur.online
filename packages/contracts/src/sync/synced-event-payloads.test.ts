@@ -1,6 +1,6 @@
 import { preEmissionGateFailedEvent } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
-import { syncedEventPayloadSchema } from "./synced-event-payloads.js";
+import { syncedEventPayloadKey, syncedEventPayloadSchema } from "./synced-event-payloads.js";
 import { recordedEvents } from "./test-support/recorded-pushes.js";
 
 type Payload = Record<string, unknown>;
@@ -13,7 +13,8 @@ function recordedPayload(eventType: string, schemaVersion: number, index = 0): P
 }
 
 function accepts(eventType: string, schemaVersion: number, payload: unknown): boolean {
-  return syncedEventPayloadSchema(eventType, schemaVersion)?.safeParse(payload).success === true;
+  const key = syncedEventPayloadKey(eventType, schemaVersion);
+  return key !== undefined && syncedEventPayloadSchema(key).safeParse(payload).success;
 }
 
 const CASH_PAYMENT_V2 = {
@@ -52,9 +53,7 @@ const PAYMENT_V1 = {
 describe("synced event payloads", () => {
   it("describes every event the registers pushed in the recorded pushes", () => {
     const refused = recordedEvents().filter(
-      (event) =>
-        !accepts(event.event_type, event.schema_version, event["payload"]) ||
-        syncedEventPayloadSchema(event.event_type, event.schema_version) === undefined,
+      (event) => !accepts(event.event_type, event.schema_version, event["payload"]),
     );
 
     expect(refused).toEqual([]);
@@ -97,7 +96,7 @@ describe("synced event payloads", () => {
     ["a prototype property name", "constructor", 1],
     ["a prototype property name as the version", "sale_completed", Number.NaN],
   ])("has no schema for %s", (_case, eventType, schemaVersion) => {
-    expect(syncedEventPayloadSchema(eventType, schemaVersion)).toBeUndefined();
+    expect(syncedEventPayloadKey(eventType, schemaVersion)).toBeUndefined();
   });
 
   it.each([

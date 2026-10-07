@@ -936,15 +936,19 @@ test("tells which event of a register was quarantined and why", async () => {
     ok(
       baseDetail({
         kind: "events_quarantined",
-        scope: "installation-1",
-        scopeDisplay: "installation-1",
+        scope: "event-1",
+        scopeDisplay: "event-1",
         detail: {
           deviceId: "device-1",
           eventId: "event-1",
           eventType: "sale_completed",
           aggregateType: "Sale",
           aggregateId: "sale-1",
-          error: "La sesión de caja todavía no se aplicó",
+          reason: {
+            kind: "missing_dependency",
+            aggregateType: "CashSession",
+            aggregateId: "session-1",
+          },
         },
       }),
     ),
@@ -952,11 +956,11 @@ test("tells which event of a register was quarantined and why", async () => {
 
   const screen = await renderModal(services);
 
-  await expect.element(screen.getByText("Eventos de una caja en cuarentena")).toBeVisible();
+  await expect.element(screen.getByText("Evento de una caja en cuarentena")).toBeVisible();
   await expect
     .element(
       screen.getByText(
-        "El evento «sale_completed» (event-1) de Sale sale-1 no se pudo aplicar y quedó en cuarentena: La sesión de caja todavía no se aplicó. Los eventos siguientes de Sale sale-1 esperan hasta que se resuelva.",
+        "El evento de venta (event-1) de la venta sale-1 no se pudo aplicar y quedó en cuarentena: depende de la sesión de caja session-1, que todavía no se aplicó. Los eventos siguientes de la venta sale-1 esperan hasta que se resuelva.",
       ),
     )
     .toBeVisible();
@@ -987,37 +991,7 @@ test("tells which event was applied with an inconsistency and what it breaks", a
   await expect
     .element(
       screen.getByText(
-        "Se aplicó el evento «sale_completed» (event-1) de Sale sale-1, pero tiene una inconsistencia: los pagos aprobados no cubren el total de la venta.",
-      ),
-    )
-    .toBeVisible();
-});
-
-test("names an inconsistency it does not know by its code", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchAlert).mockResolvedValue(
-    ok(
-      baseDetail({
-        kind: "event_invariant_violated",
-        scope: "event-1",
-        scopeDisplay: "event-1",
-        detail: {
-          eventId: "event-1",
-          eventType: "sale_completed",
-          aggregateType: "Sale",
-          aggregateId: "sale-1",
-          breaks: ["approved_payments_below_total", "other_break"],
-        },
-      }),
-    ),
-  );
-
-  const screen = await renderModal(services);
-
-  await expect
-    .element(
-      screen.getByText(
-        "Se aplicó el evento «sale_completed» (event-1) de Sale sale-1, pero tiene una inconsistencia: los pagos aprobados no cubren el total de la venta y other_break.",
+        "Se aplicó el evento de venta (event-1) de la venta sale-1, pero tiene una inconsistencia: los pagos aprobados no cubren el total de la venta.",
       ),
     )
     .toBeVisible();

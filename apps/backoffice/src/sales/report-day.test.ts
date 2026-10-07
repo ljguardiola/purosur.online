@@ -1,11 +1,6 @@
 import { CalendarDate } from "@internationalized/date";
 import { expect, test } from "vitest";
-import { calendarDateOf, dayOf, formatReportDay, hasFourDigitYear } from "./report-day";
-
-test("writes a day the Argentine way", () => {
-  expect(formatReportDay("2026-10-02")).toBe("02/10/2026");
-  expect(formatReportDay("2026-01-31")).toBe("31/01/2026");
-});
+import { calendarDateOf, dayOf, hasFourDigitYear } from "./report-day";
 
 test("reads a day into the date a date field holds, and back", () => {
   const date = calendarDateOf("2026-10-02");

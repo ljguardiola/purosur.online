@@ -222,37 +222,31 @@ describe("locking an aggregate", () => {
 });
 
 describe("opening the alerts of the events that were not applied normally", () => {
-  it("opens one alert for the installation whose event was quarantined", async () => {
+  it("opens one alert for each quarantined event, even for events of the same installation", async () => {
     const { deviceId } = await system.enrollInstallation();
-    const eventId = randomUUID();
+    const [firstEvent, secondEvent] = [randomUUID(), randomUUID()];
     const aggregateId = randomUUID();
+    const quarantined = (eventId: string) => ({
+      deviceId,
+      eventId,
+      eventType: "sale_completed",
+      aggregateType: "Sale",
+      aggregateId,
+      reason: { kind: "unreadable" } as const,
+    });
 
-    await system.application.transaction((tx) =>
-      tx.openQuarantineAlert({
-        deviceId,
-        eventId,
-        eventType: "sale_completed",
-        aggregateType: "Sale",
-        aggregateId,
-        error: "no schema reads sale_completed version 3",
-      }),
-    );
+    await system.application.transaction((tx) => tx.openQuarantineAlert(quarantined(firstEvent)));
+    await system.application.transaction((tx) => tx.openQuarantineAlert(quarantined(secondEvent)));
 
     const rows = await system.db.select().from(alerts);
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({
-      kind: "events_quarantined",
-      scope: deviceId,
-      openedAt: APPLICATION_NOW,
-      detail: {
-        deviceId,
-        eventId,
-        eventType: "sale_completed",
-        aggregateType: "Sale",
-        aggregateId,
-        error: "no schema reads sale_completed version 3",
-      },
-    });
+    expect(rows).toHaveLength(2);
+    for (const eventId of [firstEvent, secondEvent]) {
+      expect(rows.find((row) => row.scope === eventId)).toMatchObject({
+        kind: "events_quarantined",
+        openedAt: APPLICATION_NOW,
+        detail: quarantined(eventId),
+      });
+    }
   });
 
   it("opens one alert for the event that broke an invariant", async () => {

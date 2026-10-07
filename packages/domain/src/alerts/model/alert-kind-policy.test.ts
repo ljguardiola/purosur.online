@@ -28,7 +28,7 @@ describe("alertKindPolicy", () => {
       "environment",
       true,
     ],
-    ["events_quarantined", "warning", afterOpening, "installation", true],
+    ["events_quarantined", "warning", afterOpening, "event", true],
     ["event_invariant_violated", "warning", afterOpening, "event", true],
   ] as const)(
     "%s opens as %s, escalates %o, is scoped to %s and deduplicates: %s",
@@ -60,8 +60,10 @@ describe("alertKindsWithScope", () => {
     ]);
     expect(alertKindsWithScope("sourceAddress")).toEqual(["backoffice_sign_in_lockout"]);
     expect(alertKindsWithScope("register")).toEqual(["register_enrolled"]);
-    expect(alertKindsWithScope("installation")).toEqual(["events_quarantined"]);
-    expect(alertKindsWithScope("event")).toEqual(["event_invariant_violated"]);
+    expect(alertKindsWithScope("event")).toEqual([
+      "events_quarantined",
+      "event_invariant_violated",
+    ]);
     expect(alertKindsWithScope("environment")).toEqual(["arca_certificate_expiring"]);
   });
 });

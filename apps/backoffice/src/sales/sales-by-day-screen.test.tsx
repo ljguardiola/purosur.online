@@ -214,6 +214,39 @@ test("still reports the sales when the registers cannot be listed, offering only
   expect(screen.getByRole("option").elements()).toHaveLength(1);
 });
 
+test("keeps reading the register the URL names when the registers cannot be listed", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchReportRegisters).mockResolvedValue({ kind: "failed" });
+  const onFiltersChange = vi.fn();
+
+  const screen = await renderScreen(services, {
+    filters: salesByDayFilters.parse({ register: BACK_REGISTER_ID }),
+    onFiltersChange,
+  });
+
+  await expect.element(screen.getByText("02/10/2026")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Caja: La elegida" })).toBeVisible();
+  expect(onFiltersChange).not.toHaveBeenCalled();
+  expect(vi.mocked(services.fetchSalesReport).mock.lastCall).toEqual([
+    { register_id: BACK_REGISTER_ID },
+  ]);
+});
+
+test("shows the register the URL names, never every register, while the registers load", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchReportRegisters).mockReturnValue(new Promise(() => {}));
+
+  const screen = await renderScreen(services, {
+    filters: salesByDayFilters.parse({ register: BACK_REGISTER_ID }),
+  });
+
+  await expect.element(screen.getByText("02/10/2026")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Caja: La elegida" })).toBeVisible();
+  expect(vi.mocked(services.fetchSalesReport).mock.lastCall).toEqual([
+    { register_id: BACK_REGISTER_ID },
+  ]);
+});
+
 test("goes back to every register when the URL names one the branch does not have", async () => {
   const onFiltersChange = vi.fn();
 

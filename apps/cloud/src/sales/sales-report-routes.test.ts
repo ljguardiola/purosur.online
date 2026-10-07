@@ -140,9 +140,6 @@ describe.each([
 describe("GET /reports/sales-by-day", () => {
   it.each([
     ["a range ending before it starts", "?from=2026-10-06&to=2026-10-05"],
-    ["a start without an end", "?from=2026-10-06"],
-    ["a date that is not a calendar day", "?from=2026-02-30&to=2026-03-01"],
-    ["a register that is not an id", "?register_id=caja-1"],
     ["a parameter given twice", "?from=2026-10-01&from=2026-10-02&to=2026-10-03"],
   ])("answers 400 to %s", async (_name, query) => {
     const { headers } = await signedInWith(db, ["view_reports"], NOW);

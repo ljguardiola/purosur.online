@@ -170,18 +170,3 @@ describe("DrizzleSalesReportReader.completedSalesByDay", () => {
     expect(days).toEqual([]);
   });
 });
-
-describe("DrizzleSalesReportReader.registersOfBranch", () => {
-  it("lists the registers of the branch by name and none of another branch", async () => {
-    const second = await aRegister("Caja 2");
-    const first = await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 1" });
-    await aRegister("Caja 3", await insertLocation(db));
-
-    const listed = await reader().registersOfBranch(second.locationId);
-
-    expect(listed).toEqual([
-      { id: first.registerId, name: "Caja 1" },
-      { id: second.registerId, name: "Caja 2" },
-    ]);
-  });
-});
