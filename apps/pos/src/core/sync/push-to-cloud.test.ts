@@ -62,6 +62,10 @@ function registerWithEvents(count: number) {
   return { database, replica, outbox, installation, acknowledged, revokedAt };
 }
 
+function syncStateOf(database: ReturnType<typeof registerWithEvents>["database"]) {
+  return database.prepare("SELECT * FROM sync_state").all();
+}
+
 function cloudAnswering(answer: (seqs: number[]) => CloudResponse) {
   const requests: { path: string; bearerToken: string; seqs: number[] }[] = [];
   const post = async (path: string, bearerToken: string, body: unknown) => {
@@ -299,5 +303,23 @@ describe("a cloud that asks the register to update", () => {
     expect(requests).toHaveLength(1);
     expect(register.acknowledged()).toEqual([1]);
     expect(register.revokedAt()).toBeNull();
+  });
+});
+
+describe("a push the cloud refuses for asking too often", () => {
+  it("asks to wait as long as the cloud said, keeping every event and the installation in service", async () => {
+    const register = registerWithEvents(3);
+    const syncStateBefore = syncStateOf(register.database);
+    const { post } = cloudAnswering(() => ({
+      kind: "error",
+      error: cloudError("rate_limited", "too many requests", [{ retry_after_seconds: 45 }]),
+    }));
+
+    const attempt = await pushToCloud(depsFor(register, post));
+
+    expect(pushResultOf(attempt)).toEqual({ kind: "failed", retryAfterMs: 45_000 });
+    expect(register.acknowledged()).toEqual([]);
+    expect(register.revokedAt()).toBeNull();
+    expect(syncStateOf(register.database)).toEqual(syncStateBefore);
   });
 });
