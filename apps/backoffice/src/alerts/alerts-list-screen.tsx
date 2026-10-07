@@ -36,6 +36,8 @@ const LIST_KIND_DESCRIPTIONS = {
   backoffice_sign_in_lockout: "Demasiados intentos fallidos de ingreso",
   user_access_increased: "Se amplió el acceso de un usuario",
   register_enrolled: "Se dio de alta una caja",
+  events_quarantined: "Eventos de una caja en cuarentena",
+  event_invariant_violated: "Evento aplicado con una inconsistencia",
 } satisfies Record<AlertKind, string>;
 
 export type AlertsListScreenProps = {

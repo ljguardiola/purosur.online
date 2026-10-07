@@ -7,6 +7,8 @@ const ALERT_KIND_LABELS = {
   backoffice_sign_in_lockout: "Bloqueo de ingreso",
   user_access_increased: "Acceso ampliado",
   register_enrolled: "Alta de caja",
+  events_quarantined: "Cuarentena de eventos",
+  event_invariant_violated: "Inconsistencia en un evento",
 } satisfies Record<AlertKind, string>;
 
 export function alertKindLabel(kind: string): string {

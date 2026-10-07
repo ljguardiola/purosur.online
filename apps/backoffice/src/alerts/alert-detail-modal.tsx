@@ -23,6 +23,7 @@ import {
   Laptop,
   LifeBuoy,
   Mail,
+  PackageX,
   ShieldAlert,
   ShieldPlus,
   ShieldX,
@@ -119,6 +120,10 @@ function alertIcon(kind: string): Icon {
       return <ShieldPlus />;
     case "register_enrolled":
       return <Laptop />;
+    case "events_quarantined":
+      return <PackageX />;
+    case "event_invariant_violated":
+      return <TriangleAlert />;
     default:
       return <Bell />;
   }
@@ -185,6 +190,22 @@ function registerEnrollmentDescription(
   return `La caja «${registerName}» se dio de alta en el equipo «${hostname}» (${windowsVersion}).${replaced} Si no se reconoce esta alta, conviene revisarla desde Cajas registradoras.`;
 }
 
+const EVENT_BREAK_DESCRIPTIONS: Record<string, string> = {
+  approved_payments_below_total: "los pagos aprobados no cubren el total de la venta",
+};
+
+const BREAK_LIST_FORMAT = new Intl.ListFormat("es-AR", { type: "conjunction" });
+
+function eventAggregate({
+  aggregateType,
+  aggregateId,
+}: {
+  aggregateType: string;
+  aggregateId: string;
+}): string {
+  return `${aggregateType} ${aggregateId}`;
+}
+
 function alertTitle(alert: AlertDetail): string {
   switch (alert.kind) {
     case "backoffice_passkey_changed":
@@ -201,6 +222,10 @@ function alertTitle(alert: AlertDetail): string {
       return "Se amplió el acceso de un usuario";
     case "register_enrolled":
       return "Se dio de alta una caja";
+    case "events_quarantined":
+      return "Eventos de una caja en cuarentena";
+    case "event_invariant_violated":
+      return "Evento aplicado con una inconsistencia";
   }
 }
 
@@ -214,6 +239,18 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
     return alert.scopeDisplay === null
       ? `Una dirección quedó bloqueada para ingresar al backoffice después de ${failuresText}.`
       : `La dirección ${alert.scopeDisplay} quedó bloqueada para ingresar al backoffice después de ${failuresText}.`;
+  }
+  if (alert.kind === "events_quarantined") {
+    const { eventType, eventId, error } = alert.detail;
+    const aggregate = eventAggregate(alert.detail);
+    return `El evento «${eventType}» (${eventId}) de ${aggregate} no se pudo aplicar y quedó en cuarentena: ${error}. Los eventos siguientes de ${aggregate} esperan hasta que se resuelva.`;
+  }
+  if (alert.kind === "event_invariant_violated") {
+    const { eventType, eventId, breaks } = alert.detail;
+    const breaksText = BREAK_LIST_FORMAT.format(
+      breaks.map((code) => EVENT_BREAK_DESCRIPTIONS[code] ?? code),
+    );
+    return `Se aplicó el evento «${eventType}» (${eventId}) de ${eventAggregate(alert.detail)}, pero tiene una inconsistencia: ${breaksText}.`;
   }
   const targetName = alert.scopeDisplay;
   if (targetName === null) {
