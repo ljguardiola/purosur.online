@@ -54,9 +54,9 @@ afterAll(async () => {
   rmSync(staticDir, { recursive: true, force: true });
 });
 
-// The press ends once the screen renders its button, and a policy that keeps the screen from
-// rendering reports a violation first, so the test waits for whichever comes first however long it
-// takes.
+// The press ends once the screen renders its button, and a policy or an error that keeps the
+// screen from rendering reports a violation or the error first, so the test waits for whichever
+// comes first however long it takes.
 test("the built backoffice runs under the cloud's content security policy without a violation", {
   timeout: 0,
 }, async () => {
@@ -75,6 +75,14 @@ test("the built backoffice runs under the cloud's content security policy withou
     });
   });
 
+  const pageErrors: string[] = [];
+  const firstPageError = new Promise<void>((resolve) => {
+    page.on("pageerror", (error) => {
+      pageErrors.push(error.message);
+      resolve();
+    });
+  });
+
   await page.goto(new URL("/sign-in", origin).href);
   await Promise.race([
     page.getByRole("button", { name: "Ingresar con passkey" }).click(),
@@ -83,6 +91,7 @@ test("the built backoffice runs under the cloud's content security policy withou
         (window as unknown as { contentSecurityPolicyViolations: string[] })
           .contentSecurityPolicyViolations.length > 0,
     ),
+    firstPageError,
   ]);
 
   const violations = await page.evaluate(
@@ -92,4 +101,5 @@ test("the built backoffice runs under the cloud's content security policy withou
   );
   await context.close();
   expect(violations).toEqual([]);
+  expect(pageErrors).toEqual([]);
 });
