@@ -214,6 +214,8 @@ export {
   latestIssuerIdentification,
   latestThreshold,
   POINT_OF_SALE_NUMBER_MAX,
+  PRE_EMISSION_GATE_FAILURE_REASONS,
+  preEmissionGateFailedEvent,
   thresholdInEffectOn,
   thresholdScheduledAfter,
 } from "./fiscal/index.js";
@@ -283,6 +285,7 @@ export {
   cashCountDifference,
   cashMovementDirection,
   cashMovementPermission,
+  cashMovementReason,
   ENROLLMENT_CODE_LENGTH,
   enrollmentAttemptWindowStart,
   expectedCash,

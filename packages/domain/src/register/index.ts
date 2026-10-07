@@ -10,6 +10,7 @@ export {
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_REASON_MAX_LENGTH,
   cashMovementPermission,
+  cashMovementReason,
   isValidCashMovementAmount,
 } from "./model/cash-movement-kind.js";
 export type {
