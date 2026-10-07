@@ -149,7 +149,8 @@ examples reach it through their own pull request.
 
 When the verifier reports that a confirmed finding's kind of deviation is not
 named in its area of the checklist, record the example it proposes under
-"Proposed checklist examples" in the ledger. With the review's result, CLEAN
+"Proposed checklist examples" in the ledger, with the area its verdict
+names. With the review's result, CLEAN
 or STOPPED, report every proposal not yet reported to the coordinator, the
 same way as the new issues, in the proposal shape of
 [references/formats.md](references/formats.md), and mark it reported in the
