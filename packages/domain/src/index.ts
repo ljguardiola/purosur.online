@@ -195,6 +195,7 @@ export type {
   PreEmissionGateOutcome,
 } from "./fiscal/index.js";
 export {
+  ARCA_VITALITY_CHECK_INTERVAL_MS,
   chargeRefusal,
   FISCAL_ADDRESS_NAME_MAX_LENGTH,
   FISCAL_ADDRESS_STREET_ADDRESS_MAX_LENGTH,

@@ -30,7 +30,9 @@ import {
   arcaCertificateExpiryJobs,
   enqueueArcaCertificateExpiryCheck,
 } from "./fiscal/arca-certificate-expiry-task.js";
+import { arcaVitalityJobs } from "./fiscal/arca-vitality-task.js";
 import { DrizzleIssuerIdentificationStore } from "./fiscal/drizzle-issuer-identification-store.js";
+import { WsfeArcaVitalityService, wsfeEndpointOf } from "./fiscal/wsfe-arca-vitality-service.js";
 import { runShutdownSteps } from "./platform/run-shutdown-steps.js";
 import { initSentry } from "./platform/sentry.js";
 
@@ -268,6 +270,7 @@ export function resolveRecoveryEnv(env: ServerEnv): RecoveryEnv | undefined {
 
 export interface SetUpRecoveryEnv extends RecoveryEnv {
   arcaCertificate: { environment: string; notAfter: Date };
+  arcaVitality: { endpoint: string };
 }
 
 export interface RecoveryInfrastructure {
@@ -348,6 +351,10 @@ export async function setUpRecovery(
     jobs: [
       alertEscalationJobs({ now }),
       arcaCertificateExpiryJobs({ now, ...recoveryEnv.arcaCertificate }),
+      arcaVitalityJobs({
+        now,
+        vitality: new WsfeArcaVitalityService({ endpoint: recoveryEnv.arcaVitality.endpoint }),
+      }),
     ],
   });
   const jobQueuePool = createRecoveryJobQueuePool(
@@ -428,6 +435,7 @@ export async function startServer(
               environment: requireArcaEnvironment(env),
               notAfter: requireCertificateNotAfter(env),
             },
+            arcaVitality: { endpoint: wsfeEndpointOf(requireArcaEnvironment(env)) },
           },
           now,
         ),
