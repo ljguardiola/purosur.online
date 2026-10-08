@@ -1,18 +1,19 @@
 import { randomUUID } from "node:crypto";
-import { createRole, createUser } from "@purosur/domain/access/use-cases";
+import { createUser } from "@purosur/domain/access/use-cases";
 import { editBranchSettings } from "@purosur/domain/branch/use-cases";
 import { createCategory, createProduct, createTag } from "@purosur/domain/catalog/use-cases";
+import { createRole } from "@purosur/domain/permissions/use-cases";
 import { confirmPrice, createDiscount, setPrice } from "@purosur/domain/pricing/use-cases";
 import { createRegister } from "@purosur/domain/register/use-cases";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterEach, describe, expect, it } from "vitest";
-import { DrizzleRoleStore } from "../access/drizzle-role-store.js";
 import { DrizzleUserStore } from "../access/drizzle-user-store.js";
 import { openAlert } from "../alerts/open-alert.js";
 import { DrizzleBranchSettingsStore } from "../branch/drizzle-branch-settings-store.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
+import { DrizzleRoleStore } from "../permissions/drizzle-role-store.js";
 import {
   alerts,
   auditLog,
@@ -113,7 +114,7 @@ async function tableCount(
   const [row] = await db.execute<{ count: number }>(
     sql.raw(`select count(*)::int as count from "${tableName}"`),
   );
-  return row ? Number((row as unknown as { count: number }).count) : 0;
+  return row ? Number(row.count) : 0;
 }
 
 // `version` counts edits, so loading and then clearing advances it even when the settings end
@@ -154,7 +155,8 @@ async function sampleDataSnapshot(
         `select coalesce(jsonb_agg(to_jsonb(t) - '${excluded}' order by (to_jsonb(t) - '${excluded}')::text), '[]'::jsonb) as rows from "${tableName}" t`,
       ),
     );
-    snapshot[tableName] = (row as unknown as { rows: unknown }).rows;
+    if (!row) throw new Error(`test setup: no snapshot row for ${tableName}`);
+    snapshot[tableName] = row.rows;
   }
   return snapshot;
 }
@@ -172,7 +174,7 @@ async function sampleCategoryIdByPath(
         where top.parent_id is null and top.name = ${topName}
           and mid.name = ${midName} and leaf.name = ${leafName}`,
   );
-  const id = (rows as unknown as { id: string }[])[0]?.id;
+  const id = rows[0]?.id;
   if (!id) throw new Error(`test setup: no sample category ${topName} > ${midName} > ${leafName}`);
   return id;
 }
@@ -402,7 +404,7 @@ describe("clearSampleData", () => {
           join categories top on top.id = mid.parent_id
           where top.parent_id is null and top.name = 'Almacén' and mid.name = 'Aceites y Aderezos'`,
     );
-    const sampleMidId = (sampleMidRows as unknown as { id: string }[])[0]?.id;
+    const sampleMidId = sampleMidRows[0]?.id;
     if (!sampleMidId)
       throw new Error("test setup: no sample category Almacén > Aceites y Aderezos");
     const realCategory = await createCategory(new DrizzleCatalogStore(db), {

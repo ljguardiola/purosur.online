@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PERMISSION_KEYS } from "../model/permission-catalog.js";
+import { PERMISSION_KEYS } from "../../permissions/index.js";
 import { findOpenSession } from "./find-open-session.js";
 import { FakeSessions } from "./test-support/fake-sessions.js";
 import { CREATED_AT, SESSION_KEY, storedSession } from "./test-support/session-fixtures.js";

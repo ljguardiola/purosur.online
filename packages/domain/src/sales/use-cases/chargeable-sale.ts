@@ -1,7 +1,7 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
+import { saleBalance } from "../../payments/index.js";
 import { buyerIdentificationRefusal } from "../model/buyer-identification-check.js";
 import type { SaleWithLines } from "../model/sale.js";
-import { saleBalance } from "../model/sale-balance.js";
 import { saleTotal } from "../model/sale-line.js";
 import type { SaleLedgerTransaction, SellingSession } from "./sale-ledger.js";
 import { isRefusal, sellingSession } from "./selling-session.js";

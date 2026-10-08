@@ -1,3 +1,4 @@
+export type { Clock } from "../../shared/index.js";
 export type { AppliedStockMovement } from "./apply-stock-movement.js";
 export type { ExpectedBalanceAtInput, ExpectedBalanceAtOutcome } from "./expected-balance-at.js";
 export { expectedBalanceAt } from "./expected-balance-at.js";
@@ -19,7 +20,6 @@ export type {
   StockProduct,
 } from "./stock-reader.js";
 export type {
-  Clock,
   CoveringCount,
   LockProductStockResult,
   NewStockCount,

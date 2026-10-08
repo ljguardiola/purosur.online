@@ -586,11 +586,10 @@ describe("passkey_challenges.kind", () => {
     const sessionId = await insertSession(user.id);
 
     await expect(
-      db.insert(passkeyChallenges).values({
-        sessionId,
-        kind: "role_creation" as unknown as "registration",
-        registrationChallenge: "a-registration-challenge",
-      }),
+      db.execute(
+        sql`insert into passkey_challenges (session_id, kind, registration_challenge)
+            values (${sessionId}, 'role_creation', 'a-registration-challenge')`,
+      ),
     ).rejects.toBeTruthy();
 
     await db.insert(passkeyChallenges).values({

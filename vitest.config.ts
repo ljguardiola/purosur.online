@@ -12,6 +12,11 @@ import {
   SlowTestsReporter,
 } from "./.github/scripts/slow-tests-reporter.mjs";
 import { withoutPackageOutput } from "./.github/scripts/without-package-output.mjs";
+import {
+  recordedRequests,
+  startRecordingRequests,
+  stopRecordingRequests,
+} from "./vitest.browser-commands.mjs";
 
 const PLAYWRIGHT_WS_ENDPOINT_ENV = "PLAYWRIGHT_SERVER_WS_ENDPOINT";
 
@@ -145,6 +150,7 @@ export default defineConfig({
             // Vitest would otherwise name this project "browser (chromium)", which matches no
             // SlowTestsReporter threshold.
             instances: [{ browser: "chromium", name: "browser" }],
+            commands: { startRecordingRequests, recordedRequests, stopRecordingRequests },
           },
         },
       },

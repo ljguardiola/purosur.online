@@ -4,6 +4,8 @@ export {
   argentinaInstant,
 } from "./argentina-calendar.js";
 export { isCalendarDay } from "./calendar-day.js";
+export { isValidCashAmount, MAX_CASH_AMOUNT_CENTS } from "./cash-amount.js";
+export type { Clock } from "./clock.js";
 export { codePointLength } from "./code-point-length.js";
 export type { OperationAuthority, OperationAuthorization } from "./operation-authority.js";
 export type { JsonValue, OutboxEvent, OutboxEventDraft } from "./outbox-event.js";

@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { VALID_ARCA_CERTIFICATE } from "../test-support/arca-certificate-fixtures.js";
 import {
   arcaTestEnvironmentCheckSettingsOf,
@@ -17,7 +17,10 @@ import {
   answers as wsaaAnswers,
 } from "./test-support/fake-wsaa-server.js";
 import {
+  answersInTurn,
+  answersWhenReleased,
   type FakeWsfeServer,
+  NO_ANSWER,
   startFakeWsfeServer,
   answers as wsfeAnswers,
 } from "./test-support/fake-wsfe-server.js";
@@ -67,7 +70,7 @@ describe("checkArcaTestEnvironment", () => {
 
     expect(report).toEqual({
       passed: true,
-      feDummy: { kind: "ok" },
+      feDummy: [{ kind: "ok" }],
       login: { kind: "issued" },
     });
   });
@@ -79,30 +82,52 @@ describe("checkArcaTestEnvironment", () => {
 
     expect(report).toEqual({
       passed: true,
-      feDummy: { kind: "ok" },
+      feDummy: [{ kind: "ok" }],
       login: { kind: "already_authenticated" },
     });
   });
 
-  it("fails, with the servers' answer, when a FEDummy server is not OK", async () => {
+  it("fails, with the servers' answer and without calling FEDummy again, when a FEDummy server is not OK", async () => {
     wsfe.behave(wsfeAnswers("fe-dummy-database-down.xml"));
 
     const report = await check();
 
     expect(report.passed).toBe(false);
-    expect(report.feDummy).toEqual({
-      kind: "not_ok",
-      answer: { kind: "answered", appServer: "OK", dbServer: "NO", authServer: "OK" },
-    });
+    expect(report.feDummy).toEqual([
+      {
+        kind: "not_ok",
+        answer: { kind: "answered", appServer: "OK", dbServer: "NO", authServer: "OK" },
+      },
+    ]);
+    expect(wsfe.requests).toHaveLength(1);
   });
 
-  it("fails when FEDummy gives no answer", async () => {
+  it("fails, with the cause of each attempt, when FEDummy gives no answer twice", async () => {
     wsfe.behave({ kind: "never-answers" });
 
     const report = await check(200);
 
+    const noAnswer = {
+      kind: "not_ok",
+      answer: { kind: "unreachable", cause: "ECONNABORTED: timeout of 200ms exceeded" },
+    };
     expect(report.passed).toBe(false);
-    expect(report.feDummy).toEqual({ kind: "not_ok", answer: { kind: "unreachable" } });
+    expect(report.feDummy).toEqual([noAnswer, noAnswer]);
+  });
+
+  it("passes when FEDummy answers OK on a second attempt after the first gives no answer", async () => {
+    wsfe.behave(answersInTurn(NO_ANSWER, "fe-dummy-all-ok.xml"));
+
+    const report = await check(200);
+
+    expect(report.passed).toBe(true);
+    expect(report.feDummy).toEqual([
+      {
+        kind: "not_ok",
+        answer: { kind: "unreachable", cause: "ECONNABORTED: timeout of 200ms exceeded" },
+      },
+      { kind: "ok" },
+    ]);
   });
 
   it("fails, with the fault the service answered, when the login fails", async () => {
@@ -132,7 +157,7 @@ describe("checkArcaTestEnvironment", () => {
 
     const report = await check();
 
-    expect(report.feDummy.kind).toBe("not_ok");
+    expect(report.feDummy).toEqual([expect.objectContaining({ kind: "not_ok" })]);
     expect(report.login.kind).toBe("failed");
   });
 
@@ -149,12 +174,54 @@ describe("checkArcaTestEnvironment", () => {
   });
 });
 
+describe("checkArcaTestEnvironment given no timeout", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    wsfe.behave(answersWhenReleased("fe-dummy-all-ok.xml"));
+  });
+
+  afterEach(() => {
+    wsfe.release();
+    vi.useRealTimers();
+  });
+
+  async function startCheckWithoutTimeout() {
+    const { timeoutMs: _, ...options } = optionsOf();
+    const firstRequest = wsfe.nextRequest();
+    const report = checkArcaTestEnvironment(options);
+    await firstRequest;
+    return { report };
+  }
+
+  it("waits for a slow FEDummy answer that arrives twenty seconds after the request", async () => {
+    const { report } = await startCheckWithoutTimeout();
+    await vi.advanceTimersByTimeAsync(20_000);
+    wsfe.release();
+
+    expect((await report).feDummy).toEqual([{ kind: "ok" }]);
+    expect(wsfe.requests).toHaveLength(1);
+  });
+
+  it("calls FEDummy again when its answer has not arrived thirty seconds after the request", async () => {
+    const { report } = await startCheckWithoutTimeout();
+    const secondRequest = wsfe.nextRequest();
+    await vi.advanceTimersByTimeAsync(30_000);
+    await secondRequest;
+    wsfe.release();
+
+    expect((await report).feDummy).toEqual([
+      expect.objectContaining({ kind: "not_ok" }),
+      { kind: "ok" },
+    ]);
+  });
+});
+
 describe("describeArcaTestEnvironmentCheck", () => {
   it("names each server's answer and that a ticket was issued", () => {
     expect(
       describeArcaTestEnvironmentCheck({
         passed: true,
-        feDummy: { kind: "ok" },
+        feDummy: [{ kind: "ok" }],
         login: { kind: "issued" },
       }),
     ).toEqual(["FEDummy: every server answered OK", "loginCms: issued a ticket"]);
@@ -164,7 +231,7 @@ describe("describeArcaTestEnvironmentCheck", () => {
     expect(
       describeArcaTestEnvironmentCheck({
         passed: true,
-        feDummy: { kind: "ok" },
+        feDummy: [{ kind: "ok" }],
         login: { kind: "already_authenticated" },
       }),
     ).toEqual([
@@ -177,10 +244,12 @@ describe("describeArcaTestEnvironmentCheck", () => {
     expect(
       describeArcaTestEnvironmentCheck({
         passed: false,
-        feDummy: {
-          kind: "not_ok",
-          answer: { kind: "answered", appServer: "OK", dbServer: "NOT OK", authServer: "OK" },
-        },
+        feDummy: [
+          {
+            kind: "not_ok",
+            answer: { kind: "answered", appServer: "OK", dbServer: "NOT OK", authServer: "OK" },
+          },
+        ],
         login: { kind: "failed", fault: "ns1:cms.cert.expired: Certificado expirado" },
       }),
     ).toEqual([
@@ -189,16 +258,38 @@ describe("describeArcaTestEnvironmentCheck", () => {
     ]);
   });
 
-  it("says when FEDummy gave no answer and the login failed without a fault", () => {
+  it("says why FEDummy gave no answer and that the login failed without a fault", () => {
     expect(
       describeArcaTestEnvironmentCheck({
         passed: false,
-        feDummy: { kind: "not_ok", answer: { kind: "unreachable" } },
+        feDummy: [
+          { kind: "not_ok", answer: { kind: "unreachable", cause: "ECONNRESET: socket hang up" } },
+        ],
         login: { kind: "failed", fault: undefined },
       }),
     ).toEqual([
-      "FEDummy: no answer the client could read",
+      "FEDummy: no answer the client could read (ECONNRESET: socket hang up)",
       "loginCms: failed with no SOAP fault the client could read",
+    ]);
+  });
+
+  it("numbers FEDummy's attempts when it was called again after giving no answer", () => {
+    expect(
+      describeArcaTestEnvironmentCheck({
+        passed: true,
+        feDummy: [
+          {
+            kind: "not_ok",
+            answer: { kind: "unreachable", cause: "ECONNABORTED: timeout of 30000ms exceeded" },
+          },
+          { kind: "ok" },
+        ],
+        login: { kind: "issued" },
+      }),
+    ).toEqual([
+      "FEDummy attempt 1: no answer the client could read (ECONNABORTED: timeout of 30000ms exceeded)",
+      "FEDummy attempt 2: every server answered OK",
+      "loginCms: issued a ticket",
     ]);
   });
 });

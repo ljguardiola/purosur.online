@@ -50,6 +50,7 @@ import {
 // CalendarDate's constructor constrains an invalid day, such as February 30th, to the month's
 // real last day instead of refusing it, so no caller value can reach here unparseable.
 type DateFieldCommonProps = {
+  name: string;
   label: string;
   value: CalendarDate | null;
   onChange: (value: CalendarDate | null) => void;
@@ -129,14 +130,16 @@ const UNBOUNDED_YEAR_REACH = 100;
 type PickerOption = { id: number; label: string; disabled: boolean };
 
 function CalendarPicker(props: {
+  name: string;
   label: string;
   selected: number;
   options: PickerOption[];
   onChange: (id: number) => void;
 }) {
-  const { label, selected, options, onChange } = props;
+  const { name, label, selected, options, onChange } = props;
   return (
     <AriaSelect
+      name={name}
       aria-label={label}
       selectedKey={selected}
       onSelectionChange={(key) => {
@@ -170,7 +173,7 @@ function CalendarPicker(props: {
   );
 }
 
-function CalendarHeader({ titleId }: { titleId: string }) {
+function CalendarHeader({ titleId, name }: { titleId: string; name: string }) {
   const state = useContext(CalendarStateContext);
   if (state === null) {
     return null;
@@ -204,12 +207,14 @@ function CalendarHeader({ titleId }: { titleId: string }) {
       </span>
       <div className={calendarPickersClassName}>
         <CalendarPicker
+          name={`${name}-calendar-month`}
           label="Mes"
           selected={focusedDate.month}
           options={monthOptions}
           onChange={(month) => state.setFocusedDate(focusedDate.set({ month }))}
         />
         <CalendarPicker
+          name={`${name}-calendar-year`}
           label="Año"
           selected={focusedDate.year}
           options={yearOptions}
@@ -236,7 +241,7 @@ function CalendarToggleButton() {
 }
 
 export function DateField(props: DateFieldProps) {
-  const { label, value, onChange, description, disabled = false, required = false } = props;
+  const { name, label, value, onChange, description, disabled = false, required = false } = props;
   const size = useFieldSize();
   const { errorMessage, errorMessageId } = fieldError(props);
   // react-aria-components' Dialog defaults to the field's own label for its aria-labelledby;
@@ -261,6 +266,7 @@ export function DateField(props: DateFieldProps) {
   return (
     <I18nProvider locale={LOCALE}>
       <AriaDatePicker<CalendarDate>
+        name={name}
         value={value}
         onChange={onChange}
         isDisabled={disabled}
@@ -319,7 +325,7 @@ export function DateField(props: DateFieldProps) {
         <AriaPopover style={menuPopoverStyle} className={popoverClassName}>
           <AriaDialog aria-labelledby={calendarTitleId} className={dialogClassName}>
             <AriaCalendar minValue={minValue} maxValue={maxValue}>
-              <CalendarHeader titleId={calendarTitleId} />
+              <CalendarHeader titleId={calendarTitleId} name={name} />
               <AriaCalendarGrid className={calendarGridClassName}>
                 <AriaCalendarGridHeader>
                   {(weekday) => (

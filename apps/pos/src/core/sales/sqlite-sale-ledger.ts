@@ -9,6 +9,7 @@ import {
   type Sale,
   type SaleLine,
   type SaleUnit,
+  type SearchableProduct,
 } from "@purosur/domain";
 import type {
   CandidatePromotion,
@@ -16,7 +17,6 @@ import type {
   SaleLedger,
   SaleLedgerTransaction,
   SaleRefund,
-  SearchableProduct,
   SellableProduct,
   SellingSession,
 } from "@purosur/domain/sales/use-cases";
@@ -26,11 +26,11 @@ import {
   readBuyerTaxStatusSetInEffect,
   readIssuerIdentificationInEffect,
 } from "../fiscal/sqlite-pre-emission-gate";
+import { readSalePayments } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
 import { insertCashMovement, readMovementsOf } from "../register/sqlite-cash-ledger";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 import { type BenefitColumns, readOpenSale, toBenefit } from "./sqlite-open-sale";
-import { readSalePayments } from "./sqlite-sale-payments";
 
 interface PriceRow {
   id: string;
@@ -100,6 +100,7 @@ export class SqliteSaleLedger implements SaleLedger {
       recordCancelledSale: (saleId, occurredAt, authorizedBy) =>
         this.recordCancelledSale(saleId, occurredAt, authorizedBy),
       recordRefund: (refund) => this.recordRefund(refund),
+      outboxReady: () => this.outboxChainKey !== undefined,
       appendOutboxEvent: (draft) => this.appendOutboxEvent(draft),
       issuerIdentificationInEffect: () => readIssuerIdentificationInEffect(this.database),
       buyerTaxStatusSetInEffect: () => readBuyerTaxStatusSetInEffect(this.database),

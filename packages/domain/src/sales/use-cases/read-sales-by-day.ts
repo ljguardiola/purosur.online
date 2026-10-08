@@ -1,3 +1,4 @@
+import type { Clock } from "../../shared/index.js";
 import {
   defaultSalesReportRange,
   type SalesOfDay,
@@ -5,7 +6,6 @@ import {
   type SalesReportTotals,
   salesReportTotals,
 } from "../model/sales-report.js";
-import type { Clock } from "./sale-ledger.js";
 import type { SalesReportReader } from "./sales-report-reader.js";
 
 export interface ReadSalesByDayInput {

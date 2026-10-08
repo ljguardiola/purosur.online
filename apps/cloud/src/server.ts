@@ -434,7 +434,13 @@ export async function setUpRecovery(
       arcaCertificateExpiryJobs({ now, ...recoveryEnv.arcaCertificate }),
       arcaVitalityJobs({
         now,
-        vitality: new WsfeArcaVitalityService({ endpoint: recoveryEnv.arcaVitality.endpoint }),
+        vitality: new WsfeArcaVitalityService({
+          endpoint: recoveryEnv.arcaVitality.endpoint,
+          onUnreachable: (cause) =>
+            console.warn(
+              `ARCA vitality check: no answer the cloud could read from FEDummy (${cause})`,
+            ),
+        }),
       }),
       applySyncedEventsJobs({ now }),
       ...(recoveryEnv.arcaWsaa

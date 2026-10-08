@@ -1,3 +1,4 @@
+export type { Clock } from "../../shared/index.js";
 export type { LimitedEndpoint } from "../model/installation-request-limit.js";
 export type { SyncedFact } from "../model/synced-fact.js";
 export type {
@@ -41,7 +42,6 @@ export type {
   ChangeLog,
   ChangeLogTransaction,
   CheckInstallationPorts,
-  Clock,
   CloudChangeFeed,
   CloudChangeFeedAnswer,
   CloudEventInbox,

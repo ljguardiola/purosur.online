@@ -147,9 +147,25 @@ The review never changes [references/checklist.md](references/checklist.md)
 inside the issue's branch: that file is shared by every branch, and its
 examples reach it through their own pull request.
 
-When the verifier reports that a confirmed finding's kind of deviation is not
-named in its area of the checklist, record the example it proposes under
-"Proposed checklist examples" in the ledger, with the area its verdict
+The checklist stays bounded by the repository's rules, not by the number of
+features: each area holds at most five examples under "Examples", each one
+pattern stated in general terms. A confirmed finding is judged against it in
+this order:
+
+1. An example of its area, its "Read in the change" cell or the rule it
+   cites already states its pattern, whatever the case: it is `named`, and
+   nothing is proposed.
+2. A check over the source could refuse the pattern in ordinary code, as
+   "Checks" in `.claude/rules/checks.md` describes: the proposal is that
+   check of `pnpm verify`, not an example.
+3. The finding is a one-off, a case of no pattern another change is likely
+   to repeat: nothing is proposed.
+4. Otherwise the proposal is an example of the pattern in general terms with
+   a case or two that show it. An area already holding five takes it only by
+   merging two of its examples into one, or by replacing one of them.
+
+When the verifier reports a proposal for a confirmed finding, record it
+under "Proposed checklist examples" in the ledger, with the area its verdict
 names. With the review's result, CLEAN
 or STOPPED, report every proposal not yet reported to the coordinator, the
 same way as the new issues, in the proposal shape of

@@ -113,6 +113,12 @@ function pendingGenerate() {
   };
 }
 
+test("names the scan input after the barcodes field", async () => {
+  const chips = await renderChips();
+
+  await expect.element(scanInputOf(chips)).toHaveAttribute("name", "barcodes.scan");
+});
+
 test("rejects scanning a code with spaces inside it, without adding a chip", async () => {
   const chips = await renderChips();
 

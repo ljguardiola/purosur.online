@@ -9,6 +9,9 @@ const VALID_FEATURE_ISSUE_BODY = [
   "### Business rules",
   "Discount cannot exceed 20%.",
   "",
+  "### Domain concepts",
+  "pricing",
+  "",
   "### Acceptance criteria (Given / When / Then)",
   "Given a sale, when a discount is applied, then the total updates.",
   "",
@@ -295,6 +298,15 @@ test("denies a gh issue create with an explicit type label and an incomplete bod
   );
   assert.ok(problems.some((p) => p.includes("Acceptance criteria")));
   assert.ok(problems.some((p) => p.toLowerCase().includes("issue-format")));
+});
+
+test("denies a gh issue create of a feature that does not name the domain concepts of its rules", () => {
+  const body = VALID_FEATURE_ISSUE_BODY.replace("### Domain concepts\npricing\n", "");
+  const problems = checkCommand(
+    'gh issue create --title "x" --label "type: feature" --body-file /tmp/body.md',
+    ctx({ files: { "/tmp/body.md": body } }),
+  );
+  assert.ok(problems.some((p) => p.includes("Domain concepts")));
 });
 
 test("allows gh issue create with a body-only check when no type label is known (cannot be decided locally)", () => {

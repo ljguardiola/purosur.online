@@ -1,7 +1,8 @@
 import { isBarcodeTooLong } from "../../catalog/index.js";
+import type { Clock } from "../../shared/index.js";
 import type { AddProductToSaleOutcome } from "./add-product-to-sale.js";
 import { addProductToSale } from "./add-product-to-sale.js";
-import type { Clock, IdGenerator, SaleLedger } from "./sale-ledger.js";
+import type { IdGenerator, SaleLedger } from "./sale-ledger.js";
 
 export interface AddScannedProductInput {
   actorId: string;

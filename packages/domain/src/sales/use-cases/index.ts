@@ -1,6 +1,4 @@
-export type { OperationAuthority, OperationAuthorization } from "../../shared/index.js";
-export type { NameMatch } from "../model/product-name-match.js";
-export type { SearchableProduct } from "../model/product-search.js";
+export type { Clock, OperationAuthority, OperationAuthorization } from "../../shared/index.js";
 export type {
   AddScannedProductInput,
   AddScannedProductOutcome,
@@ -21,7 +19,6 @@ export type {
 } from "./cancel-paid-sale.js";
 export { cancelPaidSale } from "./cancel-paid-sale.js";
 export type {
-  CancelLockedSaleOutcome,
   CancelSaleInput,
   CancelSaleOutcome,
   CancelSalePorts,
@@ -51,26 +48,8 @@ export type {
   CurrentSalePorts,
 } from "./current-sale.js";
 export { currentSale } from "./current-sale.js";
-export type {
-  ListPendingRefundsInput,
-  ListPendingRefundsPorts,
-} from "./list-pending-refunds.js";
-export { listPendingRefunds } from "./list-pending-refunds.js";
-export type {
-  MarkRefundDoneInput,
-  MarkRefundDoneOutcome,
-  MarkRefundDonePorts,
-} from "./mark-refund-done.js";
-export { markRefundDone } from "./mark-refund-done.js";
 export type { ReadSalesByDayInput, SalesByDayReport } from "./read-sales-by-day.js";
 export { readSalesByDay } from "./read-sales-by-day.js";
-export type {
-  LockedRefund,
-  PendingRefund,
-  PendingRefundsReader,
-  RefundStore,
-  RefundStoreTransaction,
-} from "./refund-store.js";
 export type {
   RemoveSaleLineInput,
   RemoveSaleLineOutcome,
@@ -79,7 +58,6 @@ export type {
 export { removeSaleLine } from "./remove-sale-line.js";
 export type {
   CandidatePromotion,
-  Clock,
   IdGenerator,
   RegisterIdentity,
   SaleLedger,

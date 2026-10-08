@@ -1,3 +1,4 @@
+export type { Clock } from "../../shared/index.js";
 export type { AssignableTargetCandidate } from "../model/discount-target-eligibility.js";
 export type { ConfirmPriceInput, ConfirmPriceOutcome } from "./confirm-price.js";
 export { confirmPrice } from "./confirm-price.js";
@@ -42,7 +43,6 @@ export type {
   PriceUnderReview,
 } from "./price-review-reader.js";
 export type {
-  Clock,
   CurrentPrice,
   LockActiveProductResult,
   NewPrice,

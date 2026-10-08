@@ -1,10 +1,7 @@
+import type { Clock } from "../../shared/index.js";
 import type { AlertAudience, AlertKind, AlertLevel } from "../model/alert-catalog.js";
 import type { AlertDetails } from "../model/alert-details.js";
 import type { AlertViewer } from "../model/alert-visibility.js";
-
-export interface Clock {
-  now(): Date;
-}
 
 export interface SourceAddressHasher {
   hash(address: string): string;

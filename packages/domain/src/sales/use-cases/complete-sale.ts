@@ -1,8 +1,8 @@
 import { preEmissionGate, preEmissionGateFailedEvent } from "../../fiscal/index.js";
+import type { PaymentTransaction } from "../../payments/index.js";
+import { paymentRecord } from "../../payments/index.js";
 import type { OutboxEventDraft } from "../../shared/index.js";
-import type { PaymentTransaction } from "../model/payment.js";
 import type { SaleWithLines } from "../model/sale.js";
-import { paymentRecord } from "./payment-record.js";
 import { saleCashMovementRecord, saleLineRecord } from "./sale-event-records.js";
 import type { IdGenerator, SaleCashMovement, SaleLedgerTransaction } from "./sale-ledger.js";
 

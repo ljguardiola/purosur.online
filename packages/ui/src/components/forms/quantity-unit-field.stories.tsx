@@ -100,6 +100,7 @@ function QuantityUnitFieldWithMessageElsewhere() {
   return (
     <div className="flex flex-col gap-1.5">
       <QuantityUnitField
+        name="netContent"
         label="Contenido neto"
         quantity=""
         onQuantityChange={() => {}}

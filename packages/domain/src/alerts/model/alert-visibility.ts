@@ -1,4 +1,4 @@
-import { grantsCapability, holdsPermission } from "../../access/index.js";
+import { grantsCapability, holdsPermission } from "../../permissions/index.js";
 import type { AlertAudience } from "./alert-catalog.js";
 
 export interface AlertAudienceAccess {

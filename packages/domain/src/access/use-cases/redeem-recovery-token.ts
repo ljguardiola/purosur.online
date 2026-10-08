@@ -1,5 +1,5 @@
+import type { Clock } from "../../shared/index.js";
 import { recoveryTokenStatus } from "../model/recovery-token.js";
-import type { Clock } from "./pin-code-store.js";
 import {
   PasskeyAlreadyRegistered,
   type RecoveredPasskey,

@@ -1,13 +1,14 @@
-import {
-  type ArcaVitalityResult,
-  checkArcaVitality,
-  type WsaaAuthenticationResult,
-} from "@purosur/domain/fiscal/use-cases";
+import { checkArcaVitality, type WsaaAuthenticationResult } from "@purosur/domain/fiscal/use-cases";
 import { arcaCredentialsOf } from "./arca-credentials.js";
 import { ArcaWsaaAuthentication } from "./wsaa-authentication.js";
-import { WsfeArcaVitalityService } from "./wsfe-arca-vitality-service.js";
+import {
+  type WsfeArcaVitalityResult,
+  WsfeArcaVitalityService,
+} from "./wsfe-arca-vitality-service.js";
 
 const WSAA_SERVICE = "wsfe";
+const FE_DUMMY_ATTEMPTS = 2;
+const FE_DUMMY_TIMEOUT_MS = 30_000;
 
 interface ArcaTestEnvironmentCheckSettings {
   certificatePem: string;
@@ -40,7 +41,7 @@ export interface CheckArcaTestEnvironmentOptions extends ArcaTestEnvironmentChec
   timeoutMs?: number;
 }
 
-type FeDummyCheck = { kind: "ok" } | { kind: "not_ok"; answer: ArcaVitalityResult };
+type FeDummyAttempt = { kind: "ok" } | { kind: "not_ok"; answer: WsfeArcaVitalityResult };
 
 type LoginCheck =
   | { kind: "issued" }
@@ -49,7 +50,7 @@ type LoginCheck =
 
 export interface ArcaTestEnvironmentCheckReport {
   passed: boolean;
-  feDummy: FeDummyCheck;
+  feDummy: FeDummyAttempt[];
   login: LoginCheck;
 }
 
@@ -69,23 +70,35 @@ function soapFaultOf(raw: string | undefined): string | undefined {
   return description === undefined ? code : `${code}: ${description}`;
 }
 
-async function checkFeDummy(options: CheckArcaTestEnvironmentOptions): Promise<FeDummyCheck> {
-  const service = new WsfeArcaVitalityService({
-    endpoint: options.wsfeEndpoint,
-    ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
-  });
-  let answer: ArcaVitalityResult = { kind: "unreachable" };
+async function attemptFeDummy(
+  service: WsfeArcaVitalityService,
+  now: () => Date,
+): Promise<FeDummyAttempt> {
+  const answer = await service.check();
   const outcome = await checkArcaVitality({
-    vitality: {
-      check: async () => {
-        answer = await service.check();
-        return answer;
-      },
-    },
+    vitality: { check: async () => answer },
     store: { recordVitalityCheck: async () => {} },
-    clock: { now: options.now },
+    clock: { now },
   });
   return outcome.kind === "ok" ? { kind: "ok" } : { kind: "not_ok", answer };
+}
+
+async function checkFeDummy(options: CheckArcaTestEnvironmentOptions): Promise<FeDummyAttempt[]> {
+  const service = new WsfeArcaVitalityService({
+    endpoint: options.wsfeEndpoint,
+    timeoutMs: options.timeoutMs ?? FE_DUMMY_TIMEOUT_MS,
+  });
+  const attempts: FeDummyAttempt[] = [];
+  let attempt: FeDummyAttempt;
+  do {
+    attempt = await attemptFeDummy(service, options.now);
+    attempts.push(attempt);
+  } while (
+    attempt.kind === "not_ok" &&
+    attempt.answer.kind === "unreachable" &&
+    attempts.length < FE_DUMMY_ATTEMPTS
+  );
+  return attempts;
 }
 
 async function checkLogin(options: CheckArcaTestEnvironmentOptions): Promise<LoginCheck> {
@@ -115,18 +128,28 @@ export async function checkArcaTestEnvironment(
 ): Promise<ArcaTestEnvironmentCheckReport> {
   const feDummy = await checkFeDummy(options);
   const login = await checkLogin(options);
-  return { passed: feDummy.kind === "ok" && login.kind !== "failed", feDummy, login };
+  const passed = feDummy.at(-1)?.kind === "ok" && login.kind !== "failed";
+  return { passed, feDummy, login };
 }
 
-function describeFeDummy(feDummy: FeDummyCheck): string {
-  if (feDummy.kind === "ok") {
-    return "FEDummy: every server answered OK";
+function describeFeDummyAttempt(attempt: FeDummyAttempt): string {
+  if (attempt.kind === "ok") {
+    return "every server answered OK";
   }
-  const { answer } = feDummy;
+  const { answer } = attempt;
   if (answer.kind === "unreachable") {
-    return "FEDummy: no answer the client could read";
+    return `no answer the client could read (${answer.cause})`;
   }
-  return `FEDummy: AppServer ${answer.appServer}, DbServer ${answer.dbServer}, AuthServer ${answer.authServer}`;
+  return `AppServer ${answer.appServer}, DbServer ${answer.dbServer}, AuthServer ${answer.authServer}`;
+}
+
+function describeFeDummy(feDummy: FeDummyAttempt[]): string[] {
+  if (feDummy.length === 1) {
+    return feDummy.map((attempt) => `FEDummy: ${describeFeDummyAttempt(attempt)}`);
+  }
+  return feDummy.map(
+    (attempt, index) => `FEDummy attempt ${index + 1}: ${describeFeDummyAttempt(attempt)}`,
+  );
 }
 
 function describeLogin(login: LoginCheck): string {
@@ -141,7 +164,7 @@ function describeLogin(login: LoginCheck): string {
 }
 
 export function describeArcaTestEnvironmentCheck(report: ArcaTestEnvironmentCheckReport): string[] {
-  return [describeFeDummy(report.feDummy), describeLogin(report.login)];
+  return [...describeFeDummy(report.feDummy), describeLogin(report.login)];
 }
 
 export async function runArcaTestEnvironmentCheck(

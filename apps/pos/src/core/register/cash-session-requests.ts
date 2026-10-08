@@ -18,8 +18,9 @@ import {
   expectedCash,
   isLockedToAnother,
   type OpenedCashSession,
-  openSaleSummary,
+  openSaleStanding,
   registerAbilities,
+  saleTotal,
 } from "@purosur/domain";
 import {
   type Clock,
@@ -33,10 +34,11 @@ import {
 import type { ActionGate } from "../access/action-gate";
 import { authorizersOf } from "../access/authorizers";
 import { type ActivePerson, SqliteSignInStore } from "../access/sqlite-sign-in-store";
+import { readSalePayments } from "../payments/sqlite-sale-payments";
+import { toWireRefund } from "../payments/wire-refund";
 import { inArgentinaTime } from "../platform/argentina-time";
 import type { LocalDatabase } from "../platform/local-database";
 import { readOpenSale } from "../sales/sqlite-open-sale";
-import { readSalePayments } from "../sales/sqlite-sale-payments";
 import { readOpenSession, readSessionMovements, SqliteCashLedger } from "./sqlite-cash-ledger";
 
 export interface CashSessionRequestDeps {
@@ -255,9 +257,18 @@ export function cashCountPreviewFor(
 export function sessionOpenSaleFor(database: LocalDatabase): SessionOpenSale | null {
   const session = readOpenSession(database);
   const sale = session && readOpenSale(database, session.id);
-  return sale
-    ? openSaleSummary({ lines: sale.lines, payments: readSalePayments(database, sale.id) })
-    : null;
+  if (!sale) {
+    return null;
+  }
+  const total = saleTotal(sale.lines);
+  const standing = openSaleStanding(total, readSalePayments(database, sale.id));
+  return {
+    id: sale.id,
+    total,
+    paid: standing.balance.paid,
+    cancellable: standing.cancellable,
+    refunds_on_cancel: standing.refundsOnCancel.map(toWireRefund),
+  };
 }
 
 export function currentCashSession(

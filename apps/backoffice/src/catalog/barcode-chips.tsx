@@ -135,6 +135,7 @@ export function BarcodeChips({ chips, generation }: BarcodeChipsProps) {
           )}
           <input
             className="absolute inset-0 size-full rounded-lg bg-transparent px-3 text-center outline-none"
+            name={`${field.name}.scan`}
             value={scan}
             onChange={(event) => chips.changeScanInput(event.target.value)}
             onKeyDown={chips.handleScanKeyDown}

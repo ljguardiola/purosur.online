@@ -29,6 +29,7 @@ export { openCashSessionSchema, signedInPersonSchema } from "./open-cash-session
 export type { PinAttemptRefusal } from "./pin-attempt-refusal.js";
 export { pinAttemptRefusalSchema } from "./pin-attempt-refusal.js";
 export { decodePinSalt, encodePinHash, PIN_HASH_SCHEME } from "./pin-hash-scheme.js";
+export { plannedRefundSchema } from "./planned-refund.js";
 export { pointOfSaleNumberSchema } from "./point-of-sale-number.js";
 export { recordIdSchema } from "./record-id.js";
 export { requestIdSchema } from "./request-id.js";

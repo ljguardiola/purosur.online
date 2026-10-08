@@ -303,18 +303,21 @@ export function ProductsListScreen({
             />
           </div>
           <ListFilter
+            name="category"
             label="Categoría:"
             options={categoryFilterOptions}
             value={categoryFilter}
             onChange={setChosenCategoryFilter}
           />
           <ListFilter
+            name="unit"
             label="Unidad:"
             options={unitFilterOptions}
             value={unitFilter}
             onChange={setUnitFilter}
           />
           <ListFilter
+            name="status"
             label="Estado:"
             options={statusFilterOptions}
             value={statusFilter}

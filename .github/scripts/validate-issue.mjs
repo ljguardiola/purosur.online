@@ -3,7 +3,12 @@ import { isEmptyContent, parseSections } from "./sections.mjs";
 const TYPE_LABEL_PREFIX = "type: ";
 
 const SECTIONS_BY_TYPE = {
-  feature: ["Goal", "Business rules", "Acceptance criteria (Given / When / Then)"],
+  feature: [
+    "Goal",
+    "Business rules",
+    "Domain concepts",
+    "Acceptance criteria (Given / When / Then)",
+  ],
   bug: [
     "Expected behavior",
     "Actual behavior",

@@ -3,6 +3,7 @@ import { Switch as AriaSwitch } from "react-aria-components";
 import { disabledTextProps, fieldHelperClassName } from "./field-styles";
 
 export type ToggleProps = {
+  name: string;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   children: Exclude<ReactNode, null | undefined | boolean>;
@@ -35,6 +36,7 @@ const knobClassName =
 const descriptionClassName = `ps-15 ${fieldHelperClassName} aria-disabled:opacity-disabled`;
 
 export function Toggle({
+  name,
   checked,
   onCheckedChange,
   children,
@@ -44,6 +46,7 @@ export function Toggle({
   const descriptionId = useId();
   const toggle = (
     <AriaSwitch
+      name={name}
       isSelected={checked}
       onChange={onCheckedChange}
       isDisabled={disabled}

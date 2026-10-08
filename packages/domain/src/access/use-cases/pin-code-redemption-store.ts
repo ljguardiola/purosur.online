@@ -1,5 +1,5 @@
+import type { Clock } from "../../shared/index.js";
 import type { PinCodeState } from "../model/pin-code.js";
-import type { Clock } from "./pin-code-store.js";
 
 export interface HashedPin {
   salt: string;

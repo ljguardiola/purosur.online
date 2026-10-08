@@ -1,4 +1,5 @@
 import type { AlertConditionObservation } from "../../alerts/index.js";
+import type { Clock } from "../../shared/index.js";
 import type { LimitedEndpoint } from "../model/installation-request-limit.js";
 import type {
   PullAudience,
@@ -10,10 +11,6 @@ import type { PulledChange, PullPage } from "../model/pull-page.js";
 import type { PushedEvent, RegisterTelemetry } from "../model/push-batch.js";
 
 export type { PullAudience, PulledChange, PulledEntity, PullingRegister, PullPage, PullReach };
-
-export interface Clock {
-  now(): Date;
-}
 
 export interface ChangeLog<TChange extends PulledChange> {
   transaction<TOutcome>(

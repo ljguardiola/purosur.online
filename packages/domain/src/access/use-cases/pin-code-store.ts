@@ -1,8 +1,5 @@
+import type { Clock } from "../../shared/index.js";
 import type { PinCodeParty } from "../model/pin-code.js";
-
-export interface Clock {
-  now(): Date;
-}
 
 export interface GeneratedPinCode {
   code: string;

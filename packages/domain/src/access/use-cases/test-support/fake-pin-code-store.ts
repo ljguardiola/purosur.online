@@ -1,3 +1,4 @@
+import type { Clock } from "../../../shared/index.js";
 import type {
   FirstPinCodeEmission,
   FirstPinCodeStore,
@@ -16,7 +17,6 @@ import type {
   PinHasher,
 } from "../pin-code-redemption-store.js";
 import type {
-  Clock,
   GeneratedPinCode,
   NewPinCode,
   PinCodeEmission,

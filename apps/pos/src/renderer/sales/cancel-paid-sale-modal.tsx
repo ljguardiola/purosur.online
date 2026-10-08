@@ -4,10 +4,10 @@ import { Button, formatCents, InlineNotice, Modal, SummaryRowGroup } from "@puro
 import { ArrowLeft, CircleX, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
 import { AuthorizationSection } from "../shell/authorization-section";
+import type { Refund } from "../shell/refund-lines";
+import { RefundLines } from "../shell/refund-lines";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { useAuthorization } from "../shell/use-authorization";
-import type { Refund } from "./refund-lines";
-import { RefundLines } from "./refund-lines";
 
 const FAILED_MESSAGE = "No se pudo cancelar la venta. Probá de nuevo.";
 const AUTHORIZING = "cancelar una venta con pagos";

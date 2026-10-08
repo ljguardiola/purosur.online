@@ -1,6 +1,5 @@
-import type { AuthorizablePermissionKey } from "../../access/index.js";
-import { codePointLength } from "../../shared/index.js";
-import { isValidCashAmount } from "./cash-amount.js";
+import type { AuthorizablePermissionKey } from "../../permissions/index.js";
+import { codePointLength, isValidCashAmount } from "../../shared/index.js";
 
 export const CASH_MOVEMENT_KINDS = ["CASH_IN", "CASH_OUT", "WITHDRAWAL"] as const;
 

@@ -8,7 +8,7 @@ import { describe, expect, inject, it } from "vitest";
 describe("the built cloud", { timeout: 0 }, () => {
   it("runs a module that imports @purosur/domain under plain Node", () => {
     const rolesListRouteUrl = pathToFileURL(
-      join(inject("cloudBuildDir"), "access", "roles-list-route.js"),
+      join(inject("cloudBuildDir"), "permissions", "roles-list-route.js"),
     ).href;
     const script = `
       const module = await import(${JSON.stringify(rolesListRouteUrl)});

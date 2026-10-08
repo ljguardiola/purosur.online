@@ -346,7 +346,7 @@ describe("an event that cannot be applied yet", () => {
 
   it("describes a failure that is not an error with its text", async () => {
     const application = new FakeEventApplication([appliedSessionOpening(), saleEvent()]);
-    application.failRecording.set("sale-event", "just a string" as unknown as Error);
+    application.failRecording.set("sale-event", "just a string");
 
     await run(application, new FakeEventUpcaster({ "sale-event": aCompletedSaleFact() }));
 

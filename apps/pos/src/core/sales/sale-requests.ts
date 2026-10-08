@@ -45,6 +45,7 @@ import {
 } from "@purosur/domain/sales/use-cases";
 import type { ActionGate } from "../access/action-gate";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
+import { toWireRefund } from "../payments/wire-refund";
 import type { LocalDatabase } from "../platform/local-database";
 import { readOpenSession } from "../register/sqlite-cash-ledger";
 import { SqliteSaleLedger } from "./sqlite-sale-ledger";
@@ -72,15 +73,6 @@ export interface ChargeSaleByTransferRequest {
 
 function saleLedger(database: LocalDatabase, outboxChainKey?: string): SqliteSaleLedger {
   return new SqliteSaleLedger(database, new SqliteSignInStore(database), outboxChainKey);
-}
-
-function toWireRefund(refund: PlannedRefund): OpenSale["refunds_on_cancel"][number] {
-  return {
-    payment_id: refund.paymentId,
-    method: refund.method,
-    amount: refund.amount,
-    state: refund.state,
-  };
 }
 
 function appliedPromotion(line: SaleLine): OpenSale["lines"][number]["promotion"] {
@@ -317,7 +309,7 @@ export async function cancelSaleFor({
   gate,
 }: Pick<SaleRequestDeps, "database" | "gate">): Promise<CancelSaleOutcome> {
   const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
-    cancelSale({ ledger: saleLedger(database) }, { actorId: signedInUserId, from: "sale" }),
+    cancelSale({ ledger: saleLedger(database) }, { actorId: signedInUserId }),
   );
   if (guarded.kind !== "performed") {
     return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
@@ -353,9 +345,6 @@ export async function cancelPaidSaleFor(
         async authorize(): Promise<
           OperationAuthorization<CancelPaidSaleRequestGrant, CancelPaidSaleRefusal>
         > {
-          if (outboxChainKey === undefined) {
-            return { kind: "refused", refusal: { kind: "unavailable" } };
-          }
           const guarded = await gate.runAuthorized(
             { kind: "cancel_paid_sale" },
             authorization,
@@ -374,7 +363,7 @@ export async function cancelPaidSaleFor(
         },
       },
     },
-    { saleId },
+    { saleId, from: "sale" },
   );
   return outcome.kind === "cancelled"
     ? {
@@ -385,23 +374,52 @@ export async function cancelPaidSaleFor(
     : outcome;
 }
 
+export interface CancelLockedSaleRequest {
+  saleId: string;
+  closer: Authorization;
+}
+
+type CancelLockedSaleRefusal = Extract<
+  CancelLockedSaleOutcome,
+  { kind: "unavailable" | AuthorizationRefusal["kind"] | "not_locked" }
+>;
+
 export async function cancelLockedSaleFor(
-  { database, gate }: Pick<SaleRequestDeps, "database" | "gate">,
-  closer: Authorization,
+  { database, gate, now, ids, readOutboxChainKey }: OutboxSaleRequestDeps,
+  { saleId, closer }: CancelLockedSaleRequest,
 ): Promise<CancelLockedSaleOutcome> {
-  const guarded = await gate.runWhileLocked(
-    { kind: "close_locked_register", session: readOpenSession(database) },
-    closer,
-    async (person) =>
-      cancelSale(
-        { ledger: saleLedger(database) },
-        { actorId: person.user_id, from: "locked_register" },
-      ),
+  const outboxChainKey = await readOutboxChainKey();
+  const outcome = await cancelPaidSale<CancelPaidSaleGrant, CancelLockedSaleRefusal>(
+    {
+      ledger: saleLedger(database, outboxChainKey),
+      clock: { now },
+      ids,
+      authority: {
+        async authorize(): Promise<
+          OperationAuthorization<CancelPaidSaleGrant, CancelLockedSaleRefusal>
+        > {
+          const guarded = await gate.runWhileLocked(
+            { kind: "close_locked_register", session: readOpenSession(database) },
+            closer,
+            async (person) => person,
+          );
+          return guarded.kind === "performed"
+            ? {
+                kind: "granted",
+                grant: {
+                  actorId: guarded.result.user_id,
+                  authorizedBy: guarded.result.user_id,
+                },
+              }
+            : { kind: "refused", refusal: guarded };
+        },
+      },
+    },
+    { saleId, from: "locked_register" },
   );
-  if (guarded.kind !== "performed") {
-    return guarded;
-  }
-  return { kind: guarded.result.kind };
+  return outcome.kind === "cancelled"
+    ? { kind: "cancelled", refunds: outcome.refunds.map(toWireRefund) }
+    : outcome;
 }
 
 export async function chargeSaleInCashFor(

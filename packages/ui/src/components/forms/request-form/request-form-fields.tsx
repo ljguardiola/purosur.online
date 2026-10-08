@@ -32,11 +32,14 @@ export function BoundTextField(props: DistributiveOmit<TextFieldProps, FieldValu
   );
 }
 
-export function BoundSelect(props: DistributiveOmit<SelectProps<string>, FieldValueProps>) {
+export function BoundSelect(
+  props: DistributiveOmit<SelectProps<string>, FieldValueProps | "name">,
+) {
   const field = useFieldContext<string | null>();
   return (
     <Select
       {...props}
+      name={field.name}
       value={field.state.value}
       onChange={field.handleChange}
       errorMessage={fieldErrorMessage(field.state.meta.errors)}
@@ -56,11 +59,12 @@ export function BoundComboBox(props: DistributiveOmit<ComboBoxProps<string>, Fie
   );
 }
 
-export function BoundDateField(props: DistributiveOmit<DateFieldProps, FieldValueProps>) {
+export function BoundDateField(props: DistributiveOmit<DateFieldProps, FieldValueProps | "name">) {
   const field = useFieldContext<CalendarDate | null>();
   return (
     <DateField
       {...props}
+      name={field.name}
       value={field.state.value}
       onChange={field.handleChange}
       errorMessage={fieldErrorMessage(field.state.meta.errors)}
@@ -73,7 +77,7 @@ type QuantityUnitValue<Unit extends string> = { quantity: string; unit: Unit };
 export function BoundQuantityUnitField<Unit extends string>(
   props: DistributiveOmit<
     QuantityUnitFieldProps<Unit>,
-    FieldValueProps | "quantity" | "onQuantityChange" | "unit" | "onUnitChange"
+    FieldValueProps | "name" | "quantity" | "onQuantityChange" | "unit" | "onUnitChange"
   >,
 ) {
   const field = useFieldContext<QuantityUnitValue<Unit>>();
@@ -81,6 +85,7 @@ export function BoundQuantityUnitField<Unit extends string>(
   return (
     <QuantityUnitField
       {...props}
+      name={field.name}
       quantity={quantity}
       onQuantityChange={(next) => field.handleChange({ quantity: next, unit })}
       unit={unit}
@@ -125,9 +130,16 @@ export function BoundToggleChipGroup<Value extends string>(
   );
 }
 
-export function BoundToggle(props: Omit<ToggleProps, "checked" | "onCheckedChange">) {
+export function BoundToggle(props: Omit<ToggleProps, "name" | "checked" | "onCheckedChange">) {
   const field = useFieldContext<boolean>();
-  return <Toggle {...props} checked={field.state.value} onCheckedChange={field.handleChange} />;
+  return (
+    <Toggle
+      {...props}
+      name={field.name}
+      checked={field.state.value}
+      onCheckedChange={field.handleChange}
+    />
+  );
 }
 
 type SharedFieldErrorProps = {

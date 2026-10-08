@@ -33,13 +33,10 @@ function canonicalJson(value: JsonValue): string {
   if (Array.isArray(value)) {
     return `[${value.map(canonicalJson).join(",")}]`;
   }
-  if (typeof value === "object") {
-    const members = Object.keys(value)
-      .sort()
-      .map((name) => `${JSON.stringify(name)}:${canonicalJson(value[name] as JsonValue)}`);
-    return `{${members.join(",")}}`;
-  }
-  throw new TypeError(`a ${typeof value} cannot be canonicalized`);
+  const members = Object.keys(value)
+    .sort()
+    .map((name) => `${JSON.stringify(name)}:${canonicalJson(value[name] as JsonValue)}`);
+  return `{${members.join(",")}}`;
 }
 
 export function canonicalOutboxEvent(event: OutboxEvent): string {

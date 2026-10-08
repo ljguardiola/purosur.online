@@ -1,9 +1,9 @@
 import { startAuthentication } from "@simplewebauthn/browser";
+import { fetchRoles } from "../platform/roles-api";
 import {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
-import { fetchRoles } from "./roles-api";
 import { createUser, fetchUsers } from "./users-api";
 
 export type UsersListScreenServices = {

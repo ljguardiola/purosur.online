@@ -24,6 +24,7 @@ type Screen = Awaited<ReturnType<typeof render>>;
 // `string | undefined` regardless of variant, which fails `exactOptionalPropertyTypes` wherever a
 // test spreads this and adds its own `errorMessage`/`errorMessageId` JSX attributes on top.
 type BaseFieldProps = {
+  name: string;
   label: string;
   quantity: string;
   onQuantityChange: (value: string) => void;
@@ -37,6 +38,7 @@ type BaseFieldProps = {
 
 function baseProps(overrides: Partial<BaseFieldProps> = {}): BaseFieldProps {
   return {
+    name: "netContent",
     label: "Contenido neto",
     quantity: "",
     onQuantityChange: () => {},
@@ -325,6 +327,7 @@ test("does not accept a field without a label, quantity, unit, options, unitLabe
     unitLabel: string;
   }>().not.toExtend<QuantityUnitFieldProps<Unit>>();
   expectTypeOf<{
+    name: string;
     label: string;
     onQuantityChange: (value: string) => void;
     unit: Unit;
@@ -333,6 +336,7 @@ test("does not accept a field without a label, quantity, unit, options, unitLabe
     unitLabel: string;
   }>().not.toExtend<QuantityUnitFieldProps<Unit>>();
   expectTypeOf<{
+    name: string;
     label: string;
     quantity: string;
     unit: Unit;
@@ -341,6 +345,7 @@ test("does not accept a field without a label, quantity, unit, options, unitLabe
     unitLabel: string;
   }>().not.toExtend<QuantityUnitFieldProps<Unit>>();
   expectTypeOf<{
+    name: string;
     label: string;
     quantity: string;
     onQuantityChange: (value: string) => void;
@@ -349,6 +354,7 @@ test("does not accept a field without a label, quantity, unit, options, unitLabe
     unitLabel: string;
   }>().not.toExtend<QuantityUnitFieldProps<Unit>>();
   expectTypeOf<{
+    name: string;
     label: string;
     quantity: string;
     onQuantityChange: (value: string) => void;
@@ -357,6 +363,7 @@ test("does not accept a field without a label, quantity, unit, options, unitLabe
     unitLabel: string;
   }>().not.toExtend<QuantityUnitFieldProps<Unit>>();
   expectTypeOf<{
+    name: string;
     label: string;
     quantity: string;
     onQuantityChange: (value: string) => void;
@@ -365,6 +372,7 @@ test("does not accept a field without a label, quantity, unit, options, unitLabe
     unitLabel: string;
   }>().not.toExtend<QuantityUnitFieldProps<Unit>>();
   expectTypeOf<{
+    name: string;
     label: string;
     quantity: string;
     onQuantityChange: (value: string) => void;
@@ -376,6 +384,7 @@ test("does not accept a field without a label, quantity, unit, options, unitLabe
 
 test("does not accept an empty options list", () => {
   expectTypeOf<{
+    name: string;
     label: string;
     quantity: string;
     onQuantityChange: (value: string) => void;
@@ -392,6 +401,7 @@ test("has no invalid prop, since an error message or a shared error message id m
 
 test("does not accept both its own message and a shared one", () => {
   expectTypeOf<{
+    name: string;
     label: string;
     quantity: string;
     onQuantityChange: (value: string) => void;
@@ -406,6 +416,7 @@ test("does not accept both its own message and a shared one", () => {
 
 test("accepts an error message, a shared error message id, or neither", () => {
   expectTypeOf<{
+    name: string;
     label: string;
     quantity: string;
     onQuantityChange: (value: string) => void;
@@ -416,6 +427,7 @@ test("accepts an error message, a shared error message id, or neither", () => {
     errorMessage: string | undefined;
   }>().toExtend<QuantityUnitFieldProps<Unit>>();
   expectTypeOf<{
+    name: string;
     label: string;
     quantity: string;
     onQuantityChange: (value: string) => void;
@@ -440,4 +452,15 @@ test("does not accept a unit option without a value or a label", () => {
   expectTypeOf<[{ label: string }]>().not.toExtend<UnitOptions>();
   expectTypeOf<[{ value: "g" }]>().not.toExtend<UnitOptions>();
   expectTypeOf<[{ id: "g"; label: string }]>().not.toExtend<UnitOptions>();
+});
+
+test("names the quantity input and the unit select after the field's name", async () => {
+  const screen = await render(<QuantityUnitField {...baseProps({ name: "netContent" })} />);
+
+  expect(quantityInput(screen).getAttribute("name")).toBe("netContent.quantity");
+  expect(screen.container.querySelector("select")?.getAttribute("name")).toBe("netContent.unit");
+});
+
+test("requires a name", () => {
+  expectTypeOf<QuantityUnitFieldProps<Unit>["name"]>().toEqualTypeOf<string>();
 });

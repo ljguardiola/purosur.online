@@ -4,6 +4,7 @@ import { Checkbox as AriaCheckbox } from "react-aria-components";
 import { fieldHelperClassName } from "./field-styles";
 
 export type CheckboxProps = {
+  name: string;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   children: Exclude<ReactNode, null | undefined | boolean>;
@@ -36,6 +37,7 @@ const boxClassName =
 const checkIconClassName = "size-icon-sm text-text-inverse";
 
 export function Checkbox({
+  name,
   checked,
   onCheckedChange,
   children,
@@ -49,6 +51,7 @@ export function Checkbox({
   // announced as a description instead of as part of the name.
   return (
     <AriaCheckbox
+      name={name}
       isSelected={checked}
       onChange={onCheckedChange}
       isDisabled={disabled}
