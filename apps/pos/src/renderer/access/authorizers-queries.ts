@@ -3,8 +3,9 @@ import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CoreData } from "../platform/use-core-query";
 import { useCoreQuery } from "../platform/use-core-query";
+import { accessKey } from "./access-queries";
 
-export const authorizersKey = ["authorizers"] as const;
+export const authorizersKey = [...accessKey, "authorizers"] as const;
 
 function authorizersOf(permission: AuthorizablePermissionKey) {
   return [...authorizersKey, permission] as const;

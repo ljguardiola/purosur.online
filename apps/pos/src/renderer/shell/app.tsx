@@ -14,6 +14,7 @@ import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { accessKey } from "../access/access-queries";
+import { authorizersKey } from "../access/authorizers-queries";
 import type { CashMovementInput, CoreClient } from "../platform/core-client";
 import { createQueryClient } from "../platform/query-client";
 import { cancelReads, setQueryAnswer } from "../platform/set-query-answer";
@@ -30,7 +31,6 @@ import {
   useRegisterServiceQuery,
 } from "../register/register-queries";
 import { salesKeys } from "../sales/sales-queries";
-import { authorizersKey } from "./authorizers-queries";
 import type { Enrollment, RegisterServiceState } from "./router";
 import { createAppRouter } from "./router";
 import type { SignedInPerson } from "./signed-in-person";
