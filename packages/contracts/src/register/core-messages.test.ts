@@ -586,23 +586,51 @@ describe("the open sale of the cash session", () => {
     ).toBe(false);
   });
 
-  it.each([{ total: 3_434_000, cancellable: true }, { total: 0, cancellable: false }, null])(
-    "accepts the open sale answered: %j",
-    (sale) => {
-      const message = { type: "session-open-sale", request_id: REQUEST_ID, sale };
+  const cashRefund = { payment_id: "p1", method: "CASH", amount: 1200, state: "APPROVED" };
+  const transferRefund = { payment_id: "p2", method: "TRANSFER", amount: 2000, state: "PENDING" };
+  const openSale = {
+    id: "sale-1",
+    total: 3_434_000,
+    paid: 0,
+    cancellable: true,
+    refunds_on_cancel: [],
+  };
 
-      expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
-    },
-  );
+  it.each([
+    openSale,
+    { ...openSale, total: 0, cancellable: false },
+    { ...openSale, paid: 3200, refunds_on_cancel: [cashRefund, transferRefund] },
+    null,
+  ])("accepts the open sale answered: %j", (sale) => {
+    const message = { type: "session-open-sale", request_id: REQUEST_ID, sale };
 
-  it.each([{ total: 4500 }, { cancellable: true }, { total: 4500, cancellable: "yes" }])(
-    "rejects an open sale it does not know: %j",
-    (sale) => {
-      const message = { type: "session-open-sale", request_id: REQUEST_ID, sale };
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
 
-      expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
-    },
-  );
+  it.each([
+    ["its id", { ...openSale, id: undefined }],
+    ["its total", { ...openSale, total: undefined }],
+    ["what was paid", { ...openSale, paid: undefined }],
+    ["whether it is cancellable", { ...openSale, cancellable: undefined }],
+    ["its refunds on cancel", { ...openSale, refunds_on_cancel: undefined }],
+  ])("rejects an open sale without %s", (_field, sale) => {
+    const message = { type: "session-open-sale", request_id: REQUEST_ID, sale };
+
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it.each([
+    { ...openSale, cancellable: "yes" },
+    { ...openSale, paid: -1 },
+    { ...openSale, refunds_on_cancel: [{ ...cashRefund, method: "CARD" }] },
+    { ...openSale, refunds_on_cancel: [{ ...cashRefund, state: "DONE" }] },
+    { ...openSale, refunds_on_cancel: [{ ...cashRefund, amount: -1 }] },
+    { ...openSale, refunds_on_cancel: [{ method: "CASH", amount: 1, state: "APPROVED" }] },
+  ])("rejects an open sale it does not know: %j", (sale) => {
+    const message = { type: "session-open-sale", request_id: REQUEST_ID, sale };
+
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
 
   it("accepts that the open sale cannot be read", () => {
     const message = { type: "session-open-sale-unavailable", request_id: REQUEST_ID };
