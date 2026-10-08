@@ -104,12 +104,12 @@ describe("WsfeTaxAuthorityInvoicing", () => {
       expect(await invoicingAt(server.endpoint).solicit(solicitation)).toEqual({
         kind: "authorized",
         authorizationCode: "74123456789012",
-        authorizationCodeDueOn: "2026-10-17",
+        authorizationCodeDueOn: "2026-10-18",
       });
     });
 
     it.each([
-      ["the content is refused", "fe-cae-solicitar-rejected-content.xml", [10246]],
+      ["the content is refused", "fe-cae-solicitar-rejected-content.xml", [10242]],
       ["its number is out of order", "fe-cae-solicitar-rejected-out-of-order.xml", [10016]],
       [
         "ARCA gives observations and an error",

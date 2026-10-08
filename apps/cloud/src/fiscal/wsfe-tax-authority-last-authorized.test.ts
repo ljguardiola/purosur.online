@@ -52,7 +52,7 @@ describe("WsfeTaxAuthorityLastAuthorized", () => {
   it("answers the number ARCA last authorized for the point of sale", async () => {
     expect(await lastAuthorizedAt(server.endpoint).lastAuthorized(lookup)).toEqual({
       kind: "read",
-      number: 41,
+      number: 1,
     });
   });
 

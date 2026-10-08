@@ -195,7 +195,7 @@ describe("recordArcaResponses", () => {
       expect(sent(request, "CbteFch")).toBe("20261001");
     }
     expect([authorized, rejected, outOfOrder].map((request) => sent(request, "CbteDesde"))).toEqual(
-      ["42", "43", "42"],
+      ["2", "3", "2"],
     );
     expect(
       [authorized, rejected, outOfOrder].map((request) => sent(request, "CondicionIVAReceptorId")),

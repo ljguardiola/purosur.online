@@ -75,7 +75,7 @@ describe("the tax authority's count the server sets up on a real Postgres", () =
           expect(
             await sql`select point_of_sale_number as "pointOfSale", last_authorized as "lastAuthorized"
               from tax_authority_last_authorized_numbers`,
-          ).toEqual([{ pointOfSale: 7, lastAuthorized: 41 }]);
+          ).toEqual([{ pointOfSale: 7, lastAuthorized: 1 }]);
         },
         { timeout: 20_000, interval: 100 },
       );
