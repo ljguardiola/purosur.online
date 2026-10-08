@@ -769,3 +769,22 @@ test("names an alert for an expiring ARCA certificate by its kind and what happe
   await expect.element(row.getByText("Certificado de ARCA por vencer")).toBeVisible();
   await expect.element(row.getByText("El certificado de ARCA está por vencer")).toBeVisible();
 });
+
+test("names an alert of a kind this app does not know by its code alone, even one sharing a name with a member every object has", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(
+    ok([
+      { ...passkeyAlert, id: "alert-4", kind: "constructor", scopeDisplay: "Caja 1" },
+      { ...passkeyAlert, id: "alert-5", kind: "toString", scopeDisplay: "Caja 2" },
+    ]),
+  );
+
+  const screen = await renderScreen(services);
+
+  const constructorRow = screen.getByRole("row", { name: /Caja 1/ });
+  const toStringRow = screen.getByRole("row", { name: /Caja 2/ });
+  await expect.element(constructorRow.getByText("constructor", { exact: true })).toBeVisible();
+  await expect.element(toStringRow.getByText("toString", { exact: true })).toBeVisible();
+  await expect.element(constructorRow).not.toHaveTextContent("native code");
+  await expect.element(toStringRow).not.toHaveTextContent("native code");
+});
