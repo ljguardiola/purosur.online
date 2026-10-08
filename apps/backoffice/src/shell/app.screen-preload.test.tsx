@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { App } from "./app";
@@ -9,9 +9,9 @@ import {
   startRecordingRequests,
   stopRecordingRequests,
 } from "./test-support/requested-urls";
-import { loadEveryScreenCodeExcept } from "./test-support/screen-routes";
+import { opensOnlyScreens } from "./test-support/screen-routes";
 
-beforeAll(() => loadEveryScreenCodeExcept("/", "/points-of-sale"));
+opensOnlyScreens(["/help"], { downloadedInTest: ["/", "/points-of-sale"] });
 
 beforeEach(async () => {
   await startRecordingRequests();

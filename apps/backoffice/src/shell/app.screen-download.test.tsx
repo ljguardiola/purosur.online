@@ -1,13 +1,13 @@
 import type {} from "@vitest/browser-playwright";
 import { StrictMode } from "react";
-import { afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { cdp, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { App } from "./app";
 import { ScreenDownloadFailure } from "./lazy-screen";
 import { emptyHelp } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
-import { loadEveryScreenCodeExcept } from "./test-support/screen-routes";
+import { opensOnlyScreens } from "./test-support/screen-routes";
 
 async function blockDownloadsMatching(...patterns: string[]) {
   const session = cdp();
@@ -15,7 +15,7 @@ async function blockDownloadsMatching(...patterns: string[]) {
   await session.send("Network.setBlockedURLs", { urls: patterns });
 }
 
-beforeAll(() => loadEveryScreenCodeExcept("/", "/alerts"));
+opensOnlyScreens(["/help"], { downloadedInTest: ["/", "/alerts"] });
 
 beforeEach(async () => {
   window.history.pushState(null, "", "/");

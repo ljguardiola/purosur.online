@@ -1,13 +1,13 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { afterEach, beforeAll, beforeEach, expect, test } from "vitest";
+import { afterEach, beforeEach, expect, test } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { App } from "./app";
 import { emptyHelp, help, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
-import { loadEveryScreenCode } from "./test-support/screen-routes";
+import { opensOnlyScreens } from "./test-support/screen-routes";
 
-beforeAll(loadEveryScreenCode);
+opensOnlyScreens(["/", "/help"]);
 
 beforeEach(resetPageState);
 
