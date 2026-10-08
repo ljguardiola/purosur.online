@@ -1,6 +1,6 @@
+export type { JsonValue, OutboxEvent, OutboxEventDraft } from "../shared/index.js";
+export { canonicalOutboxEvent, canonicalOutboxPayload } from "../shared/index.js";
 export { INSTALLATION_REQUEST_LIMITS } from "./model/installation-request-limit.js";
-export type { JsonValue, OutboxEvent, OutboxEventDraft } from "./model/outbox-event.js";
-export { canonicalOutboxEvent, canonicalOutboxPayload } from "./model/outbox-event.js";
 export { pullAudienceOf } from "./model/pull-audience.js";
 export type { PulledChange, PullPage } from "./model/pull-page.js";
 export {

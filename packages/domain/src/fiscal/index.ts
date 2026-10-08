@@ -44,5 +44,5 @@ export type {
   PreEmissionGateFailureReason,
   PreEmissionGateOutcome,
 } from "./model/pre-emission-gate.js";
-export { preEmissionGate } from "./model/pre-emission-gate.js";
+export { PRE_EMISSION_GATE_FAILURE_REASONS, preEmissionGate } from "./model/pre-emission-gate.js";
 export { preEmissionGateFailedEvent } from "./model/pre-emission-gate-failed-event.js";

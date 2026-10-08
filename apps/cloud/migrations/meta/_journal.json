@@ -400,6 +400,13 @@
       "when": 1791400972415,
       "tag": "0056_arca_signal",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1791412994611,
+      "tag": "0057_apply_synced_events",
+      "breakpoints": true
     }
   ]
 }

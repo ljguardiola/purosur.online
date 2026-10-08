@@ -1,13 +1,29 @@
 export type { LimitedEndpoint } from "../model/installation-request-limit.js";
+export type { SyncedFact } from "../model/synced-fact.js";
 export type {
   AdmitInstallationRequestInput,
   AdmitInstallationRequestOutcome,
 } from "./admit-installation-request.js";
 export { admitInstallationRequest } from "./admit-installation-request.js";
+export type {
+  ApplyPendingEventsInput,
+  ApplyPendingEventsOutcome,
+} from "./apply-pending-events.js";
+export { applyPendingEvents } from "./apply-pending-events.js";
 export type { CatchUpOutcome } from "./catch-up-with-cloud.js";
 export { catchUpWithCloud } from "./catch-up-with-cloud.js";
 export type { CheckInstallationOutcome } from "./check-installation-with-cloud.js";
 export { checkInstallationWithCloud } from "./check-installation-with-cloud.js";
+export type {
+  AggregateKey,
+  ApplyPendingEventsPorts,
+  DecodedEvent,
+  EventApplication,
+  EventApplicationTransaction,
+  EventUpcaster,
+  FailedAttempt,
+  UnappliedEvent,
+} from "./event-application-ports.js";
 export type { PruneOutboxOutcome } from "./prune-outbox.js";
 export { pruneOutbox } from "./prune-outbox.js";
 export type { PullChangesInput } from "./pull-changes.js";

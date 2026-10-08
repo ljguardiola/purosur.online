@@ -15,6 +15,8 @@ import {
   brands,
   buyerIdentificationThresholds,
   buyerTaxStatusSets,
+  cashMovements,
+  cashSessions,
   categories,
   changes,
   deviceState,
@@ -48,6 +50,9 @@ import {
   registers,
   rolePermissions,
   roles,
+  saleLines,
+  salePayments,
+  sales,
   sessions,
   signInChallenges,
   signInFailures,
@@ -297,6 +302,58 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       actorId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e11",
       chainHmac: "chain-hmac",
       receivedAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
+    const sessionId = "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e10";
+    const saleId = "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e20";
+    const origin = {
+      locationId: await seededLocationId(db),
+      registerId: register.id,
+      deviceId: installation.id,
+    };
+    await db.insert(cashSessions).values({
+      id: sessionId,
+      ...origin,
+      openedBy: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e11",
+      openedAt: new Date("2026-01-05T12:00:00.000Z"),
+      openingFloat: 10000,
+    });
+    await db.insert(sales).values({
+      id: saleId,
+      ...origin,
+      sessionId,
+      actorId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e11",
+      completedAt: new Date("2026-01-05T12:10:00.000Z"),
+      total: 2400,
+      appliedAt: new Date("2026-01-05T12:11:00.000Z"),
+    });
+    await db.insert(saleLines).values({
+      id: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e21",
+      saleId,
+      productId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e22",
+      productName: "Azucar",
+      quantity: 1,
+      listUnitPrice: 2400,
+      priceListId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e23",
+      discountAmount: 0,
+      lineTotal: 2400,
+    });
+    await db.insert(salePayments).values({
+      id: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e24",
+      saleId,
+      method: "CASH",
+      provider: "NONE",
+      amount: 2400,
+      tendered: 2400,
+      state: "APPROVED",
+      occurredAt: new Date("2026-01-05T12:10:00.000Z"),
+    });
+    await db.insert(cashMovements).values({
+      id: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e25",
+      sessionId,
+      type: "SALE",
+      amount: 2400,
+      actorId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e11",
+      occurredAt: new Date("2026-01-05T12:10:00.000Z"),
     });
     await db.insert(refusedEvents).values({
       deviceId: installation.id,

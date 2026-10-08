@@ -1,4 +1,4 @@
-import type { OutboxEvent } from "./outbox-event.js";
+import type { OutboxEvent } from "../../shared/index.js";
 
 export const PUSH_BATCH_MAX_EVENTS = 200;
 

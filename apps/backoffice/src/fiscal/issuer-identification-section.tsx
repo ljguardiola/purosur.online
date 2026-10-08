@@ -1,8 +1,8 @@
 import { Button, InlineNotice, LoadFailure, LoadingPlaceholder } from "@purosur/ui";
 import { CircleAlert, Pencil } from "lucide-react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import { formatDisplayDate } from "../platform/display-date";
 import type { CloudData } from "../platform/use-cloud-query";
-import { formatDisplayDate } from "./display-date";
 import { DataPair, FixedPair } from "./fiscal-data-pair";
 import type { IssuerIdentification } from "./issuer-identification-api";
 

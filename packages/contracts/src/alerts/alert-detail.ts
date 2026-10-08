@@ -91,6 +91,33 @@ const registerEnrolledDetailSchema = z.object({
   replacedInstallation: z.boolean(),
 });
 
+const eventQuarantineReasonSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("unreadable") }),
+  z.object({
+    kind: z.literal("missing_dependency"),
+    aggregateType: z.string(),
+    aggregateId: z.string(),
+  }),
+  z.object({ kind: z.literal("not_recorded") }),
+]);
+
+const eventsQuarantinedDetailSchema = z.object({
+  deviceId: z.string(),
+  eventId: z.string(),
+  eventType: z.string(),
+  aggregateType: z.string(),
+  aggregateId: z.string(),
+  reason: eventQuarantineReasonSchema,
+});
+
+const eventInvariantViolatedDetailSchema = z.object({
+  eventId: z.string(),
+  eventType: z.string(),
+  aggregateType: z.string(),
+  aggregateId: z.string(),
+  breaks: z.array(z.string()),
+});
+
 const arcaCertificateExpiringDetailSchema = z.object({
   notAfter: z.string(),
 });
@@ -140,6 +167,16 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("register_enrolled" satisfies AlertKind),
     detail: registerEnrolledDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("events_quarantined" satisfies AlertKind),
+    detail: eventsQuarantinedDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("event_invariant_violated" satisfies AlertKind),
+    detail: eventInvariantViolatedDetailSchema,
   }),
   z.object({
     ...alertBase,

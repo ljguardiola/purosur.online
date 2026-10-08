@@ -1,5 +1,5 @@
 import type { RoleAccess } from "../../../access/index.js";
-import type { OutboxEventDraft } from "../../../sync/index.js";
+import type { OutboxEventDraft } from "../../../shared/index.js";
 import type { CashMovement, CashSession, OpenedCashSession } from "../../model/cash-session.js";
 import type {
   CashLedger,

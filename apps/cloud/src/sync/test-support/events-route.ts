@@ -4,7 +4,7 @@ import { registerRouteAccess } from "../../access/route-access.js";
 import { buildTestDatabase, type TestDatabase } from "../../test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../../test-support/device-token-rotation-key.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../../test-support/installation-keys-encryption-key.js";
-import { registerEventsRoute } from "../events-route.js";
+import { type EnqueueEventApplication, registerEventsRoute } from "../events-route.js";
 
 export const NOW = new Date("2026-10-06T15:00:00.000Z");
 
@@ -13,7 +13,9 @@ export interface EventsRouteUnderTest {
   readonly app: FastifyInstance;
 }
 
-export function eventsRouteUnderTest(): EventsRouteUnderTest {
+export function eventsRouteUnderTest(
+  enqueueEventApplication: EnqueueEventApplication = async () => {},
+): EventsRouteUnderTest {
   let testDatabase: TestDatabase;
   let app: FastifyInstance;
 
@@ -34,6 +36,7 @@ export function eventsRouteUnderTest(): EventsRouteUnderTest {
       rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
       keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
       now: () => NOW,
+      enqueueEventApplication,
     });
   });
 

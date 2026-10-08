@@ -1,7 +1,7 @@
 import type { CalendarDate } from "@internationalized/date";
 import type { BuyerIdentificationThresholdRecordBody } from "@purosur/contracts";
 import { parseAmountCents } from "@purosur/ui";
-import { formatDisplayDate } from "./display-date";
+import { formatDisplayDate } from "../platform/display-date";
 
 export type ThresholdFormValues = { amount: string; validFrom: CalendarDate | null };
 

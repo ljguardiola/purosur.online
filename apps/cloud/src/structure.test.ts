@@ -12,6 +12,7 @@ const CONCEPTS = [
   "fiscal",
   "pricing",
   "register",
+  "sales",
   "stock",
   "sync",
 ];

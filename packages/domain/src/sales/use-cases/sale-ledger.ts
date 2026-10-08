@@ -8,7 +8,7 @@ import type {
 } from "../../fiscal/index.js";
 import type { DiscountRecurrence } from "../../pricing/index.js";
 import type { CashMovement } from "../../register/index.js";
-import type { OutboxEventDraft } from "../../sync/index.js";
+import type { OutboxEventDraft } from "../../shared/index.js";
 import type { PaymentTransaction } from "../model/payment.js";
 import type { SearchableProduct } from "../model/product-search.js";
 import type { LinePromotion, Sale, SaleLine, SaleWithLines } from "../model/sale.js";

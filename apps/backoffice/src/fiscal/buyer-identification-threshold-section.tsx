@@ -1,9 +1,9 @@
 import { Button, formatCents, LoadFailure, LoadingPlaceholder } from "@purosur/ui";
 import { Plus } from "lucide-react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import { formatDisplayDate } from "../platform/display-date";
 import type { CloudData } from "../platform/use-cloud-query";
 import type { BuyerIdentificationThresholds } from "./buyer-identification-threshold-api";
-import { formatDisplayDate } from "./display-date";
 import { DataPair } from "./fiscal-data-pair";
 
 type BuyerIdentificationThresholdSectionProps = {

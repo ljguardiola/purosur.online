@@ -10,6 +10,7 @@ const CONCEPTS = [
   "fiscal",
   "pricing",
   "register",
+  "sales",
   "stock",
 ];
 const OUTSIDE_ANY_CONCEPT = ["help", "platform", "shell"];
