@@ -1,7 +1,6 @@
 import {
   arcaTestEnvironmentCheckSettingsOf,
-  checkArcaTestEnvironment,
-  describeArcaTestEnvironmentCheck,
+  runArcaTestEnvironmentCheck,
 } from "./fiscal/arca-test-environment-check.js";
 import { wsaaEndpointOf } from "./fiscal/wsaa-authentication.js";
 import { wsfeEndpointOf } from "./fiscal/wsfe-arca-vitality-service.js";
@@ -14,20 +13,18 @@ if (import.meta.main) {
   } else {
     Promise.resolve()
       .then(() =>
-        checkArcaTestEnvironment({
-          ...result.settings,
-          wsaaEndpoint: wsaaEndpointOf("homologation"),
-          wsfeEndpoint: wsfeEndpointOf("homologation"),
-          now: () => new Date(),
-        }),
+        runArcaTestEnvironmentCheck(
+          {
+            ...result.settings,
+            wsaaEndpoint: wsaaEndpointOf("homologation"),
+            wsfeEndpoint: wsfeEndpointOf("homologation"),
+            now: () => new Date(),
+          },
+          (line) => console.log(line),
+        ),
       )
-      .then((report) => {
-        for (const line of describeArcaTestEnvironmentCheck(report)) {
-          console.log(line);
-        }
-        if (!report.passed) {
-          process.exit(1);
-        }
+      .then((exitCode) => {
+        process.exitCode = exitCode;
       })
       .catch((error: unknown) => {
         console.error(

@@ -143,3 +143,14 @@ function describeLogin(login: LoginCheck): string {
 export function describeArcaTestEnvironmentCheck(report: ArcaTestEnvironmentCheckReport): string[] {
   return [describeFeDummy(report.feDummy), describeLogin(report.login)];
 }
+
+export async function runArcaTestEnvironmentCheck(
+  options: CheckArcaTestEnvironmentOptions,
+  write: (line: string) => void,
+): Promise<number> {
+  const report = await checkArcaTestEnvironment(options);
+  for (const line of describeArcaTestEnvironmentCheck(report)) {
+    write(line);
+  }
+  return report.passed ? 0 : 1;
+}
