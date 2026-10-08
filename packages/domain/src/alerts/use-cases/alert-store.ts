@@ -63,6 +63,7 @@ export interface LockedOpenAlert {
 
 export interface LockedConditionAlert {
   alertId: string;
+  detail: Record<string, unknown>;
   conditionClearedAt: Date | null;
 }
 

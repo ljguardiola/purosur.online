@@ -12,7 +12,7 @@ import {
   type LockedOpenAlert,
   type NewAlert,
 } from "@purosur/domain/alerts/use-cases";
-import { and, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import {
@@ -199,7 +199,11 @@ class DrizzleAlertStoreTransaction<TQueryResult extends PgQueryResultHKT>
     scope: string,
   ): Promise<LockedConditionAlert | undefined> {
     const [row] = await this.tx
-      .select({ alertId: alerts.id, conditionClearedAt: alerts.conditionClearedAt })
+      .select({
+        alertId: alerts.id,
+        detail: alerts.detail,
+        conditionClearedAt: alerts.conditionClearedAt,
+      })
       .from(alerts)
       .where(and(eq(alerts.kind, kind), eq(alerts.scope, scope), openAlertCondition()))
       .for("update");
@@ -224,18 +228,16 @@ class DrizzleAlertStoreTransaction<TQueryResult extends PgQueryResultHKT>
         kind: alerts.kind,
         scope: alerts.scope,
         detail: alerts.detail,
-        conditionClearedAt: alerts.conditionClearedAt,
+        conditionClearedAt: sql`${alerts.conditionClearedAt}`.mapWith(alerts.conditionClearedAt),
       })
       .from(alerts)
       .where(and(openAlertCondition(), isNotNull(alerts.conditionClearedAt)))
       .for("update");
-    return rows.flatMap((row) => {
+    return rows.map((row) => {
       if (!isAlertKind(row.kind)) {
         throw new Error(`alert ${row.alertId} has a kind outside the catalog: ${row.kind}`);
       }
-      return row.conditionClearedAt === null
-        ? []
-        : [{ ...row, kind: row.kind, conditionClearedAt: row.conditionClearedAt }];
+      return { ...row, kind: row.kind };
     });
   }
 }

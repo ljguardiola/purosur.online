@@ -1,6 +1,6 @@
 import { isStablyCleared } from "../model/alert-condition-resolution.js";
 import type { AlertClosingPorts } from "./alert-store.js";
-import { keptAfterClosure } from "./kept-after-closure.js";
+import { closeStablyClearedAlert } from "./close-stably-cleared-alert.js";
 
 export async function resolveStablyClearedAlerts({
   store,
@@ -12,8 +12,7 @@ export async function resolveStablyClearedAlerts({
     const cleared = await tx.lockClearedConditionAlerts();
     const stable = cleared.filter((alert) => isStablyCleared(alert.conditionClearedAt, now));
     for (const alert of stable) {
-      const kept = keptAfterClosure(alert, (address) => hasher.hash(address));
-      await tx.recordClosure(alert.alertId, { closedAt: now, closedBy: null, ...kept });
+      await closeStablyClearedAlert(tx, alert, now, (address) => hasher.hash(address));
     }
     return stable.length;
   });

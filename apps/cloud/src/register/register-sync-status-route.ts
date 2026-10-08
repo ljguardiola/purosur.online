@@ -3,7 +3,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
 import {
-  capabilityAccess,
+  OPEN_SESSION_ACCESS,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
@@ -29,7 +29,7 @@ export function registerRegisterSyncStatusRoute<TQueryResult extends PgQueryResu
     "/registers/sync-status",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
-      config: { access: capabilityAccess("alerts_area"), sessionSource },
+      config: { access: OPEN_SESSION_ACCESS, sessionSource },
     },
     async (request, reply) => {
       const { locationId } = openSessionOf(request);

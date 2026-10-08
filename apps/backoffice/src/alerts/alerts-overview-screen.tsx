@@ -101,7 +101,7 @@ export function AlertsOverviewScreen({
 }: AlertsOverviewScreenProps) {
   if (!canSeeAlertsArea(access)) {
     return (
-      <OverviewLayout openCount={0}>
+      <OverviewLayout openCount={0} sections={children}>
         <EmptyState
           icon={<BellOff />}
           title="No tenés alertas para ver"

@@ -1,11 +1,11 @@
 import type { PushedEvent } from "@purosur/domain";
+import type { AlertConditionObservation } from "@purosur/domain/alerts/use-cases";
 import type {
   HeldEvent,
   HeldEventPosition,
   Inbox,
   InboxTransaction,
   PushReport,
-  VersionStanding,
 } from "@purosur/domain/sync/use-cases";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -123,11 +123,7 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
       .onConflictDoUpdate({ target: deviceState.deviceId, set: pushed });
   }
 
-  async recordVersionStanding(
-    deviceId: string,
-    standing: VersionStanding,
-    at: Date,
-  ): Promise<void> {
+  async installationRegisterId(deviceId: string): Promise<string> {
     const [installation] = await this.tx
       .select({ registerId: registerInstallations.registerId })
       .from(registerInstallations)
@@ -135,21 +131,11 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
     if (!installation) {
       throw new Error(`installation ${deviceId} does not exist`);
     }
-    const now = () => at;
-    await observeAlertCondition(
-      this.tx,
-      standing.accepted
-        ? { holds: false, kind: "update_required", scope: installation.registerId }
-        : {
-            holds: true,
-            alert: {
-              kind: "update_required",
-              scope: installation.registerId,
-              detail: { deviceId, appVersion: standing.appVersion },
-            },
-          },
-      { now },
-    );
+    return installation.registerId;
+  }
+
+  async observeAlertCondition(observation: AlertConditionObservation, at: Date): Promise<void> {
+    await observeAlertCondition(this.tx, observation, { now: () => at });
   }
 
   async recordAcceptedPush(deviceId: string, at: Date): Promise<void> {
