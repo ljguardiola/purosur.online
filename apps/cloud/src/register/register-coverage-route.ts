@@ -3,13 +3,13 @@ import { findUncoveredRegisterPermissions } from "@purosur/domain/users/use-case
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
-import { drizzleBranchUsers } from "../access/drizzle-branch-users.js";
 import {
   capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
+import { drizzleBranchUsers } from "../users/drizzle-branch-users.js";
 import type { RegistersRouteOptions } from "./registers-list-route.js";
 
 export function registerRegisterCoverageRoute<TQueryResult extends PgQueryResultHKT>(

@@ -1,17 +1,17 @@
 import { deactivateUser, findDeactivatableUser } from "@purosur/domain/users/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { readRecordIds } from "../platform/record-id-params.js";
-import { backofficeOriginGuard } from "./backoffice-origin.js";
-import { drizzleBranchUsers } from "./drizzle-branch-users.js";
-import { DrizzleUserStore } from "./drizzle-user-store.js";
-import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
+import { backofficeOriginGuard } from "../access/backoffice-origin.js";
+import { requirePasskeyAuthorization } from "../access/passkey-authorization-guard.js";
 import {
   capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
-} from "./route-access.js";
+} from "../access/route-access.js";
+import { readRecordIds } from "../platform/record-id-params.js";
+import { drizzleBranchUsers } from "./drizzle-branch-users.js";
+import { DrizzleUserStore } from "./drizzle-user-store.js";
 import type { UsersRouteOptions } from "./users-list-route.js";
 
 const USER_NOT_FOUND_RESPONSE = {

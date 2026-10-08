@@ -1,16 +1,16 @@
 import { findBranchUser } from "@purosur/domain/users/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { readRecordIds } from "../platform/record-id-params.js";
-import { sameOriginGuard } from "./backoffice-origin.js";
-import { canReactivateUsers, toBranchUserWire } from "./branch-users.js";
-import { drizzleBranchUsers } from "./drizzle-branch-users.js";
+import { sameOriginGuard } from "../access/backoffice-origin.js";
 import {
   capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
-} from "./route-access.js";
+} from "../access/route-access.js";
+import { readRecordIds } from "../platform/record-id-params.js";
+import { canReactivateUsers, toBranchUserWire } from "./branch-users.js";
+import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 import type { UsersRouteOptions } from "./users-list-route.js";
 
 // Answers identically whether the id is unknown or another branch's, so neither leaks.

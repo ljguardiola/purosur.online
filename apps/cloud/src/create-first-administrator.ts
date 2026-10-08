@@ -1,12 +1,12 @@
 import { parseArgs } from "node:util";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import { describeDatabaseFailure } from "./platform/db/describe-database-failure.js";
 import {
   createFirstAdministrator,
   FirstAdministratorAlreadyBootstrappedError,
   InvalidFirstAdministratorInputError,
-} from "./access/create-first-administrator.js";
-import { describeDatabaseFailure } from "./platform/db/describe-database-failure.js";
+} from "./users/create-first-administrator.js";
 
 export interface ParsedCreateFirstAdministratorArgs {
   name: string;

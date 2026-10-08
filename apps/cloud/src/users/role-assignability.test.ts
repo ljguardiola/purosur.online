@@ -1,13 +1,13 @@
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
+import { generateSessionId, hashSessionId } from "../access/session-id.js";
 import { registerRoleCreationRoutes } from "../permissions/role-creation-route.js";
 import { registerRolesListRoute } from "../permissions/roles-list-route.js";
 import { roles, sessions, userRoles, users } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { SESSION_COOKIE_NAME } from "./session-cookie.js";
-import { generateSessionId, hashSessionId } from "./session-id.js";
 import { registerUserCreationRoutes } from "./user-creation-route.js";
 import { registerUsersListRoute } from "./users-list-route.js";
 

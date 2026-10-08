@@ -4,6 +4,8 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance } from "fastify";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
+import { generateSessionId, hashSessionId } from "../access/session-id.js";
 import { roles, sessions, userRoles, users } from "../platform/db/schema.js";
 import {
   createIntegrationDatabase,
@@ -11,8 +13,6 @@ import {
 } from "../test-support/integration-database.js";
 import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { SESSION_COOKIE_NAME } from "./session-cookie.js";
-import { generateSessionId, hashSessionId } from "./session-id.js";
 import { registerUserEditRoutes } from "./user-edit-route.js";
 
 // PGlite serializes every transaction, so racing requests can only interleave on a real Postgres

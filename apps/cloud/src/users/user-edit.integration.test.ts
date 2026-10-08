@@ -4,14 +4,14 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance } from "fastify";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
+import { generateSessionId, hashSessionId } from "../access/session-id.js";
 import { auditLog, roles, sessions, userRoles, users } from "../platform/db/schema.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { SESSION_COOKIE_NAME } from "./session-cookie.js";
-import { generateSessionId, hashSessionId } from "./session-id.js";
 import { registerUserEditRoutes } from "./user-edit-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";

@@ -3,8 +3,9 @@ import { listUserPasskeys } from "@purosur/domain/access/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { readRecordIds } from "../platform/record-id-params.js";
+import { canReactivateUsers } from "../users/branch-users.js";
+import type { UsersRouteOptions } from "../users/users-list-route.js";
 import { sameOriginGuard } from "./backoffice-origin.js";
-import { canReactivateUsers } from "./branch-users.js";
 import { drizzlePasskeyHolders } from "./drizzle-passkey-holders.js";
 import { drizzlePasskeys } from "./drizzle-passkeys.js";
 import {
@@ -13,7 +14,6 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "./route-access.js";
-import type { UsersRouteOptions } from "./users-list-route.js";
 
 const NOT_FOUND_RESPONSE = {
   code: "not_found",

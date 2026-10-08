@@ -1,6 +1,6 @@
 import type { PasskeyHolderScope, PasskeyHolders } from "@purosur/domain/access/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { drizzleBranchUsers } from "./drizzle-branch-users.js";
+import { drizzleBranchUsers } from "../users/drizzle-branch-users.js";
 
 export function drizzlePasskeyHolders<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,

@@ -2,6 +2,8 @@ import { PASSKEY_AUTHORIZATION_WINDOW_MS } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
+import { generateSessionId, hashSessionId } from "../access/session-id.js";
 import {
   auditLog,
   locations,
@@ -14,8 +16,6 @@ import {
 import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { SESSION_COOKIE_NAME } from "./session-cookie.js";
-import { generateSessionId, hashSessionId } from "./session-id.js";
 import { registerUserDeactivationRoutes } from "./user-deactivation-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
