@@ -17,6 +17,7 @@ export {
   isValidBuyerTaxStatusSet,
   latestBuyerTaxStatusSet,
 } from "./model/buyer-tax-status-set.js";
+export { selectConsumerBuyerTaxStatus } from "./model/consumer-buyer-tax-status.js";
 export { isValidCuit } from "./model/cuit.js";
 export {
   FISCAL_ADDRESS_NAME_MAX_LENGTH,

@@ -229,6 +229,7 @@ export {
   preEmissionGateFailedEvent,
   REAL_TIME_AUTHORIZATION_TIMEOUT_MS,
   REGISTER_HEALTH_CHECK_INTERVAL_MS,
+  selectConsumerBuyerTaxStatus,
   thresholdInEffectOn,
   thresholdScheduledAfter,
 } from "./fiscal/index.js";
