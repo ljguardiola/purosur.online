@@ -22,7 +22,9 @@ interface TransferPayment extends ApprovedPayment {
 
 export type PaymentTransaction = CashPayment | TransferPayment;
 
-export type PaymentMethod = PaymentTransaction["method"];
+export const PAYMENT_METHODS = ["CASH", "TRANSFER"] as const;
+
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
 export function hasApprovedPayment(payments: readonly { state: string }[]): boolean {
   return payments.some((payment) => payment.state === "APPROVED");

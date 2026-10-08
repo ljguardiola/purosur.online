@@ -5,7 +5,7 @@ import type {
 } from "./completed-sale.js";
 import type { PlannedRefund } from "./payment-refund.js";
 
-export interface CancelledSaleRefund extends PlannedRefund {
+interface CancelledSaleRefund extends PlannedRefund {
   id: string;
   occurredAt: Date;
 }
