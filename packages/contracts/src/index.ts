@@ -1,5 +1,3 @@
-export type { BranchUserWire } from "./access/branch-user.js";
-export { branchUserListSchema, branchUserSchema } from "./access/branch-user.js";
 export type {
   AccessCoreToRendererMessage,
   AccessRendererToCoreMessage,
@@ -50,10 +48,6 @@ export type { SessionStatusWire } from "./access/session-status.js";
 export { sessionStatusSchema } from "./access/session-status.js";
 export type { SignInLookup, SignInLookupBody } from "./access/sign-in-lookup.js";
 export { signInLookupBodySchema, signInLookupSchema } from "./access/sign-in-lookup.js";
-export type { UserCreationBody } from "./access/user-creation.js";
-export { userCreationBodySchema } from "./access/user-creation.js";
-export type { UserEditBody } from "./access/user-edit.js";
-export { userEditBodySchema } from "./access/user-edit.js";
 export type { UserPinCodeWire } from "./access/user-pin-code.js";
 export { userPinCodeSchema } from "./access/user-pin-code.js";
 export type { AlertDetail } from "./alerts/alert-detail.js";
@@ -346,3 +340,9 @@ export {
   syncedEventPayloadKey,
   syncedEventPayloadSchema,
 } from "./sync/synced-event-payloads.js";
+export type { BranchUserWire } from "./users/branch-user.js";
+export { branchUserListSchema, branchUserSchema } from "./users/branch-user.js";
+export type { UserCreationBody } from "./users/user-creation.js";
+export { userCreationBodySchema } from "./users/user-creation.js";
+export type { UserEditBody } from "./users/user-edit.js";
+export { userEditBodySchema } from "./users/user-edit.js";

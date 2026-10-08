@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { recordIdSchema } from "../shared/index.js";
-import { emailAddressSchema } from "./email-address.js";
+import { emailAddressSchema, recordIdSchema } from "../shared/index.js";
 
 export const userCreationBodySchema = z.object({
   first_name: z.string({ error: "first_name must not be empty" }).trim().min(1),

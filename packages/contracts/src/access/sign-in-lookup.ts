@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { recordIdSchema } from "../shared/index.js";
-import { emailAddressSchema } from "./email-address.js";
+import { emailAddressSchema, recordIdSchema } from "../shared/index.js";
 
 export const signInLookupBodySchema = z.object({
   email: emailAddressSchema,
