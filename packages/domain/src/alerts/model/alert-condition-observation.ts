@@ -5,6 +5,34 @@ export type AlertConditionObservation =
   | { holds: true; alert: OpenAlertInput }
   | { holds: false; kind: AlertKind; scope: string };
 
+interface QuietRegister {
+  registerId: string;
+  deviceId: string;
+  locationId: string;
+  lastAcceptedPushAt: Date | null;
+}
+
+export function quietRegisterObservation({
+  registerId,
+  deviceId,
+  locationId,
+  lastAcceptedPushAt,
+}: QuietRegister): AlertConditionObservation {
+  return {
+    holds: true,
+    alert: {
+      kind: "register_silent",
+      scope: registerId,
+      locationId,
+      detail: { deviceId, lastAcceptedPushAt: lastAcceptedPushAt?.toISOString() ?? null },
+    },
+  };
+}
+
+export function registerSyncedObservation(registerId: string): AlertConditionObservation {
+  return { holds: false, kind: "register_silent", scope: registerId };
+}
+
 interface RegisterVersionStanding {
   registerId: string;
   deviceId: string;

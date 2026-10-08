@@ -81,6 +81,11 @@ interface UpdateRequiredDetail {
   appVersion: string;
 }
 
+interface RegisterSilentDetail {
+  deviceId: string;
+  lastAcceptedPushAt: string | null;
+}
+
 export interface AlertDetails {
   backoffice_passkey_changed: PasskeyChangedDetail;
   backoffice_recovery_requested: RecoveryRequestedDetail;
@@ -92,6 +97,7 @@ export interface AlertDetails {
   event_invariant_violated: EventInvariantViolatedDetail;
   arca_certificate_expiring: ArcaCertificateExpiringDetail;
   update_required: UpdateRequiredDetail;
+  register_silent: RegisterSilentDetail;
 }
 
 export type OpenAlertInput = {

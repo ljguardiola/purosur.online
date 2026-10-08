@@ -7,7 +7,11 @@ export {
   isAlertLevel,
 } from "./model/alert-catalog.js";
 export type { AlertConditionObservation } from "./model/alert-condition-observation.js";
-export { registerVersionObservation } from "./model/alert-condition-observation.js";
+export {
+  quietRegisterObservation,
+  registerSyncedObservation,
+  registerVersionObservation,
+} from "./model/alert-condition-observation.js";
 export type {
   AccessIncreasedDetail,
   AlertDetails,
@@ -39,6 +43,7 @@ export {
   alertNamedRecordIds,
   alertScopeNamesRecord,
 } from "./model/alert-named-records.js";
+export { isRegisterQuiet, QUIET_REGISTER_LAPSE_MS } from "./model/quiet-register.js";
 export { showsAlertScope } from "./model/alert-scope-visibility.js";
 export type {
   AlertAudienceAccess,

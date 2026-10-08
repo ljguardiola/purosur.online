@@ -127,6 +127,11 @@ const updateRequiredDetailSchema = z.object({
   appVersion: z.string(),
 });
 
+const registerSilentDetailSchema = z.object({
+  deviceId: z.string(),
+  lastAcceptedPushAt: z.string().nullable(),
+});
+
 const ALERT_INSTANT = { timeZone: ARGENTINA_TIME_ZONE };
 
 const alertBase = {
@@ -192,6 +197,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("update_required" satisfies AlertKind),
     detail: updateRequiredDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("register_silent" satisfies AlertKind),
+    detail: registerSilentDetailSchema,
   }),
 ] as const;
 
