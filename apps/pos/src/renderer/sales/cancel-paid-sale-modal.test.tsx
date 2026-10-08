@@ -31,6 +31,8 @@ const TRANSFER_REFUND: OpenSale["refunds_on_cancel"][number] = {
 };
 const CASH_LINE = "Devolver $ 1.000,00 en efectivo";
 const TRANSFER_LINE = "Reembolso pendiente de la transferencia por $ 2.500,00";
+const PENDING_NOTE =
+  "Un reembolso pendiente lo hace alguien fuera de la caja y lo marca como hecho en el backoffice.";
 const CANCEL = "Cancelar la venta";
 
 type Props = {
@@ -104,16 +106,28 @@ describe("CancelPaidSaleModal", () => {
 
     await expect.element(screen.getByText(CASH_LINE, { exact: true })).toBeVisible();
     await expect.element(screen.getByText(TRANSFER_LINE, { exact: true })).toBeVisible();
+    await expect.element(screen.getByText(PENDING_NOTE, { exact: true })).toBeVisible();
+  });
+
+  it("notes a pending cash refund without naming a transfer", async () => {
+    const { screen } = await renderModal({ refunds: [{ ...CASH_REFUND, state: "PENDING" }] });
+
     await expect
-      .element(screen.getByText(/queda pendiente hasta que alguien lo haga/))
+      .element(
+        screen.getByText("Reembolso pendiente del pago en efectivo por $ 1.000,00", {
+          exact: true,
+        }),
+      )
       .toBeVisible();
+    await expect.element(screen.getByText(PENDING_NOTE, { exact: true })).toBeVisible();
+    await expect.element(screen.getByText(/transferencia/)).not.toBeInTheDocument();
   });
 
   it("says nothing about a pending refund when every payment was in cash", async () => {
     const { screen } = await renderModal({ refunds: [CASH_REFUND] });
 
     await expect.element(screen.getByText(CASH_LINE, { exact: true })).toBeVisible();
-    await expect.element(screen.getByText(/queda pendiente/)).not.toBeInTheDocument();
+    await expect.element(screen.getByText(PENDING_NOTE)).not.toBeInTheDocument();
   });
 
   it("says nothing about a pending refund when every refund is given back now", async () => {
@@ -124,7 +138,7 @@ describe("CancelPaidSaleModal", () => {
     await expect
       .element(screen.getByText("Devolver $ 2.500,00 por transferencia", { exact: true }))
       .toBeVisible();
-    await expect.element(screen.getByText(/queda pendiente/)).not.toBeInTheDocument();
+    await expect.element(screen.getByText(PENDING_NOTE)).not.toBeInTheDocument();
   });
 
   it("asks for nobody's authorization when the person may cancel on their own", async () => {
