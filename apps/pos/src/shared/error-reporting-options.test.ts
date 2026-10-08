@@ -1,15 +1,66 @@
 import { ERROR_REPORT_DATA_COLLECTION } from "@purosur/contracts";
 import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
-import { addBreadcrumb, consoleLoggingIntegration } from "@sentry/core";
+import {
+  addBreadcrumb,
+  Client,
+  type ClientOptions,
+  consoleLoggingIntegration,
+  type Envelope,
+  type Event,
+  setCurrentClient,
+} from "@sentry/core";
 import { afterEach, describe, expect, it } from "vitest";
 import { errorReportingOptions } from "./error-reporting-options";
-import { type RecordingSentry, startRecordingSentry } from "./test-support/recording-sentry-client";
+
+class RecordingClient extends Client {
+  constructor(options: ClientOptions) {
+    super(options);
+  }
+
+  eventFromException(exception: unknown): PromiseLike<Event> {
+    return Promise.resolve({
+      exception: { values: [{ type: "Error", value: String(exception) }] },
+    });
+  }
+
+  eventFromMessage(message: string): PromiseLike<Event> {
+    return Promise.resolve({ message });
+  }
+}
+
+interface RecordingSentry {
+  client: Client;
+  items: () => { type: string; payload: Record<string, unknown> }[];
+}
 
 const started: RecordingSentry[] = [];
 
 function startSentry(): RecordingSentry {
-  const options = errorReportingOptions(consoleLoggingIntegration);
-  const sentry = startRecordingSentry(options);
+  const envelopes: Envelope[] = [];
+  const client = new RecordingClient({
+    dsn: "https://public@errors.example.test/1",
+    stackParser: () => [],
+    transport: () => ({
+      send: (envelope) => {
+        envelopes.push(envelope);
+        return Promise.resolve({});
+      },
+      flush: () => Promise.resolve(true),
+    }),
+    ...errorReportingOptions(consoleLoggingIntegration),
+  });
+  setCurrentClient(client);
+  client.init();
+  const sentry: RecordingSentry = {
+    client,
+    items: () =>
+      envelopes.flatMap(([, envelopeItems]) =>
+        envelopeItems.map(([header, payload]) => ({
+          type: String(header.type),
+          payload: payload as Record<string, unknown>,
+        })),
+      ),
+  };
   started.push(sentry);
   return sentry;
 }
