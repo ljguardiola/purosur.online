@@ -18,6 +18,7 @@ export interface AlertKindPolicy {
   audience: AlertAudience;
   scopeKind: AlertScopeKind;
   deduplicates: boolean;
+  resolvesAfterStableClear: boolean;
 }
 
 export const ALERT_ESCALATION_DELAY_MS = 24 * 60 * 60 * 1000;
@@ -31,6 +32,7 @@ const ALERT_KIND_POLICIES = {
     audience: "all",
     scopeKind: "user",
     deduplicates: true,
+    resolvesAfterStableClear: false,
   },
   backoffice_recovery_requested: {
     level: "warning",
@@ -38,6 +40,7 @@ const ALERT_KIND_POLICIES = {
     audience: "all",
     scopeKind: "user",
     deduplicates: true,
+    resolvesAfterStableClear: false,
   },
   user_email_changed: {
     level: "warning",
@@ -45,6 +48,7 @@ const ALERT_KIND_POLICIES = {
     audience: "all",
     scopeKind: "user",
     deduplicates: true,
+    resolvesAfterStableClear: false,
   },
   backoffice_sign_in_lockout: {
     level: "warning",
@@ -52,6 +56,7 @@ const ALERT_KIND_POLICIES = {
     audience: "all",
     scopeKind: "sourceAddress",
     deduplicates: true,
+    resolvesAfterStableClear: false,
   },
   user_access_increased: {
     level: "critical",
@@ -59,6 +64,7 @@ const ALERT_KIND_POLICIES = {
     audience: "all",
     scopeKind: "user",
     deduplicates: false,
+    resolvesAfterStableClear: false,
   },
   register_enrolled: {
     level: "warning",
@@ -66,6 +72,7 @@ const ALERT_KIND_POLICIES = {
     audience: "all",
     scopeKind: "register",
     deduplicates: false,
+    resolvesAfterStableClear: false,
   },
   events_quarantined: {
     level: "warning",
@@ -73,6 +80,7 @@ const ALERT_KIND_POLICIES = {
     audience: "all",
     scopeKind: "event",
     deduplicates: true,
+    resolvesAfterStableClear: false,
   },
   event_invariant_violated: {
     level: "warning",
@@ -80,6 +88,7 @@ const ALERT_KIND_POLICIES = {
     audience: "all",
     scopeKind: "event",
     deduplicates: true,
+    resolvesAfterStableClear: false,
   },
   arca_certificate_expiring: {
     level: "warning",
@@ -87,6 +96,15 @@ const ALERT_KIND_POLICIES = {
     audience: "all",
     scopeKind: "environment",
     deduplicates: true,
+    resolvesAfterStableClear: false,
+  },
+  update_required: {
+    level: "critical",
+    escalation: null,
+    audience: "all",
+    scopeKind: "register",
+    deduplicates: true,
+    resolvesAfterStableClear: true,
   },
 } as const satisfies Record<AlertKind, AlertKindPolicy>;
 

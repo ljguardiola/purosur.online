@@ -76,6 +76,11 @@ export interface ArcaCertificateExpiringDetail {
   notAfter: string;
 }
 
+export interface UpdateRequiredDetail {
+  deviceId: string;
+  appVersion: string;
+}
+
 export interface AlertDetails {
   backoffice_passkey_changed: PasskeyChangedDetail;
   backoffice_recovery_requested: RecoveryRequestedDetail;
@@ -86,6 +91,7 @@ export interface AlertDetails {
   events_quarantined: EventsQuarantinedDetail;
   event_invariant_violated: EventInvariantViolatedDetail;
   arca_certificate_expiring: ArcaCertificateExpiringDetail;
+  update_required: UpdateRequiredDetail;
 }
 
 export type OpenAlertInput = {
