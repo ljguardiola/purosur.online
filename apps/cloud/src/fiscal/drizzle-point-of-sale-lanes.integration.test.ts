@@ -7,7 +7,7 @@ import {
 } from "@purosur/domain/fiscal/use-cases";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { postgresDedicatedConnections } from "../platform/dedicated-connections.js";
 import {
   createIntegrationDatabase,
@@ -73,9 +73,7 @@ class HeldTaxAuthority implements TaxAuthorityInvoicing {
   }
 
   async untilStarted(count: number): Promise<void> {
-    while (this.started.length < count) {
-      await new Promise((resolve) => setTimeout(resolve, 5));
-    }
+    await vi.waitFor(() => expect(this.started.length).toBeGreaterThanOrEqual(count));
   }
 }
 
