@@ -152,8 +152,9 @@ features: each area holds at most five examples under "Examples", each one
 pattern stated in general terms. A confirmed finding is judged against it in
 this order:
 
-1. An example of its area already names its pattern, whatever the case: it
-   is `named`, and nothing is proposed.
+1. An example of its area, its "Read in the change" cell or the rule it
+   cites already states its pattern, whatever the case: it is `named`, and
+   nothing is proposed.
 2. A check over the source could refuse the pattern in ordinary code, as
    "Checks" in `.claude/rules/checks.md` describes: the proposal is that
    check of `pnpm verify`, not an example.

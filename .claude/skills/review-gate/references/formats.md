@@ -62,7 +62,7 @@ One block per ledger id:
 ### R1-1 — CONFIRMED | REFUTED — <kind> — in-scope | out-of-scope
 - Proof: the command run and its observed result (a mutation and the focused test's outcome), or the rule text and the code lines compared.
 - Restored: `git status` clean after the proof (behavioral claims only).
-- Checklist: for a confirmed finding, the area of `checklist.md` it was judged against, then one of: `named` when an example of that area names its pattern; `check` with what a check of `pnpm verify` would refuse; `one-off`; or `not named` with the proposed example, written as the bullet it would be under that area in "Examples", and the example it merges with or replaces when the area already holds five.
+- Checklist: for a confirmed finding, the area of `checklist.md` it was judged against, then one of: `named` when an example of that area, its "Read in the change" cell or the rule it cites states its pattern; `check` with what a check of `pnpm verify` would refuse; `one-off`; or `not named` with the proposed example, written as the bullet it would be under that area in "Examples", and the example it merges with or replaces when the area already holds five.
 ```
 
 ## Fixer report

@@ -89,8 +89,8 @@ ledger ids to verify.
 6. Checklist: for each confirmed finding, name the area of the checklist
    it belongs to and judge it as "Growing the checklist" in
    `.claude/skills/review-gate/SKILL.md` orders: `named` when an example of
-   that area names its pattern, otherwise the check or the example to
-   propose, or `one-off`.
+   that area, its "Read in the change" cell or the rule it cites states its
+   pattern, otherwise the check or the example to propose, or `one-off`.
 7. Scope: a confirmed finding is `in-scope` when it sits inside the problem
    `issue.md` states, whether or not the code already had it, or when the
    change introduced it or made it worse. Any other gap the code already had

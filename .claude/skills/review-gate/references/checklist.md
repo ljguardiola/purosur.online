@@ -103,9 +103,9 @@ how a new one is judged.
 - English reaching the screen: a stored identifier shown as a value
   (`production`), or a cloud error's English text or a raw code interpolated
   into a Spanish sentence.
-- A constraint told twice or by the wrong piece: a notice under a locked
-  field instead of a tooltip on it, a refusal beside a standing notice that
-  says the same, or the tooltip dropped while a refusal shows.
+- A locked control left plainly disabled: its tooltip dropped while a
+  refusal shows elsewhere, so the control itself no longer says why it is
+  locked.
 
 ### Commit order
 
@@ -127,9 +127,8 @@ how a new one is judged.
   repeating an adapter's integration case, a screen test repeating what a
   modal's or a helper's own test owns.
 - A rule with no test at its own level: a domain predicate proven only
-  through use cases, a shared helper tested only through its callers, a query
-  hook only through its screen, or a test removed while no other test
-  verifies its rule.
+  through use cases, a shared helper tested only through its callers, or a
+  query hook only through its screen.
 - A test whose outcome depends on timing it does not control: a baseline
   taken while the app it started may still be working, a wait ended only by
   events a broken run may never raise, a short client timeout in a shared
