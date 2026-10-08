@@ -21,6 +21,7 @@ export interface WsfeArcaVitalityServiceOptions {
   endpoint: string;
   timeoutMs?: number;
   onRawResponse?: (raw: string) => void;
+  onUnreachable?: (cause: string) => void;
 }
 
 export type WsfeArcaVitalityResult =
@@ -67,19 +68,30 @@ export class WsfeArcaVitalityService implements ArcaVitalityService {
   private readonly endpoint: string;
   private readonly timeoutMs: number;
   private readonly onRawResponse: ((raw: string) => void) | undefined;
+  private readonly onUnreachable: ((cause: string) => void) | undefined;
   private client: Promise<Client> | undefined;
 
   constructor({
     endpoint,
     timeoutMs = ARCA_VITALITY_TIMEOUT_MS,
     onRawResponse,
+    onUnreachable,
   }: WsfeArcaVitalityServiceOptions) {
     this.endpoint = endpoint;
     this.timeoutMs = timeoutMs;
     this.onRawResponse = onRawResponse;
+    this.onUnreachable = onUnreachable;
   }
 
   async check(): Promise<WsfeArcaVitalityResult> {
+    const result = await this.call();
+    if (result.kind === "unreachable") {
+      this.onUnreachable?.(result.cause);
+    }
+    return result;
+  }
+
+  private async call(): Promise<WsfeArcaVitalityResult> {
     try {
       this.client ??= createWsfeClient(this.endpoint);
       const client = await this.client;
