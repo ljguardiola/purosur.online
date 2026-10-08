@@ -73,6 +73,7 @@ import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requ
 import {
   addSearchedProductFor,
   cancelLockedSaleFor,
+  cancelPaidSaleFor,
   cancelSaleFor,
   cashChargeFor,
   changeLineQuantityFor,
@@ -510,6 +511,21 @@ const rendererRequestDeps: RendererRequestDeps = {
     localDatabase === undefined || actionGate === undefined
       ? undefined
       : () => cancelSaleFor({ database: localDatabase, gate: actionGate }),
+  cancelPaidSale:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : async (request) =>
+          cancelPaidSaleFor(
+            {
+              database: localDatabase,
+              gate: actionGate,
+              readOutboxChainKey: async () =>
+                (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+              now,
+              ids: uuidV7Ids,
+            },
+            request,
+          ),
   chargeSaleInCash:
     localDatabase === undefined || actionGate === undefined
       ? undefined
