@@ -9,15 +9,8 @@ import type { EditUserModalServices } from "./edit-user-modal";
 import type { EmitUserPinCodeModalServices } from "./emit-user-pin-code-modal";
 import type { ReactivateUserModalServices } from "./reactivate-user-modal";
 import type { RemoveUserPasskeyModalServices } from "./remove-user-passkey-modal";
-import {
-  deactivateUser,
-  editUser,
-  emitUserPinCode,
-  fetchUser,
-  fetchUserPasskeys,
-  reactivateUser,
-  removeUserPasskey,
-} from "./users-api";
+import { emitUserPinCode, fetchUserPasskeys, removeUserPasskey } from "./user-credentials-api";
+import { deactivateUser, editUser, fetchUser, reactivateUser } from "./users-api";
 
 export type UserDetailScreenServices = {
   fetchUser: typeof fetchUser;

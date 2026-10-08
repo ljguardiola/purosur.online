@@ -4,28 +4,14 @@ import {
   branchUserSchema,
   type UserCreationBody,
   type UserEditBody,
-  userPinCodeSchema,
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
-import { type Passkey, passkeyListFromWire } from "../platform/passkey-list";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
 
 export type BranchUser = ReturnType<typeof userFromWire>;
 
 export type BranchUserRole = BranchUser["role"];
-
-export type FetchUserPasskeysOutcome = CloudReadOutcome<Passkey[]> | { kind: "not_found" };
-
-export type RemoveUserPasskeyOutcome =
-  | { kind: "ok" }
-  | { kind: "not_found" }
-  | { kind: "own_account" }
-  | { kind: "authorization_required" }
-  | { kind: "forbidden" }
-  | { kind: "unauthenticated" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "failed" };
 
 export type DeactivateUserOutcome =
   | { kind: "ok" }
@@ -39,16 +25,6 @@ export type DeactivateUserOutcome =
 export type ReactivateUserOutcome =
   | { kind: "ok" }
   | { kind: "not_found" }
-  | { kind: "authorization_required" }
-  | { kind: "forbidden" }
-  | { kind: "unauthenticated" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "failed" };
-
-export type EmitUserPinCodeOutcome =
-  | { kind: "ok"; value: { code: string; expiresAt: string } }
-  | { kind: "not_found" }
-  | { kind: "inactive" }
   | { kind: "authorization_required" }
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
@@ -264,66 +240,6 @@ export async function editUser(id: string, input: UserEditBody): Promise<EditUse
   return gatedActionErrorOutcome(response);
 }
 
-async function forbiddenOrOwnAccount(
-  response: Response,
-): Promise<{ kind: "forbidden" } | { kind: "own_account" }> {
-  const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
-  return body?.code === "own_account" ? { kind: "own_account" } : { kind: "forbidden" };
-}
-
-// Oldest first.
-export async function fetchUserPasskeys(id: string): Promise<FetchUserPasskeysOutcome> {
-  let response: Response;
-  try {
-    response = await fetch(`/api/users/${id}/passkeys`);
-  } catch {
-    return { kind: "failed" };
-  }
-  if (response.status === 401) {
-    return { kind: "unauthenticated" };
-  }
-  if (response.status === 403) {
-    return { kind: "forbidden" };
-  }
-  if (response.status === 404) {
-    return { kind: "not_found" };
-  }
-  if (response.status === 429) {
-    return rateLimitOutcome(response);
-  }
-  if (!response.ok) {
-    return { kind: "failed" };
-  }
-  const passkeys = passkeyListFromWire(await response.json().catch(() => undefined));
-  if (!passkeys) {
-    return { kind: "failed" };
-  }
-  return { kind: "ok", value: passkeys };
-}
-
-// Authorization runs against the Administrator's own passkeys, never the target's.
-export async function removeUserPasskey(
-  id: string,
-  passkeyId: string,
-): Promise<RemoveUserPasskeyOutcome> {
-  let response: Response;
-  try {
-    response = await fetch(`/api/users/${id}/passkeys/${passkeyId}`, { method: "DELETE" });
-  } catch {
-    return { kind: "failed" };
-  }
-  if (response.ok) {
-    return { kind: "ok" };
-  }
-  if (response.status === 404) {
-    return { kind: "not_found" };
-  }
-  if (response.status === 403) {
-    return forbiddenOrOwnAccount(response);
-  }
-  return gatedActionErrorOutcome(response);
-}
-
 // The cloud answers the same `not_found` for a missing, other-branch, already-inactive, or Administrator target.
 export async function deactivateUser(id: string): Promise<DeactivateUserOutcome> {
   let response: Response;
@@ -354,30 +270,6 @@ export async function reactivateUser(id: string): Promise<ReactivateUserOutcome>
   }
   if (response.status === 404) {
     return { kind: "not_found" };
-  }
-  return gatedActionErrorOutcome(response);
-}
-
-export async function emitUserPinCode(id: string): Promise<EmitUserPinCodeOutcome> {
-  let response: Response;
-  try {
-    response = await fetch(`/api/users/${id}/pin-codes`, { method: "POST" });
-  } catch {
-    return { kind: "failed" };
-  }
-  if (response.ok) {
-    const parsed = userPinCodeSchema.safeParse(await response.json().catch(() => undefined));
-    if (!parsed.success) {
-      return { kind: "failed" };
-    }
-    return { kind: "ok", value: { code: parsed.data.code, expiresAt: parsed.data.expires_at } };
-  }
-  if (response.status === 404) {
-    return { kind: "not_found" };
-  }
-  if (response.status === 409) {
-    const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
-    return body?.code === "user_inactive" ? { kind: "inactive" } : { kind: "failed" };
   }
   return gatedActionErrorOutcome(response);
 }

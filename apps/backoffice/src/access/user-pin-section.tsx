@@ -10,7 +10,7 @@ import {
   type EmitUserPinCodeModalServices,
 } from "./emit-user-pin-code-modal";
 import { pinCodeValidity } from "./pin-code-validity";
-import type { EmitUserPinCodeOutcome } from "./users-api";
+import type { EmitUserPinCodeOutcome } from "./user-credentials-api";
 
 type UserPinSectionProps = {
   user: { id: string; firstName: string } | undefined;

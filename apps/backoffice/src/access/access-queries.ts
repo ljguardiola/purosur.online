@@ -7,7 +7,8 @@ import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchPasskeys } from "./passkey-api";
 import type { fetchRegistrationOptions } from "./recovery-api";
-import type { BranchUser, fetchUser, fetchUserPasskeys, fetchUsers } from "./users-api";
+import type { fetchUserPasskeys } from "./user-credentials-api";
+import type { BranchUser, fetchUser, fetchUsers } from "./users-api";
 
 const accessKey = ["access"] as const;
 

@@ -10,7 +10,7 @@ import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
-import type { RemoveUserPasskeyOutcome, removeUserPasskey } from "./users-api";
+import type { RemoveUserPasskeyOutcome, removeUserPasskey } from "./user-credentials-api";
 
 export type RemoveUserPasskeyModalServices = {
   removeUserPasskey: typeof removeUserPasskey;
