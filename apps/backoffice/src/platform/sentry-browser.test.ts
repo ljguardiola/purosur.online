@@ -1,3 +1,4 @@
+import { ERROR_REPORT_DATA_COLLECTION } from "@purosur/contracts";
 import type { BrowserOptions } from "@sentry/browser";
 import { describe, expect, it, vi } from "vitest";
 import { startSentryReporting } from "./sentry-browser";
@@ -39,7 +40,7 @@ describe("startSentryReporting", () => {
   it("sends no personal data by default and takes no traces or session replays", () => {
     const { options } = startWithFakeSentry();
 
-    expect(options.sendDefaultPii).toBe(false);
+    expect(options.dataCollection).toBe(ERROR_REPORT_DATA_COLLECTION);
     expect(options.tracesSampleRate).toBeUndefined();
     expect(options.replaysSessionSampleRate).toBeUndefined();
     expect(options.replaysOnErrorSampleRate).toBeUndefined();
