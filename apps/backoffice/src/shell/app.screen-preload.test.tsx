@@ -4,29 +4,23 @@ import { render } from "vitest-browser-react";
 import { App } from "./app";
 import { emptyHelp } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import {
+  requested,
+  startRecordingRequests,
+  stopRecordingRequests,
+} from "./test-support/requested-urls";
 
-let requested: string[] = [];
-let requests: PerformanceObserver;
-
-function downloaded(module: string): boolean {
-  return requested.some((name) => name.includes(module));
-}
-
-beforeEach(() => {
-  requested = [];
-  requests = new PerformanceObserver((list) => {
-    requested.push(...list.getEntries().map((entry) => entry.name));
-  });
-  requests.observe({ type: "resource" });
+beforeEach(async () => {
+  await startRecordingRequests();
   window.history.pushState(null, "", "/help");
 });
 
-afterEach(() => {
-  requests.disconnect();
+afterEach(async () => {
+  await stopRecordingRequests();
   window.history.pushState(null, "", "/");
 });
 
-test("downloads a screen's code when the pointer rests on its menu link, before it is opened", async () => {
+test("starts downloading a screen's code when the pointer rests on its menu link, before it is opened", async () => {
   const screen = await render(
     <App help={emptyHelp} services={createAppServices()} reportError={vi.fn()} />,
   );
@@ -34,11 +28,11 @@ test("downloads a screen's code when the pointer rests on its menu link, before 
 
   await userEvent.hover(screen.getByRole("link", { name: "Inicio" }));
 
-  await expect.poll(() => downloaded("alerts-overview-page")).toBe(true);
+  await expect.poll(() => requested("alerts-overview-page")).toBe(true);
   expect(window.location.pathname).toBe("/help");
 });
 
-test("downloads a screen's code when its menu link receives focus, before it is opened", async () => {
+test("starts downloading a screen's code when its menu link receives focus, before it is opened", async () => {
   const screen = await render(
     <App help={emptyHelp} services={createAppServices()} reportError={vi.fn()} />,
   );
@@ -46,6 +40,6 @@ test("downloads a screen's code when its menu link receives focus, before it is 
 
   (screen.getByRole("link", { name: "Caja" }).element() as HTMLElement).focus();
 
-  await expect.poll(() => downloaded("points-of-sale-page")).toBe(true);
+  await expect.poll(() => requested("points-of-sale-page")).toBe(true);
   expect(window.location.pathname).toBe("/help");
 });
