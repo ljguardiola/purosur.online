@@ -1,6 +1,5 @@
 import { expect, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import type { Passkey } from "../../platform/passkey-list";
 import type { RoleSummary } from "../../platform/roles-api";
 import type { BackofficeAccess } from "../../shell/backoffice-access";
 import {
@@ -9,7 +8,11 @@ import {
   NO_CAPABILITIES_ACCESS,
 } from "../../shell/test-support/backoffice-access";
 import { render } from "../../shell/test-support/render-with-router";
-import { UserDetailScreen } from "../user-detail-screen";
+import {
+  type UserCredentialSectionsProps,
+  UserDetailScreen,
+  type UserDetailScreenProps,
+} from "../user-detail-screen";
 import type { UserDetailScreenServices } from "../user-detail-services";
 import type { BranchUser } from "../users-api";
 
@@ -47,10 +50,7 @@ export function createServices(
     fetchUser: vi.fn(),
     editUser: vi.fn(),
     fetchRoles: vi.fn(),
-    fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
-    removeUserPasskey: vi.fn(),
     deactivateUser: vi.fn(),
-    emitUserPinCode: vi.fn(),
     reactivateUser: vi.fn(),
     fetchSessionAuthorizationOptions: vi.fn(),
     authorizeSession: vi.fn(),
@@ -81,21 +81,24 @@ export const lucia: BranchUser = {
   mayRemovePasskey: true,
 };
 
-export const NOW = () => new Date("2026-09-23T12:00:00.000Z");
-
-export const notebook: Passkey = {
-  id: "pk-1",
-  name: "Notebook del local",
-  createdAt: "2026-08-02T12:00:00.000Z",
-  // 09:12 in America/Argentina/Buenos_Aires (UTC-3), same calendar day as NOW below.
-  lastUsedAt: "2026-09-23T12:12:00.000Z",
-};
-export const phone: Passkey = {
-  id: "pk-2",
-  name: "Teléfono de Lucía",
-  createdAt: "2026-08-10T12:00:00.000Z",
-  lastUsedAt: null,
-};
+export function CredentialSectionsStub(props: UserCredentialSectionsProps) {
+  return (
+    <section aria-label="Credenciales">
+      <p>{`Usuario ${props.userId}`}</p>
+      <p>{`Nombre ${props.user?.firstName ?? "sin cargar"}`}</p>
+      <p>{`Estado ${props.dataStatus}`}</p>
+      <p>{props.showsPasskeys ? "Con passkeys" : "Sin passkeys"}</p>
+      <p>{props.showsPin ? "Con PIN" : "Sin PIN"}</p>
+      <p>{`Baja de passkeys ${props.user?.mayRemovePasskey ? "permitida" : "no permitida"}`}</p>
+      <button type="button" onClick={props.onUserOutdated}>
+        Usuario desactualizado
+      </button>
+      <button type="button" onClick={props.onSessionEnded}>
+        Terminar la sesión
+      </button>
+    </section>
+  );
+}
 
 export function renderScreen(
   services: UserDetailScreenServices,
@@ -103,6 +106,7 @@ export function renderScreen(
   userId = "user-1",
   signedInUserId = "admin-1",
   access: BackofficeAccess = ADMINISTRATOR_ACCESS,
+  credentialSections: UserDetailScreenProps["credentialSections"] = CredentialSectionsStub,
 ) {
   return render(
     <main>
@@ -110,7 +114,7 @@ export function renderScreen(
         userId={userId}
         signedInUserId={signedInUserId}
         access={access}
-        now={NOW}
+        credentialSections={credentialSections}
         services={services}
         onSessionEnded={onSessionEnded}
       />
@@ -172,11 +176,6 @@ export async function openStaleModal(services: UserDetailScreenServices) {
   return { screen, dialog };
 }
 
-export async function openRemoveModal(screen: Screen, name: string) {
-  await userEvent.click(screen.getByRole("button", { name: `Dar de baja la passkey «${name}»` }));
-  return screen.getByRole("dialog", { name: "¿Dar de baja la passkey de Lucía?" });
-}
-
 export async function openDeactivateModal(screen: Screen) {
   await userEvent.click(screen.getByRole("button", { name: "Desactivar a Lucía" }));
   return screen.getByRole("dialog", { name: "¿Desactivar a Lucía?" });
@@ -196,8 +195,5 @@ export function deferred<T>() {
 }
 
 export type FetchUserOutcome = Awaited<ReturnType<UserDetailScreenServices["fetchUser"]>>;
-export type FetchUserPasskeysOutcome = Awaited<
-  ReturnType<UserDetailScreenServices["fetchUserPasskeys"]>
->;
 
 export type Screen = Awaited<ReturnType<typeof renderScreen>>;

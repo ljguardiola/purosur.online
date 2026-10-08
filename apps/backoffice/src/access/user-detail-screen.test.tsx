@@ -1,24 +1,17 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { lazy } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { render } from "../shell/test-support/render-with-router";
 import {
-  ADMINISTRATOR_ACCESS,
   createServices,
   DEACTIVATE_USERS_ACCESS,
   deferred,
   type FetchUserOutcome,
   lucia,
-  notebook,
   openEditModal,
-  openReactivateModal,
-  openRemoveModal,
-  phone,
   renderScreen,
   shiftRole,
-  sofia,
 } from "./test-support/user-detail-screen";
-import { UserDetailScreen } from "./user-detail-screen";
 
 afterEach(() => {
   window.history.pushState(null, "", "/");
@@ -102,281 +95,6 @@ test("has no accessibility violations once loaded, and with the edit modal open"
   await expectNoAccessibilityViolations(document.body);
 });
 
-test("lists the user's passkeys with their registration and last-use detail, once Datos loads", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
-  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({
-    kind: "ok",
-    value: [notebook, phone],
-  });
-
-  const screen = await renderScreen(services);
-
-  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
-  await expect
-    .element(screen.getByText("Registrada el 02/08/2026 · último uso hoy 09:12"))
-    .toBeVisible();
-  await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
-  await expect.element(screen.getByText("Registrada el 10/08/2026")).toBeVisible();
-  expect(services.fetchUserPasskeys).toHaveBeenCalledWith("user-1");
-});
-
-test("shows a minimal empty state when the user has no passkeys, without the single-passkey account notice", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
-  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({ kind: "ok", value: [] });
-
-  const screen = await renderScreen(services);
-
-  await expect.element(screen.getByText("No tiene ninguna passkey registrada.")).toBeVisible();
-  expect(screen.getByRole("alert").query()).toBeNull();
-});
-
-test("shows a load error with a retry action when the passkeys fail to load, without affecting Datos", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
-  vi.mocked(services.fetchUserPasskeys).mockResolvedValueOnce({ kind: "failed" });
-
-  const screen = await renderScreen(services);
-
-  await expect.element(screen.getByText("No pudimos abrir las passkeys")).toBeVisible();
-  await expect.element(screen.getByText("Responsable de turno")).toBeVisible();
-
-  vi.mocked(services.fetchUserPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook] });
-  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
-
-  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
-  expect(services.fetchUser).toHaveBeenCalledTimes(1);
-});
-
-test("shows a rate-limited notice for the passkeys list", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
-  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({
-    kind: "rate_limited",
-    retryAfterSeconds: 120,
-  });
-
-  const screen = await renderScreen(services);
-
-  await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
-  await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
-});
-
-test("ends the session when the passkeys list finds it closed", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
-  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({ kind: "unauthenticated" });
-  const onSessionEnded = vi.fn();
-
-  await renderScreen(services, onSessionEnded);
-
-  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
-});
-
-test("navigates to Mi cuenta when the passkeys list comes back forbidden", async () => {
-  window.history.pushState(null, "", "/users/user-1");
-  const services = createServices();
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
-  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({ kind: "forbidden" });
-
-  await renderScreen(services);
-
-  await expect.poll(() => window.location.pathname).toBe("/account");
-});
-
-test("shows no remove button when the cloud answers the user's passkeys may not be removed, even for an Administrator viewing another person's account", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchUser).mockResolvedValue({
-    kind: "ok",
-    value: { ...lucia, mayRemovePasskey: false },
-  });
-  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({
-    kind: "ok",
-    value: [notebook, phone],
-  });
-
-  const screen = await renderScreen(services, () => {}, "user-1", "admin-1");
-
-  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
-  expect(
-    screen.getByRole("button", { name: `Dar de baja la passkey «${notebook.name}»` }).query(),
-  ).toBeNull();
-});
-
-test("shows the only-passkey sentence only when it is the user's last passkey", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
-  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
-
-  const dialog = await openRemoveModal(screen, "Notebook del local");
-
-  await expect
-    .element(
-      dialog.getByText(
-        "«Notebook del local» deja de servir para entrar. Es su única passkey: para volver a entrar, Lucía va a tener que pedir el enlace de recuperación por correo.",
-      ),
-    )
-    .toBeVisible();
-});
-
-test("removes a passkey directly, without the authorization modal, reading the list again from the server", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
-  vi.mocked(services.fetchUserPasskeys)
-    .mockResolvedValueOnce({ kind: "ok", value: [notebook, phone] })
-    .mockResolvedValueOnce({ kind: "ok", value: [phone] });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
-  vi.mocked(services.removeUserPasskey).mockResolvedValue({ kind: "ok" });
-  const dialog = await openRemoveModal(screen, "Notebook del local");
-
-  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
-
-  await expect.poll(() => vi.mocked(services.removeUserPasskey).mock.calls.length).toBe(1);
-  expect(services.removeUserPasskey).toHaveBeenCalledWith("user-1", "pk-1");
-  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.poll(() => screen.getByText("Notebook del local").query()).toBeNull();
-  await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
-  expect(services.fetchUserPasskeys).toHaveBeenCalledTimes(2);
-  expect(services.fetchUser).toHaveBeenCalledTimes(2);
-});
-
-test("has no accessibility violations with the passkeys section loaded and the remove modal open", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
-  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({
-    kind: "ok",
-    value: [notebook, phone],
-  });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
-  await expectNoAccessibilityViolations(document.body);
-
-  await openRemoveModal(screen, "Notebook del local");
-  await expectNoAccessibilityViolations(document.body);
-});
-
-test("hides Editar and the whole Passkeys section for a non-Administrator, never reading the passkeys", async () => {
-  window.history.pushState(null, "", "/users/user-1");
-  const services = createServices({
-    fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "forbidden" }),
-  });
-  vi.mocked(services.fetchUser).mockResolvedValue({
-    kind: "ok",
-    value: { ...lucia, mayEdit: false, mayRemovePasskey: false },
-  });
-
-  const screen = await renderScreen(
-    services,
-    () => {},
-    "user-1",
-    "user-2",
-    DEACTIVATE_USERS_ACCESS,
-  );
-
-  await expect.element(screen.getByRole("button", { name: "Desactivar a Lucía" })).toBeVisible();
-  expect(screen.getByRole("button", { name: "Editar" }).query()).toBeNull();
-  expect(screen.getByRole("heading", { name: "Passkeys" }).query()).toBeNull();
-  expect(services.fetchUserPasskeys).not.toHaveBeenCalled();
-  expect(window.location.pathname).toBe("/users/user-1");
-});
-
-test("dates each passkey's last use against the time the passkeys were last loaded", async () => {
-  const services = createServices();
-  let current = new Date("2026-09-23T12:00:00.000Z");
-  vi.mocked(services.fetchUser).mockResolvedValueOnce({ kind: "ok", value: sofia });
-  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
-  vi.mocked(services.reactivateUser).mockResolvedValue({ kind: "ok" });
-  const screen = await render(
-    <main>
-      <UserDetailScreen
-        userId="user-5"
-        signedInUserId="admin-1"
-        access={ADMINISTRATOR_ACCESS}
-        now={() => current}
-        services={services}
-        onSessionEnded={() => {}}
-      />
-    </main>,
-  );
-  await expect
-    .element(screen.getByText("Registrada el 02/08/2026 · último uso hoy 09:12"))
-    .toBeVisible();
-
-  current = new Date("2026-09-24T12:00:00.000Z");
-  vi.mocked(services.fetchUser).mockResolvedValueOnce({
-    kind: "ok",
-    value: { ...sofia, active: true },
-  });
-  const dialog = await openReactivateModal(screen);
-  await userEvent.click(dialog.getByRole("button", { name: "Reactivar" }));
-
-  await expect
-    .element(screen.getByText("Registrada el 02/08/2026 · último uso el 23/09/2026 09:12"))
-    .toBeVisible();
-});
-
-test("dates each passkey's last use against the time the list was read again after a removal", async () => {
-  const services = createServices();
-  let current = new Date("2026-09-23T12:00:00.000Z");
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
-  vi.mocked(services.fetchUserPasskeys)
-    .mockResolvedValueOnce({ kind: "ok", value: [notebook, phone] })
-    .mockResolvedValueOnce({ kind: "ok", value: [notebook] });
-  vi.mocked(services.removeUserPasskey).mockResolvedValue({ kind: "ok" });
-  const screen = await render(
-    <main>
-      <UserDetailScreen
-        userId="user-1"
-        signedInUserId="admin-1"
-        access={ADMINISTRATOR_ACCESS}
-        now={() => current}
-        services={services}
-        onSessionEnded={() => {}}
-      />
-    </main>,
-  );
-  await expect
-    .element(screen.getByText("Registrada el 02/08/2026 · último uso hoy 09:12"))
-    .toBeVisible();
-
-  current = new Date("2026-09-24T12:00:00.000Z");
-  const dialog = await openRemoveModal(screen, "Teléfono de Lucía");
-  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
-
-  await expect
-    .element(screen.getByText("Registrada el 02/08/2026 · último uso el 23/09/2026 09:12"))
-    .toBeVisible();
-  expect(services.fetchUserPasskeys).toHaveBeenCalledTimes(2);
-});
-
-test("while the user loads, shows a loading placeholder, no Editar, and reads the passkeys without waiting for the user", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchUser).mockReturnValue(new Promise(() => {}));
-
-  const screen = await renderScreen(services);
-
-  await expect.element(screen.getByRole("status").first()).toHaveTextContent("Cargando…");
-  expect(screen.getByRole("button", { name: "Editar" }).query()).toBeNull();
-  await expect.poll(() => vi.mocked(services.fetchUserPasskeys).mock.calls.length).toBe(1);
-  expect(services.fetchUserPasskeys).toHaveBeenCalledWith("user-1");
-});
-
-test("shows the passkeys placeholder while only the passkeys are loading, with Datos already shown", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
-  vi.mocked(services.fetchUserPasskeys).mockReturnValue(new Promise(() => {}));
-
-  const screen = await renderScreen(services);
-
-  await expect.element(screen.getByText("lucia.perez@purosur.online")).toBeVisible();
-  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
-  await expect.element(screen.getByRole("button", { name: "Editar" })).toBeEnabled();
-});
-
 test("a failed user read shows no Editar, and Reintentar starts again from the loading placeholder", async () => {
   const services = createServices();
   const retry = deferred<FetchUserOutcome>();
@@ -397,37 +115,6 @@ test("a failed user read shows no Editar, and Reintentar starts again from the l
   await expect.element(screen.getByRole("button", { name: "Editar" })).toBeEnabled();
 });
 
-test("while their own account loads, shows an Administrator only the PIN section, with no Editar", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchUser).mockReturnValue(new Promise(() => {}));
-
-  const screen = await renderScreen(services, () => {}, "admin-1", "admin-1");
-
-  await expect.element(screen.getByRole("button", { name: "Reiniciar el PIN" })).toBeDisabled();
-  expect(screen.getByRole("button", { name: "Editar" }).query()).toBeNull();
-});
-
-test("while their own account loads with its id in another case, shows an Administrator only the PIN section, with no Editar", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchUser).mockReturnValue(new Promise(() => {}));
-
-  const screen = await renderScreen(services, () => {}, "ADMIN-1", "admin-1");
-
-  await expect.element(screen.getByRole("button", { name: "Reiniciar el PIN" })).toBeDisabled();
-  expect(screen.getByRole("button", { name: "Editar" }).query()).toBeNull();
-});
-
-test("after their own account fails to load, shows an Administrator only the PIN section, with no Editar", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "failed" });
-
-  const screen = await renderScreen(services, () => {}, "admin-1", "admin-1");
-
-  await expect.element(screen.getByText("No pudimos abrir este usuario")).toBeVisible();
-  await expect.element(screen.getByRole("button", { name: "Reiniciar el PIN" })).toBeDisabled();
-  expect(screen.getByRole("button", { name: "Editar" }).query()).toBeNull();
-});
-
 test("a failed roles read fails the Datos section too, and Reintentar reads the roles again", async () => {
   const services = createServices({
     fetchRoles: vi.fn().mockResolvedValueOnce({ kind: "failed" }),
@@ -443,41 +130,128 @@ test("a failed roles read fails the Datos section too, and Reintentar reads the 
   expect(services.fetchUser).toHaveBeenCalledTimes(1);
 });
 
-test("a passkey's remove action opens the remove modal, without the only-passkey sentence when the user has more, and Cancelar closes it", async () => {
+test("shows the credential sections between Datos and the deactivate row", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
-  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({
-    kind: "ok",
-    value: [notebook, phone],
-  });
+
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
 
-  const dialog = await openRemoveModal(screen, "Notebook del local");
-
-  await expect
-    .element(dialog.getByText("«Notebook del local» deja de servir para entrar."))
-    .toBeVisible();
-  expect(dialog.getByText(/Es su única passkey/).query()).toBeNull();
-  await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
-
-  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  expect(services.removeUserPasskey).not.toHaveBeenCalled();
+  const sections = screen.getByRole("region", { name: "Credenciales" });
+  await expect.element(sections).toBeVisible();
+  const datos = screen.getByRole("heading", { name: "Datos" }).element();
+  const deactivateButton = screen.getByRole("button", { name: "Desactivar a Lucía" });
+  await expect.element(deactivateButton).toBeVisible();
+  const deactivate = deactivateButton.element();
+  expect(datos.compareDocumentPosition(sections.element())).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  expect(sections.element().compareDocumentPosition(deactivate)).toBe(
+    Node.DOCUMENT_POSITION_FOLLOWING,
+  );
 });
 
-test("ends the session when the remove modal's removal finds it closed", async () => {
+test("hands the credential sections the user, once loaded, with their removal answer and the data's status", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
-  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
-  vi.mocked(services.removeUserPasskey).mockResolvedValue({ kind: "unauthenticated" });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Usuario user-1")).toBeVisible();
+  await expect.element(screen.getByText("Nombre Lucía")).toBeVisible();
+  await expect.element(screen.getByText("Estado loaded")).toBeVisible();
+  await expect.element(screen.getByText("Baja de passkeys permitida")).toBeVisible();
+});
+
+test("shows a loading placeholder where the credential sections go while their code downloads", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  const downloading = lazy(() => new Promise<{ default: () => null }>(() => {}));
+
+  const screen = await renderScreen(
+    services,
+    () => {},
+    "user-1",
+    "admin-1",
+    undefined,
+    downloading,
+  );
+
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
+});
+
+test("asks for the Passkeys section from an Administrator, without waiting for the user to load", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockReturnValue(new Promise(() => {}));
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Con passkeys")).toBeVisible();
+  await expect.element(screen.getByText("Nombre sin cargar")).toBeVisible();
+  await expect.element(screen.getByText("Estado loading")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Editar" }).query()).toBeNull();
+});
+
+test("asks for no Passkeys section for a non-Administrator, and hides Editar", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({
+    kind: "ok",
+    value: { ...lucia, mayEdit: false, mayRemovePasskey: false },
+  });
+
+  const screen = await renderScreen(
+    services,
+    () => {},
+    "user-1",
+    "user-2",
+    DEACTIVATE_USERS_ACCESS,
+  );
+
+  await expect.element(screen.getByRole("button", { name: "Desactivar a Lucía" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Editar" }).query()).toBeNull();
+  await expect.element(screen.getByText("Sin passkeys")).toBeVisible();
+  expect(window.location.pathname).toBe("/");
+});
+
+test("shows the loading placeholder and no Editar while the user loads", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockReturnValue(new Promise(() => {}));
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByRole("status").first()).toHaveTextContent("Cargando…");
+  expect(screen.getByRole("button", { name: "Editar" }).query()).toBeNull();
+});
+
+test("shows Datos and Editar enabled once the user loads, whatever the credential sections are doing", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("lucia.perez@purosur.online")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Editar" })).toBeEnabled();
+});
+
+test("reads the user again when the credential sections report it outdated", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Usuario desactualizado" }));
+
+  await expect.poll(() => vi.mocked(services.fetchUser).mock.calls.length).toBe(2);
+});
+
+test("ends the session when the credential sections report it closed", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
   const onSessionEnded = vi.fn();
   const screen = await renderScreen(services, onSessionEnded);
-  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
-  const dialog = await openRemoveModal(screen, "Notebook del local");
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
 
-  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
+  await userEvent.click(screen.getByRole("button", { name: "Terminar la sesión" }));
 
-  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+  expect(onSessionEnded).toHaveBeenCalledTimes(1);
 });
 
 test("follows the user's answers, not the session, for every action an Administrator is offered", async () => {
@@ -492,28 +266,21 @@ test("follows the user's answers, not the session, for every action an Administr
       mayRemovePasskey: false,
     },
   });
-  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  await expect.element(screen.getByText("Baja de passkeys no permitida")).toBeVisible();
   expect(screen.getByRole("button", { name: "Editar" }).query()).toBeNull();
   expect(screen.getByRole("button", { name: "Desactivar a Lucía" }).query()).toBeNull();
   expect(screen.getByRole("button", { name: "Reactivar a Lucía" }).query()).toBeNull();
-  expect(
-    screen.getByRole("button", { name: `Dar de baja la passkey «${notebook.name}»` }).query(),
-  ).toBeNull();
 });
 
-test("offers Editar and the remove button when the user's answers allow them", async () => {
+test("offers Editar and the passkey removal when the user's answers allow them", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
-  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
 
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByRole("button", { name: "Editar" })).toBeVisible();
-  await expect
-    .element(screen.getByRole("button", { name: `Dar de baja la passkey «${notebook.name}»` }))
-    .toBeVisible();
+  await expect.element(screen.getByText("Baja de passkeys permitida")).toBeVisible();
 });

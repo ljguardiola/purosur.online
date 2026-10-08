@@ -16,6 +16,7 @@ type UserPinSectionProps = {
   user: { id: string; firstName: string } | undefined;
   dataStatus?: LoadStatus;
   onSessionEnded: () => void;
+  onUserOutdated?: () => void;
   services: EmitUserPinCodeModalServices;
 };
 
@@ -23,6 +24,7 @@ export function UserPinSection({
   user,
   dataStatus,
   onSessionEnded,
+  onUserOutdated,
   services,
 }: UserPinSectionProps) {
   const {
@@ -70,6 +72,7 @@ export function UserPinSection({
     if (outcome.kind === "not_found" || outcome.kind === "inactive") {
       setEmission({ kind: "closed" });
       void refreshAccess();
+      onUserOutdated?.();
       return;
     }
     if (outcome.kind === "cancelled") {

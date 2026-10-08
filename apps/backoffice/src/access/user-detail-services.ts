@@ -1,4 +1,5 @@
 import { startAuthentication } from "@simplewebauthn/browser";
+import type { ComponentType } from "react";
 import { fetchRoles } from "../platform/roles-api";
 import {
   authorizeSession,
@@ -6,31 +7,27 @@ import {
 } from "../platform/session-authorization-api";
 import type { DeactivateUserModalServices } from "./deactivate-user-modal";
 import type { EditUserModalServices } from "./edit-user-modal";
-import type { EmitUserPinCodeModalServices } from "./emit-user-pin-code-modal";
 import type { ReactivateUserModalServices } from "./reactivate-user-modal";
-import type { RemoveUserPasskeyModalServices } from "./remove-user-passkey-modal";
-import { emitUserPinCode, fetchUserPasskeys, removeUserPasskey } from "./user-credentials-api";
+import type { UserCredentialSectionsProps } from "./user-detail-screen";
 import { deactivateUser, editUser, fetchUser, reactivateUser } from "./users-api";
 
 export type UserDetailScreenServices = {
   fetchUser: typeof fetchUser;
   fetchRoles: typeof fetchRoles;
-  fetchUserPasskeys: typeof fetchUserPasskeys;
 } & EditUserModalServices &
-  RemoveUserPasskeyModalServices &
   DeactivateUserModalServices &
-  ReactivateUserModalServices &
-  EmitUserPinCodeModalServices;
+  ReactivateUserModalServices;
+
+export type UserDetailPageServices = UserDetailScreenServices & {
+  credentialSections: ComponentType<UserCredentialSectionsProps>;
+};
 
 export const defaultUserDetailScreenServices: UserDetailScreenServices = {
   fetchUser,
   editUser,
   fetchRoles,
-  fetchUserPasskeys,
-  removeUserPasskey,
   deactivateUser,
   reactivateUser,
-  emitUserPinCode,
   fetchSessionAuthorizationOptions,
   authorizeSession,
   startAuthentication,

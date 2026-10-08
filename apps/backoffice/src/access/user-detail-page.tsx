@@ -15,6 +15,7 @@ export function UserDetailPage(): ReactElement {
       signedInUserId={session.userId}
       access={session}
       onSessionEnded={sessionActions.sessionEnded}
+      credentialSections={services.userDetailScreen.credentialSections}
       services={services.userDetailScreen}
     />
   );

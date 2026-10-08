@@ -5,16 +5,13 @@ import { render } from "../shell/test-support/render-with-router";
 import { useRefreshAccess } from "./access-queries";
 import {
   ADMINISTRATOR_ACCESS,
+  CredentialSectionsStub,
   createServices,
   deferred,
   type FetchUserOutcome,
-  type FetchUserPasskeysOutcome,
   lucia,
-  NOW,
-  notebook,
   openEditModal,
   openStaleModal,
-  phone,
   renderScreen,
 } from "./test-support/user-detail-screen";
 import { UserDetailScreen } from "./user-detail-screen";
@@ -55,7 +52,7 @@ test("shows the rate-limited load failure when Recargar is rate limited", async 
   await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
 });
 
-test("Recargar reads the user again through the cache once, refreshing every access read", async () => {
+test("Recargar reads the user again through the cache once, refreshing the roles too", async () => {
   const services = createServices();
   const { dialog } = await openStaleModal(services);
 
@@ -68,7 +65,6 @@ test("Recargar reads the user again through the cache once, refreshing every acc
     .toHaveValue("otra@purosur.online");
   expect(services.fetchUser).toHaveBeenCalledTimes(2);
   await expect.poll(() => vi.mocked(services.fetchRoles).mock.calls.length).toBe(2);
-  await expect.poll(() => vi.mocked(services.fetchUserPasskeys).mock.calls.length).toBe(2);
 });
 
 test("shows the screen's not-found state when Recargar finds the user gone", async () => {
@@ -108,6 +104,7 @@ test("keeps the loaded screen and an open edit modal with its typed email when t
         userId="user-1"
         signedInUserId="admin-1"
         access={ADMINISTRATOR_ACCESS}
+        credentialSections={CredentialSectionsStub}
         services={services}
         onSessionEnded={() => {}}
       />
@@ -120,19 +117,15 @@ test("keeps the loaded screen and an open edit modal with its typed email when t
   expect(services.fetchUser).toHaveBeenCalledTimes(1);
 });
 
-test("a change refreshes the user, the roles and the passkeys from the server, keeping what is shown and Editar enabled meanwhile", async () => {
+test("a change refreshes the user and the roles from the server, keeping what is shown and Editar enabled meanwhile", async () => {
   const services = createServices();
   const refreshedUser = deferred<FetchUserOutcome>();
-  const refreshedPasskeys = deferred<FetchUserPasskeysOutcome>();
   vi.mocked(services.fetchUser)
     .mockResolvedValueOnce({ kind: "ok", value: lucia })
     .mockReturnValueOnce(refreshedUser.promise);
-  vi.mocked(services.fetchUserPasskeys)
-    .mockResolvedValueOnce({ kind: "ok", value: [notebook] })
-    .mockReturnValueOnce(refreshedPasskeys.promise);
   vi.mocked(services.editUser).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  await expect.element(screen.getByText("lucia.perez@purosur.online")).toBeVisible();
   const dialog = await openEditModal(screen);
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@purosur.online");
@@ -141,17 +134,13 @@ test("a change refreshes the user, the roles and the passkeys from the server, k
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.poll(() => vi.mocked(services.fetchUser).mock.calls.length).toBe(2);
   await expect.poll(() => vi.mocked(services.fetchRoles).mock.calls.length).toBe(2);
-  await expect.poll(() => vi.mocked(services.fetchUserPasskeys).mock.calls.length).toBe(2);
   await expect.element(screen.getByText("lucia.perez@purosur.online")).toBeVisible();
-  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Editar" })).toBeEnabled();
   refreshedUser.resolve({
     kind: "ok",
     value: { ...lucia, email: "nueva@purosur.online", version: 2 },
   });
-  refreshedPasskeys.resolve({ kind: "ok", value: [notebook, phone] });
   await expect.element(screen.getByText("nueva@purosur.online")).toBeVisible();
-  await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
 });
 
 function RefreshProbe({ onReady }: { onReady: (refresh: () => Promise<void>) => void }) {
@@ -180,7 +169,7 @@ test("a refresh of the user in the background does not overwrite what is typed i
         userId="user-1"
         signedInUserId="admin-1"
         access={ADMINISTRATOR_ACCESS}
-        now={NOW}
+        credentialSections={CredentialSectionsStub}
         services={services}
         onSessionEnded={() => {}}
       />

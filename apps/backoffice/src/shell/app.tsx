@@ -17,8 +17,12 @@ import {
 import { checkSessionStatus, fetchSession, type SessionOutcome } from "../access/session-api";
 import { defaultSignInScreenServices, type SignInScreenServices } from "../access/sign-in-services";
 import {
+  defaultUserCredentialSectionsServices,
+  type UserCredentialSectionsServices,
+} from "../access/user-credential-sections-services";
+import {
   defaultUserDetailScreenServices,
-  type UserDetailScreenServices,
+  type UserDetailPageServices,
 } from "../access/user-detail-services";
 import {
   defaultUsersListScreenServices,
@@ -97,6 +101,7 @@ import {
 import { type AccountFooterServices, defaultAccountFooterServices } from "./account-footer";
 import { createAppRouter } from "./app-router";
 import { defaultHomeScreenServices, type HomeScreenServices } from "./home-screen-services";
+import { lazyScreen } from "./lazy-screen";
 import {
   SessionCheckPendingContext,
   type SettledSession,
@@ -115,7 +120,8 @@ export type AppServices = {
   registerPasskeyScreen: RegisterPasskeyScreenServices;
   myAccountScreen: MyAccountScreenServices;
   usersListScreen: UsersListScreenServices;
-  userDetailScreen: UserDetailScreenServices;
+  userDetailScreen: UserDetailPageServices;
+  userCredentialSections: UserCredentialSectionsServices;
   rolesListScreen: RolesListScreenServices;
   registersListScreen: RegistersListScreenServices;
   branchSettingsScreen: BranchSettingsScreenServices;
@@ -146,7 +152,14 @@ const defaultAppServices: AppServices = {
   registerPasskeyScreen: defaultRegisterPasskeyScreenServices,
   myAccountScreen: defaultMyAccountScreenServices,
   usersListScreen: defaultUsersListScreenServices,
-  userDetailScreen: defaultUserDetailScreenServices,
+  userDetailScreen: {
+    ...defaultUserDetailScreenServices,
+    credentialSections: lazyScreen(
+      () => import("../access/user-credential-sections"),
+      "UserCredentialSections",
+    ),
+  },
+  userCredentialSections: defaultUserCredentialSectionsServices,
   rolesListScreen: defaultRolesListScreenServices,
   registersListScreen: defaultRegistersListScreenServices,
   branchSettingsScreen: defaultBranchSettingsScreenServices,

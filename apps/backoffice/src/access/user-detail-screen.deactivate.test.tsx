@@ -32,9 +32,7 @@ test("shows the Desactivar row for an Administrator viewer against a non-Adminis
 
 test("lets a non-Administrator holding deactivate_users deactivate the user, back to Usuarios on success", async () => {
   window.history.pushState(null, "", "/users/user-1");
-  const services = createServices({
-    fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "forbidden" }),
-  });
+  const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
   vi.mocked(services.deactivateUser).mockResolvedValue({ kind: "ok" });
 
@@ -51,7 +49,6 @@ test("lets a non-Administrator holding deactivate_users deactivate the user, bac
   await expect.poll(() => vi.mocked(services.deactivateUser).mock.calls.length).toBe(1);
   expect(services.deactivateUser).toHaveBeenCalledWith("user-1");
   await expect.poll(() => window.location.pathname).toBe("/users");
-  expect(services.fetchUserPasskeys).not.toHaveBeenCalled();
 });
 
 test("hides the Desactivar row when the cloud answers the user may not be deactivated, even for another person's account and a session holding deactivate_users", async () => {
@@ -133,7 +130,7 @@ test("while their own account loads, shows an Administrator only the PIN section
 
   const screen = await renderScreen(services, () => {}, "admin-1", "admin-1");
 
-  await expect.element(screen.getByRole("button", { name: "Reiniciar el PIN" })).toBeDisabled();
+  await expect.element(screen.getByText("Con PIN")).toBeVisible();
   expect(screen.getByRole("button", { name: "Desactivar" }).query()).toBeNull();
 });
 
@@ -143,7 +140,7 @@ test("while their own account loads with its id in another case, shows an Admini
 
   const screen = await renderScreen(services, () => {}, "ADMIN-1", "admin-1");
 
-  await expect.element(screen.getByRole("button", { name: "Reiniciar el PIN" })).toBeDisabled();
+  await expect.element(screen.getByText("Con PIN")).toBeVisible();
   expect(screen.getByRole("button", { name: "Desactivar" }).query()).toBeNull();
 });
 
@@ -154,11 +151,11 @@ test("after their own account fails to load, shows an Administrator only the PIN
   const screen = await renderScreen(services, () => {}, "admin-1", "admin-1");
 
   await expect.element(screen.getByText("No pudimos abrir este usuario")).toBeVisible();
-  await expect.element(screen.getByRole("button", { name: "Reiniciar el PIN" })).toBeDisabled();
+  await expect.element(screen.getByText("Con PIN")).toBeVisible();
   expect(screen.getByRole("button", { name: "Desactivar" }).query()).toBeNull();
 });
 
-test("a deactivation refreshes every access read", async () => {
+test("a deactivation refreshes the roles too", async () => {
   window.history.pushState(null, "", "/users/user-1");
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
@@ -170,7 +167,6 @@ test("a deactivation refreshes every access read", async () => {
   await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
 
   await expect.poll(() => vi.mocked(services.fetchRoles).mock.calls.length).toBe(2);
-  await expect.poll(() => vi.mocked(services.fetchUserPasskeys).mock.calls.length).toBe(2);
 });
 
 test("treats a deactivation 404 as an already-vanished target, reading the user again and showing the not-found state", async () => {

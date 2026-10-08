@@ -118,7 +118,7 @@ test("passes the signed-in Administrator's own id to the user detail screen, hid
   };
   vi.mocked(services.userDetailScreen.fetchUser).mockResolvedValue({ kind: "ok", value: lucas });
   vi.mocked(services.userDetailScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
-  vi.mocked(services.userDetailScreen.fetchUserPasskeys).mockResolvedValue({
+  vi.mocked(services.userCredentialSections.fetchUserPasskeys).mockResolvedValue({
     kind: "ok",
     value: [
       {
@@ -250,7 +250,9 @@ test("opens a user's detail for a non-Administrator holding deactivate_users, of
       mayRemovePasskey: false,
     },
   });
-  vi.mocked(services.userDetailScreen.fetchUserPasskeys).mockResolvedValue({ kind: "forbidden" });
+  vi.mocked(services.userCredentialSections.fetchUserPasskeys).mockResolvedValue({
+    kind: "forbidden",
+  });
   window.history.pushState(null, "", "/users/user-3");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -260,7 +262,7 @@ test("opens a user's detail for a non-Administrator holding deactivate_users, of
     .element(screen.getByRole("button", { name: "Desactivar a Tomás Ruiz" }))
     .toBeVisible();
   expect(screen.getByRole("button", { name: "Editar" }).query()).toBeNull();
-  expect(services.userDetailScreen.fetchUserPasskeys).not.toHaveBeenCalled();
+  expect(services.userCredentialSections.fetchUserPasskeys).not.toHaveBeenCalled();
   expect(window.location.pathname).toBe("/users/user-3");
   window.history.pushState(null, "", "/");
 });
@@ -293,7 +295,9 @@ test("lets a non-Administrator holding only reset_user_pin open Usuarios and a u
       mayRemovePasskey: true,
     },
   });
-  vi.mocked(services.userDetailScreen.fetchUserPasskeys).mockResolvedValue({ kind: "forbidden" });
+  vi.mocked(services.userCredentialSections.fetchUserPasskeys).mockResolvedValue({
+    kind: "forbidden",
+  });
   window.history.pushState(null, "", "/users/user-3");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -310,7 +314,7 @@ test.each([
     path: "/users/user-3",
     adminOnlyCalls: (services: AppServices) => [
       services.userDetailScreen.fetchUser,
-      services.userDetailScreen.fetchUserPasskeys,
+      services.userCredentialSections.fetchUserPasskeys,
     ],
   },
 ])(

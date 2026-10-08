@@ -4,7 +4,6 @@ import { userEvent } from "vitest/browser";
 import {
   createServices,
   lucia,
-  notebook,
   openReactivateModal,
   REACTIVATE_USERS_ACCESS,
   renderScreen,
@@ -15,10 +14,9 @@ afterEach(() => {
   window.history.pushState(null, "", "/");
 });
 
-test("shows the Inactivo tag, hides Editar, Desactivar and passkey removal, and offers Reactivar, for an inactive user", async () => {
+test("shows the Inactivo tag, hides Editar, Desactivar and the passkey removal, and offers Reactivar, for an inactive user", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: sofia });
-  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
 
   const screen = await renderScreen(services);
 
@@ -26,10 +24,7 @@ test("shows the Inactivo tag, hides Editar, Desactivar and passkey removal, and 
   await expect.element(screen.getByText("Inactivo")).toBeVisible();
   expect(screen.getByRole("button", { name: "Editar" }).query()).toBeNull();
   expect(screen.getByRole("button", { name: "Desactivar a Sofía Díaz" }).query()).toBeNull();
-  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
-  expect(
-    screen.getByRole("button", { name: "Dar de baja la passkey «Notebook del local»" }).query(),
-  ).toBeNull();
+  await expect.element(screen.getByText("Baja de passkeys no permitida")).toBeVisible();
   await expect
     .element(screen.getByRole("button", { name: "Reactivar a Sofía Díaz" }))
     .toBeVisible();
@@ -53,11 +48,9 @@ test("shows no Inactivo tag and no Reactivar row for an active user", async () =
   expect(screen.getByRole("button", { name: "Reactivar a Lucía" }).query()).toBeNull();
 });
 
-test("lets a reactivate-only holder reach an inactive user's Reactivar row, hiding Editar and Passkeys, never reading roles or passkeys", async () => {
+test("lets a reactivate-only holder reach an inactive user's Reactivar row, hiding Editar and the credential sections, never reading the roles", async () => {
   window.history.pushState(null, "", "/users/user-5");
-  const services = createServices({
-    fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "forbidden" }),
-  });
+  const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: sofia });
 
   const screen = await renderScreen(
@@ -72,9 +65,8 @@ test("lets a reactivate-only holder reach an inactive user's Reactivar row, hidi
     .element(screen.getByRole("button", { name: "Reactivar a Sofía Díaz" }))
     .toBeVisible();
   expect(screen.getByRole("button", { name: "Editar" }).query()).toBeNull();
-  expect(screen.getByRole("heading", { name: "Passkeys" }).query()).toBeNull();
+  expect(screen.getByRole("region", { name: "Credenciales" }).query()).toBeNull();
   expect(services.fetchRoles).not.toHaveBeenCalled();
-  expect(services.fetchUserPasskeys).not.toHaveBeenCalled();
 });
 
 test("hides the Reactivar row when the cloud answers the user may not be reactivated, even for a session holding reactivate_users", async () => {
@@ -118,7 +110,7 @@ test("treats a reactivation 404 as already resolved, refetching the user", async
   expect(screen.getByText("Inactivo").query()).toBeNull();
 });
 
-test("reactivating reads the user, the roles and the passkeys again from the server", async () => {
+test("reactivating reads the user and the roles again from the server", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser)
     .mockResolvedValueOnce({ kind: "ok", value: sofia })
@@ -132,7 +124,6 @@ test("reactivating reads the user, the roles and the passkeys again from the ser
 
   await expect.poll(() => vi.mocked(services.fetchUser).mock.calls.length).toBe(2);
   await expect.poll(() => vi.mocked(services.fetchRoles).mock.calls.length).toBe(2);
-  await expect.poll(() => vi.mocked(services.fetchUserPasskeys).mock.calls.length).toBe(2);
 });
 
 test("Reactivar opens the reactivate modal, and Cancelar closes it", async () => {

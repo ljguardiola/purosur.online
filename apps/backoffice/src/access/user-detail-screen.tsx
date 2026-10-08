@@ -1,47 +1,50 @@
 import {
   Button,
-  EmptyState,
-  IconButton,
   InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
+  type LoadStatus,
   Tag,
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
-import { KeyRound, Laptop, Pencil, Trash2, UserCheck, UserX } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Pencil, UserCheck, UserX } from "lucide-react";
+import { type ComponentType, Suspense, useEffect, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { combineCloudData } from "../platform/combine-cloud-data";
-import type { Passkey } from "../platform/passkey-list";
-import { passkeyRowDetail } from "../platform/passkey-row-detail";
 import { roleDisplayName } from "../platform/role-display-name";
 import type { CloudData } from "../platform/use-cloud-query";
 import { type BackofficeAccess, canManageUsers } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import {
-  type PasskeyList,
   type UserRead,
   useRefreshAccess,
   useReloadUser,
   useRolesQuery,
-  useUserPasskeysQuery,
   useUserQuery,
 } from "./access-queries";
 import { DeactivateUserModal } from "./deactivate-user-modal";
 import { EditUserModal } from "./edit-user-modal";
 import { ReactivateUserModal } from "./reactivate-user-modal";
-import { RemoveUserPasskeyModal } from "./remove-user-passkey-modal";
 import type { UserDetailScreenServices } from "./user-detail-services";
-import { UserPinSection } from "./user-pin-section";
 import type { BranchUserRole } from "./users-api";
+
+export type UserCredentialSectionsProps = {
+  userId: string;
+  user: { id: string; firstName: string; mayRemovePasskey: boolean } | undefined;
+  dataStatus: LoadStatus;
+  showsPasskeys: boolean;
+  showsPin: boolean;
+  onSessionEnded: () => void;
+  onUserOutdated: () => void;
+};
 
 export type UserDetailScreenProps = {
   userId: string;
   signedInUserId: string;
   access: BackofficeAccess;
   onSessionEnded: () => void;
-  now?: () => Date;
+  credentialSections: ComponentType<UserCredentialSectionsProps>;
   services: UserDetailScreenServices;
 };
 
@@ -56,22 +59,14 @@ export function UserDetailScreen(props: UserDetailScreenProps) {
 }
 
 function AdministratorUserDetail(props: UserDetailScreenProps) {
-  const { userId, onSessionEnded, now } = props;
-  const { fetchUser, fetchRoles, fetchUserPasskeys } = props.services;
+  const { userId, onSessionEnded } = props;
+  const { fetchUser, fetchRoles } = props.services;
   const data = combineCloudData(
     useUserQuery({ userId, fetchUser, onSessionEnded }),
     useRolesQuery({ fetchRoles, onSessionEnded }),
   );
-  const passkeys = useUserPasskeysQuery({
-    userId,
-    fetchUserPasskeys,
-    now: now ?? (() => new Date()),
-    onSessionEnded,
-  });
   const [userRead, roles] = data.status === "loaded" ? data.value : [undefined, NO_ROLES];
-  return (
-    <UserDetailView {...props} data={data} userRead={userRead} roles={roles} passkeys={passkeys} />
-  );
+  return <UserDetailView {...props} data={data} userRead={userRead} roles={roles} showsPasskeys />;
 }
 
 function ReaderUserDetail(props: UserDetailScreenProps) {
@@ -91,7 +86,7 @@ type UserDetailViewProps = UserDetailScreenProps & {
   data: CloudData<unknown>;
   userRead: UserRead | undefined;
   roles: BranchUserRole[];
-  passkeys?: CloudData<PasskeyList>;
+  showsPasskeys?: boolean;
 };
 
 function UserDetailView({
@@ -103,13 +98,13 @@ function UserDetailView({
   data,
   userRead,
   roles,
-  passkeys,
+  showsPasskeys = false,
+  credentialSections: CredentialSections,
 }: UserDetailViewProps) {
   const navigate = useNavigate();
   const { fetchUser } = services;
   const refreshAccess = useRefreshAccess();
   const reloadUser = useReloadUser({ fetchUser });
-  const [removeTarget, setRemoveTarget] = useState<Passkey | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [deactivateModalOpen, setDeactivateModalOpen] = useState(false);
   const [reactivateModalOpen, setReactivateModalOpen] = useState(false);
@@ -189,58 +184,18 @@ function UserDetailView({
                 </div>
               ) : null}
             </div>
-            {passkeys ? (
-              <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
-                <div className="flex items-center gap-3">
-                  <h2 className="flex-1 text-subheading text-text-accent">Passkeys</h2>
-                </div>
-                {passkeys.status === "loading" && <LoadingPlaceholder variant="list" items={2} />}
-                {passkeys.status === "failed" && (
-                  <LoadFailure {...cloudLoadFailure(passkeys, "las passkeys")} />
-                )}
-                {passkeys.status === "loaded" &&
-                  (passkeys.value.passkeys.length === 0 ? (
-                    <EmptyState
-                      icon={<KeyRound />}
-                      title="No tiene ninguna passkey registrada."
-                      variant="blank"
-                    />
-                  ) : (
-                    <ul className="flex flex-col gap-2">
-                      {passkeys.value.passkeys.map((passkey) => (
-                        <li key={passkey.id} className="flex items-center gap-3">
-                          <span
-                            aria-hidden="true"
-                            className="inline-flex size-icon-lg shrink-0 text-text-subtle"
-                          >
-                            <Laptop />
-                          </span>
-                          <div className="flex flex-1 flex-col gap-1">
-                            <p className="font-semibold text-body text-text">{passkey.name}</p>
-                            <p className="text-text-subtle text-detail">
-                              {passkeyRowDetail(passkey, passkeys.value.loadedAt)}
-                            </p>
-                          </div>
-                          {user?.mayRemovePasskey === true && (
-                            <IconButton
-                              icon={<Trash2 />}
-                              aria-label={`Dar de baja la passkey «${passkey.name}»`}
-                              onPress={() => setRemoveTarget(passkey)}
-                            />
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  ))}
-              </div>
-            ) : null}
-            {showsPinSection ? (
-              <UserPinSection
-                user={user}
-                dataStatus={data.status}
-                onSessionEnded={onSessionEnded}
-                services={services}
-              />
+            {showsPasskeys || showsPinSection ? (
+              <Suspense fallback={<LoadingPlaceholder variant="card" lines={2} />}>
+                <CredentialSections
+                  userId={userId}
+                  user={user}
+                  dataStatus={data.status}
+                  showsPasskeys={showsPasskeys}
+                  showsPin={showsPinSection}
+                  onSessionEnded={onSessionEnded}
+                  onUserOutdated={() => void refreshAccess()}
+                />
+              </Suspense>
             ) : null}
             {user?.mayDeactivate === true && (
               <div className="flex items-center gap-3">
@@ -278,21 +233,6 @@ function UserDetailView({
           </>
         )}
       </ScreenLayout>
-      {user ? (
-        <RemoveUserPasskeyModal
-          target={removeTarget}
-          userId={userId}
-          userName={user.firstName}
-          isOnlyPasskey={passkeys?.status === "loaded" && passkeys.value.passkeys.length === 1}
-          onClose={() => setRemoveTarget(null)}
-          onRemoved={() => {
-            setRemoveTarget(null);
-            void refreshAccess();
-          }}
-          onSessionEnded={onSessionEnded}
-          services={services}
-        />
-      ) : null}
       {user ? (
         <EditUserModal
           open={modalOpen}

@@ -1,5 +1,6 @@
 import { vi } from "vitest";
 import { openSession } from "../../access/test-support/open-session";
+import { UserCredentialSections } from "../../access/user-credential-sections";
 import { permissionCatalogFixture } from "../../platform/test-support/permission-catalog";
 import type { AppServices } from "../app";
 
@@ -140,10 +141,16 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchUser: vi.fn().mockReturnValue(new Promise(() => {})),
       editUser: vi.fn(),
       fetchRoles: vi.fn().mockReturnValue(new Promise(() => {})),
-      fetchUserPasskeys: vi.fn().mockReturnValue(new Promise(() => {})),
-      removeUserPasskey: vi.fn(),
       deactivateUser: vi.fn(),
       reactivateUser: vi.fn(),
+      fetchSessionAuthorizationOptions: vi.fn(),
+      authorizeSession: vi.fn(),
+      startAuthentication: vi.fn(),
+      credentialSections: UserCredentialSections,
+    },
+    userCredentialSections: {
+      fetchUserPasskeys: vi.fn().mockReturnValue(new Promise(() => {})),
+      removeUserPasskey: vi.fn(),
       emitUserPinCode: vi.fn(),
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),
