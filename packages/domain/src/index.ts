@@ -366,6 +366,7 @@ export {
   isCalendarDay,
   isValidCashAmount,
   MAX_CASH_AMOUNT_CENTS,
+  SALE_COMPLETED_EVENT_TYPE,
 } from "./shared/index.js";
 export type {
   AdjustmentReason,
