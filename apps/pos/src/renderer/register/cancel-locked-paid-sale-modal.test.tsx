@@ -120,7 +120,7 @@ describe("CancelLockedPaidSaleModal", () => {
     await dialog.getByRole("button", { name: "Cancelar la venta" }).click();
 
     await expect
-      .element(dialog.getByText("No tenés el permiso de anular ventas con pagos."))
+      .element(dialog.getByText("No tenés el permiso de anular ventas con pagos.").first())
       .toBeVisible();
     expect(onCancelled).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
@@ -171,7 +171,7 @@ describe("CancelLockedPaidSaleModal", () => {
 
     await dialog.getByRole("button", { name: "Cancelar la venta" }).click();
 
-    await expect.element(dialog.getByText(FAILED_NOTICE)).toBeVisible();
+    await expect.element(dialog.getByText(FAILED_NOTICE).first()).toBeVisible();
     expect(onClose).not.toHaveBeenCalled();
   });
 });

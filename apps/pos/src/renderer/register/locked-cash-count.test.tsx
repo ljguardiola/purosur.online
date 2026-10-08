@@ -296,7 +296,7 @@ describe("LockedCashCount", () => {
     await screen.getByRole("dialog").getByRole("button", { name: "Cancelar la venta" }).click();
 
     await expect
-      .element(screen.getByText("No tenés el permiso de anular ventas con pagos."))
+      .element(screen.getByText("No tenés el permiso de anular ventas con pagos.").first())
       .toBeVisible();
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
   });
