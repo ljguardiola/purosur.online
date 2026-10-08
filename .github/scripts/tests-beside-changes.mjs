@@ -67,27 +67,31 @@ export async function runProjectsInTurn({ filesByProject, run }) {
   return passed;
 }
 
+export function projectsOfSpecifications({ root, specifications }) {
+  const projects = new Map();
+  for (const specification of specifications) {
+    const file = relative(root, specification.moduleId).split(sep).join("/");
+    projects.set(file, [...(projects.get(file) ?? []), specification.project.name]);
+  }
+  return projects;
+}
+
 async function projectsByTestFile(root) {
   const { createVitest } = await import("vitest/node");
   const vitest = await createVitest("test", { root, watch: false });
   try {
-    const projects = new Map();
-    for (const specification of await vitest.globTestSpecifications()) {
-      const file = relative(root, specification.moduleId).split(sep).join("/");
-      projects.set(file, [...(projects.get(file) ?? []), specification.project.name]);
-    }
-    return projects;
+    return projectsOfSpecifications({
+      root,
+      specifications: await vitest.globTestSpecifications(),
+    });
   } finally {
     await vitest.close();
   }
 }
 
-function runVitest(root, args) {
+export function runCommand({ command, args, cwd }) {
   return new Promise((resolve) => {
-    const child = spawn(join(root, "node_modules/.bin/vitest"), args, {
-      cwd: root,
-      stdio: "inherit",
-    });
+    const child = spawn(command, args, { cwd, stdio: "inherit" });
     child.on("close", (code) => resolve(code === 0));
   });
 }
@@ -136,7 +140,7 @@ async function runCli(requestedFiles) {
     projects: await projectsByTestFile(root),
     changedFiles: changedFilesSince({ base: resolveBaseRef(process.env), runGit }),
     requestedFiles,
-    run: (args) => runVitest(root, args),
+    run: (args) => runCommand({ command: join(root, "node_modules/.bin/vitest"), args, cwd: root }),
     log: console.log,
   });
 }
