@@ -702,6 +702,7 @@ describe("startServer", () => {
       buildApp,
       setUpRecovery,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       now,
     });
 
@@ -935,6 +936,7 @@ describe("startServer checking the certificate's expiry", () => {
       buildApp: vi.fn().mockReturnValue(fakeApp),
       setUpRecovery: vi.fn().mockResolvedValue(recovery),
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueArcaCertificateExpiryCheck,
     });
 
@@ -1004,6 +1006,7 @@ describe("startServer with the ARCA private key", () => {
       buildApp: vi.fn().mockReturnValue(fakeApp),
       setUpRecovery,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
     });
     return { started, setUpRecovery };
   }
@@ -1191,6 +1194,7 @@ describe("startServer fetching the buyer tax-status values", () => {
       buildApp: vi.fn().mockReturnValue(fakeApp),
       setUpRecovery,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueBuyerTaxStatusFetch,
     });
     return { started, steps, recovery, setUpRecovery, enqueueBuyerTaxStatusFetch };
@@ -1416,6 +1420,7 @@ describe("startServer with the real app", () => {
         buildApp: buildAppWithoutListening,
         setUpRecovery,
         recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+        enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       },
     );
 
@@ -1673,6 +1678,7 @@ describe("startServer ARCA endpoints", () => {
         buildApp: vi.fn().mockReturnValue(fakeApp),
         setUpRecovery,
         recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+        enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
         arcaEndpoints,
       },
     );
