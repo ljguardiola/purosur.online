@@ -1052,6 +1052,65 @@ test("tells which register runs a version the cloud no longer accepts, and which
   await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
 });
 
+test("tells a quiet register's alert in plain language: what it is, what it means and what to do", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "register_silent",
+        level: "critical",
+        audience: "local",
+        scope: "register-1",
+        scopeDisplay: "Caja 1",
+        detail: { deviceId: "device-1", lastAcceptedPushAt: "2026-01-05T11:30:00.000Z" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText("La caja no está sincronizando", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Hace rato que esta caja no logra mandar nada a la nube durante el horario de atención.",
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Se puede seguir vendiendo con normalidad. Revisar la conexión a internet del local; en cuanto vuelva, la caja se pone al día sola. El Administrador ya fue avisado.",
+      ),
+    )
+    .toBeVisible();
+  await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+});
+
+test("shows the fixed plain-language text only for an alert the cloud says is for the Local audience", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "register_silent",
+        level: "critical",
+        audience: "all",
+        scope: "register-1",
+        scopeDisplay: "Caja 1",
+        detail: { deviceId: "device-1", lastAcceptedPushAt: null },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("La caja no está sincronizando")).not.toBeInTheDocument();
+  await expect.element(screen.getByText(/Hace rato que esta caja/)).not.toBeInTheDocument();
+});
+
 test("names the homologation environment of an expiring ARCA certificate", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
