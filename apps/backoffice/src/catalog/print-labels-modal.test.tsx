@@ -273,6 +273,18 @@ test("the stepper increments and decrements between 0 and 999, disabling each bo
   await expect.poll(() => dialog.getByText("999", { exact: true }).query()).not.toBeNull();
 });
 
+test("starts a product whose id shares its name with a member every object has at no labels", async () => {
+  const services = createServices();
+  const product = { ...honeyWithInternalBarcode, id: "constructor" };
+  const screen = await renderModal(services, { products: [product] });
+  const dialog = await openPrintLabelsModal(screen);
+
+  await expect
+    .element(dialog.getByRole("button", { name: `Restar una etiqueta de ${product.name}` }))
+    .toBeDisabled();
+  await expect.element(dialog.getByText("0", { exact: true })).toBeVisible();
+});
+
 test("totals and pluralizes the summary as counts change", async () => {
   const services = createServices();
   const screen = await renderModal(services, {

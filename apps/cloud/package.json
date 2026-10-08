@@ -17,13 +17,14 @@
     "create-first-administrator": "node dist/create-first-administrator.js",
     "load-sample-data": "node dist/load-sample-data.js",
     "clear-sample-data": "node dist/clear-sample-data.js",
+    "check:arca-test-environment": "node dist/check-arca-test-environment.js",
     "record:arca-responses": "node dist/record-arca-responses.js"
   },
   "dependencies": {
     "@fastify/static": "^10.1.4",
     "@purosur/contracts": "workspace:*",
     "@purosur/domain": "workspace:*",
-    "@sentry/node": "^10.75.0",
+    "@sentry/node": "^11.4.0",
     "@simplewebauthn/server": "^14.0.3",
     "drizzle-orm": "^0.45.3",
     "fastify": "^5.12.5",

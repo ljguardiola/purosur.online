@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { normalizePemNewlines } from "../platform/pem-newlines.js";
 import { requireAuthorizedCuit } from "../server.js";
+import { arcaCredentialsOf } from "./arca-credentials.js";
 import { type ScrubReplacement, scrubArcaRecording } from "./scrub-arca-recording.js";
 import { ArcaWsaaAuthentication } from "./wsaa-authentication.js";
 import { WsfeArcaVitalityService } from "./wsfe-arca-vitality-service.js";
@@ -32,13 +32,9 @@ export function recordingSettingsOf(
   if (rest.length > 0) {
     return { kind: "refused", reason: "only --out <directory> is accepted" };
   }
-  const certificate = env["ARCA_CERTIFICATE"];
-  const privateKey = env["ARCA_PRIVATE_KEY"];
-  if (!certificate) {
-    return { kind: "refused", reason: "ARCA_CERTIFICATE is not set" };
-  }
-  if (!privateKey) {
-    return { kind: "refused", reason: "ARCA_PRIVATE_KEY is not set" };
+  const credentials = arcaCredentialsOf(env);
+  if (credentials.kind === "refused") {
+    return credentials;
   }
   let cuit: string;
   try {
@@ -50,8 +46,8 @@ export function recordingSettingsOf(
     kind: "ready",
     settings: {
       outDir,
-      certificatePem: normalizePemNewlines(certificate),
-      privateKeyPem: normalizePemNewlines(privateKey),
+      certificatePem: credentials.certificatePem,
+      privateKeyPem: credentials.privateKeyPem,
       cuit,
     },
   };

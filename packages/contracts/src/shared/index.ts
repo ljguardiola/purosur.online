@@ -19,6 +19,7 @@ export {
   scrubErrorReportLog,
 } from "./error-report-scrubbing.js";
 export type { ErrorReportingConfiguration } from "./error-reporting-configuration.js";
+export { errorReportingOptions } from "./error-reporting-options.js";
 export type { IssuerIdentificationBody } from "./issuer-identification.js";
 export { issuerIdentificationSchema } from "./issuer-identification.js";
 export { loadedVersionSchema } from "./loaded-version.js";

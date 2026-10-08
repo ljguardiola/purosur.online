@@ -20,6 +20,15 @@ describe("scrubErrorReport", () => {
     expect(scrubErrorReport(event).request).toBeUndefined();
   });
 
+  it("drops the user entirely, including its identifiers", () => {
+    const event = {
+      message: "unhandled error",
+      user: { id: "user-1", email: "ana@example.test", ip_address: "203.0.113.7" },
+    };
+
+    expect(scrubErrorReport(event)).not.toHaveProperty("user");
+  });
+
   it("drops the HTTP request and response contexts entirely, including their bodies", () => {
     const event = {
       message: "unhandled error",

@@ -1,0 +1,146 @@
+name: Check the tax authority's test environment
+
+# Once a day: a ticket WSAA issues lasts up to 12 hours, so each scheduled run finds the previous
+# one's ticket expired and obtains a new one.
+on:
+  schedule:
+    - cron: "17 9 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: arca-test-environment-check
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: check
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      passed: ${{ steps.check.outcome == 'success' }}
+      found: ${{ steps.found.outputs.text }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm --filter @purosur/cloud build
+
+      # The recording certificate, never the one any cloud deployment authenticates with: WSAA
+      # refuses a second ticket for a certificate while its first one is still valid.
+      - name: Call FEDummy and request a WSAA ticket
+        id: check
+        env:
+          ARCA_CERTIFICATE: ${{ secrets.ARCA_RECORDING_CERTIFICATE }}
+          ARCA_PRIVATE_KEY: ${{ secrets.ARCA_RECORDING_PRIVATE_KEY }}
+        run: |
+          set -o pipefail
+          pnpm --silent --filter @purosur/cloud check:arca-test-environment 2>&1 | tee "$RUNNER_TEMP/arca-check.txt"
+
+      - name: Keep what the check found for the report
+        id: found
+        if: ${{ !cancelled() }}
+        run: |
+          delimiter="arca-check-$(openssl rand -hex 16)"
+          {
+            echo "text<<$delimiter"
+            cat "$RUNNER_TEMP/arca-check.txt" 2>/dev/null || true
+            echo "$delimiter"
+          } >> "$GITHUB_OUTPUT"
+
+  report:
+    name: report
+    needs: check
+    if: ${{ !cancelled() && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          CHECK_PASSED: ${{ needs.check.outputs.passed }}
+          CHECK_FOUND: ${{ needs.check.outputs.found }}
+        with:
+          script: |
+            const { ARCA_CHECK_ISSUE_LABEL, planArcaCheckIssue } = await import(
+              `${process.env.GITHUB_WORKSPACE}/.github/scripts/arca-check-issue.mjs`
+            );
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const open = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: "open",
+              labels: ARCA_CHECK_ISSUE_LABEL,
+            });
+            const plan = planArcaCheckIssue({
+              passed: process.env.CHECK_PASSED === "true",
+              output: process.env.CHECK_FOUND ?? "",
+              runUrl: `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`,
+              openIssues: open
+                .filter((issue) => issue.pull_request === undefined)
+                .map((issue) => ({ number: issue.number })),
+            });
+
+            switch (plan.kind) {
+              case "open": {
+                const { data: issue } = await github.rest.issues.create({
+                  owner,
+                  repo,
+                  title: plan.title,
+                  body: plan.body,
+                  labels: plan.labels,
+                });
+                core.info(`Opened #${issue.number}.`);
+                break;
+              }
+              case "comment":
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: plan.issueNumber,
+                  body: plan.body,
+                });
+                core.info(`Commented on #${plan.issueNumber}.`);
+                break;
+              case "close":
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: plan.issueNumber,
+                  body: plan.body,
+                });
+                await github.rest.issues.update({
+                  owner,
+                  repo,
+                  issue_number: plan.issueNumber,
+                  state: "closed",
+                  state_reason: "completed",
+                });
+                core.info(`Closed #${plan.issueNumber}.`);
+                break;
+              case "none":
+                core.info("The check passed and no issue is open; nothing to do.");
+                break;
+            }
