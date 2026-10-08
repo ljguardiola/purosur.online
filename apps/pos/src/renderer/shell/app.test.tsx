@@ -215,6 +215,9 @@ function coreAnswering(
     async cancelSale() {
       return { kind: "unavailable" };
     },
+    async cancelPaidSale() {
+      return { kind: "unavailable" };
+    },
     async searchProducts(query) {
       return sales.searchProducts === undefined
         ? { kind: "results", products: [], more: false }
