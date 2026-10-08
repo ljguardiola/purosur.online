@@ -1,5 +1,6 @@
 import type {
   AddProductOutcome,
+  CancelPaidSaleOutcome,
   CancelSaleOutcome,
   ChangeLineQuantityOutcome,
   OpenSale,
@@ -95,6 +96,10 @@ export async function renderScreen({ registerName = "Caja 1", ...overrides }: Ov
   const cancelSale =
     overrides.cancelSale ??
     vi.fn(async (): Promise<CancelSaleOutcome> => ({ kind: "unavailable" }));
+  const cancelPaidSale =
+    overrides.cancelPaidSale ??
+    vi.fn(async (): Promise<CancelPaidSaleOutcome> => ({ kind: "unavailable" }));
+  const loadAuthorizers = overrides.loadAuthorizers ?? vi.fn(async () => []);
   const onSessionInvalid = overrides.onSessionInvalid ?? vi.fn();
   const screen = await render(
     <SaleScreen
@@ -110,6 +115,8 @@ export async function renderScreen({ registerName = "Caja 1", ...overrides }: Ov
       changeLineQuantity={changeLineQuantity}
       removeSaleLine={removeSaleLine}
       cancelSale={cancelSale}
+      cancelPaidSale={cancelPaidSale}
+      loadAuthorizers={loadAuthorizers}
       onSessionInvalid={onSessionInvalid}
     />,
   );

@@ -142,6 +142,7 @@ function contextWith(
     changeLineQuantity: async () => ({ kind: "unavailable" }),
     removeSaleLine: async () => ({ kind: "unavailable" }),
     cancelSale: async () => ({ kind: "unavailable" }),
+    cancelPaidSale: async () => ({ kind: "unavailable" }),
     refreshCashSession: async () => {},
   };
 }
