@@ -113,7 +113,7 @@ test("keeps the page itself from scrolling when a screen's content overflows wit
   const screen = await renderShell(
     <ScreenLayout topBar={<p>screen bar</p>} bodyClassName="gap-2 p-4">
       {labels.map((label) => (
-        <Checkbox key={label} checked={false} onCheckedChange={() => {}}>
+        <Checkbox name="returnLine" key={label} checked={false} onCheckedChange={() => {}}>
           {label}
         </Checkbox>
       ))}

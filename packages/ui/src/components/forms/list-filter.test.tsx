@@ -16,6 +16,7 @@ const options: [Option<Status>, Option<Status>, Option<Status>] = [
 
 function baseProps(overrides: Partial<ListFilterProps<Status>> = {}): ListFilterProps<Status> {
   return {
+    name: "status",
     label: "Estado",
     options,
     value: "all",
@@ -185,7 +186,7 @@ test("keeps the menu at the 200px floor when the trigger is narrower than that",
     { value: "b", label: "B" },
   ];
   const screen = await render(
-    <ListFilter label="X" options={narrowOptions} value="a" onChange={() => {}} />,
+    <ListFilter name="status" label="X" options={narrowOptions} value="a" onChange={() => {}} />,
   );
   const trigger = screen.getByRole("button", { name: /X/ });
 
@@ -207,6 +208,7 @@ test("matches the menu to a trigger wider than 200px", async () => {
   ];
   const screen = await render(
     <ListFilter
+      name="status"
       label="A rather long filter label"
       options={wideOptions}
       value="a"
@@ -233,7 +235,7 @@ test("caps the trigger at a constrained parent's own width instead of growing pa
   ];
   const screen = await render(
     <div style={{ width: "200px", display: "flex" }}>
-      <ListFilter label="Estado" options={options} value="a" onChange={() => {}} />
+      <ListFilter name="status" label="Estado" options={options} value="a" onChange={() => {}} />
     </div>,
   );
   const triggerLocator = screen.getByRole("button", { name: /Estado/ });
@@ -254,7 +256,7 @@ test("caps the trigger at a constrained parent's own width instead of growing pa
 test("keeps the label whole and the chevron flush, with no gap, when the chosen value is narrower than its own floor", async () => {
   const narrow: [Option<string>] = [{ value: "a", label: "8" }];
   const screen = await render(
-    <ListFilter label="Estado" options={narrow} value="a" onChange={() => {}} />,
+    <ListFilter name="status" label="Estado" options={narrow} value="a" onChange={() => {}} />,
   );
   const trigger = screen.getByRole("button", { name: /Estado/ }).element() as HTMLElement;
   const label = trigger.children[0] as HTMLElement;
@@ -274,7 +276,7 @@ test("keeps the same visible gap before the chevron for a value shorter than its
     { value: "b", label: "Otro" },
   ];
   const screen = await render(
-    <ListFilter label="Estado" options={narrow} value="a" onChange={() => {}} />,
+    <ListFilter name="status" label="Estado" options={narrow} value="a" onChange={() => {}} />,
   );
   const trigger = screen.getByRole("button", { name: /Estado/ }).element() as HTMLElement;
   const value = trigger.children[1] as HTMLElement;
@@ -298,6 +300,7 @@ test("keeps the label whole and lets the value alone truncate when there's room 
   const screen = await render(
     <div style={{ width: "300px", display: "flex" }}>
       <ListFilter
+        name="status"
         label="Forma de pago del pedido"
         options={longOption}
         value="a"
@@ -332,6 +335,7 @@ test("truncates the label too, and pins the value at exactly its own floor, once
   const screen = await render(
     <div style={{ width: "90px", display: "flex" }}>
       <ListFilter
+        name="status"
         label="Forma de pago del pedido"
         options={options}
         value="all"
@@ -391,7 +395,13 @@ test("scrolls a long options list inside the popover instead of painting it past
     label: `Option ${i}`,
   })) as [Option<string>, ...Option<string>[]];
   const screen = await render(
-    <ListFilter label="Many" options={manyOptions} value="opt0" onChange={() => {}} />,
+    <ListFilter
+      name="status"
+      label="Many"
+      options={manyOptions}
+      value="opt0"
+      onChange={() => {}}
+    />,
   );
   await screen.getByRole("button", { name: /Many/ }).click();
 
@@ -416,7 +426,13 @@ test("scrolls the popover to keep a keyboard-focused option below the fold visib
     label: `Option ${i}`,
   })) as [Option<string>, ...Option<string>[]];
   const screen = await render(
-    <ListFilter label="Many" options={manyOptions} value="opt0" onChange={() => {}} />,
+    <ListFilter
+      name="status"
+      label="Many"
+      options={manyOptions}
+      value="opt0"
+      onChange={() => {}}
+    />,
   );
   await userEvent.tab();
   await userEvent.keyboard("{ArrowDown}");
@@ -445,7 +461,7 @@ test("truncates a long option label instead of wrapping it over its own 40px row
     { value: "b", label: "Otro" },
   ];
   const screen = await render(
-    <ListFilter label="Estado" options={options} value="b" onChange={() => {}} />,
+    <ListFilter name="status" label="Estado" options={options} value="b" onChange={() => {}} />,
   );
   await screen.getByRole("button", { name: /Estado/ }).click();
 
@@ -605,7 +621,7 @@ test("keeps only the last option with a given value, everywhere, when a caller p
   ];
   const onChange = vi.fn();
   const screen = await render(
-    <ListFilter label="X" options={dupOptions} value="b" onChange={onChange} />,
+    <ListFilter name="status" label="X" options={dupOptions} value="b" onChange={onChange} />,
   );
   const trigger = screen.getByRole("button", { name: /X/ });
 
@@ -712,16 +728,19 @@ test("does not accept a filter without a label, its options, a chosen value or a
     onChange: (value: Status) => void;
   }>().not.toExtend<ListFilterProps<Status>>();
   expectTypeOf<{
+    name: string;
     label: string;
     value: Status;
     onChange: (value: Status) => void;
   }>().not.toExtend<ListFilterProps<Status>>();
   expectTypeOf<{
+    name: string;
     label: string;
     options: typeof options;
     onChange: (value: Status) => void;
   }>().not.toExtend<ListFilterProps<Status>>();
   expectTypeOf<{
+    name: string;
     label: string;
     options: typeof options;
     value: Status;
@@ -730,6 +749,7 @@ test("does not accept a filter without a label, its options, a chosen value or a
 
 test("does not accept an empty options list", () => {
   expectTypeOf<{
+    name: string;
     label: string;
     options: [];
     value: Status;
@@ -770,4 +790,14 @@ test("cannot widen V through `value` at a real call site with no explicit type a
 
 test("reports the chosen option's value", () => {
   expectTypeOf<ListFilterProps<Status>["onChange"]>().parameters.toEqualTypeOf<[Status]>();
+});
+
+test("names the native select it renders for form submission with the name it is given", async () => {
+  const screen = await render(<ListFilter {...baseProps({ name: "status" })} />);
+
+  expect(screen.container.querySelector("select")?.getAttribute("name")).toBe("status");
+});
+
+test("requires a name", () => {
+  expectTypeOf<Omit<ListFilterProps<Status>, "name">>().not.toExtend<ListFilterProps<Status>>();
 });

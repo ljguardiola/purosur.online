@@ -148,7 +148,13 @@ test("lays the chips out as one row of equally wide chips 8px apart", async () =
 test("matches a select beside it in label, label spacing and height", async () => {
   const screen = await render(
     <>
-      <Select label="Kind" options={[{ value: "a", label: "A" }]} value="a" onChange={() => {}} />
+      <Select
+        name="role"
+        label="Kind"
+        options={[{ value: "a", label: "A" }]}
+        value="a"
+        onChange={() => {}}
+      />
       <ToggleChipGroup {...baseProps()} />
     </>,
   );

@@ -19,8 +19,9 @@ function SampleFields() {
   return (
     <div className="flex flex-col gap-4">
       <TextField kind="plain-text" label="Motivo" value="" onChange={() => {}} />
-      <DateField label="Vencimiento" value={null} onChange={() => {}} />
+      <DateField name="expiry" label="Vencimiento" value={null} onChange={() => {}} />
       <Select
+        name="role"
         label="Rol"
         options={[{ value: "a", label: "Administrador" }]}
         value="a"
@@ -30,6 +31,7 @@ function SampleFields() {
         <p>Miel</p>
       </FieldGroup>
       <QuantityUnitField
+        name="netContent"
         label="Contenido neto"
         quantity="380"
         onQuantityChange={() => {}}

@@ -13,12 +13,19 @@ test("draws the label, gap, box and value at the backoffice size, identically fo
     <FieldSizeProvider size="backoffice">
       <TextField kind="plain-text" label="Text" value="" onChange={() => {}} />
       <TextField kind="plain-text" label="Suffixed" value="30" onChange={() => {}} suffix="días" />
-      <DateField label="Date" value={null} onChange={() => {}} />
-      <Select label="Choice" options={[{ value: "a", label: "A" }]} value="a" onChange={() => {}} />
+      <DateField name="expiry" label="Date" value={null} onChange={() => {}} />
+      <Select
+        name="role"
+        label="Choice"
+        options={[{ value: "a", label: "A" }]}
+        value="a"
+        onChange={() => {}}
+      />
       <FieldGroup label="Group">
         <p>Miel</p>
       </FieldGroup>
       <QuantityUnitField
+        name="netContent"
         label="Contenido neto"
         quantity="380"
         onQuantityChange={() => {}}

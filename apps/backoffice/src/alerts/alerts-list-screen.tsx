@@ -210,6 +210,7 @@ export function AlertsListScreen({
             />
           </div>
           <ListFilter
+            name="level"
             label="Nivel"
             options={LEVEL_FILTER_OPTIONS}
             value={levelFilter}
@@ -219,6 +220,7 @@ export function AlertsListScreen({
             }}
           />
           <ListFilter
+            name="status"
             label="Estado"
             options={STATUS_FILTER_OPTIONS}
             value={statusFilter}

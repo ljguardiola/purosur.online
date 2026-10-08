@@ -12,6 +12,7 @@ import { fieldTriggerHoverClassName } from "./field-styles";
 import { isOptionValue, type NarrowedOption, type OptionChoiceProps } from "./option";
 
 export type ListFilterProps<V extends string> = OptionChoiceProps<V, NarrowedOption<V>> & {
+  name: string;
   label: string;
 };
 
@@ -32,6 +33,7 @@ const optionClassName =
   "text-text outline-none data-hovered:bg-surface-subtle data-focus-visible:bg-surface-subtle";
 
 export function ListFilter<V extends string>({
+  name,
   label,
   options,
   value,
@@ -44,6 +46,7 @@ export function ListFilter<V extends string>({
 
   return (
     <AriaSelect
+      name={name}
       // A flex item's default min-width is its unwrapped content width, which would keep this
       // from ever shrinking below that regardless of the trigger's own max-w-full.
       className="min-w-0"

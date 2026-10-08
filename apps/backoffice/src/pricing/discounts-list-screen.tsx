@@ -278,12 +278,14 @@ export function DiscountsListScreen({
             />
           </div>
           <ListFilter
+            name="kind"
             label="Tipo:"
             options={kindFilterOptions}
             value={kindFilter}
             onChange={setKindFilter}
           />
           <ListFilter
+            name="status"
             label="Estado:"
             options={statusFilterOptions}
             value={statusFilter}
