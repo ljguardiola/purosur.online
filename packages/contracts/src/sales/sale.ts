@@ -54,6 +54,7 @@ export const saleSchema = z.object({
   lines_editable: z.boolean(),
   cancellable: z.boolean(),
   refunds_on_cancel: z.array(plannedRefundSchema),
+  cancel_authorization_required: z.boolean(),
   charge_refusal: z
     .discriminatedUnion("kind", [reachesThresholdRefusal, noThresholdRefusal])
     .nullable(),
