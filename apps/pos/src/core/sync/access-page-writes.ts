@@ -1,5 +1,5 @@
 import type { SyncChange } from "@purosur/contracts";
-import { replacePin } from "@purosur/domain/access/use-cases";
+import { replacePin } from "@purosur/domain/credentials/use-cases";
 import { derivePinVerifier } from "../access/pin-verifier";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";

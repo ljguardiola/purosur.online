@@ -2,11 +2,10 @@ import { sessionAuthenticationBodySchema } from "@purosur/contracts";
 import {
   admitSignInAttempt,
   confirmRejectedSignInAttempt,
-  consumeSignInChallenge,
   recordSignInLockout,
-  signInWithPasskey,
   type TrippedSignInLockout,
 } from "@purosur/domain/access/use-cases";
+import { consumeSignInChallenge, signInWithPasskey } from "@purosur/domain/credentials/use-cases";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply } from "fastify";

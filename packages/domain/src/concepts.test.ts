@@ -6,6 +6,7 @@ const CONCEPTS = [
   "access",
   "permissions",
   "users",
+  "credentials",
   "sales",
   "returns",
   "payments",

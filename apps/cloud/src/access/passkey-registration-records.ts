@@ -2,7 +2,7 @@ import {
   PasskeyAlreadyRegistered,
   type RecoveredPasskey,
   type RegisteredPasskey,
-} from "@purosur/domain/access/use-cases";
+} from "@purosur/domain/credentials/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
 import { auditLog, passkeys } from "../platform/db/schema.js";

@@ -4,7 +4,7 @@ import type {
   PinCodeStore,
   PinCodeStoreTransaction,
   PinCodeTarget,
-} from "@purosur/domain/access/use-cases";
+} from "@purosur/domain/credentials/use-cases";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {

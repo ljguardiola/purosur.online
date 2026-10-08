@@ -3,7 +3,7 @@ import type {
   PendingPasskeyChallengeSlot,
   PendingPasskeyChallengeStore,
   PendingPasskeyChallengeStoreTransaction,
-} from "@purosur/domain/access/use-cases";
+} from "@purosur/domain/credentials/use-cases";
 import { and, eq, inArray, lte } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { passkeyChallenges } from "../platform/db/schema.js";

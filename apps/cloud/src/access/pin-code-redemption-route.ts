@@ -5,7 +5,7 @@ import {
   pinCodeRedemptionSchema,
 } from "@purosur/contracts";
 import { PIN_MIN_DIGITS } from "@purosur/domain";
-import { redeemPinCode } from "@purosur/domain/access/use-cases";
+import { redeemPinCode } from "@purosur/domain/credentials/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { readValidatedBody } from "../platform/request-body-schema.js";

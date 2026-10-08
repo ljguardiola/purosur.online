@@ -1,4 +1,4 @@
-import type { PasskeyHolderScope, PasskeyHolders } from "@purosur/domain/access/use-cases";
+import type { PasskeyHolderScope, PasskeyHolders } from "@purosur/domain/credentials/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { drizzleBranchUsers } from "../users/drizzle-branch-users.js";
 

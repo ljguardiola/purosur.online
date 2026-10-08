@@ -2,7 +2,7 @@ import type {
   PasskeyAssertionVerification,
   PasskeyAssertionVerifier,
   VerifiablePasskey,
-} from "@purosur/domain/access/use-cases";
+} from "@purosur/domain/credentials/use-cases";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
 import { verifyAuthenticationResponse } from "@simplewebauthn/server";
 import type { WebAuthnConfig } from "./webauthn-config.js";

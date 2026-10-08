@@ -1,5 +1,5 @@
 import { sessionAuthenticationOptionsSchema } from "@purosur/contracts";
-import { issueSignInChallenge } from "@purosur/domain/access/use-cases";
+import { issueSignInChallenge } from "@purosur/domain/credentials/use-cases";
 import { generateAuthenticationOptions } from "@simplewebauthn/server";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";

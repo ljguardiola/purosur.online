@@ -1,4 +1,4 @@
-import type { RejectedAttemptFlushStoreTransaction } from "@purosur/domain/access/use-cases";
+import type { RejectedAttemptFlushStoreTransaction } from "@purosur/domain/credentials/use-cases";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   auditLog,

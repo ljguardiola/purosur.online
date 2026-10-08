@@ -3,7 +3,7 @@ import type {
   PasskeyRemovalStore,
   PasskeyRemovalStoreTransaction,
   RemovedPasskey,
-} from "@purosur/domain/access/use-cases";
+} from "@purosur/domain/credentials/use-cases";
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";

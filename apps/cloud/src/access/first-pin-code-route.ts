@@ -4,7 +4,7 @@ import {
   firstPinCodeBodySchema,
   firstPinCodeSchema,
 } from "@purosur/contracts";
-import { emitFirstPinCode } from "@purosur/domain/access/use-cases";
+import { emitFirstPinCode } from "@purosur/domain/credentials/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { readValidatedBody } from "../platform/request-body-schema.js";

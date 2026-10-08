@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { issueRecoveryToken } from "@purosur/domain/access/use-cases";
+import { issueRecoveryToken } from "@purosur/domain/credentials/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { DrizzleRecoveryTokenStore } from "./drizzle-recovery-token-store.js";
 import type { SendRecoveryLinkInput } from "./recovery-email-sender.js";

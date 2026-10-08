@@ -5,7 +5,7 @@ import type {
   PasskeyRegistrationStoreTransaction,
   RecoveredPasskey,
   RegisteredPasskey,
-} from "@purosur/domain/access/use-cases";
+} from "@purosur/domain/credentials/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   addPasskey,

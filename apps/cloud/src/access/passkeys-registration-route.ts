@@ -9,7 +9,7 @@ import {
   issuePendingPasskeyChallenge,
   listPasskeyCredentials,
   registerPasskey,
-} from "@purosur/domain/access/use-cases";
+} from "@purosur/domain/credentials/use-cases";
 import type { RegistrationResponseJSON } from "@simplewebauthn/server";
 import { generateRegistrationOptions, verifyRegistrationResponse } from "@simplewebauthn/server";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";

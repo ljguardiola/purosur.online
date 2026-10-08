@@ -1,5 +1,5 @@
 import { passkeyListSchema } from "@purosur/contracts";
-import { listOwnPasskeys } from "@purosur/domain/access/use-cases";
+import { listOwnPasskeys } from "@purosur/domain/credentials/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "./backoffice-origin.js";

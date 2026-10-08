@@ -3,7 +3,7 @@ import type {
   PasskeyUseRecording,
   SessionAuthorizationStore,
   SessionAuthorizationStoreTransaction,
-} from "@purosur/domain/access/use-cases";
+} from "@purosur/domain/credentials/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { sessions } from "../platform/db/schema.js";

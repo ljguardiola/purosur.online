@@ -7,7 +7,7 @@ import type {
   PinCodeRedemptionAttemptKey,
   PinCodeRedemptionStore,
   PinCodeRedemptionStoreTransaction,
-} from "@purosur/domain/access/use-cases";
+} from "@purosur/domain/credentials/use-cases";
 import { and, desc, eq, gt, lte, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {

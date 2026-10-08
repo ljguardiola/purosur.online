@@ -3,7 +3,7 @@ import type {
   RejectedAttemptFlushStore,
   RejectedAttemptFlushStoreTransaction,
   RejectedAttemptWindow,
-} from "@purosur/domain/access/use-cases";
+} from "@purosur/domain/credentials/use-cases";
 import { and, asc, inArray, lte, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {

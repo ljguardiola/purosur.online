@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { emitUserPinCode, redeemPinCode } from "@purosur/domain/access/use-cases";
+import { emitUserPinCode, redeemPinCode } from "@purosur/domain/credentials/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";

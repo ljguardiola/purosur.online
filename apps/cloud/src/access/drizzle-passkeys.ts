@@ -3,7 +3,7 @@ import type {
   Passkeys,
   RegisteredCredential,
   SignInPasskey,
-} from "@purosur/domain/access/use-cases";
+} from "@purosur/domain/credentials/use-cases";
 import { and, asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { passkeys } from "../platform/db/schema.js";

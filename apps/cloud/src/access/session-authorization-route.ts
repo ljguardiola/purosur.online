@@ -7,7 +7,7 @@ import {
   consumePendingPasskeyChallenge,
   issuePendingPasskeyChallenge,
   listPasskeyCredentials,
-} from "@purosur/domain/access/use-cases";
+} from "@purosur/domain/credentials/use-cases";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
 import { generateAuthenticationOptions } from "@simplewebauthn/server";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";

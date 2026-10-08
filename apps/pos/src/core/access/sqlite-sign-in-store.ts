@@ -3,11 +3,11 @@ import { decodePinSalt } from "@purosur/contracts";
 import type { RoleAccess } from "@purosur/domain";
 import type {
   PinHolder,
-  PinReplacementStore,
   PinSignInFailures,
   PinSignInStore,
   SignablePerson,
 } from "@purosur/domain/access/use-cases";
+import type { PinReplacementStore } from "@purosur/domain/credentials/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 import type { PinCredential } from "./pin-matching";
 

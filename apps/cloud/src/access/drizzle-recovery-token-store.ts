@@ -7,7 +7,7 @@ import type {
   RecoveryTokenStore,
   RecoveryTokenStoreTransaction,
   RejectedRecoveryRequest,
-} from "@purosur/domain/access/use-cases";
+} from "@purosur/domain/credentials/use-cases";
 import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";

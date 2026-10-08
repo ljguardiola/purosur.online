@@ -8,7 +8,7 @@ import type {
   RegisteredCredential,
   RegisteredPasskey,
   RejectedRedemption,
-} from "@purosur/domain/access/use-cases";
+} from "@purosur/domain/credentials/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { auditLog, passkeys, recoveryTokens, users } from "../platform/db/schema.js";

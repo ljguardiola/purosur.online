@@ -5,7 +5,7 @@ import type {
   FirstPinCodeTarget,
   NewPinCode,
   QueuedFirstPinCodeEmail,
-} from "@purosur/domain/access/use-cases";
+} from "@purosur/domain/credentials/use-cases";
 import { and, eq, gt, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { auditLog, registers, userPinCodes, userPins, users } from "../platform/db/schema.js";

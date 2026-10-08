@@ -1,4 +1,4 @@
-import { PasskeyAlreadyRegistered } from "@purosur/domain/access/use-cases";
+import { PasskeyAlreadyRegistered } from "@purosur/domain/credentials/use-cases";
 import { and, asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";

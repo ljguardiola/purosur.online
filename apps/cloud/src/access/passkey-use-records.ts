@@ -1,4 +1,4 @@
-import type { PasskeyUse, PasskeyUseRecording } from "@purosur/domain/access/use-cases";
+import type { PasskeyUse, PasskeyUseRecording } from "@purosur/domain/credentials/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { passkeys } from "../platform/db/schema.js";

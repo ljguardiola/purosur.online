@@ -1,5 +1,5 @@
 import { RECOVERY_RATE_LIMIT_WINDOW_MS } from "@purosur/domain";
-import { flushRejectedAttempts } from "@purosur/domain/access/use-cases";
+import { flushRejectedAttempts } from "@purosur/domain/credentials/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { DrizzleRejectedAttemptFlushStore } from "./drizzle-rejected-attempt-flush-store.js";
 

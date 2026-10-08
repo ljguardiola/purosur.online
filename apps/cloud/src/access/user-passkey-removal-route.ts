@@ -1,4 +1,4 @@
-import { removeUserPasskey } from "@purosur/domain/access/use-cases";
+import { removeUserPasskey } from "@purosur/domain/credentials/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { readRecordIds } from "../platform/record-id-params.js";

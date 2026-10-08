@@ -1,4 +1,4 @@
-import type { QueuedFirstPinCodeEmail } from "@purosur/domain/access/use-cases";
+import type { QueuedFirstPinCodeEmail } from "@purosur/domain/credentials/use-cases";
 import { type SQL, sql } from "drizzle-orm";
 import { FIRST_PIN_CODE_EMAIL_TASK_IDENTIFIER } from "./recovery-worker.js";
 import type { FirstPinCodeEmailJobPayload } from "./send-first-pin-code-email-job.js";

@@ -2,7 +2,7 @@ import type {
   AccountProfile,
   Accounts,
   StoredSignInPasskey,
-} from "@purosur/domain/access/use-cases";
+} from "@purosur/domain/credentials/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { passkeys, users } from "../platform/db/schema.js";

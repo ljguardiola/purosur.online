@@ -1,5 +1,5 @@
 import type { PinCodeRedemption } from "@purosur/contracts";
-import { replacePin } from "@purosur/domain/access/use-cases";
+import { replacePin } from "@purosur/domain/credentials/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 import { derivePinVerifier } from "./pin-verifier";
 import { SqliteSignInStore } from "./sqlite-sign-in-store";
