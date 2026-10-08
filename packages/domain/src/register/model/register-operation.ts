@@ -12,6 +12,7 @@ type OpenSession = { openedBy: string };
 export type RegisterOperation =
   | { kind: "open_cash_session" }
   | { kind: "sell" }
+  | { kind: "cancel_paid_sale" }
   | { kind: "record_cash_movement"; movement: CashMovementKind }
   | { kind: "close_cash_session"; session: OpenSession }
   | { kind: "close_locked_register"; session: OpenSession | undefined };
@@ -28,6 +29,7 @@ export type RegisterOperationAccess =
   | { kind: "no_access" };
 
 const SELLING_PERMISSION = "sell_and_charge";
+const VOID_SALE_PERMISSION = "void_sale";
 
 const PERMITTED = { kind: "permitted" } as const;
 const REFUSED = { kind: "refused" } as const;
@@ -55,6 +57,12 @@ export function registerOperationAccess(
         : holdsPermission(actor.access, SELLING_PERMISSION)
           ? PERMITTED
           : REFUSED;
+    case "cancel_paid_sale":
+      return actor.access === undefined
+        ? NO_ACCESS
+        : holdsPermission(actor.access, VOID_SALE_PERMISSION)
+          ? PERMITTED
+          : { kind: "needs_authorization", permission: VOID_SALE_PERMISSION };
     case "record_cash_movement": {
       if (actor.access === undefined) {
         return NO_ACCESS;
@@ -72,6 +80,8 @@ export function mayAuthorize(
   authorizer: { id: string; access: RoleAccess },
 ): boolean {
   switch (operation.kind) {
+    case "cancel_paid_sale":
+      return holdsPermission(authorizer.access, VOID_SALE_PERMISSION);
     case "record_cash_movement":
       return holdsPermission(authorizer.access, cashMovementPermission(operation.movement));
     case "close_locked_register":

@@ -22,6 +22,8 @@ interface TransferPayment extends ApprovedPayment {
 
 export type PaymentTransaction = CashPayment | TransferPayment;
 
+export type PaymentMethod = PaymentTransaction["method"];
+
 export function hasApprovedPayment(payments: readonly { state: string }[]): boolean {
   return payments.some((payment) => payment.state === "APPROVED");
 }

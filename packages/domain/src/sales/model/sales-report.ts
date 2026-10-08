@@ -40,3 +40,7 @@ export function salesReportTotals(days: readonly SalesOfDay[]): SalesReportTotal
     total: days.reduce((sum, day) => sum + day.total, 0),
   };
 }
+
+export function countsInSalesReport(saleState: string): boolean {
+  return saleState === "COMPLETED";
+}
