@@ -13,6 +13,69 @@ import type {
 
 type CompletedSalePayload = SyncedEventPayloads["sale_completed@1" | "sale_completed@2"];
 type SalePayment = SyncedEventPayloads["sale_completed@1"]["payments"][number];
+type CancelledSalePayload = SyncedEventPayloads["sale_cancelled@1"];
+
+function saleParts(payload: CompletedSalePayload | CancelledSalePayload) {
+  return {
+    lines: payload.lines.map((line) => ({
+      id: line.id,
+      productId: line.product_id,
+      productName: line.product_name,
+      quantity: line.quantity,
+      listUnitPrice: line.list_unit_price,
+      priceListId: line.price_list_id,
+      promotionId: line.promotion_id,
+      discountAmount: line.discount_amount,
+      lineTotal: line.line_total,
+    })),
+    cashMovements: payload.cash_movements.map((movement) => ({
+      id: movement.id,
+      type: movement.type,
+      amount: movement.amount,
+      actorId: movement.actor_id,
+      occurredAt: new Date(movement.occurred_at),
+    })),
+  };
+}
+
+function salePayments(payments: readonly SalePayment[]) {
+  return payments.map((payment) => ({
+    id: payment.id,
+    method: payment.method,
+    provider: payment.provider,
+    amount: payment.amount,
+    tendered: payment.tendered,
+    state: payment.state,
+    occurredAt: new Date(payment.occurred_at),
+    authorizedBy: payment.authorized_by ?? null,
+    confirmedAt: payment.confirmed_at ? new Date(payment.confirmed_at) : null,
+  }));
+}
+
+function cancelledSale(payload: CancelledSalePayload): SyncedFact {
+  return {
+    kind: "sale_cancelled",
+    sale: {
+      id: payload.id,
+      sessionId: payload.session_id,
+      actorId: payload.actor_id,
+      authorizedBy: payload.authorized_by,
+      cancelledAt: new Date(payload.occurred_at),
+      total: payload.total,
+      ...saleParts(payload),
+      payments: salePayments(payload.payments),
+      refunds: payload.refunds.map((refund) => ({
+        id: refund.id,
+        paymentId: refund.parent_id,
+        method: refund.method,
+        provider: refund.provider,
+        amount: refund.amount,
+        state: refund.state,
+        occurredAt: new Date(refund.occurred_at),
+      })),
+    },
+  };
+}
 
 function completedSale(
   payload: CompletedSalePayload,
@@ -27,35 +90,8 @@ function completedSale(
       actorId: payload.actor_id,
       completedAt: new Date(completedAt),
       total: payload.total,
-      lines: payload.lines.map((line) => ({
-        id: line.id,
-        productId: line.product_id,
-        productName: line.product_name,
-        quantity: line.quantity,
-        listUnitPrice: line.list_unit_price,
-        priceListId: line.price_list_id,
-        promotionId: line.promotion_id,
-        discountAmount: line.discount_amount,
-        lineTotal: line.line_total,
-      })),
-      payments: payments.map((payment) => ({
-        id: payment.id,
-        method: payment.method,
-        provider: payment.provider,
-        amount: payment.amount,
-        tendered: payment.tendered,
-        state: payment.state,
-        occurredAt: new Date(payment.occurred_at),
-        authorizedBy: payment.authorized_by ?? null,
-        confirmedAt: payment.confirmed_at ? new Date(payment.confirmed_at) : null,
-      })),
-      cashMovements: payload.cash_movements.map((movement) => ({
-        id: movement.id,
-        type: movement.type,
-        amount: movement.amount,
-        actorId: movement.actor_id,
-        occurredAt: new Date(movement.occurred_at),
-      })),
+      ...saleParts(payload),
+      payments: salePayments(payments),
     },
   };
 }
@@ -68,6 +104,7 @@ const FACT_OF: {
 } = {
   "sale_completed@1": (payload) => completedSale(payload, payload.completed_at, payload.payments),
   "sale_completed@2": (payload) => completedSale(payload, payload.occurred_at, payload.payments),
+  "sale_cancelled@1": cancelledSale,
   "cash_session_opened@1": (payload, event) => ({
     kind: "cash_session_opened",
     session: {

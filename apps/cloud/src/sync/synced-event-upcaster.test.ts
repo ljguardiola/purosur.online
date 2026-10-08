@@ -294,7 +294,7 @@ describe("decoding the events the registers pushed", () => {
                 ...salePayment,
                 method: "TRANSFER",
                 tendered: null,
-                authorized_by: null,
+                authorized_by: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
                 confirmed_at: "2026-10-06T11:21:00.000Z",
               },
             ],
