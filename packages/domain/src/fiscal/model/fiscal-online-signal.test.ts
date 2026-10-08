@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isRegisterFiscallyOnline,
   REGISTER_HEALTH_CHECK_HORIZON_MS,
+  REGISTER_HEALTH_CHECK_INTERVAL_MS,
 } from "./fiscal-online-signal.js";
 
 const NOW = new Date("2026-10-01T12:00:00.000Z");
@@ -12,6 +13,12 @@ const ONLINE = { lastHealthCheckOkAt: ago(1_000), tokenValid: true, arcaReachabl
 describe("REGISTER_HEALTH_CHECK_HORIZON_MS", () => {
   it("counts a register's health check for 15 seconds", () => {
     expect(REGISTER_HEALTH_CHECK_HORIZON_MS).toBe(15_000);
+  });
+});
+
+describe("REGISTER_HEALTH_CHECK_INTERVAL_MS", () => {
+  it("makes a register check its health every 5 seconds", () => {
+    expect(REGISTER_HEALTH_CHECK_INTERVAL_MS).toBe(5_000);
   });
 });
 
