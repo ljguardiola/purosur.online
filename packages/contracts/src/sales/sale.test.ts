@@ -33,6 +33,7 @@ const sale = {
   cancellable: false,
   charge_refusal: null,
   refunds_on_cancel: [],
+  cancel_authorization_required: false,
 };
 
 describe("saleSchema", () => {
@@ -65,6 +66,10 @@ describe("saleSchema", () => {
     ["answer on editing its lines", { ...sale, lines_editable: undefined }],
     ["answer on cancelling it", { ...sale, cancellable: undefined }],
     ["refunds on cancelling it", { ...sale, refunds_on_cancel: undefined }],
+    [
+      "answer on cancelling it needing authorization",
+      { ...sale, cancel_authorization_required: undefined },
+    ],
     ["line id", { ...sale, lines: [{ ...line, id: undefined }] }],
     ["line product id", { ...sale, lines: [{ ...line, product_id: undefined }] }],
     ["line product name", { ...sale, lines: [{ ...line, product_name: undefined }] }],

@@ -211,6 +211,7 @@ describe("sale answers", () => {
     cancellable: true,
     charge_refusal: null,
     refunds_on_cancel: [],
+    cancel_authorization_required: false,
   };
 
   it.each([
@@ -446,6 +447,7 @@ describe("sale line answers", () => {
     cancellable: true,
     charge_refusal: null,
     refunds_on_cancel: [],
+    cancel_authorization_required: false,
   };
 
   it.each([
