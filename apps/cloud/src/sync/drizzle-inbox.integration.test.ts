@@ -4,7 +4,13 @@ import { count, eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { deviceState, inbox, refusedEvents, registerInstallations } from "../platform/db/schema.js";
+import {
+  alerts,
+  deviceState,
+  inbox,
+  refusedEvents,
+  registerInstallations,
+} from "../platform/db/schema.js";
 import { installationKeyCipher } from "../register/installation-key-cipher.js";
 import { insertEnrolledInstallation as enrollInstallation } from "../register/test-support/enrolled-installation.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
@@ -81,14 +87,14 @@ function insertEnrolledInstallation() {
   });
 }
 
-function push(deviceId: string, events: PushedEvent[]) {
+function push(deviceId: string, events: PushedEvent[], appVersion = "1.4.0") {
   return receivePushedEvents(
     {
       inbox: new DrizzleInbox(db, CIPHER, NO_JOB),
       eventChain: hmacEventChain,
       clock: { now: () => NOW },
     },
-    { deviceId, appVersion: "1.4.0", telemetry: TELEMETRY, events },
+    { deviceId, appVersion, telemetry: TELEMETRY, events },
   );
 }
 
@@ -347,3 +353,101 @@ function storedRow(deviceId: string, pushed: PushedEvent): typeof inbox.$inferIn
     receivedAt: NOW,
   };
 }
+
+describe("the inbox reporting how a register stands, on a real Postgres", () => {
+  async function deviceStateOf(deviceId: string) {
+    const [row] = await db.select().from(deviceState).where(eq(deviceState.deviceId, deviceId));
+    return row;
+  }
+
+  it("records the moment of a push it received", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
+
+    await push(deviceId, linked(event(1)));
+
+    expect((await deviceStateOf(deviceId))?.lastAcceptedPushAt).toEqual(NOW);
+  });
+
+  it("leaves the moment of the last accepted push alone when it refuses a push", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
+    await push(deviceId, linked(event(1)));
+    const later = new Date(NOW.getTime() + 60_000);
+
+    await receivePushedEvents(
+      {
+        inbox: new DrizzleInbox(db, CIPHER, NO_JOB),
+        eventChain: hmacEventChain,
+        clock: { now: () => later },
+      },
+      { deviceId, appVersion: "1.4.0", telemetry: TELEMETRY, events: linked(event(5)) },
+    );
+
+    expect((await deviceStateOf(deviceId))?.lastAcceptedPushAt).toEqual(NOW);
+    expect((await deviceStateOf(deviceId))?.lastPushedAt).toEqual(later);
+  });
+
+  it("leaves no accepted push for a register whose version is not accepted", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
+
+    await push(deviceId, linked(event(1)), "not-a-version");
+
+    expect((await deviceStateOf(deviceId))?.lastAcceptedPushAt).toBeNull();
+  });
+
+  it("opens a critical update-required alert for the register, with the device and the version, when its version is not accepted", async () => {
+    const { deviceId, registerId } = await insertEnrolledInstallation();
+
+    await push(deviceId, linked(event(1)), "not-a-version");
+
+    const rows = await db.select().from(alerts).where(eq(alerts.scope, registerId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      kind: "update_required",
+      level: "critical",
+      audience: "all",
+      openedAt: NOW,
+      detail: { deviceId, appVersion: "not-a-version" },
+      conditionClearedAt: null,
+    });
+  });
+
+  it("opens the alert once for as many pushes as the register makes with that version", async () => {
+    const { deviceId, registerId } = await insertEnrolledInstallation();
+
+    await push(deviceId, [], "not-a-version");
+    await push(deviceId, [], "not-a-version");
+
+    const rows = await db.select().from(alerts).where(eq(alerts.scope, registerId));
+    expect(rows).toHaveLength(1);
+  });
+
+  it("marks the alert as cleared when the register reports an accepted version, without resolving it", async () => {
+    const { deviceId, registerId } = await insertEnrolledInstallation();
+    await push(deviceId, [], "not-a-version");
+
+    await push(deviceId, linked(event(1)));
+
+    const [row] = await db.select().from(alerts).where(eq(alerts.scope, registerId));
+    expect(row).toMatchObject({ conditionClearedAt: NOW, resolvedAt: null });
+  });
+
+  it("raises no alert for an accepted version", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
+
+    await push(deviceId, linked(event(1)));
+
+    expect(await db.select().from(alerts)).toEqual([]);
+  });
+
+  it("raises no alert for an installation the cloud revoked", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
+    await db
+      .update(registerInstallations)
+      .set({ revokedAt: NOW, revocationReason: "replaced" })
+      .where(eq(registerInstallations.id, deviceId));
+
+    await push(deviceId, linked(event(1)), "not-a-version");
+
+    expect(await db.select().from(alerts)).toEqual([]);
+  });
+});

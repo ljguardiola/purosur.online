@@ -18,6 +18,7 @@ interface FakeVersionStanding {
   deviceId: string;
   appVersion: string;
   accepted: boolean;
+  at: Date;
 }
 
 export interface FakeInboxState {
@@ -143,9 +144,9 @@ export class FakeInbox implements Inbox {
           working.received.push({ deviceId, event: structuredClone(event), receivedAt });
         }
       },
-      recordVersionStanding: async (deviceId, standing) => {
+      recordVersionStanding: async (deviceId, standing, at) => {
         this.calls.push(`recordVersionStanding ${deviceId}`);
-        working.versionStandings.push({ deviceId, ...standing });
+        working.versionStandings.push({ deviceId, ...standing, at });
       },
       recordAcceptedPush: async (deviceId, at) => {
         this.calls.push(`recordAcceptedPush ${deviceId}`);

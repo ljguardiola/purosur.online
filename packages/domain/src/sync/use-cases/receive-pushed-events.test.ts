@@ -307,7 +307,7 @@ describe("reporting how the register stands", () => {
     await receive(inbox, eventsOf(1), { appVersion: "1.4.0" });
 
     expect(inbox.state.versionStandings).toEqual([
-      { deviceId: DEVICE, appVersion: "1.4.0", accepted: true },
+      { deviceId: DEVICE, appVersion: "1.4.0", accepted: true, at: NOW },
     ]);
   });
 
@@ -317,7 +317,7 @@ describe("reporting how the register stands", () => {
     await receive(inbox, eventsOf(1), { appVersion: "not-a-version" });
 
     expect(inbox.state.versionStandings).toEqual([
-      { deviceId: DEVICE, appVersion: "not-a-version", accepted: false },
+      { deviceId: DEVICE, appVersion: "not-a-version", accepted: false, at: NOW },
     ]);
   });
 
@@ -345,7 +345,7 @@ describe("reporting how the register stands", () => {
 
     for (const inbox of [gap, stale, broken]) {
       expect(inbox.state.versionStandings).toEqual([
-        { deviceId: DEVICE, appVersion: "1.4.0", accepted: true },
+        { deviceId: DEVICE, appVersion: "1.4.0", accepted: true, at: NOW },
       ]);
     }
   });
