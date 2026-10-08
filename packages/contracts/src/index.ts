@@ -280,6 +280,7 @@ export {
   discountPayQtySchema,
   discountPercentSchema,
   encodePinHash,
+  errorReportingOptions,
   issuerIdentificationSchema,
   PIN_HASH_SCHEME,
   pinAttemptRefusalSchema,

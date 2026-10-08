@@ -1,11 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import {
-  scrubErrorReport,
-  scrubErrorReportBreadcrumb,
-  scrubErrorReportLog,
-} from "@purosur/contracts";
 import * as Sentry from "@sentry/electron/main";
 import {
   app,
@@ -29,10 +24,7 @@ import {
   credentialsFileAt,
 } from "./device-credentials";
 import { readDeviceCredentialsRequest } from "./device-credentials-messages";
-import {
-  CHILD_PROCESS_EVENT_REASONS,
-  withoutReplacedDefaultIntegrations,
-} from "./error-reporting-integrations";
+import { initializeErrorReporting } from "./error-reporting";
 import { localDataFolderFor } from "./local-data-folder";
 import { denyDisallowedNavigation, denyWindowOpen } from "./navigation-guard";
 import { reportStartFailure } from "./start-failure";
@@ -43,27 +35,6 @@ import { createWindowOptions } from "./window-options";
 // channel's own folder has to be set before the app is ready.
 function keepDataInChannelFolder(settings: ChannelSettings): void {
   app.setPath("userData", join(app.getPath("appData"), settings.dataFolder));
-}
-
-function initializeErrorReporting(settings: ChannelSettings): void {
-  // Initialized even without a DSN: the renderer and core SDKs always report through main, which
-  // then has nowhere to send anything and drops it.
-  Sentry.init({
-    ...(settings.sentryDsn ? { dsn: settings.sentryDsn } : {}),
-    environment: settings.channel,
-    enableLogs: true,
-    // Protocol mode lets the renderer reach main through a privileged custom scheme. Classic IPC
-    // mode would inject Sentry's own preload, which exposes an API on the page's window.
-    ipcMode: Sentry.IPCMode.Protocol,
-    integrations: (defaults) => [
-      ...withoutReplacedDefaultIntegrations(defaults),
-      Sentry.childProcessIntegration({ events: CHILD_PROCESS_EVENT_REASONS }),
-      Sentry.consoleLoggingIntegration({ levels: ["info", "warn", "error"] }),
-    ],
-    beforeSend: scrubErrorReport,
-    beforeBreadcrumb: scrubErrorReportBreadcrumb,
-    beforeSendLog: scrubErrorReportLog,
-  });
 }
 
 // electron-vite's output layout: the core is a second main-side entry next to index.js; preload
@@ -283,7 +254,7 @@ const channelSettings = loadChannelSettings({
 });
 if (channelSettings.ok) {
   keepDataInChannelFolder(channelSettings.settings);
-  initializeErrorReporting(channelSettings.settings);
+  initializeErrorReporting(channelSettings.settings, Sentry);
   startRegister(channelSettings.settings);
 } else {
   // Without its channel the register can't tell whose data folder to write to, so it refuses to guess.

@@ -209,17 +209,11 @@ for (const { name, specifiers } of UI_FORBIDDEN_PACKAGES) {
   }
 }
 
-const ERROR_REPORT_SCRUBBERS = [
-  "scrubErrorReport",
-  "scrubErrorReportBreadcrumb",
-  "scrubErrorReportLog",
-];
-
-test("apps/pos/src/main: importing the error report scrubbers from @purosur/contracts passes", () => {
+test("apps/pos/src/main: importing errorReportingOptions from @purosur/contracts passes", () => {
   const source = [
-    `import { ${ERROR_REPORT_SCRUBBERS.join(", ")} } from "@purosur/contracts";`,
+    'import { errorReportingOptions } from "@purosur/contracts";',
     "",
-    `export const used = [${ERROR_REPORT_SCRUBBERS.join(", ")}];`,
+    "export const used = errorReportingOptions;",
     "",
   ].join("\n");
 
@@ -231,9 +225,9 @@ test("apps/pos/src/main: importing the error report scrubbers from @purosur/cont
 
 test("apps/pos/src/main: importing anything else from @purosur/contracts fails under verify's flags", () => {
   const source = [
-    'import { rule, scrubErrorReport } from "@purosur/contracts";',
+    'import { errorReportingOptions, scrubErrorReport } from "@purosur/contracts";',
     "",
-    "export const used = [rule, scrubErrorReport];",
+    "export const used = [errorReportingOptions, scrubErrorReport];",
     "",
   ].join("\n");
 
