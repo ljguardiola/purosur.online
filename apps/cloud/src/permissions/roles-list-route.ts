@@ -1,17 +1,17 @@
 import { type RoleSummaryWire, roleSummarySchema } from "@purosur/contracts";
 import { mayEditRole, type PermissionKey, withOneAlertView } from "@purosur/domain";
-import { listRoles, type RoleSummary } from "@purosur/domain/access/use-cases";
+import { listRoles, type RoleSummary } from "@purosur/domain/permissions/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { sameOriginGuard } from "./backoffice-origin.js";
-import { drizzleRoleDirectory } from "./drizzle-role-directory.js";
-import type { OpenSession } from "./open-session.js";
+import { sameOriginGuard } from "../access/backoffice-origin.js";
+import type { OpenSession } from "../access/open-session.js";
 import {
   capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
-} from "./route-access.js";
+} from "../access/route-access.js";
+import { drizzleRoleDirectory } from "./drizzle-role-directory.js";
 
 export interface RolesRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;

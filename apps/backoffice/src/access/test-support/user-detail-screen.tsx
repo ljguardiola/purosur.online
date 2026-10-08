@@ -1,5 +1,6 @@
 import { expect, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import type { RoleSummary } from "../../platform/roles-api";
 import type { BackofficeAccess } from "../../shell/backoffice-access";
 import {
   ADMINISTRATOR_ACCESS,
@@ -8,7 +9,6 @@ import {
 } from "../../shell/test-support/backoffice-access";
 import { render } from "../../shell/test-support/render-with-router";
 import type { Passkey } from "../passkey-api";
-import type { RoleSummary } from "../roles-api";
 import { UserDetailScreen } from "../user-detail-screen";
 import type { UserDetailScreenServices } from "../user-detail-services";
 import type { BranchUser } from "../users-api";

@@ -1,4 +1,4 @@
-import type { AuthorizablePermissionKey } from "../../access/index.js";
+import type { AuthorizablePermissionKey } from "../../permissions/index.js";
 import { codePointLength } from "../../shared/index.js";
 import { isValidCashAmount } from "./cash-amount.js";
 

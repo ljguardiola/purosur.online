@@ -1,13 +1,11 @@
-import type { PermissionCatalogWire } from "@purosur/contracts";
 import type { PublicKeyCredentialCreationOptionsJSON } from "@simplewebauthn/browser";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
-import type { fetchPermissionCatalog } from "../platform/permission-catalog-api";
+import type { fetchRoles, RoleSummary } from "../platform/roles-api";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchPasskeys, Passkey } from "./passkey-api";
 import type { fetchRegistrationOptions } from "./recovery-api";
-import type { fetchRole, fetchRoles, RoleDetail, RoleSummary } from "./roles-api";
 import type { BranchUser, fetchUser, fetchUserPasskeys, fetchUsers } from "./users-api";
 
 const accessKey = ["access"] as const;
@@ -15,9 +13,7 @@ const accessKey = ["access"] as const;
 const accessKeys = {
   users: [...accessKey, "users"] as const,
   roles: [...accessKey, "roles"] as const,
-  permissionCatalog: [...accessKey, "permission-catalog"] as const,
   ownPasskeys: [...accessKey, "own-passkeys"] as const,
-  role: (id: string) => [...accessKey, "role", id] as const,
   user: (id: string) => [...accessKey, "user", id] as const,
   userPasskeys: (id: string) => [...accessKey, "user-passkeys", id] as const,
   registrationOptions: (token: string) => [...accessKey, "registration-options", token] as const,
@@ -49,64 +45,6 @@ export function useRolesQuery(params: {
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
-}
-
-export function usePermissionCatalogQuery(params: {
-  fetchPermissionCatalog: typeof fetchPermissionCatalog;
-  onSessionEnded: () => void;
-}) {
-  const sendToMyAccount = useSendToMyAccount();
-  return useCloudQuery<PermissionCatalogWire>({
-    queryKey: accessKeys.permissionCatalog,
-    read: params.fetchPermissionCatalog,
-    onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
-  });
-}
-
-export type RoleRead = { kind: "found"; role: RoleDetail } | { kind: "not_found" };
-
-function readRole(
-  fetchRoleById: typeof fetchRole,
-  roleId: string,
-): () => Promise<CloudReadOutcome<RoleRead>> {
-  return async () => {
-    const outcome = await fetchRoleById(roleId);
-    if (outcome.kind === "ok") {
-      return { kind: "ok", value: { kind: "found", role: outcome.value } };
-    }
-    return outcome.kind === "not_found" ? { kind: "ok", value: { kind: "not_found" } } : outcome;
-  };
-}
-
-// The editor seeds its form, and whether saving asks to confirm for the assigned people, from the
-// read made when it opens, so a closed editor leaves no role behind for the next opening.
-export function useRoleQuery(params: {
-  roleId: string;
-  fetchRole: typeof fetchRole;
-  onSessionEnded: () => void;
-}) {
-  const sendToMyAccount = useSendToMyAccount();
-  return useCloudQuery<RoleRead>({
-    queryKey: accessKeys.role(params.roleId),
-    read: readRole(params.fetchRole, params.roleId),
-    gcTime: 0,
-    onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
-  });
-}
-
-export function useReloadRole(params: {
-  fetchRole: typeof fetchRole;
-}): (roleId: string) => Promise<CloudReadOutcome<RoleRead>> {
-  const client = useQueryClient();
-  return async (roleId) => {
-    void client.invalidateQueries({ queryKey: accessKey });
-    return fetchCloudQuery(client, {
-      queryKey: accessKeys.role(roleId),
-      read: readRole(params.fetchRole, roleId),
-    });
-  };
 }
 
 export type UserRead = { kind: "found"; user: BranchUser } | { kind: "not_found" };
@@ -191,11 +129,6 @@ export function useOwnPasskeysQuery(params: {
   });
 }
 
-export function useRefreshAccess(): () => Promise<void> {
-  const client = useQueryClient();
-  return () => client.invalidateQueries({ queryKey: accessKey });
-}
-
 export type RegistrationRead =
   | { kind: "ready"; displayName: string; options: PublicKeyCredentialCreationOptionsJSON }
   | { kind: "invalid" | "burned" | "expired" };
@@ -250,4 +183,9 @@ export function useReloadRegistrationOptions(params: {
       read: readRegistrationOptions(params.fetchRegistrationOptions, token),
       gcTime: 0,
     });
+}
+
+export function useRefreshAccess(): () => Promise<void> {
+  const client = useQueryClient();
+  return () => client.invalidateQueries({ queryKey: accessKey });
 }

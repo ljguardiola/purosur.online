@@ -1,22 +1,22 @@
 import { roleEditBodySchema } from "@purosur/contracts";
-import { editRole, findEditableRole } from "@purosur/domain/access/use-cases";
+import { editRole, findEditableRole } from "@purosur/domain/permissions/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { readRecordIds } from "../platform/record-id-params.js";
-import { readValidatedBody } from "../platform/request-body-schema.js";
-import { backofficeOriginGuard } from "./backoffice-origin.js";
-import { drizzleRoleDirectory } from "./drizzle-role-directory.js";
-import { DrizzleRoleStore } from "./drizzle-role-store.js";
-import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
-import { ROLE_NAME_TAKEN_RESPONSE } from "./role-creation-route.js";
-import { toRoleDetailWire } from "./role-read-route.js";
-import type { RolesRouteOptions } from "./roles-list-route.js";
+import { backofficeOriginGuard } from "../access/backoffice-origin.js";
+import { requirePasskeyAuthorization } from "../access/passkey-authorization-guard.js";
 import {
   capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
-} from "./route-access.js";
+} from "../access/route-access.js";
+import { readRecordIds } from "../platform/record-id-params.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
+import { drizzleRoleDirectory } from "./drizzle-role-directory.js";
+import { DrizzleRoleStore } from "./drizzle-role-store.js";
+import { ROLE_NAME_TAKEN_RESPONSE } from "./role-creation-route.js";
+import { toRoleDetailWire } from "./role-read-route.js";
+import type { RolesRouteOptions } from "./roles-list-route.js";
 
 const NOT_FOUND_RESPONSE = {
   code: "not_found",

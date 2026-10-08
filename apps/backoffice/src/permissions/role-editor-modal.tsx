@@ -25,20 +25,21 @@ import { combineCloudData } from "../platform/combine-cloud-data";
 import { fetchPermissionCatalog } from "../platform/permission-catalog-api";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { roleDisplayName } from "../platform/role-display-name";
+import type { RoleSummary } from "../platform/roles-api";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
 import type { CloudData } from "../platform/use-cloud-query";
-import {
-  usePermissionCatalogQuery,
-  useRefreshAccess,
-  useReloadRole,
-  useRoleQuery,
-} from "./access-queries";
 import { ConfirmRoleSaveModal } from "./confirm-role-save-modal";
 import { withRequiredPermissions } from "./permission-catalog";
+import {
+  usePermissionCatalogQuery,
+  useRefreshPermissions,
+  useReloadRole,
+  useRoleQuery,
+} from "./permissions-queries";
 import { RoleEditorForm } from "./role-editor-form";
 import { roleNameMessage } from "./role-name-message";
 import {
@@ -48,7 +49,6 @@ import {
   editRole,
   fetchRole,
   type RoleDetail,
-  type RoleSummary,
 } from "./roles-api";
 
 export type RoleEditorRequest =
@@ -217,7 +217,7 @@ function RoleEditorSession({
   services,
 }: RoleEditorSessionProps) {
   const sendToMyAccount = useSendToMyAccount();
-  const refreshAccess = useRefreshAccess();
+  const refreshPermissions = useRefreshPermissions();
   const {
     fetchRole,
     createRole,
@@ -285,7 +285,7 @@ function RoleEditorSession({
         return;
       }
       if (outcome.kind === "not_found") {
-        void refreshAccess();
+        void refreshPermissions();
         return;
       }
       if (outcome.kind === "forbidden") {

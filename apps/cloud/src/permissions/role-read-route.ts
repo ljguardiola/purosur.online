@@ -3,21 +3,21 @@ import {
   findEditableRole,
   type RoleHolder,
   type RoleSummary,
-} from "@purosur/domain/access/use-cases";
+} from "@purosur/domain/permissions/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { readRecordIds } from "../platform/record-id-params.js";
-import { sameOriginGuard } from "./backoffice-origin.js";
-import { drizzleRoleDirectory } from "./drizzle-role-directory.js";
-import type { OpenSession } from "./open-session.js";
-import type { RolesRouteOptions } from "./roles-list-route.js";
-import { toRoleSummaryWire } from "./roles-list-route.js";
+import { sameOriginGuard } from "../access/backoffice-origin.js";
+import type { OpenSession } from "../access/open-session.js";
 import {
   capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
-} from "./route-access.js";
+} from "../access/route-access.js";
+import { readRecordIds } from "../platform/record-id-params.js";
+import { drizzleRoleDirectory } from "./drizzle-role-directory.js";
+import type { RolesRouteOptions } from "./roles-list-route.js";
+import { toRoleSummaryWire } from "./roles-list-route.js";
 
 const NOT_FOUND_RESPONSE = {
   code: "not_found",

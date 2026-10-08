@@ -1,4 +1,4 @@
-import { createRole, createUser } from "@purosur/domain/access/use-cases";
+import { createUser } from "@purosur/domain/access/use-cases";
 import { createCategory, createProduct, createTag } from "@purosur/domain/catalog/use-cases";
 import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import {
@@ -7,18 +7,19 @@ import {
   recordAuthorizedCuit,
   recordBuyerIdentificationThreshold,
 } from "@purosur/domain/fiscal/use-cases";
+import { createRole } from "@purosur/domain/permissions/use-cases";
 import { setPrice } from "@purosur/domain/pricing/use-cases";
 import { pullChanges } from "@purosur/domain/sync/use-cases";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { DrizzleRoleStore } from "../access/drizzle-role-store.js";
 import { DrizzleUserStore } from "../access/drizzle-user-store.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { DrizzleBuyerIdentificationThresholdStore } from "../fiscal/drizzle-buyer-identification-threshold-store.js";
 import { DrizzleFiscalAddressStore } from "../fiscal/drizzle-fiscal-address-store.js";
 import { DrizzleIssuerIdentificationStore } from "../fiscal/drizzle-issuer-identification-store.js";
 import { DrizzleRegisterPointOfSaleStore } from "../fiscal/drizzle-register-point-of-sale-store.js";
+import { DrizzleRoleStore } from "../permissions/drizzle-role-store.js";
 import { buyerTaxStatusSets, users } from "../platform/db/schema.js";
 import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";

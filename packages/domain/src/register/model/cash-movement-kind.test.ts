@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import type { AuthorizablePermissionKey } from "../../access/index.js";
+import type { AuthorizablePermissionKey } from "../../permissions/index.js";
 import { MAX_CASH_AMOUNT_CENTS } from "./cash-amount.js";
 import {
   CASH_MOVEMENT_KINDS,

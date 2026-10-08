@@ -10,6 +10,7 @@ const CONCEPTS = [
   "branch",
   "catalog",
   "fiscal",
+  "permissions",
   "pricing",
   "register",
   "sales",

@@ -1,5 +1,5 @@
-import type { PermissionKey } from "../model/permission-catalog.js";
-import { uncoveredRegisterPermissions } from "../model/register-coverage.js";
+import type { PermissionKey } from "../../permissions/index.js";
+import { uncoveredRegisterPermissions } from "../../permissions/index.js";
 import type { BranchUsers } from "./branch-users.js";
 
 export interface FindUncoveredRegisterPermissionsPorts {

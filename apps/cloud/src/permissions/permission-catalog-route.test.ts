@@ -2,12 +2,12 @@ import { permissionCatalogSchema } from "@purosur/contracts";
 import { PERMISSION_AREAS, PERMISSION_CATALOG, PERMISSION_KEYS } from "@purosur/domain";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
+import { generateSessionId, hashSessionId } from "../access/session-id.js";
 import { sessions, users } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerPermissionCatalogRoute } from "./permission-catalog-route.js";
-import { SESSION_COOKIE_NAME } from "./session-cookie.js";
-import { generateSessionId, hashSessionId } from "./session-id.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
