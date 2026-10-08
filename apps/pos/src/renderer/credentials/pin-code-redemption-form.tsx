@@ -4,7 +4,7 @@ import { Check, Lock, ShieldX, TriangleAlert, WifiOff } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
 import { useId, useState } from "react";
 import { retryAfterText } from "../shell/retry-after-text";
-import { usePinPolicyQuery } from "./access-queries";
+import { usePinPolicyQuery } from "./credentials-queries";
 import {
   CODE_MESSAGE,
   EMPTY_PIN_REDEMPTION_FORM,

@@ -7,6 +7,8 @@ import type {
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
+import { FirstSignInCodeStep } from "../credentials/first-sign-in-code-step";
+import { FirstSignInNoPin } from "../credentials/first-sign-in-no-pin";
 import { render } from "../shell/test-support/render-with-router";
 import { FirstSignInScreen } from "./first-sign-in-screen";
 
@@ -47,6 +49,8 @@ async function renderScreen(
         redemptions.push({ code, pin });
         return redeemed;
       }}
+      NoPinStep={FirstSignInNoPin}
+      CodeStep={FirstSignInCodeStep}
     />,
   );
   return { screen, lookups, attempts, requests, redemptions };

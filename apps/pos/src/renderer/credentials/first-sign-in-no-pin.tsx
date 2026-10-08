@@ -1,8 +1,8 @@
 import type { FirstPinCodeRequestOutcome, SignInUser } from "@purosur/contracts";
 import { Button, InlineNotice } from "@purosur/ui";
 import { ArrowLeft, Mail } from "lucide-react";
+import { FirstSignInPanel } from "../shell/first-sign-in-panel";
 import { ScreenLink } from "../shell/screen-link";
-import { FirstSignInPanel } from "./first-sign-in-panel";
 import { useFirstPinCodeRequest } from "./use-first-pin-code-request";
 
 export type FirstSignInNoPinProps = {

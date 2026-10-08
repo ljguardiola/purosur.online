@@ -4,8 +4,8 @@ import { ArrowLeft } from "lucide-react";
 import { PinAttemptControls } from "../platform/pin-attempt-controls";
 import { SignInLockout } from "../platform/sign-in-lockout";
 import { usePinAttempt } from "../platform/use-pin-attempt";
+import { FirstSignInPanel } from "../shell/first-sign-in-panel";
 import { ScreenLink } from "../shell/screen-link";
-import { FirstSignInPanel } from "./first-sign-in-panel";
 
 export type FirstSignInPinStepProps = {
   person: SignInUser;

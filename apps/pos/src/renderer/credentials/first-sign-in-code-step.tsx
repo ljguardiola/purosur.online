@@ -9,8 +9,8 @@ import { Button, InlineNotice } from "@purosur/ui";
 import { ArrowLeft, Mail, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { noticeFor } from "../platform/pin-refusal";
+import { FirstSignInPanel } from "../shell/first-sign-in-panel";
 import { ScreenLink } from "../shell/screen-link";
-import { FirstSignInPanel } from "./first-sign-in-panel";
 import { PinCodeRedemptionForm } from "./pin-code-redemption-form";
 import { useFirstPinCodeRequest } from "./use-first-pin-code-request";
 

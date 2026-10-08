@@ -42,10 +42,12 @@ import {
   Outlet,
   redirect,
 } from "@tanstack/react-router";
-import { pinPolicyQueryOptions } from "../access/access-queries";
 import { FirstSignInScreen } from "../access/first-sign-in-screen";
-import { PinCodeRedemptionScreen } from "../access/pin-code-redemption-screen";
 import { SignInScreen } from "../access/sign-in-screen";
+import { pinPolicyQueryOptions } from "../credentials/credentials-queries";
+import { FirstSignInCodeStep } from "../credentials/first-sign-in-code-step";
+import { FirstSignInNoPin } from "../credentials/first-sign-in-no-pin";
+import { PinCodeRedemptionScreen } from "../credentials/pin-code-redemption-screen";
 import type { CashMovementInput } from "../platform/core-client";
 import { CashCountScreen } from "../register/cash-count-screen";
 import { CashScreen } from "../register/cash-screen";
@@ -522,6 +524,8 @@ const firstSignInRoute = createRoute({
         loadPinPolicy={pinPolicy}
         checkRedemption={checkPinCodeRedemption}
         redeem={redeemPinCode}
+        NoPinStep={FirstSignInNoPin}
+        CodeStep={FirstSignInCodeStep}
       />
     );
   },
