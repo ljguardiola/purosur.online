@@ -727,7 +727,8 @@ export const inbox = pgTable(
 // row come from the installation that pushed the event, never from the event's own payload; the
 // people (`actor_id`, `opened_by`, ...) are the register's user ids as the event named them, and
 // the frozen product, price list and promotion of a line are not checked against today's.
-// A sale, its lines and payments, and a cash movement are never changed once recorded.
+// A sale, its lines and payments, and a cash movement are never changed once recorded; a refund
+// is changed once, when a person marks a pending one as done.
 export const cashSessions = pgTable("cash_sessions", {
   id: uuid("id").primaryKey(),
   locationId: uuid("location_id")
@@ -764,10 +765,25 @@ export const sales = pgTable("sales", {
     .notNull()
     .references(() => cashSessions.id),
   actorId: text("actor_id").notNull(),
-  completedAt: timestamp("completed_at", { withTimezone: true }).notNull(),
+  state: text("state").notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+  cancellationAuthorizedBy: text("cancellation_authorized_by"),
   total: bigint("total", { mode: "number" }).notNull(),
   appliedAt: timestamp("applied_at", { withTimezone: true }).notNull(),
-});
+},
+(table) => [
+  check("sales_state_check", sql`${table.state} in ('COMPLETED', 'CANCELLED')`),
+  check(
+    "sales_state_matches_timestamps_check",
+    sql`(${table.state} = 'COMPLETED' and ${table.completedAt} is not null and ${table.cancelledAt} is null)
+      or (${table.state} = 'CANCELLED' and ${table.cancelledAt} is not null and ${table.completedAt} is null)`,
+  ),
+  check(
+    "sales_cancellation_authorizer_only_when_cancelled_check",
+    sql`${table.cancellationAuthorizedBy} is null or ${table.state} = 'CANCELLED'`,
+  ),
+]);
 
 export const saleLines = pgTable("sale_lines", {
   id: uuid("id").primaryKey(),
@@ -798,6 +814,34 @@ export const salePayments = pgTable("sale_payments", {
   authorizedBy: text("authorized_by"),
   confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
 });
+
+export const paymentRefunds = pgTable(
+  "payment_refunds",
+  {
+    id: uuid("id").primaryKey(),
+    paymentId: uuid("payment_id")
+      .notNull()
+      .references(() => salePayments.id),
+    method: text("method").notNull(),
+    provider: text("provider").notNull(),
+    amount: bigint("amount", { mode: "number" }).notNull(),
+    state: text("state").notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+    doneBy: text("done_by"),
+    doneAt: timestamp("done_at", { withTimezone: true }),
+  },
+  (table) => [
+    check("payment_refunds_state_check", sql`${table.state} in ('PENDING', 'APPROVED')`),
+    check(
+      "payment_refunds_done_check",
+      sql`(${table.doneBy} is null) = (${table.doneAt} is null) and (${table.state} = 'APPROVED' or ${table.doneBy} is null)`,
+    ),
+    index("payment_refunds_pending_idx")
+      .on(table.occurredAt)
+      .where(sql`${table.state} = 'PENDING'`),
+    index("payment_refunds_payment_idx").on(table.paymentId),
+  ],
+);
 
 export const cashMovements = pgTable("cash_movements", {
   id: uuid("id").primaryKey(),

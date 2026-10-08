@@ -10,7 +10,7 @@ export async function recordAppliedSale<TQueryResult extends PgQueryResultHKT>(
   appliedAt: Date,
 ): Promise<void> {
   const { lines, payments, cashMovements: movements, ...header } = sale;
-  await tx.insert(sales).values({ ...origin, ...header, appliedAt });
+  await tx.insert(sales).values({ ...origin, ...header, state: "COMPLETED", appliedAt });
   if (lines.length > 0) {
     await tx.insert(saleLines).values(lines.map((line) => ({ ...line, saleId: sale.id })));
   }
