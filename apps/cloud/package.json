@@ -17,6 +17,7 @@
     "create-first-administrator": "node dist/create-first-administrator.js",
     "load-sample-data": "node dist/load-sample-data.js",
     "clear-sample-data": "node dist/clear-sample-data.js",
+    "check:arca-test-environment": "node dist/check-arca-test-environment.js",
     "record:arca-responses": "node dist/record-arca-responses.js"
   },
   "dependencies": {
