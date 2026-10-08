@@ -12,6 +12,11 @@ export interface CloudClientDeps {
   sleep: (milliseconds: number) => Promise<void>;
 }
 
+export interface CloudCallOptions {
+  timeoutMs: number;
+  singleAttempt: boolean;
+}
+
 export type CloudResponse =
   | { kind: "ok"; body: unknown }
   | { kind: "error"; error: CloudError }
@@ -41,12 +46,13 @@ async function requestOnce(
   deps: CloudClientDeps,
   path: string,
   request: CloudRequest,
+  timeoutMs: number,
 ): Promise<Attempt> {
   let response: Response;
   try {
     response = await deps.fetch(new URL(path, deps.cloudUrl).href, {
       ...request,
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch {
     return { response: { kind: "unreachable" }, refusedByCloud: false };
@@ -79,9 +85,13 @@ async function requestWithRetries(
   deps: CloudClientDeps,
   path: string,
   request: CloudRequest,
+  options?: CloudCallOptions,
 ): Promise<CloudResponse> {
   for (let attempt = 1; ; attempt += 1) {
-    const sent = await requestOnce(deps, path, request);
+    const sent = await requestOnce(deps, path, request, options?.timeoutMs ?? REQUEST_TIMEOUT_MS);
+    if (options?.singleAttempt) {
+      return sent.response;
+    }
     const waitMs = retryWaitMs(sent, attempt);
     if (attempt === MAX_ATTEMPTS || waitMs === undefined || waitMs > MAX_WAIT_MS) {
       return sent.response;
@@ -106,8 +116,9 @@ export function getFromCloud(
   deps: CloudClientDeps,
   path: string,
   headers: Record<string, string>,
+  options?: CloudCallOptions,
 ): Promise<CloudResponse> {
-  return requestWithRetries(deps, path, { method: "GET", headers });
+  return requestWithRetries(deps, path, { method: "GET", headers }, options);
 }
 
 export function postToCloudWithBearer(
@@ -115,6 +126,7 @@ export function postToCloudWithBearer(
   path: string,
   bearerToken: string,
   body?: unknown,
+  options?: CloudCallOptions,
 ): Promise<CloudResponse> {
   const authorization = { authorization: `Bearer ${bearerToken}` };
   return requestWithRetries(
@@ -127,5 +139,6 @@ export function postToCloudWithBearer(
           headers: { ...authorization, "content-type": "application/json" },
           body: JSON.stringify(body),
         },
+    options,
   );
 }
