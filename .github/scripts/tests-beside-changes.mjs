@@ -26,3 +26,25 @@ export function selectTestsBeside({ testFiles, changedFiles }) {
     .filter((testFile) => changedFiles.some((changedFile) => isBeside(testFile, changedFile)))
     .sort();
 }
+
+export function changedFilesSince({ base, runGit }) {
+  const listings = [
+    ["diff", "--name-only", `${base}...HEAD`],
+    ["diff", "--name-only", "HEAD"],
+    ["ls-files", "--others", "--exclude-standard"],
+  ];
+  const files = listings.flatMap((args) =>
+    runGit(args).toString("utf8").split("\n").filter((line) => line !== ""),
+  );
+  return [...new Set(files)];
+}
+
+export function testsToRun({ testFiles, changedFiles, requestedFiles }) {
+  const known = new Set(testFiles);
+  for (const requested of requestedFiles) {
+    if (!known.has(requested)) {
+      throw new Error(`${requested} is not a test file`);
+    }
+  }
+  return [...new Set([...selectTestsBeside({ testFiles, changedFiles }), ...requestedFiles])].sort();
+}
