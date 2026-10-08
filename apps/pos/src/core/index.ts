@@ -2,11 +2,7 @@ import { randomUUID } from "node:crypto";
 import { hostname, release, version } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
-import {
-  type CoreReadyMessage,
-  errorReportingOptions,
-  mainToCoreMessageSchema,
-} from "@purosur/contracts";
+import { type CoreReadyMessage, mainToCoreMessageSchema } from "@purosur/contracts";
 import * as Sentry from "@sentry/electron/utility";
 import { net } from "electron";
 import {
@@ -34,6 +30,7 @@ import {
   postToCloud,
   postToCloudWithBearer,
 } from "./platform/cloud-client";
+import { initializeErrorReporting } from "./platform/error-reporting";
 import { LOCAL_MIGRATIONS } from "./platform/local-migrations";
 import { createMainRequests } from "./platform/main-requests";
 import {
@@ -100,11 +97,7 @@ import { createSyncSchedule } from "./sync/sync-schedule";
 // destination and replaces the environment on events, but forwards logs untouched.
 const sentryEnvironment = sentryEnvironmentFromCoreArguments(process.argv);
 if (sentryEnvironment) {
-  Sentry.init({
-    environment: sentryEnvironment,
-    ...errorReportingOptions(),
-    integrations: [Sentry.consoleLoggingIntegration({ levels: ["info", "warn", "error"] })],
-  });
+  initializeErrorReporting(sentryEnvironment, Sentry);
 }
 
 // consoleLoggingIntegration also ships this console line as a Sentry log, so it must already
