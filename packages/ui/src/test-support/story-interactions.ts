@@ -112,35 +112,13 @@ export function playWithClockAt(isoDate: string, play: StoryPlayFunction): Story
   return async (context) => {
     const RealDate = globalThis.Date;
     const fixed = RealDate.parse(isoDate);
-    class FixedDate extends RealDate {
-      constructor(
-        ...args:
-          | []
-          | [value: number | string | Date]
-          | [
-              year: number,
-              monthIndex: number,
-              date?: number,
-              hours?: number,
-              minutes?: number,
-              seconds?: number,
-              ms?: number,
-            ]
-      ) {
-        if (args.length === 0) {
-          super(fixed);
-        } else if (args.length === 1) {
-          super(args[0]);
-        } else {
-          super(...args);
-        }
-      }
-
-      static override now(): number {
-        return fixed;
-      }
-    }
-    globalThis.Date = FixedDate as unknown as DateConstructor;
+    const FixedDate = new Proxy(RealDate, {
+      construct: (target, args, newTarget) =>
+        Reflect.construct(target, args.length === 0 ? [fixed] : args, newTarget),
+      get: (target, property, receiver) =>
+        property === "now" ? () => fixed : Reflect.get(target, property, receiver),
+    });
+    globalThis.Date = FixedDate;
     try {
       await play(context);
     } finally {

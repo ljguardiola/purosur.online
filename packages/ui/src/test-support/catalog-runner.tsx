@@ -34,6 +34,19 @@ export interface CatalogStory {
   };
 }
 
+function isCatalogStory(value: unknown): value is CatalogStory {
+  return (
+    typeof value === "function" &&
+    "id" in value &&
+    typeof value.id === "string" &&
+    "storyName" in value &&
+    typeof value.storyName === "string" &&
+    "parameters" in value &&
+    typeof value.parameters === "object" &&
+    value.parameters !== null
+  );
+}
+
 export interface CatalogStoryEntry {
   title: string;
   story: CatalogStory;
@@ -43,8 +56,9 @@ const storyModules = import.meta.glob<StoryModule>("../**/*.stories.tsx", { eage
 
 export const catalogStories: CatalogStoryEntry[] = Object.values(storyModules).flatMap((module) => {
   const title = module.default.title ?? "Untitled";
-  const composed = composeStories(module) as unknown as Record<string, CatalogStory>;
-  return Object.values(composed).map((story) => ({ title, story }));
+  return Object.values(composeStories(module))
+    .filter(isCatalogStory)
+    .map((story) => ({ title, story }));
 });
 
 function pseudoStateClasses(element: Element): string[] {
