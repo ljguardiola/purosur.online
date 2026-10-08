@@ -19,7 +19,6 @@ import {
 import { startAuthentication } from "@simplewebauthn/browser";
 import { Check, RotateCcw, Shield, ShieldOff, ShieldX, TriangleAlert, X } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { useRefreshAccess } from "../platform/access-queries";
 import { useAuthorization } from "../platform/authorization-modal";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { combineCloudData } from "../platform/combine-cloud-data";
@@ -35,7 +34,12 @@ import {
 import type { CloudData } from "../platform/use-cloud-query";
 import { ConfirmRoleSaveModal } from "./confirm-role-save-modal";
 import { withRequiredPermissions } from "./permission-catalog";
-import { usePermissionCatalogQuery, useReloadRole, useRoleQuery } from "./permissions-queries";
+import {
+  usePermissionCatalogQuery,
+  useRefreshPermissions,
+  useReloadRole,
+  useRoleQuery,
+} from "./permissions-queries";
 import { RoleEditorForm } from "./role-editor-form";
 import { roleNameMessage } from "./role-name-message";
 import {
@@ -213,7 +217,7 @@ function RoleEditorSession({
   services,
 }: RoleEditorSessionProps) {
   const sendToMyAccount = useSendToMyAccount();
-  const refreshAccess = useRefreshAccess();
+  const refreshPermissions = useRefreshPermissions();
   const {
     fetchRole,
     createRole,
@@ -281,7 +285,7 @@ function RoleEditorSession({
         return;
       }
       if (outcome.kind === "not_found") {
-        void refreshAccess();
+        void refreshPermissions();
         return;
       }
       if (outcome.kind === "forbidden") {

@@ -1,15 +1,18 @@
 import type { PublicKeyCredentialCreationOptionsJSON } from "@simplewebauthn/browser";
 import { useQueryClient } from "@tanstack/react-query";
-import { accessKey } from "../platform/access-queries";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import type { fetchRoles, RoleSummary } from "../platform/roles-api";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchPasskeys, Passkey } from "./passkey-api";
 import type { fetchRegistrationOptions } from "./recovery-api";
 import type { BranchUser, fetchUser, fetchUserPasskeys, fetchUsers } from "./users-api";
 
+const accessKey = ["access"] as const;
+
 const accessKeys = {
   users: [...accessKey, "users"] as const,
+  roles: [...accessKey, "roles"] as const,
   ownPasskeys: [...accessKey, "own-passkeys"] as const,
   user: (id: string) => [...accessKey, "user", id] as const,
   userPasskeys: (id: string) => [...accessKey, "user-passkeys", id] as const,
@@ -26,6 +29,19 @@ export function useUsersQuery(params: {
   return useCloudQuery<BranchUser[]>({
     queryKey: accessKeys.users,
     read: params.fetchUsers,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useRolesQuery(params: {
+  fetchRoles: typeof fetchRoles;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<RoleSummary[]>({
+    queryKey: accessKeys.roles,
+    read: params.fetchRoles,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
@@ -167,4 +183,9 @@ export function useReloadRegistrationOptions(params: {
       read: readRegistrationOptions(params.fetchRegistrationOptions, token),
       gcTime: 0,
     });
+}
+
+export function useRefreshAccess(): () => Promise<void> {
+  const client = useQueryClient();
+  return () => client.invalidateQueries({ queryKey: accessKey });
 }

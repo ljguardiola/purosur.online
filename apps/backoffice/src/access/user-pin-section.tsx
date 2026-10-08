@@ -1,9 +1,9 @@
 import { Button, type LoadStatus } from "@purosur/ui";
 import { KeyRound } from "lucide-react";
 import { useRef, useState } from "react";
-import { useRefreshAccess } from "../platform/access-queries";
 import { useAuthorization } from "../platform/authorization-modal";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useRefreshAccess } from "./access-queries";
 import {
   type EmissionState,
   EmitUserPinCodeModal,
