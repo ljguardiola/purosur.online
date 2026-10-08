@@ -148,7 +148,7 @@ describe("SaleScreen cancelling a sale with approved payments", () => {
 
     await screen.getByRole("button", { name: "Cancelar venta" }).click();
 
-    await expect.element(screen.getByText("Sin pagos")).toBeVisible();
+    await expect.element(screen.getByText(/no se cobra nada/)).toBeVisible();
     expect(cancelPaidSale).not.toHaveBeenCalled();
   });
 });
