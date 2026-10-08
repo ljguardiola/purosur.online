@@ -1,5 +1,5 @@
-import { execFileSync } from "node:child_process";
-import { posix, relative, sep } from "node:path";
+import { execFileSync, spawn } from "node:child_process";
+import { join, posix, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveBaseRef } from "./change-base.mjs";
 
@@ -57,14 +57,39 @@ export function testsToRun({ testFiles, changedFiles, requestedFiles }) {
   ].sort();
 }
 
-export async function runEachFileAlone({ files, run }) {
+export async function runProjectsInTurn({ filesByProject, run }) {
   let passed = true;
-  for (const file of files) {
-    if (!(await run([file]))) {
+  for (const [project, files] of filesByProject) {
+    if (!(await run(project, files))) {
       passed = false;
     }
   }
   return passed;
+}
+
+async function projectsByTestFile(root) {
+  const { createVitest } = await import("vitest/node");
+  const vitest = await createVitest("test", { root, watch: false });
+  try {
+    const projects = new Map();
+    for (const specification of await vitest.globTestSpecifications()) {
+      const file = relative(root, specification.moduleId).split(sep).join("/");
+      projects.set(file, [...(projects.get(file) ?? []), specification.project.name]);
+    }
+    return projects;
+  } finally {
+    await vitest.close();
+  }
+}
+
+function runVitest(root, args) {
+  return new Promise((resolve) => {
+    const child = spawn(join(root, "node_modules/.bin/vitest"), args, {
+      cwd: root,
+      stdio: "inherit",
+    });
+    child.on("close", (code) => resolve(code === 0));
+  });
 }
 
 async function runCli(requestedFiles) {
@@ -72,45 +97,30 @@ async function runCli(requestedFiles) {
   const runGit = (args) => execFileSync("git", args, { cwd: root });
   const changedFiles = changedFilesSince({ base: resolveBaseRef(process.env), runGit });
 
-  const { createVitest } = await import("vitest/node");
-  const vitest = await createVitest("test", { root, watch: false });
-  try {
-    const specificationsByFile = new Map();
-    for (const specification of await vitest.globTestSpecifications()) {
-      const file = relative(root, specification.moduleId).split(sep).join("/");
-      specificationsByFile.set(file, [...(specificationsByFile.get(file) ?? []), specification]);
-    }
-    const files = testsToRun({
-      testFiles: [...specificationsByFile.keys()],
-      changedFiles,
-      requestedFiles,
-    });
-    if (files.length === 0) {
-      console.log("No test file sits beside a changed file, and none was asked for by path.");
-      return 0;
-    }
-
-    const failedFiles = [];
-    const passed = await runEachFileAlone({
-      files,
-      run: async ([file]) => {
-        const result = await vitest.runTestSpecifications(specificationsByFile.get(file));
-        const filePassed =
-          result.unhandledErrors.length === 0 && result.testModules.every((module) => module.ok());
-        if (!filePassed) {
-          failedFiles.push(file);
-        }
-        return filePassed;
-      },
-    });
-    console.log(`Ran ${files.length} test files, one at a time.`);
-    if (!passed) {
-      console.error(`Failed:\n${failedFiles.map((file) => `  ${file}`).join("\n")}`);
-    }
-    return passed ? 0 : 1;
-  } finally {
-    await vitest.close();
+  const projects = await projectsByTestFile(root);
+  const files = testsToRun({ testFiles: [...projects.keys()], changedFiles, requestedFiles });
+  if (files.length === 0) {
+    console.log("No test file sits beside a changed file, and none was asked for by path.");
+    return 0;
   }
+
+  const filesByProject = new Map();
+  for (const file of files) {
+    for (const project of projects.get(file)) {
+      filesByProject.set(project, [...(filesByProject.get(project) ?? []), file]);
+    }
+  }
+  const passed = await runProjectsInTurn({
+    filesByProject,
+    run: (project, projectFiles) =>
+      runVitest(root, [
+        "run",
+        `--project=${project}`,
+        "--no-file-parallelism",
+        ...projectFiles.map((file) => join(root, file)),
+      ]),
+  });
+  return passed ? 0 : 1;
 }
 
 if (import.meta.main) {
