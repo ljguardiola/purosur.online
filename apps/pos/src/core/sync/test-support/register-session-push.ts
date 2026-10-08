@@ -11,6 +11,7 @@ import { recordCashMovementFor } from "../../register/cash-movement-requests";
 import { closeCashSessionFor, openCashSessionFor } from "../../register/cash-session-requests";
 import { uuidV7Ids } from "../../register/uuid-v7-ids";
 import {
+  cancelPaidSaleFor,
   chargeSaleByTransferFor,
   chargeSaleInCashFor,
   currentSaleFor,
@@ -53,7 +54,11 @@ function expectOutcome(step: string, actual: string, expected: string): void {
 function seed(database: ReturnType<typeof openLocalDatabase>): void {
   for (const [role, name, permissions] of [
     [ROLE, "Cajera", ["sell_and_charge", "record_cash_expense"]],
-    [MANAGER_ROLE, "Encargada", ["sell_and_charge", "record_cash_expense", "withdraw_cash"]],
+    [
+      MANAGER_ROLE,
+      "Encargada",
+      ["sell_and_charge", "record_cash_expense", "withdraw_cash", "void_sale"],
+    ],
   ] as const) {
     database
       .prepare("INSERT INTO roles (id, name, is_administrator, version) VALUES (?, ?, 0, 1)")
@@ -232,6 +237,36 @@ export async function withRegisterSession<TResult>(
       amount: partial.pending,
     });
     expectOutcome("pay the rest by transfer", rest.kind, "completed");
+    nextStep();
+    const abandoned = await scanProductFor(deps(), "7790001000011");
+    if (abandoned.kind !== "added") {
+      throw new Error(
+        `The register session's "scan a product to abandon" ended as "${abandoned.kind}"`,
+      );
+    }
+    nextStep();
+    const deposit = await chargeSaleInCashFor(deps(), { saleId: abandoned.sale.id, tendered: 500 });
+    expectOutcome(
+      "pay part of a sale in cash before abandoning it",
+      deposit.kind,
+      "partially_paid",
+    );
+    nextStep();
+    const transferDeposit = await chargeSaleByTransferFor(deps(), {
+      saleId: abandoned.sale.id,
+      amount: 300,
+    });
+    expectOutcome(
+      "pay part of a sale by transfer before abandoning it",
+      transferDeposit.kind,
+      "partially_paid",
+    );
+    nextStep();
+    const cancelled = await cancelPaidSaleFor(deps(), {
+      saleId: abandoned.sale.id,
+      authorization: { user_id: GRACE, pin: PIN },
+    });
+    expectOutcome("cancel the part-paid sale authorized by PIN", cancelled.kind, "cancelled");
     nextStep();
     const closed = await closeCashSessionFor(deps(), {
       sessionId: opened.cash_session.id,

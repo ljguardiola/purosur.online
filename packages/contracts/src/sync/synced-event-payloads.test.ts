@@ -127,6 +127,7 @@ describe("synced event payloads", () => {
       "cash_session_closed@1",
       "cash_session_opened@1",
       "fiscal_gate_failed@1",
+      "sale_cancelled@1",
       "sale_completed@1",
       "sale_completed@2",
     ]);
