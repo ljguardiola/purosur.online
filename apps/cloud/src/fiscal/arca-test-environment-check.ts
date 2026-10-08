@@ -8,6 +8,7 @@ import {
 
 const WSAA_SERVICE = "wsfe";
 const FE_DUMMY_ATTEMPTS = 2;
+const FE_DUMMY_TIMEOUT_MS = 30_000;
 
 interface ArcaTestEnvironmentCheckSettings {
   certificatePem: string;
@@ -85,7 +86,7 @@ async function attemptFeDummy(
 async function checkFeDummy(options: CheckArcaTestEnvironmentOptions): Promise<FeDummyAttempt[]> {
   const service = new WsfeArcaVitalityService({
     endpoint: options.wsfeEndpoint,
-    ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
+    timeoutMs: options.timeoutMs ?? FE_DUMMY_TIMEOUT_MS,
   });
   const attempts: FeDummyAttempt[] = [];
   let attempt: FeDummyAttempt;
