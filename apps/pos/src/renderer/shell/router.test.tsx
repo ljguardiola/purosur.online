@@ -810,6 +810,8 @@ describe("the register's router", () => {
           lines_editable: true,
           cancellable: true,
           charge_refusal: null,
+          refunds_on_cancel: [],
+          cancel_authorization_required: false,
         }),
         cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 0 }),
         chargeSaleInCash: async (saleId, tendered) => {
@@ -858,6 +860,8 @@ describe("the register's router", () => {
           lines_editable: true,
           cancellable: true,
           charge_refusal: null,
+          refunds_on_cancel: [],
+          cancel_authorization_required: false,
         }),
         cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 0 }),
         chargeSaleInCash: async () => ({ kind: "no_open_session" }),

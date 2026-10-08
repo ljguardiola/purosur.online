@@ -601,6 +601,43 @@ describe("createCoreClient", () => {
     expect(port.posted).toEqual([{ type: "cancel-sale", request_id: "request-1" }]);
   });
 
+  it("asks the core to cancel a sale with approved payments and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const authorization = { user_id: "u2", pin: "1234" };
+
+    const cancelled = client.cancelPaidSale("sale-1", authorization);
+    port.answer({
+      type: "cancel-paid-sale-result",
+      request_id: "request-1",
+      outcome: { kind: "cancelled", refunds: [], authorized_by: null },
+    });
+
+    expect(await cancelled).toEqual({ kind: "cancelled", refunds: [], authorized_by: null });
+    expect(port.posted).toEqual([
+      { type: "cancel-paid-sale", request_id: "request-1", sale_id: "sale-1", authorization },
+    ]);
+  });
+
+  it("asks the core to cancel a sale with approved payments without an authorization when none is given", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const cancelled = client.cancelPaidSale("sale-1", undefined);
+    port.answer({
+      type: "cancel-paid-sale-result",
+      request_id: "request-1",
+      outcome: { kind: "lacks_permission" },
+    });
+
+    expect(await cancelled).toEqual({ kind: "lacks_permission" });
+    expect(port.posted).toEqual([
+      { type: "cancel-paid-sale", request_id: "request-1", sale_id: "sale-1" },
+    ]);
+  });
+
   it.each([
     { kind: "results", products: [], more: true },
     { kind: "no_open_session" },
@@ -665,6 +702,8 @@ describe("createCoreClient", () => {
       lines_editable: true,
       cancellable: true,
       charge_refusal: null,
+      refunds_on_cancel: [],
+      cancel_authorization_required: false,
     },
     {
       id: "sale-2",
@@ -686,6 +725,8 @@ describe("createCoreClient", () => {
       lines_editable: true,
       cancellable: true,
       charge_refusal: { kind: "reaches_buyer_identification_threshold", threshold: 1_000_000_000 },
+      refunds_on_cancel: [],
+      cancel_authorization_required: false,
     },
   ])(
     "asks the core for the sale in progress of the person and resolves with it: %j",

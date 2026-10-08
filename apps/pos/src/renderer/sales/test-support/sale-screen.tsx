@@ -53,6 +53,8 @@ export const SALE_OF_YERBA: OpenSale = {
   lines_editable: true,
   cancellable: true,
   charge_refusal: null,
+  refunds_on_cancel: [],
+  cancel_authorization_required: false,
 };
 export const SALE_OF_YERBA_AND_ALFAJOR: OpenSale = {
   id: "sale-1",
@@ -63,6 +65,8 @@ export const SALE_OF_YERBA_AND_ALFAJOR: OpenSale = {
   lines_editable: true,
   cancellable: true,
   charge_refusal: null,
+  refunds_on_cancel: [],
+  cancel_authorization_required: false,
 };
 
 export type Overrides = Partial<SaleScreenProps> & { registerName?: string | null };

@@ -1062,6 +1062,8 @@ describe("App", () => {
             lines_editable: true,
             cancellable: true,
             charge_refusal: null,
+            refunds_on_cancel: [],
+            cancel_authorization_required: false,
           };
         },
       },
@@ -1103,6 +1105,8 @@ describe("App", () => {
           lines_editable: true,
           cancellable: true,
           charge_refusal: null,
+          refunds_on_cancel: [],
+          cancel_authorization_required: false,
         }),
         cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 12_000 }),
         chargeSaleInCash: async (saleId, tendered) => {
@@ -1157,6 +1161,8 @@ describe("App", () => {
                 lines_editable: true,
                 cancellable: true,
                 charge_refusal: null,
+                refunds_on_cancel: [],
+                cancel_authorization_required: false,
               })
             : new Promise(() => {});
         },
@@ -1217,6 +1223,8 @@ describe("App", () => {
           lines_editable: true,
           cancellable: true,
           charge_refusal: null,
+          refunds_on_cancel: [],
+          cancel_authorization_required: false,
         }),
         chargeSaleByTransfer: async (saleId, amount) => {
           charges.push([saleId, amount]);
@@ -1268,6 +1276,8 @@ describe("App", () => {
                 lines_editable: true,
                 cancellable: true,
                 charge_refusal: null,
+                refunds_on_cancel: [],
+                cancel_authorization_required: false,
               })
             : new Promise(() => {});
         },
