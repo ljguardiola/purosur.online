@@ -96,7 +96,9 @@ export function aCancelledSale(overrides: Partial<CancelledSale> = {}): Cancelle
 }
 
 export function aTransferCancelledSale(overrides: Partial<CancelledSale> = {}): CancelledSale {
-  const base = aCancelledSale();
+  const base = aCancelledSale(
+    overrides.cancelledAt === undefined ? {} : { cancelledAt: overrides.cancelledAt },
+  );
   const [cash] = base.payments;
   const [cashRefund] = base.refunds;
   if (!cash || !cashRefund) {
