@@ -234,8 +234,11 @@ export {
   salesCoreToRendererMessageSchema,
   salesRendererToCoreMessageSchema,
 } from "./sales/core-messages.js";
+export type { MarkedRefundDoneBody, PendingRefundsBody } from "./sales/pending-refunds.js";
+export { markedRefundDoneSchema, pendingRefundsSchema } from "./sales/pending-refunds.js";
 export type {
   AddProductOutcome,
+  CancelPaidSaleOutcome,
   CancelSaleOutcome,
   CashCharge,
   CashChargeAnswer,

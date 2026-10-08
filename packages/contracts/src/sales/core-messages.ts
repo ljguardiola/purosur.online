@@ -6,6 +6,7 @@ import {
 } from "../shared/index.js";
 import {
   addProductOutcomeSchema,
+  cancelPaidSaleOutcomeSchema,
   cancelSaleOutcomeSchema,
   cashChargeSchema,
   changeLineQuantityOutcomeSchema,
@@ -43,6 +44,13 @@ const removeSaleLineMessageSchema = z.object({
 const cancelSaleMessageSchema = z.object({
   type: z.literal("cancel-sale"),
   request_id: requestId,
+});
+
+const cancelPaidSaleMessageSchema = z.object({
+  type: z.literal("cancel-paid-sale"),
+  request_id: requestId,
+  sale_id: z.string(),
+  authorization: authorizationSchema.optional(),
 });
 
 const searchProductsMessageSchema = z.object({
@@ -94,6 +102,7 @@ export const salesRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   changeLineQuantityMessageSchema,
   removeSaleLineMessageSchema,
   cancelSaleMessageSchema,
+  cancelPaidSaleMessageSchema,
   searchProductsMessageSchema,
   addProductMessageSchema,
   saleRequestMessageSchema,
@@ -134,6 +143,11 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("cancel-sale-result"),
     request_id: requestId,
     outcome: cancelSaleOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("cancel-paid-sale-result"),
+    request_id: requestId,
+    outcome: cancelPaidSaleOutcomeSchema,
   }),
   z.object({
     type: z.literal("search-products-result"),
