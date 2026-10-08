@@ -1,4 +1,9 @@
 import { argentinaCalendarDay } from "../../shared/index.js";
+import {
+  type FiscalOnlineSignalEvidence,
+  isRegisterFiscallyOnline,
+} from "./fiscal-online-signal.js";
+import type { FacturaC, PreEmissionGateOutcome } from "./pre-emission-gate.js";
 
 export const REAL_TIME_AUTHORIZATION_TIMEOUT_MS = 5_000;
 export const AUTHORIZATION_CALL_MARGIN_MS = 500;
@@ -55,4 +60,63 @@ export function nextInvoiceNumber({
 
 export function invoiceDateOf(completedAt: Date): string {
   return argentinaCalendarDay(completedAt);
+}
+
+export const DEFERRAL_REASONS = [
+  "pre_emission_gate_failed",
+  "fiscally_offline",
+  "point_of_sale_missing",
+  "document_waiting",
+  "tax_authority_count_unknown",
+  "rejected",
+  "unclear_outcome",
+] as const;
+
+export type DeferralReason = (typeof DEFERRAL_REASONS)[number];
+
+export interface RealTimeSeries {
+  pointOfSale: number | null;
+  localLastAuthorized: number | null;
+  taxAuthorityLastAuthorized: number | null;
+  documentWaiting: boolean;
+}
+
+export interface RealTimeAuthorizationDecisionInput {
+  gate: PreEmissionGateOutcome;
+  online: FiscalOnlineSignalEvidence;
+  now: Date;
+  series: RealTimeSeries;
+}
+
+export type RealTimeAuthorizationDecision =
+  | { kind: "reserve"; pointOfSale: number; number: number; document: FacturaC }
+  | { kind: "defer"; reason: DeferralReason };
+
+function deferred(reason: DeferralReason): RealTimeAuthorizationDecision {
+  return { kind: "defer", reason };
+}
+
+export function decideRealTimeAuthorization({
+  gate,
+  online,
+  now,
+  series,
+}: RealTimeAuthorizationDecisionInput): RealTimeAuthorizationDecision {
+  if (gate.kind === "failed") {
+    return deferred("pre_emission_gate_failed");
+  }
+  if (!isRegisterFiscallyOnline(online, now)) {
+    return deferred("fiscally_offline");
+  }
+  if (series.pointOfSale === null) {
+    return deferred("point_of_sale_missing");
+  }
+  if (series.documentWaiting) {
+    return deferred("document_waiting");
+  }
+  const number = nextInvoiceNumber(series);
+  if (number === null) {
+    return deferred("tax_authority_count_unknown");
+  }
+  return { kind: "reserve", pointOfSale: series.pointOfSale, number, document: gate.document };
 }
