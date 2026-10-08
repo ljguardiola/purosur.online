@@ -115,7 +115,12 @@ test("lists the files committed since the merge-base, the uncommitted ones and t
   ]);
   const runGit = (args) => Buffer.from(outputs.get(args.join(" ")) ?? "", "utf8");
 
-  assert.deepEqual(changedFilesSince({ base: "origin/main", runGit }), ["a.ts", "b.ts", "c.ts", "d.ts"]);
+  assert.deepEqual(changedFilesSince({ base: "origin/main", runGit }), [
+    "a.ts",
+    "b.ts",
+    "c.ts",
+    "d.ts",
+  ]);
 });
 
 test("runs the tests beside the changed files together with the test files asked for by path", () => {

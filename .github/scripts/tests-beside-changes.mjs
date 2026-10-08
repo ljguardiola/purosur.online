@@ -37,7 +37,10 @@ export function changedFilesSince({ base, runGit }) {
     ["ls-files", "--others", "--exclude-standard"],
   ];
   const files = listings.flatMap((args) =>
-    runGit(args).toString("utf8").split("\n").filter((line) => line !== ""),
+    runGit(args)
+      .toString("utf8")
+      .split("\n")
+      .filter((line) => line !== ""),
   );
   return [...new Set(files)];
 }
@@ -49,7 +52,9 @@ export function testsToRun({ testFiles, changedFiles, requestedFiles }) {
       throw new Error(`${requested} is not a test file`);
     }
   }
-  return [...new Set([...selectTestsBeside({ testFiles, changedFiles }), ...requestedFiles])].sort();
+  return [
+    ...new Set([...selectTestsBeside({ testFiles, changedFiles }), ...requestedFiles]),
+  ].sort();
 }
 
 export async function runEachFileAlone({ files, run }) {
