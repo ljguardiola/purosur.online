@@ -76,7 +76,7 @@ export interface ArcaCertificateExpiringDetail {
   notAfter: string;
 }
 
-export interface UpdateRequiredDetail {
+interface UpdateRequiredDetail {
   deviceId: string;
   appVersion: string;
 }

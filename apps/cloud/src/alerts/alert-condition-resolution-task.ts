@@ -10,7 +10,7 @@ export const ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER = "alert-condition-resol
 
 const ALERT_CONDITION_RESOLUTION_CRONTAB_LINE = `* * * * * ${ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER}`;
 
-export function resolveClearedConditionAlertsTask<TQueryResult extends PgQueryResultHKT>(
+function resolveClearedConditionAlertsTask<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   deps: { now: () => Date },
 ): Promise<number> {

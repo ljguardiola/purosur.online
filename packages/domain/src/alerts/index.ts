@@ -20,7 +20,6 @@ export type {
   RecoveryRequestedDetail,
   RegisterEnrolledDetail,
   SignInLockoutDetail,
-  UpdateRequiredDetail,
 } from "./model/alert-details.js";
 export {
   ESCALATED_LEVEL,
