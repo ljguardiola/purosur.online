@@ -313,6 +313,8 @@ function Register({ core }: { core: CoreClient }) {
       core.changeLineQuantity(lineId, quantity, expectedQuantity),
     removeSaleLine: (lineId: string) => core.removeSaleLine(lineId),
     cancelSale: () => core.cancelSale(),
+    cancelPaidSale: (saleId: string, authorization: Authorization | undefined) =>
+      core.cancelPaidSale(saleId, authorization),
     // A replaced core connection fails this request; the core coming back up asks again.
     refreshCashSession,
   };
