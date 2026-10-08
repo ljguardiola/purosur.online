@@ -21,6 +21,10 @@ export type {
 } from "./branch-register-store.js";
 export { RegisterNameConflict } from "./branch-register-store.js";
 export type {
+  BranchRegisterLastSync,
+  BranchRegisterSyncReader,
+} from "./branch-register-sync-reader.js";
+export type {
   CashLedger,
   CashLedgerTransaction,
   IdGenerator,

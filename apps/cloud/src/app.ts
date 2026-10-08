@@ -114,6 +114,7 @@ import {
 import { registerRegisterCoverageRoute } from "./register/register-coverage-route.js";
 import { registerRegisterCreationRoute } from "./register/register-creation-route.js";
 import { registerRegisterEnrollmentCodeRoute } from "./register/register-enrollment-code-route.js";
+import { registerRegisterSyncStatusRoute } from "./register/register-sync-status-route.js";
 import type { RegistersRouteOptions } from "./register/registers-list-route.js";
 import { registerRegistersListRoute } from "./register/registers-list-route.js";
 import { type RefundRouteOptions, registerRefundRoutes } from "./sales/refund-routes.js";
@@ -464,6 +465,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
       if (options.registers) {
         registerRegistersListRoute(api, { ...options.registers, now });
+        registerRegisterSyncStatusRoute(api, { ...options.registers, now });
         registerRegisterCreationRoute(api, { ...options.registers, now });
         registerRegisterCoverageRoute(api, { ...options.registers, now });
         registerRegisterEnrollmentCodeRoute(api, { ...options.registers, now });

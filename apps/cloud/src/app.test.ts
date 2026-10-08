@@ -2252,6 +2252,11 @@ describe("the route access inventory", () => {
         access: capabilityAccess("registers_area"),
       },
       {
+        method: "GET",
+        url: "/api/registers/sync-status",
+        access: capabilityAccess("alerts_area"),
+      },
+      {
         method: "POST",
         url: "/api/registers",
         access: capabilityAccess("registers_area"),
@@ -2265,11 +2270,6 @@ describe("the route access inventory", () => {
         method: "POST",
         url: "/api/registers/:id/device-codes",
         access: capabilityAccess("registers_area"),
-      },
-      {
-        method: "GET",
-        url: "/api/registers/sync-status",
-        access: capabilityAccess("alerts_area"),
       },
       {
         method: "GET",
