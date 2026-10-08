@@ -24,6 +24,7 @@ const EVERY_CAPABILITY: Record<Capability, true> = {
   stock_movements: true,
   stock_area: true,
   reports_area: true,
+  refunds_area: true,
 };
 
 export const ADMINISTRATOR_CAPABILITIES = Object.keys(EVERY_CAPABILITY) as Capability[];
