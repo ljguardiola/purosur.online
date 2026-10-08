@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { changedFilesSince, selectTestsBeside, testsToRun } from "./tests-beside-changes.mjs";
+import {
+  changedFilesSince,
+  runEachFileAlone,
+  selectTestsBeside,
+  testsToRun,
+} from "./tests-beside-changes.mjs";
 
 const TEST_FILES = [
   "packages/domain/src/pricing/model/price.test.ts",
@@ -137,4 +142,37 @@ test("refuses a path asked for that is not a test file", () => {
       }),
     /apps\/cloud\/src\/catalog\/drizzle-catalog-store\.integration\.test\.tsx is not a test file/,
   );
+});
+
+test("runs each test file alone, one after another", async () => {
+  const runs = [];
+  let running = 0;
+  const run = async (files) => {
+    running += 1;
+    runs.push({ files, alongside: running - 1 });
+    await Promise.resolve();
+    running -= 1;
+    return true;
+  };
+
+  const passed = await runEachFileAlone({ files: ["a.test.ts", "b.test.tsx"], run });
+
+  assert.equal(passed, true);
+  assert.deepEqual(runs, [
+    { files: ["a.test.ts"], alongside: 0 },
+    { files: ["b.test.tsx"], alongside: 0 },
+  ]);
+});
+
+test("keeps running the remaining files after one fails, and reports the failure", async () => {
+  const ran = [];
+  const run = async ([file]) => {
+    ran.push(file);
+    return file !== "a.test.ts";
+  };
+
+  const passed = await runEachFileAlone({ files: ["a.test.ts", "b.test.ts"], run });
+
+  assert.equal(passed, false);
+  assert.deepEqual(ran, ["a.test.ts", "b.test.ts"]);
 });
