@@ -138,9 +138,9 @@ describe("the cancelled sales migration applied over a database that already hol
     );
     const insertRefund = (state: string, doneBy: string | null, doneAt: string | null) =>
       client.query(
-        `insert into payment_refunds (id, payment_id, method, provider, amount, state, occurred_at, done_by, done_at)
-         values (gen_random_uuid(), $1, 'TRANSFER', 'NONE', 100, $2, now(), $3, $4)`,
-        [paymentRows[0]?.id, state, doneBy, doneAt],
+        `insert into payment_refunds (id, sale_id, payment_id, method, provider, amount, state, occurred_at, done_by, done_at)
+         values (gen_random_uuid(), $1, $2, 'TRANSFER', 'NONE', 100, $3, now(), $4, $5)`,
+        [saleRows[0]?.id, paymentRows[0]?.id, state, doneBy, doneAt],
       );
 
     await expect(insertRefund("PENDING", null, null)).resolves.toBeDefined();

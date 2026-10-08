@@ -35,6 +35,35 @@ describe("RefundLines", () => {
       .toBeVisible();
   });
 
+  it("says a refund given back now is given back by its payment's means", async () => {
+    const refund: Refund = {
+      payment_id: "p3",
+      method: "TRANSFER",
+      amount: 250_000,
+      state: "APPROVED",
+    };
+
+    const screen = await render(<RefundLines refunds={[refund]} />);
+
+    await expect
+      .element(screen.getByText("Devolver $ 2.500,00 por transferencia", { exact: true }))
+      .toBeVisible();
+  });
+
+  it("says a pending refund stays pending whatever its payment's means", async () => {
+    const refund: Refund = { payment_id: "p4", method: "CASH", amount: 100_000, state: "PENDING" };
+
+    const screen = await render(<RefundLines refunds={[refund]} />);
+
+    await expect
+      .element(
+        screen.getByText("Reembolso pendiente del pago en efectivo por $ 1.000,00", {
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+  });
+
   it("lists one line per payment", async () => {
     const refunds: Refund[] = [
       { payment_id: "p1", method: "CASH", amount: 100_000, state: "APPROVED" },

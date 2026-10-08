@@ -351,6 +351,7 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
     });
     await db.insert(paymentRefunds).values({
       id: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e26",
+      saleId,
       paymentId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e24",
       method: "CASH",
       provider: "NONE",

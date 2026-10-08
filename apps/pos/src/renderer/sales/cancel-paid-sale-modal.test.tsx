@@ -116,6 +116,17 @@ describe("CancelPaidSaleModal", () => {
     await expect.element(screen.getByText(/queda pendiente/)).not.toBeInTheDocument();
   });
 
+  it("says nothing about a pending refund when every refund is given back now", async () => {
+    const { screen } = await renderModal({
+      refunds: [{ ...TRANSFER_REFUND, state: "APPROVED" }],
+    });
+
+    await expect
+      .element(screen.getByText("Devolver $ 2.500,00 por transferencia", { exact: true }))
+      .toBeVisible();
+    await expect.element(screen.getByText(/queda pendiente/)).not.toBeInTheDocument();
+  });
+
   it("asks for nobody's authorization when the person may cancel on their own", async () => {
     const { screen, cancel, requested } = await renderModal();
 

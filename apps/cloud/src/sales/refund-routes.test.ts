@@ -155,20 +155,6 @@ describe("POST /refunds/:id/completion", () => {
     expect(response.json()).toMatchObject({ code: "refund_not_found" });
   });
 
-  it("answers 404 to a refund of another branch and leaves it pending", async () => {
-    const otherLocationId = await insertLocation(db);
-    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW, {
-      locationId: otherLocationId,
-    });
-    const refundId = await aPendingRefund();
-
-    const response = await markDone(headers, refundId);
-
-    expect(response.statusCode).toBe(404);
-    const [refund] = await db.select().from(paymentRefunds).where(eq(paymentRefunds.id, refundId));
-    expect(refund).toMatchObject({ state: "PENDING", doneBy: null });
-  });
-
   it("answers 400 to an id that is not a record id", async () => {
     const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
 

@@ -396,7 +396,7 @@ describe("recording the cancelled sales of applied events", () => {
       state: "PENDING" as const,
     };
 
-    await recordCancelled({
+    const { cancelled } = await recordCancelled({
       payments: [cash, transfer],
       refunds: [cashRefund, transferRefund],
     });
@@ -405,6 +405,7 @@ describe("recording the cancelled sales of applied events", () => {
     expect(rows).toHaveLength(2);
     expect(rows.find((row) => row.id === transferRefund.id)).toEqual({
       id: transferRefund.id,
+      saleId: cancelled.id,
       paymentId: transfer.id,
       method: "TRANSFER",
       provider: "NONE",
@@ -472,6 +473,31 @@ describe("recording the cancelled sales of applied events", () => {
     expect(await system.db.select().from(sales)).toEqual([]);
     expect(await system.db.select().from(paymentRefunds)).toEqual([]);
     expect(await system.db.select().from(cashMovements)).toEqual([]);
+  });
+
+  it("writes nothing when a refund names a payment of another sale", async () => {
+    const { cancelled: other, sessionId, deviceId } = await recordCancelled();
+    const [otherPayment] = other.payments;
+    const [refund] = aCancelledSale().refunds;
+    if (!otherPayment || !refund) {
+      throw new Error("test setup: the sales have no payment or refund");
+    }
+    const cancelled = aCancelledSale({
+      sessionId,
+      refunds: [{ ...refund, paymentId: otherPayment.id }],
+    });
+
+    await expect(
+      record(
+        { kind: "sale_cancelled", sale: cancelled },
+        { deviceId, aggregateType: "Sale", aggregateId: cancelled.id },
+      ),
+    ).rejects.toThrow();
+
+    expect((await system.db.select().from(sales)).map((row) => row.id)).toEqual([other.id]);
+    expect((await system.db.select().from(paymentRefunds)).map((row) => row.id)).toEqual(
+      other.refunds.map((otherRefund) => otherRefund.id),
+    );
   });
 });
 
