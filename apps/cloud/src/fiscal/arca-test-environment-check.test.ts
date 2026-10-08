@@ -96,13 +96,16 @@ describe("checkArcaTestEnvironment", () => {
     });
   });
 
-  it("fails when FEDummy gives no answer", async () => {
+  it("fails, with the cause, when FEDummy gives no answer", async () => {
     wsfe.behave({ kind: "never-answers" });
 
     const report = await check(200);
 
     expect(report.passed).toBe(false);
-    expect(report.feDummy).toEqual({ kind: "not_ok", answer: { kind: "unreachable" } });
+    expect(report.feDummy).toEqual({
+      kind: "not_ok",
+      answer: { kind: "unreachable", cause: "ECONNABORTED: timeout of 200ms exceeded" },
+    });
   });
 
   it("fails, with the fault the service answered, when the login fails", async () => {
@@ -189,15 +192,18 @@ describe("describeArcaTestEnvironmentCheck", () => {
     ]);
   });
 
-  it("says when FEDummy gave no answer and the login failed without a fault", () => {
+  it("says why FEDummy gave no answer and that the login failed without a fault", () => {
     expect(
       describeArcaTestEnvironmentCheck({
         passed: false,
-        feDummy: { kind: "not_ok", answer: { kind: "unreachable" } },
+        feDummy: {
+          kind: "not_ok",
+          answer: { kind: "unreachable", cause: "ECONNRESET: socket hang up" },
+        },
         login: { kind: "failed", fault: undefined },
       }),
     ).toEqual([
-      "FEDummy: no answer the client could read",
+      "FEDummy: no answer the client could read (ECONNRESET: socket hang up)",
       "loginCms: failed with no SOAP fault the client could read",
     ]);
   });

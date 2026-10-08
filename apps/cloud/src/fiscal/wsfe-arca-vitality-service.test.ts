@@ -74,25 +74,43 @@ describe("WsfeArcaVitalityService", () => {
     });
   });
 
-  it("is unreachable on an HTTP 500 carrying a SOAP fault", async () => {
+  it("is unreachable, naming the HTTP status and the fault, on an HTTP 500 carrying a SOAP fault", async () => {
     server.behave(answers("fe-dummy-fault.xml", 500));
 
-    expect(await serviceOf(server.endpoint).check()).toEqual({ kind: "unreachable" });
+    expect(await serviceOf(server.endpoint).check()).toEqual({
+      kind: "unreachable",
+      cause: "HTTP 500: soap:Server: Server was unable to process request.",
+    });
   });
 
-  it("is unreachable on an HTTP error that is not SOAP", async () => {
+  it("is unreachable, naming the HTTP status, on an HTTP error that is not SOAP", async () => {
     server.behave(answers("not-soap.txt", 502));
 
-    expect(await serviceOf(server.endpoint).check()).toEqual({ kind: "unreachable" });
+    expect(await serviceOf(server.endpoint).check()).toEqual({
+      kind: "unreachable",
+      cause: "HTTP 502: Invalid XML",
+    });
   });
 
-  it("is unreachable on an answer that is not SOAP", async () => {
+  it("is unreachable, saying it could not read it, on an answer that is not SOAP", async () => {
     server.behave(answers("not-soap.txt"));
 
-    expect(await serviceOf(server.endpoint).check()).toEqual({ kind: "unreachable" });
+    expect(await serviceOf(server.endpoint).check()).toEqual({
+      kind: "unreachable",
+      cause: "HTTP 200: Invalid XML",
+    });
   });
 
-  it("is unreachable when the connection is refused", async () => {
+  it("is unreachable, naming the server the answer lacks, on an answer missing one", async () => {
+    server.behave(answers("fe-dummy-missing-auth-server.xml"));
+
+    expect(await serviceOf(server.endpoint).check()).toEqual({
+      kind: "unreachable",
+      cause: "the answer lacked AuthServer",
+    });
+  });
+
+  it("is unreachable, naming the network error, when the connection is refused", async () => {
     const closedPort = await new Promise<number>((resolve) => {
       const probe = createServer();
       probe.listen(0, "127.0.0.1", () => {
@@ -104,13 +122,17 @@ describe("WsfeArcaVitalityService", () => {
 
     expect(await serviceOf(`http://127.0.0.1:${closedPort}/wsfev1/service.asmx`).check()).toEqual({
       kind: "unreachable",
+      cause: `connect ECONNREFUSED 127.0.0.1:${closedPort}`,
     });
   });
 
-  it("is unreachable when ARCA never answers within the timeout", async () => {
+  it("is unreachable, naming the time limit, when ARCA never answers within it", async () => {
     server.behave({ kind: "never-answers" });
 
-    expect(await serviceOf(server.endpoint, 200).check()).toEqual({ kind: "unreachable" });
+    expect(await serviceOf(server.endpoint, 200).check()).toEqual({
+      kind: "unreachable",
+      cause: "ECONNABORTED: timeout of 200ms exceeded",
+    });
   });
 });
 
