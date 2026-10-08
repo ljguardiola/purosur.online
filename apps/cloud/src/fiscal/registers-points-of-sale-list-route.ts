@@ -10,11 +10,13 @@ import {
   routeSessionSource,
 } from "../access/route-access.js";
 import { DrizzleRegisterPointOfSaleReader } from "./drizzle-register-point-of-sale-reader.js";
+import type { EnqueueTaxAuthorityCount } from "./graphile-tax-authority-count-queue.js";
 
 export interface RegistersPointsOfSaleRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
   now: () => Date;
+  enqueueTaxAuthorityCount?: EnqueueTaxAuthorityCount;
 }
 
 function toOverviewWire(setup: BranchRegisterPointOfSale) {

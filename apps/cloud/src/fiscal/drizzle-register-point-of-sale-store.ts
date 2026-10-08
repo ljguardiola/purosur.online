@@ -18,6 +18,7 @@ import {
   registers,
 } from "../platform/db/schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
+import type { EnqueueTaxAuthorityCount } from "./graphile-tax-authority-count-queue.js";
 import { NEVER_CONFIGURED_VERSION } from "./register-point-of-sale-version.js";
 
 const UNIQUE_VIOLATION = "23505";
@@ -41,11 +42,18 @@ class DrizzleRegisterPointOfSaleStoreTransaction<TQueryResult extends PgQueryRes
   private readonly tx: PgDatabase<TQueryResult>;
   private readonly now: () => Date;
   private readonly pending: PendingChanges;
+  private readonly enqueueTaxAuthorityCount: EnqueueTaxAuthorityCount | undefined;
 
-  constructor(tx: PgDatabase<TQueryResult>, now: () => Date, pending: PendingChanges) {
+  constructor(
+    tx: PgDatabase<TQueryResult>,
+    now: () => Date,
+    pending: PendingChanges,
+    enqueueTaxAuthorityCount: EnqueueTaxAuthorityCount | undefined,
+  ) {
     this.tx = tx;
     this.now = now;
     this.pending = pending;
+    this.enqueueTaxAuthorityCount = enqueueTaxAuthorityCount;
   }
 
   // NO KEY UPDATE leaves the foreign-key check of an enrollment redeeming this register's code free
@@ -150,6 +158,7 @@ class DrizzleRegisterPointOfSaleStoreTransaction<TQueryResult extends PgQueryRes
       version,
       op: previous ? "update" : "insert",
     });
+    await this.enqueueTaxAuthorityCount?.(this.tx, pointOfSaleNumber);
   }
 }
 
@@ -159,18 +168,32 @@ export class DrizzleRegisterPointOfSaleStore<TQueryResult extends PgQueryResultH
   private readonly db: PgDatabase<TQueryResult>;
   private readonly now: () => Date;
   private readonly pending: PendingChanges | undefined;
+  private readonly enqueueTaxAuthorityCount: EnqueueTaxAuthorityCount | undefined;
 
-  constructor(db: PgDatabase<TQueryResult>, now: () => Date, pending?: PendingChanges) {
+  constructor(
+    db: PgDatabase<TQueryResult>,
+    now: () => Date,
+    pending?: PendingChanges,
+    enqueueTaxAuthorityCount?: EnqueueTaxAuthorityCount,
+  ) {
     this.db = db;
     this.now = now;
     this.pending = pending;
+    this.enqueueTaxAuthorityCount = enqueueTaxAuthorityCount;
   }
 
   transaction<TOutcome>(
     work: (tx: RegisterPointOfSaleStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     return withPendingChanges(this.db, this.pending, (tx, pending) =>
-      work(new DrizzleRegisterPointOfSaleStoreTransaction(tx, this.now, pending)),
+      work(
+        new DrizzleRegisterPointOfSaleStoreTransaction(
+          tx,
+          this.now,
+          pending,
+          this.enqueueTaxAuthorityCount,
+        ),
+      ),
     );
   }
 }

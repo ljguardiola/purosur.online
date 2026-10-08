@@ -43,7 +43,12 @@ export function registerRegisterPointOfSaleConfigurationRoute<
   const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
-  const store = new DrizzleRegisterPointOfSaleStore(options.db, now);
+  const store = new DrizzleRegisterPointOfSaleStore(
+    options.db,
+    now,
+    undefined,
+    options.enqueueTaxAuthorityCount,
+  );
 
   app.put(
     "/registers/:id/point-of-sale",
