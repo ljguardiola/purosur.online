@@ -38,9 +38,6 @@ export function isSpanWithinBranchHours(
   hours: readonly BranchWeeklyHoursRange[],
 ): boolean {
   const day = argentinaCalendarDay(span.start);
-  if (argentinaCalendarDay(span.end) !== day) {
-    return false;
-  }
   const dayStart = new Date(argentinaInstant(day, "00:00")).getTime();
   const startMinute = (span.start.getTime() - dayStart) / MINUTE_MS;
   const endMinute = (span.end.getTime() - dayStart) / MINUTE_MS;
