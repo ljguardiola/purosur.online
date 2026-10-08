@@ -714,6 +714,7 @@ describe("the register's local migrations", () => {
       const database = withSession();
       insertSale(database, "a", "COMPLETED");
       insertSale(database, "b", "VOIDED");
+      insertSale(database, "e", "CANCELLED");
       insertSale(database, "c", "OPEN");
 
       expect(() => insertSale(database, "d", "OPEN")).toThrow(/UNIQUE/);
@@ -724,7 +725,6 @@ describe("the register's local migrations", () => {
       const database = withSession();
 
       expect(() => insertSale(database, "a", "PENDING")).toThrow(/CHECK/);
-      expect(() => insertSale(database, "c", "CANCELLED")).toThrow(/CHECK/);
       expect(() => insertSale(database, "b", "OPEN", "missing")).toThrow(/FOREIGN KEY/);
       database.close();
     });
@@ -860,6 +860,7 @@ describe("the register's local migrations", () => {
         "0017_completed_sales_only",
         "0018_transfer_payments",
         "0019_sales_dated_when_charged",
+        "0020_cancelled_sales_and_refunds",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -906,6 +907,7 @@ describe("the register's local migrations", () => {
         "0017_completed_sales_only",
         "0018_transfer_payments",
         "0019_sales_dated_when_charged",
+        "0020_cancelled_sales_and_refunds",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -947,6 +949,7 @@ describe("the register's local migrations", () => {
         "0017_completed_sales_only",
         "0018_transfer_payments",
         "0019_sales_dated_when_charged",
+        "0020_cancelled_sales_and_refunds",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -987,6 +990,7 @@ describe("the register's local migrations", () => {
         "0017_completed_sales_only",
         "0018_transfer_payments",
         "0019_sales_dated_when_charged",
+        "0020_cancelled_sales_and_refunds",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1054,6 +1058,7 @@ describe("the register's local migrations", () => {
       expect(previous.at(-1)?.name).toBe("0018_transfer_payments");
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0019_sales_dated_when_charged",
+        "0020_cancelled_sales_and_refunds",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1104,5 +1109,155 @@ describe("the register's local migrations", () => {
     } finally {
       rmSync(folder, { recursive: true, force: true });
     }
+  });
+
+  it("let a sale be cancelled and hold the refunds of its payments over the sales a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(0, 20);
+      expect(previous.at(-1)?.name).toBe("0019_sales_dated_when_charged");
+      expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
+        "0020_cancelled_sales_and_refunds",
+      ]);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('done', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-09-30T12:05:00.000Z'),
+                ('open', 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL);
+         INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+         VALUES ('l-done', 'done', 1, 'p1', 'Yerba', 1, 1000, 'pl', 1000),
+                ('l-open', 'open', 1, 'p1', 'Yerba', 1, 1000, 'pl', 1000);
+         INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, state, occurred_at)
+         VALUES ('pay-done', 'done', 'SALE', 'CASH', 'NONE', 1000, 1000, 'APPROVED', '2026-09-30T12:05:00.000Z'),
+                ('pay-open', 'open', 'SALE', 'CASH', 'NONE', 400, 400, 'APPROVED', '2026-09-30T12:08:00.000Z');`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare(
+            "SELECT id, state, occurred_at, cancellation_authorized_by FROM sales ORDER BY id",
+          )
+          .all(),
+      ).toEqual([
+        {
+          id: "done",
+          state: "COMPLETED",
+          occurred_at: "2026-09-30T12:05:00.000Z",
+          cancellation_authorized_by: null,
+        },
+        { id: "open", state: "OPEN", occurred_at: null, cancellation_authorized_by: null },
+      ]);
+      expect(after.prepare("SELECT id, sale_id FROM sale_lines ORDER BY id").all()).toEqual([
+        { id: "l-done", sale_id: "done" },
+        { id: "l-open", sale_id: "open" },
+      ]);
+      expect(after.prepare("SELECT id FROM payment_transactions ORDER BY id").all()).toEqual([
+        { id: "pay-done" },
+        { id: "pay-open" },
+      ]);
+      expect(after.pragma("foreign_key_check")).toEqual([]);
+      expect(() =>
+        after
+          .prepare(
+            `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+             VALUES ('second', 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL)`,
+          )
+          .run(),
+      ).toThrow(/UNIQUE/);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  describe("the cancelled sales and the payment refunds", () => {
+    function withPaidSale() {
+      const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
+      database.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL);
+         INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, state, occurred_at)
+         VALUES ('pay-1', 'sale-1', 'SALE', 'CASH', 'NONE', 400, 400, 'APPROVED', '2026-09-30T12:08:00.000Z');`,
+      );
+      return database;
+    }
+
+    function cancel(database: ReturnType<typeof openLocalDatabase>, occurredAt: string | null) {
+      database
+        .prepare("UPDATE sales SET state = 'CANCELLED', occurred_at = ? WHERE id = 'sale-1'")
+        .run(occurredAt);
+    }
+
+    function insertRefund(
+      database: ReturnType<typeof openLocalDatabase>,
+      values: Partial<{
+        id: string;
+        payment_id: string;
+        method: string;
+        provider: string;
+        amount: number;
+        state: string;
+      }>,
+    ) {
+      database
+        .prepare(
+          `INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at)
+           VALUES (@id, @payment_id, @method, @provider, @amount, @state, '2026-09-30T12:10:00.000Z')`,
+        )
+        .run({
+          id: "refund-1",
+          payment_id: "pay-1",
+          method: "CASH",
+          provider: "NONE",
+          amount: 400,
+          state: "APPROVED",
+          ...values,
+        });
+    }
+
+    it("date a cancelled sale with its cancellation and name who authorized it only then", () => {
+      const database = withPaidSale();
+
+      expect(() => cancel(database, null)).toThrow(/CHECK/);
+      cancel(database, "2026-09-30T12:10:00.000Z");
+      database.prepare("UPDATE sales SET cancellation_authorized_by = 'u2'").run();
+      expect(() =>
+        database
+          .prepare("UPDATE sales SET state = 'COMPLETED', cancellation_authorized_by = 'u2'")
+          .run(),
+      ).toThrow(/CHECK/);
+      database.close();
+    });
+
+    it("keep a pending refund of a payment next to a refund already given, several per payment", () => {
+      const database = withPaidSale();
+
+      insertRefund(database, {});
+      insertRefund(database, { id: "refund-2", method: "TRANSFER", state: "PENDING", amount: 100 });
+
+      expect(database.prepare("SELECT id, state FROM payment_refunds ORDER BY id").all()).toEqual([
+        { id: "refund-1", state: "APPROVED" },
+        { id: "refund-2", state: "PENDING" },
+      ]);
+      database.close();
+    });
+
+    it("refuse a refund of an unknown payment, of no amount or in an unknown state", () => {
+      const database = withPaidSale();
+
+      expect(() => insertRefund(database, { payment_id: "missing" })).toThrow(/FOREIGN KEY/);
+      expect(() => insertRefund(database, { amount: 0 })).toThrow(/CHECK/);
+      expect(() => insertRefund(database, { state: "DECLINED" })).toThrow(/CHECK/);
+      expect(() => insertRefund(database, { method: "CARD" })).toThrow(/CHECK/);
+      database.close();
+    });
   });
 });
