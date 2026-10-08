@@ -26,11 +26,11 @@ import {
   readBuyerTaxStatusSetInEffect,
   readIssuerIdentificationInEffect,
 } from "../fiscal/sqlite-pre-emission-gate";
+import { readSalePayments } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
 import { insertCashMovement, readMovementsOf } from "../register/sqlite-cash-ledger";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 import { type BenefitColumns, readOpenSale, toBenefit } from "./sqlite-open-sale";
-import { readSalePayments } from "./sqlite-sale-payments";
 
 interface PriceRow {
   id: string;
