@@ -1,3 +1,4 @@
+export type { OperationAuthority, OperationAuthorization } from "../../shared/index.js";
 export type {
   AuthenticateInstallationInput,
   AuthenticateInstallationOutcome,
@@ -66,7 +67,6 @@ export type {
   OpenCashSessionPorts,
 } from "./open-cash-session.js";
 export { openCashSession } from "./open-cash-session.js";
-export type { OperationAuthority, OperationAuthorization } from "./operation-authority.js";
 export type {
   RecordCashMovementGrant,
   RecordCashMovementInput,

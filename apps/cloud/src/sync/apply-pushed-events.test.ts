@@ -5,6 +5,7 @@ import {
   alerts,
   cashSessions,
   inbox,
+  paymentRefunds,
   prices,
   saleLines,
   salePayments,
@@ -20,6 +21,7 @@ import {
   cashSessionOpened,
   PUSHING_CHAIN_KEY,
   pushingDevice,
+  saleCancelled,
   saleCompleted,
 } from "./test-support/pushing-device.js";
 
@@ -120,6 +122,58 @@ describe("applying what POST /events received", () => {
     });
     const [sale] = await route.db.select().from(inbox).where(eq(inbox.aggregateId, saleId));
     expect(sale).toMatchObject({ appliedAt: NOW, quarantinedAt: null });
+  });
+
+  it("applies a cancelled sale with its refund and no alert", async () => {
+    const { device } = await pushingFromARegister();
+    const sessionId = randomUUID();
+    const saleId = randomUUID();
+    await device.push([
+      cashSessionOpened(sessionId, "2026-10-06T11:00:00.000Z"),
+      saleCancelled({
+        saleId,
+        sessionId,
+        cancelledAt: "2026-10-06T11:25:00.000Z",
+        paymentAmount: 1000,
+        refundAmount: 1000,
+      }),
+    ]);
+
+    await applyAt(NOW);
+
+    const [sale] = await route.db.select().from(sales);
+    expect(sale).toMatchObject({ id: saleId, state: "CANCELLED" });
+    expect(await route.db.select().from(paymentRefunds)).toHaveLength(1);
+    expect(await route.db.select().from(alerts)).toEqual([]);
+  });
+
+  it("applies a cancelled sale whose refunds do not match its payments, and flags it", async () => {
+    const { device } = await pushingFromARegister();
+    const sessionId = randomUUID();
+    const saleId = randomUUID();
+    await device.push([
+      cashSessionOpened(sessionId, "2026-10-06T11:00:00.000Z"),
+      saleCancelled({
+        saleId,
+        sessionId,
+        cancelledAt: "2026-10-06T11:25:00.000Z",
+        paymentAmount: 1000,
+        refundAmount: 400,
+      }),
+    ]);
+
+    await applyAt(NOW);
+
+    expect(await route.db.select().from(sales)).toHaveLength(1);
+    const [flagged] = await route.db.select().from(alerts);
+    expect(flagged).toMatchObject({
+      kind: "event_invariant_violated",
+      detail: {
+        eventType: "sale_cancelled",
+        aggregateId: saleId,
+        breaks: ["refunds_do_not_match_payments"],
+      },
+    });
   });
 
   it("applies a sale whose frozen price differs from the current price list, with no alert", async () => {

@@ -232,6 +232,8 @@ describe("SaleScreen", () => {
           lines_editable: true,
           cancellable: true,
           charge_refusal: null,
+          refunds_on_cancel: [],
+          cancel_authorization_required: false,
         }),
       });
 
@@ -262,6 +264,8 @@ describe("SaleScreen", () => {
           lines_editable: true,
           cancellable: true,
           charge_refusal: null,
+          refunds_on_cancel: [],
+          cancel_authorization_required: false,
         }),
       });
       const reference = await render(<Tag tone="success">Referencia</Tag>);
@@ -294,6 +298,8 @@ describe("SaleScreen", () => {
           lines_editable: true,
           cancellable: true,
           charge_refusal: null,
+          refunds_on_cancel: [],
+          cancel_authorization_required: false,
         }),
       });
 
@@ -336,6 +342,8 @@ describe("SaleScreen", () => {
           lines_editable: true,
           cancellable: true,
           charge_refusal: null,
+          refunds_on_cancel: [],
+          cancel_authorization_required: false,
         }),
       });
 
@@ -352,6 +360,8 @@ describe("SaleScreen", () => {
         currentSale: async () => ({
           ...SALE_OF_YERBA,
           charge_refusal: { kind: "reaches_buyer_identification_threshold", threshold: 476_000 },
+          refunds_on_cancel: [],
+          cancel_authorization_required: false,
         }),
       });
 
@@ -376,6 +386,8 @@ describe("SaleScreen", () => {
         currentSale: async () => ({
           ...SALE_OF_YERBA,
           charge_refusal: { kind: "no_buyer_identification_threshold" },
+          refunds_on_cancel: [],
+          cancel_authorization_required: false,
         }),
       });
 
@@ -529,6 +541,8 @@ describe("SaleScreen", () => {
         lines_editable: true,
         cancellable: true,
         charge_refusal: null,
+        refunds_on_cancel: [],
+        cancel_authorization_required: false,
       };
       const scanProduct = vi.fn(
         async (): Promise<ScanProductOutcome> => ({ kind: "added", sale: again }),

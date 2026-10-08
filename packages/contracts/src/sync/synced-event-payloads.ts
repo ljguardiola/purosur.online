@@ -111,6 +111,27 @@ const saleCompletedV2Schema = z.object({
   payments: z.array(paymentSchema).min(1),
 });
 
+const saleRefundFields = {
+  id: text,
+  kind: z.literal("REFUND"),
+  parent_id: text,
+  provider: z.literal("NONE"),
+  amount: cents,
+  occurred_at: instant,
+};
+
+const saleRefundSchema = z.discriminatedUnion("method", [
+  z.object({ ...saleRefundFields, method: z.literal("CASH"), state: z.literal("APPROVED") }),
+  z.object({ ...saleRefundFields, method: z.literal("TRANSFER"), state: z.literal("PENDING") }),
+]);
+
+const saleCancelledV1Schema = z.object({
+  ...saleCompletedFields,
+  authorized_by: text.nullable(),
+  payments: z.array(paymentSchema).min(1),
+  refunds: z.array(saleRefundSchema).min(1),
+});
+
 const cashSessionOpenedSchema = z.object({
   opened_by: text,
   opened_at: instant,
@@ -146,6 +167,7 @@ const fiscalGateFailedSchema = z.object({
 const PAYLOAD_SCHEMAS = {
   "sale_completed@1": saleCompletedV1Schema,
   "sale_completed@2": saleCompletedV2Schema,
+  "sale_cancelled@1": saleCancelledV1Schema,
   "cash_session_opened@1": cashSessionOpenedSchema,
   "cash_session_closed@1": cashSessionClosedSchema,
   "cash_movement_recorded@1": cashMovementRecordedSchema,

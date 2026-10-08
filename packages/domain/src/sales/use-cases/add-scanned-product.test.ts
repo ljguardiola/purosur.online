@@ -123,6 +123,7 @@ describe("addScannedProduct", () => {
       balance: { paid: 0, pending: 2500 },
       linesEditable: true,
       cancellable: true,
+      refundsOnCancel: [],
     });
     expect(store.state.sales).toEqual([sale]);
   });

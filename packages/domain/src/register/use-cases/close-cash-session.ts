@@ -1,10 +1,10 @@
 import { openSaleSummary } from "../../sales/index.js";
+import type { OperationAuthority } from "../../shared/index.js";
 import { isValidCashAmount } from "../model/cash-amount.js";
 import { cashCountDifference } from "../model/cash-count.js";
 import type { ClosedCashSession } from "../model/cash-session.js";
 import { expectedCash } from "../model/expected-cash.js";
 import type { CashLedger, IdGenerator } from "./cash-ledger.js";
-import type { OperationAuthority } from "./operation-authority.js";
 import type { Clock } from "./register-store.js";
 
 export interface CloseCashSessionInput {

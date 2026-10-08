@@ -1,7 +1,7 @@
 import type { CashMovementType } from "../../register/index.js";
 import { saleBalance } from "./sale-balance.js";
 
-interface CompletedSaleLine {
+export interface CompletedSaleLine {
   id: string;
   productId: string;
   productName: string;
@@ -25,7 +25,7 @@ export interface CompletedSalePayment {
   confirmedAt: Date | null;
 }
 
-interface CompletedSaleCashMovement {
+export interface CompletedSaleCashMovement {
   id: string;
   type: CashMovementType;
   amount: number;

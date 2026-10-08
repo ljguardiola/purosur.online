@@ -1,5 +1,7 @@
 import type {
   AddProductOutcome,
+  Authorization,
+  CancelPaidSaleOutcome,
   CancelSaleOutcome,
   ChangeLineQuantityOutcome,
   CurrentSaleAnswer,
@@ -7,7 +9,9 @@ import type {
   RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
+  SignInUser,
 } from "@purosur/contracts";
+import type { AuthorizablePermissionKey } from "@purosur/domain";
 import {
   EmptyState,
   LoadFailure,
@@ -22,11 +26,14 @@ import { useEffect, useId, useRef, useState } from "react";
 import { OpenSessionRail } from "../shell/open-session-rail";
 import { sessionEyebrow } from "../shell/session-eyebrow";
 import type { SignedInPerson } from "../shell/signed-in-person";
+import { CancelPaidSaleModal } from "./cancel-paid-sale-modal";
 import { CancelSaleModal } from "./cancel-sale-modal";
 import { changedLineId } from "./changed-line";
+import { PaidSaleCancelledModal } from "./paid-sale-cancelled-modal";
 import { PaymentPanel } from "./payment-panel";
 import type { SearchResults } from "./product-search-results";
 import { ProductSearchResults, searchOptionId } from "./product-search-results";
+import type { Refund } from "./refund-lines";
 import { SaleLines } from "./sale-lines";
 import {
   useCurrentSaleQuery,
@@ -54,6 +61,11 @@ export type SaleScreenProps = {
   ) => Promise<ChangeLineQuantityOutcome>;
   removeSaleLine: (lineId: string) => Promise<RemoveSaleLineOutcome>;
   cancelSale: () => Promise<CancelSaleOutcome>;
+  cancelPaidSale: (
+    saleId: string,
+    authorization: Authorization | undefined,
+  ) => Promise<CancelPaidSaleOutcome>;
+  loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   onSessionInvalid: () => void;
 };
 
@@ -91,6 +103,8 @@ export function SaleScreen({
   changeLineQuantity,
   removeSaleLine,
   cancelSale,
+  cancelPaidSale,
+  loadAuthorizers,
   onSessionInvalid,
 }: SaleScreenProps) {
   const navigate = useNavigate();
@@ -107,6 +121,8 @@ export function SaleScreen({
   const [dismissed, setDismissed] = useState(false);
   const [editing, setEditing] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const [confirmingPaidCancel, setConfirmingPaidCancel] = useState(false);
+  const [cancelledRefunds, setCancelledRefunds] = useState<Refund[]>();
   const editInFlight = useRef(false);
   const confirmingCancelNow = useRef(false);
   const listboxId = useId();
@@ -226,6 +242,30 @@ export function SaleScreen({
     setConfirmingCancel(asking);
   }
 
+  function askToCancelPaid(asking: boolean) {
+    confirmingCancelNow.current = asking;
+    setConfirmingPaidCancel(asking);
+  }
+
+  async function takeCancelledPaidSale(refunds: Refund[]) {
+    setProblem(undefined);
+    setChanged(undefined);
+    setCancelledRefunds(refunds);
+    askToCancelPaid(false);
+    await takeSale(null);
+  }
+
+  async function readSaleAgain() {
+    askToCancelPaid(false);
+    await resetCurrentSale();
+  }
+
+  function closeCancelledPaidSale() {
+    confirmingCancelNow.current = false;
+    setCancelledRefunds(undefined);
+    focusScanField(field.current);
+  }
+
   async function edit(request: () => Promise<SaleEditOutcome>, failure: SaleEditFailure) {
     if (editInFlight.current) {
       return;
@@ -274,10 +314,10 @@ export function SaleScreen({
   }
 
   useEffect(() => {
-    if (!confirmingCancel) {
+    if (!confirmingCancel && !confirmingPaidCancel && cancelledRefunds === undefined) {
       focusScanField(field.current);
     }
-  }, [confirmingCancel]);
+  }, [confirmingCancel, confirmingPaidCancel, cancelledRefunds]);
 
   const found = results?.query === code.trim() && !dismissed ? results : undefined;
   const choosing = found !== undefined && found.products.length > 0;
@@ -310,6 +350,8 @@ export function SaleScreen({
   const shownProblem =
     answer === "not_permitted" && problem?.kind === "not_permitted" ? undefined : problem;
   const lockedReason = editable ? undefined : LOCKED_REASON;
+  const refundsOnCancel = sale?.refunds_on_cancel ?? [];
+  const cancelWithRefunds = refundsOnCancel.length > 0;
 
   return (
     <div className="flex h-screen w-screen bg-surface-subtle">
@@ -392,11 +434,13 @@ export function SaleScreen({
         total={sale?.total ?? 0}
         paid={sale?.paid ?? 0}
         pending={sale?.pending ?? 0}
-        cancellable={answer !== undefined && (sale?.cancellable ?? true)}
+        cancellable={
+          answer !== undefined && (sale === null || sale.cancellable || cancelWithRefunds)
+        }
         chargeRefusal={sale?.charge_refusal ?? null}
         canCancel={sale !== null && !editing}
         onCharge={() => void navigate({ to: "/charge" })}
-        onCancel={() => askToCancel(true)}
+        onCancel={() => (cancelWithRefunds ? askToCancelPaid(true) : askToCancel(true))}
       />
       <CancelSaleModal
         open={confirmingCancel}
@@ -406,6 +450,25 @@ export function SaleScreen({
         onClose={() => askToCancel(false)}
         onCancelSale={() => void edit(cancelSale, { kind: "cancel_failed" })}
       />
+      {confirmingPaidCancel && sale !== null ? (
+        <CancelPaidSaleModal
+          saleId={sale.id}
+          total={sale.total}
+          paid={sale.paid}
+          refunds={refundsOnCancel}
+          authorizationRequired={sale.cancel_authorization_required}
+          person={person}
+          loadAuthorizers={loadAuthorizers}
+          cancelPaidSale={cancelPaidSale}
+          onCancelled={(refunds) => void takeCancelledPaidSale(refunds)}
+          onSaleGone={() => void readSaleAgain()}
+          onSessionInvalid={onSessionInvalid}
+          onClose={() => askToCancelPaid(false)}
+        />
+      ) : null}
+      {cancelledRefunds === undefined ? null : (
+        <PaidSaleCancelledModal refunds={cancelledRefunds} onClose={closeCancelledPaidSale} />
+      )}
     </div>
   );
 }

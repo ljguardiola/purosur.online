@@ -87,6 +87,38 @@ describe("registerOperationAccess", () => {
     });
   });
 
+  describe("for cancelling a sale that has approved payments", () => {
+    const operation: RegisterOperation = { kind: "cancel_paid_sale" };
+
+    it("permits a person who holds void_sale", () => {
+      expect(
+        registerOperationAccess(operation, { id: "ana", access: holding("void_sale") }),
+      ).toEqual({ kind: "permitted" });
+    });
+
+    it("permits an Administrator", () => {
+      expect(registerOperationAccess(operation, { id: "ana", access: ADMINISTRATOR })).toEqual({
+        kind: "permitted",
+      });
+    });
+
+    it("asks another person's authorization with void_sale from a cashier who lacks it", () => {
+      expect(
+        registerOperationAccess(operation, { id: "ana", access: holding("sell_and_charge") }),
+      ).toEqual({ kind: "needs_authorization", permission: "void_sale" });
+    });
+
+    it("answers that a person with no access has none", () => {
+      expect(registerOperationAccess(operation, { id: "ana", access: undefined })).toEqual({
+        kind: "no_access",
+      });
+    });
+
+    it("refuses when nobody is signed in", () => {
+      expect(registerOperationAccess(operation, undefined)).toEqual({ kind: "refused" });
+    });
+  });
+
   describe("for closing the open cash session", () => {
     const operation: RegisterOperation = { kind: "close_cash_session", session: SESSION };
 
@@ -151,6 +183,24 @@ describe("mayAuthorize", () => {
 
     it("refuses a person who holds another movement's permission", () => {
       expect(mayAuthorize(operation, { id: "bruno", access: holding("record_cash_in") })).toBe(
+        false,
+      );
+    });
+  });
+
+  describe("cancelling a sale that has approved payments", () => {
+    const operation: RegisterOperation = { kind: "cancel_paid_sale" };
+
+    it("accepts a person who holds void_sale", () => {
+      expect(mayAuthorize(operation, { id: "bruno", access: holding("void_sale") })).toBe(true);
+    });
+
+    it("accepts an Administrator", () => {
+      expect(mayAuthorize(operation, { id: "bruno", access: ADMINISTRATOR })).toBe(true);
+    });
+
+    it("refuses a person who may only sell and charge", () => {
+      expect(mayAuthorize(operation, { id: "bruno", access: holding("sell_and_charge") })).toBe(
         false,
       );
     });

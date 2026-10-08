@@ -46,6 +46,8 @@ const SALE_OF_ONE_LINE: OpenSale = {
   lines_editable: true,
   cancellable: true,
   charge_refusal: null,
+  refunds_on_cancel: [],
+  cancel_authorization_required: false,
 };
 const SALE_OF_TWO_LINES: OpenSale = {
   id: "sale-1",
@@ -56,6 +58,8 @@ const SALE_OF_TWO_LINES: OpenSale = {
   lines_editable: true,
   cancellable: true,
   charge_refusal: null,
+  refunds_on_cancel: [],
+  cancel_authorization_required: false,
 };
 const COMPLETED: ChargeSaleInCashOutcome = {
   kind: "completed",
@@ -216,6 +220,8 @@ describe("ChargeScreen", () => {
         lines_editable: true,
         cancellable: true,
         charge_refusal: null,
+        refunds_on_cancel: [],
+        cancel_authorization_required: false,
       },
     ],
     ["the person may not sell", "not_permitted"],

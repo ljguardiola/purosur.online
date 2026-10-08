@@ -17,7 +17,7 @@ import {
   openAppliedCashSession,
   recordAppliedCashMovement,
 } from "../register/drizzle-applied-cash-sessions.js";
-import { recordAppliedSale } from "../sales/drizzle-applied-sales.js";
+import { recordAppliedCancelledSale, recordAppliedSale } from "../sales/drizzle-applied-sales.js";
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
@@ -96,6 +96,8 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
         return recordAppliedCashMovement(this.tx, event.eventId, fact);
       case "sale_completed":
         return recordAppliedSale(this.tx, await this.originOf(event), fact, this.now());
+      case "sale_cancelled":
+        return recordAppliedCancelledSale(this.tx, await this.originOf(event), fact, this.now());
       case "fiscal_gate_failed":
         return;
     }

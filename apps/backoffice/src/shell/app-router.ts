@@ -20,7 +20,7 @@ import { fiscalConfigurationRoute, pointsOfSaleRoute } from "../fiscal/routes";
 import { helpArticleRoute, helpCategoryRoute, helpHomeRoute } from "../help/routes";
 import { discountsListRoute, pricesListRoute } from "../pricing/routes";
 import { registersListRoute } from "../register/routes";
-import { reportsIndexRoute, salesByDayRoute } from "../sales/routes";
+import { pendingRefundsRoute, reportsIndexRoute, salesByDayRoute } from "../sales/routes";
 import { stockBalancesRoute, stockCountsRoute, stockMovementsRoute } from "../stock/routes";
 import { cashAndFiscalAreaRoute } from "./cash-and-fiscal-area";
 import { catalogAreaRoute } from "./catalog-area";
@@ -60,7 +60,11 @@ const routeTree = rootRoute.addChildren([
       discountsListRoute,
     ]),
     stockAreaRoute.addChildren([stockBalancesRoute, stockCountsRoute, stockMovementsRoute]),
-    cashAndFiscalAreaRoute.addChildren([pointsOfSaleRoute, fiscalConfigurationRoute]),
+    cashAndFiscalAreaRoute.addChildren([
+      pointsOfSaleRoute,
+      fiscalConfigurationRoute,
+      pendingRefundsRoute,
+    ]),
     reportsAreaRoute.addChildren([reportsIndexRoute, salesByDayRoute]),
     settingsAreaRoute.addChildren([
       myAccountRoute,

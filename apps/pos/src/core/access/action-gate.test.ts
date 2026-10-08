@@ -271,10 +271,82 @@ describe("running an operation that may take another person's authorization", ()
     expect(hashed).toEqual([]);
   });
 
-  it("takes only a cash movement", () => {
+  it("takes only a cash movement and the cancellation of a paid sale", () => {
     type RunAuthorized = Parameters<ActionGate["runAuthorized"]>[0];
     expectTypeOf<{ kind: "record_cash_movement"; movement: "CASH_IN" }>().toExtend<RunAuthorized>();
+    expectTypeOf<{ kind: "cancel_paid_sale" }>().toExtend<RunAuthorized>();
     expectTypeOf<{ kind: "sell" }>().not.toExtend<RunAuthorized>();
+  });
+});
+
+describe("running the cancellation of a paid sale", () => {
+  const HOLDS_VOID_SALE: Record<string, RoleAccess> = {
+    u1: { isAdministrator: false, permissionKeys: ["void_sale"] },
+  };
+
+  function guardedCancellation(sandbox: ActionGateDeps, authorization?: Authorization) {
+    const performed: AuthorizedActor[] = [];
+    const outcome = createActionGate(sandbox).runAuthorized(
+      { kind: "cancel_paid_sale" },
+      authorization,
+      async (actor) => {
+        performed.push(actor);
+        return "cancelled";
+      },
+    );
+    return { outcome, performed };
+  }
+
+  function withVoidSaleHolder(): ActionGateDeps {
+    const base = deps();
+    return {
+      ...base,
+      store: {
+        ...base.store,
+        pinHolder: (userId) =>
+          userId === "u3" ? record(["void_sale"]) : record(["sell_and_charge"]),
+      },
+    };
+  }
+
+  it("runs on its own for a signed-in person who holds the void sale permission", async () => {
+    const { outcome, performed } = guardedCancellation(deps({ accessOf: HOLDS_VOID_SALE }));
+
+    expect(await outcome).toEqual({ kind: "performed", authorized_by: null, result: "cancelled" });
+    expect(performed).toEqual([{ signedInUserId: "u1", authorizedBy: null }]);
+  });
+
+  it("refuses a cashier without the permission who brings no authorization", async () => {
+    const { outcome, performed } = guardedCancellation(deps());
+
+    expect(await outcome).toEqual({ kind: "lacks_permission" });
+    expect(performed).toEqual([]);
+  });
+
+  it("runs with the person whose PIN holds the permission", async () => {
+    const { outcome, performed } = guardedCancellation(withVoidSaleHolder(), {
+      user_id: "u3",
+      pin: "1234",
+    });
+
+    expect(await outcome).toEqual({
+      kind: "performed",
+      authorized_by: { user_id: "u3", first_name: "Grace" },
+      result: "cancelled",
+    });
+    expect(performed).toEqual([
+      { signedInUserId: "u1", authorizedBy: { user_id: "u3", first_name: "Grace" } },
+    ]);
+  });
+
+  it("refuses a PIN whose person does not hold the permission", async () => {
+    const { outcome, performed } = guardedCancellation(withVoidSaleHolder(), {
+      user_id: "u4",
+      pin: "1234",
+    });
+
+    expect(await outcome).toEqual({ kind: "lacks_permission" });
+    expect(performed).toEqual([]);
   });
 });
 

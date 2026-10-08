@@ -1,5 +1,6 @@
 import type {
   AddProductOutcome,
+  CancelPaidSaleOutcome,
   CancelSaleOutcome,
   ChangeLineQuantityOutcome,
   OpenSale,
@@ -53,6 +54,8 @@ export const SALE_OF_YERBA: OpenSale = {
   lines_editable: true,
   cancellable: true,
   charge_refusal: null,
+  refunds_on_cancel: [],
+  cancel_authorization_required: false,
 };
 export const SALE_OF_YERBA_AND_ALFAJOR: OpenSale = {
   id: "sale-1",
@@ -63,6 +66,8 @@ export const SALE_OF_YERBA_AND_ALFAJOR: OpenSale = {
   lines_editable: true,
   cancellable: true,
   charge_refusal: null,
+  refunds_on_cancel: [],
+  cancel_authorization_required: false,
 };
 
 export type Overrides = Partial<SaleScreenProps> & { registerName?: string | null };
@@ -91,6 +96,10 @@ export async function renderScreen({ registerName = "Caja 1", ...overrides }: Ov
   const cancelSale =
     overrides.cancelSale ??
     vi.fn(async (): Promise<CancelSaleOutcome> => ({ kind: "unavailable" }));
+  const cancelPaidSale =
+    overrides.cancelPaidSale ??
+    vi.fn(async (): Promise<CancelPaidSaleOutcome> => ({ kind: "unavailable" }));
+  const loadAuthorizers = overrides.loadAuthorizers ?? vi.fn(async () => []);
   const onSessionInvalid = overrides.onSessionInvalid ?? vi.fn();
   const screen = await render(
     <SaleScreen
@@ -106,6 +115,8 @@ export async function renderScreen({ registerName = "Caja 1", ...overrides }: Ov
       changeLineQuantity={changeLineQuantity}
       removeSaleLine={removeSaleLine}
       cancelSale={cancelSale}
+      cancelPaidSale={cancelPaidSale}
+      loadAuthorizers={loadAuthorizers}
       onSessionInvalid={onSessionInvalid}
     />,
   );

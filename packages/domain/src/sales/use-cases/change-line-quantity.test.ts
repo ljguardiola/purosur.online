@@ -104,6 +104,7 @@ describe("changeLineQuantity", () => {
       balance: { paid: 0, pending: 13700 },
       linesEditable: true,
       cancellable: true,
+      refundsOnCancel: [],
     });
     expect(store.state.outbox).toEqual([]);
   });
@@ -121,6 +122,7 @@ describe("changeLineQuantity", () => {
       balance: { paid: 0, pending: 3700 },
       linesEditable: true,
       cancellable: true,
+      refundsOnCancel: [],
     });
     expect(store.state).toEqual({
       ...before,
@@ -211,6 +213,7 @@ describe("changeLineQuantity", () => {
       balance: { paid: 0, pending: 8700 },
       linesEditable: true,
       cancellable: true,
+      refundsOnCancel: [],
     });
     expect(store.state).toEqual(before);
   });

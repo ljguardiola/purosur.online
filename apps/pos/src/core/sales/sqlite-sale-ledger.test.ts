@@ -9,6 +9,8 @@ import {
 import { closeCashSession } from "@purosur/domain/register/use-cases";
 import {
   addScannedProduct,
+  type CancelPaidSaleGrant,
+  cancelPaidSale,
   cancelSale,
   changeLineQuantity,
   chargeSaleByTransfer,
@@ -1393,5 +1395,233 @@ describe("the lines of the sale being changed", () => {
       kind: "cancelled",
     });
     expect(rowsPerTable()).toEqual(before);
+  });
+});
+
+describe("cancelling an open sale with approved payments", () => {
+  beforeEach(() => {
+    readySeller();
+    addProduct("111");
+    addPrice("p1", "2026-09-01T00:00:00.000Z", 1500);
+    database
+      .prepare(
+        `INSERT INTO issuer_identification_versions (
+           version, legal_name, gross_income_registration, activity_start_date, authorized_cuit, tax_status
+         ) VALUES (1, ?, ?, '2020-01-15', ?, 'Condicion de prueba')`,
+      )
+      .run(FICTIONAL_LEGAL_NAME, FICTIONAL_GROSS_INCOME_REGISTRATION, FICTIONAL_CUIT);
+    database
+      .prepare(
+        "INSERT INTO buyer_tax_status_sets (params_version, set_id, options) VALUES (1, 'set-1', ?)",
+      )
+      .run(JSON.stringify([{ code: 5, description: "Consumidor Final", invoice_class: "A/M/C" }]));
+  });
+
+  const CANCELLED_AT = new Date("2026-09-30T12:30:00.000Z");
+
+  function sellTwo(): string {
+    scan("111");
+    const outcome = scan("111");
+    if (outcome.kind !== "added") {
+      throw new Error("test setup: the product was not added");
+    }
+    return outcome.sale.id;
+  }
+
+  function payCash(saleId: string, tendered: number) {
+    return chargeSaleInCash(
+      { ledger, clock: { now: () => NOW }, ids },
+      { actorId: "u1", saleId, tendered },
+    );
+  }
+
+  function payByTransfer(saleId: string, amount: number) {
+    return chargeSaleByTransfer(
+      { ledger, clock: { now: () => NOW }, ids },
+      { actorId: "u1", saleId, amount },
+    );
+  }
+
+  function cancelPaid(saleId: string, authorizedBy?: string) {
+    const grant: CancelPaidSaleGrant = { actorId: "u1", authorizedBy };
+    return cancelPaidSale(
+      {
+        ledger,
+        clock: { now: () => CANCELLED_AT },
+        ids,
+        authority: { authorize: async () => ({ kind: "granted", grant }) },
+      },
+      { saleId },
+    );
+  }
+
+  it("records the sale as cancelled at the moment of the cancellation, keeping its lines and payment", async () => {
+    const saleId = sellTwo();
+    payCash(saleId, 1000);
+
+    await expect(cancelPaid(saleId)).resolves.toMatchObject({ kind: "cancelled" });
+
+    expect(
+      database
+        .prepare("SELECT id, state, occurred_at, cancellation_authorized_by FROM sales")
+        .all(),
+    ).toEqual([
+      {
+        id: saleId,
+        state: "CANCELLED",
+        occurred_at: CANCELLED_AT.toISOString(),
+        cancellation_authorized_by: null,
+      },
+    ]);
+    expect(database.prepare("SELECT quantity FROM sale_lines").all()).toEqual([{ quantity: 2 }]);
+    expect(database.prepare("SELECT method, amount FROM payment_transactions").all()).toEqual([
+      { method: "CASH", amount: 1000 },
+    ]);
+  });
+
+  it("records who authorized the cancellation", async () => {
+    const saleId = sellTwo();
+    payCash(saleId, 1000);
+
+    await cancelPaid(saleId, "u2");
+
+    expect(database.prepare("SELECT cancellation_authorized_by FROM sales").all()).toEqual([
+      { cancellation_authorized_by: "u2" },
+    ]);
+  });
+
+  it("gives the cash payment back with a refund and a refund cash movement against the sale", async () => {
+    const saleId = sellTwo();
+    payCash(saleId, 1000);
+
+    await cancelPaid(saleId);
+
+    expect(
+      database
+        .prepare(
+          "SELECT payment_id, method, provider, amount, state, occurred_at FROM payment_refunds",
+        )
+        .all(),
+    ).toEqual([
+      {
+        payment_id: database
+          .prepare<[], { id: string }>("SELECT id FROM payment_transactions")
+          .get()?.id,
+        method: "CASH",
+        provider: "NONE",
+        amount: 1000,
+        state: "APPROVED",
+        occurred_at: CANCELLED_AT.toISOString(),
+      },
+    ]);
+    expect(
+      database
+        .prepare("SELECT type, amount, ref_type, ref_id FROM cash_movements WHERE type = 'REFUND'")
+        .all(),
+    ).toEqual([{ type: "REFUND", amount: 1000, ref_type: "sale", ref_id: saleId }]);
+  });
+
+  it("leaves a transfer refund pending, with no cash movement", async () => {
+    const saleId = sellTwo();
+    payByTransfer(saleId, 2000);
+
+    await cancelPaid(saleId);
+
+    expect(database.prepare("SELECT method, amount, state FROM payment_refunds").all()).toEqual([
+      { method: "TRANSFER", amount: 2000, state: "PENDING" },
+    ]);
+    expect(
+      database.prepare("SELECT count(*) AS total FROM cash_movements WHERE type = 'REFUND'").get(),
+    ).toEqual({ total: 0 });
+  });
+
+  it("appends the sale_cancelled event to the outbox", async () => {
+    const saleId = sellTwo();
+    payCash(saleId, 1000);
+
+    await cancelPaid(saleId);
+
+    expect(
+      database.prepare("SELECT event_type, aggregate_id, device_seq FROM outbox").all(),
+    ).toEqual([{ event_type: "sale_cancelled", aggregate_id: saleId, device_seq: 1 }]);
+  });
+
+  it("is no longer the open sale, so the next scan starts another one", async () => {
+    const saleId = sellTwo();
+    payCash(saleId, 1000);
+    await cancelPaid(saleId);
+
+    const next = scan("111");
+
+    expect(next).toMatchObject({ kind: "added" });
+    expect(next.kind === "added" && next.sale.id).not.toBe(saleId);
+  });
+
+  it("is left out of the products a name search counts as sold", async () => {
+    const saleId = sellTwo();
+    payCash(saleId, 1000);
+    await cancelPaid(saleId);
+
+    expect(ledger.transaction((tx) => tx.searchableProducts())).toMatchObject([
+      { id: "p1", timesSoldHere: 0 },
+    ]);
+  });
+
+  it("refuses to cancel a sale that is not in progress", () => {
+    const saleId = sellTwo();
+    payCash(saleId, 4000);
+
+    expect(() =>
+      ledger.transaction((tx) => tx.recordCancelledSale(saleId, CANCELLED_AT, undefined)),
+    ).toThrow();
+    expect(() =>
+      ledger.transaction((tx) => tx.recordCancelledSale("missing", CANCELLED_AT, undefined)),
+    ).toThrow();
+  });
+
+  it("leaves nothing behind when the outbox append fails after the rest was written", async () => {
+    const saleId = sellTwo();
+    payCash(saleId, 1000);
+    database
+      .prepare(
+        `INSERT INTO outbox (
+           event_id, device_id, device_seq, aggregate_type, aggregate_id, event_type, schema_version,
+           payload, occurred_at, actor_id, chain_hmac
+         ) VALUES ('taken', 'device-1', 1, 'Sale', 'x', 'sale_completed', 1, '{}', '2026-09-30T12:00:00.000Z', 'u1', 'h')`,
+      )
+      .run();
+
+    await expect(cancelPaid(saleId)).rejects.toThrow();
+
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+    expect(database.prepare("SELECT count(*) AS total FROM payment_refunds").get()).toEqual({
+      total: 0,
+    });
+    expect(
+      database.prepare("SELECT count(*) AS total FROM cash_movements WHERE type = 'REFUND'").get(),
+    ).toEqual({ total: 0 });
+  });
+
+  it("lets the session close, counting the cash payment and its refund", async () => {
+    const saleId = sellTwo();
+    payCash(saleId, 1000);
+    await cancelPaid(saleId);
+
+    expect(cashBalanceFor(database)).toMatchObject({
+      cash_sales: { amount: 1000, direction: "in" },
+      refunds: { amount: 1000, direction: "out" },
+      expected: 0,
+    });
+    const closed = await closeCashSession<never>(
+      {
+        ledger: new SqliteCashLedger(database, new SqliteSignInStore(database), CHAIN_KEY),
+        clock: { now: () => NOW },
+        ids,
+        authority: { authorize: async () => ({ kind: "granted", grant: { closerId: "u1" } }) },
+      },
+      { sessionId: "session-1", countedCash: 0 },
+    );
+
+    expect(closed).toMatchObject({ kind: "closed" });
   });
 });

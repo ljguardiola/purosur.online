@@ -25,6 +25,7 @@ const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][]
   ["record_stock_losses", ["stock_losses", "stock_movements", "stock_area"]],
   ["adjust_stock", ["stock_adjustments", "stock_movements", "stock_area"]],
   ["view_reports", ["reports_area"]],
+  ["confirm_refunds", ["refunds_area"]],
 ];
 
 function inCapabilityOrder(capabilities: readonly Capability[]): Capability[] {

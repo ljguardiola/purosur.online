@@ -19,8 +19,9 @@ import {
 import { TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
 import type { CashMovementInput } from "../platform/core-client";
+import { AuthorizationSection } from "../shell/authorization-section";
 import type { SignedInPerson } from "../shell/signed-in-person";
-import { AuthorizationSection } from "./authorization-section";
+import { useAuthorization } from "../shell/use-authorization";
 import {
   amountMessage,
   cashMovementRequestFrom,
@@ -30,7 +31,6 @@ import {
 } from "./cash-movement-form";
 import { CASH_MOVEMENT_ICONS } from "./cash-movement-icons";
 import { useCashMovementKindsQuery } from "./register-queries";
-import { useAuthorization } from "./use-authorization";
 
 const NO_OPEN_SESSION_MESSAGE = "No hay una caja abierta.";
 const FAILED_MESSAGE = "No se pudo registrar el movimiento. Probá de nuevo.";

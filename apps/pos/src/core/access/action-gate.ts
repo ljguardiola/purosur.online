@@ -11,7 +11,7 @@ type OperationOf<Kind extends RegisterOperation["kind"]> = Extract<
 >;
 
 type SignedInOperation = OperationOf<"open_cash_session" | "sell" | "close_cash_session">;
-type CashMovementOperation = OperationOf<"record_cash_movement">;
+type AuthorizableOperation = OperationOf<"record_cash_movement" | "cancel_paid_sale">;
 type LockedRegisterOperation = OperationOf<"close_locked_register">;
 
 type SignedInRefusal = { kind: "not_signed_in" } | { kind: "lacks_permission" };
@@ -47,7 +47,7 @@ export interface ActionGate {
     perform: (actor: SignedInActor) => Promise<Result>,
   ): Promise<SignedInOutcome<Result>>;
   runAuthorized<Result>(
-    operation: CashMovementOperation,
+    operation: AuthorizableOperation,
     authorization: Authorization | undefined,
     perform: (actor: AuthorizedActor) => Promise<Result>,
   ): Promise<AuthorizedOutcome<Result>>;

@@ -116,6 +116,7 @@ import { registerRegisterCreationRoute } from "./register/register-creation-rout
 import { registerRegisterEnrollmentCodeRoute } from "./register/register-enrollment-code-route.js";
 import type { RegistersRouteOptions } from "./register/registers-list-route.js";
 import { registerRegistersListRoute } from "./register/registers-list-route.js";
+import { type RefundRouteOptions, registerRefundRoutes } from "./sales/refund-routes.js";
 import {
   registerSalesReportRoutes,
   type SalesReportRouteOptions,
@@ -160,6 +161,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   registersPointsOfSale?: WithoutClock<RegistersPointsOfSaleRouteOptions<TQueryResult>>;
   stock?: WithoutClock<StockRouteOptions<TQueryResult>>;
   salesReports?: WithoutClock<SalesReportRouteOptions<TQueryResult>>;
+  refunds?: WithoutClock<RefundRouteOptions<TQueryResult>>;
   devices?: WithoutClock<DeviceTokensOptions<TQueryResult>>;
   health?: WithoutClock<HealthArcaOptions<TQueryResult>>;
   firstPinCodes?: WithoutClock<FirstPinCodeRouteOptions<TQueryResult>>;
@@ -224,6 +226,7 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     registersPointsOfSale: backoffice,
     stock: backoffice,
     salesReports: backoffice,
+    refunds: backoffice,
     devices,
     firstPinCodes: devices,
     health: { db, certificateFingerprint: wiring.certificateFingerprint },
@@ -453,6 +456,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
       if (options.salesReports) {
         registerSalesReportRoutes(api, { ...options.salesReports, now });
+      }
+
+      if (options.refunds) {
+        registerRefundRoutes(api, { ...options.refunds, now });
       }
 
       if (options.registers) {

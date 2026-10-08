@@ -50,6 +50,66 @@ const PAYMENT_V1 = {
   occurred_at: "2026-09-14T11:20:00.000Z",
 };
 
+const CANCELLED_SALE_V1: Payload = {
+  id: "sale-1",
+  register_id: "register-1",
+  device_id: "device-1",
+  session_id: "session-1",
+  actor_id: "cashier",
+  authorized_by: null,
+  occurred_at: "2026-10-07T15:30:00.000Z",
+  total: 6750,
+  lines: [
+    {
+      id: "line-1",
+      product_id: "yerba",
+      product_name: "Yerba 1 kg",
+      quantity: 3,
+      list_unit_price: 2500,
+      price_list_id: "list-1",
+      promotion_id: "ten",
+      discount_amount: 750,
+      promotions: [
+        { discount_id: "ten", kind: "PERCENT_OFF", percent: 10, buy_qty: null, pay_qty: null },
+      ],
+      line_total: 6750,
+    },
+  ],
+  payments: [{ ...CASH_PAYMENT_V2, amount: 1200, tendered: 1200 }],
+  refunds: [
+    {
+      id: "refund-1",
+      kind: "REFUND",
+      parent_id: "pay-1",
+      method: "CASH",
+      provider: "NONE",
+      amount: 1200,
+      state: "APPROVED",
+      occurred_at: "2026-10-07T15:30:00.000Z",
+    },
+  ],
+  cash_movements: [
+    {
+      id: "movement-1",
+      type: "SALE",
+      amount: 1200,
+      ref_type: "sale",
+      ref_id: "sale-1",
+      actor_id: "cashier",
+      occurred_at: "2026-10-07T15:10:00.000Z",
+    },
+    {
+      id: "movement-2",
+      type: "REFUND",
+      amount: 1200,
+      ref_type: "sale",
+      ref_id: "sale-1",
+      actor_id: "cashier",
+      occurred_at: "2026-10-07T15:30:00.000Z",
+    },
+  ],
+};
+
 describe("synced event payloads", () => {
   it("describes every event the registers pushed in the recorded pushes", () => {
     const refused = recordedEvents().filter(
@@ -67,6 +127,7 @@ describe("synced event payloads", () => {
       "cash_session_closed@1",
       "cash_session_opened@1",
       "fiscal_gate_failed@1",
+      "sale_cancelled@1",
       "sale_completed@1",
       "sale_completed@2",
     ]);
@@ -497,5 +558,174 @@ describe("synced event payloads", () => {
 
       expect(accepts("sale_completed", 2, { ...sale(), payments: [cash] })).toBe(false);
     });
+  });
+});
+
+describe("sale_cancelled v1", () => {
+  const cancelled = (): Payload => structuredClone(CANCELLED_SALE_V1);
+  const refund = (): Payload => (cancelled()["refunds"] as Payload[])[0] as Payload;
+  const TRANSFER_REFUND = {
+    id: "refund-2",
+    kind: "REFUND",
+    parent_id: "pay-2",
+    method: "TRANSFER",
+    provider: "NONE",
+    amount: 2000,
+    state: "PENDING",
+    occurred_at: "2026-10-07T15:30:00.000Z",
+  };
+
+  it("is described by a payload with the sale, its payments, its refunds and its cash movements", () => {
+    expect(accepts("sale_cancelled", 1, cancelled())).toBe(true);
+  });
+
+  it("describes a sale paid in cash and by transfer, refunded by each method", () => {
+    expect(
+      accepts("sale_cancelled", 1, {
+        ...cancelled(),
+        payments: [CASH_PAYMENT_V2, TRANSFER_PAYMENT_V2],
+        refunds: [refund(), TRANSFER_REFUND],
+      }),
+    ).toBe(true);
+  });
+
+  it("describes the person who authorized the cancellation", () => {
+    expect(accepts("sale_cancelled", 1, { ...cancelled(), authorized_by: "supervisor" })).toBe(
+      true,
+    );
+  });
+
+  it("refuses the payload without any one of its fields", () => {
+    const payload = cancelled();
+
+    const accepted = Object.keys(payload).filter((key) => {
+      const { [key]: _removed, ...rest } = payload;
+      return accepts("sale_cancelled", 1, rest);
+    });
+
+    expect(accepted).toEqual([]);
+  });
+
+  it("refuses the payload with any one of its fields of the wrong type", () => {
+    const payload = cancelled();
+
+    const accepted = Object.keys(payload).filter((key) =>
+      accepts("sale_cancelled", 1, { ...payload, [key]: { unexpected: true } }),
+    );
+
+    expect(accepted).toEqual([]);
+  });
+
+  it("refuses a payload that is not an object", () => {
+    expect(accepts("sale_cancelled", 1, null)).toBe(false);
+    expect(accepts("sale_cancelled", 1, [])).toBe(false);
+  });
+
+  it("refuses a version nobody emitted", () => {
+    expect(syncedEventPayloadKey("sale_cancelled", 2)).toBeUndefined();
+  });
+
+  it("refuses a cancelled sale without payments", () => {
+    expect(accepts("sale_cancelled", 1, { ...cancelled(), payments: [] })).toBe(false);
+  });
+
+  it("refuses a cancelled sale without refunds", () => {
+    expect(accepts("sale_cancelled", 1, { ...cancelled(), refunds: [] })).toBe(false);
+  });
+
+  it("accepts cash movements that are none", () => {
+    expect(
+      accepts("sale_cancelled", 1, {
+        ...cancelled(),
+        payments: [TRANSFER_PAYMENT_V2],
+        refunds: [TRANSFER_REFUND],
+        cash_movements: [],
+      }),
+    ).toBe(true);
+  });
+
+  it("refuses a refund missing any one of its fields", () => {
+    const one = refund();
+
+    const accepted = Object.keys(one).filter((key) => {
+      const { [key]: _removed, ...rest } = one;
+      return accepts("sale_cancelled", 1, { ...cancelled(), refunds: [rest] });
+    });
+
+    expect(accepted).toEqual([]);
+  });
+
+  it.each([
+    ["a kind that is not a refund", { kind: "SALE" }],
+    ["a method that is not cash or transfer", { method: "CARD" }],
+    ["a provider other than none", { provider: "TERMINAL" }],
+    ["a cash refund that is pending", { state: "PENDING" }],
+    ["a fractional amount", { amount: 0.5 }],
+    ["a negative amount", { amount: -1 }],
+    ["a date that is not ISO", { occurred_at: "now" }],
+    ["an empty payment id", { parent_id: "" }],
+  ])("refuses a refund with %s", (_case, change) => {
+    expect(
+      accepts("sale_cancelled", 1, { ...cancelled(), refunds: [{ ...refund(), ...change }] }),
+    ).toBe(false);
+  });
+
+  it.each([
+    ["a transfer refund already approved", { state: "APPROVED" }],
+    ["a transfer refund with another state", { state: "REJECTED" }],
+  ])("refuses %s", (_case, change) => {
+    expect(
+      accepts("sale_cancelled", 1, {
+        ...cancelled(),
+        refunds: [{ ...TRANSFER_REFUND, ...change }],
+      }),
+    ).toBe(false);
+  });
+
+  it("refuses a payment that is not approved", () => {
+    const payment = { ...CASH_PAYMENT_V2, state: "PENDING" };
+
+    expect(accepts("sale_cancelled", 1, { ...cancelled(), payments: [payment] })).toBe(false);
+  });
+
+  it("refuses a transfer payment nobody authorized", () => {
+    const transfer = { ...TRANSFER_PAYMENT_V2, authorized_by: null };
+
+    expect(accepts("sale_cancelled", 1, { ...cancelled(), payments: [transfer] })).toBe(false);
+  });
+
+  it("refuses an authorizer that is not text or null", () => {
+    expect(accepts("sale_cancelled", 1, { ...cancelled(), authorized_by: 7 })).toBe(false);
+  });
+
+  it.each([
+    ["a fractional total", { total: 10.5 }],
+    ["a negative total", { total: -1 }],
+    ["a date that is not ISO", { occurred_at: "today" }],
+    ["lines that are not a list", { lines: {} }],
+  ])("refuses a payload with %s", (_case, change) => {
+    expect(accepts("sale_cancelled", 1, { ...cancelled(), ...change })).toBe(false);
+  });
+
+  it("accepts a REFUND cash movement and refuses a type no cash movement has", () => {
+    const movement = (type: string) => ({
+      ...(cancelled()["cash_movements"] as Payload[])[1],
+      type,
+    });
+
+    expect(
+      accepts("sale_cancelled", 1, { ...cancelled(), cash_movements: [movement("REFUND")] }),
+    ).toBe(true);
+    expect(
+      accepts("sale_cancelled", 1, { ...cancelled(), cash_movements: [movement("TIP")] }),
+    ).toBe(false);
+  });
+
+  it("refuses a line with a zero quantity", () => {
+    const line = (cancelled()["lines"] as Payload[])[0] as Payload;
+
+    expect(
+      accepts("sale_cancelled", 1, { ...cancelled(), lines: [{ ...line, quantity: 0 }] }),
+    ).toBe(false);
   });
 });

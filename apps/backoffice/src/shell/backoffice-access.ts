@@ -82,3 +82,7 @@ export function canSeeStockArea(access: BackofficeAccess): boolean {
 export function canSeeReports(access: BackofficeAccess): boolean {
   return grants(access, "reports_area");
 }
+
+export function canSeeRefundsArea(access: BackofficeAccess): boolean {
+  return grants(access, "refunds_area");
+}

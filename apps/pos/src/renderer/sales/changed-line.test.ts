@@ -25,6 +25,8 @@ function sale(...lines: ReturnType<typeof line>[]): OpenSale {
     lines_editable: true,
     cancellable: true,
     charge_refusal: null,
+    refunds_on_cancel: [],
+    cancel_authorization_required: false,
   };
 }
 

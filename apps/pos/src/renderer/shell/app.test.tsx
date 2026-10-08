@@ -215,6 +215,9 @@ function coreAnswering(
     async cancelSale() {
       return { kind: "unavailable" };
     },
+    async cancelPaidSale() {
+      return { kind: "unavailable" };
+    },
     async searchProducts(query) {
       return sales.searchProducts === undefined
         ? { kind: "results", products: [], more: false }
@@ -1062,6 +1065,8 @@ describe("App", () => {
             lines_editable: true,
             cancellable: true,
             charge_refusal: null,
+            refunds_on_cancel: [],
+            cancel_authorization_required: false,
           };
         },
       },
@@ -1103,6 +1108,8 @@ describe("App", () => {
           lines_editable: true,
           cancellable: true,
           charge_refusal: null,
+          refunds_on_cancel: [],
+          cancel_authorization_required: false,
         }),
         cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 12_000 }),
         chargeSaleInCash: async (saleId, tendered) => {
@@ -1157,6 +1164,8 @@ describe("App", () => {
                 lines_editable: true,
                 cancellable: true,
                 charge_refusal: null,
+                refunds_on_cancel: [],
+                cancel_authorization_required: false,
               })
             : new Promise(() => {});
         },
@@ -1217,6 +1226,8 @@ describe("App", () => {
           lines_editable: true,
           cancellable: true,
           charge_refusal: null,
+          refunds_on_cancel: [],
+          cancel_authorization_required: false,
         }),
         chargeSaleByTransfer: async (saleId, amount) => {
           charges.push([saleId, amount]);
@@ -1268,6 +1279,8 @@ describe("App", () => {
                 lines_editable: true,
                 cancellable: true,
                 charge_refusal: null,
+                refunds_on_cancel: [],
+                cancel_authorization_required: false,
               })
             : new Promise(() => {});
         },
@@ -2209,6 +2222,25 @@ describe("App", () => {
       await expect
         .element(screen.getByRole("button", { name: "Descartar" }).first())
         .toBeInTheDocument();
+    });
+
+    it("reads the people who can authorize a movement once again when a pull happens while they are shown", async () => {
+      const authorizers = vi
+        .fn<CoreClient["authorizers"]>()
+        .mockResolvedValue([{ id: "u3", first_name: "Sofía" }]);
+      const { screen, finishPull } = await openCashScreen({ authorizers });
+      await userEvent.click(
+        screen.getByRole("button", { name: "Registrar movimiento", exact: true }),
+      );
+      await userEvent.click(
+        screen.getByRole("radiogroup", { name: "Tipo de movimiento" }).getByText("Gasto"),
+      );
+      await expect.poll(() => authorizers.mock.calls.length).toBe(1);
+
+      finishPull("Caja 1");
+
+      await expect.element(screen.getByText(/Caja 1 · Sesión abierta/)).toBeVisible();
+      expect(authorizers).toHaveBeenCalledTimes(2);
     });
 
     it("leaves the cash screen when the core says there is no open session", async () => {
