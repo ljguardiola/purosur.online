@@ -1,5 +1,5 @@
-import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { authenticationResponse } from "../platform/test-support/webauthn-responses";
 import {
   authenticate,
   checkSessionStatus,
@@ -197,7 +197,7 @@ test("fetchAuthenticationOptions reports failed on any non-2xx status or a netwo
   await expect(fetchAuthenticationOptions()).resolves.toEqual({ kind: "failed" });
 });
 
-const assertion = { id: "cred-1" } as unknown as AuthenticationResponseJSON;
+const assertion = authenticationResponse("cred-1");
 
 test("authenticate posts the assertion and reports ok on 200", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
