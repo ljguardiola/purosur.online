@@ -327,7 +327,7 @@ export async function cancelSaleFor({
 
 export interface CancelPaidSaleRequest {
   saleId: string;
-  authorization: Authorization | undefined;
+  authorization?: Authorization | undefined;
 }
 
 interface CancelPaidSaleRequestGrant extends CancelPaidSaleGrant {

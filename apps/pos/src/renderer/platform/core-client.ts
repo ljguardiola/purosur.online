@@ -4,6 +4,7 @@ import type {
   AddProductOutcome,
   Authorization,
   CancelLockedSaleOutcome,
+  CancelPaidSaleOutcome,
   CancelSaleOutcome,
   CashBalance,
   CashChargeAnswer,
@@ -108,6 +109,10 @@ export interface CoreClient {
   ): Promise<ChangeLineQuantityOutcome>;
   removeSaleLine(lineId: string): Promise<RemoveSaleLineOutcome>;
   cancelSale(): Promise<CancelSaleOutcome>;
+  cancelPaidSale(
+    saleId: string,
+    authorization: Authorization | undefined,
+  ): Promise<CancelPaidSaleOutcome>;
   cashCharge(saleId: string, tendered: number): Promise<CashChargeAnswer>;
   chargeSaleInCash(saleId: string, tendered: number): Promise<ChargeSaleInCashOutcome>;
   chargeSaleByTransfer(saleId: string, amount: number): Promise<ChargeSaleByTransferOutcome>;
@@ -391,6 +396,17 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
     cancelSale() {
       return ask({ type: "cancel-sale", request_id: deps.newRequestId() }, (answer) =>
         answer.type === "cancel-sale-result" ? answer.outcome : undefined,
+      );
+    },
+    cancelPaidSale(saleId, authorization) {
+      return ask(
+        {
+          type: "cancel-paid-sale",
+          request_id: deps.newRequestId(),
+          sale_id: saleId,
+          ...(authorization === undefined ? {} : { authorization }),
+        },
+        (answer) => (answer.type === "cancel-paid-sale-result" ? answer.outcome : undefined),
       );
     },
     searchProducts(query) {
