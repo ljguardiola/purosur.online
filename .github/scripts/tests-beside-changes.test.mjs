@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   changedFilesSince,
+  runChangedTests,
   runProjectsInTurn,
   selectTestsBeside,
   testsToRun,
@@ -192,4 +193,114 @@ test("keeps running the remaining projects after one fails, and reports the fail
 
   assert.equal(passed, false);
   assert.deepEqual(ran, ["node", "browser"]);
+});
+
+const PROJECTS = new Map([
+  ["packages/domain/src/catalog/model/price.test.ts", ["domain"]],
+  ["apps/backoffice/src/catalog/product-form.test.tsx", ["backoffice"]],
+  ["packages/ui/src/button.test.tsx", ["ui", "ui-browser"]],
+]);
+
+function recordingRunner(failingProject) {
+  const runs = [];
+  return {
+    runs,
+    run: async (args) => {
+      runs.push(args);
+      return !args.includes(`--project=${failingProject}`);
+    },
+  };
+}
+
+test("runs each project's selected files by absolute path, one file at a time", async () => {
+  const { runs, run } = recordingRunner();
+
+  const exitCode = await runChangedTests({
+    root: "/repo",
+    projects: PROJECTS,
+    changedFiles: [
+      "packages/domain/src/catalog/model/price.ts",
+      "apps/backoffice/src/catalog/product-form.tsx",
+      "packages/ui/src/button.tsx",
+    ],
+    requestedFiles: [],
+    run,
+    log: () => {},
+  });
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(runs, [
+    [
+      "run",
+      "--project=backoffice",
+      "--no-file-parallelism",
+      "/repo/apps/backoffice/src/catalog/product-form.test.tsx",
+    ],
+    [
+      "run",
+      "--project=domain",
+      "--no-file-parallelism",
+      "/repo/packages/domain/src/catalog/model/price.test.ts",
+    ],
+    ["run", "--project=ui", "--no-file-parallelism", "/repo/packages/ui/src/button.test.tsx"],
+    [
+      "run",
+      "--project=ui-browser",
+      "--no-file-parallelism",
+      "/repo/packages/ui/src/button.test.tsx",
+    ],
+  ]);
+});
+
+test("exits with a failure when a project's run fails", async () => {
+  const { run } = recordingRunner("domain");
+
+  const exitCode = await runChangedTests({
+    root: "/repo",
+    projects: PROJECTS,
+    changedFiles: ["packages/domain/src/catalog/model/price.ts"],
+    requestedFiles: [],
+    run,
+    log: () => {},
+  });
+
+  assert.equal(exitCode, 1);
+});
+
+test("runs nothing and says so when no test is selected", async () => {
+  const { runs, run } = recordingRunner();
+  const logged = [];
+
+  const exitCode = await runChangedTests({
+    root: "/repo",
+    projects: PROJECTS,
+    changedFiles: ["packages/domain/package.json"],
+    requestedFiles: [],
+    run,
+    log: (message) => logged.push(message),
+  });
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(runs, []);
+  assert.deepEqual(logged, [
+    "No test file sits beside a changed file, and none was asked for by path.",
+  ]);
+});
+
+test("runs nothing and fails when a path asked for is not a test file", async () => {
+  const { runs, run } = recordingRunner();
+  const logged = [];
+
+  const exitCode = await runChangedTests({
+    root: "/repo",
+    projects: PROJECTS,
+    changedFiles: ["packages/domain/src/catalog/model/price.ts"],
+    requestedFiles: ["packages/ui/src/button.tsx"],
+    run,
+    log: (message) => logged.push(message),
+  });
+
+  assert.equal(exitCode, 1);
+  assert.deepEqual(runs, []);
+  assert.deepEqual(logged, ["packages/ui/src/button.tsx is not a test file"]);
 });
