@@ -19,6 +19,7 @@ const CONCEPTS = [
 const OUTSIDE_ANY_CONCEPT = ["platform", "sample-data", "test-support"];
 const ENTRY_POINTS = [
   "app.ts",
+  "check-arca-test-environment.ts",
   "clear-sample-data.ts",
   "create-first-administrator.ts",
   "load-sample-data.ts",
