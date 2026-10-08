@@ -111,7 +111,6 @@ describe("WsfeTaxAuthorityInvoicing", () => {
     it.each([
       ["the content is refused", "fe-cae-solicitar-rejected-content.xml", [10246]],
       ["its number is out of order", "fe-cae-solicitar-rejected-out-of-order.xml", [10016]],
-      ["ARCA answers an error instead of a result", "fe-cae-solicitar-token-error.xml", [600]],
       [
         "ARCA gives observations and an error",
         "fe-cae-solicitar-rejected-with-errors.xml",
@@ -130,6 +129,7 @@ describe("WsfeTaxAuthorityInvoicing", () => {
       ["ARCA answers a SOAP fault", answers("fe-dummy-fault.xml", 500)],
       ["the answer is not SOAP", answers("not-soap.txt")],
       ["the answer holds no result", answers("fe-cae-solicitar-empty.xml")],
+      ["ARCA answers an error instead of a result", answers("fe-cae-solicitar-token-error.xml")],
       ["ARCA refuses without saying why", answers("fe-cae-solicitar-rejected-without-codes.xml")],
       ["ARCA never answers within the timeout", { kind: "never-answers" as const }],
     ])("answers no answer when %s", async (_case, behavior) => {
