@@ -16,15 +16,27 @@ import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { groupedEan13Digits, LabelPreviewBars } from "./label-preview-bars";
 import type { printLabels } from "./products-api";
 
-function acceptsCounts(counts: Record<string, number>): boolean {
-  const entries = Object.entries(counts)
+type LabelCounts = ReadonlyMap<string, number>;
+
+const NO_LABELS: LabelCounts = new Map();
+
+function countOf(counts: LabelCounts, productId: string): number {
+  return counts.get(productId) ?? 0;
+}
+
+function withCount(counts: LabelCounts, productId: string, count: number): LabelCounts {
+  return new Map(counts).set(productId, count);
+}
+
+function acceptsCounts(counts: LabelCounts): boolean {
+  const entries = [...counts]
     .filter(([, count]) => count > 0)
     .map(([productId, count]) => ({ productId, count }));
   return labelSheetBodySchema.safeParse({ labels: entries }).success;
 }
 
-function withOneMore(counts: Record<string, number>, productId: string): Record<string, number> {
-  return { ...counts, [productId]: (counts[productId] ?? 0) + 1 };
+function withOneMore(counts: LabelCounts, productId: string): LabelCounts {
+  return withCount(counts, productId, countOf(counts, productId) + 1);
 }
 
 type LabelableProduct = { product: ProductSummary; code: string; modules: string };
@@ -72,7 +84,7 @@ export function PrintLabelsModal({
 }: PrintLabelsModalProps) {
   const { printLabels } = services;
   const sendToMyAccount = useSendToMyAccount();
-  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [counts, setCounts] = useState(NO_LABELS);
   const [notice, setNotice] = useState<PrintNotice | null>(null);
   const [printing, setPrinting] = useState(false);
   const [reloading, setReloading] = useState(false);
@@ -81,7 +93,7 @@ export function PrintLabelsModal({
   useEffect(() => {
     printRequestIdRef.current += 1;
     if (open) {
-      setCounts({});
+      setCounts(NO_LABELS);
       setNotice(null);
       setPrinting(false);
       setReloading(false);
@@ -89,8 +101,8 @@ export function PrintLabelsModal({
   }, [open]);
 
   const rows = labelableProducts(products);
-  const total = rows.reduce((sum, row) => sum + (counts[row.product.id] ?? 0), 0);
-  const previewRow = rows.find((row) => (counts[row.product.id] ?? 0) > 0) ?? rows[0];
+  const total = rows.reduce((sum, row) => sum + countOf(counts, row.product.id), 0);
+  const previewRow = rows.find((row) => countOf(counts, row.product.id) > 0) ?? rows[0];
   const busy = printing || reloading;
 
   function changeCount(productId: string, delta: 1 | -1) {
@@ -100,13 +112,13 @@ export function PrintLabelsModal({
           ? withOneMore(current, productId)
           : current;
       }
-      return { ...current, [productId]: Math.max(0, (current[productId] ?? 0) - 1) };
+      return withCount(current, productId, Math.max(0, countOf(current, productId) - 1));
     });
   }
 
   async function handleDownload() {
     const entries = rows
-      .map((row) => ({ productId: row.product.id, count: counts[row.product.id] ?? 0 }))
+      .map((row) => ({ productId: row.product.id, count: countOf(counts, row.product.id) }))
       .filter((entry) => entry.count > 0);
     if (entries.length === 0) {
       return;
@@ -165,7 +177,7 @@ export function PrintLabelsModal({
     if (requestId !== printRequestIdRef.current) {
       return;
     }
-    setCounts({});
+    setCounts(NO_LABELS);
     setNotice(null);
     setReloading(false);
   }
@@ -248,7 +260,7 @@ export function PrintLabelsModal({
             </p>
             <div className="flex max-h-64 flex-col gap-1 overflow-y-auto">
               {rows.map(({ product, code }) => {
-                const count = counts[product.id] ?? 0;
+                const count = countOf(counts, product.id);
                 return (
                   <div
                     key={product.id}
