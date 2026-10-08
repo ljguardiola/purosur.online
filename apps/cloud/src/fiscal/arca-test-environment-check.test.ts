@@ -1,12 +1,10 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import {
-  VALID_ARCA_CERTIFICATE,
-  VALID_ARCA_CERTIFICATE_SINGLE_LINE,
-} from "../test-support/arca-certificate-fixtures.js";
+import { VALID_ARCA_CERTIFICATE } from "../test-support/arca-certificate-fixtures.js";
 import {
   arcaTestEnvironmentCheckSettingsOf,
   checkArcaTestEnvironment,
   describeArcaTestEnvironmentCheck,
+  runArcaTestEnvironmentCheck,
 } from "./arca-test-environment-check.js";
 import {
   type ArcaTestCredentials,
@@ -48,15 +46,19 @@ beforeEach(() => {
   wsfe.behave(wsfeAnswers("fe-dummy-all-ok.xml"));
 });
 
-function check() {
-  return checkArcaTestEnvironment({
+function optionsOf(timeoutMs = 5_000) {
+  return {
     certificatePem: credentials.certificatePem,
     privateKeyPem: credentials.privateKeyPem,
     wsaaEndpoint: wsaa.endpoint,
     wsfeEndpoint: wsfe.endpoint,
     now: () => NOW,
-    timeoutMs: 200,
-  });
+    timeoutMs,
+  };
+}
+
+function check(timeoutMs?: number) {
+  return checkArcaTestEnvironment(optionsOf(timeoutMs));
 }
 
 describe("checkArcaTestEnvironment", () => {
@@ -97,7 +99,7 @@ describe("checkArcaTestEnvironment", () => {
   it("fails when FEDummy gives no answer", async () => {
     wsfe.behave({ kind: "never-answers" });
 
-    const report = await check();
+    const report = await check(200);
 
     expect(report.passed).toBe(false);
     expect(report.feDummy).toEqual({ kind: "not_ok", answer: { kind: "unreachable" } });
@@ -201,6 +203,30 @@ describe("describeArcaTestEnvironmentCheck", () => {
   });
 });
 
+describe("runArcaTestEnvironmentCheck", () => {
+  it("writes the report and exits with 0 when the check passes", async () => {
+    const lines: string[] = [];
+
+    const exitCode = await runArcaTestEnvironmentCheck(optionsOf(), (line) => lines.push(line));
+
+    expect(exitCode).toBe(0);
+    expect(lines).toEqual(["FEDummy: every server answered OK", "loginCms: issued a ticket"]);
+  });
+
+  it("writes the report and exits with 1 when the check fails", async () => {
+    wsaa.behave(wsaaAnswers("certificate-expired-fault.xml", 500));
+    const lines: string[] = [];
+
+    const exitCode = await runArcaTestEnvironmentCheck(optionsOf(), (line) => lines.push(line));
+
+    expect(exitCode).toBe(1);
+    expect(lines).toEqual([
+      "FEDummy: every server answered OK",
+      "loginCms: failed with ns1:cms.cert.expired: Certificado expirado",
+    ]);
+  });
+});
+
 describe("arcaTestEnvironmentCheckSettingsOf", () => {
   const environment = { ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE, ARCA_PRIVATE_KEY: "KEY" };
 
@@ -211,23 +237,10 @@ describe("arcaTestEnvironmentCheckSettingsOf", () => {
     });
   });
 
-  it("turns the literal \\n of a collapsed variable into line breaks", () => {
+  it("passes on the refusal of credentials it cannot read", () => {
     expect(
-      arcaTestEnvironmentCheckSettingsOf([], {
-        ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE_SINGLE_LINE,
-        ARCA_PRIVATE_KEY: "C\\nD",
-      }),
-    ).toEqual({
-      kind: "ready",
-      settings: { certificatePem: VALID_ARCA_CERTIFICATE.trimEnd(), privateKeyPem: "C\nD" },
-    });
-  });
-
-  it.each(["ARCA_CERTIFICATE", "ARCA_PRIVATE_KEY"])("refuses without %s", (name) => {
-    expect(arcaTestEnvironmentCheckSettingsOf([], { ...environment, [name]: undefined })).toEqual({
-      kind: "refused",
-      reason: expect.stringContaining(name),
-    });
+      arcaTestEnvironmentCheckSettingsOf([], { ...environment, ARCA_CERTIFICATE: undefined }),
+    ).toEqual({ kind: "refused", reason: expect.stringContaining("ARCA_CERTIFICATE") });
   });
 
   it("accepts no argument, so there is nothing to point it at production with", () => {

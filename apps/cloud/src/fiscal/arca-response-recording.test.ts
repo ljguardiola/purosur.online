@@ -11,7 +11,6 @@ import {
   ARCA_CERTIFICATE_WITH_WRONG_CHECK_DIGIT,
   ARCA_CERTIFICATE_WITHOUT_SERIAL_NUMBER,
   VALID_ARCA_CERTIFICATE,
-  VALID_ARCA_CERTIFICATE_SINGLE_LINE,
 } from "../test-support/arca-certificate-fixtures.js";
 import { recordArcaResponses, recordingSettingsOf } from "./arca-response-recording.js";
 import {
@@ -269,23 +268,6 @@ describe("recordingSettingsOf", () => {
     });
   });
 
-  it("turns the literal \\n of a collapsed variable into line breaks", () => {
-    const result = recordingSettingsOf(["--out", "/d"], {
-      ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE_SINGLE_LINE,
-      ARCA_PRIVATE_KEY: "C\\nD",
-    });
-
-    expect(result).toEqual({
-      kind: "ready",
-      settings: {
-        outDir: "/d",
-        certificatePem: VALID_ARCA_CERTIFICATE.trimEnd(),
-        privateKeyPem: "C\nD",
-        cuit: FICTIONAL_CERTIFICATE_CUIT,
-      },
-    });
-  });
-
   it.each([
     [ARCA_CERTIFICATE_WITHOUT_SERIAL_NUMBER, "serialNumber"],
     [ARCA_CERTIFICATE_WITH_WRONG_CHECK_DIGIT, "check digit"],
@@ -308,10 +290,16 @@ describe("recordingSettingsOf", () => {
     expect(JSON.stringify(result)).toContain(mention);
   });
 
-  it.each(["ARCA_CERTIFICATE", "ARCA_PRIVATE_KEY"])("refuses without %s", (name) => {
-    const result = recordingSettingsOf(["--out", "/d"], { ...environment, [name]: undefined });
+  it("passes on the refusal of credentials it cannot read", () => {
+    const result = recordingSettingsOf(["--out", "/d"], {
+      ...environment,
+      ARCA_PRIVATE_KEY: undefined,
+    });
 
-    expect(result).toEqual({ kind: "refused", reason: expect.stringContaining(name) });
+    expect(result).toEqual({
+      kind: "refused",
+      reason: expect.stringContaining("ARCA_PRIVATE_KEY"),
+    });
   });
 
   it("accepts no other argument, so there is nothing to point it at production with", () => {
