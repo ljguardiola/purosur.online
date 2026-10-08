@@ -1,8 +1,8 @@
+import type { Clock } from "../../shared/index.js";
 import { argentinaCalendarDay } from "../../shared/index.js";
 import { type DiscountStatus, discountStatus } from "../model/discount-status.js";
 import { normalizeDiscountWeekdays } from "../model/discount-weekdays.js";
 import type { DiscountReader, StoredDiscount } from "./discount-reader.js";
-import type { Clock } from "./pricing-store.js";
 
 export interface ListDiscountsPorts {
   discounts: DiscountReader;

@@ -1,3 +1,4 @@
+export type { Clock } from "../../shared/index.js";
 export type {
   AlertDelivery,
   AlertDetailView,
@@ -17,7 +18,6 @@ export type {
   AlertRecipientCandidate,
   AlertStore,
   AlertStoreTransaction,
-  Clock,
   LockedAlert,
   LockedOpenAlert,
   NewAlert,

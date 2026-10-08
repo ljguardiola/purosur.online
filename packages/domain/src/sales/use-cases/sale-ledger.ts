@@ -24,10 +24,6 @@ export interface IdGenerator {
   next(): string;
 }
 
-export interface Clock {
-  now(): Date;
-}
-
 export interface SellingSession {
   id: string;
   openedBy: string;

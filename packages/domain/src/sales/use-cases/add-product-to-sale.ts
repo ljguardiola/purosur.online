@@ -1,5 +1,6 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
 import { discountAppliesOn } from "../../pricing/index.js";
+import type { Clock } from "../../shared/index.js";
 import { argentinaCalendarDay } from "../../shared/index.js";
 import { type OpenSaleStanding, openSaleStanding } from "../model/open-sale-standing.js";
 import { hasApprovedPayment } from "../model/payment.js";
@@ -7,7 +8,6 @@ import type { LinePromotion, Sale, SaleWithLines } from "../model/sale.js";
 import { addUnitToLine, newSaleLine, saleTotal } from "../model/sale-line.js";
 import { saleChargeRefusal } from "./sale-charge-refusal.js";
 import type {
-  Clock,
   IdGenerator,
   RegisterIdentity,
   SaleLedgerTransaction,
