@@ -1,6 +1,13 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { medianRoundTripMs, ROUND_TRIP_SAMPLE_SIZE } from "./real-time-authorization.js";
+import {
+  AUTHORIZATION_CALL_MARGIN_MS,
+  authorizationCallDeadline,
+  mayStartAuthorizationCall,
+  medianRoundTripMs,
+  REAL_TIME_AUTHORIZATION_TIMEOUT_MS,
+  ROUND_TRIP_SAMPLE_SIZE,
+} from "./real-time-authorization.js";
 
 describe("ROUND_TRIP_SAMPLE_SIZE", () => {
   it("looks at the last 12 health checks", () => {
@@ -61,5 +68,82 @@ describe("medianRoundTripMs", () => {
         },
       ),
     );
+  });
+});
+
+const RECEIVED_AT = new Date("2026-10-01T12:00:00.000Z");
+
+describe("REAL_TIME_AUTHORIZATION_TIMEOUT_MS", () => {
+  it("makes the register wait 5 seconds at most", () => {
+    expect(REAL_TIME_AUTHORIZATION_TIMEOUT_MS).toBe(5_000);
+  });
+});
+
+describe("AUTHORIZATION_CALL_MARGIN_MS", () => {
+  it("keeps a margin of 500 milliseconds", () => {
+    expect(AUTHORIZATION_CALL_MARGIN_MS).toBe(500);
+  });
+});
+
+describe("authorizationCallDeadline", () => {
+  it("is the moment of the request plus the budget, minus the margin, minus half the round trip", () => {
+    const deadline = authorizationCallDeadline({
+      receivedAt: RECEIVED_AT,
+      timeoutMs: 5_000,
+      roundTripMedianMs: 200,
+    });
+
+    expect(deadline).toEqual(new Date("2026-10-01T12:00:04.400Z"));
+  });
+
+  it("falls on the earlier whole millisecond when half the round trip is fractional", () => {
+    const deadline = authorizationCallDeadline({
+      receivedAt: RECEIVED_AT,
+      timeoutMs: 5_000,
+      roundTripMedianMs: 101,
+    });
+
+    expect(deadline).toEqual(new Date("2026-10-01T12:00:04.449Z"));
+  });
+
+  it("moves back by half of each extra millisecond of the round trip and by each one of the margin", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1_000, max: 10_000 }),
+        fc.integer({ min: 0, max: 4_000 }),
+        (timeoutMs, roundTripMedianMs) => {
+          const deadline = authorizationCallDeadline({
+            receivedAt: RECEIVED_AT,
+            timeoutMs,
+            roundTripMedianMs,
+          });
+
+          expect(deadline.getTime()).toBe(
+            Math.floor(
+              RECEIVED_AT.getTime() +
+                timeoutMs -
+                AUTHORIZATION_CALL_MARGIN_MS -
+                roundTripMedianMs / 2,
+            ),
+          );
+        },
+      ),
+    );
+  });
+});
+
+describe("mayStartAuthorizationCall", () => {
+  const deadline = new Date("2026-10-01T12:00:04.400Z");
+
+  it("allows the call before the deadline", () => {
+    expect(mayStartAuthorizationCall(deadline, new Date(deadline.getTime() - 1))).toBe(true);
+  });
+
+  it("allows the call at the deadline itself", () => {
+    expect(mayStartAuthorizationCall(deadline, deadline)).toBe(true);
+  });
+
+  it("refuses the call once the deadline has passed", () => {
+    expect(mayStartAuthorizationCall(deadline, new Date(deadline.getTime() + 1))).toBe(false);
   });
 });
