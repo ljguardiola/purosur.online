@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { selectTestsBeside } from "./tests-beside-changes.mjs";
+import { changedFilesSince, selectTestsBeside, testsToRun } from "./tests-beside-changes.mjs";
 
 const TEST_FILES = [
   "packages/domain/src/pricing/model/price.test.ts",
@@ -99,5 +99,42 @@ test("selects a test once when several changed files sit beside it", () => {
       ],
     }),
     ["apps/backoffice/src/catalog/product-form.test.tsx"],
+  );
+});
+
+test("lists the files committed since the merge-base, the uncommitted ones and the untracked ones, once each", () => {
+  const outputs = new Map([
+    ["diff --name-only origin/main...HEAD", "a.ts\nb.ts\n"],
+    ["diff --name-only HEAD", "b.ts\nc.ts\n"],
+    ["ls-files --others --exclude-standard", "d.ts\n"],
+  ]);
+  const runGit = (args) => Buffer.from(outputs.get(args.join(" ")) ?? "", "utf8");
+
+  assert.deepEqual(changedFilesSince({ base: "origin/main", runGit }), ["a.ts", "b.ts", "c.ts", "d.ts"]);
+});
+
+test("runs the tests beside the changed files together with the test files asked for by path", () => {
+  assert.deepEqual(
+    testsToRun({
+      testFiles: TEST_FILES,
+      changedFiles: ["packages/domain/src/catalog/model/price.ts"],
+      requestedFiles: ["apps/cloud/src/catalog/drizzle-catalog-store.integration.test.ts"],
+    }),
+    [
+      "apps/cloud/src/catalog/drizzle-catalog-store.integration.test.ts",
+      "packages/domain/src/catalog/model/price.test.ts",
+    ],
+  );
+});
+
+test("refuses a path asked for that is not a test file", () => {
+  assert.throws(
+    () =>
+      testsToRun({
+        testFiles: TEST_FILES,
+        changedFiles: [],
+        requestedFiles: ["apps/cloud/src/catalog/drizzle-catalog-store.integration.test.tsx"],
+      }),
+    /apps\/cloud\/src\/catalog\/drizzle-catalog-store\.integration\.test\.tsx is not a test file/,
   );
 });
