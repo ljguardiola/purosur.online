@@ -23,7 +23,7 @@ export function arcaTestEnvironmentCheckSettingsOf(
   env: Record<string, string | undefined>,
 ): ArcaTestEnvironmentCheckSettingsResult {
   if (argv.length > 0) {
-    return { kind: "refused", reason: "check-arca-test-environment accepts no argument" };
+    return { kind: "refused", reason: "accepts no argument" };
   }
   const credentials = arcaCredentialsOf(env);
   if (credentials.kind === "refused") {
