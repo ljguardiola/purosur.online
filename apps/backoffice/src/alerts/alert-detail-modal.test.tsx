@@ -1023,6 +1023,35 @@ test("shows an expiring ARCA certificate with the environment it is for and the 
   await expect.element(screen.getByText("Producción", { exact: true })).toBeVisible();
 });
 
+test("tells which register runs a version the cloud no longer accepts, and which version", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "update_required",
+        level: "critical",
+        scope: "register-1",
+        scopeDisplay: "Caja 1",
+        detail: { deviceId: "device-1", appVersion: "1.4.0" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText("La nube no acepta la versión de una caja", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "La caja «Caja 1» usa la versión 1.4.0, que la nube ya no acepta. Hay que actualizarla para que vuelva a sincronizar.",
+      ),
+    )
+    .toBeVisible();
+  await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+});
+
 test("names the homologation environment of an expiring ARCA certificate", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
