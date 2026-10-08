@@ -1642,5 +1642,5 @@ test("names the calendar's month and year selects after the field's name", async
 });
 
 test("requires a name", () => {
-  expectTypeOf<Omit<DateFieldProps, "name">>().not.toExtend<DateFieldProps>();
+  expectTypeOf<DateFieldProps["name"]>().toEqualTypeOf<string>();
 });

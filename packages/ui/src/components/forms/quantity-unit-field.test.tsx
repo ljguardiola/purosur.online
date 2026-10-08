@@ -462,7 +462,5 @@ test("names the quantity input and the unit select after the field's name", asyn
 });
 
 test("requires a name", () => {
-  expectTypeOf<Omit<QuantityUnitFieldProps<Unit>, "name">>().not.toExtend<
-    QuantityUnitFieldProps<Unit>
-  >();
+  expectTypeOf<QuantityUnitFieldProps<Unit>["name"]>().toEqualTypeOf<string>();
 });
