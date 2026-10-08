@@ -47,13 +47,13 @@ import {
 } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
-import { useRefreshAccess, useRolesQuery, useUsersQuery } from "./access-queries";
-import { userEmailMessage } from "./email-field-message";
 import { roleOptions } from "./role-display";
 import { roleFieldMessage } from "./role-field-message";
 import type { UsersListFilters } from "./routes";
+import { userEmailMessage } from "./user-email-message";
 import type { BranchUser, BranchUserRole, CreateUserOutcome, createUser } from "./users-api";
 import type { UsersListScreenServices } from "./users-list-services";
+import { useRefreshUsers, useRolesQuery, useUsersQuery } from "./users-queries";
 
 export type UsersListScreenProps = {
   filters: UsersListFilters;
@@ -326,7 +326,7 @@ function UsersListView({
   const navigate = useNavigate();
   const { createUser, fetchSessionAuthorizationOptions, authorizeSession, startAuthentication } =
     services;
-  const refreshAccess = useRefreshAccess();
+  const refreshUsers = useRefreshUsers();
   const [modalOpen, setModalOpen] = useState(false);
   const reportFilters = useEffectEvent(onFiltersChange);
 
@@ -476,7 +476,7 @@ function UsersListView({
         onClose={() => setModalOpen(false)}
         onCreated={() => {
           setModalOpen(false);
-          void refreshAccess();
+          void refreshUsers();
         }}
         onReactivate={({ id }) => {
           setModalOpen(false);

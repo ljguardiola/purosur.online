@@ -16,18 +16,18 @@ import type { CloudData } from "../platform/use-cloud-query";
 import { type BackofficeAccess, canManageUsers } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
-import {
-  type UserRead,
-  useRefreshAccess,
-  useReloadUser,
-  useRolesQuery,
-  useUserQuery,
-} from "./access-queries";
 import { DeactivateUserModal } from "./deactivate-user-modal";
 import { EditUserModal } from "./edit-user-modal";
 import { ReactivateUserModal } from "./reactivate-user-modal";
 import type { UserDetailScreenServices } from "./user-detail-services";
 import type { BranchUserRole } from "./users-api";
+import {
+  type UserRead,
+  useRefreshUsers,
+  useReloadUser,
+  useRolesQuery,
+  useUserQuery,
+} from "./users-queries";
 
 export type UserCredentialSectionsProps = {
   userId: string;
@@ -103,7 +103,7 @@ function UserDetailView({
 }: UserDetailViewProps) {
   const navigate = useNavigate();
   const { fetchUser } = services;
-  const refreshAccess = useRefreshAccess();
+  const refreshUsers = useRefreshUsers();
   const reloadUser = useReloadUser({ fetchUser });
   const [modalOpen, setModalOpen] = useState(false);
   const [deactivateModalOpen, setDeactivateModalOpen] = useState(false);
@@ -193,7 +193,7 @@ function UserDetailView({
                   showsPasskeys={showsPasskeys}
                   showsPin={showsPinSection}
                   onSessionEnded={onSessionEnded}
-                  onUserOutdated={() => void refreshAccess()}
+                  onUserOutdated={() => void refreshUsers()}
                 />
               </Suspense>
             ) : null}
@@ -241,7 +241,7 @@ function UserDetailView({
           onClose={() => setModalOpen(false)}
           onSaved={() => {
             setModalOpen(false);
-            void refreshAccess();
+            void refreshUsers();
           }}
           onSessionEnded={onSessionEnded}
           reload={reloadUser}
@@ -255,12 +255,12 @@ function UserDetailView({
           onClose={() => setDeactivateModalOpen(false)}
           onDeactivated={() => {
             setDeactivateModalOpen(false);
-            void refreshAccess();
+            void refreshUsers();
             void navigate({ to: "/users" });
           }}
           onVanished={() => {
             setDeactivateModalOpen(false);
-            void refreshAccess();
+            void refreshUsers();
           }}
           onSessionEnded={onSessionEnded}
           services={services}
@@ -273,7 +273,7 @@ function UserDetailView({
           onClose={() => setReactivateModalOpen(false)}
           onReactivated={() => {
             setReactivateModalOpen(false);
-            void refreshAccess();
+            void refreshUsers();
           }}
           onSessionEnded={onSessionEnded}
           services={services}

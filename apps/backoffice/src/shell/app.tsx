@@ -21,14 +21,6 @@ import {
   type UserCredentialSectionsServices,
 } from "../access/user-credential-sections-services";
 import {
-  defaultUserDetailScreenServices,
-  type UserDetailPageServices,
-} from "../access/user-detail-services";
-import {
-  defaultUsersListScreenServices,
-  type UsersListScreenServices,
-} from "../access/users-list-services";
-import {
   type AlertsListScreenServices,
   defaultAlertsListScreenServices,
 } from "../alerts/alerts-list-services";
@@ -98,6 +90,14 @@ import {
   defaultStockMovementsScreenServices,
   type StockMovementsScreenServices,
 } from "../stock/stock-movements-services";
+import {
+  defaultUserDetailScreenServices,
+  type UserDetailPageServices,
+} from "../users/user-detail-services";
+import {
+  defaultUsersListScreenServices,
+  type UsersListScreenServices,
+} from "../users/users-list-services";
 import { type AccountFooterServices, defaultAccountFooterServices } from "./account-footer";
 import { createAppRouter } from "./app-router";
 import { defaultHomeScreenServices, type HomeScreenServices } from "./home-screen-services";

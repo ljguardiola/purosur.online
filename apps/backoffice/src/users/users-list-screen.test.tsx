@@ -5,11 +5,11 @@ import { userEvent } from "vitest/browser";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
-import { useRefreshAccess } from "./access-queries";
 import { type UsersListFilters, usersListFilters } from "./routes";
 import type { BranchUser } from "./users-api";
 import { UsersListScreen } from "./users-list-screen";
 import type { UsersListScreenServices } from "./users-list-services";
+import { useRefreshUsers } from "./users-queries";
 
 function createServices(overrides: Partial<UsersListScreenServices> = {}): UsersListScreenServices {
   const services: UsersListScreenServices = {
@@ -707,8 +707,8 @@ test("keeps the loaded list and an open create modal when the parent re-renders 
 });
 
 function RefreshProbe({ onReady }: { onReady: (refresh: () => Promise<void>) => void }) {
-  const refreshAccess = useRefreshAccess();
-  useEffect(() => onReady(refreshAccess));
+  const refreshUsers = useRefreshUsers();
+  useEffect(() => onReady(refreshUsers));
   return null;
 }
 
@@ -742,12 +742,12 @@ test("a refresh of the roles in the background does not overwrite what is typed 
         administratorRole,
       ],
     });
-  let refreshAccess: () => Promise<void> = () => Promise.resolve();
+  let refreshUsers: () => Promise<void> = () => Promise.resolve();
   const screen = await render(
     <main>
       <RefreshProbe
         onReady={(refresh) => {
-          refreshAccess = refresh;
+          refreshUsers = refresh;
         }}
       />
       <UsersListScreen
@@ -763,7 +763,7 @@ test("a refresh of the roles in the background does not overwrite what is typed 
   const dialog = await openNewUserModal(screen);
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
 
-  void refreshAccess();
+  void refreshUsers();
   await expect.poll(() => vi.mocked(services.fetchRoles).mock.calls.length).toBe(2);
   refreshedUsers.resolve({ kind: "ok", value: [administrator, martina] });
 

@@ -3,9 +3,9 @@ import { page, userEvent } from "vitest/browser";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import type { RoleSummary } from "../platform/roles-api";
 import { render } from "../shell/test-support/render-with-router";
-import type { UserRead } from "./access-queries";
 import { EditUserModal, type EditUserModalServices } from "./edit-user-modal";
 import type { BranchUser } from "./users-api";
+import type { UserRead } from "./users-queries";
 
 const shiftRole: RoleSummary = {
   id: "00000000-0000-4000-8000-000000000002",

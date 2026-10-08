@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import { useRefreshAccess } from "./access-queries";
 import {
   ADMINISTRATOR_ACCESS,
   CredentialSectionsStub,
@@ -16,6 +15,7 @@ import {
 } from "./test-support/user-detail-screen";
 import { UserDetailScreen } from "./user-detail-screen";
 import type { BranchUser } from "./users-api";
+import { useRefreshUsers } from "./users-queries";
 
 afterEach(() => {
   window.history.pushState(null, "", "/");
@@ -144,8 +144,8 @@ test("a change refreshes the user and the roles from the server, keeping what is
 });
 
 function RefreshProbe({ onReady }: { onReady: (refresh: () => Promise<void>) => void }) {
-  const refreshAccess = useRefreshAccess();
-  useEffect(() => onReady(refreshAccess));
+  const refreshUsers = useRefreshUsers();
+  useEffect(() => onReady(refreshUsers));
   return null;
 }
 
@@ -157,12 +157,12 @@ test("a refresh of the user in the background does not overwrite what is typed i
       kind: "ok",
       value: { ...lucia, email: "otra@purosur.online", version: 4 },
     });
-  let refreshAccess: () => Promise<void> = () => Promise.resolve();
+  let refreshUsers: () => Promise<void> = () => Promise.resolve();
   const screen = await render(
     <main>
       <RefreshProbe
         onReady={(refresh) => {
-          refreshAccess = refresh;
+          refreshUsers = refresh;
         }}
       />
       <UserDetailScreen
@@ -179,7 +179,7 @@ test("a refresh of the user in the background does not overwrite what is typed i
   const dialog = await openEditModal(screen);
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "escrito@purosur.online");
 
-  await refreshAccess();
+  await refreshUsers();
 
   await expect.poll(() => vi.mocked(services.fetchUser).mock.calls.length).toBe(2);
   await expect.element(screen.getByText("otra@purosur.online")).toBeVisible();

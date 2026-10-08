@@ -11,11 +11,3 @@ export function emailFieldMessage(shape: ZodType, { required, invalid, review }:
     return shape.safeParse(trimmed).success ? review : invalid;
   };
 }
-
-export function userEmailMessage(shape: ZodType) {
-  return emailFieldMessage(shape, {
-    required: "Ingresá el correo.",
-    invalid: "Ingresá un correo válido.",
-    review: "Revisá el correo.",
-  });
-}

@@ -4,8 +4,6 @@ import {
   myAccountRoute,
   registerPasskeyRoute,
   signInRoute,
-  userDetailRoute,
-  usersListRoute,
 } from "../access/routes";
 import { alertsListRoute, alertsOverviewRoute } from "../alerts/routes";
 import { branchSettingsRoute } from "../branch/routes";
@@ -23,6 +21,7 @@ import { discountsListRoute, pricesListRoute } from "../pricing/routes";
 import { registersListRoute } from "../register/routes";
 import { reportsIndexRoute, salesByDayRoute } from "../sales/routes";
 import { stockBalancesRoute, stockCountsRoute, stockMovementsRoute } from "../stock/routes";
+import { userDetailRoute, usersListRoute } from "../users/routes";
 import { cashAndFiscalAreaRoute } from "./cash-and-fiscal-area";
 import { catalogAreaRoute } from "./catalog-area";
 import { helpAreaRoute } from "./help-area";

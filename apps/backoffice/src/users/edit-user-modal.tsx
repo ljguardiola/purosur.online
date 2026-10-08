@@ -12,11 +12,11 @@ import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
-import type { UserRead } from "./access-queries";
-import { userEmailMessage } from "./email-field-message";
 import { roleOptions } from "./role-display";
 import { roleFieldMessage } from "./role-field-message";
+import { userEmailMessage } from "./user-email-message";
 import type { BranchUser, BranchUserRole, EditUserOutcome, editUser } from "./users-api";
+import type { UserRead } from "./users-queries";
 
 const EMAIL_MESSAGE = userEmailMessage(userEditBodySchema.shape.email);
 
