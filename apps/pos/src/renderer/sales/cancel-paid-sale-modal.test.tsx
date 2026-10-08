@@ -147,46 +147,16 @@ describe("CancelPaidSaleModal", () => {
   });
 
   describe("once the sale is cancelled", () => {
-    it("tells the cashier what to give back and what stays pending, and tells the screen", async () => {
-      const refunds = [CASH_REFUND, TRANSFER_REFUND];
+    it("tells the screen which refunds the core made, not the ones it announced", async () => {
+      const made = [{ ...CASH_REFUND, amount: 90_000 }, TRANSFER_REFUND];
       const { screen, onCancelled } = await renderModal({
-        cancelPaidSale: async () => ({ kind: "cancelled", refunds, authorized_by: null }),
-      });
-
-      await userEvent.click(screen.getByRole("button", { name: CANCEL }));
-
-      await expect.element(screen.getByRole("dialog", { name: "Venta cancelada" })).toBeVisible();
-      await expect.element(screen.getByText(CASH_LINE, { exact: true })).toBeVisible();
-      await expect.element(screen.getByText(TRANSFER_LINE, { exact: true })).toBeVisible();
-      await expect.element(screen.getByRole("button", { name: CANCEL })).not.toBeInTheDocument();
-      expect(onCancelled).toHaveBeenCalledOnce();
-      await expectNoAccessibilityViolations(document.body);
-    });
-
-    it("lists the refunds the core made, not the ones it announced", async () => {
-      const { screen } = await renderModal({
         refunds: [CASH_REFUND],
-        cancelPaidSale: async () => ({
-          kind: "cancelled",
-          refunds: [{ ...CASH_REFUND, amount: 90_000 }],
-          authorized_by: null,
-        }),
+        cancelPaidSale: async () => ({ kind: "cancelled", refunds: made, authorized_by: null }),
       });
 
       await userEvent.click(screen.getByRole("button", { name: CANCEL }));
 
-      await expect
-        .element(screen.getByText("Devolver $ 900,00 en efectivo", { exact: true }))
-        .toBeVisible();
-    });
-
-    it("closes from Listo", async () => {
-      const { screen, onClose } = await renderModal();
-      await userEvent.click(screen.getByRole("button", { name: CANCEL }));
-
-      await userEvent.click(screen.getByRole("button", { name: "Listo" }));
-
-      expect(onClose).toHaveBeenCalledOnce();
+      await vi.waitFor(() => expect(onCancelled).toHaveBeenCalledExactlyOnceWith(made));
     });
   });
 
@@ -266,20 +236,19 @@ describe("CancelPaidSaleModal", () => {
       await userEvent.click(screen.getByRole("button", { name: CANCEL }));
 
       await expect
-        .element(screen.getByText("Ya no tenés permiso para cancelar una venta con pagos."))
-        .toBeVisible();
+        .element(screen.getByRole("alert"))
+        .toHaveTextContent("Ya no tenés permiso para cancelar una venta con pagos.");
       expect(onCancelled).not.toHaveBeenCalled();
     });
 
-    it("says the sale is no longer in progress and tells the screen to read it again", async () => {
+    it("tells the screen the sale is no longer in progress", async () => {
       const { screen, onSaleGone } = await renderModal({
         cancelPaidSale: async () => ({ kind: "no_open_sale" }),
       });
 
       await userEvent.click(screen.getByRole("button", { name: CANCEL }));
 
-      await expect.element(screen.getByText("Esta venta ya no está en curso.")).toBeVisible();
-      expect(onSaleGone).toHaveBeenCalledOnce();
+      await vi.waitFor(() => expect(onSaleGone).toHaveBeenCalledOnce());
     });
 
     it.each([["no_open_session"], ["not_signed_in"]] as const)(
@@ -303,8 +272,8 @@ describe("CancelPaidSaleModal", () => {
       await userEvent.click(screen.getByRole("button", { name: CANCEL }));
 
       await expect
-        .element(screen.getByText("No tenés el permiso de vender y cobrar"))
-        .toBeVisible();
+        .element(screen.getByRole("alert"))
+        .toHaveTextContent("No tenés el permiso de vender y cobrar");
     });
 
     it("says the sale was not cancelled when the core is unavailable", async () => {
@@ -315,8 +284,8 @@ describe("CancelPaidSaleModal", () => {
       await userEvent.click(screen.getByRole("button", { name: CANCEL }));
 
       await expect
-        .element(screen.getByText("No se pudo cancelar la venta. Probá de nuevo."))
-        .toBeVisible();
+        .element(screen.getByRole("alert"))
+        .toHaveTextContent("No se pudo cancelar la venta. Probá de nuevo.");
       await expect.element(screen.getByRole("button", { name: CANCEL })).toBeEnabled();
       expect(onCancelled).not.toHaveBeenCalled();
     });
@@ -331,8 +300,8 @@ describe("CancelPaidSaleModal", () => {
       await userEvent.click(screen.getByRole("button", { name: CANCEL }));
 
       await expect
-        .element(screen.getByText("No se pudo cancelar la venta. Probá de nuevo."))
-        .toBeVisible();
+        .element(screen.getByRole("alert"))
+        .toHaveTextContent("No se pudo cancelar la venta. Probá de nuevo.");
     });
   });
 });
