@@ -1120,6 +1120,8 @@ describe("answerRendererRequest", () => {
       lines_editable: true,
       cancellable: true,
       charge_refusal: null,
+      refunds_on_cancel: [],
+      cancel_authorization_required: false,
     };
     const { deps: withSale, saleLookups } = deps(true, { currentSale: async () => sale });
     const recording = deps(true);
