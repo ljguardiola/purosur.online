@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { deactivateUser, editRole } from "@purosur/domain/access/use-cases";
+import { deactivateUser } from "@purosur/domain/access/use-cases";
+import { editRole } from "@purosur/domain/permissions/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { DrizzleRoleStore } from "../permissions/drizzle-role-store.js";
 import { rolePermissions, roles, userRoles, users } from "../platform/db/schema.js";
 import {
   createIntegrationDatabase,
@@ -11,7 +13,6 @@ import {
 } from "../test-support/integration-database.js";
 import { waitForLockWaiters } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { DrizzleRoleStore } from "./drizzle-role-store.js";
 import { DrizzleUserStore } from "./drizzle-user-store.js";
 
 const NOON = new Date("2026-01-05T12:00:00.000Z");

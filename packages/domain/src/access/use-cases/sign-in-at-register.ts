@@ -1,10 +1,10 @@
+import { holdsARegisterPermission } from "../../permissions/index.js";
 import {
   isLockedToAnother,
   type RegisterAbility,
   registerAbilities,
 } from "../../register/index.js";
 import { pinSignInAttemptsLeft } from "../model/pin-sign-in-failures.js";
-import { holdsARegisterPermission } from "../model/register-coverage.js";
 import { checkPin, type PinRefusal } from "./check-pin.js";
 import type { PinCheckPorts } from "./pin-sign-in-store.js";
 

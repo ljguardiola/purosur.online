@@ -5,12 +5,16 @@ import { useEffect, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { combineCloudData } from "../platform/combine-cloud-data";
 import { roleDisplayName } from "../platform/role-display-name";
+import type { RoleSummary } from "../platform/roles-api";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
-import { usePermissionCatalogQuery, useRefreshAccess, useRolesQuery } from "./access-queries";
 import { permissionsOf } from "./permission-catalog";
+import {
+  usePermissionCatalogQuery,
+  useRefreshPermissions,
+  useRolesQuery,
+} from "./permissions-queries";
 import { RoleEditorModal, type RoleEditorRequest } from "./role-editor-modal";
-import type { RoleSummary } from "./roles-api";
 import type { RolesListScreenServices } from "./roles-list-services";
 
 export type RolesListScreenProps = {
@@ -84,7 +88,7 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
     useRolesQuery({ fetchRoles, onSessionEnded }),
     usePermissionCatalogQuery({ fetchPermissionCatalog, onSessionEnded }),
   );
-  const refreshAccess = useRefreshAccess();
+  const refreshPermissions = useRefreshPermissions();
   const [editorRequest, setEditorRequest] = useState<RoleEditorRequest | null>(null);
 
   useEffect(() => {
@@ -142,7 +146,7 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
         onClose={() => setEditorRequest(null)}
         onSaved={() => {
           setEditorRequest(null);
-          void refreshAccess();
+          void refreshPermissions();
         }}
         onSessionEnded={onSessionEnded}
         {...(roleEditorModal ? { services: roleEditorModal } : {})}

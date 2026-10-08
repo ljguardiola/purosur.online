@@ -1,22 +1,22 @@
 import { randomUUID } from "node:crypto";
-import { createRole } from "@purosur/domain/access/use-cases";
 import { createCategory, createProduct, createTag } from "@purosur/domain/catalog/use-cases";
 import {
   configureRegisterPointOfSale,
   createFiscalAddress,
   recordBuyerIdentificationThreshold,
 } from "@purosur/domain/fiscal/use-cases";
+import { createRole } from "@purosur/domain/permissions/use-cases";
 import { createDiscount, setPrice } from "@purosur/domain/pricing/use-cases";
 import { pullChanges } from "@purosur/domain/sync/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { DrizzleRoleStore } from "../access/drizzle-role-store.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { DrizzleBuyerIdentificationThresholdStore } from "../fiscal/drizzle-buyer-identification-threshold-store.js";
 import { DrizzleFiscalAddressStore } from "../fiscal/drizzle-fiscal-address-store.js";
 import { DrizzleRegisterPointOfSaleStore } from "../fiscal/drizzle-register-point-of-sale-store.js";
+import { DrizzleRoleStore } from "../permissions/drizzle-role-store.js";
 import {
   branchSettings,
   locations,

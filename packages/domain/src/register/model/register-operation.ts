@@ -3,7 +3,7 @@ import {
   holdsPermission,
   type PermissionKey,
   type RoleAccess,
-} from "../../access/index.js";
+} from "../../permissions/index.js";
 import { type CashMovementKind, cashMovementPermission } from "./cash-movement-kind.js";
 import { isLockedToAnother } from "./register-lock.js";
 

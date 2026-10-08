@@ -3,9 +3,9 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import type { RoleSummary } from "../platform/roles-api";
 import { permissionCatalogFixture } from "../platform/test-support/permission-catalog";
 import { render } from "../shell/test-support/render-with-router";
-import type { RoleSummary } from "./roles-api";
 import { RolesListScreen } from "./roles-list-screen";
 import type { RolesListScreenServices } from "./roles-list-services";
 

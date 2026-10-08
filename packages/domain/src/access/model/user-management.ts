@@ -1,5 +1,5 @@
-import type { RoleAccess } from "./access-increase.js";
-import { grantsCapability } from "./capability-permissions.js";
+import type { RoleAccess } from "../../permissions/index.js";
+import { grantsCapability } from "../../permissions/index.js";
 import { isUserDeactivatable, isUserReactivatable } from "./user-deactivation.js";
 
 type Actor = { id: string } & RoleAccess;

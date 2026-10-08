@@ -1,4 +1,5 @@
 import { startAuthentication } from "@simplewebauthn/browser";
+import { fetchRoles } from "../platform/roles-api";
 import {
   authorizeSession,
   fetchSessionAuthorizationOptions,
@@ -8,7 +9,6 @@ import type { EditUserModalServices } from "./edit-user-modal";
 import type { EmitUserPinCodeModalServices } from "./emit-user-pin-code-modal";
 import type { ReactivateUserModalServices } from "./reactivate-user-modal";
 import type { RemoveUserPasskeyModalServices } from "./remove-user-passkey-modal";
-import { fetchRoles } from "./roles-api";
 import {
   deactivateUser,
   editUser,

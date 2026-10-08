@@ -1,6 +1,6 @@
 import { createRoute, redirect, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
-import { canSeeRolesArea, canSeeUsersArea } from "../shell/backoffice-access";
+import { canSeeUsersArea } from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
 import { publicRoute } from "../shell/public-route";
 import { settingsAreaRoute } from "../shell/settings-area";
@@ -55,11 +55,4 @@ export const userDetailRoute = createRoute({
   path: "users/$userId",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeUsersArea),
   component: lazyScreen(() => import("./user-detail-page"), "UserDetailPage"),
-});
-
-export const rolesListRoute = createRoute({
-  getParentRoute: () => settingsAreaRoute,
-  path: "roles",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeRolesArea),
-  component: lazyScreen(() => import("./roles-list-page"), "RolesListPage"),
 });
