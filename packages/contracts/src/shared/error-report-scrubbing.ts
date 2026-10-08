@@ -52,11 +52,10 @@ const BEARER_TOKEN_PATTERN = /\bBearer\s+[A-Za-z0-9\-_.]+/g;
 // The domain must end in letters, so a package or release name such as `purosur-pos@1.2.3` is kept.
 const EMAIL_PATTERN = /(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]+@(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}/g;
 // A home folder is matched where a path starts, also under `/var`, `/export` or Vite's `/@fs`, so
-// a URL's own `/home/` segment is kept. An account ending the whole text or followed by a query is
-// not recognized, so a backoffice route such as `/home/alerts` is kept; a period only ends an
-// account when it ends a sentence, since account names contain dots.
+// a URL's own `/home/` segment is kept. A period only ends an account when it ends a sentence,
+// since account names contain dots.
 const UNIX_HOME_ACCOUNT_PATTERN =
-  /((?:(?<![\w.-])(?:\/var|\/export)?|\/@fs)\/(?:home|Users)\/)(?:[^/\s:,;?#"'`()<>[\].]|\.(?![\s"'`)]))+(?=[/\s"'`()<>[\],;:]|\.(?:[\s"'`)]|$))/g;
+  /((?:(?<![\w.-])(?:\/var|\/export)?|\/@fs)\/(?:home|Users)\/)(?:[^/\s:,;?#"'`()<>[\].]|\.(?![\s"'`)]|$))+(?=[/\s"'`()<>[\],;:?#]|\.(?:[\s"'`)]|$)|$)/g;
 // A Windows account name can contain spaces, quotes and parentheses, so everything after it is
 // hidden up to the next folder separator or line end. Its drive is a letter, or a folder under
 // WSL (`/mnt/c`), Git Bash (`/c`) or Cygwin (`/cygdrive/c`).
