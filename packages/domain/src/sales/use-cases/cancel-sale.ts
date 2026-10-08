@@ -4,11 +4,6 @@ import { isRefusal, sellingSession } from "./selling-session.js";
 
 export interface CancelSaleInput {
   actorId: string;
-  from: "sale" | "locked_register";
-}
-
-interface CancelSaleFromLockedRegisterInput extends CancelSaleInput {
-  from: "locked_register";
 }
 
 export interface CancelSalePorts {
@@ -22,22 +17,12 @@ export type CancelSaleOutcome =
   | { kind: "has_approved_payment" }
   | { kind: "cancelled" };
 
-export type CancelLockedSaleOutcome = Exclude<CancelSaleOutcome, { kind: "not_permitted" }>;
-
-export function cancelSale(
-  ports: CancelSalePorts,
-  input: CancelSaleFromLockedRegisterInput,
-): CancelLockedSaleOutcome;
-export function cancelSale(ports: CancelSalePorts, input: CancelSaleInput): CancelSaleOutcome;
 export function cancelSale(
   { ledger }: CancelSalePorts,
-  { actorId, from }: CancelSaleInput,
+  { actorId }: CancelSaleInput,
 ): CancelSaleOutcome {
   return ledger.transaction<CancelSaleOutcome>((tx) => {
-    const session = from === "sale" ? sellingSession(tx, actorId) : tx.openSession();
-    if (!session) {
-      return { kind: "no_open_session" };
-    }
+    const session = sellingSession(tx, actorId);
     if (isRefusal(session)) {
       return session;
     }

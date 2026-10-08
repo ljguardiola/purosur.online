@@ -1,4 +1,4 @@
-export type { OperationAuthority, OperationAuthorization } from "../../shared/index.js";
+export type { Clock, OperationAuthority, OperationAuthorization } from "../../shared/index.js";
 export type {
   AuthenticateInstallationInput,
   AuthenticateInstallationOutcome,
@@ -75,7 +75,6 @@ export type {
 } from "./record-cash-movement.js";
 export { recordCashMovement } from "./record-cash-movement.js";
 export type {
-  Clock,
   DeviceTokenIssuer,
   DeviceTokenRotationPorts,
   DeviceTokenRotator,

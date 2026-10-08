@@ -1,10 +1,7 @@
 import type { SaleUnit } from "../../catalog/index.js";
+import type { Clock } from "../../shared/index.js";
 import type { StockMovementKind } from "../model/stock-movement-kind.js";
 import type { AdjustmentReason, LossReason } from "../model/stock-movement-reason.js";
-
-export interface Clock {
-  now(): Date;
-}
 
 export interface StockPorts {
   store: StockStore;

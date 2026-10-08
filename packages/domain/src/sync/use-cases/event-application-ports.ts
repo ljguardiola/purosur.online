@@ -1,8 +1,7 @@
 import type { EventInvariantViolatedDetail, EventsQuarantinedDetail } from "../../alerts/index.js";
-import type { JsonValue } from "../../shared/index.js";
+import type { Clock, JsonValue } from "../../shared/index.js";
 import type { HeldEventState } from "../model/next-event-to-apply.js";
 import type { AggregateKey, SyncedFact } from "../model/synced-fact.js";
-import type { Clock } from "./sync-ports.js";
 
 export type { AggregateKey };
 

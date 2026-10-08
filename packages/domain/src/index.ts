@@ -315,7 +315,6 @@ export {
 export type {
   LinePromotion,
   ListPrice,
-  OpenSaleSummary,
   PaymentMethod,
   PaymentTransaction,
   PlannedRefund,
@@ -334,7 +333,7 @@ export {
   cashCharge,
   isRefundPending,
   isSalesReportRangeAsked,
-  openSaleSummary,
+  openSaleStanding,
   PAYMENT_METHODS,
   REFUND_DONE_STATE,
   REFUND_PENDING_STATE,

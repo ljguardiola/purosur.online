@@ -439,7 +439,18 @@ const rendererRequestDeps: RendererRequestDeps = {
   cancelLockedSale:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (closer) => cancelLockedSaleFor({ database: localDatabase, gate: actionGate }, closer),
+      : async (request) =>
+          cancelLockedSaleFor(
+            {
+              database: localDatabase,
+              gate: actionGate,
+              readOutboxChainKey: async () =>
+                (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+              now,
+              ids: uuidV7Ids,
+            },
+            request,
+          ),
   identifyLockedCloser:
     localDatabase === undefined || actionGate === undefined
       ? undefined

@@ -479,8 +479,7 @@ describe("closing a cash session answers", () => {
   it.each([
     { kind: "invalid_counted_cash" },
     { kind: "no_open_session" },
-    { kind: "open_sale", total: 4500, cancellable: true },
-    { kind: "open_sale", total: 4500, cancellable: false },
+    { kind: "open_sale", total: 4500 },
     { kind: "not_signed_in" },
     { kind: "lacks_permission" },
     { kind: "unavailable" },
@@ -494,8 +493,7 @@ describe("closing a cash session answers", () => {
     { kind: "closed" },
     { kind: "closed", session: { id: "s1", expected_cash: 0, counted_cash: 0 } },
     { kind: "open_sale" },
-    { kind: "open_sale", total: 4500 },
-    { kind: "open_sale", total: 4500, cancellable: "yes" },
+    { kind: "open_sale", total: "4500" },
     { kind: "x" },
     { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
     { kind: "rate_limited", retry_after_seconds: 4, attempts_left: 5 },
@@ -586,23 +584,51 @@ describe("the open sale of the cash session", () => {
     ).toBe(false);
   });
 
-  it.each([{ total: 3_434_000, cancellable: true }, { total: 0, cancellable: false }, null])(
-    "accepts the open sale answered: %j",
-    (sale) => {
-      const message = { type: "session-open-sale", request_id: REQUEST_ID, sale };
+  const cashRefund = { payment_id: "p1", method: "CASH", amount: 1200, state: "APPROVED" };
+  const transferRefund = { payment_id: "p2", method: "TRANSFER", amount: 2000, state: "PENDING" };
+  const openSale = {
+    id: "sale-1",
+    total: 3_434_000,
+    paid: 0,
+    cancellable: true,
+    refunds_on_cancel: [],
+  };
 
-      expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
-    },
-  );
+  it.each([
+    openSale,
+    { ...openSale, total: 0, cancellable: false },
+    { ...openSale, paid: 3200, refunds_on_cancel: [cashRefund, transferRefund] },
+    null,
+  ])("accepts the open sale answered: %j", (sale) => {
+    const message = { type: "session-open-sale", request_id: REQUEST_ID, sale };
 
-  it.each([{ total: 4500 }, { cancellable: true }, { total: 4500, cancellable: "yes" }])(
-    "rejects an open sale it does not know: %j",
-    (sale) => {
-      const message = { type: "session-open-sale", request_id: REQUEST_ID, sale };
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
 
-      expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
-    },
-  );
+  it.each([
+    ["its id", { ...openSale, id: undefined }],
+    ["its total", { ...openSale, total: undefined }],
+    ["what was paid", { ...openSale, paid: undefined }],
+    ["whether it is cancellable", { ...openSale, cancellable: undefined }],
+    ["its refunds on cancel", { ...openSale, refunds_on_cancel: undefined }],
+  ])("rejects an open sale without %s", (_field, sale) => {
+    const message = { type: "session-open-sale", request_id: REQUEST_ID, sale };
+
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it.each([
+    { ...openSale, cancellable: "yes" },
+    { ...openSale, paid: -1 },
+    { ...openSale, refunds_on_cancel: [{ ...cashRefund, method: "CARD" }] },
+    { ...openSale, refunds_on_cancel: [{ ...cashRefund, state: "DONE" }] },
+    { ...openSale, refunds_on_cancel: [{ ...cashRefund, amount: -1 }] },
+    { ...openSale, refunds_on_cancel: [{ method: "CASH", amount: 1, state: "APPROVED" }] },
+  ])("rejects an open sale it does not know: %j", (sale) => {
+    const message = { type: "session-open-sale", request_id: REQUEST_ID, sale };
+
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
 
   it("accepts that the open sale cannot be read", () => {
     const message = { type: "session-open-sale-unavailable", request_id: REQUEST_ID };
@@ -727,8 +753,7 @@ describe("closing a locked register's cash session", () => {
   it.each([
     { kind: "invalid_counted_cash" },
     { kind: "no_open_session" },
-    { kind: "open_sale", total: 4500, cancellable: true },
-    { kind: "open_sale", total: 4500, cancellable: false },
+    { kind: "open_sale", total: 4500 },
     { kind: "not_locked" },
     { kind: "lacks_permission" },
     { kind: "unavailable" },
@@ -744,8 +769,7 @@ describe("closing a locked register's cash session", () => {
     { kind: "not_signed_in" },
     { kind: "closed", session: { id: "s1", expected_cash: 0, counted_cash: 0 } },
     { kind: "open_sale" },
-    { kind: "open_sale", total: 4500 },
-    { kind: "open_sale", total: 4500, cancellable: "yes" },
+    { kind: "open_sale", total: "4500" },
   ])("rejects a close result it does not know: %j", (outcome) => {
     const message = { type: "close-locked-cash-session-result", request_id: REQUEST_ID, outcome };
 

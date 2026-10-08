@@ -24,10 +24,6 @@ export interface IdGenerator {
   next(): string;
 }
 
-export interface Clock {
-  now(): Date;
-}
-
 export interface SellingSession {
   id: string;
   openedBy: string;
@@ -83,6 +79,7 @@ export interface SaleLedgerTransaction {
   recordCompletedSale(saleId: string, occurredAt: Date): void;
   recordCancelledSale(saleId: string, occurredAt: Date, authorizedBy: string | undefined): void;
   recordRefund(refund: SaleRefund): void;
+  outboxReady(): boolean;
   appendOutboxEvent(draft: OutboxEventDraft): void;
   issuerIdentificationInEffect(): IssuerIdentificationInEffect | undefined;
   buyerTaxStatusSetInEffect(): readonly BuyerTaxStatusOption[] | undefined;

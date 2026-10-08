@@ -1,10 +1,10 @@
+import type { Clock } from "../../shared/index.js";
 import {
   enrollmentCodeExpiresAt,
   enrollmentCodeLookup,
   isEnrollmentCodeUsable,
 } from "../model/enrollment-code.js";
 import type { BranchRegisterStore, EnrollmentCodeIssuer } from "./branch-register-store.js";
-import type { Clock } from "./register-store.js";
 
 export interface EmitEnrollmentCodePorts {
   store: BranchRegisterStore;

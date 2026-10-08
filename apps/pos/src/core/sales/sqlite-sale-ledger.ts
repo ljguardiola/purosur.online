@@ -100,6 +100,7 @@ export class SqliteSaleLedger implements SaleLedger {
       recordCancelledSale: (saleId, occurredAt, authorizedBy) =>
         this.recordCancelledSale(saleId, occurredAt, authorizedBy),
       recordRefund: (refund) => this.recordRefund(refund),
+      outboxReady: () => this.outboxChainKey !== undefined,
       appendOutboxEvent: (draft) => this.appendOutboxEvent(draft),
       issuerIdentificationInEffect: () => readIssuerIdentificationInEffect(this.database),
       buyerTaxStatusSetInEffect: () => readBuyerTaxStatusSetInEffect(this.database),

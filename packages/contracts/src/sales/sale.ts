@@ -1,13 +1,15 @@
 import {
   isValidDiscountBuyNPayM,
   isValidDiscountPercent,
-  PAYMENT_METHODS,
-  REFUND_STATES,
   SALE_UNITS,
   SEARCH_RESULT_LIMIT,
 } from "@purosur/domain";
 import { z } from "zod";
-import { authorizationRefusalSchema, authorizedBySchema } from "../shared/index.js";
+import {
+  authorizationRefusalSchema,
+  authorizedBySchema,
+  plannedRefundSchema,
+} from "../shared/index.js";
 
 const cents = z.int().nonnegative();
 
@@ -30,13 +32,6 @@ const saleLineSchema = z.object({
   discount_amount: cents,
   promotion: linePromotionSchema.nullable(),
   line_total: cents,
-});
-
-const plannedRefundSchema = z.object({
-  payment_id: z.string(),
-  method: z.enum(PAYMENT_METHODS),
-  amount: cents,
-  state: z.enum(REFUND_STATES),
 });
 
 const reachesThresholdRefusal = z.object({

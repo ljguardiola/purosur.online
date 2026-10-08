@@ -8,13 +8,12 @@ import {
 } from "../../../fiscal/index.js";
 import { priceInEffectAt } from "../../../pricing/index.js";
 import type { CashMovement } from "../../../register/index.js";
-import type { OutboxEventDraft } from "../../../shared/index.js";
+import type { Clock, OutboxEventDraft } from "../../../shared/index.js";
 import type { PaymentTransaction } from "../../model/payment.js";
 import type { SaleWithLines } from "../../model/sale.js";
 import type { ListPrice } from "../../model/sale-line.js";
 import type {
   CandidatePromotion,
-  Clock,
   IdGenerator,
   RecordedPreEmissionGate,
   RegisterIdentity,
@@ -49,6 +48,7 @@ export interface FakeSaleLedgerState {
   refunds: SaleRefund[];
   movements: CashMovement[];
   outbox: OutboxEventDraft[];
+  outboxReady: boolean;
   issuerIdentifications: IssuerIdentificationInEffect[];
   buyerTaxStatusSets: { paramsVersion: number; options: BuyerTaxStatusOption[] }[];
   preEmissionGates: RecordedPreEmissionGate[];
@@ -92,6 +92,7 @@ export class FakeSaleLedger implements SaleLedger {
       refunds: [],
       movements: [],
       outbox: [],
+      outboxReady: true,
       issuerIdentifications: [],
       buyerTaxStatusSets: [],
       preEmissionGates: [],
@@ -208,6 +209,7 @@ export class FakeSaleLedger implements SaleLedger {
         this.failIfAsked("recordRefund");
         working.refunds.push(refund);
       },
+      outboxReady: () => working.outboxReady,
       appendOutboxEvent: (draft) => {
         this.failIfAsked("appendOutboxEvent");
         working.outbox.push(draft);

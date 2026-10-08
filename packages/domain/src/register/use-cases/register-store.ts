@@ -1,11 +1,8 @@
+import type { Clock } from "../../shared/index.js";
 import type { EnrollmentCodeState } from "../model/enrollment-code.js";
 import type { VersionedKey } from "../model/installation-key.js";
 
 export type { VersionedKey };
-
-export interface Clock {
-  now(): Date;
-}
 
 export interface IssuedDeviceToken {
   deviceToken: string;

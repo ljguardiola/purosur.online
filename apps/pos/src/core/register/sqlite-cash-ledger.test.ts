@@ -213,14 +213,6 @@ describe("the movements of a session", () => {
   });
 });
 
-function addPayment(saleId: string, amount: number): void {
-  database
-    .prepare(
-      "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at) VALUES (?, ?, 'SALE', 'CASH', 'NONE', ?, 'APPROVED', ?)",
-    )
-    .run(["payment", saleId, amount].join("-"), saleId, amount, OPENED_AT.toISOString());
-}
-
 function addSale(id: string, state: string, lineTotals: number[], sessionId = "session-1"): void {
   database
     .prepare(
@@ -259,33 +251,18 @@ describe("the open sale", () => {
     const openSale = ledger.transaction((tx) => tx.openSale("session-1"));
 
     expect(openSale?.lines.map((line) => line.lineTotal)).toEqual([1500, 250]);
-    expect(openSale?.payments).toEqual([]);
   });
 
   it("carries no lines for a sale in progress whose lines were all removed", () => {
     addSale("sale-1", "OPEN", []);
 
-    expect(ledger.transaction((tx) => tx.openSale("session-1"))).toEqual({
-      lines: [],
-      payments: [],
-    });
+    expect(ledger.transaction((tx) => tx.openSale("session-1"))).toEqual({ lines: [] });
   });
 
   it("is none for a session whose sale is not the one in progress", () => {
     addSale("sale-1", "OPEN", [1500]);
 
     expect(ledger.transaction((tx) => tx.openSale("session-2"))).toBeUndefined();
-  });
-
-  it("carries the payments of the sale in progress and none of another sale", () => {
-    addSale("sale-1", "COMPLETED", [999]);
-    addSale("sale-2", "OPEN", [1500]);
-    addPayment("sale-1", 999);
-    addPayment("sale-2", 1000);
-
-    const openSale = ledger.transaction((tx) => tx.openSale("session-1"));
-
-    expect(openSale?.payments.map((payment) => payment.id)).toEqual(["payment-sale-2-1000"]);
   });
 
   describe("when closing the session", () => {
@@ -305,18 +282,10 @@ describe("the open sale", () => {
       deviceId("device-1");
       addSale("sale-1", "OPEN", [1500, 250]);
 
-      expect(await close()).toEqual({ kind: "open_sale", total: 1750, cancellable: true });
+      expect(await close()).toEqual({ kind: "open_sale", total: 1750 });
       expect(database.prepare("SELECT state FROM cash_sessions").all()).toEqual([
         { state: "OPEN" },
       ]);
-    });
-
-    it("tells that a sale in progress with an approved payment cannot be cancelled", async () => {
-      deviceId("device-1");
-      addSale("sale-1", "OPEN", [1500]);
-      addPayment("sale-1", 1000);
-
-      expect(await close()).toEqual({ kind: "open_sale", total: 1500, cancellable: false });
     });
 
     it("closes when the sales are over", async () => {

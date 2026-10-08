@@ -32,7 +32,7 @@ export type LockedCloseScreenProps = {
     countedCash: number,
     closer: Authorization,
   ) => Promise<CloseLockedCashSessionOutcome>;
-  cancelLockedSale: (closer: Authorization) => Promise<CancelLockedSaleOutcome>;
+  cancelLockedSale: (saleId: string, closer: Authorization) => Promise<CancelLockedSaleOutcome>;
 };
 
 export function LockedCloseScreen({
@@ -63,7 +63,7 @@ export function LockedCloseScreen({
         loadCashCountPreview={loadCashCountPreview}
         loadOpenSale={loadOpenSale}
         close={(countedCash) => closeLockedCashSession(countedCash, closer.authorization)}
-        cancelSale={() => cancelLockedSale(closer.authorization)}
+        cancelSale={(saleId) => cancelLockedSale(saleId, closer.authorization)}
         onRefused={(refusal) =>
           setStep({
             kind: "identifying",

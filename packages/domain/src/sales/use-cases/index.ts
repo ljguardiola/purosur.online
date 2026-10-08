@@ -1,4 +1,4 @@
-export type { OperationAuthority, OperationAuthorization } from "../../shared/index.js";
+export type { Clock, OperationAuthority, OperationAuthorization } from "../../shared/index.js";
 export type { NameMatch } from "../model/product-name-match.js";
 export type { SearchableProduct } from "../model/product-search.js";
 export type {
@@ -21,7 +21,6 @@ export type {
 } from "./cancel-paid-sale.js";
 export { cancelPaidSale } from "./cancel-paid-sale.js";
 export type {
-  CancelLockedSaleOutcome,
   CancelSaleInput,
   CancelSaleOutcome,
   CancelSalePorts,
@@ -79,7 +78,6 @@ export type {
 export { removeSaleLine } from "./remove-sale-line.js";
 export type {
   CandidatePromotion,
-  Clock,
   IdGenerator,
   RegisterIdentity,
   SaleLedger,

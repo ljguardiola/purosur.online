@@ -1,6 +1,6 @@
 import type { SaleUnit } from "../../../catalog/index.js";
+import type { Clock } from "../../../shared/index.js";
 import type {
-  Clock,
   CoveringCount,
   LockProductStockResult,
   NewStockCount,
