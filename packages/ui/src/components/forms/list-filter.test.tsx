@@ -797,3 +797,7 @@ test("names the native select it renders for form submission with the name it is
 
   expect(screen.container.querySelector("select")?.getAttribute("name")).toBe("status");
 });
+
+test("requires a name", () => {
+  expectTypeOf<Omit<ListFilterProps<Status>, "name">>().not.toExtend<ListFilterProps<Status>>();
+});

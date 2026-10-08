@@ -392,3 +392,7 @@ test("names its native input with the name it is given", async () => {
 
   expect(toggleInput(screen, "Apply discount").getAttribute("name")).toBe("applyDiscount");
 });
+
+test("requires a name", () => {
+  expectTypeOf<Omit<ToggleProps, "name">>().not.toExtend<ToggleProps>();
+});

@@ -367,3 +367,7 @@ test("names its native input with the name it is given", async () => {
 
   expect(checkboxInput(screen, "Return this line").getAttribute("name")).toBe("returnLine");
 });
+
+test("requires a name", () => {
+  expectTypeOf<Omit<CheckboxProps, "name">>().not.toExtend<CheckboxProps>();
+});

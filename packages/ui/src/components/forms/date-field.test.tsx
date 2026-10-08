@@ -1640,3 +1640,7 @@ test("names the calendar's month and year selects after the field's name", async
   );
   expect(names.sort()).toEqual(["expiry-calendar-month", "expiry-calendar-year"]);
 });
+
+test("requires a name", () => {
+  expectTypeOf<Omit<DateFieldProps, "name">>().not.toExtend<DateFieldProps>();
+});

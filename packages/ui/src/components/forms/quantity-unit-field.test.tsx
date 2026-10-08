@@ -460,3 +460,9 @@ test("names the quantity input and the unit select after the field's name", asyn
   expect(quantityInput(screen).getAttribute("name")).toBe("netContent.quantity");
   expect(screen.container.querySelector("select")?.getAttribute("name")).toBe("netContent.unit");
 });
+
+test("requires a name", () => {
+  expectTypeOf<Omit<QuantityUnitFieldProps<Unit>, "name">>().not.toExtend<
+    QuantityUnitFieldProps<Unit>
+  >();
+});

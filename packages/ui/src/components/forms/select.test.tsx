@@ -572,3 +572,7 @@ test("names the native select it renders for form submission with the name it is
 
   expect(screen.container.querySelector("select")?.getAttribute("name")).toBe("role");
 });
+
+test("requires a name", () => {
+  expectTypeOf<Omit<SelectProps<Role>, "name">>().not.toExtend<SelectProps<Role>>();
+});
