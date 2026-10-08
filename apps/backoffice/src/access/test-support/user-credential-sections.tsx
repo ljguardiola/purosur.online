@@ -16,7 +16,7 @@ import {
 } from "../user-credential-sections";
 import type { UserCredentialSectionsServices } from "../user-credential-sections-services";
 
-export const NOW = () => new Date("2026-09-23T12:00:00.000Z");
+const NOW = () => new Date("2026-09-23T12:00:00.000Z");
 
 export const lucia = {
   id: "user-1",
@@ -52,7 +52,7 @@ export function createServices(
   };
 }
 
-export function defaultProps(
+function defaultProps(
   overrides: Partial<UserCredentialSectionsProps> = {},
 ): UserCredentialSectionsProps {
   return {
