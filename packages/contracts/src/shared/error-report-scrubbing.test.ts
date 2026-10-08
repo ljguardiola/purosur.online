@@ -1,4 +1,5 @@
 import { ANOTHER_FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   scrubErrorReport,
@@ -866,16 +867,27 @@ describe("personal data in text", () => {
     }
   });
 
-  it("keeps a backoffice route under the home area", () => {
-    const breadcrumb = {
-      category: "navigation",
-      data: { from: "/home/alerts?tab=1", to: "/home/alerts" },
-    };
+  it("redacts any account name in a home folder, whatever follows it", () => {
+    const accountName = fc.stringMatching(/^[A-Za-z_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_-])?$/);
+    const homeFolder = fc.constantFrom("/home/", "/Users/");
+    const followedBy = fc.constantFrom(
+      { text: "", scrubbed: "" },
+      { text: "?tab=1", scrubbed: "?[redacted]" },
+      { text: "#top", scrubbed: "?[redacted]" },
+      { text: " now", scrubbed: " now" },
+      { text: "/purosur", scrubbed: "/purosur" },
+      { text: ". Retrying", scrubbed: ". Retrying" },
+    );
 
-    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
-      from: "/home/alerts?[redacted]",
-      to: "/home/alerts",
-    });
+    fc.assert(
+      fc.property(homeFolder, accountName, followedBy, (folder, name, after) => {
+        const scrubbed = scrubErrorReport({
+          message: `could not open ${folder}${name}${after.text}`,
+        });
+
+        expect(scrubbed.message).toBe(`could not open ${folder}[redacted]${after.scrubbed}`);
+      }),
+    );
   });
 
   it("keeps a URL whose path has a home or Users folder", () => {
