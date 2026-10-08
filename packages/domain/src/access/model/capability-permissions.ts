@@ -31,6 +31,7 @@ export const CAPABILITY_PERMISSIONS = {
     "record_stock_losses",
     "adjust_stock",
   ],
+  reports_area: ["view_reports"],
 } as const satisfies Record<string, readonly PermissionKey[]>;
 
 export type Capability = keyof typeof CAPABILITY_PERMISSIONS;

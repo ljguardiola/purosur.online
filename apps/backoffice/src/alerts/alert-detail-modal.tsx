@@ -23,6 +23,7 @@ import {
   Laptop,
   LifeBuoy,
   Mail,
+  PackageX,
   ShieldAlert,
   ShieldPlus,
   ShieldX,
@@ -46,6 +47,10 @@ import {
   useRefreshAlerts,
   useRefreshAlertsAfterClosing,
 } from "./alerts-queries";
+import {
+  invariantViolationDescription,
+  quarantinedEventDescription,
+} from "./synced-event-alert-description";
 
 type Icon = ReactElement<{ className?: string }>;
 
@@ -120,6 +125,10 @@ function alertIcon(kind: string): Icon {
       return <ShieldPlus />;
     case "register_enrolled":
       return <Laptop />;
+    case "events_quarantined":
+      return <PackageX />;
+    case "event_invariant_violated":
+      return <TriangleAlert />;
     default:
       return <Bell />;
   }
@@ -209,6 +218,10 @@ function alertTitle(alert: AlertDetail): string {
       return "Se amplió el acceso de un usuario";
     case "register_enrolled":
       return "Se dio de alta una caja";
+    case "events_quarantined":
+      return "Evento de una caja en cuarentena";
+    case "event_invariant_violated":
+      return "Evento aplicado con una inconsistencia";
     case "arca_certificate_expiring":
       return "El certificado de ARCA está por vencer";
   }
@@ -224,6 +237,12 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
     return alert.scopeDisplay === null
       ? `Una dirección quedó bloqueada para ingresar al backoffice después de ${failuresText}.`
       : `La dirección ${alert.scopeDisplay} quedó bloqueada para ingresar al backoffice después de ${failuresText}.`;
+  }
+  if (alert.kind === "events_quarantined") {
+    return quarantinedEventDescription(alert.detail);
+  }
+  if (alert.kind === "event_invariant_violated") {
+    return invariantViolationDescription(alert.detail);
   }
   const targetName = alert.scopeDisplay;
   if (targetName === null) {

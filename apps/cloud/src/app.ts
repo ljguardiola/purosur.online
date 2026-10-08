@@ -116,6 +116,10 @@ import { registerRegisterCreationRoute } from "./register/register-creation-rout
 import { registerRegisterEnrollmentCodeRoute } from "./register/register-enrollment-code-route.js";
 import type { RegistersRouteOptions } from "./register/registers-list-route.js";
 import { registerRegistersListRoute } from "./register/registers-list-route.js";
+import {
+  registerSalesReportRoutes,
+  type SalesReportRouteOptions,
+} from "./sales/sales-report-routes.js";
 import { registerStockBalancesRoute } from "./stock/stock-balances-route.js";
 import { registerStockCountsRoutes } from "./stock/stock-counts-route.js";
 import { registerStockMovementsRoutes } from "./stock/stock-movements-route.js";
@@ -155,6 +159,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   registers?: WithoutClock<RegistersRouteOptions<TQueryResult>>;
   registersPointsOfSale?: WithoutClock<RegistersPointsOfSaleRouteOptions<TQueryResult>>;
   stock?: WithoutClock<StockRouteOptions<TQueryResult>>;
+  salesReports?: WithoutClock<SalesReportRouteOptions<TQueryResult>>;
   devices?: WithoutClock<DeviceTokensOptions<TQueryResult>>;
   health?: WithoutClock<HealthArcaOptions<TQueryResult>>;
   firstPinCodes?: WithoutClock<FirstPinCodeRouteOptions<TQueryResult>>;
@@ -218,6 +223,7 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     registers: backoffice,
     registersPointsOfSale: backoffice,
     stock: backoffice,
+    salesReports: backoffice,
     devices,
     firstPinCodes: devices,
     health: { db, certificateFingerprint: wiring.certificateFingerprint },
@@ -443,6 +449,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerStockProductsRoute(api, { ...options.stock, now });
         registerStockCountsRoutes(api, { ...options.stock, now });
         registerStockMovementsRoutes(api, { ...options.stock, now });
+      }
+
+      if (options.salesReports) {
+        registerSalesReportRoutes(api, { ...options.salesReports, now });
       }
 
       if (options.registers) {

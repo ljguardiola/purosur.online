@@ -1,6 +1,6 @@
 import { AreaNavItem, SectionNavItem } from "@purosur/ui";
 import { createLink, useMatchRoute } from "@tanstack/react-router";
-import { Boxes, Home, LifeBuoy, Package, Settings, Wallet } from "lucide-react";
+import { Boxes, ChartColumn, Home, LifeBuoy, Package, Settings, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
 import { AccountFooter } from "./account-footer";
 import {
@@ -9,6 +9,7 @@ import {
   canSeeCashArea,
   canSeeCatalogArea,
   canSeePricesArea,
+  canSeeReports,
   canSeeStockArea,
   canSeeStockBalances,
 } from "./backoffice-access";
@@ -19,7 +20,7 @@ const AreaLink = createLink(AreaNavItem);
 
 export const SectionLink = createLink(SectionNavItem);
 
-type Area = "home" | "catalog" | "stock" | "cash-and-fiscal" | "settings" | "help";
+type Area = "home" | "catalog" | "stock" | "cash-and-fiscal" | "reports" | "settings" | "help";
 
 export type AreaLayoutProps = {
   area: Area;
@@ -73,6 +74,14 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
               label="Caja"
               icon={<Wallet />}
               active={area === "cash-and-fiscal"}
+            />
+          )}
+          {canSeeReports(session) && (
+            <AreaLink
+              to="/reports"
+              label="Reportes"
+              icon={<ChartColumn />}
+              active={area === "reports"}
             />
           )}
           <AreaLink to="/account" label="Config" icon={<Settings />} active={area === "settings"} />

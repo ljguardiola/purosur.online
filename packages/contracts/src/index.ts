@@ -250,6 +250,16 @@ export type {
   SearchProductsOutcome,
 } from "./sales/sale.js";
 export type {
+  ReportRegisterListBody,
+  SalesReportBody,
+  SalesReportQuery,
+} from "./sales/sales-report.js";
+export {
+  reportRegisterListSchema,
+  salesReportQuerySchema,
+  salesReportSchema,
+} from "./sales/sales-report.js";
+export type {
   Authorization,
   AuthorizationRefusal,
   AuthorizedBy,
@@ -324,3 +334,11 @@ export {
   pushEventsRequestSchema,
   pushEventsResponseSchema,
 } from "./sync/events.js";
+export type {
+  SyncedEventPayloadKey,
+  SyncedEventPayloads,
+} from "./sync/synced-event-payloads.js";
+export {
+  syncedEventPayloadKey,
+  syncedEventPayloadSchema,
+} from "./sync/synced-event-payloads.js";

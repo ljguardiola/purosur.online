@@ -20,6 +20,7 @@ import { fiscalConfigurationRoute, pointsOfSaleRoute } from "../fiscal/routes";
 import { helpArticleRoute, helpCategoryRoute, helpHomeRoute } from "../help/routes";
 import { discountsListRoute, pricesListRoute } from "../pricing/routes";
 import { registersListRoute } from "../register/routes";
+import { reportsIndexRoute, salesByDayRoute } from "../sales/routes";
 import { stockBalancesRoute, stockCountsRoute, stockMovementsRoute } from "../stock/routes";
 import { cashAndFiscalAreaRoute } from "./cash-and-fiscal-area";
 import { catalogAreaRoute } from "./catalog-area";
@@ -27,6 +28,7 @@ import { helpAreaRoute } from "./help-area";
 import { homeAreaRoute } from "./home-area";
 import { ScreenDownloadFailure } from "./lazy-screen";
 import { publicRoute } from "./public-route";
+import { reportsAreaRoute } from "./reports-area";
 import { type RouterContext, rootRoute } from "./root-route";
 import { ScreenFailure } from "./screen-failure";
 import { ScreenPending } from "./screen-pending";
@@ -59,6 +61,7 @@ const routeTree = rootRoute.addChildren([
     ]),
     stockAreaRoute.addChildren([stockBalancesRoute, stockCountsRoute, stockMovementsRoute]),
     cashAndFiscalAreaRoute.addChildren([pointsOfSaleRoute, fiscalConfigurationRoute]),
+    reportsAreaRoute.addChildren([reportsIndexRoute, salesByDayRoute]),
     settingsAreaRoute.addChildren([
       myAccountRoute,
       usersListRoute,

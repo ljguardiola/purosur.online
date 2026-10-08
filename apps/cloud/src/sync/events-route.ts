@@ -25,10 +25,16 @@ import {
 } from "../register/installation-token-ports.js";
 import { DrizzleInbox } from "./drizzle-inbox.js";
 import { DrizzleRequestAdmission } from "./drizzle-request-admission.js";
+import {
+  type EnqueueEventApplication,
+  enqueueEventApplicationJob,
+} from "./graphile-event-application-queue.js";
 import { hmacEventChain } from "./hmac-event-chain.js";
 
+export type { EnqueueEventApplication };
+
 export type EventsRouteOptions<TQueryResult extends PgQueryResultHKT> =
-  DeviceTokensOptions<TQueryResult>;
+  DeviceTokensOptions<TQueryResult> & { enqueueEventApplication?: EnqueueEventApplication };
 
 const DEVICE_TOKEN_REJECTED = cloudError(
   "device_token_rejected",
@@ -63,7 +69,11 @@ export function registerEventsRoute<TQueryResult extends PgQueryResultHKT>(
 ): void {
   const tokenPorts = installationTokenPorts(options);
   const ports = {
-    inbox: new DrizzleInbox(options.db, installationKeyCipher(options.keysEncryptionKey)),
+    inbox: new DrizzleInbox(
+      options.db,
+      installationKeyCipher(options.keysEncryptionKey),
+      options.enqueueEventApplication ?? enqueueEventApplicationJob,
+    ),
     eventChain: hmacEventChain,
     clock: { now: options.now },
   };

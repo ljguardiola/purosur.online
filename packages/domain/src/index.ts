@@ -217,6 +217,8 @@ export {
   latestThreshold,
   nextBuyerTaxStatusFetchAt,
   POINT_OF_SALE_NUMBER_MAX,
+  PRE_EMISSION_GATE_FAILURE_REASONS,
+  preEmissionGateFailedEvent,
   thresholdInEffectOn,
   thresholdScheduledAfter,
 } from "./fiscal/index.js";
@@ -286,6 +288,7 @@ export {
   cashCountDifference,
   cashMovementDirection,
   cashMovementPermission,
+  cashMovementReason,
   ENROLLMENT_CODE_LENGTH,
   enrollmentAttemptWindowStart,
   expectedCash,
@@ -317,12 +320,16 @@ export type {
   Sale,
   SaleLine,
   SaleState,
+  SalesOfDay,
+  SalesReportRange,
+  SalesReportTotals,
   SaleWithLines,
   SoldProduct,
 } from "./sales/index.js";
 export {
   cancellableWithoutAuthorization,
   cashCharge,
+  isSalesReportRangeAsked,
   openSaleSummary,
   SEARCH_RESULT_LIMIT,
   saleTotal,

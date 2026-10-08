@@ -1,5 +1,5 @@
+import { canonicalOutboxEvent } from "../../shared/index.js";
 import { highestContiguousSeq } from "../model/contiguous-seq.js";
-import { canonicalOutboxEvent } from "../model/outbox-event.js";
 import type { PushedEvent, RegisterTelemetry } from "../model/push-batch.js";
 import { registerVersionAccepted } from "../model/register-version.js";
 import type { EventChain, InboxTransaction, ReceivePorts } from "./sync-ports.js";

@@ -1,6 +1,6 @@
 import type { RoleAccess } from "../../access/index.js";
 import type { PaymentTransaction, SaleLine } from "../../sales/index.js";
-import type { OutboxEventDraft } from "../../sync/index.js";
+import type { OutboxEventDraft } from "../../shared/index.js";
 import type { CashMovement, ClosedCashSession, OpenedCashSession } from "../model/cash-session.js";
 
 export interface RegisterIdentity {

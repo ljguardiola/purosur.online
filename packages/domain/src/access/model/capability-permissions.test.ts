@@ -24,6 +24,7 @@ const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][]
   ["perform_stock_counts", ["stock_counts", "stock_area"]],
   ["record_stock_losses", ["stock_losses", "stock_movements", "stock_area"]],
   ["adjust_stock", ["stock_adjustments", "stock_movements", "stock_area"]],
+  ["view_reports", ["reports_area"]],
 ];
 
 function inCapabilityOrder(capabilities: readonly Capability[]): Capability[] {
@@ -63,6 +64,26 @@ describe("grantsCapability", () => {
       grantsCapability(
         { isAdministrator: false, permissionKeys: ["adjust_stock"] },
         "stock_losses",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("the reports_area capability", () => {
+  it("is granted to whoever may view reports and to no one else", () => {
+    expect(
+      grantsCapability(
+        { isAdministrator: false, permissionKeys: ["view_reports"] },
+        "reports_area",
+      ),
+    ).toBe(true);
+    expect(
+      grantsCapability(
+        {
+          isAdministrator: false,
+          permissionKeys: PERMISSION_KEYS.filter((key) => key !== "view_reports"),
+        },
+        "reports_area",
       ),
     ).toBe(false);
   });

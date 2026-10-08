@@ -6,7 +6,7 @@ import {
   type AlertLevel,
 } from "./alert-catalog.js";
 
-export type AlertScopeKind = "user" | "sourceAddress" | "register" | "environment";
+export type AlertScopeKind = "user" | "sourceAddress" | "register" | "environment" | "event";
 
 type AlertEscalationRule =
   | { kind: "afterOpening"; delayMs: number }
@@ -66,6 +66,20 @@ const ALERT_KIND_POLICIES = {
     audience: "all",
     scopeKind: "register",
     deduplicates: false,
+  },
+  events_quarantined: {
+    level: "warning",
+    escalation: AFTER_OPENING,
+    audience: "all",
+    scopeKind: "event",
+    deduplicates: true,
+  },
+  event_invariant_violated: {
+    level: "warning",
+    escalation: AFTER_OPENING,
+    audience: "all",
+    scopeKind: "event",
+    deduplicates: true,
   },
   arca_certificate_expiring: {
     level: "warning",
