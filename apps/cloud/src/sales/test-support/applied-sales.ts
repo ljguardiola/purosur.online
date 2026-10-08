@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { DrizzleEventApplication } from "../../sync/drizzle-event-application.js";
-import { aCashSessionOpenedFact, aCompletedSale } from "../../sync/test-support/synced-facts.js";
+import {
+  aCancelledSale,
+  aCashSessionOpenedFact,
+  aCompletedSale,
+} from "../../sync/test-support/synced-facts.js";
 import { unappliedEventOf } from "../../sync/test-support/unapplied-event.js";
 
 export async function applyCompletedSale<TQueryResult extends PgQueryResultHKT>(
@@ -39,4 +43,41 @@ export async function applyCompletedSale<TQueryResult extends PgQueryResultHKT>(
     );
   });
   return completed.id;
+}
+
+export async function applyCancelledSale<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  sale: { deviceId: string; cancelledAt: Date; total: number },
+): Promise<string> {
+  const { deviceId, cancelledAt, total } = sale;
+  const application = new DrizzleEventApplication(db, () => cancelledAt);
+  const sessionId = randomUUID();
+  const cancelled = aCancelledSale({ sessionId, cancelledAt, total, lines: [] });
+  const eventOf = (aggregateType: string, aggregateId: string, eventType: string) =>
+    unappliedEventOf(
+      {
+        event_id: randomUUID(),
+        device_seq: 1,
+        aggregate_type: aggregateType,
+        aggregate_id: aggregateId,
+        event_type: eventType,
+        schema_version: 1,
+        payload: {},
+        occurred_at: cancelledAt.toISOString(),
+        actor_id: cancelled.actorId,
+        chain_hmac: "hmac",
+      },
+      { deviceId },
+    );
+  await application.transaction(async (tx) => {
+    await tx.record(
+      aCashSessionOpenedFact({ id: sessionId, openedAt: cancelledAt }),
+      eventOf("CashSession", sessionId, "cash_session_opened"),
+    );
+    await tx.record(
+      { kind: "sale_cancelled", sale: cancelled },
+      eventOf("Sale", cancelled.id, "sale_cancelled"),
+    );
+  });
+  return cancelled.id;
 }

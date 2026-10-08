@@ -5,7 +5,7 @@ import { insertLocation } from "../stock/test-support/stock-route-fixtures.js";
 import { insertInboxEvent } from "../sync/test-support/inbox-events.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleSalesReportReader } from "./drizzle-sales-report-reader.js";
-import { applyCompletedSale } from "./test-support/applied-sales.js";
+import { applyCancelledSale, applyCompletedSale } from "./test-support/applied-sales.js";
 
 const NOW = new Date("2026-10-07T15:00:00.000Z");
 
@@ -152,6 +152,21 @@ describe("DrizzleSalesReportReader.completedSalesByDay", () => {
 
     expect(ofTheBranch).toEqual([{ day: "2026-10-06", salesCount: 1, total: 1_000 }]);
     expect(ofAnotherBranchsRegister).toEqual([]);
+  });
+
+  it("leaves out a cancelled sale, and the refunds and payments it recorded", async () => {
+    const { deviceId, locationId } = await aRegister("Caja 1");
+    const moment = new Date("2026-10-06T14:00:00.000Z");
+    await applyCompletedSale(db, { deviceId, completedAt: moment, total: 1_000 });
+    await applyCancelledSale(db, { deviceId, cancelledAt: moment, total: 4_800 });
+
+    const days = await reader().completedSalesByDay({
+      locationId,
+      range: wholeOctober,
+      registerId: undefined,
+    });
+
+    expect(days).toEqual([{ day: "2026-10-06", salesCount: 1, total: 1_000 }]);
   });
 
   it("shows nothing for a sale whose event was received but not applied", async () => {
