@@ -13,7 +13,7 @@ export interface WaitingFiscalDocument {
   number: number;
   issuedOn: string;
   document: FacturaC;
-  saleEvent: PushedEvent;
+  saleEvent: PushedEvent | null;
 }
 
 export interface RealTimeAuthorizationResolved {
@@ -32,7 +32,8 @@ export interface RoundTripSamples {
   recent(): Promise<readonly number[]>;
 }
 
-export interface RealTimeAuthorizationCall extends WaitingFiscalDocument {
+export interface RealTimeAuthorizationCall extends Omit<WaitingFiscalDocument, "saleEvent"> {
+  saleEvent: PushedEvent;
   timeoutMs: number;
   roundTripMedianMs: number;
 }
