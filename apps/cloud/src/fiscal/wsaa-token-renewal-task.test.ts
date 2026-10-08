@@ -1,5 +1,5 @@
-import type { JobHelpers } from "graphile-worker";
 import { describe, expect, it, vi } from "vitest";
+import { buildJobHelpers } from "../test-support/job-helpers.js";
 import {
   WSAA_TOKEN_RENEWAL_TASK_IDENTIFIER,
   wsaaTokenRenewalJobs,
@@ -23,12 +23,9 @@ describe("wsaaTokenRenewalJobs", () => {
   });
 
   it("renews the wsfe token of the loaded certificate through a client borrowed from graphile-worker's own pool", async () => {
-    const fakeClient = { marker: "fake-client" };
+    const { helpers, client: fakeClient } = buildJobHelpers();
     const fakeDb = { marker: "fake-db" };
     const createDatabase = vi.fn().mockReturnValue(fakeDb);
-    const withPgClient = vi.fn(async (callback: (client: unknown) => Promise<unknown>) =>
-      callback(fakeClient),
-    );
     const renew = vi.fn().mockResolvedValue({ kind: "kept" });
 
     const jobs = wsaaTokenRenewalJobs(
@@ -40,7 +37,7 @@ describe("wsaaTokenRenewalJobs", () => {
       throw new Error("test setup: expected the registered renewal task");
     }
 
-    await task({}, { withPgClient } as unknown as JobHelpers);
+    await task({}, helpers);
 
     expect(createDatabase).toHaveBeenCalledWith(fakeClient);
     expect(renew).toHaveBeenCalledTimes(1);
