@@ -3,7 +3,6 @@ import {
   accountRecoveryRoute,
   myAccountRoute,
   registerPasskeyRoute,
-  rolesListRoute,
   signInRoute,
   userDetailRoute,
   usersListRoute,
@@ -19,6 +18,7 @@ import {
 import { fiscalConfigurationRoute, pointsOfSaleRoute } from "../fiscal/routes";
 import { helpArticleRoute, helpCategoryRoute, helpHomeRoute } from "../help/routes";
 import { pendingRefundsRoute } from "../payments/routes";
+import { rolesListRoute } from "../permissions/routes";
 import { discountsListRoute, pricesListRoute } from "../pricing/routes";
 import { registersListRoute } from "../register/routes";
 import { reportsIndexRoute, salesByDayRoute } from "../sales/routes";

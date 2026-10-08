@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import type { Capability } from "../../access/index.js";
+import type { Capability } from "../../permissions/index.js";
 import {
   MANUAL_STOCK_MOVEMENT_KINDS,
   manualStockMovementCapability,

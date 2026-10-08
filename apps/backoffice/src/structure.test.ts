@@ -9,6 +9,7 @@ const CONCEPTS = [
   "catalog",
   "fiscal",
   "payments",
+  "permissions",
   "pricing",
   "register",
   "sales",

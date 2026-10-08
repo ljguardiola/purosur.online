@@ -1,4 +1,3 @@
-import type { RoleAccess } from "../../access/index.js";
 import type { SaleUnit, SearchableProduct } from "../../catalog/index.js";
 import type {
   BuyerIdentificationThreshold,
@@ -7,6 +6,7 @@ import type {
   PreEmissionGateOutcome,
 } from "../../fiscal/index.js";
 import type { PaymentTransaction, PlannedRefund } from "../../payments/index.js";
+import type { RoleAccess } from "../../permissions/index.js";
 import type { DiscountRecurrence } from "../../pricing/index.js";
 import type { CashMovement } from "../../register/index.js";
 import type { OutboxEventDraft } from "../../shared/index.js";

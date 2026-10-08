@@ -1,3 +1,4 @@
+import { errorReportingOptions } from "@purosur/contracts";
 import { defineHelp } from "@purosur/ui";
 import { expect, onTestFinished, test, vi } from "vitest";
 import { createAppRouter } from "./app-router";
@@ -20,6 +21,19 @@ test("keeps every screen's code out of the entry, to download only when it is ne
     .map((route) => route.id);
 
   expect(eagerScreens).toEqual([]);
+});
+
+test("keeps every screen address intact in error reports and navigation breadcrumbs", () => {
+  const { beforeSend, beforeBreadcrumb } = errorReportingOptions();
+  const addresses = Object.keys(appRouter().routesByPath);
+
+  for (const address of addresses) {
+    expect(beforeSend({ message: `failed on ${address}` }).message).toBe(`failed on ${address}`);
+    expect(
+      beforeBreadcrumb({ category: "navigation", data: { from: address, to: address } }).data,
+    ).toStrictEqual({ from: address, to: address });
+  }
+  expect(addresses.length).toBeGreaterThan(1);
 });
 
 test("never preloads the code of a screen the person is refused", async () => {

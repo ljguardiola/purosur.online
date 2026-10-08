@@ -8,9 +8,13 @@ import {
 } from "@purosur/domain";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { sameOriginGuard } from "./backoffice-origin.js";
+import { sameOriginGuard } from "../access/backoffice-origin.js";
+import {
+  OPEN_SESSION_ACCESS,
+  registerRouteAccess,
+  routeSessionSource,
+} from "../access/route-access.js";
 import type { RolesRouteOptions } from "./roles-list-route.js";
-import { OPEN_SESSION_ACCESS, registerRouteAccess, routeSessionSource } from "./route-access.js";
 
 function requirementsOf(key: PermissionKey): PermissionKey[] {
   return [...withRequiredPermissions([key])].filter((required) => required !== key);
