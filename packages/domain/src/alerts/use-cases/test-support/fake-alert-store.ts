@@ -5,8 +5,10 @@ import type {
   AlertRecipientCandidate,
   AlertStore,
   AlertStoreTransaction,
+  ClearedConditionAlert,
   Clock,
   LockedAlert,
+  LockedConditionAlert,
   LockedOpenAlert,
   NewAlert,
   SourceAddressHasher,
@@ -18,6 +20,7 @@ export interface FakeAlert extends Omit<NewAlert, "detail"> {
   escalatedAt: Date | null;
   resolvedAt: Date | null;
   resolvedBy: string | null;
+  conditionClearedAt: Date | null;
   detail: Record<string, unknown>;
 }
 
@@ -41,7 +44,9 @@ export type AlertWriteOperation =
   | "insertAlert"
   | "recordBackofficeDeliveries"
   | "recordClosure"
-  | "recordEscalation";
+  | "recordEscalation"
+  | "recordConditionCleared"
+  | "recordConditionHolding";
 
 class FakeAlertStoreTransaction implements AlertStoreTransaction {
   private readonly state: FakeAlertState;
@@ -76,6 +81,7 @@ class FakeAlertStoreTransaction implements AlertStoreTransaction {
       escalatedAt: null,
       resolvedAt: null,
       resolvedBy: null,
+      conditionClearedAt: null,
     });
     return id;
   }
@@ -140,6 +146,52 @@ class FakeAlertStoreTransaction implements AlertStoreTransaction {
     }
   }
 
+  async lockOpenAlertOfKey(
+    kind: AlertKind,
+    scope: string,
+  ): Promise<LockedConditionAlert | undefined> {
+    this.record("lockOpenAlertOfKey");
+    if (this.store.hideOpenAlertFromLock) {
+      return undefined;
+    }
+    const alert = this.state.alerts.find(
+      (row) => row.kind === kind && row.scope === scope && row.resolvedAt === null,
+    );
+    return (
+      alert && {
+        alertId: alert.id,
+        conditionClearedAt: alert.conditionClearedAt && new Date(alert.conditionClearedAt),
+      }
+    );
+  }
+
+  async recordConditionCleared(alertId: string, clearedAt: Date): Promise<void> {
+    this.beforeWrite("recordConditionCleared");
+    this.find(alertId).conditionClearedAt = new Date(clearedAt);
+  }
+
+  async recordConditionHolding(alertId: string): Promise<void> {
+    this.beforeWrite("recordConditionHolding");
+    this.find(alertId).conditionClearedAt = null;
+  }
+
+  async lockClearedConditionAlerts(): Promise<ClearedConditionAlert[]> {
+    this.record("lockClearedConditionAlerts");
+    return this.state.alerts.flatMap((row) =>
+      row.resolvedAt === null && row.conditionClearedAt !== null
+        ? [
+            {
+              alertId: row.id,
+              kind: row.kind,
+              scope: row.scope,
+              detail: structuredClone(row.detail),
+              conditionClearedAt: new Date(row.conditionClearedAt),
+            },
+          ]
+        : [],
+    );
+  }
+
   private find(alertId: string): FakeAlert {
     const alert = this.state.alerts.find((row) => row.id === alertId);
     if (!alert) {
@@ -166,6 +218,7 @@ export class FakeAlertStore implements AlertStore {
 
   failingWrites = new Set<AlertWriteOperation>();
   loseDedupRace = false;
+  hideOpenAlertFromLock = false;
   operationOrder: string[] = [];
   operationsByTransaction: string[][] = [];
 
