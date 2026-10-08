@@ -196,7 +196,7 @@ export class FakeSaleLedger implements SaleLedger {
         this.failIfAsked("recordCancelledSale");
         for (const sale of working.sales) {
           if (sale.id === saleId) {
-            sale.state = "VOIDED";
+            sale.state = "CANCELLED";
             sale.occurredAt = occurredAt;
             if (authorizedBy !== undefined) {
               sale.authorizedBy = authorizedBy;

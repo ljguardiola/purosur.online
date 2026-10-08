@@ -1,6 +1,6 @@
 import type { DiscountBenefit } from "../../pricing/index.js";
 
-export type SaleState = "OPEN" | "COMPLETED" | "VOIDED";
+export type SaleState = "OPEN" | "COMPLETED" | "VOIDED" | "CANCELLED";
 
 export interface Sale {
   id: string;
