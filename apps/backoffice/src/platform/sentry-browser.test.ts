@@ -17,10 +17,14 @@ function startWithFakeSentry() {
     name: "Breadcrumbs" as const,
     settings,
   }));
+  const getDefaultIntegrations = vi.fn(() =>
+    ["GlobalHandlers", "LinkedErrors", "HttpContext", "ConversationId"].map((name) => ({ name })),
+  );
   const send = startSentryReporting(configuration, {
     init,
     captureException,
     breadcrumbsIntegration,
+    getDefaultIntegrations,
   });
   const options = init.mock.calls[0]?.[0] as BrowserOptions;
   return { init, captureException, breadcrumbsIntegration, send, options };
@@ -53,6 +57,15 @@ describe("startSentryReporting", () => {
       name: "Breadcrumbs",
       settings: { dom: false },
     });
+  });
+
+  it("leaves out the default integrations that only describe a request or a conversation, which no report keeps", () => {
+    const { options } = startWithFakeSentry();
+
+    expect(options.defaultIntegrations).toEqual([
+      { name: "GlobalHandlers" },
+      { name: "LinkedErrors" },
+    ]);
   });
 
   it("hands the errors it is given to the reporting library", () => {
