@@ -1,4 +1,4 @@
-import { argentinaCalendarDay } from "../../shared/index.js";
+import { argentinaCalendarDay, SALE_COMPLETED_EVENT_TYPE } from "../../shared/index.js";
 import {
   type FiscalOnlineSignalEvidence,
   isRegisterFiscallyOnline,
@@ -163,5 +163,5 @@ export function isCompletionEventOfSale(
   event: { event_type: string; aggregate_id: string },
   saleId: string,
 ): boolean {
-  return event.event_type === "sale_completed" && event.aggregate_id === saleId;
+  return event.event_type === SALE_COMPLETED_EVENT_TYPE && event.aggregate_id === saleId;
 }

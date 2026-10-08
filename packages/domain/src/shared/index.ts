@@ -9,7 +9,11 @@ export type { Clock } from "./clock.js";
 export { codePointLength } from "./code-point-length.js";
 export type { OperationAuthority, OperationAuthorization } from "./operation-authority.js";
 export type { JsonValue, OutboxEvent, OutboxEventDraft } from "./outbox-event.js";
-export { canonicalOutboxEvent, canonicalOutboxPayload } from "./outbox-event.js";
+export {
+  canonicalOutboxEvent,
+  canonicalOutboxPayload,
+  SALE_COMPLETED_EVENT_TYPE,
+} from "./outbox-event.js";
 export type { Fraction } from "./rounding.js";
 export { roundHalfUp } from "./rounding.js";
 export type { SlidingWindowLimit } from "./sliding-window-limit.js";
