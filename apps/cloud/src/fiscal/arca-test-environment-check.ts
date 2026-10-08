@@ -2,8 +2,8 @@ import { checkArcaVitality, type WsaaAuthenticationResult } from "@purosur/domai
 import { arcaCredentialsOf } from "./arca-credentials.js";
 import { ArcaWsaaAuthentication } from "./wsaa-authentication.js";
 import {
-  WsfeArcaVitalityService,
   type WsfeArcaVitalityResult,
+  WsfeArcaVitalityService,
 } from "./wsfe-arca-vitality-service.js";
 
 const WSAA_SERVICE = "wsfe";
