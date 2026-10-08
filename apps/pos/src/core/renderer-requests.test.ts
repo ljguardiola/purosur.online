@@ -1,6 +1,7 @@
 import type {
   AddProductOutcome,
   CancelLockedSaleOutcome,
+  CancelPaidSaleOutcome,
   CancelSaleOutcome,
   CashBalance,
   CashChargeAnswer,
@@ -30,6 +31,7 @@ import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
 import type { CashMovementRequest } from "./register/cash-movement-requests";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
+import type { CancelPaidSaleRequest } from "./sales/sale-requests";
 
 function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const enrolledCodes: string[] = [];
@@ -143,6 +145,12 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       },
       cancelSale: async (): Promise<CancelSaleOutcome> => {
         saleChanges.push("cancel");
+        return { kind: "no_open_sale" };
+      },
+      cancelPaidSale: async (request: CancelPaidSaleRequest): Promise<CancelPaidSaleOutcome> => {
+        saleChanges.push(
+          ["cancel-paid", request.saleId, request.authorization?.user_id ?? "alone"].join(" "),
+        );
         return { kind: "no_open_sale" };
       },
       chargeSaleInCash: async (request: {
@@ -1944,6 +1952,18 @@ describe("answerRendererRequest", () => {
         "cancelling the sale",
         "cancel",
         "cancel-sale-result",
+      ],
+      [
+        "cancel-paid-sale",
+        {
+          type: "cancel-paid-sale",
+          sale_id: "s1",
+          authorization: { user_id: "u2", pin: "1234" },
+        } as const,
+        "cancelPaidSale",
+        "cancelling a sale with approved payments",
+        "cancel-paid s1 u2",
+        "cancel-paid-sale-result",
       ],
     ] as const;
 
