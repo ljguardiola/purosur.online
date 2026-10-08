@@ -14,7 +14,7 @@ import {
 import {
   fiscalAuthorizationRouteUnderTest,
   NOW,
-} from "./test-support/fiscal-authorization-route.js";
+} from "./test-support/fiscal-authorization-under-test.js";
 
 const route = fiscalAuthorizationRouteUnderTest();
 
