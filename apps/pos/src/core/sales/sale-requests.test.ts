@@ -64,6 +64,16 @@ function deps(overrides: Partial<OutboxSaleRequestDeps> = {}): OutboxSaleRequest
   };
 }
 
+function idsStartingWith(prefix: string): OutboxSaleRequestDeps["ids"] {
+  let count = 0;
+  return {
+    next: () => {
+      count += 1;
+      return `${prefix}-${count}`;
+    },
+  };
+}
+
 function addPerson(id: string, roleId: string): void {
   database
     .prepare(
@@ -477,8 +487,9 @@ describe("the sale in progress", () => {
 
   it("lists the refund each approved payment would get if the sale were cancelled", async () => {
     const saleId = await sellTwoForPayments();
-    await chargeSaleInCashFor(deps(), { saleId, tendered: 1000 });
-    await chargeSaleByTransferFor(deps(), { saleId, amount: 500 });
+    const ids = idsStartingWith("payment");
+    await chargeSaleInCashFor(deps({ ids }), { saleId, tendered: 1000 });
+    await chargeSaleByTransferFor(deps({ ids }), { saleId, amount: 500 });
     const paymentIds = database
       .prepare<[], { id: string }>("SELECT id FROM payment_transactions ORDER BY rowid")
       .all()
@@ -1399,13 +1410,15 @@ describe("cancelling the sale in progress after a payment was approved", () => {
       .run(id, derivePinVerifier(PEPPER, PIN_HASH));
   }
 
+  const ids = idsStartingWith("cancelled");
+
   function withPins(overrides: Partial<OutboxSaleRequestDeps> = {}): OutboxSaleRequestDeps {
-    return deps({ gate: pinGate(), ...overrides });
+    return deps({ gate: pinGate(), ids, ...overrides });
   }
 
   async function partlyPaidInCash(): Promise<string> {
     const saleId = await sellTwoForPayments();
-    await chargeSaleInCashFor(deps(), { saleId, tendered: 1000 });
+    await chargeSaleInCashFor(deps({ ids }), { saleId, tendered: 1000 });
     return saleId;
   }
 
@@ -1463,7 +1476,7 @@ describe("cancelling the sale in progress after a payment was approved", () => {
   it("leaves a transfer refund pending", async () => {
     addPersonWithPin("u2", "Grace", ["void_sale"]);
     const saleId = await sellTwoForPayments();
-    await chargeSaleByTransferFor(deps(), { saleId, amount: 1000 });
+    await chargeSaleByTransferFor(deps({ ids }), { saleId, amount: 1000 });
 
     expect(
       await cancelPaidSaleFor(withPins(), {
