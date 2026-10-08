@@ -13,6 +13,7 @@ import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
+import { cashBalanceFor } from "../register/cash-session-requests";
 import {
   addSearchedProductFor,
   cancelLockedSaleFor,
@@ -1238,9 +1239,17 @@ describe("cancelling the open sale of a locked register", () => {
       .run(derivePinVerifier(PEPPER, PIN_HASH));
   }
 
-  async function lockedWithOpenSale(): Promise<void> {
-    await sellTwoYerbas();
+  async function lockedWithOpenSale(): Promise<string> {
+    const saleId = await sellTwoForPayments();
     signedInPerson.clear();
+    return saleId;
+  }
+
+  async function lockedWithPartPaidSale(): Promise<string> {
+    const saleId = await sellTwoForPayments();
+    await chargeSaleInCashFor(deps(), { saleId, tendered: 1000 });
+    signedInPerson.clear();
+    return saleId;
   }
 
   function saleStates(): unknown[] {
@@ -1249,9 +1258,12 @@ describe("cancelling the open sale of a locked register", () => {
 
   it("cancels the sale for the person whose PIN holds the permission, leaving neither the sale nor an event behind", async () => {
     addCloser(["close_anothers_register_session"]);
-    await lockedWithOpenSale();
+    const saleId = await lockedWithOpenSale();
 
-    expect(await cancelLockedSaleFor(lockedDeps(), CLOSER)).toEqual({ kind: "cancelled" });
+    expect(await cancelLockedSaleFor(lockedDeps(), { saleId, closer: CLOSER })).toEqual({
+      kind: "cancelled",
+      refunds: [],
+    });
 
     expect(saleStates()).toEqual([]);
     expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([]);
@@ -1259,35 +1271,42 @@ describe("cancelling the open sale of a locked register", () => {
 
   it("leaves nobody signed in", async () => {
     addCloser(["close_anothers_register_session"]);
-    await lockedWithOpenSale();
+    const saleId = await lockedWithOpenSale();
 
-    await cancelLockedSaleFor(lockedDeps(), CLOSER);
+    await cancelLockedSaleFor(lockedDeps(), { saleId, closer: CLOSER });
 
     expect(signedInPerson.userId()).toBeUndefined();
   });
 
   it("refuses a person without the permission, leaving the sale open", async () => {
     addCloser(["sell_and_charge"]);
-    await lockedWithOpenSale();
+    const saleId = await lockedWithOpenSale();
 
-    expect(await cancelLockedSaleFor(lockedDeps(), CLOSER)).toEqual({ kind: "lacks_permission" });
+    expect(await cancelLockedSaleFor(lockedDeps(), { saleId, closer: CLOSER })).toEqual({
+      kind: "lacks_permission",
+    });
     expect(saleStates()).toEqual([{ state: "OPEN" }]);
   });
 
   it("refuses the person who opened the session, leaving the sale open", async () => {
     addCloser(["close_anothers_register_session"]);
-    await lockedWithOpenSale();
+    const saleId = await lockedWithOpenSale();
     database.prepare("UPDATE cash_sessions SET opened_by = 'u9'").run();
 
-    expect(await cancelLockedSaleFor(lockedDeps(), CLOSER)).toEqual({ kind: "lacks_permission" });
+    expect(await cancelLockedSaleFor(lockedDeps(), { saleId, closer: CLOSER })).toEqual({
+      kind: "lacks_permission",
+    });
     expect(saleStates()).toEqual([{ state: "OPEN" }]);
   });
 
   it("refuses a wrong PIN, leaving the sale open", async () => {
     addCloser(["close_anothers_register_session"]);
-    await lockedWithOpenSale();
+    const saleId = await lockedWithOpenSale();
 
-    const outcome = await cancelLockedSaleFor(lockedDeps(), { user_id: "u9", pin: "0000" });
+    const outcome = await cancelLockedSaleFor(lockedDeps(), {
+      saleId,
+      closer: { user_id: "u9", pin: "0000" },
+    });
 
     expect(outcome.kind).toBe("wrong_pin");
     expect(saleStates()).toEqual([{ state: "OPEN" }]);
@@ -1295,9 +1314,11 @@ describe("cancelling the open sale of a locked register", () => {
 
   it("refuses while someone is signed in, leaving the sale open", async () => {
     addCloser(["close_anothers_register_session"]);
-    await sellTwoYerbas();
+    const saleId = await sellTwoForPayments();
 
-    expect(await cancelLockedSaleFor(lockedDeps(), CLOSER)).toEqual({ kind: "not_locked" });
+    expect(await cancelLockedSaleFor(lockedDeps(), { saleId, closer: CLOSER })).toEqual({
+      kind: "not_locked",
+    });
     expect(saleStates()).toEqual([{ state: "OPEN" }]);
   });
 
@@ -1305,41 +1326,110 @@ describe("cancelling the open sale of a locked register", () => {
     addCloser(["close_anothers_register_session"]);
     signedInPerson.clear();
 
-    expect(await cancelLockedSaleFor(lockedDeps(), CLOSER)).toEqual({ kind: "no_open_sale" });
+    expect(await cancelLockedSaleFor(lockedDeps(), { saleId: "id-1", closer: CLOSER })).toEqual({
+      kind: "no_open_sale",
+    });
   });
 
   it("refuses when no session is open", async () => {
     addCloser(["close_anothers_register_session"]);
-    await lockedWithOpenSale();
+    const saleId = await lockedWithOpenSale();
     database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
 
-    expect(await cancelLockedSaleFor(lockedDeps(), CLOSER)).toEqual({ kind: "lacks_permission" });
+    expect(await cancelLockedSaleFor(lockedDeps(), { saleId, closer: CLOSER })).toEqual({
+      kind: "lacks_permission",
+    });
   });
 
-  it("refuses a sale that has an approved payment, leaving it open", async () => {
-    addCloser(["close_anothers_register_session"]);
-    await lockedWithOpenSale();
-    database
-      .prepare(
-        `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, state, occurred_at)
-         VALUES ('payment-1', 'id-1', 'SALE', 'CASH', 'NONE', 3000, NULL, 'APPROVED', '2026-09-30T12:00:00.000Z')`,
-      )
-      .run();
+  it("cancels a part-paid sale, giving the cash back as a refund movement of the closer", async () => {
+    addCloser(["close_anothers_register_session", "void_sale"]);
+    const saleId = await lockedWithPartPaidSale();
+    const [payment] = database
+      .prepare<[], { id: string }>("SELECT id FROM payment_transactions")
+      .all();
 
-    expect(await cancelLockedSaleFor(lockedDeps(), CLOSER)).toEqual({
-      kind: "has_approved_payment",
+    expect(await cancelLockedSaleFor(lockedDeps(), { saleId, closer: CLOSER })).toEqual({
+      kind: "cancelled",
+      refunds: [{ payment_id: payment?.id, method: "CASH", amount: 1000, state: "APPROVED" }],
     });
+
+    expect(saleStates()).toEqual([{ state: "CANCELLED" }]);
+    expect(
+      database
+        .prepare(
+          "SELECT type, amount, actor_id, authorized_by FROM cash_movements WHERE type = 'REFUND'",
+        )
+        .all(),
+    ).toEqual([{ type: "REFUND", amount: 1000, actor_id: "u9", authorized_by: "u9" }]);
+    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([
+      { event_type: "sale_cancelled" },
+    ]);
+  });
+
+  it("counts the payment and its refund in the cash expected at closing, which ends up as the opening float", async () => {
+    addCloser(["close_anothers_register_session", "void_sale"]);
+    const saleId = await lockedWithPartPaidSale();
+
+    await cancelLockedSaleFor(lockedDeps(), { saleId, closer: CLOSER });
+
+    expect(cashBalanceFor(database)).toMatchObject({
+      cash_sales: { amount: 1000 },
+      refunds: { amount: 1000 },
+      expected: 0,
+    });
+  });
+
+  it("leaves a transfer refund pending when it cancels a sale paid by transfer", async () => {
+    addCloser(["close_anothers_register_session", "void_sale"]);
+    const saleId = await sellTwoForPayments();
+    await chargeSaleByTransferFor(deps(), { saleId, amount: 1000 });
+    signedInPerson.clear();
+
+    expect(await cancelLockedSaleFor(lockedDeps(), { saleId, closer: CLOSER })).toMatchObject({
+      kind: "cancelled",
+      refunds: [{ method: "TRANSFER", state: "PENDING" }],
+    });
+    expect(database.prepare("SELECT method, state FROM payment_refunds").all()).toEqual([
+      { method: "TRANSFER", state: "PENDING" },
+    ]);
+  });
+
+  it("refuses a closer who may not void a sale with approved payments, changing nothing", async () => {
+    addCloser(["close_anothers_register_session"]);
+    const saleId = await lockedWithPartPaidSale();
+
+    expect(await cancelLockedSaleFor(lockedDeps(), { saleId, closer: CLOSER })).toEqual({
+      kind: "not_permitted",
+    });
+    expect(saleStates()).toEqual([{ state: "OPEN" }]);
+    expect(database.prepare("SELECT id FROM payment_refunds").all()).toEqual([]);
+    expect(database.prepare("SELECT id FROM cash_movements WHERE type = 'REFUND'").all()).toEqual(
+      [],
+    );
+    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([]);
+  });
+
+  it("answers that it is unavailable when the register has no outbox key yet, changing nothing", async () => {
+    addCloser(["close_anothers_register_session", "void_sale"]);
+    const saleId = await lockedWithOpenSale();
+
+    expect(
+      await cancelLockedSaleFor(lockedDeps({ readOutboxChainKey: async () => undefined }), {
+        saleId,
+        closer: CLOSER,
+      }),
+    ).toEqual({ kind: "unavailable" });
     expect(saleStates()).toEqual([{ state: "OPEN" }]);
   });
 
-  it("cancels the sale even when the register has no outbox key yet", async () => {
+  it("refuses a sale that is not the open one", async () => {
     addCloser(["close_anothers_register_session"]);
     await lockedWithOpenSale();
 
     expect(
-      await cancelLockedSaleFor(lockedDeps({ readOutboxChainKey: async () => undefined }), CLOSER),
-    ).toEqual({ kind: "cancelled" });
-    expect(saleStates()).toEqual([]);
+      await cancelLockedSaleFor(lockedDeps(), { saleId: "another-sale", closer: CLOSER }),
+    ).toEqual({ kind: "no_open_sale" });
+    expect(saleStates()).toEqual([{ state: "OPEN" }]);
   });
 });
 

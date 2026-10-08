@@ -906,15 +906,17 @@ describe("createCoreClient", () => {
     client.connect(port);
     const closer = { user_id: "u2", pin: "1234" };
 
-    const outcome = client.cancelLockedSale(closer);
+    const outcome = client.cancelLockedSale("sale-1", closer);
     port.answer({
       type: "cancel-locked-sale-result",
       request_id: "request-1",
-      outcome: { kind: "cancelled" },
+      outcome: { kind: "cancelled", refunds: [] },
     });
 
-    expect(await outcome).toEqual({ kind: "cancelled" });
-    expect(port.posted).toEqual([{ type: "cancel-locked-sale", request_id: "request-1", closer }]);
+    expect(await outcome).toEqual({ kind: "cancelled", refunds: [] });
+    expect(port.posted).toEqual([
+      { type: "cancel-locked-sale", request_id: "request-1", sale_id: "sale-1", closer },
+    ]);
   });
 
   it.each([
@@ -980,20 +982,26 @@ describe("createCoreClient", () => {
     expect(await asked).toBe("unavailable");
   });
 
-  it.each([null, { total: 3_434_000, cancellable: true }])(
-    "asks the core for the open sale of the session and resolves with it: %j",
-    async (sale) => {
-      const client = clientWithSequentialIds();
-      const port = new FakePort();
-      client.connect(port);
-
-      const asked = client.sessionOpenSale();
-      port.answer({ type: "session-open-sale", request_id: "request-1", sale });
-
-      expect(await asked).toEqual(sale);
-      expect(port.posted).toEqual([{ type: "session-open-sale-request", request_id: "request-1" }]);
+  it.each([
+    null,
+    {
+      id: "sale-1",
+      total: 3_434_000,
+      paid: 0,
+      cancellable: true,
+      refunds_on_cancel: [],
     },
-  );
+  ])("asks the core for the open sale of the session and resolves with it: %j", async (sale) => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.sessionOpenSale();
+    port.answer({ type: "session-open-sale", request_id: "request-1", sale });
+
+    expect(await asked).toEqual(sale);
+    expect(port.posted).toEqual([{ type: "session-open-sale-request", request_id: "request-1" }]);
+  });
 
   it("resolves that the open sale is unavailable when the core cannot read it", async () => {
     const client = clientWithSequentialIds();
