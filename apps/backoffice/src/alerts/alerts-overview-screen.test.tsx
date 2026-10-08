@@ -1,5 +1,6 @@
 import type { AlertsOverview } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import type { ReactNode } from "react";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { accessWith, NO_CAPABILITIES_ACCESS } from "../shell/test-support/backoffice-access";
@@ -40,11 +41,13 @@ function createServices(): AlertsOverviewScreenServices {
 
 function renderScreen(
   services: AlertsOverviewScreenServices,
-  { access = ALL_ALERTS_ACCESS, onSessionEnded = () => {} } = {},
+  { access = ALL_ALERTS_ACCESS, onSessionEnded = () => {}, sections = null as ReactNode } = {},
 ) {
   return render(
     <main>
-      <AlertsOverviewScreen access={access} onSessionEnded={onSessionEnded} services={services} />
+      <AlertsOverviewScreen access={access} onSessionEnded={onSessionEnded} services={services}>
+        {sections}
+      </AlertsOverviewScreen>
     </main>,
   );
 }
@@ -167,4 +170,25 @@ test("navigates to Mi cuenta when the alerts request comes back forbidden", asyn
 
   await expect.poll(() => window.location.pathname).toBe("/account");
   window.history.pushState(null, "", "/");
+});
+
+test("shows the sections the page adds beneath the alerts to someone who may see alerts", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlertsOverview).mockResolvedValue(ok(overview));
+
+  const screen = await renderScreen(services, { sections: <p>Otra sección de Inicio</p> });
+
+  await expect.element(screen.getByText("Otra sección de Inicio")).toBeVisible();
+});
+
+test("shows no added section to someone without either alert permission", async () => {
+  const services = createServices();
+
+  const screen = await renderScreen(services, {
+    access: NO_CAPABILITIES_ACCESS,
+    sections: <p>Otra sección de Inicio</p>,
+  });
+
+  await expect.element(screen.getByText("No tenés alertas para ver")).toBeVisible();
+  expect(screen.getByText("Otra sección de Inicio").query()).toBeNull();
 });
