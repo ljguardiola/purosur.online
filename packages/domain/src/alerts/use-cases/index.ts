@@ -34,6 +34,7 @@ export type {
 } from "./close-alert.js";
 export { closeAlert } from "./close-alert.js";
 export { escalateOverdueAlerts } from "./escalate-overdue-alerts.js";
+export type { InServiceRegister, InServiceRegisterReader } from "./in-service-register-reader.js";
 export type { ObserveAlertConditionOutcome } from "./observe-alert-condition.js";
 export { observeAlertCondition } from "./observe-alert-condition.js";
 export type { OpenAlertOutcome } from "./open-alert.js";
