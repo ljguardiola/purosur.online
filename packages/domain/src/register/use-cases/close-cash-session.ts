@@ -1,6 +1,6 @@
 import { saleTotal } from "../../sales/index.js";
 import type { Clock, OperationAuthority } from "../../shared/index.js";
-import { isValidCashAmount } from "../model/cash-amount.js";
+import { isValidCashAmount } from "../../shared/index.js";
 import { cashCountDifference } from "../model/cash-count.js";
 import type { ClosedCashSession } from "../model/cash-session.js";
 import { expectedCash } from "../model/expected-cash.js";

@@ -62,6 +62,10 @@ import {
 } from "../fiscal/points-of-sale-services";
 import type { BackofficeHelpCatalog } from "../help/help-catalog";
 import {
+  defaultPendingRefundsScreenServices,
+  type PendingRefundsScreenServices,
+} from "../payments/pending-refunds-services";
+import {
   defaultRolesListScreenServices,
   type RolesListScreenServices,
 } from "../permissions/roles-list-services";
@@ -78,10 +82,6 @@ import {
   defaultRegistersListScreenServices,
   type RegistersListScreenServices,
 } from "../register/registers-list-services";
-import {
-  defaultPendingRefundsScreenServices,
-  type PendingRefundsScreenServices,
-} from "../sales/pending-refunds-services";
 import {
   defaultSalesByDayScreenServices,
   type SalesByDayScreenServices,

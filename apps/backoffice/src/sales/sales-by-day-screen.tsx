@@ -22,11 +22,11 @@ import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
 import { ScreenLayout } from "../shell/screen-layout";
+import { ScreenTopBar } from "../shell/screen-top-bar";
 import { calendarDateOf, dayOf, hasFourDigitYear } from "./report-day";
 import type { SalesByDayFilters } from "./sales-by-day-filters";
 import type { SalesByDayScreenServices } from "./sales-by-day-services";
 import { useReportRegistersQuery, useSalesReportQuery } from "./sales-queries";
-import { SalesTopBar } from "./sales-screen-parts";
 
 export type SalesByDayScreenProps = {
   filters: SalesByDayFilters;
@@ -143,7 +143,7 @@ export function SalesByDayScreen({
 
   return (
     <ScreenLayout
-      topBar={<SalesTopBar eyebrow="Reportes" title="Ventas por día o por rango" />}
+      topBar={<ScreenTopBar eyebrow="Reportes" title="Ventas por día o por rango" />}
       bodyClassName="gap-4 p-6"
     >
       <div className="flex flex-wrap items-end gap-3">

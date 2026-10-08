@@ -1,5 +1,4 @@
 import type { CashMovementType } from "../../register/index.js";
-import { saleBalance } from "./sale-balance.js";
 
 export interface CompletedSaleLine {
   id: string;
@@ -42,11 +41,4 @@ export interface CompletedSale {
   lines: CompletedSaleLine[];
   payments: CompletedSalePayment[];
   cashMovements: CompletedSaleCashMovement[];
-}
-
-export function approvedPaymentsCoverTotal(sale: {
-  total: number;
-  payments: readonly { amount: number; state: string }[];
-}): boolean {
-  return saleBalance(sale.total, sale.payments).pending <= 0;
 }

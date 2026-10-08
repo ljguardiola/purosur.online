@@ -4,6 +4,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { paymentRefunds } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { applyCancelledSale } from "../sales/test-support/applied-sales.js";
 import {
   BACKOFFICE_ORIGIN,
   insertLocation,
@@ -12,7 +13,6 @@ import {
 import { aTransferCancelledSale } from "../sync/test-support/synced-facts.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { registerRefundRoutes } from "./refund-routes.js";
-import { applyCancelledSale } from "./test-support/applied-sales.js";
 
 const NOW = new Date("2026-10-07T15:00:00.000Z");
 const UNKNOWN_REFUND = "00000000-0000-4000-8000-000000000000";

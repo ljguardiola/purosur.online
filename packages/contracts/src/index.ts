@@ -127,6 +127,8 @@ export {
   registerPointOfSaleOverviewSchema,
   registerPointOfSaleSchema,
 } from "./fiscal/register-point-of-sale.js";
+export type { MarkedRefundDoneBody, PendingRefundsBody } from "./payments/pending-refunds.js";
+export { markedRefundDoneSchema, pendingRefundsSchema } from "./payments/pending-refunds.js";
 export type { PermissionCatalogWire } from "./permissions/permission-catalog.js";
 export { permissionCatalogSchema } from "./permissions/permission-catalog.js";
 export type { RegisterCoverageWire } from "./permissions/register-coverage.js";
@@ -234,8 +236,6 @@ export {
   salesCoreToRendererMessageSchema,
   salesRendererToCoreMessageSchema,
 } from "./sales/core-messages.js";
-export type { MarkedRefundDoneBody, PendingRefundsBody } from "./sales/pending-refunds.js";
-export { markedRefundDoneSchema, pendingRefundsSchema } from "./sales/pending-refunds.js";
 export type {
   AddProductOutcome,
   CancelPaidSaleOutcome,

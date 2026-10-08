@@ -12,11 +12,11 @@ import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { schemaText } from "../platform/schema-text";
 import { ScreenLayout } from "../shell/screen-layout";
+import { ScreenTopBar } from "../shell/screen-top-bar";
 import { MarkRefundDoneModal } from "./mark-refund-done-modal";
+import { usePendingRefundsQuery, useRefreshPayments } from "./payments-queries";
 import type { PendingRefundsScreenServices } from "./pending-refunds-services";
 import { refundMethodLabel } from "./refund-method-label";
-import { usePendingRefundsQuery, useRefreshSales } from "./sales-queries";
-import { SalesTopBar } from "./sales-screen-parts";
 
 export type PendingRefundsScreenProps = {
   onSessionEnded: () => void;
@@ -55,7 +55,7 @@ export function PendingRefundsScreen({ onSessionEnded, services }: PendingRefund
     fetchPendingRefunds: services.fetchPendingRefunds,
     onSessionEnded,
   });
-  const refreshSales = useRefreshSales();
+  const refreshPayments = useRefreshPayments();
   const [doneTarget, setDoneTarget] = useState<PendingRefund | null>(null);
   const refunds = data.status === "loaded" ? data.value.refunds : NO_REFUNDS;
 
@@ -100,7 +100,7 @@ export function PendingRefundsScreen({ onSessionEnded, services }: PendingRefund
   return (
     <>
       <ScreenLayout
-        topBar={<SalesTopBar eyebrow="Caja" title="Reembolsos pendientes" />}
+        topBar={<ScreenTopBar eyebrow="Caja" title="Reembolsos pendientes" />}
         bodyClassName="gap-4 p-6"
       >
         <Table
@@ -119,7 +119,7 @@ export function PendingRefundsScreen({ onSessionEnded, services }: PendingRefund
         onClose={() => setDoneTarget(null)}
         onDone={() => {
           setDoneTarget(null);
-          void refreshSales();
+          void refreshPayments();
         }}
         onSessionEnded={onSessionEnded}
         services={services}

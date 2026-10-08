@@ -2,11 +2,11 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { registers } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { applyCancelledSale, applyCompletedSale } from "../sales/test-support/applied-sales.js";
 import { insertLocation, signedInWith } from "../stock/test-support/stock-route-fixtures.js";
 import { aTransferCancelledSale } from "../sync/test-support/synced-facts.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzlePendingRefundsReader } from "./drizzle-pending-refunds-reader.js";
-import { applyCancelledSale, applyCompletedSale } from "./test-support/applied-sales.js";
 
 const NOW = new Date("2026-10-07T15:00:00.000Z");
 

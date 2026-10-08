@@ -1,4 +1,4 @@
-import { isValidCashAmount } from "../../register/index.js";
+import { isValidCashAmount } from "../../shared/index.js";
 
 export type CashCharge =
   | { kind: "invalid_amount" }

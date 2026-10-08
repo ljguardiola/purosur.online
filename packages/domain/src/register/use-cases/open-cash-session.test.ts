@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_CASH_AMOUNT_CENTS } from "../model/cash-amount.js";
+import { MAX_CASH_AMOUNT_CENTS } from "../../shared/index.js";
 import type { CashSession, OpenedCashSession } from "../model/cash-session.js";
 import { type OpenCashSessionGrant, openCashSession } from "./open-cash-session.js";
 import {

@@ -17,10 +17,11 @@ import {
 } from "../catalog/routes";
 import { fiscalConfigurationRoute, pointsOfSaleRoute } from "../fiscal/routes";
 import { helpArticleRoute, helpCategoryRoute, helpHomeRoute } from "../help/routes";
+import { pendingRefundsRoute } from "../payments/routes";
 import { rolesListRoute } from "../permissions/routes";
 import { discountsListRoute, pricesListRoute } from "../pricing/routes";
 import { registersListRoute } from "../register/routes";
-import { pendingRefundsRoute, reportsIndexRoute, salesByDayRoute } from "../sales/routes";
+import { reportsIndexRoute, salesByDayRoute } from "../sales/routes";
 import { stockBalancesRoute, stockCountsRoute, stockMovementsRoute } from "../stock/routes";
 import { cashAndFiscalAreaRoute } from "./cash-and-fiscal-area";
 import { catalogAreaRoute } from "./catalog-area";
