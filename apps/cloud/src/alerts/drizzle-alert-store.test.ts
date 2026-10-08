@@ -418,6 +418,102 @@ describe("DrizzleAlertStore lockOpenAlerts and recordEscalation", () => {
   });
 });
 
+describe("DrizzleAlertStore lockOpenAlertOfKey", () => {
+  it("answers the open alert of that kind and scope with its detail and the moment its condition cleared", async () => {
+    const store = new DrizzleAlertStore(db, () => NOON);
+    const id = await store.transaction((tx) => tx.insertAlert(newAlert()));
+    const clearedAt = new Date(NOON.getTime() - 60_000);
+    await db.update(alerts).set({ conditionClearedAt: clearedAt }).where(eq(alerts.id, id));
+
+    const locked = await store.transaction((tx) =>
+      tx.lockOpenAlertOfKey("user_email_changed", "user-1"),
+    );
+
+    expect(locked).toEqual({
+      alertId: id,
+      detail: { previousEmail: "a@example.com", newEmail: "b@example.com", actorId: "actor-1" },
+      conditionClearedAt: clearedAt,
+    });
+  });
+
+  it("answers no moment for an alert whose condition has not cleared", async () => {
+    const store = new DrizzleAlertStore(db, () => NOON);
+    const id = await store.transaction((tx) => tx.insertAlert(newAlert()));
+
+    const locked = await store.transaction((tx) =>
+      tx.lockOpenAlertOfKey("user_email_changed", "user-1"),
+    );
+
+    expect(locked).toEqual({
+      alertId: id,
+      detail: { previousEmail: "a@example.com", newEmail: "b@example.com", actorId: "actor-1" },
+      conditionClearedAt: null,
+    });
+  });
+
+  it("ignores a closed alert and one of another scope or kind", async () => {
+    const store = new DrizzleAlertStore(db, () => NOON);
+    const closed = await store.transaction((tx) => tx.insertAlert(newAlert()));
+    await db.update(alerts).set({ resolvedAt: NOON }).where(eq(alerts.id, closed));
+    await store.transaction((tx) => tx.insertAlert(newAlert({ scope: "user-2" })));
+    await store.transaction((tx) =>
+      tx.insertAlert(newAlert({ kind: "backoffice_recovery_requested" })),
+    );
+
+    await expect(
+      store.transaction((tx) => tx.lockOpenAlertOfKey("user_email_changed", "user-1")),
+    ).resolves.toBeUndefined();
+  });
+});
+
+describe("DrizzleAlertStore recordConditionCleared and recordConditionHolding", () => {
+  it("marks only the given alert as cleared at the given moment, then removes the mark", async () => {
+    const store = new DrizzleAlertStore(db, () => NOON);
+    const marked = await store.transaction((tx) => tx.insertAlert(newAlert()));
+    const untouched = await store.transaction((tx) =>
+      tx.insertAlert(newAlert({ scope: "user-2" })),
+    );
+
+    await store.transaction((tx) => tx.recordConditionCleared(marked, NOON));
+
+    const [hit] = await db.select().from(alerts).where(eq(alerts.id, marked));
+    const [miss] = await db.select().from(alerts).where(eq(alerts.id, untouched));
+    expect(hit?.conditionClearedAt).toEqual(NOON);
+    expect(miss?.conditionClearedAt).toBeNull();
+
+    await store.transaction((tx) => tx.recordConditionHolding(marked));
+
+    const [after] = await db.select().from(alerts).where(eq(alerts.id, marked));
+    expect(after?.conditionClearedAt).toBeNull();
+  });
+});
+
+describe("DrizzleAlertStore lockClearedConditionAlerts", () => {
+  it("lists only the open alerts whose condition cleared, with what a resolution keeps", async () => {
+    const store = new DrizzleAlertStore(db, () => NOON);
+    const waiting = await store.transaction((tx) => tx.insertAlert(newAlert()));
+    await store.transaction((tx) => tx.insertAlert(newAlert({ scope: "user-2" })));
+    const closed = await store.transaction((tx) => tx.insertAlert(newAlert({ scope: "user-3" })));
+    await db.update(alerts).set({ conditionClearedAt: NOON }).where(eq(alerts.id, waiting));
+    await db
+      .update(alerts)
+      .set({ conditionClearedAt: NOON, resolvedAt: NOON })
+      .where(eq(alerts.id, closed));
+
+    const locked = await store.transaction((tx) => tx.lockClearedConditionAlerts());
+
+    expect(locked).toEqual([
+      {
+        alertId: waiting,
+        kind: "user_email_changed",
+        scope: "user-1",
+        detail: { previousEmail: "a@example.com", newEmail: "b@example.com", actorId: "actor-1" },
+        conditionClearedAt: NOON,
+      },
+    ]);
+  });
+});
+
 describe("DrizzleAlertStore's clock", () => {
   it("is required to build the store", () => {
     expectTypeOf<[PgDatabase<PgQueryResultHKT>]>().not.toExtend<

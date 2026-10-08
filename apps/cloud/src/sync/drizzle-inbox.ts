@@ -1,4 +1,5 @@
 import type { PushedEvent } from "@purosur/domain";
+import type { AlertConditionObservation } from "@purosur/domain/alerts/use-cases";
 import type {
   HeldEvent,
   HeldEventPosition,
@@ -8,6 +9,7 @@ import type {
 } from "@purosur/domain/sync/use-cases";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { observeAlertCondition } from "../alerts/observe-alert-condition.js";
 import { deviceState, inbox, refusedEvents, registerInstallations } from "../platform/db/schema.js";
 import type { InstallationKeyCipher } from "../register/installation-key-cipher.js";
 import { readOutboxChainKey } from "../register/outbox-chain-key.js";
@@ -119,6 +121,28 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
       .insert(deviceState)
       .values({ deviceId, ...pushed })
       .onConflictDoUpdate({ target: deviceState.deviceId, set: pushed });
+  }
+
+  async installationRegisterId(deviceId: string): Promise<string> {
+    const [installation] = await this.tx
+      .select({ registerId: registerInstallations.registerId })
+      .from(registerInstallations)
+      .where(eq(registerInstallations.id, deviceId));
+    if (!installation) {
+      throw new Error(`installation ${deviceId} does not exist`);
+    }
+    return installation.registerId;
+  }
+
+  async observeAlertCondition(observation: AlertConditionObservation, at: Date): Promise<void> {
+    await observeAlertCondition(this.tx, observation, { now: () => at });
+  }
+
+  async recordAcceptedPush(deviceId: string, at: Date): Promise<void> {
+    await this.tx
+      .update(deviceState)
+      .set({ lastAcceptedPushAt: at })
+      .where(eq(deviceState.deviceId, deviceId));
   }
 
   outboxChainKey(deviceId: string): Promise<string | undefined> {

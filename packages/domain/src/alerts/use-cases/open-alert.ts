@@ -17,8 +17,16 @@ export async function openAlert(
   { store, clock }: AlertOpeningPorts,
   input: OpenAlertInput,
 ): Promise<OpenAlertOutcome> {
-  const policy = alertKindPolicy(input.kind);
   const openedAt = clock.now();
+  return store.transaction((tx) => openAlertIn(tx, input, openedAt));
+}
+
+export async function openAlertIn(
+  tx: AlertStoreTransaction,
+  input: OpenAlertInput,
+  openedAt: Date,
+): Promise<OpenAlertOutcome> {
+  const policy = alertKindPolicy(input.kind);
   const alert: NewAlert = {
     kind: input.kind,
     scope: input.scope,
@@ -31,26 +39,24 @@ export async function openAlert(
     deduplicates: policy.deduplicates,
   };
 
-  return store.transaction(async (tx) => {
-    let alertId: string;
-    try {
-      alertId = await tx.insertAlert(alert);
-    } catch (error) {
-      if (error instanceof AlertAlreadyOpenError) {
-        return { kind: "already_open", alertId: await openAlertId(tx, input) };
-      }
-      throw error;
+  let alertId: string;
+  try {
+    alertId = await tx.insertAlert(alert);
+  } catch (error) {
+    if (error instanceof AlertAlreadyOpenError) {
+      return { kind: "already_open", alertId: await openAlertId(tx, input) };
     }
-    const viewers = await tx.listActiveAlertViewers();
-    const recipients = viewers.filter((viewer) => canSeeAlert(viewer, alert));
-    if (recipients.length > 0) {
-      await tx.recordBackofficeDeliveries(
-        alertId,
-        recipients.map((recipient) => recipient.userId),
-      );
-    }
-    return { kind: "opened", alertId };
-  });
+    throw error;
+  }
+  const viewers = await tx.listActiveAlertViewers();
+  const recipients = viewers.filter((viewer) => canSeeAlert(viewer, alert));
+  if (recipients.length > 0) {
+    await tx.recordBackofficeDeliveries(
+      alertId,
+      recipients.map((recipient) => recipient.userId),
+    );
+  }
+  return { kind: "opened", alertId };
 }
 
 async function openAlertId(tx: AlertStoreTransaction, input: OpenAlertInput): Promise<string> {

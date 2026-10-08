@@ -28,7 +28,7 @@ test("starts downloading a screen's code when the pointer rests on its menu link
 
   await userEvent.hover(screen.getByRole("link", { name: "Inicio" }));
 
-  await expect.poll(() => requested("alerts-overview-page")).toBe(true);
+  await expect.poll(() => requested("home-page")).toBe(true);
   expect(window.location.pathname).toBe("/help");
 });
 

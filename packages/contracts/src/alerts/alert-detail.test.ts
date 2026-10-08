@@ -181,6 +181,7 @@ describe("alertDetailSchema", () => {
     expectTypeOf<WireDetail<"arca_certificate_expiring">>().toEqualTypeOf<
       AlertDetails["arca_certificate_expiring"]
     >();
+    expectTypeOf<WireDetail<"update_required">>().toEqualTypeOf<AlertDetails["update_required"]>();
     expectTypeOf<WireDetail<"backoffice_sign_in_lockout">>().toExtend<
       Omit<AlertDetails["backoffice_sign_in_lockout"], "sourceAddress">
     >();
@@ -292,6 +293,7 @@ describe("alertDetailSchema", () => {
         breaks: ["approved_payments_below_total"],
       },
       arca_certificate_expiring: { notAfter: "2026-11-20T15:30:00.000Z" },
+      update_required: { deviceId: "device-1", appVersion: "0.9.0" },
     } satisfies Record<AlertKind, unknown>;
 
     it.each(ALERT_KINDS)("accepts the detail of %s", (kind) => {

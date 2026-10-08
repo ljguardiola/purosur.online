@@ -15,6 +15,7 @@ export function seededAlert(overrides: Partial<FakeAlert> = {}): Omit<FakeAlert,
     escalatedAt: null,
     resolvedAt: null,
     resolvedBy: null,
+    conditionClearedAt: null,
     deduplicates: true,
     ...overrides,
   };

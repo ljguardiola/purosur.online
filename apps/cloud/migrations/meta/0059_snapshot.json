@@ -1,5 +1,5 @@
 {
-  "id": "9a619f42-3445-4188-914d-0e127fd68a16",
+  "id": "230d4e6f-c5c1-44d8-a9a8-5051024bbe26",
   "prevId": "9ddebb87-0202-4495-b40c-0eedb7d1bb61",
   "version": "7",
   "dialect": "postgresql",
@@ -192,6 +192,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "condition_cleared_at": {
+          "name": "condition_cleared_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "deduplicates": {
           "name": "deduplicates",
           "type": "boolean",
@@ -281,37 +287,6 @@
         "alerts_location_id_matches_audience": {
           "name": "alerts_location_id_matches_audience",
           "value": "(\"alerts\".\"audience\" = 'local' AND \"alerts\".\"location_id\" IS NOT NULL) OR (\"alerts\".\"audience\" = 'all' AND \"alerts\".\"location_id\" IS NULL)"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.arca_invoicing_evidence": {
-      "name": "arca_invoicing_evidence",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "boolean",
-          "primaryKey": true,
-          "notNull": true,
-          "default": true
-        },
-        "last_call_ok_at": {
-          "name": "last_call_ok_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "arca_invoicing_evidence_single_row_check": {
-          "name": "arca_invoicing_evidence_single_row_check",
-          "value": "\"arca_invoicing_evidence\".\"id\""
         }
       },
       "isRLSEnabled": false
@@ -1391,6 +1366,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "last_accepted_push_at": {
+          "name": "last_accepted_push_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "wal_size_bytes": {
           "name": "wal_size_bytes",
           "type": "bigint",
@@ -1700,158 +1681,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.fiscal_requests": {
-      "name": "fiscal_requests",
-      "schema": "",
-      "columns": {
-        "fiscal_document_id": {
-          "name": "fiscal_document_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "register_id": {
-          "name": "register_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sale_id": {
-          "name": "sale_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "point_of_sale": {
-          "name": "point_of_sale",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "number": {
-          "name": "number",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "issued_on": {
-          "name": "issued_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "total": {
-          "name": "total",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "buyer_tax_status_code": {
-          "name": "buyer_tax_status_code",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sale_event": {
-          "name": "sale_event",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "received_at": {
-          "name": "received_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "not_after": {
-          "name": "not_after",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "answer_kind": {
-          "name": "answer_kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "authorization_code": {
-          "name": "authorization_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "authorization_code_due_on": {
-          "name": "authorization_code_due_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "rejection_codes": {
-          "name": "rejection_codes",
-          "type": "integer[]",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "answered_at": {
-          "name": "answered_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "fiscal_requests_point_of_sale_idx": {
-          "name": "fiscal_requests_point_of_sale_idx",
-          "columns": [
-            {
-              "expression": "point_of_sale",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "fiscal_requests_register_id_registers_id_fk": {
-          "name": "fiscal_requests_register_id_registers_id_fk",
-          "tableFrom": "fiscal_requests",
-          "tableTo": "registers",
-          "columnsFrom": ["register_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "fiscal_requests_answer_kind_check": {
-          "name": "fiscal_requests_answer_kind_check",
-          "value": "\"fiscal_requests\".\"answer_kind\" in ('authorized', 'rejected', 'not_attempted', 'unclear')"
-        },
-        "fiscal_requests_answer_time_check": {
-          "name": "fiscal_requests_answer_time_check",
-          "value": "(\"fiscal_requests\".\"answer_kind\" is null) = (\"fiscal_requests\".\"answered_at\" is null)"
-        },
-        "fiscal_requests_authorization_check": {
-          "name": "fiscal_requests_authorization_check",
-          "value": "coalesce(\"fiscal_requests\".\"answer_kind\" = 'authorized', false) = (\"fiscal_requests\".\"authorization_code\" is not null)\n        and (\"fiscal_requests\".\"authorization_code\" is null) = (\"fiscal_requests\".\"authorization_code_due_on\" is null)"
-        },
-        "fiscal_requests_rejection_check": {
-          "name": "fiscal_requests_rejection_check",
-          "value": "coalesce(\"fiscal_requests\".\"answer_kind\" = 'rejected', false) = (\"fiscal_requests\".\"rejection_codes\" is not null)"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.inbox": {
@@ -5289,42 +5118,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.tax_authority_last_authorized_numbers": {
-      "name": "tax_authority_last_authorized_numbers",
-      "schema": "",
-      "columns": {
-        "point_of_sale_number": {
-          "name": "point_of_sale_number",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "last_authorized": {
-          "name": "last_authorized",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "read_at": {
-          "name": "read_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "tax_authority_last_authorized_numbers_non_negative_check": {
-          "name": "tax_authority_last_authorized_numbers_non_negative_check",
-          "value": "\"tax_authority_last_authorized_numbers\".\"last_authorized\" >= 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.user_pin_codes": {
       "name": "user_pin_codes",
       "schema": "",
@@ -5675,7 +5468,7 @@
     "public.installation_request_endpoint": {
       "name": "installation_request_endpoint",
       "schema": "public",
-      "values": ["push", "pull", "health_check", "fiscal_authorize"]
+      "values": ["push", "pull", "health_check"]
     },
     "public.installation_revocation_reason": {
       "name": "installation_revocation_reason",
