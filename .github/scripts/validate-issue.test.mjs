@@ -9,6 +9,9 @@ const featureBody = [
   "### Business rules",
   "Discount cannot exceed 20%.",
   "",
+  "### Domain concepts",
+  "pricing",
+  "",
   "### Acceptance criteria (Given / When / Then)",
   "Given a sale, when a discount is applied, then the total updates.",
   "",
@@ -35,9 +38,27 @@ test("validateIssue accepts a complete feature issue", () => {
 
 test("validateIssue reports every missing required section", () => {
   const problems = validateIssue({ body: "### Goal\nSomething.", labels: ["type: feature"] });
-  assert.equal(problems.length, 2);
+  assert.equal(problems.length, 3);
   assert.ok(problems.some((p) => p.includes("Business rules")));
+  assert.ok(problems.some((p) => p.includes("Domain concepts")));
   assert.ok(problems.some((p) => p.includes("Acceptance criteria (Given / When / Then)")));
+});
+
+test("validateIssue reports a feature issue that does not name the domain concepts of its rules", () => {
+  const body = featureBody.replace("### Domain concepts\npricing\n", "");
+  assert.deepEqual(validateIssue({ body, labels: ["type: feature"] }), [
+    'Missing required section: "Domain concepts".',
+  ]);
+});
+
+test("validateIssue reports an empty Domain concepts section", () => {
+  const body = featureBody.replace(
+    "### Domain concepts\npricing",
+    "### Domain concepts\n_No response_",
+  );
+  assert.deepEqual(validateIssue({ body, labels: ["type: feature"] }), [
+    'Section "Domain concepts" is empty.',
+  ]);
 });
 
 test("validateIssue accepts a feature issue without an Out of scope section", () => {
