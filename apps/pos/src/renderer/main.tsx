@@ -18,10 +18,10 @@ initializeErrorReporting(Sentry);
 // list, but `window.addEventListener`'s own type only knows about the generic DOM `Event`.
 const windowPortSource: PortEventSource<MessagePort> = {
   addEventListener(type, listener) {
-    window.addEventListener(type, listener as unknown as EventListener);
+    window.addEventListener(type, listener);
   },
   removeEventListener(type, listener) {
-    window.removeEventListener(type, listener as unknown as EventListener);
+    window.removeEventListener(type, listener);
   },
 };
 
