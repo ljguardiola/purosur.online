@@ -43,8 +43,10 @@ function invoicingAt(endpoint: string, timeoutMs = 5_000) {
   return new WsfeTaxAuthorityInvoicing({ endpoint, cuit: FICTIONAL_CERTIFICATE_CUIT, timeoutMs });
 }
 
-function valueOf(request: string | undefined, element: string): string | undefined {
-  return new RegExp(`<(?:\\w+:)?${element}>([^<]*)</(?:\\w+:)?${element}>`).exec(request ?? "")?.[1];
+function sentValue(request: string | undefined, element: string): string | undefined {
+  return new RegExp(`<(?:\\w+:)?${element}>([^<]*)</(?:\\w+:)?${element}>`).exec(
+    request ?? "",
+  )?.[1];
 }
 
 describe("WsfeTaxAuthorityInvoicing", () => {
@@ -55,33 +57,33 @@ describe("WsfeTaxAuthorityInvoicing", () => {
       expect(server.requests).toHaveLength(1);
       const [request] = server.requests;
       expect(request).toContain("FECAESolicitar");
-      expect(valueOf(request, "Token")).toBe("FICTIONAL-TOKEN-0001");
-      expect(valueOf(request, "Sign")).toBe("FICTIONAL-SIGN-0001");
-      expect(valueOf(request, "Cuit")).toBe(FICTIONAL_CERTIFICATE_CUIT.replaceAll("-", ""));
-      expect(valueOf(request, "CantReg")).toBe("1");
-      expect(valueOf(request, "PtoVta")).toBe("7");
-      expect(valueOf(request, "CbteTipo")).toBe("11");
+      expect(sentValue(request, "Token")).toBe("FICTIONAL-TOKEN-0001");
+      expect(sentValue(request, "Sign")).toBe("FICTIONAL-SIGN-0001");
+      expect(sentValue(request, "Cuit")).toBe(FICTIONAL_CERTIFICATE_CUIT.replaceAll("-", ""));
+      expect(sentValue(request, "CantReg")).toBe("1");
+      expect(sentValue(request, "PtoVta")).toBe("7");
+      expect(sentValue(request, "CbteTipo")).toBe("11");
     });
 
     it("asks for the document's number, date, total and buyer tax status, as a sale of products to a final consumer in pesos", async () => {
       await invoicingAt(server.endpoint).solicit(solicitation);
 
       const [request] = server.requests;
-      expect(valueOf(request, "Concepto")).toBe("1");
-      expect(valueOf(request, "DocTipo")).toBe("99");
-      expect(valueOf(request, "DocNro")).toBe("0");
-      expect(valueOf(request, "CbteDesde")).toBe("42");
-      expect(valueOf(request, "CbteHasta")).toBe("42");
-      expect(valueOf(request, "CbteFch")).toBe("20261006");
-      expect(valueOf(request, "ImpTotal")).toBe("125.50");
-      expect(valueOf(request, "ImpTotConc")).toBe("0");
-      expect(valueOf(request, "ImpNeto")).toBe("125.50");
-      expect(valueOf(request, "ImpOpEx")).toBe("0");
-      expect(valueOf(request, "ImpTrib")).toBe("0");
-      expect(valueOf(request, "ImpIVA")).toBe("0");
-      expect(valueOf(request, "MonId")).toBe("PES");
-      expect(valueOf(request, "MonCotiz")).toBe("1");
-      expect(valueOf(request, "CondicionIVAReceptorId")).toBe("5");
+      expect(sentValue(request, "Concepto")).toBe("1");
+      expect(sentValue(request, "DocTipo")).toBe("99");
+      expect(sentValue(request, "DocNro")).toBe("0");
+      expect(sentValue(request, "CbteDesde")).toBe("42");
+      expect(sentValue(request, "CbteHasta")).toBe("42");
+      expect(sentValue(request, "CbteFch")).toBe("20261006");
+      expect(sentValue(request, "ImpTotal")).toBe("125.50");
+      expect(sentValue(request, "ImpTotConc")).toBe("0");
+      expect(sentValue(request, "ImpNeto")).toBe("125.50");
+      expect(sentValue(request, "ImpOpEx")).toBe("0");
+      expect(sentValue(request, "ImpTrib")).toBe("0");
+      expect(sentValue(request, "ImpIVA")).toBe("0");
+      expect(sentValue(request, "MonId")).toBe("PES");
+      expect(sentValue(request, "MonCotiz")).toBe("1");
+      expect(sentValue(request, "CondicionIVAReceptorId")).toBe("5");
     });
 
     it("carries no VAT breakdown, since a Factura C has none", async () => {
@@ -93,7 +95,7 @@ describe("WsfeTaxAuthorityInvoicing", () => {
     it("writes the total in pesos from its cents without a rounding error", async () => {
       await invoicingAt(server.endpoint).solicit({ ...solicitation, total: 1_999 });
 
-      expect(valueOf(server.requests[0], "ImpTotal")).toBe("19.99");
+      expect(sentValue(server.requests[0], "ImpTotal")).toBe("19.99");
     });
   });
 
@@ -128,10 +130,7 @@ describe("WsfeTaxAuthorityInvoicing", () => {
       ["ARCA answers a SOAP fault", answers("fe-dummy-fault.xml", 500)],
       ["the answer is not SOAP", answers("not-soap.txt")],
       ["the answer holds no result", answers("fe-cae-solicitar-empty.xml")],
-      [
-        "ARCA refuses without saying why",
-        answers("fe-cae-solicitar-rejected-without-codes.xml"),
-      ],
+      ["ARCA refuses without saying why", answers("fe-cae-solicitar-rejected-without-codes.xml")],
       ["ARCA never answers within the timeout", { kind: "never-answers" as const }],
     ])("answers no answer when %s", async (_case, behavior) => {
       server.behave(behavior);

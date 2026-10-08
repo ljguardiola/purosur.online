@@ -42,8 +42,10 @@ function lastAuthorizedAt(endpoint: string, timeoutMs = 5_000) {
   });
 }
 
-function valueOf(request: string | undefined, element: string): string | undefined {
-  return new RegExp(`<(?:\\w+:)?${element}>([^<]*)</(?:\\w+:)?${element}>`).exec(request ?? "")?.[1];
+function sentValue(request: string | undefined, element: string): string | undefined {
+  return new RegExp(`<(?:\\w+:)?${element}>([^<]*)</(?:\\w+:)?${element}>`).exec(
+    request ?? "",
+  )?.[1];
 }
 
 describe("WsfeTaxAuthorityLastAuthorized", () => {
@@ -60,11 +62,11 @@ describe("WsfeTaxAuthorityLastAuthorized", () => {
     expect(server.requests).toHaveLength(1);
     const [request] = server.requests;
     expect(request).toContain("FECompUltimoAutorizado");
-    expect(valueOf(request, "Token")).toBe("FICTIONAL-TOKEN-0001");
-    expect(valueOf(request, "Sign")).toBe("FICTIONAL-SIGN-0001");
-    expect(valueOf(request, "Cuit")).toBe(FICTIONAL_CERTIFICATE_CUIT.replaceAll("-", ""));
-    expect(valueOf(request, "PtoVta")).toBe("7");
-    expect(valueOf(request, "CbteTipo")).toBe("11");
+    expect(sentValue(request, "Token")).toBe("FICTIONAL-TOKEN-0001");
+    expect(sentValue(request, "Sign")).toBe("FICTIONAL-SIGN-0001");
+    expect(sentValue(request, "Cuit")).toBe(FICTIONAL_CERTIFICATE_CUIT.replaceAll("-", ""));
+    expect(sentValue(request, "PtoVta")).toBe("7");
+    expect(sentValue(request, "CbteTipo")).toBe("11");
   });
 
   it.each([
