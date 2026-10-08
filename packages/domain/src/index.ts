@@ -316,11 +316,9 @@ export {
   isInstallationReportTooLong,
   isLockedToAnother,
   isRegisterNameTooLong,
-  isValidCashAmount,
   isValidCashMovementAmount,
   isWellFormedEnrollmentCode,
   isWellFormedInstallationKey,
-  MAX_CASH_AMOUNT_CENTS,
   mayAuthorize,
   normalizeEnrollmentCode,
   REGISTER_ABILITIES,
@@ -352,6 +350,8 @@ export {
   argentinaCalendarDay,
   argentinaInstant,
   isCalendarDay,
+  isValidCashAmount,
+  MAX_CASH_AMOUNT_CENTS,
 } from "./shared/index.js";
 export type {
   AdjustmentReason,

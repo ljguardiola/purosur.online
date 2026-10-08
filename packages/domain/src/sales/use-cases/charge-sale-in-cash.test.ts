@@ -5,7 +5,8 @@ import {
   FICTIONAL_GROSS_INCOME_REGISTRATION,
   FICTIONAL_LEGAL_NAME,
 } from "../../fiscal/test-support/fictional-tax-identities.js";
-import { type CashMovement, expectedCash, MAX_CASH_AMOUNT_CENTS } from "../../register/index.js";
+import { type CashMovement, expectedCash } from "../../register/index.js";
+import { MAX_CASH_AMOUNT_CENTS } from "../../shared/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { chargeSaleInCash } from "./charge-sale-in-cash.js";
 import {

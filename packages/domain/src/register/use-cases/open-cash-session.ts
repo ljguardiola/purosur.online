@@ -1,5 +1,5 @@
 import type { Clock, OperationAuthority } from "../../shared/index.js";
-import { isValidCashAmount } from "../model/cash-amount.js";
+import { isValidCashAmount } from "../../shared/index.js";
 import type { OpenedCashSession } from "../model/cash-session.js";
 import { registerOperationAccess } from "../model/register-operation.js";
 import type { CashLedger, IdGenerator } from "./cash-ledger.js";

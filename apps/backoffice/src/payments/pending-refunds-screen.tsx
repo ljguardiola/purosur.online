@@ -55,7 +55,7 @@ export function PendingRefundsScreen({ onSessionEnded, services }: PendingRefund
     fetchPendingRefunds: services.fetchPendingRefunds,
     onSessionEnded,
   });
-  const refreshSales = useRefreshPayments();
+  const refreshPayments = useRefreshPayments();
   const [doneTarget, setDoneTarget] = useState<PendingRefund | null>(null);
   const refunds = data.status === "loaded" ? data.value.refunds : NO_REFUNDS;
 
@@ -119,7 +119,7 @@ export function PendingRefundsScreen({ onSessionEnded, services }: PendingRefund
         onClose={() => setDoneTarget(null)}
         onDone={() => {
           setDoneTarget(null);
-          void refreshSales();
+          void refreshPayments();
         }}
         onSessionEnded={onSessionEnded}
         services={services}
