@@ -1,4 +1,4 @@
-import type { OperationAuthority, OperationAuthorization } from "../operation-authority.js";
+import type { OperationAuthority, OperationAuthorization } from "../../../shared/index.js";
 
 export class FakeOperationAuthority<Grant, Refusal> implements OperationAuthority<Grant, Refusal> {
   asked = 0;
