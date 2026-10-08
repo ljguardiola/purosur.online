@@ -69,12 +69,12 @@ export async function requestRecoveryLink(email: string): Promise<RecoveryReques
 
 // `recovery_token_invalid`/`validation_failed` both answer 400, and `recovery_token_burned`/
 // `recovery_token_expired` both answer 410: the body's `code` is the actual discriminator.
-const TOKEN_ERROR_KIND_BY_CODE: Record<string, RecoveryTokenErrorKind> = {
-  recovery_token_invalid: "invalid",
-  recovery_token_burned: "burned",
-  recovery_token_expired: "expired",
-  passkey_already_registered: "already_registered",
-};
+const TOKEN_ERROR_KIND_BY_CODE: ReadonlyMap<string, RecoveryTokenErrorKind> = new Map([
+  ["recovery_token_invalid", "invalid"],
+  ["recovery_token_burned", "burned"],
+  ["recovery_token_expired", "expired"],
+  ["passkey_already_registered", "already_registered"],
+]);
 
 async function tokenErrorOutcome(response: Response): Promise<RecoveryTokenRefusal> {
   if (response.status === 429) {
@@ -87,7 +87,7 @@ async function tokenErrorOutcome(response: Response): Promise<RecoveryTokenRefus
       ? { kind: "validation_failed" }
       : { kind: "validation_failed", field };
   }
-  const kind = body?.code ? TOKEN_ERROR_KIND_BY_CODE[body.code] : undefined;
+  const kind = body?.code ? TOKEN_ERROR_KIND_BY_CODE.get(body.code) : undefined;
   return kind ? { kind } : { kind: "failed" };
 }
 

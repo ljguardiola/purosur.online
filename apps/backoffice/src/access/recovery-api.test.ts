@@ -217,6 +217,17 @@ test("redeemRecovery maps an unrecognized code at a known status to failed", asy
   });
 });
 
+test.each(["constructor", "toString"])(
+  "redeemRecovery maps a code that shares its name with a member every object has to failed: %s",
+  async (code) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(400, { code }));
+
+    await expect(redeemRecovery("the-token", registration, "Notebook del local")).resolves.toEqual({
+      kind: "failed",
+    });
+  },
+);
+
 test("redeemRecovery maps 429 to rate_limited with the Retry-After seconds", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "3600" }),
