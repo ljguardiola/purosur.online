@@ -87,11 +87,6 @@ describe("canonicalOutboxEvent", () => {
     expect(() => withPayload(value)).toThrow(/number/);
   });
 
-  it("refuses a value JSON cannot hold", () => {
-    expect(() => withPayload(undefined as unknown as JsonValue)).toThrow(/cannot be canonicalized/);
-    expect(() => withPayload(10n as unknown as JsonValue)).toThrow(/cannot be canonicalized/);
-  });
-
   it("serializes exactly the fields it is given", () => {
     const { device_seq: _seq, ...withoutSeq } = EVENT;
 

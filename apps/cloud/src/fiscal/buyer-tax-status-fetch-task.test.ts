@@ -1,5 +1,5 @@
-import type { JobHelpers } from "graphile-worker";
 import { describe, expect, it, vi } from "vitest";
+import { buildJobHelpers } from "../test-support/job-helpers.js";
 import {
   BUYER_TAX_STATUS_FETCH_TASK_IDENTIFIER,
   BUYER_TAX_STATUS_FETCH_WATCHDOG_TASK_IDENTIFIER,
@@ -14,16 +14,8 @@ const source = { fetchBuyerTaxStatusSet: vi.fn() };
 const options = { now: () => NOW, source, certificateFingerprint: "AA:BB" };
 
 function helpersOf() {
-  const fakeClient = { marker: "fake-client" };
-  const addJob = vi.fn().mockResolvedValue(undefined);
-  const withPgClient = vi.fn(async (callback: (client: unknown) => Promise<unknown>) =>
-    callback(fakeClient),
-  );
-  return {
-    fakeClient,
-    addJob,
-    helpers: { addJob, withPgClient } as unknown as JobHelpers,
-  };
+  const { helpers, addJob, client } = buildJobHelpers();
+  return { fakeClient: client, addJob, helpers };
 }
 
 function taskOf(jobs: ReturnType<typeof buyerTaxStatusFetchJobs>, identifier: string) {

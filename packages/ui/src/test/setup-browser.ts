@@ -3,15 +3,6 @@ import { cdp } from "vitest/browser";
 import "vitest-browser-react";
 import "../styles/tokens.css";
 
-// cdp()'s own type is an intentionally empty placeholder shared across every browser provider;
-// only the Playwright provider this project uses actually implements a `send` method.
-export interface DispatchableCdpSession {
-  send(
-    method: "Input.dispatchMouseEvent",
-    params: { type: "mouseMoved"; x: number; y: number },
-  ): Promise<unknown>;
-}
-
 // A previous test's real pointer position and focus both survive past its own unmount: React
 // Aria's useHover reflects the live pointer, so the next render under the same spot starts
 // already hovered, and the browser keeps a removed element as the tab-navigation starting point,
@@ -20,7 +11,7 @@ export interface DispatchableCdpSession {
 // dispatching the mouse move directly over CDP clears it without needing one. Blurring doesn't
 // reset the tab-navigation point — only focusing an element still in the document does.
 afterEach(async () => {
-  const session = cdp() as unknown as DispatchableCdpSession;
+  const session = cdp();
   try {
     await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: -1, y: -1 });
   } finally {

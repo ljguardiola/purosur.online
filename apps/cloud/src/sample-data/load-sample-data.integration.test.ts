@@ -103,7 +103,7 @@ async function tableCount(
   const [row] = await db.execute<{ count: number }>(
     sql.raw(`select count(*)::int as count from "${tableName}"`),
   );
-  return row ? Number((row as unknown as { count: number }).count) : 0;
+  return row ? Number(row.count) : 0;
 }
 
 describe("loadSampleData", () => {

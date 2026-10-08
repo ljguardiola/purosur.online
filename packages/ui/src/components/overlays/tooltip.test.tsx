@@ -5,7 +5,6 @@ import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { AAA_TEXT_CONTRAST, contrastRatio } from "../../styles/contrast";
 import { expectNoAccessibilityViolations } from "../../test/axe";
-import type { DispatchableCdpSession } from "../../test/setup-browser";
 import { paletteColor, rgbToHex, tokenRgb } from "../../test/token-colors";
 import { Button } from "../forms/button";
 import { IconButton } from "../forms/icon-button";
@@ -20,7 +19,7 @@ beforeEach(async () => {
 
   // On a fresh page, the first hover's enter event fires before React Aria's pointer-move signal
   // and is silently dropped; a throwaway move gives it that signal in advance.
-  const session = cdp() as unknown as DispatchableCdpSession;
+  const session = cdp();
   await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
 
   // The test page starts without focus, so a first Tab key would go to the page around it instead
@@ -349,7 +348,7 @@ test("stays open while the pointer moves from its element onto the tooltip itsel
   const reachedTooltip = new Promise<void>((resolve) => {
     tooltip.addEventListener("pointerenter", () => resolve(), { once: true, signal: watch.signal });
   });
-  const session = cdp() as unknown as DispatchableCdpSession;
+  const session = cdp();
   try {
     await whileTimersFrozen(async () => {
       await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: gapX, y: gapY });
@@ -399,7 +398,7 @@ test("appears on hover and disappears within a short grace period once the point
     trigger.addEventListener("pointerleave", () => resolve(), { once: true, signal: watch.signal });
   });
   const closed = whenTooltipIs("removed", watch.signal);
-  const session = cdp() as unknown as DispatchableCdpSession;
+  const session = cdp();
   try {
     await whileTimersFrozen(async () => {
       await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: awayX, y: awayY });
@@ -552,7 +551,7 @@ test("waits 300ms of hover before appearing, neither instantly nor on react-aria
   });
   const closed = whenTooltipIs("removed", watch.signal);
   const opened = whenTooltipIs("added", watch.signal);
-  const session = cdp() as unknown as DispatchableCdpSession;
+  const session = cdp();
   try {
     await whileTimersFrozen(async () => {
       // react-stately's warm-up flag opens a hover instantly while set; running the close's

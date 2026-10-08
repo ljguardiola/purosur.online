@@ -7,18 +7,11 @@ import { expectNoAccessibilityViolations } from "../../test/axe";
 import { insetBoundary, paintedBoxShadowLayers, rgbToHex, tokenRgb } from "../../test/token-colors";
 import { Pagination, type PaginationProps } from "./pagination";
 
-interface DispatchableCdpSession {
-  send(
-    method: "Input.dispatchMouseEvent",
-    params: { type: "mouseMoved"; x: number; y: number },
-  ): Promise<unknown>;
-}
-
 // aria-disabled, not the native attribute, marks Previous/Next unavailable; Playwright's
 // actionability check treats aria-disabled as "not enabled" and refuses to drive a hover through
 // it, so this dispatches one directly over CDP instead.
 async function hoverAt(x: number, y: number) {
-  const session = cdp() as unknown as DispatchableCdpSession;
+  const session = cdp();
   await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
 }
 

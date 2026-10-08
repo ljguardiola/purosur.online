@@ -5,10 +5,10 @@ import { attachCoreStatus } from "./core-status";
 
 const windowMessageSource: CoreStatusEventSource = {
   addEventListener(type, listener) {
-    window.addEventListener(type, listener as unknown as EventListener);
+    window.addEventListener(type, listener);
   },
   removeEventListener(type, listener) {
-    window.removeEventListener(type, listener as unknown as EventListener);
+    window.removeEventListener(type, listener);
   },
 };
 

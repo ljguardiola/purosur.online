@@ -1,4 +1,4 @@
-import type { ElectronApplication, Page } from "playwright";
+import type { ElectronApplication, JSHandle, Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { launchApp } from "./launch-app";
 import { until, untilLogged } from "./test-support/until";
@@ -17,9 +17,9 @@ interface UtilityProcessInfo {
   serviceName: string;
 }
 
-interface NoticeProbe {
-  __ports: MessagePort[];
-  __noticeShown: Promise<{ title: boolean; body: boolean }>;
+interface NoticeShown {
+  title: boolean;
+  body: boolean;
 }
 
 async function coreProcesses(app: ElectronApplication): Promise<UtilityProcessInfo[]> {
@@ -48,16 +48,19 @@ async function killTheRunningCore(app: ElectronApplication): Promise<void> {
   process.kill(current.pid, "SIGKILL");
 }
 
-function portsReceived(page: Page): Promise<number> {
-  return page.evaluate(() => (window as unknown as NoticeProbe).__ports.length);
+function portsReceived(ports: JSHandle<MessagePort[]>): Promise<number> {
+  return ports.evaluate((received) => received.length);
 }
 
 // Waits for a new port instead of a fixed time or PID: Windows can reuse the killed core's freed
 // process id, but every core hands the window a port of its own.
-async function killAndWaitForTheNextCore(app: ElectronApplication, page: Page): Promise<void> {
-  const portsBefore = await portsReceived(page);
+async function killAndWaitForTheNextCore(
+  app: ElectronApplication,
+  ports: JSHandle<MessagePort[]>,
+): Promise<void> {
+  const portsBefore = await portsReceived(ports);
   await killTheRunningCore(app);
-  await until(async () => (await portsReceived(page)) > portsBefore);
+  await until(async () => (await portsReceived(ports)) > portsBefore);
 }
 
 function isAlive(pid: number): boolean {
@@ -76,6 +79,7 @@ const BOUNDED_RESTART_ATTEMPTS = 5;
 describe("the register's own recovery once the core's bounded restarts run out", () => {
   let app: ElectronApplication;
   let page: Page;
+  let ports: JSHandle<MessagePort[]>;
   let logs: string[];
 
   beforeAll(async () => {
@@ -88,14 +92,14 @@ describe("the register's own recovery once the core's bounded restarts run out",
     await page.waitForLoadState("domcontentloaded");
     await page.getByText(CORE_UP_TEXT).waitFor({ state: "visible" });
 
-    await page.evaluate(() => {
-      const probe = window as unknown as NoticeProbe;
-      probe.__ports = [];
+    ports = await page.evaluateHandle(() => {
+      const received: MessagePort[] = [];
       window.addEventListener("message", (event) => {
         if (event.data === "core-port" && event.ports[0]) {
-          probe.__ports.push(event.ports[0]);
+          received.push(event.ports[0]);
         }
       });
+      return received;
     });
   });
 
@@ -105,15 +109,14 @@ describe("the register's own recovery once the core's bounded restarts run out",
 
   it("shows the blocking notice once bounded restarts are exhausted, and clears it once a periodic retry's core is up", async () => {
     for (let attempt = 0; attempt < BOUNDED_RESTART_ATTEMPTS; attempt++) {
-      await killAndWaitForTheNextCore(app, page);
+      await killAndWaitForTheNextCore(app, ports);
     }
 
     // Recorded by the page itself from every change the renderer makes, however briefly the notice
     // stays up; a retry's core that is back without the notice ever shown ends the wait unseen.
-    await page.evaluate(
+    const notice = await page.evaluateHandle(
       ({ title, body, upText }) => {
-        const probe = window as unknown as NoticeProbe;
-        probe.__noticeShown = new Promise((resolve) => {
+        const shown = new Promise<NoticeShown>((resolve) => {
           let retryCoreArrived = false;
           const showsCoreUp = (): boolean => document.body.textContent?.includes(upText) ?? false;
           const endUnseen = (): void => {
@@ -157,15 +160,13 @@ describe("the register's own recovery once the core's bounded restarts run out",
           observer.observe(document.body, { childList: true, characterData: true, subtree: true });
           window.addEventListener("message", onMessage);
         });
+        return { shown };
       },
       { title: CORE_DOWN_TITLE, body: CORE_DOWN_BODY, upText: CORE_UP_TEXT },
     );
     await killTheRunningCore(app);
 
-    expect(await page.evaluate(() => (window as unknown as NoticeProbe).__noticeShown)).toEqual({
-      title: true,
-      body: true,
-    });
+    expect(await notice.evaluate((probe) => probe.shown)).toEqual({ title: true, body: true });
 
     await until(() => page.getByText(CORE_UP_TEXT).isVisible());
     expect(await page.getByText(CORE_DOWN_TITLE).count()).toBe(0);
@@ -175,8 +176,8 @@ describe("the register's own recovery once the core's bounded restarts run out",
     expect(cores.every((core) => isAlive(core.pid))).toBe(true);
 
     logs.length = 0;
-    await page.evaluate(() => {
-      const port = (window as unknown as NoticeProbe).__ports.at(-1);
+    await ports.evaluate((received) => {
+      const port = received.at(-1);
       port?.start();
       port?.postMessage({ type: "bogus" });
     });
