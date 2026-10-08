@@ -269,6 +269,7 @@ export {
   discountBuyQtySchema,
   discountPayQtySchema,
   discountPercentSchema,
+  ERROR_REPORT_DATA_COLLECTION,
   encodePinHash,
   issuerIdentificationSchema,
   PIN_HASH_SCHEME,

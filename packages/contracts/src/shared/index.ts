@@ -13,6 +13,7 @@ export {
   discountPercentSchema,
 } from "./discount-benefit.js";
 export { discountTargetSchema } from "./discount-target.js";
+export { ERROR_REPORT_DATA_COLLECTION } from "./error-report-data-collection.js";
 export {
   scrubErrorReport,
   scrubErrorReportBreadcrumb,

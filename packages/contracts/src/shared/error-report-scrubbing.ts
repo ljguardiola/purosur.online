@@ -233,6 +233,7 @@ interface EventLike {
   contexts?: Record<string, unknown>;
   tags?: Record<string, unknown>;
   request?: unknown;
+  user?: unknown;
 }
 
 interface LogLike {
@@ -241,7 +242,7 @@ interface LogLike {
 }
 
 export function scrubErrorReport<E extends EventLike>(event: E): E {
-  const { request: _request, ...rest } = event as EventLike & Record<string, unknown>;
+  const { request: _request, user: _user, ...rest } = event as EventLike & Record<string, unknown>;
 
   return {
     ...rest,
