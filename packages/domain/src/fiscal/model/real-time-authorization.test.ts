@@ -10,8 +10,10 @@ import {
   mayStartAuthorizationCall,
   medianRoundTripMs,
   nextInvoiceNumber,
+  realTimeAuthorizationResolution,
   REAL_TIME_AUTHORIZATION_TIMEOUT_MS,
   ROUND_TRIP_SAMPLE_SIZE,
+  taxAuthorityRejectionAnswer,
 } from "./real-time-authorization.js";
 
 describe("ROUND_TRIP_SAMPLE_SIZE", () => {
@@ -336,5 +338,63 @@ describe("DEFERRAL_REASONS", () => {
       "rejected",
       "unclear_outcome",
     ]);
+  });
+});
+
+describe("taxAuthorityRejectionAnswer", () => {
+  it("is a rejection carrying the codes the tax authority gave", () => {
+    expect(taxAuthorityRejectionAnswer([10015, 10048])).toEqual({
+      kind: "rejected",
+      codes: [10015, 10048],
+    });
+  });
+
+  it("is unclear when the number or date does not follow the last one authorized", () => {
+    expect(taxAuthorityRejectionAnswer([10015, 10016])).toEqual({ kind: "unclear" });
+  });
+
+  it("is unclear when that is the only code", () => {
+    expect(taxAuthorityRejectionAnswer([10016])).toEqual({ kind: "unclear" });
+  });
+
+  it("is a rejection without codes when the tax authority gave none", () => {
+    expect(taxAuthorityRejectionAnswer([])).toEqual({ kind: "rejected", codes: [] });
+  });
+});
+
+describe("realTimeAuthorizationResolution", () => {
+  it("authorizes the document with the code and its expiry date", () => {
+    expect(
+      realTimeAuthorizationResolution({
+        kind: "authorized",
+        authorizationCode: "75123456789012",
+        authorizationCodeDueOn: "2026-10-11",
+      }),
+    ).toEqual({
+      state: "AUTHORIZED",
+      authorizationCode: "75123456789012",
+      authorizationCodeDueOn: "2026-10-11",
+    });
+  });
+
+  it("rejects the document and defers the sale as rejected", () => {
+    expect(realTimeAuthorizationResolution({ kind: "rejected", codes: [10015] })).toEqual({
+      state: "REJECTED",
+      deferralReason: "rejected",
+    });
+  });
+
+  it("leaves the outcome unknown when the call was not attempted", () => {
+    expect(realTimeAuthorizationResolution({ kind: "not_attempted" })).toEqual({
+      state: "UNKNOWN",
+      deferralReason: "unclear_outcome",
+    });
+  });
+
+  it("leaves the outcome unknown when the answer is unclear", () => {
+    expect(realTimeAuthorizationResolution({ kind: "unclear" })).toEqual({
+      state: "UNKNOWN",
+      deferralReason: "unclear_outcome",
+    });
   });
 });
