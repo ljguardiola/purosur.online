@@ -92,28 +92,33 @@ function runVitest(root, args) {
   });
 }
 
-async function runCli(requestedFiles) {
-  const root = fileURLToPath(new URL("../../", import.meta.url));
-  const runGit = (args) => execFileSync("git", args, { cwd: root });
-  const changedFiles = changedFilesSince({ base: resolveBaseRef(process.env), runGit });
-
-  const projects = await projectsByTestFile(root);
-  const files = testsToRun({ testFiles: [...projects.keys()], changedFiles, requestedFiles });
-  if (files.length === 0) {
-    console.log("No test file sits beside a changed file, and none was asked for by path.");
-    return 0;
-  }
-
+function groupByProject({ files, projects }) {
   const filesByProject = new Map();
   for (const file of files) {
     for (const project of projects.get(file)) {
       filesByProject.set(project, [...(filesByProject.get(project) ?? []), file]);
     }
   }
+  return filesByProject;
+}
+
+export async function runChangedTests({ root, projects, changedFiles, requestedFiles, run, log }) {
+  let files;
+  try {
+    files = testsToRun({ testFiles: [...projects.keys()], changedFiles, requestedFiles });
+  } catch (error) {
+    log(error.message);
+    return 1;
+  }
+  if (files.length === 0) {
+    log("No test file sits beside a changed file, and none was asked for by path.");
+    return 0;
+  }
+
   const passed = await runProjectsInTurn({
-    filesByProject,
+    filesByProject: groupByProject({ files, projects }),
     run: (project, projectFiles) =>
-      runVitest(root, [
+      run([
         "run",
         `--project=${project}`,
         "--no-file-parallelism",
@@ -121,6 +126,19 @@ async function runCli(requestedFiles) {
       ]),
   });
   return passed ? 0 : 1;
+}
+
+async function runCli(requestedFiles) {
+  const root = fileURLToPath(new URL("../../", import.meta.url));
+  const runGit = (args) => execFileSync("git", args, { cwd: root });
+  return runChangedTests({
+    root,
+    projects: await projectsByTestFile(root),
+    changedFiles: changedFilesSince({ base: resolveBaseRef(process.env), runGit }),
+    requestedFiles,
+    run: (args) => runVitest(root, args),
+    log: console.log,
+  });
 }
 
 if (import.meta.main) {
