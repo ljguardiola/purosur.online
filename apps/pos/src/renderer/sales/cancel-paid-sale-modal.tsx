@@ -148,8 +148,8 @@ export function CancelPaidSaleModal({
         <RefundLines refunds={refunds} />
         {refunds.some((refund) => refund.state === "PENDING") ? (
           <p className="text-detail text-text-subtle">
-            El reembolso de la transferencia queda pendiente hasta que alguien lo haga y lo marque
-            como hecho en el backoffice.
+            Un reembolso pendiente lo hace alguien fuera de la caja y lo marca como hecho en el
+            backoffice.
           </p>
         ) : null}
         <AuthorizationSection
