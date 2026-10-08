@@ -88,7 +88,11 @@ describe("the order events of one aggregate were created in", () => {
   });
 
   it("orders any events the same whichever order they arrive in, each installation by its sequence", () => {
-    const stamp = fc.date({ min: new Date("2026-10-01"), max: new Date("2026-10-02") });
+    const stamp = fc.date({
+      min: new Date("2026-10-01"),
+      max: new Date("2026-10-02"),
+      noInvalidDate: true,
+    });
     const eventsArbitrary = fc
       .uniqueArray(
         fc.record({
