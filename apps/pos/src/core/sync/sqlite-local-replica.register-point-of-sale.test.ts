@@ -25,6 +25,7 @@ function pointOfSaleChange(
     row: {
       point_of_sale_number: pointOfSaleNumber,
       fiscal_address_id: fiscalAddressId,
+      tax_authority_last_authorized_number: null,
       version,
     },
   };
