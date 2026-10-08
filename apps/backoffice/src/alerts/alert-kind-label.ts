@@ -13,7 +13,7 @@ const ALERT_KIND_LABELS = {
 } satisfies Record<AlertKind, string>;
 
 export function alertKindLabel(kind: string): string {
-  return kind in ALERT_KIND_LABELS
+  return Object.hasOwn(ALERT_KIND_LABELS, kind)
     ? ALERT_KIND_LABELS[kind as keyof typeof ALERT_KIND_LABELS]
     : kind;
 }
