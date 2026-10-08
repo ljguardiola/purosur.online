@@ -51,6 +51,76 @@ export function aCompletedSaleFact(overrides: Partial<SaleCompleted["sale"]> = {
   };
 }
 
+type SaleCancelled = Extract<SyncedFact, { kind: "sale_cancelled" }>;
+
+export function aCancelledSaleFact(overrides: Partial<SaleCancelled["sale"]> = {}): SaleCancelled {
+  return {
+    kind: "sale_cancelled",
+    sale: {
+      id: "sale-1",
+      sessionId: "session-1",
+      actorId: "cashier-1",
+      authorizedBy: "supervisor-1",
+      cancelledAt: new Date("2026-10-07T10:05:00.000Z"),
+      total: 3000,
+      lines: [
+        {
+          id: "line-1",
+          productId: "product-1",
+          productName: "Yerba mate 1 kg",
+          quantity: 2,
+          listUnitPrice: 1500,
+          priceListId: "price-list-1",
+          promotionId: null,
+          discountAmount: 0,
+          lineTotal: 3000,
+        },
+      ],
+      payments: [
+        {
+          id: "payment-1",
+          method: "CASH",
+          provider: "NONE",
+          amount: 1000,
+          tendered: 1000,
+          state: "APPROVED",
+          occurredAt: new Date("2026-10-07T10:01:00.000Z"),
+          authorizedBy: null,
+          confirmedAt: null,
+        },
+      ],
+      refunds: [
+        {
+          id: "refund-1",
+          paymentId: "payment-1",
+          method: "CASH",
+          provider: "NONE",
+          amount: 1000,
+          state: "APPROVED",
+          occurredAt: new Date("2026-10-07T10:05:00.000Z"),
+        },
+      ],
+      cashMovements: [
+        {
+          id: "movement-1",
+          type: "SALE",
+          amount: 1000,
+          actorId: "cashier-1",
+          occurredAt: new Date("2026-10-07T10:01:00.000Z"),
+        },
+        {
+          id: "movement-2",
+          type: "REFUND",
+          amount: 1000,
+          actorId: "cashier-1",
+          occurredAt: new Date("2026-10-07T10:05:00.000Z"),
+        },
+      ],
+      ...overrides,
+    },
+  };
+}
+
 export const A_SESSION_OPENED_FACT: SyncedFact = {
   kind: "cash_session_opened",
   session: {

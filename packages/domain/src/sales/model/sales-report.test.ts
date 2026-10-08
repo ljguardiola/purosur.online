@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  countsInSalesReport,
   defaultSalesReportRange,
   isSalesReportRangeAsked,
   salesReportTotals,
@@ -75,5 +76,15 @@ describe("salesReportTotals", () => {
 
   it("is zero for a range without sales", () => {
     expect(salesReportTotals([])).toEqual({ salesCount: 0, total: 0 });
+  });
+});
+
+describe("countsInSalesReport", () => {
+  it("counts a completed sale", () => {
+    expect(countsInSalesReport("COMPLETED")).toBe(true);
+  });
+
+  it.each(["OPEN", "VOIDED", "CANCELLED"])("does not count a %s sale", (state) => {
+    expect(countsInSalesReport(state)).toBe(false);
   });
 });

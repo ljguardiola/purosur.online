@@ -85,6 +85,7 @@ describe("removeSaleLine", () => {
       balance: { paid: 0, pending: 1200 },
       linesEditable: true,
       cancellable: true,
+      refundsOnCancel: [],
     });
     expect(store.state).toEqual({ ...before, sales: [{ ...OPEN_SALE, lines: [AZUCAR_LINE] }] });
     expect(store.transactions).toBe(1);
@@ -101,6 +102,7 @@ describe("removeSaleLine", () => {
       balance: { paid: 0, pending: 0 },
       linesEditable: true,
       cancellable: true,
+      refundsOnCancel: [],
     });
     expect(store.state.sales[0]?.state).toBe("OPEN");
   });
