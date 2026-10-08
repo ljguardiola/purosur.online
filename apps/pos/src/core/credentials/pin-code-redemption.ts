@@ -9,7 +9,6 @@ import {
   retryAfterSecondsOf,
 } from "@purosur/contracts";
 import { isAcceptablePin, isLockedToAnother } from "@purosur/domain";
-import type { SignedInPerson } from "../access/signed-in-person";
 import type { CloudResponse } from "../platform/cloud-client";
 
 export interface PinCodeRedemptionDeps {
@@ -23,7 +22,7 @@ export interface PinCodeRedemptionDeps {
   redeemedPerson: (
     userId: string,
   ) => Extract<PinCodeRedemptionOutcome, { kind: "resumed" }>["person"] | undefined;
-  signedInPerson: Pick<SignedInPerson, "set">;
+  signedInPerson: { set(userId: string): void };
   cashSession: (signedInPersonId: string) => OpenCashSession | null;
 }
 

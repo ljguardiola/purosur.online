@@ -7,7 +7,7 @@ import type {
   PinSignInStore,
   SignablePerson,
 } from "@purosur/domain/access/use-cases";
-import type { PinReplacementStore } from "@purosur/domain/credentials/use-cases";
+import { SqlitePinReplacementStore } from "../credentials/sqlite-pin-replacement-store";
 import type { LocalDatabase } from "../platform/local-database";
 import type { PinCredential } from "./pin-matching";
 
@@ -23,7 +23,7 @@ export interface ActivePerson {
   access: RoleAccess;
 }
 
-export interface SignInStore extends PinSignInStore<PinCredential>, PinReplacementStore<string> {
+export interface SignInStore extends PinSignInStore<PinCredential> {
   signableUsers(): SignInUser[];
   remember(userId: string): void;
   firstNameOf(userId: string): string | undefined;
@@ -53,9 +53,11 @@ interface RecordRow {
 
 export class SqliteSignInStore implements SignInStore {
   private readonly database: LocalDatabase;
+  private readonly pinReplacement: SqlitePinReplacementStore;
 
   constructor(database: LocalDatabase) {
     this.database = database;
+    this.pinReplacement = new SqlitePinReplacementStore(database);
   }
 
   signableUsers(): SignInUser[] {
@@ -206,25 +208,6 @@ export class SqliteSignInStore implements SignInStore {
   }
 
   clearPinSignInFailures(userId: string): void {
-    this.database.prepare("DELETE FROM pin_sign_in_failures WHERE user_id = ?").run(userId);
-  }
-
-  savePinCredential(userId: string, verifier: string | undefined): boolean {
-    const current = this.database
-      .prepare<[string], { verifier: string }>(
-        "SELECT verifier FROM pin_verifiers WHERE user_id = ?",
-      )
-      .get(userId)?.verifier;
-    if (verifier === undefined) {
-      this.database.prepare("DELETE FROM pin_verifiers WHERE user_id = ?").run(userId);
-    } else {
-      this.database
-        .prepare(
-          `INSERT INTO pin_verifiers (user_id, verifier) VALUES (@user_id, @verifier)
-           ON CONFLICT (user_id) DO UPDATE SET verifier = excluded.verifier`,
-        )
-        .run({ user_id: userId, verifier });
-    }
-    return current !== verifier;
+    this.pinReplacement.clearPinSignInFailures(userId);
   }
 }

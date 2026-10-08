@@ -307,7 +307,10 @@ const rendererRequestDeps: RendererRequestDeps = {
         applyRedeemedPin:
           localDatabase === undefined
             ? undefined
-            : (pepper, redemption) => applyRedeemedPin(localDatabase, pepper, redemption),
+            : (pepper, redemption) =>
+                applyRedeemedPin(localDatabase, pepper, redemption, (userId) =>
+                  new SqliteSignInStore(localDatabase).remember(userId),
+                ),
         reportLocalFailure: reportRedeemedPinFailure,
         openCashSession: () =>
           localDatabase === undefined ? undefined : readOpenSession(localDatabase),

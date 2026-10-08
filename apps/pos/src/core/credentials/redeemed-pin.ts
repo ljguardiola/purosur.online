@@ -1,8 +1,8 @@
 import type { PinCodeRedemption } from "@purosur/contracts";
 import { replacePin } from "@purosur/domain/credentials/use-cases";
-import { derivePinVerifier } from "../access/pin-verifier";
-import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
+import { derivePinVerifier } from "./pin-verifier";
+import { SqlitePinReplacementStore } from "./sqlite-pin-replacement-store";
 
 // The user's version is left as pulled: the next pull of that user brings the version the
 // redemption bumped, with this same hash, and derives this same verifier again.
@@ -10,6 +10,7 @@ export function applyRedeemedPin(
   database: LocalDatabase,
   pepper: string,
   { user_id, salt, pin_hash }: PinCodeRedemption,
+  rememberUser: (userId: string) => void,
 ): void {
   database.transaction(() => {
     const saved = database
@@ -18,8 +19,8 @@ export function applyRedeemedPin(
     if (saved.changes === 0) {
       return;
     }
-    const store = new SqliteSignInStore(database);
+    const store = new SqlitePinReplacementStore(database);
     replacePin({ store }, { userId: user_id, credential: derivePinVerifier(pepper, pin_hash) });
-    store.remember(user_id);
+    rememberUser(user_id);
   })();
 }
