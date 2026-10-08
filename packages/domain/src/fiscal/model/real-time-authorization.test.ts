@@ -7,6 +7,7 @@ import {
   DEFERRAL_REASONS,
   decideRealTimeAuthorization,
   invoiceDateOf,
+  isCompletionEventOfSale,
   mayStartAuthorizationCall,
   medianRoundTripMs,
   nextInvoiceNumber,
@@ -396,5 +397,25 @@ describe("realTimeAuthorizationResolution", () => {
       state: "UNKNOWN",
       deferralReason: "unclear_outcome",
     });
+  });
+});
+
+describe("isCompletionEventOfSale", () => {
+  const completion = { event_type: "sale_completed", aggregate_id: "sale-1" };
+
+  it("accepts the event that completed the sale", () => {
+    expect(isCompletionEventOfSale(completion, "sale-1")).toBe(true);
+  });
+
+  it("refuses the completion of another sale", () => {
+    expect(isCompletionEventOfSale({ ...completion, aggregate_id: "sale-2" }, "sale-1")).toBe(
+      false,
+    );
+  });
+
+  it("refuses another kind of event of the same sale", () => {
+    expect(isCompletionEventOfSale({ ...completion, event_type: "sale_cancelled" }, "sale-1")).toBe(
+      false,
+    );
   });
 });
