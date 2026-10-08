@@ -3,22 +3,17 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { type ReactElement, useEffect } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { useRefreshAccess } from "../platform/access-queries";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import type { RoleSummary } from "../platform/roles-api";
 import { permissionCatalogFixture } from "../platform/test-support/permission-catalog";
 import { render } from "../shell/test-support/render-with-router";
-import { useRefreshAccess } from "./access-queries";
 import {
   RoleEditorModal,
   type RoleEditorModalServices,
   type RoleEditorRequest,
 } from "./role-editor-modal";
-import type {
-  CreateRoleOutcome,
-  EditRoleOutcome,
-  FetchRoleOutcome,
-  RoleDetail,
-  RoleSummary,
-} from "./roles-api";
+import type { CreateRoleOutcome, EditRoleOutcome, FetchRoleOutcome, RoleDetail } from "./roles-api";
 
 // The editor modal is 1040px wide, wider than browser mode's phone-sized default viewport,
 // which would leave its footer's save button unclickable.

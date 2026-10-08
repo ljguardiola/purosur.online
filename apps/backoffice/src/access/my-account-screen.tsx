@@ -1,11 +1,12 @@
 import { Button, EmptyState, IconButton, LoadFailure, LoadingPlaceholder } from "@purosur/ui";
 import { KeyRound, Laptop, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { useRefreshAccess } from "../platform/access-queries";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
-import { useOwnPasskeysQuery, useRefreshAccess } from "./access-queries";
+import { useOwnPasskeysQuery } from "./access-queries";
 import type { MyAccountScreenServices } from "./my-account-services";
 import type { Passkey } from "./passkey-api";
 import { passkeyRowDetail } from "./passkey-row-detail";

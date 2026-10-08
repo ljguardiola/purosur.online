@@ -10,6 +10,7 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import { KeyRound, Laptop, Pencil, Trash2, UserCheck, UserX } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useRefreshAccess, useRolesQuery } from "../platform/access-queries";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { combineCloudData } from "../platform/combine-cloud-data";
 import { roleDisplayName } from "../platform/role-display-name";
@@ -20,9 +21,7 @@ import { ScreenTitle } from "../shell/screen-title";
 import {
   type PasskeyList,
   type UserRead,
-  useRefreshAccess,
   useReloadUser,
-  useRolesQuery,
   useUserPasskeysQuery,
   useUserQuery,
 } from "./access-queries";

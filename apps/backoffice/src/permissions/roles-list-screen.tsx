@@ -2,15 +2,16 @@ import type { PermissionCatalogWire } from "@purosur/contracts";
 import { actionsColumn, Button, dataColumn, plural, Table, useTableModel } from "@purosur/ui";
 import { Copy, Lock, Pencil, Plus, Shield } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useRefreshAccess, useRolesQuery } from "../platform/access-queries";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { combineCloudData } from "../platform/combine-cloud-data";
 import { roleDisplayName } from "../platform/role-display-name";
+import type { RoleSummary } from "../platform/roles-api";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
-import { usePermissionCatalogQuery, useRefreshAccess, useRolesQuery } from "./access-queries";
 import { permissionsOf } from "./permission-catalog";
+import { usePermissionCatalogQuery } from "./permissions-queries";
 import { RoleEditorModal, type RoleEditorRequest } from "./role-editor-modal";
-import type { RoleSummary } from "./roles-api";
 import type { RolesListScreenServices } from "./roles-list-services";
 
 export type RolesListScreenProps = {
