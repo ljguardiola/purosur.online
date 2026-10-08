@@ -79,6 +79,10 @@ import {
   type RegistersListScreenServices,
 } from "../register/registers-list-services";
 import {
+  defaultRegistersSyncSectionServices,
+  type RegistersSyncSectionServices,
+} from "../register/registers-sync-services";
+import {
   defaultPendingRefundsScreenServices,
   type PendingRefundsScreenServices,
 } from "../sales/pending-refunds-services";
@@ -137,6 +141,7 @@ export type AppServices = {
   pointsOfSaleScreen: PointsOfSaleScreenServices;
   accountFooter: AccountFooterServices;
   screenFailure: ScreenFailureServices;
+  registersSyncSection: RegistersSyncSectionServices;
   alertsOverviewScreen: AlertsOverviewScreenServices;
   alertsListScreen: AlertsListScreenServices;
 };
@@ -168,6 +173,7 @@ const defaultAppServices: AppServices = {
   pointsOfSaleScreen: defaultPointsOfSaleScreenServices,
   accountFooter: defaultAccountFooterServices,
   screenFailure: defaultScreenFailureServices,
+  registersSyncSection: defaultRegistersSyncSectionServices,
   alertsOverviewScreen: defaultAlertsOverviewScreenServices,
   alertsListScreen: defaultAlertsListScreenServices,
 };

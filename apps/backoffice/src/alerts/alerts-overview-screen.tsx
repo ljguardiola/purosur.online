@@ -15,6 +15,7 @@ export type AlertsOverviewScreenProps = {
   access: BackofficeAccess;
   onSessionEnded: () => void;
   services: AlertsOverviewScreenServices;
+  children?: ReactNode;
 };
 
 function openCount(overview: AlertsOverview): number {
@@ -23,7 +24,15 @@ function openCount(overview: AlertsOverview): number {
   );
 }
 
-function OverviewLayout({ openCount, children }: { openCount: number; children: ReactNode }) {
+function OverviewLayout({
+  openCount,
+  children,
+  sections,
+}: {
+  openCount: number;
+  children: ReactNode;
+  sections?: ReactNode;
+}) {
   const headingId = useId();
   return (
     <ScreenLayout
@@ -44,6 +53,7 @@ function OverviewLayout({ openCount, children }: { openCount: number; children: 
         </h2>
         {children}
       </section>
+      {sections}
     </ScreenLayout>
   );
 }
@@ -51,6 +61,7 @@ function OverviewLayout({ openCount, children }: { openCount: number; children: 
 function VisibleAlertsOverview({
   onSessionEnded,
   services,
+  children,
 }: Omit<AlertsOverviewScreenProps, "access">) {
   const data = useAlertsOverviewQuery({
     fetchAlertsOverview: services.fetchAlertsOverview,
@@ -58,7 +69,7 @@ function VisibleAlertsOverview({
   });
   const total = data.status === "loaded" ? openCount(data.value) : 0;
   return (
-    <OverviewLayout openCount={total}>
+    <OverviewLayout openCount={total} sections={children}>
       {data.status === "loading" && (
         <div className="grid grid-cols-3 gap-4">
           <LoadingPlaceholder variant="card" lines={2} />
@@ -86,6 +97,7 @@ export function AlertsOverviewScreen({
   access,
   onSessionEnded,
   services,
+  children,
 }: AlertsOverviewScreenProps) {
   if (!canSeeAlertsArea(access)) {
     return (
@@ -99,5 +111,9 @@ export function AlertsOverviewScreen({
       </OverviewLayout>
     );
   }
-  return <VisibleAlertsOverview onSessionEnded={onSessionEnded} services={services} />;
+  return (
+    <VisibleAlertsOverview onSessionEnded={onSessionEnded} services={services}>
+      {children}
+    </VisibleAlertsOverview>
+  );
 }
