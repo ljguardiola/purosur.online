@@ -8,18 +8,137 @@ finding or is not a finding.
 
 | Area | Rules written in | Read in the change |
 |---|---|---|
-| Issue scope | `issue.md` in the review folder | Each definition-of-done item against what the change delivers, and anything the change does beyond the issue. Examples: a path-scoped rule file that another rule file sends to, where the two files' `paths:` do not overlap; a file split by topic that still holds two unrelated former sections under separate top-level headings; a path-scoped rule whose trigger can happen without reading a matching file (such as `pnpm add` changing a `package.json`); a visible difference in a technical issue that the definition of done does not accept, such as Generar staying enabled after an internal code is scanned and then refusing the generated one, once the screen may no longer tell an internal code apart; a recorder or comparison that drives one path per flow, so a form the register also sends (a BUY_N_PAY_M promotion, a PIN-authorized cash movement) is neither recorded nor compared while the definition of done asks for every form. |
-| Correctness | — | What the changed code does with each input it can receive; code left without a reader by the change; tests that would still pass with the behavior they name removed. Example: a message the core now checks against a stricter contracts shape than the reader it replaced, so stored data that reader accepted (such as installation keys the domain refuses, read back from a corrupted credentials file) gets a different outcome; a static check that follows a library's names only through imports from the library itself, so a scanned file re-exporting the library's namespace (`export { z } from "zod"`) lets another scanned file use the refused format (`z.guid()`) with no report; a static check that reports every bare use of a library binding as the refused format, so `import { ZodError } from "zod"; error instanceof ZodError` fails verify while `z.ZodError` passes; a static check that misses a place ordinary code puts its input, such as a query key given as a parameter's default value, passed as a JSX attribute, fed to a typed inline callback or handed by name to a callback (`keys.forEach(invalidate)`), or built first as an argument object in an unannotated const or spread into JSX props; a static check that refuses a correct key read back through a library-typed property (`queryOptions(...).queryKey`) or from a non-destructured parameter (`props.source`); a check of a folder convention that treats every top-level folder as a concept, accepting in `shell/` or `platform/` what it refuses at the source root; a guard no input can reach; a static check that refuses a correct key written beside a spread of an object whose type has no key, or beside a spread of a fallback or conditional one side of which has no key, or misses a key a later spread overrides (`{ key: [...], ...base }`), or refuses a key forwarded through a rest element spread into JSX; a static check that treats a spread of a possibly-absent object as always writing the key, hiding the earlier defaults, or skips a conditional spread `...(cond && obj)` as writing nothing; a static check that judges a value by its type with the `as` stripped, so a key cast from a loosely typed value is checked nowhere; a request the screen may refuse once it answers because the form changed while it was pending, such as an internal code drawn from the sequence for an empty list while a scan adds an EAN, so the drawn value is consumed and then refused; a new loading shape in a `packages/ui` piece shown at once, without the reveal delay every other placeholder waits, so it flashes on a fast load beside a `LoadingPlaceholder` that stays hidden. An unchanged message whose text names a cause the change made impossible, such as a modal's not-found notice still reading "Producto desactivado" once the cloud accepts deactivated products and answers not-found only for an unknown id. An answer about what the session may do computed from the session as it was before the operation changed it, such as `PUT /users/:id` answering `may_edit: true` to an Administrator who just moved themselves out of the Administrator role, while their next edit gets 403; a check made before the lock that the operation never makes again under it, such as revocation read only in the push route, so a push queued behind the one that revokes the installation is still received for it, or an update that overwrites an earlier revocation and its reason; a register that decides it lost events from its first unacknowledged one only, so with 3 and 5 held and 4 expected it reports a gap forever instead of recording itself as compromised; a state the change now writes that a reset meant to undo it leaves in place, such as the compromised mark kept when the register adopts a new installation. A documented test-selection command that follows only the import graph, such as `vitest --changed`, so a change to files tests read at run time or build (cloud migrations SQL and `_journal.json`, approved screenshots, the backoffice entry, or a shared package it bundles such as `packages/ui`, that `entry-download.test.ts`, `served-backoffice.test.ts` and `apps/pos/renderer-build.test.ts` build) selects none of the tests that cover it, while the text says every affected test runs. A screen answer the app keeps from before the core restarted, such as whether the register is in service, so after the restart the register routes on the old answer and reads the cash session before the restarted core answers; a handler that replaces the error it caught before reporting it, so a failure the reporting reacts to by kind, such as database damage raised during a sign-in lookup, never reaches what watches for it; a recorded state the start checks only after a step that can fail first, such as damage recorded on an earlier start ignored when the database file then fails to open with another error. A comparison of recorded and emitted data made after parsing both through a non-strict schema, so a key the producer adds is dropped before it is compared. A route to what a check over the source refuses that only code written to get past the check takes is outside the check's reach, as `.claude/rules/checks.md` ("Checks") states, and is not a finding of the check; such code in the change is a `rule` finding against that code. |
-| Structure | `.claude/rules/structure.md`: "Structure" | The folder and file of every added or moved piece of code, including additions to files every feature passes through. Example: a piece moved into `platform/` or `shell/` that the screens of only one concept use, such as the register's PIN authorization section and its authorizers query used only by the cash-movement modal. Example: an aspect test file (`<name>.<aspect>.test.ts`) that copies the main test file's setup, such as the test database's lifecycle and the app with the route under test, instead of sharing it through `test-support/<name>.ts`. |
-| Business rules and boundaries | `.claude/rules/boundaries.md`: "Business rules and boundaries", "Operations" | Every added condition, constant, computation and query: which layer decides it, and whether `packages/domain` already has a predicate or value that answers it (search before accepting new logic); what each route handler and core request handler does, and in every changed cloud operation what runs before its session, fresh-authorization and permission checks (such as `findBranchUser` answering 404 before `requirePasskeyAuthorization`) and whether its scope is a filter of the query or a comparison after a lookup; what each screen and `packages/contracts` file imports from `packages/domain`. Example: a screen that decides something about its own form's values through a contracts shape that is not the one it validates the form with, such as whether a listed barcode is internal through the generate route's response shape (`internalBarcodeSchema`), which applies the domain's predicate for it, or a request shape whose parse the screen uses only as a yes/no while it sends a body built separately. A screen hiding a row action from a flag of the row that the cloud already decides with a domain predicate, such as the roles list hiding Editar from a role's `isAdministrator` while `isRoleEditable` decides it in the cloud. |
+| Issue scope | `issue.md` in the review folder | Each definition-of-done item against what the change delivers, and anything the change does beyond the issue. |
+| Correctness | — | What the changed code does with each input it can receive; code left without a reader by the change; tests that would still pass with the behavior they name removed. A route to what a check over the source refuses is judged by "Checks" in `.claude/rules/checks.md`: one only code written to get past the check takes is no finding of the check, and such code in the change is a `rule` finding against that code. |
+| Structure | `.claude/rules/structure.md`: "Structure" | The folder and file of every added or moved piece of code, including additions to files every feature passes through. |
+| Business rules and boundaries | `.claude/rules/boundaries.md`: "Business rules and boundaries", "Operations" | Every added condition, constant, computation and query: which layer decides it, and whether `packages/domain` already has a predicate or value that answers it (search before accepting new logic); what each route handler and core request handler does, and in every changed cloud operation what runs before its session, fresh-authorization and permission checks and whether its scope is a filter of the query or a comparison after a lookup; what each screen and `packages/contracts` file imports from `packages/domain`. |
 | Application stack | `.claude/rules/application-stack.md`: "Application stack" | How each read, form, list, navigation and piece of screen state is built, and every dependency added, replaced or removed. |
-| Screens | `.claude/rules/backoffice-screens.md`: "Backoffice screens"; `.claude/rules/register-screens.md`: "Register screens"; `.claude/rules/react.md`: "React code"; `.claude/skills/build-screen/SKILL.md` | Every state a changed screen can be in and the piece that shows it, its file kinds and names, and what each component reads while rendering. A `platform/` or `packages/ui` piece that a rule in `.claude/rules/` names, renamed, replaced or deleted while the rule still names it. Example: a screen still hand-writing a pattern that a `packages/ui` piece named in build-screen covers, such as a panel total written as `Eyebrow` plus a `text-display` figure where `FigureStat` exists. A test of what happens inside a modal kept in the screen's test, such as a modal's product selector marking a deactivated product, while the modal's own test renders it directly. |
-| User-facing text | `.claude/rules/user-facing-text.md`: "User-facing text" | Every added or changed Spanish text, read in the screen where it appears. |
-| Comments | `.claude/rules/code-style.md`: "Code style" | Every added or changed comment, in code, tests, scripts and configuration, and every unchanged comment that states behavior the change alters. Example: a port's `// A malformed id is no role.` left in place after its adapter stopped checking the id's shape. |
-| Commit order | `.claude/rules/code-style.md`: "Code style" | `commits.patch` (in a re-review, `delta-commits-<round>.patch`) commit by commit: for each commit that changes behavior, the earlier test commit of that behavior, and what else each test commit holds. Example: a test commit that also moves a production file while its importer changes only in the later code commit, so the repository does not type-check at the test commit; a branch a code commit adds that no earlier test commit states, so deleting it keeps every test green (such as accepting an interface's property signature as a type-only reference); a branch a code commit removes, so an input gets a new outcome no test commit states (such as a template-literal root refused as unreadable, or a `new` argument no longer checked); a test commit whose test fails on its own setup rather than on the behavior, so the test that states the behavior arrives only with the code commit that fixes its setup (such as a migration test that slices `LOCAL_MIGRATIONS` one entry short, so its precondition fails). See "Commit order" below. |
-| Testing and migrations | `.claude/rules/testing.md`: "Testing" | Which kind of test owns each new rule, how each test controls time, and every added or changed migration. Examples: a test asserting that a script's exported constant equals its own literal value, such as the path of the one file a check exempts; an app part's tests still asserting the behavior of a `packages/ui` piece it now delegates to (a check mark, arrow keys, the avatar initial) beyond the props it wires; an end-to-end test that takes a baseline of the stand-in cloud's requests while the register it just started may still be syncing, so a request from that earlier run lands after the baseline and fails the test, although the run under test sent nothing. A route test repeating, for an outcome kind the route already tests, a case the adapter's integration test owns, such as recording a deactivated product's loss with 200 while the store's integration test owns locking a deactivated product. A rule moved into a shared adapter helper whose test is added beside the helper while a caller's test still asserts the same case, such as keeping the first revocation moment. A request the register's core starts sending on every sync cycle, such as the installation check's `GET /api/health`, that the end-to-end stand-in cloud has no answer for, so the stand-in refuses the register and every packaged journey fails at enrollment. |
+| Screens | `.claude/rules/backoffice-screens.md`: "Backoffice screens"; `.claude/rules/register-screens.md`: "Register screens"; `.claude/rules/react.md`: "React code"; `.claude/skills/build-screen/SKILL.md` | Every state a changed screen can be in and the piece that shows it, its file kinds and names, and what each component reads while rendering. A `platform/` or `packages/ui` piece that a rule in `.claude/rules/` names, renamed, replaced or deleted while the rule still names it. |
+| User-facing text | `.claude/rules/user-facing-text.md`: "User-facing text" | Every added or changed Spanish text, read in the screen where it appears, and every unchanged one that names a cause or a state the change made impossible. |
+| Comments | `.claude/rules/code-style.md`: "Code style" | Every added or changed comment, in code, tests, scripts and configuration, and every unchanged comment that states behavior the change alters. |
+| Commit order | `.claude/rules/code-style.md`: "Code style" | `commits.patch` (in a re-review, `delta-commits-<round>.patch`) commit by commit: for each commit that changes behavior, the earlier test commit of that behavior, and what else each test commit holds. See "Commit order" below. |
+| Testing and migrations | `.claude/rules/testing.md`: "Testing" | Which kind of test owns each new rule, how each test controls time, and every added or changed migration. |
 | Data | `.claude/rules/code-style.md`: "Code style" | Every sample, fixture and test value that names a person, business, tax id or credential. |
 | Process | `.claude/rules/workflow.md`: "Branches and pull requests"; `.claude/rules/code-style.md`: "Code style"; `.claude/rules/checks.md`: "Checks"; `CLAUDE.md` | Language of code and text, comments that switch off a check, every changed workflow, and a line in a skill, an agent or this checklist that restates or contradicts a rule in `.claude/rules/`. |
+
+## Examples
+
+Each example names one pattern of deviation, in general terms, with a case
+or two that show it; an area with none is read from its rules alone.
+"Growing the checklist" in `SKILL.md` bounds how many an area holds and says
+how a new one is judged.
+
+### Issue scope
+
+- A definition-of-done item delivered for only part of what it names: one
+  path where it asks for every form (a recorder that drives one flow while
+  the register also sends a BUY_N_PAY_M promotion), a stand-in the test
+  builds instead of the app's own code (a client with its own integration),
+  or a field each reported item must carry that no step's output produces.
+- A visible difference in a technical issue that the definition of done does
+  not accept.
+- A path-scoped rule file whose `paths:` miss where its rule applies: a file
+  another rule file sends to with no overlapping paths, or a trigger that
+  happens without reading a matching file (`pnpm add` changing a
+  `package.json`).
+
+### Correctness
+
+- A check over the source that misses a route ordinary code takes to what it
+  refuses (a re-export of the library's namespace, a parameter default, a
+  JSX attribute or spread, a callback handed by name, a value cast with
+  `as`), or refuses correct code that reads alike (another binding of the
+  same library, a key read back through a library-typed property, a folder
+  outside the concepts treated as one).
+- A decision made from state that changed after it was read: an answer
+  computed from the session before the operation changed it (`may_edit:
+  true` to an Administrator who just left the role), a check made before the
+  lock and never again under it, a second-submit guard that reads only the
+  rendered `submitting`, so two quick presses both send.
+- A failure path that loses what the failure says: a handler that replaces
+  the error it caught, so its kind never reaches what reacts to it; a message
+  template whose value renders empty; an outcome whose only feedback is a
+  re-read that keeps the cached record when the re-read fails.
+- A reading of outside data that changes what passes: a stricter shape in
+  place of the reader it replaced, so stored data that reader accepted gets
+  another outcome; a non-strict schema that drops the keys a comparison is
+  meant to catch; a plain-object lookup of a received code that answers for
+  `constructor`.
+- A key wider or narrower than what it identifies: an alert deduplicated by
+  a scope wider than what it flags, a recorded child row checked only by its
+  foreign key, so it may name a parent of another record.
+
+### Structure
+
+- A piece placed for the wrong set of users: in `platform/` or `shell/` while
+  one concept uses it, in one concept's folder while others import it from
+  there, or copied into a second concept instead of moved.
+- An aspect test file (`<name>.<aspect>.test.ts`) that copies the main test
+  file's setup instead of sharing it through `test-support/<name>.ts`.
+
+### Business rules and boundaries
+
+- A screen deriving what the cloud or the core already answers: an action
+  hidden from a row's flag (`isAdministrator`) while the cloud decides it
+  with a domain predicate (`isRoleEditable`), a refund's state read from its
+  method instead of its `state`, or a text naming one field from another
+  field's value.
+- A screen deciding about its own form through a contracts shape other than
+  the one it validates the form with, or using a request shape's parse only
+  as a yes/no while it sends a body built separately.
+- A read of another concept declared as a port of the concept that needs it
+  instead of a read port of its own concept.
+
+### Screens
+
+- A screen hand-writing what a `packages/ui` piece named in build-screen
+  covers, such as a panel total as `Eyebrow` plus a `text-display` figure
+  where `FigureStat` exists.
+- A screen standing in for an answer it does not have: an action the cloud
+  answers for shown disabled from a defaulted flag while the record loads, or
+  a URL filter rewritten as not offered because its options failed to load.
+
+### User-facing text
+
+- English reaching the screen: a stored identifier shown as a value
+  (`production`), or a cloud error's English text or a raw code interpolated
+  into a Spanish sentence.
+- A constraint told twice or by the wrong piece: a notice under a locked
+  field instead of a tooltip on it, a refusal beside a standing notice that
+  says the same, or the tooltip dropped while a refusal shows.
+
+### Commit order
+
+- A code commit whose behavior change reads as no change: a branch added or
+  removed, a parameter type widened, a default value changed, so an input
+  gets a new outcome no earlier test commit states.
+- A commit holding more than its kind: a test commit that also moves a
+  production file whose importer changes only later, or a commit presented
+  as configuration that also deletes files other code still imports, so the
+  repository does not type-check at it.
+- A test commit whose test fails on its own setup rather than on the
+  behavior, so the test that states the behavior arrives only with the code
+  commit that fixes the setup.
+
+### Testing and migrations
+
+- A case tested above the level that owns it: an app part asserting a
+  `packages/ui` piece's behavior beyond the props it wires, a route test
+  repeating an adapter's integration case, a screen test repeating what a
+  modal's or a helper's own test owns.
+- A rule with no test at its own level: a domain predicate proven only
+  through use cases, a shared helper tested only through its callers, a query
+  hook only through its screen, or a test removed while no other test
+  verifies its rule.
+- A test whose outcome depends on timing it does not control: a baseline
+  taken while the app it started may still be working, a wait ended only by
+  events a broken run may never raise, a short client timeout in a shared
+  helper that answered cases meet only in real time.
+
+### Data
+
+- A fixture recorded from a real service that keeps an identity its scrubber
+  does not name, such as an `O=` legal name when only `CN=` is replaced.
 
 ## Commit order
 
