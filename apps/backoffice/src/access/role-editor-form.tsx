@@ -60,6 +60,7 @@ function PermissionRow({
     <div className="flex items-center gap-3 border-border border-b px-4 py-3 last:border-b-0">
       <div className="min-w-0 flex-1">
         <Checkbox
+          name={permission.key}
           checked={checked}
           onCheckedChange={onToggle}
           disabled={requirementNote !== undefined}
@@ -115,7 +116,7 @@ function AlertsAreaList({
         value={alertsView}
         onChange={changeAlertsView}
       />
-      <Checkbox checked={dismissChecked} onCheckedChange={toggleDismiss}>
+      <Checkbox name="dismissAlerts" checked={dismissChecked} onCheckedChange={toggleDismiss}>
         Cerrar alertas a mano
       </Checkbox>
     </div>

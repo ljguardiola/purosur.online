@@ -217,12 +217,14 @@ export function StockCountsScreen({
             />
           </div>
           <ListFilter
+            name="category"
             label="Categoría:"
             options={categoryOptions}
             value={categoryIsOffered ? category : "ALL"}
             onChange={setCategory}
           />
           <ListFilter
+            name="period"
             label="Período:"
             options={STOCK_PERIOD_OPTIONS}
             value={period}

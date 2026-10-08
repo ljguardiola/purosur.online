@@ -233,12 +233,14 @@ export function StockMovementsScreen({
             />
           </div>
           <ListFilter
+            name="reason"
             label="Motivo:"
             options={reasonOptions}
             value={reasonIsOffered ? reason : "ALL"}
             onChange={setReason}
           />
           <ListFilter
+            name="period"
             label="Período:"
             options={STOCK_PERIOD_OPTIONS}
             value={period}

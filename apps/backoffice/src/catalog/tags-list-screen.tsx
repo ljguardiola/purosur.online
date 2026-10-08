@@ -188,6 +188,7 @@ export function TagsListScreen({
             />
           </div>
           <ListFilter
+            name="status"
             label="Estado:"
             options={statusFilterOptions}
             value={statusFilter}

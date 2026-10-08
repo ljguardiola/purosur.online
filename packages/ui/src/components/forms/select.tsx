@@ -31,6 +31,7 @@ import {
 import { isOptionValue, type NarrowedOption, type OptionalOptionChoiceProps } from "./option";
 
 type SelectCommonProps = {
+  name: string;
   label: string;
   description?: string;
   disabled?: boolean;
@@ -77,6 +78,7 @@ const popoverClassName = `min-w-trigger w-trigger p-1.5 overflow-y-auto ${menuSu
 
 export function Select<V extends string>(props: SelectProps<V>) {
   const {
+    name,
     label,
     options,
     value,
@@ -95,6 +97,7 @@ export function Select<V extends string>(props: SelectProps<V>) {
 
   return (
     <AriaSelect
+      name={name}
       selectedKey={value}
       onSelectionChange={(key) => {
         if (isOptionValue(key, options)) {

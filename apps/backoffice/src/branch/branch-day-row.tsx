@@ -94,7 +94,11 @@ export function BranchDayRow({ day }: BranchDayRowProps) {
               <p className="font-semibold text-text">{dayLabel}</p>
             </div>
             <div className="flex h-control-2xl w-25 shrink-0 items-center">
-              <Checkbox checked={dayValues.closed} onCheckedChange={setClosed}>
+              <Checkbox
+                name={`${field.name}.closed`}
+                checked={dayValues.closed}
+                onCheckedChange={setClosed}
+              >
                 <span aria-hidden="true">Cerrado</span>
                 <span className="sr-only">{`${dayLabel} — Cerrado`}</span>
               </Checkbox>
