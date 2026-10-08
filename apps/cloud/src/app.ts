@@ -91,6 +91,7 @@ import {
   type FiscalAuthorizationRouteOptions,
   registerFiscalAuthorizationRoute,
 } from "./fiscal/fiscal-authorization-route.js";
+import type { EnqueueTaxAuthorityCount } from "./fiscal/graphile-tax-authority-count-queue.js";
 import { registerIssuerIdentificationEditRoute } from "./fiscal/issuer-identification-edit-route.js";
 import type { IssuerIdentificationRouteOptions } from "./fiscal/issuer-identification-read-route.js";
 import { registerIssuerIdentificationReadRoute } from "./fiscal/issuer-identification-read-route.js";
@@ -201,6 +202,7 @@ interface DatabaseWiring<TQueryResult extends PgQueryResultHKT> {
   certificateFingerprint: string;
   deviceTokenRotationKey: Uint8Array;
   installationKeysEncryptionKey: Uint8Array;
+  enqueueTaxAuthorityCount?: EnqueueTaxAuthorityCount;
 }
 
 export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
@@ -231,7 +233,9 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     prices: backoffice,
     discounts: backoffice,
     registers: backoffice,
-    registersPointsOfSale: backoffice,
+    registersPointsOfSale: wiring.enqueueTaxAuthorityCount
+      ? { ...backoffice, enqueueTaxAuthorityCount: wiring.enqueueTaxAuthorityCount }
+      : backoffice,
     stock: backoffice,
     salesReports: backoffice,
     refunds: backoffice,
