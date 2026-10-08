@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { VALID_ARCA_CERTIFICATE } from "../test-support/arca-certificate-fixtures.js";
 import {
   arcaTestEnvironmentCheckSettingsOf,
@@ -18,6 +18,7 @@ import {
 } from "./test-support/fake-wsaa-server.js";
 import {
   answersInTurn,
+  answersWhenReleased,
   type FakeWsfeServer,
   NO_ANSWER,
   startFakeWsfeServer,
@@ -170,6 +171,48 @@ describe("checkArcaTestEnvironment", () => {
     expect(login.signatureValid).toBe(true);
     expect(login.embeddedCertificatePem.trim()).toBe(credentials.certificatePem.trim());
     expect(login.signedContent).toContain("<service>wsfe</service>");
+  });
+});
+
+describe("checkArcaTestEnvironment given no timeout", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    wsfe.behave(answersWhenReleased("fe-dummy-all-ok.xml"));
+  });
+
+  afterEach(() => {
+    wsfe.release();
+    vi.useRealTimers();
+  });
+
+  async function startCheckWithoutTimeout() {
+    const { timeoutMs: _, ...options } = optionsOf();
+    const firstRequest = wsfe.nextRequest();
+    const report = checkArcaTestEnvironment(options);
+    await firstRequest;
+    return { report };
+  }
+
+  it("waits for a slow FEDummy answer that arrives twenty seconds after the request", async () => {
+    const { report } = await startCheckWithoutTimeout();
+    await vi.advanceTimersByTimeAsync(20_000);
+    wsfe.release();
+
+    expect((await report).feDummy).toEqual([{ kind: "ok" }]);
+    expect(wsfe.requests).toHaveLength(1);
+  });
+
+  it("calls FEDummy again when its answer has not arrived thirty seconds after the request", async () => {
+    const { report } = await startCheckWithoutTimeout();
+    const secondRequest = wsfe.nextRequest();
+    await vi.advanceTimersByTimeAsync(30_000);
+    await secondRequest;
+    wsfe.release();
+
+    expect((await report).feDummy).toEqual([
+      expect.objectContaining({ kind: "not_ok" }),
+      { kind: "ok" },
+    ]);
   });
 });
 
