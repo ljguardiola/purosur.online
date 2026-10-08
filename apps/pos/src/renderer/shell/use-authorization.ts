@@ -2,7 +2,7 @@ import type { Authorization, AuthorizationRefusal, SignInUser } from "@purosur/c
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import type { RefObject } from "react";
 import { useRef, useState } from "react";
-import { useAuthorizersQuery, useResetAuthorizers } from "../access/authorizers-queries";
+import { useAuthorizersQuery, useResetAuthorizers } from "../access/access-queries";
 import type { CoreData } from "../platform/use-core-query";
 import { useCountdown } from "../platform/use-countdown";
 import type { SignedInPerson } from "./signed-in-person";
