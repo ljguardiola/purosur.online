@@ -10,7 +10,7 @@ finding or is not a finding.
 |---|---|---|
 | Issue scope | `issue.md` in the review folder | Each definition-of-done item against what the change delivers, and anything the change does beyond the issue. |
 | Correctness | — | What the changed code does with each input it can receive; code left without a reader by the change; tests that would still pass with the behavior they name removed. A route to what a check over the source refuses is judged by "Checks" in `.claude/rules/checks.md`: one only code written to get past the check takes is no finding of the check, and such code in the change is a `rule` finding against that code. |
-| Structure | `.claude/rules/structure.md`: "Structure" | The folder and file of every added or moved piece of code, including additions to files every feature passes through. |
+| Structure | `.claude/rules/structure.md`: "Structure" | The folder and file of every added or moved piece of code, including additions to files every feature passes through. Every added or moved source file of `packages/domain` is placed in the concept its rule belongs to, judged against every top-level folder of `packages/domain/src`, empty ones included, never accepted because files of the same theme already sit beside it; a file already in the wrong concept before the change is out of scope and becomes a new issue. |
 | Business rules and boundaries | `.claude/rules/boundaries.md`: "Business rules and boundaries", "Operations" | Every added condition, constant, computation and query: which layer decides it, and whether `packages/domain` already has a predicate or value that answers it (search before accepting new logic); what each route handler and core request handler does, and in every changed cloud operation what runs before its session, fresh-authorization and permission checks and whether its scope is a filter of the query or a comparison after a lookup; what each screen and `packages/contracts` file imports from `packages/domain`. |
 | Application stack | `.claude/rules/application-stack.md`: "Application stack" | How each read, form, list, navigation and piece of screen state is built, and every dependency added, replaced or removed. |
 | Screens | `.claude/rules/backoffice-screens.md`: "Backoffice screens"; `.claude/rules/register-screens.md`: "Register screens"; `.claude/rules/react.md`: "React code"; `.claude/skills/build-screen/SKILL.md` | Every state a changed screen can be in and the piece that shows it, its file kinds and names, and what each component reads while rendering. A `platform/` or `packages/ui` piece that a rule in `.claude/rules/` names, renamed, replaced or deleted while the rule still names it. |
@@ -70,6 +70,9 @@ how a new one is judged.
 
 ### Structure
 
+- A domain rule added beside files of its theme instead of in its own
+  concept, such as a payment refund rule in `sales/model/` beside
+  `payment.ts` while `payments/` is empty.
 - A piece placed for the wrong set of users: in `platform/` or `shell/` while
   one concept uses it, in one concept's folder while others import it from
   there, or copied into a second concept instead of moved.
