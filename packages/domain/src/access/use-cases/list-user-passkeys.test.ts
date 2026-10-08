@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { listUserPasskeys } from "./list-user-passkeys.js";
-import { BRANCH, user } from "./test-support/branch-user-fixtures.js";
-import { FakeBranchUsers } from "./test-support/fake-branch-users.js";
+import { FakePasskeyHolders } from "./test-support/fake-passkey-holders.js";
 import { FakePasskeys } from "./test-support/fake-passkeys.js";
+
+const BRANCH = "branch-1";
 
 const CREATED_AT = new Date("2026-10-01T08:00:00.000Z");
 
 function ports() {
-  const users = new FakeBranchUsers();
+  const holders = new FakePasskeyHolders();
   const passkeys = new FakePasskeys();
   passkeys.seedPasskey({
     id: "p-1",
@@ -16,16 +17,16 @@ function ports() {
     createdAt: CREATED_AT,
     lastUsedAt: null,
   });
-  return { users, passkeys };
+  return { holders, passkeys };
 }
 
 describe("listUserPasskeys", () => {
   it("lists the passkeys of a user of the branch", async () => {
-    const { users, passkeys } = ports();
-    users.seedUser(user({ id: "u-1" }));
+    const { holders, passkeys } = ports();
+    holders.seedHolder({ id: "u-1", locationId: BRANCH, active: true });
 
     const outcome = await listUserPasskeys(
-      { users, passkeys },
+      { holders, passkeys },
       { locationId: BRANCH, userId: "u-1", activeScope: "active" },
     );
 
@@ -36,11 +37,11 @@ describe("listUserPasskeys", () => {
   });
 
   it("finds no user in another branch", async () => {
-    const { users, passkeys } = ports();
-    users.seedUser(user({ id: "u-1", locationId: "branch-2" }));
+    const { holders, passkeys } = ports();
+    holders.seedHolder({ id: "u-1", locationId: "branch-2", active: true });
 
     const outcome = await listUserPasskeys(
-      { users, passkeys },
+      { holders, passkeys },
       { locationId: BRANCH, userId: "u-1", activeScope: "any" },
     );
 
@@ -48,15 +49,15 @@ describe("listUserPasskeys", () => {
   });
 
   it("finds an inactive user only when the scope asks for any", async () => {
-    const { users, passkeys } = ports();
-    users.seedUser(user({ id: "u-1", active: false }));
+    const { holders, passkeys } = ports();
+    holders.seedHolder({ id: "u-1", locationId: BRANCH, active: false });
     const input = { locationId: BRANCH, userId: "u-1" };
 
     expect(
-      await listUserPasskeys({ users, passkeys }, { ...input, activeScope: "active" }),
+      await listUserPasskeys({ holders, passkeys }, { ...input, activeScope: "active" }),
     ).toEqual({ kind: "not_found" });
     expect(
-      (await listUserPasskeys({ users, passkeys }, { ...input, activeScope: "any" })).kind,
+      (await listUserPasskeys({ holders, passkeys }, { ...input, activeScope: "any" })).kind,
     ).toBe("listed");
   });
 });
