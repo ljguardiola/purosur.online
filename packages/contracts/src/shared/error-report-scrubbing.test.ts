@@ -867,23 +867,26 @@ describe("personal data in text", () => {
     }
   });
 
-  it("redacts any account name in a home folder that ends the text or is followed by a query", () => {
+  it("redacts any account name in a home folder, whatever follows it", () => {
     const accountName = fc.stringMatching(/^[A-Za-z_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_-])?$/);
     const homeFolder = fc.constantFrom("/home/", "/Users/");
+    const followedBy = fc.constantFrom(
+      { text: "", scrubbed: "" },
+      { text: "?tab=1", scrubbed: "?[redacted]" },
+      { text: "#top", scrubbed: "?[redacted]" },
+      { text: " now", scrubbed: " now" },
+      { text: "/purosur", scrubbed: "/purosur" },
+      { text: ". Retrying", scrubbed: ". Retrying" },
+    );
 
     fc.assert(
-      fc.property(
-        homeFolder,
-        accountName,
-        fc.constantFrom("", "?tab=1", "#top"),
-        (folder, name, query) => {
-          const scrubbed = scrubErrorReport({ message: `could not open ${folder}${name}${query}` });
+      fc.property(homeFolder, accountName, followedBy, (folder, name, after) => {
+        const scrubbed = scrubErrorReport({
+          message: `could not open ${folder}${name}${after.text}`,
+        });
 
-          expect(scrubbed.message).toBe(
-            `could not open ${folder}[redacted]${query === "" ? "" : "?[redacted]"}`,
-          );
-        },
-      ),
+        expect(scrubbed.message).toBe(`could not open ${folder}[redacted]${after.scrubbed}`);
+      }),
     );
   });
 
