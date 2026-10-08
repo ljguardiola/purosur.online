@@ -19,4 +19,4 @@ export type { LinePromotion, Sale, SaleLine, SaleState, SaleWithLines } from "./
 export type { ListPrice, SoldProduct } from "./model/sale-line.js";
 export { saleTotal } from "./model/sale-line.js";
 export type { SalesOfDay, SalesReportRange, SalesReportTotals } from "./model/sales-report.js";
-export { countsInSalesReport, isSalesReportRangeAsked } from "./model/sales-report.js";
+export { isSalesReportRangeAsked, SALES_REPORT_SALE_STATE } from "./model/sales-report.js";

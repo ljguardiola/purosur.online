@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  countsInSalesReport,
   defaultSalesReportRange,
   isSalesReportRangeAsked,
+  SALES_REPORT_SALE_STATE,
   salesReportTotals,
 } from "./sales-report.js";
 
@@ -79,12 +79,8 @@ describe("salesReportTotals", () => {
   });
 });
 
-describe("countsInSalesReport", () => {
-  it("counts a completed sale", () => {
-    expect(countsInSalesReport("COMPLETED")).toBe(true);
-  });
-
-  it.each(["OPEN", "VOIDED", "CANCELLED"])("does not count a %s sale", (state) => {
-    expect(countsInSalesReport(state)).toBe(false);
+describe("the sales report", () => {
+  it("counts the completed sales and no other", () => {
+    expect(SALES_REPORT_SALE_STATE).toBe("COMPLETED");
   });
 });

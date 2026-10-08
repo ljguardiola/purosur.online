@@ -1,4 +1,5 @@
 import { argentinaCalendarDay, isCalendarDay } from "../../shared/index.js";
+import type { SaleState } from "./sale.js";
 
 export interface SalesReportRange {
   from: string;
@@ -41,6 +42,4 @@ export function salesReportTotals(days: readonly SalesOfDay[]): SalesReportTotal
   };
 }
 
-export function countsInSalesReport(saleState: string): boolean {
-  return saleState === "COMPLETED";
-}
+export const SALES_REPORT_SALE_STATE = "COMPLETED" satisfies SaleState;

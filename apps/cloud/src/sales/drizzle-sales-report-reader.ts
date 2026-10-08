@@ -1,4 +1,4 @@
-import { ARGENTINA_TIME_ZONE, countsInSalesReport, type SalesOfDay } from "@purosur/domain";
+import { ARGENTINA_TIME_ZONE, SALES_REPORT_SALE_STATE, type SalesOfDay } from "@purosur/domain";
 import type { SalesByDayQuery, SalesReportReader } from "@purosur/domain/sales/use-cases";
 import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -20,10 +20,9 @@ export class DrizzleSalesReportReader<TQueryResult extends PgQueryResultHKT>
     range,
     registerId,
   }: SalesByDayQuery): Promise<SalesOfDay[]> {
-    const groups = await this.db
+    return this.db
       .select({
         day: saleDay,
-        state: sales.state,
         salesCount: sql<number>`count(*)`.mapWith(Number),
         total: sql<number>`sum(${sales.total})`.mapWith(Number),
       })
@@ -31,15 +30,13 @@ export class DrizzleSalesReportReader<TQueryResult extends PgQueryResultHKT>
       .where(
         and(
           eq(sales.locationId, locationId),
+          eq(sales.state, SALES_REPORT_SALE_STATE),
           registerId === undefined ? undefined : eq(sales.registerId, registerId),
           sql`${saleDay} >= ${range.from}`,
           sql`${saleDay} <= ${range.to}`,
         ),
       )
-      .groupBy(sql`1`, sql`2`)
+      .groupBy(sql`1`)
       .orderBy(sql`1`);
-    return groups
-      .filter(({ state }) => countsInSalesReport(state))
-      .map(({ day, salesCount, total }) => ({ day, salesCount, total }));
   }
 }

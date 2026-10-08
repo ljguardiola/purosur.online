@@ -332,7 +332,6 @@ export type {
 export {
   cancellableWithoutAuthorization,
   cashCharge,
-  countsInSalesReport,
   isRefundPending,
   isSalesReportRangeAsked,
   openSaleSummary,
@@ -340,6 +339,7 @@ export {
   REFUND_DONE_STATE,
   REFUND_PENDING_STATE,
   REFUND_STATES,
+  SALES_REPORT_SALE_STATE,
   SEARCH_RESULT_LIMIT,
   saleTotal,
 } from "./sales/index.js";
