@@ -1,6 +1,10 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { plannedRefunds, refundsSettleApprovedPayments } from "./payment-refund.js";
+import {
+  isRefundPending,
+  plannedRefunds,
+  refundsSettleApprovedPayments,
+} from "./payment-refund.js";
 
 const CASH = {
   id: "pay-1",
@@ -124,5 +128,15 @@ describe("refundsSettleApprovedPayments", () => {
 
   it("holds for a sale without approved payments and without refunds", () => {
     expect(refundsSettleApprovedPayments([], [])).toBe(true);
+  });
+});
+
+describe("isRefundPending", () => {
+  it("is true for a refund waiting for a person to carry it out", () => {
+    expect(isRefundPending("PENDING")).toBe(true);
+  });
+
+  it.each(["APPROVED", "pending", ""])("is false for the state %j", (state) => {
+    expect(isRefundPending(state)).toBe(false);
   });
 });
