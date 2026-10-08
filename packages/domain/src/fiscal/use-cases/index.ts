@@ -20,6 +20,12 @@ export type {
   VitalityCheckRecord,
 } from "./arca-vitality-ports.js";
 export type {
+  AuthorizeFiscalDocumentInput,
+  AuthorizeFiscalDocumentOutcome,
+  FiscalDocumentAuthorizationRequest,
+} from "./authorize-fiscal-document.js";
+export { authorizeFiscalDocument } from "./authorize-fiscal-document.js";
+export type {
   BuyerIdentificationThresholdOverview,
   BuyerIdentificationThresholdPorts,
   BuyerIdentificationThresholdReader,
@@ -85,6 +91,19 @@ export type {
   NewFiscalAddress,
 } from "./fiscal-address-store.js";
 export { FiscalAddressNameConflict } from "./fiscal-address-store.js";
+export type {
+  AuthorizationRequestRecord,
+  AuthorizeFiscalDocumentPorts,
+  FiscalDocumentData,
+  FiscalDocumentSolicitation,
+  InvoicingEvidence,
+  PointOfSaleLane,
+  PointOfSaleLanes,
+  RecordedAuthorizationRequest,
+  SolicitationAnswer,
+  TaxAuthorityInvoicing,
+  WsaaTokenSource,
+} from "./fiscal-document-authorization-ports.js";
 export type {
   AuthorizedIssuerIdentification,
   EditableIssuerIdentification,
