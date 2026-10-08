@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   changedFilesSince,
+  projectsOfSpecifications,
   runChangedTests,
+  runCommand,
   runProjectsInTurn,
   selectTestsBeside,
   testsToRun,
@@ -303,4 +305,36 @@ test("runs nothing and fails when a path asked for is not a test file", async ()
   assert.equal(exitCode, 1);
   assert.deepEqual(runs, []);
   assert.deepEqual(logged, ["packages/ui/src/button.tsx is not a test file"]);
+});
+
+test("maps each test file, relative to the root, to every project that holds it", () => {
+  const root = "/repo";
+  assert.deepEqual(
+    projectsOfSpecifications({
+      root,
+      specifications: [
+        { moduleId: "/repo/packages/ui/src/button.test.tsx", project: { name: "ui" } },
+        { moduleId: "/repo/apps/cloud/src/app.test.ts", project: { name: "cloud" } },
+        { moduleId: "/repo/packages/ui/src/button.test.tsx", project: { name: "ui-browser" } },
+      ],
+    }),
+    new Map([
+      ["packages/ui/src/button.test.tsx", ["ui", "ui-browser"]],
+      ["apps/cloud/src/app.test.ts", ["cloud"]],
+    ]),
+  );
+});
+
+test("reports a command that exits with success as passed", async () => {
+  assert.equal(
+    await runCommand({ command: process.execPath, args: ["-e", "process.exit(0)"], cwd: "." }),
+    true,
+  );
+});
+
+test("reports a command that exits with a failure as failed", async () => {
+  assert.equal(
+    await runCommand({ command: process.execPath, args: ["-e", "process.exit(1)"], cwd: "." }),
+    false,
+  );
 });
