@@ -3,12 +3,15 @@ import {
   FICTIONAL_GROSS_INCOME_REGISTRATION,
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { App } from "./app";
 import { emptyHelp, help, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { loadEveryScreenCode } from "./test-support/screen-routes";
+
+beforeAll(loadEveryScreenCode);
 
 beforeEach(resetPageState);
 

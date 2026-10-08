@@ -1,10 +1,11 @@
 import type {} from "@vitest/browser-playwright";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest";
 import { cdp, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { App } from "./app";
 import { emptyHelp } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { loadEveryScreenCodeExcept } from "./test-support/screen-routes";
 
 let heldRequests: string[] = [];
 
@@ -31,6 +32,8 @@ async function releaseHeldDownloads() {
 function topBarHeight(main: Element): number {
   return main.firstElementChild?.getBoundingClientRect().height ?? 0;
 }
+
+beforeAll(() => loadEveryScreenCodeExcept("/", "/alerts"));
 
 beforeEach(async () => {
   window.history.pushState(null, "", "/help");

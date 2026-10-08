@@ -1,5 +1,5 @@
 import type { Capability } from "@purosur/domain";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { openSession } from "../access/test-support/open-session";
@@ -7,6 +7,9 @@ import { pendingRefunds } from "../sales/test-support/refund-fixtures";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { loadEveryScreenCode } from "./test-support/screen-routes";
+
+beforeAll(loadEveryScreenCode);
 
 beforeEach(resetPageState);
 

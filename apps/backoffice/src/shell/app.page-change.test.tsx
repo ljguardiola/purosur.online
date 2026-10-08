@@ -1,19 +1,20 @@
 import { defineHelp } from "@purosur/ui";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { openSession } from "../access/test-support/open-session";
 import { App, type AppServices } from "./app";
 import { emptyHelp, help, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { loadEveryScreenCode } from "./test-support/screen-routes";
+
+beforeAll(loadEveryScreenCode);
 
 beforeEach(resetPageState);
 
 afterEach(resetPageState);
 
 test("titles the document after the page being shown", async () => {
-  // Downloading the screen's code on a loaded machine can outlast the title's wait on its own.
-  await import("../help/help-page");
   window.history.pushState(null, "", "/help");
   const screen = await render(<App help={help} services={createAppServices()} />);
 
