@@ -21,7 +21,6 @@ import { useCoreStatus } from "../platform/use-core-status";
 import type { CashSessionState } from "../register/cash-session-state";
 import { cashSessionStateOf } from "../register/cash-session-state";
 import {
-  authorizersKey,
   cashKey,
   cashSessionQueryOptions,
   lockedClosersKey,
@@ -31,6 +30,7 @@ import {
   useRegisterServiceQuery,
 } from "../register/register-queries";
 import { salesKeys } from "../sales/sales-queries";
+import { authorizersKey } from "./authorizers-queries";
 import type { Enrollment, RegisterServiceState } from "./router";
 import { createAppRouter } from "./router";
 import type { SignedInPerson } from "./signed-in-person";

@@ -24,7 +24,9 @@ async function recordSaleParts<TQueryResult extends PgQueryResultHKT>(
     .insert(salePayments)
     .values(payments.map((payment) => ({ ...payment, saleId: sale.id })));
   if ("refunds" in sale) {
-    await tx.insert(paymentRefunds).values(sale.refunds);
+    await tx
+      .insert(paymentRefunds)
+      .values(sale.refunds.map((refund) => ({ ...refund, saleId: sale.id })));
   }
   if (movements.length > 0) {
     await tx.insert(cashMovements).values(

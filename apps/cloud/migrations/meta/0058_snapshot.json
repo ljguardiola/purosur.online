@@ -2273,6 +2273,12 @@
           "primaryKey": true,
           "notNull": true
         },
+        "sale_id": {
+          "name": "sale_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
         "payment_id": {
           "name": "payment_id",
           "type": "uuid",
@@ -2356,12 +2362,12 @@
         }
       },
       "foreignKeys": {
-        "payment_refunds_payment_id_sale_payments_id_fk": {
-          "name": "payment_refunds_payment_id_sale_payments_id_fk",
+        "payment_refunds_payment_of_its_sale_fk": {
+          "name": "payment_refunds_payment_of_its_sale_fk",
           "tableFrom": "payment_refunds",
           "tableTo": "sale_payments",
-          "columnsFrom": ["payment_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": ["payment_id", "sale_id"],
+          "columnsTo": ["id", "sale_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -4297,7 +4303,13 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "sale_payments_id_sale_id_key": {
+          "name": "sale_payments_id_sale_id_key",
+          "nullsNotDistinct": false,
+          "columns": ["id", "sale_id"]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

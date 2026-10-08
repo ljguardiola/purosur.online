@@ -1,5 +1,6 @@
 CREATE TABLE "payment_refunds" (
 	"id" uuid PRIMARY KEY NOT NULL,
+	"sale_id" uuid NOT NULL,
 	"payment_id" uuid NOT NULL,
 	"method" text NOT NULL,
 	"provider" text NOT NULL,
@@ -17,7 +18,8 @@ ALTER TABLE "sales" ADD COLUMN "state" text DEFAULT 'COMPLETED' NOT NULL;--> sta
 ALTER TABLE "sales" ALTER COLUMN "state" DROP DEFAULT;--> statement-breakpoint
 ALTER TABLE "sales" ADD COLUMN "cancelled_at" timestamp with time zone;--> statement-breakpoint
 ALTER TABLE "sales" ADD COLUMN "cancellation_authorized_by" text;--> statement-breakpoint
-ALTER TABLE "payment_refunds" ADD CONSTRAINT "payment_refunds_payment_id_sale_payments_id_fk" FOREIGN KEY ("payment_id") REFERENCES "public"."sale_payments"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "sale_payments" ADD CONSTRAINT "sale_payments_id_sale_id_key" UNIQUE("id","sale_id");--> statement-breakpoint
+ALTER TABLE "payment_refunds" ADD CONSTRAINT "payment_refunds_payment_of_its_sale_fk" FOREIGN KEY ("payment_id","sale_id") REFERENCES "public"."sale_payments"("id","sale_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "payment_refunds_pending_idx" ON "payment_refunds" USING btree ("occurred_at") WHERE "payment_refunds"."state" = 'PENDING';--> statement-breakpoint
 CREATE INDEX "payment_refunds_payment_idx" ON "payment_refunds" USING btree ("payment_id");--> statement-breakpoint
 ALTER TABLE "sales" ADD CONSTRAINT "sales_state_check" CHECK ("sales"."state" in ('COMPLETED', 'CANCELLED'));--> statement-breakpoint

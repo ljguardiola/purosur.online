@@ -146,7 +146,7 @@ export function CancelPaidSaleModal({
           ]}
         />
         <RefundLines refunds={refunds} />
-        {refunds.some((refund) => refund.method !== "CASH") ? (
+        {refunds.some((refund) => refund.state === "PENDING") ? (
           <p className="text-detail text-text-subtle">
             El reembolso de la transferencia queda pendiente hasta que alguien lo haga y lo marque
             como hecho en el backoffice.

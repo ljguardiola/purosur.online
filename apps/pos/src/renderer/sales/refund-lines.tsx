@@ -3,11 +3,21 @@ import { formatCents } from "@purosur/ui";
 
 export type Refund = OpenSale["refunds_on_cancel"][number];
 
+const GIVEN_BACK_BY: Record<Refund["method"], string> = {
+  CASH: "en efectivo",
+  TRANSFER: "por transferencia",
+};
+
+const PENDING_OF: Record<Refund["method"], string> = {
+  CASH: "del pago en efectivo",
+  TRANSFER: "de la transferencia",
+};
+
 function refundLine(refund: Refund): string {
   const amount = formatCents(refund.amount);
-  return refund.method === "CASH"
-    ? `Devolver ${amount} en efectivo`
-    : `Reembolso pendiente de la transferencia por ${amount}`;
+  return refund.state === "PENDING"
+    ? `Reembolso pendiente ${PENDING_OF[refund.method]} por ${amount}`
+    : `Devolver ${amount} ${GIVEN_BACK_BY[refund.method]}`;
 }
 
 export function RefundLines({ refunds }: { refunds: readonly Refund[] }) {

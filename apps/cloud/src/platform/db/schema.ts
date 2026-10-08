@@ -803,28 +803,35 @@ export const saleLines = pgTable("sale_lines", {
   lineTotal: bigint("line_total", { mode: "number" }).notNull(),
 });
 
-export const salePayments = pgTable("sale_payments", {
-  id: uuid("id").primaryKey(),
-  saleId: uuid("sale_id")
-    .notNull()
-    .references(() => sales.id),
-  method: text("method").notNull(),
-  provider: text("provider").notNull(),
-  amount: bigint("amount", { mode: "number" }).notNull(),
-  tendered: bigint("tendered", { mode: "number" }),
-  state: text("state").notNull(),
-  occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
-  authorizedBy: text("authorized_by"),
-  confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
-});
+export const salePayments = pgTable(
+  "sale_payments",
+  {
+    id: uuid("id").primaryKey(),
+    saleId: uuid("sale_id")
+      .notNull()
+      .references(() => sales.id),
+    method: text("method").notNull(),
+    provider: text("provider").notNull(),
+    amount: bigint("amount", { mode: "number" }).notNull(),
+    tendered: bigint("tendered", { mode: "number" }),
+    state: text("state").notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+    authorizedBy: text("authorized_by"),
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+  },
+  (table) => [
+    // Lets payment_refunds reference it with a composite foreign key, so a refund can point only
+    // at a payment of its own sale.
+    unique("sale_payments_id_sale_id_key").on(table.id, table.saleId),
+  ],
+);
 
 export const paymentRefunds = pgTable(
   "payment_refunds",
   {
     id: uuid("id").primaryKey(),
-    paymentId: uuid("payment_id")
-      .notNull()
-      .references(() => salePayments.id),
+    saleId: uuid("sale_id").notNull(),
+    paymentId: uuid("payment_id").notNull(),
     method: text("method").notNull(),
     provider: text("provider").notNull(),
     amount: bigint("amount", { mode: "number" }).notNull(),
@@ -834,6 +841,11 @@ export const paymentRefunds = pgTable(
     doneAt: timestamp("done_at", { withTimezone: true }),
   },
   (table) => [
+    foreignKey({
+      name: "payment_refunds_payment_of_its_sale_fk",
+      columns: [table.paymentId, table.saleId],
+      foreignColumns: [salePayments.id, salePayments.saleId],
+    }),
     check("payment_refunds_state_check", sql`${table.state} in ('PENDING', 'APPROVED')`),
     check(
       "payment_refunds_done_check",
