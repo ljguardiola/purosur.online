@@ -8,11 +8,11 @@ import {
 import pg, { type PoolClient } from "pg";
 import { vi } from "vitest";
 
-export function buildPoolClient(): PoolClient {
+function buildPoolClient(): PoolClient {
   return Object.assign(new pg.Client(), { release: () => {} });
 }
 
-export function buildJob(): Job {
+function buildJob(): Job {
   const at = new Date("2026-01-01T00:00:00.000Z");
   return {
     id: "1",
