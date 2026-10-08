@@ -1,6 +1,6 @@
+import type { RoleAccess } from "../../permissions/index.js";
+import { type AuthorizablePermissionKey, holdsPermission } from "../../permissions/index.js";
 import { mayAuthorize, type RegisterOperation } from "../../register/index.js";
-import type { RoleAccess } from "../model/access-increase.js";
-import { type AuthorizablePermissionKey, holdsPermission } from "../model/holds-permission.js";
 
 export interface SignablePerson {
   id: string;

@@ -1,4 +1,4 @@
-import { type Capability, grantsCapability, type RoleAccess } from "../../access/index.js";
+import { type Capability, grantsCapability, type RoleAccess } from "../../permissions/index.js";
 import {
   ADJUSTMENT_REASONS,
   type AdjustmentReason,

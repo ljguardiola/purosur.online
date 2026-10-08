@@ -1,7 +1,7 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
+import { hasApprovedPayment } from "../../payments/index.js";
 import type { Clock } from "../../shared/index.js";
 import { type OpenSaleStanding, openSaleStanding } from "../model/open-sale-standing.js";
-import { hasApprovedPayment } from "../model/payment.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { saleTotal, withQuantity } from "../model/sale-line.js";
 import { saleChargeRefusal } from "./sale-charge-refusal.js";

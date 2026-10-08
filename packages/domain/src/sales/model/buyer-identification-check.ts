@@ -3,7 +3,7 @@ import {
   type ChargeRefusal,
   chargeRefusal,
 } from "../../fiscal/index.js";
-import { hasApprovedPayment } from "./payment.js";
+import { hasApprovedPayment } from "../../payments/index.js";
 
 export function buyerIdentificationRefusal(
   total: number,

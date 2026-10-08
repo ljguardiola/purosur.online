@@ -1,4 +1,4 @@
-import type { PermissionKey } from "../model/permission-catalog.js";
+import type { PermissionKey } from "../../permissions/index.js";
 
 export interface StoredSession {
   sessionId: string;

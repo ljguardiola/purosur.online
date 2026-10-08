@@ -36,6 +36,16 @@
       "types": "./dist/fiscal/use-cases/index.d.ts",
       "default": "./dist/fiscal/use-cases/index.js"
     },
+    "./payments/use-cases": {
+      "@purosur/source": "./src/payments/use-cases/index.ts",
+      "types": "./dist/payments/use-cases/index.d.ts",
+      "default": "./dist/payments/use-cases/index.js"
+    },
+    "./permissions/use-cases": {
+      "@purosur/source": "./src/permissions/use-cases/index.ts",
+      "types": "./dist/permissions/use-cases/index.d.ts",
+      "default": "./dist/permissions/use-cases/index.js"
+    },
     "./pricing/use-cases": {
       "@purosur/source": "./src/pricing/use-cases/index.ts",
       "types": "./dist/pricing/use-cases/index.d.ts",

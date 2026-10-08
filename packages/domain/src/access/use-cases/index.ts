@@ -57,8 +57,6 @@ export {
   FirstAdministratorAlreadyBootstrappedError,
   InvalidFirstAdministratorInputError,
 } from "./create-first-administrator.js";
-export type { CreateRoleInput, CreateRoleOutcome, CreateRolePorts } from "./create-role.js";
-export { createRole } from "./create-role.js";
 export type {
   CreateUserInput,
   CreateUserOutcome,
@@ -71,12 +69,6 @@ export type {
   DeactivateUserPorts,
 } from "./deactivate-user.js";
 export { deactivateUser } from "./deactivate-user.js";
-export type {
-  EditRoleInput,
-  EditRoleOutcome,
-  EditRolePorts,
-} from "./edit-role.js";
-export { editRole } from "./edit-role.js";
 export type {
   EditUserInput,
   EditUserOutcome,
@@ -111,8 +103,6 @@ export type {
   FindDeactivatableUserPorts,
 } from "./find-deactivatable-user.js";
 export { findDeactivatableUser } from "./find-deactivatable-user.js";
-export type { EditableRole, FindEditableRoleInput } from "./find-editable-role.js";
-export { findEditableRole } from "./find-editable-role.js";
 export type {
   FindOpenSessionInput,
   FindOpenSessionOutcome,
@@ -190,8 +180,6 @@ export type {
   ListPasskeyCredentialsPorts,
 } from "./list-passkey-credentials.js";
 export { listPasskeyCredentials } from "./list-passkey-credentials.js";
-export type { RoleSummary } from "./list-roles.js";
-export { listRoles } from "./list-roles.js";
 export type {
   ListUserPasskeysInput,
   ListUserPasskeysOutcome,
@@ -357,20 +345,6 @@ export type {
   ReplacePinInput,
 } from "./replace-pin.js";
 export { replacePin } from "./replace-pin.js";
-export type { RoleDirectory, RoleHolder, RoleListing, StoredRole } from "./role-directory.js";
-export type {
-  LockedRole,
-  LockRoleResult,
-  NewRole,
-  RoleAccessIncrease,
-  RoleChange,
-  RoleRewrite,
-  RoleSnapshot,
-  RoleStore,
-  RoleStoreTransaction,
-  StoredRoleRevision,
-} from "./role-store.js";
-export { RoleNameConflict } from "./role-store.js";
 export type {
   SessionAuthorizationStore,
   SessionAuthorizationStoreTransaction,

@@ -34,11 +34,11 @@ import {
 import type { ActionGate } from "../access/action-gate";
 import { authorizersOf } from "../access/authorizers";
 import { type ActivePerson, SqliteSignInStore } from "../access/sqlite-sign-in-store";
+import { readSalePayments } from "../payments/sqlite-sale-payments";
+import { toWireRefund } from "../payments/wire-refund";
 import { inArgentinaTime } from "../platform/argentina-time";
 import type { LocalDatabase } from "../platform/local-database";
-import { toWireRefund } from "../sales/sale-requests";
 import { readOpenSale } from "../sales/sqlite-open-sale";
-import { readSalePayments } from "../sales/sqlite-sale-payments";
 import { readOpenSession, readSessionMovements, SqliteCashLedger } from "./sqlite-cash-ledger";
 
 export interface CashSessionRequestDeps {

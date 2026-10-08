@@ -45,6 +45,7 @@ import {
 } from "@purosur/domain/sales/use-cases";
 import type { ActionGate } from "../access/action-gate";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
+import { toWireRefund } from "../payments/wire-refund";
 import type { LocalDatabase } from "../platform/local-database";
 import { readOpenSession } from "../register/sqlite-cash-ledger";
 import { SqliteSaleLedger } from "./sqlite-sale-ledger";
@@ -72,15 +73,6 @@ export interface ChargeSaleByTransferRequest {
 
 function saleLedger(database: LocalDatabase, outboxChainKey?: string): SqliteSaleLedger {
   return new SqliteSaleLedger(database, new SqliteSignInStore(database), outboxChainKey);
-}
-
-export function toWireRefund(refund: PlannedRefund): OpenSale["refunds_on_cancel"][number] {
-  return {
-    payment_id: refund.paymentId,
-    method: refund.method,
-    amount: refund.amount,
-    state: refund.state,
-  };
 }
 
 function appliedPromotion(line: SaleLine): OpenSale["lines"][number]["promotion"] {

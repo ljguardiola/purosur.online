@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_CASH_AMOUNT_CENTS } from "../model/cash-amount.js";
+import { MAX_CASH_AMOUNT_CENTS } from "../../shared/index.js";
 import {
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_REASON_MAX_LENGTH,

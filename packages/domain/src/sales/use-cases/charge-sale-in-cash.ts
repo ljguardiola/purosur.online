@@ -1,7 +1,7 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
+import type { PaymentTransaction } from "../../payments/index.js";
+import { cashCharge } from "../../payments/index.js";
 import type { Clock } from "../../shared/index.js";
-import { cashCharge } from "../model/cash-charge.js";
-import type { PaymentTransaction } from "../model/payment.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { chargeableSale, isSaleRefusal, type PartiallyPaid } from "./chargeable-sale.js";
 import { completeSale } from "./complete-sale.js";

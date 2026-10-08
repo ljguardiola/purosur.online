@@ -1,4 +1,4 @@
-import { cancellableWithoutAuthorization } from "../model/payment.js";
+import { cancellableWithoutAuthorization } from "../../payments/index.js";
 import type { SaleLedger } from "./sale-ledger.js";
 import { isRefusal, sellingSession } from "./selling-session.js";
 

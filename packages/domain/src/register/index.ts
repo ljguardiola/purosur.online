@@ -1,4 +1,3 @@
-export { isValidCashAmount, MAX_CASH_AMOUNT_CENTS } from "./model/cash-amount.js";
 export { cashCountDifference } from "./model/cash-count.js";
 export type { CashMovementDirection } from "./model/cash-movement-direction.js";
 export {

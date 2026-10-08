@@ -1,4 +1,4 @@
-import { heldPermissionKeys } from "../model/holds-permission.js";
+import { heldPermissionKeys } from "../../permissions/index.js";
 import { isSessionExpired } from "../model/session-expiry.js";
 import type { OpenSession, Sessions } from "./sessions.js";
 

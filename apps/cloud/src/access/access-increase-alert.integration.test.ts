@@ -1,11 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { createUser, editRole } from "@purosur/domain/access/use-cases";
+import { createUser } from "@purosur/domain/access/use-cases";
+import { editRole } from "@purosur/domain/permissions/use-cases";
 import { and, eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance } from "fastify";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { openAlert } from "../alerts/open-alert.js";
+import { DrizzleRoleStore } from "../permissions/drizzle-role-store.js";
 import {
   alerts,
   auditLog,
@@ -21,7 +23,6 @@ import {
 } from "../test-support/integration-database.js";
 import { waitForLockWaiters } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { DrizzleRoleStore } from "./drizzle-role-store.js";
 import { DrizzleUserStore } from "./drizzle-user-store.js";
 import { SESSION_COOKIE_NAME } from "./session-cookie.js";
 import { generateSessionId, hashSessionId } from "./session-id.js";

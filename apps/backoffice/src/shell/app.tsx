@@ -14,10 +14,6 @@ import {
   defaultRegisterPasskeyScreenServices,
   type RegisterPasskeyScreenServices,
 } from "../access/register-passkey-services";
-import {
-  defaultRolesListScreenServices,
-  type RolesListScreenServices,
-} from "../access/roles-list-services";
 import { checkSessionStatus, fetchSession, type SessionOutcome } from "../access/session-api";
 import { defaultSignInScreenServices, type SignInScreenServices } from "../access/sign-in-services";
 import {
@@ -65,6 +61,14 @@ import {
   type PointsOfSaleScreenServices,
 } from "../fiscal/points-of-sale-services";
 import type { BackofficeHelpCatalog } from "../help/help-catalog";
+import {
+  defaultPendingRefundsScreenServices,
+  type PendingRefundsScreenServices,
+} from "../payments/pending-refunds-services";
+import {
+  defaultRolesListScreenServices,
+  type RolesListScreenServices,
+} from "../permissions/roles-list-services";
 import { createQueryClient } from "../platform/query-client";
 import {
   type DiscountsListScreenServices,
@@ -78,10 +82,6 @@ import {
   defaultRegistersListScreenServices,
   type RegistersListScreenServices,
 } from "../register/registers-list-services";
-import {
-  defaultPendingRefundsScreenServices,
-  type PendingRefundsScreenServices,
-} from "../sales/pending-refunds-services";
 import {
   defaultSalesByDayScreenServices,
   type SalesByDayScreenServices,

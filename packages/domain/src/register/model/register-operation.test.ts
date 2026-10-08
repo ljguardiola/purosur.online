@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { RoleAccess } from "../../access/index.js";
+import type { RoleAccess } from "../../permissions/index.js";
 import {
   mayAuthorize,
   REGISTER_ABILITIES,

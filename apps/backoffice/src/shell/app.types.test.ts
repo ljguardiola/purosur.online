@@ -2,7 +2,6 @@ import { expectTypeOf, test } from "vitest";
 import type { AccountRecoveryScreenProps } from "../access/account-recovery-screen";
 import type { MyAccountScreenProps } from "../access/my-account-screen";
 import type { RegisterPasskeyScreenProps } from "../access/register-passkey-screen";
-import type { RolesListScreenProps } from "../access/roles-list-screen";
 import type { SignInScreenProps } from "../access/sign-in-screen";
 import type { UserDetailScreenProps } from "../access/user-detail-screen";
 import type { UsersListScreenProps } from "../access/users-list-screen";
@@ -13,6 +12,7 @@ import type { CategoriesListScreenProps } from "../catalog/categories-list-scree
 import type { ProductsListScreenProps } from "../catalog/products-list-screen";
 import type { TagsListScreenProps } from "../catalog/tags-list-screen";
 import type { FiscalConfigurationScreenProps } from "../fiscal/fiscal-configuration-screen";
+import type { RolesListScreenProps } from "../permissions/roles-list-screen";
 import type { DiscountsListScreenProps } from "../pricing/discounts-list-screen";
 import type { PricesListScreenProps } from "../pricing/prices-list-screen";
 import type { RegistersListScreenProps } from "../register/registers-list-screen";

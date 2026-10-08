@@ -1,7 +1,7 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
+import type { PaymentTransaction } from "../../payments/index.js";
+import { nonCashCharge } from "../../payments/index.js";
 import type { Clock } from "../../shared/index.js";
-import { nonCashCharge } from "../model/non-cash-charge.js";
-import type { PaymentTransaction } from "../model/payment.js";
 import { chargeableSale, isSaleRefusal, type PartiallyPaid } from "./chargeable-sale.js";
 import { completeSale } from "./complete-sale.js";
 import type { IdGenerator, SaleLedger } from "./sale-ledger.js";

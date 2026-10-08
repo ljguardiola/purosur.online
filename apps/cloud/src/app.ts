@@ -14,17 +14,11 @@ import type { PasskeysListRouteOptions } from "./access/passkeys-list-route.js";
 import { registerPasskeysListRoute } from "./access/passkeys-list-route.js";
 import { registerPasskeyRegistrationRoutes } from "./access/passkeys-registration-route.js";
 import { registerPasskeyRemovalRoutes } from "./access/passkeys-removal-route.js";
-import { registerPermissionCatalogRoute } from "./access/permission-catalog-route.js";
 import { registerPinCodeRedemptionRoute } from "./access/pin-code-redemption-route.js";
 import type { RecoveryJobQueue } from "./access/recovery-job-queue.js";
 import { registerRecoveryRedemptionRoutes } from "./access/recovery-redemption-route.js";
 import type { RecoveryRouteOptions } from "./access/request-recovery-route.js";
 import { registerRecoveryRoutes } from "./access/request-recovery-route.js";
-import { registerRoleCreationRoutes } from "./access/role-creation-route.js";
-import { registerRoleEditRoutes } from "./access/role-edit-route.js";
-import { registerRoleReadRoute } from "./access/role-read-route.js";
-import type { RolesRouteOptions } from "./access/roles-list-route.js";
-import { registerRolesListRoute } from "./access/roles-list-route.js";
 import {
   declarePluginRoutesAccess,
   PUBLIC_ACCESS,
@@ -98,6 +92,13 @@ import { registerIssuerIdentificationReadRoute } from "./fiscal/issuer-identific
 import { registerRegisterPointOfSaleConfigurationRoute } from "./fiscal/register-point-of-sale-configuration-route.js";
 import type { RegistersPointsOfSaleRouteOptions } from "./fiscal/registers-points-of-sale-list-route.js";
 import { registerRegistersPointsOfSaleListRoute } from "./fiscal/registers-points-of-sale-list-route.js";
+import { type RefundRouteOptions, registerRefundRoutes } from "./payments/refund-routes.js";
+import { registerPermissionCatalogRoute } from "./permissions/permission-catalog-route.js";
+import { registerRoleCreationRoutes } from "./permissions/role-creation-route.js";
+import { registerRoleEditRoutes } from "./permissions/role-edit-route.js";
+import { registerRoleReadRoute } from "./permissions/role-read-route.js";
+import type { RolesRouteOptions } from "./permissions/roles-list-route.js";
+import { registerRolesListRoute } from "./permissions/roles-list-route.js";
 import { registerEdgeOriginGuard } from "./platform/edge-origin-guard.js";
 import { registerHealthRoute } from "./platform/health-route.js";
 import { registerDiscountCreationRoute } from "./pricing/discount-creation-route.js";
@@ -121,7 +122,6 @@ import { registerRegisterCreationRoute } from "./register/register-creation-rout
 import { registerRegisterEnrollmentCodeRoute } from "./register/register-enrollment-code-route.js";
 import type { RegistersRouteOptions } from "./register/registers-list-route.js";
 import { registerRegistersListRoute } from "./register/registers-list-route.js";
-import { type RefundRouteOptions, registerRefundRoutes } from "./sales/refund-routes.js";
 import {
   registerSalesReportRoutes,
   type SalesReportRouteOptions,

@@ -1,9 +1,9 @@
+import type { PlannedRefund } from "../../payments/index.js";
 import type {
   CompletedSaleCashMovement,
   CompletedSaleLine,
   CompletedSalePayment,
 } from "./completed-sale.js";
-import type { PlannedRefund } from "./payment-refund.js";
 
 interface CancelledSaleRefund extends PlannedRefund {
   id: string;
