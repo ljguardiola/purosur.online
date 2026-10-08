@@ -6,7 +6,11 @@ import {
   type FakeWsfeServer,
   startFakeWsfeServer,
 } from "./test-support/fake-wsfe-server.js";
-import { WsfeArcaVitalityService, wsfeEndpointOf } from "./wsfe-arca-vitality-service.js";
+import {
+  unreachableCauseOf,
+  WsfeArcaVitalityService,
+  wsfeEndpointOf,
+} from "./wsfe-arca-vitality-service.js";
 
 let server: FakeWsfeServer;
 
@@ -147,6 +151,14 @@ describe("WsfeArcaVitalityService", () => {
       kind: "unreachable",
       cause: "ECONNABORTED: timeout of 200ms exceeded",
     });
+  });
+});
+
+describe("unreachableCauseOf", () => {
+  it("names a thrown value that is not an error as it is", () => {
+    expect(unreachableCauseOf("socket closed")).toBe("socket closed");
+    expect(unreachableCauseOf(null)).toBe("null");
+    expect(unreachableCauseOf(undefined)).toBe("undefined");
   });
 });
 
