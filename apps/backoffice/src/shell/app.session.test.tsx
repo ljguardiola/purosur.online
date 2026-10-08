@@ -6,8 +6,20 @@ import { honey } from "../catalog/test-support/products";
 import { App, type AppServices } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { opensOnlyScreens } from "./test-support/screen-routes";
 
 const PAST_ACTIVITY_THROTTLE_WINDOW_MS = 120_000;
+
+opensOnlyScreens([
+  "/",
+  "/account",
+  "/account-recovery",
+  "/account-recovery/passkey",
+  "/help",
+  "/products",
+  "/sign-in",
+  "/users",
+]);
 
 beforeEach(resetPageState);
 
