@@ -7,10 +7,12 @@ export interface PendingRefund {
   id: string;
   saleId: string;
   registerId: string;
+  registerName: string;
   method: string;
   amount: number;
   occurredAt: Date;
   cancelledBy: string;
+  cancelledByName: string | null;
 }
 
 export interface PendingRefundsReader {

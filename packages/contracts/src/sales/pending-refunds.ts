@@ -10,10 +10,12 @@ export const pendingRefundsSchema = z.object({
       id: recordIdSchema(),
       sale_id: recordIdSchema(),
       register_id: recordIdSchema(),
+      register_name: z.string(),
       method: z.enum(PAYMENT_METHODS),
       amount: z.int().nonnegative(),
       occurred_at: instant,
       cancelled_by: z.string(),
+      cancelled_by_name: z.string().nullable(),
     }),
   ),
 });
