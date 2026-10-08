@@ -1,4 +1,4 @@
-import { PAYMENT_METHODS } from "@purosur/domain";
+import { ARGENTINA_TIME_ZONE, PAYMENT_METHODS } from "@purosur/domain";
 import { z } from "zod";
 import { recordIdSchema } from "../shared/index.js";
 
@@ -13,7 +13,7 @@ export const pendingRefundsSchema = z.object({
       register_name: z.string(),
       method: z.enum(PAYMENT_METHODS),
       amount: z.int().nonnegative(),
-      occurred_at: instant,
+      occurred_at: instant.meta({ timeZone: ARGENTINA_TIME_ZONE }),
       cancelled_by: z.string(),
       cancelled_by_name: z.string().nullable(),
     }),
