@@ -63,6 +63,20 @@ describe("WsfeArcaVitalityService", () => {
     ]);
   });
 
+  it("tells the cause of an answer it could not read, and nothing when ARCA answered", async () => {
+    const causes: string[] = [];
+    const service = new WsfeArcaVitalityService({
+      endpoint: server.endpoint,
+      onUnreachable: (cause) => causes.push(cause),
+    });
+
+    await service.check();
+    server.behave(answers("not-soap.txt", 502));
+    await service.check();
+
+    expect(causes).toEqual(["HTTP 502: Invalid XML"]);
+  });
+
   it("answers with the values as reported when one server is not OK", async () => {
     server.behave(answers("fe-dummy-database-down.xml"));
 

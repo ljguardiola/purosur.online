@@ -7,7 +7,11 @@ import {
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
 import { ARCA_VITALITY_CHECK_TASK_IDENTIFIER } from "./arca-vitality-task.js";
-import { type FakeWsfeServer, startFakeWsfeServer } from "./test-support/fake-wsfe-server.js";
+import {
+  answers,
+  type FakeWsfeServer,
+  startFakeWsfeServer,
+} from "./test-support/fake-wsfe-server.js";
 
 const UNUSED_EMAIL_SENDER: AccessEmailSender = {
   async sendRecoveryLink() {},
@@ -96,6 +100,45 @@ describe("the ARCA vitality check the server sets up on a real Postgres", () => 
       expect(await sql`select 1 from arca_vitality_checks`).toHaveLength(1);
     } finally {
       await recovery.close();
+    }
+  }, 90_000);
+
+  it("warns with the cause when FEDummy gives no answer the cloud can read", async () => {
+    await sql`delete from graphile_worker._private_jobs`;
+    await sql`delete from arca_vitality_checks`;
+    fakeWsfe.behave(answers("fe-dummy-fault.xml", 500));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const recovery = await setUpRecovery(
+      {
+        databaseUrl: integrationDb.databaseUrl,
+        emailSender: { transport: "log" },
+        emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
+        emailReplyTo: "purosur.comarca@gmail.com",
+        backofficeOrigin: "https://staging.purosur.online",
+        arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
+        arcaVitality: { endpoint: fakeWsfe.endpoint },
+      },
+      () => CHECKED_AT,
+      { emailSender: UNUSED_EMAIL_SENDER },
+    );
+    try {
+      await recovery.workerUtils.addJob(
+        ARCA_VITALITY_CHECK_TASK_IDENTIFIER,
+        {},
+        { jobKey: ARCA_VITALITY_CHECK_TASK_IDENTIFIER },
+      );
+
+      await vi.waitFor(
+        () =>
+          expect(warn).toHaveBeenCalledWith(
+            "ARCA vitality check: no answer the cloud could read from FEDummy (HTTP 500: soap:Server: Server was unable to process request.)",
+          ),
+        { timeout: 20_000, interval: 100 },
+      );
+    } finally {
+      await recovery.close();
+      warn.mockRestore();
+      fakeWsfe.behave(answers("fe-dummy-all-ok.xml"));
     }
   }, 90_000);
 
