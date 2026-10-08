@@ -1,3 +1,4 @@
+ALTER TYPE "public"."installation_request_endpoint" ADD VALUE 'fiscal_authorize';--> statement-breakpoint
 CREATE TABLE "arca_invoicing_evidence" (
 	"id" boolean PRIMARY KEY DEFAULT true NOT NULL,
 	"last_call_ok_at" timestamp with time zone NOT NULL,

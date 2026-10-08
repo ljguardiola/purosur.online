@@ -10,10 +10,12 @@ import {
   type RealTimeAuthorizationAnswer,
   type TaxAuthorityInvoicing,
 } from "@purosur/domain/fiscal/use-cases";
+import { admitInstallationRequest } from "@purosur/domain/sync/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { PUBLIC_ACCESS } from "../access/route-access.js";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
+import { sendRateLimited } from "../platform/rate-limited-response.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
 import { authenticateDevice } from "../register/device-authentication.js";
@@ -21,6 +23,7 @@ import {
   type DeviceTokensOptions,
   installationTokenPorts,
 } from "../register/installation-token-ports.js";
+import { DrizzleRequestAdmission } from "../sync/drizzle-request-admission.js";
 import { DrizzleInvoicingEvidence } from "./drizzle-invoicing-evidence.js";
 import { DrizzlePointOfSaleLanes } from "./drizzle-point-of-sale-lanes.js";
 import { DrizzleWsaaTokenSource } from "./drizzle-wsaa-token-source.js";
@@ -92,6 +95,8 @@ export function registerFiscalAuthorizationRoute<TQueryResult extends PgQueryRes
     evidence: new DrizzleInvoicingEvidence(options.db),
   };
 
+  const admission = { admission: new DrizzleRequestAdmission(options.db), clock };
+
   app.register(async (scope) => {
     answerErrorsWithCloudEnvelope(scope);
 
@@ -109,6 +114,15 @@ export function registerFiscalAuthorizationRoute<TQueryResult extends PgQueryRes
         }
         if (authentication.installation.revoked) {
           await reply.code(cloudErrorStatus(REVOKED.code)).send(REVOKED);
+          return;
+        }
+
+        const admitted = await admitInstallationRequest(admission, {
+          deviceId: authentication.installation.deviceId,
+          endpoint: "fiscal_authorize",
+        });
+        if (admitted.kind === "rate_limited") {
+          await sendRateLimited(reply, "too many requests", admitted.retryAfterSeconds);
           return;
         }
 

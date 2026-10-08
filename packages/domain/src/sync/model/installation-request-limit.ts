@@ -4,7 +4,7 @@ import {
   slidingWindowStart,
 } from "../../shared/index.js";
 
-export type LimitedEndpoint = "push" | "pull" | "health_check";
+export type LimitedEndpoint = "push" | "pull" | "health_check" | "fiscal_authorize";
 
 export const INSTALLATION_REQUEST_WINDOW_MS = 60 * 60 * 1000;
 
@@ -12,6 +12,7 @@ export const INSTALLATION_REQUEST_LIMITS: Record<LimitedEndpoint, number> = {
   push: 3600,
   pull: 3600,
   health_check: 3600,
+  fiscal_authorize: 3600,
 };
 
 function policyOf(endpoint: LimitedEndpoint): SlidingWindowLimit {
