@@ -41,6 +41,11 @@
       "types": "./dist/payments/use-cases/index.d.ts",
       "default": "./dist/payments/use-cases/index.js"
     },
+    "./users/use-cases": {
+      "@purosur/source": "./src/users/use-cases/index.ts",
+      "types": "./dist/users/use-cases/index.d.ts",
+      "default": "./dist/users/use-cases/index.js"
+    },
     "./permissions/use-cases": {
       "@purosur/source": "./src/permissions/use-cases/index.ts",
       "types": "./dist/permissions/use-cases/index.d.ts",

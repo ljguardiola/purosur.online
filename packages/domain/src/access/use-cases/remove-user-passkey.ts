@@ -1,5 +1,5 @@
+import { mayRemovePasskeyOf } from "../../users/index.js";
 import { hasValidPasskeyAuthorization } from "../model/passkey-authorization-window.js";
-import { mayRemovePasskeyOf } from "../model/user-management.js";
 import type { PasskeyHolders } from "./passkey-holders.js";
 import type { PasskeyRemovalStore } from "./passkey-removal-store.js";
 

@@ -1,4 +1,4 @@
-import { listBranchUsers } from "@purosur/domain/access/use-cases";
+import { listBranchUsers } from "@purosur/domain/users/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "./backoffice-origin.js";

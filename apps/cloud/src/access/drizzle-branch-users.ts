@@ -2,7 +2,7 @@ import type {
   BranchUserActiveScope,
   BranchUserFacts,
   BranchUsers,
-} from "@purosur/domain/access/use-cases";
+} from "@purosur/domain/users/use-cases";
 import { and, asc, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { passkeys, rolePermissions, roles, userRoles, users } from "../platform/db/schema.js";

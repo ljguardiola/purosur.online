@@ -1,4 +1,4 @@
-import { findBranchUser, reactivateUser } from "@purosur/domain/access/use-cases";
+import { findBranchUser, reactivateUser } from "@purosur/domain/users/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { readRecordIds } from "../platform/record-id-params.js";

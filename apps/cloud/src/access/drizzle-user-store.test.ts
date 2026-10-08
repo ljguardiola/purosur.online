@@ -1,4 +1,4 @@
-import { UserEmailConflict, type UserStoreTransaction } from "@purosur/domain/access/use-cases";
+import { UserEmailConflict, type UserStoreTransaction } from "@purosur/domain/users/use-cases";
 import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";

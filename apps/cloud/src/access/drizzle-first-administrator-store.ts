@@ -5,7 +5,7 @@ import type {
   FirstAdministratorStoreTransaction,
   NewFirstAdministrator,
   StoredFirstAdministrator,
-} from "@purosur/domain/access/use-cases";
+} from "@purosur/domain/users/use-cases";
 import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { auditLog, locations, roles, userRoles, users } from "../platform/db/schema.js";

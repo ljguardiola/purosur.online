@@ -1,5 +1,5 @@
 import { registerCoverageSchema } from "@purosur/contracts";
-import { findUncoveredRegisterPermissions } from "@purosur/domain/access/use-cases";
+import { findUncoveredRegisterPermissions } from "@purosur/domain/users/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";

@@ -7,7 +7,7 @@ import {
   mayReactivateUser,
   mayRemoveUserPasskey,
 } from "@purosur/domain";
-import type { BranchUser } from "@purosur/domain/access/use-cases";
+import type { BranchUser } from "@purosur/domain/users/use-cases";
 import type { OpenSession } from "./open-session.js";
 
 export function canReactivateUsers(

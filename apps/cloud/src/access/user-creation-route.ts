@@ -1,5 +1,5 @@
 import { userCreationBodySchema } from "@purosur/contracts";
-import { createUser } from "@purosur/domain/access/use-cases";
+import { createUser } from "@purosur/domain/users/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { readValidatedBody } from "../platform/request-body-schema.js";

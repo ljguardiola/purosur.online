@@ -11,7 +11,7 @@ import {
   type UserRewrite,
   type UserStore,
   type UserStoreTransaction,
-} from "@purosur/domain/access/use-cases";
+} from "@purosur/domain/users/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";

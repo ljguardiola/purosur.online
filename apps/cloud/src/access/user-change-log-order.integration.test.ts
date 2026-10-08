@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { deactivateUser } from "@purosur/domain/access/use-cases";
 import { editRole } from "@purosur/domain/permissions/use-cases";
+import { deactivateUser } from "@purosur/domain/users/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
