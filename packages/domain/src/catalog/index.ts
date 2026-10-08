@@ -42,5 +42,8 @@ export {
   productNameLength,
   SALE_UNITS,
 } from "./model/product.js";
+export type { NameMatch } from "./model/product-name-match.js";
+export type { SearchableProduct } from "./model/product-search.js";
+export { rankProductSearch, SEARCH_RESULT_LIMIT } from "./model/product-search.js";
 export { repeatsATag } from "./model/product-tags.js";
 export { isTagNameTooLong, TAG_NAME_MAX_LENGTH } from "./model/tag-name.js";

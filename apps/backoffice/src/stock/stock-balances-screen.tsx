@@ -125,12 +125,14 @@ export function StockBalancesScreen({
           />
         </div>
         <ListFilter
+          name="category"
           label="Categoría:"
           options={categoryOptions}
           value={categoryIsOffered ? category : "ALL"}
           onChange={setCategory}
         />
         <ListFilter
+          name="balance"
           label="Saldo:"
           options={BALANCE_FILTER_OPTIONS}
           value={balance}

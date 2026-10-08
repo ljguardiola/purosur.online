@@ -148,11 +148,13 @@ export function SalesByDayScreen({
     >
       <div className="flex flex-wrap items-end gap-3">
         <DateField
+          name="from"
           label="Desde"
           value={range.from}
           onChange={(from) => changeRange({ ...range, from })}
         />
         <DateField
+          name="to"
           label="Hasta"
           value={range.to}
           onChange={(to) => changeRange({ ...range, to })}
@@ -161,6 +163,7 @@ export function SalesByDayScreen({
           }
         />
         <ListFilter
+          name="register"
           label="Caja:"
           options={registerOptions}
           value={registerOffered ? filters.register : "ALL"}

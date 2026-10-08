@@ -20,6 +20,7 @@ type BaseSelectProps = Omit<SelectProps<Role>, keyof FieldErrorProps>;
 
 function baseProps(overrides: Partial<BaseSelectProps> = {}): BaseSelectProps {
   return {
+    name: "role",
     label: "Rol",
     options,
     value: "shift-lead",
@@ -437,16 +438,19 @@ test("does not accept a select without a label, its options, a chosen value or a
     onChange: (value: Role) => void;
   }>().not.toExtend<SelectProps<Role>>();
   expectTypeOf<{
+    name: string;
     label: string;
     value: Role;
     onChange: (value: Role) => void;
   }>().not.toExtend<SelectProps<Role>>();
   expectTypeOf<{
+    name: string;
     label: string;
     options: typeof options;
     onChange: (value: Role) => void;
   }>().not.toExtend<SelectProps<Role>>();
   expectTypeOf<{
+    name: string;
     label: string;
     options: typeof options;
     value: Role;
@@ -455,6 +459,7 @@ test("does not accept a select without a label, its options, a chosen value or a
 
 test("does not accept an empty options list", () => {
   expectTypeOf<{
+    name: string;
     label: string;
     options: [];
     value: Role;
@@ -468,6 +473,7 @@ test("has no invalid prop, since an error message or a shared error message id m
 
 test("does not accept both its own message and a shared one", () => {
   expectTypeOf<{
+    name: string;
     label: string;
     options: typeof options;
     value: Role;
@@ -479,6 +485,7 @@ test("does not accept both its own message and a shared one", () => {
 
 test("accepts an error message, a shared error message id, or neither", () => {
   expectTypeOf<{
+    name: string;
     label: string;
     options: typeof options;
     value: Role;
@@ -486,6 +493,7 @@ test("accepts an error message, a shared error message id, or neither", () => {
     errorMessage: string | undefined;
   }>().toExtend<SelectProps<Role>>();
   expectTypeOf<{
+    name: string;
     label: string;
     options: typeof options;
     value: Role;
@@ -506,6 +514,7 @@ test("does not accept an option without a value or a label", () => {
 
 test("accepts a null value for no selection yet", () => {
   expectTypeOf<{
+    name: string;
     label: string;
     options: typeof options;
     value: null;
@@ -556,4 +565,14 @@ test("shows the error message and closes-with-choice still works when the value 
 
 test("does not name its secondary text helperText", () => {
   expectTypeOf<SelectProps<string>>().not.toHaveProperty("helperText");
+});
+
+test("names the native select it renders for form submission with the name it is given", async () => {
+  const screen = await render(<Select {...baseProps({ name: "role" })} />);
+
+  expect(screen.container.querySelector("select")?.getAttribute("name")).toBe("role");
+});
+
+test("requires a name", () => {
+  expectTypeOf<SelectProps<Role>["name"]>().toEqualTypeOf<string>();
 });

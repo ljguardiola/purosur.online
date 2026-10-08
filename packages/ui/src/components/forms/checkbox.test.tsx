@@ -35,7 +35,7 @@ function checkboxBox(screen: Screen, name: string): HTMLElement {
 function Harness({ initial = false }: { initial?: boolean }) {
   const [checked, setChecked] = useState(initial);
   return (
-    <Checkbox checked={checked} onCheckedChange={setChecked}>
+    <Checkbox name="returnLine" checked={checked} onCheckedChange={setChecked}>
       <span>Return this line</span>
     </Checkbox>
   );
@@ -45,7 +45,7 @@ test("renders the caller's content 12px from a 22px, 4px-radius box, vertically 
   // Wrapped in its own element: raw text has no element of its own, so getByText would resolve to
   // the label instead.
   const screen = await render(
-    <Checkbox checked={false} onCheckedChange={() => {}}>
+    <Checkbox name="returnLine" checked={false} onCheckedChange={() => {}}>
       <span>Return this line</span>
     </Checkbox>,
   );
@@ -68,7 +68,7 @@ test("renders the caller's content 12px from a 22px, 4px-radius box, vertically 
 
 test("colors an unchecked box white with a 2px strong border and no check", async () => {
   const screen = await render(
-    <Checkbox checked={false} onCheckedChange={() => {}}>
+    <Checkbox name="returnLine" checked={false} onCheckedChange={() => {}}>
       Return this line
     </Checkbox>,
   );
@@ -87,7 +87,7 @@ test("colors an unchecked box white with a 2px strong border and no check", asyn
 
 test("turns an unchecked box's background bone on hover, keeping its border", async () => {
   const screen = await render(
-    <Checkbox checked={false} onCheckedChange={() => {}}>
+    <Checkbox name="returnLine" checked={false} onCheckedChange={() => {}}>
       Return this line
     </Checkbox>,
   );
@@ -106,7 +106,7 @@ test("turns an unchecked box's background bone on hover, keeping its border", as
 
 test("colors a checked box blue UI with a 16px white check and no border", async () => {
   const screen = await render(
-    <Checkbox checked onCheckedChange={() => {}}>
+    <Checkbox name="returnLine" checked onCheckedChange={() => {}}>
       Return this line
     </Checkbox>,
   );
@@ -128,7 +128,7 @@ test("colors a checked box blue UI with a 16px white check and no border", async
 
 test("turns a checked box's background blue strong on hover, keeping the white check", async () => {
   const screen = await render(
-    <Checkbox checked onCheckedChange={() => {}}>
+    <Checkbox name="returnLine" checked onCheckedChange={() => {}}>
       Return this line
     </Checkbox>,
   );
@@ -142,7 +142,7 @@ test("turns a checked box's background blue strong on hover, keeping the white c
 
 test("keeps the box's size stable between the unchecked and checked states", async () => {
   const uncheckedScreen = await render(
-    <Checkbox checked={false} onCheckedChange={() => {}}>
+    <Checkbox name="returnLine" checked={false} onCheckedChange={() => {}}>
       Return this line
     </Checkbox>,
   );
@@ -150,7 +150,7 @@ test("keeps the box's size stable between the unchecked and checked states", asy
   await uncheckedScreen.unmount();
 
   const checkedScreen = await render(
-    <Checkbox checked onCheckedChange={() => {}}>
+    <Checkbox name="returnLine" checked onCheckedChange={() => {}}>
       Return this line
     </Checkbox>,
   );
@@ -187,7 +187,7 @@ test("toggles with Space when focused", async () => {
 
 test("exposes the checkbox to assistive technology named by its content, with its checked state", async () => {
   const screen = await render(
-    <Checkbox checked onCheckedChange={() => {}}>
+    <Checkbox name="returnLine" checked onCheckedChange={() => {}}>
       Return this line
     </Checkbox>,
   );
@@ -198,7 +198,7 @@ test("exposes the checkbox to assistive technology named by its content, with it
 
 test("shows the package's focus ring around the box when focused", async () => {
   const screen = await render(
-    <Checkbox checked={false} onCheckedChange={() => {}}>
+    <Checkbox name="returnLine" checked={false} onCheckedChange={() => {}}>
       Return this line
     </Checkbox>,
   );
@@ -214,7 +214,7 @@ test("shows the package's focus ring around the box when focused", async () => {
 test("lets its content fill the remaining width of a wide container", async () => {
   const screen = await render(
     <div style={{ width: "400px" }}>
-      <Checkbox checked={false} onCheckedChange={() => {}}>
+      <Checkbox name="returnLine" checked={false} onCheckedChange={() => {}}>
         <span>Return this line</span>
       </Checkbox>
     </div>,
@@ -232,7 +232,12 @@ test("lets its content fill the remaining width of a wide container", async () =
 
 test("shows its description below its content, named by the content and described by the description", async () => {
   const screen = await render(
-    <Checkbox checked onCheckedChange={() => {}} description="Needed by stock counts">
+    <Checkbox
+      name="returnLine"
+      checked
+      onCheckedChange={() => {}}
+      description="Needed by stock counts"
+    >
       <span>Return this line</span>
     </Checkbox>,
   );
@@ -254,7 +259,7 @@ test("shows its description below its content, named by the content and describe
 
 test("has no accessible description without one", async () => {
   const screen = await render(
-    <Checkbox checked onCheckedChange={() => {}}>
+    <Checkbox name="returnLine" checked onCheckedChange={() => {}}>
       Return this line
     </Checkbox>,
   );
@@ -264,7 +269,13 @@ test("has no accessible description without one", async () => {
 
 test("dims the box and content to 45% opacity when disabled, keeping its description legible", async () => {
   const screen = await render(
-    <Checkbox checked onCheckedChange={() => {}} disabled description="Needed by stock counts">
+    <Checkbox
+      name="returnLine"
+      checked
+      onCheckedChange={() => {}}
+      disabled
+      description="Needed by stock counts"
+    >
       <span>Return this line</span>
     </Checkbox>,
   );
@@ -285,7 +296,7 @@ test("neither toggles nor takes focus when disabled", async () => {
   const onCheckedChange = vi.fn();
   const screen = await render(
     <>
-      <Checkbox checked onCheckedChange={onCheckedChange} disabled>
+      <Checkbox name="returnLine" checked onCheckedChange={onCheckedChange} disabled>
         Return this line
       </Checkbox>
       <button type="button">Next control</button>
@@ -306,7 +317,13 @@ test("neither toggles nor takes focus when disabled", async () => {
 
 test("has no accessibility violations when disabled with a description", async () => {
   const screen = await render(
-    <Checkbox checked onCheckedChange={() => {}} disabled description="Needed by stock counts">
+    <Checkbox
+      name="returnLine"
+      checked
+      onCheckedChange={() => {}}
+      disabled
+      description="Needed by stock counts"
+    >
       Return this line
     </Checkbox>,
   );
@@ -316,6 +333,7 @@ test("has no accessibility violations when disabled with a description", async (
 
 test("does not accept a checkbox without content", () => {
   expectTypeOf<{
+    name: string;
     checked: boolean;
     onCheckedChange: (checked: boolean) => void;
   }>().not.toExtend<CheckboxProps>();
@@ -338,4 +356,18 @@ test("names its state checked and reports it with onCheckedChange", () => {
   expectTypeOf<CheckboxProps>().toHaveProperty("onCheckedChange");
   expectTypeOf<CheckboxProps>().not.toHaveProperty("isSelected");
   expectTypeOf<CheckboxProps>().not.toHaveProperty("onChange");
+});
+
+test("names its native input with the name it is given", async () => {
+  const screen = await render(
+    <Checkbox name="returnLine" checked={false} onCheckedChange={() => {}}>
+      <span>Return this line</span>
+    </Checkbox>,
+  );
+
+  expect(checkboxInput(screen, "Return this line").getAttribute("name")).toBe("returnLine");
+});
+
+test("requires a name", () => {
+  expectTypeOf<Omit<CheckboxProps, "name">>().not.toExtend<CheckboxProps>();
 });

@@ -781,12 +781,19 @@ describe("the open sale of the session", () => {
       .run(lineTotal, lineTotal);
   }
 
-  function addApprovedPayment(): void {
+  function addApprovedPayment(id = "payment-1", method = "CASH", amount = 1000): void {
     database
       .prepare(
-        "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at) VALUES ('payment-1', 'sale-1', 'SALE', 'CASH', 'NONE', 1000, 'APPROVED', ?)",
+        "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, authorized_by, confirmed_at) VALUES (?, 'sale-1', 'SALE', ?, 'NONE', ?, 'APPROVED', ?, ?, ?)",
       )
-      .run(NOW.toISOString());
+      .run(
+        id,
+        method,
+        amount,
+        NOW.toISOString(),
+        method === "CASH" ? null : "u1",
+        method === "CASH" ? null : NOW.toISOString(),
+      );
   }
 
   it("is none while no sale is open", async () => {
@@ -798,13 +805,40 @@ describe("the open sale of the session", () => {
   it("tells its total and that it can be cancelled while it has no approved payment", async () => {
     addOpenSale(await openAs("u1", 5000), 3500);
 
-    expect(sessionOpenSaleFor(database)).toEqual({ total: 3500, cancellable: true });
+    expect(sessionOpenSaleFor(database)).toEqual({
+      id: "sale-1",
+      total: 3500,
+      paid: 0,
+      cancellable: true,
+      refunds_on_cancel: [],
+    });
   });
 
   it("tells that it cannot be cancelled once it has an approved payment", async () => {
     addOpenSale(await openAs("u1", 5000), 3500);
     addApprovedPayment();
 
-    expect(sessionOpenSaleFor(database)).toEqual({ total: 3500, cancellable: false });
+    expect(sessionOpenSaleFor(database)).toMatchObject({
+      id: "sale-1",
+      total: 3500,
+      cancellable: false,
+    });
+  });
+
+  it("tells what was paid and the refund each approved payment would give back by its own method", async () => {
+    addOpenSale(await openAs("u1", 5000), 3500);
+    addApprovedPayment("payment-1", "CASH", 1000);
+    addApprovedPayment("payment-2", "TRANSFER", 1500);
+
+    expect(sessionOpenSaleFor(database)).toEqual({
+      id: "sale-1",
+      total: 3500,
+      paid: 2500,
+      cancellable: false,
+      refunds_on_cancel: [
+        { payment_id: "payment-1", method: "CASH", amount: 1000, state: "APPROVED" },
+        { payment_id: "payment-2", method: "TRANSFER", amount: 1500, state: "PENDING" },
+      ],
+    });
   });
 });

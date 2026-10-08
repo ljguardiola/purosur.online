@@ -482,6 +482,7 @@ export function PricesListScreen({
             />
           </div>
           <ListFilter
+            name="category"
             label="Categoría:"
             options={categoryFilterOptions}
             value={categoryFilter}
@@ -491,6 +492,7 @@ export function PricesListScreen({
             }}
           />
           <ListFilter
+            name="review"
             label="Revisión:"
             options={reviewFilterOptions}
             value={reviewFilter}

@@ -16,7 +16,6 @@ import type {
 import type { SignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
 import { readOpenSale } from "../sales/sqlite-open-sale";
-import { readSalePayments } from "../sales/sqlite-sale-payments";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 
 interface SessionRow {
@@ -207,7 +206,7 @@ export class SqliteCashLedger implements CashLedger {
 
   private openSale(sessionId: string): OpenSale | undefined {
     const sale = readOpenSale(this.database, sessionId);
-    return sale && { lines: sale.lines, payments: readSalePayments(this.database, sale.id) };
+    return sale && { lines: sale.lines };
   }
 
   private appendOutboxEvent(draft: OutboxEventDraft): void {

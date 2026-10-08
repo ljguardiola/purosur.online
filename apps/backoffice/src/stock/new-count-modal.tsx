@@ -58,6 +58,7 @@ function CountMomentField() {
           <div className="flex flex-row gap-3">
             <div className="flex-1">
               <DateField
+                name={`${field.name}.day`}
                 label="Día del recuento"
                 value={moment.day}
                 onChange={(day: CalendarDate | null) => field.handleChange({ ...moment, day })}

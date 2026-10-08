@@ -115,6 +115,7 @@ export type {
   NetContentUnit,
   NewProductBarcodeListProblem,
   SaleUnit,
+  SearchableProduct,
 } from "./catalog/index.js";
 export {
   appendEan13CheckDigit,
@@ -149,6 +150,7 @@ export {
   productNameLength,
   repeatsATag,
   SALE_UNITS,
+  SEARCH_RESULT_LIMIT,
   TAG_NAME_MAX_LENGTH,
 } from "./catalog/index.js";
 export type {
@@ -319,7 +321,6 @@ export {
 export type {
   LinePromotion,
   ListPrice,
-  OpenSaleSummary,
   PaymentMethod,
   PaymentTransaction,
   PlannedRefund,
@@ -338,13 +339,12 @@ export {
   cashCharge,
   isRefundPending,
   isSalesReportRangeAsked,
-  openSaleSummary,
+  openSaleStanding,
   PAYMENT_METHODS,
   REFUND_DONE_STATE,
   REFUND_PENDING_STATE,
   REFUND_STATES,
   SALES_REPORT_SALE_STATE,
-  SEARCH_RESULT_LIMIT,
   saleTotal,
 } from "./sales/index.js";
 export {

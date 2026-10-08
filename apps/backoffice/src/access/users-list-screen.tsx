@@ -431,6 +431,7 @@ function UsersListView({
         {showsState && (
           <div className="flex items-center gap-3">
             <ListFilter
+              name="status"
               label="Estado:"
               options={stateFilterOptions}
               value={stateFilter}

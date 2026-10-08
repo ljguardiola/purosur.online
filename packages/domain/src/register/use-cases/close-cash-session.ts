@@ -1,4 +1,4 @@
-import { openSaleSummary } from "../../sales/index.js";
+import { saleTotal } from "../../sales/index.js";
 import type { Clock, OperationAuthority } from "../../shared/index.js";
 import { isValidCashAmount } from "../model/cash-amount.js";
 import { cashCountDifference } from "../model/cash-count.js";
@@ -25,7 +25,7 @@ export interface CloseCashSessionPorts<Refusal> {
 export type CloseCashSessionOutcome =
   | { kind: "invalid_counted_cash" }
   | { kind: "no_open_session" }
-  | { kind: "open_sale"; total: number; cancellable: boolean }
+  | { kind: "open_sale"; total: number }
   | { kind: "closed"; session: ClosedCashSession };
 
 export async function closeCashSession<Refusal>(
@@ -48,7 +48,7 @@ export async function closeCashSession<Refusal>(
     }
     const openSale = tx.openSale(sessionId);
     if (openSale) {
-      return { kind: "open_sale", ...openSaleSummary(openSale) };
+      return { kind: "open_sale", total: saleTotal(openSale.lines) };
     }
 
     const closedAt = clock.now();

@@ -615,6 +615,7 @@ export function BrandsListScreen({
             />
           </div>
           <ListFilter
+            name="status"
             label="Estado:"
             options={statusFilterOptions}
             value={statusFilter}

@@ -29,6 +29,7 @@ import {
 import { isOptionValue, type NarrowedOption, type Options } from "./option";
 
 type QuantityUnitFieldCommonProps<U extends string> = {
+  name: string;
   label: string;
   quantity: string;
   onQuantityChange: (value: string) => void;
@@ -76,6 +77,7 @@ const optionClassName =
 
 export function QuantityUnitField<U extends string>(props: QuantityUnitFieldProps<U>) {
   const {
+    name,
     label,
     quantity,
     onQuantityChange,
@@ -103,6 +105,7 @@ export function QuantityUnitField<U extends string>(props: QuantityUnitFieldProp
 
   return (
     <AriaTextField
+      name={`${name}.quantity`}
       value={quantity}
       onChange={onQuantityChange}
       isDisabled={disabled}
@@ -116,6 +119,7 @@ export function QuantityUnitField<U extends string>(props: QuantityUnitFieldProp
       >
         <AriaInput className={valueClassName} />
         <AriaSelect
+          name={`${name}.unit`}
           selectedKey={unit}
           onSelectionChange={(key) => {
             if (isOptionValue(key, options)) {

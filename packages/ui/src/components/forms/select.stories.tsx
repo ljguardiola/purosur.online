@@ -101,6 +101,7 @@ function SelectWithMessageElsewhere() {
   return (
     <div className="flex flex-col gap-1.5">
       <Select
+        name="role"
         label="Rol"
         options={options}
         value="shift-lead"

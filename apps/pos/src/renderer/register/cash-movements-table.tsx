@@ -175,6 +175,7 @@ export function CashMovementsTable({ state }: CashMovementsTableProps) {
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-3">
         <ListFilter
+          name="type"
           label="Tipo:"
           options={TYPE_FILTER_OPTIONS}
           value={typeFilter}

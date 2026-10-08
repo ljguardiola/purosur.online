@@ -288,7 +288,13 @@ function DateFieldWithMessageElsewhere() {
   const messageId = useId();
   return (
     <div className="flex flex-col gap-1.5">
-      <DateField label="Vencimiento" value={null} onChange={() => {}} errorMessageId={messageId} />
+      <DateField
+        name="expiry"
+        label="Vencimiento"
+        value={null}
+        onChange={() => {}}
+        errorMessageId={messageId}
+      />
       <p id={messageId} className={fieldErrorClassName}>
         Elegí una fecha.
       </p>
