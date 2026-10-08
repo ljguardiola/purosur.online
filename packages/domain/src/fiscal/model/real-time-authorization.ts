@@ -1,3 +1,5 @@
+import { argentinaCalendarDay } from "../../shared/index.js";
+
 export const REAL_TIME_AUTHORIZATION_TIMEOUT_MS = 5_000;
 export const AUTHORIZATION_CALL_MARGIN_MS = 500;
 export const ROUND_TRIP_SAMPLE_SIZE = 12;
@@ -34,4 +36,23 @@ export function authorizationCallDeadline({
 
 export function mayStartAuthorizationCall(deadline: Date, now: Date): boolean {
   return now.getTime() <= deadline.getTime();
+}
+
+export interface NextInvoiceNumberInput {
+  localLastAuthorized: number | null;
+  taxAuthorityLastAuthorized: number | null;
+}
+
+export function nextInvoiceNumber({
+  localLastAuthorized,
+  taxAuthorityLastAuthorized,
+}: NextInvoiceNumberInput): number | null {
+  if (taxAuthorityLastAuthorized === null) {
+    return null;
+  }
+  return Math.max(localLastAuthorized ?? 0, taxAuthorityLastAuthorized) + 1;
+}
+
+export function invoiceDateOf(completedAt: Date): string {
+  return argentinaCalendarDay(completedAt);
 }
