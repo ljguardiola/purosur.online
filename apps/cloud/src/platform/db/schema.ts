@@ -683,6 +683,7 @@ export const deviceState = pgTable("device_state", {
   lastPulledAt: timestamp("last_pulled_at", { withTimezone: true }),
   appVersion: text("app_version"),
   lastPushedAt: timestamp("last_pushed_at", { withTimezone: true }),
+  lastAcceptedPushAt: timestamp("last_accepted_push_at", { withTimezone: true }),
   walSizeBytes: bigint("wal_size_bytes", { mode: "number" }),
   diskFreeBytes: bigint("disk_free_bytes", { mode: "number" }),
   diskFreeRatio: doublePrecision("disk_free_ratio"),
@@ -1274,6 +1275,7 @@ export const alerts = pgTable(
     escalatedAt: timestamp("escalated_at", { withTimezone: true }),
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
     resolvedBy: uuid("resolved_by").references(() => users.id),
+    conditionClearedAt: timestamp("condition_cleared_at", { withTimezone: true }),
     deduplicates: boolean("deduplicates").notNull().default(true),
   },
   (table) => [

@@ -17,8 +17,10 @@ export type {
   AlertRecipientCandidate,
   AlertStore,
   AlertStoreTransaction,
+  ClearedConditionAlert,
   Clock,
   LockedAlert,
+  LockedConditionAlert,
   LockedOpenAlert,
   NewAlert,
   SourceAddressHasher,
@@ -31,7 +33,13 @@ export type {
 } from "./close-alert.js";
 export { closeAlert } from "./close-alert.js";
 export { escalateOverdueAlerts } from "./escalate-overdue-alerts.js";
+export type {
+  AlertConditionObservation,
+  ObserveAlertConditionOutcome,
+} from "./observe-alert-condition.js";
+export { observeAlertCondition } from "./observe-alert-condition.js";
 export type { OpenAlertOutcome } from "./open-alert.js";
 export { openAlert } from "./open-alert.js";
 export type { ResolveAlertOutcome } from "./resolve-alert.js";
 export { resolveAlert } from "./resolve-alert.js";
+export { resolveStablyClearedAlerts } from "./resolve-stably-cleared-alerts.js";

@@ -61,6 +61,19 @@ export interface LockedOpenAlert {
   escalateAt: Date | null;
 }
 
+export interface LockedConditionAlert {
+  alertId: string;
+  conditionClearedAt: Date | null;
+}
+
+export interface ClearedConditionAlert {
+  alertId: string;
+  kind: AlertKind;
+  scope: string;
+  detail: Record<string, unknown>;
+  conditionClearedAt: Date;
+}
+
 export interface AlertEscalation {
   level: AlertLevel;
   escalatedAt: Date;
@@ -75,6 +88,10 @@ export interface AlertStoreTransaction {
   recordClosure(alertId: string, closure: AlertClosure): Promise<void>;
   lockOpenAlerts(): Promise<LockedOpenAlert[]>;
   recordEscalation(alertIds: readonly string[], escalation: AlertEscalation): Promise<void>;
+  lockOpenAlertOfKey(kind: AlertKind, scope: string): Promise<LockedConditionAlert | undefined>;
+  recordConditionCleared(alertId: string, clearedAt: Date): Promise<void>;
+  recordConditionHolding(alertId: string): Promise<void>;
+  lockClearedConditionAlerts(): Promise<ClearedConditionAlert[]>;
 }
 
 export interface AlertStore {

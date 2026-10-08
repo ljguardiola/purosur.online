@@ -6,11 +6,13 @@ import {
   type AlertRecipientCandidate,
   type AlertStore,
   type AlertStoreTransaction,
+  type ClearedConditionAlert,
   type LockedAlert,
+  type LockedConditionAlert,
   type LockedOpenAlert,
   type NewAlert,
 } from "@purosur/domain/alerts/use-cases";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import {
@@ -190,6 +192,51 @@ class DrizzleAlertStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .update(alerts)
       .set({ level: escalation.level, escalatedAt: escalation.escalatedAt })
       .where(inArray(alerts.id, [...alertIds]));
+  }
+
+  async lockOpenAlertOfKey(
+    kind: AlertKind,
+    scope: string,
+  ): Promise<LockedConditionAlert | undefined> {
+    const [row] = await this.tx
+      .select({ alertId: alerts.id, conditionClearedAt: alerts.conditionClearedAt })
+      .from(alerts)
+      .where(and(eq(alerts.kind, kind), eq(alerts.scope, scope), openAlertCondition()))
+      .for("update");
+    return row;
+  }
+
+  async recordConditionCleared(alertId: string, clearedAt: Date): Promise<void> {
+    await this.tx
+      .update(alerts)
+      .set({ conditionClearedAt: clearedAt })
+      .where(eq(alerts.id, alertId));
+  }
+
+  async recordConditionHolding(alertId: string): Promise<void> {
+    await this.tx.update(alerts).set({ conditionClearedAt: null }).where(eq(alerts.id, alertId));
+  }
+
+  async lockClearedConditionAlerts(): Promise<ClearedConditionAlert[]> {
+    const rows = await this.tx
+      .select({
+        alertId: alerts.id,
+        kind: alerts.kind,
+        scope: alerts.scope,
+        detail: alerts.detail,
+        conditionClearedAt: alerts.conditionClearedAt,
+      })
+      .from(alerts)
+      .where(and(openAlertCondition(), isNotNull(alerts.conditionClearedAt)))
+      .for("update");
+    return rows.flatMap((row) => {
+      if (!isAlertKind(row.kind)) {
+        throw new Error(`alert ${row.alertId} has a kind outside the catalog: ${row.kind}`);
+      }
+      return row.conditionClearedAt === null
+        ? []
+        : [{ ...row, kind: row.kind, conditionClearedAt: row.conditionClearedAt }];
+    });
   }
 }
 
