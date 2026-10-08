@@ -79,7 +79,7 @@ function cloudAnswering(answer: (seqs: number[]) => CloudResponse) {
 
 const acknowledgingEverything = (seqs: number[]): CloudResponse => ({
   kind: "ok",
-  body: { status: "ok", ack_seq: seqs.at(-1) },
+  body: { status: "ok", ack_seq: seqs.at(-1) ?? 1 },
 });
 
 function depsFor(
@@ -113,7 +113,7 @@ describe("a push to the cloud", () => {
     expect(register.acknowledged()).toEqual([1, 2, 3]);
   });
 
-  it("has nothing to send once everything is acknowledged", async () => {
+  it("still reports to the cloud with no events once everything is acknowledged", async () => {
     const register = registerWithEvents(1);
     const { post, requests } = cloudAnswering(acknowledgingEverything);
     await pushToCloud(depsFor(register, post));
@@ -121,7 +121,17 @@ describe("a push to the cloud", () => {
     const attempt = await pushToCloud(depsFor(register, post));
 
     expect(attempt).toEqual({ kind: "up_to_date" });
-    expect(requests).toHaveLength(1);
+    expect(requests.map((request) => request.seqs)).toEqual([[1], []]);
+  });
+
+  it("reports to the cloud with no events when the register never had any", async () => {
+    const register = registerWithEvents(0);
+    const { post, requests } = cloudAnswering(acknowledgingEverything);
+
+    const attempt = await pushToCloud(depsFor(register, post));
+
+    expect(attempt).toEqual({ kind: "up_to_date" });
+    expect(requests).toEqual([{ path: "/api/events", bearerToken: "prefix.secret", seqs: [] }]);
   });
 
   it("keeps the events the cloud did not receive, for the next push", async () => {
