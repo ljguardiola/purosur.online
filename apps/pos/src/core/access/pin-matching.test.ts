@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { derivePinVerifier } from "../credentials/pin-verifier";
 import { hashPin } from "./pin-hash";
 import { createPinMatching } from "./pin-matching";
-import { derivePinVerifier } from "./pin-verifier";
 
 const PEPPER = Buffer.alloc(32, 7).toString("base64url");
 const SALT = new Uint8Array(16).fill(1);

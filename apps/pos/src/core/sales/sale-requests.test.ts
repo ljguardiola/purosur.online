@@ -6,9 +6,9 @@ import {
 } from "@purosur/domain/fiscal/test-support";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createActionGate } from "../access/action-gate";
-import { derivePinVerifier } from "../access/pin-verifier";
 import { createSignedInPerson, type SignedInPerson } from "../access/signed-in-person";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
+import { derivePinVerifier } from "../credentials/pin-verifier";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";

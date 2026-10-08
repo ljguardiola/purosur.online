@@ -1,12 +1,11 @@
 import type { SyncChange } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { derivePinVerifier } from "../access/pin-verifier";
-import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { SqliteLocalReplica } from "../sync/sqlite-local-replica";
+import { derivePinVerifier } from "./pin-verifier";
 import { applyRedeemedPin } from "./redeemed-pin";
 
 const USER_ID = "1e7b3a90-52c4-4d18-9f6a-8b0c2d4e6f71";
@@ -47,11 +46,33 @@ const redemption = { user_id: USER_ID, salt: "bmV3LXNhbHQ", pin_hash: NEW_HASH }
 
 let database: LocalDatabase;
 let replica: SqliteLocalReplica;
+let remembered: string[];
+
+function redeem(): void {
+  applyRedeemedPin(database, PEPPER, redemption, (userId) => remembered.push(userId));
+}
+
+function addFailures(userId: string, consecutiveFailures: number): void {
+  database
+    .prepare(
+      "INSERT INTO pin_sign_in_failures (user_id, consecutive_failures, last_failed_at) VALUES (?, ?, '2026-05-01T10:00:00.000Z')",
+    )
+    .run(userId, consecutiveFailures);
+}
+
+function failuresOf(userId: string): number | undefined {
+  return database
+    .prepare<[string], { consecutive_failures: number }>(
+      "SELECT consecutive_failures FROM pin_sign_in_failures WHERE user_id = ?",
+    )
+    .get(userId)?.consecutive_failures;
+}
 
 beforeEach(() => {
   database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
   replica = new SqliteLocalReplica(database);
   replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+  remembered = [];
 });
 
 afterEach(() => {
@@ -62,7 +83,7 @@ describe("applyRedeemedPin", () => {
   it("gives the user the new salt and a verifier derived from the new hash with the register's pepper", async () => {
     await pull(USER_ID, userRow());
 
-    applyRedeemedPin(database, PEPPER, redemption);
+    redeem();
 
     expect(replica.user(USER_ID)).toMatchObject({ salt: "bmV3LXNhbHQ" });
     expect(replica.pinVerifier(USER_ID)).toBe(derivePinVerifier(PEPPER, NEW_HASH));
@@ -71,23 +92,34 @@ describe("applyRedeemedPin", () => {
   it("remembers the user on this register", async () => {
     await pull(USER_ID, userRow());
 
-    applyRedeemedPin(database, PEPPER, redemption);
+    redeem();
 
-    expect(new SqliteSignInStore(database).signableUsers()).toEqual([
-      { id: USER_ID, first_name: "Ada" },
-    ]);
+    expect(remembered).toEqual([USER_ID]);
+  });
+
+  it("leaves the user's salt and verifier as pulled when remembering the user fails", async () => {
+    await pull(USER_ID, userRow());
+
+    expect(() =>
+      applyRedeemedPin(database, PEPPER, redemption, () => {
+        throw new Error("the user could not be remembered");
+      }),
+    ).toThrow("the user could not be remembered");
+
+    expect(replica.user(USER_ID)).toMatchObject({ salt: "b2xkLXNhbHQ" });
+    expect(replica.pinVerifier(USER_ID)).toBe(derivePinVerifier(PEPPER, OLD_HASH));
   });
 
   it("remembers nobody for a user the register has not pulled yet", () => {
-    applyRedeemedPin(database, PEPPER, redemption);
+    redeem();
 
-    expect(database.prepare("SELECT user_id FROM remembered_users").all()).toEqual([]);
+    expect(remembered).toEqual([]);
   });
 
   it("gives a user who had no PIN its first verifier", async () => {
     await pull(USER_ID, userRow({ salt: null, pin_hash: null }));
 
-    applyRedeemedPin(database, PEPPER, redemption);
+    redeem();
 
     expect(replica.pinVerifier(USER_ID)).toBe(derivePinVerifier(PEPPER, NEW_HASH));
   });
@@ -95,7 +127,7 @@ describe("applyRedeemedPin", () => {
   it("leaves the user's version and every other field as pulled", async () => {
     await pull(USER_ID, userRow());
 
-    applyRedeemedPin(database, PEPPER, redemption);
+    redeem();
 
     expect(replica.user(USER_ID)).toEqual({
       first_name: "Ada",
@@ -111,7 +143,7 @@ describe("applyRedeemedPin", () => {
     await pull(USER_ID, userRow());
     await pull(OTHER_USER_ID, userRow({ first_name: "Grace", salt: "c2FsdA" }), 2);
 
-    applyRedeemedPin(database, PEPPER, redemption);
+    redeem();
 
     expect(replica.user(OTHER_USER_ID)).toMatchObject({ salt: "c2FsdA" });
     expect(replica.pinVerifier(OTHER_USER_ID)).toBe(derivePinVerifier(PEPPER, OLD_HASH));
@@ -120,7 +152,7 @@ describe("applyRedeemedPin", () => {
   it("never keeps the new hash in any table", async () => {
     await pull(USER_ID, userRow());
 
-    applyRedeemedPin(database, PEPPER, redemption);
+    redeem();
 
     const tables = database
       .prepare<[], { name: string }>("SELECT name FROM sqlite_schema WHERE type = 'table'")
@@ -133,7 +165,7 @@ describe("applyRedeemedPin", () => {
   });
 
   it("writes nothing for a user the register has not pulled yet", () => {
-    applyRedeemedPin(database, PEPPER, redemption);
+    redeem();
 
     expect(replica.user(USER_ID)).toBeUndefined();
     expect(replica.pinVerifier(USER_ID)).toBeUndefined();
@@ -143,7 +175,7 @@ describe("applyRedeemedPin", () => {
     await pull(USER_ID, userRow());
     replica.adoptDevice({ deviceId: "device-b", pepper: PEPPER });
 
-    applyRedeemedPin(database, PEPPER, redemption);
+    redeem();
 
     expect(replica.user(USER_ID)).toMatchObject({ salt: "b2xkLXNhbHQ", removed: true });
     expect(replica.pinVerifier(USER_ID)).toBeUndefined();
@@ -151,7 +183,7 @@ describe("applyRedeemedPin", () => {
 
   it("agrees with the verifier the next pull of the same user derives", async () => {
     await pull(USER_ID, userRow());
-    applyRedeemedPin(database, PEPPER, redemption);
+    redeem();
     const applied = replica.pinVerifier(USER_ID);
 
     await pull(USER_ID, userRow({ salt: "bmV3LXNhbHQ", pin_hash: NEW_HASH, version: 5 }), 2);
@@ -162,28 +194,22 @@ describe("applyRedeemedPin", () => {
   it("clears the PIN sign-in failures of the user who chose the new PIN, and only theirs", async () => {
     await pull(USER_ID, userRow());
     await pull(OTHER_USER_ID, userRow({ first_name: "Grace" }), 2);
-    const store = new SqliteSignInStore(database);
-    const failedAt = new Date("2026-05-01T10:00:00.000Z");
-    for (const id of [USER_ID, OTHER_USER_ID]) {
-      for (let attempt = 0; attempt < 8; attempt += 1) {
-        store.recordPinSignInFailure(id, failedAt);
-      }
-    }
+    addFailures(USER_ID, 8);
+    addFailures(OTHER_USER_ID, 8);
 
-    applyRedeemedPin(database, PEPPER, redemption);
+    redeem();
 
-    expect(store.pinSignInFailures(USER_ID)).toBeUndefined();
-    expect(store.pinSignInFailures(OTHER_USER_ID)?.consecutiveFailures).toBe(8);
+    expect(failuresOf(USER_ID)).toBeUndefined();
+    expect(failuresOf(OTHER_USER_ID)).toBe(8);
   });
 
   it("keeps the failures of a user marked removed, whose redemption writes nothing", async () => {
     await pull(USER_ID, userRow());
-    const store = new SqliteSignInStore(database);
-    store.recordPinSignInFailure(USER_ID, new Date("2026-05-01T10:00:00.000Z"));
+    addFailures(USER_ID, 1);
     database.prepare("UPDATE users SET removed = 1").run();
 
-    applyRedeemedPin(database, PEPPER, redemption);
+    redeem();
 
-    expect(store.pinSignInFailures(USER_ID)?.consecutiveFailures).toBe(1);
+    expect(failuresOf(USER_ID)).toBe(1);
   });
 });

@@ -2,6 +2,7 @@ import type { Authorization, AuthorizedBy } from "@purosur/contracts";
 import type { RoleAccess } from "@purosur/domain";
 import type { PinHolder, PinSignInFailures } from "@purosur/domain/access/use-cases";
 import { describe, expect, expectTypeOf, it } from "vitest";
+import { derivePinVerifier } from "../credentials/pin-verifier";
 import {
   type ActionGate,
   type ActionGateDeps,
@@ -10,7 +11,6 @@ import {
   type SignedInActor,
 } from "./action-gate";
 import type { PinCredential } from "./pin-matching";
-import { derivePinVerifier } from "./pin-verifier";
 import { createSignedInPerson } from "./signed-in-person";
 
 const PEPPER = Buffer.alloc(32, 7).toString("base64url");
