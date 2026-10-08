@@ -227,6 +227,7 @@ export {
   POINT_OF_SALE_NUMBER_MAX,
   PRE_EMISSION_GATE_FAILURE_REASONS,
   preEmissionGateFailedEvent,
+  REAL_TIME_AUTHORIZATION_TIMEOUT_MS,
   REGISTER_HEALTH_CHECK_INTERVAL_MS,
   thresholdInEffectOn,
   thresholdScheduledAfter,

@@ -53,5 +53,8 @@ export type {
   RealTimeAuthorizationAnswer,
   RealTimeAuthorizationResolution,
 } from "./model/real-time-authorization.js";
-export { DEFERRAL_REASONS } from "./model/real-time-authorization.js";
+export {
+  DEFERRAL_REASONS,
+  REAL_TIME_AUTHORIZATION_TIMEOUT_MS,
+} from "./model/real-time-authorization.js";
 export { isWsaaTokenValid } from "./model/wsaa-token.js";
