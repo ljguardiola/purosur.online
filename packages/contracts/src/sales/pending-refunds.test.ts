@@ -5,7 +5,7 @@ const REFUND_ID = "4b0d2c1e-7f3a-4e58-9a61-0c5d8e2f1a77";
 const SALE_ID = "9d1c1e1e-5b1a-4a53-9c1c-3a7c6f0b2d10";
 const REGISTER_ID = "0c5d8e2f-1a77-4b0d-8c1e-7f3a4e589a61";
 
-const refund = {
+const refund: Record<string, unknown> = {
   id: REFUND_ID,
   sale_id: SALE_ID,
   register_id: REGISTER_ID,

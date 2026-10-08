@@ -1,4 +1,4 @@
-import { SEARCH_RESULT_LIMIT } from "@purosur/domain";
+import { PIN_SIGN_IN_LOCKOUT_FAILURES, SEARCH_RESULT_LIMIT } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
   addProductOutcomeSchema,
@@ -262,7 +262,7 @@ describe("cancelPaidSaleOutcomeSchema", () => {
     { kind: "lacks_permission" },
     { kind: "unavailable" },
     { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
-    { kind: "locked", consecutive_failures: 5 },
+    { kind: "locked", consecutive_failures: PIN_SIGN_IN_LOCKOUT_FAILURES },
   ])("accepts the outcome $kind", (outcome) => {
     expect(cancelPaidSaleOutcomeSchema.parse(outcome)).toEqual(outcome);
   });
