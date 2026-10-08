@@ -30,10 +30,11 @@ describe("alertKindPolicy", () => {
     ],
     ["events_quarantined", "warning", afterOpening, "event", true],
     ["event_invariant_violated", "warning", afterOpening, "event", true],
+    ["update_required", "critical", null, "register", true],
   ] as const)(
     "%s opens as %s, escalates %o, is scoped to %s and deduplicates: %s",
     (kind, level, escalation, scopeKind, deduplicates) => {
-      expect(alertKindPolicy(kind)).toEqual({
+      expect(alertKindPolicy(kind)).toMatchObject({
         level,
         escalation,
         audience: "all",
@@ -42,6 +43,12 @@ describe("alertKindPolicy", () => {
       });
     },
   );
+
+  it("resolves after its condition stays cleared only for the kind that tracks an ongoing condition", () => {
+    const stable = ALERT_KINDS.filter((kind) => alertKindPolicy(kind).resolvesAfterStableClear);
+
+    expect(stable).toEqual(["update_required"]);
+  });
 
   it("answers for every alert kind", () => {
     for (const kind of ALERT_KINDS) {
@@ -59,7 +66,7 @@ describe("alertKindsWithScope", () => {
       "user_access_increased",
     ]);
     expect(alertKindsWithScope("sourceAddress")).toEqual(["backoffice_sign_in_lockout"]);
-    expect(alertKindsWithScope("register")).toEqual(["register_enrolled"]);
+    expect(alertKindsWithScope("register")).toEqual(["register_enrolled", "update_required"]);
     expect(alertKindsWithScope("event")).toEqual([
       "events_quarantined",
       "event_invariant_violated",

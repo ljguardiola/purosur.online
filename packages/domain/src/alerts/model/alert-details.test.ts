@@ -17,6 +17,14 @@ describe("OpenAlertInput", () => {
     }>().toExtend<OpenAlertInput>();
   });
 
+  it("accepts the device and the version that is no longer accepted for an update-required alert", () => {
+    expectTypeOf<{
+      kind: "update_required";
+      scope: string;
+      detail: { deviceId: string; appVersion: string };
+    }>().toExtend<OpenAlertInput>();
+  });
+
   it("accepts the detail of the kind it names", () => {
     expectTypeOf<{
       kind: "user_email_changed";
