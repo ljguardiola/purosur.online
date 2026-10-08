@@ -1,8 +1,11 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import type { PreEmissionGateOutcome } from "./pre-emission-gate.js";
 import {
   AUTHORIZATION_CALL_MARGIN_MS,
   authorizationCallDeadline,
+  DEFERRAL_REASONS,
+  decideRealTimeAuthorization,
   invoiceDateOf,
   mayStartAuthorizationCall,
   medianRoundTripMs,
@@ -197,5 +200,141 @@ describe("invoiceDateOf", () => {
 
   it("is the next day in Argentina from 03:00 UTC", () => {
     expect(invoiceDateOf(new Date("2026-10-02T03:00:00.000Z"))).toBe("2026-10-02");
+  });
+});
+
+const DOCUMENT = {
+  invoiceClass: "C",
+  total: 12_500,
+  netAmount: 12_500,
+  vatAmount: 0,
+  issuer: {
+    legalName: "Comercio de Prueba SA",
+    cuit: "20000000001",
+    taxStatus: "MONOTRIBUTO",
+    grossIncomeRegistration: "901-123456-7",
+    activityStartDate: "2020-01-01",
+    version: 3,
+  },
+  buyerTaxStatusCode: 5,
+} as const;
+
+const PASSED: PreEmissionGateOutcome = { kind: "passed", document: DOCUMENT };
+const NOW = new Date("2026-10-01T12:00:00.000Z");
+const ONLINE = {
+  lastHealthCheckOkAt: new Date(NOW.getTime() - 1_000),
+  tokenValid: true,
+  arcaReachable: true,
+};
+const SERIES = {
+  pointOfSale: 12,
+  localLastAuthorized: 40,
+  taxAuthorityLastAuthorized: 38,
+  documentWaiting: false,
+};
+
+describe("decideRealTimeAuthorization", () => {
+  it("reserves the next number of the point of sale for the sale's document", () => {
+    expect(
+      decideRealTimeAuthorization({ gate: PASSED, online: ONLINE, now: NOW, series: SERIES }),
+    ).toEqual({ kind: "reserve", pointOfSale: 12, number: 41, document: DOCUMENT });
+  });
+
+  it("follows the tax authority's count when the register authorized nothing yet", () => {
+    expect(
+      decideRealTimeAuthorization({
+        gate: PASSED,
+        online: ONLINE,
+        now: NOW,
+        series: { ...SERIES, localLastAuthorized: null, taxAuthorityLastAuthorized: 500 },
+      }),
+    ).toMatchObject({ kind: "reserve", number: 501 });
+  });
+
+  it("defers a sale whose pre-emission gate failed, even when everything else is missing too", () => {
+    expect(
+      decideRealTimeAuthorization({
+        gate: { kind: "failed", reason: "legal_name_missing" },
+        online: { ...ONLINE, tokenValid: false },
+        now: NOW,
+        series: { ...SERIES, pointOfSale: null, documentWaiting: true },
+      }),
+    ).toEqual({ kind: "defer", reason: "pre_emission_gate_failed" });
+  });
+
+  it.each([
+    ["the last health check is too old", { ...ONLINE, lastHealthCheckOkAt: null }],
+    ["the token is not valid", { ...ONLINE, tokenValid: false }],
+    ["the tax authority is not reachable", { ...ONLINE, arcaReachable: false }],
+  ])("defers a sale when %s", (_case, online) => {
+    expect(decideRealTimeAuthorization({ gate: PASSED, online, now: NOW, series: SERIES })).toEqual(
+      {
+        kind: "defer",
+        reason: "fiscally_offline",
+      },
+    );
+  });
+
+  it("judges the online evidence at the moment of the decision", () => {
+    expect(
+      decideRealTimeAuthorization({
+        gate: PASSED,
+        online: ONLINE,
+        now: new Date(NOW.getTime() + 20_000),
+        series: SERIES,
+      }),
+    ).toEqual({ kind: "defer", reason: "fiscally_offline" });
+  });
+
+  it("defers a sale of a register without a point of sale, before looking at the series", () => {
+    expect(
+      decideRealTimeAuthorization({
+        gate: PASSED,
+        online: ONLINE,
+        now: NOW,
+        series: {
+          ...SERIES,
+          pointOfSale: null,
+          documentWaiting: true,
+          taxAuthorityLastAuthorized: null,
+        },
+      }),
+    ).toEqual({ kind: "defer", reason: "point_of_sale_missing" });
+  });
+
+  it("defers a sale while a document of the series waits for an answer, before looking at the count", () => {
+    expect(
+      decideRealTimeAuthorization({
+        gate: PASSED,
+        online: ONLINE,
+        now: NOW,
+        series: { ...SERIES, documentWaiting: true, taxAuthorityLastAuthorized: null },
+      }),
+    ).toEqual({ kind: "defer", reason: "document_waiting" });
+  });
+
+  it("defers a sale until the register knows the tax authority's count", () => {
+    expect(
+      decideRealTimeAuthorization({
+        gate: PASSED,
+        online: ONLINE,
+        now: NOW,
+        series: { ...SERIES, taxAuthorityLastAuthorized: null },
+      }),
+    ).toEqual({ kind: "defer", reason: "tax_authority_count_unknown" });
+  });
+});
+
+describe("DEFERRAL_REASONS", () => {
+  it("lists every reason a sale can leave real-time authorization", () => {
+    expect(DEFERRAL_REASONS).toEqual([
+      "pre_emission_gate_failed",
+      "fiscally_offline",
+      "point_of_sale_missing",
+      "document_waiting",
+      "tax_authority_count_unknown",
+      "rejected",
+      "unclear_outcome",
+    ]);
   });
 });
