@@ -514,7 +514,11 @@ describe("open sale query", () => {
       </QueryClientProvider>,
     );
     await expect
-      .element(screen.getByText('sale {"total":3434000,"cancellable":true}'))
+      .element(
+        screen.getByText(
+          'sale {"id":"sale-1","total":3434000,"paid":0,"cancellable":true,"refunds_on_cancel":[]}',
+        ),
+      )
       .toBeVisible();
 
     await userEvent.click(screen.getByRole("button", { name: "answer" }));
