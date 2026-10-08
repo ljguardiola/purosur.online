@@ -12,6 +12,8 @@ import { KeyRound, Laptop, Pencil, Trash2, UserCheck, UserX } from "lucide-react
 import { useEffect, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { combineCloudData } from "../platform/combine-cloud-data";
+import type { Passkey } from "../platform/passkey-list";
+import { passkeyRowDetail } from "../platform/passkey-row-detail";
 import { roleDisplayName } from "../platform/role-display-name";
 import type { CloudData } from "../platform/use-cloud-query";
 import { type BackofficeAccess, canManageUsers } from "../shell/backoffice-access";
@@ -28,8 +30,6 @@ import {
 } from "./access-queries";
 import { DeactivateUserModal } from "./deactivate-user-modal";
 import { EditUserModal } from "./edit-user-modal";
-import type { Passkey } from "./passkey-api";
-import { passkeyRowDetail } from "./passkey-row-detail";
 import { ReactivateUserModal } from "./reactivate-user-modal";
 import { RemoveUserPasskeyModal } from "./remove-user-passkey-modal";
 import type { UserDetailScreenServices } from "./user-detail-services";

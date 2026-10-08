@@ -2,13 +2,13 @@ import { Button, EmptyState, IconButton, LoadFailure, LoadingPlaceholder } from 
 import { KeyRound, Laptop, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import type { Passkey } from "../platform/passkey-list";
+import { passkeyRowDetail } from "../platform/passkey-row-detail";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { useOwnPasskeysQuery, useRefreshAccess } from "./access-queries";
 import type { MyAccountScreenServices } from "./my-account-services";
-import type { Passkey } from "./passkey-api";
-import { passkeyRowDetail } from "./passkey-row-detail";
 import { RegisterOwnPasskeyModal } from "./register-own-passkey-modal";
 import { RemoveOwnPasskeyModal } from "./remove-own-passkey-modal";
 import { UserPinSection } from "./user-pin-section";

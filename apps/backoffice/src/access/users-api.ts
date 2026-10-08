@@ -7,9 +7,9 @@ import {
   userPinCodeSchema,
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import { type Passkey, passkeyListFromWire } from "../platform/passkey-list";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
-import { type Passkey, passkeyListFromWire } from "./passkey-api";
 
 export type BranchUser = ReturnType<typeof userFromWire>;
 
