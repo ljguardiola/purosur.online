@@ -146,6 +146,11 @@ export { recordBuyerTaxStatusSet } from "./record-buyer-tax-status-set.js";
 export type { RecordRegisterHealthCheckOutcome } from "./record-register-health-check.js";
 export { recordRegisterHealthCheck } from "./record-register-health-check.js";
 export type {
+  RecordTaxAuthorityLastAuthorizedInput,
+  RecordTaxAuthorityLastAuthorizedOutcome,
+} from "./record-tax-authority-last-authorized.js";
+export { recordTaxAuthorityLastAuthorized } from "./record-tax-authority-last-authorized.js";
+export type {
   RegisterHealthCheck,
   RegisterHealthCheckPorts,
   RegisterHealthChecks,
@@ -177,6 +182,13 @@ export type {
   SaleAuthorizationTransaction,
   SaleRoutedToDeferred,
 } from "./sale-authorization-ports.js";
+export type {
+  LastAuthorizedAnswer,
+  LastAuthorizedCount,
+  TaxAuthorityCountPorts,
+  TaxAuthorityCounts,
+  TaxAuthorityLastAuthorizedLookup,
+} from "./tax-authority-count-ports.js";
 export type {
   WsaaAuthentication,
   WsaaAuthenticationResult,
