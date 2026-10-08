@@ -24,7 +24,7 @@
     "@internationalized/date": "^3.12.4",
     "@tanstack/react-form": "^1.33.5",
     "@tanstack/react-table": "^9.2.4",
-    "lucide-react": "^1.47.0",
+    "lucide-react": "^1.52.0",
     "react-aria-components": "^1.21.1",
     "tailwindcss": "^4.3.3",
     "zod": "^4.6.5"
