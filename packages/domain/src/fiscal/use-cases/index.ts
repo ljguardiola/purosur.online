@@ -56,6 +56,11 @@ export type {
 } from "./create-fiscal-address.js";
 export { createFiscalAddress } from "./create-fiscal-address.js";
 export type {
+  DecideSaleAuthorizationInput,
+  DecideSaleAuthorizationOutcome,
+} from "./decide-sale-authorization.js";
+export { decideSaleAuthorization } from "./decide-sale-authorization.js";
+export type {
   EditFiscalAddressInput,
   EditFiscalAddressOutcome,
 } from "./edit-fiscal-address.js";
@@ -126,6 +131,12 @@ export type {
   RenewWsaaTokenOutcome,
 } from "./renew-wsaa-token.js";
 export { renewWsaaToken } from "./renew-wsaa-token.js";
+export type {
+  FiscalDocumentReservation,
+  IdGenerator,
+  SaleAuthorizationTransaction,
+  SaleRoutedToDeferred,
+} from "./sale-authorization-ports.js";
 export type {
   WsaaAuthentication,
   WsaaAuthenticationResult,

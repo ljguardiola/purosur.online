@@ -10,9 +10,9 @@ import {
   mayStartAuthorizationCall,
   medianRoundTripMs,
   nextInvoiceNumber,
-  realTimeAuthorizationResolution,
   REAL_TIME_AUTHORIZATION_TIMEOUT_MS,
   ROUND_TRIP_SAMPLE_SIZE,
+  realTimeAuthorizationResolution,
   taxAuthorityRejectionAnswer,
 } from "./real-time-authorization.js";
 
