@@ -13,6 +13,13 @@ export type {
 } from "./add-searched-product.js";
 export { addSearchedProduct } from "./add-searched-product.js";
 export type {
+  CancelPaidSaleGrant,
+  CancelPaidSaleInput,
+  CancelPaidSaleOutcome,
+  CancelPaidSalePorts,
+} from "./cancel-paid-sale.js";
+export { cancelPaidSale } from "./cancel-paid-sale.js";
+export type {
   CancelLockedSaleOutcome,
   CancelSaleInput,
   CancelSaleOutcome,
@@ -58,6 +65,7 @@ export type {
   RegisterIdentity,
   SaleLedger,
   SaleLedgerTransaction,
+  SaleRefund,
   SellableProduct,
   SellingSession,
 } from "./sale-ledger.js";
