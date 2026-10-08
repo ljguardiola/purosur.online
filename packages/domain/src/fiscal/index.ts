@@ -56,6 +56,7 @@ export type {
 } from "./model/real-time-authorization.js";
 export {
   DEFERRAL_REASONS,
+  invoiceDateOf,
   REAL_TIME_AUTHORIZATION_TIMEOUT_MS,
 } from "./model/real-time-authorization.js";
 export { isWsaaTokenValid } from "./model/wsaa-token.js";

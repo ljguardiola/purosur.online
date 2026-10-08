@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { isPointOfSaleNumber, selectConsumerBuyerTaxStatus } from "@purosur/domain";
+import { invoiceDateOf, isPointOfSaleNumber, selectConsumerBuyerTaxStatus } from "@purosur/domain";
 import { requireAuthorizedCuit } from "../server.js";
 import { arcaCredentialsOf } from "./arca-credentials.js";
 import { type ScrubReplacement, scrubArcaRecording } from "./scrub-arca-recording.js";
@@ -174,7 +174,7 @@ export async function recordArcaResponses(
         const invoice = {
           token: first.token,
           pointOfSale: options.pointOfSale,
-          issuedOn: options.now().toISOString().slice(0, 10),
+          issuedOn: invoiceDateOf(options.now()),
           total: INVOICE_TOTAL_CENTS,
         };
         const invoiceRecordings: [string, number, number][] = [
