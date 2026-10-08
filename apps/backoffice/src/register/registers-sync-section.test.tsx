@@ -3,8 +3,7 @@ import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { FetchRegisterSyncStatusOutcome, RegisterSyncStatus } from "./registers-api";
-import { RegistersSyncSection } from "./registers-sync-section";
-import type { RegistersSyncSectionServices } from "./registers-sync-services";
+import { RegistersSyncSection, type RegistersSyncSectionServices } from "./registers-sync-section";
 
 const synced: RegisterSyncStatus = {
   id: "register-1",

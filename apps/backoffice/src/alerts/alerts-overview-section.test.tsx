@@ -1,13 +1,15 @@
 import type { AlertsOverview } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import type { ReactNode } from "react";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { accessWith, NO_CAPABILITIES_ACCESS } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import type { FetchAlertsOverviewOutcome } from "./alerts-api";
-import { AlertsOverviewScreen } from "./alerts-overview-screen";
-import type { AlertsOverviewScreenServices } from "./alerts-overview-services";
+import {
+  AlertsOverviewOpenCount,
+  AlertsOverviewSection,
+  type AlertsOverviewSectionServices,
+} from "./alerts-overview-section";
 
 const ALL_ALERTS_ACCESS = accessWith("alerts_area");
 
@@ -35,31 +37,32 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function createServices(): AlertsOverviewScreenServices {
+function createServices(): AlertsOverviewSectionServices {
   return { fetchAlertsOverview: vi.fn() };
 }
 
-function renderScreen(
-  services: AlertsOverviewScreenServices,
-  { access = ALL_ALERTS_ACCESS, onSessionEnded = () => {}, sections = null as ReactNode } = {},
+function renderSection(
+  services: AlertsOverviewSectionServices,
+  { access = ALL_ALERTS_ACCESS, onSessionEnded = () => {} } = {},
 ) {
   return render(
     <main>
-      <AlertsOverviewScreen access={access} onSessionEnded={onSessionEnded} services={services}>
-        {sections}
-      </AlertsOverviewScreen>
+      <AlertsOverviewOpenCount
+        access={access}
+        onSessionEnded={onSessionEnded}
+        services={services}
+      />
+      <AlertsOverviewSection access={access} onSessionEnded={onSessionEnded} services={services} />
     </main>,
   );
 }
 
-test("shows the heading, the open alerts grouped by level and their total in the pill", async () => {
+test("shows the open alerts grouped by level and their total in the pill", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlertsOverview).mockResolvedValue(ok(overview));
 
-  const screen = await renderScreen(services);
+  const screen = await renderSection(services);
 
-  await expect.element(screen.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
-  await expect.element(screen.getByText("Puro Sur")).toBeVisible();
   await expect.element(screen.getByRole("heading", { name: "Alertas", level: 2 })).toBeVisible();
   await expect
     .element(screen.getByRole("link", { name: "Alertas críticas 4 Acceso ampliado" }))
@@ -80,7 +83,7 @@ test("shows the loading placeholder, and no pill, until the alerts arrive", asyn
   const load = deferred<FetchAlertsOverviewOutcome>();
   vi.mocked(services.fetchAlertsOverview).mockReturnValue(load.promise);
 
-  const screen = await renderScreen(services);
+  const screen = await renderSection(services);
 
   await expect.element(screen.getByText("Cargando…").first()).toBeInTheDocument();
   expect(screen.getByText("Cargando…").elements()).toHaveLength(3);
@@ -94,7 +97,7 @@ test("shows the blank empty state, and no cards or pill, when no alert is open",
   const services = createServices();
   vi.mocked(services.fetchAlertsOverview).mockResolvedValue(ok(NOTHING_OPEN));
 
-  const screen = await renderScreen(services);
+  const screen = await renderSection(services);
 
   await expect.element(screen.getByText("Sin alertas abiertas")).toBeVisible();
   await expect
@@ -104,18 +107,19 @@ test("shows the blank empty state, and no cards or pill, when no alert is open",
   expect(screen.getByText(/^\d+ alertas? abiertas?$/).query()).toBeNull();
 });
 
-test("tells someone without either alert permission that they have no alerts to view, asking the cloud nothing", async () => {
+test("tells someone without either alert permission that they have no alerts to view, with no pill, asking the cloud nothing", async () => {
   const services = createServices();
 
-  const screen = await renderScreen(services, {
+  const screen = await renderSection(services, {
     access: NO_CAPABILITIES_ACCESS,
   });
 
-  await expect.element(screen.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Alertas", level: 2 })).toBeVisible();
   await expect.element(screen.getByText("No tenés alertas para ver")).toBeVisible();
   await expect
     .element(screen.getByText("Tu rol no incluye permiso para ver alertas."))
     .toBeVisible();
+  expect(screen.getByText(/alertas? abiertas?$/).query()).toBeNull();
   expect(services.fetchAlertsOverview).not.toHaveBeenCalled();
   await expectNoAccessibilityViolations(document.body);
 });
@@ -126,7 +130,7 @@ test("shows a load error whose retry starts again from the loading placeholder",
   vi.mocked(services.fetchAlertsOverview)
     .mockResolvedValueOnce({ kind: "failed" })
     .mockReturnValueOnce(retry.promise);
-  const screen = await renderScreen(services);
+  const screen = await renderSection(services);
   await expect.element(screen.getByText("No pudimos abrir las alertas")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
@@ -143,7 +147,7 @@ test("shows a rate-limited notice with a retry action", async () => {
     kind: "rate_limited",
     retryAfterSeconds: 120,
   });
-  const screen = await renderScreen(services);
+  const screen = await renderSection(services);
   await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
 
   vi.mocked(services.fetchAlertsOverview).mockResolvedValueOnce(ok(overview));
@@ -157,7 +161,7 @@ test("ends the session when the alerts request comes back unauthenticated", asyn
   vi.mocked(services.fetchAlertsOverview).mockResolvedValue({ kind: "unauthenticated" });
   const onSessionEnded = vi.fn();
 
-  await renderScreen(services, { onSessionEnded });
+  await renderSection(services, { onSessionEnded });
 
   await expect.poll(() => onSessionEnded).toHaveBeenCalled();
 });
@@ -166,29 +170,8 @@ test("navigates to Mi cuenta when the alerts request comes back forbidden", asyn
   const services = createServices();
   vi.mocked(services.fetchAlertsOverview).mockResolvedValue({ kind: "forbidden" });
 
-  await renderScreen(services);
+  await renderSection(services);
 
   await expect.poll(() => window.location.pathname).toBe("/account");
   window.history.pushState(null, "", "/");
-});
-
-test("shows the sections the page adds beneath the alerts to someone who may see alerts", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchAlertsOverview).mockResolvedValue(ok(overview));
-
-  const screen = await renderScreen(services, { sections: <p>Otra sección de Inicio</p> });
-
-  await expect.element(screen.getByText("Otra sección de Inicio")).toBeVisible();
-});
-
-test("shows the sections the page adds beneath the alerts to someone without either alert permission", async () => {
-  const services = createServices();
-
-  const screen = await renderScreen(services, {
-    access: NO_CAPABILITIES_ACCESS,
-    sections: <p>Otra sección de Inicio</p>,
-  });
-
-  await expect.element(screen.getByText("No tenés alertas para ver")).toBeVisible();
-  await expect.element(screen.getByText("Otra sección de Inicio")).toBeVisible();
 });

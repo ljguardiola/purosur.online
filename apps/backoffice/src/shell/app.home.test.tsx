@@ -43,7 +43,7 @@ test("lands a user without either alert-view permission on Inicio, telling them 
   expect(window.location.pathname).toBe("/");
   await expect.element(screen.getByRole("link", { name: "Resumen" })).toBeVisible();
   expect(screen.getByRole("link", { name: "Alertas" }).query()).toBeNull();
-  expect(services.alertsOverviewScreen.fetchAlertsOverview).not.toHaveBeenCalled();
+  expect(services.homeScreen.fetchAlertsOverview).not.toHaveBeenCalled();
 });
 
 test("following the rail's Inicio item opens Inicio, and its Alertas section link the Alertas list", async () => {
@@ -77,7 +77,7 @@ test("following the rail's Inicio item opens Inicio, and its Alertas section lin
 test("opens the alerts list filtered by a level from that level's card on Inicio", async () => {
   window.history.pushState(null, "", "/");
   const services = createAppServices();
-  vi.mocked(services.alertsOverviewScreen.fetchAlertsOverview).mockResolvedValue({
+  vi.mocked(services.homeScreen.fetchAlertsOverview).mockResolvedValue({
     kind: "ok",
     value: {
       critical: { openCount: 0, kinds: [] },
@@ -99,7 +99,7 @@ test("opens the alerts list filtered by a level from that level's card on Inicio
 test("shows each register of the branch with its last successful sync on Inicio", async () => {
   window.history.pushState(null, "", "/");
   const services = createAppServices();
-  vi.mocked(services.registersSyncSection.fetchRegisterSyncStatus).mockResolvedValue({
+  vi.mocked(services.homeScreen.fetchRegisterSyncStatus).mockResolvedValue({
     kind: "ok",
     value: [
       { id: "register-1", name: "Caja 1", lastSuccessfulSyncAt: "2026-03-02T09:30:00.000Z" },
@@ -121,7 +121,7 @@ test("shows each register of the branch with its last successful sync on Inicio"
 test("keeps the alerts on Inicio when the registers fail to load, and retries only the registers", async () => {
   window.history.pushState(null, "", "/");
   const services = createAppServices();
-  vi.mocked(services.alertsOverviewScreen.fetchAlertsOverview).mockResolvedValue({
+  vi.mocked(services.homeScreen.fetchAlertsOverview).mockResolvedValue({
     kind: "ok",
     value: {
       critical: { openCount: 0, kinds: [] },
@@ -129,7 +129,7 @@ test("keeps the alerts on Inicio when the registers fail to load, and retries on
       informational: { openCount: 0, kinds: [] },
     },
   });
-  vi.mocked(services.registersSyncSection.fetchRegisterSyncStatus)
+  vi.mocked(services.homeScreen.fetchRegisterSyncStatus)
     .mockResolvedValueOnce({ kind: "failed" })
     .mockResolvedValueOnce({
       kind: "ok",
@@ -143,7 +143,7 @@ test("keeps the alerts on Inicio when the registers fail to load, and retries on
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
   await expect.element(screen.getByText("Nunca sincronizó")).toBeVisible();
-  expect(services.alertsOverviewScreen.fetchAlertsOverview).toHaveBeenCalledTimes(1);
+  expect(services.homeScreen.fetchAlertsOverview).toHaveBeenCalledTimes(1);
 });
 
 test("shows each register's last successful sync on Inicio to a user who may not see alerts", async () => {
@@ -155,7 +155,7 @@ test("shows each register's last successful sync on Inicio to a user who may not
         openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
       ),
   });
-  vi.mocked(services.registersSyncSection.fetchRegisterSyncStatus).mockResolvedValue({
+  vi.mocked(services.homeScreen.fetchRegisterSyncStatus).mockResolvedValue({
     kind: "ok",
     value: [{ id: "register-1", name: "Caja 1", lastSuccessfulSyncAt: null }],
   });
