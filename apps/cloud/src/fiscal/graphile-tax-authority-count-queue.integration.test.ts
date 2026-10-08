@@ -1,7 +1,7 @@
 import { configureRegisterPointOfSale } from "@purosur/domain/fiscal/use-cases";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   fiscalAddresses,
   registers,
@@ -26,20 +26,15 @@ let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;
 
-beforeAll(async () => {
+beforeEach(async () => {
   integrationDb = await createIntegrationDatabase("tax_authority_count_queue");
   sql = postgres(integrationDb.databaseUrl, { max: 4 });
   db = drizzle(sql);
 }, 60_000);
 
-afterAll(async () => {
+afterEach(async () => {
   await sql.end({ timeout: 1 });
   await integrationDb.close();
-});
-
-beforeEach(async () => {
-  await sql`delete from graphile_worker._private_jobs`;
-  await sql`delete from tax_authority_last_authorized_numbers`;
 });
 
 async function pendingCountJobs(): Promise<
@@ -125,6 +120,11 @@ describe("the tax authority count jobs on a real Postgres", () => {
 
     await expect(
       store.transaction(async (transaction) => {
+        await transaction.claimPointOfSale({
+          pointOfSaleNumber: 22,
+          registerId: registerIds[0] as string,
+          actorId,
+        });
         await transaction.recordRegisterPointOfSale({
           registerId: registerIds[0] as string,
           pointOfSaleNumber: 22,
