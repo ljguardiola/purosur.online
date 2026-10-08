@@ -1,4 +1,5 @@
 import { ANOTHER_FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   scrubErrorReport,
@@ -866,16 +867,24 @@ describe("personal data in text", () => {
     }
   });
 
-  it("keeps a backoffice route under the home area", () => {
-    const breadcrumb = {
-      category: "navigation",
-      data: { from: "/home/alerts?tab=1", to: "/home/alerts" },
-    };
+  it("redacts any account name in a home folder that ends the text or is followed by a query", () => {
+    const accountName = fc.stringMatching(/^[A-Za-z_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_-])?$/);
+    const homeFolder = fc.constantFrom("/home/", "/Users/");
 
-    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
-      from: "/home/alerts?[redacted]",
-      to: "/home/alerts",
-    });
+    fc.assert(
+      fc.property(
+        homeFolder,
+        accountName,
+        fc.constantFrom("", "?tab=1", "#top"),
+        (folder, name, query) => {
+          const scrubbed = scrubErrorReport({ message: `could not open ${folder}${name}${query}` });
+
+          expect(scrubbed.message).toBe(
+            `could not open ${folder}[redacted]${query === "" ? "" : `${query[0]}[redacted]`}`,
+          );
+        },
+      ),
+    );
   });
 
   it("keeps a URL whose path has a home or Users folder", () => {
