@@ -5,7 +5,7 @@ import type { FastifyInstance } from "fastify";
 import { readRecordIds } from "../platform/record-id-params.js";
 import { sameOriginGuard } from "./backoffice-origin.js";
 import { canReactivateUsers } from "./branch-users.js";
-import { drizzleBranchUsers } from "./drizzle-branch-users.js";
+import { drizzlePasskeyHolders } from "./drizzle-passkey-holders.js";
 import { drizzlePasskeys } from "./drizzle-passkeys.js";
 import {
   capabilityAccess,
@@ -44,7 +44,7 @@ export function registerUserPasskeysListRoute<TQueryResult extends PgQueryResult
       const targetId = ids.id;
 
       const listed = await listUserPasskeys(
-        { users: drizzleBranchUsers(options.db), passkeys: drizzlePasskeys(options.db) },
+        { holders: drizzlePasskeyHolders(options.db), passkeys: drizzlePasskeys(options.db) },
         {
           locationId: openSession.locationId,
           userId: targetId,

@@ -1,4 +1,4 @@
-import type { PasskeyHolders, PasskeyHolderScope } from "../passkey-holders.js";
+import type { PasskeyHolderScope, PasskeyHolders } from "../passkey-holders.js";
 
 export interface FakePasskeyHolder {
   id: string;

@@ -196,6 +196,7 @@ export type {
   PasskeyAssertionVerifier,
   VerifiablePasskey,
 } from "./passkey-assertion-verifier.js";
+export type { PasskeyHolderScope, PasskeyHolders } from "./passkey-holders.js";
 export type {
   AddedPasskey,
   PasskeyRegistrationAlert,
