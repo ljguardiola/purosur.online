@@ -20,8 +20,11 @@ import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Lock, ShoppingBasket, TriangleAlert, X } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
+import { PaidSaleCancelledModal } from "../shell/paid-sale-cancelled-modal";
+import type { Refund } from "../shell/refund-lines";
 import { sessionEyebrow } from "../shell/session-eyebrow";
 import type { SignedInPerson } from "../shell/signed-in-person";
+import { CancelLockedPaidSaleModal } from "./cancel-locked-paid-sale-modal";
 import { CancelLockedSaleModal } from "./cancel-locked-sale-modal";
 import { differenceNotice } from "./cash-amounts";
 import { CashCountStrip } from "./cash-count-strip";
@@ -84,6 +87,7 @@ export function LockedCashCount({
   const [failure, setFailure] = useState<string>();
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [cancelledRefunds, setCancelledRefunds] = useState<Refund[]>();
   const { form, submit, submitting, values } = useRequestForm({
     defaultValues: EMPTY_COUNTED_CASH_FORM,
     request: { schema: lockedCountedCashRequestSchema, from: countedCashRequestFrom },
@@ -143,6 +147,16 @@ export function LockedCashCount({
     }
   }
 
+  async function forgetOpenSale() {
+    setConfirmingCancel(false);
+    await setOpenSale(null);
+  }
+
+  async function showCancelledRefunds(refunds: Refund[]) {
+    setCancelledRefunds(refunds);
+    await forgetOpenSale();
+  }
+
   async function cancelOpenSale() {
     if (openSale === null) {
       return;
@@ -192,22 +206,16 @@ export function LockedCashCount({
             tone="error"
             icon={<ShoppingBasket />}
             title={`Hay una venta abierta de ${formatCents(openSale.total)}`}
-            description={
-              openSale.cancellable
-                ? "Cancelala para cerrar la caja."
-                : `${opener.first_name} tiene que retomar la caja para terminarla o cancelarla.`
-            }
+            description="Cancelala para cerrar la caja."
             actions={
-              openSale.cancellable ? (
-                <Button
-                  variant="secondary"
-                  icon={<X />}
-                  disabled={busy}
-                  onPress={() => setConfirmingCancel(true)}
-                >
-                  Cancelar la venta
-                </Button>
-              ) : undefined
+              <Button
+                variant="secondary"
+                icon={<X />}
+                disabled={busy}
+                onPress={() => setConfirmingCancel(true)}
+              >
+                Cancelar la venta
+              </Button>
             }
           />
         )}
@@ -259,13 +267,31 @@ export function LockedCashCount({
           Volver
         </Button>
       </ExpectedCashPanel>
-      {openSale === null ? null : (
+      {openSale === null || openSale.cancellable ? null : confirmingCancel ? (
+        <CancelLockedPaidSaleModal
+          total={openSale.total}
+          paid={openSale.paid}
+          refunds={openSale.refunds_on_cancel}
+          cancelSale={() => cancelSale(openSale.id)}
+          onCancelled={(refunds) => void showCancelledRefunds(refunds)}
+          onSaleGone={() => void forgetOpenSale()}
+          onRefused={onRefused}
+          onClose={() => setConfirmingCancel(false)}
+        />
+      ) : null}
+      {openSale === null || !openSale.cancellable ? null : (
         <CancelLockedSaleModal
           open={confirmingCancel}
           total={openSale.total}
           busy={busy}
           onClose={() => setConfirmingCancel(false)}
           onCancelSale={() => void cancelOpenSale()}
+        />
+      )}
+      {cancelledRefunds === undefined ? null : (
+        <PaidSaleCancelledModal
+          refunds={cancelledRefunds}
+          onClose={() => setCancelledRefunds(undefined)}
         />
       )}
     </form>
