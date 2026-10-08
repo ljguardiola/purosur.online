@@ -19,6 +19,7 @@ import type {
 import {
   type ChargeRefusal,
   cashCharge,
+  type PlannedRefund,
   type RegisterActor,
   registerOperationAccess,
   type SaleLine,
