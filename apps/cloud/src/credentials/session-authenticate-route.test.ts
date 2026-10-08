@@ -17,6 +17,8 @@ import {
   onTestFinished,
   vi,
 } from "vitest";
+import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
+import { hashSessionId } from "../access/session-id.js";
 import {
   auditLog,
   passkeys,
@@ -32,8 +34,6 @@ import { registerRecoveryRedemptionRoutes } from "./recovery-redemption-route.js
 import { hashRecoveryToken } from "./recovery-token-hash.js";
 import { registerSessionAuthenticateRoute } from "./session-authenticate-route.js";
 import { registerSessionAuthenticationOptionsRoute } from "./session-authentication-options-route.js";
-import { SESSION_COOKIE_NAME } from "./session-cookie.js";
-import { hashSessionId } from "./session-id.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");

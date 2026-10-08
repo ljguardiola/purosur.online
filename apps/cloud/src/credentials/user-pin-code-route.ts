@@ -4,19 +4,19 @@ import { emitUserPinCode } from "@purosur/domain/credentials/use-cases";
 import { findBranchUser } from "@purosur/domain/users/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { readRecordIds } from "../platform/record-id-params.js";
-import { drizzleBranchUsers } from "../users/drizzle-branch-users.js";
-import type { UsersRouteOptions } from "../users/users-list-route.js";
-import { backofficeOriginGuard } from "./backoffice-origin.js";
-import { DrizzlePinCodeStore } from "./drizzle-pin-code-store.js";
-import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
-import { generatePinCode } from "./pin-code-generator.js";
+import { backofficeOriginGuard } from "../access/backoffice-origin.js";
+import { requirePasskeyAuthorization } from "../access/passkey-authorization-guard.js";
 import {
   openSessionOf,
   recordAccess,
   registerRouteAccess,
   routeSessionSource,
-} from "./route-access.js";
+} from "../access/route-access.js";
+import { readRecordIds } from "../platform/record-id-params.js";
+import { drizzleBranchUsers } from "../users/drizzle-branch-users.js";
+import type { UsersRouteOptions } from "../users/users-list-route.js";
+import { DrizzlePinCodeStore } from "./drizzle-pin-code-store.js";
+import { generatePinCode } from "./pin-code-generator.js";
 
 const USER_NOT_FOUND_RESPONSE = {
   code: "not_found",

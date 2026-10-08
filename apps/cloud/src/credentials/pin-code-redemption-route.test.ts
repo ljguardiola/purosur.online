@@ -10,6 +10,7 @@ import {
 import { and, eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { registerRouteAccess } from "../access/route-access.js";
 import {
   auditLog,
   changes,
@@ -29,7 +30,6 @@ import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rot
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerPinCodeRedemptionRoute } from "./pin-code-redemption-route.js";
-import { registerRouteAccess } from "./route-access.js";
 
 const NOW = new Date("2026-09-30T12:00:00.000Z");
 const CODE = "P4NX7KWE2QRT6MZD";

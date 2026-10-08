@@ -7,6 +7,8 @@ import {
   WebAuthnEmulator,
 } from "nid-webauthn-emulator";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
+import { generateSessionId, hashSessionId } from "../access/session-id.js";
 import {
   alerts,
   auditLog,
@@ -24,8 +26,6 @@ import { registerRecoveryRedemptionRoutes } from "./recovery-redemption-route.js
 import { hashRecoveryToken } from "./recovery-token-hash.js";
 import { registerSessionAuthenticateRoute } from "./session-authenticate-route.js";
 import { registerSessionAuthenticationOptionsRoute } from "./session-authentication-options-route.js";
-import { SESSION_COOKIE_NAME } from "./session-cookie.js";
-import { generateSessionId, hashSessionId } from "./session-id.js";
 import { registerUserPasskeyRemovalRoutes } from "./user-passkey-removal-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";

@@ -11,13 +11,13 @@ import type {
 } from "@purosur/domain/credentials/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { revokeSessions } from "../access/revoke-sessions.js";
 import { auditLog, passkeys, recoveryTokens, users } from "../platform/db/schema.js";
 import {
   addPasskey,
   openPasskeyRegisteredAlert,
   recordPasskeyRegistered,
 } from "./passkey-registration-records.js";
-import { revokeSessions } from "./revoke-sessions.js";
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]

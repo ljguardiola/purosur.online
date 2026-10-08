@@ -5,6 +5,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import pg from "pg";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { findFreePort } from "../access/test-support/find-free-port.js";
 import { unreachableArcaEndpoints } from "../fiscal/test-support/unreachable-arca-endpoints.js";
 import {
   auditLog,
@@ -27,7 +28,6 @@ import type { AccessEmailSender, SendRecoveryLinkInput } from "./recovery-email-
 import { hashDestinationAddress } from "./recovery-rate-limiter.js";
 import { hashRecoveryToken } from "./recovery-token-hash.js";
 import { RECOVERY_REQUEST_TASK_IDENTIFIER } from "./recovery-worker.js";
-import { findFreePort } from "./test-support/find-free-port.js";
 
 // Proves the real production wiring end to end (a real postgres-js pool and graphile-worker's
 // real run()), which PGlite cannot exercise: no LISTEN/NOTIFY, and every query on one connection.

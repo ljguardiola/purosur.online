@@ -3,8 +3,8 @@ import { issueSignInChallenge } from "@purosur/domain/credentials/use-cases";
 import { generateAuthenticationOptions } from "@simplewebauthn/server";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { requireBackofficeOrigin } from "./backoffice-origin.js";
-import { PUBLIC_ACCESS, registerRouteAccess } from "./route-access.js";
+import { requireBackofficeOrigin } from "../access/backoffice-origin.js";
+import { PUBLIC_ACCESS, registerRouteAccess } from "../access/route-access.js";
 import { DrizzleSignInChallenges } from "./sign-in-challenge.js";
 import { resolveWebAuthnConfig } from "./webauthn-config.js";
 

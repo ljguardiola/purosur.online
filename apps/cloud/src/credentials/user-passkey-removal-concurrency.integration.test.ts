@@ -10,6 +10,8 @@ import {
 } from "nid-webauthn-emulator";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
+import { generateSessionId, hashSessionId } from "../access/session-id.js";
 import {
   auditLog,
   passkeys,
@@ -29,8 +31,6 @@ import { registerRecoveryRedemptionRoutes } from "./recovery-redemption-route.js
 import { hashRecoveryToken } from "./recovery-token-hash.js";
 import { registerSessionAuthenticateRoute } from "./session-authenticate-route.js";
 import { registerSessionAuthenticationOptionsRoute } from "./session-authentication-options-route.js";
-import { SESSION_COOKIE_NAME } from "./session-cookie.js";
-import { generateSessionId, hashSessionId } from "./session-id.js";
 import { registerUserPasskeyRemovalRoutes } from "./user-passkey-removal-route.js";
 
 // PGlite serializes every transaction, so racing requests can only interleave on a real Postgres

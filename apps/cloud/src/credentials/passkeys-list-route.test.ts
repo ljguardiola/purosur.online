@@ -2,17 +2,17 @@ import { BACKOFFICE_REQUEST_WINDOW_MS } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { passkeys, sessions, users } from "../platform/db/schema.js";
-import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
-import { seededLocationId } from "../test-support/seeded-location.js";
-import { registerPasskeysListRoute } from "./passkeys-list-route.js";
-import { SESSION_COOKIE_NAME } from "./session-cookie.js";
-import { generateSessionId, hashSessionId } from "./session-id.js";
+import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
+import { generateSessionId, hashSessionId } from "../access/session-id.js";
 import {
   exhaustSessionRateLimit,
   exhaustSourceAddressRateLimit,
   INJECTED_SOURCE_ADDRESS,
-} from "./test-support/exhaust-backoffice-rate-limit.js";
+} from "../access/test-support/exhaust-backoffice-rate-limit.js";
+import { passkeys, sessions, users } from "../platform/db/schema.js";
+import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { seededLocationId } from "../test-support/seeded-location.js";
+import { registerPasskeysListRoute } from "./passkeys-list-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");

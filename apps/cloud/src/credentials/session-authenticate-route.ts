@@ -9,17 +9,17 @@ import { consumeSignInChallenge, signInWithPasskey } from "@purosur/domain/crede
 import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply } from "fastify";
-import { requireBackofficeOrigin } from "./backoffice-origin.js";
+import { requireBackofficeOrigin } from "../access/backoffice-origin.js";
+import { DrizzleSignInLockoutLog } from "../access/drizzle-sign-in-lockout-log.js";
+import { resolveSourceAddress } from "../access/recovery-source-address.js";
+import { PUBLIC_ACCESS, registerRouteAccess } from "../access/route-access.js";
+import { readSessionCookie, serializeSessionCookie } from "../access/session-cookie.js";
+import { generateSessionId, hashSessionId } from "../access/session-id.js";
+import { DrizzleSignInLockoutStore } from "../access/sign-in-lockout.js";
 import { drizzleAccounts } from "./drizzle-accounts.js";
 import { DrizzlePasskeySignInStore } from "./drizzle-passkey-sign-in-store.js";
-import { DrizzleSignInLockoutLog } from "./drizzle-sign-in-lockout-log.js";
 import { reportRecoveryBookkeepingError } from "./recovery-error-reporting.js";
-import { resolveSourceAddress } from "./recovery-source-address.js";
-import { PUBLIC_ACCESS, registerRouteAccess } from "./route-access.js";
-import { readSessionCookie, serializeSessionCookie } from "./session-cookie.js";
-import { generateSessionId, hashSessionId } from "./session-id.js";
 import { DrizzleSignInChallenges } from "./sign-in-challenge.js";
-import { DrizzleSignInLockoutStore } from "./sign-in-lockout.js";
 import { webAuthnAssertionVerifier } from "./webauthn-assertion-verifier.js";
 import { resolveWebAuthnConfig } from "./webauthn-config.js";
 

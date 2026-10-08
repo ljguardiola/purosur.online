@@ -5,6 +5,7 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { WebAuthnEmulator } from "nid-webauthn-emulator";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { findFreePort } from "../access/test-support/find-free-port.js";
 import { unreachableArcaEndpoints } from "../fiscal/test-support/unreachable-arca-endpoints.js";
 import { auditLog, passkeys, recoveryTokens, users } from "../platform/db/schema.js";
 import { EDGE_ORIGIN_SECRET_HEADER } from "../platform/edge-origin-guard.js";
@@ -19,7 +20,6 @@ import {
 } from "../test-support/integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { hashRecoveryToken } from "./recovery-token-hash.js";
-import { findFreePort } from "./test-support/find-free-port.js";
 
 // PGlite serializes every query on one connection and can never race for real; this proves the
 // same guarantee against a real Postgres pool, over two genuinely parallel HTTP requests.

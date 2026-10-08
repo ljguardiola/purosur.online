@@ -3,6 +3,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../access/session-id.js";
+import { voidOutstandingRecoveryTokens } from "../credentials/void-outstanding-recovery-tokens.js";
 import {
   alerts,
   auditLog,
@@ -138,6 +139,7 @@ beforeEach(async () => {
   currentTime = NOON;
   app = Fastify();
   registerUserReactivationRoutes(app, {
+    voidOutstandingRecoveryTokens,
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
     now: () => currentTime,

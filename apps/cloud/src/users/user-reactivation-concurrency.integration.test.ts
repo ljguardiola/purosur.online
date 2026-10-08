@@ -6,6 +6,7 @@ import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../access/session-id.js";
+import { voidOutstandingRecoveryTokens } from "../credentials/void-outstanding-recovery-tokens.js";
 import { auditLog, roles, sessions, userRoles, users } from "../platform/db/schema.js";
 import {
   createIntegrationDatabase,
@@ -38,6 +39,7 @@ afterAll(async () => {
 beforeEach(() => {
   app = Fastify();
   registerUserReactivationRoutes(app, {
+    voidOutstandingRecoveryTokens,
     db,
     now: () => new Date(),
     backofficeOrigin: BACKOFFICE_ORIGIN,

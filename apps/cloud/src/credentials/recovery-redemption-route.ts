@@ -14,7 +14,9 @@ import type { RegistrationResponseJSON } from "@simplewebauthn/server";
 import { generateRegistrationOptions, verifyRegistrationResponse } from "@simplewebauthn/server";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { requireBackofficeOrigin } from "./backoffice-origin.js";
+import { requireBackofficeOrigin } from "../access/backoffice-origin.js";
+import { resolveSourceAddress } from "../access/recovery-source-address.js";
+import { PUBLIC_ACCESS, registerRouteAccess } from "../access/route-access.js";
 import { DrizzleRecoveryRedemptionStore } from "./drizzle-recovery-redemption-store.js";
 import { reportRecoveryBookkeepingError } from "./recovery-error-reporting.js";
 import { recordRedemptionAttempt } from "./recovery-rate-limiter.js";
@@ -22,11 +24,9 @@ import {
   type RecoveryRejectedAttemptKind,
   recordRejectedAttempt,
 } from "./recovery-rejected-attempt-accumulator.js";
-import { resolveSourceAddress } from "./recovery-source-address.js";
 import { recoveryTokenErrorResponse } from "./recovery-token-error-response.js";
 import { hashRecoveryToken } from "./recovery-token-hash.js";
 import { deriveUserHandle } from "./recovery-user-handle.js";
-import { PUBLIC_ACCESS, registerRouteAccess } from "./route-access.js";
 import { resolveWebAuthnConfig } from "./webauthn-config.js";
 
 export interface RecoveryRedemptionRouteOptions<TQueryResult extends PgQueryResultHKT> {

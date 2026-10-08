@@ -2,6 +2,7 @@ import { cloudErrorSchema, firstPinCodeSchema } from "@purosur/contracts";
 import { desc, eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { registerRouteAccess } from "../access/route-access.js";
 import { auditLog, locations, userPinCodes, userPins, users } from "../platform/db/schema.js";
 import { hashSecretCode } from "../platform/secret-code.js";
 import { issueDeviceToken } from "../register/device-token.js";
@@ -12,7 +13,6 @@ import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installat
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerFirstPinCodeRoute } from "./first-pin-code-route.js";
 import type { EnqueueFirstPinCodeEmail } from "./graphile-first-pin-code-email-queue.js";
-import { registerRouteAccess } from "./route-access.js";
 
 const NOW = new Date("2026-09-30T12:00:00.000Z");
 const MISSING_ID = "00000000-0000-0000-0000-000000000000";

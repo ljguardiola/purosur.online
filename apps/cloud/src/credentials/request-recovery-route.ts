@@ -1,14 +1,14 @@
 import { recoveryRequestBodySchema } from "@purosur/contracts";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { requireBackofficeOrigin } from "../access/backoffice-origin.js";
+import { resolveSourceAddress } from "../access/recovery-source-address.js";
+import { PUBLIC_ACCESS, registerRouteAccess } from "../access/route-access.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
-import { requireBackofficeOrigin } from "./backoffice-origin.js";
 import { reportRecoveryBookkeepingError } from "./recovery-error-reporting.js";
 import type { RecoveryJobQueue } from "./recovery-job-queue.js";
 import { hashDestinationAddress, recordRecoveryRequestAttempt } from "./recovery-rate-limiter.js";
 import { recordRejectedAttempt } from "./recovery-rejected-attempt-accumulator.js";
-import { resolveSourceAddress } from "./recovery-source-address.js";
-import { PUBLIC_ACCESS, registerRouteAccess } from "./route-access.js";
 
 export interface RecoveryRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
