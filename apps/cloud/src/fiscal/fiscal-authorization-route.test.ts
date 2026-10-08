@@ -106,6 +106,27 @@ describe("POST /fiscal/authorize", () => {
       expect(route.taxAuthority.solicitations).toEqual([]);
       expect(await requests()).toEqual([]);
     });
+
+    it("refuses a fiscal document id another register recorded, leaving its request and answer as they were", async () => {
+      const owner = await enrollRegisterWithPointOfSale(7);
+      const other = await enrollRegisterWithPointOfSale(8);
+      await route.issueWsaaToken();
+      const body = requestBody({ point_of_sale: 7 });
+      await authorize(body, `Bearer ${owner.deviceToken}`);
+      route.taxAuthority.solicitations.length = 0;
+
+      const response = await authorize(
+        { ...body, point_of_sale: 8 },
+        `Bearer ${other.deviceToken}`,
+      );
+
+      expect(response.statusCode).toBe(404);
+      expect(cloudErrorSchema.parse(response.json()).code).toBe("not_found");
+      expect(route.taxAuthority.solicitations).toEqual([]);
+      const rows = await requests();
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ registerId: owner.registerId, pointOfSale: 7 });
+    });
   });
 
   describe("what it reads", () => {

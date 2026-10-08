@@ -63,12 +63,19 @@ class FakeLane implements PointOfSaleLane {
     return this.lanes.ownerOf(pointOfSale) === registerId;
   }
 
-  async recordedRequest(fiscalDocumentId: string): Promise<RecordedAuthorizationRequest | null> {
+  async recordedRequest(
+    registerId: string,
+    fiscalDocumentId: string,
+  ): Promise<RecordedAuthorizationRequest | null> {
     this.lanes.operations.push("recordedRequest");
-    if (!this.lanes.requests.has(fiscalDocumentId)) {
+    const request = this.lanes.requests.get(fiscalDocumentId);
+    if (request === undefined) {
       return null;
     }
-    return { answer: this.lanes.answers.get(fiscalDocumentId) ?? null };
+    if (request.registerId !== registerId) {
+      return { kind: "another_register" };
+    }
+    return { kind: "own", answer: this.lanes.answers.get(fiscalDocumentId) ?? null };
   }
 
   async recordRequest(request: AuthorizationRequestRecord): Promise<void> {

@@ -67,7 +67,10 @@ interface Scenario {
   solicitation?: SolicitationAnswer;
   request?: Partial<typeof REQUEST>;
   startAt?: Date;
-  seeded?: { answer: Parameters<FakePointOfSaleLanes["seedRequest"]>[1] };
+  seeded?: {
+    answer: Parameters<FakePointOfSaleLanes["seedRequest"]>[1];
+    registerId?: string;
+  };
 }
 
 function authorize({
@@ -84,7 +87,7 @@ function authorize({
     lanes.seedRequest(
       {
         fiscalDocumentId: FISCAL_DOCUMENT_ID,
-        registerId: REGISTER_ID,
+        registerId: seeded.registerId ?? REGISTER_ID,
         saleId: "sale-1",
         pointOfSale: 12,
         number: 41,
@@ -238,6 +241,23 @@ describe("authorizeFiscalDocument", () => {
       "recordedRequest",
       "leaveLane",
     ]);
+    expect(taxAuthority.solicitations).toEqual([]);
+    expect(evidence.okAt).toEqual([]);
+  });
+
+  it("refuses a document id another register recorded, without reading its answer, recording anything or calling the tax authority", async () => {
+    const { lanes, taxAuthority, evidence, outcome } = authorize({
+      seeded: { answer: AUTHORIZED_ANSWER, registerId: "register-2" },
+    });
+
+    await expect(outcome).resolves.toEqual({ kind: "fiscal_document_not_owned" });
+    expect(lanes.operations).toEqual([
+      "enterLane",
+      "registerOwnsPointOfSale",
+      "recordedRequest",
+      "leaveLane",
+    ]);
+    expect(lanes.requests.get(FISCAL_DOCUMENT_ID)?.registerId).toBe("register-2");
     expect(taxAuthority.solicitations).toEqual([]);
     expect(evidence.okAt).toEqual([]);
   });

@@ -68,7 +68,7 @@ describe("DrizzlePointOfSaleLanes", () => {
   describe("the recorded requests", () => {
     it("knows no request that was never recorded", async () => {
       const recorded = await lanes.inPointOfSaleLane(7, (lane) =>
-        lane.recordedRequest(crypto.randomUUID()),
+        lane.recordedRequest(crypto.randomUUID(), crypto.randomUUID()),
       );
 
       expect(recorded).toBeNull();
@@ -83,10 +83,10 @@ describe("DrizzlePointOfSaleLanes", () => {
 
       const recorded = await lanes.inPointOfSaleLane(7, async (lane) => {
         await lane.recordRequest(request);
-        return lane.recordedRequest(request.fiscalDocumentId);
+        return lane.recordedRequest(registerId, request.fiscalDocumentId);
       });
 
-      expect(recorded).toEqual({ answer: null });
+      expect(recorded).toEqual({ kind: "own", answer: null });
       const [row] = await db
         .select()
         .from(fiscalRequests)
@@ -109,6 +109,26 @@ describe("DrizzlePointOfSaleLanes", () => {
         rejectionCodes: null,
         answeredAt: null,
       });
+    });
+
+    it("tells a request another register recorded apart, without giving back its answer", async () => {
+      const registerId = await insertRegisterWithPointOfSale(db, {
+        pointOfSaleNumber: 7,
+        name: "caja-1",
+      });
+      const otherRegisterId = await insertRegisterWithPointOfSale(db, {
+        pointOfSaleNumber: 8,
+        name: "caja-2",
+      });
+      const request = authorizationRequestRecord(registerId);
+
+      const recorded = await lanes.inPointOfSaleLane(7, async (lane) => {
+        await lane.recordRequest(request);
+        await lane.recordAnswer(request.fiscalDocumentId, { kind: "unclear" }, ANSWERED_AT);
+        return lane.recordedRequest(otherRegisterId, request.fiscalDocumentId);
+      });
+
+      expect(recorded).toEqual({ kind: "another_register" });
     });
 
     it.each<[string, RealTimeAuthorizationAnswer]>([
@@ -135,10 +155,10 @@ describe("DrizzlePointOfSaleLanes", () => {
         const recorded = await lanes.inPointOfSaleLane(7, async (lane) => {
           await lane.recordRequest(request);
           await lane.recordAnswer(request.fiscalDocumentId, answer, ANSWERED_AT);
-          return lane.recordedRequest(request.fiscalDocumentId);
+          return lane.recordedRequest(registerId, request.fiscalDocumentId);
         });
 
-        expect(recorded).toEqual({ answer });
+        expect(recorded).toEqual({ kind: "own", answer });
         const [row] = await db
           .select({ answeredAt: fiscalRequests.answeredAt })
           .from(fiscalRequests)
