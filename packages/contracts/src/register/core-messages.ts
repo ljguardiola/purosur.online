@@ -181,7 +181,7 @@ const cashSessionClosingOutcomeSchema = z.discriminatedUnion("kind", [
   }),
   z.object({ kind: z.literal("invalid_counted_cash") }),
   z.object({ kind: z.literal("no_open_session") }),
-  z.object({ kind: z.literal("open_sale"), total: z.number(), cancellable: z.boolean() }),
+  z.object({ kind: z.literal("open_sale"), total: z.number() }),
 ]);
 
 const closeCashSessionOutcomeSchema = z.discriminatedUnion("kind", [

@@ -36,6 +36,7 @@ export interface CancelPaidSalePorts<Grant extends CancelPaidSaleGrant, Refusal>
 export type CancelPaidSaleOutcome<Grant extends CancelPaidSaleGrant> =
   | SellingSessionRefusal
   | { kind: "no_open_sale" }
+  | { kind: "unavailable" }
   | { kind: "cancelled"; refunds: SaleRefund[]; grant: Grant };
 
 export async function cancelPaidSale<Grant extends CancelPaidSaleGrant, Refusal>(
@@ -67,6 +68,9 @@ export async function cancelPaidSale<Grant extends CancelPaidSaleGrant, Refusal>
     }
     if (from === "locked_register" && !mayVoidSale(tx, actorId)) {
       return { kind: "not_permitted" };
+    }
+    if (!tx.outboxReady()) {
+      return { kind: "unavailable" };
     }
 
     const occurredAt = clock.now();

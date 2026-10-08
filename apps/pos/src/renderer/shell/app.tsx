@@ -190,6 +190,9 @@ function Register({ core }: { core: CoreClient }) {
 
   async function cancelLockedSale(saleId: string, closer: Authorization) {
     const outcome = await core.cancelLockedSale(saleId, closer);
+    if (outcome.kind === "cancelled") {
+      void queryClient.invalidateQueries({ queryKey: cashKey });
+    }
     if (outcome.kind === "no_open_session" || outcome.kind === "not_locked") {
       await refreshCashSession();
     }

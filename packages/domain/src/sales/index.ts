@@ -3,8 +3,6 @@ export { cashCharge } from "./model/cash-charge.js";
 export type { CompletedSale } from "./model/completed-sale.js";
 export { approvedPaymentsCoverTotal } from "./model/completed-sale.js";
 export { openSaleStanding } from "./model/open-sale-standing.js";
-export type { OpenSaleSummary } from "./model/open-sale-summary.js";
-export { openSaleSummary } from "./model/open-sale-summary.js";
 export type { PaymentMethod, PaymentTransaction } from "./model/payment.js";
 export { cancellableWithoutAuthorization, PAYMENT_METHODS } from "./model/payment.js";
 export type { PlannedRefund, RefundState } from "./model/payment-refund.js";

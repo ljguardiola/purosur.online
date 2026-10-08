@@ -40,6 +40,7 @@ import { ExpectedCashPanel } from "./expected-cash-panel";
 import {
   useCashBalanceQuery,
   useCashCountPreviewQuery,
+  useRefreshSessionOpenSale,
   useSessionOpenSaleQuery,
   useSetSessionOpenSale,
 } from "./register-queries";
@@ -83,6 +84,7 @@ export function LockedCashCount({
   const balance = useCashBalanceQuery(sessionId, loadCashBalance);
   const openSaleData = useSessionOpenSaleQuery(sessionId, loadOpenSale);
   const setOpenSale = useSetSessionOpenSale(sessionId);
+  const refreshOpenSale = useRefreshSessionOpenSale(sessionId);
   const field = useRef<HTMLDivElement>(null);
   const [failure, setFailure] = useState<string>();
   const [confirmingCancel, setConfirmingCancel] = useState(false);
@@ -105,7 +107,7 @@ export function LockedCashCount({
           showFieldError("countedCash", INVALID_COUNTED_CASH_MESSAGE);
           break;
         case "open_sale":
-          await reloadOpenSale();
+          await refreshOpenSale();
           break;
         case "unavailable":
           setFailure(CLOSE_FAILED);
@@ -138,13 +140,6 @@ export function LockedCashCount({
     }
     clearOutcome();
     void submit();
-  }
-
-  async function reloadOpenSale() {
-    const sale = await loadOpenSale().catch((): "unavailable" => "unavailable");
-    if (sale !== "unavailable") {
-      await setOpenSale(sale);
-    }
   }
 
   async function forgetOpenSale() {

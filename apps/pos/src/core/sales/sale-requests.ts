@@ -409,9 +409,6 @@ export async function cancelLockedSaleFor(
         async authorize(): Promise<
           OperationAuthorization<CancelPaidSaleGrant, CancelLockedSaleRefusal>
         > {
-          if (outboxChainKey === undefined) {
-            return { kind: "refused", refusal: { kind: "unavailable" } };
-          }
           const guarded = await gate.runWhileLocked(
             { kind: "close_locked_register", session: readOpenSession(database) },
             closer,
