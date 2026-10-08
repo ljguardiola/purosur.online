@@ -1,5 +1,5 @@
-export type { AlertConditionObservation } from "../model/alert-condition-observation.js";
 export type { Clock } from "../../shared/index.js";
+export type { AlertConditionObservation } from "../model/alert-condition-observation.js";
 export type {
   AlertDelivery,
   AlertDetailView,
