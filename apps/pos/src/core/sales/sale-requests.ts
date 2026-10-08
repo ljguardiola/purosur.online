@@ -374,7 +374,7 @@ export async function cancelPaidSaleFor(
         },
       },
     },
-    { saleId },
+    { saleId, from: "sale" },
   );
   return outcome.kind === "cancelled"
     ? {
