@@ -8,7 +8,6 @@ export {
 } from "./model/alert-catalog.js";
 export type { AlertConditionObservation } from "./model/alert-condition-observation.js";
 export {
-  quietRegisterObservation,
   registerSyncedObservation,
   registerVersionObservation,
 } from "./model/alert-condition-observation.js";
@@ -56,4 +55,3 @@ export {
   canSeeAlert,
 } from "./model/alert-visibility.js";
 export { isOpenAlert } from "./model/open-alert-state.js";
-export { isRegisterQuiet, QUIET_REGISTER_LAPSE_MS } from "./model/quiet-register.js";
