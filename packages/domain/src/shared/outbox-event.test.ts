@@ -23,6 +23,12 @@ function withPayload(payload: JsonValue): string {
   return canonicalOutboxEvent({ ...EVENT, payload: { value: payload } });
 }
 
+function withPayloadOutsideTheType(value: bigint | undefined): string {
+  const payload: OutboxEvent["payload"] = {};
+  Object.defineProperty(payload, "value", { value, enumerable: true });
+  return canonicalOutboxEvent({ ...EVENT, payload });
+}
+
 const jsonValue = fc.letrec<{ value: JsonValue }>((tie) => ({
   value: fc.oneof(
     { depthSize: "small" },
@@ -88,8 +94,8 @@ describe("canonicalOutboxEvent", () => {
   });
 
   it("refuses a value JSON cannot hold", () => {
-    expect(() => withPayload(undefined as unknown as JsonValue)).toThrow(/cannot be canonicalized/);
-    expect(() => withPayload(10n as unknown as JsonValue)).toThrow(/cannot be canonicalized/);
+    expect(() => withPayloadOutsideTheType(undefined)).toThrow(/cannot be canonicalized/);
+    expect(() => withPayloadOutsideTheType(10n)).toThrow(/cannot be canonicalized/);
   });
 
   it("serializes exactly the fields it is given", () => {
