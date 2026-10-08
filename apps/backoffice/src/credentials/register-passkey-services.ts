@@ -1,6 +1,6 @@
 import { startRegistration } from "@simplewebauthn/browser";
+import { signalUnknownCredential } from "../platform/signal-unknown-credential";
 import { fetchRegistrationOptions, redeemRecovery } from "./recovery-api";
-import { signalUnknownCredential } from "./signal-unknown-credential";
 
 export type RegisterPasskeyScreenServices = {
   fetchRegistrationOptions: typeof fetchRegistrationOptions;

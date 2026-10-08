@@ -1,6 +1,6 @@
 import { startAuthentication } from "@simplewebauthn/browser";
+import { signalUnknownCredential } from "../platform/signal-unknown-credential";
 import { authenticate, fetchAuthenticationOptions } from "./session-api";
-import { signalUnknownCredential } from "./signal-unknown-credential";
 
 export type SignInScreenServices = {
   fetchAuthenticationOptions: typeof fetchAuthenticationOptions;

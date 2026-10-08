@@ -2,8 +2,8 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { LifeBuoy } from "lucide-react";
 import { beforeEach, expect, test } from "vitest";
 import { page } from "vitest/browser";
-import { render } from "../shell/test-support/render-with-router";
 import { AccessFooterLink, AccessLayout } from "./access-layout";
+import { render } from "./test-support/render-with-router";
 
 // The panel's 680px basis only holds when the row is wide enough for it, so tests pin a desktop
 // viewport instead of the default phone-sized one.

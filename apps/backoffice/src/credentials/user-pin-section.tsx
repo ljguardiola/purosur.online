@@ -3,7 +3,7 @@ import { KeyRound } from "lucide-react";
 import { useRef, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import { useRefreshAccess } from "./access-queries";
+import { useRefreshCredentials } from "./credentials-queries";
 import {
   type EmissionState,
   EmitUserPinCodeModal,
@@ -34,7 +34,7 @@ export function UserPinSection({
     startAuthentication,
   } = services;
   const sendToMyAccount = useSendToMyAccount();
-  const refreshAccess = useRefreshAccess();
+  const refreshCredentials = useRefreshCredentials();
   const [emission, setEmission] = useState<EmissionState>({ kind: "closed" });
   const latestEmission = useRef(0);
   const { run, modal: authorizationModal } = useAuthorization<EmitUserPinCodeOutcome>({
@@ -71,7 +71,7 @@ export function UserPinSection({
     }
     if (outcome.kind === "not_found" || outcome.kind === "inactive") {
       setEmission({ kind: "closed" });
-      void refreshAccess();
+      void refreshCredentials();
       onUserOutdated?.();
       return;
     }

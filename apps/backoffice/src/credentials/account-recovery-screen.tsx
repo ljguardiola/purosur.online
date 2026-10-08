@@ -4,7 +4,7 @@ import { ArrowLeft, MailCheck, Send, ShieldX, TriangleAlert } from "lucide-react
 import { type FormEvent, useState } from "react";
 import { emailFieldMessage } from "../platform/email-field-message";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { AccessFooterLink, AccessLayout } from "./access-layout";
+import { AccessFooterLink, AccessLayout } from "../shell/access-layout";
 import type { AccountRecoveryScreenServices } from "./account-recovery-services";
 
 type Notice = { kind: "rate_limited"; retryAfterSeconds: number } | { kind: "error" };

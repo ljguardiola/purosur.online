@@ -5,7 +5,7 @@ import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
-import { useOwnPasskeysQuery, useRefreshAccess } from "./access-queries";
+import { useOwnPasskeysQuery, useRefreshCredentials } from "./credentials-queries";
 import type { MyAccountScreenServices } from "./my-account-services";
 import type { Passkey } from "./passkey-list";
 import { passkeyRowDetail } from "./passkey-row-detail";
@@ -38,7 +38,7 @@ export function MyAccountScreen({
     now: now ?? (() => new Date()),
     onSessionEnded,
   });
-  const refreshAccess = useRefreshAccess();
+  const refreshCredentials = useRefreshCredentials();
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<Passkey | null>(null);
 
@@ -119,7 +119,7 @@ export function MyAccountScreen({
         onClose={() => setRegisterModalOpen(false)}
         onRegistered={() => {
           setRegisterModalOpen(false);
-          void refreshAccess();
+          void refreshCredentials();
         }}
         onSessionEnded={onSessionEnded}
         services={services}
@@ -130,7 +130,7 @@ export function MyAccountScreen({
         onClose={() => setRemoveTarget(null)}
         onRemoved={() => {
           setRemoveTarget(null);
-          void refreshAccess();
+          void refreshCredentials();
         }}
         onSessionEnded={onSessionEnded}
         services={services}

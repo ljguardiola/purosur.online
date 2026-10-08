@@ -11,8 +11,8 @@ import { ArrowLeft, KeyRound, ShieldCheck, ShieldX, TriangleAlert } from "lucide
 import { useEffect, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { AccessFooterLink, AccessLayout } from "./access-layout";
-import { useRegistrationOptionsQuery, useReloadRegistrationOptions } from "./access-queries";
+import { AccessFooterLink, AccessLayout } from "../shell/access-layout";
+import { useRegistrationOptionsQuery, useReloadRegistrationOptions } from "./credentials-queries";
 import { passkeyNameMessage } from "./passkey-name-message";
 import type { RedeemRecoveryOutcome } from "./recovery-api";
 import type { RegisterPasskeyScreenServices } from "./register-passkey-services";

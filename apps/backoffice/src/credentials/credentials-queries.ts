@@ -8,12 +8,13 @@ import type { Passkey } from "./passkey-list";
 import type { fetchRegistrationOptions } from "./recovery-api";
 import type { fetchUserPasskeys } from "./user-credentials-api";
 
-const accessKey = ["access"] as const;
+const credentialsKey = ["credentials"] as const;
 
-const accessKeys = {
-  ownPasskeys: [...accessKey, "own-passkeys"] as const,
-  userPasskeys: (id: string) => [...accessKey, "user-passkeys", id] as const,
-  registrationOptions: (token: string) => [...accessKey, "registration-options", token] as const,
+const credentialsKeys = {
+  ownPasskeys: [...credentialsKey, "own-passkeys"] as const,
+  userPasskeys: (id: string) => [...credentialsKey, "user-passkeys", id] as const,
+  registrationOptions: (token: string) =>
+    [...credentialsKey, "registration-options", token] as const,
 };
 
 export type PasskeyList = { passkeys: Passkey[]; loadedAt: Date };
@@ -26,7 +27,7 @@ export function useUserPasskeysQuery(params: {
 }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<PasskeyList>({
-    queryKey: accessKeys.userPasskeys(params.userId),
+    queryKey: credentialsKeys.userPasskeys(params.userId),
     read: async () => {
       const outcome = await params.fetchUserPasskeys(params.userId);
       if (outcome.kind === "ok") {
@@ -46,7 +47,7 @@ export function useOwnPasskeysQuery(params: {
 }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<PasskeyList>({
-    queryKey: accessKeys.ownPasskeys,
+    queryKey: credentialsKeys.ownPasskeys,
     read: async () => {
       const outcome = await params.fetchPasskeys();
       return outcome.kind === "ok"
@@ -94,7 +95,7 @@ export function useRegistrationOptionsQuery(params: {
   fetchRegistrationOptions: typeof fetchRegistrationOptions;
 }) {
   return useCloudQuery<RegistrationRead>({
-    queryKey: accessKeys.registrationOptions(params.token),
+    queryKey: credentialsKeys.registrationOptions(params.token),
     read: readRegistrationOptions(params.fetchRegistrationOptions, params.token),
     gcTime: 0,
     onSessionEnded: ignore,
@@ -108,13 +109,13 @@ export function useReloadRegistrationOptions(params: {
   const client = useQueryClient();
   return (token) =>
     fetchCloudQuery(client, {
-      queryKey: accessKeys.registrationOptions(token),
+      queryKey: credentialsKeys.registrationOptions(token),
       read: readRegistrationOptions(params.fetchRegistrationOptions, token),
       gcTime: 0,
     });
 }
 
-export function useRefreshAccess(): () => Promise<void> {
+export function useRefreshCredentials(): () => Promise<void> {
   const client = useQueryClient();
-  return () => client.invalidateQueries({ queryKey: accessKey });
+  return () => client.invalidateQueries({ queryKey: credentialsKey });
 }

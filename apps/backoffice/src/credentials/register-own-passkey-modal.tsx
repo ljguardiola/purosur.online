@@ -13,13 +13,13 @@ import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
+import type { signalUnknownCredential } from "../platform/signal-unknown-credential";
 import type {
   fetchPasskeyRegistrationChallenge,
   RegisterPasskeyOutcome,
   registerPasskey,
 } from "./passkey-api";
 import { passkeyNameMessage } from "./passkey-name-message";
-import type { signalUnknownCredential } from "./signal-unknown-credential";
 
 const PASSKEY_NAME_REQUEST = passkeyRegistrationBodySchema.pick({ passkey_name: true });
 

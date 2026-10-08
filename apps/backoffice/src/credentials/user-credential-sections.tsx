@@ -9,7 +9,7 @@ import { getRouteApi } from "@tanstack/react-router";
 import { KeyRound, Laptop, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
-import { useRefreshAccess, useUserPasskeysQuery } from "./access-queries";
+import { useRefreshCredentials, useUserPasskeysQuery } from "./credentials-queries";
 import type { Passkey } from "./passkey-list";
 import { passkeyRowDetail } from "./passkey-row-detail";
 import { RemoveUserPasskeyModal } from "./remove-user-passkey-modal";
@@ -58,7 +58,7 @@ function UserPasskeysSection({
   now,
   services,
 }: UserCredentialSectionsProps & { services: UserCredentialSectionsServices }) {
-  const refreshAccess = useRefreshAccess();
+  const refreshCredentials = useRefreshCredentials();
   const [removeTarget, setRemoveTarget] = useState<Passkey | null>(null);
   const passkeys = useUserPasskeysQuery({
     userId,
@@ -121,7 +121,7 @@ function UserPasskeysSection({
           onClose={() => setRemoveTarget(null)}
           onRemoved={() => {
             setRemoveTarget(null);
-            void refreshAccess();
+            void refreshCredentials();
             onUserOutdated();
           }}
           onSessionEnded={onSessionEnded}
