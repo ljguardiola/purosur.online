@@ -1,9 +1,19 @@
 import type { JobHelpers } from "graphile-worker";
+import type { PoolClient } from "pg";
 import { describe, expect, it, vi } from "vitest";
 import {
   ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER,
   alertConditionResolutionJobs,
 } from "./alert-condition-resolution-task.js";
+
+function jobHelpers(client: PoolClient, borrowed: () => void): JobHelpers {
+  return {
+    withPgClient: (callback) => {
+      borrowed();
+      return callback(client);
+    },
+  } as JobHelpers;
+}
 
 describe("alertConditionResolutionJobs", () => {
   it("registers the alert condition resolution task and schedules it every minute", () => {
@@ -14,12 +24,10 @@ describe("alertConditionResolutionJobs", () => {
   });
 
   it("processes the task through a client borrowed from graphile-worker's own pool", async () => {
-    const fakeClient = { marker: "fake-client" };
+    const fakeClient: PoolClient = Object.create(null);
     const fakeDb = { marker: "fake-db" };
     const createDatabase = vi.fn().mockReturnValue(fakeDb);
-    const withPgClient = vi.fn(async (callback: (client: unknown) => Promise<unknown>) =>
-      callback(fakeClient),
-    );
+    const borrowed = vi.fn();
     const resolve = vi.fn().mockResolvedValue(0);
 
     const jobs = alertConditionResolutionJobs(
@@ -31,9 +39,9 @@ describe("alertConditionResolutionJobs", () => {
       throw new Error("test setup: expected the registered alert condition resolution task");
     }
 
-    await task({}, { withPgClient } as unknown as JobHelpers);
+    await task({}, jobHelpers(fakeClient, borrowed));
 
-    expect(withPgClient).toHaveBeenCalledTimes(1);
+    expect(borrowed).toHaveBeenCalledTimes(1);
     expect(createDatabase).toHaveBeenCalledWith(fakeClient);
     expect(resolve).toHaveBeenCalledTimes(1);
     const [dbArgument, depsArgument] = resolve.mock.calls[0] as [unknown, { now: () => Date }];
