@@ -58,7 +58,7 @@ export async function applyCancelledSale<TQueryResult extends PgQueryResultHKT>(
   const { deviceId, cancelledAt, total, overrides } = sale;
   const application = new DrizzleEventApplication(db, () => cancelledAt);
   const sessionId = randomUUID();
-  const cancelled = aCancelledSale({ sessionId, cancelledAt, total, lines: [], ...overrides });
+  const cancelled = aCancelledSale({ cancelledAt, total, lines: [], ...overrides, sessionId });
   const eventOf = (aggregateType: string, aggregateId: string, eventType: string) =>
     unappliedEventOf(
       {

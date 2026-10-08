@@ -750,40 +750,43 @@ export const cashSessions = pgTable("cash_sessions", {
   difference: bigint("difference", { mode: "number" }),
 });
 
-export const sales = pgTable("sales", {
-  id: uuid("id").primaryKey(),
-  locationId: uuid("location_id")
-    .notNull()
-    .references(() => locations.id),
-  registerId: uuid("register_id")
-    .notNull()
-    .references(() => registers.id),
-  deviceId: uuid("device_id")
-    .notNull()
-    .references(() => registerInstallations.id),
-  sessionId: uuid("session_id")
-    .notNull()
-    .references(() => cashSessions.id),
-  actorId: text("actor_id").notNull(),
-  state: text("state").notNull(),
-  completedAt: timestamp("completed_at", { withTimezone: true }),
-  cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
-  cancellationAuthorizedBy: text("cancellation_authorized_by"),
-  total: bigint("total", { mode: "number" }).notNull(),
-  appliedAt: timestamp("applied_at", { withTimezone: true }).notNull(),
-},
-(table) => [
-  check("sales_state_check", sql`${table.state} in ('COMPLETED', 'CANCELLED')`),
-  check(
-    "sales_state_matches_timestamps_check",
-    sql`(${table.state} = 'COMPLETED' and ${table.completedAt} is not null and ${table.cancelledAt} is null)
+export const sales = pgTable(
+  "sales",
+  {
+    id: uuid("id").primaryKey(),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    registerId: uuid("register_id")
+      .notNull()
+      .references(() => registers.id),
+    deviceId: uuid("device_id")
+      .notNull()
+      .references(() => registerInstallations.id),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => cashSessions.id),
+    actorId: text("actor_id").notNull(),
+    state: text("state").notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    cancellationAuthorizedBy: text("cancellation_authorized_by"),
+    total: bigint("total", { mode: "number" }).notNull(),
+    appliedAt: timestamp("applied_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    check("sales_state_check", sql`${table.state} in ('COMPLETED', 'CANCELLED')`),
+    check(
+      "sales_state_matches_timestamps_check",
+      sql`(${table.state} = 'COMPLETED' and ${table.completedAt} is not null and ${table.cancelledAt} is null)
       or (${table.state} = 'CANCELLED' and ${table.cancelledAt} is not null and ${table.completedAt} is null)`,
-  ),
-  check(
-    "sales_cancellation_authorizer_only_when_cancelled_check",
-    sql`${table.cancellationAuthorizedBy} is null or ${table.state} = 'CANCELLED'`,
-  ),
-]);
+    ),
+    check(
+      "sales_cancellation_authorizer_only_when_cancelled_check",
+      sql`${table.cancellationAuthorizedBy} is null or ${table.state} = 'CANCELLED'`,
+    ),
+  ],
+);
 
 export const saleLines = pgTable("sale_lines", {
   id: uuid("id").primaryKey(),

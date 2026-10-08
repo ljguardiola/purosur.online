@@ -2238,6 +2238,16 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/refunds/pending",
+        access: capabilityAccess("refunds_area"),
+      },
+      {
+        method: "POST",
+        url: "/api/refunds/:id/completion",
+        access: capabilityAccess("refunds_area"),
+      },
+      {
+        method: "GET",
         url: "/api/registers",
         access: capabilityAccess("registers_area"),
       },
