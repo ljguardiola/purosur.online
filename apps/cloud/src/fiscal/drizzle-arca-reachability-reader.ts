@@ -4,7 +4,7 @@ import type {
 } from "@purosur/domain/fiscal/use-cases";
 import { desc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { arcaVitalityChecks } from "../platform/db/schema.js";
+import { arcaInvoicingEvidence, arcaVitalityChecks } from "../platform/db/schema.js";
 
 export class DrizzleArcaReachabilityReader<TQueryResult extends PgQueryResultHKT>
   implements ArcaReachabilityReader
@@ -22,6 +22,12 @@ export class DrizzleArcaReachabilityReader<TQueryResult extends PgQueryResultHKT
       .where(eq(arcaVitalityChecks.ok, true))
       .orderBy(desc(arcaVitalityChecks.checkedAt))
       .limit(1);
-    return { lastVitalityCheckOkAt: latestOk?.checkedAt ?? null, lastWsfeCallOkAt: null };
+    const [invoicing] = await this.db
+      .select({ lastCallOkAt: arcaInvoicingEvidence.lastCallOkAt })
+      .from(arcaInvoicingEvidence);
+    return {
+      lastVitalityCheckOkAt: latestOk?.checkedAt ?? null,
+      lastWsfeCallOkAt: invoicing?.lastCallOkAt ?? null,
+    };
   }
 }
