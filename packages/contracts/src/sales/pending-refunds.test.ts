@@ -9,10 +9,12 @@ const refund: Record<string, unknown> = {
   id: REFUND_ID,
   sale_id: SALE_ID,
   register_id: REGISTER_ID,
+  register_name: "Caja 1",
   method: "TRANSFER",
   amount: 2000,
   occurred_at: "2026-10-07T15:30:00.000Z",
   cancelled_by: "u1",
+  cancelled_by_name: "Lucia",
 };
 
 describe("pendingRefundsSchema", () => {
@@ -24,6 +26,12 @@ describe("pendingRefundsSchema", () => {
 
   it("accepts a branch without pending refunds", () => {
     expect(pendingRefundsSchema.parse({ refunds: [] })).toEqual({ refunds: [] });
+  });
+
+  it("accepts a refund whose canceller is not a known person", () => {
+    const list = { refunds: [{ ...refund, cancelled_by_name: null }] };
+
+    expect(pendingRefundsSchema.parse(list)).toEqual(list);
   });
 
   it("refuses a refund missing any one of its fields", () => {
@@ -39,6 +47,8 @@ describe("pendingRefundsSchema", () => {
     ["an id that is not a record id", { id: "refund-1" }],
     ["a sale that is not a record id", { sale_id: "sale-1" }],
     ["a register that is not a record id", { register_id: "caja-1" }],
+    ["a register name that is not text", { register_name: 1 }],
+    ["a canceller name that is not text", { cancelled_by_name: 1 }],
     ["a method no payment has", { method: "CARD" }],
     ["a fractional amount", { amount: 10.5 }],
     ["a negative amount", { amount: -1 }],

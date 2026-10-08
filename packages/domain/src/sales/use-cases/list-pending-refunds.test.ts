@@ -6,10 +6,12 @@ const TRANSFER_REFUND: FakePendingRefund = {
   id: "refund-1",
   saleId: "sale-1",
   registerId: "register-1",
+  registerName: "Caja 1",
   method: "TRANSFER",
   amount: 2000,
   occurredAt: new Date("2026-10-07T15:30:00.000Z"),
   cancelledBy: "cashier",
+  cancelledByName: "Lucia",
   locationId: "branch-1",
 };
 
