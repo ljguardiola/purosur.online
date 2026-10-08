@@ -1,11 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import {
-  scrubErrorReport,
-  scrubErrorReportBreadcrumb,
-  scrubErrorReportLog,
-} from "@purosur/contracts";
 import * as Sentry from "@sentry/electron/main";
 import {
   app,
@@ -17,6 +12,7 @@ import {
   utilityProcess,
 } from "electron";
 import { type ChannelSettings, coreArgumentsFor } from "../shared/channel";
+import { errorReportingOptions } from "../shared/error-reporting-options";
 import { loadChannelSettings } from "./channel-settings";
 import { buildContentSecurityPolicy } from "./content-security-policy";
 import { establishCoreConnection } from "./core-connection";
@@ -48,21 +44,19 @@ function keepDataInChannelFolder(settings: ChannelSettings): void {
 function initializeErrorReporting(settings: ChannelSettings): void {
   // Initialized even without a DSN: the renderer and core SDKs always report through main, which
   // then has nowhere to send anything and drops it.
+  const shared = errorReportingOptions(Sentry.consoleLoggingIntegration);
   Sentry.init({
+    ...shared,
     ...(settings.sentryDsn ? { dsn: settings.sentryDsn } : {}),
     environment: settings.channel,
-    enableLogs: true,
     // Protocol mode lets the renderer reach main through a privileged custom scheme. Classic IPC
     // mode would inject Sentry's own preload, which exposes an API on the page's window.
     ipcMode: Sentry.IPCMode.Protocol,
     integrations: (defaults) => [
       ...withoutReplacedDefaultIntegrations(defaults),
       Sentry.childProcessIntegration({ events: CHILD_PROCESS_EVENT_REASONS }),
-      Sentry.consoleLoggingIntegration({ levels: ["info", "warn", "error"] }),
+      ...shared.integrations,
     ],
-    beforeSend: scrubErrorReport,
-    beforeBreadcrumb: scrubErrorReportBreadcrumb,
-    beforeSendLog: scrubErrorReportLog,
   });
 }
 

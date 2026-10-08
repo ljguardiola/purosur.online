@@ -298,11 +298,11 @@ export default {
       comment:
         "apps/pos/src/shared/ is imported by main, core and renderer alike, so it " +
         "must depend on nothing that isn't already common to all three: no domain, " +
-        "contracts, ui, electron, or any other npm package or Node builtin - only " +
-        "its own files.",
+        "ui, electron, or any other npm package or Node builtin - only its own " +
+        "files and contracts' entry point, which main may reach too.",
       severity: "error",
       from: { path: "^apps/pos/src/shared/" },
-      to: { pathNot: "^apps/pos/src/shared/" },
+      to: { pathNot: ["^apps/pos/src/shared/", "^packages/contracts/src/index\\.ts$"] },
     },
     {
       name: "real-postgres-tests-no-pglite",

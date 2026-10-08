@@ -2,13 +2,7 @@ import { randomUUID } from "node:crypto";
 import { hostname, release, version } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
-import {
-  type CoreReadyMessage,
-  mainToCoreMessageSchema,
-  scrubErrorReport,
-  scrubErrorReportBreadcrumb,
-  scrubErrorReportLog,
-} from "@purosur/contracts";
+import { type CoreReadyMessage, mainToCoreMessageSchema } from "@purosur/contracts";
 import * as Sentry from "@sentry/electron/utility";
 import { net } from "electron";
 import {
@@ -17,6 +11,7 @@ import {
   localDataFolderFromCoreArguments,
   sentryEnvironmentFromCoreArguments,
 } from "../shared/channel";
+import { errorReportingOptions } from "../shared/error-reporting-options";
 import { createActionGate } from "./access/action-gate";
 import { authorizersOf } from "./access/authorizers";
 import { requestFirstPinCode } from "./access/first-pin-code-request";
@@ -104,11 +99,7 @@ const sentryEnvironment = sentryEnvironmentFromCoreArguments(process.argv);
 if (sentryEnvironment) {
   Sentry.init({
     environment: sentryEnvironment,
-    enableLogs: true,
-    integrations: [Sentry.consoleLoggingIntegration({ levels: ["info", "warn", "error"] })],
-    beforeSend: scrubErrorReport,
-    beforeBreadcrumb: scrubErrorReportBreadcrumb,
-    beforeSendLog: scrubErrorReportLog,
+    ...errorReportingOptions(Sentry.consoleLoggingIntegration),
   });
 }
 

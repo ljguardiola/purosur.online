@@ -1,4 +1,4 @@
-import { scrubErrorReport } from "@purosur/contracts";
+import { ERROR_REPORT_DATA_COLLECTION, scrubErrorReport } from "@purosur/contracts";
 import * as Sentry from "@sentry/node";
 
 export interface SentryEnv {
@@ -22,6 +22,7 @@ export function initSentry(env: SentryEnv, deps: InitSentryDeps = {}): void {
     dsn: env.dsn,
     environment: env.environment,
     release: env.release,
+    dataCollection: ERROR_REPORT_DATA_COLLECTION,
     beforeSend: scrubErrorReport,
   });
 }
