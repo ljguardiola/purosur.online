@@ -129,7 +129,7 @@ const updateRequiredDetailSchema = z.object({
 
 const registerSilentDetailSchema = z.object({
   deviceId: z.string(),
-  lastAcceptedPushAt: z.string().nullable(),
+  lastAcceptedPushAt: z.string(),
 });
 
 const ALERT_INSTANT = { timeZone: ARGENTINA_TIME_ZONE };
@@ -144,6 +144,7 @@ const alertBase = {
   escalatedAt: z.string().nullable().meta(ALERT_INSTANT),
   resolvedAt: z.string().nullable().meta(ALERT_INSTANT),
   open: z.boolean(),
+  resolvesByItself: z.boolean(),
   deliveries: z.array(alertDeliverySchema),
 };
 

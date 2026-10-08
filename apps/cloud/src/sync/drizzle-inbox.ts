@@ -145,6 +145,13 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
       .where(eq(deviceState.deviceId, deviceId));
   }
 
+  async recordReportsEveryCycle(deviceId: string, at: Date): Promise<void> {
+    await this.tx
+      .update(deviceState)
+      .set({ reportsEveryCycleSince: at })
+      .where(and(eq(deviceState.deviceId, deviceId), isNull(deviceState.reportsEveryCycleSince)));
+  }
+
   outboxChainKey(deviceId: string): Promise<string | undefined> {
     return readOutboxChainKey(this.tx, this.cipher, deviceId);
   }

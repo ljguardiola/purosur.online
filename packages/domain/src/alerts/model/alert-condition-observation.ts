@@ -9,14 +9,14 @@ interface QuietRegister {
   registerId: string;
   deviceId: string;
   locationId: string;
-  lastAcceptedPushAt: Date | null;
+  lastSuccessfulSyncAt: Date;
 }
 
 export function quietRegisterObservation({
   registerId,
   deviceId,
   locationId,
-  lastAcceptedPushAt,
+  lastSuccessfulSyncAt,
 }: QuietRegister): AlertConditionObservation {
   return {
     holds: true,
@@ -24,7 +24,7 @@ export function quietRegisterObservation({
       kind: "register_silent",
       scope: registerId,
       locationId,
-      detail: { deviceId, lastAcceptedPushAt: lastAcceptedPushAt?.toISOString() ?? null },
+      detail: { deviceId, lastAcceptedPushAt: lastSuccessfulSyncAt.toISOString() },
     },
   };
 }

@@ -1,6 +1,6 @@
+import { isoWeekdayOf } from "../../shared/index.js";
 import type { DiscountSchedule } from "./discount-status.js";
 import { discountStatus } from "./discount-status.js";
-import { isoWeekdayOf } from "./discount-weekdays.js";
 
 export interface DiscountRecurrence extends DiscountSchedule {
   weekdays: readonly number[];

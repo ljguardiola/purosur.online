@@ -530,7 +530,7 @@ function OpenAlertDetailModal({
                 ))}
               </div>
             </div>
-            {alert.open ? (
+            {alert.open && !alert.resolvesByItself ? (
               <p className="text-text-subtle text-detail">
                 No se cierra sola: se cierra a mano después de revisarla.
               </p>

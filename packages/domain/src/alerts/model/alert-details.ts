@@ -83,7 +83,7 @@ interface UpdateRequiredDetail {
 
 interface RegisterSilentDetail {
   deviceId: string;
-  lastAcceptedPushAt: string | null;
+  lastAcceptedPushAt: string;
 }
 
 export interface AlertDetails {

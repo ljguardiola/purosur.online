@@ -29,6 +29,7 @@ import type { AlertListQuery } from "./alerts-api";
 import type { AlertsListScreenServices } from "./alerts-list-services";
 import { AlertsOpenCountPill } from "./alerts-open-count-pill";
 import { useAlertsQuery } from "./alerts-queries";
+import { localAlertText } from "./local-alert-text";
 import type { AlertsListFilters } from "./routes";
 
 export type AlertsListScreenProps = {
@@ -55,8 +56,25 @@ function levelLabel(level: AlertLevel): string {
 function kindsMatching(text: string): string[] {
   const query = text.toLowerCase();
   return DESCRIBED_ALERT_KINDS.filter((kind) =>
-    `${alertKindLabel(kind)} ${alertKindDescription(kind)}`.toLowerCase().includes(query),
+    `${alertKindLabel(kind)} ${alertKindDescription(kind)} ${localAlertText(kind)?.title ?? ""}`
+      .toLowerCase()
+      .includes(query),
   );
+}
+
+function localTextOf(alert: AlertSummary) {
+  return alert.audience === "local" ? localAlertText(alert.kind) : undefined;
+}
+
+function alertRowTitle(alert: AlertSummary): string {
+  return localTextOf(alert)?.title ?? alertKindLabel(alert.kind);
+}
+
+function alertRowDescription(alert: AlertSummary): string {
+  const local = localTextOf(alert);
+  return local === undefined
+    ? alertKindDescription(alert.kind)
+    : `${local.meaning} ${local.whatToDo}`;
 }
 
 const LEVEL_FILTER_OPTIONS = [
@@ -151,9 +169,7 @@ export function AlertsListScreen({
       id: "alert",
       header: "Alerta",
       render: (item: AlertSummary) => (
-        <TableCellText description={alertKindDescription(item.kind)}>
-          {alertKindLabel(item.kind)}
-        </TableCellText>
+        <TableCellText description={alertRowDescription(item)}>{alertRowTitle(item)}</TableCellText>
       ),
     }),
     dataColumn({
@@ -173,7 +189,7 @@ export function AlertsListScreen({
       actions: [
         (item: AlertSummary) => ({
           icon: <Eye />,
-          "aria-label": `Ver la alerta «${alertKindLabel(item.kind)}»`,
+          "aria-label": `Ver la alerta «${alertRowTitle(item)}»`,
           onPress: () => setSelectedAlertId(item.id),
         }),
       ],

@@ -421,6 +421,13 @@
       "when": 1791443035848,
       "tag": "0059_alert_condition_resolution",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1791489081558,
+      "tag": "0060_reports_every_cycle",
+      "breakpoints": true
     }
   ]
 }

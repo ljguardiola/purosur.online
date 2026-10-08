@@ -91,6 +91,9 @@ export async function receivePushedEvents(
     await tx.receive(deviceId, toReceive, now);
     await tx.recordAcceptedPush(deviceId, now);
     await tx.observeAlertCondition(registerSyncedObservation(registerId), now);
+    if (events.length === 0) {
+      await tx.recordReportsEveryCycle(deviceId, now);
+    }
     return {
       kind: "received",
       ackSeq: highestContiguousSeq(await tx.receivedDeviceSeqs(deviceId)),

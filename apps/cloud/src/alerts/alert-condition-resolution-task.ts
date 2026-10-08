@@ -3,9 +3,10 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PoolClient } from "pg";
 import { hashSourceAddress } from "../access/sign-in-lockout.js";
+import { DrizzleBranchHoursReader } from "../branch/drizzle-branch-hours-reader.js";
 import { type BackgroundJobs, databaseOfClient } from "../platform/background-jobs.js";
+import { DrizzleWatchedRegisterReader } from "../register/drizzle-watched-register-reader.js";
 import { DrizzleAlertStore } from "./drizzle-alert-store.js";
-import { DrizzleInServiceRegisterReader } from "./drizzle-in-service-register-reader.js";
 
 export const ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER = "alert-condition-resolution";
 
@@ -27,7 +28,8 @@ function detectQuietRegistersTask<TQueryResult extends PgQueryResultHKT>(
   deps: { now: () => Date },
 ): Promise<number> {
   return detectQuietRegisters({
-    registers: new DrizzleInServiceRegisterReader(db),
+    registers: new DrizzleWatchedRegisterReader(db),
+    branchHours: new DrizzleBranchHoursReader(db),
     store: new DrizzleAlertStore(db, deps.now),
     clock: { now: deps.now },
     hasher: { hash: hashSourceAddress },

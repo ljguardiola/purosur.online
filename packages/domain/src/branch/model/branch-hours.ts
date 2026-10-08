@@ -1,4 +1,4 @@
-import { argentinaCalendarDay, argentinaInstant } from "../../shared/index.js";
+import { argentinaCalendarDay, argentinaInstant, isoWeekdayOf } from "../../shared/index.js";
 
 export const BRANCH_HOURS_RANGES_PER_DAY_MAX = 6;
 
@@ -41,7 +41,7 @@ export function isSpanWithinBranchHours(
   const dayStart = new Date(argentinaInstant(day, "00:00")).getTime();
   const startMinute = (span.start.getTime() - dayStart) / MINUTE_MS;
   const endMinute = (span.end.getTime() - dayStart) / MINUTE_MS;
-  const dayOfWeek = ((new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7) + 1;
+  const dayOfWeek = isoWeekdayOf(day);
   const ranges = hours
     .filter((range) => range.dayOfWeek === dayOfWeek)
     .map((range) => ({ opens: minutesOfDay(range.opensAt), closes: minutesOfDay(range.closesAt) }))
