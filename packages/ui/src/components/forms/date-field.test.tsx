@@ -5,7 +5,6 @@ import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { AA_TEXT_CONTRAST, contrastRatio } from "../../styles/contrast";
 import { expectNoAccessibilityViolations } from "../../test/axe";
-import type { DispatchableCdpSession } from "../../test/setup-browser";
 import { insetBoundary, paintedBoxShadowLayers, rgbToHex, tokenRgb } from "../../test/token-colors";
 import { DateField, type DateFieldProps } from "./date-field";
 import { type FieldSize, FieldSizeProvider } from "./field-size";
@@ -21,7 +20,7 @@ function fieldGroup(screen: Screen, name: string): HTMLElement {
 // before the first hover-driven assertion.
 beforeEach(async () => {
   await page.viewport(1280, 900);
-  const session = cdp() as unknown as DispatchableCdpSession;
+  const session = cdp();
   await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
 });
 

@@ -1,6 +1,5 @@
 import type { PermissionArea, PermissionKey } from "@purosur/domain";
 import { TextField } from "@purosur/ui";
-import type { DispatchableCdpSession } from "@purosur/ui/test";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
 import { expect, test, vi } from "vitest";
@@ -13,7 +12,7 @@ import { RoleEditorForm } from "./role-editor-form";
 // fires before that move and is silently dropped, so this throwaway move supplies it.
 async function warmUpPointer() {
   await page.viewport(1280, 900);
-  const session = cdp() as unknown as DispatchableCdpSession;
+  const session = cdp();
   await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
 }
 
