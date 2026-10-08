@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { PushedEvent } from "../../sync/index.js";
 import type { FacturaC } from "../model/pre-emission-gate.js";
 import type { RealTimeAuthorizationAnswer } from "../model/real-time-authorization.js";
+import type { WaitingFiscalDocument } from "./real-time-authorization-ports.js";
 import { requestRealTimeAuthorization } from "./request-real-time-authorization.js";
 import { ManualClock } from "./test-support/fake-arca-vitality.js";
 import {
@@ -60,7 +61,7 @@ function request({
 }: {
   answer?: RealTimeAuthorizationAnswer;
   samples?: readonly number[];
-  waiting?: typeof WAITING | null;
+  waiting?: WaitingFiscalDocument | null;
 } = {}) {
   const clock = new ManualClock(START);
   const documents = new FakeRealTimeFiscalDocuments(waiting);
@@ -162,6 +163,28 @@ describe("requestRealTimeAuthorization", () => {
   it("makes no call and leaves the outcome unknown when the register has no round trip to report", async () => {
     const { documents, taxAuthority, outcome } = request({
       samples: [],
+      answer: {
+        kind: "authorized",
+        authorizationCode: "75123456789012",
+        authorizationCodeDueOn: "2026-10-11",
+      },
+    });
+
+    await expect(outcome).resolves.toEqual({ kind: "unclear" });
+    expect(taxAuthority.calls).toEqual([]);
+    expect(documents.resolutions).toEqual([
+      {
+        fiscalDocumentId: FISCAL_DOCUMENT_ID,
+        saleId: "sale-1",
+        resolution: { state: "UNKNOWN", deferralReason: "unclear_outcome" },
+        resolvedAt: START,
+      },
+    ]);
+  });
+
+  it("makes no call and leaves the outcome unknown when the sale's event is no longer held", async () => {
+    const { documents, taxAuthority, outcome } = request({
+      waiting: { ...WAITING, saleEvent: null },
       answer: {
         kind: "authorized",
         authorizationCode: "75123456789012",
