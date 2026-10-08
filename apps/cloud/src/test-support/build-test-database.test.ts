@@ -322,6 +322,7 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       ...origin,
       sessionId,
       actorId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e11",
+      state: "COMPLETED",
       completedAt: new Date("2026-01-05T12:10:00.000Z"),
       total: 2400,
       appliedAt: new Date("2026-01-05T12:11:00.000Z"),

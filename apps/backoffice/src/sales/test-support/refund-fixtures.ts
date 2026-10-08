@@ -15,7 +15,7 @@ export const transferRefund: PendingRefundsBody["refunds"][number] = {
   cancelled_by_name: "Lucía",
 };
 
-export const secondRefund: PendingRefundsBody["refunds"][number] = {
+const secondRefund: PendingRefundsBody["refunds"][number] = {
   id: SECOND_REFUND_ID,
   sale_id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
   register_id: "22222222-2222-4222-8222-222222222222",
