@@ -158,3 +158,10 @@ export function realTimeAuthorizationResolution(
       return { state: "UNKNOWN", deferralReason: "unclear_outcome" };
   }
 }
+
+export function isCompletionEventOfSale(
+  event: { event_type: string; aggregate_id: string },
+  saleId: string,
+): boolean {
+  return event.event_type === "sale_completed" && event.aggregate_id === saleId;
+}
