@@ -30,12 +30,14 @@ export interface FiscalAuthorizationRouteUnderTest {
   readonly app: FastifyInstance;
   readonly taxAuthority: FakeTaxAuthority;
   issueWsaaToken(): Promise<void>;
+  readClockWith(now: () => Date): void;
 }
 
 export function fiscalAuthorizationRouteUnderTest(): FiscalAuthorizationRouteUnderTest {
   let testDatabase: TestDatabase;
   let app: FastifyInstance;
   let taxAuthority: FakeTaxAuthority;
+  let now: () => Date;
 
   beforeAll(async () => {
     testDatabase = await buildTestDatabase();
@@ -48,13 +50,14 @@ export function fiscalAuthorizationRouteUnderTest(): FiscalAuthorizationRouteUnd
   beforeEach(async () => {
     await testDatabase.clear();
     taxAuthority = new FakeTaxAuthority();
+    now = () => NOW;
     app = Fastify();
     registerRouteAccess(app);
     registerFiscalAuthorizationRoute(app, {
       db: testDatabase.db,
       rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
       keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
-      now: () => NOW,
+      now: () => now(),
       connections: { withConnection: (work) => work(testDatabase.db) },
       taxAuthority,
       certificateFingerprint: CERTIFICATE_FINGERPRINT,
@@ -74,6 +77,9 @@ export function fiscalAuthorizationRouteUnderTest(): FiscalAuthorizationRouteUnd
     },
     get taxAuthority() {
       return taxAuthority;
+    },
+    readClockWith(clock) {
+      now = clock;
     },
     async issueWsaaToken() {
       await testDatabase.db.insert(arcaWsaaTokens).values({

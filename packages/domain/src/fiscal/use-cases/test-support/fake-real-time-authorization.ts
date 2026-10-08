@@ -16,8 +16,8 @@ export class FakeRealTimeFiscalDocuments implements RealTimeFiscalDocuments {
     this.waiting = waiting;
   }
 
-  async waitingDocument(fiscalDocumentId: string): Promise<WaitingFiscalDocument | null> {
-    return this.waiting?.fiscalDocumentId === fiscalDocumentId ? this.waiting : null;
+  async waitingDocumentOfSale(saleId: string): Promise<WaitingFiscalDocument | null> {
+    return this.waiting?.saleId === saleId ? this.waiting : null;
   }
 
   async resolve(resolved: RealTimeAuthorizationResolved): Promise<void> {

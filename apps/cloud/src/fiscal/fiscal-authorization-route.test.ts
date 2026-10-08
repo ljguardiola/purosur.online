@@ -253,6 +253,22 @@ describe("POST /fiscal/authorize", () => {
       expect(evidence.map((entry) => entry.lastCallOkAt)).toEqual([NOW]);
     });
 
+    it("counts the request's budget from the moment the cloud received it, before authenticating it", async () => {
+      const { deviceToken } = await enrollRegisterWithPointOfSale();
+      await route.issueWsaaToken();
+      let reads = 0;
+      route.readClockWith(() => new Date(NOW.getTime() + 1_000 * reads++));
+      const body = requestBody();
+
+      await authorize(body, `Bearer ${deviceToken}`);
+
+      const [row] = await route.db
+        .select({ receivedAt: fiscalRequests.receivedAt })
+        .from(fiscalRequests)
+        .where(eq(fiscalRequests.fiscalDocumentId, body.fiscal_document_id));
+      expect(row?.receivedAt).toEqual(NOW);
+    });
+
     it("answers REJECTED with the codes the tax authority gave", async () => {
       const { deviceToken } = await enrollRegisterWithPointOfSale();
       await route.issueWsaaToken();

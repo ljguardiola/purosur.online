@@ -135,8 +135,9 @@ describe("authorizing a completed sale in real time", () => {
   it("asks nothing for a sale routed to the deferred flow, which has no document", async () => {
     insertCompletedSale(database, "sale-2");
 
-    await authorize({ kind: "unclear" }, "sale-2");
-
+    await expect(authorize({ kind: "unclear" }, "sale-2")).resolves.toEqual({
+      kind: "not_waiting",
+    });
     expect(calls).toEqual([]);
   });
 

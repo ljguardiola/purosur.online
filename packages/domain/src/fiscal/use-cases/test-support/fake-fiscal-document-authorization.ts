@@ -1,14 +1,15 @@
 import type { RealTimeAuthorizationAnswer } from "../../model/real-time-authorization.js";
-import type {
-  AuthorizationRequestRecord,
-  FiscalDocumentSolicitation,
-  InvoicingEvidence,
-  PointOfSaleLane,
-  PointOfSaleLanes,
-  RecordedAuthorizationRequest,
-  SolicitationAnswer,
-  TaxAuthorityInvoicing,
-  WsaaTokenSource,
+import {
+  type AuthorizationRequestRecord,
+  FiscalDocumentAlreadyRecorded,
+  type FiscalDocumentSolicitation,
+  type InvoicingEvidence,
+  type PointOfSaleLane,
+  type PointOfSaleLanes,
+  type RecordedAuthorizationRequest,
+  type SolicitationAnswer,
+  type TaxAuthorityInvoicing,
+  type WsaaTokenSource,
 } from "../fiscal-document-authorization-ports.js";
 import type { WsaaToken } from "../wsaa-token-ports.js";
 
@@ -18,6 +19,7 @@ export class FakePointOfSaleLanes implements PointOfSaleLanes {
   readonly answers = new Map<string, RealTimeAuthorizationAnswer>();
   readonly lanesEntered: number[] = [];
   held = false;
+  recordingFailure: Error | undefined;
   private readonly owners: Map<number, string>;
 
   constructor(owners: Iterable<[number, string]>) {
@@ -69,17 +71,20 @@ class FakeLane implements PointOfSaleLane {
   ): Promise<RecordedAuthorizationRequest | null> {
     this.lanes.operations.push("recordedRequest");
     const request = this.lanes.requests.get(fiscalDocumentId);
-    if (request === undefined) {
+    if (request?.registerId !== registerId) {
       return null;
     }
-    if (request.registerId !== registerId) {
-      return { kind: "another_register" };
-    }
-    return { kind: "own", answer: this.lanes.answers.get(fiscalDocumentId) ?? null };
+    return { answer: this.lanes.answers.get(fiscalDocumentId) ?? null };
   }
 
   async recordRequest(request: AuthorizationRequestRecord): Promise<void> {
     this.lanes.operations.push("recordRequest");
+    if (this.lanes.recordingFailure !== undefined) {
+      throw this.lanes.recordingFailure;
+    }
+    if (this.lanes.requests.has(request.fiscalDocumentId)) {
+      throw new FiscalDocumentAlreadyRecorded();
+    }
     this.lanes.requests.set(request.fiscalDocumentId, request);
   }
 

@@ -53,7 +53,7 @@ describe("the document waiting on a real-time answer", () => {
   it("is the reserved document with the event of the sale as it travels to the cloud", async () => {
     const [saleEvent] = await new SqliteLocalOutbox(database, () => RESOLVED_AT).unacknowledged(10);
 
-    await expect(documents.waitingDocument("doc-1")).resolves.toEqual({
+    await expect(documents.waitingDocumentOfSale("sale-1")).resolves.toEqual({
       fiscalDocumentId: "doc-1",
       saleId: "sale-1",
       pointOfSale: POINT_OF_SALE,
@@ -69,7 +69,7 @@ describe("the document waiting on a real-time answer", () => {
     insertCompletedSale(database, "sale-2");
     insertSaleCompletedEvent(database, "sale-2");
 
-    const waiting = await documents.waitingDocument("doc-1");
+    const waiting = await documents.waitingDocumentOfSale("sale-1");
 
     expect(waiting?.saleEvent?.aggregate_id).toBe("sale-1");
   });
@@ -77,7 +77,7 @@ describe("the document waiting on a real-time answer", () => {
   it("still carries the event once the regular push acknowledged it", async () => {
     database.prepare("UPDATE outbox SET acked_at = '2026-09-30T12:05:01.000Z'").run();
 
-    const waiting = await documents.waitingDocument("doc-1");
+    const waiting = await documents.waitingDocumentOfSale("sale-1");
 
     expect(waiting?.saleEvent).toMatchObject({ event_type: "sale_completed" });
   });
@@ -85,7 +85,7 @@ describe("the document waiting on a real-time answer", () => {
   it("carries no event when the outbox no longer holds the sale's", async () => {
     database.prepare("DELETE FROM outbox").run();
 
-    const waiting = await documents.waitingDocument("doc-1");
+    const waiting = await documents.waitingDocumentOfSale("sale-1");
 
     expect(waiting).toMatchObject({ fiscalDocumentId: "doc-1", saleEvent: null });
   });
@@ -96,12 +96,14 @@ describe("the document waiting on a real-time answer", () => {
       database.prepare("DELETE FROM fiscal_documents").run();
       insertFiscalDocument(database, { state });
 
-      await expect(documents.waitingDocument("doc-1")).resolves.toBeNull();
+      await expect(documents.waitingDocumentOfSale("sale-1")).resolves.toBeNull();
     },
   );
 
-  it("is none for a document the register never reserved", async () => {
-    await expect(documents.waitingDocument("missing")).resolves.toBeNull();
+  it("is none for a sale the register reserved no document for", async () => {
+    insertCompletedSale(database, "sale-2");
+
+    await expect(documents.waitingDocumentOfSale("sale-2")).resolves.toBeNull();
   });
 });
 

@@ -1,5 +1,10 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "../test-support/fictional-tax-identities.js";
 import type { PreEmissionGateOutcome } from "./pre-emission-gate.js";
 import {
   AUTHORIZATION_CALL_MARGIN_MS,
@@ -10,10 +15,12 @@ import {
   isCompletionEventOfSale,
   mayStartAuthorizationCall,
   medianRoundTripMs,
+  NUMBER_CONSUMING_STATES,
   nextInvoiceNumber,
   REAL_TIME_AUTHORIZATION_TIMEOUT_MS,
   ROUND_TRIP_SAMPLE_SIZE,
   realTimeAuthorizationResolution,
+  SERIES_WAITING_STATES,
   taxAuthorityRejectionAnswer,
 } from "./real-time-authorization.js";
 
@@ -212,10 +219,10 @@ const DOCUMENT = {
   netAmount: 12_500,
   vatAmount: 0,
   issuer: {
-    legalName: "Comercio de Prueba SA",
-    cuit: "20000000001",
+    legalName: FICTIONAL_LEGAL_NAME,
+    cuit: FICTIONAL_CUIT,
     taxStatus: "MONOTRIBUTO",
-    grossIncomeRegistration: "901-123456-7",
+    grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
     activityStartDate: "2020-01-01",
     version: 3,
   },
@@ -325,6 +332,18 @@ describe("decideRealTimeAuthorization", () => {
         series: { ...SERIES, taxAuthorityLastAuthorized: null },
       }),
     ).toEqual({ kind: "defer", reason: "tax_authority_count_unknown" });
+  });
+});
+
+describe("SERIES_WAITING_STATES", () => {
+  it("keeps a point of sale's series waiting while a document waits on its answer or on an unclear outcome", () => {
+    expect(SERIES_WAITING_STATES).toEqual(["REQUESTING", "UNKNOWN"]);
+  });
+});
+
+describe("NUMBER_CONSUMING_STATES", () => {
+  it("consumes a document's number only once the tax authority authorized it", () => {
+    expect(NUMBER_CONSUMING_STATES).toEqual(["AUTHORIZED"]);
   });
 });
 

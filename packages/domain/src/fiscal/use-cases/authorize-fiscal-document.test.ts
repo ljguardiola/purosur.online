@@ -67,6 +67,7 @@ interface Scenario {
   solicitation?: SolicitationAnswer;
   request?: Partial<typeof REQUEST>;
   startAt?: Date;
+  recordingFailure?: Error;
   seeded?: {
     answer: Parameters<FakePointOfSaleLanes["seedRequest"]>[1];
     registerId?: string;
@@ -79,10 +80,12 @@ function authorize({
   solicitation = AUTHORIZED_BY_ARCA,
   request = {},
   startAt = RECEIVED_AT,
+  recordingFailure,
   seeded,
 }: Scenario = {}) {
   const clock = new ManualClock(startAt);
   const lanes = new FakePointOfSaleLanes(owners);
+  lanes.recordingFailure = recordingFailure;
   if (seeded) {
     lanes.seedRequest(
       {
@@ -255,11 +258,21 @@ describe("authorizeFiscalDocument", () => {
       "enterLane",
       "registerOwnsPointOfSale",
       "recordedRequest",
+      "recordRequest",
       "leaveLane",
     ]);
+    expect(lanes.answers.get(FISCAL_DOCUMENT_ID)).toEqual(AUTHORIZED_ANSWER);
     expect(lanes.requests.get(FISCAL_DOCUMENT_ID)?.registerId).toBe("register-2");
     expect(taxAuthority.solicitations).toEqual([]);
     expect(evidence.okAt).toEqual([]);
+  });
+
+  it("fails without calling the tax authority when recording the request fails", async () => {
+    const failure = new Error("the storage broke");
+    const { taxAuthority, outcome } = authorize({ recordingFailure: failure });
+
+    await expect(outcome).rejects.toBe(failure);
+    expect(taxAuthority.solicitations).toEqual([]);
   });
 
   it("answers unclear for a document whose earlier request has no answer, without calling the tax authority", async () => {

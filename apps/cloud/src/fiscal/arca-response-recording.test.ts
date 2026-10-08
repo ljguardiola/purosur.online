@@ -12,7 +12,11 @@ import {
   ARCA_CERTIFICATE_WITHOUT_SERIAL_NUMBER,
   VALID_ARCA_CERTIFICATE,
 } from "../test-support/arca-certificate-fixtures.js";
-import { recordArcaResponses, recordingSettingsOf } from "./arca-response-recording.js";
+import {
+  recordArcaResponses,
+  recordingFailure,
+  recordingSettingsOf,
+} from "./arca-response-recording.js";
 import {
   type ArcaTestCredentials,
   generateArcaTestCredentials,
@@ -422,6 +426,26 @@ describe("recordArcaResponses invoicing calls", () => {
         timeoutMs: 200,
       }),
     ).rejects.toThrow("FECompUltimoAutorizado");
+  });
+});
+
+describe("recordingFailure", () => {
+  const RECORDED = { firstLoginIssuedTicket: true, invoicesRecorded: true, scrubbed: [] };
+
+  it("finds nothing wrong with a recording whose login issued a ticket and that requested invoices", () => {
+    expect(recordingFailure(RECORDED)).toBeUndefined();
+  });
+
+  it("fails a recording whose first login issued no ticket", () => {
+    expect(recordingFailure({ ...RECORDED, firstLoginIssuedTicket: false })).toBe(
+      "the first login did not issue a ticket (ARCA may still hold a valid one for this certificate); login-cms-issued is not a ticket answer",
+    );
+  });
+
+  it("fails a recording that requested no invoice", () => {
+    expect(recordingFailure({ ...RECORDED, invoicesRecorded: false })).toBe(
+      "ARCA listed no Consumidor Final for invoice class C or gave no last authorized number, so no invoice was requested",
+    );
   });
 });
 

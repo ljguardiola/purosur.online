@@ -1,4 +1,7 @@
-import type { RealTimeAuthorizationAnswer } from "@purosur/domain/fiscal/use-cases";
+import {
+  FiscalDocumentAlreadyRecorded,
+  type RealTimeAuthorizationAnswer,
+} from "@purosur/domain/fiscal/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgliteQueryResultHKT } from "drizzle-orm/pglite";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -86,7 +89,7 @@ describe("DrizzlePointOfSaleLanes", () => {
         return lane.recordedRequest(registerId, request.fiscalDocumentId);
       });
 
-      expect(recorded).toEqual({ kind: "own", answer: null });
+      expect(recorded).toEqual({ answer: null });
       const [row] = await db
         .select()
         .from(fiscalRequests)
@@ -111,7 +114,7 @@ describe("DrizzlePointOfSaleLanes", () => {
       });
     });
 
-    it("tells a request another register recorded apart, without giving back its answer", async () => {
+    it("finds no request another register recorded", async () => {
       const registerId = await insertRegisterWithPointOfSale(db, {
         pointOfSaleNumber: 7,
         name: "caja-1",
@@ -128,7 +131,32 @@ describe("DrizzlePointOfSaleLanes", () => {
         return lane.recordedRequest(otherRegisterId, request.fiscalDocumentId);
       });
 
-      expect(recorded).toEqual({ kind: "another_register" });
+      expect(recorded).toBeNull();
+    });
+
+    it("refuses to record a document id already recorded, leaving the first request as it was", async () => {
+      const registerId = await insertRegisterWithPointOfSale(db, {
+        pointOfSaleNumber: 7,
+        name: "caja-1",
+      });
+      const otherRegisterId = await insertRegisterWithPointOfSale(db, {
+        pointOfSaleNumber: 8,
+        name: "caja-2",
+      });
+      const request = authorizationRequestRecord(registerId);
+      await lanes.inPointOfSaleLane(7, (lane) => lane.recordRequest(request));
+
+      const recording = lanes.inPointOfSaleLane(8, (lane) =>
+        lane.recordRequest({ ...request, registerId: otherRegisterId, pointOfSale: 8 }),
+      );
+
+      await expect(recording).rejects.toBeInstanceOf(FiscalDocumentAlreadyRecorded);
+      expect(
+        await db
+          .select({ registerId: fiscalRequests.registerId })
+          .from(fiscalRequests)
+          .where(eq(fiscalRequests.fiscalDocumentId, request.fiscalDocumentId)),
+      ).toEqual([{ registerId }]);
     });
 
     it.each<[string, RealTimeAuthorizationAnswer]>([
@@ -158,7 +186,7 @@ describe("DrizzlePointOfSaleLanes", () => {
           return lane.recordedRequest(registerId, request.fiscalDocumentId);
         });
 
-        expect(recorded).toEqual({ kind: "own", answer });
+        expect(recorded).toEqual({ answer });
         const [row] = await db
           .select({ answeredAt: fiscalRequests.answeredAt })
           .from(fiscalRequests)

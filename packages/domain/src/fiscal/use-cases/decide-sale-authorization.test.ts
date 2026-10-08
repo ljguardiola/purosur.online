@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { FiscalOnlineSignalEvidence } from "../model/fiscal-online-signal.js";
 import type { FacturaC, PreEmissionGateOutcome } from "../model/pre-emission-gate.js";
 import type { RealTimeSeries } from "../model/real-time-authorization.js";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "../test-support/fictional-tax-identities.js";
 import { decideSaleAuthorization } from "./decide-sale-authorization.js";
 import {
   FakeSaleAuthorizationTransaction,
@@ -17,10 +22,10 @@ const DOCUMENT: FacturaC = {
   netAmount: 12_500,
   vatAmount: 0,
   issuer: {
-    legalName: "Comercio de Prueba SA",
-    cuit: "20000000001",
+    legalName: FICTIONAL_LEGAL_NAME,
+    cuit: FICTIONAL_CUIT,
     taxStatus: "MONOTRIBUTO",
-    grossIncomeRegistration: "901-123456-7",
+    grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
     activityStartDate: "2020-01-01",
     version: 3,
   },

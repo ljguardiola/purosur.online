@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { PushedEvent } from "../../sync/index.js";
 import type { FacturaC } from "../model/pre-emission-gate.js";
 import type { RealTimeAuthorizationAnswer } from "../model/real-time-authorization.js";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "../test-support/fictional-tax-identities.js";
 import type { WaitingFiscalDocument } from "./real-time-authorization-ports.js";
 import { requestRealTimeAuthorization } from "./request-real-time-authorization.js";
 import { ManualClock } from "./test-support/fake-arca-vitality.js";
@@ -21,10 +26,10 @@ const DOCUMENT: FacturaC = {
   netAmount: 12_500,
   vatAmount: 0,
   issuer: {
-    legalName: "Comercio de Prueba SA",
-    cuit: "20000000001",
+    legalName: FICTIONAL_LEGAL_NAME,
+    cuit: FICTIONAL_CUIT,
     taxStatus: "MONOTRIBUTO",
-    grossIncomeRegistration: "901-123456-7",
+    grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
     activityStartDate: "2020-01-01",
     version: 3,
   },
@@ -69,7 +74,7 @@ function request({
   const taxAuthority = new FakeRealTimeTaxAuthority(answer, () => clock.advanceBy(ANSWER_DELAY_MS));
   const outcome = requestRealTimeAuthorization(
     { documents, roundTrips, taxAuthority, clock },
-    { fiscalDocumentId: FISCAL_DOCUMENT_ID },
+    { saleId: "sale-1" },
   );
   return { documents, roundTrips, taxAuthority, outcome };
 }
@@ -151,7 +156,7 @@ describe("requestRealTimeAuthorization", () => {
     },
   );
 
-  it("does nothing for a document that is not waiting for an answer", async () => {
+  it("does nothing for a sale with no document waiting for an answer", async () => {
     const { documents, roundTrips, taxAuthority, outcome } = request({ waiting: null });
 
     await expect(outcome).resolves.toEqual({ kind: "not_waiting" });
