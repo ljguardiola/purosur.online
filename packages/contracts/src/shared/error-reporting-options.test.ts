@@ -1,4 +1,3 @@
-import { ERROR_REPORT_DATA_COLLECTION } from "@purosur/contracts";
 import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import {
   addBreadcrumb,
@@ -10,7 +9,7 @@ import {
   setCurrentClient,
 } from "@sentry/core";
 import { afterEach, describe, expect, it } from "vitest";
-import { errorReportingOptions } from "./error-reporting-options";
+import { errorReportingOptions } from "./error-reporting-options.js";
 
 class RecordingClient extends Client {
   constructor(options: ClientOptions) {
@@ -47,7 +46,8 @@ function startSentry(): RecordingSentry {
       },
       flush: () => Promise.resolve(true),
     }),
-    ...errorReportingOptions(consoleLoggingIntegration),
+    integrations: [consoleLoggingIntegration({ levels: ["info", "warn", "error"] })],
+    ...errorReportingOptions(),
   });
   setCurrentClient(client);
   client.init();
@@ -75,6 +75,29 @@ afterEach(async () => {
 });
 
 describe("errorReportingOptions", () => {
+  it("collects nothing from any category", () => {
+    expect(errorReportingOptions().dataCollection).toStrictEqual({
+      userInfo: false,
+      cookies: false,
+      httpHeaders: false,
+      httpBodies: [],
+      urlQueryParams: false,
+      graphQL: { document: false, variables: false },
+      genAI: { inputs: false, outputs: false },
+      databaseQueryData: false,
+      queues: false,
+      stackFrameVariables: false,
+    });
+  });
+
+  it("returns a fresh object each time, so one init cannot change another's", () => {
+    const first = errorReportingOptions();
+
+    first.dataCollection.httpBodies.push("incomingRequest");
+
+    expect(errorReportingOptions().dataCollection.httpBodies).toStrictEqual([]);
+  });
+
   it("ships a console error line as a Sentry log with its personal data redacted", async () => {
     const sentry = startSentry();
 
@@ -84,20 +107,6 @@ describe("errorReportingOptions", () => {
     expect(logs).toHaveLength(1);
     expect(JSON.stringify(logs[0]?.payload)).toContain("sync failed for CUIT [redacted]");
     expect(JSON.stringify(logs[0]?.payload)).not.toContain(FICTIONAL_CUIT);
-  });
-
-  it("ships console info and warn lines but not debug lines", async () => {
-    const sentry = startSentry();
-
-    console.info("info line");
-    console.warn("warn line");
-    console.debug("debug line");
-
-    const logs = await sentItems(sentry, "log");
-    const text = JSON.stringify(logs.map((log) => log.payload));
-    expect(text).toContain("info line");
-    expect(text).toContain("warn line");
-    expect(text).not.toContain("debug line");
   });
 
   it("sends an event without its user, request or personal data", async () => {
@@ -124,11 +133,5 @@ describe("errorReportingOptions", () => {
     const [event] = await sentItems(sentry, "event");
     expect(JSON.stringify(event?.payload)).toContain("looked up CUIT [redacted]");
     expect(JSON.stringify(event?.payload)).not.toContain(FICTIONAL_CUIT);
-  });
-
-  it("turns every data collection category off", () => {
-    const options = errorReportingOptions(consoleLoggingIntegration);
-
-    expect(options.dataCollection).toBe(ERROR_REPORT_DATA_COLLECTION);
   });
 });

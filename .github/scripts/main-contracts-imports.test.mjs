@@ -5,10 +5,8 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { contractsValueExports, mainAllowedContractsNames } from "./main-contracts-imports.mjs";
 
-const ERROR_REPORT_SCRUBBERS = [
-  "scrubErrorReport",
-  "scrubErrorReportBreadcrumb",
-  "scrubErrorReportLog",
+const ERROR_REPORT_OPTIONS = [
+  "errorReportingOptions",
 ];
 
 function withEntry(t, files) {
@@ -102,15 +100,15 @@ test("reads the names main's Biome restriction allows from packages/contracts", 
   assert.deepEqual(mainAllowedContractsNames(config), ["a", "B"]);
 });
 
-test("main may import from packages/contracts only the error report scrubbers as values, and the rest only as types", () => {
+test("main may import from packages/contracts only the error report options as a value, and the rest only as types", () => {
   const allowed = mainAllowedContractsNames(JSON.parse(readFileSync("biome.json", "utf8")));
-  const typeNames = allowed.filter((name) => !ERROR_REPORT_SCRUBBERS.includes(name));
+  const typeNames = allowed.filter((name) => !ERROR_REPORT_OPTIONS.includes(name));
 
   assert.deepEqual(
     contractsValueExports("packages/contracts/src/index.ts", [
-      ...ERROR_REPORT_SCRUBBERS,
+      ...ERROR_REPORT_OPTIONS,
       ...typeNames,
     ]),
-    { values: ERROR_REPORT_SCRUBBERS, missing: [] },
+    { values: ERROR_REPORT_OPTIONS, missing: [] },
   );
 });
