@@ -1,4 +1,4 @@
-import { createRole, editRole, RoleNameConflict } from "@purosur/domain/access/use-cases";
+import { createRole, editRole, RoleNameConflict } from "@purosur/domain/permissions/use-cases";
 import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";

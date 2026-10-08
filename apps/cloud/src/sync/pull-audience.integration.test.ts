@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { createRole } from "@purosur/domain/access/use-cases";
 import { createCategory, createProduct, createTag } from "@purosur/domain/catalog/use-cases";
 import {
   configureRegisterPointOfSale,
   createFiscalAddress,
   recordBuyerIdentificationThreshold,
 } from "@purosur/domain/fiscal/use-cases";
+import { createRole } from "@purosur/domain/permissions/use-cases";
 import { createDiscount, setPrice } from "@purosur/domain/pricing/use-cases";
 import { pullChanges } from "@purosur/domain/sync/use-cases";
 import { eq } from "drizzle-orm";

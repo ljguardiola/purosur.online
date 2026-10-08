@@ -1,6 +1,6 @@
 import { type RoleSummaryWire, roleSummarySchema } from "@purosur/contracts";
 import { mayEditRole, type PermissionKey, withOneAlertView } from "@purosur/domain";
-import { listRoles, type RoleSummary } from "@purosur/domain/access/use-cases";
+import { listRoles, type RoleSummary } from "@purosur/domain/permissions/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "./backoffice-origin.js";

@@ -1,5 +1,5 @@
-import type { RoleAccess } from "./access-increase.js";
-import { grantsCapability } from "./capability-permissions.js";
+import type { RoleAccess } from "../../permissions/index.js";
+import { grantsCapability } from "../../permissions/index.js";
 
 const PIN_CODE_LENGTH = 16;
 export const PIN_CODE_VALIDITY_MS = 15 * 60 * 1000;

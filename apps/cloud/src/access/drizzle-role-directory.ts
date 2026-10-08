@@ -3,7 +3,7 @@ import type {
   RoleHolder,
   RoleListing,
   StoredRole,
-} from "@purosur/domain/access/use-cases";
+} from "@purosur/domain/permissions/use-cases";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { rolePermissions, roles, userRoles, users } from "../platform/db/schema.js";

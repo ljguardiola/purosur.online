@@ -4,7 +4,7 @@ import {
   SIGN_IN_BLOCK_DURATION_MS,
   SIGN_IN_FAILURE_LIMIT,
 } from "@purosur/domain";
-import { createRole, createUser, deactivateUser } from "@purosur/domain/access/use-cases";
+import { createUser, deactivateUser } from "@purosur/domain/access/use-cases";
 import { closeAlert, escalateOverdueAlerts } from "@purosur/domain/alerts/use-cases";
 import { editBranchSettings } from "@purosur/domain/branch/use-cases";
 import {
@@ -15,6 +15,7 @@ import {
   deactivateProduct,
   deactivateTag,
 } from "@purosur/domain/catalog/use-cases";
+import { createRole } from "@purosur/domain/permissions/use-cases";
 import { confirmPrice, createDiscount, setPrice } from "@purosur/domain/pricing/use-cases";
 import { createRegister } from "@purosur/domain/register/use-cases";
 import { and, eq, like, sql } from "drizzle-orm";

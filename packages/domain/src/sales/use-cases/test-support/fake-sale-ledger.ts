@@ -1,4 +1,3 @@
-import type { RoleAccess } from "../../../access/index.js";
 import {
   type BuyerIdentificationThreshold,
   type BuyerTaxStatusOption,
@@ -6,6 +5,7 @@ import {
   latestBuyerTaxStatusSet,
   latestIssuerIdentification,
 } from "../../../fiscal/index.js";
+import type { RoleAccess } from "../../../permissions/index.js";
 import { priceInEffectAt } from "../../../pricing/index.js";
 import type { CashMovement } from "../../../register/index.js";
 import type { Clock, OutboxEventDraft } from "../../../shared/index.js";

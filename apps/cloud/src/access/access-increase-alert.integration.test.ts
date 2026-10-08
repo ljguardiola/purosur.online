@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { createUser, editRole } from "@purosur/domain/access/use-cases";
+import { createUser } from "@purosur/domain/access/use-cases";
+import { editRole } from "@purosur/domain/permissions/use-cases";
 import { and, eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance } from "fastify";

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { createRole } from "@purosur/domain/access/use-cases";
+import { createRole } from "@purosur/domain/permissions/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";

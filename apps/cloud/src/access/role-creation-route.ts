@@ -1,5 +1,5 @@
 import { roleCreationBodySchema } from "@purosur/contracts";
-import { createRole } from "@purosur/domain/access/use-cases";
+import { createRole } from "@purosur/domain/permissions/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { readValidatedBody } from "../platform/request-body-schema.js";

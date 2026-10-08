@@ -1,5 +1,5 @@
 import { roleEditBodySchema } from "@purosur/contracts";
-import { editRole, findEditableRole } from "@purosur/domain/access/use-cases";
+import { editRole, findEditableRole } from "@purosur/domain/permissions/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { readRecordIds } from "../platform/record-id-params.js";

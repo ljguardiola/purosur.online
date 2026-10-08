@@ -3,7 +3,7 @@ import {
   findEditableRole,
   type RoleHolder,
   type RoleSummary,
-} from "@purosur/domain/access/use-cases";
+} from "@purosur/domain/permissions/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { readRecordIds } from "../platform/record-id-params.js";

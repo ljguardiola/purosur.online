@@ -1,4 +1,4 @@
-import { createRole, createUser } from "@purosur/domain/access/use-cases";
+import { createUser } from "@purosur/domain/access/use-cases";
 import { createCategory, createProduct, createTag } from "@purosur/domain/catalog/use-cases";
 import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import {
@@ -7,6 +7,7 @@ import {
   recordAuthorizedCuit,
   recordBuyerIdentificationThreshold,
 } from "@purosur/domain/fiscal/use-cases";
+import { createRole } from "@purosur/domain/permissions/use-cases";
 import { setPrice } from "@purosur/domain/pricing/use-cases";
 import { pullChanges } from "@purosur/domain/sync/use-cases";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
