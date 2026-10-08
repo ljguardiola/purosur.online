@@ -4,8 +4,8 @@ import type { RefObject } from "react";
 import { useRef, useState } from "react";
 import type { CoreData } from "../platform/use-core-query";
 import { useCountdown } from "../platform/use-countdown";
-import type { SignedInPerson } from "../shell/signed-in-person";
-import { useAuthorizersQuery, useResetAuthorizers } from "./register-queries";
+import { useAuthorizersQuery, useResetAuthorizers } from "../register/register-queries";
+import type { SignedInPerson } from "./signed-in-person";
 
 export type ShownRefusal =
   | Exclude<AuthorizationRefusal, { kind: "lacks_permission" | "locked" }>

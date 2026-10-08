@@ -8,10 +8,10 @@ import { page, userEvent } from "vitest/browser";
 import { render as renderInPage } from "vitest-browser-react";
 import { createQueryClient } from "../platform/query-client";
 import type { CashSessionState } from "../register/cash-session-state";
-import { GuardedCashInForm } from "../register/test-support/guarded-cash-in-form";
 import type { CoreStatus, Enrollment, RegisterServiceState, RouterContext } from "./router";
 import { createRegisterRouter, routeFor, routeTree } from "./router";
 import type { SignedInPerson } from "./signed-in-person";
+import { GuardedCashInForm } from "./test-support/guarded-cash-in-form";
 
 type RoutePath =
   | "/"

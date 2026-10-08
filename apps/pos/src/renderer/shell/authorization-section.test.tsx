@@ -2,10 +2,10 @@ import type { Authorization, SignInUser } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import type { SignedInPerson } from "../shell/signed-in-person";
-import { render } from "../shell/test-support/render-with-router";
+import type { SignedInPerson } from "./signed-in-person";
 import type { GuardedCashInOutcome } from "./test-support/guarded-cash-in-form";
 import { GuardedCashInForm } from "./test-support/guarded-cash-in-form";
+import { render } from "./test-support/render-with-router";
 
 const TOMAS: SignedInPerson = {
   user_id: "u1",
