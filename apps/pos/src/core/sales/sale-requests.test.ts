@@ -1697,6 +1697,19 @@ describe("cancelling the sale in progress after a payment was approved", () => {
     expect(saleStates()).toEqual([{ state: "OPEN" }]);
   });
 
+  it("discards a sale without approved payments even when the register holds no outbox chain key", async () => {
+    addPersonWithPin("u2", "Grace", ["void_sale"]);
+    const saleId = await sellTwoForPayments();
+
+    expect(
+      await cancelPaidSaleFor(withPins({ readOutboxChainKey: async () => undefined }), {
+        saleId,
+        authorization: { user_id: "u2", pin: CLOSER_PIN },
+      }),
+    ).toEqual({ kind: "cancelled", refunds: [], authorized_by: expect.anything() });
+    expect(saleStates()).toEqual([]);
+  });
+
   it("leaves no sale in progress", async () => {
     addPersonWithPin("u2", "Grace", ["void_sale"]);
     const saleId = await partlyPaidInCash();
