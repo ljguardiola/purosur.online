@@ -12,6 +12,8 @@ beforeEach(resetPageState);
 afterEach(resetPageState);
 
 test("titles the document after the page being shown", async () => {
+  // Downloading the screen's code on a loaded machine can outlast the title's wait on its own.
+  await import("../help/help-page");
   window.history.pushState(null, "", "/help");
   const screen = await render(<App help={help} services={createAppServices()} />);
 
