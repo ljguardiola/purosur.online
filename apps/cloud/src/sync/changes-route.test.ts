@@ -16,12 +16,12 @@ import { createRegister } from "@purosur/domain/register/use-cases";
 import { eq, inArray, sql } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { DrizzleRoleStore } from "../access/drizzle-role-store.js";
 import { DrizzleUserStore } from "../access/drizzle-user-store.js";
 import { registerRouteAccess } from "../access/route-access.js";
 import { DrizzleBranchSettingsStore } from "../branch/drizzle-branch-settings-store.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { insertProductWithTags } from "../catalog/test-support/catalog-route-fixtures.js";
+import { DrizzleRoleStore } from "../permissions/drizzle-role-store.js";
 import {
   branchSettings,
   buyerIdentificationThresholds,

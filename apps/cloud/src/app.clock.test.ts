@@ -5,7 +5,6 @@ import type { PasskeyRegistrationRouteOptions } from "./access/passkeys-registra
 import type { PasskeyRemovalRouteOptions } from "./access/passkeys-removal-route.js";
 import type { RecoveryRedemptionRouteOptions } from "./access/recovery-redemption-route.js";
 import type { RecoveryRouteOptions } from "./access/request-recovery-route.js";
-import type { RolesRouteOptions } from "./access/roles-list-route.js";
 import type { SessionAuthenticateRouteOptions } from "./access/session-authenticate-route.js";
 import type { SessionAuthenticationOptionsRouteOptions } from "./access/session-authentication-options-route.js";
 import type { SessionAuthorizationRouteOptions } from "./access/session-authorization-route.js";
@@ -24,6 +23,7 @@ import type { BuyerIdentificationThresholdsRouteOptions } from "./fiscal/buyer-i
 import type { FiscalAddressesRouteOptions } from "./fiscal/fiscal-addresses-list-route.js";
 import type { IssuerIdentificationRouteOptions } from "./fiscal/issuer-identification-read-route.js";
 import type { RegistersPointsOfSaleRouteOptions } from "./fiscal/registers-points-of-sale-list-route.js";
+import type { RolesRouteOptions } from "./permissions/roles-list-route.js";
 import type { DiscountsRouteOptions } from "./pricing/discounts-list-route.js";
 import type { PricesRouteOptions } from "./pricing/prices-list-route.js";
 import type { DeviceEnrollmentRouteOptions } from "./register/device-enrollment-route.js";

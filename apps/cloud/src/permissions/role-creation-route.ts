@@ -2,18 +2,18 @@ import { roleCreationBodySchema } from "@purosur/contracts";
 import { createRole } from "@purosur/domain/permissions/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { readValidatedBody } from "../platform/request-body-schema.js";
-import { backofficeOriginGuard } from "./backoffice-origin.js";
-import { DrizzleRoleStore } from "./drizzle-role-store.js";
-import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
-import type { RolesRouteOptions } from "./roles-list-route.js";
-import { toRoleSummaryWire } from "./roles-list-route.js";
+import { backofficeOriginGuard } from "../access/backoffice-origin.js";
+import { requirePasskeyAuthorization } from "../access/passkey-authorization-guard.js";
 import {
   capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
-} from "./route-access.js";
+} from "../access/route-access.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
+import { DrizzleRoleStore } from "./drizzle-role-store.js";
+import type { RolesRouteOptions } from "./roles-list-route.js";
+import { toRoleSummaryWire } from "./roles-list-route.js";
 
 export const ROLE_NAME_TAKEN_RESPONSE = {
   code: "role_name_taken",

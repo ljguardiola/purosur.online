@@ -20,7 +20,6 @@ import { confirmPrice, createDiscount, setPrice } from "@purosur/domain/pricing/
 import { createRegister } from "@purosur/domain/register/use-cases";
 import { and, eq, like, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { DrizzleRoleStore } from "../access/drizzle-role-store.js";
 import { DrizzleUserStore } from "../access/drizzle-user-store.js";
 import { hashSourceAddress } from "../access/sign-in-lockout.js";
 import { DrizzleAlertStore } from "../alerts/drizzle-alert-store.js";
@@ -28,6 +27,7 @@ import { openAlert } from "../alerts/open-alert.js";
 import { DrizzleBranchSettingsStore } from "../branch/drizzle-branch-settings-store.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { DrizzleInternalBarcodeStore } from "../catalog/drizzle-internal-barcode-store.js";
+import { DrizzleRoleStore } from "../permissions/drizzle-role-store.js";
 import { branchSettings, locations, roles, userRoles, users } from "../platform/db/schema.js";
 import { DrizzleDiscountStore } from "../pricing/drizzle-discount-store.js";
 import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
