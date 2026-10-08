@@ -1,3 +1,5 @@
+export const REAL_TIME_AUTHORIZATION_TIMEOUT_MS = 5_000;
+export const AUTHORIZATION_CALL_MARGIN_MS = 500;
 export const ROUND_TRIP_SAMPLE_SIZE = 12;
 
 export function medianRoundTripMs(samples: readonly number[]): number | null {
@@ -10,4 +12,26 @@ export function medianRoundTripMs(samples: readonly number[]): number | null {
     return recent[middle] as number;
   }
   return Math.round(((recent[middle - 1] as number) + (recent[middle] as number)) / 2);
+}
+
+export interface AuthorizationCallDeadlineInput {
+  receivedAt: Date;
+  timeoutMs: number;
+  roundTripMedianMs: number;
+}
+
+export function authorizationCallDeadline({
+  receivedAt,
+  timeoutMs,
+  roundTripMedianMs,
+}: AuthorizationCallDeadlineInput): Date {
+  return new Date(
+    Math.floor(
+      receivedAt.getTime() + timeoutMs - AUTHORIZATION_CALL_MARGIN_MS - roundTripMedianMs / 2,
+    ),
+  );
+}
+
+export function mayStartAuthorizationCall(deadline: Date, now: Date): boolean {
+  return now.getTime() <= deadline.getTime();
 }
