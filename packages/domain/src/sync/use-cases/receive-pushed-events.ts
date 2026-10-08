@@ -1,4 +1,4 @@
-import { registerVersionObservation } from "../../alerts/index.js";
+import { registerSyncedObservation, registerVersionObservation } from "../../alerts/index.js";
 import { canonicalOutboxEvent } from "../../shared/index.js";
 import { highestContiguousSeq } from "../model/contiguous-seq.js";
 import type { PushedEvent, RegisterTelemetry } from "../model/push-batch.js";
@@ -90,6 +90,7 @@ export async function receivePushedEvents(
 
     await tx.receive(deviceId, toReceive, now);
     await tx.recordAcceptedPush(deviceId, now);
+    await tx.observeAlertCondition(registerSyncedObservation(registerId), now);
     return {
       kind: "received",
       ackSeq: highestContiguousSeq(await tx.receivedDeviceSeqs(deviceId)),

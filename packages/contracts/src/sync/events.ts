@@ -37,7 +37,7 @@ export const PUSH_EVENTS_REQUEST_MAX_BYTES = 16_777_216;
 export const pushEventsRequestSchema = z.object({
   app_version: z.string().min(1),
   telemetry: registerTelemetrySchema,
-  events: z.array(pushedEventSchema).min(1).max(PUSH_BATCH_MAX_EVENTS),
+  events: z.array(pushedEventSchema).max(PUSH_BATCH_MAX_EVENTS),
 });
 
 export type PushEventsRequest = z.output<typeof pushEventsRequestSchema>;
