@@ -3,6 +3,7 @@ import type { PaymentTransaction } from "../model/payment.js";
 import type { SaleWithLines } from "../model/sale.js";
 import {
   type CancelPaidSaleGrant,
+  type CancelPaidSaleInput,
   type CancelPaidSaleOutcome,
   cancelPaidSale,
 } from "./cancel-paid-sale.js";
@@ -81,6 +82,8 @@ const ANOTHER_SALE_MOVEMENT: SaleCashMovement = {
 
 const OWN_GRANT: CancelPaidSaleGrant = { actorId: "cashier", authorizedBy: undefined };
 const AUTHORIZED_GRANT: CancelPaidSaleGrant = { actorId: "cashier", authorizedBy: "supervisor" };
+const CLOSER_GRANT: CancelPaidSaleGrant = { actorId: "closer", authorizedBy: "closer" };
+const VOIDER = { isAdministrator: false, permissionKeys: ["void_sale"] };
 const NOT_SIGNED_IN = { kind: "not_signed_in" } as const;
 
 function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
@@ -102,6 +105,7 @@ function cancel(
   store: FakeSaleLedger,
   grant: CancelPaidSaleGrant = OWN_GRANT,
   saleId = "sale-1",
+  from: CancelPaidSaleInput["from"] = "sale",
 ): Promise<CancelPaidSaleOutcome<CancelPaidSaleGrant> | typeof NOT_SIGNED_IN> {
   return cancelPaidSale(
     {
@@ -110,7 +114,7 @@ function cancel(
       ids: new SequentialIds(),
       authority: granting(grant),
     },
-    { saleId },
+    { saleId, from },
   );
 }
 
@@ -386,7 +390,7 @@ describe("cancelPaidSale", () => {
 
       const outcome = await cancelPaidSale(
         { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds(), authority },
-        { saleId: "sale-1" },
+        { saleId: "sale-1", from: "sale" },
       );
 
       expect(outcome).toEqual(NOT_SIGNED_IN);
@@ -407,7 +411,7 @@ describe("cancelPaidSale", () => {
 
       await cancelPaidSale(
         { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds(), authority },
-        { saleId: "sale-1" },
+        { saleId: "sale-1", from: "sale" },
       );
 
       expect(transactionsWhenAsked).toBe(0);
@@ -454,6 +458,115 @@ describe("cancelPaidSale", () => {
       const before = structuredClone(store.state);
 
       expect(await cancel(store)).toEqual({ kind: "no_open_sale" });
+      expect(store.state).toEqual(before);
+    });
+  });
+
+  describe("from a register locked to its cashier", () => {
+    function lockedLedger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
+      return ledger({
+        accesses: { cashier: CASHIER, closer: VOIDER, plain: CASHIER },
+        session: SESSION,
+        ...state,
+      });
+    }
+
+    function cancelLocked(store: FakeSaleLedger, grant = CLOSER_GRANT, saleId = "sale-1") {
+      return cancel(store, grant, saleId, "locked_register");
+    }
+
+    it("refunds the cash paid, with a refund movement and an event naming the closer and the sale's cashier", async () => {
+      const store = lockedLedger();
+
+      const outcome = await cancelLocked(store);
+
+      expect(outcome).toEqual({
+        kind: "cancelled",
+        refunds: [CASH_REFUND],
+        grant: CLOSER_GRANT,
+      });
+      expect(store.state.refunds).toEqual([CASH_REFUND]);
+      expect(store.state.movements.at(-1)).toEqual({
+        ...REFUND_MOVEMENT,
+        actorId: "closer",
+        authorizedBy: "closer",
+      });
+      expect(store.state.sales).toEqual([
+        { ...OPEN_SALE, state: "CANCELLED", occurredAt: NOW, authorizedBy: "closer" },
+      ]);
+      expect(store.state.outbox).toHaveLength(1);
+      expect(store.state.outbox[0]).toMatchObject({
+        event_type: "sale_cancelled",
+        actor_id: "closer",
+        payload: { actor_id: "cashier", authorized_by: "closer" },
+      });
+      expect(store.transactions).toBe(1);
+    });
+
+    it("refuses a closer who may not void a sale, leaving everything as it was", async () => {
+      const store = lockedLedger();
+      const before = structuredClone(store.state);
+
+      const outcome = await cancelLocked(store, { actorId: "plain", authorizedBy: "plain" });
+
+      expect(outcome).toEqual({ kind: "not_permitted" });
+      expect(store.state).toEqual(before);
+    });
+
+    it("refuses a closer the register does not know", async () => {
+      const store = lockedLedger();
+      const before = structuredClone(store.state);
+
+      const outcome = await cancelLocked(store, { actorId: "stranger", authorizedBy: "stranger" });
+
+      expect(outcome).toEqual({ kind: "not_permitted" });
+      expect(store.state).toEqual(before);
+    });
+
+    it("discards a sale without approved payments even for a closer who may not void a sale", async () => {
+      const store = lockedLedger({ payments: [], movements: [] });
+
+      const outcome = await cancelLocked(store, { actorId: "plain", authorizedBy: "plain" });
+
+      expect(outcome).toEqual({
+        kind: "cancelled",
+        refunds: [],
+        grant: { actorId: "plain", authorizedBy: "plain" },
+      });
+      expect(store.state.sales).toEqual([]);
+      expect(store.state.outbox).toEqual([]);
+    });
+
+    it("answers that it is unavailable while the outbox is not ready, leaving everything as it was", async () => {
+      const store = lockedLedger({ outboxReady: false });
+      const before = structuredClone(store.state);
+
+      expect(await cancelLocked(store)).toEqual({ kind: "unavailable" });
+      expect(store.state).toEqual(before);
+    });
+
+    it("discards a sale without approved payments while the outbox is not ready", async () => {
+      const store = lockedLedger({ payments: [], movements: [], outboxReady: false });
+
+      expect(await cancelLocked(store)).toEqual({
+        kind: "cancelled",
+        refunds: [],
+        grant: CLOSER_GRANT,
+      });
+      expect(store.state.sales).toEqual([]);
+    });
+
+    it("refuses without an open cash session", async () => {
+      const store = lockedLedger({ session: undefined });
+
+      expect(await cancelLocked(store)).toEqual({ kind: "no_open_session" });
+    });
+
+    it("refuses a sale that is not the open one", async () => {
+      const store = lockedLedger();
+      const before = structuredClone(store.state);
+
+      expect(await cancelLocked(store, CLOSER_GRANT, "sale-2")).toEqual({ kind: "no_open_sale" });
       expect(store.state).toEqual(before);
     });
   });

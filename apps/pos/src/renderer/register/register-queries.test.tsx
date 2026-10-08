@@ -501,14 +501,24 @@ function OpenSaleProbe({ read, answer }: { read: OpenSaleRead; answer: SessionOp
 
 describe("open sale query", () => {
   it("holds the open sale the core answers, then the answer set in its place without reading again", async () => {
-    const read = vi.fn<OpenSaleRead>(async () => ({ total: 3_434_000, cancellable: true }));
+    const read = vi.fn<OpenSaleRead>(async () => ({
+      id: "sale-1",
+      total: 3_434_000,
+      paid: 0,
+      cancellable: true,
+      refunds_on_cancel: [],
+    }));
     const screen = await render(
       <QueryClientProvider client={createQueryClient()}>
         <OpenSaleProbe read={read} answer={null} />
       </QueryClientProvider>,
     );
     await expect
-      .element(screen.getByText('sale {"total":3434000,"cancellable":true}'))
+      .element(
+        screen.getByText(
+          'sale {"id":"sale-1","total":3434000,"paid":0,"cancellable":true,"refunds_on_cancel":[]}',
+        ),
+      )
       .toBeVisible();
 
     await userEvent.click(screen.getByRole("button", { name: "answer" }));

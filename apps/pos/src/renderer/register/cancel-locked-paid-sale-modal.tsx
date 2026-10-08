@@ -1,102 +1,70 @@
-import type { Authorization, CancelPaidSaleOutcome, SignInUser } from "@purosur/contracts";
-import type { AuthorizablePermissionKey } from "@purosur/domain";
+import type { CancelLockedSaleOutcome } from "@purosur/contracts";
 import { Button, formatCents, InlineNotice, Modal, SummaryRowGroup } from "@purosur/ui";
 import { ArrowLeft, CircleX, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
-import { AuthorizationSection } from "../shell/authorization-section";
 import type { Refund } from "../shell/refund-lines";
 import { RefundLines } from "../shell/refund-lines";
-import type { SignedInPerson } from "../shell/signed-in-person";
-import { useAuthorization } from "../shell/use-authorization";
 
 const FAILED_MESSAGE = "No se pudo cancelar la venta. Probá de nuevo.";
-const AUTHORIZING = "cancelar una venta con pagos";
+const NOT_PERMITTED_MESSAGE = "No tenés el permiso de anular ventas con pagos.";
 
-export type CancelPaidSaleModalProps = {
-  saleId: string;
+type Refusal = Extract<
+  CancelLockedSaleOutcome,
+  { kind: "wrong_pin" | "rate_limited" | "locked" | "lacks_permission" | "not_locked" }
+>;
+
+export type CancelLockedPaidSaleModalProps = {
   total: number;
   paid: number;
   refunds: readonly Refund[];
-  authorizationRequired: boolean;
-  person: SignedInPerson;
-  loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
-  cancelPaidSale: (
-    saleId: string,
-    authorization: Authorization | undefined,
-  ) => Promise<CancelPaidSaleOutcome>;
+  cancelSale: () => Promise<CancelLockedSaleOutcome>;
   onCancelled: (refunds: Refund[]) => void;
   onSaleGone: () => void;
-  onSessionInvalid: () => void;
+  onRefused: (refusal: Refusal) => void;
   onClose: () => void;
 };
 
-export function CancelPaidSaleModal({
-  saleId,
+export function CancelLockedPaidSaleModal({
   total,
   paid,
   refunds,
-  authorizationRequired,
-  person,
-  loadAuthorizers,
-  cancelPaidSale,
+  cancelSale,
   onCancelled,
   onSaleGone,
-  onSessionInvalid,
+  onRefused,
   onClose,
-}: CancelPaidSaleModalProps) {
+}: CancelLockedPaidSaleModalProps) {
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<string>();
-  const authorization = useAuthorization({
-    person,
-    permission: "void_sale",
-    required: authorizationRequired,
-    loadAuthorizers,
-  });
 
   async function confirm() {
-    if (submitting || !authorization.ready) {
+    if (submitting) {
       return;
     }
     setSubmitting(true);
     setNotice(undefined);
-    const outcome = await cancelPaidSale(saleId, authorization.value).catch(
-      (): "failed" => "failed",
+    const outcome = await cancelSale().catch(
+      (): CancelLockedSaleOutcome => ({ kind: "unavailable" }),
     );
     setSubmitting(false);
-    if (outcome === "failed") {
-      setNotice(FAILED_MESSAGE);
-      return;
-    }
     switch (outcome.kind) {
       case "cancelled":
-        authorization.performed();
         onCancelled(outcome.refunds);
         break;
       case "no_open_sale":
         onSaleGone();
         break;
       case "no_open_session":
-      case "not_signed_in":
-        onSessionInvalid();
+        onClose();
         break;
       case "not_permitted":
-        setNotice("No tenés el permiso de vender y cobrar");
-        break;
-      case "wrong_pin":
-      case "rate_limited":
-      case "locked":
-      case "lacks_permission":
-        if (authorization.required) {
-          authorization.refuse(outcome);
-        } else if (outcome.kind === "lacks_permission") {
-          setNotice(`Ya no tenés permiso para ${AUTHORIZING}.`);
-        } else {
-          setNotice(FAILED_MESSAGE);
-        }
+        setNotice(NOT_PERMITTED_MESSAGE);
         break;
       case "unavailable":
         setNotice(FAILED_MESSAGE);
         break;
+      default:
+        onRefused(outcome);
     }
   }
 
@@ -123,14 +91,14 @@ export function CancelPaidSaleModal({
             disabled={submitting}
             onPress={onClose}
           >
-            Seguir con la venta
+            Volver
           </Button>
           <Button
             destructive
             size="large"
             icon={<X />}
             fullWidth
-            disabled={submitting || !authorization.ready}
+            disabled={submitting}
             onPress={() => void confirm()}
           >
             Cancelar la venta
@@ -152,11 +120,6 @@ export function CancelPaidSaleModal({
             backoffice.
           </p>
         ) : null}
-        <AuthorizationSection
-          authorization={authorization}
-          action={AUTHORIZING}
-          disabled={submitting}
-        />
         {notice === undefined ? null : (
           <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />
         )}

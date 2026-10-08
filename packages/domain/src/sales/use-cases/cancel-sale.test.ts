@@ -1,4 +1,4 @@
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { PaymentTransaction } from "../model/payment.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { cancelSale } from "./cancel-sale.js";
@@ -54,11 +54,7 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
 }
 
 function cancel(store: FakeSaleLedger, actorId = "cashier") {
-  return cancelSale({ ledger: store }, { actorId, from: "sale" });
-}
-
-function cancelFromLockedRegister(store: FakeSaleLedger, actorId = "closer") {
-  return cancelSale({ ledger: store }, { actorId, from: "locked_register" });
+  return cancelSale({ ledger: store }, { actorId });
 }
 
 describe("cancelSale", () => {
@@ -151,57 +147,6 @@ describe("cancelSale", () => {
     store.failOn = "discardOpenSale";
 
     expect(() => cancel(store)).toThrow("discardOpenSale failed");
-    expect(store.state).toEqual(before);
-  });
-});
-
-describe("cancelSale from the locked register", () => {
-  it("never answers that the person is not permitted, as nobody's permission is checked here", () => {
-    const outcome = cancelFromLockedRegister(ledger());
-
-    expectTypeOf<Extract<typeof outcome, { kind: "not_permitted" }>>().toBeNever();
-  });
-
-  it("discards the open sale for a person who did not open the session and cannot sell", () => {
-    const store = ledger({ accesses: {} });
-    const before = structuredClone(store.state);
-
-    const outcome = cancelFromLockedRegister(store);
-
-    expect(outcome).toEqual({ kind: "cancelled" });
-    expect(store.state).toEqual({ ...before, sales: [] });
-  });
-
-  it("refuses without an open cash session", () => {
-    const store = ledger({ session: undefined });
-    const before = structuredClone(store.state);
-
-    expect(cancelFromLockedRegister(store)).toEqual({ kind: "no_open_session" });
-    expect(store.state).toEqual(before);
-  });
-
-  it("refuses when the session has no open sale", () => {
-    const store = ledger({ sales: [{ ...OPEN_SALE, state: "COMPLETED" }] });
-    const before = structuredClone(store.state);
-
-    expect(cancelFromLockedRegister(store)).toEqual({ kind: "no_open_sale" });
-    expect(store.state).toEqual(before);
-  });
-
-  it("refuses a sale with an approved payment, changing nothing", () => {
-    const store = ledger({ payments: [APPROVED_PAYMENT] });
-    const before = structuredClone(store.state);
-
-    expect(cancelFromLockedRegister(store)).toEqual({ kind: "has_approved_payment" });
-    expect(store.state).toEqual(before);
-  });
-
-  it("leaves the sale open when discarding it fails", () => {
-    const store = ledger();
-    const before = structuredClone(store.state);
-    store.failOn = "discardOpenSale";
-
-    expect(() => cancelFromLockedRegister(store)).toThrow("discardOpenSale failed");
     expect(store.state).toEqual(before);
   });
 });

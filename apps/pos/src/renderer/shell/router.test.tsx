@@ -1254,10 +1254,16 @@ describe("the register's router", () => {
           kind: "identified",
           person: { user_id: "u3", first_name: "Sofía" },
         }),
-        sessionOpenSale: async () => ({ total: 3_434_000, cancellable: true }),
-        cancelLockedSale: async (closer) => {
+        sessionOpenSale: async () => ({
+          id: "sale-1",
+          total: 3_434_000,
+          paid: 0,
+          cancellable: true,
+          refunds_on_cancel: [],
+        }),
+        cancelLockedSale: async (_saleId, closer) => {
           cancelled.push(closer);
-          return { kind: "cancelled" };
+          return { kind: "cancelled", refunds: [] };
         },
       },
       "/locked-close",

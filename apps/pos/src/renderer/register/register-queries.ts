@@ -151,6 +151,16 @@ export function useSessionOpenSaleQuery(
   return useCoreQuery({ queryKey: registerKeys.openSale(sessionId), read });
 }
 
+export function useRefreshSessionOpenSale(sessionId: string): () => Promise<void> {
+  const queryClient = useQueryClient();
+  return () => {
+    const queryKey = registerKeys.openSale(sessionId);
+    return queryClient
+      .invalidateQueries({ queryKey }, { throwOnError: true })
+      .catch(() => queryClient.resetQueries({ queryKey }));
+  };
+}
+
 export function useSetSessionOpenSale(
   sessionId: string,
 ): (sale: SessionOpenSale | null) => Promise<void> {

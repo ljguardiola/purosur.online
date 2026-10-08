@@ -24,16 +24,16 @@ import { ScanBarcode, TriangleAlert } from "lucide-react";
 import type { FormEvent, KeyboardEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { OpenSessionRail } from "../shell/open-session-rail";
+import { PaidSaleCancelledModal } from "../shell/paid-sale-cancelled-modal";
+import type { Refund } from "../shell/refund-lines";
 import { sessionEyebrow } from "../shell/session-eyebrow";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { CancelPaidSaleModal } from "./cancel-paid-sale-modal";
 import { CancelSaleModal } from "./cancel-sale-modal";
 import { changedLineId } from "./changed-line";
-import { PaidSaleCancelledModal } from "./paid-sale-cancelled-modal";
 import { PaymentPanel } from "./payment-panel";
 import type { SearchResults } from "./product-search-results";
 import { ProductSearchResults, searchOptionId } from "./product-search-results";
-import type { Refund } from "./refund-lines";
 import { SaleLines } from "./sale-lines";
 import {
   useCurrentSaleQuery,

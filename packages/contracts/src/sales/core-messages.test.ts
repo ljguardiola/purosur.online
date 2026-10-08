@@ -21,14 +21,15 @@ describe("cancelling the open sale of a locked register", () => {
   const cancel = {
     type: "cancel-locked-sale",
     request_id: REQUEST_ID,
+    sale_id: "sale-1",
     closer: { user_id: "u2", pin: "1234" },
   };
 
-  it("accepts a request carrying the closer's PIN", () => {
+  it("accepts a request naming the sale and carrying the closer's PIN", () => {
     expect(salesRendererToCoreMessageSchema.parse(cancel)).toEqual(cancel);
   });
 
-  it.each(["request_id", "closer"])("rejects a request missing its %s", (field) => {
+  it.each(["request_id", "sale_id", "closer"])("rejects a request missing its %s", (field) => {
     const message = Object.fromEntries(Object.entries(cancel).filter(([key]) => key !== field));
 
     expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
@@ -41,8 +42,15 @@ describe("cancelling the open sale of a locked register", () => {
   });
 
   it.each([
-    { kind: "cancelled" },
-    { kind: "has_approved_payment" },
+    { kind: "cancelled", refunds: [] },
+    {
+      kind: "cancelled",
+      refunds: [
+        { payment_id: "p1", method: "CASH", amount: 1200, state: "APPROVED" },
+        { payment_id: "p2", method: "TRANSFER", amount: 2000, state: "PENDING" },
+      ],
+    },
+    { kind: "not_permitted" },
     { kind: "no_open_sale" },
     { kind: "no_open_session" },
     { kind: "not_locked" },
@@ -56,14 +64,21 @@ describe("cancelling the open sale of a locked register", () => {
     expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
-  it.each([{ kind: "not_signed_in" }, { kind: "closed" }, { kind: "x" }])(
-    "rejects a result it does not know: %j",
-    (outcome) => {
-      const message = { type: "cancel-locked-sale-result", request_id: REQUEST_ID, outcome };
-
-      expect(salesCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  it.each([
+    { kind: "not_signed_in" },
+    { kind: "closed" },
+    { kind: "x" },
+    { kind: "has_approved_payment" },
+    { kind: "cancelled" },
+    {
+      kind: "cancelled",
+      refunds: [{ payment_id: "p1", method: "CASH", amount: 1, state: "DONE" }],
     },
-  );
+  ])("rejects a result it does not know: %j", (outcome) => {
+    const message = { type: "cancel-locked-sale-result", request_id: REQUEST_ID, outcome };
+
+    expect(salesCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
 });
 
 describe("sale requests", () => {

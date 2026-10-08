@@ -36,6 +36,7 @@ import { isDatabaseDamage } from "./platform/database-damage";
 import type { CashMovementRequest } from "./register/cash-movement-requests";
 import type { CoreToRendererMessage, RendererToCoreMessage } from "./renderer-messages";
 import type {
+  CancelLockedSaleRequest,
   CancelPaidSaleRequest,
   ChargeSaleByTransferRequest,
   ChargeSaleInCashRequest,
@@ -93,7 +94,9 @@ export interface RendererRequestDeps {
         closer: Authorization,
       ) => Promise<CloseLockedCashSessionOutcome>)
     | undefined;
-  cancelLockedSale: ((closer: Authorization) => Promise<CancelLockedSaleOutcome>) | undefined;
+  cancelLockedSale:
+    | ((request: CancelLockedSaleRequest) => Promise<CancelLockedSaleOutcome>)
+    | undefined;
   identifyLockedCloser:
     | ((closer: Authorization) => Promise<IdentifyLockedCloserOutcome>)
     | undefined;
@@ -235,10 +238,10 @@ async function attemptCloseLockedCashSession(
 
 async function attemptCancelLockedSale(
   deps: RendererRequestDeps,
-  closer: Authorization,
+  request: CancelLockedSaleRequest,
 ): Promise<CancelLockedSaleOutcome> {
   try {
-    return (await deps.cancelLockedSale?.(closer)) ?? { kind: "unavailable" };
+    return (await deps.cancelLockedSale?.(request)) ?? { kind: "unavailable" };
   } catch (error) {
     deps.reportFailure("cancelling the open sale of a locked register", error);
     return { kind: "unavailable" };
@@ -660,7 +663,10 @@ export async function answerRendererRequest(
       return {
         type: "cancel-locked-sale-result",
         request_id: message.request_id,
-        outcome: await attemptCancelLockedSale(deps, message.closer),
+        outcome: await attemptCancelLockedSale(deps, {
+          saleId: message.sale_id,
+          closer: message.closer,
+        }),
       };
     case "identify-locked-closer":
       return {

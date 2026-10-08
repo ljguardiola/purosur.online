@@ -1,3 +1,4 @@
+import { registerOperationAccess } from "../../register/index.js";
 import type { Clock, OperationAuthority, OutboxEventDraft } from "../../shared/index.js";
 import type { PaymentTransaction } from "../model/payment.js";
 import { plannedRefunds } from "../model/payment-refund.js";
@@ -5,11 +6,18 @@ import type { SaleWithLines } from "../model/sale.js";
 import { saleTotal } from "../model/sale-line.js";
 import { paymentRecord } from "./payment-record.js";
 import { saleCashMovementRecord, saleLineRecord } from "./sale-event-records.js";
-import type { IdGenerator, SaleCashMovement, SaleLedger, SaleRefund } from "./sale-ledger.js";
+import type {
+  IdGenerator,
+  SaleCashMovement,
+  SaleLedger,
+  SaleLedgerTransaction,
+  SaleRefund,
+} from "./sale-ledger.js";
 import { isRefusal, type SellingSessionRefusal, sellingSession } from "./selling-session.js";
 
 export interface CancelPaidSaleInput {
   saleId: string;
+  from: "sale" | "locked_register";
 }
 
 export interface CancelPaidSaleGrant {
@@ -27,11 +35,12 @@ export interface CancelPaidSalePorts<Grant extends CancelPaidSaleGrant, Refusal>
 export type CancelPaidSaleOutcome<Grant extends CancelPaidSaleGrant> =
   | SellingSessionRefusal
   | { kind: "no_open_sale" }
+  | { kind: "unavailable" }
   | { kind: "cancelled"; refunds: SaleRefund[]; grant: Grant };
 
 export async function cancelPaidSale<Grant extends CancelPaidSaleGrant, Refusal>(
   { ledger, clock, ids, authority }: CancelPaidSalePorts<Grant, Refusal>,
-  { saleId }: CancelPaidSaleInput,
+  { saleId, from }: CancelPaidSaleInput,
 ): Promise<CancelPaidSaleOutcome<Grant> | Refusal> {
   const authorization = await authority.authorize();
   if (authorization.kind === "refused") {
@@ -41,7 +50,8 @@ export async function cancelPaidSale<Grant extends CancelPaidSaleGrant, Refusal>
   const { actorId, authorizedBy } = grant;
 
   return ledger.transaction<CancelPaidSaleOutcome<Grant>>((tx) => {
-    const session = sellingSession(tx, actorId);
+    const session =
+      from === "sale" ? sellingSession(tx, actorId) : (tx.openSession() ?? NO_OPEN_SESSION);
     if (isRefusal(session)) {
       return session;
     }
@@ -54,6 +64,12 @@ export async function cancelPaidSale<Grant extends CancelPaidSaleGrant, Refusal>
     if (planned.length === 0) {
       tx.discardOpenSale(sale.id);
       return { kind: "cancelled", refunds: [], grant };
+    }
+    if (from === "locked_register" && !mayVoidSale(tx, actorId)) {
+      return { kind: "not_permitted" };
+    }
+    if (!tx.outboxReady()) {
+      return { kind: "unavailable" };
     }
 
     const occurredAt = clock.now();
@@ -79,6 +95,13 @@ export async function cancelPaidSale<Grant extends CancelPaidSaleGrant, Refusal>
     );
     return { kind: "cancelled", refunds, grant };
   });
+}
+
+const NO_OPEN_SESSION: SellingSessionRefusal = { kind: "no_open_session" };
+
+function mayVoidSale(tx: SaleLedgerTransaction, actorId: string): boolean {
+  const actor = { id: actorId, access: tx.sellerAccess(actorId) };
+  return registerOperationAccess({ kind: "cancel_paid_sale" }, actor).kind === "permitted";
 }
 
 function refundMovement(

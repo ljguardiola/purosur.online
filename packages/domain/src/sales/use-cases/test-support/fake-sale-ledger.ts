@@ -48,6 +48,7 @@ export interface FakeSaleLedgerState {
   refunds: SaleRefund[];
   movements: CashMovement[];
   outbox: OutboxEventDraft[];
+  outboxReady: boolean;
   issuerIdentifications: IssuerIdentificationInEffect[];
   buyerTaxStatusSets: { paramsVersion: number; options: BuyerTaxStatusOption[] }[];
   preEmissionGates: RecordedPreEmissionGate[];
@@ -91,6 +92,7 @@ export class FakeSaleLedger implements SaleLedger {
       refunds: [],
       movements: [],
       outbox: [],
+      outboxReady: true,
       issuerIdentifications: [],
       buyerTaxStatusSets: [],
       preEmissionGates: [],
@@ -207,6 +209,7 @@ export class FakeSaleLedger implements SaleLedger {
         this.failIfAsked("recordRefund");
         working.refunds.push(refund);
       },
+      outboxReady: () => working.outboxReady,
       appendOutboxEvent: (draft) => {
         this.failIfAsked("appendOutboxEvent");
         working.outbox.push(draft);

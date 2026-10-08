@@ -33,7 +33,7 @@ const IDENTIFIED: IdentifyLockedCloserOutcome = {
 };
 
 type Close = (countedCash: number, closer: Authorization) => Promise<CloseLockedCashSessionOutcome>;
-type CancelSale = (closer: Authorization) => Promise<CancelLockedSaleOutcome>;
+type CancelSale = (saleId: string, closer: Authorization) => Promise<CancelLockedSaleOutcome>;
 
 async function renderScreen(
   options: {
@@ -60,7 +60,7 @@ async function renderScreen(
       loadClosers={async () => [{ id: "u3", first_name: "Sofía" }]}
       identifyLockedCloser={options.identify ?? (async () => IDENTIFIED)}
       closeLockedCashSession={close}
-      cancelLockedSale={options.cancelSale ?? (async () => ({ kind: "cancelled" }))}
+      cancelLockedSale={options.cancelSale ?? (async () => ({ kind: "cancelled", refunds: [] }))}
     />,
   );
   return { screen, loadCashBalance, loadCashCountPreview, close };
@@ -169,9 +169,15 @@ describe("LockedCloseScreen", () => {
   });
 
   it("shows the open sale once the person who closes is identified and cancels it with their PIN", async () => {
-    const cancelSale = vi.fn<CancelSale>(async () => ({ kind: "cancelled" }));
+    const cancelSale = vi.fn<CancelSale>(async () => ({ kind: "cancelled", refunds: [] }));
     const { screen } = await renderScreen({
-      loadOpenSale: async () => ({ total: 3_434_000, cancellable: true }),
+      loadOpenSale: async () => ({
+        id: "sale-1",
+        total: 3_434_000,
+        paid: 0,
+        cancellable: true,
+        refunds_on_cancel: [],
+      }),
       cancelSale,
     });
     await identifySofia(screen);
@@ -180,6 +186,8 @@ describe("LockedCloseScreen", () => {
 
     await screen.getByRole("dialog").getByRole("button", { name: "Cancelar la venta" }).click();
 
-    await expect.poll(() => cancelSale.mock.calls).toEqual([[{ user_id: "u3", pin: "1234" }]]);
+    await expect
+      .poll(() => cancelSale.mock.calls)
+      .toEqual([["sale-1", { user_id: "u3", pin: "1234" }]]);
   });
 });
