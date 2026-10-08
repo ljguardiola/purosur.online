@@ -1,4 +1,9 @@
-import type { FiscalOnlineSignalEvidence } from "@purosur/domain";
+import {
+  type FiscalDocumentState,
+  type FiscalOnlineSignalEvidence,
+  NUMBER_CONSUMING_STATES,
+  SERIES_WAITING_STATES,
+} from "@purosur/domain";
 import {
   decideSaleAuthorization,
   type FiscalDocumentReservation,
@@ -10,6 +15,10 @@ import type { SaleAuthorizationDecision } from "@purosur/domain/sales/use-cases"
 import type { LocalDatabase } from "../platform/local-database";
 
 const FACTURA_C = "FACTURA_C";
+
+function placeholdersFor(states: readonly FiscalDocumentState[]): string {
+  return states.map(() => "?").join(", ");
+}
 
 interface HealthCheckRow {
   checked_at: string;
@@ -59,17 +68,19 @@ function sqliteSaleAuthorizationTransaction(database: LocalDatabase): SaleAuthor
         };
       }
       const local = database
-        .prepare<[number, string], { last_authorized: number | null }>(
+        .prepare<(number | string)[], { last_authorized: number | null }>(
           `SELECT max(number) AS last_authorized FROM fiscal_documents
-           WHERE point_of_sale = ? AND document_type = ? AND state = 'AUTHORIZED'`,
+           WHERE point_of_sale = ? AND document_type = ?
+             AND state IN (${placeholdersFor(NUMBER_CONSUMING_STATES)})`,
         )
-        .get(pointOfSale.point_of_sale, FACTURA_C);
+        .get(pointOfSale.point_of_sale, FACTURA_C, ...NUMBER_CONSUMING_STATES);
       const waiting = database
-        .prepare<[number, string], { waiting: 1 }>(
+        .prepare<(number | string)[], { waiting: 1 }>(
           `SELECT 1 AS waiting FROM fiscal_documents
-           WHERE point_of_sale = ? AND document_type = ? AND state IN ('REQUESTING', 'UNKNOWN')`,
+           WHERE point_of_sale = ? AND document_type = ?
+             AND state IN (${placeholdersFor(SERIES_WAITING_STATES)})`,
         )
-        .get(pointOfSale.point_of_sale, FACTURA_C);
+        .get(pointOfSale.point_of_sale, FACTURA_C, ...SERIES_WAITING_STATES);
       return {
         pointOfSale: pointOfSale.point_of_sale,
         localLastAuthorized: local?.last_authorized ?? null,

@@ -1,14 +1,19 @@
-import type {
-  AuthorizationRequestRecord,
-  PointOfSaleLane,
-  PointOfSaleLanes,
-  RealTimeAuthorizationAnswer,
-  RecordedAuthorizationRequest,
+import {
+  type AuthorizationRequestRecord,
+  FiscalDocumentAlreadyRecorded,
+  type PointOfSaleLane,
+  type PointOfSaleLanes,
+  type RealTimeAuthorizationAnswer,
+  type RecordedAuthorizationRequest,
 } from "@purosur/domain/fiscal/use-cases";
 import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import { fiscalRequests, registerPointsOfSale } from "../platform/db/schema.js";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
+
+const UNIQUE_VIOLATION = "23505";
+const FISCAL_REQUESTS_PRIMARY_KEY = "fiscal_requests_pkey";
 
 function pointOfSaleLaneLockKey(pointOfSale: number): string {
   return `fiscal_point_of_sale_lane:${pointOfSale}`;
@@ -93,24 +98,35 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
   ): Promise<RecordedAuthorizationRequest | null> {
     const [row] = await this.db
       .select({
-        registerId: fiscalRequests.registerId,
         answerKind: fiscalRequests.answerKind,
         authorizationCode: fiscalRequests.authorizationCode,
         authorizationCodeDueOn: fiscalRequests.authorizationCodeDueOn,
         rejectionCodes: fiscalRequests.rejectionCodes,
       })
       .from(fiscalRequests)
-      .where(eq(fiscalRequests.fiscalDocumentId, fiscalDocumentId));
-    if (row === undefined) {
-      return null;
-    }
-    return row.registerId === registerId
-      ? { kind: "own", answer: answerOf(row) }
-      : { kind: "another_register" };
+      .where(
+        and(
+          eq(fiscalRequests.fiscalDocumentId, fiscalDocumentId),
+          eq(fiscalRequests.registerId, registerId),
+        ),
+      );
+    return row === undefined ? null : { answer: answerOf(row) };
   }
 
   async recordRequest(request: AuthorizationRequestRecord): Promise<void> {
-    await this.db.insert(fiscalRequests).values(request);
+    try {
+      await this.db.insert(fiscalRequests).values(request);
+    } catch (error) {
+      if (
+        postgresErrorChain(error).some(
+          (link) =>
+            link.code === UNIQUE_VIOLATION && link.constraint === FISCAL_REQUESTS_PRIMARY_KEY,
+        )
+      ) {
+        throw new FiscalDocumentAlreadyRecorded();
+      }
+      throw error;
+    }
   }
 
   async recordAnswer(

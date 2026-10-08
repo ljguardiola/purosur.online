@@ -16,15 +16,7 @@ export interface RealTimeSaleAuthorizationDeps {
 export async function authorizeSaleInRealTime(
   { database, taxAuthority, now }: RealTimeSaleAuthorizationDeps,
   saleId: string,
-): Promise<RequestRealTimeAuthorizationOutcome | undefined> {
-  const waiting = database
-    .prepare<[string], { id: string }>(
-      "SELECT id FROM fiscal_documents WHERE sale_id = ? AND state = 'REQUESTING'",
-    )
-    .get(saleId);
-  if (waiting === undefined) {
-    return undefined;
-  }
+): Promise<RequestRealTimeAuthorizationOutcome> {
   return requestRealTimeAuthorization(
     {
       documents: new SqliteRealTimeFiscalDocuments(database),
@@ -32,6 +24,6 @@ export async function authorizeSaleInRealTime(
       taxAuthority,
       clock: { now },
     },
-    { fiscalDocumentId: waiting.id },
+    { saleId },
   );
 }

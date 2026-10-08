@@ -26,13 +26,13 @@ export class SqliteRealTimeFiscalDocuments implements RealTimeFiscalDocuments {
     this.database = database;
   }
 
-  async waitingDocument(fiscalDocumentId: string): Promise<WaitingFiscalDocument | null> {
+  async waitingDocumentOfSale(saleId: string): Promise<WaitingFiscalDocument | null> {
     const row = this.database
       .prepare<[string], WaitingDocumentRow>(
         `SELECT id, sale_id, point_of_sale, number, issued_on, document
-         FROM fiscal_documents WHERE id = ? AND state = 'REQUESTING'`,
+         FROM fiscal_documents WHERE sale_id = ? AND state = 'REQUESTING'`,
       )
-      .get(fiscalDocumentId);
+      .get(saleId);
     if (row === undefined) {
       return null;
     }

@@ -20,9 +20,11 @@ export interface AuthorizationRequestRecord extends FiscalDocumentData {
   receivedAt: Date;
 }
 
-export type RecordedAuthorizationRequest =
-  | { kind: "own"; answer: RealTimeAuthorizationAnswer | null }
-  | { kind: "another_register" };
+export class FiscalDocumentAlreadyRecorded extends Error {}
+
+export interface RecordedAuthorizationRequest {
+  answer: RealTimeAuthorizationAnswer | null;
+}
 
 export interface PointOfSaleLane {
   registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean>;

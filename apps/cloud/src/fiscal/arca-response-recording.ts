@@ -90,6 +90,19 @@ export interface ArcaRecordingReport {
   scrubbed: { file: string; replacements: ScrubReplacement[] }[];
 }
 
+export function recordingFailure({
+  firstLoginIssuedTicket,
+  invoicesRecorded,
+}: ArcaRecordingReport): string | undefined {
+  if (!firstLoginIssuedTicket) {
+    return "the first login did not issue a ticket (ARCA may still hold a valid one for this certificate); login-cms-issued is not a ticket answer";
+  }
+  if (!invoicesRecorded) {
+    return "ARCA listed no Consumidor Final for invoice class C or gave no last authorized number, so no invoice was requested";
+  }
+  return undefined;
+}
+
 function capturedBy(call: string): { onRawResponse: (raw: string) => void; raw: () => string } {
   let captured: string | undefined;
   return {

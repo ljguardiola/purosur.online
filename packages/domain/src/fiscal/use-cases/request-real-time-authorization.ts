@@ -8,7 +8,7 @@ import {
 import type { RealTimeAuthorizationPorts } from "./real-time-authorization-ports.js";
 
 export interface RequestRealTimeAuthorizationInput {
-  fiscalDocumentId: string;
+  saleId: string;
 }
 
 export type RequestRealTimeAuthorizationOutcome =
@@ -32,9 +32,9 @@ function outcomeOf({
 
 export async function requestRealTimeAuthorization(
   { documents, roundTrips, taxAuthority, clock }: RealTimeAuthorizationPorts,
-  { fiscalDocumentId }: RequestRealTimeAuthorizationInput,
+  { saleId }: RequestRealTimeAuthorizationInput,
 ): Promise<RequestRealTimeAuthorizationOutcome> {
-  const waiting = await documents.waitingDocument(fiscalDocumentId);
+  const waiting = await documents.waitingDocumentOfSale(saleId);
   if (waiting === null) {
     return { kind: "not_waiting" };
   }
@@ -53,7 +53,7 @@ export async function requestRealTimeAuthorization(
 
   const resolution = realTimeAuthorizationResolution(answer);
   await documents.resolve({
-    fiscalDocumentId,
+    fiscalDocumentId: waiting.fiscalDocumentId,
     saleId: waiting.saleId,
     resolution,
     resolvedAt: clock.now(),

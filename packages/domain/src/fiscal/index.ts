@@ -51,12 +51,15 @@ export { PRE_EMISSION_GATE_FAILURE_REASONS, preEmissionGate } from "./model/pre-
 export { preEmissionGateFailedEvent } from "./model/pre-emission-gate-failed-event.js";
 export type {
   DeferralReason,
+  FiscalDocumentState,
   RealTimeAuthorizationAnswer,
   RealTimeAuthorizationResolution,
 } from "./model/real-time-authorization.js";
 export {
   DEFERRAL_REASONS,
   invoiceDateOf,
+  NUMBER_CONSUMING_STATES,
   REAL_TIME_AUTHORIZATION_TIMEOUT_MS,
+  SERIES_WAITING_STATES,
 } from "./model/real-time-authorization.js";
 export { isWsaaTokenValid } from "./model/wsaa-token.js";

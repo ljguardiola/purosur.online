@@ -104,6 +104,7 @@ export function registerFiscalAuthorizationRoute<TQueryResult extends PgQueryRes
       "/fiscal/authorize",
       { config: { access: PUBLIC_ACCESS } },
       async (request, reply) => {
+        const receivedAt = options.now();
         const authentication = await authenticateDevice(tokenPorts, request.headers.authorization);
         if (authentication.kind !== "installation") {
           await reply
@@ -135,7 +136,6 @@ export function registerFiscalAuthorizationRoute<TQueryResult extends PgQueryRes
           return;
         }
 
-        const receivedAt = options.now();
         const outcome = await authorizeFiscalDocument(ports, {
           registerId: authentication.installation.registerId,
           receivedAt,

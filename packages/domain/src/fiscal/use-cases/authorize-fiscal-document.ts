@@ -6,10 +6,11 @@ import {
   type RealTimeAuthorizationAnswer,
   taxAuthorityRejectionAnswer,
 } from "../model/real-time-authorization.js";
-import type {
-  AuthorizeFiscalDocumentPorts,
-  FiscalDocumentData,
-  SolicitationAnswer,
+import {
+  type AuthorizeFiscalDocumentPorts,
+  FiscalDocumentAlreadyRecorded,
+  type FiscalDocumentData,
+  type SolicitationAnswer,
 } from "./fiscal-document-authorization-ports.js";
 
 export interface FiscalDocumentAuthorizationRequest extends FiscalDocumentData {
@@ -59,9 +60,6 @@ export async function authorizeFiscalDocument(
       }
 
       const recorded = await lane.recordedRequest(registerId, request.fiscalDocumentId);
-      if (recorded?.kind === "another_register") {
-        return { kind: "fiscal_document_not_owned" };
-      }
       if (recorded !== null) {
         return { kind: "answered", answer: recorded.answer ?? { kind: "unclear" } };
       }
@@ -71,19 +69,26 @@ export async function authorizeFiscalDocument(
         timeoutMs: request.timeoutMs,
         roundTripMedianMs: request.roundTripMedianMs,
       });
-      await lane.recordRequest({
-        fiscalDocumentId: request.fiscalDocumentId,
-        registerId,
-        saleId: request.saleId,
-        pointOfSale: request.pointOfSale,
-        number: request.number,
-        issuedOn: request.issuedOn,
-        total: request.total,
-        buyerTaxStatusCode: request.buyerTaxStatusCode,
-        notAfter,
-        saleEvent: request.saleEvent,
-        receivedAt,
-      });
+      try {
+        await lane.recordRequest({
+          fiscalDocumentId: request.fiscalDocumentId,
+          registerId,
+          saleId: request.saleId,
+          pointOfSale: request.pointOfSale,
+          number: request.number,
+          issuedOn: request.issuedOn,
+          total: request.total,
+          buyerTaxStatusCode: request.buyerTaxStatusCode,
+          notAfter,
+          saleEvent: request.saleEvent,
+          receivedAt,
+        });
+      } catch (error) {
+        if (error instanceof FiscalDocumentAlreadyRecorded) {
+          return { kind: "fiscal_document_not_owned" };
+        }
+        throw error;
+      }
 
       const token = await tokens.validToken();
       if (token === null || !mayStartAuthorizationCall(notAfter, clock.now())) {

@@ -1,4 +1,8 @@
-import { recordArcaResponses, recordingSettingsOf } from "./fiscal/arca-response-recording.js";
+import {
+  recordArcaResponses,
+  recordingFailure,
+  recordingSettingsOf,
+} from "./fiscal/arca-response-recording.js";
 import { wsaaEndpointOf } from "./fiscal/wsaa-authentication.js";
 import { wsfeEndpointOf } from "./fiscal/wsfe-arca-vitality-service.js";
 
@@ -24,16 +28,9 @@ if (import.meta.main) {
             `record-arca-responses: ${file}: ${replaced.join(", ") || "nothing replaced"}`,
           );
         }
-        if (!report.firstLoginIssuedTicket) {
-          console.error(
-            "record-arca-responses: the first login did not issue a ticket (ARCA may still hold a valid one for this certificate); login-cms-issued is not a ticket answer",
-          );
-          process.exit(1);
-        }
-        if (!report.invoicesRecorded) {
-          console.error(
-            "record-arca-responses: ARCA listed no Consumidor Final for invoice class C or gave no last authorized number, so no invoice was requested",
-          );
+        const failure = recordingFailure(report);
+        if (failure !== undefined) {
+          console.error(`record-arca-responses: ${failure}`);
           process.exit(1);
         }
       })

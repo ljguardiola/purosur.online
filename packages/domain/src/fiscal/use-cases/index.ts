@@ -111,6 +111,7 @@ export type {
   TaxAuthorityInvoicing,
   WsaaTokenSource,
 } from "./fiscal-document-authorization-ports.js";
+export { FiscalDocumentAlreadyRecorded } from "./fiscal-document-authorization-ports.js";
 export type {
   AuthorizedIssuerIdentification,
   EditableIssuerIdentification,

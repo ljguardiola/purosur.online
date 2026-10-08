@@ -24,7 +24,7 @@ export interface RealTimeAuthorizationResolved {
 }
 
 export interface RealTimeFiscalDocuments {
-  waitingDocument(fiscalDocumentId: string): Promise<WaitingFiscalDocument | null>;
+  waitingDocumentOfSale(saleId: string): Promise<WaitingFiscalDocument | null>;
   resolve(resolved: RealTimeAuthorizationResolved): Promise<void>;
 }
 

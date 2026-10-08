@@ -74,6 +74,12 @@ export const DEFERRAL_REASONS = [
 
 export type DeferralReason = (typeof DEFERRAL_REASONS)[number];
 
+export type FiscalDocumentState = "REQUESTING" | "AUTHORIZED" | "REJECTED" | "UNKNOWN";
+
+export const SERIES_WAITING_STATES: readonly FiscalDocumentState[] = ["REQUESTING", "UNKNOWN"];
+
+export const NUMBER_CONSUMING_STATES: readonly FiscalDocumentState[] = ["AUTHORIZED"];
+
 export interface RealTimeSeries {
   pointOfSale: number | null;
   localLastAuthorized: number | null;
