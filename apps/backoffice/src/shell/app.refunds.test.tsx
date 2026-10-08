@@ -76,9 +76,7 @@ test("offers every section of Caja to a user who holds both capabilities", async
   const sections = screen.getByRole("navigation", { name: "Caja y fiscal" });
   await expect.element(sections.getByRole("link", { name: "Puntos de venta" })).toBeVisible();
   await expect.element(sections.getByRole("link", { name: "Configuración fiscal" })).toBeVisible();
-  await expect
-    .element(sections.getByRole("link", { name: "Reembolsos pendientes" }))
-    .toBeVisible();
+  await expect.element(sections.getByRole("link", { name: "Reembolsos pendientes" })).toBeVisible();
 });
 
 test("hides the Caja item for a user with neither capability", async () => {

@@ -79,6 +79,10 @@ import {
   type RegistersListScreenServices,
 } from "../register/registers-list-services";
 import {
+  defaultPendingRefundsScreenServices,
+  type PendingRefundsScreenServices,
+} from "../sales/pending-refunds-services";
+import {
   defaultSalesByDayScreenServices,
   type SalesByDayScreenServices,
 } from "../sales/sales-by-day-services";
@@ -125,6 +129,7 @@ export type AppServices = {
   pricesListScreen: PricesListScreenServices;
   discountsListScreen: DiscountsListScreenServices;
   salesByDayScreen: SalesByDayScreenServices;
+  pendingRefundsScreen: PendingRefundsScreenServices;
   stockBalancesScreen: StockBalancesScreenServices;
   stockCountsScreen: StockCountsScreenServices;
   stockMovementsScreen: StockMovementsScreenServices;
@@ -155,6 +160,7 @@ const defaultAppServices: AppServices = {
   pricesListScreen: defaultPricesListScreenServices,
   discountsListScreen: defaultDiscountsListScreenServices,
   salesByDayScreen: defaultSalesByDayScreenServices,
+  pendingRefundsScreen: defaultPendingRefundsScreenServices,
   stockBalancesScreen: defaultStockBalancesScreenServices,
   stockCountsScreen: defaultStockCountsScreenServices,
   stockMovementsScreen: defaultStockMovementsScreenServices,
