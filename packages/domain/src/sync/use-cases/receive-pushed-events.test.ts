@@ -243,6 +243,8 @@ describe("receiving the events a register pushes", () => {
     expect(inbox.state).toEqual({
       received: [],
       reports: [],
+      versionStandings: [],
+      acceptedPushes: [],
       refusedPushes: [],
       brokenChainRevocations: [],
     });

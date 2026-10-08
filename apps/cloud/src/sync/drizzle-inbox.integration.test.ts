@@ -251,6 +251,7 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
         lastPulledAt: null,
         appVersion: "1.4.0",
         lastPushedAt: NOW,
+        lastAcceptedPushAt: NOW,
         walSizeBytes: 4096,
         diskFreeBytes: 50_000_000,
         diskFreeRatio: 0.42,
@@ -432,15 +433,15 @@ describe("the inbox reporting how a register stands, on a real Postgres", () => 
   });
 
   it("raises no alert for an accepted version", async () => {
-    const { deviceId } = await insertEnrolledInstallation();
+    const { deviceId, registerId } = await insertEnrolledInstallation();
 
     await push(deviceId, linked(event(1)));
 
-    expect(await db.select().from(alerts)).toEqual([]);
+    expect(await db.select().from(alerts).where(eq(alerts.scope, registerId))).toEqual([]);
   });
 
   it("raises no alert for an installation the cloud revoked", async () => {
-    const { deviceId } = await insertEnrolledInstallation();
+    const { deviceId, registerId } = await insertEnrolledInstallation();
     await db
       .update(registerInstallations)
       .set({ revokedAt: NOW, revocationReason: "replaced" })
@@ -448,6 +449,6 @@ describe("the inbox reporting how a register stands, on a real Postgres", () => 
 
     await push(deviceId, linked(event(1)), "not-a-version");
 
-    expect(await db.select().from(alerts)).toEqual([]);
+    expect(await db.select().from(alerts).where(eq(alerts.scope, registerId))).toEqual([]);
   });
 });
