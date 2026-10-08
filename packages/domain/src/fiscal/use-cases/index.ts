@@ -101,6 +101,15 @@ export type {
 } from "./read-arca-online-status.js";
 export { readArcaOnlineStatus } from "./read-arca-online-status.js";
 export type {
+  RealTimeAuthorizationCall,
+  RealTimeAuthorizationPorts,
+  RealTimeAuthorizationResolved,
+  RealTimeFiscalDocuments,
+  RealTimeTaxAuthority,
+  RoundTripSamples,
+  WaitingFiscalDocument,
+} from "./real-time-authorization-ports.js";
+export type {
   RecordAuthorizedCuitInput,
   RecordAuthorizedCuitOutcome,
 } from "./record-authorized-cuit.js";
@@ -131,6 +140,11 @@ export type {
   RenewWsaaTokenOutcome,
 } from "./renew-wsaa-token.js";
 export { renewWsaaToken } from "./renew-wsaa-token.js";
+export type {
+  RequestRealTimeAuthorizationInput,
+  RequestRealTimeAuthorizationOutcome,
+} from "./request-real-time-authorization.js";
+export { requestRealTimeAuthorization } from "./request-real-time-authorization.js";
 export type {
   FiscalDocumentReservation,
   IdGenerator,
