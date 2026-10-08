@@ -210,6 +210,7 @@ describe("sale answers", () => {
     lines_editable: true,
     cancellable: true,
     charge_refusal: null,
+    refunds_on_cancel: [],
   };
 
   it.each([
@@ -388,6 +389,52 @@ describe("sale line requests", () => {
   });
 });
 
+describe("cancelling a sale with approved payments", () => {
+  const cancel = { type: "cancel-paid-sale", request_id: REQUEST_ID, sale_id: "s1" };
+
+  it("accepts the cancellation of a sale", () => {
+    expect(salesRendererToCoreMessageSchema.parse(cancel)).toEqual(cancel);
+  });
+
+  it("accepts the cancellation authorized with another person's PIN", () => {
+    const authorized = { ...cancel, authorization: { user_id: "u2", pin: "1234" } };
+
+    expect(salesRendererToCoreMessageSchema.parse(authorized)).toEqual(authorized);
+  });
+
+  it.each([
+    ["without its request id", { type: "cancel-paid-sale", sale_id: "s1" }],
+    ["without the sale", { type: "cancel-paid-sale", request_id: REQUEST_ID }],
+    ["with an authorization missing the PIN", { ...cancel, authorization: { user_id: "u2" } }],
+  ])("rejects a cancellation %s", (_case, message) => {
+    expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("accepts the answer to the cancellation", () => {
+    const message = {
+      type: "cancel-paid-sale-result",
+      request_id: REQUEST_ID,
+      outcome: {
+        kind: "cancelled",
+        refunds: [{ payment_id: "p1", method: "CASH", amount: 1000, state: "APPROVED" }],
+        authorized_by: null,
+      },
+    };
+
+    expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects an answer with an outcome it does not know", () => {
+    expect(
+      salesCoreToRendererMessageSchema.safeParse({
+        type: "cancel-paid-sale-result",
+        request_id: REQUEST_ID,
+        outcome: { kind: "somewhere_else" },
+      }).success,
+    ).toBe(false);
+  });
+});
+
 describe("sale line answers", () => {
   const sale = {
     id: "s1",
@@ -398,6 +445,7 @@ describe("sale line answers", () => {
     lines_editable: true,
     cancellable: true,
     charge_refusal: null,
+    refunds_on_cancel: [],
   };
 
   it.each([

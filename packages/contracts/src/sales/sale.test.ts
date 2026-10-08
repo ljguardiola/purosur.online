@@ -2,6 +2,7 @@ import { SEARCH_RESULT_LIMIT } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
   addProductOutcomeSchema,
+  cancelPaidSaleOutcomeSchema,
   cancelSaleOutcomeSchema,
   changeLineQuantityOutcomeSchema,
   chargeSaleByTransferOutcomeSchema,
@@ -31,6 +32,7 @@ const sale = {
   lines_editable: false,
   cancellable: false,
   charge_refusal: null,
+  refunds_on_cancel: [],
 };
 
 describe("saleSchema", () => {
@@ -62,6 +64,7 @@ describe("saleSchema", () => {
     ["pending amount", { ...sale, pending: undefined }],
     ["answer on editing its lines", { ...sale, lines_editable: undefined }],
     ["answer on cancelling it", { ...sale, cancellable: undefined }],
+    ["refunds on cancelling it", { ...sale, refunds_on_cancel: undefined }],
     ["line id", { ...sale, lines: [{ ...line, id: undefined }] }],
     ["line product id", { ...sale, lines: [{ ...line, product_id: undefined }] }],
     ["line product name", { ...sale, lines: [{ ...line, product_name: undefined }] }],
@@ -215,6 +218,67 @@ describe("removeSaleLineOutcomeSchema", () => {
     {},
   ])("rejects the outcome %j", (outcome) => {
     expect(removeSaleLineOutcomeSchema.safeParse(outcome).success).toBe(false);
+  });
+});
+
+describe("what cancelling a sale with approved payments refunds", () => {
+  const cashRefund = { payment_id: "p1", method: "CASH", amount: 1000, state: "APPROVED" };
+  const transferRefund = { payment_id: "p2", method: "TRANSFER", amount: 500, state: "PENDING" };
+
+  it("accepts a refund of each method", () => {
+    const refunding = { ...sale, refunds_on_cancel: [cashRefund, transferRefund] };
+
+    expect(saleSchema.parse(refunding)).toEqual(refunding);
+  });
+
+  it.each([
+    ["a method no payment has", { method: "CARD" }],
+    ["a state no refund has", { state: "DONE" }],
+    ["a fractional amount", { amount: 0.5 }],
+    ["a negative amount", { amount: -1 }],
+    ["a missing payment", { payment_id: undefined }],
+  ])("rejects a refund with %s", (_case, change) => {
+    const refunding = { ...sale, refunds_on_cancel: [{ ...cashRefund, ...change }] };
+
+    expect(saleSchema.safeParse(refunding).success).toBe(false);
+  });
+});
+
+describe("cancelPaidSaleOutcomeSchema", () => {
+  const cancelled = {
+    kind: "cancelled",
+    refunds: [{ payment_id: "p2", method: "TRANSFER", amount: 500, state: "PENDING" }],
+    authorized_by: { user_id: "u2", first_name: "Ana" },
+  };
+
+  it.each([
+    cancelled,
+    { ...cancelled, authorized_by: null },
+    { ...cancelled, refunds: [] },
+    { kind: "no_open_sale" },
+    { kind: "no_open_session" },
+    { kind: "not_permitted" },
+    { kind: "not_signed_in" },
+    { kind: "lacks_permission" },
+    { kind: "unavailable" },
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
+    { kind: "locked", consecutive_failures: 5 },
+  ])("accepts the outcome $kind", (outcome) => {
+    expect(cancelPaidSaleOutcomeSchema.parse(outcome)).toEqual(outcome);
+  });
+
+  it.each([
+    { kind: "cancelled", refunds: [] },
+    { kind: "cancelled", authorized_by: null },
+    {
+      ...cancelled,
+      refunds: [{ payment_id: "p2", method: "CARD", amount: 500, state: "PENDING" }],
+    },
+    { kind: "has_approved_payment" },
+    { kind: "somewhere_else" },
+    {},
+  ])("rejects the outcome %j", (outcome) => {
+    expect(cancelPaidSaleOutcomeSchema.safeParse(outcome).success).toBe(false);
   });
 });
 
