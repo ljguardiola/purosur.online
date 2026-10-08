@@ -14,9 +14,17 @@ interface FakePushReport extends PushReport {
   at: Date;
 }
 
+interface FakeVersionStanding {
+  deviceId: string;
+  appVersion: string;
+  accepted: boolean;
+}
+
 export interface FakeInboxState {
   received: FakeReceivedEvent[];
   reports: FakePushReport[];
+  versionStandings: FakeVersionStanding[];
+  acceptedPushes: { deviceId: string; at: Date }[];
   refusedPushes: { deviceId: string; events: readonly PushedEvent[]; refusedAt: Date }[];
   brokenChainRevocations: { deviceId: string; revokedAt: Date }[];
 }
@@ -25,6 +33,8 @@ export class FakeInbox implements Inbox {
   state: FakeInboxState = {
     received: [],
     reports: [],
+    versionStandings: [],
+    acceptedPushes: [],
     refusedPushes: [],
     brokenChainRevocations: [],
   };
@@ -132,6 +142,14 @@ export class FakeInbox implements Inbox {
         for (const event of events) {
           working.received.push({ deviceId, event: structuredClone(event), receivedAt });
         }
+      },
+      recordVersionStanding: async (deviceId, standing) => {
+        this.calls.push(`recordVersionStanding ${deviceId}`);
+        working.versionStandings.push({ deviceId, ...standing });
+      },
+      recordAcceptedPush: async (deviceId, at) => {
+        this.calls.push(`recordAcceptedPush ${deviceId}`);
+        working.acceptedPushes.push({ deviceId, at });
       },
       recordPushReport: async (deviceId, report, at) => {
         this.calls.push(`recordPushReport ${deviceId}`);
