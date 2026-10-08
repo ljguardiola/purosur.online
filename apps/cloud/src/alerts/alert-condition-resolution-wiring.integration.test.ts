@@ -100,12 +100,10 @@ describe("the background worker the server sets up on a real Postgres", () => {
       opensAt: "08:00",
       closesAt: "12:00",
     });
-    await db
-      .insert(deviceState)
-      .values({
-        deviceId: quiet.deviceId,
-        lastAcceptedPushAt: new Date(NOW.getTime() - 20 * MINUTE_MS),
-      });
+    await db.insert(deviceState).values({
+      deviceId: quiet.deviceId,
+      lastAcceptedPushAt: new Date(NOW.getTime() - 20 * MINUTE_MS),
+    });
     const recovery = await setUpRecovery(
       {
         databaseUrl: integrationDb.databaseUrl,
