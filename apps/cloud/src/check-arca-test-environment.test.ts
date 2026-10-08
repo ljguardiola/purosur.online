@@ -41,7 +41,7 @@ async function runEntry(entrypoint: string, env: NodeJS.ProcessEnv) {
   child.stdout.setEncoding("utf8").on("data", (chunk: string) => {
     stdout += chunk;
   });
-  const [status] = (await once(child, "exit")) as [number | null];
+  const [status] = (await once(child, "close")) as [number | null];
   return { status, stdout };
 }
 
