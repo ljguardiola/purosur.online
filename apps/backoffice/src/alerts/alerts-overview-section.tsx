@@ -3,23 +3,13 @@ import { EmptyState, LoadFailure, LoadingPlaceholder } from "@purosur/ui";
 import { Bell, BellOff } from "lucide-react";
 import { type ReactNode, useId } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
-import { type BackofficeAccess, canSeeAlertsArea } from "../shell/backoffice-access";
-import type { fetchAlertsOverview } from "./alerts-api";
+import type { CloudData } from "../platform/use-cloud-query";
 import { AlertsLevelCards } from "./alerts-level-cards";
 import { AlertsOpenCountPill } from "./alerts-open-count-pill";
-import { useAlertsOverviewQuery } from "./alerts-queries";
 
-export type AlertsOverviewSectionServices = {
-  fetchAlertsOverview: typeof fetchAlertsOverview;
+export type AlertsOverviewProps = {
+  data: CloudData<AlertsOverview>;
 };
-
-export type AlertsOverviewSectionProps = {
-  access: BackofficeAccess;
-  onSessionEnded: () => void;
-  services: AlertsOverviewSectionServices;
-};
-
-type VisibleAlertsOverviewProps = Omit<AlertsOverviewSectionProps, "access">;
 
 function openCount(overview: AlertsOverview): number {
   return (
@@ -39,30 +29,11 @@ function OverviewSection({ children }: { children: ReactNode }) {
   );
 }
 
-function VisibleAlertsOpenCount({ onSessionEnded, services }: VisibleAlertsOverviewProps) {
-  const data = useAlertsOverviewQuery({
-    fetchAlertsOverview: services.fetchAlertsOverview,
-    onSessionEnded,
-  });
+export function AlertsOverviewOpenCount({ data }: AlertsOverviewProps) {
   return <AlertsOpenCountPill openCount={data.status === "loaded" ? openCount(data.value) : 0} />;
 }
 
-export function AlertsOverviewOpenCount({
-  access,
-  onSessionEnded,
-  services,
-}: AlertsOverviewSectionProps) {
-  if (!canSeeAlertsArea(access)) {
-    return null;
-  }
-  return <VisibleAlertsOpenCount onSessionEnded={onSessionEnded} services={services} />;
-}
-
-function VisibleAlertsOverview({ onSessionEnded, services }: VisibleAlertsOverviewProps) {
-  const data = useAlertsOverviewQuery({
-    fetchAlertsOverview: services.fetchAlertsOverview,
-    onSessionEnded,
-  });
+export function AlertsOverviewSection({ data }: AlertsOverviewProps) {
   return (
     <OverviewSection>
       {data.status === "loading" && (
@@ -88,22 +59,15 @@ function VisibleAlertsOverview({ onSessionEnded, services }: VisibleAlertsOvervi
   );
 }
 
-export function AlertsOverviewSection({
-  access,
-  onSessionEnded,
-  services,
-}: AlertsOverviewSectionProps) {
-  if (!canSeeAlertsArea(access)) {
-    return (
-      <OverviewSection>
-        <EmptyState
-          icon={<BellOff />}
-          title="No tenés alertas para ver"
-          description="Tu rol no incluye permiso para ver alertas."
-          variant="blank"
-        />
-      </OverviewSection>
-    );
-  }
-  return <VisibleAlertsOverview onSessionEnded={onSessionEnded} services={services} />;
+export function AlertsNotPermittedSection() {
+  return (
+    <OverviewSection>
+      <EmptyState
+        icon={<BellOff />}
+        title="No tenés alertas para ver"
+        description="Tu rol no incluye permiso para ver alertas."
+        variant="blank"
+      />
+    </OverviewSection>
+  );
 }

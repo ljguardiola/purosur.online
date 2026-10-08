@@ -4,16 +4,11 @@ import { Laptop } from "lucide-react";
 import { useId } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { schemaText } from "../platform/schema-text";
-import { useRegisterSyncStatusQuery } from "./register-queries";
-import type { fetchRegisterSyncStatus, RegisterSyncStatus } from "./registers-api";
-
-export type RegistersSyncSectionServices = {
-  fetchRegisterSyncStatus: typeof fetchRegisterSyncStatus;
-};
+import type { CloudData } from "../platform/use-cloud-query";
+import type { RegisterSyncStatus } from "./registers-api";
 
 export type RegistersSyncSectionProps = {
-  onSessionEnded: () => void;
-  services: RegistersSyncSectionServices;
+  data: CloudData<RegisterSyncStatus[]>;
 };
 
 const NO_REGISTERS: RegisterSyncStatus[] = [];
@@ -59,12 +54,8 @@ const columns = [
   }),
 ] as const;
 
-export function RegistersSyncSection({ onSessionEnded, services }: RegistersSyncSectionProps) {
+export function RegistersSyncSection({ data }: RegistersSyncSectionProps) {
   const headingId = useId();
-  const data = useRegisterSyncStatusQuery({
-    fetchRegisterSyncStatus: services.fetchRegisterSyncStatus,
-    onSessionEnded,
-  });
   const table = useTableModel({
     items: data.status === "loaded" ? data.value : NO_REGISTERS,
     id: (register) => register.id,
