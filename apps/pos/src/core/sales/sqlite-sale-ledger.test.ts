@@ -719,6 +719,40 @@ describe("charging an open sale in cash", () => {
     ]);
   });
 
+  it("leaves nothing behind when the number cannot be reserved with the sale", () => {
+    insertHealthCheck(database, { checkedAt: "2026-09-30T11:59:58.000Z" });
+    insertPointOfSale(database, 40);
+    database.exec(
+      `CREATE TRIGGER refuse_fiscal_documents BEFORE INSERT ON fiscal_documents
+       BEGIN SELECT RAISE(ABORT, 'refused'); END`,
+    );
+    const saleId = sellTwo();
+
+    expect(() => charge(saleId, 3000)).toThrow("refused");
+
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+    expect(database.prepare("SELECT count(*) AS total FROM payment_transactions").get()).toEqual({
+      total: 0,
+    });
+    expect(database.prepare("SELECT count(*) AS total FROM outbox").get()).toEqual({ total: 0 });
+  });
+
+  it("leaves nothing behind when the routing to the deferred flow cannot be recorded with the sale", () => {
+    database.exec(
+      `CREATE TRIGGER refuse_deferred_sales BEFORE INSERT ON deferred_sales
+       BEGIN SELECT RAISE(ABORT, 'refused'); END`,
+    );
+    const saleId = sellTwo();
+
+    expect(() => charge(saleId, 3000)).toThrow("refused");
+
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+    expect(database.prepare("SELECT count(*) AS total FROM cash_movements").get()).toEqual({
+      total: 0,
+    });
+    expect(database.prepare("SELECT count(*) AS total FROM outbox").get()).toEqual({ total: 0 });
+  });
+
   it("leaves the sale no longer in progress, so the next scan starts another sale", () => {
     const saleId = sellTwo();
     charge(saleId, 3000);
