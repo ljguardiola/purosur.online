@@ -1,5 +1,5 @@
 import type { AlertListPage, AlertSummary } from "@purosur/contracts";
-import type { AlertKind, AlertLevel } from "@purosur/domain";
+import type { AlertLevel } from "@purosur/domain";
 import {
   actionsColumn,
   dataColumn,
@@ -21,6 +21,7 @@ import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { ALERT_LEVEL_LABELS, AlertDetailModal, alertDateTime } from "./alert-detail-modal";
+import { alertKindDescription, DESCRIBED_ALERT_KINDS } from "./alert-kind-description";
 import { alertKindLabel } from "./alert-kind-label";
 import { ALERT_LEVEL_TONE } from "./alert-level-tone";
 import { alertScopeLabel } from "./alert-scope-label";
@@ -29,18 +30,6 @@ import type { AlertsListScreenServices } from "./alerts-list-services";
 import { AlertsOpenCountPill } from "./alerts-open-count-pill";
 import { useAlertsQuery } from "./alerts-queries";
 import type { AlertsListFilters } from "./routes";
-
-const LIST_KIND_DESCRIPTIONS = {
-  backoffice_passkey_changed: "Se registró o dio de baja una passkey",
-  backoffice_recovery_requested: "Se pidió el enlace de acceso",
-  user_email_changed: "Se cambió una dirección de correo",
-  backoffice_sign_in_lockout: "Demasiados intentos fallidos de ingreso",
-  user_access_increased: "Se amplió el acceso de un usuario",
-  register_enrolled: "Se dio de alta una caja",
-  events_quarantined: "Evento de una caja en cuarentena",
-  event_invariant_violated: "Evento aplicado con una inconsistencia",
-  arca_certificate_expiring: "El certificado de ARCA está por vencer",
-} satisfies Record<AlertKind, string>;
 
 export type AlertsListScreenProps = {
   filters: AlertsListFilters;
@@ -63,18 +52,10 @@ function levelLabel(level: AlertLevel): string {
   return ALERT_LEVEL_LABELS[level];
 }
 
-function listKindDescription(kind: string): string {
-  return kind in LIST_KIND_DESCRIPTIONS
-    ? LIST_KIND_DESCRIPTIONS[kind as keyof typeof LIST_KIND_DESCRIPTIONS]
-    : "";
-}
-
-const LIST_KINDS: readonly string[] = Object.keys(LIST_KIND_DESCRIPTIONS);
-
 function kindsMatching(text: string): string[] {
   const query = text.toLowerCase();
-  return LIST_KINDS.filter((kind) =>
-    `${alertKindLabel(kind)} ${listKindDescription(kind)}`.toLowerCase().includes(query),
+  return DESCRIBED_ALERT_KINDS.filter((kind) =>
+    `${alertKindLabel(kind)} ${alertKindDescription(kind)}`.toLowerCase().includes(query),
   );
 }
 
@@ -170,7 +151,7 @@ export function AlertsListScreen({
       id: "alert",
       header: "Alerta",
       render: (item: AlertSummary) => (
-        <TableCellText description={listKindDescription(item.kind)}>
+        <TableCellText description={alertKindDescription(item.kind)}>
           {alertKindLabel(item.kind)}
         </TableCellText>
       ),
