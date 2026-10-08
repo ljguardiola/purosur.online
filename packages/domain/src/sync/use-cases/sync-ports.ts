@@ -55,6 +55,11 @@ export interface PushReport {
   telemetry: RegisterTelemetry;
 }
 
+export interface VersionStanding {
+  appVersion: string;
+  accepted: boolean;
+}
+
 export interface EventChain {
   // previousLink is null for an installation's first event.
   link(chainKey: string, previousLink: string | null, canonicalEvent: string): string;
@@ -88,6 +93,8 @@ export interface InboxTransaction {
   ): Promise<ReadonlyMap<string, HeldEventPosition>>;
   receive(deviceId: string, events: readonly PushedEvent[], receivedAt: Date): Promise<void>;
   recordPushReport(deviceId: string, report: PushReport, at: Date): Promise<void>;
+  recordVersionStanding(deviceId: string, standing: VersionStanding, at: Date): Promise<void>;
+  recordAcceptedPush(deviceId: string, at: Date): Promise<void>;
   outboxChainKey(deviceId: string): Promise<string | undefined>;
   receivedChainLink(deviceId: string, deviceSeq: number): Promise<string | undefined>;
   setAsideRefusedPush(

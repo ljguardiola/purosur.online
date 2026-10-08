@@ -30,8 +30,10 @@ export async function receivePushedEvents(
       return { kind: "revoked" };
     }
     await tx.recordPushReport(deviceId, { appVersion, telemetry }, now);
+    const versionAccepted = registerVersionAccepted(appVersion);
+    await tx.recordVersionStanding(deviceId, { appVersion, accepted: versionAccepted }, now);
     const ackSeq = highestContiguousSeq(await tx.receivedDeviceSeqs(deviceId));
-    if (!registerVersionAccepted(appVersion)) {
+    if (!versionAccepted) {
       return { kind: "update_required", ackSeq };
     }
 
@@ -82,6 +84,7 @@ export async function receivePushedEvents(
     }
 
     await tx.receive(deviceId, toReceive, now);
+    await tx.recordAcceptedPush(deviceId, now);
     return {
       kind: "received",
       ackSeq: highestContiguousSeq(await tx.receivedDeviceSeqs(deviceId)),

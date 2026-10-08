@@ -70,4 +70,5 @@ export type {
   ReceivePorts,
   RequestAdmission,
   RequestAdmissionTransaction,
+  VersionStanding,
 } from "./sync-ports.js";
