@@ -41,7 +41,12 @@ test("the opened issue follows the bug form, so it is not marked as badly format
 });
 
 test("a failed run whose check printed nothing says so instead of an empty report", () => {
-  const plan = planArcaCheckIssue({ passed: false, output: "  \n", runUrl: RUN_URL, openIssues: [] });
+  const plan = planArcaCheckIssue({
+    passed: false,
+    output: "  \n",
+    runUrl: RUN_URL,
+    openIssues: [],
+  });
 
   assert.ok(plan.body.includes("did not report what it found"));
 });
