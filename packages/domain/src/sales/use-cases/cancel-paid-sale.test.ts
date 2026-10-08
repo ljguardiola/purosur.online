@@ -187,7 +187,7 @@ describe("cancelPaidSale", () => {
         ANOTHER_SALE_MOVEMENT,
         REFUND_MOVEMENT,
       ]);
-      expect(store.state.sales).toEqual([{ ...OPEN_SALE, state: "VOIDED", occurredAt: NOW }]);
+      expect(store.state.sales).toEqual([{ ...OPEN_SALE, state: "CANCELLED", occurredAt: NOW }]);
       expect(store.state.payments).toEqual([CASH_PAYMENT]);
     });
 
@@ -313,7 +313,7 @@ describe("cancelPaidSale", () => {
       expect(outcome).toEqual({ kind: "cancelled", refunds: [refund], grant: OWN_GRANT });
       expect(store.state.refunds).toEqual([refund]);
       expect(store.state.movements).toEqual([]);
-      expect(store.state.sales[0]).toMatchObject({ state: "VOIDED" });
+      expect(store.state.sales[0]).toMatchObject({ state: "CANCELLED" });
     });
 
     it("sends the pending refund in the event, with no cash movement", async () => {
