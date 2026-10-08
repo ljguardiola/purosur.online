@@ -24,8 +24,6 @@ export type { PasskeyRegistrationChallengeWire } from "./access/passkey-registra
 export { passkeyRegistrationChallengeSchema } from "./access/passkey-registration-challenge.js";
 export type { PasskeySummaryWire } from "./access/passkey-summary.js";
 export { passkeyListSchema, passkeySummarySchema } from "./access/passkey-summary.js";
-export type { PermissionCatalogWire } from "./access/permission-catalog.js";
-export { permissionCatalogSchema } from "./access/permission-catalog.js";
 export type { PinCodeRedemption, PinCodeRedemptionBody } from "./access/pin-code-redemption.js";
 export {
   pinCodeRedemptionBodySchema,
@@ -40,16 +38,6 @@ export type { RecoveryRequestBody } from "./access/recovery-request.js";
 export { recoveryRequestBodySchema } from "./access/recovery-request.js";
 export type { RecoveryTokenBody } from "./access/recovery-token.js";
 export { recoveryTokenBodySchema } from "./access/recovery-token.js";
-export type { RegisterCoverageWire } from "./access/register-coverage.js";
-export { registerCoverageSchema } from "./access/register-coverage.js";
-export type { RoleCreationBody } from "./access/role-creation.js";
-export { roleCreationBodySchema } from "./access/role-creation.js";
-export type { RoleDetailWire } from "./access/role-detail.js";
-export { roleDetailSchema } from "./access/role-detail.js";
-export type { RoleEditBody } from "./access/role-edit.js";
-export { roleEditBodySchema } from "./access/role-edit.js";
-export type { RoleSummaryWire } from "./access/role-summary.js";
-export { roleListSchema, roleSummarySchema } from "./access/role-summary.js";
 export type { SessionAuthenticationBody } from "./access/session-authentication.js";
 export { sessionAuthenticationBodySchema } from "./access/session-authentication.js";
 export type { SessionAuthenticationOptionsWire } from "./access/session-authentication-options.js";
@@ -139,6 +127,18 @@ export {
   registerPointOfSaleOverviewSchema,
   registerPointOfSaleSchema,
 } from "./fiscal/register-point-of-sale.js";
+export type { PermissionCatalogWire } from "./permissions/permission-catalog.js";
+export { permissionCatalogSchema } from "./permissions/permission-catalog.js";
+export type { RegisterCoverageWire } from "./permissions/register-coverage.js";
+export { registerCoverageSchema } from "./permissions/register-coverage.js";
+export type { RoleCreationBody } from "./permissions/role-creation.js";
+export { roleCreationBodySchema } from "./permissions/role-creation.js";
+export type { RoleDetailWire } from "./permissions/role-detail.js";
+export { roleDetailSchema } from "./permissions/role-detail.js";
+export type { RoleEditBody } from "./permissions/role-edit.js";
+export { roleEditBodySchema } from "./permissions/role-edit.js";
+export type { RoleSummaryWire } from "./permissions/role-summary.js";
+export { roleListSchema, roleSummarySchema } from "./permissions/role-summary.js";
 export type { DiscountCreationBody } from "./pricing/discount-creation.js";
 export { discountCreationBodySchema, discountNameSchema } from "./pricing/discount-creation.js";
 export type { DiscountEditBody } from "./pricing/discount-edit.js";
