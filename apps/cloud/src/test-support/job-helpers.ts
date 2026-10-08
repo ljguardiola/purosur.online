@@ -36,7 +36,8 @@ function buildJob(): Job {
   };
 }
 
-export function buildJobHelpers(client: PoolClient = buildPoolClient()) {
+export function buildJobHelpers() {
+  const client = buildPoolClient();
   const borrowClient = vi.fn<(borrowed: PoolClient) => void>();
   const withPgClient: WithPgClient = async (callback) => {
     borrowClient(client);

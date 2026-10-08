@@ -32,7 +32,11 @@ export function buildTestApp<TQueryResult extends PgQueryResultHKT = PostgresJsQ
   function inject(): LightMyRequestChain;
   function inject(injectOptions?: InjectOptions | string, callback?: LightMyRequestCallback) {
     if (injectOptions === undefined) {
-      return rawInject().headers({ [EDGE_ORIGIN_SECRET_HEADER]: TEST_EDGE_ORIGIN_SECRET });
+      const chain = rawInject();
+      const setHeaders = chain.headers.bind(chain);
+      chain.headers = (headers) =>
+        setHeaders({ [EDGE_ORIGIN_SECRET_HEADER]: TEST_EDGE_ORIGIN_SECRET, ...headers });
+      return chain.headers({});
     }
     return callback
       ? rawInject(withEdgeOriginSecret(injectOptions), callback)
