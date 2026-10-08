@@ -15,7 +15,7 @@ const ALERT_KIND_DESCRIPTIONS = {
 export const DESCRIBED_ALERT_KINDS: readonly string[] = Object.keys(ALERT_KIND_DESCRIPTIONS);
 
 export function alertKindDescription(kind: string): string {
-  return kind in ALERT_KIND_DESCRIPTIONS
+  return Object.hasOwn(ALERT_KIND_DESCRIPTIONS, kind)
     ? ALERT_KIND_DESCRIPTIONS[kind as keyof typeof ALERT_KIND_DESCRIPTIONS]
     : "";
 }
