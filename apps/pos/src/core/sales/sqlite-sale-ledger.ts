@@ -9,6 +9,7 @@ import {
   type Sale,
   type SaleLine,
   type SaleUnit,
+  type SearchableProduct,
 } from "@purosur/domain";
 import type {
   CandidatePromotion,
@@ -16,7 +17,6 @@ import type {
   SaleLedger,
   SaleLedgerTransaction,
   SaleRefund,
-  SearchableProduct,
   SellableProduct,
   SellingSession,
 } from "@purosur/domain/sales/use-cases";

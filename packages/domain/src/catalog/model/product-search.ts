@@ -1,4 +1,4 @@
-import type { SaleUnit } from "../../catalog/index.js";
+import type { SaleUnit } from "./product.js";
 import { matchProductName, type NameMatch } from "./product-name-match.js";
 
 export const SEARCH_RESULT_LIMIT = 20;

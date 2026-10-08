@@ -1,5 +1,5 @@
 import type { RoleAccess } from "../../access/index.js";
-import type { SaleUnit } from "../../catalog/index.js";
+import type { SaleUnit, SearchableProduct } from "../../catalog/index.js";
 import type {
   BuyerIdentificationThreshold,
   BuyerTaxStatusOption,
@@ -11,7 +11,6 @@ import type { CashMovement } from "../../register/index.js";
 import type { OutboxEventDraft } from "../../shared/index.js";
 import type { PaymentTransaction } from "../model/payment.js";
 import type { PlannedRefund } from "../model/payment-refund.js";
-import type { SearchableProduct } from "../model/product-search.js";
 import type { LinePromotion, Sale, SaleLine, SaleWithLines } from "../model/sale.js";
 import type { ListPrice } from "../model/sale-line.js";
 
