@@ -33,10 +33,10 @@ export type {
   ClosedAlert,
 } from "./close-alert.js";
 export { closeAlert } from "./close-alert.js";
-export { escalateOverdueAlerts } from "./escalate-overdue-alerts.js";
-export type { InServiceRegister, InServiceRegisterReader } from "./in-service-register-reader.js";
 export type { QuietRegisterDetectionPorts } from "./detect-quiet-registers.js";
 export { detectQuietRegisters } from "./detect-quiet-registers.js";
+export { escalateOverdueAlerts } from "./escalate-overdue-alerts.js";
+export type { InServiceRegister, InServiceRegisterReader } from "./in-service-register-reader.js";
 export type { ObserveAlertConditionOutcome } from "./observe-alert-condition.js";
 export { observeAlertCondition } from "./observe-alert-condition.js";
 export type { OpenAlertOutcome } from "./open-alert.js";

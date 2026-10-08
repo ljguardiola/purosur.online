@@ -43,7 +43,6 @@ export {
   alertNamedRecordIds,
   alertScopeNamesRecord,
 } from "./model/alert-named-records.js";
-export { isRegisterQuiet, QUIET_REGISTER_LAPSE_MS } from "./model/quiet-register.js";
 export { showsAlertScope } from "./model/alert-scope-visibility.js";
 export type {
   AlertAudienceAccess,
@@ -57,3 +56,4 @@ export {
   canSeeAlert,
 } from "./model/alert-visibility.js";
 export { isOpenAlert } from "./model/open-alert-state.js";
+export { isRegisterQuiet, QUIET_REGISTER_LAPSE_MS } from "./model/quiet-register.js";
