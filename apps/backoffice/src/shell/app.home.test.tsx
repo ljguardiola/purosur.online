@@ -111,11 +111,11 @@ test("shows each register of the branch with its last successful sync on Inicio"
 
   await expect.element(screen.getByRole("heading", { name: "Cajas", level: 2 })).toBeVisible();
   await expect
-    .element(screen.getByRole("row", { name: /Caja 1/ }))
-    .toHaveTextContent("02/03/2026 06:30");
+    .element(screen.getByRole("row", { name: /^Caja 1 02\/03\/2026 06:30$/ }))
+    .toBeVisible();
   await expect
-    .element(screen.getByRole("row", { name: /Caja 2/ }))
-    .toHaveTextContent("Nunca sincronizó");
+    .element(screen.getByRole("row", { name: /^Caja 2 Nunca sincronizó$/ }))
+    .toBeVisible();
 });
 
 test("keeps the alerts on Inicio when the registers fail to load, and retries only the registers", async () => {

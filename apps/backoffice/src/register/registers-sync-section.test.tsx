@@ -52,11 +52,11 @@ test("shows each register with the day and time of its last successful sync, and
     .element(screen.getByRole("columnheader", { name: "Última sincronización" }))
     .toBeVisible();
   await expect
-    .element(screen.getByRole("row", { name: /Caja 1/ }))
-    .toHaveTextContent("02/03/2026 06:30");
+    .element(screen.getByRole("row", { name: /^Caja 1 02\/03\/2026 06:30$/ }))
+    .toBeVisible();
   await expect
-    .element(screen.getByRole("row", { name: /Caja 2/ }))
-    .toHaveTextContent("Nunca sincronizó");
+    .element(screen.getByRole("row", { name: /^Caja 2 Nunca sincronizó$/ }))
+    .toBeVisible();
   await expectNoAccessibilityViolations(document.body);
 });
 
@@ -67,10 +67,11 @@ test("shows a loading state until the registers arrive", async () => {
 
   const screen = await renderSection(services);
 
-  await expect.element(screen.getByText("Cargando…").first()).toBeInTheDocument();
+  await expect
+    .element(screen.getByRole("table", { name: "Última sincronización de las cajas" }))
+    .toHaveAttribute("aria-busy", "true");
   load.resolve(ok([synced]));
   await expect.element(screen.getByText("Caja 1")).toBeVisible();
-  expect(screen.getByText("Cargando…").query()).toBeNull();
 });
 
 test("says there are no registers when the branch has none", async () => {
@@ -94,7 +95,9 @@ test("shows a load error whose retry starts again from the loading state", async
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
   await expect.element(screen.getByText("No pudimos abrir las cajas")).not.toBeInTheDocument();
-  await expect.element(screen.getByText("Cargando…").first()).toBeInTheDocument();
+  await expect
+    .element(screen.getByRole("table", { name: "Última sincronización de las cajas" }))
+    .toHaveAttribute("aria-busy", "true");
   retry.resolve(ok([synced]));
   await expect.element(screen.getByText("Caja 1")).toBeVisible();
 });
