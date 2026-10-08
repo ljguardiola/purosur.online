@@ -8,6 +8,7 @@ const ALERT_KIND_LIST = [
   "events_quarantined",
   "event_invariant_violated",
   "arca_certificate_expiring",
+  "update_required",
 ] as const;
 
 export type AlertKind = (typeof ALERT_KIND_LIST)[number];

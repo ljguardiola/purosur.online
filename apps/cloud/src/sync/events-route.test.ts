@@ -167,6 +167,7 @@ describe("POST /events", () => {
         lastPulledAt: null,
         appVersion: "1.4.0",
         lastPushedAt: NOW,
+        lastAcceptedPushAt: NOW,
         walSizeBytes: 4096,
         diskFreeBytes: 50_000_000,
         diskFreeRatio: 0.42,

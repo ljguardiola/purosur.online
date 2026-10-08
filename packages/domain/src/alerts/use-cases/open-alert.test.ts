@@ -87,6 +87,7 @@ describe("openAlert", () => {
         escalatedAt: null,
         resolvedAt: null,
         resolvedBy: null,
+        conditionClearedAt: null,
         deduplicates: true,
       },
     ]);
@@ -246,6 +247,7 @@ describe("openAlert", () => {
       escalatedAt: null,
       resolvedAt: NOW,
       resolvedBy: "administrator",
+      conditionClearedAt: null,
       deduplicates: true,
     });
 

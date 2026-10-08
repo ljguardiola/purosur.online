@@ -183,8 +183,9 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     },
     accountFooter: { signOut: vi.fn().mockResolvedValue({ kind: "ok" }) },
     screenFailure: { isOnline: vi.fn(), reloadPage: vi.fn() },
-    alertsOverviewScreen: {
+    homeScreen: {
       fetchAlertsOverview: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchRegisterSyncStatus: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     alertsListScreen: {
       fetchAlerts: vi.fn().mockReturnValue(new Promise(() => {})),

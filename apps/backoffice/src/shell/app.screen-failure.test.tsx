@@ -46,7 +46,7 @@ test("offers to try again when a screen fails to render, reports the failure, an
 test("moves focus to the failure's title when a screen opened from the rail fails once its data arrives", async () => {
   window.history.pushState(null, "", "/help");
   const services = createAppServices();
-  vi.mocked(services.alertsOverviewScreen.fetchAlertsOverview).mockResolvedValue({
+  vi.mocked(services.homeScreen.fetchAlertsOverview).mockResolvedValue({
     kind: "ok",
     value: { critical: null, warning: null, informational: null },
   } as never);

@@ -3,6 +3,7 @@ import {
   createRegister,
   emitEnrollmentCode,
   fetchRegisterCoverage,
+  fetchRegisterSyncStatus,
   fetchRegisters,
   type RegisterSummary,
 } from "./registers-api";
@@ -319,4 +320,52 @@ test.each([
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));
 
   expect(await fetchRegisterCoverage()).toEqual({ kind: "failed" });
+});
+
+test("fetchRegisterSyncStatus lists each register with its last successful sync, translating the wire names", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, [
+      { id: "register-1", name: "Caja 1", last_successful_sync_at: "2026-03-02T09:30:00.000Z" },
+      { id: "register-2", name: "Caja 2", last_successful_sync_at: null },
+    ]),
+  );
+
+  const outcome = await fetchRegisterSyncStatus();
+
+  expect(outcome).toEqual({
+    kind: "ok",
+    value: [
+      { id: "register-1", name: "Caja 1", lastSuccessfulSyncAt: "2026-03-02T09:30:00.000Z" },
+      { id: "register-2", name: "Caja 2", lastSuccessfulSyncAt: null },
+    ],
+  });
+  expect(fetch).toHaveBeenCalledWith("/api/registers/sync-status");
+});
+
+test.each([
+  [401, { kind: "unauthenticated" }],
+  [403, { kind: "forbidden" }],
+  [500, { kind: "failed" }],
+])("fetchRegisterSyncStatus answers a %i as %j", async (status, outcome) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+  expect(await fetchRegisterSyncStatus()).toEqual(outcome);
+});
+
+test("fetchRegisterSyncStatus returns rate_limited with the Retry-After header on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "45" }));
+
+  expect(await fetchRegisterSyncStatus()).toEqual({ kind: "rate_limited", retryAfterSeconds: 45 });
+});
+
+test("fetchRegisterSyncStatus returns failed when the request throws", async () => {
+  vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+  expect(await fetchRegisterSyncStatus()).toEqual({ kind: "failed" });
+});
+
+test("fetchRegisterSyncStatus returns failed on a body that is not a list of registers", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [{ id: "register-1", name: "Caja 1" }]));
+
+  expect(await fetchRegisterSyncStatus()).toEqual({ kind: "failed" });
 });

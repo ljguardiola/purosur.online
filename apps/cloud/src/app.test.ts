@@ -2252,6 +2252,11 @@ describe("the route access inventory", () => {
         access: capabilityAccess("registers_area"),
       },
       {
+        method: "GET",
+        url: "/api/registers/sync-status",
+        access: OPEN_SESSION_ACCESS,
+      },
+      {
         method: "POST",
         url: "/api/registers",
         access: capabilityAccess("registers_area"),

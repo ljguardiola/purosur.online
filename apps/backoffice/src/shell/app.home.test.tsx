@@ -43,7 +43,7 @@ test("lands a user without either alert-view permission on Inicio, telling them 
   expect(window.location.pathname).toBe("/");
   await expect.element(screen.getByRole("link", { name: "Resumen" })).toBeVisible();
   expect(screen.getByRole("link", { name: "Alertas" }).query()).toBeNull();
-  expect(services.alertsOverviewScreen.fetchAlertsOverview).not.toHaveBeenCalled();
+  expect(services.homeScreen.fetchAlertsOverview).not.toHaveBeenCalled();
 });
 
 test("following the rail's Inicio item opens Inicio, and its Alertas section link the Alertas list", async () => {
@@ -77,7 +77,7 @@ test("following the rail's Inicio item opens Inicio, and its Alertas section lin
 test("opens the alerts list filtered by a level from that level's card on Inicio", async () => {
   window.history.pushState(null, "", "/");
   const services = createAppServices();
-  vi.mocked(services.alertsOverviewScreen.fetchAlertsOverview).mockResolvedValue({
+  vi.mocked(services.homeScreen.fetchAlertsOverview).mockResolvedValue({
     kind: "ok",
     value: {
       critical: { openCount: 0, kinds: [] },
@@ -94,4 +94,76 @@ test("opens the alerts list filtered by a level from that level's card on Inicio
   await expect
     .poll(() => services.alertsListScreen.fetchAlerts)
     .toHaveBeenCalledWith({ level: "warning", open: true, page: 1 });
+});
+
+test("shows each register of the branch with its last successful sync on Inicio", async () => {
+  window.history.pushState(null, "", "/");
+  const services = createAppServices();
+  vi.mocked(services.homeScreen.fetchRegisterSyncStatus).mockResolvedValue({
+    kind: "ok",
+    value: [
+      { id: "register-1", name: "Caja 1", lastSuccessfulSyncAt: "2026-03-02T09:30:00.000Z" },
+      { id: "register-2", name: "Caja 2", lastSuccessfulSyncAt: null },
+    ],
+  });
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Cajas", level: 2 })).toBeVisible();
+  await expect
+    .element(screen.getByRole("row", { name: /^Caja 1 02\/03\/2026 06:30$/ }))
+    .toBeVisible();
+  await expect
+    .element(screen.getByRole("row", { name: /^Caja 2 Nunca sincronizó$/ }))
+    .toBeVisible();
+});
+
+test("keeps the alerts on Inicio when the registers fail to load, and retries only the registers", async () => {
+  window.history.pushState(null, "", "/");
+  const services = createAppServices();
+  vi.mocked(services.homeScreen.fetchAlertsOverview).mockResolvedValue({
+    kind: "ok",
+    value: {
+      critical: { openCount: 0, kinds: [] },
+      warning: { openCount: 2, kinds: ["user_email_changed"] },
+      informational: { openCount: 0, kinds: [] },
+    },
+  });
+  vi.mocked(services.homeScreen.fetchRegisterSyncStatus)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockResolvedValueOnce({
+      kind: "ok",
+      value: [{ id: "register-1", name: "Caja 1", lastSuccessfulSyncAt: null }],
+    });
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByText("No pudimos abrir las cajas")).toBeVisible();
+  await expect.element(screen.getByRole("link", { name: /^Advertencias 2/ })).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("Nunca sincronizó")).toBeVisible();
+  expect(services.homeScreen.fetchAlertsOverview).toHaveBeenCalledTimes(1);
+});
+
+test("shows each register's last successful sync on Inicio to a user who may not see alerts", async () => {
+  window.history.pushState(null, "", "/");
+  const services = createAppServices({
+    fetchSession: vi
+      .fn()
+      .mockResolvedValue(
+        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+      ),
+  });
+  vi.mocked(services.homeScreen.fetchRegisterSyncStatus).mockResolvedValue({
+    kind: "ok",
+    value: [{ id: "register-1", name: "Caja 1", lastSuccessfulSyncAt: null }],
+  });
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByText("No tenés alertas para ver")).toBeVisible();
+  await expect
+    .element(screen.getByRole("row", { name: /^Caja 1 Nunca sincronizó$/ }))
+    .toBeVisible();
 });

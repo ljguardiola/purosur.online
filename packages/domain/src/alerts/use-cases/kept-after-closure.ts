@@ -2,7 +2,7 @@ import { alertKindPolicy } from "../model/alert-kind-policy.js";
 import type { LockedAlert } from "./alert-store.js";
 
 export function keptAfterClosure(
-  alert: LockedAlert,
+  alert: Pick<LockedAlert, "kind" | "scope" | "detail">,
   hash: (address: string) => string,
 ): Pick<LockedAlert, "scope" | "detail"> {
   if (alertKindPolicy(alert.kind).scopeKind !== "sourceAddress") {

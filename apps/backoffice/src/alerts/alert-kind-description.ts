@@ -10,6 +10,7 @@ const ALERT_KIND_DESCRIPTIONS = {
   events_quarantined: "Evento de una caja en cuarentena",
   event_invariant_violated: "Evento aplicado con una inconsistencia",
   arca_certificate_expiring: "El certificado de ARCA está por vencer",
+  update_required: "La nube ya no acepta la versión de esta caja",
 } satisfies Record<AlertKind, string>;
 
 export const DESCRIBED_ALERT_KINDS: readonly string[] = Object.keys(ALERT_KIND_DESCRIPTIONS);
