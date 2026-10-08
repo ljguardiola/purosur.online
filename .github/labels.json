@@ -23,5 +23,10 @@
     "name": "invalid-format",
     "color": "e4e669",
     "description": "This issue does not follow the required template yet."
+  },
+  {
+    "name": "arca-test-environment-down",
+    "color": "b60205",
+    "description": "The scheduled check of the tax authority's test environment is failing."
   }
 ]
