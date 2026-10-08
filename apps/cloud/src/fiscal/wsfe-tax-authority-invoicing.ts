@@ -69,8 +69,7 @@ function answerOf(answer: unknown): SolicitationAnswer {
     ...details.flatMap(({ Observaciones }) => codesOf(Observaciones, "Obs")),
     ...codesOf(result.Errors, "Err"),
   ];
-  const refused =
-    result.FeCabResp?.Resultado === "R" || detail?.Resultado === "R" || result.Errors !== undefined;
+  const refused = result.FeCabResp?.Resultado === "R" || detail?.Resultado === "R";
   return refused && codes.length > 0 ? { kind: "rejected", codes } : { kind: "no_answer" };
 }
 
