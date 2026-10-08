@@ -87,6 +87,10 @@ import { registerFiscalAddressCreationRoute } from "./fiscal/fiscal-address-crea
 import { registerFiscalAddressEditRoute } from "./fiscal/fiscal-address-edit-route.js";
 import type { FiscalAddressesRouteOptions } from "./fiscal/fiscal-addresses-list-route.js";
 import { registerFiscalAddressesListRoute } from "./fiscal/fiscal-addresses-list-route.js";
+import {
+  type FiscalAuthorizationRouteOptions,
+  registerFiscalAuthorizationRoute,
+} from "./fiscal/fiscal-authorization-route.js";
 import { registerIssuerIdentificationEditRoute } from "./fiscal/issuer-identification-edit-route.js";
 import type { IssuerIdentificationRouteOptions } from "./fiscal/issuer-identification-read-route.js";
 import { registerIssuerIdentificationReadRoute } from "./fiscal/issuer-identification-read-route.js";
@@ -163,6 +167,9 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   salesReports?: WithoutClock<SalesReportRouteOptions<TQueryResult>>;
   refunds?: WithoutClock<RefundRouteOptions<TQueryResult>>;
   devices?: WithoutClock<DeviceTokensOptions<TQueryResult>>;
+  fiscalAuthorization?: WithoutClock<
+    Omit<FiscalAuthorizationRouteOptions<TQueryResult>, keyof DeviceTokensOptions<TQueryResult>>
+  >;
   health?: WithoutClock<HealthArcaOptions<TQueryResult>>;
   firstPinCodes?: WithoutClock<FirstPinCodeRouteOptions<TQueryResult>>;
 }
@@ -176,6 +183,7 @@ type DatabaseRouteOptions<TQueryResult extends PgQueryResultHKT> = Required<
     | "edgeOriginSecret"
     | "setupFastifyErrorHandler"
     | "staticDir"
+    | "fiscalAuthorization"
   >
 >;
 
@@ -481,6 +489,13 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerDeviceEnrollmentRoute(api, { ...options.devices, now });
         registerChangesRoute(api, { ...options.devices, now });
         registerEventsRoute(api, { ...options.devices, now });
+        if (options.fiscalAuthorization) {
+          registerFiscalAuthorizationRoute(api, {
+            ...options.devices,
+            ...options.fiscalAuthorization,
+            now,
+          });
+        }
         registerPinCodeRedemptionRoute(api, { ...options.devices, now });
         registerSignInLookupRoute(api, { ...options.devices, now });
         registerDeviceTokenRotationRoute(api, { ...options.devices, now });

@@ -219,6 +219,7 @@ export {
   isSameFiscalAddressName,
   isValidBuyerTaxStatusSet,
   isValidCuit,
+  isWsaaTokenValid,
   latestBuyerTaxStatusSet,
   latestIssuerIdentification,
   latestThreshold,
