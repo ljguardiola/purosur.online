@@ -6,7 +6,7 @@ import { alertActorId, alertNamedRecordIds, alertScopeNamesRecord } from "./aler
 const SCOPE = "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6";
 const ACTOR_ID = "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
 
-const kindsScopedTo = (scopeKind: "user" | "register" | "sourceAddress") =>
+const kindsScopedTo = (scopeKind: "user" | "register" | "sourceAddress" | "event") =>
   ALERT_KINDS.filter((kind) => alertKindPolicy(kind).scopeKind === scopeKind);
 
 describe("alertNamedRecordIds", () => {
@@ -19,6 +19,12 @@ describe("alertNamedRecordIds", () => {
   it("does not name the scope of an alert scoped to a source address, which is no record id", () => {
     for (const kind of kindsScopedTo("sourceAddress")) {
       expect(alertNamedRecordIds({ kind, scope: "203.0.113.7" })).toEqual([]);
+    }
+  });
+
+  it("does not name the scope of an alert scoped to an event", () => {
+    for (const kind of kindsScopedTo("event")) {
+      expect(alertNamedRecordIds({ kind, scope: SCOPE })).toEqual([]);
     }
   });
 

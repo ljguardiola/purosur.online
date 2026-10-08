@@ -43,6 +43,7 @@ import { WsfeBuyerTaxStatusSource } from "./fiscal/wsfe-buyer-tax-status-source.
 import { normalizePemNewlines } from "./platform/pem-newlines.js";
 import { runShutdownSteps } from "./platform/run-shutdown-steps.js";
 import { initSentry } from "./platform/sentry.js";
+import { applySyncedEventsJobs } from "./sync/apply-synced-events-task.js";
 
 export interface ServerEnv {
   PORT?: string | undefined;
@@ -433,6 +434,7 @@ export async function setUpRecovery(
         now,
         vitality: new WsfeArcaVitalityService({ endpoint: recoveryEnv.arcaVitality.endpoint }),
       }),
+      applySyncedEventsJobs({ now }),
       ...(recoveryEnv.arcaWsaa
         ? [wsaaTokenRenewalJobs(wsaaRenewalInput(recoveryEnv.arcaWsaa, now))]
         : []),

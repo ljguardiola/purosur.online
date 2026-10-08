@@ -78,3 +78,7 @@ export function canSeeStockMovements(access: BackofficeAccess): boolean {
 export function canSeeStockArea(access: BackofficeAccess): boolean {
   return grants(access, "stock_area");
 }
+
+export function canSeeReports(access: BackofficeAccess): boolean {
+  return grants(access, "reports_area");
+}

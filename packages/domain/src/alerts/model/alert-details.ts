@@ -50,6 +50,28 @@ export interface RegisterEnrolledDetail {
   replacedInstallation: boolean;
 }
 
+export type EventQuarantineReason =
+  | { kind: "unreadable" }
+  | { kind: "missing_dependency"; aggregateType: string; aggregateId: string }
+  | { kind: "not_recorded" };
+
+export interface EventsQuarantinedDetail {
+  deviceId: string;
+  eventId: string;
+  eventType: string;
+  aggregateType: string;
+  aggregateId: string;
+  reason: EventQuarantineReason;
+}
+
+export interface EventInvariantViolatedDetail {
+  eventId: string;
+  eventType: string;
+  aggregateType: string;
+  aggregateId: string;
+  breaks: string[];
+}
+
 export interface ArcaCertificateExpiringDetail {
   notAfter: string;
 }
@@ -61,6 +83,8 @@ export interface AlertDetails {
   backoffice_sign_in_lockout: SignInLockoutDetail;
   user_access_increased: AccessIncreasedDetail;
   register_enrolled: RegisterEnrolledDetail;
+  events_quarantined: EventsQuarantinedDetail;
+  event_invariant_violated: EventInvariantViolatedDetail;
   arca_certificate_expiring: ArcaCertificateExpiringDetail;
 }
 

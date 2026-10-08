@@ -128,6 +128,10 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       recordLoss: vi.fn(),
       recordAdjustment: vi.fn(),
     },
+    salesByDayScreen: {
+      fetchSalesReport: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchReportRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
     userDetailScreen: {
       fetchUser: vi.fn().mockReturnValue(new Promise(() => {})),
       editUser: vi.fn(),

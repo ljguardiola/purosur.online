@@ -10,6 +10,7 @@ export {
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_REASON_MAX_LENGTH,
   cashMovementPermission,
+  cashMovementReason,
   isValidCashMovementAmount,
 } from "./model/cash-movement-kind.js";
 export type {
@@ -21,6 +22,11 @@ export type {
   OpenedCashSession,
 } from "./model/cash-session.js";
 export { CASH_MOVEMENT_TYPES } from "./model/cash-session.js";
+export type {
+  CashMovementRecordedFact,
+  CashSessionClosedFact,
+  CashSessionOpenedFact,
+} from "./model/cash-session-facts.js";
 export { isDeviceTokenRotationDue } from "./model/device-token.js";
 export { enrollmentAttemptWindowStart } from "./model/enrollment-attempt-limit.js";
 export {

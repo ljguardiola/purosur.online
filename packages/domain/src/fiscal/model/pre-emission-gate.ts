@@ -28,12 +28,15 @@ export interface FacturaC {
   buyerTaxStatusCode: number;
 }
 
-export type PreEmissionGateFailureReason =
-  | "issuer_identification_missing"
-  | "legal_name_missing"
-  | "gross_income_registration_missing"
-  | "activity_start_date_missing"
-  | "buyer_tax_status_missing";
+export const PRE_EMISSION_GATE_FAILURE_REASONS = [
+  "issuer_identification_missing",
+  "legal_name_missing",
+  "gross_income_registration_missing",
+  "activity_start_date_missing",
+  "buyer_tax_status_missing",
+] as const;
+
+export type PreEmissionGateFailureReason = (typeof PRE_EMISSION_GATE_FAILURE_REASONS)[number];
 
 export type PreEmissionGateOutcome =
   | { kind: "passed"; document: FacturaC }

@@ -5,6 +5,8 @@ const ALERT_KIND_LIST = [
   "backoffice_sign_in_lockout",
   "user_access_increased",
   "register_enrolled",
+  "events_quarantined",
+  "event_invariant_violated",
   "arca_certificate_expiring",
 ] as const;
 

@@ -1,4 +1,4 @@
-import { canonicalOutboxEvent, type OutboxEvent } from "../../model/outbox-event.js";
+import { canonicalOutboxEvent, type OutboxEvent } from "../../../shared/index.js";
 import type { PushedEvent } from "../../model/push-batch.js";
 import type { Inbox, InboxTransaction, PushReport } from "../sync-ports.js";
 import { FAKE_CHAIN_KEY, fakeEventChain } from "./fake-event-chain.js";

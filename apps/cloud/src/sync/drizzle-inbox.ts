@@ -11,14 +11,21 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { deviceState, inbox, refusedEvents, registerInstallations } from "../platform/db/schema.js";
 import type { InstallationKeyCipher } from "../register/installation-key-cipher.js";
 import { readOutboxChainKey } from "../register/outbox-chain-key.js";
+import type { EnqueueEventApplication } from "./graphile-event-application-queue.js";
 
 class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements InboxTransaction {
   private readonly tx: PgDatabase<TQueryResult>;
   private readonly cipher: InstallationKeyCipher;
+  private readonly enqueueApplication: EnqueueEventApplication;
 
-  constructor(tx: PgDatabase<TQueryResult>, cipher: InstallationKeyCipher) {
+  constructor(
+    tx: PgDatabase<TQueryResult>,
+    cipher: InstallationKeyCipher,
+    enqueueApplication: EnqueueEventApplication,
+  ) {
     this.tx = tx;
     this.cipher = cipher;
+    this.enqueueApplication = enqueueApplication;
   }
 
   async lockDevice(deviceId: string): Promise<void> {
@@ -96,6 +103,7 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
         receivedAt,
       })),
     );
+    await this.enqueueApplication(this.tx);
   }
 
   async recordPushReport(deviceId: string, report: PushReport, at: Date): Promise<void> {
@@ -159,16 +167,24 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
 export class DrizzleInbox<TQueryResult extends PgQueryResultHKT> implements Inbox {
   private readonly db: PgDatabase<TQueryResult>;
   private readonly cipher: InstallationKeyCipher;
+  private readonly enqueueApplication: EnqueueEventApplication;
 
-  constructor(db: PgDatabase<TQueryResult>, cipher: InstallationKeyCipher) {
+  constructor(
+    db: PgDatabase<TQueryResult>,
+    cipher: InstallationKeyCipher,
+    enqueueApplication: EnqueueEventApplication,
+  ) {
     this.db = db;
     this.cipher = cipher;
+    this.enqueueApplication = enqueueApplication;
   }
 
   // Read committed. Every push of an installation first takes its installation row, in a mode that
   // does not block the foreign keys of what it stores, so a second push reads the inbox only once
   // the first one committed and cannot insert the same seq twice.
   transaction<TOutcome>(work: (tx: InboxTransaction) => Promise<TOutcome>): Promise<TOutcome> {
-    return this.db.transaction((tx) => work(new DrizzleInboxTransaction(tx, this.cipher)));
+    return this.db.transaction((tx) =>
+      work(new DrizzleInboxTransaction(tx, this.cipher, this.enqueueApplication)),
+    );
   }
 }
