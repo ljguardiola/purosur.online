@@ -1,0 +1,166 @@
+import { readFileSync } from "node:fs";
+import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support";
+import type { FiscalDocumentSolicitation } from "@purosur/domain/fiscal/use-cases";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  answers,
+  type FakeWsfeServer,
+  startFakeWsfeServer,
+  UNREACHABLE_WSFE_ENDPOINT,
+} from "./test-support/fake-wsfe-server.js";
+import { WsfeTaxAuthorityInvoicing } from "./wsfe-tax-authority-invoicing.js";
+
+const solicitation: FiscalDocumentSolicitation = {
+  token: {
+    token: "FICTIONAL-TOKEN-0001",
+    sign: "FICTIONAL-SIGN-0001",
+    issuedAt: new Date("2026-10-01T06:00:00.000Z"),
+    expiresAt: new Date("2026-10-01T18:00:00.000Z"),
+  },
+  pointOfSale: 7,
+  number: 42,
+  issuedOn: "2026-10-06",
+  total: 12_550,
+  buyerTaxStatusCode: 5,
+};
+
+let server: FakeWsfeServer;
+
+beforeAll(async () => {
+  server = await startFakeWsfeServer(answers("fe-cae-solicitar-authorized.xml"));
+});
+
+afterAll(async () => {
+  await server.close();
+});
+
+beforeEach(() => {
+  server.requests.length = 0;
+  server.behave(answers("fe-cae-solicitar-authorized.xml"));
+});
+
+function invoicingAt(endpoint: string, timeoutMs = 5_000) {
+  return new WsfeTaxAuthorityInvoicing({ endpoint, cuit: FICTIONAL_CERTIFICATE_CUIT, timeoutMs });
+}
+
+function valueOf(request: string | undefined, element: string): string | undefined {
+  return new RegExp(`<(?:\\w+:)?${element}>([^<]*)</(?:\\w+:)?${element}>`).exec(request ?? "")?.[1];
+}
+
+describe("WsfeTaxAuthorityInvoicing", () => {
+  describe("what it asks", () => {
+    it("asks for one Factura C of the point of sale, authenticated with the token and the certificate's CUIT", async () => {
+      await invoicingAt(server.endpoint).solicit(solicitation);
+
+      expect(server.requests).toHaveLength(1);
+      const [request] = server.requests;
+      expect(request).toContain("FECAESolicitar");
+      expect(valueOf(request, "Token")).toBe("FICTIONAL-TOKEN-0001");
+      expect(valueOf(request, "Sign")).toBe("FICTIONAL-SIGN-0001");
+      expect(valueOf(request, "Cuit")).toBe(FICTIONAL_CERTIFICATE_CUIT.replaceAll("-", ""));
+      expect(valueOf(request, "CantReg")).toBe("1");
+      expect(valueOf(request, "PtoVta")).toBe("7");
+      expect(valueOf(request, "CbteTipo")).toBe("11");
+    });
+
+    it("asks for the document's number, date, total and buyer tax status, as a sale of products to a final consumer in pesos", async () => {
+      await invoicingAt(server.endpoint).solicit(solicitation);
+
+      const [request] = server.requests;
+      expect(valueOf(request, "Concepto")).toBe("1");
+      expect(valueOf(request, "DocTipo")).toBe("99");
+      expect(valueOf(request, "DocNro")).toBe("0");
+      expect(valueOf(request, "CbteDesde")).toBe("42");
+      expect(valueOf(request, "CbteHasta")).toBe("42");
+      expect(valueOf(request, "CbteFch")).toBe("20261006");
+      expect(valueOf(request, "ImpTotal")).toBe("125.50");
+      expect(valueOf(request, "ImpTotConc")).toBe("0");
+      expect(valueOf(request, "ImpNeto")).toBe("125.50");
+      expect(valueOf(request, "ImpOpEx")).toBe("0");
+      expect(valueOf(request, "ImpTrib")).toBe("0");
+      expect(valueOf(request, "ImpIVA")).toBe("0");
+      expect(valueOf(request, "MonId")).toBe("PES");
+      expect(valueOf(request, "MonCotiz")).toBe("1");
+      expect(valueOf(request, "CondicionIVAReceptorId")).toBe("5");
+    });
+
+    it("carries no VAT breakdown, since a Factura C has none", async () => {
+      await invoicingAt(server.endpoint).solicit(solicitation);
+
+      expect(server.requests[0]).not.toMatch(/<(\w+:)?Iva>/);
+    });
+
+    it("writes the total in pesos from its cents without a rounding error", async () => {
+      await invoicingAt(server.endpoint).solicit({ ...solicitation, total: 1_999 });
+
+      expect(valueOf(server.requests[0], "ImpTotal")).toBe("19.99");
+    });
+  });
+
+  describe("what it answers", () => {
+    it("answers authorized with the authorization code and the date it is due, as an ISO date", async () => {
+      expect(await invoicingAt(server.endpoint).solicit(solicitation)).toEqual({
+        kind: "authorized",
+        authorizationCode: "74123456789012",
+        authorizationCodeDueOn: "2026-10-17",
+      });
+    });
+
+    it.each([
+      ["the content is refused", "fe-cae-solicitar-rejected-content.xml", [10246]],
+      ["its number is out of order", "fe-cae-solicitar-rejected-out-of-order.xml", [10016]],
+      ["ARCA answers an error instead of a result", "fe-cae-solicitar-token-error.xml", [600]],
+      [
+        "ARCA gives observations and an error",
+        "fe-cae-solicitar-rejected-with-errors.xml",
+        [10246, 10015, 10000],
+      ],
+    ])("answers rejected with every code ARCA gave when %s", async (_case, file, codes) => {
+      server.behave(answers(file));
+
+      expect(await invoicingAt(server.endpoint).solicit(solicitation)).toEqual({
+        kind: "rejected",
+        codes,
+      });
+    });
+
+    it.each([
+      ["ARCA answers a SOAP fault", answers("fe-dummy-fault.xml", 500)],
+      ["the answer is not SOAP", answers("not-soap.txt")],
+      ["the answer holds no result", answers("fe-cae-solicitar-empty.xml")],
+      [
+        "ARCA refuses without saying why",
+        answers("fe-cae-solicitar-rejected-without-codes.xml"),
+      ],
+      ["ARCA never answers within the timeout", { kind: "never-answers" as const }],
+    ])("answers no answer when %s", async (_case, behavior) => {
+      server.behave(behavior);
+
+      expect(await invoicingAt(server.endpoint, 200).solicit(solicitation)).toEqual({
+        kind: "no_answer",
+      });
+    });
+
+    it("answers no answer when ARCA cannot be reached", async () => {
+      expect(await invoicingAt(UNREACHABLE_WSFE_ENDPOINT).solicit(solicitation)).toEqual({
+        kind: "no_answer",
+      });
+    });
+  });
+
+  it("hands over the raw answer ARCA gave", async () => {
+    const received: string[] = [];
+    const invoicing = new WsfeTaxAuthorityInvoicing({
+      endpoint: server.endpoint,
+      cuit: FICTIONAL_CERTIFICATE_CUIT,
+      onRawResponse: (raw) => received.push(raw),
+    });
+
+    await invoicing.solicit(solicitation);
+
+    const responses = new URL("./test-support/wsfe-responses/", import.meta.url);
+    expect(received).toEqual([
+      readFileSync(new URL("fe-cae-solicitar-authorized.xml", responses), "utf8").trim(),
+    ]);
+  });
+});
