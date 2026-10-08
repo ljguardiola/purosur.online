@@ -3,7 +3,7 @@ import type {
   LockedRefund,
   RefundStore,
   RefundStoreTransaction,
-} from "@purosur/domain/sales/use-cases";
+} from "@purosur/domain/payments/use-cases";
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { auditLog, paymentRefunds, salePayments, sales } from "../platform/db/schema.js";

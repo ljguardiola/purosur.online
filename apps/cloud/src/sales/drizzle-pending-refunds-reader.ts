@@ -1,5 +1,5 @@
 import { REFUND_PENDING_STATE } from "@purosur/domain";
-import type { PendingRefund, PendingRefundsReader } from "@purosur/domain/sales/use-cases";
+import type { PendingRefund, PendingRefundsReader } from "@purosur/domain/payments/use-cases";
 import { and, asc, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { paymentRefunds, registers, salePayments, sales, users } from "../platform/db/schema.js";

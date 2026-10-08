@@ -6,10 +6,10 @@ import {
   latestBuyerTaxStatusSet,
   latestIssuerIdentification,
 } from "../../../fiscal/index.js";
+import type { PaymentTransaction } from "../../../payments/index.js";
 import { priceInEffectAt } from "../../../pricing/index.js";
 import type { CashMovement } from "../../../register/index.js";
 import type { Clock, OutboxEventDraft } from "../../../shared/index.js";
-import type { PaymentTransaction } from "../../model/payment.js";
 import type { SaleWithLines } from "../../model/sale.js";
 import type { ListPrice } from "../../model/sale-line.js";
 import type {

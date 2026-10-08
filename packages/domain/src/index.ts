@@ -225,6 +225,21 @@ export {
   thresholdScheduledAfter,
 } from "./fiscal/index.js";
 export type {
+  PaymentMethod,
+  PaymentTransaction,
+  PlannedRefund,
+  RefundState,
+} from "./payments/index.js";
+export {
+  cancellableWithoutAuthorization,
+  cashCharge,
+  isRefundPending,
+  PAYMENT_METHODS,
+  REFUND_DONE_STATE,
+  REFUND_PENDING_STATE,
+  REFUND_STATES,
+} from "./payments/index.js";
+export type {
   CategoryLink,
   DatedPrice,
   DiscountBenefit,
@@ -317,10 +332,6 @@ export {
 export type {
   LinePromotion,
   ListPrice,
-  PaymentMethod,
-  PaymentTransaction,
-  PlannedRefund,
-  RefundState,
   Sale,
   SaleLine,
   SaleState,
@@ -331,15 +342,8 @@ export type {
   SoldProduct,
 } from "./sales/index.js";
 export {
-  cancellableWithoutAuthorization,
-  cashCharge,
-  isRefundPending,
   isSalesReportRangeAsked,
   openSaleStanding,
-  PAYMENT_METHODS,
-  REFUND_DONE_STATE,
-  REFUND_PENDING_STATE,
-  REFUND_STATES,
   SALES_REPORT_SALE_STATE,
   saleTotal,
 } from "./sales/index.js";

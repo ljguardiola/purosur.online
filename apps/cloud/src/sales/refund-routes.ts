@@ -1,5 +1,5 @@
 import { markedRefundDoneSchema, pendingRefundsSchema } from "@purosur/contracts";
-import { listPendingRefunds, markRefundDone } from "@purosur/domain/sales/use-cases";
+import { listPendingRefunds, markRefundDone } from "@purosur/domain/payments/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { backofficeOriginGuard, sameOriginGuard } from "../access/backoffice-origin.js";

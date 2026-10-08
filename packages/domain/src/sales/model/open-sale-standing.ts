@@ -1,6 +1,12 @@
-import { cancellableWithoutAuthorization, hasApprovedPayment } from "./payment.js";
-import { type PlannedRefund, plannedRefunds, type RefundablePayment } from "./payment-refund.js";
-import { type SaleBalance, saleBalance } from "./sale-balance.js";
+import {
+  cancellableWithoutAuthorization,
+  hasApprovedPayment,
+  type PlannedRefund,
+  plannedRefunds,
+  type RefundablePayment,
+  type SaleBalance,
+  saleBalance,
+} from "../../payments/index.js";
 
 export interface OpenSaleStanding {
   balance: SaleBalance;

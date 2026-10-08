@@ -12,3 +12,10 @@ export function saleBalance(
     .reduce((sum, payment) => sum + payment.amount, 0);
   return { paid, pending: total - paid };
 }
+
+export function approvedPaymentsCoverTotal(sale: {
+  total: number;
+  payments: readonly { amount: number; state: string }[];
+}): boolean {
+  return saleBalance(sale.total, sale.payments).pending <= 0;
+}

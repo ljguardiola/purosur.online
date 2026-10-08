@@ -1,4 +1,4 @@
-import { markRefundDone } from "@purosur/domain/sales/use-cases";
+import { markRefundDone } from "@purosur/domain/payments/use-cases";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
