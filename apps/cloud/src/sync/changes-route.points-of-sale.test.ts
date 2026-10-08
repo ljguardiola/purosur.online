@@ -4,6 +4,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { registerRouteAccess } from "../access/route-access.js";
 import { DrizzleRegisterPointOfSaleStore } from "../fiscal/drizzle-register-point-of-sale-store.js";
+import { DrizzleTaxAuthorityCounts } from "../fiscal/drizzle-tax-authority-counts.js";
 import { fiscalAddresses, locations, registers, users } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -135,7 +136,12 @@ describe("GET /changes carrying the register's own point of sale", () => {
       {
         entity: "register_point_of_sale",
         entity_id: registerId,
-        row: { point_of_sale_number: 7, fiscal_address_id: fiscalAddressId, version: 1 },
+        row: {
+          point_of_sale_number: 7,
+          fiscal_address_id: fiscalAddressId,
+          tax_authority_last_authorized_number: null,
+          version: 1,
+        },
       },
     ]);
   });
@@ -189,13 +195,103 @@ describe("GET /changes carrying the register's own point of sale", () => {
       {
         entity: "register_point_of_sale",
         entity_id: registerId,
-        row: { point_of_sale_number: 8, fiscal_address_id: fiscalAddressId, version: 2 },
+        row: {
+          point_of_sale_number: 8,
+          fiscal_address_id: fiscalAddressId,
+          tax_authority_last_authorized_number: null,
+          version: 2,
+        },
       },
       {
         entity: "register_point_of_sale",
         entity_id: registerId,
-        row: { point_of_sale_number: 8, fiscal_address_id: fiscalAddressId, version: 2 },
+        row: {
+          point_of_sale_number: 8,
+          fiscal_address_id: fiscalAddressId,
+          tax_authority_last_authorized_number: null,
+          version: 2,
+        },
       },
+    ]);
+  });
+
+  it("gives the tax authority's last authorized number with the point of sale once it is recorded, at the same version", async () => {
+    const locationId = await seededLocationId(db);
+    const registerId = await insertRegister(locationId, "Caja 1");
+    const fiscalAddressId = await insertFiscalAddress();
+    const { deviceToken } = await insertEnrolledInstallation(db, {
+      now: NOW,
+      existingRegisterId: registerId,
+    });
+    await configure({
+      locationId,
+      registerId,
+      pointOfSaleNumber: 7,
+      fiscalAddressId,
+      version: 0,
+      actorId: await insertActor(locationId),
+    });
+
+    await new DrizzleTaxAuthorityCounts(db).record({
+      pointOfSale: 7,
+      lastAuthorized: 41,
+      readAt: NOW,
+    });
+
+    const pulled = await pullAfterSeed(deviceToken);
+    expect(pulled.at(-1)).toEqual({
+      entity: "register_point_of_sale",
+      entity_id: registerId,
+      row: {
+        point_of_sale_number: 7,
+        fiscal_address_id: fiscalAddressId,
+        tax_authority_last_authorized_number: 41,
+        version: 1,
+      },
+    });
+  });
+
+  it("gives a register the count of its own point of sale only", async () => {
+    const locationId = await seededLocationId(db);
+    const registerId = await insertRegister(locationId, "Caja 1");
+    const otherRegisterId = await insertRegister(locationId, "Caja 2");
+    const fiscalAddressId = await insertFiscalAddress();
+    const actorId = await insertActor(locationId);
+    const { deviceToken } = await insertEnrolledInstallation(db, {
+      now: NOW,
+      existingRegisterId: registerId,
+    });
+    await configure({
+      locationId,
+      registerId,
+      pointOfSaleNumber: 7,
+      fiscalAddressId,
+      version: 0,
+      actorId,
+    });
+    await configure({
+      locationId,
+      registerId: otherRegisterId,
+      pointOfSaleNumber: 8,
+      fiscalAddressId,
+      version: 0,
+      actorId,
+    });
+
+    await new DrizzleTaxAuthorityCounts(db).record({
+      pointOfSale: 8,
+      lastAuthorized: 99,
+      readAt: NOW,
+    });
+
+    const pulled = await pullAfterSeed(deviceToken);
+    expect(pulled).toEqual([
+      expect.objectContaining({
+        row: expect.objectContaining({
+          point_of_sale_number: 7,
+          tax_authority_last_authorized_number: null,
+        }),
+      }),
     ]);
   });
 });
