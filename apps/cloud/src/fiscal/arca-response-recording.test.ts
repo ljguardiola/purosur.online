@@ -83,7 +83,7 @@ afterEach(() => {
   rmSync(outDir, { recursive: true, force: true });
 });
 
-function record() {
+function record(options: { now?: () => Date } = {}) {
   return recordArcaResponses({
     certificatePem: credentials.certificatePem,
     privateKeyPem: credentials.privateKeyPem,
@@ -93,6 +93,7 @@ function record() {
     cuit: FICTIONAL_CERTIFICATE_CUIT,
     pointOfSale: POINT_OF_SALE,
     now: () => NOW,
+    ...options,
   });
 }
 
@@ -199,6 +200,17 @@ describe("recordArcaResponses", () => {
     expect(
       [authorized, rejected, outOfOrder].map((request) => sent(request, "CondicionIVAReceptorId")),
     ).toEqual(["5", INVALID_BUYER_TAX_STATUS_CODE, "5"]);
+  });
+
+  it("dates the invoices by the Argentina calendar day of the moment of recording", async () => {
+    await record({ now: () => new Date("2026-10-08T01:30:00.000Z") });
+
+    const invoices = wsfe.requests.slice(4);
+    expect(invoices.map((request) => sent(request, "CbteFch"))).toEqual([
+      "20261007",
+      "20261007",
+      "20261007",
+    ]);
   });
 
   it("makes no invoice call when the last authorized number is not answered", async () => {
