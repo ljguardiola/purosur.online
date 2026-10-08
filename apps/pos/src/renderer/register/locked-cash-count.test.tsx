@@ -66,6 +66,13 @@ const CANCELLABLE_SALE: SessionOpenSale = {
   cancellable: true,
   refunds_on_cancel: [],
 };
+const PART_PAID_SALE: SessionOpenSale = {
+  id: "sale-2",
+  total: 3_434_000,
+  paid: 1_000_000,
+  cancellable: false,
+  refunds_on_cancel: [{ payment_id: "p1", method: "CASH", amount: 1_000_000, state: "APPROVED" }],
+};
 const OPEN_SALE_NOTICE = "Hay una venta abierta de $ 34.340,00";
 const CANCEL_FAILED_NOTICE = "No se pudo cancelar la venta. Probá de nuevo.";
 
@@ -244,18 +251,80 @@ describe("LockedCashCount", () => {
     await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
   });
 
-  it("says a sale is still open and that its opener has to resume the register to finish it when it cannot be cancelled", async () => {
-    const { screen } = await renderStep({
-      loadOpenSale: async () => ({ ...CANCELLABLE_SALE, cancellable: false }),
-    });
+  it("offers to cancel a part-paid sale too, asking first what would be refunded", async () => {
+    const { screen, cancelSale } = await renderStep({ loadOpenSale: async () => PART_PAID_SALE });
 
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
+    await expect.element(screen.getByText("Cancelala para cerrar la caja.")).toBeVisible();
+    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+
+    const dialog = screen.getByRole("dialog", { name: "¿Cancelar la venta?" });
+    await expect.element(dialog.getByText("Venta en curso · Con pagos")).toBeVisible();
+    await expect.element(dialog.getByText("Devolver $ 10.000,00 en efectivo")).toBeVisible();
+    expect(cancelSale).not.toHaveBeenCalled();
+  });
+
+  it("clears the notice and shows the refunds to give back once a part-paid sale is cancelled", async () => {
+    const cancelSale = vi.fn<CancelSale>(async () => ({
+      kind: "cancelled",
+      refunds: PART_PAID_SALE.refunds_on_cancel,
+    }));
+    const { screen, close } = await renderStep({
+      cancelSale,
+      loadOpenSale: async () => PART_PAID_SALE,
+    });
+    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+
+    await screen.getByRole("dialog").getByRole("button", { name: "Cancelar la venta" }).click();
+
+    const cancelled = screen.getByRole("dialog", { name: "Venta cancelada" });
+    await expect.element(cancelled.getByText("Devolver $ 10.000,00 en efectivo")).toBeVisible();
+    await expect.element(screen.getByText(OPEN_SALE_NOTICE)).not.toBeInTheDocument();
+    await cancelled.getByRole("button", { name: "Listo" }).click();
+    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await closeWith(screen, "45.800,00");
+    await expect.poll(() => close).toHaveBeenCalledWith(4_580_000);
+  });
+
+  it("keeps the part-paid sale and says so when the closer may not cancel it", async () => {
+    const { screen } = await renderStep({
+      cancelSale: async () => ({ kind: "not_permitted" }),
+      loadOpenSale: async () => PART_PAID_SALE,
+    });
+    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+
+    await screen.getByRole("dialog").getByRole("button", { name: "Cancelar la venta" }).click();
+
     await expect
-      .element(screen.getByText("Grace tiene que retomar la caja para terminarla o cancelarla."))
+      .element(screen.getByText("No tenés el permiso de anular ventas con pagos."))
       .toBeVisible();
-    await expect
-      .element(screen.getByRole("button", { name: "Cancelar la venta" }))
-      .not.toBeInTheDocument();
+    await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
+  });
+
+  it("clears the notice when the core finds no part-paid sale left to cancel", async () => {
+    const { screen } = await renderStep({
+      cancelSale: async () => ({ kind: "no_open_sale" }),
+      loadOpenSale: async () => PART_PAID_SALE,
+    });
+    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+
+    await screen.getByRole("dialog").getByRole("button", { name: "Cancelar la venta" }).click();
+
+    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await expect.element(screen.getByText(OPEN_SALE_NOTICE)).not.toBeInTheDocument();
+  });
+
+  it("sends the closer back to identification when the core refuses their authorization", async () => {
+    const refusal: CancelLockedSaleOutcome = { kind: "not_locked" };
+    const { screen, refused } = await renderStep({
+      cancelSale: async () => refusal,
+      loadOpenSale: async () => PART_PAID_SALE,
+    });
+    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+
+    await screen.getByRole("dialog").getByRole("button", { name: "Cancelar la venta" }).click();
+
+    await expect.poll(() => refused).toEqual([refusal]);
   });
 
   it("offers to cancel an open sale that can be cancelled as soon as the count is asked for", async () => {
