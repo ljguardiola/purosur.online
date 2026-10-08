@@ -1,5 +1,5 @@
-import type { RegistrationResponseJSON } from "@simplewebauthn/browser";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { registrationResponse } from "../platform/test-support/webauthn-responses";
 import { fetchRegistrationOptions, redeemRecovery, requestRecoveryLink } from "./recovery-api";
 import { creationOptions } from "./test-support/creation-options";
 
@@ -160,7 +160,7 @@ test("fetchRegistrationOptions maps an unexpected status or network failure to f
   await expect(fetchRegistrationOptions("the-token")).resolves.toEqual({ kind: "failed" });
 });
 
-const registration = { id: "cred-id" } as unknown as RegistrationResponseJSON;
+const registration = registrationResponse("cred-id");
 
 test("redeemRecovery sends the token and the passkey registration with its name, reading nothing from the body", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { user_id: "user-1" }));

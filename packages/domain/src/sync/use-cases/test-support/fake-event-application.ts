@@ -60,7 +60,7 @@ export class FakeEventApplication implements EventApplication {
   };
   calls: string[] = [];
   transactions = 0;
-  failRecording = new Map<string, Error>();
+  failRecording = new Map<string, unknown>();
   failOpeningInvariantAlert = false;
   heldByAnotherRun = new Set<string>();
   beforeTransaction: (transactionNumber: number) => void = () => {};

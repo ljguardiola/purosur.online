@@ -1,6 +1,12 @@
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
-import type { FastifyInstance, InjectOptions } from "fastify";
+import type {
+  FastifyInstance,
+  InjectOptions,
+  LightMyRequestCallback,
+  LightMyRequestChain,
+  LightMyRequestResponse,
+} from "fastify";
 import { type BuildAppOptions, buildApp } from "../app.js";
 import { EDGE_ORIGIN_SECRET_HEADER } from "../platform/edge-origin-guard.js";
 
@@ -13,14 +19,30 @@ export function buildTestApp<TQueryResult extends PgQueryResultHKT = PostgresJsQ
   const app = buildApp({ ...options, edgeOriginSecret: TEST_EDGE_ORIGIN_SECRET });
 
   const rawInject = app.inject.bind(app);
-  app.inject = ((injectOptions: InjectOptions | string) => {
+  const withEdgeOriginSecret = (injectOptions: InjectOptions | string): InjectOptions => {
     const normalized: InjectOptions =
       typeof injectOptions === "string" ? { url: injectOptions } : injectOptions;
-    return rawInject({
+    return {
       ...normalized,
       headers: { [EDGE_ORIGIN_SECRET_HEADER]: TEST_EDGE_ORIGIN_SECRET, ...normalized.headers },
-    });
-  }) as unknown as typeof app.inject;
+    };
+  };
+  function inject(injectOptions: InjectOptions | string, callback: LightMyRequestCallback): void;
+  function inject(injectOptions: InjectOptions | string): Promise<LightMyRequestResponse>;
+  function inject(): LightMyRequestChain;
+  function inject(injectOptions?: InjectOptions | string, callback?: LightMyRequestCallback) {
+    if (injectOptions === undefined) {
+      const chain = rawInject();
+      const setHeaders = chain.headers.bind(chain);
+      chain.headers = (headers) =>
+        setHeaders({ [EDGE_ORIGIN_SECRET_HEADER]: TEST_EDGE_ORIGIN_SECRET, ...headers });
+      return chain.headers({});
+    }
+    return callback
+      ? rawInject(withEdgeOriginSecret(injectOptions), callback)
+      : rawInject(withEdgeOriginSecret(injectOptions));
+  }
+  app.inject = inject;
 
   return app;
 }

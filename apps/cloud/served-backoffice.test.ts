@@ -103,8 +103,9 @@ test("the built backoffice runs under the cloud's content security policy withou
   await page.goto(new URL("/sign-in", origin).href);
   const violationReported = page.waitForFunction(
     () =>
-      (window as unknown as { contentSecurityPolicyViolations: string[] })
-        .contentSecurityPolicyViolations.length > 0,
+      "contentSecurityPolicyViolations" in window &&
+      Array.isArray(window.contentSecurityPolicyViolations) &&
+      window.contentSecurityPolicyViolations.length > 0,
   );
   const screenRendered = page.locator("h1").first().waitFor();
   violationReported.catch(() => undefined);
@@ -117,10 +118,8 @@ test("the built backoffice runs under the cloud's content security policy withou
     await signInButton.click();
   }
 
-  const violations = await page.evaluate(
-    () =>
-      (window as unknown as { contentSecurityPolicyViolations: string[] })
-        .contentSecurityPolicyViolations,
+  const violations = await page.evaluate(() =>
+    "contentSecurityPolicyViolations" in window ? window.contentSecurityPolicyViolations : null,
   );
   await context.close();
   expect(violations).toEqual([]);

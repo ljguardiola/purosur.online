@@ -1116,12 +1116,6 @@ test("shows a visible focus outline in strong blue when a sortable header is rea
 });
 
 test("hovers a sortable header to the soft surface, since it sits on the header row's own bone background", async () => {
-  interface DispatchableCdpSession {
-    send(
-      method: "Input.dispatchMouseEvent",
-      params: { type: "mouseMoved"; x: number; y: number },
-    ): Promise<unknown>;
-  }
   const screen = await render(
     <TestTable
       {...commonProps}
@@ -1137,7 +1131,7 @@ test("hovers a sortable header to the soft surface, since it sits on the header 
   expect(getComputedStyle(button).backgroundColor).toBe("rgba(0, 0, 0, 0)");
   expect(getComputedStyle(headerRow).backgroundColor).toBe(tokenRgb("surface-subtle"));
 
-  const session = cdp() as unknown as DispatchableCdpSession;
+  const session = cdp();
   await session.send("Input.dispatchMouseEvent", {
     type: "mouseMoved",
     x: rect.left + rect.width / 2,
@@ -1581,12 +1575,6 @@ test("does not intercept a click landing on the header underneath the loading ba
 // Pausing a compositor transform animation from script doesn't reliably reach the painted frame;
 // reduced motion does, and the screenshot-based pixel read needs the segment still.
 test("keeps a hovered, unfocused header's own hover fill under the updating bar", async () => {
-  interface DispatchableCdpSession {
-    send(
-      method: "Input.dispatchMouseEvent",
-      params: { type: "mouseMoved"; x: number; y: number },
-    ): Promise<unknown>;
-  }
   const session = cdp();
   await session.send("Emulation.setEmulatedMedia", {
     features: [{ name: "prefers-reduced-motion", value: "reduce" }],
@@ -1614,7 +1602,7 @@ test("keeps a hovered, unfocused header's own hover fill under the updating bar"
     await expect.poll(() => segment.getAnimations()).toHaveLength(0);
     expect(segment.getBoundingClientRect().right).toBeLessThan(x);
 
-    await (session as unknown as DispatchableCdpSession).send("Input.dispatchMouseEvent", {
+    await session.send("Input.dispatchMouseEvent", {
       type: "mouseMoved",
       x,
       y: buttonRect.top + buttonRect.height / 2,
