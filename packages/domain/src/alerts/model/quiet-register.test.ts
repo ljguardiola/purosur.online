@@ -17,8 +17,7 @@ function minutesBefore(instant: Date, minutes: number): Date {
 
 function quiet(now: Date, overrides: Partial<Parameters<typeof isRegisterQuiet>[0]> = {}): boolean {
   return isRegisterQuiet({
-    lastAcceptedPushAt: minutesBefore(now, 60),
-    enrolledAt: minutesBefore(now, 600),
+    lastSuccessfulSyncAt: minutesBefore(now, 60),
     hours: HOURS,
     now,
     ...overrides,
@@ -34,34 +33,18 @@ describe("QUIET_REGISTER_LAPSE_MS", () => {
 describe("isRegisterQuiet", () => {
   const now = mondayAt("12:00");
 
-  it("is true when the last accepted push is older than 15 minutes and the lapse lies in business hours", () => {
+  it("is true when the last successful sync is older than 15 minutes and the lapse lies in business hours", () => {
     expect(quiet(now)).toBe(true);
   });
 
-  it("is true when the last accepted push is exactly 15 minutes old", () => {
-    expect(quiet(now, { lastAcceptedPushAt: minutesBefore(now, 15) })).toBe(true);
+  it("is true when the last successful sync is exactly 15 minutes old", () => {
+    expect(quiet(now, { lastSuccessfulSyncAt: minutesBefore(now, 15) })).toBe(true);
   });
 
-  it("is false when the last accepted push is less than 15 minutes old", () => {
+  it("is false when the last successful sync is less than 15 minutes old", () => {
     expect(
-      quiet(now, { lastAcceptedPushAt: new Date(now.getTime() - QUIET_REGISTER_LAPSE_MS + 1) }),
+      quiet(now, { lastSuccessfulSyncAt: new Date(now.getTime() - QUIET_REGISTER_LAPSE_MS + 1) }),
     ).toBe(false);
-  });
-
-  it("counts from the enrollment when no push was ever accepted", () => {
-    expect(quiet(now, { lastAcceptedPushAt: null, enrolledAt: minutesBefore(now, 16) })).toBe(true);
-    expect(quiet(now, { lastAcceptedPushAt: null, enrolledAt: minutesBefore(now, 14) })).toBe(
-      false,
-    );
-  });
-
-  it("counts from the last accepted push, not from the enrollment, once there is one", () => {
-    expect(
-      quiet(now, { lastAcceptedPushAt: minutesBefore(now, 5), enrolledAt: minutesBefore(now, 60) }),
-    ).toBe(false);
-    expect(
-      quiet(now, { lastAcceptedPushAt: minutesBefore(now, 60), enrolledAt: minutesBefore(now, 5) }),
-    ).toBe(true);
   });
 
   it("is false while the lapse starts before the branch opens", () => {
@@ -88,7 +71,7 @@ describe("isRegisterQuiet", () => {
     expect(quiet(now, { hours: [] })).toBe(false);
   });
 
-  it("is false for every moment of business hours when a push was accepted within the lapse", () => {
+  it("is false for every moment of business hours when the register synced within the lapse", () => {
     fc.assert(
       fc.property(
         fc.integer({ min: 9 * 60 + 15, max: 18 * 60 }),
@@ -101,7 +84,7 @@ describe("isRegisterQuiet", () => {
             ),
           );
 
-          return !quiet(at, { lastAcceptedPushAt: minutesBefore(at, minutesAgo) });
+          return !quiet(at, { lastSuccessfulSyncAt: minutesBefore(at, minutesAgo) });
         },
       ),
     );

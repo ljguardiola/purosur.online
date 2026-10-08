@@ -63,6 +63,7 @@ describe("receiving the events a register pushes", () => {
       reports: [],
       observedConditions: [],
       acceptedPushes: [],
+      everyCycleReports: [],
       refusedPushes: [],
       brokenChainRevocations: [],
     });
@@ -254,6 +255,7 @@ describe("receiving the events a register pushes", () => {
       reports: [],
       observedConditions: [],
       acceptedPushes: [],
+      everyCycleReports: [],
       refusedPushes: [],
       brokenChainRevocations: [],
     });
@@ -379,6 +381,35 @@ describe("reporting how the register stands", () => {
             : observation.kind === "register_silent",
         ),
       ).toEqual([]);
+    }
+  });
+
+  it("records that the installation reports on every sync cycle once it accepts a push of no events", async () => {
+    const inbox = new FakeInbox();
+
+    await receive(inbox, []);
+
+    expect(inbox.state.everyCycleReports).toEqual([{ deviceId: DEVICE, at: NOW }]);
+  });
+
+  it("records no every-cycle report for a push that carries events", async () => {
+    const inbox = new FakeInbox();
+
+    await receive(inbox, eventsOf(1));
+
+    expect(inbox.state.everyCycleReports).toEqual([]);
+  });
+
+  it("records no every-cycle report for a push of no events it does not accept", async () => {
+    const revoked = new FakeInbox();
+    revoked.revokedDevices.add(DEVICE);
+    const notAccepted = [
+      await pushReceivedBy(revoked, []),
+      await pushReceivedBy(new FakeInbox(), [], { appVersion: "not-a-version" }),
+    ];
+
+    for (const inbox of notAccepted) {
+      expect(inbox.state.everyCycleReports).toEqual([]);
     }
   });
 

@@ -168,6 +168,7 @@ describe("POST /events", () => {
         appVersion: "1.4.0",
         lastPushedAt: NOW,
         lastAcceptedPushAt: NOW,
+        reportsEveryCycleSince: null,
         walSizeBytes: 4096,
         diskFreeBytes: 50_000_000,
         diskFreeRatio: 0.42,
@@ -175,7 +176,7 @@ describe("POST /events", () => {
     ]);
   });
 
-  it("accepts a push of no events as a sync, answering the ack of what it holds and recording the report", async () => {
+  it("accepts a push of no events as a sync, answering the ack of what it holds, recording the report and that the installation reports on every sync cycle", async () => {
     const { deviceId, deviceToken } = await enroll();
     await push(body(1, 2), `Bearer ${deviceToken}`);
     const [first] = await route.db
@@ -193,7 +194,11 @@ describe("POST /events", () => {
       .select()
       .from(deviceState)
       .where(eq(deviceState.deviceId, deviceId));
-    expect(recorded).toMatchObject({ lastAcceptedPushAt: NOW, appVersion: "1.4.0" });
+    expect(recorded).toMatchObject({
+      lastAcceptedPushAt: NOW,
+      reportsEveryCycleSince: NOW,
+      appVersion: "1.4.0",
+    });
     expect(await route.db.select().from(inbox).where(eq(inbox.deviceId, deviceId))).toHaveLength(2);
   });
 

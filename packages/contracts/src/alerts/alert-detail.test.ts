@@ -35,6 +35,7 @@ const emailChange = {
   escalatedAt: null,
   resolvedAt: null,
   open: true,
+  resolvesByItself: false,
   deliveries: [delivery],
 };
 
@@ -115,6 +116,8 @@ describe("alertDetailSchema", () => {
     ["resolvedAt", undefined],
     ["open", "true"],
     ["open", null],
+    ["resolvesByItself", "false"],
+    ["resolvesByItself", null],
     ["deliveries", null],
     ["deliveries", {}],
   ])("refuses %s as %j", (field, value) => {
@@ -315,14 +318,14 @@ describe("alertDetailSchema", () => {
       expect(alertDetailSchema.safeParse({ ...base, kind, detail }).success).toBe(false);
     });
 
-    it("accepts a silent register that never had a push accepted", () => {
+    it("refuses a silent register with no last accepted push", () => {
       const alert = {
         ...base,
         kind: "register_silent",
         detail: { deviceId: "device-1", lastAcceptedPushAt: null },
       };
 
-      expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
+      expect(alertDetailSchema.safeParse(alert).success).toBe(false);
     });
 
     it("takes a detail of another kind as a mismatch", () => {

@@ -91,7 +91,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
     }
   }, 60_000);
 
-  it("opens the alert of a register that went quiet during the branch's business hours", async () => {
+  it("opens the alert of a register known to report on every sync cycle that went quiet during the branch's business hours", async () => {
     const quiet = await insertEnrolledInstallation(db, { now: NOW });
     await db.insert(branchHours).values({
       locationId: quiet.locationId,
@@ -103,6 +103,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
     await db.insert(deviceState).values({
       deviceId: quiet.deviceId,
       lastAcceptedPushAt: new Date(NOW.getTime() - 20 * MINUTE_MS),
+      reportsEveryCycleSince: new Date(NOW.getTime() - 60 * MINUTE_MS),
     });
     const recovery = await setUpRecovery(
       {

@@ -37,13 +37,13 @@ describe("registerVersionObservation", () => {
 });
 
 describe("quietRegisterObservation", () => {
-  it("holds the silent-register condition of the register, in its branch, naming the device and when it last had a push accepted", () => {
+  it("holds the silent-register condition of the register, in its branch, naming the device and when it last synced", () => {
     expect(
       quietRegisterObservation({
         registerId: "register-1",
         deviceId: "device-1",
         locationId: "location-1",
-        lastAcceptedPushAt: new Date("2026-10-05T14:30:00.000Z"),
+        lastSuccessfulSyncAt: new Date("2026-10-05T14:30:00.000Z"),
       }),
     ).toEqual({
       holds: true,
@@ -54,17 +54,6 @@ describe("quietRegisterObservation", () => {
         detail: { deviceId: "device-1", lastAcceptedPushAt: "2026-10-05T14:30:00.000Z" },
       },
     });
-  });
-
-  it("names no last accepted push for a register that never had one", () => {
-    expect(
-      quietRegisterObservation({
-        registerId: "register-1",
-        deviceId: "device-1",
-        locationId: "location-1",
-        lastAcceptedPushAt: null,
-      }),
-    ).toMatchObject({ alert: { detail: { deviceId: "device-1", lastAcceptedPushAt: null } } });
   });
 });
 

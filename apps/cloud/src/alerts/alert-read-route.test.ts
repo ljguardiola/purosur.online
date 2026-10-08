@@ -226,6 +226,32 @@ describe("GET /alerts/:id", () => {
     ]);
   });
 
+  it("answers whether the alert's kind resolves by itself", async () => {
+    const viewerRoleId = await insertRole("supervisor", ["view_all_alerts"]);
+    const viewerId = await insertUserWithRole("Grace", viewerRoleId);
+    const rawSessionId = await insertSession(viewerId);
+    const closedByHandId = await insertAlert({ audience: "all" });
+    const [quiet] = await db
+      .insert(alerts)
+      .values({
+        kind: "register_silent",
+        scope: "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6",
+        level: "critical",
+        audience: "local",
+        locationId: ownLocationId,
+        detail: { deviceId: "device-1", lastAcceptedPushAt: "2026-01-05T11:30:00.000Z" },
+        openedAt: NOON,
+      })
+      .returning({ id: alerts.id });
+    if (!quiet) throw new Error("test setup: inserting the alert returned no row");
+
+    const closedByHand = await getAlert(rawSessionId, closedByHandId);
+    const resolvesByItself = await getAlert(rawSessionId, quiet.id);
+
+    expect(closedByHand.json()).toMatchObject({ resolvesByItself: false });
+    expect(resolvesByItself.json()).toMatchObject({ resolvesByItself: true });
+  });
+
   it("lists the deliveries by when they were written, ties in a stable order", async () => {
     const viewerRoleId = await insertRole("supervisor", ["view_all_alerts"]);
     const viewerId = await insertUserWithRole("Grace", viewerRoleId);

@@ -54,6 +54,7 @@ function baseDetail(overrides: DetailOverrides = {}): AlertDetail {
     escalatedAt: null,
     resolvedAt: null,
     open: true,
+    resolvesByItself: false,
     deliveries: [],
   };
   return { ...passkeyAlert, ...overrides };
@@ -1099,7 +1100,7 @@ test("shows the fixed plain-language text only for an alert the cloud says is fo
         audience: "all",
         scope: "register-1",
         scopeDisplay: "Caja 1",
-        detail: { deviceId: "device-1", lastAcceptedPushAt: null },
+        detail: { deviceId: "device-1", lastAcceptedPushAt: "2026-01-05T11:30:00.000Z" },
       }),
     ),
   );
@@ -1109,6 +1110,28 @@ test("shows the fixed plain-language text only for an alert the cloud says is fo
   await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("La caja no está sincronizando")).not.toBeInTheDocument();
   await expect.element(screen.getByText(/Hace rato que esta caja/)).not.toBeInTheDocument();
+});
+
+test("says nothing about closing by hand for an open alert the cloud says resolves by itself", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "register_silent",
+        level: "critical",
+        audience: "local",
+        scope: "register-1",
+        scopeDisplay: "Caja 1",
+        resolvesByItself: true,
+        detail: { deviceId: "device-1", lastAcceptedPushAt: "2026-01-05T11:30:00.000Z" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+  expect(screen.getByText(/No se cierra sola/).query()).toBeNull();
 });
 
 test("names the homologation environment of an expiring ARCA certificate", async () => {
