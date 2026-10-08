@@ -7,6 +7,7 @@ import {
 } from "./wsfe-arca-vitality-service.js";
 
 const WSAA_SERVICE = "wsfe";
+const FE_DUMMY_ATTEMPTS = 2;
 
 interface ArcaTestEnvironmentCheckSettings {
   certificatePem: string;
@@ -39,7 +40,7 @@ export interface CheckArcaTestEnvironmentOptions extends ArcaTestEnvironmentChec
   timeoutMs?: number;
 }
 
-type FeDummyCheck = { kind: "ok" } | { kind: "not_ok"; answer: WsfeArcaVitalityResult };
+type FeDummyAttempt = { kind: "ok" } | { kind: "not_ok"; answer: WsfeArcaVitalityResult };
 
 type LoginCheck =
   | { kind: "issued" }
@@ -48,7 +49,7 @@ type LoginCheck =
 
 export interface ArcaTestEnvironmentCheckReport {
   passed: boolean;
-  feDummy: FeDummyCheck;
+  feDummy: FeDummyAttempt[];
   login: LoginCheck;
 }
 
@@ -68,26 +69,35 @@ function soapFaultOf(raw: string | undefined): string | undefined {
   return description === undefined ? code : `${code}: ${description}`;
 }
 
-async function checkFeDummy(options: CheckArcaTestEnvironmentOptions): Promise<FeDummyCheck> {
+async function attemptFeDummy(
+  service: WsfeArcaVitalityService,
+  now: () => Date,
+): Promise<FeDummyAttempt> {
+  const answer = await service.check();
+  const outcome = await checkArcaVitality({
+    vitality: { check: async () => answer },
+    store: { recordVitalityCheck: async () => {} },
+    clock: { now },
+  });
+  return outcome.kind === "ok" ? { kind: "ok" } : { kind: "not_ok", answer };
+}
+
+async function checkFeDummy(options: CheckArcaTestEnvironmentOptions): Promise<FeDummyAttempt[]> {
   const service = new WsfeArcaVitalityService({
     endpoint: options.wsfeEndpoint,
     ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
   });
-  let answer: WsfeArcaVitalityResult | undefined;
-  const outcome = await checkArcaVitality({
-    vitality: {
-      check: async () => {
-        answer = await service.check();
-        return answer;
-      },
-    },
-    store: { recordVitalityCheck: async () => {} },
-    clock: { now: options.now },
-  });
-  if (outcome.kind === "ok" || answer === undefined) {
-    return { kind: "ok" };
-  }
-  return { kind: "not_ok", answer };
+  const attempts: FeDummyAttempt[] = [];
+  let attempt: FeDummyAttempt;
+  do {
+    attempt = await attemptFeDummy(service, options.now);
+    attempts.push(attempt);
+  } while (
+    attempt.kind === "not_ok" &&
+    attempt.answer.kind === "unreachable" &&
+    attempts.length < FE_DUMMY_ATTEMPTS
+  );
+  return attempts;
 }
 
 async function checkLogin(options: CheckArcaTestEnvironmentOptions): Promise<LoginCheck> {
@@ -117,18 +127,28 @@ export async function checkArcaTestEnvironment(
 ): Promise<ArcaTestEnvironmentCheckReport> {
   const feDummy = await checkFeDummy(options);
   const login = await checkLogin(options);
-  return { passed: feDummy.kind === "ok" && login.kind !== "failed", feDummy, login };
+  const passed = feDummy.at(-1)?.kind === "ok" && login.kind !== "failed";
+  return { passed, feDummy, login };
 }
 
-function describeFeDummy(feDummy: FeDummyCheck): string {
-  if (feDummy.kind === "ok") {
-    return "FEDummy: every server answered OK";
+function describeFeDummyAttempt(attempt: FeDummyAttempt): string {
+  if (attempt.kind === "ok") {
+    return "every server answered OK";
   }
-  const { answer } = feDummy;
+  const { answer } = attempt;
   if (answer.kind === "unreachable") {
-    return `FEDummy: no answer the client could read (${answer.cause})`;
+    return `no answer the client could read (${answer.cause})`;
   }
-  return `FEDummy: AppServer ${answer.appServer}, DbServer ${answer.dbServer}, AuthServer ${answer.authServer}`;
+  return `AppServer ${answer.appServer}, DbServer ${answer.dbServer}, AuthServer ${answer.authServer}`;
+}
+
+function describeFeDummy(feDummy: FeDummyAttempt[]): string[] {
+  if (feDummy.length === 1) {
+    return feDummy.map((attempt) => `FEDummy: ${describeFeDummyAttempt(attempt)}`);
+  }
+  return feDummy.map(
+    (attempt, index) => `FEDummy attempt ${index + 1}: ${describeFeDummyAttempt(attempt)}`,
+  );
 }
 
 function describeLogin(login: LoginCheck): string {
@@ -143,7 +163,7 @@ function describeLogin(login: LoginCheck): string {
 }
 
 export function describeArcaTestEnvironmentCheck(report: ArcaTestEnvironmentCheckReport): string[] {
-  return [describeFeDummy(report.feDummy), describeLogin(report.login)];
+  return [...describeFeDummy(report.feDummy), describeLogin(report.login)];
 }
 
 export async function runArcaTestEnvironmentCheck(
