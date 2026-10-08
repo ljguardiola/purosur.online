@@ -1,3 +1,4 @@
+export type { OperationAuthority, OperationAuthorization } from "../../shared/index.js";
 export type { NameMatch } from "../model/product-name-match.js";
 export type { SearchableProduct } from "../model/product-search.js";
 export type {
