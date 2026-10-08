@@ -9,8 +9,8 @@ import {
   retryAfterSecondsOf,
 } from "@purosur/contracts";
 import { isAcceptablePin, isLockedToAnother } from "@purosur/domain";
+import type { SignedInPerson } from "../access/signed-in-person";
 import type { CloudResponse } from "../platform/cloud-client";
-import type { SignedInPerson } from "./signed-in-person";
 
 export interface PinCodeRedemptionDeps {
   readCredentials: () => Promise<DeviceCredentials | undefined>;

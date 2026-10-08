@@ -1,13 +1,13 @@
 import type { SyncChange } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { derivePinVerifier } from "../access/pin-verifier";
+import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { SqliteLocalReplica } from "../sync/sqlite-local-replica";
-import { derivePinVerifier } from "./pin-verifier";
 import { applyRedeemedPin } from "./redeemed-pin";
-import { SqliteSignInStore } from "./sqlite-sign-in-store";
 
 const USER_ID = "1e7b3a90-52c4-4d18-9f6a-8b0c2d4e6f71";
 const OTHER_USER_ID = "2f8c4ba1-63d5-4e29-8a7b-9c1d3e5f7a82";
