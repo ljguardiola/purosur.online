@@ -29,6 +29,7 @@ import {
   locations,
   passkeyChallenges,
   passkeys,
+  paymentRefunds,
   pinCodeRedemptionAttempts,
   pointOfSaleClaims,
   priceLists,
@@ -347,6 +348,15 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       tendered: 2400,
       state: "APPROVED",
       occurredAt: new Date("2026-01-05T12:10:00.000Z"),
+    });
+    await db.insert(paymentRefunds).values({
+      id: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e26",
+      paymentId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e24",
+      method: "CASH",
+      provider: "NONE",
+      amount: 2400,
+      state: "APPROVED",
+      occurredAt: new Date("2026-01-05T12:12:00.000Z"),
     });
     await db.insert(cashMovements).values({
       id: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e25",
