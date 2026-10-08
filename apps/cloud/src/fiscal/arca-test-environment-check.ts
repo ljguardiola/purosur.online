@@ -9,7 +9,7 @@ import { WsfeArcaVitalityService } from "./wsfe-arca-vitality-service.js";
 
 const WSAA_SERVICE = "wsfe";
 
-export interface ArcaTestEnvironmentCheckSettings {
+interface ArcaTestEnvironmentCheckSettings {
   certificatePem: string;
   privateKeyPem: string;
 }
@@ -40,9 +40,9 @@ export interface CheckArcaTestEnvironmentOptions extends ArcaTestEnvironmentChec
   timeoutMs?: number;
 }
 
-export type FeDummyCheck = { kind: "ok" } | { kind: "not_ok"; answer: ArcaVitalityResult };
+type FeDummyCheck = { kind: "ok" } | { kind: "not_ok"; answer: ArcaVitalityResult };
 
-export type LoginCheck =
+type LoginCheck =
   | { kind: "issued" }
   | { kind: "already_authenticated" }
   | { kind: "failed"; fault: string | undefined };

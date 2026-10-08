@@ -24,7 +24,8 @@
       "entry": [
         "src/load-sample-data.ts",
         "src/clear-sample-data.ts",
-        "src/record-arca-responses.ts"
+        "src/record-arca-responses.ts",
+    "src/check-arca-test-environment.ts"
       ],
       "includeEntryExports": true
     },
