@@ -317,7 +317,7 @@ export async function cancelSaleFor({
   gate,
 }: Pick<SaleRequestDeps, "database" | "gate">): Promise<CancelSaleOutcome> {
   const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
-    cancelSale({ ledger: saleLedger(database) }, { actorId: signedInUserId, from: "sale" }),
+    cancelSale({ ledger: saleLedger(database) }, { actorId: signedInUserId }),
   );
   if (guarded.kind !== "performed") {
     return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
