@@ -30,6 +30,12 @@ if (import.meta.main) {
           );
           process.exit(1);
         }
+        if (!report.invoicesRecorded) {
+          console.error(
+            "record-arca-responses: ARCA listed no Consumidor Final for invoice class C or gave no last authorized number, so no invoice was requested",
+          );
+          process.exit(1);
+        }
       })
       .catch((error: unknown) => {
         console.error(
