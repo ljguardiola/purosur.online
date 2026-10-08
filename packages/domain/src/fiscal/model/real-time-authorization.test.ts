@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   AUTHORIZATION_CALL_MARGIN_MS,
   authorizationCallDeadline,
+  invoiceDateOf,
   mayStartAuthorizationCall,
   medianRoundTripMs,
+  nextInvoiceNumber,
   REAL_TIME_AUTHORIZATION_TIMEOUT_MS,
   ROUND_TRIP_SAMPLE_SIZE,
 } from "./real-time-authorization.js";
@@ -145,5 +147,55 @@ describe("mayStartAuthorizationCall", () => {
 
   it("refuses the call once the deadline has passed", () => {
     expect(mayStartAuthorizationCall(deadline, new Date(deadline.getTime() + 1))).toBe(false);
+  });
+});
+
+describe("nextInvoiceNumber", () => {
+  it("is unknown while the tax authority's count is unknown", () => {
+    expect(
+      nextInvoiceNumber({ localLastAuthorized: 7, taxAuthorityLastAuthorized: null }),
+    ).toBeNull();
+  });
+
+  it("follows the tax authority's count when the register authorized nothing yet", () => {
+    expect(nextInvoiceNumber({ localLastAuthorized: null, taxAuthorityLastAuthorized: 40 })).toBe(
+      41,
+    );
+  });
+
+  it("is the first number when neither authorized anything", () => {
+    expect(nextInvoiceNumber({ localLastAuthorized: null, taxAuthorityLastAuthorized: 0 })).toBe(1);
+  });
+
+  it("follows the register's own count when it is ahead of the tax authority's", () => {
+    expect(nextInvoiceNumber({ localLastAuthorized: 45, taxAuthorityLastAuthorized: 40 })).toBe(46);
+  });
+
+  it("follows the larger of the two counts, plus one", () => {
+    fc.assert(
+      fc.property(
+        fc.option(fc.nat({ max: 100_000_000 }), { nil: null }),
+        fc.nat({ max: 100_000_000 }),
+        (localLastAuthorized, taxAuthorityLastAuthorized) => {
+          expect(nextInvoiceNumber({ localLastAuthorized, taxAuthorityLastAuthorized })).toBe(
+            Math.max(localLastAuthorized ?? 0, taxAuthorityLastAuthorized) + 1,
+          );
+        },
+      ),
+    );
+  });
+});
+
+describe("invoiceDateOf", () => {
+  it("is the calendar day in Argentina", () => {
+    expect(invoiceDateOf(new Date("2026-10-01T23:30:00.000Z"))).toBe("2026-10-01");
+  });
+
+  it("is still the day before in Argentina after midnight UTC", () => {
+    expect(invoiceDateOf(new Date("2026-10-02T02:59:59.000Z"))).toBe("2026-10-01");
+  });
+
+  it("is the next day in Argentina from 03:00 UTC", () => {
+    expect(invoiceDateOf(new Date("2026-10-02T03:00:00.000Z"))).toBe("2026-10-02");
   });
 });
