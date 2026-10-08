@@ -1,8 +1,8 @@
+import type { Clock } from "../../shared/index.js";
 import { increasesAccess } from "../model/access-increase.js";
 import { isLastActiveAdministrator } from "../model/last-active-administrator.js";
 import type { BranchUser } from "./branch-users.js";
 import { findBranchUser } from "./find-branch-user.js";
-import type { Clock } from "./pin-code-store.js";
 import { UserEmailConflict, type UserStore } from "./user-store.js";
 
 export interface EditUserPorts {

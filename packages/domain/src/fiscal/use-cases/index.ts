@@ -1,9 +1,9 @@
+export type { Clock } from "../../shared/index.js";
 export type { ArcaReachabilityEvidence } from "../model/arca-reachability.js";
 export type {
   ArcaCertificateExpiryPorts,
   ArcaCertificateExpiryStore,
   ArcaCertificateExpiryStoreTransaction,
-  Clock,
   NewCertificateExpiringAlert,
   OpenCertificateExpiringAlert,
 } from "./arca-certificate-expiry-store.js";

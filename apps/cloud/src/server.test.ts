@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support";
-import type { FastifyInstance } from "fastify";
+import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { type BuildAppOptions, buildApp as buildRealApp } from "./app.js";
 import { generateArcaTestCredentials } from "./fiscal/test-support/arca-test-credentials.js";
@@ -366,10 +366,19 @@ describe("resolveRecoveryEnv", () => {
 
 const now = () => new Date("2026-01-05T12:00:00.000Z");
 
+function appListeningBy(listen: (...args: unknown[]) => Promise<unknown>): FastifyInstance {
+  const app = Fastify();
+  app.listen = async (...args: unknown[]) => {
+    await listen(...args);
+    return "";
+  };
+  return app;
+}
+
 describe("startServer", () => {
   it("initializes Sentry, builds the app with the resolved version and static dir, and listens on PORT/0.0.0.0", async () => {
     const listen = vi.fn().mockResolvedValue(undefined);
-    const fakeApp = { listen } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+    const fakeApp = appListeningBy(listen);
     const initSentry = vi.fn();
     const buildApp = vi.fn().mockReturnValue(fakeApp);
 
@@ -408,7 +417,7 @@ describe("startServer", () => {
 
   it("tags the cloud's error reports with the same version the app serves when APP_VERSION is empty", async () => {
     const listen = vi.fn().mockResolvedValue(undefined);
-    const fakeApp = { listen } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+    const fakeApp = appListeningBy(listen);
     const initSentry = vi.fn();
     const buildApp = vi.fn().mockReturnValue(fakeApp);
 
@@ -428,7 +437,7 @@ describe("startServer", () => {
 
   it("gives the app the backoffice's error reporting when its DSN is configured", async () => {
     const listen = vi.fn().mockResolvedValue(undefined);
-    const fakeApp = { listen } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+    const fakeApp = appListeningBy(listen);
     const buildApp = vi.fn().mockReturnValue(fakeApp);
 
     await startServer(
@@ -464,7 +473,7 @@ describe("startServer", () => {
 
   it("builds the app with an undefined staticDir when none is configured and the default doesn't exist", async () => {
     const listen = vi.fn().mockResolvedValue(undefined);
-    const fakeApp = { listen } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+    const fakeApp = appListeningBy(listen);
     const buildApp = vi.fn().mockReturnValue(fakeApp);
 
     await startServer(
@@ -482,7 +491,7 @@ describe("startServer", () => {
 
   it("builds the app with no recovery option when DATABASE_URL is not set", async () => {
     const listen = vi.fn().mockResolvedValue(undefined);
-    const fakeApp = { listen } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+    const fakeApp = appListeningBy(listen);
     const buildApp = vi.fn().mockReturnValue(fakeApp);
     const setUpRecovery = vi.fn();
 
@@ -540,7 +549,7 @@ describe("startServer", () => {
 
   it("does not require ARCA_CERTIFICATE when DATABASE_URL is not set", async () => {
     const listen = vi.fn().mockResolvedValue(undefined);
-    const fakeApp = { listen } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+    const fakeApp = appListeningBy(listen);
     const buildApp = vi.fn().mockReturnValue(fakeApp);
 
     await startServer(
@@ -659,15 +668,7 @@ describe("startServer", () => {
 
   it("wires the resolved recovery infrastructure into the app and closes it when the app closes", async () => {
     const listen = vi.fn().mockResolvedValue(undefined);
-    const onCloseHooks: Array<() => Promise<void>> = [];
-    const fakeApp = {
-      listen,
-      addHook: vi.fn((name: string, hook: () => Promise<void>) => {
-        if (name === "onClose") {
-          onCloseHooks.push(hook);
-        }
-      }),
-    } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+    const fakeApp = appListeningBy(listen);
     const buildApp = vi.fn().mockReturnValue(fakeApp);
     const close = vi.fn().mockResolvedValue(undefined);
     const fakeRecovery = {
@@ -824,12 +825,7 @@ describe("startServer", () => {
       },
     });
 
-    expect(onCloseHooks).toHaveLength(1);
-    const [onClose] = onCloseHooks;
-    if (!onClose) {
-      throw new Error("test setup: expected an onClose hook to have been registered");
-    }
-    await onClose();
+    await fakeApp.close();
     expect(close).toHaveBeenCalledTimes(1);
   });
 });
@@ -850,12 +846,11 @@ describe("startServer recording the certificate's CUIT", () => {
 
   it("records the certificate's CUIT for the issuer identification before it starts listening", async () => {
     const steps: string[] = [];
-    const fakeApp = {
-      listen: vi.fn(async () => {
+    const fakeApp = appListeningBy(
+      vi.fn(async () => {
         steps.push("listen");
       }),
-      addHook: vi.fn(),
-    } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+    );
     const db = { marker: "fake-db" };
     const setUpRecovery = vi.fn().mockResolvedValue({
       db,
@@ -883,10 +878,7 @@ describe("startServer recording the certificate's CUIT", () => {
 
   it("records no CUIT when no database is configured", async () => {
     const recordAuthorizedCuit = vi.fn();
-    const fakeApp = {
-      listen: vi.fn().mockResolvedValue(undefined),
-      addHook: vi.fn(),
-    } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+    const fakeApp = appListeningBy(vi.fn().mockResolvedValue(undefined));
 
     await startServer(
       { EDGE_ORIGIN_SECRET: "edge-secret" },
@@ -918,12 +910,11 @@ describe("startServer checking the certificate's expiry", () => {
 
   it("enqueues the check on the started job queue before it starts listening", async () => {
     const steps: string[] = [];
-    const fakeApp = {
-      listen: vi.fn(async () => {
+    const fakeApp = appListeningBy(
+      vi.fn(async () => {
         steps.push("listen");
       }),
-      addHook: vi.fn(),
-    } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+    );
     const recovery = {
       db: { marker: "fake-db" },
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
@@ -996,10 +987,7 @@ describe("startServer with the ARCA private key", () => {
   };
 
   function start(env: Record<string, string>) {
-    const fakeApp = {
-      listen: vi.fn().mockResolvedValue(undefined),
-      addHook: vi.fn(),
-    } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+    const fakeApp = appListeningBy(vi.fn().mockResolvedValue(undefined));
     const setUpRecovery = vi.fn().mockResolvedValue({
       db: {},
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
@@ -1146,10 +1134,7 @@ describe("startServer with the ARCA private key", () => {
 
   it("asks for no key when no database is configured", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const fakeApp = {
-      listen: vi.fn().mockResolvedValue(undefined),
-      addHook: vi.fn(),
-    } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+    const fakeApp = appListeningBy(vi.fn().mockResolvedValue(undefined));
 
     await startServer(
       { EDGE_ORIGIN_SECRET: "edge-secret" },
@@ -1181,12 +1166,11 @@ describe("startServer fetching the buyer tax-status values", () => {
 
   function start(startEnv: Record<string, string>) {
     const steps: string[] = [];
-    const fakeApp = {
-      listen: vi.fn(async () => {
+    const fakeApp = appListeningBy(
+      vi.fn(async () => {
         steps.push("listen");
       }),
-      addHook: vi.fn(),
-    } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+    );
     const recovery = {
       db: {},
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
@@ -1271,7 +1255,7 @@ describe("startServer with the real app", () => {
     const builtApps: FastifyInstance[] = [];
     const buildAppWithoutListening = (options: BuildAppOptions): FastifyInstance => {
       const app = buildRealApp(options);
-      app.listen = vi.fn().mockResolvedValue("") as unknown as FastifyInstance["listen"];
+      app.listen = async () => "";
       builtApps.push(app);
       return app;
     };
@@ -1531,10 +1515,7 @@ describe("startServer ARCA endpoints", () => {
   };
 
   it("hands setUpRecovery the endpoints it was given instead of ARCA's own", async () => {
-    const fakeApp = {
-      listen: vi.fn().mockResolvedValue(undefined),
-      addHook: vi.fn(),
-    } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+    const fakeApp = appListeningBy(vi.fn().mockResolvedValue(undefined));
     const setUpRecovery = vi.fn().mockResolvedValue({
       db: {},
       jobQueue: { enqueueRecoveryRequest: vi.fn() },

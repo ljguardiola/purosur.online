@@ -6,7 +6,6 @@ import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { contrastRatio, NON_TEXT_CONTRAST } from "../../styles/contrast";
 import { expectNoAccessibilityViolations } from "../../test/axe";
-import type { DispatchableCdpSession } from "../../test/setup-browser";
 import { rgbToHex, tokenRgb } from "../../test/token-colors";
 import type { Icon } from "../shared/icon";
 import { IconButton, type IconButtonProps } from "./icon-button";
@@ -288,7 +287,7 @@ const lockedReason = "La venta ya no se puede cambiar porque tiene un pago aprob
 
 async function renderLocked(onPress = vi.fn()) {
   await page.viewport(1280, 900);
-  const session = cdp() as unknown as DispatchableCdpSession;
+  const session = cdp();
   await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
   window.focus();
   const screen = await render(

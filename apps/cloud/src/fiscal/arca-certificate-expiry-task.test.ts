@@ -1,5 +1,5 @@
-import type { JobHelpers } from "graphile-worker";
 import { describe, expect, it, vi } from "vitest";
+import { buildJobHelpers } from "../test-support/job-helpers.js";
 import {
   ARCA_CERTIFICATE_EXPIRY_CHECK_TASK_IDENTIFIER,
   arcaCertificateExpiryJobs,
@@ -22,12 +22,9 @@ describe("arcaCertificateExpiryJobs", () => {
   });
 
   it("checks the configured environment and expiry through a client borrowed from graphile-worker's own pool", async () => {
-    const fakeClient = { marker: "fake-client" };
+    const { helpers, client: fakeClient } = buildJobHelpers();
     const fakeDb = { marker: "fake-db" };
     const createDatabase = vi.fn().mockReturnValue(fakeDb);
-    const withPgClient = vi.fn(async (callback: (client: unknown) => Promise<unknown>) =>
-      callback(fakeClient),
-    );
     const check = vi.fn().mockResolvedValue({ kind: "opened" });
 
     const jobs = arcaCertificateExpiryJobs(
@@ -39,7 +36,7 @@ describe("arcaCertificateExpiryJobs", () => {
       throw new Error("test setup: expected the registered certificate expiry check task");
     }
 
-    await task({}, { withPgClient } as unknown as JobHelpers);
+    await task({}, helpers);
 
     expect(createDatabase).toHaveBeenCalledWith(fakeClient);
     expect(check).toHaveBeenCalledTimes(1);

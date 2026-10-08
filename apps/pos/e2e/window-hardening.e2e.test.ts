@@ -1,4 +1,4 @@
-import type { ElectronApplication, Page } from "playwright";
+import type { ElectronApplication, JSHandle, Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { launchApp } from "./launch-app";
 import { until } from "./test-support/until";
@@ -10,38 +10,41 @@ interface NavigationAttempt {
 
 // Registered after `guardWindow`'s own will-navigate listener runs at startup, so by the time
 // this one runs, `event.defaultPrevented` already reflects what `guardWindow` decided.
-async function recordNavigationAttempts(app: ElectronApplication): Promise<void> {
-  await app.evaluate(({ BrowserWindow }) => {
+function recordNavigationAttempts(
+  app: ElectronApplication,
+): Promise<JSHandle<NavigationAttempt[]>> {
+  return app.evaluateHandle(({ BrowserWindow }) => {
     const window = BrowserWindow.getAllWindows()[0];
-    const probe = globalThis as unknown as { __navigationAttempts: NavigationAttempt[] };
-    probe.__navigationAttempts = [];
+    const attempts: NavigationAttempt[] = [];
     window?.webContents.on("will-navigate", (event, url) => {
-      probe.__navigationAttempts.push({ url, prevented: event.defaultPrevented });
+      attempts.push({ url, prevented: event.defaultPrevented });
     });
+    return attempts;
   });
 }
 
 async function lastNavigationAttemptFor(
-  app: ElectronApplication,
+  navigationAttempts: JSHandle<NavigationAttempt[]>,
   urlPrefix: string,
 ): Promise<NavigationAttempt | undefined> {
-  const attempts = await app.evaluate((_electron, prefix) => {
-    const probe = globalThis as unknown as { __navigationAttempts?: NavigationAttempt[] };
-    return (probe.__navigationAttempts ?? []).filter((attempt) => attempt.url.startsWith(prefix));
-  }, urlPrefix);
+  const attempts = await navigationAttempts.evaluate(
+    (recorded, prefix) => recorded.filter((attempt) => attempt.url.startsWith(prefix)),
+    urlPrefix,
+  );
   return attempts.at(-1);
 }
 
 describe("the register's hardened window", () => {
   let app: ElectronApplication;
   let page: Page;
+  let navigationAttempts: JSHandle<NavigationAttempt[]>;
 
   beforeAll(async () => {
     const launched = await launchApp();
     app = launched.app;
     page = await app.firstWindow();
     await page.waitForLoadState("domcontentloaded");
-    await recordNavigationAttempts(app);
+    navigationAttempts = await recordNavigationAttempts(app);
   });
 
   afterAll(async () => {
@@ -73,11 +76,16 @@ describe("the register's hardened window", () => {
     }
 
     const preferences = await app.evaluate(({ BrowserWindow }) => {
-      const window = BrowserWindow.getAllWindows()[0];
-      const webContents = window?.webContents as unknown as
-        | WebContentsWithLastPreferences
-        | undefined;
-      const webPreferences = webContents?.getLastWebPreferences();
+      const hasLastPreferences = (
+        candidate: object | undefined,
+      ): candidate is WebContentsWithLastPreferences =>
+        candidate !== undefined &&
+        "getLastWebPreferences" in candidate &&
+        typeof candidate.getLastWebPreferences === "function";
+      const webContents = BrowserWindow.getAllWindows()[0]?.webContents;
+      const webPreferences = hasLastPreferences(webContents)
+        ? webContents.getLastWebPreferences()
+        : undefined;
       return {
         contextIsolation: webPreferences?.contextIsolation,
         sandbox: webPreferences?.sandbox,
@@ -90,10 +98,10 @@ describe("the register's hardened window", () => {
 
   it("exposes nothing Node- or Sentry-shaped on the page's window", async () => {
     const exposed = await page.evaluate(() => ({
-      require: typeof (window as unknown as Record<string, unknown>)["require"],
-      process: typeof (window as unknown as Record<string, unknown>)["process"],
-      sentryIpc: typeof (window as unknown as Record<string, unknown>)["__SENTRY_IPC__"],
-      electron: typeof (window as unknown as Record<string, unknown>)["electron"],
+      require: "require" in window ? typeof window.require : "undefined",
+      process: "process" in window ? typeof window.process : "undefined",
+      sentryIpc: "__SENTRY_IPC__" in window ? typeof window.__SENTRY_IPC__ : "undefined",
+      electron: "electron" in window ? typeof window.electron : "undefined",
     }));
 
     expect(exposed).toEqual({
@@ -121,48 +129,47 @@ describe("the register's hardened window", () => {
     const remoteScript = "https://example.com/x.js";
     // A resource the policy lets through leaves the renderer as a request, which main records and
     // cancels; a blocked one only raises its violation. Either ends the wait for it.
-    await app.evaluate(
+    const requestedHandle = await app.evaluateHandle(
       ({ session }, urls) => {
-        const probe = globalThis as unknown as { __requestedUrls: string[] };
-        probe.__requestedUrls = [];
+        const requestedUrlList: string[] = [];
         session.defaultSession.webRequest.onBeforeRequest({ urls }, (details, callback) => {
-          probe.__requestedUrls.push(details.url);
+          requestedUrlList.push(details.url);
           callback({ cancel: true });
         });
+        return requestedUrlList;
       },
       [remoteImage, remoteScript],
     );
-    const requestedUrls = (): Promise<string[]> =>
-      app.evaluate(() => (globalThis as unknown as { __requestedUrls: string[] }).__requestedUrls);
-    const pageState = (): Promise<{ blockedUris: string[]; inlineRan: boolean }> =>
-      page.evaluate(() => ({
-        blockedUris: (window as unknown as { __blockedUris: string[] }).__blockedUris,
-        inlineRan: (window as unknown as Record<string, unknown>)["__inlineRan"] === true,
-      }));
+    const requestedUrls = (): Promise<string[]> => requestedHandle.jsonValue();
+
+    const blocked = await page.evaluateHandle(
+      ({ image: imageUrl, script: scriptUrl }) => {
+        const blockedUris: string[] = [];
+        document.addEventListener("securitypolicyviolation", (event) => {
+          blockedUris.push(event.blockedURI);
+        });
+
+        const image = document.createElement("img");
+        image.src = imageUrl;
+        document.body.append(image);
+
+        const script = document.createElement("script");
+        script.src = scriptUrl;
+        document.body.append(script);
+
+        const inline = document.createElement("script");
+        inline.textContent = "window.__inlineRan = true";
+        document.body.append(inline);
+        return blockedUris;
+      },
+      { image: remoteImage, script: remoteScript },
+    );
+    const pageState = async (): Promise<{ blockedUris: string[]; inlineRan: boolean }> => ({
+      blockedUris: await blocked.jsonValue(),
+      inlineRan: await page.evaluate(() => "__inlineRan" in window && window.__inlineRan === true),
+    });
 
     try {
-      await page.evaluate(
-        ({ image: imageUrl, script: scriptUrl }) => {
-          const blockedUris: string[] = [];
-          Object.assign(window, { __blockedUris: blockedUris });
-          document.addEventListener("securitypolicyviolation", (event) => {
-            blockedUris.push(event.blockedURI);
-          });
-
-          const image = document.createElement("img");
-          image.src = imageUrl;
-          document.body.append(image);
-
-          const script = document.createElement("script");
-          script.src = scriptUrl;
-          document.body.append(script);
-
-          const inline = document.createElement("script");
-          inline.textContent = "window.__inlineRan = true";
-          document.body.append(inline);
-        },
-        { image: remoteImage, script: remoteScript },
-      );
       await until(async () => {
         const [{ blockedUris, inlineRan }, requested] = await Promise.all([
           pageState(),
@@ -204,8 +211,11 @@ describe("the register's hardened window", () => {
       window.location.href = url;
     }, targetUrlPrefix);
 
-    await until(async () => (await lastNavigationAttemptFor(app, targetUrlPrefix)) !== undefined);
-    const attempt = await lastNavigationAttemptFor(app, targetUrlPrefix);
+    await until(
+      async () =>
+        (await lastNavigationAttemptFor(navigationAttempts, targetUrlPrefix)) !== undefined,
+    );
+    const attempt = await lastNavigationAttemptFor(navigationAttempts, targetUrlPrefix);
 
     expect(attempt?.prevented).toBe(true);
     expect(page.url()).toBe(before);
@@ -218,8 +228,10 @@ describe("the register's hardened window", () => {
       window.location.href = url;
     }, targetUrl);
 
-    await until(async () => (await lastNavigationAttemptFor(app, targetUrl)) !== undefined);
-    const attempt = await lastNavigationAttemptFor(app, targetUrl);
+    await until(
+      async () => (await lastNavigationAttemptFor(navigationAttempts, targetUrl)) !== undefined,
+    );
+    const attempt = await lastNavigationAttemptFor(navigationAttempts, targetUrl);
 
     expect(attempt?.prevented).toBe(true);
     expect(page.url()).toBe(before);

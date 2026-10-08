@@ -31,10 +31,8 @@ describe("the register's renderer under its content security policy", () => {
 
     await page.getByRole("button", { name: "Dar de alta" }).click();
 
-    const violations = await page.evaluate(
-      () =>
-        (window as unknown as { contentSecurityPolicyViolations: string[] })
-          .contentSecurityPolicyViolations,
+    const violations = await page.evaluate(() =>
+      "contentSecurityPolicyViolations" in window ? window.contentSecurityPolicyViolations : null,
     );
     expect(violations).toEqual([]);
   });

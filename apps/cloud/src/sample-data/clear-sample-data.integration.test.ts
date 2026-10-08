@@ -113,7 +113,7 @@ async function tableCount(
   const [row] = await db.execute<{ count: number }>(
     sql.raw(`select count(*)::int as count from "${tableName}"`),
   );
-  return row ? Number((row as unknown as { count: number }).count) : 0;
+  return row ? Number(row.count) : 0;
 }
 
 // `version` counts edits, so loading and then clearing advances it even when the settings end
@@ -154,7 +154,8 @@ async function sampleDataSnapshot(
         `select coalesce(jsonb_agg(to_jsonb(t) - '${excluded}' order by (to_jsonb(t) - '${excluded}')::text), '[]'::jsonb) as rows from "${tableName}" t`,
       ),
     );
-    snapshot[tableName] = (row as unknown as { rows: unknown }).rows;
+    if (!row) throw new Error(`test setup: no snapshot row for ${tableName}`);
+    snapshot[tableName] = row.rows;
   }
   return snapshot;
 }
@@ -172,7 +173,7 @@ async function sampleCategoryIdByPath(
         where top.parent_id is null and top.name = ${topName}
           and mid.name = ${midName} and leaf.name = ${leafName}`,
   );
-  const id = (rows as unknown as { id: string }[])[0]?.id;
+  const id = rows[0]?.id;
   if (!id) throw new Error(`test setup: no sample category ${topName} > ${midName} > ${leafName}`);
   return id;
 }
@@ -402,7 +403,7 @@ describe("clearSampleData", () => {
           join categories top on top.id = mid.parent_id
           where top.parent_id is null and top.name = 'Almacén' and mid.name = 'Aceites y Aderezos'`,
     );
-    const sampleMidId = (sampleMidRows as unknown as { id: string }[])[0]?.id;
+    const sampleMidId = sampleMidRows[0]?.id;
     if (!sampleMidId)
       throw new Error("test setup: no sample category Almacén > Aceites y Aderezos");
     const realCategory = await createCategory(new DrizzleCatalogStore(db), {

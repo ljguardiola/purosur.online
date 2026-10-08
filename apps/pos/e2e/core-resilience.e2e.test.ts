@@ -23,7 +23,9 @@ async function coreProcesses(app: ElectronApplication): Promise<UtilityProcessIn
 }
 
 async function portCount(page: Page): Promise<number> {
-  return page.evaluate(() => (window as unknown as { __ports: unknown[] }).__ports.length);
+  return page.evaluate(() =>
+    "__ports" in window && Array.isArray(window.__ports) ? window.__ports.length : 0,
+  );
 }
 
 describe("the core process's supervision and message gate", () => {
@@ -42,10 +44,11 @@ describe("the core process's supervision and message gate", () => {
     // addInitScript runs before any page script, so no port main posts can arrive ahead of its
     // listener; the first document was already loading, so the reload puts the test under it.
     await app.context().addInitScript(() => {
-      (window as unknown as { __ports: MessagePort[] }).__ports = [];
+      const ports: MessagePort[] = [];
+      Object.assign(window, { __ports: ports });
       window.addEventListener("message", (event) => {
         if (event.data === "core-port" && event.ports[0]) {
-          (window as unknown as { __ports: MessagePort[] }).__ports.push(event.ports[0]);
+          ports.push(event.ports[0]);
         }
       });
     });
@@ -87,7 +90,11 @@ describe("the core process's supervision and message gate", () => {
     logs.length = 0;
 
     await page.evaluate(() => {
-      const port = (window as unknown as { __ports: MessagePort[] }).__ports.at(-1);
+      const ports =
+        "__ports" in window && Array.isArray(window.__ports)
+          ? window.__ports.filter((candidate) => candidate instanceof MessagePort)
+          : [];
+      const port = ports.at(-1);
       port?.start();
       port?.postMessage({ type: "bogus", secret: "4111-1111" });
       port?.postMessage({ type: "ping" });

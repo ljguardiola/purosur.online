@@ -1,4 +1,5 @@
-import type { Clock, PinCodeGenerator, PinCodeStoreTransaction } from "./pin-code-store.js";
+import type { Clock } from "../../shared/index.js";
+import type { PinCodeGenerator, PinCodeStoreTransaction } from "./pin-code-store.js";
 
 export interface FirstPinCodeTarget {
   active: boolean;

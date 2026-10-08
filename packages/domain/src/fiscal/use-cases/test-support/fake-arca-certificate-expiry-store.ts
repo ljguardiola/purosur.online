@@ -1,7 +1,7 @@
+import type { Clock } from "../../../shared/index.js";
 import type {
   ArcaCertificateExpiryStore,
   ArcaCertificateExpiryStoreTransaction,
-  Clock,
   NewCertificateExpiringAlert,
   OpenCertificateExpiringAlert,
 } from "../arca-certificate-expiry-store.js";

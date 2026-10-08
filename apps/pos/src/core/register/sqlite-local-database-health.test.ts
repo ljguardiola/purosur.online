@@ -54,7 +54,7 @@ describe("sqliteIntegrityHolds", () => {
       pragma: () => {
         throw new Database.SqliteError("database disk image is malformed", "SQLITE_CORRUPT");
       },
-    } as unknown as Database.Database;
+    };
 
     expect(sqliteIntegrityHolds(database)).toBe(false);
   });
@@ -65,7 +65,7 @@ describe("sqliteIntegrityHolds", () => {
       pragma: () => {
         throw failure;
       },
-    } as unknown as Database.Database;
+    };
 
     expect(() => sqliteIntegrityHolds(database)).toThrow(failure);
   });

@@ -18,6 +18,17 @@ body:
     validations:
       required: true
   - type: textarea
+    id: domain-concepts
+    attributes:
+      label: Domain concepts
+      description: >-
+        The business concept each rule above belongs to, named after one of the top-level folders
+        of `packages/domain/src`, including the ones that are still empty. Choose against the whole
+        list, not the folder where similar code already sits. When no folder fits, write
+        "new concept: <name>".
+    validations:
+      required: true
+  - type: textarea
     id: acceptance-criteria
     attributes:
       label: Acceptance criteria (Given / When / Then)

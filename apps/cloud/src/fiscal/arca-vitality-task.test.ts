@@ -1,5 +1,5 @@
-import type { JobHelpers } from "graphile-worker";
 import { describe, expect, it, vi } from "vitest";
+import { buildJobHelpers } from "../test-support/job-helpers.js";
 import {
   ARCA_VITALITY_CHECK_TASK_IDENTIFIER,
   ARCA_VITALITY_WATCHDOG_TASK_IDENTIFIER,
@@ -10,17 +10,9 @@ const NOW = new Date("2026-06-01T12:00:00.000Z");
 const NEXT_CHECK_AT = new Date("2026-06-01T12:00:30.000Z");
 const vitality = { check: vi.fn() };
 
-function helpersOf(overrides: Record<string, unknown> = {}) {
-  const fakeClient = { marker: "fake-client" };
-  const addJob = vi.fn().mockResolvedValue(undefined);
-  const withPgClient = vi.fn(async (callback: (client: unknown) => Promise<unknown>) =>
-    callback(fakeClient),
-  );
-  return {
-    fakeClient,
-    addJob,
-    helpers: { addJob, withPgClient, ...overrides } as unknown as JobHelpers,
-  };
+function helpersOf() {
+  const { helpers, addJob, client } = buildJobHelpers();
+  return { fakeClient: client, addJob, helpers };
 }
 
 function taskOf(jobs: ReturnType<typeof arcaVitalityJobs>, identifier: string) {
