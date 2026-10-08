@@ -60,6 +60,7 @@ export type {
   CandidatePromotion,
   IdGenerator,
   RegisterIdentity,
+  SaleAuthorizationDecision,
   SaleLedger,
   SaleLedgerTransaction,
   SaleRefund,
