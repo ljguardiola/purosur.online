@@ -85,9 +85,9 @@ describe("openAlert", () => {
         openedAt: NOW,
         escalateAt: new Date(NOW.getTime() + ALERT_ESCALATION_DELAY_MS),
         escalatedAt: null,
+        resolvedAt: null,
         resolvedBy: null,
         conditionClearedAt: null,
-        resolvedBy: null,
         deduplicates: true,
       },
     ]);
