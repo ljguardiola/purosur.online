@@ -138,6 +138,9 @@ export default defineConfig({
       },
       {
         ...compiledReactProject(),
+        // Transforming every backoffice screen on its first request starves a loaded run; starting
+        // them all with the server spreads that one-time cost before the tests ask for them.
+        server: { warmup: { clientFiles: ["./apps/backoffice/src/**/*-page.tsx"] } },
         test: {
           name: "browser",
           include: ["packages/*/src/**/*.test.tsx", "apps/*/src/**/*.test.tsx"],

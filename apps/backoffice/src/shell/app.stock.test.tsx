@@ -6,8 +6,18 @@ import { openSession } from "../access/test-support/open-session";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { opensOnlyScreens } from "./test-support/screen-routes";
 
 const PAST_ACTIVITY_THROTTLE_WINDOW_MS = 120_000;
+
+opensOnlyScreens([
+  "/",
+  "/account",
+  "/help",
+  "/inventory",
+  "/inventory-adjustments",
+  "/inventory-counts",
+]);
 
 beforeEach(resetPageState);
 

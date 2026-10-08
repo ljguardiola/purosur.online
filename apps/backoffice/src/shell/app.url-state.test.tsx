@@ -5,6 +5,18 @@ import { almonds, honey } from "../catalog/test-support/products";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { opensOnlyScreens } from "./test-support/screen-routes";
+
+opensOnlyScreens([
+  "/",
+  "/alerts",
+  "/categories",
+  "/discounts",
+  "/help",
+  "/prices",
+  "/products",
+  "/users",
+]);
 
 beforeEach(resetPageState);
 

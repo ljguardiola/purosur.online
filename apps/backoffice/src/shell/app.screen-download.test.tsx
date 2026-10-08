@@ -7,12 +7,15 @@ import { App } from "./app";
 import { ScreenDownloadFailure } from "./lazy-screen";
 import { emptyHelp } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { opensOnlyScreens } from "./test-support/screen-routes";
 
 async function blockDownloadsMatching(...patterns: string[]) {
   const session = cdp();
   await session.send("Network.enable");
   await session.send("Network.setBlockedURLs", { urls: patterns });
 }
+
+opensOnlyScreens(["/help"], { downloadedInTest: ["/", "/alerts"] });
 
 beforeEach(async () => {
   window.history.pushState(null, "", "/");
