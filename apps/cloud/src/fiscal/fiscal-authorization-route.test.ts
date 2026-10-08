@@ -5,8 +5,13 @@ import {
 } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
-import { arcaInvoicingEvidence, fiscalRequests } from "../platform/db/schema.js";
+import {
+  arcaInvoicingEvidence,
+  fiscalRequests,
+  installationRequestAttempts,
+} from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { insertRequestsUpToLimit } from "../sync/test-support/admitted-requests.js";
 import {
   insertRegisterWithPointOfSale,
   saleCompletedEvent,
@@ -126,6 +131,53 @@ describe("POST /fiscal/authorize", () => {
       const rows = await requests();
       expect(rows).toHaveLength(1);
       expect(rows[0]).toMatchObject({ registerId: owner.registerId, pointOfSale: 7 });
+    });
+  });
+
+  describe("how many requests an installation may make", () => {
+    it("records each admitted request as a fiscal authorization request of its installation", async () => {
+      const { deviceId, deviceToken } = await enrollRegisterWithPointOfSale();
+
+      await authorize(requestBody(), `Bearer ${deviceToken}`);
+
+      expect(
+        await route.db
+          .select({ endpoint: installationRequestAttempts.endpoint })
+          .from(installationRequestAttempts)
+          .where(eq(installationRequestAttempts.deviceId, deviceId)),
+      ).toEqual([{ endpoint: "fiscal_authorize" }]);
+    });
+
+    it("refuses a request past the installation's limit with when to retry, recording nothing and not calling the tax authority", async () => {
+      const { deviceId, deviceToken } = await enrollRegisterWithPointOfSale();
+      await route.issueWsaaToken();
+      await insertRequestsUpToLimit(
+        route.db,
+        deviceId,
+        "fiscal_authorize",
+        new Date(NOW.getTime() - 59 * 60 * 1000),
+      );
+
+      const response = await authorize(requestBody(), `Bearer ${deviceToken}`);
+
+      expect(response.statusCode).toBe(429);
+      expect(response.headers["retry-after"]).toBe("60");
+      expect(cloudErrorSchema.parse(response.json())).toEqual({
+        code: "rate_limited",
+        message: "too many requests",
+        details: [{ retry_after_seconds: 60 }],
+      });
+      expect(route.taxAuthority.solicitations).toEqual([]);
+      expect(await requests()).toEqual([]);
+    });
+
+    it("refuses an over-limit request before reading its body", async () => {
+      const { deviceId, deviceToken } = await enrollRegisterWithPointOfSale();
+      await insertRequestsUpToLimit(route.db, deviceId, "fiscal_authorize", NOW);
+
+      const response = await authorize({ number: "forty-two" }, `Bearer ${deviceToken}`);
+
+      expect(response.statusCode).toBe(429);
     });
   });
 
