@@ -1,7 +1,10 @@
-import { isProductNameTooLong, type SaleUnit } from "../../catalog/index.js";
+import {
+  isProductNameTooLong,
+  type NameMatch,
+  rankProductSearch,
+  type SaleUnit,
+} from "../../catalog/index.js";
 import type { Clock } from "../../shared/index.js";
-import type { NameMatch } from "../model/product-name-match.js";
-import { rankProductSearch } from "../model/product-search.js";
 import type { SaleLedger } from "./sale-ledger.js";
 import { isRefusal, type SellingSessionRefusal, sellingSession } from "./selling-session.js";
 
