@@ -43,11 +43,8 @@ interface SoapClientFailure {
   Fault?: { faultstring?: unknown };
 }
 
-function causeOf(error: unknown): string {
-  if (typeof error !== "object" || error === null) {
-    return String(error);
-  }
-  const failure = error as SoapClientFailure;
+export function unreachableCauseOf(error: unknown): string {
+  const failure: SoapClientFailure = typeof error === "object" && error !== null ? error : {};
   const message =
     typeof failure.message === "string"
       ? failure.message
@@ -112,7 +109,7 @@ export class WsfeArcaVitalityService implements ArcaVitalityService {
       }
       return { kind: "answered", appServer, dbServer, authServer };
     } catch (error) {
-      return { kind: "unreachable", cause: causeOf(error) };
+      return { kind: "unreachable", cause: unreachableCauseOf(error) };
     }
   }
 }
