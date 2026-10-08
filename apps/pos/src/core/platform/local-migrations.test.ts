@@ -2,6 +2,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { DEFERRAL_REASONS } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { LOCAL_MIGRATIONS } from "./local-migrations";
 import { migrationClock } from "./test-support/migration-clock";
@@ -861,6 +862,7 @@ describe("the register's local migrations", () => {
         "0018_transfer_payments",
         "0019_sales_dated_when_charged",
         "0020_cancelled_sales_and_refunds",
+        "0021_real_time_authorization",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -908,6 +910,7 @@ describe("the register's local migrations", () => {
         "0018_transfer_payments",
         "0019_sales_dated_when_charged",
         "0020_cancelled_sales_and_refunds",
+        "0021_real_time_authorization",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -950,6 +953,7 @@ describe("the register's local migrations", () => {
         "0018_transfer_payments",
         "0019_sales_dated_when_charged",
         "0020_cancelled_sales_and_refunds",
+        "0021_real_time_authorization",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -991,6 +995,7 @@ describe("the register's local migrations", () => {
         "0018_transfer_payments",
         "0019_sales_dated_when_charged",
         "0020_cancelled_sales_and_refunds",
+        "0021_real_time_authorization",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1059,6 +1064,7 @@ describe("the register's local migrations", () => {
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0019_sales_dated_when_charged",
         "0020_cancelled_sales_and_refunds",
+        "0021_real_time_authorization",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1119,6 +1125,7 @@ describe("the register's local migrations", () => {
       expect(previous.at(-1)?.name).toBe("0019_sales_dated_when_charged");
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0020_cancelled_sales_and_refunds",
+        "0021_real_time_authorization",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1174,6 +1181,285 @@ describe("the register's local migrations", () => {
     } finally {
       rmSync(folder, { recursive: true, force: true });
     }
+  });
+
+  it("add the real-time authorization over the sales and point of sale a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(0, 21);
+      expect(previous.at(-1)?.name).toBe("0020_cancelled_sales_and_refunds");
+      expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
+        "0021_real_time_authorization",
+      ]);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('done', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-09-30T12:05:00.000Z');
+         INSERT INTO register_point_of_sale (register_id, point_of_sale_number, fiscal_address_id, version)
+         VALUES ('r1', 12, 'address-1', 2);`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT id, state FROM sales").all()).toEqual([
+        { id: "done", state: "COMPLETED" },
+      ]);
+      expect(
+        after
+          .prepare(
+            `SELECT register_id, point_of_sale_number, version, tax_authority_last_authorized_number
+             FROM register_point_of_sale`,
+          )
+          .all(),
+      ).toEqual([
+        {
+          register_id: "r1",
+          point_of_sale_number: 12,
+          version: 2,
+          tax_authority_last_authorized_number: null,
+        },
+      ]);
+      for (const table of ["register_health_checks", "fiscal_documents", "deferred_sales"]) {
+        expect(after.prepare(`SELECT count(*) AS total FROM ${table}`).get()).toEqual({ total: 0 });
+      }
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  describe("the real-time authorization", () => {
+    function withSales() {
+      const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
+      database.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-09-30T12:05:00.000Z'),
+                ('sale-2', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-09-30T12:06:00.000Z');`,
+      );
+      return database;
+    }
+
+    type Database = ReturnType<typeof openLocalDatabase>;
+
+    function insertDocument(
+      database: Database,
+      values: Partial<{
+        id: string;
+        sale_id: string;
+        point_of_sale: number;
+        document_type: string;
+        number: number;
+        state: string;
+        authorization_code: string | null;
+        authorization_code_due_on: string | null;
+        resolved_at: string | null;
+      }> = {},
+    ) {
+      const state = values.state ?? "REQUESTING";
+      database
+        .prepare(
+          `INSERT INTO fiscal_documents (
+             id, sale_id, point_of_sale, document_type, number, issued_on, document, state,
+             authorization_code, authorization_code_due_on, reserved_at, resolved_at
+           ) VALUES (
+             @id, @sale_id, @point_of_sale, @document_type, @number, '2026-09-30', '{}', @state,
+             @authorization_code, @authorization_code_due_on, '2026-09-30T12:05:00.000Z', @resolved_at
+           )`,
+        )
+        .run({
+          id: "doc-1",
+          sale_id: "sale-1",
+          point_of_sale: 12,
+          document_type: "FACTURA_C",
+          number: 41,
+          state,
+          authorization_code: state === "AUTHORIZED" ? "75123456789012" : null,
+          authorization_code_due_on: state === "AUTHORIZED" ? "2026-10-10" : null,
+          resolved_at: state === "REQUESTING" ? null : "2026-09-30T12:05:01.000Z",
+          ...values,
+        });
+    }
+
+    it("hold a successful health check with its round trip and what it found out", () => {
+      const database = withSales();
+      const insert = database.prepare(
+        `INSERT INTO register_health_checks (checked_at, round_trip_ms, token_valid, arca_reachable)
+         VALUES (@checked_at, @round_trip_ms, @token_valid, @arca_reachable)`,
+      );
+      const check = {
+        checked_at: "2026-09-30T12:05:00.000Z",
+        round_trip_ms: 120,
+        token_valid: 1,
+        arca_reachable: 0,
+      };
+
+      insert.run(check);
+      insert.run({ ...check, checked_at: "2026-09-30T12:05:05.000Z" });
+
+      expect(
+        database
+          .prepare(
+            "SELECT checked_at, round_trip_ms, token_valid, arca_reachable FROM register_health_checks ORDER BY id",
+          )
+          .all(),
+      ).toEqual([{ ...check }, { ...check, checked_at: "2026-09-30T12:05:05.000Z" }]);
+      expect(() => insert.run({ ...check, round_trip_ms: -1 })).toThrow(/CHECK/);
+      expect(() => insert.run({ ...check, token_valid: 2 })).toThrow(/CHECK/);
+      expect(() => insert.run({ ...check, arca_reachable: 2 })).toThrow(/CHECK/);
+      database.close();
+    });
+
+    it("give a sale at most one fiscal document, of a known sale", () => {
+      const database = withSales();
+
+      insertDocument(database, { state: "REJECTED" });
+
+      expect(() => insertDocument(database, { id: "doc-2", number: 42 })).toThrow(/UNIQUE/);
+      expect(() => insertDocument(database, { id: "doc-3", sale_id: "missing" })).toThrow(
+        /FOREIGN KEY/,
+      );
+      database.close();
+    });
+
+    it("hold a document of a known type and state with a point of sale and a positive number", () => {
+      const database = withSales();
+
+      expect(() => insertDocument(database, { document_type: "FACTURA_A" })).toThrow(/CHECK/);
+      expect(() => insertDocument(database, { state: "PENDING" })).toThrow(/CHECK/);
+      expect(() => insertDocument(database, { point_of_sale: 0 })).toThrow(/CHECK/);
+      expect(() => insertDocument(database, { number: 0 })).toThrow(/CHECK/);
+      database.close();
+    });
+
+    it("carry the authorization code and its expiry only once authorized, and a resolution date once resolved", () => {
+      const database = withSales();
+
+      expect(() =>
+        insertDocument(database, { state: "AUTHORIZED", authorization_code: null }),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        insertDocument(database, { state: "AUTHORIZED", authorization_code_due_on: null }),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        insertDocument(database, { state: "UNKNOWN", authorization_code: "75123456789012" }),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        insertDocument(database, { state: "REQUESTING", resolved_at: "2026-09-30T12:05:01.000Z" }),
+      ).toThrow(/CHECK/);
+      expect(() => insertDocument(database, { state: "REJECTED", resolved_at: null })).toThrow(
+        /CHECK/,
+      );
+      insertDocument(database, { state: "AUTHORIZED" });
+      database.close();
+    });
+
+    it.each(["REQUESTING", "UNKNOWN"])(
+      "allow no second document of the point of sale and type while one is %s",
+      (waiting) => {
+        const database = withSales();
+        insertDocument(database, { state: waiting });
+
+        expect(() =>
+          insertDocument(database, { id: "doc-2", sale_id: "sale-2", number: 42 }),
+        ).toThrow(/UNIQUE/);
+        insertDocument(database, { id: "doc-2", sale_id: "sale-2", point_of_sale: 13, number: 42 });
+        database.close();
+      },
+    );
+
+    it.each(["AUTHORIZED", "REJECTED"])(
+      "allow the next document of the point of sale once the previous is %s",
+      (resolved) => {
+        const database = withSales();
+        insertDocument(database, { state: resolved });
+
+        insertDocument(database, { id: "doc-2", sale_id: "sale-2", number: 42 });
+
+        expect(database.prepare("SELECT count(*) AS total FROM fiscal_documents").get()).toEqual({
+          total: 2,
+        });
+        database.close();
+      },
+    );
+
+    it("keep the number of an authorized document unavailable to another document of its point of sale and type", () => {
+      const database = withSales();
+      insertDocument(database, { state: "AUTHORIZED" });
+
+      expect(() =>
+        insertDocument(database, { id: "doc-2", sale_id: "sale-2", state: "REJECTED" }),
+      ).not.toThrow();
+      expect(() => insertDocument(database, { id: "doc-3", sale_id: "sale-2" })).toThrow(/UNIQUE/);
+      database.close();
+    });
+
+    it("release the number of a rejected document", () => {
+      const database = withSales();
+      insertDocument(database, { state: "REJECTED" });
+
+      insertDocument(database, { id: "doc-2", sale_id: "sale-2" });
+
+      expect(
+        database.prepare("SELECT id, number, state FROM fiscal_documents ORDER BY id").all(),
+      ).toEqual([
+        { id: "doc-1", number: 41, state: "REJECTED" },
+        { id: "doc-2", number: 41, state: "REQUESTING" },
+      ]);
+      database.close();
+    });
+
+    function routeSale(database: Database, values: { sale_id: string; reason: string }) {
+      database
+        .prepare(
+          "INSERT INTO deferred_sales (sale_id, reason, routed_at) VALUES (@sale_id, @reason, '2026-09-30T12:05:00.000Z')",
+        )
+        .run(values);
+    }
+
+    it.each(DEFERRAL_REASONS)("route a sale to the deferred flow for the reason %s", (reason) => {
+      const database = withSales();
+
+      routeSale(database, { sale_id: "sale-1", reason });
+
+      expect(database.prepare("SELECT sale_id, reason FROM deferred_sales").all()).toEqual([
+        { sale_id: "sale-1", reason },
+      ]);
+      database.close();
+    });
+
+    it("route a known sale once, for a reason the domain knows", () => {
+      const database = withSales();
+      routeSale(database, { sale_id: "sale-1", reason: "rejected" });
+
+      expect(() => routeSale(database, { sale_id: "sale-1", reason: "rejected" })).toThrow(
+        /UNIQUE/,
+      );
+      expect(() => routeSale(database, { sale_id: "sale-2", reason: "forgotten" })).toThrow(
+        /CHECK/,
+      );
+      expect(() => routeSale(database, { sale_id: "missing", reason: "rejected" })).toThrow(
+        /FOREIGN KEY/,
+      );
+      database.close();
+    });
+
+    it("hold a tax authority count of zero or more on the point of sale, none until it is pulled", () => {
+      const database = withSales();
+      const insert = database.prepare(
+        `INSERT INTO register_point_of_sale (register_id, point_of_sale_number, fiscal_address_id, version, tax_authority_last_authorized_number)
+         VALUES ('r1', 12, 'address-1', 1, @count)`,
+      );
+
+      expect(() => insert.run({ count: -1 })).toThrow(/CHECK/);
+      insert.run({ count: 0 });
+      database.close();
+    });
   });
 
   describe("the cancelled sales and the payment refunds", () => {
