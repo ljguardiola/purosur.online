@@ -286,18 +286,16 @@ describe("LockedCashCount", () => {
     await expect.poll(() => close).toHaveBeenCalledWith(4_580_000);
   });
 
-  it("keeps the part-paid sale and says so when the closer may not cancel it", async () => {
-    const { screen } = await renderStep({
-      cancelSale: async () => ({ kind: "not_permitted" }),
+  it("keeps the part-paid sale when the closer may not cancel it", async () => {
+    const { screen, cancelSale } = await renderStep({
+      cancelSale: vi.fn<CancelSale>(async () => ({ kind: "not_permitted" })),
       loadOpenSale: async () => PART_PAID_SALE,
     });
     await screen.getByRole("button", { name: "Cancelar la venta" }).click();
 
     await screen.getByRole("dialog").getByRole("button", { name: "Cancelar la venta" }).click();
 
-    await expect
-      .element(screen.getByText("No tenés el permiso de anular ventas con pagos.").first())
-      .toBeVisible();
+    await expect.poll(() => cancelSale).toHaveBeenCalledWith(PART_PAID_SALE.id);
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
   });
 
@@ -371,7 +369,7 @@ describe("LockedCashCount", () => {
 
   it("shows the open sale the close finds when one was opened after the count was asked for", async () => {
     const { screen } = await renderStep({
-      close: async () => ({ kind: "open_sale", total: 3_434_000, cancellable: true }),
+      close: async () => ({ kind: "open_sale", total: 3_434_000 }),
       loadOpenSale: vi
         .fn<LoadOpenSale>()
         .mockResolvedValueOnce(null)
@@ -382,6 +380,20 @@ describe("LockedCashCount", () => {
 
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
     await expect.element(screen.getByRole("button", { name: "Cancelar la venta" })).toBeVisible();
+  });
+
+  it("says the open sale could not be read when the close finds one and reading it fails", async () => {
+    const { screen } = await renderStep({
+      close: async () => ({ kind: "open_sale", total: 3_434_000 }),
+      loadOpenSale: vi
+        .fn<LoadOpenSale>()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue("unavailable"),
+    });
+
+    await closeWith(screen, "45.800,00");
+
+    await expect.element(screen.getByText("No se pudo leer la venta abierta")).toBeVisible();
   });
 
   it("shows a placeholder in the count while the open sale is read", async () => {

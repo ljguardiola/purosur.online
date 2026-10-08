@@ -479,8 +479,7 @@ describe("closing a cash session answers", () => {
   it.each([
     { kind: "invalid_counted_cash" },
     { kind: "no_open_session" },
-    { kind: "open_sale", total: 4500, cancellable: true },
-    { kind: "open_sale", total: 4500, cancellable: false },
+    { kind: "open_sale", total: 4500 },
     { kind: "not_signed_in" },
     { kind: "lacks_permission" },
     { kind: "unavailable" },
@@ -494,8 +493,7 @@ describe("closing a cash session answers", () => {
     { kind: "closed" },
     { kind: "closed", session: { id: "s1", expected_cash: 0, counted_cash: 0 } },
     { kind: "open_sale" },
-    { kind: "open_sale", total: 4500 },
-    { kind: "open_sale", total: 4500, cancellable: "yes" },
+    { kind: "open_sale", total: "4500" },
     { kind: "x" },
     { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
     { kind: "rate_limited", retry_after_seconds: 4, attempts_left: 5 },
@@ -755,8 +753,7 @@ describe("closing a locked register's cash session", () => {
   it.each([
     { kind: "invalid_counted_cash" },
     { kind: "no_open_session" },
-    { kind: "open_sale", total: 4500, cancellable: true },
-    { kind: "open_sale", total: 4500, cancellable: false },
+    { kind: "open_sale", total: 4500 },
     { kind: "not_locked" },
     { kind: "lacks_permission" },
     { kind: "unavailable" },
@@ -772,8 +769,7 @@ describe("closing a locked register's cash session", () => {
     { kind: "not_signed_in" },
     { kind: "closed", session: { id: "s1", expected_cash: 0, counted_cash: 0 } },
     { kind: "open_sale" },
-    { kind: "open_sale", total: 4500 },
-    { kind: "open_sale", total: 4500, cancellable: "yes" },
+    { kind: "open_sale", total: "4500" },
   ])("rejects a close result it does not know: %j", (outcome) => {
     const message = { type: "close-locked-cash-session-result", request_id: REQUEST_ID, outcome };
 

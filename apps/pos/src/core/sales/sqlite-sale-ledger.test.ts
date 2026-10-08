@@ -885,6 +885,13 @@ describe("paying an open sale across several payments", () => {
 });
 
 describe("a ledger given no outbox chain key", () => {
+  it("answers that its outbox is not ready", () => {
+    const keyless = new SqliteSaleLedger(database, new SqliteSignInStore(database));
+
+    expect(keyless.transaction((tx) => tx.outboxReady())).toBe(false);
+    expect(ledger.transaction((tx) => tx.outboxReady())).toBe(true);
+  });
+
   it("refuses to append an outbox event", () => {
     const keyless = new SqliteSaleLedger(database, new SqliteSignInStore(database));
 

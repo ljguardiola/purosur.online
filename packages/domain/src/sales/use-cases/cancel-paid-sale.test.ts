@@ -537,6 +537,25 @@ describe("cancelPaidSale", () => {
       expect(store.state.outbox).toEqual([]);
     });
 
+    it("answers that it is unavailable while the outbox is not ready, leaving everything as it was", async () => {
+      const store = lockedLedger({ outboxReady: false });
+      const before = structuredClone(store.state);
+
+      expect(await cancelLocked(store)).toEqual({ kind: "unavailable" });
+      expect(store.state).toEqual(before);
+    });
+
+    it("discards a sale without approved payments while the outbox is not ready", async () => {
+      const store = lockedLedger({ payments: [], movements: [], outboxReady: false });
+
+      expect(await cancelLocked(store)).toEqual({
+        kind: "cancelled",
+        refunds: [],
+        grant: CLOSER_GRANT,
+      });
+      expect(store.state.sales).toEqual([]);
+    });
+
     it("refuses without an open cash session", async () => {
       const store = lockedLedger({ session: undefined });
 

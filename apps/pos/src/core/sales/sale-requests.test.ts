@@ -1416,9 +1416,23 @@ describe("cancelling the open sale of a locked register", () => {
     expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([]);
   });
 
-  it("answers that it is unavailable when the register has no outbox key yet, changing nothing", async () => {
-    addCloser(["close_anothers_register_session", "void_sale"]);
+  it("cancels the sale even when the register has no outbox key yet", async () => {
+    addCloser(["close_anothers_register_session"]);
     const saleId = await lockedWithOpenSale();
+
+    expect(
+      await cancelLockedSaleFor(lockedDeps({ readOutboxChainKey: async () => undefined }), {
+        saleId,
+        closer: CLOSER,
+      }),
+    ).toEqual({ kind: "cancelled", refunds: [] });
+    expect(saleStates()).toEqual([]);
+  });
+
+  it("answers that it is unavailable for a part-paid sale when the register has no outbox key yet, changing nothing", async () => {
+    addCloser(["close_anothers_register_session", "void_sale"]);
+    const saleId = await lockedWithPartPaidSale();
+    const movementsBefore = database.prepare("SELECT id FROM cash_movements").all();
 
     expect(
       await cancelLockedSaleFor(lockedDeps({ readOutboxChainKey: async () => undefined }), {
@@ -1427,6 +1441,9 @@ describe("cancelling the open sale of a locked register", () => {
       }),
     ).toEqual({ kind: "unavailable" });
     expect(saleStates()).toEqual([{ state: "OPEN" }]);
+    expect(database.prepare("SELECT id FROM payment_refunds").all()).toEqual([]);
+    expect(database.prepare("SELECT id FROM cash_movements").all()).toEqual(movementsBefore);
+    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([]);
   });
 
   it("refuses a sale that is not the open one", async () => {

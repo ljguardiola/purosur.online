@@ -1884,7 +1884,7 @@ describe("App", () => {
 
     it("stays signed in on the cash count when the close from Salir is refused", async () => {
       const { screen, asked } = await resumeGracesSession({
-        closeCashSession: async () => ({ kind: "open_sale", total: 3_434_000, cancellable: true }),
+        closeCashSession: async () => ({ kind: "open_sale", total: 3_434_000 }),
       });
       await userEvent.click(screen.getByRole("button", { name: "Salir" }));
       await userEvent.click(
@@ -1902,7 +1902,7 @@ describe("App", () => {
 
     it("stays on the cash count and offers the sale when it is still open", async () => {
       const { screen } = await resumeGracesSession({
-        closeCashSession: async () => ({ kind: "open_sale", total: 3_434_000, cancellable: true }),
+        closeCashSession: async () => ({ kind: "open_sale", total: 3_434_000 }),
       });
       await startClosing(screen);
 
@@ -1940,6 +1940,7 @@ describe("App", () => {
         cancelLockedSale?: CoreClient["cancelLockedSale"];
         sessionOpenSale?: CoreClient["sessionOpenSale"];
         cashSession?: CoreClient["cashSession"];
+        cashBalance?: CoreClient["cashBalance"];
       } = {},
     ) {
       await page.viewport(1280, 720);
@@ -2053,6 +2054,40 @@ describe("App", () => {
           .element(screen.getByText("Hay una venta abierta de $ 34.340,00"))
           .not.toBeInTheDocument();
         await expect.element(screen.getByRole("heading", { name: "Cerrar caja" })).toBeVisible();
+      });
+
+      it("reads the expected cash again once a part-paid sale is cancelled", async () => {
+        const cashRefund = {
+          payment_id: "payment-1",
+          method: "CASH",
+          amount: 100_000,
+          state: "APPROVED",
+        } as const;
+        let cancelled = false;
+        const { screen } = await cancelFromLocked({
+          sessionOpenSale: async () => ({
+            id: "sale-1",
+            total: 3_434_000,
+            paid: 100_000,
+            cancellable: false,
+            refunds_on_cancel: [cashRefund],
+          }),
+          cancelLockedSale: async () => {
+            cancelled = true;
+            return {
+              kind: "cancelled",
+              refunds: [cashRefund],
+            };
+          },
+          cashBalance: async () =>
+            cancelled
+              ? { ...BALANCE, refunds: { amount: 100_000, direction: "out" }, expected: 4_520_000 }
+              : BALANCE,
+        });
+
+        await expect
+          .element(screen.getByRole("complementary").getByText("$ 45.200,00", { exact: true }))
+          .toBeVisible();
       });
 
       it.each(["no_open_session", "not_locked"] as const)(
