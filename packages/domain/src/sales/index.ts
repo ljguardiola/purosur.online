@@ -2,6 +2,8 @@ export type { CancelledSale } from "./model/cancelled-sale.js";
 export { cashCharge } from "./model/cash-charge.js";
 export type { CompletedSale } from "./model/completed-sale.js";
 export { approvedPaymentsCoverTotal } from "./model/completed-sale.js";
+export type { OpenSaleStanding } from "./model/open-sale-standing.js";
+export { openSaleStanding } from "./model/open-sale-standing.js";
 export type { OpenSaleSummary } from "./model/open-sale-summary.js";
 export { openSaleSummary } from "./model/open-sale-summary.js";
 export type { PaymentMethod, PaymentTransaction } from "./model/payment.js";

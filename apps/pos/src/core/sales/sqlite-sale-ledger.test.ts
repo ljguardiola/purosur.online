@@ -1451,7 +1451,7 @@ describe("cancelling an open sale with approved payments", () => {
         ids,
         authority: { authorize: async () => ({ kind: "granted", grant }) },
       },
-      { saleId },
+      { saleId, from: "sale" },
     );
   }
 

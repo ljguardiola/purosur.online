@@ -334,6 +334,7 @@ export {
   cashCharge,
   isRefundPending,
   isSalesReportRangeAsked,
+  openSaleStanding,
   openSaleSummary,
   PAYMENT_METHODS,
   REFUND_DONE_STATE,

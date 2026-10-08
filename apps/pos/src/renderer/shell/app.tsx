@@ -188,8 +188,8 @@ function Register({ core }: { core: CoreClient }) {
     return outcome satisfies CloseLockedCashSessionOutcome;
   }
 
-  async function cancelLockedSale(closer: Authorization) {
-    const outcome = await core.cancelLockedSale(closer);
+  async function cancelLockedSale(saleId: string, closer: Authorization) {
+    const outcome = await core.cancelLockedSale(saleId, closer);
     if (outcome.kind === "no_open_session" || outcome.kind === "not_locked") {
       await refreshCashSession();
     }

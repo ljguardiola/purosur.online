@@ -40,7 +40,7 @@ const INVALID_MESSAGE = "Ingresá un importe válido, por ejemplo 31.500,00.";
 const FAILED_NOTICE = "No se pudo cerrar la caja. Probá de nuevo.";
 
 type Close = (countedCash: number) => Promise<CloseLockedCashSessionOutcome>;
-type CancelSale = () => Promise<CancelLockedSaleOutcome>;
+type CancelSale = (saleId: string) => Promise<CancelLockedSaleOutcome>;
 type LoadOpenSale = () => Promise<SessionOpenSale | null | "unavailable">;
 
 const PREVIEW_DIFFERENCES = new Map([
@@ -59,7 +59,13 @@ const answerPreview: LoadCashCountPreview = async (countedCash) => {
   return difference === undefined ? null : { difference };
 };
 
-const CANCELLABLE_SALE: SessionOpenSale = { total: 3_434_000, cancellable: true };
+const CANCELLABLE_SALE: SessionOpenSale = {
+  id: "sale-1",
+  total: 3_434_000,
+  paid: 0,
+  cancellable: true,
+  refunds_on_cancel: [],
+};
 const OPEN_SALE_NOTICE = "Hay una venta abierta de $ 34.340,00";
 const CANCEL_FAILED_NOTICE = "No se pudo cancelar la venta. Probá de nuevo.";
 
@@ -74,7 +80,8 @@ async function renderStep(
   await page.viewport(1280, 720);
   onTestFinished(() => page.viewport(414, 896));
   const closing = options.close ?? vi.fn<Close>(async () => CLOSED);
-  const cancelling = options.cancelSale ?? vi.fn<CancelSale>(async () => ({ kind: "cancelled" }));
+  const cancelling =
+    options.cancelSale ?? vi.fn<CancelSale>(async () => ({ kind: "cancelled", refunds: [] }));
   const loadOpenSale = options.loadOpenSale ?? vi.fn<LoadOpenSale>(async () => null);
   const refused: RefusedClose[] = [];
   const screen = await render(
@@ -239,7 +246,7 @@ describe("LockedCashCount", () => {
 
   it("says a sale is still open and that its opener has to resume the register to finish it when it cannot be cancelled", async () => {
     const { screen } = await renderStep({
-      loadOpenSale: async () => ({ total: 3_434_000, cancellable: false }),
+      loadOpenSale: async () => ({ ...CANCELLABLE_SALE, cancellable: false }),
     });
 
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
@@ -295,7 +302,11 @@ describe("LockedCashCount", () => {
 
   it("shows the open sale the close finds when one was opened after the count was asked for", async () => {
     const { screen } = await renderStep({
-      close: async () => ({ kind: "open_sale", ...CANCELLABLE_SALE }),
+      close: async () => ({ kind: "open_sale", total: 3_434_000, cancellable: true }),
+      loadOpenSale: vi
+        .fn<LoadOpenSale>()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(CANCELLABLE_SALE),
     });
 
     await closeWith(screen, "45.800,00");
@@ -371,25 +382,8 @@ describe("LockedCashCount", () => {
 
     await expect.element(screen.getByRole("button", { name: "Cerrar caja" })).toBeDisabled();
     await expect.element(screen.getByRole("button", { name: "Volver" }).first()).toBeDisabled();
-    pending.resolve({ kind: "cancelled" });
+    pending.resolve({ kind: "cancelled", refunds: [] });
     await expect.element(screen.getByRole("button", { name: "Cerrar caja" })).toBeEnabled();
-  });
-
-  it("says the open sale cannot be cancelled once the core finds an approved payment on it", async () => {
-    const { screen } = await withOpenSale({
-      cancelSale: async () => ({ kind: "has_approved_payment" }),
-    });
-    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
-
-    await screen.getByRole("dialog").getByRole("button", { name: "Cancelar la venta" }).click();
-
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
-    await expect
-      .element(screen.getByText("Grace tiene que retomar la caja para terminarla o cancelarla."))
-      .toBeVisible();
-    await expect
-      .element(screen.getByRole("button", { name: "Cancelar la venta" }))
-      .not.toBeInTheDocument();
   });
 
   it("clears the notice when the core finds no sale left to cancel", async () => {
@@ -419,7 +413,7 @@ describe("LockedCashCount", () => {
     },
   );
 
-  it.each<CancelLockedSaleOutcome>([{ kind: "cancelled" }, { kind: "has_approved_payment" }])(
+  it.each<CancelLockedSaleOutcome>([{ kind: "cancelled", refunds: [] }, { kind: "not_permitted" }])(
     "drops the earlier cancellation failure once a new attempt answers $kind",
     async (outcome) => {
       const cancelSale = vi

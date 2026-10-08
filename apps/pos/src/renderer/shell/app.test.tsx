@@ -258,11 +258,11 @@ function coreAnswering(
         ? { kind: "unavailable" }
         : cashDrawer.closeLockedCashSession(sessionId, countedCash, closer);
     },
-    async cancelLockedSale(closer) {
+    async cancelLockedSale(saleId, closer) {
       cancelledLocked.push(closer);
       return cashDrawer.cancelLockedSale === undefined
         ? { kind: "unavailable" }
-        : cashDrawer.cancelLockedSale(closer);
+        : cashDrawer.cancelLockedSale(saleId, closer);
     },
     async identifyLockedCloser(closer) {
       return cashDrawer.identifyLockedCloser === undefined
@@ -2027,7 +2027,13 @@ describe("App", () => {
     describe("cancelling its open sale", () => {
       async function cancelFromLocked(cashDrawer: Parameters<typeof identifyFromLocked>[0]) {
         const identified = await identifyFromLocked({
-          sessionOpenSale: async () => ({ total: 3_434_000, cancellable: true }),
+          sessionOpenSale: async () => ({
+            id: "sale-1",
+            total: 3_434_000,
+            paid: 0,
+            cancellable: true,
+            refunds_on_cancel: [],
+          }),
           ...cashDrawer,
         });
         await userEvent.click(identified.screen.getByRole("button", { name: "Cancelar la venta" }));
@@ -2039,7 +2045,7 @@ describe("App", () => {
 
       it("cancels it with the PIN of the person who closes, staying on the cash count", async () => {
         const { screen, cancelledLocked } = await cancelFromLocked({
-          cancelLockedSale: async () => ({ kind: "cancelled" }),
+          cancelLockedSale: async () => ({ kind: "cancelled", refunds: [] }),
         });
 
         await expect.poll(() => cancelledLocked).toEqual([{ user_id: "u3", pin: "1234" }]);

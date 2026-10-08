@@ -59,7 +59,7 @@ export type LockedCashCountProps = {
   loadCashCountPreview: (countedCash: number) => Promise<CashCountPreview | null | "unavailable">;
   loadOpenSale: () => Promise<SessionOpenSale | null | "unavailable">;
   close: (countedCash: number) => Promise<CloseLockedCashSessionOutcome>;
-  cancelSale: () => Promise<CancelLockedSaleOutcome>;
+  cancelSale: (saleId: string) => Promise<CancelLockedSaleOutcome>;
   onRefused: (refusal: RefusedClose) => void;
 };
 
@@ -101,7 +101,7 @@ export function LockedCashCount({
           showFieldError("countedCash", INVALID_COUNTED_CASH_MESSAGE);
           break;
         case "open_sale":
-          await setOpenSale({ total: outcome.total, cancellable: outcome.cancellable });
+          await reloadOpenSale();
           break;
         case "unavailable":
           setFailure(CLOSE_FAILED);
@@ -136,10 +136,20 @@ export function LockedCashCount({
     void submit();
   }
 
+  async function reloadOpenSale() {
+    const sale = await loadOpenSale().catch((): "unavailable" => "unavailable");
+    if (sale !== "unavailable") {
+      await setOpenSale(sale);
+    }
+  }
+
   async function cancelOpenSale() {
+    if (openSale === null) {
+      return;
+    }
     clearOutcome();
     setCancelling(true);
-    const outcome = await cancelSale().catch(
+    const outcome = await cancelSale(openSale.id).catch(
       (): CancelLockedSaleOutcome => ({ kind: "unavailable" }),
     );
     setCancelling(false);
@@ -149,9 +159,7 @@ export function LockedCashCount({
       case "no_open_sale":
         await setOpenSale(null);
         break;
-      case "has_approved_payment":
-        await setOpenSale(openSale && { ...openSale, cancellable: false });
-        break;
+      case "not_permitted":
       case "no_open_session":
         break;
       case "unavailable":
