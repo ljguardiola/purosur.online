@@ -29,11 +29,11 @@ import type { SignedInPerson } from "../shell/signed-in-person";
 import { CancelPaidSaleModal } from "./cancel-paid-sale-modal";
 import { CancelSaleModal } from "./cancel-sale-modal";
 import { changedLineId } from "./changed-line";
-import { PaidSaleCancelledModal } from "./paid-sale-cancelled-modal";
+import { PaidSaleCancelledModal } from "../shell/paid-sale-cancelled-modal";
 import { PaymentPanel } from "./payment-panel";
 import type { SearchResults } from "./product-search-results";
 import { ProductSearchResults, searchOptionId } from "./product-search-results";
-import type { Refund } from "./refund-lines";
+import type { Refund } from "../shell/refund-lines";
 import { SaleLines } from "./sale-lines";
 import {
   useCurrentSaleQuery,
