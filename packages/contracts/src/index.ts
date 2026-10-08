@@ -139,6 +139,8 @@ export {
   registerPointOfSaleOverviewSchema,
   registerPointOfSaleSchema,
 } from "./fiscal/register-point-of-sale.js";
+export type { MarkedRefundDoneBody, PendingRefundsBody } from "./payments/pending-refunds.js";
+export { markedRefundDoneSchema, pendingRefundsSchema } from "./payments/pending-refunds.js";
 export type { DiscountCreationBody } from "./pricing/discount-creation.js";
 export { discountCreationBodySchema, discountNameSchema } from "./pricing/discount-creation.js";
 export type { DiscountEditBody } from "./pricing/discount-edit.js";
@@ -234,8 +236,6 @@ export {
   salesCoreToRendererMessageSchema,
   salesRendererToCoreMessageSchema,
 } from "./sales/core-messages.js";
-export type { MarkedRefundDoneBody, PendingRefundsBody } from "./sales/pending-refunds.js";
-export { markedRefundDoneSchema, pendingRefundsSchema } from "./sales/pending-refunds.js";
 export type {
   AddProductOutcome,
   CancelPaidSaleOutcome,
