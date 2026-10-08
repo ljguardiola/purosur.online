@@ -81,7 +81,12 @@ const issuerIdentificationRow = {
   version: 2,
 };
 
-const pointOfSaleRow = { point_of_sale_number: 12, fiscal_address_id: ENTITY_ID, version: 1 };
+const pointOfSaleRow = {
+  point_of_sale_number: 12,
+  fiscal_address_id: ENTITY_ID,
+  tax_authority_last_authorized_number: 38,
+  version: 1,
+};
 
 const thresholdRow = { amount: 1_000_000, valid_from: "2026-10-01" };
 
@@ -214,6 +219,20 @@ describe("changesPageSchema", () => {
     ],
     ["a buyer-identification threshold", change(1, "buyer_identification_threshold", thresholdRow)],
     ["the point of sale of a register", change(1, "register_point_of_sale", pointOfSaleRow)],
+    [
+      "the point of sale of a register whose tax authority count is not known yet",
+      change(1, "register_point_of_sale", {
+        ...pointOfSaleRow,
+        tax_authority_last_authorized_number: null,
+      }),
+    ],
+    [
+      "the point of sale of a register whose tax authority never authorized anything",
+      change(1, "register_point_of_sale", {
+        ...pointOfSaleRow,
+        tax_authority_last_authorized_number: 0,
+      }),
+    ],
     ["a set of buyer tax statuses", change(1, "buyer_tax_status_set", taxStatusSetRow)],
     ["a discount", change(1, "discount", discountRow)],
     ["a discount that applies every day", change(1, "discount", { ...discountRow, weekdays: [] })],
@@ -289,6 +308,19 @@ describe("changesPageSchema", () => {
     const page = pageOf(change(1, entity, { ...row, location_id: ENTITY_ID }));
 
     expect(changesPageSchema.parse(page).changes[0]).toEqual(change(1, entity, row));
+  });
+
+  it("reads the point of sale of a cloud that does not send the tax authority count yet as not known", () => {
+    const { tax_authority_last_authorized_number: _count, ...legacyRow } = pointOfSaleRow;
+
+    expect(
+      changesPageSchema.parse(pageOf(change(1, "register_point_of_sale", legacyRow))).changes[0],
+    ).toEqual(
+      change(1, "register_point_of_sale", {
+        ...legacyRow,
+        tax_authority_last_authorized_number: null,
+      }),
+    );
   });
 
   it("accepts an empty last page", () => {
@@ -407,6 +439,24 @@ describe("changesPageSchema", () => {
     [
       "a point of sale outside the numbers the tax authority allows",
       pageOf(change(1, "register_point_of_sale", { ...pointOfSaleRow, point_of_sale_number: 0 })),
+    ],
+    [
+      "a point of sale with a negative tax authority count",
+      pageOf(
+        change(1, "register_point_of_sale", {
+          ...pointOfSaleRow,
+          tax_authority_last_authorized_number: -1,
+        }),
+      ),
+    ],
+    [
+      "a point of sale with a fractional tax authority count",
+      pageOf(
+        change(1, "register_point_of_sale", {
+          ...pointOfSaleRow,
+          tax_authority_last_authorized_number: 1.5,
+        }),
+      ),
     ],
     [
       "a point of sale of a register never configured",
