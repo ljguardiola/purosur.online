@@ -41,10 +41,8 @@ export function refundsSettleApprovedPayments(
   return (
     refunds.length === planned.length &&
     planned.every((expected) => {
-      const matching = refunds.filter((refund) => refund.paymentId === expected.paymentId);
-      const [refund] = matching;
+      const refund = refunds.find((candidate) => candidate.paymentId === expected.paymentId);
       return (
-        matching.length === 1 &&
         refund?.amount === expected.amount &&
         refund.method === expected.method &&
         refund.provider === expected.provider &&
