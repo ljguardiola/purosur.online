@@ -1206,6 +1206,7 @@ describe("what a sale in progress needs when an amount is tendered", () => {
 describe("cancelling the open sale of a locked register", () => {
   function lockedDeps(overrides: Partial<OutboxSaleRequestDeps> = {}): OutboxSaleRequestDeps {
     return deps({
+      ids: idsStartingWith("cancelled"),
       gate: createActionGate({
         store: new SqliteSignInStore(database),
         signedInPerson,
@@ -1247,7 +1248,10 @@ describe("cancelling the open sale of a locked register", () => {
 
   async function lockedWithPartPaidSale(): Promise<string> {
     const saleId = await sellTwoForPayments();
-    await chargeSaleInCashFor(deps(), { saleId, tendered: 1000 });
+    await chargeSaleInCashFor(deps({ ids: idsStartingWith("charged") }), {
+      saleId,
+      tendered: 1000,
+    });
     signedInPerson.clear();
     return saleId;
   }
@@ -1382,7 +1386,10 @@ describe("cancelling the open sale of a locked register", () => {
   it("leaves a transfer refund pending when it cancels a sale paid by transfer", async () => {
     addCloser(["close_anothers_register_session", "void_sale"]);
     const saleId = await sellTwoForPayments();
-    await chargeSaleByTransferFor(deps(), { saleId, amount: 1000 });
+    await chargeSaleByTransferFor(deps({ ids: idsStartingWith("charged") }), {
+      saleId,
+      amount: 1000,
+    });
     signedInPerson.clear();
 
     expect(await cancelLockedSaleFor(lockedDeps(), { saleId, closer: CLOSER })).toMatchObject({
