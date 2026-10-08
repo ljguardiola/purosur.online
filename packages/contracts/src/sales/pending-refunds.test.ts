@@ -1,3 +1,4 @@
+import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { markedRefundDoneSchema, pendingRefundsSchema } from "./pending-refunds.js";
 
@@ -57,6 +58,14 @@ describe("pendingRefundsSchema", () => {
     expect(pendingRefundsSchema.safeParse({ refunds: [{ ...refund, ...change }] }).success).toBe(
       false,
     );
+  });
+});
+
+describe("pendingRefundsSchema, declared time zone", () => {
+  it("declares the zone the moment of a refund is shown in", () => {
+    expect(pendingRefundsSchema.shape.refunds.element.shape.occurred_at.meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
   });
 });
 
