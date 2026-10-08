@@ -1,4 +1,4 @@
-import type { Clock } from "./arca-certificate-expiry-store.js";
+import type { Clock } from "../../shared/index.js";
 
 export interface WsaaToken {
   token: string;

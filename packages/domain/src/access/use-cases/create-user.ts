@@ -1,6 +1,6 @@
+import type { Clock } from "../../shared/index.js";
 import { isLastActiveAdministrator } from "../model/last-active-administrator.js";
 import type { BranchUser } from "./branch-users.js";
-import type { Clock } from "./pin-code-store.js";
 import { type StoredUserRevision, UserEmailConflict, type UserStore } from "./user-store.js";
 
 export interface CreateUserPorts {

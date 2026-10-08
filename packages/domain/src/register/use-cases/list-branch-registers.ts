@@ -1,6 +1,6 @@
+import type { Clock } from "../../shared/index.js";
 import { isEnrollmentCodeUsable } from "../model/enrollment-code.js";
 import type { BranchRegisters, RegisterEnrollmentCode } from "./branch-register-store.js";
-import type { Clock } from "./register-store.js";
 
 export interface ListBranchRegistersPorts {
   registers: BranchRegisters;

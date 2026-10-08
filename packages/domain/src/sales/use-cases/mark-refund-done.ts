@@ -1,6 +1,6 @@
+import type { Clock } from "../../shared/index.js";
 import { isRefundPending } from "../model/payment-refund.js";
 import type { RefundStore } from "./refund-store.js";
-import type { Clock } from "./sale-ledger.js";
 
 export interface MarkRefundDonePorts {
   store: RefundStore;

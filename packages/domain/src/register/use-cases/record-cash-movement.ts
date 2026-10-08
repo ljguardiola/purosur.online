@@ -1,4 +1,4 @@
-import type { OperationAuthority } from "../../shared/index.js";
+import type { Clock, OperationAuthority } from "../../shared/index.js";
 import {
   CASH_MOVEMENT_REASON_MAX_LENGTH,
   type CashMovementKind,
@@ -8,7 +8,6 @@ import {
 import type { CashMovement } from "../model/cash-session.js";
 import { expectedCash } from "../model/expected-cash.js";
 import type { CashLedger, IdGenerator } from "./cash-ledger.js";
-import type { Clock } from "./register-store.js";
 
 export interface RecordCashMovementInput {
   kind: CashMovementKind;

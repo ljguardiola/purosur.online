@@ -1,5 +1,5 @@
+import type { Clock } from "../../shared/index.js";
 import type { RoleAccess } from "../model/access-increase.js";
-import type { Clock } from "./pin-code-store.js";
 
 export interface PinSignInFailures {
   consecutiveFailures: number;

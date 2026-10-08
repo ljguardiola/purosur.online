@@ -1,6 +1,6 @@
+import type { Clock } from "../../../shared/index.js";
 import { newestPrice } from "../../model/current-price.js";
 import type {
-  Clock,
   CurrentPrice,
   LockActiveProductResult,
   NewPrice,

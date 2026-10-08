@@ -1,5 +1,5 @@
+import type { Clock } from "../../shared/index.js";
 import type { ArcaReachabilityEvidence } from "../model/arca-reachability.js";
-import type { Clock } from "./arca-certificate-expiry-store.js";
 import type { WsaaToken } from "./wsaa-token-ports.js";
 
 export interface ArcaReachabilityReader {

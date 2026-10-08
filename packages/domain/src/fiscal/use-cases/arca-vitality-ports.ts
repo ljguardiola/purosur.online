@@ -1,5 +1,5 @@
+import type { Clock } from "../../shared/index.js";
 import type { ArcaVitalityAnswer } from "../model/arca-reachability.js";
-import type { Clock } from "./arca-certificate-expiry-store.js";
 
 export type ArcaVitalityResult =
   | ({ kind: "answered" } & ArcaVitalityAnswer)
