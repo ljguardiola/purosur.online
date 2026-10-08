@@ -52,7 +52,7 @@ describe("receiving the events a register pushes", () => {
     expect(inbox.state).toEqual({
       received: [],
       reports: [],
-      versionStandings: [],
+      observedConditions: [],
       acceptedPushes: [],
       refusedPushes: [],
       brokenChainRevocations: [],
@@ -243,7 +243,7 @@ describe("receiving the events a register pushes", () => {
     expect(inbox.state).toEqual({
       received: [],
       reports: [],
-      versionStandings: [],
+      observedConditions: [],
       acceptedPushes: [],
       refusedPushes: [],
       brokenChainRevocations: [],
@@ -303,41 +303,59 @@ describe("requiring a register version", () => {
 });
 
 describe("reporting how the register stands", () => {
-  it("reports an accepted version as accepted, with the version", async () => {
+  it("clears the update-required condition of the installation's register for an accepted version", async () => {
     const inbox = new FakeInbox();
+    inbox.registerIds.set(DEVICE, "register-1");
 
     await receive(inbox, eventsOf(1), { appVersion: "1.4.0" });
 
-    expect(inbox.state.versionStandings).toEqual([
-      { deviceId: DEVICE, appVersion: "1.4.0", accepted: true, at: NOW },
+    expect(inbox.state.observedConditions).toEqual([
+      {
+        observation: { holds: false, kind: "update_required", scope: "register-1" },
+        at: NOW,
+      },
     ]);
   });
 
-  it("reports a version that is not accepted as not accepted, with the version", async () => {
+  it("holds the update-required condition of the installation's register, naming the device and the version, for a version that is not accepted", async () => {
     const inbox = new FakeInbox();
+    inbox.registerIds.set(DEVICE, "register-1");
 
     await receive(inbox, eventsOf(1), { appVersion: "not-a-version" });
 
-    expect(inbox.state.versionStandings).toEqual([
-      { deviceId: DEVICE, appVersion: "not-a-version", accepted: false, at: NOW },
+    expect(inbox.state.observedConditions).toEqual([
+      {
+        observation: {
+          holds: true,
+          alert: {
+            kind: "update_required",
+            scope: "register-1",
+            detail: { deviceId: DEVICE, appVersion: "not-a-version" },
+          },
+        },
+        at: NOW,
+      },
     ]);
   });
 
-  it("reports the standing right after recording the push report, before looking at the events", async () => {
+  it("observes the version right after recording the push report, before looking at the events", async () => {
     const inbox = new FakeInbox();
 
     await receive(inbox, eventsOf(1));
 
     const calls = inbox.calls;
-    expect(calls.indexOf("recordVersionStanding device-1")).toBe(
+    expect(calls.indexOf("installationRegisterId device-1")).toBe(
       calls.indexOf("recordPushReport device-1") + 1,
     );
-    expect(calls.indexOf("recordVersionStanding device-1")).toBeLessThan(
+    expect(calls.indexOf("observeAlertCondition")).toBe(
+      calls.indexOf("installationRegisterId device-1") + 1,
+    );
+    expect(calls.indexOf("observeAlertCondition")).toBeLessThan(
       calls.indexOf("receivedDeviceSeqs device-1"),
     );
   });
 
-  it("reports the standing of a push it refuses for a gap, a stale device or a broken chain", async () => {
+  it("observes the version of a push it refuses for a gap, a stale device or a broken chain", async () => {
     const gap = new FakeInbox();
     await receive(gap, eventsOf(3));
     const stale = new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]);
@@ -346,19 +364,22 @@ describe("reporting how the register stands", () => {
     await receive(broken, [{ ...fakeEvent(1), chain_hmac: "forged-link" }]);
 
     for (const inbox of [gap, stale, broken]) {
-      expect(inbox.state.versionStandings).toEqual([
-        { deviceId: DEVICE, appVersion: "1.4.0", accepted: true, at: NOW },
+      expect(inbox.state.observedConditions).toEqual([
+        {
+          observation: { holds: false, kind: "update_required", scope: "register-of-device-1" },
+          at: NOW,
+        },
       ]);
     }
   });
 
-  it("reports nothing of a revoked installation", async () => {
+  it("observes nothing of a revoked installation", async () => {
     const inbox = new FakeInbox();
     inbox.revokedDevices.add(DEVICE);
 
     await receive(inbox, eventsOf(1));
 
-    expect(inbox.state.versionStandings).toEqual([]);
+    expect(inbox.state.observedConditions).toEqual([]);
     expect(inbox.state.acceptedPushes).toEqual([]);
   });
 

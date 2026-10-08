@@ -101,7 +101,7 @@ describe("GET /registers/sync-status", () => {
   });
 
   it("rejects an Origin that is not the backoffice's own", async () => {
-    const rawSessionId = await signedInViewer(["view_all_alerts"]);
+    const rawSessionId = await signedInViewer([]);
 
     const response = await getSyncStatus(rawSessionId, { origin: "https://attacker.example" });
 
@@ -109,41 +109,26 @@ describe("GET /registers/sync-status", () => {
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
   });
 
-  it("returns 403 forbidden for a user with neither alert-view permission, before reading any register", async () => {
+  it("lists the session's branch registers with their last successful sync for any signed-in user, whatever the permissions", async () => {
+    const synced = await insertEnrolledInstallation(db, { now: NOON, registerName: "Caja 2" });
+    await db.insert(deviceState).values({ deviceId: synced.deviceId, lastAcceptedPushAt: MORNING });
     await insertEnrolledInstallation(db, { now: NOON, registerName: "Caja 1" });
-    const rawSessionId = await signedInViewer(["enroll_register_devices"]);
+    const rawSessionId = await signedInViewer([]);
 
     const response = await getSyncStatus(rawSessionId);
 
-    expect(response.statusCode).toBe(403);
-    expect(response.json()).toMatchObject({ code: "forbidden" });
+    expect(response.statusCode).toBe(200);
+    expect(registerSyncStatusListSchema.parse(response.json())).toEqual([
+      { id: expect.any(String), name: "Caja 1", last_successful_sync_at: null },
+      { id: synced.registerId, name: "Caja 2", last_successful_sync_at: MORNING.toISOString() },
+    ]);
   });
 
-  it.each([["view_branch_alerts"], ["view_all_alerts"]])(
-    "lists the session's branch registers with their last successful sync for a user holding %s",
-    async (permissionKey) => {
-      const synced = await insertEnrolledInstallation(db, { now: NOON, registerName: "Caja 2" });
-      await db
-        .insert(deviceState)
-        .values({ deviceId: synced.deviceId, lastAcceptedPushAt: MORNING });
-      await insertEnrolledInstallation(db, { now: NOON, registerName: "Caja 1" });
-      const rawSessionId = await signedInViewer([permissionKey]);
-
-      const response = await getSyncStatus(rawSessionId);
-
-      expect(response.statusCode).toBe(200);
-      expect(registerSyncStatusListSchema.parse(response.json())).toEqual([
-        { id: expect.any(String), name: "Caja 1", last_successful_sync_at: null },
-        { id: synced.registerId, name: "Caja 2", last_successful_sync_at: MORNING.toISOString() },
-      ]);
-    },
-  );
-
-  it("lists no register of another branch, whatever the viewer may see", async () => {
+  it("lists no register of another branch", async () => {
     const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
     if (!otherLocation) throw new Error("test setup: inserting the other location returned no row");
     await db.insert(registers).values({ locationId: otherLocation.id, name: "Caja ajena" });
-    const rawSessionId = await signedInViewer(["view_all_alerts"]);
+    const rawSessionId = await signedInViewer([]);
 
     const response = await getSyncStatus(rawSessionId);
 

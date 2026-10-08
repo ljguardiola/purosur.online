@@ -181,7 +181,7 @@ test("shows the sections the page adds beneath the alerts to someone who may see
   await expect.element(screen.getByText("Otra sección de Inicio")).toBeVisible();
 });
 
-test("shows no added section to someone without either alert permission", async () => {
+test("shows the sections the page adds beneath the alerts to someone without either alert permission", async () => {
   const services = createServices();
 
   const screen = await renderScreen(services, {
@@ -190,5 +190,5 @@ test("shows no added section to someone without either alert permission", async 
   });
 
   await expect.element(screen.getByText("No tenés alertas para ver")).toBeVisible();
-  expect(screen.getByText("Otra sección de Inicio").query()).toBeNull();
+  await expect.element(screen.getByText("Otra sección de Inicio")).toBeVisible();
 });

@@ -419,7 +419,7 @@ describe("DrizzleAlertStore lockOpenAlerts and recordEscalation", () => {
 });
 
 describe("DrizzleAlertStore lockOpenAlertOfKey", () => {
-  it("answers the open alert of that kind and scope with the moment its condition cleared", async () => {
+  it("answers the open alert of that kind and scope with its detail and the moment its condition cleared", async () => {
     const store = new DrizzleAlertStore(db, () => NOON);
     const id = await store.transaction((tx) => tx.insertAlert(newAlert()));
     const clearedAt = new Date(NOON.getTime() - 60_000);
@@ -429,7 +429,11 @@ describe("DrizzleAlertStore lockOpenAlertOfKey", () => {
       tx.lockOpenAlertOfKey("user_email_changed", "user-1"),
     );
 
-    expect(locked).toEqual({ alertId: id, conditionClearedAt: clearedAt });
+    expect(locked).toEqual({
+      alertId: id,
+      detail: { previousEmail: "a@example.com", newEmail: "b@example.com", actorId: "actor-1" },
+      conditionClearedAt: clearedAt,
+    });
   });
 
   it("answers no moment for an alert whose condition has not cleared", async () => {
@@ -440,7 +444,11 @@ describe("DrizzleAlertStore lockOpenAlertOfKey", () => {
       tx.lockOpenAlertOfKey("user_email_changed", "user-1"),
     );
 
-    expect(locked).toEqual({ alertId: id, conditionClearedAt: null });
+    expect(locked).toEqual({
+      alertId: id,
+      detail: { previousEmail: "a@example.com", newEmail: "b@example.com", actorId: "actor-1" },
+      conditionClearedAt: null,
+    });
   });
 
   it("ignores a closed alert and one of another scope or kind", async () => {

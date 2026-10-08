@@ -2254,7 +2254,7 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/registers/sync-status",
-        access: capabilityAccess("alerts_area"),
+        access: OPEN_SESSION_ACCESS,
       },
       {
         method: "POST",

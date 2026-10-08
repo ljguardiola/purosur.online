@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
+import type { AlertConditionObservation } from "../model/alert-condition-observation.js";
+import { ALERT_CONDITION_STABLE_CLEAR_MS } from "../model/alert-condition-resolution.js";
 import type { OpenAlertInput } from "../model/alert-details.js";
-import {
-  type AlertConditionObservation,
-  observeAlertCondition,
-} from "./observe-alert-condition.js";
+import { observeAlertCondition } from "./observe-alert-condition.js";
 import { NOW, seededAlert } from "./test-support/alert-fixtures.js";
-import { FakeAlertStore, FixedClock } from "./test-support/fake-alert-store.js";
+import { FakeAlertStore, FixedClock, PrefixHasher } from "./test-support/fake-alert-store.js";
 
 const UPDATE_REQUIRED: Extract<OpenAlertInput, { kind: "update_required" }> = {
   kind: "update_required",
@@ -19,6 +18,7 @@ const CLEARED: AlertConditionObservation = {
   scope: "register-1",
 };
 const EARLIER = new Date("2026-10-01T11:55:00.000Z");
+const STABLY_CLEARED_AT = new Date(NOW.getTime() - ALERT_CONDITION_STABLE_CLEAR_MS);
 
 function storeWithViewer(): FakeAlertStore {
   const store = new FakeAlertStore();
@@ -33,7 +33,10 @@ function storeWithViewer(): FakeAlertStore {
 }
 
 function observe(store: FakeAlertStore, observation: AlertConditionObservation, at = NOW) {
-  return observeAlertCondition({ store, clock: new FixedClock(at) }, observation);
+  return observeAlertCondition(
+    { store, clock: new FixedClock(at), hasher: new PrefixHasher() },
+    observation,
+  );
 }
 
 function seedOpenUpdateRequired(store: FakeAlertStore, conditionClearedAt: Date | null = null) {
@@ -82,9 +85,9 @@ describe("observeAlertCondition when the condition holds", () => {
     expect(store.operationOrder).toEqual(["lockOpenAlertOfKey"]);
   });
 
-  it("removes the mark of a condition that cleared, without reopening or delivering anything", async () => {
+  it("removes the mark of a condition that cleared less than 10 minutes ago, without reopening or delivering anything", async () => {
     const store = storeWithViewer();
-    seedOpenUpdateRequired(store, EARLIER);
+    seedOpenUpdateRequired(store, new Date(STABLY_CLEARED_AT.getTime() + 1));
 
     const outcome = await observe(store, HOLDS);
 
@@ -93,6 +96,53 @@ describe("observeAlertCondition when the condition holds", () => {
     expect(snapshot.alerts).toHaveLength(1);
     expect(snapshot.alerts[0]).toMatchObject({ resolvedAt: null, conditionClearedAt: null });
     expect(snapshot.deliveries).toEqual([]);
+  });
+
+  it("resolves the open alert whose condition stayed cleared for 10 minutes and opens a brand-new one", async () => {
+    const store = storeWithViewer();
+    seedOpenUpdateRequired(store, STABLY_CLEARED_AT);
+
+    const outcome = await observe(store, HOLDS);
+
+    expect(outcome).toEqual({ kind: "opened", alertId: "alert-1" });
+    const snapshot = store.snapshot();
+    expect(snapshot.alerts).toEqual([
+      expect.objectContaining({
+        id: "alert-9",
+        resolvedAt: NOW,
+        resolvedBy: null,
+        scope: "register-1",
+        detail: { deviceId: "device-1", appVersion: "0.9.0" },
+        conditionClearedAt: STABLY_CLEARED_AT,
+      }),
+      expect.objectContaining({ id: "alert-1", resolvedAt: null, conditionClearedAt: null }),
+    ]);
+    expect(snapshot.deliveries).toEqual([{ alertId: "alert-1", recipientUserId: "administrator" }]);
+  });
+
+  it("resolves the alert whose condition stayed cleared before opening the new one", async () => {
+    const store = storeWithViewer();
+    seedOpenUpdateRequired(store, STABLY_CLEARED_AT);
+
+    await observe(store, HOLDS);
+
+    expect(store.operationOrder.slice(0, 3)).toEqual([
+      "lockOpenAlertOfKey",
+      "recordClosure",
+      "insertAlert",
+    ]);
+  });
+
+  it("leaves the alert whose condition stayed cleared open when opening the new one fails", async () => {
+    const store = storeWithViewer();
+    seedOpenUpdateRequired(store, STABLY_CLEARED_AT);
+    store.failingWrites.add("insertAlert");
+
+    await expect(observe(store, HOLDS)).rejects.toThrow("insertAlert failed");
+
+    expect(store.snapshot().alerts).toEqual([
+      expect.objectContaining({ id: "alert-9", resolvedAt: null }),
+    ]);
   });
 
   it("opens a brand-new alert when the one that held this condition already resolved", async () => {

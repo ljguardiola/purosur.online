@@ -146,7 +146,7 @@ test("keeps the alerts on Inicio when the registers fail to load, and retries on
   expect(services.alertsOverviewScreen.fetchAlertsOverview).toHaveBeenCalledTimes(1);
 });
 
-test("asks the cloud nothing about registers for a user who may not see alerts on Inicio", async () => {
+test("shows each register's last successful sync on Inicio to a user who may not see alerts", async () => {
   window.history.pushState(null, "", "/");
   const services = createAppServices({
     fetchSession: vi
@@ -155,10 +155,15 @@ test("asks the cloud nothing about registers for a user who may not see alerts o
         openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
       ),
   });
+  vi.mocked(services.registersSyncSection.fetchRegisterSyncStatus).mockResolvedValue({
+    kind: "ok",
+    value: [{ id: "register-1", name: "Caja 1", lastSuccessfulSyncAt: null }],
+  });
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByText("No tenés alertas para ver")).toBeVisible();
-  expect(screen.getByRole("heading", { name: "Cajas", level: 2 }).query()).toBeNull();
-  expect(services.registersSyncSection.fetchRegisterSyncStatus).not.toHaveBeenCalled();
+  await expect
+    .element(screen.getByRole("row", { name: /^Caja 1 Nunca sincronizó$/ }))
+    .toBeVisible();
 });

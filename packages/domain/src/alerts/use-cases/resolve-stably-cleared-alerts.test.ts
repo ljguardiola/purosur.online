@@ -121,7 +121,10 @@ describe("a condition alert's life", () => {
     at: Date,
     observation: typeof holds | typeof cleared,
   ) {
-    await observeAlertCondition({ store, clock: new FixedClock(at) }, observation);
+    await observeAlertCondition(
+      { store, clock: new FixedClock(at), hasher: new PrefixHasher() },
+      observation,
+    );
   }
 
   it("resolves only once the condition stayed cleared for 10 minutes", async () => {
