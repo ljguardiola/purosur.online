@@ -50,6 +50,50 @@ export function aCompletedSale(overrides: Partial<CompletedSale> = {}): Complete
   };
 }
 
+export type CancelledSale = FactOf<"sale_cancelled">["sale"];
+
+const CANCELLED_AT = new Date("2026-10-06T11:25:00.000Z");
+
+export function aCancelledSale(overrides: Partial<CancelledSale> = {}): CancelledSale {
+  const payment = {
+    id: randomUUID(),
+    method: "CASH" as const,
+    provider: "NONE" as const,
+    amount: 1000,
+    tendered: 1000,
+    state: "APPROVED" as const,
+    occurredAt: COMPLETED_AT,
+    authorizedBy: null,
+    confirmedAt: null,
+  };
+  return {
+    id: randomUUID(),
+    sessionId: randomUUID(),
+    actorId: USER,
+    authorizedBy: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
+    cancelledAt: CANCELLED_AT,
+    total: 4800,
+    lines: aCompletedSale().lines,
+    payments: [payment],
+    refunds: [
+      {
+        id: randomUUID(),
+        paymentId: payment.id,
+        method: "CASH",
+        provider: "NONE",
+        amount: 1000,
+        state: "APPROVED",
+        occurredAt: CANCELLED_AT,
+      },
+    ],
+    cashMovements: [
+      { id: randomUUID(), type: "SALE", amount: 1000, actorId: USER, occurredAt: COMPLETED_AT },
+      { id: randomUUID(), type: "REFUND", amount: 1000, actorId: USER, occurredAt: CANCELLED_AT },
+    ],
+    ...overrides,
+  };
+}
+
 export function aCashSessionOpenedFact(
   overrides: Partial<FactOf<"cash_session_opened">["session"]> = {},
 ): SyncedFact {
