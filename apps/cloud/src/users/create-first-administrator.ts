@@ -1,0 +1,23 @@
+import {
+  type CreateFirstAdministratorInput,
+  type CreateFirstAdministratorResult,
+  createFirstAdministrator as createFirstAdministratorUseCase,
+} from "@purosur/domain/users/use-cases";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { DrizzleFirstAdministratorStore } from "./drizzle-first-administrator-store.js";
+
+export {
+  FirstAdministratorAlreadyBootstrappedError,
+  InvalidFirstAdministratorInputError,
+} from "@purosur/domain/users/use-cases";
+
+export function createFirstAdministrator<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  input: CreateFirstAdministratorInput,
+  now: () => Date,
+): Promise<CreateFirstAdministratorResult> {
+  return createFirstAdministratorUseCase(
+    { store: new DrizzleFirstAdministratorStore(db, now) },
+    input,
+  );
+}

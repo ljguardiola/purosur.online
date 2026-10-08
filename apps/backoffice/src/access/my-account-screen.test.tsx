@@ -10,7 +10,7 @@ import {
 import { render } from "../shell/test-support/render-with-router";
 import { MyAccountScreen } from "./my-account-screen";
 import type { MyAccountScreenServices } from "./my-account-services";
-import type { Passkey } from "./passkey-api";
+import type { Passkey } from "./passkey-list";
 
 function createServices(overrides: Partial<MyAccountScreenServices> = {}): MyAccountScreenServices {
   return {

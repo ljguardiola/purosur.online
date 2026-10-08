@@ -7,7 +7,7 @@ import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { useOwnPasskeysQuery, useRefreshAccess } from "./access-queries";
 import type { MyAccountScreenServices } from "./my-account-services";
-import type { Passkey } from "./passkey-api";
+import type { Passkey } from "./passkey-list";
 import { passkeyRowDetail } from "./passkey-row-detail";
 import { RegisterOwnPasskeyModal } from "./register-own-passkey-modal";
 import { RemoveOwnPasskeyModal } from "./remove-own-passkey-modal";

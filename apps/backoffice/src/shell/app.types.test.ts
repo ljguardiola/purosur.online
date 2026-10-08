@@ -3,8 +3,6 @@ import type { AccountRecoveryScreenProps } from "../access/account-recovery-scre
 import type { MyAccountScreenProps } from "../access/my-account-screen";
 import type { RegisterPasskeyScreenProps } from "../access/register-passkey-screen";
 import type { SignInScreenProps } from "../access/sign-in-screen";
-import type { UserDetailScreenProps } from "../access/user-detail-screen";
-import type { UsersListScreenProps } from "../access/users-list-screen";
 import type { AlertsListScreenProps } from "../alerts/alerts-list-screen";
 import type { BranchSettingsScreenProps } from "../branch/branch-settings-screen";
 import type { BrandsListScreenProps } from "../catalog/brands-list-screen";
@@ -16,6 +14,8 @@ import type { RolesListScreenProps } from "../permissions/roles-list-screen";
 import type { DiscountsListScreenProps } from "../pricing/discounts-list-screen";
 import type { PricesListScreenProps } from "../pricing/prices-list-screen";
 import type { RegistersListScreenProps } from "../register/registers-list-screen";
+import type { UserDetailScreenProps } from "../users/user-detail-screen";
+import type { UsersListScreenProps } from "../users/users-list-screen";
 import type { AppServices } from "./app";
 
 type ServicesProp<Props extends { services?: unknown }> = Pick<Props, "services">;

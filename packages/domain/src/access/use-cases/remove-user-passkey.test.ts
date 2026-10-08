@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { removeUserPasskey } from "./remove-user-passkey.js";
-import { BRANCH, user } from "./test-support/branch-user-fixtures.js";
-import { FakeBranchUsers } from "./test-support/fake-branch-users.js";
+import { FakePasskeyHolders } from "./test-support/fake-passkey-holders.js";
 import { FakePasskeyRemovalStore } from "./test-support/fake-passkey-removal-store.js";
 
+const BRANCH = "branch-1";
 const AT = new Date("2026-10-01T12:00:00.000Z");
 const AUTHORIZED_AT = new Date("2026-10-01T11:58:00.000Z");
 const INPUT = {
@@ -23,19 +23,19 @@ function storeWithPasskey() {
   return store;
 }
 
-function usersWithTarget() {
-  const users = new FakeBranchUsers();
-  users.seedUser(user({ id: "u-1" }));
-  users.seedUser(user({ id: "u-2" }));
-  users.seedUser(user({ id: "admin-1" }));
-  return users;
+function holdersWithTarget() {
+  const holders = new FakePasskeyHolders();
+  for (const id of ["u-1", "u-2", "admin-1"]) {
+    holders.seedHolder({ id, locationId: BRANCH, active: true });
+  }
+  return holders;
 }
 
 describe("removeUserPasskey", () => {
   it("removes the passkey, ends every session of its user, audits it and tells the user", async () => {
     const store = storeWithPasskey();
 
-    const outcome = await removeUserPasskey({ store, users: usersWithTarget() }, INPUT);
+    const outcome = await removeUserPasskey({ store, holders: holdersWithTarget() }, INPUT);
 
     expect(outcome).toEqual({ kind: "removed" });
     expect(store.current.passkeys).toEqual([]);
@@ -60,7 +60,7 @@ describe("removeUserPasskey", () => {
   it("takes the passkey's lock before touching anything else", async () => {
     const store = storeWithPasskey();
 
-    await removeUserPasskey({ store, users: usersWithTarget() }, INPUT);
+    await removeUserPasskey({ store, holders: holdersWithTarget() }, INPUT);
 
     expect(store.operationOrder).toEqual([
       "findRemovablePasskey",
@@ -76,7 +76,7 @@ describe("removeUserPasskey", () => {
     const before = store.snapshot();
 
     const outcome = await removeUserPasskey(
-      { store, users: usersWithTarget() },
+      { store, holders: holdersWithTarget() },
       { ...INPUT, targetUserId: "u-2" },
     );
 
@@ -95,7 +95,7 @@ describe("removeUserPasskey", () => {
       const before = store.snapshot();
 
       const outcome = await removeUserPasskey(
-        { store, users: usersWithTarget() },
+        { store, holders: holdersWithTarget() },
         { ...INPUT, passkeyAuthorizedAt },
       );
 
@@ -109,7 +109,7 @@ describe("removeUserPasskey", () => {
     const store = storeWithPasskey();
 
     const outcome = await removeUserPasskey(
-      { store, users: usersWithTarget() },
+      { store, holders: holdersWithTarget() },
       { ...INPUT, passkeyId: "p-9", passkeyAuthorizedAt: null },
     );
 
@@ -127,7 +127,7 @@ describe("removeUserPasskey", () => {
     const before = store.snapshot();
     store.failingWrites.add(failing);
 
-    await expect(removeUserPasskey({ store, users: usersWithTarget() }, INPUT)).rejects.toThrow(
+    await expect(removeUserPasskey({ store, holders: holdersWithTarget() }, INPUT)).rejects.toThrow(
       `${failing} failed`,
     );
 
@@ -136,16 +136,16 @@ describe("removeUserPasskey", () => {
 
   it("reaches neither port when the session is not authorized, even for a target that does not exist", async () => {
     const store = storeWithPasskey();
-    const users = usersWithTarget();
-    const branchUser = vi.spyOn(users, "branchUser");
+    const holders = holdersWithTarget();
+    const passkeyHolder = vi.spyOn(holders, "passkeyHolder");
 
     const outcome = await removeUserPasskey(
-      { store, users },
+      { store, holders },
       { ...INPUT, targetUserId: "nobody", passkeyAuthorizedAt: null },
     );
 
     expect(outcome).toEqual({ kind: "authorization_required" });
-    expect(branchUser).not.toHaveBeenCalled();
+    expect(passkeyHolder).not.toHaveBeenCalled();
     expect(store.operationOrder).toEqual([]);
   });
 
@@ -154,7 +154,7 @@ describe("removeUserPasskey", () => {
     const before = store.snapshot();
 
     const outcome = await removeUserPasskey(
-      { store, users: usersWithTarget() },
+      { store, holders: holdersWithTarget() },
       { ...INPUT, targetUserId: "admin-1" },
     );
 
@@ -166,12 +166,12 @@ describe("removeUserPasskey", () => {
   it("finds no user in another branch or among the deactivated, and touches nothing", async () => {
     const store = storeWithPasskey();
     const before = store.snapshot();
-    const users = new FakeBranchUsers();
-    users.seedUser(user({ id: "u-1", locationId: "branch-2" }));
-    users.seedUser(user({ id: "u-2", active: false }));
+    const holders = new FakePasskeyHolders();
+    holders.seedHolder({ id: "u-1", locationId: "branch-2", active: true });
+    holders.seedHolder({ id: "u-2", locationId: BRANCH, active: false });
 
-    expect(await removeUserPasskey({ store, users }, INPUT)).toEqual({ kind: "user_not_found" });
-    expect(await removeUserPasskey({ store, users }, { ...INPUT, targetUserId: "u-2" })).toEqual({
+    expect(await removeUserPasskey({ store, holders }, INPUT)).toEqual({ kind: "user_not_found" });
+    expect(await removeUserPasskey({ store, holders }, { ...INPUT, targetUserId: "u-2" })).toEqual({
       kind: "user_not_found",
     });
     expect(store.current).toEqual(before);

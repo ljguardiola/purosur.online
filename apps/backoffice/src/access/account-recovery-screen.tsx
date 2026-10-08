@@ -2,10 +2,10 @@ import { recoveryRequestBodySchema } from "@purosur/contracts";
 import { Button, InlineNotice, ScreenHeader, useRequestForm } from "@purosur/ui";
 import { ArrowLeft, MailCheck, Send, ShieldX, TriangleAlert } from "lucide-react";
 import { type FormEvent, useState } from "react";
+import { emailFieldMessage } from "../platform/email-field-message";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { AccessFooterLink, AccessLayout } from "./access-layout";
 import type { AccountRecoveryScreenServices } from "./account-recovery-services";
-import { emailFieldMessage } from "./email-field-message";
 
 type Notice = { kind: "rate_limited"; retryAfterSeconds: number } | { kind: "error" };
 

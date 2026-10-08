@@ -13,7 +13,7 @@ import {
 import type { RegisterOwnPasskeyModalServices } from "./register-own-passkey-modal";
 import type { RemoveOwnPasskeyModalServices } from "./remove-own-passkey-modal";
 import { signalUnknownCredential } from "./signal-unknown-credential";
-import { emitUserPinCode } from "./users-api";
+import { emitUserPinCode } from "./user-credentials-api";
 
 export type MyAccountScreenServices = {
   fetchPasskeys: typeof fetchPasskeys;

@@ -8,7 +8,8 @@ import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
-import type { Passkey, RemovePasskeyOutcome, removePasskey } from "./passkey-api";
+import type { RemovePasskeyOutcome, removePasskey } from "./passkey-api";
+import type { Passkey } from "./passkey-list";
 
 export type RemoveOwnPasskeyModalServices = {
   removePasskey: typeof removePasskey;

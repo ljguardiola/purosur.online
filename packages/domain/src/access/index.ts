@@ -5,7 +5,6 @@ export {
   backofficeRequestWindowStart,
 } from "./model/backoffice-request-rate-limits.js";
 export { CHALLENGE_TTL_MS, challengeExpiryWindowStart } from "./model/challenge-lifetime.js";
-export { isEmailAddress } from "./model/email-address.js";
 export {
   hasValidPasskeyAuthorization,
   PASSKEY_AUTHORIZATION_WINDOW_MS,
@@ -63,9 +62,3 @@ export {
   signInLockoutWindowStart,
 } from "./model/sign-in-lockout.js";
 export { signInLookupAttemptWindowStart } from "./model/sign-in-lookup-attempt-limit.js";
-export {
-  mayDeactivateUser,
-  mayEditUser,
-  mayReactivateUser,
-  mayRemoveUserPasskey,
-} from "./model/user-management.js";
