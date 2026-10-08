@@ -1,4 +1,4 @@
-import { hasApprovedPayment, type PaymentMethod } from "./payment.js";
+import type { PaymentMethod } from "./payment.js";
 
 export interface RefundablePayment {
   id: string;
