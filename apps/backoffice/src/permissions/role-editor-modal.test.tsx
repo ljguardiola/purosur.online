@@ -3,11 +3,11 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { type ReactElement, useEffect } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import { useRefreshAccess } from "../platform/access-queries";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import type { RoleSummary } from "../platform/roles-api";
 import { permissionCatalogFixture } from "../platform/test-support/permission-catalog";
 import { render } from "../shell/test-support/render-with-router";
+import { useRefreshPermissions } from "./permissions-queries";
 import {
   RoleEditorModal,
   type RoleEditorModalServices,
@@ -912,8 +912,8 @@ test("ignores a passkey-authorized retry that resolves late after the editor mov
 });
 
 function RefreshProbe({ onReady }: { onReady: (refresh: () => Promise<void>) => void }) {
-  const refreshAccess = useRefreshAccess();
-  useEffect(() => onReady(refreshAccess));
+  const refreshPermissions = useRefreshPermissions();
+  useEffect(() => onReady(refreshPermissions));
   return null;
 }
 
@@ -980,10 +980,10 @@ test("a refresh of the role in the background never overwrites what is being typ
   vi.mocked(services.fetchRole)
     .mockResolvedValueOnce({ kind: "ok", value: stockDetail })
     .mockReturnValueOnce(refresh.promise);
-  let refreshAccess: () => Promise<void> = () => Promise.resolve();
+  let refreshPermissions: () => Promise<void> = () => Promise.resolve();
   const screen = await render(
     modalWithRefresh({ kind: "edit", roleId: "role-stock" }, services, (refresh) => {
-      refreshAccess = refresh;
+      refreshPermissions = refresh;
     }),
   );
   await expect
@@ -991,7 +991,7 @@ test("a refresh of the role in the background never overwrites what is being typ
     .toHaveValue("Depósito");
   await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), "Depósito nuevo");
 
-  void refreshAccess();
+  void refreshPermissions();
   await expect.poll(() => vi.mocked(services.fetchRole).mock.calls.length).toBe(2);
   await expect.element(screen.getByRole("button", { name: "Guardar los cambios" })).toBeEnabled();
   refresh.resolve({ kind: "ok", value: { ...stockDetail, name: "Otro nombre", version: 9 } });
