@@ -5,8 +5,11 @@ import { useId } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { schemaText } from "../platform/schema-text";
 import { useRegisterSyncStatusQuery } from "./register-queries";
-import type { RegisterSyncStatus } from "./registers-api";
-import type { RegistersSyncSectionServices } from "./registers-sync-services";
+import type { fetchRegisterSyncStatus, RegisterSyncStatus } from "./registers-api";
+
+export type RegistersSyncSectionServices = {
+  fetchRegisterSyncStatus: typeof fetchRegisterSyncStatus;
+};
 
 export type RegistersSyncSectionProps = {
   onSessionEnded: () => void;

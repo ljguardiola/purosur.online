@@ -1,29 +1,36 @@
-import { AlertsOverviewScreen } from "../alerts/alerts-overview-screen";
-import type { AlertsOverviewScreenServices } from "../alerts/alerts-overview-services";
+import { AlertsOverviewOpenCount, AlertsOverviewSection } from "../alerts/alerts-overview-section";
 import { RegistersSyncSection } from "../register/registers-sync-section";
-import type { RegistersSyncSectionServices } from "../register/registers-sync-services";
 import type { BackofficeAccess } from "./backoffice-access";
+import type { HomeScreenServices } from "./home-screen-services";
+import { ScreenLayout } from "./screen-layout";
+import { ScreenTitle } from "./screen-title";
 
 export type HomeScreenProps = {
   access: BackofficeAccess;
   onSessionEnded: () => void;
-  services: {
-    alertsOverviewScreen: AlertsOverviewScreenServices;
-    registersSyncSection: RegistersSyncSectionServices;
-  };
+  services: HomeScreenServices;
 };
 
 export function HomeScreen({ access, onSessionEnded, services }: HomeScreenProps) {
   return (
-    <AlertsOverviewScreen
-      access={access}
-      onSessionEnded={onSessionEnded}
-      services={services.alertsOverviewScreen}
+    <ScreenLayout
+      topBar={
+        <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
+          <div className="flex flex-col justify-center">
+            <p className="text-text-subtle text-detail">Puro Sur</p>
+            <ScreenTitle>Inicio</ScreenTitle>
+          </div>
+          <AlertsOverviewOpenCount
+            access={access}
+            onSessionEnded={onSessionEnded}
+            services={services}
+          />
+        </div>
+      }
+      bodyClassName="gap-4 p-6"
     >
-      <RegistersSyncSection
-        onSessionEnded={onSessionEnded}
-        services={services.registersSyncSection}
-      />
-    </AlertsOverviewScreen>
+      <AlertsOverviewSection access={access} onSessionEnded={onSessionEnded} services={services} />
+      <RegistersSyncSection onSessionEnded={onSessionEnded} services={services} />
+    </ScreenLayout>
   );
 }

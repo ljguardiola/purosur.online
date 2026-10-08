@@ -33,10 +33,6 @@ import {
   defaultAlertsListScreenServices,
 } from "../alerts/alerts-list-services";
 import {
-  type AlertsOverviewScreenServices,
-  defaultAlertsOverviewScreenServices,
-} from "../alerts/alerts-overview-services";
-import {
   type BranchSettingsScreenServices,
   defaultBranchSettingsScreenServices,
 } from "../branch/branch-settings-services";
@@ -79,10 +75,6 @@ import {
   type RegistersListScreenServices,
 } from "../register/registers-list-services";
 import {
-  defaultRegistersSyncSectionServices,
-  type RegistersSyncSectionServices,
-} from "../register/registers-sync-services";
-import {
   defaultPendingRefundsScreenServices,
   type PendingRefundsScreenServices,
 } from "../sales/pending-refunds-services";
@@ -104,6 +96,7 @@ import {
 } from "../stock/stock-movements-services";
 import { type AccountFooterServices, defaultAccountFooterServices } from "./account-footer";
 import { createAppRouter } from "./app-router";
+import { defaultHomeScreenServices, type HomeScreenServices } from "./home-screen-services";
 import {
   SessionCheckPendingContext,
   type SettledSession,
@@ -141,8 +134,7 @@ export type AppServices = {
   pointsOfSaleScreen: PointsOfSaleScreenServices;
   accountFooter: AccountFooterServices;
   screenFailure: ScreenFailureServices;
-  registersSyncSection: RegistersSyncSectionServices;
-  alertsOverviewScreen: AlertsOverviewScreenServices;
+  homeScreen: HomeScreenServices;
   alertsListScreen: AlertsListScreenServices;
 };
 
@@ -173,8 +165,7 @@ const defaultAppServices: AppServices = {
   pointsOfSaleScreen: defaultPointsOfSaleScreenServices,
   accountFooter: defaultAccountFooterServices,
   screenFailure: defaultScreenFailureServices,
-  registersSyncSection: defaultRegistersSyncSectionServices,
-  alertsOverviewScreen: defaultAlertsOverviewScreenServices,
+  homeScreen: defaultHomeScreenServices,
   alertsListScreen: defaultAlertsListScreenServices,
 };
 

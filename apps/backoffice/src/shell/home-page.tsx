@@ -9,6 +9,10 @@ export function HomePage(): ReactElement {
   const { session, services, sessionActions } = route.useRouteContext();
   useDocumentTitle("Inicio · Puro Sur");
   return (
-    <HomeScreen access={session} onSessionEnded={sessionActions.sessionEnded} services={services} />
+    <HomeScreen
+      access={session}
+      onSessionEnded={sessionActions.sessionEnded}
+      services={services.homeScreen}
+    />
   );
 }
