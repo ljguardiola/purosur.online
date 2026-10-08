@@ -880,7 +880,7 @@ describe("personal data in text", () => {
           const scrubbed = scrubErrorReport({ message: `could not open ${folder}${name}${query}` });
 
           expect(scrubbed.message).toBe(
-            `could not open ${folder}[redacted]${query === "" ? "" : `${query[0]}[redacted]`}`,
+            `could not open ${folder}[redacted]${query === "" ? "" : "?[redacted]"}`,
           );
         },
       ),
