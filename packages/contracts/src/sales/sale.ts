@@ -1,10 +1,13 @@
 import {
   isValidDiscountBuyNPayM,
   isValidDiscountPercent,
+  PAYMENT_METHODS,
+  REFUND_STATES,
   SALE_UNITS,
   SEARCH_RESULT_LIMIT,
 } from "@purosur/domain";
 import { z } from "zod";
+import { authorizationRefusalSchema, authorizedBySchema } from "../shared/index.js";
 
 const cents = z.int().nonnegative();
 
@@ -29,6 +32,13 @@ const saleLineSchema = z.object({
   line_total: cents,
 });
 
+const plannedRefundSchema = z.object({
+  payment_id: z.string(),
+  method: z.enum(PAYMENT_METHODS),
+  amount: cents,
+  state: z.enum(REFUND_STATES),
+});
+
 const reachesThresholdRefusal = z.object({
   kind: z.literal("reaches_buyer_identification_threshold"),
   threshold: z.int().positive(),
@@ -43,6 +53,8 @@ export const saleSchema = z.object({
   pending: cents,
   lines_editable: z.boolean(),
   cancellable: z.boolean(),
+  refunds_on_cancel: z.array(plannedRefundSchema),
+  cancel_authorization_required: z.boolean(),
   charge_refusal: z
     .discriminatedUnion("kind", [reachesThresholdRefusal, noThresholdRefusal])
     .nullable(),
@@ -126,6 +138,20 @@ export const cancelSaleOutcomeSchema = z.discriminatedUnion("kind", [
   ...saleRefusalSchemas,
 ]);
 export type CancelSaleOutcome = z.infer<typeof cancelSaleOutcomeSchema>;
+
+export const cancelPaidSaleOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("cancelled"),
+    refunds: z.array(plannedRefundSchema),
+    authorized_by: authorizedBySchema.nullable(),
+  }),
+  z.object({ kind: z.literal("no_open_sale") }),
+  z.object({ kind: z.literal("no_open_session") }),
+  notPermittedOutcome,
+  notSignedInOutcome,
+  ...authorizationRefusalSchema.options,
+]);
+export type CancelPaidSaleOutcome = z.infer<typeof cancelPaidSaleOutcomeSchema>;
 
 export const addProductOutcomeSchema = z.discriminatedUnion("kind", [
   addedOutcome,

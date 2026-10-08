@@ -8,10 +8,10 @@ import { page, userEvent } from "vitest/browser";
 import { render as renderInPage } from "vitest-browser-react";
 import { createQueryClient } from "../platform/query-client";
 import type { CashSessionState } from "../register/cash-session-state";
-import { GuardedCashInForm } from "../register/test-support/guarded-cash-in-form";
 import type { CoreStatus, Enrollment, RegisterServiceState, RouterContext } from "./router";
 import { createRegisterRouter, routeFor, routeTree } from "./router";
 import type { SignedInPerson } from "./signed-in-person";
+import { GuardedCashInForm } from "./test-support/guarded-cash-in-form";
 
 type RoutePath =
   | "/"
@@ -142,6 +142,7 @@ function contextWith(
     changeLineQuantity: async () => ({ kind: "unavailable" }),
     removeSaleLine: async () => ({ kind: "unavailable" }),
     cancelSale: async () => ({ kind: "unavailable" }),
+    cancelPaidSale: async () => ({ kind: "unavailable" }),
     refreshCashSession: async () => {},
   };
 }
@@ -810,6 +811,8 @@ describe("the register's router", () => {
           lines_editable: true,
           cancellable: true,
           charge_refusal: null,
+          refunds_on_cancel: [],
+          cancel_authorization_required: false,
         }),
         cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 0 }),
         chargeSaleInCash: async (saleId, tendered) => {
@@ -858,6 +861,8 @@ describe("the register's router", () => {
           lines_editable: true,
           cancellable: true,
           charge_refusal: null,
+          refunds_on_cancel: [],
+          cancel_authorization_required: false,
         }),
         cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 0 }),
         chargeSaleInCash: async () => ({ kind: "no_open_session" }),

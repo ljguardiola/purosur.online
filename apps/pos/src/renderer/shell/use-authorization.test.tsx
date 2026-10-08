@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import type { SignedInPerson } from "../shell/signed-in-person";
-import { render } from "../shell/test-support/render-with-router";
+import type { SignedInPerson } from "./signed-in-person";
+import { render } from "./test-support/render-with-router";
 import { useAuthorization } from "./use-authorization";
 
 const PERSON: SignedInPerson = {

@@ -58,6 +58,7 @@ describe("currentSale", () => {
       balance: { paid: 0, pending: 5000 },
       linesEditable: true,
       cancellable: true,
+      refundsOnCancel: [],
     });
   });
 
@@ -80,6 +81,15 @@ describe("currentSale", () => {
       balance: { paid: 1200, pending: 3800 },
       linesEditable: false,
       cancellable: false,
+      refundsOnCancel: [
+        {
+          paymentId: "payment-1",
+          method: "CASH",
+          provider: "NONE",
+          amount: 1200,
+          state: "APPROVED",
+        },
+      ],
     });
   });
 

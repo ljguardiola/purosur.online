@@ -1,4 +1,5 @@
 import { argentinaCalendarDay, isCalendarDay } from "../../shared/index.js";
+import type { SaleState } from "./sale.js";
 
 export interface SalesReportRange {
   from: string;
@@ -40,3 +41,5 @@ export function salesReportTotals(days: readonly SalesOfDay[]): SalesReportTotal
     total: days.reduce((sum, day) => sum + day.total, 0),
   };
 }
+
+export const SALES_REPORT_SALE_STATE = "COMPLETED" satisfies SaleState;

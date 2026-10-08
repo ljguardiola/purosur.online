@@ -45,6 +45,7 @@ describe("the description of a quarantined event", () => {
     ["cash_session_closed", "cierre de caja"],
     ["cash_movement_recorded", "movimiento de caja"],
     ["fiscal_gate_failed", "control fiscal previo a facturar"],
+    ["sale_cancelled", "venta cancelada"],
   ])("names a %s event as one of %s", (eventType, name) => {
     expect(
       quarantinedEventDescription({
@@ -104,6 +105,18 @@ describe("the description of an event applied with an inconsistency", () => {
       invariantViolationDescription({ ...violation, breaks: ["approved_payments_below_total"] }),
     ).toBe(
       "Se aplicó el evento de venta (event-1) de la venta sale-1, pero tiene una inconsistencia: los pagos aprobados no cubren el total de la venta.",
+    );
+  });
+
+  test("says the refunds of a cancelled sale do not match its payments", () => {
+    expect(
+      invariantViolationDescription({
+        ...violation,
+        eventType: "sale_cancelled",
+        breaks: ["refunds_do_not_match_payments"],
+      }),
+    ).toBe(
+      "Se aplicó el evento de venta cancelada (event-1) de la venta sale-1, pero tiene una inconsistencia: los reembolsos no coinciden con los pagos de la venta.",
     );
   });
 

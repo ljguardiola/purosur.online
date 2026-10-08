@@ -16,6 +16,7 @@ import { openLocalDatabase } from "../platform/test-support/open-local-database"
 import {
   addSearchedProductFor,
   cancelLockedSaleFor,
+  cancelPaidSaleFor,
   cancelSaleFor,
   cashChargeFor,
   changeLineQuantityFor,
@@ -60,6 +61,16 @@ function deps(overrides: Partial<OutboxSaleRequestDeps> = {}): OutboxSaleRequest
       },
     },
     ...overrides,
+  };
+}
+
+function idsStartingWith(prefix: string): OutboxSaleRequestDeps["ids"] {
+  let count = 0;
+  return {
+    next: () => {
+      count += 1;
+      return `${prefix}-${count}`;
+    },
   };
 }
 
@@ -191,6 +202,8 @@ describe("scanning a product on the register", () => {
         lines_editable: true,
         cancellable: true,
         charge_refusal: null,
+        refunds_on_cancel: [],
+        cancel_authorization_required: true,
       },
     });
   });
@@ -357,6 +370,8 @@ describe("adding a searched product on the register", () => {
         lines_editable: true,
         cancellable: true,
         charge_refusal: null,
+        refunds_on_cancel: [],
+        cancel_authorization_required: true,
       },
     });
   });
@@ -452,6 +467,8 @@ describe("the sale in progress", () => {
       lines_editable: true,
       cancellable: true,
       charge_refusal: null,
+      refunds_on_cancel: [],
+      cancel_authorization_required: true,
     });
   });
 
@@ -466,6 +483,41 @@ describe("the sale in progress", () => {
       lines_editable: false,
       cancellable: false,
     });
+  });
+
+  it("lists the refund each approved payment would get if the sale were cancelled", async () => {
+    const saleId = await sellTwoForPayments();
+    const ids = idsStartingWith("payment");
+    await chargeSaleInCashFor(deps({ ids }), { saleId, tendered: 1000 });
+    await chargeSaleByTransferFor(deps({ ids }), { saleId, amount: 500 });
+    const paymentIds = database
+      .prepare<[], { id: string }>("SELECT id FROM payment_transactions ORDER BY rowid")
+      .all()
+      .map((payment) => payment.id);
+
+    expect(await currentSaleFor(deps())).toMatchObject({
+      refunds_on_cancel: [
+        { payment_id: paymentIds[0], method: "CASH", amount: 1000, state: "APPROVED" },
+        { payment_id: paymentIds[1], method: "TRANSFER", amount: 500, state: "PENDING" },
+      ],
+    });
+  });
+
+  it("says that cancelling it needs another person's authorization to a person without the void sale permission", async () => {
+    await scanProductFor(deps(), "111");
+
+    expect(await currentSaleFor(deps())).toMatchObject({ cancel_authorization_required: true });
+  });
+
+  it("says that cancelling it needs nobody's authorization to a person with the void sale permission", async () => {
+    database
+      .prepare(
+        "INSERT INTO role_permissions (role_id, permission_key, active) VALUES ('cashier', 'void_sale', 1)",
+      )
+      .run();
+    await scanProductFor(deps(), "111");
+
+    expect(await currentSaleFor(deps())).toMatchObject({ cancel_authorization_required: false });
   });
 
   it("is refused for charging when the total reaches the threshold in effect", async () => {
@@ -582,6 +634,8 @@ describe("removing a line", () => {
         lines_editable: true,
         cancellable: true,
         charge_refusal: null,
+        refunds_on_cancel: [],
+        cancel_authorization_required: true,
       },
     });
   });
@@ -1319,5 +1373,224 @@ describe("editing the lines of a sale with an approved payment", () => {
     await sellTwoPartlyPaid();
 
     expect(await removeSaleLineFor(deps(), "id-2")).toEqual({ kind: "sale_has_payments" });
+  });
+});
+
+describe("cancelling the sale in progress after a payment was approved", () => {
+  function pinGate() {
+    return createActionGate({
+      store: new SqliteSignInStore(database),
+      signedInPerson,
+      readPepper: async () => PEPPER,
+      hashPin: async (pin) => (pin === CLOSER_PIN ? PIN_HASH : "hash-of-another-pin"),
+      now: () => NOW,
+    });
+  }
+
+  function addPersonWithPin(id: string, firstName: string, permissions: string[]): void {
+    database
+      .prepare(
+        `INSERT INTO roles (id, name, is_administrator, version) VALUES ('role-${id}', 'Rol', 0, 1)`,
+      )
+      .run();
+    for (const key of permissions) {
+      database
+        .prepare(
+          `INSERT INTO role_permissions (role_id, permission_key, active) VALUES ('role-${id}', ?, 1)`,
+        )
+        .run(key);
+    }
+    database
+      .prepare(
+        "INSERT INTO users (id, first_name, role_id, salt, active, version) VALUES (?, ?, ?, ?, 1, 1)",
+      )
+      .run(id, firstName, `role-${id}`, encodePinHash(new Uint8Array(16).fill(1)));
+    database
+      .prepare("INSERT INTO pin_verifiers (user_id, verifier) VALUES (?, ?)")
+      .run(id, derivePinVerifier(PEPPER, PIN_HASH));
+  }
+
+  const ids = idsStartingWith("cancelled");
+
+  function withPins(overrides: Partial<OutboxSaleRequestDeps> = {}): OutboxSaleRequestDeps {
+    return deps({ gate: pinGate(), ids, ...overrides });
+  }
+
+  async function partlyPaidInCash(): Promise<string> {
+    const saleId = await sellTwoForPayments();
+    await chargeSaleInCashFor(deps({ ids }), { saleId, tendered: 1000 });
+    return saleId;
+  }
+
+  function saleStates(): unknown[] {
+    return database.prepare("SELECT state FROM sales").all();
+  }
+
+  it("cancels it for a person with the void sale permission, giving the cash back", async () => {
+    addPersonWithPin("u2", "Grace", ["sell_and_charge", "void_sale"]);
+    database.prepare("UPDATE cash_sessions SET opened_by = 'u2'").run();
+    signedInPerson.set("u2");
+    const saleId = await partlyPaidInCash();
+    const [payment] = database
+      .prepare<[], { id: string }>("SELECT id FROM payment_transactions")
+      .all();
+
+    expect(await cancelPaidSaleFor(withPins(), { saleId })).toEqual({
+      kind: "cancelled",
+      refunds: [{ payment_id: payment?.id, method: "CASH", amount: 1000, state: "APPROVED" }],
+      authorized_by: null,
+    });
+    expect(saleStates()).toEqual([{ state: "CANCELLED" }]);
+    expect(
+      database
+        .prepare(
+          "SELECT type, amount, actor_id, authorized_by FROM cash_movements WHERE type = 'REFUND'",
+        )
+        .all(),
+    ).toEqual([{ type: "REFUND", amount: 1000, actor_id: "u2", authorized_by: null }]);
+  });
+
+  it("cancels it with the PIN of a person who holds the permission, naming who authorized it", async () => {
+    addPersonWithPin("u2", "Grace", ["void_sale"]);
+    const saleId = await partlyPaidInCash();
+
+    expect(
+      await cancelPaidSaleFor(withPins(), {
+        saleId,
+        authorization: { user_id: "u2", pin: CLOSER_PIN },
+      }),
+    ).toMatchObject({
+      kind: "cancelled",
+      authorized_by: { user_id: "u2", first_name: "Grace" },
+    });
+    expect(database.prepare("SELECT state, cancellation_authorized_by FROM sales").all()).toEqual([
+      { state: "CANCELLED", cancellation_authorized_by: "u2" },
+    ]);
+    expect(
+      database
+        .prepare("SELECT actor_id, authorized_by FROM cash_movements WHERE type = 'REFUND'")
+        .all(),
+    ).toEqual([{ actor_id: "u1", authorized_by: "u2" }]);
+  });
+
+  it("leaves a transfer refund pending", async () => {
+    addPersonWithPin("u2", "Grace", ["void_sale"]);
+    const saleId = await sellTwoForPayments();
+    await chargeSaleByTransferFor(deps({ ids }), { saleId, amount: 1000 });
+
+    expect(
+      await cancelPaidSaleFor(withPins(), {
+        saleId,
+        authorization: { user_id: "u2", pin: CLOSER_PIN },
+      }),
+    ).toMatchObject({ kind: "cancelled", refunds: [{ method: "TRANSFER", state: "PENDING" }] });
+    expect(database.prepare("SELECT method, state FROM payment_refunds").all()).toEqual([
+      { method: "TRANSFER", state: "PENDING" },
+    ]);
+  });
+
+  it("refuses a cashier without the permission who brings no authorization, changing nothing", async () => {
+    const saleId = await partlyPaidInCash();
+
+    expect(await cancelPaidSaleFor(withPins(), { saleId })).toEqual({ kind: "lacks_permission" });
+    expect(saleStates()).toEqual([{ state: "OPEN" }]);
+  });
+
+  it("refuses a wrong PIN, changing nothing", async () => {
+    addPersonWithPin("u2", "Grace", ["void_sale"]);
+    const saleId = await partlyPaidInCash();
+
+    const outcome = await cancelPaidSaleFor(withPins(), {
+      saleId,
+      authorization: { user_id: "u2", pin: "0000" },
+    });
+
+    expect(outcome.kind).toBe("wrong_pin");
+    expect(saleStates()).toEqual([{ state: "OPEN" }]);
+  });
+
+  it("refuses the PIN of a person who lacks the permission, changing nothing", async () => {
+    addPersonWithPin("u2", "Grace", ["sell_and_charge"]);
+    const saleId = await partlyPaidInCash();
+
+    expect(
+      await cancelPaidSaleFor(withPins(), {
+        saleId,
+        authorization: { user_id: "u2", pin: CLOSER_PIN },
+      }),
+    ).toEqual({ kind: "lacks_permission" });
+    expect(saleStates()).toEqual([{ state: "OPEN" }]);
+  });
+
+  it("answers that the sale asked for is not the one in progress", async () => {
+    await partlyPaidInCash();
+    addPersonWithPin("u2", "Grace", ["void_sale"]);
+
+    expect(
+      await cancelPaidSaleFor(withPins(), {
+        saleId: "another-sale",
+        authorization: { user_id: "u2", pin: CLOSER_PIN },
+      }),
+    ).toEqual({ kind: "no_open_sale" });
+    expect(saleStates()).toEqual([{ state: "OPEN" }]);
+  });
+
+  it("answers not signed in when nobody is signed in", async () => {
+    const saleId = await partlyPaidInCash();
+    signedInPerson.clear();
+
+    expect(await cancelPaidSaleFor(withPins(), { saleId })).toEqual({ kind: "not_signed_in" });
+  });
+
+  it("answers that no session is open", async () => {
+    addPersonWithPin("u2", "Grace", ["void_sale"]);
+    const saleId = await partlyPaidInCash();
+    database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
+
+    expect(
+      await cancelPaidSaleFor(withPins(), {
+        saleId,
+        authorization: { user_id: "u2", pin: CLOSER_PIN },
+      }),
+    ).toEqual({ kind: "no_open_session" });
+  });
+
+  it("answers not permitted to a person who sells but did not open the session", async () => {
+    addPersonWithPin("u2", "Grace", ["void_sale"]);
+    addPersonWithPin("u3", "Bruno", ["sell_and_charge"]);
+    const saleId = await partlyPaidInCash();
+    signedInPerson.set("u3");
+
+    expect(
+      await cancelPaidSaleFor(withPins(), {
+        saleId,
+        authorization: { user_id: "u2", pin: CLOSER_PIN },
+      }),
+    ).toEqual({ kind: "not_permitted" });
+    expect(saleStates()).toEqual([{ state: "OPEN" }]);
+  });
+
+  it("answers unavailable, cancelling nothing, when the register holds no outbox chain key", async () => {
+    addPersonWithPin("u2", "Grace", ["void_sale"]);
+    const saleId = await partlyPaidInCash();
+
+    expect(
+      await cancelPaidSaleFor(withPins({ readOutboxChainKey: async () => undefined }), {
+        saleId,
+        authorization: { user_id: "u2", pin: CLOSER_PIN },
+      }),
+    ).toEqual({ kind: "unavailable" });
+    expect(saleStates()).toEqual([{ state: "OPEN" }]);
+  });
+
+  it("leaves no sale in progress", async () => {
+    addPersonWithPin("u2", "Grace", ["void_sale"]);
+    const saleId = await partlyPaidInCash();
+    await cancelPaidSaleFor(withPins(), {
+      saleId,
+      authorization: { user_id: "u2", pin: CLOSER_PIN },
+    });
+
+    expect(await currentSaleFor(deps())).toBeNull();
   });
 });

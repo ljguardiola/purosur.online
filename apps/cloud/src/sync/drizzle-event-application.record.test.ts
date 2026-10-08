@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   cashMovements,
   cashSessions,
+  paymentRefunds,
   saleLines,
   salePayments,
   sales,
@@ -12,6 +13,7 @@ import {
 import { eventApplicationUnderTest } from "./test-support/drizzle-event-application.js";
 import { insertInboxEvent } from "./test-support/inbox-events.js";
 import {
+  aCancelledSale,
   aCashMovementRecordedFact,
   aCashSessionClosedFact,
   aCashSessionOpenedFact,
@@ -164,7 +166,10 @@ describe("recording the sales of applied events", () => {
       deviceId,
       sessionId,
       actorId: completed.actorId,
+      state: "COMPLETED",
       completedAt: completed.completedAt,
+      cancelledAt: null,
+      cancellationAuthorizedBy: null,
       total: 4800,
       appliedAt: new Date("2026-10-06T15:00:00.000Z"),
     });
@@ -301,6 +306,198 @@ describe("recording the sales of applied events", () => {
 
     expect(await system.db.select().from(sales)).toEqual([]);
     expect(await system.db.select().from(saleLines)).toEqual([]);
+  });
+});
+
+describe("recording the cancelled sales of applied events", () => {
+  async function recordCancelled(overrides: Partial<ReturnType<typeof aCancelledSale>> = {}) {
+    const { deviceId, registerId, locationId } = await system.enrollInstallation();
+    const sessionId = randomUUID();
+    await openSession(deviceId, sessionId);
+    const cancelled = aCancelledSale({ sessionId, ...overrides });
+    await record(
+      { kind: "sale_cancelled", sale: cancelled },
+      { deviceId, aggregateType: "Sale", aggregateId: cancelled.id },
+    );
+    return { cancelled, sessionId, registerId, locationId, deviceId };
+  }
+
+  it("keeps the sale as cancelled, with when and who authorized it, and no completion time", async () => {
+    const { cancelled, sessionId, registerId, locationId, deviceId } = await recordCancelled();
+
+    const [row] = await system.db.select().from(sales);
+    expect(row).toEqual({
+      id: cancelled.id,
+      locationId,
+      registerId,
+      deviceId,
+      sessionId,
+      actorId: cancelled.actorId,
+      state: "CANCELLED",
+      completedAt: null,
+      cancelledAt: new Date("2026-10-06T11:25:00.000Z"),
+      cancellationAuthorizedBy: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
+      total: 4800,
+      appliedAt: new Date("2026-10-06T15:00:00.000Z"),
+    });
+  });
+
+  it("keeps a sale cancelled by someone who held the permission with no authorizer", async () => {
+    await recordCancelled({ authorizedBy: null });
+
+    const [row] = await system.db.select().from(sales);
+    expect(row).toMatchObject({ state: "CANCELLED", cancellationAuthorizedBy: null });
+  });
+
+  it("keeps the lines and the payments the sale had when it was cancelled", async () => {
+    const { cancelled } = await recordCancelled();
+
+    const lines = await system.db.select().from(saleLines);
+    const payments = await system.db.select().from(salePayments);
+    expect(lines.map((line) => line.id)).toEqual(cancelled.lines.map((line) => line.id));
+    expect(payments).toEqual(
+      cancelled.payments.map((payment) => ({
+        id: payment.id,
+        saleId: cancelled.id,
+        method: payment.method,
+        provider: payment.provider,
+        amount: payment.amount,
+        tendered: payment.tendered,
+        state: payment.state,
+        occurredAt: payment.occurredAt,
+        authorizedBy: null,
+        confirmedAt: null,
+      })),
+    );
+  });
+
+  it("keeps a cash refund as done and a transfer refund as pending, each tied to its payment", async () => {
+    const base = aCancelledSale();
+    const [cash] = base.payments;
+    const [cashRefund] = base.refunds;
+    if (!cash || !cashRefund) {
+      throw new Error("test setup: the sale has no payment");
+    }
+    const transfer = {
+      ...cash,
+      id: randomUUID(),
+      method: "TRANSFER" as const,
+      amount: 2000,
+      tendered: null,
+      authorizedBy: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
+      confirmedAt: new Date("2026-10-06T11:21:00.000Z"),
+    };
+    const transferRefund = {
+      ...cashRefund,
+      id: randomUUID(),
+      paymentId: transfer.id,
+      method: "TRANSFER" as const,
+      amount: 2000,
+      state: "PENDING" as const,
+    };
+
+    const { cancelled } = await recordCancelled({
+      payments: [cash, transfer],
+      refunds: [cashRefund, transferRefund],
+    });
+
+    const rows = await system.db.select().from(paymentRefunds);
+    expect(rows).toHaveLength(2);
+    expect(rows.find((row) => row.id === transferRefund.id)).toEqual({
+      id: transferRefund.id,
+      saleId: cancelled.id,
+      paymentId: transfer.id,
+      method: "TRANSFER",
+      provider: "NONE",
+      amount: 2000,
+      state: "PENDING",
+      occurredAt: new Date("2026-10-06T11:25:00.000Z"),
+      doneBy: null,
+      doneAt: null,
+    });
+    expect(rows.find((row) => row.id === cashRefund.id)).toMatchObject({
+      method: "CASH",
+      state: "APPROVED",
+      doneBy: null,
+      doneAt: null,
+    });
+  });
+
+  it("keeps the cash movements of the sale, the refund carrying who authorized the cancellation", async () => {
+    const { cancelled, sessionId } = await recordCancelled();
+
+    const rows = await system.db.select().from(cashMovements);
+    expect(
+      rows
+        .map(({ id, sessionId: movementSession, type, refType, refId, authorizedBy }) => ({
+          id,
+          sessionId: movementSession,
+          type,
+          refType,
+          refId,
+          authorizedBy,
+        }))
+        .sort((a, b) => a.type.localeCompare(b.type)),
+    ).toEqual(
+      cancelled.cashMovements
+        .map((movement) => ({
+          id: movement.id,
+          sessionId,
+          type: movement.type,
+          refType: "sale",
+          refId: cancelled.id,
+          authorizedBy: movement.type === "REFUND" ? "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13" : null,
+        }))
+        .sort((a, b) => a.type.localeCompare(b.type)),
+    );
+  });
+
+  it("keeps a refund given by someone holding the permission with no authorizer", async () => {
+    await recordCancelled({ authorizedBy: null });
+
+    const rows = await system.db.select().from(cashMovements);
+    expect(rows.map((row) => row.authorizedBy)).toEqual([null, null]);
+  });
+
+  it("writes nothing when a refund names a payment the sale does not have", async () => {
+    const base = aCancelledSale();
+    const [refund] = base.refunds;
+    if (!refund) {
+      throw new Error("test setup: the sale has no refund");
+    }
+
+    await expect(
+      recordCancelled({ refunds: [{ ...refund, paymentId: randomUUID() }] }),
+    ).rejects.toThrow();
+
+    expect(await system.db.select().from(sales)).toEqual([]);
+    expect(await system.db.select().from(paymentRefunds)).toEqual([]);
+    expect(await system.db.select().from(cashMovements)).toEqual([]);
+  });
+
+  it("writes nothing when a refund names a payment of another sale", async () => {
+    const { cancelled: other, sessionId, deviceId } = await recordCancelled();
+    const [otherPayment] = other.payments;
+    const [refund] = aCancelledSale().refunds;
+    if (!otherPayment || !refund) {
+      throw new Error("test setup: the sales have no payment or refund");
+    }
+    const cancelled = aCancelledSale({
+      sessionId,
+      refunds: [{ ...refund, paymentId: otherPayment.id }],
+    });
+
+    await expect(
+      record(
+        { kind: "sale_cancelled", sale: cancelled },
+        { deviceId, aggregateType: "Sale", aggregateId: cancelled.id },
+      ),
+    ).rejects.toThrow();
+
+    expect((await system.db.select().from(sales)).map((row) => row.id)).toEqual([other.id]);
+    expect((await system.db.select().from(paymentRefunds)).map((row) => row.id)).toEqual(
+      other.refunds.map((otherRefund) => otherRefund.id),
+    );
   });
 });
 

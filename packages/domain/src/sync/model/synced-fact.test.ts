@@ -6,12 +6,19 @@ import {
   A_GATE_FAILED_FACT,
   A_SESSION_CLOSED_FACT,
   A_SESSION_OPENED_FACT,
+  aCancelledSaleFact,
   aCompletedSaleFact,
 } from "./test-support/synced-facts.js";
 
 describe("what a synced fact needs applied before it", () => {
   it("is the cash session a completed sale was made in", () => {
     expect(dependenciesOf(aCompletedSaleFact({ sessionId: "session-9" }))).toEqual([
+      { aggregateType: "CashSession", aggregateId: "session-9" },
+    ]);
+  });
+
+  it("is the cash session a cancelled sale was made in", () => {
+    expect(dependenciesOf(aCancelledSaleFact({ sessionId: "session-9" }))).toEqual([
       { aggregateType: "CashSession", aggregateId: "session-9" },
     ]);
   });
@@ -36,6 +43,25 @@ describe("what a synced fact breaks that only its own history shows", () => {
 
   it("is nothing for a sale whose approved payments cover the total", () => {
     expect(invariantBreaksOf(aCompletedSaleFact())).toEqual([]);
+  });
+
+  it("is nothing for a cancelled sale whose refunds settle each approved payment", () => {
+    expect(invariantBreaksOf(aCancelledSaleFact())).toEqual([]);
+  });
+
+  it("is that the refunds do not match the payments for a cancelled sale missing a refund", () => {
+    expect(invariantBreaksOf(aCancelledSaleFact({ refunds: [] }))).toEqual([
+      "refunds_do_not_match_payments",
+    ]);
+  });
+
+  it("is that the refunds do not match the payments for a refund of another amount", () => {
+    const sale = aCancelledSaleFact();
+    const refunds = sale.sale.refunds.map((refund) => ({ ...refund, amount: 999 }));
+
+    expect(invariantBreaksOf(aCancelledSaleFact({ refunds }))).toEqual([
+      "refunds_do_not_match_payments",
+    ]);
   });
 
   it("is nothing for any other fact", () => {

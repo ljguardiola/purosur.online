@@ -15,6 +15,7 @@ import type {
   RegisterIdentity,
   SaleLedger,
   SaleLedgerTransaction,
+  SaleRefund,
   SearchableProduct,
   SellableProduct,
   SellingSession,
@@ -96,6 +97,9 @@ export class SqliteSaleLedger implements SaleLedger {
       saleCashMovements: (saleId) => readMovementsOf(this.database, { type: "sale", id: saleId }),
       recordCashMovement: (movement) => insertCashMovement(this.database, movement),
       recordCompletedSale: (saleId, occurredAt) => this.recordCompletedSale(saleId, occurredAt),
+      recordCancelledSale: (saleId, occurredAt, authorizedBy) =>
+        this.recordCancelledSale(saleId, occurredAt, authorizedBy),
+      recordRefund: (refund) => this.recordRefund(refund),
       appendOutboxEvent: (draft) => this.appendOutboxEvent(draft),
       issuerIdentificationInEffect: () => readIssuerIdentificationInEffect(this.database),
       buyerTaxStatusSetInEffect: () => readBuyerTaxStatusSetInEffect(this.database),
@@ -376,6 +380,40 @@ export class SqliteSaleLedger implements SaleLedger {
     if (changes !== 1) {
       throw new Error("the sale is not in progress");
     }
+  }
+
+  private recordCancelledSale(
+    saleId: string,
+    occurredAt: Date,
+    authorizedBy: string | undefined,
+  ): void {
+    const { changes } = this.database
+      .prepare(
+        `UPDATE sales
+         SET state = 'CANCELLED', occurred_at = ?, cancellation_authorized_by = ?
+         WHERE id = ? AND state = 'OPEN'`,
+      )
+      .run(occurredAt.toISOString(), authorizedBy ?? null, saleId);
+    if (changes !== 1) {
+      throw new Error("the sale is not in progress");
+    }
+  }
+
+  private recordRefund(refund: SaleRefund): void {
+    this.database
+      .prepare(
+        `INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at)
+         VALUES (@id, @payment_id, @method, @provider, @amount, @state, @occurred_at)`,
+      )
+      .run({
+        id: refund.id,
+        payment_id: refund.paymentId,
+        method: refund.method,
+        provider: refund.provider,
+        amount: refund.amount,
+        state: refund.state,
+        occurred_at: refund.occurredAt.toISOString(),
+      });
   }
 
   private appendOutboxEvent(draft: OutboxEventDraft): void {

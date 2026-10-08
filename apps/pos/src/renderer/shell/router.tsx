@@ -2,6 +2,7 @@ import type {
   AddProductOutcome,
   Authorization,
   CancelLockedSaleOutcome,
+  CancelPaidSaleOutcome,
   CancelSaleOutcome,
   CashBalance,
   CashChargeAnswer,
@@ -126,6 +127,10 @@ export interface RouterContext {
   ) => Promise<ChangeLineQuantityOutcome>;
   removeSaleLine: (lineId: string) => Promise<RemoveSaleLineOutcome>;
   cancelSale: () => Promise<CancelSaleOutcome>;
+  cancelPaidSale: (
+    saleId: string,
+    authorization: Authorization | undefined,
+  ) => Promise<CancelPaidSaleOutcome>;
   refreshCashSession: () => Promise<void>;
 }
 
@@ -270,6 +275,8 @@ const openSessionRoute = createRoute({
       changeLineQuantity,
       removeSaleLine,
       cancelSale,
+      cancelPaidSale,
+      authorizers,
       refreshCashSession,
     } = openSessionRoute.useRouteContext();
     const registerName = useRegisterName();
@@ -287,6 +294,8 @@ const openSessionRoute = createRoute({
         changeLineQuantity={changeLineQuantity}
         removeSaleLine={removeSaleLine}
         cancelSale={cancelSale}
+        cancelPaidSale={cancelPaidSale}
+        loadAuthorizers={authorizers}
         onSessionInvalid={() => void refreshCashSession()}
       />
     );
@@ -620,6 +629,7 @@ export function createAppRouter(
     | "changeLineQuantity"
     | "removeSaleLine"
     | "cancelSale"
+    | "cancelPaidSale"
     | "refreshCashSession"
   >,
 ) {

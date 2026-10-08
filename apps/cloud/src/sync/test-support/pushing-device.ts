@@ -132,3 +132,58 @@ export function saleCompleted(options: {
     },
   };
 }
+
+export function saleCancelled(options: {
+  saleId: string;
+  sessionId: string;
+  cancelledAt: string;
+  paymentAmount: number;
+  refundAmount: number;
+}): PushedEventDraft {
+  const paymentId = randomUUID();
+  return {
+    aggregate_type: "Sale",
+    aggregate_id: options.saleId,
+    event_type: "sale_cancelled",
+    schema_version: 1,
+    occurred_at: options.cancelledAt,
+    payload: {
+      id: options.saleId,
+      register_id: randomUUID(),
+      device_id: randomUUID(),
+      session_id: options.sessionId,
+      actor_id: CASHIER,
+      authorized_by: null,
+      occurred_at: options.cancelledAt,
+      total: 4800,
+      lines: [],
+      cash_movements: [],
+      payments: [
+        {
+          id: paymentId,
+          kind: "SALE",
+          method: "CASH",
+          provider: "NONE",
+          amount: options.paymentAmount,
+          tendered: options.paymentAmount,
+          state: "APPROVED",
+          occurred_at: options.cancelledAt,
+          authorized_by: null,
+          confirmed_at: null,
+        },
+      ],
+      refunds: [
+        {
+          id: randomUUID(),
+          kind: "REFUND",
+          parent_id: paymentId,
+          method: "CASH",
+          provider: "NONE",
+          amount: options.refundAmount,
+          state: "APPROVED",
+          occurred_at: options.cancelledAt,
+        },
+      ],
+    },
+  };
+}

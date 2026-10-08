@@ -21,6 +21,7 @@ import type {
   SaleCashMovement,
   SaleLedger,
   SaleLedgerTransaction,
+  SaleRefund,
   SellableProduct,
   SellingSession,
 } from "../sale-ledger.js";
@@ -31,7 +32,7 @@ interface FakePrice extends ListPrice {
   validFrom: Date;
 }
 
-type StoredSale = SaleWithLines & { occurredAt?: Date };
+type StoredSale = SaleWithLines & { occurredAt?: Date; authorizedBy?: string };
 
 export interface FakeSaleLedgerState {
   accesses: Record<string, RoleAccess>;
@@ -45,6 +46,7 @@ export interface FakeSaleLedgerState {
   promotionsByProduct: Record<string, CandidatePromotion[]>;
   sales: StoredSale[];
   payments: PaymentTransaction[];
+  refunds: SaleRefund[];
   movements: CashMovement[];
   outbox: OutboxEventDraft[];
   issuerIdentifications: IssuerIdentificationInEffect[];
@@ -61,6 +63,8 @@ export type FakeSaleLedgerWrite =
   | "recordPayment"
   | "recordCashMovement"
   | "recordCompletedSale"
+  | "recordCancelledSale"
+  | "recordRefund"
   | "recordPreEmissionGate"
   | "appendOutboxEvent";
 
@@ -85,6 +89,7 @@ export class FakeSaleLedger implements SaleLedger {
       promotionsByProduct: {},
       sales: [],
       payments: [],
+      refunds: [],
       movements: [],
       outbox: [],
       issuerIdentifications: [],
@@ -186,6 +191,22 @@ export class FakeSaleLedger implements SaleLedger {
             sale.occurredAt = occurredAt;
           }
         }
+      },
+      recordCancelledSale: (saleId, occurredAt, authorizedBy) => {
+        this.failIfAsked("recordCancelledSale");
+        for (const sale of working.sales) {
+          if (sale.id === saleId) {
+            sale.state = "CANCELLED";
+            sale.occurredAt = occurredAt;
+            if (authorizedBy !== undefined) {
+              sale.authorizedBy = authorizedBy;
+            }
+          }
+        }
+      },
+      recordRefund: (refund) => {
+        this.failIfAsked("recordRefund");
+        working.refunds.push(refund);
       },
       appendOutboxEvent: (draft) => {
         this.failIfAsked("appendOutboxEvent");

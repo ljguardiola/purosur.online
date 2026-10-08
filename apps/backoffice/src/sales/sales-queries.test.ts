@@ -5,7 +5,7 @@ import { FRONT_REGISTER_ID } from "./test-support/sales-fixtures";
 
 test("invalidating the sales key marks every sales read stale", async () => {
   const client = new QueryClient();
-  const keys = [salesKeys.report({}), salesKeys.registers];
+  const keys = [salesKeys.report({}), salesKeys.registers, salesKeys.pendingRefunds];
   for (const key of keys) {
     client.setQueryData(key, []);
   }

@@ -1,4 +1,4 @@
-import { ARGENTINA_TIME_ZONE, type SalesOfDay } from "@purosur/domain";
+import { ARGENTINA_TIME_ZONE, SALES_REPORT_SALE_STATE, type SalesOfDay } from "@purosur/domain";
 import type { SalesByDayQuery, SalesReportReader } from "@purosur/domain/sales/use-cases";
 import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -30,6 +30,7 @@ export class DrizzleSalesReportReader<TQueryResult extends PgQueryResultHKT>
       .where(
         and(
           eq(sales.locationId, locationId),
+          eq(sales.state, SALES_REPORT_SALE_STATE),
           registerId === undefined ? undefined : eq(sales.registerId, registerId),
           sql`${saleDay} >= ${range.from}`,
           sql`${saleDay} <= ${range.to}`,

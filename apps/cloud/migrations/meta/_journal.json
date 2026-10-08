@@ -407,6 +407,13 @@
       "when": 1791412994611,
       "tag": "0057_apply_synced_events",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1791424286263,
+      "tag": "0058_cancelled_sales",
+      "breakpoints": true
     }
   ]
 }

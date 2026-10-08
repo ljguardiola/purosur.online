@@ -9,6 +9,7 @@ import {
   canSeeCashArea,
   canSeeCatalogArea,
   canSeePricesArea,
+  canSeeRefundsArea,
   canSeeReports,
   canSeeStockArea,
   canSeeStockBalances,
@@ -43,6 +44,7 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
     : canPerformStockCounts(session)
       ? "/inventory-counts"
       : "/inventory-adjustments";
+  const cashTarget = canSeeCashArea(session) ? "/points-of-sale" : "/pending-refunds";
   const stockTargetShown = Boolean(matchRoute({ to: stockTarget }));
   return (
     <Shell
@@ -68,9 +70,9 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
               active={area === "stock"}
             />
           )}
-          {canSeeCashArea(session) && (
+          {(canSeeCashArea(session) || canSeeRefundsArea(session)) && (
             <AreaLink
-              to="/points-of-sale"
+              to={cashTarget}
               label="Caja"
               icon={<Wallet />}
               active={area === "cash-and-fiscal"}

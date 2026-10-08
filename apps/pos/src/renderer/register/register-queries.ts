@@ -7,7 +7,6 @@ import type {
   SessionOpenSale,
   SignInUser,
 } from "@purosur/contracts";
-import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { setQueryAnswer } from "../platform/set-query-answer";
 import type { CoreData } from "../platform/use-core-query";
@@ -21,8 +20,6 @@ export const cashKey = [...registerKey, "cash"] as const;
 
 export const lockedClosersKey = [...registerKey, "locked-closers"] as const;
 
-export const authorizersKey = [...registerKey, "authorizers"] as const;
-
 export const registerKeys = {
   enrollment: [...registerKey, "enrollment"] as const,
   service: [...registerKey, "service"] as const,
@@ -35,7 +32,6 @@ export const registerKeys = {
   cashMovements: (sessionId: string) => [...cashKey, sessionId, "movements"] as const,
   openSale: (sessionId: string) => [...cashKey, sessionId, "open-sale"] as const,
   cashMovementKinds: (userId: string) => [...registerKey, "cash-movement-kinds", userId] as const,
-  authorizers: (permission: AuthorizablePermissionKey) => [...authorizersKey, permission] as const,
 };
 
 const CASH_SESSION_REREAD_MS = 5000;
@@ -160,21 +156,4 @@ export function useSetSessionOpenSale(
 ): (sale: SessionOpenSale | null) => Promise<void> {
   const queryClient = useQueryClient();
   return (sale) => setQueryAnswer(queryClient, registerKeys.openSale(sessionId), sale);
-}
-
-export function useAuthorizersQuery({
-  permission,
-  read,
-  enabled,
-}: {
-  permission: AuthorizablePermissionKey;
-  read: () => Promise<SignInUser[]>;
-  enabled: boolean;
-}): CoreData<SignInUser[]> {
-  return useCoreQuery({ queryKey: registerKeys.authorizers(permission), read, enabled });
-}
-
-export function useResetAuthorizers(permission: AuthorizablePermissionKey): () => void {
-  const queryClient = useQueryClient();
-  return () => void queryClient.resetQueries({ queryKey: registerKeys.authorizers(permission) });
 }

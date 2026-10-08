@@ -2,6 +2,7 @@ import type {
   AddProductOutcome,
   Authorization,
   CancelLockedSaleOutcome,
+  CancelPaidSaleOutcome,
   CancelSaleOutcome,
   CashBalance,
   CashChargeAnswer,
@@ -34,7 +35,11 @@ import type { AuthorizablePermissionKey, RegisterService } from "@purosur/domain
 import { isDatabaseDamage } from "./platform/database-damage";
 import type { CashMovementRequest } from "./register/cash-movement-requests";
 import type { CoreToRendererMessage, RendererToCoreMessage } from "./renderer-messages";
-import type { ChargeSaleByTransferRequest, ChargeSaleInCashRequest } from "./sales/sale-requests";
+import type {
+  CancelPaidSaleRequest,
+  ChargeSaleByTransferRequest,
+  ChargeSaleInCashRequest,
+} from "./sales/sale-requests";
 
 export interface RendererRequestDeps {
   credentialsPresent: () => Promise<boolean>;
@@ -77,6 +82,7 @@ export interface RendererRequestDeps {
     | undefined;
   removeSaleLine: ((lineId: string) => Promise<RemoveSaleLineOutcome>) | undefined;
   cancelSale: (() => Promise<CancelSaleOutcome>) | undefined;
+  cancelPaidSale: ((request: CancelPaidSaleRequest) => Promise<CancelPaidSaleOutcome>) | undefined;
   closeCashSession:
     | ((sessionId: string, countedCash: number) => Promise<CloseCashSessionOutcome>)
     | undefined;
@@ -568,6 +574,20 @@ export async function answerRendererRequest(
         request_id: message.request_id,
         outcome: await attemptSaleChange(deps, "cancelling the sale", deps.cancelSale),
       };
+    case "cancel-paid-sale": {
+      const { cancelPaidSale } = deps;
+      return {
+        type: "cancel-paid-sale-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "cancelling a sale with approved payments",
+          cancelPaidSale &&
+            (() =>
+              cancelPaidSale({ saleId: message.sale_id, authorization: message.authorization })),
+        ),
+      };
+    }
     case "charge-sale-in-cash":
       return {
         type: "charge-sale-in-cash-result",

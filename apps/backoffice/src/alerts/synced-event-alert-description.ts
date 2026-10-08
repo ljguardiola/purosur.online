@@ -6,6 +6,7 @@ type QuarantineReason = QuarantinedEvent["reason"];
 
 const EVENT_TYPE_NAMES: ReadonlyMap<string, string> = new Map([
   ["sale_completed", "venta"],
+  ["sale_cancelled", "venta cancelada"],
   ["cash_session_opened", "apertura de caja"],
   ["cash_session_closed", "cierre de caja"],
   ["cash_movement_recorded", "movimiento de caja"],
@@ -19,6 +20,7 @@ const OF_AGGREGATE_TYPE: ReadonlyMap<string, string> = new Map([
 
 const BREAK_DESCRIPTIONS: ReadonlyMap<string, string> = new Map([
   ["approved_payments_below_total", "los pagos aprobados no cubren el total de la venta"],
+  ["refunds_do_not_match_payments", "los reembolsos no coinciden con los pagos de la venta"],
 ]);
 
 const UNKNOWN_BREAK = "otra inconsistencia";

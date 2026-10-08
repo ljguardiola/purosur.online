@@ -1,8 +1,8 @@
+import type { OperationAuthority } from "../../shared/index.js";
 import { isValidCashAmount } from "../model/cash-amount.js";
 import type { OpenedCashSession } from "../model/cash-session.js";
 import { registerOperationAccess } from "../model/register-operation.js";
 import type { CashLedger, IdGenerator } from "./cash-ledger.js";
-import type { OperationAuthority } from "./operation-authority.js";
 import type { Clock } from "./register-store.js";
 
 export interface OpenCashSessionInput {

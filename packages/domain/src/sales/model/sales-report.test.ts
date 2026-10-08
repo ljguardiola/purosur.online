@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   defaultSalesReportRange,
   isSalesReportRangeAsked,
+  SALES_REPORT_SALE_STATE,
   salesReportTotals,
 } from "./sales-report.js";
 
@@ -75,5 +76,11 @@ describe("salesReportTotals", () => {
 
   it("is zero for a range without sales", () => {
     expect(salesReportTotals([])).toEqual({ salesCount: 0, total: 0 });
+  });
+});
+
+describe("the sales report", () => {
+  it("counts the completed sales and no other", () => {
+    expect(SALES_REPORT_SALE_STATE).toBe("COMPLETED");
   });
 });

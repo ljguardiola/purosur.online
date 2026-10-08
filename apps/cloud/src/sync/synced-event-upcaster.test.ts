@@ -210,6 +210,119 @@ describe("decoding the events the registers pushed", () => {
     });
   });
 
+  it("reads a cancelled sale with its payments, refunds and the person who authorized it", () => {
+    const refund = {
+      id: "01a1122a-0308-7000-8000-00000000aaa1",
+      kind: "REFUND",
+      parent_id: salePayment.id,
+      method: "CASH",
+      provider: "NONE",
+      amount: 5000,
+      state: "APPROVED",
+      occurred_at: "2026-10-06T11:25:00.000Z",
+    };
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          event_type: "sale_cancelled",
+          schema_version: 1,
+          occurred_at: "2026-10-06T11:25:00.000Z",
+          payload: {
+            ...saleFields,
+            occurred_at: "2026-10-06T11:25:00.000Z",
+            authorized_by: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
+            payments: [{ ...salePayment, authorized_by: null, confirmed_at: null }],
+            refunds: [refund],
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toEqual({
+      kind: "fact",
+      fact: {
+        kind: "sale_cancelled",
+        sale: {
+          id: SALE,
+          sessionId: SESSION,
+          actorId: USER,
+          authorizedBy: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
+          cancelledAt: new Date("2026-10-06T11:25:00.000Z"),
+          total: 4800,
+          lines: [decodedLine],
+          payments: [
+            {
+              id: salePayment.id,
+              method: "CASH",
+              provider: "NONE",
+              amount: 5000,
+              tendered: 5000,
+              state: "APPROVED",
+              occurredAt: new Date("2026-10-06T11:20:00.000Z"),
+              authorizedBy: null,
+              confirmedAt: null,
+            },
+          ],
+          refunds: [
+            {
+              id: refund.id,
+              paymentId: salePayment.id,
+              method: "CASH",
+              provider: "NONE",
+              amount: 5000,
+              state: "APPROVED",
+              occurredAt: new Date("2026-10-06T11:25:00.000Z"),
+            },
+          ],
+          cashMovements: [decodedMovement],
+        },
+      },
+    });
+  });
+
+  it("reads a cancelled sale nobody else authorized as having no authorizer", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          event_type: "sale_cancelled",
+          schema_version: 1,
+          payload: {
+            ...saleFields,
+            authorized_by: null,
+            payments: [
+              {
+                ...salePayment,
+                method: "TRANSFER",
+                tendered: null,
+                authorized_by: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
+                confirmed_at: "2026-10-06T11:21:00.000Z",
+              },
+            ],
+            refunds: [
+              {
+                id: "01a1122a-0308-7000-8000-00000000aaa2",
+                kind: "REFUND",
+                parent_id: salePayment.id,
+                method: "TRANSFER",
+                provider: "NONE",
+                amount: 5000,
+                state: "PENDING",
+                occurred_at: "2026-10-06T11:20:00.000Z",
+              },
+            ],
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toMatchObject({
+      kind: "fact",
+      fact: {
+        sale: { authorizedBy: null, refunds: [{ method: "TRANSFER", state: "PENDING" }] },
+      },
+    });
+  });
+
   it("reads an opened cash session by its aggregate", () => {
     const decoded = upcaster.decode(
       unappliedEventOf(

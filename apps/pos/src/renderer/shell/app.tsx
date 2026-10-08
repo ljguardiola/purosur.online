@@ -21,7 +21,6 @@ import { useCoreStatus } from "../platform/use-core-status";
 import type { CashSessionState } from "../register/cash-session-state";
 import { cashSessionStateOf } from "../register/cash-session-state";
 import {
-  authorizersKey,
   cashKey,
   cashSessionQueryOptions,
   lockedClosersKey,
@@ -313,6 +312,8 @@ function Register({ core }: { core: CoreClient }) {
       core.changeLineQuantity(lineId, quantity, expectedQuantity),
     removeSaleLine: (lineId: string) => core.removeSaleLine(lineId),
     cancelSale: () => core.cancelSale(),
+    cancelPaidSale: (saleId: string, authorization: Authorization | undefined) =>
+      core.cancelPaidSale(saleId, authorization),
     // A replaced core connection fails this request; the core coming back up asks again.
     refreshCashSession,
   };
@@ -336,7 +337,6 @@ function Register({ core }: { core: CoreClient }) {
     () =>
       core.onPulled(() => {
         void queryClient.invalidateQueries({ queryKey: accessKey });
-        void queryClient.invalidateQueries({ queryKey: authorizersKey });
         void queryClient.invalidateQueries({ queryKey: registerKeys.registerName });
         void queryClient.invalidateQueries({ queryKey: lockedClosersKey });
       }),
