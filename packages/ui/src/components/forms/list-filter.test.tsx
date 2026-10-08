@@ -771,3 +771,9 @@ test("cannot widen V through `value` at a real call site with no explicit type a
 test("reports the chosen option's value", () => {
   expectTypeOf<ListFilterProps<Status>["onChange"]>().parameters.toEqualTypeOf<[Status]>();
 });
+
+test("names the native select it renders for form submission with the name it is given", async () => {
+  const screen = await render(<ListFilter {...baseProps({ name: "status" })} />);
+
+  expect(screen.container.querySelector("select")?.getAttribute("name")).toBe("status");
+});

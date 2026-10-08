@@ -1587,3 +1587,28 @@ test("accepts an error message, a shared error message id, or neither", () => {
 test("does not name its secondary text helperText", () => {
   expectTypeOf<DateFieldProps>().not.toHaveProperty("helperText");
 });
+
+test("names every native input it renders for form submission with the name it is given", async () => {
+  const screen = await render(
+    <DateFieldHarness variant="backoffice" label="Expiry" name="expiry" />,
+  );
+  const named = screen.container.querySelectorAll('input[name="expiry"]');
+  const unnamed = [...screen.container.querySelectorAll("input")].filter(
+    (input) => !input.getAttribute("name"),
+  );
+
+  expect(named.length).toBeGreaterThan(0);
+  expect(unnamed).toEqual([]);
+});
+
+test("names the calendar's month and year selects after the field's name", async () => {
+  const screen = await render(
+    <DateFieldHarness variant="backoffice" label="Expiry" name="expiry" />,
+  );
+  await openCalendar(screen, "Expiry");
+
+  const names = [...document.querySelectorAll("select")].map((select) =>
+    select.getAttribute("name"),
+  );
+  expect(names.sort()).toEqual(["expiry-calendar-month", "expiry-calendar-year"]);
+});

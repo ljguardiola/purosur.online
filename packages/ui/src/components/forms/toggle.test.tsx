@@ -360,3 +360,13 @@ test("dims its description along with the rest when disabled", async () => {
 test("accepts a description as an optional text", () => {
   expectTypeOf<ToggleProps["description"]>().toEqualTypeOf<string | undefined>();
 });
+
+test("names its native input with the name it is given", async () => {
+  const screen = await render(
+    <Toggle name="applyDiscount" checked={false} onCheckedChange={() => {}}>
+      Apply discount
+    </Toggle>,
+  );
+
+  expect(toggleInput(screen, "Apply discount").getAttribute("name")).toBe("applyDiscount");
+});

@@ -339,3 +339,13 @@ test("names its state checked and reports it with onCheckedChange", () => {
   expectTypeOf<CheckboxProps>().not.toHaveProperty("isSelected");
   expectTypeOf<CheckboxProps>().not.toHaveProperty("onChange");
 });
+
+test("names its native input with the name it is given", async () => {
+  const screen = await render(
+    <Checkbox name="returnLine" checked={false} onCheckedChange={() => {}}>
+      <span>Return this line</span>
+    </Checkbox>,
+  );
+
+  expect(checkboxInput(screen, "Return this line").getAttribute("name")).toBe("returnLine");
+});

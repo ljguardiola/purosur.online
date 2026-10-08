@@ -1279,3 +1279,37 @@ test("a toggle shows its state and its description, and submits the state it was
   await expect.poll(() => onSubmit.mock.calls.length).toBe(1);
   expect(onSubmit).toHaveBeenCalledWith(true);
 });
+
+function nativeFieldNames(screen: Awaited<ReturnType<typeof render>>): (string | null)[] {
+  return [...screen.container.querySelectorAll("input, select")].map((field) =>
+    field.getAttribute("name"),
+  );
+}
+
+test("a bound select is named after its form field", async () => {
+  const screen = await render(<SelectProbe onSubmit={() => Promise.resolve()} />);
+
+  expect(screen.container.querySelector("select")?.getAttribute("name")).toBe("role");
+});
+
+test("a bound date field is named after its form field", async () => {
+  const screen = await render(<DateProbe onSubmit={() => Promise.resolve()} />);
+
+  const names = nativeFieldNames(screen);
+  expect(names.length).toBeGreaterThan(0);
+  expect(names.filter((name) => name !== "day")).toEqual([]);
+});
+
+test("a bound quantity and unit field names its quantity and unit after its form field", async () => {
+  const screen = await render(<QuantityProbe onSubmit={() => Promise.resolve()} />);
+
+  expect(nativeFieldNames(screen).sort()).toEqual(["content.quantity", "content.unit"]);
+});
+
+test("a bound toggle is named after its form field", async () => {
+  const screen = await render(<ToggleProbe onSubmit={() => Promise.resolve()} />);
+
+  expect(screen.getByRole("switch", { name: "Se aplica" }).element().getAttribute("name")).toBe(
+    "active",
+  );
+});

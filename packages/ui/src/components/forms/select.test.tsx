@@ -557,3 +557,9 @@ test("shows the error message and closes-with-choice still works when the value 
 test("does not name its secondary text helperText", () => {
   expectTypeOf<SelectProps<string>>().not.toHaveProperty("helperText");
 });
+
+test("names the native select it renders for form submission with the name it is given", async () => {
+  const screen = await render(<Select {...baseProps({ name: "role" })} />);
+
+  expect(screen.container.querySelector("select")?.getAttribute("name")).toBe("role");
+});
