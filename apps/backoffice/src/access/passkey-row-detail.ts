@@ -1,6 +1,6 @@
 import { passkeySummarySchema } from "@purosur/contracts";
 import { formatDate } from "@purosur/ui";
-import { schemaText } from "./schema-text";
+import { schemaText } from "../platform/schema-text";
 
 const PASSKEY_TIME_ZONE = schemaText(passkeySummarySchema.shape.created_at.meta()?.["timeZone"]);
 

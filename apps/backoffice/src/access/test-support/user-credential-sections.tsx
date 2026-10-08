@@ -8,8 +8,8 @@ import {
 import { vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import type { Passkey } from "../../platform/passkey-list";
 import { createQueryClient } from "../../platform/query-client";
+import type { Passkey } from "../passkey-list";
 import {
   UserCredentialSections,
   type UserCredentialSectionsProps,

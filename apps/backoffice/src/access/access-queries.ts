@@ -1,10 +1,10 @@
 import type { PublicKeyCredentialCreationOptionsJSON } from "@simplewebauthn/browser";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
-import type { Passkey } from "../platform/passkey-list";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchPasskeys } from "./passkey-api";
+import type { Passkey } from "./passkey-list";
 import type { fetchRegistrationOptions } from "./recovery-api";
 import type { fetchUserPasskeys } from "./user-credentials-api";
 

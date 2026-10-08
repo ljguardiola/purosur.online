@@ -3,13 +3,13 @@ import type { startAuthentication } from "@simplewebauthn/browser";
 import { ShieldX, Trash2, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
-import type { Passkey } from "../platform/passkey-list";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
+import type { Passkey } from "./passkey-list";
 import type { RemoveUserPasskeyOutcome, removeUserPasskey } from "./user-credentials-api";
 
 export type RemoveUserPasskeyModalServices = {

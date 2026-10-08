@@ -7,9 +7,9 @@ import type {
   RegistrationResponseJSON,
 } from "@simplewebauthn/browser";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
-import { type Passkey, passkeyListFromWire } from "../platform/passkey-list";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
+import { type Passkey, passkeyListFromWire } from "./passkey-list";
 
 export type FetchPasskeysOutcome = CloudReadOutcome<Passkey[]>;
 
