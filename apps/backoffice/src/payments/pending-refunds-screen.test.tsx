@@ -1,7 +1,9 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { createQueryClient } from "../platform/query-client";
 import { render } from "../shell/test-support/render-with-router";
 import { PendingRefundsScreen } from "./pending-refunds-screen";
 import type { PendingRefundsScreenServices } from "./pending-refunds-services";
@@ -169,6 +171,34 @@ test("marking a refund as done asks first, then marks it and the refund leaves t
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.poll(() => screen.getByText("Caja principal").query()).toBeNull();
   await expect.element(screen.getByText("Caja del fondo")).toBeVisible();
+});
+
+test("marking a refund as done reads the pending refunds again and leaves other concepts' data as it was", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPendingRefunds).mockResolvedValue({ kind: "ok", value: pendingRefunds });
+  vi.mocked(services.markRefundDone).mockResolvedValue({ kind: "ok" });
+  const queryClient = createQueryClient();
+  const salesReportKey = ["sales", "report"];
+  queryClient.setQueryData(salesReportKey, []);
+  const screen = await render(
+    <QueryClientProvider client={queryClient}>
+      <FieldSizeProvider size="backoffice">
+        <main>
+          <PendingRefundsScreen services={services} onSessionEnded={() => {}} />
+        </main>
+      </FieldSizeProvider>
+    </QueryClientProvider>,
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Marcar como hecho el reembolso de $ 2.500,00" }),
+  );
+
+  await userEvent.click(
+    screen.getByRole("dialog").getByRole("button", { name: "Marcar como hecho" }),
+  );
+
+  await expect.poll(() => services.fetchPendingRefunds).toHaveBeenCalledTimes(2);
+  expect(queryClient.getQueryState(salesReportKey)?.isInvalidated).toBe(false);
 });
 
 test("a refund another person already marked as done leaves the list once the list is updated", async () => {
