@@ -25,6 +25,8 @@ export {
   isFiscalAddressStreetAddressTooLong,
   isSameFiscalAddressName,
 } from "./model/fiscal-address.js";
+export type { FiscalOnlineSignalEvidence } from "./model/fiscal-online-signal.js";
+export { REGISTER_HEALTH_CHECK_INTERVAL_MS } from "./model/fiscal-online-signal.js";
 export {
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
@@ -46,3 +48,9 @@ export type {
 } from "./model/pre-emission-gate.js";
 export { PRE_EMISSION_GATE_FAILURE_REASONS, preEmissionGate } from "./model/pre-emission-gate.js";
 export { preEmissionGateFailedEvent } from "./model/pre-emission-gate-failed-event.js";
+export type {
+  DeferralReason,
+  RealTimeAuthorizationAnswer,
+  RealTimeAuthorizationResolution,
+} from "./model/real-time-authorization.js";
+export { DEFERRAL_REASONS } from "./model/real-time-authorization.js";

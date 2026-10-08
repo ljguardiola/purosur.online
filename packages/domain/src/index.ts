@@ -191,14 +191,19 @@ export type {
   BuyerIdentificationThreshold,
   BuyerTaxStatusOption,
   ChargeRefusal,
+  DeferralReason,
   FacturaC,
+  FiscalOnlineSignalEvidence,
   IssuerIdentificationInEffect,
   PreEmissionGateFailureReason,
   PreEmissionGateOutcome,
+  RealTimeAuthorizationAnswer,
+  RealTimeAuthorizationResolution,
 } from "./fiscal/index.js";
 export {
   ARCA_VITALITY_CHECK_INTERVAL_MS,
   chargeRefusal,
+  DEFERRAL_REASONS,
   FISCAL_ADDRESS_NAME_MAX_LENGTH,
   FISCAL_ADDRESS_STREET_ADDRESS_MAX_LENGTH,
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
@@ -221,6 +226,7 @@ export {
   POINT_OF_SALE_NUMBER_MAX,
   PRE_EMISSION_GATE_FAILURE_REASONS,
   preEmissionGateFailedEvent,
+  REGISTER_HEALTH_CHECK_INTERVAL_MS,
   thresholdInEffectOn,
   thresholdScheduledAfter,
 } from "./fiscal/index.js";
