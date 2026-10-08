@@ -1,11 +1,10 @@
-import {
-  type ArcaVitalityResult,
-  checkArcaVitality,
-  type WsaaAuthenticationResult,
-} from "@purosur/domain/fiscal/use-cases";
+import { checkArcaVitality, type WsaaAuthenticationResult } from "@purosur/domain/fiscal/use-cases";
 import { arcaCredentialsOf } from "./arca-credentials.js";
 import { ArcaWsaaAuthentication } from "./wsaa-authentication.js";
-import { WsfeArcaVitalityService } from "./wsfe-arca-vitality-service.js";
+import {
+  WsfeArcaVitalityService,
+  type WsfeArcaVitalityResult,
+} from "./wsfe-arca-vitality-service.js";
 
 const WSAA_SERVICE = "wsfe";
 
@@ -40,7 +39,7 @@ export interface CheckArcaTestEnvironmentOptions extends ArcaTestEnvironmentChec
   timeoutMs?: number;
 }
 
-type FeDummyCheck = { kind: "ok" } | { kind: "not_ok"; answer: ArcaVitalityResult };
+type FeDummyCheck = { kind: "ok" } | { kind: "not_ok"; answer: WsfeArcaVitalityResult };
 
 type LoginCheck =
   | { kind: "issued" }
@@ -74,7 +73,7 @@ async function checkFeDummy(options: CheckArcaTestEnvironmentOptions): Promise<F
     endpoint: options.wsfeEndpoint,
     ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
   });
-  let answer: ArcaVitalityResult = { kind: "unreachable" };
+  let answer: WsfeArcaVitalityResult | undefined;
   const outcome = await checkArcaVitality({
     vitality: {
       check: async () => {
@@ -85,7 +84,10 @@ async function checkFeDummy(options: CheckArcaTestEnvironmentOptions): Promise<F
     store: { recordVitalityCheck: async () => {} },
     clock: { now: options.now },
   });
-  return outcome.kind === "ok" ? { kind: "ok" } : { kind: "not_ok", answer };
+  if (outcome.kind === "ok" || answer === undefined) {
+    return { kind: "ok" };
+  }
+  return { kind: "not_ok", answer };
 }
 
 async function checkLogin(options: CheckArcaTestEnvironmentOptions): Promise<LoginCheck> {
@@ -124,7 +126,7 @@ function describeFeDummy(feDummy: FeDummyCheck): string {
   }
   const { answer } = feDummy;
   if (answer.kind === "unreachable") {
-    return "FEDummy: no answer the client could read";
+    return `FEDummy: no answer the client could read (${answer.cause})`;
   }
   return `FEDummy: AppServer ${answer.appServer}, DbServer ${answer.dbServer}, AuthServer ${answer.authServer}`;
 }

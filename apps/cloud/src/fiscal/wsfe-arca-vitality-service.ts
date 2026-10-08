@@ -23,10 +23,44 @@ export interface WsfeArcaVitalityServiceOptions {
   onRawResponse?: (raw: string) => void;
 }
 
+export type WsfeArcaVitalityResult =
+  | Exclude<ArcaVitalityResult, { kind: "unreachable" }>
+  | { kind: "unreachable"; cause: string };
+
+const SERVERS = ["AppServer", "DbServer", "AuthServer"] as const;
+
 function serverStatus(result: unknown, server: string): string | undefined {
   const dummy = (result as { FEDummyResult?: Record<string, unknown> } | undefined)?.FEDummyResult;
   const value = dummy?.[server];
   return typeof value === "string" ? value : undefined;
+}
+
+interface SoapClientFailure {
+  message?: unknown;
+  code?: unknown;
+  response?: { status?: unknown };
+  Fault?: { faultstring?: unknown };
+}
+
+function causeOf(error: unknown): string {
+  if (typeof error !== "object" || error === null) {
+    return String(error);
+  }
+  const failure = error as SoapClientFailure;
+  const message =
+    typeof failure.message === "string"
+      ? failure.message
+      : typeof failure.Fault?.faultstring === "string"
+        ? failure.Fault.faultstring
+        : String(error);
+  const firstLine = message.split("\n", 1)[0]?.trim() ?? "";
+  if (typeof failure.response?.status === "number") {
+    return `HTTP ${failure.response.status}: ${firstLine}`;
+  }
+  if (typeof failure.code === "string" && !firstLine.includes(failure.code)) {
+    return `${failure.code}: ${firstLine}`;
+  }
+  return firstLine;
 }
 
 export class WsfeArcaVitalityService implements ArcaVitalityService {
@@ -45,7 +79,7 @@ export class WsfeArcaVitalityService implements ArcaVitalityService {
     this.onRawResponse = onRawResponse;
   }
 
-  async check(): Promise<ArcaVitalityResult> {
+  async check(): Promise<WsfeArcaVitalityResult> {
     try {
       this.client ??= createWsfeClient(this.endpoint);
       const client = await this.client;
@@ -61,11 +95,12 @@ export class WsfeArcaVitalityService implements ArcaVitalityService {
       const dbServer = serverStatus(result, "DbServer");
       const authServer = serverStatus(result, "AuthServer");
       if (appServer === undefined || dbServer === undefined || authServer === undefined) {
-        return { kind: "unreachable" };
+        const lacking = SERVERS.filter((server) => serverStatus(result, server) === undefined);
+        return { kind: "unreachable", cause: `the answer lacked ${lacking.join(", ")}` };
       }
       return { kind: "answered", appServer, dbServer, authServer };
-    } catch {
-      return { kind: "unreachable" };
+    } catch (error) {
+      return { kind: "unreachable", cause: causeOf(error) };
     }
   }
 }
