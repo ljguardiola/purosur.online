@@ -7,7 +7,8 @@
   "ignoreFiles": [
     ".github/scripts/slow-tests-reporter.d.mts",
     ".github/scripts/without-package-output.d.mts",
-    "apps/pos/electron-builder.config.d.mts"
+    "apps/pos/electron-builder.config.d.mts",
+    "vitest.browser-commands.d.mts"
   ],
   "workspaces": {
     ".": {
