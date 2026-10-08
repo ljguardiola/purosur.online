@@ -14,6 +14,7 @@ const CONCEPTS = [
   "register",
   "sales",
   "stock",
+  "users",
 ];
 const OUTSIDE_ANY_CONCEPT = ["help", "platform", "shell"];
 const ROOT_FILES = ["env.d.ts", "main.tsx", "structure.test.ts"];

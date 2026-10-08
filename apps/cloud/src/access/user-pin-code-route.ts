@@ -1,11 +1,13 @@
 import { userPinCodeSchema } from "@purosur/contracts";
 import { mayEmitPinCodeFor, mayRequestPinCodeFor } from "@purosur/domain";
-import { emitUserPinCode, findBranchUser } from "@purosur/domain/access/use-cases";
+import { emitUserPinCode } from "@purosur/domain/access/use-cases";
+import { findBranchUser } from "@purosur/domain/users/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { readRecordIds } from "../platform/record-id-params.js";
+import { drizzleBranchUsers } from "../users/drizzle-branch-users.js";
+import type { UsersRouteOptions } from "../users/users-list-route.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
-import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 import { DrizzlePinCodeStore } from "./drizzle-pin-code-store.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import { generatePinCode } from "./pin-code-generator.js";
@@ -15,7 +17,6 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "./route-access.js";
-import type { UsersRouteOptions } from "./users-list-route.js";
 
 const USER_NOT_FOUND_RESPONSE = {
   code: "not_found",

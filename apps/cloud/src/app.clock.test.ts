@@ -11,7 +11,6 @@ import type { SessionAuthorizationRouteOptions } from "./access/session-authoriz
 import type { SessionReadRouteOptions } from "./access/session-read-route.js";
 import type { SessionSignOutRouteOptions } from "./access/session-sign-out-route.js";
 import type { SessionStatusRouteOptions } from "./access/session-status-route.js";
-import type { UsersRouteOptions } from "./access/users-list-route.js";
 import type { AlertsRouteOptions } from "./alerts/alerts-list-route.js";
 import type { BuildAppOptions } from "./app.js";
 import type { BranchSettingsRouteOptions } from "./branch/branch-settings-read-route.js";
@@ -29,6 +28,7 @@ import type { PricesRouteOptions } from "./pricing/prices-list-route.js";
 import type { DeviceEnrollmentRouteOptions } from "./register/device-enrollment-route.js";
 import type { RegistersRouteOptions } from "./register/registers-list-route.js";
 import type { StockRouteOptions } from "./stock/stock-route-options.js";
+import type { UsersRouteOptions } from "./users/users-list-route.js";
 
 type WithoutClock<Options> = Omit<Options, "now">;
 

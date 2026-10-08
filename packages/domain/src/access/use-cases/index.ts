@@ -22,12 +22,6 @@ export type {
   AuthorizeSessionPorts,
 } from "./authorize-session.js";
 export { authorizeSession } from "./authorize-session.js";
-export type {
-  BranchUser,
-  BranchUserActiveScope,
-  BranchUserFacts,
-  BranchUsers,
-} from "./branch-users.js";
 export type { CheckPinInput, CheckPinOutcome, PinRefusal } from "./check-pin.js";
 export { checkPin } from "./check-pin.js";
 export type {
@@ -47,34 +41,6 @@ export type {
   ConsumeSignInChallengePorts,
 } from "./consume-sign-in-challenge.js";
 export { consumeSignInChallenge } from "./consume-sign-in-challenge.js";
-export type {
-  CreateFirstAdministratorInput,
-  CreateFirstAdministratorPorts,
-  CreateFirstAdministratorResult,
-} from "./create-first-administrator.js";
-export {
-  createFirstAdministrator,
-  FirstAdministratorAlreadyBootstrappedError,
-  InvalidFirstAdministratorInputError,
-} from "./create-first-administrator.js";
-export type {
-  CreateUserInput,
-  CreateUserOutcome,
-  CreateUserPorts,
-} from "./create-user.js";
-export { createUser } from "./create-user.js";
-export type {
-  DeactivateUserInput,
-  DeactivateUserOutcome,
-  DeactivateUserPorts,
-} from "./deactivate-user.js";
-export { deactivateUser } from "./deactivate-user.js";
-export type {
-  EditUserInput,
-  EditUserOutcome,
-  EditUserPorts,
-} from "./edit-user.js";
-export { editUser } from "./edit-user.js";
 export type {
   EmitFirstPinCodeInput,
   EmitFirstPinCodeOutcome,
@@ -96,13 +62,6 @@ export type {
   FindAccountProfilePorts,
 } from "./find-account-profile.js";
 export { findAccountProfile } from "./find-account-profile.js";
-export type { FindBranchUserInput } from "./find-branch-user.js";
-export { findBranchUser } from "./find-branch-user.js";
-export type {
-  FindDeactivatableUserInput,
-  FindDeactivatableUserPorts,
-} from "./find-deactivatable-user.js";
-export { findDeactivatableUser } from "./find-deactivatable-user.js";
 export type {
   FindOpenSessionInput,
   FindOpenSessionOutcome,
@@ -121,19 +80,6 @@ export type {
   FindSignInPasskeyPorts,
 } from "./find-sign-in-passkey.js";
 export { findSignInPasskey } from "./find-sign-in-passkey.js";
-export type {
-  FindUncoveredRegisterPermissionsInput,
-  FindUncoveredRegisterPermissionsPorts,
-} from "./find-uncovered-register-permissions.js";
-export { findUncoveredRegisterPermissions } from "./find-uncovered-register-permissions.js";
-export type {
-  FirstAdministratorLocation,
-  FirstAdministratorRole,
-  FirstAdministratorStore,
-  FirstAdministratorStoreTransaction,
-  NewFirstAdministrator,
-  StoredFirstAdministrator,
-} from "./first-administrator-store.js";
 export type {
   FirstPinCodeEmission,
   FirstPinCodeEmissionPorts,
@@ -171,8 +117,6 @@ export type {
   SignablePerson,
 } from "./list-authorizers.js";
 export { listAuthorizers } from "./list-authorizers.js";
-export type { ListBranchUsersInput } from "./list-branch-users.js";
-export { listBranchUsers } from "./list-branch-users.js";
 export type { ListOwnPasskeysInput, ListOwnPasskeysPorts } from "./list-own-passkeys.js";
 export { listOwnPasskeys } from "./list-own-passkeys.js";
 export type {
@@ -196,6 +140,7 @@ export type {
   PasskeyAssertionVerifier,
   VerifiablePasskey,
 } from "./passkey-assertion-verifier.js";
+export type { PasskeyHolderScope, PasskeyHolders } from "./passkey-holders.js";
 export type {
   AddedPasskey,
   PasskeyRegistrationAlert,
@@ -255,12 +200,6 @@ export type {
   PinSignInFailures,
   PinSignInStore,
 } from "./pin-sign-in-store.js";
-export type {
-  ReactivateUserInput,
-  ReactivateUserOutcome,
-  ReactivateUserPorts,
-} from "./reactivate-user.js";
-export { reactivateUser } from "./reactivate-user.js";
 export type {
   RecordRegistrationChallengeInput,
   RecordRegistrationChallengePorts,
@@ -380,16 +319,3 @@ export { signInWithPasskey } from "./sign-in-with-passkey.js";
 export type { SignOutInput, SignOutOutcome, SignOutPorts } from "./sign-out.js";
 export { signOut } from "./sign-out.js";
 export type { TrippedSignInLockout } from "./trip-sign-in-lockout.js";
-export type {
-  AssignableRole,
-  LockedUser,
-  NewUser,
-  RoleWithPermissions,
-  StoredUserRevision,
-  UserAlert,
-  UserChange,
-  UserRewrite,
-  UserStore,
-  UserStoreTransaction,
-} from "./user-store.js";
-export { UserEmailConflict } from "./user-store.js";

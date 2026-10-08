@@ -1,12 +1,11 @@
+import { mayRemovePasskeyOf } from "../../users/index.js";
 import { hasValidPasskeyAuthorization } from "../model/passkey-authorization-window.js";
-import { mayRemovePasskeyOf } from "../model/user-management.js";
-import type { BranchUsers } from "./branch-users.js";
-import { findBranchUser } from "./find-branch-user.js";
+import type { PasskeyHolders } from "./passkey-holders.js";
 import type { PasskeyRemovalStore } from "./passkey-removal-store.js";
 
 export interface RemoveUserPasskeyPorts {
   store: PasskeyRemovalStore;
-  users: BranchUsers;
+  holders: PasskeyHolders;
 }
 
 export interface RemoveUserPasskeyInput {
@@ -26,16 +25,13 @@ export type RemoveUserPasskeyOutcome =
   | { kind: "removed" };
 
 export async function removeUserPasskey(
-  { store, users }: RemoveUserPasskeyPorts,
+  { store, holders }: RemoveUserPasskeyPorts,
   input: RemoveUserPasskeyInput,
 ): Promise<RemoveUserPasskeyOutcome> {
   if (!hasValidPasskeyAuthorization({ passkeyAuthorizedAt: input.passkeyAuthorizedAt }, input.at)) {
     return { kind: "authorization_required" };
   }
-  const target = await findBranchUser(
-    { users },
-    { locationId: input.locationId, userId: input.targetUserId },
-  );
+  const target = await holders.passkeyHolder(input.locationId, input.targetUserId, "active");
   if (!target) {
     return { kind: "user_not_found" };
   }

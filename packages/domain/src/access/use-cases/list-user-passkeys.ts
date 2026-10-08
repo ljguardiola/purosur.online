@@ -1,16 +1,15 @@
-import type { BranchUserActiveScope, BranchUsers } from "./branch-users.js";
-import { findBranchUser } from "./find-branch-user.js";
+import type { PasskeyHolderScope, PasskeyHolders } from "./passkey-holders.js";
 import type { PasskeySummary, Passkeys } from "./passkeys.js";
 
 export interface ListUserPasskeysPorts {
-  users: BranchUsers;
+  holders: PasskeyHolders;
   passkeys: Passkeys;
 }
 
 export interface ListUserPasskeysInput {
   locationId: string;
   userId: string;
-  activeScope: BranchUserActiveScope;
+  activeScope: PasskeyHolderScope;
 }
 
 export type ListUserPasskeysOutcome =
@@ -18,10 +17,10 @@ export type ListUserPasskeysOutcome =
   | { kind: "listed"; passkeys: PasskeySummary[] };
 
 export async function listUserPasskeys(
-  { users, passkeys }: ListUserPasskeysPorts,
+  { holders, passkeys }: ListUserPasskeysPorts,
   input: ListUserPasskeysInput,
 ): Promise<ListUserPasskeysOutcome> {
-  const user = await findBranchUser({ users }, input);
+  const user = await holders.passkeyHolder(input.locationId, input.userId, input.activeScope);
   if (!user) {
     return { kind: "not_found" };
   }

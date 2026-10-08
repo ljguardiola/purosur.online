@@ -7,6 +7,9 @@ import { pendingRefunds } from "../payments/test-support/refund-fixtures";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { opensOnlyScreens } from "./test-support/screen-routes";
+
+opensOnlyScreens(["/", "/account", "/help", "/pending-refunds", "/points-of-sale"]);
 
 beforeEach(resetPageState);
 

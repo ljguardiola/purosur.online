@@ -9,6 +9,9 @@ import {
   startRecordingRequests,
   stopRecordingRequests,
 } from "./test-support/requested-urls";
+import { opensOnlyScreens } from "./test-support/screen-routes";
+
+opensOnlyScreens(["/help"], { downloadedInTest: ["/", "/points-of-sale"] });
 
 beforeEach(async () => {
   await startRecordingRequests();

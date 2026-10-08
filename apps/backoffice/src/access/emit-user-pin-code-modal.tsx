@@ -8,7 +8,7 @@ import type {
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
 import { pinCodeValidity } from "./pin-code-validity";
-import type { BranchUser, emitUserPinCode } from "./users-api";
+import type { emitUserPinCode } from "./user-credentials-api";
 
 export type EmitUserPinCodeModalServices = {
   emitUserPinCode: typeof emitUserPinCode;
@@ -17,7 +17,7 @@ export type EmitUserPinCodeModalServices = {
   startAuthentication: typeof startAuthentication;
 };
 
-type PinCodeUser = Pick<BranchUser, "id" | "firstName">;
+type PinCodeUser = { id: string; firstName: string };
 
 export type EmissionState =
   | { kind: "closed" }

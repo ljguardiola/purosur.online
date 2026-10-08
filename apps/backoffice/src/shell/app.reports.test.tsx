@@ -7,6 +7,9 @@ import { registers, weekReport } from "../sales/test-support/sales-fixtures";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { opensOnlyScreens } from "./test-support/screen-routes";
+
+opensOnlyScreens(["/", "/account", "/help", "/reports", "/reports/sales-by-day"]);
 
 beforeEach(resetPageState);
 

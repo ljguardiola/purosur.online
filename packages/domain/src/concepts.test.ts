@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 const CONCEPTS = [
   "access",
   "permissions",
+  "users",
   "sales",
   "returns",
   "payments",

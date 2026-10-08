@@ -1,15 +1,14 @@
 import { randomUUID } from "node:crypto";
-import { createUser } from "@purosur/domain/access/use-cases";
 import { editBranchSettings } from "@purosur/domain/branch/use-cases";
 import { createCategory, createProduct, createTag } from "@purosur/domain/catalog/use-cases";
 import { createRole } from "@purosur/domain/permissions/use-cases";
 import { confirmPrice, createDiscount, setPrice } from "@purosur/domain/pricing/use-cases";
 import { createRegister } from "@purosur/domain/register/use-cases";
+import { createUser } from "@purosur/domain/users/use-cases";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterEach, describe, expect, it } from "vitest";
-import { DrizzleUserStore } from "../access/drizzle-user-store.js";
 import { openAlert } from "../alerts/open-alert.js";
 import { DrizzleBranchSettingsStore } from "../branch/drizzle-branch-settings-store.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
@@ -44,6 +43,7 @@ import {
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
+import { DrizzleUserStore } from "../users/drizzle-user-store.js";
 import { clearSampleData } from "./clear-sample-data.js";
 import { loadSampleData } from "./load-sample-data.js";
 import {

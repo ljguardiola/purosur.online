@@ -1,7 +1,5 @@
 import {
   type PasskeyRegistrationBody,
-  type PasskeySummaryWire,
-  passkeyListSchema,
   passkeyRegistrationChallengeSchema,
 } from "@purosur/contracts";
 import type {
@@ -11,8 +9,7 @@ import type {
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
-
-export type Passkey = ReturnType<typeof passkeyFromWire>;
+import { type Passkey, passkeyListFromWire } from "./passkey-list";
 
 export type FetchPasskeysOutcome = CloudReadOutcome<Passkey[]>;
 
@@ -46,15 +43,6 @@ function postJson(path: string, body?: unknown): Promise<Response> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body ?? {}),
   });
-}
-
-function passkeyFromWire(row: PasskeySummaryWire) {
-  return { id: row.id, name: row.name, createdAt: row.created_at, lastUsedAt: row.last_used_at };
-}
-
-export function passkeyListFromWire(body: unknown): Passkey[] | undefined {
-  const parsed = passkeyListSchema.safeParse(body);
-  return parsed.success ? parsed.data.map(passkeyFromWire) : undefined;
 }
 
 // Oldest first.

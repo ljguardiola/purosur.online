@@ -2,7 +2,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import type { Passkey } from "./passkey-api";
+import type { Passkey } from "./passkey-list";
 import {
   RemoveOwnPasskeyModal,
   type RemoveOwnPasskeyModalServices,

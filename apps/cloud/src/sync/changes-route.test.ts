@@ -1,6 +1,5 @@
 import { changesPageSchema, cloudErrorSchema } from "@purosur/contracts";
 import { pullAudienceOf } from "@purosur/domain";
-import { createUser, deactivateUser } from "@purosur/domain/access/use-cases";
 import { editBranchSettings } from "@purosur/domain/branch/use-cases";
 import {
   createCategory,
@@ -13,10 +12,10 @@ import {
 import { createRole } from "@purosur/domain/permissions/use-cases";
 import { createDiscount, editDiscount, setPrice } from "@purosur/domain/pricing/use-cases";
 import { createRegister } from "@purosur/domain/register/use-cases";
+import { createUser, deactivateUser } from "@purosur/domain/users/use-cases";
 import { eq, inArray, sql } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { DrizzleUserStore } from "../access/drizzle-user-store.js";
 import { registerRouteAccess } from "../access/route-access.js";
 import { DrizzleBranchSettingsStore } from "../branch/drizzle-branch-settings-store.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
@@ -55,6 +54,7 @@ import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rot
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
+import { DrizzleUserStore } from "../users/drizzle-user-store.js";
 import { logChange } from "./change-log.js";
 import { registerChangesRoute } from "./changes-route.js";
 import { DrizzleChangeLog } from "./drizzle-change-log.js";
