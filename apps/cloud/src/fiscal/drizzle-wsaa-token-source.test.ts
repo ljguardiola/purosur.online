@@ -22,7 +22,12 @@ beforeEach(async () => {
 });
 
 function sourceAt(now: Date, certificateFingerprint = FINGERPRINT) {
-  return new DrizzleWsaaTokenSource(testDatabase.db, { now }, "wsfe", certificateFingerprint);
+  return new DrizzleWsaaTokenSource(
+    testDatabase.db,
+    { now: () => now },
+    "wsfe",
+    certificateFingerprint,
+  );
 }
 
 async function insertToken(expiresAt: Date, service = "wsfe", fingerprint = FINGERPRINT) {
