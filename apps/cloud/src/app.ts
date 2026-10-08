@@ -93,6 +93,7 @@ import { registerIssuerIdentificationReadRoute } from "./fiscal/issuer-identific
 import { registerRegisterPointOfSaleConfigurationRoute } from "./fiscal/register-point-of-sale-configuration-route.js";
 import type { RegistersPointsOfSaleRouteOptions } from "./fiscal/registers-points-of-sale-list-route.js";
 import { registerRegistersPointsOfSaleListRoute } from "./fiscal/registers-points-of-sale-list-route.js";
+import { type RefundRouteOptions, registerRefundRoutes } from "./payments/refund-routes.js";
 import { registerEdgeOriginGuard } from "./platform/edge-origin-guard.js";
 import { registerHealthRoute } from "./platform/health-route.js";
 import { registerDiscountCreationRoute } from "./pricing/discount-creation-route.js";
@@ -116,7 +117,6 @@ import { registerRegisterCreationRoute } from "./register/register-creation-rout
 import { registerRegisterEnrollmentCodeRoute } from "./register/register-enrollment-code-route.js";
 import type { RegistersRouteOptions } from "./register/registers-list-route.js";
 import { registerRegistersListRoute } from "./register/registers-list-route.js";
-import { type RefundRouteOptions, registerRefundRoutes } from "./sales/refund-routes.js";
 import {
   registerSalesReportRoutes,
   type SalesReportRouteOptions,

@@ -4,6 +4,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { paymentRefunds, users } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { applyCancelledSale } from "../sales/test-support/applied-sales.js";
 import { aTransferCancelledSale } from "../sync/test-support/synced-facts.js";
 import {
   createIntegrationDatabase,
@@ -11,7 +12,6 @@ import {
 } from "../test-support/integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleRefundStore } from "./drizzle-refund-store.js";
-import { applyCancelledSale } from "./test-support/applied-sales.js";
 
 // PGlite serves every query on one connection, so this race needs a real Postgres.
 const NOON = new Date("2026-01-05T12:00:00.000Z");
