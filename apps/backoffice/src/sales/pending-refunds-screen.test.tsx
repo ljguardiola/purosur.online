@@ -45,16 +45,18 @@ test("shows the breadcrumb, the heading and each pending refund with when, where
   const services = createServices();
   const screen = await loaded(services);
 
-  await expect.element(screen.getByText("Caja", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Caja", { exact: true }).first()).toBeVisible();
   await expect
     .element(screen.getByRole("heading", { name: "Reembolsos pendientes", level: 1 }))
     .toBeVisible();
-  const rows = screen
-    .getByRole("row")
-    .all()
-    .slice(1)
-    .map((row) => row.element().textContent ?? "");
-  await expect.poll(() => rows.length).toBe(2);
+  const rowTexts = () =>
+    screen
+      .getByRole("row")
+      .all()
+      .slice(1)
+      .map((row) => row.element().textContent ?? "");
+  await expect.poll(() => rowTexts().length).toBe(2);
+  const rows = rowTexts();
   expect(rows[0]).toContain("07/10/2026 12:30");
   expect(rows[0]).toContain("Caja principal");
   expect(rows[0]).toContain("Transferencia");
@@ -96,7 +98,9 @@ test("shows a load error with a retry action that starts again from the loading 
     .mockResolvedValueOnce({ kind: "failed" })
     .mockReturnValueOnce(retry.promise);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("No pudimos abrir los reembolsos pendientes")).toBeVisible();
+  await expect
+    .element(screen.getByText("No pudimos abrir los reembolsos pendientes"))
+    .toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
@@ -151,7 +155,9 @@ test("marking a refund as done asks first, then marks it and the refund leaves t
   );
   const dialog = screen.getByRole("dialog");
   await expect
-    .element(dialog.getByRole("heading", { name: "¿Marcar como hecho el reembolso de $ 2.500,00?" }))
+    .element(
+      dialog.getByRole("heading", { name: "¿Marcar como hecho el reembolso de $ 2.500,00?" }),
+    )
     .toBeVisible();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",

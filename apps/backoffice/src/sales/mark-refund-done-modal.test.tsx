@@ -2,12 +2,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { MarkRefundDoneModal, type MarkRefundDoneModalServices } from "./mark-refund-done-modal";
-import { pendingRefunds, TRANSFER_REFUND_ID } from "./test-support/refund-fixtures";
-
-const [transferRefund] = pendingRefunds.refunds;
-if (!transferRefund) {
-  throw new Error("test setup: the fixture has no refund");
-}
+import { TRANSFER_REFUND_ID, transferRefund } from "./test-support/refund-fixtures";
 
 afterEach(() => {
   window.history.pushState(null, "", "/");
@@ -48,7 +43,9 @@ test("asks about the refund by its amount and how it was paid back", async () =>
   const dialog = screen.getByRole("dialog");
 
   await expect
-    .element(dialog.getByRole("heading", { name: "¿Marcar como hecho el reembolso de $ 2.500,00?" }))
+    .element(
+      dialog.getByRole("heading", { name: "¿Marcar como hecho el reembolso de $ 2.500,00?" }),
+    )
     .toBeVisible();
   await expect
     .element(dialog.getByText("Confirmá que ya se lo devolviste al cliente por transferencia."))
