@@ -223,6 +223,11 @@ export type { RegisterEnrollmentCodeBody } from "./register/register-enrollment-
 export { registerEnrollmentCodeSchema } from "./register/register-enrollment-code.js";
 export type { RegisterSummaryBody } from "./register/register-summary.js";
 export { registerListSchema, registerSummarySchema } from "./register/register-summary.js";
+export type { RegisterSyncStatusWire } from "./register/register-sync-status.js";
+export {
+  registerSyncStatusListSchema,
+  registerSyncStatusSchema,
+} from "./register/register-sync-status.js";
 export type {
   CancelLockedSaleOutcome,
   SalesCoreToRendererMessage,

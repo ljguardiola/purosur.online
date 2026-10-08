@@ -181,9 +181,7 @@ describe("alertDetailSchema", () => {
     expectTypeOf<WireDetail<"arca_certificate_expiring">>().toEqualTypeOf<
       AlertDetails["arca_certificate_expiring"]
     >();
-    expectTypeOf<WireDetail<"update_required">>().toEqualTypeOf<
-      AlertDetails["update_required"]
-    >();
+    expectTypeOf<WireDetail<"update_required">>().toEqualTypeOf<AlertDetails["update_required"]>();
     expectTypeOf<WireDetail<"backoffice_sign_in_lockout">>().toExtend<
       Omit<AlertDetails["backoffice_sign_in_lockout"], "sourceAddress">
     >();
