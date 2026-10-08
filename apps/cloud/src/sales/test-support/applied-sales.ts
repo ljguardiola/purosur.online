@@ -5,6 +5,7 @@ import {
   aCancelledSale,
   aCashSessionOpenedFact,
   aCompletedSale,
+  type CancelledSale,
 } from "../../sync/test-support/synced-facts.js";
 import { unappliedEventOf } from "../../sync/test-support/unapplied-event.js";
 
@@ -47,12 +48,17 @@ export async function applyCompletedSale<TQueryResult extends PgQueryResultHKT>(
 
 export async function applyCancelledSale<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  sale: { deviceId: string; cancelledAt: Date; total: number },
-): Promise<string> {
-  const { deviceId, cancelledAt, total } = sale;
+  sale: {
+    deviceId: string;
+    cancelledAt: Date;
+    total: number;
+    overrides?: Partial<CancelledSale>;
+  },
+): Promise<CancelledSale> {
+  const { deviceId, cancelledAt, total, overrides } = sale;
   const application = new DrizzleEventApplication(db, () => cancelledAt);
   const sessionId = randomUUID();
-  const cancelled = aCancelledSale({ sessionId, cancelledAt, total, lines: [] });
+  const cancelled = aCancelledSale({ sessionId, cancelledAt, total, lines: [], ...overrides });
   const eventOf = (aggregateType: string, aggregateId: string, eventType: string) =>
     unappliedEventOf(
       {
@@ -79,5 +85,5 @@ export async function applyCancelledSale<TQueryResult extends PgQueryResultHKT>(
       eventOf("Sale", cancelled.id, "sale_cancelled"),
     );
   });
-  return cancelled.id;
+  return cancelled;
 }

@@ -13,9 +13,9 @@ import {
 import { eventApplicationUnderTest } from "./test-support/drizzle-event-application.js";
 import { insertInboxEvent } from "./test-support/inbox-events.js";
 import {
+  aCancelledSale,
   aCashMovementRecordedFact,
   aCashSessionClosedFact,
-  aCancelledSale,
   aCashSessionOpenedFact,
   aCompletedSale,
 } from "./test-support/synced-facts.js";
@@ -445,8 +445,7 @@ describe("recording the cancelled sales of applied events", () => {
           type: movement.type,
           refType: "sale",
           refId: cancelled.id,
-          authorizedBy:
-            movement.type === "REFUND" ? "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13" : null,
+          authorizedBy: movement.type === "REFUND" ? "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13" : null,
         }))
         .sort((a, b) => a.type.localeCompare(b.type)),
     );

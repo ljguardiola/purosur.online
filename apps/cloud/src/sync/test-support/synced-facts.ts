@@ -94,6 +94,38 @@ export function aCancelledSale(overrides: Partial<CancelledSale> = {}): Cancelle
   };
 }
 
+export function aTransferCancelledSale(overrides: Partial<CancelledSale> = {}): CancelledSale {
+  const base = aCancelledSale();
+  const [cash] = base.payments;
+  const [cashRefund] = base.refunds;
+  if (!cash || !cashRefund) {
+    throw new Error("test setup: the cancelled sale has no payment");
+  }
+  const payment = {
+    ...cash,
+    method: "TRANSFER" as const,
+    amount: 2000,
+    tendered: null,
+    authorizedBy: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
+    confirmedAt: COMPLETED_AT,
+  };
+  return {
+    ...base,
+    payments: [payment],
+    refunds: [
+      {
+        ...cashRefund,
+        paymentId: payment.id,
+        method: "TRANSFER",
+        amount: 2000,
+        state: "PENDING",
+      },
+    ],
+    cashMovements: [],
+    ...overrides,
+  };
+}
+
 export function aCashSessionOpenedFact(
   overrides: Partial<FactOf<"cash_session_opened">["session"]> = {},
 ): SyncedFact {

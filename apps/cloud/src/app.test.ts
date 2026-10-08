@@ -1364,6 +1364,38 @@ describe("wiring the sales report routes", () => {
   });
 });
 
+describe("wiring the refund routes", () => {
+  const refundRequests = [
+    { method: "GET", url: "/api/refunds/pending" },
+    { method: "POST", url: "/api/refunds/00000000-0000-4000-8000-000000000000/completion" },
+  ] as const;
+
+  async function statusCodes(app: ReturnType<typeof buildApp>): Promise<number[]> {
+    const responses = await Promise.all(
+      refundRequests.map((request) =>
+        app.inject({ ...request, headers: { origin: "https://staging.purosur.online" } }),
+      ),
+    );
+    return responses.map((response) => response.statusCode);
+  }
+
+  it("does not register the refund routes when no refunds option is given", async () => {
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
+
+    expect(await statusCodes(app)).toEqual(refundRequests.map(() => 404));
+  });
+
+  it("registers the refund routes when a refunds option is given", async () => {
+    const app = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      refunds: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    expect(await statusCodes(app)).toEqual(refundRequests.map(() => 401));
+  });
+});
+
 describe("wiring the stock routes", () => {
   const stockRequests = [
     { method: "GET", url: "/api/inventory-levels" },
