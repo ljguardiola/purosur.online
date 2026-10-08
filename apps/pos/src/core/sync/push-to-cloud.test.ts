@@ -154,7 +154,7 @@ describe("a push to the cloud", () => {
       }),
     );
 
-    expect(requests).toEqual([]);
+    expect(requests).toEqual([{ path: "/api/events", bearerToken: "prefix.secret", seqs: [] }]);
   });
 
   it("does nothing before the register is enrolled", async () => {
