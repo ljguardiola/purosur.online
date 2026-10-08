@@ -5,9 +5,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { contractsValueExports, mainAllowedContractsNames } from "./main-contracts-imports.mjs";
 
-const ERROR_REPORT_OPTIONS = [
-  "errorReportingOptions",
-];
+const ERROR_REPORT_OPTIONS = ["errorReportingOptions"];
 
 function withEntry(t, files) {
   const root = mkdtempSync(join(tmpdir(), "main-contracts-imports-"));
