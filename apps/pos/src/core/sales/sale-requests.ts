@@ -353,9 +353,6 @@ export async function cancelPaidSaleFor(
         async authorize(): Promise<
           OperationAuthorization<CancelPaidSaleRequestGrant, CancelPaidSaleRefusal>
         > {
-          if (outboxChainKey === undefined) {
-            return { kind: "refused", refusal: { kind: "unavailable" } };
-          }
           const guarded = await gate.runAuthorized(
             { kind: "cancel_paid_sale" },
             authorization,
