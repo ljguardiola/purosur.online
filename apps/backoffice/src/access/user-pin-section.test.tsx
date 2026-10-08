@@ -27,13 +27,18 @@ afterEach(() => {
   window.history.pushState(null, "", "/");
 });
 
-function renderSection(services: EmitUserPinCodeModalServices, onSessionEnded = () => {}) {
+function renderSection(
+  services: EmitUserPinCodeModalServices,
+  onSessionEnded = () => {},
+  onUserOutdated?: () => void,
+) {
   return render(
     <main>
       <UserPinSection
         user={lucia}
         dataStatus="loaded"
         onSessionEnded={onSessionEnded}
+        {...(onUserOutdated ? { onUserOutdated } : {})}
         services={services}
       />
     </main>,
@@ -122,6 +127,20 @@ test.each([["not_found"], ["inactive"]] as const)(
     await userEvent.click(screen.getByRole("button", { name: "Reiniciar el PIN" }));
 
     await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  },
+);
+
+test.each([["not_found"], ["inactive"]] as const)(
+  "reports the user as outdated when the emission comes back %s",
+  async (kind) => {
+    const services = createServices();
+    vi.mocked(services.emitUserPinCode).mockResolvedValue({ kind });
+    const onUserOutdated = vi.fn();
+    const screen = await renderSection(services, () => {}, onUserOutdated);
+
+    await userEvent.click(screen.getByRole("button", { name: "Reiniciar el PIN" }));
+
+    await expect.poll(() => onUserOutdated.mock.calls.length).toBe(1);
   },
 );
 
