@@ -19,6 +19,7 @@ import {
   ArrowLeft,
   Bell,
   Check,
+  CloudOff,
   KeyRound,
   Laptop,
   LifeBuoy,
@@ -129,6 +130,8 @@ function alertIcon(kind: string): Icon {
       return <PackageX />;
     case "event_invariant_violated":
       return <TriangleAlert />;
+    case "update_required":
+      return <CloudOff />;
     default:
       return <Bell />;
   }
@@ -224,6 +227,8 @@ function alertTitle(alert: AlertDetail): string {
       return "Evento aplicado con una inconsistencia";
     case "arca_certificate_expiring":
       return "El certificado de ARCA está por vencer";
+    case "update_required":
+      return "La nube no acepta la versión de una caja";
   }
 }
 
@@ -277,6 +282,8 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
       return registerEnrollmentDescription(alert.detail, targetName);
     case "arca_certificate_expiring":
       return arcaCertificateExpiringDescription(alert.detail.notAfter, targetName);
+    case "update_required":
+      return `La caja «${targetName}» usa la versión ${alert.detail.appVersion}, que la nube ya no acepta. Hay que actualizarla para que vuelva a sincronizar.`;
   }
 }
 

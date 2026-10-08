@@ -52,6 +52,8 @@ describe("receiving the events a register pushes", () => {
     expect(inbox.state).toEqual({
       received: [],
       reports: [],
+      observedConditions: [],
+      acceptedPushes: [],
       refusedPushes: [],
       brokenChainRevocations: [],
     });
@@ -241,6 +243,8 @@ describe("receiving the events a register pushes", () => {
     expect(inbox.state).toEqual({
       received: [],
       reports: [],
+      observedConditions: [],
+      acceptedPushes: [],
       refusedPushes: [],
       brokenChainRevocations: [],
     });
@@ -295,6 +299,137 @@ describe("requiring a register version", () => {
     const outcome = await receive(inbox, eventsOf(1), { appVersion: "0.0.0" });
 
     expect(outcome).toEqual({ kind: "received", ackSeq: 1 });
+  });
+});
+
+describe("reporting how the register stands", () => {
+  it("clears the update-required condition of the installation's register for an accepted version", async () => {
+    const inbox = new FakeInbox();
+    inbox.registerIds.set(DEVICE, "register-1");
+
+    await receive(inbox, eventsOf(1), { appVersion: "1.4.0" });
+
+    expect(inbox.state.observedConditions).toEqual([
+      {
+        observation: { holds: false, kind: "update_required", scope: "register-1" },
+        at: NOW,
+      },
+    ]);
+  });
+
+  it("holds the update-required condition of the installation's register, naming the device and the version, for a version that is not accepted", async () => {
+    const inbox = new FakeInbox();
+    inbox.registerIds.set(DEVICE, "register-1");
+
+    await receive(inbox, eventsOf(1), { appVersion: "not-a-version" });
+
+    expect(inbox.state.observedConditions).toEqual([
+      {
+        observation: {
+          holds: true,
+          alert: {
+            kind: "update_required",
+            scope: "register-1",
+            detail: { deviceId: DEVICE, appVersion: "not-a-version" },
+          },
+        },
+        at: NOW,
+      },
+    ]);
+  });
+
+  it("observes the version right after recording the push report, before looking at the events", async () => {
+    const inbox = new FakeInbox();
+
+    await receive(inbox, eventsOf(1));
+
+    const calls = inbox.calls;
+    expect(calls.indexOf("installationRegisterId device-1")).toBe(
+      calls.indexOf("recordPushReport device-1") + 1,
+    );
+    expect(calls.indexOf("observeAlertCondition")).toBe(
+      calls.indexOf("installationRegisterId device-1") + 1,
+    );
+    expect(calls.indexOf("observeAlertCondition")).toBeLessThan(
+      calls.indexOf("receivedDeviceSeqs device-1"),
+    );
+  });
+
+  it("observes the version of a push it refuses for a gap, a stale device or a broken chain", async () => {
+    const gap = new FakeInbox();
+    await receive(gap, eventsOf(3));
+    const stale = new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]);
+    await receive(stale, [{ ...fakeEvent(1), event_id: "another-event" }]);
+    const broken = new FakeInbox();
+    await receive(broken, [{ ...fakeEvent(1), chain_hmac: "forged-link" }]);
+
+    for (const inbox of [gap, stale, broken]) {
+      expect(inbox.state.observedConditions).toEqual([
+        {
+          observation: { holds: false, kind: "update_required", scope: "register-of-device-1" },
+          at: NOW,
+        },
+      ]);
+    }
+  });
+
+  it("observes nothing of a revoked installation", async () => {
+    const inbox = new FakeInbox();
+    inbox.revokedDevices.add(DEVICE);
+
+    await receive(inbox, eventsOf(1));
+
+    expect(inbox.state.observedConditions).toEqual([]);
+    expect(inbox.state.acceptedPushes).toEqual([]);
+  });
+
+  it("records the moment of a push it received, after receiving it", async () => {
+    const inbox = new FakeInbox();
+
+    await receive(inbox, eventsOf(1));
+
+    expect(inbox.state.acceptedPushes).toEqual([{ deviceId: DEVICE, at: NOW }]);
+    expect(inbox.calls.indexOf("recordAcceptedPush device-1")).toBeGreaterThan(
+      inbox.calls.indexOf("receive device-1"),
+    );
+  });
+
+  it("records the moment of a received push that carries no event", async () => {
+    const inbox = new FakeInbox();
+
+    await receive(inbox, []);
+
+    expect(inbox.state.acceptedPushes).toEqual([{ deviceId: DEVICE, at: NOW }]);
+  });
+
+  it.each([
+    ["a gap", () => ({ inbox: new FakeInbox(), events: eventsOf(3), appVersion: "1.4.0" })],
+    [
+      "a stale device",
+      () => ({
+        inbox: new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]),
+        events: [{ ...fakeEvent(1), event_id: "another-event" }],
+        appVersion: "1.4.0",
+      }),
+    ],
+    [
+      "a broken chain",
+      () => ({
+        inbox: new FakeInbox(),
+        events: [{ ...fakeEvent(1), chain_hmac: "forged-link" }],
+        appVersion: "1.4.0",
+      }),
+    ],
+    [
+      "a version that is not accepted",
+      () => ({ inbox: new FakeInbox(), events: eventsOf(1), appVersion: "not-a-version" }),
+    ],
+  ])("does not record the moment of a push refused for %s", async (_name, build) => {
+    const { inbox, events, appVersion } = build();
+
+    await receive(inbox, events, { appVersion });
+
+    expect(inbox.state.acceptedPushes).toEqual([]);
   });
 });
 

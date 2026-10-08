@@ -19,6 +19,7 @@ import {
   type RecoveryEmailSenderEnv,
   selectRecoveryEmailSender,
 } from "./access/select-recovery-email-sender.js";
+import { alertConditionResolutionJobs } from "./alerts/alert-condition-resolution-task.js";
 import { alertEscalationJobs } from "./alerts/alert-escalation-task.js";
 import {
   type BackofficeErrorReporting,
@@ -429,6 +430,7 @@ export async function setUpRecovery(
     now,
     jobs: [
       alertEscalationJobs({ now }),
+      alertConditionResolutionJobs({ now }),
       arcaCertificateExpiryJobs({ now, ...recoveryEnv.arcaCertificate }),
       arcaVitalityJobs({
         now,
