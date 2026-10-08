@@ -120,3 +120,41 @@ export function decideRealTimeAuthorization({
   }
   return { kind: "reserve", pointOfSale: series.pointOfSale, number, document: gate.document };
 }
+
+export type RealTimeAuthorizationAnswer =
+  | { kind: "authorized"; authorizationCode: string; authorizationCodeDueOn: string }
+  | { kind: "rejected"; codes: readonly number[] }
+  | { kind: "not_attempted" }
+  | { kind: "unclear" };
+
+const NUMBER_OR_DATE_OUT_OF_ORDER_CODE = 10016;
+
+export function taxAuthorityRejectionAnswer(codes: readonly number[]): RealTimeAuthorizationAnswer {
+  if (codes.includes(NUMBER_OR_DATE_OUT_OF_ORDER_CODE)) {
+    return { kind: "unclear" };
+  }
+  return { kind: "rejected", codes };
+}
+
+export type RealTimeAuthorizationResolution =
+  | { state: "AUTHORIZED"; authorizationCode: string; authorizationCodeDueOn: string }
+  | { state: "REJECTED"; deferralReason: "rejected" }
+  | { state: "UNKNOWN"; deferralReason: "unclear_outcome" };
+
+export function realTimeAuthorizationResolution(
+  answer: RealTimeAuthorizationAnswer,
+): RealTimeAuthorizationResolution {
+  switch (answer.kind) {
+    case "authorized":
+      return {
+        state: "AUTHORIZED",
+        authorizationCode: answer.authorizationCode,
+        authorizationCodeDueOn: answer.authorizationCodeDueOn,
+      };
+    case "rejected":
+      return { state: "REJECTED", deferralReason: "rejected" };
+    case "not_attempted":
+    case "unclear":
+      return { state: "UNKNOWN", deferralReason: "unclear_outcome" };
+  }
+}
