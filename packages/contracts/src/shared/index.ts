@@ -13,13 +13,13 @@ export {
   discountPercentSchema,
 } from "./discount-benefit.js";
 export { discountTargetSchema } from "./discount-target.js";
-export { ERROR_REPORT_DATA_COLLECTION } from "./error-report-data-collection.js";
 export {
   scrubErrorReport,
   scrubErrorReportBreadcrumb,
   scrubErrorReportLog,
 } from "./error-report-scrubbing.js";
 export type { ErrorReportingConfiguration } from "./error-reporting-configuration.js";
+export { errorReportingOptions } from "./error-reporting-options.js";
 export type { IssuerIdentificationBody } from "./issuer-identification.js";
 export { issuerIdentificationSchema } from "./issuer-identification.js";
 export { loadedVersionSchema } from "./loaded-version.js";

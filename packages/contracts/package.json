@@ -25,5 +25,8 @@
   "dependencies": {
     "@purosur/domain": "workspace:*",
     "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@sentry/core": "11.4.0"
   }
 }

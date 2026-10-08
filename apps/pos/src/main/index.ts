@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { errorReportingOptions } from "@purosur/contracts";
 import * as Sentry from "@sentry/electron/main";
 import {
   app,
@@ -12,7 +13,6 @@ import {
   utilityProcess,
 } from "electron";
 import { type ChannelSettings, coreArgumentsFor } from "../shared/channel";
-import { errorReportingOptions } from "../shared/error-reporting-options";
 import { loadChannelSettings } from "./channel-settings";
 import { buildContentSecurityPolicy } from "./content-security-policy";
 import { establishCoreConnection } from "./core-connection";
@@ -44,9 +44,8 @@ function keepDataInChannelFolder(settings: ChannelSettings): void {
 function initializeErrorReporting(settings: ChannelSettings): void {
   // Initialized even without a DSN: the renderer and core SDKs always report through main, which
   // then has nowhere to send anything and drops it.
-  const shared = errorReportingOptions(Sentry.consoleLoggingIntegration);
   Sentry.init({
-    ...shared,
+    ...errorReportingOptions(),
     ...(settings.sentryDsn ? { dsn: settings.sentryDsn } : {}),
     environment: settings.channel,
     // Protocol mode lets the renderer reach main through a privileged custom scheme. Classic IPC
@@ -55,7 +54,7 @@ function initializeErrorReporting(settings: ChannelSettings): void {
     integrations: (defaults) => [
       ...withoutReplacedDefaultIntegrations(defaults),
       Sentry.childProcessIntegration({ events: CHILD_PROCESS_EVENT_REASONS }),
-      ...shared.integrations,
+      Sentry.consoleLoggingIntegration({ levels: ["info", "warn", "error"] }),
     ],
   });
 }
