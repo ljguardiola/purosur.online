@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   authorizationRefusalSchema,
   authorizationSchema,
+  plannedRefundSchema,
   requestIdSchema,
 } from "../shared/index.js";
 import {
@@ -94,6 +95,7 @@ const cashChargeRequestMessageSchema = z.object({
 const cancelLockedSaleMessageSchema = z.object({
   type: z.literal("cancel-locked-sale"),
   request_id: requestId,
+  sale_id: z.string(),
   closer: authorizationSchema,
 });
 
@@ -114,8 +116,8 @@ export const salesRendererToCoreMessageSchema = z.discriminatedUnion("type", [
 export type SalesRendererToCoreMessage = z.infer<typeof salesRendererToCoreMessageSchema>;
 
 const cancelLockedSaleOutcomeSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("cancelled") }),
-  z.object({ kind: z.literal("has_approved_payment") }),
+  z.object({ kind: z.literal("cancelled"), refunds: z.array(plannedRefundSchema) }),
+  z.object({ kind: z.literal("not_permitted") }),
   z.object({ kind: z.literal("no_open_sale") }),
   z.object({ kind: z.literal("no_open_session") }),
   ...authorizationRefusalSchema.options,

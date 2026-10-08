@@ -21,7 +21,6 @@ export type {
 } from "./cancel-paid-sale.js";
 export { cancelPaidSale } from "./cancel-paid-sale.js";
 export type {
-  CancelLockedSaleOutcome,
   CancelSaleInput,
   CancelSaleOutcome,
   CancelSalePorts,

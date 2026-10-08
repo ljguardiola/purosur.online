@@ -1468,24 +1468,25 @@ describe("answerRendererRequest", () => {
     const closer = { user_id: "u2", pin: "1234" };
     const received: unknown[] = [];
     const { deps: withCancelling } = deps(true, {
-      cancelLockedSale: async (sentCloser) => {
-        received.push(sentCloser);
-        return { kind: "cancelled" };
+      cancelLockedSale: async (request) => {
+        received.push(request);
+        return { kind: "cancelled", refunds: [] };
       },
     });
 
     const answer = await answerRendererRequest(withCancelling, {
       type: "cancel-locked-sale",
       request_id: "r27",
+      sale_id: "sale-1",
       closer,
     });
 
     expect(answer).toEqual({
       type: "cancel-locked-sale-result",
       request_id: "r27",
-      outcome: { kind: "cancelled" },
+      outcome: { kind: "cancelled", refunds: [] },
     });
-    expect(received).toEqual([closer]);
+    expect(received).toEqual([{ saleId: "sale-1", closer }]);
   });
 
   it("answers that cancelling the open sale of a locked register is unavailable when it fails, and reports why", async () => {
@@ -1500,6 +1501,7 @@ describe("answerRendererRequest", () => {
       await answerRendererRequest(failing.deps, {
         type: "cancel-locked-sale",
         request_id: "r28",
+        sale_id: "sale-1",
         closer: { user_id: "u2", pin: "1234" },
       }),
     ).toEqual({
@@ -1517,6 +1519,7 @@ describe("answerRendererRequest", () => {
       await answerRendererRequest(deps(true, { cancelLockedSale: undefined }).deps, {
         type: "cancel-locked-sale",
         request_id: "r29",
+        sale_id: "sale-1",
         closer: { user_id: "u2", pin: "1234" },
       }),
     ).toEqual({
@@ -1710,7 +1713,13 @@ describe("answerRendererRequest", () => {
   });
 
   it("answers the open sale of the session", async () => {
-    const sale: SessionOpenSale = { total: 3_434_000, cancellable: true };
+    const sale: SessionOpenSale = {
+      id: "sale-1",
+      total: 3_434_000,
+      paid: 1000,
+      cancellable: false,
+      refunds_on_cancel: [{ payment_id: "p1", method: "CASH", amount: 1000, state: "APPROVED" }],
+    };
 
     expect(
       await answerRendererRequest(deps(true, { sessionOpenSale: () => sale }).deps, {

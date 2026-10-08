@@ -11,6 +11,7 @@ import {
   authorizationSchema,
   authorizedBySchema,
   openCashSessionSchema,
+  plannedRefundSchema,
   requestIdSchema,
   signInUserSchema,
 } from "../shared/index.js";
@@ -180,7 +181,7 @@ const cashSessionClosingOutcomeSchema = z.discriminatedUnion("kind", [
   }),
   z.object({ kind: z.literal("invalid_counted_cash") }),
   z.object({ kind: z.literal("no_open_session") }),
-  z.object({ kind: z.literal("open_sale"), total: z.number(), cancellable: z.boolean() }),
+  z.object({ kind: z.literal("open_sale"), total: z.number() }),
 ]);
 
 const closeCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
@@ -224,7 +225,13 @@ export type CashBalance = z.infer<typeof cashBalanceSchema>;
 const cashCountPreviewSchema = z.object({ difference: z.number() });
 export type CashCountPreview = z.infer<typeof cashCountPreviewSchema>;
 
-const sessionOpenSaleSchema = z.object({ total: z.number(), cancellable: z.boolean() });
+const sessionOpenSaleSchema = z.object({
+  id: z.string(),
+  total: z.number(),
+  paid: z.int().nonnegative(),
+  cancellable: z.boolean(),
+  refunds_on_cancel: z.array(plannedRefundSchema),
+});
 export type SessionOpenSale = z.infer<typeof sessionOpenSaleSchema>;
 
 const recordCashMovementOutcomeSchema = z.discriminatedUnion("kind", [

@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { PaymentTransaction } from "../../sales/index.js";
 import { MAX_CASH_AMOUNT_CENTS } from "../model/cash-amount.js";
 import type { CashMovement, CashSession, OpenedCashSession } from "../model/cash-session.js";
 import { type CloseCashSessionGrant, closeCashSession } from "./close-cash-session.js";
@@ -25,17 +24,6 @@ const OPEN_SESSION: OpenedCashSession = {
   openedAt: new Date("2026-09-30T08:00:00.000Z"),
   openingFloat: 10_000,
   state: "OPEN",
-};
-
-const APPROVED_PAYMENT: PaymentTransaction = {
-  id: "payment-1",
-  saleId: "sale-1",
-  kind: "SALE",
-  method: "CASH",
-  provider: "NONE",
-  amount: 1_000,
-  state: "APPROVED",
-  occurredAt: new Date("2026-09-30T19:00:00.000Z"),
 };
 
 function movement(
@@ -263,28 +251,19 @@ describe("closeCashSession", () => {
 
   it("refuses while a sale is open, telling its total, and records nothing", async () => {
     const store = ledger({
-      openSale: { lines: [{ lineTotal: 1_250 }, { lineTotal: 3_000 }], payments: [] },
+      openSale: { lines: [{ lineTotal: 1_250 }, { lineTotal: 3_000 }] },
     });
     const before = structuredClone(store.state);
 
-    expect(await close(store)).toEqual({ kind: "open_sale", total: 4_250, cancellable: true });
+    expect(await close(store)).toEqual({ kind: "open_sale", total: 4_250 });
     expect(store.state).toEqual(before);
   });
 
   it("refuses an open sale even when its total is zero", async () => {
-    expect(await close(ledger({ openSale: { lines: [], payments: [] } }))).toEqual({
+    expect(await close(ledger({ openSale: { lines: [] } }))).toEqual({
       kind: "open_sale",
       total: 0,
-      cancellable: true,
     });
-  });
-
-  it("tells that an open sale with an approved payment cannot be cancelled", async () => {
-    const store = ledger({
-      openSale: { lines: [{ lineTotal: 4_250 }], payments: [APPROVED_PAYMENT] },
-    });
-
-    expect(await close(store)).toEqual({ kind: "open_sale", total: 4_250, cancellable: false });
   });
 
   it("answers the authority's refusal and records nothing when the closing is not authorized", async () => {
@@ -305,7 +284,7 @@ describe("closeCashSession", () => {
   });
 
   it("checks the session before the open sale", async () => {
-    const store = ledger({ sessions: [], openSale: { lines: [{ lineTotal: 100 }], payments: [] } });
+    const store = ledger({ sessions: [], openSale: { lines: [{ lineTotal: 100 }] } });
 
     expect(await close(store)).toEqual({ kind: "no_open_session" });
   });
