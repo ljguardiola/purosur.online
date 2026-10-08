@@ -1,13 +1,13 @@
 import { ButtonLink, Card } from "@purosur/ui";
 import { createLink } from "@tanstack/react-router";
 import { ScreenLayout } from "../shell/screen-layout";
-import { SalesTopBar } from "./sales-screen-parts";
+import { ScreenTopBar } from "../shell/screen-top-bar";
 
 const ReportLink = createLink(ButtonLink);
 
 export function ReportsIndexScreen() {
   return (
-    <ScreenLayout topBar={<SalesTopBar eyebrow="Puro Sur" title="Reportes" />} bodyClassName="p-6">
+    <ScreenLayout topBar={<ScreenTopBar eyebrow="Puro Sur" title="Reportes" />} bodyClassName="p-6">
       <ul className="flex flex-col gap-4">
         <li>
           <Card>
