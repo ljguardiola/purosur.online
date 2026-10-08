@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   changedFilesSince,
-  runEachFileAlone,
+  runProjectsInTurn,
   selectTestsBeside,
   testsToRun,
 } from "./tests-beside-changes.mjs";
@@ -149,35 +149,47 @@ test("refuses a path asked for that is not a test file", () => {
   );
 });
 
-test("runs each test file alone, one after another", async () => {
+test("runs each project's files in a run of their own, one project after another", async () => {
   const runs = [];
   let running = 0;
-  const run = async (files) => {
+  const run = async (project, files) => {
     running += 1;
-    runs.push({ files, alongside: running - 1 });
+    runs.push({ project, files, alongside: running - 1 });
     await Promise.resolve();
     running -= 1;
     return true;
   };
 
-  const passed = await runEachFileAlone({ files: ["a.test.ts", "b.test.tsx"], run });
+  const passed = await runProjectsInTurn({
+    filesByProject: new Map([
+      ["node", ["a.test.ts", "b.test.ts"]],
+      ["browser", ["c.test.tsx"]],
+    ]),
+    run,
+  });
 
   assert.equal(passed, true);
   assert.deepEqual(runs, [
-    { files: ["a.test.ts"], alongside: 0 },
-    { files: ["b.test.tsx"], alongside: 0 },
+    { project: "node", files: ["a.test.ts", "b.test.ts"], alongside: 0 },
+    { project: "browser", files: ["c.test.tsx"], alongside: 0 },
   ]);
 });
 
-test("keeps running the remaining files after one fails, and reports the failure", async () => {
+test("keeps running the remaining projects after one fails, and reports the failure", async () => {
   const ran = [];
-  const run = async ([file]) => {
-    ran.push(file);
-    return file !== "a.test.ts";
+  const run = async (project) => {
+    ran.push(project);
+    return project !== "node";
   };
 
-  const passed = await runEachFileAlone({ files: ["a.test.ts", "b.test.ts"], run });
+  const passed = await runProjectsInTurn({
+    filesByProject: new Map([
+      ["node", ["a.test.ts"]],
+      ["browser", ["c.test.tsx"]],
+    ]),
+    run,
+  });
 
   assert.equal(passed, false);
-  assert.deepEqual(ran, ["a.test.ts", "b.test.ts"]);
+  assert.deepEqual(ran, ["node", "browser"]);
 });
