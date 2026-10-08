@@ -1,5 +1,5 @@
+import type { Clock } from "../../../shared/index.js";
 import type {
-  Clock,
   DeviceTokenIssuer,
   DeviceTokenRotator,
   EnrollmentAlert,

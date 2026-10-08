@@ -1,3 +1,4 @@
+export type { Clock } from "../../shared/index.js";
 export type { ProductActivityScope } from "../model/product-activity.js";
 export type { AllocateInternalBarcodeOutcome } from "./allocate-internal-barcode.js";
 export { allocateInternalBarcode } from "./allocate-internal-barcode.js";
@@ -18,7 +19,6 @@ export type {
   CatalogStoreTransaction,
   CatalogTag,
   CategoryFields,
-  Clock,
   LockBrandResult,
   LockCategoryResult,
   LockedProduct,

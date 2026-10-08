@@ -1,3 +1,4 @@
+import type { Clock } from "../../../shared/index.js";
 import type { AlertKind, AlertLevel } from "../../model/alert-catalog.js";
 import type {
   AlertClosure,
@@ -5,7 +6,6 @@ import type {
   AlertRecipientCandidate,
   AlertStore,
   AlertStoreTransaction,
-  Clock,
   LockedAlert,
   LockedOpenAlert,
   NewAlert,

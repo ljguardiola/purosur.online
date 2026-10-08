@@ -1,6 +1,6 @@
-import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./session-authorization-api";
+import { authenticationResponse } from "./test-support/webauthn-responses";
 
 function jsonResponse(status: number, body?: unknown, headers?: Record<string, string>): Response {
   return new Response(
@@ -71,7 +71,7 @@ test("fetchSessionAuthorizationOptions reports failed on any other status or a n
   await expect(fetchSessionAuthorizationOptions()).resolves.toEqual({ kind: "failed" });
 });
 
-const authorization = { id: "existing-cred" } as unknown as AuthenticationResponseJSON;
+const authorization = authenticationResponse("existing-cred");
 
 test("authorizeSession puts the authorization and reports ok on 200", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200));

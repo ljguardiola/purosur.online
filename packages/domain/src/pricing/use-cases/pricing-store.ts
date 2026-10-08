@@ -1,7 +1,4 @@
-export interface Clock {
-  now(): Date;
-}
-
+import type { Clock } from "../../shared/index.js";
 export interface PricingPorts {
   store: PricingStore;
   clock: Clock;

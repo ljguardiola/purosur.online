@@ -1,3 +1,4 @@
+export type { Clock } from "../../shared/index.js";
 export type {
   AccountProfile,
   Accounts,
@@ -249,7 +250,6 @@ export type {
   PinHasher,
 } from "./pin-code-redemption-store.js";
 export type {
-  Clock,
   GeneratedPinCode,
   NewPinCode,
   PinCodeEmission,

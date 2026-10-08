@@ -1,3 +1,4 @@
+import type { Clock } from "../../shared/index.js";
 import { grantedPermissionKeys, increasesAccess } from "../model/access-increase.js";
 import { heldPermissionKeys } from "../model/holds-permission.js";
 import {
@@ -5,7 +6,6 @@ import {
   editableRoleDetail,
   isRoleEditable,
 } from "../model/role-editability.js";
-import type { Clock } from "./pin-code-store.js";
 import type { RoleHolder } from "./role-directory.js";
 import { RoleNameConflict, type RoleStore } from "./role-store.js";
 

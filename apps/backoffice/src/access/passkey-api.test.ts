@@ -1,5 +1,5 @@
-import type { RegistrationResponseJSON } from "@simplewebauthn/browser";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { registrationResponse } from "../platform/test-support/webauthn-responses";
 import {
   fetchPasskeyRegistrationChallenge,
   fetchPasskeys,
@@ -165,7 +165,7 @@ test("fetchPasskeyRegistrationChallenge reports rate_limited with the Retry-Afte
   });
 });
 
-const passkeyRegistration = { id: "new-cred" } as unknown as RegistrationResponseJSON;
+const passkeyRegistration = registrationResponse("new-cred");
 
 test("registerPasskey posts the registration and trimmed name, reading nothing from the body", async () => {
   vi.mocked(fetch).mockResolvedValue(new Response("<html>", { status: 200 }));

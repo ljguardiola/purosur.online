@@ -85,8 +85,10 @@ describe("the check-arca-test-environment command", { timeout: 0 }, () => {
       expect(proxy.requestedHosts.map((host) => host.replace(/:443$/, "")).sort()).toEqual([
         "wsaahomo.afip.gov.ar",
         "wswhomo.afip.gov.ar",
+        "wswhomo.afip.gov.ar",
       ]);
-      expect(result.stdout).toContain("FEDummy: no answer the client could read");
+      expect(result.stdout).toContain("FEDummy attempt 1: no answer the client could read");
+      expect(result.stdout).toContain("FEDummy attempt 2: no answer the client could read");
       expect(result.stdout).toContain("loginCms: failed");
       expect(result.status).toBe(1);
     } finally {

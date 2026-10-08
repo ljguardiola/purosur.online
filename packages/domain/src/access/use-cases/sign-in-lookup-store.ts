@@ -1,4 +1,4 @@
-import type { Clock } from "./pin-code-store.js";
+import type { Clock } from "../../shared/index.js";
 
 export interface SignInCandidate {
   userId: string;

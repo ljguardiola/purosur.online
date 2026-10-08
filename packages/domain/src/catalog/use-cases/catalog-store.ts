@@ -1,3 +1,4 @@
+import type { Clock } from "../../shared/index.js";
 import type { NetContentUnit, SaleUnit } from "../model/product.js";
 
 export interface CatalogNetContent {
@@ -129,10 +130,6 @@ export interface CategoryFields {
   name: string;
   parentId: string | null;
   version: number;
-}
-
-export interface Clock {
-  now(): Date;
 }
 
 export interface CatalogPorts {

@@ -1,6 +1,6 @@
 import type { ApplyPendingEventsOutcome } from "@purosur/domain/sync/use-cases";
-import type { JobHelpers } from "graphile-worker";
 import { describe, expect, it, vi } from "vitest";
+import { buildJobHelpers } from "../test-support/job-helpers.js";
 import {
   APPLY_SYNCED_EVENTS_TASK_IDENTIFIER,
   applySyncedEventsJobs,
@@ -14,14 +14,6 @@ function taskOf(jobs: ReturnType<typeof applySyncedEventsJobs>) {
     throw new Error("test setup: expected the registered apply synced events task");
   }
   return task;
-}
-
-function helpersOver(client: unknown) {
-  const withPgClient = vi.fn(async (callback: (client: unknown) => Promise<unknown>) =>
-    callback(client),
-  );
-  const addJob = vi.fn().mockResolvedValue(undefined);
-  return { withPgClient, addJob, helpers: { withPgClient, addJob } as unknown as JobHelpers };
 }
 
 const processed = (limitReached: boolean): ApplyPendingEventsOutcome => ({
@@ -43,15 +35,14 @@ describe("applySyncedEventsJobs", () => {
   });
 
   it("applies events through a client borrowed from graphile-worker's own pool, by the clock it is handed", async () => {
-    const fakeClient = { marker: "fake-client" };
     const fakeDb = { marker: "fake-db" };
     const createDatabase = vi.fn().mockReturnValue(fakeDb);
     const apply = vi.fn().mockResolvedValue({ kind: "idle" });
-    const { withPgClient, helpers } = helpersOver(fakeClient);
+    const { borrowClient, helpers, client: fakeClient } = buildJobHelpers();
 
     await taskOf(applySyncedEventsJobs({ now: () => NOW }, { createDatabase, apply }))({}, helpers);
 
-    expect(withPgClient).toHaveBeenCalledTimes(1);
+    expect(borrowClient).toHaveBeenCalledTimes(1);
     expect(createDatabase).toHaveBeenCalledWith(fakeClient);
     expect(apply).toHaveBeenCalledTimes(1);
     const [dbArgument, depsArgument] = apply.mock.calls[0] as [unknown, { now: () => Date }];
@@ -61,7 +52,7 @@ describe("applySyncedEventsJobs", () => {
 
   it("queues itself again when the batch ended with events left to apply", async () => {
     const apply = vi.fn().mockResolvedValue(processed(true));
-    const { addJob, helpers } = helpersOver({});
+    const { addJob, helpers } = buildJobHelpers();
 
     await taskOf(applySyncedEventsJobs({ now: () => NOW }, { createDatabase: vi.fn(), apply }))(
       {},
@@ -80,7 +71,7 @@ describe("applySyncedEventsJobs", () => {
     ["a batch that applied every event waiting", processed(false)],
   ])("does not queue itself again after %s", async (_name, outcome) => {
     const apply = vi.fn().mockResolvedValue(outcome);
-    const { addJob, helpers } = helpersOver({});
+    const { addJob, helpers } = buildJobHelpers();
 
     await taskOf(applySyncedEventsJobs({ now: () => NOW }, { createDatabase: vi.fn(), apply }))(
       {},
