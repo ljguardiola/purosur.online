@@ -45,6 +45,11 @@ const POINT_OF_SALE_NOT_OWNED = cloudError(
   "that point of sale is not this register's",
 );
 
+const FISCAL_DOCUMENT_NOT_OWNED = cloudError(
+  "not_found",
+  "that fiscal document is not this register's",
+);
+
 const SALE_EVENT_MISMATCH = cloudError(
   "validation_failed",
   "sale_event must be the completion of sale_id",
@@ -138,6 +143,12 @@ export function registerFiscalAuthorizationRoute<TQueryResult extends PgQueryRes
           await reply
             .code(cloudErrorStatus(POINT_OF_SALE_NOT_OWNED.code))
             .send(POINT_OF_SALE_NOT_OWNED);
+          return;
+        }
+        if (outcome.kind === "fiscal_document_not_owned") {
+          await reply
+            .code(cloudErrorStatus(FISCAL_DOCUMENT_NOT_OWNED.code))
+            .send(FISCAL_DOCUMENT_NOT_OWNED);
           return;
         }
         if (outcome.kind === "sale_event_mismatch") {

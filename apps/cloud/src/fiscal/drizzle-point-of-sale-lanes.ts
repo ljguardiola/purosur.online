@@ -87,9 +87,13 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
     return current !== undefined;
   }
 
-  async recordedRequest(fiscalDocumentId: string): Promise<RecordedAuthorizationRequest | null> {
+  async recordedRequest(
+    registerId: string,
+    fiscalDocumentId: string,
+  ): Promise<RecordedAuthorizationRequest | null> {
     const [row] = await this.db
       .select({
+        registerId: fiscalRequests.registerId,
         answerKind: fiscalRequests.answerKind,
         authorizationCode: fiscalRequests.authorizationCode,
         authorizationCodeDueOn: fiscalRequests.authorizationCodeDueOn,
@@ -97,7 +101,12 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
       })
       .from(fiscalRequests)
       .where(eq(fiscalRequests.fiscalDocumentId, fiscalDocumentId));
-    return row ? { answer: answerOf(row) } : null;
+    if (row === undefined) {
+      return null;
+    }
+    return row.registerId === registerId
+      ? { kind: "own", answer: answerOf(row) }
+      : { kind: "another_register" };
   }
 
   async recordRequest(request: AuthorizationRequestRecord): Promise<void> {

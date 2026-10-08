@@ -20,13 +20,16 @@ export interface AuthorizationRequestRecord extends FiscalDocumentData {
   receivedAt: Date;
 }
 
-export interface RecordedAuthorizationRequest {
-  answer: RealTimeAuthorizationAnswer | null;
-}
+export type RecordedAuthorizationRequest =
+  | { kind: "own"; answer: RealTimeAuthorizationAnswer | null }
+  | { kind: "another_register" };
 
 export interface PointOfSaleLane {
   registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean>;
-  recordedRequest(fiscalDocumentId: string): Promise<RecordedAuthorizationRequest | null>;
+  recordedRequest(
+    registerId: string,
+    fiscalDocumentId: string,
+  ): Promise<RecordedAuthorizationRequest | null>;
   recordRequest(request: AuthorizationRequestRecord): Promise<void>;
   recordAnswer(
     fiscalDocumentId: string,

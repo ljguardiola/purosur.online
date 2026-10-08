@@ -29,6 +29,7 @@ export interface AuthorizeFiscalDocumentInput {
 export type AuthorizeFiscalDocumentOutcome =
   | { kind: "answered"; answer: RealTimeAuthorizationAnswer }
   | { kind: "point_of_sale_not_owned" }
+  | { kind: "fiscal_document_not_owned" }
   | { kind: "sale_event_mismatch" };
 
 function answerOf(answer: SolicitationAnswer): RealTimeAuthorizationAnswer {
@@ -57,7 +58,10 @@ export async function authorizeFiscalDocument(
         return { kind: "point_of_sale_not_owned" };
       }
 
-      const recorded = await lane.recordedRequest(request.fiscalDocumentId);
+      const recorded = await lane.recordedRequest(registerId, request.fiscalDocumentId);
+      if (recorded?.kind === "another_register") {
+        return { kind: "fiscal_document_not_owned" };
+      }
       if (recorded !== null) {
         return { kind: "answered", answer: recorded.answer ?? { kind: "unclear" } };
       }
