@@ -1,3 +1,4 @@
+import type { AlertConditionObservation } from "../../../alerts/index.js";
 import { canonicalOutboxEvent, type OutboxEvent } from "../../../shared/index.js";
 import type { PushedEvent } from "../../model/push-batch.js";
 import type { Inbox, InboxTransaction, PushReport } from "../sync-ports.js";
@@ -14,9 +15,16 @@ interface FakePushReport extends PushReport {
   at: Date;
 }
 
+interface FakeObservedCondition {
+  observation: AlertConditionObservation;
+  at: Date;
+}
+
 export interface FakeInboxState {
   received: FakeReceivedEvent[];
   reports: FakePushReport[];
+  observedConditions: FakeObservedCondition[];
+  acceptedPushes: { deviceId: string; at: Date }[];
   refusedPushes: { deviceId: string; events: readonly PushedEvent[]; refusedAt: Date }[];
   brokenChainRevocations: { deviceId: string; revokedAt: Date }[];
 }
@@ -25,6 +33,8 @@ export class FakeInbox implements Inbox {
   state: FakeInboxState = {
     received: [],
     reports: [],
+    observedConditions: [],
+    acceptedPushes: [],
     refusedPushes: [],
     brokenChainRevocations: [],
   };
@@ -33,6 +43,7 @@ export class FakeInbox implements Inbox {
   failSettingAside = false;
   chainKeys = new Map<string, string | undefined>();
   revokedDevices = new Set<string>();
+  registerIds = new Map<string, string>();
 
   constructor(receivedSeqs: { deviceId: string; seqs: number[] }[] = []) {
     for (const { deviceId, seqs } of receivedSeqs) {
@@ -132,6 +143,18 @@ export class FakeInbox implements Inbox {
         for (const event of events) {
           working.received.push({ deviceId, event: structuredClone(event), receivedAt });
         }
+      },
+      installationRegisterId: async (deviceId) => {
+        this.calls.push(`installationRegisterId ${deviceId}`);
+        return this.registerIds.get(deviceId) ?? `register-of-${deviceId}`;
+      },
+      observeAlertCondition: async (observation, at) => {
+        this.calls.push("observeAlertCondition");
+        working.observedConditions.push({ observation: structuredClone(observation), at });
+      },
+      recordAcceptedPush: async (deviceId, at) => {
+        this.calls.push(`recordAcceptedPush ${deviceId}`);
+        working.acceptedPushes.push({ deviceId, at });
       },
       recordPushReport: async (deviceId, report, at) => {
         this.calls.push(`recordPushReport ${deviceId}`);

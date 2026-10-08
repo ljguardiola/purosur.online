@@ -1,15 +1,11 @@
 import type { PreEmissionGateFailureReason } from "../../fiscal/index.js";
+import { approvedPaymentsCoverTotal, refundsSettleApprovedPayments } from "../../payments/index.js";
 import type {
   CashMovementRecordedFact,
   CashSessionClosedFact,
   CashSessionOpenedFact,
 } from "../../register/index.js";
-import {
-  approvedPaymentsCoverTotal,
-  type CancelledSale,
-  type CompletedSale,
-  refundsSettleApprovedPayments,
-} from "../../sales/index.js";
+import type { CancelledSale, CompletedSale } from "../../sales/index.js";
 
 export type SyncedFact =
   | { kind: "sale_completed"; sale: CompletedSale }

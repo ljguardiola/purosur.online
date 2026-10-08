@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PaymentTransaction } from "../model/payment.js";
+import type { PaymentTransaction } from "../../payments/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import {
   type CancelPaidSaleGrant,

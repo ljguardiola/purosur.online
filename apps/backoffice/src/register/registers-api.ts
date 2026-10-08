@@ -4,6 +4,7 @@ import {
   registerCoverageSchema,
   registerEnrollmentCodeSchema,
   registerListSchema,
+  registerSyncStatusListSchema,
 } from "@purosur/contracts";
 import type { PermissionKey } from "@purosur/domain";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
@@ -20,6 +21,14 @@ export type RegisterSummary = {
 };
 
 export type FetchRegistersOutcome = CloudReadOutcome<RegisterSummary[]>;
+
+export type RegisterSyncStatus = {
+  id: string;
+  name: string;
+  lastSuccessfulSyncAt: string | null;
+};
+
+export type FetchRegisterSyncStatusOutcome = CloudReadOutcome<RegisterSyncStatus[]>;
 
 export type FetchRegisterCoverageOutcome = CloudReadOutcome<PermissionKey[]>;
 
@@ -129,6 +138,16 @@ export function fetchRegisterCoverage(): Promise<FetchRegisterCoverageOutcome> {
   return readCloud(
     "/api/registers/coverage",
     (body) => registerCoverageSchema.safeParse(body).data?.uncovered_permissions,
+  );
+}
+
+export function fetchRegisterSyncStatus(): Promise<FetchRegisterSyncStatusOutcome> {
+  return readCloud("/api/registers/sync-status", (body) =>
+    registerSyncStatusListSchema.safeParse(body).data?.map((row) => ({
+      id: row.id,
+      name: row.name,
+      lastSuccessfulSyncAt: row.last_successful_sync_at,
+    })),
   );
 }
 

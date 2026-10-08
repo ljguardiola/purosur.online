@@ -3,6 +3,9 @@ import { alertKindDescription } from "./alert-kind-description";
 
 test("describes a kind of the catalog by what happened", () => {
   expect(alertKindDescription("register_enrolled")).toBe("Se dio de alta una caja");
+  expect(alertKindDescription("update_required")).toBe(
+    "La nube ya no acepta la versión de esta caja",
+  );
 });
 
 test("gives no description to a kind this app does not know yet", () => {

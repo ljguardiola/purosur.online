@@ -1,3 +1,4 @@
+import type { AlertConditionObservation } from "../../alerts/index.js";
 import type { Clock } from "../../shared/index.js";
 import type { LimitedEndpoint } from "../model/installation-request-limit.js";
 import type {
@@ -85,6 +86,9 @@ export interface InboxTransaction {
   ): Promise<ReadonlyMap<string, HeldEventPosition>>;
   receive(deviceId: string, events: readonly PushedEvent[], receivedAt: Date): Promise<void>;
   recordPushReport(deviceId: string, report: PushReport, at: Date): Promise<void>;
+  installationRegisterId(deviceId: string): Promise<string>;
+  observeAlertCondition(observation: AlertConditionObservation, at: Date): Promise<void>;
+  recordAcceptedPush(deviceId: string, at: Date): Promise<void>;
   outboxChainKey(deviceId: string): Promise<string | undefined>;
   receivedChainLink(deviceId: string, deviceSeq: number): Promise<string | undefined>;
   setAsideRefusedPush(

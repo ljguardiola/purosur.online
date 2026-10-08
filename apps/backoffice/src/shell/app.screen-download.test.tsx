@@ -20,7 +20,7 @@ beforeAll(() => loadEveryScreenCodeExcept("/", "/alerts"));
 beforeEach(async () => {
   window.history.pushState(null, "", "/");
   window.sessionStorage.clear();
-  await blockDownloadsMatching("*alerts-list-page*", "*alerts-overview-page*");
+  await blockDownloadsMatching("*alerts-list-page*", "*home-page*");
 });
 
 afterEach(async () => {

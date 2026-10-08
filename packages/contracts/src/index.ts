@@ -127,6 +127,8 @@ export {
   registerPointOfSaleOverviewSchema,
   registerPointOfSaleSchema,
 } from "./fiscal/register-point-of-sale.js";
+export type { MarkedRefundDoneBody, PendingRefundsBody } from "./payments/pending-refunds.js";
+export { markedRefundDoneSchema, pendingRefundsSchema } from "./payments/pending-refunds.js";
 export type { PermissionCatalogWire } from "./permissions/permission-catalog.js";
 export { permissionCatalogSchema } from "./permissions/permission-catalog.js";
 export type { RegisterCoverageWire } from "./permissions/register-coverage.js";
@@ -223,6 +225,11 @@ export type { RegisterEnrollmentCodeBody } from "./register/register-enrollment-
 export { registerEnrollmentCodeSchema } from "./register/register-enrollment-code.js";
 export type { RegisterSummaryBody } from "./register/register-summary.js";
 export { registerListSchema, registerSummarySchema } from "./register/register-summary.js";
+export type { RegisterSyncStatusWire } from "./register/register-sync-status.js";
+export {
+  registerSyncStatusListSchema,
+  registerSyncStatusSchema,
+} from "./register/register-sync-status.js";
 export type {
   CancelLockedSaleOutcome,
   SalesCoreToRendererMessage,
@@ -234,8 +241,6 @@ export {
   salesCoreToRendererMessageSchema,
   salesRendererToCoreMessageSchema,
 } from "./sales/core-messages.js";
-export type { MarkedRefundDoneBody, PendingRefundsBody } from "./sales/pending-refunds.js";
-export { markedRefundDoneSchema, pendingRefundsSchema } from "./sales/pending-refunds.js";
 export type {
   AddProductOutcome,
   CancelPaidSaleOutcome,

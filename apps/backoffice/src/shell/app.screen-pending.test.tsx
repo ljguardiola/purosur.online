@@ -37,7 +37,7 @@ beforeAll(() => loadEveryScreenCodeExcept("/", "/alerts"));
 
 beforeEach(async () => {
   window.history.pushState(null, "", "/help");
-  await holdDownloadsMatching("*alerts-list-page*", "*alerts-overview-page*");
+  await holdDownloadsMatching("*alerts-list-page*", "*home-page*");
 });
 
 afterEach(async () => {

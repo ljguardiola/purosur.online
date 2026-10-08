@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BARCODE_MAX_LENGTH } from "../../catalog/index.js";
-import type { PaymentTransaction } from "../model/payment.js";
+import type { PaymentTransaction } from "../../payments/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { addScannedProduct } from "./add-scanned-product.js";
 import type { CandidatePromotion } from "./sale-ledger.js";

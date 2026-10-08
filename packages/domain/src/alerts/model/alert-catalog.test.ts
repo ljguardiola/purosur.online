@@ -9,7 +9,7 @@ import {
 } from "./alert-catalog.js";
 
 describe("ALERT_KINDS", () => {
-  it("lists exactly the security-fact kinds a backoffice account, a register enrollment, the application of synced events or the ARCA certificate can raise", () => {
+  it("lists exactly the security-fact kinds a backoffice account, a register enrollment, the application of synced events, the ARCA certificate or a register's version can raise", () => {
     expect(ALERT_KINDS).toEqual([
       "backoffice_passkey_changed",
       "backoffice_recovery_requested",
@@ -20,6 +20,7 @@ describe("ALERT_KINDS", () => {
       "events_quarantined",
       "event_invariant_violated",
       "arca_certificate_expiring",
+      "update_required",
     ]);
   });
 });

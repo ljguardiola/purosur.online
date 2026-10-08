@@ -191,6 +191,21 @@ export {
   thresholdScheduledAfter,
 } from "./fiscal/index.js";
 export type {
+  PaymentMethod,
+  PaymentTransaction,
+  PlannedRefund,
+  RefundState,
+} from "./payments/index.js";
+export {
+  cancellableWithoutAuthorization,
+  cashCharge,
+  isRefundPending,
+  PAYMENT_METHODS,
+  REFUND_DONE_STATE,
+  REFUND_PENDING_STATE,
+  REFUND_STATES,
+} from "./payments/index.js";
+export type {
   AuthorizablePermissionKey,
   Capability,
   PermissionArea,
@@ -305,11 +320,9 @@ export {
   isInstallationReportTooLong,
   isLockedToAnother,
   isRegisterNameTooLong,
-  isValidCashAmount,
   isValidCashMovementAmount,
   isWellFormedEnrollmentCode,
   isWellFormedInstallationKey,
-  MAX_CASH_AMOUNT_CENTS,
   mayAuthorize,
   normalizeEnrollmentCode,
   REGISTER_ABILITIES,
@@ -321,10 +334,6 @@ export {
 export type {
   LinePromotion,
   ListPrice,
-  PaymentMethod,
-  PaymentTransaction,
-  PlannedRefund,
-  RefundState,
   Sale,
   SaleLine,
   SaleState,
@@ -335,15 +344,8 @@ export type {
   SoldProduct,
 } from "./sales/index.js";
 export {
-  cancellableWithoutAuthorization,
-  cashCharge,
-  isRefundPending,
   isSalesReportRangeAsked,
   openSaleStanding,
-  PAYMENT_METHODS,
-  REFUND_DONE_STATE,
-  REFUND_PENDING_STATE,
-  REFUND_STATES,
   SALES_REPORT_SALE_STATE,
   saleTotal,
 } from "./sales/index.js";
@@ -352,6 +354,8 @@ export {
   argentinaCalendarDay,
   argentinaInstant,
   isCalendarDay,
+  isValidCashAmount,
+  MAX_CASH_AMOUNT_CENTS,
 } from "./shared/index.js";
 export type {
   AdjustmentReason,
