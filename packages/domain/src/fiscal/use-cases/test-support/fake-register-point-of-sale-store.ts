@@ -1,7 +1,9 @@
+import type { PointOfSaleMechanism } from "../../model/point-of-sale.js";
 import type {
   BranchRegisterPointOfSale,
   LockBranchRegisterResult,
   PointOfSaleClaim,
+  PointOfSaleHolder,
   RegisterPointOfSale,
   RegisterPointOfSaleReader,
   RegisterPointOfSaleRecord,
@@ -23,6 +25,7 @@ interface FakeRegisterPointOfSale extends Omit<RegisterPointOfSaleRecord, "actor
 export interface FakePointOfSaleClaim {
   pointOfSaleNumber: number;
   registerId: string;
+  mechanism: PointOfSaleMechanism;
 }
 
 export interface FakeRegisterPointOfSaleState {
@@ -72,11 +75,12 @@ class FakeRegisterPointOfSaleStoreTransaction implements RegisterPointOfSaleStor
     return this.state.fiscalAddressIds.includes(fiscalAddressId);
   }
 
-  async lockPointOfSaleClaim(pointOfSaleNumber: number): Promise<string | undefined> {
+  async lockPointOfSaleClaim(pointOfSaleNumber: number): Promise<PointOfSaleHolder | undefined> {
     this.store.operationOrder.push("lockPointOfSaleClaim");
-    return this.state.pointOfSaleClaims.find(
-      (claim) => claim.pointOfSaleNumber === pointOfSaleNumber,
-    )?.registerId;
+    const claim = this.state.pointOfSaleClaims.find(
+      (candidate) => candidate.pointOfSaleNumber === pointOfSaleNumber,
+    );
+    return claim && { registerId: claim.registerId, mechanism: claim.mechanism };
   }
 
   async claimPointOfSale(claim: PointOfSaleClaim): Promise<void> {
@@ -87,6 +91,7 @@ class FakeRegisterPointOfSaleStoreTransaction implements RegisterPointOfSaleStor
     this.state.pointOfSaleClaims.push({
       pointOfSaleNumber: claim.pointOfSaleNumber,
       registerId: claim.registerId,
+      mechanism: claim.mechanism,
     });
   }
 
