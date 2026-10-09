@@ -184,6 +184,50 @@ describe("processRecoveryRequestJob", () => {
     expect(stillOpen).toEqual([]);
   });
 
+  it("refuses a request first processed one link lifetime after it was made, auditing it as late", async () => {
+    const userId = await insertUser("ada@example.com");
+    const lateRunAt = new Date(NOW.getTime() + RECOVERY_TOKEN_LIFETIME_MS);
+
+    const result = await processRecoveryRequestJob(
+      db,
+      request("ada@example.com", NOW),
+      jobDeps(lateRunAt),
+    );
+
+    expect(result).toEqual({});
+    await expect(db.select().from(recoveryTokens)).resolves.toEqual([]);
+    await expect(recoveryRequestedAlerts()).resolves.toEqual([]);
+    const auditRows = await requestAuditRows();
+    expect(auditRows).toHaveLength(1);
+    expect(auditRows[0]).toMatchObject({
+      entityId: userId,
+      actorId: userId,
+      newValue: { attempt: "request", rejectedWith: "late" },
+      at: NOW,
+    });
+  });
+
+  it("leaves a link issued for a newer request valid when an older request is processed late", async () => {
+    await insertUser("ada@example.com");
+    const newerRequestAt = new Date(NOW.getTime() + RECOVERY_TOKEN_LIFETIME_MS);
+    await processRecoveryRequestJob(
+      db,
+      request("ada@example.com", newerRequestAt),
+      jobDeps(newerRequestAt),
+    );
+
+    const lateResult = await processRecoveryRequestJob(
+      db,
+      request("ada@example.com", NOW),
+      jobDeps(new Date(newerRequestAt.getTime() + 60 * 1000)),
+    );
+
+    expect(lateResult).toEqual({});
+    const tokens = await db.select().from(recoveryTokens);
+    expect(tokens).toHaveLength(1);
+    expect(tokens[0]?.voidedAt).toBeNull();
+  });
+
   it("issues no second link for a different request made in the same millisecond", async () => {
     await insertUser("ada@example.com");
 

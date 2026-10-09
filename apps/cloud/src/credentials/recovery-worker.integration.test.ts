@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { RECOVERY_TOKEN_LIFETIME_MS } from "@purosur/domain";
+import { and, eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { type Job, quickAddJob, type RunnerOptions, runTaskListOnce } from "graphile-worker";
 import pg from "pg";
@@ -332,5 +333,68 @@ describe("a recovery request whose link was sent but whose completion graphile-w
     expect(afterRerun.tokens[0]?.voidedAt).toBeNull();
     expect(afterRerun.tokenAuditRows).toHaveLength(1);
     expect(afterRerun).toEqual(afterFirstRun);
+  });
+});
+
+describe("a recovery request first processed after it stopped being current", () => {
+  it("runs once and sends nothing, auditing the request as late", async () => {
+    const email = `rocio-${randomUUID()}@example.com`;
+    const sql = postgres(integrationDb.adminDatabaseUrl, { max: 1 });
+    const db = drizzle(sql);
+    try {
+      const [user] = await db
+        .insert(users)
+        .values({ firstName: "Rocío Fictaria", email, locationId: await seededLocationId(db) })
+        .returning({ id: users.id });
+      if (!user) {
+        throw new Error("test setup: expected inserting the user to return a row");
+      }
+      const userId = user.id;
+      const sent: SendRecoveryLinkInput[] = [];
+      const worker = await startRecoveryWorker({
+        databaseUrl: integrationDb.databaseUrl,
+        backofficeOrigin: "https://staging.purosur.online",
+        emailSender: {
+          sendRecoveryLink: async (input) => {
+            sent.push(input);
+          },
+          sendFirstPinCode: async () => {},
+        },
+        now: () => NOW,
+      });
+      const requestedAt = new Date(NOW.getTime() - RECOVERY_TOKEN_LIFETIME_MS);
+      let job: Job;
+      try {
+        job = await quickAddJob(
+          { connectionString: integrationDb.databaseUrl },
+          RECOVERY_REQUEST_TASK_IDENTIFIER,
+          { email, requestedAt: requestedAt.toISOString(), requestId: randomUUID() },
+        );
+        await vi.waitFor(async () => {
+          expect(await jobLock(job.id)).toBeUndefined();
+        }, WAIT_OPTIONS);
+      } finally {
+        await worker.stop();
+      }
+
+      expect(sent).toEqual([]);
+      expect(
+        await db.select().from(recoveryTokens).where(eq(recoveryTokens.userId, userId)),
+      ).toEqual([]);
+      expect(
+        await db
+          .select()
+          .from(alerts)
+          .where(and(eq(alerts.kind, "backoffice_recovery_requested"), eq(alerts.scope, userId))),
+      ).toEqual([]);
+      expect(
+        await db
+          .select({ newValue: auditLog.newValue, at: auditLog.at })
+          .from(auditLog)
+          .where(eq(auditLog.entityId, userId)),
+      ).toEqual([{ newValue: { attempt: "request", rejectedWith: "late" }, at: requestedAt }]);
+    } finally {
+      await sql.end({ timeout: 1 });
+    }
   });
 });
