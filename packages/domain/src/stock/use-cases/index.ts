@@ -1,12 +1,12 @@
 export type { Clock } from "../../shared/index.js";
+export type { ApplyPulledStockMovementOutcome } from "./apply-pulled-stock-movement.js";
+export { applyPulledStockMovement } from "./apply-pulled-stock-movement.js";
 export type {
   ApplyRegisterStockMovementsInput,
   ApplyRegisterStockMovementsOutcome,
   RegisterStockMovement,
 } from "./apply-register-stock-movements.js";
 export { applyRegisterStockMovements } from "./apply-register-stock-movements.js";
-export type { ApplyPulledStockMovementOutcome } from "./apply-pulled-stock-movement.js";
-export { applyPulledStockMovement } from "./apply-pulled-stock-movement.js";
 export type { AppliedStockMovement } from "./apply-stock-movement.js";
 export type { ExpectedBalanceAtInput, ExpectedBalanceAtOutcome } from "./expected-balance-at.js";
 export { expectedBalanceAt } from "./expected-balance-at.js";
@@ -16,6 +16,11 @@ export type { RecordLossInput, RecordLossOutcome } from "./record-loss.js";
 export { recordLoss } from "./record-loss.js";
 export type { RegisterCountInput, RegisterCountOutcome } from "./register-count.js";
 export { registerCount } from "./register-count.js";
+export type {
+  PulledStockMovement,
+  ReplicatedStockLedger,
+  ReplicatedStockMovement,
+} from "./replicated-stock-ledger.js";
 export type {
   LedgerAtMoment,
   RecordedStockCount,
@@ -27,11 +32,6 @@ export type {
   StockPeriodQuery,
   StockProduct,
 } from "./stock-reader.js";
-export type {
-  PulledStockMovement,
-  ReplicatedStockLedger,
-  ReplicatedStockMovement,
-} from "./replicated-stock-ledger.js";
 export type {
   CoveringCount,
   LockProductStockResult,
