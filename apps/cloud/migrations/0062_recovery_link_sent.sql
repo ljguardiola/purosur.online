@@ -1,2 +1,2 @@
 ALTER TABLE "recovery_tokens" ADD COLUMN "sent_at" timestamp with time zone;--> statement-breakpoint
-UPDATE "recovery_tokens" SET "sent_at" = "issued_at";
+UPDATE "recovery_tokens" SET "sent_at" = "issued_at" WHERE "used_at" IS NOT NULL;
