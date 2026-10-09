@@ -31,13 +31,13 @@ let signedInPerson: SignedInPerson;
 let printer: ControllableReceiptPrinter;
 let moment: Date;
 let failures: unknown[];
+let idCount: number;
 
 function advance(ms: number): void {
   moment = new Date(moment.getTime() + ms);
 }
 
 function deps(overrides: Partial<ReceiptRequestDeps> = {}): ReceiptRequestDeps {
-  let count = 0;
   return {
     database,
     gate: createActionGate({
@@ -50,8 +50,8 @@ function deps(overrides: Partial<ReceiptRequestDeps> = {}): ReceiptRequestDeps {
     now: () => moment,
     ids: {
       next: () => {
-        count += 1;
-        return `id-${count}`;
+        idCount += 1;
+        return `id-${idCount}`;
       },
     },
     readOutboxChainKey: async () => CHAIN_KEY,
@@ -142,6 +142,7 @@ beforeEach(() => {
   signedInPerson.set("cashier");
   moment = START;
   failures = [];
+  idCount = 0;
   printer = new ControllableReceiptPrinter();
   jobs = createReceiptPrintJobs({ now: () => moment, reportFailure: (_c, e) => failures.push(e) });
 });
@@ -332,9 +333,11 @@ describe("reprinting a sale's receipt from the history", () => {
     await printedAndAcknowledged();
     signedInPerson.set("supervisor");
 
-    expect(
-      await reprintSaleReceiptFor(deps(), { saleId: "sale-1", reason: `  ${REASON} ` }),
-    ).toEqual({ kind: "started", copy: { kind: "duplicate", order_number: 1 } });
+    const outcome = await reprintSaleReceiptFor(deps(), {
+      saleId: "sale-1",
+      reason: `  ${REASON} `,
+    });
+    expect(outcome).toEqual({ kind: "started", copy: { kind: "duplicate", order_number: 1 } });
 
     expect(reprints()).toEqual([
       {
