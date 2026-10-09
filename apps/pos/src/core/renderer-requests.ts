@@ -21,10 +21,13 @@ import type {
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   PinPolicy,
+  ReceiptPrintStatusOutcome,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RegisterStatus,
   RemoveSaleLineOutcome,
+  ReprintSaleReceiptOutcome,
+  RetryReceiptPrintOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
   SessionOpenSale,
@@ -36,6 +39,7 @@ import type { AuthorizablePermissionKey, RegisterService } from "@purosur/domain
 import { isDatabaseDamage } from "./platform/database-damage";
 import type { CashMovementRequest } from "./register/cash-movement-requests";
 import type { CoreToRendererMessage, RendererToCoreMessage } from "./renderer-messages";
+import type { ReprintSaleReceiptRequest } from "./sales/receipt-requests";
 import type {
   CancelLockedSaleRequest,
   CancelPaidSaleRequest,
@@ -86,6 +90,11 @@ export interface RendererRequestDeps {
   removeSaleLine: ((lineId: string) => Promise<RemoveSaleLineOutcome>) | undefined;
   cancelSale: (() => Promise<CancelSaleOutcome>) | undefined;
   cancelPaidSale: ((request: CancelPaidSaleRequest) => Promise<CancelPaidSaleOutcome>) | undefined;
+  receiptPrintStatus: ((saleId: string) => Promise<ReceiptPrintStatusOutcome>) | undefined;
+  retryReceiptPrint: ((saleId: string) => Promise<RetryReceiptPrintOutcome>) | undefined;
+  reprintSaleReceipt:
+    | ((request: ReprintSaleReceiptRequest) => Promise<ReprintSaleReceiptOutcome>)
+    | undefined;
   closeCashSession:
     | ((sessionId: string, countedCash: number) => Promise<CloseCashSessionOutcome>)
     | undefined;
@@ -605,6 +614,48 @@ export async function answerRendererRequest(
           cancelPaidSale &&
             (() =>
               cancelPaidSale({ saleId: message.sale_id, authorization: message.authorization })),
+        ),
+      };
+    }
+    case "receipt-print-status": {
+      const { receiptPrintStatus } = deps;
+      return {
+        type: "receipt-print-status-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "reading a receipt's print status",
+          receiptPrintStatus && (() => receiptPrintStatus(message.sale_id)),
+        ),
+      };
+    }
+    case "retry-receipt-print": {
+      const { retryReceiptPrint } = deps;
+      return {
+        type: "retry-receipt-print-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "retrying a receipt print",
+          retryReceiptPrint && (() => retryReceiptPrint(message.sale_id)),
+        ),
+      };
+    }
+    case "reprint-sale-receipt": {
+      const { reprintSaleReceipt } = deps;
+      return {
+        type: "reprint-sale-receipt-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "reprinting a receipt",
+          reprintSaleReceipt &&
+            (() =>
+              reprintSaleReceipt({
+                saleId: message.sale_id,
+                reason: message.reason,
+                authorization: message.authorization,
+              })),
         ),
       };
     }
