@@ -103,7 +103,7 @@ interface FiscalRejectedDetail {
   rejectionClass: RejectionClass;
   fiscalDocumentId: string;
   saleId: string;
-  rejections: readonly TaxAuthorityRejection[];
+  rejections: TaxAuthorityRejection[];
 }
 
 export interface AlertDetails {

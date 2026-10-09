@@ -106,7 +106,14 @@ export function fiscalRejectionObservation({
     alert: {
       kind: "fiscal_rejected",
       scope: fiscalRejectedScope(pointOfSale, documentType),
-      detail: { pointOfSale, documentType, rejectionClass, fiscalDocumentId, saleId, rejections },
+      detail: {
+        pointOfSale,
+        documentType,
+        rejectionClass,
+        fiscalDocumentId,
+        saleId,
+        rejections: [...rejections],
+      },
     },
   };
 }
