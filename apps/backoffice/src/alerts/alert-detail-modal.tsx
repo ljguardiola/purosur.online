@@ -302,7 +302,7 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
     case "update_required":
       return `La caja «${targetName}» usa la versión ${alert.detail.appVersion}, que la nube ya no acepta. Hay que actualizarla para que vuelva a sincronizar.`;
     case "fiscal_rejected":
-      return `ARCA rechazó una factura del punto de venta ${alert.detail.pointOfSale} por un defecto del comprobante o de la situación del comercio ante ARCA, que se repetiría igual en cada venta. Las ventas siguen y quedan diferidas hasta corregir la causa.`;
+      return "Cada venta de este punto de venta queda diferida hasta corregir la causa que indica ARCA.";
     case "register_silent":
     case "sales_denied":
       return "";

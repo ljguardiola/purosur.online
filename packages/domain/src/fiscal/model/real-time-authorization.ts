@@ -139,7 +139,13 @@ export type RealTimeAuthorizationAnswer =
 
 const NUMBER_OR_DATE_OUT_OF_ORDER_CODE = 10016;
 
+const INTERNAL_ERROR_CODES: ReadonlySet<number> = new Set([500, 501, 502, 600, 602]);
+
 const STANDING_REJECTION_CODES: ReadonlySet<number> = new Set([10000, 10005, 1005, 601]);
+
+function hasInternalErrorCode(codes: readonly number[]): boolean {
+  return codes.some((code) => INTERNAL_ERROR_CODES.has(code));
+}
 
 function hasStandingCode(codes: readonly number[], standingCodes: ReadonlySet<number>): boolean {
   return codes.some((code) => standingCodes.has(code));
@@ -149,7 +155,7 @@ export function taxAuthorityRejectionAnswer(
   codes: readonly number[],
   standingCodes: ReadonlySet<number> = STANDING_REJECTION_CODES,
 ): RealTimeAuthorizationAnswer {
-  if (codes.includes(NUMBER_OR_DATE_OUT_OF_ORDER_CODE)) {
+  if (codes.includes(NUMBER_OR_DATE_OUT_OF_ORDER_CODE) || hasInternalErrorCode(codes)) {
     return { kind: "unclear" };
   }
   return {
@@ -163,7 +169,7 @@ export function taxAuthorityRefusalAnswer(
   codes: readonly number[],
   standingCodes: ReadonlySet<number> = STANDING_REJECTION_CODES,
 ): RealTimeAuthorizationAnswer {
-  if (!hasStandingCode(codes, standingCodes)) {
+  if (hasInternalErrorCode(codes) || !hasStandingCode(codes, standingCodes)) {
     return { kind: "unclear" };
   }
   return { kind: "rejected", codes, rejectionClass: "standing" };
