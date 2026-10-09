@@ -44,3 +44,11 @@ export const almonds: ProductSummary = {
   labelModules: null,
   version: 1,
 };
+
+export const retiredHoney: ProductSummary = {
+  ...honey,
+  id: "90d00000-0000-4000-8000-000000000003",
+  name: "Miel de caña 500 g",
+  barcodes: ["7790987000022"],
+  active: false,
+};

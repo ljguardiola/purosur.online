@@ -281,6 +281,33 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .where(eq(productBarcodes.productId, productId));
   }
 
+  async reactivateProduct(productId: string, nextVersion: number): Promise<void> {
+    await this.tx
+      .update(products)
+      .set({ active: true, version: nextVersion })
+      .where(eq(products.id, productId));
+    this.pending.note({
+      entity: "product",
+      entityId: productId,
+      version: nextVersion,
+      op: "update",
+    });
+  }
+
+  async reactivateProductBarcodes(productId: string): Promise<void> {
+    try {
+      await this.tx
+        .update(productBarcodes)
+        .set({ active: true })
+        .where(eq(productBarcodes.productId, productId));
+    } catch (error) {
+      if (violatesUniqueIndex(error, BARCODE_UNIQUE_INDEX)) {
+        throw new CatalogBarcodeConflict();
+      }
+      throw error;
+    }
+  }
+
   async insertCategory(name: string, parentId: string | null): Promise<{ id: string }> {
     try {
       const [category] = await this.tx
