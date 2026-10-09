@@ -1,4 +1,5 @@
 import {
+  MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES,
   mercadoPagoQrChargeWait,
   mercadoPagoQrChargeWaitEndsAt,
 } from "../model/mercado-pago-qr-charge-wait.js";
@@ -11,7 +12,13 @@ export interface StartMercadoPagoQrChargeInput {
 }
 
 export type StartMercadoPagoQrChargeOutcome<Refusal> =
-  | { kind: "order_shown"; paymentTransactionId: string; amount: number; remainingSeconds: number }
+  | {
+      kind: "order_shown";
+      paymentTransactionId: string;
+      amount: number;
+      waitSeconds: number;
+      remainingSeconds: number;
+    }
   | { kind: "order_refused" }
   | { kind: "unreachable" }
   | Refusal;
@@ -51,6 +58,7 @@ export async function startMercadoPagoQrCharge<Refusal, Settlement>(
     kind: "order_shown",
     paymentTransactionId,
     amount,
+    waitSeconds: MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES * 60,
     remainingSeconds: wait.kind === "waiting" ? wait.remainingSeconds : 0,
   };
 }

@@ -47,6 +47,7 @@ export const startMercadoPagoQrChargeOutcomeSchema = z.discriminatedUnion("kind"
     payment_transaction_id: recordIdSchema(),
     amount: z.int().positive(),
     remaining_seconds: z.int().min(0).max(WAIT_SECONDS),
+    wait_seconds: z.literal(WAIT_SECONDS),
   }),
   z.object({ kind: z.literal("order_refused") }),
   z.object({ kind: z.literal("unreachable") }),

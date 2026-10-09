@@ -1,10 +1,11 @@
 import type {
   CashChargeAnswer,
   CurrentSaleAnswer,
+  FollowMercadoPagoQrChargeOutcome,
   OpenSale,
   SearchProductsOutcome,
 } from "@purosur/contracts";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { setQueryAnswer } from "../platform/set-query-answer";
 import type { CoreData } from "../platform/use-core-query";
 import { useCoreQuery } from "../platform/use-core-query";
@@ -18,7 +19,37 @@ export const salesKeys = {
   cashCharge: (saleId: string, pending: number, tendered: number | undefined) =>
     [...salesKey, "cash-charge", saleId, pending, tendered ?? null] as const,
   search: (query: string) => [...salesKey, "search", query] as const,
+  qrCharge: (paymentTransactionId: string) =>
+    [...salesKey, "qr-charge", paymentTransactionId] as const,
 };
+
+const QR_CHARGE_FOLLOW_INTERVAL_MS = 1000;
+
+export function useQrChargeQuery({
+  paymentTransactionId,
+  follow,
+}: {
+  paymentTransactionId: string;
+  follow: (paymentTransactionId: string) => Promise<FollowMercadoPagoQrChargeOutcome>;
+}): FollowMercadoPagoQrChargeOutcome | undefined {
+  const query = useQuery({
+    queryKey: salesKeys.qrCharge(paymentTransactionId),
+    queryFn: async () => {
+      const outcome = await follow(paymentTransactionId);
+      if (outcome.kind === "unavailable") {
+        throw new Error("the core could not follow the QR charge");
+      }
+      return outcome;
+    },
+    gcTime: 0,
+    refetchInterval: (current) =>
+      current.state.data === undefined || current.state.data.kind === "waiting"
+        ? QR_CHARGE_FOLLOW_INTERVAL_MS
+        : false,
+    refetchIntervalInBackground: true,
+  });
+  return query.data;
+}
 
 export function useCurrentSaleQuery({
   sessionId,
