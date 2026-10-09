@@ -21,6 +21,7 @@ import {
 } from "../register/drizzle-applied-cash-sessions.js";
 import { recordAppliedCancelledSale, recordAppliedSale } from "../sales/drizzle-applied-sales.js";
 import { DrizzleStockStoreTransaction } from "../stock/drizzle-stock-store.js";
+import { type PendingChanges, withPendingChanges } from "./change-log.js";
 
 type CompletedSale = Extract<SyncedFact, { kind: "sale_completed" }>["sale"];
 
@@ -33,10 +34,12 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
 {
   private readonly tx: Transaction<TQueryResult>;
   private readonly now: () => Date;
+  private readonly pending: PendingChanges;
 
-  constructor(tx: Transaction<TQueryResult>, now: () => Date) {
+  constructor(tx: Transaction<TQueryResult>, now: () => Date, pending: PendingChanges) {
     this.tx = tx;
     this.now = now;
+    this.pending = pending;
   }
 
   async lockAggregate({ aggregateType, aggregateId }: AggregateKey): Promise<boolean> {
@@ -114,12 +117,15 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
     event: UnappliedEvent,
   ): Promise<SaleStockApplication> {
     const { locationId } = await this.originOf(event);
-    const outcome = await applyRegisterStockMovements(new DrizzleStockStoreTransaction(this.tx), {
-      locationId,
-      occurredAt: sale.completedAt,
-      actorId: sale.actorId,
-      movements: movements.map((movement) => ({ ...movement, kind: "sale" })),
-    });
+    const outcome = await applyRegisterStockMovements(
+      new DrizzleStockStoreTransaction(this.tx, this.pending),
+      {
+        locationId,
+        occurredAt: sale.completedAt,
+        actorId: sale.actorId,
+        movements: movements.map((movement) => ({ ...movement, kind: "sale" })),
+      },
+    );
     switch (outcome.kind) {
       case "applied":
         return { kind: "applied" };
@@ -196,6 +202,8 @@ export class DrizzleEventApplication<TQueryResult extends PgQueryResultHKT>
   }
 
   transaction<T>(work: (tx: EventApplicationTransaction) => Promise<T>): Promise<T> {
-    return this.db.transaction((tx) => work(new DrizzleEventApplicationTransaction(tx, this.now)));
+    return withPendingChanges(this.db, undefined, (tx, pending) =>
+      work(new DrizzleEventApplicationTransaction(tx, this.now, pending)),
+    );
   }
 }
