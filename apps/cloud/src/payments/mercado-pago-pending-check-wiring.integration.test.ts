@@ -27,13 +27,16 @@ const NEXT_CHECK_AT = new Date("2126-01-01T00:00:30.000Z");
 
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
+let seedingSql: ReturnType<typeof postgres>;
 
 beforeAll(async () => {
   integrationDb = await createIntegrationDatabase("mercado_pago_pending_check_wiring");
   sql = postgres(integrationDb.databaseUrl, { max: 2 });
+  seedingSql = postgres(integrationDb.databaseUrl, { max: 1 });
 }, 60_000);
 
 afterAll(async () => {
+  await seedingSql.end({ timeout: 1 });
   await sql.end({ timeout: 1 });
   await integrationDb.close();
 });
@@ -75,7 +78,7 @@ function setUp(mercadoPago: FakeMercadoPagoOrders) {
 }
 
 async function seedPendingPayment() {
-  const db = drizzle(sql);
+  const db = drizzle(seedingSql);
   const registerId = await insertRegister(db, "Caja 1");
   const payment = pendingTransaction(registerId, { providerOrderId: ORDER_ID });
   await db.insert(paymentTransactions).values(payment);
