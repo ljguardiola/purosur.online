@@ -312,7 +312,7 @@ describe("synced event payloads", () => {
   });
 
   describe("sale_completed v3", () => {
-    const MOVEMENT = {
+    const MOVEMENT: Payload = {
       id: "stock-movement-1",
       sale_line_id: "line-1",
       product_id: "yerba",

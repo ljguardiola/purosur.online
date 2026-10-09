@@ -46,6 +46,7 @@ export function aCompletedSale(overrides: Partial<CompletedSale> = {}): Complete
       { id: randomUUID(), type: "SALE", amount: 4800, actorId: USER, occurredAt: COMPLETED_AT },
       { id: randomUUID(), type: "CHANGE", amount: 200, actorId: USER, occurredAt: COMPLETED_AT },
     ],
+    stockMovements: [],
     ...overrides,
   };
 }

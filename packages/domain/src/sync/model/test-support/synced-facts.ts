@@ -46,6 +46,7 @@ export function aCompletedSaleFact(overrides: Partial<SaleCompleted["sale"]> = {
           occurredAt: new Date("2026-10-07T10:00:00.000Z"),
         },
       ],
+      stockMovements: [],
       ...overrides,
     },
   };

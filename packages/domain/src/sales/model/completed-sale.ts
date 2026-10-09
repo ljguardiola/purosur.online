@@ -32,6 +32,13 @@ export interface CompletedSaleCashMovement {
   occurredAt: Date;
 }
 
+export interface CompletedSaleStockMovement {
+  id: string;
+  saleLineId: string;
+  productId: string;
+  delta: number;
+}
+
 export interface CompletedSale {
   id: string;
   sessionId: string;
@@ -41,4 +48,5 @@ export interface CompletedSale {
   lines: CompletedSaleLine[];
   payments: CompletedSalePayment[];
   cashMovements: CompletedSaleCashMovement[];
+  stockMovements: CompletedSaleStockMovement[];
 }
