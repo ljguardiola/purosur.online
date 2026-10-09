@@ -1152,7 +1152,7 @@ test.each([
   ["content", "Contenido del comprobante"],
   ["standing", "Situación ante ARCA"],
 ] as const)(
-  "tells an invoice ARCA rejected over its %s: what happened, why it repeats and each code with ARCA's message",
+  "tells an invoice ARCA rejected over its %s: that each sale of the point of sale is deferred, the cause and each code with ARCA's message",
   async (rejectionClass, classLabel) => {
     const services = createServices();
     vi.mocked(services.fetchAlert).mockResolvedValue(
@@ -1186,7 +1186,8 @@ test.each([
     await expect
       .element(
         screen.getByText(
-          "ARCA rechazó una factura del punto de venta 12 por un defecto del comprobante o de la situación del comercio ante ARCA, que se repetiría igual en cada venta. Las ventas siguen y quedan diferidas hasta corregir la causa.",
+          "Cada venta de este punto de venta queda diferida hasta corregir la causa que indica ARCA.",
+          { exact: true },
         ),
       )
       .toBeVisible();

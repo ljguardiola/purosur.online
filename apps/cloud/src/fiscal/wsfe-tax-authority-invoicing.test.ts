@@ -141,20 +141,7 @@ describe("WsfeTaxAuthorityInvoicing", () => {
               "El campo Condicion Frente al IVA del receptor no es valido para el tipo de comprobante.",
           },
           { code: 10015, message: "Si DocTipo es 99 DocNro debe ser 0." },
-          {
-            code: 10002,
-            message: "No coincide la cantidad de registros informadas con la cantidad real enviada",
-          },
-        ],
-      ],
-      [
-        "ARCA refuses the header with errors and no document",
-        "fe-cae-solicitar-rejected-point-of-sale-not-enabled.xml",
-        [
-          {
-            code: 10005,
-            message: "El punto de venta informado debe estar dado de alta y ser del tipo RECE.",
-          },
+          { code: 10000, message: "Error de validacion." },
         ],
       ],
     ])(

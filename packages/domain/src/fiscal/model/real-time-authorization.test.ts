@@ -425,6 +425,19 @@ describe("taxAuthorityRejectionAnswer", () => {
   it("is unclear for the out-of-order code even when another code is a standing one", () => {
     expect(taxAuthorityRejectionAnswer([777, 10016], new Set([777]))).toEqual({ kind: "unclear" });
   });
+
+  it.each([500, 501, 502, 600, 602])(
+    "is unclear when the tax authority answers with its own internal error %i",
+    (code) => {
+      expect(taxAuthorityRejectionAnswer([code])).toEqual({ kind: "unclear" });
+    },
+  );
+
+  it("is unclear for an internal error even beside a content code and a standing one", () => {
+    expect(taxAuthorityRejectionAnswer([10015, 777, 501], new Set([777]))).toEqual({
+      kind: "unclear",
+    });
+  });
 });
 
 describe("the codes of the business's own standing", () => {
@@ -465,12 +478,19 @@ describe("taxAuthorityRefusalAnswer", () => {
   });
 
   it("is a standing rejection when a code is one of the business's own standing", () => {
-    expect(taxAuthorityRefusalAnswer([600, 777], new Set([777]))).toEqual({
+    expect(taxAuthorityRefusalAnswer([10015, 777], new Set([777]))).toEqual({
       kind: "rejected",
-      codes: [600, 777],
+      codes: [10015, 777],
       rejectionClass: "standing",
     });
   });
+
+  it.each([500, 501, 502, 600, 602])(
+    "is unclear when its own internal error %i comes beside a standing code",
+    (code) => {
+      expect(taxAuthorityRefusalAnswer([code, 601])).toEqual({ kind: "unclear" });
+    },
+  );
 
   it("is unclear when no code is a standing one", () => {
     expect(taxAuthorityRefusalAnswer([600], new Set([777]))).toEqual({ kind: "unclear" });
