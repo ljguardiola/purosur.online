@@ -1,3 +1,4 @@
+import type { SoldQuantity } from "../../pricing/index.js";
 import { chargeLine } from "./line-pricing.js";
 import type { LinePromotion, SaleLine } from "./sale.js";
 
@@ -38,12 +39,16 @@ export function withQuantity(line: SaleLine, quantity: number): SaleLine {
   return priced(line, quantity);
 }
 
+export function soldQuantity(line: Pick<SaleLine, "quantity">): SoldQuantity {
+  return { saleUnit: "UNIT", units: line.quantity };
+}
+
 function priced(
   line: Omit<SaleLine, "quantity" | "promotionId" | "discountAmount" | "lineTotal">,
   quantity: number,
 ): SaleLine {
   const { promotionId, discountAmount, lineTotal } = chargeLine(
-    { saleUnit: "UNIT", units: quantity },
+    soldQuantity({ quantity }),
     line.listUnitPrice,
     line.promotions,
   );
