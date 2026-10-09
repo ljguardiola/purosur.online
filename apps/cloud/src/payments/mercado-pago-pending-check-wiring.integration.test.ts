@@ -13,7 +13,7 @@ import {
   FakeMercadoPagoOrders,
   ORDER_ID,
   PAID_ORDER,
-} from "./test-support/mercado-pago-qr-under-test.js";
+} from "./test-support/fake-mercado-pago-orders.js";
 import { insertRegister, pendingTransaction } from "./test-support/payment-transaction-fixtures.js";
 
 const UNUSED_EMAIL_SENDER: AccessEmailSender = {

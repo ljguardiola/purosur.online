@@ -9,18 +9,14 @@ import { installationRequestAttempts, paymentTransactions } from "../platform/db
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { insertRequestsUpToLimit } from "../sync/test-support/admitted-requests.js";
 import { createMercadoPagoOrdersClient } from "./mercado-pago-orders-client.js";
+import { NOW, ORDER_ID, PAID_ORDER } from "./test-support/fake-mercado-pago-orders.js";
 import {
   createdOrder,
   ORDER_CARD_FIRST_SIX,
   ORDER_CARD_LAST_FOUR,
   paidWithCardOrder,
 } from "./test-support/mercado-pago-documented-orders.js";
-import {
-  mercadoPagoQrRoutesUnderTest,
-  NOW,
-  ORDER_ID,
-  PAID_ORDER,
-} from "./test-support/mercado-pago-qr-under-test.js";
+import { mercadoPagoQrRoutesUnderTest } from "./test-support/mercado-pago-qr-under-test.js";
 
 const route = mercadoPagoQrRoutesUnderTest();
 

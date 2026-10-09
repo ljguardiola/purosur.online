@@ -4,16 +4,16 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { paymentNotificationAttempts, paymentTransactions } from "../platform/db/schema.js";
 import {
-  signatureHeader,
-  WEBHOOK_SECRET,
-} from "./test-support/mercado-pago-notification-signing.js";
-import { mercadoPagoNotificationRoutesUnderTest } from "./test-support/mercado-pago-notifications-under-test.js";
-import {
   NOW,
   ORDER_ID,
   PAID_ORDER,
   UNPAID_ORDER,
-} from "./test-support/mercado-pago-qr-under-test.js";
+} from "./test-support/fake-mercado-pago-orders.js";
+import {
+  signatureHeader,
+  WEBHOOK_SECRET,
+} from "./test-support/mercado-pago-notification-signing.js";
+import { mercadoPagoNotificationRoutesUnderTest } from "./test-support/mercado-pago-notifications-under-test.js";
 import { insertRegister, pendingTransaction } from "./test-support/payment-transaction-fixtures.js";
 
 const route = mercadoPagoNotificationRoutesUnderTest();

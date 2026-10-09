@@ -12,7 +12,7 @@ import {
   NOW,
   ORDER_ID,
   PAID_ORDER,
-} from "./test-support/mercado-pago-qr-under-test.js";
+} from "./test-support/fake-mercado-pago-orders.js";
 import { insertRegister, pendingTransaction } from "./test-support/payment-transaction-fixtures.js";
 
 const NEXT_CHECK_AT = new Date(NOW.getTime() + 30_000);

@@ -4,8 +4,8 @@ import { afterAll, afterEach, beforeAll, beforeEach } from "vitest";
 import { registerRouteAccess } from "../../sessions/route-access.js";
 import { buildTestDatabase, type TestDatabase } from "../../test-support/build-test-database.js";
 import { registerMercadoPagoNotificationRoutes } from "../mercado-pago-notification-routes.js";
+import { FakeMercadoPagoOrders, NOW, ORDER_ID } from "./fake-mercado-pago-orders.js";
 import { signatureHeader, WEBHOOK_SECRET } from "./mercado-pago-notification-signing.js";
-import { FakeMercadoPagoOrders, NOW, ORDER_ID } from "./mercado-pago-qr-under-test.js";
 
 export interface LoggedWarning {
   msg: string;
