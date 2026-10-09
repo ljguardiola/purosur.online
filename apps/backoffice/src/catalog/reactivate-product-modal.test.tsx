@@ -110,7 +110,7 @@ test("names the taken barcodes and keeps the confirmation available to retry", a
   await expect
     .element(
       dialog.getByText(
-        "El código 7790987000022 ya es de otro producto. Cambiá ese código en este producto o desactivá el otro, y volvé a intentarlo.",
+        "El código 7790987000022 ya es de otro producto. Cambiá ese código en este producto o desactivá el producto que lo usa, y volvé a intentarlo.",
       ),
     )
     .toBeVisible();

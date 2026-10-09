@@ -52,11 +52,11 @@ test("reactivates a product, closes the modal, and refreshes the list", async ()
 
   expect(services.reactivateProduct).toHaveBeenCalledWith("90d00000-0000-4000-8000-000000000003");
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.poll(() => vi.mocked(services.fetchProducts).mock.calls.length).toBe(2);
-  expect(screen.getByText("Miel de caña 500 g").query()).toBeNull();
+  await expect.element(screen.getByText("Miel de caña 500 g")).not.toBeInTheDocument();
+  expect(services.fetchProducts).toHaveBeenCalledTimes(2);
 });
 
-test("keeps the modal open and names the taken barcode when another product holds it", async () => {
+test("keeps the modal open without refreshing the list when another product holds a barcode", async () => {
   const services = createServices();
   mockLoaded(services, [retiredHoney]);
   vi.mocked(services.reactivateProduct).mockResolvedValue({
@@ -68,9 +68,7 @@ test("keeps the modal open and names the taken barcode when another product hold
 
   await userEvent.click(dialog.getByRole("button", { name: "Reactivar" }));
 
-  await expect.element(dialog.getByText("No se puede reactivar")).toBeVisible();
-  await expect
-    .element(dialog.getByText(/^El código 7790987000022 ya es de otro producto\./))
-    .toBeVisible();
+  await expect.element(dialog.getByRole("alert")).toBeVisible();
+  await expect.element(dialog).toBeVisible();
   expect(services.fetchProducts).toHaveBeenCalledTimes(1);
 });

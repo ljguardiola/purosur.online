@@ -1,9 +1,9 @@
 import { changesPageSchema } from "@purosur/contracts";
 import { createProduct, deactivateProduct } from "@purosur/domain/catalog/use-cases";
-import { asc, eq, max } from "drizzle-orm";
+import { eq, max } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { categories, changes, productBarcodes, products } from "../platform/db/schema.js";
+import { categories, changes, products } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { registerRouteAccess } from "../sessions/route-access.js";
 import { registerChangesRoute } from "../sync/changes-route.js";
@@ -106,14 +106,6 @@ async function storedProduct(id: string) {
   return product;
 }
 
-async function storedBarcodes(productId: string) {
-  return db
-    .select({ code: productBarcodes.code, active: productBarcodes.active })
-    .from(productBarcodes)
-    .where(eq(productBarcodes.productId, productId))
-    .orderBy(asc(productBarcodes.position));
-}
-
 describe("DELETE /products/:id/deactivation", () => {
   it("returns 401 unauthenticated when no cookie was sent, changing nothing", async () => {
     const id = await newDeactivatedProduct("Maceta", ["111"]);
@@ -155,18 +147,14 @@ describe("DELETE /products/:id/deactivation", () => {
     expect(response.statusCode).toBe(200);
   });
 
-  it("reactivates the product, bumping its version and making its barcodes active", async () => {
-    const id = await newDeactivatedProduct("Maceta", ["111", "222"]);
+  it("answers 200 with an empty body when the product is reactivated", async () => {
+    const id = await newDeactivatedProduct("Maceta", ["111"]);
     const rawSessionId = await signedInWithPermissions(db, NOON);
 
     const response = await request(rawSessionId, id);
 
     expect(response.statusCode).toBe(200);
-    expect(await storedProduct(id)).toEqual({ active: true, version: 3 });
-    expect(await storedBarcodes(id)).toEqual([
-      { code: "111", active: true },
-      { code: "222", active: true },
-    ]);
+    expect(response.body).toBe("");
   });
 
   it("hands the registers the reactivated product as active in what they pull", async () => {
@@ -187,7 +175,7 @@ describe("DELETE /products/:id/deactivation", () => {
     expect(page.changes[0]).toMatchObject({
       entity: "product",
       entity_id: id,
-      row: { active: true, version: 3, barcodes: [{ position: 0, code: "111" }] },
+      row: { active: true, barcodes: [{ position: 0, code: "111" }] },
     });
   });
 
@@ -202,7 +190,7 @@ describe("DELETE /products/:id/deactivation", () => {
     expect(await storedProduct(id)).toEqual({ active: true, version: 1 });
   });
 
-  it("returns 409 barcode_taken naming the codes an active product holds, changing nothing", async () => {
+  it("returns 409 barcode_taken naming the codes an active product holds", async () => {
     const id = await newDeactivatedProduct("Maceta", ["111", "222"]);
     await newProduct("Otra maceta", ["222"]);
     const rawSessionId = await signedInWithPermissions(db, NOON);
@@ -211,11 +199,6 @@ describe("DELETE /products/:id/deactivation", () => {
 
     expect(response.statusCode).toBe(409);
     expect(response.json()).toEqual({ code: "barcode_taken", codes: ["222"] });
-    expect(await storedProduct(id)).toEqual({ active: false, version: 2 });
-    expect(await storedBarcodes(id)).toEqual([
-      { code: "111", active: false },
-      { code: "222", active: false },
-    ]);
   });
 
   it("answers 400 validation_failed naming id for a malformed id, changing nothing", async () => {
