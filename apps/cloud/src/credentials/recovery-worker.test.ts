@@ -533,6 +533,7 @@ describe("startRecoveryWorker", () => {
     const sendRecoveryLink = vi.fn().mockImplementation(async () => {
       events.push("sendRecoveryLink called");
     });
+    const recordLinkSent = vi.fn().mockResolvedValue({ kind: "recorded" });
 
     await startRecoveryWorker(
       {
@@ -541,7 +542,7 @@ describe("startRecoveryWorker", () => {
         backofficeOrigin: "https://staging.purosur.online",
         emailSender: { sendRecoveryLink, sendFirstPinCode: vi.fn() },
       },
-      { runWorker, processJob },
+      { runWorker, processJob, recordLinkSent },
     );
 
     const [options] = runWorker.mock.calls[0] as [
@@ -566,7 +567,11 @@ describe("startRecoveryWorker", () => {
       { withPgClient },
     );
 
-    expect(events).toEqual(["withPgClient resolved", "sendRecoveryLink called"]);
+    expect(events).toEqual([
+      "withPgClient resolved",
+      "sendRecoveryLink called",
+      "withPgClient resolved",
+    ]);
   });
 
   it("propagates a failed send so graphile-worker retries the job, after the client was released", async () => {

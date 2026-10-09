@@ -218,7 +218,10 @@ describe("marking a recovery link as sent", () => {
   it("stamps the token's sent moment and leaves the other tokens unsent", async () => {
     const [target, other] = await db
       .insert(recoveryTokens)
-      .values([newToken("hash-a", REQUEST_A), newToken("hash-b", REQUEST_B)])
+      .values([
+        newToken("hash-a", REQUEST_A),
+        { ...newToken("hash-b", REQUEST_B), voidedAt: ISSUED_AT },
+      ])
       .returning({ id: recoveryTokens.id });
     const sentAt = new Date("2026-10-01T12:00:03.000Z");
 
