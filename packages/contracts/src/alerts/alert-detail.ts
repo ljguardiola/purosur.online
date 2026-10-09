@@ -1,4 +1,4 @@
-import { type AlertKind, ARGENTINA_TIME_ZONE } from "@purosur/domain";
+import { type AlertKind, ARGENTINA_TIME_ZONE, SALES_DENIED_REASONS } from "@purosur/domain";
 import { z } from "zod";
 import { alertAudienceSchema, alertLevelSchema } from "./alert-summary.js";
 
@@ -132,6 +132,11 @@ const registerSilentDetailSchema = z.object({
   lastAcceptedPushAt: z.string(),
 });
 
+const salesDeniedDetailSchema = z.object({
+  deviceId: z.string(),
+  reason: z.enum(SALES_DENIED_REASONS),
+});
+
 const ALERT_INSTANT = { timeZone: ARGENTINA_TIME_ZONE };
 
 const alertBase = {
@@ -203,6 +208,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("register_silent" satisfies AlertKind),
     detail: registerSilentDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("sales_denied" satisfies AlertKind),
+    detail: salesDeniedDetailSchema,
   }),
 ] as const;
 

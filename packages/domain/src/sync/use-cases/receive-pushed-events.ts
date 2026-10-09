@@ -1,4 +1,8 @@
-import { registerSyncedObservation, registerVersionObservation } from "../../alerts/index.js";
+import {
+  registerSalesDeniedObservation,
+  registerSyncedObservation,
+  registerVersionObservation,
+} from "../../alerts/index.js";
 import { canonicalOutboxEvent } from "../../shared/index.js";
 import { highestContiguousSeq } from "../model/contiguous-seq.js";
 import type { PushedEvent, RegisterTelemetry } from "../model/push-batch.js";
@@ -32,11 +36,20 @@ export async function receivePushedEvents(
     }
     await tx.recordPushReport(deviceId, { appVersion, telemetry }, now);
     const versionAccepted = registerVersionAccepted(appVersion);
-    const { registerId } = await tx.installationRegister(deviceId);
+    const { registerId, locationId } = await tx.installationRegister(deviceId);
     await tx.observeAlertCondition(
       registerVersionObservation({ registerId, deviceId, appVersion, accepted: versionAccepted }),
       now,
     );
+    const salesDenied = registerSalesDeniedObservation({
+      registerId,
+      deviceId,
+      locationId,
+      report: telemetry,
+    });
+    if (salesDenied !== undefined) {
+      await tx.observeAlertCondition(salesDenied, now);
+    }
     const ackSeq = highestContiguousSeq(await tx.receivedDeviceSeqs(deviceId));
     if (!versionAccepted) {
       return { kind: "update_required", ackSeq };
