@@ -13,16 +13,7 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
-import {
-  Ban,
-  Package,
-  Pencil,
-  Plus,
-  Printer,
-  RotateCcw,
-  Search,
-  SearchX,
-} from "lucide-react";
+import { Ban, Package, Pencil, Plus, Printer, RotateCcw, Search, SearchX } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import {
   categoriesInTreeOrder,
@@ -46,8 +37,8 @@ import { EditProductModal } from "./edit-product-modal";
 import { NewProductModal } from "./new-product-modal";
 import { PrintLabelsModal } from "./print-labels-modal";
 import type { ProductSaleUnit, ProductStatusFilter } from "./products-api";
-import { ReactivateProductModal } from "./reactivate-product-modal";
 import type { ProductsListScreenServices } from "./products-list-services";
+import { ReactivateProductModal } from "./reactivate-product-modal";
 import type { ProductsListFilters } from "./routes";
 
 export type ProductsListScreenProps = {

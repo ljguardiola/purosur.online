@@ -4,7 +4,6 @@ import type { DeactivateProductModalServices } from "./deactivate-product-modal"
 import type { EditProductModalServices } from "./edit-product-modal";
 import type { NewProductModalServices } from "./new-product-modal";
 import type { PrintLabelsModalServices } from "./print-labels-modal";
-import type { ReactivateProductModalServices } from "./reactivate-product-modal";
 import {
   createProduct,
   deactivateProduct,
@@ -14,6 +13,7 @@ import {
   printLabels,
   reactivateProduct,
 } from "./products-api";
+import type { ReactivateProductModalServices } from "./reactivate-product-modal";
 import { createTag, fetchTags } from "./tags-api";
 
 export type ProductsListScreenServices = {

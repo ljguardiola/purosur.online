@@ -383,9 +383,12 @@ export async function reactivateProduct(id: string): Promise<ReactivateProductOu
     return { kind: "not_found" };
   }
   if (response.status === 409) {
-    const code = ((await response.clone().json().catch(() => undefined)) as
-      | { code?: unknown }
-      | undefined)?.code;
+    const code = (
+      (await response
+        .clone()
+        .json()
+        .catch(() => undefined)) as { code?: unknown } | undefined
+    )?.code;
     if (code === "product_already_active") {
       return { kind: "already_changed" };
     }
