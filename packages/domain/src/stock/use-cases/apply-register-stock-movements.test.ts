@@ -50,8 +50,20 @@ describe("applyRegisterStockMovements", () => {
     const outcome = await apply(
       store,
       sale([
-        { id: "register-movement-1", productId: "product-bread", kind: "sale", delta: -3000 },
-        { id: "register-movement-2", productId: "product-cheese", kind: "sale", delta: -1250 },
+        {
+          id: "register-movement-1",
+          saleLineId: "sale-line-1",
+          productId: "product-bread",
+          kind: "sale",
+          delta: -3000,
+        },
+        {
+          id: "register-movement-2",
+          saleLineId: "sale-line-2",
+          productId: "product-cheese",
+          kind: "sale",
+          delta: -1250,
+        },
       ]),
     );
 
@@ -72,13 +84,22 @@ describe("applyRegisterStockMovements", () => {
 
     await apply(
       store,
-      sale([{ id: "register-movement-1", productId: "product-bread", kind: "sale", delta: -3000 }]),
+      sale([
+        {
+          id: "register-movement-1",
+          saleLineId: "sale-line-1",
+          productId: "product-bread",
+          kind: "sale",
+          delta: -3000,
+        },
+      ]),
     );
 
     expect(store.snapshot().movements).toEqual([
       {
         id: "register-movement-1",
         ...BREAD,
+        saleLineId: "sale-line-1",
         kind: "sale",
         reason: null,
         delta: -3000,
@@ -95,8 +116,20 @@ describe("applyRegisterStockMovements", () => {
     await apply(
       store,
       sale([
-        { id: "register-movement-1", productId: "product-bread", kind: "sale", delta: -3000 },
-        { id: "register-movement-2", productId: "product-bread", kind: "sale", delta: -2000 },
+        {
+          id: "register-movement-1",
+          saleLineId: "sale-line-1",
+          productId: "product-bread",
+          kind: "sale",
+          delta: -3000,
+        },
+        {
+          id: "register-movement-2",
+          saleLineId: "sale-line-2",
+          productId: "product-bread",
+          kind: "sale",
+          delta: -2000,
+        },
       ]),
     );
 
@@ -109,7 +142,13 @@ describe("applyRegisterStockMovements", () => {
     const outcome = await apply(
       store,
       sale([
-        { id: "register-movement-1", productId: "product-bread", kind: "sale", delta: -12_000 },
+        {
+          id: "register-movement-1",
+          saleLineId: "sale-line-1",
+          productId: "product-bread",
+          kind: "sale",
+          delta: -12_000,
+        },
       ]),
     );
 
@@ -122,7 +161,15 @@ describe("applyRegisterStockMovements", () => {
 
     const outcome = await apply(
       store,
-      sale([{ id: "register-movement-1", productId: "product-bread", kind: "sale", delta: -3000 }]),
+      sale([
+        {
+          id: "register-movement-1",
+          saleLineId: "sale-line-1",
+          productId: "product-bread",
+          kind: "sale",
+          delta: -3000,
+        },
+      ]),
     );
 
     expect(outcome).toEqual({
@@ -141,7 +188,15 @@ describe("applyRegisterStockMovements", () => {
 
     await apply(
       store,
-      sale([{ id: "register-movement-1", productId: "product-bread", kind: "sale", delta: -3000 }]),
+      sale([
+        {
+          id: "register-movement-1",
+          saleLineId: "sale-line-1",
+          productId: "product-bread",
+          kind: "sale",
+          delta: -3000,
+        },
+      ]),
     );
 
     expect(store.balanceOf(BREAD)).toBe(7000);
@@ -153,8 +208,20 @@ describe("applyRegisterStockMovements", () => {
     await apply(
       store,
       sale([
-        { id: "register-movement-1", productId: "product-cheese", kind: "sale", delta: -1250 },
-        { id: "register-movement-2", productId: "product-bread", kind: "sale", delta: -3000 },
+        {
+          id: "register-movement-1",
+          saleLineId: "sale-line-1",
+          productId: "product-cheese",
+          kind: "sale",
+          delta: -1250,
+        },
+        {
+          id: "register-movement-2",
+          saleLineId: "sale-line-2",
+          productId: "product-bread",
+          kind: "sale",
+          delta: -3000,
+        },
       ]),
     );
 
@@ -178,8 +245,20 @@ describe("applyRegisterStockMovements", () => {
     const outcome = await apply(
       store,
       sale([
-        { id: "register-movement-1", productId: "product-bread", kind: "sale", delta: -3000 },
-        { id: "register-movement-2", productId: "missing", kind: "sale", delta: -1000 },
+        {
+          id: "register-movement-1",
+          saleLineId: "sale-line-1",
+          productId: "product-bread",
+          kind: "sale",
+          delta: -3000,
+        },
+        {
+          id: "register-movement-2",
+          saleLineId: "sale-line-2",
+          productId: "missing",
+          kind: "sale",
+          delta: -1000,
+        },
       ]),
     );
 
@@ -198,8 +277,14 @@ describe("applyRegisterStockMovements", () => {
     const outcome = await apply(
       store,
       sale([
-        { id: "register-movement-1", productId: "product-bread", kind: "sale", delta: -3000 },
-        { id: "register-movement-2", productId, kind: "sale", delta },
+        {
+          id: "register-movement-1",
+          saleLineId: "sale-line-1",
+          productId: "product-bread",
+          kind: "sale",
+          delta: -3000,
+        },
+        { id: "register-movement-2", saleLineId: "sale-line-2", productId, kind: "sale", delta },
       ]),
     );
 
