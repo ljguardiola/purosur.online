@@ -348,9 +348,8 @@ export async function deactivateProduct(id: string): Promise<DeactivateProductOu
     return { kind: "not_found" };
   }
   if (response.status === 409) {
-    const code = (
-      (await response.json().catch(() => undefined)) as { code?: unknown } | undefined
-    )?.code;
+    const code = ((await response.json().catch(() => undefined)) as { code?: unknown } | undefined)
+      ?.code;
     return code === "product_already_inactive" ? { kind: "already_changed" } : { kind: "failed" };
   }
   if (response.status === 401) {
