@@ -14,6 +14,13 @@ const LOCAL_ALERT_TEXTS = {
     whatToDo:
       "Se puede seguir vendiendo con normalidad. Revisar la conexión a internet del local; en cuanto vuelva, la caja se pone al día sola. El Administrador ya fue avisado.",
   },
+  sales_denied: {
+    title: "La caja no puede vender",
+    meaning:
+      "Esta caja dejó de abrir ventas nuevas porque encontró un problema en su registro de operaciones.",
+    whatToDo:
+      "Avisar al Administrador de inmediato; ya fue notificado, pero conviene confirmarle la situación.",
+  },
 } satisfies Partial<Record<AlertKind, LocalAlertText>>;
 
 export function localAlertText(kind: string): LocalAlertText | undefined {
