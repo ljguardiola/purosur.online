@@ -64,10 +64,7 @@ test("allows a CUIT from the fictional set, written with or without hyphens", ()
 test("allows a fictional CUIT with only its check digit changed, with or without hyphens", () => {
   const fictional = new Set(["20000000001"]);
 
-  assert.deepEqual(
-    findCuitsOutside('"20-00000000-2" "2000000000-9" "20000000000"', fictional),
-    [],
-  );
+  assert.deepEqual(findCuitsOutside('"20-00000000-2" "2000000000-9" "20000000000"', fictional), []);
 });
 
 test("finds a CUIT that differs from a fictional one in more than its check digit", () => {
@@ -94,7 +91,9 @@ test("reports each file and line holding a CUIT outside the fictional set", () =
 
   assert.deepEqual(
     checkFiles(Object.keys(files), (path) => files[path], new Set(["20000000001"])),
-    ["a.test.ts:2 holds CUIT 23-00000000-0, which is neither one of the shared fictional ones nor one of them with another check digit"],
+    [
+      "a.test.ts:2 holds CUIT 23-00000000-0, which is neither one of the shared fictional ones nor one of them with another check digit",
+    ],
   );
 });
 
