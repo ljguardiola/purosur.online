@@ -351,7 +351,9 @@ test("confirming the lower amount sends the same request again with the confirma
     valid_from: "2026-10-01",
     confirm_lower_than_in_effect: true,
   });
-  await expect.poll(() => screen.getByRole("dialog", { name: CONFIRMATION_TITLE }).query()).toBeNull();
+  await expect
+    .poll(() => screen.getByRole("dialog", { name: CONFIRMATION_TITLE }).query())
+    .toBeNull();
 });
 
 test("going back from the confirmation records nothing and keeps what was typed", async () => {
@@ -363,10 +365,14 @@ test("going back from the confirmation records nothing and keeps what was typed"
   await submit(dialog);
 
   await userEvent.click(
-    screen.getByRole("dialog", { name: CONFIRMATION_TITLE }).getByRole("button", { name: "Volver" }),
+    screen
+      .getByRole("dialog", { name: CONFIRMATION_TITLE })
+      .getByRole("button", { name: "Volver" }),
   );
 
-  await expect.poll(() => screen.getByRole("dialog", { name: CONFIRMATION_TITLE }).query()).toBeNull();
+  await expect
+    .poll(() => screen.getByRole("dialog", { name: CONFIRMATION_TITLE }).query())
+    .toBeNull();
   expect(services.recordBuyerIdentificationThreshold).toHaveBeenCalledTimes(1);
   expect(onRecorded).not.toHaveBeenCalled();
   await expect.element(dialog.getByRole("textbox", { name: /^Importe/ })).toHaveValue("100,00");
@@ -385,7 +391,9 @@ test("asks to confirm again when the amount is edited and sent after going back"
   await fillForm(dialog, "100,00", "01102026");
   await submit(dialog);
   await userEvent.click(
-    screen.getByRole("dialog", { name: CONFIRMATION_TITLE }).getByRole("button", { name: "Volver" }),
+    screen
+      .getByRole("dialog", { name: CONFIRMATION_TITLE })
+      .getByRole("button", { name: "Volver" }),
   );
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Importe/ }), "200,00");
 
@@ -415,7 +423,9 @@ test("shows the attempt-failed notice in the form when the confirmed record fail
   );
 
   await expect.element(dialog.getByText("No se pudo cargar el umbral")).toBeVisible();
-  await expect.poll(() => screen.getByRole("dialog", { name: CONFIRMATION_TITLE }).query()).toBeNull();
+  await expect
+    .poll(() => screen.getByRole("dialog", { name: CONFIRMATION_TITLE }).query())
+    .toBeNull();
 });
 
 test("shows a field error from the cloud on the amount, and keeps the modal open", async () => {

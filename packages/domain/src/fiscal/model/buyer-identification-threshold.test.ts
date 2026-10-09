@@ -116,9 +116,12 @@ describe("thresholdScheduledAfter with replacements", () => {
 
   it("answers the highest revision of the next day to start, whatever the order", () => {
     fc.assert(
-      fc.property(fc.shuffledSubarray([replaced, replacement, afterThem], { minLength: 3 }), (list) => {
-        expect(thresholdScheduledAfter(list, "2026-08-01")).toEqual(replacement);
-      }),
+      fc.property(
+        fc.shuffledSubarray([replaced, replacement, afterThem], { minLength: 3 }),
+        (list) => {
+          expect(thresholdScheduledAfter(list, "2026-08-01")).toEqual(replacement);
+        },
+      ),
     );
   });
 });

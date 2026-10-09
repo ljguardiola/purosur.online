@@ -117,7 +117,10 @@ async function storedThresholds() {
   return db
     .select()
     .from(buyerIdentificationThresholds)
-    .orderBy(asc(buyerIdentificationThresholds.validFrom), asc(buyerIdentificationThresholds.revision));
+    .orderBy(
+      asc(buyerIdentificationThresholds.validFrom),
+      asc(buyerIdentificationThresholds.revision),
+    );
 }
 
 describe("POST /buyer-identification-thresholds", () => {
@@ -216,13 +219,15 @@ describe("POST /buyer-identification-thresholds", () => {
       const response = await post({ ...BODY, amount: 1_000_000 }, rawSessionId);
 
       expect(response.statusCode).toBe(409);
-      expect(buyerIdentificationThresholdConfirmationRequiredSchema.parse(response.json())).toEqual({
-        code: "threshold_lower_than_in_effect",
-        message: expect.any(String),
-        in_effect_amount: 2_000_000,
-        amount: 1_000_000,
-        valid_from: "2026-10-01",
-      });
+      expect(buyerIdentificationThresholdConfirmationRequiredSchema.parse(response.json())).toEqual(
+        {
+          code: "threshold_lower_than_in_effect",
+          message: expect.any(String),
+          in_effect_amount: 2_000_000,
+          amount: 1_000_000,
+          valid_from: "2026-10-01",
+        },
+      );
       expect(await storedThresholds()).toHaveLength(1);
     });
 

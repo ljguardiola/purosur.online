@@ -64,7 +64,10 @@ describe("buyerIdentificationThresholdOverviewSchema", () => {
     ["with a null earliest_valid_from", { ...overview, earliest_valid_from: null }],
     ["with an in_effect that is not a threshold", { ...overview, in_effect: { id: "a" } }],
     ["with a scheduled that is not a threshold", { ...overview, scheduled: { id: "a" } }],
-    ["with an earliest_valid_from that is not text", { ...overview, earliest_valid_from: 20260101 }],
+    [
+      "with an earliest_valid_from that is not text",
+      { ...overview, earliest_valid_from: 20260101 },
+    ],
   ])("refuses an overview %s", (_case, body) => {
     expect(buyerIdentificationThresholdOverviewSchema.safeParse(body).success).toBe(false);
   });

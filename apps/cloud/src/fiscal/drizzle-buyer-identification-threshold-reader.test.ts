@@ -61,7 +61,12 @@ describe("DrizzleBuyerIdentificationThresholdReader", () => {
 
     expect(overview).toEqual({
       inEffect: { id: expect.any(String), amount: 2_000_000, validFrom: "2026-06-01", revision: 0 },
-      scheduled: { id: expect.any(String), amount: 3_000_000, validFrom: "2026-08-01", revision: 0 },
+      scheduled: {
+        id: expect.any(String),
+        amount: 3_000_000,
+        validFrom: "2026-08-01",
+        revision: 0,
+      },
     });
   });
 

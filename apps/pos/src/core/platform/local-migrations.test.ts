@@ -1261,7 +1261,9 @@ describe("the register's local migrations", () => {
 
       expect(
         after
-          .prepare("SELECT id, amount, valid_from, revision FROM buyer_identification_thresholds ORDER BY id")
+          .prepare(
+            "SELECT id, amount, valid_from, revision FROM buyer_identification_thresholds ORDER BY id",
+          )
           .all(),
       ).toEqual([
         { id: "t1", amount: 500000, valid_from: "2026-01-01", revision: 0 },

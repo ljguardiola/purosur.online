@@ -550,7 +550,7 @@ describe("the sale in progress", () => {
     await scanProductFor(deps(), "111");
     await scanProductFor(deps(), "111");
 
-    expect((await currentSaleFor(deps())).charge_refusal).toBeNull();
+    expect(await currentSaleFor(deps())).toMatchObject({ charge_refusal: null });
   });
 
   it("is refused for charging when the register holds no threshold", async () => {

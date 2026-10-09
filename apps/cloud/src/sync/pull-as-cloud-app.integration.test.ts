@@ -115,7 +115,10 @@ describe("a pull run as the role the deployed cloud connects with", () => {
       { authorizedCuit: FICTIONAL_CUIT },
     );
     await recordBuyerIdentificationThreshold(
-      { store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOW), clock: { now: () => NOW } },
+      {
+        store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOW),
+        clock: { now: () => NOW },
+      },
       {
         amount: 1_000_000,
         validFrom: "2026-10-06",

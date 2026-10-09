@@ -242,7 +242,10 @@ describe("GET /changes carrying the fiscal configuration", () => {
     });
     const ownBranch = await insertEnrolledInstallation(db, { now: NOW });
     const outcome = await recordBuyerIdentificationThreshold(
-      { store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOW), clock: { now: () => NOW } },
+      {
+        store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOW),
+        clock: { now: () => NOW },
+      },
       {
         amount: 3_500_000_000,
         validFrom: "2026-10-01",
@@ -268,7 +271,10 @@ describe("GET /changes carrying the fiscal configuration", () => {
   it("gives a replacement of a threshold as another row of the same day with the next revision", async () => {
     const ownBranch = await insertEnrolledInstallation(db, { now: NOW });
     const actorId = await insertActor();
-    const ports = { store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOW), clock: { now: () => NOW } };
+    const ports = {
+      store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOW),
+      clock: { now: () => NOW },
+    };
     const record = (amount: number) =>
       recordBuyerIdentificationThreshold(ports, {
         amount,
@@ -279,11 +285,9 @@ describe("GET /changes carrying the fiscal configuration", () => {
     await record(10_000);
     await record(3_500_000_000);
 
-    expect(
-      withoutSeq(await pullAfterSeed(ownBranch.deviceToken)).map(({ row }) => row),
-    ).toEqual([
-      { amount: 10_000, valid_from: "2026-10-01", revision: 0 },
-      { amount: 3_500_000_000, valid_from: "2026-10-01", revision: 1 },
+    expect(withoutSeq(await pullAfterSeed(ownBranch.deviceToken))).toMatchObject([
+      { row: { amount: 10_000, valid_from: "2026-10-01", revision: 0 } },
+      { row: { amount: 3_500_000_000, valid_from: "2026-10-01", revision: 1 } },
     ]);
   });
 

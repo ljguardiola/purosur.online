@@ -3,8 +3,8 @@ import { buyerIdentificationThresholdRecordBodySchema } from "@purosur/contracts
 import { expect, test } from "vitest";
 import {
   amountMessage,
-  EMPTY_THRESHOLD_FORM,
   beforeTodayMessage,
+  EMPTY_THRESHOLD_FORM,
   thresholdRequestFrom,
   validFromMessage,
 } from "./buyer-identification-threshold-form";
@@ -64,5 +64,7 @@ test("asks to choose the day when none was chosen, and to review it otherwise", 
 });
 
 test("asks for a day from today on, naming today written dd/mm/aaaa", () => {
-  expect(beforeTodayMessage("2026-10-08")).toBe("Tiene que ser desde hoy (08/10/2026) en adelante.");
+  expect(beforeTodayMessage("2026-10-08")).toBe(
+    "Tiene que ser desde hoy (08/10/2026) en adelante.",
+  );
 });
