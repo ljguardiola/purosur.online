@@ -17,6 +17,7 @@ export function createServices(
     createProduct: vi.fn(),
     editProduct: vi.fn(),
     deactivateProduct: vi.fn(),
+    reactivateProduct: vi.fn(),
     fetchCategories: vi.fn(),
     fetchBrands: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     fetchTags: vi.fn().mockResolvedValue({ kind: "ok", value: tagList([]) }),
@@ -91,6 +92,14 @@ export async function openDeactivateProductModal(screen: Screen, product: Produc
   await expect.element(screen.getByText(product.name)).toBeVisible();
   await userEvent.click(
     screen.getByRole("button", { name: `Desactivar el producto ${product.name}` }),
+  );
+  return screen.getByRole("dialog");
+}
+
+export async function openReactivateProductModal(screen: Screen, product: ProductSummary) {
+  await expect.element(screen.getByText(product.name)).toBeVisible();
+  await userEvent.click(
+    screen.getByRole("button", { name: `Reactivar el producto ${product.name}` }),
   );
   return screen.getByRole("dialog");
 }
