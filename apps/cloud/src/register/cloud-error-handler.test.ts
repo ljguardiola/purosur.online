@@ -1,6 +1,7 @@
 import { cloudErrorSchema } from "@purosur/contracts";
+import { DrizzleQueryError } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { answerErrorsWithCloudEnvelope } from "./cloud-error-handler.js";
 
 let app: FastifyInstance;
@@ -21,6 +22,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await app.close();
+  vi.restoreAllMocks();
 });
 
 describe("answerErrorsWithCloudEnvelope", () => {
@@ -63,20 +65,44 @@ describe("answerErrorsWithCloudEnvelope", () => {
     expect(response.json()).toMatchObject({ code: "validation_failed" });
   });
 
-  it("logs an unexpected failure it answers for", async () => {
-    const lines: string[] = [];
-    const logged = Fastify({ logger: { stream: { write: (line: string) => lines.push(line) } } });
-    await logged.register(async (scope) => {
+  it("writes an unexpected failure to the cloud's output by its route, never by the values of a failed query", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    await app.close();
+    app = Fastify();
+    await app.register(async (scope) => {
       answerErrorsWithCloudEnvelope(scope);
-      scope.post("/contract/failing", async () => {
-        throw new Error("database connection lost");
+      scope.post("/contract/devices/:id", async () => {
+        throw new DrizzleQueryError(
+          "update devices set name = $1",
+          ["s3cret-value"],
+          new Error("connection lost"),
+        );
       });
     });
 
-    await logged.inject({ method: "POST", url: "/contract/failing" });
-    await logged.close();
+    await app.inject({
+      method: "POST",
+      url: "/contract/devices/42",
+      headers: { authorization: "Bearer device-token" },
+      payload: { name: "s3cret-value" },
+    });
 
-    expect(lines.join("")).toContain("database connection lost");
+    expect(consoleError).toHaveBeenCalledExactlyOnceWith(
+      "register-to-cloud request failed: POST /contract/devices/:id: unknown error: Failed query: update devices set name = $1 (caused by unknown error: connection lost)",
+    );
+  });
+
+  it("writes nothing to the cloud's output for a body it refuses", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await app.inject({
+      method: "POST",
+      url: "/contract/echo",
+      headers: { "content-type": "application/json" },
+      payload: "{not json",
+    });
+
+    expect(consoleError).not.toHaveBeenCalled();
   });
 
   it("leaves routes outside the contract to Fastify's own answer", async () => {
