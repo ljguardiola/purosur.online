@@ -105,6 +105,11 @@ function coreAnswering(
     chargeSaleByTransfer?: CoreClient["chargeSaleByTransfer"];
     searchProducts?: CoreClient["searchProducts"];
     addProduct?: CoreClient["addProduct"];
+    receiptPrintStatus?: CoreClient["receiptPrintStatus"];
+    retryReceiptPrint?: CoreClient["retryReceiptPrint"];
+    reprintSaleReceipt?: CoreClient["reprintSaleReceipt"];
+    salesHistory?: CoreClient["salesHistory"];
+    saleHistoryDetail?: CoreClient["saleHistoryDetail"];
   } = {},
   signOut: () => Promise<void> = async () => {},
   service: "in_service" | "out_of_service" | "unanswered" = "in_service",
@@ -222,6 +227,31 @@ function coreAnswering(
     },
     async cancelPaidSale() {
       return { kind: "unavailable" };
+    },
+    async receiptPrintStatus(saleId) {
+      return sales.receiptPrintStatus === undefined
+        ? { kind: "found", next_copy: { kind: "original" }, printed: true, standing: "printed" }
+        : sales.receiptPrintStatus(saleId);
+    },
+    async retryReceiptPrint(saleId) {
+      return sales.retryReceiptPrint === undefined
+        ? { kind: "not_offered" }
+        : sales.retryReceiptPrint(saleId);
+    },
+    async reprintSaleReceipt(saleId, reason, authorization) {
+      return sales.reprintSaleReceipt === undefined
+        ? { kind: "unavailable" }
+        : sales.reprintSaleReceipt(saleId, reason, authorization);
+    },
+    async salesHistory(query) {
+      return sales.salesHistory === undefined
+        ? { kind: "found", rows: [], total: 0, page_size: 50 }
+        : sales.salesHistory(query);
+    },
+    async saleHistoryDetail(saleId) {
+      return sales.saleHistoryDetail === undefined
+        ? { kind: "not_found" }
+        : sales.saleHistoryDetail(saleId);
     },
     async searchProducts(query) {
       return sales.searchProducts === undefined
@@ -2188,6 +2218,159 @@ describe("App", () => {
       await expect
         .element(screen.getByRole("heading", { name: "¿Quién cierra la caja?" }))
         .toBeVisible();
+    });
+  });
+
+  describe("the sales history", () => {
+    const HISTORIAN: SignInOutcome = {
+      kind: "signed_in",
+      person: { user_id: "u1", first_name: "Ada", abilities: ["view_sales_history"] },
+      cash_session: null,
+    };
+    const GRACE_HISTORIAN: SignInOutcome = {
+      kind: "signed_in",
+      person: {
+        user_id: "u2",
+        first_name: "Grace",
+        abilities: ["open_cash_session", "view_sales_history"],
+      },
+      cash_session: GRACE_SESSION,
+    };
+    const SALE_ROW = {
+      sale_id: "sale-1",
+      occurred_at: "2026-09-30T11:42:00.000-03:00",
+      comprobante: { kind: "none" },
+      operation_number: 482,
+      payment_methods: ["CASH"],
+      total: 5_070_000,
+      state: "completed",
+    } as const;
+
+    it("opens from the menu of a person who may view it, with no session open, and reads every session's sales through the core", async () => {
+      const queries: Parameters<CoreClient["salesHistory"]>[0][] = [];
+      const { core } = coreAnswering(
+        true,
+        { kind: "enrolled" },
+        HISTORIAN,
+        {},
+        {
+          salesHistory: async (query) => {
+            queries.push(query);
+            return { kind: "found", rows: [SALE_ROW], total: 1, page_size: 50 };
+          },
+        },
+      );
+      const screen = await render(<App core={core} />);
+      postCoreStatus("up");
+      await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+      await userEvent.type(screen.getByLabelText("PIN"), "1234");
+      await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+
+      await userEvent.click(screen.getByRole("link", { name: "Historial" }));
+
+      await expect
+        .element(screen.getByRole("heading", { name: "Historial de ventas" }))
+        .toBeVisible();
+      await expect.element(screen.getByText("Operación 000482")).toBeVisible();
+      expect(queries).toEqual([{ session: "all", state: "all", page: 1 }]);
+    });
+
+    it("opens from the menu while a session is open, and goes back to the sale from it", async () => {
+      const { core } = coreAnswering(true, { kind: "enrolled" }, GRACE_HISTORIAN, {
+        cashSession: async () => GRACE_SESSION,
+      });
+      const screen = await render(<App core={core} />);
+      postCoreStatus("up");
+      await resumeLockedRegister(screen);
+
+      await userEvent.click(screen.getByRole("link", { name: "Historial" }));
+      await expect
+        .element(screen.getByRole("heading", { name: "Historial de ventas" }))
+        .toBeVisible();
+      await userEvent.click(screen.getByRole("link", { name: "Venta" }));
+
+      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    });
+
+    it("offers no Historial to a person who may not view it", async () => {
+      const { core } = coreAnswering(true, { kind: "enrolled" }, ADA_SELLS);
+      const screen = await render(<App core={core} />);
+      postCoreStatus("up");
+      await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+      await userEvent.type(screen.getByLabelText("PIN"), "1234");
+      await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+
+      await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
+      await expect.element(screen.getByRole("link", { name: "Historial" })).not.toBeInTheDocument();
+    });
+  });
+
+  describe("the receipt of a completed sale", () => {
+    it("asks the core how the receipt of the sale just charged is printing", async () => {
+      const asked: string[] = [];
+      const { core } = coreAnswering(
+        true,
+        { kind: "enrolled" },
+        GRACE_SIGNED_IN,
+        { cashSession: async () => GRACE_SESSION },
+        {
+          currentSale: async () => ({
+            id: "sale-1",
+            lines: [
+              {
+                id: "line-1",
+                product_id: "p1",
+                product_name: "Yerba mate 1 kg",
+                quantity: 1,
+                list_unit_price: 238_000,
+                discount_amount: 0,
+                promotion: null,
+                line_total: 238_000,
+              },
+            ],
+            total: 238_000,
+            paid: 0,
+            pending: 238_000,
+            lines_editable: true,
+            cancellable: true,
+            charge_refusal: null,
+            refunds_on_cancel: [],
+            cancel_authorization_required: false,
+          }),
+          cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 12_000 }),
+          chargeSaleInCash: async (saleId, tendered) => ({
+            kind: "completed",
+            sale_id: saleId,
+            total: 238_000,
+            tendered,
+            change: 12_000,
+          }),
+          receiptPrintStatus: async (saleId) => {
+            asked.push(saleId);
+            return {
+              kind: "found",
+              next_copy: { kind: "original" },
+              printed: false,
+              standing: "paper_out",
+            };
+          },
+        },
+      );
+      const screen = await render(<App core={core} />);
+      postCoreStatus("up");
+      await resumeLockedRegister(screen);
+      await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+      await userEvent.click(screen.getByText("Efectivo", { exact: true }));
+      await userEvent.fill(
+        screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
+        "2.500,00",
+      );
+      await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
+
+      await expect
+        .element(screen.getByRole("heading", { name: "No se pudo imprimir el ticket" }))
+        .toBeVisible();
+      expect(asked).toContain("sale-1");
     });
   });
 

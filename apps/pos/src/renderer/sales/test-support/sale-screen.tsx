@@ -103,7 +103,7 @@ export async function renderScreen({ registerName = "Caja 1", ...overrides }: Ov
   const screen = await render(
     <SaleScreen
       sessionId="s1"
-      person={PERSON}
+      person={overrides.person ?? PERSON}
       registerName={registerName}
       lock={() => {}}
       currentSale={currentSale}

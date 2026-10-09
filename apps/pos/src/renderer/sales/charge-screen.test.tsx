@@ -88,6 +88,7 @@ const SALE_WITH_PART_PAID: OpenSale = {
 const COVERED: CashChargeAnswer = { kind: "covered", applied: 476_000, change: 24_000 };
 
 type Overrides = {
+  person?: ChargeScreenProps["person"];
   currentSale?: () => Promise<CurrentSaleAnswer>;
   cashCharge?: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
   chargeSaleInCash?: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
@@ -121,7 +122,7 @@ async function renderScreen(overrides: Overrides = {}) {
   const screen = await render(
     <ChargeScreen
       sessionId="s1"
-      person={PERSON}
+      person={overrides.person ?? PERSON}
       registerName="Caja 1"
       lock={() => {}}
       currentSale={currentSale}
@@ -217,6 +218,14 @@ describe("ChargeScreen", () => {
       .element(screen.getByRole("navigation", { name: "Menú de la caja" }).getByText("Venta"))
       .toBeVisible();
     await expect.element(screen.getByText("Ada")).not.toBeInTheDocument();
+  });
+
+  it("offers the sales history in the menu to a person who may view it", async () => {
+    const { screen } = await renderScreen({
+      person: { ...PERSON, abilities: ["open_cash_session", "view_sales_history"] },
+    });
+
+    await expect.element(screen.getByRole("link", { name: "Historial" })).toBeVisible();
   });
 
   it("goes back to the sale from Volver a la venta", async () => {
