@@ -52,6 +52,10 @@ export class FakePurchasingListReader implements PurchasingListReader {
     });
   }
 
+  async packaging(packagingId: string): Promise<PackagingListing | undefined> {
+    return (await this.packagings()).find((packaging) => packaging.id === packagingId);
+  }
+
   async products(scope: ProductActivityScope): Promise<PackageableProduct[]> {
     return this.data.products
       .filter((product) => inScope(product, scope))
