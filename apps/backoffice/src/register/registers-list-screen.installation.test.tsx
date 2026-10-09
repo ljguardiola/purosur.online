@@ -30,9 +30,7 @@ test("shows a register whose installation was revoked as Revocada with when and 
   const screen = await renderRegisters(revokedRegister);
 
   await expect.element(screen.getByText("Revocada el 03/08/2026")).toBeVisible();
-  await expect
-    .element(screen.getByText("CAJA-DEPOSITO · Windows 10 Pro 10.0.19045"))
-    .toBeVisible();
+  await expect.element(screen.getByText("CAJA-DEPOSITO · Windows 10 Pro 10.0.19045")).toBeVisible();
   await expect.element(screen.getByText("Revocada", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("Sin instalación")).toBeVisible();
   await expect.element(screen.getByText("Esperando alta")).not.toBeInTheDocument();

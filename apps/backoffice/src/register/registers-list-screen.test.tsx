@@ -80,6 +80,7 @@ test("shows recién for a code issued less than a minute ago", async () => {
     name: "Caja 3",
     pendingCode: { secondsSinceIssued: 20, secondsUntilExpiry: 880 },
     pointOfSaleNumber: null,
+    installation: null,
   };
   vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [justIssued] });
 
@@ -361,7 +362,13 @@ test("creates a register and shows it in the list", async () => {
     kind: "ok",
     value: [
       register1,
-      { id: "register-3", name: "Caja 3", pendingCode: null, pointOfSaleNumber: null },
+      {
+        id: "register-3",
+        name: "Caja 3",
+        pendingCode: null,
+        pointOfSaleNumber: null,
+        installation: null,
+      },
     ],
   });
   vi.mocked(services.createRegister).mockResolvedValue({ kind: "ok" });
@@ -665,7 +672,13 @@ test("keeps the current rows visible while the list refreshes after creating a r
     kind: "ok",
     value: [
       register1,
-      { id: "register-3", name: "Caja 3", pendingCode: null, pointOfSaleNumber: null },
+      {
+        id: "register-3",
+        name: "Caja 3",
+        pendingCode: null,
+        pointOfSaleNumber: null,
+        installation: null,
+      },
     ],
   });
 
@@ -693,7 +706,15 @@ test("shows loading placeholders, not an empty table, while the list refreshes f
 
   pendingRefresh.resolve({
     kind: "ok",
-    value: [{ id: "register-3", name: "Caja 3", pendingCode: null, pointOfSaleNumber: null }],
+    value: [
+      {
+        id: "register-3",
+        name: "Caja 3",
+        pendingCode: null,
+        pointOfSaleNumber: null,
+        installation: null,
+      },
+    ],
   });
 
   await expect.element(screen.getByText("Caja 3")).toBeVisible();
