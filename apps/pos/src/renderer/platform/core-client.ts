@@ -23,6 +23,7 @@ import type {
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   PinPolicy,
+  ReceiptPrintStatusOutcome,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RecordCashMovementRequest,
@@ -30,7 +31,11 @@ import type {
   RegisterRendererToCoreMessage,
   RegisterStatus,
   RemoveSaleLineOutcome,
+  ReprintSaleReceiptOutcome,
+  RetryReceiptPrintOutcome,
+  SaleHistoryDetailOutcome,
   SalesCoreToRendererMessage,
+  SalesHistoryOutcome,
   SalesRendererToCoreMessage,
   ScanProductOutcome,
   SearchProductsOutcome,
@@ -82,6 +87,11 @@ export interface CorePort {
 
 export type CashMovementInput = RecordCashMovementRequest;
 
+export type SalesHistoryQuery = Pick<
+  Extract<SalesRendererToCoreMessage, { type: "sales-history" }>,
+  "session" | "state" | "page"
+>;
+
 export interface CoreClient {
   connect(port: CorePort): void;
   enrollmentStatus(): Promise<boolean>;
@@ -121,6 +131,15 @@ export interface CoreClient {
     saleId: string,
     authorization: Authorization | undefined,
   ): Promise<CancelPaidSaleOutcome>;
+  receiptPrintStatus(saleId: string): Promise<ReceiptPrintStatusOutcome>;
+  retryReceiptPrint(saleId: string): Promise<RetryReceiptPrintOutcome>;
+  reprintSaleReceipt(
+    saleId: string,
+    reason: string,
+    authorization: Authorization | undefined,
+  ): Promise<ReprintSaleReceiptOutcome>;
+  salesHistory(query: SalesHistoryQuery): Promise<SalesHistoryOutcome>;
+  saleHistoryDetail(saleId: string): Promise<SaleHistoryDetailOutcome>;
   cashCharge(saleId: string, tendered: number): Promise<CashChargeAnswer>;
   chargeSaleInCash(saleId: string, tendered: number): Promise<ChargeSaleInCashOutcome>;
   chargeSaleByTransfer(saleId: string, amount: number): Promise<ChargeSaleByTransferOutcome>;
@@ -426,6 +445,42 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           ...(authorization === undefined ? {} : { authorization }),
         },
         (answer) => (answer.type === "cancel-paid-sale-result" ? answer.outcome : undefined),
+      );
+    },
+    receiptPrintStatus(saleId) {
+      return ask(
+        { type: "receipt-print-status", request_id: deps.newRequestId(), sale_id: saleId },
+        (answer) => (answer.type === "receipt-print-status-result" ? answer.outcome : undefined),
+      );
+    },
+    retryReceiptPrint(saleId) {
+      return ask(
+        { type: "retry-receipt-print", request_id: deps.newRequestId(), sale_id: saleId },
+        (answer) => (answer.type === "retry-receipt-print-result" ? answer.outcome : undefined),
+      );
+    },
+    reprintSaleReceipt(saleId, reason, authorization) {
+      return ask(
+        {
+          type: "reprint-sale-receipt",
+          request_id: deps.newRequestId(),
+          sale_id: saleId,
+          reason,
+          ...(authorization === undefined ? {} : { authorization }),
+        },
+        (answer) => (answer.type === "reprint-sale-receipt-result" ? answer.outcome : undefined),
+      );
+    },
+    salesHistory({ session, state, page }) {
+      return ask(
+        { type: "sales-history", request_id: deps.newRequestId(), session, state, page },
+        (answer) => (answer.type === "sales-history-result" ? answer.outcome : undefined),
+      );
+    },
+    saleHistoryDetail(saleId) {
+      return ask(
+        { type: "sale-history-detail", request_id: deps.newRequestId(), sale_id: saleId },
+        (answer) => (answer.type === "sale-history-detail-result" ? answer.outcome : undefined),
       );
     },
     searchProducts(query) {
