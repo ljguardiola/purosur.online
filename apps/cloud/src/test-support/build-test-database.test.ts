@@ -31,6 +31,7 @@ import {
   locations,
   passkeyChallenges,
   passkeys,
+  paymentNotificationAttempts,
   paymentRefunds,
   paymentTransactions,
   pinCodeRedemptionAttempts,
@@ -568,6 +569,10 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       state: "PENDING",
       createdAt: new Date("2026-01-05T12:00:00.000Z"),
       expiresAt: new Date("2026-01-05T12:05:00.000Z"),
+    });
+    await db.insert(paymentNotificationAttempts).values({
+      sourceAddress: "203.0.113.7",
+      attemptedAt: new Date("2026-01-05T12:00:00.000Z"),
     });
     // issuer_identification is a true singleton: its row count can never grow, so its "seeded
     // before clear()" is a content change instead.
