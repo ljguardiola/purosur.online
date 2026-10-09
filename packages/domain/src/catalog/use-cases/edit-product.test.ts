@@ -428,7 +428,12 @@ describe("editProduct", () => {
       { productId: "decoy", code: "900", active: true },
       { productId: "product-1", code: "333", active: true },
     ]);
-    expect(store.lockCallOrder).toEqual(["lockProduct", "buyNPayMDiscountsOn", "lockLeafCategory"]);
+    expect(store.lockCallOrder).toEqual([
+      "lockProduct",
+      "activePackagingNamesOf",
+      "buyNPayMDiscountsOn",
+      "lockLeafCategory",
+    ]);
   });
 
   it("answers with the product's id as the store holds it when asked for it in another letter case", async () => {
