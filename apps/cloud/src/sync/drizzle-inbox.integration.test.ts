@@ -494,22 +494,6 @@ describe("the inbox reporting how a register stands, on a real Postgres", () => 
     });
   });
 
-  it("raises no can't-sell alert for an installation the cloud revoked", async () => {
-    const { deviceId, registerId } = await insertEnrolledInstallation();
-    await db
-      .update(registerInstallations)
-      .set({ revokedAt: NOW, revocationReason: "replaced" })
-      .where(eq(registerInstallations.id, deviceId));
-
-    await push(deviceId, [], "1.4.0", {
-      ...TELEMETRY,
-      sales_denied: true,
-      sales_denied_reason: "event_history_broken",
-    });
-
-    expect(await db.select().from(alerts).where(eq(alerts.scope, registerId))).toEqual([]);
-  });
-
   it("raises no alert for an installation the cloud revoked", async () => {
     const { deviceId, registerId } = await insertEnrolledInstallation();
     await db

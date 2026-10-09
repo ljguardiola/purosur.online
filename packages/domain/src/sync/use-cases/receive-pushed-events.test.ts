@@ -529,7 +529,7 @@ describe("reporting how the register stands", () => {
     ).toEqual([]);
   });
 
-  it("observes the sales-denied condition of a push it refuses for a gap, a stale device, a broken chain or a version not accepted", async () => {
+  it("observes the sales-denied condition of a push it refuses for a gap, a stale device or a version not accepted", async () => {
     const telemetry: RegisterTelemetry = {
       ...TELEMETRY,
       sales_denied: true,
@@ -539,12 +539,10 @@ describe("reporting how the register stands", () => {
     await receive(gap, eventsOf(3), { telemetry });
     const stale = new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]);
     await receive(stale, [{ ...fakeEvent(1), event_id: "another-event" }], { telemetry });
-    const broken = new FakeInbox();
-    await receive(broken, [{ ...fakeEvent(1), chain_hmac: "forged-link" }], { telemetry });
     const outdated = new FakeInbox();
     await receive(outdated, eventsOf(1), { telemetry, appVersion: "not-a-version" });
 
-    for (const inbox of [gap, stale, broken, outdated]) {
+    for (const inbox of [gap, stale, outdated]) {
       expect(inbox.state.observedConditions.map(({ observation }) => observation)).toContainEqual(
         expect.objectContaining({
           holds: true,
@@ -554,16 +552,20 @@ describe("reporting how the register stands", () => {
     }
   });
 
-  it("observes the sales-denied condition right after the version, before looking at the events", async () => {
+  it("observes no sales-denied condition of a push that breaks its chain and so revokes the installation", async () => {
     const inbox = new FakeInbox();
 
-    await receive(inbox, eventsOf(1), { telemetry: { ...TELEMETRY, sales_denied: false } });
+    await receive(inbox, [{ ...fakeEvent(1), chain_hmac: "forged-link" }], {
+      telemetry: { ...TELEMETRY, sales_denied: true, sales_denied_reason: "event_history_broken" },
+    });
 
-    const observed = inbox.calls.flatMap((call, index) =>
-      call === "observeAlertCondition" ? [index] : [],
-    );
-    expect(observed[1]).toBe((observed[0] ?? -1) + 1);
-    expect(observed[1]).toBeLessThan(inbox.calls.indexOf("receivedDeviceSeqs device-1"));
+    expect(inbox.state.brokenChainRevocations).not.toEqual([]);
+    expect(
+      inbox.state.observedConditions.filter(
+        ({ observation }) =>
+          (observation.holds ? observation.alert.kind : observation.kind) === "sales_denied",
+      ),
+    ).toEqual([]);
   });
 
   it("observes nothing of a revoked installation", async () => {

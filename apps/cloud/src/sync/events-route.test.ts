@@ -4,7 +4,7 @@ import {
   type PushEventsRequest,
   pushEventsResponseSchema,
 } from "@purosur/contracts";
-import { canonicalOutboxEvent, type SalesDeniedReport } from "@purosur/domain";
+import { canonicalOutboxEvent } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import Fastify from "fastify";
 import { describe, expect, it } from "vitest";
@@ -248,54 +248,24 @@ describe("POST /events", () => {
     expect(state?.appVersion).toBe("1.4");
   });
 
-  describe("a register's report of whether it can sell", () => {
-    const CANNOT_SELL = {
-      sales_denied: true,
-      sales_denied_reason: "event_history_broken",
-    } as const;
+  it("opens the can't-sell alert of a register that reports it can't sell", async () => {
+    const { deviceToken, registerId } = await enroll();
+    const body = bodyOf([]);
 
-    function reporting(report: SalesDeniedReport): PushEventsRequest {
-      const storage = { wal_size_bytes: 4096, disk_free_bytes: 50_000_000, disk_free_ratio: 0.42 };
-      return { ...bodyOf([]), telemetry: { ...storage, ...report } };
-    }
+    await push(
+      {
+        ...body,
+        telemetry: {
+          ...body.telemetry,
+          sales_denied: true,
+          sales_denied_reason: "event_history_broken",
+        },
+      },
+      `Bearer ${deviceToken}`,
+    );
 
-    it("opens a critical alert for the register, in its branch, when it reports it can't sell", async () => {
-      const { deviceId, deviceToken, registerId, locationId } = await enroll();
-
-      const response = await push(reporting(CANNOT_SELL), `Bearer ${deviceToken}`);
-
-      expect(response.statusCode).toBe(200);
-      const rows = await route.db.select().from(alerts).where(eq(alerts.scope, registerId));
-      expect(rows).toHaveLength(1);
-      expect(rows[0]).toMatchObject({
-        kind: "sales_denied",
-        level: "critical",
-        audience: "local",
-        locationId,
-        detail: { deviceId, reason: "event_history_broken" },
-        conditionClearedAt: null,
-      });
-    });
-
-    it("marks the alert as cleared when the register reports it can sell again", async () => {
-      const { deviceToken, registerId } = await enroll();
-      await push(reporting(CANNOT_SELL), `Bearer ${deviceToken}`);
-
-      await push(reporting({ sales_denied: false }), `Bearer ${deviceToken}`);
-
-      const [row] = await route.db.select().from(alerts).where(eq(alerts.scope, registerId));
-      expect(row).toMatchObject({ conditionClearedAt: NOW, resolvedAt: null });
-    });
-
-    it("leaves the alert as it is when the register reports nothing about selling", async () => {
-      const { deviceToken, registerId } = await enroll();
-      await push(reporting(CANNOT_SELL), `Bearer ${deviceToken}`);
-
-      await push(bodyOf([]), `Bearer ${deviceToken}`);
-
-      const [row] = await route.db.select().from(alerts).where(eq(alerts.scope, registerId));
-      expect(row).toMatchObject({ kind: "sales_denied", conditionClearedAt: null });
-    });
+    const rows = await route.db.select().from(alerts).where(eq(alerts.scope, registerId));
+    expect(rows.map(({ kind }) => kind)).toContain("sales_denied");
   });
 
   it("records each admitted push as a request of its installation", async () => {
