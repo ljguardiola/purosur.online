@@ -36,11 +36,14 @@ describe("isQuantityPerPackage", () => {
     expect(isQuantityPerPackage("KG", 25_000)).toBe(true);
   });
 
-  it.each(["UNIT", "KG"] as const)("refuses zero, a negative and a fractional quantity for %s", (unit) => {
-    expect(isQuantityPerPackage(unit, 0)).toBe(false);
-    expect(isQuantityPerPackage(unit, -STOCK_QUANTITY_PER_UNIT)).toBe(false);
-    expect(isQuantityPerPackage(unit, 1500.5)).toBe(false);
-  });
+  it.each(["UNIT", "KG"] as const)(
+    "refuses zero, a negative and a fractional quantity for %s",
+    (unit) => {
+      expect(isQuantityPerPackage(unit, 0)).toBe(false);
+      expect(isQuantityPerPackage(unit, -STOCK_QUANTITY_PER_UNIT)).toBe(false);
+      expect(isQuantityPerPackage(unit, 1500.5)).toBe(false);
+    },
+  );
 
   it("refuses a quantity above the stock maximum", () => {
     expect(isQuantityPerPackage("KG", MAX_STOCK_QUANTITY)).toBe(true);
@@ -49,9 +52,13 @@ describe("isQuantityPerPackage", () => {
 
   it("agrees with the quantity a stock movement may carry, for any quantity", () => {
     fc.assert(
-      fc.property(fc.constantFrom("UNIT", "KG"), fc.integer({ min: -5000, max: 5000 }), (unit, n) => {
-        expect(isQuantityPerPackage(unit, n)).toBe(n > 0 && (unit === "KG" || n % 1000 === 0));
-      }),
+      fc.property(
+        fc.constantFrom("UNIT", "KG"),
+        fc.integer({ min: -5000, max: 5000 }),
+        (unit, n) => {
+          expect(isQuantityPerPackage(unit, n)).toBe(n > 0 && (unit === "KG" || n % 1000 === 0));
+        },
+      ),
     );
   });
 });

@@ -19,10 +19,13 @@ describe("supplier text limits", () => {
     ["name", isSupplierNameTooLong, SUPPLIER_NAME_MAX_LENGTH],
     ["contact", isSupplierContactTooLong, SUPPLIER_CONTACT_MAX_LENGTH],
     ["note", isSupplierNoteTooLong, SUPPLIER_NOTE_MAX_LENGTH],
-  ])("accepts a %s of exactly its limit and rejects one character more", (_field, isTooLong, limit) => {
-    expect(isTooLong("a".repeat(limit))).toBe(false);
-    expect(isTooLong("a".repeat(limit + 1))).toBe(true);
-  });
+  ])(
+    "accepts a %s of exactly its limit and rejects one character more",
+    (_field, isTooLong, limit) => {
+      expect(isTooLong("a".repeat(limit))).toBe(false);
+      expect(isTooLong("a".repeat(limit + 1))).toBe(true);
+    },
+  );
 
   it.each([
     ["name", isSupplierNameTooLong, SUPPLIER_NAME_MAX_LENGTH],

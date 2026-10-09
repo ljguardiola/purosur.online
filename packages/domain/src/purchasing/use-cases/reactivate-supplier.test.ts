@@ -40,8 +40,6 @@ describe("reactivateSupplier", () => {
     const store = new FakePurchasingStore();
     store.seedSupplier({ ...NORTE, id: "decoy", name: "Decoy", cuit: null, active: false });
     store.seedSupplier({ ...NORTE, active: false });
-    store.supplierNameConflicts.add("distribuidora norte");
-    store.supplierCuitConflicts.add(FICTIONAL_CUIT);
 
     const outcome = await reactivateSupplier(store, { id: "s-1", actorId: ACTOR });
 
