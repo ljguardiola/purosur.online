@@ -60,7 +60,7 @@ describe("readSalesHistory", () => {
           deferred: false,
           fiscalDocument: {
             state: "AUTHORIZED",
-            documentType: "FACTURA_C",
+            documentType: "factura_c",
             pointOfSale: 3,
             number: 1204,
           },
@@ -75,7 +75,7 @@ describe("readSalesHistory", () => {
 
     expect(row?.comprobante).toEqual({
       kind: "fiscal",
-      documentType: "FACTURA_C",
+      documentType: "factura_c",
       pointOfSale: 3,
       number: 1204,
     });
@@ -90,7 +90,7 @@ describe("readSalesHistory", () => {
           deferred: false,
           fiscalDocument: {
             state: "REQUESTING",
-            documentType: "FACTURA_C",
+            documentType: "factura_c",
             pointOfSale: 3,
             number: 1205,
           },

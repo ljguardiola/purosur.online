@@ -9,7 +9,7 @@ import {
 } from "./sale-history.js";
 
 function document(state: FiscalDocumentState): SaleFiscalDocument {
-  return { state, documentType: "FACTURA_C", pointOfSale: 3, number: 1204 };
+  return { state, documentType: "factura_c", pointOfSale: 3, number: 1204 };
 }
 
 const NO_DOCUMENT: SaleFiscalFacts = { deferred: false, fiscalDocument: null };
@@ -53,7 +53,7 @@ describe("saleComprobanteOf", () => {
   it("is the authorized fiscal document with its point of sale and number", () => {
     expect(saleComprobanteOf({ deferred: false, fiscalDocument: document("AUTHORIZED") })).toEqual({
       kind: "fiscal",
-      documentType: "FACTURA_C",
+      documentType: "factura_c",
       pointOfSale: 3,
       number: 1204,
     });
