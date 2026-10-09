@@ -1573,6 +1573,7 @@ describe("wiring the register point of sale routes", () => {
   it.each([
     ["GET", "/api/registers/points-of-sale"],
     ["PUT", "/api/registers/00000000-0000-0000-0000-000000000000/point-of-sale"],
+    ["PUT", "/api/registers/00000000-0000-0000-0000-000000000000/offline-point-of-sale"],
   ])("%s %s: answers according to the registersPointsOfSale option", async (method, url) => {
     const unwired = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
     const wired = buildApp({
@@ -2393,6 +2394,11 @@ describe("the route access inventory", () => {
       {
         method: "PUT",
         url: "/api/registers/:id/point-of-sale",
+        access: capabilityAccess("cash_area"),
+      },
+      {
+        method: "PUT",
+        url: "/api/registers/:id/offline-point-of-sale",
         access: capabilityAccess("cash_area"),
       },
       { method: "GET", url: "/api/health", access: PUBLIC_ACCESS },
