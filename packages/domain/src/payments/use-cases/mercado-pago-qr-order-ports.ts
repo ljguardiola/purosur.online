@@ -1,0 +1,61 @@
+import type { Clock } from "../../shared/index.js";
+import type { MercadoPagoOrderResult } from "../model/mercado-pago-order-result.js";
+import type {
+  PaymentTransactionState,
+  ProviderPaymentTransaction,
+} from "../model/payment-transaction.js";
+
+export class PaymentTransactionAlreadyRecorded extends Error {}
+
+export interface PaymentTransactionOutcome {
+  state: PaymentTransactionState;
+  needsReview: boolean;
+}
+
+export interface PaymentTransactionLane {
+  recordedTransaction(
+    registerId: string,
+    paymentTransactionId: string,
+  ): Promise<ProviderPaymentTransaction | null>;
+  recordPendingTransaction(transaction: ProviderPaymentTransaction): Promise<void>;
+  recordOrderCreated(paymentTransactionId: string, providerOrderId: string): Promise<void>;
+  recordOrderResult(
+    paymentTransactionId: string,
+    outcome: PaymentTransactionOutcome,
+    readAt: Date,
+  ): Promise<void>;
+}
+
+export interface PaymentTransactionLanes {
+  inPaymentTransactionLane<TOutcome>(
+    paymentTransactionId: string,
+    work: (lane: PaymentTransactionLane) => Promise<TOutcome>,
+  ): Promise<TOutcome>;
+}
+
+export interface MercadoPagoQrOrderRequest {
+  idempotencyKey: string;
+  externalReference: string;
+  amount: number;
+  expiresAfterMinutes: number;
+}
+
+export type MercadoPagoOrderCreation =
+  | { kind: "created"; orderId: string; result: MercadoPagoOrderResult }
+  | { kind: "refused"; code: string }
+  | { kind: "unavailable" };
+
+export type MercadoPagoOrderReading =
+  | { kind: "read"; result: MercadoPagoOrderResult }
+  | { kind: "unavailable" };
+
+export interface MercadoPagoOrders {
+  createQrOrder(request: MercadoPagoQrOrderRequest): Promise<MercadoPagoOrderCreation>;
+  readOrder(orderId: string): Promise<MercadoPagoOrderReading>;
+}
+
+export interface MercadoPagoQrOrderPorts {
+  lanes: PaymentTransactionLanes;
+  mercadoPago: MercadoPagoOrders;
+  clock: Clock;
+}
