@@ -87,14 +87,19 @@ function insertEnrolledInstallation() {
   });
 }
 
-function push(deviceId: string, events: PushedEvent[], appVersion = "1.4.0") {
+function push(
+  deviceId: string,
+  events: PushedEvent[],
+  appVersion = "1.4.0",
+  telemetry: RegisterTelemetry = TELEMETRY,
+) {
   return receivePushedEvents(
     {
       inbox: new DrizzleInbox(db, CIPHER, NO_JOB),
       eventChain: hmacEventChain,
       clock: { now: () => NOW },
     },
-    { deviceId, appVersion, telemetry: TELEMETRY, events },
+    { deviceId, appVersion, telemetry, events },
   );
 }
 
@@ -464,6 +469,29 @@ describe("the inbox reporting how a register stands, on a real Postgres", () => 
     await push(deviceId, linked(event(1)));
 
     expect(await db.select().from(alerts).where(eq(alerts.scope, registerId))).toEqual([]);
+  });
+
+  it("opens a critical alert shown to the register's branch when it reports it can't sell, once for as many reports as it makes", async () => {
+    const { deviceId, registerId, locationId } = await insertEnrolledInstallation();
+    const cannotSell: RegisterTelemetry = {
+      ...TELEMETRY,
+      sales_denied: true,
+      sales_denied_reason: "event_history_broken",
+    };
+
+    await push(deviceId, [], "1.4.0", cannotSell);
+    await push(deviceId, [], "1.4.0", cannotSell);
+
+    const rows = await db.select().from(alerts).where(eq(alerts.scope, registerId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      kind: "sales_denied",
+      level: "critical",
+      audience: "local",
+      locationId,
+      detail: { deviceId, reason: "event_history_broken" },
+      conditionClearedAt: null,
+    });
   });
 
   it("raises no alert for an installation the cloud revoked", async () => {

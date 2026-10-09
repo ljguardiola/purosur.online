@@ -1,12 +1,23 @@
-import { PUSH_BATCH_MAX_EVENTS } from "@purosur/domain";
+import { PUSH_BATCH_MAX_EVENTS, SALES_DENIED_REASONS } from "@purosur/domain";
 import { z } from "zod";
 import { pushedEventSchema } from "../shared/index.js";
 
-const registerTelemetrySchema = z.object({
+const storageTelemetrySchema = z.object({
   wal_size_bytes: z.int().nonnegative(),
   disk_free_bytes: z.int().nonnegative(),
   disk_free_ratio: z.number().min(0).max(1),
 });
+
+const absent = z.undefined().optional();
+
+const registerTelemetrySchema = z.union([
+  storageTelemetrySchema.extend({
+    sales_denied: z.literal(true),
+    sales_denied_reason: z.enum(SALES_DENIED_REASONS),
+  }),
+  storageTelemetrySchema.extend({ sales_denied: z.literal(false), sales_denied_reason: absent }),
+  storageTelemetrySchema.extend({ sales_denied: absent, sales_denied_reason: absent }),
+]);
 
 export const PUSH_EVENTS_REQUEST_MAX_BYTES = 16_777_216;
 

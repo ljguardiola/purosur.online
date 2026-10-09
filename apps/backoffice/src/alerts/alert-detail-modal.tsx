@@ -243,6 +243,7 @@ function alertTitle(alert: AlertDetail): string {
     case "update_required":
       return "La nube no acepta la versión de una caja";
     case "register_silent":
+    case "sales_denied":
       return alertKindDescription(alert.kind);
   }
 }
@@ -300,6 +301,7 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
     case "update_required":
       return `La caja «${targetName}» usa la versión ${alert.detail.appVersion}, que la nube ya no acepta. Hay que actualizarla para que vuelva a sincronizar.`;
     case "register_silent":
+    case "sales_denied":
       return "";
   }
 }
