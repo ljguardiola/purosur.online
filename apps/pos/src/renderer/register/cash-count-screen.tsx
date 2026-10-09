@@ -5,8 +5,6 @@ import { ArrowLeft, Lock, TriangleAlert, UserX } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { OpenSessionRail } from "../shell/open-session-rail";
-import { sessionEyebrow } from "../shell/session-eyebrow";
-import type { SignedInPerson } from "../shell/signed-in-person";
 import { differenceNotice } from "./cash-amounts";
 import { CashCountStrip } from "./cash-count-strip";
 import {
@@ -31,9 +29,7 @@ const FAILED: Notice = { title: "No se pudo cerrar la caja. Probá de nuevo.", i
 
 export type CashCountScreenProps = {
   sessionId: string;
-  person: SignedInPerson;
   registerName: string | null;
-  openedAt: string;
   lock: () => void;
   loadCashBalance: () => Promise<CashBalance | null | "unavailable">;
   loadCashCountPreview: (countedCash: number) => Promise<CashCountPreview | null | "unavailable">;
@@ -42,9 +38,7 @@ export type CashCountScreenProps = {
 
 export function CashCountScreen({
   sessionId,
-  person,
   registerName,
-  openedAt,
   lock,
   loadCashBalance,
   loadCashCountPreview,
@@ -111,15 +105,10 @@ export function CashCountScreen({
 
   return (
     <div className="flex h-full w-full bg-surface">
-      <OpenSessionRail
-        firstName={person.first_name}
-        registerName={registerName}
-        lock={lock}
-        current="cash"
-      />
+      <OpenSessionRail registerName={registerName} lock={lock} current="cash" />
       <form className="flex flex-1" noValidate onSubmit={handleSubmit}>
         <main className="flex flex-1 flex-col gap-4 p-8">
-          <ScreenHeader eyebrow={sessionEyebrow(registerName, openedAt)} title="Cerrar caja" />
+          <ScreenHeader eyebrow={registerName ?? undefined} title="Cerrar caja" />
           {openSaleTotal === undefined ? null : (
             <OpenSaleBlock
               total={openSaleTotal}

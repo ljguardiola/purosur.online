@@ -1,5 +1,11 @@
 import type { RegisterStatus } from "@purosur/contracts";
-import { Card, LoadFailure, LocalAlertExplanation, StatusIndicator } from "@purosur/ui";
+import {
+  Card,
+  formatClockTime,
+  LoadFailure,
+  LocalAlertExplanation,
+  StatusIndicator,
+} from "@purosur/ui";
 import { TriangleAlert } from "lucide-react";
 import type { CoreData } from "../platform/use-core-query";
 import type { CashSessionState } from "../register/cash-session-state";
@@ -16,7 +22,9 @@ function sessionText(cashSession: CashSessionState): string | undefined {
     return "Sin sesión abierta";
   }
   if (cashSession.status === "open") {
-    return cashSession.locked ? "Caja bloqueada" : "Sesión abierta";
+    return cashSession.locked
+      ? "Caja bloqueada"
+      : `Sesión abierta ${formatClockTime(cashSession.openedAt)}`;
   }
   return undefined;
 }

@@ -283,13 +283,12 @@ const openSessionRoute = createRoute({
   getParentRoute: () => statusBarRoute,
   path: "/session",
   beforeLoad: ({ context }) => {
-    const { id, openedAt, person } = requireOpenSession(context);
-    return { id, openedAt, person };
+    const { id, person } = requireOpenSession(context);
+    return { id, person };
   },
   component: function OpenSessionRoute() {
     const {
       id,
-      openedAt,
       person,
       signOut,
       currentSale,
@@ -309,7 +308,6 @@ const openSessionRoute = createRoute({
         sessionId={id}
         person={person}
         registerName={registerName}
-        openedAt={openedAt}
         lock={signOut}
         currentSale={currentSale}
         scanProduct={scanProduct}
@@ -403,20 +401,18 @@ const cashCountRoute = createRoute({
   path: "/cash-count",
   validateSearch: (search: { leaving?: unknown }) => ({ leaving: search.leaving === true }),
   beforeLoad: ({ context }) => {
-    const { id, openedAt, person } = requireOpenSession(context);
-    return { id, openedAt, person };
+    const { id, person } = requireOpenSession(context);
+    return { id, person };
   },
   component: function CashCountRoute() {
-    const { id, openedAt, person, signOut, cashBalance, cashCountPreview, closeCashSession } =
+    const { id, person, signOut, cashBalance, cashCountPreview, closeCashSession } =
       cashCountRoute.useRouteContext();
     const registerName = useRegisterName();
     const { leaving } = cashCountRoute.useSearch();
     return (
       <CashCountScreen
         sessionId={id}
-        person={person}
         registerName={registerName}
-        openedAt={openedAt}
         lock={signOut}
         loadCashBalance={cashBalance}
         loadCashCountPreview={cashCountPreview}
@@ -430,20 +426,13 @@ const lockedRoute = createRoute({
   getParentRoute: () => statusBarRoute,
   path: "/locked",
   beforeLoad: ({ context }) => {
-    const { openedAt, openedBy } = requireLockedRegister(context);
-    return { openedAt, openedBy };
+    const { openedBy } = requireLockedRegister(context);
+    return { openedBy };
   },
   component: function LockedRoute() {
-    const { openedAt, openedBy, signIn } = lockedRoute.useRouteContext();
+    const { openedBy, signIn } = lockedRoute.useRouteContext();
     const registerName = useRegisterName();
-    return (
-      <LockedRegisterScreen
-        opener={openedBy}
-        registerName={registerName}
-        openedAt={openedAt}
-        signIn={signIn}
-      />
-    );
+    return <LockedRegisterScreen opener={openedBy} registerName={registerName} signIn={signIn} />;
   },
 });
 
@@ -451,13 +440,12 @@ const lockedCloseRoute = createRoute({
   getParentRoute: () => statusBarRoute,
   path: "/locked-close",
   beforeLoad: ({ context }) => {
-    const { id, openedAt, openedBy } = requireLockedRegister(context);
-    return { id, openedAt, openedBy };
+    const { id, openedBy } = requireLockedRegister(context);
+    return { id, openedBy };
   },
   component: function LockedCloseRoute() {
     const {
       id,
-      openedAt,
       openedBy,
       cashBalance,
       cashCountPreview,
@@ -473,7 +461,6 @@ const lockedCloseRoute = createRoute({
         sessionId={id}
         opener={openedBy}
         registerName={registerName}
-        openedAt={openedAt}
         loadCashBalance={cashBalance}
         loadCashCountPreview={cashCountPreview}
         loadOpenSale={sessionOpenSale}

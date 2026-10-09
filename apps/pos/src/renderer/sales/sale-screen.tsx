@@ -26,7 +26,6 @@ import { useEffect, useId, useRef, useState } from "react";
 import { OpenSessionRail } from "../shell/open-session-rail";
 import { PaidSaleCancelledModal } from "../shell/paid-sale-cancelled-modal";
 import type { Refund } from "../shell/refund-lines";
-import { sessionEyebrow } from "../shell/session-eyebrow";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { CancelPaidSaleModal } from "./cancel-paid-sale-modal";
 import { CancelSaleModal } from "./cancel-sale-modal";
@@ -48,7 +47,6 @@ export type SaleScreenProps = {
   sessionId: string;
   person: SignedInPerson;
   registerName: string | null;
-  openedAt: string;
   lock: () => void;
   currentSale: () => Promise<CurrentSaleAnswer>;
   scanProduct: (code: string) => Promise<ScanProductOutcome>;
@@ -94,7 +92,6 @@ export function SaleScreen({
   sessionId,
   person,
   registerName,
-  openedAt,
   lock,
   currentSale,
   scanProduct,
@@ -356,14 +353,9 @@ export function SaleScreen({
 
   return (
     <div className="flex h-full w-full bg-surface-subtle">
-      <OpenSessionRail
-        firstName={person.first_name}
-        registerName={registerName}
-        lock={lock}
-        current="sale"
-      />
+      <OpenSessionRail registerName={registerName} lock={lock} current="sale" />
       <main className="flex min-w-0 flex-1 flex-col gap-4 pt-6 pr-6 pb-6 pl-8">
-        <ScreenHeader eyebrow={sessionEyebrow(registerName, openedAt)} title="Venta en curso" />
+        <ScreenHeader eyebrow={registerName ?? undefined} title="Venta en curso" />
         <form
           ref={field}
           noValidate

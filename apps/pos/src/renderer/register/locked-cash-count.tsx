@@ -22,7 +22,6 @@ import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { PaidSaleCancelledModal } from "../shell/paid-sale-cancelled-modal";
 import type { Refund } from "../shell/refund-lines";
-import { sessionEyebrow } from "../shell/session-eyebrow";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { CancelLockedPaidSaleModal } from "./cancel-locked-paid-sale-modal";
 import { CancelLockedSaleModal } from "./cancel-locked-sale-modal";
@@ -58,7 +57,6 @@ export type LockedCashCountProps = {
   opener: SignedInPerson;
   closerName: string;
   registerName: string | null;
-  openedAt: string;
   loadCashBalance: () => Promise<CashBalance | null | "unavailable">;
   loadCashCountPreview: (countedCash: number) => Promise<CashCountPreview | null | "unavailable">;
   loadOpenSale: () => Promise<SessionOpenSale | null | "unavailable">;
@@ -72,7 +70,6 @@ export function LockedCashCount({
   opener,
   closerName,
   registerName,
-  openedAt,
   loadCashBalance,
   loadCashCountPreview,
   loadOpenSale,
@@ -183,7 +180,7 @@ export function LockedCashCount({
     <form className="flex h-full w-full bg-surface" noValidate onSubmit={handleSubmit}>
       <main className="flex flex-1 flex-col gap-4 p-8">
         <ScreenHeader
-          eyebrow={sessionEyebrow(registerName, openedAt)}
+          eyebrow={registerName ?? undefined}
           title="Cerrar caja"
           description={`Cierra ${closerName}. La sesión es de ${opener.first_name}.`}
         />

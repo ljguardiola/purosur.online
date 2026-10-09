@@ -14,7 +14,6 @@ type RailLinkProps = {
 };
 
 export type NavigationRailProps = {
-  firstName: string;
   entries: readonly ActionEntry[];
   home?: { label: string; icon: LucideIcon; to?: ActionEntry["to"] };
   links?: readonly RailLinkProps[];
@@ -24,7 +23,6 @@ export type NavigationRailProps = {
 const INICIO = { label: "Inicio", icon: House };
 
 export function NavigationRail({
-  firstName,
   entries,
   home = INICIO,
   links = [],
@@ -67,9 +65,6 @@ export function NavigationRail({
         />
       ))}
       <div className="flex-1" />
-      <p className="w-full truncate px-2 text-center text-caption font-semibold text-text-subtle">
-        {firstName}
-      </p>
       {onSignOut === undefined ? null : (
         <AreaNavButton
           rail="light"
