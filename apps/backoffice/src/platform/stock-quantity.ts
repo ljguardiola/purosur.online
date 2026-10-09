@@ -20,6 +20,16 @@ export function formatStockQuantity(quantity: number, saleUnit: SaleUnit): strin
   return quantity < 0 ? `${MINUS} ${magnitude}` : magnitude;
 }
 
+export function formatStockQuantityInput(quantity: number, saleUnit: SaleUnit): string {
+  const units = quantity / STOCK_QUANTITY_PER_UNIT;
+  return saleUnit === "KG"
+    ? formatNumber(units, {
+        minimumFractionDigits: KG_DECIMALS,
+        maximumFractionDigits: KG_DECIMALS,
+      })
+    : formatNumber(units, { maximumFractionDigits: 0 });
+}
+
 export function formatStockChange(delta: number, saleUnit: SaleUnit): string {
   return delta > 0 ? `+ ${formatMagnitude(delta, saleUnit)}` : formatStockQuantity(delta, saleUnit);
 }
