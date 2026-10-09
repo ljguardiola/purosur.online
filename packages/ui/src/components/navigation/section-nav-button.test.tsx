@@ -72,15 +72,15 @@ test("draws like the section link, active or not, its label included", async () 
     const context = active ? "active" : "inactive";
 
     for (const property of drawnProperties) {
-      expect(getComputedStyle(button)[property], ` `).toBe(
+      expect(getComputedStyle(button)[property], `${context} ${property}`).toBe(
         getComputedStyle(link)[property],
       );
     }
     const buttonLabel = getComputedStyle(screen.getByText("Botón").element());
     const linkLabel = getComputedStyle(screen.getByText("Enlace").element());
-    expect(buttonLabel.color, ` label color`).toBe(linkLabel.color);
-    expect(buttonLabel.fontSize, ` label size`).toBe(linkLabel.fontSize);
-    expect(buttonLabel.fontWeight, ` label weight`).toBe(linkLabel.fontWeight);
+    expect(buttonLabel.color, `${context} label color`).toBe(linkLabel.color);
+    expect(buttonLabel.fontSize, `${context} label size`).toBe(linkLabel.fontSize);
+    expect(buttonLabel.fontWeight, `${context} label weight`).toBe(linkLabel.fontWeight);
     await screen.unmount();
   }
 });
