@@ -1,5 +1,5 @@
 import type { HelpArticle, HelpBlock } from "@purosur/ui";
-import { Eyebrow, SearchField } from "@purosur/ui";
+import { Eyebrow, SearchField, searchArticles } from "@purosur/ui";
 import { Link, useRouter } from "@tanstack/react-router";
 import { ChevronRight, Info, Search } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -8,7 +8,6 @@ import { useDocumentTitle } from "../shell/document-title";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import type { BackofficeHelpCatalog } from "./help-catalog";
-import { searchArticles } from "./search-help";
 
 function ownEntry<Value>(record: Record<string, Value>, key: string | null): Value | undefined {
   return key !== null && Object.hasOwn(record, key) ? record[key] : undefined;
