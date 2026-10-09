@@ -70,7 +70,11 @@ class FakeSignInLockoutStoreTransaction implements SignInLockoutStoreTransaction
     if (existing) {
       existing.blockedUntil = block.blockedUntil;
     } else {
-      this.state.lockouts.push({ id, ...block });
+      this.state.lockouts.push({
+        id,
+        sourceAddress: block.sourceAddress,
+        blockedUntil: block.blockedUntil,
+      });
     }
     this.state.failures = this.state.failures.filter(
       (held) =>

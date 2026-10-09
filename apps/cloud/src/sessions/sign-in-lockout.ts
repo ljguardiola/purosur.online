@@ -80,7 +80,7 @@ class DrizzleSignInLockoutStoreTransaction<TQueryResult extends PgQueryResultHKT
   async blockSourceAddress(block: SourceAddressBlock): Promise<{ id: string }> {
     const [blocked] = await this.tx
       .insert(signInLockouts)
-      .values(block)
+      .values({ sourceAddress: block.sourceAddress, blockedUntil: block.blockedUntil })
       .onConflictDoUpdate({
         target: signInLockouts.sourceAddress,
         set: { blockedUntil: block.blockedUntil },
@@ -91,7 +91,12 @@ class DrizzleSignInLockoutStoreTransaction<TQueryResult extends PgQueryResultHKT
     }
     await this.tx
       .delete(signInFailures)
-      .where(eq(signInFailures.sourceAddress, block.sourceAddress));
+      .where(
+        and(
+          eq(signInFailures.sourceAddress, block.sourceAddress),
+          gt(signInFailures.attemptedAt, block.failuresSince),
+        ),
+      );
     return blocked;
   }
 

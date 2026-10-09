@@ -1,6 +1,7 @@
 export interface SourceAddressBlock {
   sourceAddress: string;
   blockedUntil: Date;
+  failuresSince: Date;
 }
 
 export interface SignInLockoutAlert {
@@ -24,7 +25,7 @@ export interface SignInLockoutStoreTransaction {
   findBlockedUntil(sourceAddress: string): Promise<Date | undefined>;
   countFailuresInWindow(sourceAddress: string, windowStart: Date): Promise<number>;
   recordFailure(sourceAddress: string, at: Date): Promise<string>;
-  // Sets or moves the address's block and clears the failures that led to it.
+  // Sets or moves the address's block and clears the failures that led to it, those after failuresSince.
   blockSourceAddress(block: SourceAddressBlock): Promise<{ id: string }>;
   openLockoutAlert(alert: SignInLockoutAlert): Promise<void>;
 }
