@@ -62,7 +62,7 @@ async function insertProduct(
 async function insertUser(locationId: string): Promise<string> {
   const [user] = await db
     .insert(users)
-    .values({ firstName: "Ada Lovelace", email: "ada@example.com", locationId })
+    .values({ firstName: "Ada Lucero", email: "ada@example.com", locationId })
     .returning({ id: users.id });
   if (!user) {
     throw new Error("test setup: seeding the user returned no row");
