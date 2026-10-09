@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { installationService, isWatchedForQuietness } from "./register-service.js";
+import { installationService, isOutOfService, isWatchedForQuietness } from "./register-service.js";
 
 const EARLIER = new Date("2026-10-05T14:00:00.000Z");
 
@@ -10,6 +10,16 @@ describe("installationService", () => {
 
   it("puts an installation the cloud revoked out of service", () => {
     expect(installationService({ revokedAt: EARLIER })).toEqual({ kind: "out_of_service" });
+  });
+});
+
+describe("isOutOfService", () => {
+  it("tells an installation the cloud revoked is out of service", () => {
+    expect(isOutOfService({ revokedAt: EARLIER })).toBe(true);
+  });
+
+  it("tells an installation the cloud never revoked is not out of service", () => {
+    expect(isOutOfService({ revokedAt: null })).toBe(false);
   });
 });
 
