@@ -248,6 +248,7 @@ export type {
 export {
   chargeSaleByTransferMessageSchema,
   chargeSaleInCashMessageSchema,
+  reprintSaleReceiptMessageSchema,
   salesCoreToRendererMessageSchema,
   salesRendererToCoreMessageSchema,
 } from "./sales/core-messages.js";

@@ -86,7 +86,7 @@ const retryReceiptPrintMessageSchema = z.object({
   sale_id: z.string(),
 });
 
-const reprintSaleReceiptMessageSchema = z.object({
+export const reprintSaleReceiptMessageSchema = z.object({
   type: z.literal("reprint-sale-receipt"),
   request_id: requestId,
   sale_id: z.string(),
