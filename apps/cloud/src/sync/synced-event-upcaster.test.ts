@@ -125,6 +125,7 @@ describe("decoding the events the registers pushed", () => {
           sessionId: SESSION,
           actorId: USER,
           completedAt: new Date("2026-10-06T11:20:00.000Z"),
+          operationNumber: null,
           total: 4800,
           lines: [decodedLine],
           payments: [
