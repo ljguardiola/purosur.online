@@ -1,4 +1,16 @@
 export type {
+  AdmitPaymentNotificationInput,
+  AdmitPaymentNotificationOutcome,
+} from "./admit-payment-notification.js";
+export { admitPaymentNotification } from "./admit-payment-notification.js";
+export type { CheckPendingMercadoPagoPaymentsOutcome } from "./check-pending-mercado-pago-payments.js";
+export { checkPendingMercadoPagoPayments } from "./check-pending-mercado-pago-payments.js";
+export type {
+  ConfirmMercadoPagoOrderNotificationInput,
+  ConfirmMercadoPagoOrderNotificationOutcome,
+} from "./confirm-mercado-pago-order-notification.js";
+export { confirmMercadoPagoOrderNotification } from "./confirm-mercado-pago-order-notification.js";
+export type {
   CreateMercadoPagoQrOrderInput,
   CreateMercadoPagoQrOrderOutcome,
 } from "./create-mercado-pago-qr-order.js";
@@ -14,6 +26,14 @@ export type {
   MarkRefundDonePorts,
 } from "./mark-refund-done.js";
 export { markRefundDone } from "./mark-refund-done.js";
+export type {
+  MercadoPagoNotificationPorts,
+  PaymentNotificationAdmission,
+  PaymentNotificationAdmissionPorts,
+  PaymentNotificationAdmissionTransaction,
+  PaymentTransactionDirectory,
+  PaymentTransactionReference,
+} from "./mercado-pago-notification-ports.js";
 export type {
   MercadoPagoOrderCreation,
   MercadoPagoOrderReading,

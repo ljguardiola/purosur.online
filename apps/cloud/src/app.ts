@@ -79,6 +79,10 @@ import { registerRegisterPointOfSaleConfigurationRoute } from "./fiscal/register
 import type { RegistersPointsOfSaleRouteOptions } from "./fiscal/registers-points-of-sale-list-route.js";
 import { registerRegistersPointsOfSaleListRoute } from "./fiscal/registers-points-of-sale-list-route.js";
 import {
+  type MercadoPagoNotificationRoutesOptions,
+  registerMercadoPagoNotificationRoutes,
+} from "./payments/mercado-pago-notification-routes.js";
+import {
   type MercadoPagoQrRoutesOptions,
   registerMercadoPagoQrRoutes,
 } from "./payments/mercado-pago-qr-routes.js";
@@ -181,6 +185,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   mercadoPagoQr?: WithoutClock<
     Omit<MercadoPagoQrRoutesOptions<TQueryResult>, keyof DeviceTokensOptions<TQueryResult>>
   >;
+  mercadoPagoNotifications?: WithoutClock<MercadoPagoNotificationRoutesOptions<TQueryResult>>;
   health?: WithoutClock<HealthArcaOptions<TQueryResult>>;
   firstPinCodes?: WithoutClock<FirstPinCodeRouteOptions<TQueryResult>>;
 }
@@ -196,6 +201,7 @@ type DatabaseRouteOptions<TQueryResult extends PgQueryResultHKT> = Required<
     | "staticDir"
     | "fiscalAuthorization"
     | "mercadoPagoQr"
+    | "mercadoPagoNotifications"
   >
 >;
 
@@ -531,6 +537,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerPinCodeRedemptionRoute(api, { ...options.devices, now });
         registerSignInLookupRoute(api, { ...options.devices, now });
         registerDeviceTokenRotationRoute(api, { ...options.devices, now });
+      }
+
+      if (options.mercadoPagoNotifications) {
+        registerMercadoPagoNotificationRoutes(api, { ...options.mercadoPagoNotifications, now });
       }
 
       if (options.firstPinCodes) {
