@@ -2,18 +2,26 @@ import type {
   CashChargeAnswer,
   CurrentSaleAnswer,
   OpenSale,
+  ReceiptPrintStatusOutcome,
+  SaleHistoryDetailOutcome,
+  SalesHistoryOutcome,
   SearchProductsOutcome,
 } from "@purosur/contracts";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { createQueryClient } from "../platform/query-client";
 import {
   useCashChargeQuery,
   useCurrentSaleQuery,
+  useReceiptPrintStatusQuery,
   useRefreshCurrentSale,
+  useRefreshReceiptPrintStatus,
+  useRefreshSalesHistory,
   useResetCurrentSale,
+  useSaleHistoryDetailQuery,
+  useSalesHistoryQuery,
   useSearchProducts,
   useTakeSale,
 } from "./sales-queries";
@@ -325,6 +333,210 @@ describe("cash charge query", () => {
         read={() => Promise.reject(new Error("the connection was replaced"))}
         tendered={500_000}
       />,
+    );
+
+    await expect.element(screen.getByText("failed")).toBeVisible();
+  });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+function standingOf(outcome: ReceiptPrintStatusOutcome): ReceiptPrintStatusOutcome {
+  return outcome;
+}
+
+function ReceiptPrintStatusProbe({
+  saleId = "sale-1",
+  read,
+}: {
+  saleId?: string;
+  read: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
+}) {
+  const status = useReceiptPrintStatusQuery({ saleId, read });
+  const refresh = useRefreshReceiptPrintStatus(saleId);
+  return (
+    <>
+      <p>{status.status === "loaded" ? `${status.value.standing ?? "idle"}` : status.status}</p>
+      <button type="button" onClick={() => void refresh()}>
+        refresh
+      </button>
+    </>
+  );
+}
+
+describe("receipt print status query", () => {
+  it("reads the status of the sale it is given and holds what the core found", async () => {
+    const read = vi.fn(async () =>
+      standingOf({
+        kind: "found",
+        next_copy: { kind: "original" },
+        printed: false,
+        standing: "paper_out",
+      }),
+    );
+    const screen = await renderWithClient(<ReceiptPrintStatusProbe read={read} />);
+
+    await expect.element(screen.getByText("paper_out")).toBeVisible();
+    expect(read).toHaveBeenCalledWith("sale-1");
+  });
+
+  it.each<ReceiptPrintStatusOutcome>([
+    { kind: "unavailable" },
+    { kind: "not_found" },
+    { kind: "not_signed_in" },
+  ])("fails when the core answers %j", async (outcome) => {
+    const screen = await renderWithClient(<ReceiptPrintStatusProbe read={async () => outcome} />);
+
+    await expect.element(screen.getByText("failed")).toBeVisible();
+  });
+
+  it("asks again every second until the receipt is printed, and then stops", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const answers: ReceiptPrintStatusOutcome[] = [
+      { kind: "found", next_copy: { kind: "original" }, printed: false, standing: "printing" },
+      { kind: "found", next_copy: { kind: "original" }, printed: true, standing: "printed" },
+    ];
+    const read = vi.fn(
+      async () =>
+        answers.shift() ?? {
+          kind: "found" as const,
+          next_copy: { kind: "original" as const },
+          printed: true,
+          standing: "printed" as const,
+        },
+    );
+    const screen = await renderWithClient(<ReceiptPrintStatusProbe read={read} />);
+    await expect.element(screen.getByText("printing")).toBeVisible();
+
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await expect.element(screen.getByText("printed")).toBeVisible();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(read).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads again at once when the status is refreshed", async () => {
+    const answers: ReceiptPrintStatusOutcome[] = [
+      { kind: "found", next_copy: { kind: "original" }, printed: true, standing: "retry_offered" },
+      { kind: "found", next_copy: { kind: "original" }, printed: true, standing: "printed" },
+    ];
+    const read = vi.fn(async () => answers.shift() ?? { kind: "unavailable" as const });
+    const screen = await renderWithClient(<ReceiptPrintStatusProbe read={read} />);
+    await expect.element(screen.getByText("retry_offered")).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "refresh" }));
+
+    await expect.element(screen.getByText("printed")).toBeVisible();
+  });
+});
+
+const HISTORY_FOUND: SalesHistoryOutcome = { kind: "found", rows: [], total: 0, page_size: 50 };
+
+function SalesHistoryProbe({
+  page = 1,
+  state = "all",
+  read,
+}: {
+  page?: number;
+  state?: "all" | "completed";
+  read: (query: {
+    session: "open" | "all";
+    state: "all" | "completed";
+    page: number;
+  }) => Promise<SalesHistoryOutcome>;
+}) {
+  const history = useSalesHistoryQuery({ session: "open", state, page, read });
+  const refresh = useRefreshSalesHistory();
+  return (
+    <>
+      <p>{history.status === "loaded" ? history.value.kind : history.status}</p>
+      <button type="button" onClick={() => void refresh()}>
+        refresh
+      </button>
+    </>
+  );
+}
+
+describe("sales history query", () => {
+  it("reads the page and filters it is given", async () => {
+    const read = vi.fn(async () => HISTORY_FOUND);
+    const screen = await renderWithClient(
+      <SalesHistoryProbe page={2} state="completed" read={read} />,
+    );
+
+    await expect.element(screen.getByText("found")).toBeVisible();
+    expect(read).toHaveBeenCalledWith({ session: "open", state: "completed", page: 2 });
+  });
+
+  it("holds a refusal to show the history as an answer, not a failure", async () => {
+    const screen = await renderWithClient(
+      <SalesHistoryProbe read={async () => ({ kind: "lacks_permission" })} />,
+    );
+
+    await expect.element(screen.getByText("lacks_permission")).toBeVisible();
+  });
+
+  it("fails when the core cannot answer", async () => {
+    const screen = await renderWithClient(
+      <SalesHistoryProbe read={async () => ({ kind: "unavailable" })} />,
+    );
+
+    await expect.element(screen.getByText("failed")).toBeVisible();
+  });
+
+  it("reads another page again instead of showing the first one", async () => {
+    const queryClient = createQueryClient();
+    const read = vi.fn(async () => HISTORY_FOUND);
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <SalesHistoryProbe read={read} />
+      </QueryClientProvider>,
+    );
+    await expect.element(screen.getByText("found")).toBeVisible();
+
+    await screen.rerender(
+      <QueryClientProvider client={queryClient}>
+        <SalesHistoryProbe page={2} read={() => new Promise(() => {})} />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("loading")).toBeVisible();
+  });
+
+  it("reads the history again when it is refreshed", async () => {
+    const read = vi.fn(async () => HISTORY_FOUND);
+    const screen = await renderWithClient(<SalesHistoryProbe read={read} />);
+    await expect.element(screen.getByText("found")).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "refresh" }));
+
+    await expect.poll(() => read.mock.calls.length).toBe(2);
+  });
+});
+
+function SaleHistoryDetailProbe({
+  read,
+}: {
+  read: (saleId: string) => Promise<SaleHistoryDetailOutcome>;
+}) {
+  const detail = useSaleHistoryDetailQuery({ saleId: "sale-1", read });
+  return <p>{detail.status === "loaded" ? detail.value.kind : detail.status}</p>;
+}
+
+describe("sale history detail query", () => {
+  it("reads the detail of the sale it is given", async () => {
+    const read = vi.fn(async (): Promise<SaleHistoryDetailOutcome> => ({ kind: "not_found" }));
+    const screen = await renderWithClient(<SaleHistoryDetailProbe read={read} />);
+
+    await expect.element(screen.getByText("not_found")).toBeVisible();
+    expect(read).toHaveBeenCalledWith("sale-1");
+  });
+
+  it("fails when the core cannot answer", async () => {
+    const screen = await renderWithClient(
+      <SaleHistoryDetailProbe read={async () => ({ kind: "unavailable" })} />,
     );
 
     await expect.element(screen.getByText("failed")).toBeVisible();
