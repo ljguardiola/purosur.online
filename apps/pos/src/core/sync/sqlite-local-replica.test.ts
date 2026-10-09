@@ -757,3 +757,67 @@ describe("the register's local copy of what it pulls", () => {
     expect(replica.product(PRODUCT_ID)?.tag_ids).toEqual([{ tag_id: TAG_ID, active: false }]);
   });
 });
+
+describe("the hours of the register's own branch", () => {
+  it("are none before the branch's settings are pulled", () => {
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+
+    expect(replica.ownBranchHours()).toEqual([]);
+  });
+
+  it("are each day's ranges, numbering Monday as 1 through Sunday as 7", async () => {
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+    await replica.savePage({
+      changes: [
+        branchSettingsChange(
+          7,
+          settingsRow({
+            monday_hours: [
+              { opens_at: "09:00", closes_at: "13:00" },
+              { opens_at: "16:00", closes_at: "20:00" },
+            ],
+            wednesday_hours: [{ opens_at: "08:30", closes_at: "12:00" }],
+            sunday_hours: [{ opens_at: "10:00", closes_at: "14:00" }],
+          }),
+        ),
+      ],
+      cursor: 7,
+      hasMore: false,
+    });
+
+    expect(replica.ownBranchHours()).toEqual([
+      { dayOfWeek: 1, opensAt: "09:00", closesAt: "13:00" },
+      { dayOfWeek: 1, opensAt: "16:00", closesAt: "20:00" },
+      { dayOfWeek: 3, opensAt: "08:30", closesAt: "12:00" },
+      { dayOfWeek: 7, opensAt: "10:00", closesAt: "14:00" },
+    ]);
+  });
+
+  it("are the ranges of the settings' latest version", async () => {
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+    await replica.savePage({
+      changes: [branchSettingsChange(7, settingsRow())],
+      cursor: 7,
+      hasMore: false,
+    });
+    await replica.savePage({
+      changes: [
+        branchSettingsChange(
+          8,
+          settingsRow({
+            version: 3,
+            monday_hours: [],
+            sunday_hours: [],
+            friday_hours: [{ opens_at: "09:00", closes_at: "18:00" }],
+          }),
+        ),
+      ],
+      cursor: 8,
+      hasMore: false,
+    });
+
+    expect(replica.ownBranchHours()).toEqual([
+      { dayOfWeek: 5, opensAt: "09:00", closesAt: "18:00" },
+    ]);
+  });
+});
