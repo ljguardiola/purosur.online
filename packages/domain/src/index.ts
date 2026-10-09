@@ -323,6 +323,7 @@ export {
   isWatchedForQuietness,
   isWellFormedEnrollmentCode,
   isWellFormedInstallationKey,
+  lastSuccessfulSyncOfRegister,
   mayAuthorize,
   normalizeEnrollmentCode,
   REGISTER_ABILITIES,
