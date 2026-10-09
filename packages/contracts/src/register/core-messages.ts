@@ -4,6 +4,7 @@ import {
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_TYPES,
   isAuthorizablePermissionKey,
+  REGISTER_OWN_CONDITIONS,
 } from "@purosur/domain";
 import { z } from "zod";
 import {
@@ -125,6 +126,11 @@ const lockedClosersRequestMessageSchema = z.object({
   request_id: requestId,
 });
 
+const registerStatusRequestMessageSchema = z.object({
+  type: z.literal("register-status-request"),
+  request_id: requestId,
+});
+
 export const registerRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   rendererPingMessageSchema,
   enrollmentStatusRequestMessageSchema,
@@ -144,6 +150,7 @@ export const registerRendererToCoreMessageSchema = z.discriminatedUnion("type", 
   cashCountPreviewRequestMessageSchema,
   sessionOpenSaleRequestMessageSchema,
   lockedClosersRequestMessageSchema,
+  registerStatusRequestMessageSchema,
 ]);
 export type RegisterRendererToCoreMessage = z.infer<typeof registerRendererToCoreMessageSchema>;
 
@@ -270,6 +277,12 @@ const recordableCashMovementKindsSchema = z.record(
 );
 export type RecordableCashMovementKinds = z.infer<typeof recordableCashMovementKindsSchema>;
 
+const registerStatusSchema = z.object({
+  conditions: z.array(z.enum(REGISTER_OWN_CONDITIONS)),
+  cloud: z.enum(["unknown", "reachable", "unreachable"]),
+});
+export type RegisterStatus = z.infer<typeof registerStatusSchema>;
+
 export const registerCoreToRendererMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("enrollment-status"), request_id: requestId, enrolled: z.boolean() }),
   z.object({
@@ -359,5 +372,11 @@ export const registerCoreToRendererMessageSchema = z.discriminatedUnion("type", 
     users: z.array(signInUserSchema),
   }),
   z.object({ type: z.literal("locked-closers-unavailable"), request_id: requestId }),
+  z.object({
+    type: z.literal("register-status"),
+    request_id: requestId,
+    status: registerStatusSchema,
+  }),
+  z.object({ type: z.literal("register-status-unavailable"), request_id: requestId }),
 ]);
 export type RegisterCoreToRendererMessage = z.infer<typeof registerCoreToRendererMessageSchema>;

@@ -184,6 +184,7 @@ export type {
   RecordCashMovementRequest,
   RegisterCoreToRendererMessage,
   RegisterRendererToCoreMessage,
+  RegisterStatus,
   SessionOpenSale,
 } from "./register/core-messages.js";
 export {
