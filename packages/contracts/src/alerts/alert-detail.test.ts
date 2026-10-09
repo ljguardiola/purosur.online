@@ -186,6 +186,7 @@ describe("alertDetailSchema", () => {
     >();
     expectTypeOf<WireDetail<"update_required">>().toEqualTypeOf<AlertDetails["update_required"]>();
     expectTypeOf<WireDetail<"register_silent">>().toEqualTypeOf<AlertDetails["register_silent"]>();
+    expectTypeOf<WireDetail<"sales_denied">>().toEqualTypeOf<AlertDetails["sales_denied"]>();
     expectTypeOf<WireDetail<"backoffice_sign_in_lockout">>().toExtend<
       Omit<AlertDetails["backoffice_sign_in_lockout"], "sourceAddress">
     >();
@@ -299,6 +300,7 @@ describe("alertDetailSchema", () => {
       arca_certificate_expiring: { notAfter: "2026-11-20T15:30:00.000Z" },
       update_required: { deviceId: "device-1", appVersion: "0.9.0" },
       register_silent: { deviceId: "device-1", lastAcceptedPushAt: "2026-10-05T14:30:00.000Z" },
+      sales_denied: { deviceId: "device-1", reason: "event_history_broken" },
     } satisfies Record<AlertKind, unknown>;
 
     it.each(ALERT_KINDS)("accepts the detail of %s", (kind) => {
@@ -316,6 +318,16 @@ describe("alertDetailSchema", () => {
       const { [field]: _omitted, ...detail } = detailOf[kind] as Record<string, unknown>;
 
       expect(alertDetailSchema.safeParse({ ...base, kind, detail }).success).toBe(false);
+    });
+
+    it("refuses a sales-denied alert with a reason the register does not report", () => {
+      const alert = {
+        ...base,
+        kind: "sales_denied",
+        detail: { deviceId: "device-1", reason: "installation_revoked" },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).success).toBe(false);
     });
 
     it("refuses a silent register with no last accepted push", () => {

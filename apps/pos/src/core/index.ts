@@ -91,7 +91,8 @@ import {
 import { pruneLocalOutbox } from "./sync/prune-local-outbox";
 import { pullFromCloud, pullResultOf } from "./sync/pull-from-cloud";
 import { pushResultOf, pushToCloud, pushWarningOf } from "./sync/push-to-cloud";
-import { SqliteLocalInstallation } from "./sync/sqlite-local-installation";
+import { registerTelemetryReader } from "./sync/register-telemetry";
+import { SqliteLocalInstallation, salesStopOf } from "./sync/sqlite-local-installation";
 import { SqliteLocalOutbox } from "./sync/sqlite-local-outbox";
 import { SqliteLocalReplica } from "./sync/sqlite-local-replica";
 import { nodeStorageFileSystem, storageTelemetryReader } from "./sync/storage-telemetry";
@@ -229,7 +230,10 @@ const syncSchedule = createSyncSchedule({
           readTelemetry:
             localDatabase === undefined
               ? undefined
-              : storageTelemetryReader(localDatabase.name, nodeStorageFileSystem),
+              : registerTelemetryReader(
+                  storageTelemetryReader(localDatabase.name, nodeStorageFileSystem),
+                  () => salesStopOf(localDatabase),
+                ),
         });
         const warning = pushWarningOf(attempt);
         if (warning !== undefined) {

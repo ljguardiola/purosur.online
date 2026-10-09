@@ -34,6 +34,24 @@ describe("OpenAlertInput", () => {
     }>().toExtend<OpenAlertInput>();
   });
 
+  it("accepts the device and the reason it can't sell for a sales-denied alert", () => {
+    expectTypeOf<{
+      kind: "sales_denied";
+      scope: string;
+      locationId: string;
+      detail: { deviceId: string; reason: "event_history_broken" };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses a sales-denied alert with a reason the register does not report", () => {
+    expectTypeOf<{
+      kind: "sales_denied";
+      scope: string;
+      locationId: string;
+      detail: { deviceId: string; reason: "installation_revoked" };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
   it("refuses a silent-register alert with no last accepted push", () => {
     expectTypeOf<{
       kind: "register_silent";

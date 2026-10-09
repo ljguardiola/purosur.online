@@ -311,3 +311,18 @@ function barcodeTakenText(params: { codes: string[] }): string {
 export function barcodeTakenError(codes: string[]): string {
   return codes.length > 0 ? barcodeTakenText({ codes }) : PRODUCT_BARCODE_TAKEN_UNNAMED;
 }
+
+function reactivationBarcodeTakenAdvice(codes: string[]): string {
+  if (codes.length === 0) {
+    return "Revisá los códigos de este producto y volvé a intentarlo.";
+  }
+  return plural(codes.length, {
+    one: "Cambiá ese código en este producto o desactivá el producto que lo usa, y volvé a intentarlo.",
+    other:
+      "Cambiá esos códigos en este producto o desactivá los productos que los usan, y volvé a intentarlo.",
+  });
+}
+
+export function reactivationBarcodeTakenError(codes: string[]): string {
+  return `${barcodeTakenError(codes)} ${reactivationBarcodeTakenAdvice(codes)}`;
+}

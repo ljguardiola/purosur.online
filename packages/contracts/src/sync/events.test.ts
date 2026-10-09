@@ -66,6 +66,38 @@ describe("push events request", () => {
     expect(requestWith({ telemetry: { ...telemetry, ...change } }).success).toBe(false);
   });
 
+  it("accepts a register that reports it can sell", () => {
+    const reported = { ...telemetry, sales_denied: false };
+
+    expect(requestWith({ telemetry: reported }).data?.telemetry).toEqual(reported);
+  });
+
+  it("accepts a register that reports it can't sell because its event history is broken", () => {
+    const reported = {
+      ...telemetry,
+      sales_denied: true,
+      sales_denied_reason: "event_history_broken",
+    };
+
+    expect(requestWith({ telemetry: reported }).data?.telemetry).toEqual(reported);
+  });
+
+  it.each([
+    ["can't sell with no reason", { sales_denied: true }],
+    [
+      "can't sell for a reason the register does not report",
+      { sales_denied: true, sales_denied_reason: "installation_revoked" },
+    ],
+    [
+      "can sell with a reason",
+      { sales_denied: false, sales_denied_reason: "event_history_broken" },
+    ],
+    ["a reason with no word on selling", { sales_denied_reason: "event_history_broken" }],
+    ["a sales_denied that is not a boolean", { sales_denied: "yes" }],
+  ])("refuses telemetry that says %s", (_name, change) => {
+    expect(requestWith({ telemetry: { ...telemetry, ...change } }).success).toBe(false);
+  });
+
   it("accepts telemetry at its limits", () => {
     const empty = { wal_size_bytes: 0, disk_free_bytes: 0, disk_free_ratio: 0 };
     const full = { ...empty, disk_free_ratio: 1 };

@@ -1,3 +1,4 @@
+import type { SalesDeniedReason } from "../../shared/index.js";
 import type { AlertKind } from "./alert-catalog.js";
 
 export type PasskeyChangedDetail =
@@ -86,6 +87,11 @@ interface RegisterSilentDetail {
   lastAcceptedPushAt: string;
 }
 
+interface SalesDeniedDetail {
+  deviceId: string;
+  reason: SalesDeniedReason;
+}
+
 export interface AlertDetails {
   backoffice_passkey_changed: PasskeyChangedDetail;
   backoffice_recovery_requested: RecoveryRequestedDetail;
@@ -98,6 +104,7 @@ export interface AlertDetails {
   arca_certificate_expiring: ArcaCertificateExpiringDetail;
   update_required: UpdateRequiredDetail;
   register_silent: RegisterSilentDetail;
+  sales_denied: SalesDeniedDetail;
 }
 
 export type OpenAlertInput = {

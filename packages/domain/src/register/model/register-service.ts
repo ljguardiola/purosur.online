@@ -19,6 +19,12 @@ export function installationService({ revokedAt }: InstallationStanding): Regist
   return revokedAt === null ? { kind: "in_service" } : { kind: "out_of_service" };
 }
 
+export function isOutOfService<TInstallation extends InstallationStanding>(
+  installation: TInstallation,
+): installation is TInstallation & { revokedAt: Date } {
+  return installationService(installation).kind === "out_of_service";
+}
+
 export function isWatchedForQuietness<TInstallation extends InstallationReporting>(
   installation: TInstallation,
 ): installation is TInstallation & { reportsEveryCycleSince: Date } {

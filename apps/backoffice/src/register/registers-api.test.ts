@@ -28,24 +28,33 @@ const register1: RegisterSummary = {
   name: "Caja 1",
   pendingCode: null,
   pointOfSaleNumber: null,
+  installation: null,
 };
 const register2Wire = {
   id: "register-2",
   name: "Caja 2",
   pending_code: { seconds_since_issued: 240, seconds_until_expiry: 660 },
   point_of_sale_number: 3,
+  installation: null,
 };
 const register2: RegisterSummary = {
   id: "register-2",
   name: "Caja 2",
   pendingCode: { secondsSinceIssued: 240, secondsUntilExpiry: 660 },
   pointOfSaleNumber: 3,
+  installation: null,
 };
 
 test("fetchRegisters lists every register, translating pending_code and point_of_sale_number from the wire", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(200, [
-      { id: "register-1", name: "Caja 1", pending_code: null, point_of_sale_number: null },
+      {
+        id: "register-1",
+        name: "Caja 1",
+        pending_code: null,
+        point_of_sale_number: null,
+        installation: null,
+      },
       register2Wire,
     ]),
   );
@@ -54,6 +63,67 @@ test("fetchRegisters lists every register, translating pending_code and point_of
 
   expect(outcome).toEqual({ kind: "ok", value: [register1, register2] });
   expect(fetch).toHaveBeenCalledWith("/api/registers");
+});
+
+test("fetchRegisters translates an enrolled and a revoked installation from the wire", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, [
+      {
+        id: "register-1",
+        name: "Caja 1",
+        pending_code: null,
+        point_of_sale_number: null,
+        installation: {
+          state: "enrolled",
+          hostname: "CAJA-MOSTRADOR",
+          windows_version: "Windows 11 Pro 10.0.26100",
+          enrolled_at: "2026-08-01T15:00:00.000Z",
+        },
+      },
+      {
+        id: "register-2",
+        name: "Caja 2",
+        pending_code: null,
+        point_of_sale_number: null,
+        installation: {
+          state: "revoked",
+          hostname: "CAJA-DEPOSITO",
+          windows_version: "Windows 10 Pro 10.0.19045",
+          enrolled_at: "2026-08-01T15:00:00.000Z",
+          revoked_at: "2026-08-03T18:30:00.000Z",
+        },
+      },
+    ]),
+  );
+
+  const outcome = await fetchRegisters();
+
+  expect(outcome).toEqual({
+    kind: "ok",
+    value: [
+      {
+        ...register1,
+        installation: {
+          state: "enrolled",
+          hostname: "CAJA-MOSTRADOR",
+          windowsVersion: "Windows 11 Pro 10.0.26100",
+          enrolledAt: "2026-08-01T15:00:00.000Z",
+        },
+      },
+      {
+        ...register1,
+        id: "register-2",
+        name: "Caja 2",
+        installation: {
+          state: "revoked",
+          hostname: "CAJA-DEPOSITO",
+          windowsVersion: "Windows 10 Pro 10.0.19045",
+          enrolledAt: "2026-08-01T15:00:00.000Z",
+          revokedAt: "2026-08-03T18:30:00.000Z",
+        },
+      },
+    ],
+  });
 });
 
 test("fetchRegisters returns unauthenticated on 401", async () => {

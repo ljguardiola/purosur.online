@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   quietRegisterObservation,
+  registerSalesDeniedObservation,
   registerSyncedObservation,
   registerVersionObservation,
 } from "./alert-condition-observation.js";
@@ -64,5 +65,40 @@ describe("registerSyncedObservation", () => {
       kind: "register_silent",
       scope: "register-1",
     });
+  });
+});
+
+describe("registerSalesDeniedObservation", () => {
+  const register = { registerId: "register-1", deviceId: "device-1", locationId: "location-1" };
+
+  it("holds the sales-denied condition of the register, in its branch, naming the device and why, for a register that reports it can't sell", () => {
+    expect(
+      registerSalesDeniedObservation({
+        ...register,
+        report: { sales_denied: true, sales_denied_reason: "event_history_broken" },
+      }),
+    ).toEqual({
+      holds: true,
+      alert: {
+        kind: "sales_denied",
+        scope: "register-1",
+        locationId: "location-1",
+        detail: { deviceId: "device-1", reason: "event_history_broken" },
+      },
+    });
+  });
+
+  it("clears the sales-denied condition of the register for a register that reports it can sell", () => {
+    expect(
+      registerSalesDeniedObservation({ ...register, report: { sales_denied: false } }),
+    ).toEqual({
+      holds: false,
+      kind: "sales_denied",
+      scope: "register-1",
+    });
+  });
+
+  it("observes nothing of a register that reports nothing about selling", () => {
+    expect(registerSalesDeniedObservation({ ...register, report: {} })).toBeUndefined();
   });
 });

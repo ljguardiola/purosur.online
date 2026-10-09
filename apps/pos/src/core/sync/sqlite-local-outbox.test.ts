@@ -3,6 +3,7 @@ import { PUSH_BATCH_MAX_EVENTS, type PushedEvent } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { CloudEventInbox } from "./cloud-event-inbox";
+import { salesStopOf } from "./sqlite-local-installation";
 import { SqliteLocalOutbox } from "./sqlite-local-outbox";
 import { appendOutboxEvent } from "./sqlite-outbox";
 import {
@@ -258,5 +259,11 @@ describe("recording that the outbox lost events", () => {
     await outbox.recordCompromised();
 
     expect(revokedAt()).toBe(ACKNOWLEDGED_AT.toISOString());
+  });
+
+  it("records that its event history is broken as the reason", async () => {
+    await outbox.recordCompromised();
+
+    expect(salesStopOf(database)).toEqual({ stopped: true, reason: "event_history_broken" });
   });
 });

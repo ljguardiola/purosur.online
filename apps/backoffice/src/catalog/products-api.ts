@@ -358,3 +358,53 @@ export async function deactivateProduct(id: string): Promise<DeactivateProductOu
   }
   return { kind: "failed" };
 }
+
+export type ReactivateProductOutcome =
+  | { kind: "ok" }
+  | { kind: "not_found" }
+  | { kind: "already_changed" }
+  | { kind: "barcode_taken"; codes: string[] }
+  | { kind: "forbidden" }
+  | { kind: "unauthenticated" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "failed" };
+
+export async function reactivateProduct(id: string): Promise<ReactivateProductOutcome> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/products/${id}/deactivation`, { method: "DELETE" });
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    return { kind: "ok" };
+  }
+  if (response.status === 404) {
+    return { kind: "not_found" };
+  }
+  if (response.status === 409) {
+    const code = (
+      (await response
+        .clone()
+        .json()
+        .catch(() => undefined)) as { code?: unknown } | undefined
+    )?.code;
+    if (code === "product_already_active") {
+      return { kind: "already_changed" };
+    }
+    if (code === "barcode_taken") {
+      return { kind: "barcode_taken", codes: await readBarcodeTakenCodes(response) };
+    }
+    return { kind: "failed" };
+  }
+  if (response.status === 401) {
+    return { kind: "unauthenticated" };
+  }
+  if (response.status === 403) {
+    return { kind: "forbidden" };
+  }
+  if (response.status === 429) {
+    return rateLimitOutcome(response);
+  }
+  return { kind: "failed" };
+}

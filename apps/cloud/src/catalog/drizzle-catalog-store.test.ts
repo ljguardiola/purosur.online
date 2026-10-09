@@ -7,11 +7,12 @@ import {
   editCategory,
   editProduct,
   editTag,
+  reactivateProduct,
   reactivateTag,
 } from "@purosur/domain/catalog/use-cases";
 import { asc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { changes, discounts, products } from "../platform/db/schema.js";
+import { changes, discounts, productBarcodes, products } from "../platform/db/schema.js";
 import { PendingChanges } from "../sync/change-log.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
@@ -141,6 +142,44 @@ describe("the catalog changes a pull hands to the registers", () => {
     expect((await loggedChanges()).slice(2)).toEqual([
       { entity: "product", entityId: product.id, version: 2, op: "update", priceListId: null },
     ]);
+  });
+
+  it("logs a reactivated product as an update of its next version", async () => {
+    const category = await newCategory();
+    const product = await newProduct(category.id);
+    await deactivateProduct(store(), product.id);
+
+    const outcome = await reactivateProduct(store(), product.id);
+
+    expect(outcome).toEqual({ kind: "reactivated" });
+    expect((await loggedChanges()).slice(3)).toEqual([
+      { entity: "product", entityId: product.id, version: 3, op: "update", priceListId: null },
+    ]);
+  });
+
+  it("makes the barcodes of a reactivated product active again, leaving other products' alone", async () => {
+    const category = await newCategory();
+    const product = await newProduct(category.id);
+    const other = await newProduct(category.id, ["7790001000035"]);
+    await deactivateProduct(store(), product.id);
+    await deactivateProduct(store(), other.id);
+
+    await reactivateProduct(store(), product.id);
+
+    const rows = await db
+      .select({ productId: productBarcodes.productId, active: productBarcodes.active })
+      .from(productBarcodes)
+      .orderBy(asc(productBarcodes.code));
+    expect(rows).toEqual([
+      { productId: product.id, active: true },
+      { productId: product.id, active: true },
+      { productId: other.id, active: false },
+    ]);
+    const [row] = await db
+      .select({ active: products.active, version: products.version })
+      .from(products)
+      .where(eq(products.id, product.id));
+    expect(row).toEqual({ active: true, version: 3 });
   });
 
   it("logs a created tag as an insert of its first version", async () => {

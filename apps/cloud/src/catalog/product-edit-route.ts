@@ -22,7 +22,7 @@ import {
 import { toProductSummary } from "./product-summary-wire.js";
 import type { ProductsRouteOptions } from "./products-list-route.js";
 
-const NOT_FOUND_RESPONSE = {
+export const PRODUCT_NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no product with that id",
 } as const;
@@ -76,7 +76,7 @@ export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
       );
 
       if (outcome.kind === "not_found") {
-        await reply.code(404).send(NOT_FOUND_RESPONSE);
+        await reply.code(404).send(PRODUCT_NOT_FOUND_RESPONSE);
         return;
       }
       if (outcome.kind === "stale_version") {
