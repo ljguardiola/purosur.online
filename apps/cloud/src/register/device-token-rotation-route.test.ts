@@ -2,9 +2,9 @@ import { cloudErrorSchema, deviceTokenRotationSchema } from "@purosur/contracts"
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { registerRouteAccess } from "../access/route-access.js";
 import { registerInstallations } from "../platform/db/schema.js";
 import { registerHealthRoute } from "../platform/health-route.js";
+import { registerRouteAccess } from "../sessions/route-access.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";

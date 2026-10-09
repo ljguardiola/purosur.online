@@ -1,6 +1,6 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach } from "vitest";
-import { registerRouteAccess } from "../../access/route-access.js";
+import { registerRouteAccess } from "../../sessions/route-access.js";
 import { buildTestDatabase, type TestDatabase } from "../../test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../../test-support/device-token-rotation-key.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../../test-support/installation-keys-encryption-key.js";

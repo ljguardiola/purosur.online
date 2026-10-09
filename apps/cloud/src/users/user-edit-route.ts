@@ -2,17 +2,17 @@ import { userEditBodySchema } from "@purosur/contracts";
 import { editUser, findBranchUser } from "@purosur/domain/users/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { backofficeOriginGuard } from "../access/backoffice-origin.js";
-import { readCurrentOpenSession, UNAUTHENTICATED_RESPONSE } from "../access/open-session.js";
-import { requirePasskeyAuthorization } from "../access/passkey-authorization-guard.js";
+import { requirePasskeyAuthorization } from "../credentials/passkey-authorization-guard.js";
+import { readRecordIds } from "../platform/record-id-params.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
+import { backofficeOriginGuard } from "../sessions/backoffice-origin.js";
+import { readCurrentOpenSession, UNAUTHENTICATED_RESPONSE } from "../sessions/open-session.js";
 import {
   capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
-import { readRecordIds } from "../platform/record-id-params.js";
-import { readValidatedBody } from "../platform/request-body-schema.js";
+} from "../sessions/route-access.js";
 import { toBranchUserWire } from "./branch-users.js";
 import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 import { DrizzleUserStore } from "./drizzle-user-store.js";

@@ -6,15 +6,6 @@ import { setupFastifyErrorHandler as defaultSetupFastifyErrorHandler } from "@se
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance } from "fastify";
-import {
-  declarePluginRoutesAccess,
-  PUBLIC_ACCESS,
-  registerRouteAccess,
-} from "./access/route-access.js";
-import { registerSessionReadRoute } from "./access/session-read-route.js";
-import { registerSessionSignOutRoute } from "./access/session-sign-out-route.js";
-import { registerSessionStatusRoute } from "./access/session-status-route.js";
-import { registerSignInLookupRoute } from "./access/sign-in-lookup-route.js";
 import { registerAlertCloseRoute } from "./alerts/alert-close-route.js";
 import { registerAlertReadRoute } from "./alerts/alert-read-route.js";
 import type { AlertsRouteOptions } from "./alerts/alerts-list-route.js";
@@ -121,6 +112,15 @@ import {
   registerSalesReportRoutes,
   type SalesReportRouteOptions,
 } from "./sales/sales-report-routes.js";
+import {
+  declarePluginRoutesAccess,
+  PUBLIC_ACCESS,
+  registerRouteAccess,
+} from "./sessions/route-access.js";
+import { registerSessionReadRoute } from "./sessions/session-read-route.js";
+import { registerSessionSignOutRoute } from "./sessions/session-sign-out-route.js";
+import { registerSessionStatusRoute } from "./sessions/session-status-route.js";
+import { registerSignInLookupRoute } from "./sessions/sign-in-lookup-route.js";
 import { registerStockBalancesRoute } from "./stock/stock-balances-route.js";
 import { registerStockCountsRoutes } from "./stock/stock-counts-route.js";
 import { registerStockMovementsRoutes } from "./stock/stock-movements-route.js";

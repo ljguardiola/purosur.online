@@ -2,14 +2,14 @@ import { priceListSchema } from "@purosur/contracts";
 import type { PriceReviewFilter, PricesUnderReview } from "@purosur/domain/pricing/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { sameOriginGuard } from "../access/backoffice-origin.js";
+import { readOptionalRecordIds } from "../platform/record-id-params.js";
+import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
-import { readOptionalRecordIds } from "../platform/record-id-params.js";
+} from "../sessions/route-access.js";
 import { DrizzlePriceReviewReader } from "./drizzle-price-review-reader.js";
 
 export interface PricesRouteOptions<TQueryResult extends PgQueryResultHKT> {

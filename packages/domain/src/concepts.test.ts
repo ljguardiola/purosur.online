@@ -3,10 +3,10 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const CONCEPTS = [
-  "access",
   "permissions",
   "users",
   "credentials",
+  "sessions",
   "sales",
   "returns",
   "payments",

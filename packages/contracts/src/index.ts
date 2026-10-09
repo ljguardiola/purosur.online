@@ -1,20 +1,3 @@
-export type {
-  AccessCoreToRendererMessage,
-  AccessRendererToCoreMessage,
-  SignInLookupOutcome,
-  SignInOutcome,
-} from "./access/core-messages.js";
-export {
-  accessCoreToRendererMessageSchema,
-  accessRendererToCoreMessageSchema,
-  signInLookupMessageSchema,
-} from "./access/core-messages.js";
-export type { OpenSessionWire } from "./access/open-session.js";
-export { openSessionSchema } from "./access/open-session.js";
-export type { SessionStatusWire } from "./access/session-status.js";
-export { sessionStatusSchema } from "./access/session-status.js";
-export type { SignInLookup, SignInLookupBody } from "./access/sign-in-lookup.js";
-export { signInLookupBodySchema, signInLookupSchema } from "./access/sign-in-lookup.js";
 export type { AlertDetail } from "./alerts/alert-detail.js";
 export { alertDetailSchema } from "./alerts/alert-detail.js";
 export type { AlertListPage, AlertSummary } from "./alerts/alert-summary.js";
@@ -280,6 +263,23 @@ export {
   salesReportQuerySchema,
   salesReportSchema,
 } from "./sales/sales-report.js";
+export type {
+  SessionsCoreToRendererMessage,
+  SessionsRendererToCoreMessage,
+  SignInLookupOutcome,
+  SignInOutcome,
+} from "./sessions/core-messages.js";
+export {
+  sessionsCoreToRendererMessageSchema,
+  sessionsRendererToCoreMessageSchema,
+  signInLookupMessageSchema,
+} from "./sessions/core-messages.js";
+export type { OpenSessionWire } from "./sessions/open-session.js";
+export { openSessionSchema } from "./sessions/open-session.js";
+export type { SessionStatusWire } from "./sessions/session-status.js";
+export { sessionStatusSchema } from "./sessions/session-status.js";
+export type { SignInLookup, SignInLookupBody } from "./sessions/sign-in-lookup.js";
+export { signInLookupBodySchema, signInLookupSchema } from "./sessions/sign-in-lookup.js";
 export type {
   Authorization,
   AuthorizationRefusal,

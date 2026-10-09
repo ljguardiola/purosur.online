@@ -21,7 +21,7 @@ import {
   it,
   onTestFinished,
 } from "vitest";
-import { generateSessionId, hashSessionId } from "../../access/session-id.js";
+import { generateSessionId, hashSessionId } from "../../sessions/session-id.js";
 import { buildTestDatabase, type TestDatabase } from "../../test-support/build-test-database.js";
 import { migrateFreshDatabase } from "../../test-support/test-database-snapshot.js";
 import { MIGRATIONS_FOLDER } from "./migrations-folder.js";

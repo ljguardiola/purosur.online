@@ -1,18 +1,18 @@
 import {
-  type AccessCoreToRendererMessage,
-  accessRendererToCoreMessageSchema,
   type CredentialsCoreToRendererMessage,
   credentialsRendererToCoreMessageSchema,
   type RegisterCoreToRendererMessage,
   registerRendererToCoreMessageSchema,
   type SalesCoreToRendererMessage,
+  type SessionsCoreToRendererMessage,
   type SyncCoreToRendererMessage,
   salesRendererToCoreMessageSchema,
+  sessionsRendererToCoreMessageSchema,
 } from "@purosur/contracts";
 import { z } from "zod";
 
 export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
-  accessRendererToCoreMessageSchema,
+  sessionsRendererToCoreMessageSchema,
   credentialsRendererToCoreMessageSchema,
   registerRendererToCoreMessageSchema,
   salesRendererToCoreMessageSchema,
@@ -20,7 +20,7 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
 export type RendererToCoreMessage = z.infer<typeof rendererToCoreMessageSchema>;
 
 export type CoreToRendererMessage =
-  | AccessCoreToRendererMessage
+  | SessionsCoreToRendererMessage
   | CredentialsCoreToRendererMessage
   | RegisterCoreToRendererMessage
   | SalesCoreToRendererMessage

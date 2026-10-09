@@ -1,7 +1,4 @@
 import { encodePinHash } from "@purosur/contracts";
-import { createActionGate } from "../../access/action-gate";
-import { createSignedInPerson } from "../../access/signed-in-person";
-import { SqliteSignInStore } from "../../access/sqlite-sign-in-store";
 import { derivePinVerifier } from "../../credentials/pin-verifier";
 import type { LocalDatabase } from "../../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../../platform/local-migrations";
@@ -17,6 +14,9 @@ import {
   currentSaleFor,
   scanProductFor,
 } from "../../sales/sale-requests";
+import { createActionGate } from "../../sessions/action-gate";
+import { createSignedInPerson } from "../../sessions/signed-in-person";
+import { SqliteSignInStore } from "../../sessions/sqlite-sign-in-store";
 import { CloudEventInbox } from "../cloud-event-inbox";
 import { SqliteLocalOutbox } from "../sqlite-local-outbox";
 

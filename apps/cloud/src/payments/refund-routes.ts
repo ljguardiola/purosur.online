@@ -2,14 +2,14 @@ import { markedRefundDoneSchema, pendingRefundsSchema } from "@purosur/contracts
 import { listPendingRefunds, markRefundDone } from "@purosur/domain/payments/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { backofficeOriginGuard, sameOriginGuard } from "../access/backoffice-origin.js";
+import { readRecordIds } from "../platform/record-id-params.js";
+import { backofficeOriginGuard, sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
-import { readRecordIds } from "../platform/record-id-params.js";
+} from "../sessions/route-access.js";
 import { DrizzlePendingRefundsReader } from "./drizzle-pending-refunds-reader.js";
 import { DrizzleRefundStore } from "./drizzle-refund-store.js";
 

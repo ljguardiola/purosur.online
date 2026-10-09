@@ -4,10 +4,10 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance } from "fastify";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
-import { generateSessionId, hashSessionId } from "../access/session-id.js";
 import { voidOutstandingRecoveryTokens } from "../credentials/void-outstanding-recovery-tokens.js";
 import { auditLog, roles, sessions, userRoles, users } from "../platform/db/schema.js";
+import { SESSION_COOKIE_NAME } from "../sessions/session-cookie.js";
+import { generateSessionId, hashSessionId } from "../sessions/session-id.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,

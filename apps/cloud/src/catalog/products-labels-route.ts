@@ -2,13 +2,13 @@ import { labelSheetBodySchema } from "@purosur/contracts";
 import { prepareLabelSheet } from "@purosur/domain/catalog/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { backofficeOriginGuard } from "../access/backoffice-origin.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
+import { backofficeOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
-import { readValidatedBody } from "../platform/request-body-schema.js";
+} from "../sessions/route-access.js";
 import { DrizzleLabelProductReader } from "./drizzle-label-product-reader.js";
 import { renderLabelSheetPdf } from "./label-sheet-pdf.js";
 import type { ProductsRouteOptions } from "./products-list-route.js";
