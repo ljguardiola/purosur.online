@@ -23,6 +23,7 @@ import type {
   PinPolicy,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
+  RegisterStatus,
   RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
@@ -58,6 +59,7 @@ export interface RendererRequestDeps {
   requestFirstPinCode: ((userId: string) => Promise<FirstPinCodeRequestOutcome>) | undefined;
   openCashSession: ((openingFloat: number) => Promise<OpenCashSessionOutcome>) | undefined;
   cashSession: (() => OpenCashSession | null) | undefined;
+  registerStatus: (() => RegisterStatus) | undefined;
   recordCashMovement:
     | ((request: CashMovementRequest) => Promise<RecordCashMovementOutcome>)
     | undefined;
@@ -331,6 +333,15 @@ function readCashMovementKinds(
   }
 }
 
+function readRegisterStatus(deps: RendererRequestDeps): RegisterStatus | undefined {
+  try {
+    return deps.registerStatus?.();
+  } catch (error) {
+    deps.reportFailure("reading the register's status", error);
+    return undefined;
+  }
+}
+
 async function attemptScanProduct(
   deps: RendererRequestDeps,
   code: string,
@@ -515,6 +526,12 @@ export async function answerRendererRequest(
       return session === undefined
         ? { type: "cash-session-unavailable", request_id: message.request_id }
         : { type: "cash-session", request_id: message.request_id, session };
+    }
+    case "register-status-request": {
+      const status = readRegisterStatus(deps);
+      return status === undefined
+        ? { type: "register-status-unavailable", request_id: message.request_id }
+        : { type: "register-status", request_id: message.request_id, status };
     }
     case "record-cash-movement":
       return {

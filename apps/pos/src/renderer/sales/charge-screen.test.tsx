@@ -196,7 +196,7 @@ describe("ChargeScreen", () => {
     await expect
       .element(screen.getByRole("navigation", { name: "Menú de la caja" }).getByText("Venta"))
       .toBeVisible();
-    await expect.element(screen.getByText("Ada")).toBeVisible();
+    await expect.element(screen.getByText("Ada")).not.toBeInTheDocument();
   });
 
   it("goes back to the sale from Volver a la venta", async () => {

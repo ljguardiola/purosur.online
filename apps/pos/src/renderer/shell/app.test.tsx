@@ -110,6 +110,7 @@ function coreAnswering(
   service: "in_service" | "out_of_service" | "unanswered" = "in_service",
 ) {
   const cashSessionAsks: string[] = [];
+  const statusAsks: string[] = [];
   const opened: number[] = [];
   const closed: [string, number][] = [];
   const closedLocked: [string, number, Authorization][] = [];
@@ -188,6 +189,10 @@ function coreAnswering(
     async cashSession() {
       cashSessionAsks.push("cash-session");
       return cashDrawer.cashSession === undefined ? openedByRegister : cashDrawer.cashSession();
+    },
+    async registerStatus() {
+      statusAsks.push("register-status");
+      return { conditions: [], cloud: "reachable" };
     },
     async recordCashMovement(input) {
       recorded.push(input);
@@ -295,6 +300,7 @@ function coreAnswering(
     core,
     asked,
     cashSessionAsks,
+    statusAsks,
     opened,
     closed,
     closedLocked,
@@ -444,6 +450,39 @@ describe("App", () => {
     await expect.element(screen.getByText("Caja 1 · Sin sesión abierta")).toBeVisible();
   });
 
+  it("shows the status bar once someone is signed in, and not on the sign-in screen", async () => {
+    const screen = await render(<App core={coreAnswering(true).core} />);
+    postCoreStatus("up");
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect
+      .element(screen.getByRole("region", { name: "Estado de la caja" }))
+      .not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+
+    await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
+    const bar = screen.getByRole("region", { name: "Estado de la caja" });
+    await expect.element(bar).toBeVisible();
+    await expect.element(bar.getByText("Nube conectada")).toBeVisible();
+  });
+
+  it("reads the register's status again whenever a pull finishes", async () => {
+    const { core, statusAsks, finishPull } = coreAnswering(true);
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    await expect.element(screen.getByText("Nube conectada")).toBeVisible();
+    const readsBefore = statusAsks.length;
+
+    finishPull(null);
+
+    await expect.poll(() => statusAsks.length).toBeGreaterThan(readsBefore);
+  });
+
   it("keeps the chosen person and the typed PIN when a pull refreshes the sign-in screen", async () => {
     const { core, finishPull, usersLoads } = coreAnswering(true);
     const screen = await render(<App core={core} />);
@@ -536,7 +575,9 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
     await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
-    await expect.element(screen.getByRole("navigation").getByText("Ada")).toBeVisible();
+    await expect
+      .element(screen.getByRole("region", { name: "Estado de la caja" }).getByText("Ada"))
+      .toBeVisible();
     await expect
       .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
       .not.toBeInTheDocument();
@@ -589,7 +630,9 @@ describe("App", () => {
     await resumeLockedRegister(screen);
 
     await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
-    await expect.element(screen.getByRole("navigation").getByText("Ada")).toBeVisible();
+    await expect
+      .element(screen.getByRole("region", { name: "Estado de la caja" }).getByText("Ada"))
+      .toBeVisible();
   });
 
   it("keeps the register locked while the core answers the sign-in with the register still locked", async () => {
@@ -968,7 +1011,9 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: "Retomar" }));
 
     await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
-    await expect.element(screen.getByRole("navigation").getByText("Grace")).toBeVisible();
+    await expect
+      .element(screen.getByRole("region", { name: "Estado de la caja" }).getByText("Grace"))
+      .toBeVisible();
   });
 
   describe("redeeming a PIN code on a locked register", () => {
@@ -1000,7 +1045,9 @@ describe("App", () => {
       });
 
       await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
-      await expect.element(screen.getByRole("navigation").getByText("Grace")).toBeVisible();
+      await expect
+        .element(screen.getByRole("region", { name: "Estado de la caja" }).getByText("Grace"))
+        .toBeVisible();
     });
 
     it("resumes the open cash session the core answers with the redemption even when reading it again would fail", async () => {
@@ -1518,7 +1565,9 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: "Abrir la caja" }));
 
     await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
-    await expect.element(screen.getByRole("navigation").getByText("Ada")).toBeVisible();
+    await expect
+      .element(screen.getByRole("region", { name: "Estado de la caja" }).getByText("Ada"))
+      .toBeVisible();
     await expect.element(screen.getByText("Sesión abierta 09:02")).toBeVisible();
     expect(opened).toEqual([10_000]);
   });
@@ -1721,7 +1770,7 @@ describe("App", () => {
 
       finishPull("Caja 1");
 
-      await expect.element(screen.getByText(/Caja 1 · Sesión abierta/)).toBeVisible();
+      await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
       expect(cashBalance).toHaveBeenCalledTimes(1);
       expect(cashMovements).toHaveBeenCalledTimes(1);
     });
@@ -1829,7 +1878,9 @@ describe("App", () => {
       await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
 
       await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
-      await expect.element(screen.getByRole("navigation").getByText("Grace")).toBeVisible();
+      await expect
+        .element(screen.getByRole("region", { name: "Estado de la caja" }).getByText("Grace"))
+        .toBeVisible();
       await expect
         .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
         .not.toBeInTheDocument();
@@ -2280,7 +2331,7 @@ describe("App", () => {
 
       finishPull("Caja 1");
 
-      await expect.element(screen.getByText(/Caja 1 · Sesión abierta/)).toBeVisible();
+      await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
       expect(authorizers).toHaveBeenCalledTimes(2);
     });
 

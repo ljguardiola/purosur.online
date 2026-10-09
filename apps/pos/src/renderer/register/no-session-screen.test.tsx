@@ -51,7 +51,6 @@ describe("NoSessionScreen", () => {
   it("asks what to do, with no session open", async () => {
     const { screen } = await renderScreen();
 
-    await expect.element(screen.getByText("Sin sesión abierta")).toBeVisible();
     await expect.element(screen.getByRole("heading", { name: "¿Qué querés hacer?" })).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -59,13 +58,12 @@ describe("NoSessionScreen", () => {
   it("names the register in the eyebrow", async () => {
     const { screen } = await renderScreen([], vi.fn(), "Caja 1");
 
-    await expect.element(screen.getByText("Caja 1 · Sin sesión abierta")).toBeVisible();
+    await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
   });
 
   it("shows only the first name of the person who is in", async () => {
     const { screen } = await renderScreen();
 
-    await expect.element(screen.getByRole("navigation").getByText("Ada")).toBeVisible();
     await expect.element(screen.getByRole("heading", { name: "Ada" })).toBeVisible();
     expect(screen.container.textContent).not.toContain("void_sale");
   });

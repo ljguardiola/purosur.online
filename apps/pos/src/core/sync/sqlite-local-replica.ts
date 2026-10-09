@@ -1,5 +1,5 @@
 import type { BranchSettingsBody } from "@purosur/contracts";
-import type { NetContentUnit, SaleUnit } from "@purosur/domain";
+import type { BranchWeeklyHoursRange, NetContentUnit, SaleUnit } from "@purosur/domain";
 import type { LocalReplica, PullPage } from "@purosur/domain/sync/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 import { prepareAccessPageWrites } from "./access-page-writes";
@@ -49,8 +49,8 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
   // because another branch's pull never sends a removal for them; those it still serves come back
   // as they arrive. Their PIN verifiers were derived with the pepper of the one before, and the PIN
   // hashes they came from are not kept, so they are dropped and derived again, and the wrong PINs
-  // counted against them go with them, and so does who the register remembered. The register row
-  // and its point of sale held are the previous installation's own, so they go too. Its unsent outbox events stay, tagged
+  // counted against them go with them, and so does who the register remembered. The register row,
+  // its point of sale and its branch's settings held are the previous installation's own, so they go too. Its unsent outbox events stay, tagged
   // with its device id: they are the only record of what it did.
   adoptDevice({ deviceId, pepper }: { deviceId: string; pepper: string }): void {
     this.pepper = pepper;
@@ -58,7 +58,8 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
       const reset = this.database
         .prepare<[string, string]>(
           `UPDATE sync_state SET pull_cursor = 0, device_id = ?, last_device_seq = 0, last_chain_hmac = NULL,
-                                 installation_revoked_at = NULL, sales_stopped_reason = NULL
+                                 installation_revoked_at = NULL, sales_stopped_reason = NULL,
+                                 last_accepted_push_at = NULL
            WHERE id = 1 AND device_id IS NOT ?`,
         )
         .run(deviceId, deviceId);
@@ -69,6 +70,7 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
         this.database.prepare("DELETE FROM remembered_users").run();
         this.database.prepare("DELETE FROM own_register").run();
         this.database.prepare("DELETE FROM register_point_of_sale").run();
+        this.database.prepare("DELETE FROM branch_settings").run();
       }
     })();
   }
@@ -209,6 +211,23 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
     }
     const { weekly_hours, ...fields } = record;
     return { ...fields, ...(JSON.parse(weekly_hours) as WeeklyHours) };
+  }
+
+  ownBranchHours(): BranchWeeklyHoursRange[] {
+    const record = this.database
+      .prepare<[], { weekly_hours: string }>("SELECT weekly_hours FROM branch_settings")
+      .get();
+    if (record === undefined) {
+      return [];
+    }
+    const weekly = JSON.parse(record.weekly_hours) as WeeklyHours;
+    return DAY_FIELDS.flatMap((field, index) =>
+      weekly[field].map((range) => ({
+        dayOfWeek: index + 1,
+        opensAt: range.opens_at,
+        closesAt: range.closes_at,
+      })),
+    );
   }
 
   category(id: string) {

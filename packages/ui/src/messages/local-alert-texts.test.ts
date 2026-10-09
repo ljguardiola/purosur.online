@@ -1,5 +1,5 @@
-import { expect, test } from "vitest";
-import { localAlertText } from "./local-alert-text";
+import { expect, expectTypeOf, test } from "vitest";
+import { isLocalAlertKind, type LocalAlertKind, localAlertText } from "./local-alert-texts";
 
 test("gives a quiet register's alert its title, what it means and what to do", () => {
   expect(localAlertText("register_silent")).toEqual({
@@ -29,4 +29,18 @@ test("gives no fixed text to a kind that has none, nor to one this app does not 
 test("gives no fixed text to a kind that shares its name with a member every object has", () => {
   expect(localAlertText("constructor")).toBeUndefined();
   expect(localAlertText("toString")).toBeUndefined();
+});
+
+test("knows the kinds that have a fixed text", () => {
+  expect(isLocalAlertKind("register_silent")).toBe(true);
+  expect(isLocalAlertKind("sales_denied")).toBe(true);
+});
+
+test("does not know a kind that has none, nor a member every object has", () => {
+  expect(isLocalAlertKind("update_required")).toBe(false);
+  expect(isLocalAlertKind("constructor")).toBe(false);
+});
+
+test("names exactly the kinds that have a fixed text", () => {
+  expectTypeOf<LocalAlertKind>().toEqualTypeOf<"register_silent" | "sales_denied">();
 });

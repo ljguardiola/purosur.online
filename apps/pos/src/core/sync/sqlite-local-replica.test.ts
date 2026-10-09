@@ -7,6 +7,7 @@ import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import type { RegisterPulledChange } from "./pulled-change";
+import { SqliteAcceptedPushLog } from "./sqlite-accepted-push-log";
 import { salesStopOf, stopOpeningNewSales } from "./sqlite-local-installation";
 import { SqliteLocalReplica } from "./sqlite-local-replica";
 import { appendOutboxEvent } from "./sqlite-outbox";
@@ -279,7 +280,7 @@ describe("the register's local copy of what it pulls", () => {
     expect(await replica.savedCursor()).toBe(7);
   });
 
-  it("starts over from the very first cursor when another installation takes over, keeping what it holds", async () => {
+  it("starts over from the very first cursor when another installation takes over", async () => {
     replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
     await replica.savePage({
       changes: [branchSettingsChange(7, settingsRow())],
@@ -290,7 +291,52 @@ describe("the register's local copy of what it pulls", () => {
     replica.adoptDevice({ deviceId: "device-b", pepper: PEPPER });
 
     expect(await replica.savedCursor()).toBe(0);
+  });
+
+  it("holds no branch hours of the installation before when another installation takes over", async () => {
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+    await replica.savePage({
+      changes: [branchSettingsChange(7, settingsRow())],
+      cursor: 7,
+      hasMore: false,
+    });
+
+    replica.adoptDevice({ deviceId: "device-b", pepper: PEPPER });
+
+    expect(storedBranchSettings()).toBeUndefined();
+  });
+
+  it("keeps its branch hours for the installation that pulled them", async () => {
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+    await replica.savePage({
+      changes: [branchSettingsChange(7, settingsRow())],
+      cursor: 7,
+      hasMore: false,
+    });
+
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+
     expect(storedBranchSettings()).toEqual(settingsRow());
+  });
+
+  it("holds no accepted push of the installation before when another installation takes over", async () => {
+    const acceptedPushes = new SqliteAcceptedPushLog(database);
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+    await acceptedPushes.recordAcceptedPush(new Date("2026-10-05T15:00:00.000Z"));
+
+    replica.adoptDevice({ deviceId: "device-b", pepper: PEPPER });
+
+    expect(acceptedPushes.lastAcceptedPushAt()).toBeNull();
+  });
+
+  it("keeps its last accepted push for the installation that recorded it", async () => {
+    const acceptedPushes = new SqliteAcceptedPushLog(database);
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+    await acceptedPushes.recordAcceptedPush(new Date("2026-10-05T15:00:00.000Z"));
+
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+
+    expect(acceptedPushes.lastAcceptedPushAt()).toEqual(new Date("2026-10-05T15:00:00.000Z"));
   });
 
   it("keeps its outbox and chain position for the installation that wrote them", () => {
@@ -709,5 +755,69 @@ describe("the register's local copy of what it pulls", () => {
 
     await save(removalChange(3, "product", PRODUCT_ID, 4));
     expect(replica.product(PRODUCT_ID)?.tag_ids).toEqual([{ tag_id: TAG_ID, active: false }]);
+  });
+});
+
+describe("the hours of the register's own branch", () => {
+  it("are none before the branch's settings are pulled", () => {
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+
+    expect(replica.ownBranchHours()).toEqual([]);
+  });
+
+  it("are each day's ranges, numbering Monday as 1 through Sunday as 7", async () => {
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+    await replica.savePage({
+      changes: [
+        branchSettingsChange(
+          7,
+          settingsRow({
+            monday_hours: [
+              { opens_at: "09:00", closes_at: "13:00" },
+              { opens_at: "16:00", closes_at: "20:00" },
+            ],
+            wednesday_hours: [{ opens_at: "08:30", closes_at: "12:00" }],
+            sunday_hours: [{ opens_at: "10:00", closes_at: "14:00" }],
+          }),
+        ),
+      ],
+      cursor: 7,
+      hasMore: false,
+    });
+
+    expect(replica.ownBranchHours()).toEqual([
+      { dayOfWeek: 1, opensAt: "09:00", closesAt: "13:00" },
+      { dayOfWeek: 1, opensAt: "16:00", closesAt: "20:00" },
+      { dayOfWeek: 3, opensAt: "08:30", closesAt: "12:00" },
+      { dayOfWeek: 7, opensAt: "10:00", closesAt: "14:00" },
+    ]);
+  });
+
+  it("are the ranges of the settings' latest version", async () => {
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+    await replica.savePage({
+      changes: [branchSettingsChange(7, settingsRow())],
+      cursor: 7,
+      hasMore: false,
+    });
+    await replica.savePage({
+      changes: [
+        branchSettingsChange(
+          8,
+          settingsRow({
+            version: 3,
+            monday_hours: [],
+            sunday_hours: [],
+            friday_hours: [{ opens_at: "09:00", closes_at: "18:00" }],
+          }),
+        ),
+      ],
+      cursor: 8,
+      hasMore: false,
+    });
+
+    expect(replica.ownBranchHours()).toEqual([
+      { dayOfWeek: 5, opensAt: "09:00", closesAt: "18:00" },
+    ]);
   });
 });

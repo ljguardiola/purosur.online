@@ -87,18 +87,17 @@ describe("CashScreen", () => {
     await expect
       .element(screen.getByRole("heading", { name: "Movimientos de efectivo", exact: true }))
       .toBeVisible();
-    await expect.element(screen.getByText("Caja 1 · Sesión abierta 09:02")).toBeVisible();
+    await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("marks Caja as the current item of the rail, next to Venta and the first name", async () => {
+  it("marks Caja as the current item of the rail, next to Venta", async () => {
     const screen = await renderScreen();
 
     await expect
       .element(screen.getByRole("link", { name: "Caja" }))
       .toHaveAttribute("aria-current", "page");
     await expect.element(screen.getByRole("link", { name: "Venta" })).toBeVisible();
-    await expect.element(screen.getByRole("navigation").getByText("Ada")).toBeVisible();
   });
 
   it("shows the cash the register expects now, broken down", async () => {

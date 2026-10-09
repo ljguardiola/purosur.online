@@ -52,6 +52,7 @@ function buildFailingRouter(shouldThrow: () => boolean) {
       sessionOpenSale: async () => "unavailable",
       cashMovements: async () => "unavailable",
       cashMovementKinds: async () => "unavailable",
+      registerStatus: async () => ({ conditions: [], cloud: "reachable" }),
       recordCashMovement: async () => ({ kind: "unavailable" }),
       signIn: async () => ({ kind: "unavailable" }),
       signOut: () => {},

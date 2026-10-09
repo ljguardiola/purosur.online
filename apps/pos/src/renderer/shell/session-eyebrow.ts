@@ -1,13 +1,3 @@
-import { formatClockTime } from "@purosur/ui";
-
-function statusText(openedAt: string | undefined): string {
-  if (openedAt === undefined) {
-    return "Sin sesión abierta";
-  }
-  return `Sesión abierta ${formatClockTime(openedAt)}`;
-}
-
-export function sessionEyebrow(registerName: string | null, openedAt?: string): string {
-  const status = statusText(openedAt);
-  return registerName === null ? status : `${registerName} · ${status}`;
+export function sessionEyebrow(registerName: string | null): string {
+  return registerName === null ? "Sin sesión abierta" : `${registerName} · Sin sesión abierta`;
 }
