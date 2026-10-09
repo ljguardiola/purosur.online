@@ -14,6 +14,7 @@ export interface ProviderPaymentTransaction {
   id: string;
   registerId: string;
   saleId: string;
+  kind: "SALE";
   method: "QR";
   provider: "MERCADOPAGO_QR";
   amount: number;
