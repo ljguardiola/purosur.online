@@ -8,6 +8,7 @@ import type {
   OpenCashSessionOutcome,
   OpenSale,
   PinCodeRedemptionOutcome,
+  SalesHistoryOutcome,
   ScanProductOutcome,
   SignInOutcome,
 } from "@purosur/contracts";
@@ -2236,7 +2237,7 @@ describe("App", () => {
       },
       cash_session: GRACE_SESSION,
     };
-    const SALE_ROW = {
+    const SALE_ROW: Extract<SalesHistoryOutcome, { kind: "found" }>["rows"][number] = {
       sale_id: "sale-1",
       occurred_at: "2026-09-30T11:42:00.000-03:00",
       comprobante: { kind: "none" },
@@ -2244,7 +2245,7 @@ describe("App", () => {
       payment_methods: ["CASH"],
       total: 5_070_000,
       state: "completed",
-    } as const;
+    };
 
     it("opens from the menu of a person who may view it, with no session open, and reads every session's sales through the core", async () => {
       const queries: Parameters<CoreClient["salesHistory"]>[0][] = [];

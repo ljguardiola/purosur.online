@@ -11,6 +11,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import type { SalesHistoryQuery } from "../platform/core-client";
 import { createQueryClient } from "../platform/query-client";
 import {
   useCashChargeQuery,
@@ -441,11 +442,7 @@ function SalesHistoryProbe({
 }: {
   page?: number;
   state?: "all" | "completed";
-  read: (query: {
-    session: "open" | "all";
-    state: "all" | "completed";
-    page: number;
-  }) => Promise<SalesHistoryOutcome>;
+  read: (query: SalesHistoryQuery) => Promise<SalesHistoryOutcome>;
 }) {
   const history = useSalesHistoryQuery({ session: "open", state, page, read });
   const refresh = useRefreshSalesHistory();

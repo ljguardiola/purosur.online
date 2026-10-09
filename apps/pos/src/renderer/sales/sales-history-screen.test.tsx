@@ -363,7 +363,7 @@ describe("SalesHistoryScreen", () => {
     );
 
     await userEvent.click(
-      screen.getByRole("button", { name: "Reimprimir duplicado", exact: true }),
+      screen.getByRole("dialog").getByRole("button", { name: "Reimprimir duplicado" }),
     );
 
     expect(reprintSaleReceipt).toHaveBeenCalledExactlyOnceWith(
@@ -399,7 +399,7 @@ describe("SalesHistoryScreen", () => {
     );
 
     await userEvent.click(
-      screen.getByRole("button", { name: "Reimprimir duplicado", exact: true }),
+      screen.getByRole("dialog").getByRole("button", { name: "Reimprimir duplicado" }),
     );
 
     await expect.element(table(screen)).toHaveAttribute("aria-busy", "true");
@@ -420,7 +420,7 @@ describe("SalesHistoryScreen", () => {
     );
 
     await userEvent.click(
-      screen.getByRole("button", { name: "Reimprimir duplicado", exact: true }),
+      screen.getByRole("dialog").getByRole("button", { name: "Reimprimir duplicado" }),
     );
 
     await expect.element(screen.getByText("REIMPRIMIR VENTA DE LAS 11:42")).not.toBeInTheDocument();
@@ -438,7 +438,7 @@ describe("SalesHistoryScreen", () => {
     );
 
     await userEvent.click(
-      screen.getByRole("button", { name: "Reimprimir duplicado", exact: true }),
+      screen.getByRole("dialog").getByRole("button", { name: "Reimprimir duplicado" }),
     );
 
     await expect.poll(() => onSessionInvalid.mock.calls.length).toBe(1);
