@@ -12,6 +12,11 @@ import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 import { PRODUCT_NOT_FOUND_RESPONSE } from "./product-edit-route.js";
 import type { ProductsRouteOptions } from "./products-list-route.js";
 
+const ALREADY_INACTIVE_RESPONSE = {
+  code: "product_already_inactive",
+  message: "the product is already deactivated",
+} as const;
+
 export function registerProductDeactivationRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: ProductsRouteOptions<TQueryResult>,
@@ -37,6 +42,10 @@ export function registerProductDeactivationRoute<TQueryResult extends PgQueryRes
 
       if (outcome.kind === "not_found") {
         await reply.code(404).send(PRODUCT_NOT_FOUND_RESPONSE);
+        return;
+      }
+      if (outcome.kind === "already_inactive") {
+        await reply.code(409).send(ALREADY_INACTIVE_RESPONSE);
         return;
       }
 
