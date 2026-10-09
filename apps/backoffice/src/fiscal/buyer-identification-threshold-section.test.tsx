@@ -23,7 +23,7 @@ function loaded(
 ): CloudData<BuyerIdentificationThresholds> {
   return {
     status: "loaded",
-    value: { inEffect: null, scheduled: null, latestValidFrom: null, ...thresholds },
+    value: { inEffect: null, scheduled: null, earliestValidFrom: "2026-10-08", ...thresholds },
     refreshing: false,
   };
 }
@@ -127,7 +127,7 @@ test("keeps the action available while loaded data refreshes", async () => {
     sectionFor(
       {
         status: "loaded",
-        value: { inEffect, scheduled: null, latestValidFrom: inEffect.validFrom },
+        value: { inEffect, scheduled: null, earliestValidFrom: "2026-10-08" },
         refreshing: true,
       },
       { onRecord },

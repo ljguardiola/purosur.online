@@ -2,7 +2,7 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { buyerIdentificationRefusal } from "./buyer-identification-check.js";
 
-const threshold = { id: "t1", amount: 5000, validFrom: "2026-01-01" };
+const threshold = { id: "t1", amount: 5000, validFrom: "2026-01-01", revision: 0 };
 const moment = new Date("2026-07-01T15:00:00.000Z");
 const approved = { state: "APPROVED" };
 const notApprovedStates = ["REJECTED", "DECLINED", "PENDING"];

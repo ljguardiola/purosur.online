@@ -242,8 +242,16 @@ describe("GET /changes carrying the fiscal configuration", () => {
     });
     const ownBranch = await insertEnrolledInstallation(db, { now: NOW });
     const outcome = await recordBuyerIdentificationThreshold(
-      { store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOW) },
-      { amount: 3_500_000_000, validFrom: "2026-10-01", actorId: await insertActor() },
+      {
+        store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOW),
+        clock: { now: () => NOW },
+      },
+      {
+        amount: 3_500_000_000,
+        validFrom: "2026-10-01",
+        actorId: await insertActor(),
+        confirmedLowerThanInEffect: false,
+      },
     );
     if (outcome.kind !== "recorded") {
       throw new Error(`test setup: recording ended as ${outcome.kind}`);
@@ -254,10 +262,33 @@ describe("GET /changes carrying the fiscal configuration", () => {
         {
           entity: "buyer_identification_threshold",
           entity_id: outcome.threshold.id,
-          row: { amount: 3_500_000_000, valid_from: "2026-10-01" },
+          row: { amount: 3_500_000_000, valid_from: "2026-10-01", revision: 0 },
         },
       ]);
     }
+  });
+
+  it("gives a replacement of a threshold as another row of the same day with the next revision", async () => {
+    const ownBranch = await insertEnrolledInstallation(db, { now: NOW });
+    const actorId = await insertActor();
+    const ports = {
+      store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOW),
+      clock: { now: () => NOW },
+    };
+    const record = (amount: number) =>
+      recordBuyerIdentificationThreshold(ports, {
+        amount,
+        validFrom: "2026-10-01",
+        actorId,
+        confirmedLowerThanInEffect: true,
+      });
+    await record(10_000);
+    await record(3_500_000_000);
+
+    expect(withoutSeq(await pullAfterSeed(ownBranch.deviceToken))).toMatchObject([
+      { row: { amount: 10_000, valid_from: "2026-10-01", revision: 0 } },
+      { row: { amount: 3_500_000_000, valid_from: "2026-10-01", revision: 1 } },
+    ]);
   });
 
   it("gives each buyer tax-status set with its version and its options in order, to a register of any branch", async () => {

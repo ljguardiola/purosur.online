@@ -115,8 +115,16 @@ describe("a pull run as the role the deployed cloud connects with", () => {
       { authorizedCuit: FICTIONAL_CUIT },
     );
     await recordBuyerIdentificationThreshold(
-      { store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOW) },
-      { amount: 1_000_000, validFrom: "2026-10-01", actorId: actor.id },
+      {
+        store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOW),
+        clock: { now: () => NOW },
+      },
+      {
+        amount: 1_000_000,
+        validFrom: "2026-10-06",
+        actorId: actor.id,
+        confirmedLowerThanInEffect: true,
+      },
     );
     const [taxStatusSet] = await db
       .insert(buyerTaxStatusSets)

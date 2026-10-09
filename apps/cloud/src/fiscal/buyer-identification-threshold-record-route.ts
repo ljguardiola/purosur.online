@@ -1,4 +1,5 @@
 import {
+  buyerIdentificationThresholdConfirmationRequiredSchema,
   buyerIdentificationThresholdRecordBodySchema,
   buyerIdentificationThresholdSchema,
 } from "@purosur/contracts";
@@ -21,7 +22,10 @@ export function registerBuyerIdentificationThresholdRecordRoute<
   TQueryResult extends PgQueryResultHKT,
 >(app: FastifyInstance, options: BuyerIdentificationThresholdsRouteOptions<TQueryResult>): void {
   const { now } = options;
-  const ports = { store: new DrizzleBuyerIdentificationThresholdStore(options.db, now) };
+  const ports = {
+    store: new DrizzleBuyerIdentificationThresholdStore(options.db, now),
+    clock: { now },
+  };
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
@@ -52,14 +56,28 @@ export function registerBuyerIdentificationThresholdRecordRoute<
         amount: body.amount,
         validFrom: body.valid_from,
         actorId: openSession.userId,
+        confirmedLowerThanInEffect: body.confirm_lower_than_in_effect,
       });
 
-      if (outcome.kind === "not_after_latest") {
+      if (outcome.kind === "before_today") {
         await reply.code(409).send({
-          code: "threshold_not_after_latest",
-          message: `a threshold must start after the latest one, which starts on ${outcome.latestValidFrom}`,
+          code: "threshold_before_today",
+          message: `a threshold must start today (${outcome.today}) or later`,
           details: [{ field: "valid_from" }],
         });
+        return;
+      }
+
+      if (outcome.kind === "needs_confirmation") {
+        await reply.code(409).send(
+          buyerIdentificationThresholdConfirmationRequiredSchema.parse({
+            code: "threshold_lower_than_in_effect",
+            message: "the amount is lower than the threshold in effect and needs confirmation",
+            in_effect_amount: outcome.inEffectAmount,
+            amount: outcome.amount,
+            valid_from: outcome.validFrom,
+          }),
+        );
         return;
       }
 

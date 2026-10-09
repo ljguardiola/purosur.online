@@ -9,6 +9,7 @@ export const buyerIdentificationThresholdRecordBodySchema = z.object({
     .number({ error: AMOUNT_MESSAGE })
     .refine(isBuyerIdentificationThresholdAmount, AMOUNT_MESSAGE),
   valid_from: z.string({ error: VALID_FROM_MESSAGE }).refine(isCalendarDay, VALID_FROM_MESSAGE),
+  confirm_lower_than_in_effect: z.boolean().default(false),
 });
 
 export type BuyerIdentificationThresholdRecordBody = z.input<

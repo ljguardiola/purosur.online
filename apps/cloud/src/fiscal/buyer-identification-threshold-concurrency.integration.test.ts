@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { recordBuyerIdentificationThreshold } from "@purosur/domain/fiscal/use-cases";
+import { asc, eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -52,23 +53,34 @@ function holdAdvisoryLock(key: string) {
     holder`select pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
 }
 
-describe("two thresholds recorded at once on top of the installed one, on a real Postgres", () => {
-  it("records exactly one of them and refuses the other as not starting after it", async () => {
+describe("two thresholds recorded at once for the same day, on a real Postgres", () => {
+  it("records both, the second as the replacement of the first", async () => {
     const actorId = await insertActor();
-    const record = () =>
+    const record = (amount: number) => () =>
       recordBuyerIdentificationThreshold(
-        { store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOON) },
-        { amount: 1_000_000, validFrom: "2026-10-01", actorId },
+        {
+          store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOON),
+          clock: { now: () => NOON },
+        },
+        { amount, validFrom: "2026-10-01", actorId, confirmedLowerThanInEffect: false },
       );
 
     const outcomes = await runQueuedBehindHeldLock(
       sql,
       holdAdvisoryLock(BUYER_IDENTIFICATION_THRESHOLD_LOCK_KEY),
-      record,
-      record,
+      record(2_000_000_000),
+      record(3_000_000_000),
     );
 
-    expect(outcomes.map(({ kind }) => kind)).toEqual(["recorded", "not_after_latest"]);
-    expect(await db.select().from(buyerIdentificationThresholds)).toHaveLength(2);
+    expect(outcomes.map(({ kind }) => kind)).toEqual(["recorded", "recorded"]);
+    const stored = await db
+      .select()
+      .from(buyerIdentificationThresholds)
+      .where(eq(buyerIdentificationThresholds.validFrom, "2026-10-01"))
+      .orderBy(asc(buyerIdentificationThresholds.revision));
+    expect(stored.map(({ amount, revision }) => [amount, revision])).toEqual([
+      [2_000_000_000, 0],
+      [3_000_000_000, 1],
+    ]);
   });
 });

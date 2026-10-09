@@ -134,11 +134,15 @@ export const buyerIdentificationThresholds = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     amount: bigint("amount", { mode: "number" }).notNull(),
     validFrom: date("valid_from", { mode: "string" }).notNull(),
+    revision: integer("revision").notNull().default(0),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
     recordedBy: uuid("recorded_by").references(() => users.id),
   },
   (table) => [
-    uniqueIndex("buyer_identification_thresholds_valid_from_key").on(table.validFrom),
+    uniqueIndex("buyer_identification_thresholds_valid_from_revision_key").on(
+      table.validFrom,
+      table.revision,
+    ),
     check("buyer_identification_thresholds_amount_positive", sql`${table.amount} > 0`),
   ],
 );

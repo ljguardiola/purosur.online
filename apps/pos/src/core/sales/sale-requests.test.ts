@@ -83,12 +83,12 @@ function addPerson(id: string, roleId: string): void {
     .run(id, roleId);
 }
 
-function saveThreshold(amount: number, validFrom = "2026-01-01"): void {
+function saveThreshold(amount: number, validFrom = "2026-01-01", revision = 0): void {
   database
     .prepare(
-      "INSERT INTO buyer_identification_thresholds (id, amount, valid_from) VALUES (?, ?, ?)",
+      "INSERT INTO buyer_identification_thresholds (id, amount, valid_from, revision) VALUES (?, ?, ?, ?)",
     )
-    .run(`threshold-starting-${validFrom}`, amount, validFrom);
+    .run(`threshold-starting-${validFrom}-${revision}`, amount, validFrom, revision);
 }
 
 function addFiscalConfiguration(): void {
@@ -530,6 +530,27 @@ describe("the sale in progress", () => {
       total: 3000,
       charge_refusal: { kind: "reaches_buyer_identification_threshold", threshold: 3000 },
     });
+  });
+
+  it("is refused for charging by the threshold that replaced a mistaken one of the same day", async () => {
+    saveThreshold(1_000_000, "2026-09-30", 0);
+    saveThreshold(3000, "2026-09-30", 1);
+    await scanProductFor(deps(), "111");
+    await scanProductFor(deps(), "111");
+
+    expect(await currentSaleFor(deps())).toMatchObject({
+      total: 3000,
+      charge_refusal: { kind: "reaches_buyer_identification_threshold", threshold: 3000 },
+    });
+  });
+
+  it("is not refused for charging once a threshold of the same day replaces a mistaken low one", async () => {
+    saveThreshold(1000, "2026-09-30", 0);
+    saveThreshold(100_000_000, "2026-09-30", 1);
+    await scanProductFor(deps(), "111");
+    await scanProductFor(deps(), "111");
+
+    expect(await currentSaleFor(deps())).toMatchObject({ charge_refusal: null });
   });
 
   it("is refused for charging when the register holds no threshold", async () => {
