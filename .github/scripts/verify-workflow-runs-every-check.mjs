@@ -4,7 +4,12 @@ import { isAlias, isMap, isScalar, isSeq, parse, parseDocument } from "yaml";
 const WORKFLOW_PATH = ".github/workflows/verify.yml";
 const PACKAGE_JSON_PATH = "package.json";
 const COMPOSE_PATH = "docker-compose.yml";
-const DOCKER_HUB_HOSTS = new Set(["docker.io", "index.docker.io", "registry-1.docker.io"]);
+const DOCKER_HUB_HOSTS = new Set([
+  "docker.io",
+  "index.docker.io",
+  "registry-1.docker.io",
+  "registry.hub.docker.com",
+]);
 const INSTALLED_PLAYWRIGHT_PACKAGE_JSON_PATH = "node_modules/playwright/package.json";
 const CLOUD_POSTGRES_IMAGE = {
   label: "the cloud's Postgres image",
@@ -416,12 +421,12 @@ function comesFromDockerHub(image) {
   return !isHost || DOCKER_HUB_HOSTS.has(first);
 }
 
-// Testcontainers pulls an image the runner does not have yet with a single attempt, so a slow
-// registry would fail the whole job; the job pulls it first, retrying.
 function declaredImage(setupSource, spec) {
   return new RegExp(`const ${spec.constant} =\\s*"([^"]+)";`).exec(setupSource)?.[1];
 }
 
+// Testcontainers pulls an image the runner does not have yet with a single attempt, so a slow
+// registry would fail the whole job; the job pulls it first, retrying.
 function findPrePulledImageViolations(workflowSource, setupSource, spec) {
   const image = declaredImage(setupSource, spec);
   if (image === undefined) {
