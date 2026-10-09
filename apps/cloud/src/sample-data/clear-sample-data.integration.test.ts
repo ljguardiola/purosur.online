@@ -12,6 +12,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { openAlert } from "../alerts/open-alert.js";
 import { DrizzleBranchSettingsStore } from "../branch/drizzle-branch-settings-store.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
+import { voidOutstandingRecoveryTokens } from "../credentials/void-outstanding-recovery-tokens.js";
 import { DrizzleRoleStore } from "../permissions/drizzle-role-store.js";
 import {
   alerts,
@@ -244,7 +245,7 @@ describe("clearSampleData", () => {
     if (realRoleOutcome.kind !== "created") throw new Error("test setup: real role collided");
     const realUserOutcome = await createUser(
       {
-        store: new DrizzleUserStore(db, () => NOW),
+        store: new DrizzleUserStore(db, () => NOW, voidOutstandingRecoveryTokens),
         clock: { now: () => new Date() },
       },
       {

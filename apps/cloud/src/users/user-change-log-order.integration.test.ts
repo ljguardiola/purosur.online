@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { voidOutstandingRecoveryTokens } from "../credentials/void-outstanding-recovery-tokens.js";
 import { DrizzleRoleStore } from "../permissions/drizzle-role-store.js";
 import { rolePermissions, roles, userRoles, users } from "../platform/db/schema.js";
 import {
@@ -91,7 +92,7 @@ describe("changing a user or a role while another writer holds the change log, o
     const { started } = await holdingTheChangeLog(
       () =>
         deactivateUser(
-          { store: new DrizzleUserStore(db, () => NOON) },
+          { store: new DrizzleUserStore(db, () => NOON, voidOutstandingRecoveryTokens) },
           { id: userId, actorId, at: new Date() },
         ),
       () => sql`update users set first_name = 'Otra' where id = ${userId}`.then(() => undefined),

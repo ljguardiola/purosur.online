@@ -1,6 +1,6 @@
 import { vi } from "vitest";
 import { openSession } from "../../access/test-support/open-session";
-import { UserCredentialSections } from "../../access/user-credential-sections";
+import { UserCredentialSections } from "../../credentials/user-credential-sections";
 import { permissionCatalogFixture } from "../../platform/test-support/permission-catalog";
 import type { AppServices } from "../app";
 

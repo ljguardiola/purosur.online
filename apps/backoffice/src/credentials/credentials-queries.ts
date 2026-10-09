@@ -1,0 +1,121 @@
+import type { PublicKeyCredentialCreationOptionsJSON } from "@simplewebauthn/browser";
+import { useQueryClient } from "@tanstack/react-query";
+import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
+import type { fetchPasskeys } from "./passkey-api";
+import type { Passkey } from "./passkey-list";
+import type { fetchRegistrationOptions } from "./recovery-api";
+import type { fetchUserPasskeys } from "./user-credentials-api";
+
+const credentialsKey = ["credentials"] as const;
+
+const credentialsKeys = {
+  ownPasskeys: [...credentialsKey, "own-passkeys"] as const,
+  userPasskeys: (id: string) => [...credentialsKey, "user-passkeys", id] as const,
+  registrationOptions: (token: string) =>
+    [...credentialsKey, "registration-options", token] as const,
+};
+
+export type PasskeyList = { passkeys: Passkey[]; loadedAt: Date };
+
+export function useUserPasskeysQuery(params: {
+  userId: string;
+  fetchUserPasskeys: typeof fetchUserPasskeys;
+  now: () => Date;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<PasskeyList>({
+    queryKey: credentialsKeys.userPasskeys(params.userId),
+    read: async () => {
+      const outcome = await params.fetchUserPasskeys(params.userId);
+      if (outcome.kind === "ok") {
+        return { kind: "ok", value: { passkeys: outcome.value, loadedAt: params.now() } };
+      }
+      return outcome.kind === "not_found" ? { kind: "failed" } : outcome;
+    },
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useOwnPasskeysQuery(params: {
+  fetchPasskeys: typeof fetchPasskeys;
+  now: () => Date;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<PasskeyList>({
+    queryKey: credentialsKeys.ownPasskeys,
+    read: async () => {
+      const outcome = await params.fetchPasskeys();
+      return outcome.kind === "ok"
+        ? { kind: "ok", value: { passkeys: outcome.value, loadedAt: params.now() } }
+        : outcome;
+    },
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export type RegistrationRead =
+  | { kind: "ready"; displayName: string; options: PublicKeyCredentialCreationOptionsJSON }
+  | { kind: "invalid" | "burned" | "expired" };
+
+function readRegistrationOptions(
+  fetchOptions: typeof fetchRegistrationOptions,
+  token: string,
+): () => Promise<CloudReadOutcome<RegistrationRead>> {
+  return async () => {
+    const outcome = await fetchOptions(token);
+    switch (outcome.kind) {
+      case "ok":
+        return { kind: "ok", value: { kind: "ready", ...outcome.value } };
+      case "invalid":
+      case "burned":
+      case "expired":
+        return { kind: "ok", value: { kind: outcome.kind } };
+      case "rate_limited":
+        return outcome;
+      case "validation_failed":
+      case "already_registered":
+      case "failed":
+        return { kind: "failed" };
+    }
+  };
+}
+
+function ignore() {}
+
+// Each read replaces the challenge the cloud holds for the token, so one read is never shown to a
+// later visit.
+export function useRegistrationOptionsQuery(params: {
+  token: string;
+  fetchRegistrationOptions: typeof fetchRegistrationOptions;
+}) {
+  return useCloudQuery<RegistrationRead>({
+    queryKey: credentialsKeys.registrationOptions(params.token),
+    read: readRegistrationOptions(params.fetchRegistrationOptions, params.token),
+    gcTime: 0,
+    onSessionEnded: ignore,
+    onForbidden: ignore,
+  });
+}
+
+export function useReloadRegistrationOptions(params: {
+  fetchRegistrationOptions: typeof fetchRegistrationOptions;
+}): (token: string) => Promise<CloudReadOutcome<RegistrationRead>> {
+  const client = useQueryClient();
+  return (token) =>
+    fetchCloudQuery(client, {
+      queryKey: credentialsKeys.registrationOptions(token),
+      read: readRegistrationOptions(params.fetchRegistrationOptions, token),
+      gcTime: 0,
+    });
+}
+
+export function useRefreshCredentials(): () => Promise<void> {
+  const client = useQueryClient();
+  return () => client.invalidateQueries({ queryKey: credentialsKey });
+}

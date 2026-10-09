@@ -16,7 +16,7 @@ import { readValidatedBody } from "../platform/request-body-schema.js";
 import { toBranchUserWire } from "./branch-users.js";
 import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 import { DrizzleUserStore } from "./drizzle-user-store.js";
-import type { UsersRouteOptions } from "./users-list-route.js";
+import type { UserChangeRouteOptions } from "./users-list-route.js";
 
 const NOT_FOUND_RESPONSE = {
   code: "not_found",
@@ -46,7 +46,7 @@ const LAST_ADMINISTRATOR_RESPONSE = {
 
 export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
-  options: UsersRouteOptions<TQueryResult>,
+  options: UserChangeRouteOptions<TQueryResult>,
 ): void {
   const { now } = options;
   registerRouteAccess(app);
@@ -85,7 +85,10 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
       }
 
       const outcome = await editUser(
-        { store: new DrizzleUserStore(options.db, now), clock: { now } },
+        {
+          store: new DrizzleUserStore(options.db, now, options.voidOutstandingRecoveryTokens),
+          clock: { now },
+        },
         {
           id: target.id,
           locationId: openSession.locationId,

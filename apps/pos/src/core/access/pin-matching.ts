@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import type { PinCheckPorts, PinMatching, PinSignInStore } from "@purosur/domain/access/use-cases";
-import { derivePinVerifier } from "./pin-verifier";
+import { derivePinVerifier } from "../credentials/pin-verifier";
 
 export interface PinCredential {
   salt: Uint8Array;

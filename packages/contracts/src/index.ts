@@ -1,55 +1,20 @@
 export type {
   AccessCoreToRendererMessage,
   AccessRendererToCoreMessage,
-  FirstPinCodeRequestOutcome,
-  PinCodeRedemptionOutcome,
   SignInLookupOutcome,
   SignInOutcome,
 } from "./access/core-messages.js";
 export {
   accessCoreToRendererMessageSchema,
   accessRendererToCoreMessageSchema,
-  redeemPinCodeMessageSchema,
   signInLookupMessageSchema,
 } from "./access/core-messages.js";
-export type { FirstPinCodeBody, FirstPinCodeWire } from "./access/first-pin-code.js";
-export { firstPinCodeBodySchema, firstPinCodeSchema } from "./access/first-pin-code.js";
 export type { OpenSessionWire } from "./access/open-session.js";
 export { openSessionSchema } from "./access/open-session.js";
-export type { PasskeyRegistrationBody } from "./access/passkey-registration.js";
-export { passkeyRegistrationBodySchema } from "./access/passkey-registration.js";
-export type { PasskeyRegistrationChallengeWire } from "./access/passkey-registration-challenge.js";
-export { passkeyRegistrationChallengeSchema } from "./access/passkey-registration-challenge.js";
-export type { PasskeySummaryWire } from "./access/passkey-summary.js";
-export { passkeyListSchema, passkeySummarySchema } from "./access/passkey-summary.js";
-export type { PinCodeRedemption, PinCodeRedemptionBody } from "./access/pin-code-redemption.js";
-export {
-  pinCodeRedemptionBodySchema,
-  pinCodeRedemptionSchema,
-} from "./access/pin-code-redemption.js";
-export type { PinPolicy } from "./access/pin-policy.js";
-export type { RecoveryRedemptionBody } from "./access/recovery-redemption.js";
-export { recoveryRedemptionBodySchema } from "./access/recovery-redemption.js";
-export type { RecoveryRegistrationOptionsWire } from "./access/recovery-registration-options.js";
-export { recoveryRegistrationOptionsSchema } from "./access/recovery-registration-options.js";
-export type { RecoveryRequestBody } from "./access/recovery-request.js";
-export { recoveryRequestBodySchema } from "./access/recovery-request.js";
-export type { RecoveryTokenBody } from "./access/recovery-token.js";
-export { recoveryTokenBodySchema } from "./access/recovery-token.js";
-export type { SessionAuthenticationBody } from "./access/session-authentication.js";
-export { sessionAuthenticationBodySchema } from "./access/session-authentication.js";
-export type { SessionAuthenticationOptionsWire } from "./access/session-authentication-options.js";
-export { sessionAuthenticationOptionsSchema } from "./access/session-authentication-options.js";
-export type { SessionAuthorizationBody } from "./access/session-authorization.js";
-export { sessionAuthorizationBodySchema } from "./access/session-authorization.js";
-export type { SessionAuthorizationOptionsWire } from "./access/session-authorization-options.js";
-export { sessionAuthorizationOptionsSchema } from "./access/session-authorization-options.js";
 export type { SessionStatusWire } from "./access/session-status.js";
 export { sessionStatusSchema } from "./access/session-status.js";
 export type { SignInLookup, SignInLookupBody } from "./access/sign-in-lookup.js";
 export { signInLookupBodySchema, signInLookupSchema } from "./access/sign-in-lookup.js";
-export type { UserPinCodeWire } from "./access/user-pin-code.js";
-export { userPinCodeSchema } from "./access/user-pin-code.js";
 export type { AlertDetail } from "./alerts/alert-detail.js";
 export { alertDetailSchema } from "./alerts/alert-detail.js";
 export type { AlertListPage, AlertSummary } from "./alerts/alert-summary.js";
@@ -92,6 +57,52 @@ export type { TagEditBody } from "./catalog/tag-edit.js";
 export { tagEditBodySchema } from "./catalog/tag-edit.js";
 export type { TagList, TagSummary } from "./catalog/tag-summary.js";
 export { tagListSchema, tagSummarySchema } from "./catalog/tag-summary.js";
+export type {
+  CredentialsCoreToRendererMessage,
+  CredentialsRendererToCoreMessage,
+  FirstPinCodeRequestOutcome,
+  PinCodeRedemptionOutcome,
+} from "./credentials/core-messages.js";
+export {
+  credentialsCoreToRendererMessageSchema,
+  credentialsRendererToCoreMessageSchema,
+  redeemPinCodeMessageSchema,
+} from "./credentials/core-messages.js";
+export type { FirstPinCodeBody, FirstPinCodeWire } from "./credentials/first-pin-code.js";
+export { firstPinCodeBodySchema, firstPinCodeSchema } from "./credentials/first-pin-code.js";
+export type { PasskeyRegistrationBody } from "./credentials/passkey-registration.js";
+export { passkeyRegistrationBodySchema } from "./credentials/passkey-registration.js";
+export type { PasskeyRegistrationChallengeWire } from "./credentials/passkey-registration-challenge.js";
+export { passkeyRegistrationChallengeSchema } from "./credentials/passkey-registration-challenge.js";
+export type { PasskeySummaryWire } from "./credentials/passkey-summary.js";
+export { passkeyListSchema, passkeySummarySchema } from "./credentials/passkey-summary.js";
+export type {
+  PinCodeRedemption,
+  PinCodeRedemptionBody,
+} from "./credentials/pin-code-redemption.js";
+export {
+  pinCodeRedemptionBodySchema,
+  pinCodeRedemptionSchema,
+} from "./credentials/pin-code-redemption.js";
+export type { PinPolicy } from "./credentials/pin-policy.js";
+export type { RecoveryRedemptionBody } from "./credentials/recovery-redemption.js";
+export { recoveryRedemptionBodySchema } from "./credentials/recovery-redemption.js";
+export type { RecoveryRegistrationOptionsWire } from "./credentials/recovery-registration-options.js";
+export { recoveryRegistrationOptionsSchema } from "./credentials/recovery-registration-options.js";
+export type { RecoveryRequestBody } from "./credentials/recovery-request.js";
+export { recoveryRequestBodySchema } from "./credentials/recovery-request.js";
+export type { RecoveryTokenBody } from "./credentials/recovery-token.js";
+export { recoveryTokenBodySchema } from "./credentials/recovery-token.js";
+export type { SessionAuthenticationBody } from "./credentials/session-authentication.js";
+export { sessionAuthenticationBodySchema } from "./credentials/session-authentication.js";
+export type { SessionAuthenticationOptionsWire } from "./credentials/session-authentication-options.js";
+export { sessionAuthenticationOptionsSchema } from "./credentials/session-authentication-options.js";
+export type { SessionAuthorizationBody } from "./credentials/session-authorization.js";
+export { sessionAuthorizationBodySchema } from "./credentials/session-authorization.js";
+export type { SessionAuthorizationOptionsWire } from "./credentials/session-authorization-options.js";
+export { sessionAuthorizationOptionsSchema } from "./credentials/session-authorization-options.js";
+export type { UserPinCodeWire } from "./credentials/user-pin-code.js";
+export { userPinCodeSchema } from "./credentials/user-pin-code.js";
 export type {
   BuyerIdentificationThresholdBody,
   BuyerIdentificationThresholdOverviewBody,

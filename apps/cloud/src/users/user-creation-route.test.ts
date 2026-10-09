@@ -3,9 +3,10 @@ import { PASSKEY_AUTHORIZATION_WINDOW_MS } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { processRecoveryRequestJob } from "../access/process-recovery-request-job.js";
 import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../access/session-id.js";
+import { processRecoveryRequestJob } from "../credentials/process-recovery-request-job.js";
+import { voidOutstandingRecoveryTokens } from "../credentials/void-outstanding-recovery-tokens.js";
 import {
   alerts,
   auditLog,
@@ -34,6 +35,7 @@ let currentTime: Date;
 async function buildApp() {
   const built = Fastify();
   registerUserCreationRoutes(built, {
+    voidOutstandingRecoveryTokens,
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
     now: () => currentTime,

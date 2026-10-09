@@ -9,6 +9,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../access/session-id.js";
 import { openAlert } from "../alerts/open-alert.js";
+import { voidOutstandingRecoveryTokens } from "../credentials/void-outstanding-recovery-tokens.js";
 import { DrizzleRoleStore } from "../permissions/drizzle-role-store.js";
 import {
   alerts,
@@ -56,7 +57,12 @@ afterAll(async () => {
 
 beforeEach(async () => {
   app = Fastify();
-  registerUserEditRoutes(app, { db, now: () => new Date(), backofficeOrigin: BACKOFFICE_ORIGIN });
+  registerUserEditRoutes(app, {
+    voidOutstandingRecoveryTokens,
+    db,
+    now: () => new Date(),
+    backofficeOrigin: BACKOFFICE_ORIGIN,
+  });
   const [administratorRole] = await db
     .select({ id: roles.id })
     .from(roles)
@@ -320,7 +326,7 @@ describe("an alert for increased access that fails to open, on a real Postgres",
     await expect(
       createUser(
         {
-          store: new DrizzleUserStore(db, () => NOON),
+          store: new DrizzleUserStore(db, () => NOON, voidOutstandingRecoveryTokens),
           clock: { now: () => new Date() },
         },
         {

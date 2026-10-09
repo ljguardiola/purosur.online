@@ -1,10 +1,5 @@
 import { createRoute, createRouter, redirect } from "@tanstack/react-router";
-import {
-  accountRecoveryRoute,
-  myAccountRoute,
-  registerPasskeyRoute,
-  signInRoute,
-} from "../access/routes";
+import { signInRoute } from "../access/routes";
 import { alertsListRoute, alertsOverviewRoute } from "../alerts/routes";
 import { branchSettingsRoute } from "../branch/routes";
 import {
@@ -13,6 +8,7 @@ import {
   productsListRoute,
   tagsListRoute,
 } from "../catalog/routes";
+import { accountRecoveryRoute, myAccountRoute, registerPasskeyRoute } from "../credentials/routes";
 import { fiscalConfigurationRoute, pointsOfSaleRoute } from "../fiscal/routes";
 import { helpArticleRoute, helpCategoryRoute, helpHomeRoute } from "../help/routes";
 import { pendingRefundsRoute } from "../payments/routes";

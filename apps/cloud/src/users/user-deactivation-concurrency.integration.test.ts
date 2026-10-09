@@ -6,6 +6,7 @@ import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../access/session-id.js";
+import { voidOutstandingRecoveryTokens } from "../credentials/void-outstanding-recovery-tokens.js";
 import {
   auditLog,
   rolePermissions,
@@ -50,11 +51,17 @@ afterAll(async () => {
 beforeEach(() => {
   app = Fastify();
   registerUserDeactivationRoutes(app, {
+    voidOutstandingRecoveryTokens,
     db,
     now: () => new Date(),
     backofficeOrigin: BACKOFFICE_ORIGIN,
   });
-  registerUserEditRoutes(app, { db, now: () => new Date(), backofficeOrigin: BACKOFFICE_ORIGIN });
+  registerUserEditRoutes(app, {
+    voidOutstandingRecoveryTokens,
+    db,
+    now: () => new Date(),
+    backofficeOrigin: BACKOFFICE_ORIGIN,
+  });
 });
 
 afterEach(async () => {

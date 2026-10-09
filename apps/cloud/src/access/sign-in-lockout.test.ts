@@ -7,9 +7,9 @@ import {
 } from "@purosur/domain/access/use-cases";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { DrizzlePasskeySignInStore } from "../credentials/drizzle-passkey-sign-in-store.js";
 import { alerts } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
-import { DrizzlePasskeySignInStore } from "./drizzle-passkey-sign-in-store.js";
 import { DrizzleSignInLockoutStore, hashSourceAddress } from "./sign-in-lockout.js";
 
 let testDatabase: TestDatabase;

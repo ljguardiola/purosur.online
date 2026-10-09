@@ -1,8 +1,8 @@
 import type { OpenCashSession } from "@purosur/contracts";
 import type { PinHolder, PinSignInFailures } from "@purosur/domain/access/use-cases";
 import { describe, expect, it } from "vitest";
+import { derivePinVerifier } from "../credentials/pin-verifier";
 import type { PinCredential } from "./pin-matching";
-import { derivePinVerifier } from "./pin-verifier";
 import { firstSignIn, type SignInDeps, signIn } from "./sign-in";
 import { createSignedInPerson } from "./signed-in-person";
 

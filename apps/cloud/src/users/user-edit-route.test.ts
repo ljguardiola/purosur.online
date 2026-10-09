@@ -3,11 +3,12 @@ import { PASSKEY_AUTHORIZATION_WINDOW_MS, RECOVERY_TOKEN_LIFETIME_MS } from "@pu
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { processRecoveryRequestJob } from "../access/process-recovery-request-job.js";
-import { registerRecoveryRedemptionRoutes } from "../access/recovery-redemption-route.js";
-import { hashRecoveryToken } from "../access/recovery-token-hash.js";
 import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../access/session-id.js";
+import { processRecoveryRequestJob } from "../credentials/process-recovery-request-job.js";
+import { registerRecoveryRedemptionRoutes } from "../credentials/recovery-redemption-route.js";
+import { hashRecoveryToken } from "../credentials/recovery-token-hash.js";
+import { voidOutstandingRecoveryTokens } from "../credentials/void-outstanding-recovery-tokens.js";
 import {
   alerts,
   auditLog,
@@ -176,6 +177,7 @@ beforeEach(async () => {
   currentTime = NOON;
   app = Fastify();
   registerUserEditRoutes(app, {
+    voidOutstandingRecoveryTokens,
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
     now: () => currentTime,
@@ -643,6 +645,7 @@ describe("PUT /users/:id", () => {
     const rawSessionId = await insertSession(administratorId);
     const racedApp = Fastify();
     registerUserEditRoutes(racedApp, {
+      voidOutstandingRecoveryTokens,
       db: withChangeAfterCommit(() =>
         db.update(users).set({ active: false, version: 3 }).where(eq(users.id, targetId)),
       ),
@@ -679,6 +682,7 @@ describe("PUT /users/:id", () => {
     const rawSessionId = await insertSession(administratorId);
     const racedApp = Fastify();
     registerUserEditRoutes(racedApp, {
+      voidOutstandingRecoveryTokens,
       db: withChangeAfterCommit(() =>
         db
           .update(sessions)

@@ -1,0 +1,110 @@
+import type {
+  PasskeyRemovalAlert,
+  PasskeyRemovalStore,
+  PasskeyRemovalStoreTransaction,
+  RemovedPasskey,
+} from "@purosur/domain/credentials/use-cases";
+import { and, eq } from "drizzle-orm";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { revokeSessions } from "../access/revoke-sessions.js";
+import { openAlert } from "../alerts/open-alert.js";
+import { auditLog, passkeys } from "../platform/db/schema.js";
+
+type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
+  Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
+>[0];
+
+class DrizzlePasskeyRemovalStoreTransaction<TQueryResult extends PgQueryResultHKT>
+  implements PasskeyRemovalStoreTransaction
+{
+  private readonly tx: Transaction<TQueryResult>;
+  private readonly now: () => Date;
+
+  constructor(tx: Transaction<TQueryResult>, now: () => Date) {
+    this.tx = tx;
+    this.now = now;
+  }
+
+  async findRemovablePasskey(
+    userId: string,
+    passkeyId: string,
+  ): Promise<RemovedPasskey | undefined> {
+    const [found] = await this.tx
+      .select({ id: passkeys.id, name: passkeys.name })
+      .from(passkeys)
+      .where(and(eq(passkeys.id, passkeyId), eq(passkeys.userId, userId)))
+      .for("update");
+    return found;
+  }
+
+  async deletePasskey(passkeyId: string): Promise<void> {
+    await this.tx.delete(passkeys).where(eq(passkeys.id, passkeyId));
+  }
+
+  revokeSessions(userId: string, at: Date): Promise<void> {
+    return revokeSessions(this.tx, userId, at);
+  }
+
+  async recordOwnPasskeyRemoved(userId: string, passkey: RemovedPasskey): Promise<void> {
+    await this.tx.insert(auditLog).values({
+      entity: "passkey",
+      entityId: passkey.id,
+      actorId: userId,
+      previousValue: { id: passkey.id, name: passkey.name },
+      newValue: null,
+      at: this.now(),
+    });
+  }
+
+  async recordUserPasskeyRemoved(
+    administratorId: string,
+    userId: string,
+    passkey: RemovedPasskey,
+  ): Promise<void> {
+    await this.tx.insert(auditLog).values({
+      entity: "passkey",
+      entityId: passkey.id,
+      actorId: administratorId,
+      previousValue: { id: passkey.id, name: passkey.name, userId },
+      newValue: null,
+      at: this.now(),
+    });
+  }
+
+  async openPasskeyRemovedAlert(alert: PasskeyRemovalAlert): Promise<void> {
+    await openAlert(
+      this.tx,
+      {
+        kind: "backoffice_passkey_changed",
+        scope: alert.userId,
+        detail: {
+          action: "removed",
+          passkeyName: alert.passkeyName,
+          actorId: alert.actorId,
+          via: alert.via,
+        },
+      },
+      { now: () => alert.openedAt },
+    );
+  }
+}
+
+export class DrizzlePasskeyRemovalStore<TQueryResult extends PgQueryResultHKT>
+  implements PasskeyRemovalStore
+{
+  private readonly db: PgDatabase<TQueryResult>;
+  private readonly now: () => Date;
+
+  constructor(db: PgDatabase<TQueryResult>, now: () => Date) {
+    this.db = db;
+    this.now = now;
+  }
+
+  transaction<TOutcome>(
+    work: (tx: PasskeyRemovalStoreTransaction) => Promise<TOutcome>,
+  ): Promise<TOutcome> {
+    return this.db.transaction((tx) =>
+      work(new DrizzlePasskeyRemovalStoreTransaction(tx, this.now)),
+    );
+  }
+}

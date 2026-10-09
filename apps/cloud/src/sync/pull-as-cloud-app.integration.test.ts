@@ -14,6 +14,7 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
+import { voidOutstandingRecoveryTokens } from "../credentials/void-outstanding-recovery-tokens.js";
 import { DrizzleBuyerIdentificationThresholdStore } from "../fiscal/drizzle-buyer-identification-threshold-store.js";
 import { DrizzleFiscalAddressStore } from "../fiscal/drizzle-fiscal-address-store.js";
 import { DrizzleIssuerIdentificationStore } from "../fiscal/drizzle-issuer-identification-store.js";
@@ -87,7 +88,7 @@ describe("a pull run as the role the deployed cloud connects with", () => {
     }
     await createUser(
       {
-        store: new DrizzleUserStore(db, () => NOW),
+        store: new DrizzleUserStore(db, () => NOW, voidOutstandingRecoveryTokens),
         clock: { now: () => NOW },
       },
       {

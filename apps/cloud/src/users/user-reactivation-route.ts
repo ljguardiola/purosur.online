@@ -12,7 +12,7 @@ import {
 import { readRecordIds } from "../platform/record-id-params.js";
 import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 import { DrizzleUserStore } from "./drizzle-user-store.js";
-import type { UsersRouteOptions } from "./users-list-route.js";
+import type { UserChangeRouteOptions } from "./users-list-route.js";
 
 const USER_NOT_FOUND_RESPONSE = {
   code: "not_found",
@@ -21,7 +21,7 @@ const USER_NOT_FOUND_RESPONSE = {
 
 export function registerUserReactivationRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
-  options: UsersRouteOptions<TQueryResult>,
+  options: UserChangeRouteOptions<TQueryResult>,
 ): void {
   const { now } = options;
   registerRouteAccess(app);
@@ -56,7 +56,7 @@ export function registerUserReactivationRoutes<TQueryResult extends PgQueryResul
       }
 
       const outcome = await reactivateUser(
-        { store: new DrizzleUserStore(options.db, now) },
+        { store: new DrizzleUserStore(options.db, now, options.voidOutstandingRecoveryTokens) },
         { id: target.id, actorId: openSession.userId },
       );
 

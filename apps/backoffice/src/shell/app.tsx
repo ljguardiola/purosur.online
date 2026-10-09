@@ -2,24 +2,8 @@ import { FieldSizeProvider, LocaleProvider } from "@purosur/ui";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import {
-  type AccountRecoveryScreenServices,
-  defaultAccountRecoveryScreenServices,
-} from "../access/account-recovery-services";
-import {
-  defaultMyAccountScreenServices,
-  type MyAccountScreenServices,
-} from "../access/my-account-services";
-import {
-  defaultRegisterPasskeyScreenServices,
-  type RegisterPasskeyScreenServices,
-} from "../access/register-passkey-services";
 import { checkSessionStatus, fetchSession, type SessionOutcome } from "../access/session-api";
 import { defaultSignInScreenServices, type SignInScreenServices } from "../access/sign-in-services";
-import {
-  defaultUserCredentialSectionsServices,
-  type UserCredentialSectionsServices,
-} from "../access/user-credential-sections-services";
 import {
   type AlertsListScreenServices,
   defaultAlertsListScreenServices,
@@ -44,6 +28,22 @@ import {
   defaultTagsListScreenServices,
   type TagsListScreenServices,
 } from "../catalog/tags-list-services";
+import {
+  type AccountRecoveryScreenServices,
+  defaultAccountRecoveryScreenServices,
+} from "../credentials/account-recovery-services";
+import {
+  defaultMyAccountScreenServices,
+  type MyAccountScreenServices,
+} from "../credentials/my-account-services";
+import {
+  defaultRegisterPasskeyScreenServices,
+  type RegisterPasskeyScreenServices,
+} from "../credentials/register-passkey-services";
+import {
+  defaultUserCredentialSectionsServices,
+  type UserCredentialSectionsServices,
+} from "../credentials/user-credential-sections-services";
 import {
   defaultFiscalConfigurationScreenServices,
   type FiscalConfigurationScreenServices,
@@ -155,7 +155,7 @@ const defaultAppServices: AppServices = {
   userDetailScreen: {
     ...defaultUserDetailScreenServices,
     credentialSections: lazyScreen(
-      () => import("../access/user-credential-sections"),
+      () => import("../credentials/user-credential-sections"),
       "UserCredentialSections",
     ),
   },

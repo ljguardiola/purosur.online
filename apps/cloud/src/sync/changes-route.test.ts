@@ -20,6 +20,7 @@ import { registerRouteAccess } from "../access/route-access.js";
 import { DrizzleBranchSettingsStore } from "../branch/drizzle-branch-settings-store.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { insertProductWithTags } from "../catalog/test-support/catalog-route-fixtures.js";
+import { voidOutstandingRecoveryTokens } from "../credentials/void-outstanding-recovery-tokens.js";
 import { DrizzleRoleStore } from "../permissions/drizzle-role-store.js";
 import {
   branchSettings,
@@ -810,7 +811,10 @@ describe("GET /changes carrying the users and the roles", () => {
 
   async function newUser(firstName: string, email: string, roleId: string): Promise<string> {
     const outcome = await createUser(
-      { store: new DrizzleUserStore(db, () => NOW), clock: NOW_FOR_ALERTS },
+      {
+        store: new DrizzleUserStore(db, () => NOW, voidOutstandingRecoveryTokens),
+        clock: NOW_FOR_ALERTS,
+      },
       {
         firstName,
         email,
@@ -985,7 +989,7 @@ describe("GET /changes carrying the users and the roles", () => {
     const cashierRoleId = await newRole("Cajera", []);
     const graceId = await newUser("Grace", "grace@example.com", cashierRoleId);
     await deactivateUser(
-      { store: new DrizzleUserStore(db, () => NOW) },
+      { store: new DrizzleUserStore(db, () => NOW, voidOutstandingRecoveryTokens) },
       { id: graceId, actorId: await anActor(), at: NOW },
     );
 

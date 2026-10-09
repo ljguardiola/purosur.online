@@ -1,7 +1,7 @@
 import type { SyncChange } from "@purosur/contracts";
-import { replacePin } from "@purosur/domain/access/use-cases";
-import { derivePinVerifier } from "../access/pin-verifier";
-import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
+import { replacePin } from "@purosur/domain/credentials/use-cases";
+import { derivePinVerifier } from "../credentials/pin-verifier";
+import { SqlitePinReplacementStore } from "../credentials/sqlite-pin-replacement-store";
 import type { LocalDatabase } from "../platform/local-database";
 import type { RemovalOf } from "./pulled-change";
 
@@ -27,7 +27,7 @@ export function prepareAccessPageWrites(database: LocalDatabase, pepper: string 
      WHERE excluded.version > users.version
         OR (excluded.version = users.version AND users.removed = 1)`,
   );
-  const signInStore = new SqliteSignInStore(database);
+  const pinReplacementStore = new SqlitePinReplacementStore(database);
   const deleteVerifier = database.prepare("DELETE FROM pin_verifiers WHERE user_id = ?");
   const clearFailures = database.prepare("DELETE FROM pin_sign_in_failures WHERE user_id = ?");
   const saveRole = database.prepare(
@@ -75,7 +75,7 @@ export function prepareAccessPageWrites(database: LocalDatabase, pepper: string 
         return;
       }
       replacePin(
-        { store: signInStore },
+        { store: pinReplacementStore },
         {
           userId: entity_id,
           credential: row.pin_hash === null ? undefined : derivePinVerifier(pepper, row.pin_hash),

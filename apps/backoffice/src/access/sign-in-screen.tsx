@@ -3,7 +3,7 @@ import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
 import { Clock, KeyRound, LifeBuoy, ShieldX, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { AccessFooterLink, AccessLayout } from "./access-layout";
+import { AccessFooterLink, AccessLayout } from "../shell/access-layout";
 import type { SignInScreenServices } from "./sign-in-services";
 
 export type SignInOpeningNotice =
