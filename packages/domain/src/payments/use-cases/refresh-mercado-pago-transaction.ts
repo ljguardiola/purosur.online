@@ -1,5 +1,8 @@
 import type { Clock } from "../../shared/index.js";
-import type { ProviderPaymentTransaction } from "../model/payment-transaction.js";
+import {
+  PENDING_PAYMENT_TRANSACTION_STATE,
+  type ProviderPaymentTransaction,
+} from "../model/payment-transaction.js";
 import type { MercadoPagoOrders, PaymentTransactionLane } from "./mercado-pago-qr-order-ports.js";
 import { recordExpiryWithoutOrder } from "./record-expiry-without-order.js";
 import { recordMercadoPagoOrderResult } from "./record-mercado-pago-order-result.js";
@@ -17,7 +20,10 @@ export async function refreshMercadoPagoTransaction(
   if (ended !== null) {
     return { kind: "refreshed", transaction: ended };
   }
-  if (transaction.state !== "PENDING" || transaction.providerOrderId === null) {
+  if (
+    transaction.state !== PENDING_PAYMENT_TRANSACTION_STATE ||
+    transaction.providerOrderId === null
+  ) {
     return { kind: "refreshed", transaction };
   }
 
