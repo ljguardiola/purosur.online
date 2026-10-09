@@ -1,5 +1,7 @@
-import type { MercadoPagoOrderResult } from "@purosur/domain";
-import type { MercadoPagoQrOrderRequest } from "@purosur/domain/payments/use-cases";
+import type {
+  MercadoPagoOrderReading,
+  MercadoPagoQrOrderRequest,
+} from "@purosur/domain/payments/use-cases";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMercadoPagoOrdersClient } from "./mercado-pago-orders-client.js";
 import {
@@ -81,6 +83,8 @@ function createdResult(overrides: Partial<MercadoPagoOrderResult> = {}): Mercado
     ...overrides,
   };
 }
+
+type MercadoPagoOrderResult = Extract<MercadoPagoOrderReading, { kind: "read" }>["result"];
 
 describe("the Mercado Pago orders client", () => {
   describe("creating a QR order", () => {

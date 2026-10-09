@@ -17,6 +17,7 @@ import {
 } from "@purosur/domain";
 import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support";
 import { eq } from "drizzle-orm";
+import type { PgliteQueryResultHKT } from "drizzle-orm/pglite";
 import {
   afterAll,
   afterEach,
@@ -38,6 +39,7 @@ import {
   userRoles,
   users,
 } from "./platform/db/schema.js";
+import type { DedicatedConnections } from "./platform/dedicated-connections.js";
 import { insertEnrolledInstallation } from "./register/test-support/enrolled-installation.js";
 import {
   capabilityAccess,
@@ -1602,6 +1604,10 @@ describe("wiring the first PIN code route", () => {
 });
 
 describe("wiring the Mercado Pago QR routes", () => {
+  function connections(): DedicatedConnections<PgliteQueryResultHKT> {
+    return { withConnection: (work) => work(testDatabase.db) };
+  }
+
   function devicesOptions() {
     return {
       db: testDatabase.db,
@@ -1626,7 +1632,7 @@ describe("wiring the Mercado Pago QR routes", () => {
     const app = buildApp({
       now: () => APP_CLOCK,
       version: "abc1234",
-      mercadoPagoQr: { connections: { withConnection: (work) => work(testDatabase.db) } },
+      mercadoPagoQr: { connections: connections() },
     });
 
     const response = await app.inject({
@@ -1648,7 +1654,7 @@ describe("wiring the Mercado Pago QR routes", () => {
         now: () => APP_CLOCK,
         version: "abc1234",
         devices: devicesOptions(),
-        mercadoPagoQr: { connections: { withConnection: (work) => work(testDatabase.db) } },
+        mercadoPagoQr: { connections: connections() },
       });
 
       const response = await app.inject({ method, url, payload: {} });
