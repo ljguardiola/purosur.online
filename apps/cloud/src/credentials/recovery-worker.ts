@@ -8,6 +8,7 @@ import { runShutdownSteps } from "../platform/run-shutdown-steps.js";
 import { reportPoolErrors } from "./pool-connection-error-handler.js";
 import { processRecoveryRequestJob } from "./process-recovery-request-job.js";
 import type { AccessEmailSender } from "./recovery-email-sender.js";
+import { reportRecoveryError } from "./recovery-error-reporting.js";
 import { flushClosedRecoveryRejectedAttemptWindows } from "./recovery-rejected-attempt-flush.js";
 import { recoveryRequestJobPayloadSchema } from "./recovery-request-job-payload.js";
 import { findPinCodeByCode, sendFirstPinCodeEmailJob } from "./send-first-pin-code-email-job.js";
@@ -110,6 +111,9 @@ export async function startRecoveryWorker(
         await helpers.withPgClient((client) => doFlush(doCreateDatabase(client), { now }));
       },
     },
+  });
+  runner.promise.catch((error: unknown) => {
+    reportRecoveryError("recovery worker: runner exited with an error", error);
   });
 
   return {
