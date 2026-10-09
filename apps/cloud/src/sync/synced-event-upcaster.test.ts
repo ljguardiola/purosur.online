@@ -187,6 +187,161 @@ describe("decoding the events the registers pushed", () => {
     });
   });
 
+  it("reads a version 4 sale with the operation number its register gave it", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          schema_version: 4,
+          payload: {
+            ...saleFields,
+            operation_number: 482,
+            payments: [{ ...salePayment, authorized_by: null, confirmed_at: null }],
+            stock_movements: [],
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toMatchObject({
+      kind: "fact",
+      fact: { kind: "sale_completed", sale: { operationNumber: 482, stockMovements: [] } },
+    });
+  });
+
+  it.each([1, 2, 3])("reads a version %s sale as one with no operation number", (version) => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          schema_version: version,
+          payload: {
+            ...saleFields,
+            ...(version === 1 ? { completed_at: "2026-10-06T11:20:00.000Z" } : {}),
+            payments: [
+              version === 1
+                ? salePayment
+                : { ...salePayment, authorized_by: null, confirmed_at: null },
+            ],
+            ...(version === 3 ? { stock_movements: [] } : {}),
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toMatchObject({ fact: { sale: { operationNumber: null } } });
+  });
+
+  it("reads the print state of a sale's receipt", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          event_type: "sale_print_state_changed",
+          schema_version: 1,
+          payload: {
+            sale_id: SALE,
+            print_attempted_at: "2026-10-06T11:21:00.000Z",
+            printed_at: "2026-10-06T11:21:05.000Z",
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toEqual({
+      kind: "fact",
+      fact: {
+        kind: "sale_print_state_changed",
+        printState: {
+          saleId: SALE,
+          printAttemptedAt: new Date("2026-10-06T11:21:00.000Z"),
+          printedAt: new Date("2026-10-06T11:21:05.000Z"),
+        },
+      },
+    });
+  });
+
+  it("reads a receipt that was attempted and not printed as having no printing time", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          event_type: "sale_print_state_changed",
+          schema_version: 1,
+          payload: {
+            sale_id: SALE,
+            print_attempted_at: "2026-10-06T11:21:00.000Z",
+            printed_at: null,
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toMatchObject({ fact: { printState: { printedAt: null } } });
+  });
+
+  it("reads a retried copy of a receipt, with nobody authorizing it and no reason text", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          event_type: "reprint_recorded",
+          schema_version: 1,
+          occurred_at: "2026-10-06T11:30:00.000Z",
+          payload: {
+            sale_id: SALE,
+            order_number: 1,
+            requested_by: USER,
+            authorized_by: null,
+            reason_kind: "retry",
+            reason_text: null,
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toEqual({
+      kind: "fact",
+      fact: {
+        kind: "reprint_recorded",
+        reprint: {
+          saleId: SALE,
+          orderNumber: 1,
+          requestedBy: USER,
+          authorizedBy: null,
+          reason: { kind: "retry" },
+          occurredAt: new Date("2026-10-06T11:30:00.000Z"),
+        },
+      },
+    });
+  });
+
+  it("reads a copy somebody asked for with its reason and the person who authorized it", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          event_type: "reprint_recorded",
+          schema_version: 1,
+          occurred_at: "2026-10-06T11:31:00.000Z",
+          payload: {
+            sale_id: SALE,
+            order_number: 2,
+            requested_by: USER,
+            authorized_by: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
+            reason_kind: "requested",
+            reason_text: "El cliente la perdio",
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toMatchObject({
+      fact: {
+        reprint: {
+          orderNumber: 2,
+          authorizedBy: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
+          reason: { kind: "requested", text: "El cliente la perdio" },
+          occurredAt: new Date("2026-10-06T11:31:00.000Z"),
+        },
+      },
+    });
+  });
+
   it("reads a version 1 sale as one whose register reports no stock movements", () => {
     const decoded = upcaster.decode(
       unappliedEventOf(
@@ -518,11 +673,11 @@ describe("decoding the events the registers pushed", () => {
   });
 
   it("cannot read an event type and version no schema describes", () => {
-    const decoded = upcaster.decode(unappliedEventOf(pushed({ schema_version: 4 })));
+    const decoded = upcaster.decode(unappliedEventOf(pushed({ schema_version: 5 })));
 
     expect(decoded).toEqual({
       kind: "unreadable",
-      reason: "no schema reads sale_completed version 4",
+      reason: "no schema reads sale_completed version 5",
     });
   });
 
