@@ -97,14 +97,12 @@ describe("GET /registers/points-of-sale", () => {
       permissionKeys: ["change_fiscal_configuration"],
       passkeyAuthorized: false,
     });
-    await db
-      .insert(pointOfSaleClaims)
-      .values({
-        pointOfSaleNumber: 7,
-        registerId: configured.id,
-        mechanism: "real_time",
-        claimedBy: session.userId,
-      });
+    await db.insert(pointOfSaleClaims).values({
+      pointOfSaleNumber: 7,
+      registerId: configured.id,
+      mechanism: "real_time",
+      claimedBy: session.userId,
+    });
     await db.insert(registerPointsOfSale).values({
       registerId: configured.id,
       pointOfSaleNumber: 7,

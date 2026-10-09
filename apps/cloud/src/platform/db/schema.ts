@@ -579,6 +579,8 @@ export const fiscalAddresses = pgTable(
   (table) => [uniqueIndex("fiscal_addresses_name_lower_key").on(sql`lower(${table.name})`)],
 );
 
+export const pointOfSaleMechanism = pgEnum("point_of_sale_mechanism", ["real_time", "offline"]);
+
 // Append-only: a number once claimed by a register stays that register's, even after the register
 // is given another one.
 export const pointOfSaleClaims = pgTable(
@@ -588,6 +590,7 @@ export const pointOfSaleClaims = pgTable(
     registerId: uuid("register_id")
       .notNull()
       .references(() => registers.id),
+    mechanism: pointOfSaleMechanism("mechanism").notNull(),
     claimedAt: timestamp("claimed_at", { withTimezone: true }).notNull().defaultNow(),
     claimedBy: uuid("claimed_by")
       .notNull()
@@ -598,15 +601,16 @@ export const pointOfSaleClaims = pgTable(
       "point_of_sale_claims_number_in_range",
       sql`${table.pointOfSaleNumber} between 1 and ${sql.raw(String(POINT_OF_SALE_NUMBER_MAX))}`,
     ),
-    unique("point_of_sale_claims_number_register_key").on(
+    unique("point_of_sale_claims_number_register_mechanism_key").on(
       table.pointOfSaleNumber,
       table.registerId,
+      table.mechanism,
     ),
   ],
 );
 
 // The composite foreign key makes the database itself refuse a register using a number another
-// register claimed.
+// register claimed, or one the same register claimed for the other mechanism.
 export const registerPointsOfSale = pgTable(
   "register_points_of_sale",
   {
@@ -614,16 +618,51 @@ export const registerPointsOfSale = pgTable(
       .primaryKey()
       .references(() => registers.id),
     pointOfSaleNumber: integer("point_of_sale_number").notNull(),
+    mechanism: pointOfSaleMechanism("mechanism").notNull().default("real_time"),
     fiscalAddressId: uuid("fiscal_address_id")
       .notNull()
       .references(() => fiscalAddresses.id),
     version: integer("version").notNull(),
   },
   (table) => [
+    check("register_points_of_sale_mechanism_real_time", sql`${table.mechanism} = 'real_time'`),
     foreignKey({
       name: "register_points_of_sale_claim_fk",
-      columns: [table.pointOfSaleNumber, table.registerId],
-      foreignColumns: [pointOfSaleClaims.pointOfSaleNumber, pointOfSaleClaims.registerId],
+      columns: [table.pointOfSaleNumber, table.registerId, table.mechanism],
+      foreignColumns: [
+        pointOfSaleClaims.pointOfSaleNumber,
+        pointOfSaleClaims.registerId,
+        pointOfSaleClaims.mechanism,
+      ],
+    }),
+  ],
+);
+
+// The offline point of sale operates from its register's real-time point of sale's fiscal address,
+// which is why it carries none and why a register can't have one before the other.
+export const registerOfflinePointsOfSale = pgTable(
+  "register_offline_points_of_sale",
+  {
+    registerId: uuid("register_id").primaryKey(),
+    pointOfSaleNumber: integer("point_of_sale_number").notNull(),
+    mechanism: pointOfSaleMechanism("mechanism").notNull().default("offline"),
+    version: integer("version").notNull(),
+  },
+  (table) => [
+    check("register_offline_points_of_sale_mechanism_offline", sql`${table.mechanism} = 'offline'`),
+    foreignKey({
+      name: "register_offline_points_of_sale_register_fk",
+      columns: [table.registerId],
+      foreignColumns: [registerPointsOfSale.registerId],
+    }),
+    foreignKey({
+      name: "register_offline_points_of_sale_claim_fk",
+      columns: [table.pointOfSaleNumber, table.registerId, table.mechanism],
+      foreignColumns: [
+        pointOfSaleClaims.pointOfSaleNumber,
+        pointOfSaleClaims.registerId,
+        pointOfSaleClaims.mechanism,
+      ],
     }),
   ],
 );

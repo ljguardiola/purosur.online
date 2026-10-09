@@ -166,16 +166,14 @@ describe("a register's offline point of sale stored directly, as cloud_app", () 
 
   it("is refused by the database when it claims to be a real-time point of sale", async () => {
     const { actorId, fiscalAddressId, firstRegisterId } = await seedTwoRegisters();
-    await db
-      .insert(pointOfSaleClaims)
-      .values([
-        {
-          pointOfSaleNumber: 72,
-          registerId: firstRegisterId,
-          mechanism: "real_time",
-          claimedBy: actorId,
-        },
-      ]);
+    await db.insert(pointOfSaleClaims).values([
+      {
+        pointOfSaleNumber: 72,
+        registerId: firstRegisterId,
+        mechanism: "real_time",
+        claimedBy: actorId,
+      },
+    ]);
     await db
       .insert(registerPointsOfSale)
       .values({ registerId: firstRegisterId, pointOfSaleNumber: 72, fiscalAddressId, version: 1 });
