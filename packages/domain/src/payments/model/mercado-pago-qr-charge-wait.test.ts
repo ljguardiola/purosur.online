@@ -8,13 +8,13 @@ import {
 } from "./mercado-pago-qr-charge-wait.js";
 import { MERCADO_PAGO_ORDER_EXPIRY_MINUTES } from "./payment-transaction.js";
 
-const SHOWN_AT = new Date("2026-10-09T12:00:00.000Z");
+const STARTED_AT = new Date("2026-10-09T12:00:00.000Z");
 const WAIT_ENDS_AT = new Date("2026-10-09T12:03:00.000Z");
 
 describe("mercadoPagoQrChargeWaitEndsAt", () => {
-  it("waits 3 minutes from the moment the order is shown", () => {
+  it("waits 3 minutes from the moment the charge starts", () => {
     expect(MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES).toBe(3);
-    expect(mercadoPagoQrChargeWaitEndsAt(SHOWN_AT)).toEqual(WAIT_ENDS_AT);
+    expect(mercadoPagoQrChargeWaitEndsAt(STARTED_AT)).toEqual(WAIT_ENDS_AT);
   });
 
   it("ends the wait 2 minutes before the order expires, so a payment made at its end still comes in", () => {
@@ -23,8 +23,8 @@ describe("mercadoPagoQrChargeWaitEndsAt", () => {
 });
 
 describe("mercadoPagoQrChargeWait", () => {
-  it("is still waiting with the whole wait left right after the order is shown", () => {
-    expect(mercadoPagoQrChargeWait(WAIT_ENDS_AT, SHOWN_AT)).toEqual({
+  it("is still waiting with the whole wait left right after the charge starts", () => {
+    expect(mercadoPagoQrChargeWait(WAIT_ENDS_AT, STARTED_AT)).toEqual({
       kind: "waiting",
       remainingSeconds: 180,
     });
@@ -50,8 +50,8 @@ describe("mercadoPagoQrChargeWait", () => {
   it("never leaves more than the whole wait nor less than a second while waiting", () => {
     fc.assert(
       fc.property(fc.integer({ min: 0, max: 400_000 }), (elapsedMs) => {
-        const now = new Date(SHOWN_AT.getTime() + elapsedMs);
-        const wait = mercadoPagoQrChargeWait(mercadoPagoQrChargeWaitEndsAt(SHOWN_AT), now);
+        const now = new Date(STARTED_AT.getTime() + elapsedMs);
+        const wait = mercadoPagoQrChargeWait(mercadoPagoQrChargeWaitEndsAt(STARTED_AT), now);
         if (elapsedMs >= 180_000) {
           expect(wait).toEqual({ kind: "over" });
         } else {
