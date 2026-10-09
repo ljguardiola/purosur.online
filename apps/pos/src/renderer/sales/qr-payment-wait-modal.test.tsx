@@ -16,6 +16,8 @@ const ORDER = {
 } as const;
 const WAITING: FollowMercadoPagoQrChargeOutcome = { kind: "waiting", remaining_seconds: 161 };
 
+const NEXT_ASK_TIMEOUT_MS = 5_000;
+
 type Follow = (paymentTransactionId: string) => Promise<FollowMercadoPagoQrChargeOutcome>;
 
 function answering(...outcomes: FollowMercadoPagoQrChargeOutcome[]): Follow {
@@ -88,7 +90,9 @@ describe("QrPaymentWaitModal", () => {
   it("keeps asking the core about the payment while it waits", async () => {
     const { followCharge } = await renderModal();
 
-    await expect.poll(() => followCharge.mock.calls.length).toBeGreaterThan(1);
+    await expect
+      .poll(() => followCharge.mock.calls.length, { timeout: NEXT_ASK_TIMEOUT_MS })
+      .toBeGreaterThan(1);
     expect(new Set(followCharge.mock.calls.map(([id]) => id))).toEqual(new Set([PAYMENT_ID]));
   });
 
@@ -97,7 +101,7 @@ describe("QrPaymentWaitModal", () => {
     const { callbacks } = await renderModal(answering(WAITING, completed));
 
     await expect
-      .poll(() => callbacks.onCompleted.mock.calls)
+      .poll(() => callbacks.onCompleted.mock.calls, { timeout: NEXT_ASK_TIMEOUT_MS })
       .toEqual([[{ ...completed, amount: 3_000_000 }]]);
   });
 
