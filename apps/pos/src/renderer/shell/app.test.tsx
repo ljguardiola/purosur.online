@@ -251,6 +251,12 @@ function coreAnswering(
         ? { kind: "unavailable" }
         : sales.chargeSaleByTransfer(saleId, amount);
     },
+    async startMercadoPagoQrCharge() {
+      return { kind: "unavailable" };
+    },
+    async followMercadoPagoQrCharge() {
+      return { kind: "unavailable" };
+    },
     async closeCashSession(sessionId, countedCash) {
       closed.push([sessionId, countedCash]);
       return cashDrawer.closeCashSession === undefined
