@@ -26,6 +26,7 @@ interface DeliveryRow {
 interface SaleRow {
   occurred_at: string;
   first_name: string;
+  operation_number: number | null;
 }
 
 interface BranchRow {
@@ -104,7 +105,8 @@ export class SqliteReceiptLedger implements ReceiptLedger {
   private receiptSource(saleId: string): ReceiptSource {
     const sale = this.database
       .prepare<[string], SaleRow>(
-        `SELECT sales.occurred_at AS occurred_at, users.first_name AS first_name
+        `SELECT sales.occurred_at AS occurred_at, users.first_name AS first_name,
+                sales.operation_number AS operation_number
          FROM sales JOIN users ON users.id = sales.actor_id
          WHERE sales.id = ? AND sales.state = 'COMPLETED'`,
       )
@@ -114,7 +116,7 @@ export class SqliteReceiptLedger implements ReceiptLedger {
         "SELECT address, whatsapp_number, instagram_handle FROM branch_settings ORDER BY location_id LIMIT 1",
       )
       .get();
-    if (sale === undefined || branch === undefined) {
+    if (sale === undefined || sale.operation_number === null || branch === undefined) {
       throw new Error("the sale's receipt cannot be sourced");
     }
     const lines = this.receiptLines(saleId);
@@ -126,6 +128,7 @@ export class SqliteReceiptLedger implements ReceiptLedger {
       },
       occurredAt: new Date(sale.occurred_at),
       servedByFirstName: sale.first_name,
+      operationNumber: sale.operation_number,
       total: saleTotal(lines),
       lines,
       payments: readSalePayments(this.database, saleId).map((payment) => ({

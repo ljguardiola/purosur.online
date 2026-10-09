@@ -1,5 +1,13 @@
 ALTER TABLE sales ADD COLUMN print_attempted_at TEXT;
 ALTER TABLE sales ADD COLUMN printed_at TEXT;
+ALTER TABLE sales ADD COLUMN operation_number INTEGER;
+CREATE UNIQUE INDEX sales_operation_number ON sales (operation_number) WHERE operation_number IS NOT NULL;
+
+CREATE TABLE operation_counter (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  last_number INTEGER NOT NULL CHECK (last_number >= 0)
+);
+INSERT INTO operation_counter (id, last_number) VALUES (1, 0);
 
 CREATE TABLE sale_receipts (
   sale_id TEXT PRIMARY KEY REFERENCES sales (id),

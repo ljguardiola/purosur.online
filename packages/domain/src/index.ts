@@ -324,6 +324,7 @@ export {
   isWellFormedInstallationKey,
   lastSuccessfulSyncOfRegister,
   mayAuthorize,
+  nextOperationNumber,
   normalizeEnrollmentCode,
   REGISTER_ABILITIES,
   REGISTER_NAME_MAX_LENGTH,

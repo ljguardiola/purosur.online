@@ -13,6 +13,7 @@ import { RECEIPT_LOGO } from "./receipt-logo";
 
 const TEMPLATE_VERSION = "1";
 const COLUMNS = 48;
+const OPERATION_NUMBER_DIGITS = 6;
 const RULE = "─".repeat(COLUMNS);
 const FEED_LINES = 5;
 const PC850_TABLE = 2;
@@ -135,7 +136,7 @@ function branch(
 
 function operation(
   out: Output,
-  { occurredAt, servedByFirstName }: ReceiptContent["operation"],
+  { occurredAt, servedByFirstName, operationNumber }: ReceiptContent["operation"],
 ): void {
   const date = formatDate(occurredAt, {
     day: "2-digit",
@@ -149,7 +150,15 @@ function operation(
     hourCycle: "h23",
     timeZone: ARGENTINA_TIME_ZONE,
   });
-  out.lines([...row(`Fecha ${date}`, `Hora ${time}`), `Atendió ${servedByFirstName}`, RULE]);
+  const number = formatNumber(operationNumber, {
+    minimumIntegerDigits: OPERATION_NUMBER_DIGITS,
+    useGrouping: false,
+  });
+  out.lines([
+    ...row(`Fecha ${date}`, `Hora ${time}`),
+    ...row(`Operación ${number}`, `Atendió ${servedByFirstName}`),
+    RULE,
+  ]);
 }
 
 function promotionText(promotion: DiscountBenefit | null): string {
