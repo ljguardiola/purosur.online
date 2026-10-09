@@ -15,6 +15,7 @@ import { processRecoveryRequestJob } from "./process-recovery-request-job.js";
 // This runs them over a real postgres-js pool of more than one connection against a real Postgres.
 const CONCURRENT_REQUESTS = 8;
 const BASE_REQUESTED_AT = new Date("2026-01-05T12:00:00.000Z");
+const PROCESSED_AT = new Date("2026-01-05T12:01:00.000Z");
 
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
@@ -56,7 +57,7 @@ describe("recovery-request jobs for the same account running concurrently agains
             requestId: randomUUID(),
           },
           {
-            now: () => new Date(),
+            now: () => PROCESSED_AT,
             backofficeOrigin: "https://staging.purosur.online",
           },
         ),
