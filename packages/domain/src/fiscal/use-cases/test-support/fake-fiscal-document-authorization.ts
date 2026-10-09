@@ -3,7 +3,6 @@ import {
   type AuthorizationRequestRecord,
   FiscalDocumentAlreadyRecorded,
   type FiscalDocumentSolicitation,
-  type InvoicingEvidence,
   type PointOfSaleLane,
   type PointOfSaleLanes,
   type RecordedAuthorizationRequest,
@@ -18,8 +17,10 @@ export class FakePointOfSaleLanes implements PointOfSaleLanes {
   readonly requests = new Map<string, AuthorizationRequestRecord>();
   readonly answers = new Map<string, RealTimeAuthorizationAnswer>();
   readonly lanesEntered: number[] = [];
+  readonly invoicingCallsOkAt: Date[] = [];
   held = false;
   recordingFailure: Error | undefined;
+  answerRecordingFailure: Error | undefined;
   private readonly owners: Map<number, string>;
 
   constructor(owners: Iterable<[number, string]>) {
@@ -94,7 +95,25 @@ class FakeLane implements PointOfSaleLane {
     answeredAt: Date,
   ): Promise<void> {
     this.lanes.operations.push(`recordAnswer:${answer.kind}@${answeredAt.toISOString()}`);
+    if (this.lanes.answerRecordingFailure !== undefined) {
+      throw this.lanes.answerRecordingFailure;
+    }
     this.lanes.answers.set(fiscalDocumentId, answer);
+  }
+
+  async recordTaxAuthorityAnswer(
+    fiscalDocumentId: string,
+    answer: RealTimeAuthorizationAnswer,
+    answeredAt: Date,
+  ): Promise<void> {
+    this.lanes.operations.push(
+      `recordTaxAuthorityAnswer:${answer.kind}@${answeredAt.toISOString()}`,
+    );
+    if (this.lanes.answerRecordingFailure !== undefined) {
+      throw this.lanes.answerRecordingFailure;
+    }
+    this.lanes.answers.set(fiscalDocumentId, answer);
+    this.lanes.invoicingCallsOkAt.push(new Date(answeredAt));
   }
 }
 
@@ -116,13 +135,15 @@ export class FakeWsaaTokenSource implements WsaaTokenSource {
 export class FakeTaxAuthorityInvoicing implements TaxAuthorityInvoicing {
   readonly solicitations: FiscalDocumentSolicitation[] = [];
   heldLaneDuringSolicit: boolean | undefined;
-  private readonly answer: SolicitationAnswer;
+  requestsRecordedDuringSolicit: string[] | undefined;
+  answersRecordedDuringSolicit: string[] | undefined;
+  private readonly answer: SolicitationAnswer | Error;
   private readonly lanes: FakePointOfSaleLanes;
   private readonly whileSoliciting: () => void;
 
   constructor(
     lanes: FakePointOfSaleLanes,
-    answer: SolicitationAnswer,
+    answer: SolicitationAnswer | Error,
     whileSoliciting: () => void = () => {},
   ) {
     this.lanes = lanes;
@@ -134,15 +155,12 @@ export class FakeTaxAuthorityInvoicing implements TaxAuthorityInvoicing {
     this.lanes.operations.push("solicit");
     this.solicitations.push(solicitation);
     this.heldLaneDuringSolicit = this.lanes.held;
+    this.requestsRecordedDuringSolicit = [...this.lanes.requests.keys()];
+    this.answersRecordedDuringSolicit = [...this.lanes.answers.keys()];
     this.whileSoliciting();
+    if (this.answer instanceof Error) {
+      throw this.answer;
+    }
     return this.answer;
-  }
-}
-
-export class FakeInvoicingEvidence implements InvoicingEvidence {
-  readonly okAt: Date[] = [];
-
-  async recordInvoicingCallOk(at: Date): Promise<void> {
-    this.okAt.push(new Date(at));
   }
 }

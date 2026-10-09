@@ -8,6 +8,7 @@ import {
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { arcaInvoicingEvidence } from "../platform/db/schema.js";
 import { postgresDedicatedConnections } from "../platform/dedicated-connections.js";
 import {
   createIntegrationDatabase,
@@ -36,16 +37,19 @@ const AUTHORIZED: SolicitationAnswer = {
 
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
+let admin: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;
 
 beforeAll(async () => {
   integrationDb = await createIntegrationDatabase("point_of_sale_lanes");
   sql = postgres(integrationDb.databaseUrl, { max: 8 });
+  admin = postgres(integrationDb.adminDatabaseUrl, { max: 1 });
   db = drizzle(sql);
 }, 60_000);
 
 afterAll(async () => {
   await sql.end({ timeout: 1 });
+  await admin.end({ timeout: 1 });
   await integrationDb.close();
 });
 
@@ -83,7 +87,6 @@ function portsOf(taxAuthority: TaxAuthorityInvoicing): AuthorizeFiscalDocumentPo
     clock: { now: () => RECEIVED_AT },
     tokens: { validToken: async () => TOKEN },
     taxAuthority,
-    evidence: { recordInvoicingCallOk: async () => {} },
   };
 }
 
@@ -112,8 +115,19 @@ function authorize(
   });
 }
 
+function answerKindsAt(pointOfSale: number) {
+  return sql<{ number: number; answer_kind: string | null }[]>`
+    select number, answer_kind from fiscal_requests where point_of_sale = ${pointOfSale}`;
+}
+
+async function invoicingEvidenceTimes(): Promise<Date[]> {
+  const rows = await db.select().from(arcaInvoicingEvidence);
+  return rows.map((row) => row.lastCallOkAt);
+}
+
 describe("the point of sale lanes on a real Postgres", () => {
-  it("keeps the request committed and visible to other connections while the call is in flight", async () => {
+  it("keeps the request committed and visible to other connections while the call is in flight, and records the answer and the evidence after it", async () => {
+    await sql`delete from arca_invoicing_evidence`;
     const registerId = await insertRegisterWithPointOfSale(db, {
       pointOfSaleNumber: 11,
       name: "caja-visible",
@@ -123,15 +137,63 @@ describe("the point of sale lanes on a real Postgres", () => {
     const outcome = authorize(portsOf(taxAuthority), registerId, 11, 100);
     await taxAuthority.untilStarted(1);
 
-    const rows = await sql<{ number: number; answer_kind: string | null }[]>`
-      select number, answer_kind from fiscal_requests where point_of_sale = 11`;
-    expect(rows).toEqual([{ number: 100, answer_kind: null }]);
+    expect(await answerKindsAt(11)).toEqual([{ number: 100, answer_kind: null }]);
+    expect(await invoicingEvidenceTimes()).toEqual([]);
 
     taxAuthority.release(100);
     await outcome;
-    const answered = await sql<{ answer_kind: string | null }[]>`
-      select answer_kind from fiscal_requests where point_of_sale = 11`;
-    expect(answered).toEqual([{ answer_kind: "authorized" }]);
+    expect(await answerKindsAt(11)).toEqual([{ number: 100, answer_kind: "authorized" }]);
+    expect(await invoicingEvidenceTimes()).toEqual([RECEIVED_AT]);
+  });
+
+  it("leaves the request without an answer and records no evidence when the call breaks", async () => {
+    await sql`delete from arca_invoicing_evidence`;
+    const registerId = await insertRegisterWithPointOfSale(db, {
+      pointOfSaleNumber: 16,
+      name: "caja-call-broken",
+    });
+    const taxAuthority = new HeldTaxAuthority();
+
+    const outcome = authorize(portsOf(taxAuthority), registerId, 16, 500);
+    await taxAuthority.untilStarted(1);
+    taxAuthority.release(500, new Error("the connection broke"));
+
+    await expect(outcome).rejects.toThrow("the connection broke");
+    expect(await answerKindsAt(16)).toEqual([{ number: 500, answer_kind: null }]);
+    expect(await invoicingEvidenceTimes()).toEqual([]);
+  });
+
+  it("leaves the request without an answer and records no evidence when recording the answer fails", async () => {
+    await sql`delete from arca_invoicing_evidence`;
+    const registerId = await insertRegisterWithPointOfSale(db, {
+      pointOfSaleNumber: 17,
+      name: "caja-answer-broken",
+    });
+    const taxAuthority = new HeldTaxAuthority();
+    await admin`
+      create function refuse_invoicing_evidence() returns trigger language plpgsql as $$
+      begin
+        raise exception 'the evidence write broke';
+      end;
+      $$`;
+    await admin`
+      create trigger refuse_invoicing_evidence before insert on arca_invoicing_evidence
+      for each row execute function refuse_invoicing_evidence()`;
+
+    try {
+      const outcome = authorize(portsOf(taxAuthority), registerId, 17, 600);
+      await taxAuthority.untilStarted(1);
+      taxAuthority.release(600);
+
+      await expect(outcome).rejects.toMatchObject({
+        cause: { message: "the evidence write broke" },
+      });
+    } finally {
+      await admin`drop trigger refuse_invoicing_evidence on arca_invoicing_evidence`;
+      await admin`drop function refuse_invoicing_evidence()`;
+    }
+    expect(await answerKindsAt(17)).toEqual([{ number: 600, answer_kind: null }]);
+    expect(await invoicingEvidenceTimes()).toEqual([]);
   });
 
   it("starts no second call at a point of sale while one is in flight, and starts it once the first ends", async () => {

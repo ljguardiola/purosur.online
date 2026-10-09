@@ -4,7 +4,6 @@ import { authorizeFiscalDocument } from "./authorize-fiscal-document.js";
 import type { SolicitationAnswer } from "./fiscal-document-authorization-ports.js";
 import { ManualClock } from "./test-support/fake-arca-vitality.js";
 import {
-  FakeInvoicingEvidence,
   FakePointOfSaleLanes,
   FakeTaxAuthorityInvoicing,
   FakeWsaaTokenSource,
@@ -64,10 +63,11 @@ const AUTHORIZED_ANSWER = {
 interface Scenario {
   owners?: [number, string][];
   token?: typeof TOKEN | null;
-  solicitation?: SolicitationAnswer;
+  solicitation?: SolicitationAnswer | Error;
   request?: Partial<typeof REQUEST>;
   startAt?: Date;
   recordingFailure?: Error;
+  answerRecordingFailure?: Error;
   seeded?: {
     answer: Parameters<FakePointOfSaleLanes["seedRequest"]>[1];
     registerId?: string;
@@ -81,11 +81,13 @@ function authorize({
   request = {},
   startAt = RECEIVED_AT,
   recordingFailure,
+  answerRecordingFailure,
   seeded,
 }: Scenario = {}) {
   const clock = new ManualClock(startAt);
   const lanes = new FakePointOfSaleLanes(owners);
   lanes.recordingFailure = recordingFailure;
+  lanes.answerRecordingFailure = answerRecordingFailure;
   if (seeded) {
     lanes.seedRequest(
       {
@@ -108,12 +110,11 @@ function authorize({
   const taxAuthority = new FakeTaxAuthorityInvoicing(lanes, solicitation, () =>
     clock.advanceBy(ANSWER_DELAY_MS),
   );
-  const evidence = new FakeInvoicingEvidence();
   const outcome = authorizeFiscalDocument(
-    { lanes, clock, tokens, taxAuthority, evidence },
+    { lanes, clock, tokens, taxAuthority },
     { registerId: REGISTER_ID, request: { ...REQUEST, ...request }, receivedAt: RECEIVED_AT },
   );
-  return { lanes, taxAuthority, evidence, outcome };
+  return { lanes, taxAuthority, outcome };
 }
 
 describe("authorizeFiscalDocument", () => {
@@ -128,7 +129,7 @@ describe("authorizeFiscalDocument", () => {
       "recordRequest",
       "validToken",
       "solicit",
-      expect.stringMatching(/^recordAnswer:/),
+      expect.stringMatching(/^recordTaxAuthorityAnswer:/),
     ]);
     expect(lanes.requests.get(FISCAL_DOCUMENT_ID)).toEqual({
       fiscalDocumentId: FISCAL_DOCUMENT_ID,
@@ -164,18 +165,51 @@ describe("authorizeFiscalDocument", () => {
     ]);
   });
 
-  it("answers authorized, records the answer when it arrived and the call as evidence of reachability", async () => {
-    const { lanes, evidence, outcome } = authorize();
+  it("has the request recorded, and no answer yet, while the tax authority is being called", async () => {
+    const { taxAuthority, outcome } = authorize();
+    await outcome;
+
+    expect(taxAuthority.requestsRecordedDuringSolicit).toEqual([FISCAL_DOCUMENT_ID]);
+    expect(taxAuthority.answersRecordedDuringSolicit).toEqual([]);
+  });
+
+  it("answers authorized, recording the answer when it arrived together with the call as evidence of reachability", async () => {
+    const { lanes, outcome } = authorize();
     const answeredAt = new Date(RECEIVED_AT.getTime() + ANSWER_DELAY_MS);
 
     await expect(outcome).resolves.toEqual({ kind: "answered", answer: AUTHORIZED_ANSWER });
     expect(lanes.answers.get(FISCAL_DOCUMENT_ID)).toEqual(AUTHORIZED_ANSWER);
-    expect(lanes.operations).toContain(`recordAnswer:authorized@${answeredAt.toISOString()}`);
-    expect(evidence.okAt).toEqual([answeredAt]);
+    expect(lanes.operations.slice(-2)).toEqual([
+      `recordTaxAuthorityAnswer:authorized@${answeredAt.toISOString()}`,
+      "leaveLane",
+    ]);
+    expect(lanes.invoicingCallsOkAt).toEqual([answeredAt]);
+  });
+
+  it("leaves the request recorded without an answer or evidence when the call to the tax authority breaks", async () => {
+    const failure = new Error("the connection broke");
+    const { lanes, outcome } = authorize({ solicitation: failure });
+
+    await expect(outcome).rejects.toBe(failure);
+    expect(lanes.requests.has(FISCAL_DOCUMENT_ID)).toBe(true);
+    expect(lanes.answers.has(FISCAL_DOCUMENT_ID)).toBe(false);
+    expect(lanes.invoicingCallsOkAt).toEqual([]);
+    expect(lanes.operations.at(-1)).toBe("leaveLane");
+  });
+
+  it("leaves the request recorded without an answer or evidence when recording the answer fails", async () => {
+    const failure = new Error("the storage broke");
+    const { lanes, outcome } = authorize({ answerRecordingFailure: failure });
+
+    await expect(outcome).rejects.toBe(failure);
+    expect(lanes.requests.has(FISCAL_DOCUMENT_ID)).toBe(true);
+    expect(lanes.answers.has(FISCAL_DOCUMENT_ID)).toBe(false);
+    expect(lanes.invoicingCallsOkAt).toEqual([]);
+    expect(lanes.operations.at(-1)).toBe("leaveLane");
   });
 
   it("answers rejected with the codes and still counts the call as evidence of reachability", async () => {
-    const { lanes, evidence, outcome } = authorize({
+    const { lanes, outcome } = authorize({
       solicitation: { kind: "rejected", codes: [10015, 10048] },
     });
 
@@ -187,25 +221,27 @@ describe("authorizeFiscalDocument", () => {
       kind: "rejected",
       codes: [10015, 10048],
     });
-    expect(evidence.okAt).toHaveLength(1);
+    expect(lanes.invoicingCallsOkAt).toHaveLength(1);
   });
 
   it("answers unclear, not rejected, when the number or date does not follow the last authorized, and still counts the call as evidence", async () => {
-    const { lanes, evidence, outcome } = authorize({
+    const { lanes, outcome } = authorize({
       solicitation: { kind: "rejected", codes: [10016] },
     });
 
     await expect(outcome).resolves.toEqual({ kind: "answered", answer: { kind: "unclear" } });
     expect(lanes.answers.get(FISCAL_DOCUMENT_ID)).toEqual({ kind: "unclear" });
-    expect(evidence.okAt).toHaveLength(1);
+    expect(lanes.invoicingCallsOkAt).toHaveLength(1);
   });
 
   it("answers unclear and counts no evidence when the tax authority gave no answer", async () => {
-    const { lanes, evidence, outcome } = authorize({ solicitation: { kind: "no_answer" } });
+    const { lanes, outcome } = authorize({ solicitation: { kind: "no_answer" } });
+    const answeredAt = new Date(RECEIVED_AT.getTime() + ANSWER_DELAY_MS);
 
     await expect(outcome).resolves.toEqual({ kind: "answered", answer: { kind: "unclear" } });
     expect(lanes.answers.get(FISCAL_DOCUMENT_ID)).toEqual({ kind: "unclear" });
-    expect(evidence.okAt).toEqual([]);
+    expect(lanes.operations).toContain(`recordAnswer:unclear@${answeredAt.toISOString()}`);
+    expect(lanes.invoicingCallsOkAt).toEqual([]);
   });
 
   it("refuses a point of sale the register does not own, recording and calling nothing", async () => {
@@ -233,7 +269,7 @@ describe("authorizeFiscalDocument", () => {
   });
 
   it("returns the answer already recorded for the document, without calling the tax authority again", async () => {
-    const { lanes, taxAuthority, evidence, outcome } = authorize({
+    const { lanes, taxAuthority, outcome } = authorize({
       seeded: { answer: AUTHORIZED_ANSWER },
     });
 
@@ -245,11 +281,11 @@ describe("authorizeFiscalDocument", () => {
       "leaveLane",
     ]);
     expect(taxAuthority.solicitations).toEqual([]);
-    expect(evidence.okAt).toEqual([]);
+    expect(lanes.invoicingCallsOkAt).toEqual([]);
   });
 
   it("refuses a document id another register recorded, without reading its answer, recording anything or calling the tax authority", async () => {
-    const { lanes, taxAuthority, evidence, outcome } = authorize({
+    const { lanes, taxAuthority, outcome } = authorize({
       seeded: { answer: AUTHORIZED_ANSWER, registerId: "register-2" },
     });
 
@@ -264,7 +300,7 @@ describe("authorizeFiscalDocument", () => {
     expect(lanes.answers.get(FISCAL_DOCUMENT_ID)).toEqual(AUTHORIZED_ANSWER);
     expect(lanes.requests.get(FISCAL_DOCUMENT_ID)?.registerId).toBe("register-2");
     expect(taxAuthority.solicitations).toEqual([]);
-    expect(evidence.okAt).toEqual([]);
+    expect(lanes.invoicingCallsOkAt).toEqual([]);
   });
 
   it("fails without calling the tax authority when recording the request fails", async () => {
@@ -292,7 +328,7 @@ describe("authorizeFiscalDocument", () => {
   });
 
   it("records the call as not attempted and makes none once the deadline has passed", async () => {
-    const { lanes, taxAuthority, evidence, outcome } = authorize({
+    const { lanes, taxAuthority, outcome } = authorize({
       startAt: new Date(NOT_AFTER.getTime() + 1),
     });
 
@@ -303,7 +339,7 @@ describe("authorizeFiscalDocument", () => {
     expect(lanes.requests.has(FISCAL_DOCUMENT_ID)).toBe(true);
     expect(lanes.answers.get(FISCAL_DOCUMENT_ID)).toEqual({ kind: "not_attempted" });
     expect(taxAuthority.solicitations).toEqual([]);
-    expect(evidence.okAt).toEqual([]);
+    expect(lanes.invoicingCallsOkAt).toEqual([]);
   });
 
   it("computes the deadline from the budget and the round trip the request carries", async () => {
