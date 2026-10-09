@@ -144,7 +144,7 @@ export function buyerIdentificationThresholdChange(threshold: {
   return {
     entity: "buyer_identification_threshold",
     entity_id: threshold.id,
-    row: { amount: threshold.amountCents, valid_from: threshold.validFrom },
+    row: { amount: threshold.amountCents, valid_from: threshold.validFrom, revision: 0 },
   };
 }
 

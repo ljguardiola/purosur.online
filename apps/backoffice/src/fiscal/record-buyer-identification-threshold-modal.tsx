@@ -1,11 +1,21 @@
-import { buyerIdentificationThresholdRecordBodySchema } from "@purosur/contracts";
-import type { BuyerIdentificationThreshold } from "@purosur/domain";
-import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
+import {
+  type BuyerIdentificationThresholdRecordBody,
+  buyerIdentificationThresholdRecordBodySchema,
+} from "@purosur/contracts";
+import {
+  Button,
+  formatCents,
+  InlineNotice,
+  Modal,
+  type RequestSubmission,
+  useRequestForm,
+} from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { Check, Landmark, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import { formatDisplayDate } from "../platform/display-date";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type {
   authorizeSession,
@@ -15,11 +25,13 @@ import type {
   BuyerIdentificationThresholds,
   RecordBuyerIdentificationThresholdOutcome,
   recordBuyerIdentificationThreshold,
+  ShownBuyerIdentificationThreshold,
 } from "./buyer-identification-threshold-api";
 import {
   amountMessage,
+  beforeTodayMessage,
   EMPTY_THRESHOLD_FORM,
-  notAfterLatestMessage,
+  type ThresholdFormValues,
   thresholdRequestFrom,
   validFromMessage,
 } from "./buyer-identification-threshold-form";
@@ -34,10 +46,18 @@ export type RecordBuyerIdentificationThresholdModalServices = {
 type RecordBuyerIdentificationThresholdModalProps = {
   open: boolean;
   onClose: () => void;
-  onRecorded: (threshold: BuyerIdentificationThreshold) => void;
+  onRecorded: (threshold: ShownBuyerIdentificationThreshold) => void;
   reload: () => Promise<CloudReadOutcome<BuyerIdentificationThresholds>>;
   onSessionEnded: () => void;
   services: RecordBuyerIdentificationThresholdModalServices;
+};
+
+type LowerAmountConfirmation = {
+  request: BuyerIdentificationThresholdRecordBody;
+  submission: RequestSubmission<ThresholdFormValues>;
+  inEffectAmount: number;
+  amount: number;
+  validFrom: string;
 };
 
 export function RecordBuyerIdentificationThresholdModal({
@@ -56,58 +76,105 @@ export function RecordBuyerIdentificationThresholdModal({
     startAuthentication,
   } = services;
   const [attemptFailed, setAttemptFailed] = useState(false);
+  const [confirmation, setConfirmation] = useState<LowerAmountConfirmation | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const { run, modal } = useAuthorization<RecordBuyerIdentificationThresholdOutcome>({
     actionName: "Cargar un umbral nuevo",
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
+  async function finish(outcome: RecordBuyerIdentificationThresholdOutcome): Promise<boolean> {
+    if (outcome.kind === "ok") {
+      await reload();
+      onRecorded(outcome.value);
+      return true;
+    }
+    if (outcome.kind === "unauthenticated") {
+      onSessionEnded();
+      return true;
+    }
+    if (outcome.kind === "forbidden") {
+      sendToMyAccount();
+      return true;
+    }
+    return false;
+  }
+
+  async function showRefusal(
+    outcome: RecordBuyerIdentificationThresholdOutcome,
+    { values, showFieldError, showWireFieldError }: RequestSubmission<ThresholdFormValues>,
+  ): Promise<boolean> {
+    if (outcome.kind === "before_today") {
+      const thresholds = await reload();
+      showFieldError(
+        "validFrom",
+        thresholds.kind === "ok"
+          ? beforeTodayMessage(thresholds.value.earliestValidFrom)
+          : validFromMessage(values),
+      );
+      return true;
+    }
+    return outcome.kind === "validation_failed" && showWireFieldError(outcome.field);
+  }
+
   const { form, submit, submitting, reset } = useRequestForm({
     defaultValues: EMPTY_THRESHOLD_FORM,
     request: {
       schema: buyerIdentificationThresholdRecordBodySchema,
       from: thresholdRequestFrom,
     },
-    fields: { amount: "amount", valid_from: "validFrom" },
+    fields: { amount: "amount", valid_from: "validFrom", confirm_lower_than_in_effect: null },
     messages: { amount: amountMessage, validFrom: validFromMessage },
-    onSubmit: async (request, { values, showFieldError, showWireFieldError }) => {
+    onSubmit: async (request, submission) => {
       setAttemptFailed(false);
       const outcome = await run(() => recordBuyerIdentificationThreshold(request));
-      if (outcome.kind === "cancelled") {
+      if (outcome.kind === "cancelled" || (await finish(outcome))) {
         return;
       }
-      if (outcome.kind === "ok") {
-        await reload();
-        onRecorded(outcome.value);
+      if (outcome.kind === "needs_confirmation") {
+        setConfirmation({
+          request,
+          submission,
+          inEffectAmount: outcome.inEffectAmount,
+          amount: outcome.amount,
+          validFrom: outcome.validFrom,
+        });
         return;
       }
-      if (outcome.kind === "unauthenticated") {
-        onSessionEnded();
-        return;
-      }
-      if (outcome.kind === "forbidden") {
-        sendToMyAccount();
-        return;
-      }
-      if (outcome.kind === "not_after_latest") {
-        const thresholds = await reload();
-        const latestValidFrom = thresholds.kind === "ok" ? thresholds.value.latestValidFrom : null;
-        showFieldError(
-          "validFrom",
-          latestValidFrom ? notAfterLatestMessage(latestValidFrom) : validFromMessage(values),
-        );
-        return;
-      }
-      if (outcome.kind === "validation_failed" && showWireFieldError(outcome.field)) {
+      if (await showRefusal(outcome, submission)) {
         return;
       }
       setAttemptFailed(true);
     },
   });
 
+  async function confirmLowerAmount() {
+    if (confirmation === null) {
+      return;
+    }
+    setConfirming(true);
+    const outcome = await run(() =>
+      recordBuyerIdentificationThreshold({
+        ...confirmation.request,
+        confirm_lower_than_in_effect: true,
+      }),
+    );
+    if (outcome.kind === "cancelled") {
+      setConfirming(false);
+      return;
+    }
+    if (!(await finish(outcome)) && !(await showRefusal(outcome, confirmation.submission))) {
+      setAttemptFailed(true);
+    }
+    setConfirmation(null);
+    setConfirming(false);
+  }
+
   useEffect(() => {
     if (!open) {
       reset();
       setAttemptFailed(false);
+      setConfirmation(null);
     }
   }, [open, reset]);
 
@@ -166,6 +233,48 @@ export function RecordBuyerIdentificationThresholdModal({
             {(field) => <field.DateField label="Vigente desde" required />}
           </form.AppField>
         </div>
+      </Modal>
+      <Modal
+        open={confirmation !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setConfirmation(null);
+          }
+        }}
+        width="confirmation"
+        tone="warning"
+        icon={<TriangleAlert />}
+        title="¿Cargar un umbral menor que el vigente?"
+        closable
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              size="large"
+              icon={<X />}
+              disabled={confirming}
+              onPress={() => setConfirmation(null)}
+            >
+              Volver
+            </Button>
+            <Button
+              variant="primary"
+              size="large"
+              icon={<Check />}
+              fullWidth
+              disabled={confirming}
+              onPress={() => void confirmLowerAmount()}
+            >
+              Cargar igual
+            </Button>
+          </>
+        }
+      >
+        {confirmation ? (
+          <p className="text-body text-text">
+            {`El umbral vigente es ${formatCents(confirmation.inEffectAmount)}. El nuevo, de ${formatCents(confirmation.amount)}, rige desde el ${formatDisplayDate(confirmation.validFrom)}.`}
+          </p>
+        ) : null}
       </Modal>
       {modal}
     </>

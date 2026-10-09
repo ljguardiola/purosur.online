@@ -158,7 +158,11 @@ function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number]
         change_seq,
         entity: change.entity,
         entity_id,
-        row: { amount: change.row.amount, valid_from: change.row.validFrom },
+        row: {
+          amount: change.row.amount,
+          valid_from: change.row.validFrom,
+          revision: change.row.revision,
+        },
       };
     case "buyer_tax_status_set":
       return {

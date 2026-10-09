@@ -22,7 +22,7 @@ const scheduled = { id: "threshold-2", amount: 1_500_000_000, validFrom: "2026-1
 function thresholds(
   overrides: Partial<BuyerIdentificationThresholds> = {},
 ): BuyerIdentificationThresholds {
-  return { inEffect, scheduled: null, latestValidFrom: "2026-01-01", ...overrides };
+  return { inEffect, scheduled: null, earliestValidFrom: "2026-10-08", ...overrides };
 }
 
 function createServices(
@@ -537,7 +537,7 @@ test("recording a threshold closes the modal, shows the threshold the read after
     .mockResolvedValueOnce({ kind: "ok", value: thresholds() })
     .mockResolvedValue({
       kind: "ok",
-      value: thresholds({ scheduled, latestValidFrom: scheduled.validFrom }),
+      value: thresholds({ scheduled }),
     });
   vi.mocked(services.recordBuyerIdentificationThreshold).mockResolvedValue({
     kind: "ok",
@@ -568,14 +568,14 @@ test("recording a threshold closes the modal, shows the threshold the read after
   expect(services.fetchIssuerIdentification).toHaveBeenCalledTimes(2);
 });
 
-test("keeps the threshold modal open with what was typed, asking to review the day, when the thresholds cannot be read again after a start that is not after the latest", async () => {
+test("keeps the threshold modal open with what was typed, asking to review the day, when the thresholds cannot be read again after a start before today", async () => {
   const services = createServices();
   vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
   vi.mocked(services.fetchBuyerIdentificationThresholds)
     .mockResolvedValueOnce({ kind: "ok", value: thresholds() })
     .mockResolvedValue({ kind: "failed" });
   vi.mocked(services.recordBuyerIdentificationThreshold).mockResolvedValue({
-    kind: "not_after_latest",
+    kind: "before_today",
   });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("$ 10.000.000,00")).toBeVisible();

@@ -22,7 +22,7 @@ const wireScheduled = { id: "threshold-2", amount: 1_500_000, valid_from: "2026-
 const wireOverview = {
   in_effect: wireInEffect,
   scheduled: wireScheduled,
-  latest_valid_from: "2026-10-01",
+  earliest_valid_from: "2026-10-08",
 };
 
 const inEffect = { id: "threshold-1", amount: 1_000_000, validFrom: "2026-01-01" };
@@ -30,32 +30,32 @@ const scheduled = { id: "threshold-2", amount: 1_500_000, validFrom: "2026-10-01
 
 const recordInput = { amount: 1_500_000, valid_from: "2026-10-01" };
 
-test("fetchBuyerIdentificationThresholds returns the threshold in effect, the scheduled one and the newest start", async () => {
+test("fetchBuyerIdentificationThresholds returns the threshold in effect, the scheduled one and the earliest day a threshold may start", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, wireOverview));
 
   const outcome = await fetchBuyerIdentificationThresholds();
 
   expect(outcome).toEqual({
     kind: "ok",
-    value: { inEffect, scheduled, latestValidFrom: "2026-10-01" },
+    value: { inEffect, scheduled, earliestValidFrom: "2026-10-08" },
   });
   expect(fetch).toHaveBeenCalledWith("/api/buyer-identification-thresholds");
 });
 
-test("fetchBuyerIdentificationThresholds returns nothing in effect, scheduled or started when none was loaded", async () => {
+test("fetchBuyerIdentificationThresholds returns nothing in effect or scheduled when none was loaded", async () => {
   vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(200, { in_effect: null, scheduled: null, latest_valid_from: null }),
+    jsonResponse(200, { in_effect: null, scheduled: null, earliest_valid_from: "2026-10-08" }),
   );
 
   expect(await fetchBuyerIdentificationThresholds()).toEqual({
     kind: "ok",
-    value: { inEffect: null, scheduled: null, latestValidFrom: null },
+    value: { inEffect: null, scheduled: null, earliestValidFrom: "2026-10-08" },
   });
 });
 
 test.each([
   ["a body that is not an overview", [wireInEffect]],
-  ["an overview missing its newest start", { in_effect: null, scheduled: null }],
+  ["an overview missing its earliest day", { in_effect: null, scheduled: null }],
   [
     "an in-effect threshold missing its amount",
     { ...wireOverview, in_effect: { id: "threshold-1", valid_from: "2026-01-01" } },
@@ -155,17 +155,57 @@ test("recordBuyerIdentificationThreshold returns failed on a 400 that names no f
   expect(await recordBuyerIdentificationThreshold(recordInput)).toEqual({ kind: "failed" });
 });
 
-test("recordBuyerIdentificationThreshold returns not_after_latest on a 409 with that code", async () => {
+test("recordBuyerIdentificationThreshold returns before_today on a 409 with that code", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(409, {
-      code: "threshold_not_after_latest",
-      message: "a threshold must start after the latest one, which starts on 2026-10-01",
+      code: "threshold_before_today",
+      message: "a threshold must start today (2026-10-08) or later",
       details: [{ field: "valid_from" }],
     }),
   );
 
   expect(await recordBuyerIdentificationThreshold(recordInput)).toEqual({
-    kind: "not_after_latest",
+    kind: "before_today",
+  });
+});
+
+test("recordBuyerIdentificationThreshold returns needs_confirmation with the amounts and the day on a 409 asking to confirm a lower amount", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(409, {
+      code: "threshold_lower_than_in_effect",
+      message: "the amount is lower than the threshold in effect",
+      in_effect_amount: 1_000_000,
+      amount: 10_000,
+      valid_from: "2026-10-08",
+    }),
+  );
+
+  expect(await recordBuyerIdentificationThreshold(recordInput)).toEqual({
+    kind: "needs_confirmation",
+    inEffectAmount: 1_000_000,
+    amount: 10_000,
+    validFrom: "2026-10-08",
+  });
+});
+
+test("recordBuyerIdentificationThreshold returns failed on a 409 asking to confirm that carries no amounts", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(409, { code: "threshold_lower_than_in_effect", message: "lower" }),
+  );
+
+  expect(await recordBuyerIdentificationThreshold(recordInput)).toEqual({ kind: "failed" });
+});
+
+test("recordBuyerIdentificationThreshold sends the confirmation of a lower amount", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(201, wireScheduled));
+  const confirmed = { ...recordInput, confirm_lower_than_in_effect: true };
+
+  await recordBuyerIdentificationThreshold(confirmed);
+
+  expect(fetch).toHaveBeenCalledWith("/api/buyer-identification-thresholds", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(confirmed),
   });
 });
 
