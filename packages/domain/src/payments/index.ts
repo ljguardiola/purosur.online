@@ -16,5 +16,10 @@ export {
   REFUND_STATES,
   refundsSettleApprovedPayments,
 } from "./model/payment-refund.js";
+export type {
+  PaymentTransactionState,
+  ProviderPaymentTransaction,
+} from "./model/payment-transaction.js";
+export { isValidOrderAmount, PAYMENT_TRANSACTION_STATES } from "./model/payment-transaction.js";
 export type { SaleBalance } from "./model/sale-balance.js";
 export { approvedPaymentsCoverTotal, saleBalance } from "./model/sale-balance.js";

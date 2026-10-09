@@ -32,6 +32,7 @@ import {
   passkeyChallenges,
   passkeys,
   paymentRefunds,
+  paymentTransactions,
   pinCodeRedemptionAttempts,
   pointOfSaleClaims,
   priceLists,
@@ -555,6 +556,18 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       saleEvent: { event_type: "sale_completed" },
       receivedAt: new Date("2026-01-05T12:00:00.000Z"),
       notAfter: new Date("2026-01-05T12:00:04.000Z"),
+    });
+    await db.insert(paymentTransactions).values({
+      id: "00000000-0000-4000-8000-000000000103",
+      registerId: register.id,
+      saleId: "00000000-0000-4000-8000-000000000104",
+      kind: "SALE",
+      method: "QR",
+      provider: "MERCADOPAGO_QR",
+      amount: 5_000,
+      state: "PENDING",
+      createdAt: new Date("2026-01-05T12:00:00.000Z"),
+      expiresAt: new Date("2026-01-05T12:05:00.000Z"),
     });
     // issuer_identification is a true singleton: its row count can never grow, so its "seeded
     // before clear()" is a content change instead.

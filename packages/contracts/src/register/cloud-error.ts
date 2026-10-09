@@ -8,11 +8,15 @@ const CLOUD_ERRORS = {
   revoked: { status: 403, retryable: false },
   not_found: { status: 404, retryable: false },
   pin_already_set: { status: 409, retryable: false },
+  conflict: { status: 409, retryable: false },
   reset_code_expired: { status: 410, retryable: false },
   reset_code_burned: { status: 410, retryable: false },
   rate_limited: { status: 429, retryable: true },
   internal_error: { status: 500, retryable: false },
+  payment_provider_refused: { status: 502, retryable: false },
   server_unavailable: { status: 503, retryable: true },
+  payment_provider_not_configured: { status: 503, retryable: false },
+  payment_provider_unavailable: { status: 503, retryable: true },
 } as const satisfies Record<string, { status: number; retryable: boolean }>;
 
 export type CloudErrorCode = keyof typeof CLOUD_ERRORS;

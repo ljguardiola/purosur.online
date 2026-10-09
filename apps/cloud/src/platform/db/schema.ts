@@ -903,6 +903,7 @@ export const installationRequestEndpoint = pgEnum("installation_request_endpoint
   "pull",
   "health_check",
   "fiscal_authorize",
+  "payment_order",
 ]);
 
 // The limiter's own bookkeeping, not business data: what left the limit's window is deleted.
@@ -1399,6 +1400,41 @@ export const fiscalRequests = pgTable(
       "fiscal_requests_rejection_class_check",
       sql`coalesce(${table.answerKind} = 'rejected', false) = (${table.rejectionClass} is not null)
         and ${table.rejectionClass} in ('content', 'standing')`,
+    ),
+  ],
+);
+
+// The provider's own answer is reduced to the state and the review flag before it is stored, so
+// nothing the provider says about the payer or the card has a column here.
+export const paymentTransactions = pgTable(
+  "payment_transactions",
+  {
+    id: uuid("id").primaryKey(),
+    registerId: uuid("register_id")
+      .notNull()
+      .references(() => registers.id),
+    saleId: uuid("sale_id").notNull(),
+    kind: text("kind").notNull(),
+    method: text("method").notNull(),
+    provider: text("provider").notNull(),
+    amount: bigint("amount", { mode: "number" }).notNull(),
+    state: text("state").notNull(),
+    needsReview: boolean("needs_review").notNull().default(false),
+    providerOrderId: text("provider_order_id").unique(),
+    creationOutcomeUnknown: boolean("creation_outcome_unknown").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    stateReadAt: timestamp("state_read_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("payment_transactions_register_idx").on(table.registerId),
+    check("payment_transactions_kind_check", sql`${table.kind} = 'SALE'`),
+    check("payment_transactions_method_check", sql`${table.method} = 'QR'`),
+    check("payment_transactions_provider_check", sql`${table.provider} = 'MERCADOPAGO_QR'`),
+    check("payment_transactions_amount_check", sql`${table.amount} > 0`),
+    check(
+      "payment_transactions_state_check",
+      sql`${table.state} in ('PENDING', 'APPROVED', 'DECLINED', 'CANCELLED', 'EXPIRED')`,
     ),
   ],
 );
