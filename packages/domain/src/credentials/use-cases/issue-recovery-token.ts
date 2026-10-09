@@ -1,4 +1,5 @@
 import {
+  isRecoveryRequestCurrent,
   recoveryTokenExpiresAt,
   supersedesRecoveryRequest,
   wasRecoveryRequestServed,
@@ -22,6 +23,7 @@ export type IssueRecoveryTokenOutcome =
   | { kind: "account_inactive" }
   | { kind: "superseded" }
   | { kind: "already_sent" }
+  | { kind: "late" }
   | { kind: "issued"; tokenId: string };
 
 export async function issueRecoveryToken(
@@ -54,6 +56,14 @@ export async function issueRecoveryToken(
         requestedAt: input.requestedAt,
       });
       return { kind: "superseded" };
+    }
+    if (!isRecoveryRequestCurrent(input, input.now)) {
+      await tx.recordRejectedRequest({
+        userId: account.id,
+        reason: "late",
+        requestedAt: input.requestedAt,
+      });
+      return { kind: "late" };
     }
 
     await tx.voidOutstandingRecoveryTokens(account.id, input.now);
