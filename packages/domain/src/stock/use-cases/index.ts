@@ -1,4 +1,6 @@
 export type { Clock } from "../../shared/index.js";
+export type { ApplyPulledStockMovementOutcome } from "./apply-pulled-stock-movement.js";
+export { applyPulledStockMovement } from "./apply-pulled-stock-movement.js";
 export type {
   ApplyRegisterStockMovementsInput,
   ApplyRegisterStockMovementsOutcome,
@@ -14,6 +16,11 @@ export type { RecordLossInput, RecordLossOutcome } from "./record-loss.js";
 export { recordLoss } from "./record-loss.js";
 export type { RegisterCountInput, RegisterCountOutcome } from "./register-count.js";
 export { registerCount } from "./register-count.js";
+export type {
+  PulledStockMovement,
+  ReplicatedStockLedger,
+  ReplicatedStockMovement,
+} from "./replicated-stock-ledger.js";
 export type {
   LedgerAtMoment,
   RecordedStockCount,

@@ -3,7 +3,11 @@ import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
-import { addToStockBalance, insertSaleStockMovement } from "./sqlite-stock-ledger";
+import {
+  addToStockBalance,
+  insertSaleStockMovement,
+  SqliteReplicatedStockLedger,
+} from "./sqlite-stock-ledger";
 
 const SOLD_AT = new Date("2026-09-30T12:00:00.000Z");
 
@@ -128,6 +132,91 @@ describe("a product's stock balance", () => {
     expect(balances()).toEqual([
       { product_id: "p1", quantity: -2000 },
       { product_id: "p2", quantity: -500 },
+    ]);
+  });
+});
+
+describe("the stock movements the register pulls from the cloud", () => {
+  const pulled = {
+    id: "cloud-movement-1",
+    productId: "p1",
+    kind: "loss" as const,
+    delta: -1000,
+    occurredAt: SOLD_AT,
+    supersededByCountId: null,
+  };
+
+  function pulledRows() {
+    return database
+      .prepare(
+        "SELECT id, product_id, kind, sale_line_id, delta, occurred_at, superseded_by_count_id FROM stock_movements ORDER BY rowid",
+      )
+      .all();
+  }
+
+  it("knows nothing of a movement it never recorded", () => {
+    expect(new SqliteReplicatedStockLedger(database).movement("cloud-movement-1")).toBeUndefined();
+  });
+
+  it("records a pulled movement with no sale line of its own, and the count that superseded it", () => {
+    const ledger = new SqliteReplicatedStockLedger(database);
+
+    ledger.recordMovement(pulled);
+    ledger.recordMovement({
+      ...pulled,
+      id: "cloud-movement-2",
+      kind: "sale",
+      supersededByCountId: "count-1",
+    });
+
+    expect(pulledRows()).toEqual([
+      {
+        id: "cloud-movement-1",
+        product_id: "p1",
+        kind: "loss",
+        sale_line_id: null,
+        delta: -1000,
+        occurred_at: SOLD_AT.toISOString(),
+        superseded_by_count_id: null,
+      },
+      {
+        id: "cloud-movement-2",
+        product_id: "p1",
+        kind: "sale",
+        sale_line_id: null,
+        delta: -1000,
+        occurred_at: SOLD_AT.toISOString(),
+        superseded_by_count_id: "count-1",
+      },
+    ]);
+    expect(ledger.movement("cloud-movement-2")).toEqual({ supersededByCountId: "count-1" });
+  });
+
+  it("marks the register's own sale movement as superseded by a count", () => {
+    addSaleLine("line-1");
+    insertSaleStockMovement(database, {
+      id: "own-movement",
+      saleLineId: "line-1",
+      productId: "p1",
+      delta: -2000,
+      occurredAt: SOLD_AT,
+    });
+    const ledger = new SqliteReplicatedStockLedger(database);
+    expect(ledger.movement("own-movement")).toEqual({ supersededByCountId: null });
+
+    ledger.markSuperseded("own-movement", "count-1");
+
+    expect(ledger.movement("own-movement")).toEqual({ supersededByCountId: "count-1" });
+  });
+
+  it("adds a pulled delta to the product's balance", () => {
+    const ledger = new SqliteReplicatedStockLedger(database);
+
+    ledger.addToBalance("p1", 3000);
+    ledger.addToBalance("p1", -1000);
+
+    expect(database.prepare("SELECT product_id, quantity FROM stock_balances").all()).toEqual([
+      { product_id: "p1", quantity: 2000 },
     ]);
   });
 });
