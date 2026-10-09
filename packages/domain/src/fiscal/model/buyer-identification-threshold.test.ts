@@ -102,10 +102,21 @@ describe("thresholdInEffectOn with replacements", () => {
     );
   });
 
-  it("prefers the later day over a higher revision of an earlier day", () => {
+  it("prefers the later day over a higher revision of an earlier day, whatever the order", () => {
     const earlierDayRevised = { id: "e1", amount: 5, validFrom: "2026-05-01", revision: 7 };
 
-    expect(thresholdInEffectOn([earlierDayRevised, replaced], "2026-06-01")).toEqual(replaced);
+    fc.assert(
+      fc.property(fc.shuffledSubarray([earlierDayRevised, replaced], { minLength: 2 }), (list) => {
+        expect(thresholdInEffectOn(list, "2026-06-01")).toEqual(replaced);
+      }),
+    );
+  });
+
+  it("answers the one listed first when two share the day and the revision", () => {
+    const twin = { ...replaced, id: "twin" };
+
+    expect(thresholdInEffectOn([replaced, twin], "2026-06-01")).toEqual(replaced);
+    expect(thresholdInEffectOn([twin, replaced], "2026-06-01")).toEqual(twin);
   });
 });
 
@@ -123,6 +134,34 @@ describe("thresholdScheduledAfter with replacements", () => {
         },
       ),
     );
+  });
+});
+
+describe("thresholdScheduledAfter when several share the day", () => {
+  const sameDay = (revision: number) => ({
+    id: `d${revision}`,
+    amount: 1_000 * (revision + 1),
+    validFrom: "2026-09-01",
+    revision,
+  });
+  const later = { id: "later", amount: 7, validFrom: "2026-09-02", revision: 9 };
+
+  it("answers the highest revision of the earliest day, whatever the order", () => {
+    fc.assert(
+      fc.property(
+        fc.shuffledSubarray([sameDay(0), sameDay(2), sameDay(5), later], { minLength: 4 }),
+        (list) => {
+          expect(thresholdScheduledAfter(list, "2026-08-01")).toEqual(sameDay(5));
+        },
+      ),
+    );
+  });
+
+  it("answers the one listed first when two share the day and the revision", () => {
+    const twin = { ...sameDay(1), id: "twin" };
+
+    expect(thresholdScheduledAfter([sameDay(1), twin], "2026-08-01")).toEqual(sameDay(1));
+    expect(thresholdScheduledAfter([twin, sameDay(1)], "2026-08-01")).toEqual(twin);
   });
 });
 
