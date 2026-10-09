@@ -24,6 +24,8 @@ import type {
   RemoveSaleLineOutcome,
   ReprintSaleReceiptOutcome,
   RetryReceiptPrintOutcome,
+  SaleHistoryDetailOutcome,
+  SalesHistoryOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
   SessionOpenSale,
@@ -37,6 +39,7 @@ import type { CashMovementRequest } from "./register/cash-movement-requests";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
 import type { ReprintSaleReceiptRequest } from "./sales/receipt-requests";
 import type { CancelPaidSaleRequest } from "./sales/sale-requests";
+import type { SalesHistoryRequest } from "./sales/sales-history-requests";
 
 function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const enrolledCodes: string[] = [];
@@ -179,6 +182,14 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
           ].join(" "),
         );
         return { kind: "busy" };
+      },
+      salesHistory: async (request: SalesHistoryRequest): Promise<SalesHistoryOutcome> => {
+        saleChanges.push(["sales-history", request.session, request.state, request.page].join(" "));
+        return { kind: "found", rows: [], total: 0, page_size: 50 };
+      },
+      saleHistoryDetail: async (saleId: string): Promise<SaleHistoryDetailOutcome> => {
+        saleChanges.push(["sale-history-detail", saleId].join(" "));
+        return { kind: "not_found" };
       },
       chargeSaleInCash: async (request: {
         saleId: string;
@@ -2066,6 +2077,22 @@ describe("answerRendererRequest", () => {
         "reprinting a receipt",
         "receipt-reprint s1 se mojó u2",
         "reprint-sale-receipt-result",
+      ],
+      [
+        "sales-history",
+        { type: "sales-history", session: "open", state: "deferred", page: 2 } as const,
+        "salesHistory",
+        "reading the sales history",
+        "sales-history open deferred 2",
+        "sales-history-result",
+      ],
+      [
+        "sale-history-detail",
+        { type: "sale-history-detail", sale_id: "s1" } as const,
+        "saleHistoryDetail",
+        "reading a sale of the history",
+        "sale-history-detail s1",
+        "sale-history-detail-result",
       ],
     ] as const;
 
