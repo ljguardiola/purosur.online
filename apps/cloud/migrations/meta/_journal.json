@@ -477,6 +477,13 @@
       "when": 1791566415009,
       "tag": "0067_payment_notification_attempts",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1791583173249,
+      "tag": "0068_suppliers_and_product_packagings",
+      "breakpoints": true
     }
   ]
 }
