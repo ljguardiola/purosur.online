@@ -2,6 +2,7 @@ import type {
   EventInvariantViolatedDetail,
   EventsQuarantinedDetail,
 } from "../../../alerts/index.js";
+import type { CompletedSale } from "../../../sales/index.js";
 import type { SyncedFact } from "../../model/synced-fact.js";
 import type {
   AggregateKey,
@@ -20,6 +21,8 @@ export interface FakeStoredEvent extends UnappliedEvent {
 export interface FakeEventApplicationState {
   events: FakeStoredEvent[];
   recorded: { fact: SyncedFact; eventId: string }[];
+  stockApplied: { eventId: string; saleId: string }[];
+  writeOrder: string[];
   appliedOrder: string[];
   quarantineAlerts: EventsQuarantinedDetail[];
   invariantAlerts: EventInvariantViolatedDetail[];
@@ -54,6 +57,8 @@ export class FakeEventApplication implements EventApplication {
   state: FakeEventApplicationState = {
     events: [],
     recorded: [],
+    stockApplied: [],
+    writeOrder: [],
     appliedOrder: [],
     quarantineAlerts: [],
     invariantAlerts: [],
@@ -61,6 +66,7 @@ export class FakeEventApplication implements EventApplication {
   calls: string[] = [];
   transactions = 0;
   failRecording = new Map<string, unknown>();
+  refuseStock = new Map<string, string>();
   failOpeningInvariantAlert = false;
   heldByAnotherRun = new Set<string>();
   beforeTransaction: (transactionNumber: number) => void = () => {};
@@ -132,10 +138,20 @@ export class FakeEventApplication implements EventApplication {
       },
       record: async (fact, event) => {
         this.state.recorded.push({ fact, eventId: event.eventId });
+        this.state.writeOrder.push("record");
         const failure = this.failRecording.get(event.eventId);
         if (failure !== undefined) {
           throw failure;
         }
+      },
+      applySaleStock: async (sale: CompletedSale, event) => {
+        this.state.writeOrder.push("stock");
+        const refusal = this.refuseStock.get(event.eventId);
+        if (refusal !== undefined) {
+          return { kind: "refused", reason: refusal };
+        }
+        this.state.stockApplied.push({ eventId: event.eventId, saleId: sale.id });
+        return { kind: "applied" };
       },
       markApplied: async (eventId, at) => {
         this.event(eventId).appliedAt = at;
