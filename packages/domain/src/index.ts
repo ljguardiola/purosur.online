@@ -335,7 +335,6 @@ export {
   SALES_REPORT_SALE_STATE,
   saleTotal,
 } from "./sales/index.js";
-export type { IsoWeekday } from "./shared/index.js";
 export {
   BACKOFFICE_REQUEST_WINDOW_MS,
   BACKOFFICE_SESSION_REQUEST_LIMIT,
@@ -358,6 +357,7 @@ export {
   signInLockoutWindowStart,
   signInLookupAttemptWindowStart,
 } from "./sessions/index.js";
+export type { IsoWeekday } from "./shared/index.js";
 export {
   ARGENTINA_TIME_ZONE,
   argentinaCalendarDay,
