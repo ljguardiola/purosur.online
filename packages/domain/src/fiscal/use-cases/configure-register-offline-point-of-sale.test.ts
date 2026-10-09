@@ -242,11 +242,13 @@ describe("configureRegisterOfflinePointOfSale", () => {
       });
     }
 
+    const claimsBefore = store.snapshot().pointOfSaleClaims;
+
     const outcome = await configure(store, { version: 2 });
 
     expect(outcome).toEqual({ kind: "configured", setup: { pointOfSaleNumber: 12, version: 3 } });
     expect(store.operationOrder).not.toContain("claimPointOfSale");
-    expect(store.snapshot().pointOfSaleClaims).toHaveLength(7);
+    expect(store.snapshot().pointOfSaleClaims).toEqual(claimsBefore);
   });
 
   it("keeps the number a register leaves claimed for it when it moves to a new one", async () => {
