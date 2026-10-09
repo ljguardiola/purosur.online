@@ -21,34 +21,24 @@ const TAXPAYER_TYPE_PREFIXES = new Set([
   "51",
   "55",
 ]);
-const CHECK_DIGIT_WEIGHTS = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
-
-function hasValidCheckDigit(digits) {
-  const sum = CHECK_DIGIT_WEIGHTS.reduce(
-    (total, weight, index) => total + weight * Number(digits[index]),
-    0,
-  );
-  const expected = 11 - (sum % 11);
-  if (expected === 10) return false;
-  return (expected === 11 ? 0 : expected) === Number(digits[10]);
-}
-
-function validCuitsIn(source) {
+function cuitsIn(source) {
   return [...source.matchAll(CUIT_RE)].flatMap((match) => {
     const [text, prefix, body, checkDigit] = match;
-    const digits = `${prefix}${body}${checkDigit}`;
-    if (!TAXPAYER_TYPE_PREFIXES.has(prefix) || !hasValidCheckDigit(digits)) return [];
-    return [{ index: match.index, text, digits }];
+    if (!TAXPAYER_TYPE_PREFIXES.has(prefix)) return [];
+    return [{ index: match.index, text, digits: `${prefix}${body}${checkDigit}` }];
   });
 }
 
+const firstTenDigits = (digits) => digits.slice(0, 10);
+
 export function fictionalCuitsIn(source) {
-  return new Set(validCuitsIn(source).map(({ digits }) => digits));
+  return new Set(cuitsIn(source).map(({ digits }) => digits));
 }
 
 export function findCuitsOutside(source, fictional) {
-  return validCuitsIn(source)
-    .filter(({ digits }) => !fictional.has(digits))
+  const fictionalFirstTenDigits = new Set([...fictional].map(firstTenDigits));
+  return cuitsIn(source)
+    .filter(({ digits }) => !fictionalFirstTenDigits.has(firstTenDigits(digits)))
     .map(({ index, text }) => ({ line: source.slice(0, index).split("\n").length, cuit: text }));
 }
 
@@ -63,7 +53,7 @@ export function checkFiles(paths, readFile, fictional) {
   return paths.flatMap((path) =>
     findCuitsOutside(readFile(path), fictional).map(
       ({ line, cuit }) =>
-        `${path}:${line} holds CUIT ${cuit}, which is not one of the shared fictional ones`,
+        `${path}:${line} holds CUIT ${cuit}, which is neither one of the shared fictional ones nor one of them with another check digit`,
     ),
   );
 }
