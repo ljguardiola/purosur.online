@@ -96,14 +96,14 @@ export function mercadoPagoNotificationRoutesUnderTest(): MercadoPagoNotificatio
       return warnings;
     },
     serveWith: serve,
-    notify({
-      dataId = ORDER_ID,
-      type = "order",
-      requestId = "request-1",
-      signature = signatureHeader({ dataId, requestId }),
-      sourceAddress = "203.0.113.50",
-      body = { type: "order", data: { id: dataId } },
-    }: NotificationRequest = {}) {
+    notify(request: NotificationRequest = {}) {
+      const dataId = request.dataId ?? ORDER_ID;
+      const requestId = request.requestId ?? "request-1";
+      const type = "type" in request ? request.type : "order";
+      const signature =
+        "signature" in request ? request.signature : signatureHeader({ dataId, requestId });
+      const sourceAddress = request.sourceAddress ?? "203.0.113.50";
+      const body = request.body ?? { type: "order", data: { id: dataId } };
       const query = new URLSearchParams({ "data.id": dataId });
       if (type !== undefined) {
         query.set("type", type);
