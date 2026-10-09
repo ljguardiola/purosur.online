@@ -180,7 +180,46 @@ test("refuses a query read through a renamed import, a namespace import, a re-ex
   ]);
 });
 
-test("refuses a reading helper of a concept folder called from its screens, though not the helper itself", (t) => {
+test("refuses every TanStack reader called in another file of the concept folder", (t) => {
+  const problems = problemsIn(t, {
+    "src/pricing/pricing-queries.ts": PRICING_QUERIES,
+    "src/pricing/prices-screen.ts": [
+      IMPORTS,
+      "import {",
+      "  infiniteQueryOptions, useInfiniteQuery, usePrefetchInfiniteQuery, usePrefetchQuery,",
+      "  useQueries, useSuspenseInfiniteQuery, useSuspenseQueries, useSuspenseQuery,",
+      '} from "@tanstack/react-query";',
+      'import { pricingKey } from "./pricing-queries";',
+      "const prices = { queryKey: pricingKey, queryFn: () => [] };",
+      "export function PricesScreen(client: QueryClient) {",
+      "  infiniteQueryOptions(prices);",
+      "  useQueries({ queries: [prices] });",
+      "  useInfiniteQuery(prices);",
+      "  useSuspenseQuery(prices);",
+      "  useSuspenseQueries({ queries: [prices] });",
+      "  useSuspenseInfiniteQuery(prices);",
+      "  usePrefetchQuery(prices);",
+      "  usePrefetchInfiniteQuery(prices);",
+      "  client.fetchInfiniteQuery(prices);",
+      "  client.prefetchQuery(prices);",
+      "  client.prefetchInfiniteQuery(prices);",
+      "  client.ensureQueryData(prices);",
+      "  client.ensureInfiniteQueryData(prices);",
+      "}",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(
+    problems,
+    Array.from(
+      { length: 13 },
+      (_, index) =>
+        `src/pricing/prices-screen.ts:${index + 9} reads a query outside src/pricing/pricing-queries.ts`,
+    ),
+  );
+});
+
+test("refuses a reading helper in another file of the concept folder, and every screen calling it", (t) => {
   const problems = problemsIn(t, {
     "src/pricing/pricing-queries.ts": PRICING_QUERIES,
     "src/pricing/read-prices.ts": [
@@ -197,6 +236,70 @@ test("refuses a reading helper of a concept folder called from its screens, thou
 
   assert.deepEqual(problems, [
     "src/pricing/prices-screen.ts:3 reads a query outside src/pricing/pricing-queries.ts",
+    "src/pricing/read-prices.ts:3 reads a query outside src/pricing/pricing-queries.ts",
+  ]);
+});
+
+test("refuses a reading helper in another file of the concept folder called only from its queries file", (t) => {
+  const problems = problemsIn(t, {
+    "src/pricing/use-price-list.ts": [
+      IMPORTS,
+      'import { useCloudQuery } from "../platform/use-cloud-query";',
+      "export function usePriceList(queryKey: QueryKey) {",
+      "  return useCloudQuery({ queryKey, read: () => [] });",
+      "}",
+    ].join("\n"),
+    "src/pricing/pricing-queries.ts": [
+      'import { usePriceList } from "./use-price-list";',
+      'export const pricingKey = ["pricing"] as const;',
+      "export const usePrices = () => usePriceList(pricingKey);",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    "src/pricing/use-price-list.ts:4 reads a query outside src/pricing/pricing-queries.ts",
+  ]);
+});
+
+test("refuses a query read by rendering a reading component in another file of the concept folder", (t) => {
+  const problems = problemsIn(t, {
+    "src/pricing/pricing-queries.ts": PRICING_QUERIES,
+    "src/platform/query-rows.tsx": [
+      IMPORTS,
+      'import { useCloudQuery } from "../platform/use-cloud-query";',
+      "export function QueryRows({ queryKey }: { queryKey: QueryKey }) {",
+      "  useCloudQuery({ queryKey, read: () => [] });",
+      "  return null;",
+      "}",
+    ].join("\n"),
+    "src/pricing/price-rows.tsx": [
+      IMPORTS,
+      'import { useCloudQuery } from "../platform/use-cloud-query";',
+      "export function PriceRows(props: { queryKey: QueryKey }) {",
+      "  useCloudQuery({ queryKey: props.queryKey, read: () => [] });",
+      "  return null;",
+      "}",
+    ].join("\n"),
+    "src/pricing/prices-screen.tsx": [
+      'import * as rows from "../platform/query-rows";',
+      'import { QueryRows } from "../platform/query-rows";',
+      'import { PriceRows } from "./price-rows";',
+      'import { pricingKey } from "./pricing-queries";',
+      "export const PricesScreen = () => (",
+      "  <>",
+      "    <QueryRows queryKey={pricingKey} />",
+      "    <rows.QueryRows queryKey={pricingKey}></rows.QueryRows>",
+      "    <PriceRows queryKey={pricingKey} />",
+      "  </>",
+      ");",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(problems, [
+    "src/pricing/price-rows.tsx:4 reads a query outside src/pricing/pricing-queries.ts",
+    "src/pricing/prices-screen.tsx:7 reads a query outside src/pricing/pricing-queries.ts",
+    "src/pricing/prices-screen.tsx:8 reads a query outside src/pricing/pricing-queries.ts",
+    "src/pricing/prices-screen.tsx:9 reads a query outside src/pricing/pricing-queries.ts",
   ]);
 });
 
