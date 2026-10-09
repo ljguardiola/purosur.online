@@ -330,9 +330,14 @@ describe("configureRegisterPointOfSale", () => {
 });
 
 describe("the points of sale of a branch's registers", () => {
-  it("lists every register of the branch with its setup, or none yet", async () => {
+  it("lists every register of the branch with its real-time and offline setup, or none yet", async () => {
     const store = storeWithRegisters();
     await configure(store);
+    store.seedRegisterOfflinePointOfSale({
+      registerId: "register-1",
+      pointOfSaleNumber: 20,
+      version: 3,
+    });
 
     const overview = await store.listBranchRegisterPointsOfSale(BRANCH);
 
@@ -343,6 +348,8 @@ describe("the points of sale of a branch's registers", () => {
         pointOfSaleNumber: 12,
         fiscalAddressId: "address-1",
         version: 1,
+        offlinePointOfSaleNumber: 20,
+        offlineVersion: 3,
       },
       {
         registerId: "register-2",
@@ -350,6 +357,8 @@ describe("the points of sale of a branch's registers", () => {
         pointOfSaleNumber: null,
         fiscalAddressId: null,
         version: 0,
+        offlinePointOfSaleNumber: null,
+        offlineVersion: 0,
       },
     ]);
   });

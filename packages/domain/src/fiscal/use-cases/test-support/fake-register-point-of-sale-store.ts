@@ -1,5 +1,11 @@
 import type { PointOfSaleMechanism } from "../../model/point-of-sale.js";
 import type {
+  RegisterOfflinePointOfSale,
+  RegisterOfflinePointOfSaleRecord,
+  RegisterOfflinePointOfSaleStore,
+  RegisterOfflinePointOfSaleStoreTransaction,
+} from "../register-offline-point-of-sale-store.js";
+import type {
   BranchRegisterPointOfSale,
   LockBranchRegisterResult,
   PointOfSaleClaim,
@@ -22,6 +28,10 @@ interface FakeRegisterPointOfSale extends Omit<RegisterPointOfSaleRecord, "actor
   recordedBy: string | null;
 }
 
+interface FakeRegisterOfflinePointOfSale extends Omit<RegisterOfflinePointOfSaleRecord, "actorId"> {
+  recordedBy: string | null;
+}
+
 export interface FakePointOfSaleClaim {
   pointOfSaleNumber: number;
   registerId: string;
@@ -32,14 +42,18 @@ export interface FakeRegisterPointOfSaleState {
   registers: FakeBranchRegister[];
   fiscalAddressIds: string[];
   registerPointsOfSale: FakeRegisterPointOfSale[];
+  registerOfflinePointsOfSale: FakeRegisterOfflinePointOfSale[];
   pointOfSaleClaims: FakePointOfSaleClaim[];
 }
 
-type WriteOperation = "claimPointOfSale" | "recordRegisterPointOfSale";
+type WriteOperation =
+  | "claimPointOfSale"
+  | "recordRegisterPointOfSale"
+  | "recordRegisterOfflinePointOfSale";
 
 class FakeRegisterPointOfSaleStoreTransaction implements RegisterPointOfSaleStoreTransaction {
-  private readonly state: FakeRegisterPointOfSaleState;
-  private readonly store: FakeRegisterPointOfSaleStore;
+  protected readonly state: FakeRegisterPointOfSaleState;
+  protected readonly store: FakeRegisterPointOfSaleStore;
 
   constructor(state: FakeRegisterPointOfSaleState, store: FakeRegisterPointOfSaleStore) {
     this.state = state;
@@ -104,11 +118,33 @@ class FakeRegisterPointOfSaleStoreTransaction implements RegisterPointOfSaleStor
     this.state.registerPointsOfSale.push({ ...row, recordedBy: actorId });
   }
 
-  private beforeWrite(operation: WriteOperation): void {
+  protected beforeWrite(operation: WriteOperation): void {
     this.store.operationOrder.push(operation);
     if (this.store.failingWrites.has(operation)) {
       throw new Error(`${operation} failed`);
     }
+  }
+}
+
+class FakeRegisterOfflinePointOfSaleStoreTransaction
+  extends FakeRegisterPointOfSaleStoreTransaction
+  implements RegisterOfflinePointOfSaleStoreTransaction
+{
+  async lockRegisterOfflinePointOfSale(registerId: string): Promise<RegisterOfflinePointOfSale> {
+    this.store.operationOrder.push("lockRegisterOfflinePointOfSale");
+    const row = this.state.registerOfflinePointsOfSale.find(
+      (candidate) => candidate.registerId === registerId,
+    );
+    return { pointOfSaleNumber: row?.pointOfSaleNumber ?? null, version: row?.version ?? 0 };
+  }
+
+  async recordRegisterOfflinePointOfSale(record: RegisterOfflinePointOfSaleRecord): Promise<void> {
+    this.beforeWrite("recordRegisterOfflinePointOfSale");
+    const { actorId, ...row } = record;
+    this.state.registerOfflinePointsOfSale = this.state.registerOfflinePointsOfSale.filter(
+      (candidate) => candidate.registerId !== record.registerId,
+    );
+    this.state.registerOfflinePointsOfSale.push({ ...row, recordedBy: actorId });
   }
 }
 
@@ -119,6 +155,7 @@ export class FakeRegisterPointOfSaleStore
     registers: [],
     fiscalAddressIds: [],
     registerPointsOfSale: [],
+    registerOfflinePointsOfSale: [],
     pointOfSaleClaims: [],
   };
 
@@ -139,6 +176,10 @@ export class FakeRegisterPointOfSaleStore
     this.state.registerPointsOfSale.push({ ...setup, recordedBy: null });
   }
 
+  seedRegisterOfflinePointOfSale(setup: Omit<RegisterOfflinePointOfSaleRecord, "actorId">): void {
+    this.state.registerOfflinePointsOfSale.push({ ...setup, recordedBy: null });
+  }
+
   seedPointOfSaleClaim(claim: FakePointOfSaleClaim): void {
     this.state.pointOfSaleClaims.push({ ...claim });
   }
@@ -152,23 +193,39 @@ export class FakeRegisterPointOfSaleStore
       .filter((register) => register.locationId === locationId)
       .map((register) => {
         const setup = this.state.registerPointsOfSale.find((row) => row.registerId === register.id);
+        const offline = this.state.registerOfflinePointsOfSale.find(
+          (row) => row.registerId === register.id,
+        );
         return {
           registerId: register.id,
           registerName: register.name,
           pointOfSaleNumber: setup?.pointOfSaleNumber ?? null,
           fiscalAddressId: setup?.fiscalAddressId ?? null,
           version: setup?.version ?? 0,
+          offlinePointOfSaleNumber: offline?.pointOfSaleNumber ?? null,
+          offlineVersion: offline?.version ?? 0,
         };
       });
   }
 
-  async transaction<TOutcome>(
+  readonly offline: RegisterOfflinePointOfSaleStore = {
+    transaction: (work) =>
+      this.run((state) => work(new FakeRegisterOfflinePointOfSaleStoreTransaction(state, this))),
+  };
+
+  transaction<TOutcome>(
     work: (tx: RegisterPointOfSaleStoreTransaction) => Promise<TOutcome>,
+  ): Promise<TOutcome> {
+    return this.run((state) => work(new FakeRegisterPointOfSaleStoreTransaction(state, this)));
+  }
+
+  private async run<TOutcome>(
+    work: (state: FakeRegisterPointOfSaleState) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     this.transactionCount += 1;
     const before = structuredClone(this.state);
     try {
-      return await work(new FakeRegisterPointOfSaleStoreTransaction(this.state, this));
+      return await work(this.state);
     } catch (error) {
       this.state = before;
       throw error;
