@@ -303,7 +303,7 @@ describe("a recovery request whose link was sent but whose completion graphile-w
       createPool: () => new pg.Pool({ connectionString: integrationDb.databaseUrl }),
       runWorker: async (runnerOptions) => {
         capturedTaskList = runnerOptions.taskList;
-        return { stop: async () => {}, promise: new Promise<void>(() => {}) } as never;
+        return { stop: async () => {}, promise: Promise.resolve() } as never;
       },
     });
     const pool = new pg.Pool({ connectionString: integrationDb.databaseUrl });
