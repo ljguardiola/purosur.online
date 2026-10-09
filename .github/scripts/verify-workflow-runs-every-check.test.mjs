@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   checkRepository,
   findCloudPostgresImageViolations,
+  findLocalPostgresImageViolations,
   findPlaywrightImageViolations,
   findPlaywrightInstallViolations,
   findVerifyWorkflowViolations,
@@ -845,10 +846,10 @@ test("reports a workflow that does not parse as YAML", () => {
   assert.match(violations[0], /does not parse as YAML/);
 });
 
-const PINNED_POSTGRES_IMAGE =
-  "postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873";
-const PINNED_PLAYWRIGHT_IMAGE =
-  "mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27";
+const POSTGRES_DIGEST = "sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873";
+const PINNED_POSTGRES_IMAGE = `public.ecr.aws/docker/library/postgres:18-alpine@${POSTGRES_DIGEST}`;
+const PLAYWRIGHT_DIGEST = "sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27";
+const PINNED_PLAYWRIGHT_IMAGE = `mcr.microsoft.com/playwright:v1.63.0-noble@${PLAYWRIGHT_DIGEST}`;
 const INSTALLED_PLAYWRIGHT_VERSION = "1.63.0";
 
 function pullWithRetriesLines(imageEnv) {
@@ -869,7 +870,14 @@ const PRE_PULLED_IMAGES = [
     testsScript: "verify:tests",
     constant: "POSTGRES_IMAGE",
     image: PINNED_POSTGRES_IMAGE,
-    tagOnly: "postgres:18-alpine",
+    tagOnly: "public.ecr.aws/docker/library/postgres:18-alpine",
+    dockerHubImages: [
+      `postgres:18-alpine@${POSTGRES_DIGEST}`,
+      `library/postgres:18-alpine@${POSTGRES_DIGEST}`,
+      `docker.io/library/postgres:18-alpine@${POSTGRES_DIGEST}`,
+      `index.docker.io/library/postgres:18-alpine@${POSTGRES_DIGEST}`,
+      `registry-1.docker.io/library/postgres:18-alpine@${POSTGRES_DIGEST}`,
+    ],
     findViolations: (workflowSource, setupSource) =>
       findCloudPostgresImageViolations(workflowSource, setupSource),
   },
@@ -881,6 +889,7 @@ const PRE_PULLED_IMAGES = [
     constant: "PLAYWRIGHT_SERVER_IMAGE",
     image: PINNED_PLAYWRIGHT_IMAGE,
     tagOnly: "mcr.microsoft.com/playwright:v1.63.0-noble",
+    dockerHubImages: [`docker.io/acme/playwright:v1.63.0-noble@${PLAYWRIGHT_DIGEST}`],
     findViolations: (workflowSource, setupSource) =>
       findPlaywrightImageViolations(
         workflowSource,
@@ -897,6 +906,7 @@ const PRE_PULLED_IMAGES = [
     constant: "PLAYWRIGHT_SERVER_IMAGE",
     image: PINNED_PLAYWRIGHT_IMAGE,
     tagOnly: "mcr.microsoft.com/playwright:v1.63.0-noble",
+    dockerHubImages: [`docker.io/acme/playwright:v1.63.0-noble@${PLAYWRIGHT_DIGEST}`],
     findViolations: (workflowSource, setupSource) =>
       findPlaywrightImageViolations(
         workflowSource,
@@ -967,6 +977,17 @@ for (const spec of PRE_PULLED_IMAGES) {
 
     assertSingleViolation(violations, /not pinned by digest/);
   });
+
+  for (const dockerHubImage of spec.dockerHubImages) {
+    test(`flags ${spec.label} pulled from Docker Hub as \`${dockerHubImage}\`, whose unauthenticated pulls are rate-limited`, () => {
+      const violations = spec.findViolations(
+        jobWithPull(spec, { pulledImage: dockerHubImage }),
+        setup(dockerHubImage),
+      );
+
+      assertSingleViolation(violations, /comes from Docker Hub/);
+    });
+  }
 
   test(`flags a global setup whose ${spec.constant} cannot be read`, () => {
     const violations = spec.findViolations(jobWithPull(spec), 'const IMAGE = "postgres";');
@@ -1046,10 +1067,45 @@ test("flags a Playwright image whose tag is not the installed Playwright version
   assertSingleViolation(violations, /not the installed Playwright version 1\.63\.0/);
 });
 
-test("checkRepository reads the real workflow file, package.json, both image setups and the installed Playwright version", () => {
+function composeDeclaring(dbImage) {
+  return [
+    "services:",
+    "  db:",
+    ...(dbImage === undefined ? [] : [`    image: ${dbImage}`]),
+    "    ports:",
+    '      - "5432:5432"',
+  ].join("\n");
+}
+
+test("passes a local database that starts the same Postgres image as the cloud's tests", () => {
+  const violations = findLocalPostgresImageViolations(
+    composeDeclaring(PINNED_POSTGRES_IMAGE),
+    setupDeclaring("POSTGRES_IMAGE", PINNED_POSTGRES_IMAGE),
+  );
+
+  assert.deepEqual(violations, []);
+});
+
+for (const [label, dbImage] of [
+  ["a tag alone", "public.ecr.aws/docker/library/postgres:18-alpine"],
+  ["Docker Hub's name for it", `postgres:18-alpine@${POSTGRES_DIGEST}`],
+  ["no image at all", undefined],
+]) {
+  test(`flags a local database that starts ${label} instead of the cloud tests' Postgres image`, () => {
+    const violations = findLocalPostgresImageViolations(
+      composeDeclaring(dbImage),
+      setupDeclaring("POSTGRES_IMAGE", PINNED_POSTGRES_IMAGE),
+    );
+
+    assertSingleViolation(violations, /docker-compose\.yml's db service starts/);
+  });
+}
+
+test("checkRepository reads the real workflow file, package.json, the local database, both image setups and the installed Playwright version", () => {
   const files = {
     ".github/workflows/verify.yml": jobWithPull(PRE_PULLED_IMAGES[0]),
     "package.json": packageJson(),
+    "docker-compose.yml": composeDeclaring(PINNED_POSTGRES_IMAGE),
     "apps/cloud/vitest.global-setup.postgres.ts": setupDeclaring(
       "POSTGRES_IMAGE",
       PINNED_POSTGRES_IMAGE,
