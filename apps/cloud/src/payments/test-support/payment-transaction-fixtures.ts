@@ -4,7 +4,7 @@ import { registers } from "../../platform/db/schema.js";
 import { seededLocationId } from "../../test-support/seeded-location.js";
 
 export const CREATED_AT = new Date("2026-10-09T12:00:00.000Z");
-export const EXPIRES_AT = new Date("2026-10-09T12:05:00.000Z");
+const EXPIRES_AT = new Date("2026-10-09T12:05:00.000Z");
 
 export function pendingTransaction(
   registerId: string,
