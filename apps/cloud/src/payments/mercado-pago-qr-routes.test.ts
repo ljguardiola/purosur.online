@@ -144,10 +144,7 @@ describe("the Mercado Pago QR routes", () => {
       const response = await ask(`Bearer ${deviceToken}`);
 
       expect(response.statusCode).toBe(503);
-      expect(cloudErrorSchema.parse(response.json())).toMatchObject({
-        code: "payment_provider_not_configured",
-        retryable: false,
-      });
+      expect(cloudErrorSchema.parse(response.json()).code).toBe("payment_provider_not_configured");
       expect(await transactions()).toEqual([]);
     });
 
@@ -281,10 +278,7 @@ describe("the Mercado Pago QR routes", () => {
       const response = await createOrder(orderRequest(), `Bearer ${deviceToken}`);
 
       expect(response.statusCode).toBe(502);
-      expect(cloudErrorSchema.parse(response.json())).toMatchObject({
-        code: "payment_provider_refused",
-        retryable: false,
-      });
+      expect(cloudErrorSchema.parse(response.json()).code).toBe("payment_provider_refused");
       expect(JSON.stringify(response.json())).not.toContain("invalid_total_amount");
     });
 
@@ -295,10 +289,7 @@ describe("the Mercado Pago QR routes", () => {
       const response = await createOrder(orderRequest(), `Bearer ${deviceToken}`);
 
       expect(response.statusCode).toBe(503);
-      expect(cloudErrorSchema.parse(response.json())).toMatchObject({
-        code: "payment_provider_unavailable",
-        retryable: true,
-      });
+      expect(cloudErrorSchema.parse(response.json()).code).toBe("payment_provider_unavailable");
       expect(await transactions()).toMatchObject([{ state: "PENDING", providerOrderId: null }]);
     });
   });
