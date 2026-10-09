@@ -49,9 +49,11 @@ class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements PurchasingStoreTransaction
 {
   private readonly tx: PgDatabase<TQueryResult>;
+  private readonly now: () => Date;
 
-  constructor(tx: PgDatabase<TQueryResult>) {
+  constructor(tx: PgDatabase<TQueryResult>, now: () => Date) {
     this.tx = tx;
+    this.now = now;
   }
 
   async lockSupplier(supplierId: string): Promise<LockSupplierResult> {
@@ -103,7 +105,7 @@ class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResultHKT>
     try {
       const [supplier] = await this.tx
         .insert(suppliers)
-        .values(fields)
+        .values({ ...fields, updatedAt: this.now() })
         .returning({ id: suppliers.id });
       if (!supplier) {
         throw new Error("inserting the supplier returned no row");
@@ -118,7 +120,7 @@ class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResultHKT>
     try {
       await this.tx
         .update(suppliers)
-        .set({ ...fields, updatedAt: sql`now()` })
+        .set({ ...fields, updatedAt: this.now() })
         .where(eq(suppliers.id, supplierId));
     } catch (error) {
       throw translateSupplierViolation(error);
@@ -189,7 +191,7 @@ class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResultHKT>
     try {
       const [packaging] = await this.tx
         .insert(productPackagings)
-        .values(fields)
+        .values({ ...fields, updatedAt: this.now() })
         .returning({ id: productPackagings.id });
       if (!packaging) {
         throw new Error("inserting the packaging returned no row");
@@ -204,7 +206,7 @@ class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResultHKT>
     try {
       await this.tx
         .update(productPackagings)
-        .set({ ...fields, updatedAt: sql`now()` })
+        .set({ ...fields, updatedAt: this.now() })
         .where(eq(productPackagings.id, packagingId));
     } catch (error) {
       throw translatePackagingViolation(error);
@@ -216,14 +218,16 @@ export class DrizzlePurchasingStore<TQueryResult extends PgQueryResultHKT>
   implements PurchasingStore
 {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly now: () => Date;
 
-  constructor(db: PgDatabase<TQueryResult>) {
+  constructor(db: PgDatabase<TQueryResult>, now: () => Date) {
     this.db = db;
+    this.now = now;
   }
 
   transaction<TOutcome>(
     work: (tx: PurchasingStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return this.db.transaction((tx) => work(new DrizzlePurchasingStoreTransaction(tx)));
+    return this.db.transaction((tx) => work(new DrizzlePurchasingStoreTransaction(tx, this.now)));
   }
 }

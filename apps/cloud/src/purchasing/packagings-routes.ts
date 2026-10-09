@@ -63,7 +63,7 @@ export function registerPackagingsRoutes<TQueryResult extends PgQueryResultHKT>(
 ): void {
   const { now } = options;
   registerRouteAccess(app);
-  const store = new DrizzlePurchasingStore(options.db);
+  const store = new DrizzlePurchasingStore(options.db, now);
   const reader = new DrizzlePurchasingListReader(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const config = { access: capabilityAccess("purchase_packagings"), sessionSource };
