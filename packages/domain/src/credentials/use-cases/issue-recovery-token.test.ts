@@ -19,6 +19,7 @@ function storedToken(overrides: Partial<FakeRecoveryToken> & { id: string }): Fa
     expiresAt: new Date("2026-10-01T10:15:01.000Z"),
     usedAt: null,
     voidedAt: null,
+    sentAt: null,
     ...overrides,
   };
 }
@@ -47,7 +48,7 @@ describe("issueRecoveryToken", () => {
 
     const outcome = await issue();
 
-    expect(outcome).toEqual({ kind: "issued" });
+    expect(outcome).toEqual({ kind: "issued", tokenId: "token-1" });
     expect(store.snapshot().tokens).toEqual([
       {
         id: "token-1",
@@ -59,6 +60,7 @@ describe("issueRecoveryToken", () => {
         expiresAt: new Date(NOW.getTime() + RECOVERY_TOKEN_LIFETIME_MS),
         usedAt: null,
         voidedAt: null,
+        sentAt: null,
       },
     ]);
   });
@@ -182,14 +184,14 @@ describe("issueRecoveryToken", () => {
       storedToken({ id: "own", requestId: "request-new", requestedAt: REQUESTED_AT }),
     );
 
-    expect(await issue()).toEqual({ kind: "issued" });
+    expect(await issue()).toEqual({ kind: "issued", tokenId: "token-3" });
   });
 
   it("is not superseded by a newer token of another account", async () => {
     const { store, issue } = fixture();
     store.seedToken(storedToken({ id: "other", userId: "u-2", requestedAt: NOW }));
 
-    expect(await issue()).toEqual({ kind: "issued" });
+    expect(await issue()).toEqual({ kind: "issued", tokenId: "token-2" });
   });
 
   it("does all its storage work in one transaction when the email is unknown", async () => {
@@ -272,5 +274,86 @@ describe("issueRecoveryToken", () => {
     await expect(issue()).rejects.toThrow("recordRejectedRequest failed");
 
     expect(store.snapshot()).toEqual(before);
+  });
+
+  describe("a request whose link was already sent", () => {
+    const SENT_AT = new Date("2026-10-01T12:00:05.000Z");
+    const own = () =>
+      storedToken({
+        id: "own",
+        requestId: "request-new",
+        requestedAt: REQUESTED_AT,
+        issuedAt: NOW,
+        expiresAt: new Date(NOW.getTime() + RECOVERY_TOKEN_LIFETIME_MS),
+        sentAt: SENT_AT,
+      });
+
+    it("answers already sent and writes nothing", async () => {
+      const { store, issue } = fixture();
+      store.seedToken(own());
+      const before = store.snapshot();
+
+      expect(await issue({ now: new Date(NOW.getTime() + 4 * 60 * 60 * 1000) })).toEqual({
+        kind: "already_sent",
+      });
+
+      expect(store.snapshot()).toEqual(before);
+    });
+
+    it("answers already sent even when a newer request would supersede it, recording nothing", async () => {
+      const { store, issue } = fixture();
+      store.seedToken(own());
+      store.seedToken(
+        storedToken({ id: "newer", requestedAt: new Date(REQUESTED_AT.getTime() + 1) }),
+      );
+      const before = store.snapshot();
+
+      expect(await issue()).toEqual({ kind: "already_sent" });
+
+      expect(store.snapshot()).toEqual(before);
+    });
+
+    it("only finds the account, takes the lock and lists the requests", async () => {
+      const { store, issue } = fixture();
+      store.seedToken(own());
+
+      await issue();
+
+      expect(store.operationOrder).toEqual([
+        "findAccountByEmail",
+        "lockRecoveryTokens:u-1",
+        "listRecoveryRequests",
+      ]);
+    });
+
+    it("does all its storage work in one transaction", async () => {
+      const { store, issue } = fixture();
+      store.seedToken(own());
+
+      await issue();
+
+      expect(store.transactionCount).toBe(1);
+    });
+
+    it("issues again a request whose earlier token was never sent", async () => {
+      const { store, issue } = fixture();
+      store.seedToken({ ...own(), sentAt: null });
+
+      expect(await issue()).toEqual({ kind: "issued", tokenId: "token-2" });
+      expect(store.snapshot().tokens[0]).toMatchObject({ id: "own", voidedAt: NOW });
+    });
+
+    it("is not served by the sent token of another request", async () => {
+      const { store, issue } = fixture();
+      store.seedToken(
+        storedToken({
+          id: "other",
+          requestedAt: new Date(REQUESTED_AT.getTime() - 1),
+          sentAt: SENT_AT,
+        }),
+      );
+
+      expect(await issue()).toEqual({ kind: "issued", tokenId: "token-2" });
+    });
   });
 });

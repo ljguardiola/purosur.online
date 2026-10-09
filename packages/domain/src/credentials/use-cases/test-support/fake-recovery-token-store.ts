@@ -17,6 +17,7 @@ export interface FakeRecoveryToken extends NewRecoveryToken {
   id: string;
   usedAt: Date | null;
   voidedAt: Date | null;
+  sentAt: Date | null;
 }
 
 export interface FakeRecoveryTokenStoreState {
@@ -32,7 +33,8 @@ type WriteOperation =
   | "voidOutstandingRecoveryTokens"
   | "issueToken"
   | "recordIssuedToken"
-  | "openRecoveryRequestedAlert";
+  | "openRecoveryRequestedAlert"
+  | "markRecoveryLinkSent";
 
 class FakeRecoveryTokenStoreTransaction implements RecoveryTokenStoreTransaction {
   private readonly store: FakeRecoveryTokenStore;
@@ -59,7 +61,11 @@ class FakeRecoveryTokenStoreTransaction implements RecoveryTokenStoreTransaction
     this.store.operationOrder.push("listRecoveryRequests");
     return this.state.tokens
       .filter((token) => token.userId === userId)
-      .map(({ requestId, requestedAt }) => ({ requestId, requestedAt: new Date(requestedAt) }));
+      .map(({ requestId, requestedAt, sentAt }) => ({
+        requestId,
+        requestedAt: new Date(requestedAt),
+        sentAt: sentAt && new Date(sentAt),
+      }));
   }
 
   async recordRejectedRequest(rejection: RejectedRecoveryRequest): Promise<void> {
@@ -79,7 +85,7 @@ class FakeRecoveryTokenStoreTransaction implements RecoveryTokenStoreTransaction
   async issueToken(token: NewRecoveryToken): Promise<IssuedRecoveryToken> {
     this.beforeWrite("issueToken");
     const id = `token-${this.state.tokens.length + 1}`;
-    this.state.tokens.push({ ...structuredClone(token), id, usedAt: null, voidedAt: null });
+    this.state.tokens.push({ ...structuredClone(token), id, usedAt: null, voidedAt: null, sentAt: null });
     return { id, issuedAt: token.issuedAt, expiresAt: token.expiresAt };
   }
 
@@ -95,6 +101,14 @@ class FakeRecoveryTokenStoreTransaction implements RecoveryTokenStoreTransaction
   async openRecoveryRequestedAlert(alert: RecoveryRequestedAlert): Promise<void> {
     this.beforeWrite("openRecoveryRequestedAlert");
     this.state.alerts.push(structuredClone(alert));
+  }
+
+  async markRecoveryLinkSent(tokenId: string, sentAt: Date): Promise<void> {
+    this.beforeWrite("markRecoveryLinkSent");
+    const token = this.state.tokens.find((candidate) => candidate.id === tokenId);
+    if (token) {
+      token.sentAt = sentAt;
+    }
   }
 
   private beforeWrite(operation: WriteOperation): void {

@@ -4,6 +4,7 @@ import {
   recoveryTokenExpiresAt,
   recoveryTokenStatus,
   supersedesRecoveryRequest,
+  wasRecoveryRequestServed,
 } from "./recovery-token.js";
 
 const ISSUED_AT = new Date("2026-10-01T12:00:00.000Z");
@@ -82,5 +83,28 @@ describe("supersedesRecoveryRequest", () => {
     expect(
       supersedesRecoveryRequest({ ...REQUEST, requestedAt: after(ISSUED_AT, 1) }, REQUEST),
     ).toBe(false);
+  });
+});
+
+describe("wasRecoveryRequestServed", () => {
+  const sent = { requestId: "request-a", requestedAt: ISSUED_AT, sentAt: USED_AT };
+  const unsent = { requestId: "request-a", requestedAt: ISSUED_AT, sentAt: null };
+
+  it("is true when a stored token of the request was sent", () => {
+    expect(wasRecoveryRequestServed([unsent, sent], "request-a")).toBe(true);
+  });
+
+  it("is false when no stored token of the request was sent", () => {
+    expect(wasRecoveryRequestServed([unsent], "request-a")).toBe(false);
+  });
+
+  it("is false when only another request's token was sent", () => {
+    expect(wasRecoveryRequestServed([{ ...sent, requestId: "request-b" }], "request-a")).toBe(
+      false,
+    );
+  });
+
+  it("is false when nothing is stored", () => {
+    expect(wasRecoveryRequestServed([], "request-a")).toBe(false);
   });
 });
