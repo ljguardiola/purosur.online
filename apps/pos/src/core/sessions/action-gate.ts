@@ -11,7 +11,9 @@ type OperationOf<Kind extends RegisterOperation["kind"]> = Extract<
 >;
 
 type SignedInOperation = OperationOf<"open_cash_session" | "sell" | "close_cash_session">;
-type AuthorizableOperation = OperationOf<"record_cash_movement" | "cancel_paid_sale">;
+type AuthorizableOperation = OperationOf<
+  "record_cash_movement" | "cancel_paid_sale" | "reprint_receipt"
+>;
 type LockedRegisterOperation = OperationOf<"close_locked_register">;
 
 type SignedInRefusal = { kind: "not_signed_in" } | { kind: "lacks_permission" };

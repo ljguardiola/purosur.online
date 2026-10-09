@@ -334,9 +334,12 @@ export {
 export type {
   LinePromotion,
   ListPrice,
+  PrinterStatus,
   ReceiptContent,
   ReceiptCopy,
   ReceiptDelivery,
+  ReceiptPrintObservation,
+  ReceiptPrintStanding,
   ReceiptSource,
   Sale,
   SaleLine,
@@ -350,9 +353,16 @@ export type {
 export {
   isSalesReportRangeAsked,
   mayBeSaleLineQuantity,
+  mayStartReceiptPrint,
+  observePrintAcknowledged,
+  observePrinterStatus,
   openSaleStanding,
+  RECEIPT_REPRINT_REASON_MAX_LENGTH,
+  RECEIPT_RETRY_DELAY_MS,
+  receiptPrintStanding,
   SALES_REPORT_SALE_STATE,
   saleTotal,
+  startedReceiptPrint,
 } from "./sales/index.js";
 export {
   BACKOFFICE_REQUEST_WINDOW_MS,

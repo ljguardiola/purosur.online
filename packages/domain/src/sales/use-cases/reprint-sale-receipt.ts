@@ -1,3 +1,7 @@
+import {
+  RECEIPT_REPRINT_REASON_MAX_LENGTH,
+  receiptReprintReason,
+} from "../model/receipt-reprint-reason.js";
 import type { ReceiptPrintWatch } from "./receipt-ports.js";
 import {
   printReceipt,
@@ -16,12 +20,18 @@ export type ReprintSaleReceiptPorts<
   Refusal,
 > = ReceiptPrintingPorts<Grant, Refusal>;
 
-export type ReprintSaleReceiptOutcome = ReceiptPrintOutcome;
+export type ReprintSaleReceiptOutcome =
+  | ReceiptPrintOutcome
+  | { kind: "invalid_reason"; maxLength: number };
 
-export function reprintSaleReceipt<Grant extends ReceiptPrintGrant, Refusal>(
+export async function reprintSaleReceipt<Grant extends ReceiptPrintGrant, Refusal>(
   ports: ReprintSaleReceiptPorts<Grant, Refusal>,
   { saleId, reason }: ReprintSaleReceiptInput,
   watch: ReceiptPrintWatch,
 ): Promise<ReprintSaleReceiptOutcome | Refusal> {
-  return printReceipt(ports, saleId, { kind: "requested", text: reason }, watch);
+  const text = receiptReprintReason(reason);
+  if (text === undefined) {
+    return { kind: "invalid_reason", maxLength: RECEIPT_REPRINT_REASON_MAX_LENGTH };
+  }
+  return printReceipt(ports, saleId, { kind: "requested", text }, watch);
 }
