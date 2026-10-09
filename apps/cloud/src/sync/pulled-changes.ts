@@ -1,4 +1,4 @@
-import type { NetContentUnit, SaleUnit } from "@purosur/domain";
+import type { NetContentUnit, SaleUnit, StockMovementKind } from "@purosur/domain";
 import type { BranchSettings } from "@purosur/domain/branch/use-cases";
 import type { DiscountFields } from "@purosur/domain/pricing/use-cases";
 
@@ -69,6 +69,15 @@ export interface RegisterPointOfSaleRow {
 
 export type DiscountRow = DiscountFields;
 
+export interface StockMovementRow {
+  productId: string;
+  kind: StockMovementKind;
+  delta: number;
+  occurredAt: Date;
+  supersededByCountId: string | null;
+  version: number;
+}
+
 export interface IssuerIdentificationVersionRow {
   legalName: string | null;
   grossIncomeRegistration: string | null;
@@ -113,5 +122,6 @@ export type PulledCloudChange = { changeSeq: number; entityId: string } & (
   | { entity: "issuer_identification"; row: IssuerIdentificationVersionRow }
   | { entity: "buyer_identification_threshold"; row: BuyerIdentificationThresholdRow }
   | { entity: "buyer_tax_status_set"; row: BuyerTaxStatusSetRow }
+  | { entity: "stock_movement"; row: StockMovementRow }
   | { entity: "removal"; removedEntity: RemovedEntity; version: number }
 );

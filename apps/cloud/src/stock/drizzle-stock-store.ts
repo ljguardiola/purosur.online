@@ -13,6 +13,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { products, stockBalances, stockCounts, stockMovements } from "../platform/db/schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import { appliedDeltaAfter, earliestCountAtOrAfter } from "./stock-ledger-queries.js";
+import { STOCK_MOVEMENT_VERSION } from "./stock-movement-version.js";
 
 function balanceOf(key: ProductStockKey) {
   return and(
@@ -75,7 +76,7 @@ export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
     this.pending.note({
       entity: "stock_movement",
       entityId: recorded.id,
-      version: 1,
+      version: STOCK_MOVEMENT_VERSION,
       op: "insert",
       locationId: movement.locationId,
     });

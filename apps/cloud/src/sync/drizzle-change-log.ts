@@ -29,6 +29,7 @@ import {
   readRegisterPointsOfSale,
   readRegisters,
   readRoles,
+  readStockMovements,
   readTags,
   readUsers,
 } from "./read-pulled-rows.js";
@@ -115,6 +116,7 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
       this.tx,
       idsOf(logged, "buyer_tax_status_set"),
     );
+    const stockMovementRows = await readStockMovements(this.tx, idsOf(logged, "stock_movement"));
     const settingsId = logged.find((row) => row.entity === "branch_settings")?.entityId;
     const settingsRow = settingsId === undefined ? undefined : await this.readSettings(settingsId);
     const removedVersions = {
@@ -228,6 +230,14 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
             entity,
             entityId,
             row: requiredRow(taxStatusSetRows.get(entityId), entity),
+          });
+          break;
+        case "stock_movement":
+          pulled.push({
+            changeSeq,
+            entity,
+            entityId,
+            row: requiredRow(stockMovementRows.get(entityId), entity),
           });
           break;
       }
