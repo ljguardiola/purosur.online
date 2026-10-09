@@ -13,7 +13,7 @@ import {
 } from "./permission-catalog.js";
 
 const AREA_ORDER_WITH_COUNTS: readonly [string, number][] = [
-  ["cashRegister", 7],
+  ["cashRegister", 8],
   ["sale", 3],
   ["returns", 2],
   ["checkout", 1],
@@ -31,8 +31,8 @@ const AREA_ORDER_WITH_COUNTS: readonly [string, number][] = [
 ];
 
 describe("PERMISSION_CATALOG", () => {
-  it("holds exactly 49 permissions", () => {
-    expect(PERMISSION_CATALOG).toHaveLength(49);
+  it("holds exactly 50 permissions", () => {
+    expect(PERMISSION_CATALOG).toHaveLength(50);
   });
 
   it("has a unique key for every permission", () => {
@@ -60,11 +60,11 @@ describe("PERMISSION_CATALOG", () => {
     }
   });
 
-  it("marks exactly the four register-only permissions with the register marker", () => {
+  it("marks exactly the five register-only permissions with the register marker", () => {
     const registerOnly = PERMISSION_CATALOG.filter(
       (permission) => permission.registerMarker === "register",
     );
-    expect(registerOnly).toHaveLength(4);
+    expect(registerOnly).toHaveLength(5);
   });
 
   it("marks exactly the eleven permissions requiring another person's register PIN", () => {
@@ -76,7 +76,7 @@ describe("PERMISSION_CATALOG", () => {
 
   it("leaves every remaining permission with no register marker", () => {
     const none = PERMISSION_CATALOG.filter((permission) => permission.registerMarker === "none");
-    expect(none).toHaveLength(49 - 4 - 11);
+    expect(none).toHaveLength(50 - 5 - 11);
   });
 
   it("exports PERMISSION_AREAS in the exact drawn area order, the role editor's areas pane order", () => {

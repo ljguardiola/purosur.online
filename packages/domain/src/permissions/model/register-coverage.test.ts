@@ -12,6 +12,7 @@ describe("uncoveredRegisterPermissions", () => {
     expect(uncoveredRegisterPermissions([])).toEqual([
       "sell_and_charge",
       "view_sales_history",
+      "read_register_help",
       "close_anothers_register_session",
       "reprint_receipt",
       "record_cash_in",
