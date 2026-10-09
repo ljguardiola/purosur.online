@@ -143,6 +143,7 @@ const buyerIdentificationThresholdChangeSchema = z.object({
   row: z.object({
     amount: z.int().refine(isBuyerIdentificationThresholdAmount),
     valid_from: calendarDaySchema,
+    revision: z.int().nonnegative().default(0),
   }),
 });
 

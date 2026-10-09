@@ -105,9 +105,11 @@ export type { UserPinCodeWire } from "./credentials/user-pin-code.js";
 export { userPinCodeSchema } from "./credentials/user-pin-code.js";
 export type {
   BuyerIdentificationThresholdBody,
+  BuyerIdentificationThresholdConfirmationRequiredBody,
   BuyerIdentificationThresholdOverviewBody,
 } from "./fiscal/buyer-identification-threshold.js";
 export {
+  buyerIdentificationThresholdConfirmationRequiredSchema,
   buyerIdentificationThresholdOverviewSchema,
   buyerIdentificationThresholdSchema,
 } from "./fiscal/buyer-identification-threshold.js";
