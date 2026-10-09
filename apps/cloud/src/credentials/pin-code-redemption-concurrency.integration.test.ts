@@ -73,7 +73,7 @@ async function insertUserWithCode(code: string): Promise<string> {
   const [user] = await db
     .insert(users)
     .values({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: `grace-${randomUUID()}@example.com`,
       locationId: await seededLocationId(db),
     })

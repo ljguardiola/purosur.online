@@ -117,6 +117,7 @@ function contextWith(
     sessionOpenSale: async () => "unavailable",
     cashMovements: async () => "unavailable",
     cashMovementKinds: async () => "unavailable",
+    registerStatus: async () => ({ conditions: [], cloud: "reachable" }),
     recordCashMovement: async () => ({ kind: "unavailable" }),
     enroll: async () => ({ kind: "enrolled" }),
     registerName: async () => null,
@@ -745,7 +746,9 @@ describe("the register's router", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
-    await expect.element(screen.getByRole("navigation").getByText("Ada")).toBeVisible();
+    await expect
+      .element(screen.getByRole("region", { name: "Estado de la caja" }).getByText("Ada"))
+      .toBeVisible();
   });
 
   it("renders the open-session screen for the person who opened the session", async () => {
@@ -754,7 +757,9 @@ describe("the register's router", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
-    await expect.element(screen.getByText("Grace")).toBeVisible();
+    await expect
+      .element(screen.getByRole("region", { name: "Estado de la caja" }).getByText("Grace"))
+      .toBeVisible();
     await expect.element(screen.getByText("Sesión abierta 09:02")).toBeVisible();
   });
 
@@ -1036,7 +1041,7 @@ describe("the register's router", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByText("Caja 1 · Sesión abierta 09:02")).toBeVisible();
+    await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
   });
 
   it("shows the register's name from the first render of a session screen", async () => {
@@ -1063,7 +1068,7 @@ describe("the register's router", () => {
     name.resolve("Caja 1");
 
     await expect.element(screen.getByRole("heading", { name: "Venta en curso" })).toBeVisible();
-    expect(screen.container.textContent).toContain("Caja 1 · Sesión abierta 09:02");
+    expect(screen.container.textContent).toContain("Caja 1");
   });
 
   it("reads the register's name once on the first visit to a session screen", async () => {
@@ -1076,7 +1081,7 @@ describe("the register's router", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByText("Caja 1 · Sesión abierta 09:02")).toBeVisible();
+    await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
     expect(registerName).toHaveBeenCalledOnce();
   });
 
@@ -1130,7 +1135,7 @@ describe("the register's router", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByText("Caja 1 · Sin sesión abierta")).toBeVisible();
+    await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
   });
 
   it("leaves the register's name out of the sign-in screen's eyebrow when reading it fails", async () => {
@@ -1579,5 +1584,111 @@ describe("the register's router", () => {
     await userEvent.click(screen.getByRole("button", { name: /Persona que autoriza/ }));
 
     await expect.element(screen.getByRole("option", { name: "Grace" })).toBeVisible();
+  });
+});
+
+describe("the register's status bar", () => {
+  const STATUS_BAR_NAME = "Estado de la caja";
+  const LOCKED_SESSION = { ...OPEN_SESSION, locked: true } satisfies CashSessionState;
+
+  const SALE_TO_CHARGE: Partial<RouterContext> = {
+    currentSale: async () => ({
+      id: "sale-1",
+      lines: [
+        {
+          id: "line-1",
+          product_id: "p1",
+          product_name: "Yerba mate 1 kg",
+          quantity: 1,
+          list_unit_price: 238_000,
+          discount_amount: 0,
+          promotion: null,
+          line_total: 238_000,
+        },
+      ],
+      total: 238_000,
+      paid: 0,
+      pending: 238_000,
+      lines_editable: true,
+      cancellable: true,
+      charge_refusal: null,
+      refunds_on_cancel: [],
+      cancel_authorization_required: false,
+    }),
+  };
+
+  it.each<{
+    path: RoutePath;
+    cashSession: CashSessionState;
+    person: null | undefined;
+    context?: Partial<RouterContext>;
+  }>([
+    { path: "/", cashSession: NO_SESSION, person: undefined },
+    { path: "/session", cashSession: OPEN_SESSION, person: undefined },
+    { path: "/charge", cashSession: OPEN_SESSION, person: undefined, context: SALE_TO_CHARGE },
+    { path: "/cash", cashSession: OPEN_SESSION, person: undefined },
+    { path: "/cash-count", cashSession: OPEN_SESSION, person: undefined },
+    { path: "/locked", cashSession: LOCKED_SESSION, person: null },
+    { path: "/locked-close", cashSession: LOCKED_SESSION, person: null },
+  ])("is shown on $path", async ({ path, cashSession, person, context }) => {
+    const router = createRegisterRouter(
+      routeTree,
+      { ...contextWith("up", "enrolled", person, undefined, cashSession), ...context },
+      path,
+    );
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screen.getByRole("region", { name: STATUS_BAR_NAME })).toBeVisible();
+    expect(router.state.location.pathname).toBe(path);
+  });
+
+  it("is not shown on the sign-in screen", async () => {
+    const router = routerAt("/sign-in", "up", "enrolled", null);
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screenFor["/sign-in"](screen)).toBeVisible();
+    await expect
+      .element(screen.getByRole("region", { name: STATUS_BAR_NAME }))
+      .not.toBeInTheDocument();
+  });
+
+  it("shows the first name of the person signed in and the session it is in", async () => {
+    const router = routerAt("/session", "up", "enrolled", undefined, OPEN_SESSION);
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    const bar = screen.getByRole("region", { name: STATUS_BAR_NAME });
+    await expect.element(bar).toBeVisible();
+    expect(bar.element().textContent).toContain("Ada");
+    expect(bar.element().textContent).toContain("Sesión abierta 09:02");
+  });
+
+  it("shows neither a name nor the session while the register is locked", async () => {
+    const router = routerAt("/locked", "up", "enrolled", null, LOCKED_SESSION);
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    const bar = screen.getByRole("region", { name: STATUS_BAR_NAME });
+    await expect.element(bar).toBeVisible();
+    expect(bar.element().textContent).not.toMatch(/sesión|bloqueada/i);
+    expect(bar.element().textContent).not.toContain("Ada");
+  });
+
+  it("shows the conditions and the cloud the core answers", async () => {
+    const context = {
+      ...contextWith("up", "enrolled", PERSON, undefined, NO_SESSION),
+      registerStatus: async () => ({
+        conditions: ["sales_denied" as const],
+        cloud: "unreachable" as const,
+      }),
+    };
+    const router = createRegisterRouter(routeTree, context, "/");
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screen.getByText("La caja no puede vender")).toBeVisible();
+    await expect.element(screen.getByText("Sin conexión con la nube")).toBeVisible();
   });
 });

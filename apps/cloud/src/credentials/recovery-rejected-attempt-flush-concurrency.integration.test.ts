@@ -80,7 +80,7 @@ describe("flushClosedRecoveryRejectedAttemptWindows against a real pool", () => 
     const email = `ada-${randomUUID()}@example.com`;
     const [user] = await db
       .insert(users)
-      .values({ firstName: "Ada Lovelace", email, locationId: await seededLocationId(db) })
+      .values({ firstName: "Ada Lucero", email, locationId: await seededLocationId(db) })
       .returning({ id: users.id });
     if (!user) {
       throw new Error("test setup: seeding the user returned no row");
@@ -111,7 +111,7 @@ describe("flushClosedRecoveryRejectedAttemptWindows against a real pool", () => 
     const [user] = await db
       .insert(users)
       .values({
-        firstName: "Grace Hopper",
+        firstName: "Grace Villalba",
         email: `grace-${randomUUID()}@example.com`,
         locationId: await seededLocationId(db),
       })
@@ -155,7 +155,7 @@ describe("flushClosedRecoveryRejectedAttemptWindows against a real pool", () => 
     const email = `margaret-${randomUUID()}@example.com`;
     const [user] = await db
       .insert(users)
-      .values({ firstName: "Margaret Hamilton", email, locationId: await seededLocationId(db) })
+      .values({ firstName: "Margaret Acuña", email, locationId: await seededLocationId(db) })
       .returning({ id: users.id });
     if (!user) {
       throw new Error("test setup: seeding the user returned no row");

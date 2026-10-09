@@ -28,7 +28,7 @@ test("hides the Roles item in the rail for a non-Administrator", async () => {
     fetchSession: vi
       .fn()
       .mockResolvedValue(
-        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
   window.history.pushState(null, "", "/help");
@@ -63,7 +63,7 @@ test("shows the Cajas registradoras item in the rail for a user holding enroll_r
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
         userId: "user-2",
-        displayName: "Grace Hopper",
+        displayName: "Grace Villalba",
         isAdministrator: false,
         capabilities: ["registers_area"],
       }),
@@ -81,7 +81,7 @@ test("hides the Cajas registradoras item in the rail for a user without enroll_r
     fetchSession: vi
       .fn()
       .mockResolvedValue(
-        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
   window.history.pushState(null, "", "/help");
@@ -122,7 +122,7 @@ test("redirects a typed /registers to Mi cuenta for a user without enroll_regist
     fetchSession: vi
       .fn()
       .mockResolvedValue(
-        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
@@ -141,7 +141,7 @@ test("shows the Sucursal item in the rail for a user holding configure_branch, l
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
         userId: "user-2",
-        displayName: "Grace Hopper",
+        displayName: "Grace Villalba",
         isAdministrator: false,
         capabilities: ["branch_area"],
       }),
@@ -159,7 +159,7 @@ test("hides the Sucursal item in the rail for a user without configure_branch", 
     fetchSession: vi
       .fn()
       .mockResolvedValue(
-        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
   window.history.pushState(null, "", "/help");
@@ -213,7 +213,7 @@ test("redirects a typed /location-settings to Mi cuenta for a user without confi
     fetchSession: vi
       .fn()
       .mockResolvedValue(
-        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
@@ -323,7 +323,7 @@ test("redirects a non-Administrator's typed /roles to Mi cuenta, without listing
     fetchSession: vi
       .fn()
       .mockResolvedValue(
-        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });

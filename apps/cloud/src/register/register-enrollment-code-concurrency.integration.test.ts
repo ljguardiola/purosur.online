@@ -54,7 +54,7 @@ describe("emitting two enrollment codes for a register with no code yet concurre
     const locationId = await seededLocationId(db);
     const [actor] = await db
       .insert(users)
-      .values({ firstName: "Ada Lovelace", email: `ada-${suffix}@example.com`, locationId })
+      .values({ firstName: "Ada Lucero", email: `ada-${suffix}@example.com`, locationId })
       .returning({ id: users.id });
     const [register] = await db
       .insert(registers)

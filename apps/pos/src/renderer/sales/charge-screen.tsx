@@ -110,13 +110,8 @@ export function ChargeScreen({
   const lines = plural(lineCount, { one: "LÍNEA", other: "LÍNEAS" });
 
   return (
-    <div className="flex h-screen w-screen bg-surface-subtle">
-      <OpenSessionRail
-        firstName={person.first_name}
-        registerName={registerName}
-        lock={lock}
-        current="sale"
-      />
+    <div className="flex h-full w-full bg-surface-subtle">
+      <OpenSessionRail registerName={registerName} lock={lock} current="sale" />
       <main className="flex min-w-0 flex-1 flex-col gap-4 pt-6 pr-6 pb-6 pl-8">
         {current.status === "loading" ? <LoadingPlaceholder variant="list" items={1} /> : null}
         {current.status === "failed" ? (

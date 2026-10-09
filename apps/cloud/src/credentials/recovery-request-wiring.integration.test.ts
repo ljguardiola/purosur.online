@@ -82,7 +82,7 @@ async function seedActiveUser(databaseUrl: string, email: string): Promise<strin
     const db = drizzle(sql);
     const [user] = await db
       .insert(users)
-      .values({ firstName: "Ada Lovelace", email, locationId: await seededLocationId(db) })
+      .values({ firstName: "Ada Lucero", email, locationId: await seededLocationId(db) })
       .returning({ id: users.id });
     if (!user) {
       throw new Error("test setup: seeding the active user returned no row");

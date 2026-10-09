@@ -23,3 +23,7 @@ export function salesDeniedReportOf(state: SalesStopState): SalesDeniedReport {
   }
   return {};
 }
+
+export function isInstallationRevoked(state: SalesStopState): boolean {
+  return state.stopped && state.reason === "installation_revoked";
+}

@@ -116,7 +116,7 @@ describe("GET /users/:id", () => {
     const locationId = await seededLocationId(db);
     const cashierRoleId = await insertCashierRole("Cajera");
     const cashierId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId: cashierRoleId,
       locationId,
@@ -133,7 +133,7 @@ describe("GET /users/:id", () => {
     const locationId = await seededLocationId(db);
     const roleId = await insertCashierRole("Encargada", ["deactivate_users"]);
     const userId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId,
       locationId,
@@ -145,7 +145,7 @@ describe("GET /users/:id", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       id: userId,
-      first_name: "Ada Lovelace",
+      first_name: "Ada Lucero",
       email: "ada@example.com",
       version: 1,
       role: { id: roleId, is_administrator: false, name: "Encargada" },
@@ -163,7 +163,7 @@ describe("GET /users/:id", () => {
     const locationId = await seededLocationId(db);
     const roleId = await insertCashierRole("Encargada", ["reset_user_pin"]);
     const userId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId,
       locationId,
@@ -173,14 +173,14 @@ describe("GET /users/:id", () => {
     const response = await getUser(userId, rawSessionId);
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ id: userId, first_name: "Ada Lovelace" });
+    expect(response.json()).toMatchObject({ id: userId, first_name: "Ada Lucero" });
   });
 
   it("returns the user's shape for an id in the session's own branch", async () => {
     const locationId = await seededLocationId(db);
     const administratorRoleId = await seededAdministratorRoleId();
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: administratorRoleId,
       locationId,
@@ -192,7 +192,7 @@ describe("GET /users/:id", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       id: administratorId,
-      first_name: "Ada Lovelace",
+      first_name: "Ada Lucero",
       email: "ada@example.com",
       version: 1,
       active: true,
@@ -211,14 +211,14 @@ describe("GET /users/:id", () => {
     const locationId = await seededLocationId(db);
     const holderRoleId = await insertCashierRole("Encargada", ["deactivate_users"]);
     const holderId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: holderRoleId,
       locationId,
     });
     const cashierRoleId = await insertCashierRole("Cajera");
     const inactiveId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId: cashierRoleId,
       locationId,
@@ -238,13 +238,13 @@ describe("GET /users/:id", () => {
     const administratorRoleId = await seededAdministratorRoleId();
     const cashierRoleId = await insertCashierRole("Cajera");
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: administratorRoleId,
       locationId,
     });
     const inactiveId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId: cashierRoleId,
       locationId,
@@ -257,7 +257,7 @@ describe("GET /users/:id", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       id: inactiveId,
-      first_name: "Grace Hopper",
+      first_name: "Grace Villalba",
       email: "grace@example.com",
       version: 1,
       active: false,
@@ -276,14 +276,14 @@ describe("GET /users/:id", () => {
     const locationId = await seededLocationId(db);
     const holderRoleId = await insertCashierRole("Encargada", ["reactivate_users"]);
     const holderId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: holderRoleId,
       locationId,
     });
     const cashierRoleId = await insertCashierRole("Cajera");
     const inactiveId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId: cashierRoleId,
       locationId,
@@ -299,7 +299,7 @@ describe("GET /users/:id", () => {
 
   it("answers 400 validation_failed naming id for a malformed id, changing nothing", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -320,7 +320,7 @@ describe("GET /users/:id", () => {
     const administratorRoleId = await seededAdministratorRoleId();
     const cashierRoleId = await insertCashierRole("Cajera");
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: administratorRoleId,
       locationId,
@@ -348,7 +348,7 @@ describe("GET /users/:id", () => {
   it("rejects an Origin that is not the backoffice's own", async () => {
     const locationId = await seededLocationId(db);
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId,

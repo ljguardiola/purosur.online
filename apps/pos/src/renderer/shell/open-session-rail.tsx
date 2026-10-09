@@ -5,12 +5,10 @@ import { LeavingTheRegisterModal } from "./leaving-the-register-modal";
 import { NavigationRail } from "./navigation-rail";
 
 export function OpenSessionRail({
-  firstName,
   registerName,
   lock,
   current,
 }: {
-  firstName: string;
   registerName: string | null;
   lock: () => void;
   current: "sale" | "cash";
@@ -21,7 +19,6 @@ export function OpenSessionRail({
   return (
     <>
       <NavigationRail
-        firstName={firstName}
         entries={[]}
         home={
           current === "sale"

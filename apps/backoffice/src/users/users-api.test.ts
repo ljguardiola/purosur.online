@@ -26,7 +26,7 @@ afterEach(() => {
 
 const administratorRow = {
   id: "user-1",
-  first_name: "Lucas Guardiola",
+  first_name: "Lucas Medrano",
   email: "lucas@example.com",
   version: 1,
   role: { id: "role-admin", is_administrator: true, name: null },
@@ -40,7 +40,7 @@ const administratorRow = {
 };
 const administrator: BranchUser = {
   id: "user-1",
-  firstName: "Lucas Guardiola",
+  firstName: "Lucas Medrano",
   email: "lucas@example.com",
   version: 1,
   role: { id: "role-admin", isAdministrator: true, name: null },

@@ -132,7 +132,7 @@ describe("GET /categories", () => {
   it("rejects a user without the products and categories permission with 403 forbidden", async () => {
     const roleId = await insertRole("Cajera", ["sell_and_charge"]);
     const cashierId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId,
       locationId: await seededLocationId(db),
@@ -150,7 +150,7 @@ describe("GET /categories", () => {
     const macetas = await insertCategory("Macetas");
     const roleId = await insertRole("Encargada", ["manage_products_and_categories"]);
     const userId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId,
       locationId: await seededLocationId(db),
@@ -171,7 +171,7 @@ describe("GET /categories", () => {
     const untables = await insertCategory("Untables", almacen.id);
     const roleId = await insertRole("Encargada", ["manage_products_and_categories"]);
     const userId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId,
       locationId: await seededLocationId(db),
@@ -208,7 +208,7 @@ describe("GET /categories", () => {
   it("rejects an Origin that is not the backoffice's own", async () => {
     const roleId = await insertRole("Encargada", ["manage_products_and_categories"]);
     const userId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId,
       locationId: await seededLocationId(db),

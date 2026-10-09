@@ -21,7 +21,6 @@ import { usePinAttempt } from "../platform/use-pin-attempt";
 import { UserPicker } from "../platform/user-picker";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
 import { ScreenLink } from "../shell/screen-link";
-import { sessionEyebrow } from "../shell/session-eyebrow";
 import { useLockedClosersQuery } from "./register-queries";
 
 export type IdentifiedCloser = { authorization: Authorization; first_name: string };
@@ -34,7 +33,6 @@ export type ReturnedCloser = {
 export type LockedCloserIdentificationProps = {
   sessionId: string;
   registerName: string | null;
-  openedAt: string;
   loadClosers: () => Promise<SignInUser[]>;
   identify: (closer: Authorization) => Promise<IdentifyLockedCloserOutcome>;
   returned: ReturnedCloser | undefined;
@@ -83,7 +81,6 @@ function returnedNotice({ refusal, firstName }: ReturnedCloser): PinNotice {
 function IdentificationPanel({
   sessionId,
   registerName,
-  openedAt,
   loadClosers,
   identify,
   returned,
@@ -130,7 +127,7 @@ function IdentificationPanel({
   return (
     <main className="flex w-full max-w-110 flex-col gap-6">
       <ScreenHeader
-        eyebrow={sessionEyebrow(registerName, openedAt)}
+        eyebrow={registerName ?? undefined}
         titleId={headingId}
         titleRef={heading}
         title={

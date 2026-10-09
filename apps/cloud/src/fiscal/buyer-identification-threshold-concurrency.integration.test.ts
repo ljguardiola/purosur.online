@@ -37,7 +37,7 @@ async function insertActor(): Promise<string> {
   const [actor] = await db
     .insert(users)
     .values({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: `ada-${randomUUID()}@example.com`,
       locationId: await seededLocationId(db),
     })

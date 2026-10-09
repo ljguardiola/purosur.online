@@ -57,3 +57,8 @@ export {
   canSeeAlert,
 } from "./model/alert-visibility.js";
 export { isOpenAlert } from "./model/open-alert-state.js";
+export type { RegisterOwnCondition } from "./model/register-own-conditions.js";
+export {
+  REGISTER_OWN_CONDITIONS,
+  registerOwnConditions,
+} from "./model/register-own-conditions.js";

@@ -6,7 +6,7 @@ import { render } from "./test-support/render-with-router";
 describe("OpenSessionRail", () => {
   it("marks Venta as current on the sale screen", async () => {
     const screen = await render(
-      <OpenSessionRail firstName="Ada" registerName="Caja 1" lock={() => {}} current="sale" />,
+      <OpenSessionRail registerName="Caja 1" lock={() => {}} current="sale" />,
     );
 
     await expect
@@ -19,7 +19,7 @@ describe("OpenSessionRail", () => {
 
   it("marks Caja as current on the cash screens and sends Venta to the sale", async () => {
     const screen = await render(
-      <OpenSessionRail firstName="Ada" registerName="Caja 1" lock={() => {}} current="cash" />,
+      <OpenSessionRail registerName="Caja 1" lock={() => {}} current="cash" />,
     );
 
     await expect
@@ -36,12 +36,7 @@ describe("OpenSessionRail", () => {
       onTestFinished(() => page.viewport(414, 896));
       const locked: string[] = [];
       const screen = await render(
-        <OpenSessionRail
-          firstName="Ada"
-          registerName="Caja 1"
-          lock={() => locked.push("locked")}
-          current="sale"
-        />,
+        <OpenSessionRail registerName="Caja 1" lock={() => locked.push("locked")} current="sale" />,
       );
       return Object.assign(screen, { locked });
     }

@@ -41,7 +41,7 @@ describe("emitting an enrollment code through DrizzleBranchRegisterStore", () =>
     const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
     const [actor] = await db
       .insert(users)
-      .values({ firstName: "Ada Lovelace", email: "ada@example.com", locationId })
+      .values({ firstName: "Ada Lucero", email: "ada@example.com", locationId })
       .returning({ id: users.id });
     if (!otherLocation || !actor) {
       throw new Error("test setup: seeding the other location or the actor returned no row");
@@ -72,7 +72,7 @@ describe("emitting an enrollment code through DrizzleBranchRegisterStore", () =>
 async function insertActor(locationId: string): Promise<string> {
   const [actor] = await db
     .insert(users)
-    .values({ firstName: "Ada Lovelace", email: "ada@example.com", locationId })
+    .values({ firstName: "Ada Lucero", email: "ada@example.com", locationId })
     .returning({ id: users.id });
   if (!actor) {
     throw new Error("test setup: seeding the actor returned no row");

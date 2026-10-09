@@ -152,7 +152,7 @@ async function insertOtherBranch(): Promise<string> {
 async function insertActor(locationId: string): Promise<string> {
   const [actor] = await db
     .insert(users)
-    .values({ firstName: "Ada Lovelace", email: "ada@example.com", locationId })
+    .values({ firstName: "Ada Lucero", email: "ada@example.com", locationId })
     .returning({ id: users.id });
   if (!actor) {
     throw new Error("test setup: seeding the actor returned no row");

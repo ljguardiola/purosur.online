@@ -4,6 +4,7 @@ import {
   actionsColumn,
   dataColumn,
   ListFilter,
+  localAlertText,
   Pagination,
   plural,
   SearchField,
@@ -29,7 +30,6 @@ import type { AlertListQuery } from "./alerts-api";
 import type { AlertsListScreenServices } from "./alerts-list-services";
 import { AlertsOpenCountPill } from "./alerts-open-count-pill";
 import { useAlertsQuery } from "./alerts-queries";
-import { localAlertText } from "./local-alert-text";
 import type { AlertsListFilters } from "./routes";
 
 export type AlertsListScreenProps = {

@@ -296,6 +296,7 @@ function Register({ core }: { core: CoreClient }) {
     sessionOpenSale: () => core.sessionOpenSale(),
     cashMovements,
     cashMovementKinds: () => core.cashMovementKinds(),
+    registerStatus: () => core.registerStatus(),
     recordCashMovement,
     redeemPinCode,
     pinPolicy: () => core.pinPolicy(),
@@ -343,6 +344,7 @@ function Register({ core }: { core: CoreClient }) {
         void queryClient.invalidateQueries({ queryKey: sessionsKey });
         void queryClient.invalidateQueries({ queryKey: credentialsKey });
         void queryClient.invalidateQueries({ queryKey: registerKeys.registerName });
+        void queryClient.invalidateQueries({ queryKey: registerKeys.status });
         void queryClient.invalidateQueries({ queryKey: lockedClosersKey });
       }),
     [core, queryClient],

@@ -707,14 +707,14 @@ test("names an alert for increased access by its kind and what happened", async 
         ...passkeyAlert,
         kind: "user_access_increased",
         level: "critical",
-        scopeDisplay: "Grace Hopper",
+        scopeDisplay: "Grace Villalba",
       },
     ]),
   );
 
   const screen = await renderScreen(services);
 
-  const row = screen.getByRole("row", { name: /Grace Hopper/ });
+  const row = screen.getByRole("row", { name: /Grace Villalba/ });
   await expect.element(row.getByText("Acceso ampliado")).toBeVisible();
   await expect.element(row.getByText("Se amplió el acceso de un usuario")).toBeVisible();
 });

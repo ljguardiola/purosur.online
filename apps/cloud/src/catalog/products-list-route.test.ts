@@ -96,7 +96,7 @@ async function insertUserWithPermission(
 ): Promise<string> {
   const roleId = await insertRole("Encargada", permissionKeys);
   return insertUser({
-    firstName: "Ada Lovelace",
+    firstName: "Ada Lucero",
     email: "ada@example.com",
     roleId,
     locationId: await seededLocationId(db),

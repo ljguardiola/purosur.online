@@ -6,8 +6,8 @@ import { parseCreateFirstAdministratorArgs, UsageError } from "./create-first-ad
 describe("parseCreateFirstAdministratorArgs", () => {
   it("parses --name and --email", () => {
     expect(
-      parseCreateFirstAdministratorArgs(["--name", "Ada Lovelace", "--email", "ada@example.com"]),
-    ).toEqual({ name: "Ada Lovelace", email: "ada@example.com" });
+      parseCreateFirstAdministratorArgs(["--name", "Ada Lucero", "--email", "ada@example.com"]),
+    ).toEqual({ name: "Ada Lucero", email: "ada@example.com" });
   });
 
   it("rejects a run with no arguments", () => {
@@ -15,7 +15,7 @@ describe("parseCreateFirstAdministratorArgs", () => {
   });
 
   it("rejects a run missing --email", () => {
-    expect(() => parseCreateFirstAdministratorArgs(["--name", "Ada Lovelace"])).toThrow(UsageError);
+    expect(() => parseCreateFirstAdministratorArgs(["--name", "Ada Lucero"])).toThrow(UsageError);
   });
 
   it("rejects a run missing --name", () => {
@@ -28,7 +28,7 @@ describe("parseCreateFirstAdministratorArgs", () => {
     expect(() =>
       parseCreateFirstAdministratorArgs([
         "--name",
-        "Ada Lovelace",
+        "Ada Lucero",
         "--email",
         "ada@example.com",
         "--force",
@@ -40,7 +40,7 @@ describe("parseCreateFirstAdministratorArgs", () => {
     expect(() =>
       parseCreateFirstAdministratorArgs([
         "--name",
-        "Ada Lovelace",
+        "Ada Lucero",
         "--email",
         "ada@example.com",
         "extra",
@@ -72,7 +72,7 @@ describe("the create-first-administrator command", { timeout: 0 }, () => {
 
     const result = spawnSync(
       process.execPath,
-      [ENTRYPOINT, "--name", "Ada Lovelace", "--email", "ada@example.com"],
+      [ENTRYPOINT, "--name", "Ada Lucero", "--email", "ada@example.com"],
       { env, encoding: "utf8" },
     );
 
@@ -83,7 +83,7 @@ describe("the create-first-administrator command", { timeout: 0 }, () => {
   it("does not print the database URL when it fails on a malformed one", () => {
     const result = spawnSync(
       process.execPath,
-      [ENTRYPOINT, "--name", "Ada Lovelace", "--email", "ada@example.com"],
+      [ENTRYPOINT, "--name", "Ada Lucero", "--email", "ada@example.com"],
       {
         env: { ...process.env, DATABASE_URL: "postgres://user:s3cret-password@[bad/db" },
         encoding: "utf8",

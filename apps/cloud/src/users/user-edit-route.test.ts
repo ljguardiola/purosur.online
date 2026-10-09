@@ -168,7 +168,7 @@ beforeEach(async () => {
 
   const locationId = await seededLocationId(db);
   administratorId = await insertUser({
-    firstName: "Ada Lovelace",
+    firstName: "Ada Lucero",
     email: "ada@example.com",
     roleId: await seededAdministratorRoleId(),
     locationId,
@@ -202,7 +202,7 @@ describe("PUT /users/:id", () => {
   beforeEach(async () => {
     cashierRoleId = await insertCashierRole("Cajera");
     targetId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId: cashierRoleId,
       locationId: await seededLocationId(db),
@@ -432,7 +432,7 @@ describe("PUT /users/:id", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       id: targetId,
-      first_name: "Grace Hopper",
+      first_name: "Grace Villalba",
       email: "new.email@example.com",
       version: 2,
       role: { id: cashierRoleId, is_administrator: false, name: "Cajera" },
@@ -530,7 +530,7 @@ describe("PUT /users/:id", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       id: targetId,
-      first_name: "Grace Hopper",
+      first_name: "Grace Villalba",
       email: "grace@example.com",
       version: 2,
       role: { id: encargadaRoleId, is_administrator: false, name: "Encargada" },
@@ -664,7 +664,7 @@ describe("PUT /users/:id", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       id: targetId,
-      first_name: "Grace Hopper",
+      first_name: "Grace Villalba",
       email: "new.email@example.com",
       version: 2,
       role: { id: cashierRoleId, is_administrator: false, name: "Cajera" },
@@ -754,14 +754,14 @@ describe("PUT /users/:id", () => {
       const rawSessionId = await insertSession(administratorId);
 
       const response = await editUser(administratorId, rawSessionId, {
-        email: "ada.lovelace@example.com",
+        email: "ada.lucero@example.com",
         role_id: await seededAdministratorRoleId(),
         version: 1,
       });
 
       expect(response.statusCode).toBe(200);
       expect(response.json()).toMatchObject({
-        email: "ada.lovelace@example.com",
+        email: "ada.lucero@example.com",
         is_last_active_administrator: true,
         may_emit_pin_code: true,
         may_edit: true,
@@ -890,7 +890,7 @@ describe("PUT /users/:id and the alert for increased access", () => {
 
   beforeEach(async () => {
     targetId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId: await insertRoleWithPermissions("Cajera", ["sell_and_charge", "void_sale"]),
       locationId: await seededLocationId(db),
@@ -978,7 +978,7 @@ describe("PUT /users/:id and the alert for increased access", () => {
 
   it("opens no alert when an Administrator is assigned any other role", async () => {
     const secondAdministratorId = await insertUser({
-      firstName: "Katherine Johnson",
+      firstName: "Katherine Ojeda",
       email: "katherine@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),

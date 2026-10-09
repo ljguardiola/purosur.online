@@ -12,7 +12,7 @@ export function openSession(
   return {
     kind: "ok",
     userId: "user-1",
-    displayName: "Lucas Guardiola",
+    displayName: "Lucas Medrano",
     capabilities: isAdministrator ? ADMINISTRATOR_CAPABILITIES : [],
     stockMovementKinds: isAdministrator ? ["loss", "adjustment"] : [],
     mayEmitOwnPinCode: true,
