@@ -20,6 +20,10 @@ import {
 } from "@purosur/domain/sales/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
+import {
+  insertHealthCheck,
+  insertPointOfSale,
+} from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
@@ -670,6 +674,83 @@ describe("charging an open sale in cash", () => {
     expect(database.prepare("SELECT last_device_seq FROM sync_state").get()).toEqual({
       last_device_seq: 1,
     });
+  });
+
+  it("routes the sale to the deferred flow, as fiscally offline, when the register has no recent health check", () => {
+    const saleId = sellTwo();
+
+    charge(saleId, 3000);
+
+    expect(database.prepare("SELECT sale_id, reason, routed_at FROM deferred_sales").all()).toEqual(
+      [{ sale_id: saleId, reason: "fiscally_offline", routed_at: NOW.toISOString() }],
+    );
+    expect(database.prepare("SELECT count(*) AS total FROM fiscal_documents").get()).toEqual({
+      total: 0,
+    });
+  });
+
+  it("reserves the next number of the point of sale with the sale when the register is online", () => {
+    insertHealthCheck(database, { checkedAt: "2026-09-30T11:59:58.000Z" });
+    insertPointOfSale(database, 40);
+    const saleId = sellTwo();
+
+    charge(saleId, 3000);
+
+    expect(
+      database.prepare("SELECT sale_id, number, state, reserved_at FROM fiscal_documents").all(),
+    ).toEqual([
+      { sale_id: saleId, number: 41, state: "REQUESTING", reserved_at: NOW.toISOString() },
+    ]);
+    expect(database.prepare("SELECT count(*) AS total FROM deferred_sales").get()).toEqual({
+      total: 0,
+    });
+  });
+
+  it("routes a sale whose gate failed to the deferred flow even when the register is online", () => {
+    database.prepare("DELETE FROM issuer_identification_versions").run();
+    insertHealthCheck(database, { checkedAt: "2026-09-30T11:59:58.000Z" });
+    insertPointOfSale(database, 40);
+    const saleId = sellTwo();
+
+    charge(saleId, 3000);
+
+    expect(database.prepare("SELECT sale_id, reason FROM deferred_sales").all()).toEqual([
+      { sale_id: saleId, reason: "pre_emission_gate_failed" },
+    ]);
+  });
+
+  it("leaves nothing behind when the number cannot be reserved with the sale", () => {
+    insertHealthCheck(database, { checkedAt: "2026-09-30T11:59:58.000Z" });
+    insertPointOfSale(database, 40);
+    database.exec(
+      `CREATE TRIGGER refuse_fiscal_documents BEFORE INSERT ON fiscal_documents
+       BEGIN SELECT RAISE(ABORT, 'refused'); END`,
+    );
+    const saleId = sellTwo();
+
+    expect(() => charge(saleId, 3000)).toThrow("refused");
+
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+    expect(database.prepare("SELECT count(*) AS total FROM payment_transactions").get()).toEqual({
+      total: 0,
+    });
+    expect(database.prepare("SELECT count(*) AS total FROM outbox").get()).toEqual({ total: 0 });
+  });
+
+  it("leaves nothing behind when the routing to the deferred flow cannot be recorded with the sale", () => {
+    database.exec(
+      `CREATE TRIGGER refuse_deferred_sales BEFORE INSERT ON deferred_sales
+       BEGIN SELECT RAISE(ABORT, 'refused'); END`,
+    );
+    const saleId = sellTwo();
+
+    expect(() => charge(saleId, 3000)).toThrow("refused");
+
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+    expect(database.prepare("SELECT count(*) AS total FROM cash_movements").get()).toEqual({
+      total: 0,
+    });
+    expect(database.prepare("SELECT count(*) AS total FROM outbox").get()).toEqual({ total: 0 });
   });
 
   it("leaves the sale no longer in progress, so the next scan starts another sale", () => {

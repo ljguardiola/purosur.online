@@ -173,3 +173,58 @@ export function discountChange(discount: {
     },
   };
 }
+
+export function registerPointOfSaleChange(pointOfSale: {
+  registerId: string;
+  number: number;
+  taxAuthorityLastAuthorizedNumber: number;
+}): CloudChange {
+  return {
+    entity: "register_point_of_sale",
+    entity_id: pointOfSale.registerId,
+    row: {
+      point_of_sale_number: pointOfSale.number,
+      fiscal_address_id: "fiscal-address-1",
+      tax_authority_last_authorized_number: pointOfSale.taxAuthorityLastAuthorizedNumber,
+      version: 1,
+    },
+  };
+}
+
+export function issuerIdentificationChange(issuer: {
+  id: string;
+  legalName: string;
+  cuit: string;
+  grossIncomeRegistration: string;
+}): CloudChange {
+  return {
+    entity: "issuer_identification",
+    entity_id: issuer.id,
+    row: {
+      legal_name: issuer.legalName,
+      gross_income_registration: issuer.grossIncomeRegistration,
+      activity_start_date: "2020-01-01",
+      authorized_cuit: issuer.cuit,
+      tax_status: "MONOTRIBUTO",
+      version: 1,
+    },
+  };
+}
+
+export function buyerTaxStatusSetChange(set: {
+  id: string;
+  options: readonly { code: number; description: string; invoiceClass: string }[];
+}): CloudChange {
+  return {
+    entity: "buyer_tax_status_set",
+    entity_id: set.id,
+    row: {
+      params_version: 1,
+      options: set.options.map(({ code, description, invoiceClass }) => ({
+        code,
+        description,
+        invoice_class: invoiceClass,
+      })),
+    },
+  };
+}

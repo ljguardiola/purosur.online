@@ -12,7 +12,11 @@ import {
   ARCA_CERTIFICATE_WITHOUT_SERIAL_NUMBER,
   VALID_ARCA_CERTIFICATE,
 } from "../test-support/arca-certificate-fixtures.js";
-import { recordArcaResponses, recordingSettingsOf } from "./arca-response-recording.js";
+import {
+  recordArcaResponses,
+  recordingFailure,
+  recordingSettingsOf,
+} from "./arca-response-recording.js";
 import {
   type ArcaTestCredentials,
   generateArcaTestCredentials,
@@ -36,6 +40,8 @@ import {
 const NOW = new Date("2026-10-01T15:00:00.000Z");
 const ORIGINAL_TOKEN = "T0K3N-original/with+base64==";
 const ORIGINAL_SIGN = "S1GN-original/with+base64==";
+const POINT_OF_SALE = 7;
+const INVALID_BUYER_TAX_STATUS_CODE = "99999";
 const ORIGINAL_CUIT = FICTIONAL_CUIT.replaceAll("-", "");
 
 let wsaa: FakeWsaaServer;
@@ -69,6 +75,10 @@ beforeEach(() => {
       "fe-dummy-all-ok.xml",
       "fe-param-get-condicion-iva-receptor.xml",
       "fe-param-get-condicion-iva-receptor-token-error.xml",
+      "fe-comp-ultimo-autorizado.xml",
+      "fe-cae-solicitar-authorized.xml",
+      "fe-cae-solicitar-rejected-content.xml",
+      "fe-cae-solicitar-rejected-out-of-order.xml",
     ),
   );
 });
@@ -77,7 +87,7 @@ afterEach(() => {
   rmSync(outDir, { recursive: true, force: true });
 });
 
-function record() {
+function record(options: { now?: () => Date } = {}) {
   return recordArcaResponses({
     certificatePem: credentials.certificatePem,
     privateKeyPem: credentials.privateKeyPem,
@@ -85,8 +95,20 @@ function record() {
     wsaaEndpoint: wsaa.endpoint,
     wsfeEndpoint: wsfe.endpoint,
     cuit: FICTIONAL_CERTIFICATE_CUIT,
+    pointOfSale: POINT_OF_SALE,
     now: () => NOW,
+    ...options,
   });
+}
+
+function operationOf(request: string): string | undefined {
+  return /<(?:\w+:)?(FE[A-Za-z]+) xmlns/.exec(request)?.[1];
+}
+
+function sent(request: string | undefined, element: string): string | undefined {
+  return new RegExp(`<(?:\\w+:)?${element}>([^<]*)</(?:\\w+:)?${element}>`).exec(
+    request ?? "",
+  )?.[1];
 }
 
 function fixture(directory: string, name: string): string {
@@ -124,11 +146,111 @@ describe("recordArcaResponses", () => {
     );
   });
 
-  it("makes exactly one FEDummy call, two logins and two buyer tax-status calls", async () => {
+  it("saves the raw answers of the last authorized number and of the three invoices", async () => {
     await record();
 
-    expect(wsfe.requests).toHaveLength(3);
+    for (const name of [
+      "fe-comp-ultimo-autorizado",
+      "fe-cae-solicitar-authorized",
+      "fe-cae-solicitar-rejected-content",
+      "fe-cae-solicitar-rejected-out-of-order",
+    ]) {
+      expect(readFileSync(join(outDir, `${name}.raw.xml`), "utf8")).toBe(
+        fixture("wsfe-responses", `${name}.xml`),
+      );
+    }
+  });
+
+  it("makes exactly one FEDummy call, two logins, two buyer tax-status calls, one last-authorized call and three invoice calls", async () => {
+    await record();
+
+    expect(wsfe.requests).toHaveLength(7);
+    expect(wsfe.requests.map(operationOf)).toEqual([
+      "FEDummy",
+      "FEParamGetCondicionIvaReceptor",
+      "FEParamGetCondicionIvaReceptor",
+      "FECompUltimoAutorizado",
+      "FECAESolicitar",
+      "FECAESolicitar",
+      "FECAESolicitar",
+    ]);
     expect(wsaa.requests).toHaveLength(2);
+  });
+
+  it("asks for the last authorized number of the given point of sale with the issued ticket, before any invoice", async () => {
+    await record();
+
+    const lastAuthorized = wsfe.requests[3];
+    expect(lastAuthorized).toContain(ORIGINAL_TOKEN);
+    expect(lastAuthorized).toContain(ORIGINAL_SIGN);
+    expect(sent(lastAuthorized, "PtoVta")).toBe("7");
+    expect(sent(lastAuthorized, "CbteTipo")).toBe("11");
+  });
+
+  it("invoices the next number to a final consumer, then an invalid buyer tax status for the one after, then the first number again", async () => {
+    await record();
+
+    const [authorized, rejected, outOfOrder] = wsfe.requests.slice(4);
+    for (const request of [authorized, rejected, outOfOrder]) {
+      expect(request).toContain(ORIGINAL_TOKEN);
+      expect(request).toContain(ORIGINAL_SIGN);
+      expect(sent(request, "PtoVta")).toBe("7");
+      expect(sent(request, "CantReg")).toBe("1");
+      expect(sent(request, "CbteFch")).toBe("20261001");
+    }
+    expect([authorized, rejected, outOfOrder].map((request) => sent(request, "CbteDesde"))).toEqual(
+      ["2", "3", "2"],
+    );
+    expect(
+      [authorized, rejected, outOfOrder].map((request) => sent(request, "CondicionIVAReceptorId")),
+    ).toEqual(["5", INVALID_BUYER_TAX_STATUS_CODE, "5"]);
+  });
+
+  it("dates the invoices by the Argentina calendar day of the moment of recording", async () => {
+    await record({ now: () => new Date("2026-10-08T01:30:00.000Z") });
+
+    const invoices = wsfe.requests.slice(4);
+    expect(invoices.map((request) => sent(request, "CbteFch"))).toEqual([
+      "20261007",
+      "20261007",
+      "20261007",
+    ]);
+  });
+
+  it("makes no invoice call when the last authorized number is not answered", async () => {
+    wsfe.behave(
+      wsfeAnswersInTurn(
+        "fe-dummy-all-ok.xml",
+        "fe-param-get-condicion-iva-receptor.xml",
+        "fe-param-get-condicion-iva-receptor-token-error.xml",
+        "fe-comp-ultimo-autorizado-token-error.xml",
+      ),
+    );
+
+    const report = await record();
+
+    expect(wsfe.requests.map(operationOf)).not.toContain("FECAESolicitar");
+    expect(report.invoicesRecorded).toBe(false);
+    expect(readdirSync(outDir).filter((file) => file.startsWith("fe-cae"))).toEqual([]);
+  });
+
+  it("makes no invoice call when ARCA lists no Consumidor Final to invoice", async () => {
+    wsfe.behave(
+      wsfeAnswersInTurn(
+        "fe-dummy-all-ok.xml",
+        "fe-param-get-condicion-iva-receptor-token-error.xml",
+        "fe-param-get-condicion-iva-receptor-token-error.xml",
+      ),
+    );
+
+    const report = await record();
+
+    expect(wsfe.requests.map(operationOf)).toEqual([
+      "FEDummy",
+      "FEParamGetCondicionIvaReceptor",
+      "FEParamGetCondicionIvaReceptor",
+    ]);
+    expect(report.invoicesRecorded).toBe(false);
   });
 
   it("asks for the buyer tax-status values with the issued ticket and the certificate's CUIT, then with a ticket ARCA never issued", async () => {
@@ -151,6 +273,7 @@ describe("recordArcaResponses", () => {
 
     expect(wsfe.requests).toHaveLength(1);
     expect(readdirSync(outDir).filter((file) => file.startsWith("fe-param"))).toEqual([]);
+    expect(readdirSync(outDir).filter((file) => /^fe-(cae|comp)/.test(file))).toEqual([]);
   });
 
   it("sends the two logins with different unique ids", async () => {
@@ -167,6 +290,14 @@ describe("recordArcaResponses", () => {
     await record();
 
     expect(readdirSync(outDir).sort()).toEqual([
+      "fe-cae-solicitar-authorized.raw.xml",
+      "fe-cae-solicitar-authorized.scrubbed.xml",
+      "fe-cae-solicitar-rejected-content.raw.xml",
+      "fe-cae-solicitar-rejected-content.scrubbed.xml",
+      "fe-cae-solicitar-rejected-out-of-order.raw.xml",
+      "fe-cae-solicitar-rejected-out-of-order.scrubbed.xml",
+      "fe-comp-ultimo-autorizado.raw.xml",
+      "fe-comp-ultimo-autorizado.scrubbed.xml",
       "fe-dummy.raw.xml",
       "fe-dummy.scrubbed.xml",
       "fe-param-get-condicion-iva-receptor-token-error.raw.xml",
@@ -206,6 +337,22 @@ describe("recordArcaResponses", () => {
         file: "fe-param-get-condicion-iva-receptor-token-error.scrubbed.xml",
         replacements: [],
       },
+      { file: "fe-comp-ultimo-autorizado.scrubbed.xml", replacements: [] },
+      {
+        file: "fe-cae-solicitar-authorized.scrubbed.xml",
+        replacements: [
+          { field: "CAE", count: 1 },
+          { field: "CUIT", count: 1 },
+        ],
+      },
+      {
+        file: "fe-cae-solicitar-rejected-content.scrubbed.xml",
+        replacements: [{ field: "CUIT", count: 1 }],
+      },
+      {
+        file: "fe-cae-solicitar-rejected-out-of-order.scrubbed.xml",
+        replacements: [{ field: "CUIT", count: 1 }],
+      },
       { file: "login-cms-already-authenticated.scrubbed.xml", replacements: [] },
     ]);
   });
@@ -229,6 +376,7 @@ describe("recordArcaResponses", () => {
         wsaaEndpoint: wsaa.endpoint,
         wsfeEndpoint: wsfe.endpoint,
         cuit: FICTIONAL_CERTIFICATE_CUIT,
+        pointOfSale: POINT_OF_SALE,
         now: () => NOW,
         timeoutMs: 200,
       }),
@@ -246,6 +394,7 @@ describe("recordArcaResponses", () => {
         wsaaEndpoint: wsaa.endpoint,
         wsfeEndpoint: wsfe.endpoint,
         cuit: FICTIONAL_CERTIFICATE_CUIT,
+        pointOfSale: POINT_OF_SALE,
         now: () => NOW,
         timeoutMs: 200,
       }),
@@ -253,26 +402,80 @@ describe("recordArcaResponses", () => {
   });
 });
 
+describe("recordArcaResponses invoicing calls", () => {
+  it("refuses when ARCA gives no answer to the last authorized call, naming it", async () => {
+    wsfe.behave(
+      wsfeAnswersInTurn(
+        "fe-dummy-all-ok.xml",
+        "fe-param-get-condicion-iva-receptor.xml",
+        "fe-param-get-condicion-iva-receptor-token-error.xml",
+        NO_ANSWER,
+      ),
+    );
+
+    await expect(
+      recordArcaResponses({
+        certificatePem: credentials.certificatePem,
+        privateKeyPem: credentials.privateKeyPem,
+        outDir,
+        wsaaEndpoint: wsaa.endpoint,
+        wsfeEndpoint: wsfe.endpoint,
+        cuit: FICTIONAL_CERTIFICATE_CUIT,
+        pointOfSale: POINT_OF_SALE,
+        now: () => NOW,
+        timeoutMs: 200,
+      }),
+    ).rejects.toThrow("FECompUltimoAutorizado");
+  });
+});
+
+describe("recordingFailure", () => {
+  const RECORDED = { firstLoginIssuedTicket: true, invoicesRecorded: true, scrubbed: [] };
+
+  it("finds nothing wrong with a recording whose login issued a ticket and that requested invoices", () => {
+    expect(recordingFailure(RECORDED)).toBeUndefined();
+  });
+
+  it("fails a recording whose first login issued no ticket", () => {
+    expect(recordingFailure({ ...RECORDED, firstLoginIssuedTicket: false })).toBe(
+      "the first login did not issue a ticket (ARCA may still hold a valid one for this certificate); login-cms-issued is not a ticket answer",
+    );
+  });
+
+  it("fails a recording that requested no invoice", () => {
+    expect(recordingFailure({ ...RECORDED, invoicesRecorded: false })).toBe(
+      "ARCA listed no Consumidor Final for invoice class C or gave no last authorized number, so no invoice was requested",
+    );
+  });
+});
+
 describe("recordingSettingsOf", () => {
   const environment = { ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE, ARCA_PRIVATE_KEY: "KEY" };
 
-  it("reads the output directory from --out, the credentials from the environment and the CUIT from the certificate", () => {
-    expect(recordingSettingsOf(["--out", "/some/dir"], environment)).toEqual({
-      kind: "ready",
-      settings: {
-        outDir: "/some/dir",
-        certificatePem: VALID_ARCA_CERTIFICATE,
-        privateKeyPem: "KEY",
-        cuit: FICTIONAL_CERTIFICATE_CUIT,
-      },
-    });
-  });
+  it.each([
+    [["--out", "/some/dir", "--point-of-sale", "7"]],
+    [["--point-of-sale", "7", "--out", "/some/dir"]],
+  ])(
+    "reads the output directory from --out, the point of sale from --point-of-sale, the credentials from the environment and the CUIT from the certificate: %j",
+    (argv) => {
+      expect(recordingSettingsOf(argv, environment)).toEqual({
+        kind: "ready",
+        settings: {
+          outDir: "/some/dir",
+          pointOfSale: 7,
+          certificatePem: VALID_ARCA_CERTIFICATE,
+          privateKeyPem: "KEY",
+          cuit: FICTIONAL_CERTIFICATE_CUIT,
+        },
+      });
+    },
+  );
 
   it.each([
     [ARCA_CERTIFICATE_WITHOUT_SERIAL_NUMBER, "serialNumber"],
     [ARCA_CERTIFICATE_WITH_WRONG_CHECK_DIGIT, "check digit"],
   ])("refuses a certificate that carries no valid CUIT, saying why", (certificate, reason) => {
-    const result = recordingSettingsOf(["--out", "/d"], {
+    const result = recordingSettingsOf(["--out", "/d", "--point-of-sale", "7"], {
       ...environment,
       ARCA_CERTIFICATE: certificate,
     });
@@ -283,6 +486,7 @@ describe("recordingSettingsOf", () => {
   it.each([
     [[], "--out"],
     [["--out"], "--out"],
+    [["--point-of-sale", "7"], "--out"],
   ])("refuses %j without an output directory", (argv, mention) => {
     const result = recordingSettingsOf(argv, environment);
 
@@ -290,8 +494,23 @@ describe("recordingSettingsOf", () => {
     expect(JSON.stringify(result)).toContain(mention);
   });
 
+  it.each([
+    [["--out", "/d"]],
+    [["--out", "/d", "--point-of-sale"]],
+    [["--out", "/d", "--point-of-sale", "0"]],
+    [["--out", "/d", "--point-of-sale", "100000"]],
+    [["--out", "/d", "--point-of-sale", "7.5"]],
+    [["--out", "/d", "--point-of-sale", "seven"]],
+    [["--out", "/d", "--point-of-sale", "7", "--point-of-sale", "8"]],
+  ])("refuses %j without a valid point of sale", (argv) => {
+    const result = recordingSettingsOf(argv, environment);
+
+    expect(result.kind).toBe("refused");
+    expect(JSON.stringify(result)).toContain("--point-of-sale");
+  });
+
   it("passes on the refusal of credentials it cannot read", () => {
-    const result = recordingSettingsOf(["--out", "/d"], {
+    const result = recordingSettingsOf(["--out", "/d", "--point-of-sale", "7"], {
       ...environment,
       ARCA_PRIVATE_KEY: undefined,
     });
@@ -303,7 +522,10 @@ describe("recordingSettingsOf", () => {
   });
 
   it("accepts no other argument, so there is nothing to point it at production with", () => {
-    const result = recordingSettingsOf(["--out", "/d", "--environment", "production"], environment);
+    const result = recordingSettingsOf(
+      ["--out", "/d", "--point-of-sale", "7", "--environment", "production"],
+      environment,
+    );
 
     expect(result.kind).toBe("refused");
   });

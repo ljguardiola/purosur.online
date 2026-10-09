@@ -23,6 +23,7 @@ import { registerRegisterPointOfSaleConfigurationRoute } from "./register-point-
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 let app: FastifyInstance;
+let enqueuedCounts: number[];
 
 beforeAll(async () => {
   testDatabase = await buildTestDatabase();
@@ -35,11 +36,15 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDatabase.clear();
+  enqueuedCounts = [];
   app = Fastify();
   registerRegisterPointOfSaleConfigurationRoute(app, {
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
     now: () => SESSION_NOON,
+    enqueueTaxAuthorityCount: async (_transaction, pointOfSale) => {
+      enqueuedCounts.push(pointOfSale);
+    },
   });
 });
 
@@ -324,5 +329,31 @@ describe("PUT /registers/:id/point-of-sale", () => {
 
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({ code: "stale_version" });
+  });
+
+  it("asks for the tax authority's last authorized number of the point of sale it configured", async () => {
+    const registerId = await insertRegister("Caja 1");
+    const session = await sessionWith(["change_fiscal_configuration"]);
+
+    await configurePointOfSale(
+      registerId,
+      bodyFor(await insertFiscalAddress(), { point_of_sale_number: 12 }),
+      session.headers,
+    );
+
+    expect(enqueuedCounts).toEqual([12]);
+  });
+
+  it("asks for no count when the point of sale was not configured", async () => {
+    const registerId = await insertRegister("Caja 1");
+    const otherRegisterId = await insertRegister("Caja 2");
+    const fiscalAddressId = await insertFiscalAddress();
+    const session = await sessionWith(["change_fiscal_configuration"]);
+    await configurePointOfSale(otherRegisterId, bodyFor(fiscalAddressId), session.headers);
+    enqueuedCounts.length = 0;
+
+    await configurePointOfSale(registerId, bodyFor(fiscalAddressId), session.headers);
+
+    expect(enqueuedCounts).toEqual([]);
   });
 });

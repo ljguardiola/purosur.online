@@ -17,6 +17,7 @@ import type {
   IdGenerator,
   RecordedPreEmissionGate,
   RegisterIdentity,
+  SaleAuthorizationDecision,
   SaleCashMovement,
   SaleLedger,
   SaleLedgerTransaction,
@@ -52,6 +53,7 @@ export interface FakeSaleLedgerState {
   issuerIdentifications: IssuerIdentificationInEffect[];
   buyerTaxStatusSets: { paramsVersion: number; options: BuyerTaxStatusOption[] }[];
   preEmissionGates: RecordedPreEmissionGate[];
+  authorizationDecisions: Omit<SaleAuthorizationDecision, "ids">[];
 }
 
 export type FakeSaleLedgerWrite =
@@ -66,6 +68,7 @@ export type FakeSaleLedgerWrite =
   | "recordCancelledSale"
   | "recordRefund"
   | "recordPreEmissionGate"
+  | "decideSaleAuthorization"
   | "appendOutboxEvent";
 
 export class FakeSaleLedger implements SaleLedger {
@@ -96,6 +99,7 @@ export class FakeSaleLedger implements SaleLedger {
       issuerIdentifications: [],
       buyerTaxStatusSets: [],
       preEmissionGates: [],
+      authorizationDecisions: [],
       ...state,
     };
   }
@@ -219,6 +223,10 @@ export class FakeSaleLedger implements SaleLedger {
       recordPreEmissionGate: (recorded) => {
         this.failIfAsked("recordPreEmissionGate");
         working.preEmissionGates.push(recorded);
+      },
+      decideSaleAuthorization: ({ ids: _ids, ...decision }) => {
+        this.failIfAsked("decideSaleAuthorization");
+        working.authorizationDecisions.push(decision);
       },
     });
     this.state = working;

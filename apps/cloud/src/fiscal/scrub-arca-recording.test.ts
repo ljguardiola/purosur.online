@@ -5,7 +5,11 @@ import {
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
 import { describe, expect, it } from "vitest";
-import { FICTIONAL_CERTIFICATE_CUIT_DIGITS, scrubArcaRecording } from "./scrub-arca-recording.js";
+import {
+  FICTIONAL_AUTHORIZATION_CODE,
+  FICTIONAL_CERTIFICATE_CUIT_DIGITS,
+  scrubArcaRecording,
+} from "./scrub-arca-recording.js";
 
 const ORIGINAL_TOKEN = "T0K3N-original/with+base64==";
 const ORIGINAL_SIGN = "S1GN-original/with+base64==";
@@ -13,6 +17,7 @@ const ORIGINAL_ISSUER_CUIT = ANOTHER_FICTIONAL_CUIT.replaceAll("-", "");
 const ORIGINAL_HOLDER_CUIT = FICTIONAL_CUIT.replaceAll("-", "");
 const ORIGINAL_DESTINATION = `SERIALNUMBER=CUIT ${ORIGINAL_HOLDER_CUIT}, CN=holder-alias, O=${FICTIONAL_LEGAL_NAME}, C=AR`;
 const FICTIONAL_DESTINATION = `SERIALNUMBER=CUIT ${FICTIONAL_CERTIFICATE_CUIT_DIGITS}, CN=comercio-de-prueba`;
+const ORIGINAL_AUTHORIZATION_CODE = "75987654321098";
 const CUIT_PATTERN = /(?<!\d)\d{2}-?\d{8}-?\d(?!\d)/g;
 
 function escaped(xml: string): string {
@@ -63,6 +68,17 @@ function destinationIn(text: string): string | undefined {
 
 function cuitsIn(text: string): string[] {
   return text.match(CUIT_PATTERN) ?? [];
+}
+
+function authorizedInvoiceEnvelope(cuit = ORIGINAL_HOLDER_CUIT): string {
+  return (
+    '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body>' +
+    '<FECAESolicitarResponse xmlns="http://ar.gov.afip.dif.FEV1/"><FECAESolicitarResult>' +
+    `<FeCabResp><Cuit>${cuit}</Cuit><PtoVta>7</PtoVta><CbteTipo>11</CbteTipo><FchProceso>20261007201354</FchProceso><CantReg>1</CantReg><Resultado>A</Resultado><Reproceso>N</Reproceso></FeCabResp>` +
+    "<FeDetResp><FECAEDetResponse><Concepto>1</Concepto><DocTipo>99</DocTipo><DocNro>0</DocNro><CbteDesde>42</CbteDesde><CbteHasta>42</CbteHasta><CbteFch>20261007</CbteFch><Resultado>A</Resultado>" +
+    `<CAE>${ORIGINAL_AUTHORIZATION_CODE}</CAE><CAEFchVto>20261017</CAEFchVto></FECAEDetResponse></FeDetResp>` +
+    "</FECAESolicitarResult></FECAESolicitarResponse></soap:Body></soap:Envelope>"
+  );
 }
 
 describe("scrubArcaRecording", () => {
@@ -163,6 +179,49 @@ describe("scrubArcaRecording", () => {
     expect(scrubArcaRecording("<a><AppServer>OK</AppServer></a>")).toEqual({
       text: "<a><AppServer>OK</AppServer></a>",
       replacements: [],
+    });
+  });
+
+  describe("an authorized invoice", () => {
+    it("replaces the authorization code with a fictional one of the same fourteen digits", () => {
+      const { text } = scrubArcaRecording(authorizedInvoiceEnvelope());
+
+      expect(text).not.toContain(ORIGINAL_AUTHORIZATION_CODE);
+      expect(text).toContain(`<CAE>${FICTIONAL_AUTHORIZATION_CODE}</CAE>`);
+      expect(FICTIONAL_AUTHORIZATION_CODE).toMatch(/^\d{14}$/);
+    });
+
+    it("replaces the CUIT the answer repeats", () => {
+      const { text } = scrubArcaRecording(authorizedInvoiceEnvelope());
+
+      expect(text).not.toContain(ORIGINAL_HOLDER_CUIT);
+      expect(text).toContain(`<Cuit>${FICTIONAL_CERTIFICATE_CUIT_DIGITS}</Cuit>`);
+    });
+
+    it("keeps the dates, the point of sale and the numbers as ARCA gave them", () => {
+      const { text } = scrubArcaRecording(authorizedInvoiceEnvelope());
+
+      expect(text).toContain("<CAEFchVto>20261017</CAEFchVto>");
+      expect(text).toContain("<FchProceso>20261007201354</FchProceso>");
+      expect(text).toContain("<CbteFch>20261007</CbteFch>");
+      expect(text).toContain("<PtoVta>7</PtoVta>");
+      expect(text).toContain("<CbteDesde>42</CbteDesde>");
+    });
+
+    it("reports the authorization code and the CUIT, never their values", () => {
+      const { replacements } = scrubArcaRecording(authorizedInvoiceEnvelope());
+
+      expect(replacements).toEqual([
+        { field: "CAE", count: 1 },
+        { field: "CUIT", count: 1 },
+      ]);
+      expect(JSON.stringify(replacements)).not.toContain(ORIGINAL_AUTHORIZATION_CODE);
+    });
+
+    it("leaves the empty authorization code of a refused invoice alone", () => {
+      const refused = "<FECAEDetResponse><CAE></CAE><CAEFchVto></CAEFchVto></FECAEDetResponse>";
+
+      expect(scrubArcaRecording(refused)).toEqual({ text: refused, replacements: [] });
     });
   });
 

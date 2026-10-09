@@ -17,6 +17,7 @@ export {
   isValidBuyerTaxStatusSet,
   latestBuyerTaxStatusSet,
 } from "./model/buyer-tax-status-set.js";
+export { selectConsumerBuyerTaxStatus } from "./model/consumer-buyer-tax-status.js";
 export { isValidCuit } from "./model/cuit.js";
 export {
   FISCAL_ADDRESS_NAME_MAX_LENGTH,
@@ -25,6 +26,8 @@ export {
   isFiscalAddressStreetAddressTooLong,
   isSameFiscalAddressName,
 } from "./model/fiscal-address.js";
+export type { FiscalOnlineSignalEvidence } from "./model/fiscal-online-signal.js";
+export { REGISTER_HEALTH_CHECK_INTERVAL_MS } from "./model/fiscal-online-signal.js";
 export {
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
@@ -46,3 +49,17 @@ export type {
 } from "./model/pre-emission-gate.js";
 export { PRE_EMISSION_GATE_FAILURE_REASONS, preEmissionGate } from "./model/pre-emission-gate.js";
 export { preEmissionGateFailedEvent } from "./model/pre-emission-gate-failed-event.js";
+export type {
+  DeferralReason,
+  FiscalDocumentState,
+  RealTimeAuthorizationAnswer,
+  RealTimeAuthorizationResolution,
+} from "./model/real-time-authorization.js";
+export {
+  DEFERRAL_REASONS,
+  invoiceDateOf,
+  NUMBER_CONSUMING_STATES,
+  REAL_TIME_AUTHORIZATION_TIMEOUT_MS,
+  SERIES_WAITING_STATES,
+} from "./model/real-time-authorization.js";
+export { isWsaaTokenValid } from "./model/wsaa-token.js";

@@ -17,6 +17,7 @@ import {
   rolePermissions,
   roles,
   tags,
+  taxAuthorityLastAuthorizedNumbers,
   userPins,
   userRoles,
   users,
@@ -274,9 +275,17 @@ export async function readRegisterPointsOfSale<TQueryResult extends PgQueryResul
       registerId: registerPointsOfSale.registerId,
       pointOfSaleNumber: registerPointsOfSale.pointOfSaleNumber,
       fiscalAddressId: registerPointsOfSale.fiscalAddressId,
+      taxAuthorityLastAuthorizedNumber: taxAuthorityLastAuthorizedNumbers.lastAuthorized,
       version: registerPointsOfSale.version,
     })
     .from(registerPointsOfSale)
+    .leftJoin(
+      taxAuthorityLastAuthorizedNumbers,
+      eq(
+        taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber,
+        registerPointsOfSale.pointOfSaleNumber,
+      ),
+    )
     .where(inArray(registerPointsOfSale.registerId, [...registerIds]))
     .orderBy(asc(registerPointsOfSale.registerId));
   return new Map(rows.map(({ registerId, ...row }) => [registerId, row]));

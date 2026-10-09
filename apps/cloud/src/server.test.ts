@@ -7,8 +7,10 @@ import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support"
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { type BuildAppOptions, buildApp as buildRealApp } from "./app.js";
+import { enqueueTaxAuthorityCountJob } from "./fiscal/graphile-tax-authority-count-queue.js";
 import { generateArcaTestCredentials } from "./fiscal/test-support/arca-test-credentials.js";
 import { unreachableArcaEndpoints } from "./fiscal/test-support/unreachable-arca-endpoints.js";
+import { WsfeTaxAuthorityInvoicing } from "./fiscal/wsfe-tax-authority-invoicing.js";
 import {
   arcaEndpointsOf,
   closeRecoveryResources,
@@ -700,6 +702,7 @@ describe("startServer", () => {
       buildApp,
       setUpRecovery,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       now,
     });
 
@@ -933,6 +936,7 @@ describe("startServer checking the certificate's expiry", () => {
       buildApp: vi.fn().mockReturnValue(fakeApp),
       setUpRecovery: vi.fn().mockResolvedValue(recovery),
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueArcaCertificateExpiryCheck,
     });
 
@@ -1002,6 +1006,7 @@ describe("startServer with the ARCA private key", () => {
       buildApp: vi.fn().mockReturnValue(fakeApp),
       setUpRecovery,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
     });
     return { started, setUpRecovery };
   }
@@ -1189,6 +1194,7 @@ describe("startServer fetching the buyer tax-status values", () => {
       buildApp: vi.fn().mockReturnValue(fakeApp),
       setUpRecovery,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueBuyerTaxStatusFetch,
     });
     return { started, steps, recovery, setUpRecovery, enqueueBuyerTaxStatusFetch };
@@ -1236,6 +1242,132 @@ describe("startServer fetching the buyer tax-status values", () => {
     const [recoveryEnv] = setUpRecovery.mock.calls[0] as [Record<string, unknown>];
     expect(recoveryEnv).not.toHaveProperty("arcaBuyerTaxStatus");
     expect(enqueueBuyerTaxStatusFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("startServer authorizing sales in real time", () => {
+  const credentials = generateArcaTestCredentials();
+  const env = {
+    DATABASE_URL: "postgres://user:pass@db/purosur",
+    RESEND_API_KEY: "re_test_key",
+    RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+    RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+    BACKOFFICE_ORIGIN: "https://staging.purosur.online",
+    EDGE_ORIGIN_SECRET: "edge-secret",
+    ARCA_CERTIFICATE: credentials.certificatePem,
+    ARCA_ENVIRONMENT: "homologation",
+    DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
+    INSTALLATION_KEYS_ENCRYPTION_KEY: KEYS_ENCRYPTION_KEY,
+  };
+
+  function start(startEnv: Record<string, string>) {
+    const steps: string[] = [];
+    const fakeApp = appListeningBy(
+      vi.fn(async () => {
+        steps.push("listen");
+      }),
+    );
+    const recovery = {
+      db: {},
+      connections: { withConnection: vi.fn() },
+      jobQueue: { enqueueRecoveryRequest: vi.fn() },
+      backofficeOrigin: "https://staging.purosur.online",
+      worker: { stop: vi.fn() },
+      workerUtils: { addJob: vi.fn() },
+      close: vi.fn(),
+    };
+    const setUpRecovery = vi.fn().mockResolvedValue(recovery);
+    const buildApp = vi.fn().mockReturnValue(fakeApp);
+    const enqueueMissingTaxAuthorityCounts = vi.fn(async () => {
+      steps.push("enqueueMissingTaxAuthorityCounts");
+    });
+    const started = startServer(startEnv, {
+      arcaEndpoints: arcaEndpointsOf,
+      initSentry: vi.fn(),
+      buildApp,
+      setUpRecovery,
+      recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      enqueueBuyerTaxStatusFetch: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingTaxAuthorityCounts,
+    });
+    return { started, steps, recovery, setUpRecovery, buildApp, enqueueMissingTaxAuthorityCounts };
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("sets up the count of the tax authority's last authorized number from the environment's WSFE with the certificate's CUIT and fingerprint", async () => {
+    const { started, setUpRecovery } = start({
+      ...env,
+      ARCA_PRIVATE_KEY: credentials.privateKeyPem,
+    });
+    await started;
+
+    expect(setUpRecovery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        arcaInvoicing: {
+          endpoint: "https://wswhomo.afip.gov.ar/wsfev1/service.asmx",
+          cuit: FICTIONAL_CERTIFICATE_CUIT,
+          certificateFingerprint: credentials.fingerprint,
+        },
+      }),
+      expect.any(Function),
+    );
+  });
+
+  it("gives the app the authorization route, with a dedicated connection per point of sale lane, the WSFE invoicing and the certificate's fingerprint", async () => {
+    const { started, buildApp, recovery } = start({
+      ...env,
+      ARCA_PRIVATE_KEY: credentials.privateKeyPem,
+    });
+    await started;
+
+    const [options] = buildApp.mock.calls[0] as [BuildAppOptions];
+    expect(options.fiscalAuthorization).toEqual({
+      connections: recovery.connections,
+      taxAuthority: expect.any(WsfeTaxAuthorityInvoicing),
+      certificateFingerprint: credentials.fingerprint,
+    });
+  });
+
+  it("has the configuration of a register's point of sale enqueue the tax authority's count", async () => {
+    const { started, buildApp, recovery } = start({
+      ...env,
+      ARCA_PRIVATE_KEY: credentials.privateKeyPem,
+    });
+    await started;
+
+    const [options] = buildApp.mock.calls[0] as [BuildAppOptions];
+    expect(options.registersPointsOfSale).toEqual({
+      db: recovery.db,
+      backofficeOrigin: "https://staging.purosur.online",
+      enqueueTaxAuthorityCount: enqueueTaxAuthorityCountJob,
+    });
+  });
+
+  it("asks again for the count of every claimed point of sale that has none before it starts listening", async () => {
+    const { started, steps, recovery, enqueueMissingTaxAuthorityCounts } = start({
+      ...env,
+      ARCA_PRIVATE_KEY: credentials.privateKeyPem,
+    });
+    await started;
+
+    expect(enqueueMissingTaxAuthorityCounts).toHaveBeenCalledWith(recovery.db);
+    expect(steps).toEqual(["enqueueMissingTaxAuthorityCounts", "listen"]);
+  });
+
+  it("wires none of it without the key, as no WSAA token is ever renewed to ask with", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { started, setUpRecovery, buildApp, enqueueMissingTaxAuthorityCounts } = start(env);
+    await started;
+
+    const [recoveryEnv] = setUpRecovery.mock.calls[0] as [Record<string, unknown>];
+    expect(recoveryEnv).not.toHaveProperty("arcaInvoicing");
+    const [options] = buildApp.mock.calls[0] as [BuildAppOptions];
+    expect(options).not.toHaveProperty("fiscalAuthorization");
+    expect(options.registersPointsOfSale).not.toHaveProperty("enqueueTaxAuthorityCount");
+    expect(enqueueMissingTaxAuthorityCounts).not.toHaveBeenCalled();
   });
 });
 
@@ -1288,6 +1420,7 @@ describe("startServer with the real app", () => {
         buildApp: buildAppWithoutListening,
         setUpRecovery,
         recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+        enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       },
     );
 
@@ -1545,6 +1678,7 @@ describe("startServer ARCA endpoints", () => {
         buildApp: vi.fn().mockReturnValue(fakeApp),
         setUpRecovery,
         recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+        enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
         arcaEndpoints,
       },
     );

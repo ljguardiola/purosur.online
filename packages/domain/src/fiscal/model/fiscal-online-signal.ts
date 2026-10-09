@@ -1,4 +1,5 @@
 export const REGISTER_HEALTH_CHECK_HORIZON_MS = 15_000;
+export const REGISTER_HEALTH_CHECK_INTERVAL_MS = 5_000;
 
 export interface FiscalOnlineSignalEvidence {
   lastHealthCheckOkAt: Date | null;

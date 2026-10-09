@@ -898,6 +898,7 @@ export const installationRequestEndpoint = pgEnum("installation_request_endpoint
   "push",
   "pull",
   "health_check",
+  "fiscal_authorize",
 ]);
 
 // The limiter's own bookkeeping, not business data: what left the limit's window is deleted.
@@ -1343,4 +1344,75 @@ export const arcaWsaaTokens = pgTable(
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   },
   (table) => [primaryKey({ columns: [table.service, table.certificateFingerprint] })],
+);
+
+// The request is kept, with the sale event it carries, before the tax authority is called, and the
+// answer is added to the same row. A row without an answer is a call that may still be in flight.
+export const fiscalRequests = pgTable(
+  "fiscal_requests",
+  {
+    fiscalDocumentId: uuid("fiscal_document_id").primaryKey(),
+    registerId: uuid("register_id")
+      .notNull()
+      .references(() => registers.id),
+    saleId: uuid("sale_id").notNull(),
+    pointOfSale: integer("point_of_sale").notNull(),
+    number: integer("number").notNull(),
+    issuedOn: date("issued_on", { mode: "string" }).notNull(),
+    total: bigint("total", { mode: "number" }).notNull(),
+    buyerTaxStatusCode: integer("buyer_tax_status_code").notNull(),
+    saleEvent: jsonb("sale_event").$type<JsonValue>().notNull(),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull(),
+    notAfter: timestamp("not_after", { withTimezone: true }).notNull(),
+    answerKind: text("answer_kind"),
+    authorizationCode: text("authorization_code"),
+    authorizationCodeDueOn: date("authorization_code_due_on", { mode: "string" }),
+    rejectionCodes: integer("rejection_codes").array(),
+    answeredAt: timestamp("answered_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("fiscal_requests_point_of_sale_idx").on(table.pointOfSale),
+    check(
+      "fiscal_requests_answer_kind_check",
+      sql`${table.answerKind} in ('authorized', 'rejected', 'not_attempted', 'unclear')`,
+    ),
+    check(
+      "fiscal_requests_answer_time_check",
+      sql`(${table.answerKind} is null) = (${table.answeredAt} is null)`,
+    ),
+    check(
+      "fiscal_requests_authorization_check",
+      sql`coalesce(${table.answerKind} = 'authorized', false) = (${table.authorizationCode} is not null)
+        and (${table.authorizationCode} is null) = (${table.authorizationCodeDueOn} is null)`,
+    ),
+    check(
+      "fiscal_requests_rejection_check",
+      sql`coalesce(${table.answerKind} = 'rejected', false) = (${table.rejectionCodes} is not null)`,
+    ),
+  ],
+);
+
+// One row at most: only the latest successful invoicing call matters as evidence.
+export const arcaInvoicingEvidence = pgTable(
+  "arca_invoicing_evidence",
+  {
+    id: boolean("id").primaryKey().default(true),
+    lastCallOkAt: timestamp("last_call_ok_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [check("arca_invoicing_evidence_single_row_check", sql`${table.id}`)],
+);
+
+export const taxAuthorityLastAuthorizedNumbers = pgTable(
+  "tax_authority_last_authorized_numbers",
+  {
+    pointOfSaleNumber: integer("point_of_sale_number").primaryKey(),
+    lastAuthorized: integer("last_authorized").notNull(),
+    readAt: timestamp("read_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    check(
+      "tax_authority_last_authorized_numbers_non_negative_check",
+      sql`${table.lastAuthorized} >= 0`,
+    ),
+  ],
 );
