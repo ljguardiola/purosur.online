@@ -1445,8 +1445,8 @@ describe("the register's local migrations", () => {
       after.exec(
         `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, operation_number)
          VALUES ('sale-2', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-09-30T12:06:00.000Z', 7),
-                ('sale-3', 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL, NULL),
-                ('sale-4', 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL, NULL)`,
+                ('sale-3', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-09-30T12:06:30.000Z', NULL),
+                ('sale-4', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-09-30T12:06:40.000Z', NULL)`,
       );
       expect(() =>
         after.exec(

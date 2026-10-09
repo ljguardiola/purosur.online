@@ -96,7 +96,7 @@ const HEAD = [
   "      WhatsApp 11 5555-0100  ·  @puro.sur",
   RULE,
   "Fecha 30/09/2026                      Hora 12:05",
-  "Operación 000482                         Atendió Ada",
+  "Operación 000482                     Atendió Ada",
   RULE,
 ];
 
@@ -191,8 +191,8 @@ describe("the ESC/POS receipt template", () => {
         }),
       ).textLines;
 
-    expect(written(1)).toContain("Operación 000001                         Atendió Ada");
-    expect(written(1_234_567)).toContain("Operación 1234567                        Atendió Ada");
+    expect(written(1)).toContain("Operación 000001                     Atendió Ada");
+    expect(written(1_234_567)).toContain("Operación 1234567                    Atendió Ada");
   });
 
   it("writes the moment of the sale in Argentina's time", () => {
