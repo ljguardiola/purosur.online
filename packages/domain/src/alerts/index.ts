@@ -7,7 +7,10 @@ export {
   isAlertLevel,
 } from "./model/alert-catalog.js";
 export type { AlertConditionObservation } from "./model/alert-condition-observation.js";
-export { registerVersionObservation } from "./model/alert-condition-observation.js";
+export {
+  registerSyncedObservation,
+  registerVersionObservation,
+} from "./model/alert-condition-observation.js";
 export type {
   AccessIncreasedDetail,
   AlertDetails,

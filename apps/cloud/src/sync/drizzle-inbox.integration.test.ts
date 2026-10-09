@@ -252,6 +252,7 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
         appVersion: "1.4.0",
         lastPushedAt: NOW,
         lastAcceptedPushAt: NOW,
+        reportsEveryCycleSince: null,
         walSizeBytes: 4096,
         diskFreeBytes: 50_000_000,
         diskFreeRatio: 0.42,
@@ -385,6 +386,31 @@ describe("the inbox reporting how a register stands, on a real Postgres", () => 
 
     expect((await deviceStateOf(deviceId))?.lastAcceptedPushAt).toEqual(NOW);
     expect((await deviceStateOf(deviceId))?.lastPushedAt).toEqual(later);
+  });
+
+  it("records the first accepted push of no events as the moment the installation reports on every sync cycle, keeping it on later ones", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
+    const later = new Date(NOW.getTime() + 60_000);
+    const pushNothingAt = (at: Date) =>
+      receivePushedEvents(
+        {
+          inbox: new DrizzleInbox(db, CIPHER, NO_JOB),
+          eventChain: hmacEventChain,
+          clock: { now: () => at },
+        },
+        { deviceId, appVersion: "1.4.0", telemetry: TELEMETRY, events: [] },
+      );
+
+    await push(deviceId, linked(event(1)));
+    expect((await deviceStateOf(deviceId))?.reportsEveryCycleSince).toBeNull();
+
+    await pushNothingAt(NOW);
+    await pushNothingAt(later);
+
+    expect(await deviceStateOf(deviceId)).toMatchObject({
+      lastAcceptedPushAt: later,
+      reportsEveryCycleSince: NOW,
+    });
   });
 
   it("leaves no accepted push for a register whose version is not accepted", async () => {

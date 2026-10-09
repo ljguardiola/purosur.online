@@ -127,6 +127,11 @@ const updateRequiredDetailSchema = z.object({
   appVersion: z.string(),
 });
 
+const registerSilentDetailSchema = z.object({
+  deviceId: z.string(),
+  lastAcceptedPushAt: z.string(),
+});
+
 const ALERT_INSTANT = { timeZone: ARGENTINA_TIME_ZONE };
 
 const alertBase = {
@@ -139,6 +144,7 @@ const alertBase = {
   escalatedAt: z.string().nullable().meta(ALERT_INSTANT),
   resolvedAt: z.string().nullable().meta(ALERT_INSTANT),
   open: z.boolean(),
+  resolvesByItself: z.boolean(),
   deliveries: z.array(alertDeliverySchema),
 };
 
@@ -192,6 +198,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("update_required" satisfies AlertKind),
     detail: updateRequiredDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("register_silent" satisfies AlertKind),
+    detail: registerSilentDetailSchema,
   }),
 ] as const;
 
