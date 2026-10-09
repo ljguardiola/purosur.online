@@ -34,6 +34,8 @@ export type { TableModelOptions } from "./components/data-display/table/use-tabl
 export { useTableModel } from "./components/data-display/table/use-table-model";
 export type { TagProps } from "./components/data-display/tag";
 export { Tag } from "./components/data-display/tag";
+export type { CountdownRingProps } from "./components/feedback/countdown-ring";
+export { CountdownRing } from "./components/feedback/countdown-ring";
 export type { ElevatedNoticeProps } from "./components/feedback/elevated-notice";
 export { ElevatedNotice } from "./components/feedback/elevated-notice";
 export type { EmptyStateProps, EmptyStateVariant } from "./components/feedback/empty-state";
@@ -52,6 +54,12 @@ export type { LocalAlertExplanationProps } from "./components/feedback/local-ale
 export { LocalAlertExplanation } from "./components/feedback/local-alert-explanation";
 export type { NotificationCardProps } from "./components/feedback/notification-card";
 export { NotificationCard } from "./components/feedback/notification-card";
+export type {
+  ProgressStep,
+  ProgressStepState,
+  ProgressStepsProps,
+} from "./components/feedback/progress-steps";
+export { ProgressSteps } from "./components/feedback/progress-steps";
 export type { StatusIndicatorProps } from "./components/feedback/status-indicator";
 export { StatusIndicator } from "./components/feedback/status-indicator";
 export type { AvatarOptionCardGroupProps } from "./components/forms/avatar-option-card-group";
@@ -154,6 +162,7 @@ export {
   formatAmountInput,
   formatCents,
   formatClockTime,
+  formatCountdown,
   formatDate,
   formatNumber,
   formatPointOfSaleNumber,
