@@ -11,9 +11,11 @@ interface LoggedChangeFields {
   priceListId?: string;
 }
 
+type BranchEntity = "user" | "stock_movement";
+
 export type LoggedChange =
-  | (LoggedChangeFields & { entity: "user"; locationId: string })
-  | (LoggedChangeFields & { entity: Exclude<PulledEntity, "user">; locationId?: never });
+  | (LoggedChangeFields & { entity: BranchEntity; locationId: string })
+  | (LoggedChangeFields & { entity: Exclude<PulledEntity, BranchEntity>; locationId?: never });
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]

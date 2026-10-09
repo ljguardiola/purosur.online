@@ -1,4 +1,4 @@
-import { signInBlockedUntil } from "../model/sign-in-lockout.js";
+import { signInBlockedUntil, signInLockoutWindowStart } from "../model/sign-in-lockout.js";
 import type { SignInLockoutStoreTransaction } from "./sign-in-lockout-store.js";
 
 export interface TrippedSignInLockout {
@@ -16,6 +16,7 @@ export async function tripSignInLockout(
   const { id } = await tx.blockSourceAddress({
     sourceAddress: attempt.sourceAddress,
     blockedUntil,
+    failuresSince: signInLockoutWindowStart(attempt.at),
   });
   await tx.openLockoutAlert({
     sourceAddress: attempt.sourceAddress,

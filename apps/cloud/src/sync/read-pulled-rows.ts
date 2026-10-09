@@ -1,4 +1,4 @@
-import type { NetContentUnit, SaleUnit } from "@purosur/domain";
+import type { NetContentUnit, SaleUnit, StockMovementKind } from "@purosur/domain";
 import { asc, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
@@ -16,6 +16,7 @@ import {
   registers,
   rolePermissions,
   roles,
+  stockMovements,
   tags,
   taxAuthorityLastAuthorizedNumbers,
   userPins,
@@ -24,6 +25,7 @@ import {
 } from "../platform/db/schema.js";
 import { discountFieldsOf } from "../pricing/drizzle-discount-store.js";
 import { PRICE_VERSION } from "../pricing/price-version.js";
+import { STOCK_MOVEMENT_VERSION } from "../stock/stock-movement-version.js";
 import type {
   BuyerIdentificationThresholdRow,
   BuyerTaxStatusSetRow,
@@ -36,6 +38,7 @@ import type {
   RegisterPointOfSaleRow,
   RegisterRow,
   RoleRow,
+  StockMovementRow,
   TagRow,
   UserRow,
 } from "./pulled-changes.js";
@@ -368,4 +371,31 @@ export async function readBuyerTaxStatusSets<TQueryResult extends PgQueryResultH
     .where(inArray(buyerTaxStatusSets.id, [...ids]))
     .orderBy(asc(buyerTaxStatusSets.id));
   return new Map(rows.map(({ id, ...row }) => [id, row]));
+}
+
+export async function readStockMovements<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  ids: readonly string[],
+): Promise<Map<string, StockMovementRow>> {
+  if (ids.length === 0) {
+    return new Map();
+  }
+  const rows = await tx
+    .select({
+      id: stockMovements.id,
+      productId: stockMovements.productId,
+      kind: stockMovements.kind,
+      delta: stockMovements.delta,
+      occurredAt: stockMovements.occurredAt,
+      supersededByCountId: stockMovements.supersededByCountId,
+    })
+    .from(stockMovements)
+    .where(inArray(stockMovements.id, [...ids]))
+    .orderBy(asc(stockMovements.id));
+  return new Map(
+    rows.map(({ id, kind, ...row }) => [
+      id,
+      { ...row, kind: kind as StockMovementKind, version: STOCK_MOVEMENT_VERSION },
+    ]),
+  );
 }

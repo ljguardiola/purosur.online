@@ -39,6 +39,11 @@ class FakeSignInLockoutStoreTransaction implements SignInLockoutStoreTransaction
     this.store.lockedAddresses.push(sourceAddress);
   }
 
+  async pruneFailuresOutsideWindow(windowStart: Date): Promise<void> {
+    this.store.record("pruneFailuresOutsideWindow");
+    this.state.failures = this.state.failures.filter((held) => held.attemptedAt > windowStart);
+  }
+
   async findBlockedUntil(sourceAddress: string): Promise<Date | undefined> {
     this.store.record("findBlockedUntil");
     return this.state.lockouts.find((held) => held.sourceAddress === sourceAddress)?.blockedUntil;
@@ -65,10 +70,15 @@ class FakeSignInLockoutStoreTransaction implements SignInLockoutStoreTransaction
     if (existing) {
       existing.blockedUntil = block.blockedUntil;
     } else {
-      this.state.lockouts.push({ id, ...block });
+      this.state.lockouts.push({
+        id,
+        sourceAddress: block.sourceAddress,
+        blockedUntil: block.blockedUntil,
+      });
     }
     this.state.failures = this.state.failures.filter(
-      (held) => held.sourceAddress !== block.sourceAddress,
+      (held) =>
+        held.sourceAddress !== block.sourceAddress || held.attemptedAt <= block.failuresSince,
     );
     return { id };
   }
@@ -120,11 +130,6 @@ export class FakeSignInLockoutStore implements SignInLockoutStore {
     if (this.failingWrites.has(operation)) {
       throw new Error(`${operation} failed`);
     }
-  }
-
-  async pruneFailuresOutsideWindow(windowStart: Date): Promise<void> {
-    this.record("pruneFailuresOutsideWindow");
-    this.state.failures = this.state.failures.filter((held) => held.attemptedAt > windowStart);
   }
 
   async transaction<TOutcome>(

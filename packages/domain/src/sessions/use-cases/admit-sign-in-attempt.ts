@@ -29,10 +29,10 @@ export async function admitSignInAttempt(
   input: SignInAttemptInput,
 ): Promise<SignInAttemptAdmission> {
   const windowStart = signInLockoutWindowStart(input.at);
-  await store.pruneFailuresOutsideWindow(windowStart);
 
   return store.transaction<SignInAttemptAdmission>(async (tx) => {
     await tx.lockSourceAddress(input.sourceAddress);
+    await tx.pruneFailuresOutsideWindow(windowStart);
 
     const blockedUntil = await tx.findBlockedUntil(input.sourceAddress);
     if (blockedUntil && isSignInBlockLive(blockedUntil, input.at)) {
