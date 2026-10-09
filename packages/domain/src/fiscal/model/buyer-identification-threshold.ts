@@ -11,9 +11,13 @@ export function isBuyerIdentificationThresholdAmount(amount: number): boolean {
   return Number.isSafeInteger(amount) && amount > 0;
 }
 
+export function earliestThresholdStartDay(today: string): string {
+  return today;
+}
+
 // ISO calendar days order the same way as text.
 export function startsFromToday(validFrom: string, today: string): boolean {
-  return validFrom >= today;
+  return validFrom >= earliestThresholdStartDay(today);
 }
 
 export function isLowerThanInEffect(

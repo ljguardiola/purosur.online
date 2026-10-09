@@ -6,9 +6,8 @@ export type {
 } from "./model/buyer-identification-threshold.js";
 export {
   chargeRefusal,
+  earliestThresholdStartDay,
   isBuyerIdentificationThresholdAmount,
-  isLowerThanInEffect,
-  startsFromToday,
   thresholdInEffectOn,
   thresholdScheduledAfter,
 } from "./model/buyer-identification-threshold.js";

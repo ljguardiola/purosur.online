@@ -4,7 +4,7 @@ import type {
   BuyerIdentificationThresholdStoreTransaction,
   NewBuyerIdentificationThreshold,
 } from "@purosur/domain/fiscal/use-cases";
-import { desc, eq, lte, sql } from "drizzle-orm";
+import { eq, lte, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { auditLog, buyerIdentificationThresholds } from "../platform/db/schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
@@ -48,13 +48,11 @@ class DrizzleBuyerIdentificationThresholdStoreTransaction<TQueryResult extends P
   }
 
   async readThresholdStartingOn(day: string): Promise<BuyerIdentificationThreshold | undefined> {
-    const [current] = await this.tx
+    const startingOnDay = await this.tx
       .select(storedThreshold)
       .from(buyerIdentificationThresholds)
-      .where(eq(buyerIdentificationThresholds.validFrom, day))
-      .orderBy(desc(buyerIdentificationThresholds.revision))
-      .limit(1);
-    return current;
+      .where(eq(buyerIdentificationThresholds.validFrom, day));
+    return thresholdInEffectOn(startingOnDay, day);
   }
 
   async readThresholdInEffectOn(day: string): Promise<BuyerIdentificationThreshold | undefined> {

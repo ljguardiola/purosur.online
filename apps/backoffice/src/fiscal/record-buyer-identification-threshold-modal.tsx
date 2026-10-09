@@ -2,7 +2,14 @@ import {
   type BuyerIdentificationThresholdRecordBody,
   buyerIdentificationThresholdRecordBodySchema,
 } from "@purosur/contracts";
-import { Button, formatCents, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
+import {
+  Button,
+  formatCents,
+  InlineNotice,
+  Modal,
+  type RequestSubmission,
+  useRequestForm,
+} from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { Check, Landmark, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -24,6 +31,7 @@ import {
   amountMessage,
   beforeTodayMessage,
   EMPTY_THRESHOLD_FORM,
+  type ThresholdFormValues,
   thresholdRequestFrom,
   validFromMessage,
 } from "./buyer-identification-threshold-form";
@@ -46,6 +54,7 @@ type RecordBuyerIdentificationThresholdModalProps = {
 
 type LowerAmountConfirmation = {
   request: BuyerIdentificationThresholdRecordBody;
+  submission: RequestSubmission<ThresholdFormValues>;
   inEffectAmount: number;
   amount: number;
   validFrom: string;
@@ -91,6 +100,23 @@ export function RecordBuyerIdentificationThresholdModal({
     return false;
   }
 
+  async function showRefusal(
+    outcome: RecordBuyerIdentificationThresholdOutcome,
+    { values, showFieldError, showWireFieldError }: RequestSubmission<ThresholdFormValues>,
+  ): Promise<boolean> {
+    if (outcome.kind === "before_today") {
+      const thresholds = await reload();
+      showFieldError(
+        "validFrom",
+        thresholds.kind === "ok"
+          ? beforeTodayMessage(thresholds.value.earliestValidFrom)
+          : validFromMessage(values),
+      );
+      return true;
+    }
+    return outcome.kind === "validation_failed" && showWireFieldError(outcome.field);
+  }
+
   const { form, submit, submitting, reset } = useRequestForm({
     defaultValues: EMPTY_THRESHOLD_FORM,
     request: {
@@ -99,7 +125,7 @@ export function RecordBuyerIdentificationThresholdModal({
     },
     fields: { amount: "amount", valid_from: "validFrom", confirm_lower_than_in_effect: null },
     messages: { amount: amountMessage, validFrom: validFromMessage },
-    onSubmit: async (request, { values, showFieldError, showWireFieldError }) => {
+    onSubmit: async (request, submission) => {
       setAttemptFailed(false);
       const outcome = await run(() => recordBuyerIdentificationThreshold(request));
       if (outcome.kind === "cancelled" || (await finish(outcome))) {
@@ -108,23 +134,14 @@ export function RecordBuyerIdentificationThresholdModal({
       if (outcome.kind === "needs_confirmation") {
         setConfirmation({
           request,
+          submission,
           inEffectAmount: outcome.inEffectAmount,
           amount: outcome.amount,
           validFrom: outcome.validFrom,
         });
         return;
       }
-      if (outcome.kind === "before_today") {
-        const thresholds = await reload();
-        showFieldError(
-          "validFrom",
-          thresholds.kind === "ok"
-            ? beforeTodayMessage(thresholds.value.earliestValidFrom)
-            : validFromMessage(values),
-        );
-        return;
-      }
-      if (outcome.kind === "validation_failed" && showWireFieldError(outcome.field)) {
+      if (await showRefusal(outcome, submission)) {
         return;
       }
       setAttemptFailed(true);
@@ -146,7 +163,7 @@ export function RecordBuyerIdentificationThresholdModal({
       setConfirming(false);
       return;
     }
-    if (!(await finish(outcome))) {
+    if (!(await finish(outcome)) && !(await showRefusal(outcome, confirmation.submission))) {
       setAttemptFailed(true);
     }
     setConfirmation(null);

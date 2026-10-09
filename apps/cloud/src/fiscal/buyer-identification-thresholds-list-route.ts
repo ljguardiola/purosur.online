@@ -1,5 +1,9 @@
 import { buyerIdentificationThresholdOverviewSchema } from "@purosur/contracts";
-import { argentinaCalendarDay, type BuyerIdentificationThreshold } from "@purosur/domain";
+import {
+  argentinaCalendarDay,
+  type BuyerIdentificationThreshold,
+  earliestThresholdStartDay,
+} from "@purosur/domain";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
@@ -31,14 +35,13 @@ export function registerBuyerIdentificationThresholdsListRoute<
       config: { access: capabilityAccess("cash_area"), sessionSource },
     },
     async (_request, reply) => {
-      const overview = await reader.readBuyerIdentificationThresholdOverview(
-        argentinaCalendarDay(now()),
-      );
+      const today = argentinaCalendarDay(now());
+      const overview = await reader.readBuyerIdentificationThresholdOverview(today);
       await reply.code(200).send(
         buyerIdentificationThresholdOverviewSchema.parse({
           in_effect: wireThreshold(overview.inEffect),
           scheduled: wireThreshold(overview.scheduled),
-          earliest_valid_from: argentinaCalendarDay(now()),
+          earliest_valid_from: earliestThresholdStartDay(today),
         }),
       );
     },

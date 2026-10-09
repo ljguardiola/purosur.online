@@ -165,6 +165,7 @@ export {
   ARCA_VITALITY_CHECK_INTERVAL_MS,
   chargeRefusal,
   DEFERRAL_REASONS,
+  earliestThresholdStartDay,
   FISCAL_ADDRESS_NAME_MAX_LENGTH,
   FISCAL_ADDRESS_STREET_ADDRESS_MAX_LENGTH,
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
@@ -177,7 +178,6 @@ export {
   isIssuerIdentificationActivityStartDate,
   isIssuerIdentificationGrossIncomeRegistrationTooLong,
   isIssuerIdentificationLegalNameTooLong,
-  isLowerThanInEffect,
   isPointOfSaleNumber,
   isSameFiscalAddressName,
   isValidBuyerTaxStatusSet,
@@ -194,7 +194,6 @@ export {
   REGISTER_HEALTH_CHECK_INTERVAL_MS,
   SERIES_WAITING_STATES,
   selectConsumerBuyerTaxStatus,
-  startsFromToday,
   thresholdInEffectOn,
   thresholdScheduledAfter,
 } from "./fiscal/index.js";

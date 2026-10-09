@@ -1,4 +1,7 @@
-import type { BuyerIdentificationThreshold } from "../../model/buyer-identification-threshold.js";
+import {
+  type BuyerIdentificationThreshold,
+  thresholdInEffectOn,
+} from "../../model/buyer-identification-threshold.js";
 import type {
   BuyerIdentificationThresholdStore,
   BuyerIdentificationThresholdStoreTransaction,
@@ -26,17 +29,16 @@ class FakeTransaction implements BuyerIdentificationThresholdStoreTransaction {
 
   async readThresholdStartingOn(day: string): Promise<BuyerIdentificationThreshold | undefined> {
     this.store.operationOrder.push("readThresholdStartingOn");
-    const [current] = this.state.thresholds
-      .filter((threshold) => threshold.validFrom === day)
-      .sort((a, b) => b.revision - a.revision);
+    const current = thresholdInEffectOn(
+      this.state.thresholds.filter((threshold) => threshold.validFrom === day),
+      day,
+    );
     return current && { ...current };
   }
 
   async readThresholdInEffectOn(day: string): Promise<BuyerIdentificationThreshold | undefined> {
     this.store.operationOrder.push("readThresholdInEffectOn");
-    const [inEffect] = this.state.thresholds
-      .filter((threshold) => threshold.validFrom <= day)
-      .sort((a, b) => b.validFrom.localeCompare(a.validFrom) || b.revision - a.revision);
+    const inEffect = thresholdInEffectOn(this.state.thresholds, day);
     return inEffect && { ...inEffect };
   }
 
