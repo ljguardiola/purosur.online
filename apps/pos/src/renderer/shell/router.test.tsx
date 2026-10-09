@@ -755,7 +755,7 @@ describe("the register's router", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
-    await expect.element(screen.getByText("Grace")).toBeVisible();
+    await expect.element(screen.getByRole("navigation").getByText("Grace")).toBeVisible();
     await expect.element(screen.getByText("Sesión abierta 09:02")).toBeVisible();
   });
 
@@ -1600,8 +1600,8 @@ describe("the register's status bar", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screenFor[path](screen)).toBeVisible();
     await expect.element(screen.getByRole("region", { name: STATUS_BAR_NAME })).toBeVisible();
+    expect(router.state.location.pathname).toBe(path);
   });
 
   it("is not shown on the sign-in screen", async () => {

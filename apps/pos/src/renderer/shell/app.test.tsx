@@ -1872,7 +1872,7 @@ describe("App", () => {
       await expect
         .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
         .not.toBeInTheDocument();
-      await expect.element(screen.getByText("Sin sesión abierta")).toBeVisible();
+      await expect.element(screen.getByRole("main").getByText("Sin sesión abierta")).toBeVisible();
       expect(closed).toEqual([["s1", 4_580_000]]);
       expect(asked).not.toContain("sign-out");
     });
