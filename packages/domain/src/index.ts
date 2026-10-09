@@ -44,6 +44,7 @@ export {
   registerOwnConditions,
   showsAlertScope,
 } from "./alerts/index.js";
+export type { BranchWeeklyHoursRange } from "./branch/index.js";
 export {
   BRANCH_HOURS_RANGES_PER_DAY_MAX,
   BRANCH_SETTINGS_DAYS_MAX,

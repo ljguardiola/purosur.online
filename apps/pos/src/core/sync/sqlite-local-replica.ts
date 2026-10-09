@@ -1,5 +1,5 @@
 import type { BranchSettingsBody } from "@purosur/contracts";
-import type { NetContentUnit, SaleUnit } from "@purosur/domain";
+import type { BranchWeeklyHoursRange, NetContentUnit, SaleUnit } from "@purosur/domain";
 import type { LocalReplica, PullPage } from "@purosur/domain/sync/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 import { prepareAccessPageWrites } from "./access-page-writes";
@@ -211,6 +211,23 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
     }
     const { weekly_hours, ...fields } = record;
     return { ...fields, ...(JSON.parse(weekly_hours) as WeeklyHours) };
+  }
+
+  ownBranchHours(): BranchWeeklyHoursRange[] {
+    const record = this.database
+      .prepare<[], { weekly_hours: string }>("SELECT weekly_hours FROM branch_settings")
+      .get();
+    if (record === undefined) {
+      return [];
+    }
+    const weekly = JSON.parse(record.weekly_hours) as WeeklyHours;
+    return DAY_FIELDS.flatMap((field, index) =>
+      weekly[field].map((range) => ({
+        dayOfWeek: index + 1,
+        opensAt: range.opens_at,
+        closesAt: range.closes_at,
+      })),
+    );
   }
 
   category(id: string) {
