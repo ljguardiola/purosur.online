@@ -83,10 +83,10 @@ async function insertRegister(locationId: string, name: string): Promise<string>
   return register.id;
 }
 
-async function insertFiscalAddress(): Promise<string> {
+async function insertFiscalAddress(name = "Deposito Central"): Promise<string> {
   const [fiscalAddress] = await db
     .insert(fiscalAddresses)
-    .values({ name: "Deposito Central", streetAddress: "Calle Ficticia 123, CABA" })
+    .values({ name, streetAddress: "Calle Ficticia 123, CABA" })
     .returning({ id: fiscalAddresses.id });
   if (!fiscalAddress) {
     throw new Error("test setup: seeding the fiscal address returned no row");
@@ -324,7 +324,7 @@ async function registerWithRealTime(locationId: string, name: string, number: nu
     locationId,
     registerId,
     pointOfSaleNumber: number,
-    fiscalAddressId: await insertFiscalAddress(),
+    fiscalAddressId: await insertFiscalAddress(`Deposito ${name}`),
     version: 0,
     actorId,
   });
