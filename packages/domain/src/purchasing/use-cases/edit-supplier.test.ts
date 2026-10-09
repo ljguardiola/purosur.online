@@ -56,7 +56,7 @@ describe("editSupplier", () => {
 
   it("changes every field, bumping the version, keeping the active state and recording the writer", async () => {
     const store = new FakePurchasingStore();
-    store.seedSupplier({ id: "decoy", ...SAME_FIELDS, name: "Decoy", cuit: null, version: 7 });
+    store.seedSupplier({ ...NORTE, id: "decoy", name: "Decoy", cuit: null, version: 7 });
     store.seedSupplier({ ...NORTE, active: false });
 
     const outcome = await editSupplier(store, {
