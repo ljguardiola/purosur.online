@@ -558,10 +558,22 @@ test("deactivateProduct puts the deactivation with no body and returns ok on 200
   expect(fetch).toHaveBeenCalledWith("/api/products/product-1/deactivation", { method: "PUT" });
 });
 
-test("deactivateProduct returns not_found on 404 for a missing or already-inactive product", async () => {
+test("deactivateProduct returns not_found on 404", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "not_found" }));
 
   expect(await deactivateProduct("product-1")).toEqual({ kind: "not_found" });
+});
+
+test("deactivateProduct returns already_changed on a 409 product_already_inactive", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "product_already_inactive" }));
+
+  expect(await deactivateProduct("product-1")).toEqual({ kind: "already_changed" });
+});
+
+test("deactivateProduct returns failed on a 409 with an unknown code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "something_else" }));
+
+  expect(await deactivateProduct("product-1")).toEqual({ kind: "failed" });
 });
 
 test("deactivateProduct returns unauthenticated on 401", async () => {
