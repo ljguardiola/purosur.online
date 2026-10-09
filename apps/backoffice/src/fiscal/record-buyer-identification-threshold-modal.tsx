@@ -6,9 +6,9 @@ import { Button, formatCents, InlineNotice, Modal, useRequestForm } from "@puros
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { Check, Landmark, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { formatDisplayDate } from "../platform/display-date";
 import { useAuthorization } from "../platform/authorization-modal";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import { formatDisplayDate } from "../platform/display-date";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type {
   authorizeSession,

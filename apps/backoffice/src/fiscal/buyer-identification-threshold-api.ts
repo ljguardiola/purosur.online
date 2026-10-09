@@ -1,7 +1,7 @@
 import {
   type BuyerIdentificationThresholdBody,
-  buyerIdentificationThresholdConfirmationRequiredSchema,
   type BuyerIdentificationThresholdRecordBody,
+  buyerIdentificationThresholdConfirmationRequiredSchema,
   buyerIdentificationThresholdOverviewSchema,
   buyerIdentificationThresholdSchema,
 } from "@purosur/contracts";
