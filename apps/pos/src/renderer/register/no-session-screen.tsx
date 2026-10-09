@@ -4,9 +4,9 @@ import { useState } from "react";
 import type { ActionEntry } from "../shell/action-entries";
 import { entriesFor } from "../shell/action-entries";
 import { NavigationRail } from "../shell/navigation-rail";
+import { SignOutModal } from "../shell/sign-out-modal";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { CashOpeningPanel } from "./cash-opening-panel";
-import { SignOutModal } from "./sign-out-modal";
 
 export type NoSessionScreenProps = {
   person: SignedInPerson;

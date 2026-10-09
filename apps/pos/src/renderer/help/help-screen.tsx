@@ -12,10 +12,10 @@ import {
 } from "@purosur/ui";
 import { ArrowRight, FileText, House, Search, SearchX } from "lucide-react";
 import { useState } from "react";
-import { SignOutModal } from "../register/sign-out-modal";
 import type { ActionEntry } from "../shell/action-entries";
 import { entriesFor } from "../shell/action-entries";
 import { NavigationRail } from "../shell/navigation-rail";
+import { SignOutModal } from "../shell/sign-out-modal";
 import type { SignedInPerson } from "../shell/signed-in-person";
 
 type RegisterHelpCatalog = HelpCatalog<CategoryRecord, Record<string, HelpArticle<string, string>>>;

@@ -154,12 +154,12 @@ export default {
       comment:
         "A file in a backoffice or register renderer concept folder never imports a " +
         "file of another concept's folder; what several concepts share lives in " +
-        "platform/ or shell/, and the help/ of the backoffice and of the register is not a concept either.",
+        "platform/ or shell/, and the backoffice's help/ is not a concept either.",
       severity: "error",
       from: {
         path: [
           "^apps/backoffice/src/(?!(?:shell|platform|help)/)([^/]+)/",
-          "^apps/pos/src/renderer/(?!(?:shell|platform|help)/)([^/]+)/",
+          "^apps/pos/src/renderer/(?!(?:shell|platform)/)([^/]+)/",
         ],
       },
       to: {
@@ -168,7 +168,7 @@ export default {
           "^apps/backoffice/src/$1/",
           "^apps/pos/src/renderer/$1/",
           "^apps/backoffice/src/(shell|platform|help)/",
-          "^apps/pos/src/renderer/(shell|platform|help)/",
+          "^apps/pos/src/renderer/(shell|platform)/",
         ],
       },
     },
