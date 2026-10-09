@@ -22,6 +22,11 @@ export async function followMercadoPagoQrCharge<Refusal, Settlement>(
     return { kind: "not_pending" };
   }
 
+  const waitBeforeReading = mercadoPagoQrChargeWait(charge.waitEndsAt, clock.now());
+  if (waitBeforeReading.kind === "over") {
+    return { kind: "wait_over" };
+  }
+
   const reading = await orders.readOrder(paymentTransactionId);
   if (reading.kind === "read") {
     const { state } = reading;
