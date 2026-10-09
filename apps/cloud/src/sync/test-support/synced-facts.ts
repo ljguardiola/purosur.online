@@ -47,6 +47,7 @@ export function aCompletedSale(overrides: Partial<CompletedSale> = {}): Complete
       { id: randomUUID(), type: "CHANGE", amount: 200, actorId: USER, occurredAt: COMPLETED_AT },
     ],
     stockMovements: null,
+    operationNumber: null,
     ...overrides,
   };
 }
@@ -177,6 +178,37 @@ export function aCashMovementRecordedFact(
       actorId: USER,
       authorizedBy: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
       occurredAt: new Date("2026-10-06T11:08:00.000Z"),
+      ...overrides,
+    },
+  };
+}
+
+export function aSalePrintStateFact(
+  overrides: Partial<FactOf<"sale_print_state_changed">["printState"]> = {},
+): FactOf<"sale_print_state_changed"> {
+  return {
+    kind: "sale_print_state_changed",
+    printState: {
+      saleId: randomUUID(),
+      printAttemptedAt: new Date("2026-10-06T11:21:00.000Z"),
+      printedAt: null,
+      ...overrides,
+    },
+  };
+}
+
+export function aReprintFact(
+  overrides: Partial<FactOf<"reprint_recorded">["reprint"]> = {},
+): FactOf<"reprint_recorded"> {
+  return {
+    kind: "reprint_recorded",
+    reprint: {
+      saleId: randomUUID(),
+      orderNumber: 1,
+      requestedBy: USER,
+      authorizedBy: null,
+      reason: { kind: "retry" },
+      occurredAt: new Date("2026-10-06T11:30:00.000Z"),
       ...overrides,
     },
   };

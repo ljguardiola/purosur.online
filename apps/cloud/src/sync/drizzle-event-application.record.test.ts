@@ -172,7 +172,22 @@ describe("recording the sales of applied events", () => {
       cancellationAuthorizedBy: null,
       total: 4800,
       appliedAt: new Date("2026-10-06T15:00:00.000Z"),
+      operationNumber: null,
+      printAttemptedAt: null,
+      printedAt: null,
     });
+  });
+
+  it("keeps the operation number the register gave the sale", async () => {
+    const { deviceId } = await system.enrollInstallation();
+    const sessionId = randomUUID();
+    await openSession(deviceId, sessionId);
+    const completed = aCompletedSale({ sessionId, operationNumber: 482 });
+
+    await record({ kind: "sale_completed", sale: completed }, { deviceId });
+
+    const [row] = await system.db.select().from(sales);
+    expect(row?.operationNumber).toBe(482);
   });
 
   it("keeps the lines as they were frozen on the register", async () => {
@@ -339,6 +354,9 @@ describe("recording the cancelled sales of applied events", () => {
       cancellationAuthorizedBy: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
       total: 4800,
       appliedAt: new Date("2026-10-06T15:00:00.000Z"),
+      operationNumber: null,
+      printAttemptedAt: null,
+      printedAt: null,
     });
   });
 
