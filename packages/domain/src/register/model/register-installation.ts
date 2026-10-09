@@ -1,3 +1,5 @@
+import { installationService, isOutOfService } from "./register-service.js";
+
 export interface RegisterInstallationRecord {
   hostname: string;
   windowsVersion: string;
@@ -17,13 +19,21 @@ export type RegisterInstallationState =
     };
 
 export function registerInstallationState(
-  latestInstallation: RegisterInstallationRecord | null,
+  installations: readonly RegisterInstallationRecord[],
 ): RegisterInstallationState {
-  if (latestInstallation === null) {
+  const inService = installations.find(
+    (installation) => installationService(installation).kind === "in_service",
+  );
+  if (inService !== undefined) {
+    const { hostname, windowsVersion, enrolledAt } = inService;
+    return { kind: "enrolled", hostname, windowsVersion, enrolledAt };
+  }
+  const revoked = installations.filter(isOutOfService);
+  const lastRevokedAt = Math.max(...revoked.map(({ revokedAt }) => revokedAt.getTime()));
+  const lastRevoked = revoked.find(({ revokedAt }) => revokedAt.getTime() === lastRevokedAt);
+  if (lastRevoked === undefined) {
     return { kind: "not_enrolled" };
   }
-  const { hostname, windowsVersion, enrolledAt, revokedAt } = latestInstallation;
-  return revokedAt === null
-    ? { kind: "enrolled", hostname, windowsVersion, enrolledAt }
-    : { kind: "revoked", hostname, windowsVersion, enrolledAt, revokedAt };
+  const { hostname, windowsVersion, enrolledAt, revokedAt } = lastRevoked;
+  return { kind: "revoked", hostname, windowsVersion, enrolledAt, revokedAt };
 }

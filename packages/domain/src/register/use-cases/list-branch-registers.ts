@@ -52,6 +52,6 @@ export async function listBranchRegisters(
     name: register.name,
     pendingCode: pendingCodeOf(register.enrollmentCode, now),
     pointOfSaleNumber: register.pointOfSaleNumber,
-    installation: registerInstallationState(register.latestInstallation),
+    installation: registerInstallationState(register.installations),
   }));
 }

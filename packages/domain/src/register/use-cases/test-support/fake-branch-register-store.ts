@@ -149,9 +149,6 @@ export class FakeBranchRegisterStore implements BranchRegisterStore, BranchRegis
       .filter((register) => register.locationId === locationId)
       .map((register) => {
         const code = this.state.codes.find((row) => row.registerId === register.id);
-        const [latest] = this.state.installations
-          .filter((row) => row.registerId === register.id)
-          .sort((a, b) => b.enrolledAt.getTime() - a.enrolledAt.getTime());
         return {
           id: register.id,
           name: register.name,
@@ -164,14 +161,14 @@ export class FakeBranchRegisterStore implements BranchRegisterStore, BranchRegis
               }
             : null,
           pointOfSaleNumber: register.pointOfSaleNumber ?? null,
-          latestInstallation: latest
-            ? {
-                hostname: latest.hostname,
-                windowsVersion: latest.windowsVersion,
-                enrolledAt: new Date(latest.enrolledAt),
-                revokedAt: latest.revokedAt ? new Date(latest.revokedAt) : null,
-              }
-            : null,
+          installations: this.state.installations
+            .filter((row) => row.registerId === register.id)
+            .map(({ hostname, windowsVersion, enrolledAt, revokedAt }) => ({
+              hostname,
+              windowsVersion,
+              enrolledAt: new Date(enrolledAt),
+              revokedAt: revokedAt ? new Date(revokedAt) : null,
+            })),
         };
       });
   }

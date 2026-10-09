@@ -1,9 +1,7 @@
-import { registerSummarySchema } from "@purosur/contracts";
 import {
   actionsColumn,
   Button,
   dataColumn,
-  formatDate,
   formatPointOfSaleNumber,
   plural,
   Table,
@@ -15,11 +13,11 @@ import { KeySquare, Laptop, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
 import { cloudTableState } from "../platform/cloud-table-state";
-import { schemaText } from "../platform/schema-text";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { type EmissionState, EnrollmentCodeModal } from "./enrollment-code-modal";
+import { installationLines } from "./installation-text";
 import { NewRegisterModal } from "./new-register-modal";
 import {
   pendingCodeAfter,
@@ -43,39 +41,6 @@ export type RegistersListScreenProps = {
   onSessionEnded: () => void;
   services: RegistersListScreenServices;
 };
-
-const INSTALLATION_TIME_ZONE = schemaText(
-  registerSummarySchema.shape.installation.unwrap().options[0].shape.enrolled_at.meta()?.[
-    "timeZone"
-  ],
-);
-
-function installationDate(instant: string): string {
-  return formatDate(new Date(instant), {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    timeZone: INSTALLATION_TIME_ZONE,
-  });
-}
-
-function installationLines(
-  installation: RegisterInstallation | null,
-): { primary: string; secondary: string } | null {
-  if (installation === null) {
-    return null;
-  }
-  if (installation.state === "enrolled") {
-    return {
-      primary: `Dada de alta el ${installationDate(installation.enrolledAt)}`,
-      secondary: installation.windowsVersion,
-    };
-  }
-  return {
-    primary: `Revocada el ${installationDate(installation.revokedAt)}`,
-    secondary: `${installation.hostname} · ${installation.windowsVersion}`,
-  };
-}
 
 function installationStatus(installation: RegisterInstallation | null) {
   if (installation === null) {

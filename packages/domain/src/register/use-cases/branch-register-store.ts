@@ -12,7 +12,7 @@ export interface BranchRegister {
   name: string;
   enrollmentCode: RegisterEnrollmentCode | null;
   pointOfSaleNumber: number | null;
-  latestInstallation: RegisterInstallationRecord | null;
+  installations: RegisterInstallationRecord[];
 }
 
 export interface BranchRegisters {
