@@ -2,9 +2,13 @@ import type {
   CashChargeAnswer,
   CurrentSaleAnswer,
   OpenSale,
+  ReceiptPrintStatusOutcome,
+  SaleHistoryDetailOutcome,
+  SalesHistoryOutcome,
   SearchProductsOutcome,
 } from "@purosur/contracts";
 import { useQueryClient } from "@tanstack/react-query";
+import type { SalesHistoryQuery } from "../platform/core-client";
 import { setQueryAnswer } from "../platform/set-query-answer";
 import type { CoreData } from "../platform/use-core-query";
 import { useCoreQuery } from "../platform/use-core-query";
@@ -18,7 +22,84 @@ export const salesKeys = {
   cashCharge: (saleId: string, pending: number, tendered: number | undefined) =>
     [...salesKey, "cash-charge", saleId, pending, tendered ?? null] as const,
   search: (query: string) => [...salesKey, "search", query] as const,
+  receiptPrintStatus: (saleId: string) => [...salesKey, "receipt-print-status", saleId] as const,
+  historyRoot: [...salesKey, "history"] as const,
+  history: ({ session, state, page }: SalesHistoryQuery) =>
+    [...salesKey, "history", session, state, page] as const,
+  saleDetail: (saleId: string) => [...salesKey, "history-detail", saleId] as const,
 };
+
+const RECEIPT_PRINT_POLL_MILLISECONDS = 1000;
+
+export type ReceiptPrintStatus = Extract<ReceiptPrintStatusOutcome, { kind: "found" }>;
+
+export function useReceiptPrintStatusQuery({
+  saleId,
+  read,
+}: {
+  saleId: string;
+  read: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
+}): CoreData<ReceiptPrintStatus> {
+  return useCoreQuery({
+    queryKey: salesKeys.receiptPrintStatus(saleId),
+    read: async () => {
+      const outcome = await read(saleId);
+      return outcome.kind === "found" ? outcome : "unavailable";
+    },
+    refetchInterval: (status) =>
+      status?.printed === true ? false : RECEIPT_PRINT_POLL_MILLISECONDS,
+  });
+}
+
+export function useRefreshReceiptPrintStatus(saleId: string): () => Promise<void> {
+  const queryClient = useQueryClient();
+  return () => queryClient.invalidateQueries({ queryKey: salesKeys.receiptPrintStatus(saleId) });
+}
+
+export type ShownSalesHistory = Exclude<SalesHistoryOutcome, { kind: "unavailable" }>;
+
+export function useSalesHistoryQuery({
+  read,
+  ...query
+}: SalesHistoryQuery & {
+  read: (query: SalesHistoryQuery) => Promise<SalesHistoryOutcome>;
+}): CoreData<ShownSalesHistory> {
+  return useCoreQuery({
+    queryKey: salesKeys.history(query),
+    read: async () => {
+      const outcome = await read(query);
+      return outcome.kind === "unavailable" ? "unavailable" : outcome;
+    },
+  });
+}
+
+export function useRefreshSalesHistory(): () => Promise<void> {
+  const queryClient = useQueryClient();
+  return async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: salesKeys.historyRoot }),
+      queryClient.invalidateQueries({ queryKey: [...salesKey, "history-detail"] }),
+    ]);
+  };
+}
+
+export type ShownSaleHistoryDetail = Exclude<SaleHistoryDetailOutcome, { kind: "unavailable" }>;
+
+export function useSaleHistoryDetailQuery({
+  saleId,
+  read,
+}: {
+  saleId: string;
+  read: (saleId: string) => Promise<SaleHistoryDetailOutcome>;
+}): CoreData<ShownSaleHistoryDetail> {
+  return useCoreQuery({
+    queryKey: salesKeys.saleDetail(saleId),
+    read: async () => {
+      const outcome = await read(saleId);
+      return outcome.kind === "unavailable" ? "unavailable" : outcome;
+    },
+  });
+}
 
 export function useCurrentSaleQuery({
   sessionId,

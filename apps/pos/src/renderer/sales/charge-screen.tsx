@@ -4,6 +4,8 @@ import type {
   ChargeSaleInCashOutcome,
   CurrentSaleAnswer,
   OpenSale,
+  ReceiptPrintStatusOutcome,
+  RetryReceiptPrintOutcome,
 } from "@purosur/contracts";
 import {
   LoadFailure,
@@ -59,6 +61,8 @@ export type ChargeScreenProps = {
   cashCharge: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   chargeSaleByTransfer: (saleId: string, amount: number) => Promise<ChargeSaleByTransferOutcome>;
+  receiptPrintStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
+  retryReceiptPrint: (saleId: string) => Promise<RetryReceiptPrintOutcome>;
   onSessionInvalid: () => void;
 };
 
@@ -71,6 +75,8 @@ export function ChargeScreen({
   cashCharge,
   chargeSaleInCash,
   chargeSaleByTransfer,
+  receiptPrintStatus,
+  retryReceiptPrint,
   onSessionInvalid,
 }: ChargeScreenProps) {
   const navigate = useNavigate();
@@ -181,6 +187,9 @@ export function ChargeScreen({
       ) : null}
       {step.name === "completed" && step.payment.method === "CASH" ? (
         <SaleCompletedModal
+          saleId={step.sale.id}
+          readReceiptStatus={receiptPrintStatus}
+          retryReceiptPrint={retryReceiptPrint}
           total={step.payment.charge.total}
           tendered={step.payment.charge.tendered}
           change={step.payment.charge.change}
@@ -189,6 +198,9 @@ export function ChargeScreen({
       ) : null}
       {step.name === "completed" && step.payment.method === "TRANSFER" ? (
         <SaleCompletedModal
+          saleId={step.sale.id}
+          readReceiptStatus={receiptPrintStatus}
+          retryReceiptPrint={retryReceiptPrint}
           total={step.payment.charge.total}
           method="TRANSFER"
           amount={step.payment.charge.amount}
