@@ -10,6 +10,7 @@ import {
   stockMovements,
   users,
 } from "../platform/db/schema.js";
+import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleStockStore } from "./drizzle-stock-store.js";
@@ -182,6 +183,39 @@ describe("DrizzleStockStore", () => {
         actorId,
         supersededByCountId: null,
       },
+    ]);
+  });
+
+  it("notes each movement it records as a change of the movement's branch", async () => {
+    const locationId = await seededLocationId(db);
+    const productId = await insertProduct();
+    const actorId = await insertUser(locationId);
+    await db.insert(stockBalances).values({ productId, locationId, quantity: 5000 });
+    const before = await lastLoggedChangeSeq(db);
+
+    await recordLoss(portsAt(NOW), {
+      productId,
+      locationId,
+      reason: "spoiled",
+      quantity: 1200,
+      actorId,
+    });
+    await registerCount(portsAt(NOW), {
+      productId,
+      locationId,
+      counted: 3000,
+      occurredAt: AFTER_COUNT,
+      actorId,
+    });
+
+    const [loss, count] = await db
+      .select({ id: stockMovements.id, kind: stockMovements.kind })
+      .from(stockMovements)
+      .orderBy(stockMovements.recordedAt);
+    expect([loss?.kind, count?.kind]).toEqual(["loss", "count"]);
+    expect(await changesLoggedAfter(db, before)).toEqual([
+      { entity: "stock_movement", entityId: loss?.id, version: 1, op: "insert", locationId },
+      { entity: "stock_movement", entityId: count?.id, version: 1, op: "insert", locationId },
     ]);
   });
 

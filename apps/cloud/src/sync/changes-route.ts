@@ -178,6 +178,20 @@ function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number]
           })),
         },
       };
+    case "stock_movement":
+      return {
+        change_seq,
+        entity: change.entity,
+        entity_id,
+        row: {
+          product_id: change.row.productId,
+          kind: change.row.kind,
+          delta: change.row.delta,
+          occurred_at: change.row.occurredAt.toISOString(),
+          superseded_by_count_id: change.row.supersededByCountId,
+          version: change.row.version,
+        },
+      };
     case "removal":
       return {
         change_seq,

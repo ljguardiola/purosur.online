@@ -11,7 +11,9 @@ import type {
 import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { products, stockBalances, stockCounts, stockMovements } from "../platform/db/schema.js";
+import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import { appliedDeltaAfter, earliestCountAtOrAfter } from "./stock-ledger-queries.js";
+import { STOCK_MOVEMENT_VERSION } from "./stock-movement-version.js";
 
 function balanceOf(key: ProductStockKey) {
   return and(
@@ -24,9 +26,11 @@ export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements StockStoreTransaction
 {
   private readonly tx: PgDatabase<TQueryResult>;
+  private readonly pending: PendingChanges;
 
-  constructor(tx: PgDatabase<TQueryResult>) {
+  constructor(tx: PgDatabase<TQueryResult>, pending: PendingChanges) {
     this.tx = tx;
+    this.pending = pending;
   }
 
   async lockProductStock(key: ProductStockKey): Promise<LockProductStockResult> {
@@ -69,6 +73,13 @@ export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
     if (!recorded) {
       throw new Error("inserting the stock movement returned no row");
     }
+    this.pending.note({
+      entity: "stock_movement",
+      entityId: recorded.id,
+      version: STOCK_MOVEMENT_VERSION,
+      op: "insert",
+      locationId: movement.locationId,
+    });
     return recorded.id;
   }
 
@@ -97,6 +108,8 @@ export class DrizzleStockStore<TQueryResult extends PgQueryResultHKT> implements
   }
 
   transaction<TOutcome>(work: (tx: StockStoreTransaction) => Promise<TOutcome>): Promise<TOutcome> {
-    return this.db.transaction((tx) => work(new DrizzleStockStoreTransaction(tx)));
+    return withPendingChanges(this.db, undefined, (tx, pending) =>
+      work(new DrizzleStockStoreTransaction(tx, pending)),
+    );
   }
 }

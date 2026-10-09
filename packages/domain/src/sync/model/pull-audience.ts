@@ -12,7 +12,8 @@ export type PulledEntity =
   | "discount"
   | "issuer_identification"
   | "buyer_identification_threshold"
-  | "buyer_tax_status_set";
+  | "buyer_tax_status_set"
+  | "stock_movement";
 
 export type PullReach =
   | { kind: "every_row" }
@@ -52,5 +53,6 @@ export function pullAudienceOf({
     issuer_identification: EVERY_ROW,
     buyer_identification_threshold: EVERY_ROW,
     buyer_tax_status_set: EVERY_ROW,
+    stock_movement: { kind: "rows_of_branch", locationId },
   };
 }
