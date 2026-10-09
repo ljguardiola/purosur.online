@@ -12,6 +12,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./test": "./src/test/index.ts",
+    "./formatters": "./src/messages/formatters.ts",
     "./tokens.css": "./src/styles/tokens.css",
     "./content-security-policy": "./src/content-security-policy.ts"
   },
