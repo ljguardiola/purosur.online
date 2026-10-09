@@ -106,13 +106,14 @@ test("names the taken barcodes and keeps the confirmation available to retry", a
 
   await confirm(dialog);
 
-  const alert = dialog.getByRole("alert");
-  await expect.element(alert).toHaveTextContent("No se puede reactivar");
+  await expect.element(dialog.getByText("No se puede reactivar")).toBeVisible();
   await expect
-    .element(alert)
-    .toHaveTextContent(
-      "El código 7790987000022 ya es de otro producto. Cambiá ese código en este producto o desactivá el otro, y volvé a intentarlo.",
-    );
+    .element(
+      dialog.getByText(
+        "El código 7790987000022 ya es de otro producto. Cambiá ese código en este producto o desactivá el otro, y volvé a intentarlo.",
+      ),
+    )
+    .toBeVisible();
   await expect.element(dialog.getByRole("button", { name: "Reactivar" })).toBeEnabled();
 });
 
