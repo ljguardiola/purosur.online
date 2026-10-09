@@ -41,7 +41,11 @@ function answerOf(response: CloudResponse): RealTimeAuthorizationAnswer {
         authorizationCodeDueOn: body.data.authorization_code_due_on,
       };
     case "REJECTED":
-      return { kind: "rejected", codes: body.data.rejection_codes };
+      return {
+        kind: "rejected",
+        codes: body.data.rejection_codes,
+        rejectionClass: body.data.rejection_class,
+      };
     case "NOT_ATTEMPTED":
       return NOT_ATTEMPTED;
     case "UNCLEAR":

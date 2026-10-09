@@ -1,9 +1,15 @@
 import type { PushedEvent } from "../../sync/index.js";
 import {
+  FACTURA_C_DOCUMENT_TYPE,
+  rejectionAlertChange,
+  type TaxAuthorityRejection,
+} from "../model/fiscal-rejection-alert.js";
+import {
   authorizationCallDeadline,
   isCompletionEventOfSale,
   mayStartAuthorizationCall,
   type RealTimeAuthorizationAnswer,
+  taxAuthorityRefusalAnswer,
   taxAuthorityRejectionAnswer,
 } from "../model/real-time-authorization.js";
 import {
@@ -38,10 +44,29 @@ function answerOf(answer: SolicitationAnswer): RealTimeAuthorizationAnswer {
     case "authorized":
       return answer;
     case "rejected":
-      return taxAuthorityRejectionAnswer(answer.codes);
+      return taxAuthorityRejectionAnswer(answer.rejections.map(({ code }) => code));
+    case "refused_without_result":
+      return taxAuthorityRefusalAnswer(answer.rejections.map(({ code }) => code));
     case "no_answer":
       return { kind: "unclear" };
   }
+}
+
+function rejectionsOf(solicitation: SolicitationAnswer): readonly TaxAuthorityRejection[] {
+  return solicitation.kind === "rejected" || solicitation.kind === "refused_without_result"
+    ? solicitation.rejections
+    : [];
+}
+
+function taxAuthorityGaveAnswer(
+  solicitation: SolicitationAnswer,
+  answer: RealTimeAuthorizationAnswer,
+): boolean {
+  return (
+    solicitation.kind === "authorized" ||
+    solicitation.kind === "rejected" ||
+    answer.kind === "rejected"
+  );
 }
 
 export async function authorizeFiscalDocument(
@@ -107,10 +132,20 @@ export async function authorizeFiscalDocument(
       });
       const answeredAt = clock.now();
       const answer = answerOf(solicitation);
-      if (solicitation.kind === "no_answer") {
-        await lane.recordAnswer(request.fiscalDocumentId, answer, answeredAt);
+      if (taxAuthorityGaveAnswer(solicitation, answer)) {
+        await lane.recordTaxAuthorityAnswer(
+          request.fiscalDocumentId,
+          answer,
+          answeredAt,
+          rejectionAlertChange(answer, rejectionsOf(solicitation), {
+            pointOfSale: request.pointOfSale,
+            documentType: FACTURA_C_DOCUMENT_TYPE,
+            fiscalDocumentId: request.fiscalDocumentId,
+            saleId: request.saleId,
+          }),
+        );
       } else {
-        await lane.recordTaxAuthorityAnswer(request.fiscalDocumentId, answer, answeredAt);
+        await lane.recordAnswer(request.fiscalDocumentId, answer, answeredAt);
       }
       return { kind: "answered", answer };
     },

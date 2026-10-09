@@ -1090,6 +1090,118 @@ test("tells a quiet register's alert in plain language: what it is, what it mean
   await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
 });
 
+test("tells a register that can't sell in plain language: what it is, what it means and what to do", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "sales_denied",
+        level: "critical",
+        audience: "local",
+        scope: "register-1",
+        scopeDisplay: "Caja 1",
+        detail: { deviceId: "device-1", reason: "event_history_broken" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText("La caja no puede vender", { exact: true })).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Esta caja dejó de abrir ventas nuevas porque encontró un problema en su registro de operaciones.",
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Avisar al Administrador de inmediato; ya fue notificado, pero conviene confirmarle la situación.",
+      ),
+    )
+    .toBeVisible();
+  await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+});
+
+test("names a register that can't sell by what happened when the alert is not for the Local audience", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "sales_denied",
+        level: "critical",
+        audience: "all",
+        scope: "register-1",
+        scopeDisplay: "Caja 1",
+        detail: { deviceId: "device-1", reason: "event_history_broken" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText("Una caja dejó de abrir ventas nuevas", { exact: true }))
+    .toBeVisible();
+  await expect.element(screen.getByText("La caja no puede vender")).not.toBeInTheDocument();
+});
+
+test.each([
+  ["content", "Contenido del comprobante"],
+  ["standing", "Situación ante ARCA"],
+] as const)(
+  "tells an invoice ARCA rejected over its %s: that each sale of the point of sale is deferred, the cause and each code with ARCA's message",
+  async (rejectionClass, classLabel) => {
+    const services = createServices();
+    vi.mocked(services.fetchAlert).mockResolvedValue(
+      ok(
+        baseDetail({
+          kind: "fiscal_rejected",
+          level: "critical",
+          audience: "all",
+          scope: "12:factura_c",
+          scopeDisplay: "12:factura_c",
+          detail: {
+            pointOfSale: 12,
+            documentType: "factura_c",
+            rejectionClass,
+            fiscalDocumentId: "fiscal-document-1",
+            saleId: "sale-1",
+            rejections: [
+              { code: 10242, message: "El valor de CondicionIVAReceptorId es invalido." },
+              { code: 10015, message: "Debe informar el documento." },
+            ],
+          },
+        }),
+      ),
+    );
+
+    const screen = await renderModal(services);
+
+    await expect
+      .element(screen.getByText("ARCA rechazó una factura", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(
+        screen.getByText(
+          "Cada venta de este punto de venta queda diferida hasta corregir la causa que indica ARCA.",
+          { exact: true },
+        ),
+      )
+      .toBeVisible();
+    await expect.element(screen.getByText(classLabel, { exact: true })).toBeVisible();
+    await expect
+      .element(screen.getByText("10242: El valor de CondicionIVAReceptorId es invalido."))
+      .toBeVisible();
+    await expect.element(screen.getByText("10015: Debe informar el documento.")).toBeVisible();
+    await expect
+      .element(screen.getByText("Punto de venta 12 · Factura C", { exact: true }))
+      .toBeVisible();
+  },
+);
+
 test("shows the fixed plain-language text only for an alert the cloud says is for the Local audience", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(

@@ -34,6 +34,7 @@ export {
   canSeeAlert,
   ESCALATED_LEVEL,
   escalatesAt,
+  fiscalRejectionAlertObservation,
   isAlertKind,
   isAlertLevel,
   isDueForEscalation,
@@ -132,18 +133,22 @@ export type {
   DeferralReason,
   FacturaC,
   FiscalDocumentState,
+  FiscalDocumentType,
   FiscalOnlineSignalEvidence,
   IssuerIdentificationInEffect,
   PreEmissionGateFailureReason,
   PreEmissionGateOutcome,
   RealTimeAuthorizationAnswer,
   RealTimeAuthorizationResolution,
+  RejectionClass,
+  TaxAuthorityRejection,
 } from "./fiscal/index.js";
 export {
   ARCA_VITALITY_CHECK_INTERVAL_MS,
   chargeRefusal,
   DEFERRAL_REASONS,
   earliestThresholdStartDay,
+  FACTURA_C_DOCUMENT_TYPE,
   FISCAL_ADDRESS_NAME_MAX_LENGTH,
   FISCAL_ADDRESS_STREET_ADDRESS_MAX_LENGTH,
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
@@ -170,6 +175,7 @@ export {
   preEmissionGateFailedEvent,
   REAL_TIME_AUTHORIZATION_TIMEOUT_MS,
   REGISTER_HEALTH_CHECK_INTERVAL_MS,
+  REJECTION_CLASSES,
   SERIES_WAITING_STATES,
   selectConsumerBuyerTaxStatus,
   thresholdInEffectOn,
@@ -371,6 +377,7 @@ export {
   isValidCashAmount,
   MAX_CASH_AMOUNT_CENTS,
   SALE_COMPLETED_EVENT_TYPE,
+  SALES_DENIED_REASONS,
 } from "./shared/index.js";
 export type {
   AdjustmentReason,
@@ -411,6 +418,9 @@ export type {
   PullPage,
   PushedEvent,
   RegisterTelemetry,
+  SalesStopReason,
+  SalesStopState,
+  StorageTelemetry,
 } from "./sync/index.js";
 export {
   canonicalOutboxEvent,
@@ -419,9 +429,11 @@ export {
   INSTALLATION_REQUEST_LIMITS,
   isPageAfter,
   isPullCursor,
+  isSalesStopReason,
   PULL_PAGE_MAX_CHANGES,
   PUSH_BATCH_MAX_EVENTS,
   pullAudienceOf,
+  salesDeniedReportOf,
 } from "./sync/index.js";
 export {
   isEmailAddress,

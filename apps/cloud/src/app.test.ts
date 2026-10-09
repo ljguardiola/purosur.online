@@ -2193,6 +2193,11 @@ describe("the route access inventory", () => {
         access: capabilityAccess("products_and_categories"),
       },
       {
+        method: "DELETE",
+        url: "/api/products/:id/deactivation",
+        access: capabilityAccess("products_and_categories"),
+      },
+      {
         method: "POST",
         url: "/api/internal-barcodes",
         access: capabilityAccess("products_and_categories"),

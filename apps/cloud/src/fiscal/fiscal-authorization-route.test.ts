@@ -6,6 +6,7 @@ import {
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import {
+  alerts,
   arcaInvoicingEvidence,
   fiscalRequests,
   installationRequestAttempts,
@@ -269,17 +270,59 @@ describe("POST /fiscal/authorize", () => {
       expect(row?.receivedAt).toEqual(NOW);
     });
 
-    it("answers REJECTED with the codes the tax authority gave", async () => {
+    it("answers REJECTED with the codes and the class, and opens the alert of the point of sale", async () => {
       const { deviceToken } = await enrollRegisterWithPointOfSale();
       await route.issueWsaaToken();
-      route.taxAuthority.answer = { kind: "rejected", codes: [10015] };
+      route.taxAuthority.answer = {
+        kind: "rejected",
+        rejections: [{ code: 10015, message: "Debe informar el documento." }],
+      };
 
       const response = await authorize(requestBody(), `Bearer ${deviceToken}`);
 
       expect(realTimeAuthorizationResponseSchema.parse(response.json())).toEqual({
         state: "REJECTED",
         rejection_codes: [10015],
+        rejection_class: "content",
       });
+      const opened = await route.db
+        .select({ scope: alerts.scope })
+        .from(alerts)
+        .where(eq(alerts.kind, "fiscal_rejected"));
+      expect(opened).toEqual([{ scope: "7:factura_c" }]);
+    });
+
+    it("answers REJECTED as standing when the tax authority refused with a code of the business's own standing and no result", async () => {
+      const { deviceToken } = await enrollRegisterWithPointOfSale();
+      await route.issueWsaaToken();
+      route.taxAuthority.answer = {
+        kind: "refused_without_result",
+        rejections: [{ code: 601, message: "CUIT representada no incluida en token." }],
+      };
+
+      const response = await authorize(requestBody(), `Bearer ${deviceToken}`);
+
+      expect(realTimeAuthorizationResponseSchema.parse(response.json())).toEqual({
+        state: "REJECTED",
+        rejection_codes: [601],
+        rejection_class: "standing",
+      });
+    });
+
+    it("answers UNCLEAR and opens no alert when the tax authority refused with errors that are not the business's standing", async () => {
+      const { deviceToken } = await enrollRegisterWithPointOfSale();
+      await route.issueWsaaToken();
+      route.taxAuthority.answer = {
+        kind: "refused_without_result",
+        rejections: [{ code: 600, message: "ValidacionDeToken." }],
+      };
+
+      const response = await authorize(requestBody(), `Bearer ${deviceToken}`);
+
+      expect(realTimeAuthorizationResponseSchema.parse(response.json())).toEqual({
+        state: "UNCLEAR",
+      });
+      expect(await route.db.select().from(alerts)).toEqual([]);
     });
 
     it("answers UNCLEAR when the tax authority gave no answer", async () => {

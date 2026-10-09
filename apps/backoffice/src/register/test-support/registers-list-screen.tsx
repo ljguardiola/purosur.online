@@ -26,12 +26,39 @@ export const register1: RegisterSummary = {
   name: "Caja 1",
   pendingCode: null,
   pointOfSaleNumber: null,
+  installation: null,
 };
 export const register2: RegisterSummary = {
   id: "register-2",
   name: "Caja 2",
   pendingCode: { secondsSinceIssued: 240, secondsUntilExpiry: 660 },
   pointOfSaleNumber: 3,
+  installation: null,
+};
+export const enrolledRegister: RegisterSummary = {
+  id: "register-3",
+  name: "Caja 3",
+  pendingCode: null,
+  pointOfSaleNumber: null,
+  installation: {
+    state: "enrolled",
+    hostname: "CAJA-MOSTRADOR",
+    windowsVersion: "Windows 11 Pro 10.0.26100",
+    enrolledAt: "2026-08-02T01:30:00.000Z",
+  },
+};
+export const revokedRegister: RegisterSummary = {
+  id: "register-4",
+  name: "Caja 4",
+  pendingCode: null,
+  pointOfSaleNumber: null,
+  installation: {
+    state: "revoked",
+    hostname: "CAJA-DEPOSITO",
+    windowsVersion: "Windows 10 Pro 10.0.19045",
+    enrolledAt: "2026-08-01T15:00:00.000Z",
+    revokedAt: "2026-08-04T02:00:00.000Z",
+  },
 };
 
 const authorizationOptions = { challenge: "session-auth" } as never;

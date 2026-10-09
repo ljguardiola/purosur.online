@@ -7,6 +7,7 @@ import {
   fetchProducts,
   generateInternalBarcode,
   printLabels,
+  reactivateProduct,
 } from "./products-api";
 
 function jsonResponse(status: number, body?: unknown, headers?: Record<string, string>): Response {
@@ -557,10 +558,22 @@ test("deactivateProduct puts the deactivation with no body and returns ok on 200
   expect(fetch).toHaveBeenCalledWith("/api/products/product-1/deactivation", { method: "PUT" });
 });
 
-test("deactivateProduct returns not_found on 404 for a missing or already-inactive product", async () => {
+test("deactivateProduct returns not_found on 404", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "not_found" }));
 
   expect(await deactivateProduct("product-1")).toEqual({ kind: "not_found" });
+});
+
+test("deactivateProduct returns already_changed on a 409 product_already_inactive", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "product_already_inactive" }));
+
+  expect(await deactivateProduct("product-1")).toEqual({ kind: "already_changed" });
+});
+
+test("deactivateProduct returns failed on a 409 with an unknown code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "something_else" }));
+
+  expect(await deactivateProduct("product-1")).toEqual({ kind: "failed" });
 });
 
 test("deactivateProduct returns unauthenticated on 401", async () => {
@@ -588,6 +601,73 @@ test("deactivateProduct returns failed when the request throws", async () => {
   vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
   expect(await deactivateProduct("product-1")).toEqual({ kind: "failed" });
+});
+
+test("reactivateProduct deletes the deactivation with no body and returns ok on 200", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
+
+  const outcome = await reactivateProduct("product-1");
+
+  expect(outcome).toEqual({ kind: "ok" });
+  expect(fetch).toHaveBeenCalledWith("/api/products/product-1/deactivation", {
+    method: "DELETE",
+  });
+});
+
+test("reactivateProduct returns not_found on 404", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "not_found" }));
+
+  expect(await reactivateProduct("product-1")).toEqual({ kind: "not_found" });
+});
+
+test("reactivateProduct returns already_changed on a 409 product_already_active", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "product_already_active" }));
+
+  expect(await reactivateProduct("product-1")).toEqual({ kind: "already_changed" });
+});
+
+test("reactivateProduct returns barcode_taken with the taken codes on a 409 barcode_taken", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(409, { code: "barcode_taken", codes: ["7790987000015"] }),
+  );
+
+  expect(await reactivateProduct("product-1")).toEqual({
+    kind: "barcode_taken",
+    codes: ["7790987000015"],
+  });
+});
+
+test("reactivateProduct returns failed on a 409 with an unknown code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "something_else" }));
+
+  expect(await reactivateProduct("product-1")).toEqual({ kind: "failed" });
+});
+
+test("reactivateProduct returns unauthenticated on 401", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401));
+
+  expect(await reactivateProduct("product-1")).toEqual({ kind: "unauthenticated" });
+});
+
+test("reactivateProduct returns forbidden on 403", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(403));
+
+  expect(await reactivateProduct("product-1")).toEqual({ kind: "forbidden" });
+});
+
+test("reactivateProduct returns rate_limited with the Retry-After header on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "40" }));
+
+  expect(await reactivateProduct("product-1")).toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 40,
+  });
+});
+
+test("reactivateProduct returns failed when the request throws", async () => {
+  vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+  expect(await reactivateProduct("product-1")).toEqual({ kind: "failed" });
 });
 
 test("fetchProducts returns failed when a listed product does not have the expected shape", async () => {

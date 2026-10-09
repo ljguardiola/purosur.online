@@ -80,6 +80,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       createProduct: vi.fn(),
       editProduct: vi.fn(),
       deactivateProduct: vi.fn(),
+      reactivateProduct: vi.fn(),
       fetchCategories: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchBrands: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
       fetchTags: vi

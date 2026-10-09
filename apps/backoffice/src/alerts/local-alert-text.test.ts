@@ -11,6 +11,16 @@ test("gives a quiet register's alert its title, what it means and what to do", (
   });
 });
 
+test("gives a register that can't sell its alert's title, what it means and what to do", () => {
+  expect(localAlertText("sales_denied")).toEqual({
+    title: "La caja no puede vender",
+    meaning:
+      "Esta caja dejó de abrir ventas nuevas porque encontró un problema en su registro de operaciones.",
+    whatToDo:
+      "Avisar al Administrador de inmediato; ya fue notificado, pero conviene confirmarle la situación.",
+  });
+});
+
 test("gives no fixed text to a kind that has none, nor to one this app does not know yet", () => {
   expect(localAlertText("update_required")).toBeUndefined();
   expect(localAlertText("register_battery_low")).toBeUndefined();

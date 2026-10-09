@@ -17,6 +17,7 @@ import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { type EmissionState, EnrollmentCodeModal } from "./enrollment-code-modal";
+import { installationLines } from "./installation-text";
 import { NewRegisterModal } from "./new-register-modal";
 import {
   pendingCodeAfter,
@@ -29,13 +30,28 @@ import {
   useRegisterCoverageQuery,
   useRegistersQuery,
 } from "./register-queries";
-import type { EmitEnrollmentCodeOutcome, RegisterSummary } from "./registers-api";
+import type {
+  EmitEnrollmentCodeOutcome,
+  RegisterInstallation,
+  RegisterSummary,
+} from "./registers-api";
 import type { RegistersListScreenServices } from "./registers-list-services";
 
 export type RegistersListScreenProps = {
   onSessionEnded: () => void;
   services: RegistersListScreenServices;
 };
+
+function installationStatus(installation: RegisterInstallation | null) {
+  if (installation === null) {
+    return <Tag tone="info">Esperando alta</Tag>;
+  }
+  return installation.state === "enrolled" ? (
+    <Tag tone="success">Activa</Tag>
+  ) : (
+    <Tag tone="neutral">Revocada</Tag>
+  );
+}
 
 const NO_REGISTERS: RegisterSummary[] = [];
 
@@ -137,7 +153,13 @@ export function RegistersListScreen({ onSessionEnded, services }: RegistersListS
       id: "register",
       header: "Caja",
       render: (item: RegisterSummary) => (
-        <TableCellText description="Sin instalación">{item.name}</TableCellText>
+        <TableCellText
+          description={
+            item.installation?.state === "enrolled" ? item.installation.hostname : "Sin instalación"
+          }
+        >
+          {item.name}
+        </TableCellText>
       ),
     }),
     dataColumn({
@@ -145,19 +167,31 @@ export function RegistersListScreen({ onSessionEnded, services }: RegistersListS
       header: "Instalación",
       render: (item: RegisterSummary) => {
         const pendingCode =
-          item.pendingCode &&
-          pendingCodeAfter(item.pendingCode, ticksSinceRead * COUNTDOWN_TICK_SECONDS);
-        if (!pendingCode) {
+          item.pendingCode === null
+            ? null
+            : pendingCodeAfter(item.pendingCode, ticksSinceRead * COUNTDOWN_TICK_SECONDS);
+        const lines = installationLines(item.installation);
+        if (lines === null && pendingCode === null) {
           return <span className="text-text-subtle text-detail">—</span>;
         }
         return (
           <div className="flex flex-col gap-1">
-            <span className="text-text text-detail">
-              {pendingCodeIssuedText(pendingCode.secondsSinceIssued)}
-            </span>
-            <span className="text-detail text-warning-strong">
-              {pendingCodeExpiryText(pendingCode.secondsUntilExpiry)}
-            </span>
+            {lines !== null && (
+              <>
+                <span className="text-text text-detail">{lines.primary}</span>
+                <span className="text-text-subtle text-detail">{lines.secondary}</span>
+              </>
+            )}
+            {pendingCode !== null && (
+              <>
+                <span className="text-text text-detail">
+                  {pendingCodeIssuedText(pendingCode.secondsSinceIssued)}
+                </span>
+                <span className="text-detail text-warning-strong">
+                  {pendingCodeExpiryText(pendingCode.secondsUntilExpiry)}
+                </span>
+              </>
+            )}
           </div>
         );
       },
@@ -177,7 +211,7 @@ export function RegistersListScreen({ onSessionEnded, services }: RegistersListS
     dataColumn({
       id: "status",
       header: "Estado",
-      render: (_item: RegisterSummary) => <Tag tone="info">Esperando alta</Tag>,
+      render: (item: RegisterSummary) => installationStatus(item.installation),
     }),
     actionsColumn({
       id: "actions",

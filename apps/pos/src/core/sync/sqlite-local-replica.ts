@@ -58,7 +58,7 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
       const reset = this.database
         .prepare<[string, string]>(
           `UPDATE sync_state SET pull_cursor = 0, device_id = ?, last_device_seq = 0, last_chain_hmac = NULL,
-                                 installation_revoked_at = NULL
+                                 installation_revoked_at = NULL, sales_stopped_reason = NULL
            WHERE id = 1 AND device_id IS NOT ?`,
         )
         .run(deviceId, deviceId);

@@ -1374,6 +1374,7 @@ export const fiscalRequests = pgTable(
     authorizationCode: text("authorization_code"),
     authorizationCodeDueOn: date("authorization_code_due_on", { mode: "string" }),
     rejectionCodes: integer("rejection_codes").array(),
+    rejectionClass: text("rejection_class"),
     answeredAt: timestamp("answered_at", { withTimezone: true }),
   },
   (table) => [
@@ -1394,6 +1395,11 @@ export const fiscalRequests = pgTable(
     check(
       "fiscal_requests_rejection_check",
       sql`coalesce(${table.answerKind} = 'rejected', false) = (${table.rejectionCodes} is not null)`,
+    ),
+    check(
+      "fiscal_requests_rejection_class_check",
+      sql`coalesce(${table.answerKind} = 'rejected', false) = (${table.rejectionClass} is not null)
+        and ${table.rejectionClass} in ('content', 'standing')`,
     ),
   ],
 );

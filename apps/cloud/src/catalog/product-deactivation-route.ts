@@ -9,11 +9,12 @@ import {
   routeSessionSource,
 } from "../sessions/route-access.js";
 import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
+import { PRODUCT_NOT_FOUND_RESPONSE } from "./product-edit-route.js";
 import type { ProductsRouteOptions } from "./products-list-route.js";
 
-const NOT_FOUND_RESPONSE = {
-  code: "not_found",
-  message: "no product with that id",
+const ALREADY_INACTIVE_RESPONSE = {
+  code: "product_already_inactive",
+  message: "the product is already deactivated",
 } as const;
 
 export function registerProductDeactivationRoute<TQueryResult extends PgQueryResultHKT>(
@@ -40,7 +41,11 @@ export function registerProductDeactivationRoute<TQueryResult extends PgQueryRes
       const outcome = await deactivateProduct(catalogStore, targetId);
 
       if (outcome.kind === "not_found") {
-        await reply.code(404).send(NOT_FOUND_RESPONSE);
+        await reply.code(404).send(PRODUCT_NOT_FOUND_RESPONSE);
+        return;
+      }
+      if (outcome.kind === "already_inactive") {
+        await reply.code(409).send(ALREADY_INACTIVE_RESPONSE);
         return;
       }
 

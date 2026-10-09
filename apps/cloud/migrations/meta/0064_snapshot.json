@@ -1,5 +1,5 @@
 {
-  "id": "5968070e-beab-4017-a118-fadf2b88d91d",
+  "id": "44094ec8-f6d5-4c04-bf3a-e69b873b36b1",
   "prevId": "8395c1f9-dd71-44f1-a52f-5127ae1b3fa8",
   "version": "7",
   "dialect": "postgresql",
@@ -1827,6 +1827,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "rejection_class": {
+          "name": "rejection_class",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "answered_at": {
           "name": "answered_at",
           "type": "timestamp with time zone",
@@ -1881,6 +1887,10 @@
         "fiscal_requests_rejection_check": {
           "name": "fiscal_requests_rejection_check",
           "value": "coalesce(\"fiscal_requests\".\"answer_kind\" = 'rejected', false) = (\"fiscal_requests\".\"rejection_codes\" is not null)"
+        },
+        "fiscal_requests_rejection_class_check": {
+          "name": "fiscal_requests_rejection_class_check",
+          "value": "coalesce(\"fiscal_requests\".\"answer_kind\" = 'rejected', false) = (\"fiscal_requests\".\"rejection_class\" is not null)\n        and \"fiscal_requests\".\"rejection_class\" in ('content', 'standing')"
         }
       },
       "isRLSEnabled": false
@@ -2597,158 +2607,6 @@
         "payment_refunds_done_check": {
           "name": "payment_refunds_done_check",
           "value": "(\"payment_refunds\".\"done_by\" is null) = (\"payment_refunds\".\"done_at\" is null) and (\"payment_refunds\".\"state\" = 'APPROVED' or \"payment_refunds\".\"done_by\" is null)"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.payment_transactions": {
-      "name": "payment_transactions",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "register_id": {
-          "name": "register_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sale_id": {
-          "name": "sale_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "method": {
-          "name": "method",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "provider": {
-          "name": "provider",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "amount": {
-          "name": "amount",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "state": {
-          "name": "state",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "needs_review": {
-          "name": "needs_review",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "provider_order_id": {
-          "name": "provider_order_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "creation_outcome_unknown": {
-          "name": "creation_outcome_unknown",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "state_read_at": {
-          "name": "state_read_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "payment_transactions_register_idx": {
-          "name": "payment_transactions_register_idx",
-          "columns": [
-            {
-              "expression": "register_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "payment_transactions_register_id_registers_id_fk": {
-          "name": "payment_transactions_register_id_registers_id_fk",
-          "tableFrom": "payment_transactions",
-          "tableTo": "registers",
-          "columnsFrom": ["register_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "payment_transactions_provider_order_id_unique": {
-          "name": "payment_transactions_provider_order_id_unique",
-          "nullsNotDistinct": false,
-          "columns": ["provider_order_id"]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "payment_transactions_kind_check": {
-          "name": "payment_transactions_kind_check",
-          "value": "\"payment_transactions\".\"kind\" = 'SALE'"
-        },
-        "payment_transactions_method_check": {
-          "name": "payment_transactions_method_check",
-          "value": "\"payment_transactions\".\"method\" = 'QR'"
-        },
-        "payment_transactions_provider_check": {
-          "name": "payment_transactions_provider_check",
-          "value": "\"payment_transactions\".\"provider\" = 'MERCADOPAGO_QR'"
-        },
-        "payment_transactions_amount_check": {
-          "name": "payment_transactions_amount_check",
-          "value": "\"payment_transactions\".\"amount\" > 0"
-        },
-        "payment_transactions_state_check": {
-          "name": "payment_transactions_state_check",
-          "value": "\"payment_transactions\".\"state\" in ('PENDING', 'APPROVED', 'DECLINED', 'CANCELLED', 'EXPIRED')"
         }
       },
       "isRLSEnabled": false
@@ -5864,7 +5722,7 @@
     "public.installation_request_endpoint": {
       "name": "installation_request_endpoint",
       "schema": "public",
-      "values": ["push", "pull", "health_check", "fiscal_authorize", "payment_order"]
+      "values": ["push", "pull", "health_check", "fiscal_authorize"]
     },
     "public.installation_revocation_reason": {
       "name": "installation_revocation_reason",

@@ -1,4 +1,10 @@
-import { type AlertKind, ARGENTINA_TIME_ZONE } from "@purosur/domain";
+import {
+  type AlertKind,
+  ARGENTINA_TIME_ZONE,
+  FACTURA_C_DOCUMENT_TYPE,
+  REJECTION_CLASSES,
+  SALES_DENIED_REASONS,
+} from "@purosur/domain";
 import { z } from "zod";
 import { alertAudienceSchema, alertLevelSchema } from "./alert-summary.js";
 
@@ -132,6 +138,20 @@ const registerSilentDetailSchema = z.object({
   lastAcceptedPushAt: z.string(),
 });
 
+const salesDeniedDetailSchema = z.object({
+  deviceId: z.string(),
+  reason: z.enum(SALES_DENIED_REASONS),
+});
+
+const fiscalRejectedDetailSchema = z.object({
+  pointOfSale: z.int(),
+  documentType: z.literal(FACTURA_C_DOCUMENT_TYPE),
+  rejectionClass: z.enum(REJECTION_CLASSES),
+  fiscalDocumentId: z.string(),
+  saleId: z.string(),
+  rejections: z.array(z.object({ code: z.int(), message: z.string() })),
+});
+
 const ALERT_INSTANT = { timeZone: ARGENTINA_TIME_ZONE };
 
 const alertBase = {
@@ -203,6 +223,16 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("register_silent" satisfies AlertKind),
     detail: registerSilentDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("sales_denied" satisfies AlertKind),
+    detail: salesDeniedDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("fiscal_rejected" satisfies AlertKind),
+    detail: fiscalRejectedDetailSchema,
   }),
 ] as const;
 

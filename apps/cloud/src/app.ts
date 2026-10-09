@@ -28,6 +28,7 @@ import { registerInternalBarcodeRoute } from "./catalog/internal-barcode-route.j
 import { registerProductCreationRoute } from "./catalog/product-creation-route.js";
 import { registerProductDeactivationRoute } from "./catalog/product-deactivation-route.js";
 import { registerProductEditRoute } from "./catalog/product-edit-route.js";
+import { registerProductReactivationRoute } from "./catalog/product-reactivation-route.js";
 import { registerProductLabelsRoute } from "./catalog/products-labels-route.js";
 import type { ProductsRouteOptions } from "./catalog/products-list-route.js";
 import { registerProductsListRoute } from "./catalog/products-list-route.js";
@@ -453,6 +454,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerProductCreationRoute(api, { ...options.products, now });
         registerProductEditRoute(api, { ...options.products, now });
         registerProductDeactivationRoute(api, { ...options.products, now });
+        registerProductReactivationRoute(api, { ...options.products, now });
         registerInternalBarcodeRoute(api, { ...options.products, now });
         registerProductLabelsRoute(api, { ...options.products, now });
       }

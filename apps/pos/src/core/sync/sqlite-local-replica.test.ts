@@ -7,6 +7,7 @@ import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import type { RegisterPulledChange } from "./pulled-change";
+import { salesStopOf, stopOpeningNewSales } from "./sqlite-local-installation";
 import { SqliteLocalReplica } from "./sqlite-local-replica";
 import { appendOutboxEvent } from "./sqlite-outbox";
 
@@ -347,6 +348,18 @@ describe("the register's local copy of what it pulls", () => {
 
     expect(sameInstallation).toBe("2026-09-30T08:00:00.000Z");
     expect(installationRevokedAt()).toBeNull();
+  });
+
+  it("forgets why the one before was stopped when a new installation takes over, and keeps it for the same one", () => {
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+    stopOpeningNewSales(database, "event_history_broken", new Date("2026-09-30T08:00:00.000Z"));
+
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+    const sameInstallation = salesStopOf(database);
+    replica.adoptDevice({ deviceId: "device-b", pepper: PEPPER });
+
+    expect(sameInstallation).toEqual({ stopped: true, reason: "event_history_broken" });
+    expect(salesStopOf(database)).toEqual({ stopped: false });
   });
 
   it("saves neither the data nor the cursor when the page can't be saved whole", async () => {

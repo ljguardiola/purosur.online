@@ -5,7 +5,7 @@ import type {
   TaxAuthorityInvoicing,
 } from "@purosur/domain/fiscal/use-cases";
 import type { Client } from "soap";
-import { codesOf, createWsfeClient, FACTURA_C_VOUCHER_TYPE } from "./wsfe-client.js";
+import { createWsfeClient, FACTURA_C_VOUCHER_TYPE, rejectionsOf } from "./wsfe-client.js";
 
 const PRODUCTS = 1;
 const FINAL_CONSUMER_DOCUMENT_TYPE = 99;
@@ -65,12 +65,19 @@ function answerOf(answer: unknown): SolicitationAnswer {
     return { kind: "authorized", authorizationCode: detail.CAE, authorizationCodeDueOn: dueOn };
   }
 
-  const codes = [
-    ...details.flatMap(({ Observaciones }) => codesOf(Observaciones, "Obs")),
-    ...codesOf(result.Errors, "Err"),
+  const rejections = [
+    ...details.flatMap(({ Observaciones }) => rejectionsOf(Observaciones, "Obs")),
+    ...rejectionsOf(result.Errors, "Err"),
   ];
-  const refused = result.FeCabResp?.Resultado === "R" || detail?.Resultado === "R";
-  return refused && codes.length > 0 ? { kind: "rejected", codes } : { kind: "no_answer" };
+  if (rejections.length === 0) {
+    return { kind: "no_answer" };
+  }
+  if (result.FeCabResp?.Resultado === "R" || detail?.Resultado === "R") {
+    return { kind: "rejected", rejections };
+  }
+  const withoutResult =
+    result.FeCabResp?.Resultado === undefined && detail?.Resultado === undefined;
+  return withoutResult ? { kind: "refused_without_result", rejections } : { kind: "no_answer" };
 }
 
 export class WsfeTaxAuthorityInvoicing implements TaxAuthorityInvoicing {

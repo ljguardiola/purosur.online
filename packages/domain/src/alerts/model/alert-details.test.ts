@@ -34,6 +34,54 @@ describe("OpenAlertInput", () => {
     }>().toExtend<OpenAlertInput>();
   });
 
+  it("accepts the device and the reason it can't sell for a sales-denied alert", () => {
+    expectTypeOf<{
+      kind: "sales_denied";
+      scope: string;
+      locationId: string;
+      detail: { deviceId: string; reason: "event_history_broken" };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses a sales-denied alert with a reason the register does not report", () => {
+    expectTypeOf<{
+      kind: "sales_denied";
+      scope: string;
+      locationId: string;
+      detail: { deviceId: string; reason: "installation_revoked" };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
+  it("accepts the point of sale, document type, class, documents and rejections for a fiscal-rejected alert", () => {
+    expectTypeOf<{
+      kind: "fiscal_rejected";
+      scope: string;
+      detail: {
+        pointOfSale: number;
+        documentType: "factura_c";
+        rejectionClass: "content" | "standing";
+        fiscalDocumentId: string;
+        saleId: string;
+        rejections: { code: number; message: string }[];
+      };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses a fiscal-rejected alert with a rejection class the domain does not know", () => {
+    expectTypeOf<{
+      kind: "fiscal_rejected";
+      scope: string;
+      detail: {
+        pointOfSale: number;
+        documentType: "factura_c";
+        rejectionClass: "transport";
+        fiscalDocumentId: string;
+        saleId: string;
+        rejections: { code: number; message: string }[];
+      };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
   it("refuses a silent-register alert with no last accepted push", () => {
     expectTypeOf<{
       kind: "register_silent";
