@@ -29,10 +29,11 @@ function grantAuthorization(services: RecordBuyerIdentificationThresholdModalSer
 }
 
 const recorded = { id: "threshold-2", amount: 1_500_000, validFrom: "2026-10-01" };
-const latest = { id: "threshold-1", amount: 1_000_000, validFrom: "2026-09-15" };
+const earliest = "2026-10-08";
+const inEffect = { id: "threshold-1", amount: 1_000_000, validFrom: "2026-09-15" };
 
-function overview(newest: typeof recorded): BuyerIdentificationThresholds {
-  return { inEffect: newest, scheduled: null, latestValidFrom: newest.validFrom };
+function overview(current: typeof recorded): BuyerIdentificationThresholds {
+  return { inEffect: current, scheduled: null, earliestValidFrom: earliest };
 }
 
 type Reload = () => Promise<CloudReadOutcome<BuyerIdentificationThresholds>>;
@@ -51,7 +52,7 @@ function modalElement({
   services = createServices(),
   onClose = () => {},
   onRecorded = () => {},
-  reload = () => Promise.resolve({ kind: "ok", value: overview(latest) }),
+  reload = () => Promise.resolve({ kind: "ok", value: overview(inEffect) }),
   onSessionEnded = () => {},
 }: ModalOptions) {
   return (
@@ -235,34 +236,30 @@ test("cancelling the authorization records nothing and leaves the modal as it wa
   await expect.element(dialog.getByRole("textbox", { name: /^Importe/ })).toHaveValue("15.000,00");
 });
 
-test("a start that is not after the latest threshold lands on Vigente desde, naming the day the freshly read latest one starts", async () => {
+test("a start before today lands on Vigente desde, naming today as read again from the cloud", async () => {
   const services = createServices();
   vi.mocked(services.recordBuyerIdentificationThreshold).mockResolvedValue({
-    kind: "not_after_latest",
+    kind: "before_today",
   });
   const onRecorded = vi.fn();
-  const reload = vi.fn<Reload>(() => Promise.resolve({ kind: "ok", value: overview(latest) }));
+  const reload = vi.fn<Reload>(() => Promise.resolve({ kind: "ok", value: overview(inEffect) }));
   const { dialog } = await renderModal({ services, reload, onRecorded });
   await fillForm(dialog, "15.000,00", "01092026");
 
   await submit(dialog);
 
   await expect
-    .element(
-      dialog.getByText(
-        "Tiene que ser posterior al 15/09/2026, el inicio del último umbral cargado.",
-      ),
-    )
+    .element(dialog.getByText("Tiene que ser desde hoy (08/10/2026) en adelante."))
     .toBeVisible();
   expect(onRecorded).not.toHaveBeenCalled();
   expect(reload).toHaveBeenCalledTimes(1);
   await expectNoAccessibilityViolations(document.body);
 });
 
-test("a start that is not after the latest threshold asks to review the day when the thresholds cannot be read again", async () => {
+test("a start before today asks to review the day when the thresholds cannot be read again", async () => {
   const services = createServices();
   vi.mocked(services.recordBuyerIdentificationThreshold).mockResolvedValue({
-    kind: "not_after_latest",
+    kind: "before_today",
   });
   const { dialog } = await renderModal({
     services,
@@ -278,12 +275,12 @@ test("a start that is not after the latest threshold asks to review the day when
 test("the error on Vigente desde clears as soon as the day is edited", async () => {
   const services = createServices();
   vi.mocked(services.recordBuyerIdentificationThreshold).mockResolvedValue({
-    kind: "not_after_latest",
+    kind: "before_today",
   });
   const { dialog } = await renderModal({ services });
   await fillForm(dialog, "15.000,00", "01092026");
   await submit(dialog);
-  await expect.element(dialog.getByText(/^Tiene que ser posterior al/)).toBeVisible();
+  await expect.element(dialog.getByText(/^Tiene que ser desde hoy/)).toBeVisible();
 
   await userEvent.click(
     dialog
@@ -293,7 +290,132 @@ test("the error on Vigente desde clears as soon as the day is edited", async () 
   );
   await userEvent.keyboard("{ArrowUp}");
 
-  await expect.element(dialog.getByText(/^Tiene que ser posterior al/)).not.toBeInTheDocument();
+  await expect.element(dialog.getByText(/^Tiene que ser desde hoy/)).not.toBeInTheDocument();
+});
+
+const CONFIRMATION_TITLE = "¿Cargar un umbral menor que el vigente?";
+
+function askLowerAmountConfirmation(services: RecordBuyerIdentificationThresholdModalServices) {
+  vi.mocked(services.recordBuyerIdentificationThreshold).mockResolvedValueOnce({
+    kind: "needs_confirmation",
+    inEffectAmount: 1_000_000,
+    amount: 10_000,
+    validFrom: "2026-10-01",
+  });
+}
+
+test("a lower amount than the one in effect asks to confirm it, showing the amount in effect, the new amount and the day it takes effect", async () => {
+  const services = createServices();
+  askLowerAmountConfirmation(services);
+  const onRecorded = vi.fn();
+  const { screen, dialog } = await renderModal({ services, onRecorded });
+  await fillForm(dialog, "100,00", "01102026");
+
+  await submit(dialog);
+
+  const confirmation = screen.getByRole("dialog", { name: CONFIRMATION_TITLE });
+  await expect.element(confirmation).toBeVisible();
+  await expect
+    .element(
+      confirmation.getByText(
+        "El umbral vigente es $ 10.000,00. El nuevo, de $ 100,00, rige desde el 01/10/2026.",
+      ),
+    )
+    .toBeVisible();
+  expect(onRecorded).not.toHaveBeenCalled();
+  expect(services.recordBuyerIdentificationThreshold).toHaveBeenCalledTimes(1);
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("confirming the lower amount sends the same request again with the confirmation, then reports it recorded", async () => {
+  const services = createServices();
+  askLowerAmountConfirmation(services);
+  vi.mocked(services.recordBuyerIdentificationThreshold).mockResolvedValueOnce({
+    kind: "ok",
+    value: recorded,
+  });
+  const onRecorded = vi.fn();
+  const { screen, dialog } = await renderModal({ services, onRecorded });
+  await fillForm(dialog, "100,00", "01102026");
+  await submit(dialog);
+
+  await userEvent.click(
+    screen
+      .getByRole("dialog", { name: CONFIRMATION_TITLE })
+      .getByRole("button", { name: "Cargar igual" }),
+  );
+
+  await expect.poll(() => onRecorded.mock.calls.length).toBe(1);
+  expect(services.recordBuyerIdentificationThreshold).toHaveBeenLastCalledWith({
+    amount: 10_000,
+    valid_from: "2026-10-01",
+    confirm_lower_than_in_effect: true,
+  });
+  await expect.poll(() => screen.getByRole("dialog", { name: CONFIRMATION_TITLE }).query()).toBeNull();
+});
+
+test("going back from the confirmation records nothing and keeps what was typed", async () => {
+  const services = createServices();
+  askLowerAmountConfirmation(services);
+  const onRecorded = vi.fn();
+  const { screen, dialog } = await renderModal({ services, onRecorded });
+  await fillForm(dialog, "100,00", "01102026");
+  await submit(dialog);
+
+  await userEvent.click(
+    screen.getByRole("dialog", { name: CONFIRMATION_TITLE }).getByRole("button", { name: "Volver" }),
+  );
+
+  await expect.poll(() => screen.getByRole("dialog", { name: CONFIRMATION_TITLE }).query()).toBeNull();
+  expect(services.recordBuyerIdentificationThreshold).toHaveBeenCalledTimes(1);
+  expect(onRecorded).not.toHaveBeenCalled();
+  await expect.element(dialog.getByRole("textbox", { name: /^Importe/ })).toHaveValue("100,00");
+});
+
+test("asks to confirm again when the amount is edited and sent after going back", async () => {
+  const services = createServices();
+  askLowerAmountConfirmation(services);
+  vi.mocked(services.recordBuyerIdentificationThreshold).mockResolvedValueOnce({
+    kind: "needs_confirmation",
+    inEffectAmount: 1_000_000,
+    amount: 20_000,
+    validFrom: "2026-10-01",
+  });
+  const { screen, dialog } = await renderModal({ services });
+  await fillForm(dialog, "100,00", "01102026");
+  await submit(dialog);
+  await userEvent.click(
+    screen.getByRole("dialog", { name: CONFIRMATION_TITLE }).getByRole("button", { name: "Volver" }),
+  );
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Importe/ }), "200,00");
+
+  await submit(dialog);
+
+  await expect
+    .element(screen.getByRole("dialog", { name: CONFIRMATION_TITLE }).getByText(/\$ 200,00/))
+    .toBeVisible();
+  expect(services.recordBuyerIdentificationThreshold).toHaveBeenLastCalledWith({
+    amount: 20_000,
+    valid_from: "2026-10-01",
+  });
+});
+
+test("shows the attempt-failed notice in the form when the confirmed record fails", async () => {
+  const services = createServices();
+  askLowerAmountConfirmation(services);
+  vi.mocked(services.recordBuyerIdentificationThreshold).mockResolvedValueOnce({ kind: "failed" });
+  const { screen, dialog } = await renderModal({ services });
+  await fillForm(dialog, "100,00", "01102026");
+  await submit(dialog);
+
+  await userEvent.click(
+    screen
+      .getByRole("dialog", { name: CONFIRMATION_TITLE })
+      .getByRole("button", { name: "Cargar igual" }),
+  );
+
+  await expect.element(dialog.getByText("No se pudo cargar el umbral")).toBeVisible();
+  await expect.poll(() => screen.getByRole("dialog", { name: CONFIRMATION_TITLE }).query()).toBeNull();
 });
 
 test("shows a field error from the cloud on the amount, and keeps the modal open", async () => {
