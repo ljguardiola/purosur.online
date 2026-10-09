@@ -17,6 +17,7 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
   creationStopsMidway = false;
   creation: MercadoPagoOrderCreation;
   reading: MercadoPagoOrderReading;
+  readonly readingsByOrder = new Map<string, MercadoPagoOrderReading>();
   private readonly lanes: FakePaymentTransactionLanes;
 
   constructor(
@@ -44,7 +45,7 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
     this.lanes.operations.push("readOrder");
     this.readOrders.push(orderId);
     this.observeLane();
-    return this.reading;
+    return this.readingsByOrder.get(orderId) ?? this.reading;
   }
 
   private observeLane() {
