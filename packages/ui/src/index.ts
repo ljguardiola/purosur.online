@@ -137,6 +137,8 @@ export type { AreaNavItemProps } from "./components/navigation/area-nav-item";
 export { AreaNavItem } from "./components/navigation/area-nav-item";
 export type { PaginationProps } from "./components/navigation/pagination";
 export { Pagination } from "./components/navigation/pagination";
+export type { SectionNavButtonProps } from "./components/navigation/section-nav-button";
+export { SectionNavButton } from "./components/navigation/section-nav-button";
 export type { SectionNavItemProps } from "./components/navigation/section-nav-item";
 export { SectionNavItem } from "./components/navigation/section-nav-item";
 export type {
