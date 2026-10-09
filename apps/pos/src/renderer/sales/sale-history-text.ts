@@ -4,7 +4,7 @@ import type {
   SalesHistoryOutcome,
 } from "@purosur/contracts";
 import type { PaymentMethod } from "@purosur/domain";
-import type { Tone } from "@purosur/ui";
+import type { SummaryRowGroupProps, SummaryRowProps, TagProps } from "@purosur/ui";
 import { formatInvoiceNumber, formatOperationNumber, formatPointOfSaleNumber } from "@purosur/ui";
 
 type FoundHistory = Extract<SalesHistoryOutcome, { kind: "found" }>;
@@ -23,7 +23,7 @@ const STATE_PRESENTATION = {
   completed: { label: "Completada", tone: "success" },
   in_progress: { label: "En trámite", tone: "info" },
   deferred: { label: "Diferida", tone: "neutral" },
-} as const satisfies Record<ShownSaleState, { label: string; tone: Tone }>;
+} as const satisfies Record<ShownSaleState, { label: string; tone: TagProps["tone"] }>;
 
 export function comprobantePresentation(
   comprobante: ShownComprobante,
@@ -53,7 +53,10 @@ export function paymentMethodsText(methods: readonly PaymentMethod[]): string {
   return methods.length === 0 ? "—" : methods.map(paymentMethodName).join(" + ");
 }
 
-export function saleStatePresentation(state: ShownSaleState): { label: string; tone: Tone } {
+export function saleStatePresentation(state: ShownSaleState): {
+  label: string;
+  tone: TagProps["tone"];
+} {
   return STATE_PRESENTATION[state];
 }
 
@@ -69,4 +72,10 @@ export function receiptCopyPresentation(copy: ReceiptCopyShown): {
         comesOutAs: "Sale como duplicado",
         legend: `DUPLICADO · REIMPRESIÓN Nº ${copy.order_number}`,
       };
+}
+
+export function nonEmptyRows([first, ...rest]: SummaryRowProps[]):
+  | SummaryRowGroupProps["rows"]
+  | undefined {
+  return first === undefined ? undefined : [first, ...rest];
 }

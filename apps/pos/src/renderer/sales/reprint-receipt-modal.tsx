@@ -1,4 +1,9 @@
-import type { Authorization, ReprintSaleReceiptOutcome, SignInUser } from "@purosur/contracts";
+import type {
+  Authorization,
+  ReceiptCopyShown,
+  ReprintSaleReceiptOutcome,
+  SignInUser,
+} from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import {
   Button,
@@ -21,7 +26,11 @@ import {
   reprintReceiptRequestFrom,
 } from "./reprint-receipt-form";
 import type { SaleDetail } from "./sale-history-text";
-import { comprobantePresentation, receiptCopyPresentation } from "./sale-history-text";
+import {
+  comprobantePresentation,
+  nonEmptyRows,
+  receiptCopyPresentation,
+} from "./sale-history-text";
 
 const FAILED_MESSAGE = "No se pudo reimprimir. Probá de nuevo.";
 const BUSY_MESSAGE =
@@ -39,7 +48,7 @@ export type ReprintReceiptModalProps = {
     reason: string,
     authorization: Authorization | undefined,
   ) => Promise<ReprintSaleReceiptOutcome>;
-  onReprinted: () => void;
+  onReprinted: (copy: ReceiptCopyShown) => void;
   onSaleGone: () => void;
   onSessionInvalid: () => void;
   onClose: () => void;
@@ -80,7 +89,7 @@ export function ReprintReceiptModal({
       switch (outcome.kind) {
         case "started":
           authorization.performed();
-          onReprinted();
+          onReprinted(outcome.copy);
           break;
         case "busy":
           setNotice(BUSY_MESSAGE);
@@ -122,6 +131,16 @@ export function ReprintReceiptModal({
     void submit();
   }
 
+  const rows = nonEmptyRows([
+    ...(copy.legend === undefined ? [] : [{ label: "Leyenda", value: copy.legend }]),
+    ...(comprobante === undefined
+      ? []
+      : [{ label: "Comprobante", value: `${comprobante.name} · ${comprobante.detail}` }]),
+    ...(sale.operation_number === null
+      ? []
+      : [{ label: "Operación", value: formatOperationNumber(sale.operation_number) }]),
+  ]);
+
   return (
     <Modal
       open
@@ -160,17 +179,7 @@ export function ReprintReceiptModal({
       }
     >
       <div className="flex flex-col gap-5">
-        <SummaryRowGroup
-          rows={[
-            ...(copy.legend === undefined ? [] : [{ label: "Leyenda", value: copy.legend }]),
-            ...(comprobante === undefined
-              ? []
-              : [{ label: "Comprobante", value: `${comprobante.name} · ${comprobante.detail}` }]),
-            ...(sale.operation_number === null
-              ? []
-              : [{ label: "Operación", value: formatOperationNumber(sale.operation_number) }]),
-          ]}
-        />
+        {rows === undefined ? null : <SummaryRowGroup rows={rows} />}
         <form.AppField name="reason" listeners={{ onChange: () => setNotice(undefined) }}>
           {(field) => (
             <field.TextField

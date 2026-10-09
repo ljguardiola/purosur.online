@@ -1,4 +1,4 @@
-import type { SummaryRowGroupProps, SummaryRowProps } from "@purosur/ui";
+import type { SummaryRowProps } from "@purosur/ui";
 import {
   Button,
   EmptyState,
@@ -19,6 +19,7 @@ import type { CoreData } from "../platform/use-core-query";
 import type { SaleDetail } from "./sale-history-text";
 import {
   comprobantePresentation,
+  nonEmptyRows,
   paymentMethodName,
   receiptCopyPresentation,
 } from "./sale-history-text";
@@ -48,13 +49,9 @@ function detailRows(sale: SaleDetail): SummaryRowProps[] {
   ];
 }
 
-function groupRows([first, ...rest]: SummaryRowProps[]): SummaryRowGroupProps["rows"] | undefined {
-  return first === undefined ? undefined : [first, ...rest];
-}
-
 function Sale({ sale, onReprint }: { sale: SaleDetail; onReprint: (sale: SaleDetail) => void }) {
-  const details = groupRows(detailRows(sale));
-  const payments = groupRows(
+  const details = nonEmptyRows(detailRows(sale));
+  const payments = nonEmptyRows(
     sale.payments.map((payment) => ({
       label: paymentMethodName(payment.method),
       value: formatCents(payment.amount),
