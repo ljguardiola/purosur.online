@@ -3,15 +3,15 @@ import { describe, expect, it } from "vitest";
 import {
   chargeRefusal,
   isBuyerIdentificationThresholdAmount,
-  latestThreshold,
-  startsAfterLatestThreshold,
+  isLowerThanInEffect,
+  startsFromToday,
   thresholdInEffectOn,
   thresholdScheduledAfter,
 } from "./buyer-identification-threshold.js";
 
-const first = { id: "t1", amount: 1_000_000, validFrom: "2026-01-01" };
-const second = { id: "t2", amount: 2_000_000, validFrom: "2026-06-01" };
-const third = { id: "t3", amount: 3_000_000, validFrom: "2026-09-01" };
+const first = { id: "t1", amount: 1_000_000, validFrom: "2026-01-01", revision: 0 };
+const second = { id: "t2", amount: 2_000_000, validFrom: "2026-06-01", revision: 0 };
+const third = { id: "t3", amount: 3_000_000, validFrom: "2026-09-01", revision: 0 };
 
 describe("isBuyerIdentificationThresholdAmount", () => {
   it.each([1, 100, Number.MAX_SAFE_INTEGER])("accepts %s cents", (amount) => {
@@ -30,20 +30,37 @@ describe("isBuyerIdentificationThresholdAmount", () => {
   });
 });
 
-describe("startsAfterLatestThreshold", () => {
-  it("accepts any day when no threshold exists", () => {
-    expect(startsAfterLatestThreshold("2020-01-01", undefined)).toBe(true);
-  });
-
-  it("accepts a day after the latest threshold's", () => {
-    expect(startsAfterLatestThreshold("2026-06-02", second)).toBe(true);
+describe("startsFromToday", () => {
+  it.each([
+    ["today", "2026-06-01"],
+    ["a later day", "2026-06-02"],
+    ["a day in another year", "2027-01-01"],
+  ])("accepts %s", (_case, day) => {
+    expect(startsFromToday(day, "2026-06-01")).toBe(true);
   });
 
   it.each([
-    ["the same day", "2026-06-01"],
-    ["an earlier day", "2026-05-31"],
-  ])("refuses %s as the latest threshold's", (_case, day) => {
-    expect(startsAfterLatestThreshold(day, second)).toBe(false);
+    ["the day before", "2026-05-31"],
+    ["a day in an earlier year", "2025-12-31"],
+  ])("refuses %s", (_case, day) => {
+    expect(startsFromToday(day, "2026-06-01")).toBe(false);
+  });
+});
+
+describe("isLowerThanInEffect", () => {
+  it("is true for an amount below the one in effect", () => {
+    expect(isLowerThanInEffect(1_999_999, second)).toBe(true);
+  });
+
+  it.each([
+    ["equal to", 2_000_000],
+    ["above", 2_000_001],
+  ])("is false for an amount %s the one in effect", (_case, amount) => {
+    expect(isLowerThanInEffect(amount, second)).toBe(false);
+  });
+
+  it("is false when no threshold is in effect", () => {
+    expect(isLowerThanInEffect(1, undefined)).toBe(false);
   });
 });
 
@@ -69,6 +86,43 @@ describe("thresholdInEffectOn", () => {
   });
 });
 
+describe("thresholdInEffectOn with replacements", () => {
+  const replaced = { id: "r0", amount: 10_000, validFrom: "2026-06-01", revision: 0 };
+  const replacement = { id: "r1", amount: 10_000_000, validFrom: "2026-06-01", revision: 1 };
+  const replacedAgain = { id: "r2", amount: 9_000_000, validFrom: "2026-06-01", revision: 2 };
+
+  it("answers the highest revision of the day it starts, whatever the order of the list", () => {
+    fc.assert(
+      fc.property(
+        fc.shuffledSubarray([replaced, replacement, replacedAgain], { minLength: 3 }),
+        (list) => {
+          expect(thresholdInEffectOn([first, ...list], "2026-06-01")).toEqual(replacedAgain);
+        },
+      ),
+    );
+  });
+
+  it("prefers the later day over a higher revision of an earlier day", () => {
+    const earlierDayRevised = { id: "e1", amount: 5, validFrom: "2026-05-01", revision: 7 };
+
+    expect(thresholdInEffectOn([earlierDayRevised, replaced], "2026-06-01")).toEqual(replaced);
+  });
+});
+
+describe("thresholdScheduledAfter with replacements", () => {
+  const replaced = { id: "r0", amount: 10_000, validFrom: "2026-09-01", revision: 0 };
+  const replacement = { id: "r1", amount: 10_000_000, validFrom: "2026-09-01", revision: 1 };
+  const afterThem = { id: "r9", amount: 4_000_000, validFrom: "2026-10-01", revision: 5 };
+
+  it("answers the highest revision of the next day to start, whatever the order", () => {
+    fc.assert(
+      fc.property(fc.shuffledSubarray([replaced, replacement, afterThem], { minLength: 3 }), (list) => {
+        expect(thresholdScheduledAfter(list, "2026-08-01")).toEqual(replacement);
+      }),
+    );
+  });
+});
+
 describe("thresholdScheduledAfter", () => {
   it("answers nothing when every threshold has started", () => {
     expect(thresholdScheduledAfter([first, second], "2026-06-01")).toBeUndefined();
@@ -84,16 +138,6 @@ describe("thresholdScheduledAfter", () => {
 
   it("answers the next one to start when several are scheduled, whatever the order of the list", () => {
     expect(thresholdScheduledAfter([third, second, first], "2026-03-01")).toEqual(second);
-  });
-});
-
-describe("latestThreshold", () => {
-  it("answers nothing when no threshold exists", () => {
-    expect(latestThreshold([])).toBeUndefined();
-  });
-
-  it("answers the threshold that starts last, whatever the order of the list", () => {
-    expect(latestThreshold([second, third, first])).toEqual(third);
   });
 });
 
@@ -153,7 +197,7 @@ describe("chargeRefusal", () => {
         fc.integer({ min: 1, max: 10_000_000 }),
         fc.integer({ min: 0, max: 20_000_000 }),
         (limit, amount) => {
-          const only = [{ id: "t", amount: limit, validFrom: "2026-01-01" }];
+          const only = [{ id: "t", amount: limit, validFrom: "2026-01-01", revision: 0 }];
 
           expect(chargeRefusal(amount, only, noon("2026-07-01"))).toEqual(
             amount >= limit ? reaches(limit) : undefined,
