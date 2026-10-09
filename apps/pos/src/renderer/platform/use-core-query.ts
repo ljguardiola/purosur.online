@@ -38,9 +38,7 @@ export function useCoreQuery<T>({
   const query = useQuery({
     ...coreQueryOptions({ queryKey, read, staleTime }),
     enabled,
-    ...(refetchInterval === undefined
-      ? {}
-      : { refetchInterval: (current) => refetchInterval(current.state.data) }),
+    refetchInterval: (current) => refetchInterval?.(current.state.data) ?? false,
   });
   if (query.data !== undefined) {
     return { status: "loaded", value: query.data, refreshing: query.isFetching };
