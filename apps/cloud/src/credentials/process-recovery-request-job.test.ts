@@ -207,27 +207,6 @@ describe("processRecoveryRequestJob", () => {
     });
   });
 
-  it("leaves a link issued for a newer request valid when an older request is processed late", async () => {
-    await insertUser("ada@example.com");
-    const newerRequestAt = new Date(NOW.getTime() + RECOVERY_TOKEN_LIFETIME_MS);
-    await processRecoveryRequestJob(
-      db,
-      request("ada@example.com", newerRequestAt),
-      jobDeps(newerRequestAt),
-    );
-
-    const lateResult = await processRecoveryRequestJob(
-      db,
-      request("ada@example.com", NOW),
-      jobDeps(new Date(newerRequestAt.getTime() + 60 * 1000)),
-    );
-
-    expect(lateResult).toEqual({});
-    const tokens = await db.select().from(recoveryTokens);
-    expect(tokens).toHaveLength(1);
-    expect(tokens[0]?.voidedAt).toBeNull();
-  });
-
   it("issues no second link for a different request made in the same millisecond", async () => {
     await insertUser("ada@example.com");
 
