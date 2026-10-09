@@ -49,19 +49,19 @@ export async function applyRegisterStockMovements(
   for (const movement of input.movements) {
     const key = { productId: movement.productId, locationId: input.locationId };
     const coveringCount = await tx.earliestCountAtOrAfter(key, input.occurredAt);
-    const result = await applyStockMovement(tx, lockedBalances.get(movement.productId) ?? 0, {
-      ...key,
-      id: movement.id,
-      saleLineId: movement.saleLineId,
-      kind: movement.kind,
-      reason: null,
-      delta: movement.delta,
-      occurredAt: input.occurredAt,
-      actorId: input.actorId,
-      supersededByCountId: coveringCount?.movementId ?? null,
-    });
-    lockedBalances.set(movement.productId, result.balance);
-    applied.push(result);
+    applied.push(
+      await applyStockMovement(tx, lockedBalances.get(movement.productId) ?? 0, {
+        ...key,
+        id: movement.id,
+        saleLineId: movement.saleLineId,
+        kind: movement.kind,
+        reason: null,
+        delta: movement.delta,
+        occurredAt: input.occurredAt,
+        actorId: input.actorId,
+        supersededByCountId: coveringCount?.movementId ?? null,
+      }),
+    );
   }
   return { kind: "applied", movements: applied };
 }
