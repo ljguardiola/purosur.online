@@ -8,6 +8,8 @@ export const PAYMENT_TRANSACTION_STATES = [
 
 export type PaymentTransactionState = (typeof PAYMENT_TRANSACTION_STATES)[number];
 
+export const PENDING_PAYMENT_TRANSACTION_STATE: PaymentTransactionState = "PENDING";
+
 export const MERCADO_PAGO_ORDER_EXPIRY_MINUTES = 5;
 
 export interface ProviderPaymentTransaction {
