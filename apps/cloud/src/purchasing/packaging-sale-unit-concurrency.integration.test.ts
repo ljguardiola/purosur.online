@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { editProduct } from "@purosur/domain/catalog/use-cases";
 import { createPackaging } from "@purosur/domain/purchasing/use-cases";
 import { eq } from "drizzle-orm";
@@ -5,7 +6,7 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
-import { productPackagings, products } from "../platform/db/schema.js";
+import { productBarcodes, productPackagings, products } from "../platform/db/schema.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -39,11 +40,15 @@ const TWELVE_UNITS = 12_000;
 
 async function unitProduct() {
   const product = await insertProduct(db, { name: "Galletitas" });
+  const barcode = randomUUID();
+  await db
+    .insert(productBarcodes)
+    .values({ productId: product.id, code: barcode, position: 0, active: true });
   const [row] = await db
     .select({ categoryId: products.categoryId })
     .from(products)
     .where(eq(products.id, product.id));
-  return { ...product, categoryId: row?.categoryId ?? "" };
+  return { ...product, barcode, categoryId: row?.categoryId ?? "" };
 }
 
 function holdProductRowLock(id: string) {
@@ -51,7 +56,12 @@ function holdProductRowLock(id: string) {
     connection`select id from products where id = ${id} for update`;
 }
 
-function editToWeight(product: { id: string; version: number; categoryId: string }) {
+function editToWeight(product: {
+  id: string;
+  version: number;
+  categoryId: string;
+  barcode: string;
+}) {
   return () =>
     editProduct(
       { store: new DrizzleCatalogStore(db), clock },
@@ -61,7 +71,7 @@ function editToWeight(product: { id: string; version: number; categoryId: string
         categoryId: product.categoryId,
         brandId: null,
         saleUnit: "KG",
-        barcodes: [],
+        barcodes: [product.barcode],
         netContent: null,
         tagIds: [],
         version: product.version,
