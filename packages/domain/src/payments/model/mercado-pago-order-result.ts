@@ -1,6 +1,6 @@
 import type { PaymentTransactionState } from "./payment-transaction.js";
 
-export interface MercadoPagoOrderPayment {
+interface MercadoPagoOrderPayment {
   status: string;
   statusDetail: string;
   paidAmount: number | null;

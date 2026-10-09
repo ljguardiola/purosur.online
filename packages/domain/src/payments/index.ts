@@ -1,13 +1,4 @@
 export { cashCharge } from "./model/cash-charge.js";
-export type {
-  MercadoPagoOrderPayment,
-  MercadoPagoOrderResult,
-  PaymentStateAssessment,
-} from "./model/mercado-pago-order-result.js";
-export {
-  applyMercadoPagoOrderResult,
-  paymentStateOfMercadoPagoOrder,
-} from "./model/mercado-pago-order-result.js";
 export { nonCashCharge } from "./model/non-cash-charge.js";
 export type { PaymentMethod, PaymentTransaction } from "./model/payment.js";
 export {
@@ -29,11 +20,6 @@ export type {
   PaymentTransactionState,
   ProviderPaymentTransaction,
 } from "./model/payment-transaction.js";
-export {
-  isValidOrderAmount,
-  MERCADO_PAGO_ORDER_EXPIRY_MINUTES,
-  mercadoPagoOrderExpiresAt,
-  PAYMENT_TRANSACTION_STATES,
-} from "./model/payment-transaction.js";
+export { isValidOrderAmount, PAYMENT_TRANSACTION_STATES } from "./model/payment-transaction.js";
 export type { SaleBalance } from "./model/sale-balance.js";
 export { approvedPaymentsCoverTotal, saleBalance } from "./model/sale-balance.js";
