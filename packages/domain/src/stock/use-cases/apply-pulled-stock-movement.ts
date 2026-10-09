@@ -6,8 +6,8 @@ export type ApplyPulledStockMovementOutcome =
   | { kind: "undone" }
   | { kind: "unchanged" };
 
-// A movement the ledger already holds was either applied when the register recorded it or when it
-// first arrived, so the only change it can still bring is a count the cloud superseded it by.
+// A movement the ledger already holds either moved the balance when it was recorded or was recorded
+// already superseded, so the only change it can still bring is a count the cloud superseded it by.
 export function applyPulledStockMovement(
   ledger: ReplicatedStockLedger,
   movement: PulledStockMovement,
