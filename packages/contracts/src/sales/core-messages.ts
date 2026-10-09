@@ -20,6 +20,13 @@ import {
   searchProductsOutcomeSchema,
   shownLineQuantitySchema,
 } from "./sale.js";
+import {
+  receiptCopySchema,
+  saleHistoryDetailOutcomeSchema,
+  salesHistoryOutcomeSchema,
+  salesHistorySessionSchema,
+  salesHistoryStateSchema,
+} from "./sales-history.js";
 
 const requestId = requestIdSchema;
 
@@ -87,6 +94,20 @@ const reprintSaleReceiptMessageSchema = z.object({
   authorization: authorizationSchema.optional(),
 });
 
+const salesHistoryMessageSchema = z.object({
+  type: z.literal("sales-history"),
+  request_id: requestId,
+  session: salesHistorySessionSchema,
+  state: salesHistoryStateSchema,
+  page: z.int().positive(),
+});
+
+const saleHistoryDetailMessageSchema = z.object({
+  type: z.literal("sale-history-detail"),
+  request_id: requestId,
+  sale_id: z.string(),
+});
+
 const saleRequestMessageSchema = z.object({
   type: z.literal("sale-request"),
   request_id: requestId,
@@ -136,6 +157,8 @@ export const salesRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   receiptPrintStatusMessageSchema,
   retryReceiptPrintMessageSchema,
   reprintSaleReceiptMessageSchema,
+  salesHistoryMessageSchema,
+  saleHistoryDetailMessageSchema,
 ]);
 export type SalesRendererToCoreMessage = z.infer<typeof salesRendererToCoreMessageSchema>;
 
@@ -148,12 +171,6 @@ const cancelLockedSaleOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("not_locked") }),
 ]);
 export type CancelLockedSaleOutcome = z.infer<typeof cancelLockedSaleOutcomeSchema>;
-
-const receiptCopySchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("original") }),
-  z.object({ kind: z.literal("duplicate"), order_number: z.int().positive() }),
-]);
-export type ReceiptCopyShown = z.infer<typeof receiptCopySchema>;
 
 const receiptPrintStatusOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({
@@ -255,6 +272,16 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("reprint-sale-receipt-result"),
     request_id: requestId,
     outcome: reprintSaleReceiptOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("sales-history-result"),
+    request_id: requestId,
+    outcome: salesHistoryOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("sale-history-detail-result"),
+    request_id: requestId,
+    outcome: saleHistoryDetailOutcomeSchema,
   }),
   z.object({ type: z.literal("sale"), request_id: requestId, sale: saleSchema.nullable() }),
   z.object({ type: z.literal("sale-unavailable"), request_id: requestId }),

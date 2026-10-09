@@ -239,7 +239,6 @@ export {
 } from "./register/register-sync-status.js";
 export type {
   CancelLockedSaleOutcome,
-  ReceiptCopyShown,
   ReceiptPrintStatusOutcome,
   ReprintSaleReceiptOutcome,
   RetryReceiptPrintOutcome,
@@ -268,6 +267,11 @@ export type {
   ScanProductOutcome,
   SearchProductsOutcome,
 } from "./sales/sale.js";
+export type {
+  ReceiptCopyShown,
+  SaleHistoryDetailOutcome,
+  SalesHistoryOutcome,
+} from "./sales/sales-history.js";
 export type {
   ReportRegisterListBody,
   SalesReportBody,
