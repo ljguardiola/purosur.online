@@ -4,12 +4,21 @@ import {
   MANUAL_STOCK_MOVEMENT_KINDS,
   manualStockMovementCapability,
   manualStockMovementReasons,
+  STOCK_MOVEMENT_KINDS,
+  type StockMovementKind,
   visibleManualStockMovementKinds,
 } from "./stock-movement-kind.js";
 
 describe("MANUAL_STOCK_MOVEMENT_KINDS", () => {
   it("lists the movements a person records by hand, losses before adjustments", () => {
     expect(MANUAL_STOCK_MOVEMENT_KINDS).toEqual(["loss", "adjustment"]);
+  });
+});
+
+describe("STOCK_MOVEMENT_KINDS", () => {
+  it("lists every movement a balance moves by: the ones recorded by hand, counts and sales", () => {
+    expect(STOCK_MOVEMENT_KINDS).toEqual(["loss", "adjustment", "count", "sale"]);
+    expectTypeOf<(typeof STOCK_MOVEMENT_KINDS)[number]>().toEqualTypeOf<StockMovementKind>();
   });
 });
 

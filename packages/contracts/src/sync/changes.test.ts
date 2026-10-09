@@ -117,6 +117,15 @@ const priceRow = {
   version: 1,
 };
 
+const stockMovementRow = {
+  product_id: "0b1d2f4a-6c3e-4b7d-9a58-1e2f3a4b5c6d",
+  kind: "sale",
+  delta: -3000,
+  occurred_at: "2026-10-09T14:20:00.000Z",
+  superseded_by_count_id: "7c6b5a49-3827-4615-a4b3-c2d1e0f9a8b7",
+  version: 1,
+};
+
 function change(changeSeq: number, entity: string, row: unknown) {
   return { change_seq: changeSeq, entity, entity_id: ENTITY_ID, row };
 }
@@ -277,6 +286,46 @@ describe("changesPageSchema", () => {
     );
 
     expect(changesPageSchema.parse(page)).toEqual(page);
+  });
+
+  it("accepts a stock movement of every kind, superseded by a count or not", () => {
+    const page = pageOf(
+      change(1, "stock_movement", stockMovementRow),
+      change(2, "stock_movement", {
+        ...stockMovementRow,
+        kind: "loss",
+        superseded_by_count_id: null,
+      }),
+      change(3, "stock_movement", { ...stockMovementRow, kind: "adjustment", delta: 4000 }),
+      change(4, "stock_movement", { ...stockMovementRow, kind: "count", delta: 0 }),
+    );
+
+    expect(changesPageSchema.parse(page)).toEqual(page);
+  });
+
+  it("keeps nothing of a stock movement but the fields a register may hold", () => {
+    const page = pageOf(
+      change(1, "stock_movement", {
+        ...stockMovementRow,
+        reason: "spoiled",
+        location_id: ENTITY_ID,
+        actor_id: ENTITY_ID,
+      }),
+    );
+
+    expect(changesPageSchema.parse(page).changes[0]).toEqual(
+      change(1, "stock_movement", stockMovementRow),
+    );
+  });
+
+  it.each([
+    ["a kind no balance moves by", { kind: "receipt" }],
+    ["a fractional delta", { delta: -0.5 }],
+    ["a moment that is not a date and time", { occurred_at: "2026-10-09" }],
+  ])("refuses a stock movement with %s", (_, override) => {
+    const page = pageOf(change(1, "stock_movement", { ...stockMovementRow, ...override }));
+
+    expect(changesPageSchema.safeParse(page).success).toBe(false);
   });
 
   it("keeps nothing of a user but the fields a register may hold", () => {
