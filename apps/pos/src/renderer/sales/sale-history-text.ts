@@ -1,4 +1,8 @@
-import type { ReceiptCopyShown, SalesHistoryOutcome } from "@purosur/contracts";
+import type {
+  ReceiptCopyShown,
+  SaleHistoryDetailOutcome,
+  SalesHistoryOutcome,
+} from "@purosur/contracts";
 import type { PaymentMethod } from "@purosur/domain";
 import type { Tone } from "@purosur/ui";
 import { formatInvoiceNumber, formatOperationNumber, formatPointOfSaleNumber } from "@purosur/ui";
@@ -6,6 +10,7 @@ import { formatInvoiceNumber, formatOperationNumber, formatPointOfSaleNumber } f
 type FoundHistory = Extract<SalesHistoryOutcome, { kind: "found" }>;
 type HistoryRow = FoundHistory["rows"][number];
 
+export type SaleDetail = Extract<SaleHistoryDetailOutcome, { kind: "found" }>["detail"];
 export type ShownComprobante = HistoryRow["comprobante"];
 export type ShownSaleState = HistoryRow["state"];
 
