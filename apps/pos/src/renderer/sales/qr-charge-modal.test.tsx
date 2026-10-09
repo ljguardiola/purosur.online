@@ -60,10 +60,8 @@ describe("QrChargeModal", () => {
     await expect.element(screen.getByText("$ 10.000,00")).toBeVisible();
     await expect.element(screen.getByText("Saldo pendiente")).toBeVisible();
     await expect
-      .element(
-        screen.getByText("La orden se crea por este importe. Después ya no se puede cambiar."),
-      )
-      .toBeVisible();
+      .element(screen.getByRole("status"))
+      .toHaveTextContent("La orden se crea por este importe. Después ya no se puede cambiar.");
     await expectNoAccessibilityViolations(screen.container);
   });
 
@@ -134,8 +132,8 @@ describe("QrChargeModal", () => {
     await userEvent.click(create);
 
     await expect
-      .element(screen.getByText("Mercado Pago no pudo crear la orden. Cobrá con otro medio."))
-      .toBeVisible();
+      .element(screen.getByRole("alert"))
+      .toHaveTextContent("Mercado Pago no pudo crear la orden. Cobrá con otro medio.");
     await expect.element(create).toBeEnabled();
     await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
     expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
@@ -148,12 +146,10 @@ describe("QrChargeModal", () => {
     await userEvent.click(create);
 
     await expect
-      .element(
-        screen.getByText(
-          "No se pudo crear la orden porque la caja no llega a la nube. Cobrá con otro medio.",
-        ),
-      )
-      .toBeVisible();
+      .element(screen.getByRole("alert"))
+      .toHaveTextContent(
+        "No se pudo crear la orden porque la caja no llega a la nube. Cobrá con otro medio.",
+      );
     await expect.element(create).toBeEnabled();
   });
 
@@ -165,8 +161,8 @@ describe("QrChargeModal", () => {
     await userEvent.click(create);
 
     await expect
-      .element(screen.getByText("No se pudo crear la orden. Probá de nuevo."))
-      .toBeVisible();
+      .element(screen.getByRole("alert"))
+      .toHaveTextContent("No se pudo crear la orden. Probá de nuevo.");
   });
 
   it.each([
