@@ -168,11 +168,38 @@ describe("POST /events", () => {
         appVersion: "1.4.0",
         lastPushedAt: NOW,
         lastAcceptedPushAt: NOW,
+        reportsEveryCycleSince: null,
         walSizeBytes: 4096,
         diskFreeBytes: 50_000_000,
         diskFreeRatio: 0.42,
       },
     ]);
+  });
+
+  it("accepts a push of no events as a sync, answering the ack of what it holds, recording the report and that the installation reports on every sync cycle", async () => {
+    const { deviceId, deviceToken } = await enroll();
+    await push(body(1, 2), `Bearer ${deviceToken}`);
+    const [first] = await route.db
+      .select()
+      .from(deviceState)
+      .where(eq(deviceState.deviceId, deviceId));
+    expect(first?.lastAcceptedPushAt).toEqual(NOW);
+    await route.db.update(deviceState).set({ lastAcceptedPushAt: null });
+
+    const response = await push(body(), `Bearer ${deviceToken}`);
+
+    expect(response.statusCode).toBe(200);
+    expect(pushEventsResponseSchema.parse(response.json())).toEqual({ status: "ok", ack_seq: 2 });
+    const [recorded] = await route.db
+      .select()
+      .from(deviceState)
+      .where(eq(deviceState.deviceId, deviceId));
+    expect(recorded).toMatchObject({
+      lastAcceptedPushAt: NOW,
+      reportsEveryCycleSince: NOW,
+      appVersion: "1.4.0",
+    });
+    expect(await route.db.select().from(inbox).where(eq(inbox.deviceId, deviceId))).toHaveLength(2);
   });
 
   it("answers the seq it expects and stores nothing of a batch that skips one", async () => {
@@ -299,7 +326,7 @@ describe("POST /events", () => {
   it("refuses a body that is not a push, naming the field", async () => {
     const { deviceToken } = await enroll();
 
-    const response = await push({ ...body(1), events: [] }, `Bearer ${deviceToken}`);
+    const response = await push({ ...body(1), events: "none" }, `Bearer ${deviceToken}`);
 
     expect(response.statusCode).toBe(400);
     expect(cloudErrorSchema.parse(response.json())).toMatchObject({

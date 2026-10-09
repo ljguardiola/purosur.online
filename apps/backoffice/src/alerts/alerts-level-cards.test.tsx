@@ -45,3 +45,15 @@ test("names a kind this app does not know yet by the kind itself", async () => {
     .element(screen.getByRole("link", { name: "Informativas 1 register_disk_low" }))
     .toBeVisible();
 });
+
+test("names a kind that has a fixed plain-language text by its title", async () => {
+  const screen = await render(
+    <AlertsLevelCards
+      overview={{ ...overview, critical: { openCount: 1, kinds: ["register_silent"] } }}
+    />,
+  );
+
+  await expect
+    .element(screen.getByRole("link", { name: "Alertas críticas 1 La caja no está sincronizando" }))
+    .toBeVisible();
+});

@@ -19,12 +19,60 @@ function push(outbox: FakeLocalOutbox, answers: FakeCloudAnswer[]) {
 }
 
 describe("pushing the outbox to the cloud", () => {
-  it("has nothing to push when every event was acknowledged", async () => {
+  it("reports to the cloud with a push of no events when every event was acknowledged", async () => {
     const outbox = new FakeLocalOutbox([]);
-    const { inbox, outcome } = push(outbox, []);
+    const { inbox, outcome } = push(outbox, [{ kind: "received", ackSeq: 0 }]);
 
     expect(await outcome).toEqual({ kind: "up_to_date" });
-    expect(inbox.pushedBatches).toEqual([]);
+    expect(inbox.pushedBatches).toEqual([[]]);
+    expect(outbox.acknowledgedThrough).toEqual([]);
+  });
+
+  it("reports with a push of no events when the events it held were all acknowledged earlier", async () => {
+    const outbox = new FakeLocalOutbox(eventsFrom(1, 3), 3);
+    const { inbox, outcome } = push(outbox, [{ kind: "received", ackSeq: 3 }]);
+
+    expect(await outcome).toEqual({ kind: "up_to_date" });
+    expect(inbox.pushedBatches).toEqual([[]]);
+  });
+
+  it("acknowledges what the cloud already holds and reports an update is required when the cloud asks for one of a push of no events", async () => {
+    const outbox = new FakeLocalOutbox([]);
+    const { inbox, installation, outcome } = push(outbox, [{ kind: "update_required", ackSeq: 4 }]);
+
+    expect(await outcome).toEqual({ kind: "update_required" });
+    expect(outbox.acknowledgedThrough).toEqual([4]);
+    expect(inbox.pushedBatches).toEqual([[]]);
+    expect(installation.revoked).toBe(false);
+  });
+
+  it("records the installation as revoked when the cloud says so of a push of no events", async () => {
+    const outbox = new FakeLocalOutbox([]);
+    const { installation, outcome } = push(outbox, [{ kind: "revoked" }]);
+
+    expect(await outcome).toEqual({ kind: "revoked" });
+    expect(installation.revocationsRecorded).toBe(1);
+    expect(outbox.acknowledgedThrough).toEqual([]);
+  });
+
+  it("reports the failure when the cloud cannot be reached with a push of no events", async () => {
+    const outbox = new FakeLocalOutbox([]);
+    const { installation, outcome } = push(outbox, [{ kind: "failed", failure: "offline" }]);
+
+    expect(await outcome).toEqual({ kind: "failed", failure: "offline" });
+    expect(installation.revoked).toBe(false);
+  });
+
+  it("reports the gap or the stale device the cloud answers to a push of no events, acknowledging nothing", async () => {
+    const gapOutbox = new FakeLocalOutbox([]);
+    const gap = push(gapOutbox, [{ kind: "gap", ackSeq: 2, expectedSeq: 3 }]);
+    const staleOutbox = new FakeLocalOutbox([]);
+    const stale = push(staleOutbox, [{ kind: "stale_device", ackSeq: 9 }]);
+
+    expect(await gap.outcome).toEqual({ kind: "gap", expectedSeq: 3 });
+    expect(await stale.outcome).toEqual({ kind: "stale_device" });
+    expect(gapOutbox.acknowledgedThrough).toEqual([]);
+    expect(staleOutbox.acknowledgedThrough).toEqual([]);
   });
 
   it("pushes the unacknowledged events in device_seq order and marks them acknowledged", async () => {

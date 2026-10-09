@@ -35,6 +35,7 @@ const emailChange = {
   escalatedAt: null,
   resolvedAt: null,
   open: true,
+  resolvesByItself: false,
   deliveries: [delivery],
 };
 
@@ -115,6 +116,8 @@ describe("alertDetailSchema", () => {
     ["resolvedAt", undefined],
     ["open", "true"],
     ["open", null],
+    ["resolvesByItself", "false"],
+    ["resolvesByItself", null],
     ["deliveries", null],
     ["deliveries", {}],
   ])("refuses %s as %j", (field, value) => {
@@ -182,6 +185,7 @@ describe("alertDetailSchema", () => {
       AlertDetails["arca_certificate_expiring"]
     >();
     expectTypeOf<WireDetail<"update_required">>().toEqualTypeOf<AlertDetails["update_required"]>();
+    expectTypeOf<WireDetail<"register_silent">>().toEqualTypeOf<AlertDetails["register_silent"]>();
     expectTypeOf<WireDetail<"backoffice_sign_in_lockout">>().toExtend<
       Omit<AlertDetails["backoffice_sign_in_lockout"], "sourceAddress">
     >();
@@ -294,6 +298,7 @@ describe("alertDetailSchema", () => {
       },
       arca_certificate_expiring: { notAfter: "2026-11-20T15:30:00.000Z" },
       update_required: { deviceId: "device-1", appVersion: "0.9.0" },
+      register_silent: { deviceId: "device-1", lastAcceptedPushAt: "2026-10-05T14:30:00.000Z" },
     } satisfies Record<AlertKind, unknown>;
 
     it.each(ALERT_KINDS)("accepts the detail of %s", (kind) => {
@@ -311,6 +316,16 @@ describe("alertDetailSchema", () => {
       const { [field]: _omitted, ...detail } = detailOf[kind] as Record<string, unknown>;
 
       expect(alertDetailSchema.safeParse({ ...base, kind, detail }).success).toBe(false);
+    });
+
+    it("refuses a silent register with no last accepted push", () => {
+      const alert = {
+        ...base,
+        kind: "register_silent",
+        detail: { deviceId: "device-1", lastAcceptedPushAt: null },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).success).toBe(false);
     });
 
     it("takes a detail of another kind as a mismatch", () => {

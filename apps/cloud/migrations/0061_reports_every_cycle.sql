@@ -1,0 +1,1 @@
+ALTER TABLE "device_state" ADD COLUMN "reports_every_cycle_since" timestamp with time zone;

@@ -1,12 +1,8 @@
 import type { BranchSettings, BranchSettingsReader } from "@purosur/domain/branch/use-cases";
-import { asc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { branchHours, branchSettings } from "../platform/db/schema.js";
-
-// Postgres' `time` type answers with seconds ("09:00:00"); branch hours are only ever HH:MM.
-function hoursMinutes(time: string): string {
-  return time.slice(0, 5);
-}
+import { branchSettings } from "../platform/db/schema.js";
+import { readBranchHours } from "./drizzle-branch-hours-reader.js";
 
 export async function readBranchSettings<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
@@ -29,24 +25,7 @@ export async function readBranchSettings<TQueryResult extends PgQueryResultHKT>(
     // is a broken invariant, not a legitimate case.
     throw new Error(`branch settings missing for location ${locationId}`);
   }
-  const hours = await db
-    .select({
-      dayOfWeek: branchHours.dayOfWeek,
-      position: branchHours.position,
-      opensAt: branchHours.opensAt,
-      closesAt: branchHours.closesAt,
-    })
-    .from(branchHours)
-    .where(eq(branchHours.locationId, locationId))
-    .orderBy(asc(branchHours.dayOfWeek), asc(branchHours.position));
-  return {
-    ...row,
-    hours: hours.map((range) => ({
-      ...range,
-      opensAt: hoursMinutes(range.opensAt),
-      closesAt: hoursMinutes(range.closesAt),
-    })),
-  };
+  return { ...row, hours: await readBranchHours(db, locationId) };
 }
 
 export class DrizzleBranchSettingsReader<TQueryResult extends PgQueryResultHKT>

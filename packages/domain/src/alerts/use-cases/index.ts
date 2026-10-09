@@ -27,12 +27,15 @@ export type {
   SourceAddressHasher,
 } from "./alert-store.js";
 export { AlertAlreadyOpenError } from "./alert-store.js";
+export type { BranchHoursReader } from "./branch-hours-reader.js";
 export type {
   CloseAlertInput,
   CloseAlertOutcome,
   ClosedAlert,
 } from "./close-alert.js";
 export { closeAlert } from "./close-alert.js";
+export type { QuietRegisterDetectionPorts } from "./detect-quiet-registers.js";
+export { detectQuietRegisters } from "./detect-quiet-registers.js";
 export { escalateOverdueAlerts } from "./escalate-overdue-alerts.js";
 export type { ObserveAlertConditionOutcome } from "./observe-alert-condition.js";
 export { observeAlertCondition } from "./observe-alert-condition.js";
@@ -41,3 +44,4 @@ export { openAlert } from "./open-alert.js";
 export type { ResolveAlertOutcome } from "./resolve-alert.js";
 export { resolveAlert } from "./resolve-alert.js";
 export { resolveStablyClearedAlerts } from "./resolve-stably-cleared-alerts.js";
+export type { WatchedRegisterReader } from "./watched-register-reader.js";

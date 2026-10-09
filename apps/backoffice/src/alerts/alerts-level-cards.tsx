@@ -4,6 +4,7 @@ import { CountCard, sortedItems, textOrder } from "@purosur/ui";
 import { createLink } from "@tanstack/react-router";
 import { alertKindLabel } from "./alert-kind-label";
 import { ALERT_LEVEL_TONE } from "./alert-level-tone";
+import { localAlertText } from "./local-alert-text";
 
 const CountCardLink = createLink(CountCard);
 
@@ -16,7 +17,7 @@ const LEVEL_CARD_LABELS: Record<AlertLevel, string> = {
 };
 
 function kindsDetail(kinds: readonly string[]): string {
-  const labels = kinds.map(alertKindLabel);
+  const labels = kinds.map((kind) => localAlertText(kind)?.title ?? alertKindLabel(kind));
   return sortedItems(labels, {
     order: textOrder((label) => label),
     direction: "ascending",

@@ -24,7 +24,9 @@ export async function pushOutbox<TFailure>({
     const firstSentSeq = events[0]?.device_seq;
     const lastSentSeq = events.at(-1)?.device_seq;
     if (firstSentSeq === undefined || lastSentSeq === undefined) {
-      return pushedAny ? { kind: "pushed", ackSeq: lastAckSeq } : { kind: "up_to_date" };
+      return pushedAny
+        ? { kind: "pushed", ackSeq: lastAckSeq }
+        : reportWithoutEvents<TFailure>({ inbox, outbox, installation });
     }
     const answer = await inbox.push(events);
     switch (answer.kind) {
@@ -63,5 +65,29 @@ export async function pushOutbox<TFailure>({
       case "failed":
         return { kind: "failed", failure: answer.failure };
     }
+  }
+}
+
+async function reportWithoutEvents<TFailure>({
+  inbox,
+  outbox,
+  installation,
+}: PushOutboxPorts<TFailure>): Promise<PushOutboxOutcome<TFailure>> {
+  const answer = await inbox.push([]);
+  switch (answer.kind) {
+    case "received":
+      return { kind: "up_to_date" };
+    case "gap":
+      return { kind: "gap", expectedSeq: answer.expectedSeq };
+    case "stale_device":
+      return { kind: "stale_device" };
+    case "update_required":
+      await outbox.acknowledgeThrough(answer.ackSeq);
+      return { kind: "update_required" };
+    case "revoked":
+      await installation.recordRevoked();
+      return { kind: "revoked" };
+    case "failed":
+      return { kind: "failed", failure: answer.failure };
   }
 }
