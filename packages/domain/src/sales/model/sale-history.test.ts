@@ -51,9 +51,12 @@ describe("saleStandingOf", () => {
 
 describe("saleComprobanteOf", () => {
   it("is the authorized fiscal document with its point of sale and number", () => {
-    expect(
-      saleComprobanteOf({ deferred: false, fiscalDocument: document("AUTHORIZED") }),
-    ).toEqual({ kind: "fiscal", documentType: "FACTURA_C", pointOfSale: 3, number: 1204 });
+    expect(saleComprobanteOf({ deferred: false, fiscalDocument: document("AUTHORIZED") })).toEqual({
+      kind: "fiscal",
+      documentType: "FACTURA_C",
+      pointOfSale: 3,
+      number: 1204,
+    });
   });
 
   it("is a non-fiscal document when the sale is deferred", () => {
@@ -72,9 +75,9 @@ describe("saleComprobanteOf", () => {
   );
 
   it("is none while the fiscal document is still being requested", () => {
-    expect(saleComprobanteOf({ deferred: false, fiscalDocument: document("REQUESTING") })).toEqual(
-      { kind: "none" },
-    );
+    expect(saleComprobanteOf({ deferred: false, fiscalDocument: document("REQUESTING") })).toEqual({
+      kind: "none",
+    });
   });
 
   it("is none when the sale has no fiscal document and was not deferred", () => {

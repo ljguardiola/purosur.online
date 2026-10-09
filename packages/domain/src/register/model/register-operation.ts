@@ -14,6 +14,7 @@ export type RegisterOperation =
   | { kind: "sell" }
   | { kind: "cancel_paid_sale" }
   | { kind: "reprint_receipt" }
+  | { kind: "view_sales_history" }
   | { kind: "record_cash_movement"; movement: CashMovementKind }
   | { kind: "close_cash_session"; session: OpenSession }
   | { kind: "close_locked_register"; session: OpenSession | undefined };
@@ -32,6 +33,7 @@ export type RegisterOperationAccess =
 const SELLING_PERMISSION = "sell_and_charge";
 const VOID_SALE_PERMISSION = "void_sale";
 const REPRINT_RECEIPT_PERMISSION = "reprint_receipt";
+const VIEW_SALES_HISTORY_PERMISSION = "view_sales_history";
 
 const PERMITTED = { kind: "permitted" } as const;
 const REFUSED = { kind: "refused" } as const;
@@ -71,6 +73,12 @@ export function registerOperationAccess(
         : holdsPermission(actor.access, REPRINT_RECEIPT_PERMISSION)
           ? PERMITTED
           : { kind: "needs_authorization", permission: REPRINT_RECEIPT_PERMISSION };
+    case "view_sales_history":
+      return actor.access === undefined
+        ? NO_ACCESS
+        : holdsPermission(actor.access, VIEW_SALES_HISTORY_PERMISSION)
+          ? PERMITTED
+          : REFUSED;
     case "record_cash_movement": {
       if (actor.access === undefined) {
         return NO_ACCESS;
@@ -116,7 +124,7 @@ export type RegisterAbility = (typeof REGISTER_ABILITIES)[number];
 
 const PERMISSION_OF_ABILITY = {
   open_cash_session: SELLING_PERMISSION,
-  view_sales_history: "view_sales_history",
+  view_sales_history: VIEW_SALES_HISTORY_PERMISSION,
   reprint_receipt: "reprint_receipt",
   correct_register_clock: "correct_register_clock",
   record_initial_inventory: "record_initial_inventory",

@@ -19,6 +19,18 @@ export {
 } from "./model/receipt-print-standing.js";
 export { RECEIPT_REPRINT_REASON_MAX_LENGTH } from "./model/receipt-reprint-reason.js";
 export type { LinePromotion, Sale, SaleLine, SaleState, SaleWithLines } from "./model/sale.js";
+export type {
+  SaleComprobante,
+  SaleFiscalDocument,
+  SaleFiscalFacts,
+  SaleStanding,
+} from "./model/sale-history.js";
+export {
+  SALE_STANDINGS,
+  SALES_HISTORY_PAGE_SIZE,
+  saleComprobanteOf,
+  saleStandingOf,
+} from "./model/sale-history.js";
 export type { ListPrice, SoldProduct } from "./model/sale-line.js";
 export { mayBeSaleLineQuantity, saleTotal } from "./model/sale-line.js";
 export type { SalesOfDay, SalesReportRange, SalesReportTotals } from "./model/sales-report.js";
