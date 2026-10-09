@@ -1,3 +1,4 @@
+import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   type RegisterSummaryBody,
@@ -128,6 +129,17 @@ describe("registerSummarySchema", () => {
     ["pending_code", { ...pendingCode, seconds_until_expiry: 1.5 }],
   ])("refuses %s as %j", (field, value) => {
     expect(registerSummarySchema.safeParse({ ...withCode, [field]: value }).success).toBe(false);
+  });
+
+  it("declares the zone the installation's instants are shown in", () => {
+    const installation = registerSummarySchema.shape.installation.unwrap();
+
+    for (const variant of installation.options) {
+      expect(variant.shape.enrolled_at.meta()).toEqual({ timeZone: ARGENTINA_TIME_ZONE });
+    }
+    expect(installation.options[1].shape.revoked_at.meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
   });
 
   it("types its output as the wire shape", () => {
