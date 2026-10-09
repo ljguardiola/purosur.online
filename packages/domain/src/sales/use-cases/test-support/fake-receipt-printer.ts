@@ -1,9 +1,5 @@
 import type { PrinterStatus } from "../../model/receipt-print-standing.js";
-import type {
-  ReceiptPrinter,
-  ReceiptPrintEnding,
-  ReceiptPrintWatch,
-} from "../receipt-ports.js";
+import type { ReceiptPrintEnding, ReceiptPrinter, ReceiptPrintWatch } from "../receipt-ports.js";
 import type { FakeReceiptLedger, FakeReceiptLedgerState } from "./fake-receipt-ledger.js";
 
 export interface SentReceipt {

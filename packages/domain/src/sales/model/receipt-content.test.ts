@@ -79,9 +79,7 @@ describe("receiptContent", () => {
   });
 
   it("shows no promotion when the applied one is not among the line's", () => {
-    const [line] = receiptContent(
-      source({ lines: [{ ...YERBA, promotionId: "gone" }] }),
-    ).lines;
+    const [line] = receiptContent(source({ lines: [{ ...YERBA, promotionId: "gone" }] })).lines;
 
     expect(line?.promotion).toBeNull();
   });

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { receiptDeliveryOf } from "./receipt-delivery-of.js";
-import { completedSale, FIRST_PRINT_AT, ACKNOWLEDGED_AT, receiptRig } from "./test-support/receipt-rig.js";
+import {
+  ACKNOWLEDGED_AT,
+  completedSale,
+  FIRST_PRINT_AT,
+  receiptRig,
+} from "./test-support/receipt-rig.js";
 
 describe("receiptDeliveryOf", () => {
   it("answers that a sale never printed would print the original next", () => {

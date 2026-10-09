@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { printSaleReceipt } from "./print-sale-receipt.js";
+import type { ReceiptPrintGrant } from "./receipt-printing.js";
 import { FakeOperationAuthority } from "./test-support/fake-operation-authority.js";
 import { textOf } from "./test-support/fake-receipt-template.js";
 import {
@@ -9,8 +11,6 @@ import {
   NOT_PERMITTED,
   receiptRig,
 } from "./test-support/receipt-rig.js";
-import { printSaleReceipt } from "./print-sale-receipt.js";
-import type { ReceiptPrintGrant } from "./receipt-printing.js";
 
 function printStateEvent(id: string, printAttemptedAt: Date, printedAt: Date | null, at: Date) {
   return {
@@ -41,7 +41,9 @@ describe("printSaleReceipt", () => {
       expect(atSend?.sales[0]?.printAttemptedAt).toEqual(FIRST_PRINT_AT);
       expect(atSend?.sales[0]?.printedAt).toBeNull();
       expect(atSend?.sales[0]?.stored?.templateVersion).toBe("v1");
-      expect(atSend?.outbox).toEqual([printStateEvent("id-1", FIRST_PRINT_AT, null, FIRST_PRINT_AT)]);
+      expect(atSend?.outbox).toEqual([
+        printStateEvent("id-1", FIRST_PRINT_AT, null, FIRST_PRINT_AT),
+      ]);
       rig.printer.acknowledge();
       await printing;
     });
@@ -175,12 +177,14 @@ describe("printSaleReceipt", () => {
       await printing;
 
       expect(rig.ledger.state.sales[0]?.reprints[0]?.authorizedBy).toBe("supervisor");
-      expect(rig.ledger.state.outbox[0]?.payload.authorized_by).toBe("supervisor");
+      expect(rig.ledger.state.outbox[0]?.payload).toMatchObject({ authorized_by: "supervisor" });
     });
 
     it("does not overwrite a printed_at already set and emits no event for it", async () => {
       const printedBefore = new Date("2026-10-07T15:01:30.000Z");
-      const rig = receiptRig([completedSale({ printAttemptedAt: FIRST_PRINT_AT, printedAt: printedBefore })]);
+      const rig = receiptRig([
+        completedSale({ printAttemptedAt: FIRST_PRINT_AT, printedAt: printedBefore }),
+      ]);
       rig.clock.set(ACKNOWLEDGED_AT);
 
       const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);

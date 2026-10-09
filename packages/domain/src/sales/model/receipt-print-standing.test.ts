@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   mayStartReceiptPrint,
-  observePrinterStatus,
   observePrintAcknowledged,
+  observePrinterStatus,
   RECEIPT_RETRY_DELAY_MS,
   type ReceiptPrintObservation,
   receiptPrintStanding,
@@ -37,28 +37,26 @@ describe("receiptPrintStanding", () => {
     expect(receiptPrintStanding(observed, after(25_000))).toBe("retry_offered");
   });
 
-  it.each([
-    "cover_open",
-    "paper_out",
-    "not_responding",
-  ] as const)("stands as %s while the printer reports it, however long", (status) => {
-    const observed = observePrinterStatus(startedReceiptPrint(), status, T0);
+  it.each(["cover_open", "paper_out", "not_responding"] as const)(
+    "stands as %s while the printer reports it, however long",
+    (status) => {
+      const observed = observePrinterStatus(startedReceiptPrint(), status, T0);
 
-    expect(receiptPrintStanding(observed, after(60_000))).toBe(status);
-  });
+      expect(receiptPrintStanding(observed, after(60_000))).toBe(status);
+    },
+  );
 
-  it.each([
-    "cover_open",
-    "paper_out",
-    "not_responding",
-  ] as const)("restarts the ready clock after %s", (status) => {
-    let observed = observePrinterStatus(startedReceiptPrint(), "ready", T0);
-    observed = observePrinterStatus(observed, status, after(8_000));
-    observed = observePrinterStatus(observed, "ready", after(9_000));
+  it.each(["cover_open", "paper_out", "not_responding"] as const)(
+    "restarts the ready clock after %s",
+    (status) => {
+      let observed = observePrinterStatus(startedReceiptPrint(), "ready", T0);
+      observed = observePrinterStatus(observed, status, after(8_000));
+      observed = observePrinterStatus(observed, "ready", after(9_000));
 
-    expect(receiptPrintStanding(observed, after(18_999))).toBe("printing");
-    expect(receiptPrintStanding(observed, after(19_000))).toBe("retry_offered");
-  });
+      expect(receiptPrintStanding(observed, after(18_999))).toBe("printing");
+      expect(receiptPrintStanding(observed, after(19_000))).toBe("retry_offered");
+    },
+  );
 
   it("keeps counting from the first ready status while the printer stays ready", () => {
     let observed = observePrinterStatus(startedReceiptPrint(), "ready", T0);
@@ -109,15 +107,17 @@ describe("mayStartReceiptPrint", () => {
     expect(mayStartReceiptPrint(...inProgress(10_000))).toBe(true);
   });
 
-  it.each([
-    "cover_open",
-    "paper_out",
-    "not_responding",
-  ] as const)("refuses a print while the printer reports %s", (status) => {
-    expect(
-      mayStartReceiptPrint(observePrinterStatus(startedReceiptPrint(), status, T0), after(60_000)),
-    ).toBe(false);
-  });
+  it.each(["cover_open", "paper_out", "not_responding"] as const)(
+    "refuses a print while the printer reports %s",
+    (status) => {
+      expect(
+        mayStartReceiptPrint(
+          observePrinterStatus(startedReceiptPrint(), status, T0),
+          after(60_000),
+        ),
+      ).toBe(false);
+    },
+  );
 
   it("allows a print after the previous one was acknowledged", () => {
     expect(mayStartReceiptPrint(observePrintAcknowledged(startedReceiptPrint()), T0)).toBe(true);

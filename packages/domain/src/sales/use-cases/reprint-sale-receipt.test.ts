@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import type { ReceiptPrintGrant } from "./receipt-printing.js";
+import { reprintSaleReceipt } from "./reprint-sale-receipt.js";
 import { FakeOperationAuthority } from "./test-support/fake-operation-authority.js";
 import { textOf } from "./test-support/fake-receipt-template.js";
 import {
@@ -9,8 +11,6 @@ import {
   NOT_PERMITTED,
   receiptRig,
 } from "./test-support/receipt-rig.js";
-import type { ReceiptPrintGrant } from "./receipt-printing.js";
-import { reprintSaleReceipt } from "./reprint-sale-receipt.js";
 
 const INPUT = { saleId: "sale-1", reason: "el cliente la perdió" };
 
@@ -96,7 +96,10 @@ describe("reprintSaleReceipt", () => {
       "HEAD[v1] total 6750\nDUPLICATE 1\nBODY 1 lines\n",
     );
     rig.printer.acknowledge();
-    expect(await printing).toEqual({ kind: "printed", copy: { kind: "duplicate", orderNumber: 1 } });
+    expect(await printing).toEqual({
+      kind: "printed",
+      copy: { kind: "duplicate", orderNumber: 1 },
+    });
     expect(rig.ledger.state.sales[0]?.printedAt).toEqual(FIRST_PRINT_AT);
     expect(rig.ledger.state.outbox).toHaveLength(1);
   });

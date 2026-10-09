@@ -1,12 +1,12 @@
 import type { ReceiptSource } from "../../model/receipt-content.js";
+import type { PrinterStatus } from "../../model/receipt-print-standing.js";
 import type { ReceiptPrintGrant, ReceiptPrintingPorts } from "../receipt-printing.js";
-import { SequentialIds } from "./fake-sale-ledger.js";
 import { AdjustableClock } from "./adjustable-clock.js";
 import { FakeOperationAuthority } from "./fake-operation-authority.js";
 import { FakeReceiptLedger, type FakeReceiptSale } from "./fake-receipt-ledger.js";
 import { FakeReceiptPrinter } from "./fake-receipt-printer.js";
 import { FakeReceiptTemplate } from "./fake-receipt-template.js";
-import type { PrinterStatus } from "../../model/receipt-print-standing.js";
+import { SequentialIds } from "./fake-sale-ledger.js";
 
 export const SALE_COMPLETED_AT = new Date("2026-10-07T15:00:00.000Z");
 export const FIRST_PRINT_AT = new Date("2026-10-07T15:01:00.000Z");
