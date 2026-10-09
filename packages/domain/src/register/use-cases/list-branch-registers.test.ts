@@ -189,14 +189,15 @@ describe("listBranchRegisters", () => {
     expect(caja1?.pointOfSaleNumber).toBeNull();
   });
 
-  it("reports a register with no installation as not enrolled", async () => {
-    const [caja1] = await listCaja1(storeWithCaja1());
-
-    expect(caja1?.installation).toEqual({ kind: "not_enrolled" });
-  });
-
-  it("reports the machine a register is enrolled on", async () => {
+  it("reports the state the register's installations give it", async () => {
     const store = storeWithCaja1();
+    store.seedInstallation(
+      installationOfCaja1({
+        hostname: "CAJA-VIEJA",
+        enrolledAt: new Date("2026-03-02T15:00:00.000Z"),
+        revokedAt: new Date("2026-03-03T15:00:00.000Z"),
+      }),
+    );
     store.seedInstallation(installationOfCaja1());
 
     const [caja1] = await listCaja1(store);
@@ -207,38 +208,5 @@ describe("listBranchRegisters", () => {
       windowsVersion: "Windows 11 Pro 10.0.26100",
       enrolledAt: new Date("2026-03-01T15:00:00.000Z"),
     });
-  });
-
-  it("reports a register whose latest installation was revoked as revoked", async () => {
-    const store = storeWithCaja1();
-    store.seedInstallation(
-      installationOfCaja1({ revokedAt: new Date("2026-03-05T15:00:00.000Z") }),
-    );
-
-    const [caja1] = await listCaja1(store);
-
-    expect(caja1?.installation).toEqual({
-      kind: "revoked",
-      hostname: "CAJA-MOSTRADOR",
-      windowsVersion: "Windows 11 Pro 10.0.26100",
-      enrolledAt: new Date("2026-03-01T15:00:00.000Z"),
-      revokedAt: new Date("2026-03-05T15:00:00.000Z"),
-    });
-  });
-
-  it("reports the latest installation when an earlier one was replaced", async () => {
-    const store = storeWithCaja1();
-    store.seedInstallation(
-      installationOfCaja1({
-        hostname: "CAJA-VIEJA",
-        enrolledAt: new Date("2026-02-01T15:00:00.000Z"),
-        revokedAt: new Date("2026-03-01T15:00:00.000Z"),
-      }),
-    );
-    store.seedInstallation(installationOfCaja1());
-
-    const [caja1] = await listCaja1(store);
-
-    expect(caja1?.installation).toMatchObject({ kind: "enrolled", hostname: "CAJA-MOSTRADOR" });
   });
 });

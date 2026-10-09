@@ -135,63 +135,72 @@ describe("branchRegisters of DrizzleBranchRegisterStore", () => {
         name: "Caja 1",
         enrollmentCode: null,
         pointOfSaleNumber: null,
-        latestInstallation: null,
+        installations: [],
       },
       {
         id: configuredId,
         name: "Caja 2",
         enrollmentCode: null,
         pointOfSaleNumber: 7,
-        latestInstallation: null,
+        installations: [],
       },
     ]);
   });
 
-  it("lists a register's latest installation, not an older replaced one, without repeating the register", async () => {
+  it("lists every installation of each of the branch's registers, without repeating a register", async () => {
     const locationId = await seededLocationId(db);
-    const registerId = await insertRegister(locationId, "Caja 1");
+    const caja1 = await insertRegister(locationId, "Caja 1");
+    const caja2 = await insertRegister(locationId, "Caja 2");
+    const otherBranchRegister = await insertRegister(await insertOtherLocation(), "Caja 3");
     const replacedAt = new Date("2026-09-20T12:00:00.000Z");
+    const revokedAt = new Date("2026-09-25T12:00:00.000Z");
     await insertEnrolledInstallation(db, {
       now: new Date("2026-09-10T12:00:00.000Z"),
-      existingRegisterId: registerId,
+      existingRegisterId: caja1,
       revokedAt: replacedAt,
     });
     await insertEnrolledInstallation(db, {
       now: new Date("2026-09-21T12:00:00.000Z"),
-      existingRegisterId: registerId,
+      existingRegisterId: caja1,
+    });
+    await insertEnrolledInstallation(db, {
+      now: new Date("2026-09-22T12:00:00.000Z"),
+      existingRegisterId: caja2,
+      revokedAt,
+    });
+    await insertEnrolledInstallation(db, {
+      now: new Date("2026-09-23T12:00:00.000Z"),
+      existingRegisterId: otherBranchRegister,
     });
 
     const listed = await new DrizzleBranchRegisterStore(db, () => NOW).branchRegisters(locationId);
 
-    expect(listed).toHaveLength(1);
-    expect(listed[0]?.latestInstallation).toEqual({
-      hostname: "CAJA-MOSTRADOR",
-      windowsVersion: "Windows 11 Pro 10.0.26100",
-      enrolledAt: new Date("2026-09-20T12:00:00.000Z"),
-      revokedAt: null,
-    });
-  });
-
-  it("lists a revoked latest installation with when it was revoked", async () => {
-    const locationId = await seededLocationId(db);
-    const registerId = await insertRegister(locationId, "Caja 1");
-    const revokedAt = new Date("2026-09-25T12:00:00.000Z");
-    await insertEnrolledInstallation(db, {
-      now: new Date("2026-09-21T12:00:00.000Z"),
-      existingRegisterId: registerId,
-      revokedAt,
-    });
-
-    const [register] = await new DrizzleBranchRegisterStore(db, () => NOW).branchRegisters(
-      locationId,
+    expect(listed.map(({ id }) => id)).toEqual([caja1, caja2]);
+    expect(listed[0]?.installations).toHaveLength(2);
+    expect(listed[0]?.installations).toEqual(
+      expect.arrayContaining([
+        {
+          hostname: "CAJA-MOSTRADOR",
+          windowsVersion: "Windows 11 Pro 10.0.26100",
+          enrolledAt: new Date("2026-09-09T12:00:00.000Z"),
+          revokedAt: replacedAt,
+        },
+        {
+          hostname: "CAJA-MOSTRADOR",
+          windowsVersion: "Windows 11 Pro 10.0.26100",
+          enrolledAt: new Date("2026-09-20T12:00:00.000Z"),
+          revokedAt: null,
+        },
+      ]),
     );
-
-    expect(register?.latestInstallation).toEqual({
-      hostname: "CAJA-MOSTRADOR",
-      windowsVersion: "Windows 11 Pro 10.0.26100",
-      enrolledAt: new Date("2026-09-20T12:00:00.000Z"),
-      revokedAt,
-    });
+    expect(listed[1]?.installations).toEqual([
+      {
+        hostname: "CAJA-MOSTRADOR",
+        windowsVersion: "Windows 11 Pro 10.0.26100",
+        enrolledAt: new Date("2026-09-21T12:00:00.000Z"),
+        revokedAt,
+      },
+    ]);
   });
 });
 
