@@ -100,13 +100,35 @@ describe("authorizing a completed sale in real time", () => {
   });
 
   it("rejects the document and routes the sale to the deferred flow", async () => {
-    await authorize({ kind: "rejected", codes: [10015] });
+    await authorize({ kind: "rejected", codes: [10015], rejectionClass: "content" });
 
     expect(storedDocument()).toMatchObject({ state: "REJECTED" });
     expect(database.prepare("SELECT sale_id, reason FROM deferred_sales").all()).toEqual([
       { sale_id: "sale-1", reason: "rejected" },
     ]);
   });
+
+  it.each(["content", "standing"] as const)(
+    "never asks again for a document rejected over its %s, whose sale stays deferred",
+    async (rejectionClass) => {
+      await authorize({ kind: "rejected", codes: [10015], rejectionClass });
+      calls = [];
+
+      await expect(
+        authorize({
+          kind: "authorized",
+          authorizationCode: "1",
+          authorizationCodeDueOn: "2026-10-10",
+        }),
+      ).resolves.toEqual({ kind: "not_waiting" });
+
+      expect(calls).toEqual([]);
+      expect(storedDocument()).toMatchObject({ state: "REJECTED", authorization_code: null });
+      expect(database.prepare("SELECT sale_id, reason FROM deferred_sales").all()).toEqual([
+        { sale_id: "sale-1", reason: "rejected" },
+      ]);
+    },
+  );
 
   it.each([
     ["unclear", { kind: "unclear" }],
