@@ -71,6 +71,17 @@ describe("DrizzleWatchedRegisterReader", () => {
     expect(await watchedRegisters()).toEqual([]);
   });
 
+  it("lists nothing for a register none of whose installations had a push accepted", async () => {
+    const enrolled = await insertEnrolledInstallation(db, { now: NOW });
+    await db.insert(deviceState).values({
+      deviceId: enrolled.deviceId,
+      lastAcceptedPushAt: null,
+      reportsEveryCycleSince: EARLIEST,
+    });
+
+    expect(await watchedRegisters()).toEqual([]);
+  });
+
   it("lists a replaced register by its current installation, with the latest sync of any installation it has had", async () => {
     const replaced = await insertEnrolledInstallation(db, { now: NOW, revokedAt: EARLIER });
     const current = await insertEnrolledInstallation(db, {

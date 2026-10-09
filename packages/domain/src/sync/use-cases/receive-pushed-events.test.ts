@@ -392,6 +392,16 @@ describe("reporting how the register stands", () => {
     expect(inbox.state.everyCycleReports).toEqual([{ deviceId: DEVICE, at: NOW }]);
   });
 
+  it("records the installation's every-cycle report after recording its accepted push", async () => {
+    const inbox = new FakeInbox();
+
+    await receive(inbox, []);
+
+    expect(inbox.calls.indexOf("recordReportsEveryCycle device-1")).toBeGreaterThan(
+      inbox.calls.indexOf("recordAcceptedPush device-1"),
+    );
+  });
+
   it("records no every-cycle report for a push that carries events", async () => {
     const inbox = new FakeInbox();
 

@@ -159,7 +159,7 @@ export class FakeInbox implements Inbox {
         working.acceptedPushes.push({ deviceId, at });
       },
       recordReportsEveryCycle: async (deviceId, at) => {
-        this.calls.push(`recordReportsEveryCycle `);
+        this.calls.push(`recordReportsEveryCycle ${deviceId}`);
         working.everyCycleReports.push({ deviceId, at });
       },
       recordPushReport: async (deviceId, report, at) => {
