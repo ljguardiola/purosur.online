@@ -34,6 +34,16 @@ class DrizzleSignInLockoutStoreTransaction<TQueryResult extends PgQueryResultHKT
     await this.tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${sourceAddress}, 0))`);
   }
 
+  async pruneFailuresOutsideWindow(windowStart: Date): Promise<void> {
+    const expired = this.tx
+      .select({ id: signInFailures.id })
+      .from(signInFailures)
+      .where(lte(signInFailures.attemptedAt, windowStart))
+      .limit(PRUNE_BATCH_SIZE)
+      .for("update", { skipLocked: true });
+    await this.tx.delete(signInFailures).where(inArray(signInFailures.id, expired));
+  }
+
   async findBlockedUntil(sourceAddress: string): Promise<Date | undefined> {
     const [lockout] = await this.tx
       .select({ blockedUntil: signInLockouts.blockedUntil })
@@ -109,16 +119,6 @@ export class DrizzleSignInLockoutStore<TQueryResult extends PgQueryResultHKT>
 
   constructor(db: PgDatabase<TQueryResult>) {
     this.db = db;
-  }
-
-  async pruneFailuresOutsideWindow(windowStart: Date): Promise<void> {
-    const expired = this.db
-      .select({ id: signInFailures.id })
-      .from(signInFailures)
-      .where(lte(signInFailures.attemptedAt, windowStart))
-      .limit(PRUNE_BATCH_SIZE)
-      .for("update", { skipLocked: true });
-    await this.db.delete(signInFailures).where(inArray(signInFailures.id, expired));
   }
 
   transaction<TOutcome>(

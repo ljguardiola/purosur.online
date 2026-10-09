@@ -127,11 +127,6 @@ export class FakeSignInLockoutStore implements SignInLockoutStore {
     }
   }
 
-  async pruneFailuresOutsideWindow(windowStart: Date): Promise<void> {
-    this.record("pruneFailuresOutsideWindow");
-    this.state.failures = this.state.failures.filter((held) => held.attemptedAt > windowStart);
-  }
-
   async transaction<TOutcome>(
     work: (tx: SignInLockoutStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {

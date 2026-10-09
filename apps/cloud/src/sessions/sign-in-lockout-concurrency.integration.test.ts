@@ -10,7 +10,6 @@ import {
 import { DrizzleSignInLockoutStore } from "./sign-in-lockout.js";
 
 // PGlite serves every query on one connection, so only a real Postgres pool can race a burst.
-// Each admission needs two connections (prune, then its locked transaction), hence the headroom.
 const BURST = 20;
 
 let integrationDb: IntegrationDatabase;
@@ -18,7 +17,7 @@ let sql: postgres.Sql;
 
 beforeAll(async () => {
   integrationDb = await createIntegrationDatabase("sign_in_lockout");
-  sql = postgres(integrationDb.databaseUrl, { max: BURST * 4 });
+  sql = postgres(integrationDb.databaseUrl, { max: BURST });
 }, 60_000);
 
 afterAll(async () => {

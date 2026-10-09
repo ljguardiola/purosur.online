@@ -11,8 +11,6 @@ export interface SignInLockoutAlert {
 }
 
 export interface SignInLockoutStore {
-  // Runs outside any transaction, so a pending prune never holds an address lock.
-  pruneFailuresOutsideWindow(windowStart: Date): Promise<void>;
   transaction<TOutcome>(
     work: (tx: SignInLockoutStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome>;
@@ -21,6 +19,7 @@ export interface SignInLockoutStore {
 export interface SignInLockoutStoreTransaction {
   // Holds until the transaction ends, so the attempts of one source address are decided one at a time.
   lockSourceAddress(sourceAddress: string): Promise<void>;
+  pruneFailuresOutsideWindow(windowStart: Date): Promise<void>;
   // The end of the address's recorded block, whether or not it is still live.
   findBlockedUntil(sourceAddress: string): Promise<Date | undefined>;
   countFailuresInWindow(sourceAddress: string, windowStart: Date): Promise<number>;
