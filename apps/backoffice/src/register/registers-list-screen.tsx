@@ -1,7 +1,9 @@
+import { registerSummarySchema } from "@purosur/contracts";
 import {
   actionsColumn,
   Button,
   dataColumn,
+  formatDate,
   formatPointOfSaleNumber,
   plural,
   Table,
@@ -13,6 +15,7 @@ import { KeySquare, Laptop, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { schemaText } from "../platform/schema-text";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
@@ -29,13 +32,61 @@ import {
   useRegisterCoverageQuery,
   useRegistersQuery,
 } from "./register-queries";
-import type { EmitEnrollmentCodeOutcome, RegisterSummary } from "./registers-api";
+import type {
+  EmitEnrollmentCodeOutcome,
+  RegisterInstallation,
+  RegisterSummary,
+} from "./registers-api";
 import type { RegistersListScreenServices } from "./registers-list-services";
 
 export type RegistersListScreenProps = {
   onSessionEnded: () => void;
   services: RegistersListScreenServices;
 };
+
+const INSTALLATION_TIME_ZONE = schemaText(
+  registerSummarySchema.shape.installation.unwrap().options[0].shape.enrolled_at.meta()?.[
+    "timeZone"
+  ],
+);
+
+function installationDate(instant: string): string {
+  return formatDate(new Date(instant), {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: INSTALLATION_TIME_ZONE,
+  });
+}
+
+function installationLines(
+  installation: RegisterInstallation | null,
+): { primary: string; secondary: string } | null {
+  if (installation === null) {
+    return null;
+  }
+  if (installation.state === "enrolled") {
+    return {
+      primary: `Dada de alta el ${installationDate(installation.enrolledAt)}`,
+      secondary: installation.windowsVersion,
+    };
+  }
+  return {
+    primary: `Revocada el ${installationDate(installation.revokedAt)}`,
+    secondary: `${installation.hostname} · ${installation.windowsVersion}`,
+  };
+}
+
+function installationStatus(installation: RegisterInstallation | null) {
+  if (installation === null) {
+    return <Tag tone="info">Esperando alta</Tag>;
+  }
+  return installation.state === "enrolled" ? (
+    <Tag tone="success">Activa</Tag>
+  ) : (
+    <Tag tone="neutral">Revocada</Tag>
+  );
+}
 
 const NO_REGISTERS: RegisterSummary[] = [];
 
@@ -137,7 +188,13 @@ export function RegistersListScreen({ onSessionEnded, services }: RegistersListS
       id: "register",
       header: "Caja",
       render: (item: RegisterSummary) => (
-        <TableCellText description="Sin instalación">{item.name}</TableCellText>
+        <TableCellText
+          description={
+            item.installation?.state === "enrolled" ? item.installation.hostname : "Sin instalación"
+          }
+        >
+          {item.name}
+        </TableCellText>
       ),
     }),
     dataColumn({
@@ -145,19 +202,31 @@ export function RegistersListScreen({ onSessionEnded, services }: RegistersListS
       header: "Instalación",
       render: (item: RegisterSummary) => {
         const pendingCode =
-          item.pendingCode &&
-          pendingCodeAfter(item.pendingCode, ticksSinceRead * COUNTDOWN_TICK_SECONDS);
-        if (!pendingCode) {
+          item.pendingCode === null
+            ? null
+            : pendingCodeAfter(item.pendingCode, ticksSinceRead * COUNTDOWN_TICK_SECONDS);
+        const lines = installationLines(item.installation);
+        if (lines === null && pendingCode === null) {
           return <span className="text-text-subtle text-detail">—</span>;
         }
         return (
           <div className="flex flex-col gap-1">
-            <span className="text-text text-detail">
-              {pendingCodeIssuedText(pendingCode.secondsSinceIssued)}
-            </span>
-            <span className="text-detail text-warning-strong">
-              {pendingCodeExpiryText(pendingCode.secondsUntilExpiry)}
-            </span>
+            {lines !== null && (
+              <>
+                <span className="text-text text-detail">{lines.primary}</span>
+                <span className="text-text-subtle text-detail">{lines.secondary}</span>
+              </>
+            )}
+            {pendingCode !== null && (
+              <>
+                <span className="text-text text-detail">
+                  {pendingCodeIssuedText(pendingCode.secondsSinceIssued)}
+                </span>
+                <span className="text-detail text-warning-strong">
+                  {pendingCodeExpiryText(pendingCode.secondsUntilExpiry)}
+                </span>
+              </>
+            )}
           </div>
         );
       },
@@ -177,7 +246,7 @@ export function RegistersListScreen({ onSessionEnded, services }: RegistersListS
     dataColumn({
       id: "status",
       header: "Estado",
-      render: (_item: RegisterSummary) => <Tag tone="info">Esperando alta</Tag>,
+      render: (item: RegisterSummary) => installationStatus(item.installation),
     }),
     actionsColumn({
       id: "actions",
