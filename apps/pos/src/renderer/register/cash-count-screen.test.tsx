@@ -2,15 +2,9 @@ import type { CashBalance, CashCountPreview, CloseCashSessionOutcome } from "@pu
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import type { SignedInPerson } from "../shell/signed-in-person";
 import { render } from "../shell/test-support/render-with-router";
 import { CashCountScreen } from "./cash-count-screen";
 
-const ADA: SignedInPerson = {
-  user_id: "u1",
-  first_name: "Ada",
-  abilities: ["open_cash_session"],
-};
 const BALANCE: CashBalance = {
   opening_float: { amount: 2_000_000, direction: "in" },
   cash_sales: { amount: 3_500_000, direction: "in" },
@@ -53,7 +47,6 @@ const answerPreview: LoadCashCountPreview = async (countedCash) => {
 
 async function renderScreen(
   props: {
-    person?: SignedInPerson;
     loadCashBalance?: () => Promise<CashBalance | null | "unavailable">;
     loadCashCountPreview?: LoadCashCountPreview;
     closeCashSession?: CloseCashSession;
@@ -65,7 +58,6 @@ async function renderScreen(
   const screen = await render(
     <CashCountScreen
       sessionId="s1"
-      person={props.person ?? ADA}
       registerName="Caja 1"
       lock={() => {}}
       loadCashBalance={props.loadCashBalance ?? (async () => BALANCE)}
@@ -382,7 +374,6 @@ describe("CashCountScreen", () => {
     const screen = await render(
       <CashCountScreen
         sessionId="s1"
-        person={ADA}
         registerName={null}
         lock={() => {}}
         loadCashBalance={() => new Promise(() => {})}
