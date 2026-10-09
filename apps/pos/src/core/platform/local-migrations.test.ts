@@ -863,6 +863,7 @@ describe("the register's local migrations", () => {
         "0019_sales_dated_when_charged",
         "0020_cancelled_sales_and_refunds",
         "0021_real_time_authorization",
+        "0022_threshold_revisions",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -911,6 +912,7 @@ describe("the register's local migrations", () => {
         "0019_sales_dated_when_charged",
         "0020_cancelled_sales_and_refunds",
         "0021_real_time_authorization",
+        "0022_threshold_revisions",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -954,6 +956,7 @@ describe("the register's local migrations", () => {
         "0019_sales_dated_when_charged",
         "0020_cancelled_sales_and_refunds",
         "0021_real_time_authorization",
+        "0022_threshold_revisions",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -996,6 +999,7 @@ describe("the register's local migrations", () => {
         "0019_sales_dated_when_charged",
         "0020_cancelled_sales_and_refunds",
         "0021_real_time_authorization",
+        "0022_threshold_revisions",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1065,6 +1069,7 @@ describe("the register's local migrations", () => {
         "0019_sales_dated_when_charged",
         "0020_cancelled_sales_and_refunds",
         "0021_real_time_authorization",
+        "0022_threshold_revisions",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1126,6 +1131,7 @@ describe("the register's local migrations", () => {
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0020_cancelled_sales_and_refunds",
         "0021_real_time_authorization",
+        "0022_threshold_revisions",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1191,6 +1197,7 @@ describe("the register's local migrations", () => {
       expect(previous.at(-1)?.name).toBe("0020_cancelled_sales_and_refunds");
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0021_real_time_authorization",
+        "0022_threshold_revisions",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1226,6 +1233,46 @@ describe("the register's local migrations", () => {
       for (const table of ["register_health_checks", "fiscal_documents", "deferred_sales"]) {
         expect(after.prepare(`SELECT count(*) AS total FROM ${table}`).get()).toEqual({ total: 0 });
       }
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("give every buyer-identification threshold a register already holds the first revision of its day", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(0, 22);
+      expect(previous.at(-1)?.name).toBe("0021_real_time_authorization");
+      expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
+        "0022_threshold_revisions",
+      ]);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before
+        .prepare(
+          `INSERT INTO buyer_identification_thresholds (id, amount, valid_from)
+           VALUES ('t1', 500000, '2026-01-01'), ('t2', 700000, '2026-06-01')`,
+        )
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare("SELECT id, amount, valid_from, revision FROM buyer_identification_thresholds ORDER BY id")
+          .all(),
+      ).toEqual([
+        { id: "t1", amount: 500000, valid_from: "2026-01-01", revision: 0 },
+        { id: "t2", amount: 700000, valid_from: "2026-06-01", revision: 0 },
+      ]);
+      after
+        .prepare(
+          `INSERT INTO buyer_identification_thresholds (id, amount, valid_from, revision)
+           VALUES ('t3', 900000, '2026-06-01', 1)`,
+        )
+        .run();
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });
