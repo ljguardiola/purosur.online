@@ -4,6 +4,7 @@ import type { StockStoreTransaction } from "./stock-store.js";
 
 export interface RegisterStockMovement {
   id: string;
+  saleLineId: string;
   productId: string;
   kind: "sale";
   delta: number;
@@ -51,6 +52,7 @@ export async function applyRegisterStockMovements(
     const result = await applyStockMovement(tx, lockedBalances.get(movement.productId) ?? 0, {
       ...key,
       id: movement.id,
+      saleLineId: movement.saleLineId,
       kind: movement.kind,
       reason: null,
       delta: movement.delta,

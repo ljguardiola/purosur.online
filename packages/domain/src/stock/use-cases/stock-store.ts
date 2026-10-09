@@ -24,6 +24,7 @@ export interface CoveringCount {
 
 export interface NewStockMovement extends ProductStockKey {
   id?: string;
+  saleLineId?: string;
   kind: StockMovementKind;
   reason: LossReason | AdjustmentReason | null;
   delta: number;
