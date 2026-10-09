@@ -579,7 +579,7 @@ type StatusRead = () => Promise<RegisterStatus | "unavailable">;
 
 function StatusProbe({ read, enabled = true }: { read: StatusRead; enabled?: boolean }) {
   const status = useRegisterStatusQuery(read, enabled);
-  return <p>{describeData(status, (value) => ` `)}</p>;
+  return <p>{describeData(status, (value) => `${value.cloud} ${value.conditions.join(",")}`)}</p>;
 }
 
 describe("register status query", () => {
