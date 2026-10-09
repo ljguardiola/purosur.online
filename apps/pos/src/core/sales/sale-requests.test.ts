@@ -550,7 +550,7 @@ describe("the sale in progress", () => {
     await scanProductFor(deps(), "111");
     await scanProductFor(deps(), "111");
 
-    expect((await currentSaleFor(deps())).charge_refusal).toBeUndefined();
+    expect((await currentSaleFor(deps())).charge_refusal).toBeNull();
   });
 
   it("is refused for charging when the register holds no threshold", async () => {
