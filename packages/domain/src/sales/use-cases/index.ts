@@ -54,8 +54,22 @@ export type {
   PrintSaleReceiptPorts,
 } from "./print-sale-receipt.js";
 export { printSaleReceipt } from "./print-sale-receipt.js";
+export type {
+  ReadSaleHistoryDetailInput,
+  ReadSaleHistoryDetailOutcome,
+  ReadSaleHistoryDetailPorts,
+  SaleHistoryDetail,
+} from "./read-sale-history-detail.js";
+export { readSaleHistoryDetail } from "./read-sale-history-detail.js";
 export type { ReadSalesByDayInput, SalesByDayReport } from "./read-sales-by-day.js";
 export { readSalesByDay } from "./read-sales-by-day.js";
+export type {
+  ReadSalesHistoryInput,
+  ReadSalesHistoryPorts,
+  SalesHistoryPageShown,
+  SalesHistoryRow,
+} from "./read-sales-history.js";
+export { readSalesHistory } from "./read-sales-history.js";
 export type {
   ReceiptDeliveryOfInput,
   ReceiptDeliveryOfOutcome,
@@ -74,6 +88,13 @@ export type {
   StoredReceipt,
 } from "./receipt-ports.js";
 export type { ReceiptPrintGrant, ReceiptPrintOutcome } from "./receipt-printing.js";
+export type {
+  RegisterSalesHistory,
+  SaleHistoryRecord,
+  SalesHistoryEntry,
+  SalesHistoryFilter,
+  SalesHistoryPage,
+} from "./register-sales-history.js";
 export type {
   RemoveSaleLineInput,
   RemoveSaleLineOutcome,
