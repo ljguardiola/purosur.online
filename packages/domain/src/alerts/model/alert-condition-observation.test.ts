@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   fiscalDocumentAuthorizedObservation,
+  fiscalRejectionAlertObservation,
   fiscalRejectionObservation,
   quietRegisterObservation,
   registerSalesDeniedObservation,
@@ -158,5 +159,31 @@ describe("fiscalDocumentAuthorizedObservation", () => {
       kind: "fiscal_rejected",
       scope: "12:factura_c",
     });
+  });
+});
+
+describe("fiscalRejectionAlertObservation", () => {
+  it("holds the condition for the change that opens the alert", () => {
+    const change = {
+      kind: "open",
+      pointOfSale: 12,
+      documentType: "factura_c",
+      rejectionClass: "standing",
+      fiscalDocumentId: "fiscal-document-1",
+      saleId: "sale-1",
+      rejections: [{ code: 10005, message: "El punto de venta no es RECE." }],
+    } as const;
+
+    expect(fiscalRejectionAlertObservation(change)).toEqual(
+      fiscalRejectionObservation({ ...change }),
+    );
+  });
+
+  it("clears the condition for the change that clears the alert", () => {
+    const change = { kind: "clear", pointOfSale: 12, documentType: "factura_c" } as const;
+
+    expect(fiscalRejectionAlertObservation(change)).toEqual(
+      fiscalDocumentAuthorizedObservation(change),
+    );
   });
 });
