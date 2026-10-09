@@ -15,6 +15,7 @@ import { insertActor } from "./test-support/purchasing-fixtures.js";
 
 // PGlite can't race two writes for the same name, so this runs on a real postgres-js pool, whose
 // driver reports the violated index as `constraint_name` rather than PGlite's `constraint`.
+const now = () => new Date("2026-10-15T15:00:00Z");
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;
@@ -41,8 +42,8 @@ describe("creating two suppliers with the same name concurrently on a real Postg
     const name = `Distribuidora ${randomUUID()}`;
 
     const outcomes = await Promise.all([
-      createSupplier(new DrizzlePurchasingStore(db), supplierFields(name)),
-      createSupplier(new DrizzlePurchasingStore(db), supplierFields(name.toUpperCase())),
+      createSupplier(new DrizzlePurchasingStore(db, now), supplierFields(name)),
+      createSupplier(new DrizzlePurchasingStore(db, now), supplierFields(name.toUpperCase())),
     ]);
 
     expect(outcomes.filter((outcome) => outcome.kind === "created")).toHaveLength(1);
@@ -58,8 +59,14 @@ describe("creating two suppliers with the same tax id concurrently on a real Pos
     const cuit = FICTIONAL_CUIT;
 
     const outcomes = await Promise.all([
-      createSupplier(new DrizzlePurchasingStore(db), supplierFields(`Uno ${randomUUID()}`, cuit)),
-      createSupplier(new DrizzlePurchasingStore(db), supplierFields(`Dos ${randomUUID()}`, cuit)),
+      createSupplier(
+        new DrizzlePurchasingStore(db, now),
+        supplierFields(`Uno ${randomUUID()}`, cuit),
+      ),
+      createSupplier(
+        new DrizzlePurchasingStore(db, now),
+        supplierFields(`Dos ${randomUUID()}`, cuit),
+      ),
     ]);
 
     expect(outcomes.filter((outcome) => outcome.kind === "created")).toHaveLength(1);
@@ -71,7 +78,10 @@ describe("renaming two suppliers to the same name concurrently on a real Postgre
   it("renames exactly one of them and reports the other as name_taken", async () => {
     const created = await Promise.all(
       ["Uno", "Dos"].map((name) =>
-        createSupplier(new DrizzlePurchasingStore(db), supplierFields(`${name} ${randomUUID()}`)),
+        createSupplier(
+          new DrizzlePurchasingStore(db, now),
+          supplierFields(`${name} ${randomUUID()}`),
+        ),
       ),
     );
     const [first, second] = created.map((outcome) => {
@@ -86,12 +96,12 @@ describe("renaming two suppliers to the same name concurrently on a real Postgre
     const name = `Nueva ${randomUUID()}`;
 
     const outcomes = await Promise.all([
-      editSupplier(new DrizzlePurchasingStore(db), {
+      editSupplier(new DrizzlePurchasingStore(db, now), {
         ...supplierFields(name),
         id: first.id,
         version: 1,
       }),
-      editSupplier(new DrizzlePurchasingStore(db), {
+      editSupplier(new DrizzlePurchasingStore(db, now), {
         ...supplierFields(name.toUpperCase()),
         id: second.id,
         version: 1,

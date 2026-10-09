@@ -23,7 +23,11 @@ let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 let actorId: string;
 
-const store = () => new DrizzlePurchasingStore(db);
+const CREATED_AT = new Date("2026-09-16T15:00:00.000Z");
+const UPDATED_AT = new Date("2026-09-17T15:00:00.000Z");
+let now = CREATED_AT;
+
+const store = () => new DrizzlePurchasingStore(db, () => now);
 
 beforeAll(async () => {
   testDatabase = await buildTestDatabase();
@@ -37,6 +41,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await testDatabase.clear();
   actorId = await insertActor(db);
+  now = CREATED_AT;
 });
 
 async function newSupplier(fields: { name?: string; cuit?: string | null } = {}) {
@@ -79,6 +84,7 @@ describe("the suppliers a purchasing store keeps", () => {
       active: true,
       version: 1,
       actorId,
+      updatedAt: CREATED_AT,
     });
   });
 
@@ -151,12 +157,13 @@ describe("the suppliers a purchasing store keeps", () => {
   it("deactivates and reactivates a supplier, bumping its version each time", async () => {
     const supplier = await newSupplier();
 
+    now = UPDATED_AT;
     await deactivateSupplier(store(), { id: supplier.id, actorId });
     const [deactivated] = await db.select().from(suppliers).where(eq(suppliers.id, supplier.id));
     await reactivateSupplier(store(), { id: supplier.id, actorId });
     const [reactivated] = await db.select().from(suppliers).where(eq(suppliers.id, supplier.id));
 
-    expect(deactivated).toMatchObject({ active: false, version: 2 });
+    expect(deactivated).toMatchObject({ active: false, version: 2, updatedAt: UPDATED_AT });
     expect(reactivated).toMatchObject({ active: true, version: 3 });
   });
 
@@ -187,6 +194,7 @@ describe("the purchase packagings a purchasing store keeps", () => {
       active: true,
       version: 1,
       actorId,
+      updatedAt: CREATED_AT,
     });
   });
 
@@ -272,6 +280,7 @@ describe("the purchase packagings a purchasing store keeps", () => {
     const product = await insertProduct(db, { name: "Arroz" });
     const packaging = await newPackaging(product.id);
 
+    now = UPDATED_AT;
     await deactivatePackaging(store(), { id: packaging.id, actorId });
     const [deactivated] = await db
       .select()
@@ -283,7 +292,7 @@ describe("the purchase packagings a purchasing store keeps", () => {
       .from(productPackagings)
       .where(eq(productPackagings.id, packaging.id));
 
-    expect(deactivated).toMatchObject({ active: false, version: 2 });
+    expect(deactivated).toMatchObject({ active: false, version: 2, updatedAt: UPDATED_AT });
     expect(reactivated).toMatchObject({ active: true, version: 3 });
   });
 });

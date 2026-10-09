@@ -17,6 +17,7 @@ import { insertActor, insertProduct } from "./test-support/purchasing-fixtures.j
 
 // PGlite serializes every query on one connection, so racing writes can only interleave on a real
 // Postgres pool; each test pins that interleaving by holding the product's row lock until both queue.
+const now = () => new Date("2026-10-15T15:00:00Z");
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;
@@ -81,7 +82,7 @@ function editToWeight(product: {
 
 function packagingOf(productId: string, quantityPerPackage: number) {
   return () =>
-    createPackaging(new DrizzlePurchasingStore(db), {
+    createPackaging(new DrizzlePurchasingStore(db, now), {
       productId,
       name: "Caja",
       quantityPerPackage,
