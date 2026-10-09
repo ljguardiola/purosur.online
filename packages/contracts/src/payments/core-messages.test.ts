@@ -55,8 +55,15 @@ describe("starting a Mercado Pago QR charge", () => {
       payment_transaction_id: PAYMENT_ID,
       amount: 2000,
       remaining_seconds: 180,
+      wait_seconds: 180,
     },
-    { kind: "order_shown", payment_transaction_id: PAYMENT_ID, amount: 2000, remaining_seconds: 0 },
+    {
+      kind: "order_shown",
+      payment_transaction_id: PAYMENT_ID,
+      amount: 2000,
+      remaining_seconds: 0,
+      wait_seconds: 180,
+    },
     { kind: "order_refused" },
     { kind: "unreachable" },
     { kind: "invalid_amount" },
@@ -89,6 +96,25 @@ describe("starting a Mercado Pago QR charge", () => {
         payment_transaction_id: PAYMENT_ID,
         amount: 2000,
         remaining_seconds,
+      },
+    };
+
+    expect(paymentsCoreToRendererMessageSchema.safeParse(result).success).toBe(false);
+  });
+
+  it.each([
+    ["a whole wait other than 3 minutes", 120],
+    ["no whole wait", undefined],
+  ])("rejects an order shown with %s", (_case, wait_seconds) => {
+    const result = {
+      type: "start-mercado-pago-qr-charge-result",
+      request_id: REQUEST_ID,
+      outcome: {
+        kind: "order_shown",
+        payment_transaction_id: PAYMENT_ID,
+        amount: 2000,
+        remaining_seconds: 100,
+        wait_seconds,
       },
     };
 

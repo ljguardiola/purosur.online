@@ -33,13 +33,14 @@ describe("startMercadoPagoQrCharge", () => {
     ]);
   });
 
-  it("shows the order with the amount and the whole wait left once the cloud creates it", async () => {
+  it("shows the order with the amount, the whole wait and the wait left once the cloud creates it", async () => {
     const world = new FakeMercadoPagoQrChargeWorld();
 
     expect(await startMercadoPagoQrCharge(world.ports, INPUT)).toEqual({
       kind: "order_shown",
       paymentTransactionId: QR_PAYMENT_ID,
       amount: 5000,
+      waitSeconds: 180,
       remainingSeconds: 180,
     });
   });

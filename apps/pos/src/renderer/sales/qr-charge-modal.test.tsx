@@ -12,6 +12,7 @@ const ORDER_SHOWN: StartMercadoPagoQrChargeOutcome = {
   payment_transaction_id: PAYMENT_ID,
   amount: TOTAL,
   remaining_seconds: 180,
+  wait_seconds: 180,
 };
 
 const AMOUNT_FIELD = "Importe a cobrar con este medio";

@@ -488,6 +488,7 @@ describe("createCoreClient", () => {
       payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
       amount: 300_000,
       remaining_seconds: 180,
+      wait_seconds: 180,
     } as const;
     port.answer({
       type: "start-mercado-pago-qr-charge-result",

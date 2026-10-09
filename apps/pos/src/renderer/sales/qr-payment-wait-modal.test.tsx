@@ -12,6 +12,7 @@ const ORDER = {
   payment_transaction_id: PAYMENT_ID,
   amount: 3_000_000,
   remaining_seconds: 180,
+  wait_seconds: 180,
 } as const;
 const WAITING: FollowMercadoPagoQrChargeOutcome = { kind: "waiting", remaining_seconds: 161 };
 
