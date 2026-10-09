@@ -123,6 +123,7 @@ describe("createMercadoPagoQrOrder", () => {
     expect(outcome).toEqual({ kind: "provider_refused" });
     expect(lanes.transactions.get(TRANSACTION_ID)).toMatchObject({
       state: "PENDING",
+      needsReview: false,
       providerOrderId: null,
     });
   });
@@ -135,6 +136,7 @@ describe("createMercadoPagoQrOrder", () => {
     expect(outcome).toEqual({ kind: "provider_unavailable" });
     expect(lanes.transactions.get(TRANSACTION_ID)).toMatchObject({
       state: "PENDING",
+      needsReview: false,
       providerOrderId: null,
     });
   });
