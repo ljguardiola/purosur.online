@@ -17,10 +17,13 @@ import type {
   OpenCashSession,
   OpenCashSessionOutcome,
   OpenSale,
+  ReceiptPrintStatusOutcome,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RegisterStatus,
   RemoveSaleLineOutcome,
+  ReprintSaleReceiptOutcome,
+  RetryReceiptPrintOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
   SessionOpenSale,
@@ -32,6 +35,7 @@ import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
 import type { CashMovementRequest } from "./register/cash-movement-requests";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
+import type { ReprintSaleReceiptRequest } from "./sales/receipt-requests";
 import type { CancelPaidSaleRequest } from "./sales/sale-requests";
 
 function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
@@ -154,6 +158,27 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
           ["cancel-paid", request.saleId, request.authorization?.user_id ?? "alone"].join(" "),
         );
         return { kind: "no_open_sale" };
+      },
+      receiptPrintStatus: async (saleId: string): Promise<ReceiptPrintStatusOutcome> => {
+        saleChanges.push(["receipt-status", saleId].join(" "));
+        return { kind: "not_found" };
+      },
+      retryReceiptPrint: async (saleId: string): Promise<RetryReceiptPrintOutcome> => {
+        saleChanges.push(["receipt-retry", saleId].join(" "));
+        return { kind: "not_offered" };
+      },
+      reprintSaleReceipt: async (
+        request: ReprintSaleReceiptRequest,
+      ): Promise<ReprintSaleReceiptOutcome> => {
+        saleChanges.push(
+          [
+            "receipt-reprint",
+            request.saleId,
+            request.reason,
+            request.authorization?.user_id ?? "alone",
+          ].join(" "),
+        );
+        return { kind: "busy" };
       },
       chargeSaleInCash: async (request: {
         saleId: string;
@@ -2012,6 +2037,35 @@ describe("answerRendererRequest", () => {
         "cancelling a sale with approved payments",
         "cancel-paid s1 u2",
         "cancel-paid-sale-result",
+      ],
+      [
+        "receipt-print-status",
+        { type: "receipt-print-status", sale_id: "s1" } as const,
+        "receiptPrintStatus",
+        "reading a receipt's print status",
+        "receipt-status s1",
+        "receipt-print-status-result",
+      ],
+      [
+        "retry-receipt-print",
+        { type: "retry-receipt-print", sale_id: "s1" } as const,
+        "retryReceiptPrint",
+        "retrying a receipt print",
+        "receipt-retry s1",
+        "retry-receipt-print-result",
+      ],
+      [
+        "reprint-sale-receipt",
+        {
+          type: "reprint-sale-receipt",
+          sale_id: "s1",
+          reason: "se mojó",
+          authorization: { user_id: "u2", pin: "1234" },
+        } as const,
+        "reprintSaleReceipt",
+        "reprinting a receipt",
+        "receipt-reprint s1 se mojó u2",
+        "reprint-sale-receipt-result",
       ],
     ] as const;
 
