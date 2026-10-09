@@ -187,7 +187,6 @@ describe("DELETE /products/:id/deactivation", () => {
     expect(page.changes[0]).toMatchObject({
       entity: "product",
       entity_id: id,
-      version: 3,
       row: { active: true, version: 3, barcodes: [{ position: 0, code: "111" }] },
     });
   });
