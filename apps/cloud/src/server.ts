@@ -10,15 +10,6 @@ import type { FastifyInstance } from "fastify";
 import { makeWorkerUtils, type WorkerUtils } from "graphile-worker";
 import pg from "pg";
 import postgres from "postgres";
-import { createGraphileRecoveryJobQueue } from "./access/graphile-recovery-job-queue.js";
-import { reportPoolErrors } from "./access/pool-connection-error-handler.js";
-import type { AccessEmailSender } from "./access/recovery-email-sender.js";
-import type { RecoveryJobQueue } from "./access/recovery-job-queue.js";
-import { type RecoveryWorkerHandle, startRecoveryWorker } from "./access/recovery-worker.js";
-import {
-  type RecoveryEmailSenderEnv,
-  selectRecoveryEmailSender,
-} from "./access/select-recovery-email-sender.js";
 import { alertConditionResolutionJobs } from "./alerts/alert-condition-resolution-task.js";
 import { alertEscalationJobs } from "./alerts/alert-escalation-task.js";
 import {
@@ -27,6 +18,15 @@ import {
   buildApp,
   databaseRouteOptions,
 } from "./app.js";
+import { createGraphileRecoveryJobQueue } from "./credentials/graphile-recovery-job-queue.js";
+import { reportPoolErrors } from "./credentials/pool-connection-error-handler.js";
+import type { AccessEmailSender } from "./credentials/recovery-email-sender.js";
+import type { RecoveryJobQueue } from "./credentials/recovery-job-queue.js";
+import { type RecoveryWorkerHandle, startRecoveryWorker } from "./credentials/recovery-worker.js";
+import {
+  type RecoveryEmailSenderEnv,
+  selectRecoveryEmailSender,
+} from "./credentials/select-recovery-email-sender.js";
 import {
   arcaCertificateExpiryJobs,
   enqueueArcaCertificateExpiryCheck,

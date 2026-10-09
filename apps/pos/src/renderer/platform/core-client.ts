@@ -14,6 +14,8 @@ import type {
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
+  CredentialsCoreToRendererMessage,
+  CredentialsRendererToCoreMessage,
   CurrentSaleAnswer,
   EnrollmentOutcome,
   FirstPinCodeRequestOutcome,
@@ -41,6 +43,7 @@ import type {
 } from "@purosur/contracts";
 import {
   accessCoreToRendererMessageSchema,
+  credentialsCoreToRendererMessageSchema,
   registerCoreToRendererMessageSchema,
   salesCoreToRendererMessageSchema,
   syncCoreToRendererMessageSchema,
@@ -50,6 +53,7 @@ import { z } from "zod";
 
 const coreToRendererMessageSchema = z.discriminatedUnion("type", [
   accessCoreToRendererMessageSchema,
+  credentialsCoreToRendererMessageSchema,
   registerCoreToRendererMessageSchema,
   salesCoreToRendererMessageSchema,
   syncCoreToRendererMessageSchema,
@@ -57,12 +61,14 @@ const coreToRendererMessageSchema = z.discriminatedUnion("type", [
 
 type CoreToRendererMessage =
   | AccessCoreToRendererMessage
+  | CredentialsCoreToRendererMessage
   | RegisterCoreToRendererMessage
   | SalesCoreToRendererMessage
   | SyncCoreToRendererMessage;
 
 type RendererToCoreMessage =
   | AccessRendererToCoreMessage
+  | CredentialsRendererToCoreMessage
   | RegisterRendererToCoreMessage
   | SalesRendererToCoreMessage;
 

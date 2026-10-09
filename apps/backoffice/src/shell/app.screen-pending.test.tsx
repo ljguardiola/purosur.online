@@ -5,6 +5,7 @@ import { render } from "vitest-browser-react";
 import { App } from "./app";
 import { emptyHelp } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { opensOnlyScreens } from "./test-support/screen-routes";
 
 let heldRequests: string[] = [];
 
@@ -31,6 +32,8 @@ async function releaseHeldDownloads() {
 function topBarHeight(main: Element): number {
   return main.firstElementChild?.getBoundingClientRect().height ?? 0;
 }
+
+opensOnlyScreens(["/help"], { downloadedInTest: ["/", "/alerts"] });
 
 beforeEach(async () => {
   window.history.pushState(null, "", "/help");

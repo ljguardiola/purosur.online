@@ -4,7 +4,6 @@ import {
   SIGN_IN_BLOCK_DURATION_MS,
   SIGN_IN_FAILURE_LIMIT,
 } from "@purosur/domain";
-import { createUser, deactivateUser } from "@purosur/domain/access/use-cases";
 import { closeAlert, escalateOverdueAlerts } from "@purosur/domain/alerts/use-cases";
 import { editBranchSettings } from "@purosur/domain/branch/use-cases";
 import {
@@ -18,21 +17,23 @@ import {
 import { createRole } from "@purosur/domain/permissions/use-cases";
 import { confirmPrice, createDiscount, setPrice } from "@purosur/domain/pricing/use-cases";
 import { createRegister } from "@purosur/domain/register/use-cases";
+import { createUser, deactivateUser } from "@purosur/domain/users/use-cases";
 import { and, eq, like, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { DrizzleUserStore } from "../access/drizzle-user-store.js";
 import { hashSourceAddress } from "../access/sign-in-lockout.js";
 import { DrizzleAlertStore } from "../alerts/drizzle-alert-store.js";
 import { openAlert } from "../alerts/open-alert.js";
 import { DrizzleBranchSettingsStore } from "../branch/drizzle-branch-settings-store.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { DrizzleInternalBarcodeStore } from "../catalog/drizzle-internal-barcode-store.js";
+import { voidOutstandingRecoveryTokens } from "../credentials/void-outstanding-recovery-tokens.js";
 import { DrizzleRoleStore } from "../permissions/drizzle-role-store.js";
 import { branchSettings, locations, roles, userRoles, users } from "../platform/db/schema.js";
 import { DrizzleDiscountStore } from "../pricing/drizzle-discount-store.js";
 import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
 import { DrizzleBranchRegisterStore } from "../register/drizzle-branch-register-store.js";
 import { PendingChanges } from "../sync/change-log.js";
+import { DrizzleUserStore } from "../users/drizzle-user-store.js";
 import { branchSettingsAreAtDefaults } from "./sample-branch-settings.js";
 import {
   SAMPLE_ADMINISTRATOR,
@@ -125,7 +126,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
       const loadClock = () => loadedAt;
       const pending = new PendingChanges();
 
-      const userStore = new DrizzleUserStore(tx, loadClock, pending);
+      const userStore = new DrizzleUserStore(tx, loadClock, voidOutstandingRecoveryTokens, pending);
       const administratorOutcome = await createUser(
         { store: userStore, clock: deps },
         {

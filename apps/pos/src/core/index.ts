@@ -13,16 +13,16 @@ import {
 } from "../shared/channel";
 import { createActionGate } from "./access/action-gate";
 import { authorizersOf } from "./access/authorizers";
-import { requestFirstPinCode } from "./access/first-pin-code-request";
-import { checkPinCodeRedemption, redeemPinCode } from "./access/pin-code-redemption";
 import { hashPin } from "./access/pin-hash";
-import { pinPolicy } from "./access/pin-policy";
 import { redeemedPerson } from "./access/redeemed-person";
-import { applyRedeemedPin } from "./access/redeemed-pin";
 import { firstSignIn, signIn } from "./access/sign-in";
 import { lookUpSignIn } from "./access/sign-in-lookup";
 import { createSignedInPerson } from "./access/signed-in-person";
 import { SqliteSignInStore } from "./access/sqlite-sign-in-store";
+import { requestFirstPinCode } from "./credentials/first-pin-code-request";
+import { checkPinCodeRedemption, redeemPinCode } from "./credentials/pin-code-redemption";
+import { pinPolicy } from "./credentials/pin-policy";
+import { applyRedeemedPin } from "./credentials/redeemed-pin";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
 import {
   type CloudClientDeps,
@@ -307,7 +307,10 @@ const rendererRequestDeps: RendererRequestDeps = {
         applyRedeemedPin:
           localDatabase === undefined
             ? undefined
-            : (pepper, redemption) => applyRedeemedPin(localDatabase, pepper, redemption),
+            : (pepper, redemption) =>
+                applyRedeemedPin(localDatabase, pepper, redemption, (userId) =>
+                  new SqliteSignInStore(localDatabase).remember(userId),
+                ),
         reportLocalFailure: reportRedeemedPinFailure,
         openCashSession: () =>
           localDatabase === undefined ? undefined : readOpenSession(localDatabase),

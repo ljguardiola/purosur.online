@@ -1,12 +1,5 @@
 import { createRoute, createRouter, redirect } from "@tanstack/react-router";
-import {
-  accountRecoveryRoute,
-  myAccountRoute,
-  registerPasskeyRoute,
-  signInRoute,
-  userDetailRoute,
-  usersListRoute,
-} from "../access/routes";
+import { signInRoute } from "../access/routes";
 import { alertsListRoute, alertsOverviewRoute } from "../alerts/routes";
 import { branchSettingsRoute } from "../branch/routes";
 import {
@@ -15,6 +8,7 @@ import {
   productsListRoute,
   tagsListRoute,
 } from "../catalog/routes";
+import { accountRecoveryRoute, myAccountRoute, registerPasskeyRoute } from "../credentials/routes";
 import { fiscalConfigurationRoute, pointsOfSaleRoute } from "../fiscal/routes";
 import { helpArticleRoute, helpCategoryRoute, helpHomeRoute } from "../help/routes";
 import { pendingRefundsRoute } from "../payments/routes";
@@ -23,6 +17,7 @@ import { discountsListRoute, pricesListRoute } from "../pricing/routes";
 import { registersListRoute } from "../register/routes";
 import { reportsIndexRoute, salesByDayRoute } from "../sales/routes";
 import { stockBalancesRoute, stockCountsRoute, stockMovementsRoute } from "../stock/routes";
+import { userDetailRoute, usersListRoute } from "../users/routes";
 import { cashAndFiscalAreaRoute } from "./cash-and-fiscal-area";
 import { catalogAreaRoute } from "./catalog-area";
 import { helpAreaRoute } from "./help-area";

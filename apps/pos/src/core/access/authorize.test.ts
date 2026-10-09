@@ -1,9 +1,9 @@
 import type { RegisterOperation } from "@purosur/domain";
 import type { PinHolder, PinSignInFailures } from "@purosur/domain/access/use-cases";
 import { describe, expect, it } from "vitest";
+import { derivePinVerifier } from "../credentials/pin-verifier";
 import { authorize } from "./authorize";
 import type { PinCredential } from "./pin-matching";
-import { derivePinVerifier } from "./pin-verifier";
 
 const PEPPER = Buffer.alloc(32, 7).toString("base64url");
 const PIN_HASH = "hash-of-the-right-pin";

@@ -7,41 +7,14 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance } from "fastify";
 import {
-  type FirstPinCodeRouteOptions,
-  registerFirstPinCodeRoute,
-} from "./access/first-pin-code-route.js";
-import type { PasskeysListRouteOptions } from "./access/passkeys-list-route.js";
-import { registerPasskeysListRoute } from "./access/passkeys-list-route.js";
-import { registerPasskeyRegistrationRoutes } from "./access/passkeys-registration-route.js";
-import { registerPasskeyRemovalRoutes } from "./access/passkeys-removal-route.js";
-import { registerPinCodeRedemptionRoute } from "./access/pin-code-redemption-route.js";
-import type { RecoveryJobQueue } from "./access/recovery-job-queue.js";
-import { registerRecoveryRedemptionRoutes } from "./access/recovery-redemption-route.js";
-import type { RecoveryRouteOptions } from "./access/request-recovery-route.js";
-import { registerRecoveryRoutes } from "./access/request-recovery-route.js";
-import {
   declarePluginRoutesAccess,
   PUBLIC_ACCESS,
   registerRouteAccess,
 } from "./access/route-access.js";
-import type { SessionAuthenticateRouteOptions } from "./access/session-authenticate-route.js";
-import { registerSessionAuthenticateRoute } from "./access/session-authenticate-route.js";
-import { registerSessionAuthenticationOptionsRoute } from "./access/session-authentication-options-route.js";
-import { registerSessionAuthorizationRoutes } from "./access/session-authorization-route.js";
 import { registerSessionReadRoute } from "./access/session-read-route.js";
 import { registerSessionSignOutRoute } from "./access/session-sign-out-route.js";
 import { registerSessionStatusRoute } from "./access/session-status-route.js";
 import { registerSignInLookupRoute } from "./access/sign-in-lookup-route.js";
-import { registerUserCreationRoutes } from "./access/user-creation-route.js";
-import { registerUserDeactivationRoutes } from "./access/user-deactivation-route.js";
-import { registerUserEditRoutes } from "./access/user-edit-route.js";
-import { registerUserPasskeyRemovalRoutes } from "./access/user-passkey-removal-route.js";
-import { registerUserPasskeysListRoute } from "./access/user-passkeys-list-route.js";
-import { registerUserPinCodeRoutes } from "./access/user-pin-code-route.js";
-import { registerUserReactivationRoutes } from "./access/user-reactivation-route.js";
-import { registerUserReadRoute } from "./access/user-read-route.js";
-import type { UsersRouteOptions } from "./access/users-list-route.js";
-import { registerUsersListRoute } from "./access/users-list-route.js";
 import { registerAlertCloseRoute } from "./alerts/alert-close-route.js";
 import { registerAlertReadRoute } from "./alerts/alert-read-route.js";
 import type { AlertsRouteOptions } from "./alerts/alerts-list-route.js";
@@ -73,6 +46,27 @@ import { registerTagEditRoute } from "./catalog/tag-edit-route.js";
 import { registerTagReactivationRoute } from "./catalog/tag-reactivation-route.js";
 import type { TagsRouteOptions } from "./catalog/tags-list-route.js";
 import { registerTagsListRoute } from "./catalog/tags-list-route.js";
+import {
+  type FirstPinCodeRouteOptions,
+  registerFirstPinCodeRoute,
+} from "./credentials/first-pin-code-route.js";
+import type { PasskeysListRouteOptions } from "./credentials/passkeys-list-route.js";
+import { registerPasskeysListRoute } from "./credentials/passkeys-list-route.js";
+import { registerPasskeyRegistrationRoutes } from "./credentials/passkeys-registration-route.js";
+import { registerPasskeyRemovalRoutes } from "./credentials/passkeys-removal-route.js";
+import { registerPinCodeRedemptionRoute } from "./credentials/pin-code-redemption-route.js";
+import type { RecoveryJobQueue } from "./credentials/recovery-job-queue.js";
+import { registerRecoveryRedemptionRoutes } from "./credentials/recovery-redemption-route.js";
+import type { RecoveryRouteOptions } from "./credentials/request-recovery-route.js";
+import { registerRecoveryRoutes } from "./credentials/request-recovery-route.js";
+import type { SessionAuthenticateRouteOptions } from "./credentials/session-authenticate-route.js";
+import { registerSessionAuthenticateRoute } from "./credentials/session-authenticate-route.js";
+import { registerSessionAuthenticationOptionsRoute } from "./credentials/session-authentication-options-route.js";
+import { registerSessionAuthorizationRoutes } from "./credentials/session-authorization-route.js";
+import { registerUserPasskeyRemovalRoutes } from "./credentials/user-passkey-removal-route.js";
+import { registerUserPasskeysListRoute } from "./credentials/user-passkeys-list-route.js";
+import { registerUserPinCodeRoutes } from "./credentials/user-pin-code-route.js";
+import { voidOutstandingRecoveryTokens } from "./credentials/void-outstanding-recovery-tokens.js";
 import { arcaOnlineStatusOf } from "./fiscal/arca-online-status.js";
 import { registerBuyerIdentificationThresholdRecordRoute } from "./fiscal/buyer-identification-threshold-record-route.js";
 import type { BuyerIdentificationThresholdsRouteOptions } from "./fiscal/buyer-identification-thresholds-list-route.js";
@@ -130,6 +124,13 @@ import type { StockRouteOptions } from "./stock/stock-route-options.js";
 import { registerChangesRoute } from "./sync/changes-route.js";
 import { DrizzleRequestAdmission } from "./sync/drizzle-request-admission.js";
 import { registerEventsRoute } from "./sync/events-route.js";
+import { registerUserCreationRoutes } from "./users/user-creation-route.js";
+import { registerUserDeactivationRoutes } from "./users/user-deactivation-route.js";
+import { registerUserEditRoutes } from "./users/user-edit-route.js";
+import { registerUserReactivationRoutes } from "./users/user-reactivation-route.js";
+import { registerUserReadRoute } from "./users/user-read-route.js";
+import type { UsersRouteOptions } from "./users/users-list-route.js";
+import { registerUsersListRoute } from "./users/users-list-route.js";
 
 type WithoutClock<T> = Omit<T, "now">;
 
@@ -353,13 +354,21 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
       if (options.users) {
         registerUsersListRoute(api, { ...options.users, now });
         registerUserReadRoute(api, { ...options.users, now });
-        registerUserCreationRoutes(api, { ...options.users, now });
-        registerUserEditRoutes(api, { ...options.users, now });
+        registerUserCreationRoutes(api, { ...options.users, now, voidOutstandingRecoveryTokens });
+        registerUserEditRoutes(api, { ...options.users, now, voidOutstandingRecoveryTokens });
         registerUserPasskeysListRoute(api, { ...options.users, now });
         registerUserPasskeyRemovalRoutes(api, { ...options.users, now });
-        registerUserDeactivationRoutes(api, { ...options.users, now });
+        registerUserDeactivationRoutes(api, {
+          ...options.users,
+          now,
+          voidOutstandingRecoveryTokens,
+        });
         registerUserPinCodeRoutes(api, { ...options.users, now });
-        registerUserReactivationRoutes(api, { ...options.users, now });
+        registerUserReactivationRoutes(api, {
+          ...options.users,
+          now,
+          voidOutstandingRecoveryTokens,
+        });
       }
 
       if (options.roles) {

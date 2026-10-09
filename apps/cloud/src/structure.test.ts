@@ -17,6 +17,8 @@ const CONCEPTS = [
   "sales",
   "stock",
   "sync",
+  "users",
+  "credentials",
 ];
 const OUTSIDE_ANY_CONCEPT = ["platform", "sample-data", "test-support"];
 const ENTRY_POINTS = [

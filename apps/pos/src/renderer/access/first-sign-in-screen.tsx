@@ -3,13 +3,13 @@ import type {
   PinCodeRedemptionOutcome,
   PinPolicy,
   SignInOutcome,
+  SignInUser,
 } from "@purosur/contracts";
+import type { ComponentType } from "react";
 import { useState } from "react";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
-import { FirstSignInCodeStep } from "./first-sign-in-code-step";
 import type { FirstSignInEmailStepProps, FoundPerson } from "./first-sign-in-email-step";
 import { FirstSignInEmailStep } from "./first-sign-in-email-step";
-import { FirstSignInNoPin } from "./first-sign-in-no-pin";
 import { FirstSignInPinStep } from "./first-sign-in-pin-step";
 
 export type FirstSignInScreenProps = {
@@ -19,6 +19,19 @@ export type FirstSignInScreenProps = {
   loadPinPolicy: () => Promise<PinPolicy>;
   checkRedemption: (typedCode: string, newPin: string) => Promise<("reset_code" | "new_pin")[]>;
   redeem: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
+  NoPinStep: ComponentType<{
+    person: SignInUser;
+    requestCode: (userId: string) => Promise<FirstPinCodeRequestOutcome>;
+    onSent: () => void;
+  }>;
+  CodeStep: ComponentType<{
+    person: SignInUser;
+    loadPinPolicy: () => Promise<PinPolicy>;
+    checkRedemption: (typedCode: string, newPin: string) => Promise<("reset_code" | "new_pin")[]>;
+    redeem: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
+    signIn: (userId: string, pin: string) => Promise<SignInOutcome>;
+    requestCode: (userId: string) => Promise<FirstPinCodeRequestOutcome>;
+  }>;
 };
 
 export function FirstSignInScreen({
@@ -28,6 +41,8 @@ export function FirstSignInScreen({
   loadPinPolicy,
   checkRedemption,
   redeem,
+  NoPinStep,
+  CodeStep,
 }: FirstSignInScreenProps) {
   const [found, setFound] = useState<FoundPerson>();
 
@@ -43,6 +58,8 @@ export function FirstSignInScreen({
           loadPinPolicy={loadPinPolicy}
           checkRedemption={checkRedemption}
           redeem={redeem}
+          NoPinStep={NoPinStep}
+          CodeStep={CodeStep}
         />
       )}
     </BrandPanelScreen>
@@ -56,6 +73,8 @@ function FoundPersonStep({
   loadPinPolicy,
   checkRedemption,
   redeem,
+  NoPinStep,
+  CodeStep,
 }: { person: FoundPerson } & Omit<FirstSignInScreenProps, "lookup">) {
   const [codeSent, setCodeSent] = useState(false);
 
@@ -63,7 +82,7 @@ function FoundPersonStep({
     return <FirstSignInPinStep person={person.user} signIn={signIn} />;
   }
   return codeSent ? (
-    <FirstSignInCodeStep
+    <CodeStep
       person={person.user}
       loadPinPolicy={loadPinPolicy}
       checkRedemption={checkRedemption}
@@ -72,10 +91,6 @@ function FoundPersonStep({
       requestCode={requestCode}
     />
   ) : (
-    <FirstSignInNoPin
-      person={person.user}
-      requestCode={requestCode}
-      onSent={() => setCodeSent(true)}
-    />
+    <NoPinStep person={person.user} requestCode={requestCode} onSent={() => setCodeSent(true)} />
   );
 }

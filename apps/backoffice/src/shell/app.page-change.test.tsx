@@ -6,6 +6,17 @@ import { openSession } from "../access/test-support/open-session";
 import { App, type AppServices } from "./app";
 import { emptyHelp, help, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { opensOnlyScreens } from "./test-support/screen-routes";
+
+opensOnlyScreens([
+  "/",
+  "/account",
+  "/account-recovery",
+  "/help",
+  "/products",
+  "/roles",
+  "/sign-in",
+]);
 
 beforeEach(resetPageState);
 

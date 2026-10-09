@@ -16,6 +16,11 @@
       "types": "./dist/access/use-cases/index.d.ts",
       "default": "./dist/access/use-cases/index.js"
     },
+    "./credentials/use-cases": {
+      "@purosur/source": "./src/credentials/use-cases/index.ts",
+      "types": "./dist/credentials/use-cases/index.d.ts",
+      "default": "./dist/credentials/use-cases/index.js"
+    },
     "./alerts/use-cases": {
       "@purosur/source": "./src/alerts/use-cases/index.ts",
       "types": "./dist/alerts/use-cases/index.d.ts",
@@ -40,6 +45,11 @@
       "@purosur/source": "./src/payments/use-cases/index.ts",
       "types": "./dist/payments/use-cases/index.d.ts",
       "default": "./dist/payments/use-cases/index.js"
+    },
+    "./users/use-cases": {
+      "@purosur/source": "./src/users/use-cases/index.ts",
+      "types": "./dist/users/use-cases/index.d.ts",
+      "default": "./dist/users/use-cases/index.js"
     },
     "./permissions/use-cases": {
       "@purosur/source": "./src/permissions/use-cases/index.ts",

@@ -14,6 +14,7 @@ import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { accessKey } from "../access/access-queries";
+import { credentialsKey } from "../credentials/credentials-queries";
 import type { CashMovementInput, CoreClient } from "../platform/core-client";
 import { createQueryClient } from "../platform/query-client";
 import { cancelReads, setQueryAnswer } from "../platform/set-query-answer";
@@ -340,6 +341,7 @@ function Register({ core }: { core: CoreClient }) {
     () =>
       core.onPulled(() => {
         void queryClient.invalidateQueries({ queryKey: accessKey });
+        void queryClient.invalidateQueries({ queryKey: credentialsKey });
         void queryClient.invalidateQueries({ queryKey: registerKeys.registerName });
         void queryClient.invalidateQueries({ queryKey: lockedClosersKey });
       }),

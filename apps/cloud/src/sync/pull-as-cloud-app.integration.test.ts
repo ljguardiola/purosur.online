@@ -1,4 +1,3 @@
-import { createUser } from "@purosur/domain/access/use-cases";
 import { createCategory, createProduct, createTag } from "@purosur/domain/catalog/use-cases";
 import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import {
@@ -10,11 +9,12 @@ import {
 import { createRole } from "@purosur/domain/permissions/use-cases";
 import { setPrice } from "@purosur/domain/pricing/use-cases";
 import { pullChanges } from "@purosur/domain/sync/use-cases";
+import { createUser } from "@purosur/domain/users/use-cases";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { DrizzleUserStore } from "../access/drizzle-user-store.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
+import { voidOutstandingRecoveryTokens } from "../credentials/void-outstanding-recovery-tokens.js";
 import { DrizzleBuyerIdentificationThresholdStore } from "../fiscal/drizzle-buyer-identification-threshold-store.js";
 import { DrizzleFiscalAddressStore } from "../fiscal/drizzle-fiscal-address-store.js";
 import { DrizzleIssuerIdentificationStore } from "../fiscal/drizzle-issuer-identification-store.js";
@@ -27,6 +27,7 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
+import { DrizzleUserStore } from "../users/drizzle-user-store.js";
 import { logChange } from "./change-log.js";
 import { DrizzleChangeLog } from "./drizzle-change-log.js";
 
@@ -87,7 +88,7 @@ describe("a pull run as the role the deployed cloud connects with", () => {
     }
     await createUser(
       {
-        store: new DrizzleUserStore(db, () => NOW),
+        store: new DrizzleUserStore(db, () => NOW, voidOutstandingRecoveryTokens),
         clock: { now: () => NOW },
       },
       {

@@ -5,6 +5,19 @@ import { openSession } from "../access/test-support/open-session";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { opensOnlyScreens } from "./test-support/screen-routes";
+
+opensOnlyScreens([
+  "/",
+  "/account",
+  "/brands",
+  "/categories",
+  "/discounts",
+  "/help",
+  "/prices",
+  "/products",
+  "/tags",
+]);
 
 beforeEach(resetPageState);
 
