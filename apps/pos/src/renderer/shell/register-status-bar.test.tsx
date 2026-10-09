@@ -71,7 +71,7 @@ describe("RegisterStatusBar", () => {
 
   it.each([
     [NO_SESSION, "Sin sesión abierta"],
-    [OPEN_SESSION, "Sesión abierta"],
+    [OPEN_SESSION, "Sesión abierta 09:02"],
     [LOCKED_SESSION, "Caja bloqueada"],
   ])("shows the cash session as %j", async (cashSession, text) => {
     const screen = await renderBar({ cashSession });

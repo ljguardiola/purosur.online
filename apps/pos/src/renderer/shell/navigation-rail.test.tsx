@@ -22,28 +22,22 @@ const CLOCK: ActionEntry = {
 };
 
 async function renderRail(
-  props: { firstName?: string; entries?: readonly ActionEntry[]; onSignOut?: () => void } = {},
+  props: { entries?: readonly ActionEntry[]; onSignOut?: () => void } = {},
 ) {
   return render(
-    <NavigationRail
-      firstName={props.firstName ?? "Ada"}
-      entries={props.entries ?? []}
-      onSignOut={props.onSignOut ?? vi.fn()}
-    />,
+    <NavigationRail entries={props.entries ?? []} onSignOut={props.onSignOut ?? vi.fn()} />,
   );
 }
 
 describe("NavigationRail", () => {
-  it("lists Inicio, the entries, the first name and Salir, top to bottom", async () => {
+  it("lists Inicio, the entries and Salir, top to bottom", async () => {
     const screen = await renderRail({ entries: [HISTORY, CLOCK] });
 
     const rail = screen.getByRole("navigation", { name: "Menú de la caja" }).element();
 
     const items = Array.from(rail.querySelectorAll("button, a")).map((item) => item.textContent);
     expect(items).toEqual(["Inicio", "Historial", "Reloj", "Salir"]);
-    const text = rail.textContent ?? "";
-    expect(text.indexOf("Reloj")).toBeLessThan(text.indexOf("Ada"));
-    expect(text.indexOf("Ada")).toBeLessThan(text.indexOf("Salir"));
+    expect(rail.textContent).not.toContain("Ada");
     await expectNoAccessibilityViolations(screen.container);
   });
 
@@ -59,12 +53,6 @@ describe("NavigationRail", () => {
     await expect
       .element(screen.getByRole("button", { name: "Salir" }))
       .not.toHaveAttribute("aria-current");
-  });
-
-  it("shows the first name of the person in the register", async () => {
-    const screen = await renderRail();
-
-    await expect.element(screen.getByText("Ada")).toBeVisible();
   });
 
   it("links each entry to its route", async () => {
@@ -115,25 +103,9 @@ describe("NavigationRail", () => {
     expect(rail.getBoundingClientRect().width).toBe(88);
   });
 
-  it("keeps a long name on one line inside the rail", async () => {
-    const screen = await renderRail({ firstName: "Maximilianobartolomedelasantisimatrinidad" });
-
-    const rail = screen.getByRole("navigation", { name: "Menú de la caja" }).element();
-    const name = screen.getByText("Maximilianobartolomedelasantisimatrinidad").element();
-
-    expect(rail.getBoundingClientRect().width).toBe(88);
-    expect(rail.scrollWidth).toBeLessThanOrEqual(88);
-    expect(name.scrollWidth).toBeGreaterThan(name.clientWidth);
-    expect(getComputedStyle(name).textOverflow).toBe("ellipsis");
-  });
-
   it("names the current screen after the one it is given instead of Inicio", async () => {
     const screen = await render(
-      <NavigationRail
-        firstName="Ada"
-        entries={[]}
-        home={{ label: "Venta", icon: ShoppingBasket }}
-      />,
+      <NavigationRail entries={[]} home={{ label: "Venta", icon: ShoppingBasket }} />,
     );
 
     await expect
@@ -144,11 +116,7 @@ describe("NavigationRail", () => {
 
   it("offers no Salir when it is given no way to sign out", async () => {
     const screen = await render(
-      <NavigationRail
-        firstName="Ada"
-        entries={[]}
-        home={{ label: "Venta", icon: ShoppingBasket }}
-      />,
+      <NavigationRail entries={[]} home={{ label: "Venta", icon: ShoppingBasket }} />,
     );
 
     const rail = screen.getByRole("navigation", { name: "Menú de la caja" }).element();
@@ -162,7 +130,6 @@ describe("NavigationRail", () => {
   it("lists its links after the entries and marks the current one", async () => {
     const screen = await render(
       <NavigationRail
-        firstName="Ada"
         entries={[]}
         home={{ label: "Venta", icon: ShoppingBasket }}
         links={[{ label: "Caja", icon: Wallet, to: "/cash", current: true }]}
@@ -181,7 +148,6 @@ describe("NavigationRail", () => {
   it("leaves a link unmarked unless it is the current one", async () => {
     const screen = await render(
       <NavigationRail
-        firstName="Ada"
         entries={[]}
         home={{ label: "Venta", icon: ShoppingBasket }}
         links={[{ label: "Caja", icon: Wallet, to: "/cash" }]}
@@ -196,7 +162,6 @@ describe("NavigationRail", () => {
   it("goes to a link's route when it is pressed", async () => {
     const screen = await render(
       <NavigationRail
-        firstName="Ada"
         entries={[]}
         home={{ label: "Venta", icon: ShoppingBasket }}
         links={[{ label: "Caja", icon: Wallet, to: "/cash" }]}
@@ -211,7 +176,6 @@ describe("NavigationRail", () => {
   it("turns the home item into a link, no longer current, when it is given a route", async () => {
     const screen = await render(
       <NavigationRail
-        firstName="Ada"
         entries={[]}
         home={{ label: "Venta", icon: ShoppingBasket, to: "/session" }}
         links={[{ label: "Caja", icon: Wallet, to: "/cash", current: true }]}
@@ -229,7 +193,6 @@ describe("NavigationRail", () => {
     const screen = await render(
       <>
         <NavigationRail
-          firstName="Ada"
           entries={[HISTORY]}
           home={{ label: "Venta", icon: ShoppingBasket }}
           links={[{ label: "Caja", icon: Wallet, to: "/cash", current: true }]}

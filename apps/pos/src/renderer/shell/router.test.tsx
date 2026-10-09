@@ -746,7 +746,9 @@ describe("the register's router", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
-    await expect.element(screen.getByRole("navigation").getByText("Ada")).toBeVisible();
+    await expect
+      .element(screen.getByRole("region", { name: "Estado de la caja" }).getByText("Ada"))
+      .toBeVisible();
   });
 
   it("renders the open-session screen for the person who opened the session", async () => {
@@ -755,7 +757,9 @@ describe("the register's router", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
-    await expect.element(screen.getByRole("navigation").getByText("Grace")).toBeVisible();
+    await expect
+      .element(screen.getByRole("region", { name: "Estado de la caja" }).getByText("Grace"))
+      .toBeVisible();
     await expect.element(screen.getByText("Sesión abierta 09:02")).toBeVisible();
   });
 
@@ -1037,7 +1041,7 @@ describe("the register's router", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByText("Caja 1 · Sesión abierta 09:02")).toBeVisible();
+    await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
   });
 
   it("shows the register's name from the first render of a session screen", async () => {
@@ -1064,7 +1068,7 @@ describe("the register's router", () => {
     name.resolve("Caja 1");
 
     await expect.element(screen.getByRole("heading", { name: "Venta en curso" })).toBeVisible();
-    expect(screen.container.textContent).toContain("Caja 1 · Sesión abierta 09:02");
+    expect(screen.container.textContent).toContain("Caja 1");
   });
 
   it("reads the register's name once on the first visit to a session screen", async () => {
@@ -1077,7 +1081,7 @@ describe("the register's router", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByText("Caja 1 · Sesión abierta 09:02")).toBeVisible();
+    await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
     expect(registerName).toHaveBeenCalledOnce();
   });
 
@@ -1131,7 +1135,7 @@ describe("the register's router", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByText("Caja 1 · Sin sesión abierta")).toBeVisible();
+    await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
   });
 
   it("leaves the register's name out of the sign-in screen's eyebrow when reading it fails", async () => {
@@ -1622,7 +1626,7 @@ describe("the register's status bar", () => {
     const bar = screen.getByRole("region", { name: STATUS_BAR_NAME });
     await expect.element(bar).toBeVisible();
     expect(bar.element().textContent).toContain("Ada");
-    expect(bar.element().textContent).toContain("Sesión abierta");
+    expect(bar.element().textContent).toContain("Sesión abierta 09:02");
   });
 
   it("shows the register as locked, with no name, while nobody is signed in", async () => {

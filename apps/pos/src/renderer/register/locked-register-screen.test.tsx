@@ -7,7 +7,6 @@ import { render } from "../shell/test-support/render-with-router";
 import { LockedRegisterScreen } from "./locked-register-screen";
 
 const OPENER: SignedInPerson = { user_id: "u1", first_name: "Ada", abilities: [] };
-const OPENED_AT = "2026-09-30T09:02:00.000-03:00";
 
 function answering(outcome: SignInOutcome) {
   const attempts: { userId: string; pin: string }[] = [];
@@ -19,14 +18,7 @@ function answering(outcome: SignInOutcome) {
 }
 
 async function renderScreen(signIn = answering({ kind: "unavailable" }).signIn) {
-  return render(
-    <LockedRegisterScreen
-      opener={OPENER}
-      registerName="Caja 1"
-      openedAt={OPENED_AT}
-      signIn={signIn}
-    />,
-  );
+  return render(<LockedRegisterScreen opener={OPENER} registerName="Caja 1" signIn={signIn} />);
 }
 
 type Screen = Awaited<ReturnType<typeof render>>;
@@ -41,7 +33,7 @@ describe("LockedRegisterScreen", () => {
     const screen = await renderScreen();
 
     await expect.element(screen.getByRole("heading", { name: "Caja bloqueada" })).toBeVisible();
-    await expect.element(screen.getByText("Caja 1 · Sesión abierta 09:02")).toBeVisible();
+    await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
     await expect.element(screen.getByRole("radio", { name: "Ada" })).toBeChecked();
     expect(screen.getByRole("radio").elements()).toHaveLength(1);
     await expect.element(screen.getByRole("button", { name: "Retomar" })).toBeDisabled();

@@ -18,7 +18,6 @@ const GRACE: SignedInPerson = {
   first_name: "Grace",
   abilities: ["open_cash_session"],
 };
-const OPENED_AT = "2026-09-30T09:02:00.000-03:00";
 const BALANCE: CashBalance = {
   opening_float: { amount: 2_000_000, direction: "in" },
   cash_sales: { amount: 3_500_000, direction: "in" },
@@ -97,7 +96,6 @@ async function renderStep(
       opener={GRACE}
       closerName="Sofía"
       registerName="Caja 1"
-      openedAt={OPENED_AT}
       loadCashBalance={async () => BALANCE}
       loadCashCountPreview={options.loadCashCountPreview ?? answerPreview}
       loadOpenSale={loadOpenSale}
@@ -136,7 +134,7 @@ describe("LockedCashCount", () => {
     const { screen } = await renderStep();
 
     await expect.element(screen.getByRole("heading", { name: "Cerrar caja" })).toBeVisible();
-    await expect.element(screen.getByText("Caja 1 · Sesión abierta 09:02")).toBeVisible();
+    await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
     await expect.element(screen.getByText("Cierra Sofía. La sesión es de Grace.")).toBeVisible();
     await expect
       .element(screen.getByText("Contá el efectivo que hay en la caja y cargá el total."))

@@ -19,7 +19,6 @@ const PERSON: SaleScreenProps["person"] = {
   first_name: "Ada",
   abilities: ["open_cash_session"],
 };
-const OPENED_AT = "2026-09-30T09:02:00.000-03:00";
 const FIELD_NAME = "Producto";
 export const PLACEHOLDER = "Escaneá o escribí el nombre del producto";
 export const NOT_PERMITTED_TITLE = "No tenés el permiso de vender y cobrar";
@@ -106,7 +105,6 @@ export async function renderScreen({ registerName = "Caja 1", ...overrides }: Ov
       sessionId="s1"
       person={PERSON}
       registerName={registerName}
-      openedAt={OPENED_AT}
       lock={() => {}}
       currentSale={currentSale}
       scanProduct={scanProduct}

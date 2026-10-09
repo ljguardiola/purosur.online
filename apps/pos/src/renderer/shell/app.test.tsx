@@ -575,7 +575,9 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
     await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
-    await expect.element(screen.getByRole("navigation").getByText("Ada")).toBeVisible();
+    await expect
+      .element(screen.getByRole("region", { name: "Estado de la caja" }).getByText("Ada"))
+      .toBeVisible();
     await expect
       .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
       .not.toBeInTheDocument();
@@ -628,7 +630,9 @@ describe("App", () => {
     await resumeLockedRegister(screen);
 
     await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
-    await expect.element(screen.getByRole("navigation").getByText("Ada")).toBeVisible();
+    await expect
+      .element(screen.getByRole("region", { name: "Estado de la caja" }).getByText("Ada"))
+      .toBeVisible();
   });
 
   it("keeps the register locked while the core answers the sign-in with the register still locked", async () => {
@@ -1007,7 +1011,9 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: "Retomar" }));
 
     await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
-    await expect.element(screen.getByRole("navigation").getByText("Grace")).toBeVisible();
+    await expect
+      .element(screen.getByRole("region", { name: "Estado de la caja" }).getByText("Grace"))
+      .toBeVisible();
   });
 
   describe("redeeming a PIN code on a locked register", () => {
@@ -1039,7 +1045,9 @@ describe("App", () => {
       });
 
       await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
-      await expect.element(screen.getByRole("navigation").getByText("Grace")).toBeVisible();
+      await expect
+        .element(screen.getByRole("region", { name: "Estado de la caja" }).getByText("Grace"))
+        .toBeVisible();
     });
 
     it("resumes the open cash session the core answers with the redemption even when reading it again would fail", async () => {
@@ -1557,7 +1565,9 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: "Abrir la caja" }));
 
     await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
-    await expect.element(screen.getByRole("navigation").getByText("Ada")).toBeVisible();
+    await expect
+      .element(screen.getByRole("region", { name: "Estado de la caja" }).getByText("Ada"))
+      .toBeVisible();
     await expect.element(screen.getByText("Sesión abierta 09:02")).toBeVisible();
     expect(opened).toEqual([10_000]);
   });
@@ -1760,7 +1770,7 @@ describe("App", () => {
 
       finishPull("Caja 1");
 
-      await expect.element(screen.getByText(/Caja 1 · Sesión abierta/)).toBeVisible();
+      await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
       expect(cashBalance).toHaveBeenCalledTimes(1);
       expect(cashMovements).toHaveBeenCalledTimes(1);
     });
@@ -1868,11 +1878,13 @@ describe("App", () => {
       await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
 
       await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
-      await expect.element(screen.getByRole("navigation").getByText("Grace")).toBeVisible();
+      await expect
+        .element(screen.getByRole("region", { name: "Estado de la caja" }).getByText("Grace"))
+        .toBeVisible();
       await expect
         .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
         .not.toBeInTheDocument();
-      await expect.element(screen.getByRole("main").getByText("Sin sesión abierta")).toBeVisible();
+      await expect.element(screen.getByText("Sin sesión abierta")).toBeVisible();
       expect(closed).toEqual([["s1", 4_580_000]]);
       expect(asked).not.toContain("sign-out");
     });
@@ -2319,7 +2331,7 @@ describe("App", () => {
 
       finishPull("Caja 1");
 
-      await expect.element(screen.getByText(/Caja 1 · Sesión abierta/)).toBeVisible();
+      await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
       expect(authorizers).toHaveBeenCalledTimes(2);
     });
 
