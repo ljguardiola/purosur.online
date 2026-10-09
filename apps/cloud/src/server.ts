@@ -52,6 +52,7 @@ import { WsfeArcaVitalityService, wsfeEndpointOf } from "./fiscal/wsfe-arca-vita
 import { WsfeBuyerTaxStatusSource } from "./fiscal/wsfe-buyer-tax-status-source.js";
 import { WsfeTaxAuthorityInvoicing } from "./fiscal/wsfe-tax-authority-invoicing.js";
 import { WsfeTaxAuthorityLastAuthorized } from "./fiscal/wsfe-tax-authority-last-authorized.js";
+import { createMercadoPagoOrdersClient } from "./payments/mercado-pago-orders-client.js";
 import {
   type DedicatedConnections,
   postgresDedicatedConnections,
@@ -83,6 +84,9 @@ export interface ServerEnv {
   ARCA_ENVIRONMENT?: string | undefined;
   /** PEM text of the RSA private key matching `ARCA_CERTIFICATE`, used to sign WSAA login requests. */
   ARCA_PRIVATE_KEY?: string | undefined;
+  MERCADOPAGO_ACCESS_TOKEN?: string | undefined;
+  /** The identifier of the store's own QR code at Mercado Pago. */
+  MERCADOPAGO_QR_EXTERNAL_POS_ID?: string | undefined;
 }
 
 const DEFAULT_PORT = 3000;
@@ -138,6 +142,31 @@ function requireRecoveryEnvVar(env: ServerEnv, name: keyof ServerEnv & string): 
     throw new Error(`${name} must be set once DATABASE_URL is configured (recovery-by-email)`);
   }
   return value;
+}
+
+export interface MercadoPagoConfig {
+  accessToken: string;
+  externalPosId: string;
+}
+
+/** Both variables set configure Mercado Pago, neither leaves it off, and one alone is a mistake. */
+export function resolveMercadoPagoConfig(env: ServerEnv): MercadoPagoConfig | undefined {
+  const accessToken = env.MERCADOPAGO_ACCESS_TOKEN;
+  const externalPosId = env.MERCADOPAGO_QR_EXTERNAL_POS_ID;
+  if (!accessToken && !externalPosId) {
+    return undefined;
+  }
+  if (!accessToken) {
+    throw new Error(
+      "MERCADOPAGO_ACCESS_TOKEN must be set when MERCADOPAGO_QR_EXTERNAL_POS_ID is set",
+    );
+  }
+  if (!externalPosId) {
+    throw new Error(
+      "MERCADOPAGO_QR_EXTERNAL_POS_ID must be set when MERCADOPAGO_ACCESS_TOKEN is set",
+    );
+  }
+  return { accessToken, externalPosId };
 }
 
 /** Required unconditionally: the edge guard applies to every route (`GET /api/health` excepted). */
@@ -559,6 +588,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
   const edgeOriginSecret = requireEdgeOriginSecret(env);
   const errorReporting = resolveBackofficeErrorReporting(env);
   const recoveryEnv = resolveRecoveryEnv(env);
+  const mercadoPagoConfig = resolveMercadoPagoConfig(env);
   const configuration = recoveryEnv
     ? {
         authorizedCuit: requireAuthorizedCuit(env),
@@ -601,6 +631,16 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
           installationKeysEncryptionKey: database.installationKeysEncryptionKey,
           ...(invoicing ? { enqueueTaxAuthorityCount: enqueueTaxAuthorityCountJob } : {}),
         })
+      : {}),
+    ...(database
+      ? {
+          mercadoPagoQr: {
+            connections: database.recovery.connections,
+            ...(mercadoPagoConfig
+              ? { mercadoPago: createMercadoPagoOrdersClient(mercadoPagoConfig) }
+              : {}),
+          },
+        }
       : {}),
     ...(database && invoicing
       ? {
