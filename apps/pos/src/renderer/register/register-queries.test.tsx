@@ -4,6 +4,7 @@ import type {
   ListedCashMovement,
   OpenCashSession,
   RecordableCashMovementKinds,
+  RegisterStatus,
   SessionOpenSale,
   SignInUser,
 } from "@purosur/contracts";
@@ -26,6 +27,7 @@ import {
   useCashSessionQuery,
   useLockedClosersQuery,
   useRegisterNameQuery,
+  useRegisterStatusQuery,
   useSessionOpenSaleQuery,
   useSetSessionOpenSale,
 } from "./register-queries";
@@ -568,5 +570,77 @@ describe("locked register closers query", () => {
     );
 
     await expect.element(screen.getByText("loading")).toBeVisible();
+  });
+});
+
+const STATUS: RegisterStatus = { conditions: ["sales_denied"], cloud: "reachable" };
+
+type StatusRead = () => Promise<RegisterStatus | "unavailable">;
+
+function StatusProbe({ read, enabled = true }: { read: StatusRead; enabled?: boolean }) {
+  const status = useRegisterStatusQuery(read, enabled);
+  return <p>{describeData(status, (value) => ` `)}</p>;
+}
+
+describe("register status query", () => {
+  it("is keyed under the register's own root key", () => {
+    expect(registerKeys.status.at(0)).toBe("register");
+  });
+
+  it("holds the status the core answers", async () => {
+    const screen = await render(
+      <QueryClientProvider client={createQueryClient()}>
+        <StatusProbe read={async () => STATUS} />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("reachable sales_denied")).toBeVisible();
+  });
+
+  it("is loading until the core answers", async () => {
+    const screen = await render(
+      <QueryClientProvider client={createQueryClient()}>
+        <StatusProbe read={() => new Promise(() => {})} />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("loading")).toBeVisible();
+  });
+
+  it("fails when the core cannot answer", async () => {
+    const screen = await render(
+      <QueryClientProvider client={createQueryClient()}>
+        <StatusProbe read={async () => "unavailable"} />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("failed")).toBeVisible();
+  });
+
+  it("does not read while disabled", async () => {
+    const read = vi.fn<StatusRead>(async () => STATUS);
+    const screen = await render(
+      <QueryClientProvider client={createQueryClient()}>
+        <StatusProbe read={read} enabled={false} />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("loading")).toBeVisible();
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it("reads again when its key is invalidated", async () => {
+    const queryClient = createQueryClient();
+    const read = vi.fn<StatusRead>(async () => STATUS);
+    await render(
+      <QueryClientProvider client={queryClient}>
+        <StatusProbe read={read} />
+      </QueryClientProvider>,
+    );
+    await expect.poll(() => read.mock.calls.length).toBe(1);
+
+    await queryClient.invalidateQueries({ queryKey: registerKeys.status });
+
+    await expect.poll(() => read.mock.calls.length).toBe(2);
   });
 });
