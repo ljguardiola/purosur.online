@@ -1,7 +1,7 @@
 import { stockCountBodySchema } from "@purosur/contracts";
 import type { SaleUnit, StockDirection } from "@purosur/domain";
 import { formatNumber, parseEsArNumber } from "@purosur/ui";
-import { schemaLimit } from "../platform/schema-limit";
+import { schemaLimit } from "./schema-limit";
 
 const quantityUnits = stockCountBodySchema.shape.counted.meta();
 const KG_DECIMALS = schemaLimit(quantityUnits?.["decimals"]);

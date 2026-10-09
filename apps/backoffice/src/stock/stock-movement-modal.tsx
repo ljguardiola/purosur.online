@@ -20,6 +20,7 @@ import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { combineCloudData } from "../platform/combine-cloud-data";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { directedQuantity, parseStockQuantity } from "../platform/stock-quantity";
 import type { RecordMovementOutcome } from "./stock-api";
 import { StockBalanceChange } from "./stock-balance-change";
 import {
@@ -37,7 +38,6 @@ import {
 } from "./stock-movement-form";
 import { StockMovementNotice } from "./stock-movement-notice";
 import type { StockMovementsScreenServices } from "./stock-movements-services";
-import { directedQuantity, parseStockQuantity } from "./stock-quantity";
 import {
   useRefreshStock,
   useStockMovementReasonsQuery,

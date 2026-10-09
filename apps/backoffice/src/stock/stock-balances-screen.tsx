@@ -13,10 +13,10 @@ import { deepEqual } from "@tanstack/react-router";
 import { Package, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { formatStockQuantity } from "../platform/stock-quantity";
 import { ScreenLayout } from "../shell/screen-layout";
 import type { StockBalancesFilters } from "./routes";
 import type { StockBalancesScreenServices } from "./stock-balances-services";
-import { formatStockQuantity } from "./stock-quantity";
 import { useStockBalancesQuery } from "./stock-queries";
 import { categoryFilterOptions, StockTopBar } from "./stock-screen-parts";
 

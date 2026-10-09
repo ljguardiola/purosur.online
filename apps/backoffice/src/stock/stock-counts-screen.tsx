@@ -15,6 +15,7 @@ import { deepEqual } from "@tanstack/react-router";
 import { Check, ClipboardCheck, Plus, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { formatStockChange, formatStockQuantity } from "../platform/stock-quantity";
 import { type BackofficeAccess, canSeeStockBalances } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { countMomentNow } from "./count-moment";
@@ -28,7 +29,6 @@ import {
   STOCK_PERIOD_OPTIONS,
   type StockPeriod,
 } from "./stock-period";
-import { formatStockChange, formatStockQuantity } from "./stock-quantity";
 import { useRefreshStock, useStockCountsQuery } from "./stock-queries";
 import { categoryFilterOptions, StockTopBar } from "./stock-screen-parts";
 
