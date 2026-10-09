@@ -29,7 +29,7 @@ describe("the CUIT number no check digit validates", () => {
     const firstTen = CUIT_NUMBER_NO_CHECK_DIGIT_VALIDATES.slice(0, -1);
 
     for (let checkDigit = 0; checkDigit <= 9; checkDigit += 1) {
-      expect(isValidCuit(``)).toBe(false);
+      expect(isValidCuit(`${firstTen}${checkDigit}`)).toBe(false);
     }
   });
 
