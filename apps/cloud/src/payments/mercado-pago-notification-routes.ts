@@ -73,17 +73,17 @@ export function registerMercadoPagoNotificationRoutes<TQueryResult extends PgQue
         requestId: headerValue(request.headers["x-request-id"]),
         dataId,
       });
-      if (!signed || dataId === undefined) {
-        console.warn("discarded a Mercado Pago notification with an invalid signature");
-        await reply.code(401).send();
-        return;
-      }
-
       const admitted = await admitPaymentNotification(admission, {
         sourceAddress: resolveSourceAddress(request),
       });
       if (admitted.kind === "rate_limited") {
         await sendRateLimited(reply, "too many notifications", admitted.retryAfterSeconds);
+        return;
+      }
+
+      if (!signed || dataId === undefined) {
+        console.warn("discarded a Mercado Pago notification with an invalid signature");
+        await reply.code(401).send();
         return;
       }
 

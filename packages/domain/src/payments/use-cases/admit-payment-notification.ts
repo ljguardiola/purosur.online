@@ -18,10 +18,10 @@ export async function admitPaymentNotification(
 ): Promise<AdmitPaymentNotificationOutcome> {
   const now = clock.now();
   const windowStart = paymentNotificationWindowStart(now);
-  await admission.forgetNotificationsOutsideWindow(windowStart);
 
   return admission.transaction<AdmitPaymentNotificationOutcome>(async (tx) => {
     await tx.lockNotificationAttempts(sourceAddress);
+    await tx.forgetNotificationsOutsideWindow(windowStart);
 
     const retryAfterSeconds = paymentNotificationRetryAfterSeconds(
       await tx.admittedNotifications(sourceAddress, windowStart),

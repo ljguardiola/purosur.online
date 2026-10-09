@@ -25,6 +25,18 @@ class DrizzlePaymentNotificationAdmissionTransaction<TQueryResult extends PgQuer
     );
   }
 
+  async forgetNotificationsOutsideWindow(windowStart: Date): Promise<void> {
+    const expired = this.tx
+      .select({ id: paymentNotificationAttempts.id })
+      .from(paymentNotificationAttempts)
+      .where(lte(paymentNotificationAttempts.attemptedAt, windowStart))
+      .limit(PRUNE_BATCH_SIZE)
+      .for("update", { skipLocked: true });
+    await this.tx
+      .delete(paymentNotificationAttempts)
+      .where(inArray(paymentNotificationAttempts.id, expired));
+  }
+
   async admittedNotifications(sourceAddress: string, since: Date): Promise<Date[]> {
     const rows = await this.tx
       .select({ attemptedAt: paymentNotificationAttempts.attemptedAt })
@@ -50,18 +62,6 @@ export class DrizzlePaymentNotificationAdmission<TQueryResult extends PgQueryRes
 
   constructor(db: PgDatabase<TQueryResult>) {
     this.db = db;
-  }
-
-  async forgetNotificationsOutsideWindow(windowStart: Date): Promise<void> {
-    const expired = this.db
-      .select({ id: paymentNotificationAttempts.id })
-      .from(paymentNotificationAttempts)
-      .where(lte(paymentNotificationAttempts.attemptedAt, windowStart))
-      .limit(PRUNE_BATCH_SIZE)
-      .for("update", { skipLocked: true });
-    await this.db
-      .delete(paymentNotificationAttempts)
-      .where(inArray(paymentNotificationAttempts.id, expired));
   }
 
   transaction<TOutcome>(

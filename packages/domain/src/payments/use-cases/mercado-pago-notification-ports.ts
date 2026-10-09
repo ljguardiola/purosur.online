@@ -19,9 +19,6 @@ export interface MercadoPagoNotificationPorts {
 }
 
 export interface PaymentNotificationAdmission {
-  // Bookkeeping of the limiter, run outside any transaction so a pending prune never holds an
-  // origin's lock: what it forgets was never business data.
-  forgetNotificationsOutsideWindow(windowStart: Date): Promise<void>;
   transaction<TOutcome>(
     work: (tx: PaymentNotificationAdmissionTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome>;
@@ -29,6 +26,7 @@ export interface PaymentNotificationAdmission {
 
 export interface PaymentNotificationAdmissionTransaction {
   lockNotificationAttempts(sourceAddress: string): Promise<void>;
+  forgetNotificationsOutsideWindow(windowStart: Date): Promise<void>;
   admittedNotifications(sourceAddress: string, since: Date): Promise<Date[]>;
   recordAdmittedNotification(sourceAddress: string, at: Date): Promise<void>;
 }
