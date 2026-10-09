@@ -7,6 +7,13 @@ import { openLocalDatabase } from "../../platform/test-support/open-local-databa
 import { recordCashMovementFor } from "../../register/cash-movement-requests";
 import { closeCashSessionFor, openCashSessionFor } from "../../register/cash-session-requests";
 import { uuidV7Ids } from "../../register/uuid-v7-ids";
+import { createReceiptPrintJobs, type ReceiptPrintJobs } from "../../sales/receipt-print-jobs";
+import {
+  printCompletedSaleReceiptFor,
+  type ReceiptRequestDeps,
+  reprintSaleReceiptFor,
+  retryReceiptPrintFor,
+} from "../../sales/receipt-requests";
 import {
   cancelPaidSaleFor,
   chargeSaleByTransferFor,
@@ -14,6 +21,7 @@ import {
   currentSaleFor,
   scanProductFor,
 } from "../../sales/sale-requests";
+import { ControllableReceiptPrinter } from "../../sales/test-support/controllable-receipt-printer";
 import { createActionGate } from "../../sessions/action-gate";
 import { createSignedInPerson } from "../../sessions/signed-in-person";
 import { SqliteSignInStore } from "../../sessions/sqlite-sign-in-store";
@@ -27,6 +35,7 @@ const OUTBOX_CHAIN_KEY = Buffer.alloc(32, 7).toString("base64");
 const DEVICE = "6f0c2a1e-3b54-4d7a-9c10-5e8a7b2d4f01";
 const REGISTER = "a41d9e07-52c3-4b68-8f2e-1c7d3a9b6e02";
 const ADA = "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03";
+const LOCATION = "1d4e7b9a-2c63-4a80-b5f1-7e3a9c2d6b18";
 const ROLE = "e2f8a6b4-7d19-4c35-a0e3-9b1c5d7f2a04";
 const GRACE = "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13";
 const MANAGER_ROLE = "8c2e5a1f-6d93-4b47-a1c8-3f7d2b9e6a14";
@@ -57,7 +66,7 @@ function seed(database: ReturnType<typeof openLocalDatabase>): void {
     [
       MANAGER_ROLE,
       "Encargada",
-      ["sell_and_charge", "record_cash_expense", "withdraw_cash", "void_sale"],
+      ["sell_and_charge", "record_cash_expense", "withdraw_cash", "void_sale", "reprint_receipt"],
     ],
   ] as const) {
     database
@@ -86,6 +95,12 @@ function seed(database: ReturnType<typeof openLocalDatabase>): void {
     .prepare("INSERT INTO own_register (id, name, version) VALUES (?, 'Caja 1', 1)")
     .run(REGISTER);
   database.prepare("UPDATE sync_state SET device_id = ?").run(DEVICE);
+  database
+    .prepare(
+      `INSERT INTO branch_settings (location_id, address, whatsapp_number, instagram_handle, weekly_hours, expiring_lot_alert_days, unreviewed_price_alert_days, good_condition_return_days, version)
+       VALUES (?, 'Av. Belgrano 1450', '11 5555-0100', '@puro.sur', '{}', 30, 30, 15, 1)`,
+    )
+    .run(LOCATION);
   database
     .prepare(
       "INSERT INTO buyer_identification_thresholds (id, amount, valid_from) VALUES (?, ?, ?)",
@@ -130,6 +145,50 @@ function seed(database: ReturnType<typeof openLocalDatabase>): void {
        VALUES (?, 'Galletitas 3x2', 'BUY_N_PAY_M', NULL, 3, 2, 'PRODUCT', ?, '2026-09-01', '2026-12-31', '[]', 1, 1)`,
     )
     .run(BUY_THREE_PAY_TWO, COOKIES);
+}
+
+async function untilPrinted(jobs: ReceiptPrintJobs, saleId: string): Promise<void> {
+  for (let attempt = 0; attempt < 1000; attempt += 1) {
+    if (jobs.standing(saleId) === "printed") {
+      await new Promise((resolve) => setImmediate(resolve));
+      return;
+    }
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  throw new Error("The register session's receipt was never recorded as printed");
+}
+
+async function printAndReprintReceipt({
+  deps,
+  saleId,
+  nextStep,
+}: {
+  deps: Omit<ReceiptRequestDeps, "printer">;
+  saleId: string;
+  nextStep: () => void;
+}): Promise<void> {
+  const printer = new ControllableReceiptPrinter();
+  nextStep();
+  await printCompletedSaleReceiptFor({ ...deps, printer }, saleId);
+  printer.report("ready");
+  nextStep();
+  const retry = await retryReceiptPrintFor({ ...deps, printer }, saleId);
+  expectOutcome("retry the receipt print", retry.kind, "started");
+  nextStep();
+  printer.acknowledge();
+  await untilPrinted(deps.jobs, saleId);
+  nextStep();
+  const reprint = await reprintSaleReceiptFor(
+    { ...deps, printer },
+    {
+      saleId,
+      reason: "El cliente la perdio",
+      authorization: { user_id: GRACE, pin: PIN },
+    },
+  );
+  expectOutcome("reprint the receipt from the history", reprint.kind, "started");
+  printer.acknowledge();
+  await untilPrinted(deps.jobs, saleId);
 }
 
 export interface RegisterSession {
@@ -267,6 +326,35 @@ export async function withRegisterSession<TResult>(
       authorization: { user_id: GRACE, pin: PIN },
     });
     expectOutcome("cancel the part-paid sale authorized by PIN", cancelled.kind, "cancelled");
+    nextStep();
+    const receiptScan = await scanProductFor(deps(), "7790001000028");
+    if (receiptScan.kind !== "added") {
+      throw new Error(
+        `The register session's "scan a product to print" ended as "${receiptScan.kind}"`,
+      );
+    }
+    nextStep();
+    const receiptCharge = await chargeSaleInCashFor(deps(), {
+      saleId: receiptScan.sale.id,
+      tendered: 2400,
+    });
+    expectOutcome("charge the sale whose receipt is printed", receiptCharge.kind, "completed");
+    await printAndReprintReceipt({
+      deps: {
+        ...deps(),
+        signedInUserId: () => signedInPerson.userId(),
+        jobs: createReceiptPrintJobs({
+          now,
+          reportFailure: (context, error) => {
+            throw new Error(`The register session's receipt print failed: ${context}`, {
+              cause: error,
+            });
+          },
+        }),
+      },
+      saleId: receiptScan.sale.id,
+      nextStep,
+    });
     nextStep();
     const closed = await closeCashSessionFor(deps(), {
       sessionId: opened.cash_session.id,
