@@ -34,6 +34,14 @@ const NOON = new Date("2026-01-05T12:00:00.000Z");
 const WINDOW_START = signInLockoutWindowStart(NOON);
 const EXPIRED = new Date(WINDOW_START.getTime() - 60_000);
 
+function deferred(): { promise: Promise<void>; settle: () => void } {
+  let settle: () => void = () => {};
+  const promise = new Promise<void>((resolve) => {
+    settle = resolve;
+  });
+  return { promise, settle };
+}
+
 describe("the sign-in lockout on concurrent connections", () => {
   it("admits exactly the limit out of a burst from one source address", async () => {
     const db = drizzle(sql);
@@ -79,21 +87,21 @@ describe("the sign-in lockout on concurrent connections", () => {
       { sourceAddress: first, attemptedAt: EXPIRED },
       { sourceAddress: second, attemptedAt: EXPIRED },
     ]);
-    const firstFailureHeld = Promise.withResolvers<void>();
-    const releaseFirstFailure = Promise.withResolvers<void>();
-    const firstPruned = Promise.withResolvers<void>();
-    const secondPruned = Promise.withResolvers<void>();
+    const firstFailureHeld = deferred();
+    const releaseFirstFailure = deferred();
+    const firstPruned = deferred();
+    const secondPruned = deferred();
 
     const holder = sql.begin(async (tx) => {
       await tx`select id from sign_in_failures where source_address = ${first} for update`;
-      firstFailureHeld.resolve();
+      firstFailureHeld.settle();
       await releaseFirstFailure.promise;
     });
     await firstFailureHeld.promise;
     const firstBlock = store.transaction(async (tx) => {
       await tx.lockSourceAddress(first);
       await tx.pruneFailuresOutsideWindow(WINDOW_START);
-      firstPruned.resolve();
+      firstPruned.settle();
       await secondPruned.promise;
       return tx.blockSourceAddress({
         sourceAddress: first,
@@ -102,12 +110,12 @@ describe("the sign-in lockout on concurrent connections", () => {
       });
     });
     await firstPruned.promise;
-    releaseFirstFailure.resolve();
+    releaseFirstFailure.settle();
     await holder;
     const secondBlock = store.transaction(async (tx) => {
       await tx.lockSourceAddress(second);
       await tx.pruneFailuresOutsideWindow(WINDOW_START);
-      secondPruned.resolve();
+      secondPruned.settle();
       return tx.blockSourceAddress({
         sourceAddress: second,
         blockedUntil: signInBlockedUntil(NOON),
