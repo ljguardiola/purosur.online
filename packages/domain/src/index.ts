@@ -330,6 +330,10 @@ export {
 export type {
   LinePromotion,
   ListPrice,
+  ReceiptContent,
+  ReceiptCopy,
+  ReceiptDelivery,
+  ReceiptSource,
   Sale,
   SaleLine,
   SaleState,
