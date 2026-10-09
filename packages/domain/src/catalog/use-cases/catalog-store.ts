@@ -144,6 +144,9 @@ export interface CatalogStoreTransaction {
   // Read only, never locking: a caller holds the product's row lock first, and the discount
   // creation that could race it takes that same product row before inserting.
   buyNPayMDiscountsOn(productId: string): Promise<BuyNPayMDiscount[]>;
+  // Read only, never locking, like the discounts: a caller holds the product's row lock first, and
+  // a packaging written for the product takes that same row before inserting.
+  activePackagingNamesOf(productId: string): Promise<string[]>;
   lockCategory(categoryId: string): Promise<LockCategoryResult>;
   // Acquired before any row lock, so two concurrent moves can never each hold their own row lock
   // and deadlock trying to lock each other's row as the new parent.
