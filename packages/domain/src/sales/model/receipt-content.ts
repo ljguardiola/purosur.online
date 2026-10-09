@@ -1,0 +1,84 @@
+import type { SaleUnit } from "../../catalog/index.js";
+import type { DiscountBenefit } from "../../pricing/index.js";
+import type { CompletedSalePayment } from "./completed-sale.js";
+import type { LinePromotion } from "./sale.js";
+
+type PaymentMethod = CompletedSalePayment["method"];
+
+export interface ReceiptHeader {
+  address: string;
+  whatsappNumber: string;
+  instagramHandle: string;
+}
+
+export interface ReceiptSourceLine {
+  productName: string;
+  saleUnit: SaleUnit;
+  quantity: number;
+  listUnitPrice: number;
+  promotions: LinePromotion[];
+  promotionId: string | null;
+  discountAmount: number;
+  lineTotal: number;
+}
+
+export interface ReceiptSourcePayment {
+  method: PaymentMethod;
+  amount: number;
+  tendered: number | null;
+}
+
+export interface ReceiptSource {
+  header: ReceiptHeader;
+  occurredAt: Date;
+  servedByFirstName: string;
+  total: number;
+  lines: ReceiptSourceLine[];
+  payments: ReceiptSourcePayment[];
+}
+
+export interface ReceiptContentLine {
+  productName: string;
+  saleUnit: SaleUnit;
+  quantity: number;
+  listUnitPrice: number;
+  promotion: DiscountBenefit | null;
+  discountAmount: number;
+  lineTotal: number;
+}
+
+export interface ReceiptContent {
+  header: ReceiptHeader;
+  operation: { occurredAt: Date; servedByFirstName: string };
+  lines: ReceiptContentLine[];
+  totals: {
+    subtotal: number;
+    total: number;
+    payments: { method: PaymentMethod; amount: number }[];
+    change: number;
+  };
+}
+
+export function receiptContent(source: ReceiptSource): ReceiptContent {
+  const lines = source.lines.map(
+    ({ promotions, promotionId, ...line }): ReceiptContentLine => ({
+      ...line,
+      promotion: promotions.find(({ id }) => id === promotionId)?.benefit ?? null,
+    }),
+  );
+  return {
+    header: source.header,
+    operation: { occurredAt: source.occurredAt, servedByFirstName: source.servedByFirstName },
+    lines,
+    totals: {
+      subtotal: lines.reduce((sum, { lineTotal }) => sum + lineTotal, 0),
+      total: source.total,
+      payments: source.payments.map(({ method, amount }) => ({ method, amount })),
+      change: source.payments.reduce(
+        (sum, { method, amount, tendered }) =>
+          method === "CASH" && tendered !== null ? sum + tendered - amount : sum,
+        0,
+      ),
+    },
+  };
+}
