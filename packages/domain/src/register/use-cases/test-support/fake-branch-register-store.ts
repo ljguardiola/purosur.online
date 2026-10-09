@@ -13,12 +13,17 @@ import type {
   RegisterEnrollmentCode,
 } from "../branch-register-store.js";
 import { RegisterNameConflict } from "../branch-register-store.js";
+import type { RegisterInstallationRecord } from "../../model/register-installation.js";
 
 export interface FakeBranchRegister {
   id: string;
   locationId: string;
   name: string;
   pointOfSaleNumber?: number;
+}
+
+export interface FakeRegisterInstallation extends RegisterInstallationRecord {
+  registerId: string;
 }
 
 export interface FakeRegisterEnrollmentCode extends RegisterEnrollmentCode {
@@ -30,6 +35,7 @@ export interface FakeRegisterEnrollmentCode extends RegisterEnrollmentCode {
 export interface FakeBranchRegisterState {
   registers: FakeBranchRegister[];
   codes: FakeRegisterEnrollmentCode[];
+  installations: FakeRegisterInstallation[];
   registerCreations: RegisterCreation[];
   codeEmissions: EnrollmentCodeEmission[];
   nextId: number;
@@ -111,6 +117,7 @@ export class FakeBranchRegisterStore implements BranchRegisterStore, BranchRegis
   private state: FakeBranchRegisterState = {
     registers: [],
     codes: [],
+    installations: [],
     registerCreations: [],
     codeEmissions: [],
     nextId: 1,
@@ -129,6 +136,10 @@ export class FakeBranchRegisterStore implements BranchRegisterStore, BranchRegis
     this.state.codes.push(structuredClone(code));
   }
 
+  seedInstallation(installation: FakeRegisterInstallation): void {
+    this.state.installations.push(structuredClone(installation));
+  }
+
   snapshot(): FakeBranchRegisterState {
     return structuredClone(this.state);
   }
@@ -138,6 +149,9 @@ export class FakeBranchRegisterStore implements BranchRegisterStore, BranchRegis
       .filter((register) => register.locationId === locationId)
       .map((register) => {
         const code = this.state.codes.find((row) => row.registerId === register.id);
+        const [latest] = this.state.installations
+          .filter((row) => row.registerId === register.id)
+          .sort((a, b) => b.enrolledAt.getTime() - a.enrolledAt.getTime());
         return {
           id: register.id,
           name: register.name,
@@ -150,6 +164,14 @@ export class FakeBranchRegisterStore implements BranchRegisterStore, BranchRegis
               }
             : null,
           pointOfSaleNumber: register.pointOfSaleNumber ?? null,
+          latestInstallation: latest
+            ? {
+                hostname: latest.hostname,
+                windowsVersion: latest.windowsVersion,
+                enrolledAt: new Date(latest.enrolledAt),
+                revokedAt: latest.revokedAt ? new Date(latest.revokedAt) : null,
+              }
+            : null,
         };
       });
   }

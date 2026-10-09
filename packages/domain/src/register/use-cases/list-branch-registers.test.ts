@@ -3,6 +3,7 @@ import { listBranchRegisters } from "./list-branch-registers.js";
 import {
   FakeBranchRegisterStore,
   type FakeRegisterEnrollmentCode,
+  type FakeRegisterInstallation,
 } from "./test-support/fake-branch-register-store.js";
 import { FixedClock } from "./test-support/fake-register-store.js";
 
@@ -30,6 +31,19 @@ function codeOfCaja1(
   };
 }
 
+function installationOfCaja1(
+  overrides: Partial<FakeRegisterInstallation> = {},
+): FakeRegisterInstallation {
+  return {
+    registerId: "register-1",
+    hostname: "CAJA-MOSTRADOR",
+    windowsVersion: "Windows 11 Pro 10.0.26100",
+    enrolledAt: new Date("2026-03-01T15:00:00.000Z"),
+    revokedAt: null,
+    ...overrides,
+  };
+}
+
 function listCaja1(store: FakeBranchRegisterStore) {
   return listBranchRegisters(
     { registers: store, clock: new FixedClock(NOW) },
@@ -50,8 +64,20 @@ describe("listBranchRegisters", () => {
     );
 
     expect(listed).toEqual([
-      { id: "register-1", name: "Caja 2", pendingCode: null, pointOfSaleNumber: null },
-      { id: "register-3", name: "Caja 1", pendingCode: null, pointOfSaleNumber: null },
+      {
+        id: "register-1",
+        name: "Caja 2",
+        pendingCode: null,
+        pointOfSaleNumber: null,
+        installation: { kind: "not_enrolled" },
+      },
+      {
+        id: "register-3",
+        name: "Caja 1",
+        pendingCode: null,
+        pointOfSaleNumber: null,
+        installation: { kind: "not_enrolled" },
+      },
     ]);
   });
 
@@ -161,5 +187,58 @@ describe("listBranchRegisters", () => {
     const [caja1] = await listCaja1(storeWithCaja1());
 
     expect(caja1?.pointOfSaleNumber).toBeNull();
+  });
+
+  it("reports a register with no installation as not enrolled", async () => {
+    const [caja1] = await listCaja1(storeWithCaja1());
+
+    expect(caja1?.installation).toEqual({ kind: "not_enrolled" });
+  });
+
+  it("reports the machine a register is enrolled on", async () => {
+    const store = storeWithCaja1();
+    store.seedInstallation(installationOfCaja1());
+
+    const [caja1] = await listCaja1(store);
+
+    expect(caja1?.installation).toEqual({
+      kind: "enrolled",
+      hostname: "CAJA-MOSTRADOR",
+      windowsVersion: "Windows 11 Pro 10.0.26100",
+      enrolledAt: new Date("2026-03-01T15:00:00.000Z"),
+    });
+  });
+
+  it("reports a register whose latest installation was revoked as revoked", async () => {
+    const store = storeWithCaja1();
+    store.seedInstallation(
+      installationOfCaja1({ revokedAt: new Date("2026-03-05T15:00:00.000Z") }),
+    );
+
+    const [caja1] = await listCaja1(store);
+
+    expect(caja1?.installation).toEqual({
+      kind: "revoked",
+      hostname: "CAJA-MOSTRADOR",
+      windowsVersion: "Windows 11 Pro 10.0.26100",
+      enrolledAt: new Date("2026-03-01T15:00:00.000Z"),
+      revokedAt: new Date("2026-03-05T15:00:00.000Z"),
+    });
+  });
+
+  it("reports the latest installation when an earlier one was replaced", async () => {
+    const store = storeWithCaja1();
+    store.seedInstallation(
+      installationOfCaja1({
+        hostname: "CAJA-VIEJA",
+        enrolledAt: new Date("2026-02-01T15:00:00.000Z"),
+        revokedAt: new Date("2026-03-01T15:00:00.000Z"),
+      }),
+    );
+    store.seedInstallation(installationOfCaja1());
+
+    const [caja1] = await listCaja1(store);
+
+    expect(caja1?.installation).toMatchObject({ kind: "enrolled", hostname: "CAJA-MOSTRADOR" });
   });
 });
