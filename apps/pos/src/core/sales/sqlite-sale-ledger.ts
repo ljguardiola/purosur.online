@@ -192,11 +192,16 @@ export class SqliteSaleLedger implements SaleLedger {
 
   private buyerIdentificationThresholds(): BuyerIdentificationThreshold[] {
     return this.database
-      .prepare<[], { id: string; amount: number; valid_from: string }>(
-        "SELECT id, amount, valid_from FROM buyer_identification_thresholds ORDER BY valid_from",
+      .prepare<[], { id: string; amount: number; valid_from: string; revision: number }>(
+        "SELECT id, amount, valid_from, revision FROM buyer_identification_thresholds ORDER BY valid_from, revision",
       )
       .all()
-      .map((row) => ({ id: row.id, amount: row.amount, validFrom: row.valid_from }));
+      .map((row) => ({
+        id: row.id,
+        amount: row.amount,
+        validFrom: row.valid_from,
+        revision: row.revision,
+      }));
   }
 
   private priceAt(
