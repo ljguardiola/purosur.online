@@ -1601,6 +1601,64 @@ describe("wiring the first PIN code route", () => {
   });
 });
 
+describe("wiring the Mercado Pago QR routes", () => {
+  function devicesOptions() {
+    return {
+      db: testDatabase.db,
+      rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+      keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+    };
+  }
+
+  it("does not register POST /api/payments/mercado-pago-qr/orders when no mercadoPagoQr option is given", async () => {
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234", devices: devicesOptions() });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/payments/mercado-pago-qr/orders",
+      payload: {},
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("does not register it without a devices option", async () => {
+    const app = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      mercadoPagoQr: { connections: { withConnection: (work) => work(testDatabase.db) } },
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/payments/mercado-pago-qr/orders",
+      payload: {},
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it.each([
+    ["POST", "/api/payments/mercado-pago-qr/orders"],
+    ["GET", "/api/payments/mercado-pago-qr/0b0a5a42-1f9a-4a53-9f55-3e1c1c0d7a10"],
+  ] as const)(
+    "registers %s %s, refusing a request without a device token, when a devices and a mercadoPagoQr option are given",
+    async (method, url) => {
+      const app = buildApp({
+        now: () => APP_CLOCK,
+        version: "abc1234",
+        devices: devicesOptions(),
+        mercadoPagoQr: { connections: { withConnection: (work) => work(testDatabase.db) } },
+      });
+
+      const response = await app.inject({ method, url, payload: {} });
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json()).toMatchObject({ code: "device_token_rejected" });
+    },
+  );
+});
+
 describe("wiring the device token rotation route", () => {
   it("does not register POST /api/devices/current/tokens when no devices option is given", async () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
