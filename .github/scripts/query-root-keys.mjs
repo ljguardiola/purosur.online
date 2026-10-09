@@ -1,5 +1,5 @@
 import { statSync } from "node:fs";
-import { join, relative, sep } from "node:path";
+import { basename, join, relative, sep } from "node:path";
 import ts from "typescript";
 
 export const QUERY_KEY_SOURCES = [
@@ -17,6 +17,24 @@ export const QUERY_KEY_SOURCES = [
 
 const TANSTACK = `${sep}@tanstack${sep}`;
 const OPTIONS_BUILDERS = ["queryOptions", "infiniteQueryOptions"];
+const QUERY_READERS = [
+  ...OPTIONS_BUILDERS,
+  "useQuery",
+  "useQueries",
+  "useInfiniteQuery",
+  "useSuspenseQuery",
+  "useSuspenseQueries",
+  "useSuspenseInfiniteQuery",
+  "usePrefetchQuery",
+  "usePrefetchInfiniteQuery",
+  "fetchQuery",
+  "fetchInfiniteQuery",
+  "prefetchQuery",
+  "prefetchInfiniteQuery",
+  "ensureQueryData",
+  "ensureInfiniteQueryData",
+];
+const QUERIES_FILE = /-queries\.[cm]?[jt]sx?$/;
 const TEST_FILE = /\.test\.[cm]?[jt]sx?$/;
 
 function programOf(tsconfigPath) {
@@ -206,6 +224,7 @@ function checkerTools(checker) {
     writersOf,
     queryKeyPropertiesAt,
     isQueryKeyShorthand,
+    queryKeyPropertiesOf: queryKeyProperties,
   };
 }
 
@@ -330,10 +349,15 @@ function rootTracer(checker, tools, references) {
     if (property !== undefined && tools.lacksProperty(expression, property)) return [];
     if (ts.isArrayLiteralExpression(node)) {
       const first = node.elements[0];
-      if (first === undefined) return [UNREADABLE];
-      if (ts.isStringLiteral(first)) return [{ kind: "root", literal: first }];
-      if (ts.isSpreadElement(first)) return trace(first.expression, seen);
-      return [UNREADABLE];
+      const outcomes =
+        first === undefined
+          ? [UNREADABLE]
+          : ts.isStringLiteral(first)
+            ? [{ kind: "root", literal: first }]
+            : ts.isSpreadElement(first)
+              ? trace(first.expression, seen)
+              : [UNREADABLE];
+      return outcomes.map((outcome) => ({ ...outcome, keys: [node, ...(outcome.keys ?? [])] }));
     }
     if (ts.isObjectLiteralExpression(node)) {
       return tools
@@ -378,10 +402,7 @@ function lineOf(node) {
   return sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
 }
 
-export function findQueryRootKeyProblems(
-  { tsconfig, sourceRoot, foldersOutsideConcepts },
-  cwd = process.cwd(),
-) {
+function analysisOf({ tsconfig, sourceRoot, foldersOutsideConcepts }, cwd) {
   const program = programOf(join(cwd, tsconfig));
   const checker = program.getTypeChecker();
   const tools = checkerTools(checker);
@@ -403,16 +424,37 @@ export function findQueryRootKeyProblems(
       ? segments[0]
       : undefined;
   };
+  const forEachKeyUse = (report) => {
+    for (const sourceFile of checkedFiles) {
+      const visit = (node) => {
+        if (tools.isQueryKeyShorthand(node)) report(node, trace(node.name));
+        else if (ts.isExpression(node) && tools.isQueryKeyPosition(node)) {
+          report(node, trace(node));
+        }
+        if (ts.isExpression(node)) {
+          for (const property of tools.queryKeyPropertiesAt(node)) {
+            report(node, trace(node, new Set(), property));
+          }
+        }
+        ts.forEachChild(node, visit);
+      };
+      visit(sourceFile);
+    }
+  };
+  return { checker, tools, root, checkedFiles, fromCwd, conceptFolderOf, forEachKeyUse };
+}
 
+export function findQueryRootKeyProblems(source, cwd = process.cwd()) {
+  const { root, fromCwd, conceptFolderOf, forEachKeyUse } = analysisOf(source, cwd);
   const problems = new Set();
-  for (const folder of foldersOutsideConcepts) {
+  for (const folder of source.foldersOutsideConcepts) {
     if (!statSync(join(root, folder), { throwIfNoEntry: false })?.isDirectory()) {
       problems.add(
         `${fromCwd(join(root, folder))} is listed as holding no concept, but there is no such folder`,
       );
     }
   }
-  const report = (position, outcomes) => {
+  forEachKeyUse((position, outcomes) => {
     for (const outcome of outcomes) {
       if (outcome.kind === "unreadable") {
         problems.add(
@@ -432,20 +474,146 @@ export function findQueryRootKeyProblems(
         `${fromCwd(fileName)}:${lineOf(literal)} roots a query key at "${literal.text}", but ${where}`,
       );
     }
+  });
+  return sorted(problems);
+}
+
+function sorted(problems) {
+  return [...problems].sort((a, b) => a.localeCompare(b, "en", { numeric: true }));
+}
+
+function readerTools(checker, tools, checkedFiles) {
+  const functionOf = (symbol, seen = new Set()) => {
+    const declaration = tools.resolved(symbol)?.valueDeclaration;
+    if (declaration === undefined || seen.has(declaration)) return undefined;
+    if (ts.isFunctionDeclaration(declaration) || ts.isMethodDeclaration(declaration)) {
+      return declaration;
+    }
+    if (!ts.isVariableDeclaration(declaration) && !ts.isPropertyAssignment(declaration)) {
+      return undefined;
+    }
+    const initializer = declaration.initializer && unwrapped(declaration.initializer);
+    if (initializer === undefined) return undefined;
+    if (ts.isFunctionLike(initializer)) return initializer;
+    const isConst =
+      ts.isPropertyAssignment(declaration) ||
+      (ts.getCombinedNodeFlags(declaration) & ts.NodeFlags.Const) !== 0;
+    const target = ts.isPropertyAccessExpression(initializer) ? initializer.name : initializer;
+    return isConst && ts.isIdentifier(target)
+      ? functionOf(checker.getSymbolAtLocation(target), new Set([...seen, declaration]))
+      : undefined;
   };
 
+  const calleeSymbol = (call) => {
+    const callee = unwrapped(call.expression);
+    const target = ts.isPropertyAccessExpression(callee) ? callee.name : callee;
+    return tools.resolved(checker.getSymbolAtLocation(target));
+  };
+
+  const readers = new Set();
+  const isReaderCall = (call) => {
+    const symbol = calleeSymbol(call);
+    if (tools.isTanstack(symbol, QUERY_READERS)) return true;
+    const fn = functionOf(symbol);
+    return fn !== undefined && readers.has(fn);
+  };
+
+  const takesQueryKey = (fn) =>
+    fn.parameters.some(
+      (parameter) =>
+        tools.declaresQueryKey(parameter) ||
+        tools.queryKeyPropertiesOf(checker.getTypeAtLocation(parameter.name)).length > 0,
+    );
+  const callsIn = (fn) => {
+    const calls = [];
+    const visit = (node) => {
+      if (ts.isCallExpression(node)) calls.push(node);
+      ts.forEachChild(node, visit);
+    };
+    if (fn.body !== undefined) visit(fn.body);
+    return calls;
+  };
+
+  const candidates = [];
   for (const sourceFile of checkedFiles) {
     const visit = (node) => {
-      if (tools.isQueryKeyShorthand(node)) report(node, trace(node.name));
-      else if (ts.isExpression(node) && tools.isQueryKeyPosition(node)) report(node, trace(node));
-      if (ts.isExpression(node)) {
-        for (const property of tools.queryKeyPropertiesAt(node)) {
-          report(node, trace(node, new Set(), property));
-        }
+      if (ts.isFunctionLike(node) && takesQueryKey(node)) {
+        candidates.push({ fn: node, calls: callsIn(node) });
       }
       ts.forEachChild(node, visit);
     };
     visit(sourceFile);
   }
-  return [...problems].sort((a, b) => a.localeCompare(b, "en", { numeric: true }));
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const { fn, calls } of candidates) {
+      if (!readers.has(fn) && calls.some(isReaderCall)) {
+        readers.add(fn);
+        grew = true;
+      }
+    }
+  }
+
+  const isInsideReader = (node) => {
+    for (let current = node.parent; current !== undefined; current = current.parent) {
+      if (readers.has(current)) return true;
+    }
+    return false;
+  };
+
+  return { isReaderCall, isInsideReader };
+}
+
+export function findQueriesFileProblems(source, cwd = process.cwd()) {
+  const { checker, tools, root, checkedFiles, fromCwd, conceptFolderOf, forEachKeyUse } =
+    analysisOf(source, cwd);
+  const queriesFileOf = (folder) => join(root, folder, `${folder}-queries.ts`);
+  const outsideQueriesFile = (fileName) => {
+    const folder = conceptFolderOf(fileName);
+    if (folder === undefined) return "outside a concept's queries file";
+    return fileName === queriesFileOf(folder)
+      ? undefined
+      : `outside ${fromCwd(queriesFileOf(folder))}`;
+  };
+
+  const problems = new Set();
+  for (const sourceFile of checkedFiles) {
+    const folder = conceptFolderOf(sourceFile.fileName);
+    if (
+      folder !== undefined &&
+      QUERIES_FILE.test(basename(sourceFile.fileName)) &&
+      sourceFile.fileName !== queriesFileOf(folder)
+    ) {
+      problems.add(
+        `${fromCwd(sourceFile.fileName)} is a queries file other than ${fromCwd(queriesFileOf(folder))}`,
+      );
+    }
+  }
+
+  forEachKeyUse((_position, outcomes) => {
+    for (const key of outcomes.flatMap((outcome) => outcome.keys ?? [])) {
+      const where = outsideQueriesFile(key.getSourceFile().fileName);
+      if (where !== undefined) {
+        problems.add(
+          `${fromCwd(key.getSourceFile().fileName)}:${lineOf(key)} declares a query key ${where}`,
+        );
+      }
+    }
+  });
+
+  const { isReaderCall, isInsideReader } = readerTools(checker, tools, checkedFiles);
+  for (const sourceFile of checkedFiles) {
+    if (conceptFolderOf(sourceFile.fileName) === undefined) continue;
+    const where = outsideQueriesFile(sourceFile.fileName);
+    if (where === undefined) continue;
+    const visit = (node) => {
+      if (ts.isCallExpression(node) && isReaderCall(node) && !isInsideReader(node)) {
+        problems.add(`${fromCwd(sourceFile.fileName)}:${lineOf(node)} reads a query ${where}`);
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sourceFile);
+  }
+  return sorted(problems);
 }
