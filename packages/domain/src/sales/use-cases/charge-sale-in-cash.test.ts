@@ -281,7 +281,7 @@ describe("chargeSaleInCash", () => {
         aggregate_type: "Sale",
         aggregate_id: "sale-1",
         event_type: "sale_completed",
-        schema_version: 2,
+        schema_version: 3,
         occurred_at: NOW.toISOString(),
         actor_id: "cashier",
         payload: {
@@ -352,9 +352,48 @@ describe("chargeSaleInCash", () => {
               occurred_at: NOW.toISOString(),
             },
           ],
+          stock_movements: [
+            { id: "id-5", sale_line_id: "line-1", product_id: "yerba", delta: -2000 },
+            { id: "id-6", sale_line_id: "line-2", product_id: "fideos", delta: -1000 },
+          ],
         },
       },
     ]);
+  });
+
+  it("records a stock movement of the sold quantity for each line, dated when the sale is charged", () => {
+    const store = ledger();
+
+    charge(store, 10000);
+
+    expect(store.state.stockMovements).toEqual([
+      { id: "id-5", saleLineId: "line-1", productId: "yerba", delta: -2000, occurredAt: NOW },
+      { id: "id-6", saleLineId: "line-2", productId: "fideos", delta: -1000, occurredAt: NOW },
+    ]);
+  });
+
+  it("subtracts the sold quantity from each product's balance in the same transaction, even below zero", () => {
+    const store = ledger({ stockBalances: { yerba: 5000 } });
+
+    charge(store, 10000);
+
+    expect(store.transactions).toBe(1);
+    expect(store.state.stockBalances).toEqual({ yerba: 3000, fideos: -1000 });
+  });
+
+  it("adds the quantities of two lines of the same product to one balance", () => {
+    const [first, second] = OPEN_SALE.lines;
+    if (first === undefined || second === undefined) {
+      throw new Error("test setup: the sale has no lines");
+    }
+    const store = ledger({
+      sales: [{ ...OPEN_SALE, lines: [first, { ...second, id: "line-9", productId: "yerba" }] }],
+      stockBalances: { yerba: 5000 },
+    });
+
+    charge(store, 10000);
+
+    expect(store.state.stockBalances).toEqual({ yerba: 2000 });
   });
 
   it("lists only the sale movement in the event when the tendered amount is exact", () => {
@@ -418,7 +457,7 @@ describe("chargeSaleInCash", () => {
     expect(store.state.outbox).toMatchObject([
       { event_type: "sale_completed" },
       {
-        event_id: "id-5",
+        event_id: "id-7",
         aggregate_type: "Sale",
         aggregate_id: "sale-1",
         event_type: "fiscal_gate_failed",
@@ -622,6 +661,8 @@ describe("chargeSaleInCash", () => {
   it.each<FakeSaleLedgerWrite>([
     "recordPayment",
     "recordCashMovement",
+    "recordSaleStockMovement",
+    "addToStockBalance",
     "recordCompletedSale",
     "appendOutboxEvent",
     "recordPreEmissionGate",
@@ -799,6 +840,15 @@ describe("chargeSaleInCash", () => {
           expect(expectedCash(store.state.movements) - before).toBe(tendered);
         }),
       );
+    });
+
+    it("records no stock movement and leaves the balances alone", () => {
+      const store = ledger({ stockBalances: { yerba: 5000 } });
+
+      charge(store, PARTIAL);
+
+      expect(store.state.stockMovements).toEqual([]);
+      expect(store.state.stockBalances).toEqual({ yerba: 5000 });
     });
 
     it.each<FakeSaleLedgerWrite>(["recordPayment", "recordCashMovement"])(

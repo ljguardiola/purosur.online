@@ -22,6 +22,7 @@ import type {
   SaleLedger,
   SaleLedgerTransaction,
   SaleRefund,
+  SaleStockMovement,
   SellableProduct,
   SellingSession,
 } from "../sale-ledger.js";
@@ -48,6 +49,8 @@ export interface FakeSaleLedgerState {
   payments: PaymentTransaction[];
   refunds: SaleRefund[];
   movements: CashMovement[];
+  stockMovements: SaleStockMovement[];
+  stockBalances: Record<string, number>;
   outbox: OutboxEventDraft[];
   outboxReady: boolean;
   issuerIdentifications: IssuerIdentificationInEffect[];
@@ -64,6 +67,8 @@ export type FakeSaleLedgerWrite =
   | "discardOpenSale"
   | "recordPayment"
   | "recordCashMovement"
+  | "recordSaleStockMovement"
+  | "addToStockBalance"
   | "recordCompletedSale"
   | "recordCancelledSale"
   | "recordRefund"
@@ -94,6 +99,8 @@ export class FakeSaleLedger implements SaleLedger {
       payments: [],
       refunds: [],
       movements: [],
+      stockMovements: [],
+      stockBalances: {},
       outbox: [],
       outboxReady: true,
       issuerIdentifications: [],
@@ -187,6 +194,14 @@ export class FakeSaleLedger implements SaleLedger {
       recordCashMovement: (movement) => {
         this.failIfAsked("recordCashMovement");
         working.movements.push(movement);
+      },
+      recordSaleStockMovement: (movement) => {
+        this.failIfAsked("recordSaleStockMovement");
+        working.stockMovements.push(movement);
+      },
+      addToStockBalance: (productId, delta) => {
+        this.failIfAsked("addToStockBalance");
+        working.stockBalances[productId] = (working.stockBalances[productId] ?? 0) + delta;
       },
       recordCompletedSale: (saleId, occurredAt) => {
         this.failIfAsked("recordCompletedSale");
