@@ -1148,6 +1148,59 @@ test("names a register that can't sell by what happened when the alert is not fo
   await expect.element(screen.getByText("La caja no puede vender")).not.toBeInTheDocument();
 });
 
+test.each([
+  ["content", "Contenido del comprobante"],
+  ["standing", "Situación ante ARCA"],
+] as const)(
+  "tells an invoice ARCA rejected over its %s: what happened, why it repeats and each code with ARCA's message",
+  async (rejectionClass, classLabel) => {
+    const services = createServices();
+    vi.mocked(services.fetchAlert).mockResolvedValue(
+      ok(
+        baseDetail({
+          kind: "fiscal_rejected",
+          level: "critical",
+          audience: "all",
+          scope: "12:factura_c",
+          scopeDisplay: "12:factura_c",
+          detail: {
+            pointOfSale: 12,
+            documentType: "factura_c",
+            rejectionClass,
+            fiscalDocumentId: "fiscal-document-1",
+            saleId: "sale-1",
+            rejections: [
+              { code: 10242, message: "El valor de CondicionIVAReceptorId es invalido." },
+              { code: 10015, message: "Debe informar el documento." },
+            ],
+          },
+        }),
+      ),
+    );
+
+    const screen = await renderModal(services);
+
+    await expect
+      .element(screen.getByText("ARCA rechazó una factura", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(
+        screen.getByText(
+          "ARCA rechazó una factura del punto de venta 12 por un defecto del comprobante o de la situación del comercio ante ARCA, que se repetiría igual en cada venta. Las ventas siguen y quedan diferidas hasta corregir la causa.",
+        ),
+      )
+      .toBeVisible();
+    await expect.element(screen.getByText(classLabel, { exact: true })).toBeVisible();
+    await expect
+      .element(screen.getByText("10242: El valor de CondicionIVAReceptorId es invalido."))
+      .toBeVisible();
+    await expect.element(screen.getByText("10015: Debe informar el documento.")).toBeVisible();
+    await expect
+      .element(screen.getByText("Punto de venta 12 · Factura C", { exact: true }))
+      .toBeVisible();
+  },
+);
+
 test("shows the fixed plain-language text only for an alert the cloud says is for the Local audience", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(

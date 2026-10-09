@@ -8,6 +8,7 @@ test("names a kind of the catalog by its title", () => {
   expect(alertKindLabel("update_required")).toBe("Versión de caja no aceptada");
   expect(alertKindLabel("register_silent")).toBe("Caja sin sincronizar");
   expect(alertKindLabel("sales_denied")).toBe("Caja sin poder vender");
+  expect(alertKindLabel("fiscal_rejected")).toBe("Factura rechazada por ARCA");
 });
 
 test("names a kind this app does not know yet, such as one a later cloud adds, by the kind itself", () => {
