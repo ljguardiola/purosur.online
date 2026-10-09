@@ -127,19 +127,46 @@ export function decideRealTimeAuthorization({
   return { kind: "reserve", pointOfSale: series.pointOfSale, number, document: gate.document };
 }
 
+export const REJECTION_CLASSES = ["content", "standing"] as const;
+
+export type RejectionClass = (typeof REJECTION_CLASSES)[number];
+
 export type RealTimeAuthorizationAnswer =
   | { kind: "authorized"; authorizationCode: string; authorizationCodeDueOn: string }
-  | { kind: "rejected"; codes: readonly number[] }
+  | { kind: "rejected"; codes: readonly number[]; rejectionClass: RejectionClass }
   | { kind: "not_attempted" }
   | { kind: "unclear" };
 
 const NUMBER_OR_DATE_OUT_OF_ORDER_CODE = 10016;
 
-export function taxAuthorityRejectionAnswer(codes: readonly number[]): RealTimeAuthorizationAnswer {
+const STANDING_REJECTION_CODES: ReadonlySet<number> = new Set([10000, 10005, 1005, 601]);
+
+function hasStandingCode(codes: readonly number[], standingCodes: ReadonlySet<number>): boolean {
+  return codes.some((code) => standingCodes.has(code));
+}
+
+export function taxAuthorityRejectionAnswer(
+  codes: readonly number[],
+  standingCodes: ReadonlySet<number> = STANDING_REJECTION_CODES,
+): RealTimeAuthorizationAnswer {
   if (codes.includes(NUMBER_OR_DATE_OUT_OF_ORDER_CODE)) {
     return { kind: "unclear" };
   }
-  return { kind: "rejected", codes };
+  return {
+    kind: "rejected",
+    codes,
+    rejectionClass: hasStandingCode(codes, standingCodes) ? "standing" : "content",
+  };
+}
+
+export function taxAuthorityRefusalAnswer(
+  codes: readonly number[],
+  standingCodes: ReadonlySet<number> = STANDING_REJECTION_CODES,
+): RealTimeAuthorizationAnswer {
+  if (!hasStandingCode(codes, standingCodes)) {
+    return { kind: "unclear" };
+  }
+  return { kind: "rejected", codes, rejectionClass: "standing" };
 }
 
 export type RealTimeAuthorizationResolution =

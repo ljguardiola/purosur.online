@@ -1,3 +1,4 @@
+import type { FiscalDocumentType, RejectionAlertChange } from "../../fiscal/index.js";
 import type { SalesDeniedReport } from "../../shared/index.js";
 import type { AlertKind } from "./alert-catalog.js";
 import type { OpenAlertInput } from "./alert-details.js";
@@ -84,4 +85,50 @@ export function registerSalesDeniedObservation({
       detail: { deviceId, reason: report.sales_denied_reason },
     },
   };
+}
+
+type FiscalRejection = Extract<RejectionAlertChange, { kind: "open" }>;
+
+function fiscalRejectedScope(pointOfSale: number, documentType: FiscalDocumentType): string {
+  return `${pointOfSale}:${documentType}`;
+}
+
+export function fiscalRejectionObservation({
+  pointOfSale,
+  documentType,
+  rejectionClass,
+  fiscalDocumentId,
+  saleId,
+  rejections,
+}: Omit<FiscalRejection, "kind">): AlertConditionObservation {
+  return {
+    holds: true,
+    alert: {
+      kind: "fiscal_rejected",
+      scope: fiscalRejectedScope(pointOfSale, documentType),
+      detail: { pointOfSale, documentType, rejectionClass, fiscalDocumentId, saleId, rejections },
+    },
+  };
+}
+
+export function fiscalDocumentAuthorizedObservation({
+  pointOfSale,
+  documentType,
+}: {
+  pointOfSale: number;
+  documentType: FiscalDocumentType;
+}): AlertConditionObservation {
+  return {
+    holds: false,
+    kind: "fiscal_rejected",
+    scope: fiscalRejectedScope(pointOfSale, documentType),
+  };
+}
+
+export function fiscalRejectionAlertObservation(
+  change: RejectionAlertChange,
+): AlertConditionObservation {
+  return change.kind === "open"
+    ? fiscalRejectionObservation(change)
+    : fiscalDocumentAuthorizedObservation(change);
 }

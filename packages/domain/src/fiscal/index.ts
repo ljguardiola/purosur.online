@@ -28,6 +28,12 @@ export {
 } from "./model/fiscal-address.js";
 export type { FiscalOnlineSignalEvidence } from "./model/fiscal-online-signal.js";
 export { REGISTER_HEALTH_CHECK_INTERVAL_MS } from "./model/fiscal-online-signal.js";
+export type {
+  FiscalDocumentType,
+  RejectionAlertChange,
+  TaxAuthorityRejection,
+} from "./model/fiscal-rejection-alert.js";
+export { FACTURA_C_DOCUMENT_TYPE } from "./model/fiscal-rejection-alert.js";
 export {
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
@@ -54,12 +60,14 @@ export type {
   FiscalDocumentState,
   RealTimeAuthorizationAnswer,
   RealTimeAuthorizationResolution,
+  RejectionClass,
 } from "./model/real-time-authorization.js";
 export {
   DEFERRAL_REASONS,
   invoiceDateOf,
   NUMBER_CONSUMING_STATES,
   REAL_TIME_AUTHORIZATION_TIMEOUT_MS,
+  REJECTION_CLASSES,
   SERIES_WAITING_STATES,
 } from "./model/real-time-authorization.js";
 export { isWsaaTokenValid } from "./model/wsaa-token.js";

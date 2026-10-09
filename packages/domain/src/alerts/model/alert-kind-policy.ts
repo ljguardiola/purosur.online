@@ -6,7 +6,13 @@ import {
   type AlertLevel,
 } from "./alert-catalog.js";
 
-export type AlertScopeKind = "user" | "sourceAddress" | "register" | "environment" | "event";
+export type AlertScopeKind =
+  | "user"
+  | "sourceAddress"
+  | "register"
+  | "environment"
+  | "event"
+  | "pointOfSaleDocumentType";
 
 type AlertEscalationRule =
   | { kind: "afterOpening"; delayMs: number }
@@ -119,6 +125,14 @@ const ALERT_KIND_POLICIES = {
     escalation: null,
     audience: "local",
     scopeKind: "register",
+    deduplicates: true,
+    resolvesAfterStableClear: true,
+  },
+  fiscal_rejected: {
+    level: "critical",
+    escalation: null,
+    audience: "all",
+    scopeKind: "pointOfSaleDocumentType",
     deduplicates: true,
     resolvesAfterStableClear: true,
   },

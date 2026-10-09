@@ -1,3 +1,8 @@
+import type {
+  FiscalDocumentType,
+  RejectionClass,
+  TaxAuthorityRejection,
+} from "../../fiscal/index.js";
 import type { SalesDeniedReason } from "../../shared/index.js";
 import type { AlertKind } from "./alert-catalog.js";
 
@@ -92,6 +97,15 @@ interface SalesDeniedDetail {
   reason: SalesDeniedReason;
 }
 
+interface FiscalRejectedDetail {
+  pointOfSale: number;
+  documentType: FiscalDocumentType;
+  rejectionClass: RejectionClass;
+  fiscalDocumentId: string;
+  saleId: string;
+  rejections: readonly TaxAuthorityRejection[];
+}
+
 export interface AlertDetails {
   backoffice_passkey_changed: PasskeyChangedDetail;
   backoffice_recovery_requested: RecoveryRequestedDetail;
@@ -105,6 +119,7 @@ export interface AlertDetails {
   update_required: UpdateRequiredDetail;
   register_silent: RegisterSilentDetail;
   sales_denied: SalesDeniedDetail;
+  fiscal_rejected: FiscalRejectedDetail;
 }
 
 export type OpenAlertInput = {
