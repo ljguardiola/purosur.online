@@ -44,3 +44,10 @@ export function wasRecoveryRequestServed(
 ): boolean {
   return requests.some((stored) => stored.requestId === requestId && stored.sentAt !== null);
 }
+
+export function isRecoveryRequestCurrent(
+  request: Pick<RecoveryRequest, "requestedAt">,
+  at: Date,
+): boolean {
+  return at.getTime() < request.requestedAt.getTime() + RECOVERY_TOKEN_LIFETIME_MS;
+}

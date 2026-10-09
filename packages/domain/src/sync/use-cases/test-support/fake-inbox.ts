@@ -46,6 +46,7 @@ export class FakeInbox implements Inbox {
   chainKeys = new Map<string, string | undefined>();
   revokedDevices = new Set<string>();
   registerIds = new Map<string, string>();
+  locationIds = new Map<string, string>();
 
   constructor(receivedSeqs: { deviceId: string; seqs: number[] }[] = []) {
     for (const { deviceId, seqs } of receivedSeqs) {
@@ -146,9 +147,12 @@ export class FakeInbox implements Inbox {
           working.received.push({ deviceId, event: structuredClone(event), receivedAt });
         }
       },
-      installationRegisterId: async (deviceId) => {
-        this.calls.push(`installationRegisterId ${deviceId}`);
-        return this.registerIds.get(deviceId) ?? `register-of-${deviceId}`;
+      installationRegister: async (deviceId) => {
+        this.calls.push(`installationRegister ${deviceId}`);
+        return {
+          registerId: this.registerIds.get(deviceId) ?? `register-of-${deviceId}`,
+          locationId: this.locationIds.get(deviceId) ?? `location-of-${deviceId}`,
+        };
       },
       observeAlertCondition: async (observation, at) => {
         this.calls.push("observeAlertCondition");

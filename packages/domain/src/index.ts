@@ -367,6 +367,7 @@ export {
   isValidCashAmount,
   MAX_CASH_AMOUNT_CENTS,
   SALE_COMPLETED_EVENT_TYPE,
+  SALES_DENIED_REASONS,
 } from "./shared/index.js";
 export type {
   AdjustmentReason,
@@ -407,6 +408,9 @@ export type {
   PullPage,
   PushedEvent,
   RegisterTelemetry,
+  SalesStopReason,
+  SalesStopState,
+  StorageTelemetry,
 } from "./sync/index.js";
 export {
   canonicalOutboxEvent,
@@ -415,9 +419,11 @@ export {
   INSTALLATION_REQUEST_LIMITS,
   isPageAfter,
   isPullCursor,
+  isSalesStopReason,
   PULL_PAGE_MAX_CHANGES,
   PUSH_BATCH_MAX_EVENTS,
   pullAudienceOf,
+  salesDeniedReportOf,
 } from "./sync/index.js";
 export {
   isEmailAddress,

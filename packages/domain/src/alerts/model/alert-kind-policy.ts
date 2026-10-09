@@ -114,6 +114,14 @@ const ALERT_KIND_POLICIES = {
     deduplicates: true,
     resolvesAfterStableClear: true,
   },
+  sales_denied: {
+    level: "critical",
+    escalation: null,
+    audience: "local",
+    scopeKind: "register",
+    deduplicates: true,
+    resolvesAfterStableClear: true,
+  },
 } as const satisfies Record<AlertKind, AlertKindPolicy>;
 
 export function alertKindPolicy(kind: AlertKind): AlertKindPolicy {

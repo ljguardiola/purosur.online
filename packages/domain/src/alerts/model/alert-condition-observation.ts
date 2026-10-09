@@ -1,3 +1,4 @@
+import type { SalesDeniedReport } from "../../shared/index.js";
 import type { AlertKind } from "./alert-catalog.js";
 import type { OpenAlertInput } from "./alert-details.js";
 
@@ -52,5 +53,35 @@ export function registerVersionObservation({
   return {
     holds: true,
     alert: { kind: "update_required", scope: registerId, detail: { deviceId, appVersion } },
+  };
+}
+
+interface RegisterSalesStanding {
+  registerId: string;
+  deviceId: string;
+  locationId: string;
+  report: SalesDeniedReport;
+}
+
+export function registerSalesDeniedObservation({
+  registerId,
+  deviceId,
+  locationId,
+  report,
+}: RegisterSalesStanding): AlertConditionObservation | undefined {
+  if (report.sales_denied === undefined) {
+    return undefined;
+  }
+  if (!report.sales_denied) {
+    return { holds: false, kind: "sales_denied", scope: registerId };
+  }
+  return {
+    holds: true,
+    alert: {
+      kind: "sales_denied",
+      scope: registerId,
+      locationId,
+      detail: { deviceId, reason: report.sales_denied_reason },
+    },
   };
 }

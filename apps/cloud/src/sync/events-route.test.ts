@@ -9,6 +9,7 @@ import { eq } from "drizzle-orm";
 import Fastify from "fastify";
 import { describe, expect, it } from "vitest";
 import {
+  alerts,
   deviceState,
   inbox,
   installationRequestAttempts,
@@ -245,6 +246,26 @@ describe("POST /events", () => {
       .from(deviceState)
       .where(eq(deviceState.deviceId, deviceId));
     expect(state?.appVersion).toBe("1.4");
+  });
+
+  it("opens the can't-sell alert of a register that reports it can't sell", async () => {
+    const { deviceToken, registerId } = await enroll();
+    const body = bodyOf([]);
+
+    await push(
+      {
+        ...body,
+        telemetry: {
+          ...body.telemetry,
+          sales_denied: true,
+          sales_denied_reason: "event_history_broken",
+        },
+      },
+      `Bearer ${deviceToken}`,
+    );
+
+    const rows = await route.db.select().from(alerts).where(eq(alerts.scope, registerId));
+    expect(rows.map(({ kind }) => kind)).toContain("sales_denied");
   });
 
   it("records each admitted push as a request of its installation", async () => {

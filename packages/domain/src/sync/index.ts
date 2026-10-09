@@ -9,5 +9,7 @@ export {
   isPullCursor,
   PULL_PAGE_MAX_CHANGES,
 } from "./model/pull-page.js";
-export type { PushedEvent, RegisterTelemetry } from "./model/push-batch.js";
+export type { PushedEvent, RegisterTelemetry, StorageTelemetry } from "./model/push-batch.js";
 export { PUSH_BATCH_MAX_EVENTS } from "./model/push-batch.js";
+export type { SalesStopReason, SalesStopState } from "./model/sales-stop.js";
+export { isSalesStopReason, salesDeniedReportOf } from "./model/sales-stop.js";

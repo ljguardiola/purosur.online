@@ -276,6 +276,104 @@ describe("issueRecoveryToken", () => {
     expect(store.snapshot()).toEqual(before);
   });
 
+  describe("a request processed after it stopped being current", () => {
+    const LATE = new Date(REQUESTED_AT.getTime() + RECOVERY_TOKEN_LIFETIME_MS);
+
+    it("refuses it as late, recording it when it was made, and issues nothing", async () => {
+      const { store, issue } = fixture();
+
+      expect(await issue({ now: LATE })).toEqual({ kind: "late" });
+
+      const after = store.snapshot();
+      expect(after.rejectedRequests).toEqual([
+        { userId: "u-1", reason: "late", requestedAt: REQUESTED_AT },
+      ]);
+      expect(after.tokens).toEqual([]);
+      expect(after.issuedTokenRecords).toEqual([]);
+      expect(after.alerts).toEqual([]);
+    });
+
+    it("leaves the account's outstanding token valid", async () => {
+      const { store, issue } = fixture();
+      store.seedToken(
+        storedToken({ id: "older", requestedAt: new Date(REQUESTED_AT.getTime() - 1) }),
+      );
+
+      expect(await issue({ now: LATE })).toEqual({ kind: "late" });
+
+      expect(store.snapshot().tokens).toEqual([
+        expect.objectContaining({ id: "older", voidedAt: null }),
+      ]);
+    });
+
+    it("refuses it as superseded when a newer request also superseded it", async () => {
+      const { store, issue } = fixture();
+      store.seedToken(
+        storedToken({ id: "newer", requestedAt: new Date(REQUESTED_AT.getTime() + 1) }),
+      );
+
+      expect(await issue({ now: LATE })).toEqual({ kind: "superseded" });
+
+      expect(store.snapshot().rejectedRequests).toEqual([
+        { userId: "u-1", reason: "superseded", requestedAt: REQUESTED_AT },
+      ]);
+    });
+
+    it("takes the lock before recording it", async () => {
+      const { store, issue } = fixture();
+
+      await issue({ now: LATE });
+
+      expect(store.operationOrder).toEqual([
+        "findAccountByEmail",
+        "lockRecoveryTokens:u-1",
+        "listRecoveryRequests",
+        "recordRejectedRequest",
+      ]);
+    });
+
+    it("does all its storage work in one transaction", async () => {
+      const { store, issue } = fixture();
+
+      await issue({ now: LATE });
+
+      expect(store.transactionCount).toBe(1);
+    });
+
+    it("leaves nothing behind when recording it fails", async () => {
+      const { store, issue } = fixture();
+      store.seedToken(storedToken({ id: "old" }));
+      store.failingWrites.add("recordRejectedRequest");
+      const before = store.snapshot();
+
+      await expect(issue({ now: LATE })).rejects.toThrow("recordRejectedRequest failed");
+
+      expect(store.snapshot()).toEqual(before);
+    });
+
+    it("rejects an inactive account's late request as inactive", async () => {
+      const { store, issue } = fixture({ active: false });
+
+      expect(await issue({ now: LATE })).toEqual({ kind: "account_inactive" });
+
+      expect(store.snapshot().rejectedRequests).toEqual([
+        { userId: "u-1", reason: "account_inactive", requestedAt: REQUESTED_AT },
+      ]);
+    });
+  });
+
+  it("serves a request processed just before it stops being current with a link of full lifetime", async () => {
+    const { store, issue } = fixture();
+    const lastMoment = new Date(REQUESTED_AT.getTime() + RECOVERY_TOKEN_LIFETIME_MS - 1);
+
+    expect(await issue({ now: lastMoment })).toEqual({ kind: "issued", tokenId: "token-1" });
+
+    expect(store.snapshot().tokens[0]).toMatchObject({
+      issuedAt: lastMoment,
+      expiresAt: new Date(lastMoment.getTime() + RECOVERY_TOKEN_LIFETIME_MS),
+    });
+  });
+
   describe("a request whose link was already sent", () => {
     const SENT_AT = new Date("2026-10-01T12:00:05.000Z");
     const own = () =>

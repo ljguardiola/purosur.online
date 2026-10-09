@@ -1,5 +1,5 @@
 import { stat, statfs } from "node:fs/promises";
-import type { RegisterTelemetry } from "@purosur/domain";
+import type { StorageTelemetry } from "@purosur/domain";
 
 export interface StorageFileSystem {
   sizeOf(path: string): Promise<number | undefined>;
@@ -29,7 +29,7 @@ export const nodeStorageFileSystem: StorageFileSystem = {
 export function storageTelemetryReader(
   databasePath: string,
   fileSystem: StorageFileSystem,
-): () => Promise<RegisterTelemetry> {
+): () => Promise<StorageTelemetry> {
   return async () => {
     const walSizeBytes = await fileSystem.sizeOf(`${databasePath}-wal`);
     const { availableBytes, totalBytes } = await fileSystem.capacityOf(databasePath);

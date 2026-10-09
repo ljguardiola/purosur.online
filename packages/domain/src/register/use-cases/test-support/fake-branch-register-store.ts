@@ -1,3 +1,4 @@
+import type { RegisterInstallationRecord } from "../../model/register-installation.js";
 import type {
   BranchRegister,
   BranchRegisterStore,
@@ -21,6 +22,10 @@ export interface FakeBranchRegister {
   pointOfSaleNumber?: number;
 }
 
+export interface FakeRegisterInstallation extends RegisterInstallationRecord {
+  registerId: string;
+}
+
 export interface FakeRegisterEnrollmentCode extends RegisterEnrollmentCode {
   registerId: string;
   lookup: string;
@@ -30,6 +35,7 @@ export interface FakeRegisterEnrollmentCode extends RegisterEnrollmentCode {
 export interface FakeBranchRegisterState {
   registers: FakeBranchRegister[];
   codes: FakeRegisterEnrollmentCode[];
+  installations: FakeRegisterInstallation[];
   registerCreations: RegisterCreation[];
   codeEmissions: EnrollmentCodeEmission[];
   nextId: number;
@@ -111,6 +117,7 @@ export class FakeBranchRegisterStore implements BranchRegisterStore, BranchRegis
   private state: FakeBranchRegisterState = {
     registers: [],
     codes: [],
+    installations: [],
     registerCreations: [],
     codeEmissions: [],
     nextId: 1,
@@ -127,6 +134,10 @@ export class FakeBranchRegisterStore implements BranchRegisterStore, BranchRegis
 
   seedCode(code: FakeRegisterEnrollmentCode): void {
     this.state.codes.push(structuredClone(code));
+  }
+
+  seedInstallation(installation: FakeRegisterInstallation): void {
+    this.state.installations.push(structuredClone(installation));
   }
 
   snapshot(): FakeBranchRegisterState {
@@ -150,6 +161,14 @@ export class FakeBranchRegisterStore implements BranchRegisterStore, BranchRegis
               }
             : null,
           pointOfSaleNumber: register.pointOfSaleNumber ?? null,
+          installations: this.state.installations
+            .filter((row) => row.registerId === register.id)
+            .map(({ hostname, windowsVersion, enrolledAt, revokedAt }) => ({
+              hostname,
+              windowsVersion,
+              enrolledAt: new Date(enrolledAt),
+              revokedAt: revokedAt ? new Date(revokedAt) : null,
+            })),
         };
       });
   }

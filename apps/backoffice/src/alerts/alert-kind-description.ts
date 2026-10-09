@@ -12,6 +12,7 @@ const ALERT_KIND_DESCRIPTIONS = {
   arca_certificate_expiring: "El certificado de ARCA está por vencer",
   update_required: "La nube ya no acepta la versión de esta caja",
   register_silent: "Una caja dejó de sincronizar",
+  sales_denied: "Una caja dejó de abrir ventas nuevas",
 } satisfies Record<AlertKind, string>;
 
 export const DESCRIBED_ALERT_KINDS: readonly string[] = Object.keys(ALERT_KIND_DESCRIPTIONS);

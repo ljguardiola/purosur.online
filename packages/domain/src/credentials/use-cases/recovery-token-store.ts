@@ -9,7 +9,7 @@ export type { RecoveryRequest } from "../model/recovery-token.js";
 
 export interface RejectedRecoveryRequest {
   userId: string;
-  reason: "account_inactive" | "superseded";
+  reason: "account_inactive" | "superseded" | "late";
   requestedAt: Date;
 }
 

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { RECOVERY_TOKEN_LIFETIME_MS } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { type Job, quickAddJob, type RunnerOptions, runTaskListOnce } from "graphile-worker";
@@ -332,5 +333,47 @@ describe("a recovery request whose link was sent but whose completion graphile-w
     expect(afterRerun.tokens[0]?.voidedAt).toBeNull();
     expect(afterRerun.tokenAuditRows).toHaveLength(1);
     expect(afterRerun).toEqual(afterFirstRun);
+  });
+});
+
+describe("a recovery request first processed after it stopped being current", () => {
+  it("runs once and sends nothing", async () => {
+    const email = `rocio-${randomUUID()}@example.com`;
+    const sql = postgres(integrationDb.adminDatabaseUrl, { max: 1 });
+    try {
+      const db = drizzle(sql);
+      await db
+        .insert(users)
+        .values({ firstName: "Rocío Fictaria", email, locationId: await seededLocationId(db) });
+    } finally {
+      await sql.end({ timeout: 1 });
+    }
+    const sent: SendRecoveryLinkInput[] = [];
+    const worker = await startRecoveryWorker({
+      databaseUrl: integrationDb.databaseUrl,
+      backofficeOrigin: "https://staging.purosur.online",
+      emailSender: {
+        sendRecoveryLink: async (input) => {
+          sent.push(input);
+        },
+        sendFirstPinCode: async () => {},
+      },
+      now: () => NOW,
+    });
+    const requestedAt = new Date(NOW.getTime() - RECOVERY_TOKEN_LIFETIME_MS);
+    try {
+      const job = await quickAddJob(
+        { connectionString: integrationDb.databaseUrl },
+        RECOVERY_REQUEST_TASK_IDENTIFIER,
+        { email, requestedAt: requestedAt.toISOString(), requestId: randomUUID() },
+      );
+      await vi.waitFor(async () => {
+        expect(await jobLock(job.id)).toBeUndefined();
+      }, WAIT_OPTIONS);
+    } finally {
+      await worker.stop();
+    }
+
+    expect(sent).toEqual([]);
   });
 });

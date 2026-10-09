@@ -90,7 +90,7 @@ describe("finding an account by email", () => {
 });
 
 describe("recording a rejected request", () => {
-  it.each(["account_inactive", "superseded"] as const)(
+  it.each(["account_inactive", "superseded", "late"] as const)(
     "audits the %s request at the moment it was made",
     async (reason) => {
       await store().transaction((tx) =>

@@ -13,11 +13,22 @@ import { readValidationFailedField } from "../platform/validation-failed-field";
 
 type PendingEnrollmentCode = { secondsSinceIssued: number; secondsUntilExpiry: number };
 
+export type RegisterInstallation =
+  | { state: "enrolled"; hostname: string; windowsVersion: string; enrolledAt: string }
+  | {
+      state: "revoked";
+      hostname: string;
+      windowsVersion: string;
+      enrolledAt: string;
+      revokedAt: string;
+    };
+
 export type RegisterSummary = {
   id: string;
   name: string;
   pendingCode: PendingEnrollmentCode | null;
   pointOfSaleNumber: number | null;
+  installation: RegisterInstallation | null;
 };
 
 export type FetchRegistersOutcome = CloudReadOutcome<RegisterSummary[]>;
@@ -63,6 +74,22 @@ function postJson(path: string, body?: unknown): Promise<Response> {
   });
 }
 
+function installationFromWire(
+  installation: RegisterSummaryBody["installation"],
+): RegisterInstallation | null {
+  if (installation === null) {
+    return null;
+  }
+  const common = {
+    hostname: installation.hostname,
+    windowsVersion: installation.windows_version,
+    enrolledAt: installation.enrolled_at,
+  };
+  return installation.state === "enrolled"
+    ? { state: "enrolled", ...common }
+    : { state: "revoked", ...common, revokedAt: installation.revoked_at };
+}
+
 function registerFromWire(row: RegisterSummaryBody): RegisterSummary {
   return {
     id: row.id,
@@ -74,6 +101,7 @@ function registerFromWire(row: RegisterSummaryBody): RegisterSummary {
         }
       : null,
     pointOfSaleNumber: row.point_of_sale_number,
+    installation: installationFromWire(row.installation),
   };
 }
 

@@ -19,6 +19,7 @@ import { generateSessionId, hashSessionId } from "../sessions/session-id.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerRegistersListRoute } from "./registers-list-route.js";
+import { insertEnrolledInstallation } from "./test-support/enrolled-installation.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
@@ -174,8 +175,20 @@ describe("GET /registers", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual([
-      { id: expect.any(String), name: "Caja 1", pending_code: null, point_of_sale_number: null },
-      { id: expect.any(String), name: "Caja 2", pending_code: null, point_of_sale_number: null },
+      {
+        id: expect.any(String),
+        name: "Caja 1",
+        pending_code: null,
+        point_of_sale_number: null,
+        installation: null,
+      },
+      {
+        id: expect.any(String),
+        name: "Caja 2",
+        pending_code: null,
+        point_of_sale_number: null,
+        installation: null,
+      },
     ]);
   });
 
@@ -232,6 +245,46 @@ describe("GET /registers", () => {
         name: "Caja 1",
         pending_code: { seconds_since_issued: 60, seconds_until_expiry: 840 },
         point_of_sale_number: null,
+        installation: null,
+      },
+    ]);
+  });
+
+  it("lists the installation a register is enrolled on and the one it lost", async () => {
+    const locationId = await seededLocationId(db);
+    const enrolled = await insertEnrolledInstallation(db, {
+      now: NOON,
+      registerName: "Caja 1",
+    });
+    const revoked = await insertEnrolledInstallation(db, {
+      now: NOON,
+      registerName: "Caja 2",
+      revokedAt: new Date("2026-01-04T15:00:00.000Z"),
+    });
+    const userId = await insertUserWithPermission(locationId);
+    const rawSessionId = await insertSession(userId);
+
+    const response = await getRegisters(rawSessionId);
+
+    expect(response.json()).toMatchObject([
+      {
+        id: enrolled.registerId,
+        installation: {
+          state: "enrolled",
+          hostname: "CAJA-MOSTRADOR",
+          windows_version: "Windows 11 Pro 10.0.26100",
+          enrolled_at: "2026-01-04T12:00:00.000Z",
+        },
+      },
+      {
+        id: revoked.registerId,
+        installation: {
+          state: "revoked",
+          hostname: "CAJA-MOSTRADOR",
+          windows_version: "Windows 11 Pro 10.0.26100",
+          enrolled_at: "2026-01-04T12:00:00.000Z",
+          revoked_at: "2026-01-04T15:00:00.000Z",
+        },
       },
     ]);
   });
