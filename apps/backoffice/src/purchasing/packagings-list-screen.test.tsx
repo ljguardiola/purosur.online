@@ -262,7 +262,12 @@ test("the create action opens the new packaging modal with the products it was r
   await userEvent.click(screen.getByRole("button", { name: "Nueva presentación" }));
   const dialog = screen.getByRole("dialog");
   await userEvent.click(dialog.getByRole("combobox", { name: /^Producto/ }));
-  await userEvent.click(screen.getByRole("option", { name: "Miel pura de abeja 1 kg" }));
+  await expect
+    .element(screen.getByRole("option", { name: "Miel pura de abeja 1 kg" }))
+    .toBeVisible();
+  (
+    screen.getByRole("option", { name: "Miel pura de abeja 1 kg" }).element() as HTMLElement
+  ).click();
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Caja x 12");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad por presentación/ }), "12");
   await userEvent.click(dialog.getByRole("button", { name: "Crear la presentación" }));

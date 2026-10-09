@@ -41,9 +41,11 @@ function renderModal({
 
 type ModalScreen = Awaited<ReturnType<typeof renderModal>>;
 
+// A locator click scrolls the option into view first, and the scroll event closes the list.
 async function chooseProduct(screen: ModalScreen, name: string) {
   await userEvent.click(screen.getByRole("dialog").getByRole("combobox", { name: /^Producto/ }));
-  await userEvent.click(screen.getByRole("option", { name }));
+  await expect.element(screen.getByRole("option", { name })).toBeVisible();
+  (screen.getByRole("option", { name }).element() as HTMLElement).click();
 }
 
 async function fill(screen: ModalScreen, fields: { name?: string; quantity?: string }) {
@@ -86,6 +88,7 @@ test("the quantity's unit follows the chosen product", async () => {
   await chooseProduct(screen, "Miel pura de abeja 1 kg");
   await expect.element(dialog.getByText("u", { exact: true })).toBeVisible();
 
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Producto/ }), "");
   await chooseProduct(screen, "Avena arrollada");
   await expect.element(dialog.getByText("kg", { exact: true })).toBeVisible();
 });
