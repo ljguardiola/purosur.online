@@ -10,6 +10,14 @@ test("shows an ARCA environment this app does not know yet, such as one a later 
   expect(alertScopeLabel("arca_certificate_expiring", "staging")).toBe("staging");
 });
 
+test("names the point of sale and the invoice class of a rejected invoice", () => {
+  expect(alertScopeLabel("fiscal_rejected", "12:factura_c")).toBe("Punto de venta 12 · Factura C");
+});
+
+test("shows the scope of a rejected invoice of a document type this app does not know yet as it comes", () => {
+  expect(alertScopeLabel("fiscal_rejected", "12:factura_z")).toBe("12:factura_z");
+});
+
 test("shows the scope of any other kind as the cloud displays it", () => {
   expect(alertScopeLabel("register_enrolled", "production")).toBe("production");
 });

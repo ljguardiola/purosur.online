@@ -11,6 +11,7 @@ const ALERT_KIND_LIST = [
   "update_required",
   "register_silent",
   "sales_denied",
+  "fiscal_rejected",
 ] as const;
 
 export type AlertKind = (typeof ALERT_KIND_LIST)[number];

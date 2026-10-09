@@ -103,13 +103,25 @@ describe("asking the cloud to authorize a fiscal document", () => {
     });
   });
 
-  it("answers rejected with the codes of the rejection", async () => {
+  it.each(["content", "standing"] as const)(
+    "answers rejected with the codes and the %s class of the rejection",
+    async (rejectionClass) => {
+      const { taxAuthority } = authority(
+        ok({ state: "REJECTED", rejection_codes: [10015, 10048], rejection_class: rejectionClass }),
+      );
+
+      await expect(taxAuthority.authorize(CALL)).resolves.toEqual({
+        kind: "rejected",
+        codes: [10015, 10048],
+        rejectionClass,
+      });
+    },
+  );
+
+  it("answers unclear when the rejection carries no class", async () => {
     const { taxAuthority } = authority(ok({ state: "REJECTED", rejection_codes: [10015, 10048] }));
 
-    await expect(taxAuthority.authorize(CALL)).resolves.toEqual({
-      kind: "rejected",
-      codes: [10015, 10048],
-    });
+    await expect(taxAuthority.authorize(CALL)).resolves.toEqual({ kind: "unclear" });
   });
 
   it("answers not attempted when the cloud made no call to the tax authority", async () => {

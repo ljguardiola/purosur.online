@@ -8,6 +8,7 @@ export {
 } from "./model/alert-catalog.js";
 export type { AlertConditionObservation } from "./model/alert-condition-observation.js";
 export {
+  fiscalRejectionAlertObservation,
   registerSalesDeniedObservation,
   registerSyncedObservation,
   registerVersionObservation,

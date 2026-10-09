@@ -1,5 +1,5 @@
 {
-  "id": "32513806-36e9-4aa3-98bd-d0e4edae4cdf",
+  "id": "44094ec8-f6d5-4c04-bf3a-e69b873b36b1",
   "prevId": "8395c1f9-dd71-44f1-a52f-5127ae1b3fa8",
   "version": "7",
   "dialect": "postgresql",
@@ -1827,6 +1827,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "rejection_class": {
+          "name": "rejection_class",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "answered_at": {
           "name": "answered_at",
           "type": "timestamp with time zone",
@@ -1881,6 +1887,10 @@
         "fiscal_requests_rejection_check": {
           "name": "fiscal_requests_rejection_check",
           "value": "coalesce(\"fiscal_requests\".\"answer_kind\" = 'rejected', false) = (\"fiscal_requests\".\"rejection_codes\" is not null)"
+        },
+        "fiscal_requests_rejection_class_check": {
+          "name": "fiscal_requests_rejection_class_check",
+          "value": "coalesce(\"fiscal_requests\".\"answer_kind\" = 'rejected', false) = (\"fiscal_requests\".\"rejection_class\" is not null)\n        and \"fiscal_requests\".\"rejection_class\" in ('content', 'standing')"
         }
       },
       "isRLSEnabled": false
@@ -5135,12 +5145,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "sale_line_id": {
-          "name": "sale_line_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "delta": {
           "name": "delta",
           "type": "bigint",
@@ -5242,15 +5246,6 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "stock_movements_sale_line_id_sale_lines_id_fk": {
-          "name": "stock_movements_sale_line_id_sale_lines_id_fk",
-          "tableFrom": "stock_movements",
-          "tableTo": "sale_lines",
-          "columnsFrom": ["sale_line_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "stock_movements_actor_id_users_id_fk": {
           "name": "stock_movements_actor_id_users_id_fk",
           "tableFrom": "stock_movements",
@@ -5276,15 +5271,11 @@
       "checkConstraints": {
         "stock_movements_kind_check": {
           "name": "stock_movements_kind_check",
-          "value": "\"stock_movements\".\"kind\" in ('loss', 'adjustment', 'count', 'sale')"
+          "value": "\"stock_movements\".\"kind\" in ('loss', 'adjustment', 'count')"
         },
-        "stock_movements_reason_unless_count_or_sale_check": {
-          "name": "stock_movements_reason_unless_count_or_sale_check",
-          "value": "(\"stock_movements\".\"kind\" in ('count', 'sale')) = (\"stock_movements\".\"reason\" is null)"
-        },
-        "stock_movements_sale_line_iff_sale_check": {
-          "name": "stock_movements_sale_line_iff_sale_check",
-          "value": "(\"stock_movements\".\"kind\" = 'sale') = (\"stock_movements\".\"sale_line_id\" is not null)"
+        "stock_movements_reason_unless_count_check": {
+          "name": "stock_movements_reason_unless_count_check",
+          "value": "(\"stock_movements\".\"kind\" = 'count') = (\"stock_movements\".\"reason\" is null)"
         }
       },
       "isRLSEnabled": false

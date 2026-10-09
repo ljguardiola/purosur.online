@@ -21,6 +21,7 @@ import {
   ROUND_TRIP_SAMPLE_SIZE,
   realTimeAuthorizationResolution,
   SERIES_WAITING_STATES,
+  taxAuthorityRefusalAnswer,
   taxAuthorityRejectionAnswer,
 } from "./real-time-authorization.js";
 
@@ -362,10 +363,27 @@ describe("DEFERRAL_REASONS", () => {
 });
 
 describe("taxAuthorityRejectionAnswer", () => {
-  it("is a rejection carrying the codes the tax authority gave", () => {
+  it("is a content rejection carrying the codes the tax authority gave", () => {
     expect(taxAuthorityRejectionAnswer([10015, 10048])).toEqual({
       kind: "rejected",
       codes: [10015, 10048],
+      rejectionClass: "content",
+    });
+  });
+
+  it("is a content rejection for an invalid buyer tax-status value", () => {
+    expect(taxAuthorityRejectionAnswer([10242])).toEqual({
+      kind: "rejected",
+      codes: [10242],
+      rejectionClass: "content",
+    });
+  });
+
+  it("is a content rejection when several codes of the document's content come together", () => {
+    expect(taxAuthorityRejectionAnswer([10246, 10015, 10048])).toEqual({
+      kind: "rejected",
+      codes: [10246, 10015, 10048],
+      rejectionClass: "content",
     });
   });
 
@@ -377,8 +395,105 @@ describe("taxAuthorityRejectionAnswer", () => {
     expect(taxAuthorityRejectionAnswer([10016])).toEqual({ kind: "unclear" });
   });
 
-  it("is a rejection without codes when the tax authority gave none", () => {
-    expect(taxAuthorityRejectionAnswer([])).toEqual({ kind: "rejected", codes: [] });
+  it("is a content rejection without codes when the tax authority gave none", () => {
+    expect(taxAuthorityRejectionAnswer([])).toEqual({
+      kind: "rejected",
+      codes: [],
+      rejectionClass: "content",
+    });
+  });
+
+  it("is a standing rejection when a code is one of the business's own standing", () => {
+    expect(taxAuthorityRejectionAnswer([10015, 777], new Set([777]))).toEqual({
+      kind: "rejected",
+      codes: [10015, 777],
+      rejectionClass: "standing",
+    });
+  });
+
+  it("classifies each rejection from its own codes", () => {
+    const standingCodes = new Set([777]);
+
+    expect(taxAuthorityRejectionAnswer([777], standingCodes)).toMatchObject({
+      rejectionClass: "standing",
+    });
+    expect(taxAuthorityRejectionAnswer([10015], standingCodes)).toMatchObject({
+      rejectionClass: "content",
+    });
+  });
+
+  it("is unclear for the out-of-order code even when another code is a standing one", () => {
+    expect(taxAuthorityRejectionAnswer([777, 10016], new Set([777]))).toEqual({ kind: "unclear" });
+  });
+
+  it.each([500, 501, 502, 600, 602])(
+    "is unclear when the tax authority answers with its own internal error %i",
+    (code) => {
+      expect(taxAuthorityRejectionAnswer([code])).toEqual({ kind: "unclear" });
+    },
+  );
+
+  it("is unclear for an internal error even beside a content code and a standing one", () => {
+    expect(taxAuthorityRejectionAnswer([10015, 777, 501], new Set([777]))).toEqual({
+      kind: "unclear",
+    });
+  });
+});
+
+describe("the codes of the business's own standing", () => {
+  it.each([
+    [10000, "the issuer's registration, enrolment or authorization to issue vouchers"],
+    [10005, "a point of sale that is not registered for this web service"],
+    [1005, "a point of sale that is not enrolled"],
+    [601, "a represented CUIT the token does not include"],
+  ])("%i, %s, classifies a rejection as standing", (code) => {
+    expect(taxAuthorityRejectionAnswer([10015, code])).toEqual({
+      kind: "rejected",
+      codes: [10015, code],
+      rejectionClass: "standing",
+    });
+    expect(taxAuthorityRefusalAnswer([code])).toEqual({
+      kind: "rejected",
+      codes: [code],
+      rejectionClass: "standing",
+    });
+  });
+
+  it("keeps the out-of-order code unclear beside a standing one", () => {
+    expect(taxAuthorityRejectionAnswer([10000, 10016])).toEqual({ kind: "unclear" });
+  });
+
+  it.each([600, 602, 500, 501, 502])("%i, an errors-only answer, stays unclear", (code) => {
+    expect(taxAuthorityRefusalAnswer([code])).toEqual({ kind: "unclear" });
+  });
+});
+
+describe("taxAuthorityRefusalAnswer", () => {
+  it("is unclear when the tax authority refused with errors and no result", () => {
+    expect(taxAuthorityRefusalAnswer([600])).toEqual({ kind: "unclear" });
+  });
+
+  it("is unclear when it gave no code", () => {
+    expect(taxAuthorityRefusalAnswer([])).toEqual({ kind: "unclear" });
+  });
+
+  it("is a standing rejection when a code is one of the business's own standing", () => {
+    expect(taxAuthorityRefusalAnswer([10015, 777], new Set([777]))).toEqual({
+      kind: "rejected",
+      codes: [10015, 777],
+      rejectionClass: "standing",
+    });
+  });
+
+  it.each([500, 501, 502, 600, 602])(
+    "is unclear when its own internal error %i comes beside a standing code",
+    (code) => {
+      expect(taxAuthorityRefusalAnswer([code, 601])).toEqual({ kind: "unclear" });
+    },
+  );
+
+  it("is unclear when no code is a standing one", () => {
+    expect(taxAuthorityRefusalAnswer([600], new Set([777]))).toEqual({ kind: "unclear" });
   });
 });
 
@@ -398,7 +513,13 @@ describe("realTimeAuthorizationResolution", () => {
   });
 
   it("rejects the document and defers the sale as rejected", () => {
-    expect(realTimeAuthorizationResolution({ kind: "rejected", codes: [10015] })).toEqual({
+    expect(
+      realTimeAuthorizationResolution({
+        kind: "rejected",
+        codes: [10015],
+        rejectionClass: "content",
+      }),
+    ).toEqual({
       state: "REJECTED",
       deferralReason: "rejected",
     });

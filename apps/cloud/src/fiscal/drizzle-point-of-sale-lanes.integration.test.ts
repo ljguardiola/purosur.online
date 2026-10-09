@@ -196,6 +196,66 @@ describe("the point of sale lanes on a real Postgres", () => {
     expect(await invoicingEvidenceTimes()).toEqual([]);
   });
 
+  it("opens the rejection alert in the transaction that records the answer, on the connection that holds the lane", async () => {
+    await sql`delete from alerts where kind = 'fiscal_rejected'`;
+    const registerId = await insertRegisterWithPointOfSale(db, {
+      pointOfSaleNumber: 18,
+      name: "caja-rejected",
+    });
+    const taxAuthority = new HeldTaxAuthority();
+
+    const outcome = authorize(portsOf(taxAuthority), registerId, 18, 700);
+    await taxAuthority.untilStarted(1);
+    taxAuthority.release(700, {
+      kind: "rejected",
+      rejections: [{ code: 10242, message: "El valor de CondicionIVAReceptorId es invalido." }],
+    });
+
+    await expect(outcome).resolves.toMatchObject({
+      answer: { kind: "rejected", rejectionClass: "content" },
+    });
+    expect(await answerKindsAt(18)).toEqual([{ number: 700, answer_kind: "rejected" }]);
+    expect(await sql`select scope, level from alerts where kind = 'fiscal_rejected'`).toEqual([
+      { scope: "18:factura_c", level: "critical" },
+    ]);
+  });
+
+  it("leaves the request without an answer, no evidence and no alert when opening the alert fails", async () => {
+    await sql`delete from arca_invoicing_evidence`;
+    await sql`delete from alerts where kind = 'fiscal_rejected'`;
+    const registerId = await insertRegisterWithPointOfSale(db, {
+      pointOfSaleNumber: 19,
+      name: "caja-alert-broken",
+    });
+    const taxAuthority = new HeldTaxAuthority();
+    await admin`
+      create function refuse_alert() returns trigger language plpgsql as $$
+      begin
+        raise exception 'the alert write broke';
+      end;
+      $$`;
+    await admin`
+      create trigger refuse_alert before insert on alerts
+      for each row execute function refuse_alert()`;
+
+    try {
+      const outcome = authorize(portsOf(taxAuthority), registerId, 19, 800);
+      await taxAuthority.untilStarted(1);
+      taxAuthority.release(800, {
+        kind: "rejected",
+        rejections: [{ code: 10242, message: "El valor es invalido." }],
+      });
+
+      await expect(outcome).rejects.toThrow();
+    } finally {
+      await admin`drop trigger refuse_alert on alerts`;
+      await admin`drop function refuse_alert()`;
+    }
+    expect(await answerKindsAt(19)).toEqual([{ number: 800, answer_kind: null }]);
+    expect(await invoicingEvidenceTimes()).toEqual([]);
+    expect(await sql`select 1 from alerts where kind = 'fiscal_rejected'`).toEqual([]);
+  });
+
   it("starts no second call at a point of sale while one is in flight, and starts it once the first ends", async () => {
     const registerId = await insertRegisterWithPointOfSale(db, {
       pointOfSaleNumber: 12,
