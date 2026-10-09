@@ -62,6 +62,7 @@ import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
 import { type CoreToRendererMessage, rendererToCoreMessageSchema } from "./renderer-messages";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
+import { createReceiptPrinting } from "./sales/receipt-printing-wiring";
 import {
   addSearchedProductFor,
   cancelLockedSaleFor,
@@ -296,6 +297,17 @@ const realTimeAuthorization = createRealTimeAuthorization({
   readDeviceToken,
   now,
   reportFailure: (error) => reportFailure("the real-time authorization", error),
+});
+
+const receiptPrinting = createReceiptPrinting({
+  database: localDatabase,
+  gate: actionGate,
+  now,
+  ids: uuidV7Ids,
+  readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+  signedInUserId: () => signedInPerson.userId(),
+  reportFailure,
+  syncNow: () => syncSchedule.syncNow(),
 });
 
 const rendererRequestDeps: RendererRequestDeps = {
@@ -612,14 +624,19 @@ const rendererRequestDeps: RendererRequestDeps = {
     localDatabase === undefined || actionGate === undefined
       ? undefined
       : (request) => cashChargeFor({ database: localDatabase, gate: actionGate, now }, request),
+  receiptPrintStatus: receiptPrinting.receiptPrintStatus,
+  retryReceiptPrint: receiptPrinting.retryReceiptPrint,
+  reprintSaleReceipt: receiptPrinting.reprintSaleReceipt,
   reportFailure,
 };
 
 const answeredRendererRequestDeps: RendererRequestDeps = {
   ...rendererRequestDeps,
-  chargeSaleInCash: realTimeAuthorization.afterCompletedSale(rendererRequestDeps.chargeSaleInCash),
-  chargeSaleByTransfer: realTimeAuthorization.afterCompletedSale(
-    rendererRequestDeps.chargeSaleByTransfer,
+  chargeSaleInCash: receiptPrinting.afterCompletedSale(
+    realTimeAuthorization.afterCompletedSale(rendererRequestDeps.chargeSaleInCash),
+  ),
+  chargeSaleByTransfer: receiptPrinting.afterCompletedSale(
+    realTimeAuthorization.afterCompletedSale(rendererRequestDeps.chargeSaleByTransfer),
   ),
 };
 
