@@ -459,6 +459,7 @@ export const stockMovements = pgTable(
       .references(() => locations.id),
     kind: text("kind").notNull(),
     reason: text("reason"),
+    saleLineId: uuid("sale_line_id").references(() => saleLines.id),
     delta: bigint("delta", { mode: "number" }).notNull(),
     occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
@@ -470,10 +471,17 @@ export const stockMovements = pgTable(
     ),
   },
   (table) => [
-    check("stock_movements_kind_check", sql`${table.kind} in ('loss', 'adjustment', 'count')`),
     check(
-      "stock_movements_reason_unless_count_check",
-      sql`(${table.kind} = 'count') = (${table.reason} is null)`,
+      "stock_movements_kind_check",
+      sql`${table.kind} in ('loss', 'adjustment', 'count', 'sale')`,
+    ),
+    check(
+      "stock_movements_reason_unless_count_or_sale_check",
+      sql`(${table.kind} in ('count', 'sale')) = (${table.reason} is null)`,
+    ),
+    check(
+      "stock_movements_sale_line_iff_sale_check",
+      sql`(${table.kind} = 'sale') = (${table.saleLineId} is not null)`,
     ),
     index("stock_movements_product_id_location_id_occurred_at_idx").on(
       table.productId,

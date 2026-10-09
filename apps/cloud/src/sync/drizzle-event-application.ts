@@ -1,9 +1,11 @@
 import type { AlertDetails } from "@purosur/domain";
+import { applyRegisterStockMovements } from "@purosur/domain/stock/use-cases";
 import type {
   AggregateKey,
   EventApplication,
   EventApplicationTransaction,
   FailedAttempt,
+  SaleStockApplication,
   SyncedFact,
   UnappliedEvent,
 } from "@purosur/domain/sync/use-cases";
@@ -18,6 +20,9 @@ import {
   recordAppliedCashMovement,
 } from "../register/drizzle-applied-cash-sessions.js";
 import { recordAppliedCancelledSale, recordAppliedSale } from "../sales/drizzle-applied-sales.js";
+import { DrizzleStockStoreTransaction } from "../stock/drizzle-stock-store.js";
+
+type CompletedSale = Extract<SyncedFact, { kind: "sale_completed" }>["sale"];
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
@@ -100,6 +105,27 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
         return recordAppliedCancelledSale(this.tx, await this.originOf(event), fact, this.now());
       case "fiscal_gate_failed":
         return;
+    }
+  }
+
+  async applySaleStock(sale: CompletedSale, event: UnappliedEvent): Promise<SaleStockApplication> {
+    const { locationId } = await this.originOf(event);
+    const outcome = await applyRegisterStockMovements(new DrizzleStockStoreTransaction(this.tx), {
+      locationId,
+      occurredAt: sale.completedAt,
+      actorId: sale.actorId,
+      movements: sale.stockMovements.map((movement) => ({ ...movement, kind: "sale" })),
+    });
+    switch (outcome.kind) {
+      case "applied":
+        return { kind: "applied" };
+      case "not_found":
+        return { kind: "refused", reason: `product ${outcome.productId} is not in the catalog` };
+      case "invalid_quantity":
+        return {
+          kind: "refused",
+          reason: `a sale moved a quantity of product ${outcome.productId} it can't be sold in`,
+        };
     }
   }
 
