@@ -80,14 +80,14 @@ class DrizzlePaymentTransactionLane<TQueryResult extends PgQueryResultHKT>
   async recordCreationAttempt(paymentTransactionId: string, expiresAt: Date): Promise<void> {
     await this.db
       .update(paymentTransactions)
-      .set({ expiresAt })
+      .set({ expiresAt, creationOutcomeUnknown: true })
       .where(eq(paymentTransactions.id, paymentTransactionId));
   }
 
-  async recordCreationOutcomeUnknown(paymentTransactionId: string): Promise<void> {
+  async recordCreationCreatedNothing(paymentTransactionId: string): Promise<void> {
     await this.db
       .update(paymentTransactions)
-      .set({ creationOutcomeUnknown: true })
+      .set({ creationOutcomeUnknown: false })
       .where(eq(paymentTransactions.id, paymentTransactionId));
   }
 

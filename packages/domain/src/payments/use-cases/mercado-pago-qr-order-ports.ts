@@ -24,7 +24,7 @@ export interface PaymentTransactionLane {
   ): Promise<ProviderPaymentTransaction | null>;
   recordPendingTransaction(transaction: ProviderPaymentTransaction): Promise<void>;
   recordCreationAttempt(paymentTransactionId: string, expiresAt: Date): Promise<void>;
-  recordCreationOutcomeUnknown(paymentTransactionId: string): Promise<void>;
+  recordCreationCreatedNothing(paymentTransactionId: string): Promise<void>;
   recordNeedsReview(paymentTransactionId: string): Promise<void>;
   recordExpired(paymentTransactionId: string): Promise<void>;
   recordOrderCreated(

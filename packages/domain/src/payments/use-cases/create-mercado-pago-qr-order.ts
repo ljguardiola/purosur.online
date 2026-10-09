@@ -57,7 +57,7 @@ export async function createMercadoPagoQrOrder(
           state: "PENDING",
           needsReview: false,
           providerOrderId: null,
-          creationOutcomeUnknown: false,
+          creationOutcomeUnknown: true,
           createdAt,
           expiresAt: mercadoPagoOrderExpiresAt(createdAt, mercadoPago.longestCallMs),
         };
@@ -87,7 +87,7 @@ export async function createMercadoPagoQrOrder(
           }
           const expiresAt = mercadoPagoOrderExpiresAt(attemptStartedAt, mercadoPago.longestCallMs);
           await lane.recordCreationAttempt(paymentTransactionId, expiresAt);
-          transaction = { ...transaction, expiresAt };
+          transaction = { ...transaction, creationOutcomeUnknown: true, expiresAt };
         }
 
         const creation = await mercadoPago.createQrOrder({
@@ -96,14 +96,16 @@ export async function createMercadoPagoQrOrder(
           amount,
           expiresAfterMinutes: MERCADO_PAGO_ORDER_EXPIRY_MINUTES,
         });
-        if (creation.kind === "refused") {
-          return { kind: "provider_refused" };
-        }
-        if (creation.kind === "throttled") {
-          return { kind: "provider_unavailable" };
+        if (creation.kind === "refused" || creation.kind === "throttled") {
+          const earlierAttemptMayHaveCreatedOrder = recorded?.creationOutcomeUnknown === true;
+          if (!earlierAttemptMayHaveCreatedOrder) {
+            await lane.recordCreationCreatedNothing(paymentTransactionId);
+          }
+          return {
+            kind: creation.kind === "refused" ? "provider_refused" : "provider_unavailable",
+          };
         }
         if (creation.kind === "unavailable") {
-          await lane.recordCreationOutcomeUnknown(paymentTransactionId);
           return { kind: "provider_unavailable" };
         }
         orderId = creation.orderId;
