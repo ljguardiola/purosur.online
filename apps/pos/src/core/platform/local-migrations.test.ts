@@ -866,6 +866,7 @@ describe("the register's local migrations", () => {
         "0022_threshold_revisions",
         "0023_sales_stopped_reason",
         "0024_stock_ledger",
+        "0026_receipt_printing",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -917,6 +918,7 @@ describe("the register's local migrations", () => {
         "0022_threshold_revisions",
         "0023_sales_stopped_reason",
         "0024_stock_ledger",
+        "0026_receipt_printing",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -963,6 +965,7 @@ describe("the register's local migrations", () => {
         "0022_threshold_revisions",
         "0023_sales_stopped_reason",
         "0024_stock_ledger",
+        "0026_receipt_printing",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1008,6 +1011,7 @@ describe("the register's local migrations", () => {
         "0022_threshold_revisions",
         "0023_sales_stopped_reason",
         "0024_stock_ledger",
+        "0026_receipt_printing",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1080,6 +1084,7 @@ describe("the register's local migrations", () => {
         "0022_threshold_revisions",
         "0023_sales_stopped_reason",
         "0024_stock_ledger",
+        "0026_receipt_printing",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1144,6 +1149,7 @@ describe("the register's local migrations", () => {
         "0022_threshold_revisions",
         "0023_sales_stopped_reason",
         "0024_stock_ledger",
+        "0026_receipt_printing",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1212,6 +1218,7 @@ describe("the register's local migrations", () => {
         "0022_threshold_revisions",
         "0023_sales_stopped_reason",
         "0024_stock_ledger",
+        "0026_receipt_printing",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1263,6 +1270,7 @@ describe("the register's local migrations", () => {
         "0022_threshold_revisions",
         "0023_sales_stopped_reason",
         "0024_stock_ledger",
+        "0026_receipt_printing",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1306,6 +1314,7 @@ describe("the register's local migrations", () => {
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0023_sales_stopped_reason",
         "0024_stock_ledger",
+        "0026_receipt_printing",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
