@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   isPointOfSaleNumber,
   mayRegisterClaimPointOfSale,
-  type PointOfSaleMechanism,
   POINT_OF_SALE_NUMBER_MAX,
+  type PointOfSaleMechanism,
 } from "./point-of-sale.js";
 
 describe("POINT_OF_SALE_NUMBER_MAX", () => {
