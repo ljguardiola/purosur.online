@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/postgres-js";
+import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { type Job, quickAddJob, type RunnerOptions, runTaskListOnce } from "graphile-worker";
 import pg from "pg";
 import postgres from "postgres";
@@ -227,7 +227,9 @@ describe("startRecoveryWorker against a real Postgres whose connection drops whi
 });
 
 describe("a recovery request whose link was sent but whose completion graphile-worker could not record", () => {
-  async function inDatabase<T>(work: (db: ReturnType<typeof drizzle>) => Promise<T>): Promise<T> {
+  async function inDatabase<T>(
+    work: (db: PostgresJsDatabase<Record<string, never>>) => Promise<T>,
+  ): Promise<T> {
     const sql = postgres(integrationDb.adminDatabaseUrl, { max: 1 });
     try {
       return await work(drizzle(sql));

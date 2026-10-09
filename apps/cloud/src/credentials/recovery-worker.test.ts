@@ -11,6 +11,7 @@ import {
   FIRST_PIN_CODE_EMAIL_TASK_IDENTIFIER,
   RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER,
   RECOVERY_REQUEST_TASK_IDENTIFIER,
+  type StartRecoveryWorkerDeps,
   type StartRecoveryWorkerOptions,
   startRecoveryWorker,
 } from "./recovery-worker.js";
@@ -673,10 +674,10 @@ describe("startRecoveryWorker", () => {
 
   describe("recording that a recovery link was sent", () => {
     async function recoveryRequestTask(deps: {
-      processJob: ReturnType<typeof vi.fn>;
-      recordLinkSent: ReturnType<typeof vi.fn>;
-      sendRecoveryLink: ReturnType<typeof vi.fn>;
-      createDatabase?: ReturnType<typeof vi.fn>;
+      processJob: NonNullable<StartRecoveryWorkerDeps["processJob"]>;
+      recordLinkSent: NonNullable<StartRecoveryWorkerDeps["recordLinkSent"]>;
+      sendRecoveryLink: AccessEmailSender["sendRecoveryLink"];
+      createDatabase?: StartRecoveryWorkerDeps["createDatabase"];
     }) {
       const runWorker = vi.fn().mockResolvedValue(fakeRunner());
       await startRecoveryWorker(
