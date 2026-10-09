@@ -328,12 +328,12 @@ export async function editProduct(
 export type DeactivateProductOutcome =
   | { kind: "ok" }
   | { kind: "not_found" }
+  | { kind: "already_changed" }
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-// The cloud answers the same `not_found` for a missing or already-inactive target.
 export async function deactivateProduct(id: string): Promise<DeactivateProductOutcome> {
   let response: Response;
   try {
@@ -346,6 +346,12 @@ export async function deactivateProduct(id: string): Promise<DeactivateProductOu
   }
   if (response.status === 404) {
     return { kind: "not_found" };
+  }
+  if (response.status === 409) {
+    const code = (
+      (await response.json().catch(() => undefined)) as { code?: unknown } | undefined
+    )?.code;
+    return code === "product_already_inactive" ? { kind: "already_changed" } : { kind: "failed" };
   }
   if (response.status === 401) {
     return { kind: "unauthenticated" };

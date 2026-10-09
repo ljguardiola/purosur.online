@@ -22,7 +22,8 @@ type DeactivateProductModalProps = {
 type DeactivateNotice =
   | { kind: "attemptFailed" }
   | { kind: "rateLimited"; retryAfterSeconds: number }
-  | { kind: "alreadyInactive" };
+  | { kind: "alreadyChanged" }
+  | { kind: "notFound" };
 
 export function DeactivateProductModal({
   target,
@@ -59,11 +60,6 @@ export function DeactivateProductModal({
       onDeactivated();
       return;
     }
-    if (outcome.kind === "not_found") {
-      setNotice({ kind: "alreadyInactive" });
-      setSubmitting(false);
-      return;
-    }
     if (outcome.kind === "unauthenticated") {
       onSessionEnded();
       return;
@@ -72,16 +68,23 @@ export function DeactivateProductModal({
       sendToMyAccount();
       return;
     }
+    setSubmitting(false);
+    if (outcome.kind === "already_changed") {
+      setNotice({ kind: "alreadyChanged" });
+      return;
+    }
+    if (outcome.kind === "not_found") {
+      setNotice({ kind: "notFound" });
+      return;
+    }
     if (outcome.kind === "rate_limited") {
       setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
-      setSubmitting(false);
       return;
     }
     setNotice({ kind: "attemptFailed" });
-    setSubmitting(false);
   }
 
-  const alreadyGone = notice?.kind === "alreadyInactive";
+  const listOutdated = notice?.kind === "alreadyChanged" || notice?.kind === "notFound";
 
   return (
     <Modal
@@ -107,7 +110,7 @@ export function DeactivateProductModal({
           >
             Cancelar
           </Button>
-          {alreadyGone ? (
+          {listOutdated ? (
             <Button
               variant="primary"
               size="large"
@@ -146,8 +149,11 @@ export function DeactivateProductModal({
             description="Probá de nuevo."
           />
         )}
-        {notice?.kind === "alreadyInactive" && (
+        {notice?.kind === "alreadyChanged" && (
           <InlineNotice tone="error" icon={<TriangleAlert />} title="Ya estaba desactivado" />
+        )}
+        {notice?.kind === "notFound" && (
+          <InlineNotice tone="error" icon={<TriangleAlert />} title="Este producto ya no existe" />
         )}
         {notice?.kind === "rateLimited" && (
           <InlineNotice
