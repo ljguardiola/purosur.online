@@ -1,7 +1,9 @@
 import type { BranchSettingsBody } from "@purosur/contracts";
 import type { BranchWeeklyHoursRange, NetContentUnit, SaleUnit } from "@purosur/domain";
+import { applyPulledStockMovement } from "@purosur/domain/stock/use-cases";
 import type { LocalReplica, PullPage } from "@purosur/domain/sync/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
+import { SqliteReplicatedStockLedger } from "../stock/sqlite-stock-ledger";
 import { prepareAccessPageWrites } from "./access-page-writes";
 import { prepareCatalogPageWrites } from "./catalog-page-writes";
 import { prepareDiscountPageWrites } from "./discount-page-writes";
@@ -92,6 +94,7 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
     const register = prepareRegisterPageWrites(this.database);
     const discount = prepareDiscountPageWrites(this.database);
     const fiscal = prepareFiscalPageWrites(this.database);
+    const stock = new SqliteReplicatedStockLedger(this.database);
     const saveBranchSettings = this.database.prepare(
       `INSERT INTO branch_settings (
          location_id, address, whatsapp_number, instagram_handle, weekly_hours,
@@ -172,6 +175,16 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
             break;
           case "buyer_tax_status_set":
             fiscal.buyerTaxStatusSet(change);
+            break;
+          case "stock_movement":
+            applyPulledStockMovement(stock, {
+              id: change.entity_id,
+              productId: change.row.product_id,
+              kind: change.row.kind,
+              delta: change.row.delta,
+              occurredAt: new Date(change.row.occurred_at),
+              supersededByCountId: change.row.superseded_by_count_id,
+            });
             break;
           case "removal": {
             const { removed_entity } = change;
