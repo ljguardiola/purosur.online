@@ -102,9 +102,9 @@ function create(ports: MercadoPagoQrOrderPorts, registerId: string, paymentTrans
   });
 }
 
-function storedRows() {
-  return sql<{ id: string; provider_order_id: string | null; state_read_at: Date | null }[]>`
-    select id, provider_order_id, state_read_at from payment_transactions`;
+function storedRows(id: string) {
+  return sql<{ id: string; provider_order_id: string | null; state_read_at: string | null }[]>`
+    select id, provider_order_id, state_read_at from payment_transactions where id = ${id}`;
 }
 
 describe("the payment transaction lanes on a real Postgres", () => {
@@ -116,12 +116,12 @@ describe("the payment transaction lanes on a real Postgres", () => {
     const outcome = create(portsOf(mercadoPago), registerId, id);
     await mercadoPago.untilStarted(1);
 
-    expect(await storedRows()).toEqual([{ id, provider_order_id: null, state_read_at: null }]);
+    expect(await storedRows(id)).toEqual([{ id, provider_order_id: null, state_read_at: null }]);
 
     mercadoPago.release(id);
     await outcome;
-    expect(await storedRows()).toEqual([
-      { id, provider_order_id: `ORD-${id}`, state_read_at: CREATED_AT },
+    expect(await storedRows(id)).toEqual([
+      { id, provider_order_id: `ORD-${id}`, state_read_at: "2026-10-09 12:00:00+00" },
     ]);
   });
 
@@ -135,9 +135,7 @@ describe("the payment transaction lanes on a real Postgres", () => {
     mercadoPago.release(id, new Error("the connection broke"));
 
     await expect(outcome).rejects.toThrow("the connection broke");
-    expect((await storedRows()).filter((row) => row.id === id)).toEqual([
-      { id, provider_order_id: null, state_read_at: null },
-    ]);
+    expect(await storedRows(id)).toEqual([{ id, provider_order_id: null, state_read_at: null }]);
   });
 
   it("calls the provider once for a transaction asked for twice at the same time, and serves the second ask after the first", async () => {
