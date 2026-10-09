@@ -380,9 +380,9 @@ describe("taxAuthorityRejectionAnswer", () => {
   });
 
   it("is a content rejection when several codes of the document's content come together", () => {
-    expect(taxAuthorityRejectionAnswer([10246, 10015, 10000])).toEqual({
+    expect(taxAuthorityRejectionAnswer([10246, 10015, 10048])).toEqual({
       kind: "rejected",
-      codes: [10246, 10015, 10000],
+      codes: [10246, 10015, 10048],
       rejectionClass: "content",
     });
   });
@@ -424,6 +424,34 @@ describe("taxAuthorityRejectionAnswer", () => {
 
   it("is unclear for the out-of-order code even when another code is a standing one", () => {
     expect(taxAuthorityRejectionAnswer([777, 10016], new Set([777]))).toEqual({ kind: "unclear" });
+  });
+});
+
+describe("the codes of the business's own standing", () => {
+  it.each([
+    [10000, "the issuer's registration, enrolment or authorization to issue vouchers"],
+    [10005, "a point of sale that is not registered for this web service"],
+    [1005, "a point of sale that is not enrolled"],
+    [601, "a represented CUIT the token does not include"],
+  ])("%i, %s, classifies a rejection as standing", (code) => {
+    expect(taxAuthorityRejectionAnswer([10015, code])).toEqual({
+      kind: "rejected",
+      codes: [10015, code],
+      rejectionClass: "standing",
+    });
+    expect(taxAuthorityRefusalAnswer([code])).toEqual({
+      kind: "rejected",
+      codes: [code],
+      rejectionClass: "standing",
+    });
+  });
+
+  it("keeps the out-of-order code unclear beside a standing one", () => {
+    expect(taxAuthorityRejectionAnswer([10000, 10016])).toEqual({ kind: "unclear" });
+  });
+
+  it.each([600, 602, 500, 501, 502])("%i, an errors-only answer, stays unclear", (code) => {
+    expect(taxAuthorityRefusalAnswer([code])).toEqual({ kind: "unclear" });
   });
 });
 
