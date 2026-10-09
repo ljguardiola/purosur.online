@@ -331,6 +331,7 @@ export type {
 } from "./sales/index.js";
 export {
   isSalesReportRangeAsked,
+  mayBeSaleLineQuantity,
   openSaleStanding,
   SALES_REPORT_SALE_STATE,
   saleTotal,

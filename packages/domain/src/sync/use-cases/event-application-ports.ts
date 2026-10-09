@@ -30,7 +30,11 @@ export interface EventApplicationTransaction {
   unappliedEventsOf(key: AggregateKey): Promise<UnappliedEvent[]>;
   aggregateApplied(key: AggregateKey): Promise<boolean>;
   record(fact: SyncedFact, event: UnappliedEvent): Promise<void>;
-  applySaleStock(sale: CompletedSale, event: UnappliedEvent): Promise<SaleStockApplication>;
+  applySaleStock(
+    sale: CompletedSale,
+    movements: NonNullable<CompletedSale["stockMovements"]>,
+    event: UnappliedEvent,
+  ): Promise<SaleStockApplication>;
   markApplied(eventId: string, at: Date): Promise<void>;
   recordFailedAttempt(eventId: string, failed: FailedAttempt): Promise<void>;
   openQuarantineAlert(details: EventsQuarantinedDetail): Promise<void>;

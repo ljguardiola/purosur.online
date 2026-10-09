@@ -2,9 +2,8 @@ import { preEmissionGate, preEmissionGateFailedEvent } from "../../fiscal/index.
 import type { PaymentTransaction } from "../../payments/index.js";
 import { paymentRecord } from "../../payments/index.js";
 import { type OutboxEventDraft, SALE_COMPLETED_EVENT_TYPE } from "../../shared/index.js";
-import { soldStockDelta } from "../../stock/index.js";
 import type { SaleWithLines } from "../model/sale.js";
-import { soldQuantity } from "../model/sale-line.js";
+import { soldLineStockDelta } from "../model/sale-line.js";
 import {
   saleCashMovementRecord,
   saleLineRecord,
@@ -38,7 +37,7 @@ export function completeSale(
       id: ids.next(),
       saleLineId: line.id,
       productId: line.productId,
-      delta: soldStockDelta(soldQuantity(line)),
+      delta: soldLineStockDelta(line),
       occurredAt: completedAt,
     }),
   );

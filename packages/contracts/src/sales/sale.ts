@@ -1,6 +1,7 @@
 import {
   isValidDiscountBuyNPayM,
   isValidDiscountPercent,
+  mayBeSaleLineQuantity,
   SALE_UNITS,
   SEARCH_RESULT_LIMIT,
 } from "@purosur/domain";
@@ -107,7 +108,7 @@ const saleRefusalSchemas = [
   unavailableOutcome,
 ] as const;
 
-export const saleLineQuantitySchema = z.int().positive();
+export const saleLineQuantitySchema = z.int().refine(mayBeSaleLineQuantity);
 
 export const changeLineQuantityOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("changed"), sale: saleSchema }),

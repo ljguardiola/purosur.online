@@ -45,7 +45,11 @@ async function insertCashier(locationId: string): Promise<void> {
     .values({ id: CASHIER, firstName: "Ada", email: "ada@example.com", locationId });
 }
 
-function saleOf(productId: string, delta: number, stockMovementId = randomUUID()): CompletedSale {
+type SaleMovingStock = CompletedSale & {
+  stockMovements: NonNullable<CompletedSale["stockMovements"]>;
+};
+
+function saleOf(productId: string, delta: number, stockMovementId = randomUUID()): SaleMovingStock {
   const lineId = randomUUID();
   const base = aCompletedSale({ completedAt: COMPLETED_AT });
   const [line] = base.lines;
@@ -56,7 +60,7 @@ function saleOf(productId: string, delta: number, stockMovementId = randomUUID()
   };
 }
 
-async function applySale(deviceId: string, sale: CompletedSale) {
+async function applySale(deviceId: string, sale: SaleMovingStock) {
   const sessionId = sale.sessionId;
   const eventOf = (aggregateType: string, aggregateId: string, eventType: string) =>
     unappliedEventOf(
@@ -81,7 +85,7 @@ async function applySale(deviceId: string, sale: CompletedSale) {
     );
     const event = eventOf("Sale", sale.id, "sale_completed");
     await tx.record({ kind: "sale_completed", sale }, event);
-    return tx.applySaleStock(sale, event);
+    return tx.applySaleStock(sale, sale.stockMovements, event);
   });
 }
 

@@ -108,13 +108,17 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
     }
   }
 
-  async applySaleStock(sale: CompletedSale, event: UnappliedEvent): Promise<SaleStockApplication> {
+  async applySaleStock(
+    sale: CompletedSale,
+    movements: NonNullable<CompletedSale["stockMovements"]>,
+    event: UnappliedEvent,
+  ): Promise<SaleStockApplication> {
     const { locationId } = await this.originOf(event);
     const outcome = await applyRegisterStockMovements(new DrizzleStockStoreTransaction(this.tx), {
       locationId,
       occurredAt: sale.completedAt,
       actorId: sale.actorId,
-      movements: sale.stockMovements.map((movement) => ({ ...movement, kind: "sale" })),
+      movements: movements.map((movement) => ({ ...movement, kind: "sale" })),
     });
     switch (outcome.kind) {
       case "applied":

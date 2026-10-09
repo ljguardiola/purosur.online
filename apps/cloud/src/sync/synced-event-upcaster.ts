@@ -84,7 +84,9 @@ function completedSale(
   payload: CompletedSalePayload,
   completedAt: string,
   payments: readonly SalePayment[],
-  stockMovements: readonly SyncedEventPayloads["sale_completed@3"]["stock_movements"][number][],
+  stockMovements:
+    | readonly SyncedEventPayloads["sale_completed@3"]["stock_movements"][number][]
+    | null,
 ): SyncedFact {
   return {
     kind: "sale_completed",
@@ -96,12 +98,15 @@ function completedSale(
       total: payload.total,
       ...saleParts(payload),
       payments: salePayments(payments),
-      stockMovements: stockMovements.map((movement) => ({
-        id: movement.id,
-        saleLineId: movement.sale_line_id,
-        productId: movement.product_id,
-        delta: movement.delta,
-      })),
+      stockMovements:
+        stockMovements === null
+          ? null
+          : stockMovements.map((movement) => ({
+              id: movement.id,
+              saleLineId: movement.sale_line_id,
+              productId: movement.product_id,
+              delta: movement.delta,
+            })),
     },
   };
 }
@@ -113,9 +118,9 @@ const FACT_OF: {
   ) => SyncedFact;
 } = {
   "sale_completed@1": (payload) =>
-    completedSale(payload, payload.completed_at, payload.payments, []),
+    completedSale(payload, payload.completed_at, payload.payments, null),
   "sale_completed@2": (payload) =>
-    completedSale(payload, payload.occurred_at, payload.payments, []),
+    completedSale(payload, payload.occurred_at, payload.payments, null),
   "sale_completed@3": (payload) =>
     completedSale(payload, payload.occurred_at, payload.payments, payload.stock_movements),
   "sale_cancelled@1": cancelledSale,

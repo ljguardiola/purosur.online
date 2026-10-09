@@ -144,7 +144,7 @@ export class FakeEventApplication implements EventApplication {
           throw failure;
         }
       },
-      applySaleStock: async (sale: CompletedSale, event) => {
+      applySaleStock: async (sale: CompletedSale, _movements, event) => {
         this.state.writeOrder.push("stock");
         const refusal = this.refuseStock.get(event.eventId);
         if (refusal !== undefined) {

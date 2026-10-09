@@ -88,8 +88,8 @@ async function applyEvent(
     }
   }
   await tx.record(fact, event);
-  if (fact.kind === "sale_completed" && fact.sale.stockMovements.length > 0) {
-    const stock = await tx.applySaleStock(fact.sale, event);
+  if (fact.kind === "sale_completed" && fact.sale.stockMovements !== null) {
+    const stock = await tx.applySaleStock(fact.sale, fact.sale.stockMovements, event);
     if (stock.kind === "refused") {
       throw new EventRefused({ kind: "not_recorded" }, stock.reason);
     }
