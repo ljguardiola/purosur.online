@@ -12,6 +12,7 @@ const CONCEPTS = [
   "payments",
   "permissions",
   "pricing",
+  "purchasing",
   "register",
   "sales",
   "stock",
