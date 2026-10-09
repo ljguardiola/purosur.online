@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
+import { statSync } from "node:fs";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import {
   changedFilesSince,
+  MIGRATION_TESTS,
   projectsOfSpecifications,
   runChangedTests,
   runCommand,
@@ -150,6 +153,73 @@ test("refuses a path asked for that is not a test file", () => {
       }),
     /apps\/cloud\/src\/catalog\/drizzle-catalog-store\.integration\.test\.tsx is not a test file/,
   );
+});
+
+const CLOUD_MIGRATION_TESTS = [
+  "apps/cloud/src/platform/db/migrate-cloud-app-role.integration.test.ts",
+  "apps/cloud/src/platform/db/schema.test.ts",
+  "apps/cloud/src/test-support/build-test-database.test.ts",
+];
+const REGISTER_MIGRATION_TESTS = ["apps/pos/src/core/platform/local-migrations.test.ts"];
+const TEST_FILES_WITH_MIGRATION_TESTS = [
+  ...TEST_FILES,
+  ...CLOUD_MIGRATION_TESTS,
+  ...REGISTER_MIGRATION_TESTS,
+];
+
+test("runs every test that applies the cloud migrations when a cloud migration changes", () => {
+  assert.deepEqual(
+    testsToRun({
+      testFiles: TEST_FILES_WITH_MIGRATION_TESTS,
+      changedFiles: ["apps/cloud/migrations/0042_new_table.sql"],
+      requestedFiles: [],
+    }),
+    CLOUD_MIGRATION_TESTS,
+  );
+});
+
+test("runs every test that applies the register migrations when a register migration changes", () => {
+  assert.deepEqual(
+    testsToRun({
+      testFiles: TEST_FILES_WITH_MIGRATION_TESTS,
+      changedFiles: ["apps/pos/src/core/migrations/0042_new_table.sql"],
+      requestedFiles: [],
+    }),
+    REGISTER_MIGRATION_TESTS,
+  );
+});
+
+test("runs no migration test when no migration changes", () => {
+  assert.deepEqual(
+    testsToRun({
+      testFiles: TEST_FILES_WITH_MIGRATION_TESTS,
+      changedFiles: ["apps/cloud/src/catalog/drizzle-catalog-store.ts"],
+      requestedFiles: [],
+    }),
+    ["apps/cloud/src/catalog/drizzle-catalog-store.integration.test.ts"],
+  );
+});
+
+test("refuses a migration test that is no longer a test file", () => {
+  assert.throws(
+    () =>
+      testsToRun({
+        testFiles: TEST_FILES,
+        changedFiles: ["apps/cloud/migrations/0042_new_table.sql"],
+        requestedFiles: [],
+      }),
+    /apps\/cloud\/src\/platform\/db\/migrate-cloud-app-role\.integration\.test\.ts is not a test file/,
+  );
+});
+
+test("names only test files of the repository as the tests that apply the migrations", () => {
+  const root = fileURLToPath(new URL("../../", import.meta.url));
+  const testFiles = MIGRATION_TESTS.flatMap(({ tests }) => tests);
+  assert.deepEqual(testFiles.toSorted(), [...CLOUD_MIGRATION_TESTS, ...REGISTER_MIGRATION_TESTS]);
+  for (const testFile of testFiles) {
+    assert.match(testFile, /\.test\.ts$/);
+    assert.ok(statSync(`${root}${testFile}`).isFile(), `${testFile} is missing`);
+  }
 });
 
 test("runs each project's files in a run of their own, one project after another", async () => {

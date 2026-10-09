@@ -5,6 +5,21 @@ import { resolveBaseRef } from "./change-base.mjs";
 
 const TEST_SUPPORT = "test-support";
 
+export const MIGRATION_TESTS = [
+  {
+    folder: "apps/cloud/migrations/",
+    tests: [
+      "apps/cloud/src/platform/db/migrate-cloud-app-role.integration.test.ts",
+      "apps/cloud/src/platform/db/schema.test.ts",
+      "apps/cloud/src/test-support/build-test-database.test.ts",
+    ],
+  },
+  {
+    folder: "apps/pos/src/core/migrations/",
+    tests: ["apps/pos/src/core/platform/local-migrations.test.ts"],
+  },
+];
+
 function stemOf(path) {
   const name = posix.basename(path);
   const extensionStart = name.lastIndexOf(".");
@@ -45,16 +60,21 @@ export function changedFilesSince({ base, runGit }) {
   return [...new Set(files)];
 }
 
+function testsApplyingChangedMigrations(changedFiles) {
+  return MIGRATION_TESTS.filter(({ folder }) =>
+    changedFiles.some((changedFile) => changedFile.startsWith(folder)),
+  ).flatMap(({ tests }) => tests);
+}
+
 export function testsToRun({ testFiles, changedFiles, requestedFiles }) {
   const known = new Set(testFiles);
-  for (const requested of requestedFiles) {
-    if (!known.has(requested)) {
-      throw new Error(`${requested} is not a test file`);
+  const named = [...testsApplyingChangedMigrations(changedFiles), ...requestedFiles];
+  for (const testFile of named) {
+    if (!known.has(testFile)) {
+      throw new Error(`${testFile} is not a test file`);
     }
   }
-  return [
-    ...new Set([...selectTestsBeside({ testFiles, changedFiles }), ...requestedFiles]),
-  ].sort();
+  return [...new Set([...selectTestsBeside({ testFiles, changedFiles }), ...named])].sort();
 }
 
 export async function runProjectsInTurn({ filesByProject, run }) {
