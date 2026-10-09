@@ -58,3 +58,19 @@ describe("PaymentTransaction", () => {
     expectTypeOf<Omit<Transfer, "confirmedAt">>().not.toExtend<PaymentTransaction>();
   });
 });
+
+describe("a Mercado Pago QR payment of a sale", () => {
+  type QrPayment = Extract<PaymentTransaction, { method: "QR" }>;
+
+  it("is an approved payment processed by Mercado Pago QR", () => {
+    expectTypeOf<QrPayment>().toExtend<{ provider: "MERCADOPAGO_QR"; state: "APPROVED" }>();
+    expectTypeOf<
+      Omit<QrPayment, "provider"> & { provider: "NONE" }
+    >().not.toExtend<PaymentTransaction>();
+  });
+
+  it("carries no tendered amount nor anyone who confirmed it", () => {
+    expectTypeOf<QrPayment & { tendered: number }>().not.toExtend<PaymentTransaction>();
+    expectTypeOf<QrPayment & { authorizedBy: string }>().not.toExtend<PaymentTransaction>();
+  });
+});
