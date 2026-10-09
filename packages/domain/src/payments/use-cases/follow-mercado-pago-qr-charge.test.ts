@@ -88,16 +88,15 @@ describe("followMercadoPagoQrCharge", () => {
     });
   });
 
-  it.each([
-    "DECLINED",
-    "CANCELLED",
-    "EXPIRED",
-  ] as const)("declines the payment and records it %s when the order ends that way", async (state) => {
-    const world = followingWorld();
-    world.orderReading = { kind: "read", state };
+  it.each(["DECLINED", "CANCELLED", "EXPIRED"] as const)(
+    "declines the payment and records it %s when the order ends that way",
+    async (state) => {
+      const world = followingWorld();
+      world.orderReading = { kind: "read", state };
 
-    expect(await followMercadoPagoQrCharge(world.ports, INPUT)).toEqual({ kind: "declined" });
-    expect(world.operations).toEqual(["readOrder", `recordEnded:${state}`]);
-    expect(world.settledPayments).toEqual([]);
-  });
+      expect(await followMercadoPagoQrCharge(world.ports, INPUT)).toEqual({ kind: "declined" });
+      expect(world.operations).toEqual(["readOrder", `recordEnded:${state}`]);
+      expect(world.settledPayments).toEqual([]);
+    },
+  );
 });

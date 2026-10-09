@@ -4,8 +4,8 @@ import type {
   MercadoPagoQrChargeOrderAnswer,
   MercadoPagoQrChargeOrderReading,
   MercadoPagoQrChargeOrders,
-  MercadoPagoQrCharges,
   MercadoPagoQrChargeSale,
+  MercadoPagoQrCharges,
   PendingMercadoPagoQrCharge,
   PendingMercadoPagoQrPayment,
 } from "../mercado-pago-qr-charge-ports.js";
@@ -28,7 +28,10 @@ export class FakeMercadoPagoQrChargeWorld
     MercadoPagoQrChargeSale<SaleRefusal, SaleSettlement>
 {
   readonly operations: string[] = [];
-  readonly charges = new Map<string, PendingMercadoPagoQrCharge & { state: PaymentTransactionState }>();
+  readonly charges = new Map<
+    string,
+    PendingMercadoPagoQrCharge & { state: PaymentTransactionState }
+  >();
   readonly recordedPayments: PendingMercadoPagoQrPayment[] = [];
   readonly settledPayments: { actorId: string; paymentTransactionId: string }[] = [];
   readonly requestedOrders: { paymentTransactionId: string; saleId: string; amount: number }[] = [];
@@ -54,17 +57,22 @@ export class FakeMercadoPagoQrChargeWorld
 
   recordPendingPayment(
     payment: PendingMercadoPagoQrPayment,
-  ): { kind: "recorded"; paymentTransactionId: string } | SaleRefusal {
+  ):
+    | { kind: "recorded"; paymentTransactionId: string }
+    | { kind: "refused"; refusal: SaleRefusal } {
     this.operations.push("recordPendingPayment");
     if (this.saleRefusal !== undefined) {
-      return this.saleRefusal;
+      return { kind: "refused", refusal: this.saleRefusal };
     }
     this.recordedPayments.push(payment);
     this.seedPending({ ...payment, paymentTransactionId: QR_PAYMENT_ID });
     return { kind: "recorded", paymentTransactionId: QR_PAYMENT_ID };
   }
 
-  settleApprovedPayment(settled: { actorId: string; paymentTransactionId: string }): SaleSettlement {
+  settleApprovedPayment(settled: {
+    actorId: string;
+    paymentTransactionId: string;
+  }): SaleSettlement {
     this.operations.push("settleApprovedPayment");
     this.settledPayments.push(settled);
     const charge = this.charges.get(settled.paymentTransactionId);
