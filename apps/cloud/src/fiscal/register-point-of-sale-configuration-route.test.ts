@@ -267,7 +267,7 @@ describe("PUT /registers/:id/point-of-sale", () => {
       version: 1,
     });
     expect(await db.select().from(registerPointsOfSale)).toEqual([
-      { registerId, pointOfSaleNumber: 7, fiscalAddressId, version: 1 },
+      { registerId, pointOfSaleNumber: 7, mechanism: "real_time", fiscalAddressId, version: 1 },
     ]);
     const entries = await db.select().from(auditLog).where(eq(auditLog.entityId, registerId));
     expect(entries).toMatchObject([
