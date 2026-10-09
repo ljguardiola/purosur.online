@@ -877,6 +877,7 @@ const PRE_PULLED_IMAGES = [
       `docker.io/library/postgres:18-alpine@${POSTGRES_DIGEST}`,
       `index.docker.io/library/postgres:18-alpine@${POSTGRES_DIGEST}`,
       `registry-1.docker.io/library/postgres:18-alpine@${POSTGRES_DIGEST}`,
+      `registry.hub.docker.com/library/postgres:18-alpine@${POSTGRES_DIGEST}`,
     ],
     findViolations: (workflowSource, setupSource) =>
       findCloudPostgresImageViolations(workflowSource, setupSource),
@@ -1067,6 +1068,21 @@ test("flags a Playwright image whose tag is not the installed Playwright version
   assertSingleViolation(violations, /not the installed Playwright version 1\.63\.0/);
 });
 
+for (const image of [
+  `mirror:5000/library/postgres:18-alpine@${POSTGRES_DIGEST}`,
+  `localhost/library/postgres:18-alpine@${POSTGRES_DIGEST}`,
+]) {
+  test(`passes the cloud's Postgres image pulled from the registry host of \`${image}\`, which is not Docker Hub`, () => {
+    const [postgres] = PRE_PULLED_IMAGES;
+    const violations = postgres.findViolations(
+      jobWithPull(postgres, { pulledImage: image }),
+      setupDeclaring(postgres.constant, image),
+    );
+
+    assert.deepEqual(violations, []);
+  });
+}
+
 function composeDeclaring(dbImage) {
   return [
     "services:",
@@ -1100,6 +1116,15 @@ for (const [label, dbImage] of [
     assertSingleViolation(violations, /docker-compose\.yml's db service starts/);
   });
 }
+
+test("leaves a global setup with no POSTGRES_IMAGE to the cloud Postgres check instead of comparing the local database with it", () => {
+  const violations = findLocalPostgresImageViolations(
+    composeDeclaring(PINNED_POSTGRES_IMAGE),
+    'const IMAGE = "postgres";',
+  );
+
+  assert.deepEqual(violations, []);
+});
 
 test("checkRepository reads the real workflow file, package.json, the local database, both image setups and the installed Playwright version", () => {
   const files = {
