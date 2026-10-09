@@ -1223,7 +1223,10 @@ describe("register status messages", () => {
   });
 
   it.each([
-    ["a condition the register does not detect itself", { conditions: ["stock_low"], cloud: "reachable" }],
+    [
+      "a condition the register does not detect itself",
+      { conditions: ["stock_low"], cloud: "reachable" },
+    ],
     ["a cloud state it does not know", { conditions: [], cloud: "slow" }],
     ["a status without its cloud", { conditions: [] }],
     ["a status without its conditions", { cloud: "reachable" }],
