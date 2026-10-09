@@ -12,7 +12,15 @@ import {
 } from "@purosur/domain/catalog/use-cases";
 import { asc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { changes, discounts, productBarcodes, products } from "../platform/db/schema.js";
+import {
+  changes,
+  discounts,
+  locations,
+  productBarcodes,
+  productPackagings,
+  products,
+  users,
+} from "../platform/db/schema.js";
 import { PendingChanges } from "../sync/change-log.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
@@ -395,6 +403,94 @@ describe("changing a product to sold by weight", () => {
     await discountOn(other.id);
 
     const outcome = await editToWeight(product, category.id);
+
+    expect(outcome.kind).toBe("applied");
+  });
+});
+
+describe("changing the sale unit of a product with purchase packagings", () => {
+  async function packagingOn(
+    productId: string,
+    overrides: Partial<typeof productPackagings.$inferInsert> = {},
+  ) {
+    const [location] = await db.select({ id: locations.id }).from(locations);
+    const [actor] = await db
+      .insert(users)
+      .values({
+        firstName: "Ada",
+        email: `ada-${crypto.randomUUID()}@example.com`,
+        locationId: location?.id ?? "",
+      })
+      .returning({ id: users.id });
+    await db.insert(productPackagings).values({
+      productId,
+      name: "Caja x 12",
+      quantityPerPackage: 12,
+      actorId: actor?.id ?? "",
+      ...overrides,
+    });
+  }
+
+  function editSaleUnit(
+    product: { id: string; name: string; version: number },
+    categoryId: string,
+    saleUnit: "UNIT" | "KG",
+  ) {
+    return editProduct(
+      { store: store(), clock },
+      {
+        id: product.id,
+        name: product.name,
+        categoryId,
+        brandId: null,
+        saleUnit,
+        barcodes: ["7790001000011", "7790001000028"],
+        netContent: null,
+        tagIds: [],
+        version: product.version,
+      },
+    );
+  }
+
+  async function storedSaleUnit(productId: string) {
+    const [row] = await db
+      .select({ saleUnit: products.saleUnit })
+      .from(products)
+      .where(eq(products.id, productId));
+    return row?.saleUnit;
+  }
+
+  it("is refused naming the first active packaging by name, leaving the sale unit unchanged", async () => {
+    const category = await newCategory();
+    const product = await newProduct(category.id);
+    await packagingOn(product.id, { name: "Zeta" });
+    await packagingOn(product.id, { name: "Alfa" });
+    await packagingOn(product.id, { name: "Beta", active: false });
+
+    const outcome = await editSaleUnit(product, category.id, "KG");
+
+    expect(outcome).toEqual({ kind: "sale_unit_held_by_packaging", packagingName: "Alfa" });
+    expect(await storedSaleUnit(product.id)).toBe("UNIT");
+  });
+
+  it("is saved when its only packaging is deactivated", async () => {
+    const category = await newCategory();
+    const product = await newProduct(category.id);
+    await packagingOn(product.id, { active: false });
+
+    const outcome = await editSaleUnit(product, category.id, "KG");
+
+    expect(outcome.kind).toBe("applied");
+    expect(await storedSaleUnit(product.id)).toBe("KG");
+  });
+
+  it("is saved when the active packaging belongs to another product", async () => {
+    const category = await newCategory();
+    const product = await newProduct(category.id);
+    const other = await newProduct(category.id, ["7790001000035"]);
+    await packagingOn(other.id);
+
+    const outcome = await editSaleUnit(product, category.id, "KG");
 
     expect(outcome.kind).toBe("applied");
   });
