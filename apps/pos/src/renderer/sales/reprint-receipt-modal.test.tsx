@@ -16,7 +16,7 @@ type Sale = Extract<SaleHistoryDetailOutcome, { kind: "found" }>["detail"];
 
 const SALE: Sale = {
   sale_id: "sale-1",
-  occurred_at: "2026-10-09T14:05:00.000Z",
+  occurred_at: "2026-10-09T11:05:00.000-03:00",
   total: 5_070_000,
   comprobante: { kind: "fiscal", document_type: "factura_c", point_of_sale: 4, number: 319 },
   operation_number: 482,
@@ -122,7 +122,7 @@ describe("ReprintReceiptModal", () => {
       sale: { ...SALE, comprobante: { kind: "none" } },
     });
 
-    await expect.element(screen.getByText("Operación 000482")).toBeVisible();
+    await expect.element(screen.getByText("000482", { exact: true })).toBeVisible();
   });
 
   it("asks for no authorization when the person may reprint", async () => {
