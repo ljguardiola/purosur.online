@@ -81,8 +81,12 @@ describe("supplierCreationBodySchema", () => {
     },
   );
 
-  it.each(["contact", "note", "cuit"])("rejects a %s that is not text", (field) => {
-    expect(firstFailure({ name: "A", [field]: 42 })?.field).toBe(field);
+  it.each([
+    ["contact", `contact must be a string of at most ${SUPPLIER_CONTACT_MAX_LENGTH} characters`],
+    ["note", `note must be a string of at most ${SUPPLIER_NOTE_MAX_LENGTH} characters`],
+    ["cuit", CUIT_MESSAGE],
+  ])("rejects a %s that is not text", (field, message) => {
+    expect(firstFailure({ name: "A", [field]: 42 })).toEqual({ field, message });
   });
 
   it("accepts another valid cuit", () => {
