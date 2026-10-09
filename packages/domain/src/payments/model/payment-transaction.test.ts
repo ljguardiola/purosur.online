@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
-  hasExpiredWithoutOrder,
+  expiryWithoutOrder,
   isValidOrderAmount,
   MERCADO_PAGO_ORDER_EXPIRY_MINUTES,
   mercadoPagoOrderExpiresAt,
@@ -59,34 +59,46 @@ describe("mercadoPagoOrderExpiresAt", () => {
   });
 });
 
-describe("hasExpiredWithoutOrder", () => {
+describe("expiryWithoutOrder", () => {
   const EXPIRES_AT = new Date("2026-10-09T12:05:00.000Z");
-  const WITHOUT_ORDER = { state: "PENDING", providerOrderId: null, expiresAt: EXPIRES_AT } as const;
+  const LATER = new Date("2026-10-09T13:00:00.000Z");
+  const WITHOUT_ORDER = {
+    state: "PENDING",
+    providerOrderId: null,
+    expiresAt: EXPIRES_AT,
+    creationOutcomeUnknown: false,
+  } as const;
+  const UNKNOWN_CREATION = { ...WITHOUT_ORDER, creationOutcomeUnknown: true };
 
-  it("ends a pending transaction without an order once its expiry is reached", () => {
-    expect(hasExpiredWithoutOrder(WITHOUT_ORDER, EXPIRES_AT)).toBe(true);
-    expect(hasExpiredWithoutOrder(WITHOUT_ORDER, new Date("2026-10-09T13:00:00.000Z"))).toBe(true);
+  it("ends a pending transaction as expired once its expiry is reached when no attempt may have created an order", () => {
+    expect(expiryWithoutOrder(WITHOUT_ORDER, EXPIRES_AT)).toBe("expired");
+    expect(expiryWithoutOrder(WITHOUT_ORDER, LATER)).toBe("expired");
   });
 
-  it("keeps a pending transaction without an order until its expiry", () => {
-    expect(hasExpiredWithoutOrder(WITHOUT_ORDER, new Date("2026-10-09T12:04:59.999Z"))).toBe(false);
+  it("leaves a pending transaction for a person to review once its expiry is reached when an attempt may have created an order", () => {
+    expect(expiryWithoutOrder(UNKNOWN_CREATION, EXPIRES_AT)).toBe("needs_review");
+    expect(expiryWithoutOrder(UNKNOWN_CREATION, LATER)).toBe("needs_review");
+  });
+
+  it("keeps a pending transaction without an order open until its expiry", () => {
+    const justBefore = new Date("2026-10-09T12:04:59.999Z");
+
+    expect(expiryWithoutOrder(WITHOUT_ORDER, justBefore)).toBeNull();
+    expect(expiryWithoutOrder(UNKNOWN_CREATION, justBefore)).toBeNull();
   });
 
   it("leaves a transaction with an order to what its order reports", () => {
+    expect(expiryWithoutOrder({ ...WITHOUT_ORDER, providerOrderId: "order-1" }, LATER)).toBeNull();
     expect(
-      hasExpiredWithoutOrder(
-        { ...WITHOUT_ORDER, providerOrderId: "order-1" },
-        new Date("2026-10-09T13:00:00.000Z"),
-      ),
-    ).toBe(false);
+      expiryWithoutOrder({ ...UNKNOWN_CREATION, providerOrderId: "order-1" }, LATER),
+    ).toBeNull();
   });
 
   it.each(PAYMENT_TRANSACTION_STATES.filter((state) => state !== "PENDING"))(
     "leaves a %s transaction as it is",
     (state) => {
-      expect(
-        hasExpiredWithoutOrder({ ...WITHOUT_ORDER, state }, new Date("2026-10-09T13:00:00.000Z")),
-      ).toBe(false);
+      expect(expiryWithoutOrder({ ...WITHOUT_ORDER, state }, LATER)).toBeNull();
+      expect(expiryWithoutOrder({ ...UNKNOWN_CREATION, state }, LATER)).toBeNull();
     },
   );
 });

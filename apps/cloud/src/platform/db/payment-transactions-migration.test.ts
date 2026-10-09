@@ -84,11 +84,23 @@ describe("the payment transactions migration applied over a database that alread
     ]);
 
     const { rows } = await client.query(
-      "select state, provider_order_id, state_read_at, needs_review from payment_transactions order by amount",
+      "select state, provider_order_id, state_read_at, needs_review, creation_outcome_unknown from payment_transactions order by amount",
     );
     expect(rows).toEqual([
-      { state: "APPROVED", provider_order_id: "ORD01", state_read_at: null, needs_review: false },
-      { state: "PENDING", provider_order_id: null, state_read_at: null, needs_review: false },
+      {
+        state: "APPROVED",
+        provider_order_id: "ORD01",
+        state_read_at: null,
+        needs_review: false,
+        creation_outcome_unknown: false,
+      },
+      {
+        state: "PENDING",
+        provider_order_id: null,
+        state_read_at: null,
+        needs_review: false,
+        creation_outcome_unknown: false,
+      },
     ]);
   });
 
@@ -149,6 +161,7 @@ describe("the payment transactions migration applied over a database that alread
     expect(rows.map((row) => row.column_name)).toEqual([
       "amount",
       "created_at",
+      "creation_outcome_unknown",
       "expires_at",
       "id",
       "kind",

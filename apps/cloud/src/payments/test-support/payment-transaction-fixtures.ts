@@ -21,6 +21,7 @@ export function pendingTransaction(
     state: "PENDING",
     needsReview: false,
     providerOrderId: null,
+    creationOutcomeUnknown: false,
     createdAt: CREATED_AT,
     expiresAt: EXPIRES_AT,
     ...overrides,

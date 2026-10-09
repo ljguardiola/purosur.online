@@ -49,6 +49,7 @@ export function storedTransaction(
     state: "PENDING",
     needsReview: false,
     providerOrderId: null,
+    creationOutcomeUnknown: false,
     createdAt: new Date("2026-10-09T11:59:00.000Z"),
     expiresAt: new Date("2026-10-09T12:04:00.000Z"),
     ...overrides,
@@ -57,11 +58,12 @@ export function storedTransaction(
 
 export function mercadoPagoQrOrderWorld(
   answers: { creation?: MercadoPagoOrderCreation; reading?: MercadoPagoOrderReading } = {},
+  now: Date = NOW,
 ) {
   const lanes = new FakePaymentTransactionLanes();
   const mercadoPago = new FakeMercadoPagoOrders(lanes, {
     creation: answers.creation ?? { kind: "created", orderId: "order-1", result: orderResult() },
     reading: answers.reading ?? { kind: "read", result: orderResult() },
   });
-  return { lanes, mercadoPago, ports: { lanes, mercadoPago, clock: new FixedClock(NOW) } };
+  return { lanes, mercadoPago, ports: { lanes, mercadoPago, clock: new FixedClock(now) } };
 }

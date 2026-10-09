@@ -199,14 +199,20 @@ describe("the Mercado Pago orders client", () => {
       expect(await client.createQrOrder(REQUEST)).toStrictEqual({ kind: "refused" });
     });
 
-    it.each([408, 429, 500, 502, 503])(
-      "is unavailable when Mercado Pago answers %i",
+    it.each([408, 500, 502, 503])(
+      "cannot tell what became of the order when Mercado Pago answers %i",
       async (status) => {
         const { client } = clientAnswering(answer(status, { errors: [{ code: "later" }] }));
 
         expect(await client.createQrOrder(REQUEST)).toStrictEqual({ kind: "unavailable" });
       },
     );
+
+    it("is throttled, having created nothing, when Mercado Pago answers 429", async () => {
+      const { client } = clientAnswering(answer(429, { errors: [{ code: "too_many_requests" }] }));
+
+      expect(await client.createQrOrder(REQUEST)).toStrictEqual({ kind: "throttled" });
+    });
 
     it("is unavailable when the network fails", async () => {
       const { client } = clientAnswering(new TypeError("fetch failed"));

@@ -111,6 +111,42 @@ describe("DrizzlePaymentTransactionLanes", () => {
     });
   });
 
+  describe("a creation attempt whose answer is unknown", () => {
+    it("remembers that the transaction's order may have been created", async () => {
+      const registerId = await insertRegister(db, "caja-1");
+      const transaction = pendingTransaction(registerId);
+      const other = pendingTransaction(registerId);
+
+      const recorded = await lanes.inPaymentTransactionLane(transaction.id, async (lane) => {
+        await lane.recordPendingTransaction(transaction);
+        await lane.recordPendingTransaction(other);
+        await lane.recordCreationOutcomeUnknown(transaction.id);
+        return lane.recordedTransaction(registerId, transaction.id);
+      });
+
+      expect(recorded).toEqual({ ...transaction, creationOutcomeUnknown: true });
+      expect(await storedRow(other.id)).toMatchObject({ creationOutcomeUnknown: false });
+    });
+  });
+
+  describe("a transaction left for review", () => {
+    it("flags the transaction for a person to review, keeping its state", async () => {
+      const registerId = await insertRegister(db, "caja-1");
+      const transaction = pendingTransaction(registerId);
+      const other = pendingTransaction(registerId);
+
+      const recorded = await lanes.inPaymentTransactionLane(transaction.id, async (lane) => {
+        await lane.recordPendingTransaction(transaction);
+        await lane.recordPendingTransaction(other);
+        await lane.recordNeedsReview(transaction.id);
+        return lane.recordedTransaction(registerId, transaction.id);
+      });
+
+      expect(recorded).toEqual({ ...transaction, needsReview: true });
+      expect(await storedRow(other.id)).toMatchObject({ needsReview: false });
+    });
+  });
+
   describe("the expiry of a transaction", () => {
     it("ends the transaction as expired", async () => {
       const registerId = await insertRegister(db, "caja-1");

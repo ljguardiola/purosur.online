@@ -118,6 +118,55 @@ describe("readMercadoPagoQrPayment", () => {
     expect(mercadoPago.readOrders).toEqual([]);
   });
 
+  it("keeps a pending payment whose creation's answer is unknown pending for a person to review once its expiry is reached, without calling Mercado Pago", async () => {
+    const { lanes, mercadoPago, ports } = mercadoPagoQrOrderWorld();
+    lanes.seed(storedTransaction({ expiresAt: NOW, creationOutcomeUnknown: true }));
+
+    const outcome = await readMercadoPagoQrPayment(ports, INPUT);
+    const again = await readMercadoPagoQrPayment(ports, INPUT);
+
+    const expected = storedTransaction({
+      expiresAt: NOW,
+      creationOutcomeUnknown: true,
+      needsReview: true,
+    });
+    expect(outcome).toEqual({ kind: "read", transaction: expected });
+    expect(again).toEqual({ kind: "read", transaction: expected });
+    expect(lanes.transactions.get(TRANSACTION_ID)).toEqual(expected);
+    expect(lanes.operations.filter((op) => op === "recordNeedsReview")).toHaveLength(1);
+    expect(lanes.operations).not.toContain("recordExpired");
+    expect(mercadoPago.readOrders).toEqual([]);
+    expect(mercadoPago.creationRequests).toEqual([]);
+  });
+
+  it("keeps a pending payment whose creation's answer is unknown open until its expiry", async () => {
+    const { lanes, ports } = mercadoPagoQrOrderWorld();
+    lanes.seed(storedTransaction({ creationOutcomeUnknown: true }));
+
+    const outcome = await readMercadoPagoQrPayment(ports, INPUT);
+
+    expect(outcome).toMatchObject({
+      kind: "read",
+      transaction: { state: "PENDING", needsReview: false },
+    });
+    expect(lanes.operations).not.toContain("recordNeedsReview");
+  });
+
+  it("reads the order of a payment whose earlier creation answer was unknown once a retry recorded it, even past its expiry", async () => {
+    const { lanes, mercadoPago, ports } = mercadoPagoQrOrderWorld({
+      reading: { kind: "read", result: paidOrderResult() },
+    });
+    lanes.seed(storedTransaction({ ...WITH_ORDER, expiresAt: NOW, creationOutcomeUnknown: true }));
+
+    const outcome = await readMercadoPagoQrPayment(ports, INPUT);
+
+    expect(mercadoPago.readOrders).toEqual(["order-1"]);
+    expect(outcome).toMatchObject({
+      kind: "read",
+      transaction: { state: "APPROVED", needsReview: false },
+    });
+  });
+
   it("answers provider unavailable and changes nothing when the order cannot be read", async () => {
     const { lanes, ports } = mercadoPagoQrOrderWorld({ reading: { kind: "unavailable" } });
     lanes.seed(storedTransaction(WITH_ORDER));
