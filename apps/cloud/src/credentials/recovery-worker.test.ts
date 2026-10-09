@@ -17,7 +17,7 @@ import {
 const emailSender: AccessEmailSender = { sendRecoveryLink: vi.fn(), sendFirstPinCode: vi.fn() };
 
 function fakeRunner() {
-  return { stop: vi.fn().mockResolvedValue(undefined) };
+  return { stop: vi.fn().mockResolvedValue(undefined), promise: new Promise<void>(() => {}) };
 }
 
 const FIXED_NOW = new Date("2026-01-05T12:00:00.000Z");
@@ -32,6 +32,14 @@ function deferred(): { promise: Promise<void>; settle: () => void } {
     settle = resolve;
   });
   return { promise, settle };
+}
+
+function deferredFailure(): { promise: Promise<void>; fail: (error: Error) => void } {
+  let fail: (error: Error) => void = () => {};
+  const promise = new Promise<void>((_resolve, reject) => {
+    fail = reject;
+  });
+  return { promise, fail };
 }
 
 function flushPendingWork(): Promise<void> {
@@ -344,6 +352,41 @@ describe("startRecoveryWorker", () => {
       expect.stringContaining("stop failed: connection reset"),
       expect.stringContaining("pool end failed: socket closed"),
     ]);
+  });
+
+  it("reports the runner exiting on its own with an error, so its rejection never goes unhandled", async () => {
+    const exit = deferredFailure();
+    const runner = { stop: vi.fn().mockResolvedValue(undefined), promise: exit.promise };
+    const runWorker = vi.fn().mockResolvedValue(runner);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const unhandled: unknown[] = [];
+    const recordUnhandled = (reason: unknown) => {
+      unhandled.push(reason);
+    };
+    process.on("unhandledRejection", recordUnhandled);
+
+    try {
+      await startRecoveryWorker(
+        {
+          databaseUrl: "postgres://user:pass@db/purosur",
+          now: () => FIXED_NOW,
+          backofficeOrigin: "https://staging.purosur.online",
+          emailSender,
+        },
+        { runWorker, createPool: vi.fn().mockReturnValue(new FakePool()) },
+      );
+      const error = new Error("Could not failJobs; queue is in an inconsistent state; aborting.");
+      exit.fail(error);
+      await flushPendingWork();
+
+      expect(consoleError).toHaveBeenCalledWith(
+        "recovery worker: runner exited with an error",
+        error,
+      );
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", recordUnhandled);
+    }
   });
 
   it("runs more than one job at a time, so one slow job never holds up every other one", async () => {
