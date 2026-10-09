@@ -117,11 +117,15 @@ describe("the sale stock movements migration applied over a database that alread
     await addMigrationEntry(folder, await saleStockMovementsEntry());
     await migrate(drizzle(client), { migrationsFolder: folder });
 
-    await expect(insertMovement("sale", "broken_or_spilled", saleLineId)).rejects.toThrow();
-    await expect(insertMovement("sale", null, null)).rejects.toThrow();
+    await expect(insertMovement("sale", "broken_or_spilled", saleLineId)).rejects.toThrow(
+      /stock_movements_reason_unless_count_or_sale_check/,
+    );
+    await expect(insertMovement("sale", null, null)).rejects.toThrow(
+      /stock_movements_sale_line_iff_sale_check/,
+    );
     await expect(
       insertMovement("sale", null, "0d9c4f6e-2b1a-4c3d-8e5f-6a7b8c9d0e1f"),
-    ).rejects.toThrow();
+    ).rejects.toThrow(/stock_movements_sale_line_id_sale_lines_id_fk/);
   });
 
   it("refuses a sale line on a movement that is not a sale's", async () => {
@@ -129,7 +133,11 @@ describe("the sale stock movements migration applied over a database that alread
     await addMigrationEntry(folder, await saleStockMovementsEntry());
     await migrate(drizzle(client), { migrationsFolder: folder });
 
-    await expect(insertMovement("loss", "broken_or_spilled", saleLineId)).rejects.toThrow();
-    await expect(insertMovement("count", null, saleLineId, 0)).rejects.toThrow();
+    await expect(insertMovement("loss", "broken_or_spilled", saleLineId)).rejects.toThrow(
+      /stock_movements_sale_line_iff_sale_check/,
+    );
+    await expect(insertMovement("count", null, saleLineId, 0)).rejects.toThrow(
+      /stock_movements_sale_line_iff_sale_check/,
+    );
   });
 });

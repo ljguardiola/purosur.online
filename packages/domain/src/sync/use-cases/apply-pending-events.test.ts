@@ -289,7 +289,7 @@ describe("an event that cannot be applied yet", () => {
     const application = new FakeEventApplication([appliedSessionOpening(), saleEvent()]);
     const sale = aCompletedSaleFact({
       stockMovements: [
-        { id: "movement-1", saleLineId: "line-1", productId: "product-1", delta: -2000 },
+        { id: "movement-1", saleLineId: "line-1", productId: "product-1", delta: -1000 },
       ],
     });
 
@@ -300,10 +300,11 @@ describe("an event that cannot be applied yet", () => {
     expect(application.event("sale-event").appliedAt).toEqual(NOW);
   });
 
-  it("applies no stock for a completed sale that moved none", async () => {
+  it("applies no stock for a completed sale whose register reports no stock movements", async () => {
     const application = new FakeEventApplication([appliedSessionOpening(), saleEvent()]);
+    const sale = aCompletedSaleFact({ stockMovements: null });
 
-    await run(application, new FakeEventUpcaster({ "sale-event": aCompletedSaleFact() }));
+    await run(application, new FakeEventUpcaster({ "sale-event": sale }));
 
     expect(application.state.writeOrder).toEqual(["record"]);
     expect(application.event("sale-event").appliedAt).toEqual(NOW);
@@ -314,7 +315,7 @@ describe("an event that cannot be applied yet", () => {
     application.refuseStock.set("sale-event", "product product-1 has no stock in the branch");
     const sale = aCompletedSaleFact({
       stockMovements: [
-        { id: "movement-1", saleLineId: "line-1", productId: "product-1", delta: -2000 },
+        { id: "movement-1", saleLineId: "line-1", productId: "product-1", delta: -1000 },
       ],
     });
 
@@ -338,7 +339,7 @@ describe("an event that cannot be applied yet", () => {
     application.refuseStock.set("sale-event", "product product-1 has no stock in the branch");
     const sale = aCompletedSaleFact({
       stockMovements: [
-        { id: "movement-1", saleLineId: "line-1", productId: "product-1", delta: -2000 },
+        { id: "movement-1", saleLineId: "line-1", productId: "product-1", delta: -1000 },
       ],
     });
 
@@ -608,6 +609,26 @@ describe("an event that breaks an invariant of its own aggregate", () => {
       },
     ]);
     expect(application.state.quarantineAlerts).toEqual([]);
+    expect(outcome).toMatchObject({ applied: 1, flagged: 1, quarantined: 0 });
+  });
+
+  it("applies the stock of a sale whose stock movements do not match its lines, flagging it", async () => {
+    const application = new FakeEventApplication([appliedSessionOpening(), saleEvent()]);
+    const sale = aCompletedSaleFact({
+      stockMovements: [
+        { id: "movement-1", saleLineId: "line-1", productId: "product-1", delta: -7000 },
+      ],
+    });
+
+    const outcome = await run(application, new FakeEventUpcaster({ "sale-event": sale }));
+
+    expect(application.state.stockApplied).toEqual([{ eventId: "sale-event", saleId: "sale-1" }]);
+    expect(application.state.invariantAlerts).toEqual([
+      expect.objectContaining({
+        eventId: "sale-event",
+        breaks: ["stock_movements_do_not_match_lines"],
+      }),
+    ]);
     expect(outcome).toMatchObject({ applied: 1, flagged: 1, quarantined: 0 });
   });
 

@@ -349,10 +349,12 @@ describe("sale line requests", () => {
     { line_id: "l1", quantity: 0, expected_quantity: 3 },
     { line_id: "l1", quantity: -1, expected_quantity: 3 },
     { line_id: "l1", quantity: 1.5, expected_quantity: 3 },
+    { line_id: "l1", quantity: 2_147_484, expected_quantity: 3 },
     { line_id: 7, quantity: 1, expected_quantity: 3 },
     { line_id: "l1", quantity: 1, expected_quantity: 0 },
     { line_id: "l1", quantity: 1, expected_quantity: -1 },
     { line_id: "l1", quantity: 1, expected_quantity: 1.5 },
+    { line_id: "l1", quantity: 1, expected_quantity: 2_147_484 },
     { line_id: "l1", quantity: 1, expected_quantity: "3" },
   ])("rejects a quantity change that is not well formed: %j", (fields) => {
     expect(

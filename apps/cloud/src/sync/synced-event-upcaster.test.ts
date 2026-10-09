@@ -141,7 +141,7 @@ describe("decoding the events the registers pushed", () => {
             },
           ],
           cashMovements: [decodedMovement],
-          stockMovements: [],
+          stockMovements: null,
         },
       },
     });
@@ -187,7 +187,7 @@ describe("decoding the events the registers pushed", () => {
     });
   });
 
-  it("reads a version 1 sale as one that moved no stock", () => {
+  it("reads a version 1 sale as one whose register reports no stock movements", () => {
     const decoded = upcaster.decode(
       unappliedEventOf(
         pushed({
@@ -201,7 +201,7 @@ describe("decoding the events the registers pushed", () => {
       ),
     );
 
-    expect(decoded).toMatchObject({ fact: { sale: { stockMovements: [] } } });
+    expect(decoded).toMatchObject({ fact: { sale: { stockMovements: null } } });
   });
 
   it("reads a transfer's authorization and confirmation", () => {

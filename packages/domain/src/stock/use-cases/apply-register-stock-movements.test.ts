@@ -67,13 +67,7 @@ describe("applyRegisterStockMovements", () => {
       ]),
     );
 
-    expect(outcome).toEqual({
-      kind: "applied",
-      movements: [
-        { movementId: "register-movement-1", balance: 7000, supersededByCountId: null },
-        { movementId: "register-movement-2", balance: 3750, supersededByCountId: null },
-      ],
-    });
+    expect(outcome).toEqual({ kind: "applied" });
     expect(store.balanceOf(BREAD)).toBe(7000);
     expect(store.balanceOf(CHEESE)).toBe(3750);
     expect(store.balanceOf({ productId: "product-bread", locationId: "branch-2" })).toBe(8000);
@@ -139,7 +133,7 @@ describe("applyRegisterStockMovements", () => {
   it("lets the balance go negative", async () => {
     const store = storeWithProducts();
 
-    const outcome = await apply(
+    await apply(
       store,
       sale([
         {
@@ -152,7 +146,7 @@ describe("applyRegisterStockMovements", () => {
       ]),
     );
 
-    expect(outcome).toMatchObject({ movements: [{ balance: -2000 }] });
+    expect(store.balanceOf(BREAD)).toBe(-2000);
   });
 
   it("keeps a movement dated at or before a registered count without changing the balance", async () => {
@@ -172,12 +166,7 @@ describe("applyRegisterStockMovements", () => {
       ]),
     );
 
-    expect(outcome).toEqual({
-      kind: "applied",
-      movements: [
-        { movementId: "register-movement-1", balance: 10_000, supersededByCountId: countId },
-      ],
-    });
+    expect(outcome).toEqual({ kind: "applied" });
     expect(store.balanceOf(BREAD)).toBe(10_000);
     expect(store.snapshot().movements.at(-1)).toMatchObject({ supersededByCountId: countId });
   });

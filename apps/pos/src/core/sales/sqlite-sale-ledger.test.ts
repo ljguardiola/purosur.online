@@ -700,17 +700,6 @@ describe("charging an open sale in cash", () => {
     ]);
   });
 
-  it("takes the sold quantity off the balance the product already had", () => {
-    database.prepare("INSERT INTO stock_balances (product_id, quantity) VALUES ('p1', 5000)").run();
-    const saleId = sellTwo();
-
-    charge(saleId, 5000);
-
-    expect(database.prepare("SELECT quantity FROM stock_balances").all()).toEqual([
-      { quantity: 3000 },
-    ]);
-  });
-
   it("carries the stock movements in the sale_completed event, version 3", () => {
     const saleId = sellTwo();
 
