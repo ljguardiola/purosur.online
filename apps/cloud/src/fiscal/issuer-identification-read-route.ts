@@ -3,12 +3,12 @@ import { ISSUER_TAX_STATUS } from "@purosur/domain";
 import type { AuthorizedIssuerIdentification } from "@purosur/domain/fiscal/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { sameOriginGuard } from "../access/backoffice-origin.js";
+import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
+} from "../sessions/route-access.js";
 import { DrizzleIssuerIdentificationReader } from "./drizzle-issuer-identification-reader.js";
 
 export interface IssuerIdentificationRouteOptions<TQueryResult extends PgQueryResultHKT> {

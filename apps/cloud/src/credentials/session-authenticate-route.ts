@@ -1,21 +1,21 @@
 import { sessionAuthenticationBodySchema } from "@purosur/contracts";
+import { consumeSignInChallenge, signInWithPasskey } from "@purosur/domain/credentials/use-cases";
 import {
   admitSignInAttempt,
   confirmRejectedSignInAttempt,
   recordSignInLockout,
   type TrippedSignInLockout,
-} from "@purosur/domain/access/use-cases";
-import { consumeSignInChallenge, signInWithPasskey } from "@purosur/domain/credentials/use-cases";
+} from "@purosur/domain/sessions/use-cases";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply } from "fastify";
-import { requireBackofficeOrigin } from "../access/backoffice-origin.js";
-import { DrizzleSignInLockoutLog } from "../access/drizzle-sign-in-lockout-log.js";
-import { resolveSourceAddress } from "../access/recovery-source-address.js";
-import { PUBLIC_ACCESS, registerRouteAccess } from "../access/route-access.js";
-import { readSessionCookie, serializeSessionCookie } from "../access/session-cookie.js";
-import { generateSessionId, hashSessionId } from "../access/session-id.js";
-import { DrizzleSignInLockoutStore } from "../access/sign-in-lockout.js";
+import { resolveSourceAddress } from "../platform/source-address.js";
+import { requireBackofficeOrigin } from "../sessions/backoffice-origin.js";
+import { DrizzleSignInLockoutLog } from "../sessions/drizzle-sign-in-lockout-log.js";
+import { PUBLIC_ACCESS, registerRouteAccess } from "../sessions/route-access.js";
+import { readSessionCookie, serializeSessionCookie } from "../sessions/session-cookie.js";
+import { generateSessionId, hashSessionId } from "../sessions/session-id.js";
+import { DrizzleSignInLockoutStore } from "../sessions/sign-in-lockout.js";
 import { drizzleAccounts } from "./drizzle-accounts.js";
 import { DrizzlePasskeySignInStore } from "./drizzle-passkey-sign-in-store.js";
 import { reportRecoveryBookkeepingError } from "./recovery-error-reporting.js";

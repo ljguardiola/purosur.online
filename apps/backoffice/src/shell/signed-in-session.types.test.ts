@@ -1,6 +1,6 @@
 import type { Capability, ManualStockMovementKind } from "@purosur/domain";
 import { expectTypeOf, test } from "vitest";
-import type { SessionOutcome } from "../access/session-api";
+import type { SessionOutcome } from "../sessions/session-api";
 import type { SignedInSession } from "./root-route";
 
 type ExpiryAndAccess = {

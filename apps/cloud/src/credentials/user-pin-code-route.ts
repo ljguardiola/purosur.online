@@ -4,15 +4,15 @@ import { emitUserPinCode } from "@purosur/domain/credentials/use-cases";
 import { findBranchUser } from "@purosur/domain/users/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { backofficeOriginGuard } from "../access/backoffice-origin.js";
-import { requirePasskeyAuthorization } from "../access/passkey-authorization-guard.js";
+import { readRecordIds } from "../platform/record-id-params.js";
+import { backofficeOriginGuard } from "../sessions/backoffice-origin.js";
+import { requirePasskeyAuthorization } from "../sessions/passkey-authorization-guard.js";
 import {
   openSessionOf,
   recordAccess,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
-import { readRecordIds } from "../platform/record-id-params.js";
+} from "../sessions/route-access.js";
 import { drizzleBranchUsers } from "../users/drizzle-branch-users.js";
 import type { UsersRouteOptions } from "../users/users-list-route.js";
 import { DrizzlePinCodeStore } from "./drizzle-pin-code-store.js";

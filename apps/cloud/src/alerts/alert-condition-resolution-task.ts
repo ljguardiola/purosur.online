@@ -2,8 +2,8 @@ import { resolveStablyClearedAlerts } from "@purosur/domain/alerts/use-cases";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PoolClient } from "pg";
-import { hashSourceAddress } from "../access/sign-in-lockout.js";
 import { type BackgroundJobs, databaseOfClient } from "../platform/background-jobs.js";
+import { hashSourceAddress } from "../sessions/sign-in-lockout.js";
 import { DrizzleAlertStore } from "./drizzle-alert-store.js";
 
 export const ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER = "alert-condition-resolution";

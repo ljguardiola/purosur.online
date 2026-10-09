@@ -2,16 +2,16 @@ import { roleEditBodySchema } from "@purosur/contracts";
 import { editRole, findEditableRole } from "@purosur/domain/permissions/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { backofficeOriginGuard } from "../access/backoffice-origin.js";
-import { requirePasskeyAuthorization } from "../access/passkey-authorization-guard.js";
+import { readRecordIds } from "../platform/record-id-params.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
+import { backofficeOriginGuard } from "../sessions/backoffice-origin.js";
+import { requirePasskeyAuthorization } from "../sessions/passkey-authorization-guard.js";
 import {
   capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
-import { readRecordIds } from "../platform/record-id-params.js";
-import { readValidatedBody } from "../platform/request-body-schema.js";
+} from "../sessions/route-access.js";
 import { drizzleRoleDirectory } from "./drizzle-role-directory.js";
 import { DrizzleRoleStore } from "./drizzle-role-store.js";
 import { ROLE_NAME_TAKEN_RESPONSE } from "./role-creation-route.js";

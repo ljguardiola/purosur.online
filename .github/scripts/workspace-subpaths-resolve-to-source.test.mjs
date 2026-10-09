@@ -201,9 +201,9 @@ test("every subpath a workspace package exports resolves to its source under the
   assert.ok(
     findWorkspaceSubpathImports().some(
       ({ specifier, consumer }) =>
-        specifier === "@purosur/domain/access/use-cases" && consumer === "@purosur/cloud",
+        specifier === "@purosur/domain/sessions/use-cases" && consumer === "@purosur/cloud",
     ),
-    "expected the check to cover @purosur/domain/access/use-cases imported from @purosur/cloud",
+    "expected the check to cover @purosur/domain/sessions/use-cases imported from @purosur/cloud",
   );
 
   const unresolved = findSubpathsNotResolvingToSource();

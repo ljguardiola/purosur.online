@@ -8,16 +8,16 @@ import { PIN_MIN_DIGITS } from "@purosur/domain";
 import { redeemPinCode } from "@purosur/domain/credentials/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { resolveSourceAddress } from "../access/recovery-source-address.js";
-import { PUBLIC_ACCESS } from "../access/route-access.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { hashSecretCode } from "../platform/secret-code.js";
+import { resolveSourceAddress } from "../platform/source-address.js";
 import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
 import { authenticateDevice } from "../register/device-authentication.js";
 import {
   type DeviceTokensOptions,
   installationTokenPorts,
 } from "../register/installation-token-ports.js";
+import { PUBLIC_ACCESS } from "../sessions/route-access.js";
 import { argon2PinHasher } from "./argon2-pin-hasher.js";
 import { DrizzlePinCodeRedemptionStore } from "./drizzle-pin-code-redemption-store.js";
 

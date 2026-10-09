@@ -5,15 +5,15 @@ import {
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createActionGate } from "../access/action-gate";
-import { createSignedInPerson, type SignedInPerson } from "../access/signed-in-person";
-import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import { derivePinVerifier } from "../credentials/pin-verifier";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { cashBalanceFor } from "../register/cash-session-requests";
+import { createActionGate } from "../sessions/action-gate";
+import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in-person";
+import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import {
   addSearchedProductFor,
   cancelLockedSaleFor,

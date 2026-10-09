@@ -334,7 +334,7 @@ test("no production source outside the composition roots reads real time", () =>
   for (const sentinel of [
     "apps/cloud/src/app.ts",
     "apps/pos/src/core/sync/access-page-writes.ts",
-    "packages/domain/src/access/use-cases/index.ts",
+    "packages/domain/src/sessions/use-cases/index.ts",
     "apps/pos/src/shared/channel.ts",
   ]) {
     assert.ok(files.includes(sentinel), `expected the scan to include ${sentinel}`);

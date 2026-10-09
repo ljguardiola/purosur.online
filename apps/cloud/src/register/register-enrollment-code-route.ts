@@ -2,15 +2,15 @@ import { registerEnrollmentCodeSchema } from "@purosur/contracts";
 import { emitEnrollmentCode } from "@purosur/domain/register/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { backofficeOriginGuard } from "../access/backoffice-origin.js";
-import { requirePasskeyAuthorization } from "../access/passkey-authorization-guard.js";
+import { readRecordIds } from "../platform/record-id-params.js";
+import { backofficeOriginGuard } from "../sessions/backoffice-origin.js";
+import { requirePasskeyAuthorization } from "../sessions/passkey-authorization-guard.js";
 import {
   capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
-import { readRecordIds } from "../platform/record-id-params.js";
+} from "../sessions/route-access.js";
 import { DrizzleBranchRegisterStore } from "./drizzle-branch-register-store.js";
 import { secretEnrollmentCodes } from "./register-enrollment-code.js";
 import type { RegistersRouteOptions } from "./registers-list-route.js";

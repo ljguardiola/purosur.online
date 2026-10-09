@@ -1,13 +1,13 @@
 import { branchSettingsSchema } from "@purosur/contracts";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { sameOriginGuard } from "../access/backoffice-origin.js";
+import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
+} from "../sessions/route-access.js";
 import { toBranchSettingsWire } from "./branch-settings-wire.js";
 import { DrizzleBranchSettingsReader } from "./drizzle-branch-settings-reader.js";
 

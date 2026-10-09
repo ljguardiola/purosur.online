@@ -2,15 +2,15 @@ import { userCreationBodySchema } from "@purosur/contracts";
 import { createUser } from "@purosur/domain/users/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { backofficeOriginGuard } from "../access/backoffice-origin.js";
-import { requirePasskeyAuthorization } from "../access/passkey-authorization-guard.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
+import { backofficeOriginGuard } from "../sessions/backoffice-origin.js";
+import { requirePasskeyAuthorization } from "../sessions/passkey-authorization-guard.js";
 import {
   capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
-import { readValidatedBody } from "../platform/request-body-schema.js";
+} from "../sessions/route-access.js";
 import { canReactivateUsers, toBranchUserWire } from "./branch-users.js";
 import { DrizzleUserStore } from "./drizzle-user-store.js";
 import type { UserChangeRouteOptions } from "./users-list-route.js";

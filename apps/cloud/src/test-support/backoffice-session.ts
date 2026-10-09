@@ -1,7 +1,7 @@
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
-import { generateSessionId, hashSessionId } from "../access/session-id.js";
 import { rolePermissions, roles, sessions, userRoles, users } from "../platform/db/schema.js";
+import { SESSION_COOKIE_NAME } from "../sessions/session-cookie.js";
+import { generateSessionId, hashSessionId } from "../sessions/session-id.js";
 
 export const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 export const SESSION_NOON = new Date("2026-01-05T12:00:00.000Z");

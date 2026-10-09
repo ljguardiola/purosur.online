@@ -2,16 +2,16 @@ import { pointOfSaleConfigurationBodySchema, registerPointOfSaleSchema } from "@
 import { configureRegisterPointOfSale } from "@purosur/domain/fiscal/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { sameOriginGuard } from "../access/backoffice-origin.js";
-import { requirePasskeyAuthorization } from "../access/passkey-authorization-guard.js";
+import { readRecordIds } from "../platform/record-id-params.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
+import { sameOriginGuard } from "../sessions/backoffice-origin.js";
+import { requirePasskeyAuthorization } from "../sessions/passkey-authorization-guard.js";
 import {
   capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
-import { readRecordIds } from "../platform/record-id-params.js";
-import { readValidatedBody } from "../platform/request-body-schema.js";
+} from "../sessions/route-access.js";
 import { DrizzleRegisterPointOfSaleStore } from "./drizzle-register-point-of-sale-store.js";
 import type { RegistersPointsOfSaleRouteOptions } from "./registers-points-of-sale-list-route.js";
 

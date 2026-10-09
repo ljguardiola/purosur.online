@@ -2,9 +2,9 @@ import { cloudError, cloudErrorStatus, healthCheckSchema } from "@purosur/contra
 import type { ArcaOnlineStatus } from "@purosur/domain/fiscal/use-cases";
 import type { AdmitInstallationRequestOutcome } from "@purosur/domain/sync/use-cases";
 import type { FastifyInstance } from "fastify";
-import { PUBLIC_ACCESS } from "../access/route-access.js";
 import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
 import type { DeviceAuthentication } from "../register/device-authentication.js";
+import { PUBLIC_ACCESS } from "../sessions/route-access.js";
 import { sendRateLimited } from "./rate-limited-response.js";
 
 export interface HealthRouteOptions {

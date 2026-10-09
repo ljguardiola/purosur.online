@@ -2,13 +2,13 @@ import { passkeyListSchema } from "@purosur/contracts";
 import { listOwnPasskeys } from "@purosur/domain/credentials/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { sameOriginGuard } from "../access/backoffice-origin.js";
+import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   OPEN_SESSION_ACCESS,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
+} from "../sessions/route-access.js";
 import { drizzlePasskeys } from "./drizzle-passkeys.js";
 
 export interface PasskeysListRouteOptions<TQueryResult extends PgQueryResultHKT> {

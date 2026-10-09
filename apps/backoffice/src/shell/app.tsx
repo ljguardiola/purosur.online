@@ -2,8 +2,6 @@ import { FieldSizeProvider, LocaleProvider } from "@purosur/ui";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { checkSessionStatus, fetchSession, type SessionOutcome } from "../access/session-api";
-import { defaultSignInScreenServices, type SignInScreenServices } from "../access/sign-in-services";
 import {
   type AlertsListScreenServices,
   defaultAlertsListScreenServices,
@@ -78,6 +76,11 @@ import {
   defaultSalesByDayScreenServices,
   type SalesByDayScreenServices,
 } from "../sales/sales-by-day-services";
+import { checkSessionStatus, fetchSession, type SessionOutcome } from "../sessions/session-api";
+import {
+  defaultSignInScreenServices,
+  type SignInScreenServices,
+} from "../sessions/sign-in-services";
 import {
   defaultStockBalancesScreenServices,
   type StockBalancesScreenServices,

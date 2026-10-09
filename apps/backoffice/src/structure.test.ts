@@ -3,7 +3,6 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const CONCEPTS = [
-  "access",
   "alerts",
   "branch",
   "catalog",
@@ -16,6 +15,7 @@ const CONCEPTS = [
   "stock",
   "users",
   "credentials",
+  "sessions",
 ];
 const OUTSIDE_ANY_CONCEPT = ["help", "platform", "shell"];
 const ROOT_FILES = ["env.d.ts", "main.tsx", "structure.test.ts"];
