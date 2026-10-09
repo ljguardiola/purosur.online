@@ -50,23 +50,23 @@ function renderBar(
   );
 }
 
-function barOf(screen: Awaited<ReturnType<typeof renderBar>>) {
-  return screen.getByRole("region", { name: "Estado de la caja" });
+function barText(screen: Awaited<ReturnType<typeof renderBar>>): string {
+  return screen.getByRole("region", { name: "Estado de la caja" }).element().textContent;
 }
 
 describe("RegisterStatusBar", () => {
   it("shows the first name of the person signed in, and nothing of their role or abilities", async () => {
     const screen = await renderBar();
 
-    await expect.element(barOf(screen)).toHaveTextContent("Ada");
-    expect(barOf(screen).element().textContent).not.toContain("open_cash_session");
-    expect(barOf(screen).element().textContent).not.toMatch(/Administrador|Cajero/);
+    expect(barText(screen)).toContain("Ada");
+    expect(barText(screen)).not.toContain("open_cash_session");
+    expect(barText(screen)).not.toMatch(/Administrador|Cajero/);
   });
 
   it("shows no name while nobody is signed in", async () => {
     const screen = await renderBar({ person: undefined, cashSession: LOCKED_SESSION });
 
-    await expect.element(barOf(screen)).not.toHaveTextContent("Ada");
+    expect(barText(screen)).not.toContain("Ada");
   });
 
   it.each([
@@ -76,7 +76,7 @@ describe("RegisterStatusBar", () => {
   ])("shows the cash session as %j", async (cashSession, text) => {
     const screen = await renderBar({ cashSession });
 
-    await expect.element(barOf(screen)).toHaveTextContent(text);
+    expect(barText(screen)).toContain(text);
   });
 
   it.each<CashSessionState>([{ status: "unknown" }, { status: "unavailable" }])(
@@ -84,7 +84,7 @@ describe("RegisterStatusBar", () => {
     async (cashSession) => {
       const screen = await renderBar({ cashSession });
 
-      await expect.element(barOf(screen)).not.toHaveTextContent(/sesión|bloqueada/i);
+      expect(barText(screen)).not.toMatch(/sesión|bloqueada/i);
     },
   );
 
@@ -95,14 +95,14 @@ describe("RegisterStatusBar", () => {
   ] as const)("shows the cloud as %s with %s", async (cloud, text) => {
     const screen = await renderBar({ status: loaded({ cloud }) });
 
-    await expect.element(barOf(screen)).toHaveTextContent(text);
+    expect(barText(screen)).toContain(text);
   });
 
   it("shows the cloud as being connected while the status is read", async () => {
     const screen = await renderBar({ status: { status: "loading" } });
 
-    await expect.element(barOf(screen)).toHaveTextContent("Conectando con la nube");
-    expect(barOf(screen).element().textContent).not.toContain(SALES_DENIED_TITLE);
+    expect(barText(screen)).toContain("Conectando con la nube");
+    expect(barText(screen)).not.toContain(SALES_DENIED_TITLE);
   });
 
   it("shows no condition when the register holds none", async () => {
@@ -131,7 +131,7 @@ describe("RegisterStatusBar", () => {
 
     await expect.element(screen.getByText(SALES_DENIED_TITLE)).toBeVisible();
     await expect.element(screen.getByText(SILENT_TITLE)).toBeVisible();
-    const text = barOf(screen).element().textContent;
+    const text = barText(screen);
     expect(text.indexOf(SALES_DENIED_TITLE)).toBeLessThan(text.indexOf(SILENT_TITLE));
   });
 
@@ -141,14 +141,16 @@ describe("RegisterStatusBar", () => {
     });
 
     await expect.element(screen.getByText(SILENT_TITLE)).toBeVisible();
-    await expect.element(barOf(screen)).toHaveTextContent("Sin conexión con la nube");
+    expect(barText(screen)).toContain("Sin conexión con la nube");
   });
 
   it("says the status could not be read and reads it again on Reintentar", async () => {
     const retry = vi.fn();
     const screen = await renderBar({ status: { status: "failed", retry } });
 
-    await expect.element(screen.getByText("No se pudo leer el estado de la caja")).toBeVisible();
+    await expect
+      .element(screen.getByRole("alert"))
+      .toHaveTextContent("No se pudo leer el estado de la caja");
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
     expect(retry).toHaveBeenCalledTimes(1);
