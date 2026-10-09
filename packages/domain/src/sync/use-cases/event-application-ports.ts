@@ -1,4 +1,5 @@
 import type { EventInvariantViolatedDetail, EventsQuarantinedDetail } from "../../alerts/index.js";
+import type { CompletedSale } from "../../sales/index.js";
 import type { Clock, JsonValue } from "../../shared/index.js";
 import type { HeldEventState } from "../model/next-event-to-apply.js";
 import type { AggregateKey, SyncedFact } from "../model/synced-fact.js";
@@ -22,11 +23,14 @@ export interface FailedAttempt {
   error: string;
 }
 
+export type SaleStockApplication = { kind: "applied" } | { kind: "refused"; reason: string };
+
 export interface EventApplicationTransaction {
   lockAggregate(key: AggregateKey): Promise<boolean>;
   unappliedEventsOf(key: AggregateKey): Promise<UnappliedEvent[]>;
   aggregateApplied(key: AggregateKey): Promise<boolean>;
   record(fact: SyncedFact, event: UnappliedEvent): Promise<void>;
+  applySaleStock(sale: CompletedSale, event: UnappliedEvent): Promise<SaleStockApplication>;
   markApplied(eventId: string, at: Date): Promise<void>;
   recordFailedAttempt(eventId: string, failed: FailedAttempt): Promise<void>;
   openQuarantineAlert(details: EventsQuarantinedDetail): Promise<void>;
