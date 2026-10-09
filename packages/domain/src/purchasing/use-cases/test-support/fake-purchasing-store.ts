@@ -18,11 +18,11 @@ import {
   SupplierNameConflict,
 } from "../purchasing-store.js";
 
-export interface FakeSupplierRow extends Supplier {
+interface FakeSupplierRow extends Supplier {
   writtenBy: string | null;
 }
 
-export interface FakePackagingRow extends Packaging {
+interface FakePackagingRow extends Packaging {
   writtenBy: string | null;
 }
 
