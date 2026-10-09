@@ -2656,3 +2656,46 @@ describe("every route enforces the access it declares", () => {
     }
   });
 });
+
+describe("wiring the Mercado Pago notification route", () => {
+  function connections(): DedicatedConnections<PgliteQueryResultHKT> {
+    return { withConnection: (work) => work(testDatabase.db) };
+  }
+
+  it("does not register POST /api/payments/mercado-pago/notifications when no mercadoPagoNotifications option is given", async () => {
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/payments/mercado-pago/notifications",
+      payload: {},
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("registers it when the option is given, refusing, behind the edge, a notification without a signature", async () => {
+    const app = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      mercadoPagoNotifications: {
+        db: testDatabase.db,
+        connections: connections(),
+        webhookSecret: "fictional-webhook-secret-0001",
+        mercadoPago: {
+          longestCallMs: 1,
+          createQrOrder: async () => ({ kind: "unavailable" }),
+          readOrder: async () => ({ kind: "unavailable" }),
+        },
+      },
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/payments/mercado-pago/notifications?type=order&data.id=ORD01",
+      payload: {},
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+});
