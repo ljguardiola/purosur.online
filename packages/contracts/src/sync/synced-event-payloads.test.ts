@@ -127,11 +127,13 @@ describe("synced event payloads", () => {
       "cash_session_closed@1",
       "cash_session_opened@1",
       "fiscal_gate_failed@1",
+      "reprint_recorded@1",
       "sale_cancelled@1",
       "sale_completed@1",
       "sale_completed@2",
       "sale_completed@3",
       "sale_completed@4",
+      "sale_print_state_changed@1",
     ]);
   });
 
