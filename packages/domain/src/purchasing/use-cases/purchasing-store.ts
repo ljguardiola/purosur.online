@@ -47,13 +47,9 @@ export interface PackagingFields {
   actorId: string;
 }
 
-export type LockSupplierResult =
-  | { kind: "not_found" }
-  | { kind: "locked"; supplier: Supplier };
+export type LockSupplierResult = { kind: "not_found" } | { kind: "locked"; supplier: Supplier };
 
-export type LockPackagingResult =
-  | { kind: "not_found" }
-  | { kind: "locked"; packaging: Packaging };
+export type LockPackagingResult = { kind: "not_found" } | { kind: "locked"; packaging: Packaging };
 
 export type LockProductResult =
   | { kind: "not_found" }

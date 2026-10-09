@@ -1,8 +1,10 @@
-import type { SaleUnit } from "../../catalog/index.js";
+import type { ProductActivityScope, SaleUnit } from "../../catalog/index.js";
 import { codePointLength } from "../../shared/index.js";
 import { isMovementQuantity } from "../../stock/index.js";
 
 export const PACKAGING_NAME_MAX_LENGTH = 100;
+
+export const PRODUCTS_PACKAGINGS_MAY_BE_DEFINED_FOR: ProductActivityScope = "active";
 
 export function isPackagingNameTooLong(name: string): boolean {
   return codePointLength(name) > PACKAGING_NAME_MAX_LENGTH;
