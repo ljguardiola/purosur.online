@@ -77,11 +77,14 @@ describe("registerSummarySchema", () => {
     expect(parsed.data).toEqual(withCode);
   });
 
-  it.each(["id", "name", "pending_code", "point_of_sale_number", "installation"])("requires %s", (field) => {
-    const { [field as keyof typeof withCode]: _omitted, ...rest } = withCode;
+  it.each(["id", "name", "pending_code", "point_of_sale_number", "installation"])(
+    "requires %s",
+    (field) => {
+      const { [field as keyof typeof withCode]: _omitted, ...rest } = withCode;
 
-    expect(registerSummarySchema.safeParse(rest).success).toBe(false);
-  });
+      expect(registerSummarySchema.safeParse(rest).success).toBe(false);
+    },
+  );
 
   it.each(["seconds_since_issued", "seconds_until_expiry"])(
     "requires the pending code's %s",

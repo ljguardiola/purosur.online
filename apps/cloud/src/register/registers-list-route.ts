@@ -20,6 +20,30 @@ export interface RegistersRouteOptions<TQueryResult extends PgQueryResultHKT> {
   now: () => Date;
 }
 
+function toInstallationWire(
+  installation: BranchRegisterSummary["installation"],
+): RegisterSummaryBody["installation"] {
+  switch (installation.kind) {
+    case "not_enrolled":
+      return null;
+    case "enrolled":
+      return {
+        state: "enrolled",
+        hostname: installation.hostname,
+        windows_version: installation.windowsVersion,
+        enrolled_at: installation.enrolledAt.toISOString(),
+      };
+    case "revoked":
+      return {
+        state: "revoked",
+        hostname: installation.hostname,
+        windows_version: installation.windowsVersion,
+        enrolled_at: installation.enrolledAt.toISOString(),
+        revoked_at: installation.revokedAt.toISOString(),
+      };
+  }
+}
+
 function toRegisterWire(register: BranchRegisterSummary): RegisterSummaryBody {
   return {
     id: register.id,
@@ -31,6 +55,7 @@ function toRegisterWire(register: BranchRegisterSummary): RegisterSummaryBody {
         }
       : null,
     point_of_sale_number: register.pointOfSaleNumber,
+    installation: toInstallationWire(register.installation),
   };
 }
 

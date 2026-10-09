@@ -1,3 +1,4 @@
+import type { RegisterInstallationRecord } from "../../model/register-installation.js";
 import type {
   BranchRegister,
   BranchRegisterStore,
@@ -13,7 +14,6 @@ import type {
   RegisterEnrollmentCode,
 } from "../branch-register-store.js";
 import { RegisterNameConflict } from "../branch-register-store.js";
-import type { RegisterInstallationRecord } from "../../model/register-installation.js";
 
 export interface FakeBranchRegister {
   id: string;

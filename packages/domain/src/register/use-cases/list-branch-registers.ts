@@ -1,5 +1,9 @@
 import type { Clock } from "../../shared/index.js";
 import { isEnrollmentCodeUsable } from "../model/enrollment-code.js";
+import {
+  type RegisterInstallationState,
+  registerInstallationState,
+} from "../model/register-installation.js";
 import type { BranchRegisters, RegisterEnrollmentCode } from "./branch-register-store.js";
 
 export interface ListBranchRegistersPorts {
@@ -21,6 +25,7 @@ export interface BranchRegisterSummary {
   name: string;
   pendingCode: PendingEnrollmentCode | null;
   pointOfSaleNumber: number | null;
+  installation: RegisterInstallationState;
 }
 
 function pendingCodeOf(
@@ -47,5 +52,6 @@ export async function listBranchRegisters(
     name: register.name,
     pendingCode: pendingCodeOf(register.enrollmentCode, now),
     pointOfSaleNumber: register.pointOfSaleNumber,
+    installation: registerInstallationState(register.latestInstallation),
   }));
 }

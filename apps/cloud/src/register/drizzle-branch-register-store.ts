@@ -11,12 +11,13 @@ import {
   type RegisterCreation,
   RegisterNameConflict,
 } from "@purosur/domain/register/use-cases";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import {
   auditLog,
   registerEnrollmentCodes,
+  registerInstallations,
   registerPointsOfSale,
   registers,
 } from "../platform/db/schema.js";
@@ -167,6 +168,21 @@ export class DrizzleBranchRegisterStore<TQueryResult extends PgQueryResultHKT>
   }
 
   async branchRegisters(locationId: string): Promise<BranchRegister[]> {
+    const latestInstallation = this.db
+      .selectDistinctOn([registerInstallations.registerId], {
+        registerId: registerInstallations.registerId,
+        hostname: registerInstallations.hostname,
+        windowsVersion: registerInstallations.windowsVersion,
+        enrolledAt: registerInstallations.enrolledAt,
+        revokedAt: registerInstallations.revokedAt,
+      })
+      .from(registerInstallations)
+      .orderBy(
+        registerInstallations.registerId,
+        desc(registerInstallations.enrolledAt),
+        desc(registerInstallations.id),
+      )
+      .as("latest_installation");
     const rows = await this.db
       .select({
         id: registers.id,
@@ -176,23 +192,40 @@ export class DrizzleBranchRegisterStore<TQueryResult extends PgQueryResultHKT>
         redeemedAt: registerEnrollmentCodes.redeemedAt,
         failedAttempts: registerEnrollmentCodes.failedAttempts,
         pointOfSaleNumber: registerPointsOfSale.pointOfSaleNumber,
+        hostname: latestInstallation.hostname,
+        windowsVersion: latestInstallation.windowsVersion,
+        enrolledAt: latestInstallation.enrolledAt,
+        revokedAt: latestInstallation.revokedAt,
       })
       .from(registers)
       .leftJoin(registerEnrollmentCodes, eq(registerEnrollmentCodes.registerId, registers.id))
       .leftJoin(registerPointsOfSale, eq(registerPointsOfSale.registerId, registers.id))
+      .leftJoin(latestInstallation, eq(latestInstallation.registerId, registers.id))
       .where(eq(registers.locationId, locationId))
       .orderBy(asc(registers.name));
-    return rows.map(
-      ({ id, name, issuedAt, expiresAt, redeemedAt, failedAttempts, pointOfSaleNumber }) => ({
-        id,
-        name,
-        enrollmentCode:
-          issuedAt !== null && expiresAt !== null && failedAttempts !== null
-            ? { issuedAt, expiresAt, redeemedAt, failedAttempts }
-            : null,
-        pointOfSaleNumber,
-      }),
-    );
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      enrollmentCode:
+        row.issuedAt !== null && row.expiresAt !== null && row.failedAttempts !== null
+          ? {
+              issuedAt: row.issuedAt,
+              expiresAt: row.expiresAt,
+              redeemedAt: row.redeemedAt,
+              failedAttempts: row.failedAttempts,
+            }
+          : null,
+      pointOfSaleNumber: row.pointOfSaleNumber,
+      latestInstallation:
+        row.hostname !== null && row.windowsVersion !== null && row.enrolledAt !== null
+          ? {
+              hostname: row.hostname,
+              windowsVersion: row.windowsVersion,
+              enrolledAt: row.enrolledAt,
+              revokedAt: row.revokedAt,
+            }
+          : null,
+    }));
   }
 
   async hasRegister(locationId: string, registerId: string): Promise<boolean> {

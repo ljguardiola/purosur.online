@@ -1,6 +1,7 @@
 import type { EnrollmentCodeState } from "../model/enrollment-code.js";
+import type { RegisterInstallationRecord } from "../model/register-installation.js";
 
-export type { EnrollmentCodeState };
+export type { EnrollmentCodeState, RegisterInstallationRecord };
 
 export interface RegisterEnrollmentCode extends EnrollmentCodeState {
   issuedAt: Date;
@@ -11,6 +12,7 @@ export interface BranchRegister {
   name: string;
   enrollmentCode: RegisterEnrollmentCode | null;
   pointOfSaleNumber: number | null;
+  latestInstallation: RegisterInstallationRecord | null;
 }
 
 export interface BranchRegisters {
