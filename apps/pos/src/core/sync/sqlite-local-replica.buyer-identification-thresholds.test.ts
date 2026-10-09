@@ -16,12 +16,13 @@ function thresholdChange(
   entityId: string,
   amount: number,
   validFrom: string,
+  revision = 0,
 ): RegisterPulledChange {
   const change: SyncChange = {
     change_seq: changeSeq,
     entity: "buyer_identification_threshold",
     entity_id: entityId,
-    row: { amount, valid_from: validFrom },
+    row: { amount, valid_from: validFrom, revision },
   };
   return { changeSeq, change };
 }
@@ -34,7 +35,7 @@ async function save(...changes: RegisterPulledChange[]) {
 function savedThresholds() {
   return database
     .prepare(
-      "SELECT id, amount, valid_from FROM buyer_identification_thresholds ORDER BY valid_from",
+      "SELECT id, amount, valid_from, revision FROM buyer_identification_thresholds ORDER BY valid_from, revision",
     )
     .all();
 }
@@ -57,7 +58,7 @@ describe("the register's local copy of the buyer-identification thresholds", () 
     await save(thresholdChange(1, THRESHOLD_ID, 10_000_000, "2026-10-01"));
 
     expect(savedThresholds()).toEqual([
-      { id: THRESHOLD_ID, amount: 10_000_000, valid_from: "2026-10-01" },
+      { id: THRESHOLD_ID, amount: 10_000_000, valid_from: "2026-10-01", revision: 0 },
     ]);
   });
 
@@ -67,8 +68,8 @@ describe("the register's local copy of the buyer-identification thresholds", () 
     await save(thresholdChange(2, LATER_THRESHOLD_ID, 12_000_000, "2027-02-01"));
 
     expect(savedThresholds()).toEqual([
-      { id: THRESHOLD_ID, amount: 10_000_000, valid_from: "2026-10-01" },
-      { id: LATER_THRESHOLD_ID, amount: 12_000_000, valid_from: "2027-02-01" },
+      { id: THRESHOLD_ID, amount: 10_000_000, valid_from: "2026-10-01", revision: 0 },
+      { id: LATER_THRESHOLD_ID, amount: 12_000_000, valid_from: "2027-02-01", revision: 0 },
     ]);
   });
 
@@ -78,7 +79,7 @@ describe("the register's local copy of the buyer-identification thresholds", () 
     await save(thresholdChange(2, THRESHOLD_ID, 99_000_000, "2030-01-01"));
 
     expect(savedThresholds()).toEqual([
-      { id: THRESHOLD_ID, amount: 10_000_000, valid_from: "2026-10-01" },
+      { id: THRESHOLD_ID, amount: 10_000_000, valid_from: "2026-10-01", revision: 0 },
     ]);
   });
 
@@ -88,8 +89,19 @@ describe("the register's local copy of the buyer-identification thresholds", () 
     await save(thresholdChange(2, THRESHOLD_ID, 10_000_000, "2026-10-01"));
 
     expect(savedThresholds()).toEqual([
-      { id: THRESHOLD_ID, amount: 10_000_000, valid_from: "2026-10-01" },
-      { id: LATER_THRESHOLD_ID, amount: 12_000_000, valid_from: "2027-02-01" },
+      { id: THRESHOLD_ID, amount: 10_000_000, valid_from: "2026-10-01", revision: 0 },
+      { id: LATER_THRESHOLD_ID, amount: 12_000_000, valid_from: "2027-02-01", revision: 0 },
+    ]);
+  });
+
+  it("saves the revision of a threshold that replaces another of the same day, keeping both", async () => {
+    await save(thresholdChange(1, THRESHOLD_ID, 10_000, "2026-10-01", 0));
+
+    await save(thresholdChange(2, LATER_THRESHOLD_ID, 10_000_000, "2026-10-01", 1));
+
+    expect(savedThresholds()).toEqual([
+      { id: THRESHOLD_ID, amount: 10_000, valid_from: "2026-10-01", revision: 0 },
+      { id: LATER_THRESHOLD_ID, amount: 10_000_000, valid_from: "2026-10-01", revision: 1 },
     ]);
   });
 
@@ -104,6 +116,7 @@ describe("the register's local copy of the buyer-identification thresholds", () 
     database.exec(
       `CREATE TABLE buyer_identification_thresholds (
          id TEXT PRIMARY KEY, amount INTEGER NOT NULL, valid_from TEXT NOT NULL,
+         revision INTEGER NOT NULL DEFAULT 0,
          CHECK (amount < 12000000)
        )`,
     );

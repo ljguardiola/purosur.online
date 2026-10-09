@@ -2,12 +2,12 @@ import { discountListSchema } from "@purosur/contracts";
 import { listDiscounts } from "@purosur/domain/pricing/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { sameOriginGuard } from "../access/backoffice-origin.js";
+import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
+} from "../sessions/route-access.js";
 import { DrizzleDiscountReader } from "./drizzle-discount-reader.js";
 
 export interface DiscountsRouteOptions<TQueryResult extends PgQueryResultHKT> {

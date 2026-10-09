@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { isValidCuit } from "../model/cuit.js";
 import {
   ANOTHER_FICTIONAL_CUIT,
+  CUIT_NUMBER_NO_CHECK_DIGIT_VALIDATES,
   FICTIONAL_CERTIFICATE_CUIT,
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
@@ -20,6 +21,20 @@ describe.each([FICTIONAL_CUIT, ANOTHER_FICTIONAL_CUIT, FICTIONAL_CERTIFICATE_CUI
 describe.each([FICTIONAL_CUIT, ANOTHER_FICTIONAL_CUIT])("the fictional CUIT %s", (cuit) => {
   it("has an all-zero number, which no taxpayer is issued", () => {
     expect(cuit.split("-")[1]).toBe("00000000");
+  });
+});
+
+describe("the CUIT number no check digit validates", () => {
+  it("is refused by CUIT validation with every check digit", () => {
+    const firstTen = CUIT_NUMBER_NO_CHECK_DIGIT_VALIDATES.slice(0, -1);
+
+    for (let checkDigit = 0; checkDigit <= 9; checkDigit += 1) {
+      expect(isValidCuit(`${firstTen}${checkDigit}`)).toBe(false);
+    }
+  });
+
+  it("has an all-zero number, which no taxpayer is issued", () => {
+    expect(CUIT_NUMBER_NO_CHECK_DIGIT_VALIDATES.split("-")[1]).toBe("00000000");
   });
 });
 

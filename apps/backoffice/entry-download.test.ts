@@ -4,7 +4,7 @@ import { beforeAll, expect, test } from "vitest";
 
 const BACKOFFICE_ROOT = fileURLToPath(new URL(".", import.meta.url));
 const UI_COMPONENTS = fileURLToPath(new URL("../../packages/ui/src/components/", import.meta.url));
-const SIGN_IN_PAGE = `${BACKOFFICE_ROOT}src/access/sign-in-page.tsx`;
+const SIGN_IN_PAGE = `${BACKOFFICE_ROOT}src/sessions/sign-in-page.tsx`;
 
 let chunks: Map<string, Rolldown.OutputChunk>;
 

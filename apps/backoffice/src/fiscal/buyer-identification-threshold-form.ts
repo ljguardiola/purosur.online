@@ -32,6 +32,6 @@ export function validFromMessage({ validFrom }: ThresholdFormValues): string {
   return validFrom === null ? "Elegí desde cuándo rige el umbral." : "Revisá la fecha.";
 }
 
-export function notAfterLatestMessage(latestValidFrom: string): string {
-  return `Tiene que ser posterior al ${formatDisplayDate(latestValidFrom)}, el inicio del último umbral cargado.`;
+export function beforeTodayMessage(today: string): string {
+  return `Tiene que ser desde hoy (${formatDisplayDate(today)}) en adelante.`;
 }

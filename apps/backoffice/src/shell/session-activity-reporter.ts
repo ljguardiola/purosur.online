@@ -1,5 +1,5 @@
 import { useEffect, useEffectEvent } from "react";
-import type { SessionOutcome } from "../access/session-api";
+import type { SessionOutcome } from "../sessions/session-api";
 
 const DEFAULT_THROTTLE_MS = 60_000;
 

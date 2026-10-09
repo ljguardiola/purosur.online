@@ -5,15 +5,15 @@ import {
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createActionGate } from "../access/action-gate";
-import { createSignedInPerson, type SignedInPerson } from "../access/signed-in-person";
-import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import { derivePinVerifier } from "../credentials/pin-verifier";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { cashBalanceFor } from "../register/cash-session-requests";
+import { createActionGate } from "../sessions/action-gate";
+import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in-person";
+import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import {
   addSearchedProductFor,
   cancelLockedSaleFor,
@@ -83,12 +83,12 @@ function addPerson(id: string, roleId: string): void {
     .run(id, roleId);
 }
 
-function saveThreshold(amount: number, validFrom = "2026-01-01"): void {
+function saveThreshold(amount: number, validFrom = "2026-01-01", revision = 0): void {
   database
     .prepare(
-      "INSERT INTO buyer_identification_thresholds (id, amount, valid_from) VALUES (?, ?, ?)",
+      "INSERT INTO buyer_identification_thresholds (id, amount, valid_from, revision) VALUES (?, ?, ?, ?)",
     )
-    .run(`threshold-starting-${validFrom}`, amount, validFrom);
+    .run(`threshold-starting-${validFrom}-${revision}`, amount, validFrom, revision);
 }
 
 function addFiscalConfiguration(): void {
@@ -530,6 +530,27 @@ describe("the sale in progress", () => {
       total: 3000,
       charge_refusal: { kind: "reaches_buyer_identification_threshold", threshold: 3000 },
     });
+  });
+
+  it("is refused for charging by the threshold that replaced a mistaken one of the same day", async () => {
+    saveThreshold(1_000_000, "2026-09-30", 0);
+    saveThreshold(3000, "2026-09-30", 1);
+    await scanProductFor(deps(), "111");
+    await scanProductFor(deps(), "111");
+
+    expect(await currentSaleFor(deps())).toMatchObject({
+      total: 3000,
+      charge_refusal: { kind: "reaches_buyer_identification_threshold", threshold: 3000 },
+    });
+  });
+
+  it("is not refused for charging once a threshold of the same day replaces a mistaken low one", async () => {
+    saveThreshold(1000, "2026-09-30", 0);
+    saveThreshold(100_000_000, "2026-09-30", 1);
+    await scanProductFor(deps(), "111");
+    await scanProductFor(deps(), "111");
+
+    expect(await currentSaleFor(deps())).toMatchObject({ charge_refusal: null });
   });
 
   it("is refused for charging when the register holds no threshold", async () => {

@@ -20,7 +20,6 @@ import type {
   SellableProduct,
   SellingSession,
 } from "@purosur/domain/sales/use-cases";
-import type { SignInStore } from "../access/sqlite-sign-in-store";
 import {
   insertPreEmissionGateOutcome,
   readBuyerTaxStatusSetInEffect,
@@ -30,6 +29,7 @@ import { decideSaleAuthorizationIn } from "../fiscal/sqlite-sale-authorization";
 import { readSalePayments } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
 import { insertCashMovement, readMovementsOf } from "../register/sqlite-cash-ledger";
+import type { SignInStore } from "../sessions/sqlite-sign-in-store";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 import { type BenefitColumns, readOpenSale, toBenefit } from "./sqlite-open-sale";
 
@@ -192,11 +192,16 @@ export class SqliteSaleLedger implements SaleLedger {
 
   private buyerIdentificationThresholds(): BuyerIdentificationThreshold[] {
     return this.database
-      .prepare<[], { id: string; amount: number; valid_from: string }>(
-        "SELECT id, amount, valid_from FROM buyer_identification_thresholds ORDER BY valid_from",
+      .prepare<[], { id: string; amount: number; valid_from: string; revision: number }>(
+        "SELECT id, amount, valid_from, revision FROM buyer_identification_thresholds ORDER BY valid_from, revision",
       )
       .all()
-      .map((row) => ({ id: row.id, amount: row.amount, validFrom: row.valid_from }));
+      .map((row) => ({
+        id: row.id,
+        amount: row.amount,
+        validFrom: row.valid_from,
+        revision: row.revision,
+      }));
   }
 
   private priceAt(

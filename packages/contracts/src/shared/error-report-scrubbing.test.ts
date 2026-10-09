@@ -369,7 +369,7 @@ describe("scrubErrorReportBreadcrumb", () => {
 
   it("redacts personal data and credentials in an error's message and stack", () => {
     const error = new Error(
-      "customer ana.perez@example.com with CUIT 20-30405060-7 and DNI 12.345.678 rejected",
+      "customer ana.perez@example.com with CUIT 20-12345678-7 and DNI 12.345.678 rejected",
     );
     error.stack =
       "Error: connect redis://default:secret@cache.internal:6379 failed for ana.perez@example.com\n" +
@@ -618,7 +618,7 @@ describe("scrubErrorReportBreadcrumb", () => {
 describe("scrubErrorReportLog", () => {
   it("redacts identifiers in the log message and attributes", () => {
     const log = {
-      message: "CUIT 20304050607 could not sync",
+      message: "CUIT 20123456787 could not sync",
       attributes: { authorization: "Bearer xyz", session_id: "s1", event_id: "evt-1" },
     };
 
@@ -660,7 +660,7 @@ describe("keys", () => {
 
   it("redacts fields named after a CUIT, DNI or document whatever their value looks like", () => {
     const extra = {
-      cuit: "cuit_20304050607",
+      cuit: "cuit_20123456787",
       dni_cliente: "x_12345678",
       documento: 42,
       clienteDni: "x",
@@ -975,17 +975,17 @@ describe("identifiers in text", () => {
   it("redacts a CUIT with or without hyphens and a DNI in the message", () => {
     for (const { message, expected } of [
       {
-        message: "customer CUIT 20304050607 rejected",
+        message: "customer CUIT 20123456787 rejected",
         expected: "customer CUIT [redacted] rejected",
       },
-      { message: "CUIT 20-30405060-7 rejected", expected: "CUIT [redacted] rejected" },
-      { message: "CUIT 20-30405060-7.", expected: "CUIT [redacted]." },
+      { message: "CUIT 20-12345678-7 rejected", expected: "CUIT [redacted] rejected" },
+      { message: "CUIT 20-12345678-7.", expected: "CUIT [redacted]." },
       { message: "DNI 12345678 rejected", expected: "DNI [redacted] rejected" },
       { message: "DNI 1234567.", expected: "DNI [redacted]." },
       { message: "cliente 12.345.678", expected: "cliente [redacted]" },
       { message: "cliente 1.234.567.", expected: "cliente [redacted]." },
       {
-        message: "CUIT 20304050607 y 27304050607",
+        message: "CUIT 20123456787 y 23000000007",
         expected: "CUIT [redacted] y [redacted]",
       },
       { message: "DNI 12345678 y 87654321", expected: "DNI [redacted] y [redacted]" },
@@ -995,21 +995,21 @@ describe("identifiers in text", () => {
   });
 
   it("redacts a CUIT or DNI glued to a label with an underscore", () => {
-    const event = { message: "rechazado cuit_20304050607 y dni_12345678" };
+    const event = { message: "rechazado cuit_20123456787 y dni_12345678" };
 
     expect(scrubErrorReport(event).message).toBe("rechazado cuit_[redacted] y dni_[redacted]");
   });
 
   it("redacts a CUIT in an exception value", () => {
     const event = {
-      exception: { values: [{ type: "ValidationError", value: "rejected CUIT 20304050607" }] },
+      exception: { values: [{ type: "ValidationError", value: "rejected CUIT 20123456787" }] },
     };
 
     expect(scrubErrorReport(event).exception?.values?.[0]?.value).toBe("rejected CUIT [redacted]");
   });
 
   it("keeps a UUID whose groups happen to be all digits", () => {
-    const eventId = "12345678-1234-4234-8234-203040506070";
+    const eventId = "12345678-1234-4234-8234-201234567870";
     const event = { message: `event ${eventId} rejected`, extra: { event_id: eventId } };
 
     expect(scrubErrorReport(event)).toEqual(event);
@@ -1025,8 +1025,8 @@ describe("identifiers in text", () => {
 describe("identifiers stored as numbers", () => {
   it("redacts a CUIT or DNI number in extra, contexts and tags", () => {
     const event = {
-      extra: { cuit: 20304050607, dni: 12345678, short_dni: 1234567, customer: 20304050607 },
-      contexts: { customer: { number: 20304050607 } },
+      extra: { cuit: 20123456787, dni: 12345678, short_dni: 1234567, customer: 20123456787 },
+      contexts: { customer: { number: 20123456787 } },
       tags: { number: 12345678 },
     };
 
@@ -1043,7 +1043,7 @@ describe("identifiers stored as numbers", () => {
   });
 
   it("redacts a negative CUIT or DNI number", () => {
-    expect(scrubErrorReport({ extra: { value: -20304050607 } }).extra).toEqual({
+    expect(scrubErrorReport({ extra: { value: -20123456787 } }).extra).toEqual({
       value: "[redacted]",
     });
   });
@@ -1051,7 +1051,7 @@ describe("identifiers stored as numbers", () => {
   it("redacts a CUIT or DNI number among a console breadcrumb's arguments", () => {
     const breadcrumb = {
       category: "console",
-      data: { logger: "console", arguments: ["rejected", 20304050607, 12345678] },
+      data: { logger: "console", arguments: ["rejected", 20123456787, 12345678] },
     };
 
     expect(scrubErrorReportBreadcrumb(breadcrumb).data).toEqual({
@@ -1061,7 +1061,7 @@ describe("identifiers stored as numbers", () => {
   });
 
   it("redacts a CUIT or DNI number passed to console as a log parameter", () => {
-    const log = { message: "rejected", attributes: { "sentry.message.parameter.0": 20304050607 } };
+    const log = { message: "rejected", attributes: { "sentry.message.parameter.0": 20123456787 } };
 
     expect(scrubErrorReportLog(log).attributes).toEqual({
       "sentry.message.parameter.0": "[redacted]",
@@ -1089,7 +1089,7 @@ describe("identifiers stored as numbers", () => {
 
   it("redacts an identifier placed under an SDK section name by anything but the SDK", () => {
     const contexts = {
-      device: { memory_size: 17179869184, free_memory: "DNI 12345678", number: 20304050607 },
+      device: { memory_size: 17179869184, free_memory: "DNI 12345678", number: 20123456787 },
     };
 
     expect(scrubErrorReport({ contexts }).contexts).toEqual({
@@ -1098,7 +1098,7 @@ describe("identifiers stored as numbers", () => {
   });
 
   it("keeps a diagnostic field's number only inside the SDK's own context sections", () => {
-    const contexts = { customer: { memory_size: 20304050607 }, device: [20304050607] };
+    const contexts = { customer: { memory_size: 20123456787 }, device: [20123456787] };
 
     expect(scrubErrorReport({ contexts }).contexts).toEqual({
       customer: { memory_size: "[redacted]" },
@@ -1112,8 +1112,8 @@ describe("identifiers stored as numbers", () => {
       attributes: {
         "device.memory_size": 17179869184,
         "app.app_memory": 12345678,
-        memory_size: 20304050607,
-        "sentry.message.parameter.0": 20304050607,
+        memory_size: 20123456787,
+        "sentry.message.parameter.0": 20123456787,
       },
     };
 

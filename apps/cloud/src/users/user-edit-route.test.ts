@@ -3,8 +3,6 @@ import { PASSKEY_AUTHORIZATION_WINDOW_MS, RECOVERY_TOKEN_LIFETIME_MS } from "@pu
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
-import { generateSessionId, hashSessionId } from "../access/session-id.js";
 import { processRecoveryRequestJob } from "../credentials/process-recovery-request-job.js";
 import { registerRecoveryRedemptionRoutes } from "../credentials/recovery-redemption-route.js";
 import { hashRecoveryToken } from "../credentials/recovery-token-hash.js";
@@ -20,6 +18,8 @@ import {
   userRoles,
   users,
 } from "../platform/db/schema.js";
+import { SESSION_COOKIE_NAME } from "../sessions/session-cookie.js";
+import { generateSessionId, hashSessionId } from "../sessions/session-id.js";
 import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
@@ -507,7 +507,7 @@ describe("PUT /users/:id", () => {
     );
 
     expect(forOldAddress.send).toBeUndefined();
-    expect(forNewAddress.send).toMatchObject({ to: "new.email@example.com" });
+    expect(forNewAddress.send?.email).toMatchObject({ to: "new.email@example.com" });
   });
 
   it("changes only the role: bumps version once, audits only the role, voids no recovery link", async () => {

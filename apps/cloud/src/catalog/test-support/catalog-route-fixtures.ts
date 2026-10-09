@@ -1,7 +1,5 @@
 import type { NetContentUnit } from "@purosur/domain";
 import { eq } from "drizzle-orm";
-import { SESSION_COOKIE_NAME } from "../../access/session-cookie.js";
-import { generateSessionId, hashSessionId } from "../../access/session-id.js";
 import {
   brands,
   categories,
@@ -15,6 +13,8 @@ import {
   userRoles,
   users,
 } from "../../platform/db/schema.js";
+import { SESSION_COOKIE_NAME } from "../../sessions/session-cookie.js";
+import { generateSessionId, hashSessionId } from "../../sessions/session-id.js";
 import type { TestDatabase } from "../../test-support/build-test-database.js";
 import { seededLocationId } from "../../test-support/seeded-location.js";
 

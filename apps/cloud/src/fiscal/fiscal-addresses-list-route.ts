@@ -2,12 +2,12 @@ import { fiscalAddressListSchema } from "@purosur/contracts";
 import type { FiscalAddress } from "@purosur/domain/fiscal/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { sameOriginGuard } from "../access/backoffice-origin.js";
+import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
+} from "../sessions/route-access.js";
 import { DrizzleFiscalAddressReader } from "./drizzle-fiscal-address-reader.js";
 
 export interface FiscalAddressesRouteOptions<TQueryResult extends PgQueryResultHKT> {

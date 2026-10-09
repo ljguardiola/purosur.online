@@ -1,13 +1,17 @@
 import { buyerIdentificationThresholdOverviewSchema } from "@purosur/contracts";
-import { argentinaCalendarDay, type BuyerIdentificationThreshold } from "@purosur/domain";
+import {
+  argentinaCalendarDay,
+  type BuyerIdentificationThreshold,
+  earliestThresholdStartDay,
+} from "@purosur/domain";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { sameOriginGuard } from "../access/backoffice-origin.js";
+import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
+} from "../sessions/route-access.js";
 import { DrizzleBuyerIdentificationThresholdReader } from "./drizzle-buyer-identification-threshold-reader.js";
 
 export interface BuyerIdentificationThresholdsRouteOptions<TQueryResult extends PgQueryResultHKT> {
@@ -31,14 +35,13 @@ export function registerBuyerIdentificationThresholdsListRoute<
       config: { access: capabilityAccess("cash_area"), sessionSource },
     },
     async (_request, reply) => {
-      const overview = await reader.readBuyerIdentificationThresholdOverview(
-        argentinaCalendarDay(now()),
-      );
+      const today = argentinaCalendarDay(now());
+      const overview = await reader.readBuyerIdentificationThresholdOverview(today);
       await reply.code(200).send(
         buyerIdentificationThresholdOverviewSchema.parse({
           in_effect: wireThreshold(overview.inEffect),
           scheduled: wireThreshold(overview.scheduled),
-          latest_valid_from: overview.latest?.validFrom ?? null,
+          earliest_valid_from: earliestThresholdStartDay(today),
         }),
       );
     },

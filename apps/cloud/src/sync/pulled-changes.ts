@@ -80,6 +80,7 @@ export interface IssuerIdentificationVersionRow {
 export interface BuyerIdentificationThresholdRow {
   amount: number;
   validFrom: string;
+  revision: number;
 }
 
 export interface BuyerTaxStatusSetRow {

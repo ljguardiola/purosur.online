@@ -12,7 +12,6 @@ import {
 } from "@purosur/domain/sync/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { PUBLIC_ACCESS } from "../access/route-access.js";
 import { toBranchSettingsWire } from "../branch/branch-settings-wire.js";
 import { toIssuerIdentificationWire } from "../fiscal/issuer-identification-read-route.js";
 import { sendRateLimited } from "../platform/rate-limited-response.js";
@@ -23,6 +22,7 @@ import {
   type DeviceTokensOptions,
   installationTokenPorts,
 } from "../register/installation-token-ports.js";
+import { PUBLIC_ACCESS } from "../sessions/route-access.js";
 import { DrizzleChangeLog } from "./drizzle-change-log.js";
 import { DrizzleRequestAdmission } from "./drizzle-request-admission.js";
 import type { PulledCloudChange } from "./pulled-changes.js";
@@ -158,7 +158,11 @@ function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number]
         change_seq,
         entity: change.entity,
         entity_id,
-        row: { amount: change.row.amount, valid_from: change.row.validFrom },
+        row: {
+          amount: change.row.amount,
+          valid_from: change.row.validFrom,
+          revision: change.row.revision,
+        },
       };
     case "buyer_tax_status_set":
       return {

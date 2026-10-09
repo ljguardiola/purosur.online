@@ -1,8 +1,6 @@
 import { buyerIdentificationThresholdOverviewSchema } from "@purosur/contracts";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
-import { generateSessionId, hashSessionId } from "../access/session-id.js";
 import {
   buyerIdentificationThresholds,
   rolePermissions,
@@ -11,6 +9,8 @@ import {
   userRoles,
   users,
 } from "../platform/db/schema.js";
+import { SESSION_COOKIE_NAME } from "../sessions/session-cookie.js";
+import { generateSessionId, hashSessionId } from "../sessions/session-id.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { removeSeededThreshold } from "../test-support/remove-seeded-threshold.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
@@ -123,7 +123,7 @@ describe("GET /buyer-identification-thresholds", () => {
     expect(response.json()).toMatchObject({ code: "forbidden" });
   });
 
-  it("answers nothing in effect, nothing scheduled and no newest day while no threshold was recorded", async () => {
+  it("answers nothing in effect and nothing scheduled while no threshold was recorded", async () => {
     const userId = await insertUserWithPermissions(["change_fiscal_configuration"]);
 
     const response = await get(await insertSession(userId));
@@ -132,11 +132,11 @@ describe("GET /buyer-identification-thresholds", () => {
     expect(buyerIdentificationThresholdOverviewSchema.parse(response.json())).toEqual({
       in_effect: null,
       scheduled: null,
-      latest_valid_from: null,
+      earliest_valid_from: "2026-01-05",
     });
   });
 
-  it("answers the threshold in effect today, the scheduled one and the day the newest starts", async () => {
+  it("answers the threshold in effect today and the scheduled one", async () => {
     const userId = await insertUserWithPermissions(["change_fiscal_configuration"]);
     await db.insert(buyerIdentificationThresholds).values([
       { amount: 3_500_000_000, validFrom: "2026-10-01", recordedBy: userId },
@@ -153,7 +153,6 @@ describe("GET /buyer-identification-thresholds", () => {
       3_500_000_000,
       "2026-10-01",
     ]);
-    expect(body.latest_valid_from).toBe("2026-10-01");
   });
 
   it("answers the Argentina calendar day, not the UTC one", async () => {
@@ -169,6 +168,42 @@ describe("GET /buyer-identification-thresholds", () => {
     const body = buyerIdentificationThresholdOverviewSchema.parse(response.json());
     expect(body.in_effect?.valid_from).toBe("2026-01-01");
     expect(body.scheduled?.valid_from).toBe("2026-01-06");
+    expect(body.earliest_valid_from).toBe("2026-01-05");
+  });
+
+  it("answers today as the earliest day a threshold may start", async () => {
+    const userId = await insertUserWithPermissions(["change_fiscal_configuration"]);
+
+    const response = await get(await insertSession(userId));
+
+    expect(buyerIdentificationThresholdOverviewSchema.parse(response.json())).toMatchObject({
+      earliest_valid_from: "2026-01-05",
+    });
+  });
+
+  it("answers the earliest day of the same day it split the thresholds on, when midnight passes while it answers", async () => {
+    const userId = await insertUserWithPermissions(["change_fiscal_configuration"]);
+    await db
+      .insert(buyerIdentificationThresholds)
+      .values({ amount: 1_000_000, validFrom: "2026-01-06", recordedBy: userId });
+    clock = new Date("2026-01-06T02:59:59.999Z");
+    const rawSessionId = await insertSession(userId);
+    const readings = [clock, clock];
+    await app.close();
+    app = Fastify();
+    registerBuyerIdentificationThresholdsListRoute(app, {
+      db,
+      backofficeOrigin: BACKOFFICE_ORIGIN,
+      now: () => readings.shift() ?? new Date("2026-01-06T03:00:00.000Z"),
+    });
+
+    const response = await get(rawSessionId);
+
+    const body = buyerIdentificationThresholdOverviewSchema.parse(response.json());
+    expect([body.scheduled?.valid_from, body.earliest_valid_from]).toEqual([
+      "2026-01-06",
+      "2026-01-05",
+    ]);
   });
 
   it("answers no threshold in effect while every one starts later", async () => {
@@ -182,6 +217,5 @@ describe("GET /buyer-identification-thresholds", () => {
     const body = buyerIdentificationThresholdOverviewSchema.parse(response.json());
     expect(body.in_effect).toBeNull();
     expect(body.scheduled?.valid_from).toBe("2026-03-01");
-    expect(body.latest_valid_from).toBe("2026-03-01");
   });
 });

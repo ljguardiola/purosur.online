@@ -1,6 +1,4 @@
 import type {
-  AccessCoreToRendererMessage,
-  AccessRendererToCoreMessage,
   AddProductOutcome,
   Authorization,
   CancelLockedSaleOutcome,
@@ -36,23 +34,25 @@ import type {
   ScanProductOutcome,
   SearchProductsOutcome,
   SessionOpenSale,
+  SessionsCoreToRendererMessage,
+  SessionsRendererToCoreMessage,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
   SyncCoreToRendererMessage,
 } from "@purosur/contracts";
 import {
-  accessCoreToRendererMessageSchema,
   credentialsCoreToRendererMessageSchema,
   registerCoreToRendererMessageSchema,
   salesCoreToRendererMessageSchema,
+  sessionsCoreToRendererMessageSchema,
   syncCoreToRendererMessageSchema,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { z } from "zod";
 
 const coreToRendererMessageSchema = z.discriminatedUnion("type", [
-  accessCoreToRendererMessageSchema,
+  sessionsCoreToRendererMessageSchema,
   credentialsCoreToRendererMessageSchema,
   registerCoreToRendererMessageSchema,
   salesCoreToRendererMessageSchema,
@@ -60,14 +60,14 @@ const coreToRendererMessageSchema = z.discriminatedUnion("type", [
 ]);
 
 type CoreToRendererMessage =
-  | AccessCoreToRendererMessage
+  | SessionsCoreToRendererMessage
   | CredentialsCoreToRendererMessage
   | RegisterCoreToRendererMessage
   | SalesCoreToRendererMessage
   | SyncCoreToRendererMessage;
 
 type RendererToCoreMessage =
-  | AccessRendererToCoreMessage
+  | SessionsRendererToCoreMessage
   | CredentialsRendererToCoreMessage
   | RegisterRendererToCoreMessage
   | SalesRendererToCoreMessage;

@@ -13,7 +13,6 @@ import { LocaleProvider } from "@purosur/ui";
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { accessKey } from "../access/access-queries";
 import { credentialsKey } from "../credentials/credentials-queries";
 import type { CashMovementInput, CoreClient } from "../platform/core-client";
 import { createQueryClient } from "../platform/query-client";
@@ -31,6 +30,7 @@ import {
   useRegisterServiceQuery,
 } from "../register/register-queries";
 import { salesKeys } from "../sales/sales-queries";
+import { sessionsKey } from "../sessions/sessions-queries";
 import type { Enrollment, RegisterServiceState } from "./router";
 import { createAppRouter } from "./router";
 import type { SignedInPerson } from "./signed-in-person";
@@ -340,7 +340,7 @@ function Register({ core }: { core: CoreClient }) {
   useEffect(
     () =>
       core.onPulled(() => {
-        void queryClient.invalidateQueries({ queryKey: accessKey });
+        void queryClient.invalidateQueries({ queryKey: sessionsKey });
         void queryClient.invalidateQueries({ queryKey: credentialsKey });
         void queryClient.invalidateQueries({ queryKey: registerKeys.registerName });
         void queryClient.invalidateQueries({ queryKey: lockedClosersKey });

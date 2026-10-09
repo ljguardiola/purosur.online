@@ -19,7 +19,6 @@ import {
   removeSaleLine,
 } from "@purosur/domain/sales/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import {
   insertHealthCheck,
   insertPointOfSale,
@@ -30,6 +29,7 @@ import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { cashBalanceFor } from "../register/cash-session-requests";
 import { SqliteCashLedger } from "../register/sqlite-cash-ledger";
+import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import { SqliteSaleLedger } from "./sqlite-sale-ledger";
 
 const NOW = new Date("2026-09-30T12:00:00.000Z");
@@ -206,12 +206,12 @@ function promotionIdsTargeting(productId: string): string[] {
     .map((promotion) => promotion.id);
 }
 
-function saveThreshold(id: string, amount: number, validFrom: string): void {
+function saveThreshold(id: string, amount: number, validFrom: string, revision = 0): void {
   database
     .prepare(
-      "INSERT INTO buyer_identification_thresholds (id, amount, valid_from) VALUES (?, ?, ?)",
+      "INSERT INTO buyer_identification_thresholds (id, amount, valid_from, revision) VALUES (?, ?, ?, ?)",
     )
-    .run(id, amount, validFrom);
+    .run(id, amount, validFrom, revision);
 }
 
 function readySeller(): void {
@@ -535,7 +535,7 @@ describe("the buyer-identification thresholds", () => {
   });
 
   it("are every one the register holds, past and scheduled", () => {
-    saveThreshold("t2", 12_000_000, "2026-10-15");
+    saveThreshold("t2", 12_000_000, "2026-10-15", 3);
     saveThreshold("t1", 10_000_000, "2026-01-01");
 
     const thresholds = ledger.transaction((tx) => tx.buyerIdentificationThresholds());
@@ -543,8 +543,8 @@ describe("the buyer-identification thresholds", () => {
     expect(thresholds).toHaveLength(2);
     expect(thresholds).toEqual(
       expect.arrayContaining([
-        { id: "t1", amount: 10_000_000, validFrom: "2026-01-01" },
-        { id: "t2", amount: 12_000_000, validFrom: "2026-10-15" },
+        { id: "t1", amount: 10_000_000, validFrom: "2026-01-01", revision: 0 },
+        { id: "t2", amount: 12_000_000, validFrom: "2026-10-15", revision: 3 },
       ]),
     );
   });

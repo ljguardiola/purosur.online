@@ -1,4 +1,5 @@
 import { EventEmitter } from "node:events";
+import type { RunnerOptions } from "graphile-worker";
 import type { Pool } from "pg";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { auditLog, users } from "../platform/db/schema.js";
@@ -10,6 +11,7 @@ import {
   FIRST_PIN_CODE_EMAIL_TASK_IDENTIFIER,
   RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER,
   RECOVERY_REQUEST_TASK_IDENTIFIER,
+  type StartRecoveryWorkerDeps,
   type StartRecoveryWorkerOptions,
   startRecoveryWorker,
 } from "./recovery-worker.js";
@@ -17,7 +19,7 @@ import {
 const emailSender: AccessEmailSender = { sendRecoveryLink: vi.fn(), sendFirstPinCode: vi.fn() };
 
 function fakeRunner() {
-  return { stop: vi.fn().mockResolvedValue(undefined) };
+  return { stop: vi.fn().mockResolvedValue(undefined), promise: new Promise<void>(() => {}) };
 }
 
 const FIXED_NOW = new Date("2026-01-05T12:00:00.000Z");
@@ -32,6 +34,14 @@ function deferred(): { promise: Promise<void>; settle: () => void } {
     settle = resolve;
   });
   return { promise, settle };
+}
+
+function deferredFailure(): { promise: Promise<void>; fail: (error: Error) => void } {
+  let fail: (error: Error) => void = () => {};
+  const promise = new Promise<void>((_resolve, reject) => {
+    fail = reject;
+  });
+  return { promise, fail };
 }
 
 function flushPendingWork(): Promise<void> {
@@ -346,6 +356,96 @@ describe("startRecoveryWorker", () => {
     ]);
   });
 
+  it("reports the runner exiting on its own with an error, so its rejection never goes unhandled", async () => {
+    const exit = deferredFailure();
+    const runner = { stop: vi.fn().mockResolvedValue(undefined), promise: exit.promise };
+    const runWorker = vi.fn().mockResolvedValue(runner);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const unhandled: unknown[] = [];
+    const recordUnhandled = (reason: unknown) => {
+      unhandled.push(reason);
+    };
+    process.on("unhandledRejection", recordUnhandled);
+
+    try {
+      await startRecoveryWorker(
+        {
+          databaseUrl: "postgres://user:pass@db/purosur",
+          now: () => FIXED_NOW,
+          backofficeOrigin: "https://staging.purosur.online",
+          emailSender,
+        },
+        { runWorker, createPool: vi.fn().mockReturnValue(new FakePool()) },
+      );
+      const error = new Error("Could not failJobs; queue is in an inconsistent state; aborting.");
+      exit.fail(error);
+      await flushPendingWork();
+
+      expect(consoleError).toHaveBeenCalledWith(
+        "recovery worker: runner exited with an error",
+        error,
+      );
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", recordUnhandled);
+    }
+  });
+
+  it("reports to error tracking an error graphile-worker logs with a fatal error, such as a job outcome it could not record", async () => {
+    const runWorker = vi.fn().mockResolvedValue(fakeRunner());
+    const captureException = vi.fn();
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await startRecoveryWorker(
+      {
+        databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
+        backofficeOrigin: "https://staging.purosur.online",
+        emailSender,
+      },
+      { runWorker, createPool: vi.fn().mockReturnValue(new FakePool()), captureException },
+    );
+    const [options] = runWorker.mock.calls[0] as [RunnerOptions];
+    const logger = mustExist(options.logger, "the logger passed to graphile-worker's run()");
+    const error = new Error("Connection terminated unexpectedly");
+    logger
+      .scope({ label: "worker" })
+      .error("Failed to record the failure of job '1' (recovery-request)", { fatalError: error });
+
+    expect(captureException).toHaveBeenCalledExactlyOnceWith(error);
+    expect(consoleError).toHaveBeenCalledExactlyOnceWith(
+      "recovery worker: Failed to record the failure of job '1' (recovery-request)",
+      error,
+    );
+  });
+
+  it("keeps a job failure graphile-worker logs without a fatal error on the console only", async () => {
+    const runWorker = vi.fn().mockResolvedValue(fakeRunner());
+    const captureException = vi.fn();
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await startRecoveryWorker(
+      {
+        databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
+        backofficeOrigin: "https://staging.purosur.online",
+        emailSender,
+      },
+      { runWorker, createPool: vi.fn().mockReturnValue(new FakePool()), captureException },
+    );
+    const [options] = runWorker.mock.calls[0] as [RunnerOptions];
+    const logger = mustExist(options.logger, "the logger passed to graphile-worker's run()");
+    logger.error("Failed task 1 (recovery-request) with error malformed job payload", {
+      error: new Error("malformed job payload"),
+    });
+
+    expect(captureException).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    expect(consoleError.mock.calls[0]?.map(String).join(" ")).toContain(
+      "Failed task 1 (recovery-request) with error malformed job payload",
+    );
+  });
+
   it("runs more than one job at a time, so one slow job never holds up every other one", async () => {
     const runWorker = vi.fn().mockResolvedValue(fakeRunner());
 
@@ -424,13 +524,17 @@ describe("startRecoveryWorker", () => {
     });
     const processJob = vi.fn().mockResolvedValue({
       send: {
-        to: "ada@example.com",
-        link: "https://staging.purosur.online/account-recovery/passkey#raw",
+        email: {
+          to: "ada@example.com",
+          link: "https://staging.purosur.online/account-recovery/passkey#raw",
+        },
+        tokenId: "token-1",
       },
     });
     const sendRecoveryLink = vi.fn().mockImplementation(async () => {
       events.push("sendRecoveryLink called");
     });
+    const recordLinkSent = vi.fn().mockResolvedValue({ kind: "recorded" });
 
     await startRecoveryWorker(
       {
@@ -439,7 +543,7 @@ describe("startRecoveryWorker", () => {
         backofficeOrigin: "https://staging.purosur.online",
         emailSender: { sendRecoveryLink, sendFirstPinCode: vi.fn() },
       },
-      { runWorker, processJob },
+      { runWorker, processJob, recordLinkSent },
     );
 
     const [options] = runWorker.mock.calls[0] as [
@@ -464,7 +568,11 @@ describe("startRecoveryWorker", () => {
       { withPgClient },
     );
 
-    expect(events).toEqual(["withPgClient resolved", "sendRecoveryLink called"]);
+    expect(events).toEqual([
+      "withPgClient resolved",
+      "sendRecoveryLink called",
+      "withPgClient resolved",
+    ]);
   });
 
   it("propagates a failed send so graphile-worker retries the job, after the client was released", async () => {
@@ -475,8 +583,11 @@ describe("startRecoveryWorker", () => {
     );
     const processJob = vi.fn().mockResolvedValue({
       send: {
-        to: "ada@example.com",
-        link: "https://staging.purosur.online/account-recovery/passkey#raw",
+        email: {
+          to: "ada@example.com",
+          link: "https://staging.purosur.online/account-recovery/passkey#raw",
+        },
+        tokenId: "token-1",
       },
     });
     const sendRecoveryLink = vi.fn().mockRejectedValue(new Error("resend unavailable"));
@@ -559,6 +670,162 @@ describe("startRecoveryWorker", () => {
     );
 
     expect(sendRecoveryLink).not.toHaveBeenCalled();
+  });
+
+  describe("recording that a recovery link was sent", () => {
+    async function recoveryRequestTask(deps: {
+      processJob: NonNullable<StartRecoveryWorkerDeps["processJob"]>;
+      recordLinkSent: NonNullable<StartRecoveryWorkerDeps["recordLinkSent"]>;
+      sendRecoveryLink: AccessEmailSender["sendRecoveryLink"];
+      createDatabase?: StartRecoveryWorkerDeps["createDatabase"];
+    }) {
+      const runWorker = vi.fn().mockResolvedValue(fakeRunner());
+      await startRecoveryWorker(
+        {
+          databaseUrl: "postgres://user:pass@db/purosur",
+          now: () => FIXED_NOW,
+          backofficeOrigin: "https://staging.purosur.online",
+          emailSender: { sendRecoveryLink: deps.sendRecoveryLink, sendFirstPinCode: vi.fn() },
+        },
+        {
+          runWorker,
+          processJob: deps.processJob,
+          recordLinkSent: deps.recordLinkSent,
+          createDatabase: deps.createDatabase ?? vi.fn(),
+        },
+      );
+      const [options] = runWorker.mock.calls[0] as [
+        {
+          taskList: Record<
+            string,
+            (
+              payload: unknown,
+              helpers: {
+                withPgClient: (callback: (client: unknown) => Promise<unknown>) => Promise<unknown>;
+              },
+            ) => Promise<void>
+          >;
+        },
+      ];
+      return mustExist(
+        options.taskList[RECOVERY_REQUEST_TASK_IDENTIFIER],
+        "the registered recovery-request task",
+      );
+    }
+
+    const payload = {
+      email: "ada@example.com",
+      requestedAt: "2026-01-05T12:00:00.000Z",
+      requestId: "0b8e5c2a-3f4d-4e6a-9b1c-2d3e4f5a6b7c",
+    };
+    const issued = {
+      send: {
+        email: {
+          to: "ada@example.com",
+          link: "https://staging.purosur.online/account-recovery/passkey#raw",
+        },
+        tokenId: "token-1",
+      },
+    };
+
+    it("records the send of the issued token through a second client, after the client of the job was released and the link was sent", async () => {
+      const events: string[] = [];
+      const fakeDb = { marker: "fake-db" };
+      const withPgClient = vi.fn(async (callback: (client: unknown) => Promise<unknown>) => {
+        events.push("client borrowed");
+        const result = await callback({ marker: "fake-client" });
+        events.push("client released");
+        return result;
+      });
+      const task = await recoveryRequestTask({
+        processJob: vi.fn().mockResolvedValue(issued),
+        sendRecoveryLink: vi.fn().mockImplementation(async () => {
+          events.push("link sent");
+        }),
+        recordLinkSent: vi.fn().mockImplementation(async () => {
+          events.push("send recorded");
+        }),
+        createDatabase: vi.fn().mockReturnValue(fakeDb),
+      });
+
+      await task(payload, { withPgClient });
+
+      expect(events).toEqual([
+        "client borrowed",
+        "client released",
+        "link sent",
+        "client borrowed",
+        "send recorded",
+        "client released",
+      ]);
+    });
+
+    it("records the send with the database of the second client, the token id and the worker's clock", async () => {
+      const fakeDb = { marker: "fake-db" };
+      const recordLinkSent = vi.fn().mockResolvedValue({ kind: "recorded" });
+      const withPgClient = vi.fn(async (callback: (client: unknown) => Promise<unknown>) =>
+        callback({ marker: "fake-client" }),
+      );
+      const task = await recoveryRequestTask({
+        processJob: vi.fn().mockResolvedValue(issued),
+        sendRecoveryLink: vi.fn().mockResolvedValue(undefined),
+        recordLinkSent,
+        createDatabase: vi.fn().mockReturnValue(fakeDb),
+      });
+
+      await task(payload, { withPgClient });
+
+      expect(recordLinkSent).toHaveBeenCalledWith(fakeDb, "token-1", expect.any(Object));
+      const [, , deps] = recordLinkSent.mock.calls[0] as [unknown, unknown, { now: () => Date }];
+      expect(deps.now()).toEqual(FIXED_NOW);
+    });
+
+    it("records nothing and rethrows when the send fails", async () => {
+      const recordLinkSent = vi.fn();
+      const withPgClient = vi.fn(async (callback: (client: unknown) => Promise<unknown>) =>
+        callback({ marker: "fake-client" }),
+      );
+      const task = await recoveryRequestTask({
+        processJob: vi.fn().mockResolvedValue(issued),
+        sendRecoveryLink: vi.fn().mockRejectedValue(new Error("resend unavailable")),
+        recordLinkSent,
+      });
+
+      await expect(task(payload, { withPgClient })).rejects.toThrow("resend unavailable");
+
+      expect(recordLinkSent).not.toHaveBeenCalled();
+      expect(withPgClient).toHaveBeenCalledTimes(1);
+    });
+
+    it("records nothing when the job had nothing to send", async () => {
+      const recordLinkSent = vi.fn();
+      const withPgClient = vi.fn(async (callback: (client: unknown) => Promise<unknown>) =>
+        callback({ marker: "fake-client" }),
+      );
+      const task = await recoveryRequestTask({
+        processJob: vi.fn().mockResolvedValue({}),
+        sendRecoveryLink: vi.fn(),
+        recordLinkSent,
+      });
+
+      await task(payload, { withPgClient });
+
+      expect(recordLinkSent).not.toHaveBeenCalled();
+      expect(withPgClient).toHaveBeenCalledTimes(1);
+    });
+
+    it("fails the job when recording the send fails, so graphile-worker retries it", async () => {
+      const withPgClient = vi.fn(async (callback: (client: unknown) => Promise<unknown>) =>
+        callback({ marker: "fake-client" }),
+      );
+      const task = await recoveryRequestTask({
+        processJob: vi.fn().mockResolvedValue(issued),
+        sendRecoveryLink: vi.fn().mockResolvedValue(undefined),
+        recordLinkSent: vi.fn().mockRejectedValue(new Error("database down")),
+      });
+
+      await expect(task(payload, { withPgClient })).rejects.toThrow("database down");
+    });
   });
 
   it("rejects a malformed payload without ever borrowing a database client", async () => {

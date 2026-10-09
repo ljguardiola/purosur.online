@@ -29,6 +29,11 @@ patchedDependencies:
   # test inside a describe block is skipped), and a test file that fails to import now reports no
   # tests at all (the runner takes that as a passing run). Remove once the runner handles both.
   "@stryker-mutator/vitest-runner@10.0.0": patches/@stryker-mutator__vitest-runner@10.0.0.patch
+  # graphile-worker records a finished or failed job's outcome without awaiting or catching it, so
+  # a connection dropped during that query is an unhandled rejection, which crashes the cloud when
+  # Sentry is not initialized. The patch logs it as a fatal error through graphile-worker's logger
+  # instead. Remove once graphile-worker handles that rejection itself.
+  "graphile-worker@0.18.0": patches/graphile-worker@0.18.0.patch
 
 packageExtensions:
   # unplugin types its Vite plugins against whichever vite it can reach without declaring it, so

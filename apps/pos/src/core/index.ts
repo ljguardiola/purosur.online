@@ -11,14 +11,6 @@ import {
   localDataFolderFromCoreArguments,
   sentryEnvironmentFromCoreArguments,
 } from "../shared/channel";
-import { createActionGate } from "./access/action-gate";
-import { authorizersOf } from "./access/authorizers";
-import { hashPin } from "./access/pin-hash";
-import { redeemedPerson } from "./access/redeemed-person";
-import { firstSignIn, signIn } from "./access/sign-in";
-import { lookUpSignIn } from "./access/sign-in-lookup";
-import { createSignedInPerson } from "./access/signed-in-person";
-import { SqliteSignInStore } from "./access/sqlite-sign-in-store";
 import { requestFirstPinCode } from "./credentials/first-pin-code-request";
 import { checkPinCodeRedemption, redeemPinCode } from "./credentials/pin-code-redemption";
 import { pinPolicy } from "./credentials/pin-policy";
@@ -83,6 +75,14 @@ import {
   scanProductFor,
   searchProductsFor,
 } from "./sales/sale-requests";
+import { createActionGate } from "./sessions/action-gate";
+import { authorizersOf } from "./sessions/authorizers";
+import { hashPin } from "./sessions/pin-hash";
+import { redeemedPerson } from "./sessions/redeemed-person";
+import { firstSignIn, signIn } from "./sessions/sign-in";
+import { lookUpSignIn } from "./sessions/sign-in-lookup";
+import { createSignedInPerson } from "./sessions/signed-in-person";
+import { SqliteSignInStore } from "./sessions/sqlite-sign-in-store";
 import {
   checkInstallation,
   installationCheckResultOf,

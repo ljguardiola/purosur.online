@@ -1,13 +1,17 @@
 import { EventEmitter } from "node:events";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { Runner, RunnerOptions } from "graphile-worker";
-import { run } from "graphile-worker";
+import { consoleLogFactory, Logger, run } from "graphile-worker";
 import pg, { type Pool, type PoolClient } from "pg";
 import { type BackgroundJobs, databaseOfClient } from "../platform/background-jobs.js";
 import { runShutdownSteps } from "../platform/run-shutdown-steps.js";
 import { reportPoolErrors } from "./pool-connection-error-handler.js";
-import { processRecoveryRequestJob } from "./process-recovery-request-job.js";
+import {
+  processRecoveryRequestJob,
+  recordRecoveryLinkSentJob,
+} from "./process-recovery-request-job.js";
 import type { AccessEmailSender } from "./recovery-email-sender.js";
+import { type ReportRecoveryErrorDeps, reportRecoveryError } from "./recovery-error-reporting.js";
 import { flushClosedRecoveryRejectedAttemptWindows } from "./recovery-rejected-attempt-flush.js";
 import { recoveryRequestJobPayloadSchema } from "./recovery-request-job-payload.js";
 import { findPinCodeByCode, sendFirstPinCodeEmailJob } from "./send-first-pin-code-email-job.js";
@@ -34,10 +38,11 @@ export interface StartRecoveryWorkerOptions {
   jobs?: readonly BackgroundJobs[];
 }
 
-export interface StartRecoveryWorkerDeps {
+export interface StartRecoveryWorkerDeps extends ReportRecoveryErrorDeps {
   runWorker?: (options: RunnerOptions) => Promise<Runner>;
   createDatabase?: (client: PoolClient) => NodePgDatabase<Record<string, never>>;
   processJob?: typeof processRecoveryRequestJob;
+  recordLinkSent?: typeof recordRecoveryLinkSentJob;
   flush?: typeof flushClosedRecoveryRejectedAttemptWindows;
   findPinCode?: typeof findPinCodeByCode;
   /**
@@ -47,6 +52,19 @@ export interface StartRecoveryWorkerDeps {
   createPool?: (connectionString: string) => Pick<Pool, "on" | "end">;
 }
 
+function loggerReportingFatalErrors(deps: ReportRecoveryErrorDeps): Logger {
+  return new Logger((scope) => {
+    const logToConsole = consoleLogFactory(scope);
+    return (level, message, { fatalError }) => {
+      if (level === "error" && fatalError !== undefined) {
+        reportRecoveryError(`recovery worker: ${message}`, fatalError, deps);
+      } else {
+        logToConsole(level, message, {});
+      }
+    };
+  });
+}
+
 export async function startRecoveryWorker(
   options: StartRecoveryWorkerOptions,
   deps: StartRecoveryWorkerDeps = {},
@@ -54,6 +72,7 @@ export async function startRecoveryWorker(
   const doRun = deps.runWorker ?? run;
   const doCreateDatabase = deps.createDatabase ?? databaseOfClient;
   const doProcessJob = deps.processJob ?? processRecoveryRequestJob;
+  const doRecordLinkSent = deps.recordLinkSent ?? recordRecoveryLinkSentJob;
   const doFlush = deps.flush ?? flushClosedRecoveryRejectedAttemptWindows;
   const doFindPinCode = deps.findPinCode ?? findPinCodeByCode;
   const doCreatePool =
@@ -75,6 +94,7 @@ export async function startRecoveryWorker(
   const runner = await doRun({
     pgPool: pool as Pool,
     concurrency: WORKER_CONCURRENCY,
+    logger: loggerReportingFatalErrors(deps),
     // graphile-worker 0.18's RunnerOptions takes this crontab string in place of a crontab file.
     crontab: [
       RECOVERY_REJECTED_ATTEMPT_FLUSH_CRONTAB_LINE,
@@ -96,7 +116,11 @@ export async function startRecoveryWorker(
           }),
         );
         if (result.send) {
-          await options.emailSender.sendRecoveryLink(result.send);
+          const { email, tokenId } = result.send;
+          await options.emailSender.sendRecoveryLink(email);
+          await helpers.withPgClient((client) =>
+            doRecordLinkSent(doCreateDatabase(client), tokenId, { now }),
+          );
         }
       },
       [FIRST_PIN_CODE_EMAIL_TASK_IDENTIFIER]: (payload, helpers) =>
@@ -110,6 +134,9 @@ export async function startRecoveryWorker(
         await helpers.withPgClient((client) => doFlush(doCreateDatabase(client), { now }));
       },
     },
+  });
+  runner.promise.catch((error: unknown) => {
+    reportRecoveryError("recovery worker: runner exited with an error", error, deps);
   });
 
   return {

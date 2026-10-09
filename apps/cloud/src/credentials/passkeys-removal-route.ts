@@ -1,16 +1,16 @@
 import { removeOwnPasskey } from "@purosur/domain/credentials/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { backofficeOriginGuard } from "../access/backoffice-origin.js";
-import { AUTHORIZATION_REQUIRED_RESPONSE } from "../access/passkey-authorization-guard.js";
+import { readRecordIds } from "../platform/record-id-params.js";
+import { backofficeOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   OPEN_SESSION_ACCESS,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
-import { readRecordIds } from "../platform/record-id-params.js";
+} from "../sessions/route-access.js";
 import { DrizzlePasskeyRemovalStore } from "./drizzle-passkey-removal-store.js";
+import { AUTHORIZATION_REQUIRED_RESPONSE } from "./passkey-authorization-guard.js";
 
 export interface PasskeyRemovalRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;

@@ -1,5 +1,4 @@
 import { createRoute, createRouter, redirect } from "@tanstack/react-router";
-import { signInRoute } from "../access/routes";
 import { alertsListRoute, alertsOverviewRoute } from "../alerts/routes";
 import { branchSettingsRoute } from "../branch/routes";
 import {
@@ -16,6 +15,7 @@ import { rolesListRoute } from "../permissions/routes";
 import { discountsListRoute, pricesListRoute } from "../pricing/routes";
 import { registersListRoute } from "../register/routes";
 import { reportsIndexRoute, salesByDayRoute } from "../sales/routes";
+import { signInRoute } from "../sessions/routes";
 import { stockBalancesRoute, stockCountsRoute, stockMovementsRoute } from "../stock/routes";
 import { userDetailRoute, usersListRoute } from "../users/routes";
 import { cashAndFiscalAreaRoute } from "./cash-and-fiscal-area";

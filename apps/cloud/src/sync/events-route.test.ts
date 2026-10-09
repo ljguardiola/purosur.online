@@ -8,7 +8,6 @@ import { canonicalOutboxEvent } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import Fastify from "fastify";
 import { describe, expect, it } from "vitest";
-import { registerRouteAccess } from "../access/route-access.js";
 import {
   alerts,
   deviceState,
@@ -19,6 +18,7 @@ import {
 } from "../platform/db/schema.js";
 import { issueDeviceToken } from "../register/device-token.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { registerRouteAccess } from "../sessions/route-access.js";
 import { buildTestDatabase } from "../test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";

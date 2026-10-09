@@ -3,8 +3,6 @@ import { PASSKEY_AUTHORIZATION_WINDOW_MS } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
-import { generateSessionId, hashSessionId } from "../access/session-id.js";
 import { processRecoveryRequestJob } from "../credentials/process-recovery-request-job.js";
 import { voidOutstandingRecoveryTokens } from "../credentials/void-outstanding-recovery-tokens.js";
 import {
@@ -18,6 +16,8 @@ import {
   userRoles,
   users,
 } from "../platform/db/schema.js";
+import { SESSION_COOKIE_NAME } from "../sessions/session-cookie.js";
+import { generateSessionId, hashSessionId } from "../sessions/session-id.js";
 import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
@@ -433,7 +433,7 @@ describe("POST /users", () => {
       { now: () => currentTime, backofficeOrigin: BACKOFFICE_ORIGIN },
     );
 
-    expect(result.send).toMatchObject({ to: "newhire@example.com" });
+    expect(result.send?.email).toMatchObject({ to: "newhire@example.com" });
   });
 
   describe("the shared passkey-authorization guard", () => {
