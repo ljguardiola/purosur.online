@@ -20,14 +20,24 @@ class FakeTransaction implements BuyerIdentificationThresholdStoreTransaction {
     this.store = store;
   }
 
-  async lockLatestBuyerIdentificationThreshold(): Promise<
-    BuyerIdentificationThreshold | undefined
-  > {
-    this.store.operationOrder.push("lockLatestBuyerIdentificationThreshold");
-    const [latest] = [...this.state.thresholds].sort((a, b) =>
-      b.validFrom.localeCompare(a.validFrom),
-    );
-    return latest && { ...latest };
+  async lockBuyerIdentificationThresholds(): Promise<void> {
+    this.store.operationOrder.push("lockBuyerIdentificationThresholds");
+  }
+
+  async readThresholdStartingOn(day: string): Promise<BuyerIdentificationThreshold | undefined> {
+    this.store.operationOrder.push("readThresholdStartingOn");
+    const [current] = this.state.thresholds
+      .filter((threshold) => threshold.validFrom === day)
+      .sort((a, b) => b.revision - a.revision);
+    return current && { ...current };
+  }
+
+  async readThresholdInEffectOn(day: string): Promise<BuyerIdentificationThreshold | undefined> {
+    this.store.operationOrder.push("readThresholdInEffectOn");
+    const [inEffect] = this.state.thresholds
+      .filter((threshold) => threshold.validFrom <= day)
+      .sort((a, b) => b.validFrom.localeCompare(a.validFrom) || b.revision - a.revision);
+    return inEffect && { ...inEffect };
   }
 
   async recordBuyerIdentificationThreshold(
@@ -38,6 +48,7 @@ class FakeTransaction implements BuyerIdentificationThresholdStoreTransaction {
       id: `threshold-${this.state.nextId++}`,
       amount: threshold.amount,
       validFrom: threshold.validFrom,
+      revision: threshold.revision,
     };
     this.state.thresholds.push(recorded);
     this.state.audited.push({ ...threshold });
