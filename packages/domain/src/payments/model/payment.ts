@@ -2,7 +2,6 @@ interface ApprovedPayment {
   id: string;
   saleId: string;
   kind: "SALE";
-  provider: "NONE";
   amount: number;
   state: "APPROVED";
   occurredAt: Date;
@@ -10,19 +9,29 @@ interface ApprovedPayment {
 
 interface CashPayment extends ApprovedPayment {
   method: "CASH";
+  provider: "NONE";
   tendered?: number;
 }
 
 interface TransferPayment extends ApprovedPayment {
   method: "TRANSFER";
+  provider: "NONE";
   tendered?: never;
   authorizedBy: string;
   confirmedAt: Date;
 }
 
-export type PaymentTransaction = CashPayment | TransferPayment;
+interface MercadoPagoQrPayment extends ApprovedPayment {
+  method: "QR";
+  provider: "MERCADOPAGO_QR";
+  tendered?: never;
+  authorizedBy?: never;
+  confirmedAt?: never;
+}
 
-export const PAYMENT_METHODS = ["CASH", "TRANSFER"] as const;
+export type PaymentTransaction = CashPayment | TransferPayment | MercadoPagoQrPayment;
+
+export const PAYMENT_METHODS = ["CASH", "TRANSFER", "QR"] as const;
 
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 

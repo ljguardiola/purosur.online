@@ -6,11 +6,13 @@ export type Refund = OpenSale["refunds_on_cancel"][number];
 const GIVEN_BACK_BY: Record<Refund["method"], string> = {
   CASH: "en efectivo",
   TRANSFER: "por transferencia",
+  QR: "por QR de Mercado Pago",
 };
 
 const PENDING_OF: Record<Refund["method"], string> = {
   CASH: "del pago en efectivo",
   TRANSFER: "de la transferencia",
+  QR: "del pago con QR",
 };
 
 function refundLine(refund: Refund): string {
