@@ -700,7 +700,7 @@ describe("charging an open sale in cash", () => {
     ]);
   });
 
-  it("carries the stock movements in the sale_completed event, version 3", () => {
+  it("carries the stock movements in the sale_completed event, version 4", () => {
     const saleId = sellTwo();
 
     charge(saleId, 5000);
@@ -712,7 +712,7 @@ describe("charging an open sale in cash", () => {
     const stored = database
       .prepare("SELECT id, sale_line_id, product_id, delta FROM stock_movements")
       .all();
-    expect(event.schema_version).toBe(3);
+    expect(event.schema_version).toBe(4);
     expect(JSON.parse(event.payload).stock_movements).toEqual(
       (stored as { id: string; sale_line_id: string; product_id: string; delta: number }[]).map(
         (row) => ({ ...row }),
@@ -883,14 +883,66 @@ describe("charging an open sale in cash", () => {
     expect(database.prepare("SELECT last_device_seq FROM sync_state").get()).toEqual({
       last_device_seq: 0,
     });
+    expect(database.prepare("SELECT last_number FROM operation_counter").get()).toEqual({
+      last_number: 0,
+    });
+  });
+
+  it("numbers each completed sale from the register's operation counter, from 1", () => {
+    const first = sellTwo();
+    charge(first, 3000);
+    const second = sellTwo();
+    charge(second, 3000);
+
+    expect(
+      database.prepare("SELECT id, operation_number FROM sales ORDER BY operation_number").all(),
+    ).toEqual([
+      { id: first, operation_number: 1 },
+      { id: second, operation_number: 2 },
+    ]);
+    expect(database.prepare("SELECT last_number FROM operation_counter").get()).toEqual({
+      last_number: 2,
+    });
+    expect(
+      database
+        .prepare(
+          "SELECT payload FROM outbox WHERE event_type = 'sale_completed' ORDER BY device_seq",
+        )
+        .all()
+        .map((row) => JSON.parse((row as { payload: string }).payload).operation_number),
+    ).toEqual([1, 2]);
+  });
+
+  it("takes the next number only inside the transaction that keeps it", () => {
+    expect(ledger.transaction((tx) => tx.takeOperationNumber())).toBe(1);
+    expect(() =>
+      ledger.transaction((tx) => {
+        tx.takeOperationNumber();
+        throw new Error("the sale failed");
+      }),
+    ).toThrow("the sale failed");
+
+    expect(ledger.transaction((tx) => tx.takeOperationNumber())).toBe(2);
+  });
+
+  it("leaves a partly paid sale without a number", () => {
+    const saleId = sellTwo();
+    charge(saleId, 1000);
+
+    expect(database.prepare("SELECT operation_number FROM sales").get()).toEqual({
+      operation_number: null,
+    });
+    expect(database.prepare("SELECT last_number FROM operation_counter").get()).toEqual({
+      last_number: 0,
+    });
   });
 
   it("refuses to complete a sale that is not in progress", () => {
     const saleId = sellTwo();
     charge(saleId, 3000);
 
-    expect(() => ledger.transaction((tx) => tx.recordCompletedSale(saleId, NOW))).toThrow();
-    expect(() => ledger.transaction((tx) => tx.recordCompletedSale("missing", NOW))).toThrow();
+    expect(() => ledger.transaction((tx) => tx.recordCompletedSale(saleId, NOW, 1))).toThrow();
+    expect(() => ledger.transaction((tx) => tx.recordCompletedSale("missing", NOW, 1))).toThrow();
   });
 });
 

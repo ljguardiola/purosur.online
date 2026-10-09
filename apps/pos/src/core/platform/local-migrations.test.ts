@@ -1426,9 +1426,34 @@ describe("the register's local migrations", () => {
 
       const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
 
-      expect(after.prepare("SELECT id, print_attempted_at, printed_at FROM sales").all()).toEqual([
-        { id: "sale-1", print_attempted_at: null, printed_at: null },
+      expect(
+        after
+          .prepare("SELECT id, print_attempted_at, printed_at, operation_number FROM sales")
+          .all(),
+      ).toEqual([
+        { id: "sale-1", print_attempted_at: null, printed_at: null, operation_number: null },
       ]);
+      expect(after.prepare("SELECT id, last_number FROM operation_counter").all()).toEqual([
+        { id: 1, last_number: 0 },
+      ]);
+      expect(() =>
+        after.prepare("INSERT INTO operation_counter (id, last_number) VALUES (2, 0)").run(),
+      ).toThrow(/CHECK/);
+      expect(() => after.prepare("UPDATE operation_counter SET last_number = -1").run()).toThrow(
+        /CHECK/,
+      );
+      after.exec(
+        `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, operation_number)
+         VALUES ('sale-2', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-09-30T12:06:00.000Z', 7),
+                ('sale-3', 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL, NULL),
+                ('sale-4', 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL, NULL)`,
+      );
+      expect(() =>
+        after.exec(
+          `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, operation_number)
+           VALUES ('sale-5', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-09-30T12:07:00.000Z', 7)`,
+        ),
+      ).toThrow(/UNIQUE/);
       const receipt = after.prepare(
         `INSERT INTO sale_receipts (sale_id, template_version, head, body)
          VALUES (@sale_id, @template_version, @head, @body)`,

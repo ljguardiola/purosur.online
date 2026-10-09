@@ -14,7 +14,11 @@ function receipt(overrides: Partial<ReceiptContent> = {}): ReceiptContent {
       whatsappNumber: "11 5555-0100",
       instagramHandle: "@puro.sur",
     },
-    operation: { occurredAt: new Date("2026-09-30T15:05:00.000Z"), servedByFirstName: "Ada" },
+    operation: {
+      occurredAt: new Date("2026-09-30T15:05:00.000Z"),
+      servedByFirstName: "Ada",
+      operationNumber: 482,
+    },
     lines: [
       {
         productName: "Yerba a granel",
@@ -92,7 +96,7 @@ const HEAD = [
   "      WhatsApp 11 5555-0100  ·  @puro.sur",
   RULE,
   "Fecha 30/09/2026                      Hora 12:05",
-  "Atendió Ada",
+  "Operación 000482                         Atendió Ada",
   RULE,
 ];
 
@@ -175,12 +179,29 @@ describe("the ESC/POS receipt template", () => {
     expect(textLines).toContain(`${"A".repeat(23)}               $ 9.800,00`);
   });
 
+  it("writes the operation number with six digits, however small or large", () => {
+    const written = (operationNumber: number) =>
+      printed(
+        receipt({
+          operation: {
+            occurredAt: new Date("2026-09-30T15:05:00.000Z"),
+            servedByFirstName: "Ada",
+            operationNumber,
+          },
+        }),
+      ).textLines;
+
+    expect(written(1)).toContain("Operación 000001                         Atendió Ada");
+    expect(written(1_234_567)).toContain("Operación 1234567                        Atendió Ada");
+  });
+
   it("writes the moment of the sale in Argentina's time", () => {
     const { textLines } = printed(
       receipt({
         operation: {
           occurredAt: new Date("2026-10-01T02:30:00.000Z"),
           servedByFirstName: "Ada",
+          operationNumber: 482,
         },
       }),
     );

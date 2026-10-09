@@ -21,8 +21,8 @@ function insertCompletedSale(saleId: string, state = "COMPLETED"): void {
   database.exec(
     `INSERT OR IGNORE INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
      VALUES ('s1', 'r1', 'device-1', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN');
-     INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
-     VALUES ('${saleId}', 'r1', 'device-1', 's1', 'u1', '${state}', ${state === "OPEN" ? "NULL" : `'${COMPLETED_AT}'`});`,
+     INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, operation_number)
+     VALUES ('${saleId}', 'r1', 'device-1', 's1', 'u1', '${state}', ${state === "OPEN" ? "NULL" : `'${COMPLETED_AT}'`}, ${state === "OPEN" ? "NULL" : "(SELECT 482 + count(*) FROM sales)"});`,
   );
 }
 
@@ -230,7 +230,16 @@ describe("a receipt ledger's stored receipt", () => {
 });
 
 describe("a receipt ledger's source of a sale", () => {
-  it("holds the branch header, the moment, who served, the total, the lines and the payments", () => {
+  it("cannot be built for a completed sale that never took an operation number", () => {
+    insertSaleWithEverything();
+    database.exec("UPDATE sales SET operation_number = NULL");
+
+    expect(() => inTransaction((tx) => tx.receiptSource("sale-1"))).toThrow(
+      "the sale's receipt cannot be sourced",
+    );
+  });
+
+  it("holds the branch header, the moment, who served, the operation number, the total, the lines and the payments", () => {
     insertSaleWithEverything();
 
     const source = inTransaction((tx) => tx.receiptSource("sale-1"));
@@ -243,6 +252,7 @@ describe("a receipt ledger's source of a sale", () => {
       },
       occurredAt: new Date(COMPLETED_AT),
       servedByFirstName: "Ada",
+      operationNumber: 482,
       total: 737100,
       lines: [
         {
