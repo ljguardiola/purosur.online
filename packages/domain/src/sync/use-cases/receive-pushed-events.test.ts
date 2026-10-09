@@ -521,7 +521,12 @@ describe("reporting how the register stands", () => {
 
     await receive(inbox, eventsOf(1));
 
-    expect(inbox.state.observedConditions).toHaveLength(1);
+    expect(
+      inbox.state.observedConditions.filter(
+        ({ observation }) =>
+          (observation.holds ? observation.alert.kind : observation.kind) === "sales_denied",
+      ),
+    ).toEqual([]);
   });
 
   it("observes the sales-denied condition of a push it refuses for a gap, a stale device, a broken chain or a version not accepted", async () => {

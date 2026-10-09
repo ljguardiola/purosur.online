@@ -4,7 +4,7 @@ import {
   type PushEventsRequest,
   pushEventsResponseSchema,
 } from "@purosur/contracts";
-import { canonicalOutboxEvent } from "@purosur/domain";
+import { canonicalOutboxEvent, type SalesDeniedReport } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import Fastify from "fastify";
 import { describe, expect, it } from "vitest";
@@ -254,9 +254,9 @@ describe("POST /events", () => {
       sales_denied_reason: "event_history_broken",
     } as const;
 
-    function reporting(report: Partial<PushEventsRequest["telemetry"]>): PushEventsRequest {
-      const { telemetry, ...rest } = bodyOf([]);
-      return { ...rest, telemetry: { ...telemetry, ...report } };
+    function reporting(report: SalesDeniedReport): PushEventsRequest {
+      const storage = { wal_size_bytes: 4096, disk_free_bytes: 50_000_000, disk_free_ratio: 0.42 };
+      return { ...bodyOf([]), telemetry: { ...storage, ...report } };
     }
 
     it("opens a critical alert for the register, in its branch, when it reports it can't sell", async () => {
