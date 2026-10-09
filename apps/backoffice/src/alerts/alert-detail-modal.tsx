@@ -29,6 +29,7 @@ import {
   ShieldPlus,
   ShieldX,
   TriangleAlert,
+  WifiOff,
 } from "lucide-react";
 import { type ReactElement, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
@@ -39,6 +40,7 @@ import { roleDisplayName } from "../platform/role-display-name";
 import { schemaText } from "../platform/schema-text";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { type BackofficeAccess, canCloseAlertsManually } from "../shell/backoffice-access";
+import { alertKindDescription } from "./alert-kind-description";
 import { ALERT_LEVEL_TONE } from "./alert-level-tone";
 import { alertScopeLabel } from "./alert-scope-label";
 import { closeAlert as closeAlertDefault, fetchAlert as fetchAlertDefault } from "./alerts-api";
@@ -48,6 +50,7 @@ import {
   useRefreshAlerts,
   useRefreshAlertsAfterClosing,
 } from "./alerts-queries";
+import { localAlertText } from "./local-alert-text";
 import {
   invariantViolationDescription,
   quarantinedEventDescription,
@@ -132,6 +135,8 @@ function alertIcon(kind: string): Icon {
       return <TriangleAlert />;
     case "update_required":
       return <CloudOff />;
+    case "register_silent":
+      return <WifiOff />;
     default:
       return <Bell />;
   }
@@ -205,7 +210,15 @@ function arcaCertificateExpiringDescription(notAfter: string, environment: strin
   return `El certificado de ARCA de ${label} vence el ${alertDateTime(new Date(notAfter))}. Conviene cargar uno nuevo antes de esa fecha.`;
 }
 
+function localTextOf(alert: AlertDetail) {
+  return alert.audience === "local" ? localAlertText(alert.kind) : undefined;
+}
+
 function alertTitle(alert: AlertDetail): string {
+  const local = localTextOf(alert);
+  if (local !== undefined) {
+    return local.title;
+  }
   switch (alert.kind) {
     case "backoffice_passkey_changed":
       return alert.detail.action === "removed"
@@ -229,6 +242,8 @@ function alertTitle(alert: AlertDetail): string {
       return "El certificado de ARCA está por vencer";
     case "update_required":
       return "La nube no acepta la versión de una caja";
+    case "register_silent":
+      return alertKindDescription(alert.kind);
   }
 }
 
@@ -284,6 +299,8 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
       return arcaCertificateExpiringDescription(alert.detail.notAfter, targetName);
     case "update_required":
       return `La caja «${targetName}» usa la versión ${alert.detail.appVersion}, que la nube ya no acepta. Hay que actualizarla para que vuelva a sincronizar.`;
+    case "register_silent":
+      return "";
   }
 }
 
@@ -304,6 +321,22 @@ function PermissionsAddedDescription({
     return <LoadFailure {...cloudLoadFailure(data, "los permisos")} />;
   }
   return <p className="text-text text-body">{alertDescription(alert, data.value)}</p>;
+}
+
+function AlertDescription({ alert }: { alert: AlertDetail }) {
+  const local = localTextOf(alert);
+  if (local === undefined) {
+    return <p className="text-text text-body">{alertDescription(alert)}</p>;
+  }
+  return (
+    <>
+      <p className="text-text text-body">{local.meaning}</p>
+      <div className="flex flex-col gap-1">
+        <p className="font-bold text-text text-detail">Qué hacer</p>
+        <p className="text-text text-body">{local.whatToDo}</p>
+      </div>
+    </>
+  );
 }
 
 export function AlertDetailModal(props: AlertDetailModalProps) {
@@ -456,7 +489,7 @@ function OpenAlertDetailModal({
                 onSessionEnded={onSessionEnded}
               />
             ) : (
-              <p className="text-text text-body">{alertDescription(alert)}</p>
+              <AlertDescription alert={alert} />
             )}
             <div className="flex flex-col gap-1 rounded-lg border border-border p-3 text-detail">
               <div className="flex justify-between gap-2">
@@ -497,7 +530,7 @@ function OpenAlertDetailModal({
                 ))}
               </div>
             </div>
-            {alert.open ? (
+            {alert.open && !alert.resolvesByItself ? (
               <p className="text-text-subtle text-detail">
                 No se cierra sola: se cierra a mano después de revisarla.
               </p>

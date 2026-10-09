@@ -1,8 +1,10 @@
-import { resolveStablyClearedAlerts } from "@purosur/domain/alerts/use-cases";
+import { detectQuietRegisters, resolveStablyClearedAlerts } from "@purosur/domain/alerts/use-cases";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PoolClient } from "pg";
+import { DrizzleBranchHoursReader } from "../branch/drizzle-branch-hours-reader.js";
 import { type BackgroundJobs, databaseOfClient } from "../platform/background-jobs.js";
+import { DrizzleWatchedRegisterReader } from "../register/drizzle-watched-register-reader.js";
 import { hashSourceAddress } from "../sessions/sign-in-lockout.js";
 import { DrizzleAlertStore } from "./drizzle-alert-store.js";
 
@@ -21,9 +23,23 @@ function resolveClearedConditionAlertsTask<TQueryResult extends PgQueryResultHKT
   });
 }
 
+function detectQuietRegistersTask<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  deps: { now: () => Date },
+): Promise<number> {
+  return detectQuietRegisters({
+    registers: new DrizzleWatchedRegisterReader(db),
+    branchHours: new DrizzleBranchHoursReader(db),
+    store: new DrizzleAlertStore(db, deps.now),
+    clock: { now: deps.now },
+    hasher: { hash: hashSourceAddress },
+  });
+}
+
 export interface AlertConditionResolutionJobsDeps {
   createDatabase?: (client: PoolClient) => NodePgDatabase<Record<string, never>>;
   resolve?: typeof resolveClearedConditionAlertsTask;
+  detectQuiet?: typeof detectQuietRegistersTask;
 }
 
 export function alertConditionResolutionJobs(
@@ -32,12 +48,15 @@ export function alertConditionResolutionJobs(
 ): BackgroundJobs {
   const doCreateDatabase = deps.createDatabase ?? databaseOfClient;
   const doResolve = deps.resolve ?? resolveClearedConditionAlertsTask;
+  const doDetectQuiet = deps.detectQuiet ?? detectQuietRegistersTask;
   return {
     taskList: {
       [ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER]: async (_payload, helpers) => {
-        await helpers.withPgClient((client) =>
-          doResolve(doCreateDatabase(client), { now: options.now }),
-        );
+        await helpers.withPgClient(async (client) => {
+          const db = doCreateDatabase(client);
+          await doResolve(db, { now: options.now });
+          await doDetectQuiet(db, { now: options.now });
+        });
       },
     },
     crontab: [ALERT_CONDITION_RESOLUTION_CRONTAB_LINE],

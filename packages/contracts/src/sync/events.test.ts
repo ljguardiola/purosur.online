@@ -46,8 +46,8 @@ describe("push events request", () => {
     expect(result.data?.events[0]?.event_id).toBe("0123abcd-ef01-0567-f9ab-cdef01234567");
   });
 
-  it("refuses an empty batch", () => {
-    expect(requestWith({ events: [] }).success).toBe(false);
+  it("accepts a push of no events, which only reports the register's version and telemetry", () => {
+    expect(requestWith({ events: [] }).success).toBe(true);
   });
 
   it("refuses a missing or empty app version", () => {

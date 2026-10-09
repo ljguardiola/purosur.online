@@ -8,6 +8,10 @@ test("describes a kind of the catalog by what happened", () => {
   );
 });
 
+test("describes a register that stopped syncing", () => {
+  expect(alertKindDescription("register_silent")).toBe("Una caja dejó de sincronizar");
+});
+
 test("gives no description to a kind this app does not know yet", () => {
   expect(alertKindDescription("register_battery_low")).toBe("");
 });

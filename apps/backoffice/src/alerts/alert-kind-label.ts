@@ -11,6 +11,7 @@ const ALERT_KIND_LABELS = {
   event_invariant_violated: "Inconsistencia en un evento",
   arca_certificate_expiring: "Certificado de ARCA por vencer",
   update_required: "Versión de caja no aceptada",
+  register_silent: "Caja sin sincronizar",
 } satisfies Record<AlertKind, string>;
 
 export function alertKindLabel(kind: string): string {

@@ -33,6 +33,15 @@ function receive(
   );
 }
 
+async function pushReceivedBy(
+  inbox: FakeInbox,
+  events: PushedEvent[],
+  overrides: Partial<ReceivePushedEventsInput> = {},
+): Promise<FakeInbox> {
+  await receive(inbox, events, overrides);
+  return inbox;
+}
+
 describe("receiving the events a register pushes", () => {
   it("locks the installation before reading anything of it", async () => {
     const inbox = new FakeInbox();
@@ -54,6 +63,7 @@ describe("receiving the events a register pushes", () => {
       reports: [],
       observedConditions: [],
       acceptedPushes: [],
+      everyCycleReports: [],
       refusedPushes: [],
       brokenChainRevocations: [],
     });
@@ -245,6 +255,7 @@ describe("receiving the events a register pushes", () => {
       reports: [],
       observedConditions: [],
       acceptedPushes: [],
+      everyCycleReports: [],
       refusedPushes: [],
       brokenChainRevocations: [],
     });
@@ -309,12 +320,107 @@ describe("reporting how the register stands", () => {
 
     await receive(inbox, eventsOf(1), { appVersion: "1.4.0" });
 
-    expect(inbox.state.observedConditions).toEqual([
-      {
-        observation: { holds: false, kind: "update_required", scope: "register-1" },
-        at: NOW,
-      },
+    expect(inbox.state.observedConditions[0]).toEqual({
+      observation: { holds: false, kind: "update_required", scope: "register-1" },
+      at: NOW,
+    });
+  });
+
+  it("clears the silent-register condition of the installation's register once it accepts the push", async () => {
+    const inbox = new FakeInbox();
+    inbox.registerIds.set(DEVICE, "register-1");
+
+    await receive(inbox, eventsOf(1));
+
+    expect(inbox.state.observedConditions.slice(1)).toEqual([
+      { observation: { holds: false, kind: "register_silent", scope: "register-1" }, at: NOW },
     ]);
+  });
+
+  it("accepts a push of no events as a sync, clearing the silent-register condition", async () => {
+    const inbox = new FakeInbox();
+    inbox.registerIds.set(DEVICE, "register-1");
+
+    const outcome = await receive(inbox, []);
+
+    expect(outcome).toEqual({ kind: "received", ackSeq: 0 });
+    expect(inbox.state.acceptedPushes).toEqual([{ deviceId: DEVICE, at: NOW }]);
+    expect(inbox.state.observedConditions.map(({ observation }) => observation)).toContainEqual({
+      holds: false,
+      kind: "register_silent",
+      scope: "register-1",
+    });
+  });
+
+  it("clears the silent-register condition right after recording the accepted push", async () => {
+    const inbox = new FakeInbox();
+
+    await receive(inbox, eventsOf(1));
+
+    const calls = inbox.calls;
+    expect(calls.lastIndexOf("observeAlertCondition")).toBe(
+      calls.indexOf("recordAcceptedPush device-1") + 1,
+    );
+  });
+
+  it("leaves the silent-register condition alone for a push it does not accept", async () => {
+    const notAccepted = [
+      await pushReceivedBy(new FakeInbox(), eventsOf(3)),
+      await pushReceivedBy(new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]), [
+        { ...fakeEvent(1), event_id: "another-event" },
+      ]),
+      await pushReceivedBy(new FakeInbox(), [{ ...fakeEvent(1), chain_hmac: "forged-link" }]),
+      await pushReceivedBy(new FakeInbox(), eventsOf(1), { appVersion: "not-a-version" }),
+    ];
+
+    for (const inbox of notAccepted) {
+      expect(
+        inbox.state.observedConditions.filter(({ observation }) =>
+          observation.holds
+            ? observation.alert.kind === "register_silent"
+            : observation.kind === "register_silent",
+        ),
+      ).toEqual([]);
+    }
+  });
+
+  it("records that the installation reports on every sync cycle once it accepts a push of no events", async () => {
+    const inbox = new FakeInbox();
+
+    await receive(inbox, []);
+
+    expect(inbox.state.everyCycleReports).toEqual([{ deviceId: DEVICE, at: NOW }]);
+  });
+
+  it("records the installation's every-cycle report after recording its accepted push", async () => {
+    const inbox = new FakeInbox();
+
+    await receive(inbox, []);
+
+    expect(inbox.calls.indexOf("recordReportsEveryCycle device-1")).toBeGreaterThan(
+      inbox.calls.indexOf("recordAcceptedPush device-1"),
+    );
+  });
+
+  it("records no every-cycle report for a push that carries events", async () => {
+    const inbox = new FakeInbox();
+
+    await receive(inbox, eventsOf(1));
+
+    expect(inbox.state.everyCycleReports).toEqual([]);
+  });
+
+  it("records no every-cycle report for a push of no events it does not accept", async () => {
+    const revoked = new FakeInbox();
+    revoked.revokedDevices.add(DEVICE);
+    const notAccepted = [
+      await pushReceivedBy(revoked, []),
+      await pushReceivedBy(new FakeInbox(), [], { appVersion: "not-a-version" }),
+    ];
+
+    for (const inbox of notAccepted) {
+      expect(inbox.state.everyCycleReports).toEqual([]);
+    }
   });
 
   it("holds the update-required condition of the installation's register, naming the device and the version, for a version that is not accepted", async () => {
