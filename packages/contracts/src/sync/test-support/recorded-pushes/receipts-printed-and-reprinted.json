@@ -1,0 +1,663 @@
+{
+  "outbox_chain_key": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=",
+  "push": {
+    "app_version": "0.0.0",
+    "telemetry": {
+      "wal_size_bytes": 4120032,
+      "disk_free_bytes": 182536847360,
+      "disk_free_ratio": 0.38
+    },
+    "events": [
+      {
+        "event_id": "01a12294-9f3d-73da-a650-e7ca1ecbb23f",
+        "device_seq": 1,
+        "aggregate_type": "CashSession",
+        "aggregate_id": "01a12294-9f3b-73df-9142-eb574a2379cf",
+        "event_type": "cash_session_opened",
+        "schema_version": 1,
+        "payload": {
+          "opened_at": "2026-10-06T11:00:00.000Z",
+          "opened_by": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+          "opening_float": 10000
+        },
+        "occurred_at": "2026-10-06T11:00:00.000Z",
+        "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+        "chain_hmac": "d43O168zSdacupQ3w6tuX+vzT/NpLMuTmgAuq5T6HUU="
+      },
+      {
+        "event_id": "01a12294-9f41-769f-98d6-20240bbd536a",
+        "device_seq": 2,
+        "aggregate_type": "CashSession",
+        "aggregate_id": "01a12294-9f3b-73df-9142-eb574a2379cf",
+        "event_type": "cash_movement_recorded",
+        "schema_version": 1,
+        "payload": {
+          "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+          "amount": 1800,
+          "authorized_by": null,
+          "occurred_at": "2026-10-06T11:04:00.000Z",
+          "reason": "Compra de bolsas",
+          "ref_id": null,
+          "ref_type": null,
+          "type": "CASH_OUT"
+        },
+        "occurred_at": "2026-10-06T11:04:00.000Z",
+        "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+        "chain_hmac": "UTIcNdvFySiIbvfwLVVQRaG+7DMX5Fl1MP7CJ6M3Fc8="
+      },
+      {
+        "event_id": "01a12294-9f45-77a9-b6a0-31293f04e0ea",
+        "device_seq": 3,
+        "aggregate_type": "CashSession",
+        "aggregate_id": "01a12294-9f3b-73df-9142-eb574a2379cf",
+        "event_type": "cash_movement_recorded",
+        "schema_version": 1,
+        "payload": {
+          "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+          "amount": 1000,
+          "authorized_by": "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
+          "occurred_at": "2026-10-06T11:08:00.000Z",
+          "reason": "Retiro parcial",
+          "ref_id": null,
+          "ref_type": null,
+          "type": "WITHDRAWAL"
+        },
+        "occurred_at": "2026-10-06T11:08:00.000Z",
+        "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+        "chain_hmac": "7Nm3whNhnRY5677V9Id/D8Y8ne5NVbubuug3wSpvkvc="
+      },
+      {
+        "event_id": "01a12294-9f55-7773-8894-f4e4966ba0ce",
+        "device_seq": 4,
+        "aggregate_type": "Sale",
+        "aggregate_id": "01a12294-9f49-77a6-aedc-669c713f2c09",
+        "event_type": "sale_completed",
+        "schema_version": 4,
+        "payload": {
+          "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+          "cash_movements": [
+            {
+              "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+              "amount": 5000,
+              "id": "01a12294-9f53-73a0-8193-752b06134ef5",
+              "occurred_at": "2026-10-06T11:20:00.000Z",
+              "ref_id": "01a12294-9f49-77a6-aedc-669c713f2c09",
+              "ref_type": "sale",
+              "type": "SALE"
+            },
+            {
+              "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+              "amount": 2300,
+              "id": "01a12294-9f53-73a0-8193-7a0bad7b1d74",
+              "occurred_at": "2026-10-06T11:20:00.000Z",
+              "ref_id": "01a12294-9f49-77a6-aedc-669c713f2c09",
+              "ref_type": "sale",
+              "type": "CHANGE"
+            }
+          ],
+          "device_id": "6f0c2a1e-3b54-4d7a-9c10-5e8a7b2d4f01",
+          "id": "01a12294-9f49-77a6-aedc-669c713f2c09",
+          "lines": [
+            {
+              "discount_amount": 300,
+              "id": "01a12294-9f4a-707f-91ec-4408748249c9",
+              "line_total": 2700,
+              "list_unit_price": 1500,
+              "price_list_id": "9a6e2b1d-4c78-4f13-b5a0-8e7d3c1f9a07",
+              "product_id": "0b9d4c7e-6a21-4e83-9f5b-3d8e1a2c7b05",
+              "product_name": "Yerba",
+              "promotion_id": "b5d2f7a1-8c40-4e96-a3b7-1f9e6c4d2a10",
+              "promotions": [
+                {
+                  "buy_qty": null,
+                  "discount_id": "b5d2f7a1-8c40-4e96-a3b7-1f9e6c4d2a10",
+                  "kind": "PERCENT_OFF",
+                  "pay_qty": null,
+                  "percent": 10
+                }
+              ],
+              "quantity": 2
+            }
+          ],
+          "occurred_at": "2026-10-06T11:20:00.000Z",
+          "operation_number": 1,
+          "payments": [
+            {
+              "amount": 2700,
+              "authorized_by": null,
+              "confirmed_at": null,
+              "id": "01a12294-9f53-73a0-8193-72e181dad946",
+              "kind": "SALE",
+              "method": "CASH",
+              "occurred_at": "2026-10-06T11:20:00.000Z",
+              "provider": "NONE",
+              "state": "APPROVED",
+              "tendered": 5000
+            }
+          ],
+          "register_id": "a41d9e07-52c3-4b68-8f2e-1c7d3a9b6e02",
+          "session_id": "01a12294-9f3b-73df-9142-eb574a2379cf",
+          "stock_movements": [
+            {
+              "delta": -2000,
+              "id": "01a12294-9f55-7773-8894-f95630511ae1",
+              "product_id": "0b9d4c7e-6a21-4e83-9f5b-3d8e1a2c7b05",
+              "sale_line_id": "01a12294-9f4a-707f-91ec-4408748249c9"
+            }
+          ],
+          "total": 2700
+        },
+        "occurred_at": "2026-10-06T11:20:00.000Z",
+        "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+        "chain_hmac": "Yc3YDuuLKJIfW9LaLzFQP8GOkSePg3/Hq5vjwnCLoKw="
+      },
+      {
+        "event_id": "01a12294-9f59-7492-82df-b868b398f9bc",
+        "device_seq": 5,
+        "aggregate_type": "Sale",
+        "aggregate_id": "01a12294-9f49-77a6-aedc-669c713f2c09",
+        "event_type": "fiscal_gate_failed",
+        "schema_version": 1,
+        "payload": {
+          "evaluated_at": "2026-10-06T11:20:00.000Z",
+          "reason": "issuer_identification_missing",
+          "register_id": "a41d9e07-52c3-4b68-8f2e-1c7d3a9b6e02",
+          "sale_id": "01a12294-9f49-77a6-aedc-669c713f2c09"
+        },
+        "occurred_at": "2026-10-06T11:20:00.000Z",
+        "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+        "chain_hmac": "sYd1lh7Ftf+vnQCyyfiqvXMVbzSwUx/FeNO8VZBcqVs="
+      },
+      {
+        "event_id": "01a12294-9f66-7376-a6d6-779e1c8b1377",
+        "device_seq": 6,
+        "aggregate_type": "Sale",
+        "aggregate_id": "01a12294-9f5b-770e-b1b3-2e840134ec31",
+        "event_type": "sale_completed",
+        "schema_version": 4,
+        "payload": {
+          "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+          "cash_movements": [],
+          "device_id": "6f0c2a1e-3b54-4d7a-9c10-5e8a7b2d4f01",
+          "id": "01a12294-9f5b-770e-b1b3-2e840134ec31",
+          "lines": [
+            {
+              "discount_amount": 0,
+              "id": "01a12294-9f5b-770e-b1b3-31b3c30fd968",
+              "line_total": 2400,
+              "list_unit_price": 2400,
+              "price_list_id": "9a6e2b1d-4c78-4f13-b5a0-8e7d3c1f9a07",
+              "product_id": "5d1a8f3c-9e47-4b02-8c6d-7a3f2e9b1c06",
+              "product_name": "Azucar",
+              "promotion_id": null,
+              "promotions": [],
+              "quantity": 1
+            },
+            {
+              "discount_amount": 900,
+              "id": "01a12294-9f5e-7198-9322-3f950d5963a0",
+              "line_total": 1800,
+              "list_unit_price": 900,
+              "price_list_id": "9a6e2b1d-4c78-4f13-b5a0-8e7d3c1f9a07",
+              "product_id": "2e6b9d3f-7a15-4c80-b4e2-8d1f5a3c9b15",
+              "product_name": "Galletitas",
+              "promotion_id": "c9f4b2e7-1a58-4d36-8e0b-4a7c3f9d1e17",
+              "promotions": [
+                {
+                  "buy_qty": 3,
+                  "discount_id": "c9f4b2e7-1a58-4d36-8e0b-4a7c3f9d1e17",
+                  "kind": "BUY_N_PAY_M",
+                  "pay_qty": 2,
+                  "percent": null
+                }
+              ],
+              "quantity": 3
+            }
+          ],
+          "occurred_at": "2026-10-06T11:44:00.000Z",
+          "operation_number": 2,
+          "payments": [
+            {
+              "amount": 4200,
+              "authorized_by": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+              "confirmed_at": "2026-10-06T11:44:00.000Z",
+              "id": "01a12294-9f65-7466-83b8-a43f15e61460",
+              "kind": "SALE",
+              "method": "TRANSFER",
+              "occurred_at": "2026-10-06T11:44:00.000Z",
+              "provider": "NONE",
+              "state": "APPROVED",
+              "tendered": null
+            }
+          ],
+          "register_id": "a41d9e07-52c3-4b68-8f2e-1c7d3a9b6e02",
+          "session_id": "01a12294-9f3b-73df-9142-eb574a2379cf",
+          "stock_movements": [
+            {
+              "delta": -1000,
+              "id": "01a12294-9f66-7376-a6d6-7a7c46612954",
+              "product_id": "5d1a8f3c-9e47-4b02-8c6d-7a3f2e9b1c06",
+              "sale_line_id": "01a12294-9f5b-770e-b1b3-31b3c30fd968"
+            },
+            {
+              "delta": -3000,
+              "id": "01a12294-9f66-7376-a6d6-7d04f32d6c84",
+              "product_id": "2e6b9d3f-7a15-4c80-b4e2-8d1f5a3c9b15",
+              "sale_line_id": "01a12294-9f5e-7198-9322-3f950d5963a0"
+            }
+          ],
+          "total": 4200
+        },
+        "occurred_at": "2026-10-06T11:44:00.000Z",
+        "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+        "chain_hmac": "BYJAR+FdkMJx/nbVsOfCaCp96vdT6Os9y1Tuz2c7Dug="
+      },
+      {
+        "event_id": "01a12294-9f67-740f-9eb1-ca7c667ceb05",
+        "device_seq": 7,
+        "aggregate_type": "Sale",
+        "aggregate_id": "01a12294-9f5b-770e-b1b3-2e840134ec31",
+        "event_type": "fiscal_gate_failed",
+        "schema_version": 1,
+        "payload": {
+          "evaluated_at": "2026-10-06T11:44:00.000Z",
+          "reason": "issuer_identification_missing",
+          "register_id": "a41d9e07-52c3-4b68-8f2e-1c7d3a9b6e02",
+          "sale_id": "01a12294-9f5b-770e-b1b3-2e840134ec31"
+        },
+        "occurred_at": "2026-10-06T11:44:00.000Z",
+        "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+        "chain_hmac": "S5DR0uYJa/S26llz8oUum8MJz1A3I3JlsCuOd9yKVi4="
+      },
+      {
+        "event_id": "01a12294-9f6e-7130-ba3a-a1b06b6b21f8",
+        "device_seq": 8,
+        "aggregate_type": "Sale",
+        "aggregate_id": "01a12294-9f69-76c2-b159-580c37ba4a63",
+        "event_type": "sale_completed",
+        "schema_version": 4,
+        "payload": {
+          "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+          "cash_movements": [
+            {
+              "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+              "amount": 500,
+              "id": "01a12294-9f6b-779c-8166-066f321b11b8",
+              "occurred_at": "2026-10-06T11:52:00.000Z",
+              "ref_id": "01a12294-9f69-76c2-b159-580c37ba4a63",
+              "ref_type": "sale",
+              "type": "SALE"
+            }
+          ],
+          "device_id": "6f0c2a1e-3b54-4d7a-9c10-5e8a7b2d4f01",
+          "id": "01a12294-9f69-76c2-b159-580c37ba4a63",
+          "lines": [
+            {
+              "discount_amount": 150,
+              "id": "01a12294-9f69-76c2-b159-5e34c4d0bcde",
+              "line_total": 1350,
+              "list_unit_price": 1500,
+              "price_list_id": "9a6e2b1d-4c78-4f13-b5a0-8e7d3c1f9a07",
+              "product_id": "0b9d4c7e-6a21-4e83-9f5b-3d8e1a2c7b05",
+              "product_name": "Yerba",
+              "promotion_id": "b5d2f7a1-8c40-4e96-a3b7-1f9e6c4d2a10",
+              "promotions": [
+                {
+                  "buy_qty": null,
+                  "discount_id": "b5d2f7a1-8c40-4e96-a3b7-1f9e6c4d2a10",
+                  "kind": "PERCENT_OFF",
+                  "pay_qty": null,
+                  "percent": 10
+                }
+              ],
+              "quantity": 1
+            }
+          ],
+          "occurred_at": "2026-10-06T11:56:00.000Z",
+          "operation_number": 3,
+          "payments": [
+            {
+              "amount": 500,
+              "authorized_by": null,
+              "confirmed_at": null,
+              "id": "01a12294-9f6b-779c-8166-026dd3560dba",
+              "kind": "SALE",
+              "method": "CASH",
+              "occurred_at": "2026-10-06T11:52:00.000Z",
+              "provider": "NONE",
+              "state": "APPROVED",
+              "tendered": 500
+            },
+            {
+              "amount": 850,
+              "authorized_by": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+              "confirmed_at": "2026-10-06T11:56:00.000Z",
+              "id": "01a12294-9f6d-73db-a249-ab81a8abcb5a",
+              "kind": "SALE",
+              "method": "TRANSFER",
+              "occurred_at": "2026-10-06T11:56:00.000Z",
+              "provider": "NONE",
+              "state": "APPROVED",
+              "tendered": null
+            }
+          ],
+          "register_id": "a41d9e07-52c3-4b68-8f2e-1c7d3a9b6e02",
+          "session_id": "01a12294-9f3b-73df-9142-eb574a2379cf",
+          "stock_movements": [
+            {
+              "delta": -1000,
+              "id": "01a12294-9f6e-7130-ba3a-a5c9f01e80ab",
+              "product_id": "0b9d4c7e-6a21-4e83-9f5b-3d8e1a2c7b05",
+              "sale_line_id": "01a12294-9f69-76c2-b159-5e34c4d0bcde"
+            }
+          ],
+          "total": 1350
+        },
+        "occurred_at": "2026-10-06T11:56:00.000Z",
+        "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+        "chain_hmac": "uRVWhg6ivzA3J88mtUeNFefkH8hTtpAPLN6Jh+XvYl8="
+      },
+      {
+        "event_id": "01a12294-9f6f-71cf-8652-72f62455d7d9",
+        "device_seq": 9,
+        "aggregate_type": "Sale",
+        "aggregate_id": "01a12294-9f69-76c2-b159-580c37ba4a63",
+        "event_type": "fiscal_gate_failed",
+        "schema_version": 1,
+        "payload": {
+          "evaluated_at": "2026-10-06T11:56:00.000Z",
+          "reason": "issuer_identification_missing",
+          "register_id": "a41d9e07-52c3-4b68-8f2e-1c7d3a9b6e02",
+          "sale_id": "01a12294-9f69-76c2-b159-580c37ba4a63"
+        },
+        "occurred_at": "2026-10-06T11:56:00.000Z",
+        "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+        "chain_hmac": "/x4SK6vMHS6qJGZHDL0SyqxkUC862jOS/8zqSprYuxg="
+      },
+      {
+        "event_id": "01a12294-9f79-7020-84dd-2b6511ebb848",
+        "device_seq": 10,
+        "aggregate_type": "Sale",
+        "aggregate_id": "01a12294-9f71-7110-a836-47e6e606c0e8",
+        "event_type": "sale_cancelled",
+        "schema_version": 1,
+        "payload": {
+          "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+          "authorized_by": "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
+          "cash_movements": [
+            {
+              "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+              "amount": 500,
+              "id": "01a12294-9f73-7460-b407-93a49fcf82b6",
+              "occurred_at": "2026-10-06T12:04:00.000Z",
+              "ref_id": "01a12294-9f71-7110-a836-47e6e606c0e8",
+              "ref_type": "sale",
+              "type": "SALE"
+            },
+            {
+              "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+              "amount": 500,
+              "id": "01a12294-9f79-7020-84dd-21e4770b53c9",
+              "occurred_at": "2026-10-06T12:12:00.000Z",
+              "ref_id": "01a12294-9f71-7110-a836-47e6e606c0e8",
+              "ref_type": "sale",
+              "type": "REFUND"
+            }
+          ],
+          "device_id": "6f0c2a1e-3b54-4d7a-9c10-5e8a7b2d4f01",
+          "id": "01a12294-9f71-7110-a836-47e6e606c0e8",
+          "lines": [
+            {
+              "discount_amount": 150,
+              "id": "01a12294-9f71-7110-a836-4a90303acca9",
+              "line_total": 1350,
+              "list_unit_price": 1500,
+              "price_list_id": "9a6e2b1d-4c78-4f13-b5a0-8e7d3c1f9a07",
+              "product_id": "0b9d4c7e-6a21-4e83-9f5b-3d8e1a2c7b05",
+              "product_name": "Yerba",
+              "promotion_id": "b5d2f7a1-8c40-4e96-a3b7-1f9e6c4d2a10",
+              "promotions": [
+                {
+                  "buy_qty": null,
+                  "discount_id": "b5d2f7a1-8c40-4e96-a3b7-1f9e6c4d2a10",
+                  "kind": "PERCENT_OFF",
+                  "pay_qty": null,
+                  "percent": 10
+                }
+              ],
+              "quantity": 1
+            }
+          ],
+          "occurred_at": "2026-10-06T12:12:00.000Z",
+          "payments": [
+            {
+              "amount": 500,
+              "authorized_by": null,
+              "confirmed_at": null,
+              "id": "01a12294-9f73-7460-b407-8d54d29cbe73",
+              "kind": "SALE",
+              "method": "CASH",
+              "occurred_at": "2026-10-06T12:04:00.000Z",
+              "provider": "NONE",
+              "state": "APPROVED",
+              "tendered": 500
+            },
+            {
+              "amount": 300,
+              "authorized_by": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+              "confirmed_at": "2026-10-06T12:08:00.000Z",
+              "id": "01a12294-9f74-77c8-9f0b-ea7adcb74206",
+              "kind": "SALE",
+              "method": "TRANSFER",
+              "occurred_at": "2026-10-06T12:08:00.000Z",
+              "provider": "NONE",
+              "state": "APPROVED",
+              "tendered": null
+            }
+          ],
+          "refunds": [
+            {
+              "amount": 500,
+              "id": "01a12294-9f78-730e-beb4-da794c0d4609",
+              "kind": "REFUND",
+              "method": "CASH",
+              "occurred_at": "2026-10-06T12:12:00.000Z",
+              "parent_id": "01a12294-9f73-7460-b407-8d54d29cbe73",
+              "provider": "NONE",
+              "state": "APPROVED"
+            },
+            {
+              "amount": 300,
+              "id": "01a12294-9f79-7020-84dd-27f5d2158f80",
+              "kind": "REFUND",
+              "method": "TRANSFER",
+              "occurred_at": "2026-10-06T12:12:00.000Z",
+              "parent_id": "01a12294-9f74-77c8-9f0b-ea7adcb74206",
+              "provider": "NONE",
+              "state": "PENDING"
+            }
+          ],
+          "register_id": "a41d9e07-52c3-4b68-8f2e-1c7d3a9b6e02",
+          "session_id": "01a12294-9f3b-73df-9142-eb574a2379cf",
+          "total": 1350
+        },
+        "occurred_at": "2026-10-06T12:12:00.000Z",
+        "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+        "chain_hmac": "6L5esKGzaFZcYEvJkjN7qosYbwAM9U1Srxnoux9ho+0="
+      },
+      {
+        "event_id": "01a12294-9f7f-77c5-bd76-5036e23e73ad",
+        "device_seq": 11,
+        "aggregate_type": "Sale",
+        "aggregate_id": "01a12294-9f7c-701b-8339-e8fab68fc768",
+        "event_type": "sale_completed",
+        "schema_version": 4,
+        "payload": {
+          "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+          "cash_movements": [
+            {
+              "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+              "amount": 2400,
+              "id": "01a12294-9f7e-759d-a8e9-096e7320f5c5",
+              "occurred_at": "2026-10-06T12:20:00.000Z",
+              "ref_id": "01a12294-9f7c-701b-8339-e8fab68fc768",
+              "ref_type": "sale",
+              "type": "SALE"
+            }
+          ],
+          "device_id": "6f0c2a1e-3b54-4d7a-9c10-5e8a7b2d4f01",
+          "id": "01a12294-9f7c-701b-8339-e8fab68fc768",
+          "lines": [
+            {
+              "discount_amount": 0,
+              "id": "01a12294-9f7c-701b-8339-ed39a09ae52f",
+              "line_total": 2400,
+              "list_unit_price": 2400,
+              "price_list_id": "9a6e2b1d-4c78-4f13-b5a0-8e7d3c1f9a07",
+              "product_id": "5d1a8f3c-9e47-4b02-8c6d-7a3f2e9b1c06",
+              "product_name": "Azucar",
+              "promotion_id": null,
+              "promotions": [],
+              "quantity": 1
+            }
+          ],
+          "occurred_at": "2026-10-06T12:20:00.000Z",
+          "operation_number": 4,
+          "payments": [
+            {
+              "amount": 2400,
+              "authorized_by": null,
+              "confirmed_at": null,
+              "id": "01a12294-9f7e-759d-a8e9-063b8121b7b9",
+              "kind": "SALE",
+              "method": "CASH",
+              "occurred_at": "2026-10-06T12:20:00.000Z",
+              "provider": "NONE",
+              "state": "APPROVED",
+              "tendered": 2400
+            }
+          ],
+          "register_id": "a41d9e07-52c3-4b68-8f2e-1c7d3a9b6e02",
+          "session_id": "01a12294-9f3b-73df-9142-eb574a2379cf",
+          "stock_movements": [
+            {
+              "delta": -1000,
+              "id": "01a12294-9f7f-77c5-bd76-5763d00378d4",
+              "product_id": "5d1a8f3c-9e47-4b02-8c6d-7a3f2e9b1c06",
+              "sale_line_id": "01a12294-9f7c-701b-8339-ed39a09ae52f"
+            }
+          ],
+          "total": 2400
+        },
+        "occurred_at": "2026-10-06T12:20:00.000Z",
+        "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+        "chain_hmac": "U2mm+obdhozWNI9vFlk5dZhlDrsHBohe4+mcvnkVDj8="
+      },
+      {
+        "event_id": "01a12294-9f80-75a3-be4e-1ccbc4a7d97e",
+        "device_seq": 12,
+        "aggregate_type": "Sale",
+        "aggregate_id": "01a12294-9f7c-701b-8339-e8fab68fc768",
+        "event_type": "fiscal_gate_failed",
+        "schema_version": 1,
+        "payload": {
+          "evaluated_at": "2026-10-06T12:20:00.000Z",
+          "reason": "issuer_identification_missing",
+          "register_id": "a41d9e07-52c3-4b68-8f2e-1c7d3a9b6e02",
+          "sale_id": "01a12294-9f7c-701b-8339-e8fab68fc768"
+        },
+        "occurred_at": "2026-10-06T12:20:00.000Z",
+        "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+        "chain_hmac": "fI47/ozzxRI3D1R/y/2QD3f8nI/LzURCwG0qrHA871Q="
+      },
+      {
+        "event_id": "01a12294-9f83-7739-a918-11df126ea803",
+        "device_seq": 13,
+        "aggregate_type": "Sale",
+        "aggregate_id": "01a12294-9f7c-701b-8339-e8fab68fc768",
+        "event_type": "sale_print_state_changed",
+        "schema_version": 1,
+        "payload": {
+          "print_attempted_at": "2026-10-06T12:24:00.000Z",
+          "printed_at": null,
+          "sale_id": "01a12294-9f7c-701b-8339-e8fab68fc768"
+        },
+        "occurred_at": "2026-10-06T12:24:00.000Z",
+        "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+        "chain_hmac": "nt9Jab0b+bp0Ycy6KH1kW4/R88KqFrI1fUXRcXxqhzc="
+      },
+      {
+        "event_id": "01a12294-9f91-77ed-83f1-39ed1056fce0",
+        "device_seq": 14,
+        "aggregate_type": "Sale",
+        "aggregate_id": "01a12294-9f7c-701b-8339-e8fab68fc768",
+        "event_type": "reprint_recorded",
+        "schema_version": 1,
+        "payload": {
+          "authorized_by": null,
+          "order_number": 1,
+          "reason_kind": "retry",
+          "reason_text": null,
+          "requested_by": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+          "sale_id": "01a12294-9f7c-701b-8339-e8fab68fc768"
+        },
+        "occurred_at": "2026-10-06T12:28:00.000Z",
+        "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+        "chain_hmac": "D4FC5b3Z1jF8jzRaOxYCwMuilc0ATuSGxXYgRBfPEAk="
+      },
+      {
+        "event_id": "01a12294-9f94-709e-8c94-6e87e2b01e77",
+        "device_seq": 15,
+        "aggregate_type": "Sale",
+        "aggregate_id": "01a12294-9f7c-701b-8339-e8fab68fc768",
+        "event_type": "sale_print_state_changed",
+        "schema_version": 1,
+        "payload": {
+          "print_attempted_at": "2026-10-06T12:24:00.000Z",
+          "printed_at": "2026-10-06T12:32:00.000Z",
+          "sale_id": "01a12294-9f7c-701b-8339-e8fab68fc768"
+        },
+        "occurred_at": "2026-10-06T12:32:00.000Z",
+        "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+        "chain_hmac": "EJQFVkzdbs1LJHXcTlPsnzeeWa9KBTi+7srrU7G9ffM="
+      },
+      {
+        "event_id": "01a12294-9f98-75fc-b1e7-ece6e94b26a6",
+        "device_seq": 16,
+        "aggregate_type": "Sale",
+        "aggregate_id": "01a12294-9f7c-701b-8339-e8fab68fc768",
+        "event_type": "reprint_recorded",
+        "schema_version": 1,
+        "payload": {
+          "authorized_by": "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
+          "order_number": 2,
+          "reason_kind": "requested",
+          "reason_text": "El cliente la perdio",
+          "requested_by": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+          "sale_id": "01a12294-9f7c-701b-8339-e8fab68fc768"
+        },
+        "occurred_at": "2026-10-06T12:36:00.000Z",
+        "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+        "chain_hmac": "1yzdYJwENGe33V8lkw/oY/SFAWH7AQjnLadhQfnvEq0="
+      },
+      {
+        "event_id": "01a12294-9f9c-731a-b956-ae2bed808985",
+        "device_seq": 17,
+        "aggregate_type": "CashSession",
+        "aggregate_id": "01a12294-9f3b-73df-9142-eb574a2379cf",
+        "event_type": "cash_session_closed",
+        "schema_version": 1,
+        "payload": {
+          "closed_at": "2026-10-06T12:40:00.000Z",
+          "closed_by": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+          "counted_cash": 10400,
+          "difference": -2400,
+          "expected_cash": 12800
+        },
+        "occurred_at": "2026-10-06T12:40:00.000Z",
+        "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+        "chain_hmac": "60IdvdSBqLidHf4uOn8skeR6+LZBdsDSctpB7knRKZk="
+      }
+    ]
+  }
+}
