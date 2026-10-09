@@ -7,6 +7,7 @@ import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import type { RegisterPulledChange } from "./pulled-change";
+import { SqliteAcceptedPushLog } from "./sqlite-accepted-push-log";
 import { salesStopOf, stopOpeningNewSales } from "./sqlite-local-installation";
 import { SqliteLocalReplica } from "./sqlite-local-replica";
 import { appendOutboxEvent } from "./sqlite-outbox";
@@ -279,7 +280,7 @@ describe("the register's local copy of what it pulls", () => {
     expect(await replica.savedCursor()).toBe(7);
   });
 
-  it("starts over from the very first cursor when another installation takes over, keeping what it holds", async () => {
+  it("starts over from the very first cursor when another installation takes over", async () => {
     replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
     await replica.savePage({
       changes: [branchSettingsChange(7, settingsRow())],
@@ -290,7 +291,52 @@ describe("the register's local copy of what it pulls", () => {
     replica.adoptDevice({ deviceId: "device-b", pepper: PEPPER });
 
     expect(await replica.savedCursor()).toBe(0);
+  });
+
+  it("holds no branch hours of the installation before when another installation takes over", async () => {
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+    await replica.savePage({
+      changes: [branchSettingsChange(7, settingsRow())],
+      cursor: 7,
+      hasMore: false,
+    });
+
+    replica.adoptDevice({ deviceId: "device-b", pepper: PEPPER });
+
+    expect(storedBranchSettings()).toBeUndefined();
+  });
+
+  it("keeps its branch hours for the installation that pulled them", async () => {
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+    await replica.savePage({
+      changes: [branchSettingsChange(7, settingsRow())],
+      cursor: 7,
+      hasMore: false,
+    });
+
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+
     expect(storedBranchSettings()).toEqual(settingsRow());
+  });
+
+  it("holds no accepted push of the installation before when another installation takes over", async () => {
+    const acceptedPushes = new SqliteAcceptedPushLog(database);
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+    await acceptedPushes.recordAcceptedPush(new Date("2026-10-05T15:00:00.000Z"));
+
+    replica.adoptDevice({ deviceId: "device-b", pepper: PEPPER });
+
+    expect(acceptedPushes.lastAcceptedPushAt()).toBeNull();
+  });
+
+  it("keeps its last accepted push for the installation that recorded it", async () => {
+    const acceptedPushes = new SqliteAcceptedPushLog(database);
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+    await acceptedPushes.recordAcceptedPush(new Date("2026-10-05T15:00:00.000Z"));
+
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+
+    expect(acceptedPushes.lastAcceptedPushAt()).toEqual(new Date("2026-10-05T15:00:00.000Z"));
   });
 
   it("keeps its outbox and chain position for the installation that wrote them", () => {
