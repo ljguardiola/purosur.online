@@ -60,7 +60,7 @@ async function seedRegisters(count: number) {
   const [actor] = await db
     .insert(users)
     .values({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: `ada-${crypto.randomUUID()}@example.com`,
       locationId,
     })

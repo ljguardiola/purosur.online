@@ -130,7 +130,7 @@ beforeEach(async () => {
 
   const locationId = await seededLocationId(db);
   administratorId = await insertUser({
-    firstName: "Ada Lovelace",
+    firstName: "Ada Lucero",
     email: "ada@example.com",
     roleId: await seededAdministratorRoleId(),
     locationId,
@@ -157,7 +157,7 @@ describe("DELETE /users/:id/deactivation", () => {
   beforeEach(async () => {
     cashierRoleId = await insertRole("Cajera");
     targetId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId: cashierRoleId,
       locationId: await seededLocationId(db),
@@ -199,7 +199,7 @@ describe("DELETE /users/:id/deactivation", () => {
 
   it("rejects a user without the reactivate_users permission with 403 forbidden, changing nothing", async () => {
     const cashierId = await insertUser({
-      firstName: "Barbara Liskov",
+      firstName: "Barbara Quintana",
       email: "barbara@example.com",
       roleId: cashierRoleId,
       locationId: await seededLocationId(db),
@@ -254,7 +254,7 @@ describe("DELETE /users/:id/deactivation", () => {
   it("answers not_found for a target that is still active, changing nothing", async () => {
     const rawSessionId = await insertSession(administratorId);
     const activeId = await insertUser({
-      firstName: "Katherine Johnson",
+      firstName: "Katherine Ojeda",
       email: "katherine@example.com",
       roleId: cashierRoleId,
       locationId: await seededLocationId(db),
@@ -330,7 +330,7 @@ describe("DELETE /users/:id/deactivation", () => {
   it("allows a holder of only reactivate_users, not an Administrator, to reactivate a user", async () => {
     const holderRoleId = await insertRole("Encargada", ["reactivate_users"]);
     const holderId = await insertUser({
-      firstName: "Barbara Liskov",
+      firstName: "Barbara Quintana",
       email: "barbara@example.com",
       roleId: holderRoleId,
       locationId: await seededLocationId(db),

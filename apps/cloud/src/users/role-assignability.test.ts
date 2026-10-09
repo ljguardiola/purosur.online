@@ -63,7 +63,7 @@ beforeEach(async () => {
   const locationId = await seededLocationId(db);
   const [administrator] = await db
     .insert(users)
-    .values({ firstName: "Ada Lovelace", email: "ada@example.com", locationId })
+    .values({ firstName: "Ada Lucero", email: "ada@example.com", locationId })
     .returning({ id: users.id });
   if (!administrator) {
     throw new Error("test setup: seeding the administrator returned no row");

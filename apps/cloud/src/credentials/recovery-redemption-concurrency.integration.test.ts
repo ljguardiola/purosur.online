@@ -72,7 +72,7 @@ async function seedUserAndToken(): Promise<{ userId: string; rawToken: string }>
   const [user] = await db
     .insert(users)
     .values({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: `ada-${randomUUID()}@example.com`,
       locationId: await seededLocationId(db),
     })

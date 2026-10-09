@@ -24,7 +24,7 @@ async function insertUserWithRole(db: Db, roleId: string): Promise<string> {
   const [user] = await db
     .insert(users)
     .values({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       locationId: await seededLocationId(db),
     })

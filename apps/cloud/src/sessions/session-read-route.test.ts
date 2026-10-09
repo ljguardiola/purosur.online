@@ -51,7 +51,7 @@ beforeEach(async () => {
   const [user] = await db
     .insert(users)
     .values({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       locationId: await seededLocationId(db),
     })
@@ -151,7 +151,7 @@ describe("GET /sessions/current", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       user_id: userId,
-      display_name: "Ada Lovelace",
+      display_name: "Ada Lucero",
       expires_at: new Date(NOON.getTime() + SESSION_IDLE_TIMEOUT_MS).toISOString(),
       capabilities: [],
       stock_movement_kinds: [],

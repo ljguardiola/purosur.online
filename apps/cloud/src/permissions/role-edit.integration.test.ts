@@ -35,7 +35,7 @@ async function insertAdministrator(suffix: string): Promise<string> {
   const [administrator] = await db
     .insert(users)
     .values({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: `ada-${suffix}@example.com`,
       locationId: await seededLocationId(db),
     })

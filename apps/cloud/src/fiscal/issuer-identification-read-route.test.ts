@@ -125,7 +125,7 @@ function getIssuerIdentification(rawSessionId?: string) {
 describe("GET /fiscal-settings/issuer-identification", () => {
   it("no longer answers GET /fiscal-configuration/issuer-identification", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -150,7 +150,7 @@ describe("GET /fiscal-settings/issuer-identification", () => {
 
   it("rejects an Origin that is not the backoffice's own", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -170,7 +170,7 @@ describe("GET /fiscal-settings/issuer-identification", () => {
   it("rejects a user without the change_fiscal_configuration permission with 403 forbidden", async () => {
     const cashierRoleId = await insertRole("Cajera", ["sell_and_charge"]);
     const cashierId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId: cashierRoleId,
       locationId: await seededLocationId(db),
@@ -185,7 +185,7 @@ describe("GET /fiscal-settings/issuer-identification", () => {
 
   it("allows the Administrator, who holds every permission implicitly", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -200,7 +200,7 @@ describe("GET /fiscal-settings/issuer-identification", () => {
   it("allows a role holding change_fiscal_configuration explicitly, without Administrator", async () => {
     const managerRoleId = await insertRole("Encargada", ["change_fiscal_configuration"]);
     const managerId = await insertUser({
-      firstName: "Katherine Johnson",
+      firstName: "Katherine Ojeda",
       email: "katherine@example.com",
       roleId: managerRoleId,
       locationId: await seededLocationId(db),
@@ -214,7 +214,7 @@ describe("GET /fiscal-settings/issuer-identification", () => {
 
   it("reports an incomplete identification (every editable field null) alongside the authorized CUIT and tax status", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),

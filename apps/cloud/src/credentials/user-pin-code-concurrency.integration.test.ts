@@ -54,7 +54,7 @@ async function insertUser(email: string, isAdministrator: boolean): Promise<stri
         .returning({ id: roles.id });
   const [user] = await db
     .insert(users)
-    .values({ firstName: "Grace Hopper", email, locationId: await seededLocationId(db) })
+    .values({ firstName: "Grace Villalba", email, locationId: await seededLocationId(db) })
     .returning({ id: users.id });
   if (!role || !user) {
     throw new Error("test setup: seeding the user returned no row");

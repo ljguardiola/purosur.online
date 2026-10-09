@@ -159,7 +159,7 @@ function getBranchSettings(rawSessionId: string) {
 describe("PUT /locations/current/settings", () => {
   it("no longer answers PUT /branch-settings", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -185,7 +185,7 @@ describe("PUT /locations/current/settings", () => {
 
   it("rejects an Origin that is not the backoffice's own", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -206,7 +206,7 @@ describe("PUT /locations/current/settings", () => {
   it("rejects a user without the configure_branch permission with 403 forbidden, changing nothing", async () => {
     const cashierRoleId = await insertRole("Cajera", ["sell_and_charge"]);
     const cashierId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId: cashierRoleId,
       locationId: await seededLocationId(db),
@@ -227,7 +227,7 @@ describe("PUT /locations/current/settings", () => {
 
   it("allows the Administrator, who holds every permission implicitly", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -242,7 +242,7 @@ describe("PUT /locations/current/settings", () => {
   it("allows a role holding configure_branch explicitly, without Administrator", async () => {
     const managerRoleId = await insertRole("Encargada", ["configure_branch"]);
     const managerId = await insertUser({
-      firstName: "Katherine Johnson",
+      firstName: "Katherine Ojeda",
       email: "katherine@example.com",
       roleId: managerRoleId,
       locationId: await seededLocationId(db),
@@ -256,7 +256,7 @@ describe("PUT /locations/current/settings", () => {
 
   it("saves and returns the new values, bumping the version", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -277,7 +277,7 @@ describe("PUT /locations/current/settings", () => {
 
   it("makes the change visible to a subsequent GET /locations/current/settings", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -293,7 +293,7 @@ describe("PUT /locations/current/settings", () => {
 
   it("audits the actor and the previous/new values", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -345,7 +345,7 @@ describe("PUT /locations/current/settings", () => {
 
   it("logs the saved version as a change for registers to pull, and nothing for a save that changed nothing", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -372,7 +372,7 @@ describe("PUT /locations/current/settings", () => {
 
   it("treats re-saving the same non-empty hours as a no-op: version unchanged, no new audit row", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -403,7 +403,7 @@ describe("PUT /locations/current/settings", () => {
 
   it("treats an unchanged save as a no-op: 200, version unchanged, no audit row", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -442,7 +442,7 @@ describe("PUT /locations/current/settings", () => {
 
   it("rejects a range where closing isn't later than opening, changing nothing", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -471,7 +471,7 @@ describe("PUT /locations/current/settings", () => {
 
   it("saves more than one range on the same day, in the order they were sent", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -499,7 +499,7 @@ describe("PUT /locations/current/settings", () => {
 
   it("keeps each day's hours independent when only one day is changed", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -523,7 +523,7 @@ describe("PUT /locations/current/settings", () => {
 
   it("accepts every day closed (an empty list), the seeded default", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -557,7 +557,7 @@ describe("PUT /locations/current/settings", () => {
 
   it("ignores fields removed from the contract, such as business_name or timezone, when a client still sends them", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -576,7 +576,7 @@ describe("PUT /locations/current/settings", () => {
 
   it("accepts the maximum window value in days, the largest the database stores", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -596,7 +596,7 @@ describe("PUT /locations/current/settings", () => {
 
   it("returns 409 stale_version and changes nothing when the sent version does not match", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -627,7 +627,7 @@ describe("PUT /locations/current/settings", () => {
       .insert(branchSettings)
       .values({ locationId: otherLocation.id, priceListId: await seededPriceListId(db) });
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: ownLocationId,

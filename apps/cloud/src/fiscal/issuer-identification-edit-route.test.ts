@@ -157,7 +157,7 @@ function getIssuerIdentification(rawSessionId: string) {
 describe("PUT /fiscal-settings/issuer-identification", () => {
   it("no longer answers PUT /fiscal-configuration/issuer-identification", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -183,7 +183,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
 
   it("rejects an Origin that is not the backoffice's own", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -204,7 +204,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
   it("rejects a user without the change_fiscal_configuration permission with 403 forbidden, changing nothing", async () => {
     const cashierRoleId = await insertRole("Cajera", ["sell_and_charge"]);
     const cashierId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId: cashierRoleId,
       locationId: await seededLocationId(db),
@@ -224,7 +224,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
 
   it("saves and returns the new values, bumping the version", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -251,7 +251,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
 
   it("makes the change visible to a subsequent GET", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -267,7 +267,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
 
   it("audits the actor and the previous/new values in the same transaction", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -303,7 +303,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
 
   it("keeps every saved version, the one it replaced included, with the CUIT it was saved under and who saved it", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -368,7 +368,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
 
   it("logs each saved version for the registers, at the identification's own id", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -393,7 +393,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
 
   it("treats an unchanged save as a no-op: 200, version unchanged, no audit row", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -424,7 +424,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
 
   it("rejects an activity_start_date after the route clock's day with 400 validation_failed on that field, changing nothing", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -450,7 +450,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
 
   it("returns 409 stale_version and changes nothing when the sent version does not match", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -475,7 +475,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
 
   it("ignores an authorized_cuit sent by the client: the response still carries the deployment-configured one", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -494,7 +494,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
   describe("the shared passkey-authorization guard", () => {
     it("returns 401 authorization_required when the session's passkey authorization is stale, changing nothing", async () => {
       const administratorId = await insertUser({
-        firstName: "Ada Lovelace",
+        firstName: "Ada Lucero",
         email: "ada@example.com",
         roleId: await seededAdministratorRoleId(),
         locationId: await seededLocationId(db),
@@ -520,7 +520,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
 
     it("checks validation before passkey authorization, the same order role-edit-route.ts uses", async () => {
       const administratorId = await insertUser({
-        firstName: "Ada Lovelace",
+        firstName: "Ada Lucero",
         email: "ada@example.com",
         roleId: await seededAdministratorRoleId(),
         locationId: await seededLocationId(db),

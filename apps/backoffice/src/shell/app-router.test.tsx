@@ -31,7 +31,7 @@ test("never preloads the code of a screen the person is refused", async () => {
     session: {
       kind: "signed-in",
       userId: "user-1",
-      displayName: "Lucas Guardiola",
+      displayName: "Lucas Medrano",
       capabilities: [],
       stockMovementKinds: [],
       mayEmitOwnPinCode: false,

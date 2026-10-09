@@ -28,7 +28,7 @@ export async function openBackofficeSession<TQueryResult extends PgQueryResultHK
   const [user] = await db
     .insert(users)
     .values({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: options.email ?? "ada@example.com",
       locationId: options.locationId,
     })

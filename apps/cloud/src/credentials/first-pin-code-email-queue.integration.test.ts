@@ -55,7 +55,7 @@ async function seedPersonWithoutPin(): Promise<Person> {
     .returning({ id: registers.id });
   const [user] = await db
     .insert(users)
-    .values({ firstName: "Grace Hopper", email, locationId })
+    .values({ firstName: "Grace Villalba", email, locationId })
     .returning({ id: users.id });
   if (!register || !user) {
     throw new Error("test setup: seeding the register or the user returned no row");

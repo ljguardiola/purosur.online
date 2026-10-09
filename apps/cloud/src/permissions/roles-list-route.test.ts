@@ -117,7 +117,7 @@ describe("GET /roles", () => {
     const cashierRoleId = await insertRole("Cajera");
     const locationId = await seededLocationId(db);
     const cashierId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId: cashierRoleId,
       locationId,
@@ -142,13 +142,13 @@ describe("GET /roles", () => {
       locationId,
     });
     await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: cashierRoleId,
       locationId,
     });
     await insertUser({
-      firstName: "Bea Lovelace",
+      firstName: "Bea Lucero",
       email: "bea@example.com",
       roleId: cashierRoleId,
       locationId,
@@ -200,7 +200,7 @@ describe("GET /roles", () => {
       locationId,
     });
     await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: cashierRoleId,
       locationId,
@@ -232,7 +232,7 @@ describe("GET /roles", () => {
       locationId,
     });
     await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: cashierRoleId,
       locationId,
@@ -286,7 +286,7 @@ describe("GET /roles", () => {
   it("rejects an Origin that is not the backoffice's own", async () => {
     const locationId = await seededLocationId(db);
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId,

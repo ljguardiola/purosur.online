@@ -56,7 +56,7 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
         amount: 2_000,
         occurredAt: refund?.occurredAt,
         cancelledBy: userId,
-        cancelledByName: "Ada Lovelace",
+        cancelledByName: "Ada Lucero",
       },
     ]);
   });

@@ -28,7 +28,7 @@ test("shows the Catálogo item in the rail for a user holding manage_products_an
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
         userId: "user-2",
-        displayName: "Grace Hopper",
+        displayName: "Grace Villalba",
         isAdministrator: false,
         capabilities: ["products_and_categories", "catalog_area"],
       }),
@@ -46,7 +46,7 @@ test("hides the Catálogo item in the rail for a user without the permission", a
     fetchSession: vi
       .fn()
       .mockResolvedValue(
-        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
   window.history.pushState(null, "", "/help");
@@ -106,7 +106,7 @@ test("redirects a non-permitted user's typed /categories to Mi cuenta, without l
     fetchSession: vi
       .fn()
       .mockResolvedValue(
-        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
@@ -137,7 +137,7 @@ test("redirects a non-permitted user's typed /brands to Mi cuenta, without listi
     fetchSession: vi
       .fn()
       .mockResolvedValue(
-        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
@@ -180,7 +180,7 @@ test("redirects a non-permitted user's typed /tags to Mi cuenta, without listing
     fetchSession: vi
       .fn()
       .mockResolvedValue(
-        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
@@ -198,7 +198,7 @@ test("redirects a non-permitted user's typed /products to Mi cuenta, without lis
     fetchSession: vi
       .fn()
       .mockResolvedValue(
-        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
@@ -216,7 +216,7 @@ test("redirects a non-permitted user's typed /prices to Mi cuenta, without listi
     fetchSession: vi
       .fn()
       .mockResolvedValue(
-        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
@@ -234,7 +234,7 @@ test("redirects a user holding only manage_products_and_categories away from a t
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
         userId: "user-2",
-        displayName: "Grace Hopper",
+        displayName: "Grace Villalba",
         isAdministrator: false,
         capabilities: ["products_and_categories", "catalog_area"],
       }),
@@ -254,7 +254,7 @@ test("redirects a user holding only manage_prices_and_review away from a typed /
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
         userId: "user-2",
-        displayName: "Grace Hopper",
+        displayName: "Grace Villalba",
         isAdministrator: false,
         capabilities: ["prices_area", "catalog_area"],
       }),
@@ -274,7 +274,7 @@ test("shows the Precios section, and only it, for a user holding only manage_pri
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
         userId: "user-2",
-        displayName: "Grace Hopper",
+        displayName: "Grace Villalba",
         isAdministrator: false,
         capabilities: ["prices_area", "catalog_area"],
       }),
@@ -309,7 +309,7 @@ test("hides the Precios section item for a user holding only manage_products_and
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
         userId: "user-2",
-        displayName: "Grace Hopper",
+        displayName: "Grace Villalba",
         isAdministrator: false,
         capabilities: ["products_and_categories", "catalog_area"],
       }),
@@ -354,7 +354,7 @@ test("redirects a non-permitted user's typed /discounts to Mi cuenta, without li
     fetchSession: vi
       .fn()
       .mockResolvedValue(
-        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
@@ -373,7 +373,7 @@ test.each([["products_and_categories"], ["prices_area"]] as const)(
       fetchSession: vi.fn().mockResolvedValue(
         openSession({
           userId: "user-2",
-          displayName: "Grace Hopper",
+          displayName: "Grace Villalba",
           isAdministrator: false,
           capabilities: [capability, "catalog_area"],
         }),
@@ -401,7 +401,7 @@ test.each([
       fetchSession: vi.fn().mockResolvedValue(
         openSession({
           userId: "user-2",
-          displayName: "Grace Hopper",
+          displayName: "Grace Villalba",
           isAdministrator: false,
           capabilities: [capability, "catalog_area"],
         }),
@@ -421,7 +421,7 @@ test("shows the Promociones section, and only it, for a user holding only manage
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
         userId: "user-2",
-        displayName: "Grace Hopper",
+        displayName: "Grace Villalba",
         isAdministrator: false,
         capabilities: ["promotions", "catalog_area"],
       }),
@@ -455,7 +455,7 @@ test.each([["/products"], ["/prices"]])(
       fetchSession: vi.fn().mockResolvedValue(
         openSession({
           userId: "user-2",
-          displayName: "Grace Hopper",
+          displayName: "Grace Villalba",
           isAdministrator: false,
           capabilities: ["promotions", "catalog_area"],
         }),
@@ -479,7 +479,7 @@ test("lists the promotions and opens Nueva promoción for a user holding only ma
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
         userId: "user-2",
-        displayName: "Grace Hopper",
+        displayName: "Grace Villalba",
         isAdministrator: false,
         capabilities: ["promotions", "catalog_area"],
       }),

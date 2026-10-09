@@ -70,7 +70,7 @@ describe("a pull run as the role the deployed cloud connects with", () => {
     });
     const [actor] = await db
       .insert(users)
-      .values({ firstName: "Ada Lovelace", email: "ada@example.com", locationId })
+      .values({ firstName: "Ada Lucero", email: "ada@example.com", locationId })
       .returning({ id: users.id });
     if (product.kind !== "created" || !actor) {
       throw new Error("test setup: the product or the actor was not created");
