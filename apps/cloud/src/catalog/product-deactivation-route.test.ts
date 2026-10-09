@@ -217,6 +217,19 @@ describe("PUT /products/:id/deactivation", () => {
     expect(response.json()).toMatchObject({ code: "not_found" });
   });
 
+  it("returns 409 product_already_inactive for a product already inactive, changing nothing", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    await deactivateProduct(targetId, rawSessionId);
+
+    const response = await deactivateProduct(targetId, rawSessionId);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "product_already_inactive" });
+    const [row] = await db.select().from(products).where(eq(products.id, targetId));
+    expect(row).toMatchObject({ active: false, version: 2 });
+  });
+
   it("answers 400 validation_failed naming id for a malformed id, changing nothing", async () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);

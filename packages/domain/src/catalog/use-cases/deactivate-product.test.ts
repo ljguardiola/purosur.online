@@ -11,7 +11,7 @@ describe("deactivateProduct", () => {
     expect(outcome).toEqual({ kind: "not_found" });
   });
 
-  it("answers not_found for a product that is already inactive", async () => {
+  it("answers already_inactive for a product that is already inactive, changing nothing", async () => {
     const store = new FakeCatalogStore();
     store.seedProduct(
       {
@@ -29,7 +29,10 @@ describe("deactivateProduct", () => {
 
     const outcome = await deactivateProduct(store, "product-1");
 
-    expect(outcome).toEqual({ kind: "not_found" });
+    expect(outcome).toEqual({ kind: "already_inactive" });
+    expect(
+      store.snapshot().products.map(({ id, active, version }) => ({ id, active, version })),
+    ).toEqual([{ id: "product-1", active: false, version: 2 }]);
   });
 
   it("deactivates the product and its barcodes, bumping the version", async () => {
@@ -77,7 +80,7 @@ describe("deactivateProduct", () => {
     expect(store.lockCallOrder).toEqual(["lockProduct"]);
 
     const secondAttempt = await deactivateProduct(store, "product-1");
-    expect(secondAttempt).toEqual({ kind: "not_found" });
+    expect(secondAttempt).toEqual({ kind: "already_inactive" });
   });
 
   it("runs entirely inside one transaction", async () => {

@@ -19,7 +19,10 @@ afterEach(() => {
 
 async function renderModal(
   services: DeactivateProductModalServices,
-  { onSessionEnded = () => {} }: { onSessionEnded?: () => void } = {},
+  {
+    onSessionEnded = () => {},
+    onVanished = () => {},
+  }: { onSessionEnded?: () => void; onVanished?: () => void } = {},
 ) {
   const screen = await render(
     <main>
@@ -27,7 +30,7 @@ async function renderModal(
         target={honey}
         onClose={() => {}}
         onDeactivated={() => {}}
-        onVanished={() => {}}
+        onVanished={onVanished}
         onSessionEnded={onSessionEnded}
         services={services}
       />
@@ -79,4 +82,34 @@ test("ends the session when deactivating finds no open session", async () => {
   await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("tells when the product was already deactivated, and updating the list reports it", async () => {
+  const services = createServices();
+  vi.mocked(services.deactivateProduct).mockResolvedValue({ kind: "already_changed" });
+  const onVanished = vi.fn();
+  const dialog = await renderModal(services, { onVanished });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
+
+  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Ya estaba desactivado");
+  expect(dialog.getByRole("button", { name: "Desactivar" }).query()).toBeNull();
+  await userEvent.click(dialog.getByRole("button", { name: "Actualizar la lista" }));
+
+  expect(onVanished).toHaveBeenCalledTimes(1);
+});
+
+test("tells when the product no longer exists, and updating the list reports it", async () => {
+  const services = createServices();
+  vi.mocked(services.deactivateProduct).mockResolvedValue({ kind: "not_found" });
+  const onVanished = vi.fn();
+  const dialog = await renderModal(services, { onVanished });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
+
+  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Este producto ya no existe");
+  expect(dialog.getByRole("button", { name: "Desactivar" }).query()).toBeNull();
+  await userEvent.click(dialog.getByRole("button", { name: "Actualizar la lista" }));
+
+  expect(onVanished).toHaveBeenCalledTimes(1);
 });
