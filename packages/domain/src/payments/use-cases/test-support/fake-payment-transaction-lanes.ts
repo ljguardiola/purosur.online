@@ -10,7 +10,7 @@ import {
 type LaneWrite =
   | "recordPendingTransaction"
   | "recordCreationAttempt"
-  | "recordCreationOutcomeUnknown"
+  | "recordCreationCreatedNothing"
   | "recordNeedsReview"
   | "recordExpired"
   | "recordOrderCreated"
@@ -50,15 +50,16 @@ class FakeLane implements PaymentTransactionLane {
     const stored = this.lanes.transactions.get(paymentTransactionId);
     if (stored) {
       stored.expiresAt = new Date(expiresAt);
+      stored.creationOutcomeUnknown = true;
     }
   }
 
-  async recordCreationOutcomeUnknown(paymentTransactionId: string): Promise<void> {
-    this.lanes.operations.push("recordCreationOutcomeUnknown");
-    this.lanes.failIfAsked("recordCreationOutcomeUnknown");
+  async recordCreationCreatedNothing(paymentTransactionId: string): Promise<void> {
+    this.lanes.operations.push("recordCreationCreatedNothing");
+    this.lanes.failIfAsked("recordCreationCreatedNothing");
     const stored = this.lanes.transactions.get(paymentTransactionId);
     if (stored) {
-      stored.creationOutcomeUnknown = true;
+      stored.creationOutcomeUnknown = false;
     }
   }
 

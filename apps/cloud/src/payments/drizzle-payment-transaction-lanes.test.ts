@@ -46,7 +46,7 @@ describe("DrizzlePaymentTransactionLanes", () => {
 
     it("keeps a pending transaction with every field it was recorded with", async () => {
       const registerId = await insertRegister(db, "caja-1");
-      const transaction = pendingTransaction(registerId);
+      const transaction = pendingTransaction(registerId, { creationOutcomeUnknown: true });
 
       const recorded = await lanes.inPaymentTransactionLane(transaction.id, async (lane) => {
         await lane.recordPendingTransaction(transaction);
@@ -96,36 +96,42 @@ describe("DrizzlePaymentTransactionLanes", () => {
   });
 
   describe("a creation attempt", () => {
-    it("moves the transaction's expiry to the new attempt's", async () => {
+    it("moves the transaction's expiry to the new attempt's and remembers that its order may be created", async () => {
       const registerId = await insertRegister(db, "caja-1");
       const transaction = pendingTransaction(registerId);
+      const other = pendingTransaction(registerId);
       const expiresAt = new Date("2026-10-09T12:08:10.000Z");
 
       const recorded = await lanes.inPaymentTransactionLane(transaction.id, async (lane) => {
         await lane.recordPendingTransaction(transaction);
+        await lane.recordPendingTransaction(other);
         await lane.recordCreationAttempt(transaction.id, expiresAt);
         return lane.recordedTransaction(registerId, transaction.id);
       });
 
-      expect(recorded).toEqual({ ...transaction, expiresAt });
+      expect(recorded).toEqual({ ...transaction, expiresAt, creationOutcomeUnknown: true });
+      expect(await storedRow(other.id)).toMatchObject({
+        expiresAt: other.expiresAt,
+        creationOutcomeUnknown: false,
+      });
     });
   });
 
-  describe("a creation attempt whose answer is unknown", () => {
-    it("remembers that the transaction's order may have been created", async () => {
+  describe("a creation attempt that created nothing", () => {
+    it("forgets that the transaction's order may have been created", async () => {
       const registerId = await insertRegister(db, "caja-1");
-      const transaction = pendingTransaction(registerId);
-      const other = pendingTransaction(registerId);
+      const transaction = pendingTransaction(registerId, { creationOutcomeUnknown: true });
+      const other = pendingTransaction(registerId, { creationOutcomeUnknown: true });
 
       const recorded = await lanes.inPaymentTransactionLane(transaction.id, async (lane) => {
         await lane.recordPendingTransaction(transaction);
         await lane.recordPendingTransaction(other);
-        await lane.recordCreationOutcomeUnknown(transaction.id);
+        await lane.recordCreationCreatedNothing(transaction.id);
         return lane.recordedTransaction(registerId, transaction.id);
       });
 
-      expect(recorded).toEqual({ ...transaction, creationOutcomeUnknown: true });
-      expect(await storedRow(other.id)).toMatchObject({ creationOutcomeUnknown: false });
+      expect(recorded).toEqual({ ...transaction, creationOutcomeUnknown: false });
+      expect(await storedRow(other.id)).toMatchObject({ creationOutcomeUnknown: true });
     });
   });
 

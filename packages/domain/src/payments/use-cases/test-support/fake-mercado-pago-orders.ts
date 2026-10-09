@@ -1,3 +1,4 @@
+import type { ProviderPaymentTransaction } from "../../model/payment-transaction.js";
 import type {
   MercadoPagoOrderCreation,
   MercadoPagoOrderReading,
@@ -12,6 +13,8 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
   readonly readOrders: string[] = [];
   heldLaneDuringCall: boolean | undefined;
   transactionsRecordedDuringCall: string[] | undefined;
+  recordedDuringCreation: ProviderPaymentTransaction | undefined;
+  creationStopsMidway = false;
   creation: MercadoPagoOrderCreation;
   reading: MercadoPagoOrderReading;
   private readonly lanes: FakePaymentTransactionLanes;
@@ -29,6 +32,11 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
     this.lanes.operations.push("createQrOrder");
     this.creationRequests.push(request);
     this.observeLane();
+    const recorded = this.lanes.transactions.get(request.externalReference);
+    this.recordedDuringCreation = recorded && structuredClone(recorded);
+    if (this.creationStopsMidway) {
+      throw new Error("createQrOrder stopped midway");
+    }
     return this.creation;
   }
 

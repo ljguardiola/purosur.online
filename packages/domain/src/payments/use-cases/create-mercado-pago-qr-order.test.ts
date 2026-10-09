@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createMercadoPagoQrOrder } from "./create-mercado-pago-qr-order.js";
+import type { FakePaymentTransactionLanes } from "./test-support/fake-payment-transaction-lanes.js";
 import {
   AMOUNT,
   mercadoPagoQrOrderWorld,
@@ -18,6 +19,14 @@ const INPUT = {
   saleId: SALE_ID,
   amount: AMOUNT,
 };
+
+async function askAgainAtExpiry(lanes: FakePaymentTransactionLanes) {
+  const recorded = lanes.transactions.get(TRANSACTION_ID) ?? storedTransaction();
+  const later = mercadoPagoQrOrderWorld({}, recorded.expiresAt);
+  later.lanes.seed(recorded);
+  const outcome = await createMercadoPagoQrOrder(later.ports, INPUT);
+  return { later, outcome };
+}
 
 describe("createMercadoPagoQrOrder", () => {
   it("records the pending payment before calling Mercado Pago, holding the transaction's lane the whole time", async () => {
@@ -60,6 +69,7 @@ describe("createMercadoPagoQrOrder", () => {
 
     const expected = storedTransaction({
       providerOrderId: "order-1",
+      creationOutcomeUnknown: true,
       createdAt: NOW,
       expiresAt: new Date("2026-10-09T12:05:10.000Z"),
     });
@@ -126,7 +136,15 @@ describe("createMercadoPagoQrOrder", () => {
     });
   });
 
-  it("keeps the payment pending, remembering after the call that the order may exist, when Mercado Pago's answer to the creation is unknown", async () => {
+  it("records, before calling Mercado Pago, that the first attempt may create an order", async () => {
+    const { mercadoPago, ports } = mercadoPagoQrOrderWorld();
+
+    await createMercadoPagoQrOrder(ports, INPUT);
+
+    expect(mercadoPago.recordedDuringCreation?.creationOutcomeUnknown).toBe(true);
+  });
+
+  it("keeps the payment pending, still remembering that the order may exist, when Mercado Pago's answer to the creation is unknown", async () => {
     const { lanes, ports } = mercadoPagoQrOrderWorld({ creation: { kind: "unavailable" } });
 
     const outcome = await createMercadoPagoQrOrder(ports, INPUT);
@@ -137,7 +155,6 @@ describe("createMercadoPagoQrOrder", () => {
       "recordedTransaction",
       "recordPendingTransaction",
       "createQrOrder",
-      "recordCreationOutcomeUnknown",
       "leaveLane",
     ]);
     expect(lanes.transactions.get(TRANSACTION_ID)).toMatchObject({
@@ -162,7 +179,91 @@ describe("createMercadoPagoQrOrder", () => {
     });
   });
 
+  it("ends a payment whose order Mercado Pago asked to try again later as expired once its expiry is reached, without calling Mercado Pago", async () => {
+    const { lanes, ports } = mercadoPagoQrOrderWorld({ creation: { kind: "throttled" } });
+    await createMercadoPagoQrOrder(ports, INPUT);
+
+    const { later, outcome } = await askAgainAtExpiry(lanes);
+
+    expect(outcome).toMatchObject({
+      kind: "recorded",
+      transaction: { state: "EXPIRED", needsReview: false },
+    });
+    expect(later.mercadoPago.creationRequests).toEqual([]);
+  });
+
+  describe("when the answer to the creation is never recorded", () => {
+    it("keeps the payment pending for a person to review once its expiry is reached when recording the created order fails", async () => {
+      const { lanes, ports } = mercadoPagoQrOrderWorld();
+      lanes.failOn = "recordOrderCreated";
+      await expect(createMercadoPagoQrOrder(ports, INPUT)).rejects.toThrow(
+        "recordOrderCreated failed",
+      );
+
+      const { later, outcome } = await askAgainAtExpiry(lanes);
+
+      expect(outcome).toMatchObject({
+        kind: "recorded",
+        transaction: { state: "PENDING", needsReview: true, providerOrderId: null },
+      });
+      expect(later.mercadoPago.creationRequests).toEqual([]);
+      expect(later.mercadoPago.readOrders).toEqual([]);
+    });
+
+    it("keeps the payment pending for a person to review once its expiry is reached when the creation call stops midway", async () => {
+      const { lanes, mercadoPago, ports } = mercadoPagoQrOrderWorld();
+      mercadoPago.creationStopsMidway = true;
+      await expect(createMercadoPagoQrOrder(ports, INPUT)).rejects.toThrow(
+        "createQrOrder stopped midway",
+      );
+
+      const { later, outcome } = await askAgainAtExpiry(lanes);
+
+      expect(outcome).toMatchObject({
+        kind: "recorded",
+        transaction: { state: "PENDING", needsReview: true, providerOrderId: null },
+      });
+      expect(later.mercadoPago.creationRequests).toEqual([]);
+      expect(later.mercadoPago.readOrders).toEqual([]);
+    });
+
+    it("keeps a retry's payment pending for a person to review once its expiry is reached when the retry's call stops midway", async () => {
+      const { lanes, mercadoPago, ports } = mercadoPagoQrOrderWorld();
+      lanes.seed(storedTransaction());
+      mercadoPago.creationStopsMidway = true;
+      await expect(createMercadoPagoQrOrder(ports, INPUT)).rejects.toThrow(
+        "createQrOrder stopped midway",
+      );
+
+      const { later, outcome } = await askAgainAtExpiry(lanes);
+
+      expect(outcome).toMatchObject({
+        kind: "recorded",
+        transaction: { state: "PENDING", needsReview: true },
+      });
+      expect(later.mercadoPago.creationRequests).toEqual([]);
+    });
+  });
+
   describe("asking again after the payment was recorded without an order", () => {
+    it("records, before calling Mercado Pago, that the retry may create an order", async () => {
+      const { lanes, mercadoPago, ports } = mercadoPagoQrOrderWorld();
+      lanes.seed(storedTransaction());
+
+      await createMercadoPagoQrOrder(ports, INPUT);
+
+      expect(mercadoPago.recordedDuringCreation?.creationOutcomeUnknown).toBe(true);
+    });
+
+    it("records that a refused retry created nothing when no earlier attempt may have created an order", async () => {
+      const { lanes, ports } = mercadoPagoQrOrderWorld({ creation: { kind: "refused" } });
+      lanes.seed(storedTransaction());
+
+      await createMercadoPagoQrOrder(ports, INPUT);
+
+      expect(lanes.transactions.get(TRANSACTION_ID)?.creationOutcomeUnknown).toBe(false);
+    });
+
     it("sends exactly the same request", async () => {
       const first = mercadoPagoQrOrderWorld({ creation: { kind: "unavailable" } });
       await createMercadoPagoQrOrder(first.ports, INPUT);
@@ -236,6 +337,23 @@ describe("createMercadoPagoQrOrder", () => {
       await createMercadoPagoQrOrder(ports, INPUT);
 
       expect(lanes.transactions.get(TRANSACTION_ID)?.creationOutcomeUnknown).toBe(true);
+    });
+
+    it("keeps a payment pending for a person to review once its expiry is reached when a retry after an unknown answer is refused", async () => {
+      const { lanes, mercadoPago, ports } = mercadoPagoQrOrderWorld({
+        creation: { kind: "unavailable" },
+      });
+      await createMercadoPagoQrOrder(ports, INPUT);
+      mercadoPago.creation = { kind: "refused" };
+      await createMercadoPagoQrOrder(ports, INPUT);
+
+      const { later, outcome } = await askAgainAtExpiry(lanes);
+
+      expect(outcome).toMatchObject({
+        kind: "recorded",
+        transaction: { state: "PENDING", needsReview: true },
+      });
+      expect(later.mercadoPago.creationRequests).toEqual([]);
     });
 
     it("ends a payment whose every attempt was refused as expired once its expiry is reached, without calling Mercado Pago", async () => {
@@ -317,6 +435,18 @@ describe("createMercadoPagoQrOrder", () => {
       ]);
       expect(mercadoPago.readOrders).toEqual(["order-1"]);
       expect(outcome).toMatchObject({ kind: "recorded", transaction: { state: "CANCELLED" } });
+    });
+
+    it("answers a retry's order exactly as it was recorded", async () => {
+      const { lanes, ports } = mercadoPagoQrOrderWorld();
+      lanes.seed(storedTransaction());
+
+      const outcome = await createMercadoPagoQrOrder(ports, INPUT);
+
+      expect(outcome).toEqual({
+        kind: "recorded",
+        transaction: lanes.transactions.get(TRANSACTION_ID),
+      });
     });
 
     it("records the created order alone, so it stays pending with no result when recording the read fails", async () => {
