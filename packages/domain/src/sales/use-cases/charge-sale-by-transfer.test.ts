@@ -71,7 +71,7 @@ const OPENING: CashMovement = {
   actorId: "cashier",
   occurredAt: new Date("2026-09-30T08:00:00.000Z"),
 };
-const THRESHOLD = { id: "threshold-1", amount: 10_000_000, validFrom: "2026-01-01" };
+const THRESHOLD = { id: "threshold-1", amount: 10_000_000, validFrom: "2026-01-01", revision: 0 };
 const BUYER_TAX_STATUSES = [{ code: 5, description: "Consumidor Final", invoiceClass: "A/M/C" }];
 
 function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {

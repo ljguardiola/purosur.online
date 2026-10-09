@@ -6,7 +6,10 @@ import pg, { type Pool, type PoolClient } from "pg";
 import { type BackgroundJobs, databaseOfClient } from "../platform/background-jobs.js";
 import { runShutdownSteps } from "../platform/run-shutdown-steps.js";
 import { reportPoolErrors } from "./pool-connection-error-handler.js";
-import { processRecoveryRequestJob } from "./process-recovery-request-job.js";
+import {
+  processRecoveryRequestJob,
+  recordRecoveryLinkSentJob,
+} from "./process-recovery-request-job.js";
 import type { AccessEmailSender } from "./recovery-email-sender.js";
 import { type ReportRecoveryErrorDeps, reportRecoveryError } from "./recovery-error-reporting.js";
 import { flushClosedRecoveryRejectedAttemptWindows } from "./recovery-rejected-attempt-flush.js";
@@ -39,6 +42,7 @@ export interface StartRecoveryWorkerDeps extends ReportRecoveryErrorDeps {
   runWorker?: (options: RunnerOptions) => Promise<Runner>;
   createDatabase?: (client: PoolClient) => NodePgDatabase<Record<string, never>>;
   processJob?: typeof processRecoveryRequestJob;
+  recordLinkSent?: typeof recordRecoveryLinkSentJob;
   flush?: typeof flushClosedRecoveryRejectedAttemptWindows;
   findPinCode?: typeof findPinCodeByCode;
   /**
@@ -68,6 +72,7 @@ export async function startRecoveryWorker(
   const doRun = deps.runWorker ?? run;
   const doCreateDatabase = deps.createDatabase ?? databaseOfClient;
   const doProcessJob = deps.processJob ?? processRecoveryRequestJob;
+  const doRecordLinkSent = deps.recordLinkSent ?? recordRecoveryLinkSentJob;
   const doFlush = deps.flush ?? flushClosedRecoveryRejectedAttemptWindows;
   const doFindPinCode = deps.findPinCode ?? findPinCodeByCode;
   const doCreatePool =
@@ -111,7 +116,11 @@ export async function startRecoveryWorker(
           }),
         );
         if (result.send) {
-          await options.emailSender.sendRecoveryLink(result.send);
+          const { email, tokenId } = result.send;
+          await options.emailSender.sendRecoveryLink(email);
+          await helpers.withPgClient((client) =>
+            doRecordLinkSent(doCreateDatabase(client), tokenId, { now }),
+          );
         }
       },
       [FIRST_PIN_CODE_EMAIL_TASK_IDENTIFIER]: (payload, helpers) =>

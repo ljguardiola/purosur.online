@@ -88,7 +88,7 @@ const pointOfSaleRow = {
   version: 1,
 };
 
-const thresholdRow = { amount: 1_000_000, valid_from: "2026-10-01" };
+const thresholdRow = { amount: 1_000_000, valid_from: "2026-10-01", revision: 2 };
 
 const taxStatusSetRow = {
   params_version: 3,
@@ -323,6 +323,15 @@ describe("changesPageSchema", () => {
     );
   });
 
+  it("reads a threshold of a cloud that does not send its revision yet as the first of its day", () => {
+    const { revision: _revision, ...legacyRow } = thresholdRow;
+
+    expect(
+      changesPageSchema.parse(pageOf(change(1, "buyer_identification_threshold", legacyRow)))
+        .changes[0],
+    ).toEqual(change(1, "buyer_identification_threshold", { ...legacyRow, revision: 0 }));
+  });
+
   it("accepts an empty last page", () => {
     const page = { changes: [], cursor: 0, has_more: false };
 
@@ -435,6 +444,14 @@ describe("changesPageSchema", () => {
       pageOf(
         change(1, "buyer_identification_threshold", { ...thresholdRow, valid_from: "2026-02-30" }),
       ),
+    ],
+    [
+      "a threshold with a negative revision",
+      pageOf(change(1, "buyer_identification_threshold", { ...thresholdRow, revision: -1 })),
+    ],
+    [
+      "a threshold with a fractional revision",
+      pageOf(change(1, "buyer_identification_threshold", { ...thresholdRow, revision: 0.5 })),
     ],
     [
       "a point of sale outside the numbers the tax authority allows",

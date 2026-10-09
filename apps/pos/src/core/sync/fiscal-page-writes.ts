@@ -13,8 +13,8 @@ export function prepareFiscalPageWrites(database: LocalDatabase) {
      ON CONFLICT (version) DO NOTHING`,
   );
   const saveThreshold = database.prepare(
-    `INSERT INTO buyer_identification_thresholds (id, amount, valid_from)
-     VALUES (@id, @amount, @valid_from)
+    `INSERT INTO buyer_identification_thresholds (id, amount, valid_from, revision)
+     VALUES (@id, @amount, @valid_from, @revision)
      ON CONFLICT (id) DO NOTHING`,
   );
   const saveTaxStatusSet = database.prepare(
@@ -32,7 +32,12 @@ export function prepareFiscalPageWrites(database: LocalDatabase) {
       entity_id,
       row,
     }: Extract<SyncChange, { entity: "buyer_identification_threshold" }>): void {
-      saveThreshold.run({ id: entity_id, amount: row.amount, valid_from: row.valid_from });
+      saveThreshold.run({
+        id: entity_id,
+        amount: row.amount,
+        valid_from: row.valid_from,
+        revision: row.revision,
+      });
     },
 
     buyerTaxStatusSet({

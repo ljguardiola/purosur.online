@@ -44,7 +44,11 @@ class DrizzleRecoveryTokenStoreTransaction<TQueryResult extends PgQueryResultHKT
 
   listRecoveryRequests(userId: string): Promise<RecoveryRequest[]> {
     return this.tx
-      .select({ requestId: recoveryTokens.requestId, requestedAt: recoveryTokens.requestedAt })
+      .select({
+        requestId: recoveryTokens.requestId,
+        requestedAt: recoveryTokens.requestedAt,
+        sentAt: recoveryTokens.sentAt,
+      })
       .from(recoveryTokens)
       .where(eq(recoveryTokens.userId, userId));
   }
@@ -108,6 +112,10 @@ class DrizzleRecoveryTokenStoreTransaction<TQueryResult extends PgQueryResultHKT
       },
       { now: () => alert.issuedAt },
     );
+  }
+
+  async markRecoveryLinkSent(tokenId: string, sentAt: Date): Promise<void> {
+    await this.tx.update(recoveryTokens).set({ sentAt }).where(eq(recoveryTokens.id, tokenId));
   }
 }
 

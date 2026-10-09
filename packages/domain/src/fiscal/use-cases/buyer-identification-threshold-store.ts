@@ -1,13 +1,17 @@
+import type { Clock } from "../../shared/index.js";
 import type { BuyerIdentificationThreshold } from "../model/buyer-identification-threshold.js";
 
 export interface BuyerIdentificationThresholdPorts {
   store: BuyerIdentificationThresholdStore;
+  clock: Clock;
 }
 
 export interface NewBuyerIdentificationThreshold {
   amount: number;
   validFrom: string;
+  revision: number;
   actorId: string;
+  replaced: BuyerIdentificationThreshold | undefined;
 }
 
 export interface BuyerIdentificationThresholdStore {
@@ -17,7 +21,9 @@ export interface BuyerIdentificationThresholdStore {
 }
 
 export interface BuyerIdentificationThresholdStoreTransaction {
-  lockLatestBuyerIdentificationThreshold(): Promise<BuyerIdentificationThreshold | undefined>;
+  lockBuyerIdentificationThresholds(): Promise<void>;
+  readThresholdStartingOn(day: string): Promise<BuyerIdentificationThreshold | undefined>;
+  readThresholdInEffectOn(day: string): Promise<BuyerIdentificationThreshold | undefined>;
   recordBuyerIdentificationThreshold(
     threshold: NewBuyerIdentificationThreshold,
   ): Promise<BuyerIdentificationThreshold>;
@@ -26,7 +32,6 @@ export interface BuyerIdentificationThresholdStoreTransaction {
 export interface BuyerIdentificationThresholdOverview {
   inEffect: BuyerIdentificationThreshold | undefined;
   scheduled: BuyerIdentificationThreshold | undefined;
-  latest: BuyerIdentificationThreshold | undefined;
 }
 
 export interface BuyerIdentificationThresholdReader {

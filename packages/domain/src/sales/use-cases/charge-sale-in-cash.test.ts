@@ -98,7 +98,7 @@ const DISCOUNTED_SALE: SaleWithLines = {
   ],
 };
 
-const THRESHOLD = { id: "threshold-1", amount: 10_000_000, validFrom: "2026-01-01" };
+const THRESHOLD = { id: "threshold-1", amount: 10_000_000, validFrom: "2026-01-01", revision: 0 };
 
 function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
   return new FakeSaleLedger({
@@ -555,8 +555,8 @@ describe("chargeSaleInCash", () => {
   it("reads the threshold at the clock's Argentine day", () => {
     const store = ledger({
       thresholds: [
-        { id: "old", amount: 1, validFrom: "2026-01-01" },
-        { id: "new", amount: 10_000_000, validFrom: "2026-09-30" },
+        { id: "old", amount: 1, validFrom: "2026-01-01", revision: 0 },
+        { id: "new", amount: 10_000_000, validFrom: "2026-09-30", revision: 0 },
       ],
     });
 
