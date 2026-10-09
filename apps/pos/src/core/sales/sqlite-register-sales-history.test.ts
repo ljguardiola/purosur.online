@@ -165,7 +165,7 @@ describe("SqliteRegisterSalesHistory", () => {
     it("lists only the completed sales of this register", () => {
       openSession("other-session", "r2");
       addSale({ id: "mine" });
-      addSale({ id: "in-progress-cart", state: "OPEN", occurredAt: null });
+      addSale({ id: "in-progress-cart", state: "OPEN", occurredAt: null, lines: [], payments: [] });
       addSale({ id: "cancelled", state: "CANCELLED" });
       addSale({ id: "voided", state: "VOIDED" });
       addSale({ id: "another-registers", session: "other-session", register: "r2" });
