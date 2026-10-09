@@ -85,7 +85,7 @@ export class SqliteLocalOutbox implements LocalOutbox, OutboxPruning {
   }
 
   async recordCompromised(): Promise<void> {
-    stopOpeningNewSales(this.database, this.now());
+    stopOpeningNewSales(this.database, "event_history_broken", this.now());
   }
 
   async forgetAcknowledgedBefore(cutoff: Date): Promise<number> {

@@ -912,6 +912,7 @@ describe("the register's local migrations", () => {
         "0019_sales_dated_when_charged",
         "0020_cancelled_sales_and_refunds",
         "0021_real_time_authorization",
+        "0022_sales_stopped_reason",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -955,6 +956,7 @@ describe("the register's local migrations", () => {
         "0019_sales_dated_when_charged",
         "0020_cancelled_sales_and_refunds",
         "0021_real_time_authorization",
+        "0022_sales_stopped_reason",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -997,6 +999,7 @@ describe("the register's local migrations", () => {
         "0019_sales_dated_when_charged",
         "0020_cancelled_sales_and_refunds",
         "0021_real_time_authorization",
+        "0022_sales_stopped_reason",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1066,6 +1069,7 @@ describe("the register's local migrations", () => {
         "0019_sales_dated_when_charged",
         "0020_cancelled_sales_and_refunds",
         "0021_real_time_authorization",
+        "0022_sales_stopped_reason",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1127,6 +1131,7 @@ describe("the register's local migrations", () => {
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0020_cancelled_sales_and_refunds",
         "0021_real_time_authorization",
+        "0022_sales_stopped_reason",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
