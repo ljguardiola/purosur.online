@@ -109,19 +109,78 @@ describe("WsfeTaxAuthorityInvoicing", () => {
     });
 
     it.each([
-      ["the content is refused", "fe-cae-solicitar-rejected-content.xml", [10242]],
-      ["its number is out of order", "fe-cae-solicitar-rejected-out-of-order.xml", [10016]],
+      [
+        "the content is refused",
+        "fe-cae-solicitar-rejected-content.xml",
+        [
+          {
+            code: 10242,
+            message:
+              "El campo Condicion IVA receptor no es un valor permitido. Consular metodo FEParamGetCondicionIvaReceptor",
+          },
+        ],
+      ],
+      [
+        "its number is out of order",
+        "fe-cae-solicitar-rejected-out-of-order.xml",
+        [
+          {
+            code: 10016,
+            message:
+              "El numero o fecha del comprobante no se corresponde con el proximo a autorizar. Consultar metodo FECompUltimoAutorizado.",
+          },
+        ],
+      ],
       [
         "ARCA gives observations and an error",
         "fe-cae-solicitar-rejected-with-errors.xml",
-        [10246, 10015, 10000],
+        [
+          {
+            code: 10246,
+            message:
+              "El campo Condicion Frente al IVA del receptor no es valido para el tipo de comprobante.",
+          },
+          { code: 10015, message: "Si DocTipo es 99 DocNro debe ser 0." },
+          {
+            code: 10002,
+            message: "No coincide la cantidad de registros informadas con la cantidad real enviada",
+          },
+        ],
       ],
-    ])("answers rejected with every code ARCA gave when %s", async (_case, file, codes) => {
-      server.behave(answers(file));
+      [
+        "ARCA refuses the header with errors and no document",
+        "fe-cae-solicitar-rejected-point-of-sale-not-enabled.xml",
+        [
+          {
+            code: 10005,
+            message: "El punto de venta informado debe estar dado de alta y ser del tipo RECE.",
+          },
+        ],
+      ],
+    ])(
+      "answers rejected with every code and message ARCA gave when %s",
+      async (_case, file, rejections) => {
+        server.behave(answers(file));
+
+        expect(await invoicingAt(server.endpoint).solicit(solicitation)).toEqual({
+          kind: "rejected",
+          rejections,
+        });
+      },
+    );
+
+    it("answers refused without a result, with the codes and messages, when ARCA answers errors and no result", async () => {
+      server.behave(answers("fe-cae-solicitar-token-error.xml"));
 
       expect(await invoicingAt(server.endpoint).solicit(solicitation)).toEqual({
-        kind: "rejected",
-        codes,
+        kind: "refused_without_result",
+        rejections: [
+          {
+            code: 600,
+            message:
+              "ValidacionDeToken: No validaron las fechas del token GenTime, ExpTime, NowUTC",
+          },
+        ],
       });
     });
 
@@ -129,7 +188,6 @@ describe("WsfeTaxAuthorityInvoicing", () => {
       ["ARCA answers a SOAP fault", answers("fe-dummy-fault.xml", 500)],
       ["the answer is not SOAP", answers("not-soap.txt")],
       ["the answer holds no result", answers("fe-cae-solicitar-empty.xml")],
-      ["ARCA answers an error instead of a result", answers("fe-cae-solicitar-token-error.xml")],
       ["ARCA refuses without saying why", answers("fe-cae-solicitar-rejected-without-codes.xml")],
       ["ARCA never answers within the timeout", { kind: "never-answers" as const }],
     ])("answers no answer when %s", async (_case, behavior) => {
