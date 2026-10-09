@@ -123,6 +123,7 @@ describe("the tax authority count jobs on a real Postgres", () => {
         await transaction.claimPointOfSale({
           pointOfSaleNumber: 22,
           registerId: registerIds[0] as string,
+          mechanism: "real_time",
           actorId,
         });
         await transaction.recordRegisterPointOfSale({
