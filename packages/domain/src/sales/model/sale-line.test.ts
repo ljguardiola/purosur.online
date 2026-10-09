@@ -2,7 +2,7 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { MAX_UNIT_PRICE_CENTS } from "../../pricing/index.js";
 import type { LinePromotion } from "./sale.js";
-import { addUnitToLine, newSaleLine, saleTotal, withQuantity } from "./sale-line.js";
+import { addUnitToLine, newSaleLine, saleTotal, soldQuantity, withQuantity } from "./sale-line.js";
 
 const PRODUCT = { id: "product-1", name: "Yerba 1 kg" };
 const PRICE = { priceListId: "list-1", unitPrice: 2500 };
@@ -215,5 +215,13 @@ describe("saleTotal", () => {
         },
       ),
     );
+  });
+});
+
+describe("soldQuantity", () => {
+  it("is the units a line carries, since a line is sold by the unit", () => {
+    const line = withQuantity(newSaleLine("line-1", PRODUCT, PRICE, []), 4);
+
+    expect(soldQuantity(line)).toEqual({ saleUnit: "UNIT", units: 4 });
   });
 });
