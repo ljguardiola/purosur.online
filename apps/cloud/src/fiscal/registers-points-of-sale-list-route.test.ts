@@ -99,7 +99,12 @@ describe("GET /registers/points-of-sale", () => {
     });
     await db
       .insert(pointOfSaleClaims)
-      .values({ pointOfSaleNumber: 7, registerId: configured.id, claimedBy: session.userId });
+      .values({
+        pointOfSaleNumber: 7,
+        registerId: configured.id,
+        mechanism: "real_time",
+        claimedBy: session.userId,
+      });
     await db.insert(registerPointsOfSale).values({
       registerId: configured.id,
       pointOfSaleNumber: 7,

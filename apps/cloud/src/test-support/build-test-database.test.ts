@@ -261,7 +261,12 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
     }
     await db
       .insert(pointOfSaleClaims)
-      .values({ pointOfSaleNumber: 3, registerId: register.id, claimedBy: user.id });
+      .values({
+        pointOfSaleNumber: 3,
+        registerId: register.id,
+        mechanism: "real_time",
+        claimedBy: user.id,
+      });
     await db.insert(registerPointsOfSale).values({
       registerId: register.id,
       pointOfSaleNumber: 3,

@@ -108,7 +108,12 @@ describe("a register's point of sale stored directly, as cloud_app", () => {
       await seedTwoRegisters();
     await db
       .insert(pointOfSaleClaims)
-      .values({ pointOfSaleNumber: 51, registerId: firstRegisterId, claimedBy: actorId });
+      .values({
+        pointOfSaleNumber: 51,
+        registerId: firstRegisterId,
+        mechanism: "real_time",
+        claimedBy: actorId,
+      });
 
     const insertion = db.insert(registerPointsOfSale).values({
       registerId: secondRegisterId,
@@ -145,7 +150,12 @@ describe("a register's point of sale stored directly, as cloud_app", () => {
     const { actorId, fiscalAddressId, firstRegisterId } = await seedTwoRegisters();
     await db
       .insert(pointOfSaleClaims)
-      .values({ pointOfSaleNumber: 53, registerId: firstRegisterId, claimedBy: actorId });
+      .values({
+        pointOfSaleNumber: 53,
+        registerId: firstRegisterId,
+        mechanism: "real_time",
+        claimedBy: actorId,
+      });
 
     await db.insert(registerPointsOfSale).values({
       registerId: firstRegisterId,

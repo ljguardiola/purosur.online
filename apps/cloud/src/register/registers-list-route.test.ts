@@ -206,6 +206,7 @@ describe("GET /registers", () => {
     await db.insert(pointOfSaleClaims).values({
       pointOfSaleNumber: 3,
       registerId,
+      mechanism: "real_time",
       claimedBy: userId,
     });
     await db.insert(registerPointsOfSale).values({

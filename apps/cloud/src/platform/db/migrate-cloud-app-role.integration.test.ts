@@ -248,12 +248,15 @@ describe("the cloud_app role runMigrations creates", () => {
       throw new Error("test setup: seeding the user or the register returned no row");
     }
     await cloudApp`
-      insert into point_of_sale_claims (point_of_sale_number, register_id, claimed_by)
-      values (900, ${register.id}, ${user.id})
+      insert into point_of_sale_claims (point_of_sale_number, register_id, mechanism, claimed_by)
+      values (900, ${register.id}, 'real_time', ${user.id})
     `;
 
     await expectPermissionDenied(
       cloudApp`update point_of_sale_claims set register_id = register_id where point_of_sale_number = 900`,
+    );
+    await expectPermissionDenied(
+      cloudApp`update point_of_sale_claims set mechanism = 'offline' where point_of_sale_number = 900`,
     );
     await expectPermissionDenied(
       cloudApp`delete from point_of_sale_claims where point_of_sale_number = 900`,

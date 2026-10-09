@@ -119,7 +119,12 @@ describe("branchRegisters of DrizzleBranchRegisterStore", () => {
     await insertRegister(await insertOtherLocation(), "Caja 3");
     await db
       .insert(pointOfSaleClaims)
-      .values({ pointOfSaleNumber: 7, registerId: configuredId, claimedBy: actorId });
+      .values({
+        pointOfSaleNumber: 7,
+        registerId: configuredId,
+        mechanism: "real_time",
+        claimedBy: actorId,
+      });
     await db.insert(registerPointsOfSale).values({
       registerId: configuredId,
       pointOfSaleNumber: 7,
