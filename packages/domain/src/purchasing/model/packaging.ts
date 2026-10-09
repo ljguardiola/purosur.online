@@ -1,0 +1,13 @@
+import type { SaleUnit } from "../../catalog/index.js";
+import { codePointLength } from "../../shared/index.js";
+import { isMovementQuantity } from "../../stock/index.js";
+
+export const PACKAGING_NAME_MAX_LENGTH = 100;
+
+export function isPackagingNameTooLong(name: string): boolean {
+  return codePointLength(name) > PACKAGING_NAME_MAX_LENGTH;
+}
+
+export function isQuantityPerPackage(saleUnit: SaleUnit, quantity: number): boolean {
+  return isMovementQuantity(saleUnit, quantity);
+}
