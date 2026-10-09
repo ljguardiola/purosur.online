@@ -495,6 +495,51 @@ describe("Sentry error handler wiring", () => {
   });
 });
 
+describe("a register-to-cloud request that fails", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("is written to the cloud's output and still reaches the error reporting", {
+    timeout: 30_000,
+  }, async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const reported: unknown[] = [];
+    const setupFastifyErrorHandler = (fastifyApp: ReturnType<typeof buildApp>) => {
+      fastifyApp.addHook("onError", async (_request, _reply, error) => {
+        reported.push(error);
+      });
+    };
+    const { deviceToken } = await insertEnrolledInstallation(testDatabase.db, { now: APP_CLOCK });
+    const broken = await buildTestDatabase();
+    await broken.close();
+    const app = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      setupFastifyErrorHandler,
+      devices: {
+        db: testDatabase.db,
+        rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+        keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+      },
+      health: { db: broken.db, certificateFingerprint: "AA:BB" },
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/health",
+      headers: { authorization: `Bearer ${deviceToken}` },
+    });
+
+    expect(response.json()).toMatchObject({ code: "internal_error" });
+    expect(consoleError).toHaveBeenCalledExactlyOnceWith(
+      expect.stringMatching(/^register-to-cloud request failed: GET \/api\/health: /),
+    );
+    expect(String(consoleError.mock.calls[0]?.[0])).not.toContain(deviceToken);
+    expect(reported).toHaveLength(1);
+  });
+});
+
 describe("serving the backoffice's static build", () => {
   const dirs: string[] = [];
 

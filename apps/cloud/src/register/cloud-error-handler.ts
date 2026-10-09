@@ -1,5 +1,6 @@
 import { cloudError, cloudErrorStatus } from "@purosur/contracts";
 import type { FastifyError, FastifyInstance } from "fastify";
+import { describeDatabaseFailure } from "../platform/db/describe-database-failure.js";
 
 function isClientError(error: FastifyError): boolean {
   return error.statusCode !== undefined && error.statusCode >= 400 && error.statusCode < 500;
@@ -10,7 +11,9 @@ function isClientError(error: FastifyError): boolean {
 export function answerErrorsWithCloudEnvelope(scope: FastifyInstance): void {
   scope.setErrorHandler(async (error: FastifyError, request, reply) => {
     if (!isClientError(error)) {
-      request.log.error({ err: error }, "register-to-cloud request failed");
+      console.error(
+        `register-to-cloud request failed: ${request.method} ${request.routeOptions.url}: ${describeDatabaseFailure(error)}`,
+      );
     }
     const envelope = isClientError(error)
       ? cloudError("validation_failed", "the request body could not be read")
