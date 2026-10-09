@@ -11,7 +11,7 @@ export async function reactivateProduct(
   store: CatalogStore,
   productId: string,
 ): Promise<ReactivateProductOutcome> {
-  let barcodes: string[] = [];
+  let barcodes: string[] | undefined;
   try {
     return await store.transaction(async (tx) => {
       const locked = await tx.lockProduct(productId);
@@ -34,7 +34,7 @@ export async function reactivateProduct(
       return { kind: "reactivated" };
     });
   } catch (error) {
-    if (!(error instanceof CatalogBarcodeConflict)) {
+    if (!(error instanceof CatalogBarcodeConflict) || barcodes === undefined) {
       throw error;
     }
     return { kind: "barcode_taken", codes: await store.activeBarcodesTaken(barcodes, productId) };
