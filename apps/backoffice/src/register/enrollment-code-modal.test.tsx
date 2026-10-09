@@ -8,6 +8,7 @@ const register1: RegisterSummary = {
   id: "register-1",
   name: "Caja 1",
   pendingCode: null,
+  installation: null,
   pointOfSaleNumber: null,
 };
 

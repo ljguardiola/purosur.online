@@ -17,6 +17,7 @@ import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import {
   auditLog,
   registerEnrollmentCodes,
+  registerInstallations,
   registerPointsOfSale,
   registers,
 } from "../platform/db/schema.js";
@@ -182,6 +183,17 @@ export class DrizzleBranchRegisterStore<TQueryResult extends PgQueryResultHKT>
       .leftJoin(registerPointsOfSale, eq(registerPointsOfSale.registerId, registers.id))
       .where(eq(registers.locationId, locationId))
       .orderBy(asc(registers.name));
+    const installations = await this.db
+      .select({
+        registerId: registerInstallations.registerId,
+        hostname: registerInstallations.hostname,
+        windowsVersion: registerInstallations.windowsVersion,
+        enrolledAt: registerInstallations.enrolledAt,
+        revokedAt: registerInstallations.revokedAt,
+      })
+      .from(registerInstallations)
+      .innerJoin(registers, eq(registers.id, registerInstallations.registerId))
+      .where(eq(registers.locationId, locationId));
     return rows.map(
       ({ id, name, issuedAt, expiresAt, redeemedAt, failedAttempts, pointOfSaleNumber }) => ({
         id,
@@ -191,6 +203,14 @@ export class DrizzleBranchRegisterStore<TQueryResult extends PgQueryResultHKT>
             ? { issuedAt, expiresAt, redeemedAt, failedAttempts }
             : null,
         pointOfSaleNumber,
+        installations: installations
+          .filter(({ registerId }) => registerId === id)
+          .map(({ hostname, windowsVersion, enrolledAt, revokedAt }) => ({
+            hostname,
+            windowsVersion,
+            enrolledAt,
+            revokedAt,
+          })),
       }),
     );
   }
