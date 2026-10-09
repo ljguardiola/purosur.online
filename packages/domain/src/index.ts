@@ -16,6 +16,7 @@ export type {
   PasskeyChangedDetail,
   RecoveryRequestedDetail,
   RegisterEnrolledDetail,
+  RegisterOwnCondition,
   SignInLockoutDetail,
   VisibleAlertSight,
 } from "./alerts/index.js";
@@ -39,6 +40,8 @@ export {
   isAlertLevel,
   isDueForEscalation,
   isOpenAlert,
+  REGISTER_OWN_CONDITIONS,
+  registerOwnConditions,
   showsAlertScope,
 } from "./alerts/index.js";
 export {
