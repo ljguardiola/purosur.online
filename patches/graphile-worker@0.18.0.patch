@@ -1,0 +1,24 @@
+diff --git a/dist/worker.js b/dist/worker.js
+index 2a623960bbd688e9bc64a0ff642cfd67eb16e2fe..5b2df321f0c7320e64ddcdc11b4dd811e823c03c 100644
+--- a/dist/worker.js
++++ b/dist/worker.js
+@@ -266,6 +266,8 @@ export function makeNewWorker(workerShared, params) {
+                     replacementPayload: batchJobFailedPayloads.length > 0
+                         ? batchJobFailedPayloads
+                         : undefined,
++                })?.then(null, (e) => {
++                    logger.error(`Failed to record the failure of job '${job.id}' (${job.task_identifier}): ${coerceError(e).message}`, { fatalError: e, job });
+                 });
+             }
+             else {
+@@ -280,7 +282,9 @@ export function makeNewWorker(workerShared, params) {
+                         ? `, attempt ${job.attempts} of ${job.max_attempts}`
+                         : ""}) with success`, { job, duration, success: true });
+                 }
+-                completeJob(job);
++                completeJob(job)?.then(null, (e) => {
++                    logger.error(`Failed to record the completion of job '${job.id}' (${job.task_identifier}): ${coerceError(e).message}`, { fatalError: e, job });
++                });
+             }
+             safeEmit(ctx, "job:complete", { ctx, worker, job, error: err });
+         }

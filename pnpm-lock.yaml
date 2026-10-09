@@ -14,6 +14,7 @@ pnpmfileChecksum: sha256-c6rGwzO9f8FY1X21GZSE1GpyKtUfZ10GF205s/bT6ts=
 
 patchedDependencies:
   '@stryker-mutator/vitest-runner@10.0.0': 35f6253ef9340e91a58e9103a6ef703b6ca066799269402c9b80babc6d79780a
+  graphile-worker@0.18.0: 924cfd3e531741ba4f8bbdf352633936da763f9a9586cbd76da91f60e9d3087a
 
 importers:
 
@@ -190,7 +191,7 @@ importers:
         version: 5.12.5
       graphile-worker:
         specifier: ^0.18.0
-        version: 0.18.0(supports-color@7.2.0)(typescript@6.0.3)
+        version: 0.18.0(patch_hash=924cfd3e531741ba4f8bbdf352633936da763f9a9586cbd76da91f60e9d3087a)(supports-color@7.2.0)(typescript@6.0.3)
       node-forge:
         specifier: ^1.4.0
         version: 1.4.0
@@ -9727,7 +9728,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  graphile-worker@0.18.0(supports-color@7.2.0)(typescript@6.0.3):
+  graphile-worker@0.18.0(patch_hash=924cfd3e531741ba4f8bbdf352633936da763f9a9586cbd76da91f60e9d3087a)(supports-color@7.2.0)(typescript@6.0.3):
     dependencies:
       '@graphile/logger': 0.3.0
       '@types/debug': 4.1.13
