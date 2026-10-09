@@ -44,9 +44,14 @@ afterAll(async () => {
 class HeldMercadoPago implements MercadoPagoOrders {
   readonly started: string[] = [];
   readonly finished: string[] = [];
-  private readonly releases = new Map<string, (outcome: MercadoPagoOrderCreation | Error) => void>();
+  private readonly releases = new Map<
+    string,
+    (outcome: MercadoPagoOrderCreation | Error) => void
+  >();
 
-  createQrOrder({ externalReference }: MercadoPagoQrOrderRequest): Promise<MercadoPagoOrderCreation> {
+  createQrOrder({
+    externalReference,
+  }: MercadoPagoQrOrderRequest): Promise<MercadoPagoOrderCreation> {
     this.started.push(externalReference);
     return new Promise((resolve, reject) => {
       this.releases.set(externalReference, (outcome) => {
