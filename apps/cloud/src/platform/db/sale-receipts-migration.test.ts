@@ -162,7 +162,7 @@ describe("the sale receipts migration applied over a database that already holds
       );
     await insert(saleId, 1);
 
-    await expect(insert(saleId, 1)).rejects.toThrow(/sale_reprints_pkey/);
+    await expect(insert(saleId, 1)).rejects.toThrow(/sale_reprints_sale_id_order_number_pk/);
     await expect(insert("0d9c4f6e-2b1a-4c3d-8e5f-6a7b8c9d0e1f", 1)).rejects.toThrow(
       /sale_reprints_sale_id_sales_id_fk/,
     );
