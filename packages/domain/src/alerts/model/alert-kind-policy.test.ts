@@ -33,6 +33,7 @@ describe("alertKindPolicy", () => {
     ["event_invariant_violated", "warning", afterOpening, "all", "event", true],
     ["update_required", "critical", null, "all", "register", true],
     ["register_silent", "critical", null, "local", "register", true],
+    ["sales_denied", "critical", null, "local", "register", true],
   ] as const)(
     "%s opens as %s, escalates %o, is shown to %s, is scoped to %s and deduplicates: %s",
     (kind, level, escalation, audience, scopeKind, deduplicates) => {
@@ -49,7 +50,7 @@ describe("alertKindPolicy", () => {
   it("resolves after its condition stays cleared only for the kinds that track an ongoing condition", () => {
     const stable = ALERT_KINDS.filter((kind) => alertKindPolicy(kind).resolvesAfterStableClear);
 
-    expect(stable).toEqual(["update_required", "register_silent"]);
+    expect(stable).toEqual(["update_required", "register_silent", "sales_denied"]);
   });
 
   it("answers for every alert kind", () => {
@@ -72,6 +73,7 @@ describe("alertKindsWithScope", () => {
       "register_enrolled",
       "update_required",
       "register_silent",
+      "sales_denied",
     ]);
     expect(alertKindsWithScope("event")).toEqual([
       "events_quarantined",

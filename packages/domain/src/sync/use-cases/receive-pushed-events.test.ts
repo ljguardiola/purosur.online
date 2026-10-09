@@ -479,11 +479,95 @@ describe("reporting how the register stands", () => {
     }
   });
 
+  it("holds the sales-denied condition of the installation's register, in its branch, for a register that reports it can't sell", async () => {
+    const inbox = new FakeInbox();
+    inbox.registerIds.set(DEVICE, "register-1");
+    inbox.locationIds.set(DEVICE, "location-1");
+
+    await receive(inbox, eventsOf(1), {
+      telemetry: {
+        ...TELEMETRY,
+        sales_denied: true,
+        sales_denied_reason: "event_history_broken",
+      },
+    });
+
+    expect(inbox.state.observedConditions.map(({ observation }) => observation)).toContainEqual({
+      holds: true,
+      alert: {
+        kind: "sales_denied",
+        scope: "register-1",
+        locationId: "location-1",
+        detail: { deviceId: DEVICE, reason: "event_history_broken" },
+      },
+    });
+  });
+
+  it("clears the sales-denied condition of the installation's register for a register that reports it can sell", async () => {
+    const inbox = new FakeInbox();
+    inbox.registerIds.set(DEVICE, "register-1");
+
+    await receive(inbox, eventsOf(1), { telemetry: { ...TELEMETRY, sales_denied: false } });
+
+    expect(inbox.state.observedConditions.map(({ observation }) => observation)).toContainEqual({
+      holds: false,
+      kind: "sales_denied",
+      scope: "register-1",
+    });
+  });
+
+  it("observes no sales-denied condition of a register that reports nothing about selling", async () => {
+    const inbox = new FakeInbox();
+
+    await receive(inbox, eventsOf(1));
+
+    expect(inbox.state.observedConditions).toHaveLength(1);
+  });
+
+  it("observes the sales-denied condition of a push it refuses for a gap, a stale device, a broken chain or a version not accepted", async () => {
+    const telemetry: RegisterTelemetry = {
+      ...TELEMETRY,
+      sales_denied: true,
+      sales_denied_reason: "event_history_broken",
+    };
+    const gap = new FakeInbox();
+    await receive(gap, eventsOf(3), { telemetry });
+    const stale = new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]);
+    await receive(stale, [{ ...fakeEvent(1), event_id: "another-event" }], { telemetry });
+    const broken = new FakeInbox();
+    await receive(broken, [{ ...fakeEvent(1), chain_hmac: "forged-link" }], { telemetry });
+    const outdated = new FakeInbox();
+    await receive(outdated, eventsOf(1), { telemetry, appVersion: "not-a-version" });
+
+    for (const inbox of [gap, stale, broken, outdated]) {
+      expect(inbox.state.observedConditions.map(({ observation }) => observation)).toContainEqual(
+        expect.objectContaining({
+          holds: true,
+          alert: expect.objectContaining({ kind: "sales_denied" }),
+        }),
+      );
+    }
+  });
+
+  it("observes the sales-denied condition right after the version, before looking at the events", async () => {
+    const inbox = new FakeInbox();
+
+    await receive(inbox, eventsOf(1), { telemetry: { ...TELEMETRY, sales_denied: false } });
+
+    const observed = inbox.calls.flatMap((call, index) =>
+      call === "observeAlertCondition" ? [index] : [],
+    );
+    expect(observed[1]).toBe((observed[0] ?? -1) + 1);
+    expect(observed[1]).toBeLessThan(inbox.calls.indexOf("receivedDeviceSeqs device-1"));
+  });
+
   it("observes nothing of a revoked installation", async () => {
     const inbox = new FakeInbox();
     inbox.revokedDevices.add(DEVICE);
 
-    await receive(inbox, eventsOf(1));
+    await receive(inbox, eventsOf(1), {
+      telemetry: { ...TELEMETRY, sales_denied: true, sales_denied_reason: "event_history_broken" },
+    });
 
     expect(inbox.state.observedConditions).toEqual([]);
     expect(inbox.state.acceptedPushes).toEqual([]);
