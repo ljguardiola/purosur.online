@@ -165,11 +165,12 @@ describe("chargeSaleByTransfer", () => {
         aggregate_type: "Sale",
         aggregate_id: "sale-1",
         event_type: "sale_completed",
-        schema_version: 3,
+        schema_version: 4,
         occurred_at: NOW.toISOString(),
         actor_id: "cashier",
         payload: {
           id: "sale-1",
+          operation_number: 1,
           register_id: "register-1",
           device_id: "device-1",
           session_id: "session-1",
@@ -224,6 +225,15 @@ describe("chargeSaleByTransfer", () => {
         },
       },
     ]);
+  });
+
+  it("gives the completed sale the next operation number of the register", () => {
+    const store = ledger({ lastOperationNumber: 481 });
+
+    charge(store);
+
+    expect(store.state.sales[0]).toMatchObject({ operationNumber: 482 });
+    expect(store.state.outbox[0]?.payload).toMatchObject({ operation_number: 482 });
   });
 
   it("records a stock movement per line and subtracts it from the balances when the sale completes", () => {
@@ -391,6 +401,7 @@ describe("chargeSaleByTransfer", () => {
 
   it.each<FakeSaleLedgerWrite>([
     "recordPayment",
+    "takeOperationNumber",
     "recordCompletedSale",
     "appendOutboxEvent",
     "recordPreEmissionGate",
@@ -540,6 +551,7 @@ describe("chargeSaleByTransfer", () => {
 
     it.each<FakeSaleLedgerWrite>([
       "recordPayment",
+      "takeOperationNumber",
       "recordCompletedSale",
       "appendOutboxEvent",
       "recordPreEmissionGate",

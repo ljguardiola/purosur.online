@@ -8,7 +8,7 @@ import {
 import type { PaymentTransaction } from "../../../payments/index.js";
 import type { RoleAccess } from "../../../permissions/index.js";
 import { priceInEffectAt } from "../../../pricing/index.js";
-import type { CashMovement } from "../../../register/index.js";
+import { type CashMovement, nextOperationNumber } from "../../../register/index.js";
 import type { Clock, OutboxEventDraft } from "../../../shared/index.js";
 import type { SaleWithLines } from "../../model/sale.js";
 import type { ListPrice } from "../../model/sale-line.js";
@@ -33,7 +33,11 @@ interface FakePrice extends ListPrice {
   validFrom: Date;
 }
 
-type StoredSale = SaleWithLines & { occurredAt?: Date; authorizedBy?: string };
+type StoredSale = SaleWithLines & {
+  occurredAt?: Date;
+  authorizedBy?: string;
+  operationNumber?: number;
+};
 
 export interface FakeSaleLedgerState {
   accesses: Record<string, RoleAccess>;
@@ -51,6 +55,7 @@ export interface FakeSaleLedgerState {
   movements: CashMovement[];
   stockMovements: SaleStockMovement[];
   stockBalances: Record<string, number>;
+  lastOperationNumber: number;
   outbox: OutboxEventDraft[];
   outboxReady: boolean;
   issuerIdentifications: IssuerIdentificationInEffect[];
@@ -69,6 +74,7 @@ export type FakeSaleLedgerWrite =
   | "recordCashMovement"
   | "recordSaleStockMovement"
   | "addToStockBalance"
+  | "takeOperationNumber"
   | "recordCompletedSale"
   | "recordCancelledSale"
   | "recordRefund"
@@ -101,6 +107,7 @@ export class FakeSaleLedger implements SaleLedger {
       movements: [],
       stockMovements: [],
       stockBalances: {},
+      lastOperationNumber: 0,
       outbox: [],
       outboxReady: true,
       issuerIdentifications: [],
@@ -203,12 +210,18 @@ export class FakeSaleLedger implements SaleLedger {
         this.failIfAsked("addToStockBalance");
         working.stockBalances[productId] = (working.stockBalances[productId] ?? 0) + delta;
       },
-      recordCompletedSale: (saleId, occurredAt) => {
+      takeOperationNumber: () => {
+        this.failIfAsked("takeOperationNumber");
+        working.lastOperationNumber = nextOperationNumber(working.lastOperationNumber);
+        return working.lastOperationNumber;
+      },
+      recordCompletedSale: (saleId, occurredAt, operationNumber) => {
         this.failIfAsked("recordCompletedSale");
         for (const sale of working.sales) {
           if (sale.id === saleId) {
             sale.state = "COMPLETED";
             sale.occurredAt = occurredAt;
+            sale.operationNumber = operationNumber;
           }
         }
       },

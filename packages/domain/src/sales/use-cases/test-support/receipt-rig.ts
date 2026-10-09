@@ -26,6 +26,7 @@ const SOURCE: ReceiptSource = {
   },
   occurredAt: SALE_COMPLETED_AT,
   servedByFirstName: "Marta",
+  operationNumber: 482,
   total: 6750,
   lines: [
     {

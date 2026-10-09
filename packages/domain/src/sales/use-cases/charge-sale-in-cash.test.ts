@@ -262,6 +262,59 @@ describe("chargeSaleInCash", () => {
     });
   });
 
+  describe("the operation number", () => {
+    const SECOND_SALE: SaleWithLines = { ...OPEN_SALE, id: "sale-2" };
+
+    it("gives the first completed sale of a register the number 1", () => {
+      const store = ledger();
+
+      charge(store, 10000);
+
+      expect(store.state.sales[0]).toMatchObject({ operationNumber: 1 });
+      expect(store.state.lastOperationNumber).toBe(1);
+    });
+
+    it("gives each completed sale the next number, without reusing any", () => {
+      const store = ledger();
+      const ids = new SequentialIds();
+
+      charge(store, 10000, "sale-1", "cashier", ids);
+      store.state.sales.push(structuredClone(SECOND_SALE));
+      charge(store, 10000, "sale-2", "cashier", ids);
+      store.state.sales.push(structuredClone({ ...SECOND_SALE, id: "sale-3" }));
+      charge(store, 10000, "sale-3", "cashier", ids);
+
+      expect(store.state.sales.map((sale) => sale.operationNumber)).toEqual([1, 2, 3]);
+      expect(store.state.outbox.map((event) => event.payload.operation_number)).toEqual([1, 2, 3]);
+    });
+
+    it("continues from the last number the register took", () => {
+      const store = ledger({ lastOperationNumber: 481 });
+
+      charge(store, 10000);
+
+      expect(store.state.sales[0]).toMatchObject({ operationNumber: 482 });
+      expect(store.state.outbox[0]?.payload).toMatchObject({ operation_number: 482 });
+    });
+
+    it("takes no number for a sale that is only partly paid", () => {
+      const store = ledger();
+
+      charge(store, 2000);
+
+      expect(store.state.lastOperationNumber).toBe(0);
+      expect(store.state.sales[0]?.operationNumber).toBeUndefined();
+    });
+
+    it("takes no number when the sale is refused", () => {
+      const store = ledger({ session: undefined });
+
+      charge(store, 10000);
+
+      expect(store.state.lastOperationNumber).toBe(0);
+    });
+  });
+
   it("does everything in one transaction", () => {
     const store = ledger();
 
@@ -281,11 +334,12 @@ describe("chargeSaleInCash", () => {
         aggregate_type: "Sale",
         aggregate_id: "sale-1",
         event_type: "sale_completed",
-        schema_version: 3,
+        schema_version: 4,
         occurred_at: NOW.toISOString(),
         actor_id: "cashier",
         payload: {
           id: "sale-1",
+          operation_number: 1,
           register_id: "register-1",
           device_id: "device-1",
           session_id: "session-1",
@@ -663,6 +717,7 @@ describe("chargeSaleInCash", () => {
     "recordCashMovement",
     "recordSaleStockMovement",
     "addToStockBalance",
+    "takeOperationNumber",
     "recordCompletedSale",
     "appendOutboxEvent",
     "recordPreEmissionGate",
@@ -866,6 +921,7 @@ describe("chargeSaleInCash", () => {
     it.each<FakeSaleLedgerWrite>([
       "recordPayment",
       "recordCashMovement",
+      "takeOperationNumber",
       "recordCompletedSale",
       "appendOutboxEvent",
       "recordPreEmissionGate",

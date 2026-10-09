@@ -36,6 +36,7 @@ function source(overrides: Partial<ReceiptSource> = {}): ReceiptSource {
     header: HEADER,
     occurredAt: OCCURRED_AT,
     servedByFirstName: "Marta",
+    operationNumber: 482,
     total: 11250,
     lines: [YERBA, QUESO],
     payments: [{ method: "CASH", amount: 11250, tendered: 12000 }],
@@ -48,10 +49,11 @@ describe("receiptContent", () => {
     expect(receiptContent(source()).header).toEqual(HEADER);
   });
 
-  it("shows when the sale happened and who served it", () => {
+  it("shows when the sale happened, who served it and its operation number", () => {
     expect(receiptContent(source()).operation).toEqual({
       occurredAt: OCCURRED_AT,
       servedByFirstName: "Marta",
+      operationNumber: 482,
     });
   });
 
