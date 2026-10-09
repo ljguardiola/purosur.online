@@ -64,6 +64,7 @@ export type {
   SaleLedger,
   SaleLedgerTransaction,
   SaleRefund,
+  SaleStockMovement,
   SellableProduct,
   SellingSession,
 } from "./sale-ledger.js";

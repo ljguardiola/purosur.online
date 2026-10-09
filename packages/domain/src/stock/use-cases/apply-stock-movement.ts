@@ -13,9 +13,20 @@ export async function applyStockMovement(
   lockedBalance: number,
   movement: NewStockMovement,
 ): Promise<AppliedStockMovement> {
+  const { movementId, balance } = await recordStockMovement(tx, movement);
+  return {
+    movementId,
+    balance: balance ?? lockedBalance,
+    supersededByCountId: movement.supersededByCountId,
+  };
+}
+
+export async function recordStockMovement(
+  tx: StockStoreTransaction,
+  movement: NewStockMovement,
+): Promise<{ movementId: string; balance: number | null }> {
   const movementId = await tx.recordMovement(movement);
-  const { supersededByCountId } = movement;
   const balance =
-    supersededByCountId === null ? await tx.addToBalance(movement, movement.delta) : lockedBalance;
-  return { movementId, balance, supersededByCountId };
+    movement.supersededByCountId === null ? await tx.addToBalance(movement, movement.delta) : null;
+  return { movementId, balance };
 }

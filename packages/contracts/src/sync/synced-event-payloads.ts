@@ -4,6 +4,7 @@ import {
   cashMovementReason,
   isValidCashAmount,
   isValidCashMovementAmount,
+  mayBeMovementQuantity,
   PRE_EMISSION_GATE_FAILURE_REASONS,
 } from "@purosur/domain";
 import { z } from "zod";
@@ -51,6 +52,13 @@ const saleCashMovementSchema = z.object({
   ref_id: text,
   actor_id: text,
   occurred_at: instant,
+});
+
+const saleStockMovementSchema = z.object({
+  id: text,
+  sale_line_id: text,
+  product_id: text,
+  delta: z.int().refine((delta) => mayBeMovementQuantity(-delta)),
 });
 
 const approvedPayment = {
@@ -111,6 +119,10 @@ const saleCompletedV2Schema = z.object({
   payments: z.array(paymentSchema).min(1),
 });
 
+const saleCompletedV3Schema = saleCompletedV2Schema.extend({
+  stock_movements: z.array(saleStockMovementSchema),
+});
+
 const saleRefundFields = {
   id: text,
   kind: z.literal("REFUND"),
@@ -167,6 +179,7 @@ const fiscalGateFailedSchema = z.object({
 const PAYLOAD_SCHEMAS = {
   "sale_completed@1": saleCompletedV1Schema,
   "sale_completed@2": saleCompletedV2Schema,
+  "sale_completed@3": saleCompletedV3Schema,
   "sale_cancelled@1": saleCancelledV1Schema,
   "cash_session_opened@1": cashSessionOpenedSchema,
   "cash_session_closed@1": cashSessionClosedSchema,

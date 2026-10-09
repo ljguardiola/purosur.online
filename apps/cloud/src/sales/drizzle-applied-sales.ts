@@ -48,7 +48,13 @@ export async function recordAppliedSale<TQueryResult extends PgQueryResultHKT>(
   { sale }: Extract<SyncedFact, { kind: "sale_completed" }>,
   appliedAt: Date,
 ): Promise<void> {
-  const { lines: _lines, payments: _payments, cashMovements: _movements, ...header } = sale;
+  const {
+    lines: _lines,
+    payments: _payments,
+    cashMovements: _movements,
+    stockMovements: _stockMovements,
+    ...header
+  } = sale;
   await tx.insert(sales).values({ ...origin, ...header, state: "COMPLETED", appliedAt });
   await recordSaleParts(tx, sale, null);
 }

@@ -165,7 +165,7 @@ describe("chargeSaleByTransfer", () => {
         aggregate_type: "Sale",
         aggregate_id: "sale-1",
         event_type: "sale_completed",
-        schema_version: 2,
+        schema_version: 3,
         occurred_at: NOW.toISOString(),
         actor_id: "cashier",
         payload: {
@@ -217,9 +217,25 @@ describe("chargeSaleByTransfer", () => {
             },
           ],
           cash_movements: [],
+          stock_movements: [
+            { id: "id-3", sale_line_id: "line-1", product_id: "yerba", delta: -2000 },
+            { id: "id-4", sale_line_id: "line-2", product_id: "fideos", delta: -1000 },
+          ],
         },
       },
     ]);
+  });
+
+  it("records a stock movement per line and subtracts it from the balances when the sale completes", () => {
+    const store = ledger({ stockBalances: { yerba: 5000 } });
+
+    charge(store);
+
+    expect(store.state.stockMovements).toEqual([
+      { id: "id-3", saleLineId: "line-1", productId: "yerba", delta: -2000, occurredAt: NOW },
+      { id: "id-4", saleLineId: "line-2", productId: "fideos", delta: -1000, occurredAt: NOW },
+    ]);
+    expect(store.state.stockBalances).toEqual({ yerba: 3000, fideos: -1000 });
   });
 
   it("records the pre-emission gate outcome of the sale in the same transaction", () => {
@@ -248,7 +264,7 @@ describe("chargeSaleByTransfer", () => {
     expect(store.state.outbox).toMatchObject([
       { event_type: "sale_completed" },
       {
-        event_id: "id-3",
+        event_id: "id-5",
         event_type: "fiscal_gate_failed",
         payload: { sale_id: "sale-1", reason: "issuer_identification_missing" },
       },
@@ -446,6 +462,15 @@ describe("chargeSaleByTransfer", () => {
         saleId: "sale-1",
         total: TOTAL,
       });
+    });
+
+    it("records no stock movement until the sale is covered", () => {
+      const store = ledger();
+
+      charge(store, PARTIAL);
+
+      expect(store.state.stockMovements).toEqual([]);
+      expect(store.state.stockBalances).toEqual({});
     });
 
     it("completes with both payments when a second transfer covers exactly what is pending", () => {

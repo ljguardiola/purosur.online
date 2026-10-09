@@ -45,6 +45,45 @@ describe("what a synced fact breaks that only its own history shows", () => {
     expect(invariantBreaksOf(aCompletedSaleFact())).toEqual([]);
   });
 
+  it("is nothing for a sale whose stock movements match its lines", () => {
+    const sale = aCompletedSaleFact({
+      stockMovements: [
+        { id: "movement-1", saleLineId: "line-1", productId: "product-1", delta: -1000 },
+      ],
+    });
+
+    expect(invariantBreaksOf(sale)).toEqual([]);
+  });
+
+  it("is that its stock movements do not match its lines for a sale moving another product", () => {
+    const sale = aCompletedSaleFact({
+      stockMovements: [
+        { id: "movement-1", saleLineId: "line-1", productId: "product-2", delta: -1000 },
+      ],
+    });
+
+    expect(invariantBreaksOf(sale)).toEqual(["stock_movements_do_not_match_lines"]);
+  });
+
+  it("is that its stock movements do not match its lines for a sale reporting none of them", () => {
+    expect(invariantBreaksOf(aCompletedSaleFact({ stockMovements: [] }))).toEqual([
+      "stock_movements_do_not_match_lines",
+    ]);
+  });
+
+  it("is nothing about stock for a sale whose register reports no stock movements", () => {
+    expect(invariantBreaksOf(aCompletedSaleFact({ stockMovements: null }))).toEqual([]);
+  });
+
+  it("is every break a sale has", () => {
+    const sale = aCompletedSaleFact({ total: 1501, stockMovements: [] });
+
+    expect(invariantBreaksOf(sale)).toEqual([
+      "approved_payments_below_total",
+      "stock_movements_do_not_match_lines",
+    ]);
+  });
+
   it("is nothing for a cancelled sale whose refunds settle each approved payment", () => {
     expect(invariantBreaksOf(aCancelledSaleFact())).toEqual([]);
   });

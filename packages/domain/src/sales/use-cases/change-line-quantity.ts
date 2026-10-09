@@ -3,7 +3,7 @@ import { hasApprovedPayment } from "../../payments/index.js";
 import type { Clock } from "../../shared/index.js";
 import { type OpenSaleStanding, openSaleStanding } from "../model/open-sale-standing.js";
 import type { SaleWithLines } from "../model/sale.js";
-import { saleTotal, withQuantity } from "../model/sale-line.js";
+import { mayBeSaleLineQuantity, saleTotal, withQuantity } from "../model/sale-line.js";
 import { saleChargeRefusal } from "./sale-charge-refusal.js";
 import type { SaleLedger } from "./sale-ledger.js";
 import { isRefusal, sellingSession } from "./selling-session.js";
@@ -50,7 +50,7 @@ export function changeLineQuantity(
     if (hasApprovedPayment(tx.salePayments(sale.id))) {
       return { kind: "sale_has_payments" };
     }
-    if (!Number.isSafeInteger(quantity) || quantity < 1) {
+    if (!mayBeSaleLineQuantity(quantity)) {
       return { kind: "invalid_quantity" };
     }
     const line = sale.lines.find((candidate) => candidate.id === lineId);

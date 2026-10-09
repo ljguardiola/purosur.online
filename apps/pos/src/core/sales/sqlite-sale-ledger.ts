@@ -30,6 +30,7 @@ import { readSalePayments } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
 import { insertCashMovement, readMovementsOf } from "../register/sqlite-cash-ledger";
 import type { SignInStore } from "../sessions/sqlite-sign-in-store";
+import { addToStockBalance, insertSaleStockMovement } from "../stock/sqlite-stock-ledger";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 import { type BenefitColumns, readOpenSale, toBenefit } from "./sqlite-open-sale";
 
@@ -97,6 +98,8 @@ export class SqliteSaleLedger implements SaleLedger {
       recordPayment: (payment) => this.recordPayment(payment),
       saleCashMovements: (saleId) => readMovementsOf(this.database, { type: "sale", id: saleId }),
       recordCashMovement: (movement) => insertCashMovement(this.database, movement),
+      recordSaleStockMovement: (movement) => insertSaleStockMovement(this.database, movement),
+      addToStockBalance: (productId, delta) => addToStockBalance(this.database, productId, delta),
       recordCompletedSale: (saleId, occurredAt) => this.recordCompletedSale(saleId, occurredAt),
       recordCancelledSale: (saleId, occurredAt, authorizedBy) =>
         this.recordCancelledSale(saleId, occurredAt, authorizedBy),

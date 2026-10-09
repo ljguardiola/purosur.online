@@ -1,4 +1,5 @@
 import type { CashMovementType } from "../../register/index.js";
+import { soldLineStockDelta } from "./sale-line.js";
 
 export interface CompletedSaleLine {
   id: string;
@@ -32,6 +33,13 @@ export interface CompletedSaleCashMovement {
   occurredAt: Date;
 }
 
+interface CompletedSaleStockMovement {
+  id: string;
+  saleLineId: string;
+  productId: string;
+  delta: number;
+}
+
 export interface CompletedSale {
   id: string;
   sessionId: string;
@@ -41,4 +49,23 @@ export interface CompletedSale {
   lines: CompletedSaleLine[];
   payments: CompletedSalePayment[];
   cashMovements: CompletedSaleCashMovement[];
+  stockMovements: CompletedSaleStockMovement[] | null;
+}
+
+export function stockMovementsMatchLines(
+  lines: readonly CompletedSaleLine[],
+  movements: readonly CompletedSaleStockMovement[],
+): boolean {
+  return (
+    movements.length === lines.length &&
+    lines.every(
+      (line) =>
+        movements.filter(
+          (movement) =>
+            movement.saleLineId === line.id &&
+            movement.productId === line.productId &&
+            movement.delta === soldLineStockDelta(line),
+        ).length === 1,
+    )
+  );
 }

@@ -120,6 +120,17 @@ describe("the description of an event applied with an inconsistency", () => {
     );
   });
 
+  test("says the stock movements of a sale do not match its lines", () => {
+    expect(
+      invariantViolationDescription({
+        ...violation,
+        breaks: ["stock_movements_do_not_match_lines"],
+      }),
+    ).toBe(
+      "Se aplicó el evento de venta (event-1) de la venta sale-1, pero tiene una inconsistencia: los movimientos de stock no coinciden con los productos vendidos.",
+    );
+  });
+
   test("names an inconsistency it does not know in general words, once, never by its code", () => {
     expect(
       invariantViolationDescription({
