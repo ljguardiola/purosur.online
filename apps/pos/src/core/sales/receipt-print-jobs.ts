@@ -14,12 +14,12 @@ export interface ReceiptPrintJobsDeps {
   reportFailure: (context: string, error: unknown) => void;
 }
 
-export interface ReceiptPrintRunner {
+interface ReceiptPrintRunner {
   watch: ReceiptPrintWatch;
   printer: (inner: ReceiptPrinter) => ReceiptPrinter;
 }
 
-export type ReceiptPrintStart<TOutcome> =
+type ReceiptPrintStart<TOutcome> =
   | { kind: "busy" }
   | { kind: "sent" }
   | { kind: "answered"; outcome: TOutcome }
