@@ -106,6 +106,8 @@ export type { FiscalAddressEditBody } from "./fiscal/fiscal-address-edit.js";
 export { fiscalAddressEditBodySchema } from "./fiscal/fiscal-address-edit.js";
 export type { IssuerIdentificationEditBody } from "./fiscal/issuer-identification-edit.js";
 export { issuerIdentificationEditBodySchema } from "./fiscal/issuer-identification-edit.js";
+export type { OfflinePointOfSaleConfigurationBody } from "./fiscal/offline-point-of-sale-configuration.js";
+export { offlinePointOfSaleConfigurationBodySchema } from "./fiscal/offline-point-of-sale-configuration.js";
 export type { PointOfSaleConfigurationBody } from "./fiscal/point-of-sale-configuration.js";
 export { pointOfSaleConfigurationBodySchema } from "./fiscal/point-of-sale-configuration.js";
 export type {
@@ -116,6 +118,8 @@ export {
   realTimeAuthorizationRequestSchema,
   realTimeAuthorizationResponseSchema,
 } from "./fiscal/real-time-authorization.js";
+export type { RegisterOfflinePointOfSaleBody } from "./fiscal/register-offline-point-of-sale.js";
+export { registerOfflinePointOfSaleSchema } from "./fiscal/register-offline-point-of-sale.js";
 export type {
   RegisterPointOfSaleBody,
   RegisterPointOfSaleOverviewBody,

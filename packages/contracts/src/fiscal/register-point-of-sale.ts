@@ -14,6 +14,8 @@ export const registerPointOfSaleOverviewSchema = z.object({
   point_of_sale_number: pointOfSaleNumberSchema.nullable(),
   fiscal_address_id: z.string().nullable(),
   version: z.int(),
+  offline_point_of_sale_number: pointOfSaleNumberSchema.nullable(),
+  offline_version: z.int(),
 });
 
 export const registerPointOfSaleOverviewListSchema = z.array(registerPointOfSaleOverviewSchema);
