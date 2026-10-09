@@ -239,6 +239,10 @@ export {
 } from "./register/register-sync-status.js";
 export type {
   CancelLockedSaleOutcome,
+  ReceiptCopyShown,
+  ReceiptPrintStatusOutcome,
+  ReprintSaleReceiptOutcome,
+  RetryReceiptPrintOutcome,
   SalesCoreToRendererMessage,
   SalesRendererToCoreMessage,
 } from "./sales/core-messages.js";
