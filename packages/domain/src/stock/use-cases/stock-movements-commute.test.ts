@@ -80,6 +80,7 @@ async function apply(store: FakeStockStore, operation: Operation): Promise<void>
         movements: [
           {
             id: `register-movement-${operation.minute}`,
+            saleLineId: `sale-line-${operation.minute}`,
             productId: KEY.productId,
             kind: "sale",
             delta: -operation.quantity,
