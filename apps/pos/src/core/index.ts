@@ -56,6 +56,7 @@ import {
 } from "./register/enrollment";
 import { type StartedLocalDatabase, startLocalDatabase } from "./register/local-database-startup";
 import { registerServiceOf } from "./register/register-service-of-database";
+import { registerStatusFor } from "./register/register-status-requests";
 import { readOpenSession } from "./register/sqlite-cash-ledger";
 import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
@@ -88,10 +89,16 @@ import {
   installationCheckResultOf,
   installationCheckWarningOf,
 } from "./sync/check-installation";
+import {
+  type CloudReachability,
+  INITIAL_CLOUD_REACHABILITY,
+  nextCloudReachability,
+} from "./sync/cloud-reachability";
 import { pruneLocalOutbox } from "./sync/prune-local-outbox";
 import { pullFromCloud, pullResultOf } from "./sync/pull-from-cloud";
 import { pushResultOf, pushToCloud, pushWarningOf } from "./sync/push-to-cloud";
 import { registerTelemetryReader } from "./sync/register-telemetry";
+import { SqliteAcceptedPushLog } from "./sync/sqlite-accepted-push-log";
 import { SqliteLocalInstallation, salesStopOf } from "./sync/sqlite-local-installation";
 import { SqliteLocalOutbox } from "./sync/sqlite-local-outbox";
 import { SqliteLocalReplica } from "./sync/sqlite-local-replica";
@@ -174,6 +181,7 @@ const localOutbox =
   localDatabase === undefined ? undefined : new SqliteLocalOutbox(localDatabase, now);
 const localInstallation =
   localDatabase === undefined ? undefined : new SqliteLocalInstallation(localDatabase, now);
+let cloudReachability: CloudReachability = INITIAL_CLOUD_REACHABILITY;
 const signInStore = localDatabase === undefined ? undefined : new SqliteSignInStore(localDatabase);
 const signedInPerson = createSignedInPerson();
 const readPepper = async () => (await mainRequests.readCredentials())?.pepper;
@@ -234,7 +242,12 @@ const syncSchedule = createSyncSchedule({
                   storageTelemetryReader(localDatabase.name, nodeStorageFileSystem),
                   () => salesStopOf(localDatabase),
                 ),
+          acceptedPush:
+            localDatabase === undefined
+              ? undefined
+              : { log: new SqliteAcceptedPushLog(localDatabase), clock: { now } },
         });
+        cloudReachability = nextCloudReachability(cloudReachability, attempt);
         const warning = pushWarningOf(attempt);
         if (warning !== undefined) {
           console.warn(warning, attempt);
@@ -287,6 +300,10 @@ const realTimeAuthorization = createRealTimeAuthorization({
 
 const rendererRequestDeps: RendererRequestDeps = {
   credentialsPresent: () => mainRequests.credentialsPresent(),
+  registerStatus:
+    localDatabase === undefined
+      ? undefined
+      : () => registerStatusFor({ database: localDatabase, cloud: () => cloudReachability, now }),
   registerService: register.service,
   registerName: () => replica?.registerName(),
   enroll: async (typedCode: string) => {

@@ -21,7 +21,7 @@ export interface PushToCloudDeps {
   post: PostToCloudWithBearer | undefined;
   appVersion: string | undefined;
   readTelemetry: (() => Promise<RegisterTelemetry>) | undefined;
-  acceptedPush?: { log: AcceptedPushLog; clock: Clock };
+  acceptedPush?: { log: AcceptedPushLog; clock: Clock } | undefined;
 }
 
 export type PushAttempt =
