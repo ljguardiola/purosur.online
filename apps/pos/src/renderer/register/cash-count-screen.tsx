@@ -110,7 +110,7 @@ export function CashCountScreen({
   }
 
   return (
-    <div className="flex h-screen w-screen bg-surface">
+    <div className="flex h-full w-full bg-surface">
       <OpenSessionRail
         firstName={person.first_name}
         registerName={registerName}

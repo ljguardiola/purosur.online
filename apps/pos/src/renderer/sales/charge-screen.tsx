@@ -110,7 +110,7 @@ export function ChargeScreen({
   const lines = plural(lineCount, { one: "LÍNEA", other: "LÍNEAS" });
 
   return (
-    <div className="flex h-screen w-screen bg-surface-subtle">
+    <div className="flex h-full w-full bg-surface-subtle">
       <OpenSessionRail
         firstName={person.first_name}
         registerName={registerName}

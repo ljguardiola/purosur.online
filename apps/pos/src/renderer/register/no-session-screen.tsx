@@ -27,7 +27,7 @@ export function NoSessionScreen({
   const [leaving, setLeaving] = useState(false);
 
   return (
-    <div className="flex h-screen w-screen bg-surface">
+    <div className="flex h-full w-full bg-surface">
       <NavigationRail
         firstName={person.first_name}
         entries={entriesFor(entries, person.abilities)}

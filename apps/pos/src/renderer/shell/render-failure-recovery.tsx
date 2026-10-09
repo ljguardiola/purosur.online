@@ -55,16 +55,18 @@ export class RenderFailureRecovery extends Component<
   override render(): ReactNode {
     if (this.state.phase === "exhausted") {
       return (
-        <BrandPanelScreen>
-          <div className="w-full max-w-112">
-            <LoadFailure
-              variant="screen"
-              icon={<TriangleAlert />}
-              title="No se pudo mostrar la pantalla"
-              onRetry={this.retry}
-            />
-          </div>
-        </BrandPanelScreen>
+        <div className="h-screen w-screen">
+          <BrandPanelScreen>
+            <div className="w-full max-w-112">
+              <LoadFailure
+                variant="screen"
+                icon={<TriangleAlert />}
+                title="No se pudo mostrar la pantalla"
+                onRetry={this.retry}
+              />
+            </div>
+          </BrandPanelScreen>
+        </div>
       );
     }
 

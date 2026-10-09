@@ -180,7 +180,7 @@ export function LockedCashCount({
   }
 
   return (
-    <form className="flex h-screen w-screen bg-surface" noValidate onSubmit={handleSubmit}>
+    <form className="flex h-full w-full bg-surface" noValidate onSubmit={handleSubmit}>
       <main className="flex flex-1 flex-col gap-4 p-8">
         <ScreenHeader
           eyebrow={sessionEyebrow(registerName, openedAt)}
