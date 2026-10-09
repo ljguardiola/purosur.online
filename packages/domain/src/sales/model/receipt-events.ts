@@ -4,7 +4,7 @@ export interface SalePrintState {
   printedAt: Date | null;
 }
 
-export type SaleReprintReason = { kind: "retry" } | { kind: "requested"; text: string };
+type SaleReprintReason = { kind: "retry" } | { kind: "requested"; text: string };
 
 export interface SaleReprint {
   saleId: string;
