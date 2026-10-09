@@ -50,9 +50,7 @@ describe("a readable printout of ESC/POS bytes", () => {
   });
 
   it("shows a raster image as its size", () => {
-    const printout = printoutOf(
-      Uint8Array.from([GS, 0x76, 0x30, 0, 2, 0, 3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
-    );
+    const printout = printoutOf(Uint8Array.from([GS, 0x76, 0x30, 0, 2, 0, 3, 0, 1, 2, 3, 4, 5, 6]));
 
     expect(printout.text).toBe("[logo 16x3]");
   });
