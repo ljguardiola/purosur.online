@@ -19,7 +19,10 @@ import {
   openAppliedCashSession,
   recordAppliedCashMovement,
 } from "../register/drizzle-applied-cash-sessions.js";
-import { recordAppliedPrintState, recordAppliedReprint } from "../sales/drizzle-applied-sale-receipts.js";
+import {
+  recordAppliedPrintState,
+  recordAppliedReprint,
+} from "../sales/drizzle-applied-sale-receipts.js";
 import { recordAppliedCancelledSale, recordAppliedSale } from "../sales/drizzle-applied-sales.js";
 import { DrizzleStockStoreTransaction } from "../stock/drizzle-stock-store.js";
 import { type PendingChanges, withPendingChanges } from "./change-log.js";
