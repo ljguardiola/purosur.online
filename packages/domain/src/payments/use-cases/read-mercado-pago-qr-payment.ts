@@ -1,7 +1,6 @@
 import type { ProviderPaymentTransaction } from "../model/payment-transaction.js";
 import type { MercadoPagoQrOrderPorts } from "./mercado-pago-qr-order-ports.js";
-import { recordExpiryWithoutOrder } from "./record-expiry-without-order.js";
-import { recordMercadoPagoOrderResult } from "./record-mercado-pago-order-result.js";
+import { refreshMercadoPagoTransaction } from "./refresh-mercado-pago-transaction.js";
 
 export interface ReadMercadoPagoQrPaymentInput {
   registerId: string;
@@ -24,27 +23,14 @@ export async function readMercadoPagoQrPayment(
       if (transaction === null) {
         return { kind: "not_found" };
       }
-      const ended = await recordExpiryWithoutOrder(lane, transaction, clock.now());
-      if (ended !== null) {
-        return { kind: "read", transaction: ended };
-      }
-      if (transaction.state !== "PENDING" || transaction.providerOrderId === null) {
-        return { kind: "read", transaction };
-      }
-
-      const reading = await mercadoPago.readOrder(transaction.providerOrderId);
-      if (reading.kind === "unavailable") {
-        return { kind: "provider_unavailable" };
-      }
-      return {
-        kind: "read",
-        transaction: await recordMercadoPagoOrderResult(
-          lane,
-          transaction,
-          reading.result,
-          clock.now(),
-        ),
-      };
+      const refresh = await refreshMercadoPagoTransaction(
+        lane,
+        { mercadoPago, clock },
+        transaction,
+      );
+      return refresh.kind === "refreshed"
+        ? { kind: "read", transaction: refresh.transaction }
+        : refresh;
     },
   );
 }

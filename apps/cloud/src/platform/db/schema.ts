@@ -1436,6 +1436,9 @@ export const paymentTransactions = pgTable(
   },
   (table) => [
     index("payment_transactions_register_idx").on(table.registerId),
+    index("payment_transactions_provider_order_id_lower_idx").on(
+      sql`lower(${table.providerOrderId})`,
+    ),
     check("payment_transactions_kind_check", sql`${table.kind} = 'SALE'`),
     check("payment_transactions_method_check", sql`${table.method} = 'QR'`),
     check("payment_transactions_provider_check", sql`${table.provider} = 'MERCADOPAGO_QR'`),
@@ -1444,6 +1447,23 @@ export const paymentTransactions = pgTable(
       "payment_transactions_state_check",
       sql`${table.state} in ('PENDING', 'APPROVED', 'DECLINED', 'CANCELLED', 'EXPIRED')`,
     ),
+  ],
+);
+
+// The limiter's own bookkeeping, not business data: what left the limit's window is deleted.
+export const paymentNotificationAttempts = pgTable(
+  "payment_notification_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sourceAddress: text("source_address").notNull(),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index("payment_notification_attempts_source_address_idx").on(
+      table.sourceAddress,
+      table.attemptedAt,
+    ),
+    index("payment_notification_attempts_attempted_at_idx").on(table.attemptedAt),
   ],
 );
 

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isValidCuit } from "@purosur/domain";
 import { recordAuthorizedCuit } from "@purosur/domain/fiscal/use-cases";
+import type { MercadoPagoOrders } from "@purosur/domain/payments/use-cases";
 import * as Sentry from "@sentry/node";
 import {
   drizzle,
@@ -53,6 +54,7 @@ import { WsfeBuyerTaxStatusSource } from "./fiscal/wsfe-buyer-tax-status-source.
 import { WsfeTaxAuthorityInvoicing } from "./fiscal/wsfe-tax-authority-invoicing.js";
 import { WsfeTaxAuthorityLastAuthorized } from "./fiscal/wsfe-tax-authority-last-authorized.js";
 import { createMercadoPagoOrdersClient } from "./payments/mercado-pago-orders-client.js";
+import { mercadoPagoPendingCheckJobs } from "./payments/mercado-pago-pending-check-task.js";
 import {
   type DedicatedConnections,
   postgresDedicatedConnections,
@@ -87,6 +89,8 @@ export interface ServerEnv {
   MERCADOPAGO_ACCESS_TOKEN?: string | undefined;
   /** The identifier of the store's own QR code at Mercado Pago. */
   MERCADOPAGO_QR_EXTERNAL_POS_ID?: string | undefined;
+  /** The secret Mercado Pago signs its notifications with, from its developer panel. */
+  MERCADOPAGO_WEBHOOK_SECRET?: string | undefined;
 }
 
 const DEFAULT_PORT = 3000;
@@ -147,25 +151,30 @@ function requireRecoveryEnvVar(env: ServerEnv, name: keyof ServerEnv & string): 
 export interface MercadoPagoConfig {
   accessToken: string;
   externalPosId: string;
+  webhookSecret: string;
 }
 
+const MERCADO_PAGO_VARIABLES = [
+  ["MERCADOPAGO_ACCESS_TOKEN", "accessToken"],
+  ["MERCADOPAGO_QR_EXTERNAL_POS_ID", "externalPosId"],
+  ["MERCADOPAGO_WEBHOOK_SECRET", "webhookSecret"],
+] as const;
+
 export function resolveMercadoPagoConfig(env: ServerEnv): MercadoPagoConfig | undefined {
-  const accessToken = env.MERCADOPAGO_ACCESS_TOKEN;
-  const externalPosId = env.MERCADOPAGO_QR_EXTERNAL_POS_ID;
-  if (!accessToken && !externalPosId) {
+  const present = MERCADO_PAGO_VARIABLES.filter(([name]) => env[name]);
+  if (present.length === 0) {
     return undefined;
   }
-  if (!accessToken) {
-    throw new Error(
-      "MERCADOPAGO_ACCESS_TOKEN must be set when MERCADOPAGO_QR_EXTERNAL_POS_ID is set",
-    );
+  const missing = MERCADO_PAGO_VARIABLES.find(([name]) => !env[name]);
+  const [firstPresent] = present;
+  if (missing && firstPresent) {
+    throw new Error(`${missing[0]} must be set when ${firstPresent[0]} is set`);
   }
-  if (!externalPosId) {
-    throw new Error(
-      "MERCADOPAGO_QR_EXTERNAL_POS_ID must be set when MERCADOPAGO_ACCESS_TOKEN is set",
-    );
-  }
-  return { accessToken, externalPosId };
+  return {
+    accessToken: env.MERCADOPAGO_ACCESS_TOKEN ?? "",
+    externalPosId: env.MERCADOPAGO_QR_EXTERNAL_POS_ID ?? "",
+    webhookSecret: env.MERCADOPAGO_WEBHOOK_SECRET ?? "",
+  };
 }
 
 /** Required unconditionally: the edge guard applies to every route (`GET /api/health` excepted). */
@@ -381,6 +390,7 @@ export interface SetUpRecoveryEnv extends RecoveryEnv {
   };
   arcaBuyerTaxStatus?: { endpoint: string; cuit: string; certificateFingerprint: string };
   arcaInvoicing?: { endpoint: string; cuit: string; certificateFingerprint: string };
+  mercadoPago?: MercadoPagoOrders;
 }
 
 function wsaaRenewalInput(
@@ -463,6 +473,7 @@ export async function setUpRecovery(
 ): Promise<RecoveryInfrastructure> {
   const sql = postgres(recoveryEnv.databaseUrl);
   const db = drizzle(sql);
+  const connections = postgresDedicatedConnections(sql);
   const emailSender =
     deps.emailSender ??
     selectRecoveryEmailSender({
@@ -490,6 +501,16 @@ export async function setUpRecovery(
         }),
       }),
       applySyncedEventsJobs({ now }),
+      ...(recoveryEnv.mercadoPago
+        ? [
+            mercadoPagoPendingCheckJobs({
+              now,
+              mercadoPago: recoveryEnv.mercadoPago,
+              db,
+              connections,
+            }),
+          ]
+        : []),
       ...(recoveryEnv.arcaWsaa
         ? [wsaaTokenRenewalJobs(wsaaRenewalInput(recoveryEnv.arcaWsaa, now))]
         : []),
@@ -522,7 +543,7 @@ export async function setUpRecovery(
 
   return {
     db,
-    connections: postgresDedicatedConnections(sql),
+    connections,
     jobQueue,
     workerUtils,
     backofficeOrigin: recoveryEnv.backofficeOrigin,
@@ -588,6 +609,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
   const errorReporting = resolveBackofficeErrorReporting(env);
   const recoveryEnv = resolveRecoveryEnv(env);
   const mercadoPagoConfig = resolveMercadoPagoConfig(env);
+  const mercadoPago = mercadoPagoConfig && createMercadoPagoOrdersClient(mercadoPagoConfig);
   const configuration = recoveryEnv
     ? {
         authorizedCuit: requireAuthorizedCuit(env),
@@ -602,6 +624,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
           },
           arcaVitality: { endpoint: arcaEndpoints(requireArcaEnvironment(env)).wsfe },
           ...resolveArcaSigning(env, arcaEndpoints),
+          ...(mercadoPago ? { mercadoPago } : {}),
         },
       }
     : undefined;
@@ -635,8 +658,13 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
       ? {
           mercadoPagoQr: {
             connections: database.recovery.connections,
-            ...(mercadoPagoConfig
-              ? { mercadoPago: createMercadoPagoOrdersClient(mercadoPagoConfig) }
+            ...(mercadoPago ? { mercadoPago } : {}),
+          },
+          mercadoPagoNotifications: {
+            db: database.recovery.db,
+            connections: database.recovery.connections,
+            ...(mercadoPago && mercadoPagoConfig
+              ? { mercadoPago, webhookSecret: mercadoPagoConfig.webhookSecret }
               : {}),
           },
         }
