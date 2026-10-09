@@ -25,11 +25,13 @@ import {
   formatStockChange,
   formatStockQuantity,
   parseStockQuantity,
+  quantityFieldKind,
+  quantityMessage,
 } from "../platform/stock-quantity";
 import { type CountMoment, type CountStart, countOccurredAt } from "./count-moment";
 import type { RegisterCountOutcome } from "./stock-api";
 import type { StockCountsScreenServices } from "./stock-counts-services";
-import { productOptions, quantityFieldKind, quantityMessage } from "./stock-movement-form";
+import { productOptions } from "./stock-movement-form";
 import { useExpectedBalanceQuery, useRefreshStock, useStockProductsQuery } from "./stock-queries";
 
 type CountFormValues = { productId: string | null; moment: CountMoment; counted: string };

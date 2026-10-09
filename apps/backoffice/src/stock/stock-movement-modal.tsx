@@ -20,7 +20,12 @@ import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { combineCloudData } from "../platform/combine-cloud-data";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import { directedQuantity, parseStockQuantity } from "../platform/stock-quantity";
+import {
+  directedQuantity,
+  parseStockQuantity,
+  quantityFieldKind,
+  quantityMessage,
+} from "../platform/stock-quantity";
 import type { RecordMovementOutcome } from "./stock-api";
 import { StockBalanceChange } from "./stock-balance-change";
 import {
@@ -31,8 +36,6 @@ import {
   type MovementKind,
   PRODUCT_REQUIRED,
   productOptions,
-  quantityFieldKind,
-  quantityMessage,
   REASON_REQUIRED,
   soleDirection,
 } from "./stock-movement-form";

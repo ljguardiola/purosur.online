@@ -38,3 +38,13 @@ export function parseStockQuantity(value: string, saleUnit: SaleUnit): number | 
     Number(digits.fraction.padEnd(KG_DECIMALS, "0"))
   );
 }
+
+export function quantityFieldKind(saleUnit: SaleUnit) {
+  return { kind: "plain-text" as const, suffix: saleUnit === "KG" ? "kg" : "u" };
+}
+
+export function quantityMessage(saleUnit: SaleUnit): string {
+  return saleUnit === "KG"
+    ? "Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150."
+    : "Escribí una cantidad entera de unidades, por ejemplo 16.";
+}
