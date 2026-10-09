@@ -9,7 +9,7 @@ import {
 } from "./alert-catalog.js";
 
 describe("ALERT_KINDS", () => {
-  it("lists exactly the security-fact kinds a backoffice account, a register enrollment, the application of synced events, the ARCA certificate or a register's version, silence or inability to sell can raise", () => {
+  it("lists exactly the security-fact kinds a backoffice account, a register enrollment, the application of synced events, the ARCA certificate or a register's version, silence or inability to sell or the tax authority's rejection of a document can raise", () => {
     expect(ALERT_KINDS).toEqual([
       "backoffice_passkey_changed",
       "backoffice_recovery_requested",
@@ -23,6 +23,7 @@ describe("ALERT_KINDS", () => {
       "update_required",
       "register_silent",
       "sales_denied",
+      "fiscal_rejected",
     ]);
   });
 });

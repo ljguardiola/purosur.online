@@ -1,11 +1,12 @@
 import {
   FiscalDocumentAlreadyRecorded,
   type RealTimeAuthorizationAnswer,
+  type RejectionAlertChange,
 } from "@purosur/domain/fiscal/use-cases";
 import { eq, sql } from "drizzle-orm";
 import type { PgliteQueryResultHKT } from "drizzle-orm/pglite";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { arcaInvoicingEvidence, fiscalRequests } from "../platform/db/schema.js";
+import { alerts, arcaInvoicingEvidence, fiscalRequests } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzlePointOfSaleLanes } from "./drizzle-point-of-sale-lanes.js";
 import {
@@ -68,6 +69,60 @@ async function withFailingInvoicingEvidence(work: () => Promise<void>) {
   } finally {
     await db.execute(sql`drop trigger refuse_invoicing_evidence on arca_invoicing_evidence`);
     await db.execute(sql`drop function refuse_invoicing_evidence()`);
+  }
+}
+
+const REJECTED: RealTimeAuthorizationAnswer = {
+  kind: "rejected",
+  codes: [10242],
+  rejectionClass: "content",
+};
+
+const OPEN_ALERT: RejectionAlertChange = {
+  kind: "open",
+  pointOfSale: 7,
+  documentType: "factura_c",
+  rejectionClass: "content",
+  fiscalDocumentId: "8a1d7a0e-5f5c-4c35-9a53-3f6b2f6c0001",
+  saleId: "8a1d7a0e-5f5c-4c35-9a53-3f6b2f6c0002",
+  rejections: [{ code: 10242, message: "El valor de CondicionIVAReceptorId es invalido." }],
+};
+
+const CLEAR_ALERT: RejectionAlertChange = {
+  kind: "clear",
+  pointOfSale: 7,
+  documentType: "factura_c",
+};
+
+async function fiscalRejectedAlerts() {
+  return db
+    .select({
+      scope: alerts.scope,
+      level: alerts.level,
+      audience: alerts.audience,
+      detail: alerts.detail,
+      resolvedAt: alerts.resolvedAt,
+      conditionClearedAt: alerts.conditionClearedAt,
+    })
+    .from(alerts)
+    .where(eq(alerts.kind, "fiscal_rejected"));
+}
+
+async function withFailingAlertInsert(work: () => Promise<void>) {
+  await db.execute(sql`
+    create function refuse_alert() returns trigger language plpgsql as $$
+    begin
+      raise exception 'the alert write broke';
+    end;
+    $$`);
+  await db.execute(sql`
+    create trigger refuse_alert before insert on alerts
+    for each row execute function refuse_alert()`);
+  try {
+    await work();
+  } finally {
+    await db.execute(sql`drop trigger refuse_alert on alerts`);
+    await db.execute(sql`drop function refuse_alert()`);
   }
 }
 
@@ -147,6 +202,7 @@ describe("DrizzlePointOfSaleLanes", () => {
         authorizationCode: null,
         authorizationCodeDueOn: null,
         rejectionCodes: null,
+        rejectionClass: null,
         answeredAt: null,
       });
     });
@@ -205,7 +261,8 @@ describe("DrizzlePointOfSaleLanes", () => {
           authorizationCodeDueOn: "2026-10-16",
         },
       ],
-      ["rejected", { kind: "rejected", codes: [10015, 10048] }],
+      ["content rejected", { kind: "rejected", codes: [10015, 10048], rejectionClass: "content" }],
+      ["standing rejected", { kind: "rejected", codes: [10005], rejectionClass: "standing" }],
       ["not attempted", { kind: "not_attempted" }],
       ["unclear", { kind: "unclear" }],
     ])(
@@ -243,7 +300,12 @@ describe("DrizzlePointOfSaleLanes", () => {
 
       const recorded = await lanes.inPointOfSaleLane(7, async (lane) => {
         await lane.recordRequest(request);
-        await lane.recordTaxAuthorityAnswer(request.fiscalDocumentId, AUTHORIZED, ANSWERED_AT);
+        await lane.recordTaxAuthorityAnswer(
+          request.fiscalDocumentId,
+          AUTHORIZED,
+          ANSWERED_AT,
+          null,
+        );
         return lane.recordedRequest(registerId, request.fiscalDocumentId);
       });
 
@@ -274,7 +336,12 @@ describe("DrizzlePointOfSaleLanes", () => {
       await lanes.inPointOfSaleLane(7, async (lane) => {
         for (const { request, answeredAt } of answers) {
           await lane.recordRequest(request);
-          await lane.recordTaxAuthorityAnswer(request.fiscalDocumentId, AUTHORIZED, answeredAt);
+          await lane.recordTaxAuthorityAnswer(
+            request.fiscalDocumentId,
+            AUTHORIZED,
+            answeredAt,
+            null,
+          );
         }
       });
 
@@ -291,7 +358,7 @@ describe("DrizzlePointOfSaleLanes", () => {
 
       await withFailingInvoicingEvidence(async () => {
         const recording = lanes.inPointOfSaleLane(7, (lane) =>
-          lane.recordTaxAuthorityAnswer(request.fiscalDocumentId, AUTHORIZED, ANSWERED_AT),
+          lane.recordTaxAuthorityAnswer(request.fiscalDocumentId, AUTHORIZED, ANSWERED_AT, null),
         );
 
         await expect(recording).rejects.toMatchObject({
@@ -303,6 +370,130 @@ describe("DrizzlePointOfSaleLanes", () => {
         answeredAt: null,
       });
       expect(await invoicingEvidenceTimes()).toEqual([]);
+    });
+  });
+
+  describe("the rejection alert", () => {
+    async function recordedRequest() {
+      const registerId = await insertRegisterWithPointOfSale(db, {
+        pointOfSaleNumber: 7,
+        name: "caja-1",
+      });
+      const request = authorizationRequestRecord(registerId);
+      await lanes.inPointOfSaleLane(7, (lane) => lane.recordRequest(request));
+      return request;
+    }
+
+    it("opens, with the answer and the evidence, the critical alert of the point of sale and document type for everyone", async () => {
+      const request = await recordedRequest();
+
+      await lanes.inPointOfSaleLane(7, (lane) =>
+        lane.recordTaxAuthorityAnswer(request.fiscalDocumentId, REJECTED, ANSWERED_AT, OPEN_ALERT),
+      );
+
+      expect(await fiscalRejectedAlerts()).toEqual([
+        {
+          scope: "7:factura_c",
+          level: "critical",
+          audience: "all",
+          detail: {
+            pointOfSale: 7,
+            documentType: "factura_c",
+            rejectionClass: "content",
+            fiscalDocumentId: OPEN_ALERT.kind === "open" ? OPEN_ALERT.fiscalDocumentId : "",
+            saleId: OPEN_ALERT.kind === "open" ? OPEN_ALERT.saleId : "",
+            rejections: [
+              { code: 10242, message: "El valor de CondicionIVAReceptorId es invalido." },
+            ],
+          },
+          resolvedAt: null,
+          conditionClearedAt: null,
+        },
+      ]);
+      expect(await recordedAnswerKind(request.fiscalDocumentId)).toEqual({
+        answerKind: "rejected",
+        answeredAt: ANSWERED_AT,
+      });
+      expect(await invoicingEvidenceTimes()).toEqual([ANSWERED_AT]);
+    });
+
+    it("keeps one open alert for a repeated rejection", async () => {
+      const request = await recordedRequest();
+      const next = authorizationRequestRecord(request.registerId, { number: 43 });
+      await lanes.inPointOfSaleLane(7, async (lane) => {
+        await lane.recordRequest(next);
+        await lane.recordTaxAuthorityAnswer(
+          request.fiscalDocumentId,
+          REJECTED,
+          ANSWERED_AT,
+          OPEN_ALERT,
+        );
+        await lane.recordTaxAuthorityAnswer(
+          next.fiscalDocumentId,
+          REJECTED,
+          LATER_ANSWERED_AT,
+          OPEN_ALERT,
+        );
+      });
+
+      expect(await fiscalRejectedAlerts()).toHaveLength(1);
+    });
+
+    it("marks the condition of the open alert cleared when a document is authorized", async () => {
+      const request = await recordedRequest();
+      const next = authorizationRequestRecord(request.registerId, { number: 43 });
+      await lanes.inPointOfSaleLane(7, async (lane) => {
+        await lane.recordRequest(next);
+        await lane.recordTaxAuthorityAnswer(
+          request.fiscalDocumentId,
+          REJECTED,
+          ANSWERED_AT,
+          OPEN_ALERT,
+        );
+        await lane.recordTaxAuthorityAnswer(
+          next.fiscalDocumentId,
+          AUTHORIZED,
+          LATER_ANSWERED_AT,
+          CLEAR_ALERT,
+        );
+      });
+
+      const [alert] = await fiscalRejectedAlerts();
+      expect(alert?.conditionClearedAt).toEqual(expect.any(Date));
+    });
+
+    it("changes no alert when the answer carries no change", async () => {
+      const request = await recordedRequest();
+
+      await lanes.inPointOfSaleLane(7, (lane) =>
+        lane.recordTaxAuthorityAnswer(request.fiscalDocumentId, AUTHORIZED, ANSWERED_AT, null),
+      );
+
+      expect(await fiscalRejectedAlerts()).toEqual([]);
+    });
+
+    it("leaves no answer, no evidence and no alert when opening the alert fails", async () => {
+      const request = await recordedRequest();
+
+      await withFailingAlertInsert(async () => {
+        const recording = lanes.inPointOfSaleLane(7, (lane) =>
+          lane.recordTaxAuthorityAnswer(
+            request.fiscalDocumentId,
+            REJECTED,
+            ANSWERED_AT,
+            OPEN_ALERT,
+          ),
+        );
+
+        await expect(recording).rejects.toThrow();
+      });
+
+      expect(await recordedAnswerKind(request.fiscalDocumentId)).toEqual({
+        answerKind: null,
+        answeredAt: null,
+      });
+      expect(await invoicingEvidenceTimes()).toEqual([]);
+      expect(await fiscalRejectedAlerts()).toEqual([]);
     });
   });
 

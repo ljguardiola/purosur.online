@@ -1,3 +1,4 @@
+import type { RejectionAlertChange } from "../../model/fiscal-rejection-alert.js";
 import type { RealTimeAuthorizationAnswer } from "../../model/real-time-authorization.js";
 import {
   type AuthorizationRequestRecord,
@@ -18,6 +19,7 @@ export class FakePointOfSaleLanes implements PointOfSaleLanes {
   readonly answers = new Map<string, RealTimeAuthorizationAnswer>();
   readonly lanesEntered: number[] = [];
   readonly invoicingCallsOkAt: Date[] = [];
+  readonly rejectionAlertChanges: (RejectionAlertChange | null)[] = [];
   held = false;
   recordingFailure: Error | undefined;
   answerRecordingFailure: Error | undefined;
@@ -105,6 +107,7 @@ class FakeLane implements PointOfSaleLane {
     fiscalDocumentId: string,
     answer: RealTimeAuthorizationAnswer,
     answeredAt: Date,
+    rejectionAlertChange: RejectionAlertChange | null,
   ): Promise<void> {
     this.lanes.operations.push(
       `recordTaxAuthorityAnswer:${answer.kind}@${answeredAt.toISOString()}`,
@@ -114,6 +117,7 @@ class FakeLane implements PointOfSaleLane {
     }
     this.lanes.answers.set(fiscalDocumentId, answer);
     this.lanes.invoicingCallsOkAt.push(new Date(answeredAt));
+    this.lanes.rejectionAlertChanges.push(rejectionAlertChange);
   }
 }
 

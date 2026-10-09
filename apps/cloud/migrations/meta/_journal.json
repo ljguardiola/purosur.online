@@ -449,6 +449,13 @@
       "when": 1791528382158,
       "tag": "0063_threshold_revisions",
       "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1791554001562,
+      "tag": "0064_fiscal_rejection_class",
+      "breakpoints": true
     }
   ]
 }

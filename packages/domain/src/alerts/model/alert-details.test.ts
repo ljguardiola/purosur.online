@@ -52,6 +52,36 @@ describe("OpenAlertInput", () => {
     }>().not.toExtend<OpenAlertInput>();
   });
 
+  it("accepts the point of sale, document type, class, documents and rejections for a fiscal-rejected alert", () => {
+    expectTypeOf<{
+      kind: "fiscal_rejected";
+      scope: string;
+      detail: {
+        pointOfSale: number;
+        documentType: "factura_c";
+        rejectionClass: "content" | "standing";
+        fiscalDocumentId: string;
+        saleId: string;
+        rejections: { code: number; message: string }[];
+      };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses a fiscal-rejected alert with a rejection class the domain does not know", () => {
+    expectTypeOf<{
+      kind: "fiscal_rejected";
+      scope: string;
+      detail: {
+        pointOfSale: number;
+        documentType: "factura_c";
+        rejectionClass: "transport";
+        fiscalDocumentId: string;
+        saleId: string;
+        rejections: { code: number; message: string }[];
+      };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
   it("refuses a silent-register alert with no last accepted push", () => {
     expectTypeOf<{
       kind: "register_silent";

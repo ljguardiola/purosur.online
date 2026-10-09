@@ -244,6 +244,7 @@ function alertTitle(alert: AlertDetail): string {
       return "La nube no acepta la versión de una caja";
     case "register_silent":
     case "sales_denied":
+    case "fiscal_rejected":
       return alertKindDescription(alert.kind);
   }
 }
@@ -300,6 +301,8 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
       return arcaCertificateExpiringDescription(alert.detail.notAfter, targetName);
     case "update_required":
       return `La caja «${targetName}» usa la versión ${alert.detail.appVersion}, que la nube ya no acepta. Hay que actualizarla para que vuelva a sincronizar.`;
+    case "fiscal_rejected":
+      return "Cada venta de este punto de venta queda diferida hasta corregir la causa que indica ARCA.";
     case "register_silent":
     case "sales_denied":
       return "";
@@ -325,8 +328,28 @@ function PermissionsAddedDescription({
   return <p className="text-text text-body">{alertDescription(alert, data.value)}</p>;
 }
 
+const REJECTION_CLASS_LABELS = {
+  content: "Contenido del comprobante",
+  standing: "Situación ante ARCA",
+};
+
 function AlertDescription({ alert }: { alert: AlertDetail }) {
   const local = localTextOf(alert);
+  if (alert.kind === "fiscal_rejected") {
+    return (
+      <>
+        <p className="text-text text-body">{alertDescription(alert)}</p>
+        <p className="font-bold text-text text-detail">
+          {REJECTION_CLASS_LABELS[alert.detail.rejectionClass]}
+        </p>
+        <ul className="flex flex-col gap-1 text-text text-detail">
+          {alert.detail.rejections.map(({ code, message }) => (
+            <li key={code}>{`${code}: ${message}`}</li>
+          ))}
+        </ul>
+      </>
+    );
+  }
   if (local === undefined) {
     return <p className="text-text text-body">{alertDescription(alert)}</p>;
   }

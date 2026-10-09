@@ -16,6 +16,10 @@ test("describes a register that can't sell", () => {
   expect(alertKindDescription("sales_denied")).toBe("Una caja dejó de abrir ventas nuevas");
 });
 
+test("describes an invoice ARCA rejected", () => {
+  expect(alertKindDescription("fiscal_rejected")).toBe("ARCA rechazó una factura");
+});
+
 test("gives no description to a kind this app does not know yet", () => {
   expect(alertKindDescription("register_battery_low")).toBe("");
 });
