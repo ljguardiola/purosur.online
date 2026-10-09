@@ -34,7 +34,7 @@ describe("the recovery link sent migration applied over a database that already 
     );
     const { rows: userRows } = await client.query<{ id: string }>(
       "insert into users (first_name, email, location_id) values ($1, $2, $3) returning id",
-      ["Ada Lovelace", `ada-${randomUUID()}@example.com`, locationRows[0]?.id],
+      ["Rocío Fictaria", `rocio-${randomUUID()}@example.com`, locationRows[0]?.id],
     );
     const userId = userRows[0]?.id;
     const redeemedIssuedAt = "2026-10-01T10:00:00.000Z";
