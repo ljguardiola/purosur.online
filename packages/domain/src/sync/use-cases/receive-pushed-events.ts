@@ -47,12 +47,17 @@ export async function receivePushedEvents(
       locationId,
       report: telemetry,
     });
-    if (salesDenied !== undefined) {
-      await tx.observeAlertCondition(salesDenied, now);
-    }
+    const keptInService = async (
+      outcome: ReceivePushedEventsOutcome,
+    ): Promise<ReceivePushedEventsOutcome> => {
+      if (salesDenied !== undefined) {
+        await tx.observeAlertCondition(salesDenied, now);
+      }
+      return outcome;
+    };
     const ackSeq = highestContiguousSeq(await tx.receivedDeviceSeqs(deviceId));
     if (!versionAccepted) {
-      return { kind: "update_required", ackSeq };
+      return keptInService({ kind: "update_required", ackSeq });
     }
 
     const heldAt = await tx.receivedEventsAt(
@@ -70,11 +75,11 @@ export async function receivePushedEvents(
     let expectedSeq = ackSeq + 1;
     for (const event of events) {
       if (event.device_seq > expectedSeq) {
-        return { kind: "gap", ackSeq, expectedSeq };
+        return keptInService({ kind: "gap", ackSeq, expectedSeq });
       }
       const reference = references.get(event.device_seq);
       if (reference !== undefined && reference.eventId !== event.event_id) {
-        return { kind: "stale_device", ackSeq };
+        return keptInService({ kind: "stale_device", ackSeq });
       }
       if (reference === undefined) {
         toReceive.push(event);
@@ -107,10 +112,10 @@ export async function receivePushedEvents(
     if (events.length === 0) {
       await tx.recordReportsEveryCycle(deviceId, now);
     }
-    return {
+    return keptInService({
       kind: "received",
       ackSeq: highestContiguousSeq(await tx.receivedDeviceSeqs(deviceId)),
-    };
+    });
   });
 }
 

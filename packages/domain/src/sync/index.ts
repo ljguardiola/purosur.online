@@ -12,8 +12,4 @@ export {
 export type { PushedEvent, RegisterTelemetry, StorageTelemetry } from "./model/push-batch.js";
 export { PUSH_BATCH_MAX_EVENTS } from "./model/push-batch.js";
 export type { SalesStopReason, SalesStopState } from "./model/sales-stop.js";
-export {
-  isSalesStopReason,
-  SALES_STOP_REASONS,
-  salesDeniedReportOf,
-} from "./model/sales-stop.js";
+export { isSalesStopReason, salesDeniedReportOf } from "./model/sales-stop.js";

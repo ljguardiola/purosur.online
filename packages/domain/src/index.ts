@@ -357,7 +357,7 @@ export {
   SALES_REPORT_SALE_STATE,
   saleTotal,
 } from "./sales/index.js";
-export type { IsoWeekday, SalesDeniedReason, SalesDeniedReport } from "./shared/index.js";
+export type { IsoWeekday, SalesDeniedReport } from "./shared/index.js";
 export {
   ARGENTINA_TIME_ZONE,
   argentinaCalendarDay,
@@ -423,7 +423,6 @@ export {
   PULL_PAGE_MAX_CHANGES,
   PUSH_BATCH_MAX_EVENTS,
   pullAudienceOf,
-  SALES_STOP_REASONS,
   salesDeniedReportOf,
 } from "./sync/index.js";
 export {
