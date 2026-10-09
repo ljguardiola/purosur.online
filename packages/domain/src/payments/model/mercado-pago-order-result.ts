@@ -21,6 +21,7 @@ export interface PaymentStateAssessment {
 
 const ACCREDITED = "accredited";
 const PROCESSED = "processed";
+const PAID_ORDER_DETAILS: readonly string[] = [ACCREDITED, PROCESSED];
 
 function amountPaid(result: MercadoPagoOrderResult): number | null {
   if (result.totalPaidAmount !== null) {
@@ -38,7 +39,7 @@ function amountPaid(result: MercadoPagoOrderResult): number | null {
 
 function isFullyAccredited(result: MercadoPagoOrderResult): boolean {
   return (
-    result.statusDetail === ACCREDITED &&
+    PAID_ORDER_DETAILS.includes(result.statusDetail) &&
     result.payments.length > 0 &&
     result.payments.every(
       (payment) => payment.status === PROCESSED && payment.statusDetail === ACCREDITED,
