@@ -863,6 +863,7 @@ describe("the register's local migrations", () => {
         "0019_sales_dated_when_charged",
         "0020_cancelled_sales_and_refunds",
         "0021_real_time_authorization",
+        "0022_sales_stopped_reason",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1191,6 +1192,7 @@ describe("the register's local migrations", () => {
       expect(previous.at(-1)?.name).toBe("0020_cancelled_sales_and_refunds");
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0021_real_time_authorization",
+        "0022_sales_stopped_reason",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1226,6 +1228,50 @@ describe("the register's local migrations", () => {
       for (const table of ["register_health_checks", "fiscal_documents", "deferred_sales"]) {
         expect(after.prepare(`SELECT count(*) AS total FROM ${table}`).get()).toEqual({ total: 0 });
       }
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("add the reason a register stopped opening new sales over the register that already stopped", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(0, 22);
+      expect(previous.at(-1)?.name).toBe("0021_real_time_authorization");
+      expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
+        "0022_sales_stopped_reason",
+      ]);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before
+        .prepare(
+          `UPDATE sync_state SET pull_cursor = 7, device_id = 'device-a',
+                                 installation_revoked_at = '2026-09-30T08:00:00.000Z'`,
+        )
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare(
+            "SELECT pull_cursor, device_id, installation_revoked_at, sales_stopped_reason FROM sync_state",
+          )
+          .all(),
+      ).toEqual([
+        {
+          pull_cursor: 7,
+          device_id: "device-a",
+          installation_revoked_at: "2026-09-30T08:00:00.000Z",
+          sales_stopped_reason: null,
+        },
+      ]);
+      after.prepare("UPDATE sync_state SET sales_stopped_reason = 'installation_revoked'").run();
+      expect(after.prepare("SELECT sales_stopped_reason FROM sync_state").all()).toEqual([
+        { sales_stopped_reason: "installation_revoked" },
+      ]);
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });
