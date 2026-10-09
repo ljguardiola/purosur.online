@@ -57,7 +57,10 @@ const HELP = defineHelp("es-AR", {
 async function renderScreen({
   registerName = null,
   signOut = vi.fn(),
-}: { registerName?: string | null; signOut?: () => void } = {}) {
+}: {
+  registerName?: string | null;
+  signOut?: () => void;
+} = {}) {
   await page.viewport(1280, 900);
   onTestFinished(() => page.viewport(414, 896));
   const screen = await render(
@@ -140,7 +143,9 @@ describe("HelpScreen", () => {
       (button) => button.textContent,
     );
     expect(titles).toEqual(["Cancelar una venta"]);
-    await expect.element(sections.getByRole("heading", { name: "Efectivo" })).not.toBeInTheDocument();
+    await expect
+      .element(sections.getByRole("heading", { name: "Efectivo" }))
+      .not.toBeInTheDocument();
     await expect.element(screen.getByText("No se cobra nada.")).toBeVisible();
   });
 
