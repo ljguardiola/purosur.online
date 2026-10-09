@@ -1,8 +1,10 @@
 import { readFileSync } from "node:fs";
-import { isAlias, isMap, isScalar, isSeq, parseDocument } from "yaml";
+import { isAlias, isMap, isScalar, isSeq, parse, parseDocument } from "yaml";
 
 const WORKFLOW_PATH = ".github/workflows/verify.yml";
 const PACKAGE_JSON_PATH = "package.json";
+const COMPOSE_PATH = "docker-compose.yml";
+const DOCKER_HUB_HOSTS = new Set(["docker.io", "index.docker.io", "registry-1.docker.io"]);
 const INSTALLED_PLAYWRIGHT_PACKAGE_JSON_PATH = "node_modules/playwright/package.json";
 const CLOUD_POSTGRES_IMAGE = {
   label: "the cloud's Postgres image",
@@ -406,10 +408,22 @@ export function findVerifyWorkflowViolations(workflowSource, packageJsonSource) 
   return violations;
 }
 
+// A reference whose first part is not a host (no dot, colon or localhost) names Docker Hub.
+function comesFromDockerHub(image) {
+  const [first, ...rest] = image.split("/");
+  if (rest.length === 0) return true;
+  const isHost = first.includes(".") || first.includes(":") || first === "localhost";
+  return !isHost || DOCKER_HUB_HOSTS.has(first);
+}
+
 // Testcontainers pulls an image the runner does not have yet with a single attempt, so a slow
 // registry would fail the whole job; the job pulls it first, retrying.
+function declaredImage(setupSource, spec) {
+  return new RegExp(`const ${spec.constant} =\\s*"([^"]+)";`).exec(setupSource)?.[1];
+}
+
 function findPrePulledImageViolations(workflowSource, setupSource, spec) {
-  const image = new RegExp(`const ${spec.constant} =\\s*"([^"]+)";`).exec(setupSource)?.[1];
+  const image = declaredImage(setupSource, spec);
   if (image === undefined) {
     return { violations: [`${spec.setupPath} declares no ${spec.constant}`] };
   }
@@ -417,6 +431,12 @@ function findPrePulledImageViolations(workflowSource, setupSource, spec) {
   const violations = [];
   if (!/@sha256:[0-9a-f]{64}$/.test(image)) {
     violations.push(`${spec.label} \`${image}\` is not pinned by digest`);
+  }
+  // Docker Hub limits unauthenticated pulls per address, and shared runners share that limit.
+  if (comesFromDockerHub(image)) {
+    violations.push(
+      `${spec.label} \`${image}\` comes from Docker Hub, whose unauthenticated pulls a shared runner can exhaust`,
+    );
   }
 
   const doc = parseDocument(workflowSource);
@@ -472,6 +492,15 @@ export function findCloudPostgresImageViolations(workflowSource, postgresSetupSo
     .violations;
 }
 
+export function findLocalPostgresImageViolations(composeSource, postgresSetupSource) {
+  const image = declaredImage(postgresSetupSource, CLOUD_POSTGRES_IMAGE);
+  const dbImage = parse(composeSource)?.services?.db?.image;
+  if (image === undefined || dbImage === image) return [];
+  return [
+    `${COMPOSE_PATH}'s db service starts \`${dbImage}\`, but ${CLOUD_POSTGRES_IMAGE.setupPath} starts \`${image}\``,
+  ];
+}
+
 export function findPlaywrightImageViolations(
   workflowSource,
   playwrightServerSetupSource,
@@ -522,9 +551,11 @@ export function checkRepository({
     readFile(INSTALLED_PLAYWRIGHT_PACKAGE_JSON_PATH),
   ).version;
   const playwrightServerSetupSource = readFile(PLAYWRIGHT_IMAGE.setupPath);
+  const postgresSetupSource = readFile(CLOUD_POSTGRES_IMAGE.setupPath);
   return [
     ...findVerifyWorkflowViolations(workflowSource, readFile(packageJsonPath)),
-    ...findCloudPostgresImageViolations(workflowSource, readFile(CLOUD_POSTGRES_IMAGE.setupPath)),
+    ...findCloudPostgresImageViolations(workflowSource, postgresSetupSource),
+    ...findLocalPostgresImageViolations(readFile(COMPOSE_PATH), postgresSetupSource),
     ...Object.keys(PLAYWRIGHT_IMAGE_JOBS).flatMap((job) =>
       findPlaywrightImageViolations(
         workflowSource,
