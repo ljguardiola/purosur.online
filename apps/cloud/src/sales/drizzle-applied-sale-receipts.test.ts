@@ -13,10 +13,9 @@ const ATTEMPTED = new Date("2026-10-06T11:21:00.000Z");
 const PRINTED = new Date("2026-10-06T11:21:05.000Z");
 const LATER = new Date("2026-10-06T11:40:00.000Z");
 
-async function appliedSale() {
-  const { deviceId } = await system.enrollInstallation();
+async function appliedSale(deviceId?: string) {
   return applyCompletedSale(system.db, {
-    deviceId,
+    deviceId: deviceId ?? (await system.enrollInstallation()).deviceId,
     completedAt: new Date("2026-10-06T11:20:00.000Z"),
     total: 4800,
   });
@@ -80,8 +79,9 @@ describe("recording the print state of an applied sale", () => {
   });
 
   it("leaves the other sales untouched", async () => {
-    const saleId = await appliedSale();
-    const otherId = await appliedSale();
+    const { deviceId } = await system.enrollInstallation();
+    const saleId = await appliedSale(deviceId);
+    const otherId = await appliedSale(deviceId);
 
     await recordPrintState({ saleId, printAttemptedAt: ATTEMPTED, printedAt: PRINTED });
 
