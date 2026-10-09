@@ -285,7 +285,11 @@ describe("chargeSaleInCash", () => {
       charge(store, 10000, "sale-3", "cashier", ids);
 
       expect(store.state.sales.map((sale) => sale.operationNumber)).toEqual([1, 2, 3]);
-      expect(store.state.outbox.map((event) => event.payload.operation_number)).toEqual([1, 2, 3]);
+      expect(store.state.outbox.map((event) => event.payload)).toMatchObject([
+        { operation_number: 1 },
+        { operation_number: 2 },
+        { operation_number: 3 },
+      ]);
     });
 
     it("continues from the last number the register took", () => {
