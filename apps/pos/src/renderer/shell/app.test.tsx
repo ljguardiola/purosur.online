@@ -110,6 +110,7 @@ function coreAnswering(
   service: "in_service" | "out_of_service" | "unanswered" = "in_service",
 ) {
   const cashSessionAsks: string[] = [];
+  const statusAsks: string[] = [];
   const opened: number[] = [];
   const closed: [string, number][] = [];
   const closedLocked: [string, number, Authorization][] = [];
@@ -188,6 +189,10 @@ function coreAnswering(
     async cashSession() {
       cashSessionAsks.push("cash-session");
       return cashDrawer.cashSession === undefined ? openedByRegister : cashDrawer.cashSession();
+    },
+    async registerStatus() {
+      statusAsks.push("register-status");
+      return { conditions: [], cloud: "reachable" };
     },
     async recordCashMovement(input) {
       recorded.push(input);
@@ -295,6 +300,7 @@ function coreAnswering(
     core,
     asked,
     cashSessionAsks,
+    statusAsks,
     opened,
     closed,
     closedLocked,
@@ -442,6 +448,39 @@ describe("App", () => {
     finishPull("Caja 1");
 
     await expect.element(screen.getByText("Caja 1 · Sin sesión abierta")).toBeVisible();
+  });
+
+  it("shows the status bar once someone is signed in, and not on the sign-in screen", async () => {
+    const screen = await render(<App core={coreAnswering(true).core} />);
+    postCoreStatus("up");
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect
+      .element(screen.getByRole("region", { name: "Estado de la caja" }))
+      .not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+
+    await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
+    const bar = screen.getByRole("region", { name: "Estado de la caja" });
+    await expect.element(bar).toBeVisible();
+    await expect.element(bar.getByText("Nube conectada")).toBeVisible();
+  });
+
+  it("reads the register's status again whenever a pull finishes", async () => {
+    const { core, statusAsks, finishPull } = coreAnswering(true);
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    await expect.element(screen.getByText("Nube conectada")).toBeVisible();
+    const readsBefore = statusAsks.length;
+
+    finishPull(null);
+
+    await expect.poll(() => statusAsks.length).toBeGreaterThan(readsBefore);
   });
 
   it("keeps the chosen person and the typed PIN when a pull refreshes the sign-in screen", async () => {
