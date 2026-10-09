@@ -3,8 +3,18 @@ import type { PaymentTransaction } from "../../payments/index.js";
 import { paymentRecord } from "../../payments/index.js";
 import { type OutboxEventDraft, SALE_COMPLETED_EVENT_TYPE } from "../../shared/index.js";
 import type { SaleWithLines } from "../model/sale.js";
-import { saleCashMovementRecord, saleLineRecord } from "./sale-event-records.js";
-import type { IdGenerator, SaleCashMovement, SaleLedgerTransaction } from "./sale-ledger.js";
+import { soldLineStockDelta } from "../model/sale-line.js";
+import {
+  saleCashMovementRecord,
+  saleLineRecord,
+  saleStockMovementRecord,
+} from "./sale-event-records.js";
+import type {
+  IdGenerator,
+  SaleCashMovement,
+  SaleLedgerTransaction,
+  SaleStockMovement,
+} from "./sale-ledger.js";
 
 export interface SaleCompletion {
   sale: SaleWithLines;
@@ -21,8 +31,31 @@ export function completeSale(
   { sale, total, payments, movements, actorId, completedAt }: SaleCompletion,
 ): void {
   tx.recordCompletedSale(sale.id, completedAt);
+  const eventId = ids.next();
+  const stockMovements = sale.lines.map(
+    (line): SaleStockMovement => ({
+      id: ids.next(),
+      saleLineId: line.id,
+      productId: line.productId,
+      delta: soldLineStockDelta(line),
+      occurredAt: completedAt,
+    }),
+  );
+  for (const stockMovement of stockMovements) {
+    tx.recordSaleStockMovement(stockMovement);
+    tx.addToStockBalance(stockMovement.productId, stockMovement.delta);
+  }
   tx.appendOutboxEvent(
-    saleCompletedEvent(ids.next(), sale, total, payments, movements, actorId, completedAt),
+    saleCompletedEvent(
+      eventId,
+      sale,
+      total,
+      payments,
+      movements,
+      stockMovements,
+      actorId,
+      completedAt,
+    ),
   );
   const gate = preEmissionGate({
     total,
@@ -51,6 +84,7 @@ function saleCompletedEvent(
   total: number,
   payments: readonly PaymentTransaction[],
   movements: readonly SaleCashMovement[],
+  stockMovements: readonly SaleStockMovement[],
   actorId: string,
   completedAt: Date,
 ): OutboxEventDraft {
@@ -60,7 +94,7 @@ function saleCompletedEvent(
     aggregate_type: "Sale",
     aggregate_id: sale.id,
     event_type: SALE_COMPLETED_EVENT_TYPE,
-    schema_version: 2,
+    schema_version: 3,
     payload: {
       id: sale.id,
       register_id: sale.registerId,
@@ -72,6 +106,7 @@ function saleCompletedEvent(
       lines: sale.lines.map(saleLineRecord),
       payments: payments.map(paymentRecord),
       cash_movements: movements.map(saleCashMovementRecord),
+      stock_movements: stockMovements.map(saleStockMovementRecord),
     },
     occurred_at: completedAtIso,
     actor_id: actorId,

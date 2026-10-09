@@ -202,6 +202,7 @@ export function SaleScreen({
       case "product_unavailable":
       case "no_price":
       case "sold_by_weight":
+      case "line_quantity_limit":
       case "not_permitted":
       case "installation_revoked":
         refuse(submitted, outcome);

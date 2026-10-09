@@ -56,6 +56,14 @@ export interface SaleRefund extends PlannedRefund {
   occurredAt: Date;
 }
 
+export interface SaleStockMovement {
+  id: string;
+  saleLineId: string;
+  productId: string;
+  delta: number;
+  occurredAt: Date;
+}
+
 export interface SaleLedger {
   transaction<TOutcome>(work: (tx: SaleLedgerTransaction) => TOutcome): TOutcome;
 }
@@ -81,6 +89,8 @@ export interface SaleLedgerTransaction {
   discardOpenSale(saleId: string): void;
   recordPayment(payment: PaymentTransaction): void;
   recordCashMovement(movement: CashMovement): void;
+  recordSaleStockMovement(movement: SaleStockMovement): void;
+  addToStockBalance(productId: string, delta: number): void;
   recordCompletedSale(saleId: string, occurredAt: Date): void;
   recordCancelledSale(saleId: string, occurredAt: Date, authorizedBy: string | undefined): void;
   recordRefund(refund: SaleRefund): void;

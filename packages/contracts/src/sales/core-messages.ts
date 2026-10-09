@@ -18,6 +18,7 @@ import {
   saleSchema,
   scanProductOutcomeSchema,
   searchProductsOutcomeSchema,
+  shownLineQuantitySchema,
 } from "./sale.js";
 
 const requestId = requestIdSchema;
@@ -33,7 +34,7 @@ const changeLineQuantityMessageSchema = z.object({
   request_id: requestId,
   line_id: z.string(),
   quantity: saleLineQuantitySchema,
-  expected_quantity: saleLineQuantitySchema,
+  expected_quantity: shownLineQuantitySchema,
 });
 
 const removeSaleLineMessageSchema = z.object({

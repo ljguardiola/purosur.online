@@ -11,7 +11,10 @@ import type {
   UnappliedEvent,
 } from "@purosur/domain/sync/use-cases";
 
-type CompletedSalePayload = SyncedEventPayloads["sale_completed@1" | "sale_completed@2"];
+type CompletedSalePayload = SyncedEventPayloads[
+  | "sale_completed@1"
+  | "sale_completed@2"
+  | "sale_completed@3"];
 type SalePayment = SyncedEventPayloads["sale_completed@1"]["payments"][number];
 type CancelledSalePayload = SyncedEventPayloads["sale_cancelled@1"];
 
@@ -81,6 +84,9 @@ function completedSale(
   payload: CompletedSalePayload,
   completedAt: string,
   payments: readonly SalePayment[],
+  stockMovements:
+    | readonly SyncedEventPayloads["sale_completed@3"]["stock_movements"][number][]
+    | null,
 ): SyncedFact {
   return {
     kind: "sale_completed",
@@ -92,6 +98,15 @@ function completedSale(
       total: payload.total,
       ...saleParts(payload),
       payments: salePayments(payments),
+      stockMovements:
+        stockMovements === null
+          ? null
+          : stockMovements.map((movement) => ({
+              id: movement.id,
+              saleLineId: movement.sale_line_id,
+              productId: movement.product_id,
+              delta: movement.delta,
+            })),
     },
   };
 }
@@ -102,8 +117,12 @@ const FACT_OF: {
     event: UnappliedEvent,
   ) => SyncedFact;
 } = {
-  "sale_completed@1": (payload) => completedSale(payload, payload.completed_at, payload.payments),
-  "sale_completed@2": (payload) => completedSale(payload, payload.occurred_at, payload.payments),
+  "sale_completed@1": (payload) =>
+    completedSale(payload, payload.completed_at, payload.payments, null),
+  "sale_completed@2": (payload) =>
+    completedSale(payload, payload.occurred_at, payload.payments, null),
+  "sale_completed@3": (payload) =>
+    completedSale(payload, payload.occurred_at, payload.payments, payload.stock_movements),
   "sale_cancelled@1": cancelledSale,
   "cash_session_opened@1": (payload, event) => ({
     kind: "cash_session_opened",

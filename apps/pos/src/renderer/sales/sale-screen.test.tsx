@@ -617,6 +617,12 @@ describe("SaleScreen", () => {
         help: "Esta caja todavía no vende productos por kilo.",
       },
       {
+        name: "a line that may not carry another unit",
+        outcome: { kind: "line_quantity_limit", product_name: "Yerba mate 1 kg" },
+        title: "No se pueden sumar más unidades de Yerba mate 1 kg",
+        help: "La línea ya tiene la cantidad máxima de una venta.",
+      },
+      {
         name: "a revoked installation",
         outcome: { kind: "installation_revoked" },
         title: "Esta caja ya no puede empezar ventas",
@@ -662,6 +668,7 @@ describe("SaleScreen", () => {
       { kind: "unknown_code" },
       { kind: "no_price", product_name: "Yerba mate 1 kg" },
       { kind: "sold_by_weight", product_name: "Queso cremoso" },
+      { kind: "line_quantity_limit", product_name: "Yerba mate 1 kg" },
       { kind: "installation_revoked" },
       { kind: "unavailable" },
       { kind: "not_permitted" },

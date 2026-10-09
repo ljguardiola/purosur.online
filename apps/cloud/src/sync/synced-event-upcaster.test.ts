@@ -141,9 +141,67 @@ describe("decoding the events the registers pushed", () => {
             },
           ],
           cashMovements: [decodedMovement],
+          stockMovements: null,
         },
       },
     });
+  });
+
+  it("reads a version 3 sale with the stock each of its lines moved", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          schema_version: 3,
+          payload: {
+            ...saleFields,
+            payments: [{ ...salePayment, authorized_by: null, confirmed_at: null }],
+            stock_movements: [
+              {
+                id: "01a1122a-0309-7000-8000-00000000bbb1",
+                sale_line_id: saleLine.id,
+                product_id: saleLine.product_id,
+                delta: -2000,
+              },
+            ],
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toMatchObject({
+      kind: "fact",
+      fact: {
+        kind: "sale_completed",
+        sale: {
+          completedAt: new Date("2026-10-06T11:20:00.000Z"),
+          stockMovements: [
+            {
+              id: "01a1122a-0309-7000-8000-00000000bbb1",
+              saleLineId: saleLine.id,
+              productId: saleLine.product_id,
+              delta: -2000,
+            },
+          ],
+        },
+      },
+    });
+  });
+
+  it("reads a version 1 sale as one whose register reports no stock movements", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          schema_version: 1,
+          payload: {
+            ...saleFields,
+            completed_at: "2026-10-06T11:20:00.000Z",
+            payments: [salePayment],
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toMatchObject({ fact: { sale: { stockMovements: null } } });
   });
 
   it("reads a transfer's authorization and confirmation", () => {
@@ -460,11 +518,11 @@ describe("decoding the events the registers pushed", () => {
   });
 
   it("cannot read an event type and version no schema describes", () => {
-    const decoded = upcaster.decode(unappliedEventOf(pushed({ schema_version: 3 })));
+    const decoded = upcaster.decode(unappliedEventOf(pushed({ schema_version: 4 })));
 
     expect(decoded).toEqual({
       kind: "unreadable",
-      reason: "no schema reads sale_completed version 3",
+      reason: "no schema reads sale_completed version 4",
     });
   });
 

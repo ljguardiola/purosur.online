@@ -20,7 +20,7 @@ function balanceOf(key: ProductStockKey) {
   );
 }
 
-class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
+export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements StockStoreTransaction
 {
   private readonly tx: PgDatabase<TQueryResult>;

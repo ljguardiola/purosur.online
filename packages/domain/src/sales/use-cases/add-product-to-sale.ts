@@ -5,7 +5,12 @@ import type { Clock } from "../../shared/index.js";
 import { argentinaCalendarDay } from "../../shared/index.js";
 import { type OpenSaleStanding, openSaleStanding } from "../model/open-sale-standing.js";
 import type { LinePromotion, Sale, SaleWithLines } from "../model/sale.js";
-import { addUnitToLine, newSaleLine, saleTotal } from "../model/sale-line.js";
+import {
+  addUnitToLine,
+  mayBeSaleLineQuantity,
+  newSaleLine,
+  saleTotal,
+} from "../model/sale-line.js";
 import { saleChargeRefusal } from "./sale-charge-refusal.js";
 import type {
   IdGenerator,
@@ -23,6 +28,7 @@ export type AddProductToSaleOutcome =
   | { kind: "sale_has_payments" }
   | { kind: "product_not_found" }
   | { kind: "sold_by_weight"; productName: string }
+  | { kind: "line_quantity_limit"; productName: string }
   | { kind: "no_price"; productName: string }
   | ({
       kind: "added";
@@ -68,6 +74,9 @@ export function addProductToSale(
   const line = existing?.lines.find((candidate) => candidate.productId === product.id);
   if (existing && line) {
     const updated = addUnitToLine(line);
+    if (!mayBeSaleLineQuantity(updated.quantity)) {
+      return { kind: "line_quantity_limit", productName: product.name };
+    }
     tx.recordLineQuantity(updated);
     return added(tx, clock.now(), {
       ...existing,

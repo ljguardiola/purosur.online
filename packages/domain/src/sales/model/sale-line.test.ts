@@ -1,8 +1,16 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { MAX_UNIT_PRICE_CENTS } from "../../pricing/index.js";
+import { MAX_STOCK_QUANTITY, mayBeMovementQuantity, soldStockDelta } from "../../stock/index.js";
 import type { LinePromotion } from "./sale.js";
-import { addUnitToLine, newSaleLine, saleTotal, withQuantity } from "./sale-line.js";
+import {
+  addUnitToLine,
+  mayBeSaleLineQuantity,
+  newSaleLine,
+  saleTotal,
+  soldQuantity,
+  withQuantity,
+} from "./sale-line.js";
 
 const PRODUCT = { id: "product-1", name: "Yerba 1 kg" };
 const PRICE = { priceListId: "list-1", unitPrice: 2500 };
@@ -214,6 +222,37 @@ describe("saleTotal", () => {
           expect(saleTotal(lines)).toBe(prices.reduce((sum, price) => sum + price, 0));
         },
       ),
+    );
+  });
+});
+
+describe("soldQuantity", () => {
+  it("is the units a line carries, since a line is sold by the unit", () => {
+    const line = withQuantity(newSaleLine("line-1", PRODUCT, PRICE, []), 4);
+
+    expect(soldQuantity(line)).toEqual({ saleUnit: "UNIT", units: 4 });
+  });
+});
+
+describe("mayBeSaleLineQuantity", () => {
+  it.each([1, 2_147_483])("accepts %s units", (quantity) => {
+    expect(mayBeSaleLineQuantity(quantity)).toBe(true);
+  });
+
+  it.each([0, -1, 1.5, Number.NaN, 2_147_484, Number.MAX_SAFE_INTEGER + 1])(
+    "refuses %s units",
+    (quantity) => {
+      expect(mayBeSaleLineQuantity(quantity)).toBe(false);
+    },
+  );
+
+  it("accepts exactly the quantities whose sold stock a single movement may carry", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: -10, max: MAX_STOCK_QUANTITY }), (quantity) => {
+        expect(mayBeSaleLineQuantity(quantity)).toBe(
+          quantity > 0 && mayBeMovementQuantity(-soldStockDelta(soldQuantity({ quantity }))),
+        );
+      }),
     );
   });
 });

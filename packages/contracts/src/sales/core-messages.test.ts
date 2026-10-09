@@ -342,6 +342,18 @@ describe("sale line requests", () => {
     expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
+  it("accepts lowering a line whose shown quantity is more than a line may be changed to", () => {
+    const message = {
+      type: "change-line-quantity",
+      request_id: REQUEST_ID,
+      line_id: "l1",
+      quantity: 1,
+      expected_quantity: 2_147_484,
+    };
+
+    expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
   it.each([
     { line_id: "l1", quantity: 3 },
     { line_id: "l1", expected_quantity: 3 },
@@ -349,6 +361,7 @@ describe("sale line requests", () => {
     { line_id: "l1", quantity: 0, expected_quantity: 3 },
     { line_id: "l1", quantity: -1, expected_quantity: 3 },
     { line_id: "l1", quantity: 1.5, expected_quantity: 3 },
+    { line_id: "l1", quantity: 2_147_484, expected_quantity: 3 },
     { line_id: 7, quantity: 1, expected_quantity: 3 },
     { line_id: "l1", quantity: 1, expected_quantity: 0 },
     { line_id: "l1", quantity: 1, expected_quantity: -1 },
