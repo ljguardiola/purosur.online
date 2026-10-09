@@ -1,4 +1,8 @@
-import { recoveryTokenExpiresAt, supersedesRecoveryRequest } from "../model/recovery-token.js";
+import {
+  recoveryTokenExpiresAt,
+  supersedesRecoveryRequest,
+  wasRecoveryRequestServed,
+} from "../model/recovery-token.js";
 import type { RecoveryTokenStore } from "./recovery-token-store.js";
 
 export interface IssueRecoveryTokenPorts {
@@ -17,7 +21,8 @@ export type IssueRecoveryTokenOutcome =
   | { kind: "no_account" }
   | { kind: "account_inactive" }
   | { kind: "superseded" }
-  | { kind: "issued" };
+  | { kind: "already_sent" }
+  | { kind: "issued"; tokenId: string };
 
 export async function issueRecoveryToken(
   { store }: IssueRecoveryTokenPorts,
@@ -39,6 +44,9 @@ export async function issueRecoveryToken(
 
     await tx.lockRecoveryTokens(account.id);
     const requests = await tx.listRecoveryRequests(account.id);
+    if (wasRecoveryRequestServed(requests, input.requestId)) {
+      return { kind: "already_sent" };
+    }
     if (requests.some((other) => supersedesRecoveryRequest(other, input))) {
       await tx.recordRejectedRequest({
         userId: account.id,
@@ -64,6 +72,6 @@ export async function issueRecoveryToken(
       issuedAt: token.issuedAt,
       expiresAt: token.expiresAt,
     });
-    return { kind: "issued" };
+    return { kind: "issued", tokenId: token.id };
   });
 }

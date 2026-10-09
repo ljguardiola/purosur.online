@@ -1096,6 +1096,7 @@ export const recoveryTokens = pgTable(
     usedAt: timestamp("used_at", { withTimezone: true }),
     voidedAt: timestamp("voided_at", { withTimezone: true }),
     registrationChallenge: text("registration_challenge"),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
   },
   (table) => [
     uniqueIndex("recovery_tokens_token_hash_key").on(table.tokenHash),

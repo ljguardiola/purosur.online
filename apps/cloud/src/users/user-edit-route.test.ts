@@ -507,7 +507,7 @@ describe("PUT /users/:id", () => {
     );
 
     expect(forOldAddress.send).toBeUndefined();
-    expect(forNewAddress.send).toMatchObject({ to: "new.email@example.com" });
+    expect(forNewAddress.send?.email).toMatchObject({ to: "new.email@example.com" });
   });
 
   it("changes only the role: bumps version once, audits only the role, voids no recovery link", async () => {

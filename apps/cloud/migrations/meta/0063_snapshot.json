@@ -1,6 +1,6 @@
 {
-  "id": "4bef4393-aef9-4810-bd51-5f7c634a6b11",
-  "prevId": "5ce97790-f73a-46ba-af1b-a21c8a6822a6",
+  "id": "8395c1f9-dd71-44f1-a52f-5127ae1b3fa8",
+  "prevId": "4bef4393-aef9-4810-bd51-5f7c634a6b11",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -812,6 +812,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "revision": {
+          "name": "revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
         "recorded_at": {
           "name": "recorded_at",
           "type": "timestamp with time zone",
@@ -827,11 +834,17 @@
         }
       },
       "indexes": {
-        "buyer_identification_thresholds_valid_from_key": {
-          "name": "buyer_identification_thresholds_valid_from_key",
+        "buyer_identification_thresholds_valid_from_revision_key": {
+          "name": "buyer_identification_thresholds_valid_from_revision_key",
           "columns": [
             {
               "expression": "valid_from",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "revision",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

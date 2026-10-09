@@ -151,6 +151,12 @@ export type {
   PinCodeTarget,
 } from "./pin-code-store.js";
 export type {
+  RecordRecoveryLinkSentInput,
+  RecordRecoveryLinkSentOutcome,
+  RecordRecoveryLinkSentPorts,
+} from "./record-recovery-link-sent.js";
+export { recordRecoveryLinkSent } from "./record-recovery-link-sent.js";
+export type {
   RecordRegistrationChallengeInput,
   RecordRegistrationChallengePorts,
 } from "./record-registration-challenge.js";

@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { issueRecoveryToken } from "@purosur/domain/credentials/use-cases";
+import { issueRecoveryToken, recordRecoveryLinkSent } from "@purosur/domain/credentials/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { DrizzleRecoveryTokenStore } from "./drizzle-recovery-token-store.js";
 import type { SendRecoveryLinkInput } from "./recovery-email-sender.js";
@@ -14,7 +14,7 @@ export interface ProcessRecoveryRequestJobDeps {
 export interface ProcessRecoveryRequestJobResult {
   /** Sent only after the caller releases the pool client this job borrowed, so a slow send never
    * holds a connection checked out. */
-  send?: SendRecoveryLinkInput;
+  send?: { email: SendRecoveryLinkInput; tokenId: string };
 }
 
 const TOKEN_ENTROPY_BITS = 160;
@@ -51,5 +51,21 @@ export async function processRecoveryRequestJob<TQueryResult extends PgQueryResu
     return {};
   }
 
-  return { send: { to: payload.email, link: recoveryLink(deps.backofficeOrigin, rawToken) } };
+  return {
+    send: {
+      email: { to: payload.email, link: recoveryLink(deps.backofficeOrigin, rawToken) },
+      tokenId: outcome.tokenId,
+    },
+  };
+}
+
+export async function recordRecoveryLinkSentJob<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  tokenId: string,
+  deps: Pick<ProcessRecoveryRequestJobDeps, "now">,
+): Promise<void> {
+  await recordRecoveryLinkSent(
+    { store: new DrizzleRecoveryTokenStore(db) },
+    { tokenId, sentAt: deps.now() },
+  );
 }

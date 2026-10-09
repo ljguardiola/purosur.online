@@ -5,7 +5,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { alerts, auditLog, recoveryTokens, users } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { processRecoveryRequestJob } from "./process-recovery-request-job.js";
+import {
+  processRecoveryRequestJob,
+  recordRecoveryLinkSentJob,
+} from "./process-recovery-request-job.js";
 import type { RecoveryRequestJobPayload } from "./recovery-request-job-payload.js";
 
 let testDatabase: TestDatabase;
@@ -255,7 +258,7 @@ describe("processRecoveryRequestJob", () => {
       voidedAt: null,
     });
 
-    const send = mustExist(result.send, "a link to send");
+    const send = mustExist(result.send, "a link to send").email;
     expect(send.to).toBe("ada@example.com");
     expect(send.link).toMatch(/^https:\/\/staging\.purosur\.online\/account-recovery\/passkey#.+$/);
     const rawToken = mustExist(send.link.split("#")[1], "the link to carry a token fragment");
@@ -335,5 +338,56 @@ describe("processRecoveryRequestJob", () => {
     );
     expect(reloadedFirst.usedAt).toEqual(usedAt);
     expect(reloadedFirst.voidedAt).toBeNull();
+  });
+
+  it("returns the id of the token issued together with the link to send", async () => {
+    await insertUser("ada@example.com");
+
+    const result = await processRecoveryRequestJob(db, request("ada@example.com"), jobDeps());
+
+    const [token] = await db.select().from(recoveryTokens);
+    expect(mustExist(result.send, "a link to send").tokenId).toBe(mustExist(token, "the token").id);
+  });
+
+  it("leaves a token unsent until the caller records that its link was sent", async () => {
+    await insertUser("ada@example.com");
+
+    await processRecoveryRequestJob(db, request("ada@example.com"), jobDeps());
+
+    const [token] = await db.select().from(recoveryTokens);
+    expect(mustExist(token, "the token").sentAt).toBeNull();
+  });
+
+  it("serves a request whose link was sent only once, changing nothing when it runs again", async () => {
+    await insertUser("ada@example.com");
+    const requestPayload = request("ada@example.com");
+    const first = await processRecoveryRequestJob(db, requestPayload, jobDeps());
+    await recordRecoveryLinkSentJob(db, mustExist(first.send, "a link to send").tokenId, jobDeps());
+    const tokensBefore = await db.select().from(recoveryTokens);
+    const auditBefore = await db.select().from(auditLog);
+    const alertsBefore = await recoveryRequestedAlerts();
+
+    const rerunAt = new Date(NOW.getTime() + 4 * 60 * 60 * 1000);
+    const rerun = await processRecoveryRequestJob(db, requestPayload, jobDeps(rerunAt));
+
+    expect(rerun).toEqual({});
+    expect(await db.select().from(recoveryTokens)).toEqual(tokensBefore);
+    expect(await db.select().from(auditLog)).toEqual(auditBefore);
+    expect(await recoveryRequestedAlerts()).toEqual(alertsBefore);
+  });
+});
+
+describe("recordRecoveryLinkSentJob", () => {
+  it("marks the token as sent at the job's clock", async () => {
+    await insertUser("ada@example.com");
+    const issued = await processRecoveryRequestJob(db, request("ada@example.com"), jobDeps());
+    const sentAt = new Date(NOW.getTime() + 2000);
+
+    await recordRecoveryLinkSentJob(db, mustExist(issued.send, "a link to send").tokenId, {
+      now: () => sentAt,
+    });
+
+    const [token] = await db.select().from(recoveryTokens);
+    expect(mustExist(token, "the token").sentAt).toEqual(sentAt);
   });
 });
