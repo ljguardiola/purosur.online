@@ -786,9 +786,17 @@ export const sales = pgTable(
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
     cancellationAuthorizedBy: text("cancellation_authorized_by"),
     total: bigint("total", { mode: "number" }).notNull(),
+    operationNumber: bigint("operation_number", { mode: "number" }),
+    printAttemptedAt: timestamp("print_attempted_at", { withTimezone: true }),
+    printedAt: timestamp("printed_at", { withTimezone: true }),
     appliedAt: timestamp("applied_at", { withTimezone: true }).notNull(),
   },
   (table) => [
+    check("sales_operation_number_positive_check", sql`${table.operationNumber} > 0`),
+    check(
+      "sales_printed_only_after_attempted_check",
+      sql`${table.printedAt} is null or ${table.printAttemptedAt} is not null`,
+    ),
     check("sales_state_check", sql`${table.state} in ('COMPLETED', 'CANCELLED')`),
     check(
       "sales_state_matches_timestamps_check",
@@ -798,6 +806,30 @@ export const sales = pgTable(
     check(
       "sales_cancellation_authorizer_only_when_cancelled_check",
       sql`${table.cancellationAuthorizedBy} is null or ${table.state} = 'CANCELLED'`,
+    ),
+  ],
+);
+
+export const saleReprints = pgTable(
+  "sale_reprints",
+  {
+    saleId: uuid("sale_id")
+      .notNull()
+      .references(() => sales.id),
+    orderNumber: integer("order_number").notNull(),
+    requestedBy: text("requested_by").notNull(),
+    authorizedBy: text("authorized_by"),
+    reasonKind: text("reason_kind").notNull(),
+    reasonText: text("reason_text"),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.saleId, table.orderNumber] }),
+    check("sale_reprints_order_number_positive_check", sql`${table.orderNumber} > 0`),
+    check("sale_reprints_reason_kind_check", sql`${table.reasonKind} in ('retry', 'requested')`),
+    check(
+      "sale_reprints_reason_matches_kind_check",
+      sql`(${table.reasonKind} = 'requested') = (${table.reasonText} is not null)`,
     ),
   ],
 );
