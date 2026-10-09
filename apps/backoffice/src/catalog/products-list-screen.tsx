@@ -13,7 +13,16 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
-import { Ban, Package, Pencil, Plus, Printer, Search, SearchX } from "lucide-react";
+import {
+  Ban,
+  Package,
+  Pencil,
+  Plus,
+  Printer,
+  RotateCcw,
+  Search,
+  SearchX,
+} from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import {
   categoriesInTreeOrder,
@@ -37,6 +46,7 @@ import { EditProductModal } from "./edit-product-modal";
 import { NewProductModal } from "./new-product-modal";
 import { PrintLabelsModal } from "./print-labels-modal";
 import type { ProductSaleUnit, ProductStatusFilter } from "./products-api";
+import { ReactivateProductModal } from "./reactivate-product-modal";
 import type { ProductsListScreenServices } from "./products-list-services";
 import type { ProductsListFilters } from "./routes";
 
@@ -117,6 +127,7 @@ export function ProductsListScreen({
   const [printModalOpen, setPrintModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ProductSummary | null>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<ProductSummary | null>(null);
+  const [reactivateTarget, setReactivateTarget] = useState<ProductSummary | null>(null);
   const reportFilters = useEffectEvent(onFiltersChange);
   const refreshCatalog = useRefreshCatalog();
   const reloadProduct = useReloadProduct({
@@ -239,7 +250,11 @@ export function ProductsListScreen({
                 "aria-label": `Desactivar el producto ${item.name}`,
                 onPress: () => setDeactivateTarget(item),
               }
-            : undefined,
+            : {
+                icon: <RotateCcw />,
+                "aria-label": `Reactivar el producto ${item.name}`,
+                onPress: () => setReactivateTarget(item),
+              },
       ],
     }),
   ] as const;
@@ -259,6 +274,11 @@ export function ProductsListScreen({
 
   function closeDeactivationAndRefresh() {
     setDeactivateTarget(null);
+    void refreshCatalog();
+  }
+
+  function closeReactivationAndRefresh() {
+    setReactivateTarget(null);
     void refreshCatalog();
   }
 
@@ -385,6 +405,13 @@ export function ProductsListScreen({
         onClose={() => setDeactivateTarget(null)}
         onDeactivated={closeDeactivationAndRefresh}
         onVanished={closeDeactivationAndRefresh}
+        onSessionEnded={onSessionEnded}
+        services={services}
+      />
+      <ReactivateProductModal
+        target={reactivateTarget}
+        onClose={() => setReactivateTarget(null)}
+        onReactivated={closeReactivationAndRefresh}
         onSessionEnded={onSessionEnded}
         services={services}
       />
