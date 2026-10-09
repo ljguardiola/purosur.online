@@ -483,7 +483,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
     const rawSessionId = await insertSession(administratorId);
 
     const response = await putIssuerIdentification(
-      validBody({ authorized_cuit: "30-99999999-9" }),
+      validBody({ authorized_cuit: "23-00000000-9" }),
       rawSessionId,
     );
 
