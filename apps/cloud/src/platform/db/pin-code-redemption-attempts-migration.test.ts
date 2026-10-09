@@ -32,7 +32,7 @@ describe("the PIN code redemption attempts migration applied over a database tha
       "select id from locations limit 1",
     );
     const { rows: userRows } = await client.query<{ id: string }>(
-      "insert into users (first_name, email, location_id) values ('Ada Lovelace', 'ada@example.com', $1) returning id",
+      "insert into users (first_name, email, location_id) values ('Ada Lucero', 'ada@example.com', $1) returning id",
       [locationRows[0]?.id],
     );
     const userId = userRows[0]?.id;

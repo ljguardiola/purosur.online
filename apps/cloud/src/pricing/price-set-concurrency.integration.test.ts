@@ -39,7 +39,7 @@ async function seedActorAndProduct(): Promise<{ actorId: string; productId: stri
 
   const [actor] = await db
     .insert(users)
-    .values({ firstName: "Ada Lovelace", email: `ada-${suffix}@example.com`, locationId })
+    .values({ firstName: "Ada Lucero", email: `ada-${suffix}@example.com`, locationId })
     .returning({ id: users.id });
   const [category] = await db
     .insert(categories)

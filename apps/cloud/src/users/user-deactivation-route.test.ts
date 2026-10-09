@@ -148,7 +148,7 @@ beforeEach(async () => {
 
   const locationId = await seededLocationId(db);
   administratorId = await insertUser({
-    firstName: "Ada Lovelace",
+    firstName: "Ada Lucero",
     email: "ada@example.com",
     roleId: await seededAdministratorRoleId(),
     locationId,
@@ -175,7 +175,7 @@ describe("PUT /users/:id/deactivation", () => {
   beforeEach(async () => {
     cashierRoleId = await insertRole("Cajera");
     targetId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId: cashierRoleId,
       locationId: await seededLocationId(db),
@@ -295,7 +295,7 @@ describe("PUT /users/:id/deactivation", () => {
   it("answers the same 404 for the holder's own account as for a missing one, in any letter case, leaving them active", async () => {
     const holderRoleId = await insertRole("Encargada", ["deactivate_users"]);
     const holderId = await insertUser({
-      firstName: "Barbara Liskov",
+      firstName: "Barbara Quintana",
       email: "barbara@example.com",
       roleId: holderRoleId,
       locationId: await seededLocationId(db),
@@ -386,7 +386,7 @@ describe("PUT /users/:id/deactivation", () => {
   it("allows a holder of only deactivate_users, not an Administrator, to deactivate a user", async () => {
     const holderRoleId = await insertRole("Encargada", ["deactivate_users"]);
     const holderId = await insertUser({
-      firstName: "Barbara Liskov",
+      firstName: "Barbara Quintana",
       email: "barbara@example.com",
       roleId: holderRoleId,
       locationId: await seededLocationId(db),

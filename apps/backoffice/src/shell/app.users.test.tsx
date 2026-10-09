@@ -39,7 +39,7 @@ test("following the account name link from Help shows Mi cuenta", async () => {
   window.history.pushState(null, "", "/help");
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await userEvent.click(screen.getByRole("link", { name: "Lucas Guardiola" }));
+  await userEvent.click(screen.getByRole("link", { name: "Lucas Medrano" }));
 
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
   expect(window.location.pathname).toBe("/account");
@@ -59,7 +59,7 @@ test("following the sidebar's Usuarios item from Mi cuenta opens the Users list,
   expect(window.location.pathname).toBe("/users");
   expect(services.usersListScreen.fetchUsers).toHaveBeenCalled();
 
-  await userEvent.click(screen.getByRole("link", { name: "Lucas Guardiola" }));
+  await userEvent.click(screen.getByRole("link", { name: "Lucas Medrano" }));
 
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
   expect(window.location.pathname).toBe("/account");
@@ -107,7 +107,7 @@ test("passes the signed-in Administrator's own id to the user detail screen, hid
   const services = createAppServices();
   const lucas = {
     id: "user-1",
-    firstName: "Lucas Guardiola",
+    firstName: "Lucas Medrano",
     email: "lucas@example.com",
     version: 1,
     role: { id: "role-admin", isAdministrator: true, name: null },
@@ -256,7 +256,7 @@ test("redirects a non-Administrator's typed /users to Mi cuenta, without listing
     fetchSession: vi
       .fn()
       .mockResolvedValue(
-        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
@@ -274,7 +274,7 @@ test("shows Mi cuenta's own sidebar entry instead of Usuarios for a non-Administ
     fetchSession: vi
       .fn()
       .mockResolvedValue(
-        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
@@ -296,7 +296,7 @@ test("lets a non-Administrator holding deactivate_users open Usuarios, without N
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
         userId: "user-2",
-        displayName: "Grace Hopper",
+        displayName: "Grace Villalba",
         isAdministrator: false,
         capabilities: ["users_area", "deactivate_users"],
       }),
@@ -339,7 +339,7 @@ test("opens a user's detail for a non-Administrator holding deactivate_users, of
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
         userId: "user-2",
-        displayName: "Grace Hopper",
+        displayName: "Grace Villalba",
         isAdministrator: false,
         capabilities: ["users_area", "deactivate_users"],
       }),
@@ -384,7 +384,7 @@ test("lets a non-Administrator holding only reset_user_pin open Usuarios and a u
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
         userId: "user-2",
-        displayName: "Grace Hopper",
+        displayName: "Grace Villalba",
         isAdministrator: false,
         capabilities: ["users_area", "reset_user_pin"],
       }),
@@ -436,7 +436,7 @@ test.each([
       fetchSession: vi
         .fn()
         .mockResolvedValue(
-          openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+          openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
         ),
     });
     vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });

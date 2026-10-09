@@ -129,7 +129,7 @@ beforeEach(async () => {
 
   const locationId = await seededLocationId(db);
   administratorId = await insertUser({
-    firstName: "Ada Lovelace",
+    firstName: "Ada Lucero",
     email: "ada@example.com",
     roleId: await seededAdministratorRoleId(),
     locationId,
@@ -191,7 +191,7 @@ describe("PUT /roles/:id", () => {
   it("rejects a non-Administrator with 403 forbidden, changing nothing", async () => {
     const cashierRoleId = await insertRole("Vendedora");
     const cashierId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId: cashierRoleId,
       locationId: await seededLocationId(db),
@@ -334,7 +334,7 @@ describe("PUT /roles/:id", () => {
     const rawSessionId = await insertSession(administratorId);
     const locationId = await seededLocationId(db);
     const graceId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId,
       locationId,
@@ -355,7 +355,7 @@ describe("PUT /roles/:id", () => {
       user_count: 1,
       may_edit: true,
       version: 2,
-      assigned_users: [{ id: graceId, name: "Grace Hopper" }],
+      assigned_users: [{ id: graceId, name: "Grace Villalba" }],
     });
 
     const [row] = await db.select().from(roles).where(eq(roles.id, roleId));
@@ -524,7 +524,7 @@ describe("PUT /roles/:id and the alert for increased access", () => {
   it("opens one Critical, All-audience alert per active holder when a permission is added, never resolving on its own", async () => {
     const locationId = await seededLocationId(db);
     const graceId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId,
       locationId,
@@ -534,7 +534,7 @@ describe("PUT /roles/:id and the alert for increased access", () => {
       throw new Error("test setup: seeding the other branch returned no row");
     }
     const katherineId = await insertUser({
-      firstName: "Katherine Johnson",
+      firstName: "Katherine Ojeda",
       email: "katherine@example.com",
       roleId,
       locationId: otherLocation.id,
@@ -566,7 +566,7 @@ describe("PUT /roles/:id and the alert for increased access", () => {
 
   it("opens the alert when a permission is added even as another one is removed", async () => {
     const graceId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId,
       locationId: await seededLocationId(db),
@@ -585,7 +585,7 @@ describe("PUT /roles/:id and the alert for increased access", () => {
 
   it("opens no alert when permissions are only removed", async () => {
     await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId,
       locationId: await seededLocationId(db),
@@ -599,7 +599,7 @@ describe("PUT /roles/:id and the alert for increased access", () => {
 
   it("opens no alert when only the name changes", async () => {
     await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId,
       locationId: await seededLocationId(db),
@@ -614,13 +614,13 @@ describe("PUT /roles/:id and the alert for increased access", () => {
   it("opens one alert for the active holder and none for a deactivated one", async () => {
     const locationId = await seededLocationId(db);
     const activeId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId,
       locationId,
     });
     const deactivatedId = await insertUser({
-      firstName: "Hedy Lamarr",
+      firstName: "Hedy Correa",
       email: "hedy@example.com",
       roleId,
       locationId,

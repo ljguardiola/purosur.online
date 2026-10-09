@@ -18,7 +18,7 @@ test("shows the Inicio item in the rail for a non-administrator, linking to Inic
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
         userId: "user-2",
-        displayName: "Grace Hopper",
+        displayName: "Grace Villalba",
         isAdministrator: false,
         capabilities: ["alerts_area"],
       }),
@@ -36,7 +36,7 @@ test("lands a user without either alert-view permission on Inicio, telling them 
     fetchSession: vi
       .fn()
       .mockResolvedValue(
-        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
 
@@ -155,7 +155,7 @@ test("shows each register's last successful sync on Inicio to a user who may not
     fetchSession: vi
       .fn()
       .mockResolvedValue(
-        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
   vi.mocked(services.homeScreen.fetchRegisterSyncStatus).mockResolvedValue({

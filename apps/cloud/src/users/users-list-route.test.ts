@@ -129,7 +129,7 @@ describe("GET /users", () => {
     const cashierRoleId = await insertCashierRole("Cajera");
     const locationId = await seededLocationId(db);
     const cashierId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId: cashierRoleId,
       locationId,
@@ -146,7 +146,7 @@ describe("GET /users", () => {
     const locationId = await seededLocationId(db);
     const roleId = await insertCashierRole("Encargada", ["deactivate_users"]);
     const userId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId,
       locationId,
@@ -159,7 +159,7 @@ describe("GET /users", () => {
     expect(response.json()).toEqual([
       {
         id: userId,
-        first_name: "Ada Lovelace",
+        first_name: "Ada Lucero",
         email: "ada@example.com",
         version: 1,
         role: { id: roleId, is_administrator: false, name: "Encargada" },
@@ -178,7 +178,7 @@ describe("GET /users", () => {
     const locationId = await seededLocationId(db);
     const roleId = await insertCashierRole("Encargada", ["reset_user_pin"]);
     const userId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId,
       locationId,
@@ -202,7 +202,7 @@ describe("GET /users", () => {
     });
     const cashierRoleId = await insertCashierRole("Cajera");
     const inactiveId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: cashierRoleId,
       locationId,
@@ -242,7 +242,7 @@ describe("GET /users", () => {
       locationId,
     });
     const inactiveId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: cashierRoleId,
       locationId,
@@ -256,7 +256,7 @@ describe("GET /users", () => {
     expect(response.json()).toEqual([
       {
         id: inactiveId,
-        first_name: "Ada Lovelace",
+        first_name: "Ada Lucero",
         email: "ada@example.com",
         version: 1,
         active: false,
@@ -298,7 +298,7 @@ describe("GET /users", () => {
     });
     const cashierRoleId = await insertCashierRole("Cajera");
     const inactiveId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: cashierRoleId,
       locationId,
@@ -329,7 +329,7 @@ describe("GET /users", () => {
       locationId,
     });
     const cashierId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: cashierRoleId,
       locationId,
@@ -354,7 +354,7 @@ describe("GET /users", () => {
     expect(response.json()).toEqual([
       {
         id: cashierId,
-        first_name: "Ada Lovelace",
+        first_name: "Ada Lucero",
         email: "ada@example.com",
         version: 1,
         active: true,
@@ -388,7 +388,7 @@ describe("GET /users", () => {
   it("rejects an Origin that is not the backoffice's own", async () => {
     const locationId = await seededLocationId(db);
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId,

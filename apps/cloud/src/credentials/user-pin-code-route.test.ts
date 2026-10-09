@@ -133,7 +133,7 @@ beforeEach(async () => {
   await testDatabase.clear();
 
   administratorId = await insertUser({
-    firstName: "Ada Lovelace",
+    firstName: "Ada Lucero",
     email: "ada@example.com",
     roleId: await seededAdministratorRoleId(),
   });
@@ -158,13 +158,13 @@ describe("POST /users/:id/pin-codes", () => {
 
   beforeEach(async () => {
     holderId = await insertUser({
-      firstName: "Barbara Liskov",
+      firstName: "Barbara Quintana",
       email: "barbara@example.com",
       roleId: await insertRole("Encargada", ["reset_user_pin"]),
     });
     holderSession = await insertSession(holderId);
     targetId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId: await insertRole("Cajera"),
     });
@@ -474,7 +474,7 @@ describe("POST /users/:id/pin-codes", () => {
 
   it("answers 409 user_inactive for an inactive target, emitting nothing", async () => {
     const inactiveId = await insertUser({
-      firstName: "Alan Turing",
+      firstName: "Alan Benítez",
       email: "alan@example.com",
       roleId: await insertRole("Repositor"),
       active: false,

@@ -116,7 +116,7 @@ async function insertUser(isAdministrator: boolean): Promise<string> {
   const [user] = await db
     .insert(users)
     .values({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: `user-${randomUUID()}@example.com`,
       locationId: await seededLocationId(db),
     })

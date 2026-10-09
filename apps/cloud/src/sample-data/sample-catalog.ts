@@ -521,7 +521,7 @@ export const SAMPLE_ROLES: readonly SampleRolePlan[] = [
     users: [
       { firstName: "Sofía Ramírez", email: sampleEmail("encargada.muestra"), active: true },
       {
-        firstName: "Diego Torres",
+        firstName: "Diego Paredes",
         email: sampleEmail("encargado.inactivo.muestra"),
         active: false,
       },

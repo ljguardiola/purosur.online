@@ -28,7 +28,7 @@ function stockServices(capabilities: Capability[]) {
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
         userId: "user-2",
-        displayName: "Grace Hopper",
+        displayName: "Grace Villalba",
         isAdministrator: false,
         capabilities,
       }),
@@ -120,7 +120,7 @@ test.each([
 test("offers the kinds of stock movement real use of the open tab reports the user may now record", async () => {
   const lossesOnly = openSession({
     userId: "user-2",
-    displayName: "Grace Hopper",
+    displayName: "Grace Villalba",
     isAdministrator: false,
     capabilities: ["stock_losses", "stock_adjustments", "stock_movements", "stock_area"],
     stockMovementKinds: ["loss"],

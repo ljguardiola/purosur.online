@@ -34,7 +34,7 @@ describe("the user PIN codes migration applied over a database that already hold
     );
     const { rows: userRows } = await client.query<{ id: string }>(
       "insert into users (first_name, email, location_id) values ($1, $2, $3) returning id",
-      ["Ada Lovelace", `ada-${randomUUID()}@example.com`, locationRows[0]?.id],
+      ["Ada Lucero", `ada-${randomUUID()}@example.com`, locationRows[0]?.id],
     );
     const userId = userRows[0]?.id;
 

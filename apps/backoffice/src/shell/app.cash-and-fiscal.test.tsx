@@ -19,7 +19,7 @@ test("shows the Caja item in the rail for a user holding change_fiscal_configura
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
         userId: "user-2",
-        displayName: "Grace Hopper",
+        displayName: "Grace Villalba",
         isAdministrator: false,
         capabilities: ["cash_area"],
       }),
@@ -37,7 +37,7 @@ test("hides the Caja item in the rail for a user without change_fiscal_configura
     fetchSession: vi
       .fn()
       .mockResolvedValue(
-        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
   window.history.pushState(null, "", "/help");
@@ -54,7 +54,7 @@ test("following the rail's Caja item opens Puntos de venta, with Caja and Puntos
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
         userId: "user-2",
-        displayName: "Grace Hopper",
+        displayName: "Grace Villalba",
         isAdministrator: false,
         capabilities: ["cash_area"],
       }),
@@ -87,7 +87,7 @@ test("following the section's Configuración fiscal link opens it, with only tha
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
         userId: "user-2",
-        displayName: "Grace Hopper",
+        displayName: "Grace Villalba",
         isAdministrator: false,
         capabilities: ["cash_area"],
       }),
@@ -129,7 +129,7 @@ test("lists Puntos de venta before Configuración fiscal in the FISCAL group", a
     fetchSession: vi
       .fn()
       .mockResolvedValue(
-        openSession({ userId: "user-1", displayName: "Ada Lovelace", isAdministrator: true }),
+        openSession({ userId: "user-1", displayName: "Ada Lucero", isAdministrator: true }),
       ),
   });
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -145,7 +145,7 @@ test("redirects a non-permitted user's typed /points-of-sale to Mi cuenta, witho
     fetchSession: vi
       .fn()
       .mockResolvedValue(
-        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
@@ -163,7 +163,7 @@ test("redirects a non-permitted user's typed /fiscal-settings to Mi cuenta, with
     fetchSession: vi
       .fn()
       .mockResolvedValue(
-        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });

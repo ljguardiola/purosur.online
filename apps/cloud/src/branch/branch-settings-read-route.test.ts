@@ -121,7 +121,7 @@ function getBranchSettings(rawSessionId?: string) {
 describe("GET /locations/current/settings", () => {
   it("no longer answers GET /branch-settings", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -146,7 +146,7 @@ describe("GET /locations/current/settings", () => {
 
   it("rejects an Origin that is not the backoffice's own", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -166,7 +166,7 @@ describe("GET /locations/current/settings", () => {
   it("rejects a user without the configure_branch permission with 403 forbidden", async () => {
     const cashierRoleId = await insertRole("Cajera", ["sell_and_charge"]);
     const cashierId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId: cashierRoleId,
       locationId: await seededLocationId(db),
@@ -181,7 +181,7 @@ describe("GET /locations/current/settings", () => {
 
   it("allows the Administrator, who holds every permission implicitly", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -196,7 +196,7 @@ describe("GET /locations/current/settings", () => {
   it("allows a role holding configure_branch explicitly, without Administrator", async () => {
     const managerRoleId = await insertRole("Encargada", ["configure_branch"]);
     const managerId = await insertUser({
-      firstName: "Katherine Johnson",
+      firstName: "Katherine Ojeda",
       email: "katherine@example.com",
       roleId: managerRoleId,
       locationId: await seededLocationId(db),
@@ -210,7 +210,7 @@ describe("GET /locations/current/settings", () => {
 
   it("returns the seeded location's defaults with version 1", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -246,7 +246,7 @@ describe("GET /locations/current/settings", () => {
     ]);
 
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: ownLocationId,
@@ -277,7 +277,7 @@ describe("GET /locations/current/settings", () => {
     ]);
 
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: ownLocationId,
