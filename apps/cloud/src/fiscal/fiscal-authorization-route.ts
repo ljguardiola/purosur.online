@@ -66,7 +66,11 @@ function toWire(answer: RealTimeAuthorizationAnswer): RealTimeAuthorizationRespo
         authorization_code_due_on: answer.authorizationCodeDueOn,
       };
     case "rejected":
-      return { state: "REJECTED", rejection_codes: [...answer.codes] };
+      return {
+        state: "REJECTED",
+        rejection_codes: [...answer.codes],
+        rejection_class: answer.rejectionClass,
+      };
     case "not_attempted":
       return { state: "NOT_ATTEMPTED" };
     case "unclear":

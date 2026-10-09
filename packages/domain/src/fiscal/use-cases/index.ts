@@ -2,10 +2,15 @@ export type { Clock } from "../../shared/index.js";
 export type { ArcaReachabilityEvidence } from "../model/arca-reachability.js";
 export type { FiscalOnlineSignalEvidence } from "../model/fiscal-online-signal.js";
 export type {
+  RejectionAlertChange,
+  TaxAuthorityRejection,
+} from "../model/fiscal-rejection-alert.js";
+export type {
   DeferralReason,
   RealTimeAuthorizationAnswer,
   RealTimeAuthorizationResolution,
   RealTimeSeries,
+  RejectionClass,
 } from "../model/real-time-authorization.js";
 export type {
   ArcaCertificateExpiryPorts,

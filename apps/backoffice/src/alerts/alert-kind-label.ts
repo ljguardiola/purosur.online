@@ -13,6 +13,7 @@ const ALERT_KIND_LABELS = {
   update_required: "Versión de caja no aceptada",
   register_silent: "Caja sin sincronizar",
   sales_denied: "Caja sin poder vender",
+  fiscal_rejected: "Factura rechazada por ARCA",
 } satisfies Record<AlertKind, string>;
 
 export function alertKindLabel(kind: string): string {

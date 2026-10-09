@@ -1,5 +1,9 @@
 import type { Clock } from "../../shared/index.js";
 import type { PushedEvent } from "../../sync/index.js";
+import type {
+  RejectionAlertChange,
+  TaxAuthorityRejection,
+} from "../model/fiscal-rejection-alert.js";
 import type { RealTimeAuthorizationAnswer } from "../model/real-time-authorization.js";
 import type { WsaaToken } from "./wsaa-token-ports.js";
 
@@ -42,6 +46,7 @@ export interface PointOfSaleLane {
     fiscalDocumentId: string,
     answer: RealTimeAuthorizationAnswer,
     answeredAt: Date,
+    rejectionAlertChange: RejectionAlertChange | null,
   ): Promise<void>;
 }
 
@@ -62,7 +67,8 @@ export interface FiscalDocumentSolicitation extends FiscalDocumentData {
 
 export type SolicitationAnswer =
   | { kind: "authorized"; authorizationCode: string; authorizationCodeDueOn: string }
-  | { kind: "rejected"; codes: readonly number[] }
+  | { kind: "rejected"; rejections: readonly TaxAuthorityRejection[] }
+  | { kind: "refused_without_result"; rejections: readonly TaxAuthorityRejection[] }
   | { kind: "no_answer" };
 
 export interface TaxAuthorityInvoicing {

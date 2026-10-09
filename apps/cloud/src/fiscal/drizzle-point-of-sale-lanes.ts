@@ -1,3 +1,4 @@
+import { fiscalRejectionAlertObservation } from "@purosur/domain";
 import {
   type AuthorizationRequestRecord,
   FiscalDocumentAlreadyRecorded,
@@ -5,9 +6,11 @@ import {
   type PointOfSaleLanes,
   type RealTimeAuthorizationAnswer,
   type RecordedAuthorizationRequest,
+  type RejectionAlertChange,
 } from "@purosur/domain/fiscal/use-cases";
 import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { observeAlertCondition } from "../alerts/observe-alert-condition.js";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import {
   arcaInvoicingEvidence,
@@ -25,7 +28,11 @@ function pointOfSaleLaneLockKey(pointOfSale: number): string {
 
 type RecordedAnswerColumns = Pick<
   typeof fiscalRequests.$inferSelect,
-  "answerKind" | "authorizationCode" | "authorizationCodeDueOn" | "rejectionCodes"
+  | "answerKind"
+  | "authorizationCode"
+  | "authorizationCodeDueOn"
+  | "rejectionCodes"
+  | "rejectionClass"
 >;
 
 function answerOf(row: RecordedAnswerColumns): RealTimeAuthorizationAnswer | null {
@@ -37,7 +44,11 @@ function answerOf(row: RecordedAnswerColumns): RealTimeAuthorizationAnswer | nul
         authorizationCodeDueOn: row.authorizationCodeDueOn ?? "",
       };
     case "rejected":
-      return { kind: "rejected", codes: row.rejectionCodes ?? [] };
+      return {
+        kind: "rejected",
+        codes: row.rejectionCodes ?? [],
+        rejectionClass: row.rejectionClass === "standing" ? "standing" : "content",
+      };
     case "not_attempted":
       return { kind: "not_attempted" };
     case "unclear":
@@ -55,6 +66,7 @@ function answerColumnsOf(answer: RealTimeAuthorizationAnswer) {
         authorizationCode: answer.authorizationCode,
         authorizationCodeDueOn: answer.authorizationCodeDueOn,
         rejectionCodes: null,
+        rejectionClass: null,
       };
     case "rejected":
       return {
@@ -62,6 +74,7 @@ function answerColumnsOf(answer: RealTimeAuthorizationAnswer) {
         authorizationCode: null,
         authorizationCodeDueOn: null,
         rejectionCodes: [...answer.codes],
+        rejectionClass: answer.rejectionClass,
       };
     case "not_attempted":
     case "unclear":
@@ -70,6 +83,7 @@ function answerColumnsOf(answer: RealTimeAuthorizationAnswer) {
         authorizationCode: null,
         authorizationCodeDueOn: null,
         rejectionCodes: null,
+        rejectionClass: null,
       };
   }
 }
@@ -79,18 +93,6 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
 
   constructor(db: PgDatabase<TQueryResult>) {
     this.db = db;
-  }
-
-  // A reserved postgres.js connection has no `begin`, which drizzle's `transaction` calls.
-  private async inTransaction(work: () => Promise<void>): Promise<void> {
-    await this.db.execute(sql`begin`);
-    try {
-      await work();
-    } catch (error) {
-      await this.db.execute(sql`rollback`);
-      throw error;
-    }
-    await this.db.execute(sql`commit`);
   }
 
   async registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean> {
@@ -116,6 +118,7 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
         authorizationCode: fiscalRequests.authorizationCode,
         authorizationCodeDueOn: fiscalRequests.authorizationCodeDueOn,
         rejectionCodes: fiscalRequests.rejectionCodes,
+        rejectionClass: fiscalRequests.rejectionClass,
       })
       .from(fiscalRequests)
       .where(
@@ -158,10 +161,14 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
     fiscalDocumentId: string,
     answer: RealTimeAuthorizationAnswer,
     answeredAt: Date,
+    rejectionAlertChange: RejectionAlertChange | null,
   ): Promise<void> {
-    await this.inTransaction(async () => {
-      await this.recordAnswer(fiscalDocumentId, answer, answeredAt);
-      await this.db
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(fiscalRequests)
+        .set({ ...answerColumnsOf(answer), answeredAt })
+        .where(eq(fiscalRequests.fiscalDocumentId, fiscalDocumentId));
+      await tx
         .insert(arcaInvoicingEvidence)
         .values({ lastCallOkAt: answeredAt })
         .onConflictDoUpdate({
@@ -170,6 +177,11 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
             lastCallOkAt: sql`greatest(${arcaInvoicingEvidence.lastCallOkAt}, excluded.last_call_ok_at)`,
           },
         });
+      if (rejectionAlertChange !== null) {
+        await observeAlertCondition(tx, fiscalRejectionAlertObservation(rejectionAlertChange), {
+          now: () => answeredAt,
+        });
+      }
     });
   }
 }

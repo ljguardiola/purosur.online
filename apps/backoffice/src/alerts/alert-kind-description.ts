@@ -13,6 +13,7 @@ const ALERT_KIND_DESCRIPTIONS = {
   update_required: "La nube ya no acepta la versión de esta caja",
   register_silent: "Una caja dejó de sincronizar",
   sales_denied: "Una caja dejó de abrir ventas nuevas",
+  fiscal_rejected: "ARCA rechazó una factura",
 } satisfies Record<AlertKind, string>;
 
 export const DESCRIBED_ALERT_KINDS: readonly string[] = Object.keys(ALERT_KIND_DESCRIPTIONS);

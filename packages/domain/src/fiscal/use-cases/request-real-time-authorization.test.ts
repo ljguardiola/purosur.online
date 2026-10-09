@@ -133,7 +133,9 @@ describe("requestRealTimeAuthorization", () => {
   });
 
   it("rejects the document when the tax authority rejects it", async () => {
-    const { documents, outcome } = request({ answer: { kind: "rejected", codes: [10015] } });
+    const { documents, outcome } = request({
+      answer: { kind: "rejected", codes: [10015], rejectionClass: "content" },
+    });
 
     await expect(outcome).resolves.toEqual({ kind: "rejected" });
     expect(documents.resolutions.map(({ resolution }) => resolution)).toEqual([
