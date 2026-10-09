@@ -135,6 +135,7 @@ export {
   followMercadoPagoQrChargeOutcomeSchema,
   paymentsCoreToRendererMessageSchema,
   paymentsRendererToCoreMessageSchema,
+  startMercadoPagoQrChargeMessageSchema,
   startMercadoPagoQrChargeOutcomeSchema,
 } from "./payments/core-messages.js";
 export type {

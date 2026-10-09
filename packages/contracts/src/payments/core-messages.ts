@@ -10,7 +10,7 @@ import {
 
 const WAIT_SECONDS = MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES * 60;
 
-const startMercadoPagoQrChargeMessageSchema = z.object({
+export const startMercadoPagoQrChargeMessageSchema = z.object({
   type: z.literal("start-mercado-pago-qr-charge"),
   request_id: requestIdSchema,
   sale_id: z.string(),
