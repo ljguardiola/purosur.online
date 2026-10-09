@@ -867,7 +867,7 @@ describe("the register's local migrations", () => {
         "0023_sales_stopped_reason",
         "0024_stock_ledger",
         "0025_last_accepted_push",
-        "0026_receipt_printing",
+        "0027_receipt_printing",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -920,7 +920,7 @@ describe("the register's local migrations", () => {
         "0023_sales_stopped_reason",
         "0024_stock_ledger",
         "0025_last_accepted_push",
-        "0026_receipt_printing",
+        "0027_receipt_printing",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -968,7 +968,7 @@ describe("the register's local migrations", () => {
         "0023_sales_stopped_reason",
         "0024_stock_ledger",
         "0025_last_accepted_push",
-        "0026_receipt_printing",
+        "0027_receipt_printing",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1015,7 +1015,7 @@ describe("the register's local migrations", () => {
         "0023_sales_stopped_reason",
         "0024_stock_ledger",
         "0025_last_accepted_push",
-        "0026_receipt_printing",
+        "0027_receipt_printing",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1089,7 +1089,7 @@ describe("the register's local migrations", () => {
         "0023_sales_stopped_reason",
         "0024_stock_ledger",
         "0025_last_accepted_push",
-        "0026_receipt_printing",
+        "0027_receipt_printing",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1155,7 +1155,7 @@ describe("the register's local migrations", () => {
         "0023_sales_stopped_reason",
         "0024_stock_ledger",
         "0025_last_accepted_push",
-        "0026_receipt_printing",
+        "0027_receipt_printing",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1225,7 +1225,7 @@ describe("the register's local migrations", () => {
         "0023_sales_stopped_reason",
         "0024_stock_ledger",
         "0025_last_accepted_push",
-        "0026_receipt_printing",
+        "0027_receipt_printing",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1278,7 +1278,7 @@ describe("the register's local migrations", () => {
         "0023_sales_stopped_reason",
         "0024_stock_ledger",
         "0025_last_accepted_push",
-        "0026_receipt_printing",
+        "0027_receipt_printing",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1323,7 +1323,7 @@ describe("the register's local migrations", () => {
         "0023_sales_stopped_reason",
         "0024_stock_ledger",
         "0025_last_accepted_push",
-        "0026_receipt_printing",
+        "0027_receipt_printing",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1413,7 +1413,7 @@ describe("the register's local migrations", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
       const path = join(folder, "register.sqlite");
-      const previous = LOCAL_MIGRATIONS.filter(({ name }) => name < "0026_receipt_printing");
+      const previous = LOCAL_MIGRATIONS.filter(({ name }) => name < "0027_receipt_printing");
       expect(previous.at(-1)?.name).toBe("0025_last_accepted_push");
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
