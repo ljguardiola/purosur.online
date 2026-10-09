@@ -12,13 +12,24 @@ export interface PaymentTransactionOutcome {
   needsReview: boolean;
 }
 
+export interface PaymentTransactionReading {
+  outcome: PaymentTransactionOutcome;
+  readAt: Date;
+}
+
 export interface PaymentTransactionLane {
   recordedTransaction(
     registerId: string,
     paymentTransactionId: string,
   ): Promise<ProviderPaymentTransaction | null>;
   recordPendingTransaction(transaction: ProviderPaymentTransaction): Promise<void>;
-  recordOrderCreated(paymentTransactionId: string, providerOrderId: string): Promise<void>;
+  recordCreationAttempt(paymentTransactionId: string, expiresAt: Date): Promise<void>;
+  recordExpired(paymentTransactionId: string): Promise<void>;
+  recordOrderCreated(
+    paymentTransactionId: string,
+    providerOrderId: string,
+    reading: PaymentTransactionReading | null,
+  ): Promise<void>;
   recordOrderResult(
     paymentTransactionId: string,
     outcome: PaymentTransactionOutcome,
@@ -42,7 +53,7 @@ export interface MercadoPagoQrOrderRequest {
 
 export type MercadoPagoOrderCreation =
   | { kind: "created"; orderId: string; result: MercadoPagoOrderResult }
-  | { kind: "refused"; code: string }
+  | { kind: "refused" }
   | { kind: "unavailable" };
 
 export type MercadoPagoOrderReading =
@@ -50,6 +61,7 @@ export type MercadoPagoOrderReading =
   | { kind: "unavailable" };
 
 export interface MercadoPagoOrders {
+  readonly longestCallMs: number;
   createQrOrder(request: MercadoPagoQrOrderRequest): Promise<MercadoPagoOrderCreation>;
   readOrder(orderId: string): Promise<MercadoPagoOrderReading>;
 }

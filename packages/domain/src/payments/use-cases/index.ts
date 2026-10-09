@@ -23,6 +23,7 @@ export type {
   PaymentTransactionLane,
   PaymentTransactionLanes,
   PaymentTransactionOutcome,
+  PaymentTransactionReading,
 } from "./mercado-pago-qr-order-ports.js";
 export { PaymentTransactionAlreadyRecorded } from "./mercado-pago-qr-order-ports.js";
 export type {

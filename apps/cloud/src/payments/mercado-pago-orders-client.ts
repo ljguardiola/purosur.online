@@ -16,7 +16,6 @@ const MERCADO_PAGO_API_URL = "https://api.mercadopago.com";
 const MERCADO_PAGO_TIMEOUT_MS = 10_000;
 const CENTS_PER_PESO = 100;
 const DECIMAL_AMOUNT = /^(\d+)(?:\.(\d{1,2}))?$/;
-const SAFE_ERROR_CODE = /^[A-Za-z0-9_.-]{1,64}$/;
 const UNAVAILABLE_STATUSES: readonly number[] = [408, 429];
 
 function pesosOfCents(cents: number): string {
@@ -47,7 +46,6 @@ const orderAnswerSchema = z.object({
   id: z.string().min(1),
   status: z.string(),
   status_detail: z.string(),
-  total_amount: amountSchema,
   total_paid_amount: amountSchema.optional(),
   transactions: z
     .object({
@@ -62,11 +60,6 @@ const orderAnswerSchema = z.object({
     .optional(),
 });
 
-const refusalSchema = z.object({
-  code: z.string().optional(),
-  errors: z.array(z.object({ code: z.string().optional() })).optional(),
-});
-
 function parsedOrder(body: unknown) {
   const parsed = orderAnswerSchema.safeParse(body);
   if (!parsed.success) {
@@ -78,7 +71,6 @@ function parsedOrder(body: unknown) {
     result: {
       status: answer.status,
       statusDetail: answer.status_detail,
-      totalAmount: answer.total_amount,
       totalPaidAmount: answer.total_paid_amount ?? null,
       payments: (answer.transactions?.payments ?? []).map((payment) => ({
         status: payment.status,
@@ -87,14 +79,6 @@ function parsedOrder(body: unknown) {
       })),
     },
   };
-}
-
-function refusalCode(status: number, body: unknown, accessToken: string): string {
-  const parsed = refusalSchema.safeParse(body);
-  const code = parsed.success ? (parsed.data.errors?.[0]?.code ?? parsed.data.code) : undefined;
-  return code !== undefined && SAFE_ERROR_CODE.test(code) && !code.includes(accessToken)
-    ? code
-    : `http_${status}`;
 }
 
 type ProviderAnswer = { kind: "answered"; status: number; body: unknown } | { kind: "unreachable" };
@@ -122,6 +106,8 @@ export function createMercadoPagoOrdersClient(
   }
 
   return {
+    longestCallMs: MERCADO_PAGO_TIMEOUT_MS,
+
     async createQrOrder(request: MercadoPagoQrOrderRequest): Promise<MercadoPagoOrderCreation> {
       const amount = pesosOfCents(request.amount);
       const answer = await call("/v1/orders", {
@@ -150,10 +136,7 @@ export function createMercadoPagoOrdersClient(
       if (UNAVAILABLE_STATUSES.includes(answer.status)) {
         return { kind: "unavailable" };
       }
-      return {
-        kind: "refused",
-        code: refusalCode(answer.status, answer.body, options.accessToken),
-      };
+      return { kind: "refused" };
     },
 
     async readOrder(orderId: string): Promise<MercadoPagoOrderReading> {

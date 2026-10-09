@@ -25,8 +25,21 @@ export interface ProviderPaymentTransaction {
   expiresAt: Date;
 }
 
-export function mercadoPagoOrderExpiresAt(createdAt: Date): Date {
-  return new Date(createdAt.getTime() + MERCADO_PAGO_ORDER_EXPIRY_MINUTES * 60 * 1000);
+export function mercadoPagoOrderExpiresAt(attemptStartedAt: Date, longestCallMs: number): Date {
+  return new Date(
+    attemptStartedAt.getTime() + MERCADO_PAGO_ORDER_EXPIRY_MINUTES * 60 * 1000 + longestCallMs,
+  );
+}
+
+export function hasExpiredWithoutOrder(
+  transaction: Pick<ProviderPaymentTransaction, "state" | "providerOrderId" | "expiresAt">,
+  now: Date,
+): boolean {
+  return (
+    transaction.state === "PENDING" &&
+    transaction.providerOrderId === null &&
+    now.getTime() >= transaction.expiresAt.getTime()
+  );
 }
 
 export function isValidOrderAmount(cents: number): boolean {

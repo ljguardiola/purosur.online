@@ -4,6 +4,7 @@ import {
   type PaymentTransactionLane,
   type PaymentTransactionLanes,
   type PaymentTransactionOutcome,
+  type PaymentTransactionReading,
 } from "@purosur/domain/payments/use-cases";
 import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -75,10 +76,37 @@ class DrizzlePaymentTransactionLane<TQueryResult extends PgQueryResultHKT>
     }
   }
 
-  async recordOrderCreated(paymentTransactionId: string, providerOrderId: string): Promise<void> {
+  async recordCreationAttempt(paymentTransactionId: string, expiresAt: Date): Promise<void> {
     await this.db
       .update(paymentTransactions)
-      .set({ providerOrderId })
+      .set({ expiresAt })
+      .where(eq(paymentTransactions.id, paymentTransactionId));
+  }
+
+  async recordExpired(paymentTransactionId: string): Promise<void> {
+    await this.db
+      .update(paymentTransactions)
+      .set({ state: "EXPIRED" })
+      .where(eq(paymentTransactions.id, paymentTransactionId));
+  }
+
+  async recordOrderCreated(
+    paymentTransactionId: string,
+    providerOrderId: string,
+    reading: PaymentTransactionReading | null,
+  ): Promise<void> {
+    await this.db
+      .update(paymentTransactions)
+      .set(
+        reading === null
+          ? { providerOrderId }
+          : {
+              providerOrderId,
+              state: reading.outcome.state,
+              needsReview: reading.outcome.needsReview,
+              stateReadAt: reading.readAt,
+            },
+      )
       .where(eq(paymentTransactions.id, paymentTransactionId));
   }
 

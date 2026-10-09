@@ -9,7 +9,6 @@ interface MercadoPagoOrderPayment {
 export interface MercadoPagoOrderResult {
   status: string;
   statusDetail: string;
-  totalAmount: number;
   totalPaidAmount: number | null;
   payments: readonly MercadoPagoOrderPayment[];
 }

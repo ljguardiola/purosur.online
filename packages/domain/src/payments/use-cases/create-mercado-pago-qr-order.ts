@@ -1,5 +1,6 @@
-import type { MercadoPagoOrderResult } from "../model/mercado-pago-order-result.js";
+import { applyMercadoPagoOrderResult } from "../model/mercado-pago-order-result.js";
 import {
+  hasExpiredWithoutOrder,
   isValidOrderAmount,
   MERCADO_PAGO_ORDER_EXPIRY_MINUTES,
   mercadoPagoOrderExpiresAt,
@@ -57,7 +58,7 @@ export async function createMercadoPagoQrOrder(
           needsReview: false,
           providerOrderId: null,
           createdAt,
-          expiresAt: mercadoPagoOrderExpiresAt(createdAt),
+          expiresAt: mercadoPagoOrderExpiresAt(createdAt, mercadoPago.longestCallMs),
         };
         try {
           await lane.recordPendingTransaction(transaction);
@@ -76,8 +77,18 @@ export async function createMercadoPagoQrOrder(
       }
 
       let orderId = transaction.providerOrderId;
-      let result: MercadoPagoOrderResult | undefined;
       if (orderId === null) {
+        if (recorded !== null) {
+          const attemptStartedAt = clock.now();
+          if (hasExpiredWithoutOrder(transaction, attemptStartedAt)) {
+            await lane.recordExpired(paymentTransactionId);
+            return { kind: "recorded", transaction: { ...transaction, state: "EXPIRED" } };
+          }
+          const expiresAt = mercadoPagoOrderExpiresAt(attemptStartedAt, mercadoPago.longestCallMs);
+          await lane.recordCreationAttempt(paymentTransactionId, expiresAt);
+          transaction = { ...transaction, expiresAt };
+        }
+
         const creation = await mercadoPago.createQrOrder({
           idempotencyKey: paymentTransactionId,
           externalReference: paymentTransactionId,
@@ -91,22 +102,32 @@ export async function createMercadoPagoQrOrder(
           return { kind: "provider_unavailable" };
         }
         orderId = creation.orderId;
-        await lane.recordOrderCreated(paymentTransactionId, orderId);
         transaction = { ...transaction, providerOrderId: orderId };
-        result = recorded === null ? creation.result : undefined;
+
+        if (recorded === null) {
+          const outcome = applyMercadoPagoOrderResult(transaction, creation.result);
+          await lane.recordOrderCreated(paymentTransactionId, orderId, {
+            outcome,
+            readAt: clock.now(),
+          });
+          return { kind: "recorded", transaction: { ...transaction, ...outcome } };
+        }
+        await lane.recordOrderCreated(paymentTransactionId, orderId, null);
       }
 
-      if (result === undefined) {
-        const reading = await mercadoPago.readOrder(orderId);
-        if (reading.kind === "unavailable") {
-          return { kind: "provider_unavailable" };
-        }
-        result = reading.result;
+      const reading = await mercadoPago.readOrder(orderId);
+      if (reading.kind === "unavailable") {
+        return { kind: "provider_unavailable" };
       }
 
       return {
         kind: "recorded",
-        transaction: await recordMercadoPagoOrderResult(lane, transaction, result, clock.now()),
+        transaction: await recordMercadoPagoOrderResult(
+          lane,
+          transaction,
+          reading.result,
+          clock.now(),
+        ),
       };
     },
   );

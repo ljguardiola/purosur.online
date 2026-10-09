@@ -149,7 +149,6 @@ export interface MercadoPagoConfig {
   externalPosId: string;
 }
 
-/** Both variables set configure Mercado Pago, neither leaves it off, and one alone is a mistake. */
 export function resolveMercadoPagoConfig(env: ServerEnv): MercadoPagoConfig | undefined {
   const accessToken = env.MERCADOPAGO_ACCESS_TOKEN;
   const externalPosId = env.MERCADOPAGO_QR_EXTERNAL_POS_ID;
