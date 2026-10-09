@@ -48,10 +48,10 @@ test("deactivates a product, closes the modal, and refreshes the list", async ()
   expect(screen.getByText("Miel pura de abeja 1 kg").query()).toBeNull();
 });
 
-test("shows an already-deactivated notice on 404, and updating the list closes the modal", async () => {
+test("shows an already-deactivated notice, and updating the list closes the modal", async () => {
   const services = createServices();
   mockLoaded(services, [honey]);
-  vi.mocked(services.deactivateProduct).mockResolvedValue({ kind: "not_found" });
+  vi.mocked(services.deactivateProduct).mockResolvedValue({ kind: "already_changed" });
   const screen = await renderScreen(services);
   const dialog = await openDeactivateProductModal(screen, honey);
 
