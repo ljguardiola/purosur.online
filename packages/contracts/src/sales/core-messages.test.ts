@@ -685,3 +685,159 @@ describe("cash charge answers", () => {
     expectTypeOf<CashCharge>().toEqualTypeOf<ReturnType<typeof cashCharge>>();
   });
 });
+
+describe("asking how a sale's receipt print stands", () => {
+  const ask = { type: "receipt-print-status", request_id: REQUEST_ID, sale_id: "sale-1" };
+
+  it("accepts a request naming the sale", () => {
+    expect(salesRendererToCoreMessageSchema.parse(ask)).toEqual(ask);
+  });
+
+  it.each(["request_id", "sale_id"])("rejects a request missing its %s", (field) => {
+    const message = Object.fromEntries(Object.entries(ask).filter(([key]) => key !== field));
+
+    expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it.each([
+    { kind: "not_found" },
+    { kind: "not_signed_in" },
+    { kind: "unavailable" },
+    { kind: "found", next_copy: { kind: "original" }, printed: false, standing: null },
+    {
+      kind: "found",
+      next_copy: { kind: "duplicate", order_number: 2 },
+      printed: true,
+      standing: "printed",
+    },
+    ...["printing", "cover_open", "paper_out", "not_responding", "retry_offered", "printed"].map(
+      (standing) => ({
+        kind: "found",
+        next_copy: { kind: "original" },
+        printed: false,
+        standing,
+      }),
+    ),
+  ])("accepts the answer %j", (outcome) => {
+    const message = { type: "receipt-print-status-result", request_id: REQUEST_ID, outcome };
+
+    expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "found", next_copy: { kind: "original" }, printed: false },
+    { kind: "found", next_copy: { kind: "original" }, printed: false, standing: "jammed" },
+    { kind: "found", next_copy: { kind: "duplicate" }, printed: false, standing: null },
+    {
+      kind: "found",
+      next_copy: { kind: "duplicate", order_number: 0 },
+      printed: false,
+      standing: null,
+    },
+    { kind: "found", next_copy: { kind: "reprint" }, printed: false, standing: null },
+    { kind: "found", next_copy: { kind: "original" }, standing: null },
+    { kind: "lacks_permission" },
+  ])("rejects the answer %j", (outcome) => {
+    const message = { type: "receipt-print-status-result", request_id: REQUEST_ID, outcome };
+
+    expect(salesCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+});
+
+describe("retrying a sale's receipt print", () => {
+  const retry = { type: "retry-receipt-print", request_id: REQUEST_ID, sale_id: "sale-1" };
+
+  it("accepts a request naming the sale", () => {
+    expect(salesRendererToCoreMessageSchema.parse(retry)).toEqual(retry);
+  });
+
+  it("rejects a request without the sale", () => {
+    const { sale_id: _sale, ...message } = retry;
+
+    expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it.each([
+    { kind: "started", copy: { kind: "duplicate", order_number: 1 } },
+    { kind: "started", copy: { kind: "original" } },
+    { kind: "not_offered" },
+    { kind: "not_signed_in" },
+    { kind: "lacks_permission" },
+    { kind: "not_found" },
+    { kind: "unavailable" },
+  ])("accepts the result $kind", (outcome) => {
+    const message = { type: "retry-receipt-print-result", request_id: REQUEST_ID, outcome };
+
+    expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "started" },
+    { kind: "started", copy: { kind: "duplicate" } },
+    { kind: "busy" },
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
+  ])("rejects the result %j", (outcome) => {
+    const message = { type: "retry-receipt-print-result", request_id: REQUEST_ID, outcome };
+
+    expect(salesCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+});
+
+describe("reprinting a sale's receipt from the history", () => {
+  const reprint = {
+    type: "reprint-sale-receipt",
+    request_id: REQUEST_ID,
+    sale_id: "sale-1",
+    reason: "el cliente la perdió",
+  };
+
+  it("accepts a request with the typed reason", () => {
+    expect(salesRendererToCoreMessageSchema.parse(reprint)).toEqual(reprint);
+  });
+
+  it("accepts a request carrying another person's PIN", () => {
+    const message = { ...reprint, authorization: { user_id: "u2", pin: "1234" } };
+
+    expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each(["request_id", "sale_id", "reason"])("rejects a request missing its %s", (field) => {
+    const message = Object.fromEntries(Object.entries(reprint).filter(([key]) => key !== field));
+
+    expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("rejects an authorization without a PIN", () => {
+    const message = { ...reprint, authorization: { user_id: "u2" } };
+
+    expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it.each([
+    { kind: "started", copy: { kind: "duplicate", order_number: 3 } },
+    { kind: "started", copy: { kind: "original" } },
+    { kind: "busy" },
+    { kind: "invalid_reason", max_length: 200 },
+    { kind: "not_found" },
+    { kind: "not_signed_in" },
+    { kind: "lacks_permission" },
+    { kind: "unavailable" },
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
+    { kind: "rate_limited", retry_after_seconds: 1, attempts_left: 2 },
+    { kind: "locked", consecutive_failures: 8 },
+  ])("accepts the result $kind", (outcome) => {
+    const message = { type: "reprint-sale-receipt-result", request_id: REQUEST_ID, outcome };
+
+    expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "invalid_reason" },
+    { kind: "not_offered" },
+    { kind: "started", copy: { kind: "duplicate", order_number: 1.5 } },
+  ])("rejects the result %j", (outcome) => {
+    const message = { type: "reprint-sale-receipt-result", request_id: REQUEST_ID, outcome };
+
+    expect(salesCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+});
