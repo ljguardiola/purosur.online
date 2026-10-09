@@ -28,12 +28,13 @@ describe("installation request limits", () => {
       pull: 3600,
       health_check: 3600,
       fiscal_authorize: 3600,
+      payment_order: 3600,
     });
   });
 });
 
 describe("installationRequestRetryAfterSeconds", () => {
-  it.each(["push", "pull", "health_check", "fiscal_authorize"] as const)(
+  it.each(["push", "pull", "health_check", "fiscal_authorize", "payment_order"] as const)(
     "admits a %s request while fewer than its limit were admitted in the window",
     (endpoint) => {
       const accepted = attempts(INSTALLATION_REQUEST_LIMITS[endpoint] - 1);
@@ -42,7 +43,7 @@ describe("installationRequestRetryAfterSeconds", () => {
     },
   );
 
-  it.each(["push", "pull", "health_check", "fiscal_authorize"] as const)(
+  it.each(["push", "pull", "health_check", "fiscal_authorize", "payment_order"] as const)(
     "refuses a %s request at its limit until the oldest counted one leaves the window",
     (endpoint) => {
       const accepted = [...attempts(INSTALLATION_REQUEST_LIMITS[endpoint] - 1), minutesAgo(50)];
