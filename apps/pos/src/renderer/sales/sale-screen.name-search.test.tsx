@@ -439,6 +439,11 @@ describe("SaleScreen searching by name", () => {
         title: "Queso cremoso se vende por kilo",
       },
       {
+        name: "a line that may not carry another unit",
+        outcome: { kind: "line_quantity_limit", product_name: "Yerba mate 1 kg" },
+        title: "No se pueden sumar más unidades de Yerba mate 1 kg",
+      },
+      {
         name: "a product that is no longer sold",
         outcome: { kind: "product_unavailable" },
         title: "Ese producto ya no se vende",

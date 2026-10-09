@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BARCODE_MAX_LENGTH } from "../../catalog/index.js";
 import type { PaymentTransaction } from "../../payments/index.js";
 import type { SaleWithLines } from "../model/sale.js";
+import { withQuantity } from "../model/sale-line.js";
 import { addScannedProduct } from "./add-scanned-product.js";
 import type { CandidatePromotion } from "./sale-ledger.js";
 import {
@@ -83,6 +84,16 @@ function scan(store: FakeSaleLedger, code = "7790001", actorId = "cashier") {
     { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds() },
     { actorId, code },
   );
+}
+
+function scannedOnce(quantity: number): FakeSaleLedger {
+  const store = ledger();
+  scan(store);
+  const [sale] = store.state.sales;
+  if (sale) {
+    sale.lines = sale.lines.map((line) => withQuantity(line, quantity));
+  }
+  return store;
 }
 
 function nothingRecorded(store: FakeSaleLedger, before: FakeSaleLedgerState): void {
@@ -428,6 +439,24 @@ describe("addScannedProduct", () => {
       kind: "sold_by_weight",
       productName: "Queso cremoso",
     });
+    nothingRecorded(store, before);
+  });
+
+  it("adds a unit to a line up to the largest quantity a line may carry", () => {
+    const store = scannedOnce(2_147_482);
+
+    const outcome = scan(store);
+
+    expect(outcome.kind === "added" && outcome.sale.lines).toEqual([
+      expect.objectContaining({ quantity: 2_147_483 }),
+    ]);
+  });
+
+  it("refuses a unit that would take its line past the largest quantity, naming the product and changing nothing", () => {
+    const store = scannedOnce(2_147_483);
+    const before = structuredClone(store.state);
+
+    expect(scan(store)).toEqual({ kind: "line_quantity_limit", productName: "Yerba 1 kg" });
     nothingRecorded(store, before);
   });
 
