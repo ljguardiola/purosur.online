@@ -1,3 +1,4 @@
+import { DrizzleQueryError } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { describeDatabaseFailure } from "./describe-database-failure.js";
 
@@ -16,6 +17,24 @@ describe("describeDatabaseFailure", () => {
 
     expect(describeDatabaseFailure(failedQuery)).toBe(
       'unknown error: Failed query: create tabel x (caused by 42601: syntax error at or near "tabel")',
+    );
+  });
+
+  it("describes a failed query by its statement, never by the values it was given", () => {
+    const databaseError = Object.assign(
+      new Error("duplicate key value violates unique constraint"),
+      {
+        code: "23505",
+      },
+    );
+    const failedQuery = new DrizzleQueryError(
+      "insert into users (email) values ($1)",
+      ["ada@example.test"],
+      databaseError,
+    );
+
+    expect(describeDatabaseFailure(failedQuery)).toBe(
+      "unknown error: Failed query: insert into users (email) values ($1) (caused by 23505: duplicate key value violates unique constraint)",
     );
   });
 
