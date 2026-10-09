@@ -45,17 +45,26 @@ export function thresholdInEffectOn(
     );
 }
 
+function startsBefore(
+  threshold: BuyerIdentificationThreshold,
+  other: BuyerIdentificationThreshold,
+): boolean {
+  return (
+    threshold.validFrom < other.validFrom ||
+    (threshold.validFrom === other.validFrom && threshold.revision > other.revision)
+  );
+}
+
 export function thresholdScheduledAfter(
   thresholds: readonly BuyerIdentificationThreshold[],
   day: string,
 ): BuyerIdentificationThreshold | undefined {
-  const scheduled = thresholds.filter((threshold) => threshold.validFrom > day);
-  const nextDay = scheduled.reduce<string | undefined>(
-    (earliest, threshold) =>
-      earliest === undefined || threshold.validFrom < earliest ? threshold.validFrom : earliest,
-    undefined,
-  );
-  return thresholdInEffectOn(scheduled, nextDay ?? day);
+  return thresholds
+    .filter((threshold) => threshold.validFrom > day)
+    .reduce<BuyerIdentificationThreshold | undefined>(
+      (next, threshold) => (next === undefined || startsBefore(threshold, next) ? threshold : next),
+      undefined,
+    );
 }
 
 export type ChargeRefusal =
