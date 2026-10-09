@@ -1090,7 +1090,11 @@ describe("editProduct", () => {
       );
 
       expect(await edit(store, "UNIT")).toMatchObject({ kind: "applied" });
-      expect(store.lockCallOrder).toEqual(["lockProduct", "lockLeafCategory"]);
+      expect(store.lockCallOrder).toEqual([
+        "lockProduct",
+        "activePackagingNamesOf",
+        "lockLeafCategory",
+      ]);
     });
 
     it("does not touch discounts when the product stays sold by weight", async () => {
@@ -1121,6 +1125,7 @@ describe("editProduct", () => {
 
       expect(store.lockCallOrder).toEqual([
         "lockProduct",
+        "activePackagingNamesOf",
         "buyNPayMDiscountsOn",
         "lockLeafCategory",
       ]);
@@ -1128,6 +1133,145 @@ describe("editProduct", () => {
 
     it("answers stale_version before reading the discounts", async () => {
       const store = unitProductWithDiscount();
+
+      const outcome = await editProduct(
+        { store, clock },
+        {
+          id: "product-1",
+          name: "Yerba",
+          categoryId: "category-1",
+          brandId: null,
+          saleUnit: "KG",
+          barcodes: ["111"],
+          tagIds: [],
+          netContent: null,
+          version: 9,
+        },
+      );
+
+      expect(outcome).toEqual({ kind: "stale_version" });
+      expect(store.lockCallOrder).toEqual(["lockProduct"]);
+    });
+  });
+
+  describe("changing the sale unit while a purchase packaging is active", () => {
+    function productWithPackagings(
+      saleUnit: "UNIT" | "KG",
+      packagings: { name: string; active?: boolean; productId?: string }[],
+    ): FakeCatalogStore {
+      const store = new FakeCatalogStore();
+      leafCategory(store);
+      store.seedProduct(
+        {
+          id: "product-1",
+          name: "Yerba",
+          categoryId: "category-1",
+          brandId: null,
+          saleUnit,
+          netContent: null,
+          active: true,
+          version: 1,
+        },
+        [{ code: "111" }],
+      );
+      for (const packaging of packagings) {
+        store.seedPackaging({
+          productId: packaging.productId ?? "product-1",
+          name: packaging.name,
+          active: packaging.active ?? true,
+        });
+      }
+      return store;
+    }
+
+    function edit(store: FakeCatalogStore, saleUnit: "UNIT" | "KG") {
+      return editProduct(
+        { store, clock },
+        {
+          id: "product-1",
+          name: "Yerba",
+          categoryId: "category-1",
+          brandId: null,
+          saleUnit,
+          barcodes: ["111"],
+          tagIds: [],
+          netContent: null,
+          version: 1,
+        },
+      );
+    }
+
+    it.each([
+      ["unit to weight", "UNIT", "KG"],
+      ["weight to unit", "KG", "UNIT"],
+    ] as const)(
+      "is refused from %s naming the packaging, leaving the product unchanged",
+      async (_label, from, to) => {
+        const store = productWithPackagings(from, [{ name: "Caja x 12" }]);
+        const before = store.snapshot();
+
+        const outcome = await edit(store, to);
+
+        expect(outcome).toEqual({
+          kind: "sale_unit_held_by_packaging",
+          packagingName: "Caja x 12",
+        });
+        expect(store.snapshot()).toEqual(before);
+      },
+    );
+
+    it("names the first active packaging by name when several hold it", async () => {
+      const store = productWithPackagings("UNIT", [
+        { name: "Zeta" },
+        { name: "Alfa" },
+        { name: "Beta", active: false },
+      ]);
+
+      expect(await edit(store, "KG")).toEqual({
+        kind: "sale_unit_held_by_packaging",
+        packagingName: "Alfa",
+      });
+    });
+
+    it("is allowed when every packaging of the product is deactivated", async () => {
+      const store = productWithPackagings("UNIT", [{ name: "Caja x 12", active: false }]);
+
+      expect(await edit(store, "KG")).toMatchObject({ kind: "applied" });
+    });
+
+    it("is allowed when the active packaging belongs to another product", async () => {
+      const store = productWithPackagings("UNIT", [{ name: "Caja x 12", productId: "decoy" }]);
+
+      expect(await edit(store, "KG")).toMatchObject({ kind: "applied" });
+    });
+
+    it("lets the product keep its sale unit without reading its packagings", async () => {
+      const store = productWithPackagings("UNIT", [{ name: "Caja x 12" }]);
+
+      expect(await edit(store, "UNIT")).toMatchObject({ kind: "applied" });
+      expect(store.lockCallOrder).toEqual(["lockProduct", "lockLeafCategory"]);
+    });
+
+    it("is refused for the packaging before it is refused for a live discount", async () => {
+      const store = productWithPackagings("UNIT", [{ name: "Caja x 12" }]);
+      store.seedDiscount({
+        id: "discount-1",
+        name: "3x2 Yerba",
+        kind: "BUY_N_PAY_M",
+        productId: "product-1",
+        active: true,
+        validFrom: "2026-06-01",
+        validTo: "2026-06-30",
+      });
+
+      expect(await edit(store, "KG")).toEqual({
+        kind: "sale_unit_held_by_packaging",
+        packagingName: "Caja x 12",
+      });
+    });
+
+    it("answers stale_version before reading the packagings", async () => {
+      const store = productWithPackagings("UNIT", [{ name: "Caja x 12" }]);
 
       const outcome = await editProduct(
         { store, clock },
