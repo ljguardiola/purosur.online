@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { SIGN_IN_BLOCK_DURATION_MS, SIGN_IN_FAILURE_LIMIT } from "../model/sign-in-lockout.js";
+import {
+  SIGN_IN_BLOCK_DURATION_MS,
+  SIGN_IN_FAILURE_LIMIT,
+  SIGN_IN_LOCKOUT_WINDOW_MS,
+} from "../model/sign-in-lockout.js";
 import { confirmRejectedSignInAttempt } from "./confirm-rejected-sign-in-attempt.js";
 import { FakeSignInLockoutStore } from "./test-support/fake-sign-in-lockout-store.js";
 
 const AT = new Date("2026-10-01T12:00:00.000Z");
 const ADDRESS = "203.0.113.10";
 const BLOCKED_UNTIL = new Date(AT.getTime() + SIGN_IN_BLOCK_DURATION_MS);
+const LEFT_THE_WINDOW = new Date(AT.getTime() - SIGN_IN_LOCKOUT_WINDOW_MS);
 
 function confirm(store: FakeSignInLockoutStore, at = AT) {
   return confirmRejectedSignInAttempt({ store }, { sourceAddress: ADDRESS, at });
@@ -48,6 +53,18 @@ describe("confirmRejectedSignInAttempt", () => {
         },
       ],
     });
+  });
+
+  it("clears only the failures that led to the block, leaving the ones that left the window to the prune", async () => {
+    const store = new FakeSignInLockoutStore();
+    store.seedFailures(ADDRESS, LEFT_THE_WINDOW, 1);
+    store.seedFailures(ADDRESS, AT, SIGN_IN_FAILURE_LIMIT);
+
+    await confirm(store);
+
+    expect(store.current.failures).toEqual([
+      { id: "failure-1", sourceAddress: ADDRESS, attemptedAt: LEFT_THE_WINDOW },
+    ]);
   });
 
   it("reports no new block while one is live, so each block is audited once", async () => {
