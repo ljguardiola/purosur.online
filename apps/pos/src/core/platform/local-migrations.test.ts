@@ -865,6 +865,7 @@ describe("the register's local migrations", () => {
         "0021_real_time_authorization",
         "0022_threshold_revisions",
         "0023_sales_stopped_reason",
+        "0025_last_accepted_push",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -915,6 +916,7 @@ describe("the register's local migrations", () => {
         "0021_real_time_authorization",
         "0022_threshold_revisions",
         "0023_sales_stopped_reason",
+        "0025_last_accepted_push",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -960,6 +962,7 @@ describe("the register's local migrations", () => {
         "0021_real_time_authorization",
         "0022_threshold_revisions",
         "0023_sales_stopped_reason",
+        "0025_last_accepted_push",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1004,6 +1007,7 @@ describe("the register's local migrations", () => {
         "0021_real_time_authorization",
         "0022_threshold_revisions",
         "0023_sales_stopped_reason",
+        "0025_last_accepted_push",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1075,6 +1079,7 @@ describe("the register's local migrations", () => {
         "0021_real_time_authorization",
         "0022_threshold_revisions",
         "0023_sales_stopped_reason",
+        "0025_last_accepted_push",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1138,6 +1143,7 @@ describe("the register's local migrations", () => {
         "0021_real_time_authorization",
         "0022_threshold_revisions",
         "0023_sales_stopped_reason",
+        "0025_last_accepted_push",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1205,6 +1211,7 @@ describe("the register's local migrations", () => {
         "0021_real_time_authorization",
         "0022_threshold_revisions",
         "0023_sales_stopped_reason",
+        "0025_last_accepted_push",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1255,6 +1262,7 @@ describe("the register's local migrations", () => {
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0022_threshold_revisions",
         "0023_sales_stopped_reason",
+        "0025_last_accepted_push",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1297,6 +1305,7 @@ describe("the register's local migrations", () => {
       expect(previous.at(-1)?.name).toBe("0022_threshold_revisions");
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0023_sales_stopped_reason",
+        "0025_last_accepted_push",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1326,6 +1335,52 @@ describe("the register's local migrations", () => {
       after.prepare("UPDATE sync_state SET sales_stopped_reason = 'installation_revoked'").run();
       expect(after.prepare("SELECT sales_stopped_reason FROM sync_state").all()).toEqual([
         { sales_stopped_reason: "installation_revoked" },
+      ]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("add the last accepted push over the register that already synced, empty until a push is accepted", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(0, 24);
+      expect(previous.at(-1)?.name).toBe("0023_sales_stopped_reason");
+      expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
+        "0025_last_accepted_push",
+      ]);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before
+        .prepare(
+          `UPDATE sync_state SET pull_cursor = 7, device_id = 'device-a',
+                                 sales_stopped_reason = 'installation_revoked'`,
+        )
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare(
+            "SELECT pull_cursor, device_id, sales_stopped_reason, last_accepted_push_at FROM sync_state",
+          )
+          .all(),
+      ).toEqual([
+        {
+          pull_cursor: 7,
+          device_id: "device-a",
+          sales_stopped_reason: "installation_revoked",
+          last_accepted_push_at: null,
+        },
+      ]);
+      after
+        .prepare("UPDATE sync_state SET last_accepted_push_at = '2026-10-05T15:00:00.000Z'")
+        .run();
+      expect(after.prepare("SELECT last_accepted_push_at FROM sync_state").all()).toEqual([
+        { last_accepted_push_at: "2026-10-05T15:00:00.000Z" },
       ]);
       after.close();
     } finally {
