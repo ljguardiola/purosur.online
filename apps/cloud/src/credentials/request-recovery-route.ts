@@ -1,10 +1,10 @@
 import { recoveryRequestBodySchema } from "@purosur/contracts";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { requireBackofficeOrigin } from "../access/backoffice-origin.js";
-import { resolveSourceAddress } from "../access/recovery-source-address.js";
-import { PUBLIC_ACCESS, registerRouteAccess } from "../access/route-access.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
+import { resolveSourceAddress } from "../platform/source-address.js";
+import { requireBackofficeOrigin } from "../sessions/backoffice-origin.js";
+import { PUBLIC_ACCESS, registerRouteAccess } from "../sessions/route-access.js";
 import { reportRecoveryBookkeepingError } from "./recovery-error-reporting.js";
 import type { RecoveryJobQueue } from "./recovery-job-queue.js";
 import { hashDestinationAddress, recordRecoveryRequestAttempt } from "./recovery-rate-limiter.js";

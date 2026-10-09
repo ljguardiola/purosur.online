@@ -17,10 +17,10 @@ import {
   type RecordCashMovementGrant,
   recordCashMovement,
 } from "@purosur/domain/register/use-cases";
-import type { SignedInPerson } from "../access/signed-in-person";
-import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import { inArgentinaTime } from "../platform/argentina-time";
 import type { LocalDatabase } from "../platform/local-database";
+import type { SignedInPerson } from "../sessions/signed-in-person";
+import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import type { CashSessionRequestDeps } from "./cash-session-requests";
 import { readOpenSessionMovements, SqliteCashLedger } from "./sqlite-cash-ledger";
 

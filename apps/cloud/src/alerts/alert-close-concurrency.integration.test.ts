@@ -3,8 +3,8 @@ import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { hashSourceAddress } from "../access/sign-in-lockout.js";
 import { alerts, auditLog, roles, users } from "../platform/db/schema.js";
+import { hashSourceAddress } from "../sessions/sign-in-lockout.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,

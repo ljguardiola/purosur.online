@@ -2,7 +2,7 @@ import { cloudError, cloudErrorStatus, deviceTokenRotationSchema } from "@purosu
 import { rotateDeviceToken } from "@purosur/domain/register/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { PUBLIC_ACCESS } from "../access/route-access.js";
+import { PUBLIC_ACCESS } from "../sessions/route-access.js";
 import { answerErrorsWithCloudEnvelope } from "./cloud-error-handler.js";
 import { readBearerDeviceToken } from "./device-authentication.js";
 import { installationKeysBody } from "./installation-keys-body.js";

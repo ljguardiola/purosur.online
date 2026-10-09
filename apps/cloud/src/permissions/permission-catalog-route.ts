@@ -8,12 +8,12 @@ import {
 } from "@purosur/domain";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { sameOriginGuard } from "../access/backoffice-origin.js";
+import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   OPEN_SESSION_ACCESS,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
+} from "../sessions/route-access.js";
 import type { RolesRouteOptions } from "./roles-list-route.js";
 
 function requirementsOf(key: PermissionKey): PermissionKey[] {

@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { renderHook } from "vitest-browser-react";
-import type { SessionStatusOutcome } from "../access/session-api";
+import type { SessionStatusOutcome } from "../sessions/session-api";
 import { type SessionWatcherOptions, useSessionWatcher } from "./session-watcher";
 
 // The *Async variant of advanceTimersByTime also flushes the microtasks a check's own await needs.

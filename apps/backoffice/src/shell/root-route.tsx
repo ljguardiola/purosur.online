@@ -1,8 +1,8 @@
 import type { Capability, ManualStockMovementKind } from "@purosur/domain";
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import { createContext, useContext, useEffect, useRef } from "react";
-import type { SignInOpeningNotice } from "../access/sign-in-screen";
 import type { BackofficeHelpCatalog } from "../help/help-catalog";
+import type { SignInOpeningNotice } from "../sessions/sign-in-screen";
 import type { AppServices } from "./app";
 import { focusScreenTitle } from "./screen-title";
 

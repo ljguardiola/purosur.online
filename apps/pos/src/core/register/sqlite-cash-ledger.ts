@@ -13,9 +13,9 @@ import type {
   OpenSale,
   RegisterIdentity,
 } from "@purosur/domain/register/use-cases";
-import type { SignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
 import { readOpenSale } from "../sales/sqlite-open-sale";
+import type { SignInStore } from "../sessions/sqlite-sign-in-store";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 
 interface SessionRow {

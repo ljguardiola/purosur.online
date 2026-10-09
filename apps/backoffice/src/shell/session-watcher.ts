@@ -1,5 +1,5 @@
 import { type RefObject, useEffect, useEffectEvent, useRef } from "react";
-import type { SessionStatusOutcome } from "../access/session-api";
+import type { SessionStatusOutcome } from "../sessions/session-api";
 
 /** How often the watcher re-checks regardless of any known deadline: revocation and deactivation carry no deadline of their own. */
 const DEFAULT_INTERVAL_MS = 60_000;

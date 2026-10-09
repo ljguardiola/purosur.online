@@ -42,8 +42,6 @@ import {
   Outlet,
   redirect,
 } from "@tanstack/react-router";
-import { FirstSignInScreen } from "../access/first-sign-in-screen";
-import { SignInScreen } from "../access/sign-in-screen";
 import { pinPolicyQueryOptions } from "../credentials/credentials-queries";
 import { FirstSignInCodeStep } from "../credentials/first-sign-in-code-step";
 import { FirstSignInNoPin } from "../credentials/first-sign-in-no-pin";
@@ -60,6 +58,8 @@ import { OutOfServiceScreen } from "../register/out-of-service-screen";
 import { registerNameQueryOptions, useRegisterNameQuery } from "../register/register-queries";
 import { ChargeScreen } from "../sales/charge-screen";
 import { SaleScreen } from "../sales/sale-screen";
+import { FirstSignInScreen } from "../sessions/first-sign-in-screen";
+import { SignInScreen } from "../sessions/sign-in-screen";
 import { ACTION_ENTRIES } from "./action-entries";
 import { BrandPanelScreen } from "./brand-panel-screen";
 import { CoreDownNotice } from "./core-down-notice";

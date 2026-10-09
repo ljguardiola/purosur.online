@@ -1,13 +1,13 @@
 import { deactivateTag } from "@purosur/domain/catalog/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { backofficeOriginGuard } from "../access/backoffice-origin.js";
+import { readRecordIds } from "../platform/record-id-params.js";
+import { backofficeOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
-import { readRecordIds } from "../platform/record-id-params.js";
+} from "../sessions/route-access.js";
 import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 import { TAG_NOT_FOUND_RESPONSE } from "./tag-edit-route.js";
 import type { TagsRouteOptions } from "./tags-list-route.js";

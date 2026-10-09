@@ -6,14 +6,14 @@ import {
 import { type BranchHoursRange, editBranchSettings } from "@purosur/domain/branch/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { sameOriginGuard } from "../access/backoffice-origin.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
+import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
-import { readValidatedBody } from "../platform/request-body-schema.js";
+} from "../sessions/route-access.js";
 import type { BranchSettingsRouteOptions } from "./branch-settings-read-route.js";
 import { toBranchSettingsWire } from "./branch-settings-wire.js";
 import { DrizzleBranchSettingsStore } from "./drizzle-branch-settings-store.js";

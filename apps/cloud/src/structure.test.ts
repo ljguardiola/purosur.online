@@ -5,7 +5,6 @@ import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 const CONCEPTS = [
-  "access",
   "alerts",
   "branch",
   "catalog",
@@ -19,6 +18,7 @@ const CONCEPTS = [
   "sync",
   "users",
   "credentials",
+  "sessions",
 ];
 const OUTSIDE_ANY_CONCEPT = ["platform", "sample-data", "test-support"];
 const ENTRY_POINTS = [
