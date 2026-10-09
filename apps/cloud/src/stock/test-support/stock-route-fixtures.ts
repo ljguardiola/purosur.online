@@ -52,7 +52,7 @@ async function insertUserWith(
   const locationId = overrides.locationId ?? (await seededLocationId(db));
   const [user] = await db
     .insert(users)
-    .values({ firstName: "Ada Lovelace", email: `ada-${role.id}@example.com`, locationId })
+    .values({ firstName: "Ada Lucero", email: `ada-${role.id}@example.com`, locationId })
     .returning({ id: users.id });
   if (!user) {
     throw new Error("test setup: seeding the user returned no row");

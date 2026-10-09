@@ -41,7 +41,7 @@ function createServices(overrides: Partial<UsersListScreenServices> = {}): Users
 
 const administrator: BranchUser = {
   id: "user-1",
-  firstName: "Lucas Guardiola",
+  firstName: "Lucas Medrano",
   email: "lucas@example.com",
   version: 1,
   role: { id: "00000000-0000-4000-8000-000000000001", isAdministrator: true, name: null },
@@ -171,7 +171,7 @@ test("shows the breadcrumb, heading, each user's role, and the user count", asyn
 
   await expect.element(screen.getByText("Configuración")).toBeVisible();
   await expect.element(screen.getByRole("heading", { name: "Usuarios", level: 1 })).toBeVisible();
-  await expect.element(screen.getByText("Lucas Guardiola")).toBeVisible();
+  await expect.element(screen.getByText("Lucas Medrano")).toBeVisible();
   await expect.element(screen.getByText("lucas@example.com")).toBeVisible();
   await expect.element(screen.getByText("Martina Gómez")).toBeVisible();
   await expect.element(screen.getByText("Administrador").first()).toBeVisible();
@@ -382,7 +382,7 @@ test("creating a user reads users and roles again from the server, keeping the s
     .element(screen.getByRole("table", { name: "Usuarios" }))
     .toHaveAttribute("aria-busy", "true");
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  expect(screen.getByText("Lucas Guardiola").query()).not.toBeNull();
+  expect(screen.getByText("Lucas Medrano").query()).not.toBeNull();
   await expect.element(screen.getByRole("button", { name: "Nuevo usuario" })).toBeEnabled();
   refresh.resolve({ kind: "ok", value: [administrator, martina] });
   await expect.element(screen.getByText("2 usuarios")).toBeVisible();
@@ -961,12 +961,12 @@ test("the Estado filter narrows the list to active or inactive users", async () 
   await userEvent.click(screen.getByRole("option", { name: "Inactivos" }));
 
   await expect.element(screen.getByText("Sofía Díaz")).toBeVisible();
-  await expect.element(screen.getByText("Lucas Guardiola")).not.toBeInTheDocument();
+  await expect.element(screen.getByText("Lucas Medrano")).not.toBeInTheDocument();
 
   await userEvent.click(screen.getByRole("button", { name: /^Estado/ }));
   await userEvent.click(screen.getByRole("option", { name: "Activos" }));
 
-  await expect.element(screen.getByText("Lucas Guardiola")).toBeVisible();
+  await expect.element(screen.getByText("Lucas Medrano")).toBeVisible();
   await expect.element(screen.getByText("Sofía Díaz")).not.toBeInTheDocument();
 });
 
@@ -1090,7 +1090,7 @@ test("opens on the state it is given", async () => {
 
   await expect.element(screen.getByText("Sofía Díaz")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: /^Estado: Inactivos/ })).toBeVisible();
-  expect(screen.getByText("Lucas Guardiola").query()).toBeNull();
+  expect(screen.getByText("Lucas Medrano").query()).toBeNull();
 });
 
 test("reports every change to its state filter, so it can be kept for a reload", async () => {

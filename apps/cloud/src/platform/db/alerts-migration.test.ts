@@ -36,7 +36,7 @@ interface QueryClient {
 async function insertUser(client: QueryClient, locationId: string, email: string): Promise<string> {
   const { rows } = await client.query<{ id: string }>(
     "insert into users (first_name, email, location_id) values ($1, $2, $3) returning id",
-    ["Ada Lovelace", email, locationId],
+    ["Ada Lucero", email, locationId],
   );
   const user = rows[0];
   if (!user) {

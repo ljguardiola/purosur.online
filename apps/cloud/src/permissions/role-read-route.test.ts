@@ -129,7 +129,7 @@ describe("GET /roles/:id", () => {
 
   it("rejects an Origin that is not the backoffice's own", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -150,7 +150,7 @@ describe("GET /roles/:id", () => {
   it("rejects a non-Administrator with 403 forbidden", async () => {
     const cashierRoleId = await insertRole("Cajera");
     const cashierId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId: cashierRoleId,
       locationId: await seededLocationId(db),
@@ -165,7 +165,7 @@ describe("GET /roles/:id", () => {
 
   it("answers 400 validation_failed naming id for a malformed id, changing nothing", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -183,7 +183,7 @@ describe("GET /roles/:id", () => {
 
   it("answers the identical 404 for the Administrator role and a missing id", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -200,7 +200,7 @@ describe("GET /roles/:id", () => {
 
   it("returns the role's name, permissions in catalog order, user count, and version", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -209,7 +209,7 @@ describe("GET /roles/:id", () => {
     const locationId = await seededLocationId(db);
     const cashierRoleId = await insertRole("Cajera", ["adjust_stock", "sell_and_charge"]);
     const graceId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId: cashierRoleId,
       locationId,
@@ -226,13 +226,13 @@ describe("GET /roles/:id", () => {
       user_count: 1,
       may_edit: true,
       version: 1,
-      assigned_users: [{ id: graceId, name: "Grace Hopper" }],
+      assigned_users: [{ id: graceId, name: "Grace Villalba" }],
     });
   });
 
   it("orders the assigned people by name and answers an empty list for nobody assigned", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -268,7 +268,7 @@ describe("GET /roles/:id", () => {
 
   it("breaks a tie between people with the same name by id", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -303,7 +303,7 @@ describe("GET /roles/:id", () => {
 
   it("includes a person assigned to the role at a different branch, since roles are global", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -331,7 +331,7 @@ describe("GET /roles/:id", () => {
   it("counts and lists only the role's active users, leaving a deactivated one out", async () => {
     const locationId = await seededLocationId(db);
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId,
@@ -339,7 +339,7 @@ describe("GET /roles/:id", () => {
     const rawSessionId = await insertSession(administratorId);
     const cashierRoleId = await insertRole("Cajera", ["sell_and_charge"]);
     await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId: cashierRoleId,
       locationId,
@@ -357,7 +357,7 @@ describe("GET /roles/:id", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       user_count: 1,
-      assigned_users: [{ name: "Grace Hopper" }],
+      assigned_users: [{ name: "Grace Villalba" }],
     });
   });
 });

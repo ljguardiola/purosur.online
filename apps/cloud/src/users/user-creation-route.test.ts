@@ -125,7 +125,7 @@ beforeEach(async () => {
 
   const locationId = await seededLocationId(db);
   administratorId = await insertUser({
-    firstName: "Ada Lovelace",
+    firstName: "Ada Lucero",
     email: "ada@example.com",
     roleId: await seededAdministratorRoleId(),
     locationId,
@@ -176,7 +176,7 @@ describe("POST /users", () => {
   it("rejects a non-Administrator with 403 forbidden, creating nothing", async () => {
     const cashierRoleId = await insertCashierRole("Cajera");
     const cashierId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId: cashierRoleId,
       locationId: await seededLocationId(db),
@@ -320,7 +320,7 @@ describe("POST /users", () => {
   it("answers email_belongs_to_deactivated_user with that user's id and name when the email belongs to a deactivated user, creating nothing", async () => {
     const cashierRoleId = await insertCashierRole("Cajera");
     const deactivatedId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId: cashierRoleId,
       locationId: await seededLocationId(db),
@@ -338,7 +338,7 @@ describe("POST /users", () => {
     expect(response.json()).toMatchObject({
       code: "email_belongs_to_deactivated_user",
       id: deactivatedId,
-      name: "Grace Hopper",
+      name: "Grace Villalba",
     });
     const matching = await db.select().from(users).where(eq(users.email, "grace@example.com"));
     expect(matching).toHaveLength(1);

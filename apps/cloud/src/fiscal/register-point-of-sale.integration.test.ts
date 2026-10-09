@@ -45,7 +45,7 @@ async function seedTwoRegisters() {
   const locationId = await seededLocationId(db);
   const [actor] = await db
     .insert(users)
-    .values({ firstName: "Ada Lovelace", email: `ada-${randomUUID()}@example.com`, locationId })
+    .values({ firstName: "Ada Lucero", email: `ada-${randomUUID()}@example.com`, locationId })
     .returning({ id: users.id });
   const [fiscalAddress] = await db
     .insert(fiscalAddresses)

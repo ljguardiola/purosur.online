@@ -38,7 +38,7 @@ beforeEach(async () => {
   const [user] = await db
     .insert(users)
     .values({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       locationId: await seededLocationId(db),
     })
@@ -126,7 +126,7 @@ describe("GET /account/passkeys", () => {
     const [strangerUser] = await db
       .insert(users)
       .values({
-        firstName: "Grace Hopper",
+        firstName: "Grace Villalba",
         email: "grace@example.com",
         locationId: await seededLocationId(db),
       })

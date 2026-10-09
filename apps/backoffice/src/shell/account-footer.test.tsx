@@ -31,12 +31,12 @@ function renderInRail(props: {
 test("shows the display name and the Salir item, with no modal open yet", async () => {
   const services = createServices();
   const screen = await renderInRail({
-    displayName: "Lucas Guardiola",
+    displayName: "Lucas Medrano",
     onSignedOut: () => {},
     services,
   });
 
-  await expect.element(screen.getByText("Lucas Guardiola")).toBeVisible();
+  await expect.element(screen.getByText("Lucas Medrano")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Salir" })).toBeVisible();
   expect(screen.getByRole("dialog").query()).toBeNull();
 
@@ -46,7 +46,7 @@ test("shows the display name and the Salir item, with no modal open yet", async 
 test("shows the hand cursor on the Salir item", async () => {
   const services = createServices();
   const screen = await renderInRail({
-    displayName: "Lucas Guardiola",
+    displayName: "Lucas Medrano",
     onSignedOut: () => {},
     services,
   });
@@ -58,19 +58,19 @@ test("shows the hand cursor on the Salir item", async () => {
 test("links the display name to the signed-in account's own Mi cuenta page", async () => {
   const services = createServices();
   const screen = await renderInRail({
-    displayName: "Lucas Guardiola",
+    displayName: "Lucas Medrano",
     onSignedOut: () => {},
     services,
   });
 
-  const link = screen.getByRole("link", { name: "Lucas Guardiola" }).element() as HTMLAnchorElement;
+  const link = screen.getByRole("link", { name: "Lucas Medrano" }).element() as HTMLAnchorElement;
   expect(link.getAttribute("href")).toBe("/account");
 });
 
 test("opens the confirm modal naming the account and asking to confirm", async () => {
   const services = createServices();
   const screen = await renderInRail({
-    displayName: "Lucas Guardiola",
+    displayName: "Lucas Medrano",
     onSignedOut: () => {},
     services,
   });
@@ -81,7 +81,7 @@ test("opens the confirm modal naming the account and asking to confirm", async (
   await expect
     .element(screen.getByRole("heading", { name: "¿Salir del backoffice?" }))
     .toBeVisible();
-  await expect.element(dialog.getByText("Lucas Guardiola")).toBeVisible();
+  await expect.element(dialog.getByText("Lucas Medrano")).toBeVisible();
   expect(services.signOut).not.toHaveBeenCalled();
 
   await expectNoAccessibilityViolations(document.body);
@@ -90,7 +90,7 @@ test("opens the confirm modal naming the account and asking to confirm", async (
 test("cancelling the modal closes it without signing out", async () => {
   const services = createServices();
   const screen = await renderInRail({
-    displayName: "Lucas Guardiola",
+    displayName: "Lucas Medrano",
     onSignedOut: () => {},
     services,
   });
@@ -105,7 +105,7 @@ test("cancelling the modal closes it without signing out", async () => {
 test("confirming signs out and calls onSignedOut", async () => {
   const services = createServices();
   const onSignedOut = vi.fn();
-  const screen = await renderInRail({ displayName: "Lucas Guardiola", onSignedOut, services });
+  const screen = await renderInRail({ displayName: "Lucas Medrano", onSignedOut, services });
 
   await userEvent.click(screen.getByRole("button", { name: "Salir" }));
   const dialog = screen.getByRole("dialog");
@@ -118,7 +118,7 @@ test("confirming signs out and calls onSignedOut", async () => {
 test("keeps the person where they are, with a notice, when the cloud never ended the session", async () => {
   const services = createServices({ signOut: vi.fn().mockResolvedValue({ kind: "failed" }) });
   const onSignedOut = vi.fn();
-  const screen = await renderInRail({ displayName: "Lucas Guardiola", onSignedOut, services });
+  const screen = await renderInRail({ displayName: "Lucas Medrano", onSignedOut, services });
 
   await userEvent.click(screen.getByRole("button", { name: "Salir" }));
   const dialog = screen.getByRole("dialog");
@@ -137,7 +137,7 @@ test("keeps the person where they are, with a rate-limited notice, when signing 
     signOut: vi.fn().mockResolvedValue({ kind: "rate_limited", retryAfterSeconds: 120 }),
   });
   const onSignedOut = vi.fn();
-  const screen = await renderInRail({ displayName: "Lucas Guardiola", onSignedOut, services });
+  const screen = await renderInRail({ displayName: "Lucas Medrano", onSignedOut, services });
 
   await userEvent.click(screen.getByRole("button", { name: "Salir" }));
   const dialog = screen.getByRole("dialog");
@@ -153,7 +153,7 @@ test("keeps the person where they are, with a rate-limited notice, when signing 
 test("does not carry a failure notice into the next time the modal is opened", async () => {
   const services = createServices({ signOut: vi.fn().mockResolvedValue({ kind: "failed" }) });
   const screen = await renderInRail({
-    displayName: "Lucas Guardiola",
+    displayName: "Lucas Medrano",
     onSignedOut: () => {},
     services,
   });

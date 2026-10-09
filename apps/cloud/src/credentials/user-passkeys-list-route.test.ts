@@ -130,7 +130,7 @@ describe("GET /users/:id/passkeys", () => {
     const locationId = await seededLocationId(db);
     const cashierRoleId = await insertCashierRole("Cajera");
     const cashierId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId: cashierRoleId,
       locationId,
@@ -146,14 +146,14 @@ describe("GET /users/:id/passkeys", () => {
   it("lists the target's passkeys, ordered by created_at, in the same row shape Mi cuenta uses", async () => {
     const locationId = await seededLocationId(db);
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId,
     });
     const cashierRoleId = await insertCashierRole("Cajera");
     const targetId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId: cashierRoleId,
       locationId,
@@ -184,7 +184,7 @@ describe("GET /users/:id/passkeys", () => {
 
   it("answers 400 validation_failed naming id for a malformed id, changing nothing", async () => {
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId: await seededLocationId(db),
@@ -203,7 +203,7 @@ describe("GET /users/:id/passkeys", () => {
   it("answers the identical 404 for another branch's target id and a missing one", async () => {
     const locationId = await seededLocationId(db);
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId,
@@ -233,14 +233,14 @@ describe("GET /users/:id/passkeys", () => {
   it("lists a deactivated target's passkeys", async () => {
     const locationId = await seededLocationId(db);
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId,
     });
     const rawSessionId = await insertSession(administratorId);
     const targetId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId: await insertCashierRole("Cajera"),
       locationId,
@@ -263,7 +263,7 @@ describe("GET /users/:id/passkeys", () => {
   it("rejects an Origin that is not the backoffice's own", async () => {
     const locationId = await seededLocationId(db);
     const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       roleId: await seededAdministratorRoleId(),
       locationId,

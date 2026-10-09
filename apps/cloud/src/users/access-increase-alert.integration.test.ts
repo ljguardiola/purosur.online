@@ -95,7 +95,7 @@ async function insertUser(roleId: string): Promise<string> {
   const [user] = await db
     .insert(users)
     .values({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: `${randomUUID()}@example.com`,
       locationId: await seededLocationId(db),
     })
@@ -330,7 +330,7 @@ describe("an alert for increased access that fails to open, on a real Postgres",
           clock: { now: () => new Date() },
         },
         {
-          firstName: "Katherine Johnson",
+          firstName: "Katherine Ojeda",
           email,
           roleId: administratorRole.id,
           locationId: await seededLocationId(db),

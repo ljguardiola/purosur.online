@@ -111,7 +111,7 @@ beforeEach(async () => {
 
   const locationId = await seededLocationId(db);
   administratorId = await insertUser({
-    firstName: "Ada Lovelace",
+    firstName: "Ada Lucero",
     email: "ada@example.com",
     roleId: await seededAdministratorRoleId(),
     locationId,
@@ -162,7 +162,7 @@ describe("POST /roles", () => {
   it("rejects a non-Administrator with 403 forbidden, creating nothing", async () => {
     const cashierRoleId = await insertCashierRole("Cajera");
     const cashierId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId: cashierRoleId,
       locationId: await seededLocationId(db),
