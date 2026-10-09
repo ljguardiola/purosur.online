@@ -126,6 +126,18 @@ export {
   registerPointOfSaleSchema,
 } from "./fiscal/register-point-of-sale.js";
 export type {
+  FollowMercadoPagoQrChargeOutcome,
+  PaymentsCoreToRendererMessage,
+  PaymentsRendererToCoreMessage,
+  StartMercadoPagoQrChargeOutcome,
+} from "./payments/core-messages.js";
+export {
+  followMercadoPagoQrChargeOutcomeSchema,
+  paymentsCoreToRendererMessageSchema,
+  paymentsRendererToCoreMessageSchema,
+  startMercadoPagoQrChargeOutcomeSchema,
+} from "./payments/core-messages.js";
+export type {
   MercadoPagoQrOrderRequestBody,
   MercadoPagoQrPaymentBody,
 } from "./payments/mercado-pago-qr-order.js";
