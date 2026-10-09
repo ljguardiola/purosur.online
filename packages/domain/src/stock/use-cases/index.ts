@@ -5,6 +5,8 @@ export type {
   RegisterStockMovement,
 } from "./apply-register-stock-movements.js";
 export { applyRegisterStockMovements } from "./apply-register-stock-movements.js";
+export type { ApplyPulledStockMovementOutcome } from "./apply-pulled-stock-movement.js";
+export { applyPulledStockMovement } from "./apply-pulled-stock-movement.js";
 export type { AppliedStockMovement } from "./apply-stock-movement.js";
 export type { ExpectedBalanceAtInput, ExpectedBalanceAtOutcome } from "./expected-balance-at.js";
 export { expectedBalanceAt } from "./expected-balance-at.js";
@@ -25,6 +27,11 @@ export type {
   StockPeriodQuery,
   StockProduct,
 } from "./stock-reader.js";
+export type {
+  PulledStockMovement,
+  ReplicatedStockLedger,
+  ReplicatedStockMovement,
+} from "./replicated-stock-ledger.js";
 export type {
   CoveringCount,
   LockProductStockResult,
