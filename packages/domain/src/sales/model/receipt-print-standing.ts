@@ -25,11 +25,10 @@ export function observePrinterStatus(
   status: PrinterStatus,
   at: Date,
 ): ReceiptPrintObservation {
-  const keepsBeingReady = status === "ready" && observation.status === "ready";
   return {
     ...observation,
     status,
-    readySince: status !== "ready" ? null : keepsBeingReady ? observation.readySince : at,
+    readySince: observation.status === "ready" ? observation.readySince : at,
   };
 }
 
