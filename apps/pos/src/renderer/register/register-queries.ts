@@ -4,6 +4,7 @@ import type {
   ListedCashMovement,
   OpenCashSession,
   RecordableCashMovementKinds,
+  RegisterStatus,
   SessionOpenSale,
   SignInUser,
 } from "@purosur/contracts";
@@ -25,6 +26,7 @@ export const registerKeys = {
   service: [...registerKey, "service"] as const,
   cashSession: [...registerKey, "cash-session"] as const,
   registerName: [...registerKey, "register-name"] as const,
+  status: [...registerKey, "status"] as const,
   lockedClosers: (sessionId: string) => [...lockedClosersKey, sessionId] as const,
   cashBalance: (sessionId: string) => [...cashKey, sessionId, "balance"] as const,
   cashCountPreview: (sessionId: string, countedCash: number | undefined) =>
@@ -95,6 +97,13 @@ export function registerNameQueryOptions(read: () => Promise<string | null>) {
 export function useRegisterNameQuery(read: () => Promise<string | null>): string | null {
   const name = useCoreQuery({ queryKey: registerKeys.registerName, read, staleTime: Infinity });
   return name.status === "loaded" ? name.value : null;
+}
+
+export function useRegisterStatusQuery(
+  read: () => Promise<RegisterStatus | "unavailable">,
+  enabled: boolean,
+): CoreData<RegisterStatus> {
+  return useCoreQuery({ queryKey: registerKeys.status, read, enabled });
 }
 
 export function useLockedClosersQuery(
