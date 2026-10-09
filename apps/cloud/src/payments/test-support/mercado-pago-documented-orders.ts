@@ -38,8 +38,8 @@ function documentedOrder(order: DocumentedOrder): Record<string, unknown> {
     config: { qr: { external_pos_id: "STORE01POS01", mode: "static" } },
     transactions: {
       payments: order.payments.map((payment, index) => ({
-        id: "PAY01JQ4S4KY8HWQ6NA5PXB65B3D" + String(index),
-        reference_id: "01JQ4S4KY8HWQ6NA5PXB65B3D" + String(index),
+        id: `PAY01JQ4S4KY8HWQ6NA5PXB65B3D${String(index)}`,
+        reference_id: `01JQ4S4KY8HWQ6NA5PXB65B3D${String(index)}`,
         amount: payment.amount,
         ...(payment.paidAmount === undefined ? {} : { paid_amount: payment.paidAmount }),
         status: payment.status,

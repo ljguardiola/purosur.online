@@ -266,7 +266,7 @@ describe("the Mercado Pago orders client", () => {
       await client.readOrder(ORDER_ID);
 
       const { url, init } = sentRequest(fetch);
-      expect(url).toBe("https://api.mercadopago.com/v1/orders/" + ORDER_ID);
+      expect(url).toBe(`https://api.mercadopago.com/v1/orders/${ORDER_ID}`);
       expect(init.method).toBe("GET");
       expect(init.headers).toEqual({ Authorization: `Bearer ${ACCESS_TOKEN}` });
       expect(init.body).toBeUndefined();
@@ -451,7 +451,7 @@ describe("the Mercado Pago orders client", () => {
       ["a server error", () => answer(500, { message: ACCESS_TOKEN })],
       [
         "a network failure that carries the request",
-        () => new TypeError("fetch failed " + ACCESS_TOKEN),
+        () => new TypeError(`fetch failed ${ACCESS_TOKEN}`),
       ],
       ["an answer that is not JSON", () => answer(200, ACCESS_TOKEN)],
       ["an answer missing its fields", () => answer(200, { message: ACCESS_TOKEN })],
