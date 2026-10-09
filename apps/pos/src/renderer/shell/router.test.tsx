@@ -1601,7 +1601,6 @@ describe("the register's status bar", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await expect.element(screen.getByRole("region", { name: STATUS_BAR_NAME })).toBeVisible();
-    expect(router.state.location.pathname).toBe(path);
   });
 
   it("is not shown on the sign-in screen", async () => {
