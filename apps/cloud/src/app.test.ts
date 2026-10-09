@@ -2411,7 +2411,7 @@ describe("the former session and passkey read paths", () => {
     const [user] = await db
       .insert(users)
       .values({
-        firstName: "Ada Lovelace",
+        firstName: "Ada Lucero",
         email: "ada@example.com",
         locationId: await seededLocationId(db),
       })
@@ -2455,9 +2455,9 @@ describe("the former session and passkey read paths", () => {
     const former = await get(app, "/api/users/session", rawSessionId);
 
     expect(openSessionSchema.safeParse(current.json()).success).toBe(true);
-    expect(current.body).toContain("Ada Lovelace");
+    expect(current.body).toContain("Ada Lucero");
     expect(openSessionSchema.safeParse(former.json()).success).toBe(false);
-    expect(former.body).not.toContain("Ada Lovelace");
+    expect(former.body).not.toContain("Ada Lucero");
   });
 
   it("no longer returns the passkeys to an Administrator who can list them at their current path", async () => {
@@ -2525,7 +2525,7 @@ describe("every route enforces the access it declares", () => {
     const [user] = await db
       .insert(users)
       .values({
-        firstName: "Grace Hopper",
+        firstName: "Grace Villalba",
         email: `${generateSessionId()}@example.com`,
         locationId: await seededLocationId(db),
       })

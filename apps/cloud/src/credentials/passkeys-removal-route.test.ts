@@ -63,7 +63,7 @@ beforeEach(async () => {
   const [user] = await db
     .insert(users)
     .values({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       locationId: await seededLocationId(db),
     })
@@ -357,7 +357,7 @@ describe("DELETE /account/passkeys/:id", () => {
     const [strangerUser] = await db
       .insert(users)
       .values({
-        firstName: "Grace Hopper",
+        firstName: "Grace Villalba",
         email: "grace@example.com",
         locationId: await seededLocationId(db),
       })

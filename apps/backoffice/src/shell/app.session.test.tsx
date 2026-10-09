@@ -169,7 +169,7 @@ test("shows the signed-in user's name in the rail footer, and Salir signs back o
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByText("Lucas Guardiola")).toBeVisible();
+  await expect.element(screen.getByText("Lucas Medrano")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Salir" }));
   const dialog = screen.getByRole("dialog");
@@ -244,7 +244,7 @@ test("follows a promotion reported by real use of the open tab: Usuarios and Rol
     fetchSession: vi
       .fn()
       .mockResolvedValue(
-        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
@@ -254,7 +254,7 @@ test("follows a promotion reported by real use of the open tab: Usuarios and Rol
   expect(screen.getByRole("link", { name: "Roles" }).query()).toBeNull();
 
   vi.mocked(services.fetchSession).mockResolvedValue(
-    openSession({ userId: "user-2", displayName: "Grace Hopper" }),
+    openSession({ userId: "user-2", displayName: "Grace Villalba" }),
   );
   vi.setSystemTime(Date.now() + PAST_ACTIVITY_THROTTLE_WINDOW_MS);
   try {

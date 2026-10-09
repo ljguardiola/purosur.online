@@ -173,7 +173,7 @@ beforeEach(async () => {
 
   const locationId = await seededLocationId(db);
   administratorId = await insertUser({
-    firstName: "Ada Lovelace",
+    firstName: "Ada Lucero",
     email: "ada@example.com",
     roleId: await seededAdministratorRoleId(),
     locationId,
@@ -221,7 +221,7 @@ describe("DELETE /users/:id/passkeys/:passkeyId", () => {
   beforeEach(async () => {
     cashierRoleId = await insertCashierRole("Cajera");
     targetId = await insertUser({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: "grace@example.com",
       roleId: cashierRoleId,
       locationId: await seededLocationId(db),
@@ -350,7 +350,7 @@ describe("DELETE /users/:id/passkeys/:passkeyId", () => {
 
   it("returns not_found for a passkey belonging to another user of the branch reached under the wrong :id, deleting nothing", async () => {
     const otherCashierId = await insertUser({
-      firstName: "Barbara Liskov",
+      firstName: "Barbara Quintana",
       email: "barbara@example.com",
       roleId: cashierRoleId,
       locationId: await seededLocationId(db),

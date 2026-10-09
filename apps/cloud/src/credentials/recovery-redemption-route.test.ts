@@ -50,7 +50,7 @@ beforeEach(async () => {
   const [user] = await db
     .insert(users)
     .values({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       locationId: await seededLocationId(db),
     })
@@ -152,7 +152,7 @@ describe("POST /account-recovery-challenges", () => {
 
     expect(response.statusCode).toBe(200);
     const body = response.json();
-    expect(body.display_name).toBe("Ada Lovelace");
+    expect(body.display_name).toBe("Ada Lucero");
     expect(body.passkey_registration_options.rp).toEqual({
       name: "Puro Sur",
       id: "staging.purosur.online",
@@ -517,7 +517,7 @@ describe("POST /account-recovery-redemptions", () => {
     const [otherUser] = await db
       .insert(users)
       .values({
-        firstName: "Grace Hopper",
+        firstName: "Grace Villalba",
         email: "grace@example.com",
         locationId: await seededLocationId(db),
       })

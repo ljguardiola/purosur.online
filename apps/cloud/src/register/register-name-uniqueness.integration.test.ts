@@ -42,7 +42,7 @@ describe("creating two registers with the same name in the same branch concurren
     const locationId = await seededLocationId(db);
     const [actor] = await db
       .insert(users)
-      .values({ firstName: "Ada Lovelace", email: `ada-${suffix}@example.com`, locationId })
+      .values({ firstName: "Ada Lucero", email: `ada-${suffix}@example.com`, locationId })
       .returning({ id: users.id });
     if (!actor) {
       throw new Error("test setup: seeding the actor returned no row");

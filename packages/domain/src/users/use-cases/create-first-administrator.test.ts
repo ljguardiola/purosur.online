@@ -12,19 +12,19 @@ describe("createFirstAdministrator", () => {
 
     const result = await createFirstAdministrator(
       { store },
-      { name: "Ada Lovelace", email: "ada@example.com" },
+      { name: "Ada Lucero", email: "ada@example.com" },
     );
 
     expect(result).toEqual({ id: "user-1", email: "ada@example.com" });
     expect(store.snapshot()).toEqual({
       users: [
-        { id: "user-1", firstName: "Ada Lovelace", email: "ada@example.com", locationId: "loc-1" },
+        { id: "user-1", firstName: "Ada Lucero", email: "ada@example.com", locationId: "loc-1" },
       ],
       roleAssignments: [{ userId: "user-1", roleId: "role-admin" }],
       records: [
         {
           userId: "user-1",
-          firstName: "Ada Lovelace",
+          firstName: "Ada Lucero",
           email: "ada@example.com",
           roleId: "role-admin",
         },
@@ -54,12 +54,12 @@ describe("createFirstAdministrator", () => {
 
     const result = await createFirstAdministrator(
       { store },
-      { name: "  Ada Lovelace  ", email: "  ADA@Example.com  " },
+      { name: "  Ada Lucero  ", email: "  ADA@Example.com  " },
     );
 
     expect(result.email).toBe("ada@example.com");
     expect(store.snapshot().users[0]).toMatchObject({
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
     });
   });
@@ -111,7 +111,7 @@ describe("createFirstAdministrator", () => {
     ],
     [
       "an email containing spaces",
-      { name: "Ada", email: "ada lovelace@example.com" },
+      { name: "Ada", email: "ada lucero@example.com" },
       "email",
       "email must look like local@domain",
     ],

@@ -59,7 +59,7 @@ describe("POST /internal-barcodes", () => {
     const [user] = await db
       .insert(users)
       .values({
-        firstName: "Ada Lovelace",
+        firstName: "Ada Lucero",
         email: "ada@example.com",
         locationId: await seededLocationId(db),
       })

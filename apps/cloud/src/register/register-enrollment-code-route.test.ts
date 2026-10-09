@@ -100,7 +100,7 @@ async function insertUserWithPermission(
   permissionKeys: string[] = ["enroll_register_devices"],
 ): Promise<string> {
   const roleId = await insertRole("Encargada", permissionKeys);
-  return insertUser({ firstName: "Ada Lovelace", email: "ada@example.com", roleId, locationId });
+  return insertUser({ firstName: "Ada Lucero", email: "ada@example.com", roleId, locationId });
 }
 
 async function insertOtherLocation(): Promise<string> {

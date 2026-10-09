@@ -43,7 +43,7 @@ describe("createFirstAdministrator", () => {
   it("creates one user with the Administrator role and audits the run", async () => {
     const result = await createFirstAdministrator(
       db,
-      { name: "Ada Lovelace", email: "ada@example.com" },
+      { name: "Ada Lucero", email: "ada@example.com" },
       clock,
     );
 
@@ -53,7 +53,7 @@ describe("createFirstAdministrator", () => {
     expect(createdUsers).toHaveLength(1);
     expect(createdUsers[0]).toMatchObject({
       id: result.id,
-      firstName: "Ada Lovelace",
+      firstName: "Ada Lucero",
       email: "ada@example.com",
       active: true,
     });
@@ -69,7 +69,7 @@ describe("createFirstAdministrator", () => {
       entityId: result.id,
       actorId: result.id,
       previousValue: null,
-      newValue: { firstName: "Ada Lovelace", email: "ada@example.com", roleId },
+      newValue: { firstName: "Ada Lucero", email: "ada@example.com", roleId },
       at: NOON,
     });
   });
@@ -79,7 +79,7 @@ describe("createFirstAdministrator", () => {
 
     const result = await createFirstAdministrator(
       db,
-      { name: "Ada Lovelace", email: "ada@example.com" },
+      { name: "Ada Lucero", email: "ada@example.com" },
       clock,
     );
 
@@ -102,7 +102,7 @@ describe("createFirstAdministrator", () => {
 
     const result = await createFirstAdministrator(
       db,
-      { name: "Ada Lovelace", email: "ada@example.com" },
+      { name: "Ada Lucero", email: "ada@example.com" },
       clock,
     );
 
@@ -113,12 +113,12 @@ describe("createFirstAdministrator", () => {
   it("refuses a second run and keeps only what the first run created", async () => {
     const first = await createFirstAdministrator(
       db,
-      { name: "Ada Lovelace", email: "ada@example.com" },
+      { name: "Ada Lucero", email: "ada@example.com" },
       clock,
     );
 
     await expect(
-      createFirstAdministrator(db, { name: "Grace Hopper", email: "grace@example.com" }, clock),
+      createFirstAdministrator(db, { name: "Grace Villalba", email: "grace@example.com" }, clock),
     ).rejects.toBeInstanceOf(FirstAdministratorAlreadyBootstrappedError);
 
     const remainingUsers = await db.select().from(users);
@@ -140,7 +140,7 @@ describe("createFirstAdministrator", () => {
     });
 
     await expect(
-      createFirstAdministrator(db, { name: "Ada Lovelace", email: "ada@example.com" }, clock),
+      createFirstAdministrator(db, { name: "Ada Lucero", email: "ada@example.com" }, clock),
     ).rejects.toBeInstanceOf(FirstAdministratorAlreadyBootstrappedError);
 
     const remainingUsers = await db.select().from(users);

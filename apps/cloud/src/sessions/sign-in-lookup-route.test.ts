@@ -50,7 +50,7 @@ async function insertUser(
   const [user] = await db
     .insert(users)
     .values({
-      firstName: "Grace Hopper",
+      firstName: "Grace Villalba",
       email: overrides.email ?? EMAIL,
       locationId: overrides.locationId ?? (await seededLocationId(db)),
       active: overrides.active ?? true,

@@ -37,7 +37,7 @@ describe("recovery-request jobs for the same account running concurrently agains
     const email = `ada-${randomUUID()}@example.com`;
     const [user] = await db
       .insert(users)
-      .values({ firstName: "Ada Lovelace", email, locationId: await seededLocationId(db) })
+      .values({ firstName: "Ada Lucero", email, locationId: await seededLocationId(db) })
       .returning({ id: users.id });
     if (!user) {
       throw new Error("test setup: seeding the user returned no row");

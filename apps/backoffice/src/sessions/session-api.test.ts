@@ -25,7 +25,7 @@ afterEach(() => {
 
 const sessionBody = {
   user_id: "user-1",
-  display_name: "Lucas Guardiola",
+  display_name: "Lucas Medrano",
   expires_at: "2026-09-23T12:30:00.000Z",
   is_administrator: false,
   capabilities: ["stock_area", "branch_area"],
@@ -41,7 +41,7 @@ test("fetchSession returns the signed-in user's identity, capabilities and deadl
   expect(outcome).toEqual({
     kind: "ok",
     userId: "user-1",
-    displayName: "Lucas Guardiola",
+    displayName: "Lucas Medrano",
     expiresAt: "2026-09-23T12:30:00.000Z",
     capabilities: ["stock_area", "branch_area"],
     stockMovementKinds: ["adjustment"],

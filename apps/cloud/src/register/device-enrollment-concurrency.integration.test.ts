@@ -100,7 +100,7 @@ describe("emitting a new code while the current one is being redeemed, on a real
     const [actor] = await db
       .insert(users)
       .values({
-        firstName: "Ada Lovelace",
+        firstName: "Ada Lucero",
         email: `ada-${randomUUID()}@example.com`,
         locationId,
       })
