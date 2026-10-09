@@ -65,6 +65,16 @@ const TRANSFER_PAYMENT: PaymentTransaction = {
   authorizedBy: "cashier",
   confirmedAt: PAID_AT,
 };
+const QR_PAYMENT: PaymentTransaction = {
+  id: "payment-3",
+  saleId: "sale-1",
+  kind: "SALE",
+  method: "QR",
+  provider: "MERCADOPAGO_QR",
+  amount: 900,
+  state: "APPROVED",
+  occurredAt: PAID_AT,
+};
 const PAYMENT_MOVEMENT: SaleCashMovement = {
   id: "movement-1",
   sessionId: "session-1",
@@ -380,6 +390,19 @@ describe("cancelPaidSale", () => {
   });
 
   describe("what it refuses", () => {
+    it.each(["sale", "locked_register"] as const)(
+      "refuses a sale holding an approved QR payment from the %s, leaving everything as it was",
+      async (from) => {
+        const store = ledger({ payments: [CASH_PAYMENT, QR_PAYMENT] });
+        const before = structuredClone(store.state);
+
+        const outcome = await cancel(store, CLOSER_GRANT, "sale-1", from);
+
+        expect(outcome).toEqual({ kind: "holds_qr_payment" });
+        expect(store.state).toEqual(before);
+      },
+    );
+
     it("returns the refusal of the authority without reading any data", async () => {
       const store = ledger();
       const before = structuredClone(store.state);
