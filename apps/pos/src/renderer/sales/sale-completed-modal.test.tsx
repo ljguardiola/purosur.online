@@ -50,6 +50,13 @@ async function renderModal(amounts: Amounts, overrides: Overrides = {}) {
   return { screen, onNewSale, readReceiptStatus, retryReceiptPrint };
 }
 
+async function expectAlertText(
+  screen: { getByRole: (role: "alert") => { element: () => Element } },
+  text: string,
+) {
+  await expect.poll(() => screen.getByRole("alert").element().textContent).toContain(text);
+}
+
 const CASH = { total: 476_000, tendered: 500_000, change: 24_000 };
 
 describe("SaleCompletedModal", () => {
@@ -197,8 +204,8 @@ describe("SaleCompletedModal", () => {
       await expect
         .element(screen.getByText("Pendiente de imprimir · sale como original"))
         .toBeVisible();
-      await expect.element(screen.getByRole("alert")).toHaveTextContent(title);
-      await expect.element(screen.getByRole("alert")).toHaveTextContent(help);
+      await expectAlertText(screen, title);
+      await expectAlertText(screen, help);
       await expect
         .element(screen.getByRole("button", { name: "Reintentar impresión" }))
         .not.toBeInTheDocument();
@@ -244,11 +251,10 @@ describe("SaleCompletedModal", () => {
     });
 
     await expect.element(screen.getByText("Normal · sin confirmar la impresión")).toBeVisible();
-    await expect
-      .element(screen.getByRole("alert"))
-      .toHaveTextContent(
-        "El ticket no salió La impresora volvió a responder pero no confirmó la impresión. Como nunca se llegó a imprimir, el reintento sale como original.",
-      );
+    await expectAlertText(
+      screen,
+      "El ticket no salió La impresora volvió a responder pero no confirmó la impresión. Como nunca se llegó a imprimir, el reintento sale como original.",
+    );
 
     await userEvent.click(screen.getByRole("button", { name: "Reintentar impresión" }));
 
@@ -267,9 +273,7 @@ describe("SaleCompletedModal", () => {
       }),
     });
 
-    await expect
-      .element(screen.getByRole("alert"))
-      .toHaveTextContent("el reintento sale como duplicado.");
+    await expectAlertText(screen, "el reintento sale como duplicado.");
   });
 
   it("lets the cashier go on selling from the retry layout", async () => {
