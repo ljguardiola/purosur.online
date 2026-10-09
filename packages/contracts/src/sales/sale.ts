@@ -24,11 +24,13 @@ const linePromotionSchema = z.discriminatedUnion("kind", [
     .refine(({ buy_qty, pay_qty }) => isValidDiscountBuyNPayM(buy_qty, pay_qty)),
 ]);
 
+export const shownLineQuantitySchema = z.int().positive();
+
 const saleLineSchema = z.object({
   id: z.string(),
   product_id: z.string(),
   product_name: z.string(),
-  quantity: z.int().positive(),
+  quantity: shownLineQuantitySchema,
   list_unit_price: cents,
   discount_amount: cents,
   promotion: linePromotionSchema.nullable(),
@@ -72,6 +74,10 @@ const soldByWeightOutcome = z.object({
   kind: z.literal("sold_by_weight"),
   product_name: z.string(),
 });
+const lineQuantityLimitOutcome = z.object({
+  kind: z.literal("line_quantity_limit"),
+  product_name: z.string(),
+});
 const notPermittedOutcome = z.object({ kind: z.literal("not_permitted") });
 const notSignedInOutcome = z.object({ kind: z.literal("not_signed_in") });
 const noOpenSessionOutcome = z.object({ kind: z.literal("no_open_session") });
@@ -91,6 +97,7 @@ export const scanProductOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("unknown_code") }),
   noPriceOutcome,
   soldByWeightOutcome,
+  lineQuantityLimitOutcome,
   saleHasPaymentsOutcome,
   notPermittedOutcome,
   notSignedInOutcome,
@@ -154,6 +161,7 @@ export const addProductOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("product_unavailable") }),
   noPriceOutcome,
   soldByWeightOutcome,
+  lineQuantityLimitOutcome,
   saleHasPaymentsOutcome,
   notPermittedOutcome,
   notSignedInOutcome,

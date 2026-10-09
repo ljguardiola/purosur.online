@@ -164,6 +164,7 @@ export async function scanProductFor(
     case "added":
     case "no_price":
     case "sold_by_weight":
+    case "line_quantity_limit":
       return toDetailOutcome(outcome, cancelAuthorizationRequired);
     default:
       return { kind: outcome.kind };
@@ -188,6 +189,7 @@ export async function addSearchedProductFor(
     case "added":
     case "no_price":
     case "sold_by_weight":
+    case "line_quantity_limit":
       return toDetailOutcome(outcome, cancelAuthorizationRequired);
     default:
       return { kind: outcome.kind };
@@ -226,7 +228,7 @@ export async function searchProductsFor(
 
 type SaleDetailOutcome = Extract<
   AddScannedProductOutcome,
-  { kind: "added" | "no_price" | "sold_by_weight" }
+  { kind: "added" | "no_price" | "sold_by_weight" | "line_quantity_limit" }
 >;
 
 function toDetailOutcome(
