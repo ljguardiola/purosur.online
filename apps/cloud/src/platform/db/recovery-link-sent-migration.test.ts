@@ -17,7 +17,7 @@ const RECOVERY_LINK_SENT_MIGRATION_TAG_SUFFIX = "_recovery_link_sent";
 describe("the recovery link sent migration applied over a database that already holds recovery tokens", {
   timeout: 30_000,
 }, () => {
-  it("marks every existing token as sent when it was issued", async () => {
+  it("marks a redeemed token as sent when it was issued and leaves an unredeemed one unsent", async () => {
     const entry = await findMigrationEntry(
       RECOVERY_LINK_SENT_MIGRATION_TAG_SUFFIX,
       "test setup: no recovery link sent migration in the journal",
@@ -37,28 +37,28 @@ describe("the recovery link sent migration applied over a database that already 
       ["Ada Lovelace", `ada-${randomUUID()}@example.com`, locationRows[0]?.id],
     );
     const userId = userRows[0]?.id;
-    const firstIssuedAt = "2026-10-01T10:00:00.000Z";
-    const secondIssuedAt = "2026-10-01T11:00:00.000Z";
+    const redeemedIssuedAt = "2026-10-01T10:00:00.000Z";
+    const unredeemedIssuedAt = "2026-10-01T11:00:00.000Z";
     await client.query(
-      `insert into recovery_tokens (user_id, token_hash, issued_at, expires_at, voided_at)
-       values ($1, 'voided-hash', $2, $2::timestamptz + interval '15 minutes', $3)`,
-      [userId, firstIssuedAt, secondIssuedAt],
+      `insert into recovery_tokens (user_id, token_hash, issued_at, expires_at, used_at)
+       values ($1, 'redeemed-hash', $2, $2::timestamptz + interval '15 minutes', $2::timestamptz + interval '5 minutes')`,
+      [userId, redeemedIssuedAt],
     );
     await client.query(
       `insert into recovery_tokens (user_id, token_hash, issued_at, expires_at)
-       values ($1, 'live-hash', $2, $2::timestamptz + interval '15 minutes')`,
-      [userId, secondIssuedAt],
+       values ($1, 'unredeemed-hash', $2, $2::timestamptz + interval '15 minutes')`,
+      [userId, unredeemedIssuedAt],
     );
 
     await addMigrationEntry(folder, entry);
     await migrate(drizzle(client), { migrationsFolder: folder });
 
-    const { rows } = await client.query<{ token_hash: string; sent_at: Date; issued_at: Date }>(
-      "select token_hash, sent_at, issued_at from recovery_tokens order by issued_at",
+    const { rows } = await client.query<{ token_hash: string; sent_at: Date | null }>(
+      "select token_hash, sent_at from recovery_tokens order by issued_at",
     );
     expect(rows.map((row) => [row.token_hash, row.sent_at])).toEqual([
-      ["voided-hash", new Date(firstIssuedAt)],
-      ["live-hash", new Date(secondIssuedAt)],
+      ["redeemed-hash", new Date(redeemedIssuedAt)],
+      ["unredeemed-hash", null],
     ]);
   });
 });

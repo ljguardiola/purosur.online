@@ -250,11 +250,11 @@ describe("a recovery request whose link was sent but whose completion graphile-w
   }
 
   it("is not served again when graphile-worker's stale-lock reset runs the job four hours later", async () => {
-    const email = `ada-${randomUUID()}@example.com`;
+    const email = `rocio-${randomUUID()}@example.com`;
     await inDatabase(async (db) => {
       await db
         .insert(users)
-        .values({ firstName: "Ada Lovelace", email, locationId: await seededLocationId(db) });
+        .values({ firstName: "Rocío Fictaria", email, locationId: await seededLocationId(db) });
     });
     const sent: SendRecoveryLinkInput[] = [];
     const sender: AccessEmailSender = {
