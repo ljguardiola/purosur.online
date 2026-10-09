@@ -43,10 +43,7 @@ export async function editPackaging(
         return { kind: "applied", packaging: current };
       }
 
-      if (
-        current.name !== input.name &&
-        (await tx.packagingNameTaken(current.productId, input.name, current.id))
-      ) {
+      if (await tx.packagingNameTaken(current.productId, input.name, current.id)) {
         return { kind: "name_taken" };
       }
 
