@@ -433,7 +433,7 @@ describe("POST /users", () => {
       { now: () => currentTime, backofficeOrigin: BACKOFFICE_ORIGIN },
     );
 
-    expect(result.send).toMatchObject({ to: "newhire@example.com" });
+    expect(result.send?.email).toMatchObject({ to: "newhire@example.com" });
   });
 
   describe("the shared passkey-authorization guard", () => {
