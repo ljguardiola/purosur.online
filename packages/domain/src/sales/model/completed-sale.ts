@@ -32,7 +32,7 @@ export interface CompletedSaleCashMovement {
   occurredAt: Date;
 }
 
-export interface CompletedSaleStockMovement {
+interface CompletedSaleStockMovement {
   id: string;
   saleLineId: string;
   productId: string;
