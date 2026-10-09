@@ -19,6 +19,7 @@ import type {
   OpenSale,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
+  RegisterStatus,
   RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
@@ -116,6 +117,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         return { kind: "not_permitted" };
       },
       cashSession: (): OpenCashSession | null => null,
+      registerStatus: (): RegisterStatus => ({ conditions: [], cloud: "unknown" }),
       recordCashMovement: async (
         request: CashMovementRequest,
       ): Promise<RecordCashMovementOutcome> => {
@@ -664,6 +666,43 @@ describe("answerRendererRequest", () => {
       }),
     ).toEqual({ type: "cash-session-unavailable", request_id: "r17" });
     expect(failing.failures).toEqual([{ context: "reading the open cash session", error }]);
+  });
+
+  it("answers the register's status as the core reads it", async () => {
+    const status: RegisterStatus = { conditions: ["sales_denied"], cloud: "unreachable" };
+
+    expect(
+      await answerRendererRequest(deps(true, { registerStatus: () => status }).deps, {
+        type: "register-status-request",
+        request_id: "r30",
+      }),
+    ).toEqual({ type: "register-status", request_id: "r30", status });
+  });
+
+  it("answers that the status cannot be read when the register has no database", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { registerStatus: undefined }).deps, {
+        type: "register-status-request",
+        request_id: "r31",
+      }),
+    ).toEqual({ type: "register-status-unavailable", request_id: "r31" });
+  });
+
+  it("answers that the status cannot be read when reading it fails, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      registerStatus: () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "register-status-request",
+        request_id: "r32",
+      }),
+    ).toEqual({ type: "register-status-unavailable", request_id: "r32" });
+    expect(failing.failures).toEqual([{ context: "reading the register's status", error }]);
   });
 
   it("records a cash movement as sent, with its authorization if it has one, and answers the outcome", async () => {
