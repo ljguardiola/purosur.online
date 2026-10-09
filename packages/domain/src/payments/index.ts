@@ -3,6 +3,11 @@ export {
   MERCADO_PAGO_PENDING_CHECK_INTERVAL_MS,
   PAYMENT_NOTIFICATION_LIMIT,
 } from "./model/mercado-pago-notifications.js";
+export type { MercadoPagoQrChargeWait } from "./model/mercado-pago-qr-charge-wait.js";
+export {
+  MERCADO_PAGO_QR_CHARGE_CHECK_INTERVAL_MS,
+  MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES,
+} from "./model/mercado-pago-qr-charge-wait.js";
 export { nonCashCharge } from "./model/non-cash-charge.js";
 export type { PaymentMethod, PaymentTransaction } from "./model/payment.js";
 export {

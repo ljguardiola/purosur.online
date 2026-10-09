@@ -2,7 +2,9 @@ export const MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES = 3;
 
 export const MERCADO_PAGO_QR_CHARGE_CHECK_INTERVAL_MS = 3_000;
 
-export type MercadoPagoQrChargeWait = { kind: "waiting"; remainingSeconds: number } | { kind: "over" };
+export type MercadoPagoQrChargeWait =
+  | { kind: "waiting"; remainingSeconds: number }
+  | { kind: "over" };
 
 export function mercadoPagoQrChargeWaitEndsAt(chargeStartedAt: Date): Date {
   return new Date(chargeStartedAt.getTime() + MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES * 60 * 1000);
