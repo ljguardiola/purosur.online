@@ -72,6 +72,7 @@ async function expectOutcomeReportedWithoutUnhandledRejection(
   vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
     errors.push(args.map(String).join(" "));
   });
+  const captureException = vi.fn();
   process.on("unhandledRejection", recordUnhandled);
   const dropping = poolDroppingTheConnectionOn(integrationDb.databaseUrl, statement);
   const worker = await startRecoveryWorker(
@@ -81,7 +82,7 @@ async function expectOutcomeReportedWithoutUnhandledRejection(
       emailSender,
       now: () => NOW,
     },
-    { createPool: () => dropping.pool },
+    { createPool: () => dropping.pool, captureException },
   );
 
   try {
@@ -90,6 +91,9 @@ async function expectOutcomeReportedWithoutUnhandledRejection(
     await vi.waitFor(() => {
       expect(dropping.droppedQueries()).toBeGreaterThan(0);
       expect(errors.filter((error) => report.test(error))).not.toEqual([]);
+      expect(captureException).toHaveBeenCalledWith(
+        expect.objectContaining({ message: DROPPED_CONNECTION }),
+      );
     }, WAIT_OPTIONS);
     await nextMacrotask();
 

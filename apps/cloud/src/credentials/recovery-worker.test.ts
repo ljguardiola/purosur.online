@@ -1,4 +1,5 @@
 import { EventEmitter } from "node:events";
+import type { RunnerOptions } from "graphile-worker";
 import type { Pool } from "pg";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { auditLog, users } from "../platform/db/schema.js";
@@ -387,6 +388,61 @@ describe("startRecoveryWorker", () => {
     } finally {
       process.off("unhandledRejection", recordUnhandled);
     }
+  });
+
+  it("reports to error tracking an error graphile-worker logs with a fatal error, such as a job outcome it could not record", async () => {
+    const runWorker = vi.fn().mockResolvedValue(fakeRunner());
+    const captureException = vi.fn();
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await startRecoveryWorker(
+      {
+        databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
+        backofficeOrigin: "https://staging.purosur.online",
+        emailSender,
+      },
+      { runWorker, createPool: vi.fn().mockReturnValue(new FakePool()), captureException },
+    );
+    const [options] = runWorker.mock.calls[0] as [RunnerOptions];
+    const logger = mustExist(options.logger, "the logger passed to graphile-worker's run()");
+    const error = new Error("Connection terminated unexpectedly");
+    logger
+      .scope({ label: "worker" })
+      .error("Failed to record the failure of job '1' (recovery-request)", { fatalError: error });
+
+    expect(captureException).toHaveBeenCalledExactlyOnceWith(error);
+    expect(consoleError).toHaveBeenCalledExactlyOnceWith(
+      "recovery worker: Failed to record the failure of job '1' (recovery-request)",
+      error,
+    );
+  });
+
+  it("keeps a job failure graphile-worker logs without a fatal error on the console only", async () => {
+    const runWorker = vi.fn().mockResolvedValue(fakeRunner());
+    const captureException = vi.fn();
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await startRecoveryWorker(
+      {
+        databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
+        backofficeOrigin: "https://staging.purosur.online",
+        emailSender,
+      },
+      { runWorker, createPool: vi.fn().mockReturnValue(new FakePool()), captureException },
+    );
+    const [options] = runWorker.mock.calls[0] as [RunnerOptions];
+    const logger = mustExist(options.logger, "the logger passed to graphile-worker's run()");
+    logger.error("Failed task 1 (recovery-request) with error malformed job payload", {
+      error: new Error("malformed job payload"),
+    });
+
+    expect(captureException).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    expect(consoleError.mock.calls[0]?.map(String).join(" ")).toContain(
+      "Failed task 1 (recovery-request) with error malformed job payload",
+    );
   });
 
   it("runs more than one job at a time, so one slow job never holds up every other one", async () => {
