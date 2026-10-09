@@ -396,7 +396,12 @@ describe("cancelPaidSale", () => {
         const store = ledger({ payments: [CASH_PAYMENT, QR_PAYMENT] });
         const before = structuredClone(store.state);
 
-        const outcome = await cancel(store, CLOSER_GRANT, "sale-1", from);
+        const outcome = await cancel(
+          store,
+          from === "sale" ? OWN_GRANT : CLOSER_GRANT,
+          "sale-1",
+          from,
+        );
 
         expect(outcome).toEqual({ kind: "holds_qr_payment" });
         expect(store.state).toEqual(before);
