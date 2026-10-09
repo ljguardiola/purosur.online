@@ -58,6 +58,7 @@ class FakeStockStoreTransaction implements StockStoreTransaction {
 
   async lockProductStock(key: ProductStockKey): Promise<LockProductStockResult> {
     this.store.operationOrder.push("lockProductStock");
+    this.store.lockedProducts.push(key.productId);
     const product = this.state.products.find((row) => row.id === key.productId);
     if (!product) {
       return { kind: "not_found" };
@@ -91,7 +92,7 @@ class FakeStockStoreTransaction implements StockStoreTransaction {
 
   async recordMovement(movement: NewStockMovement): Promise<string> {
     this.beforeWrite("recordMovement");
-    const id = `movement-${this.state.nextId++}`;
+    const id = movement.id ?? `movement-${this.state.nextId++}`;
     this.state.movements.push({ ...movement, id });
     return id;
   }
@@ -131,6 +132,7 @@ export class FakeStockStore implements StockStore {
 
   failingWrites = new Set<WriteOperation>();
   operationOrder: string[] = [];
+  lockedProducts: string[] = [];
 
   seedProduct(product: FakeStockProduct): void {
     this.state.products.push({ ...product });
