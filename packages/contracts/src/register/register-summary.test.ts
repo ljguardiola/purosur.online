@@ -14,18 +14,48 @@ const withoutCode = {
   name: "Caja 1",
   pending_code: null,
   point_of_sale_number: null,
+  installation: null,
+};
+const enrolledInstallation = {
+  state: "enrolled",
+  hostname: "CAJA-MOSTRADOR",
+  windows_version: "Windows 11 Pro 10.0.26100",
+  enrolled_at: "2026-08-01T15:00:00.000Z",
+};
+const revokedInstallation = {
+  ...enrolledInstallation,
+  state: "revoked",
+  revoked_at: "2026-08-03T18:30:00.000Z",
 };
 const withCode = {
   id: "register-2",
   name: "Caja 2",
   pending_code: pendingCode,
   point_of_sale_number: 3,
+  installation: null,
 };
 
 describe("registerSummarySchema", () => {
   it("accepts a register with no pending code and one with a pending code", () => {
     expect(registerSummarySchema.safeParse(withoutCode).data).toEqual(withoutCode);
     expect(registerSummarySchema.safeParse(withCode).data).toEqual(withCode);
+  });
+
+  it("accepts an enrolled installation and a revoked one", () => {
+    const enrolled = { ...withoutCode, installation: enrolledInstallation };
+    const revoked = { ...withoutCode, installation: revokedInstallation };
+
+    expect(registerSummarySchema.safeParse(enrolled).data).toEqual(enrolled);
+    expect(registerSummarySchema.safeParse(revoked).data).toEqual(revoked);
+  });
+
+  it("strips keys it does not define in the installation", () => {
+    const parsed = registerSummarySchema.safeParse({
+      ...withoutCode,
+      installation: { ...enrolledInstallation, token_hash: "secret" },
+    });
+
+    expect(parsed.data?.installation).toEqual(enrolledInstallation);
   });
 
   it("accepts a code that expires within its last second", () => {
@@ -47,7 +77,7 @@ describe("registerSummarySchema", () => {
     expect(parsed.data).toEqual(withCode);
   });
 
-  it.each(["id", "name", "pending_code", "point_of_sale_number"])("requires %s", (field) => {
+  it.each(["id", "name", "pending_code", "point_of_sale_number", "installation"])("requires %s", (field) => {
     const { [field as keyof typeof withCode]: _omitted, ...rest } = withCode;
 
     expect(registerSummarySchema.safeParse(rest).success).toBe(false);
@@ -70,6 +100,16 @@ describe("registerSummarySchema", () => {
     ["name", 1],
     ["name", null],
     ["pending_code", undefined],
+    ["installation", undefined],
+    ["installation", "enrolled"],
+    ["installation", { ...enrolledInstallation, state: "pending" }],
+    ["installation", { ...enrolledInstallation, state: undefined }],
+    ["installation", { ...enrolledInstallation, hostname: 1 }],
+    ["installation", { ...enrolledInstallation, windows_version: null }],
+    ["installation", { ...enrolledInstallation, enrolled_at: null }],
+    ["installation", { ...enrolledInstallation, enrolled_at: undefined }],
+    ["installation", { ...revokedInstallation, revoked_at: null }],
+    ["installation", { ...revokedInstallation, revoked_at: undefined }],
     ["point_of_sale_number", undefined],
     ["point_of_sale_number", 0],
     ["point_of_sale_number", 1.5],
@@ -93,6 +133,17 @@ describe("registerSummarySchema", () => {
       seconds_since_issued: number;
       seconds_until_expiry: number;
     } | null>();
+    expectTypeOf<RegisterSummaryBody["installation"]>().toEqualTypeOf<
+      | { state: "enrolled"; hostname: string; windows_version: string; enrolled_at: string }
+      | {
+          state: "revoked";
+          hostname: string;
+          windows_version: string;
+          enrolled_at: string;
+          revoked_at: string;
+        }
+      | null
+    >();
   });
 });
 
