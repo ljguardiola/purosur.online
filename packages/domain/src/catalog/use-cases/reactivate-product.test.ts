@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { CatalogBarcodeConflict } from "./catalog-store.js";
 import { reactivateProduct } from "./reactivate-product.js";
 import { FakeCatalogStore } from "./test-support/fake-catalog-store.js";
 
@@ -107,6 +108,15 @@ describe("reactivateProduct", () => {
     vi.spyOn(store, "transaction").mockRejectedValue(new Error("connection lost"));
 
     await expect(reactivateProduct(store, "product-1")).rejects.toThrow("connection lost");
+  });
+
+  it("lets a barcode conflict raised before the product was locked through", async () => {
+    const store = new FakeCatalogStore();
+    vi.spyOn(store, "transaction").mockRejectedValue(new CatalogBarcodeConflict());
+
+    await expect(reactivateProduct(store, "product-1")).rejects.toBeInstanceOf(
+      CatalogBarcodeConflict,
+    );
   });
 
   it("runs entirely inside one transaction", async () => {
