@@ -363,6 +363,16 @@ describe("the instant a push was last accepted", () => {
     expect(log.lastAcceptedPushAt()).toEqual(ACCEPTED_AT);
   });
 
+  it("is not recorded without a log to record it in", async () => {
+    const register = registerWithEvents(2);
+    const { post } = cloudAnswering(acknowledgingEverything);
+
+    const attempt = await pushToCloud(depsFor(register, post, { acceptedPush: undefined }));
+
+    expect(attempt).toEqual({ kind: "pushed", ackSeq: 2 });
+    expect(new SqliteAcceptedPushLog(register.database).lastAcceptedPushAt()).toBeNull();
+  });
+
   it("is not recorded when the cloud can't be reached", async () => {
     const register = registerWithEvents(2);
     const { post } = cloudAnswering(() => ({ kind: "unreachable" }));

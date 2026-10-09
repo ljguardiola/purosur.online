@@ -72,14 +72,13 @@ describe("RegisterStatusBar", () => {
   it.each([
     [NO_SESSION, "Sin sesión abierta"],
     [OPEN_SESSION, "Sesión abierta 09:02"],
-    [LOCKED_SESSION, "Caja bloqueada"],
   ])("shows the cash session as %j", async (cashSession, text) => {
     const screen = await renderBar({ cashSession });
 
     expect(barText(screen)).toContain(text);
   });
 
-  it.each<CashSessionState>([{ status: "unknown" }, { status: "unavailable" }])(
+  it.each<CashSessionState>([{ status: "unknown" }, { status: "unavailable" }, LOCKED_SESSION])(
     "says nothing of the cash session while it is %j",
     async (cashSession) => {
       const screen = await renderBar({ cashSession });
@@ -98,10 +97,11 @@ describe("RegisterStatusBar", () => {
     expect(barText(screen)).toContain(text);
   });
 
-  it("shows the cloud as being connected while the status is read", async () => {
+  it("shows a loading placeholder, and neither the cloud nor a condition, while the status is read", async () => {
     const screen = await renderBar({ status: { status: "loading" } });
 
-    expect(barText(screen)).toContain("Conectando con la nube");
+    await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
+    expect(barText(screen)).not.toMatch(/nube/i);
     expect(barText(screen)).not.toContain(SALES_DENIED_TITLE);
   });
 
@@ -151,6 +151,7 @@ describe("RegisterStatusBar", () => {
     await expect
       .element(screen.getByRole("alert"))
       .toHaveTextContent("No se pudo leer el estado de la caja");
+    expect(barText(screen)).not.toMatch(/nube/i);
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
     expect(retry).toHaveBeenCalledTimes(1);

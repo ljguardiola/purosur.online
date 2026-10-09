@@ -19,6 +19,11 @@ const ANSWERS_FROM_THE_CLOUD: PushAttempt[] = [
   { kind: "failed", failure: { kind: "unreadable" } },
 ];
 
+const NOT_ANSWERED_BY_THE_CLOUD: PushAttempt[] = [
+  { kind: "failed", failure: { kind: "unreachable" } },
+  { kind: "failed", failure: { kind: "refused", code: "server_unavailable" } },
+];
+
 const NOT_REACHING_THE_CLOUD: PushAttempt[] = [
   { kind: "no_cloud" },
   { kind: "not_enrolled" },
@@ -33,14 +38,13 @@ describe("the register's reach of the cloud", () => {
     expect(INITIAL_CLOUD_REACHABILITY).toBe("unknown");
   });
 
-  it.each(REACHABILITIES)(
-    "is unreachable after a push the cloud did not answer, from %s",
-    (previous) => {
-      expect(
-        nextCloudReachability(previous, { kind: "failed", failure: { kind: "unreachable" } }),
-      ).toBe("unreachable");
-    },
-  );
+  it.each(
+    NOT_ANSWERED_BY_THE_CLOUD.flatMap((attempt) =>
+      REACHABILITIES.map((previous) => [attempt, previous] as const),
+    ),
+  )("is unreachable after a push the cloud did not answer (%j), from %s", (attempt, previous) => {
+    expect(nextCloudReachability(previous, attempt)).toBe("unreachable");
+  });
 
   it.each(
     ANSWERS_FROM_THE_CLOUD.flatMap((attempt) =>

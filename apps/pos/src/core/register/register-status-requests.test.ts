@@ -61,10 +61,18 @@ describe("the register's status", () => {
     expect(status()).toEqual({ conditions: [], cloud: "unknown" });
   });
 
-  it("holds sales_denied once the register stopped opening new sales", () => {
-    stopOpeningNewSales(database, "installation_revoked", NOW);
+  it("holds sales_denied once the register stopped opening new sales because its event history broke", () => {
+    stopOpeningNewSales(database, "event_history_broken", NOW);
 
     expect(status().conditions).toEqual(["sales_denied"]);
+  });
+
+  it("holds neither condition once the cloud revoked the installation", async () => {
+    holdBranchHours(mondayHours("09:00", "18:00"));
+    await acceptedMinutesAgo(30);
+    stopOpeningNewSales(database, "installation_revoked", NOW);
+
+    expect(status().conditions).toEqual([]);
   });
 
   it("holds register_silent when no push was accepted for 15 minutes of business hours", async () => {
