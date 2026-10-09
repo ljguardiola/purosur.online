@@ -4,6 +4,7 @@ export { stockMovementsMatchLines } from "./model/completed-sale.js";
 export { openSaleStanding } from "./model/open-sale-standing.js";
 export type { ReceiptContent, ReceiptSource } from "./model/receipt-content.js";
 export type { ReceiptCopy, ReceiptDelivery } from "./model/receipt-copy.js";
+export type { SalePrintState, SaleReprint, SaleReprintReason } from "./model/receipt-events.js";
 export type {
   PrinterStatus,
   ReceiptPrintObservation,
@@ -17,7 +18,10 @@ export {
   receiptPrintStanding,
   startedReceiptPrint,
 } from "./model/receipt-print-standing.js";
-export { RECEIPT_REPRINT_REASON_MAX_LENGTH } from "./model/receipt-reprint-reason.js";
+export {
+  RECEIPT_REPRINT_REASON_MAX_LENGTH,
+  receiptReprintReason,
+} from "./model/receipt-reprint-reason.js";
 export type { LinePromotion, Sale, SaleLine, SaleState, SaleWithLines } from "./model/sale.js";
 export type {
   SaleComprobante,
