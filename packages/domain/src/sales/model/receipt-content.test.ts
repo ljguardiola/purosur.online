@@ -121,6 +121,13 @@ describe("receiptContent", () => {
     expect(totals.change).toBe(1750);
   });
 
+  it("ignores what a non-cash payment records as tendered", () => {
+    expect(
+      receiptContent(source({ payments: [{ method: "TRANSFER", amount: 100, tendered: 900 }] }))
+        .totals.change,
+    ).toBe(0);
+  });
+
   it("gives no change when nothing was paid in cash", () => {
     expect(
       receiptContent(source({ payments: [{ method: "TRANSFER", amount: 11250, tendered: null }] }))
