@@ -202,7 +202,7 @@ async function seededThresholdId(): Promise<string> {
   return threshold.id;
 }
 
-const SEEDED_THRESHOLD_ROW = { amount: 1_000_000_000, valid_from: "2000-01-01" };
+const SEEDED_THRESHOLD_ROW = { amount: 1_000_000_000, valid_from: "2000-01-01", revision: 0 };
 
 describe("GET /changes", () => {
   it("gives a brand-new installation its branch's settings, with their version, from the very first cursor", async () => {
