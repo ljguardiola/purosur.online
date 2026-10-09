@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { TcpReceiptPrinter } from "./tcp-receipt-printer.js";
 import { FakeThermalPrinter } from "./test-support/fake-thermal-printer.js";
 import { ManualTimers } from "./test-support/manual-timers.js";
 import { ReceiptPrintObserver, settled } from "./test-support/receipt-print-watch.js";
 import { ScriptedSocket } from "./test-support/scripted-socket.js";
-import { TcpReceiptPrinter } from "./tcp-receipt-printer.js";
 
 const POLL_INTERVAL_MS = 500;
 const CONNECT_LIMIT_MS = 3000;
@@ -28,19 +28,23 @@ async function nextIoTurn(): Promise<void> {
 }
 
 describe("TcpReceiptPrinter against a printer on the network", () => {
-  const fake = new FakeThermalPrinter();
+  let fake: FakeThermalPrinter;
   let timers: ManualTimers;
   let observer: ReceiptPrintObserver;
   let printer: TcpReceiptPrinter;
 
   async function pollUntil(condition: () => boolean): Promise<void> {
     while (!condition()) {
+      const queriesBefore = fake.statusQueries;
       timers.fire(POLL_INTERVAL_MS);
+      await Promise.race([fake.whenStatusQueries(queriesBefore + 1), nextIoTurn()]);
+      await nextIoTurn();
       await nextIoTurn();
     }
   }
 
   beforeEach(async () => {
+    fake = new FakeThermalPrinter();
     await fake.listen();
     timers = new ManualTimers();
     observer = new ReceiptPrintObserver();
@@ -77,7 +81,7 @@ describe("TcpReceiptPrinter against a printer on the network", () => {
     fake.closeCover();
     expect(await ending).toEqual({ kind: "acknowledged" });
     expect(fake.printed).toEqual([RECEIPT]);
-    await pollUntil(() => observer.statuses.includes("ready") || fake.statusQueries > 2);
+    expect(timers.pending(POLL_INTERVAL_MS)).toBe(0);
     expect(fake.printed).toHaveLength(1);
   });
 
@@ -120,11 +124,13 @@ describe("TcpReceiptPrinter against a printer on the network", () => {
   it("reports not responding when the connection is refused, and sends the receipt once the printer accepts", async () => {
     await fake.refuseConnections();
     const ending = printer.print(RECEIPT, observer.watch);
+    const outcome = settled(ending);
 
     await pollUntil(() => observer.statuses.length >= 1);
     expect(observer.statuses).toEqual(["not_responding"]);
 
     await fake.listen();
+    await pollUntil(() => outcome.done);
     expect(await ending).toEqual({ kind: "acknowledged" });
     expect(fake.printed).toEqual([RECEIPT]);
   });
