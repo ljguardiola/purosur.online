@@ -1,4 +1,4 @@
-import { latestThreshold, thresholdInEffectOn, thresholdScheduledAfter } from "@purosur/domain";
+import { thresholdInEffectOn, thresholdScheduledAfter } from "@purosur/domain";
 import type {
   BuyerIdentificationThresholdOverview,
   BuyerIdentificationThresholdReader,
@@ -23,12 +23,12 @@ export class DrizzleBuyerIdentificationThresholdReader<TQueryResult extends PgQu
         id: buyerIdentificationThresholds.id,
         amount: buyerIdentificationThresholds.amount,
         validFrom: buyerIdentificationThresholds.validFrom,
+        revision: buyerIdentificationThresholds.revision,
       })
       .from(buyerIdentificationThresholds);
     return {
       inEffect: thresholdInEffectOn(thresholds, day),
       scheduled: thresholdScheduledAfter(thresholds, day),
-      latest: latestThreshold(thresholds),
     };
   }
 }

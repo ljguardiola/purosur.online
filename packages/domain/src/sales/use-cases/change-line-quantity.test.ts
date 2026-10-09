@@ -59,7 +59,7 @@ const THREE_FOR_TWO = {
   benefit: { kind: "BUY_N_PAY_M" as const, buyQty: 3, payQty: 2 },
 };
 
-const THRESHOLD = { id: "threshold-1", amount: 10_000_000, validFrom: "2026-01-01" };
+const THRESHOLD = { id: "threshold-1", amount: 10_000_000, validFrom: "2026-01-01", revision: 0 };
 
 function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
   return new FakeSaleLedger({

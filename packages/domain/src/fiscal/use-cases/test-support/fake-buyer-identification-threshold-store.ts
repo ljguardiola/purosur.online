@@ -1,4 +1,7 @@
-import type { BuyerIdentificationThreshold } from "../../model/buyer-identification-threshold.js";
+import {
+  type BuyerIdentificationThreshold,
+  thresholdInEffectOn,
+} from "../../model/buyer-identification-threshold.js";
 import type {
   BuyerIdentificationThresholdStore,
   BuyerIdentificationThresholdStoreTransaction,
@@ -20,14 +23,23 @@ class FakeTransaction implements BuyerIdentificationThresholdStoreTransaction {
     this.store = store;
   }
 
-  async lockLatestBuyerIdentificationThreshold(): Promise<
-    BuyerIdentificationThreshold | undefined
-  > {
-    this.store.operationOrder.push("lockLatestBuyerIdentificationThreshold");
-    const [latest] = [...this.state.thresholds].sort((a, b) =>
-      b.validFrom.localeCompare(a.validFrom),
+  async lockBuyerIdentificationThresholds(): Promise<void> {
+    this.store.operationOrder.push("lockBuyerIdentificationThresholds");
+  }
+
+  async readThresholdStartingOn(day: string): Promise<BuyerIdentificationThreshold | undefined> {
+    this.store.operationOrder.push("readThresholdStartingOn");
+    const current = thresholdInEffectOn(
+      this.state.thresholds.filter((threshold) => threshold.validFrom === day),
+      day,
     );
-    return latest && { ...latest };
+    return current && { ...current };
+  }
+
+  async readThresholdInEffectOn(day: string): Promise<BuyerIdentificationThreshold | undefined> {
+    this.store.operationOrder.push("readThresholdInEffectOn");
+    const inEffect = thresholdInEffectOn(this.state.thresholds, day);
+    return inEffect && { ...inEffect };
   }
 
   async recordBuyerIdentificationThreshold(
@@ -38,6 +50,7 @@ class FakeTransaction implements BuyerIdentificationThresholdStoreTransaction {
       id: `threshold-${this.state.nextId++}`,
       amount: threshold.amount,
       validFrom: threshold.validFrom,
+      revision: threshold.revision,
     };
     this.state.thresholds.push(recorded);
     this.state.audited.push({ ...threshold });

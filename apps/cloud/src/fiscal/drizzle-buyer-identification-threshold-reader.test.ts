@@ -38,17 +38,16 @@ async function insertActor(): Promise<string> {
 }
 
 describe("DrizzleBuyerIdentificationThresholdReader", () => {
-  it("answers nothing in effect, nothing scheduled and no latest while none was recorded", async () => {
+  it("answers nothing in effect and nothing scheduled while none was recorded", async () => {
     const reader = new DrizzleBuyerIdentificationThresholdReader(db);
 
     expect(await reader.readBuyerIdentificationThresholdOverview("2026-07-01")).toEqual({
       inEffect: undefined,
       scheduled: undefined,
-      latest: undefined,
     });
   });
 
-  it("answers the threshold in effect on the day, the next one scheduled and the one that starts last", async () => {
+  it("answers the threshold in effect on the day, and the next one scheduled", async () => {
     const actorId = await insertActor();
     await db.insert(buyerIdentificationThresholds).values([
       { amount: 2_000_000, validFrom: "2026-06-01", recordedBy: actorId },
@@ -61,9 +60,29 @@ describe("DrizzleBuyerIdentificationThresholdReader", () => {
     const overview = await reader.readBuyerIdentificationThresholdOverview("2026-07-01");
 
     expect(overview).toEqual({
-      inEffect: { id: expect.any(String), amount: 2_000_000, validFrom: "2026-06-01" },
-      scheduled: { id: expect.any(String), amount: 3_000_000, validFrom: "2026-08-01" },
-      latest: { id: expect.any(String), amount: 3_500_000_000, validFrom: "2026-10-01" },
+      inEffect: { id: expect.any(String), amount: 2_000_000, validFrom: "2026-06-01", revision: 0 },
+      scheduled: {
+        id: expect.any(String),
+        amount: 3_000_000,
+        validFrom: "2026-08-01",
+        revision: 0,
+      },
     });
+  });
+
+  it("answers the highest revision of a day, not the replaced rows", async () => {
+    const actorId = await insertActor();
+    await db.insert(buyerIdentificationThresholds).values([
+      { amount: 10_000_000, validFrom: "2026-06-01", revision: 1, recordedBy: actorId },
+      { amount: 10_000, validFrom: "2026-06-01", revision: 0, recordedBy: actorId },
+      { amount: 5_000, validFrom: "2026-08-01", revision: 0, recordedBy: actorId },
+      { amount: 6_000, validFrom: "2026-08-01", revision: 3, recordedBy: actorId },
+    ]);
+    const reader = new DrizzleBuyerIdentificationThresholdReader(db);
+
+    const overview = await reader.readBuyerIdentificationThresholdOverview("2026-07-01");
+
+    expect(overview.inEffect).toMatchObject({ amount: 10_000_000, revision: 1 });
+    expect(overview.scheduled).toMatchObject({ amount: 6_000, revision: 3 });
   });
 });

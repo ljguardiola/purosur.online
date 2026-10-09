@@ -14,6 +14,7 @@ import {
   productFormValues,
   productMessage,
   productRequestFrom,
+  reactivationBarcodeTakenError,
   saleUnitHeldByDiscountError,
   saleUnitMessage,
   tagInactiveError,
@@ -258,6 +259,26 @@ describe("saleUnitHeldByDiscountError", () => {
   it("names the discount that keeps the product sold by the unit", () => {
     expect(saleUnitHeldByDiscountError("3x2 Yerba")).toBe(
       'No se puede vender por peso mientras la promoción "3x2 Yerba" no esté desactivada o terminada.',
+    );
+  });
+});
+
+describe("reactivationBarcodeTakenError", () => {
+  it("names the one taken code and advises changing it or deactivating the product using it", () => {
+    expect(reactivationBarcodeTakenError(["7790987000022"])).toBe(
+      "El código 7790987000022 ya es de otro producto. Cambiá ese código en este producto o desactivá el producto que lo usa, y volvé a intentarlo.",
+    );
+  });
+
+  it("names every taken code and advises in the plural", () => {
+    expect(reactivationBarcodeTakenError(["7790987000022", "7790987000039"])).toBe(
+      "Los códigos 7790987000022, 7790987000039 ya son de otro producto. Cambiá esos códigos en este producto o desactivá los productos que los usan, y volvé a intentarlo.",
+    );
+  });
+
+  it("asks to review the product's codes when the cloud names none", () => {
+    expect(reactivationBarcodeTakenError([])).toBe(
+      "Alguno de los códigos ya es de otro producto. Revisá los códigos de este producto y volvé a intentarlo.",
     );
   });
 });

@@ -17,7 +17,26 @@ describe("buyerIdentificationThresholdRecordBodySchema", () => {
         amount: 1_000_000,
         valid_from: "2026-10-01",
       }),
-    ).toEqual({ amount: 1_000_000, valid_from: "2026-10-01" });
+    ).toEqual({ amount: 1_000_000, valid_from: "2026-10-01", confirm_lower_than_in_effect: false });
+  });
+
+  it("carries the confirmation of a lower amount than the one in effect", () => {
+    expect(
+      buyerIdentificationThresholdRecordBodySchema.parse({
+        amount: 10_000,
+        valid_from: "2026-10-01",
+        confirm_lower_than_in_effect: true,
+      }),
+    ).toEqual({ amount: 10_000, valid_from: "2026-10-01", confirm_lower_than_in_effect: true });
+  });
+
+  it.each([
+    ["text", "yes"],
+    ["a number", 1],
+  ])("refuses a confirmation that is %s, naming the field", (_case, confirm) => {
+    expect(
+      failure({ amount: 100, valid_from: "2026-10-01", confirm_lower_than_in_effect: confirm }),
+    ).toMatchObject({ field: "confirm_lower_than_in_effect" });
   });
 
   it.each([
