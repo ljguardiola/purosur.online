@@ -9,8 +9,11 @@ import {
   EmptyState,
   formatDate,
   InlineNotice,
+  isLocalAlertKind,
   LoadFailure,
   LoadingPlaceholder,
+  LocalAlertExplanation,
+  localAlertText,
   Modal,
   plural,
   StatusIndicator,
@@ -50,7 +53,6 @@ import {
   useRefreshAlerts,
   useRefreshAlertsAfterClosing,
 } from "./alerts-queries";
-import { localAlertText } from "./local-alert-text";
 import {
   invariantViolationDescription,
   quarantinedEventDescription,
@@ -334,7 +336,6 @@ const REJECTION_CLASS_LABELS = {
 };
 
 function AlertDescription({ alert }: { alert: AlertDetail }) {
-  const local = localTextOf(alert);
   if (alert.kind === "fiscal_rejected") {
     return (
       <>
@@ -350,18 +351,10 @@ function AlertDescription({ alert }: { alert: AlertDetail }) {
       </>
     );
   }
-  if (local === undefined) {
+  if (alert.audience !== "local" || !isLocalAlertKind(alert.kind)) {
     return <p className="text-text text-body">{alertDescription(alert)}</p>;
   }
-  return (
-    <>
-      <p className="text-text text-body">{local.meaning}</p>
-      <div className="flex flex-col gap-1">
-        <p className="font-bold text-text text-detail">Qué hacer</p>
-        <p className="text-text text-body">{local.whatToDo}</p>
-      </div>
-    </>
-  );
+  return <LocalAlertExplanation kind={alert.kind} />;
 }
 
 export function AlertDetailModal(props: AlertDetailModalProps) {

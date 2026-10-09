@@ -2,16 +2,9 @@ import type { CashBalance, CashCountPreview, CloseCashSessionOutcome } from "@pu
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import type { SignedInPerson } from "../shell/signed-in-person";
 import { render } from "../shell/test-support/render-with-router";
 import { CashCountScreen } from "./cash-count-screen";
 
-const ADA: SignedInPerson = {
-  user_id: "u1",
-  first_name: "Ada",
-  abilities: ["open_cash_session"],
-};
-const OPENED_AT = "2026-09-30T09:02:00.000-03:00";
 const BALANCE: CashBalance = {
   opening_float: { amount: 2_000_000, direction: "in" },
   cash_sales: { amount: 3_500_000, direction: "in" },
@@ -54,7 +47,6 @@ const answerPreview: LoadCashCountPreview = async (countedCash) => {
 
 async function renderScreen(
   props: {
-    person?: SignedInPerson;
     loadCashBalance?: () => Promise<CashBalance | null | "unavailable">;
     loadCashCountPreview?: LoadCashCountPreview;
     closeCashSession?: CloseCashSession;
@@ -66,9 +58,7 @@ async function renderScreen(
   const screen = await render(
     <CashCountScreen
       sessionId="s1"
-      person={props.person ?? ADA}
       registerName="Caja 1"
-      openedAt={OPENED_AT}
       lock={() => {}}
       loadCashBalance={props.loadCashBalance ?? (async () => BALANCE)}
       loadCashCountPreview={props.loadCashCountPreview ?? answerPreview}
@@ -113,7 +103,7 @@ describe("CashCountScreen", () => {
       .toBeVisible();
     await expect.element(screen.getByRole("textbox", { name: "Efectivo contado" })).toHaveValue("");
     await expect.element(screen.getByText("$", { exact: true })).toBeVisible();
-    await expect.element(screen.getByText("Caja 1 · Sesión abierta 09:02")).toBeVisible();
+    await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
   });
 
@@ -384,9 +374,7 @@ describe("CashCountScreen", () => {
     const screen = await render(
       <CashCountScreen
         sessionId="s1"
-        person={ADA}
         registerName={null}
-        openedAt={OPENED_AT}
         lock={() => {}}
         loadCashBalance={() => new Promise(() => {})}
         loadCashCountPreview={answerPreview}

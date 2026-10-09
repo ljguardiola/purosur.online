@@ -48,6 +48,8 @@ export type { LoadFailureProps, LoadFailureVariant } from "./components/feedback
 export { LoadFailure } from "./components/feedback/load-failure";
 export type { LoadingPlaceholderProps } from "./components/feedback/loading-placeholder";
 export { LoadingPlaceholder } from "./components/feedback/loading-placeholder";
+export type { LocalAlertExplanationProps } from "./components/feedback/local-alert-explanation";
+export { LocalAlertExplanation } from "./components/feedback/local-alert-explanation";
 export type { NotificationCardProps } from "./components/feedback/notification-card";
 export { NotificationCard } from "./components/feedback/notification-card";
 export type { StatusIndicatorProps } from "./components/feedback/status-indicator";
@@ -168,6 +170,8 @@ export type {
   HelpCatalog,
 } from "./messages/help";
 export { defineHelp } from "./messages/help";
+export type { LocalAlertKind, LocalAlertText } from "./messages/local-alert-texts";
+export { isLocalAlertKind, localAlertText } from "./messages/local-alert-texts";
 export type { LocaleProviderProps } from "./messages/locale-provider";
 export { LocaleProvider } from "./messages/locale-provider";
 export { parseAmountCents, parseEsArNumber } from "./messages/parsers";

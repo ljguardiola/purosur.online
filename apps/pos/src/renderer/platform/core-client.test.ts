@@ -362,6 +362,30 @@ describe("createCoreClient", () => {
     expect(await asked).toBe("unavailable");
   });
 
+  it("asks the core for the register's status and resolves with it", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const status = { conditions: ["sales_denied", "register_silent"], cloud: "unreachable" };
+
+    const asked = client.registerStatus();
+    port.answer({ type: "register-status", request_id: "request-1", status });
+
+    expect(await asked).toEqual(status);
+    expect(port.posted).toEqual([{ type: "register-status-request", request_id: "request-1" }]);
+  });
+
+  it("resolves that the register's status is unavailable when the core cannot read it", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.registerStatus();
+    port.answer({ type: "register-status-unavailable", request_id: "request-1" });
+
+    expect(await asked).toBe("unavailable");
+  });
+
   it("asks the core to record a cash movement with its authorization and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

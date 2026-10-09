@@ -6,7 +6,6 @@ import { render } from "../shell/test-support/render-with-router";
 import type { IdentifiedCloser, ReturnedCloser } from "./locked-closer-identification";
 import { LockedCloserIdentification } from "./locked-closer-identification";
 
-const OPENED_AT = "2026-09-30T09:02:00.000-03:00";
 const CLOSERS: SignInUser[] = [{ id: "u3", first_name: "Sofía" }];
 
 type Identify = (closer: Authorization) => Promise<IdentifyLockedCloserOutcome>;
@@ -29,7 +28,6 @@ async function renderStep(
     <LockedCloserIdentification
       sessionId="s1"
       registerName="Caja 1"
-      openedAt={OPENED_AT}
       loadClosers={options.loadClosers ?? (async () => CLOSERS)}
       identify={identify}
       returned={options.returned}
@@ -54,7 +52,7 @@ describe("LockedCloserIdentification", () => {
     await expect
       .element(screen.getByRole("heading", { name: "¿Quién cierra la caja?" }))
       .toBeVisible();
-    await expect.element(screen.getByText("Caja 1 · Sesión abierta 09:02")).toBeVisible();
+    await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
     await expect.element(screen.getByRole("radio", { name: "Sofía" })).toBeVisible();
     expect(screen.getByRole("radio").elements()).toHaveLength(1);
     await expectNoAccessibilityViolations(screen.container);

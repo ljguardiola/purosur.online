@@ -1,6 +1,4 @@
-import type { AlertKind } from "@purosur/domain";
-
-interface LocalAlertText {
+export interface LocalAlertText {
   title: string;
   meaning: string;
   whatToDo: string;
@@ -21,10 +19,14 @@ const LOCAL_ALERT_TEXTS = {
     whatToDo:
       "Avisar al Administrador de inmediato; ya fue notificado, pero conviene confirmarle la situación.",
   },
-} satisfies Partial<Record<AlertKind, LocalAlertText>>;
+} satisfies Record<string, LocalAlertText>;
+
+export type LocalAlertKind = keyof typeof LOCAL_ALERT_TEXTS;
+
+export function isLocalAlertKind(value: string): value is LocalAlertKind {
+  return Object.hasOwn(LOCAL_ALERT_TEXTS, value);
+}
 
 export function localAlertText(kind: string): LocalAlertText | undefined {
-  return Object.hasOwn(LOCAL_ALERT_TEXTS, kind)
-    ? LOCAL_ALERT_TEXTS[kind as keyof typeof LOCAL_ALERT_TEXTS]
-    : undefined;
+  return isLocalAlertKind(kind) ? LOCAL_ALERT_TEXTS[kind] : undefined;
 }

@@ -28,6 +28,7 @@ import type {
   RecordCashMovementRequest,
   RegisterCoreToRendererMessage,
   RegisterRendererToCoreMessage,
+  RegisterStatus,
   RemoveSaleLineOutcome,
   SalesCoreToRendererMessage,
   SalesRendererToCoreMessage,
@@ -101,6 +102,7 @@ export interface CoreClient {
   signOut(): Promise<void>;
   openCashSession(openingFloat: number): Promise<OpenCashSessionOutcome>;
   cashSession(): Promise<OpenCashSession | null | "unavailable">;
+  registerStatus(): Promise<RegisterStatus | "unavailable">;
   recordCashMovement(input: CashMovementInput): Promise<RecordCashMovementOutcome>;
   cashMovements(): Promise<ListedCashMovement[] | null | "unavailable">;
   cashMovementKinds(): Promise<RecordableCashMovementKinds | null | "unavailable">;
@@ -338,6 +340,17 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
             return "unavailable";
           }
           return answer.type === "cash-session" ? answer.session : undefined;
+        },
+      );
+    },
+    registerStatus() {
+      return ask(
+        { type: "register-status-request", request_id: deps.newRequestId() },
+        (answer): RegisterStatus | "unavailable" | undefined => {
+          if (answer.type === "register-status-unavailable") {
+            return "unavailable";
+          }
+          return answer.type === "register-status" ? answer.status : undefined;
         },
       );
     },

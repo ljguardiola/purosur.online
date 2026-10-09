@@ -12,6 +12,7 @@ import {
   pushToCloud,
   pushWarningOf,
 } from "./push-to-cloud";
+import { SqliteAcceptedPushLog } from "./sqlite-accepted-push-log";
 import { SqliteLocalInstallation } from "./sqlite-local-installation";
 import { SqliteLocalOutbox } from "./sqlite-local-outbox";
 import { SqliteLocalReplica } from "./sqlite-local-replica";
@@ -331,5 +332,67 @@ describe("a push the cloud refuses for asking too often", () => {
     expect(register.acknowledged()).toEqual([]);
     expect(register.revokedAt()).toBeNull();
     expect(syncStateOf(register.database)).toEqual(syncStateBefore);
+  });
+});
+
+describe("the instant a push was last accepted", () => {
+  const ACCEPTED_AT = new Date("2026-10-05T15:00:00.000Z");
+
+  function recordingInto(register: ReturnType<typeof registerWithEvents>) {
+    const log = new SqliteAcceptedPushLog(register.database);
+    return { log, acceptedPush: { log, clock: { now: () => ACCEPTED_AT } } };
+  }
+
+  it("is recorded when the cloud received the push", async () => {
+    const register = registerWithEvents(2);
+    const { post } = cloudAnswering(acknowledgingEverything);
+    const { log, acceptedPush } = recordingInto(register);
+
+    await pushToCloud(depsFor(register, post, { acceptedPush }));
+
+    expect(log.lastAcceptedPushAt()).toEqual(ACCEPTED_AT);
+  });
+
+  it("is recorded when the cloud received a report with no events", async () => {
+    const register = registerWithEvents(0);
+    const { post } = cloudAnswering(acknowledgingEverything);
+    const { log, acceptedPush } = recordingInto(register);
+
+    await pushToCloud(depsFor(register, post, { acceptedPush }));
+
+    expect(log.lastAcceptedPushAt()).toEqual(ACCEPTED_AT);
+  });
+
+  it("is not recorded without a log to record it in", async () => {
+    const register = registerWithEvents(2);
+    const { post } = cloudAnswering(acknowledgingEverything);
+
+    const attempt = await pushToCloud(depsFor(register, post, { acceptedPush: undefined }));
+
+    expect(attempt).toEqual({ kind: "pushed", ackSeq: 2 });
+    expect(new SqliteAcceptedPushLog(register.database).lastAcceptedPushAt()).toBeNull();
+  });
+
+  it("is not recorded when the cloud can't be reached", async () => {
+    const register = registerWithEvents(2);
+    const { post } = cloudAnswering(() => ({ kind: "unreachable" }));
+    const { log, acceptedPush } = recordingInto(register);
+
+    await pushToCloud(depsFor(register, post, { acceptedPush }));
+
+    expect(log.lastAcceptedPushAt()).toBeNull();
+  });
+
+  it("is not recorded when the cloud refuses the push", async () => {
+    const register = registerWithEvents(2);
+    const { post } = cloudAnswering(() => ({
+      kind: "error",
+      error: cloudError("revoked", "this installation was revoked"),
+    }));
+    const { log, acceptedPush } = recordingInto(register);
+
+    await pushToCloud(depsFor(register, post, { acceptedPush }));
+
+    expect(log.lastAcceptedPushAt()).toBeNull();
   });
 });

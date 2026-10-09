@@ -19,7 +19,7 @@ function BrandPanelFooter({ status }: { status: string }) {
 
 export function BrandPanelScreen({ children, status }: { children?: ReactNode; status?: string }) {
   return (
-    <div className="flex h-screen w-screen bg-surface">
+    <div className="flex h-full w-full bg-surface">
       <div className="flex w-2/5 min-w-80 flex-col bg-surface-soft p-8">
         <div className="flex flex-1 items-center justify-center">
           <PuroSurLogo className="h-41 w-105 object-contain" />

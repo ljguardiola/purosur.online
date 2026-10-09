@@ -53,7 +53,6 @@ async function renderScreen(
       sessionId="s1"
       opener={GRACE}
       registerName="Caja 1"
-      openedAt="2026-09-30T09:02:00.000-03:00"
       loadCashBalance={loadCashBalance}
       loadCashCountPreview={loadCashCountPreview}
       loadOpenSale={options.loadOpenSale ?? (async () => null)}
@@ -90,7 +89,6 @@ describe("LockedCloseScreen", () => {
         sessionId="s1"
         opener={GRACE}
         registerName="Caja 1"
-        openedAt="2026-09-30T09:02:00.000-03:00"
         loadCashBalance={async () => BALANCE}
         loadCashCountPreview={async () => null}
         loadOpenSale={async () => null}

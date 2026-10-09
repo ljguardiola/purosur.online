@@ -1,11 +1,14 @@
 import type { DeviceCredentials } from "@purosur/contracts";
 import type { RegisterTelemetry } from "@purosur/domain";
 import {
+  type AcceptedPushLog,
+  type Clock,
   type LocalInstallation,
   type LocalOutbox,
   type PushOutboxOutcome,
   pushOutbox,
 } from "@purosur/domain/sync/use-cases";
+import { AcceptedPushRecordingInbox } from "./accepted-push-recording-inbox";
 import { CloudEventInbox, type PostToCloudWithBearer } from "./cloud-event-inbox";
 import { type CloudFailure, retryAfterMsOf } from "./cloud-failure";
 import type { SyncResult } from "./sync-schedule";
@@ -18,6 +21,7 @@ export interface PushToCloudDeps {
   post: PostToCloudWithBearer | undefined;
   appVersion: string | undefined;
   readTelemetry: (() => Promise<RegisterTelemetry>) | undefined;
+  acceptedPush?: { log: AcceptedPushLog; clock: Clock } | undefined;
 }
 
 export type PushAttempt =
@@ -43,15 +47,19 @@ export async function pushToCloud(deps: PushToCloudDeps): Promise<PushAttempt> {
     return { kind: "not_enrolled" };
   }
   deps.adoptDevice({ deviceId: credentials.device_id, pepper: credentials.pepper });
+  const cloudInbox = new CloudEventInbox({
+    post,
+    deviceToken: credentials.device_token,
+    appVersion,
+    readTelemetry,
+  });
   return pushOutbox({
     outbox,
     installation,
-    inbox: new CloudEventInbox({
-      post,
-      deviceToken: credentials.device_token,
-      appVersion,
-      readTelemetry,
-    }),
+    inbox:
+      deps.acceptedPush === undefined
+        ? cloudInbox
+        : new AcceptedPushRecordingInbox({ inbox: cloudInbox, ...deps.acceptedPush }),
   });
 }
 

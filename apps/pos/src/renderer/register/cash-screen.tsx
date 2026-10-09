@@ -12,7 +12,6 @@ import { Lock, Plus } from "lucide-react";
 import { useState } from "react";
 import type { CashMovementInput } from "../platform/core-client";
 import { OpenSessionRail } from "../shell/open-session-rail";
-import { sessionEyebrow } from "../shell/session-eyebrow";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { CashMovementsTable } from "./cash-movements-table";
 import { ExpectedCashPanel } from "./expected-cash-panel";
@@ -50,18 +49,10 @@ export function CashScreen({
   const [recording, setRecording] = useState(false);
 
   return (
-    <div className="flex h-screen w-screen bg-surface">
-      <OpenSessionRail
-        firstName={person.first_name}
-        registerName={registerName}
-        lock={lock}
-        current="cash"
-      />
+    <div className="flex h-full w-full bg-surface">
+      <OpenSessionRail registerName={registerName} lock={lock} current="cash" />
       <main className="flex flex-1 flex-col gap-6 p-8">
-        <ScreenHeader
-          eyebrow={sessionEyebrow(registerName, openedAt)}
-          title="Movimientos de efectivo"
-        />
+        <ScreenHeader eyebrow={registerName ?? undefined} title="Movimientos de efectivo" />
         <CashMovementsTable state={movements} />
       </main>
       <ExpectedCashPanel eyebrow="EFECTIVO ESPERADO AHORA" balance={balance}>

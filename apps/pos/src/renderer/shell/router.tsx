@@ -23,6 +23,7 @@ import type {
   PinPolicy,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
+  RegisterStatus,
   RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
@@ -64,6 +65,7 @@ import { ACTION_ENTRIES } from "./action-entries";
 import { BrandPanelScreen } from "./brand-panel-screen";
 import { CoreDownNotice } from "./core-down-notice";
 import type { SignedInPerson } from "./signed-in-person";
+import { StatusBarLayout } from "./status-bar-layout";
 
 export type CoreStatus = CoreStatusMessage["status"];
 
@@ -104,6 +106,7 @@ export interface RouterContext {
   sessionOpenSale: () => Promise<SessionOpenSale | null | "unavailable">;
   cashMovements: () => Promise<ListedCashMovement[] | null | "unavailable">;
   cashMovementKinds: () => Promise<RecordableCashMovementKinds | null | "unavailable">;
+  registerStatus: () => Promise<RegisterStatus | "unavailable">;
   recordCashMovement: (input: CashMovementInput) => Promise<RecordCashMovementOutcome>;
   redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
   pinPolicy: () => Promise<PinPolicy>;
@@ -218,8 +221,16 @@ function requireLockedRegister(context: RouterContext) {
   return context.cashSession;
 }
 
+function RootScreen() {
+  return (
+    <div className="h-screen w-screen">
+      <Outlet />
+    </div>
+  );
+}
+
 const rootRoute = createRootRouteWithContext<RouterContext>()({
-  component: Outlet,
+  component: RootScreen,
 });
 
 function useRegisterName() {
@@ -238,8 +249,19 @@ const sessionEyebrowRoute = createRoute({
   component: Outlet,
 });
 
-const signedInRoute = createRoute({
+const statusBarRoute = createRoute({
   getParentRoute: () => sessionEyebrowRoute,
+  id: "status-bar",
+  component: function StatusBarRoute() {
+    const { person, cashSession, registerStatus } = statusBarRoute.useRouteContext();
+    return (
+      <StatusBarLayout person={person} cashSession={cashSession} readStatus={registerStatus} />
+    );
+  },
+});
+
+const signedInRoute = createRoute({
+  getParentRoute: () => statusBarRoute,
   path: "/",
   beforeLoad: ({ context }) => ({ person: requireSignedInPerson(context) }),
   component: function SignedInRoute() {
@@ -258,16 +280,15 @@ const signedInRoute = createRoute({
 });
 
 const openSessionRoute = createRoute({
-  getParentRoute: () => sessionEyebrowRoute,
+  getParentRoute: () => statusBarRoute,
   path: "/session",
   beforeLoad: ({ context }) => {
-    const { id, openedAt, person } = requireOpenSession(context);
-    return { id, openedAt, person };
+    const { id, person } = requireOpenSession(context);
+    return { id, person };
   },
   component: function OpenSessionRoute() {
     const {
       id,
-      openedAt,
       person,
       signOut,
       currentSale,
@@ -287,7 +308,6 @@ const openSessionRoute = createRoute({
         sessionId={id}
         person={person}
         registerName={registerName}
-        openedAt={openedAt}
         lock={signOut}
         currentSale={currentSale}
         scanProduct={scanProduct}
@@ -305,7 +325,7 @@ const openSessionRoute = createRoute({
 });
 
 const chargeRoute = createRoute({
-  getParentRoute: () => sessionEyebrowRoute,
+  getParentRoute: () => statusBarRoute,
   path: "/charge",
   beforeLoad: ({ context }) => {
     const { id, person } = requireOpenSession(context);
@@ -340,7 +360,7 @@ const chargeRoute = createRoute({
 });
 
 const cashRoute = createRoute({
-  getParentRoute: () => sessionEyebrowRoute,
+  getParentRoute: () => statusBarRoute,
   path: "/cash",
   beforeLoad: ({ context }) => {
     const { id, openedAt, person } = requireOpenSession(context);
@@ -377,24 +397,22 @@ const cashRoute = createRoute({
 });
 
 const cashCountRoute = createRoute({
-  getParentRoute: () => sessionEyebrowRoute,
+  getParentRoute: () => statusBarRoute,
   path: "/cash-count",
   validateSearch: (search: { leaving?: unknown }) => ({ leaving: search.leaving === true }),
   beforeLoad: ({ context }) => {
-    const { id, openedAt, person } = requireOpenSession(context);
-    return { id, openedAt, person };
+    const { id, person } = requireOpenSession(context);
+    return { id, person };
   },
   component: function CashCountRoute() {
-    const { id, openedAt, person, signOut, cashBalance, cashCountPreview, closeCashSession } =
+    const { id, person, signOut, cashBalance, cashCountPreview, closeCashSession } =
       cashCountRoute.useRouteContext();
     const registerName = useRegisterName();
     const { leaving } = cashCountRoute.useSearch();
     return (
       <CashCountScreen
         sessionId={id}
-        person={person}
         registerName={registerName}
-        openedAt={openedAt}
         lock={signOut}
         loadCashBalance={cashBalance}
         loadCashCountPreview={cashCountPreview}
@@ -405,37 +423,29 @@ const cashCountRoute = createRoute({
 });
 
 const lockedRoute = createRoute({
-  getParentRoute: () => sessionEyebrowRoute,
+  getParentRoute: () => statusBarRoute,
   path: "/locked",
   beforeLoad: ({ context }) => {
-    const { openedAt, openedBy } = requireLockedRegister(context);
-    return { openedAt, openedBy };
+    const { openedBy } = requireLockedRegister(context);
+    return { openedBy };
   },
   component: function LockedRoute() {
-    const { openedAt, openedBy, signIn } = lockedRoute.useRouteContext();
+    const { openedBy, signIn } = lockedRoute.useRouteContext();
     const registerName = useRegisterName();
-    return (
-      <LockedRegisterScreen
-        opener={openedBy}
-        registerName={registerName}
-        openedAt={openedAt}
-        signIn={signIn}
-      />
-    );
+    return <LockedRegisterScreen opener={openedBy} registerName={registerName} signIn={signIn} />;
   },
 });
 
 const lockedCloseRoute = createRoute({
-  getParentRoute: () => sessionEyebrowRoute,
+  getParentRoute: () => statusBarRoute,
   path: "/locked-close",
   beforeLoad: ({ context }) => {
-    const { id, openedAt, openedBy } = requireLockedRegister(context);
-    return { id, openedAt, openedBy };
+    const { id, openedBy } = requireLockedRegister(context);
+    return { id, openedBy };
   },
   component: function LockedCloseRoute() {
     const {
       id,
-      openedAt,
       openedBy,
       cashBalance,
       cashCountPreview,
@@ -451,7 +461,6 @@ const lockedCloseRoute = createRoute({
         sessionId={id}
         opener={openedBy}
         registerName={registerName}
-        openedAt={openedAt}
         loadCashBalance={cashBalance}
         loadCashCountPreview={cashCountPreview}
         loadOpenSale={sessionOpenSale}
@@ -564,14 +573,16 @@ const outOfServiceRoute = createRoute({
 
 export const routeTree = rootRoute.addChildren([
   sessionEyebrowRoute.addChildren([
-    signedInRoute,
+    statusBarRoute.addChildren([
+      signedInRoute,
+      openSessionRoute,
+      chargeRoute,
+      cashRoute,
+      cashCountRoute,
+      lockedRoute,
+      lockedCloseRoute,
+    ]),
     signInRoute,
-    openSessionRoute,
-    chargeRoute,
-    cashRoute,
-    cashCountRoute,
-    lockedRoute,
-    lockedCloseRoute,
   ]),
   pinCodeRedemptionRoute,
   firstSignInRoute,
@@ -613,6 +624,7 @@ export function createAppRouter(
     | "sessionOpenSale"
     | "cashMovements"
     | "cashMovementKinds"
+    | "registerStatus"
     | "recordCashMovement"
     | "authorizers"
     | "lockedClosers"

@@ -27,26 +27,26 @@ describe("SaleScreen", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("names the register and when the session opened in the eyebrow", async () => {
+  it("names the register in the eyebrow", async () => {
     const { screen } = await renderScreen();
 
-    await expect.element(screen.getByText("Caja 1 · Sesión abierta 09:02")).toBeVisible();
+    await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
   });
 
   it("leaves the register's name out of the eyebrow while it isn't known", async () => {
     const { screen } = await renderScreen({ registerName: null });
 
-    await expect.element(screen.getByText("Sesión abierta 09:02", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText(/Sesión abierta/)).not.toBeInTheDocument();
   });
 
-  it("offers Venta, Caja and the first name of the person who opened, and a way out", async () => {
+  it("offers Venta, Caja and a way out", async () => {
     const { screen } = await renderScreen();
 
     const rail = screen.getByRole("navigation", { name: "Menú de la caja" }).element();
 
     const items = Array.from(rail.querySelectorAll("button, a")).map((item) => item.textContent);
     expect(items).toEqual(["Venta", "Caja", "Salir"]);
-    await expect.element(screen.getByText("Ada")).toBeVisible();
+    await expect.element(screen.getByText("Ada")).not.toBeInTheDocument();
     expect(screen.container.textContent).not.toContain("sell_and_charge");
   });
 
