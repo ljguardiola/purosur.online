@@ -85,7 +85,13 @@ class FakeRecoveryTokenStoreTransaction implements RecoveryTokenStoreTransaction
   async issueToken(token: NewRecoveryToken): Promise<IssuedRecoveryToken> {
     this.beforeWrite("issueToken");
     const id = `token-${this.state.tokens.length + 1}`;
-    this.state.tokens.push({ ...structuredClone(token), id, usedAt: null, voidedAt: null, sentAt: null });
+    this.state.tokens.push({
+      ...structuredClone(token),
+      id,
+      usedAt: null,
+      voidedAt: null,
+      sentAt: null,
+    });
     return { id, issuedAt: token.issuedAt, expiresAt: token.expiresAt };
   }
 

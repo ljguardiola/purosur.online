@@ -51,4 +51,5 @@ export interface RecoveryTokenStoreTransaction {
   issueToken(token: NewRecoveryToken): Promise<IssuedRecoveryToken>;
   recordIssuedToken(userId: string, token: IssuedRecoveryToken, requestedAt: Date): Promise<void>;
   openRecoveryRequestedAlert(alert: RecoveryRequestedAlert): Promise<void>;
+  markRecoveryLinkSent(tokenId: string, sentAt: Date): Promise<void>;
 }

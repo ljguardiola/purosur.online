@@ -28,7 +28,10 @@ describe("recordRecoveryLinkSent", () => {
     store.seedToken(storedToken("token-1"));
     store.seedToken(storedToken("token-2"));
 
-    const outcome = await recordRecoveryLinkSent({ store }, { tokenId: "token-1", sentAt: SENT_AT });
+    const outcome = await recordRecoveryLinkSent(
+      { store },
+      { tokenId: "token-1", sentAt: SENT_AT },
+    );
 
     expect(outcome).toEqual({ kind: "recorded" });
     const [first, second] = store.snapshot().tokens;

@@ -25,14 +25,22 @@ export function recoveryTokenStatus(token: RecoveryTokenState, at: Date): Recove
 export interface RecoveryRequest {
   requestId: string;
   requestedAt: Date;
+  sentAt: Date | null;
 }
 
 export function supersedesRecoveryRequest(
-  other: RecoveryRequest,
-  request: RecoveryRequest,
+  other: Pick<RecoveryRequest, "requestId" | "requestedAt">,
+  request: Pick<RecoveryRequest, "requestId" | "requestedAt">,
 ): boolean {
   return (
     other.requestId !== request.requestId &&
     other.requestedAt.getTime() >= request.requestedAt.getTime()
   );
+}
+
+export function wasRecoveryRequestServed(
+  requests: readonly Pick<RecoveryRequest, "requestId" | "sentAt">[],
+  requestId: string,
+): boolean {
+  return requests.some((stored) => stored.requestId === requestId && stored.sentAt !== null);
 }
