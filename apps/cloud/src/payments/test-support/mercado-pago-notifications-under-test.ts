@@ -1,5 +1,5 @@
 import type { MercadoPagoOrders } from "@purosur/domain/payments/use-cases";
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, { type FastifyInstance, type LightMyRequestResponse } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach } from "vitest";
 import { registerRouteAccess } from "../../sessions/route-access.js";
 import { buildTestDatabase, type TestDatabase } from "../../test-support/build-test-database.js";
@@ -29,7 +29,7 @@ export interface MercadoPagoNotificationRoutesUnderTest {
     mercadoPago?: MercadoPagoOrders | undefined;
     webhookSecret?: string | undefined;
   }): Promise<void>;
-  notify(request?: NotificationRequest): ReturnType<FastifyInstance["inject"]>;
+  notify(request?: NotificationRequest): Promise<LightMyRequestResponse>;
 }
 
 export function mercadoPagoNotificationRoutesUnderTest(): MercadoPagoNotificationRoutesUnderTest {
