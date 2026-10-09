@@ -5,13 +5,13 @@ import type { LinePromotion } from "./sale.js";
 
 type PaymentMethod = CompletedSalePayment["method"];
 
-export interface ReceiptHeader {
+interface ReceiptHeader {
   address: string;
   whatsappNumber: string;
   instagramHandle: string;
 }
 
-export interface ReceiptSourceLine {
+interface ReceiptSourceLine {
   productName: string;
   saleUnit: SaleUnit;
   quantity: number;
@@ -22,7 +22,7 @@ export interface ReceiptSourceLine {
   lineTotal: number;
 }
 
-export interface ReceiptSourcePayment {
+interface ReceiptSourcePayment {
   method: PaymentMethod;
   amount: number;
   tendered: number | null;
@@ -37,7 +37,7 @@ export interface ReceiptSource {
   payments: ReceiptSourcePayment[];
 }
 
-export interface ReceiptContentLine {
+interface ReceiptContentLine {
   productName: string;
   saleUnit: SaleUnit;
   quantity: number;

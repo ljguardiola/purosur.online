@@ -8,10 +8,10 @@ import { FakeReceiptPrinter } from "./fake-receipt-printer.js";
 import { FakeReceiptTemplate } from "./fake-receipt-template.js";
 import { SequentialIds } from "./fake-sale-ledger.js";
 
-export const SALE_COMPLETED_AT = new Date("2026-10-07T15:00:00.000Z");
+const SALE_COMPLETED_AT = new Date("2026-10-07T15:00:00.000Z");
 export const FIRST_PRINT_AT = new Date("2026-10-07T15:01:00.000Z");
 export const ACKNOWLEDGED_AT = new Date("2026-10-07T15:01:03.000Z");
-export const OWN_GRANT: ReceiptPrintGrant = { actorId: "cashier", authorizedBy: undefined };
+const OWN_GRANT: ReceiptPrintGrant = { actorId: "cashier", authorizedBy: undefined };
 export const AUTHORIZED_GRANT: ReceiptPrintGrant = {
   actorId: "cashier",
   authorizedBy: "supervisor",
