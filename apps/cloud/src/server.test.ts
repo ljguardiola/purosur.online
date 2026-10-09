@@ -714,6 +714,7 @@ describe("startServer", () => {
     const close = vi.fn().mockResolvedValue(undefined);
     const fakeRecovery = {
       db: { marker: "fake-db" },
+      connections: { withConnection: vi.fn() },
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
       backofficeOrigin: "https://staging.purosur.online",
       worker: { stop: vi.fn() },
@@ -865,6 +866,7 @@ describe("startServer", () => {
         db: fakeRecovery.db,
         certificateFingerprint: new X509Certificate(VALID_ARCA_CERTIFICATE).fingerprint256,
       },
+      mercadoPagoQr: { connections: fakeRecovery.connections },
     });
 
     await fakeApp.close();
