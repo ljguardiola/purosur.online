@@ -47,7 +47,7 @@ describe("the threshold-revisions migration applied over a database that already
     await applyMigration();
 
     const { rows } = await client.query(
-      "select amount, valid_from, revision from buyer_identification_thresholds order by valid_from",
+      "select amount, valid_from::text as valid_from, revision from buyer_identification_thresholds order by valid_from",
     );
     expect(rows).toEqual([
       { amount: 1_000_000, valid_from: "2026-01-01", revision: 0 },

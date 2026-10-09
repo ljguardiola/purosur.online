@@ -38,7 +38,7 @@ export function registerBuyerIdentificationThresholdsListRoute<
         buyerIdentificationThresholdOverviewSchema.parse({
           in_effect: wireThreshold(overview.inEffect),
           scheduled: wireThreshold(overview.scheduled),
-          latest_valid_from: overview.latest?.validFrom ?? null,
+          earliest_valid_from: argentinaCalendarDay(now()),
         }),
       );
     },

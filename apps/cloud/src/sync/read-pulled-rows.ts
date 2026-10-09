@@ -343,6 +343,7 @@ export async function readBuyerIdentificationThresholds<TQueryResult extends PgQ
       id: buyerIdentificationThresholds.id,
       amount: buyerIdentificationThresholds.amount,
       validFrom: buyerIdentificationThresholds.validFrom,
+      revision: buyerIdentificationThresholds.revision,
     })
     .from(buyerIdentificationThresholds)
     .where(inArray(buyerIdentificationThresholds.id, [...ids]))
