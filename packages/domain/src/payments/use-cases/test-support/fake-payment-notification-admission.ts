@@ -19,18 +19,17 @@ export class FakePaymentNotificationAdmission implements PaymentNotificationAdmi
       .map((notification) => notification.at);
   }
 
-  async forgetNotificationsOutsideWindow(windowStart: Date): Promise<void> {
-    this.calls.push(`forgetNotificationsOutsideWindow ${windowStart.toISOString()}`);
-    this.admitted = this.admitted.filter((notification) => notification.at > windowStart);
-  }
-
   async transaction<TOutcome>(
     work: (tx: PaymentNotificationAdmissionTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    const working = structuredClone(this.admitted);
+    let working = structuredClone(this.admitted);
     const outcome = await work({
       lockNotificationAttempts: async (sourceAddress) => {
         this.calls.push(`lockNotificationAttempts ${sourceAddress}`);
+      },
+      forgetNotificationsOutsideWindow: async (windowStart) => {
+        this.calls.push(`forgetNotificationsOutsideWindow ${windowStart.toISOString()}`);
+        working = working.filter((notification) => notification.at > windowStart);
       },
       admittedNotifications: async (sourceAddress, since) => {
         this.calls.push(`admittedNotifications ${sourceAddress}`);

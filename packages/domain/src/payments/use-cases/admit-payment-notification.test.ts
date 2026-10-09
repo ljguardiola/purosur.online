@@ -71,7 +71,7 @@ describe("admitPaymentNotification", () => {
     expect(await admitting(admission)).toEqual({ kind: "admitted" });
   });
 
-  it("forgets the notifications of every origin that left the window, before locking the origin", async () => {
+  it("forgets the notifications of every origin that left the window, after locking the origin", async () => {
     const admission = new FakePaymentNotificationAdmission();
     const leftTheWindow = new Date(NOW.getTime() - PAYMENT_NOTIFICATION_WINDOW_MS);
     fill(admission, 2, leftTheWindow);
@@ -84,8 +84,8 @@ describe("admitPaymentNotification", () => {
     expect(admission.admittedAt(ORIGIN)).toEqual([secondsAgo(30), NOW]);
     expect(admission.admittedAt(OTHER_ORIGIN)).toEqual([secondsAgo(59)]);
     expect(admission.calls.slice(0, 2)).toEqual([
-      `forgetNotificationsOutsideWindow ${leftTheWindow.toISOString()}`,
       `lockNotificationAttempts ${ORIGIN}`,
+      `forgetNotificationsOutsideWindow ${leftTheWindow.toISOString()}`,
     ]);
   });
 
@@ -99,13 +99,16 @@ describe("admitPaymentNotification", () => {
     expect(admission.admittedAt(OTHER_ORIGIN)).toEqual([]);
   });
 
-  it("leaves nothing behind when recording fails", async () => {
+  it("leaves nothing behind when recording fails, not even what it forgot", async () => {
     const admission = new FakePaymentNotificationAdmission();
+    const leftTheWindow = new Date(NOW.getTime() - PAYMENT_NOTIFICATION_WINDOW_MS);
     admission.failRecording = true;
     fill(admission, 1, secondsAgo(30));
+    fill(admission, 1, leftTheWindow, OTHER_ORIGIN);
 
     await expect(admitting(admission)).rejects.toThrow("the notification could not be recorded");
 
     expect(admission.admittedAt(ORIGIN)).toEqual([secondsAgo(30)]);
+    expect(admission.admittedAt(OTHER_ORIGIN)).toEqual([leftTheWindow]);
   });
 });

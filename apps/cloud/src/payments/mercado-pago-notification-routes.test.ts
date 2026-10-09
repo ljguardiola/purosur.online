@@ -100,7 +100,7 @@ describe("POST /payments/mercado-pago/notifications", () => {
   });
 
   describe("signature", () => {
-    it("discards a notification with an invalid signature before counting it, logging it and changing nothing", async () => {
+    it("counts a notification with an invalid signature, discards it and logs it, changing nothing", async () => {
       const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
       route.mercadoPago.reading = { kind: "read", result: PAID_ORDER };
       const payment = await pendingPaymentOfOrder();
@@ -110,8 +110,22 @@ describe("POST /payments/mercado-pago/notifications", () => {
       expect(response.statusCode).toBe(401);
       expect(route.mercadoPago.readings).toEqual([]);
       expect(await stateOf(payment.id)).toBe("PENDING");
-      expect(await attemptsOf("203.0.113.50")).toEqual([]);
+      expect(await attemptsOf("203.0.113.50")).toHaveLength(1);
       expect(warn).toHaveBeenCalledExactlyOnceWith(expect.stringContaining("signature"));
+    });
+
+    it("refuses a notification with an invalid signature of an origin over the limit, telling when to retry", async () => {
+      await route.db.insert(paymentNotificationAttempts).values(
+        Array.from({ length: PAYMENT_NOTIFICATION_LIMIT }, () => ({
+          sourceAddress: "203.0.113.50",
+          attemptedAt: new Date(NOW.getTime() - 30_000),
+        })),
+      );
+
+      const response = await route.notify({ signature: "ts=1,v1=00" });
+
+      expect(response.statusCode).toBe(429);
+      expect(response.headers["retry-after"]).toBe("30");
     });
   });
 
