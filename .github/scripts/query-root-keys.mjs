@@ -504,15 +504,16 @@ function readerTools(checker, tools, checkedFiles) {
       : undefined;
   };
 
-  const calleeSymbol = (call) => {
-    const callee = unwrapped(call.expression);
-    const target = ts.isPropertyAccessExpression(callee) ? callee.name : callee;
+  const readerSymbol = (node) => {
+    const reader = ts.isCallExpression(node) ? unwrapped(node.expression) : node.tagName;
+    const target = ts.isPropertyAccessExpression(reader) ? reader.name : reader;
     return tools.resolved(checker.getSymbolAtLocation(target));
   };
 
   const readers = new Set();
-  const isReaderCall = (call) => {
-    const symbol = calleeSymbol(call);
+  const isRead = (node) => {
+    if (!ts.isCallExpression(node) && !ts.isJsxOpeningLikeElement(node)) return false;
+    const symbol = readerSymbol(node);
     if (tools.isTanstack(symbol, QUERY_READERS)) return true;
     const fn = functionOf(symbol);
     return fn !== undefined && readers.has(fn);
@@ -524,21 +525,21 @@ function readerTools(checker, tools, checkedFiles) {
         tools.declaresQueryKey(parameter) ||
         tools.queryKeyPropertiesOf(checker.getTypeAtLocation(parameter.name)).length > 0,
     );
-  const callsIn = (fn) => {
-    const calls = [];
+  const usesIn = (fn) => {
+    const uses = [];
     const visit = (node) => {
-      if (ts.isCallExpression(node)) calls.push(node);
+      if (ts.isCallExpression(node) || ts.isJsxOpeningLikeElement(node)) uses.push(node);
       ts.forEachChild(node, visit);
     };
     if (fn.body !== undefined) visit(fn.body);
-    return calls;
+    return uses;
   };
 
   const candidates = [];
   for (const sourceFile of checkedFiles) {
     const visit = (node) => {
       if (ts.isFunctionLike(node) && takesQueryKey(node)) {
-        candidates.push({ fn: node, calls: callsIn(node) });
+        candidates.push({ fn: node, uses: usesIn(node) });
       }
       ts.forEachChild(node, visit);
     };
@@ -547,22 +548,15 @@ function readerTools(checker, tools, checkedFiles) {
   let grew = true;
   while (grew) {
     grew = false;
-    for (const { fn, calls } of candidates) {
-      if (!readers.has(fn) && calls.some(isReaderCall)) {
+    for (const { fn, uses } of candidates) {
+      if (!readers.has(fn) && uses.some(isRead)) {
         readers.add(fn);
         grew = true;
       }
     }
   }
 
-  const isInsideReader = (node) => {
-    for (let current = node.parent; current !== undefined; current = current.parent) {
-      if (readers.has(current)) return true;
-    }
-    return false;
-  };
-
-  return { isReaderCall, isInsideReader };
+  return isRead;
 }
 
 export function findQueriesFileProblems(source, cwd = process.cwd()) {
@@ -602,13 +596,13 @@ export function findQueriesFileProblems(source, cwd = process.cwd()) {
     }
   });
 
-  const { isReaderCall, isInsideReader } = readerTools(checker, tools, checkedFiles);
+  const isRead = readerTools(checker, tools, checkedFiles);
   for (const sourceFile of checkedFiles) {
     if (conceptFolderOf(sourceFile.fileName) === undefined) continue;
     const where = outsideQueriesFile(sourceFile.fileName);
     if (where === undefined) continue;
     const visit = (node) => {
-      if (ts.isCallExpression(node) && isReaderCall(node) && !isInsideReader(node)) {
+      if (isRead(node)) {
         problems.add(`${fromCwd(sourceFile.fileName)}:${lineOf(node)} reads a query ${where}`);
       }
       ts.forEachChild(node, visit);
