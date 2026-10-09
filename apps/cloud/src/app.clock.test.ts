@@ -1,8 +1,5 @@
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { describe, expectTypeOf, it } from "vitest";
-import type { SessionReadRouteOptions } from "./access/session-read-route.js";
-import type { SessionSignOutRouteOptions } from "./access/session-sign-out-route.js";
-import type { SessionStatusRouteOptions } from "./access/session-status-route.js";
 import type { AlertsRouteOptions } from "./alerts/alerts-list-route.js";
 import type { BuildAppOptions } from "./app.js";
 import type { BranchSettingsRouteOptions } from "./branch/branch-settings-read-route.js";
@@ -27,6 +24,9 @@ import type { DiscountsRouteOptions } from "./pricing/discounts-list-route.js";
 import type { PricesRouteOptions } from "./pricing/prices-list-route.js";
 import type { DeviceEnrollmentRouteOptions } from "./register/device-enrollment-route.js";
 import type { RegistersRouteOptions } from "./register/registers-list-route.js";
+import type { SessionReadRouteOptions } from "./sessions/session-read-route.js";
+import type { SessionSignOutRouteOptions } from "./sessions/session-sign-out-route.js";
+import type { SessionStatusRouteOptions } from "./sessions/session-status-route.js";
 import type { StockRouteOptions } from "./stock/stock-route-options.js";
 import type { UsersRouteOptions } from "./users/users-list-route.js";
 

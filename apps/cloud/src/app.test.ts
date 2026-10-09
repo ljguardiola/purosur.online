@@ -28,18 +28,6 @@ import {
   it,
   vi,
 } from "vitest";
-import {
-  capabilityAccess,
-  OPEN_SESSION_ACCESS,
-  OPEN_SESSION_PEEK_ACCESS,
-  PUBLIC_ACCESS,
-  type RouteAccess,
-  type RouteAccessEntry,
-  recordAccess,
-  SESSION_COOKIE_ACCESS,
-} from "./access/route-access.js";
-import { SESSION_COOKIE_NAME } from "./access/session-cookie.js";
-import { generateSessionId, hashSessionId } from "./access/session-id.js";
 import { type BuildAppOptions, buildApp as buildRealApp, databaseRouteOptions } from "./app.js";
 import {
   arcaVitalityChecks,
@@ -51,6 +39,18 @@ import {
   users,
 } from "./platform/db/schema.js";
 import { insertEnrolledInstallation } from "./register/test-support/enrolled-installation.js";
+import {
+  capabilityAccess,
+  OPEN_SESSION_ACCESS,
+  OPEN_SESSION_PEEK_ACCESS,
+  PUBLIC_ACCESS,
+  type RouteAccess,
+  type RouteAccessEntry,
+  recordAccess,
+  SESSION_COOKIE_ACCESS,
+} from "./sessions/route-access.js";
+import { SESSION_COOKIE_NAME } from "./sessions/session-cookie.js";
+import { generateSessionId, hashSessionId } from "./sessions/session-id.js";
 import { insertRequestsUpToLimit } from "./sync/test-support/admitted-requests.js";
 import {
   buildTestApp as buildApp,

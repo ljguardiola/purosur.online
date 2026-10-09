@@ -14,10 +14,10 @@ import {
 } from "@purosur/domain/users/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { revokeSessions } from "../access/revoke-sessions.js";
 import { openAlert } from "../alerts/open-alert.js";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import { auditLog, rolePermissions, roles, userRoles, users } from "../platform/db/schema.js";
+import { revokeSessions } from "../sessions/revoke-sessions.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 

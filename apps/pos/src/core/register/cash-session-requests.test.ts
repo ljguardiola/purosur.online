@@ -1,14 +1,14 @@
 import { encodePinHash } from "@purosur/contracts";
 import { REGISTER_ABILITIES } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createActionGate } from "../access/action-gate";
-import { createSignedInPerson, type SignedInPerson } from "../access/signed-in-person";
-import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import { derivePinVerifier } from "../credentials/pin-verifier";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
+import { createActionGate } from "../sessions/action-gate";
+import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in-person";
+import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import {
   type CashSessionRequestDeps,
   cashBalanceFor,

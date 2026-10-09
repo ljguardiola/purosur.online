@@ -1,13 +1,13 @@
 import { stockBalanceListSchema } from "@purosur/contracts";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { sameOriginGuard } from "../access/backoffice-origin.js";
+import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
+} from "../sessions/route-access.js";
 import { DrizzleStockReader } from "./drizzle-stock-reader.js";
 import type { StockRouteOptions } from "./stock-route-options.js";
 

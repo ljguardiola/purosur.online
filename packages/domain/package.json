@@ -11,10 +11,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./access/use-cases": {
-      "@purosur/source": "./src/access/use-cases/index.ts",
-      "types": "./dist/access/use-cases/index.d.ts",
-      "default": "./dist/access/use-cases/index.js"
+    "./sessions/use-cases": {
+      "@purosur/source": "./src/sessions/use-cases/index.ts",
+      "types": "./dist/sessions/use-cases/index.d.ts",
+      "default": "./dist/sessions/use-cases/index.js"
     },
     "./credentials/use-cases": {
       "@purosur/source": "./src/credentials/use-cases/index.ts",

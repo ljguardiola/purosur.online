@@ -11,8 +11,8 @@ import type {
 } from "@purosur/domain/credentials/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { revokeSessions } from "../access/revoke-sessions.js";
 import { auditLog, passkeys, recoveryTokens, users } from "../platform/db/schema.js";
+import { revokeSessions } from "../sessions/revoke-sessions.js";
 import {
   addPasskey,
   openPasskeyRegisteredAlert,

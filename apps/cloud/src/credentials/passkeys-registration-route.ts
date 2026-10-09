@@ -14,20 +14,20 @@ import type { RegistrationResponseJSON } from "@simplewebauthn/server";
 import { generateRegistrationOptions, verifyRegistrationResponse } from "@simplewebauthn/server";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { backofficeOriginGuard } from "../access/backoffice-origin.js";
-import { UNAUTHENTICATED_RESPONSE } from "../access/open-session.js";
-import { requirePasskeyAuthorization } from "../access/passkey-authorization-guard.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
+import { backofficeOriginGuard } from "../sessions/backoffice-origin.js";
+import { UNAUTHENTICATED_RESPONSE } from "../sessions/open-session.js";
 import {
   OPEN_SESSION_ACCESS,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
-import { readValidatedBody } from "../platform/request-body-schema.js";
+} from "../sessions/route-access.js";
 import { drizzleAccounts } from "./drizzle-accounts.js";
 import { DrizzlePasskeyRegistrationStore } from "./drizzle-passkey-registration-store.js";
 import { drizzlePasskeys } from "./drizzle-passkeys.js";
 import { DrizzlePendingPasskeyChallengeStore } from "./drizzle-pending-passkey-challenge-store.js";
+import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import { deriveUserHandle } from "./recovery-user-handle.js";
 import { resolveWebAuthnConfig } from "./webauthn-config.js";
 

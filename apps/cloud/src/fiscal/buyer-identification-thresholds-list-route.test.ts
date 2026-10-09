@@ -1,8 +1,6 @@
 import { buyerIdentificationThresholdOverviewSchema } from "@purosur/contracts";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
-import { generateSessionId, hashSessionId } from "../access/session-id.js";
 import {
   buyerIdentificationThresholds,
   rolePermissions,
@@ -11,6 +9,8 @@ import {
   userRoles,
   users,
 } from "../platform/db/schema.js";
+import { SESSION_COOKIE_NAME } from "../sessions/session-cookie.js";
+import { generateSessionId, hashSessionId } from "../sessions/session-id.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { removeSeededThreshold } from "../test-support/remove-seeded-threshold.js";
 import { seededLocationId } from "../test-support/seeded-location.js";

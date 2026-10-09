@@ -8,7 +8,7 @@ import {
   mayRemoveUserPasskey,
 } from "@purosur/domain";
 import type { BranchUser } from "@purosur/domain/users/use-cases";
-import type { OpenSession } from "../access/open-session.js";
+import type { OpenSession } from "../sessions/open-session.js";
 
 export function canReactivateUsers(
   session: Pick<OpenSession, "isAdministrator" | "permissionKeys">,

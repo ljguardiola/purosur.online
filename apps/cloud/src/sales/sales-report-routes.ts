@@ -6,15 +6,15 @@ import {
 import { readSalesByDay } from "@purosur/domain/sales/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { sameOriginGuard } from "../access/backoffice-origin.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
+import { DrizzleBranchRegisterStore } from "../register/drizzle-branch-register-store.js";
+import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
-import { readValidatedBody } from "../platform/request-body-schema.js";
-import { DrizzleBranchRegisterStore } from "../register/drizzle-branch-register-store.js";
+} from "../sessions/route-access.js";
 import { DrizzleSalesReportReader } from "./drizzle-sales-report-reader.js";
 
 export interface SalesReportRouteOptions<TQueryResult extends PgQueryResultHKT> {

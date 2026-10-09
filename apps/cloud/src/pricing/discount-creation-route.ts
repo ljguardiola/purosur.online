@@ -2,13 +2,13 @@ import { discountCreationBodySchema, discountSummarySchema } from "@purosur/cont
 import { createDiscount, readDiscount } from "@purosur/domain/pricing/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { backofficeOriginGuard } from "../access/backoffice-origin.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
+import { backofficeOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
-import { readValidatedBody } from "../platform/request-body-schema.js";
+} from "../sessions/route-access.js";
 import type { DiscountsRouteOptions } from "./discounts-list-route.js";
 import { DrizzleDiscountReader } from "./drizzle-discount-reader.js";
 import { DrizzleDiscountStore } from "./drizzle-discount-store.js";

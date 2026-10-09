@@ -43,11 +43,11 @@ import {
   removeSaleLine,
   searchProductsByName,
 } from "@purosur/domain/sales/use-cases";
-import type { ActionGate } from "../access/action-gate";
-import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import { toWireRefund } from "../payments/wire-refund";
 import type { LocalDatabase } from "../platform/local-database";
 import { readOpenSession } from "../register/sqlite-cash-ledger";
+import type { ActionGate } from "../sessions/action-gate";
+import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import { SqliteSaleLedger } from "./sqlite-sale-ledger";
 
 export interface SaleRequestDeps {

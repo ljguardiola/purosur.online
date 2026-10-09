@@ -19,7 +19,6 @@ import {
   removeSaleLine,
 } from "@purosur/domain/sales/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import {
   insertHealthCheck,
   insertPointOfSale,
@@ -30,6 +29,7 @@ import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { cashBalanceFor } from "../register/cash-session-requests";
 import { SqliteCashLedger } from "../register/sqlite-cash-ledger";
+import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import { SqliteSaleLedger } from "./sqlite-sale-ledger";
 
 const NOW = new Date("2026-09-30T12:00:00.000Z");

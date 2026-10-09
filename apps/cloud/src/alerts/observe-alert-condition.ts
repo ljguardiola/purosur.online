@@ -4,7 +4,7 @@ import {
   observeAlertCondition as observeAlertConditionUseCase,
 } from "@purosur/domain/alerts/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { hashSourceAddress } from "../access/sign-in-lockout.js";
+import { hashSourceAddress } from "../sessions/sign-in-lockout.js";
 import { DrizzleAlertStore } from "./drizzle-alert-store.js";
 
 export type { AlertConditionObservation, ObserveAlertConditionOutcome };

@@ -1,7 +1,7 @@
 import { vi } from "vitest";
-import { openSession } from "../../access/test-support/open-session";
 import { UserCredentialSections } from "../../credentials/user-credential-sections";
 import { permissionCatalogFixture } from "../../platform/test-support/permission-catalog";
+import { openSession } from "../../sessions/test-support/open-session";
 import type { AppServices } from "../app";
 
 const permissionCatalogOutcome = { kind: "ok", value: permissionCatalogFixture } as const;
