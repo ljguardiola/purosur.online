@@ -2,9 +2,11 @@ import type {
   PaymentNotificationAdmission,
   PaymentNotificationAdmissionTransaction,
 } from "@purosur/domain/payments/use-cases";
-import { and, eq, gt, lte, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, lte, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { paymentNotificationAttempts } from "../platform/db/schema.js";
+
+const PRUNE_BATCH_SIZE = 100;
 
 class DrizzlePaymentNotificationAdmissionTransaction<TQueryResult extends PgQueryResultHKT>
   implements PaymentNotificationAdmissionTransaction
@@ -39,17 +41,6 @@ class DrizzlePaymentNotificationAdmissionTransaction<TQueryResult extends PgQuer
   async recordAdmittedNotification(sourceAddress: string, at: Date): Promise<void> {
     await this.tx.insert(paymentNotificationAttempts).values({ sourceAddress, attemptedAt: at });
   }
-
-  async forgetNotificationsThrough(sourceAddress: string, through: Date): Promise<void> {
-    await this.tx
-      .delete(paymentNotificationAttempts)
-      .where(
-        and(
-          eq(paymentNotificationAttempts.sourceAddress, sourceAddress),
-          lte(paymentNotificationAttempts.attemptedAt, through),
-        ),
-      );
-  }
 }
 
 export class DrizzlePaymentNotificationAdmission<TQueryResult extends PgQueryResultHKT>
@@ -59,6 +50,18 @@ export class DrizzlePaymentNotificationAdmission<TQueryResult extends PgQueryRes
 
   constructor(db: PgDatabase<TQueryResult>) {
     this.db = db;
+  }
+
+  async forgetNotificationsOutsideWindow(windowStart: Date): Promise<void> {
+    const expired = this.db
+      .select({ id: paymentNotificationAttempts.id })
+      .from(paymentNotificationAttempts)
+      .where(lte(paymentNotificationAttempts.attemptedAt, windowStart))
+      .limit(PRUNE_BATCH_SIZE)
+      .for("update", { skipLocked: true });
+    await this.db
+      .delete(paymentNotificationAttempts)
+      .where(inArray(paymentNotificationAttempts.id, expired));
   }
 
   transaction<TOutcome>(

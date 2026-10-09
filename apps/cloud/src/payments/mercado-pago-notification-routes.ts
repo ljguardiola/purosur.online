@@ -58,14 +58,6 @@ export function registerMercadoPagoNotificationRoutes<TQueryResult extends PgQue
     "/payments/mercado-pago/notifications",
     { config: { access: PUBLIC_ACCESS } },
     async (request, reply) => {
-      const admitted = await admitPaymentNotification(admission, {
-        sourceAddress: resolveSourceAddress(request),
-      });
-      if (admitted.kind === "rate_limited") {
-        await sendRateLimited(reply, "too many notifications", admitted.retryAfterSeconds);
-        return;
-      }
-
       const { mercadoPago, webhookSecret } = options;
       if (mercadoPago === undefined || webhookSecret === undefined) {
         await reply
@@ -82,8 +74,16 @@ export function registerMercadoPagoNotificationRoutes<TQueryResult extends PgQue
         dataId,
       });
       if (!signed || dataId === undefined) {
-        request.log.warn("discarded a Mercado Pago notification with an invalid signature");
+        console.warn("discarded a Mercado Pago notification with an invalid signature");
         await reply.code(401).send();
+        return;
+      }
+
+      const admitted = await admitPaymentNotification(admission, {
+        sourceAddress: resolveSourceAddress(request),
+      });
+      if (admitted.kind === "rate_limited") {
+        await sendRateLimited(reply, "too many notifications", admitted.retryAfterSeconds);
         return;
       }
 

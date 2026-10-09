@@ -16,11 +16,13 @@ export async function admitPaymentNotification(
   { admission, clock }: PaymentNotificationAdmissionPorts,
   { sourceAddress }: AdmitPaymentNotificationInput,
 ): Promise<AdmitPaymentNotificationOutcome> {
+  const now = clock.now();
+  const windowStart = paymentNotificationWindowStart(now);
+  await admission.forgetNotificationsOutsideWindow(windowStart);
+
   return admission.transaction<AdmitPaymentNotificationOutcome>(async (tx) => {
-    const now = clock.now();
     await tx.lockNotificationAttempts(sourceAddress);
 
-    const windowStart = paymentNotificationWindowStart(now);
     const retryAfterSeconds = paymentNotificationRetryAfterSeconds(
       await tx.admittedNotifications(sourceAddress, windowStart),
       now,
@@ -29,7 +31,6 @@ export async function admitPaymentNotification(
       return { kind: "rate_limited", retryAfterSeconds };
     }
     await tx.recordAdmittedNotification(sourceAddress, now);
-    await tx.forgetNotificationsThrough(sourceAddress, windowStart);
     return { kind: "admitted" };
   });
 }

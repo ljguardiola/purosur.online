@@ -2,7 +2,6 @@ export { cashCharge } from "./model/cash-charge.js";
 export {
   MERCADO_PAGO_PENDING_CHECK_INTERVAL_MS,
   PAYMENT_NOTIFICATION_LIMIT,
-  PAYMENT_NOTIFICATION_WINDOW_MS,
 } from "./model/mercado-pago-notifications.js";
 export { nonCashCharge } from "./model/non-cash-charge.js";
 export type { PaymentMethod, PaymentTransaction } from "./model/payment.js";
