@@ -867,7 +867,7 @@ describe("the register's local migrations", () => {
         "0023_sales_stopped_reason",
         "0024_stock_ledger",
         "0025_last_accepted_push",
-        "0027_pulled_stock_movements",
+        "0026_pulled_stock_movements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -920,7 +920,7 @@ describe("the register's local migrations", () => {
         "0023_sales_stopped_reason",
         "0024_stock_ledger",
         "0025_last_accepted_push",
-        "0027_pulled_stock_movements",
+        "0026_pulled_stock_movements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -968,7 +968,7 @@ describe("the register's local migrations", () => {
         "0023_sales_stopped_reason",
         "0024_stock_ledger",
         "0025_last_accepted_push",
-        "0027_pulled_stock_movements",
+        "0026_pulled_stock_movements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1015,7 +1015,7 @@ describe("the register's local migrations", () => {
         "0023_sales_stopped_reason",
         "0024_stock_ledger",
         "0025_last_accepted_push",
-        "0027_pulled_stock_movements",
+        "0026_pulled_stock_movements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1089,7 +1089,7 @@ describe("the register's local migrations", () => {
         "0023_sales_stopped_reason",
         "0024_stock_ledger",
         "0025_last_accepted_push",
-        "0027_pulled_stock_movements",
+        "0026_pulled_stock_movements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1155,7 +1155,7 @@ describe("the register's local migrations", () => {
         "0023_sales_stopped_reason",
         "0024_stock_ledger",
         "0025_last_accepted_push",
-        "0027_pulled_stock_movements",
+        "0026_pulled_stock_movements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1225,7 +1225,7 @@ describe("the register's local migrations", () => {
         "0023_sales_stopped_reason",
         "0024_stock_ledger",
         "0025_last_accepted_push",
-        "0027_pulled_stock_movements",
+        "0026_pulled_stock_movements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1278,7 +1278,7 @@ describe("the register's local migrations", () => {
         "0023_sales_stopped_reason",
         "0024_stock_ledger",
         "0025_last_accepted_push",
-        "0027_pulled_stock_movements",
+        "0026_pulled_stock_movements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1323,7 +1323,7 @@ describe("the register's local migrations", () => {
         "0023_sales_stopped_reason",
         "0024_stock_ledger",
         "0025_last_accepted_push",
-        "0027_pulled_stock_movements",
+        "0026_pulled_stock_movements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1369,7 +1369,7 @@ describe("the register's local migrations", () => {
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0024_stock_ledger",
         "0025_last_accepted_push",
-        "0027_pulled_stock_movements",
+        "0026_pulled_stock_movements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1421,7 +1421,7 @@ describe("the register's local migrations", () => {
       expect(previous.at(-1)?.name).toBe("0024_stock_ledger");
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0025_last_accepted_push",
-        "0027_pulled_stock_movements",
+        "0026_pulled_stock_movements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1467,7 +1467,7 @@ describe("the register's local migrations", () => {
       const previous = LOCAL_MIGRATIONS.slice(0, 26);
       expect(previous.at(-1)?.name).toBe("0025_last_accepted_push");
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
-        "0027_pulled_stock_movements",
+        "0026_pulled_stock_movements",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
