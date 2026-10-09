@@ -8,6 +8,7 @@ import type { CloudData } from "../platform/use-cloud-query";
 const UNCOVERED_ACTIONS: Partial<Record<PermissionKey, string>> = {
   sell_and_charge: "vender y cobrar",
   view_sales_history: "consultar el historial de ventas",
+  read_register_help: "leer la ayuda de la caja",
   close_anothers_register_session: "cerrar la sesión de caja de otra persona",
   reprint_receipt: "reimprimir tickets",
   record_cash_in: "registrar ingresos de efectivo",
