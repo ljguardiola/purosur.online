@@ -2,13 +2,13 @@ import { registerCoverageSchema } from "@purosur/contracts";
 import { findUncoveredRegisterPermissions } from "@purosur/domain/users/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { sameOriginGuard } from "../access/backoffice-origin.js";
+import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
+} from "../sessions/route-access.js";
 import { drizzleBranchUsers } from "../users/drizzle-branch-users.js";
 import type { RegistersRouteOptions } from "./registers-list-route.js";
 

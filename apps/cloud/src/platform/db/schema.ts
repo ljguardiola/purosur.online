@@ -684,6 +684,7 @@ export const deviceState = pgTable("device_state", {
   appVersion: text("app_version"),
   lastPushedAt: timestamp("last_pushed_at", { withTimezone: true }),
   lastAcceptedPushAt: timestamp("last_accepted_push_at", { withTimezone: true }),
+  reportsEveryCycleSince: timestamp("reports_every_cycle_since", { withTimezone: true }),
   walSizeBytes: bigint("wal_size_bytes", { mode: "number" }),
   diskFreeBytes: bigint("disk_free_bytes", { mode: "number" }),
   diskFreeRatio: doublePrecision("disk_free_ratio"),

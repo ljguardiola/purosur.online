@@ -3,14 +3,14 @@ import { mayEditRole, type PermissionKey, withOneAlertView } from "@purosur/doma
 import { listRoles, type RoleSummary } from "@purosur/domain/permissions/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { sameOriginGuard } from "../access/backoffice-origin.js";
-import type { OpenSession } from "../access/open-session.js";
+import { sameOriginGuard } from "../sessions/backoffice-origin.js";
+import type { OpenSession } from "../sessions/open-session.js";
 import {
   capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
+} from "../sessions/route-access.js";
 import { drizzleRoleDirectory } from "./drizzle-role-directory.js";
 
 export interface RolesRouteOptions<TQueryResult extends PgQueryResultHKT> {

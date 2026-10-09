@@ -13,7 +13,6 @@ import {
 import { admitInstallationRequest } from "@purosur/domain/sync/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { PUBLIC_ACCESS } from "../access/route-access.js";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
 import { sendRateLimited } from "../platform/rate-limited-response.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
@@ -23,6 +22,7 @@ import {
   type DeviceTokensOptions,
   installationTokenPorts,
 } from "../register/installation-token-ports.js";
+import { PUBLIC_ACCESS } from "../sessions/route-access.js";
 import { DrizzleRequestAdmission } from "../sync/drizzle-request-admission.js";
 import { DrizzlePointOfSaleLanes } from "./drizzle-point-of-sale-lanes.js";
 import { DrizzleWsaaTokenSource } from "./drizzle-wsaa-token-source.js";

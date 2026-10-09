@@ -1,14 +1,14 @@
 import { alertsOverviewSchema } from "@purosur/contracts";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { sameOriginGuard } from "../access/backoffice-origin.js";
-import { FORBIDDEN_RESPONSE } from "../access/forbidden-response.js";
+import { sameOriginGuard } from "../sessions/backoffice-origin.js";
+import { FORBIDDEN_RESPONSE } from "../sessions/forbidden-response.js";
 import {
   OPEN_SESSION_ACCESS,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
+} from "../sessions/route-access.js";
 import { visibleSightOf } from "./alert-route-sight.js";
 import type { AlertsRouteOptions } from "./alerts-list-route.js";
 import { DrizzleAlertReader } from "./drizzle-alert-reader.js";

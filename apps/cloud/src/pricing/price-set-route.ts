@@ -2,15 +2,15 @@ import { priceSetBodySchema } from "@purosur/contracts";
 import { setPrice } from "@purosur/domain/pricing/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { sameOriginGuard } from "../access/backoffice-origin.js";
+import { readRecordIds } from "../platform/record-id-params.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
+import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
-import { readRecordIds } from "../platform/record-id-params.js";
-import { readValidatedBody } from "../platform/request-body-schema.js";
+} from "../sessions/route-access.js";
 import { DrizzlePricingStore } from "./drizzle-pricing-store.js";
 import type { PricesRouteOptions } from "./prices-list-route.js";
 

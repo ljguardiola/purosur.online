@@ -2,12 +2,12 @@ import { productListSchema } from "@purosur/contracts";
 import type { ProductActivityScope } from "@purosur/domain/catalog/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { sameOriginGuard } from "../access/backoffice-origin.js";
+import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
+} from "../sessions/route-access.js";
 import { DrizzleCatalogListReader } from "./drizzle-catalog-list-reader.js";
 import { toProductSummary } from "./product-summary-wire.js";
 

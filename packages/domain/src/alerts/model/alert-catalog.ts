@@ -9,6 +9,7 @@ const ALERT_KIND_LIST = [
   "event_invariant_violated",
   "arca_certificate_expiring",
   "update_required",
+  "register_silent",
 ] as const;
 
 export type AlertKind = (typeof ALERT_KIND_LIST)[number];

@@ -20,7 +20,6 @@ import type {
   SellableProduct,
   SellingSession,
 } from "@purosur/domain/sales/use-cases";
-import type { SignInStore } from "../access/sqlite-sign-in-store";
 import {
   insertPreEmissionGateOutcome,
   readBuyerTaxStatusSetInEffect,
@@ -30,6 +29,7 @@ import { decideSaleAuthorizationIn } from "../fiscal/sqlite-sale-authorization";
 import { readSalePayments } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
 import { insertCashMovement, readMovementsOf } from "../register/sqlite-cash-ledger";
+import type { SignInStore } from "../sessions/sqlite-sign-in-store";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 import { type BenefitColumns, readOpenSale, toBenefit } from "./sqlite-open-sale";
 

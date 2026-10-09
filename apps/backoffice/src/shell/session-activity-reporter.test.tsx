@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { renderHook } from "vitest-browser-react";
-import type { SessionOutcome } from "../access/session-api";
-import { openSession } from "../access/test-support/open-session";
+import type { SessionOutcome } from "../sessions/session-api";
+import { openSession } from "../sessions/test-support/open-session";
 import {
   type SessionActivityReporterOptions,
   useSessionActivityReporter,

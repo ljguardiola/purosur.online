@@ -2,8 +2,8 @@ import { AreaNavButton, Button, InlineNotice, Modal } from "@purosur/ui";
 import { Link } from "@tanstack/react-router";
 import { LogOut, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
-import { signOut } from "../access/session-api";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import { signOut } from "../sessions/session-api";
 
 export type AccountFooterServices = {
   signOut: typeof signOut;

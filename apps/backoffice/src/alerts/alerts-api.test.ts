@@ -112,6 +112,7 @@ test("fetchAlerts reports failed when the request itself throws", async () => {
 const alertDetail: AlertDetail = {
   ...alert,
   open: true,
+  resolvesByItself: false,
   kind: "user_email_changed",
   detail: {
     previousEmail: "old@example.com",

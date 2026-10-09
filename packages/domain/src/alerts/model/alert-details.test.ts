@@ -25,6 +25,24 @@ describe("OpenAlertInput", () => {
     }>().toExtend<OpenAlertInput>();
   });
 
+  it("accepts the device and when it last had a push accepted for a silent-register alert", () => {
+    expectTypeOf<{
+      kind: "register_silent";
+      scope: string;
+      locationId: string;
+      detail: { deviceId: string; lastAcceptedPushAt: string };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses a silent-register alert with no last accepted push", () => {
+    expectTypeOf<{
+      kind: "register_silent";
+      scope: string;
+      locationId: string;
+      detail: { deviceId: string; lastAcceptedPushAt: null };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
   it("accepts the detail of the kind it names", () => {
     expectTypeOf<{
       kind: "user_email_changed";

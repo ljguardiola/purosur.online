@@ -2,14 +2,14 @@ import { passkeyListSchema } from "@purosur/contracts";
 import { listUserPasskeys } from "@purosur/domain/credentials/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { sameOriginGuard } from "../access/backoffice-origin.js";
+import { readRecordIds } from "../platform/record-id-params.js";
+import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
-import { readRecordIds } from "../platform/record-id-params.js";
+} from "../sessions/route-access.js";
 import { canReactivateUsers } from "../users/branch-users.js";
 import type { UsersRouteOptions } from "../users/users-list-route.js";
 import { drizzlePasskeyHolders } from "./drizzle-passkey-holders.js";

@@ -7,15 +7,15 @@ import {
 import { expectedBalanceAt, registerCount } from "@purosur/domain/stock/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { sameOriginGuard } from "../access/backoffice-origin.js";
+import { readRecordIds } from "../platform/record-id-params.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
+import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
-import { readRecordIds } from "../platform/record-id-params.js";
-import { readValidatedBody } from "../platform/request-body-schema.js";
+} from "../sessions/route-access.js";
 import { DrizzleStockReader } from "./drizzle-stock-reader.js";
 import { DrizzleStockStore } from "./drizzle-stock-store.js";
 import { periodStart } from "./stock-period.js";

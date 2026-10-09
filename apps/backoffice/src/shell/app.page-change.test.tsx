@@ -2,7 +2,7 @@ import { defineHelp } from "@purosur/ui";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { openSession } from "../access/test-support/open-session";
+import { openSession } from "../sessions/test-support/open-session";
 import { App, type AppServices } from "./app";
 import { emptyHelp, help, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";

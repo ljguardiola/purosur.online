@@ -29,10 +29,11 @@ describe("alertConditionResolutionJobs", () => {
     const createDatabase = vi.fn().mockReturnValue(fakeDb);
     const borrowed = vi.fn();
     const resolve = vi.fn().mockResolvedValue(0);
+    const detectQuiet = vi.fn().mockResolvedValue(0);
 
     const jobs = alertConditionResolutionJobs(
       { now: () => new Date("2026-01-05T12:00:00.000Z") },
-      { createDatabase, resolve },
+      { createDatabase, resolve, detectQuiet },
     );
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
     if (!task) {
@@ -45,6 +46,36 @@ describe("alertConditionResolutionJobs", () => {
     expect(createDatabase).toHaveBeenCalledWith(fakeClient);
     expect(resolve).toHaveBeenCalledTimes(1);
     const [dbArgument, depsArgument] = resolve.mock.calls[0] as [unknown, { now: () => Date }];
+    expect(dbArgument).toBe(fakeDb);
+    expect(depsArgument.now()).toEqual(new Date("2026-01-05T12:00:00.000Z"));
+  });
+
+  it("looks for quiet registers right after resolving the cleared conditions, on the same database and by the same clock", async () => {
+    const fakeClient: PoolClient = Object.create(null);
+    const fakeDb = { marker: "fake-db" };
+    const calls: string[] = [];
+    const resolve = vi.fn().mockImplementation(async () => {
+      calls.push("resolve");
+      return 0;
+    });
+    const detectQuiet = vi.fn().mockImplementation(async () => {
+      calls.push("detectQuiet");
+      return 0;
+    });
+
+    const jobs = alertConditionResolutionJobs(
+      { now: () => new Date("2026-01-05T12:00:00.000Z") },
+      { createDatabase: vi.fn().mockReturnValue(fakeDb), resolve, detectQuiet },
+    );
+    const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
+    if (!task) {
+      throw new Error("test setup: expected the registered alert condition resolution task");
+    }
+
+    await task({}, jobHelpers(fakeClient, vi.fn()));
+
+    expect(calls).toEqual(["resolve", "detectQuiet"]);
+    const [dbArgument, depsArgument] = detectQuiet.mock.calls[0] as [unknown, { now: () => Date }];
     expect(dbArgument).toBe(fakeDb);
     expect(depsArgument.now()).toEqual(new Date("2026-01-05T12:00:00.000Z"));
   });

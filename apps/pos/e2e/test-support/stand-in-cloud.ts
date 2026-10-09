@@ -81,6 +81,7 @@ export async function startStandInCloud(
   const requests: string[] = [];
   const authorizationRequests: RealTimeAuthorizationRequestBody[] = [];
   const firstPinCodes: Record<string, string> = { ...options.firstPinCodes };
+  let acknowledgedSeq = 0;
   let markFeedStored = () => {};
   let markFeedRefused = (_problem: Error) => {};
   const feedStored = new Promise<void>((resolve, reject) => {
@@ -179,8 +180,8 @@ export async function startStandInCloud(
       return;
     }
     const { events } = pushEventsRequestSchema.parse(await jsonBody(request));
-    const ackSeq = Math.max(...events.map((event) => event.device_seq));
-    send(response, 200, pushEventsResponseSchema.parse({ status: "ok", ack_seq: ackSeq }));
+    acknowledgedSeq = Math.max(acknowledgedSeq, ...events.map((event) => event.device_seq));
+    send(response, 200, pushEventsResponseSchema.parse({ status: "ok", ack_seq: acknowledgedSeq }));
   }
 
   function answerHealthCheck(request: IncomingMessage, response: ServerResponse): void {

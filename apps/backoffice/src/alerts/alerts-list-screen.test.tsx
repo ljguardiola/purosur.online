@@ -371,6 +371,7 @@ const passkeyDetail: AlertDetail = {
   escalatedAt: null,
   resolvedAt: null,
   open: true,
+  resolvesByItself: false,
   deliveries: [],
 };
 
@@ -768,4 +769,48 @@ test("names an alert for an expiring ARCA certificate by its kind and what happe
   const row = screen.getByRole("row", { name: /Producción/ });
   await expect.element(row.getByText("Certificado de ARCA por vencer")).toBeVisible();
   await expect.element(row.getByText("El certificado de ARCA está por vencer")).toBeVisible();
+});
+
+test("names a quiet register's alert by its fixed title, with what it means and what to do", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(
+    ok([
+      {
+        ...passkeyAlert,
+        kind: "register_silent",
+        level: "critical",
+        audience: "local",
+        scopeDisplay: "Caja 1",
+      },
+    ]),
+  );
+
+  const screen = await renderScreen(services);
+
+  const row = screen.getByRole("row", { name: /Caja 1/ });
+  await expect.element(row.getByText("La caja no está sincronizando")).toBeVisible();
+  await expect.element(row.getByText(/Hace rato que esta caja no logra mandar nada/)).toBeVisible();
+  await expect.element(row.getByText(/Se puede seguir vendiendo con normalidad/)).toBeVisible();
+  await expect
+    .element(row.getByRole("button", { name: "Ver la alerta «La caja no está sincronizando»" }))
+    .toBeVisible();
+});
+
+test("searches a quiet register's alert by its fixed title", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert]));
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
+
+  await userEvent.fill(screen.getByPlaceholder("Buscar una alerta"), "no está sincronizando");
+
+  await expect
+    .poll(() => vi.mocked(services.fetchAlerts).mock.calls)
+    .toContainEqual([
+      {
+        open: true,
+        page: 1,
+        search: { text: "no está sincronizando", kinds: ["register_silent"] },
+      },
+    ]);
 });

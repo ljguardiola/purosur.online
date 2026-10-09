@@ -2,11 +2,11 @@ import { createHmac } from "node:crypto";
 import type { CashMovement, ClosedCashSession, OpenedCashSession } from "@purosur/domain";
 import { closeCashSession, openCashSession } from "@purosur/domain/register/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
+import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import { readOpenSessionMovements, SqliteCashLedger } from "./sqlite-cash-ledger";
 
 const CHAIN_KEY_BYTES = Buffer.from("0123456789abcdef0123456789abcdef");

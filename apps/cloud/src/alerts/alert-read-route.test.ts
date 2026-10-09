@@ -1,8 +1,5 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
-import { generateSessionId, hashSessionId } from "../access/session-id.js";
-import { hashSourceAddress } from "../access/sign-in-lockout.js";
 import {
   alertDeliveries,
   alerts,
@@ -13,6 +10,9 @@ import {
   userRoles,
   users,
 } from "../platform/db/schema.js";
+import { SESSION_COOKIE_NAME } from "../sessions/session-cookie.js";
+import { generateSessionId, hashSessionId } from "../sessions/session-id.js";
+import { hashSourceAddress } from "../sessions/sign-in-lockout.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerAlertReadRoute } from "./alert-read-route.js";
@@ -224,6 +224,32 @@ describe("GET /alerts/:id", () => {
         },
       },
     ]);
+  });
+
+  it("answers whether the alert's kind resolves by itself", async () => {
+    const viewerRoleId = await insertRole("supervisor", ["view_all_alerts"]);
+    const viewerId = await insertUserWithRole("Grace", viewerRoleId);
+    const rawSessionId = await insertSession(viewerId);
+    const closedByHandId = await insertAlert({ audience: "all" });
+    const [quiet] = await db
+      .insert(alerts)
+      .values({
+        kind: "register_silent",
+        scope: "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6",
+        level: "critical",
+        audience: "local",
+        locationId: ownLocationId,
+        detail: { deviceId: "device-1", lastAcceptedPushAt: "2026-01-05T11:30:00.000Z" },
+        openedAt: NOON,
+      })
+      .returning({ id: alerts.id });
+    if (!quiet) throw new Error("test setup: inserting the alert returned no row");
+
+    const closedByHand = await getAlert(rawSessionId, closedByHandId);
+    const resolvesByItself = await getAlert(rawSessionId, quiet.id);
+
+    expect(closedByHand.json()).toMatchObject({ resolvesByItself: false });
+    expect(resolvesByItself.json()).toMatchObject({ resolvesByItself: true });
   });
 
   it("lists the deliveries by when they were written, ties in a stable order", async () => {

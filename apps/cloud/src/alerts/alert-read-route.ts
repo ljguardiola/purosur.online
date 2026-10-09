@@ -1,17 +1,17 @@
 import { type AlertDetail, alertDetailSchema } from "@purosur/contracts";
-import { alertActorId, alertNamedRecordIds, isOpenAlert } from "@purosur/domain";
+import { alertActorId, alertKindPolicy, alertNamedRecordIds, isOpenAlert } from "@purosur/domain";
 import type { AlertDelivery, AlertDetailView } from "@purosur/domain/alerts/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { sameOriginGuard } from "../access/backoffice-origin.js";
-import { FORBIDDEN_RESPONSE } from "../access/forbidden-response.js";
+import { readRecordIds } from "../platform/record-id-params.js";
+import { sameOriginGuard } from "../sessions/backoffice-origin.js";
+import { FORBIDDEN_RESPONSE } from "../sessions/forbidden-response.js";
 import {
   OPEN_SESSION_ACCESS,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
-} from "../access/route-access.js";
-import { readRecordIds } from "../platform/record-id-params.js";
+} from "../sessions/route-access.js";
 import { visibleSightOf } from "./alert-route-sight.js";
 import { holdsOnlySourceAddressHash, scopeDisplay, wireScope } from "./alert-scope-wire.js";
 import type { AlertsRouteOptions } from "./alerts-list-route.js";
@@ -74,6 +74,7 @@ export function toAlertDetailBody(
     escalatedAt: alert.escalatedAt?.toISOString() ?? null,
     resolvedAt: alert.resolvedAt?.toISOString() ?? null,
     open: isOpenAlert(alert),
+    resolvesByItself: alertKindPolicy(alert.kind).resolvesAfterStableClear,
     deliveries: deliveries.map(toAlertDelivery),
   });
 }

@@ -2,7 +2,6 @@ import { cloudErrorSchema, deviceEnrollmentSchema } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { registerRouteAccess } from "../access/route-access.js";
 import {
   alerts,
   auditLog,
@@ -14,6 +13,7 @@ import {
   registers,
 } from "../platform/db/schema.js";
 import { hashSecretCode } from "../platform/secret-code.js";
+import { registerRouteAccess } from "../sessions/route-access.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
