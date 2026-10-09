@@ -865,6 +865,7 @@ describe("the register's local migrations", () => {
         "0021_real_time_authorization",
         "0022_threshold_revisions",
         "0023_sales_stopped_reason",
+        "0024_stock_ledger",
         "0025_last_accepted_push",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -916,6 +917,7 @@ describe("the register's local migrations", () => {
         "0021_real_time_authorization",
         "0022_threshold_revisions",
         "0023_sales_stopped_reason",
+        "0024_stock_ledger",
         "0025_last_accepted_push",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -962,6 +964,7 @@ describe("the register's local migrations", () => {
         "0021_real_time_authorization",
         "0022_threshold_revisions",
         "0023_sales_stopped_reason",
+        "0024_stock_ledger",
         "0025_last_accepted_push",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1007,6 +1010,7 @@ describe("the register's local migrations", () => {
         "0021_real_time_authorization",
         "0022_threshold_revisions",
         "0023_sales_stopped_reason",
+        "0024_stock_ledger",
         "0025_last_accepted_push",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1079,6 +1083,7 @@ describe("the register's local migrations", () => {
         "0021_real_time_authorization",
         "0022_threshold_revisions",
         "0023_sales_stopped_reason",
+        "0024_stock_ledger",
         "0025_last_accepted_push",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1143,6 +1148,7 @@ describe("the register's local migrations", () => {
         "0021_real_time_authorization",
         "0022_threshold_revisions",
         "0023_sales_stopped_reason",
+        "0024_stock_ledger",
         "0025_last_accepted_push",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1211,6 +1217,7 @@ describe("the register's local migrations", () => {
         "0021_real_time_authorization",
         "0022_threshold_revisions",
         "0023_sales_stopped_reason",
+        "0024_stock_ledger",
         "0025_last_accepted_push",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1262,6 +1269,7 @@ describe("the register's local migrations", () => {
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0022_threshold_revisions",
         "0023_sales_stopped_reason",
+        "0024_stock_ledger",
         "0025_last_accepted_push",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1305,6 +1313,7 @@ describe("the register's local migrations", () => {
       expect(previous.at(-1)?.name).toBe("0022_threshold_revisions");
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0023_sales_stopped_reason",
+        "0024_stock_ledger",
         "0025_last_accepted_push",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1342,12 +1351,64 @@ describe("the register's local migrations", () => {
     }
   });
 
-  it("add the last accepted push over the register that already synced, empty until a push is accepted", () => {
+  it("add the stock ledger beside the completed sales a register already holds", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
       const path = join(folder, "register.sqlite");
       const previous = LOCAL_MIGRATIONS.slice(0, 24);
       expect(previous.at(-1)?.name).toBe("0023_sales_stopped_reason");
+      expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
+        "0024_stock_ledger",
+        "0025_last_accepted_push",
+      ]);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-09-30T12:05:00.000Z');
+         INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+         VALUES ('line-1', 'sale-1', 1, 'p1', 'Yerba', 1, 1500, 'list-1', 1500);`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT id, state FROM sales").all()).toEqual([
+        { id: "sale-1", state: "COMPLETED" },
+      ]);
+      expect(after.prepare("SELECT count(*) AS total FROM stock_movements").get()).toEqual({
+        total: 0,
+      });
+      expect(after.prepare("SELECT count(*) AS total FROM stock_balances").get()).toEqual({
+        total: 0,
+      });
+      const insert = after.prepare(
+        `INSERT INTO stock_movements (id, product_id, kind, sale_line_id, delta, occurred_at)
+         VALUES (@id, 'p1', @kind, @sale_line_id, -1000, '2026-09-30T12:05:00.000Z')`,
+      );
+      insert.run({ id: "movement-1", kind: "sale", sale_line_id: "line-1" });
+      expect(() => insert.run({ id: "movement-2", kind: "sale", sale_line_id: null })).toThrow(
+        /CHECK/,
+      );
+      expect(() => insert.run({ id: "movement-3", kind: "loss", sale_line_id: "line-1" })).toThrow(
+        /CHECK/,
+      );
+      expect(() => insert.run({ id: "movement-4", kind: "sale", sale_line_id: "missing" })).toThrow(
+        /FOREIGN KEY/,
+      );
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("add the last accepted push over the register that already synced, empty until a push is accepted", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(0, 25);
+      expect(previous.at(-1)?.name).toBe("0024_stock_ledger");
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0025_last_accepted_push",
       ]);

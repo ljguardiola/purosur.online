@@ -22,6 +22,7 @@ import {
   requireCertificateNotAfter,
   requireDeviceTokenRotationKey,
   requireInstallationKeysEncryptionKey,
+  resolveMercadoPagoConfig,
   resolvePort,
   resolveRecoveryEnv,
   resolveStaticDir,
@@ -116,6 +117,44 @@ describe("requireInstallationKeysEncryptionKey", () => {
 });
 
 const VALID_ARCA_CERTIFICATE_NOT_AFTER = new Date("2126-09-01T19:42:17.000Z");
+
+describe("resolveMercadoPagoConfig", () => {
+  const ACCESS_TOKEN = "APP_USR-fictional-access-token-0001";
+
+  it("is the access token and the QR code's identifier when both are set", () => {
+    expect(
+      resolveMercadoPagoConfig({
+        MERCADOPAGO_ACCESS_TOKEN: ACCESS_TOKEN,
+        MERCADOPAGO_QR_EXTERNAL_POS_ID: "STORE01POS01",
+      }),
+    ).toEqual({ accessToken: ACCESS_TOKEN, externalPosId: "STORE01POS01" });
+  });
+
+  it.each([
+    ["neither is set", {}],
+    ["both are empty", { MERCADOPAGO_ACCESS_TOKEN: "", MERCADOPAGO_QR_EXTERNAL_POS_ID: "" }],
+  ])("leaves Mercado Pago unconfigured when %s", (_name, env) => {
+    expect(resolveMercadoPagoConfig(env)).toBeUndefined();
+  });
+
+  it("refuses an access token without the QR code's identifier, naming the missing variable and not the token", () => {
+    const resolve = () => resolveMercadoPagoConfig({ MERCADOPAGO_ACCESS_TOKEN: ACCESS_TOKEN });
+
+    expect(resolve).toThrow(
+      "MERCADOPAGO_QR_EXTERNAL_POS_ID must be set when MERCADOPAGO_ACCESS_TOKEN is set",
+    );
+    expect(resolve).not.toThrow(ACCESS_TOKEN);
+  });
+
+  it("refuses the QR code's identifier without an access token, naming the missing variable", () => {
+    expect(() =>
+      resolveMercadoPagoConfig({
+        MERCADOPAGO_QR_EXTERNAL_POS_ID: "STORE01POS01",
+        MERCADOPAGO_ACCESS_TOKEN: "",
+      }),
+    ).toThrow("MERCADOPAGO_ACCESS_TOKEN must be set when MERCADOPAGO_QR_EXTERNAL_POS_ID is set");
+  });
+});
 
 describe("requireCertificateNotAfter", () => {
   it("returns the instant the certificate stops being valid", () => {
@@ -675,6 +714,7 @@ describe("startServer", () => {
     const close = vi.fn().mockResolvedValue(undefined);
     const fakeRecovery = {
       db: { marker: "fake-db" },
+      connections: { withConnection: vi.fn() },
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
       backofficeOrigin: "https://staging.purosur.online",
       worker: { stop: vi.fn() },
@@ -826,6 +866,7 @@ describe("startServer", () => {
         db: fakeRecovery.db,
         certificateFingerprint: new X509Certificate(VALID_ARCA_CERTIFICATE).fingerprint256,
       },
+      mercadoPagoQr: { connections: fakeRecovery.connections },
     });
 
     await fakeApp.close();
@@ -1368,6 +1409,88 @@ describe("startServer authorizing sales in real time", () => {
     expect(options).not.toHaveProperty("fiscalAuthorization");
     expect(options.registersPointsOfSale).not.toHaveProperty("enqueueTaxAuthorityCount");
     expect(enqueueMissingTaxAuthorityCounts).not.toHaveBeenCalled();
+  });
+});
+
+describe("startServer creating Mercado Pago QR orders", () => {
+  const credentials = generateArcaTestCredentials();
+  const env = {
+    DATABASE_URL: "postgres://user:pass@db/purosur",
+    RESEND_API_KEY: "re_test_key",
+    RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+    RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+    BACKOFFICE_ORIGIN: "https://staging.purosur.online",
+    EDGE_ORIGIN_SECRET: "edge-secret",
+    ARCA_CERTIFICATE: credentials.certificatePem,
+    ARCA_ENVIRONMENT: "homologation",
+    DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
+    INSTALLATION_KEYS_ENCRYPTION_KEY: KEYS_ENCRYPTION_KEY,
+  };
+
+  function start(startEnv: Record<string, string>) {
+    const recovery = {
+      db: {},
+      connections: { withConnection: vi.fn() },
+      jobQueue: { enqueueRecoveryRequest: vi.fn() },
+      backofficeOrigin: "https://staging.purosur.online",
+      worker: { stop: vi.fn() },
+      workerUtils: { addJob: vi.fn() },
+      close: vi.fn(),
+    };
+    const buildApp = vi.fn().mockReturnValue(appListeningBy(vi.fn()));
+    const started = startServer(startEnv, {
+      arcaEndpoints: arcaEndpointsOf,
+      initSentry: vi.fn(),
+      buildApp,
+      setUpRecovery: vi.fn().mockResolvedValue(recovery),
+      recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      enqueueBuyerTaxStatusFetch: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
+    });
+    return { started, buildApp, recovery };
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("gives the app the payment route with a dedicated connection per transaction lane and the Mercado Pago orders when both variables are set", async () => {
+    const { started, buildApp, recovery } = start({
+      ...env,
+      MERCADOPAGO_ACCESS_TOKEN: "APP_USR-fictional-access-token-0001",
+      MERCADOPAGO_QR_EXTERNAL_POS_ID: "STORE01POS01",
+    });
+    await started;
+
+    const [options] = buildApp.mock.calls[0] as [BuildAppOptions];
+    expect(options.mercadoPagoQr).toEqual({
+      connections: recovery.connections,
+      mercadoPago: {
+        longestCallMs: expect.any(Number),
+        createQrOrder: expect.any(Function),
+        readOrder: expect.any(Function),
+      },
+    });
+  });
+
+  it("gives the app the payment route without Mercado Pago when neither variable is set", async () => {
+    const { started, buildApp, recovery } = start(env);
+    await started;
+
+    const [options] = buildApp.mock.calls[0] as [BuildAppOptions];
+    expect(options.mercadoPagoQr).toEqual({ connections: recovery.connections });
+  });
+
+  it("does not start with only one of the variables, before anything listens", async () => {
+    const { started, buildApp } = start({
+      ...env,
+      MERCADOPAGO_ACCESS_TOKEN: "APP_USR-fictional-access-token-0001",
+    });
+
+    await expect(started).rejects.toThrow(
+      "MERCADOPAGO_QR_EXTERNAL_POS_ID must be set when MERCADOPAGO_ACCESS_TOKEN is set",
+    );
+    expect(buildApp).not.toHaveBeenCalled();
   });
 });
 

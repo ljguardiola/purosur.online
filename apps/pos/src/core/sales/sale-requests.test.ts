@@ -264,6 +264,16 @@ describe("scanning a product on the register", () => {
     });
   });
 
+  it("answers the name of a product whose line may not carry another unit", async () => {
+    await scanProductFor(deps(), "111");
+    database.prepare("UPDATE sale_lines SET quantity = 2147483").run();
+
+    expect(await scanProductFor(deps(), "111")).toEqual({
+      kind: "line_quantity_limit",
+      product_name: "Yerba",
+    });
+  });
+
   it("answers the domain's refusal of a code no product holds", async () => {
     expect(await scanProductFor(deps(), "999")).toEqual({ kind: "unknown_code" });
   });
@@ -387,6 +397,16 @@ describe("adding a searched product on the register", () => {
     expect(await addSearchedProductFor(deps(), "p2")).toEqual({
       kind: "sold_by_weight",
       product_name: "Queso",
+    });
+  });
+
+  it("answers the name of a product whose line may not carry another unit", async () => {
+    await addSearchedProductFor(deps(), "p1");
+    database.prepare("UPDATE sale_lines SET quantity = 2147483").run();
+
+    expect(await addSearchedProductFor(deps(), "p1")).toEqual({
+      kind: "line_quantity_limit",
+      product_name: "Yerba",
     });
   });
 

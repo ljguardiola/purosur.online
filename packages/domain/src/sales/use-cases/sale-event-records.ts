@@ -1,6 +1,6 @@
 import type { JsonValue } from "../../shared/index.js";
 import type { LinePromotion, SaleLine } from "../model/sale.js";
-import type { SaleCashMovement } from "./sale-ledger.js";
+import type { SaleCashMovement, SaleStockMovement } from "./sale-ledger.js";
 
 function frozenPromotion({ id, benefit }: LinePromotion): JsonValue {
   return benefit.kind === "PERCENT_OFF"
@@ -44,5 +44,14 @@ export function saleCashMovementRecord(movement: SaleCashMovement): JsonValue {
     ref_id: movement.ref.id,
     actor_id: movement.actorId,
     occurred_at: movement.occurredAt.toISOString(),
+  };
+}
+
+export function saleStockMovementRecord(movement: SaleStockMovement): JsonValue {
+  return {
+    id: movement.id,
+    sale_line_id: movement.saleLineId,
+    product_id: movement.productId,
+    delta: movement.delta,
   };
 }

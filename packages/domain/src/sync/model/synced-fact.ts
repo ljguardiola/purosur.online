@@ -5,7 +5,11 @@ import type {
   CashSessionClosedFact,
   CashSessionOpenedFact,
 } from "../../register/index.js";
-import type { CancelledSale, CompletedSale } from "../../sales/index.js";
+import {
+  type CancelledSale,
+  type CompletedSale,
+  stockMovementsMatchLines,
+} from "../../sales/index.js";
 
 export type SyncedFact =
   | { kind: "sale_completed"; sale: CompletedSale }
@@ -23,7 +27,10 @@ export interface AggregateKey {
   aggregateId: string;
 }
 
-export type InvariantBreak = "approved_payments_below_total" | "refunds_do_not_match_payments";
+export type InvariantBreak =
+  | "approved_payments_below_total"
+  | "refunds_do_not_match_payments"
+  | "stock_movements_do_not_match_lines";
 
 export function dependenciesOf(fact: SyncedFact): AggregateKey[] {
   if (fact.kind === "sale_completed" || fact.kind === "sale_cancelled") {
@@ -33,8 +40,8 @@ export function dependenciesOf(fact: SyncedFact): AggregateKey[] {
 }
 
 export function invariantBreaksOf(fact: SyncedFact): InvariantBreak[] {
-  if (fact.kind === "sale_completed" && !approvedPaymentsCoverTotal(fact.sale)) {
-    return ["approved_payments_below_total"];
+  if (fact.kind === "sale_completed") {
+    return completedSaleBreaks(fact.sale);
   }
   if (
     fact.kind === "sale_cancelled" &&
@@ -43,4 +50,15 @@ export function invariantBreaksOf(fact: SyncedFact): InvariantBreak[] {
     return ["refunds_do_not_match_payments"];
   }
   return [];
+}
+
+function completedSaleBreaks(sale: CompletedSale): InvariantBreak[] {
+  const breaks: InvariantBreak[] = [];
+  if (!approvedPaymentsCoverTotal(sale)) {
+    breaks.push("approved_payments_below_total");
+  }
+  if (sale.stockMovements !== null && !stockMovementsMatchLines(sale.lines, sale.stockMovements)) {
+    breaks.push("stock_movements_do_not_match_lines");
+  }
+  return breaks;
 }

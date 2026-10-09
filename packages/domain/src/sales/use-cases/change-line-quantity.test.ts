@@ -265,7 +265,7 @@ describe("changeLineQuantity", () => {
     expect(storedLine(store, "line-2")).toEqual(AZUCAR_LINE);
   });
 
-  it.each([0, -1, 1.5, Number.NaN, Number.MAX_SAFE_INTEGER + 1])(
+  it.each([0, -1, 1.5, Number.NaN, 2_147_484, Number.MAX_SAFE_INTEGER + 1])(
     "refuses the quantity %s, changing nothing",
     (quantity) => {
       const store = ledger();

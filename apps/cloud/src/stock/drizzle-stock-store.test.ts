@@ -175,6 +175,7 @@ describe("DrizzleStockStore", () => {
         locationId,
         kind: "loss",
         reason: "spoiled",
+        saleLineId: null,
         delta: -1200,
         occurredAt: NOW,
         recordedAt: expect.any(Date),

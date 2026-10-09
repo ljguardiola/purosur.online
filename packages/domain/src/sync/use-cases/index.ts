@@ -23,6 +23,7 @@ export type {
   EventApplicationTransaction,
   EventUpcaster,
   FailedAttempt,
+  SaleStockApplication,
   UnappliedEvent,
 } from "./event-application-ports.js";
 export type { PruneOutboxOutcome } from "./prune-outbox.js";

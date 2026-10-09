@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PaymentTransaction } from "../../payments/index.js";
 import type { SaleWithLines } from "../model/sale.js";
+import { withQuantity } from "../model/sale-line.js";
 import { addSearchedProduct } from "./add-searched-product.js";
 import type { CandidatePromotion } from "./sale-ledger.js";
 import {
@@ -167,6 +168,19 @@ describe("addSearchedProduct", () => {
       kind: "sold_by_weight",
       productName: "Queso cremoso",
     });
+  });
+
+  it("refuses a unit that would take its line past the largest quantity, naming the product and changing nothing", () => {
+    const store = ledger();
+    add(store);
+    const [sale] = store.state.sales;
+    if (sale) {
+      sale.lines = sale.lines.map((line) => withQuantity(line, 2_147_483));
+    }
+    const before = structuredClone(store.state);
+
+    expect(add(store)).toEqual({ kind: "line_quantity_limit", productName: "Yerba 1 kg" });
+    expect(store.state).toEqual(before);
   });
 
   it("refuses to open a sale when the installation was revoked", () => {

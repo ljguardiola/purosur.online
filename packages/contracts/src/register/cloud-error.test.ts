@@ -49,11 +49,15 @@ describe("cloudErrorStatus", () => {
     ["revoked", 403],
     ["not_found", 404],
     ["pin_already_set", 409],
+    ["conflict", 409],
     ["reset_code_expired", 410],
     ["reset_code_burned", 410],
     ["rate_limited", 429],
     ["internal_error", 500],
     ["server_unavailable", 503],
+    ["payment_provider_not_configured", 503],
+    ["payment_provider_unavailable", 503],
+    ["payment_provider_refused", 502],
   ] as const)("answers %s with HTTP %i", (code, status) => {
     expect(cloudErrorStatus(code)).toBe(status);
   });
@@ -67,6 +71,10 @@ describe("isRetryableCloudError", () => {
   it.each([
     ["rate_limited", true],
     ["server_unavailable", true],
+    ["payment_provider_unavailable", true],
+    ["payment_provider_not_configured", false],
+    ["payment_provider_refused", false],
+    ["conflict", false],
     ["not_found", false],
     ["pin_already_set", false],
     ["validation_failed", false],

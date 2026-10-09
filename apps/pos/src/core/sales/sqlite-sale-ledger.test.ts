@@ -676,6 +676,72 @@ describe("charging an open sale in cash", () => {
     });
   });
 
+  it("stores the stock the sale moved, with the line it came from, and takes it off the product's balance", () => {
+    const saleId = sellTwo();
+
+    charge(saleId, 5000);
+
+    const line = database.prepare("SELECT id FROM sale_lines").get() as { id: string };
+    expect(
+      database
+        .prepare("SELECT product_id, kind, sale_line_id, delta, occurred_at FROM stock_movements")
+        .all(),
+    ).toEqual([
+      {
+        product_id: "p1",
+        kind: "sale",
+        sale_line_id: line.id,
+        delta: -2000,
+        occurred_at: NOW.toISOString(),
+      },
+    ]);
+    expect(database.prepare("SELECT product_id, quantity FROM stock_balances").all()).toEqual([
+      { product_id: "p1", quantity: -2000 },
+    ]);
+  });
+
+  it("carries the stock movements in the sale_completed event, version 3", () => {
+    const saleId = sellTwo();
+
+    charge(saleId, 5000);
+
+    const event = database.prepare("SELECT schema_version, payload FROM outbox").get() as {
+      schema_version: number;
+      payload: string;
+    };
+    const stored = database
+      .prepare("SELECT id, sale_line_id, product_id, delta FROM stock_movements")
+      .all();
+    expect(event.schema_version).toBe(3);
+    expect(JSON.parse(event.payload).stock_movements).toEqual(
+      (stored as { id: string; sale_line_id: string; product_id: string; delta: number }[]).map(
+        (row) => ({ ...row }),
+      ),
+    );
+    expect(stored).toHaveLength(1);
+  });
+
+  it("leaves no stock behind when the outbox append fails after the rest was written", () => {
+    const saleId = sellTwo();
+    database
+      .prepare(
+        `INSERT INTO outbox (
+           event_id, device_id, device_seq, aggregate_type, aggregate_id, event_type, schema_version,
+           payload, occurred_at, actor_id, chain_hmac
+         ) VALUES ('taken', 'device-1', 1, 'Sale', 'x', 'sale_completed', 1, '{}', '2026-09-30T12:00:00.000Z', 'u1', 'h')`,
+      )
+      .run();
+
+    expect(() => charge(saleId, 5000)).toThrow();
+
+    expect(database.prepare("SELECT count(*) AS total FROM stock_movements").get()).toEqual({
+      total: 0,
+    });
+    expect(database.prepare("SELECT count(*) AS total FROM stock_balances").get()).toEqual({
+      total: 0,
+    });
+  });
+
   it("routes the sale to the deferred flow, as fiscally offline, when the register has no recent health check", () => {
     const saleId = sellTwo();
 

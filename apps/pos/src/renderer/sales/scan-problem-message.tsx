@@ -12,6 +12,7 @@ export type ScanProblem =
           | "product_unavailable"
           | "no_price"
           | "sold_by_weight"
+          | "line_quantity_limit"
           | "not_permitted"
           | "installation_revoked";
       }
@@ -51,6 +52,12 @@ export function messageFor(problem: ScanProblem): Message {
         icon: Scale,
         title: `${problem.product_name} se vende por kilo`,
         help: "Esta caja todavía no vende productos por kilo.",
+      };
+    case "line_quantity_limit":
+      return {
+        icon: Ban,
+        title: `No se pueden sumar más unidades de ${problem.product_name}`,
+        help: "La línea ya tiene la cantidad máxima de una venta.",
       };
     case "not_permitted":
       return {

@@ -1,3 +1,5 @@
+import type { SoldQuantity } from "../../pricing/index.js";
+import { mayBeMovementQuantity, soldStockDelta } from "../../stock/index.js";
 import { chargeLine } from "./line-pricing.js";
 import type { LinePromotion, SaleLine } from "./sale.js";
 
@@ -38,12 +40,24 @@ export function withQuantity(line: SaleLine, quantity: number): SaleLine {
   return priced(line, quantity);
 }
 
+export function soldQuantity(line: Pick<SaleLine, "quantity">): SoldQuantity {
+  return { saleUnit: "UNIT", units: line.quantity };
+}
+
+export function soldLineStockDelta(line: Pick<SaleLine, "quantity">): number {
+  return soldStockDelta(soldQuantity(line));
+}
+
+export function mayBeSaleLineQuantity(quantity: number): boolean {
+  return Number.isInteger(quantity) && mayBeMovementQuantity(-soldLineStockDelta({ quantity }));
+}
+
 function priced(
   line: Omit<SaleLine, "quantity" | "promotionId" | "discountAmount" | "lineTotal">,
   quantity: number,
 ): SaleLine {
   const { promotionId, discountAmount, lineTotal } = chargeLine(
-    { saleUnit: "UNIT", units: quantity },
+    soldQuantity({ quantity }),
     line.listUnitPrice,
     line.promotions,
   );

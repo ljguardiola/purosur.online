@@ -1,5 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import { applyRegisterStockMovements } from "./apply-register-stock-movements.js";
 import { recordAdjustment } from "./record-adjustment.js";
 import { recordLoss } from "./record-loss.js";
 import { registerCount } from "./register-count.js";
@@ -13,7 +14,8 @@ const KEY = { productId: "product-1", locationId: "branch-1" };
 type Operation =
   | { kind: "loss"; minute: number; quantity: number }
   | { kind: "adjustment"; minute: number; direction: "add" | "subtract"; quantity: number }
-  | { kind: "count"; minute: number; counted: number };
+  | { kind: "count"; minute: number; counted: number }
+  | { kind: "sale"; minute: number; quantity: number };
 
 const minute = fc.integer({ min: 0, max: 30 });
 const quantity = fc.integer({ min: 1, max: 50 }).map((units) => units * 1000);
@@ -26,6 +28,7 @@ const movement: fc.Arbitrary<Operation> = fc.oneof(
     direction: fc.constantFrom("add" as const, "subtract" as const),
     quantity,
   }),
+  fc.record({ kind: fc.constant("sale" as const), minute, quantity }),
 );
 
 const counts: fc.Arbitrary<Operation[]> = fc.uniqueArray(
@@ -68,6 +71,23 @@ async function apply(store: FakeStockStore, operation: Operation): Promise<void>
         quantity: operation.quantity,
       },
     );
+  } else if (operation.kind === "sale") {
+    await store.transaction((tx) =>
+      applyRegisterStockMovements(tx, {
+        locationId: KEY.locationId,
+        occurredAt: at,
+        actorId: "cashier-1",
+        movements: [
+          {
+            id: `register-movement-${operation.minute}`,
+            saleLineId: `sale-line-${operation.minute}`,
+            productId: KEY.productId,
+            kind: "sale",
+            delta: -operation.quantity,
+          },
+        ],
+      }),
+    );
   } else {
     await registerCount(
       { store, clock: new FixedClock(AFTER_EVERYTHING) },
@@ -93,6 +113,14 @@ describe("stock movements", () => {
         expect(await finalBalance(reordered)).toBe(await finalBalance(inOrder));
       }),
     );
+  });
+
+  it("reach the same balance when a register's sale arrives after a count it happened before", async () => {
+    const sold: Operation = { kind: "sale", minute: 5, quantity: 3000 };
+    const recount: Operation = { kind: "count", minute: 10, counted: 7000 };
+
+    expect(await finalBalance([sold, recount])).toBe(7000);
+    expect(await finalBalance([recount, sold])).toBe(7000);
   });
 
   it("reach the same balance when a late movement arrives after a count it happened before", async () => {
