@@ -41,6 +41,13 @@ export interface RecordedPreEmissionGate {
   outcome: PreEmissionGateOutcome;
 }
 
+export interface SaleAuthorizationDecision {
+  saleId: string;
+  gate: PreEmissionGateOutcome;
+  decidedAt: Date;
+  ids: IdGenerator;
+}
+
 export type SaleCashMovement = CashMovement & { ref: { type: string; id: string } };
 
 export interface SaleRefund extends PlannedRefund {
@@ -82,4 +89,5 @@ export interface SaleLedgerTransaction {
   issuerIdentificationInEffect(): IssuerIdentificationInEffect | undefined;
   buyerTaxStatusSetInEffect(): readonly BuyerTaxStatusOption[] | undefined;
   recordPreEmissionGate(recorded: RecordedPreEmissionGate): void;
+  decideSaleAuthorization(decision: SaleAuthorizationDecision): void;
 }

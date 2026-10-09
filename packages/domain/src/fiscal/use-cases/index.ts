@@ -1,5 +1,12 @@
 export type { Clock } from "../../shared/index.js";
 export type { ArcaReachabilityEvidence } from "../model/arca-reachability.js";
+export type { FiscalOnlineSignalEvidence } from "../model/fiscal-online-signal.js";
+export type {
+  DeferralReason,
+  RealTimeAuthorizationAnswer,
+  RealTimeAuthorizationResolution,
+  RealTimeSeries,
+} from "../model/real-time-authorization.js";
 export type {
   ArcaCertificateExpiryPorts,
   ArcaCertificateExpiryStore,
@@ -19,6 +26,12 @@ export type {
   ArcaVitalityStore,
   VitalityCheckRecord,
 } from "./arca-vitality-ports.js";
+export type {
+  AuthorizeFiscalDocumentInput,
+  AuthorizeFiscalDocumentOutcome,
+  FiscalDocumentAuthorizationRequest,
+} from "./authorize-fiscal-document.js";
+export { authorizeFiscalDocument } from "./authorize-fiscal-document.js";
 export type {
   BuyerIdentificationThresholdOverview,
   BuyerIdentificationThresholdPorts,
@@ -56,6 +69,11 @@ export type {
 } from "./create-fiscal-address.js";
 export { createFiscalAddress } from "./create-fiscal-address.js";
 export type {
+  DecideSaleAuthorizationInput,
+  DecideSaleAuthorizationOutcome,
+} from "./decide-sale-authorization.js";
+export { decideSaleAuthorization } from "./decide-sale-authorization.js";
+export type {
   EditFiscalAddressInput,
   EditFiscalAddressOutcome,
 } from "./edit-fiscal-address.js";
@@ -81,6 +99,19 @@ export type {
 } from "./fiscal-address-store.js";
 export { FiscalAddressNameConflict } from "./fiscal-address-store.js";
 export type {
+  AuthorizationRequestRecord,
+  AuthorizeFiscalDocumentPorts,
+  FiscalDocumentData,
+  FiscalDocumentSolicitation,
+  PointOfSaleLane,
+  PointOfSaleLanes,
+  RecordedAuthorizationRequest,
+  SolicitationAnswer,
+  TaxAuthorityInvoicing,
+  WsaaTokenSource,
+} from "./fiscal-document-authorization-ports.js";
+export { FiscalDocumentAlreadyRecorded } from "./fiscal-document-authorization-ports.js";
+export type {
   AuthorizedIssuerIdentification,
   EditableIssuerIdentification,
   IssuerIdentification,
@@ -96,6 +127,15 @@ export type {
 } from "./read-arca-online-status.js";
 export { readArcaOnlineStatus } from "./read-arca-online-status.js";
 export type {
+  RealTimeAuthorizationCall,
+  RealTimeAuthorizationPorts,
+  RealTimeAuthorizationResolved,
+  RealTimeFiscalDocuments,
+  RealTimeTaxAuthority,
+  RoundTripSamples,
+  WaitingFiscalDocument,
+} from "./real-time-authorization-ports.js";
+export type {
   RecordAuthorizedCuitInput,
   RecordAuthorizedCuitOutcome,
 } from "./record-authorized-cuit.js";
@@ -110,6 +150,18 @@ export type {
   RecordBuyerTaxStatusSetOutcome,
 } from "./record-buyer-tax-status-set.js";
 export { recordBuyerTaxStatusSet } from "./record-buyer-tax-status-set.js";
+export type { RecordRegisterHealthCheckOutcome } from "./record-register-health-check.js";
+export { recordRegisterHealthCheck } from "./record-register-health-check.js";
+export type {
+  RecordTaxAuthorityLastAuthorizedInput,
+  RecordTaxAuthorityLastAuthorizedOutcome,
+} from "./record-tax-authority-last-authorized.js";
+export { recordTaxAuthorityLastAuthorized } from "./record-tax-authority-last-authorized.js";
+export type {
+  RegisterHealthCheck,
+  RegisterHealthCheckPorts,
+  RegisterHealthChecks,
+} from "./register-health-check-ports.js";
 export type {
   BranchRegisterPointOfSale,
   LockBranchRegisterResult,
@@ -126,6 +178,24 @@ export type {
   RenewWsaaTokenOutcome,
 } from "./renew-wsaa-token.js";
 export { renewWsaaToken } from "./renew-wsaa-token.js";
+export type {
+  RequestRealTimeAuthorizationInput,
+  RequestRealTimeAuthorizationOutcome,
+} from "./request-real-time-authorization.js";
+export { requestRealTimeAuthorization } from "./request-real-time-authorization.js";
+export type {
+  FiscalDocumentReservation,
+  IdGenerator,
+  SaleAuthorizationTransaction,
+  SaleRoutedToDeferred,
+} from "./sale-authorization-ports.js";
+export type {
+  LastAuthorizedAnswer,
+  LastAuthorizedCount,
+  TaxAuthorityCountPorts,
+  TaxAuthorityCounts,
+  TaxAuthorityLastAuthorizedLookup,
+} from "./tax-authority-count-ports.js";
 export type {
   WsaaAuthentication,
   WsaaAuthenticationResult,

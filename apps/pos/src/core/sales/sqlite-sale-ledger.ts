@@ -26,6 +26,7 @@ import {
   readBuyerTaxStatusSetInEffect,
   readIssuerIdentificationInEffect,
 } from "../fiscal/sqlite-pre-emission-gate";
+import { decideSaleAuthorizationIn } from "../fiscal/sqlite-sale-authorization";
 import { readSalePayments } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
 import { insertCashMovement, readMovementsOf } from "../register/sqlite-cash-ledger";
@@ -105,6 +106,7 @@ export class SqliteSaleLedger implements SaleLedger {
       issuerIdentificationInEffect: () => readIssuerIdentificationInEffect(this.database),
       buyerTaxStatusSetInEffect: () => readBuyerTaxStatusSetInEffect(this.database),
       recordPreEmissionGate: (recorded) => insertPreEmissionGateOutcome(this.database, recorded),
+      decideSaleAuthorization: (decision) => decideSaleAuthorizationIn(this.database, decision),
     };
   }
 

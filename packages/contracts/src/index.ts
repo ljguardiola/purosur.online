@@ -124,6 +124,14 @@ export { issuerIdentificationEditBodySchema } from "./fiscal/issuer-identificati
 export type { PointOfSaleConfigurationBody } from "./fiscal/point-of-sale-configuration.js";
 export { pointOfSaleConfigurationBodySchema } from "./fiscal/point-of-sale-configuration.js";
 export type {
+  RealTimeAuthorizationRequestBody,
+  RealTimeAuthorizationResponseBody,
+} from "./fiscal/real-time-authorization.js";
+export {
+  realTimeAuthorizationRequestSchema,
+  realTimeAuthorizationResponseSchema,
+} from "./fiscal/real-time-authorization.js";
+export type {
   RegisterPointOfSaleBody,
   RegisterPointOfSaleOverviewBody,
 } from "./fiscal/register-point-of-sale.js";

@@ -5,7 +5,11 @@ import { fileURLToPath } from "node:url";
 import { isValidCuit } from "@purosur/domain";
 import { recordAuthorizedCuit } from "@purosur/domain/fiscal/use-cases";
 import * as Sentry from "@sentry/node";
-import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import {
+  drizzle,
+  type PostgresJsDatabase,
+  type PostgresJsQueryResultHKT,
+} from "drizzle-orm/postgres-js";
 import type { FastifyInstance } from "fastify";
 import { makeWorkerUtils, type WorkerUtils } from "graphile-worker";
 import pg from "pg";
@@ -37,10 +41,21 @@ import {
   enqueueBuyerTaxStatusFetch,
 } from "./fiscal/buyer-tax-status-fetch-task.js";
 import { DrizzleIssuerIdentificationStore } from "./fiscal/drizzle-issuer-identification-store.js";
+import {
+  enqueueMissingTaxAuthorityCounts,
+  enqueueTaxAuthorityCountJob,
+} from "./fiscal/graphile-tax-authority-count-queue.js";
+import { taxAuthorityCountJobs } from "./fiscal/tax-authority-count-task.js";
 import { ArcaWsaaAuthentication, wsaaEndpointOf } from "./fiscal/wsaa-authentication.js";
 import { wsaaTokenRenewalJobs } from "./fiscal/wsaa-token-renewal-task.js";
 import { WsfeArcaVitalityService, wsfeEndpointOf } from "./fiscal/wsfe-arca-vitality-service.js";
 import { WsfeBuyerTaxStatusSource } from "./fiscal/wsfe-buyer-tax-status-source.js";
+import { WsfeTaxAuthorityInvoicing } from "./fiscal/wsfe-tax-authority-invoicing.js";
+import { WsfeTaxAuthorityLastAuthorized } from "./fiscal/wsfe-tax-authority-last-authorized.js";
+import {
+  type DedicatedConnections,
+  postgresDedicatedConnections,
+} from "./platform/dedicated-connections.js";
 import { normalizePemNewlines } from "./platform/pem-newlines.js";
 import { runShutdownSteps } from "./platform/run-shutdown-steps.js";
 import { initSentry } from "./platform/sentry.js";
@@ -240,7 +255,7 @@ export function arcaEndpointsOf(environment: string): ArcaEndpoints {
 function resolveArcaSigning(
   env: ServerEnv,
   arcaEndpoints: (environment: string) => ArcaEndpoints,
-): Pick<SetUpRecoveryEnv, "arcaWsaa" | "arcaBuyerTaxStatus"> {
+): Pick<SetUpRecoveryEnv, "arcaWsaa" | "arcaBuyerTaxStatus" | "arcaInvoicing"> {
   const environment = requireArcaEnvironment(env);
   const encodedKey = env.ARCA_PRIVATE_KEY;
   if (!encodedKey) {
@@ -266,6 +281,11 @@ function resolveArcaSigning(
   if (!certificate.checkPrivateKey(privateKey)) {
     throw new Error("ARCA_PRIVATE_KEY must match ARCA_CERTIFICATE's public key");
   }
+  const arcaWsfe = {
+    endpoint: arcaEndpoints(environment).wsfe,
+    cuit: requireAuthorizedCuit(env),
+    certificateFingerprint: certificate.fingerprint256,
+  };
   return {
     arcaWsaa: {
       endpoint: arcaEndpoints(environment).wsaa,
@@ -273,11 +293,8 @@ function resolveArcaSigning(
       privateKeyPem,
       certificateFingerprint: certificate.fingerprint256,
     },
-    arcaBuyerTaxStatus: {
-      endpoint: arcaEndpoints(environment).wsfe,
-      cuit: requireAuthorizedCuit(env),
-      certificateFingerprint: certificate.fingerprint256,
-    },
+    arcaBuyerTaxStatus: arcaWsfe,
+    arcaInvoicing: arcaWsfe,
   };
 }
 
@@ -335,6 +352,7 @@ export interface SetUpRecoveryEnv extends RecoveryEnv {
     certificateFingerprint: string;
   };
   arcaBuyerTaxStatus?: { endpoint: string; cuit: string; certificateFingerprint: string };
+  arcaInvoicing?: { endpoint: string; cuit: string; certificateFingerprint: string };
 }
 
 function wsaaRenewalInput(
@@ -355,6 +373,7 @@ function wsaaRenewalInput(
 
 export interface RecoveryInfrastructure {
   db: PostgresJsDatabase<Record<string, never>>;
+  connections: DedicatedConnections<PostgresJsQueryResultHKT>;
   jobQueue: RecoveryJobQueue;
   workerUtils: Pick<WorkerUtils, "addJob">;
   backofficeOrigin: string;
@@ -455,6 +474,15 @@ export async function setUpRecovery(
             }),
           ]
         : []),
+      ...(recoveryEnv.arcaInvoicing
+        ? [
+            taxAuthorityCountJobs({
+              now,
+              taxAuthority: new WsfeTaxAuthorityLastAuthorized(recoveryEnv.arcaInvoicing),
+              certificateFingerprint: recoveryEnv.arcaInvoicing.certificateFingerprint,
+            }),
+          ]
+        : []),
     ],
   });
   const jobQueuePool = createRecoveryJobQueuePool(
@@ -466,6 +494,7 @@ export async function setUpRecovery(
 
   return {
     db,
+    connections: postgresDedicatedConnections(sql),
     jobQueue,
     workerUtils,
     backofficeOrigin: recoveryEnv.backofficeOrigin,
@@ -487,6 +516,7 @@ export interface StartServerDeps {
   enqueueBuyerTaxStatusFetch?: (
     workerUtils: RecoveryInfrastructure["workerUtils"],
   ) => Promise<unknown>;
+  enqueueMissingTaxAuthorityCounts?: (db: RecoveryInfrastructure["db"]) => Promise<unknown>;
   now?: () => Date;
   arcaEndpoints: (environment: string) => ArcaEndpoints;
   recordAuthorizedCuit?: (
@@ -516,6 +546,8 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
     deps.enqueueArcaCertificateExpiryCheck ?? enqueueArcaCertificateExpiryCheck;
   const doEnqueueBuyerTaxStatusFetch =
     deps.enqueueBuyerTaxStatusFetch ?? enqueueBuyerTaxStatusFetch;
+  const doEnqueueMissingTaxAuthorityCounts =
+    deps.enqueueMissingTaxAuthorityCounts ?? enqueueMissingTaxAuthorityCounts;
   const doRecordAuthorizedCuit =
     deps.recordAuthorizedCuit ??
     ((db: RecoveryInfrastructure["db"], authorizedCuit: string) =>
@@ -551,6 +583,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
       }
     : undefined;
 
+  const invoicing = database?.setUpRecoveryEnv.arcaInvoicing;
   const app = doBuildApp({
     version,
     now,
@@ -566,7 +599,17 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
           certificateFingerprint: database.certificateFingerprint,
           deviceTokenRotationKey: database.deviceTokenRotationKey,
           installationKeysEncryptionKey: database.installationKeysEncryptionKey,
+          ...(invoicing ? { enqueueTaxAuthorityCount: enqueueTaxAuthorityCountJob } : {}),
         })
+      : {}),
+    ...(database && invoicing
+      ? {
+          fiscalAuthorization: {
+            connections: database.recovery.connections,
+            taxAuthority: new WsfeTaxAuthorityInvoicing(invoicing),
+            certificateFingerprint: invoicing.certificateFingerprint,
+          },
+        }
       : {}),
   });
   if (database) {
@@ -575,6 +618,9 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
     await doEnqueueArcaCertificateExpiryCheck(database.recovery.workerUtils);
     if (database.setUpRecoveryEnv.arcaBuyerTaxStatus) {
       await doEnqueueBuyerTaxStatusFetch(database.recovery.workerUtils);
+    }
+    if (invoicing) {
+      await doEnqueueMissingTaxAuthorityCounts(database.recovery.db);
     }
   }
   await app.listen({ port: resolvePort(env), host: "0.0.0.0" });

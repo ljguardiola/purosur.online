@@ -435,6 +435,34 @@ describe("chargeSaleInCash", () => {
     ]);
   });
 
+  it("decides how the sale is authorized exactly once, with the gate outcome, when it completes", () => {
+    const store = ledger();
+
+    charge(store, 10000);
+
+    expect(store.state.authorizationDecisions).toEqual([
+      {
+        saleId: "sale-1",
+        gate: store.state.preEmissionGates[0]?.outcome,
+        decidedAt: NOW,
+      },
+    ]);
+  });
+
+  it("decides how the sale is authorized when the gate fails too", () => {
+    const store = ledger({ issuerIdentifications: [] });
+
+    charge(store, 10000);
+
+    expect(store.state.authorizationDecisions).toEqual([
+      {
+        saleId: "sale-1",
+        gate: { kind: "failed", reason: "issuer_identification_missing" },
+        decidedAt: NOW,
+      },
+    ]);
+  });
+
   it("is no longer the open sale once completed", () => {
     const store = ledger();
 
@@ -587,6 +615,7 @@ describe("chargeSaleInCash", () => {
 
     expect(outcome.kind).not.toBe("completed");
     expect(store.state.preEmissionGates).toEqual([]);
+    expect(store.state.authorizationDecisions).toEqual([]);
     expect(store.state.outbox).toEqual([]);
   });
 
@@ -596,6 +625,7 @@ describe("chargeSaleInCash", () => {
     "recordCompletedSale",
     "appendOutboxEvent",
     "recordPreEmissionGate",
+    "decideSaleAuthorization",
   ])("leaves nothing behind when %s fails", (write) => {
     const store = ledger();
     const before = structuredClone(store.state);
@@ -660,6 +690,7 @@ describe("chargeSaleInCash", () => {
 
       expect(store.state.outbox).toEqual([]);
       expect(store.state.preEmissionGates).toEqual([]);
+      expect(store.state.authorizationDecisions).toEqual([]);
       expect(store.state.sales[0]?.occurredAt).toBeUndefined();
     });
 
@@ -737,6 +768,7 @@ describe("chargeSaleInCash", () => {
         ],
       });
       expect(store.state.preEmissionGates).toHaveLength(1);
+      expect(store.state.authorizationDecisions).toHaveLength(1);
     });
 
     it("raises the session's expected cash by exactly what the cash payments applied", () => {

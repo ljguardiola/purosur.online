@@ -1,7 +1,7 @@
 import { preEmissionGate, preEmissionGateFailedEvent } from "../../fiscal/index.js";
 import type { PaymentTransaction } from "../../payments/index.js";
 import { paymentRecord } from "../../payments/index.js";
-import type { OutboxEventDraft } from "../../shared/index.js";
+import { type OutboxEventDraft, SALE_COMPLETED_EVENT_TYPE } from "../../shared/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { saleCashMovementRecord, saleLineRecord } from "./sale-event-records.js";
 import type { IdGenerator, SaleCashMovement, SaleLedgerTransaction } from "./sale-ledger.js";
@@ -30,6 +30,7 @@ export function completeSale(
     buyerTaxStatuses: tx.buyerTaxStatusSetInEffect(),
   });
   tx.recordPreEmissionGate({ saleId: sale.id, evaluatedAt: completedAt, outcome: gate });
+  tx.decideSaleAuthorization({ saleId: sale.id, gate, decidedAt: completedAt, ids });
   if (gate.kind === "failed") {
     tx.appendOutboxEvent(
       preEmissionGateFailedEvent({
@@ -58,7 +59,7 @@ function saleCompletedEvent(
     event_id: eventId,
     aggregate_type: "Sale",
     aggregate_id: sale.id,
-    event_type: "sale_completed",
+    event_type: SALE_COMPLETED_EVENT_TYPE,
     schema_version: 2,
     payload: {
       id: sale.id,

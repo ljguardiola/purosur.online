@@ -16,6 +16,9 @@ import {
   pinCodeRedemptionSchema,
   pushEventsRequestSchema,
   pushEventsResponseSchema,
+  type RealTimeAuthorizationRequestBody,
+  realTimeAuthorizationRequestSchema,
+  realTimeAuthorizationResponseSchema,
   type SyncChange,
   signInLookupBodySchema,
   signInLookupSchema,
@@ -28,6 +31,7 @@ export interface StandInCloud {
   readonly enrollmentCode: string;
   readonly feedStored: Promise<void>;
   readonly requests: readonly string[];
+  readonly authorizationRequests: readonly RealTimeAuthorizationRequestBody[];
   dropEveryConnection(): Promise<void>;
   stop(): Promise<void>;
 }
@@ -35,6 +39,7 @@ export interface StandInCloud {
 export interface StandInCloudOptions {
   readonly signInLookups?: Readonly<Record<string, { userId: string; hasPin: boolean }>>;
   readonly firstPinCodes?: Readonly<Record<string, string>>;
+  readonly taxAuthorityReachable?: boolean;
 }
 
 const ENROLLMENT_CODE = "ABCD2345EFGH6723";
@@ -74,6 +79,7 @@ export async function startStandInCloud(
   const deviceToken = randomUUID();
   const problems: string[] = [];
   const requests: string[] = [];
+  const authorizationRequests: RealTimeAuthorizationRequestBody[] = [];
   const firstPinCodes: Record<string, string> = { ...options.firstPinCodes };
   let markFeedStored = () => {};
   let markFeedRefused = (_problem: Error) => {};
@@ -188,6 +194,28 @@ export async function startStandInCloud(
         status: "ok",
         version: "stand-in",
         installation: { revoked: false },
+        ...(options.taxAuthorityReachable && {
+          arca: { token_valid: true, probe_ok_at: new Date().toISOString(), reachable: true },
+        }),
+      }),
+    );
+  }
+
+  async function answerAuthorization(
+    request: IncomingMessage,
+    response: ServerResponse,
+  ): Promise<void> {
+    if (!hasDeviceToken(request, response, "an authorization request")) {
+      return;
+    }
+    authorizationRequests.push(realTimeAuthorizationRequestSchema.parse(await jsonBody(request)));
+    send(
+      response,
+      200,
+      realTimeAuthorizationResponseSchema.parse({
+        state: "AUTHORIZED",
+        authorization_code: "75123456789012",
+        authorization_code_due_on: "2099-12-31",
       }),
     );
   }
@@ -245,6 +273,8 @@ export async function startStandInCloud(
       await answerPinCodeRedemption(request, response);
     } else if (route === "POST /api/events") {
       await answerEventPush(request, response);
+    } else if (route === "POST /api/fiscal/authorize") {
+      await answerAuthorization(request, response);
     } else if (route === "GET /api/health") {
       answerHealthCheck(request, response);
     } else if (route === "GET /api/changes") {
@@ -282,6 +312,7 @@ export async function startStandInCloud(
     enrollmentCode: ENROLLMENT_CODE,
     feedStored,
     requests,
+    authorizationRequests,
     dropEveryConnection: async () => {
       const closed = new Promise<void>((resolve) => server.close(() => resolve()));
       server.closeAllConnections();

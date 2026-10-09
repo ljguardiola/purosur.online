@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { arcaVitalityChecks } from "../platform/db/schema.js";
+import { arcaInvoicingEvidence, arcaVitalityChecks } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleArcaReachabilityReader } from "./drizzle-arca-reachability-reader.js";
 
@@ -51,6 +51,17 @@ describe("DrizzleArcaReachabilityReader", () => {
 
     await expect(reader.reachabilityEvidence()).resolves.toMatchObject({
       lastVitalityCheckOkAt: null,
+    });
+  });
+
+  it("answers the time of the latest successful invoicing call next to the vitality check", async () => {
+    await testDatabase.db.insert(arcaVitalityChecks).values({ checkedAt: MIDDLE, ok: true });
+    await testDatabase.db.insert(arcaInvoicingEvidence).values({ lastCallOkAt: LATEST });
+    const reader = new DrizzleArcaReachabilityReader(testDatabase.db);
+
+    await expect(reader.reachabilityEvidence()).resolves.toEqual({
+      lastVitalityCheckOkAt: MIDDLE,
+      lastWsfeCallOkAt: LATEST,
     });
   });
 });

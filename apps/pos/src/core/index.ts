@@ -23,6 +23,10 @@ import { requestFirstPinCode } from "./credentials/first-pin-code-request";
 import { checkPinCodeRedemption, redeemPinCode } from "./credentials/pin-code-redemption";
 import { pinPolicy } from "./credentials/pin-policy";
 import { applyRedeemedPin } from "./credentials/redeemed-pin";
+import {
+  createRealTimeAuthorization,
+  startRegisterHealthChecks,
+} from "./fiscal/real-time-authorization-wiring";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
 import {
   type CloudClientDeps,
@@ -266,6 +270,15 @@ const syncSchedule = createSyncSchedule({
   },
   onFailure: reportSyncFailure,
   afterEachSync: () => rendererConnection.tell(PULLED_NOTICE),
+});
+
+const readDeviceToken = async () => (await mainRequests.readCredentials())?.device_token;
+const realTimeAuthorization = createRealTimeAuthorization({
+  database: localDatabase,
+  cloudClient,
+  readDeviceToken,
+  now,
+  reportFailure: (error) => reportFailure("the real-time authorization", error),
 });
 
 const rendererRequestDeps: RendererRequestDeps = {
@@ -581,6 +594,26 @@ const rendererRequestDeps: RendererRequestDeps = {
   reportFailure,
 };
 
+const answeredRendererRequestDeps: RendererRequestDeps = {
+  ...rendererRequestDeps,
+  chargeSaleInCash: realTimeAuthorization.afterCompletedSale(rendererRequestDeps.chargeSaleInCash),
+  chargeSaleByTransfer: realTimeAuthorization.afterCompletedSale(
+    rendererRequestDeps.chargeSaleByTransfer,
+  ),
+};
+
+startRegisterHealthChecks({
+  database: localDatabase,
+  cloudClient,
+  readDeviceToken,
+  now,
+  scheduleNext: (run, delayMs) => {
+    const timer = setTimeout(run, delayMs);
+    return () => clearTimeout(timer);
+  },
+  reportFailure: (error) => reportFailure("the register health check", error),
+});
+
 if (cloudClient !== undefined) {
   startDeviceTokenRotationSchedule({
     rotate: () =>
@@ -601,7 +634,7 @@ if (cloudClient !== undefined) {
 const rendererConnection = createRendererConnection(
   (data, reply) => {
     gateFromRenderer(data, (message) => {
-      void answerRendererRequest(rendererRequestDeps, message).then((answer) => {
+      void answerRendererRequest(answeredRendererRequestDeps, message).then((answer) => {
         if (answer !== undefined) {
           reply(answer);
         }

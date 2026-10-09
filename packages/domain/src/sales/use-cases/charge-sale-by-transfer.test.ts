@@ -255,6 +255,20 @@ describe("chargeSaleByTransfer", () => {
     ]);
   });
 
+  it("decides how the sale is authorized exactly once, with the gate outcome, when it completes", () => {
+    const store = ledger();
+
+    charge(store);
+
+    expect(store.state.authorizationDecisions).toEqual([
+      {
+        saleId: "sale-1",
+        gate: store.state.preEmissionGates[0]?.outcome,
+        decidedAt: NOW,
+      },
+    ]);
+  });
+
   it("is no longer the open sale once completed", () => {
     const store = ledger();
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   type CloudClientDeps,
   getFromCloud,
@@ -306,5 +306,63 @@ describe("postToCloudWithBearer with a body", () => {
       "Bearer prefix.secret",
       "Bearer prefix.secret",
     ]);
+  });
+});
+
+describe("a call that asks for a time limit and a single attempt", () => {
+  const SINGLE_ATTEMPT = { timeoutMs: 5000, singleAttempt: true };
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("waits no longer than the limit it asks for", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    const { deps } = clientAnswering(jsonResponse(200, { ok: true }));
+
+    await postToCloudWithBearer(deps, "/api/fiscal/authorize", "prefix.secret", {}, SINGLE_ATTEMPT);
+    await getFromCloud(deps, "/api/health", {}, SINGLE_ATTEMPT);
+
+    expect(timeout.mock.calls).toEqual([[5000], [5000]]);
+  });
+
+  it.each([
+    ["a rate limit", jsonResponse(429, envelope("rate_limited", [{ retry_after_seconds: 1 }]))],
+    ["an unavailable server", jsonResponse(503, envelope("server_unavailable"))],
+  ])("sends a post once and answers %s without waiting it out", async (_case, refusal) => {
+    const { deps, requests, waits } = clientAnswering(refusal, jsonResponse(200, { ok: true }));
+
+    const response = await postToCloudWithBearer(
+      deps,
+      "/api/fiscal/authorize",
+      "prefix.secret",
+      { a: 1 },
+      SINGLE_ATTEMPT,
+    );
+
+    expect(response.kind).toBe("error");
+    expect(requests).toHaveLength(1);
+    expect(waits).toEqual([]);
+  });
+
+  it("sends a get once and answers an unavailable server without waiting it out", async () => {
+    const { deps, requests, waits } = clientAnswering(
+      jsonResponse(503, envelope("server_unavailable")),
+      jsonResponse(200, { ok: true }),
+    );
+
+    const response = await getFromCloud(deps, "/api/health", {}, SINGLE_ATTEMPT);
+
+    expect(response.kind).toBe("error");
+    expect(requests).toHaveLength(1);
+    expect(waits).toEqual([]);
+  });
+
+  it("answers unreachable when the cloud can't be reached", async () => {
+    const { deps } = clientAnswering(new Error("socket hang up"));
+
+    expect(
+      await postToCloudWithBearer(deps, "/api/fiscal/authorize", "t", {}, SINGLE_ATTEMPT),
+    ).toEqual({ kind: "unreachable" });
   });
 });

@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, inject, it, onTestFinished, vi }
 import {
   alertDeliveries,
   alerts,
+  arcaInvoicingEvidence,
   arcaVitalityChecks,
   arcaWsaaTokens,
   auditLog,
@@ -22,6 +23,7 @@ import {
   deviceState,
   discounts,
   fiscalAddresses,
+  fiscalRequests,
   inbox,
   installationRequestAttempts,
   issuerIdentification,
@@ -63,6 +65,7 @@ import {
   stockCounts,
   stockMovements,
   tags,
+  taxAuthorityLastAuthorizedNumbers,
   userPinCodes,
   userPins,
   userRoles,
@@ -531,6 +534,27 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       sign: "FICTIONAL-SIGN-0001",
       issuedAt: new Date("2026-01-05T12:00:00.000Z"),
       expiresAt: new Date("2026-01-06T00:00:00.000Z"),
+    });
+    await db
+      .insert(arcaInvoicingEvidence)
+      .values({ lastCallOkAt: new Date("2026-01-05T12:00:00.000Z") });
+    await db.insert(taxAuthorityLastAuthorizedNumbers).values({
+      pointOfSaleNumber: 7,
+      lastAuthorized: 41,
+      readAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
+    await db.insert(fiscalRequests).values({
+      fiscalDocumentId: "00000000-0000-4000-8000-000000000101",
+      registerId: register.id,
+      saleId: "00000000-0000-4000-8000-000000000102",
+      pointOfSale: 7,
+      number: 42,
+      issuedOn: "2026-01-05",
+      total: 10_000,
+      buyerTaxStatusCode: 5,
+      saleEvent: { event_type: "sale_completed" },
+      receivedAt: new Date("2026-01-05T12:00:00.000Z"),
+      notAfter: new Date("2026-01-05T12:00:04.000Z"),
     });
     // issuer_identification is a true singleton: its row count can never grow, so its "seeded
     // before clear()" is a content change instead.
