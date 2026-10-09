@@ -104,6 +104,20 @@ describe("readMercadoPagoQrPayment", () => {
     expect(mercadoPago.readOrders).toEqual([]);
   });
 
+  it("ends a pending payment without an order as expired once its expiry is reached, without calling Mercado Pago", async () => {
+    const { lanes, mercadoPago, ports } = mercadoPagoQrOrderWorld();
+    lanes.seed(storedTransaction({ expiresAt: NOW }));
+
+    const outcome = await readMercadoPagoQrPayment(ports, INPUT);
+
+    expect(outcome).toEqual({
+      kind: "read",
+      transaction: storedTransaction({ expiresAt: NOW, state: "EXPIRED" }),
+    });
+    expect(lanes.transactions.get(TRANSACTION_ID)?.state).toBe("EXPIRED");
+    expect(mercadoPago.readOrders).toEqual([]);
+  });
+
   it("answers provider unavailable and changes nothing when the order cannot be read", async () => {
     const { lanes, ports } = mercadoPagoQrOrderWorld({ reading: { kind: "unavailable" } });
     lanes.seed(storedTransaction(WITH_ORDER));

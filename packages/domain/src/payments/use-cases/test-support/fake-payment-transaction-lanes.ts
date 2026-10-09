@@ -4,9 +4,15 @@ import {
   type PaymentTransactionLane,
   type PaymentTransactionLanes,
   type PaymentTransactionOutcome,
+  type PaymentTransactionReading,
 } from "../mercado-pago-qr-order-ports.js";
 
-type LaneWrite = "recordPendingTransaction" | "recordOrderCreated" | "recordOrderResult";
+type LaneWrite =
+  | "recordPendingTransaction"
+  | "recordCreationAttempt"
+  | "recordExpired"
+  | "recordOrderCreated"
+  | "recordOrderResult";
 
 class FakeLane implements PaymentTransactionLane {
   private readonly lanes: FakePaymentTransactionLanes;
@@ -36,12 +42,37 @@ class FakeLane implements PaymentTransactionLane {
     this.lanes.transactions.set(transaction.id, structuredClone(transaction));
   }
 
-  async recordOrderCreated(paymentTransactionId: string, providerOrderId: string): Promise<void> {
+  async recordCreationAttempt(paymentTransactionId: string, expiresAt: Date): Promise<void> {
+    this.lanes.operations.push("recordCreationAttempt");
+    this.lanes.failIfAsked("recordCreationAttempt");
+    const stored = this.lanes.transactions.get(paymentTransactionId);
+    if (stored) {
+      stored.expiresAt = new Date(expiresAt);
+    }
+  }
+
+  async recordExpired(paymentTransactionId: string): Promise<void> {
+    this.lanes.operations.push("recordExpired");
+    this.lanes.failIfAsked("recordExpired");
+    const stored = this.lanes.transactions.get(paymentTransactionId);
+    if (stored) {
+      stored.state = "EXPIRED";
+    }
+  }
+
+  async recordOrderCreated(
+    paymentTransactionId: string,
+    providerOrderId: string,
+    reading: PaymentTransactionReading | null,
+  ): Promise<void> {
     this.lanes.operations.push("recordOrderCreated");
     this.lanes.failIfAsked("recordOrderCreated");
     const stored = this.lanes.transactions.get(paymentTransactionId);
     if (stored) {
       stored.providerOrderId = providerOrderId;
+    }
+    if (reading !== null) {
+      this.store(paymentTransactionId, reading.outcome, reading.readAt);
     }
   }
 
@@ -52,6 +83,10 @@ class FakeLane implements PaymentTransactionLane {
   ): Promise<void> {
     this.lanes.operations.push("recordOrderResult");
     this.lanes.failIfAsked("recordOrderResult");
+    this.store(paymentTransactionId, outcome, readAt);
+  }
+
+  private store(paymentTransactionId: string, outcome: PaymentTransactionOutcome, readAt: Date) {
     const stored = this.lanes.transactions.get(paymentTransactionId);
     if (stored) {
       stored.state = outcome.state;

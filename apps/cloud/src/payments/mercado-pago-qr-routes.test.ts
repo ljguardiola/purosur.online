@@ -203,7 +203,7 @@ describe("the Mercado Pago QR routes", () => {
         state: "PENDING",
         needs_review: false,
         amount: 5000,
-        expires_at: "2026-10-09T12:05:00.000Z",
+        expires_at: "2026-10-09T12:05:10.000Z",
       });
       expect(route.mercadoPago.creations).toEqual([
         {
@@ -272,14 +272,13 @@ describe("the Mercado Pago QR routes", () => {
     });
 
     it("answers that the provider refused the order", async () => {
-      route.mercadoPago.creation = { kind: "refused", code: "invalid_total_amount" };
+      route.mercadoPago.creation = { kind: "refused" };
       const { deviceToken } = await enroll();
 
       const response = await createOrder(orderRequest(), `Bearer ${deviceToken}`);
 
       expect(response.statusCode).toBe(502);
       expect(cloudErrorSchema.parse(response.json()).code).toBe("payment_provider_refused");
-      expect(JSON.stringify(response.json())).not.toContain("invalid_total_amount");
     });
 
     it("answers that the provider is unavailable, keeping the pending transaction to ask again", async () => {

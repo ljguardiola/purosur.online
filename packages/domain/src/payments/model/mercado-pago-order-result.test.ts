@@ -13,7 +13,6 @@ function order(overrides: Partial<MercadoPagoOrderResult> = {}): MercadoPagoOrde
   return {
     status: "processed",
     statusDetail: "accredited",
-    totalAmount: 2500,
     totalPaidAmount: 2500,
     payments: [ACCREDITED],
     ...overrides,
@@ -32,7 +31,6 @@ const orderResultArbitrary = fc.record({
     "something_new",
   ),
   statusDetail: fc.constantFrom("accredited", "partially_refunded", "other"),
-  totalAmount: fc.integer({ min: 1, max: 1_000_000 }),
   totalPaidAmount: fc.option(fc.integer({ min: 0, max: 1_000_000 }), { nil: null }),
   payments: fc.array(
     fc.record({
@@ -214,11 +212,17 @@ describe("applyMercadoPagoOrderResult", () => {
     "leaves a %s payment exactly as it is whatever the order reports",
     (state) => {
       fc.assert(
-        fc.property(orderResultArbitrary, fc.boolean(), (result, needsReview) => {
-          expect(
-            applyMercadoPagoOrderResult({ state, needsReview, amount: result.totalAmount }, result),
-          ).toEqual({ state, needsReview });
-        }),
+        fc.property(
+          orderResultArbitrary,
+          fc.boolean(),
+          fc.integer({ min: 1, max: 1_000_000 }),
+          (result, needsReview, amount) => {
+            expect(applyMercadoPagoOrderResult({ state, needsReview, amount }, result)).toEqual({
+              state,
+              needsReview,
+            });
+          },
+        ),
       );
     },
   );

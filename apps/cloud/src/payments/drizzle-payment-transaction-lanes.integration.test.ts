@@ -21,7 +21,6 @@ import { CREATED_AT, insertRegister } from "./test-support/payment-transaction-f
 const UNPAID_ORDER = {
   status: "created",
   statusDetail: "created",
-  totalAmount: 5000,
   totalPaidAmount: null,
   payments: [],
 } as const;
@@ -42,6 +41,7 @@ afterAll(async () => {
 });
 
 class HeldMercadoPago implements MercadoPagoOrders {
+  readonly longestCallMs = 10_000;
   readonly started: string[] = [];
   readonly finished: string[] = [];
   private readonly releases = new Map<

@@ -7,6 +7,7 @@ import type {
 import type { FakePaymentTransactionLanes } from "./fake-payment-transaction-lanes.js";
 
 export class FakeMercadoPagoOrders implements MercadoPagoOrders {
+  readonly longestCallMs = 10_000;
   readonly creationRequests: MercadoPagoQrOrderRequest[] = [];
   readonly readOrders: string[] = [];
   heldLaneDuringCall: boolean | undefined;

@@ -95,18 +95,70 @@ describe("DrizzlePaymentTransactionLanes", () => {
     });
   });
 
-  describe("the order of a transaction", () => {
-    it("keeps the provider's order identifier on the transaction", async () => {
+  describe("a creation attempt", () => {
+    it("moves the transaction's expiry to the new attempt's", async () => {
+      const registerId = await insertRegister(db, "caja-1");
+      const transaction = pendingTransaction(registerId);
+      const expiresAt = new Date("2026-10-09T12:08:10.000Z");
+
+      const recorded = await lanes.inPaymentTransactionLane(transaction.id, async (lane) => {
+        await lane.recordPendingTransaction(transaction);
+        await lane.recordCreationAttempt(transaction.id, expiresAt);
+        return lane.recordedTransaction(registerId, transaction.id);
+      });
+
+      expect(recorded).toEqual({ ...transaction, expiresAt });
+    });
+  });
+
+  describe("the expiry of a transaction", () => {
+    it("ends the transaction as expired", async () => {
       const registerId = await insertRegister(db, "caja-1");
       const transaction = pendingTransaction(registerId);
 
       const recorded = await lanes.inPaymentTransactionLane(transaction.id, async (lane) => {
         await lane.recordPendingTransaction(transaction);
-        await lane.recordOrderCreated(transaction.id, "ORD01");
+        await lane.recordExpired(transaction.id);
+        return lane.recordedTransaction(registerId, transaction.id);
+      });
+
+      expect(recorded).toEqual({ ...transaction, state: "EXPIRED" });
+    });
+  });
+
+  describe("the order of a transaction", () => {
+    it("keeps the provider's order identifier alone when the creation answer is not recorded", async () => {
+      const registerId = await insertRegister(db, "caja-1");
+      const transaction = pendingTransaction(registerId);
+
+      const recorded = await lanes.inPaymentTransactionLane(transaction.id, async (lane) => {
+        await lane.recordPendingTransaction(transaction);
+        await lane.recordOrderCreated(transaction.id, "ORD01", null);
         return lane.recordedTransaction(registerId, transaction.id);
       });
 
       expect(recorded).toEqual({ ...transaction, providerOrderId: "ORD01" });
+      expect(await storedRow(transaction.id)).toMatchObject({ stateReadAt: null });
+    });
+
+    it("keeps the provider's order identifier with the state, the review flag and the read time the creation answered", async () => {
+      const registerId = await insertRegister(db, "caja-1");
+      const transaction = pendingTransaction(registerId);
+
+      await lanes.inPaymentTransactionLane(transaction.id, async (lane) => {
+        await lane.recordPendingTransaction(transaction);
+        await lane.recordOrderCreated(transaction.id, "ORD01", {
+          outcome: { state: "PENDING", needsReview: true },
+          readAt: READ_AT,
+        });
+      });
+
+      expect(await storedRow(transaction.id)).toMatchObject({
+        providerOrderId: "ORD01",
+        state: "PENDING",
+        needsReview: true,
+        stateReadAt: READ_AT,
+      });
     });
   });
 

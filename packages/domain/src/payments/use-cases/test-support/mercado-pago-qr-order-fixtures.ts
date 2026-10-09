@@ -20,7 +20,6 @@ export function orderResult(
   return {
     status: "created",
     statusDetail: "created",
-    totalAmount: AMOUNT,
     totalPaidAmount: null,
     payments: [],
     ...overrides,

@@ -1466,6 +1466,7 @@ describe("startServer creating Mercado Pago QR orders", () => {
     expect(options.mercadoPagoQr).toEqual({
       connections: recovery.connections,
       mercadoPago: {
+        longestCallMs: expect.any(Number),
         createQrOrder: expect.any(Function),
         readOrder: expect.any(Function),
       },

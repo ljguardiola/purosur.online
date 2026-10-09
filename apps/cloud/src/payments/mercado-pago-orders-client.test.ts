@@ -77,7 +77,6 @@ function createdResult(overrides: Partial<MercadoPagoOrderResult> = {}): Mercado
   return {
     status: "created",
     statusDetail: "created",
-    totalAmount: 5000,
     totalPaidAmount: null,
     payments: [{ status: "created", statusDetail: "ready_to_process", paidAmount: null }],
     ...overrides,
@@ -166,7 +165,6 @@ describe("the Mercado Pago orders client", () => {
         result: {
           status: "processed",
           statusDetail: "accredited",
-          totalAmount: 5000,
           totalPaidAmount: 5000,
           payments: [{ status: "processed", statusDetail: "accredited", paidAmount: 5000 }],
         },
@@ -176,10 +174,9 @@ describe("the Mercado Pago orders client", () => {
     it.each([
       ["a missing identifier", { ...createdOrder(), id: undefined }],
       ["a missing status", { ...createdOrder(), status: undefined }],
-      ["an amount that is not a decimal number", { ...createdOrder(), total_amount: "abc" }],
-      ["an amount of three decimals", { ...createdOrder(), total_amount: "50.001" }],
-      ["a negative amount", { ...createdOrder(), total_amount: "-50.00" }],
       ["an amount paid that is not a decimal number", { ...paidOrder(), total_paid_amount: "x" }],
+      ["an amount paid of three decimals", { ...paidOrder(), total_paid_amount: "50.001" }],
+      ["a negative amount paid", { ...paidOrder(), total_paid_amount: "-50.00" }],
     ])("cannot tell what became of the order when the answer has %s", async (_name, body) => {
       const { client } = clientAnswering(answer(201, body));
 
@@ -192,37 +189,14 @@ describe("the Mercado Pago orders client", () => {
       expect(await client.createQrOrder(REQUEST)).toStrictEqual({ kind: "unavailable" });
     });
 
-    it("refuses with the code Mercado Pago gives in its error list", async () => {
-      const { client } = clientAnswering(
-        answer(400, { errors: [{ code: "invalid_total_amount", message: "bad amount" }] }),
-      );
+    it.each([
+      [400, { errors: [{ code: "invalid_total_amount", message: "bad amount" }] }],
+      [401, "Unauthorized"],
+      [409, { code: "idempotency_key_already_used" }],
+    ])("refuses the order when Mercado Pago answers %i", async (status, body) => {
+      const { client } = clientAnswering(answer(status, body));
 
-      expect(await client.createQrOrder(REQUEST)).toStrictEqual({
-        kind: "refused",
-        code: "invalid_total_amount",
-      });
-    });
-
-    it("refuses with the code Mercado Pago gives at the top of its answer", async () => {
-      const { client } = clientAnswering(answer(409, { code: "idempotency_key_already_used" }));
-
-      expect(await client.createQrOrder(REQUEST)).toStrictEqual({
-        kind: "refused",
-        code: "idempotency_key_already_used",
-      });
-    });
-
-    it("refuses with the status when Mercado Pago gives no usable code", async () => {
-      const { client } = clientAnswering(answer(401, "Unauthorized"), answer(400, { code: "a b" }));
-
-      expect(await client.createQrOrder(REQUEST)).toStrictEqual({
-        kind: "refused",
-        code: "http_401",
-      });
-      expect(await client.createQrOrder(REQUEST)).toStrictEqual({
-        kind: "refused",
-        code: "http_400",
-      });
+      expect(await client.createQrOrder(REQUEST)).toStrictEqual({ kind: "refused" });
     });
 
     it.each([408, 429, 500, 502, 503])(
@@ -240,7 +214,7 @@ describe("the Mercado Pago orders client", () => {
       expect(await client.createQrOrder(REQUEST)).toStrictEqual({ kind: "unavailable" });
     });
 
-    it("is unavailable when Mercado Pago does not answer within 10 seconds", async () => {
+    it("is unavailable when Mercado Pago does not answer within the longest call the client declares", async () => {
       vi.useFakeTimers();
       const fetch = vi.fn<typeof globalThis.fetch>(
         (_url, init) =>
@@ -255,7 +229,7 @@ describe("the Mercado Pago orders client", () => {
       });
 
       const creation = client.createQrOrder(REQUEST);
-      await vi.advanceTimersByTimeAsync(9_999);
+      await vi.advanceTimersByTimeAsync(client.longestCallMs - 1);
       expect(fetch.mock.calls[0]?.[1]?.signal?.aborted).toBe(false);
       await vi.advanceTimersByTimeAsync(1);
 
@@ -294,7 +268,6 @@ describe("the Mercado Pago orders client", () => {
         {
           status: "processed",
           statusDetail: "accredited",
-          totalAmount: 5000,
           totalPaidAmount: 5000,
           payments: [{ status: "processed", statusDetail: "accredited", paidAmount: 5000 }],
         },
@@ -305,7 +278,6 @@ describe("the Mercado Pago orders client", () => {
         {
           status: "processed",
           statusDetail: "accredited",
-          totalAmount: 5000,
           totalPaidAmount: 4728,
           payments: [{ status: "processed", statusDetail: "accredited", paidAmount: 4728 }],
         },
@@ -348,23 +320,40 @@ describe("the Mercado Pago orders client", () => {
 
     it("reads the amounts in cents without the drift of floating point numbers", async () => {
       const { client } = clientAnswering(
-        answer(200, paidWithDiscountOrder("4.35", "1.15")),
-        answer(200, paidWithDiscountOrder("0.29", "0.07")),
+        answer(200, paidWithDiscountOrder("50.00", "4.35")),
+        answer(200, paidWithDiscountOrder("50.00", "0.29")),
       );
 
       expect(await client.readOrder(ORDER_ID)).toMatchObject({
-        result: { totalAmount: 435, totalPaidAmount: 115 },
+        result: { totalPaidAmount: 435, payments: [{ paidAmount: 435 }] },
       });
       expect(await client.readOrder(ORDER_ID)).toMatchObject({
-        result: { totalAmount: 29, totalPaidAmount: 7 },
+        result: { totalPaidAmount: 29, payments: [{ paidAmount: 29 }] },
       });
     });
 
     it("reads an amount with one decimal and an amount without decimals", async () => {
-      const { client } = clientAnswering(answer(200, paidWithDiscountOrder("50", "47.5")));
+      const { client } = clientAnswering(
+        answer(200, paidWithDiscountOrder("50.00", "47.5")),
+        answer(200, paidWithDiscountOrder("50.00", "50")),
+      );
 
       expect(await client.readOrder(ORDER_ID)).toMatchObject({
-        result: { totalAmount: 5000, totalPaidAmount: 4750 },
+        result: { totalPaidAmount: 4750 },
+      });
+      expect(await client.readOrder(ORDER_ID)).toMatchObject({
+        result: { totalPaidAmount: 5000 },
+      });
+    });
+
+    it("reads an answer that does not state the order's total amount", async () => {
+      const { client } = clientAnswering(
+        answer(200, { ...createdOrder(), total_amount: undefined }),
+      );
+
+      expect(await client.readOrder(ORDER_ID)).toStrictEqual({
+        kind: "read",
+        result: createdResult(),
       });
     });
 
@@ -382,7 +371,6 @@ describe("the Mercado Pago orders client", () => {
         result: {
           status: "processed",
           statusDetail: "accredited",
-          totalAmount: 5000,
           totalPaidAmount: 5000,
           payments: [{ status: "processed", statusDetail: "accredited", paidAmount: 5000 }],
         },
@@ -391,7 +379,6 @@ describe("the Mercado Pago orders client", () => {
 
     it.each([
       ["a missing status detail", { ...createdOrder(), status_detail: undefined }],
-      ["a missing total amount", { ...createdOrder(), total_amount: undefined }],
       ["a payment without its status", { ...createdOrder(), transactions: { payments: [{}] } }],
       [
         "a payment amount paid that is not a decimal number",
