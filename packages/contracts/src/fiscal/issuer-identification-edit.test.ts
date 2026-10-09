@@ -190,7 +190,7 @@ describe("issuerIdentificationEditBodySchema", () => {
 
   it("drops authorized_cuit and tax_status when a client sends them", () => {
     const result = schema.safeParse(
-      validBody({ authorized_cuit: "20-99999999-9", tax_status: "Responsable Inscripto" }),
+      validBody({ authorized_cuit: "20-00000000-9", tax_status: "Responsable Inscripto" }),
     );
 
     expect(result.success && Object.keys(result.data).sort()).toEqual([

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ANOTHER_FICTIONAL_CUIT,
+  CUIT_NUMBER_NO_CHECK_DIGIT_VALIDATES,
   FICTIONAL_CUIT,
 } from "../test-support/fictional-tax-identities.js";
 import { isValidCuit } from "./cuit.js";
@@ -19,8 +20,8 @@ describe("isValidCuit", () => {
   });
 
   it("rejects the rare prefix for which no check digit is ever valid", () => {
-    expect(isValidCuit("20-00026758-0")).toBe(false);
-    expect(isValidCuit("20-00026758-1")).toBe(false);
+    expect(isValidCuit(CUIT_NUMBER_NO_CHECK_DIGIT_VALIDATES)).toBe(false);
+    expect(isValidCuit("26-00000000-1")).toBe(false);
   });
 
   it("rejects a value with the wrong number of digits", () => {
