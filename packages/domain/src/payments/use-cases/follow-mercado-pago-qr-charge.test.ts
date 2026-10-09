@@ -44,11 +44,12 @@ describe("followMercadoPagoQrCharge", () => {
     });
   });
 
-  it("answers the wait is over once 3 minutes pass with the order still pending, leaving the payment pending", async () => {
+  it("answers the wait is over once 3 minutes pass, asking the cloud nothing and leaving the payment pending", async () => {
     const world = followingWorld();
     world.now = new Date("2026-10-09T12:03:00.000Z");
 
     expect(await followMercadoPagoQrCharge(world.ports, INPUT)).toEqual({ kind: "wait_over" });
+    expect(world.readOrders).toEqual([]);
     expect(world.pendingCharge(QR_PAYMENT_ID)).not.toBeNull();
   });
 
@@ -78,9 +79,20 @@ describe("followMercadoPagoQrCharge", () => {
     expect(world.settledPayments).toEqual([INPUT]);
   });
 
-  it("settles a payment approved after the wait ran out", async () => {
+  it("never settles a payment approved once the wait ran out, leaving it for a late payment", async () => {
     const world = followingWorld();
-    world.now = new Date("2026-10-09T12:04:00.000Z");
+    world.now = new Date("2026-10-09T12:03:00.000Z");
+    world.orderReading = { kind: "read", state: "APPROVED" };
+
+    expect(await followMercadoPagoQrCharge(world.ports, INPUT)).toEqual({ kind: "wait_over" });
+    expect(world.settledPayments).toEqual([]);
+    expect(world.readOrders).toEqual([]);
+    expect(world.pendingCharge(QR_PAYMENT_ID)).not.toBeNull();
+  });
+
+  it("settles a payment approved in the wait's last second", async () => {
+    const world = followingWorld();
+    world.now = new Date("2026-10-09T12:02:59.999Z");
     world.orderReading = { kind: "read", state: "APPROVED" };
 
     expect(await followMercadoPagoQrCharge(world.ports, INPUT)).toMatchObject({
