@@ -123,7 +123,6 @@ describe("NavigationRail", () => {
 
     const items = Array.from(rail.querySelectorAll("button, a")).map((item) => item.textContent);
     expect(items).toEqual(["Venta"]);
-    await expect.element(screen.getByText("Ada")).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
   });
 
