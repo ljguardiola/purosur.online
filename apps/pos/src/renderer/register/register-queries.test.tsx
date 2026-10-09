@@ -577,8 +577,8 @@ const STATUS: RegisterStatus = { conditions: ["sales_denied"], cloud: "reachable
 
 type StatusRead = () => Promise<RegisterStatus | "unavailable">;
 
-function StatusProbe({ read, enabled = true }: { read: StatusRead; enabled?: boolean }) {
-  const status = useRegisterStatusQuery(read, enabled);
+function StatusProbe({ read }: { read: StatusRead }) {
+  const status = useRegisterStatusQuery(read);
   return <p>{describeData(status, (value) => `${value.cloud} ${value.conditions.join(",")}`)}</p>;
 }
 
@@ -615,18 +615,6 @@ describe("register status query", () => {
     );
 
     await expect.element(screen.getByText("failed")).toBeVisible();
-  });
-
-  it("does not read while disabled", async () => {
-    const read = vi.fn<StatusRead>(async () => STATUS);
-    const screen = await render(
-      <QueryClientProvider client={createQueryClient()}>
-        <StatusProbe read={read} enabled={false} />
-      </QueryClientProvider>,
-    );
-
-    await expect.element(screen.getByText("loading")).toBeVisible();
-    expect(read).not.toHaveBeenCalled();
   });
 
   it("reads again when its key is invalidated", async () => {

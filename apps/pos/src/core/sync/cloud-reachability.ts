@@ -15,7 +15,10 @@ export function nextCloudReachability(
     case "no_app_version":
       return previous;
     case "failed":
-      return attempt.failure.kind === "unreachable" ? "unreachable" : "reachable";
+      return attempt.failure.kind === "unreachable" ||
+        (attempt.failure.kind === "refused" && attempt.failure.code === "server_unavailable")
+        ? "unreachable"
+        : "reachable";
     default:
       return "reachable";
   }

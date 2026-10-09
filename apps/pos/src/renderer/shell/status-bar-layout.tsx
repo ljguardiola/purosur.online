@@ -12,7 +12,7 @@ export type StatusBarLayoutProps = {
 };
 
 export function StatusBarLayout({ person, cashSession, readStatus }: StatusBarLayoutProps) {
-  const status = useRegisterStatusQuery(readStatus, true);
+  const status = useRegisterStatusQuery(readStatus);
   return (
     <div className="flex h-full w-full flex-col">
       <RegisterStatusBar person={person} cashSession={cashSession} status={status} />

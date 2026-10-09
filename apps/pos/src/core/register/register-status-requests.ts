@@ -15,7 +15,7 @@ export interface RegisterStatusDeps {
 export function registerStatusFor({ database, cloud, now }: RegisterStatusDeps): RegisterStatus {
   return {
     conditions: registerOwnConditions({
-      salesStopped: salesStopOf(database).stopped,
+      salesStop: salesStopOf(database),
       lastAcceptedPushAt: new SqliteAcceptedPushLog(database).lastAcceptedPushAt(),
       hours: new SqliteLocalReplica(database).ownBranchHours(),
       now: now(),

@@ -101,9 +101,8 @@ export function useRegisterNameQuery(read: () => Promise<string | null>): string
 
 export function useRegisterStatusQuery(
   read: () => Promise<RegisterStatus | "unavailable">,
-  enabled: boolean,
 ): CoreData<RegisterStatus> {
-  return useCoreQuery({ queryKey: registerKeys.status, read, enabled });
+  return useCoreQuery({ queryKey: registerKeys.status, read });
 }
 
 export function useLockedClosersQuery(

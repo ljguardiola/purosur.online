@@ -3,6 +3,7 @@ import {
   Card,
   formatClockTime,
   LoadFailure,
+  LoadingPlaceholder,
   LocalAlertExplanation,
   StatusIndicator,
 } from "@purosur/ui";
@@ -21,10 +22,8 @@ function sessionText(cashSession: CashSessionState): string | undefined {
   if (cashSession.status === "none") {
     return "Sin sesión abierta";
   }
-  if (cashSession.status === "open") {
-    return cashSession.locked
-      ? "Caja bloqueada"
-      : `Sesión abierta ${formatClockTime(cashSession.openedAt)}`;
+  if (cashSession.status === "open" && !cashSession.locked) {
+    return `Sesión abierta ${formatClockTime(cashSession.openedAt)}`;
   }
   return undefined;
 }
@@ -55,8 +54,9 @@ export function RegisterStatusBar({ person, cashSession, status }: RegisterStatu
           <p className="font-semibold text-text text-detail">{person.first_name}</p>
         )}
         {session === undefined ? null : <p className="text-text-subtle text-detail">{session}</p>}
-        <CloudIndicator cloud={status.status === "loaded" ? status.value.cloud : "unknown"} />
+        {status.status === "loaded" ? <CloudIndicator cloud={status.value.cloud} /> : null}
       </div>
+      {status.status === "loading" ? <LoadingPlaceholder variant="card" lines={1} /> : null}
       {status.status === "failed" ? (
         <LoadFailure
           icon={<TriangleAlert />}
