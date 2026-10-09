@@ -184,6 +184,29 @@ describe("processRecoveryRequestJob", () => {
     expect(stillOpen).toEqual([]);
   });
 
+  it("refuses a request first processed one link lifetime after it was made, auditing it as late", async () => {
+    const userId = await insertUser("ada@example.com");
+    const lateRunAt = new Date(NOW.getTime() + RECOVERY_TOKEN_LIFETIME_MS);
+
+    const result = await processRecoveryRequestJob(
+      db,
+      request("ada@example.com", NOW),
+      jobDeps(lateRunAt),
+    );
+
+    expect(result).toEqual({});
+    await expect(db.select().from(recoveryTokens)).resolves.toEqual([]);
+    await expect(recoveryRequestedAlerts()).resolves.toEqual([]);
+    const auditRows = await requestAuditRows();
+    expect(auditRows).toHaveLength(1);
+    expect(auditRows[0]).toMatchObject({
+      entityId: userId,
+      actorId: userId,
+      newValue: { attempt: "request", rejectedWith: "late" },
+      at: NOW,
+    });
+  });
+
   it("issues no second link for a different request made in the same millisecond", async () => {
     await insertUser("ada@example.com");
 

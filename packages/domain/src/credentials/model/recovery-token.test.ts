@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isRecoveryRequestCurrent,
   RECOVERY_TOKEN_LIFETIME_MS,
   recoveryTokenExpiresAt,
   recoveryTokenStatus,
@@ -106,5 +107,29 @@ describe("wasRecoveryRequestServed", () => {
 
   it("is false when nothing is stored", () => {
     expect(wasRecoveryRequestServed([], "request-a")).toBe(false);
+  });
+});
+
+describe("isRecoveryRequestCurrent", () => {
+  const REQUEST = { requestedAt: ISSUED_AT };
+
+  it("is true when the request has just been made", () => {
+    expect(isRecoveryRequestCurrent(REQUEST, ISSUED_AT)).toBe(true);
+  });
+
+  it("is true until one recovery token lifetime after the request", () => {
+    expect(
+      isRecoveryRequestCurrent(REQUEST, after(ISSUED_AT, RECOVERY_TOKEN_LIFETIME_MS - 1)),
+    ).toBe(true);
+  });
+
+  it("is false exactly one recovery token lifetime after the request", () => {
+    expect(isRecoveryRequestCurrent(REQUEST, after(ISSUED_AT, RECOVERY_TOKEN_LIFETIME_MS))).toBe(
+      false,
+    );
+  });
+
+  it("is false long after the request", () => {
+    expect(isRecoveryRequestCurrent(REQUEST, after(ISSUED_AT, 4 * 60 * 60 * 1000))).toBe(false);
   });
 });
