@@ -1194,3 +1194,68 @@ describe("checking typed input", () => {
     expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 });
+
+describe("register status messages", () => {
+  it("accepts a request for the register's status", () => {
+    const message = { type: "register-status-request", request_id: REQUEST_ID };
+
+    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a request for the register's status without its request id", () => {
+    expect(
+      registerRendererToCoreMessageSchema.safeParse({ type: "register-status-request" }).success,
+    ).toBe(false);
+  });
+
+  it.each([
+    [[], "unknown"],
+    [["sales_denied"], "reachable"],
+    [["sales_denied", "register_silent"], "unreachable"],
+  ])("accepts the status with conditions %j and the cloud %s", (conditions, cloud) => {
+    const message = {
+      type: "register-status",
+      request_id: REQUEST_ID,
+      status: { conditions, cloud },
+    };
+
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    ["a condition the register does not detect itself", { conditions: ["stock_low"], cloud: "reachable" }],
+    ["a cloud state it does not know", { conditions: [], cloud: "slow" }],
+    ["a status without its cloud", { conditions: [] }],
+    ["a status without its conditions", { cloud: "reachable" }],
+  ])("rejects the status with %s", (_name, status) => {
+    expect(
+      registerCoreToRendererMessageSchema.safeParse({
+        type: "register-status",
+        request_id: REQUEST_ID,
+        status,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects the status without its request id", () => {
+    expect(
+      registerCoreToRendererMessageSchema.safeParse({
+        type: "register-status",
+        status: { conditions: [], cloud: "unknown" },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts that the status cannot be read", () => {
+    const message = { type: "register-status-unavailable", request_id: REQUEST_ID };
+
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects that the status cannot be read without its request id", () => {
+    expect(
+      registerCoreToRendererMessageSchema.safeParse({ type: "register-status-unavailable" })
+        .success,
+    ).toBe(false);
+  });
+});
