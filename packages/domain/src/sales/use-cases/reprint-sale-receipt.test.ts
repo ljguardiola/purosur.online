@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { RECEIPT_REPRINT_REASON_MAX_LENGTH } from "../model/receipt-reprint-reason.js";
 import type { ReceiptPrintGrant } from "./receipt-printing.js";
 import { reprintSaleReceipt } from "./reprint-sale-receipt.js";
 import { FakeOperationAuthority } from "./test-support/fake-operation-authority.js";
@@ -27,6 +28,44 @@ describe("reprintSaleReceipt", () => {
     expect(outcome).toEqual(NOT_PERMITTED);
     expect(rig.ledger.transactions).toBe(0);
     expect(rig.printer.sent).toEqual([]);
+  });
+
+  it.each([
+    ["empty", ""],
+    ["blank", "  \n "],
+    ["too long", "a".repeat(RECEIPT_REPRINT_REASON_MAX_LENGTH + 1)],
+  ])(
+    "answers invalid_reason before authorizing, reading or sending when the reason is %s",
+    async (_name, reason) => {
+      const rig = receiptRig([completedSale({ printAttemptedAt: FIRST_PRINT_AT })]);
+
+      const outcome = await reprintSaleReceipt(rig.ports, { saleId: "sale-1", reason }, rig.watch);
+
+      expect(outcome).toEqual({
+        kind: "invalid_reason",
+        maxLength: RECEIPT_REPRINT_REASON_MAX_LENGTH,
+      });
+      expect(rig.ledger.transactions).toBe(0);
+      expect(rig.printer.sent).toEqual([]);
+    },
+  );
+
+  it("records the reason without the spaces around it", async () => {
+    const rig = receiptRig([completedSale({ printAttemptedAt: FIRST_PRINT_AT })]);
+
+    const printing = reprintSaleReceipt(
+      rig.ports,
+      { saleId: "sale-1", reason: "  se mojó \n" },
+      rig.watch,
+    );
+    await rig.printer.whenSent();
+
+    expect(rig.printer.sent[0]?.ledgerStateWhenSent.sales[0]?.reprints[0]?.reason).toEqual({
+      kind: "requested",
+      text: "se mojó",
+    });
+    rig.printer.acknowledge();
+    await printing;
   });
 
   it("prints a sale never printed as the original, with no reprint and no reason recorded", async () => {

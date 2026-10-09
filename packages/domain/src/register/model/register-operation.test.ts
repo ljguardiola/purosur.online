@@ -119,6 +119,38 @@ describe("registerOperationAccess", () => {
     });
   });
 
+  describe("for reprinting a receipt", () => {
+    const operation: RegisterOperation = { kind: "reprint_receipt" };
+
+    it("permits a person who holds reprint_receipt", () => {
+      expect(
+        registerOperationAccess(operation, { id: "ana", access: holding("reprint_receipt") }),
+      ).toEqual({ kind: "permitted" });
+    });
+
+    it("permits an Administrator", () => {
+      expect(registerOperationAccess(operation, { id: "ana", access: ADMINISTRATOR })).toEqual({
+        kind: "permitted",
+      });
+    });
+
+    it("asks another person's authorization with reprint_receipt from a cashier who lacks it", () => {
+      expect(
+        registerOperationAccess(operation, { id: "ana", access: holding("sell_and_charge") }),
+      ).toEqual({ kind: "needs_authorization", permission: "reprint_receipt" });
+    });
+
+    it("answers that a person with no access has none", () => {
+      expect(registerOperationAccess(operation, { id: "ana", access: undefined })).toEqual({
+        kind: "no_access",
+      });
+    });
+
+    it("refuses when nobody is signed in", () => {
+      expect(registerOperationAccess(operation, undefined)).toEqual({ kind: "refused" });
+    });
+  });
+
   describe("for closing the open cash session", () => {
     const operation: RegisterOperation = { kind: "close_cash_session", session: SESSION };
 
@@ -183,6 +215,22 @@ describe("mayAuthorize", () => {
 
     it("refuses a person who holds another movement's permission", () => {
       expect(mayAuthorize(operation, { id: "bruno", access: holding("record_cash_in") })).toBe(
+        false,
+      );
+    });
+  });
+
+  describe("reprinting a receipt", () => {
+    const operation: RegisterOperation = { kind: "reprint_receipt" };
+
+    it("accepts a person who holds reprint_receipt", () => {
+      expect(mayAuthorize(operation, { id: "bruno", access: holding("reprint_receipt") })).toBe(
+        true,
+      );
+    });
+
+    it("refuses a person who may only sell and charge", () => {
+      expect(mayAuthorize(operation, { id: "bruno", access: holding("sell_and_charge") })).toBe(
         false,
       );
     });
