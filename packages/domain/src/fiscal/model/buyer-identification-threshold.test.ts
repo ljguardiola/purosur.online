@@ -2,6 +2,7 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   chargeRefusal,
+  earliestThresholdStartDay,
   isBuyerIdentificationThresholdAmount,
   isLowerThanInEffect,
   startsFromToday,
@@ -27,6 +28,12 @@ describe("isBuyerIdentificationThresholdAmount", () => {
     ["infinite", Number.POSITIVE_INFINITY],
   ])("refuses an amount that is %s", (_case, amount) => {
     expect(isBuyerIdentificationThresholdAmount(amount)).toBe(false);
+  });
+});
+
+describe("earliestThresholdStartDay", () => {
+  it("is today", () => {
+    expect(earliestThresholdStartDay("2026-06-01")).toBe("2026-06-01");
   });
 });
 

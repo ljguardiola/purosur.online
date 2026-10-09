@@ -181,17 +181,29 @@ describe("GET /buyer-identification-thresholds", () => {
     });
   });
 
-  it("answers the replacement, not the replaced threshold, of the day it starts", async () => {
+  it("answers the earliest day of the same day it split the thresholds on, when midnight passes while it answers", async () => {
     const userId = await insertUserWithPermissions(["change_fiscal_configuration"]);
-    await db.insert(buyerIdentificationThresholds).values([
-      { amount: 10_000, validFrom: "2026-01-05", revision: 0, recordedBy: userId },
-      { amount: 10_000_000, validFrom: "2026-01-05", revision: 1, recordedBy: userId },
-    ]);
+    await db
+      .insert(buyerIdentificationThresholds)
+      .values({ amount: 1_000_000, validFrom: "2026-01-06", recordedBy: userId });
+    clock = new Date("2026-01-06T02:59:59.999Z");
+    const rawSessionId = await insertSession(userId);
+    const readings = [clock, clock];
+    await app.close();
+    app = Fastify();
+    registerBuyerIdentificationThresholdsListRoute(app, {
+      db,
+      backofficeOrigin: BACKOFFICE_ORIGIN,
+      now: () => readings.shift() ?? new Date("2026-01-06T03:00:00.000Z"),
+    });
 
-    const response = await get(await insertSession(userId));
+    const response = await get(rawSessionId);
 
     const body = buyerIdentificationThresholdOverviewSchema.parse(response.json());
-    expect(body.in_effect?.amount).toBe(10_000_000);
+    expect([body.scheduled?.valid_from, body.earliest_valid_from]).toEqual([
+      "2026-01-06",
+      "2026-01-05",
+    ]);
   });
 
   it("answers no threshold in effect while every one starts later", async () => {

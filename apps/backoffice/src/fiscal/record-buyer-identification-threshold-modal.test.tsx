@@ -428,6 +428,51 @@ test("shows the attempt-failed notice in the form when the confirmed record fail
     .toBeNull();
 });
 
+test("a confirmed record refused for starting before today lands on Vigente desde, naming today as read again from the cloud", async () => {
+  const services = createServices();
+  askLowerAmountConfirmation(services);
+  vi.mocked(services.recordBuyerIdentificationThreshold).mockResolvedValueOnce({
+    kind: "before_today",
+  });
+  const reload = vi.fn<Reload>(() => Promise.resolve({ kind: "ok", value: overview(inEffect) }));
+  const { screen, dialog } = await renderModal({ services, reload });
+  await fillForm(dialog, "100,00", "01102026");
+  await submit(dialog);
+
+  await userEvent.click(
+    screen
+      .getByRole("dialog", { name: CONFIRMATION_TITLE })
+      .getByRole("button", { name: "Cargar igual" }),
+  );
+
+  await expect
+    .element(dialog.getByText("Tiene que ser desde hoy (08/10/2026) en adelante."))
+    .toBeVisible();
+  expect(dialog.getByText("No se pudo cargar el umbral").query()).toBeNull();
+  expect(reload).toHaveBeenCalledTimes(1);
+});
+
+test("a confirmed record refused by the cloud on the amount shows the field error, not the attempt-failed notice", async () => {
+  const services = createServices();
+  askLowerAmountConfirmation(services);
+  vi.mocked(services.recordBuyerIdentificationThreshold).mockResolvedValueOnce({
+    kind: "validation_failed",
+    field: "amount",
+  });
+  const { screen, dialog } = await renderModal({ services });
+  await fillForm(dialog, "100,00", "01102026");
+  await submit(dialog);
+
+  await userEvent.click(
+    screen
+      .getByRole("dialog", { name: CONFIRMATION_TITLE })
+      .getByRole("button", { name: "Cargar igual" }),
+  );
+
+  await expect.element(dialog.getByText("Revisá el importe.")).toBeVisible();
+  expect(dialog.getByText("No se pudo cargar el umbral").query()).toBeNull();
+});
+
 test("shows a field error from the cloud on the amount, and keeps the modal open", async () => {
   const services = createServices();
   vi.mocked(services.recordBuyerIdentificationThreshold).mockResolvedValue({
