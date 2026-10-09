@@ -1,4 +1,10 @@
 export type { Clock } from "../../shared/index.js";
+export type {
+  ApplyRegisterStockMovementsInput,
+  ApplyRegisterStockMovementsOutcome,
+  RegisterStockMovement,
+} from "./apply-register-stock-movements.js";
+export { applyRegisterStockMovements } from "./apply-register-stock-movements.js";
 export type { AppliedStockMovement } from "./apply-stock-movement.js";
 export type { ExpectedBalanceAtInput, ExpectedBalanceAtOutcome } from "./expected-balance-at.js";
 export { expectedBalanceAt } from "./expected-balance-at.js";

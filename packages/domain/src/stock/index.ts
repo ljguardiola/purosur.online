@@ -1,3 +1,4 @@
+export { soldStockDelta } from "./model/sold-stock-delta.js";
 export { isListedInStockBalances } from "./model/stock-balance.js";
 export { countResult, expectedBalance } from "./model/stock-count.js";
 export type {
