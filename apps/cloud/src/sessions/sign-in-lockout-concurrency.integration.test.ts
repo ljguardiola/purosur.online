@@ -1,8 +1,13 @@
-import { SIGN_IN_FAILURE_LIMIT } from "@purosur/domain";
+import {
+  SIGN_IN_FAILURE_LIMIT,
+  signInBlockedUntil,
+  signInLockoutWindowStart,
+} from "@purosur/domain";
 import { admitSignInAttempt } from "@purosur/domain/sessions/use-cases";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { signInFailures } from "../platform/db/schema.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -10,7 +15,6 @@ import {
 import { DrizzleSignInLockoutStore } from "./sign-in-lockout.js";
 
 // PGlite serves every query on one connection, so only a real Postgres pool can race a burst.
-// Each admission needs two connections (prune, then its locked transaction), hence the headroom.
 const BURST = 20;
 
 let integrationDb: IntegrationDatabase;
@@ -18,7 +22,7 @@ let sql: postgres.Sql;
 
 beforeAll(async () => {
   integrationDb = await createIntegrationDatabase("sign_in_lockout");
-  sql = postgres(integrationDb.databaseUrl, { max: BURST * 4 });
+  sql = postgres(integrationDb.databaseUrl, { max: BURST });
 }, 60_000);
 
 afterAll(async () => {
@@ -27,6 +31,16 @@ afterAll(async () => {
 });
 
 const NOON = new Date("2026-01-05T12:00:00.000Z");
+const WINDOW_START = signInLockoutWindowStart(NOON);
+const EXPIRED = new Date(WINDOW_START.getTime() - 60_000);
+
+function deferred(): { promise: Promise<void>; settle: () => void } {
+  let settle: () => void = () => {};
+  const promise = new Promise<void>((resolve) => {
+    settle = resolve;
+  });
+  return { promise, settle };
+}
 
 describe("the sign-in lockout on concurrent connections", () => {
   it("admits exactly the limit out of a burst from one source address", async () => {
@@ -62,5 +76,53 @@ describe("the sign-in lockout on concurrent connections", () => {
       (admission) => !admission.admitted && admission.trippedLockout !== null,
     );
     expect(blocksSet).toHaveLength(1);
+  }, 30_000);
+
+  it("blocks two addresses at once while each one's prune holds the other's expired failures", async () => {
+    const db = drizzle(sql);
+    const store = new DrizzleSignInLockoutStore(db);
+    const first = "198.51.100.30";
+    const second = "198.51.100.31";
+    await db.insert(signInFailures).values([
+      { sourceAddress: first, attemptedAt: EXPIRED },
+      { sourceAddress: second, attemptedAt: EXPIRED },
+    ]);
+    const firstFailureHeld = deferred();
+    const releaseFirstFailure = deferred();
+    const firstPruned = deferred();
+    const secondPruned = deferred();
+
+    const holder = sql.begin(async (tx) => {
+      await tx`select id from sign_in_failures where source_address = ${first} for update`;
+      firstFailureHeld.settle();
+      await releaseFirstFailure.promise;
+    });
+    await firstFailureHeld.promise;
+    const firstBlock = store.transaction(async (tx) => {
+      await tx.lockSourceAddress(first);
+      await tx.pruneFailuresOutsideWindow(WINDOW_START);
+      firstPruned.settle();
+      await secondPruned.promise;
+      return tx.blockSourceAddress({
+        sourceAddress: first,
+        blockedUntil: signInBlockedUntil(NOON),
+        failuresSince: WINDOW_START,
+      });
+    });
+    await firstPruned.promise;
+    releaseFirstFailure.settle();
+    await holder;
+    const secondBlock = store.transaction(async (tx) => {
+      await tx.lockSourceAddress(second);
+      await tx.pruneFailuresOutsideWindow(WINDOW_START);
+      secondPruned.settle();
+      return tx.blockSourceAddress({
+        sourceAddress: second,
+        blockedUntil: signInBlockedUntil(NOON),
+        failuresSince: WINDOW_START,
+      });
+    });
+
+    await expect(Promise.all([firstBlock, secondBlock])).resolves.toHaveLength(2);
   }, 30_000);
 });

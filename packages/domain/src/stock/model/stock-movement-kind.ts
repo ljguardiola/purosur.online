@@ -13,7 +13,9 @@ export const MANUAL_STOCK_MOVEMENT_KINDS = ["loss", "adjustment"] as const;
 
 export type ManualStockMovementKind = (typeof MANUAL_STOCK_MOVEMENT_KINDS)[number];
 
-export type StockMovementKind = ManualStockMovementKind | "count" | "sale";
+export const STOCK_MOVEMENT_KINDS = [...MANUAL_STOCK_MOVEMENT_KINDS, "count", "sale"] as const;
+
+export type StockMovementKind = (typeof STOCK_MOVEMENT_KINDS)[number];
 
 const CAPABILITY_OF_KIND = {
   loss: "stock_losses",

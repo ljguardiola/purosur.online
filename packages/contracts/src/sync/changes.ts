@@ -8,6 +8,7 @@ import {
   type NetContentUnit,
   PULL_PAGE_MAX_CHANGES,
   SALE_UNITS,
+  STOCK_MOVEMENT_KINDS,
 } from "@purosur/domain";
 import { z } from "zod";
 import {
@@ -189,6 +190,19 @@ const priceChangeSchema = z.object({
   }),
 });
 
+const stockMovementChangeSchema = z.object({
+  ...pulledChangeShape,
+  entity: z.literal("stock_movement"),
+  row: z.object({
+    product_id: z.string(),
+    kind: z.enum(STOCK_MOVEMENT_KINDS),
+    delta: z.int(),
+    occurred_at: z.iso.datetime(),
+    superseded_by_count_id: z.string().nullable(),
+    version: z.int(),
+  }),
+});
+
 const removalChangeSchema = z.object({
   ...pulledChangeShape,
   entity: z.literal("removal"),
@@ -223,6 +237,7 @@ export const changesPageSchema = z.object({
         buyerIdentificationThresholdChangeSchema,
         registerPointOfSaleChangeSchema,
         buyerTaxStatusSetChangeSchema,
+        stockMovementChangeSchema,
         removalChangeSchema,
       ]),
     )

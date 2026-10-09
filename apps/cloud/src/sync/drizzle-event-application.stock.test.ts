@@ -14,6 +14,7 @@ import {
 import { syncedEventUpcaster } from "./synced-event-upcaster.js";
 import { eventApplicationUnderTest } from "./test-support/drizzle-event-application.js";
 import { insertInboxEvent } from "./test-support/inbox-events.js";
+import { changesLoggedAfter, lastLoggedChangeSeq } from "./test-support/logged-changes.js";
 import {
   aCashSessionOpenedFact,
   aCompletedSale,
@@ -130,6 +131,29 @@ describe("applying the stock a completed sale moved", () => {
         actorId: CASHIER,
         supersededByCountId: null,
       },
+    ]);
+  });
+
+  it("notes each movement of the sale as a change of the register's branch, a superseded one included", async () => {
+    const { deviceId, locationId } = await system.enrollInstallation();
+    await insertCashier(locationId);
+    const productId = await insertProduct();
+    await system.db.insert(stockMovements).values({
+      productId,
+      locationId,
+      kind: "count",
+      reason: null,
+      delta: 0,
+      occurredAt: AFTER_SALE,
+      actorId: CASHIER,
+    });
+    const movementId = randomUUID();
+    const before = await lastLoggedChangeSeq(system.db);
+
+    await applySale(deviceId, saleOf(productId, -2000, movementId));
+
+    expect(await changesLoggedAfter(system.db, before)).toEqual([
+      { entity: "stock_movement", entityId: movementId, version: 1, op: "insert", locationId },
     ]);
   });
 

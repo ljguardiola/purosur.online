@@ -109,14 +109,14 @@ describe("admitSignInAttempt", () => {
     ]);
   });
 
-  it("prunes, then locks the address, checks its block, counts and records, in one transaction", async () => {
+  it("locks the address, then prunes, checks its block, counts and records, in one transaction", async () => {
     const store = new FakeSignInLockoutStore();
 
     await admit(store);
 
     expect(store.operationOrder).toEqual([
-      "pruneFailuresOutsideWindow",
       "lockSourceAddress",
+      "pruneFailuresOutsideWindow",
       "findBlockedUntil",
       "countFailuresInWindow",
       "recordFailure",
@@ -132,8 +132,8 @@ describe("admitSignInAttempt", () => {
     await admit(store);
 
     expect(store.operationOrder).toEqual([
-      "pruneFailuresOutsideWindow",
       "lockSourceAddress",
+      "pruneFailuresOutsideWindow",
       "findBlockedUntil",
     ]);
   });
@@ -145,8 +145,8 @@ describe("admitSignInAttempt", () => {
     await admit(store);
 
     expect(store.operationOrder).toEqual([
-      "pruneFailuresOutsideWindow",
       "lockSourceAddress",
+      "pruneFailuresOutsideWindow",
       "findBlockedUntil",
       "countFailuresInWindow",
       "blockSourceAddress",
@@ -168,8 +168,9 @@ describe("admitSignInAttempt", () => {
     },
   );
 
-  it("leaves nothing recorded when recording the attempt fails", async () => {
+  it("leaves nothing recorded and nothing pruned when recording the attempt fails", async () => {
     const store = new FakeSignInLockoutStore();
+    store.seedFailures("203.0.113.99", new Date(AT.getTime() - HOUR_MS), 1);
     const before = store.snapshot();
     store.failingWrites.add("recordFailure");
 
@@ -178,12 +179,14 @@ describe("admitSignInAttempt", () => {
     expect(store.current).toEqual(before);
   });
 
-  it("opens no transaction when the prune fails", async () => {
+  it("checks nothing and records nothing when the prune fails", async () => {
     const store = new FakeSignInLockoutStore();
+    const before = store.snapshot();
     store.failingWrites.add("pruneFailuresOutsideWindow");
 
     await expect(admit(store)).rejects.toThrow("pruneFailuresOutsideWindow failed");
 
-    expect(store.transactions).toBe(0);
+    expect(store.operationOrder).toEqual(["lockSourceAddress", "pruneFailuresOutsideWindow"]);
+    expect(store.current).toEqual(before);
   });
 });
