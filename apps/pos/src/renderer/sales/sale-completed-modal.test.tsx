@@ -187,7 +187,7 @@ describe("SaleCompletedModal", () => {
         readReceiptStatus: async () => found(standing),
       });
 
-      await expect.element(screen.getByText("IMPRESORA")).toBeVisible();
+      await expect.element(screen.getByText("IMPRESORA", { exact: true })).toBeVisible();
       await expect
         .element(screen.getByRole("heading", { name: "No se pudo imprimir el ticket" }))
         .toBeVisible();
@@ -197,8 +197,8 @@ describe("SaleCompletedModal", () => {
       await expect
         .element(screen.getByText("Pendiente de imprimir · sale como original"))
         .toBeVisible();
-      await expect.element(screen.getByText(title)).toBeVisible();
-      await expect.element(screen.getByText(help)).toBeVisible();
+      await expect.element(screen.getByRole("alert")).toHaveTextContent(title);
+      await expect.element(screen.getByRole("alert")).toHaveTextContent(help);
       await expect
         .element(screen.getByRole("button", { name: "Reintentar impresión" }))
         .not.toBeInTheDocument();
@@ -243,21 +243,18 @@ describe("SaleCompletedModal", () => {
       },
     });
 
-    await expect.element(screen.getByText("El ticket no salió")).toBeVisible();
     await expect.element(screen.getByText("Normal · sin confirmar la impresión")).toBeVisible();
     await expect
-      .element(
-        screen.getByText(
-          "La impresora volvió a responder pero no confirmó la impresión. Como nunca se llegó a imprimir, el reintento sale como original.",
-        ),
-      )
-      .toBeVisible();
+      .element(screen.getByRole("alert"))
+      .toHaveTextContent(
+        "El ticket no salió La impresora volvió a responder pero no confirmó la impresión. Como nunca se llegó a imprimir, el reintento sale como original.",
+      );
 
     await userEvent.click(screen.getByRole("button", { name: "Reintentar impresión" }));
 
     expect(retryReceiptPrint).toHaveBeenCalledWith("sale-1");
     await expect.element(screen.getByText("Imprimiendo")).toBeVisible();
-    await expect.element(screen.getByText("El ticket no salió")).not.toBeInTheDocument();
+    await expect.element(screen.getByRole("alert")).not.toBeInTheDocument();
   });
 
   it("says the retry comes out as a duplicate when the core says the next copy is one", async () => {
@@ -270,7 +267,9 @@ describe("SaleCompletedModal", () => {
       }),
     });
 
-    await expect.element(screen.getByText(/el reintento sale como duplicado\./)).toBeVisible();
+    await expect
+      .element(screen.getByRole("alert"))
+      .toHaveTextContent("el reintento sale como duplicado.");
   });
 
   it("lets the cashier go on selling from the retry layout", async () => {
@@ -300,7 +299,7 @@ describe("SaleCompletedModal", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Reintentar impresión" }));
 
-    await expect.element(screen.getByText(notice)).toBeVisible();
+    await expect.element(screen.getByRole("alert").filter({ hasText: notice })).toBeVisible();
     await expect
       .element(screen.getByRole("button", { name: "Reintentar impresión" }))
       .toBeEnabled();
@@ -315,7 +314,11 @@ describe("SaleCompletedModal", () => {
     await userEvent.click(screen.getByRole("button", { name: "Reintentar impresión" }));
 
     await expect
-      .element(screen.getByText("No se pudo reintentar la impresión. Probá de nuevo."))
+      .element(
+        screen
+          .getByRole("alert")
+          .filter({ hasText: "No se pudo reintentar la impresión. Probá de nuevo." }),
+      )
       .toBeVisible();
   });
 });
