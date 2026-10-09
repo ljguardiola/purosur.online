@@ -4,7 +4,7 @@ import { RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import { barcodeTakenError } from "./product-form";
+import { reactivationBarcodeTakenError } from "./product-form";
 import type { reactivateProduct } from "./products-api";
 
 export type ReactivateProductModalServices = {
@@ -154,7 +154,7 @@ export function ReactivateProductModal({
             tone="error"
             icon={<TriangleAlert />}
             title="No se puede reactivar"
-            description={`${barcodeTakenError(notice.codes)} Cambiá ese código en este producto o desactivá el otro, y volvé a intentarlo.`}
+            description={reactivationBarcodeTakenError(notice.codes)}
           />
         )}
         {notice?.kind === "alreadyChanged" && (
