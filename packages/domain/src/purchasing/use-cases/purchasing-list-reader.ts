@@ -15,5 +15,6 @@ export interface PackageableProduct {
 export interface PurchasingListReader {
   suppliers(): Promise<Supplier[]>;
   packagings(): Promise<PackagingListing[]>;
+  packaging(packagingId: string): Promise<PackagingListing | undefined>;
   products(scope: ProductActivityScope): Promise<PackageableProduct[]>;
 }
