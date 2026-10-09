@@ -119,6 +119,42 @@ describe("registerOperationAccess", () => {
     });
   });
 
+  describe("for viewing the sales history", () => {
+    const operation: RegisterOperation = { kind: "view_sales_history" };
+
+    it("permits a person who holds view_sales_history", () => {
+      expect(
+        registerOperationAccess(operation, { id: "ana", access: holding("view_sales_history") }),
+      ).toEqual({ kind: "permitted" });
+    });
+
+    it("permits an Administrator", () => {
+      expect(registerOperationAccess(operation, { id: "ana", access: ADMINISTRATOR })).toEqual({
+        kind: "permitted",
+      });
+    });
+
+    it("refuses a cashier who only sells, with no authorization to ask for", () => {
+      expect(
+        registerOperationAccess(operation, { id: "ana", access: holding("sell_and_charge") }),
+      ).toEqual({ kind: "refused" });
+    });
+
+    it("answers that a person with no access has none", () => {
+      expect(registerOperationAccess(operation, { id: "ana", access: undefined })).toEqual({
+        kind: "no_access",
+      });
+    });
+
+    it("refuses when nobody is signed in", () => {
+      expect(registerOperationAccess(operation, undefined)).toEqual({ kind: "refused" });
+    });
+
+    it("cannot be authorized by another person", () => {
+      expect(mayAuthorize(operation, { id: "bruno", access: ADMINISTRATOR })).toBe(false);
+    });
+  });
+
   describe("for reprinting a receipt", () => {
     const operation: RegisterOperation = { kind: "reprint_receipt" };
 
