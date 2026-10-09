@@ -128,6 +128,7 @@ describe("issuing a token", () => {
         usedAt: null,
         voidedAt: null,
         registrationChallenge: null,
+        sentAt: null,
       },
     ]);
   });
@@ -192,14 +193,40 @@ describe("listing the account's recovery requests", () => {
     expect(requests).toHaveLength(2);
     expect(requests).toEqual(
       expect.arrayContaining([
-        { requestId: REQUEST_A, requestedAt: REQUESTED_AT },
-        { requestId: REQUEST_B, requestedAt: ISSUED_AT },
+        { requestId: REQUEST_A, requestedAt: REQUESTED_AT, sentAt: null },
+        { requestId: REQUEST_B, requestedAt: ISSUED_AT, sentAt: null },
       ]),
     );
   });
 
+  it("answers when the token of a request was sent", async () => {
+    await db.insert(recoveryTokens).values({ ...newToken("hash-a", REQUEST_A), sentAt: ISSUED_AT });
+
+    const requests = await store().transaction((tx) => tx.listRecoveryRequests(userId));
+
+    expect(requests).toEqual([
+      { requestId: REQUEST_A, requestedAt: REQUESTED_AT, sentAt: ISSUED_AT },
+    ]);
+  });
+
   it("answers nothing for an account without tokens", async () => {
     expect(await store().transaction((tx) => tx.listRecoveryRequests(userId))).toEqual([]);
+  });
+});
+
+describe("marking a recovery link as sent", () => {
+  it("stamps the token's sent moment and leaves the other tokens unsent", async () => {
+    const [target, other] = await db
+      .insert(recoveryTokens)
+      .values([newToken("hash-a", REQUEST_A), newToken("hash-b", REQUEST_B)])
+      .returning({ id: recoveryTokens.id });
+    const sentAt = new Date("2026-10-01T12:00:03.000Z");
+
+    await store().transaction((tx) => tx.markRecoveryLinkSent(target?.id ?? "", sentAt));
+
+    const rows = await db.select().from(recoveryTokens);
+    expect(rows.find((row) => row.id === target?.id)?.sentAt).toEqual(sentAt);
+    expect(rows.find((row) => row.id === other?.id)?.sentAt).toBeNull();
   });
 });
 

@@ -523,8 +523,11 @@ describe("startRecoveryWorker", () => {
     });
     const processJob = vi.fn().mockResolvedValue({
       send: {
-        to: "ada@example.com",
-        link: "https://staging.purosur.online/account-recovery/passkey#raw",
+        email: {
+          to: "ada@example.com",
+          link: "https://staging.purosur.online/account-recovery/passkey#raw",
+        },
+        tokenId: "token-1",
       },
     });
     const sendRecoveryLink = vi.fn().mockImplementation(async () => {
@@ -574,8 +577,11 @@ describe("startRecoveryWorker", () => {
     );
     const processJob = vi.fn().mockResolvedValue({
       send: {
-        to: "ada@example.com",
-        link: "https://staging.purosur.online/account-recovery/passkey#raw",
+        email: {
+          to: "ada@example.com",
+          link: "https://staging.purosur.online/account-recovery/passkey#raw",
+        },
+        tokenId: "token-1",
       },
     });
     const sendRecoveryLink = vi.fn().mockRejectedValue(new Error("resend unavailable"));
@@ -658,6 +664,162 @@ describe("startRecoveryWorker", () => {
     );
 
     expect(sendRecoveryLink).not.toHaveBeenCalled();
+  });
+
+  describe("recording that a recovery link was sent", () => {
+    async function recoveryRequestTask(deps: {
+      processJob: ReturnType<typeof vi.fn>;
+      recordLinkSent: ReturnType<typeof vi.fn>;
+      sendRecoveryLink: ReturnType<typeof vi.fn>;
+      createDatabase?: ReturnType<typeof vi.fn>;
+    }) {
+      const runWorker = vi.fn().mockResolvedValue(fakeRunner());
+      await startRecoveryWorker(
+        {
+          databaseUrl: "postgres://user:pass@db/purosur",
+          now: () => FIXED_NOW,
+          backofficeOrigin: "https://staging.purosur.online",
+          emailSender: { sendRecoveryLink: deps.sendRecoveryLink, sendFirstPinCode: vi.fn() },
+        },
+        {
+          runWorker,
+          processJob: deps.processJob,
+          recordLinkSent: deps.recordLinkSent,
+          createDatabase: deps.createDatabase ?? vi.fn(),
+        },
+      );
+      const [options] = runWorker.mock.calls[0] as [
+        {
+          taskList: Record<
+            string,
+            (
+              payload: unknown,
+              helpers: {
+                withPgClient: (callback: (client: unknown) => Promise<unknown>) => Promise<unknown>;
+              },
+            ) => Promise<void>
+          >;
+        },
+      ];
+      return mustExist(
+        options.taskList[RECOVERY_REQUEST_TASK_IDENTIFIER],
+        "the registered recovery-request task",
+      );
+    }
+
+    const payload = {
+      email: "ada@example.com",
+      requestedAt: "2026-01-05T12:00:00.000Z",
+      requestId: "0b8e5c2a-3f4d-4e6a-9b1c-2d3e4f5a6b7c",
+    };
+    const issued = {
+      send: {
+        email: {
+          to: "ada@example.com",
+          link: "https://staging.purosur.online/account-recovery/passkey#raw",
+        },
+        tokenId: "token-1",
+      },
+    };
+
+    it("records the send of the issued token through a second client, after the client of the job was released and the link was sent", async () => {
+      const events: string[] = [];
+      const fakeDb = { marker: "fake-db" };
+      const withPgClient = vi.fn(async (callback: (client: unknown) => Promise<unknown>) => {
+        events.push("client borrowed");
+        const result = await callback({ marker: "fake-client" });
+        events.push("client released");
+        return result;
+      });
+      const task = await recoveryRequestTask({
+        processJob: vi.fn().mockResolvedValue(issued),
+        sendRecoveryLink: vi.fn().mockImplementation(async () => {
+          events.push("link sent");
+        }),
+        recordLinkSent: vi.fn().mockImplementation(async () => {
+          events.push("send recorded");
+        }),
+        createDatabase: vi.fn().mockReturnValue(fakeDb),
+      });
+
+      await task(payload, { withPgClient });
+
+      expect(events).toEqual([
+        "client borrowed",
+        "client released",
+        "link sent",
+        "client borrowed",
+        "send recorded",
+        "client released",
+      ]);
+    });
+
+    it("records the send with the database of the second client, the token id and the worker's clock", async () => {
+      const fakeDb = { marker: "fake-db" };
+      const recordLinkSent = vi.fn().mockResolvedValue({ kind: "recorded" });
+      const withPgClient = vi.fn(async (callback: (client: unknown) => Promise<unknown>) =>
+        callback({ marker: "fake-client" }),
+      );
+      const task = await recoveryRequestTask({
+        processJob: vi.fn().mockResolvedValue(issued),
+        sendRecoveryLink: vi.fn().mockResolvedValue(undefined),
+        recordLinkSent,
+        createDatabase: vi.fn().mockReturnValue(fakeDb),
+      });
+
+      await task(payload, { withPgClient });
+
+      expect(recordLinkSent).toHaveBeenCalledWith(fakeDb, "token-1", expect.any(Object));
+      const [, , deps] = recordLinkSent.mock.calls[0] as [unknown, unknown, { now: () => Date }];
+      expect(deps.now()).toEqual(FIXED_NOW);
+    });
+
+    it("records nothing and rethrows when the send fails", async () => {
+      const recordLinkSent = vi.fn();
+      const withPgClient = vi.fn(async (callback: (client: unknown) => Promise<unknown>) =>
+        callback({ marker: "fake-client" }),
+      );
+      const task = await recoveryRequestTask({
+        processJob: vi.fn().mockResolvedValue(issued),
+        sendRecoveryLink: vi.fn().mockRejectedValue(new Error("resend unavailable")),
+        recordLinkSent,
+      });
+
+      await expect(task(payload, { withPgClient })).rejects.toThrow("resend unavailable");
+
+      expect(recordLinkSent).not.toHaveBeenCalled();
+      expect(withPgClient).toHaveBeenCalledTimes(1);
+    });
+
+    it("records nothing when the job had nothing to send", async () => {
+      const recordLinkSent = vi.fn();
+      const withPgClient = vi.fn(async (callback: (client: unknown) => Promise<unknown>) =>
+        callback({ marker: "fake-client" }),
+      );
+      const task = await recoveryRequestTask({
+        processJob: vi.fn().mockResolvedValue({}),
+        sendRecoveryLink: vi.fn(),
+        recordLinkSent,
+      });
+
+      await task(payload, { withPgClient });
+
+      expect(recordLinkSent).not.toHaveBeenCalled();
+      expect(withPgClient).toHaveBeenCalledTimes(1);
+    });
+
+    it("fails the job when recording the send fails, so graphile-worker retries it", async () => {
+      const withPgClient = vi.fn(async (callback: (client: unknown) => Promise<unknown>) =>
+        callback({ marker: "fake-client" }),
+      );
+      const task = await recoveryRequestTask({
+        processJob: vi.fn().mockResolvedValue(issued),
+        sendRecoveryLink: vi.fn().mockResolvedValue(undefined),
+        recordLinkSent: vi.fn().mockRejectedValue(new Error("database down")),
+      });
+
+      await expect(task(payload, { withPgClient })).rejects.toThrow("database down");
+    });
   });
 
   it("rejects a malformed payload without ever borrowing a database client", async () => {

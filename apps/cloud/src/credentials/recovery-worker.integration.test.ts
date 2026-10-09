@@ -1,12 +1,17 @@
-import { type Job, quickAddJob, runTaskListOnce } from "graphile-worker";
+import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/postgres-js";
+import { type Job, quickAddJob, type RunnerOptions, runTaskListOnce } from "graphile-worker";
 import pg from "pg";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { alerts, auditLog, recoveryTokens, users } from "../platform/db/schema.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
-import type { AccessEmailSender } from "./recovery-email-sender.js";
+import { seededLocationId } from "../test-support/seeded-location.js";
+import type { AccessEmailSender, SendRecoveryLinkInput } from "./recovery-email-sender.js";
 import {
   RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER,
   RECOVERY_REQUEST_TASK_IDENTIFIER,
@@ -218,5 +223,112 @@ describe("startRecoveryWorker against a real Postgres whose connection drops whi
       new RegExp(`Failed to record the completion of job .*${DROPPED_CONNECTION}`),
       expectLockedUntilItsLockExpires,
     );
+  });
+});
+
+describe("a recovery request whose link was sent but whose completion graphile-worker could not record", () => {
+  async function inDatabase<T>(work: (db: ReturnType<typeof drizzle>) => Promise<T>): Promise<T> {
+    const sql = postgres(integrationDb.adminDatabaseUrl, { max: 1 });
+    try {
+      return await work(drizzle(sql));
+    } finally {
+      await sql.end({ timeout: 1 });
+    }
+  }
+
+  async function storedRecoveryState() {
+    return inDatabase(async (db) => ({
+      tokens: await db.select().from(recoveryTokens),
+      tokenAuditRows: await db.select().from(auditLog).where(eq(auditLog.entity, "recovery_token")),
+      alerts: await db
+        .select()
+        .from(alerts)
+        .where(eq(alerts.kind, "backoffice_recovery_requested")),
+    }));
+  }
+
+  it("is not served again when graphile-worker's stale-lock reset runs the job four hours later", async () => {
+    const email = `ada-${randomUUID()}@example.com`;
+    await inDatabase(async (db) => {
+      await db
+        .insert(users)
+        .values({ firstName: "Ada Lovelace", email, locationId: await seededLocationId(db) });
+    });
+    const sent: SendRecoveryLinkInput[] = [];
+    const sender: AccessEmailSender = {
+      sendRecoveryLink: async (input) => {
+        sent.push(input);
+      },
+      sendFirstPinCode: async () => {},
+    };
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const dropping = poolDroppingTheConnectionOnceOn(
+      integrationDb.databaseUrl,
+      COMPLETED_JOB_DELETE,
+    );
+    const options = {
+      databaseUrl: integrationDb.databaseUrl,
+      backofficeOrigin: "https://staging.purosur.online",
+      emailSender: sender,
+      now: () => NOW,
+    };
+    const firstWorker = await startRecoveryWorker(options, {
+      createPool: () => dropping.pool,
+      captureException: vi.fn(),
+    });
+    let job: Job;
+    try {
+      job = await quickAddJob(
+        { connectionString: integrationDb.databaseUrl },
+        RECOVERY_REQUEST_TASK_IDENTIFIER,
+        {
+          email,
+          requestedAt: NOW.toISOString(),
+          requestId: randomUUID(),
+        },
+      );
+      await vi.waitFor(() => {
+        expect(sent).toHaveLength(1);
+        expect(dropping.droppedQueries()).toBeGreaterThan(0);
+      }, WAIT_OPTIONS);
+    } finally {
+      await firstWorker.stop();
+    }
+    const afterFirstRun = await storedRecoveryState();
+    expect(await jobLock(job.id)).toEqual({ attempts: 1, lockedAt: expect.any(Date) });
+    await expireJobLock(job.id);
+
+    let capturedTaskList: RunnerOptions["taskList"];
+    const idleWorker = await startRecoveryWorker(options, {
+      createPool: () => new pg.Pool({ connectionString: integrationDb.databaseUrl }),
+      runWorker: async (runnerOptions) => {
+        capturedTaskList = runnerOptions.taskList;
+        return { stop: async () => {}, promise: new Promise<void>(() => {}) } as never;
+      },
+    });
+    const pool = new pg.Pool({ connectionString: integrationDb.databaseUrl });
+    try {
+      const client = await pool.connect();
+      try {
+        await runTaskListOnce(
+          { connectionString: integrationDb.databaseUrl },
+          capturedTaskList ?? {},
+          client,
+        ).promise;
+      } finally {
+        client.release();
+      }
+    } finally {
+      await pool.end();
+      await idleWorker.stop();
+    }
+
+    expect(await jobLock(job.id)).toBeUndefined();
+    expect(sent).toHaveLength(1);
+    const afterRerun = await storedRecoveryState();
+    expect(afterRerun.tokens).toHaveLength(1);
+    expect(afterRerun.tokens[0]?.voidedAt).toBeNull();
+    expect(afterRerun.tokenAuditRows).toHaveLength(1);
+    expect(afterRerun).toEqual(afterFirstRun);
   });
 });
