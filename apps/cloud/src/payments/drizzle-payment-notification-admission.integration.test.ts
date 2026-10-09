@@ -79,16 +79,18 @@ describe("the payment notification admission on a real Postgres", () => {
     expect(counted).toEqual(Array.from({ length: 4 }, () => TEN_SECONDS_AGO));
   });
 
-  it("forgets, once it admits a notification, the ones of that origin that left the window, and no other", async () => {
+  it("forgets the notifications of every origin that left the window, and none still in it", async () => {
     const origin = anOrigin();
-    const other = anOrigin();
-    await insertAttempts(origin, TWO_MINUTES_AGO, 2);
-    await insertAttempts(other, TWO_MINUTES_AGO, 1);
+    const returning = anOrigin();
+    const neverReturning = anOrigin();
+    await insertAttempts(returning, TWO_MINUTES_AGO, 2);
+    await insertAttempts(neverReturning, TWO_MINUTES_AGO, 1);
+    await insertAttempts(neverReturning, TEN_SECONDS_AGO, 1);
 
     await admit(origin);
 
-    expect(await attemptsOf(origin)).toEqual([{ attemptedAt: NOW }]);
-    expect(await attemptsOf(other)).toHaveLength(1);
+    expect(await attemptsOf(returning)).toEqual([]);
+    expect(await attemptsOf(neverReturning)).toEqual([{ attemptedAt: TEN_SECONDS_AGO }]);
   });
 
   it("admits exactly one of two notifications that race for the last place under the limit", async () => {

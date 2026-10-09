@@ -2658,6 +2658,10 @@ describe("every route enforces the access it declares", () => {
 });
 
 describe("wiring the Mercado Pago notification route", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   function connections(): DedicatedConnections<PgliteQueryResultHKT> {
     return { withConnection: (work) => work(testDatabase.db) };
   }
@@ -2674,7 +2678,8 @@ describe("wiring the Mercado Pago notification route", () => {
     expect(response.statusCode).toBe(404);
   });
 
-  it("registers it when the option is given, refusing, behind the edge, a notification without a signature", async () => {
+  it("registers it when the option is given, refusing and logging, behind the edge, a notification without a signature", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const app = buildApp({
       now: () => APP_CLOCK,
       version: "abc1234",
@@ -2697,5 +2702,6 @@ describe("wiring the Mercado Pago notification route", () => {
     });
 
     expect(response.statusCode).toBe(401);
+    expect(warn).toHaveBeenCalledExactlyOnceWith(expect.stringContaining("signature"));
   });
 });

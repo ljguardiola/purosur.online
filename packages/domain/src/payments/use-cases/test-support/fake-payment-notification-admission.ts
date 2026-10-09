@@ -19,6 +19,11 @@ export class FakePaymentNotificationAdmission implements PaymentNotificationAdmi
       .map((notification) => notification.at);
   }
 
+  async forgetNotificationsOutsideWindow(windowStart: Date): Promise<void> {
+    this.calls.push(`forgetNotificationsOutsideWindow ${windowStart.toISOString()}`);
+    this.admitted = this.admitted.filter((notification) => notification.at > windowStart);
+  }
+
   async transaction<TOutcome>(
     work: (tx: PaymentNotificationAdmissionTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
@@ -42,15 +47,6 @@ export class FakePaymentNotificationAdmission implements PaymentNotificationAdmi
           throw new Error("the notification could not be recorded");
         }
         working.push({ sourceAddress, at });
-      },
-      forgetNotificationsThrough: async (sourceAddress, through) => {
-        this.calls.push(`forgetNotificationsThrough ${sourceAddress}`);
-        for (let index = working.length - 1; index >= 0; index -= 1) {
-          const notification = working[index];
-          if (notification?.sourceAddress === sourceAddress && notification.at <= through) {
-            working.splice(index, 1);
-          }
-        }
       },
     });
     this.admitted = working.map((notification) => ({

@@ -7,15 +7,10 @@ import { registerMercadoPagoNotificationRoutes } from "../mercado-pago-notificat
 import { FakeMercadoPagoOrders, NOW, ORDER_ID } from "./fake-mercado-pago-orders.js";
 import { signatureHeader, WEBHOOK_SECRET } from "./mercado-pago-notification-signing.js";
 
-export interface LoggedWarning {
-  msg: string;
-}
-
 export interface NotificationRequest {
   dataId?: string;
   type?: string | undefined;
   signature?: string | undefined;
-  requestId?: string;
   sourceAddress?: string;
   body?: object;
 }
@@ -24,7 +19,6 @@ export interface MercadoPagoNotificationRoutesUnderTest {
   readonly db: TestDatabase["db"];
   readonly app: FastifyInstance;
   readonly mercadoPago: FakeMercadoPagoOrders;
-  readonly warnings: LoggedWarning[];
   serveWith(configuration: {
     mercadoPago?: MercadoPagoOrders | undefined;
     webhookSecret?: string | undefined;
@@ -36,23 +30,13 @@ export function mercadoPagoNotificationRoutesUnderTest(): MercadoPagoNotificatio
   let testDatabase: TestDatabase;
   let app: FastifyInstance;
   let mercadoPago: FakeMercadoPagoOrders;
-  let warnings: LoggedWarning[] = [];
 
   async function serve(configuration: {
     mercadoPago?: MercadoPagoOrders | undefined;
     webhookSecret?: string | undefined;
   }) {
     await app?.close();
-    app = Fastify({
-      logger: {
-        level: "warn",
-        stream: {
-          write: (line: string) => {
-            warnings.push(JSON.parse(line) as LoggedWarning);
-          },
-        },
-      },
-    });
+    app = Fastify();
     registerRouteAccess(app);
     registerMercadoPagoNotificationRoutes(app, {
       db: testDatabase.db,
@@ -73,7 +57,6 @@ export function mercadoPagoNotificationRoutesUnderTest(): MercadoPagoNotificatio
 
   beforeEach(async () => {
     await testDatabase.clear();
-    warnings = [];
     mercadoPago = new FakeMercadoPagoOrders();
     await serve({ mercadoPago, webhookSecret: WEBHOOK_SECRET });
   });
@@ -92,13 +75,10 @@ export function mercadoPagoNotificationRoutesUnderTest(): MercadoPagoNotificatio
     get mercadoPago() {
       return mercadoPago;
     },
-    get warnings() {
-      return warnings;
-    },
     serveWith: serve,
     notify(request: NotificationRequest = {}) {
       const dataId = request.dataId ?? ORDER_ID;
-      const requestId = request.requestId ?? "request-1";
+      const requestId = "request-1";
       const type = "type" in request ? request.type : "order";
       const signature =
         "signature" in request ? request.signature : signatureHeader({ dataId, requestId });
