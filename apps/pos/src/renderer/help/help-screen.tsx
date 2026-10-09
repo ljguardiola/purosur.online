@@ -18,10 +18,7 @@ import { entriesFor } from "../shell/action-entries";
 import { NavigationRail } from "../shell/navigation-rail";
 import type { SignedInPerson } from "../shell/signed-in-person";
 
-type RegisterHelpCatalog = HelpCatalog<
-  CategoryRecord,
-  Record<string, HelpArticle<string, string>>
->;
+type RegisterHelpCatalog = HelpCatalog<CategoryRecord, Record<string, HelpArticle<string, string>>>;
 
 export type HelpScreenProps = {
   person: SignedInPerson;
