@@ -124,6 +124,7 @@ export function QrPaymentWaitModal({
       contextTone="info"
       title="Esperando el pago del cliente"
       closable={false}
+      footer={null}
     >
       <div className="flex flex-col gap-5">
         <SummaryRowGroup
