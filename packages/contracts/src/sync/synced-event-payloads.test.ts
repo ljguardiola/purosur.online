@@ -148,7 +148,7 @@ describe("synced event payloads", () => {
 
   it.each([
     ["an unknown event type", "sale_opened", 1],
-    ["a sale_completed version nobody emitted", "sale_completed", 3],
+    ["a sale_completed version nobody emitted", "sale_completed", 4],
     ["version zero", "sale_completed", 0],
     ["a cash_session_opened version nobody emitted", "cash_session_opened", 2],
     ["a cash_session_closed version nobody emitted", "cash_session_closed", 2],
@@ -308,6 +308,66 @@ describe("synced event payloads", () => {
 
     it("refuses a date that is not ISO", () => {
       expect(accepts("fiscal_gate_failed", 1, { ...failed(), evaluated_at: "now" })).toBe(false);
+    });
+  });
+
+  describe("sale_completed v3", () => {
+    const MOVEMENT = {
+      id: "stock-movement-1",
+      sale_line_id: "line-1",
+      product_id: "yerba",
+      delta: -2000,
+    };
+    const sale = (): Payload => ({
+      ...recordedPayload("sale_completed", 2),
+      stock_movements: [MOVEMENT],
+    });
+    const withMovements = (movements: unknown[]) => ({ ...sale(), stock_movements: movements });
+
+    it("accepts a sale v2 carries, plus the stock each line moved", () => {
+      expect(accepts("sale_completed", 3, sale())).toBe(true);
+    });
+
+    it("refuses a sale without its stock movements", () => {
+      const { stock_movements: _removed, ...rest } = sale();
+
+      expect(accepts("sale_completed", 3, rest)).toBe(false);
+    });
+
+    it("refuses stock movements that are not a list", () => {
+      expect(accepts("sale_completed", 3, { ...sale(), stock_movements: {} })).toBe(false);
+    });
+
+    it("refuses a stock movement missing any one of its fields", () => {
+      const accepted = Object.keys(MOVEMENT).filter((key) => {
+        const { [key]: _removed, ...rest } = MOVEMENT;
+        return accepts("sale_completed", 3, withMovements([rest]));
+      });
+
+      expect(accepted).toEqual([]);
+    });
+
+    it.each([
+      ["an empty id", { id: "" }],
+      ["an empty sale line id", { sale_line_id: "" }],
+      ["an empty product id", { product_id: "" }],
+    ])("refuses a stock movement with %s", (_case, change) => {
+      expect(accepts("sale_completed", 3, withMovements([{ ...MOVEMENT, ...change }]))).toBe(false);
+    });
+
+    it.each([
+      ["nothing", 0],
+      ["stock added", 1000],
+      ["a fractional quantity", -0.5],
+      ["a quantity no movement may carry", -2_147_483_648],
+    ])("refuses a stock movement of %s", (_case, delta) => {
+      expect(accepts("sale_completed", 3, withMovements([{ ...MOVEMENT, delta }]))).toBe(false);
+    });
+
+    it("accepts a stock movement of the most a movement may carry", () => {
+      expect(
+        accepts("sale_completed", 3, withMovements([{ ...MOVEMENT, delta: -2_147_483_647 }])),
+      ).toBe(true);
     });
   });
 
