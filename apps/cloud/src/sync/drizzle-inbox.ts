@@ -5,12 +5,19 @@ import type {
   HeldEventPosition,
   Inbox,
   InboxTransaction,
+  InstallationRegister,
   PushReport,
 } from "@purosur/domain/sync/use-cases";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { observeAlertCondition } from "../alerts/observe-alert-condition.js";
-import { deviceState, inbox, refusedEvents, registerInstallations } from "../platform/db/schema.js";
+import {
+  deviceState,
+  inbox,
+  refusedEvents,
+  registerInstallations,
+  registers,
+} from "../platform/db/schema.js";
 import type { InstallationKeyCipher } from "../register/installation-key-cipher.js";
 import { readOutboxChainKey } from "../register/outbox-chain-key.js";
 import type { EnqueueEventApplication } from "./graphile-event-application-queue.js";
@@ -123,15 +130,16 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
       .onConflictDoUpdate({ target: deviceState.deviceId, set: pushed });
   }
 
-  async installationRegisterId(deviceId: string): Promise<string> {
+  async installationRegister(deviceId: string): Promise<InstallationRegister> {
     const [installation] = await this.tx
-      .select({ registerId: registerInstallations.registerId })
+      .select({ registerId: registers.id, locationId: registers.locationId })
       .from(registerInstallations)
+      .innerJoin(registers, eq(registers.id, registerInstallations.registerId))
       .where(eq(registerInstallations.id, deviceId));
     if (!installation) {
       throw new Error(`installation ${deviceId} does not exist`);
     }
-    return installation.registerId;
+    return installation;
   }
 
   async observeAlertCondition(observation: AlertConditionObservation, at: Date): Promise<void> {

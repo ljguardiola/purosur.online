@@ -32,7 +32,7 @@ export async function receivePushedEvents(
     }
     await tx.recordPushReport(deviceId, { appVersion, telemetry }, now);
     const versionAccepted = registerVersionAccepted(appVersion);
-    const registerId = await tx.installationRegisterId(deviceId);
+    const { registerId } = await tx.installationRegister(deviceId);
     await tx.observeAlertCondition(
       registerVersionObservation({ registerId, deviceId, appVersion, accepted: versionAccepted }),
       now,

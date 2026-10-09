@@ -72,6 +72,11 @@ export interface HeldEventPosition {
   deviceSeq: number;
 }
 
+export interface InstallationRegister {
+  registerId: string;
+  locationId: string;
+}
+
 export interface InboxTransaction {
   lockDevice(deviceId: string): Promise<void>;
   installationRevoked(deviceId: string): Promise<boolean>;
@@ -86,7 +91,7 @@ export interface InboxTransaction {
   ): Promise<ReadonlyMap<string, HeldEventPosition>>;
   receive(deviceId: string, events: readonly PushedEvent[], receivedAt: Date): Promise<void>;
   recordPushReport(deviceId: string, report: PushReport, at: Date): Promise<void>;
-  installationRegisterId(deviceId: string): Promise<string>;
+  installationRegister(deviceId: string): Promise<InstallationRegister>;
   observeAlertCondition(observation: AlertConditionObservation, at: Date): Promise<void>;
   recordAcceptedPush(deviceId: string, at: Date): Promise<void>;
   // Keeps the moment of the first push of no events; a later one changes nothing.

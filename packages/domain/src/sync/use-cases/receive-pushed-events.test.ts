@@ -450,11 +450,11 @@ describe("reporting how the register stands", () => {
     await receive(inbox, eventsOf(1));
 
     const calls = inbox.calls;
-    expect(calls.indexOf("installationRegisterId device-1")).toBe(
+    expect(calls.indexOf("installationRegister device-1")).toBe(
       calls.indexOf("recordPushReport device-1") + 1,
     );
     expect(calls.indexOf("observeAlertCondition")).toBe(
-      calls.indexOf("installationRegisterId device-1") + 1,
+      calls.indexOf("installationRegister device-1") + 1,
     );
     expect(calls.indexOf("observeAlertCondition")).toBeLessThan(
       calls.indexOf("receivedDeviceSeqs device-1"),

@@ -53,6 +53,7 @@ export type {
   HeldEventPosition,
   Inbox,
   InboxTransaction,
+  InstallationRegister,
   LocalInstallation,
   LocalOutbox,
   LocalReplica,
