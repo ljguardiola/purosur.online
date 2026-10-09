@@ -5,9 +5,9 @@ import {
 import { recordBuyerIdentificationThreshold } from "@purosur/domain/fiscal/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { requirePasskeyAuthorization } from "../credentials/passkey-authorization-guard.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { sameOriginGuard } from "../sessions/backoffice-origin.js";
-import { requirePasskeyAuthorization } from "../sessions/passkey-authorization-guard.js";
 import {
   capabilityAccess,
   openSessionOf,

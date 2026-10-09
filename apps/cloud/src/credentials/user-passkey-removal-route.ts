@@ -3,7 +3,6 @@ import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { readRecordIds } from "../platform/record-id-params.js";
 import { backofficeOriginGuard } from "../sessions/backoffice-origin.js";
-import { AUTHORIZATION_REQUIRED_RESPONSE } from "../sessions/passkey-authorization-guard.js";
 import {
   capabilityAccess,
   openSessionOf,
@@ -13,6 +12,7 @@ import {
 import type { UsersRouteOptions } from "../users/users-list-route.js";
 import { drizzlePasskeyHolders } from "./drizzle-passkey-holders.js";
 import { DrizzlePasskeyRemovalStore } from "./drizzle-passkey-removal-store.js";
+import { AUTHORIZATION_REQUIRED_RESPONSE } from "./passkey-authorization-guard.js";
 
 const USER_NOT_FOUND_RESPONSE = {
   code: "not_found",

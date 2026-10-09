@@ -49,7 +49,7 @@ function AuthorizersProbe({ permission, read, enabled = true }: AuthorizersProbe
   );
 }
 
-describe("access queries", () => {
+describe("sessions queries", () => {
   it("hold the people who can sign in", async () => {
     const screen = await renderWithClient(<UsersProbe read={async () => [ADA, GRACE]} />);
 
@@ -113,7 +113,7 @@ describe("access queries", () => {
     await expect.element(screen.getByText("Grace")).toBeVisible();
   });
 
-  it("read the authorizers again when every access query is invalidated", async () => {
+  it("read the authorizers again when every sessions query is invalidated", async () => {
     const queryClient = createQueryClient();
     const read = vi
       .fn<AuthorizersProbeProps["read"]>()

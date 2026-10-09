@@ -17,7 +17,6 @@ import type { FastifyInstance } from "fastify";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { backofficeOriginGuard } from "../sessions/backoffice-origin.js";
 import { UNAUTHENTICATED_RESPONSE } from "../sessions/open-session.js";
-import { requirePasskeyAuthorization } from "../sessions/passkey-authorization-guard.js";
 import {
   OPEN_SESSION_ACCESS,
   openSessionOf,
@@ -28,6 +27,7 @@ import { drizzleAccounts } from "./drizzle-accounts.js";
 import { DrizzlePasskeyRegistrationStore } from "./drizzle-passkey-registration-store.js";
 import { drizzlePasskeys } from "./drizzle-passkeys.js";
 import { DrizzlePendingPasskeyChallengeStore } from "./drizzle-pending-passkey-challenge-store.js";
+import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import { deriveUserHandle } from "./recovery-user-handle.js";
 import { resolveWebAuthnConfig } from "./webauthn-config.js";
 

@@ -2,10 +2,10 @@ import { fiscalAddressEditBodySchema, fiscalAddressSchema } from "@purosur/contr
 import { editFiscalAddress } from "@purosur/domain/fiscal/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { requirePasskeyAuthorization } from "../credentials/passkey-authorization-guard.js";
 import { readRecordIds } from "../platform/record-id-params.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { sameOriginGuard } from "../sessions/backoffice-origin.js";
-import { requirePasskeyAuthorization } from "../sessions/passkey-authorization-guard.js";
 import {
   capabilityAccess,
   openSessionOf,
