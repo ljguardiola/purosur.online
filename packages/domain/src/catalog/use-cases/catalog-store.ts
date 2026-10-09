@@ -165,6 +165,8 @@ export interface CatalogStoreTransaction {
   replaceProductBarcodes(product: LockedProduct, barcodes: readonly string[]): Promise<void>;
   deactivateProduct(productId: string, nextVersion: number): Promise<void>;
   deactivateProductBarcodes(productId: string): Promise<void>;
+  reactivateProduct(productId: string, nextVersion: number): Promise<void>;
+  reactivateProductBarcodes(productId: string): Promise<void>;
   insertCategory(name: string, parentId: string | null): Promise<{ id: string }>;
   updateCategory(categoryId: string, fields: CategoryFields): Promise<void>;
   lockBrand(brandId: string): Promise<LockBrandResult>;

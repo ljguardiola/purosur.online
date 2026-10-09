@@ -318,6 +318,26 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
     }
   }
 
+  async reactivateProduct(productId: string, nextVersion: number): Promise<void> {
+    for (const product of this.state.products) {
+      if (sameId(product.id, productId)) {
+        product.active = true;
+        product.version = nextVersion;
+      }
+    }
+  }
+
+  async reactivateProductBarcodes(productId: string): Promise<void> {
+    for (const row of this.state.barcodes) {
+      if (sameId(row.productId, productId)) {
+        if (this.store.barcodeConflicts.has(row.code)) {
+          throw new CatalogBarcodeConflict();
+        }
+        row.active = true;
+      }
+    }
+  }
+
   async insertCategory(name: string, parentId: string | null): Promise<{ id: string }> {
     if (this.store.categoryNameConflicts.has(name.toLowerCase())) {
       throw new CatalogCategoryNameConflict();

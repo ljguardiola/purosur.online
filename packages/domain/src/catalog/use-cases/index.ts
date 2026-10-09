@@ -72,5 +72,7 @@ export type { LabelSheetItem, PrepareLabelSheetOutcome } from "./prepare-label-s
 export { prepareLabelSheet } from "./prepare-label-sheet.js";
 export type { ReactivateBrandOutcome } from "./reactivate-brand.js";
 export { reactivateBrand } from "./reactivate-brand.js";
+export type { ReactivateProductOutcome } from "./reactivate-product.js";
+export { reactivateProduct } from "./reactivate-product.js";
 export type { ReactivateTagOutcome } from "./reactivate-tag.js";
 export { reactivateTag } from "./reactivate-tag.js";
