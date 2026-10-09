@@ -127,7 +127,14 @@ describe("paymentStateOfMercadoPagoOrder", () => {
     ).toEqual({ state: "PENDING", needsReview: true });
   });
 
-  it("leaves a processed order whose own detail is not accredited for a person to review", () => {
+  it("approves an order whose own detail reads processed while its payments are accredited", () => {
+    expect(paymentStateOfMercadoPagoOrder(order({ statusDetail: "processed" }), 2500)).toEqual({
+      state: "APPROVED",
+      needsReview: false,
+    });
+  });
+
+  it("leaves a processed order whose own detail is neither accredited nor processed for a person to review", () => {
     expect(paymentStateOfMercadoPagoOrder(order({ statusDetail: "other" }), 2500)).toEqual({
       state: "PENDING",
       needsReview: true,
