@@ -77,6 +77,7 @@ import {
   scanProductFor,
   searchProductsFor,
 } from "./sales/sale-requests";
+import { saleHistoryDetailFor, salesHistoryFor } from "./sales/sales-history-requests";
 import { createActionGate } from "./sessions/action-gate";
 import { authorizersOf } from "./sessions/authorizers";
 import { hashPin } from "./sessions/pin-hash";
@@ -624,6 +625,14 @@ const rendererRequestDeps: RendererRequestDeps = {
     localDatabase === undefined || actionGate === undefined
       ? undefined
       : (request) => cashChargeFor({ database: localDatabase, gate: actionGate, now }, request),
+  salesHistory:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (request) => salesHistoryFor({ database: localDatabase, gate: actionGate }, request),
+  saleHistoryDetail:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (saleId) => saleHistoryDetailFor({ database: localDatabase, gate: actionGate }, saleId),
   receiptPrintStatus: receiptPrinting.receiptPrintStatus,
   retryReceiptPrint: receiptPrinting.retryReceiptPrint,
   reprintSaleReceipt: receiptPrinting.reprintSaleReceipt,

@@ -28,6 +28,8 @@ import type {
   RemoveSaleLineOutcome,
   ReprintSaleReceiptOutcome,
   RetryReceiptPrintOutcome,
+  SaleHistoryDetailOutcome,
+  SalesHistoryOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
   SessionOpenSale,
@@ -46,6 +48,7 @@ import type {
   ChargeSaleByTransferRequest,
   ChargeSaleInCashRequest,
 } from "./sales/sale-requests";
+import type { SalesHistoryRequest } from "./sales/sales-history-requests";
 
 export interface RendererRequestDeps {
   credentialsPresent: () => Promise<boolean>;
@@ -95,6 +98,8 @@ export interface RendererRequestDeps {
   reprintSaleReceipt:
     | ((request: ReprintSaleReceiptRequest) => Promise<ReprintSaleReceiptOutcome>)
     | undefined;
+  salesHistory: ((request: SalesHistoryRequest) => Promise<SalesHistoryOutcome>) | undefined;
+  saleHistoryDetail: ((saleId: string) => Promise<SaleHistoryDetailOutcome>) | undefined;
   closeCashSession:
     | ((sessionId: string, countedCash: number) => Promise<CloseCashSessionOutcome>)
     | undefined;
@@ -656,6 +661,36 @@ export async function answerRendererRequest(
                 reason: message.reason,
                 authorization: message.authorization,
               })),
+        ),
+      };
+    }
+    case "sales-history": {
+      const { salesHistory } = deps;
+      return {
+        type: "sales-history-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "reading the sales history",
+          salesHistory &&
+            (() =>
+              salesHistory({
+                session: message.session,
+                state: message.state,
+                page: message.page,
+              })),
+        ),
+      };
+    }
+    case "sale-history-detail": {
+      const { saleHistoryDetail } = deps;
+      return {
+        type: "sale-history-detail-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "reading a sale of the history",
+          saleHistoryDetail && (() => saleHistoryDetail(message.sale_id)),
         ),
       };
     }
