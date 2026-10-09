@@ -26,6 +26,14 @@ export function formatPointOfSaleNumber(number: number): string {
   return String(number).padStart(5, "0");
 }
 
+export function formatInvoiceNumber(number: number): string {
+  return String(number).padStart(8, "0");
+}
+
+export function formatOperationNumber(number: number): string {
+  return String(number).padStart(6, "0");
+}
+
 export function parsePointOfSaleNumber(text: string): number {
   const digits = text.trim();
   return /^\d+$/.test(digits) ? Number(digits) : Number.NaN;
