@@ -87,8 +87,18 @@ describe("realTimeAuthorizationResponseSchema", () => {
         authorization_code_due_on: "2026-10-11",
       },
     ],
-    ["a rejection with its codes", { state: "REJECTED", rejection_codes: [10015, 10048] }],
-    ["a rejection without codes", { state: "REJECTED", rejection_codes: [] }],
+    [
+      "a content rejection with its codes",
+      { state: "REJECTED", rejection_codes: [10015, 10048], rejection_class: "content" },
+    ],
+    [
+      "a standing rejection with its codes",
+      { state: "REJECTED", rejection_codes: [10005], rejection_class: "standing" },
+    ],
+    [
+      "a rejection without codes",
+      { state: "REJECTED", rejection_codes: [], rejection_class: "content" },
+    ],
     ["a call that was not attempted", { state: "NOT_ATTEMPTED" }],
     ["an unclear outcome", { state: "UNCLEAR" }],
   ])("reads %s", (_case, response) => {
@@ -116,8 +126,16 @@ describe("realTimeAuthorizationResponseSchema", () => {
         authorization_code_due_on: "2026-13-01",
       },
     ],
-    ["a rejection without its codes", { state: "REJECTED" }],
-    ["a rejection with a fractional code", { state: "REJECTED", rejection_codes: [1.5] }],
+    ["a rejection without its codes", { state: "REJECTED", rejection_class: "content" }],
+    ["a rejection without its class", { state: "REJECTED", rejection_codes: [10015] }],
+    [
+      "a rejection of a class nobody knows",
+      { state: "REJECTED", rejection_codes: [10015], rejection_class: "transport" },
+    ],
+    [
+      "a rejection with a fractional code",
+      { state: "REJECTED", rejection_codes: [1.5], rejection_class: "content" },
+    ],
     ["a state nobody knows", { state: "PENDING" }],
     ["no state", {}],
   ])("refuses %s", (_case, response) => {
