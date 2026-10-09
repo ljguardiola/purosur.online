@@ -3,7 +3,7 @@ import {
   SUPPLIER_NAME_MAX_LENGTH,
   SUPPLIER_NOTE_MAX_LENGTH,
 } from "@purosur/domain";
-import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
+import { ANOTHER_FICTIONAL_CUIT, FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { describe, expect, it } from "vitest";
 import {
   supplierContactMessage,
@@ -14,7 +14,9 @@ import {
   supplierNameMessage,
   supplierNoteMessage,
 } from "./supplier-form";
-import { andina, granos } from "./test-support/suppliers";
+import { suppliersWithCuits } from "./test-support/suppliers";
+
+const { andina, granos } = suppliersWithCuits(FICTIONAL_CUIT, ANOTHER_FICTIONAL_CUIT);
 
 const values = { name: "", cuit: "", contact: "", note: "", version: 1 };
 

@@ -1,5 +1,5 @@
 import type { SupplierSummary } from "@purosur/contracts";
-import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
+import { ANOTHER_FICTIONAL_CUIT, FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, expect, test, vi } from "vitest";
@@ -8,7 +8,9 @@ import { render } from "../shell/test-support/render-with-router";
 import { type SuppliersListFilters, suppliersListFilters } from "./routes";
 import { SuppliersListScreen } from "./suppliers-list-screen";
 import type { SuppliersListScreenServices } from "./suppliers-list-services";
-import { andina, cerealera, granos } from "./test-support/suppliers";
+import { suppliersWithCuits } from "./test-support/suppliers";
+
+const { andina, cerealera, granos } = suppliersWithCuits(FICTIONAL_CUIT, ANOTHER_FICTIONAL_CUIT);
 
 afterEach(() => {
   window.history.pushState(null, "", "/");

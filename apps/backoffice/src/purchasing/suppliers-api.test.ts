@@ -1,3 +1,4 @@
+import { ANOTHER_FICTIONAL_CUIT, FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
   createSupplier,
@@ -6,7 +7,9 @@ import {
   fetchSuppliers,
   reactivateSupplier,
 } from "./suppliers-api";
-import { andina, cerealera } from "./test-support/suppliers";
+import { suppliersWithCuits } from "./test-support/suppliers";
+
+const { andina, cerealera } = suppliersWithCuits(FICTIONAL_CUIT, ANOTHER_FICTIONAL_CUIT);
 
 function jsonResponse(status: number, body?: unknown, headers?: Record<string, string>): Response {
   return new Response(
