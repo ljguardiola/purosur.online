@@ -8,6 +8,7 @@ import {
   type DiscountBenefit,
   isTargetKindAllowedFor,
 } from "@purosur/domain";
+import { ANOTHER_FICTIONAL_CUIT, FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
@@ -34,10 +35,12 @@ import {
   priceLists,
   priceReviews,
   prices,
+  productPackagings,
   products,
   productTags,
   roles,
   sessions,
+  suppliers,
   tags,
   userRoles,
   users,
@@ -705,5 +708,148 @@ describe("migrating a database that already has users", { timeout: 30_000 }, () 
     );
     expect(locationRows).toHaveLength(1);
     expect(userRows).toEqual([{ location_id: locationRows[0]?.id }]);
+  });
+});
+
+describe("suppliers", () => {
+  it("starts a supplier active at version 1 with its optional details empty", async () => {
+    const actor = await insertUser("ada@example.com");
+
+    const [supplier] = await db
+      .insert(suppliers)
+      .values({ name: "Distribuidora Sur", actorId: actor.id })
+      .returning();
+
+    expect(supplier).toMatchObject({
+      name: "Distribuidora Sur",
+      cuit: null,
+      contact: null,
+      note: null,
+      active: true,
+      version: 1,
+    });
+  });
+
+  it("rejects a second supplier with the same name in another letter case, even when the first is deactivated", async () => {
+    const actor = await insertUser("ada@example.com");
+    await db
+      .insert(suppliers)
+      .values({ name: "Distribuidora Sur", active: false, actorId: actor.id });
+
+    await expect(
+      db.insert(suppliers).values({ name: "DISTRIBUIDORA sur", actorId: actor.id }),
+    ).rejects.toMatchObject({ cause: { constraint: "suppliers_name_lower_key" } });
+  });
+
+  it("rejects a second supplier with the same tax id but accepts any number without one", async () => {
+    const actor = await insertUser("ada@example.com");
+    await db.insert(suppliers).values({ name: "Uno", cuit: FICTIONAL_CUIT, actorId: actor.id });
+
+    await expect(
+      db.insert(suppliers).values({ name: "Dos", cuit: FICTIONAL_CUIT, actorId: actor.id }),
+    ).rejects.toMatchObject({ cause: { constraint: "suppliers_cuit_key" } });
+    await db.insert(suppliers).values([
+      { name: "Tres", actorId: actor.id },
+      { name: "Cuatro", actorId: actor.id },
+      { name: "Cinco", cuit: ANOTHER_FICTIONAL_CUIT, actorId: actor.id },
+    ]);
+  });
+
+  it("rejects a supplier changed by a user that doesn't exist", async () => {
+    await expect(
+      db.insert(suppliers).values({ name: "Uno", actorId: "00000000-0000-0000-0000-000000000000" }),
+    ).rejects.toMatchObject({ cause: { constraint: "suppliers_actor_id_users_id_fk" } });
+  });
+});
+
+describe("product_packagings", () => {
+  async function seedProductAndActor(): Promise<{ productId: string; actorId: string }> {
+    const actor = await insertUser("ada@example.com");
+    const [category] = await db
+      .insert(categories)
+      .values({ name: "Almacén" })
+      .returning({ id: categories.id });
+    if (!category) {
+      throw new Error("test setup: seeding the category returned no row");
+    }
+    const [product] = await db
+      .insert(products)
+      .values({ name: "Arroz", categoryId: category.id, saleUnit: "UNIT" })
+      .returning({ id: products.id });
+    if (!product) {
+      throw new Error("test setup: seeding the product returned no row");
+    }
+    return { productId: product.id, actorId: actor.id };
+  }
+
+  it("starts a packaging active at version 1", async () => {
+    const { productId, actorId } = await seedProductAndActor();
+
+    const [packaging] = await db
+      .insert(productPackagings)
+      .values({ productId, name: "Caja x 12", quantityPerPackage: 12, actorId })
+      .returning();
+
+    expect(packaging).toMatchObject({
+      productId,
+      name: "Caja x 12",
+      quantityPerPackage: 12,
+      active: true,
+      version: 1,
+    });
+  });
+
+  it("rejects a second packaging of the same product with the same name in another letter case, even when the first is deactivated", async () => {
+    const { productId, actorId } = await seedProductAndActor();
+    await db
+      .insert(productPackagings)
+      .values({ productId, name: "Caja x 12", quantityPerPackage: 12, active: false, actorId });
+
+    await expect(
+      db
+        .insert(productPackagings)
+        .values({ productId, name: "caja X 12", quantityPerPackage: 6, actorId }),
+    ).rejects.toMatchObject({
+      cause: { constraint: "product_packagings_product_id_name_lower_key" },
+    });
+  });
+
+  it("accepts the same packaging name on another product", async () => {
+    const { productId, actorId } = await seedProductAndActor();
+    const [category] = await db.select({ id: categories.id }).from(categories);
+    const [other] = await db
+      .insert(products)
+      .values({ name: "Fideos", categoryId: category?.id ?? "", saleUnit: "UNIT" })
+      .returning({ id: products.id });
+    await db
+      .insert(productPackagings)
+      .values({ productId, name: "Caja x 12", quantityPerPackage: 12, actorId });
+
+    await db
+      .insert(productPackagings)
+      .values({ productId: other?.id ?? "", name: "Caja x 12", quantityPerPackage: 12, actorId });
+  });
+
+  it.each([0, -3])("rejects a packaging holding %d", async (quantityPerPackage) => {
+    const { productId, actorId } = await seedProductAndActor();
+
+    await expect(
+      db.insert(productPackagings).values({ productId, name: "Caja", quantityPerPackage, actorId }),
+    ).rejects.toMatchObject({ cause: { constraint: "product_packagings_quantity_check" } });
+  });
+
+  it("rejects a packaging of a product that doesn't exist", async () => {
+    const { actorId } = await seedProductAndActor();
+
+    await expect(
+      db.insert(productPackagings).values({
+        productId: "00000000-0000-0000-0000-000000000000",
+        name: "Caja",
+        quantityPerPackage: 1,
+        actorId,
+      }),
+    ).rejects.toMatchObject({
+      cause: { constraint: "product_packagings_product_id_products_id_fk" },
+    });
   });
 });
