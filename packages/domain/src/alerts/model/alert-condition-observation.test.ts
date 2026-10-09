@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  fiscalDocumentAuthorizedObservation,
+  fiscalRejectionObservation,
   quietRegisterObservation,
   registerSalesDeniedObservation,
   registerSyncedObservation,
@@ -100,5 +102,61 @@ describe("registerSalesDeniedObservation", () => {
 
   it("observes nothing of a register that reports nothing about selling", () => {
     expect(registerSalesDeniedObservation({ ...register, report: {} })).toBeUndefined();
+  });
+});
+
+describe("fiscalRejectionObservation", () => {
+  const rejections = [{ code: 10242, message: "El valor de CondicionIVAReceptorId es invalido." }];
+
+  it("holds the fiscal-rejected condition of the point of sale and document type, naming the rejection and the document that opened it", () => {
+    expect(
+      fiscalRejectionObservation({
+        pointOfSale: 12,
+        documentType: "factura_c",
+        rejectionClass: "content",
+        fiscalDocumentId: "fiscal-document-1",
+        saleId: "sale-1",
+        rejections,
+      }),
+    ).toEqual({
+      holds: true,
+      alert: {
+        kind: "fiscal_rejected",
+        scope: "12:factura_c",
+        detail: {
+          pointOfSale: 12,
+          documentType: "factura_c",
+          rejectionClass: "content",
+          fiscalDocumentId: "fiscal-document-1",
+          saleId: "sale-1",
+          rejections,
+        },
+      },
+    });
+  });
+
+  it("scopes the condition to each point of sale on its own", () => {
+    const observation = fiscalRejectionObservation({
+      pointOfSale: 3,
+      documentType: "factura_c",
+      rejectionClass: "standing",
+      fiscalDocumentId: "fiscal-document-2",
+      saleId: "sale-2",
+      rejections,
+    });
+
+    expect(observation).toMatchObject({ alert: { scope: "3:factura_c" } });
+  });
+});
+
+describe("fiscalDocumentAuthorizedObservation", () => {
+  it("clears the fiscal-rejected condition of the point of sale and document type", () => {
+    expect(
+      fiscalDocumentAuthorizedObservation({ pointOfSale: 12, documentType: "factura_c" }),
+    ).toEqual({
+      holds: false,
+      kind: "fiscal_rejected",
+      scope: "12:factura_c",
+    });
   });
 });
