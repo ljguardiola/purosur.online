@@ -47,7 +47,11 @@ describe("asking for a first PIN code while the person redeems a code on a real 
       .returning({ id: registers.id });
     const [user] = await db
       .insert(users)
-      .values({ firstName: "Grace Villalba", email: `grace-${randomUUID()}@example.com`, locationId })
+      .values({
+        firstName: "Grace Villalba",
+        email: `grace-${randomUUID()}@example.com`,
+        locationId,
+      })
       .returning({ id: users.id, email: users.email });
     if (!register || !user) {
       throw new Error("test setup: seeding the register or the user returned no row");
