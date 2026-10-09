@@ -11,6 +11,8 @@ export interface RegisterPointOfSale {
 export interface BranchRegisterPointOfSale extends RegisterPointOfSale {
   registerId: string;
   registerName: string;
+  offlinePointOfSaleNumber: number | null;
+  offlineVersion: number;
 }
 
 export interface RegisterPointOfSaleReader {
