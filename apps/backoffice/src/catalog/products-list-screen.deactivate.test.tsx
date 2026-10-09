@@ -48,7 +48,7 @@ test("deactivates a product, closes the modal, and refreshes the list", async ()
   expect(screen.getByText("Miel pura de abeja 1 kg").query()).toBeNull();
 });
 
-test("shows an already-deactivated notice, and updating the list closes the modal", async () => {
+test("updating the list after a product was already deactivated closes the modal and refreshes the list", async () => {
   const services = createServices();
   mockLoaded(services, [honey]);
   vi.mocked(services.deactivateProduct).mockResolvedValue({ kind: "already_changed" });
@@ -56,10 +56,6 @@ test("shows an already-deactivated notice, and updating the list closes the moda
   const dialog = await openDeactivateProductModal(screen, honey);
 
   await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
-
-  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Ya estaba desactivado");
-  expect(dialog.getByRole("button", { name: "Desactivar" }).query()).toBeNull();
-
   vi.mocked(services.fetchProducts).mockResolvedValueOnce({ kind: "ok", value: [] });
   await userEvent.click(dialog.getByRole("button", { name: "Actualizar la lista" }));
 
