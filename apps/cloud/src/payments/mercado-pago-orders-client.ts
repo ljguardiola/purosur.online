@@ -16,7 +16,8 @@ const MERCADO_PAGO_API_URL = "https://api.mercadopago.com";
 const MERCADO_PAGO_TIMEOUT_MS = 10_000;
 const CENTS_PER_PESO = 100;
 const DECIMAL_AMOUNT = /^(\d+)(?:\.(\d{1,2}))?$/;
-const UNAVAILABLE_STATUSES: readonly number[] = [408, 429];
+const REQUEST_TIMEOUT = 408;
+const TOO_MANY_REQUESTS = 429;
 
 function pesosOfCents(cents: number): string {
   const pesos = Math.floor(cents / CENTS_PER_PESO);
@@ -133,8 +134,11 @@ export function createMercadoPagoOrdersClient(
         const order = parsedOrder(answer.body);
         return order === null ? { kind: "unavailable" } : { kind: "created", ...order };
       }
-      if (UNAVAILABLE_STATUSES.includes(answer.status)) {
+      if (answer.status === REQUEST_TIMEOUT) {
         return { kind: "unavailable" };
+      }
+      if (answer.status === TOO_MANY_REQUESTS) {
+        return { kind: "throttled" };
       }
       return { kind: "refused" };
     },

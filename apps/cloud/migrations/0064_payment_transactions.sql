@@ -10,6 +10,7 @@ CREATE TABLE "payment_transactions" (
 	"state" text NOT NULL,
 	"needs_review" boolean DEFAULT false NOT NULL,
 	"provider_order_id" text,
+	"creation_outcome_unknown" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp with time zone NOT NULL,
 	"expires_at" timestamp with time zone NOT NULL,
 	"state_read_at" timestamp with time zone,

@@ -24,6 +24,8 @@ export interface PaymentTransactionLane {
   ): Promise<ProviderPaymentTransaction | null>;
   recordPendingTransaction(transaction: ProviderPaymentTransaction): Promise<void>;
   recordCreationAttempt(paymentTransactionId: string, expiresAt: Date): Promise<void>;
+  recordCreationOutcomeUnknown(paymentTransactionId: string): Promise<void>;
+  recordNeedsReview(paymentTransactionId: string): Promise<void>;
   recordExpired(paymentTransactionId: string): Promise<void>;
   recordOrderCreated(
     paymentTransactionId: string,
@@ -54,6 +56,7 @@ export interface MercadoPagoQrOrderRequest {
 export type MercadoPagoOrderCreation =
   | { kind: "created"; orderId: string; result: MercadoPagoOrderResult }
   | { kind: "refused" }
+  | { kind: "throttled" }
   | { kind: "unavailable" };
 
 export type MercadoPagoOrderReading =

@@ -21,6 +21,7 @@ export interface ProviderPaymentTransaction {
   state: PaymentTransactionState;
   needsReview: boolean;
   providerOrderId: string | null;
+  creationOutcomeUnknown: boolean;
   createdAt: Date;
   expiresAt: Date;
 }
@@ -31,15 +32,23 @@ export function mercadoPagoOrderExpiresAt(attemptStartedAt: Date, longestCallMs:
   );
 }
 
-export function hasExpiredWithoutOrder(
-  transaction: Pick<ProviderPaymentTransaction, "state" | "providerOrderId" | "expiresAt">,
+export type ExpiryWithoutOrder = "expired" | "needs_review";
+
+export function expiryWithoutOrder(
+  transaction: Pick<
+    ProviderPaymentTransaction,
+    "state" | "providerOrderId" | "expiresAt" | "creationOutcomeUnknown"
+  >,
   now: Date,
-): boolean {
-  return (
-    transaction.state === "PENDING" &&
-    transaction.providerOrderId === null &&
-    now.getTime() >= transaction.expiresAt.getTime()
-  );
+): ExpiryWithoutOrder | null {
+  if (
+    transaction.state !== "PENDING" ||
+    transaction.providerOrderId !== null ||
+    now.getTime() < transaction.expiresAt.getTime()
+  ) {
+    return null;
+  }
+  return transaction.creationOutcomeUnknown ? "needs_review" : "expired";
 }
 
 export function isValidOrderAmount(cents: number): boolean {

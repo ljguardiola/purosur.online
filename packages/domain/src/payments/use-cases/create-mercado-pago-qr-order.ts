@@ -1,6 +1,5 @@
 import { applyMercadoPagoOrderResult } from "../model/mercado-pago-order-result.js";
 import {
-  hasExpiredWithoutOrder,
   isValidOrderAmount,
   MERCADO_PAGO_ORDER_EXPIRY_MINUTES,
   mercadoPagoOrderExpiresAt,
@@ -10,6 +9,7 @@ import {
   type MercadoPagoQrOrderPorts,
   PaymentTransactionAlreadyRecorded,
 } from "./mercado-pago-qr-order-ports.js";
+import { recordExpiryWithoutOrder } from "./record-expiry-without-order.js";
 import { recordMercadoPagoOrderResult } from "./record-mercado-pago-order-result.js";
 
 export interface CreateMercadoPagoQrOrderInput {
@@ -57,6 +57,7 @@ export async function createMercadoPagoQrOrder(
           state: "PENDING",
           needsReview: false,
           providerOrderId: null,
+          creationOutcomeUnknown: false,
           createdAt,
           expiresAt: mercadoPagoOrderExpiresAt(createdAt, mercadoPago.longestCallMs),
         };
@@ -80,9 +81,9 @@ export async function createMercadoPagoQrOrder(
       if (orderId === null) {
         if (recorded !== null) {
           const attemptStartedAt = clock.now();
-          if (hasExpiredWithoutOrder(transaction, attemptStartedAt)) {
-            await lane.recordExpired(paymentTransactionId);
-            return { kind: "recorded", transaction: { ...transaction, state: "EXPIRED" } };
+          const ended = await recordExpiryWithoutOrder(lane, transaction, attemptStartedAt);
+          if (ended !== null) {
+            return { kind: "recorded", transaction: ended };
           }
           const expiresAt = mercadoPagoOrderExpiresAt(attemptStartedAt, mercadoPago.longestCallMs);
           await lane.recordCreationAttempt(paymentTransactionId, expiresAt);
@@ -98,7 +99,11 @@ export async function createMercadoPagoQrOrder(
         if (creation.kind === "refused") {
           return { kind: "provider_refused" };
         }
+        if (creation.kind === "throttled") {
+          return { kind: "provider_unavailable" };
+        }
         if (creation.kind === "unavailable") {
+          await lane.recordCreationOutcomeUnknown(paymentTransactionId);
           return { kind: "provider_unavailable" };
         }
         orderId = creation.orderId;

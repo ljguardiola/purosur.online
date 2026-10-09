@@ -55,6 +55,7 @@ class DrizzlePaymentTransactionLane<TQueryResult extends PgQueryResultHKT>
       state: row.state as PaymentTransactionState,
       needsReview: row.needsReview,
       providerOrderId: row.providerOrderId,
+      creationOutcomeUnknown: row.creationOutcomeUnknown,
       createdAt: row.createdAt,
       expiresAt: row.expiresAt,
     };
@@ -80,6 +81,20 @@ class DrizzlePaymentTransactionLane<TQueryResult extends PgQueryResultHKT>
     await this.db
       .update(paymentTransactions)
       .set({ expiresAt })
+      .where(eq(paymentTransactions.id, paymentTransactionId));
+  }
+
+  async recordCreationOutcomeUnknown(paymentTransactionId: string): Promise<void> {
+    await this.db
+      .update(paymentTransactions)
+      .set({ creationOutcomeUnknown: true })
+      .where(eq(paymentTransactions.id, paymentTransactionId));
+  }
+
+  async recordNeedsReview(paymentTransactionId: string): Promise<void> {
+    await this.db
+      .update(paymentTransactions)
+      .set({ needsReview: true })
       .where(eq(paymentTransactions.id, paymentTransactionId));
   }
 
