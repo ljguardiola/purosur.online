@@ -6,7 +6,7 @@ import type {
   PinSignInFailures,
   PinSignInStore,
 } from "../pin-sign-in-store.js";
-import { FixedClock } from "./fake-pin-code-store.js";
+import { FixedClock } from "./fixed-clock.js";
 
 class FakePinSignInStore implements PinSignInStore<string> {
   readonly holders = new Map<string, PinHolder<string>>();

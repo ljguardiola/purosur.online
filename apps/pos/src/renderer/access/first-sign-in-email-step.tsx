@@ -4,6 +4,7 @@ import { Button, InlineNotice, useRequestForm } from "@purosur/ui";
 import { ArrowLeft, ArrowRight, RefreshCw, ShieldX, TriangleAlert, WifiOff } from "lucide-react";
 import type { FormEvent } from "react";
 import { useState } from "react";
+import { FirstSignInPanel } from "../shell/first-sign-in-panel";
 import { retryAfterText } from "../shell/retry-after-text";
 import { ScreenLink } from "../shell/screen-link";
 import {
@@ -12,7 +13,6 @@ import {
   signInLookupRequestFrom,
   signInLookupRequestSchema,
 } from "./first-sign-in-email-form";
-import { FirstSignInPanel } from "./first-sign-in-panel";
 
 export type FoundPerson = Extract<SignInLookupOutcome, { kind: "has_pin" | "no_pin" }>;
 

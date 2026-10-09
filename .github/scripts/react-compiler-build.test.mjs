@@ -112,7 +112,7 @@ test(
   "the backoffice's Vite build compiles a real screen component with the React Compiler",
   CHECK_DEADLINE,
   async () => {
-    const result = await transformWithBackofficeConfig("/src/access/access-layout.tsx");
+    const result = await transformWithBackofficeConfig("/src/shell/access-layout.tsx");
 
     assert.ok(result, "the backoffice's dev server could not transform the component");
     assert.ok(result.code.includes(COMPILER_RUNTIME_MARKER));

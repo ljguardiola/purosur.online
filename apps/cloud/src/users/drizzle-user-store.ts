@@ -15,7 +15,6 @@ import {
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { revokeSessions } from "../access/revoke-sessions.js";
-import { voidOutstandingRecoveryTokens } from "../access/void-outstanding-recovery-tokens.js";
 import { openAlert } from "../alerts/open-alert.js";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import { auditLog, rolePermissions, roles, userRoles, users } from "../platform/db/schema.js";
@@ -25,6 +24,12 @@ import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
 >[0];
+
+export type VoidOutstandingRecoveryTokens = <TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  userId: string,
+  at: Date,
+) => Promise<void>;
 
 const UNIQUE_VIOLATION = "23505";
 const USER_EMAIL_UNIQUE_INDEX = "users_email_key";
@@ -63,11 +68,18 @@ class DrizzleUserStoreTransaction<TQueryResult extends PgQueryResultHKT>
   private readonly tx: Transaction<TQueryResult>;
   private readonly now: () => Date;
   private readonly pending: PendingChanges;
+  private readonly voidRecoveryTokens: VoidOutstandingRecoveryTokens;
 
-  constructor(tx: Transaction<TQueryResult>, now: () => Date, pending: PendingChanges) {
+  constructor(
+    tx: Transaction<TQueryResult>,
+    now: () => Date,
+    pending: PendingChanges,
+    voidRecoveryTokens: VoidOutstandingRecoveryTokens,
+  ) {
     this.tx = tx;
     this.now = now;
     this.pending = pending;
+    this.voidRecoveryTokens = voidRecoveryTokens;
     this.users = drizzleBranchUsers(tx);
   }
 
@@ -199,7 +211,7 @@ class DrizzleUserStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   voidOutstandingRecoveryTokens(userId: string, at: Date): Promise<void> {
-    return voidOutstandingRecoveryTokens(this.tx, userId, at);
+    return this.voidRecoveryTokens(this.tx, userId, at);
   }
 
   async revokeSessions(userId: string, at: Date): Promise<void> {
@@ -268,17 +280,24 @@ class DrizzleUserStoreTransaction<TQueryResult extends PgQueryResultHKT>
 export class DrizzleUserStore<TQueryResult extends PgQueryResultHKT> implements UserStore {
   private readonly db: PgDatabase<TQueryResult>;
   private readonly now: () => Date;
+  private readonly voidRecoveryTokens: VoidOutstandingRecoveryTokens;
   private readonly pending: PendingChanges | undefined;
 
-  constructor(db: PgDatabase<TQueryResult>, now: () => Date, pending?: PendingChanges) {
+  constructor(
+    db: PgDatabase<TQueryResult>,
+    now: () => Date,
+    voidRecoveryTokens: VoidOutstandingRecoveryTokens,
+    pending?: PendingChanges,
+  ) {
     this.db = db;
     this.now = now;
+    this.voidRecoveryTokens = voidRecoveryTokens;
     this.pending = pending;
   }
 
   transaction<TOutcome>(work: (tx: UserStoreTransaction) => Promise<TOutcome>): Promise<TOutcome> {
     return withPendingChanges(this.db, this.pending, (tx, pending) =>
-      work(new DrizzleUserStoreTransaction(tx, this.now, pending)),
+      work(new DrizzleUserStoreTransaction(tx, this.now, pending, this.voidRecoveryTokens)),
     );
   }
 }

@@ -1,7 +1,4 @@
 import { expectTypeOf, test } from "vitest";
-import type { AccountRecoveryScreenProps } from "../access/account-recovery-screen";
-import type { MyAccountScreenProps } from "../access/my-account-screen";
-import type { RegisterPasskeyScreenProps } from "../access/register-passkey-screen";
 import type { SignInScreenProps } from "../access/sign-in-screen";
 import type { AlertsListScreenProps } from "../alerts/alerts-list-screen";
 import type { BranchSettingsScreenProps } from "../branch/branch-settings-screen";
@@ -9,6 +6,9 @@ import type { BrandsListScreenProps } from "../catalog/brands-list-screen";
 import type { CategoriesListScreenProps } from "../catalog/categories-list-screen";
 import type { ProductsListScreenProps } from "../catalog/products-list-screen";
 import type { TagsListScreenProps } from "../catalog/tags-list-screen";
+import type { AccountRecoveryScreenProps } from "../credentials/account-recovery-screen";
+import type { MyAccountScreenProps } from "../credentials/my-account-screen";
+import type { RegisterPasskeyScreenProps } from "../credentials/register-passkey-screen";
 import type { FiscalConfigurationScreenProps } from "../fiscal/fiscal-configuration-screen";
 import type { RolesListScreenProps } from "../permissions/roles-list-screen";
 import type { DiscountsListScreenProps } from "../pricing/discounts-list-screen";

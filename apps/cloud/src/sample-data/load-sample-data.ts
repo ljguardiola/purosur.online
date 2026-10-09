@@ -26,6 +26,7 @@ import { openAlert } from "../alerts/open-alert.js";
 import { DrizzleBranchSettingsStore } from "../branch/drizzle-branch-settings-store.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { DrizzleInternalBarcodeStore } from "../catalog/drizzle-internal-barcode-store.js";
+import { voidOutstandingRecoveryTokens } from "../credentials/void-outstanding-recovery-tokens.js";
 import { DrizzleRoleStore } from "../permissions/drizzle-role-store.js";
 import { branchSettings, locations, roles, userRoles, users } from "../platform/db/schema.js";
 import { DrizzleDiscountStore } from "../pricing/drizzle-discount-store.js";
@@ -125,7 +126,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
       const loadClock = () => loadedAt;
       const pending = new PendingChanges();
 
-      const userStore = new DrizzleUserStore(tx, loadClock, pending);
+      const userStore = new DrizzleUserStore(tx, loadClock, voidOutstandingRecoveryTokens, pending);
       const administratorOutcome = await createUser(
         { store: userStore, clock: deps },
         {

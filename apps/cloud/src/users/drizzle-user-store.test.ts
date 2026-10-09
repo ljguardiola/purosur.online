@@ -2,6 +2,7 @@ import { UserEmailConflict, type UserStoreTransaction } from "@purosur/domain/us
 import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
+import { voidOutstandingRecoveryTokens } from "../credentials/void-outstanding-recovery-tokens.js";
 import {
   alerts,
   auditLog,
@@ -67,7 +68,7 @@ beforeEach(async () => {
   administratorRoleId = administrator.id;
 });
 
-const store = () => new DrizzleUserStore(db, () => NOW);
+const store = () => new DrizzleUserStore(db, () => NOW, voidOutstandingRecoveryTokens);
 
 async function loggedUserChanges(userId: string) {
   return db
@@ -429,7 +430,12 @@ describe("opening alerts", () => {
 describe("the change log", () => {
   it("logs through the collector of a caller that owns the outer transaction, and discards it on rollback", async () => {
     const pending = new PendingChanges();
-    const attempt = new DrizzleUserStore(db, () => NOW, pending).transaction(async (tx) => {
+    const attempt = new DrizzleUserStore(
+      db,
+      () => NOW,
+      voidOutstandingRecoveryTokens,
+      pending,
+    ).transaction(async (tx) => {
       await tx.insertUser({ firstName: "Marta", email: "marta@example.com", locationId });
       throw new Error("the operation failed afterwards");
     });

@@ -10,11 +10,17 @@ import {
 } from "../access/route-access.js";
 import { canReactivateUsers, toBranchUserWire } from "./branch-users.js";
 import { drizzleBranchUsers } from "./drizzle-branch-users.js";
+import type { VoidOutstandingRecoveryTokens } from "./drizzle-user-store.js";
 
 export interface UsersRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
   now: () => Date;
+}
+
+export interface UserChangeRouteOptions<TQueryResult extends PgQueryResultHKT>
+  extends UsersRouteOptions<TQueryResult> {
+  voidOutstandingRecoveryTokens: VoidOutstandingRecoveryTokens;
 }
 
 export function registerUsersListRoute<TQueryResult extends PgQueryResultHKT>(

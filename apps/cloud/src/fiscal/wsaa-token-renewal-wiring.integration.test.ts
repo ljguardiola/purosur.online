@@ -1,6 +1,6 @@
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import type { AccessEmailSender } from "../access/recovery-email-sender.js";
+import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { setUpRecovery } from "../server.js";
 import {
   createIntegrationDatabase,

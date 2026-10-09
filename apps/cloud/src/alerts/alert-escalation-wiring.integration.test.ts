@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import type { AccessEmailSender } from "../access/recovery-email-sender.js";
+import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { UNREACHABLE_WSFE_ENDPOINT } from "../fiscal/test-support/fake-wsfe-server.js";
 import { alerts } from "../platform/db/schema.js";
 import { setUpRecovery } from "../server.js";
