@@ -290,8 +290,13 @@ beforeAll(async () => {
   );
   const threshold = expectOutcome(
     await recordBuyerIdentificationThreshold(
-      { store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOW) },
-      { amount: 1_000_000, validFrom: "2026-10-01", actorId: actorA },
+      { store: new DrizzleBuyerIdentificationThresholdStore(db, () => NOW), clock: { now: () => NOW } },
+      {
+        amount: 1_000_000,
+        validFrom: "2026-10-06",
+        actorId: actorA,
+        confirmedLowerThanInEffect: true,
+      },
     ),
     "recorded",
   );

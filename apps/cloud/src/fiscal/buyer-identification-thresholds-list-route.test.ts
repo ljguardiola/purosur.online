@@ -123,7 +123,7 @@ describe("GET /buyer-identification-thresholds", () => {
     expect(response.json()).toMatchObject({ code: "forbidden" });
   });
 
-  it("answers nothing in effect, nothing scheduled and no newest day while no threshold was recorded", async () => {
+  it("answers nothing in effect and nothing scheduled while no threshold was recorded", async () => {
     const userId = await insertUserWithPermissions(["change_fiscal_configuration"]);
 
     const response = await get(await insertSession(userId));
@@ -132,11 +132,11 @@ describe("GET /buyer-identification-thresholds", () => {
     expect(buyerIdentificationThresholdOverviewSchema.parse(response.json())).toEqual({
       in_effect: null,
       scheduled: null,
-      latest_valid_from: null,
+      earliest_valid_from: "2026-01-05",
     });
   });
 
-  it("answers the threshold in effect today, the scheduled one and the day the newest starts", async () => {
+  it("answers the threshold in effect today and the scheduled one", async () => {
     const userId = await insertUserWithPermissions(["change_fiscal_configuration"]);
     await db.insert(buyerIdentificationThresholds).values([
       { amount: 3_500_000_000, validFrom: "2026-10-01", recordedBy: userId },
@@ -153,7 +153,6 @@ describe("GET /buyer-identification-thresholds", () => {
       3_500_000_000,
       "2026-10-01",
     ]);
-    expect(body.latest_valid_from).toBe("2026-10-01");
   });
 
   it("answers the Argentina calendar day, not the UTC one", async () => {
@@ -169,6 +168,30 @@ describe("GET /buyer-identification-thresholds", () => {
     const body = buyerIdentificationThresholdOverviewSchema.parse(response.json());
     expect(body.in_effect?.valid_from).toBe("2026-01-01");
     expect(body.scheduled?.valid_from).toBe("2026-01-06");
+    expect(body.earliest_valid_from).toBe("2026-01-05");
+  });
+
+  it("answers today as the earliest day a threshold may start", async () => {
+    const userId = await insertUserWithPermissions(["change_fiscal_configuration"]);
+
+    const response = await get(await insertSession(userId));
+
+    expect(buyerIdentificationThresholdOverviewSchema.parse(response.json())).toMatchObject({
+      earliest_valid_from: "2026-01-05",
+    });
+  });
+
+  it("answers the replacement, not the replaced threshold, of the day it starts", async () => {
+    const userId = await insertUserWithPermissions(["change_fiscal_configuration"]);
+    await db.insert(buyerIdentificationThresholds).values([
+      { amount: 10_000, validFrom: "2026-01-05", revision: 0, recordedBy: userId },
+      { amount: 10_000_000, validFrom: "2026-01-05", revision: 1, recordedBy: userId },
+    ]);
+
+    const response = await get(await insertSession(userId));
+
+    const body = buyerIdentificationThresholdOverviewSchema.parse(response.json());
+    expect(body.in_effect?.amount).toBe(10_000_000);
   });
 
   it("answers no threshold in effect while every one starts later", async () => {
@@ -182,6 +205,5 @@ describe("GET /buyer-identification-thresholds", () => {
     const body = buyerIdentificationThresholdOverviewSchema.parse(response.json());
     expect(body.in_effect).toBeNull();
     expect(body.scheduled?.valid_from).toBe("2026-03-01");
-    expect(body.latest_valid_from).toBe("2026-03-01");
   });
 });

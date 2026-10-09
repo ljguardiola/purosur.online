@@ -1,6 +1,9 @@
-import { buyerIdentificationThresholdSchema } from "@purosur/contracts";
+import {
+  buyerIdentificationThresholdConfirmationRequiredSchema,
+  buyerIdentificationThresholdSchema,
+} from "@purosur/contracts";
 import { PASSKEY_AUTHORIZATION_WINDOW_MS } from "@purosur/domain";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
@@ -111,7 +114,10 @@ function post(body: Record<string, unknown>, rawSessionId?: string, origin = BAC
 const BODY = { amount: 1_000_000, valid_from: "2026-10-01" };
 
 async function storedThresholds() {
-  return db.select().from(buyerIdentificationThresholds);
+  return db
+    .select()
+    .from(buyerIdentificationThresholds)
+    .orderBy(asc(buyerIdentificationThresholds.validFrom), asc(buyerIdentificationThresholds.revision));
 }
 
 describe("POST /buyer-identification-thresholds", () => {
@@ -167,27 +173,94 @@ describe("POST /buyer-identification-thresholds", () => {
     expect(entry).toMatchObject({
       entity: "buyer_identification_threshold",
       actorId: userId,
-      newValue: { amount: 1_000_000, valid_from: "2026-10-01" },
+      previousValue: null,
+      newValue: { amount: 1_000_000, valid_from: "2026-10-01", revision: 0 },
       at: NOON,
     });
     const logged = await db.select().from(changes).where(eq(changes.entityId, id));
     expect(logged).toMatchObject([{ entity: "buyer_identification_threshold", op: "insert" }]);
   });
 
-  it("answers 409 not_after_latest naming the latest start day when the threshold does not start after it, recording nothing more", async () => {
-    const { userId, rawSessionId } = await signedInWithPermission();
-    await db
-      .insert(buyerIdentificationThresholds)
-      .values({ amount: 900_000, validFrom: "2026-10-01", recordedBy: userId });
+  it("records a threshold that starts today", async () => {
+    const { rawSessionId } = await signedInWithPermission();
 
-    const response = await post(BODY, rawSessionId);
+    const response = await post({ ...BODY, valid_from: "2026-01-05" }, rawSessionId);
+
+    expect(response.statusCode).toBe(201);
+  });
+
+  it("answers 409 threshold_before_today naming valid_from when the threshold starts before today, recording nothing", async () => {
+    const { rawSessionId } = await signedInWithPermission();
+
+    const response = await post({ ...BODY, valid_from: "2026-01-04" }, rawSessionId);
 
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({
-      code: "threshold_not_after_latest",
-      message: expect.stringContaining("2026-10-01"),
+      code: "threshold_before_today",
+      details: [{ field: "valid_from" }],
     });
-    expect(await storedThresholds()).toHaveLength(1);
+    expect(await storedThresholds()).toEqual([]);
+  });
+
+  describe("a lower amount than the one in effect", () => {
+    async function seedInEffect(userId: string) {
+      await db
+        .insert(buyerIdentificationThresholds)
+        .values({ amount: 2_000_000, validFrom: "2025-06-01", recordedBy: userId });
+    }
+
+    it("answers 409 threshold_lower_than_in_effect with the amounts and the day, recording nothing", async () => {
+      const { userId, rawSessionId } = await signedInWithPermission();
+      await seedInEffect(userId);
+
+      const response = await post({ ...BODY, amount: 1_000_000 }, rawSessionId);
+
+      expect(response.statusCode).toBe(409);
+      expect(buyerIdentificationThresholdConfirmationRequiredSchema.parse(response.json())).toEqual({
+        code: "threshold_lower_than_in_effect",
+        message: expect.any(String),
+        in_effect_amount: 2_000_000,
+        amount: 1_000_000,
+        valid_from: "2026-10-01",
+      });
+      expect(await storedThresholds()).toHaveLength(1);
+    });
+
+    it("records it once the request confirms it", async () => {
+      const { userId, rawSessionId } = await signedInWithPermission();
+      await seedInEffect(userId);
+
+      const response = await post(
+        { ...BODY, amount: 1_000_000, confirm_lower_than_in_effect: true },
+        rawSessionId,
+      );
+
+      expect(response.statusCode).toBe(201);
+      expect(await storedThresholds()).toHaveLength(2);
+    });
+  });
+
+  it("replaces the threshold of the same day with a new row of the next revision, auditing the replaced one", async () => {
+    const { userId, rawSessionId } = await signedInWithPermission();
+    await db
+      .insert(buyerIdentificationThresholds)
+      .values({ amount: 10_000, validFrom: "2026-10-01", recordedBy: userId });
+
+    const response = await post(BODY, rawSessionId);
+
+    expect(response.statusCode).toBe(201);
+    const { id } = buyerIdentificationThresholdSchema.parse(response.json());
+    expect(await storedThresholds()).toMatchObject([
+      { amount: 10_000, validFrom: "2026-10-01", revision: 0 },
+      { id, amount: 1_000_000, validFrom: "2026-10-01", revision: 1 },
+    ]);
+    const [entry] = await db.select().from(auditLog).where(eq(auditLog.entityId, id));
+    expect(entry).toMatchObject({
+      previousValue: { amount: 10_000, valid_from: "2026-10-01", revision: 0 },
+      newValue: { amount: 1_000_000, valid_from: "2026-10-01", revision: 1 },
+    });
+    const logged = await db.select().from(changes).where(eq(changes.entityId, id));
+    expect(logged).toMatchObject([{ entity: "buyer_identification_threshold", op: "insert" }]);
   });
 
   it("answers 400 validation_failed naming the field of an invalid body, recording nothing", async () => {
