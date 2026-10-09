@@ -17,6 +17,8 @@ opensOnlyScreens([
   "/inventory",
   "/inventory-adjustments",
   "/inventory-counts",
+  "/purchase-packagings",
+  "/suppliers",
 ]);
 
 beforeEach(resetPageState);
@@ -47,14 +49,32 @@ function stockServices(capabilities: Capability[]) {
     kind: "ok",
     value: { movements: [] },
   });
+  vi.mocked(services.suppliersListScreen.fetchSuppliers).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  vi.mocked(services.packagingsListScreen.fetchPackagings).mockResolvedValue({
+    kind: "ok",
+    value: { packagings: [], products: [] },
+  });
   return services;
 }
+
+const SECTION_LABELS = [
+  "Saldos",
+  "Recuentos",
+  "Ajustes y pérdidas",
+  "Proveedores",
+  "Presentaciones de compra",
+];
 
 test.each([
   ["stock_balances", "Saldos", "/inventory"],
   ["stock_counts", "Recuentos", "/inventory-counts"],
   ["stock_losses", "Ajustes y pérdidas", "/inventory-adjustments"],
   ["stock_adjustments", "Ajustes y pérdidas", "/inventory-adjustments"],
+  ["suppliers", "Proveedores", "/suppliers"],
+  ["purchase_packagings", "Presentaciones de compra", "/purchase-packagings"],
 ] as const)(
   "opens only %s's section from the rail's Stock item: %s",
   async (capability, heading, path) => {
@@ -71,14 +91,14 @@ test.each([
     await expect.element(screen.getByRole("heading", { name: heading, level: 1 })).toBeVisible();
     expect(window.location.pathname).toBe(path);
     const sections = screen.getByRole("navigation", { name: "Stock" });
-    const labels = ["Saldos", "Recuentos", "Ajustes y pérdidas"].filter(
+    const labels = SECTION_LABELS.filter(
       (label) => sections.getByRole("link", { name: label }).query() !== null,
     );
     expect(labels).toEqual([heading]);
   },
 );
 
-test("lists Saldos, Recuentos and Ajustes y pérdidas in that order to an Administrator", async () => {
+test("lists every section of Stock in that order to an Administrator", async () => {
   const services = stockServices([]);
   vi.mocked(services.fetchSession).mockResolvedValue(openSession());
   window.history.pushState(null, "", "/inventory");
@@ -91,7 +111,24 @@ test("lists Saldos, Recuentos and Ajustes y pérdidas in that order to an Admini
     .getByRole("link")
     .elements()
     .map((link) => link.textContent);
-  expect(links).toEqual(["Saldos", "Recuentos", "Ajustes y pérdidas"]);
+  expect(links).toEqual(SECTION_LABELS);
+});
+
+test("lists only the sections a user holds the permission for", async () => {
+  const services = stockServices(["stock_balances", "suppliers", "stock_area"]);
+  window.history.pushState(null, "", "/suppliers");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Proveedores", level: 1 }))
+    .toBeVisible();
+  const links = screen
+    .getByRole("navigation", { name: "Stock" })
+    .getByRole("link")
+    .elements()
+    .map((link) => link.textContent);
+  expect(links).toEqual(["Saldos", "Proveedores"]);
 });
 
 test("hides the Stock item in the rail for a user without a stock permission", async () => {
@@ -108,6 +145,8 @@ test.each([
   ["/inventory", "stock_counts"],
   ["/inventory-counts", "stock_balances"],
   ["/inventory-adjustments", "stock_counts"],
+  ["/suppliers", "purchase_packagings"],
+  ["/purchase-packagings", "suppliers"],
 ] as const)("sends a user who may not open %s to Mi cuenta", async (path, capability) => {
   const services = stockServices([capability, "stock_area"]);
   window.history.pushState(null, "", path);
