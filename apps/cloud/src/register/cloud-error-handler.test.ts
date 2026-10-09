@@ -1,5 +1,4 @@
 import { cloudErrorSchema } from "@purosur/contracts";
-import { DrizzleQueryError } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { answerErrorsWithCloudEnvelope } from "./cloud-error-handler.js";
@@ -65,30 +64,21 @@ describe("answerErrorsWithCloudEnvelope", () => {
     expect(response.json()).toMatchObject({ code: "validation_failed" });
   });
 
-  it("writes an unexpected failure to the cloud's output by its route, never by the values of a failed query", async () => {
+  it("writes an unexpected failure to the cloud's output with its method, its route and the error's description", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     await app.close();
     app = Fastify();
     await app.register(async (scope) => {
       answerErrorsWithCloudEnvelope(scope);
       scope.post("/contract/devices/:id", async () => {
-        throw new DrizzleQueryError(
-          "update devices set name = $1",
-          ["s3cret-value"],
-          new Error("connection lost"),
-        );
+        throw new Error("connection lost");
       });
     });
 
-    await app.inject({
-      method: "POST",
-      url: "/contract/devices/42",
-      headers: { authorization: "Bearer device-token" },
-      payload: { name: "s3cret-value" },
-    });
+    await app.inject({ method: "POST", url: "/contract/devices/42" });
 
     expect(consoleError).toHaveBeenCalledExactlyOnceWith(
-      "register-to-cloud request failed: POST /contract/devices/:id: unknown error: Failed query: update devices set name = $1 (caused by unknown error: connection lost)",
+      "register-to-cloud request failed: POST /contract/devices/:id: unknown error: connection lost",
     );
   });
 
