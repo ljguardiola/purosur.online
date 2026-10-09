@@ -259,7 +259,6 @@ export type {
   DiscountStatus,
   DiscountTarget,
   DiscountTargetKind,
-  IsoWeekday,
   ProductTagLink,
   TargetedProduct,
 } from "./pricing/index.js";
@@ -278,7 +277,6 @@ export {
   discountsTargeting,
   isDiscountNameTooLong,
   isDiscountWindowOrdered,
-  isoWeekdayOf,
   isTargetKindAllowedFor,
   isValidDiscountBuyNPayM,
   isValidDiscountBuyQty,
@@ -306,6 +304,7 @@ export type {
   RegisterOperation,
   RegisterOperationAccess,
   RegisterService,
+  WatchedRegister,
 } from "./register/index.js";
 export {
   CASH_MOVEMENT_DIRECTIONS,
@@ -328,8 +327,10 @@ export {
   isLockedToAnother,
   isRegisterNameTooLong,
   isValidCashMovementAmount,
+  isWatchedForQuietness,
   isWellFormedEnrollmentCode,
   isWellFormedInstallationKey,
+  lastSuccessfulSyncOfRegister,
   mayAuthorize,
   normalizeEnrollmentCode,
   REGISTER_ABILITIES,
@@ -356,11 +357,13 @@ export {
   SALES_REPORT_SALE_STATE,
   saleTotal,
 } from "./sales/index.js";
+export type { IsoWeekday } from "./shared/index.js";
 export {
   ARGENTINA_TIME_ZONE,
   argentinaCalendarDay,
   argentinaInstant,
   isCalendarDay,
+  isoWeekdayOf,
   isValidCashAmount,
   MAX_CASH_AMOUNT_CENTS,
   SALE_COMPLETED_EVENT_TYPE,

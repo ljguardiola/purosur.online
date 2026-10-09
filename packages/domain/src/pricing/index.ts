@@ -34,11 +34,7 @@ export type {
 } from "./model/discount-targeting.js";
 export { discountsTargeting } from "./model/discount-targeting.js";
 export { isDiscountWindowOrdered } from "./model/discount-validity.js";
-export type { IsoWeekday } from "./model/discount-weekdays.js";
-export {
-  isoWeekdayOf,
-  isValidDiscountWeekdays,
-} from "./model/discount-weekdays.js";
+export { isValidDiscountWeekdays } from "./model/discount-weekdays.js";
 export type { SoldQuantity } from "./model/discounted-amount.js";
 export { discountedAmount, lineAmount } from "./model/discounted-amount.js";
 export { MAX_UNIT_PRICE_CENTS } from "./model/price.js";

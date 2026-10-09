@@ -4,7 +4,8 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { UNREACHABLE_WSFE_ENDPOINT } from "../fiscal/test-support/fake-wsfe-server.js";
-import { alerts } from "../platform/db/schema.js";
+import { alerts, branchHours, deviceState } from "../platform/db/schema.js";
+import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { setUpRecovery } from "../server.js";
 import {
   createIntegrationDatabase,
@@ -85,6 +86,55 @@ describe("the background worker the server sets up on a real Postgres", () => {
       const [stillHolding] = await db.select().from(alerts).where(eq(alerts.id, holding.id));
       expect(notYet?.resolvedAt).toBeNull();
       expect(stillHolding?.resolvedAt).toBeNull();
+    } finally {
+      await recovery.close();
+    }
+  }, 60_000);
+
+  it("opens the alert of a register known to report on every sync cycle that went quiet during the branch's business hours", async () => {
+    const quiet = await insertEnrolledInstallation(db, { now: NOW });
+    await db.insert(branchHours).values({
+      locationId: quiet.locationId,
+      dayOfWeek: 7,
+      position: 0,
+      opensAt: "08:00",
+      closesAt: "12:00",
+    });
+    await db.insert(deviceState).values({
+      deviceId: quiet.deviceId,
+      lastAcceptedPushAt: new Date(NOW.getTime() - 20 * MINUTE_MS),
+      reportsEveryCycleSince: new Date(NOW.getTime() - 60 * MINUTE_MS),
+    });
+    const recovery = await setUpRecovery(
+      {
+        databaseUrl: integrationDb.databaseUrl,
+        emailSender: { transport: "log" },
+        emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
+        emailReplyTo: "purosur.comarca@gmail.com",
+        backofficeOrigin: "https://staging.purosur.online",
+        arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
+        arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
+      },
+      () => NOW,
+      { emailSender: UNUSED_EMAIL_SENDER },
+    );
+
+    try {
+      await sql`select graphile_worker.add_job('alert-condition-resolution')`;
+
+      await vi.waitFor(
+        async () => {
+          const [row] = await db.select().from(alerts).where(eq(alerts.scope, quiet.registerId));
+          expect(row).toMatchObject({
+            kind: "register_silent",
+            level: "critical",
+            audience: "local",
+            locationId: quiet.locationId,
+            resolvedAt: null,
+          });
+        },
+        { timeout: 20_000, interval: 100 },
+      );
     } finally {
       await recovery.close();
     }
