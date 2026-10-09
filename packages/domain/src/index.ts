@@ -184,14 +184,18 @@ export {
 export type {
   PaymentMethod,
   PaymentTransaction,
+  PaymentTransactionState,
   PlannedRefund,
+  ProviderPaymentTransaction,
   RefundState,
 } from "./payments/index.js";
 export {
   cancellableWithoutAuthorization,
   cashCharge,
   isRefundPending,
+  isValidOrderAmount,
   PAYMENT_METHODS,
+  PAYMENT_TRANSACTION_STATES,
   REFUND_DONE_STATE,
   REFUND_PENDING_STATE,
   REFUND_STATES,

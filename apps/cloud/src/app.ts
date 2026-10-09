@@ -78,6 +78,10 @@ import { registerIssuerIdentificationReadRoute } from "./fiscal/issuer-identific
 import { registerRegisterPointOfSaleConfigurationRoute } from "./fiscal/register-point-of-sale-configuration-route.js";
 import type { RegistersPointsOfSaleRouteOptions } from "./fiscal/registers-points-of-sale-list-route.js";
 import { registerRegistersPointsOfSaleListRoute } from "./fiscal/registers-points-of-sale-list-route.js";
+import {
+  type MercadoPagoQrRoutesOptions,
+  registerMercadoPagoQrRoutes,
+} from "./payments/mercado-pago-qr-routes.js";
 import { type RefundRouteOptions, registerRefundRoutes } from "./payments/refund-routes.js";
 import { registerPermissionCatalogRoute } from "./permissions/permission-catalog-route.js";
 import { registerRoleCreationRoutes } from "./permissions/role-creation-route.js";
@@ -174,6 +178,9 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   fiscalAuthorization?: WithoutClock<
     Omit<FiscalAuthorizationRouteOptions<TQueryResult>, keyof DeviceTokensOptions<TQueryResult>>
   >;
+  mercadoPagoQr?: WithoutClock<
+    Omit<MercadoPagoQrRoutesOptions<TQueryResult>, keyof DeviceTokensOptions<TQueryResult>>
+  >;
   health?: WithoutClock<HealthArcaOptions<TQueryResult>>;
   firstPinCodes?: WithoutClock<FirstPinCodeRouteOptions<TQueryResult>>;
 }
@@ -188,6 +195,7 @@ type DatabaseRouteOptions<TQueryResult extends PgQueryResultHKT> = Required<
     | "setupFastifyErrorHandler"
     | "staticDir"
     | "fiscalAuthorization"
+    | "mercadoPagoQr"
   >
 >;
 
@@ -510,6 +518,13 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
           registerFiscalAuthorizationRoute(api, {
             ...options.devices,
             ...options.fiscalAuthorization,
+            now,
+          });
+        }
+        if (options.mercadoPagoQr) {
+          registerMercadoPagoQrRoutes(api, {
+            ...options.devices,
+            ...options.mercadoPagoQr,
             now,
           });
         }
