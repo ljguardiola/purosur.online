@@ -32,6 +32,7 @@ export interface ReceiptSource {
   header: ReceiptHeader;
   occurredAt: Date;
   servedByFirstName: string;
+  operationNumber: number;
   total: number;
   lines: ReceiptSourceLine[];
   payments: ReceiptSourcePayment[];
@@ -49,7 +50,7 @@ interface ReceiptContentLine {
 
 export interface ReceiptContent {
   header: ReceiptHeader;
-  operation: { occurredAt: Date; servedByFirstName: string };
+  operation: { occurredAt: Date; servedByFirstName: string; operationNumber: number };
   lines: ReceiptContentLine[];
   totals: {
     subtotal: number;
@@ -68,7 +69,11 @@ export function receiptContent(source: ReceiptSource): ReceiptContent {
   );
   return {
     header: source.header,
-    operation: { occurredAt: source.occurredAt, servedByFirstName: source.servedByFirstName },
+    operation: {
+      occurredAt: source.occurredAt,
+      servedByFirstName: source.servedByFirstName,
+      operationNumber: source.operationNumber,
+    },
     lines,
     totals: {
       subtotal: lines.reduce((sum, { lineTotal }) => sum + lineTotal, 0),

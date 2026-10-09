@@ -91,7 +91,8 @@ export interface SaleLedgerTransaction {
   recordCashMovement(movement: CashMovement): void;
   recordSaleStockMovement(movement: SaleStockMovement): void;
   addToStockBalance(productId: string, delta: number): void;
-  recordCompletedSale(saleId: string, occurredAt: Date): void;
+  takeOperationNumber(): number;
+  recordCompletedSale(saleId: string, occurredAt: Date, operationNumber: number): void;
   recordCancelledSale(saleId: string, occurredAt: Date, authorizedBy: string | undefined): void;
   recordRefund(refund: SaleRefund): void;
   outboxReady(): boolean;
