@@ -123,6 +123,14 @@ export {
   registerPointOfSaleOverviewSchema,
   registerPointOfSaleSchema,
 } from "./fiscal/register-point-of-sale.js";
+export type {
+  MercadoPagoQrOrderRequestBody,
+  MercadoPagoQrPaymentBody,
+} from "./payments/mercado-pago-qr-order.js";
+export {
+  mercadoPagoQrOrderRequestSchema,
+  mercadoPagoQrPaymentSchema,
+} from "./payments/mercado-pago-qr-order.js";
 export type { MarkedRefundDoneBody, PendingRefundsBody } from "./payments/pending-refunds.js";
 export { markedRefundDoneSchema, pendingRefundsSchema } from "./payments/pending-refunds.js";
 export type { PermissionCatalogWire } from "./permissions/permission-catalog.js";
