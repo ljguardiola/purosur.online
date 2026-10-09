@@ -130,6 +130,7 @@ describe("synced event payloads", () => {
       "sale_cancelled@1",
       "sale_completed@1",
       "sale_completed@2",
+      "sale_completed@3",
     ]);
   });
 
@@ -167,6 +168,7 @@ describe("synced event payloads", () => {
     ["fiscal_gate_failed", 1],
     ["sale_completed", 1],
     ["sale_completed", 2],
+    ["sale_completed", 3],
   ])("refuses %s v%i without any one of its fields", (eventType, schemaVersion) => {
     const payload = recordedPayload(eventType, schemaVersion);
 
@@ -185,6 +187,7 @@ describe("synced event payloads", () => {
     ["fiscal_gate_failed", 1],
     ["sale_completed", 1],
     ["sale_completed", 2],
+    ["sale_completed", 3],
   ])("refuses %s v%i with any one of its fields of the wrong type", (eventType, schemaVersion) => {
     const payload = recordedPayload(eventType, schemaVersion);
 
@@ -202,6 +205,7 @@ describe("synced event payloads", () => {
     ["fiscal_gate_failed", 1],
     ["sale_completed", 1],
     ["sale_completed", 2],
+    ["sale_completed", 3],
   ])("refuses a %s v%i that is not an object", (eventType, schemaVersion) => {
     expect(accepts(eventType, schemaVersion, null)).toBe(false);
     expect(accepts(eventType, schemaVersion, [])).toBe(false);
@@ -374,6 +378,7 @@ describe("synced event payloads", () => {
   describe.each([
     [1, "completed_at"],
     [2, "occurred_at"],
+    [3, "occurred_at"],
   ])("sale_completed v%i", (version, _dateField) => {
     const sale = () => recordedPayload("sale_completed", version);
     const salePayment = (): Payload => (sale()["payments"] as Payload[])[0] as Payload;
