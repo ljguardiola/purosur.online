@@ -38,6 +38,11 @@ export interface PointOfSaleLane {
     answer: RealTimeAuthorizationAnswer,
     answeredAt: Date,
   ): Promise<void>;
+  recordTaxAuthorityAnswer(
+    fiscalDocumentId: string,
+    answer: RealTimeAuthorizationAnswer,
+    answeredAt: Date,
+  ): Promise<void>;
 }
 
 export interface PointOfSaleLanes {
@@ -64,14 +69,9 @@ export interface TaxAuthorityInvoicing {
   solicit(solicitation: FiscalDocumentSolicitation): Promise<SolicitationAnswer>;
 }
 
-export interface InvoicingEvidence {
-  recordInvoicingCallOk(at: Date): Promise<void>;
-}
-
 export interface AuthorizeFiscalDocumentPorts {
   lanes: PointOfSaleLanes;
   clock: Clock;
   tokens: WsaaTokenSource;
   taxAuthority: TaxAuthorityInvoicing;
-  evidence: InvoicingEvidence;
 }

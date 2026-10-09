@@ -103,7 +103,6 @@ export type {
   AuthorizeFiscalDocumentPorts,
   FiscalDocumentData,
   FiscalDocumentSolicitation,
-  InvoicingEvidence,
   PointOfSaleLane,
   PointOfSaleLanes,
   RecordedAuthorizationRequest,

@@ -45,7 +45,7 @@ function answerOf(answer: SolicitationAnswer): RealTimeAuthorizationAnswer {
 }
 
 export async function authorizeFiscalDocument(
-  { lanes, clock, tokens, taxAuthority, evidence }: AuthorizeFiscalDocumentPorts,
+  { lanes, clock, tokens, taxAuthority }: AuthorizeFiscalDocumentPorts,
   { registerId, request, receivedAt }: AuthorizeFiscalDocumentInput,
 ): Promise<AuthorizeFiscalDocumentOutcome> {
   if (!isCompletionEventOfSale(request.saleEvent, request.saleId)) {
@@ -107,9 +107,10 @@ export async function authorizeFiscalDocument(
       });
       const answeredAt = clock.now();
       const answer = answerOf(solicitation);
-      await lane.recordAnswer(request.fiscalDocumentId, answer, answeredAt);
-      if (solicitation.kind !== "no_answer") {
-        await evidence.recordInvoicingCallOk(answeredAt);
+      if (solicitation.kind === "no_answer") {
+        await lane.recordAnswer(request.fiscalDocumentId, answer, answeredAt);
+      } else {
+        await lane.recordTaxAuthorityAnswer(request.fiscalDocumentId, answer, answeredAt);
       }
       return { kind: "answered", answer };
     },

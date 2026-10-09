@@ -24,7 +24,6 @@ import {
   installationTokenPorts,
 } from "../register/installation-token-ports.js";
 import { DrizzleRequestAdmission } from "../sync/drizzle-request-admission.js";
-import { DrizzleInvoicingEvidence } from "./drizzle-invoicing-evidence.js";
 import { DrizzlePointOfSaleLanes } from "./drizzle-point-of-sale-lanes.js";
 import { DrizzleWsaaTokenSource } from "./drizzle-wsaa-token-source.js";
 import { WSFE_SERVICE } from "./wsaa-token-renewal-task.js";
@@ -92,7 +91,6 @@ export function registerFiscalAuthorizationRoute<TQueryResult extends PgQueryRes
       options.certificateFingerprint,
     ),
     taxAuthority: options.taxAuthority,
-    evidence: new DrizzleInvoicingEvidence(options.db),
   };
 
   const admission = { admission: new DrizzleRequestAdmission(options.db), clock };

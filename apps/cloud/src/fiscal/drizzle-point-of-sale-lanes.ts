@@ -9,7 +9,11 @@ import {
 import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
-import { fiscalRequests, registerPointsOfSale } from "../platform/db/schema.js";
+import {
+  arcaInvoicingEvidence,
+  fiscalRequests,
+  registerPointsOfSale,
+} from "../platform/db/schema.js";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
 
 const UNIQUE_VIOLATION = "23505";
@@ -70,13 +74,23 @@ function answerColumnsOf(answer: RealTimeAuthorizationAnswer) {
   }
 }
 
-// Every write runs in autocommit on the lane's own connection, so a request is committed, and
-// visible to every other connection, before the work that follows it starts.
 class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements PointOfSaleLane {
   private readonly db: PgDatabase<TQueryResult>;
 
   constructor(db: PgDatabase<TQueryResult>) {
     this.db = db;
+  }
+
+  // A reserved postgres.js connection has no `begin`, which drizzle's `transaction` calls.
+  private async inTransaction(work: () => Promise<void>): Promise<void> {
+    await this.db.execute(sql`begin`);
+    try {
+      await work();
+    } catch (error) {
+      await this.db.execute(sql`rollback`);
+      throw error;
+    }
+    await this.db.execute(sql`commit`);
   }
 
   async registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean> {
@@ -138,6 +152,25 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
       .update(fiscalRequests)
       .set({ ...answerColumnsOf(answer), answeredAt })
       .where(eq(fiscalRequests.fiscalDocumentId, fiscalDocumentId));
+  }
+
+  async recordTaxAuthorityAnswer(
+    fiscalDocumentId: string,
+    answer: RealTimeAuthorizationAnswer,
+    answeredAt: Date,
+  ): Promise<void> {
+    await this.inTransaction(async () => {
+      await this.recordAnswer(fiscalDocumentId, answer, answeredAt);
+      await this.db
+        .insert(arcaInvoicingEvidence)
+        .values({ lastCallOkAt: answeredAt })
+        .onConflictDoUpdate({
+          target: arcaInvoicingEvidence.id,
+          set: {
+            lastCallOkAt: sql`greatest(${arcaInvoicingEvidence.lastCallOkAt}, excluded.last_call_ok_at)`,
+          },
+        });
+    });
   }
 }
 
