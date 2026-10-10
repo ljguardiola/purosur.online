@@ -8,10 +8,7 @@ import { openLocalDatabase } from "../platform/test-support/open-local-database"
 import { createActionGate } from "../sessions/action-gate";
 import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in-person";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
-import {
-  readSerialDevicesFor,
-  registerSerialDevicesFor,
-} from "./serial-devices-requests";
+import { readSerialDevicesFor, registerSerialDevicesFor } from "./serial-devices-requests";
 import { SqliteSerialDeviceRegistrations } from "./sqlite-serial-device-registrations";
 
 const PEPPER = Buffer.alloc(32, 7).toString("base64url");
@@ -122,9 +119,9 @@ describe("reading the serial devices", () => {
 
 describe("registering the serial devices", () => {
   it("registers the scale and the reader and answers them", async () => {
-    expect(await registerSerialDevicesFor(registerDeps(), { scale: SCALE, reader: READER })).toEqual(
-      { kind: "registered", devices: { scale: SCALE, reader: READER } },
-    );
+    expect(
+      await registerSerialDevicesFor(registerDeps(), { scale: SCALE, reader: READER }),
+    ).toEqual({ kind: "registered", devices: { scale: SCALE, reader: READER } });
     expect(storedDevices()).toEqual({
       scale: { vendorId: "1a86", productId: "7523" },
       reader: { vendorId: "26f1", productId: "8802" },
@@ -134,9 +131,11 @@ describe("registering the serial devices", () => {
   it("keeps the device of the role it receives none for", async () => {
     await registerSerialDevicesFor(registerDeps(), { scale: SCALE, reader: READER });
 
-    expect(await registerSerialDevicesFor(registerDeps(), { reader: SCALE })).toEqual({
+    const otherReader = { vendor_id: "0403", product_id: "6001" };
+
+    expect(await registerSerialDevicesFor(registerDeps(), { reader: otherReader })).toEqual({
       kind: "registered",
-      devices: { scale: SCALE, reader: SCALE },
+      devices: { scale: SCALE, reader: otherReader },
     });
   });
 
