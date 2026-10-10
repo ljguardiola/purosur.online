@@ -40,9 +40,11 @@ export {
   isAlertLevel,
   isDueForEscalation,
   isOpenAlert,
+  offlineAuthorizationCodeAcquisitionLevel,
+  offlineAuthorizationCodeMissingObservation,
   REGISTER_FORTNIGHT_SCOPE_SEPARATOR,
-  REGISTER_OWN_CONDITIONS,
   registerFortnightScope,
+  REGISTER_OWN_CONDITIONS,
   registerOwnConditions,
   showsAlertScope,
 } from "./alerts/index.js";
@@ -160,6 +162,7 @@ export {
   FISCAL_ADDRESS_NAME_MAX_LENGTH,
   FISCAL_ADDRESS_STREET_ADDRESS_MAX_LENGTH,
   fortnightAfter,
+  fortnightContaining,
   fortnightsWithinRequestWindowOn,
   hasFortnightStarted,
   IN_PROGRESS_FISCAL_DOCUMENT_STATES,
@@ -186,6 +189,7 @@ export {
   nextBuyerTaxStatusFetchAt,
   nextOfflineNumber,
   OFFLINE_NUMBER_BLOCK_STATUSES,
+  offlineAuthorizationCodeRequestOpensOn,
   POINT_OF_SALE_NUMBER_MAX,
   PRE_EMISSION_GATE_FAILURE_REASONS,
   preEmissionGateFailedEvent,
@@ -463,6 +467,7 @@ export {
   MAX_CASH_AMOUNT_CENTS,
   SALE_COMPLETED_EVENT_TYPE,
   SALES_DENIED_REASONS,
+  shiftCalendarDay,
 } from "./shared/index.js";
 export type {
   AdjustmentReason,
