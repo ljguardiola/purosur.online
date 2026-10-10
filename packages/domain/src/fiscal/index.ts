@@ -46,6 +46,7 @@ export {
 export {
   fortnightAfter,
   fortnightsWithinRequestWindowOn,
+  isSecondHalfOfMonth,
 } from "./model/offline-authorization-code.js";
 export {
   isPointOfSaleNumber,

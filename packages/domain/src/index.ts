@@ -169,6 +169,7 @@ export {
   isIssuerIdentificationLegalNameTooLong,
   isPointOfSaleNumber,
   isSameFiscalAddressName,
+  isSecondHalfOfMonth,
   isValidBuyerTaxStatusSet,
   isValidCuit,
   isWsaaTokenValid,

@@ -1,3 +1,4 @@
+import { isSecondHalfOfMonth } from "@purosur/domain";
 import type {
   Fortnight,
   OfflineAuthorizationCode,
@@ -13,7 +14,6 @@ import { createWsfeClient, rejectionsOf } from "./wsfe-client.js";
 const OFFLINE_AUTHORIZATION_CODE_TIMEOUT_MS = 30_000;
 const ALREADY_GRANTED_CODE = 15_008;
 const NOT_GRANTED_CODE = 602;
-const SECOND_HALF_FIRST_DAY = "16";
 
 export interface WsfeTaxAuthorityOfflineAuthorizationCodesOptions {
   endpoint: string;
@@ -74,10 +74,11 @@ function isOnly(rejections: TaxAuthorityRejection[], code: number): boolean {
   return rejections.length === 1 && rejections[0]?.code === code;
 }
 
-function periodOf({ start }: Fortnight): { Periodo: number; Orden: number } {
+function periodOf(fortnight: Fortnight): { Periodo: number; Orden: number } {
+  const { start } = fortnight;
   return {
     Periodo: Number(`${start.slice(0, 4)}${start.slice(5, 7)}`),
-    Orden: start.slice(8, 10) === SECOND_HALF_FIRST_DAY ? 2 : 1,
+    Orden: isSecondHalfOfMonth(fortnight) ? 2 : 1,
   };
 }
 
