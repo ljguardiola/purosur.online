@@ -95,7 +95,7 @@ async function openQuarantineAlertOf(eventId: string): Promise<string> {
 
 describe("POST /synced-events/:eventId/release", () => {
   it("answers 401 without a session", async () => {
-    const response = await releaseRequest(randomUUID());
+    const response = await releaseRequest(randomUUID(), { origin: BACKOFFICE_ORIGIN });
 
     expect(response.statusCode).toBe(401);
   });
