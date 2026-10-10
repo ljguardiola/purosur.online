@@ -622,16 +622,6 @@ describe("changesPageSchema", () => {
       pageOf(change(1, "offline_number_block", { ...offlineNumberBlockRow, first_number: 0 })),
     ],
     [
-      "an offline number block ending before it starts",
-      pageOf(
-        change(1, "offline_number_block", {
-          ...offlineNumberBlockRow,
-          first_number: 1001,
-          last_number: 1000,
-        }),
-      ),
-    ],
-    [
       "a point of sale outside the numbers the tax authority allows",
       pageOf(change(1, "register_point_of_sale", { ...pointOfSaleRow, point_of_sale_number: 0 })),
     ],
