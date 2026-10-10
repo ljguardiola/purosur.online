@@ -69,19 +69,35 @@ describe("startMercadoPagoQrCharge", () => {
     expect(world.requestedOrders).toEqual([]);
   });
 
-  it("answers that the order was refused, keeping the payment pending, when the cloud refuses it", async () => {
+  it.each([
+    { answer: { kind: "refused" }, outcome: { kind: "order_refused" } },
+    { answer: { kind: "unreachable" }, outcome: { kind: "unreachable" } },
+  ] as const)(
+    "answers $outcome.kind when the cloud's answer is $answer.kind, keeping the payment pending, since the order may exist, with its wait ended when the cloud answered",
+    async ({ answer, outcome }) => {
+      const world = new FakeMercadoPagoQrChargeWorld();
+      const answeredAt = new Date("2026-10-09T12:00:04.000Z");
+      world.requestOrder = async () => {
+        world.operations.push("requestOrder");
+        world.now = answeredAt;
+        return answer;
+      };
+
+      expect(await startMercadoPagoQrCharge(world.ports, INPUT)).toEqual(outcome);
+      expect(world.pendingCharge(QR_PAYMENT_ID)?.waitEndsAt).toEqual(answeredAt);
+      expect(world.operations).toEqual([
+        "recordPendingPayment",
+        "requestOrder",
+        `endWait:${answeredAt.toISOString()}`,
+      ]);
+    },
+  );
+
+  it("leaves the wait running once the cloud creates the order", async () => {
     const world = new FakeMercadoPagoQrChargeWorld();
-    world.orderAnswer = { kind: "refused" };
 
-    expect(await startMercadoPagoQrCharge(world.ports, INPUT)).toEqual({ kind: "order_refused" });
-    expect(world.pendingCharge(QR_PAYMENT_ID)).not.toBeNull();
-  });
+    await startMercadoPagoQrCharge(world.ports, INPUT);
 
-  it("answers that the cloud is unreachable, keeping the payment pending, since the order may exist", async () => {
-    const world = new FakeMercadoPagoQrChargeWorld();
-    world.orderAnswer = { kind: "unreachable" };
-
-    expect(await startMercadoPagoQrCharge(world.ports, INPUT)).toEqual({ kind: "unreachable" });
-    expect(world.pendingCharge(QR_PAYMENT_ID)).not.toBeNull();
+    expect(world.pendingCharge(QR_PAYMENT_ID)?.waitEndsAt).toEqual(QR_CHARGE_WAIT_ENDS_AT);
   });
 });

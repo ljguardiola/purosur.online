@@ -66,7 +66,7 @@ describe("QrChargeModal", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("fills the amount with the pending balance and says it may be less", async () => {
+  it("fills the amount with the pending balance and says it may be less, showing the balance once", async () => {
     const { screen, field } = await renderModal(undefined, {
       total: TOTAL,
       paid: 1_000_000,
@@ -75,12 +75,9 @@ describe("QrChargeModal", () => {
 
     await expect.element(field).toHaveValue("40.700,00");
     await expect
-      .element(
-        screen.getByText(
-          "Hasta el saldo pendiente, $ 40.700,00. Si cobrás menos, el resto queda pendiente para otro medio.",
-        ),
-      )
+      .element(screen.getByText("Si cobrás menos, el resto queda pendiente para otro medio."))
       .toBeVisible();
+    expect(screen.getByText("$ 40.700,00", { exact: false }).elements()).toHaveLength(1);
   });
 
   it("creates the order for the amount the cashier typed, once, and reports it shown", async () => {

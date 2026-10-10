@@ -115,6 +115,14 @@ export class FakeMercadoPagoQrChargeWorld
     }
   }
 
+  endWait(paymentTransactionId: string, endedAt: Date): void {
+    this.operations.push(`endWait:${endedAt.toISOString()}`);
+    const charge = this.charges.get(paymentTransactionId);
+    if (charge !== undefined && charge.state === "PENDING") {
+      charge.waitEndsAt = endedAt;
+    }
+  }
+
   get ports() {
     return { sale: this, orders: this, charges: this, clock: this.clock };
   }

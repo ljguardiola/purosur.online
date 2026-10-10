@@ -1,6 +1,7 @@
 import type {
   CashChargeAnswer,
   CurrentSaleAnswer,
+  FollowMercadoPagoQrChargeOutcome,
   OpenSale,
   ReceiptPrintStatusOutcome,
   SaleHistoryDetailOutcome,
@@ -16,6 +17,7 @@ import { createQueryClient } from "../platform/query-client";
 import {
   useCashChargeQuery,
   useCurrentSaleQuery,
+  useQrChargeQuery,
   useReceiptPrintStatusQuery,
   useRefreshCurrentSale,
   useRefreshReceiptPrintStatus,
@@ -448,6 +450,104 @@ describe("receipt print status query", () => {
     await userEvent.click(screen.getByRole("button", { name: "refresh" }));
 
     await expect.element(screen.getByText("printed")).toBeVisible();
+  });
+});
+
+type Follow = (paymentTransactionId: string) => Promise<FollowMercadoPagoQrChargeOutcome>;
+
+function followAnswering(...outcomes: FollowMercadoPagoQrChargeOutcome[]) {
+  return vi.fn<Follow>(async () => {
+    const outcome = outcomes.length > 1 ? outcomes.shift() : outcomes[0];
+    return outcome ?? { kind: "unavailable" };
+  });
+}
+
+function QrChargeProbe({ follow }: { follow: Follow }) {
+  const charge = useQrChargeQuery({ paymentTransactionId: "qr-1", follow });
+  if (charge.status !== "loaded") {
+    return (
+      <>
+        <p>{charge.status}</p>
+        {charge.status === "failed" ? (
+          <button type="button" onClick={charge.retry}>
+            retry
+          </button>
+        ) : null}
+      </>
+    );
+  }
+  const { value } = charge;
+  return <p>{value.kind === "waiting" ? `waiting ${value.remaining_seconds}` : value.kind}</p>;
+}
+
+describe("QR charge query", () => {
+  it("asks the core about the charge it is given and holds its answer", async () => {
+    const follow = followAnswering({ kind: "waiting", remaining_seconds: 161 });
+    const screen = await renderWithClient(<QrChargeProbe follow={follow} />);
+
+    await expect.element(screen.getByText("waiting 161")).toBeVisible();
+    expect(follow).toHaveBeenCalledWith("qr-1");
+  });
+
+  it("asks again every second while the charge waits, and stops once it ends", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const follow = followAnswering(
+      { kind: "waiting", remaining_seconds: 161 },
+      { kind: "declined" },
+    );
+    const screen = await renderWithClient(<QrChargeProbe follow={follow} />);
+    await expect.element(screen.getByText("waiting 161")).toBeVisible();
+
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await expect.element(screen.getByText("declined")).toBeVisible();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(follow).toHaveBeenCalledTimes(2);
+  });
+
+  it("fails, asking no more, when the core cannot answer", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const follow = followAnswering({ kind: "unavailable" });
+    const screen = await renderWithClient(<QrChargeProbe follow={follow} />);
+    await expect.element(screen.getByText("failed")).toBeVisible();
+
+    await vi.advanceTimersByTimeAsync(5000);
+
+    expect(follow).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails, asking no more, when the core stops answering a charge it was following", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const follow = followAnswering(
+      { kind: "waiting", remaining_seconds: 161 },
+      { kind: "unavailable" },
+    );
+    const screen = await renderWithClient(<QrChargeProbe follow={follow} />);
+    await expect.element(screen.getByText("waiting 161")).toBeVisible();
+
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await expect.element(screen.getByText("failed")).toBeVisible();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(follow).toHaveBeenCalledTimes(2);
+  });
+
+  it("asks again, starting from loading, when retried after failing", async () => {
+    const follow = vi
+      .fn<Follow>()
+      .mockResolvedValueOnce({ kind: "waiting", remaining_seconds: 161 })
+      .mockResolvedValueOnce({ kind: "unavailable" })
+      .mockReturnValue(new Promise(() => {}));
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const screen = await renderWithClient(<QrChargeProbe follow={follow} />);
+    await expect.element(screen.getByText("waiting 161")).toBeVisible();
+    await vi.advanceTimersByTimeAsync(1000);
+    await expect.element(screen.getByText("failed")).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "retry" }));
+
+    await expect.element(screen.getByText("loading")).toBeVisible();
+    expect(follow).toHaveBeenCalledTimes(3);
   });
 });
 

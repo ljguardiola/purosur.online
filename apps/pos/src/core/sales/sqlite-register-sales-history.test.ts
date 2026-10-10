@@ -252,6 +252,21 @@ describe("SqliteRegisterSalesHistory", () => {
       expect(all().entries[0]?.paymentMethods).toEqual(["QR", "CASH"]);
     });
 
+    it.each(["PENDING", "DECLINED", "EXPIRED"])(
+      "leaves out the method of a payment that is %s, as the detail does",
+      (state) => {
+        addSale({ id: "sale-1", lines: [1000], payments: [{ method: "CASH", amount: 1000 }] });
+        database
+          .prepare(
+            `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at)
+             VALUES ('qr-1', 'sale-1', 'SALE', 'QR', 'MERCADOPAGO_QR', 1000, ?, '2026-10-08T11:59:00.000Z', '2026-10-08T12:02:00.000Z')`,
+          )
+          .run(state);
+
+        expect(all().entries[0]?.paymentMethods).toEqual(["CASH"]);
+      },
+    );
+
     it("names a payment method once however many payments used it", () => {
       addSale({
         id: "sale-1",

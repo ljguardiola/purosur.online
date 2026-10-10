@@ -799,13 +799,13 @@ describe("the open sale of the session", () => {
   it("is none while no sale is open", async () => {
     await openAs("u1", 5000);
 
-    expect(sessionOpenSaleFor(database)).toBeNull();
+    expect(sessionOpenSaleFor(database, NOW)).toBeNull();
   });
 
   it("tells its total and that it can be cancelled while it has no approved payment", async () => {
     addOpenSale(await openAs("u1", 5000), 3500);
 
-    expect(sessionOpenSaleFor(database)).toEqual({
+    expect(sessionOpenSaleFor(database, NOW)).toEqual({
       id: "sale-1",
       total: 3500,
       paid: 0,
@@ -818,11 +818,37 @@ describe("the open sale of the session", () => {
     addOpenSale(await openAs("u1", 5000), 3500);
     addApprovedPayment();
 
-    expect(sessionOpenSaleFor(database)).toMatchObject({
+    expect(sessionOpenSaleFor(database, NOW)).toMatchObject({
       id: "sale-1",
       total: 3500,
       cancellable: false,
     });
+  });
+
+  function addPendingQrPayment(waitEndsAt: Date): void {
+    database
+      .prepare(
+        "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at) VALUES ('qr-1', 'sale-1', 'SALE', 'QR', 'MERCADOPAGO_QR', 2000, 'PENDING', ?, ?)",
+      )
+      .run(NOW.toISOString(), waitEndsAt.toISOString());
+  }
+
+  it("tells that it cannot be cancelled, giving nothing back, while a QR charge of it is in its wait", async () => {
+    addOpenSale(await openAs("u1", 5000), 3500);
+    addApprovedPayment("payment-1", "CASH", 1000);
+    addPendingQrPayment(new Date(NOW.getTime() + 60_000));
+
+    expect(sessionOpenSaleFor(database, NOW)).toMatchObject({
+      cancellable: false,
+      refunds_on_cancel: [],
+    });
+  });
+
+  it("tells that it can be cancelled once the wait of its pending QR charge is over", async () => {
+    addOpenSale(await openAs("u1", 5000), 3500);
+    addPendingQrPayment(NOW);
+
+    expect(sessionOpenSaleFor(database, NOW)).toMatchObject({ cancellable: true });
   });
 
   it("tells what was paid and the refund each approved payment would give back by its own method", async () => {
@@ -830,7 +856,7 @@ describe("the open sale of the session", () => {
     addApprovedPayment("payment-1", "CASH", 1000);
     addApprovedPayment("payment-2", "TRANSFER", 1500);
 
-    expect(sessionOpenSaleFor(database)).toEqual({
+    expect(sessionOpenSaleFor(database, NOW)).toEqual({
       id: "sale-1",
       total: 3500,
       paid: 2500,

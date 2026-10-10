@@ -82,4 +82,24 @@ describe("the Mercado Pago QR charges the register keeps", () => {
 
     expect(stateOf("qr-1")).toEqual({ state: "APPROVED" });
   });
+
+  it("end a pending QR payment's wait at the given moment, keeping it pending", () => {
+    addQrPayment("qr-1", "PENDING");
+    const endedAt = new Date("2026-10-09T12:00:04.000Z");
+
+    charges.endWait("qr-1", endedAt);
+
+    expect(charges.pendingCharge("qr-1")?.waitEndsAt).toEqual(endedAt);
+    expect(stateOf("qr-1")).toEqual({ state: "PENDING" });
+  });
+
+  it("leave the wait of a QR payment that is no longer pending as it is", () => {
+    addQrPayment("qr-1", "DECLINED");
+
+    charges.endWait("qr-1", new Date("2026-10-09T12:00:04.000Z"));
+
+    expect(
+      database.prepare("SELECT wait_ends_at FROM payment_transactions WHERE id = 'qr-1'").get(),
+    ).toEqual({ wait_ends_at: WAIT_ENDS_AT });
+  });
 });

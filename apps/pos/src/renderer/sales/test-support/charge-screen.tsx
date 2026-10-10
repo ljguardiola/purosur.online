@@ -6,11 +6,13 @@ import type {
   FollowMercadoPagoQrChargeOutcome,
   OpenSale,
   ReceiptPrintStatusOutcome,
+  RegisterStatus,
   RetryReceiptPrintOutcome,
   StartMercadoPagoQrChargeOutcome,
 } from "@purosur/contracts";
 import { onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import type { CoreData } from "../../platform/use-core-query";
 import { render } from "../../shell/test-support/render-with-router";
 import type { ChargeScreenProps } from "../charge-screen";
 import { ChargeScreen } from "../charge-screen";
@@ -98,8 +100,12 @@ export const QR_ORDER_SHOWN: StartMercadoPagoQrChargeOutcome = {
 };
 const QR_WAITING: FollowMercadoPagoQrChargeOutcome = { kind: "waiting", remaining_seconds: 170 };
 
+export function registerStatusWithCloud(cloud: RegisterStatus["cloud"]): CoreData<RegisterStatus> {
+  return { status: "loaded", value: { conditions: [], cloud }, refreshing: false };
+}
+
 export type Overrides = {
-  mercadoPagoQr?: ChargeScreenProps["mercadoPagoQr"];
+  registerStatus?: CoreData<RegisterStatus>;
   startMercadoPagoQrCharge?: (
     saleId: string,
     amount: number,
@@ -154,7 +160,7 @@ export async function renderScreen(overrides: Overrides = {}) {
       cashCharge={cashCharge}
       chargeSaleInCash={chargeSaleInCash}
       chargeSaleByTransfer={chargeSaleByTransfer}
-      mercadoPagoQr={overrides.mercadoPagoQr ?? "available"}
+      registerStatus={overrides.registerStatus ?? registerStatusWithCloud("reachable")}
       startMercadoPagoQrCharge={startMercadoPagoQrCharge}
       followMercadoPagoQrCharge={followMercadoPagoQrCharge}
       receiptPrintStatus={receiptPrintStatus}

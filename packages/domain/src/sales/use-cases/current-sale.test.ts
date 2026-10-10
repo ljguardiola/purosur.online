@@ -177,4 +177,20 @@ describe("current-sale charge refusal", () => {
       read(ledger({ thresholds: [{ ...THRESHOLD, amount: 5000 }], payments: [payment] })),
     ).toHaveProperty("chargeRefusal", undefined);
   });
+
+  it("answers the lines and the cancellation frozen while a QR charge of the sale is in its wait", () => {
+    const pending = {
+      id: "qr-1",
+      saleId: "sale-1",
+      amount: 5000,
+      occurredAt: NOW,
+      waitEndsAt: new Date(NOW.getTime() + 60_000),
+    };
+
+    expect(read(ledger({ pendingQrPayments: [pending] }))).toMatchObject({
+      kind: "open",
+      linesEditable: false,
+      cancellable: false,
+    });
+  });
 });

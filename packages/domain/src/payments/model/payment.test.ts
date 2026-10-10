@@ -2,6 +2,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   cancellableWithoutAuthorization,
   hasApprovedPayment,
+  holdsApprovedQrPayment,
   type PaymentTransaction,
 } from "./payment.js";
 
@@ -47,6 +48,26 @@ describe("hasApprovedPayment", () => {
 
   it("is false when no payment is approved", () => {
     expect(hasApprovedPayment([{ state: "DECLINED" }])).toBe(false);
+  });
+});
+
+describe("holdsApprovedQrPayment", () => {
+  const QR = { state: "APPROVED", method: "QR" } as const;
+
+  it("is false for a sale without payments", () => {
+    expect(holdsApprovedQrPayment([])).toBe(false);
+  });
+
+  it("is true when an approved payment of several is by QR", () => {
+    expect(holdsApprovedQrPayment([APPROVED, QR])).toBe(true);
+  });
+
+  it("is false when only payments of other methods are approved", () => {
+    expect(holdsApprovedQrPayment([APPROVED, { ...APPROVED, method: "TRANSFER" }])).toBe(false);
+  });
+
+  it("is false when the QR payment is not approved", () => {
+    expect(holdsApprovedQrPayment([{ ...QR, state: "PENDING" }])).toBe(false);
   });
 });
 

@@ -1820,12 +1820,10 @@ describe("the charge route's Mercado Pago QR", () => {
     await expect.element(screen.getByRole("radio", { name: "QR de Mercado Pago" })).toBeEnabled();
   });
 
-  it.each<RegisterStatus["cloud"] | "unavailable">(["unknown", "unreachable", "unavailable"])(
+  it.each<RegisterStatus["cloud"]>(["unknown", "unreachable"])(
     "shows the QR as unavailable when the core answers %s",
-    async (answer) => {
-      const router = chargeRouterWith(async () =>
-        answer === "unavailable" ? "unavailable" : { conditions: [], cloud: answer },
-      );
+    async (cloud) => {
+      const router = chargeRouterWith(async () => ({ conditions: [], cloud }));
 
       const screen = await render(<RouterProvider router={router} />);
 

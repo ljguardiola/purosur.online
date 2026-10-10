@@ -187,7 +187,7 @@ describe("starting a Mercado Pago QR charge at the register", () => {
     ["refused", "order_refused"],
     ["unreachable", "unreachable"],
   ] as const)(
-    "answers %s when the cloud does, keeping the payment pending",
+    "answers %s when the cloud does, keeping the payment pending with its wait ended",
     async (answer, kind) => {
       const saleId = await saleOfTwoYerbas();
       const orders = new FakeOrders();
@@ -196,7 +196,13 @@ describe("starting a Mercado Pago QR charge at the register", () => {
       expect(await startMercadoPagoQrChargeFor(deps(orders), { saleId, amount: 3000 })).toEqual({
         kind,
       });
-      expect(qrRows()).toMatchObject([{ state: "PENDING" }]);
+      expect(qrRows()).toMatchObject([{ state: "PENDING", wait_ends_at: NOW.toISOString() }]);
+      expect(
+        await startMercadoPagoQrChargeFor(deps(new FakeOrders(), { ids: { next: () => "qr-2" } }), {
+          saleId,
+          amount: 3000,
+        }),
+      ).toMatchObject({ kind: "order_shown", payment_transaction_id: "qr-2" });
     },
   );
 
@@ -295,6 +301,30 @@ describe("following a Mercado Pago QR charge at the register", () => {
       }),
     ).toEqual({ kind: "not_pending" });
   });
+
+  it.each([
+    [
+      { kind: "read", state: "PENDING" },
+      "2026-10-09T12:00:19.000Z",
+      { kind: "waiting", remaining_seconds: 161 },
+    ],
+    [{ kind: "read", state: "DECLINED" }, "2026-10-09T12:00:19.000Z", { kind: "declined" }],
+    [{ kind: "read", state: "APPROVED" }, "2026-10-09T12:03:00.000Z", { kind: "wait_over" }],
+  ] as const)(
+    "answers the charge's progress while the outbox cannot sign events (%o at %s)",
+    async (reading, now, outcome) => {
+      await chargeStarted();
+      const orders = new FakeOrders();
+      orders.reading = reading;
+
+      expect(
+        await followMercadoPagoQrChargeFor(
+          deps(orders, { readOutboxChainKey: async () => undefined, now: () => new Date(now) }),
+          { paymentTransactionId: "qr-1" },
+        ),
+      ).toEqual(outcome);
+    },
+  );
 
   it("answers unavailable, settling nothing, while the outbox cannot sign events", async () => {
     await chargeStarted();

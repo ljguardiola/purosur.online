@@ -5,6 +5,7 @@ import {
   chooseQr,
   QR_ORDER_SHOWN,
   QR_PAYMENT_ID,
+  registerStatusWithCloud,
   renderScreen,
   SALE_OF_ONE_LINE,
 } from "./test-support/charge-screen";
@@ -13,7 +14,9 @@ const NEXT_ASK_TIMEOUT_MS = 5_000;
 
 describe("ChargeScreen · QR de Mercado Pago", () => {
   it("offers the QR between cash and transfer when the core can reach the cloud", async () => {
-    const { screen } = await renderScreen({ mercadoPagoQr: "available" });
+    const { screen } = await renderScreen({
+      registerStatus: registerStatusWithCloud("reachable"),
+    });
 
     await expect.element(screen.getByRole("radio", { name: "QR de Mercado Pago" })).toBeEnabled();
     await expect
@@ -24,9 +27,25 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
+  it.each([
+    ["is still loading", { status: "loading" }],
+    ["could not be read", { status: "failed", retry: () => {} }],
+  ] as const)(
+    "offers no QR while the register's status %s, without blaming the connection",
+    async (_state, registerStatus) => {
+      const { screen } = await renderScreen({ registerStatus });
+
+      await expect.element(screen.getByRole("radio", { name: "Efectivo" })).toBeVisible();
+      await expect
+        .element(screen.getByRole("radio", { name: "QR de Mercado Pago" }))
+        .not.toBeInTheDocument();
+      await expect.element(screen.getByText("No disponible sin conexión")).not.toBeInTheDocument();
+    },
+  );
+
   it("shows the QR as unavailable without a connection, and does not open it", async () => {
     const { screen, startMercadoPagoQrCharge } = await renderScreen({
-      mercadoPagoQr: "unavailable",
+      registerStatus: registerStatusWithCloud("unreachable"),
     });
 
     await expect.element(screen.getByRole("radio", { name: "QR de Mercado Pago" })).toBeDisabled();

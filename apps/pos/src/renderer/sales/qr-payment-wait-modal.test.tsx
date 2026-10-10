@@ -3,6 +3,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
+import type { ShownQrOrder } from "./qr-charge-modal";
 import { QrPaymentWaitModal } from "./qr-payment-wait-modal";
 
 const TOTAL = 5_070_000;
@@ -24,7 +25,7 @@ function answering(...outcomes: FollowMercadoPagoQrChargeOutcome[]): Follow {
   return async () => (outcomes.length > 1 ? outcomes.shift() : outcomes[0]) ?? WAITING;
 }
 
-async function renderModal(follow: Follow = answering(WAITING)) {
+async function renderModal(follow: Follow = answering(WAITING), order: ShownQrOrder = ORDER) {
   await page.viewport(1280, 1000);
   onTestFinished(() => page.viewport(414, 896));
   const followCharge = vi.fn(follow);
@@ -39,7 +40,7 @@ async function renderModal(follow: Follow = answering(WAITING)) {
     <QrPaymentWaitModal
       total={TOTAL}
       paid={1_000_000}
-      order={ORDER}
+      order={order}
       follow={followCharge}
       {...callbacks}
     />,
@@ -105,14 +106,27 @@ describe("QrPaymentWaitModal", () => {
       .toEqual([[{ ...completed, amount: 3_000_000 }]]);
   });
 
-  it("keeps waiting, asking again, when the core cannot answer once", async () => {
+  it("says the core could not tell how the payment goes and asks again from Reintentar", async () => {
     const { screen, followCharge, callbacks } = await renderModal(
       answering({ kind: "unavailable" }, WAITING),
     );
 
+    await expect.element(screen.getByText("No se pudo consultar el pago del QR")).toBeVisible();
+    await expectNoAccessibilityViolations(screen.container);
+
+    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
     await expect.element(screen.getByText("2:41")).toBeVisible();
-    expect(followCharge.mock.calls.length).toBeGreaterThan(1);
+    expect(followCharge).toHaveBeenCalledTimes(2);
     expect(callbacks.onSaleUnavailable).not.toHaveBeenCalled();
+  });
+
+  it("goes back to the methods from Elegir otro medio when the core cannot tell how the payment goes", async () => {
+    const { screen, callbacks } = await renderModal(answering({ kind: "unavailable" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+
+    expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
   });
 
   it("goes back to the methods with the new balance when the approved payment pays part of the sale", async () => {
@@ -172,6 +186,19 @@ describe("QrPaymentWaitModal", () => {
     await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
 
     expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
+  });
+
+  it("says how long the wait the core gave the order was", async () => {
+    const { screen } = await renderModal(answering({ kind: "wait_over" }), {
+      ...ORDER,
+      wait_seconds: 120,
+    });
+
+    await expect
+      .element(
+        screen.getByText("Pasaron 2 minutos y el cliente no pagó. Para seguir, elegí otro medio."),
+      )
+      .toBeVisible();
   });
 
   it.each([
