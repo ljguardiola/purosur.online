@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { createCategory, createProduct, createTag } from "@purosur/domain/catalog/use-cases";
 import {
+  configureRegisterOfflinePointOfSale,
   configureRegisterPointOfSale,
   createFiscalAddress,
   recordBuyerIdentificationThreshold,
@@ -15,6 +16,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { DrizzleBuyerIdentificationThresholdStore } from "../fiscal/drizzle-buyer-identification-threshold-store.js";
 import { DrizzleFiscalAddressStore } from "../fiscal/drizzle-fiscal-address-store.js";
+import { DrizzleRegisterOfflinePointOfSaleStore } from "../fiscal/drizzle-register-offline-point-of-sale-store.js";
 import { DrizzleRegisterPointOfSaleStore } from "../fiscal/drizzle-register-point-of-sale-store.js";
 import { DrizzleRoleStore } from "../permissions/drizzle-role-store.js";
 import {
@@ -367,9 +369,28 @@ beforeAll(async () => {
     );
   }
 
+  const offlinePointsOfSale = new DrizzleRegisterOfflinePointOfSaleStore(db, () => NOW);
+  for (const [number, installation] of [
+    [17, registerA1],
+    [18, registerA2],
+    [19, registerB],
+  ] as const) {
+    expectOutcome(
+      await configureRegisterOfflinePointOfSale(offlinePointsOfSale, {
+        locationId: installation.locationId,
+        registerId: installation.registerId,
+        pointOfSaleNumber: number,
+        version: 0,
+        actorId: actorA,
+      }),
+      "configured",
+    );
+  }
+
   const everyRegister = (installation: Installation): Pulled[] => [
     { entity: "register", entityId: installation.registerId },
     { entity: "register_point_of_sale", entityId: installation.registerId },
+    { entity: "register_offline_point_of_sale", entityId: installation.registerId },
   ];
   expectedShared = [
     ...seededShared,
@@ -407,11 +428,11 @@ afterAll(async () => {
 });
 
 describe("the rows a register pulls", () => {
-  it("gives a register of the first branch its branch's settings, price list, prices and users, its own register and point of sale, and every shared row", async () => {
+  it("gives a register of the first branch its branch's settings, price list, prices and users, its own register and points of sale, and every shared row", async () => {
     expect(await pullEverything(registerA1)).toEqual(expectedForA1);
   });
 
-  it("gives the other register of the same branch the same rows, except that it gets its own register and point of sale", async () => {
+  it("gives the other register of the same branch the same rows, except that it gets its own register and points of sale", async () => {
     expect(await pullEverything(registerA2)).toEqual(expectedForA2);
   });
 

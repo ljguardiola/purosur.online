@@ -4,6 +4,7 @@ import {
   fiscalAddresses,
   locations,
   pointOfSaleClaims,
+  registerOfflinePointsOfSale,
   registerPointsOfSale,
   registers,
 } from "../platform/db/schema.js";
@@ -97,15 +98,27 @@ describe("GET /registers/points-of-sale", () => {
       permissionKeys: ["change_fiscal_configuration"],
       passkeyAuthorized: false,
     });
-    await db
-      .insert(pointOfSaleClaims)
-      .values({ pointOfSaleNumber: 7, registerId: configured.id, claimedBy: session.userId });
+    await db.insert(pointOfSaleClaims).values({
+      pointOfSaleNumber: 7,
+      registerId: configured.id,
+      mechanism: "real_time",
+      claimedBy: session.userId,
+    });
     await db.insert(registerPointsOfSale).values({
       registerId: configured.id,
       pointOfSaleNumber: 7,
       fiscalAddressId: fiscalAddress.id,
       version: 1,
     });
+    await db.insert(pointOfSaleClaims).values({
+      pointOfSaleNumber: 8,
+      registerId: configured.id,
+      mechanism: "offline",
+      claimedBy: session.userId,
+    });
+    await db
+      .insert(registerOfflinePointsOfSale)
+      .values({ registerId: configured.id, pointOfSaleNumber: 8, version: 3 });
 
     const response = await listPointsOfSale(session.headers);
 
@@ -117,6 +130,8 @@ describe("GET /registers/points-of-sale", () => {
         point_of_sale_number: null,
         fiscal_address_id: null,
         version: 0,
+        offline_point_of_sale_number: null,
+        offline_version: 0,
       },
       {
         register_id: configured.id,
@@ -124,6 +139,8 @@ describe("GET /registers/points-of-sale", () => {
         point_of_sale_number: 7,
         fiscal_address_id: fiscalAddress.id,
         version: 1,
+        offline_point_of_sale_number: 8,
+        offline_version: 3,
       },
     ]);
   });

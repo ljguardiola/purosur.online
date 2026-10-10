@@ -47,7 +47,9 @@ describe("configureRegisterPointOfSale", () => {
         recordedBy: ACTOR,
       },
     ]);
-    expect(state.pointOfSaleClaims).toEqual([{ pointOfSaleNumber: 12, registerId: "register-1" }]);
+    expect(state.pointOfSaleClaims).toEqual([
+      { pointOfSaleNumber: 12, registerId: "register-1", mechanism: "real_time" },
+    ]);
   });
 
   it("locks the register, its setup, the fiscal address and the number's claim, in that order, before it writes, in one transaction", async () => {
@@ -128,7 +130,11 @@ describe("configureRegisterPointOfSale", () => {
       fiscalAddressId: "address-2",
       version: 1,
     });
-    store.seedPointOfSaleClaim({ pointOfSaleNumber: 12, registerId: "register-2" });
+    store.seedPointOfSaleClaim({
+      pointOfSaleNumber: 12,
+      registerId: "register-2",
+      mechanism: "real_time",
+    });
     const before = store.snapshot();
 
     const outcome = await configure(store);
@@ -151,7 +157,39 @@ describe("configureRegisterPointOfSale", () => {
       fiscalAddressId: "address-2",
       version: 2,
     });
-    store.seedPointOfSaleClaim({ pointOfSaleNumber: 12, registerId: "register-2" });
+    store.seedPointOfSaleClaim({
+      pointOfSaleNumber: 12,
+      registerId: "register-2",
+      mechanism: "real_time",
+    });
+
+    const outcome = await configure(store);
+
+    expect(outcome).toEqual({ kind: "point_of_sale_taken" });
+  });
+
+  it("refuses a number its own register holds as an offline point of sale, writing nothing", async () => {
+    const store = storeWithRegisters();
+    store.seedPointOfSaleClaim({
+      pointOfSaleNumber: 12,
+      registerId: "register-1",
+      mechanism: "offline",
+    });
+    const before = store.snapshot();
+
+    const outcome = await configure(store);
+
+    expect(outcome).toEqual({ kind: "point_of_sale_taken" });
+    expect(store.snapshot()).toEqual(before);
+  });
+
+  it("refuses a number another register holds as an offline point of sale", async () => {
+    const store = storeWithRegisters();
+    store.seedPointOfSaleClaim({
+      pointOfSaleNumber: 12,
+      registerId: "register-2",
+      mechanism: "offline",
+    });
 
     const outcome = await configure(store);
 
@@ -166,8 +204,16 @@ describe("configureRegisterPointOfSale", () => {
       fiscalAddressId: "address-1",
       version: 2,
     });
-    store.seedPointOfSaleClaim({ pointOfSaleNumber: 12, registerId: "register-1" });
-    store.seedPointOfSaleClaim({ pointOfSaleNumber: 13, registerId: "register-1" });
+    store.seedPointOfSaleClaim({
+      pointOfSaleNumber: 12,
+      registerId: "register-1",
+      mechanism: "real_time",
+    });
+    store.seedPointOfSaleClaim({
+      pointOfSaleNumber: 13,
+      registerId: "register-1",
+      mechanism: "real_time",
+    });
 
     const outcome = await configure(store, { version: 2 });
 
@@ -187,7 +233,11 @@ describe("configureRegisterPointOfSale", () => {
       fiscalAddressId: "address-1",
       version: 1,
     });
-    store.seedPointOfSaleClaim({ pointOfSaleNumber: 12, registerId: "register-1" });
+    store.seedPointOfSaleClaim({
+      pointOfSaleNumber: 12,
+      registerId: "register-1",
+      mechanism: "real_time",
+    });
 
     const outcome = await configure(store, { pointOfSaleNumber: 14, version: 1 });
 
@@ -196,8 +246,8 @@ describe("configureRegisterPointOfSale", () => {
       setup: { pointOfSaleNumber: 14, fiscalAddressId: "address-1", version: 2 },
     });
     expect(store.snapshot().pointOfSaleClaims).toEqual([
-      { pointOfSaleNumber: 12, registerId: "register-1" },
-      { pointOfSaleNumber: 14, registerId: "register-1" },
+      { pointOfSaleNumber: 12, registerId: "register-1", mechanism: "real_time" },
+      { pointOfSaleNumber: 14, registerId: "register-1", mechanism: "real_time" },
     ]);
   });
 
@@ -209,7 +259,11 @@ describe("configureRegisterPointOfSale", () => {
       fiscalAddressId: "address-1",
       version: 1,
     });
-    store.seedPointOfSaleClaim({ pointOfSaleNumber: 12, registerId: "register-1" });
+    store.seedPointOfSaleClaim({
+      pointOfSaleNumber: 12,
+      registerId: "register-1",
+      mechanism: "real_time",
+    });
 
     const outcome = await configure(store, { fiscalAddressId: "address-2", version: 1 });
 
@@ -276,9 +330,14 @@ describe("configureRegisterPointOfSale", () => {
 });
 
 describe("the points of sale of a branch's registers", () => {
-  it("lists every register of the branch with its setup, or none yet", async () => {
+  it("lists every register of the branch with its real-time and offline setup, or none yet", async () => {
     const store = storeWithRegisters();
     await configure(store);
+    store.seedRegisterOfflinePointOfSale({
+      registerId: "register-1",
+      pointOfSaleNumber: 20,
+      version: 3,
+    });
 
     const overview = await store.listBranchRegisterPointsOfSale(BRANCH);
 
@@ -289,6 +348,8 @@ describe("the points of sale of a branch's registers", () => {
         pointOfSaleNumber: 12,
         fiscalAddressId: "address-1",
         version: 1,
+        offlinePointOfSaleNumber: 20,
+        offlineVersion: 3,
       },
       {
         registerId: "register-2",
@@ -296,6 +357,8 @@ describe("the points of sale of a branch's registers", () => {
         pointOfSaleNumber: null,
         fiscalAddressId: null,
         version: 0,
+        offlinePointOfSaleNumber: null,
+        offlineVersion: 0,
       },
     ]);
   });

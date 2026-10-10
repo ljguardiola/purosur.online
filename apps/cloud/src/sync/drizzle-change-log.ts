@@ -26,6 +26,7 @@ import {
   readPriceLists,
   readPrices,
   readProducts,
+  readRegisterOfflinePointsOfSale,
   readRegisterPointsOfSale,
   readRegisters,
   readRoles,
@@ -102,6 +103,10 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
     const registerPointOfSaleRows = await readRegisterPointsOfSale(
       this.tx,
       idsOf(logged, "register_point_of_sale"),
+    );
+    const registerOfflinePointOfSaleRows = await readRegisterOfflinePointsOfSale(
+      this.tx,
+      idsOf(logged, "register_offline_point_of_sale"),
     );
     const discountRows = await readDiscounts(this.tx, idsOf(logged, "discount"));
     const issuerRows = await readIssuerIdentificationVersions(
@@ -201,6 +206,14 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
             entity,
             entityId,
             row: requiredRow(registerPointOfSaleRows.get(entityId), entity),
+          });
+          break;
+        case "register_offline_point_of_sale":
+          pulled.push({
+            changeSeq,
+            entity,
+            entityId,
+            row: requiredRow(registerOfflinePointOfSaleRows.get(entityId), entity),
           });
           break;
         case "discount": {

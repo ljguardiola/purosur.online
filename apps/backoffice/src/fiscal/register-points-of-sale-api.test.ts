@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
+  configureRegisterOfflinePointOfSale,
   configureRegisterPointOfSale,
   fetchRegisterPointsOfSale,
   type RegisterPointOfSale,
@@ -23,6 +24,8 @@ const configuredWire = {
   point_of_sale_number: 12,
   fiscal_address_id: "7c9e6679-7425-40de-944b-e07fc1f90ae7",
   version: 1,
+  offline_point_of_sale_number: 13,
+  offline_version: 3,
 };
 
 const neverConfiguredWire = {
@@ -31,6 +34,8 @@ const neverConfiguredWire = {
   point_of_sale_number: null,
   fiscal_address_id: null,
   version: 0,
+  offline_point_of_sale_number: null,
+  offline_version: 0,
 };
 
 const configured: RegisterPointOfSale = {
@@ -39,6 +44,8 @@ const configured: RegisterPointOfSale = {
   pointOfSaleNumber: 12,
   fiscalAddressId: "7c9e6679-7425-40de-944b-e07fc1f90ae7",
   version: 1,
+  offlinePointOfSaleNumber: 13,
+  offlineVersion: 3,
 };
 
 const neverConfigured: RegisterPointOfSale = {
@@ -47,6 +54,8 @@ const neverConfigured: RegisterPointOfSale = {
   pointOfSaleNumber: null,
   fiscalAddressId: null,
   version: 0,
+  offlinePointOfSaleNumber: null,
+  offlineVersion: 0,
 };
 
 test("fetchRegisterPointsOfSale returns the branch's registers, configured or not", async () => {
@@ -160,4 +169,49 @@ test("configureRegisterPointOfSale returns failed when the network call throws",
   expect(await configureRegisterPointOfSale("register-1", configuration)).toEqual({
     kind: "failed",
   });
+});
+
+const offlineConfiguration = { point_of_sale_number: 13, version: 3 };
+
+test("configureRegisterOfflinePointOfSale PUTs the number and the version to the register's offline point of sale", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, { register_id: "register-1", point_of_sale_number: 13, version: 4 }),
+  );
+
+  expect(await configureRegisterOfflinePointOfSale("register-1", offlineConfiguration)).toEqual({
+    kind: "ok",
+  });
+  expect(fetch).toHaveBeenCalledWith("/api/registers/register-1/offline-point-of-sale", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(offlineConfiguration),
+  });
+});
+
+test.each([
+  ["point_of_sale_taken", { kind: "point_of_sale_taken" }],
+  ["stale_version", { kind: "stale_version" }],
+  ["real_time_point_of_sale_missing", { kind: "real_time_point_of_sale_missing" }],
+])("configureRegisterOfflinePointOfSale maps the 409 %s", async (code, outcome) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code }));
+
+  expect(await configureRegisterOfflinePointOfSale("register-1", offlineConfiguration)).toEqual(
+    outcome,
+  );
+});
+
+test.each([
+  [404, { code: "not_found" }, { kind: "not_found" }],
+  [
+    400,
+    { code: "validation_failed", details: [{ field: "point_of_sale_number" }] },
+    { kind: "validation_failed", field: "point_of_sale_number" },
+  ],
+  [403, undefined, { kind: "forbidden" }],
+])("configureRegisterOfflinePointOfSale maps %s", async (status, body, outcome) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(status, body));
+
+  expect(await configureRegisterOfflinePointOfSale("register-1", offlineConfiguration)).toEqual(
+    outcome,
+  );
 });

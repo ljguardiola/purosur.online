@@ -112,7 +112,7 @@ describe("configuring a register's point of sale through DrizzleRegisterPointOfS
       { pointOfSaleNumber: 7, registerId, claimedBy: actorId },
     ]);
     expect(await db.select().from(registerPointsOfSale)).toEqual([
-      { registerId, pointOfSaleNumber: 7, fiscalAddressId, version: 1 },
+      { registerId, pointOfSaleNumber: 7, mechanism: "real_time", fiscalAddressId, version: 1 },
     ]);
   });
 
@@ -310,11 +310,16 @@ describe("configuring a register's point of sale through DrizzleRegisterPointOfS
     const otherRegisterId = await insertRegister(locationId, "Caja 2");
     await db
       .insert(pointOfSaleClaims)
-      .values({ pointOfSaleNumber: 7, registerId, claimedBy: actorId });
+      .values({ pointOfSaleNumber: 7, registerId, mechanism: "real_time", claimedBy: actorId });
     const store = new DrizzleRegisterPointOfSaleStore(db, () => NOON);
 
     const claim = store.transaction((tx) =>
-      tx.claimPointOfSale({ pointOfSaleNumber: 7, registerId: otherRegisterId, actorId }),
+      tx.claimPointOfSale({
+        pointOfSaleNumber: 7,
+        registerId: otherRegisterId,
+        mechanism: "real_time",
+        actorId,
+      }),
     );
 
     await expect(claim).rejects.toBeInstanceOf(PointOfSaleClaimConflict);

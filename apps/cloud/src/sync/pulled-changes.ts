@@ -67,6 +67,11 @@ export interface RegisterPointOfSaleRow {
   version: number;
 }
 
+export interface RegisterOfflinePointOfSaleRow {
+  pointOfSaleNumber: number;
+  version: number;
+}
+
 export type DiscountRow = DiscountFields;
 
 export interface StockMovementRow {
@@ -118,6 +123,7 @@ export type PulledCloudChange = { changeSeq: number; entityId: string } & (
   | { entity: "role"; row: RoleRow }
   | { entity: "register"; row: RegisterRow }
   | { entity: "register_point_of_sale"; row: RegisterPointOfSaleRow }
+  | { entity: "register_offline_point_of_sale"; row: RegisterOfflinePointOfSaleRow }
   | { entity: "discount"; row: DiscountRow }
   | { entity: "issuer_identification"; row: IssuerIdentificationVersionRow }
   | { entity: "buyer_identification_threshold"; row: BuyerIdentificationThresholdRow }

@@ -9,6 +9,7 @@ export type PulledEntity =
   | "role"
   | "register"
   | "register_point_of_sale"
+  | "register_offline_point_of_sale"
   | "discount"
   | "issuer_identification"
   | "buyer_identification_threshold"
@@ -49,6 +50,7 @@ export function pullAudienceOf({
     role: EVERY_ROW,
     register: { kind: "row", id: registerId },
     register_point_of_sale: { kind: "row", id: registerId },
+    register_offline_point_of_sale: { kind: "row", id: registerId },
     discount: EVERY_ROW,
     issuer_identification: EVERY_ROW,
     buyer_identification_threshold: EVERY_ROW,
