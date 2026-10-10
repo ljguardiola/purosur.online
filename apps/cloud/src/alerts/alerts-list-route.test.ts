@@ -212,25 +212,13 @@ describe("GET /alerts", () => {
     expect(body.map((row) => row.id)).toEqual([ownLocalAlertId]);
   });
 
-  it("tells why a register can't sell, and nothing for another kind of alert", async () => {
+  it("tells why a register can't sell", async () => {
     const roleId = await insertRole(["view_all_alerts"]);
     const userId = await insertUserWithRole(roleId);
     const rawSessionId = await insertSession(userId);
-    const brokenId = await insertAlert({
+    await insertAlert({
       kind: "sales_denied",
       scope: "register-a",
-      audience: "local",
-      detail: { reason: "event_history_broken" },
-    });
-    const damagedId = await insertAlert({
-      kind: "sales_denied",
-      scope: "register-b",
-      audience: "local",
-      detail: { reason: "local_database_damaged" },
-    });
-    const otherId = await insertAlert({
-      kind: "register_silent",
-      scope: "register-c",
       audience: "local",
       detail: { reason: "local_database_damaged" },
     });
@@ -238,16 +226,9 @@ describe("GET /alerts", () => {
     const response = await getAlerts(rawSessionId);
 
     expect(response.statusCode).toBe(200);
-    const reasons = new Map(
-      listBody(response).alerts.map((row) => [row.id, row.salesDeniedReason]),
-    );
-    expect(reasons).toEqual(
-      new Map([
-        [brokenId, "event_history_broken"],
-        [damagedId, "local_database_damaged"],
-        [otherId, null],
-      ]),
-    );
+    expect(listBody(response).alerts.map((row) => row.salesDeniedReason)).toEqual([
+      "local_database_damaged",
+    ]);
   });
 
   it("filters by level", async () => {

@@ -836,6 +836,30 @@ test.each([
   },
 );
 
+test("describes a register that can't sell by its kind when the cloud names no reason", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(
+    ok([
+      {
+        ...passkeyAlert,
+        kind: "sales_denied",
+        level: "critical",
+        audience: "local",
+        scopeDisplay: "Caja 1",
+        salesDeniedReason: null,
+      },
+    ]),
+  );
+
+  const screen = await renderScreen(services);
+
+  const row = screen.getByRole("row", { name: /Caja 1/ });
+  await expect.element(row.getByText("La caja no puede vender")).toBeVisible();
+  await expect
+    .element(row.getByText("Una caja dejó de abrir ventas nuevas", { exact: true }))
+    .toBeVisible();
+});
+
 test("searches a quiet register's alert by its fixed title", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert]));

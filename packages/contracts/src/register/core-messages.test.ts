@@ -1218,10 +1218,14 @@ describe("register status messages", () => {
 
   it.each([
     [[], "unknown"],
-    [["sales_denied"], "reachable"],
-    [["sales_denied", "register_silent"], "unreachable"],
-    [["installation_revoked"], "unreachable"],
-    [["serial_device_missing"], "reachable"],
+    [[{ kind: "sales_denied", reason: "event_history_broken" }], "reachable"],
+    [[{ kind: "sales_denied", reason: "local_database_damaged" }], "reachable"],
+    [
+      [{ kind: "sales_denied", reason: "event_history_broken" }, { kind: "register_silent" }],
+      "unreachable",
+    ],
+    [[{ kind: "installation_revoked" }], "unreachable"],
+    [[{ kind: "serial_device_missing" }], "reachable"],
   ])("accepts the status with conditions %j and the cloud %s", (conditions, cloud) => {
     const message = {
       type: "register-status",
@@ -1235,7 +1239,23 @@ describe("register status messages", () => {
   it.each([
     [
       "a condition the register does not detect itself",
-      { conditions: ["stock_low"], cloud: "reachable", serial_devices: STANDINGS },
+      { conditions: [{ kind: "stock_low" }], cloud: "reachable", serial_devices: STANDINGS },
+    ],
+    [
+      "a condition named without its kind",
+      { conditions: ["register_silent"], cloud: "reachable", serial_devices: STANDINGS },
+    ],
+    [
+      "a sales denial without its reason",
+      { conditions: [{ kind: "sales_denied" }], cloud: "reachable", serial_devices: STANDINGS },
+    ],
+    [
+      "a sales denial with a reason it does not know",
+      {
+        conditions: [{ kind: "sales_denied", reason: "installation_revoked" }],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+      },
     ],
     [
       "a cloud state it does not know",
@@ -1504,7 +1524,7 @@ describe("serial device messages", () => {
         type: "register-status",
         request_id: REQUEST_ID,
         status: {
-          conditions: ["serial_device_missing"],
+          conditions: [{ kind: "serial_device_missing" }],
           cloud: "reachable",
           serial_devices: { scale: kind, reader: "not_registered" },
         },
