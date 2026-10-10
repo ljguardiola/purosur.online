@@ -1,4 +1,4 @@
-export type { NewLot, PurchasedLine } from "./model/lot.js";
+export type { NewLot } from "./model/lot.js";
 export { lotOfPurchaseLine } from "./model/lot.js";
 export { soldStockDelta } from "./model/sold-stock-delta.js";
 export { isListedInStockBalances } from "./model/stock-balance.js";
@@ -37,5 +37,5 @@ export {
   STOCK_QUANTITY_DECIMALS,
   STOCK_QUANTITY_PER_UNIT,
 } from "./model/stock-quantity.js";
-export type { ReceiptMovement, ReceivedStock } from "./model/stock-receipt.js";
+export type { ReceiptMovement } from "./model/stock-receipt.js";
 export { movesBalance, receiptMovement } from "./model/stock-receipt.js";

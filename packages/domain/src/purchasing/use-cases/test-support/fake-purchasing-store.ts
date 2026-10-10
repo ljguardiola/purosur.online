@@ -37,19 +37,19 @@ export interface FakeProductRow {
   active: boolean;
 }
 
-export interface FakePurchaseRow extends NewPurchaseFields {
+interface FakePurchaseRow extends NewPurchaseFields {
   id: string;
 }
 
-export interface FakePurchaseLineRow extends NewPurchaseLineFields {
+interface FakePurchaseLineRow extends NewPurchaseLineFields {
   id: string;
 }
 
-export interface FakeReceiptMovementRow extends ReceiptMovement {
+interface FakeReceiptMovementRow extends ReceiptMovement {
   id: string;
 }
 
-export interface FakeStockBalanceRow extends StockBalanceKey {
+interface FakeStockBalanceRow extends StockBalanceKey {
   quantity: number;
 }
 

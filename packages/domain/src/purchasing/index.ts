@@ -22,7 +22,6 @@ export {
   isCostPaid,
   isPackageCount,
   ONE_SALE_UNIT_QUANTITY,
-  packagedQuantity,
   unitCostCents,
 } from "./model/purchase-line.js";
 export {
