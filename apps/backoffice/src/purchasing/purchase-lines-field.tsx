@@ -1,8 +1,9 @@
 import type { CalendarDate } from "@internationalized/date";
-import type { PackagingList, PackagingSummary } from "@purosur/contracts";
+import type { PackagingSummary } from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
 import {
   Button,
+  Card,
   ComboBox,
   DateField,
   EmptyState,
@@ -18,7 +19,9 @@ import { quantityFieldKind } from "../platform/stock-quantity";
 import { packagingProductOptions } from "./packaging-form";
 import {
   emptyPurchaseLine,
+  nextPurchaseLineId,
   type PurchaseLineValues,
+  type PurchaseProducts,
   purchasePackagingOptions,
 } from "./purchase-form";
 
@@ -28,7 +31,7 @@ const LOADED_BY_OPTIONS = [
 ] as const;
 
 type PurchaseLinesFieldProps = {
-  products: PackagingList["products"];
+  products: PurchaseProducts;
   packagings: readonly PackagingSummary[];
   refusals: Readonly<Record<number, string>>;
   onLinesChange: () => void;
@@ -56,6 +59,7 @@ export function PurchaseLinesField({
   }
 
   function change(id: number, patch: Partial<PurchaseLineValues>) {
+    onLinesChange();
     field.handleChange(lines.map((line) => (line.id === id ? { ...line, ...patch } : line)));
   }
 
@@ -90,7 +94,7 @@ export function PurchaseLinesField({
               icon={<Plus />}
               onPress={() => {
                 onLinesChange();
-                field.handleChange([...lines, emptyPurchaseLine()]);
+                field.handleChange([...lines, emptyPurchaseLine(nextPurchaseLineId(lines))]);
               }}
             >
               Agregar línea
@@ -113,7 +117,7 @@ type PurchaseLineFieldsProps = {
   line: PurchaseLineValues;
   number: number;
   productOptions: NonNullable<ReturnType<typeof packagingProductOptions>>;
-  products: PackagingList["products"];
+  products: PurchaseProducts;
   packagings: readonly PackagingSummary[];
   refusal: string | undefined;
   removable: boolean;
@@ -137,103 +141,102 @@ function PurchaseLineFields({
   const [firstPackaging, ...otherPackagings] = packagingOptions;
 
   return (
-    <fieldset
-      aria-label={`Línea ${number}`}
-      className="flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-surface p-4"
-    >
-      <div className="flex items-end gap-4">
-        <div className="min-w-0 flex-1">
-          <ComboBox
-            label="Producto"
-            placeholder="Elegí un producto"
-            options={productOptions}
-            value={line.productId}
-            onChange={(productId) => onChange({ productId, packagingId: null })}
-            required
-          />
-        </div>
-        <SegmentedControl
-          label="Cargar por"
-          options={LOADED_BY_OPTIONS}
-          value={line.loadedBy}
-          onChange={(loadedBy) => onChange({ loadedBy })}
-        />
-        <Button variant="secondary" icon={<Trash2 />} disabled={!removable} onPress={onRemove}>
-          Quitar línea
-        </Button>
-      </div>
-      {line.loadedBy === "packaging" ? (
-        <div className="flex items-start gap-4">
+    <fieldset aria-label={`Línea ${number}`} className="min-w-0">
+      <Card variant="subtle">
+        <div className="flex items-end gap-4">
           <div className="min-w-0 flex-1">
-            {firstPackaging ? (
-              <Select
-                name={`lines.${line.id}.packagingId`}
-                label="Presentación"
-                placeholder="Elegí una presentación"
-                options={[firstPackaging, ...otherPackagings]}
-                value={line.packagingId}
-                onChange={(packagingId) => onChange({ packagingId })}
+            <ComboBox
+              label="Producto"
+              placeholder="Elegí un producto"
+              options={productOptions}
+              value={line.productId}
+              onChange={(productId) => onChange({ productId, packagingId: null })}
+              required
+            />
+          </div>
+          <SegmentedControl
+            label="Cargar por"
+            options={LOADED_BY_OPTIONS}
+            value={line.loadedBy}
+            onChange={(loadedBy) => onChange({ loadedBy })}
+          />
+          <Button variant="secondary" icon={<Trash2 />} disabled={!removable} onPress={onRemove}>
+            Quitar línea
+          </Button>
+        </div>
+        {line.loadedBy === "packaging" ? (
+          <div className="flex items-start gap-4">
+            <div className="min-w-0 flex-1">
+              {firstPackaging ? (
+                <Select
+                  name={`lines.${line.id}.packagingId`}
+                  label="Presentación"
+                  placeholder="Elegí una presentación"
+                  options={[firstPackaging, ...otherPackagings]}
+                  value={line.packagingId}
+                  onChange={(packagingId) => onChange({ packagingId })}
+                  required
+                />
+              ) : (
+                <InlineNotice
+                  tone="info"
+                  icon={<Package />}
+                  title="Este producto no tiene presentaciones activas"
+                />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <TextField
+                kind="plain-text"
+                label="Cantidad de presentaciones"
+                value={line.packages}
+                onChange={(packages) => onChange({ packages })}
                 required
               />
-            ) : (
-              <InlineNotice
-                tone="info"
-                icon={<Package />}
-                title="Este producto no tiene presentaciones activas"
-              />
-            )}
+            </div>
+          </div>
+        ) : (
+          <div className="w-48">
+            <TextField
+              {...quantityFieldKind(saleUnit)}
+              label="Cantidad"
+              value={line.quantity}
+              onChange={(quantity) => onChange({ quantity })}
+              required
+            />
+          </div>
+        )}
+        <div className="flex items-start gap-4">
+          <div className="min-w-0 flex-1">
+            <TextField
+              kind="plain-text"
+              label={costLabel(line.loadedBy, saleUnit)}
+              value={line.cost}
+              onChange={(cost) => onChange({ cost })}
+              required
+            />
           </div>
           <div className="min-w-0 flex-1">
             <TextField
               kind="plain-text"
-              label="Cantidad de presentaciones"
-              value={line.packages}
-              onChange={(packages) => onChange({ packages })}
-              required
+              label="Lote"
+              value={line.lotNumber}
+              onChange={(lotNumber) => onChange({ lotNumber })}
+            />
+          </div>
+          <div className="min-w-0 flex-1">
+            <DateField
+              name={`lines.${line.id}.expiresOn`}
+              label="Vencimiento"
+              value={line.expiresOn}
+              onChange={(expiresOn: CalendarDate | null) => onChange({ expiresOn })}
             />
           </div>
         </div>
-      ) : (
-        <div className="w-48">
-          <TextField
-            {...quantityFieldKind(saleUnit)}
-            label="Cantidad"
-            value={line.quantity}
-            onChange={(quantity) => onChange({ quantity })}
-            required
-          />
-        </div>
-      )}
-      <div className="flex items-start gap-4">
-        <div className="min-w-0 flex-1">
-          <TextField
-            kind="plain-text"
-            label={costLabel(line.loadedBy, saleUnit)}
-            value={line.cost}
-            onChange={(cost) => onChange({ cost })}
-            required
-          />
-        </div>
-        <div className="min-w-0 flex-1">
-          <TextField
-            kind="plain-text"
-            label="Lote"
-            value={line.lotNumber}
-            onChange={(lotNumber) => onChange({ lotNumber })}
-          />
-        </div>
-        <div className="min-w-0 flex-1">
-          <DateField
-            name={`lines.${line.id}.expiresOn`}
-            label="Vencimiento"
-            value={line.expiresOn}
-            onChange={(expiresOn: CalendarDate | null) => onChange({ expiresOn })}
-          />
-        </div>
-      </div>
-      {refusal === undefined ? null : (
-        <InlineNotice tone="error" icon={<TriangleAlert />} title={refusal} />
-      )}
+        {refusal === undefined ? null : (
+          <InlineNotice tone="error" icon={<TriangleAlert />} title={refusal} />
+        )}
+      </Card>
     </fieldset>
   );
 }

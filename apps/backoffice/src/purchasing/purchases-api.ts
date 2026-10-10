@@ -1,6 +1,8 @@
 import {
+  type PurchaseChoices,
   type PurchaseRegistrationBody,
   type PurchaseSummary,
+  purchaseChoicesSchema,
   purchaseListSchema,
   purchaseSummarySchema,
 } from "@purosur/contracts";
@@ -9,6 +11,8 @@ import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
 
 export type FetchPurchasesOutcome = CloudReadOutcome<PurchaseSummary[]>;
+
+export type FetchPurchaseChoicesOutcome = CloudReadOutcome<PurchaseChoices>;
 
 type RequestRefusal =
   | { kind: "forbidden" }
@@ -76,6 +80,20 @@ export async function fetchPurchases(): Promise<FetchPurchasesOutcome> {
     return refusal(response);
   }
   const parsed = purchaseListSchema.safeParse(await response.json().catch(() => undefined));
+  return parsed.success ? { kind: "ok", value: parsed.data } : { kind: "failed" };
+}
+
+export async function fetchPurchaseChoices(): Promise<FetchPurchaseChoicesOutcome> {
+  let response: Response;
+  try {
+    response = await fetch("/api/purchase-choices");
+  } catch {
+    return { kind: "failed" };
+  }
+  if (!response.ok) {
+    return refusal(response);
+  }
+  const parsed = purchaseChoicesSchema.safeParse(await response.json().catch(() => undefined));
   return parsed.success ? { kind: "ok", value: parsed.data } : { kind: "failed" };
 }
 

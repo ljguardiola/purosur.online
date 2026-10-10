@@ -1,3 +1,4 @@
+import { isInActivityScope, type ProductActivityScope } from "../../catalog/index.js";
 import { argentinaCalendarDay, codePointLength } from "../../shared/index.js";
 
 export const RECEIPT_TYPES = [
@@ -24,8 +25,14 @@ export const PURCHASE_NOTE_MAX_LENGTH = 200;
 
 export const MIN_PURCHASE_LINES = 1;
 
-export function isReceiptType(value: string): value is ReceiptType {
-  return (RECEIPT_TYPES as readonly string[]).includes(value);
+export const PRODUCTS_PURCHASES_MAY_BE_REGISTERED_FOR: ProductActivityScope = "active";
+
+export function mayBePurchased(product: { active: boolean }): boolean {
+  return isInActivityScope(product.active, PRODUCTS_PURCHASES_MAY_BE_REGISTERED_FOR);
+}
+
+export function mayBePurchasedFrom(supplier: { active: boolean }): boolean {
+  return supplier.active;
 }
 
 export function hasValidReceiptNumber(type: ReceiptType, number: string | null): boolean {

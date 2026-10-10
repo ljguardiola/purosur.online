@@ -54,5 +54,6 @@ export const newPurchaseRoute = createRoute({
   getParentRoute: () => stockAreaRoute,
   path: "purchases/new",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canRecordPurchases),
+  loader: () => ({ openedAt: new Date() }),
   component: lazyScreen(() => import("./new-purchase-page"), "NewPurchasePage"),
 });

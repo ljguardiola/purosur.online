@@ -1,6 +1,7 @@
 import type {
   PackagingList,
   PackagingSummary,
+  PurchaseChoices,
   PurchaseSummary,
   SupplierSummary,
 } from "@purosur/contracts";
@@ -8,7 +9,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchPackagings } from "./packagings-api";
-import type { fetchPurchases } from "./purchases-api";
+import type { fetchPurchaseChoices, fetchPurchases } from "./purchases-api";
 import type { fetchSuppliers } from "./suppliers-api";
 
 export const purchasingKey = ["purchasing"] as const;
@@ -17,6 +18,7 @@ export const purchasingKeys = {
   suppliers: [...purchasingKey, "suppliers"] as const,
   packagings: [...purchasingKey, "packagings"] as const,
   purchases: [...purchasingKey, "purchases"] as const,
+  purchaseChoices: [...purchasingKey, "purchase-choices"] as const,
 };
 
 export function useSuppliersQuery(params: {
@@ -53,6 +55,19 @@ export function usePurchasesQuery(params: {
   return useCloudQuery<PurchaseSummary[]>({
     queryKey: purchasingKeys.purchases,
     read: params.fetchPurchases,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function usePurchaseChoicesQuery(params: {
+  fetchPurchaseChoices: typeof fetchPurchaseChoices;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<PurchaseChoices>({
+    queryKey: purchasingKeys.purchaseChoices,
+    read: params.fetchPurchaseChoices,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

@@ -13,6 +13,8 @@ export { editSupplier } from "./edit-supplier.js";
 export { findPackagingListing } from "./find-packaging-listing.js";
 export type { ListedPackaging } from "./list-packagings.js";
 export { listPackagings } from "./list-packagings.js";
+export type { PurchaseChoices } from "./list-purchase-choices.js";
+export { listPurchaseChoices } from "./list-purchase-choices.js";
 export type { ListedPurchase, ListedPurchaseLine } from "./list-purchases.js";
 export { findPurchaseListing, listPurchases } from "./list-purchases.js";
 export { listSuppliers } from "./list-suppliers.js";
@@ -34,7 +36,6 @@ export type {
   PackagingFields,
   PurchasingStore,
   PurchasingStoreTransaction,
-  StockBalanceKey,
   Supplier,
   SupplierFields,
 } from "./purchasing-store.js";

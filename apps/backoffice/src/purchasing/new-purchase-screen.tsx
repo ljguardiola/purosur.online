@@ -1,10 +1,8 @@
-import {
-  type PackagingList,
-  purchaseRegistrationBodySchema,
-  type SupplierSummary,
-} from "@purosur/contracts";
+import type { CalendarDate } from "@internationalized/date";
+import { type PurchaseChoices, purchaseRegistrationBodySchema } from "@purosur/contracts";
 import {
   Button,
+  Card,
   EmptyState,
   InlineNotice,
   LoadFailure,
@@ -15,14 +13,11 @@ import { useNavigate } from "@tanstack/react-router";
 import { Check, ShieldX, TriangleAlert, Truck, X } from "lucide-react";
 import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
-import { combineCloudData } from "../platform/combine-cloud-data";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import { quantityMessage } from "../platform/stock-quantity";
 import { ScreenLayout } from "../shell/screen-layout";
 import { StockTopBar } from "../shell/stock-top-bar";
 import type { NewPurchaseScreenServices } from "./new-purchase-services";
-import { purchaseDayOf } from "./purchase-date";
 import {
   emptyPurchaseForm,
   PURCHASE_FIELDS,
@@ -32,41 +27,39 @@ import {
   PURCHASE_SUPPLIER_NOT_FOUND,
   PURCHASE_SUPPLIER_REQUIRED,
   purchaseDateMessage,
+  purchaseLineQuantityRefusal,
   purchaseLinesMessage,
   purchaseNoteMessage,
   purchaseReceiptNumberMessage,
   purchaseRegistrationRequestFrom,
   purchaseSupplierOptions,
+  RECEIPT_TYPE_OPTIONS,
 } from "./purchase-form";
 import { PurchaseLinesField } from "./purchase-lines-field";
 import { PURCHASE_REGISTERED_STATE } from "./purchase-registered-state";
-import { usePackagingsQuery, useRefreshPurchasing, useSuppliersQuery } from "./purchasing-queries";
-import { RECEIPT_TYPE_OPTIONS } from "./receipt-label";
+import { usePurchaseChoicesQuery, useRefreshPurchasing } from "./purchasing-queries";
 
 export type NewPurchaseScreenProps = {
   onSessionEnded: () => void;
   services: NewPurchaseScreenServices;
-  now?: () => Date;
+  today: CalendarDate;
 };
 
 type Notice = { kind: "attemptFailed" } | { kind: "rateLimited"; retryAfterSeconds: number };
 
-const NO_SUPPLIERS: SupplierSummary[] = [];
-const NO_PACKAGINGS: PackagingList = { packagings: [], products: [] };
+const NO_CHOICES: PurchaseChoices = { suppliers: [], products: [], packagings: [] };
 
-export function NewPurchaseScreen({ onSessionEnded, services, now }: NewPurchaseScreenProps) {
+export function NewPurchaseScreen({ onSessionEnded, services, today }: NewPurchaseScreenProps) {
   const sendToMyAccount = useSendToMyAccount();
   const navigate = useNavigate();
   const refreshPurchasing = useRefreshPurchasing();
-  const data = combineCloudData(
-    useSuppliersQuery({ fetchSuppliers: services.fetchSuppliers, onSessionEnded }),
-    usePackagingsQuery({ fetchPackagings: services.fetchPackagings, onSessionEnded }),
-  );
-  const [today] = useState(() => purchaseDayOf((now ?? (() => new Date()))()));
+  const data = usePurchaseChoicesQuery({
+    fetchPurchaseChoices: services.fetchPurchaseChoices,
+    onSessionEnded,
+  });
   const [notice, setNotice] = useState<Notice | null>(null);
   const [lineRefusals, setLineRefusals] = useState<Record<number, string>>({});
-  const [suppliers, { packagings, products }] =
-    data.status === "loaded" ? data.value : [NO_SUPPLIERS, NO_PACKAGINGS];
+  const { suppliers, products, packagings } = data.status === "loaded" ? data.value : NO_CHOICES;
 
   const { form, submit, submitting } = useRequestForm({
     defaultValues: emptyPurchaseForm(today),
@@ -83,10 +76,14 @@ export function NewPurchaseScreen({ onSessionEnded, services, now }: NewPurchase
       note: purchaseNoteMessage,
       lines: (current) => purchaseLinesMessage(current, products),
     },
-    onSubmit: async (request, { values, showWireFieldError, showFieldError }) => {
+    onSubmit: async (_request, { parsed, values, showWireFieldError, showFieldError }) => {
       setNotice(null);
       setLineRefusals({});
-      const outcome = await services.registerPurchase(request);
+      if (!parsed) {
+        setNotice({ kind: "attemptFailed" });
+        return;
+      }
+      const outcome = await services.registerPurchase(parsed);
       if (outcome.kind === "ok") {
         void refreshPurchasing();
         void navigate({
@@ -119,9 +116,12 @@ export function NewPurchaseScreen({ onSessionEnded, services, now }: NewPurchase
         return;
       }
       if (outcome.kind === "validation_failed" && outcome.lineIndex !== undefined) {
-        const productId = values.lines[outcome.lineIndex]?.productId;
-        const saleUnit = products.find((product) => product.id === productId)?.saleUnit ?? "UNIT";
-        setLineRefusals({ [outcome.lineIndex]: quantityMessage(saleUnit) });
+        setLineRefusals({
+          [outcome.lineIndex]: purchaseLineQuantityRefusal(
+            values.lines[outcome.lineIndex],
+            products,
+          ),
+        });
         return;
       }
       if (outcome.kind === "validation_failed" && showWireFieldError(outcome.field)) {
@@ -136,6 +136,7 @@ export function NewPurchaseScreen({ onSessionEnded, services, now }: NewPurchase
   });
 
   const supplierOptions = purchaseSupplierOptions(suppliers);
+  const nothingToChoose = !supplierOptions || products.length === 0;
 
   return (
     <ScreenLayout
@@ -156,7 +157,7 @@ export function NewPurchaseScreen({ onSessionEnded, services, now }: NewPurchase
                 variant="primary"
                 icon={<Check />}
                 dataStatus={data.status}
-                disabled={submitting}
+                disabled={submitting || nothingToChoose}
                 onPress={() => void submit()}
               >
                 Registrar la compra
@@ -189,7 +190,7 @@ export function NewPurchaseScreen({ onSessionEnded, services, now }: NewPurchase
       )}
       {data.status === "loaded" && (
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+          <Card>
             <h2 className="text-text-accent text-subheading">Compra</h2>
             <div className="flex items-start gap-4">
               <div className="min-w-0 flex-1">
@@ -241,8 +242,8 @@ export function NewPurchaseScreen({ onSessionEnded, services, now }: NewPurchase
             <form.AppField name="note">
               {(field) => <field.TextField kind="plain-text" label="Nota" />}
             </form.AppField>
-          </div>
-          <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+          </Card>
+          <Card>
             <h2 className="text-text-accent text-subheading">Líneas</h2>
             <form.AppField name="lines">
               {() => (
@@ -254,7 +255,7 @@ export function NewPurchaseScreen({ onSessionEnded, services, now }: NewPurchase
                 />
               )}
             </form.AppField>
-          </div>
+          </Card>
         </div>
       )}
     </ScreenLayout>

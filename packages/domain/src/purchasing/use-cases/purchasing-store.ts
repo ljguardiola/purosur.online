@@ -1,5 +1,5 @@
 import type { SaleUnit } from "../../catalog/index.js";
-import type { NewLot, ReceiptMovement } from "../../stock/index.js";
+import type { PurchaseReceipt } from "../../stock/index.js";
 import type { ReceiptType } from "../model/purchase.js";
 
 export interface Supplier {
@@ -76,11 +76,6 @@ export interface NewPurchaseLineFields {
   expiresOn: string | null;
 }
 
-export interface StockBalanceKey {
-  productId: string;
-  locationId: string;
-}
-
 export type LockSupplierResult = { kind: "not_found" } | { kind: "locked"; supplier: Supplier };
 
 export type LockPackagingResult = { kind: "not_found" } | { kind: "locked"; packaging: Packaging };
@@ -108,6 +103,9 @@ export interface PurchasingStoreTransaction {
   updateSupplier(supplierId: string, fields: SupplierFields): Promise<void>;
   // Holds the product's row so a concurrent change of its sale unit waits.
   lockProduct(productId: string): Promise<LockProductResult>;
+  // Holds the product's row against a change of it while movements of its stock, which reference
+  // it, may still be recorded.
+  holdPurchasedProduct(productId: string): Promise<LockProductResult>;
   lockProductOfPackaging(packagingId: string): Promise<LockProductResult>;
   lockPackaging(packagingId: string): Promise<LockPackagingResult>;
   // Every packaging of the product counts, deactivated ones included, and letter case is ignored.
@@ -120,15 +118,7 @@ export interface PurchasingStoreTransaction {
   updatePackaging(packagingId: string, fields: PackagingFields): Promise<void>;
   insertPurchase(fields: NewPurchaseFields): Promise<{ id: string }>;
   insertPurchaseLine(fields: NewPurchaseLineFields): Promise<{ id: string }>;
-  // Holds the product's balance at the branch so concurrent movements of it wait.
-  lockStockBalance(key: StockBalanceKey): Promise<void>;
-  earliestCountAtOrAfter(
-    key: StockBalanceKey,
-    at: Date,
-  ): Promise<{ movementId: string } | undefined>;
-  recordReceiptMovement(movement: ReceiptMovement): Promise<void>;
-  addToStockBalance(key: StockBalanceKey, delta: number): Promise<void>;
-  insertLot(lot: NewLot): Promise<void>;
+  receiveStock(receipt: PurchaseReceipt): Promise<void>;
 }
 
 export interface PurchasingStore {

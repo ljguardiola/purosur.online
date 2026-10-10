@@ -1,7 +1,7 @@
 import type { CalendarDate } from "@internationalized/date";
 import {
-  type PackagingList,
   type PackagingSummary,
+  type PurchaseChoices,
   type PurchaseRegistrationBody,
   purchaseRegistrationBodySchema,
   type SupplierSummary,
@@ -15,11 +15,12 @@ import {
   quantityMessage,
 } from "../platform/stock-quantity";
 import type { PurchaseLineRefusal } from "./purchases-api";
+import { receiptLabel } from "./receipt-label";
 
 const { receiptNumber: receiptNumberSchema, note: noteSchema } =
   purchaseRegistrationBodySchema.shape;
 
-export type PurchaseProducts = PackagingList["products"];
+export type PurchaseProducts = PurchaseChoices["products"];
 
 export type PurchaseLineValues = {
   id: number;
@@ -42,12 +43,9 @@ export type PurchaseFormValues = {
   lines: PurchaseLineValues[];
 };
 
-let nextLineId = 0;
-
-export function emptyPurchaseLine(): PurchaseLineValues {
-  nextLineId += 1;
+export function emptyPurchaseLine(id: number): PurchaseLineValues {
   return {
-    id: nextLineId,
+    id,
     productId: null,
     loadedBy: "quantity",
     packagingId: null,
@@ -66,9 +64,28 @@ export function emptyPurchaseForm(today: CalendarDate): PurchaseFormValues {
     receiptType: null,
     receiptNumber: "",
     note: "",
-    lines: [emptyPurchaseLine()],
+    lines: [emptyPurchaseLine(1)],
   };
 }
+
+export function nextPurchaseLineId(lines: readonly PurchaseLineValues[]): number {
+  return Math.max(0, ...lines.map((line) => line.id)) + 1;
+}
+
+const [firstReceiptType, ...otherReceiptTypes] =
+  purchaseRegistrationBodySchema.shape.receiptType.options.map((value) => ({
+    value,
+    label: receiptLabel(value, null),
+  }));
+
+if (!firstReceiptType) {
+  throw new Error("The contract declares no receipt type");
+}
+
+export const RECEIPT_TYPE_OPTIONS: [typeof firstReceiptType, ...(typeof firstReceiptType)[]] = [
+  firstReceiptType,
+  ...otherReceiptTypes,
+];
 
 export const PURCHASE_FIELDS = {
   supplierId: "supplierId",
@@ -152,14 +169,18 @@ function lineRequestFrom(
     : { loadedBy: "quantity", ...common, quantity: quantityOf(line, products) };
 }
 
+type PurchaseRegistrationRequest = Omit<PurchaseRegistrationBody, "receiptType"> & {
+  receiptType: ReceiptType | null;
+};
+
 export function purchaseRegistrationRequestFrom(
   values: PurchaseFormValues,
   products: PurchaseProducts,
-): PurchaseRegistrationBody {
+): PurchaseRegistrationRequest {
   return {
     supplierId: values.supplierId ?? "",
     purchasedOn: values.purchasedOn?.toString() ?? "",
-    receiptType: values.receiptType ?? ("" as ReceiptType),
+    receiptType: values.receiptType,
     receiptNumber: values.receiptNumber.trim(),
     note: values.note.trim(),
     lines: values.lines.map((line) => lineRequestFrom(line, products)),
@@ -203,15 +224,24 @@ export function purchaseLinesMessage(
   return `Línea ${position + 1}: ${line ? lineProblem(line, products) : "Revisá los valores."}`;
 }
 
+export function purchaseLineQuantityRefusal(
+  line: PurchaseLineValues | undefined,
+  products: PurchaseProducts,
+): string {
+  return line?.loadedBy === "packaging"
+    ? "Son demasiadas presentaciones para una sola línea."
+    : quantityMessage(saleUnitOf(products, line?.productId ?? null));
+}
+
 const supplierNameOrder = textOrder((supplier: SupplierSummary) => supplier.name);
 
 export function purchaseSupplierOptions(
   suppliers: readonly SupplierSummary[],
 ): [{ value: string; label: string }, ...{ value: string; label: string }[]] | undefined {
-  const [first, ...rest] = sortedItems(
-    suppliers.filter((supplier) => supplier.active),
-    { order: supplierNameOrder, direction: "ascending" },
-  ).map((supplier) => ({ value: supplier.id, label: supplier.name }));
+  const [first, ...rest] = sortedItems(suppliers, {
+    order: supplierNameOrder,
+    direction: "ascending",
+  }).map((supplier) => ({ value: supplier.id, label: supplier.name }));
   return first && [first, ...rest];
 }
 
@@ -220,10 +250,7 @@ export function purchasePackagingOptions(
   productId: string | null,
 ): { value: string; label: string }[] {
   return packagings
-    .filter(
-      (packaging) =>
-        packaging.productId === productId && packaging.active && !packaging.saleUnitChanged,
-    )
+    .filter((packaging) => packaging.productId === productId)
     .map((packaging) => ({
       value: packaging.id,
       label: `${packaging.name} (${formatStockQuantity(packaging.quantityPerPackage, packaging.saleUnit)})`,

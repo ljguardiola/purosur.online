@@ -1,12 +1,13 @@
 import type { Clock } from "../../shared/index.js";
-import {
-  isMovementQuantity,
-  lotOfPurchaseLine,
-  movesBalance,
-  receiptMovement,
-} from "../../stock/index.js";
+import { isMovementQuantity } from "../../stock/index.js";
 import { hasProductSaleUnitChanged } from "../model/packaging.js";
-import { hasPurchaseLines, isPurchaseDateInFuture, type ReceiptType } from "../model/purchase.js";
+import {
+  hasPurchaseLines,
+  isPurchaseDateInFuture,
+  mayBePurchased,
+  mayBePurchasedFrom,
+  type ReceiptType,
+} from "../model/purchase.js";
 import { ONE_SALE_UNIT_QUANTITY, packagedQuantity } from "../model/purchase-line.js";
 import type {
   LockPackagingResult,
@@ -155,13 +156,13 @@ export async function registerPurchase(
     if (supplier.kind === "not_found") {
       return { kind: "supplier_not_found" };
     }
-    if (!supplier.supplier.active) {
+    if (!mayBePurchasedFrom(supplier.supplier)) {
       return { kind: "supplier_inactive" };
     }
 
     const products = new Map<string, LockProductResult>();
     for (const productId of sortedDistinct(input.lines.map((line) => line.productId))) {
-      products.set(productId, await tx.lockProduct(productId));
+      products.set(productId, await tx.holdPurchasedProduct(productId));
     }
     const lockedProducts: LockedProduct[] = [];
     for (const [lineIndex, line] of input.lines.entries()) {
@@ -169,7 +170,7 @@ export async function registerPurchase(
       if (!locked || locked.kind === "not_found") {
         return { kind: "product_not_found", lineIndex };
       }
-      if (!locked.product.active) {
+      if (!mayBePurchased(locked.product)) {
         return { kind: "product_inactive", lineIndex };
       }
       lockedProducts.push(locked.product);
@@ -191,10 +192,6 @@ export async function registerPurchase(
         return result;
       }
       resolved.push(result);
-    }
-
-    for (const productId of sortedDistinct(input.lines.map((line) => line.productId))) {
-      await tx.lockStockBalance({ productId, locationId: input.locationId });
     }
 
     const { id: purchaseId } = await tx.insertPurchase({
@@ -227,20 +224,25 @@ export async function registerPurchase(
         ...registered,
       });
 
-      const key = { productId: line.productId, locationId: input.locationId };
-      const coveringCount = await tx.earliestCountAtOrAfter(key, recordedAt);
-      const movement = receiptMovement(
-        { ...key, quantity, occurredAt: recordedAt, actorId: input.actorId, purchaseLineId: id },
-        coveringCount?.movementId ?? null,
-      );
-      await tx.recordReceiptMovement(movement);
-      if (movesBalance(movement)) {
-        await tx.addToStockBalance(key, quantity);
-      }
-      await tx.insertLot(lotOfPurchaseLine({ id, locationId: input.locationId, ...registered }));
-
       lines.push({ id, ...registered });
     }
+
+    await tx.receiveStock({
+      locationId: input.locationId,
+      occurredAt: recordedAt,
+      actorId: input.actorId,
+      lines: lines.map(
+        ({ id, productId, quantity, costPaidCents, quantityPerPackage, lotNumber, expiresOn }) => ({
+          purchaseLineId: id,
+          productId,
+          quantity,
+          costPaidCents,
+          quantityPerPackage,
+          lotNumber,
+          expiresOn,
+        }),
+      ),
+    });
 
     return {
       kind: "registered",

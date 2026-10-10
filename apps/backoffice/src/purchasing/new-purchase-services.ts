@@ -1,15 +1,11 @@
-import { fetchPackagings } from "./packagings-api";
-import { registerPurchase } from "./purchases-api";
-import { fetchSuppliers } from "./suppliers-api";
+import { fetchPurchaseChoices, registerPurchase } from "./purchases-api";
 
 export type NewPurchaseScreenServices = {
-  fetchSuppliers: typeof fetchSuppliers;
-  fetchPackagings: typeof fetchPackagings;
+  fetchPurchaseChoices: typeof fetchPurchaseChoices;
   registerPurchase: typeof registerPurchase;
 };
 
 export const defaultNewPurchaseScreenServices: NewPurchaseScreenServices = {
-  fetchSuppliers,
-  fetchPackagings,
+  fetchPurchaseChoices,
   registerPurchase,
 };

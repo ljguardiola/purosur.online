@@ -1,41 +1,18 @@
-import type { StockMovementKind } from "./stock-movement-kind.js";
-
-export interface ReceiptMovement {
-  productId: string;
-  locationId: string;
-  kind: Extract<StockMovementKind, "receipt">;
-  reason: null;
-  delta: number;
-  occurredAt: Date;
-  actorId: string;
+export interface ReceivedPurchaseLine {
   purchaseLineId: string;
-  supersededByCountId: string | null;
-}
-
-export interface ReceivedStock {
   productId: string;
-  locationId: string;
   quantity: number;
-  occurredAt: Date;
-  actorId: string;
-  purchaseLineId: string;
+  costPaidCents: number;
+  quantityPerPackage: number;
+  lotNumber: string | null;
+  expiresOn: string | null;
 }
 
-export function receiptMovement(
-  received: ReceivedStock,
-  coveringCountId: string | null,
-): ReceiptMovement {
-  return {
-    productId: received.productId,
-    locationId: received.locationId,
-    kind: "receipt",
-    reason: null,
-    delta: received.quantity,
-    occurredAt: received.occurredAt,
-    actorId: received.actorId,
-    purchaseLineId: received.purchaseLineId,
-    supersededByCountId: coveringCountId,
-  };
+export interface PurchaseReceipt {
+  locationId: string;
+  occurredAt: Date;
+  actorId: string;
+  lines: readonly ReceivedPurchaseLine[];
 }
 
 export function movesBalance(movement: { supersededByCountId: string | null }): boolean {

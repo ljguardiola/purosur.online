@@ -180,6 +180,8 @@ export type { PackagingEditBody } from "./purchasing/packaging-edit.js";
 export { packagingEditBodySchema } from "./purchasing/packaging-edit.js";
 export type { PackagingList, PackagingSummary } from "./purchasing/packaging-summary.js";
 export { packagingListSchema, packagingSummarySchema } from "./purchasing/packaging-summary.js";
+export type { PurchaseChoices } from "./purchasing/purchase-choices.js";
+export { purchaseChoicesSchema } from "./purchasing/purchase-choices.js";
 export type { PurchaseRegistrationBody } from "./purchasing/purchase-registration.js";
 export { purchaseRegistrationBodySchema } from "./purchasing/purchase-registration.js";
 export type { PurchaseSummary } from "./purchasing/purchase-summary.js";

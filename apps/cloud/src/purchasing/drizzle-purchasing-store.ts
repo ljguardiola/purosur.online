@@ -11,16 +11,15 @@ import {
   PackagingNameConflict,
   type PurchasingStore,
   type PurchasingStoreTransaction,
-  type StockBalanceKey,
   SupplierCuitConflict,
   type SupplierFields,
   SupplierNameConflict,
 } from "@purosur/domain/purchasing/use-cases";
+import { type PurchaseReceipt, receivePurchasedStock } from "@purosur/domain/stock/use-cases";
 import { and, eq, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import {
-  lots,
   productPackagings,
   products,
   purchaseLines,
@@ -29,9 +28,6 @@ import {
 } from "../platform/db/schema.js";
 import { DrizzleStockStoreTransaction } from "../stock/drizzle-stock-store.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
-
-type NewLot = Parameters<PurchasingStoreTransaction["insertLot"]>[0];
-type ReceiptMovement = Parameters<PurchasingStoreTransaction["recordReceiptMovement"]>[0];
 
 const UNIQUE_VIOLATION = "23505";
 const SUPPLIER_NAME_UNIQUE_INDEX = "suppliers_name_lower_key";
@@ -155,6 +151,17 @@ class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResultHKT>
       : { kind: "not_found" };
   }
 
+  async holdPurchasedProduct(productId: string): Promise<LockProductResult> {
+    const [product] = await this.tx
+      .select({ id: products.id, saleUnit: products.saleUnit, active: products.active })
+      .from(products)
+      .where(eq(products.id, productId))
+      .for("share");
+    return product
+      ? { kind: "locked", product: { ...product, saleUnit: product.saleUnit as SaleUnit } }
+      : { kind: "not_found" };
+  }
+
   async lockProductOfPackaging(packagingId: string): Promise<LockProductResult> {
     const [product] = await this.tx
       .select({ id: products.id, saleUnit: products.saleUnit, active: products.active })
@@ -255,27 +262,11 @@ class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResultHKT>
     return line;
   }
 
-  async lockStockBalance(key: StockBalanceKey): Promise<void> {
-    await this.stock.lockProductStock(key);
-  }
-
-  earliestCountAtOrAfter(
-    key: StockBalanceKey,
-    at: Date,
-  ): Promise<{ movementId: string } | undefined> {
-    return this.stock.earliestCountAtOrAfter(key, at);
-  }
-
-  async recordReceiptMovement(movement: ReceiptMovement): Promise<void> {
-    await this.stock.recordMovement(movement);
-  }
-
-  async addToStockBalance(key: StockBalanceKey, delta: number): Promise<void> {
-    await this.stock.addToBalance(key, delta);
-  }
-
-  async insertLot(lot: NewLot): Promise<void> {
-    await this.tx.insert(lots).values(lot);
+  async receiveStock(receipt: PurchaseReceipt): Promise<void> {
+    const outcome = await receivePurchasedStock(this.stock, receipt);
+    if (outcome.kind === "not_found") {
+      throw new Error(`the purchased product ${outcome.productId} vanished while it was held`);
+    }
   }
 }
 

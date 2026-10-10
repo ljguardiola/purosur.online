@@ -4,6 +4,7 @@ import {
   dataColumn,
   FloatingNotification,
   formatCents,
+  formatNumber,
   Table,
   useTableModel,
 } from "@purosur/ui";
@@ -51,9 +52,9 @@ function parentIdOf(row: PurchaseRow): string | null {
 
 function quantityOf(line: PurchaseLine): string {
   const quantity = formatStockQuantity(line.quantity, line.product.saleUnit);
-  return line.packaging === null
+  return line.packaging === null || line.packages === null
     ? quantity
-    : `${line.packages} × ${line.packaging.name} (${quantity})`;
+    : `${formatNumber(line.packages)} × ${line.packaging.name} (${quantity})`;
 }
 
 function saleUnitName(line: PurchaseLine): string {

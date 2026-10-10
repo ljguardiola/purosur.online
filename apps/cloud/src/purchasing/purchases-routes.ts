@@ -1,17 +1,21 @@
 import {
+  purchaseChoicesSchema,
   purchaseListSchema,
   purchaseRegistrationBodySchema,
   purchaseSummarySchema,
 } from "@purosur/contracts";
+import { PRODUCTS_PURCHASES_MAY_BE_REGISTERED_FOR } from "@purosur/domain";
 import {
   findPurchaseListing,
   type ListedPurchase,
+  listPurchaseChoices,
   listPurchases,
   type RegisterPurchaseOutcome,
   registerPurchase,
 } from "@purosur/domain/purchasing/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply } from "fastify";
+import { DrizzleCatalogListReader } from "../catalog/drizzle-catalog-list-reader.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { backofficeOriginGuard, sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
@@ -101,7 +105,7 @@ async function sendRefusal(reply: FastifyReply, refusal: Refusal): Promise<void>
     case "invalid_quantity":
       await reply.code(400).send({
         code: "validation_failed",
-        message: "a product sold by the unit is bought in whole units",
+        message: "the line's quantity is not one its product may be received in",
         details: lineDetails(refusal.lineIndex),
       });
       return;
@@ -116,6 +120,7 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
   registerRouteAccess(app);
   const ports = { store: new DrizzlePurchasingStore(options.db, now), clock: { now } };
   const reader = new DrizzlePurchasingListReader(options.db);
+  const catalog = new DrizzleCatalogListReader(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const config = { access: capabilityAccess("purchases"), sessionSource };
   const readGuard = { preHandler: sameOriginGuard(options.backofficeOrigin), config };
@@ -148,5 +153,19 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
       throw new Error("the purchase vanished after it was registered");
     }
     await reply.code(201).send(summaryOf(purchase));
+  });
+
+  app.get("/purchase-choices", readGuard, async (_request, reply) => {
+    const [choices, products] = await Promise.all([
+      listPurchaseChoices(reader),
+      catalog.products(PRODUCTS_PURCHASES_MAY_BE_REGISTERED_FOR),
+    ]);
+    await reply.code(200).send(
+      purchaseChoicesSchema.parse({
+        suppliers: choices.suppliers,
+        products: products.map(({ id, name, saleUnit }) => ({ id, name, saleUnit })),
+        packagings: choices.packagings,
+      }),
+    );
   });
 }
