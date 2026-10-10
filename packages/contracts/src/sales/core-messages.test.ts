@@ -716,6 +716,7 @@ describe("asking how a sale's receipt print stands", () => {
       "paper_out",
       "not_responding",
       "retry_offered",
+      "printer_not_configured",
       "failed",
       "printed",
     ].map((standing) => ({
@@ -767,6 +768,7 @@ describe("retrying a sale's receipt print", () => {
     { kind: "started", copy: { kind: "duplicate", order_number: 1 } },
     { kind: "started", copy: { kind: "original" } },
     { kind: "not_offered" },
+    { kind: "printer_not_configured" },
     { kind: "not_signed_in" },
     { kind: "lacks_permission" },
     { kind: "not_found" },
@@ -824,6 +826,7 @@ describe("reprinting a sale's receipt from the history", () => {
     { kind: "started", copy: { kind: "original" } },
     { kind: "busy" },
     { kind: "invalid_reason", max_length: 200 },
+    { kind: "printer_not_configured" },
     { kind: "not_found" },
     { kind: "not_signed_in" },
     { kind: "lacks_permission" },
