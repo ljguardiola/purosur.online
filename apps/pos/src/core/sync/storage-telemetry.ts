@@ -1,4 +1,5 @@
 import { stat, statfs } from "node:fs/promises";
+import { dirname } from "node:path";
 import type { StorageTelemetry } from "@purosur/domain";
 
 export interface StorageFileSystem {
@@ -32,7 +33,7 @@ export function storageTelemetryReader(
 ): () => Promise<StorageTelemetry> {
   return async () => {
     const walSizeBytes = await fileSystem.sizeOf(`${databasePath}-wal`);
-    const { availableBytes, totalBytes } = await fileSystem.capacityOf(databasePath);
+    const { availableBytes, totalBytes } = await fileSystem.capacityOf(dirname(databasePath));
     return {
       wal_size_bytes: walSizeBytes ?? 0,
       disk_free_bytes: availableBytes,

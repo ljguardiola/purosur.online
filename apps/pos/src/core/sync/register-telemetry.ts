@@ -1,7 +1,7 @@
 import {
   type RegisterTelemetry,
-  type SalesStopState,
   SALES_DENIED_FOR_DAMAGED_LOCAL_DATABASE,
+  type SalesStopState,
   type StorageTelemetry,
   salesDeniedReportOf,
 } from "@purosur/domain";

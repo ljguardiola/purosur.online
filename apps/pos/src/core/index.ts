@@ -99,6 +99,7 @@ import {
 import { pruneLocalOutbox } from "./sync/prune-local-outbox";
 import { pullFromCloud, pullResultOf } from "./sync/pull-from-cloud";
 import { pushDamagedRegisterReport } from "./sync/push-damaged-register-report";
+import { pushForRegisterService } from "./sync/push-for-register-service";
 import { pushResultOf, pushToCloud, pushWarningOf } from "./sync/push-to-cloud";
 import { damagedRegisterTelemetryReader, registerTelemetryReader } from "./sync/register-telemetry";
 import { SqliteAcceptedPushLog } from "./sync/sqlite-accepted-push-log";
@@ -235,35 +236,41 @@ const syncSchedule = createSyncSchedule({
             ? undefined
             : (path: string, bearerToken: string, body: unknown) =>
                 postToCloudWithBearer(cloudClient, path, bearerToken, body);
-        const attempt =
-          register.service.kind === "out_of_service" && localDatabasePath !== undefined
-            ? await pushDamagedRegisterReport({
-                readCredentials: () => mainRequests.readCredentials(),
-                post,
-                appVersion: appVersionFromCoreArguments(process.argv),
-                readTelemetry: damagedRegisterTelemetryReader(
-                  storageTelemetryReader(localDatabasePath, nodeStorageFileSystem),
-                ),
-              })
-            : await pushToCloud({
-                readCredentials: () => mainRequests.readCredentials(),
-                outbox: localOutbox,
-                installation: localInstallation,
-                adoptDevice: (device) => replica?.adoptDevice(device),
-                post,
-                appVersion: appVersionFromCoreArguments(process.argv),
-                readTelemetry:
-                  localDatabase === undefined
-                    ? undefined
-                    : registerTelemetryReader(
-                        storageTelemetryReader(localDatabase.name, nodeStorageFileSystem),
-                        () => salesStopOf(localDatabase),
-                      ),
-                acceptedPush:
-                  localDatabase === undefined
-                    ? undefined
-                    : { log: new SqliteAcceptedPushLog(localDatabase), clock: { now } },
-              });
+        const attempt = await pushForRegisterService({
+          service: register.service,
+          reportDamagedDatabase:
+            localDatabasePath === undefined
+              ? undefined
+              : () =>
+                  pushDamagedRegisterReport({
+                    readCredentials: () => mainRequests.readCredentials(),
+                    post,
+                    appVersion: appVersionFromCoreArguments(process.argv),
+                    readTelemetry: damagedRegisterTelemetryReader(
+                      storageTelemetryReader(localDatabasePath, nodeStorageFileSystem),
+                    ),
+                  }),
+          pushOutbox: () =>
+            pushToCloud({
+              readCredentials: () => mainRequests.readCredentials(),
+              outbox: localOutbox,
+              installation: localInstallation,
+              adoptDevice: (device) => replica?.adoptDevice(device),
+              post,
+              appVersion: appVersionFromCoreArguments(process.argv),
+              readTelemetry:
+                localDatabase === undefined
+                  ? undefined
+                  : registerTelemetryReader(
+                      storageTelemetryReader(localDatabase.name, nodeStorageFileSystem),
+                      () => salesStopOf(localDatabase),
+                    ),
+              acceptedPush:
+                localDatabase === undefined
+                  ? undefined
+                  : { log: new SqliteAcceptedPushLog(localDatabase), clock: { now } },
+            }),
+        });
         cloudReachability = nextCloudReachability(cloudReachability, attempt);
         const warning = pushWarningOf(attempt);
         if (warning !== undefined) {
