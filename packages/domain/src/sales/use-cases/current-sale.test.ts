@@ -1,5 +1,6 @@
+import { PENDING_QR_TRANSACTION } from "@purosur/domain/payments/test-support";
 import { describe, expect, it } from "vitest";
-import type { PaymentTransaction } from "../../payments/index.js";
+import type { SalePayment } from "../../payments/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { currentSale } from "./current-sale.js";
 import {
@@ -66,7 +67,7 @@ describe("currentSale", () => {
   });
 
   it("reports what the approved payments paid and what is still pending", () => {
-    const payment: PaymentTransaction = {
+    const payment: SalePayment = {
       id: "payment-1",
       saleId: "sale-1",
       kind: "SALE",
@@ -77,7 +78,7 @@ describe("currentSale", () => {
       state: "APPROVED",
       occurredAt: NOW,
     };
-    const elsewhere: PaymentTransaction = { ...payment, id: "payment-2", saleId: "sale-2" };
+    const elsewhere: SalePayment = { ...payment, id: "payment-2", saleId: "sale-2" };
 
     expect(read(ledger({ payments: [payment, elsewhere] }))).toMatchObject({
       kind: "open",
@@ -165,7 +166,7 @@ describe("current-sale charge refusal", () => {
   });
 
   it("tells nothing is refused once the sale has an approved payment, even when its total reaches the threshold", () => {
-    const payment: PaymentTransaction = {
+    const payment: SalePayment = {
       id: "payment-1",
       saleId: "sale-1",
       kind: "SALE",
@@ -184,6 +185,7 @@ describe("current-sale charge refusal", () => {
 
   it("answers the lines locked and the cancellation refused while a QR charge of the sale is in its wait", () => {
     const pending = {
+      ...PENDING_QR_TRANSACTION,
       id: "qr-1",
       saleId: "sale-1",
       amount: 5000,

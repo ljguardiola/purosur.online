@@ -47,6 +47,10 @@ export function recordPendingQrPayment(
     tx.recordPendingQrPayment({
       id: paymentTransactionId,
       saleId: sale.id,
+      kind: "SALE",
+      method: "QR",
+      provider: "MERCADOPAGO_QR",
+      state: "PENDING",
       amount: charge.applied,
       occurredAt,
       waitEndsAt,

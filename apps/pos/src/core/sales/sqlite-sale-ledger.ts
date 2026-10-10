@@ -5,10 +5,10 @@ import {
   discountsTargeting,
   nextOperationNumber,
   type OutboxEventDraft,
-  type PaymentTransaction,
   priceInEffectAt,
   type Sale,
   type SaleLine,
+  type SalePayment,
   type SaleUnit,
   type SearchableProduct,
 } from "@purosur/domain";
@@ -375,7 +375,7 @@ export class SqliteSaleLedger implements SaleLedger {
     this.database.prepare("DELETE FROM sales WHERE id = ?").run(saleId);
   }
 
-  private recordPayment(payment: PaymentTransaction): void {
+  private recordPayment(payment: SalePayment): void {
     this.database
       .prepare(
         `INSERT INTO payment_transactions (

@@ -1,8 +1,8 @@
-import type { ProviderPaymentTransaction } from "./payment-transaction.js";
+import type { MercadoPagoQrPaymentTransaction } from "./payment-transaction.js";
 
 export function qrPaymentIsBacked(
   payment: { saleId: string; amount: number },
-  transaction: Pick<ProviderPaymentTransaction, "saleId" | "amount" | "state"> | null,
+  transaction: Pick<MercadoPagoQrPaymentTransaction, "saleId" | "amount" | "state"> | null,
 ): boolean {
   return (
     transaction !== null &&

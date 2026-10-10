@@ -1,5 +1,5 @@
 import type { EventInvariantViolatedDetail, EventsQuarantinedDetail } from "../../alerts/index.js";
-import type { ProviderPaymentTransaction } from "../../payments/index.js";
+import type { MercadoPagoQrOrderTransaction } from "../../payments/index.js";
 import type { CompletedSale } from "../../sales/index.js";
 import type { Clock, JsonValue } from "../../shared/index.js";
 import type { HeldEventState } from "../model/next-event-to-apply.js";
@@ -27,7 +27,7 @@ export interface FailedAttempt {
 export type SaleStockApplication = { kind: "applied" } | { kind: "refused"; reason: string };
 
 export type ProviderTransactionOfPayment = Pick<
-  ProviderPaymentTransaction,
+  MercadoPagoQrOrderTransaction,
   "saleId" | "amount" | "state"
 >;
 

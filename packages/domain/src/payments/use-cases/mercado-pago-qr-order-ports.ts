@@ -1,8 +1,8 @@
 import type { Clock } from "../../shared/index.js";
 import type { MercadoPagoOrderResult } from "../model/mercado-pago-order-result.js";
 import type {
+  MercadoPagoQrOrderTransaction,
   PaymentTransactionState,
-  ProviderPaymentTransaction,
 } from "../model/payment-transaction.js";
 
 export class PaymentTransactionAlreadyRecorded extends Error {}
@@ -21,8 +21,8 @@ export interface PaymentTransactionLane {
   recordedTransaction(
     registerId: string,
     paymentTransactionId: string,
-  ): Promise<ProviderPaymentTransaction | null>;
-  recordPendingTransaction(transaction: ProviderPaymentTransaction): Promise<void>;
+  ): Promise<MercadoPagoQrOrderTransaction | null>;
+  recordPendingTransaction(transaction: MercadoPagoQrOrderTransaction): Promise<void>;
   recordCreationAttempt(paymentTransactionId: string, expiresAt: Date): Promise<void>;
   recordCreationCreatedNothing(paymentTransactionId: string): Promise<void>;
   recordNeedsReview(paymentTransactionId: string): Promise<void>;
