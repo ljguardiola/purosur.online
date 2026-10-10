@@ -7,10 +7,6 @@ import type { LocalDatabase } from "../platform/local-database";
 
 type OfflineDocumentType = typeof FACTURA_C_DOCUMENT_TYPE;
 
-const FISCAL_DOCUMENT_TYPE_OF: Record<OfflineDocumentType, string> = {
-  [FACTURA_C_DOCUMENT_TYPE]: "FACTURA_C",
-};
-
 export class SqliteOfflineNumbering {
   private readonly database: LocalDatabase;
 
@@ -40,7 +36,7 @@ export class SqliteOfflineNumbering {
         `SELECT max(number) AS last_number FROM fiscal_documents
          WHERE point_of_sale = ? AND document_type = ?`,
       )
-      .get(pointOfSale, FISCAL_DOCUMENT_TYPE_OF[documentType]);
+      .get(pointOfSale, documentType);
     return nextOfflineNumber(blocks, lastUsed?.last_number ?? null);
   }
 }
