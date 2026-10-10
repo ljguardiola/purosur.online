@@ -56,8 +56,6 @@ export type {
 } from "./model/offline-number-block.js";
 export {
   nextOfflineNumber,
-  nextOfflineNumberBlock,
-  OFFLINE_NUMBER_BLOCK_SIZE,
   OFFLINE_NUMBER_BLOCK_STATUSES,
 } from "./model/offline-number-block.js";
 export {
