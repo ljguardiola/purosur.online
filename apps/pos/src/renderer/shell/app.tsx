@@ -4,9 +4,11 @@ import type {
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
+  FollowMercadoPagoQrChargeOutcome,
   OpenCashSession,
   OpenCashSessionOutcome,
   SignInOutcome,
+  StartMercadoPagoQrChargeOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { LocaleProvider } from "@purosur/ui";
@@ -217,7 +219,12 @@ function Register({ core }: { core: CoreClient }) {
   }
 
   async function refreshAfterCharge(
-    kind: (ChargeSaleInCashOutcome | ChargeSaleByTransferOutcome)["kind"],
+    kind: (
+      | ChargeSaleInCashOutcome
+      | ChargeSaleByTransferOutcome
+      | StartMercadoPagoQrChargeOutcome
+      | FollowMercadoPagoQrChargeOutcome
+    )["kind"],
   ) {
     if (kind === "completed") {
       if (cashSession.status === "open" && person !== undefined) {
@@ -246,6 +253,18 @@ function Register({ core }: { core: CoreClient }) {
 
   async function chargeSaleByTransfer(saleId: string, amount: number) {
     const outcome = await core.chargeSaleByTransfer(saleId, amount);
+    await refreshAfterCharge(outcome.kind);
+    return outcome;
+  }
+
+  async function startMercadoPagoQrCharge(saleId: string, amount: number) {
+    const outcome = await core.startMercadoPagoQrCharge(saleId, amount);
+    await refreshAfterCharge(outcome.kind);
+    return outcome;
+  }
+
+  async function followMercadoPagoQrCharge(paymentTransactionId: string) {
+    const outcome = await core.followMercadoPagoQrCharge(paymentTransactionId);
     await refreshAfterCharge(outcome.kind);
     return outcome;
   }
@@ -311,6 +330,8 @@ function Register({ core }: { core: CoreClient }) {
     cashCharge: (saleId: string, tendered: number) => core.cashCharge(saleId, tendered),
     chargeSaleInCash,
     chargeSaleByTransfer,
+    startMercadoPagoQrCharge,
+    followMercadoPagoQrCharge,
     searchProducts: (query: string) => core.searchProducts(query),
     addProduct: (productId: string) => core.addProduct(productId),
     changeLineQuantity: (lineId: string, quantity: number, expectedQuantity: number) =>

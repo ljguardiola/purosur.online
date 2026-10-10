@@ -2,7 +2,23 @@ import { describe, expect, it } from "vitest";
 import type { PaymentTransaction } from "../../payments/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { cancelSale } from "./cancel-sale.js";
-import { FakeSaleLedger, type FakeSaleLedgerState } from "./test-support/fake-sale-ledger.js";
+import {
+  FakeSaleLedger,
+  type FakeSaleLedgerState,
+  FixedClock,
+} from "./test-support/fake-sale-ledger.js";
+
+const NOW = new Date("2026-10-09T12:00:00.000Z");
+
+function pendingQrEndingAt(waitEndsAt: Date) {
+  return {
+    id: "qr-1",
+    saleId: "sale-1",
+    amount: 1000,
+    occurredAt: new Date(waitEndsAt.getTime() - 180_000),
+    waitEndsAt,
+  };
+}
 
 const CASHIER = { isAdministrator: false, permissionKeys: ["sell_and_charge"] };
 const SESSION = { id: "session-1", openedBy: "cashier" };
@@ -54,7 +70,7 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
 }
 
 function cancel(store: FakeSaleLedger, actorId = "cashier") {
-  return cancelSale({ ledger: store }, { actorId });
+  return cancelSale({ ledger: store, clock: new FixedClock(NOW) }, { actorId });
 }
 
 describe("cancelSale", () => {
@@ -148,5 +164,27 @@ describe("cancelSale", () => {
 
     expect(() => cancel(store)).toThrow("discardOpenSale failed");
     expect(store.state).toEqual(before);
+  });
+});
+
+describe("cancelSale with a QR charge", () => {
+  it("refuses while the QR charge is in its wait, changing nothing", () => {
+    const store = ledger({
+      pendingQrPayments: [pendingQrEndingAt(new Date(NOW.getTime() + 60_000))],
+    });
+    const before = structuredClone(store.state);
+
+    expect(cancel(store)).toEqual({ kind: "qr_charge_in_progress" });
+    expect(store.state).toEqual(before);
+  });
+
+  it("keeps the sale, cancelled now, after the wait, so its pending QR payment stays known", () => {
+    const pending = pendingQrEndingAt(new Date(NOW.getTime() - 1));
+    const store = ledger({ pendingQrPayments: [pending] });
+
+    expect(cancel(store)).toEqual({ kind: "cancelled" });
+    expect(store.state.sales).toEqual([{ ...OPEN_SALE, state: "CANCELLED", occurredAt: NOW }]);
+    expect(store.state.pendingQrPayments).toEqual([pending]);
+    expect(store.state.outbox).toEqual([]);
   });
 });

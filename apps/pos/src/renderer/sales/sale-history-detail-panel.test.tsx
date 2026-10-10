@@ -76,6 +76,18 @@ describe("SaleHistoryDetailPanel", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
+  it("names a payment by Mercado Pago QR with its amount", async () => {
+    const { screen } = await renderPanel({
+      read: async () => ({
+        kind: "found",
+        detail: { ...FISCAL_SALE, payments: [{ method: "QR", amount: 3_070_000 }] },
+      }),
+    });
+
+    await expect.element(screen.getByText("QR de Mercado Pago", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("$ 30.700,00").first()).toBeVisible();
+  });
+
   it("says one line in the singular", async () => {
     const { screen } = await renderPanel({
       read: async () => ({ kind: "found", detail: { ...FISCAL_SALE, line_count: 1 } }),

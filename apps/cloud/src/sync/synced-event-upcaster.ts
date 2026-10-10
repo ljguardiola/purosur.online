@@ -15,8 +15,9 @@ type CompletedSalePayload = SyncedEventPayloads[
   | "sale_completed@1"
   | "sale_completed@2"
   | "sale_completed@3"
-  | "sale_completed@4"];
-type SalePayment = SyncedEventPayloads["sale_completed@1"]["payments"][number];
+  | "sale_completed@4"
+  | "sale_completed@5"];
+type SalePayment = SyncedEventPayloads["sale_completed@1" | "sale_completed@5"]["payments"][number];
 type CancelledSalePayload = SyncedEventPayloads["sale_cancelled@1"];
 
 function saleParts(payload: CompletedSalePayload | CancelledSalePayload) {
@@ -127,6 +128,14 @@ const FACT_OF: {
   "sale_completed@3": (payload) =>
     completedSale(payload, payload.occurred_at, payload.payments, payload.stock_movements, null),
   "sale_completed@4": (payload) =>
+    completedSale(
+      payload,
+      payload.occurred_at,
+      payload.payments,
+      payload.stock_movements,
+      payload.operation_number,
+    ),
+  "sale_completed@5": (payload) =>
     completedSale(
       payload,
       payload.occurred_at,

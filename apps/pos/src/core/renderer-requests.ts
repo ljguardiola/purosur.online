@@ -15,6 +15,7 @@ import type {
   CurrentSaleAnswer,
   EnrollmentOutcome,
   FirstPinCodeRequestOutcome,
+  FollowMercadoPagoQrChargeOutcome,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
   OpenCashSession,
@@ -36,6 +37,7 @@ import type {
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
+  StartMercadoPagoQrChargeOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey, RegisterService } from "@purosur/domain";
 import { isDatabaseDamage } from "./platform/database-damage";
@@ -78,6 +80,12 @@ export interface RendererRequestDeps {
     | undefined;
   chargeSaleByTransfer:
     | ((request: ChargeSaleByTransferRequest) => Promise<ChargeSaleByTransferOutcome>)
+    | undefined;
+  startMercadoPagoQrCharge:
+    | ((request: { saleId: string; amount: number }) => Promise<StartMercadoPagoQrChargeOutcome>)
+    | undefined;
+  followMercadoPagoQrCharge:
+    | ((request: { paymentTransactionId: string }) => Promise<FollowMercadoPagoQrChargeOutcome>)
     | undefined;
   searchProducts: ((query: string) => Promise<SearchProductsOutcome>) | undefined;
   addProduct: ((productId: string) => Promise<AddProductOutcome>) | undefined;
@@ -389,6 +397,30 @@ async function attemptChargeSaleInCash(
     return (await deps.chargeSaleInCash?.(request)) ?? { kind: "unavailable" };
   } catch (error) {
     deps.reportFailure("charging a sale in cash", error);
+    return { kind: "unavailable" };
+  }
+}
+
+async function attemptStartMercadoPagoQrCharge(
+  deps: RendererRequestDeps,
+  request: { saleId: string; amount: number },
+): Promise<StartMercadoPagoQrChargeOutcome> {
+  try {
+    return (await deps.startMercadoPagoQrCharge?.(request)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("starting a Mercado Pago QR charge", error);
+    return { kind: "unavailable" };
+  }
+}
+
+async function attemptFollowMercadoPagoQrCharge(
+  deps: RendererRequestDeps,
+  request: { paymentTransactionId: string },
+): Promise<FollowMercadoPagoQrChargeOutcome> {
+  try {
+    return (await deps.followMercadoPagoQrCharge?.(request)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("following a Mercado Pago QR charge", error);
     return { kind: "unavailable" };
   }
 }
@@ -710,6 +742,23 @@ export async function answerRendererRequest(
         outcome: await attemptChargeSaleByTransfer(deps, {
           saleId: message.sale_id,
           amount: message.amount,
+        }),
+      };
+    case "start-mercado-pago-qr-charge":
+      return {
+        type: "start-mercado-pago-qr-charge-result",
+        request_id: message.request_id,
+        outcome: await attemptStartMercadoPagoQrCharge(deps, {
+          saleId: message.sale_id,
+          amount: message.amount,
+        }),
+      };
+    case "follow-mercado-pago-qr-charge":
+      return {
+        type: "follow-mercado-pago-qr-charge-result",
+        request_id: message.request_id,
+        outcome: await attemptFollowMercadoPagoQrCharge(deps, {
+          paymentTransactionId: message.payment_transaction_id,
         }),
       };
     case "search-products":

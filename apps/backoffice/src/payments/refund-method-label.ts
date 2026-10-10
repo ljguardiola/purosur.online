@@ -5,6 +5,7 @@ type RefundMethod = PendingRefundsBody["refunds"][number]["method"];
 const REFUND_METHOD_LABELS = {
   CASH: "Efectivo",
   TRANSFER: "Transferencia",
+  QR: "QR de Mercado Pago",
 } satisfies Record<RefundMethod, string>;
 
 export function refundMethodLabel(method: RefundMethod): string {

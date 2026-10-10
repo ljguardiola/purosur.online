@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   comprobantePresentation,
   operationText,
+  paymentMethodName,
   paymentMethodsText,
   receiptCopyPresentation,
   saleStatePresentation,
@@ -43,8 +44,22 @@ describe("paymentMethodsText", () => {
     expect(paymentMethodsText(["TRANSFER", "CASH"])).toBe("Transferencia + Efectivo");
   });
 
+  it("names a Mercado Pago QR payment as QR", () => {
+    expect(paymentMethodsText(["QR", "CASH"])).toBe("QR + Efectivo");
+  });
+
   it("is a dash when the sale has no payment", () => {
     expect(paymentMethodsText([])).toBe("—");
+  });
+});
+
+describe("paymentMethodName", () => {
+  it.each([
+    ["CASH", "Efectivo"],
+    ["TRANSFER", "Transferencia"],
+    ["QR", "QR de Mercado Pago"],
+  ] as const)("names %s as %s", (method, name) => {
+    expect(paymentMethodName(method)).toBe(name);
   });
 });
 

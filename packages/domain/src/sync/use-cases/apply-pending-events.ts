@@ -1,4 +1,6 @@
 import type { EventQuarantineReason } from "../../alerts/index.js";
+import { qrPaymentIsBacked } from "../../payments/index.js";
+import type { CompletedSale } from "../../sales/index.js";
 import { afterFailedAttempt } from "../model/event-application-retry.js";
 import { nextEventToApply } from "../model/next-event-to-apply.js";
 import { type AggregateKey, dependenciesOf, invariantBreaksOf } from "../model/synced-fact.js";
@@ -67,6 +69,26 @@ function failureOf(error: unknown): Failure {
   };
 }
 
+async function requireQrPaymentsBacked(
+  tx: EventApplicationTransaction,
+  sale: CompletedSale,
+): Promise<void> {
+  for (const payment of sale.payments) {
+    if (
+      payment.method === "QR" &&
+      !qrPaymentIsBacked(
+        { saleId: sale.id, amount: payment.amount },
+        await tx.providerTransactionOfPayment(payment.id),
+      )
+    ) {
+      throw new EventRefused(
+        { kind: "not_recorded" },
+        `payment ${payment.id} is not backed by an approved Mercado Pago transaction of this sale and amount`,
+      );
+    }
+  }
+}
+
 async function applyEvent(
   ports: ApplyPendingEventsPorts,
   tx: EventApplicationTransaction,
@@ -86,6 +108,9 @@ async function applyEvent(
         `depends on ${aggregateType} ${aggregateId} not applied yet`,
       );
     }
+  }
+  if (fact.kind === "sale_completed") {
+    await requireQrPaymentsBacked(tx, fact.sale);
   }
   await tx.record(fact, event);
   if (fact.kind === "sale_completed" && fact.sale.stockMovements !== null) {

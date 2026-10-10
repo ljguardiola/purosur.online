@@ -1,4 +1,5 @@
 import type { EventInvariantViolatedDetail, EventsQuarantinedDetail } from "../../alerts/index.js";
+import type { ProviderPaymentTransaction } from "../../payments/index.js";
 import type { CompletedSale } from "../../sales/index.js";
 import type { Clock, JsonValue } from "../../shared/index.js";
 import type { HeldEventState } from "../model/next-event-to-apply.js";
@@ -25,10 +26,16 @@ export interface FailedAttempt {
 
 export type SaleStockApplication = { kind: "applied" } | { kind: "refused"; reason: string };
 
+export type ProviderTransactionOfPayment = Pick<
+  ProviderPaymentTransaction,
+  "saleId" | "amount" | "state"
+>;
+
 export interface EventApplicationTransaction {
   lockAggregate(key: AggregateKey): Promise<boolean>;
   unappliedEventsOf(key: AggregateKey): Promise<UnappliedEvent[]>;
   aggregateApplied(key: AggregateKey): Promise<boolean>;
+  providerTransactionOfPayment(paymentId: string): Promise<ProviderTransactionOfPayment | null>;
   record(fact: SyncedFact, event: UnappliedEvent): Promise<void>;
   applySaleStock(
     sale: CompletedSale,

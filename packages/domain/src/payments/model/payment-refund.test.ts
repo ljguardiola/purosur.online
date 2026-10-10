@@ -34,6 +34,22 @@ describe("plannedRefunds", () => {
     ]);
   });
 
+  it("leaves an approved Mercado Pago QR payment pending until a person confirms its refund", () => {
+    expect(
+      plannedRefunds([
+        { id: "pay-3", method: "QR", provider: "MERCADOPAGO_QR", amount: 900, state: "APPROVED" },
+      ]),
+    ).toEqual([
+      {
+        paymentId: "pay-3",
+        method: "QR",
+        provider: "MERCADOPAGO_QR",
+        amount: 900,
+        state: "PENDING",
+      },
+    ]);
+  });
+
   it("refunds each approved payment in full by its own method, in the order they were made", () => {
     expect(plannedRefunds([TRANSFER, CASH]).map(({ paymentId }) => paymentId)).toEqual([
       "pay-2",

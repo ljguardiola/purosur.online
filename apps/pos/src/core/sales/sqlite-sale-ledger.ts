@@ -27,7 +27,13 @@ import {
   readIssuerIdentificationInEffect,
 } from "../fiscal/sqlite-pre-emission-gate";
 import { decideSaleAuthorizationIn } from "../fiscal/sqlite-sale-authorization";
-import { readSalePayments } from "../payments/sqlite-sale-payments";
+import {
+  approvePendingQrPayment,
+  insertPendingQrPayment,
+  readPendingQrPayment,
+  readPendingQrPaymentsOf,
+  readSalePayments,
+} from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
 import { insertCashMovement, readMovementsOf } from "../register/sqlite-cash-ledger";
 import type { SignInStore } from "../sessions/sqlite-sign-in-store";
@@ -97,6 +103,12 @@ export class SqliteSaleLedger implements SaleLedger {
       salePayments: (saleId) => readSalePayments(this.database, saleId),
       discardOpenSale: (saleId) => this.discardOpenSale(saleId),
       recordPayment: (payment) => this.recordPayment(payment),
+      recordPendingQrPayment: (payment) => insertPendingQrPayment(this.database, payment),
+      pendingQrPayment: (paymentTransactionId) =>
+        readPendingQrPayment(this.database, paymentTransactionId),
+      pendingQrPaymentsOf: (saleId) => readPendingQrPaymentsOf(this.database, saleId),
+      approvePendingQrPayment: (paymentTransactionId) =>
+        approvePendingQrPayment(this.database, paymentTransactionId),
       saleCashMovements: (saleId) => readMovementsOf(this.database, { type: "sale", id: saleId }),
       recordCashMovement: (movement) => insertCashMovement(this.database, movement),
       recordSaleStockMovement: (movement) => insertSaleStockMovement(this.database, movement),

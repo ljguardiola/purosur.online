@@ -6,6 +6,7 @@ import type {
   ChangeLineQuantityOutcome,
   CurrentSaleAnswer,
   FoundProduct,
+  OpenSale,
   RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
@@ -36,6 +37,7 @@ import { ProductSearchResults, searchOptionId } from "./product-search-results";
 import { SaleLines } from "./sale-lines";
 import {
   useCurrentSaleQuery,
+  useReadCurrentSale,
   useResetCurrentSale,
   useSearchProducts,
   useTakeSale,
@@ -76,7 +78,10 @@ type SaleEditFailure = Extract<
 
 const LETTER = /\p{L}/u;
 
-const LOCKED_REASON = "La venta ya no se puede cambiar porque tiene un pago aprobado.";
+const LOCKED_REASONS: Record<NonNullable<OpenSale["lines_lock"]>, string> = {
+  approved_payment: "La venta ya no se puede cambiar porque tiene un pago aprobado.",
+  qr_charge_in_progress: "Hay un cobro con QR en curso. Esperá a que termine.",
+};
 
 function focusScanField(form: HTMLFormElement | null) {
   form?.querySelector("input")?.focus();
@@ -109,6 +114,7 @@ export function SaleScreen({
   const current = useCurrentSaleQuery({ sessionId, userId: person.user_id, read: currentSale });
   const takeSale = useTakeSale(sessionId, person.user_id);
   const resetCurrentSale = useResetCurrentSale(sessionId, person.user_id);
+  const readCurrentSale = useReadCurrentSale(sessionId, person.user_id, currentSale);
   const search = useSearchProducts(searchProducts);
   const [changed, setChanged] = useState<string>();
   const [code, setCode] = useState("");
@@ -291,6 +297,7 @@ export function SaleScreen({
         break;
       case "not_permitted":
       case "has_approved_payment":
+      case "qr_charge_in_progress":
         setProblem(outcome);
         break;
       case "sale_has_payments":
@@ -343,13 +350,28 @@ export function SaleScreen({
 
   const answer = current.status === "loaded" ? current.value : undefined;
   const sale = answer === undefined || answer === "not_permitted" ? null : answer;
-  const editable = sale?.lines_editable ?? true;
+  const linesLock = sale?.lines_lock ?? null;
+  const editable = linesLock === null;
   const notPermitted = messageFor({ kind: "not_permitted" });
   const shownProblem =
     answer === "not_permitted" && problem?.kind === "not_permitted" ? undefined : problem;
-  const lockedReason = editable ? undefined : LOCKED_REASON;
+  const lockedReason = linesLock === null ? undefined : LOCKED_REASONS[linesLock];
   const refundsOnCancel = sale?.refunds_on_cancel ?? [];
-  const cancelWithRefunds = refundsOnCancel.length > 0;
+
+  async function askToCancelSale() {
+    const asked = sale?.cancel_refusal === null ? sale : await readCurrentSale();
+    if (asked === "unavailable") {
+      setProblem({ kind: "cancel_failed" });
+    } else if (asked === null || asked === "not_permitted") {
+      setProblem(undefined);
+    } else if (asked.cancel_refusal !== null) {
+      setProblem({ kind: asked.cancel_refusal });
+    } else if (asked.refunds_on_cancel.length > 0) {
+      askToCancelPaid(true);
+    } else {
+      askToCancel(true);
+    }
+  }
 
   return (
     <div className="flex h-full w-full bg-surface-subtle">
@@ -432,13 +454,11 @@ export function SaleScreen({
         total={sale?.total ?? 0}
         paid={sale?.paid ?? 0}
         pending={sale?.pending ?? 0}
-        cancellable={
-          answer !== undefined && (sale === null || sale.cancellable || cancelWithRefunds)
-        }
+        cancellable={answer !== undefined}
         chargeRefusal={sale?.charge_refusal ?? null}
         canCancel={sale !== null && !editing}
         onCharge={() => void navigate({ to: "/charge" })}
-        onCancel={() => (cancelWithRefunds ? askToCancelPaid(true) : askToCancel(true))}
+        onCancel={() => void askToCancelSale()}
       />
       <CancelSaleModal
         open={confirmingCancel}

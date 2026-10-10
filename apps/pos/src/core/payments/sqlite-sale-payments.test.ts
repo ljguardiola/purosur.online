@@ -42,6 +42,14 @@ function addTransfer(id: string, saleId: string, amount: number): void {
     .run(id, saleId, amount, CONFIRMED_AT.toISOString(), OCCURRED_AT.toISOString());
 }
 
+function addQrPayment(id: string, saleId: string, amount: number, state: string): void {
+  database
+    .prepare(
+      "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at) VALUES (?, ?, 'SALE', 'QR', 'MERCADOPAGO_QR', ?, ?, ?, ?)",
+    )
+    .run(id, saleId, amount, state, OCCURRED_AT.toISOString(), CONFIRMED_AT.toISOString());
+}
+
 beforeEach(() => {
   database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
   addSession();
@@ -103,6 +111,35 @@ describe("the payments of a sale", () => {
     });
     expect(payment).not.toHaveProperty("tendered");
   });
+
+  it("read back an approved Mercado Pago QR payment with nothing tendered nor confirmed", () => {
+    addQrPayment("payment-1", "sale-1", 1500, "APPROVED");
+
+    const [payment] = readSalePayments(database, "sale-1");
+
+    expect(payment).toEqual({
+      id: "payment-1",
+      saleId: "sale-1",
+      kind: "SALE",
+      method: "QR",
+      provider: "MERCADOPAGO_QR",
+      amount: 1500,
+      state: "APPROVED",
+      occurredAt: OCCURRED_AT,
+    });
+  });
+
+  it.each(["PENDING", "DECLINED", "CANCELLED", "EXPIRED"])(
+    "leave out a Mercado Pago QR payment that is %s",
+    (state) => {
+      addPayment("payment-1", "sale-1", 1500, null);
+      addQrPayment("payment-2", "sale-1", 900, state);
+
+      expect(readSalePayments(database, "sale-1").map((payment) => payment.id)).toEqual([
+        "payment-1",
+      ]);
+    },
+  );
 
   it("come in the order they were recorded", () => {
     addPayment("payment-b", "sale-1", 1000, null);

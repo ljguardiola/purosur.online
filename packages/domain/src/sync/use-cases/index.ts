@@ -23,6 +23,7 @@ export type {
   EventApplicationTransaction,
   EventUpcaster,
   FailedAttempt,
+  ProviderTransactionOfPayment,
   SaleStockApplication,
   UnappliedEvent,
 } from "./event-application-ports.js";

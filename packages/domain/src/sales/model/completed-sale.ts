@@ -15,7 +15,7 @@ export interface CompletedSaleLine {
 
 export interface CompletedSalePayment {
   id: string;
-  method: "CASH" | "TRANSFER";
+  method: "CASH" | "TRANSFER" | "QR";
   provider: string;
   amount: number;
   tendered: number | null;

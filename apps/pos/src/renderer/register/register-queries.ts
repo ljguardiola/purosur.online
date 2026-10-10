@@ -159,6 +159,20 @@ export function useSessionOpenSaleQuery(
   return useCoreQuery({ queryKey: registerKeys.openSale(sessionId), read });
 }
 
+export function useReadSessionOpenSale(
+  sessionId: string,
+  read: () => Promise<SessionOpenSale | null | "unavailable">,
+): () => Promise<SessionOpenSale | null | "unavailable"> {
+  const queryClient = useQueryClient();
+  return () =>
+    queryClient
+      .fetchQuery({
+        ...coreQueryOptions({ queryKey: registerKeys.openSale(sessionId), read }),
+        staleTime: 0,
+      })
+      .catch((): "unavailable" => "unavailable");
+}
+
 export function useRefreshSessionOpenSale(sessionId: string): () => Promise<void> {
   const queryClient = useQueryClient();
   return () => {

@@ -163,6 +163,31 @@ describe("CancelLockedPaidSaleModal", () => {
     expect(onCancelled).not.toHaveBeenCalled();
   });
 
+  it.each<[string, CancelLockedSaleOutcome, string]>([
+    [
+      "a QR charge is still waiting",
+      { kind: "qr_charge_in_progress" },
+      "Hay un cobro con QR en curso. Esperá a que termine para cancelar la venta.",
+    ],
+    [
+      "the sale holds a QR payment",
+      { kind: "holds_qr_payment" },
+      "La venta tiene un pago con QR: todavía no se puede anular desde la caja.",
+    ],
+  ])("keeps the modal open and says why when %s", async (_case, outcome, notice) => {
+    const { dialog, onClose, onRefused, onCancelled } = await renderModal({
+      cancelSale: async () => outcome,
+    });
+
+    await dialog.getByRole("button", { name: "Cancelar la venta" }).click();
+
+    await expect.element(dialog.getByRole("alert")).toHaveTextContent(notice);
+    await expect.element(dialog.getByRole("button", { name: "Volver" })).toBeEnabled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onRefused).not.toHaveBeenCalled();
+    expect(onCancelled).not.toHaveBeenCalled();
+  });
+
   it.each<[string, CancelSale]>([
     ["the core is unavailable", async () => ({ kind: "unavailable" })],
     ["the request fails", () => Promise.reject(new Error("the core connection was replaced"))],
