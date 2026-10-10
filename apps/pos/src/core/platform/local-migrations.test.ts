@@ -868,6 +868,7 @@ describe("the register's local migrations", () => {
         "0024_stock_ledger",
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
+        "0029_register_offline_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -921,6 +922,7 @@ describe("the register's local migrations", () => {
         "0024_stock_ledger",
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
+        "0029_register_offline_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -969,6 +971,7 @@ describe("the register's local migrations", () => {
         "0024_stock_ledger",
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
+        "0029_register_offline_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1016,6 +1019,7 @@ describe("the register's local migrations", () => {
         "0024_stock_ledger",
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
+        "0029_register_offline_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1090,6 +1094,7 @@ describe("the register's local migrations", () => {
         "0024_stock_ledger",
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
+        "0029_register_offline_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1156,6 +1161,7 @@ describe("the register's local migrations", () => {
         "0024_stock_ledger",
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
+        "0029_register_offline_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1226,6 +1232,7 @@ describe("the register's local migrations", () => {
         "0024_stock_ledger",
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
+        "0029_register_offline_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1279,6 +1286,7 @@ describe("the register's local migrations", () => {
         "0024_stock_ledger",
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
+        "0029_register_offline_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1324,6 +1332,7 @@ describe("the register's local migrations", () => {
         "0024_stock_ledger",
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
+        "0029_register_offline_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1370,6 +1379,7 @@ describe("the register's local migrations", () => {
         "0024_stock_ledger",
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
+        "0029_register_offline_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1422,6 +1432,7 @@ describe("the register's local migrations", () => {
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
+        "0029_register_offline_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1468,6 +1479,7 @@ describe("the register's local migrations", () => {
       expect(previous.at(-1)?.name).toBe("0025_last_accepted_push");
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0026_pulled_stock_movements",
+        "0029_register_offline_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
