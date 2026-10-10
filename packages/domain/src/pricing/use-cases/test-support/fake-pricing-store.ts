@@ -9,6 +9,8 @@ import type {
   PriceConfirmation,
   PricingStore,
   PricingStoreTransaction,
+  PriceReviewPostponementsResolution,
+  RecordedPriceReview,
 } from "../pricing-store.js";
 
 export interface FakeBranchRow {
@@ -29,19 +31,33 @@ export interface FakePriceRow {
   validFrom: Date;
 }
 
+export interface FakeReviewRow extends NewPriceReview {
+  id: string;
+}
+
+export interface FakePostponementRow {
+  id: string;
+  productId: string;
+  priceListId: string;
+  resolvedByReviewId: string | null;
+}
+
 export interface FakePriceState {
   branches: FakeBranchRow[];
   products: FakeProductRow[];
   prices: FakePriceRow[];
-  reviews: NewPriceReview[];
+  reviews: FakeReviewRow[];
+  postponements: FakePostponementRow[];
   priceChanges: PriceChange[];
   priceConfirmations: PriceConfirmation[];
   nextId: number;
+  nextReviewId: number;
 }
 
 type WriteOperation =
   | "recordPrice"
   | "recordPriceReview"
+  | "resolvePriceReviewPostponements"
   | "recordPriceChange"
   | "recordPriceConfirmation";
 
@@ -51,6 +67,7 @@ function cloneState(state: FakePriceState): FakePriceState {
     products: state.products.map((row) => ({ ...row })),
     prices: state.prices.map((row) => ({ ...row, validFrom: new Date(row.validFrom) })),
     reviews: state.reviews.map((row) => ({ ...row, reviewedAt: new Date(row.reviewedAt) })),
+    postponements: state.postponements.map((row) => ({ ...row })),
     priceChanges: state.priceChanges.map((row) => ({
       ...row,
       previous: row.previous && { ...row.previous },
@@ -58,6 +75,7 @@ function cloneState(state: FakePriceState): FakePriceState {
     })),
     priceConfirmations: state.priceConfirmations.map((row) => ({ ...row })),
     nextId: state.nextId,
+    nextReviewId: state.nextReviewId,
   };
 }
 
@@ -111,9 +129,26 @@ class FakePricingStoreTransaction implements PricingStoreTransaction {
     return { id, unitPrice: price.unitPrice, validFrom: price.validFrom };
   }
 
-  async recordPriceReview(review: NewPriceReview): Promise<void> {
+  async recordPriceReview(review: NewPriceReview): Promise<RecordedPriceReview> {
     this.beforeWrite("recordPriceReview");
-    this.state.reviews.push({ ...review });
+    const id = `review-${this.state.nextReviewId++}`;
+    this.state.reviews.push({ id, ...review });
+    return { id };
+  }
+
+  async resolvePriceReviewPostponements(
+    resolution: PriceReviewPostponementsResolution,
+  ): Promise<void> {
+    this.beforeWrite("resolvePriceReviewPostponements");
+    for (const row of this.state.postponements) {
+      if (
+        row.productId === resolution.productId &&
+        row.priceListId === resolution.priceListId &&
+        row.resolvedByReviewId === null
+      ) {
+        row.resolvedByReviewId = resolution.reviewId;
+      }
+    }
   }
 
   async recordPriceChange(change: PriceChange): Promise<void> {
@@ -140,9 +175,11 @@ export class FakePricingStore implements PricingStore {
     products: [],
     prices: [],
     reviews: [],
+    postponements: [],
     priceChanges: [],
     priceConfirmations: [],
     nextId: 1,
+    nextReviewId: 1,
   };
 
   failingWrites = new Set<WriteOperation>();
@@ -162,7 +199,15 @@ export class FakePricingStore implements PricingStore {
   }
 
   seedReview(review: NewPriceReview): void {
-    this.state.reviews.push({ ...review });
+    this.state.reviews.push({ id: `review-${this.state.nextReviewId++}`, ...review });
+  }
+
+  seedPostponement(
+    postponement: Omit<FakePostponementRow, "resolvedByReviewId"> & {
+      resolvedByReviewId?: string;
+    },
+  ): void {
+    this.state.postponements.push({ resolvedByReviewId: null, ...postponement });
   }
 
   snapshot(): FakePriceState {
