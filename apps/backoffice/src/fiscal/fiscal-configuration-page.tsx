@@ -2,6 +2,7 @@ import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 import { useDocumentTitle } from "../shell/document-title";
 import { FiscalConfigurationScreen } from "./fiscal-configuration-screen";
+import { defaultFiscalConfigurationScreenServices } from "./fiscal-configuration-services";
 
 const route = getRouteApi("/signed-in/cash-and-fiscal-area/fiscal-settings");
 
@@ -11,7 +12,7 @@ export function FiscalConfigurationPage(): ReactElement {
   return (
     <FiscalConfigurationScreen
       onSessionEnded={sessionActions.sessionEnded}
-      services={services.fiscalConfigurationScreen}
+      services={services.fiscalConfigurationScreen ?? defaultFiscalConfigurationScreenServices}
     />
   );
 }

@@ -1,125 +1,42 @@
 import { FieldSizeProvider, LocaleProvider } from "@purosur/ui";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import {
-  type AlertsListScreenServices,
-  defaultAlertsListScreenServices,
-} from "../alerts/alerts-list-services";
-import {
-  type BranchSettingsScreenServices,
-  defaultBranchSettingsScreenServices,
-} from "../branch/branch-settings-services";
-import {
-  type BrandsListScreenServices,
-  defaultBrandsListScreenServices,
-} from "../catalog/brands-list-services";
-import {
-  type CategoriesListScreenServices,
-  defaultCategoriesListScreenServices,
-} from "../catalog/categories-list-services";
-import {
-  defaultProductsListScreenServices,
-  type ProductsListScreenServices,
-} from "../catalog/products-list-services";
-import {
-  defaultTagsListScreenServices,
-  type TagsListScreenServices,
-} from "../catalog/tags-list-services";
-import {
-  type AccountRecoveryScreenServices,
-  defaultAccountRecoveryScreenServices,
-} from "../credentials/account-recovery-services";
-import {
-  defaultMyAccountScreenServices,
-  type MyAccountScreenServices,
-} from "../credentials/my-account-services";
-import {
-  defaultRegisterPasskeyScreenServices,
-  type RegisterPasskeyScreenServices,
-} from "../credentials/register-passkey-services";
-import {
-  defaultUserCredentialSectionsServices,
-  type UserCredentialSectionsServices,
-} from "../credentials/user-credential-sections-services";
-import {
-  defaultFiscalConfigurationScreenServices,
-  type FiscalConfigurationScreenServices,
-} from "../fiscal/fiscal-configuration-services";
-import {
-  defaultPointsOfSaleScreenServices,
-  type PointsOfSaleScreenServices,
-} from "../fiscal/points-of-sale-services";
+import { type ComponentType, useEffect, useState } from "react";
+import type { AlertsListScreenServices } from "../alerts/alerts-list-services";
+import type { BranchSettingsScreenServices } from "../branch/branch-settings-services";
+import type { BrandsListScreenServices } from "../catalog/brands-list-services";
+import type { CategoriesListScreenServices } from "../catalog/categories-list-services";
+import type { ProductsListScreenServices } from "../catalog/products-list-services";
+import type { TagsListScreenServices } from "../catalog/tags-list-services";
+import type { AccountRecoveryScreenServices } from "../credentials/account-recovery-services";
+import type { MyAccountScreenServices } from "../credentials/my-account-services";
+import type { RegisterPasskeyScreenServices } from "../credentials/register-passkey-services";
+import type { UserCredentialSectionsServices } from "../credentials/user-credential-sections-services";
+import type { FiscalConfigurationScreenServices } from "../fiscal/fiscal-configuration-services";
+import type { PointsOfSaleScreenServices } from "../fiscal/points-of-sale-services";
 import type { BackofficeHelpCatalog } from "../help/help-catalog";
-import {
-  defaultPendingRefundsScreenServices,
-  type PendingRefundsScreenServices,
-} from "../payments/pending-refunds-services";
-import {
-  defaultRolesListScreenServices,
-  type RolesListScreenServices,
-} from "../permissions/roles-list-services";
+import type { PendingRefundsScreenServices } from "../payments/pending-refunds-services";
+import type { RolesListScreenServices } from "../permissions/roles-list-services";
 import { createQueryClient } from "../platform/query-client";
-import {
-  type DiscountsListScreenServices,
-  defaultDiscountsListScreenServices,
-} from "../pricing/discounts-list-services";
-import {
-  defaultPricesListScreenServices,
-  type PricesListScreenServices,
-} from "../pricing/prices-list-services";
-import {
-  defaultNewPurchaseScreenServices,
-  type NewPurchaseScreenServices,
-} from "../purchasing/new-purchase-services";
-import {
-  defaultPackagingsListScreenServices,
-  type PackagingsListScreenServices,
-} from "../purchasing/packagings-list-services";
-import {
-  defaultPurchasesListScreenServices,
-  type PurchasesListScreenServices,
-} from "../purchasing/purchases-list-services";
-import {
-  defaultSuppliersListScreenServices,
-  type SuppliersListScreenServices,
-} from "../purchasing/suppliers-list-services";
-import {
-  defaultRegistersListScreenServices,
-  type RegistersListScreenServices,
-} from "../register/registers-list-services";
-import {
-  defaultSalesByDayScreenServices,
-  type SalesByDayScreenServices,
-} from "../sales/sales-by-day-services";
+import type { DiscountsListScreenServices } from "../pricing/discounts-list-services";
+import type { PricesListScreenServices } from "../pricing/prices-list-services";
+import type { NewPurchaseScreenServices } from "../purchasing/new-purchase-services";
+import type { PackagingsListScreenServices } from "../purchasing/packagings-list-services";
+import type { PurchasesListScreenServices } from "../purchasing/purchases-list-services";
+import type { SuppliersListScreenServices } from "../purchasing/suppliers-list-services";
+import type { RegistersListScreenServices } from "../register/registers-list-services";
+import type { SalesByDayScreenServices } from "../sales/sales-by-day-services";
 import { checkSessionStatus, fetchSession, type SessionOutcome } from "../sessions/session-api";
-import {
-  defaultSignInScreenServices,
-  type SignInScreenServices,
-} from "../sessions/sign-in-services";
-import {
-  defaultStockBalancesScreenServices,
-  type StockBalancesScreenServices,
-} from "../stock/stock-balances-services";
-import {
-  defaultStockCountsScreenServices,
-  type StockCountsScreenServices,
-} from "../stock/stock-counts-services";
-import {
-  defaultStockMovementsScreenServices,
-  type StockMovementsScreenServices,
-} from "../stock/stock-movements-services";
-import {
-  defaultUserDetailScreenServices,
-  type UserDetailPageServices,
-} from "../users/user-detail-services";
-import {
-  defaultUsersListScreenServices,
-  type UsersListScreenServices,
-} from "../users/users-list-services";
+import type { SignInScreenServices } from "../sessions/sign-in-services";
+import type { StockBalancesScreenServices } from "../stock/stock-balances-services";
+import type { StockCountsScreenServices } from "../stock/stock-counts-services";
+import type { StockMovementsScreenServices } from "../stock/stock-movements-services";
+import type { UserCredentialSectionsProps } from "../users/user-detail-screen";
+import type { UserDetailScreenServices } from "../users/user-detail-services";
+import type { UsersListScreenServices } from "../users/users-list-services";
 import { type AccountFooterServices, defaultAccountFooterServices } from "./account-footer";
 import { createAppRouter } from "./app-router";
-import { defaultHomeScreenServices, type HomeScreenServices } from "./home-screen-services";
+import type { HomeScreenServices } from "./home-screen-services";
 import { lazyScreen } from "./lazy-screen";
 import {
   SessionCheckPendingContext,
@@ -139,7 +56,8 @@ export type AppServices = {
   registerPasskeyScreen: RegisterPasskeyScreenServices;
   myAccountScreen: MyAccountScreenServices;
   usersListScreen: UsersListScreenServices;
-  userDetailScreen: UserDetailPageServices;
+  userDetailScreen: UserDetailScreenServices;
+  userDetailCredentialSections: ComponentType<UserCredentialSectionsProps>;
   userCredentialSections: UserCredentialSectionsServices;
   rolesListScreen: RolesListScreenServices;
   registersListScreen: RegistersListScreenServices;
@@ -167,46 +85,25 @@ export type AppServices = {
   alertsListScreen: AlertsListScreenServices;
 };
 
-const defaultAppServices: AppServices = {
+type ShellServiceName =
+  | "fetchSession"
+  | "checkSessionStatus"
+  | "userDetailCredentialSections"
+  | "accountFooter"
+  | "screenFailure";
+
+export type RouteServices = Pick<AppServices, ShellServiceName> &
+  Partial<Omit<AppServices, ShellServiceName>>;
+
+const defaultRouteServices: RouteServices = {
   fetchSession,
   checkSessionStatus,
-  signInScreen: defaultSignInScreenServices,
-  accountRecoveryScreen: defaultAccountRecoveryScreenServices,
-  registerPasskeyScreen: defaultRegisterPasskeyScreenServices,
-  myAccountScreen: defaultMyAccountScreenServices,
-  usersListScreen: defaultUsersListScreenServices,
-  userDetailScreen: {
-    ...defaultUserDetailScreenServices,
-    credentialSections: lazyScreen(
-      () => import("../credentials/user-credential-sections"),
-      "UserCredentialSections",
-    ),
-  },
-  userCredentialSections: defaultUserCredentialSectionsServices,
-  rolesListScreen: defaultRolesListScreenServices,
-  registersListScreen: defaultRegistersListScreenServices,
-  branchSettingsScreen: defaultBranchSettingsScreenServices,
-  categoriesListScreen: defaultCategoriesListScreenServices,
-  brandsListScreen: defaultBrandsListScreenServices,
-  tagsListScreen: defaultTagsListScreenServices,
-  productsListScreen: defaultProductsListScreenServices,
-  pricesListScreen: defaultPricesListScreenServices,
-  discountsListScreen: defaultDiscountsListScreenServices,
-  salesByDayScreen: defaultSalesByDayScreenServices,
-  pendingRefundsScreen: defaultPendingRefundsScreenServices,
-  stockBalancesScreen: defaultStockBalancesScreenServices,
-  stockCountsScreen: defaultStockCountsScreenServices,
-  stockMovementsScreen: defaultStockMovementsScreenServices,
-  suppliersListScreen: defaultSuppliersListScreenServices,
-  packagingsListScreen: defaultPackagingsListScreenServices,
-  purchasesListScreen: defaultPurchasesListScreenServices,
-  newPurchaseScreen: defaultNewPurchaseScreenServices,
-  fiscalConfigurationScreen: defaultFiscalConfigurationScreenServices,
-  pointsOfSaleScreen: defaultPointsOfSaleScreenServices,
+  userDetailCredentialSections: lazyScreen(
+    () => import("../credentials/user-credential-sections"),
+    "UserCredentialSections",
+  ),
   accountFooter: defaultAccountFooterServices,
   screenFailure: defaultScreenFailureServices,
-  homeScreen: defaultHomeScreenServices,
-  alertsListScreen: defaultAlertsListScreenServices,
 };
 
 export type AppProps = {
@@ -245,7 +142,7 @@ const BEFORE_SESSION_CHECK: SettledSession = { kind: "signed-out", notice: undef
 
 type SessionControlOptions = {
   help: BackofficeHelpCatalog;
-  services: AppServices;
+  services: RouteServices;
   reportError: (error: unknown) => void;
   queryClient: ReturnType<typeof createQueryClient>;
   setSession: (next: SessionState) => void;
@@ -351,7 +248,8 @@ export function App(props: AppProps) {
   );
 }
 
-function AppContent({ help, services = defaultAppServices, reportError = () => {} }: AppProps) {
+function AppContent({ help, services: givenServices, reportError = () => {} }: AppProps) {
+  const services: RouteServices = givenServices ?? defaultRouteServices;
   const [session, setSession] = useState<SessionState>({ kind: "loading" });
   const [routerStarted, setRouterStarted] = useState(false);
   const [queryClient] = useState(createQueryClient);

@@ -2,6 +2,7 @@ import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 import { useDocumentTitle } from "../shell/document-title";
 import { BranchSettingsScreen } from "./branch-settings-screen";
+import { defaultBranchSettingsScreenServices } from "./branch-settings-services";
 
 const route = getRouteApi("/signed-in/settings-area/location-settings");
 
@@ -11,7 +12,7 @@ export function BranchSettingsPage(): ReactElement {
   return (
     <BranchSettingsScreen
       onSessionEnded={sessionActions.sessionEnded}
-      services={services.branchSettingsScreen}
+      services={services.branchSettingsScreen ?? defaultBranchSettingsScreenServices}
     />
   );
 }

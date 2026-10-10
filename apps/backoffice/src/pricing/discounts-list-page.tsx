@@ -2,6 +2,7 @@ import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 import { useDocumentTitle } from "../shell/document-title";
 import { DiscountsListScreen } from "./discounts-list-screen";
+import { defaultDiscountsListScreenServices } from "./discounts-list-services";
 
 const route = getRouteApi("/signed-in/catalog-area/discounts");
 
@@ -15,7 +16,7 @@ export function DiscountsListPage(): ReactElement {
       filters={filters}
       onFiltersChange={(next) => void navigate({ search: next, replace: true })}
       onSessionEnded={sessionActions.sessionEnded}
-      services={services.discountsListScreen}
+      services={services.discountsListScreen ?? defaultDiscountsListScreenServices}
     />
   );
 }
