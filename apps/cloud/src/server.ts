@@ -46,6 +46,7 @@ import {
   enqueueMissingTaxAuthorityCounts,
   enqueueTaxAuthorityCountJob,
 } from "./fiscal/graphile-tax-authority-count-queue.js";
+import { offlineAuthorizationCodeJobs } from "./fiscal/offline-authorization-code-task.js";
 import { taxAuthorityCountJobs } from "./fiscal/tax-authority-count-task.js";
 import { ArcaWsaaAuthentication, wsaaEndpointOf } from "./fiscal/wsaa-authentication.js";
 import { wsaaTokenRenewalJobs } from "./fiscal/wsaa-token-renewal-task.js";
@@ -53,6 +54,7 @@ import { WsfeArcaVitalityService, wsfeEndpointOf } from "./fiscal/wsfe-arca-vita
 import { WsfeBuyerTaxStatusSource } from "./fiscal/wsfe-buyer-tax-status-source.js";
 import { WsfeTaxAuthorityInvoicing } from "./fiscal/wsfe-tax-authority-invoicing.js";
 import { WsfeTaxAuthorityLastAuthorized } from "./fiscal/wsfe-tax-authority-last-authorized.js";
+import { WsfeTaxAuthorityOfflineAuthorizationCodes } from "./fiscal/wsfe-tax-authority-offline-authorization-codes.js";
 import { createMercadoPagoOrdersClient } from "./payments/mercado-pago-orders-client.js";
 import { mercadoPagoPendingCheckJobs } from "./payments/mercado-pago-pending-check-task.js";
 import {
@@ -528,6 +530,13 @@ export async function setUpRecovery(
             taxAuthorityCountJobs({
               now,
               taxAuthority: new WsfeTaxAuthorityLastAuthorized(recoveryEnv.arcaInvoicing),
+              certificateFingerprint: recoveryEnv.arcaInvoicing.certificateFingerprint,
+            }),
+            offlineAuthorizationCodeJobs({
+              now,
+              taxAuthority: new WsfeTaxAuthorityOfflineAuthorizationCodes(
+                recoveryEnv.arcaInvoicing,
+              ),
               certificateFingerprint: recoveryEnv.arcaInvoicing.certificateFingerprint,
             }),
           ]

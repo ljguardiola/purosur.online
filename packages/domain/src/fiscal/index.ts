@@ -44,6 +44,11 @@ export {
   latestIssuerIdentification,
 } from "./model/issuer-identification.js";
 export {
+  fortnightAfter,
+  fortnightsWithinRequestWindowOn,
+  isSecondHalfOfMonth,
+} from "./model/offline-authorization-code.js";
+export {
   isPointOfSaleNumber,
   POINT_OF_SALE_NUMBER_MAX,
 } from "./model/point-of-sale.js";
