@@ -3,6 +3,7 @@ import {
   ALERT_LEVELS,
   type JsonValue,
   POINT_OF_SALE_NUMBER_MAX,
+  RECEIPT_TYPES,
 } from "@purosur/domain";
 import { sql } from "drizzle-orm";
 import {
@@ -460,6 +461,7 @@ export const stockMovements = pgTable(
     kind: text("kind").notNull(),
     reason: text("reason"),
     saleLineId: uuid("sale_line_id").references(() => saleLines.id),
+    purchaseLineId: uuid("purchase_line_id").references(() => purchaseLines.id),
     delta: bigint("delta", { mode: "number" }).notNull(),
     occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
@@ -473,15 +475,19 @@ export const stockMovements = pgTable(
   (table) => [
     check(
       "stock_movements_kind_check",
-      sql`${table.kind} in ('loss', 'adjustment', 'count', 'sale')`,
+      sql`${table.kind} in ('loss', 'adjustment', 'count', 'sale', 'receipt')`,
     ),
     check(
-      "stock_movements_reason_unless_count_or_sale_check",
-      sql`(${table.kind} in ('count', 'sale')) = (${table.reason} is null)`,
+      "stock_movements_reason_unless_count_sale_or_receipt_check",
+      sql`(${table.kind} in ('count', 'sale', 'receipt')) = (${table.reason} is null)`,
     ),
     check(
       "stock_movements_sale_line_iff_sale_check",
       sql`(${table.kind} = 'sale') = (${table.saleLineId} is not null)`,
+    ),
+    check(
+      "stock_movements_purchase_line_iff_receipt_check",
+      sql`(${table.kind} = 'receipt') = (${table.purchaseLineId} is not null)`,
     ),
     index("stock_movements_product_id_location_id_occurred_at_idx").on(
       table.productId,
@@ -537,6 +543,101 @@ export const productPackagings = pgTable(
     ),
     check("product_packagings_quantity_check", sql`${table.quantityPerPackage} > 0`),
     check("product_packagings_sale_unit_check", sql`${table.saleUnit} in ('UNIT', 'KG')`),
+  ],
+);
+
+export const purchases = pgTable(
+  "purchases",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    supplierId: uuid("supplier_id")
+      .notNull()
+      .references(() => suppliers.id),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    purchasedOn: date("purchased_on", { mode: "string" }).notNull(),
+    receiptType: text("receipt_type").notNull(),
+    receiptNumber: text("receipt_number"),
+    note: text("note"),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id),
+  },
+  (table) => [
+    check(
+      "purchases_receipt_type_check",
+      sql`${table.receiptType} in (${sql.raw(RECEIPT_TYPES.map((type) => `'${type}'`).join(", "))})`,
+    ),
+    check(
+      "purchases_receipt_number_iff_receipt_check",
+      sql`(${table.receiptType} = 'sin_comprobante') = (${table.receiptNumber} is null)`,
+    ),
+    index("purchases_location_id_recorded_at_idx").on(table.locationId, table.recordedAt),
+  ],
+);
+
+// A quantity is in thousandths of the product's sale unit. The cost is the exact pair of what was
+// paid and the quantity per package it was paid for, never rounded.
+export const purchaseLines = pgTable(
+  "purchase_lines",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    purchaseId: uuid("purchase_id")
+      .notNull()
+      .references(() => purchases.id),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    packagingId: uuid("packaging_id").references(() => productPackagings.id),
+    packages: integer("packages"),
+    quantity: bigint("quantity", { mode: "number" }).notNull(),
+    costPaidCents: bigint("cost_paid_cents", { mode: "number" }).notNull(),
+    quantityPerPackage: bigint("quantity_per_package", { mode: "number" }).notNull(),
+    lotNumber: text("lot_number"),
+    expiresOn: date("expires_on", { mode: "string" }),
+  },
+  (table) => [
+    check("purchase_lines_quantity_per_package_check", sql`${table.quantityPerPackage} > 0`),
+    check("purchase_lines_quantity_check", sql`${table.quantity} > 0`),
+    check("purchase_lines_cost_paid_check", sql`${table.costPaidCents} >= 0`),
+    check(
+      "purchase_lines_packaging_iff_packages_check",
+      sql`(${table.packagingId} is null) = (${table.packages} is null)`,
+    ),
+    check(
+      "purchase_lines_packages_quantity_check",
+      sql`${table.packages} is null or (${table.packages} > 0 and ${table.quantity} = ${table.packages} * ${table.quantityPerPackage})`,
+    ),
+    index("purchase_lines_purchase_id_idx").on(table.purchaseId),
+  ],
+);
+
+// The stock a purchase line brought in, with the line's exact cost pair.
+export const lots = pgTable(
+  "lots",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    purchaseLineId: uuid("purchase_line_id")
+      .notNull()
+      .references(() => purchaseLines.id),
+    lotNumber: text("lot_number"),
+    expiresOn: date("expires_on", { mode: "string" }),
+    costTotalCents: bigint("cost_total_cents", { mode: "number" }).notNull(),
+    costQuantity: bigint("cost_quantity", { mode: "number" }).notNull(),
+    quantityReceived: bigint("quantity_received", { mode: "number" }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique("lots_purchase_line_id_key").on(table.purchaseLineId),
+    check("lots_cost_quantity_check", sql`${table.costQuantity} > 0`),
   ],
 );
 

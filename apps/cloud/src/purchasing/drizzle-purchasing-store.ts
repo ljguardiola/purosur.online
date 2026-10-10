@@ -4,11 +4,14 @@ import {
   type LockProductResult,
   type LockSupplierResult,
   type NewPackagingFields,
+  type NewPurchaseFields,
+  type NewPurchaseLineFields,
   type NewSupplierFields,
   type PackagingFields,
   PackagingNameConflict,
   type PurchasingStore,
   type PurchasingStoreTransaction,
+  type StockBalanceKey,
   SupplierCuitConflict,
   type SupplierFields,
   SupplierNameConflict,
@@ -16,7 +19,19 @@ import {
 import { and, eq, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
-import { productPackagings, products, suppliers } from "../platform/db/schema.js";
+import {
+  lots,
+  productPackagings,
+  products,
+  purchaseLines,
+  purchases,
+  suppliers,
+} from "../platform/db/schema.js";
+import { DrizzleStockStoreTransaction } from "../stock/drizzle-stock-store.js";
+import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
+
+type NewLot = Parameters<PurchasingStoreTransaction["insertLot"]>[0];
+type ReceiptMovement = Parameters<PurchasingStoreTransaction["recordReceiptMovement"]>[0];
 
 const UNIQUE_VIOLATION = "23505";
 const SUPPLIER_NAME_UNIQUE_INDEX = "suppliers_name_lower_key";
@@ -50,10 +65,12 @@ class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResultHKT>
 {
   private readonly tx: PgDatabase<TQueryResult>;
   private readonly now: () => Date;
+  private readonly stock: DrizzleStockStoreTransaction<TQueryResult>;
 
-  constructor(tx: PgDatabase<TQueryResult>, now: () => Date) {
+  constructor(tx: PgDatabase<TQueryResult>, now: () => Date, pending: PendingChanges) {
     this.tx = tx;
     this.now = now;
+    this.stock = new DrizzleStockStoreTransaction(tx, pending);
   }
 
   async lockSupplier(supplierId: string): Promise<LockSupplierResult> {
@@ -215,6 +232,51 @@ class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResultHKT>
       throw translatePackagingViolation(error);
     }
   }
+
+  async insertPurchase(fields: NewPurchaseFields): Promise<{ id: string }> {
+    const [purchase] = await this.tx
+      .insert(purchases)
+      .values(fields)
+      .returning({ id: purchases.id });
+    if (!purchase) {
+      throw new Error("inserting the purchase returned no row");
+    }
+    return purchase;
+  }
+
+  async insertPurchaseLine(fields: NewPurchaseLineFields): Promise<{ id: string }> {
+    const [line] = await this.tx
+      .insert(purchaseLines)
+      .values(fields)
+      .returning({ id: purchaseLines.id });
+    if (!line) {
+      throw new Error("inserting the purchase line returned no row");
+    }
+    return line;
+  }
+
+  async lockStockBalance(key: StockBalanceKey): Promise<void> {
+    await this.stock.lockProductStock(key);
+  }
+
+  earliestCountAtOrAfter(
+    key: StockBalanceKey,
+    at: Date,
+  ): Promise<{ movementId: string } | undefined> {
+    return this.stock.earliestCountAtOrAfter(key, at);
+  }
+
+  async recordReceiptMovement(movement: ReceiptMovement): Promise<void> {
+    await this.stock.recordMovement(movement);
+  }
+
+  async addToStockBalance(key: StockBalanceKey, delta: number): Promise<void> {
+    await this.stock.addToBalance(key, delta);
+  }
+
+  async insertLot(lot: NewLot): Promise<void> {
+    await this.tx.insert(lots).values(lot);
+  }
 }
 
 export class DrizzlePurchasingStore<TQueryResult extends PgQueryResultHKT>
@@ -231,6 +293,8 @@ export class DrizzlePurchasingStore<TQueryResult extends PgQueryResultHKT>
   transaction<TOutcome>(
     work: (tx: PurchasingStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return this.db.transaction((tx) => work(new DrizzlePurchasingStoreTransaction(tx, this.now)));
+    return withPendingChanges(this.db, undefined, (tx, pending) =>
+      work(new DrizzlePurchasingStoreTransaction(tx, this.now, pending)),
+    );
   }
 }
