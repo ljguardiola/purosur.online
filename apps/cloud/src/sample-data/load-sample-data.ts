@@ -1,10 +1,14 @@
 import {
   argentinaCalendarDay,
-  fortnightsWithinRequestWindowOn,
+  argentinaInstant,
+  fortnightContaining,
+  offlineAuthorizationCodeAcquisitionLevel,
+  offlineAuthorizationCodeMissingObservation,
+  offlineAuthorizationCodeRequestOpensOn,
   RECOVERY_TOKEN_LIFETIME_MS,
-  registerFortnightScope,
   SIGN_IN_BLOCK_DURATION_MS,
   SIGN_IN_FAILURE_LIMIT,
+  shiftCalendarDay,
 } from "@purosur/domain";
 import { closeAlert, escalateOverdueAlerts } from "@purosur/domain/alerts/use-cases";
 import { editBranchSettings } from "@purosur/domain/branch/use-cases";
@@ -23,6 +27,7 @@ import { createUser, deactivateUser } from "@purosur/domain/users/use-cases";
 import { and, eq, like, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { DrizzleAlertStore } from "../alerts/drizzle-alert-store.js";
+import { observeAlertCondition } from "../alerts/observe-alert-condition.js";
 import { openAlert } from "../alerts/open-alert.js";
 import { DrizzleBranchSettingsStore } from "../branch/drizzle-branch-settings-store.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
@@ -464,37 +469,37 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
       });
       expectOutcome(closedCriticalOutcome, "closed", "closing the critical alert");
 
-      const [currentFortnight] = fortnightsWithinRequestWindowOn(argentinaCalendarDay(deps.now()));
-      const [keptOpenCodeRegisterId, closedCodeRegisterId] = sampleRegisterIdsInOrder;
-      if (!currentFortnight || !keptOpenCodeRegisterId || !closedCodeRegisterId) {
+      const [closedCodeRegisterId] = sampleRegisterIdsInOrder;
+      if (!closedCodeRegisterId) {
         throw new Error(
           "sample-data: no sample register available to scope an informational alert to",
         );
       }
-      const missingCodeAlert = (registerId: string) => ({
-        kind: "offline_authorization_code_missing" as const,
-        scope: registerFortnightScope(registerId, currentFortnight.start),
-        detail: {
-          deviceId: crypto.randomUUID(),
-          fortnightStart: currentFortnight.start,
-          fortnightEnd: currentFortnight.end,
-        },
-      });
-      const informationalOpenOutcome = await openAlert(
-        tx,
-        missingCodeAlert(keptOpenCodeRegisterId),
-        {
-          now: deps.now,
-        },
+      const currentFortnight = fortnightContaining(argentinaCalendarDay(deps.now()));
+      const pastFortnight = fortnightContaining(shiftCalendarDay(currentFortnight.start, -1));
+      const pastRequestWindowOpensOn = offlineAuthorizationCodeRequestOpensOn(pastFortnight);
+      const pastWindowOpeningLevel = offlineAuthorizationCodeAcquisitionLevel(
+        pastFortnight,
+        pastRequestWindowOpensOn,
       );
-      expectOutcome(informationalOpenOutcome, "opened", "the open informational alert");
-      const informationalToCloseOutcome = await openAlert(
+      if (pastWindowOpeningLevel === null) {
+        throw new Error(
+          "sample-data: a fortnight's alert has no level on the day its request window opens",
+        );
+      }
+      const pastWindowOpeningMoment = new Date(argentinaInstant(pastRequestWindowOpensOn, "09:00"));
+      const informationalOutcome = await observeAlertCondition(
         tx,
-        missingCodeAlert(closedCodeRegisterId),
-        { now: deps.now },
+        offlineAuthorizationCodeMissingObservation({
+          registerId: closedCodeRegisterId,
+          deviceId: crypto.randomUUID(),
+          fortnight: pastFortnight,
+          level: pastWindowOpeningLevel,
+        }),
+        { now: () => pastWindowOpeningMoment },
       );
       const informationalToClose = expectOutcome(
-        informationalToCloseOutcome,
+        informationalOutcome,
         "opened",
         "the informational alert to close",
       );

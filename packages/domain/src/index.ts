@@ -43,7 +43,6 @@ export {
   offlineAuthorizationCodeAcquisitionLevel,
   offlineAuthorizationCodeMissingObservation,
   REGISTER_FORTNIGHT_SCOPE_SEPARATOR,
-  registerFortnightScope,
   REGISTER_OWN_CONDITIONS,
   registerOwnConditions,
   showsAlertScope,
