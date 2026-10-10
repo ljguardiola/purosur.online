@@ -31,6 +31,14 @@ interface MercadoPagoQrPayment extends ApprovedPayment {
 
 export type PaymentTransaction = CashPayment | TransferPayment | MercadoPagoQrPayment;
 
+export interface PendingQrSalePayment {
+  id: string;
+  saleId: string;
+  amount: number;
+  occurredAt: Date;
+  waitEndsAt: Date;
+}
+
 export const PAYMENT_METHODS = ["CASH", "TRANSFER", "QR"] as const;
 
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];

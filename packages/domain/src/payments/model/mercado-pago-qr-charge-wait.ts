@@ -17,3 +17,12 @@ export function mercadoPagoQrChargeWait(waitEndsAt: Date, now: Date): MercadoPag
   }
   return { kind: "waiting", remainingSeconds: Math.ceil(remainingMs / 1000) };
 }
+
+export function aQrChargeInItsWait(
+  pendingQrPayments: readonly { waitEndsAt: Date }[],
+  now: Date,
+): boolean {
+  return pendingQrPayments.some(
+    ({ waitEndsAt }) => mercadoPagoQrChargeWait(waitEndsAt, now).kind === "waiting",
+  );
+}
