@@ -238,7 +238,9 @@ describe("GET /alerts", () => {
     const response = await getAlerts(rawSessionId);
 
     expect(response.statusCode).toBe(200);
-    const reasons = new Map(listBody(response).alerts.map((row) => [row.id, row.salesDeniedReason]));
+    const reasons = new Map(
+      listBody(response).alerts.map((row) => [row.id, row.salesDeniedReason]),
+    );
     expect(reasons).toEqual(
       new Map([
         [brokenId, "event_history_broken"],

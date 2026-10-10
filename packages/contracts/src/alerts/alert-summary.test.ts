@@ -38,14 +38,14 @@ describe("alertSummarySchema", () => {
     expect(alertSummarySchema.safeParse(closedLockout).data).toEqual(closedLockout);
   });
 
-  it.each([
-    "event_history_broken",
-    "local_database_damaged",
-  ])("accepts the reason %s of a register that can't sell", (salesDeniedReason) => {
-    const salesDenied = { ...passkeyChange, kind: "sales_denied", salesDeniedReason };
+  it.each(["event_history_broken", "local_database_damaged"])(
+    "accepts the reason %s of a register that can't sell",
+    (salesDeniedReason) => {
+      const salesDenied = { ...passkeyChange, kind: "sales_denied", salesDeniedReason };
 
-    expect(alertSummarySchema.safeParse(salesDenied).data).toEqual(salesDenied);
-  });
+      expect(alertSummarySchema.safeParse(salesDenied).data).toEqual(salesDenied);
+    },
+  );
 
   it("strips keys it does not define", () => {
     expect(alertSummarySchema.safeParse({ ...passkeyChange, detail: {} }).data).toEqual(

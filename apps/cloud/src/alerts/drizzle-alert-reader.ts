@@ -2,6 +2,8 @@ import {
   type AlertKind,
   alertKindsWithScope,
   REGISTER_FORTNIGHT_SCOPE_SEPARATOR,
+  SALES_DENIED_REASONS,
+  type SalesDeniedReason,
   type VisibleAlertSight,
 } from "@purosur/domain";
 import type {
@@ -51,11 +53,18 @@ const SUMMARY_COLUMNS = {
   escalateAt: alerts.escalateAt,
   escalatedAt: alerts.escalatedAt,
   resolvedAt: alerts.resolvedAt,
+  storedSalesDeniedReason: sql<
+    string | null
+  >`case when ${alerts.kind} = 'sales_denied' then ${alerts.detail}->>'reason' end`,
 };
 
 // Storage keeps the kind as free text, so a row can carry a kind the catalog no longer lists.
 function asAlertKind(storedKind: string): AlertKind {
   return storedKind as AlertKind;
+}
+
+function listedSalesDeniedReason(stored: string | null): SalesDeniedReason | null {
+  return SALES_DENIED_REASONS.find((reason) => reason === stored) ?? null;
 }
 
 function toSummary(row: {
@@ -69,8 +78,14 @@ function toSummary(row: {
   escalateAt: Date | null;
   escalatedAt: Date | null;
   resolvedAt: Date | null;
+  storedSalesDeniedReason: string | null;
 }): AlertSummary {
-  return { ...row, kind: asAlertKind(row.kind) };
+  const { storedSalesDeniedReason, ...summary } = row;
+  return {
+    ...summary,
+    kind: asAlertKind(row.kind),
+    salesDeniedReason: listedSalesDeniedReason(storedSalesDeniedReason),
+  };
 }
 
 export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implements AlertReader {
