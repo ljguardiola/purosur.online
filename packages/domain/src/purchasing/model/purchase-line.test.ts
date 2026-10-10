@@ -1,6 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { MAX_CASH_AMOUNT_CENTS, MAX_STOCK_QUANTITY } from "../../index.js";
+import { MAX_CASH_AMOUNT_CENTS } from "../../shared/index.js";
+import { MAX_STOCK_QUANTITY } from "../../stock/index.js";
 import {
   isCostPaid,
   isPackageCount,
