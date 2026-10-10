@@ -2,6 +2,7 @@ import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 import { useDocumentTitle } from "../shell/document-title";
 import { PackagingsListScreen } from "./packagings-list-screen";
+import { defaultPackagingsListScreenServices } from "./packagings-list-services";
 
 const route = getRouteApi("/signed-in/stock-area/purchase-packagings");
 
@@ -15,7 +16,7 @@ export function PackagingsListPage(): ReactElement {
       filters={filters}
       onFiltersChange={(next) => void navigate({ search: next, replace: true })}
       onSessionEnded={sessionActions.sessionEnded}
-      services={services.packagingsListScreen}
+      services={services.packagingsListScreen ?? defaultPackagingsListScreenServices}
     />
   );
 }

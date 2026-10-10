@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import { purchasedProductsToReviewIn } from "../platform/purchased-products-to-review";
 import { useDocumentTitle } from "../shell/document-title";
 import { PricesListScreen } from "./prices-list-screen";
+import { defaultPricesListScreenServices } from "./prices-list-services";
 
 const route = getRouteApi("/signed-in/catalog-area/prices");
 
@@ -21,7 +22,7 @@ export function PricesListPage(): ReactElement {
       purchasedProductsToReview={purchasedProductsToReview}
       onPurchaseReviewTaken={() => void navigate({ search: true, replace: true, state: {} })}
       onSessionEnded={sessionActions.sessionEnded}
-      services={services.pricesListScreen}
+      services={services.pricesListScreen ?? defaultPricesListScreenServices}
     />
   );
 }

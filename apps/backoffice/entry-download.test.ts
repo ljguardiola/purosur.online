@@ -5,6 +5,7 @@ import { beforeAll, expect, test } from "vitest";
 const BACKOFFICE_ROOT = fileURLToPath(new URL(".", import.meta.url));
 const UI_COMPONENTS = fileURLToPath(new URL("../../packages/ui/src/components/", import.meta.url));
 const SIGN_IN_PAGE = `${BACKOFFICE_ROOT}src/sessions/sign-in-page.tsx`;
+const BRANDS_LIST_PAGE = `${BACKOFFICE_ROOT}src/catalog/brands-list-page.tsx`;
 
 let chunks: Map<string, Rolldown.OutputChunk>;
 
@@ -51,6 +52,31 @@ test("opening a screen downloads the design system components it renders, not th
   expect(modules).toContain(SIGN_IN_PAGE);
   expect(modules).toContain(`${UI_COMPONENTS}forms/button.tsx`);
   expect(modules).not.toContain(`${UI_COMPONENTS}forms/date-field.tsx`);
+});
+
+const screenWiring = (moduleId: string) =>
+  moduleId.startsWith(`${BACKOFFICE_ROOT}src/`) && /-(?:api|services)\.ts$/.test(moduleId);
+
+test("the entry downloads only the API clients the frame itself needs, and no screen's services", () => {
+  const modules = modulesDownloadedFrom(entryChunks()).filter(screenWiring);
+
+  expect(modules.sort()).toEqual([
+    `${BACKOFFICE_ROOT}src/platform/error-reporting-configuration-api.ts`,
+    `${BACKOFFICE_ROOT}src/sessions/session-api.ts`,
+  ]);
+});
+
+test("opening a screen downloads its services and its API client with it", () => {
+  const brandsListPage = [...chunks.values()].filter(
+    (chunk) => chunk.facadeModuleId === BRANDS_LIST_PAGE,
+  );
+  const entryModules = new Set(modulesDownloadedFrom(entryChunks()));
+  const modules = modulesDownloadedFrom(brandsListPage).filter(
+    (moduleId) => !entryModules.has(moduleId),
+  );
+
+  expect(modules).toContain(`${BACKOFFICE_ROOT}src/catalog/brands-list-services.ts`);
+  expect(modules).toContain(`${BACKOFFICE_ROOT}src/catalog/brands-api.ts`);
 });
 
 test("the build carries the design system's screen-reader texts only in Spanish", () => {

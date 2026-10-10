@@ -2,6 +2,7 @@ import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 import { useDocumentTitle } from "../shell/document-title";
 import { AlertsListScreen } from "./alerts-list-screen";
+import { defaultAlertsListScreenServices } from "./alerts-list-services";
 
 const route = getRouteApi("/signed-in/home-area/alerts");
 
@@ -16,7 +17,7 @@ export function AlertsListPage(): ReactElement {
       onFiltersChange={(next) => void navigate({ search: next, replace: true })}
       access={session}
       onSessionEnded={sessionActions.sessionEnded}
-      services={services.alertsListScreen}
+      services={services.alertsListScreen ?? defaultAlertsListScreenServices}
     />
   );
 }
