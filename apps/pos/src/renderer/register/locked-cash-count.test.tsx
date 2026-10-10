@@ -63,13 +63,26 @@ const CANCELLABLE_SALE: SessionOpenSale = {
   total: 3_434_000,
   paid: 0,
   cancellable: true,
+  cancel_refusal: null,
   refunds_on_cancel: [],
+};
+const SALE_IN_A_QR_WAIT: SessionOpenSale = {
+  ...CANCELLABLE_SALE,
+  cancellable: false,
+  cancel_refusal: "qr_charge_in_progress",
+};
+const SALE_WITH_QR_PAYMENT: SessionOpenSale = {
+  ...CANCELLABLE_SALE,
+  paid: 1_000_000,
+  cancellable: false,
+  cancel_refusal: "holds_qr_payment",
 };
 const PART_PAID_SALE: SessionOpenSale = {
   id: "sale-2",
   total: 3_434_000,
   paid: 1_000_000,
   cancellable: false,
+  cancel_refusal: null,
   refunds_on_cancel: [{ payment_id: "p1", method: "CASH", amount: 1_000_000, state: "APPROVED" }],
 };
 const OPEN_SALE_NOTICE = "Hay una venta abierta de $ 34.340,00";
@@ -485,6 +498,62 @@ describe("LockedCashCount", () => {
     await expect.element(screen.getByText(notice).first()).toBeVisible();
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
     expect(refused).toEqual([]);
+  });
+
+  it.each<[string, SessionOpenSale, string]>([
+    [
+      "a QR charge is still waiting",
+      SALE_IN_A_QR_WAIT,
+      "Hay un cobro con QR en curso. Esperá a que termine para cancelar la venta.",
+    ],
+    [
+      "the sale holds a QR payment",
+      SALE_WITH_QR_PAYMENT,
+      "La venta tiene un pago con QR: todavía no se puede anular desde la caja.",
+    ],
+  ])(
+    "says why the core still refuses to cancel when %s, opening no cancel modal",
+    async (_case, sale, notice) => {
+      const loadOpenSale = vi.fn<LoadOpenSale>(async () => sale);
+      const { screen, cancelSale } = await renderStep({ loadOpenSale });
+      await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
+
+      await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+
+      await expect.element(screen.getByText(notice).first()).toBeVisible();
+      await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+      expect(loadOpenSale).toHaveBeenCalledTimes(2);
+      expect(cancelSale).not.toHaveBeenCalled();
+    },
+  );
+
+  it("asks the core before refusing to cancel, and asks to confirm when the core no longer refuses", async () => {
+    const loadOpenSale = vi
+      .fn<LoadOpenSale>()
+      .mockResolvedValueOnce(SALE_IN_A_QR_WAIT)
+      .mockResolvedValue(CANCELLABLE_SALE);
+    const { screen } = await renderStep({ loadOpenSale });
+    await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
+
+    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+
+    await expect.element(screen.getByRole("dialog", { name: "¿Cancelar la venta?" })).toBeVisible();
+    await expect.element(screen.getByText("Venta en curso · Con pagos")).not.toBeInTheDocument();
+  });
+
+  it("says the sale could not be cancelled when the core cannot answer whether it still refuses", async () => {
+    const loadOpenSale = vi
+      .fn<LoadOpenSale>()
+      .mockResolvedValueOnce(SALE_IN_A_QR_WAIT)
+      .mockResolvedValue("unavailable");
+    const { screen, cancelSale } = await renderStep({ loadOpenSale });
+    await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
+
+    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+
+    await expect.element(screen.getByText(CANCEL_FAILED_NOTICE).first()).toBeVisible();
+    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    expect(cancelSale).not.toHaveBeenCalled();
   });
 
   it("clears the notice when the core finds no sale left to cancel", async () => {

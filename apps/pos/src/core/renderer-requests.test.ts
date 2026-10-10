@@ -1321,7 +1321,6 @@ describe("answerRendererRequest", () => {
       paid: 0,
       pending: 1500,
       lines_lock: null,
-      cancellable: true,
       cancel_refusal: null,
       charge_refusal: null,
       refunds_on_cancel: [],
@@ -1914,6 +1913,7 @@ describe("answerRendererRequest", () => {
       total: 3_434_000,
       paid: 1000,
       cancellable: false,
+      cancel_refusal: null,
       refunds_on_cancel: [{ payment_id: "p1", method: "CASH", amount: 1000, state: "APPROVED" }],
     };
 

@@ -16,7 +16,6 @@ const SALE_WITH_PAYMENT: OpenSale = {
   paid: 100_000,
   pending: 376_000,
   lines_lock: "approved_payment",
-  cancellable: false,
   cancel_refusal: null,
   refunds_on_cancel: [{ payment_id: "p1", method: "CASH", amount: 100_000, state: "APPROVED" }],
 };

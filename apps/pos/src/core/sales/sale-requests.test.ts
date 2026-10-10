@@ -201,7 +201,6 @@ describe("scanning a product on the register", () => {
         paid: 0,
         pending: 3000,
         lines_lock: null,
-        cancellable: true,
         cancel_refusal: null,
         charge_refusal: null,
         refunds_on_cancel: [],
@@ -380,7 +379,6 @@ describe("adding a searched product on the register", () => {
         paid: 0,
         pending: 1500,
         lines_lock: null,
-        cancellable: true,
         cancel_refusal: null,
         charge_refusal: null,
         refunds_on_cancel: [],
@@ -488,7 +486,6 @@ describe("the sale in progress", () => {
       paid: 0,
       pending: 3000,
       lines_lock: null,
-      cancellable: true,
       cancel_refusal: null,
       charge_refusal: null,
       refunds_on_cancel: [],
@@ -505,7 +502,6 @@ describe("the sale in progress", () => {
       paid: 1000,
       pending: 2000,
       lines_lock: "approved_payment",
-      cancellable: false,
       cancel_refusal: null,
     });
   });
@@ -524,7 +520,6 @@ describe("the sale in progress", () => {
 
     expect(await currentSaleFor(deps())).toMatchObject({
       lines_lock: "qr_charge_in_progress",
-      cancellable: false,
       cancel_refusal: "qr_charge_in_progress",
       refunds_on_cancel: [],
     });
@@ -536,7 +531,6 @@ describe("the sale in progress", () => {
 
     expect(await currentSaleFor(deps())).toMatchObject({
       lines_lock: "approved_payment",
-      cancellable: false,
       cancel_refusal: "holds_qr_payment",
       refunds_on_cancel: [],
     });
@@ -710,7 +704,6 @@ describe("removing a line", () => {
         paid: 0,
         pending: 0,
         lines_lock: null,
-        cancellable: true,
         cancel_refusal: null,
         charge_refusal: null,
         refunds_on_cancel: [],

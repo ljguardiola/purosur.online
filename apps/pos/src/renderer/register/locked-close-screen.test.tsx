@@ -174,6 +174,7 @@ describe("LockedCloseScreen", () => {
         total: 3_434_000,
         paid: 0,
         cancellable: true,
+        cancel_refusal: null,
         refunds_on_cancel: [],
       }),
       cancelSale,

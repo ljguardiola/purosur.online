@@ -776,7 +776,6 @@ describe("createCoreClient", () => {
       paid: 0,
       pending: 4_760,
       lines_lock: null,
-      cancellable: true,
       cancel_refusal: null,
       charge_refusal: null,
       refunds_on_cancel: [],
@@ -800,7 +799,6 @@ describe("createCoreClient", () => {
       paid: 0,
       pending: 1_000_000_000,
       lines_lock: null,
-      cancellable: true,
       cancel_refusal: null,
       charge_refusal: { kind: "reaches_buyer_identification_threshold", threshold: 1_000_000_000 },
       refunds_on_cancel: [],
@@ -1067,6 +1065,7 @@ describe("createCoreClient", () => {
       total: 3_434_000,
       paid: 0,
       cancellable: true,
+      cancel_refusal: null,
       refunds_on_cancel: [],
     },
   ])("asks the core for the open sale of the session and resolves with it: %j", async (sale) => {

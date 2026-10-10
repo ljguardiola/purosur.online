@@ -121,12 +121,38 @@ describe("QrPaymentWaitModal", () => {
     expect(callbacks.onSaleUnavailable).not.toHaveBeenCalled();
   });
 
-  it("goes back to the methods from Elegir otro medio when the core cannot tell how the payment goes", async () => {
-    const { screen, callbacks } = await renderModal(answering({ kind: "unavailable" }));
+  it("offers only Reintentar when the core cannot tell how the payment goes, since its wait may still run", async () => {
+    const { screen } = await renderModal(answering({ kind: "unavailable" }));
 
-    await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+    await expect.element(screen.getByText("No se pudo consultar el pago del QR")).toBeVisible();
 
-    expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
+    expect(
+      screen
+        .getByRole("button")
+        .elements()
+        .map((button) => button.textContent),
+    ).toEqual(["Reintentar"]);
+  });
+
+  it("loads the time left again from its placeholder after Reintentar, not from the time the order was shown with", async () => {
+    let answerAgain: (outcome: FollowMercadoPagoQrChargeOutcome) => void = () => undefined;
+    const answers: Promise<FollowMercadoPagoQrChargeOutcome>[] = [
+      Promise.resolve({ kind: "unavailable" }),
+      new Promise((resolve) => {
+        answerAgain = resolve;
+      }),
+    ];
+    const { screen } = await renderModal(() => answers.shift() ?? Promise.resolve(WAITING));
+
+    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+    await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
+    expect(screen.getByRole("timer").elements()).toEqual([]);
+    expect(screen.getByText("3:00").elements()).toEqual([]);
+
+    answerAgain(WAITING);
+
+    await expect.element(screen.getByText("2:41")).toBeVisible();
   });
 
   it("goes back to the methods with the new balance when the approved payment pays part of the sale", async () => {

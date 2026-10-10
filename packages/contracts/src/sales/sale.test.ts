@@ -30,7 +30,6 @@ const sale = {
   paid: 1000,
   pending: 2000,
   lines_lock: "approved_payment",
-  cancellable: false,
   cancel_refusal: null,
   charge_refusal: null,
   refunds_on_cancel: [],
@@ -88,7 +87,6 @@ describe("saleSchema", () => {
     ["paid amount", { ...sale, paid: undefined }],
     ["pending amount", { ...sale, pending: undefined }],
     ["answer on what locks its lines", { ...sale, lines_lock: undefined }],
-    ["answer on cancelling it", { ...sale, cancellable: undefined }],
     ["answer on why cancelling it is refused", { ...sale, cancel_refusal: undefined }],
     ["refunds on cancelling it", { ...sale, refunds_on_cancel: undefined }],
     [

@@ -95,7 +95,6 @@ describe("ChargeScreen", () => {
         paid: 0,
         pending: 0,
         lines_lock: null,
-        cancellable: true,
         cancel_refusal: null,
         charge_refusal: null,
         refunds_on_cancel: [],
