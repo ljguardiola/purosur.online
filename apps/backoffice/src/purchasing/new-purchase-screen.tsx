@@ -1,4 +1,4 @@
-import type { CalendarDate } from "@internationalized/date";
+import { parseDate } from "@internationalized/date";
 import { type PurchaseChoices, purchaseRegistrationBodySchema } from "@purosur/contracts";
 import {
   Button,
@@ -11,7 +11,7 @@ import {
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { Check, ShieldX, TriangleAlert, Truck, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { purchasedProductsToReviewState } from "../platform/purchased-products-to-review";
 import { retryAfterDetail } from "../platform/retry-after-detail";
@@ -46,19 +46,13 @@ export type NewPurchaseScreenProps = {
   access: BackofficeAccess;
   onSessionEnded: () => void;
   services: NewPurchaseScreenServices;
-  today: CalendarDate;
 };
 
 type Notice = { kind: "attemptFailed" } | { kind: "rateLimited"; retryAfterSeconds: number };
 
-const NO_CHOICES: PurchaseChoices = { suppliers: [], products: [], packagings: [] };
+const NO_CHOICES: Omit<PurchaseChoices, "today"> = { suppliers: [], products: [], packagings: [] };
 
-export function NewPurchaseScreen({
-  access,
-  onSessionEnded,
-  services,
-  today,
-}: NewPurchaseScreenProps) {
+export function NewPurchaseScreen({ access, onSessionEnded, services }: NewPurchaseScreenProps) {
   const sendToMyAccount = useSendToMyAccount();
   const navigate = useNavigate();
   const refreshPurchasing = useRefreshPurchasing();
@@ -70,8 +64,11 @@ export function NewPurchaseScreen({
   const [lineRefusals, setLineRefusals] = useState<Record<number, string>>({});
   const { suppliers, products, packagings } = data.status === "loaded" ? data.value : NO_CHOICES;
 
+  const today = data.status === "loaded" ? data.value.today : null;
+  const [datedOn, setDatedOn] = useState<string | null>(null);
+
   const { form, submit, submitting } = useRequestForm({
-    defaultValues: emptyPurchaseForm(today),
+    defaultValues: emptyPurchaseForm(null),
     request: {
       schema: purchaseRegistrationBodySchema,
       from: (current) => purchaseRegistrationRequestFrom(current, products),
@@ -154,6 +151,16 @@ export function NewPurchaseScreen({
       setNotice({ kind: "attemptFailed" });
     },
   });
+
+  useEffect(() => {
+    if (today === null || today === datedOn) {
+      return;
+    }
+    if ((form.getFieldValue("purchasedOn")?.toString() ?? null) === datedOn) {
+      form.setFieldValue("purchasedOn", parseDate(today), { dontUpdateMeta: true });
+    }
+    setDatedOn(today);
+  }, [today, datedOn, form]);
 
   const supplierOptions = purchaseSupplierOptions(suppliers);
   const nothingToChoose = !supplierOptions || products.length === 0;
