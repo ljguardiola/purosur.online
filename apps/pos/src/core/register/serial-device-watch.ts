@@ -22,7 +22,8 @@ export interface SerialDeviceWatchDeps {
 
 export type SerialDeviceReading =
   | { kind: "listed"; standings: Standings }
-  | { kind: "unknown"; registered: RegisteredSerialDevices };
+  | { kind: "unknown"; registered: RegisteredSerialDevices }
+  | { kind: "unreadable" };
 
 export interface SerialDeviceWatch {
   start(): Promise<void>;
@@ -36,6 +37,9 @@ export function readStanding(
 ): SerialDeviceStanding | { kind: "unknown" } {
   if (reading.kind === "listed") {
     return reading.standings[role];
+  }
+  if (reading.kind === "unreadable") {
+    return { kind: "unknown" };
   }
   return reading.registered[role] === undefined ? { kind: "not_registered" } : { kind: "unknown" };
 }
@@ -52,9 +56,14 @@ export function createSerialDeviceWatch(deps: SerialDeviceWatchDeps): SerialDevi
   let failing = false;
 
   function reading(): SerialDeviceReading {
-    return current === undefined
-      ? { kind: "unknown", registered: deps.registrations.registeredSerialDevices() }
-      : { kind: "listed", standings: current };
+    if (current !== undefined) {
+      return { kind: "listed", standings: current };
+    }
+    try {
+      return { kind: "unknown", registered: deps.registrations.registeredSerialDevices() };
+    } catch {
+      return { kind: "unreadable" };
+    }
   }
 
   function settle(next: Standings | undefined): void {
@@ -68,8 +77,9 @@ export function createSerialDeviceWatch(deps: SerialDeviceWatchDeps): SerialDevi
   async function checkOnce(): Promise<void> {
     try {
       const detected = await deps.enumeration.detectedSerialDevices();
+      const next = serialDeviceStandings(deps.registrations.registeredSerialDevices(), detected);
       failing = false;
-      settle(serialDeviceStandings(deps.registrations.registeredSerialDevices(), detected));
+      settle(next);
     } catch (error) {
       settle(undefined);
       if (!failing) {
