@@ -1,4 +1,4 @@
-import type { PaymentTransactionState, ProviderPaymentTransaction } from "@purosur/domain";
+import type { MercadoPagoQrPaymentTransaction, PaymentTransactionState } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { paymentTransactions } from "../platform/db/schema.js";
@@ -6,7 +6,7 @@ import { paymentTransactions } from "../platform/db/schema.js";
 export async function providerTransactionOfPayment<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   paymentId: string,
-): Promise<Pick<ProviderPaymentTransaction, "saleId" | "amount" | "state"> | null> {
+): Promise<Pick<MercadoPagoQrPaymentTransaction, "saleId" | "amount" | "state"> | null> {
   const [row] = await db
     .select({
       saleId: paymentTransactions.saleId,

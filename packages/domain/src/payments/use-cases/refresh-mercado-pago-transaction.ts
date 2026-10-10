@@ -1,20 +1,20 @@
 import type { Clock } from "../../shared/index.js";
 import {
+  type MercadoPagoQrOrderRecord,
   PENDING_PAYMENT_TRANSACTION_STATE,
-  type ProviderPaymentTransaction,
 } from "../model/payment-transaction.js";
 import type { MercadoPagoOrders, PaymentTransactionLane } from "./mercado-pago-qr-order-ports.js";
 import { recordExpiryWithoutOrder } from "./record-expiry-without-order.js";
 import { recordMercadoPagoOrderResult } from "./record-mercado-pago-order-result.js";
 
 export type MercadoPagoTransactionRefresh =
-  | { kind: "refreshed"; transaction: ProviderPaymentTransaction }
+  | { kind: "refreshed"; transaction: MercadoPagoQrOrderRecord }
   | { kind: "provider_unavailable" };
 
 export async function refreshMercadoPagoTransaction(
   lane: PaymentTransactionLane,
   { mercadoPago, clock }: { mercadoPago: MercadoPagoOrders; clock: Clock },
-  transaction: ProviderPaymentTransaction,
+  transaction: MercadoPagoQrOrderRecord,
 ): Promise<MercadoPagoTransactionRefresh> {
   const ended = await recordExpiryWithoutOrder(lane, transaction, clock.now());
   if (ended !== null) {

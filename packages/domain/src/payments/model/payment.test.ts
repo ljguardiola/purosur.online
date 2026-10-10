@@ -3,10 +3,10 @@ import {
   cancellableWithoutAuthorization,
   hasApprovedPayment,
   holdsApprovedQrPayment,
-  type PaymentTransaction,
 } from "./payment.js";
+import type { SalePayment } from "./payment-transaction.js";
 
-const APPROVED: PaymentTransaction = {
+const APPROVED: SalePayment = {
   id: "payment-1",
   saleId: "sale-1",
   kind: "SALE",
@@ -71,27 +71,25 @@ describe("holdsApprovedQrPayment", () => {
   });
 });
 
-describe("PaymentTransaction", () => {
+describe("SalePayment", () => {
   it("does not accept a transfer without who confirmed it and when", () => {
-    type Transfer = Extract<PaymentTransaction, { method: "TRANSFER" }>;
+    type Transfer = Extract<SalePayment, { method: "TRANSFER" }>;
 
-    expectTypeOf<Omit<Transfer, "authorizedBy">>().not.toExtend<PaymentTransaction>();
-    expectTypeOf<Omit<Transfer, "confirmedAt">>().not.toExtend<PaymentTransaction>();
+    expectTypeOf<Omit<Transfer, "authorizedBy">>().not.toExtend<SalePayment>();
+    expectTypeOf<Omit<Transfer, "confirmedAt">>().not.toExtend<SalePayment>();
   });
 });
 
 describe("a Mercado Pago QR payment of a sale", () => {
-  type QrPayment = Extract<PaymentTransaction, { method: "QR" }>;
+  type QrPayment = Extract<SalePayment, { method: "QR" }>;
 
   it("is an approved payment processed by Mercado Pago QR", () => {
     expectTypeOf<QrPayment>().toExtend<{ provider: "MERCADOPAGO_QR"; state: "APPROVED" }>();
-    expectTypeOf<
-      Omit<QrPayment, "provider"> & { provider: "NONE" }
-    >().not.toExtend<PaymentTransaction>();
+    expectTypeOf<Omit<QrPayment, "provider"> & { provider: "NONE" }>().not.toExtend<SalePayment>();
   });
 
   it("carries no tendered amount nor anyone who confirmed it", () => {
-    expectTypeOf<QrPayment & { tendered: number }>().not.toExtend<PaymentTransaction>();
-    expectTypeOf<QrPayment & { authorizedBy: string }>().not.toExtend<PaymentTransaction>();
+    expectTypeOf<QrPayment & { tendered: number }>().not.toExtend<SalePayment>();
+    expectTypeOf<QrPayment & { authorizedBy: string }>().not.toExtend<SalePayment>();
   });
 });

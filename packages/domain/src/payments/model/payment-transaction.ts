@@ -12,21 +12,77 @@ export const PENDING_PAYMENT_TRANSACTION_STATE: PaymentTransactionState = "PENDI
 
 export const MERCADO_PAGO_ORDER_EXPIRY_MINUTES = 5;
 
-export interface ProviderPaymentTransaction {
+interface SalePaymentTransaction {
   id: string;
-  registerId: string;
   saleId: string;
   kind: "SALE";
+  amount: number;
+  occurredAt: Date;
+}
+
+interface CashPaymentTransaction extends SalePaymentTransaction {
+  method: "CASH";
+  provider: "NONE";
+  state: "APPROVED";
+  tendered?: number;
+}
+
+interface TransferPaymentTransaction extends SalePaymentTransaction {
+  method: "TRANSFER";
+  provider: "NONE";
+  state: "APPROVED";
+  tendered?: never;
+  authorizedBy: string;
+  confirmedAt: Date;
+}
+
+export interface MercadoPagoQrPaymentTransaction extends SalePaymentTransaction {
   method: "QR";
   provider: "MERCADOPAGO_QR";
-  amount: number;
   state: PaymentTransactionState;
+  tendered?: never;
+  authorizedBy?: never;
+  confirmedAt?: never;
+  waitEndsAt: Date;
+  registerId: string;
   needsReview: boolean;
   providerOrderId: string | null;
   creationOutcomeUnknown: boolean;
   createdAt: Date;
   expiresAt: Date;
 }
+
+export type PaymentTransaction =
+  | CashPaymentTransaction
+  | TransferPaymentTransaction
+  | MercadoPagoQrPaymentTransaction;
+
+export type SalePayment =
+  | CashPaymentTransaction
+  | TransferPaymentTransaction
+  | (Pick<
+      MercadoPagoQrPaymentTransaction,
+      | "id"
+      | "saleId"
+      | "kind"
+      | "method"
+      | "provider"
+      | "amount"
+      | "occurredAt"
+      | "tendered"
+      | "authorizedBy"
+      | "confirmedAt"
+    > & { state: "APPROVED" });
+
+export type PendingQrSalePayment = Pick<
+  MercadoPagoQrPaymentTransaction,
+  "id" | "saleId" | "amount" | "occurredAt" | "waitEndsAt"
+>;
+
+export type MercadoPagoQrOrderRecord = Omit<
+  MercadoPagoQrPaymentTransaction,
+  "occurredAt" | "waitEndsAt"
+>;
 
 export function mercadoPagoOrderExpiresAt(attemptStartedAt: Date, longestCallMs: number): Date {
   return new Date(
@@ -38,7 +94,7 @@ export type ExpiryWithoutOrder = "expired" | "needs_review";
 
 export function expiryWithoutOrder(
   transaction: Pick<
-    ProviderPaymentTransaction,
+    MercadoPagoQrPaymentTransaction,
     "state" | "providerOrderId" | "expiresAt" | "creationOutcomeUnknown"
   >,
   now: Date,

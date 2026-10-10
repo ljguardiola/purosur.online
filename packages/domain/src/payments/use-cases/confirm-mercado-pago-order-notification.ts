@@ -1,4 +1,4 @@
-import type { ProviderPaymentTransaction } from "../model/payment-transaction.js";
+import type { MercadoPagoQrOrderRecord } from "../model/payment-transaction.js";
 import type { MercadoPagoNotificationPorts } from "./mercado-pago-notification-ports.js";
 import { refreshMercadoPagoTransaction } from "./refresh-mercado-pago-transaction.js";
 
@@ -7,7 +7,7 @@ export interface ConfirmMercadoPagoOrderNotificationInput {
 }
 
 export type ConfirmMercadoPagoOrderNotificationOutcome =
-  | { kind: "refreshed"; transaction: ProviderPaymentTransaction }
+  | { kind: "refreshed"; transaction: MercadoPagoQrOrderRecord }
   | { kind: "unknown_order" }
   | { kind: "provider_unavailable" };
 

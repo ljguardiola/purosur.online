@@ -1,21 +1,21 @@
-import type { PaymentTransaction, PendingQrSalePayment } from "@purosur/domain";
+import type { PendingQrSalePayment, SalePayment } from "@purosur/domain";
 import type { LocalDatabase } from "../platform/local-database";
 
 interface PaymentRow {
   id: string;
   sale_id: string;
-  kind: PaymentTransaction["kind"];
-  method: PaymentTransaction["method"];
-  provider: PaymentTransaction["provider"];
+  kind: SalePayment["kind"];
+  method: SalePayment["method"];
+  provider: SalePayment["provider"];
   amount: number;
   tendered: number | null;
   authorized_by: string | null;
   confirmed_at: string | null;
-  state: PaymentTransaction["state"];
+  state: SalePayment["state"];
   occurred_at: string;
 }
 
-export function readSalePayments(database: LocalDatabase, saleId: string): PaymentTransaction[] {
+export function readSalePayments(database: LocalDatabase, saleId: string): SalePayment[] {
   return database
     .prepare<[string], PaymentRow>(
       `SELECT id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state,
@@ -26,7 +26,7 @@ export function readSalePayments(database: LocalDatabase, saleId: string): Payme
     .map(toPayment);
 }
 
-function toPayment(row: PaymentRow): PaymentTransaction {
+function toPayment(row: PaymentRow): SalePayment {
   const common = {
     id: row.id,
     saleId: row.sale_id,

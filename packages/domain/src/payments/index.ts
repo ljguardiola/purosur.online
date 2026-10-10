@@ -9,11 +9,7 @@ export {
   MERCADO_PAGO_QR_CHARGE_WAIT_MINUTES,
 } from "./model/mercado-pago-qr-charge-wait.js";
 export { nonCashCharge } from "./model/non-cash-charge.js";
-export type {
-  PaymentMethod,
-  PaymentTransaction,
-  PendingQrSalePayment,
-} from "./model/payment.js";
+export type { PaymentMethod } from "./model/payment.js";
 export {
   cancellableWithoutAuthorization,
   hasApprovedPayment,
@@ -31,8 +27,12 @@ export {
   refundsSettleApprovedPayments,
 } from "./model/payment-refund.js";
 export type {
+  MercadoPagoQrOrderRecord,
+  MercadoPagoQrPaymentTransaction,
+  PaymentTransaction,
   PaymentTransactionState,
-  ProviderPaymentTransaction,
+  PendingQrSalePayment,
+  SalePayment,
 } from "./model/payment-transaction.js";
 export {
   isValidOrderAmount,

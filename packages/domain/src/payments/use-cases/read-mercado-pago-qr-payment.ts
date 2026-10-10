@@ -1,4 +1,4 @@
-import type { ProviderPaymentTransaction } from "../model/payment-transaction.js";
+import type { MercadoPagoQrOrderRecord } from "../model/payment-transaction.js";
 import type { MercadoPagoQrOrderPorts } from "./mercado-pago-qr-order-ports.js";
 import { refreshMercadoPagoTransaction } from "./refresh-mercado-pago-transaction.js";
 
@@ -8,7 +8,7 @@ export interface ReadMercadoPagoQrPaymentInput {
 }
 
 export type ReadMercadoPagoQrPaymentOutcome =
-  | { kind: "read"; transaction: ProviderPaymentTransaction }
+  | { kind: "read"; transaction: MercadoPagoQrOrderRecord }
   | { kind: "not_found" }
   | { kind: "provider_unavailable" };
 

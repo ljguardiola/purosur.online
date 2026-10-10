@@ -4,7 +4,7 @@ import {
   FICTIONAL_GROSS_INCOME_REGISTRATION,
   FICTIONAL_LEGAL_NAME,
 } from "../../fiscal/test-support/fictional-tax-identities.js";
-import type { PaymentTransaction, PendingQrSalePayment } from "../../payments/index.js";
+import type { PendingQrSalePayment, SalePayment } from "../../payments/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { settleApprovedQrPayment } from "./settle-approved-qr-payment.js";
 import {
@@ -64,7 +64,7 @@ function pendingQr(amount: number): PendingQrSalePayment {
   };
 }
 
-const APPROVED_QR: PaymentTransaction = {
+const APPROVED_QR: SalePayment = {
   id: "qr-1",
   saleId: "sale-1",
   kind: "SALE",
@@ -151,7 +151,7 @@ describe("settleApprovedQrPayment", () => {
   });
 
   it("completes the sale when the QR payment covers what an earlier payment left", () => {
-    const cash: PaymentTransaction = {
+    const cash: SalePayment = {
       id: "cash-1",
       saleId: "sale-1",
       kind: "SALE",

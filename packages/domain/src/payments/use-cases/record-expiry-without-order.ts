@@ -1,14 +1,11 @@
-import {
-  expiryWithoutOrder,
-  type ProviderPaymentTransaction,
-} from "../model/payment-transaction.js";
+import { expiryWithoutOrder, type MercadoPagoQrOrderRecord } from "../model/payment-transaction.js";
 import type { PaymentTransactionLane } from "./mercado-pago-qr-order-ports.js";
 
 export async function recordExpiryWithoutOrder(
   lane: PaymentTransactionLane,
-  transaction: ProviderPaymentTransaction,
+  transaction: MercadoPagoQrOrderRecord,
   now: Date,
-): Promise<ProviderPaymentTransaction | null> {
+): Promise<MercadoPagoQrOrderRecord | null> {
   const expiry = expiryWithoutOrder(transaction, now);
   if (expiry === null) {
     return null;

@@ -5,7 +5,7 @@ import {
   mercadoPagoQrOrderRequestSchema,
   mercadoPagoQrPaymentSchema,
 } from "@purosur/contracts";
-import type { ProviderPaymentTransaction } from "@purosur/domain";
+import type { MercadoPagoQrOrderRecord } from "@purosur/domain";
 import {
   createMercadoPagoQrOrder,
   type MercadoPagoOrders,
@@ -64,7 +64,7 @@ function sendError(reply: FastifyReply, error: CloudErrorBody) {
   return reply.code(cloudErrorStatus(error.code)).send(error);
 }
 
-function toWire(transaction: ProviderPaymentTransaction): MercadoPagoQrPaymentBody {
+function toWire(transaction: MercadoPagoQrOrderRecord): MercadoPagoQrPaymentBody {
   return {
     payment_transaction_id: transaction.id,
     state: transaction.state,

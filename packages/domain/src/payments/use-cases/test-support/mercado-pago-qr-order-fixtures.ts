@@ -1,5 +1,5 @@
 import type { MercadoPagoOrderResult } from "../../model/mercado-pago-order-result.js";
-import type { ProviderPaymentTransaction } from "../../model/payment-transaction.js";
+import type { MercadoPagoQrOrderRecord } from "../../model/payment-transaction.js";
 import type {
   MercadoPagoOrderCreation,
   MercadoPagoOrderReading,
@@ -37,8 +37,8 @@ export function paidOrderResult(paid = AMOUNT): MercadoPagoOrderResult {
 }
 
 export function storedTransaction(
-  overrides: Partial<ProviderPaymentTransaction> = {},
-): ProviderPaymentTransaction {
+  overrides: Partial<MercadoPagoQrOrderRecord> = {},
+): MercadoPagoQrOrderRecord {
   return {
     id: TRANSACTION_ID,
     registerId: REGISTER_ID,

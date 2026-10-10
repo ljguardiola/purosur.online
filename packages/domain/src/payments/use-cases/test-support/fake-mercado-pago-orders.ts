@@ -1,4 +1,4 @@
-import type { ProviderPaymentTransaction } from "../../model/payment-transaction.js";
+import type { MercadoPagoQrOrderRecord } from "../../model/payment-transaction.js";
 import type {
   MercadoPagoOrderCreation,
   MercadoPagoOrderReading,
@@ -13,7 +13,7 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
   readonly readOrders: string[] = [];
   heldLaneDuringCall: boolean | undefined;
   transactionsRecordedDuringCall: string[] | undefined;
-  recordedDuringCreation: ProviderPaymentTransaction | undefined;
+  recordedDuringCreation: MercadoPagoQrOrderRecord | undefined;
   creationStopsMidway = false;
   creation: MercadoPagoOrderCreation;
   reading: MercadoPagoOrderReading;
