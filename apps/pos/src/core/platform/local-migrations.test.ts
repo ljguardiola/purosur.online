@@ -2054,8 +2054,8 @@ describe("the register's local migrations", () => {
       const held = insert({});
       held.run();
 
-      expect(
-        held.database.prepare("INSERT INTO serial_devices VALUES ('reader', '1a86', '7523')").run,
+      expect(() =>
+        held.database.prepare("INSERT INTO serial_devices VALUES ('reader', '1a86', '7523')").run(),
       ).not.toThrow();
       held.database.close();
     });
