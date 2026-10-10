@@ -63,6 +63,13 @@ describe("the Mercado Pago QR charges the register keeps", () => {
     expect(charges.pendingCharge("cash-1")).toBeNull();
   });
 
+  it("find no pending charge for a QR payment marked as replaced", () => {
+    addQrPayment("qr-1", "PENDING");
+    database.prepare("UPDATE payment_transactions SET replaced = 1 WHERE id = 'qr-1'").run();
+
+    expect(charges.pendingCharge("qr-1")).toBeNull();
+  });
+
   it.each(["DECLINED", "CANCELLED", "EXPIRED"] as const)(
     "record a pending QR payment as %s once its order ends that way",
     (state) => {

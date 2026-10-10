@@ -104,4 +104,34 @@ describe("the sale ledger's QR payments", () => {
     ).toEqual({ state: "CANCELLED", occurred_at: WAIT_ENDS_AT.toISOString() });
     expect(stateOf("qr-1")).toEqual({ state: "PENDING" });
   });
+
+  it("marks a pending QR payment as replaced and ends its wait, keeping it pending among the sale's QR payments but no longer findable by id", () => {
+    ledger.transaction((tx) => tx.recordPendingQrPayment(PENDING));
+    const replacedAt = new Date("2026-10-09T12:01:00.000Z");
+
+    ledger.transaction((tx) => tx.markQrPaymentReplaced("qr-1", replacedAt));
+
+    expect(stateOf("qr-1")).toEqual({ state: "PENDING" });
+    expect(
+      database
+        .prepare("SELECT replaced, wait_ends_at FROM payment_transactions WHERE id = 'qr-1'")
+        .get(),
+    ).toEqual({ replaced: 1, wait_ends_at: replacedAt.toISOString() });
+    expect(ledger.transaction((tx) => tx.pendingQrPayment("qr-1"))).toBeUndefined();
+    expect(ledger.transaction((tx) => tx.pendingQrPaymentsOf("sale-1"))).toEqual([
+      { ...PENDING, waitEndsAt: replacedAt },
+    ]);
+    expect(ledger.transaction((tx) => tx.salePayments("sale-1"))).toEqual([]);
+  });
+
+  it("marks nothing when the QR payment already ended", () => {
+    ledger.transaction((tx) => tx.recordPendingQrPayment(PENDING));
+    database.prepare("UPDATE payment_transactions SET state = 'DECLINED' WHERE id = 'qr-1'").run();
+
+    ledger.transaction((tx) => tx.markQrPaymentReplaced("qr-1", WAIT_ENDS_AT));
+
+    expect(
+      database.prepare("SELECT replaced FROM payment_transactions WHERE id = 'qr-1'").get(),
+    ).toEqual({ replaced: 0 });
+  });
 });
