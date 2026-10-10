@@ -8,6 +8,7 @@ import {
   isInternalBarcode,
   offlineAuthorizationCodeAcquisitionLevel,
   SALE_UNITS,
+  shiftCalendarDay,
 } from "@purosur/domain";
 import { eq, ne, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -525,7 +526,7 @@ describe("loadSampleData", () => {
       .from(branchHours);
     expect(hoursRows).toEqual([{ dayOfWeek: 3, opensAt: "10:00:00" }]);
   }, 120_000);
-  it("writes every sample alert with a catalog kind, the level its real producer gives it, and the detail shape its real producer writes", async () => {
+  it("writes every sample alert with a catalog kind, the level its real producer gives it on every day it stays open, and the detail shape its real producer writes", async () => {
     const db = await freshDatabase();
     const bootstrapAdministratorId = await seedActiveAdministrator(db);
     expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
@@ -576,12 +577,27 @@ describe("loadSampleData", () => {
         fortnightStart: string;
         fortnightEnd: string;
       };
-      expect(alert.level).toBe(
-        offlineAuthorizationCodeAcquisitionLevel(
-          { start: fortnightStart, end: fortnightEnd },
-          argentinaCalendarDay(alert.escalatedAt ?? alert.openedAt),
-        ),
-      );
+      const fortnight = { start: fortnightStart, end: fortnightEnd };
+      const openingDay = argentinaCalendarDay(alert.openedAt);
+      const openingLevel =
+        alert.escalatedAt === null
+          ? alert.level
+          : offlineAuthorizationCodeAcquisitionLevel(fortnight, openingDay);
+      const escalationDay =
+        alert.escalatedAt === null ? null : argentinaCalendarDay(alert.escalatedAt);
+      const lastDay = argentinaCalendarDay(alert.resolvedAt ?? NOW);
+      const heldLevels: { day: string; held: AlertLevel | null; producer: AlertLevel | null }[] =
+        [];
+      for (let day = openingDay; day <= lastDay; day = shiftCalendarDay(day, 1)) {
+        heldLevels.push({
+          day,
+          held: escalationDay !== null && day >= escalationDay ? alert.level : openingLevel,
+          producer: offlineAuthorizationCodeAcquisitionLevel(fortnight, day),
+        });
+      }
+      expect(
+        heldLevels.filter(({ held, producer }) => producer === null || held !== producer),
+      ).toEqual([]);
     }
     const accessIncreasedAlerts = alertRows.filter(
       (alert) => alert.kind === "user_access_increased",
