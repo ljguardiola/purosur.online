@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
   FICTIONAL_AUTHORIZATION_CODE,
   FICTIONAL_CERTIFICATE_CUIT_DIGITS,
+  FICTIONAL_OFFLINE_AUTHORIZATION_CODE,
   scrubArcaRecording,
 } from "./scrub-arca-recording.js";
 
@@ -222,6 +223,41 @@ describe("scrubArcaRecording", () => {
       const refused = "<FECAEDetResponse><CAE></CAE><CAEFchVto></CAEFchVto></FECAEDetResponse>";
 
       expect(scrubArcaRecording(refused)).toEqual({ text: refused, replacements: [] });
+    });
+  });
+
+  describe("a granted offline authorization code", () => {
+    const ORIGINAL_OFFLINE_AUTHORIZATION_CODE = "36987654321098";
+    const grantedCode =
+      '<FECAEASolicitarResponse xmlns="http://ar.gov.afip.dif.FEV1/"><FECAEASolicitarResult><ResultGet>' +
+      `<CAEA>${ORIGINAL_OFFLINE_AUTHORIZATION_CODE}</CAEA><Periodo>202610</Periodo><Orden>1</Orden>` +
+      "<FchVigDesde>20261001</FchVigDesde><FchVigHasta>20261015</FchVigHasta><FchTopeInf>20261020</FchTopeInf>" +
+      "<FchProceso>20261009233109</FchProceso></ResultGet></FECAEASolicitarResult></FECAEASolicitarResponse>";
+
+    it("replaces the code with a fictional one of the same fourteen digits, distinct from the invoice's", () => {
+      const { text } = scrubArcaRecording(grantedCode);
+
+      expect(text).not.toContain(ORIGINAL_OFFLINE_AUTHORIZATION_CODE);
+      expect(text).toContain(`<CAEA>${FICTIONAL_OFFLINE_AUTHORIZATION_CODE}</CAEA>`);
+      expect(FICTIONAL_OFFLINE_AUTHORIZATION_CODE).toMatch(/^\d{14}$/);
+      expect(FICTIONAL_OFFLINE_AUTHORIZATION_CODE).not.toBe(FICTIONAL_AUTHORIZATION_CODE);
+    });
+
+    it("keeps the fortnight, its dates and the reporting deadline as ARCA gave them", () => {
+      const { text } = scrubArcaRecording(grantedCode);
+
+      expect(text).toContain("<Periodo>202610</Periodo><Orden>1</Orden>");
+      expect(text).toContain(
+        "<FchVigDesde>20261001</FchVigDesde><FchVigHasta>20261015</FchVigHasta>",
+      );
+      expect(text).toContain("<FchTopeInf>20261020</FchTopeInf>");
+      expect(text).toContain("<FchProceso>20261009233109</FchProceso>");
+    });
+
+    it("reports the code, never its value", () => {
+      const { replacements } = scrubArcaRecording(grantedCode);
+
+      expect(replacements).toEqual([{ field: "CAEA", count: 1 }]);
     });
   });
 

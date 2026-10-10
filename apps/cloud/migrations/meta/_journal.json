@@ -498,6 +498,13 @@
       "when": 1791600468621,
       "tag": "0070_sale_receipts",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1791606028700,
+      "tag": "0071_caea_codes",
+      "breakpoints": true
     }
   ]
 }

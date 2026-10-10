@@ -1,6 +1,14 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { invoiceDateOf, isPointOfSaleNumber, selectConsumerBuyerTaxStatus } from "@purosur/domain";
+import {
+  argentinaCalendarDay,
+  fortnightAfter,
+  fortnightsWithinRequestWindowOn,
+  invoiceDateOf,
+  isPointOfSaleNumber,
+  selectConsumerBuyerTaxStatus,
+} from "@purosur/domain";
+import type { Fortnight, WsaaToken } from "@purosur/domain/fiscal/use-cases";
 import { requireAuthorizedCuit } from "../server.js";
 import { arcaCredentialsOf } from "./arca-credentials.js";
 import { type ScrubReplacement, scrubArcaRecording } from "./scrub-arca-recording.js";
@@ -9,6 +17,7 @@ import { WsfeArcaVitalityService } from "./wsfe-arca-vitality-service.js";
 import { WsfeBuyerTaxStatusSource } from "./wsfe-buyer-tax-status-source.js";
 import { WsfeTaxAuthorityInvoicing } from "./wsfe-tax-authority-invoicing.js";
 import { WsfeTaxAuthorityLastAuthorized } from "./wsfe-tax-authority-last-authorized.js";
+import { WsfeTaxAuthorityOfflineAuthorizationCodes } from "./wsfe-tax-authority-offline-authorization-codes.js";
 
 const WSAA_SERVICE = "wsfe";
 const UNISSUED_TOKEN = "FICTIONAL-TOKEN-0001";
@@ -87,18 +96,23 @@ export interface RecordArcaResponsesOptions {
 export interface ArcaRecordingReport {
   firstLoginIssuedTicket: boolean;
   invoicesRecorded: boolean;
+  offlineAuthorizationCodesRecorded: boolean;
   scrubbed: { file: string; replacements: ScrubReplacement[] }[];
 }
 
 export function recordingFailure({
   firstLoginIssuedTicket,
   invoicesRecorded,
+  offlineAuthorizationCodesRecorded,
 }: ArcaRecordingReport): string | undefined {
   if (!firstLoginIssuedTicket) {
     return "the first login did not issue a ticket (ARCA may still hold a valid one for this certificate); login-cms-issued is not a ticket answer";
   }
   if (!invoicesRecorded) {
     return "ARCA listed no Consumidor Final for invoice class C or gave no last authorized number, so no invoice was requested";
+  }
+  if (!offlineAuthorizationCodesRecorded) {
+    return "every fortnight whose request window is open already holds a granted offline authorization code, or ARCA did not answer whether it does, so none was requested";
   }
   return undefined;
 }
@@ -213,6 +227,8 @@ export async function recordArcaResponses(
       }
     }
   }
+  const offlineAuthorizationCodeRecordings =
+    first.kind === "issued" ? await recordOfflineAuthorizationCodes(options, first.token) : [];
   logins += 1;
   current = secondLogin;
   await authentication.requestToken(WSAA_SERVICE);
@@ -225,6 +241,7 @@ export async function recordArcaResponses(
     ["login-cms-issued", issued],
     ...buyerTaxStatusRecordings,
     ...invoicingRecordings,
+    ...offlineAuthorizationCodeRecordings,
     ["login-cms-already-authenticated", alreadyAuthenticated],
   ] as const;
   for (const [name, raw] of recordings) {
@@ -234,5 +251,67 @@ export async function recordArcaResponses(
     await writeFile(join(options.outDir, file), result.text);
     scrubbed.push({ file, replacements: result.replacements });
   }
-  return { firstLoginIssuedTicket: first.kind === "issued", invoicesRecorded, scrubbed };
+  return {
+    firstLoginIssuedTicket: first.kind === "issued",
+    invoicesRecorded,
+    offlineAuthorizationCodesRecorded: offlineAuthorizationCodeRecordings.length > 0,
+    scrubbed,
+  };
+}
+
+async function recordOfflineAuthorizationCodes(
+  options: RecordArcaResponsesOptions,
+  token: WsaaToken,
+): Promise<[string, string][]> {
+  const { timeoutMs } = options;
+  const codesCapturedBy = (call: ReturnType<typeof capturedBy>) =>
+    new WsfeTaxAuthorityOfflineAuthorizationCodes({
+      endpoint: options.wsfeEndpoint,
+      cuit: options.cuit,
+      onRawResponse: call.onRawResponse,
+      ...(timeoutMs === undefined ? {} : { timeoutMs }),
+    });
+  const withinWindow = fortnightsWithinRequestWindowOn(argentinaCalendarDay(options.now()));
+  let target: { fortnight: Fortnight; notGranted: string } | undefined;
+  for (const fortnight of [...withinWindow].reverse()) {
+    const lookup = capturedBy("FECAEAConsultar");
+    const answer = await codesCapturedBy(lookup).lookUp({ token, fortnight });
+    const raw = lookup.raw();
+    if (answer.kind !== "granted") {
+      target = answer.kind === "not_granted" ? { fortnight, notGranted: raw } : undefined;
+      break;
+    }
+  }
+  if (target === undefined) {
+    return [];
+  }
+
+  const { fortnight } = target;
+  const lastWithinWindow = withinWindow[withinWindow.length - 1] as Fortnight;
+  const calls: [string, (codes: WsfeTaxAuthorityOfflineAuthorizationCodes) => Promise<unknown>][] =
+    [
+      ["fe-caea-solicitar-granted", (codes) => codes.request({ token, fortnight })],
+      ["fe-caea-solicitar-already-granted", (codes) => codes.request({ token, fortnight })],
+      ["fe-caea-consultar-granted", (codes) => codes.lookUp({ token, fortnight })],
+      [
+        "fe-caea-consultar-token-error",
+        (codes) =>
+          codes.lookUp({
+            token: { ...token, token: UNISSUED_TOKEN, sign: UNISSUED_SIGN },
+            fortnight,
+          }),
+      ],
+      [
+        "fe-caea-solicitar-out-of-window",
+        (codes) =>
+          codes.request({ token, fortnight: fortnightAfter(fortnightAfter(lastWithinWindow)) }),
+      ],
+    ];
+  const recordings: [string, string][] = [["fe-caea-consultar-not-granted", target.notGranted]];
+  for (const [name, make] of calls) {
+    const call = capturedBy(`FECAEA (${name})`);
+    await make(codesCapturedBy(call));
+    recordings.push([name, call.raw()]);
+  }
+  return recordings;
 }
