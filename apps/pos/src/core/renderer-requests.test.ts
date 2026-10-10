@@ -17,6 +17,7 @@ import type {
   OpenCashSession,
   OpenCashSessionOutcome,
   OpenSale,
+  ReadReceiptPrinterOutcome,
   ReceiptPrintStatusOutcome,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
@@ -29,6 +30,7 @@ import type {
   ScanProductOutcome,
   SearchProductsOutcome,
   SessionOpenSale,
+  SetReceiptPrinterOutcome,
   SignInLookupOutcome,
   SignInOutcome,
 } from "@purosur/contracts";
@@ -186,6 +188,14 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       salesHistory: async (request: SalesHistoryRequest): Promise<SalesHistoryOutcome> => {
         saleChanges.push(["sales-history", request.session, request.state, request.page].join(" "));
         return { kind: "found", rows: [], total: 0, page_size: 50 };
+      },
+      readReceiptPrinter: async (): Promise<ReadReceiptPrinterOutcome> => {
+        saleChanges.push("read-receipt-printer");
+        return { kind: "not_configured" };
+      },
+      setReceiptPrinter: async (address: string): Promise<SetReceiptPrinterOutcome> => {
+        saleChanges.push(["set-receipt-printer", address].join(" "));
+        return { kind: "invalid_address" };
       },
       saleHistoryDetail: async (saleId: string): Promise<SaleHistoryDetailOutcome> => {
         saleChanges.push(["sale-history-detail", saleId].join(" "));
@@ -2085,6 +2095,22 @@ describe("answerRendererRequest", () => {
         "reading the sales history",
         "sales-history open deferred 2",
         "sales-history-result",
+      ],
+      [
+        "read-receipt-printer",
+        { type: "read-receipt-printer" } as const,
+        "readReceiptPrinter",
+        "reading the receipt printer",
+        "read-receipt-printer",
+        "read-receipt-printer-result",
+      ],
+      [
+        "set-receipt-printer",
+        { type: "set-receipt-printer", address: "10.10.10.2:9100" } as const,
+        "setReceiptPrinter",
+        "setting the receipt printer",
+        "set-receipt-printer 10.10.10.2:9100",
+        "set-receipt-printer-result",
       ],
       [
         "sale-history-detail",
