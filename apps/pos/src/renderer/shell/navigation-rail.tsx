@@ -15,6 +15,7 @@ type RailLinkProps = {
 
 export type NavigationRailProps = {
   entries: readonly ActionEntry[];
+  current?: ActionEntry["to"];
   home?: { label: string; icon: LucideIcon; to?: ActionEntry["to"] };
   links?: readonly RailLinkProps[];
   onSignOut?: () => void;
@@ -24,6 +25,7 @@ const INICIO = { label: "Inicio", icon: House };
 
 export function NavigationRail({
   entries,
+  current,
   home = INICIO,
   links = [],
   onSignOut,
@@ -52,7 +54,14 @@ export function NavigationRail({
         />
       )}
       {entries.map(({ label, icon: Glyph, to }) => (
-        <RailLink key={label} rail="light" to={to} label={label} icon={<Glyph />} active={false} />
+        <RailLink
+          key={label}
+          rail="light"
+          to={to}
+          label={label}
+          icon={<Glyph />}
+          active={to === current}
+        />
       ))}
       {links.map(({ label, icon: Glyph, to, current = false }) => (
         <RailLink
