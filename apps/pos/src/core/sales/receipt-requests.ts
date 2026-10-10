@@ -12,7 +12,7 @@ import {
   type OperationAuthority,
   type OperationAuthorization,
   printSaleReceipt,
-  type ReceiptPrinter,
+  type ReceiptPrinters,
   type ReceiptPrintGrant,
   receiptDeliveryOf,
   reprintSaleReceipt,
@@ -31,7 +31,7 @@ export interface ReceiptRequestDeps {
   ids: IdGenerator;
   readOutboxChainKey: () => Promise<string | undefined>;
   signedInUserId: () => string | undefined;
-  printer: ReceiptPrinter;
+  printers: ReceiptPrinters;
   jobs: ReceiptPrintJobs;
 }
 
@@ -89,14 +89,14 @@ function printingPorts<Refusal>(
   deps: ReceiptRequestDeps,
   chainKey: string | undefined,
   authority: OperationAuthority<ReceiptPrintGrant, Refusal>,
-  printer: ReceiptPrinter,
+  printers: ReceiptPrinters,
 ) {
   return {
     ledger: new SqliteReceiptLedger(deps.database, chainKey),
     clock: { now: deps.now },
     ids: deps.ids,
     template: escPosReceiptTemplate,
-    printer,
+    printers,
     authority,
   };
 }
@@ -137,13 +137,13 @@ export async function printCompletedSaleReceiptFor(
   const started: Started = { copy: undefined };
   await deps.jobs.start(
     saleId,
-    ({ watch, printer }) =>
+    ({ watch, printers }) =>
       printSaleReceipt(
         printingPorts(
           deps,
           chainKey,
           signedSellerAuthority(deps, saleId, started),
-          printer(deps.printer),
+          printers(deps.printers),
         ),
         { saleId },
         watch,
@@ -158,14 +158,14 @@ export async function retryReceiptPrintFor(
 ): Promise<RetryReceiptPrintOutcome> {
   const chainKey = await deps.readOutboxChainKey();
   const started: Started = { copy: undefined };
-  const start = await deps.jobs.start(saleId, ({ watch, printer }) =>
+  const start = await deps.jobs.start(saleId, ({ watch, printers }) =>
     retrySaleReceiptPrint(
       {
         ...printingPorts(
           deps,
           chainKey,
           signedSellerAuthority(deps, saleId, started),
-          printer(deps.printer),
+          printers(deps.printers),
         ),
         standings: deps.jobs,
       },
@@ -215,9 +215,9 @@ export async function reprintSaleReceiptFor(
       };
     },
   };
-  const start = await deps.jobs.start(saleId, ({ watch, printer }) =>
+  const start = await deps.jobs.start(saleId, ({ watch, printers }) =>
     reprintSaleReceipt(
-      printingPorts(deps, chainKey, authority, printer(deps.printer)),
+      printingPorts(deps, chainKey, authority, printers(deps.printers)),
       { saleId, reason },
       watch,
     ),

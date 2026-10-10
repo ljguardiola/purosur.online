@@ -1,5 +1,6 @@
-import type { ReceiptPrinter } from "@purosur/domain/sales/use-cases";
+import type { ReceiptPrinters } from "@purosur/domain/sales/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
+import { SqliteReceiptPrinterSettings } from "../register/sqlite-receipt-printer-settings";
 import type { ActionGate } from "../sessions/action-gate";
 import { printingCompletedSales } from "./printing-completed-sales";
 import { createReceiptPrintJobs } from "./receipt-print-jobs";
@@ -10,12 +11,20 @@ import {
   reprintSaleReceiptFor,
   retryReceiptPrintFor,
 } from "./receipt-requests";
-import { TcpReceiptPrinter } from "./tcp-receipt-printer";
+import { TcpReceiptPrinter, type TcpReceiptPrinterOptions } from "./tcp-receipt-printer";
 
-const INSTALLATION_PRINTER_HOST = "10.10.10.2";
-
-export function installationReceiptPrinter(): ReceiptPrinter {
-  return new TcpReceiptPrinter({ host: INSTALLATION_PRINTER_HOST });
+function savedReceiptPrinters(
+  settings: SqliteReceiptPrinterSettings,
+  connect: TcpReceiptPrinterOptions["connect"],
+): ReceiptPrinters {
+  return {
+    configured() {
+      const address = settings.receiptPrinterAddress();
+      return address === undefined
+        ? undefined
+        : new TcpReceiptPrinter({ host: address.host, port: address.port ?? undefined, connect });
+    },
+  };
 }
 
 export interface ReceiptPrintingWiringDeps {
@@ -25,7 +34,7 @@ export interface ReceiptPrintingWiringDeps {
   ids: ReceiptRequestDeps["ids"];
   readOutboxChainKey: ReceiptRequestDeps["readOutboxChainKey"];
   signedInUserId: ReceiptRequestDeps["signedInUserId"];
-  printer: ReceiptPrinter;
+  connectPrinter?: TcpReceiptPrinterOptions["connect"];
   reportFailure: (context: string, error: unknown) => void;
   syncNow: () => void;
 }
@@ -50,7 +59,7 @@ export function createReceiptPrinting({
   ids,
   readOutboxChainKey,
   signedInUserId,
-  printer,
+  connectPrinter,
   reportFailure,
   syncNow,
 }: ReceiptPrintingWiringDeps): ReceiptPrinting {
@@ -69,7 +78,7 @@ export function createReceiptPrinting({
     ids,
     readOutboxChainKey,
     signedInUserId,
-    printer,
+    printers: savedReceiptPrinters(new SqliteReceiptPrinterSettings(database), connectPrinter),
     jobs: createReceiptPrintJobs({ now, reportFailure }),
   };
   return {

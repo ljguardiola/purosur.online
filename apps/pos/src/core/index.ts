@@ -62,7 +62,7 @@ import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
 import { type CoreToRendererMessage, rendererToCoreMessageSchema } from "./renderer-messages";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
-import { createReceiptPrinting, installationReceiptPrinter } from "./sales/receipt-printing-wiring";
+import { createReceiptPrinting } from "./sales/receipt-printing-wiring";
 import {
   addSearchedProductFor,
   cancelLockedSaleFor,
@@ -329,7 +329,6 @@ const receiptPrinting = createReceiptPrinting({
   ids: uuidV7Ids,
   readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
   signedInUserId: () => signedInPerson.userId(),
-  printer: installationReceiptPrinter(),
   reportFailure,
   syncNow: () => syncSchedule.syncNow(),
 });
