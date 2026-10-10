@@ -1,4 +1,4 @@
-import { ALERT_AUDIENCES, ALERT_LEVELS } from "@purosur/domain";
+import { ALERT_AUDIENCES, ALERT_LEVELS, SALES_DENIED_REASONS } from "@purosur/domain";
 import { z } from "zod";
 
 export const alertLevelSchema = z.enum(ALERT_LEVELS);
@@ -14,6 +14,7 @@ export const alertSummarySchema = z.object({
   openedAt: z.string(),
   escalatedAt: z.string().nullable(),
   resolvedAt: z.string().nullable(),
+  salesDeniedReason: z.enum(SALES_DENIED_REASONS).nullable(),
 });
 
 export const alertListPageSchema = z.object({

@@ -1939,7 +1939,7 @@ describe("the register's status bar", () => {
     const context = {
       ...contextWith("up", "enrolled", PERSON, undefined, NO_SESSION),
       registerStatus: async () => ({
-        conditions: ["sales_denied" as const],
+        conditions: [{ kind: "sales_denied" as const, reason: "event_history_broken" as const }],
         cloud: "unreachable" as const,
         serial_devices: { scale: "matching" as const, reader: "matching" as const },
       }),

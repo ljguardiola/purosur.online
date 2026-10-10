@@ -465,7 +465,7 @@ export {
   signInLockoutWindowStart,
   signInLookupAttemptWindowStart,
 } from "./sessions/index.js";
-export type { IsoWeekday } from "./shared/index.js";
+export type { IsoWeekday, SalesDeniedReason } from "./shared/index.js";
 export {
   ARGENTINA_TIME_ZONE,
   argentinaCalendarDay,

@@ -3,8 +3,11 @@ import type { AlertLevel } from "@purosur/domain";
 import {
   actionsColumn,
   dataColumn,
+  isLocalAlertKind,
   ListFilter,
+  type LocalAlertSubject,
   localAlertText,
+  localAlertTitle,
   Pagination,
   plural,
   SearchField,
@@ -56,25 +59,36 @@ function levelLabel(level: AlertLevel): string {
 function kindsMatching(text: string): string[] {
   const query = text.toLowerCase();
   return DESCRIBED_ALERT_KINDS.filter((kind) =>
-    `${alertKindLabel(kind)} ${alertKindDescription(kind)} ${localAlertText(kind)?.title ?? ""}`
+    `${alertKindLabel(kind)} ${alertKindDescription(kind)} ${localAlertTitle(kind) ?? ""}`
       .toLowerCase()
       .includes(query),
   );
 }
 
-function localTextOf(alert: AlertSummary) {
-  return alert.audience === "local" ? localAlertText(alert.kind) : undefined;
+function alertRowTitle(alert: AlertSummary): string {
+  const localTitle = alert.audience === "local" ? localAlertTitle(alert.kind) : undefined;
+  return localTitle ?? alertKindLabel(alert.kind);
 }
 
-function alertRowTitle(alert: AlertSummary): string {
-  return localTextOf(alert)?.title ?? alertKindLabel(alert.kind);
+function localSubjectOf(alert: AlertSummary): LocalAlertSubject | undefined {
+  if (alert.audience !== "local" || !isLocalAlertKind(alert.kind)) {
+    return undefined;
+  }
+  if (alert.kind === "sales_denied") {
+    return alert.salesDeniedReason === null
+      ? undefined
+      : { kind: alert.kind, reason: alert.salesDeniedReason };
+  }
+  return { kind: alert.kind };
 }
 
 function alertRowDescription(alert: AlertSummary): string {
-  const local = localTextOf(alert);
-  return local === undefined
-    ? alertKindDescription(alert.kind)
-    : `${local.meaning} ${local.whatToDo}`;
+  const subject = localSubjectOf(alert);
+  if (subject === undefined) {
+    return alertKindDescription(alert.kind);
+  }
+  const { meaning, whatToDo } = localAlertText(subject);
+  return `${meaning} ${whatToDo}`;
 }
 
 const LEVEL_FILTER_OPTIONS = [

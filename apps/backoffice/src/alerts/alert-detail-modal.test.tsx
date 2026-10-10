@@ -1126,6 +1126,37 @@ test("tells a register that can't sell in plain language: what it is, what it me
   await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
 });
 
+test("tells a register with a damaged database how to get it selling again", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "sales_denied",
+        level: "critical",
+        audience: "local",
+        scope: "register-1",
+        scopeDisplay: "Caja 1",
+        detail: { deviceId: "device-1", reason: "local_database_damaged" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText("La caja no puede vender", { exact: true })).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Esta caja dejó de abrir ventas nuevas porque su base de datos está dañada.",
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(screen.getByText(/Restaurar la base de datos de la caja desde su copia de respaldo/))
+    .toBeVisible();
+  await expect.element(screen.getByText(/registro de operaciones/)).not.toBeInTheDocument();
+});
+
 test("names a register that can't sell by what happened when the alert is not for the Local audience", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
