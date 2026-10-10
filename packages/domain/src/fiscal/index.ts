@@ -49,6 +49,7 @@ export {
   fortnightContaining,
   fortnightsWithinRequestWindowOn,
   isSecondHalfOfMonth,
+  offlineAuthorizationCodeRequestOpensOn,
 } from "./model/offline-authorization-code.js";
 export type {
   OfflineNumberBlockRange,
