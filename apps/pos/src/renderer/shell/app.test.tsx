@@ -113,6 +113,7 @@ function coreAnswering(
     chargeSaleByTransfer?: CoreClient["chargeSaleByTransfer"];
     startMercadoPagoQrCharge?: CoreClient["startMercadoPagoQrCharge"];
     followMercadoPagoQrCharge?: CoreClient["followMercadoPagoQrCharge"];
+    abandonMercadoPagoQrCharge?: CoreClient["abandonMercadoPagoQrCharge"];
     searchProducts?: CoreClient["searchProducts"];
     addProduct?: CoreClient["addProduct"];
     addWeighedProduct?: CoreClient["addWeighedProduct"];
@@ -328,6 +329,11 @@ function coreAnswering(
       return sales.followMercadoPagoQrCharge === undefined
         ? { kind: "unavailable" }
         : sales.followMercadoPagoQrCharge(paymentTransactionId);
+    },
+    async abandonMercadoPagoQrCharge(paymentTransactionId) {
+      return sales.abandonMercadoPagoQrCharge === undefined
+        ? { kind: "unavailable" }
+        : sales.abandonMercadoPagoQrCharge(paymentTransactionId);
     },
     async closeCashSession(sessionId, countedCash) {
       closed.push([sessionId, countedCash]);
