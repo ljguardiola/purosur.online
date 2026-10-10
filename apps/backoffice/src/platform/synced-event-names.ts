@@ -9,6 +9,11 @@ const EVENT_TYPE_NAMES: ReadonlyMap<string, string> = new Map([
   ["fiscal_gate_failed", "control fiscal previo a facturar"],
 ]);
 
+const AGGREGATE_TYPE_NAMES: ReadonlyMap<string, string> = new Map([
+  ["Sale", "Venta"],
+  ["CashSession", "Sesión de caja"],
+]);
+
 const OF_AGGREGATE_TYPE: ReadonlyMap<string, string> = new Map([
   ["Sale", "de la venta"],
   ["CashSession", "de la sesión de caja"],
@@ -20,4 +25,8 @@ export function syncedEventTypeName(eventType: string): string | undefined {
 
 export function ofSyncedAggregateType(aggregateType: string): string | undefined {
   return OF_AGGREGATE_TYPE.get(aggregateType);
+}
+
+export function syncedAggregateTypeName(aggregateType: string): string | undefined {
+  return AGGREGATE_TYPE_NAMES.get(aggregateType);
 }
