@@ -2,7 +2,7 @@ import { NavItem, type NavItemLook, type NavItemProps } from "./nav-item";
 
 export type SectionNavItemProps = NavItemProps;
 
-const look: NavItemLook = {
+export const sectionNavLook: NavItemLook = {
   container:
     "flex h-control-lg w-full items-center gap-2 rounded-lg px-2 outline-none transition-colors " +
     "focus-visible:focus-ring-tight",
@@ -20,5 +20,5 @@ const look: NavItemLook = {
 };
 
 export function SectionNavItem(props: SectionNavItemProps) {
-  return <NavItem {...props} look={look} />;
+  return <NavItem {...props} look={sectionNavLook} />;
 }

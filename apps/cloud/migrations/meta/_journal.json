@@ -481,8 +481,15 @@
     {
       "idx": 68,
       "version": "7",
-      "when": 1791576325156,
-      "tag": "0068_sale_receipts",
+      "when": 1791590880713,
+      "tag": "0068_suppliers_and_product_packagings",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1791597599172,
+      "tag": "0069_sale_receipts",
       "breakpoints": true
     }
   ]

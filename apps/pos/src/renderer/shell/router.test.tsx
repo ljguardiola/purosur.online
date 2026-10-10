@@ -21,6 +21,7 @@ type RoutePath =
   | "/cash-count"
   | "/charge"
   | "/history"
+  | "/help"
   | "/locked"
   | "/locked-close"
   | "/enroll"
@@ -37,6 +38,11 @@ const SIGNED_IN_TITLE = "¿Qué querés hacer?";
 const SIGN_IN_TITLE = "¿Quién abre la caja?";
 const SESSION_TITLE = "Venta en curso";
 const PERSON: SignedInPerson = { user_id: "u1", first_name: "Ada", abilities: [] };
+const HELP_READER: SignedInPerson = {
+  user_id: "u3",
+  first_name: "Ada",
+  abilities: ["read_register_help"],
+};
 const OPENER: SignedInPerson = {
   user_id: "u2",
   first_name: "Grace",
@@ -78,6 +84,7 @@ const screenFor: Record<
   "/cash-count": (screen) => screen.getByRole("heading", { name: "Cerrar caja" }),
   "/charge": (screen) => screen.getByRole("heading", { name: "Elegí el medio de pago" }),
   "/history": (screen) => screen.getByRole("heading", { name: "Historial de ventas" }),
+  "/help": (screen) => screen.getByRole("heading", { level: 1, name: "Ayuda" }),
   "/locked": (screen) => screen.getByRole("heading", { name: "Caja bloqueada" }),
   "/locked-close": (screen) => screen.getByRole("heading", { name: "¿Quién cierra la caja?" }),
   "/enroll": (screen) => screen.getByRole("heading", { name: ENROLLMENT_TITLE }),
@@ -487,6 +494,21 @@ describe("the register's router", () => {
     { path: "/cash", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     { path: "/cash-count", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     { path: "/charge", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
+    { path: "/help", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
+    {
+      path: "/help",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      cashSession: OPEN_SESSION,
+      redirectedTo: "/session",
+    },
+    {
+      path: "/help",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: null,
+      redirectedTo: "/sign-in",
+    },
     {
       path: "/history",
       coreStatus: "up",
@@ -777,6 +799,32 @@ describe("the register's router", () => {
     await expect
       .element(screen.getByRole("region", { name: "Estado de la caja" }).getByText("Ada"))
       .toBeVisible();
+  });
+
+  it("renders the help for a person who may read it", async () => {
+    const router = routerAt("/help", "up", "enrolled", HELP_READER);
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screenFor["/help"](screen)).toBeVisible();
+  });
+
+  it("opens the help from the no-session screen for a person who may read it", async () => {
+    const router = routerAt("/", "up", "enrolled", HELP_READER);
+    const screen = await render(<RouterProvider router={router} />);
+
+    await userEvent.click(screen.getByRole("link", { name: "Ayuda" }));
+
+    await expect.element(screenFor["/help"](screen)).toBeVisible();
+  });
+
+  it("offers no help on the no-session screen to a person who may not read it", async () => {
+    const router = routerAt("/", "up");
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screenFor["/"](screen)).toBeVisible();
+    await expect.element(screen.getByRole("link", { name: "Ayuda" })).not.toBeInTheDocument();
   });
 
   it("renders the open-session screen for the person who opened the session", async () => {

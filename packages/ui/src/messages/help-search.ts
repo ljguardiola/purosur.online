@@ -1,4 +1,4 @@
-import type { HelpArticle, HelpBlock } from "@purosur/ui";
+import type { HelpArticle, HelpBlock } from "./help";
 
 function normalizeForSearch(text: string): string {
   return text

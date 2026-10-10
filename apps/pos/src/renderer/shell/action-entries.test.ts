@@ -29,6 +29,12 @@ describe("entriesFor", () => {
   it("offers nothing when there are no entries", () => {
     expect(entriesFor([], ["correct_register_clock"])).toEqual([]);
   });
+
+  it("offers the help to a person who may read it, opening its screen", () => {
+    expect(entriesFor(ACTION_ENTRIES, ["read_register_help"])).toEqual([
+      expect.objectContaining({ label: "Ayuda", to: "/help" }),
+    ]);
+  });
 });
 
 describe("ACTION_ENTRIES", () => {

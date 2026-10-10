@@ -52,6 +52,8 @@ import { pinPolicyQueryOptions } from "../credentials/credentials-queries";
 import { FirstSignInCodeStep } from "../credentials/first-sign-in-code-step";
 import { FirstSignInNoPin } from "../credentials/first-sign-in-no-pin";
 import { PinCodeRedemptionScreen } from "../credentials/pin-code-redemption-screen";
+import { HelpScreen } from "../help/help-screen";
+import { help } from "../help/register-help";
 import type { CashMovementInput, SalesHistoryQuery } from "../platform/core-client";
 import { CashCountScreen } from "../register/cash-count-screen";
 import { CashScreen } from "../register/cash-screen";
@@ -298,6 +300,31 @@ const signedInRoute = createRoute({
         entries={ACTION_ENTRIES}
         signOut={signOut}
         openCashSession={openCashSession}
+      />
+    );
+  },
+});
+
+const helpRoute = createRoute({
+  getParentRoute: () => statusBarRoute,
+  path: "/help",
+  beforeLoad: ({ context }) => {
+    const person = requireSignedInPerson(context);
+    if (!person.abilities.includes("read_register_help")) {
+      throw redirect({ to: "/" });
+    }
+    return { person };
+  },
+  component: function HelpRoute() {
+    const { person, signOut } = helpRoute.useRouteContext();
+    const registerName = useRegisterName();
+    return (
+      <HelpScreen
+        person={person}
+        registerName={registerName}
+        help={help}
+        entries={ACTION_ENTRIES}
+        signOut={signOut}
       />
     );
   },
@@ -635,6 +662,7 @@ export const routeTree = rootRoute.addChildren([
   sessionEyebrowRoute.addChildren([
     statusBarRoute.addChildren([
       signedInRoute,
+      helpRoute,
       openSessionRoute,
       chargeRoute,
       historyRoute,

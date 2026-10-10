@@ -346,6 +346,7 @@ describe("registerAbilities", () => {
   it.each([
     "view_sales_history",
     "reprint_receipt",
+    "read_register_help",
     "correct_register_clock",
     "record_initial_inventory",
   ] as const)("gives the %s ability to a person who holds its permission", (key) => {

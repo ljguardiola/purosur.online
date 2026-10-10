@@ -1,5 +1,5 @@
 {
-  "id": "b5a70702-33de-464e-bf79-c26a9efefe2f",
+  "id": "3b1b52c3-9ea4-47ca-b36b-a28a535d34e6",
   "prevId": "1dbf62b2-45a1-4e1b-bd89-feb16d7715a8",
   "version": "7",
   "dialect": "postgresql",
@@ -3319,6 +3319,127 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.product_packagings": {
+      "name": "product_packagings",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity_per_package": {
+          "name": "quantity_per_package",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sale_unit": {
+          "name": "sale_unit",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "product_packagings_product_id_name_lower_key": {
+          "name": "product_packagings_product_id_name_lower_key",
+          "columns": [
+            {
+              "expression": "product_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "lower(\"name\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "product_packagings_product_id_products_id_fk": {
+          "name": "product_packagings_product_id_products_id_fk",
+          "tableFrom": "product_packagings",
+          "tableTo": "products",
+          "columnsFrom": ["product_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "product_packagings_actor_id_users_id_fk": {
+          "name": "product_packagings_actor_id_users_id_fk",
+          "tableFrom": "product_packagings",
+          "tableTo": "users",
+          "columnsFrom": ["actor_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "product_packagings_quantity_check": {
+          "name": "product_packagings_quantity_check",
+          "value": "\"product_packagings\".\"quantity_per_package\" > 0"
+        },
+        "product_packagings_sale_unit_check": {
+          "name": "product_packagings_sale_unit_check",
+          "value": "\"product_packagings\".\"sale_unit\" in ('UNIT', 'KG')"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.product_tags": {
       "name": "product_tags",
       "schema": "",
@@ -4780,89 +4901,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.sale_reprints": {
-      "name": "sale_reprints",
-      "schema": "",
-      "columns": {
-        "sale_id": {
-          "name": "sale_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "order_number": {
-          "name": "order_number",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "requested_by": {
-          "name": "requested_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "authorized_by": {
-          "name": "authorized_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "reason_kind": {
-          "name": "reason_kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reason_text": {
-          "name": "reason_text",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "occurred_at": {
-          "name": "occurred_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "sale_reprints_sale_id_sales_id_fk": {
-          "name": "sale_reprints_sale_id_sales_id_fk",
-          "tableFrom": "sale_reprints",
-          "tableTo": "sales",
-          "columnsFrom": ["sale_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "sale_reprints_sale_id_order_number_pk": {
-          "name": "sale_reprints_sale_id_order_number_pk",
-          "columns": ["sale_id", "order_number"]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "sale_reprints_order_number_positive_check": {
-          "name": "sale_reprints_order_number_positive_check",
-          "value": "\"sale_reprints\".\"order_number\" > 0"
-        },
-        "sale_reprints_reason_kind_check": {
-          "name": "sale_reprints_reason_kind_check",
-          "value": "\"sale_reprints\".\"reason_kind\" in ('retry', 'requested')"
-        },
-        "sale_reprints_reason_matches_kind_check": {
-          "name": "sale_reprints_reason_matches_kind_check",
-          "value": "(\"sale_reprints\".\"reason_kind\" = 'requested') = (\"sale_reprints\".\"reason_text\" is not null)"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.sales": {
       "name": "sales",
       "schema": "",
@@ -4933,24 +4971,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "operation_number": {
-          "name": "operation_number",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "print_attempted_at": {
-          "name": "print_attempted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "printed_at": {
-          "name": "printed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "applied_at": {
           "name": "applied_at",
           "type": "timestamp with time zone",
@@ -5001,14 +5021,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "sales_operation_number_positive_check": {
-          "name": "sales_operation_number_positive_check",
-          "value": "\"sales\".\"operation_number\" > 0"
-        },
-        "sales_printed_only_after_attempted_check": {
-          "name": "sales_printed_only_after_attempted_check",
-          "value": "\"sales\".\"printed_at\" is null or \"sales\".\"print_attempted_at\" is not null"
-        },
         "sales_state_check": {
           "name": "sales_state_check",
           "value": "\"sales\".\"state\" in ('COMPLETED', 'CANCELLED')"
@@ -5642,6 +5654,118 @@
           "value": "(\"stock_movements\".\"kind\" = 'sale') = (\"stock_movements\".\"sale_line_id\" is not null)"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.suppliers": {
+      "name": "suppliers",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cuit": {
+          "name": "cuit",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact": {
+          "name": "contact",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "suppliers_name_lower_key": {
+          "name": "suppliers_name_lower_key",
+          "columns": [
+            {
+              "expression": "lower(\"name\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "suppliers_cuit_key": {
+          "name": "suppliers_cuit_key",
+          "columns": [
+            {
+              "expression": "cuit",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "suppliers_actor_id_users_id_fk": {
+          "name": "suppliers_actor_id_users_id_fk",
+          "tableFrom": "suppliers",
+          "tableTo": "users",
+          "columnsFrom": ["actor_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.tags": {
