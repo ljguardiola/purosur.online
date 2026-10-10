@@ -13,6 +13,7 @@ import {
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { toBranchSettingsWire } from "../branch/branch-settings-wire.js";
+import type { EnqueueOfflineAuthorizationCodeRequest } from "../fiscal/graphile-offline-authorization-code-queue.js";
 import { toIssuerIdentificationWire } from "../fiscal/issuer-identification-read-route.js";
 import { sendRateLimited } from "../platform/rate-limited-response.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
@@ -28,7 +29,9 @@ import { DrizzleRequestAdmission } from "./drizzle-request-admission.js";
 import type { PulledCloudChange } from "./pulled-changes.js";
 
 export type ChangesRouteOptions<TQueryResult extends PgQueryResultHKT> =
-  DeviceTokensOptions<TQueryResult>;
+  DeviceTokensOptions<TQueryResult> & {
+    enqueueOfflineAuthorizationCodeRequest?: EnqueueOfflineAuthorizationCodeRequest;
+  };
 
 const DEVICE_TOKEN_REJECTED = cloudError(
   "device_token_rejected",
@@ -202,6 +205,33 @@ function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number]
           version: change.row.version,
         },
       };
+    case "offline_authorization_code":
+      return {
+        change_seq,
+        entity: change.entity,
+        entity_id,
+        row: {
+          fortnight_start: change.row.fortnightStart,
+          fortnight_end: change.row.fortnightEnd,
+          code: change.row.code,
+          report_deadline: change.row.reportDeadline,
+          version: change.row.version,
+        },
+      };
+    case "offline_number_block":
+      return {
+        change_seq,
+        entity: change.entity,
+        entity_id,
+        row: {
+          point_of_sale_number: change.row.pointOfSaleNumber,
+          document_type: change.row.documentType,
+          first_number: change.row.firstNumber,
+          last_number: change.row.lastNumber,
+          status: change.row.status,
+          version: change.row.version,
+        },
+      };
     case "removal":
       return {
         change_seq,
@@ -228,7 +258,7 @@ export function registerChangesRoute<TQueryResult extends PgQueryResultHKT>(
 ): void {
   const tokenPorts = installationTokenPorts(options);
   const ports = {
-    changeLog: new DrizzleChangeLog(options.db),
+    changeLog: new DrizzleChangeLog(options.db, options.enqueueOfflineAuthorizationCodeRequest),
     clock: { now: options.now },
   };
   const admission = { admission: new DrizzleRequestAdmission(options.db), clock: ports.clock };

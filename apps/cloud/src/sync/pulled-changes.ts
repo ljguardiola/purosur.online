@@ -1,4 +1,10 @@
-import type { NetContentUnit, SaleUnit, StockMovementKind } from "@purosur/domain";
+import type {
+  FiscalDocumentType,
+  NetContentUnit,
+  OfflineNumberBlockStatus,
+  SaleUnit,
+  StockMovementKind,
+} from "@purosur/domain";
 import type { BranchSettings } from "@purosur/domain/branch/use-cases";
 import type { DiscountFields } from "@purosur/domain/pricing/use-cases";
 
@@ -72,6 +78,23 @@ export interface RegisterOfflinePointOfSaleRow {
   version: number;
 }
 
+export interface OfflineAuthorizationCodeRow {
+  fortnightStart: string;
+  fortnightEnd: string;
+  code: string;
+  reportDeadline: string;
+  version: number;
+}
+
+export interface OfflineNumberBlockRow {
+  pointOfSaleNumber: number;
+  documentType: FiscalDocumentType;
+  firstNumber: number;
+  lastNumber: number;
+  status: OfflineNumberBlockStatus;
+  version: number;
+}
+
 export type DiscountRow = DiscountFields;
 
 export interface StockMovementRow {
@@ -129,5 +152,7 @@ export type PulledCloudChange = { changeSeq: number; entityId: string } & (
   | { entity: "buyer_identification_threshold"; row: BuyerIdentificationThresholdRow }
   | { entity: "buyer_tax_status_set"; row: BuyerTaxStatusSetRow }
   | { entity: "stock_movement"; row: StockMovementRow }
+  | { entity: "offline_authorization_code"; row: OfflineAuthorizationCodeRow }
+  | { entity: "offline_number_block"; row: OfflineNumberBlockRow }
   | { entity: "removal"; removedEntity: RemovedEntity; version: number }
 );

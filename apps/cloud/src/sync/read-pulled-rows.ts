@@ -1,12 +1,20 @@
-import type { NetContentUnit, SaleUnit, StockMovementKind } from "@purosur/domain";
+import type {
+  FiscalDocumentType,
+  NetContentUnit,
+  SaleUnit,
+  StockMovementKind,
+} from "@purosur/domain";
 import { asc, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { OFFLINE_AUTHORIZATION_CODE_VERSION } from "../fiscal/offline-authorization-code-version.js";
 import {
   buyerIdentificationThresholds,
   buyerTaxStatusSets,
+  caeaCodes,
   categories,
   discounts,
   issuerIdentificationVersions,
+  offlineNumberBlocks,
   priceLists,
   prices,
   productBarcodes,
@@ -33,6 +41,8 @@ import type {
   CategoryRow,
   DiscountRow,
   IssuerIdentificationVersionRow,
+  OfflineAuthorizationCodeRow,
+  OfflineNumberBlockRow,
   PriceListRow,
   PriceRow,
   ProductRow,
@@ -313,6 +323,57 @@ export async function readRegisterOfflinePointsOfSale<TQueryResult extends PgQue
     .where(inArray(registerOfflinePointsOfSale.registerId, [...registerIds]))
     .orderBy(asc(registerOfflinePointsOfSale.registerId));
   return new Map(rows.map(({ registerId, ...row }) => [registerId, row]));
+}
+
+export async function readOfflineAuthorizationCodes<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  ids: readonly string[],
+): Promise<Map<string, OfflineAuthorizationCodeRow>> {
+  if (ids.length === 0) {
+    return new Map();
+  }
+  const rows = await tx
+    .select({
+      id: caeaCodes.id,
+      fortnightStart: caeaCodes.fortnightStart,
+      fortnightEnd: caeaCodes.fortnightEnd,
+      code: caeaCodes.code,
+      reportDeadline: caeaCodes.reportDeadline,
+    })
+    .from(caeaCodes)
+    .where(inArray(caeaCodes.id, [...ids]))
+    .orderBy(asc(caeaCodes.id));
+  return new Map(
+    rows.map(({ id, ...row }) => [id, { ...row, version: OFFLINE_AUTHORIZATION_CODE_VERSION }]),
+  );
+}
+
+export async function readOfflineNumberBlocks<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  ids: readonly string[],
+): Promise<Map<string, OfflineNumberBlockRow>> {
+  if (ids.length === 0) {
+    return new Map();
+  }
+  const rows = await tx
+    .select({
+      id: offlineNumberBlocks.id,
+      pointOfSaleNumber: offlineNumberBlocks.pointOfSaleNumber,
+      documentType: offlineNumberBlocks.documentType,
+      firstNumber: offlineNumberBlocks.firstNumber,
+      lastNumber: offlineNumberBlocks.lastNumber,
+      status: offlineNumberBlocks.status,
+      version: offlineNumberBlocks.version,
+    })
+    .from(offlineNumberBlocks)
+    .where(inArray(offlineNumberBlocks.id, [...ids]))
+    .orderBy(asc(offlineNumberBlocks.id));
+  return new Map(
+    rows.map(({ id, documentType, ...row }) => [
+      id,
+      { ...row, documentType: documentType as FiscalDocumentType },
+    ]),
+  );
 }
 
 export async function readDiscounts<TQueryResult extends PgQueryResultHKT>(

@@ -1,3 +1,4 @@
+import type { Fortnight } from "@purosur/domain/fiscal/use-cases";
 import type {
   ChangeLog,
   ChangeLogTransaction,
@@ -9,8 +10,10 @@ import type {
 import { and, asc, eq, gt, inArray, max, or, type SQL } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { readBranchSettings } from "../branch/drizzle-branch-settings-reader.js";
+import type { EnqueueOfflineAuthorizationCodeRequest } from "../fiscal/graphile-offline-authorization-code-queue.js";
 import {
   branchSettings,
+  caeaCodes,
   changes,
   deviceState,
   registerInstallations,
@@ -23,6 +26,8 @@ import {
   readCategories,
   readDiscounts,
   readIssuerIdentificationVersions,
+  readOfflineAuthorizationCodes,
+  readOfflineNumberBlocks,
   readPriceLists,
   readPrices,
   readProducts,
@@ -52,9 +57,28 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
   implements ChangeLogTransaction<PulledCloudChange>
 {
   private readonly tx: PgDatabase<TQueryResult>;
+  private readonly enqueueOfflineAuthorizationCodeRequest:
+    | EnqueueOfflineAuthorizationCodeRequest
+    | undefined;
 
-  constructor(tx: PgDatabase<TQueryResult>) {
+  constructor(
+    tx: PgDatabase<TQueryResult>,
+    enqueueOfflineAuthorizationCodeRequest: EnqueueOfflineAuthorizationCodeRequest | undefined,
+  ) {
     this.tx = tx;
+    this.enqueueOfflineAuthorizationCodeRequest = enqueueOfflineAuthorizationCodeRequest;
+  }
+
+  async holdsOfflineAuthorizationCodeFor(fortnight: Fortnight): Promise<boolean> {
+    const [held] = await this.tx
+      .select({ id: caeaCodes.id })
+      .from(caeaCodes)
+      .where(eq(caeaCodes.fortnightStart, fortnight.start));
+    return held !== undefined;
+  }
+
+  async requestMissingOfflineAuthorizationCode(): Promise<void> {
+    await this.enqueueOfflineAuthorizationCodeRequest?.(this.tx);
   }
 
   async recordObservedPull(deviceId: string, since: number, at: Date): Promise<void> {
@@ -122,6 +146,14 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
       idsOf(logged, "buyer_tax_status_set"),
     );
     const stockMovementRows = await readStockMovements(this.tx, idsOf(logged, "stock_movement"));
+    const offlineAuthorizationCodeRows = await readOfflineAuthorizationCodes(
+      this.tx,
+      idsOf(logged, "offline_authorization_code"),
+    );
+    const offlineNumberBlockRows = await readOfflineNumberBlocks(
+      this.tx,
+      idsOf(logged, "offline_number_block"),
+    );
     const settingsId = logged.find((row) => row.entity === "branch_settings")?.entityId;
     const settingsRow = settingsId === undefined ? undefined : await this.readSettings(settingsId);
     const removedVersions = {
@@ -253,6 +285,22 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
             row: requiredRow(stockMovementRows.get(entityId), entity),
           });
           break;
+        case "offline_authorization_code":
+          pulled.push({
+            changeSeq,
+            entity,
+            entityId,
+            row: requiredRow(offlineAuthorizationCodeRows.get(entityId), entity),
+          });
+          break;
+        case "offline_number_block":
+          pulled.push({
+            changeSeq,
+            entity,
+            entityId,
+            row: requiredRow(offlineNumberBlockRows.get(entityId), entity),
+          });
+          break;
       }
     }
     return pulled;
@@ -318,6 +366,8 @@ function inReach(entity: LoggedEntity, reach: PullReach): SQL | undefined {
       return and(ofEntity, eq(changes.locationId, reach.locationId));
     case "rows_of_price_list":
       return and(ofEntity, eq(changes.priceListId, reach.priceListId));
+    case "rows_of_register":
+      return and(ofEntity, eq(changes.registerId, reach.registerId));
     case "none":
       return undefined;
   }
@@ -342,9 +392,16 @@ export class DrizzleChangeLog<TQueryResult extends PgQueryResultHKT>
   implements ChangeLog<PulledCloudChange>
 {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly enqueueOfflineAuthorizationCodeRequest:
+    | EnqueueOfflineAuthorizationCodeRequest
+    | undefined;
 
-  constructor(db: PgDatabase<TQueryResult>) {
+  constructor(
+    db: PgDatabase<TQueryResult>,
+    enqueueOfflineAuthorizationCodeRequest?: EnqueueOfflineAuthorizationCodeRequest,
+  ) {
     this.db = db;
+    this.enqueueOfflineAuthorizationCodeRequest = enqueueOfflineAuthorizationCodeRequest;
   }
 
   // Read committed, so a device's overlapping pulls wait on its state row instead of failing. Only
@@ -355,6 +412,8 @@ export class DrizzleChangeLog<TQueryResult extends PgQueryResultHKT>
   transaction<TOutcome>(
     work: (tx: ChangeLogTransaction<PulledCloudChange>) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return this.db.transaction((tx) => work(new DrizzleChangeLogTransaction(tx)));
+    return this.db.transaction((tx) =>
+      work(new DrizzleChangeLogTransaction(tx, this.enqueueOfflineAuthorizationCodeRequest)),
+    );
   }
 }

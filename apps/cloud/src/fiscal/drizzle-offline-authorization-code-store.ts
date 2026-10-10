@@ -7,6 +7,8 @@ import type {
 import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { caeaCodes, registerOfflinePointsOfSale } from "../platform/db/schema.js";
+import { withPendingChanges } from "../sync/change-log.js";
+import { OFFLINE_AUTHORIZATION_CODE_VERSION } from "./offline-authorization-code-version.js";
 
 function offlineAuthorizationCodeLockKey({ start }: Fortnight): string {
   return `caea_code:${start}`;
@@ -32,13 +34,27 @@ class DrizzleOfflineAuthorizationCodeAcquisition<TQueryResult extends PgQueryRes
   }
 
   async keep({ code, obtainedAt, obtainedThrough }: KeptOfflineAuthorizationCode): Promise<void> {
-    await this.db.insert(caeaCodes).values({
-      fortnightStart: code.fortnight.start,
-      fortnightEnd: code.fortnight.end,
-      code: code.code,
-      reportDeadline: code.reportDeadline,
-      obtainedAt,
-      obtainedThrough,
+    await withPendingChanges(this.db, undefined, async (tx, pending) => {
+      const [kept] = await tx
+        .insert(caeaCodes)
+        .values({
+          fortnightStart: code.fortnight.start,
+          fortnightEnd: code.fortnight.end,
+          code: code.code,
+          reportDeadline: code.reportDeadline,
+          obtainedAt,
+          obtainedThrough,
+        })
+        .returning({ id: caeaCodes.id });
+      if (!kept) {
+        throw new Error("a kept offline authorization code returned no row");
+      }
+      pending.note({
+        entity: "offline_authorization_code",
+        entityId: kept.id,
+        version: OFFLINE_AUTHORIZATION_CODE_VERSION,
+        op: "insert",
+      });
     });
   }
 }
