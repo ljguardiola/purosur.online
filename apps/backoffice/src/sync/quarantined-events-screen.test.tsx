@@ -264,7 +264,9 @@ test("an event that is no longer in quarantine is announced and the list refresh
 
   await userEvent.click(dialog.getByRole("button", { name: "Liberar" }));
 
-  await expect.element(screen.getByText("Este evento ya no está en cuarentena")).toBeVisible();
+  await expect
+    .element(screen.getByRole("alert"))
+    .toHaveTextContent("Este evento ya no está en cuarentena");
   await expect.element(screen.getByText("No hay eventos en cuarentena")).toBeVisible();
   await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
 });
@@ -282,7 +284,7 @@ test("an event the cloud does not find is announced and the list refreshes", asy
 
   await userEvent.click(dialog.getByRole("button", { name: "Liberar" }));
 
-  await expect.element(screen.getByText("No encontramos este evento")).toBeVisible();
+  await expect.element(screen.getByRole("alert")).toHaveTextContent("No encontramos este evento");
   await expect.element(screen.getByText("No hay eventos en cuarentena")).toBeVisible();
 });
 
