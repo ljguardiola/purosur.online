@@ -872,6 +872,7 @@ describe("the register's local migrations", () => {
         "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
+        "0032_offline_numbering",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -929,6 +930,7 @@ describe("the register's local migrations", () => {
         "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
+        "0032_offline_numbering",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -981,6 +983,7 @@ describe("the register's local migrations", () => {
         "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
+        "0032_offline_numbering",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1032,6 +1035,7 @@ describe("the register's local migrations", () => {
         "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
+        "0032_offline_numbering",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1110,6 +1114,7 @@ describe("the register's local migrations", () => {
         "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
+        "0032_offline_numbering",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1180,6 +1185,7 @@ describe("the register's local migrations", () => {
         "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
+        "0032_offline_numbering",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1254,6 +1260,7 @@ describe("the register's local migrations", () => {
         "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
+        "0032_offline_numbering",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1311,6 +1318,7 @@ describe("the register's local migrations", () => {
         "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
+        "0032_offline_numbering",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1360,6 +1368,7 @@ describe("the register's local migrations", () => {
         "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
+        "0032_offline_numbering",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
