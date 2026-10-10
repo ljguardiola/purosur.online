@@ -1,6 +1,8 @@
 import type { KeptOfflineAuthorizationCode } from "@purosur/domain/fiscal/use-cases";
+import { gt } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { caeaCodes, changes } from "../platform/db/schema.js";
+import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
 import { seedOfflinePointOfSale } from "./test-support/offline-point-of-sale-fixtures.js";
@@ -74,6 +76,7 @@ describe("DrizzleOfflineAuthorizationCodeStore", () => {
   });
 
   it("logs the code it keeps as a change of its own identity at version 1, for every register", async () => {
+    const mark = await lastLoggedChangeSeq(db);
     await newStore().holdAcquisition(OCTOBER_FIRST_HALF, (acquisition) => acquisition.keep(KEPT));
 
     const [kept] = await db.select().from(caeaCodes);
@@ -86,7 +89,8 @@ describe("DrizzleOfflineAuthorizationCodeStore", () => {
         locationId: changes.locationId,
         registerId: changes.registerId,
       })
-      .from(changes);
+      .from(changes)
+      .where(gt(changes.changeSeq, mark));
     expect(logged).toEqual([
       {
         entity: "offline_authorization_code",
@@ -101,13 +105,14 @@ describe("DrizzleOfflineAuthorizationCodeStore", () => {
 
   it("keeps and logs nothing of a code whose fortnight is already held", async () => {
     await newStore().holdAcquisition(OCTOBER_FIRST_HALF, (acquisition) => acquisition.keep(KEPT));
+    const mark = await lastLoggedChangeSeq(db);
 
     await expect(
       newStore().holdAcquisition(OCTOBER_FIRST_HALF, (acquisition) => acquisition.keep(KEPT)),
     ).rejects.toThrow();
 
     expect(await db.select().from(caeaCodes)).toHaveLength(1);
-    expect(await db.select().from(changes)).toHaveLength(1);
+    expect(await changesLoggedAfter(db, mark)).toEqual([]);
   });
 
   it("holds the code of a fortnight once kept, and no code for the next fortnight", async () => {

@@ -54,13 +54,13 @@ async function claimOfflinePointOfSale(
   const registerId = rows[0]?.id;
   await client.query(
     `insert into users (first_name, email, location_id)
-     select 'Ada Lucero', 'ada' || $1::text || '@example.com', id from locations limit 1`,
-    [pointOfSaleNumber],
+     select 'Ada Lucero', $1::text, id from locations limit 1`,
+    [`ada${pointOfSaleNumber}@example.com`],
   );
   await client.query(
     `insert into point_of_sale_claims (point_of_sale_number, register_id, mechanism, claimed_by)
-     select $1, $2, $3::point_of_sale_mechanism, id from users where email = 'ada' || $1::text || '@example.com'`,
-    [pointOfSaleNumber, registerId, mechanism],
+     select $1::int, $2::uuid, $3::point_of_sale_mechanism, id from users where email = $4::text`,
+    [pointOfSaleNumber, registerId, mechanism, `ada${pointOfSaleNumber}@example.com`],
   );
   return registerId;
 }
@@ -126,6 +126,9 @@ describe("the offline number blocks migration applied over a database that alrea
       `insert into changes (entity, entity_id, version, op)
        values ('category', gen_random_uuid(), 1, 'insert')`,
     );
+    const { rows: before } = await client.query<{ last: string }>(
+      "select max(change_seq) as last from changes",
+    );
     await applyMigration(folder, client);
 
     await client.query(
@@ -134,7 +137,9 @@ describe("the offline number blocks migration applied over a database that alrea
     );
 
     const { rows } = await client.query<{ entity: string; has_register: boolean }>(
-      "select entity, register_id is not null as has_register from changes order by change_seq",
+      `select entity, register_id is not null as has_register from changes
+       where change_seq >= $1 order by change_seq`,
+      [before[0]?.last],
     );
     expect(rows).toEqual([
       { entity: "category", has_register: false },
