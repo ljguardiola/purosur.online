@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import { useDocumentTitle } from "../shell/document-title";
 import { purchaseRegisteredIn } from "./purchase-registered-state";
 import { PurchasesListScreen } from "./purchases-list-screen";
+import { defaultPurchasesListScreenServices } from "./purchases-list-services";
 
 const route = getRouteApi("/signed-in/stock-area/purchases");
 
@@ -18,7 +19,7 @@ export function PurchasesListPage(): ReactElement {
       registered={registered}
       onNoticeDismissed={() => void navigate({ replace: true, state: {} })}
       onSessionEnded={sessionActions.sessionEnded}
-      services={services.purchasesListScreen}
+      services={services.purchasesListScreen ?? defaultPurchasesListScreenServices}
     />
   );
 }

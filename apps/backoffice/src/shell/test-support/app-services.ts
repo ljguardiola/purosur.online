@@ -168,8 +168,8 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
-      credentialSections: UserCredentialSections,
     },
+    userDetailCredentialSections: UserCredentialSections,
     userCredentialSections: {
       fetchUserPasskeys: vi.fn().mockReturnValue(new Promise(() => {})),
       removeUserPasskey: vi.fn(),

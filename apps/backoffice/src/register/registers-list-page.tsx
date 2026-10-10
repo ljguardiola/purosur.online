@@ -2,6 +2,7 @@ import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 import { useDocumentTitle } from "../shell/document-title";
 import { RegistersListScreen } from "./registers-list-screen";
+import { defaultRegistersListScreenServices } from "./registers-list-services";
 
 const route = getRouteApi("/signed-in/settings-area/registers");
 
@@ -11,7 +12,7 @@ export function RegistersListPage(): ReactElement {
   return (
     <RegistersListScreen
       onSessionEnded={sessionActions.sessionEnded}
-      services={services.registersListScreen}
+      services={services.registersListScreen ?? defaultRegistersListScreenServices}
     />
   );
 }

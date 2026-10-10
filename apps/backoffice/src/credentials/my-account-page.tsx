@@ -2,6 +2,7 @@ import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 import { useDocumentTitle } from "../shell/document-title";
 import { MyAccountScreen } from "./my-account-screen";
+import { defaultMyAccountScreenServices } from "./my-account-services";
 
 const route = getRouteApi("/signed-in/settings-area/account");
 
@@ -14,7 +15,7 @@ export function MyAccountPage(): ReactElement {
       userId={session.userId}
       access={session}
       onSessionEnded={sessionActions.sessionEnded}
-      services={services.myAccountScreen}
+      services={services.myAccountScreen ?? defaultMyAccountScreenServices}
     />
   );
 }

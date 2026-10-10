@@ -2,6 +2,7 @@ import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 import { useDocumentTitle } from "../shell/document-title";
 import { StockBalancesScreen } from "./stock-balances-screen";
+import { defaultStockBalancesScreenServices } from "./stock-balances-services";
 
 const route = getRouteApi("/signed-in/stock-area/inventory");
 
@@ -15,7 +16,7 @@ export function StockBalancesPage(): ReactElement {
       filters={filters}
       onFiltersChange={(next) => void navigate({ search: next, replace: true })}
       onSessionEnded={sessionActions.sessionEnded}
-      services={services.stockBalancesScreen}
+      services={services.stockBalancesScreen ?? defaultStockBalancesScreenServices}
     />
   );
 }

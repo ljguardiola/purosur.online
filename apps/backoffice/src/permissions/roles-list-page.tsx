@@ -2,6 +2,7 @@ import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 import { useDocumentTitle } from "../shell/document-title";
 import { RolesListScreen } from "./roles-list-screen";
+import { defaultRolesListScreenServices } from "./roles-list-services";
 
 const route = getRouteApi("/signed-in/settings-area/roles");
 
@@ -11,7 +12,7 @@ export function RolesListPage(): ReactElement {
   return (
     <RolesListScreen
       onSessionEnded={sessionActions.sessionEnded}
-      services={services.rolesListScreen}
+      services={services.rolesListScreen ?? defaultRolesListScreenServices}
     />
   );
 }

@@ -2,6 +2,7 @@ import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 import { useDocumentTitle } from "../shell/document-title";
 import { SalesByDayScreen } from "./sales-by-day-screen";
+import { defaultSalesByDayScreenServices } from "./sales-by-day-services";
 
 const route = getRouteApi("/signed-in/reports-area/reports/sales-by-day");
 
@@ -15,7 +16,7 @@ export function SalesByDayPage(): ReactElement {
       filters={filters}
       onFiltersChange={(next) => void navigate({ search: next, replace: true })}
       onSessionEnded={sessionActions.sessionEnded}
-      services={services.salesByDayScreen}
+      services={services.salesByDayScreen ?? defaultSalesByDayScreenServices}
     />
   );
 }
