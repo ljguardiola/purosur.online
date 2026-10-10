@@ -26,6 +26,7 @@ test("every pricing query is keyed under the pricing concept's root key", () => 
   const keys = [
     pricesKeys.list({ review: "all", categoryId: "category-1", search: "arroz" }),
     pricesKeys.reviewQueue,
+    pricesKeys.reviewQueueOf(["product-1"]),
     pricesKeys.reload,
     discountsKey,
     discountTargetsKey,
@@ -75,4 +76,14 @@ test("the promotions' targets sit under the promotions key, apart from the promo
 
   await client.invalidateQueries({ queryKey: discountsKey, refetchType: "none" });
   expect(client.getQueryState(discountTargetsKey)?.isInvalidated).toBe(true);
+});
+
+test("a review queue limited to some products has its own key, apart from the whole queue and from another set", () => {
+  const hashes = [
+    pricesKeys.reviewQueue,
+    pricesKeys.reviewQueueOf(["product-1"]),
+    pricesKeys.reviewQueueOf(["product-1", "product-2"]),
+  ].map((key) => JSON.stringify(key));
+
+  expect(new Set(hashes).size).toBe(hashes.length);
 });

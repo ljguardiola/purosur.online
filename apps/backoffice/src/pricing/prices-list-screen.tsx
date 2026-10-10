@@ -47,6 +47,8 @@ import type { PricesListFilters } from "./routes";
 export type PricesListScreenProps = {
   filters: PricesListFilters;
   onFiltersChange: (filters: PricesListFilters) => void;
+  purchasedProductsToReview: readonly string[];
+  onPurchaseReviewTaken: () => void;
   onSessionEnded: () => void;
   services: PricesListScreenServices;
 };
@@ -91,6 +93,8 @@ function emptyTableState(params: {
 export function PricesListScreen({
   filters,
   onFiltersChange,
+  purchasedProductsToReview,
+  onPurchaseReviewTaken,
   onSessionEnded,
   services,
 }: PricesListScreenProps) {
@@ -113,6 +117,9 @@ export function PricesListScreen({
   const [notice, setNotice] = useState<(ScreenNotice & { id: number }) | null>(null);
   const lastNoticeId = useRef(0);
   const [screenRequestInFlight, setScreenRequestInFlight] = useState(false);
+  const [purchaseReview, setPurchaseReview] = useState<readonly string[] | null>(() =>
+    purchasedProductsToReview.length > 0 ? purchasedProductsToReview : null,
+  );
 
   const reportFilters = useEffectEvent(onFiltersChange);
 
@@ -219,14 +226,30 @@ export function PricesListScreen({
     };
   }
 
-  async function handleReviewButton() {
+  const purchaseReviewStartFailedNotice: ScreenNotice = {
+    tone: "error",
+    title: "No se pudo empezar la revisión de lo comprado",
+    description: "Probá de nuevo.",
+  };
+
+  async function startReview(productIds?: readonly string[]) {
     clearErrorNotice();
     setScreenRequestInFlight(true);
-    handleReviewReadOutcome(await readReviewQueue());
+    const outcome = await readReviewQueue(productIds);
+    if (productIds && outcome.kind === "ok") {
+      setPurchaseReview(null);
+    }
+    handleReviewReadOutcome(
+      outcome,
+      productIds ? purchaseReviewStartFailedNotice : reviewStartFailedNotice,
+    );
     setScreenRequestInFlight(false);
   }
 
-  function handleReviewReadOutcome(outcome: Awaited<ReturnType<typeof readReviewQueue>>) {
+  function handleReviewReadOutcome(
+    outcome: Awaited<ReturnType<typeof readReviewQueue>>,
+    failedNotice: ScreenNotice,
+  ) {
     if (outcome.kind === "ok") {
       const [first] = outcome.value.products;
       if (!first) {
@@ -256,7 +279,7 @@ export function PricesListScreen({
       showScreenNotice(rateLimitedNotice(outcome.retryAfterSeconds));
       return;
     }
-    showScreenNotice(reviewStartFailedNotice);
+    showScreenNotice(failedNotice);
   }
 
   function reviewedNotice(product: PriceProduct, outcome: PriceModalOutcome): ScreenNotice {
@@ -381,6 +404,23 @@ export function PricesListScreen({
     showScreenNotice(rowConfirmFailedNotice(item));
   }
 
+  const startPurchaseReview = useEffectEvent(() => {
+    if (purchaseReview === null) {
+      return;
+    }
+    onPurchaseReviewTaken();
+    showScreenNotice({
+      tone: "success",
+      title: "Compra registrada",
+      description: "Revisá el precio de lo que llegó.",
+    });
+    void startReview(purchaseReview);
+  });
+
+  useEffect(() => {
+    startPurchaseReview();
+  }, []);
+
   const columns = [
     dataColumn({
       id: "product",
@@ -458,11 +498,16 @@ export function PricesListScreen({
                 icon={<ListChecks />}
                 dataStatus={data.status}
                 disabled={screenRequestInFlight}
-                onPress={() => void handleReviewButton()}
+                onPress={() => void startReview(purchaseReview ?? undefined)}
               >
-                {loaded
-                  ? plural(pendingCount, { one: "Revisar 1", other: `Revisar los ${pendingCount}` })
-                  : "Revisar"}
+                {purchaseReview
+                  ? "Revisar lo comprado"
+                  : loaded
+                    ? plural(pendingCount, {
+                        one: "Revisar 1",
+                        other: `Revisar los ${pendingCount}`,
+                      })
+                    : "Revisar"}
               </Button>
             )}
           </div>

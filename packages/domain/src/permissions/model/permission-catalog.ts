@@ -197,7 +197,7 @@ export const PERMISSION_CATALOG = [
   { key: "view_all_alerts", area: "alerts", registerMarker: "none" },
   { key: "dismiss_alerts_manually", area: "alerts", registerMarker: "none" },
 
-  { key: "enroll_register_devices", area: "devices", registerMarker: "none" },
+  { key: "enroll_register_devices", area: "devices", registerMarker: "register" },
   { key: "revoke_register_devices", area: "devices", registerMarker: "none" },
   { key: "view_bitlocker_key", area: "devices", registerMarker: "none" },
 

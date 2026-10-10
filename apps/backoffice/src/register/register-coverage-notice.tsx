@@ -22,6 +22,7 @@ const UNCOVERED_ACTIONS: Partial<Record<PermissionKey, string>> = {
   confirm_refunds: "confirmar reembolsos",
   record_initial_inventory: "cargar el inventario inicial",
   correct_register_clock: "corregir el reloj de la caja",
+  enroll_register_devices: "configurar la impresora de tickets de una caja",
 };
 
 function uncoveredActionLine(key: PermissionKey): string {

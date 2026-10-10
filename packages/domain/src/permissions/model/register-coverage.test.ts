@@ -26,6 +26,7 @@ describe("uncoveredRegisterPermissions", () => {
       "confirm_refunds",
       "record_initial_inventory",
       "correct_register_clock",
+      "enroll_register_devices",
     ]);
   });
 

@@ -1,5 +1,5 @@
 {
-  "id": "b4610195-c70e-4ba7-b327-b67111d9b9fd",
+  "id": "3d03b535-10d9-4aab-9fac-935233a83e34",
   "prevId": "4b9d1359-aa34-4916-a580-565191e15307",
   "version": "7",
   "dialect": "postgresql",
@@ -942,13 +942,6 @@
       "name": "caea_codes",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
         "fortnight_start": {
           "name": "fortnight_start",
           "type": "date",
@@ -990,13 +983,7 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "caea_codes_id_unique": {
-          "name": "caea_codes_id_unique",
-          "nullsNotDistinct": false,
-          "columns": ["id"]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
         "caea_codes_fortnight_ends_after_start": {
@@ -1352,12 +1339,6 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
-        },
-        "register_id": {
-          "name": "register_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {
@@ -1426,33 +1407,6 @@
             },
             {
               "expression": "location_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "change_seq",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "changes_entity_register_id_idx": {
-          "name": "changes_entity_register_id_idx",
-          "columns": [
-            {
-              "expression": "entity",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "register_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -2511,117 +2465,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.offline_number_blocks": {
-      "name": "offline_number_blocks",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "point_of_sale_number": {
-          "name": "point_of_sale_number",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "document_type": {
-          "name": "document_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "register_id": {
-          "name": "register_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "mechanism": {
-          "name": "mechanism",
-          "type": "point_of_sale_mechanism",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'offline'"
-        },
-        "first_number": {
-          "name": "first_number",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "last_number": {
-          "name": "last_number",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "offline_number_block_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "assigned_at": {
-          "name": "assigned_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "offline_number_blocks_claim_fk": {
-          "name": "offline_number_blocks_claim_fk",
-          "tableFrom": "offline_number_blocks",
-          "tableTo": "point_of_sale_claims",
-          "columnsFrom": ["point_of_sale_number", "register_id", "mechanism"],
-          "columnsTo": ["point_of_sale_number", "register_id", "mechanism"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "offline_number_blocks_first_number_key": {
-          "name": "offline_number_blocks_first_number_key",
-          "nullsNotDistinct": false,
-          "columns": ["point_of_sale_number", "document_type", "first_number"]
-        },
-        "offline_number_blocks_last_number_key": {
-          "name": "offline_number_blocks_last_number_key",
-          "nullsNotDistinct": false,
-          "columns": ["point_of_sale_number", "document_type", "last_number"]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "offline_number_blocks_mechanism_offline": {
-          "name": "offline_number_blocks_mechanism_offline",
-          "value": "\"offline_number_blocks\".\"mechanism\" = 'offline'"
-        },
-        "offline_number_blocks_document_type_known": {
-          "name": "offline_number_blocks_document_type_known",
-          "value": "\"offline_number_blocks\".\"document_type\" in ('factura_c')"
-        },
-        "offline_number_blocks_range_valid": {
-          "name": "offline_number_blocks_range_valid",
-          "value": "\"offline_number_blocks\".\"first_number\" >= 1 and \"offline_number_blocks\".\"last_number\" >= \"offline_number_blocks\".\"first_number\""
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.passkey_challenges": {
       "name": "passkey_challenges",
       "schema": "",
@@ -3357,6 +3200,131 @@
       },
       "indexes": {},
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.price_review_postponements": {
+      "name": "price_review_postponements",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "price_list_id": {
+          "name": "price_list_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "postponed_at": {
+          "name": "postponed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "purchase_id": {
+          "name": "purchase_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "resolved_by_review_id": {
+          "name": "resolved_by_review_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "price_review_postponements_open_idx": {
+          "name": "price_review_postponements_open_idx",
+          "columns": [
+            {
+              "expression": "product_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "price_list_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"price_review_postponements\".\"resolved_by_review_id\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "price_review_postponements_product_id_products_id_fk": {
+          "name": "price_review_postponements_product_id_products_id_fk",
+          "tableFrom": "price_review_postponements",
+          "tableTo": "products",
+          "columnsFrom": ["product_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "price_review_postponements_price_list_id_price_lists_id_fk": {
+          "name": "price_review_postponements_price_list_id_price_lists_id_fk",
+          "tableFrom": "price_review_postponements",
+          "tableTo": "price_lists",
+          "columnsFrom": ["price_list_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "price_review_postponements_actor_id_users_id_fk": {
+          "name": "price_review_postponements_actor_id_users_id_fk",
+          "tableFrom": "price_review_postponements",
+          "tableTo": "users",
+          "columnsFrom": ["actor_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "price_review_postponements_purchase_id_purchases_id_fk": {
+          "name": "price_review_postponements_purchase_id_purchases_id_fk",
+          "tableFrom": "price_review_postponements",
+          "tableTo": "purchases",
+          "columnsFrom": ["purchase_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "price_review_postponements_resolved_by_review_fk": {
+          "name": "price_review_postponements_resolved_by_review_fk",
+          "tableFrom": "price_review_postponements",
+          "tableTo": "price_reviews",
+          "columnsFrom": ["resolved_by_review_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -7040,11 +7008,6 @@
       "name": "installation_revocation_reason",
       "schema": "public",
       "values": ["replaced", "outbox_chain_broken"]
-    },
-    "public.offline_number_block_status": {
-      "name": "offline_number_block_status",
-      "schema": "public",
-      "values": ["in_use"]
     },
     "public.passkey_management_challenge_kind": {
       "name": "passkey_management_challenge_kind",

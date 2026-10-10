@@ -265,6 +265,7 @@ export type {
   DiscountStatus,
   DiscountTarget,
   DiscountTargetKind,
+  PriceReviewPostponement,
   ProductTagLink,
   TargetedProduct,
 } from "./pricing/index.js";
@@ -333,6 +334,7 @@ export type {
   CashSessionState,
   ClosedCashSession,
   OpenedCashSession,
+  ReceiptPrinterAddress,
   RegisterAbility,
   RegisterActor,
   RegisterOperation,
@@ -403,6 +405,7 @@ export {
   mayBeSaleLineQuantity,
   mayStartReceiptPrint,
   observePrintAcknowledged,
+  observePrinterNotConfigured,
   observePrinterStatus,
   observePrintFailed,
   openSaleStanding,

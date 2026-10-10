@@ -17,6 +17,7 @@ import {
   saleCancelRefusalSchema,
   signInUserSchema,
 } from "../shared/index.js";
+import { receiptPrinterAddressSchema } from "./receipt-printer-address.js";
 
 const requestId = requestIdSchema;
 
@@ -132,6 +133,17 @@ const registerStatusRequestMessageSchema = z.object({
   request_id: requestId,
 });
 
+const readReceiptPrinterMessageSchema = z.object({
+  type: z.literal("read-receipt-printer"),
+  request_id: requestId,
+});
+
+export const setReceiptPrinterMessageSchema = z.object({
+  type: z.literal("set-receipt-printer"),
+  request_id: requestId,
+  address: z.string(),
+});
+
 export const registerRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   rendererPingMessageSchema,
   enrollmentStatusRequestMessageSchema,
@@ -152,6 +164,8 @@ export const registerRendererToCoreMessageSchema = z.discriminatedUnion("type", 
   sessionOpenSaleRequestMessageSchema,
   lockedClosersRequestMessageSchema,
   registerStatusRequestMessageSchema,
+  readReceiptPrinterMessageSchema,
+  setReceiptPrinterMessageSchema,
 ]);
 export type RegisterRendererToCoreMessage = z.infer<typeof registerRendererToCoreMessageSchema>;
 
@@ -285,6 +299,24 @@ const registerStatusSchema = z.object({
 });
 export type RegisterStatus = z.infer<typeof registerStatusSchema>;
 
+const readReceiptPrinterOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("configured"), address: receiptPrinterAddressSchema }),
+  z.object({ kind: z.literal("not_configured") }),
+  z.object({ kind: z.literal("not_signed_in") }),
+  z.object({ kind: z.literal("lacks_permission") }),
+  z.object({ kind: z.literal("unavailable") }),
+]);
+export type ReadReceiptPrinterOutcome = z.infer<typeof readReceiptPrinterOutcomeSchema>;
+
+const setReceiptPrinterOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("saved"), address: receiptPrinterAddressSchema }),
+  z.object({ kind: z.literal("invalid_address") }),
+  z.object({ kind: z.literal("not_signed_in") }),
+  z.object({ kind: z.literal("lacks_permission") }),
+  z.object({ kind: z.literal("unavailable") }),
+]);
+export type SetReceiptPrinterOutcome = z.infer<typeof setReceiptPrinterOutcomeSchema>;
+
 export const registerCoreToRendererMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("enrollment-status"), request_id: requestId, enrolled: z.boolean() }),
   z.object({
@@ -380,5 +412,15 @@ export const registerCoreToRendererMessageSchema = z.discriminatedUnion("type", 
     status: registerStatusSchema,
   }),
   z.object({ type: z.literal("register-status-unavailable"), request_id: requestId }),
+  z.object({
+    type: z.literal("read-receipt-printer-result"),
+    request_id: requestId,
+    outcome: readReceiptPrinterOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("set-receipt-printer-result"),
+    request_id: requestId,
+    outcome: setReceiptPrinterOutcomeSchema,
+  }),
 ]);
 export type RegisterCoreToRendererMessage = z.infer<typeof registerCoreToRendererMessageSchema>;

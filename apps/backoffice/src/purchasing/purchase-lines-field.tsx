@@ -4,6 +4,7 @@ import type { SaleUnit } from "@purosur/domain";
 import {
   Button,
   Card,
+  Checkbox,
   ComboBox,
   DateField,
   EmptyState,
@@ -16,6 +17,7 @@ import {
 } from "@purosur/ui";
 import { Package, Plus, Trash2, TriangleAlert } from "lucide-react";
 import { quantityFieldKind } from "../platform/stock-quantity";
+import { type BackofficeAccess, canSeePricesArea } from "../shell/backoffice-access";
 import { packagingProductOptions } from "./packaging-form";
 import {
   emptyPurchaseLine,
@@ -31,6 +33,7 @@ const LOADED_BY_OPTIONS = [
 ] as const;
 
 type PurchaseLinesFieldProps = {
+  access: BackofficeAccess;
   products: PurchaseProducts;
   packagings: readonly PackagingSummary[];
   refusals: Readonly<Record<number, string>>;
@@ -38,6 +41,7 @@ type PurchaseLinesFieldProps = {
 };
 
 export function PurchaseLinesField({
+  access,
   products,
   packagings,
   refusals,
@@ -75,6 +79,7 @@ export function PurchaseLinesField({
             <PurchaseLineFields
               key={line.id}
               line={line}
+              offersPriceReview={canSeePricesArea(access)}
               number={index + 1}
               productOptions={productOptions}
               products={products}
@@ -115,6 +120,7 @@ function costLabel(loadedBy: PurchaseLineValues["loadedBy"], saleUnit: SaleUnit)
 
 type PurchaseLineFieldsProps = {
   line: PurchaseLineValues;
+  offersPriceReview: boolean;
   number: number;
   productOptions: NonNullable<ReturnType<typeof packagingProductOptions>>;
   products: PurchaseProducts;
@@ -127,6 +133,7 @@ type PurchaseLineFieldsProps = {
 
 function PurchaseLineFields({
   line,
+  offersPriceReview,
   number,
   productOptions,
   products,
@@ -233,6 +240,15 @@ function PurchaseLineFields({
             />
           </div>
         </div>
+        {offersPriceReview ? (
+          <Checkbox
+            name={`lines.${line.id}.reviewPriceNow`}
+            checked={line.reviewPriceNow}
+            onCheckedChange={(reviewPriceNow) => onChange({ reviewPriceNow })}
+          >
+            Revisar el precio ahora
+          </Checkbox>
+        ) : null}
         {refusal === undefined ? null : (
           <InlineNotice tone="error" icon={<TriangleAlert />} title={refusal} />
         )}

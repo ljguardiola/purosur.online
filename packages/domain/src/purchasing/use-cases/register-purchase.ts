@@ -227,6 +227,14 @@ export async function registerPurchase(
       lines.push({ id, ...registered });
     }
 
+    await tx.postponePriceReviews({
+      locationId: input.locationId,
+      purchaseId,
+      actorId: input.actorId,
+      postponedAt: recordedAt,
+      productIds: sortedDistinct(input.lines.map((line) => line.productId)),
+    });
+
     await tx.receiveStock({
       locationId: input.locationId,
       occurredAt: recordedAt,

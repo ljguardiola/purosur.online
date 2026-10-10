@@ -1,7 +1,7 @@
-import { priceListSchema } from "@purosur/contracts";
+import { priceListSchema, recordIdSchema } from "@purosur/contracts";
 import type { PriceReviewFilter, PricesUnderReview } from "@purosur/domain/pricing/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import { readOptionalRecordIds } from "../platform/record-id-params.js";
 import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
@@ -40,6 +40,30 @@ function readSearchFilter(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+async function readProductIds(
+  reply: FastifyReply,
+  value: unknown,
+): Promise<{ productIds?: string[] } | undefined> {
+  if (typeof value !== "string") {
+    return {};
+  }
+  const message = "productIds must be a comma-separated list of record ids";
+  const productIds: string[] = [];
+  for (const candidate of value.split(",")) {
+    const result = recordIdSchema(message).safeParse(candidate);
+    if (!result.success) {
+      await reply.code(400).send({
+        code: "validation_failed",
+        message,
+        details: [{ field: "productIds" }],
+      });
+      return undefined;
+    }
+    productIds.push(result.data);
+  }
+  return { productIds };
+}
+
 export function registerPricesListRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: PricesRouteOptions<TQueryResult>,
@@ -49,7 +73,9 @@ export function registerPricesListRoute<TQueryResult extends PgQueryResultHKT>(
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.get<{ Querystring: { review?: string; categoryId?: string; search?: string } }>(
+  app.get<{
+    Querystring: { review?: string; categoryId?: string; productIds?: string; search?: string };
+  }>(
     "/prices",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
@@ -61,12 +87,17 @@ export function registerPricesListRoute<TQueryResult extends PgQueryResultHKT>(
         return;
       }
       const { categoryId } = ids;
+      const products = await readProductIds(reply, request.query.productIds);
+      if (!products) {
+        return;
+      }
       const search = readSearchFilter(request.query.search);
       const result = await reader.pricesUnderReview({
         locationId: openSessionOf(request).locationId,
         now: now(),
         review: readReviewFilter(request.query.review),
         ...(categoryId !== undefined ? { categoryId } : {}),
+        ...products,
         ...(search !== undefined ? { search } : {}),
       });
 

@@ -18,6 +18,8 @@ export const pricesKeys = {
   list: ({ review, categoryId, search }: FetchPricesInput) =>
     [...pricingKey, "list", review, categoryId ?? null, search ?? null] as const,
   reviewQueue: [...pricingKey, "review-queue"] as const,
+  reviewQueueOf: (productIds: readonly string[]) =>
+    [...pricingKey, "review-queue", ...productIds] as const,
   reload: [...pricingKey, "reload"] as const,
 };
 
@@ -44,13 +46,18 @@ export function usePricesQuery(params: {
 
 export function useReadReviewQueue(params: {
   fetchPrices: typeof fetchPrices;
-}): () => Promise<CloudReadOutcome<PriceList>> {
+}): (productIds?: readonly string[]) => Promise<CloudReadOutcome<PriceList>> {
   const client = useQueryClient();
-  return () =>
-    fetchCloudQuery(client, {
-      queryKey: pricesKeys.reviewQueue,
-      read: () => params.fetchPrices({ review: "pending" }),
-    });
+  return (productIds) =>
+    productIds
+      ? fetchCloudQuery(client, {
+          queryKey: pricesKeys.reviewQueueOf(productIds),
+          read: () => params.fetchPrices({ review: "pending", productIds }),
+        })
+      : fetchCloudQuery(client, {
+          queryKey: pricesKeys.reviewQueue,
+          read: () => params.fetchPrices({ review: "pending" }),
+        });
 }
 
 export type PriceReload =

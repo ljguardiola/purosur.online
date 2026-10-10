@@ -268,6 +268,20 @@ describe("ReprintReceiptModal", () => {
       expect(onReprinted).not.toHaveBeenCalled();
     });
 
+    it("says the printer is not configured when the core has no printer to print on", async () => {
+      const { screen, onReprinted } = await renderModal({
+        reprintSaleReceipt: async () => ({ kind: "printer_not_configured" }),
+      });
+      await typeReason(screen, "Otra copia");
+
+      await userEvent.click(screen.getByRole("button", { name: REPRINT }));
+
+      await expect
+        .element(screen.getByRole("alert"))
+        .toHaveTextContent("La impresora no está configurada.");
+      expect(onReprinted).not.toHaveBeenCalled();
+    });
+
     it("tells the screen when the sale is gone", async () => {
       const { screen, onSaleGone } = await renderModal({
         reprintSaleReceipt: async () => ({ kind: "not_found" }),

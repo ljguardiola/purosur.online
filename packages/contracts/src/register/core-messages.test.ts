@@ -1269,3 +1269,85 @@ describe("register status messages", () => {
     ).toBe(false);
   });
 });
+
+describe("receipt printer address messages", () => {
+  const ADDRESS = { host: "192.168.1.50", port: 9100 };
+
+  it("accepts a request to read the receipt printer", () => {
+    const message = { type: "read-receipt-printer", request_id: REQUEST_ID };
+
+    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a request to read the receipt printer without its request id", () => {
+    expect(
+      registerRendererToCoreMessageSchema.safeParse({ type: "read-receipt-printer" }).success,
+    ).toBe(false);
+  });
+
+  it("accepts a request to set the receipt printer's address as typed", () => {
+    const message = {
+      type: "set-receipt-printer",
+      request_id: REQUEST_ID,
+      address: "not an address yet",
+    };
+
+    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { type: "set-receipt-printer", request_id: REQUEST_ID },
+    { type: "set-receipt-printer", address: "192.168.1.50" },
+    { type: "set-receipt-printer", request_id: REQUEST_ID, address: 9100 },
+  ])("rejects the request to set the receipt printer %j", (message) => {
+    expect(registerRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it.each([
+    { kind: "configured", address: ADDRESS },
+    { kind: "configured", address: { host: "printer.local", port: null } },
+    { kind: "not_configured" },
+    { kind: "not_signed_in" },
+    { kind: "lacks_permission" },
+    { kind: "unavailable" },
+  ])("accepts the read answer $kind", (outcome) => {
+    const message = { type: "read-receipt-printer-result", request_id: REQUEST_ID, outcome };
+
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "configured" },
+    { kind: "configured", address: { host: "192.168.1.256", port: null } },
+    { kind: "configured", address: "192.168.1.50" },
+    { kind: "saved", address: ADDRESS },
+    { kind: "invalid_address" },
+  ])("rejects the read answer %j", (outcome) => {
+    const message = { type: "read-receipt-printer-result", request_id: REQUEST_ID, outcome };
+
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it.each([
+    { kind: "saved", address: ADDRESS },
+    { kind: "invalid_address" },
+    { kind: "not_signed_in" },
+    { kind: "lacks_permission" },
+    { kind: "unavailable" },
+  ])("accepts the set answer $kind", (outcome) => {
+    const message = { type: "set-receipt-printer-result", request_id: REQUEST_ID, outcome };
+
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "saved" },
+    { kind: "saved", address: { host: "", port: null } },
+    { kind: "configured", address: ADDRESS },
+    { kind: "not_configured" },
+  ])("rejects the set answer %j", (outcome) => {
+    const message = { type: "set-receipt-printer-result", request_id: REQUEST_ID, outcome };
+
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+});

@@ -149,6 +149,32 @@ describe("registerPurchase", () => {
     expect(store.transactionCount).toBe(1);
   });
 
+  it("postpones the price review of every product it receives, once each, on its branch at the recording instant", async () => {
+    const store = storeWithCatalog();
+
+    await registerPurchase(
+      { store, clock: CLOCK },
+      purchase({
+        lines: [
+          quantityLine(),
+          packagedLine(),
+          packagedLine({ packages: 1 }),
+          packagedLine({ productId: "product-b", packagingId: "packaging-b" }),
+        ],
+      }),
+    );
+
+    expect(store.snapshot().priceReviewPostponements).toEqual([
+      {
+        locationId: BRANCH,
+        purchaseId: "purchase-1",
+        actorId: ACTOR,
+        postponedAt: NOW,
+        productIds: ["product-a", "product-b"],
+      },
+    ]);
+  });
+
   it("stores the lines with positions 1 to n in the order they were entered", async () => {
     const store = storeWithCatalog();
 
@@ -548,6 +574,7 @@ describe("registerPurchase", () => {
       expect(state.purchases).toEqual([]);
       expect(state.purchaseLines).toEqual([]);
       expect(state.receipts).toEqual([]);
+      expect(state.priceReviewPostponements).toEqual([]);
     });
 
     it("keeps its checks in order: product, then packaging, then quantity", async () => {
@@ -571,6 +598,7 @@ describe("registerPurchase", () => {
   it.each([
     ["insertPurchase", 1],
     ["insertPurchaseLine", 2],
+    ["postponePriceReviews", 1],
     ["receiveStock", 1],
   ] as const)("rolls back what was written when %s fails at call %s", async (operation, call) => {
     const store = storeWithCatalog();

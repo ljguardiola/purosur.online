@@ -516,8 +516,15 @@
     {
       "idx": 73,
       "version": "7",
-      "when": 1791624350178,
-      "tag": "0073_offline_number_blocks",
+      "when": 1791622724772,
+      "tag": "0073_price_review_postponements",
+      "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1791629574766,
+      "tag": "0074_offline_number_blocks",
       "breakpoints": true
     }
   ]

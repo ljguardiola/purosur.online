@@ -1,5 +1,5 @@
 import { RECEIPT_RETRY_DELAY_MS } from "@purosur/domain";
-import type { ReceiptPrinter } from "@purosur/domain/sales/use-cases";
+import type { ReceiptPrinter, ReceiptPrinters } from "@purosur/domain/sales/use-cases";
 import { describe, expect, it, vi } from "vitest";
 import { createReceiptPrintJobs } from "./receipt-print-jobs";
 import { ControllableReceiptPrinter } from "./test-support/controllable-receipt-printer";
@@ -30,12 +30,16 @@ type Rig = ReturnType<typeof rig>;
 function sending(printer: ReceiptPrinter) {
   return async ({
     watch,
-    printer: wrap,
+    printers,
   }: {
     watch: Parameters<ReceiptPrinter["print"]>[1];
-    printer: (inner: ReceiptPrinter) => ReceiptPrinter;
+    printers: (inner: ReceiptPrinters) => ReceiptPrinters;
   }) => {
-    const ending = await wrap(printer).print(BYTES, watch);
+    const configured = printers({ configured: () => printer }).configured();
+    if (configured === undefined) {
+      return { kind: "printer_not_configured" };
+    }
+    const ending = await configured.print(BYTES, watch);
     return { kind: ending.kind };
   };
 }
@@ -199,6 +203,41 @@ describe("receipt print jobs", () => {
     expect(await printingSale(subject)).toEqual({ kind: "sent" });
   });
 
+  it("stands as printer_not_configured when an unattended start is answered so, leaving the sale free to print", async () => {
+    const subject = rig();
+
+    await subject.jobs.start("sale-1", async () => ({ kind: "printer_not_configured" }), {
+      unattended: true,
+    });
+
+    expect(subject.jobs.standingOf("sale-1")).toBe("printer_not_configured");
+    expect(subject.failures).toEqual([]);
+    expect(await printingSale(subject)).toEqual({ kind: "sent" });
+  });
+
+  it("leaves no job when an attended start is answered printer_not_configured", async () => {
+    const subject = rig();
+
+    const started = await subject.jobs.start("sale-1", async () => ({
+      kind: "printer_not_configured",
+    }));
+
+    expect(started).toEqual({ kind: "answered", outcome: { kind: "printer_not_configured" } });
+    expect(subject.jobs.standingOf("sale-1")).toBeNull();
+  });
+
+  it("wraps no printer while none is configured", async () => {
+    const subject = rig();
+    let configured: ReceiptPrinter | undefined = new ControllableReceiptPrinter();
+
+    await subject.jobs.start("sale-1", async ({ printers }) => {
+      configured = printers({ configured: () => undefined }).configured();
+      return { kind: "printer_not_configured" };
+    });
+
+    expect(configured).toBeUndefined();
+  });
+
   it("reports a failure before sending, stands as failed and leaves the sale free to print", async () => {
     const subject = rig();
     const failure = new Error("the ledger is damaged");
@@ -236,8 +275,10 @@ describe("receipt print jobs", () => {
         throw failure;
       },
     };
-    const started = await subject.jobs.start("sale-1", async ({ watch, printer }) =>
-      printer(breaking).print(BYTES, watch),
+    const started = await subject.jobs.start("sale-1", async ({ watch, printers }) =>
+      printers({ configured: () => breaking })
+        .configured()
+        ?.print(BYTES, watch),
     );
 
     expect(started).toEqual({ kind: "sent" });

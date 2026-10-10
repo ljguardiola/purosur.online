@@ -5,6 +5,7 @@ export type PrinterStatus = "ready" | "cover_open" | "paper_out" | "not_respondi
 export interface ReceiptPrintObservation {
   acknowledged: boolean;
   failed: boolean;
+  printerNotConfigured: boolean;
   status: PrinterStatus | null;
   readySince: Date | null;
 }
@@ -16,10 +17,17 @@ export type ReceiptPrintStanding =
   | "paper_out"
   | "not_responding"
   | "retry_offered"
+  | "printer_not_configured"
   | "failed";
 
 export function startedReceiptPrint(): ReceiptPrintObservation {
-  return { acknowledged: false, failed: false, status: null, readySince: null };
+  return {
+    acknowledged: false,
+    failed: false,
+    printerNotConfigured: false,
+    status: null,
+    readySince: null,
+  };
 }
 
 export function observePrinterStatus(
@@ -44,12 +52,21 @@ export function observePrintFailed(observation: ReceiptPrintObservation): Receip
   return { ...observation, failed: true };
 }
 
+export function observePrinterNotConfigured(
+  observation: ReceiptPrintObservation,
+): ReceiptPrintObservation {
+  return { ...observation, printerNotConfigured: true };
+}
+
 export function receiptPrintStanding(
-  { acknowledged, failed, status, readySince }: ReceiptPrintObservation,
+  { acknowledged, failed, printerNotConfigured, status, readySince }: ReceiptPrintObservation,
   now: Date,
 ): ReceiptPrintStanding {
   if (acknowledged) {
     return "printed";
+  }
+  if (printerNotConfigured) {
+    return "printer_not_configured";
   }
   if (failed) {
     return "failed";
@@ -73,7 +90,12 @@ export function mayStartReceiptPrint(
     return true;
   }
   const standing = receiptPrintStanding(observation, now);
-  return standing === "printed" || standing === "retry_offered" || standing === "failed";
+  return (
+    standing === "printed" ||
+    standing === "retry_offered" ||
+    standing === "failed" ||
+    standing === "printer_not_configured"
+  );
 }
 
 export function mayRetryReceiptPrint(standing: ReceiptPrintStanding | null): boolean {

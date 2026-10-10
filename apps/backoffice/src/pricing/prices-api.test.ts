@@ -71,6 +71,38 @@ test("fetchPrices sends categoryId and search alongside review", async () => {
   expect(fetch).toHaveBeenCalledWith("/api/prices?review=all&categoryId=category-1&search=arroz");
 });
 
+test("fetchPrices limits the listing to the product ids it is given, as a comma list", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, {
+      products: [],
+      pendingCount: 0,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    }),
+  );
+
+  await fetchPrices({ review: "pending", productIds: ["product-1", "product-2"] });
+
+  expect(fetch).toHaveBeenCalledWith("/api/prices?review=pending&productIds=product-1%2Cproduct-2");
+});
+
+test("fetchPrices sends no productIds when it is given none", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, {
+      products: [],
+      pendingCount: 0,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    }),
+  );
+
+  await fetchPrices({ review: "pending", productIds: [] });
+
+  expect(fetch).toHaveBeenCalledWith("/api/prices?review=pending");
+});
+
 test("fetchPrices returns unauthenticated on 401", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(401));
 

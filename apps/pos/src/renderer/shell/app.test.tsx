@@ -256,6 +256,12 @@ function coreAnswering(
         ? { kind: "not_found" }
         : sales.saleHistoryDetail(saleId);
     },
+    async readReceiptPrinter() {
+      return { kind: "not_configured" };
+    },
+    async setReceiptPrinter() {
+      return { kind: "unavailable" };
+    },
     async searchProducts(query) {
       return sales.searchProducts === undefined
         ? { kind: "results", products: [], more: false }

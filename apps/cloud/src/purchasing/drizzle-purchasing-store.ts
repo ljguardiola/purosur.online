@@ -1,4 +1,4 @@
-import type { SaleUnit } from "@purosur/domain";
+import type { PriceReviewPostponement, SaleUnit } from "@purosur/domain";
 import {
   type LockPackagingResult,
   type LockProductResult,
@@ -26,6 +26,7 @@ import {
   purchases,
   suppliers,
 } from "../platform/db/schema.js";
+import { DrizzlePricingStoreTransaction } from "../pricing/drizzle-pricing-store.js";
 import { DrizzleStockStoreTransaction } from "../stock/drizzle-stock-store.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 
@@ -62,11 +63,13 @@ class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResultHKT>
   private readonly tx: PgDatabase<TQueryResult>;
   private readonly now: () => Date;
   private readonly stock: DrizzleStockStoreTransaction<TQueryResult>;
+  private readonly pricing: DrizzlePricingStoreTransaction<TQueryResult>;
 
   constructor(tx: PgDatabase<TQueryResult>, now: () => Date, pending: PendingChanges) {
     this.tx = tx;
     this.now = now;
     this.stock = new DrizzleStockStoreTransaction(tx, pending);
+    this.pricing = new DrizzlePricingStoreTransaction(tx, now, pending);
   }
 
   async lockSupplier(supplierId: string): Promise<LockSupplierResult> {
@@ -260,6 +263,10 @@ class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResultHKT>
       throw new Error("inserting the purchase line returned no row");
     }
     return line;
+  }
+
+  postponePriceReviews(postponement: PriceReviewPostponement): Promise<void> {
+    return this.pricing.postponePriceReviews(postponement);
   }
 
   async receiveStock(receipt: PurchaseReceipt): Promise<void> {

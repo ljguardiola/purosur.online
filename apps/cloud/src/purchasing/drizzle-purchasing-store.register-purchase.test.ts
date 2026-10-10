@@ -7,7 +7,10 @@ import {
 import { asc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
+  branchSettings,
   lots,
+  priceLists,
+  priceReviewPostponements,
   purchaseLines,
   purchases,
   stockBalances,
@@ -311,5 +314,54 @@ describe("the purchases a purchasing store keeps", () => {
       .from(stockBalances)
       .where(eq(stockBalances.productId, product.id));
     expect(balance?.quantity).toBe(5_000);
+  });
+});
+
+describe("the price reviews a purchase postpones", () => {
+  const quantityLine = (productId: string) => ({
+    loadedBy: "quantity" as const,
+    productId,
+    quantity: 1_000,
+    costPaidCents: 500,
+    lotNumber: null,
+    expiresOn: null,
+  });
+
+  it("opens one postponement per purchased product on the branch's price list", async () => {
+    const supplierId = await newSupplier();
+    const yerba = await insertProduct(db, { name: "Yerba" });
+    const harina = await insertProduct(db, { name: "Harina" });
+    await insertProduct(db, { name: "Arroz" });
+    const [otherPriceList] = await db
+      .insert(priceLists)
+      .values({ name: "Lista mayorista" })
+      .returning({ id: priceLists.id });
+    await db
+      .update(branchSettings)
+      .set({ priceListId: otherPriceList?.id as string })
+      .where(eq(branchSettings.locationId, locationId));
+
+    const purchase = await register(supplierId, [
+      quantityLine(yerba.id),
+      quantityLine(harina.id),
+      quantityLine(yerba.id),
+    ]);
+
+    const postponements = await db.select().from(priceReviewPostponements);
+    expect(postponements).toHaveLength(2);
+    expect(postponements).toEqual(
+      expect.arrayContaining(
+        [yerba.id, harina.id].map((productId) =>
+          expect.objectContaining({
+            productId,
+            priceListId: otherPriceList?.id,
+            postponedAt: RECORDED_AT,
+            actorId,
+            purchaseId: purchase.id,
+            resolvedByReviewId: null,
+          }),
+        ),
+      ),
+    );
   });
 });

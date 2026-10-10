@@ -22,6 +22,7 @@ type RoutePath =
   | "/charge"
   | "/history"
   | "/help"
+  | "/receipt-printer"
   | "/locked"
   | "/locked-close"
   | "/enroll"
@@ -42,6 +43,11 @@ const HELP_READER: SignedInPerson = {
   user_id: "u3",
   first_name: "Ada",
   abilities: ["read_register_help"],
+};
+const PRINTER_CONFIGURER: SignedInPerson = {
+  user_id: "u4",
+  first_name: "Linus",
+  abilities: ["configure_receipt_printer"],
 };
 const OPENER: SignedInPerson = {
   user_id: "u2",
@@ -85,6 +91,8 @@ const screenFor: Record<
   "/charge": (screen) => screen.getByRole("heading", { name: "Elegí el medio de pago" }),
   "/history": (screen) => screen.getByRole("heading", { name: "Historial de ventas" }),
   "/help": (screen) => screen.getByRole("heading", { level: 1, name: "Ayuda" }),
+  "/receipt-printer": (screen) =>
+    screen.getByRole("heading", { level: 1, name: "Impresora de tickets" }),
   "/locked": (screen) => screen.getByRole("heading", { name: "Caja bloqueada" }),
   "/locked-close": (screen) => screen.getByRole("heading", { name: "¿Quién cierra la caja?" }),
   "/enroll": (screen) => screen.getByRole("heading", { name: ENROLLMENT_TITLE }),
@@ -160,6 +168,8 @@ function contextWith(
     reprintSaleReceipt: async () => ({ kind: "unavailable" }),
     salesHistory: async () => ({ kind: "unavailable" }),
     saleHistoryDetail: async () => ({ kind: "unavailable" }),
+    readReceiptPrinter: async () => ({ kind: "not_configured" }),
+    setReceiptPrinter: async () => ({ kind: "unavailable" }),
     refreshCashSession: async () => {},
   };
 }
@@ -511,6 +521,21 @@ describe("the register's router", () => {
       person: null,
       redirectedTo: "/sign-in",
     },
+    { path: "/receipt-printer", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
+    {
+      path: "/receipt-printer",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      cashSession: OPEN_SESSION,
+      redirectedTo: "/session",
+    },
+    {
+      path: "/receipt-printer",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: null,
+      redirectedTo: "/sign-in",
+    },
     {
       path: "/history",
       coreStatus: "up",
@@ -827,6 +852,46 @@ describe("the register's router", () => {
 
     await expect.element(screenFor["/"](screen)).toBeVisible();
     await expect.element(screen.getByRole("link", { name: "Ayuda" })).not.toBeInTheDocument();
+  });
+
+  it("renders the receipt printer screen for a person who may configure it", async () => {
+    const router = routerAt("/receipt-printer", "up", "enrolled", PRINTER_CONFIGURER);
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screenFor["/receipt-printer"](screen)).toBeVisible();
+  });
+
+  it("opens the receipt printer from the no-session screen for a person who may configure it", async () => {
+    const router = routerAt("/", "up", "enrolled", PRINTER_CONFIGURER);
+    const screen = await render(<RouterProvider router={router} />);
+
+    await userEvent.click(screen.getByRole("link", { name: "Impresora" }));
+
+    await expect.element(screenFor["/receipt-printer"](screen)).toBeVisible();
+  });
+
+  it("offers a person who may only configure the receipt printer nothing else, and no way to open the cash drawer", async () => {
+    const router = routerAt("/", "up", "enrolled", PRINTER_CONFIGURER);
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screenFor["/"](screen)).toBeVisible();
+    const menu = screen.getByRole("navigation", { name: "Menú de la caja" });
+    await expect.element(menu.getByRole("link")).toHaveLength(1);
+    await expect.element(menu.getByRole("link", { name: "Impresora" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Abrir caja" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("offers no receipt printer on the no-session screen to a person who may not configure it", async () => {
+    const router = routerAt("/", "up");
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screenFor["/"](screen)).toBeVisible();
+    await expect.element(screen.getByRole("link", { name: "Impresora" })).not.toBeInTheDocument();
   });
 
   it("renders the open-session screen for the person who opened the session", async () => {
