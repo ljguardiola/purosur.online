@@ -171,6 +171,18 @@ describe("reprintSaleReceipt", () => {
     expect(rig.printer.sent).toEqual([]);
   });
 
+  it("answers printer_not_configured and records and sends nothing when no printer is configured", async () => {
+    const rig = receiptRig([completedSale({ printAttemptedAt: FIRST_PRINT_AT })]);
+    rig.printers.unconfigure();
+
+    expect(await reprintSaleReceipt(rig.ports, INPUT, rig.watch)).toEqual({
+      kind: "printer_not_configured",
+    });
+    expect(rig.ledger.transactions).toBe(0);
+    expect(rig.ledger.state.sales[0]?.reprints).toEqual([]);
+    expect(rig.ledger.state.outbox).toEqual([]);
+  });
+
   it("answers unavailable and records and sends nothing when the outbox is not ready", async () => {
     const rig = receiptRig([completedSale({ printAttemptedAt: FIRST_PRINT_AT })]);
     rig.ledger.state.outboxReady = false;

@@ -4,6 +4,7 @@ import {
   mayStartReceiptPrint,
   observePrintAcknowledged,
   observePrinterStatus,
+  observePrinterNotConfigured,
   observePrintFailed,
   RECEIPT_RETRY_DELAY_MS,
   type ReceiptPrintObservation,
@@ -107,8 +108,30 @@ describe("receiptPrintStanding", () => {
     );
   });
 
+  it("is printer_not_configured once the print found no configured printer", () => {
+    expect(
+      receiptPrintStanding(observePrinterNotConfigured(startedReceiptPrint()), after(60_000)),
+    ).toBe("printer_not_configured");
+  });
+
+  it("stays printed when the missing printer is observed after the acknowledgment", () => {
+    const acknowledged = observePrintAcknowledged(startedReceiptPrint());
+
+    expect(receiptPrintStanding(observePrinterNotConfigured(acknowledged), T0)).toBe("printed");
+  });
+
+  it("is printer_not_configured rather than failed or a printer status", () => {
+    let observed = observePrinterStatus(startedReceiptPrint(), "paper_out", T0);
+    observed = observePrintFailed(observed);
+
+    expect(receiptPrintStanding(observePrinterNotConfigured(observed), after(1))).toBe(
+      "printer_not_configured",
+    );
+  });
+
   it("does not change the observation it folds into", () => {
     const started = startedReceiptPrint();
+    observePrinterNotConfigured(started);
     observePrinterStatus(started, "ready", T0);
     observePrintAcknowledged(started);
     observePrintFailed(started);
@@ -116,6 +139,7 @@ describe("receiptPrintStanding", () => {
     expect(started).toEqual({
       acknowledged: false,
       failed: false,
+      printerNotConfigured: false,
       status: null,
       readySince: null,
     });
@@ -123,6 +147,12 @@ describe("receiptPrintStanding", () => {
 });
 
 describe("mayStartReceiptPrint", () => {
+  it("allows a print once the previous one found no configured printer", () => {
+    expect(mayStartReceiptPrint(observePrinterNotConfigured(startedReceiptPrint()), T0)).toBe(
+      true,
+    );
+  });
+
   const inProgress = (ms: number): [ReceiptPrintObservation, Date] => [
     observePrinterStatus(startedReceiptPrint(), "ready", T0),
     after(ms),
@@ -172,6 +202,7 @@ describe("mayRetryReceiptPrint", () => {
       "paper_out",
       "not_responding",
       "failed",
+      "printer_not_configured",
     ] as const) {
       expect(mayRetryReceiptPrint(standing)).toBe(false);
     }
