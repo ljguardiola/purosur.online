@@ -88,6 +88,8 @@ export type {
   CreateFiscalAddressOutcome,
 } from "./create-fiscal-address.js";
 export { createFiscalAddress } from "./create-fiscal-address.js";
+export type { CurrentFortnightCodeStanding } from "./current-fortnight-code-after-obtaining.js";
+export { currentFortnightCodeAfterObtaining } from "./current-fortnight-code-after-obtaining.js";
 export type {
   DecideSaleAuthorizationInput,
   DecideSaleAuthorizationOutcome,

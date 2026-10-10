@@ -16,18 +16,17 @@ function attempted(
 }
 
 describe("currentFortnightCodeAfterObtaining", () => {
-  it.each([
-    "obtained",
-    "recovered",
-    "held",
-  ] as const)("is held when the current fortnight's code was %s", (kind) => {
-    expect(
-      currentFortnightCodeAfterObtaining(
-        attempted({ fortnight: FIRST_HALF, outcome: { kind } }),
-        SOME_DAY_OF_FIRST_HALF,
-      ),
-    ).toBe("held");
-  });
+  it.each(["obtained", "recovered", "held"] as const)(
+    "is held when the current fortnight's code was %s",
+    (kind) => {
+      expect(
+        currentFortnightCodeAfterObtaining(
+          attempted({ fortnight: FIRST_HALF, outcome: { kind } }),
+          SOME_DAY_OF_FIRST_HALF,
+        ),
+      ).toBe("held");
+    },
+  );
 
   it.each([
     { kind: "no_token" },
@@ -66,9 +65,7 @@ describe("currentFortnightCodeAfterObtaining", () => {
   });
 
   it("is missing when the run did not try the current fortnight", () => {
-    expect(
-      currentFortnightCodeAfterObtaining(attempted(), SOME_DAY_OF_FIRST_HALF),
-    ).toBe("missing");
+    expect(currentFortnightCodeAfterObtaining(attempted(), SOME_DAY_OF_FIRST_HALF)).toBe("missing");
   });
 
   it("has nothing to obtain when the cloud has no offline point of sale", () => {
