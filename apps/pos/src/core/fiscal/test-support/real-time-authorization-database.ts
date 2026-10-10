@@ -138,3 +138,31 @@ export function insertFiscalDocument(
       resolved_at: state === "REQUESTING" ? null : "2026-09-30T12:05:01.000Z",
     });
 }
+
+export function insertOfflinePointOfSale(
+  database: LocalDatabase,
+  pointOfSale = POINT_OF_SALE,
+): void {
+  database
+    .prepare(
+      `INSERT INTO register_offline_point_of_sale (register_id, point_of_sale_number, version)
+       VALUES ('register-1', ?, 1)`,
+    )
+    .run(pointOfSale);
+}
+
+export function insertOfflineNumberBlock(
+  database: LocalDatabase,
+  id: string,
+  firstNumber: number,
+  lastNumber: number,
+  pointOfSale = POINT_OF_SALE,
+): void {
+  database
+    .prepare(
+      `INSERT INTO offline_number_blocks (
+         id, point_of_sale, document_type, first_number, last_number, status, version
+       ) VALUES (?, ?, 'factura_c', ?, ?, 'in_use', 1)`,
+    )
+    .run(id, pointOfSale, firstNumber, lastNumber);
+}
