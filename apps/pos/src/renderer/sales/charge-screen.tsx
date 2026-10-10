@@ -38,7 +38,7 @@ type Step =
   | { name: "cash" }
   | { name: "transfer" }
   | { name: "qr" }
-  | { name: "qr-wait"; order: ShownQrOrder }
+  | { name: "qr-wait"; order: ShownQrOrder; sale: OpenSale }
   | { name: "completed"; payment: CompletedPayment; sale: OpenSale };
 
 type CompletedPayment =
@@ -136,8 +136,8 @@ export function ChargeScreen({
     answer.charge_refusal !== null
       ? undefined
       : answer;
-  const nothingToCharge =
-    answer !== undefined && chargeable === undefined && step.name !== "completed";
+  const saleKept = step.name === "completed" || step.name === "qr-wait";
+  const nothingToCharge = answer !== undefined && chargeable === undefined && !saleKept;
 
   useEffect(() => {
     if (nothingToCharge) {
@@ -145,7 +145,7 @@ export function ChargeScreen({
     }
   }, [nothingToCharge, navigate]);
 
-  const sale = step.name === "completed" ? step.sale : chargeable;
+  const sale = saleKept ? step.sale : chargeable;
   const lineCount = sale?.lines.length ?? 0;
   const lines = plural(lineCount, { one: "LÍNEA", other: "LÍNEAS" });
 
@@ -241,20 +241,20 @@ export function ChargeScreen({
           pending={sale.pending}
           start={(amount) => startMercadoPagoQrCharge(sale.id, amount)}
           onChooseAnotherMethod={() => void backToMethodsWithBalance()}
-          onOrderShown={(order) => setStep({ name: "qr-wait", order })}
+          onOrderShown={(order) => setStep({ name: "qr-wait", order, sale })}
           onSaleUnavailable={backToSale}
           onSessionInvalid={onSessionInvalid}
         />
       ) : null}
-      {sale !== undefined && step.name === "qr-wait" ? (
+      {step.name === "qr-wait" ? (
         <QrPaymentWaitModal
-          total={sale.total}
-          paid={sale.paid}
+          total={step.sale.total}
+          paid={step.sale.paid}
           order={step.order}
           follow={followMercadoPagoQrCharge}
           onChooseAnotherMethod={() => void backToMethodsWithBalance()}
           onCompleted={(charge) =>
-            setStep({ name: "completed", payment: { method: "QR", charge }, sale })
+            setStep({ name: "completed", payment: { method: "QR", charge }, sale: step.sale })
           }
           onPartiallyPaid={backToMethodsWithBalance}
           onSaleUnavailable={backToSale}
