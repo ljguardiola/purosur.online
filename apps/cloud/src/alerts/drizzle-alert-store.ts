@@ -252,6 +252,14 @@ export class DrizzleAlertStore<TQueryResult extends PgQueryResultHKT> implements
     this.now = now;
   }
 
+  async scopesOfOpenAlerts(kind: AlertKind): Promise<string[]> {
+    const rows = await this.db
+      .select({ scope: alerts.scope })
+      .from(alerts)
+      .where(and(eq(alerts.kind, kind), openAlertCondition()));
+    return rows.map(({ scope }) => scope);
+  }
+
   transaction<TOutcome>(work: (tx: AlertStoreTransaction) => Promise<TOutcome>): Promise<TOutcome> {
     return this.db.transaction((tx) => work(new DrizzleAlertStoreTransaction(tx, this.now)));
   }

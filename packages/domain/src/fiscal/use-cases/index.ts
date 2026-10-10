@@ -7,6 +7,10 @@ export type {
 } from "../model/fiscal-rejection-alert.js";
 export type { Fortnight } from "../model/offline-authorization-code.js";
 export type {
+  OfflineAuthorizationCodeHoldingReader,
+  RegisterOfflineAuthorizationCodeHolding,
+} from "../model/offline-authorization-code-holding.js";
+export type {
   DeferralReason,
   RealTimeAuthorizationAnswer,
   RealTimeAuthorizationResolution,

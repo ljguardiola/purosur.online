@@ -56,7 +56,6 @@ export {
   alertSightOf,
   canSeeAlert,
 } from "./model/alert-visibility.js";
-export { registerHoldsOfflineAuthorizationCode } from "./model/offline-authorization-code-holding.js";
 export { isOpenAlert } from "./model/open-alert-state.js";
 export { REGISTER_FORTNIGHT_SCOPE_SEPARATOR } from "./model/register-fortnight-scope.js";
 export type { RegisterOwnCondition } from "./model/register-own-conditions.js";

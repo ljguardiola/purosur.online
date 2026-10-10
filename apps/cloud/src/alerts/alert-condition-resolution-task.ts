@@ -7,11 +7,11 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PoolClient } from "pg";
 import { DrizzleBranchHoursReader } from "../branch/drizzle-branch-hours-reader.js";
+import { DrizzleOfflineAuthorizationCodeHoldingReader } from "../fiscal/drizzle-offline-authorization-code-holding-reader.js";
 import { type BackgroundJobs, databaseOfClient } from "../platform/background-jobs.js";
 import { DrizzleWatchedRegisterReader } from "../register/drizzle-watched-register-reader.js";
 import { hashSourceAddress } from "../sessions/sign-in-lockout.js";
 import { DrizzleAlertStore } from "./drizzle-alert-store.js";
-import { DrizzleOfflineAuthorizationCodeHoldingReader } from "./drizzle-offline-authorization-code-holding-reader.js";
 
 export const ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER = "alert-condition-resolution";
 

@@ -94,6 +94,7 @@ export interface AlertStoreTransaction {
 }
 
 export interface AlertStore {
+  scopesOfOpenAlerts(kind: AlertKind): Promise<string[]>;
   transaction<TOutcome>(work: (tx: AlertStoreTransaction) => Promise<TOutcome>): Promise<TOutcome>;
 }
 

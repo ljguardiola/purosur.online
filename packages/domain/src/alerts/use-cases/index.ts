@@ -41,10 +41,6 @@ export { detectQuietRegisters } from "./detect-quiet-registers.js";
 export { escalateOverdueAlerts } from "./escalate-overdue-alerts.js";
 export type { ObserveAlertConditionOutcome } from "./observe-alert-condition.js";
 export { observeAlertCondition } from "./observe-alert-condition.js";
-export type {
-  OfflineAuthorizationCodeHoldingReader,
-  RegisterOfflineAuthorizationCodeHolding,
-} from "./offline-authorization-code-holding-reader.js";
 export type { OpenAlertOutcome } from "./open-alert.js";
 export { openAlert } from "./open-alert.js";
 export type { ResolveAlertOutcome } from "./resolve-alert.js";

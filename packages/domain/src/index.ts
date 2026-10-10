@@ -42,7 +42,6 @@ export {
   isOpenAlert,
   REGISTER_FORTNIGHT_SCOPE_SEPARATOR,
   REGISTER_OWN_CONDITIONS,
-  registerHoldsOfflineAuthorizationCode,
   registerOwnConditions,
   showsAlertScope,
 } from "./alerts/index.js";
@@ -181,6 +180,7 @@ export {
   isWsaaTokenValid,
   latestBuyerTaxStatusSet,
   latestIssuerIdentification,
+  mustHoldOfflineAuthorizationCode,
   NUMBER_CONSUMING_STATES,
   nextBuyerTaxStatusFetchAt,
   nextOfflineNumber,
@@ -511,6 +511,7 @@ export {
   canonicalOutboxEvent,
   canonicalOutboxPayload,
   FIRST_PULL_CURSOR,
+  hasPulledChange,
   INSTALLATION_REQUEST_LIMITS,
   isPageAfter,
   isPullCursor,

@@ -217,22 +217,21 @@ function arcaCertificateExpiringDescription(notAfter: string, environment: strin
   return `El certificado de ARCA de ${label} vence el ${alertDateTime(new Date(notAfter))}. Conviene cargar uno nuevo antes de esa fecha.`;
 }
 
-function offlineAuthorizationCodeMissingDescription(
-  { level, detail }: Extract<AlertDetail, { kind: "offline_authorization_code_missing" }>,
-  registerName: string,
-): string {
+function offlineAuthorizationCodeMissingDescription({
+  level,
+  detail,
+}: Extract<AlertDetail, { kind: "offline_authorization_code_missing" }>): string {
   const fortnight = formatCalendarDayRange(detail.fortnightStart, detail.fortnightEnd);
-  const missing = `La caja «${registerName}» todavía no bajó el CAEA de la quincena`;
   if (level === "informational") {
-    return `${missing} ${fortnight}. Ya se puede pedir a ARCA y la caja lo baja sola al sincronizar.`;
+    return `El CAEA de la quincena ${fortnight} ya se puede pedir a ARCA. La caja lo baja sola al sincronizar.`;
   }
   if (level === "warning") {
-    return `${missing} ${fortnight}. Conviene revisar que esté encendida y con internet para que lo baje.`;
+    return `Falta que baje el CAEA de la quincena ${fortnight}. Conviene revisar que la caja esté encendida y con internet.`;
   }
   if (detail.fortnightStarted) {
-    return `La caja «${registerName}» no tiene el CAEA de la quincena ${fortnight}, que ya empezó. Mientras ARCA no responda, sus ventas quedan diferidas. Hay que conectarla a internet.`;
+    return `La quincena ${fortnight} ya empezó. Mientras ARCA no responda, las ventas de la caja quedan diferidas. Hay que conectarla a internet.`;
   }
-  return `${missing} que empieza el ${formatCalendarDay(detail.fortnightStart)}. Sin él, si ARCA no responde, la caja no puede emitir facturas y las ventas quedan diferidas. Hay que conectarla a internet hoy.`;
+  return `La quincena empieza el ${formatCalendarDay(detail.fortnightStart)}. Sin el CAEA, si ARCA no responde, la caja no puede emitir facturas y las ventas quedan diferidas. Hay que conectarla a internet hoy.`;
 }
 
 function localTextOf(alert: AlertDetail) {
@@ -328,7 +327,7 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
     case "update_required":
       return `La caja «${targetName}» usa la versión ${alert.detail.appVersion}, que la nube ya no acepta. Hay que actualizarla para que vuelva a sincronizar.`;
     case "offline_authorization_code_missing":
-      return offlineAuthorizationCodeMissingDescription(alert, targetName);
+      return offlineAuthorizationCodeMissingDescription(alert);
     case "fiscal_rejected":
       return "Cada venta de este punto de venta queda diferida hasta corregir la causa que indica ARCA.";
     case "register_silent":

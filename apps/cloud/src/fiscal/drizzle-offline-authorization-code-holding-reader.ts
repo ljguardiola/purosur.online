@@ -1,20 +1,18 @@
-import { registerHoldsOfflineAuthorizationCode } from "@purosur/domain";
+import { hasPulledChange, mustHoldOfflineAuthorizationCode } from "@purosur/domain";
 import type {
+  Fortnight,
   OfflineAuthorizationCodeHoldingReader,
   RegisterOfflineAuthorizationCodeHolding,
-} from "@purosur/domain/alerts/use-cases";
-import type { Fortnight } from "@purosur/domain/fiscal/use-cases";
-import { and, eq, inArray, isNull, min } from "drizzle-orm";
+} from "@purosur/domain/fiscal/use-cases";
+import { and, eq, inArray, min } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
-  alerts,
   caeaCodes,
   changes,
   deviceState,
   registerInstallations,
   registerOfflinePointsOfSale,
 } from "../platform/db/schema.js";
-import { openAlertCondition } from "./open-alert-condition.js";
 
 export class DrizzleOfflineAuthorizationCodeHoldingReader<TQueryResult extends PgQueryResultHKT>
   implements OfflineAuthorizationCodeHoldingReader
@@ -25,7 +23,7 @@ export class DrizzleOfflineAuthorizationCodeHoldingReader<TQueryResult extends P
     this.db = db;
   }
 
-  async watchedRegisterHoldings(
+  async registerHoldings(
     fortnights: readonly Fortnight[],
   ): Promise<RegisterOfflineAuthorizationCodeHolding[]> {
     const codes = await this.db
@@ -50,31 +48,24 @@ export class DrizzleOfflineAuthorizationCodeHoldingReader<TQueryResult extends P
       .select({
         registerId: registerInstallations.registerId,
         deviceId: registerInstallations.id,
+        revokedAt: registerInstallations.revokedAt,
+        offlinePointOfSaleNumber: registerOfflinePointsOfSale.pointOfSaleNumber,
         lastPullSince: deviceState.lastPullSince,
       })
       .from(registerInstallations)
-      .innerJoin(
+      .leftJoin(
         registerOfflinePointsOfSale,
         eq(registerOfflinePointsOfSale.registerId, registerInstallations.registerId),
       )
-      .leftJoin(deviceState, eq(deviceState.deviceId, registerInstallations.id))
-      .where(isNull(registerInstallations.revokedAt));
-    return installations.map(({ registerId, deviceId, lastPullSince }) => ({
-      registerId,
-      deviceId,
-      heldFortnightStarts: codes
-        .filter(({ changeSeq }) =>
-          registerHoldsOfflineAuthorizationCode({ lastPullSince, codeChangeSeq: changeSeq }),
-        )
-        .map(({ fortnightStart }) => fortnightStart),
-    }));
-  }
-
-  async scopesOfOpenMissingCodeAlerts(): Promise<string[]> {
-    const rows = await this.db
-      .select({ scope: alerts.scope })
-      .from(alerts)
-      .where(and(eq(alerts.kind, "offline_authorization_code_missing"), openAlertCondition()));
-    return rows.map(({ scope }) => scope);
+      .leftJoin(deviceState, eq(deviceState.deviceId, registerInstallations.id));
+    return installations
+      .filter(mustHoldOfflineAuthorizationCode)
+      .map(({ registerId, deviceId, lastPullSince }) => ({
+        registerId,
+        deviceId,
+        heldFortnightStarts: codes
+          .filter(({ changeSeq }) => hasPulledChange({ cursor: lastPullSince, changeSeq }))
+          .map(({ fortnightStart }) => fortnightStart),
+      }));
   }
 }

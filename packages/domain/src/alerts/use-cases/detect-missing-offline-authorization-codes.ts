@@ -1,4 +1,7 @@
-import { fortnightsWithinRequestWindowOn } from "../../fiscal/index.js";
+import {
+  fortnightsWithinRequestWindowOn,
+  type OfflineAuthorizationCodeHoldingReader,
+} from "../../fiscal/index.js";
 import { argentinaCalendarDay } from "../../shared/index.js";
 import {
   offlineAuthorizationCodeHeldObservation,
@@ -8,7 +11,6 @@ import { offlineAuthorizationCodeAcquisitionLevel } from "../model/offline-autho
 import { registerFortnightScope } from "../model/register-fortnight-scope.js";
 import type { AlertClosingPorts } from "./alert-store.js";
 import { observeAlertCondition } from "./observe-alert-condition.js";
-import type { OfflineAuthorizationCodeHoldingReader } from "./offline-authorization-code-holding-reader.js";
 
 export interface MissingOfflineAuthorizationCodeDetectionPorts extends AlertClosingPorts {
   holdings: OfflineAuthorizationCodeHoldingReader;
@@ -19,7 +21,7 @@ export async function detectMissingOfflineAuthorizationCodes(
 ): Promise<number> {
   const day = argentinaCalendarDay(ports.clock.now());
   const fortnights = fortnightsWithinRequestWindowOn(day);
-  const registers = await ports.holdings.watchedRegisterHoldings(fortnights);
+  const registers = await ports.holdings.registerHoldings(fortnights);
   const holdingScopes = new Set<string>();
   for (const register of registers) {
     for (const fortnight of fortnights) {
@@ -37,7 +39,7 @@ export async function detectMissingOfflineAuthorizationCodes(
       await observeAlertCondition(ports, observation);
     }
   }
-  for (const scope of await ports.holdings.scopesOfOpenMissingCodeAlerts()) {
+  for (const scope of await ports.store.scopesOfOpenAlerts("offline_authorization_code_missing")) {
     if (!holdingScopes.has(scope)) {
       await observeAlertCondition(ports, offlineAuthorizationCodeHeldObservation(scope));
     }
