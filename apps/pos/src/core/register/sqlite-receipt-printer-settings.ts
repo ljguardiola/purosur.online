@@ -1,7 +1,5 @@
-import type {
-  ReceiptPrinterAddress,
-  ReceiptPrinterSettings,
-} from "@purosur/domain/register/use-cases";
+import type { ReceiptPrinterAddress } from "@purosur/domain";
+import type { ReceiptPrinterSettings } from "@purosur/domain/register/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 
 interface ReceiptPrinterRow {
