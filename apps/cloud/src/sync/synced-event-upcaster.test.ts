@@ -722,7 +722,7 @@ describe("decoding the events the registers pushed", () => {
   });
 
   it("cannot read an event type and version no schema describes", () => {
-    const decoded = upcaster.decode(unappliedEventOf(pushed({ schema_version: 5 })));
+    const decoded = upcaster.decode(unappliedEventOf(pushed({ schema_version: 6 })));
 
     expect(decoded).toEqual({
       kind: "unreadable",

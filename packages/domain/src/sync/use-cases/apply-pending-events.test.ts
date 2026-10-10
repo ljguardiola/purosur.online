@@ -377,7 +377,7 @@ describe("an event that cannot be applied yet", () => {
 
     it.each([
       ["has no transaction", undefined],
-      ["has a pending transaction", { ...approvedTransaction, state: "PENDING" }],
+      ["has a pending transaction", { ...approvedTransaction, state: "PENDING" as const }],
       ["has a transaction of another sale", { ...approvedTransaction, saleId: "sale-2" }],
       ["has a transaction of another amount", { ...approvedTransaction, amount: 1400 }],
     ])("is retried and left unrecorded when the payment %s", async (_description, transaction) => {
