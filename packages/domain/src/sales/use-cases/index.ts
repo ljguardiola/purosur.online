@@ -90,6 +90,12 @@ export type {
 } from "./receipt-ports.js";
 export type { ReceiptPrintGrant, ReceiptPrintOutcome } from "./receipt-printing.js";
 export type {
+  PendingQrPaymentRefusal,
+  RecordPendingQrPaymentInput,
+  RecordPendingQrPaymentOutcome,
+} from "./record-pending-qr-payment.js";
+export { recordPendingQrPayment } from "./record-pending-qr-payment.js";
+export type {
   RegisterSalesHistory,
   SaleHistoryRecord,
   SalesHistoryEntry,
@@ -134,3 +140,8 @@ export type {
   SearchProductsByNamePorts,
 } from "./search-products-by-name.js";
 export { searchProductsByName } from "./search-products-by-name.js";
+export type {
+  SettleApprovedQrPaymentInput,
+  SettleApprovedQrPaymentOutcome,
+} from "./settle-approved-qr-payment.js";
+export { settleApprovedQrPayment } from "./settle-approved-qr-payment.js";

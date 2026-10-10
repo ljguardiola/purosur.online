@@ -869,6 +869,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
+        "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
       ]);
@@ -925,6 +926,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
+        "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
       ]);
@@ -976,6 +978,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
+        "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
       ]);
@@ -1026,6 +1029,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
+        "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
       ]);
@@ -1103,6 +1107,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
+        "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
       ]);
@@ -1172,6 +1177,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
+        "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
       ]);
@@ -1245,6 +1251,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
+        "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
       ]);
@@ -1301,6 +1308,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
+        "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
       ]);
@@ -1349,6 +1357,7 @@ describe("the register's local migrations", () => {
         "0025_last_accepted_push",
         "0026_pulled_stock_movements",
         "0027_receipt_printing",
+        "0028_mercado_pago_qr_payments",
         "0029_register_offline_point_of_sale",
         "0030_stock_receipts",
       ]);
@@ -1578,6 +1587,149 @@ describe("the register's local migrations", () => {
       expect(after.prepare("SELECT last_accepted_push_at FROM sync_state").all()).toEqual([
         { last_accepted_push_at: "2026-10-05T15:00:00.000Z" },
       ]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("let a payment be a Mercado Pago QR payment in any state of its wait, keeping the payments and refunds a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(
+        0,
+        LOCAL_MIGRATIONS.findIndex(
+          (migration) => migration.name === "0028_mercado_pago_qr_payments",
+        ),
+      );
+      expect(previous.length).toBeGreaterThan(0);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('done', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-09-30T12:05:00.000Z'),
+                ('open', 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL);
+         INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state, occurred_at)
+         VALUES ('pay-cash', 'done', 'SALE', 'CASH', 'NONE', 1000, 1500, NULL, NULL, 'APPROVED', '2026-09-30T12:05:00.000Z'),
+                ('pay-transfer', 'open', 'SALE', 'TRANSFER', 'NONE', 400, NULL, 'u1', '2026-09-30T12:08:00.000Z', 'APPROVED', '2026-09-30T12:08:00.000Z');
+         INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at)
+         VALUES ('refund-1', 'pay-cash', 'CASH', 'NONE', 1000, 'APPROVED', '2026-09-30T12:20:00.000Z');`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare(
+            `SELECT id, sale_id, method, provider, amount, tendered, authorized_by, confirmed_at, state,
+                    occurred_at, wait_ends_at
+             FROM payment_transactions ORDER BY id`,
+          )
+          .all(),
+      ).toEqual([
+        {
+          id: "pay-cash",
+          sale_id: "done",
+          method: "CASH",
+          provider: "NONE",
+          amount: 1000,
+          tendered: 1500,
+          authorized_by: null,
+          confirmed_at: null,
+          state: "APPROVED",
+          occurred_at: "2026-09-30T12:05:00.000Z",
+          wait_ends_at: null,
+        },
+        {
+          id: "pay-transfer",
+          sale_id: "open",
+          method: "TRANSFER",
+          provider: "NONE",
+          amount: 400,
+          tendered: null,
+          authorized_by: "u1",
+          confirmed_at: "2026-09-30T12:08:00.000Z",
+          state: "APPROVED",
+          occurred_at: "2026-09-30T12:08:00.000Z",
+          wait_ends_at: null,
+        },
+      ]);
+      expect(after.prepare("SELECT id, payment_id FROM payment_refunds").all()).toEqual([
+        { id: "refund-1", payment_id: "pay-cash" },
+      ]);
+
+      const insertPayment = after.prepare(
+        `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state, occurred_at, wait_ends_at)
+         VALUES (@id, 'open', 'SALE', @method, @provider, 600, @tendered, @authorized_by, NULL, @state, '2026-09-30T12:10:00.000Z', @wait_ends_at)`,
+      );
+      const qr = {
+        method: "QR",
+        provider: "MERCADOPAGO_QR",
+        tendered: null,
+        authorized_by: null,
+        state: "PENDING",
+        wait_ends_at: "2026-09-30T12:13:00.000Z",
+      };
+      for (const [id, state] of [
+        ["qr-pending", "PENDING"],
+        ["qr-approved", "APPROVED"],
+        ["qr-declined", "DECLINED"],
+        ["qr-cancelled", "CANCELLED"],
+        ["qr-expired", "EXPIRED"],
+      ]) {
+        insertPayment.run({ ...qr, id, state });
+      }
+      expect(
+        after
+          .prepare("SELECT count(*) AS total FROM payment_transactions WHERE method = 'QR'")
+          .get(),
+      ).toEqual({ total: 5 });
+      after
+        .prepare("UPDATE payment_transactions SET state = 'APPROVED' WHERE id = 'qr-pending'")
+        .run();
+      expect(after.pragma("foreign_key_check")).toEqual([]);
+
+      expect(() => insertPayment.run({ ...qr, id: "no-wait", wait_ends_at: null })).toThrow(
+        /CHECK/,
+      );
+      expect(() => insertPayment.run({ ...qr, id: "no-provider", provider: "NONE" })).toThrow(
+        /CHECK/,
+      );
+      expect(() => insertPayment.run({ ...qr, id: "tendered", tendered: 600 })).toThrow(/CHECK/);
+      expect(() => insertPayment.run({ ...qr, id: "authorized", authorized_by: "u1" })).toThrow(
+        /CHECK/,
+      );
+      expect(() => insertPayment.run({ ...qr, id: "unknown", state: "REFUNDED" })).toThrow(/CHECK/);
+      expect(() =>
+        insertPayment.run({
+          ...qr,
+          id: "cash-pending",
+          method: "CASH",
+          provider: "NONE",
+          wait_ends_at: null,
+        }),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        insertPayment.run({
+          ...qr,
+          id: "cash-waiting",
+          method: "CASH",
+          provider: "NONE",
+          state: "APPROVED",
+        }),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        insertPayment.run({
+          ...qr,
+          id: "cash-by-provider",
+          method: "CASH",
+          state: "APPROVED",
+          wait_ends_at: null,
+        }),
+      ).toThrow(/CHECK/);
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });

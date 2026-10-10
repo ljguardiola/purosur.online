@@ -1,4 +1,4 @@
-import { Banknote, CreditCard, Wallet } from "lucide-react";
+import { Banknote, CreditCard, Wallet, WifiOff } from "lucide-react";
 import { useId, useState } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -650,4 +650,94 @@ test("requires an icon and help text on every card of a row, and neither in a gr
     value: ReasonValue;
     onChange: (value: ReasonValue) => void;
   }>().toExtend<OptionCardGroupProps<ReasonValue>>();
+});
+
+const disabledOptions: [
+  NarrowedOption<MovementValue, "description" | "icon", "disabled">,
+  NarrowedOption<MovementValue, "description" | "icon", "disabled">,
+  NarrowedOption<MovementValue, "description" | "icon", "disabled">,
+] = [
+  {
+    value: "income",
+    icon: <Wallet />,
+    label: "Income",
+    description: "Money coming into the register",
+  },
+  {
+    value: "expense",
+    icon: <WifiOff />,
+    label: "Expense",
+    description: "Not available offline",
+    disabled: true,
+  },
+  {
+    value: "withdrawal",
+    icon: <CreditCard />,
+    label: "Withdrawal",
+    description: "Cash taken out for the bank",
+  },
+];
+
+function disabledProps(overrides: Partial<BaseGroupProps> = {}): BaseGroupProps {
+  return baseProps({ options: disabledOptions, ...overrides });
+}
+
+test("exposes a disabled option as a disabled radio button and the others as enabled", async () => {
+  const screen = await render(<OptionCardGroup {...disabledProps()} />);
+
+  expect(radioInput(screen, "Expense").disabled).toBe(true);
+  expect(radioInput(screen, "Income").disabled).toBe(false);
+  expect(radioInput(screen, "Withdrawal").disabled).toBe(false);
+});
+
+test("does not choose a disabled option with a click", async () => {
+  const onChange = vi.fn();
+  const screen = await render(<OptionCardGroup {...disabledProps({ onChange })} />);
+
+  radioCard(screen, "Expense").click();
+
+  expect(onChange).not.toHaveBeenCalled();
+  expect(radioInput(screen, "Expense").checked).toBe(false);
+});
+
+test("skips a disabled option when moving with the arrow keys", async () => {
+  const onChange = vi.fn();
+  const screen = await render(<OptionCardGroup {...disabledProps({ onChange })} />);
+
+  radioInput(screen, "Income").focus();
+  await userEvent.keyboard("{ArrowRight}");
+
+  expect(onChange).toHaveBeenCalledExactlyOnceWith("withdrawal");
+});
+
+test("shows a disabled option on the subtle surface with muted icon and text and the app's description", async () => {
+  const screen = await render(<OptionCardGroup {...disabledProps()} />);
+  const card = radioCard(screen, "Expense");
+  const icon = card.querySelector("svg") as SVGSVGElement;
+  const badge = icon.parentElement?.parentElement as HTMLElement;
+  const title = screen.getByText("Expense", { exact: true }).element() as HTMLElement;
+  const description = screen.getByText("Not available offline", { exact: true }).element();
+
+  expect(getComputedStyle(card).backgroundColor).toBe(tokenRgb("surface-subtle"));
+  expect(getComputedStyle(badge).backgroundColor).toBe(tokenRgb("border"));
+  expect(getComputedStyle(badge).borderRadius).not.toBe("0px");
+  expect(getComputedStyle(icon).color).toBe(tokenRgb("text-subtle"));
+  expect(getComputedStyle(title).color).toBe(tokenRgb("text-subtle"));
+  expect(getComputedStyle(description).color).toBe(tokenRgb("text-subtle"));
+});
+
+test("does not show the pointer cursor or a hover background on a disabled option", async () => {
+  const screen = await render(<OptionCardGroup {...disabledProps()} />);
+  const card = radioCard(screen, "Expense");
+
+  await userEvent.hover(card);
+
+  expect(getComputedStyle(card).cursor).not.toBe("pointer");
+  expect(getComputedStyle(card).backgroundColor).toBe(tokenRgb("surface-subtle"));
+});
+
+test("has no accessibility violations with a disabled option", async () => {
+  const screen = await render(<OptionCardGroup {...disabledProps()} />);
+
+  await expectNoAccessibilityViolations(screen.container);
 });

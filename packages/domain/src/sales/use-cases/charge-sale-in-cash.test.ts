@@ -338,7 +338,7 @@ describe("chargeSaleInCash", () => {
         aggregate_type: "Sale",
         aggregate_id: "sale-1",
         event_type: "sale_completed",
-        schema_version: 4,
+        schema_version: 5,
         occurred_at: NOW.toISOString(),
         actor_id: "cashier",
         payload: {

@@ -350,6 +350,99 @@ describe("an event that cannot be applied yet", () => {
     ]);
   });
 
+  describe("a completed sale paid by Mercado Pago QR", () => {
+    const qrPayment = {
+      id: "qr-payment-1",
+      method: "QR",
+      provider: "MERCADOPAGO_QR",
+      amount: 1500,
+      tendered: null,
+      state: "APPROVED",
+      occurredAt: new Date("2026-10-07T10:00:00.000Z"),
+      authorizedBy: null,
+      confirmedAt: null,
+    } as const;
+    const qrSale = () => aCompletedSaleFact({ payments: [qrPayment] });
+    const approvedTransaction = { saleId: "sale-1", amount: 1500, state: "APPROVED" } as const;
+
+    it("is applied when the provider's own approved transaction backs the payment", async () => {
+      const application = new FakeEventApplication([appliedSessionOpening(), saleEvent()]);
+      application.providerTransactions.set("qr-payment-1", approvedTransaction);
+
+      await run(application, new FakeEventUpcaster({ "sale-event": qrSale() }));
+
+      expect(application.event("sale-event").appliedAt).toEqual(NOW);
+      expect(application.state.recorded).toHaveLength(1);
+    });
+
+    it.each([
+      ["has no transaction", undefined],
+      ["has a pending transaction", { ...approvedTransaction, state: "PENDING" as const }],
+      ["has a transaction of another sale", { ...approvedTransaction, saleId: "sale-2" }],
+      ["has a transaction of another amount", { ...approvedTransaction, amount: 1400 }],
+    ])("is retried and left unrecorded when the payment %s", async (_description, transaction) => {
+      const application = new FakeEventApplication([appliedSessionOpening(), saleEvent()]);
+      if (transaction !== undefined) {
+        application.providerTransactions.set("qr-payment-1", transaction);
+      }
+
+      await run(application, new FakeEventUpcaster({ "sale-event": qrSale() }));
+
+      expect(application.event("sale-event")).toMatchObject({
+        appliedAt: null,
+        attempts: 1,
+        error:
+          "payment qr-payment-1 is not backed by an approved Mercado Pago transaction of this sale and amount",
+      });
+      expect(application.state.recorded).toEqual([]);
+      expect(application.calls).toContain("rollback");
+    });
+
+    it("is flagged as not recorded when no transaction backs it on its last allowed attempt", async () => {
+      const application = new FakeEventApplication([
+        appliedSessionOpening(),
+        saleEvent({ attempts: 7 }),
+      ]);
+
+      await run(application, new FakeEventUpcaster({ "sale-event": qrSale() }));
+
+      expect(application.state.quarantineAlerts).toEqual([
+        expect.objectContaining({ eventId: "sale-event", reason: { kind: "not_recorded" } }),
+      ]);
+    });
+
+    it("is applied once the provider's transaction shows up in a later attempt", async () => {
+      const application = new FakeEventApplication([appliedSessionOpening(), saleEvent()]);
+      const upcaster = new FakeEventUpcaster({ "sale-event": qrSale() });
+      await run(application, upcaster);
+
+      application.providerTransactions.set("qr-payment-1", approvedTransaction);
+      await run(application, upcaster, { now: new Date("2026-10-07T13:00:00.000Z") });
+
+      expect(application.event("sale-event").appliedAt).not.toBeNull();
+    });
+
+    it("checks every QR payment of the sale and none of the cash ones", async () => {
+      const application = new FakeEventApplication([appliedSessionOpening(), saleEvent()]);
+      application.providerTransactions.set("qr-payment-1", approvedTransaction);
+      const sale = aCompletedSaleFact({
+        payments: [
+          ...aCompletedSaleFact().sale.payments,
+          qrPayment,
+          { ...qrPayment, id: "qr-payment-2" },
+        ],
+      });
+
+      await run(application, new FakeEventUpcaster({ "sale-event": sale }));
+
+      expect(application.calls.filter((call) => call.startsWith("read provider"))).toEqual([
+        "read provider transaction qr-payment-1",
+        "read provider transaction qr-payment-2",
+      ]);
+      expect(application.event("sale-event").appliedAt).toBeNull();
+    });
+  });
+
   it("is flagged as not recorded when recording it fails on its last allowed attempt", async () => {
     const application = new FakeEventApplication([
       appliedSessionOpening(),

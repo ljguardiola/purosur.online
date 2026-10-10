@@ -56,8 +56,9 @@ describe("currentSale", () => {
       kind: "open",
       sale: SALE,
       balance: { paid: 0, pending: 5000 },
-      linesEditable: true,
+      linesLock: null,
       cancellable: true,
+      cancelRefusal: null,
       refundsOnCancel: [],
     });
   });
@@ -79,8 +80,9 @@ describe("currentSale", () => {
     expect(read(ledger({ payments: [payment, elsewhere] }))).toMatchObject({
       kind: "open",
       balance: { paid: 1200, pending: 3800 },
-      linesEditable: false,
+      linesLock: "approved_payment",
       cancellable: false,
+      cancelRefusal: null,
       refundsOnCancel: [
         {
           paymentId: "payment-1",
@@ -176,5 +178,22 @@ describe("current-sale charge refusal", () => {
     expect(
       read(ledger({ thresholds: [{ ...THRESHOLD, amount: 5000 }], payments: [payment] })),
     ).toHaveProperty("chargeRefusal", undefined);
+  });
+
+  it("answers the lines locked and the cancellation refused while a QR charge of the sale is in its wait", () => {
+    const pending = {
+      id: "qr-1",
+      saleId: "sale-1",
+      amount: 5000,
+      occurredAt: NOW,
+      waitEndsAt: new Date(NOW.getTime() + 60_000),
+    };
+
+    expect(read(ledger({ pendingQrPayments: [pending] }))).toMatchObject({
+      kind: "open",
+      linesLock: "qr_charge_in_progress",
+      cancellable: false,
+      cancelRefusal: "qr_charge_in_progress",
+    });
   });
 });

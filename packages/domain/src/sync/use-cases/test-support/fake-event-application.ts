@@ -2,6 +2,7 @@ import type {
   EventInvariantViolatedDetail,
   EventsQuarantinedDetail,
 } from "../../../alerts/index.js";
+import type { ProviderPaymentTransaction } from "../../../payments/index.js";
 import type { CompletedSale } from "../../../sales/index.js";
 import type { SyncedFact } from "../../model/synced-fact.js";
 import type {
@@ -67,6 +68,10 @@ export class FakeEventApplication implements EventApplication {
   transactions = 0;
   failRecording = new Map<string, unknown>();
   refuseStock = new Map<string, string>();
+  providerTransactions = new Map<
+    string,
+    Pick<ProviderPaymentTransaction, "saleId" | "amount" | "state">
+  >();
   failOpeningInvariantAlert = false;
   heldByAnotherRun = new Set<string>();
   beforeTransaction: (transactionNumber: number) => void = () => {};
@@ -135,6 +140,10 @@ export class FakeEventApplication implements EventApplication {
         return this.state.events.some(
           (event) => keyOf(event) === keyOf(key) && event.appliedAt !== null,
         );
+      },
+      providerTransactionOfPayment: async (paymentId) => {
+        this.calls.push(`read provider transaction ${paymentId}`);
+        return this.providerTransactions.get(paymentId) ?? null;
       },
       record: async (fact, event) => {
         this.state.recorded.push({ fact, eventId: event.eventId });

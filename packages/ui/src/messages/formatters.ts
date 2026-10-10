@@ -55,6 +55,12 @@ export function formatClockTime(instant: string): string {
   });
 }
 
+export function formatCountdown(seconds: number): string {
+  const whole = Math.floor(seconds);
+  const minutes = Math.floor(whole / 60);
+  return `${minutes}:${String(whole % 60).padStart(2, "0")}`;
+}
+
 export function formatMonthName(month: number): string {
   const name = new Intl.DateTimeFormat(LOCALE, { month: "long", timeZone: "UTC" }).format(
     Date.UTC(2000, month - 1, 1),
