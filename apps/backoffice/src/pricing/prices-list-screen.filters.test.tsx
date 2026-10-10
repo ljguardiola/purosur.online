@@ -136,7 +136,7 @@ test("opens with the filters it is given, asking for them in its first request",
   });
 
   const screen = await renderScreen(services, () => {}, {
-    filters: { search: " arroz ", category: groceries.id, review: "all" },
+    filters: { search: " arroz ", category: groceries.id, review: "all", reviewProducts: [] },
   });
 
   await expect.element(screen.getByText("Arroz")).toBeVisible();
@@ -202,6 +202,7 @@ test("reports every change to its filters, so they can be kept for a reload", as
     search: "arr",
     category: "ALL",
     review: "all",
+    reviewProducts: [],
   });
 });
 
