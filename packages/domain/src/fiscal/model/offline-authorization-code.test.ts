@@ -4,6 +4,7 @@ import {
   fortnightAfter,
   fortnightContaining,
   fortnightsWithinRequestWindowOn,
+  isSameFortnight,
   OFFLINE_AUTHORIZATION_CODE_REQUEST_LEAD_DAYS,
   offlineAuthorizationCodeRequestOpensOn,
 } from "./offline-authorization-code.js";
@@ -107,5 +108,34 @@ describe("fortnightsWithinRequestWindowOn", () => {
         expect(fortnightsWithinRequestWindowOn(day)).toEqual(expected);
       }),
     );
+  });
+});
+
+describe("isSameFortnight", () => {
+  it("is true for the same first and last day", () => {
+    expect(
+      isSameFortnight(
+        { start: "2026-10-01", end: "2026-10-15" },
+        { start: "2026-10-01", end: "2026-10-15" },
+      ),
+    ).toBe(true);
+  });
+
+  it("is false when the first day differs", () => {
+    expect(
+      isSameFortnight(
+        { start: "2026-10-01", end: "2026-10-15" },
+        { start: "2026-10-02", end: "2026-10-15" },
+      ),
+    ).toBe(false);
+  });
+
+  it("is false when the last day differs", () => {
+    expect(
+      isSameFortnight(
+        { start: "2026-10-01", end: "2026-10-15" },
+        { start: "2026-10-01", end: "2026-10-14" },
+      ),
+    ).toBe(false);
   });
 });
