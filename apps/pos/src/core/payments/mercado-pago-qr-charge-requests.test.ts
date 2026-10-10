@@ -5,6 +5,7 @@ import {
 } from "@purosur/domain/fiscal/test-support";
 import type {
   MercadoPagoQrChargeOrderAnswer,
+  MercadoPagoQrChargeOrderCancellation,
   MercadoPagoQrChargeOrderReading,
   MercadoPagoQrChargeOrders,
 } from "@purosur/domain/payments/use-cases";
@@ -13,11 +14,12 @@ import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
-import { scanProductFor } from "../sales/sale-requests";
+import { chargeSaleInCashFor, scanProductFor } from "../sales/sale-requests";
 import { createActionGate } from "../sessions/action-gate";
 import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in-person";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import {
+  abandonMercadoPagoQrChargeFor,
   followMercadoPagoQrChargeFor,
   type MercadoPagoQrChargeRequestDeps,
   startMercadoPagoQrChargeFor,
@@ -33,6 +35,8 @@ class FakeOrders implements MercadoPagoQrChargeOrders {
   readonly requested: { paymentTransactionId: string; saleId: string; amount: number }[] = [];
   answer: MercadoPagoQrChargeOrderAnswer = { kind: "created" };
   reading: MercadoPagoQrChargeOrderReading = { kind: "read", state: "PENDING" };
+  cancellation: MercadoPagoQrChargeOrderCancellation = { kind: "answered", state: "CANCELLED" };
+  cancelled: string[] = [];
   pendingRowsWhenAsked: unknown[] = [];
 
   async requestOrder(order: { paymentTransactionId: string; saleId: string; amount: number }) {
@@ -45,6 +49,11 @@ class FakeOrders implements MercadoPagoQrChargeOrders {
 
   async readOrder() {
     return this.reading;
+  }
+
+  async cancelOrder(paymentTransactionId: string) {
+    this.cancelled.push(paymentTransactionId);
+    return this.cancellation;
   }
 }
 
@@ -347,5 +356,168 @@ describe("following a Mercado Pago QR charge at the register", () => {
     expect(
       await followMercadoPagoQrChargeFor(deps(new FakeOrders()), { paymentTransactionId: "qr-1" }),
     ).toEqual({ kind: "not_signed_in" });
+  });
+});
+
+describe("abandoning a Mercado Pago QR charge at the register", () => {
+  async function chargeStarted(amount = 3000): Promise<string> {
+    const saleId = await saleOfTwoYerbas();
+    await startMercadoPagoQrChargeFor(deps(new FakeOrders()), { saleId, amount });
+    return saleId;
+  }
+
+  function outboxEvents(): unknown[] {
+    return database
+      .prepare("SELECT event_type, aggregate_id FROM outbox ORDER BY device_seq")
+      .all();
+  }
+
+  it("cancels the payment once the cloud confirms the cancellation", async () => {
+    await chargeStarted();
+    const orders = new FakeOrders();
+
+    expect(
+      await abandonMercadoPagoQrChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
+    ).toEqual({ kind: "cancelled" });
+    expect(orders.cancelled).toEqual(["qr-1"]);
+    expect(qrRows()).toMatchObject([{ state: "CANCELLED" }]);
+    expect(outboxEvents()).toEqual([]);
+  });
+
+  it("completes the sale with the QR payment the customer already made and sends it to the cloud", async () => {
+    const saleId = await chargeStarted();
+    const orders = new FakeOrders();
+    orders.cancellation = { kind: "answered", state: "APPROVED" };
+
+    expect(
+      await abandonMercadoPagoQrChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
+    ).toEqual({
+      kind: "already_paid",
+      settlement: { kind: "completed", sale_id: saleId, total: 3000 },
+    });
+    expect(qrRows()).toMatchObject([{ state: "APPROVED" }]);
+    expect(outboxEvents()).toEqual([{ event_type: "sale_completed", aggregate_id: saleId }]);
+  });
+
+  it("answers the rest still to pay when the payment already made covers part of the sale", async () => {
+    const saleId = await chargeStarted(1000);
+    const orders = new FakeOrders();
+    orders.cancellation = { kind: "answered", state: "APPROVED" };
+
+    expect(
+      await abandonMercadoPagoQrChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
+    ).toEqual({
+      kind: "already_paid",
+      settlement: {
+        kind: "partially_paid",
+        sale_id: saleId,
+        total: 3000,
+        paid: 1000,
+        pending: 2000,
+      },
+    });
+  });
+
+  it("answers the order is closed when it already expired, without asking again", async () => {
+    await chargeStarted();
+    const orders = new FakeOrders();
+    orders.cancellation = { kind: "answered", state: "EXPIRED" };
+
+    expect(
+      await abandonMercadoPagoQrChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
+    ).toEqual({ kind: "closed" });
+    expect(qrRows()).toMatchObject([{ state: "EXPIRED" }]);
+    expect(
+      await abandonMercadoPagoQrChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
+    ).toEqual({ kind: "not_pending" });
+    expect(orders.cancelled).toEqual(["qr-1"]);
+  });
+
+  it("marks the payment replaced and sends the replacement, keeping it pending, when the cloud cannot confirm", async () => {
+    const saleId = await chargeStarted();
+    const orders = new FakeOrders();
+    orders.cancellation = { kind: "unreachable" };
+
+    expect(
+      await abandonMercadoPagoQrChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
+    ).toEqual({ kind: "replaced" });
+    expect(qrRows()).toMatchObject([{ state: "PENDING", wait_ends_at: NOW.toISOString() }]);
+    expect(outboxEvents()).toEqual([{ event_type: "qr_payment_replaced", aggregate_id: saleId }]);
+    expect(
+      await followMercadoPagoQrChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
+    ).toEqual({ kind: "not_pending" });
+  });
+
+  it("lets the sale complete in cash beside the replaced payment, sending only the cash payment", async () => {
+    const saleId = await chargeStarted(1000);
+    const orders = new FakeOrders();
+    orders.cancellation = { kind: "unreachable" };
+    await abandonMercadoPagoQrChargeFor(deps(orders), { paymentTransactionId: "qr-1" });
+
+    const charged = await chargeSaleInCashFor(
+      {
+        database,
+        gate: deps(orders).gate,
+        readOutboxChainKey: async () => CHAIN_KEY,
+        now: () => NOW,
+        ids: {
+          next: (() => {
+            let count = 0;
+            return () => {
+              count += 1;
+              return `cash-${count}`;
+            };
+          })(),
+        },
+      },
+      { saleId, tendered: 3000 },
+    );
+
+    expect(charged).toMatchObject({ kind: "completed", sale_id: saleId });
+    const completed = database
+      .prepare("SELECT payload FROM outbox WHERE event_type = 'sale_completed'")
+      .get() as { payload: string };
+    expect(
+      (JSON.parse(completed.payload) as { payments: { method: string }[] }).payments.map(
+        ({ method }) => method,
+      ),
+    ).toEqual(["CASH"]);
+  });
+
+  it("answers unavailable, marking nothing, while the outbox cannot sign events", async () => {
+    await chargeStarted();
+    const orders = new FakeOrders();
+    orders.cancellation = { kind: "unreachable" };
+
+    expect(
+      await abandonMercadoPagoQrChargeFor(
+        deps(orders, { readOutboxChainKey: async () => undefined }),
+        { paymentTransactionId: "qr-1" },
+      ),
+    ).toEqual({ kind: "unavailable" });
+    expect(
+      database.prepare("SELECT replaced FROM payment_transactions WHERE id = 'qr-1'").get(),
+    ).toEqual({ replaced: 0 });
+  });
+
+  it("answers that no charge is pending for an unknown payment", async () => {
+    await chargeStarted();
+
+    expect(
+      await abandonMercadoPagoQrChargeFor(deps(new FakeOrders()), {
+        paymentTransactionId: "missing",
+      }),
+    ).toEqual({ kind: "not_pending" });
+  });
+
+  it("answers that nobody is signed in, asking the cloud nothing", async () => {
+    await chargeStarted();
+    signedInPerson.clear();
+    const orders = new FakeOrders();
+
+    expect(
+      await abandonMercadoPagoQrChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
+    ).toEqual({ kind: "not_signed_in" });
+    expect(orders.cancelled).toEqual([]);
   });
 });
