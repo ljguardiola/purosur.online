@@ -11,6 +11,7 @@ export interface FakeLoggedChange extends PulledChange {
   entityId: string;
   locationId?: string;
   priceListId?: string;
+  registerId?: string;
 }
 
 interface FakeObservedPull {
@@ -34,6 +35,8 @@ function reaches(reach: PullReach, change: FakeLoggedChange): boolean {
       return change.locationId === reach.locationId;
     case "rows_of_price_list":
       return change.priceListId === reach.priceListId;
+    case "rows_of_register":
+      return change.registerId === reach.registerId;
     case "none":
       return false;
   }
@@ -43,6 +46,7 @@ export class FakeChangeLog implements ChangeLog<FakeLoggedChange> {
   state: FakeChangeLogState;
   readRequests: { audience: PullAudience; since: number; limit: number }[] = [];
   failReading = false;
+  operations: string[] = [];
   private readonly installedRegisters: Readonly<Record<string, PullingRegister>>;
 
   constructor(
@@ -56,13 +60,16 @@ export class FakeChangeLog implements ChangeLog<FakeLoggedChange> {
   async transaction<TOutcome>(
     work: (tx: ChangeLogTransaction<FakeLoggedChange>) => Promise<TOutcome>,
   ): Promise<TOutcome> {
+    this.operations.push("transaction");
     const working = structuredClone(this.state);
     const outcome = await work({
       recordObservedPull: async (deviceId, since, at) => {
+        this.operations.push("recordObservedPull");
         working.observedPulls = working.observedPulls.filter((pull) => pull.deviceId !== deviceId);
         working.observedPulls.push({ deviceId, since, at });
       },
       pullingRegister: async (deviceId) => {
+        this.operations.push("pullingRegister");
         const register = this.installedRegisters[deviceId];
         if (register === undefined) {
           throw new Error("the device is installed in no register");
@@ -70,6 +77,7 @@ export class FakeChangeLog implements ChangeLog<FakeLoggedChange> {
         return register;
       },
       changesAfter: async (audience, since, limit) => {
+        this.operations.push("changesAfter");
         this.readRequests.push({ audience, since, limit });
         if (this.failReading) {
           throw new Error("the change log could not be read");

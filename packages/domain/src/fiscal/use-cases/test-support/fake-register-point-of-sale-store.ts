@@ -1,4 +1,9 @@
+import type { FiscalDocumentType } from "../../model/fiscal-rejection-alert.js";
 import type { PointOfSaleMechanism } from "../../model/point-of-sale.js";
+import type {
+  OfflineNumberBlockRecord,
+  OfflineNumberBlockStore,
+} from "../offline-number-block-store.js";
 import type {
   RegisterOfflinePointOfSale,
   RegisterOfflinePointOfSaleRecord,
@@ -17,6 +22,7 @@ import type {
   RegisterPointOfSaleStoreTransaction,
 } from "../register-point-of-sale-store.js";
 import { PointOfSaleClaimConflict } from "../register-point-of-sale-store.js";
+import { FakeOfflineNumberBlocks } from "./fake-offline-number-blocks.js";
 
 export interface FakeBranchRegister {
   id: string;
@@ -44,12 +50,14 @@ export interface FakeRegisterPointOfSaleState {
   registerPointsOfSale: FakeRegisterPointOfSale[];
   registerOfflinePointsOfSale: FakeRegisterOfflinePointOfSale[];
   pointOfSaleClaims: FakePointOfSaleClaim[];
+  offlineNumberBlocks: OfflineNumberBlockRecord[];
 }
 
 type WriteOperation =
   | "claimPointOfSale"
   | "recordRegisterPointOfSale"
-  | "recordRegisterOfflinePointOfSale";
+  | "recordRegisterOfflinePointOfSale"
+  | "recordOfflineNumberBlock";
 
 class FakeRegisterPointOfSaleStoreTransaction implements RegisterPointOfSaleStoreTransaction {
   protected readonly state: FakeRegisterPointOfSaleState;
@@ -128,8 +136,41 @@ class FakeRegisterPointOfSaleStoreTransaction implements RegisterPointOfSaleStor
 
 class FakeRegisterOfflinePointOfSaleStoreTransaction
   extends FakeRegisterPointOfSaleStoreTransaction
-  implements RegisterOfflinePointOfSaleStoreTransaction
+  implements RegisterOfflinePointOfSaleStoreTransaction, OfflineNumberBlockStore
 {
+  private readonly blocks: FakeOfflineNumberBlocks;
+
+  constructor(state: FakeRegisterPointOfSaleState, store: FakeRegisterPointOfSaleStore) {
+    super(state, store);
+    this.blocks = new FakeOfflineNumberBlocks(
+      state.offlineNumberBlocks,
+      store.operationOrder,
+      () => {
+        if (store.failingWrites.has("recordOfflineNumberBlock")) {
+          throw new Error("recordOfflineNumberBlock failed");
+        }
+      },
+    );
+  }
+
+  lockOfflineNumberBlocks(
+    pointOfSaleNumber: number,
+    documentType: FiscalDocumentType,
+  ): Promise<void> {
+    return this.blocks.lockOfflineNumberBlocks(pointOfSaleNumber, documentType);
+  }
+
+  hasOfflineNumberBlock(
+    pointOfSaleNumber: number,
+    documentType: FiscalDocumentType,
+  ): Promise<boolean> {
+    return this.blocks.hasOfflineNumberBlock(pointOfSaleNumber, documentType);
+  }
+
+  recordOfflineNumberBlock(record: OfflineNumberBlockRecord): Promise<void> {
+    return this.blocks.recordOfflineNumberBlock(record);
+  }
+
   async lockRegisterOfflinePointOfSale(registerId: string): Promise<RegisterOfflinePointOfSale> {
     this.store.operationOrder.push("lockRegisterOfflinePointOfSale");
     const row = this.state.registerOfflinePointsOfSale.find(
@@ -157,6 +198,7 @@ export class FakeRegisterPointOfSaleStore
     registerPointsOfSale: [],
     registerOfflinePointsOfSale: [],
     pointOfSaleClaims: [],
+    offlineNumberBlocks: [],
   };
 
   failingWrites = new Set<WriteOperation>();
@@ -182,6 +224,10 @@ export class FakeRegisterPointOfSaleStore
 
   seedPointOfSaleClaim(claim: FakePointOfSaleClaim): void {
     this.state.pointOfSaleClaims.push({ ...claim });
+  }
+
+  seedOfflineNumberBlock(block: OfflineNumberBlockRecord): void {
+    this.state.offlineNumberBlocks.push(structuredClone(block));
   }
 
   snapshot(): FakeRegisterPointOfSaleState {

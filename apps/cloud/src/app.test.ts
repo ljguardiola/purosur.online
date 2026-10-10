@@ -30,6 +30,7 @@ import {
   vi,
 } from "vitest";
 import { type BuildAppOptions, buildApp as buildRealApp, databaseRouteOptions } from "./app.js";
+import { seedOfflinePointOfSale } from "./fiscal/test-support/offline-point-of-sale-fixtures.js";
 import {
   arcaVitalityChecks,
   passkeys,
@@ -192,6 +193,34 @@ describe("GET /api/changes", () => {
 
     expect(response.statusCode).toBe(200);
     expect(changesPageSchema.parse(response.json()).changes).toHaveLength(4);
+  });
+
+  it("requests the missing offline authorization code of a register with an offline point of sale when the request is wired", async () => {
+    const registerId = await seedOfflinePointOfSale(testDatabase.db);
+    const { deviceToken } = await insertEnrolledInstallation(testDatabase.db, {
+      now: APP_CLOCK,
+      existingRegisterId: registerId,
+    });
+    const enqueueOfflineAuthorizationCodeRequest = vi.fn(async () => undefined);
+    const app = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      devices: {
+        db: testDatabase.db,
+        rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+        keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+      },
+      enqueueOfflineAuthorizationCodeRequest,
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/changes?since=0",
+      headers: { authorization: `Bearer ${deviceToken}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(enqueueOfflineAuthorizationCodeRequest).toHaveBeenCalledTimes(1);
   });
 });
 

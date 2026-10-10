@@ -8,12 +8,16 @@ import { openLocalDatabase } from "../platform/test-support/open-local-database"
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import type { RegisterPulledChange } from "./pulled-change";
 import { SqliteLocalReplica } from "./sqlite-local-replica";
+import {
+  openAdoptedReplica,
+  savePulledChanges,
+  TEST_PEPPER,
+} from "./test-support/sqlite-local-replica";
 
 const USER_ID = "1e7b3a90-52c4-4d18-9f6a-8b0c2d4e6f71";
 const OTHER_USER_ID = "2f8c4ba1-63d5-4e29-8a7b-9c1d3e5f7a82";
 const ROLE_ID = "3a9d5cb2-74e6-4f3a-9b8c-0d2e4f6a8b93";
 const PIN_HASH = "argon2id$v=19$m=65536,t=3,p=4$c2FsdA$aGFzaC1vZi10aGUtcGlu";
-const PEPPER = Buffer.alloc(32, 7).toString("base64url");
 const OTHER_PEPPER = Buffer.alloc(32, 9).toString("base64url");
 
 type UserRow = Extract<SyncChange, { entity: "user" }>["row"];
@@ -72,18 +76,15 @@ function verifierOf(pepper: string, pinHash: string): string {
   return createHmac("sha256", Buffer.from(pepper, "base64url")).update(pinHash).digest("base64url");
 }
 
-async function save(...changes: RegisterPulledChange[]) {
-  const cursor = changes.at(-1)?.changeSeq ?? 0;
-  await replica.savePage({ changes, cursor, hasMore: false });
+function save(...changes: RegisterPulledChange[]) {
+  return savePulledChanges(replica, ...changes);
 }
 
 let database: LocalDatabase;
 let replica: SqliteLocalReplica;
 
 beforeEach(() => {
-  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
-  replica = new SqliteLocalReplica(database);
-  replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+  ({ database, replica } = openAdoptedReplica());
 });
 
 afterEach(() => {
@@ -107,7 +108,7 @@ describe("the register's local copy of the users, roles and permissions it pulls
   it("holds a verifier derived from the PIN hash with the register's pepper", async () => {
     await save(userChange(1, userRow()));
 
-    expect(replica.pinVerifier(USER_ID)).toBe(verifierOf(PEPPER, PIN_HASH));
+    expect(replica.pinVerifier(USER_ID)).toBe(verifierOf(TEST_PEPPER, PIN_HASH));
   });
 
   it("never keeps the PIN hash itself, in any table", async () => {
@@ -151,7 +152,7 @@ describe("the register's local copy of the users, roles and permissions it pulls
       salt: "b3RyYQ",
       version: 2,
     });
-    expect(replica.pinVerifier(USER_ID)).toBe(verifierOf(PEPPER, "otro"));
+    expect(replica.pinVerifier(USER_ID)).toBe(verifierOf(TEST_PEPPER, "otro"));
   });
 
   it("drops the verifier when a newer version has no PIN", async () => {
@@ -172,7 +173,7 @@ describe("the register's local copy of the users, roles and permissions it pulls
     );
 
     expect(replica.user(USER_ID)).toMatchObject({ first_name: "Nueva", version: 3 });
-    expect(replica.pinVerifier(USER_ID)).toBe(verifierOf(PEPPER, PIN_HASH));
+    expect(replica.pinVerifier(USER_ID)).toBe(verifierOf(TEST_PEPPER, PIN_HASH));
   });
 
   it("does not bring a verifier back when an older version with a PIN arrives after one without", async () => {
@@ -198,7 +199,7 @@ describe("the register's local copy of the users, roles and permissions it pulls
     await save(removalChange(2, "user", USER_ID, 3), removalChange(3, "user", OTHER_USER_ID, 2));
 
     expect(replica.user(USER_ID)).toMatchObject({ removed: false, version: 3 });
-    expect(replica.pinVerifier(USER_ID)).toBe(verifierOf(PEPPER, PIN_HASH));
+    expect(replica.pinVerifier(USER_ID)).toBe(verifierOf(TEST_PEPPER, PIN_HASH));
     expect(replica.user(OTHER_USER_ID)).toBeUndefined();
   });
 
@@ -341,7 +342,7 @@ describe("the register's local copy of the users, roles and permissions it pulls
     await save(userChange(1, userRow()));
     new SqliteSignInStore(database).remember(USER_ID);
 
-    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+    replica.adoptDevice({ deviceId: "device-a", pepper: TEST_PEPPER });
 
     expect(database.prepare("SELECT user_id FROM remembered_users").all()).toEqual([
       { user_id: USER_ID },
@@ -361,9 +362,9 @@ describe("the register's local copy of the users, roles and permissions it pulls
   it("keeps its verifiers for the installation that derived them", async () => {
     await save(userChange(1, userRow()));
 
-    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+    replica.adoptDevice({ deviceId: "device-a", pepper: TEST_PEPPER });
 
-    expect(replica.pinVerifier(USER_ID)).toBe(verifierOf(PEPPER, PIN_HASH));
+    expect(replica.pinVerifier(USER_ID)).toBe(verifierOf(TEST_PEPPER, PIN_HASH));
     expect(await replica.savedCursor()).toBe(1);
   });
 
@@ -474,7 +475,7 @@ describe("the register's local copy of the users, roles and permissions it pulls
       await save(userChange(1, userRow()));
       const store = failTwice();
 
-      replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+      replica.adoptDevice({ deviceId: "device-a", pepper: TEST_PEPPER });
 
       expect(store.pinSignInFailures(USER_ID)?.consecutiveFailures).toBe(2);
     });

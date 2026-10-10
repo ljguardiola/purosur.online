@@ -2,9 +2,9 @@ import { isPinCodeLive, type PinCodeState } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { userPinCodes } from "../platform/db/schema.js";
+import { type ReportErrorDeps, reportError } from "../platform/error-reporting.js";
 import { hashSecretCode } from "../platform/secret-code.js";
 import type { FirstPinCodeEmailSender } from "./recovery-email-sender.js";
-import { type ReportRecoveryErrorDeps, reportRecoveryError } from "./recovery-error-reporting.js";
 
 export interface FirstPinCodeEmailJobPayload {
   email: string;
@@ -15,7 +15,7 @@ export interface EmailedPinCode extends PinCodeState {
   expiresAt: Date;
 }
 
-export interface SendFirstPinCodeEmailJobDeps extends ReportRecoveryErrorDeps {
+export interface SendFirstPinCodeEmailJobDeps extends ReportErrorDeps {
   emailSender: FirstPinCodeEmailSender;
   now: () => Date;
   findPinCode: (code: string) => Promise<EmailedPinCode | undefined>;
@@ -59,7 +59,7 @@ export async function sendFirstPinCodeEmailJob(
   try {
     await emailSender.sendFirstPinCode({ to: payload.email, code: payload.code });
   } catch (error) {
-    reportRecoveryError(
+    reportError(
       "first PIN code: sending the email failed",
       error,
       captureException ? { captureException } : {},

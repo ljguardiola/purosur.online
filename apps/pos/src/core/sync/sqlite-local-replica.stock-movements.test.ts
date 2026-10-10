@@ -1,14 +1,11 @@
 import type { SyncChange } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
-import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
-import { migrationClock } from "../platform/test-support/migration-clock";
-import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { addToStockBalance, insertSaleStockMovement } from "../stock/sqlite-stock-ledger";
 import type { RegisterPulledChange } from "./pulled-change";
-import { SqliteLocalReplica } from "./sqlite-local-replica";
+import type { SqliteLocalReplica } from "./sqlite-local-replica";
+import { openAdoptedReplica, savePulledChanges } from "./test-support/sqlite-local-replica";
 
-const PEPPER = Buffer.alloc(32, 7).toString("base64url");
 const PRODUCT_ID = "0b1d2f4a-6c3e-4b7d-9a58-1e2f3a4b5c6d";
 const SOLD_AT = "2026-10-09T14:20:00.000Z";
 const COUNTED_AT = "2026-10-09T15:00:00.000Z";
@@ -35,9 +32,8 @@ function stockMovementChange(
   return { changeSeq, change };
 }
 
-async function save(...changes: RegisterPulledChange[]) {
-  const cursor = changes.at(-1)?.changeSeq ?? 0;
-  await replica.savePage({ changes, cursor, hasMore: false });
+function save(...changes: RegisterPulledChange[]) {
+  return savePulledChanges(replica, ...changes);
 }
 
 function balance(): number | undefined {
@@ -71,9 +67,7 @@ let database: LocalDatabase;
 let replica: SqliteLocalReplica;
 
 beforeEach(() => {
-  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
-  replica = new SqliteLocalReplica(database);
-  replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+  ({ database, replica } = openAdoptedReplica());
   addToStockBalance(database, PRODUCT_ID, 10_000);
 });
 

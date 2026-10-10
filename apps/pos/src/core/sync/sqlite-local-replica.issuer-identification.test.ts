@@ -5,14 +5,11 @@ import {
 } from "@purosur/domain/fiscal/test-support";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
-import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
-import { migrationClock } from "../platform/test-support/migration-clock";
-import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import type { RegisterPulledChange } from "./pulled-change";
-import { SqliteLocalReplica } from "./sqlite-local-replica";
+import type { SqliteLocalReplica } from "./sqlite-local-replica";
+import { openAdoptedReplica, savePulledChanges } from "./test-support/sqlite-local-replica";
 
 const ISSUER_ID = "7f3b9a05-b8ca-4e7d-8fc0-4b6c8e0a2d37";
-const PEPPER = Buffer.alloc(32, 7).toString("base64url");
 
 type IssuerRow = Extract<SyncChange, { entity: "issuer_identification" }>["row"];
 
@@ -38,9 +35,8 @@ function issuerChange(changeSeq: number, row: IssuerRow): RegisterPulledChange {
   return { changeSeq, change };
 }
 
-async function save(...changes: RegisterPulledChange[]) {
-  const cursor = changes.at(-1)?.changeSeq ?? 0;
-  await replica.savePage({ changes, cursor, hasMore: false });
+function save(...changes: RegisterPulledChange[]) {
+  return savePulledChanges(replica, ...changes);
 }
 
 function savedVersions() {
@@ -57,9 +53,7 @@ let database: LocalDatabase;
 let replica: SqliteLocalReplica;
 
 beforeEach(() => {
-  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
-  replica = new SqliteLocalReplica(database);
-  replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+  ({ database, replica } = openAdoptedReplica());
 });
 
 afterEach(() => {

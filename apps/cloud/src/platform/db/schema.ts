@@ -1,7 +1,9 @@
 import {
   ALERT_AUDIENCES,
   ALERT_LEVELS,
+  FACTURA_C_DOCUMENT_TYPE,
   type JsonValue,
+  OFFLINE_NUMBER_BLOCK_STATUSES,
   POINT_OF_SALE_NUMBER_MAX,
   RECEIPT_TYPES,
 } from "@purosur/domain";
@@ -819,6 +821,58 @@ export const registerOfflinePointsOfSale = pgTable(
   ],
 );
 
+export const offlineNumberBlockStatus = pgEnum(
+  "offline_number_block_status",
+  OFFLINE_NUMBER_BLOCK_STATUSES,
+);
+
+// Permanent: a block handed out is never deleted, whatever its status.
+export const offlineNumberBlocks = pgTable(
+  "offline_number_blocks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    pointOfSaleNumber: integer("point_of_sale_number").notNull(),
+    documentType: text("document_type").notNull(),
+    registerId: uuid("register_id").notNull(),
+    mechanism: pointOfSaleMechanism("mechanism").notNull().default("offline"),
+    firstNumber: integer("first_number").notNull(),
+    lastNumber: integer("last_number").notNull(),
+    status: offlineNumberBlockStatus("status").notNull(),
+    assignedAt: timestamp("assigned_at", { withTimezone: true }).notNull(),
+    version: integer("version").notNull(),
+  },
+  (table) => [
+    check("offline_number_blocks_mechanism_offline", sql`${table.mechanism} = 'offline'`),
+    check(
+      "offline_number_blocks_document_type_known",
+      sql`${table.documentType} in (${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}'`)})`,
+    ),
+    check(
+      "offline_number_blocks_range_valid",
+      sql`${table.firstNumber} >= 1 and ${table.lastNumber} >= ${table.firstNumber}`,
+    ),
+    unique("offline_number_blocks_first_number_key").on(
+      table.pointOfSaleNumber,
+      table.documentType,
+      table.firstNumber,
+    ),
+    unique("offline_number_blocks_last_number_key").on(
+      table.pointOfSaleNumber,
+      table.documentType,
+      table.lastNumber,
+    ),
+    foreignKey({
+      name: "offline_number_blocks_claim_fk",
+      columns: [table.pointOfSaleNumber, table.registerId, table.mechanism],
+      foreignColumns: [
+        pointOfSaleClaims.pointOfSaleNumber,
+        pointOfSaleClaims.registerId,
+        pointOfSaleClaims.mechanism,
+      ],
+    }),
+  ],
+);
+
 export const installationRevocationReason = pgEnum("installation_revocation_reason", [
   "replaced",
   "outbox_chain_broken",
@@ -1184,11 +1238,15 @@ export const changes = pgTable(
     // Set on a user's and a stock movement's changes only, so the feed can tell which branch a
     // user belongs to after the user itself is gone.
     locationId: uuid("location_id"),
+    // Set on an offline number block's changes only, so the feed can tell which register a block
+    // belongs to.
+    registerId: uuid("register_id"),
   },
   (table) => [
     index("changes_entity_entity_id_idx").on(table.entity, table.entityId, table.changeSeq),
     index("changes_entity_price_list_id_idx").on(table.entity, table.priceListId, table.changeSeq),
     index("changes_entity_location_id_idx").on(table.entity, table.locationId, table.changeSeq),
+    index("changes_entity_register_id_idx").on(table.entity, table.registerId, table.changeSeq),
   ],
 );
 
@@ -1595,6 +1653,7 @@ export const caeaCodeOrigin = pgEnum("caea_code_origin", ["requested", "recovere
 export const caeaCodes = pgTable(
   "caea_codes",
   {
+    id: uuid("id").notNull().unique().defaultRandom(),
     fortnightStart: date("fortnight_start", { mode: "string" }).primaryKey(),
     fortnightEnd: date("fortnight_end", { mode: "string" }).notNull(),
     code: text("code").notNull(),

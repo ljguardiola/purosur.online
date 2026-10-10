@@ -1,15 +1,12 @@
 import type { SyncChange } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
-import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
-import { migrationClock } from "../platform/test-support/migration-clock";
-import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import type { RegisterPulledChange } from "./pulled-change";
-import { SqliteLocalReplica } from "./sqlite-local-replica";
+import type { SqliteLocalReplica } from "./sqlite-local-replica";
+import { openAdoptedReplica, savePulledChanges } from "./test-support/sqlite-local-replica";
 
 const THRESHOLD_ID = "8a4c0b16-c9db-4f8e-9ad1-5c7d9f1b3e48";
 const LATER_THRESHOLD_ID = "9b5d1c27-daec-4a9f-8be2-6d8e0a2c4f59";
-const PEPPER = Buffer.alloc(32, 7).toString("base64url");
 
 function thresholdChange(
   changeSeq: number,
@@ -27,9 +24,8 @@ function thresholdChange(
   return { changeSeq, change };
 }
 
-async function save(...changes: RegisterPulledChange[]) {
-  const cursor = changes.at(-1)?.changeSeq ?? 0;
-  await replica.savePage({ changes, cursor, hasMore: false });
+function save(...changes: RegisterPulledChange[]) {
+  return savePulledChanges(replica, ...changes);
 }
 
 function savedThresholds() {
@@ -44,9 +40,7 @@ let database: LocalDatabase;
 let replica: SqliteLocalReplica;
 
 beforeEach(() => {
-  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
-  replica = new SqliteLocalReplica(database);
-  replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+  ({ database, replica } = openAdoptedReplica());
 });
 
 afterEach(() => {
