@@ -15,7 +15,6 @@ import {
 import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzlePointOfSaleLanes } from "./drizzle-point-of-sale-lanes.js";
-import { DrizzleTaxAuthorityCounts } from "./drizzle-tax-authority-counts.js";
 import {
   authorizationRequestRecord,
   insertRegisterWithPointOfSale,
@@ -422,28 +421,6 @@ describe("DrizzlePointOfSaleLanes", () => {
       expect(await changesLoggedAfter(db, mark)).toMatchObject([
         { entity: "register_point_of_sale", entityId: registerId, op: "update" },
       ]);
-    });
-
-    it("never lowers a higher count already stored", async () => {
-      const registerId = await insertRegisterWithPointOfSale(db, {
-        pointOfSaleNumber: 7,
-        name: "caja-1",
-      });
-      const request = authorizationRequestRecord(registerId);
-      await lanes.inPointOfSaleLane(7, (lane) => lane.recordRequest(request));
-      await new DrizzleTaxAuthorityCounts(db).record({ ...COUNT, lastAuthorized: 50 });
-
-      await lanes.inPointOfSaleLane(7, (lane) =>
-        lane.recordTaxAuthorityAnswer(
-          request.fiscalDocumentId,
-          AUTHORIZED,
-          ANSWERED_AT,
-          null,
-          COUNT,
-        ),
-      );
-
-      expect(await storedCount()).toBe(50);
     });
 
     it("leaves no answer and no count when recording the evidence fails", async () => {

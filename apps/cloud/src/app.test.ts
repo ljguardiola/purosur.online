@@ -30,10 +30,12 @@ import {
   vi,
 } from "vitest";
 import { type BuildAppOptions, buildApp as buildRealApp, databaseRouteOptions } from "./app.js";
+import { insertRegisterWithPointOfSale } from "./fiscal/test-support/authorization-request-fixtures.js";
 import { seedOfflinePointOfSale } from "./fiscal/test-support/offline-point-of-sale-fixtures.js";
 import {
   arcaVitalityChecks,
   passkeys,
+  registerEnrollmentCodes,
   rolePermissions,
   roles,
   sessions,
@@ -41,6 +43,7 @@ import {
   users,
 } from "./platform/db/schema.js";
 import type { DedicatedConnections } from "./platform/dedicated-connections.js";
+import { hashSecretCode } from "./platform/secret-code.js";
 import { insertEnrolledInstallation } from "./register/test-support/enrolled-installation.js";
 import {
   capabilityAccess,
@@ -221,6 +224,43 @@ describe("GET /api/changes", () => {
 
     expect(response.statusCode).toBe(200);
     expect(enqueueOfflineAuthorizationCodeRequest).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("POST /api/devices", () => {
+  it("queues a new read of the tax authority's count of the enrolled register's point of sale when the read is wired", async () => {
+    const code = "P4NX7KWE2QRT6MZD";
+    const registerId = await insertRegisterWithPointOfSale(testDatabase.db, {
+      pointOfSaleNumber: 7,
+      name: "caja-con-punto",
+    });
+    await testDatabase.db.insert(registerEnrollmentCodes).values({
+      registerId,
+      codeLookup: code.slice(0, 4),
+      codeHash: hashSecretCode(code),
+      issuedAt: APP_CLOCK,
+      expiresAt: new Date(APP_CLOCK.getTime() + 10 * 60 * 1000),
+    });
+    const enqueueTaxAuthorityCountOnEnrollment = vi.fn(async () => undefined);
+    const app = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      devices: {
+        db: testDatabase.db,
+        rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+        keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+      },
+      enqueueTaxAuthorityCountOnEnrollment,
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/devices",
+      payload: { code, hostname: "CAJA-MOSTRADOR", windows_version: "Windows 11 Pro" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(enqueueTaxAuthorityCountOnEnrollment).toHaveBeenCalledWith(expect.anything(), 7);
   });
 });
 

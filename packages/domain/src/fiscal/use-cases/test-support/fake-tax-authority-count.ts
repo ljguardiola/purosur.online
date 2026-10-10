@@ -21,9 +21,24 @@ export class FakeLastAuthorizedLookup implements TaxAuthorityLastAuthorizedLooku
 }
 
 export class FakeTaxAuthorityCounts implements TaxAuthorityCounts {
-  readonly recorded: LastAuthorizedCount[] = [];
+  readonly stored: LastAuthorizedCount[];
 
-  async record(count: LastAuthorizedCount): Promise<void> {
-    this.recorded.push({ ...count, readAt: new Date(count.readAt) });
+  constructor(stored: LastAuthorizedCount[] = []) {
+    this.stored = stored.map((count) => ({ ...count, readAt: new Date(count.readAt) }));
+  }
+
+  async advance(count: LastAuthorizedCount): Promise<void> {
+    const index = this.stored.findIndex((held) => held.pointOfSale === count.pointOfSale);
+    const held = this.stored[index];
+    const advanced = {
+      ...count,
+      lastAuthorized: Math.max(held?.lastAuthorized ?? count.lastAuthorized, count.lastAuthorized),
+      readAt: new Date(count.readAt),
+    };
+    if (held === undefined) {
+      this.stored.push(advanced);
+    } else {
+      this.stored[index] = advanced;
+    }
   }
 }
