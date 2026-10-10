@@ -122,14 +122,14 @@ describe("the on-demand request for the offline authorization code on a real Pos
 
   it("revives a job that used up its attempts", async () => {
     await pull();
-    await failedFarInTheFuture(10);
+    const failedRunAt = await failedFarInTheFuture(10);
 
     await pull();
 
     const waiting = (await requestJobs()).filter(({ key }) => key !== null);
     expect(waiting).toHaveLength(1);
     expect(waiting[0]?.attempts).toBe(0);
-    expect(waiting[0]?.runAt.getTime()).toBeLessThanOrEqual(Date.now());
+    expect(waiting[0]?.runAt.getTime()).toBeLessThan(failedRunAt.getTime());
   });
 
   it("enqueues exactly one job for pulls that run at the same time", async () => {
