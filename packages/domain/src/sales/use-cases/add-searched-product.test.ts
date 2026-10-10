@@ -12,6 +12,18 @@ import {
 } from "./test-support/fake-sale-ledger.js";
 
 const NOW = new Date("2026-09-30T12:34:56.789Z");
+
+function pendingQrEndingAt(waitEndsAt: Date) {
+  return {
+    id: "qr-1",
+    saleId: "sale-1",
+    amount: 1000,
+    occurredAt: new Date(waitEndsAt.getTime() - 180_000),
+    waitEndsAt,
+  };
+}
+const IN_ITS_WAIT = pendingQrEndingAt(new Date(NOW.getTime() + 60_000));
+const WAIT_ENDED = pendingQrEndingAt(new Date(NOW.getTime() - 1));
 const LONG_AGO = new Date("2026-01-01T00:00:00.000Z");
 const CASHIER = { isAdministrator: false, permissionKeys: ["sell_and_charge"] };
 const SESSION = { id: "session-1", openedBy: "cashier" };
@@ -256,6 +268,22 @@ describe("add-searched-product on a sale with an approved payment", () => {
       sales: [OPEN_SALE],
       payments: [{ ...PAYMENT, saleId: "sale-9" }],
     });
+
+    expect(add(store)).toMatchObject({ kind: "added" });
+  });
+});
+
+describe("add-searched-product while a QR charge of the sale is in its wait", () => {
+  it("refuses to add a line, writing nothing", () => {
+    const store = ledger({ sales: [OPEN_SALE], pendingQrPayments: [IN_ITS_WAIT] });
+    const before = structuredClone(store.state);
+
+    expect(add(store)).toEqual({ kind: "sale_has_payments" });
+    expect(store.state).toEqual(before);
+  });
+
+  it("adds again once the wait has ended", () => {
+    const store = ledger({ sales: [OPEN_SALE], pendingQrPayments: [WAIT_ENDED] });
 
     expect(add(store)).toMatchObject({ kind: "added" });
   });

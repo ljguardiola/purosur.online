@@ -616,3 +616,48 @@ describe("cancelPaidSale", () => {
     });
   });
 });
+
+describe("cancelPaidSale with a QR charge", () => {
+  function pendingQrEndingAt(waitEndsAt: Date) {
+    return {
+      id: "qr-9",
+      saleId: "sale-1",
+      amount: 1000,
+      occurredAt: new Date(waitEndsAt.getTime() - 180_000),
+      waitEndsAt,
+    };
+  }
+
+  it.each(["sale", "locked_register"] as const)(
+    "refuses from the %s while the QR charge is in its wait, changing nothing",
+    async (from) => {
+      const store = ledger({
+        payments: [],
+        pendingQrPayments: [pendingQrEndingAt(new Date(NOW.getTime() + 60_000))],
+      });
+      const before = structuredClone(store.state);
+
+      const outcome = await cancel(
+        store,
+        from === "sale" ? OWN_GRANT : CLOSER_GRANT,
+        "sale-1",
+        from,
+      );
+
+      expect(outcome).toEqual({ kind: "qr_charge_in_progress" });
+      expect(store.state).toEqual(before);
+    },
+  );
+
+  it("keeps a sale without approved payments, cancelled now, after the wait, sending no event", async () => {
+    const pending = pendingQrEndingAt(new Date(NOW.getTime() - 1));
+    const store = ledger({ payments: [], movements: [], pendingQrPayments: [pending] });
+
+    const outcome = await cancel(store);
+
+    expect(outcome).toEqual({ kind: "cancelled", refunds: [], grant: OWN_GRANT });
+    expect(store.state.sales).toEqual([{ ...OPEN_SALE, state: "CANCELLED", occurredAt: NOW }]);
+    expect(store.state.pendingQrPayments).toEqual([pending]);
+    expect(store.state.outbox).toEqual([]);
+  });
+});

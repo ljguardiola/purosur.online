@@ -14,6 +14,18 @@ import {
 } from "./test-support/fake-sale-ledger.js";
 
 const NOW = new Date("2026-09-30T12:34:56.789Z");
+
+function pendingQrEndingAt(waitEndsAt: Date) {
+  return {
+    id: "qr-1",
+    saleId: "sale-1",
+    amount: 1000,
+    occurredAt: new Date(waitEndsAt.getTime() - 180_000),
+    waitEndsAt,
+  };
+}
+const IN_ITS_WAIT = pendingQrEndingAt(new Date(NOW.getTime() + 60_000));
+const WAIT_ENDED = pendingQrEndingAt(new Date(NOW.getTime() - 1));
 const IDENTITY = { registerId: "register-1", deviceId: "device-1" };
 const CASHIER = { isAdministrator: false, permissionKeys: ["sell_and_charge"] };
 const SESSION = { id: "session-1", openedBy: "cashier" };
@@ -704,6 +716,22 @@ describe("add-scanned-product on a sale with an approved payment", () => {
       sales: [OPEN_SALE],
       payments: [{ ...PAYMENT, saleId: "sale-9" }],
     });
+
+    expect(scan(store)).toMatchObject({ kind: "added" });
+  });
+});
+
+describe("add-scanned-product while a QR charge of the sale is in its wait", () => {
+  it("refuses to add a line, writing nothing", () => {
+    const store = ledger({ sales: [OPEN_SALE], pendingQrPayments: [IN_ITS_WAIT] });
+    const before = structuredClone(store.state);
+
+    expect(scan(store)).toEqual({ kind: "sale_has_payments" });
+    nothingRecorded(store, before);
+  });
+
+  it("adds again once the wait has ended, the QR payment still pending", () => {
+    const store = ledger({ sales: [OPEN_SALE], pendingQrPayments: [WAIT_ENDED] });
 
     expect(scan(store)).toMatchObject({ kind: "added" });
   });

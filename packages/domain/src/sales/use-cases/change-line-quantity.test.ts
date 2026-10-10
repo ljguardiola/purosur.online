@@ -9,6 +9,18 @@ import {
 } from "./test-support/fake-sale-ledger.js";
 
 const NOW = new Date("2026-09-30T12:34:56.789Z");
+
+function pendingQrEndingAt(waitEndsAt: Date) {
+  return {
+    id: "qr-1",
+    saleId: "sale-1",
+    amount: 1000,
+    occurredAt: new Date(waitEndsAt.getTime() - 180_000),
+    waitEndsAt,
+  };
+}
+const IN_ITS_WAIT = pendingQrEndingAt(new Date(NOW.getTime() + 60_000));
+const WAIT_ENDED = pendingQrEndingAt(new Date(NOW.getTime() - 1));
 const CASHIER = { isAdministrator: false, permissionKeys: ["sell_and_charge"] };
 const SESSION = { id: "session-1", openedBy: "cashier" };
 const YERBA_LINE = {
@@ -400,6 +412,22 @@ describe("changeLineQuantity on a sale with an approved payment", () => {
 
   it("still changes a sale whose payments belong to another sale", () => {
     const store = ledger({ payments: [{ ...PAYMENT, saleId: "sale-9" }] });
+
+    expect(change(store, "line-1", 5)).toMatchObject({ kind: "changed" });
+  });
+});
+
+describe("changeLineQuantity while a QR charge of the sale is in its wait", () => {
+  it("refuses to change a line, writing nothing", () => {
+    const store = ledger({ pendingQrPayments: [IN_ITS_WAIT] });
+    const before = structuredClone(store.state);
+
+    expect(change(store, "line-1", 5)).toEqual({ kind: "sale_has_payments" });
+    expect(store.state).toEqual(before);
+  });
+
+  it("changes it again once the wait has ended", () => {
+    const store = ledger({ pendingQrPayments: [WAIT_ENDED] });
 
     expect(change(store, "line-1", 5)).toMatchObject({ kind: "changed" });
   });
