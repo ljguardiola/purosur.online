@@ -1,3 +1,4 @@
+import { registerRendererToCoreMessageSchema } from "@purosur/contracts";
 import { expect, test } from "vitest";
 import {
   EMPTY_RECEIPT_PRINTER_FORM,
@@ -29,17 +30,14 @@ test("the typed address is sent as it was typed", () => {
   });
 });
 
-test.each(["10.10.10.2", "10.10.10.2:9100", " ticketera "])(
-  "the request's shape accepts '%s'",
+test.each(["10.10.10.2", "10.10.10.2:9100", " ticketera ", "", "10.10.10.2:0", "una impresora"])(
+  "the request's shape takes '%s' as the set-receipt-printer message does",
   (address) => {
-    expect(receiptPrinterRequestSchema.safeParse({ address }).success).toBe(true);
-  },
-);
+    const message = { type: "set-receipt-printer", request_id: "r1", address };
 
-test.each(["", "  ", "10.10.10.2:0", "10.10.10.2:99999", "10.10.10.2:", "una impresora"])(
-  "the request's shape rejects '%s'",
-  (address) => {
-    expect(receiptPrinterRequestSchema.safeParse({ address }).success).toBe(false);
+    expect(receiptPrinterRequestSchema.safeParse({ address }).success).toBe(
+      registerRendererToCoreMessageSchema.safeParse(message).success,
+    );
   },
 );
 

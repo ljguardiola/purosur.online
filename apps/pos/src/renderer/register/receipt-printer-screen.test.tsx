@@ -153,30 +153,26 @@ describe("ReceiptPrinterScreen", () => {
       .toBeVisible();
   });
 
-  it("asks for an address instead of sending an empty one", async () => {
-    const { screen, setReceiptPrinter } = await renderScreen();
+  it("asks for an address when the core refuses an empty one", async () => {
+    const { screen, setReceiptPrinter } = await renderScreen({
+      set: async () => ({ kind: "invalid_address" }),
+    });
 
     await userEvent.click(screen.getByRole("button", { name: "Guardar" }));
 
     await expect.element(screen.getByText("Escribí la dirección de la impresora.")).toBeVisible();
-    expect(setReceiptPrinter).not.toHaveBeenCalled();
+    expect(setReceiptPrinter).toHaveBeenCalledExactlyOnceWith("");
   });
 
-  it("explains what an address looks like instead of sending one that is not an address", async () => {
-    const { screen, setReceiptPrinter } = await renderScreen();
+  it("explains what an address looks like when the core refuses the one sent", async () => {
+    const { screen, setReceiptPrinter } = await renderScreen({
+      set: async () => ({ kind: "invalid_address" }),
+    });
 
     await save(screen, "10.10.10.2:99999");
 
     await expect.element(screen.getByText(INVALID_RECEIPT_PRINTER_ADDRESS_MESSAGE)).toBeVisible();
-    expect(setReceiptPrinter).not.toHaveBeenCalled();
-  });
-
-  it("explains what an address looks like when the core refuses the one sent", async () => {
-    const { screen } = await renderScreen({ set: async () => ({ kind: "invalid_address" }) });
-
-    await save(screen, "10.10.10.9");
-
-    await expect.element(screen.getByText(INVALID_RECEIPT_PRINTER_ADDRESS_MESSAGE)).toBeVisible();
+    expect(setReceiptPrinter).toHaveBeenCalledExactlyOnceWith("10.10.10.2:99999");
   });
 
   it("says the person may no longer configure the printer when the core refuses them", async () => {
