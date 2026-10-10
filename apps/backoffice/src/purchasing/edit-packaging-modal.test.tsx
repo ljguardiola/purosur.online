@@ -94,7 +94,7 @@ test("asks for the quantity again, in its product's current sale unit, when the 
     .fn<EditPackagingModalServices["editPackaging"]>()
     .mockResolvedValue({ kind: "ok" });
   const screen = await renderModal({
-    target: { ...bolsaDeAvena, productSaleUnit: "UNIT" },
+    target: { ...bolsaDeAvena, productSaleUnit: "UNIT", saleUnitChanged: true },
     editPackaging,
   });
   const dialog = screen.getByRole("dialog");

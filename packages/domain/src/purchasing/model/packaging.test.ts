@@ -2,6 +2,7 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { MAX_STOCK_QUANTITY, STOCK_QUANTITY_PER_UNIT } from "../../stock/index.js";
 import {
+  hasProductSaleUnitChanged,
   isPackagingNameTooLong,
   isQuantityPerPackage,
   mayDefinePackagingsFor,
@@ -68,5 +69,14 @@ describe("mayDefinePackagingsFor", () => {
   it("lets packagings be defined for an active product only", () => {
     expect(mayDefinePackagingsFor({ active: true })).toBe(true);
     expect(mayDefinePackagingsFor({ active: false })).toBe(false);
+  });
+});
+
+describe("hasProductSaleUnitChanged", () => {
+  it("answers whether a packaging's quantity is stated in a sale unit its product no longer has", () => {
+    expect(hasProductSaleUnitChanged("UNIT", "UNIT")).toBe(false);
+    expect(hasProductSaleUnitChanged("KG", "KG")).toBe(false);
+    expect(hasProductSaleUnitChanged("KG", "UNIT")).toBe(true);
+    expect(hasProductSaleUnitChanged("UNIT", "KG")).toBe(true);
   });
 });

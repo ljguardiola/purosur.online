@@ -22,6 +22,19 @@ describe("findPackagingListing", () => {
       ...CAJA,
       productName: "Yerba",
       productSaleUnit: "UNIT",
+      saleUnitChanged: false,
+    });
+  });
+
+  it("answers that the sale unit changed for a packaging stated in one its product no longer has", async () => {
+    const bolsa = { ...CAJA, saleUnit: "KG" as const };
+    const reader = new FakePurchasingListReader({ packagings: [bolsa], products: [YERBA] });
+
+    expect(await findPackagingListing(reader, "k-1")).toEqual({
+      ...bolsa,
+      productName: "Yerba",
+      productSaleUnit: "UNIT",
+      saleUnitChanged: true,
     });
   });
 

@@ -41,16 +41,19 @@ describe("editPackaging", () => {
 
   it("answers not_found for a packaging missing when it is locked after its product", async () => {
     const store = storeWithCaja();
-    store.seedPackaging({ ...CAJA, id: "k-2", productId: "gone" });
+    store.packagingsGoneOnceTheirProductIsLocked.add("k-1");
 
     const outcome = await editPackaging(store, {
-      id: "k-2",
+      id: "k-1",
       ...SAME,
+      name: "Caja",
       version: 3,
       actorId: ACTOR,
     });
 
     expect(outcome).toEqual({ kind: "not_found" });
+    expect(store.lockCallOrder).toEqual(["lockProductOfPackaging", "lockPackaging"]);
+    expect(store.snapshot().packagings).toEqual([{ ...CAJA, writtenBy: null }]);
   });
 
   it("locks the packaging's product first and the packaging second", async () => {

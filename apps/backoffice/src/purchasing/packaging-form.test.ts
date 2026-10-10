@@ -106,7 +106,7 @@ describe("packagingFormValuesOf", () => {
   });
 
   it("leaves the quantity empty when it is stated in a sale unit its product no longer has", () => {
-    expect(packagingFormValuesOf({ ...bolsaDeAvena, productSaleUnit: "UNIT" })).toEqual({
+    expect(packagingFormValuesOf({ ...bolsaDeAvena, saleUnitChanged: true })).toEqual({
       productId: bolsaDeAvena.productId,
       name: "Bolsa de 25 kg",
       quantity: "",

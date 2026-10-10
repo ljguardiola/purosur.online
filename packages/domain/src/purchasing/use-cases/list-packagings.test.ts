@@ -33,17 +33,17 @@ describe("listPackagings", () => {
     });
 
     expect(await listPackagings(reader)).toEqual([
-      { ...bolsa, productName: "Harina", productSaleUnit: "KG" },
-      { ...CAJA, productName: "Yerba", productSaleUnit: "UNIT" },
+      { ...bolsa, productName: "Harina", productSaleUnit: "KG", saleUnitChanged: false },
+      { ...CAJA, productName: "Yerba", productSaleUnit: "UNIT", saleUnitChanged: false },
     ]);
   });
 
-  it("keeps the sale unit a packaging's quantity is stated in apart from its product's current one", async () => {
+  it("answers that the sale unit changed for a packaging stated in one its product no longer has", async () => {
     const bolsa = { ...CAJA, saleUnit: "KG" as const, active: false };
     const reader = new FakePurchasingListReader({ packagings: [bolsa], products: [YERBA] });
 
     expect(await listPackagings(reader)).toEqual([
-      { ...bolsa, productName: "Yerba", productSaleUnit: "UNIT" },
+      { ...bolsa, productName: "Yerba", productSaleUnit: "UNIT", saleUnitChanged: true },
     ]);
   });
 
@@ -52,7 +52,7 @@ describe("listPackagings", () => {
     const reader = new FakePurchasingListReader({ packagings: [old], products: [RETIRED] });
 
     expect(await listPackagings(reader)).toEqual([
-      { ...old, productName: "Antiguo", productSaleUnit: "UNIT" },
+      { ...old, productName: "Antiguo", productSaleUnit: "UNIT", saleUnitChanged: false },
     ]);
   });
 
