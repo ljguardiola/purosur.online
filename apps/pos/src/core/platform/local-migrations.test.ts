@@ -876,6 +876,7 @@ describe("the register's local migrations", () => {
         "0032_offline_numbering",
         "0033_weighed_sale_lines",
         "0035_domain_fiscal_document_type",
+        "0036_replaced_qr_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -937,6 +938,7 @@ describe("the register's local migrations", () => {
         "0032_offline_numbering",
         "0033_weighed_sale_lines",
         "0035_domain_fiscal_document_type",
+        "0036_replaced_qr_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -993,6 +995,7 @@ describe("the register's local migrations", () => {
         "0032_offline_numbering",
         "0033_weighed_sale_lines",
         "0035_domain_fiscal_document_type",
+        "0036_replaced_qr_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1048,6 +1051,7 @@ describe("the register's local migrations", () => {
         "0032_offline_numbering",
         "0033_weighed_sale_lines",
         "0035_domain_fiscal_document_type",
+        "0036_replaced_qr_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1130,6 +1134,7 @@ describe("the register's local migrations", () => {
         "0032_offline_numbering",
         "0033_weighed_sale_lines",
         "0035_domain_fiscal_document_type",
+        "0036_replaced_qr_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1204,6 +1209,7 @@ describe("the register's local migrations", () => {
         "0032_offline_numbering",
         "0033_weighed_sale_lines",
         "0035_domain_fiscal_document_type",
+        "0036_replaced_qr_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1282,6 +1288,7 @@ describe("the register's local migrations", () => {
         "0032_offline_numbering",
         "0033_weighed_sale_lines",
         "0035_domain_fiscal_document_type",
+        "0036_replaced_qr_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1343,6 +1350,7 @@ describe("the register's local migrations", () => {
         "0032_offline_numbering",
         "0033_weighed_sale_lines",
         "0035_domain_fiscal_document_type",
+        "0036_replaced_qr_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1396,6 +1404,7 @@ describe("the register's local migrations", () => {
         "0032_offline_numbering",
         "0033_weighed_sale_lines",
         "0035_domain_fiscal_document_type",
+        "0036_replaced_qr_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -2196,6 +2205,7 @@ describe("the register's local migrations", () => {
       );
       expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
         "0035_domain_fiscal_document_type",
+        "0036_replaced_qr_payments",
       );
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
